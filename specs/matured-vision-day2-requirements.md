@@ -406,10 +406,12 @@ data store.
 > The Retention Policy Engine routes by retention duration: short TTL → RocksDB hot; long /
 > explicit-`RETAIN` → Iceberg cold. **`RETAIN <dur>`** writes rows to an Iceberg table; **`FROM
 > cache.<name>`** reads them. This is the concrete implementation of the previously-deferred P4
-> cold-tier (below), and it **unifies the cache with the Amazon Security Lake connector (§3.5):
-> Security Lake IS OCSF-as-Iceberg, so the cold-cache read path and the lake read path are the SAME
-> DataFusion + Iceberg TableProvider** — one mechanism, not two. The long-baseline storage also
-> serves statistical/anomaly detection (Section 14).
+> cold-tier (below), and it **unifies the cache with the Amazon Security Lake connector (§3.5) at the
+> DataFusion ENGINE level: one DataFusion engine, two TableProviders — the self-managed cold tier reads
+> via `IcebergTableProvider`; Amazon Security Lake reads via a distinct Glue/Hive-Parquet (`ListingTable`)
+> provider. The engine-level unification (no second query engine) holds; the storage-format equivalence
+> does not** (Security Lake is OCSF Parquet in Hive-style partitions, NOT Apache Iceberg — see D-C5-1,
+> 2026-06-27). The long-baseline storage also serves statistical/anomaly detection (Section 14).
 >
 > **Multi-schema (critical):** the Iceberg cold tier is **NOT one OCSF table.** It is a set of tables
 > keyed by **(source-class, schema, schema-version)** — OCSF-vN tables (OCSF is itself versioned:
@@ -2375,6 +2377,79 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
   connector.schema.identifier.rejected + connector.schema.coercion.lossy (morph-time).
   §3.4 C4 decision block appended in-place. §13 C4 pointer appended in-place.
   Proposed epic: E-CONNECTOR-DYNAMIC-001 (§13.4).
+
+- **C5 SIEM / Security-Lake Federation DECIDED + CAPTURED 2026-06-27 (human).** Five architecture
+  decisions D-C5-1..5 confirmed; leans confirmed. Capture artifact:
+  `specs/day2-design-decisions/ADR-PROP-siem-lake-federation.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/siem-lake-federation-2026-06-27.md` (C5 flagship research) +
+  `research/coldtier-iceberg-vs-hive-parquet-2026-06-27.md` (head-to-head, Iceberg reaffirmed).
+  **D-C5-1 CORRECTION (load-bearing):** Amazon Security Lake is OCSF Parquet in Hive-style
+  partitions (`region=/accountId=/eventDay=`) cataloged in AWS Glue Data Catalog + Lake Formation —
+  NOT Apache Iceberg (Iceberg appears only in the separate S3 Tables service). The §3.3 addendum
+  sentence has been corrected in-place above: "one DataFusion ENGINE, two TableProviders — the
+  self-managed cold tier reads via `IcebergTableProvider`; Amazon Security Lake reads via a distinct
+  Glue/Hive-Parquet (`ListingTable`) provider. The engine-level unification holds; the
+  storage-format equivalence does not." This correction stands regardless of the cold-tier format
+  choice (Security Lake is Hive-Parquet either way).
+  **D-C5-1b COLD TIER = APACHE ICEBERG, REAFFIRMED 2026-06-27 (human).** The head-to-head
+  (`coldtier-iceberg-vs-hive-parquet-2026-06-27.md`) leaned SWITCH-to-Hive-Parquet but the human
+  REAFFIRMED Iceberg for: ACID + field-ID schema-evolution + row-level-mutation HEADROOM (GDPR
+  erasure / customer offboarding / event correction — research flip conditions #1/#2), choosing
+  durability + future-proofing over the one-provider simplification. ADR-PROP row 2 (Apache Iceberg
+  cold tier) STANDS. iceberg-rust reached 0.9.0 (2026-03-10) with significantly expanded
+  DataFusion integration (DDL-via-SQL, limit + broad predicate pushdown, sort-clustered partitioned
+  insert) but remains pre-1.0. R4's original "Security Lake IS Iceberg → one mechanism"
+  justification was a false premise (corrected per D-C5-1); the Iceberg cold-tier decision is
+  reaffirmed on R2/R3 (schema evolution) + row-level-mutation headroom, NOT on R4.
+  **D-C5-2 SECURITY LAKE BINDING = S3 data-access subscriber DEFAULT** (read raw OCSF Parquet from
+  S3 with IAM creds; prism does partition projection on `region/accountId/eventDay` + OCSF
+  interpretation — sidesteps the iceberg-rust Glue gap, dogfood-consistent), with
+  `LAKEFORMATION` query-access (Glue/Athena, LF-governed) as an OPT-IN for deployments that
+  mandate it.
+  **D-C5-3 RESIDENCY = REJECT AT PLAN-TIME, UNIFORM with D-C2-12.** A query targeting a lake in a
+  residency-disallowed region/tenant is REJECTED at PrismQL plan-time before any S3 GET, via
+  fail-closed descriptor binding (out-of-region tables not bound) + explicit residency-denied
+  structured audit event. REVERSES an initial degrade lean — residency is a HARD boundary
+  everywhere (mesh AND lake), NOT a cost-degrade surface. Asymmetric with D-C3-1 cost-based-degrade
+  join posture (residency = hard/reject; cost guards = degrade); asymmetry is intentional.
+  **D-C5-4 iceberg-rust LINEAGE = DEFER binding to morph-time prototype bake-off.** Both ASF
+  `apache/iceberg-rust` and `JanKaul/iceberg-rust` recorded as candidates. Lean: ASF + REST/S3-Tables
+  catalog (icepick-proven) as probable default; JanKaul only if direct-Glue/equality-deletes become
+  hard requirements.
+  **D-C5-5 FEDERATION SOURCES ARE CONNECTORS → PLUGINS (HUMAN DIRECTIVE, load-bearing).** Amazon
+  Security Lake AND every SIEM/lake federation source (Splunk, Elastic/OpenSearch, Microsoft
+  Sentinel, Google SecOps/Chronicle, Snowflake, Databricks) is a Connector per §3.4 taxonomy, and
+  connectors ARE REQUIRED to be PLUGINS (per the connector-plugin model + existing plugin SDK at
+  `crates/prism-spec-engine/plugins/`). They are NOT core-engine built-ins. CRITICAL ASYMMETRY:
+  the self-managed Iceberg cold-tier provider is prism-INTERNAL/CORE (prism's own storage); the
+  Security Lake (Glue/Hive-Parquet) provider AND all SIEM adapters are CONNECTOR PLUGINS. These
+  federation connector-plugins INHERIT all C4 connector decisions: D-C4-1 mandatory
+  boundary-normalization chokepoint; D-C4-3 capability-sandboxed (Wasmtime WASI-P2
+  no-ambient-authority) WASM plugin host; opaque credentials resolved satellite-local (AD-017 / C2);
+  discover-then-pin static-TOML-default with confirm-or-narrow probes; the C3 capability-descriptor
+  with per-(table, schema-class, schema-VERSION) key.
+  Confirmed leans: two adapter archetypes — PUSHDOWN-API ("fetch-then-residual":
+  Splunk/Elastic/OpenSearch/Sentinel/SecOps; native-query-evaluable predicates exact; JOIN always
+  central; fetch + re-check residuals centrally; OCSF-normalize at boundary) and LAKE-BULK-READ
+  ("prune-then-scan": Security Lake/Snowflake-external/Databricks-Delta; DataFusion scans
+  Parquet/Iceberg/Delta directly with partition + column-stat pruning; time-range as partition prune
+  exact, equality/IN on stats-bearing columns as file-prune often inexact → central re-check). NO
+  SIEM IS BULK-READABLE (SmartStore/Elastic-frozen/Sentinel-ADLS proprietary; Sentinel-lake and
+  SecOps bulk-read paths UNCONFIRMED — treat as pushdown-only until vendor-documented). OCSF VERSION
+  AXIS: descriptor key = per-(table, schema-class, schema-VERSION); Security Lake lags 1.1/1.3 vs
+  upstream 1.6.0; normalize inbound UP to target at boundary; carry `metadata.version` for audit.
+  COST: mandatory time-bound (C3 Topic 4) is primary control — tighter default window for lakes than
+  live sensors; plus egress ceiling + default/max result-limit. WRITE PATH (cold tier, Iceberg):
+  append-only RETAIN→Iceberg realistic today; single-writer-per-table; catalog = REST or S3 Tables
+  (icepick-proven), NOT Glue; record `ingest_time` per row. Open questions: DataFusion SQL `AS OF`
+  time-travel surfacing incomplete in iceberg-datafusion; pre-scan bytes-scanned estimation
+  precision for disclosure envelope; whether federation connector-plugins use TOML declarative path
+  or WASM escape-hatch (lake Parquet + IAM + partition projection may need WASM — reconcile against
+  existing plugin SDK at morph). Downstream SAP-1 obligations (NOT actioned here): lake-read
+  pushdown-decision, injected-window disclosure, egress-estimate, residency-denied, and
+  OCSF-version-skew events each need new BC-2.16.002 Canonical Structured Event Catalog rows.
+  Proposed epic: E-LAKE-CONNECTOR-001 (§3.5).
 
 ### 16.5 Status & boundaries reminder
 

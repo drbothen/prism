@@ -99,11 +99,50 @@ Iceberg is the right engine for long-baseline OCSF + native event storage:
   version drift without migration (§13.6 G-16).
 - **Multi-schema tables:** keyed by `(source-class, schema, schema-version)` — OCSF-vN tables
   AND native schema-on-read tables for cached non-security data (§3.3 addendum, §13.6).
-- **Unified cold-cache / Security Lake read path:** Amazon Security Lake IS OCSF-as-Iceberg.
-  The cold-cache read path and the lake read path are the **same DataFusion + Iceberg
-  TableProvider** — one mechanism, not two (§3.3 addendum, §3.5).
+- **Unified DataFusion engine, two TableProviders:** one DataFusion ENGINE, two TableProviders —
+  the self-managed cold tier reads via `IcebergTableProvider`; Amazon Security Lake reads via a
+  distinct Glue/Hive-Parquet (`ListingTable`) provider. The engine-level unification (no second
+  query engine) holds; the storage-format equivalence does **not** — Security Lake is OCSF Parquet
+  in Hive-style partitions (`region=/accountId=/eventDay=`) cataloged in AWS Glue + Lake Formation,
+  NOT Apache Iceberg (D-C5-1, corrected 2026-06-27; Iceberg appears only in the separate S3 Tables
+  service). **NOTE: R4's original justification ("Security Lake IS Iceberg → one mechanism") was a
+  false premise. R4 is superseded by the D-C5-1 correction. The Iceberg cold-tier decision is
+  reaffirmed on R2/R3 (schema evolution + row-level-mutation headroom), NOT on R4.** (§3.3 addendum,
+  §3.5)
 - **Time-travel / snapshot:** cold-tier replay for backtesting (§14.3). Model-state versioning
-  for ML audit (§15.5).
+  for ML audit (§15.5). Note: DataFusion-level SQL `AS OF` time-travel is not yet surfaced by
+  iceberg-datafusion (API-level snapshot selection only); append-only stores approximate "as of T"
+  via `ingest_time <= T` filtering (see D-C5-1b). This is a real headroom argument, not a
+  current-functionality argument.
+
+> **REAFFIRMATION NOTE 2026-06-27 (human, D-C5-1b).** The head-to-head analysis
+> (`research/coldtier-iceberg-vs-hive-parquet-2026-06-27.md`) leaned SWITCH-to-Hive-Parquet for
+> Prism's self-managed cold tier on the grounds that: R4's "Security Lake IS Iceberg → one
+> mechanism" premise is FALSE (corrected above); R5 (time-travel) is partly neutralized for an
+> append-only store; and the unification win of one `ListingTable` provider serving both cold tier
+> and Security Lake is real. **The human REAFFIRMED Apache Iceberg for the cold tier after reviewing
+> this analysis.** Rationale for keeping Iceberg:
+> - **ACID + field-ID schema-evolution (R2/R3 stand):** multi-year OCSF drift (1.1 → 1.6+; 1.4.0
+>   carried ~12 deprecations + ~140 net changes) requires a table-level schema authority. Iceberg's
+>   stable field-ID mechanism is purpose-built for this; Hive-Parquet's workaround requires
+>   version-homogeneous tables enforced out-of-band.
+> - **Row-level-mutation HEADROOM (the deciding factor):** GDPR erasure of specific records,
+>   customer offboarding, and event-correction workflows require row-level DELETE/UPDATE semantics
+>   (Iceberg merge-on-read / copy-on-write). Hive-Parquet has no equivalent. Even if these
+>   workloads are not current, keeping Iceberg preserves the option; switching forfeits it.
+> - **Choosing durability + future-proofing over the one-provider simplification** is the
+>   explicit trade-off. The unification simplification (drop iceberg-rust, one `ListingTable`)
+>   is acknowledged as real but is outweighed by the correctness + headroom arguments.
+> - **iceberg-rust 0.9.0 currency (2026-03-10):** the 0.9.0 release significantly expanded
+>   DataFusion integration — DDL-via-SQL, limit pushdown, broad predicate pushdown
+>   (Boolean/IsNaN/Timestamp/Binary/string-pattern), and sort-clustered partitioned insert.
+>   The gap vs. `ListingTable` maturity has narrowed substantially. Pre-1.0 API churn remains
+>   a maintenance cost; pin exact version and budget for 0.x breakage.
+> - **Iceberg sits on Parquet; migration is natural.** If a future workload analysis shows the
+>   row-level-mutation headroom is unneeded and the one-provider unification value is higher,
+>   switching Hive-Parquet at that time is a natural migration. Keeping Iceberg now does not
+>   foreclose this option; it preserves the more capable path.
+> **Row 2 of the engine taxonomy table (Apache Iceberg — cold analytic tier) is UNCHANGED.**
 
 **Why NOT Iceberg for case-management:**
 Iceberg is optimised for OLAP append-mostly workloads. Case-management is OLTP collaborative:
