@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.017"
+version: "8.018"
 producer: state-manager
-timestamp: 2026-06-27T19:00:00Z
+timestamp: 2026-06-27T19:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -20,7 +20,7 @@ develop_head: "9a09653a"
 # NOTE: 9a09653a is the squash-merge of PR #205 (chore(skills): add /wrap session-durability skill; normal squash-merge; 2026-06-27). origin/develop is now 9a09653a. Prior origin/develop was f05a9f0e (PR #204 S-PERF-GATE-001). chore/wrap-session-durability-skill branch + worktree cleaned up at merge.
 bc_index_version: "7.19"
 vp_index_version: "1.80"
-story_index_version: "v2.498"
+story_index_version: "v2.499"
 arch_index_version: "2.147"
 error_taxonomy_version: "2.01"
 total_stories: 215
@@ -36,7 +36,7 @@ workspace_test_count: 5002
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1390 (2026-06-27). S-DEMO-FIDELITY-REMEDIATION-001 LOCAL adversary Pass 2/3 on frozen HEAD 3f963428: NOT CLEAN — MED-1 (substantive): check_enrich_udf_availability had an `if registered_names.is_empty() { return Ok(()) }` early-return that skipped the E-QUERY-039 gate for a WIRED-BUT-EMPTY InfusionRegistry. Production boot always passes Some(registry) even with zero infusion specs — this re-opened the AUDIT-005 opaque-error class for zero-infusion deployments, violating BC-2.11.019 v1.3 EC-11-059/EC-11-063 (must fire E-QUERY-039 with available_infusions:[] when wired+empty). Untested edge case. Fix-burst HEAD f1054f1d: removed is_empty early-return (kept the None subsystem-not-wired skip); empty-registry now fires EnrichUdfNotFound (available_infusions=[], did_you_mean=None, 'not available' suggestion form reachable); added EC-11-059 Red Gate test; no existing tests broke (1185 prism-query + 405 prism-mcp green); just check green, non-exhaustive 88. Spec unchanged (code conformed to existing EC-11-059). 3-CLEAN streak RESET 0/3 (HEAD changed 3f963428→f1054f1d per DRIFT-ORCH-PRLEVEL-PUSH-001); re-gating on f1054f1d. develop_head UNCHANGED 9a09653a. BC-INDEX UNCHANGED v7.19. ARCH-INDEX UNCHANGED v2.147. STORY-INDEX UNCHANGED v2.498. STATE v8.016→v8.017."
+current_step: "D-1391 (2026-06-27). S-DEMO-FIDELITY-REMEDIATION-001 LOCAL adversary cascade Pass 1/3 on frozen CODE HEAD f1054f1d = NOT CLEAN — MED-1: stale BC-2.11.001 v1.14 cite in story frontmatter line 69 in COMPACT slash-joined form (v1.14/...) that prefixed-grep sweeps missed (POL-23/POL-29 variant-form recurrence; TD-VSDD-059 paper-fix signal — v1.4 changelog claimed complete 5-site sweep). Fix (story-only, factory-artifacts; CODE HEAD UNCHANGED f1054f1d): exhaustive all-forms version-cite audit — removed the redundant drift-prone compact version list from frontmatter (body BC table is now sole canonical version reference), corrected descriptor (BC-2.11.019 draft→active at merge per POL-14), zero live stale cites confirmed. Story v1.4→v1.5, STORY-INDEX v2.498→v2.499. 3-CLEAN streak 0/3; re-gating on code HEAD f1054f1d + story v1.5. develop_head 9a09653a. BC-INDEX v7.19. ARCH-INDEX v2.147. STATE v8.017→v8.018."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-27 (D-1390 LOCAL adversary Pass 2/3 on HEAD 3f963428: NOT CLEAN MED-1 is_empty early-return skipped E-QUERY-039 gate for wired+empty InfusionRegistry; fix-burst HEAD f1054f1d; streak RESET 0/3 re-gating on f1054f1d; STATE v8.016→v8.017)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-27 (D-1391 LOCAL adversary Pass 1/3 on CODE HEAD f1054f1d: NOT CLEAN MED-1 compact-form stale BC-2.11.001 v1.14 cite in story frontmatter; story-only fix v1.4→v1.5; CODE HEAD UNCHANGED f1054f1d; streak 0/3 re-gating on f1054f1d+v1.5; STATE v8.017→v8.018)
 
 ## Active Objective (North Star)
 
@@ -136,6 +136,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1391 | state-manager | 2026-06-27 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL adversary cascade Pass 1/3 on frozen CODE HEAD f1054f1d = NOT CLEAN — MED-1: stale BC-2.11.001 v1.14 cite in story frontmatter line 69 in COMPACT slash-joined form `(v1.14/v1.1/v1.3/v1.4/v1.2)` that prefixed-grep sweeps missed (POL-23/POL-29 variant-form recurrence; TD-VSDD-059 paper-fix signal — v1.4 changelog claimed complete 5-site sweep but the compact slash-joined form in frontmatter was not in the search patterns). Fix (story-only, factory-artifacts; CODE HEAD UNCHANGED f1054f1d): exhaustive all-forms version-cite audit — removed the redundant drift-prone compact version list from story frontmatter (body BC table is now the sole canonical version reference), corrected descriptor (prior text said "all 5 BCs are active" but BC-2.11.019 is `status: draft`, promotes draft→active at merge per POL-14; replacement: "4 active + BC-2.11.019 draft→active at merge per POL-14"), zero live stale `v1.14` or compact-form cites confirmed by re-grep (§Changelog rows excepted, TD-VSDD-091 exempt). Story v1.4→v1.5. STORY-INDEX v2.498→v2.499. 3-CLEAN streak 0/3; re-gating on code HEAD f1054f1d + story v1.5. develop_head 9a09653a UNCHANGED. BC-INDEX v7.19 UNCHANGED. ARCH-INDEX v2.147 UNCHANGED. STATE v8.017→v8.018.** | wave-5-e-demo-fidelity | 2026-06-27 |
 | D-1390 | state-manager | 2026-06-27 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL adversary cascade on frozen HEAD 3f963428: Pass 1/3 = CLEAN(strict) [streak 1/3]; Pass 2/3 = NOT CLEAN — MED-1 (substantive): check_enrich_udf_availability had an `if registered_names.is_empty() { return Ok(()) }` early-return that skipped the E-QUERY-039 gate for a WIRED-BUT-EMPTY InfusionRegistry (production boot always passes Some(registry) even with zero infusion specs), re-opening the AUDIT-005 opaque-error class for zero-infusion deployments — violates BC-2.11.019 v1.3 EC-11-059/EC-11-063 (must fire E-QUERY-039 with available_infusions:[] when wired+empty). Untested edge case. Fix-burst HEAD f1054f1d: removed the is_empty early-return (kept the None subsystem-not-wired skip); empty-registry now fires EnrichUdfNotFound (available_infusions=[], did_you_mean=None, 'not available' suggestion form reachable); added EC-11-059 Red Gate test; no existing tests broke (1185 prism-query + 405 prism-mcp green); just check green, non-exhaustive 88. Spec unchanged (code conformed to existing EC-11-059). 3-CLEAN streak RESET 0/3 (HEAD changed 3f963428→f1054f1d per DRIFT-ORCH-PRLEVEL-PUSH-001); re-gating on f1054f1d. develop_head UNCHANGED 9a09653a. BC-INDEX UNCHANGED v7.19. ARCH-INDEX UNCHANGED v2.147. STORY-INDEX UNCHANGED v2.498. STATE v8.016→v8.017.** | wave-5-e-demo-fidelity | 2026-06-27 |
 | D-1389 | state-manager | 2026-06-27 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL adversary cascade rounds 6-8 on frozen HEAD 45842b47. Pass 6 = CLEAN(strict)=YES CLEAN(PR-merge)=YES — streak 1/3. Pass 7 = CLEAN(strict)=YES CLEAN(PR-merge)=YES — streak 2/3. Pass 8 = NOT CLEAN — F-PASS-N-MED-001 (MED): unused_mut warning on `load_spec` in test fixture `bc_2_11_022_n1_test.rs:38`; `load_spec` is `&self` with ArcSwap interior-mut so `mut` is unused by the borrow checker. EMPIRICALLY VERIFIED both directions (TD-VSDD-059): (1) unused_mut lint IS real (rustc default-on warning); (2) does NOT break `just check` or CI because both gates run `cargo clippy --workspace --all-features -- -D warnings` WITHOUT `--all-targets` — test targets are NOT linted by either gate, so the implementer's just check green was correct. Fix-burst on feature HEAD 3f963428: dropped unused `mut` from `load_spec`; proactively simplified 2 manual char comparisons in `bc_2_10_016_audit_004_test.rs` (same test-hygiene class). Remaining `--all-targets` hits in story-file are exclusively the project-ACCEPTED `test expect/unwrap` convention matching all pre-existing test files (CLAUDE.md gates only non-test paths) — NOT fixed, consistent with codebase. `just check` green. 3-CLEAN streak RESET to 0/3 per DRIFT-ORCH-PRLEVEL-PUSH-001 (HEAD changed 45842b47→3f963428); re-gating on 3f963428. PG-CLIPPY-ALLTARGETS-001 registered in Drift Items (deferred post-T14 maintenance). develop_head UNCHANGED 9a09653a. BC-INDEX UNCHANGED v7.19. ARCH-INDEX UNCHANGED v2.147. STORY-INDEX UNCHANGED v2.498. workspace_test_count UNCHANGED 5006. STATE v8.015→v8.016.** | wave-5-e-demo-fidelity | 2026-06-27 |
 | D-1388 | state-manager | 2026-06-27 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL adversary Pass 5 (fresh, HEAD 40a415aa) = NOT CLEAN: code confirmed correct+well-tested; all findings bookkeeping/coverage — MED-1 (story body stale BC-2.11.001 v1.14 cites ×5), MED-2 (story body stale BC-2.11.019 v1.2 cites ×2, v1.3 'throughout' claim was incomplete), MED-3 (crates/ test doc-comment stale v1.14 ×2), MED-4 (E-QUERY-039 structured category=validation untested), MED-5 (MCP suggestion added brackets not in BC §MCP surface), OBS-1 (AUDIT-004 guard hardcoded/≥1 not all). Comprehensive fix-burst HEAD 45842b47: story+crates/ version-cite sweeps both verified ZERO stale (breaks POL-29 recurrence); MED-4 structured-path tests (category=validation, original_params_valid=false); MED-5 suggestion brackets removed + byte-exact tests; OBS-1 guard now derives registered tables from sensor TOMLs + asserts ALL FROM targets resolve. just check 5006 green, non-exhaustive 88. Convergence trajectory: findings decayed behavioral(P1)→consistency(P2)→corpus(P3)→mode/structured(P4)→bookkeeping(P5). 3-CLEAN streak 0/3; re-gating fresh on HEAD 45842b47. workspace_test_count 5002→5006. BC-2.11.001 v1.15 UNCHANGED. BC-2.11.019 v1.3 UNCHANGED. BC-INDEX v7.19 UNCHANGED. ARCH-INDEX v2.147 UNCHANGED. STORY-INDEX v2.497→v2.498. develop_head 9a09653a UNCHANGED. STATE v8.014→v8.015.** | wave-5-e-demo-fidelity | 2026-06-27 |
@@ -236,20 +237,20 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1390 — 2026-06-27; STATE v8.017)
+## Session Resume Checkpoint (D-1391 — 2026-06-27; STATE v8.018)
 
-**STATE v8.017. D-1390 LOCAL adversary cascade on frozen HEAD 3f963428: Pass 1/3 CLEAN(strict) streak 1/3; Pass 2/3 NOT CLEAN — MED-1 is_empty early-return in check_enrich_udf_availability skipped E-QUERY-039 gate for wired+empty InfusionRegistry (BC-2.11.019 v1.3 EC-11-059/EC-11-063 violation). Fix-burst HEAD f1054f1d: removed early-return; empty-registry now fires EnrichUdfNotFound; EC-11-059 Red Gate test added. 3-CLEAN streak RESET 0/3; re-gating on f1054f1d. DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. develop_head 9a09653a. non-exhaustive 88. BC-INDEX v7.19. ARCH-INDEX v2.147. STORY-INDEX v2.498. error-taxonomy v2.01. total_stories 215. BC-2.11.019 v1.3. BC-2.11.001 v1.15. Story S-DEMO-FIDELITY-REMEDIATION-001 v1.4. Feature HEAD f1054f1d. workspace_test_count 5006.**
+**STATE v8.018. D-1391 LOCAL adversary cascade Pass 1/3 on frozen CODE HEAD f1054f1d: NOT CLEAN — MED-1 compact-form stale BC-2.11.001 v1.14 cite in story frontmatter (POL-29 variant-form recurrence). Story-only fix: compact version list removed from frontmatter; descriptor corrected (BC-2.11.019 draft→active at merge per POL-14); zero live stale cites confirmed. Story v1.4→v1.5. CODE HEAD UNCHANGED f1054f1d. 3-CLEAN streak 0/3; re-gating on f1054f1d + story v1.5. DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. develop_head 9a09653a. non-exhaustive 88. BC-INDEX v7.19. ARCH-INDEX v2.147. STORY-INDEX v2.499. error-taxonomy v2.01. total_stories 215. BC-2.11.019 v1.3. BC-2.11.001 v1.15. Story S-DEMO-FIDELITY-REMEDIATION-001 v1.5. Feature HEAD f1054f1d. workspace_test_count 5006.**
 
-**NEXT ACTION:** LOCAL adversary fresh pass on feature branch HEAD f1054f1d → 3× CLEAN(strict) → demo evidence → PR → PR-LEVEL 3-CLEAN → merge.
+**NEXT ACTION:** LOCAL adversary fresh pass on feature branch CODE HEAD f1054f1d + story v1.5 → 3× CLEAN(strict) → demo evidence → PR → PR-LEVEL 3-CLEAN → merge.
 
 **TRACK B — DAY-2 MORPH (POST-T14):** `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
 **PENDING HUMAN AUTH:** (A) brief reframe sign-off; (B) EC-11 namespace collisions.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1383 (last authored; D-1384..D-1390 are factory-only bursts — update SESSION-HANDOFF if needed) for full context. STATE v8.017.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1383 (last authored; D-1384..D-1391 are factory-only bursts — update SESSION-HANDOFF if needed) for full context. STATE v8.018.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `9a09653a`.
-3. Feature branch worktree for S-DEMO-FIDELITY-REMEDIATION-001 at HEAD f1054f1d.
+3. Feature branch worktree for S-DEMO-FIDELITY-REMEDIATION-001 at CODE HEAD f1054f1d (story v1.5).
 4. HUMAN DECISIONS PENDING: (A) brief reframe sign-off; (B) EC-11 namespace collisions.
-5. Next: LOCAL adversary fresh pass on f1054f1d → 3-CLEAN(strict) → demo evidence → PR. Autonomy D-989 active.
+5. Next: LOCAL adversary fresh pass on f1054f1d + v1.5 → 3-CLEAN(strict) → demo evidence → PR. Autonomy D-989 active.

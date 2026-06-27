@@ -66,11 +66,11 @@ points: 10
 #   Total: 10 pts (N1-B is full net-new implementation, not a routing investigation)
 level: "L4"
 status: draft
-# BC status: all 5 BCs in behavioral_contracts are active (v1.14/v1.1/v1.3/v1.4/v1.2).
-# BC-2.11.019 bumped to v1.3 per PO E-QUERY-039 reconciliation (canonical message template,
-# Vec<String> available_infusions, enrich-LAST gate ordering).
+# BC status: 4 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.4)
+# + BC-2.11.019 v1.3 draft→active at merge per POL-14. Canonical versions are authoritative
+# in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "1.4"
+version: "1.5"
 updated: "2026-06-27"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -474,7 +474,7 @@ catalog row.
 
 | Artifact | Estimated Tokens |
 |----------|-----------------|
-| This story spec (v1.4) | ~10,000 |
+| This story spec (v1.5) | ~10,000 |
 | BC files (5 BCs) | ~10,000 |
 | Source files touched (resources.rs, prompts.rs, prism_describe.rs, error.rs, table_registry.rs, engine.rs, error_mapping.rs) | ~18,000 |
 | Research/audit docs (2) | ~6,000 |
@@ -769,6 +769,7 @@ is a set of targeted, surgical code changes:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | med-1-exhaustive-all-forms-bc-cite-audit-2026-06-27 | 2026-06-27 | story-writer | Exhaustive all-forms BC version-cite audit (Pass MED-1): residual compact-form `(v1.14/v1.1/v1.3/v1.4/v1.2)` at frontmatter line 69 contained stale `v1.14` for BC-2.11.001 (canonical v1.15) — missed by prior prefixed-grep sweeps that searched `BC-2.11.001 v1.14` but not the parenthesized slash-joined form. Redundant compact version enumeration removed from frontmatter comment (drift risk; body BC table is canonical); replaced with accurate status note: 4 active BCs + BC-2.11.019 draft→active at merge per POL-14. Descriptor accuracy fix: prior comment said "all 5 BCs are active" — BC-2.11.019 is `status: draft` (confirmed against BC frontmatter). All prefixed-form cites verified correct (zero stale). Re-grep confirms ZERO live stale `v1.14` or stale compact-form cites remain (changelog rows excepted, TD-VSDD-091 exempt). Token Budget version label updated 1.4→1.5. Version bump 1.4→1.5. |
 | 1.4 | pass-5-bc-version-cite-sweep-2026-06-27 | 2026-06-27 | story-writer | Comprehensive BC version-cite sweep (Pass-5 MED-1/MED-2): BC-2.11.001 v1.14→v1.15 (5 sites: frontmatter comment line 62, BC table line 175, AC-N2 header trace line 338, AC-REG-1 trace line 415, EC-004 table line 748); BC-2.11.019 v1.2→v1.3 (2 residual sites the v1.3 "throughout" claim missed: AC-N1B scope note line 222, Previous Story Intelligence line 596). Token Budget version label updated 1.3→1.4. Frontmatter version bumped 1.3→1.4. BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.4 verified current — no changes needed. POL-29 version-cite recurrence break. |
 | 1.3 | po-e-query-039-reconciliation-2026-06-27 | 2026-06-27 | story-writer | HIGH-005 changelog reorder (POL-32 monotonic_descending violation — rows were 1.0→1.2→1.1; reordered to strict descending 1.3→1.2→1.1→1.0). Sync to PO E-QUERY-039 reconciliation: (1) canonical Display message template added to AC-N1B Step 3 — EXACTLY `E-QUERY-039: enrichment infusion '{infusion}' is not registered; available: [{available_infusions}]{did_you_mean}` (bracket-wrapped comma-joined Vec<String>; did_you_mean = ` Did you mean: '{x}'?` when Some, omitted when None); (2) available_infusions confirmed as `Vec<String>` (PO-ratified canonical type — already matched struct definition; now explicit in AC text and observable behavior); (3) enrich-LAST gate ordering added as explicit callout in AC-N1B: E-QUERY-039 fires LAST (E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039); (4) WHERE-clause note added: SQL-mode ScalarFunc::Unknown gate covers projections only — WHERE-clause enrichment calls are E-QUERY-001 parse errors at the grammar level; the projection-arm scan is complete coverage; defensive visitor arm noted for programmatic AST; (5) BC-2.11.019 version references updated v1.2→v1.3 throughout (BC table, AC-N1B header trace, frontmatter I2 anchor comment, crates_touched comment, BC status comment). LOCAL Pass-1 fix-burst closures noted for record: CRIT-001 (prompt table names), HIGH-001 (gate ordering), HIGH-002 (Display template), HIGH-003 (WHERE scan), OBS-1 (tie-break), OBS-2 (doc-comment). Version bump 1.2→1.3. |
 | 1.2 | pre-tdd-api-mismatch-corrections-2026-06-26 | 2026-06-26 | story-writer | Four internal-API mismatch corrections found before TDD delivery. C1 (HIGH): E-QUERY-037 `map_prism_error` arm CONFIRMED PRESENT in error_mapping.rs (~line 166, doc "S-3.13 AC-2; BC-2.11.001") — v1.1 wrongly marked it net-new; corrected throughout (AC-N1B, AC-N2, File Structure table, Tasks, Architecture Mapping). I1 (HIGH): `InfusionRegistry.udf_names()` does NOT exist — only `udf_descriptors()` exists; corrected gate code to derive UDF names inline via `udf_descriptors().iter().map(|d| d.name.clone()).collect()` throughout; no new public method added (keeps EXPECTED increment at exactly 87→88). I2 (MED-HIGH): enrichment-gate insertion point pinned to `engine.rs` (new AST-visitor pass before `check_availability_gate`; pipe arm: `PipeStage::Enrich` → `EnrichStage.infusion`; SQL arm: `ScalarFunc::Unknown` in projections; both distinct visitor arms, same validation loop); "implementer determines exact file" language removed. S1 (LOW): Red Gate test for N1-B relaxed — `did_you_mean.is_some()` assertion removed; test must assert `available_infusions` non-empty and error variant/code only (registered per-field UDF names likely > Levenshtein-3 from "threat_intel" so `did_you_mean: None` is valid). Points/Red Gate test count/token budget UNCHANGED from v1.1 (10 pts / 9 tests / ~53k tokens). |
