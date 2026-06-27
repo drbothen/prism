@@ -3471,3 +3471,132 @@ async fn test_F2_explain_alias_domain_error_returns_ok_structured_not_err() {
         "F-2: structuredContent.error.code must start with E-; got: '{code}'"
     );
 }
+
+// ─── MED-4: E-QUERY-039 structured-path tests (TD-VSDD-059 load-bearing test) ────────────────
+
+/// MED-4 BC-2.11.019 v1.3 AC-N1B — `prism_error_to_structured_call_result` for
+/// `PrismError::EnrichUdfNotFound` must set structured fields:
+///   - `structuredContent.error.category == "validation"`
+///   - `structuredContent.error.original_params_valid == false`
+///   - `structuredContent.error.code` resolves to `"E-QUERY-039"`
+///   - `structuredContent.error.suggestion` is present and non-empty
+///
+/// This test covers the `VariantMeta` arm for `EnrichUdfNotFound` — the structured
+/// response path that maps to the BC-2.10.007 error envelope. The sibling test
+/// `test_bc_2_11_019_n1b_mcp_maps_to_32602` covers only the `-32602` JSON-RPC code.
+///
+/// TD-VSDD-059 load-bearing: a mutation flipping `category: "validation"` to
+/// `category: "upstream_error"` in `error_mapping.rs` MUST fail this test.
+///
+/// RED GATE: without the explicit `PrismError::EnrichUdfNotFound(ref d)` arm in
+/// `prism_error_to_structured_call_result`, the variant falls to the catch-all which
+/// emits `category: "upstream_error"` and `original_params_valid: true` — both wrong.
+#[test]
+fn test_med4_enrich_udf_not_found_structured_category_is_validation() {
+    use prism_core::error::{EnrichUdfNotFoundDetails, PrismError};
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::EnrichUdfNotFound(Box::new(EnrichUdfNotFoundDetails::new(
+        "threat_intel",
+        vec![
+            "threat_score".to_string(),
+            "threat_is_known_malicious".to_string(),
+        ],
+        Some("threat_score".to_string()),
+    )));
+
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("MED-4: structuredContent must be present for EnrichUdfNotFound");
+    let error_obj = sc
+        .get("error")
+        .expect("MED-4: structuredContent.error must be present");
+
+    // (1) category == "validation"
+    let category = error_obj
+        .get("category")
+        .and_then(|v| v.as_str())
+        .unwrap_or("<missing>");
+    assert_eq!(
+        category, "validation",
+        "MED-4 BC-2.11.019 v1.3: EnrichUdfNotFound must emit category='validation', \
+         not 'upstream_error'; got '{category}' — RED GATE (TD-VSDD-059 load-bearing)"
+    );
+
+    // (2) original_params_valid == false
+    let orig_valid = error_obj
+        .get("original_params_valid")
+        .and_then(|v| v.as_bool());
+    assert_eq!(
+        orig_valid,
+        Some(false),
+        "MED-4 BC-2.11.019 v1.3: EnrichUdfNotFound must have original_params_valid=false \
+         (caller used an unregistered UDF name); got {:?} — RED GATE",
+        orig_valid
+    );
+
+    // (3) code resolves to "E-QUERY-039"
+    let code = error_obj
+        .get("code")
+        .and_then(|v| v.as_str())
+        .unwrap_or("<missing>");
+    assert_eq!(
+        code, "E-QUERY-039",
+        "MED-4 BC-2.11.019 v1.3: EnrichUdfNotFound must resolve to code 'E-QUERY-039'; \
+         got '{code}' — ec_code_override must pin the variant"
+    );
+
+    // (4) suggestion is present and non-empty
+    let suggestion = error_obj
+        .get("suggestion")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert!(
+        !suggestion.is_empty(),
+        "MED-4 BC-2.11.019 v1.3: EnrichUdfNotFound structured suggestion must be non-empty; \
+         got empty string — owned_suggestion must propagate into the envelope"
+    );
+}
+
+/// MED-4 variant — EnrichUdfNotFound with empty available_infusions list.
+/// Verifies the empty-list arm also routes to category='validation', not the catch-all.
+#[test]
+fn test_med4_enrich_udf_not_found_empty_infusions_category_is_validation() {
+    use prism_core::error::{EnrichUdfNotFoundDetails, PrismError};
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::EnrichUdfNotFound(Box::new(EnrichUdfNotFoundDetails::new(
+        "mystery_udf",
+        vec![], // no registered infusions
+        None,
+    )));
+
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("MED-4 empty: structuredContent must be present");
+    let error_obj = sc
+        .get("error")
+        .expect("MED-4 empty: error key must be present");
+
+    let category = error_obj
+        .get("category")
+        .and_then(|v| v.as_str())
+        .unwrap_or("<missing>");
+    assert_eq!(
+        category, "validation",
+        "MED-4 BC-2.11.019 v1.3: EnrichUdfNotFound (empty infusions) must emit \
+         category='validation'; got '{category}'"
+    );
+    let orig_valid = error_obj
+        .get("original_params_valid")
+        .and_then(|v| v.as_bool());
+    assert_eq!(
+        orig_valid,
+        Some(false),
+        "MED-4 BC-2.11.019 v1.3: EnrichUdfNotFound (empty infusions) original_params_valid \
+         must be false; got {:?}",
+        orig_valid
+    );
+}

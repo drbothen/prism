@@ -35,6 +35,97 @@ use prism_mcp::prompts::{
     render_query_tutorial, render_triage_alerts,
 };
 
+// ── TOML-derived registered-table helper ─────────────────────────────────────
+
+/// Build the registered-table set by parsing `crates/prism-sensors/specs/*.sensor.toml`
+/// at test runtime.
+///
+/// Each TOML spec has the structure:
+/// ```toml
+/// sensor_id = "crowdstrike"
+/// ...
+/// [[tables]]
+/// table_name = "detections"
+/// ```
+///
+/// This function returns a `HashSet<String>` of `"<sensor_id>_<table_name>"` entries
+/// derived directly from the canonical source-of-truth TOML specs, so the test does
+/// NOT drift when a table is added or renamed.
+///
+/// OBS-1 fix: replaces the hardcoded `registered: &[&str]` list that silently drifted
+/// on table renames. Runtime-parsed set tracks the TOMLs automatically.
+fn registered_tables_from_specs() -> std::collections::HashSet<String> {
+    use std::collections::HashSet;
+
+    // CARGO_MANIFEST_DIR is the prism-mcp crate directory.
+    // The sensor specs live two levels up at crates/prism-sensors/specs/.
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let specs_dir = std::path::Path::new(manifest_dir)
+        .join("..")
+        .join("prism-sensors")
+        .join("specs");
+
+    let mut registered = HashSet::new();
+
+    // Parse each *.sensor.toml file in the specs directory.
+    let read_dir = std::fs::read_dir(&specs_dir).unwrap_or_else(|e| {
+        panic!(
+            "OBS-1: cannot read sensor specs dir {:?}: {e} — \
+             check that crates/prism-sensors/specs/ exists relative to CARGO_MANIFEST_DIR",
+            specs_dir
+        )
+    });
+
+    for entry in read_dir {
+        let entry = entry.expect("OBS-1: directory entry read failed");
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("toml") {
+            continue;
+        }
+        if !path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .map(|s| s.ends_with(".sensor.toml"))
+            .unwrap_or(false)
+        {
+            continue;
+        }
+
+        let content = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("OBS-1: cannot read {path:?}: {e}"));
+
+        // Minimal TOML extraction: parse sensor_id and [[tables]].table_name without
+        // a full schema type (avoids coupling to the sensor TOML schema crate).
+        let doc: toml::Value = toml::from_str(&content)
+            .unwrap_or_else(|e| panic!("OBS-1: cannot parse {path:?} as TOML: {e}"));
+
+        let sensor_id = doc
+            .get("sensor_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| {
+                panic!("OBS-1: {path:?} missing 'sensor_id' key — spec is malformed")
+            });
+
+        if let Some(tables) = doc.get("tables").and_then(|v| v.as_array()) {
+            for table in tables {
+                if let Some(table_name) = table.get("table_name").and_then(|v| v.as_str()) {
+                    registered.insert(format!("{sensor_id}_{table_name}"));
+                }
+            }
+        }
+    }
+
+    assert!(
+        !registered.is_empty(),
+        "OBS-1: registered_tables_from_specs() produced an empty set — \
+         no *.sensor.toml files found or none have [[tables]] entries. \
+         Specs dir: {:?}",
+        specs_dir
+    );
+
+    registered
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 /// BC-2.10.016 v1.2 AUDIT-004 — Red Gate test.
@@ -121,8 +212,8 @@ fn test_bc_2_10_016_audit_004_no_dot_notation_in_prompts() {
     );
 }
 
-/// BC-2.10.016 AUDIT-004 — Positive guard: rendered prompts contain at least one valid
-/// `FROM <sensor>_<table>` reference that resolves to a REAL registered table.
+/// BC-2.10.016 AUDIT-004 — Positive guard: EVERY `FROM <sensor>_<table>` target in the
+/// rendered prompts must resolve to a registered table derived from the sensor TOML specs.
 ///
 /// AC-AUDIT-004 requires not just the absence of dot-notation, but also that the
 /// replacement underscore-qualified names are genuine registered tables. A prompt
@@ -130,27 +221,25 @@ fn test_bc_2_10_016_audit_004_no_dot_notation_in_prompts() {
 /// satisfies the negative guard, but a prompt that switches to `FROM crowdstrike_phantom`
 /// (non-existent) would pass the negative guard and violate this positive guard.
 ///
-/// Registered table set (source of truth: crates/prism-sensors/specs/*.sensor.toml):
-/// crowdstrike: detections, devices, incidents
-/// claroty:     alerts, audit_logs, devices
-/// armis:       devices, alerts
-/// cyberint:    alerts, incidents
+/// OBS-1 strengthening: the prior guard only checked that ≥1 FROM target resolved to a
+/// registered table, against a HARDCODED list. This test:
+///   1. Derives the registered-table set from `crates/prism-sensors/specs/*.sensor.toml`
+///      at runtime (via `registered_tables_from_specs()`), so it cannot silently drift
+///      on a table rename.
+///   2. Asserts EVERY underscore-qualified FROM target across all render_* prompt bodies
+///      resolves to a table in the spec-derived set — not just ≥1.
+///
+/// Registered table set is dynamically derived from sensor TOML specs:
+///   (crowdstrike: detections, devices, incidents)
+///   (claroty:     alerts, audit_logs, devices)
+///   (armis:       devices, alerts)
+///   (cyberint:    alerts, incidents)
+/// Any addition or rename in those TOMLs is automatically picked up.
 #[test]
 fn test_bc_2_10_016_audit_004_prompt_from_targets_include_registered_table() {
-    // Registered table name set — sensor_prefix + _ + table_name.
-    // Derived from specs/*.sensor.toml; must be updated when new tables are added.
-    let registered: &[&str] = &[
-        "crowdstrike_detections",
-        "crowdstrike_devices",
-        "crowdstrike_incidents",
-        "claroty_alerts",
-        "claroty_audit_logs",
-        "claroty_devices",
-        "armis_devices",
-        "armis_alerts",
-        "cyberint_alerts",
-        "cyberint_incidents",
-    ];
+    // Derive the registered-table set from the canonical sensor TOML specs.
+    // This replaces the hardcoded &[&str] list (OBS-1 fix).
+    let registered = registered_tables_from_specs();
 
     // Collect the combined text from all render_* prompt functions.
     let triage_text =
@@ -177,7 +266,10 @@ fn test_bc_2_10_016_audit_004_prompt_from_targets_include_registered_table() {
     // Collect all `FROM <token>` targets that look like sensor-qualified table names
     // (contain '_' — underscore form is canonical post AUDIT-004 fix).
     let tokens: Vec<&str> = all_text.split_ascii_whitespace().collect();
+
+    // OBS-1: track EVERY underscore FROM target and its resolution status.
     let mut found_registered: Vec<String> = Vec::new();
+    let mut unresolved: Vec<String> = Vec::new();
 
     for (i, token) in tokens.iter().enumerate() {
         if *token == "FROM" {
@@ -186,21 +278,36 @@ fn test_bc_2_10_016_audit_004_prompt_from_targets_include_registered_table() {
                     next.trim_end_matches(|c: char| c == ',' || c == ';' || c == ')' || c == '\n');
                 // Only consider underscore-qualified tokens (sensor_table form).
                 if clean.contains('_') && !clean.contains("://") {
-                    if registered.contains(&clean) {
+                    if registered.contains(clean) {
                         found_registered.push(clean.to_string());
+                    } else {
+                        // An underscore-form FROM target that is NOT in the registered set.
+                        unresolved.push(clean.to_string());
                     }
                 }
             }
         }
     }
 
+    // Assert EVERY underscore FROM target resolves — no phantom table names.
+    assert!(
+        unresolved.is_empty(),
+        "BC-2.10.016 AUDIT-004 POSITIVE GUARD FAILED: found {} underscore-form FROM target(s) \
+         that do NOT resolve to any registered table in the sensor TOML specs.\n\
+         Unresolved: {unresolved:?}\n\
+         Registered (from sensor TOMLs): {registered:?}\n\
+         Fix: update prompts.rs to use only real table names from crates/prism-sensors/specs/.",
+        unresolved.len()
+    );
+
+    // Also assert ≥1 target resolved (guards against an empty prompt body).
     assert!(
         !found_registered.is_empty(),
         "BC-2.10.016 AUDIT-004 POSITIVE GUARD FAILED: the combined rendered prompt bodies \
          contain zero 'FROM <sensor>_<table>' references that resolve to a real registered \
          table. At least one FROM target must resolve to a registered table (e.g., \
          'FROM crowdstrike_detections'). This guard ensures prompts name real tables, not \
-         just syntactically valid identifiers.\nRegistered tables: {registered:?}"
+         just syntactically valid identifiers.\nRegistered (from sensor TOMLs): {registered:?}"
     );
 }
 

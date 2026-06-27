@@ -93,7 +93,7 @@ fn make_registry_with_cyberint_crowdstrike() -> TableRegistry {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// BC-2.11.001 v1.14 EC-11-067 — AC-N2 Red Gate test.
+/// BC-2.11.001 v1.15 EC-11-067 — AC-N2 Red Gate test.
 ///
 /// `FROM cyberint.alerts` (pipe mode) and `SELECT * FROM crowdstrike.detections` (SQL mode)
 /// are dot-notation FROM targets. The `TableRegistry` only stores underscore-qualified names

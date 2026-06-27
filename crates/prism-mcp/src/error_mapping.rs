@@ -1805,12 +1805,17 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // falls to the catch-all with category "upstream_error", original_params_valid: true,
         // and a generic suggestion — losing all E-QUERY-039 pedagogical guidance.
         //
-        // Suggestion text per BC-2.11.019 v1.3 §MCP surface:
+        // Suggestion text per BC-2.11.019 v1.3 §MCP surface (NO brackets around list):
         //   non-empty: "Use one of the registered enrichment functions: {infusions}. Call
         //               prism_describe('<client_id>') to see pql_hints including available
         //               enrichment functions."
         //   empty:     "No enrichment functions are registered. Enrichment is not available
         //               in this deployment."
+        //
+        // NOTE: the top-level Display error message (EnrichUdfNotFoundDetails::fmt) keeps
+        // brackets around the list — "available: [...]" — as that is the taxonomy template
+        // format (error-taxonomy.md E-QUERY-039). Only the §MCP-surface SUGGESTION drops
+        // brackets: the suggestion provides a comma-joined list for readability.
         //
         // available_infusions is inlined in the suggestion (BC does not define a separate
         // structured field for it). did_you_mean is the best-match name (Option<String>),
@@ -1828,7 +1833,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
                 "No enrichment functions are registered. Enrichment is not available in this deployment.".to_owned()
             } else {
                 format!(
-                    "Use one of the registered enrichment functions: [{infusions_list}]. \
+                    "Use one of the registered enrichment functions: {infusions_list}. \
                      Call prism_describe('<client_id>') to see pql_hints including available \
                      enrichment functions."
                 )
