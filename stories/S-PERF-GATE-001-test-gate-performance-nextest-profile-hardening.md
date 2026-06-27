@@ -5,7 +5,7 @@ title: "Test gate performance — nextest profile hardening + build_http_client 
 wave: maintenance
 epic_id: maintenance
 priority: P2
-status: draft
+status: merged
 version: "1.9"
 spec_version: "v1.9"
 level: ops
