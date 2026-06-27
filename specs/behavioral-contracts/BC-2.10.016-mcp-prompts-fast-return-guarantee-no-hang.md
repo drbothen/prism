@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: demo-readiness-2026-06-24
-modified: 2026-06-25
+modified: 2026-06-26
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -43,6 +43,7 @@ All registered MCP prompts (`triage_alerts`, `investigate_host`, `client_overvie
 - The response contains the prompt message array with the correct textual content per BC-2.10.009
 - The MCP server is NOT blocked for other tool/resource requests while a prompt is being served (no lock held across prompt dispatch)
 - Prompt response time is **independent of** any blocked audit channel, in-flight query execution, or tool dispatch lock
+- **FROM-ready table names in prompt bodies (AUDIT-004):** All registered prompts that embed PrismQL queries within their message text (e.g., `query_tutorial`, `cross_client_status`) MUST use FROM-ready, sensor-prefixed table names in underscore-qualified form (e.g., `FROM crowdstrike_detections`, `FROM armis_devices`). Prompts MUST NOT use dot-notation table references (e.g., `FROM crowdstrike.detections`) in any embedded PrismQL query. The `render_*` functions that build prompt message content are the enforcement point: they must produce only underscore-qualified table name strings for any FROM clause in example or template queries. Violation: any analyst copying an embedded prompt example query and executing it via the `query` MCP tool MUST get a successful result (not E-QUERY-037 "table not found").
 
 ## Invariants
 
@@ -66,6 +67,8 @@ All registered MCP prompts (`triage_alerts`, `investigate_host`, `client_overvie
 | EC-10-016-002 | `prompts/get investigate_host` with `client_id` and `hostname` provided | Returns prompt within 5 seconds |
 | EC-10-016-003 | `prompts/get investigate_host` with `hostname` argument MISSING | Substitutes `(unknown)` for `hostname`, renders the prompt, and returns Ok within 5 seconds; MUST NOT hang. No structured MCP error is returned (option (a) of INV-PROMPT-REQUIRED-ARGS). |
 | EC-10-016-004 | Prompt dispatch concurrent with a long-running `query` tool execution | Prompt returns within 5 seconds regardless of in-flight query state |
+| EC-10-016-005 | `prompts/get query_tutorial` where embedded example query uses dot-notation table name (e.g., `FROM crowdstrike.detections`) | MUST NOT occur: the rendered prompt body must use `FROM crowdstrike_detections`. The `render_query_tutorial` function must only emit underscore-qualified FROM-ready table names. If any `render_*` function emits dot-notation in a FROM clause, executing the embedded query via the `query` MCP tool would return E-QUERY-037 ("table not found"), which breaks the tutorial's educational goal. This is the AUDIT-004 regression guard. |
+| EC-10-016-006 | `prompts/get cross_client_status` where embedded multi-sensor PrismQL uses dot-notation (e.g., `FROM armis.devices`) | MUST NOT occur: rendered query must use `FROM armis_devices`. All `render_*` functions that include UNION, FROM, or JOIN clauses must exclusively use sensor-prefixed underscore-qualified table names. |
 
 ## Canonical Test Vectors
 
@@ -76,6 +79,8 @@ All registered MCP prompts (`triage_alerts`, `investigate_host`, `client_overvie
 | `prompts/get query_tutorial` with `client_id: "org-c"` | Prompt message array within 5s; no hang | happy-path |
 | `prompts/get investigate_host` with `client_id: "org-c"`, `hostname: "host-001"` | Prompt message array within 5s; no hang | happy-path |
 | `prompts/get triage_alerts` with `client_id: "org-c"` | Prompt message array within 5s | happy-path |
+| `prompts/get query_tutorial` with `client_id: "org-c"` — scan rendered message text for dot-notation FROM patterns (e.g., regex `FROM\s+\w+\.\w+`) | Zero matches: no embedded query in the rendered body uses dot-notation in a FROM clause. All FROM targets use underscore-qualified names like `crowdstrike_detections`, `armis_devices`. (AUDIT-004 / EC-10-016-005) | AUDIT-004 from-ready guard |
+| `prompts/get cross_client_status` with `client_id: "org-c"` — scan rendered message text for dot-notation FROM patterns | Zero matches: all sensor references in the rendered body use underscore-qualified names. (AUDIT-004 / EC-10-016-006) | AUDIT-004 from-ready guard |
 
 ## Verification Properties
 
@@ -117,6 +122,7 @@ TBD
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-046 D6. Closes BLOCKER-003. Implementer must investigate `#[prompt_handler]` macro expansion + `PromptRoute::new_dyn` closure before fixing. |
+| 1.2 | demo-fidelity-remediation-2026-06-26 | 2026-06-26 | product-owner | **AUDIT-004 contract fix (S-DEMO-FIDELITY-REMEDIATION-001):** Added postcondition requiring all registered prompts that embed PrismQL queries use FROM-ready sensor-prefixed underscore-qualified table names (e.g., `FROM crowdstrike_detections`), never dot-notation (e.g., `FROM crowdstrike.detections`). Added EC-10-016-005 (query_tutorial dot-notation guard) and EC-10-016-006 (cross_client_status dot-notation guard). Added two AUDIT-004 test vectors using regex scan over rendered message text. Enforcement point: `render_*` functions in `crates/prism-mcp/src/prompts.rs` must only emit underscore-qualified FROM-ready table names in embedded PrismQL examples. The implementer fix is to audit all `render_*` string literals for `FROM <sensor>.<table>` patterns and replace with `FROM <sensor>_<table>`. This is a content-correctness amendment; the fast-return (≤5s) guarantee from v1.0–v1.1 is unchanged. |
 | 1.1 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.1 | S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 | 2026-06-25 | product-owner | Spec-internal-consistency reconciliation (OBS-2b from PR-LEVEL adversary). INV-PROMPT-REQUIRED-ARGS already sanctioned option (a) placeholder substitution; §Error Cases row and EC-10-016-003 incorrectly stated "Returns structured MCP error" for a missing required arg, contradicting the invariant. Updated §Error Cases, EC-10-016-003, and INV-PROMPT-REQUIRED-ARGS prose to reflect the shipped option-(a) behavior (`(unknown)` substitution, returns Ok within 5s). The no-hang / within-5s guarantee is unchanged. No code change. |
+| 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-046 D6. Closes BLOCKER-003. Implementer must investigate `#[prompt_handler]` macro expansion + `PromptRoute::new_dyn` closure before fixing. |

@@ -2,7 +2,7 @@
 document_type: demo-runbook
 objective: T13-capstone
 level: ops
-version: "1.4"
+version: "1.5"
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
 project: prism
@@ -559,7 +559,7 @@ The same `| enrich threat_score(...)` UDF is sensor-agnostic.
 
 ---
 
-**Step 3.5 — Enrich CVEs from Cyberint alerts against NVD**
+**Step 3.5 — Enrich CVEs from Armis devices against NVD**
 
 ```sql
 FROM armis_devices
@@ -567,7 +567,7 @@ FROM armis_devices
 | enrich cvss_base_score(device_cves_first)
 | enrich cvss_severity(device_cves_first)
 | limit 5
-client_id = "org-b"
+client_id = "org-c"
 ```
 
 Expected: Each row gains `cvss_base_score` (~8.1) and `cvss_severity` (`"HIGH"`).
@@ -580,10 +580,15 @@ projected per Ruling 1b / BC-2.06.019 §PC-4 — NOT `cve_id`, NOT `device_cves`
 **What it demonstrates:** The NVD enrichment path (HttpLookup path, ADR-040 →
 prism-dtu-nvd DTU). Same `| enrich` syntax, different enrichment source.
 
-**Talking point:** "Org-b uses Cyberint for threat intel alerts. The device record
+**Talking point:** "Org-c has Armis for IoT/OT device inventory. The device record
 includes a CVE reference. The analyst enriches it against NVD in the same query.
 CVSS 8.1 HIGH. No context switching, no copy-paste into a browser — the vulnerability
 context is right there."
+
+**N4 correction note:** `client_id = "org-c"` is required — org-b does NOT have Armis
+(org-b is Claroty + Cyberint only; see §1.2 org topology). org-a and org-c both have
+Armis; org-c is used here because it is the four-sensor reference client for this demo
+arc.
 
 ---
 
@@ -729,14 +734,22 @@ are visible simultaneously because Stage 4 `StageMask` has all 6 fields set to `
 **Step 6.3 — Claroty audit log for org-c (OT perspective)**
 
 ```sql
-FROM claroty_audit_log
+FROM claroty_audit_logs
 LIMIT 20
 client_id = "org-c"
 ```
 
-Expected: Returns OT audit events. Claroty's audit log (delivered by
-S-DEMO-CLAROTY-AUDIT-DTU-001) surfaces operator-side activity. At Stage 4, there may
-be containment-related events visible in the audit log.
+Expected: Returns OT audit events including columns `action`, `actor`, `id`,
+`resource`, `timestamp`. Claroty's audit log (delivered by S-DEMO-CLAROTY-AUDIT-DTU-001)
+surfaces operator-side activity. At Stage 4, there may be containment-related events
+visible in the audit log.
+
+The correct FROM-ready table name is `claroty_audit_logs` (plural — derived from
+`table_name = "audit_logs"` in the Claroty sensor TOML spec, prefixed with `claroty_`
+per AUDIT-001 sensor-prefixed naming). The primary key column is `id` (NOT `log_id` —
+the Claroty `AuditLogEntry` struct uses `id: String` per the DTU types.rs). N5
+correction: earlier draft used `claroty_audit_log` (singular) and `log_id`; both were
+wrong.
 
 **Talking point:** "Org-c has an OT environment alongside its IT environment. Claroty
 sees the industrial controller side. The same prism query surface covers both IT and
@@ -867,10 +880,13 @@ error naming the invalid column and listing alternatives.
 
 ### 5.8 Multi-Tenant Isolation Proof
 
-- [ ] `FROM cyberint_alerts LIMIT 5 client_id="org-a"` returns E-QUERY-037 (org-a
-      has no Cyberint sensor — per BC-2.10.004 client scoping)
-- [ ] `FROM armis_devices LIMIT 5 client_id="org-b"` returns E-QUERY-037 (org-b has
-      no Armis sensor)
+- [ ] `FROM cyberint_alerts LIMIT 5 client_id="org-a"` returns E-QUERY-032 (org-a
+      has no Cyberint sensor registered for this org — sensor exists globally but is NOT
+      configured for org-a; per BC-2.10.004 client scoping. E-QUERY-032 = "sensor X is not
+      registered for org Y" authorization gate, NOT E-QUERY-037 "table not in TableRegistry"
+      plan-time check. N3 correction: earlier draft incorrectly cited E-QUERY-037.)
+- [ ] `FROM armis_devices LIMIT 5 client_id="org-b"` returns E-QUERY-032 (org-b has
+      no Armis sensor registered — same authorization gate as above)
 
 ---
 
@@ -962,6 +978,7 @@ context between queries but does not hand-hold Claude on syntax.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.5 | 2026-06-26 | **Demo-fidelity remediation (S-DEMO-FIDELITY-REMEDIATION-001):** Three factual errors corrected against live audit evidence (demo-pre-flight-audit-2026-06-26.md). N3: §5.8 checklist corrected E-QUERY-037 → E-QUERY-032 for sensor-not-registered-for-org checks (`FROM cyberint_alerts client_id="org-a"`, `FROM armis_devices client_id="org-b"`). These orgs are missing the sensor registration entirely; the correct error is E-QUERY-032 (authorization gate "sensor X not registered for org Y"), NOT E-QUERY-037 (plan-time table-not-in-TableRegistry). The distinction matters: E-QUERY-037 fires when the org has the sensor registered but the queried table is wrong; E-QUERY-032 fires when the org has NO such sensor at all. N4: Step 3.5 corrected `client_id="org-b"` → `client_id="org-c"` for the Armis CVE enrichment query. Org-b does NOT have Armis (org-b = Claroty + Cyberint only, per §1.2 org topology); the query would return E-QUERY-032 for org-b. Org-c (all four sensors) is the correct target. Updated talking point accordingly. N5: §6.3 corrected `FROM claroty_audit_log` → `FROM claroty_audit_logs` (plural, per Claroty sensor TOML `table_name = "audit_logs"` → FROM-ready name `claroty_audit_logs`); corrected example column comment `log_id` → `id` (real column per Claroty DTU `AuditLogEntry.id: String`). |
 | 1.4 | 2026-06-24 | AC-020/BLOCKER-002 (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001): corrected pipe-mode query syntax in Steps 3.2, 3.4, 3.5, and 6.2. These queries mixed SQL-style `WHERE`/`LIMIT` (without `\|` prefix) with `\| enrich` pipe stages — invalid PrismQL. Corrected to valid pipe mode: `WHERE` → `\| where`, `LIMIT` → `\| limit` throughout all four steps. Updated §7 Block 3 reference (`WHERE` → `\| where`). Concurrent-execution clarification (Task 3): §1.1 framing updated to make explicit that prism is a SINGLE process with a multi-threaded tokio runtime; a query fans out to multiple sensors IN PARALLEL (bounded by MAX_FANOUT_CONCURRENCY=10, nested under HTTP_SEMAPHORE_PERMITS=200); concurrent queries are NOT serialized by any lock (`PrismServer::query` takes `&self`; ArcSwap lock-free config reads). The only sequential aspect is stdin message framing in the stdio transport — a transport/client characteristic, not engine serialization. Talking points updated to reflect "async fan-out" framing. |
 | 1.3 | 2026-06-23 | GAP-1: corrected enrichment UDF function names throughout. Actual registered UDF names are per-field from `[[infusion.fields]]`: ThreatIntel → `threat_score`, `threat_is_known_malicious`, `threat_sources`; NVD → `cvss_base_score`, `cvss_severity`, `cvss_vector`. Replaced all `\| enrich threat_intel(...)` with `\| enrich threat_score(...)` and all `\| enrich nvd(...)` with `\| enrich cvss_base_score(device_cves_first)`. Updated Step 3.2 expected output (no `threat_intel.threat_score` namespace prefix; column is `threat_score`), Step 3.5 to use Armis devices with `device_cves_first` (Ruling 1b) and `cvss_base_score`/`cvss_severity` column names, §4 Expected Outputs table, §5.5 dry-run checklist, §6 enrichment caveat, §7 recording sequence. GAP-3: corrected `prism_describe` JSON example key `"table_name"` → `"name"` in all four table entries (matches `TableDescriptor.name` field in `prism-mcp/src/tools/prism_describe.rs`). |
 | 1.2 | 2026-06-23 | ENRICH-1 clean-column-name amendment (S-DEMO-ENRICH-1). PIVOT-003 bracket-in-name column references (`iocs[].value`, `iocs[].type`) superseded by ENRICH-1 clean SQL identifiers: `iocs_value` (source_path `$.iocs[*].value`), `iocs_type` (source_path `$.iocs[*].type`). All queries, expected outputs, VERIFY IN DRY-RUN notes, checklist items, Expected Outputs table, and §6 caveat updated. prism_describe JSON example updated (`iocs[].value` → `iocs_value`, `iocs[].type` → `iocs_type`). §6 caveat rewritten: bracket-in-name forms NOT queryable as PrismQL column names; wildcard source_path means `iocs_value` returns JSON-list string (e.g., `["hash1","hash2"]`). Added diagnostic note: check `column_source_path_extraction_failed` warn events if `iocs_value` is unexpectedly null. `behaviors_ioc_type`/`behaviors_ioc_value` (CrowdStrike) were already correct clean names (set in PIVOT-003). |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: demo-readiness-2026-06-24
-modified: null
+modified: "2026-06-26"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -57,7 +57,7 @@ The `prismql://reference` MCP resource is no longer served from a static `pql_re
 | Column naming note | Design map §GRAMMAR-019 note | "Column names come verbatim from `prism_describe`; use the name as shown; do not construct dot-path names." |
 | LIMIT / head / limit equivalence note | Design map §GRAMMAR-002 | "`head N == limit N` in pipe mode; `LIMIT N` is trailing clause in SQL mode; all are case-insensitive." |
 | Error code quick-reference | error-taxonomy.md (E-QUERY-NNN subset) | E-QUERY-001 through E-QUERY-040 codes relevant to query authoring |
-| Enrichment section | `InfusionRegistry` (live) | Registered infusion names + call signatures `enrich <name>(<col>)`; fallback placeholder when `None` |
+| Enrichment section | `InfusionRegistry` (live) | **Per-field UDF names** from `InfusionField.name` values (i.e., one entry per `[[infusion.fields]]` TOML declaration), NOT aggregated by `infusion_id`. Call signatures `enrich <name>(<col>)`. Example for a ThreatIntel infusion with fields `threat_score`, `threat_is_known_malicious`, `threat_sources`: the enrichment section lists all three as separate callable functions — NOT a single `threat_intel(col)` aggregate form. The `build_reference_content` implementation MUST iterate `InfusionRegistry.udf_descriptors()` and emit one entry per descriptor's `name` field (the per-field UDF name), NOT per `infusion_id`. Deduplication key is `descriptor.name`, not `descriptor.infusion_id`. Fallback placeholder shown when `InfusionRegistry` is `None`. |
 
 ### Structural requirements
 
@@ -99,6 +99,7 @@ The shared example array MUST be a `const REFERENCE_EXAMPLES: &[(ExampleKind, &'
 | EC-11-022-001 | `read_resource prismql://reference` before WASM plugins loaded (boot step 8 not yet complete) | `build_reference_content(None)` is called; enrichment section shows placeholder; all other sections are accurate |
 | EC-11-022-002 | `read_resource prismql://reference` after hot-reload adds a new infusion | Returns reference with updated enrichment section (reload-aware via `ArcSwap::load()`) |
 | EC-11-022-003 | `read_resource prismql://reference` when no infusions are registered (empty registry) | Enrichment section shows "No enrichment infusions are currently registered. Call `list_infusions` to see available functions." |
+| EC-11-022-006 | `InfusionRegistry` has infusion `threat_intel` (infusion_id) with three `[[infusion.fields]]` entries: `threat_score`, `threat_is_known_malicious`, `threat_sources`; AND infusion `nvd` (infusion_id) with three entries: `cvss_base_score`, `cvss_severity`, `cvss_vector` | Enrichment section lists SIX entries: `enrich threat_score(col)`, `enrich threat_is_known_malicious(col)`, `enrich threat_sources(col)`, `enrich cvss_base_score(col)`, `enrich cvss_severity(col)`, `enrich cvss_vector(col)`. It MUST NOT list `enrich threat_intel(col)` or `enrich nvd(col)`. The infusion_id (`threat_intel`, `nvd`) is NOT a callable UDF name and must not appear in the reference. (N1 / AUDIT-N1) |
 | EC-11-022-004 | CI gate finds a positive example that fails to parse after grammar change | CI FAILS — the broken example must be fixed before merge |
 | EC-11-022-005 | CI gate finds the E-QUERY-040 negative example now succeeds (FORBID-BOTH relaxed) | CI FAILS until the example is updated to reflect the new behavior |
 
@@ -113,6 +114,7 @@ The shared example array MUST be a `const REFERENCE_EXAMPLES: &[(ExampleKind, &'
 | CI: positive gate — `SELECT * FROM t WHERE timestamp > NOW() - INTERVAL '24h'` | `PrismQlParser::parse` returns `Ok(Ast::Sql(_))` | CI gate |
 | CI: negative gate — `SELECT * FROM t LIMIT 5 \| enrich fn(x) \| limit 3` | `plan` returns `Err(PrismError::RedundantRowLimit { sql_limit: 5, pipe_limit: 3 })` | CI gate |
 | CI: registry-parity gate — test registry with `{threat_score, cvss_score}` infusions | Rendered enrichment section contains exactly `threat_score(col)` and `cvss_score(col)` signatures | CI gate |
+| CI: per-field UDF name gate — test registry with infusion_id `threat_intel` having fields `{threat_score, threat_is_known_malicious}` | Rendered enrichment section contains `threat_score(col)` and `threat_is_known_malicious(col)`; does NOT contain `threat_intel(col)`. Deduplication key is `InfusionField.name`, not `InfusionField.infusion_id`. (N1 / EC-11-022-006) | CI gate |
 
 ## Verification Properties
 
@@ -158,5 +160,6 @@ VP-021 (fuzz gate applies to CI gate inputs)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | demo-fidelity-remediation-2026-06-26 | 2026-06-26 | product-owner | **N1 / AUDIT-N1 contract fix (S-DEMO-FIDELITY-REMEDIATION-001):** Enrichment section postcondition amended to explicitly specify that the reference must list per-`[[infusion.fields]]` UDF names (e.g., `threat_score`, `threat_is_known_malicious`, `threat_sources`, `cvss_base_score`, `cvss_severity`, `cvss_vector`) and MUST NOT list infusion_id aggregate names (e.g., `threat_intel`, `nvd`). The `build_reference_content` implementation MUST iterate `InfusionRegistry.udf_descriptors()` using `descriptor.name` (per-field UDF) as both the deduplication key and the emitted function name — not `descriptor.infusion_id`. Added EC-11-022-006 (6-UDF example with threat_intel/nvd infusion_ids) and a CI registry-parity gate test vector to prevent regression. The prismql://reference reference internally contradicting itself (listing `threat_intel(col)` in the "Available enrichment functions" section while using `threat_score(...)` in the example) is a code defect in `build_reference_content`, not a spec ambiguity. The spec required per-field UDF names (via the InfusionRegistry content requirement); this amendment makes that requirement machine-testable. |
 | 1.0 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-045 v1.1. Closes GRAMMAR-008/009/017 and partially closes GRAMMAR-002/003/007/018/019 via reference content requirements. CI gate mandates shared example array. |
