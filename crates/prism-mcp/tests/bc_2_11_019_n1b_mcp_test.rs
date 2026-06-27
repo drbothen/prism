@@ -62,7 +62,7 @@
 //! | test_bc_2_11_019_n1b_mcp_maps_to_32602 | AC-N1B | BC-2.11.019 v1.2 |
 
 use prism_core::{
-    error::{InfusionError, PrismError},
+    error::{EnrichUdfNotFoundDetails, PrismError},
     UnknownSourceTableDetails,
 };
 use prism_mcp::error_mapping::{codes, map_prism_error};
@@ -99,43 +99,31 @@ fn test_bc_2_11_019_n1b_mcp_maps_to_32602() {
          map to -32602 after the E-QUERY-039 arm is added. Got: {code_036}"
     );
 
-    // ── RED gate: InfusionError currently falls through to -32000 catch-all ──
-    //
-    // The MCP mapping test for E-QUERY-039 requires `PrismError::EnrichUdfNotFound`
-    // which does not yet exist. As a proxy RED gate: `PrismError::InfusionError`
-    // (BC-2.11.019 v1.2 states that InfusionError is the WRONG return path — E-QUERY-039
-    // is the correct return path). We assert it maps to -32602 and does NOT fall through
-    // to -32000. This currently FAILS RED because InfusionError has no explicit arm.
-    //
-    // The implementer must:
-    // 1. Add `PrismError::EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>)` to error.rs
-    // 2. Add `PrismError::EnrichUdfNotFound(..) => (codes::INVALID_PARAMS, ...)` arm to
-    //    map_prism_error
-    // 3. Replace this proxy assertion with the direct EnrichUdfNotFound assertion
-    // Use PrismError::Infusion(UnknownInfusion) as proxy for EnrichUdfNotFound.
-    // Both are "enrichment UDF not found" errors — the EnrichUdfNotFound variant
-    // will replace/join this proxy path once it's implemented.
-    let infusion_err = PrismError::Infusion(InfusionError::UnknownInfusion {
-        name: "threat_intel".to_string(),
-    });
-    let (code_proxy, message_proxy) = map_prism_error(infusion_err);
+    // ── Direct E-QUERY-039 assertion: EnrichUdfNotFound must map to -32602 ──
+    // Per NOTE TO IMPLEMENTER: replace proxy InfusionError assertion with direct
+    // EnrichUdfNotFound variant now that the variant exists.
+    let e039_err = PrismError::EnrichUdfNotFound(Box::new(EnrichUdfNotFoundDetails::new(
+        "threat_intel",
+        vec![
+            "threat_score".to_string(),
+            "threat_is_known_malicious".to_string(),
+            "threat_sources".to_string(),
+        ],
+        None,
+    )));
+    let (code_039, message_039) = map_prism_error(e039_err);
 
-    // This assertion FAILS RED: InfusionError currently maps to -32000 (catch-all),
-    // NOT -32602. The fix requires adding the EnrichUdfNotFound variant + explicit arm.
     assert_eq!(
-        code_proxy,
+        code_039,
         codes::INVALID_PARAMS,
-        "BC-2.11.019 AC-N1B: E-QUERY-039 / EnrichUdfNotFound errors must map to \
-         -32602 INVALID_PARAMS, NOT -32000 INTERNAL_ERROR. \
-         Current code: InfusionError falls through to -32000 catch-all. \
-         Fix: add explicit PrismError::EnrichUdfNotFound(..) => (INVALID_PARAMS, ...) arm. \
-         Got: {code_proxy}"
+        "BC-2.11.019 AC-N1B: E-QUERY-039 (EnrichUdfNotFound) must map to \
+         -32602 INVALID_PARAMS, NOT -32000 INTERNAL_ERROR. Got: {code_039}"
     );
 
     assert_ne!(
-        code_proxy,
+        code_039,
         codes::INTERNAL_ERROR,
         "BC-2.11.019 AC-N1B: E-QUERY-039 errors must NOT map to -32000 INTERNAL_ERROR. \
-         Got message: {message_proxy}"
+         Got message: {message_039}"
     );
 }

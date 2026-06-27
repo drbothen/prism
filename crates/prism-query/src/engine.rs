@@ -795,6 +795,20 @@ impl QueryEngine {
             };
         let effective_query: &str = &effective_query;
 
+        // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: Plan-time enrichment UDF gate (E-QUERY-039).
+        //
+        // Fires BEFORE the table availability gate (E-QUERY-037) and column gate (E-QUERY-038).
+        // Gate ordering: E-QUERY-001 (parse) → E-QUERY-039 (enrich UDF not found)
+        //   → E-QUERY-037 (table not found) → E-QUERY-038 (column not found).
+        //
+        // Validates that all enrichment function names in the query (pipe: `| enrich name(col)`;
+        // SQL: `SELECT name(col)`) are registered per-field UDF names in the InfusionRegistry.
+        // Returns E-QUERY-039 with available_infusions and did_you_mean when an unregistered
+        // name is detected (prevents "infusion_id used as UDF name" silent failures).
+        //
+        // Gate is skipped when `infusion_registry` is None (enrichment not configured).
+        check_enrich_udf_availability(effective_query, self.infusion_registry.as_deref())?;
+
         // S-3.13 Step 1a: Plan-time table availability gate (BC-2.11.001, AC-2, AC-8).
         //
         // Fires BEFORE client scope resolution and BEFORE `materialize_query` (fail fast,
@@ -1102,6 +1116,10 @@ impl QueryEngine {
         // The gate is best-effort: if query_str fails to parse, the pipeline handles it.
         check_internal_table_capabilities(query_str, &[])?;
 
+        // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: E-QUERY-039 enrichment UDF gate for
+        // scheduled queries — same rationale as execute_inner.
+        check_enrich_udf_availability(query_str, self.infusion_registry.as_deref())?;
+
         // S-3.13: plan-time table availability gate for scheduled queries (AC-8 mode-agnostic).
         // ADR-039 / SEC-001: pass org_scope and resolved_spec_map for org-scoped filtering.
         // Gate fires BEFORE resolve_clients to avoid moving `clients` before the borrow.
@@ -1331,6 +1349,133 @@ fn check_table_availability(
     // The gate body lives in table_registry.rs, keeping engine.rs
     // free of stub macros per POL-12 / test_AC_8_no_todo_or_unimplemented_remains.
     registry.check_availability_gate(query_str, org_scope, resolved_spec_map)
+}
+
+// ---------------------------------------------------------------------------
+// E-QUERY-039 plan-time enrichment UDF gate (S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B)
+// ---------------------------------------------------------------------------
+
+/// Plan-time enrichment UDF availability gate — E-QUERY-039 (BC-2.11.019 v1.2).
+///
+/// Fires BEFORE `check_table_availability` (fail-fast: enrichment UDF names are
+/// syntactically present in the query and can be validated without table data).
+///
+/// Parses the query string, collects all enrichment function names used in the query
+/// (both pipe-mode `| enrich udf_name(col)` and SQL-mode `SELECT udf_name(col)`), then
+/// validates each against the `InfusionRegistry` descriptor set.
+///
+/// # Gate skip conditions
+/// - `registry` is `None`: skip immediately (enrichment not configured).
+/// - Query fails to parse: return `Ok(())` — parse errors handled downstream.
+/// - No enrichment names found in the AST: return `Ok(())` (query doesn't use enrichment).
+///
+/// # SQL path detection
+/// SQL-mode enrichment: `ScalarFunc::Unknown(name)` in `FuncCall::Scalar` nodes in
+/// SELECT projections. Only `SelectItem::Expr` entries are scanned (not `*`).
+/// This is intentionally broad — any unknown scalar function in a SQL SELECT is treated
+/// as a potential enrichment UDF when the infusion registry is active.
+///
+/// # Pipe path detection
+/// Pipe-mode enrichment: `PipeStage::Enrich(EnrichStage { infusion, .. })` nodes in
+/// the pipe stage list. The `infusion` field holds the caller-supplied UDF name.
+///
+/// # Reference
+/// S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.2; error-taxonomy.md E-QUERY-039.
+fn check_enrich_udf_availability(
+    query_str: &str,
+    registry: Option<&prism_spec_engine::InfusionRegistry>,
+) -> Result<(), PrismError> {
+    use crate::ast::{Ast, FuncCall, PipeStage, ScalarFunc, SelectItem, SqlStatement};
+    use crate::filter_parser::PrismQlParser;
+    use prism_core::error::EnrichUdfNotFoundDetails;
+
+    // Skip when no registry is wired — enrichment not configured in this deployment.
+    let Some(registry) = registry else {
+        return Ok(());
+    };
+
+    // Parse the query. On parse failure, return Ok(()) — parse errors are emitted
+    // downstream as E-QUERY-001. This mirrors check_table_availability's behavior.
+    let ast = match PrismQlParser::parse(query_str) {
+        Ok(ast) => ast,
+        Err(_) => return Ok(()),
+    };
+
+    // Build the registered UDF name set from the live registry.
+    let descriptors = registry.udf_descriptors();
+    let registered_names: std::collections::HashSet<&str> =
+        descriptors.iter().map(|d| d.name.as_str()).collect();
+
+    // If no UDFs are registered, skip the gate (no enrichment descriptors loaded).
+    if registered_names.is_empty() {
+        return Ok(());
+    }
+
+    // Collect enrichment UDF names from the AST via direct pattern matching.
+    // Using direct match (not the Visitor trait) to avoid coupling with the full
+    // visitor infrastructure — enrichment nodes are a well-defined subset.
+    let mut enrich_fn_names: Vec<String> = Vec::new();
+
+    match &ast {
+        // Pipe mode: `FROM table | enrich udf_name(col)` stages.
+        Ast::Pipe(pq) => {
+            for stage in &pq.stages {
+                if let PipeStage::Enrich(es) = stage {
+                    enrich_fn_names.push(es.infusion.clone());
+                }
+            }
+        }
+        // SqlPipe mode: SQL head with pipe stages — enrich can appear in the stages.
+        Ast::SqlPipe(spq) => {
+            for stage in &spq.stages {
+                if let PipeStage::Enrich(es) = stage {
+                    enrich_fn_names.push(es.infusion.clone());
+                }
+            }
+        }
+        // SQL mode: `SELECT udf_name(col) FROM table` — ScalarFunc::Unknown in projections.
+        Ast::Sql(SqlStatement::Select(sq)) => {
+            for item in &sq.select.items {
+                if let SelectItem::Expr {
+                    expr:
+                        crate::ast::Expr::FuncCall(FuncCall::Scalar {
+                            func: ScalarFunc::Unknown(name),
+                            ..
+                        }),
+                    ..
+                } = item
+                {
+                    enrich_fn_names.push(name.clone());
+                }
+            }
+        }
+        // Filter mode and DML have no enrichment syntax.
+        _ => {}
+    }
+
+    // Validate each enrichment name against the registered UDF name set.
+    for requested in &enrich_fn_names {
+        if !registered_names.contains(requested.as_str()) {
+            // Requested name is not a registered per-field UDF name.
+            // Build available_infusions from all registered per-field names.
+            let available_infusions: Vec<String> =
+                descriptors.iter().map(|d| d.name.clone()).collect();
+
+            // did_you_mean: Levenshtein ≤ 3 suggestion from registered names.
+            let did_you_mean = available_infusions
+                .iter()
+                .map(|n| (n.clone(), strsim::levenshtein(requested, n)))
+                .filter(|(_, dist)| *dist <= 3)
+                .min_by_key(|(_, dist)| *dist)
+                .map(|(name, _)| name);
+
+            return Err(PrismError::EnrichUdfNotFound(Box::new(
+                EnrichUdfNotFoundDetails::new(requested.clone(), available_infusions, did_you_mean),
+            )));
+        }
+    }
+
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

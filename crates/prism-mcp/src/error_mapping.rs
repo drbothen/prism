@@ -137,6 +137,21 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.016; error-taxonomy.md E-QUERY-038.
         PrismError::ColumnNotFound(..) => (codes::INVALID_PARAMS, format!("{err}")),
 
+        // E-QUERY-039: Enrichment UDF not found → -32602 Invalid params (caller-resolvable).
+        //
+        // The caller used an enrichment function name that is not registered in the
+        // `InfusionRegistry` — commonly an infusion_id (e.g. `threat_intel`) used as if
+        // it were a callable per-field UDF name (e.g. `threat_score`).
+        //
+        // MUST be explicit: without this arm, `EnrichUdfNotFound` falls to the catch-all
+        // `-32000 INTERNAL_ERROR`, losing the caller-actionable available_infusions guidance.
+        //
+        // Maps to INVALID_PARAMS (-32602): caller-resolvable by using a per-field UDF name
+        // from `prism_describe` or the PQL reference resource.
+        //
+        // Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.2; error-taxonomy.md E-QUERY-039.
+        PrismError::EnrichUdfNotFound(..) => (codes::INVALID_PARAMS, format!("{err}")),
+
         // E-QUERY-002: Query type mismatch → -32602 Invalid params (caller-resolvable).
         //
         // The caller used an operator that is not valid for the column's ColumnType —

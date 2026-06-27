@@ -8,6 +8,75 @@
 
 use thiserror::Error;
 
+/// Inner fields for `PrismError::EnrichUdfNotFound` (E-QUERY-039).
+///
+/// Boxed inside the enum variant to keep `PrismError` under the
+/// `clippy::result_large_err` 128-byte threshold — two `String` fields
+/// plus `Vec<String>` plus `Option<String>` inline would exceed the limit.
+///
+/// # Construction
+/// ```
+/// use prism_core::error::{PrismError, EnrichUdfNotFoundDetails};
+/// let err = PrismError::EnrichUdfNotFound(Box::new(EnrichUdfNotFoundDetails::new(
+///     "threat_intel",
+///     vec!["threat_score".to_string(), "threat_is_known_malicious".to_string()],
+///     Some("threat_score".to_string()),
+/// )));
+/// ```
+///
+/// Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.2; error-taxonomy.md E-QUERY-039.
+///
+/// # `#[non_exhaustive]` note
+/// Marked `#[non_exhaustive]` per CLAUDE.md convention for public `prism-core` structs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct EnrichUdfNotFoundDetails {
+    /// The enrichment UDF name that was requested but not found (e.g. `"threat_intel"`).
+    /// This is typically an infusion_id used as if it were a callable per-field UDF name.
+    pub infusion: String,
+    /// All registered per-field UDF names available in this deployment.
+    /// Empty only when `infusion_registry` has no descriptors loaded.
+    pub available_infusions: Vec<String>,
+    /// Levenshtein-based suggestion — `Some("threat_score")` when distance ≤ 3, `None` otherwise.
+    pub did_you_mean: Option<String>,
+}
+
+impl EnrichUdfNotFoundDetails {
+    /// Construct an `EnrichUdfNotFoundDetails`.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct literal construction
+    /// from outside `prism-core`. (CLAUDE.md `#[non_exhaustive]` discipline)
+    pub fn new(
+        infusion: impl Into<String>,
+        available_infusions: Vec<String>,
+        did_you_mean: Option<String>,
+    ) -> Self {
+        Self {
+            infusion: infusion.into(),
+            available_infusions,
+            did_you_mean,
+        }
+    }
+}
+
+impl std::fmt::Display for EnrichUdfNotFoundDetails {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Taxonomy template (error-taxonomy.md E-QUERY-039):
+        // "E-QUERY-039: enrichment UDF '{infusion}' not found;
+        //  available: [{available_infusions}]{did_you_mean}"
+        let available = self.available_infusions.join(", ");
+        let did_you_mean_suffix = match &self.did_you_mean {
+            Some(s) => format!(" Did you mean: '{s}'?"),
+            None => String::new(),
+        };
+        write!(
+            f,
+            "E-QUERY-039: enrichment UDF '{}' not found; available: [{}]{}",
+            self.infusion, available, did_you_mean_suffix
+        )
+    }
+}
+
 /// Inner fields for `PrismError::ColumnNotFound` (E-QUERY-038).
 ///
 /// Boxed inside the enum variant to keep `PrismError` under the
@@ -876,6 +945,29 @@ pub enum PrismError {
     /// Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.016; error-taxonomy.md E-QUERY-038.
     #[error("{0}")]
     ColumnNotFound(Box<ColumnNotFoundDetails>),
+
+    /// E-QUERY-039: Enrichment UDF not found at plan time (BC-2.11.019 v1.2).
+    ///
+    /// Returned by the plan-time enrichment gate in `engine.rs` BEFORE fan-out when a
+    /// query's enrichment stage names a UDF that is not registered in the `InfusionRegistry`.
+    /// This fires for BOTH pipe mode (`| enrich udf_name(col)`) and SQL mode
+    /// (`SELECT udf_name(col) FROM ...`).
+    ///
+    /// The most common root cause: the caller used the `infusion_id` (e.g. `threat_intel`)
+    /// as the callable name instead of the per-field UDF name (e.g. `threat_score`).
+    ///
+    /// Maps to MCP code -32602 (INVALID_PARAMS) — caller-resolvable by using a
+    /// per-field UDF name from `prism_describe` or the PQL reference resource.
+    ///
+    /// The inner fields are boxed (`Box<EnrichUdfNotFoundDetails>`) to keep `PrismError`
+    /// within the `clippy::result_large_err` 128-byte threshold.
+    ///
+    /// Construct via `PrismError::EnrichUdfNotFound(Box::new(EnrichUdfNotFoundDetails::new(...)))`.
+    /// Match via `PrismError::EnrichUdfNotFound(ref d)` or `PrismError::EnrichUdfNotFound(..)`.
+    ///
+    /// Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.2; error-taxonomy.md E-QUERY-039.
+    #[error("{0}")]
+    EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>),
 
     /// E-QUERY-037: Table is not available — the sensor that owns the table is not configured.
     ///
