@@ -1844,15 +1844,27 @@ fn extract_field_paths_from_expr(
 /// Gate ordering: E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038
 /// (column not found). If the table check fails, this gate is never reached.
 ///
-/// Checks each column reference in the query AST against the column schema in
-/// `resolved_spec_map → ResolvedSensorSpec.spec.tables → TableSpec.columns →
-/// ColumnSpec.name` for the (table, org_scope) pair. When `resolved_spec_map` is
-/// `None`, returns `Ok(())` (fail-open for single-tenant / test mode — the gate fires
-/// only when resolved_spec_map is wired).
+/// # Schema source selection
 ///
-/// `available_columns` is ALWAYS present in the error (empty `[]` when `resolved_spec_map`
-/// is `None` or the table has zero columns). `did_you_mean` uses `strsim::levenshtein`
-/// with the same ≤3 threshold as the E-QUERY-037 gate (D-1163).
+/// ## Multi-tenant path (`resolved_spec_map` is `Some`)
+/// Checks each column reference against `resolved_spec_map → ResolvedSensorSpec.spec.tables
+/// → TableSpec.columns → ColumnSpec.name` for the (table, org_scope) pair.
+///
+/// ## Single-tenant / table_registry fallback (`resolved_spec_map` is `None`)
+/// Falls back to `table_registry.columns_for_table(table_name)` (M1 fix,
+/// S-DEMO-FIDELITY-REMEDIATION-001). If `table_registry` is also `None`, fails open.
+/// If the table has zero columns in the registry, fails open (backward-compatible for
+/// tables without a column spec). When columns are present and the requested column is
+/// absent, E-QUERY-038 is returned with `available_columns` populated from the registry.
+///
+/// The prior behaviour ("when `resolved_spec_map` is `None`, returns `Ok(())`") was
+/// removed by the M1 fix; the gate now fires for single-tenant mode via the registry
+/// fallback. F-PJL1-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade).
+///
+/// # Error payload
+/// `available_columns` is ALWAYS present in the error (empty `[]` only when no columns
+/// are registered for the table). `did_you_mean` uses `strsim::levenshtein` with the
+/// same ≤3 threshold as the E-QUERY-037 gate (D-1163).
 ///
 /// # BC-2.11.016 / S-DEMO-PRISMQL-ONBOARDING-001-B AC-001, AC-002
 fn check_column_availability(
