@@ -17,7 +17,7 @@ subsystems: [SS-10, SS-11]
 # Subsystem anchor justifications:
 #   SS-10 (MCP Interface) owns the prism-mcp work:
 #     - N1: build_reference_content in resources.rs (BC-2.11.022 v1.1) — per-field UDF names
-#     - AUDIT-001: build_tables_for_client in prism_describe.rs (BC-2.10.012 v1.4) — sensor-prefixed name
+#     - AUDIT-001: build_tables_for_client in prism_describe.rs (BC-2.10.012 v1.5) — sensor-prefixed name
 #     - AUDIT-004: render_* functions in prompts.rs (BC-2.10.016 v1.2) — FROM-ready table names
 #   SS-11 (Query Execution Engine) owns the prism-query + prism-core work:
 #     - N1-B: E-QUERY-039 NET-NEW implementation: EnrichUdfNotFound variant+struct in prism-core/error.rs;
@@ -61,16 +61,16 @@ points: 10
 #     4 pts (net-new > 2 pts originally)
 #   BC-2.11.001 v1.15 — N2: fix gate ordering across table_registry.rs + engine.rs
 #     (NOT materialization.rs only — gate is in check_availability_gate/is_registered): 2 pts
-#   BC-2.10.012 v1.4 — AUDIT-001: fix build_tables_for_client emit format: 1 pt
+#   BC-2.10.012 v1.5 — AUDIT-001: fix build_tables_for_client emit format: 1 pt
 #   BC-2.10.016 v1.2 — AUDIT-004: fix render_* prompt FROM-ready table names: 1 pt
 #   Total: 10 pts (N1-B is full net-new implementation, not a routing investigation)
 level: "L4"
 status: draft
-# BC status: 5 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.4,
+# BC status: 5 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.5,
 #   BC-2.11.016 v1.4) + BC-2.11.019 v1.5 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.3"
+version: "2.4"
 updated: "2026-06-28"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -264,7 +264,7 @@ all subquery positions (HAVING, GROUP BY, ORDER BY, JOIN ON).
 | BC-2.11.022 | v1.1 | BC-2.11.022: Auto-Generated `prismql://reference` Content Contract and CI Parity Gate |
 | BC-2.11.019 | v1.5 | BC-2.11.019: E-QUERY-039 Enrich-UDF-Not-Found Plan-Time Gate |
 | BC-2.10.016 | v1.2 | BC-2.10.016: MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
-| BC-2.10.012 | v1.4 | BC-2.10.012: `prism_describe` Schema Discovery Tool (L2) |
+| BC-2.10.012 | v1.5 | BC-2.10.012: `prism_describe` Schema Discovery Tool (L2) |
 | BC-2.11.016 | v1.4 | BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
 
 ---
@@ -481,7 +481,7 @@ arm for `PrismError::TableNotAvailable` (E-QUERY-037) is CONFIRMED PRESENT in
 
 ### Area D — prism_describe: FROM-Ready Sensor-Prefixed Table Names (AUDIT-001)
 
-**AC-AUDIT-001** (traces to BC-2.10.012 v1.4 postcondition — `name` postcondition fully-qualified
+**AC-AUDIT-001** (traces to BC-2.10.012 v1.5 postcondition — `name` postcondition fully-qualified
 FROM-ready token, closes AUDIT-001 + AUDIT-008): `build_tables_for_client` in
 `crates/prism-mcp/src/tools/prism_describe.rs` emits `name: format!("{sensor_id}_{}", table.table_name)`
 for each table entry on BOTH code paths (multi-tenant: `resolved_spec_map` filtered by `OrgSlug`;
@@ -1074,6 +1074,7 @@ spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.4 | bc-2.10.012-v1.5-propagation-2026-06-28 | 2026-06-28 | story-writer | **BC-2.10.012 v1.4→v1.5 cite propagation (F-PLL2-MED-001).** PO bumped BC-2.10.012 v1.4→v1.5 (§"Auto-generated example queries" rewritten to document the accurate shipped 4-tier per-sensor priority ladder; no behavioral/AC change — code already implements this, BC now matches it). Version cite sweep: all live (non-changelog) `BC-2.10.012 v1.4` cites updated to `v1.5` — 4 sites: frontmatter subsystem anchor comment (line 20), frontmatter points breakdown comment (line 64), frontmatter BC status comment (line 69), body BC table version cell, AC-AUDIT-001 header trace. POL-7 body BC table Title cell verified verbatim against BC H1: `BC-2.10.012: \`prism_describe\` Schema Discovery Tool (L2)` — no change needed. AC-AUDIT-001 alignment confirmed: AC specifies the CRIT-1 priority ladder for `build_example_query`; v1.5 BC description now matches what AC-AUDIT-001 and the code already do — no new AC needed, no contradiction introduced. |
 | 2.3 | bc-2.11.019-v1.5-propagation-2026-06-28 | 2026-06-28 | story-writer | **BC-2.11.019 v1.4→v1.5 propagation + F-PJL1-HIGH-001 built-in-exclusion.** PO bumped BC-2.11.019 v1.4→v1.5 (F-PJL1-HIGH-001: DataFusion built-in scalar functions are excluded from E-QUERY-039 SQL-mode firing condition; gate now requires (a) not a PQL built-in ScalarFunc variant AND (b) not in DataFusion `ctx.state().scalar_functions()` AND (c) not in `InfusionRegistry.udf_to_infusion`). **Version cite sweep:** all live (non-changelog) `BC-2.11.019 v1.4` cites updated to `v1.5` — 11 body sites (frontmatter comments ×3, body BC table version cell, AC-N1B header trace, Gate-ordering note, WHERE-clause note, §Precondition 1(b) body-cite, `available_infusions Vec<String>` note, AC-C1C2 trace, Tasks step 6(b), Previous Story Intelligence §5). **AC-N1B decision:** added built-in-exclusion note block-quote to AC-N1B (not a new standalone AC — the exclusion is a refinement of the existing gate firing condition, covered by BC-2.11.019 v1.5 §Postconditions; new tests added per EC-11-064/065). **New tests (EC-11-064/065):** `test_bc_2_11_019_n1b_builtin_passthrough_lower` + `test_bc_2_11_019_n1b_builtin_passthrough_coalesce` added to Red Gate test inventory and File Structure table; `bc_2_11_019_n1b_test.rs` 15→17 tests; `red_gate_tests` 31→33. **New edge cases:** EC-016 (EC-11-064: `lower` passes gate) + EC-017 (EC-11-065: `upper`/`coalesce` pass gate). Token Budget story spec ~16k→~17k, test files ~18k→~19k, total ~88k→~90k. |
 | 2.2 | pol-7-title-normalization-2026-06-27 | 2026-06-27 | story-writer | POL-7 title normalization (D-571 amendment): normalized all 6 Title cells in the Behavioral Contracts body table to match each BC's H1 VERBATIM — added the `BC-N.NN.NNN:` prefix to the 5 rows that had stripped it (BC-2.11.001, BC-2.11.022, BC-2.11.019, BC-2.10.016, BC-2.10.012). BC-2.11.016 was already verbatim. All 6 version cites confirmed current against BC frontmatter (v1.15, v1.1, v1.4, v1.2, v1.4, v1.4 — no drift). No §References section present; no other citation surfaces. |
 | 2.1 | f-l3-high-001-f-l3-obs-001-remediation-2026-06-27 | 2026-06-27 | story-writer | F-L3-HIGH-001 (POL-8 frontmatter↔body coherence): Added BC-2.11.016 (E-QUERY-038 Column-Not-Found Plan-Time Gate, v1.4) to `behavioral_contracts:` frontmatter array and body BC table — AC-M1 and AC-M2 genuinely trace to this BC (single-tenant column gate `columns_for_table`/`columns_by_table` + GROUP BY/ORDER BY/JOIN ON column validation). BC-2.11.016 input file added to `inputs:`. All BC-2.11.019 version cites in body updated v1.3→v1.4 (PO bump). Token Budget updated: "5 BCs"→"6 BCs", ~10k→~12k BC tokens, total ~86k→~88k. Frontmatter `behavioral_contracts` comment updated to reference all 6 BCs. AC-SAP-1 rewording: removed "(traces to ... BC-2.16.002)" — per PO verdict, SAP-1 is a standing-probe/discipline compliance reference only; this delivery added no new `event_type` emission, so there is no behavioral trace to BC-2.16.002. AC-SAP-1 now describes the compliance check outcome explicitly (all code fixes use `?`-propagation, SAP-1 scan confirmed zero new `event_type` values). F-L3-OBS-001 (prose accuracy): Updated AC-AUDIT-001 CRIT-1 prose to describe the full `build_example_query` variant priority ladder as implemented in code: (1) aggregate — Integer/Float column present; (2) severity-filter — severity column + registered sensor vocabulary; (3) count-recent — Datetime column found; (4) column-free fallback — no Datetime. Previous prose only described the datetime→column-free axis. EC-015 updated to reference the full priority ladder. Version bump 2.0→2.1. |
