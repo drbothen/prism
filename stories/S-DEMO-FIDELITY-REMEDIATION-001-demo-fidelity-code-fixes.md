@@ -67,10 +67,10 @@ points: 10
 level: "L4"
 status: draft
 # BC status: 5 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.5,
-#   BC-2.11.016 v1.4) + BC-2.11.019 v1.5 draft→active at merge per POL-14. Canonical versions
+#   BC-2.11.016 v1.5) + BC-2.11.019 v1.5 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.7"
+version: "2.8"
 updated: "2026-06-28"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -99,8 +99,8 @@ acceptance_criteria_count: 16
 #     AC-CRIT1 (build_example_query derives datetime column from spec instead of hardcoding)
 #   Regression/workspace/compliance ACs: AC-REG-1, AC-REG-2, AC-DEMO-001, AC-SAP-1
 #   Plus new ACs for SqlPipe modes and did_you_mean engine behavior
-red_gate_tests: 37
-# 37 Red Gate tests (v2.7 fold-in — adds two F-PQL2-OBS-001 skeleton-placeholder guard tests;
+red_gate_tests: 39
+# 39 Red Gate tests (v2.8 fold-in — adds two BC-2.11.016 v1.5 HAVING column-gate tests;
 # see arithmetic below):
 # --- AC-N1 ---
 #   test_bc_2_11_022_n1_per_field_udf_names (bc_2_11_022_n1_test.rs)
@@ -152,16 +152,24 @@ red_gate_tests: 37
 # --- F-PQL2-OBS-001 skeleton-placeholder guards (BC-2.10.016 v1.2; origin F-PQL2-OBS-001) ---
 #   test_f_pql2_obs001_query_skeleton_no_bare_timestamp (f_pql2_obs001_skeleton_placeholder_guard_test.rs)
 #   test_f_pql2_obs001_datetime_arithmetic_uses_placeholder (f_pql2_obs001_skeleton_placeholder_guard_test.rs)
+# --- AC-M2 HAVING column gate (BC-2.11.016 v1.5 — Position 6; inline in engine.rs,
+#     module f_pwl1_low001_having_column_gate_tests) ---
+#   test_BC_2_11_016_having_column_gate_typo_fires_e_query_038 (engine.rs inline)
+#   test_BC_2_11_016_having_column_gate_valid_col_no_e_query_038 (engine.rs inline)
 # --- AC-REG-1 ---
 #   scripts/check-non-exhaustive.sh EXPECTED=88 (compile-fail gate via shell script, not a Rust fn)
 # --- AC-REG-2 ---
 #   test_bc_2_11_022_ci_3tier_gate (reference_content.rs, existing — updated for per-field UDF parity)
 #
-# Arithmetic: 33 (pre-v2.7) + 2 F-PJL mid-cascade (bc_2_11_019_n1b_test.rs) + 2 F-PQL2-OBS-001
-#   guards (f_pql2_obs001_skeleton_placeholder_guard_test.rs) = 37.
-# Red Gate semantics: counts ALL story-delivered tests including regression guards added
-# mid-cascade. F-PJL and F-PQL2-OBS-001 guard tests were both added mid-cascade, both
-# guard story-delivered code surfaces, both must count for inventory consistency.
+# Arithmetic: 37 (v2.7) + 2 HAVING column-gate tests (engine.rs inline, BC-2.11.016 v1.5) = 39.
+# Red Gate semantics: the TDD-driving Red Gate subset — tests that were written RED before the
+# corresponding code landed, plus inline and guard tests that drive story-delivered code surfaces
+# (mid-cascade regression guards included). This is a named subset; the COMPLETE delivered test
+# set — including regression guards in shared files and inline modules not listed here — is
+# enumerated in §File Structure Requirements. The two counts are mutually consistent under this
+# definition: §File Structure enumerates the broader set; red_gate_tests counts the Red Gate
+# driving subset. F-PJL, F-PQL2-OBS-001, and HAVING guard tests are all included because they
+# guard story-delivered code surfaces and were written as part of TDD-closure for this story.
 tdd_mode: strict
 behavioral_contracts:
   [BC-2.11.001, BC-2.11.022, BC-2.11.019, BC-2.10.016, BC-2.10.012, BC-2.11.016]
@@ -279,7 +287,7 @@ all subquery positions (HAVING, GROUP BY, ORDER BY, JOIN ON).
 | BC-2.11.019 | v1.5 | BC-2.11.019: E-QUERY-039 Enrich-UDF-Not-Found Plan-Time Gate |
 | BC-2.10.016 | v1.2 | BC-2.10.016: MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
 | BC-2.10.012 | v1.5 | BC-2.10.012: `prism_describe` Schema Discovery Tool (L2) |
-| BC-2.11.016 | v1.4 | BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
+| BC-2.11.016 | v1.5 | BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
 
 ---
 
@@ -634,7 +642,7 @@ paths.
 
 ### Area G — Gate Coverage: E-QUERY-038 Column Gate in Single-Tenant Mode (M1)
 
-**AC-M1** (traces to BC-2.11.016 postcondition — E-QUERY-038 fires for unknown columns): The
+**AC-M1** (traces to BC-2.11.016 v1.5 postcondition — E-QUERY-038 fires for unknown columns): The
 `check_query_column_availability` function (E-QUERY-038 column gate) MUST fire in single-tenant
 mode where `resolved_spec_map` is `None`. Previously it returned `Ok(())` immediately in this
 case, silently bypassing E-QUERY-038 for all single-tenant queries. The fix: `TableRegistry`
@@ -655,15 +663,27 @@ column metadata.
 
 ### Area H — Gate Coverage: E-QUERY-038 Column Gate Validates GROUP BY / ORDER BY / JOIN ON (M2)
 
-**AC-M2** (traces to BC-2.11.016 postcondition — E-QUERY-038 fires for unknown columns at
+**AC-M2** (traces to BC-2.11.016 v1.5 postcondition — E-QUERY-038 fires for unknown columns at
 all relevant positions): `check_query_column_availability` validates GROUP BY expressions,
-ORDER BY expressions, and JOIN ON column refs in addition to SELECT projections and WHERE
-predicates. Previously GROUP BY, ORDER BY, and JOIN ON column references were not checked,
-creating a bypass path where an invalid column in `GROUP BY invalid_col` would not fire
-E-QUERY-038 at plan time. The fix uses `extract_field_paths_from_expr` — the SINGLE extraction
-point for all 5 positions — preventing the `.first()` false-reject pattern from recurring at
-any single position independently. `extract_field_paths_from_expr` recurses into FuncCall args
-to find `Expr::Field` references.
+ORDER BY expressions, JOIN ON column refs, and HAVING predicate column refs in addition to
+SELECT projections and WHERE predicates. Previously GROUP BY, ORDER BY, JOIN ON, and HAVING
+column references were not checked, creating bypass paths where an invalid column in
+`GROUP BY invalid_col` or `HAVING count(typo_col)` would not fire E-QUERY-038 at plan time.
+The fix uses `extract_field_paths_from_expr` — the SINGLE extraction point for all 6 positions
+(BC-2.11.016 v1.5 §Implementation location gate-positions table, Position 6 = HAVING) —
+preventing the `.first()` false-reject pattern from recurring at any single position independently.
+`extract_field_paths_from_expr` recurses into FuncCall args to find `Expr::Field` references,
+so `HAVING count(typo_col)` has `typo_col` extracted and checked against the TableRegistry schema.
+
+> **BC-2.11.016 v1.5 HAVING addition (F-PWL1-LOW-001):** HAVING is the 6th column-gate
+> position, added at v1.5 to close a coverage asymmetry: sibling gates E-QUERY-037 and
+> E-QUERY-039 already walk HAVING; omitting it from E-QUERY-038 caused a `HAVING count(typo_col)`
+> typo to bypass the clean column-not-found diagnostic and surface a less-actionable DataFusion
+> error. HAVING uses the same `Option<Predicate>` type as WHERE and the same
+> `extract_predicate_columns` extraction path — zero new machinery. New tests:
+> `test_BC_2_11_016_having_column_gate_typo_fires_e_query_038` (fires E-QUERY-038) and
+> `test_BC_2_11_016_having_column_gate_valid_col_no_e_query_038` (valid column passes gate)
+> in `engine.rs` inline module `f_pwl1_low001_having_column_gate_tests`.
 
 ---
 
@@ -1129,6 +1149,7 @@ spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.8 | bc-2.11.016-v1.5-cite-propagation-having-tests-2026-06-28 | 2026-06-28 | story-writer | **BC-2.11.016 v1.4→v1.5 cite propagation + F-PWL3-MED-001 red_gate_tests semantics fix + HAVING tests inventory (ITEM 1/2/3).** (1) **BC-2.11.016 v1.4→v1.5 cite propagation (ITEM 1):** PO bumped BC-2.11.016 v1.4→v1.5 (F-PWL1-LOW-001 HAVING coverage mandate — HAVING added as 6th column-gate position; same `Option<Predicate>` extraction path as WHERE). Live cite sweep (POL-29: `rg 'BC-2.11.016 v1\.4' .factory/`): 2 live cites in this story updated — frontmatter BC status comment (line 70) and body BC table version cell. AC-M1 trace updated from bare `BC-2.11.016` to `BC-2.11.016 v1.5`. AC-M2 header trace updated to `BC-2.11.016 v1.5`; body prose expanded to name HAVING as the 6th gate position per BC-2.11.016 v1.5 §Implementation location table; blockquote added describing the F-PWL1-LOW-001 HAVING mandate, extraction mechanism, and new tests. POL-7 body BC table Title cell verified verbatim: `BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4)` — no change needed. POL-29 sweep result: `S-DEMO-PRISMQL-ONBOARDING-001-B` also has live `BC-2.11.016 v1.4` cites (status: draft, not merged) — OUTSIDE this dispatch scope; reported to orchestrator for separate update (ONBOARDING-001-B is the BC anchor story per PO). (2) **F-PWL3-MED-001 red_gate_tests semantics fix (ITEM 2):** The `red_gate_tests` inventory comment previously claimed "counts ALL story-delivered tests" — a FALSE universal. The correct semantics: `red_gate_tests` is the TDD-driving Red Gate SUBSET (tests written RED before code landed, plus inline and guard tests that drive story-delivered code surfaces). The complete delivered test set is enumerated in §File Structure Requirements. Chosen option: (a) — reword to precise subset definition, point to §File Structure for the full set. Removed the false "ALL" claim. Frontmatter comment, Token Budget (`§File Structure Requirements`), and semantics description are now mutually consistent under the new precise definition. (3) **HAVING tests added (ITEM 3):** Two inline tests in `engine.rs` module `f_pwl1_low001_having_column_gate_tests` — `test_BC_2_11_016_having_column_gate_typo_fires_e_query_038` and `test_BC_2_11_016_having_column_gate_valid_col_no_e_query_038` — added to the frontmatter Red Gate inventory under a new `--- AC-M2 HAVING column gate ---` section. `red_gate_tests` 37→39. Arithmetic updated: 37 (v2.7) + 2 HAVING = 39. |
 | 2.7 | f-pul3-med-001-test-inventory-reconcile-2026-06-28 + f-pql2-obs001-inventory-gap-2026-06-28 | 2026-06-28 | story-writer | **F-PUL3-MED-001 test-inventory reconcile + F-PQL2-OBS-001 inventory gap closure (folded).** (1) F-PUL3-MED-001: `red_gate_tests` corrected 33→35 (+2 F-PJL tests added mid-cascade: `test_f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039` and `test_f_pjl4_med001_scheduled_path_table_gate_fires_before_capability_gate`, both in `bc_2_11_019_n1b_test.rs`). File Structure table: `bc_2_11_019_n1b_test.rs` cell 17→19; `test_enrich_udf_not_found_display.rs` cell 4→5 (5th test: `test_f_pbl1_low002_display_self_sorts_available_infusions`, verified against worktree). `crates_touched` prism-core comment updated 4→5 tests with 5th test name. (2) F-PQL2-OBS-001 inventory gap: `crates/prism-mcp/tests/f_pql2_obs001_skeleton_placeholder_guard_test.rs` (2 tests: `test_f_pql2_obs001_query_skeleton_no_bare_timestamp`, `test_f_pql2_obs001_datetime_arithmetic_uses_placeholder`; BC-2.10.016 v1.2) was unlisted in the File Structure table. Added CREATED row. Red Gate semantics decision: ALL story-delivered tests including mid-cascade regression guards are counted; F-PJL (2) and F-PQL2-OBS-001 (2) guards are both mid-cascade regression guards — counting both or neither is the only consistent choice; both are counted. **Final arithmetic: 33 prior + 2 F-PJL + 2 F-PQL2-OBS-001 = 37.** `red_gate_tests` 35→37. Token Budget table "8 new test files"→"9 new test files". Frontmatter inventory comment: new `F-PQL2-OBS-001 skeleton-placeholder guards` section added with both test names; arithmetic comment added. Internal consistency: 9 named story-owned test files (19+4+2+5+1+3+5+2+2 = 43) + 1 inline test + 1 existing test + 1 compile-fail gate = 46 countable items; `red_gate_tests: 37` counts the 34 Rust `fn test_` items (excluding shared-file pre-existing tests) + 1 inline test + 1 existing test + 1 compile-fail gate. No ACs/BCs modified. |
 | 2.6 | f-prl3-prose-reconcile-2026-06-28 | 2026-06-28 | story-writer | **F-PRL3-MED-001 + F-PRL3-LOW-001 + comprehensive prose reconcile.** (1) **F-PRL3-MED-001 (MED) — AC-SAP-1 rewritten.** Prior text falsely stated "this delivery added no new `event_type` emission" and "SAP-1 scan confirmed zero new `event_type` values were introduced. No BC-2.16.002 catalog row addition is required." This was FALSE: M1 + N2 fixes introduced two new closed-set `method` labels on the `table_registry.rwlock_poisoned` catalog row (`columns_for_table`, `check_availability_gate.dot_notation`) and a second emission site on the `column_not_found.rejected` row (M1 single-tenant path), which required and received BC-2.16.002 v1.90→v1.91 amendment (F-PHL3-MED-001). New AC-SAP-1 accurately states: no new `event_type` literal value introduced; two closed-set method labels and one additional emission site extended existing catalog rows; PG-LP11-001 obligation fulfilled by BC-2.16.002 v1.91; §References cite BC-2.16.002 v1.91. (2) **F-PRL3-LOW-001 (LOW) — AC-AUDIT-001 priority-2 severity-vocabulary ladder extended.** Prior prose listed only "(crowdstrike → Title-case, armis → UPPER-case)". BC-2.10.012 v1.5 §Auto-generated example queries and the SENSOR_SEVERITY_VOCABULARY in code also carry: cyberint → lowercase `'high','critical'`; claroty → not registered (no `severity` column). Both entries added to the priority-2 table cell. (3) **Comprehensive prose reconcile (no further stale items found).** All other AC behavioral descriptions (DataFusion built-in exclusion SQL-mode-only, pipe-mode fires E-QUERY-039, CWE-407 cap, dot-notation is_registered suggestion gating, 4-tier example ladder) verified accurate against delivered code+BCs. §Changelog verified complete for substantive cascade fixes (cyberint vocab F-PHL2 already captured in BC-2.10.012 v1.5 cite; BC-2.16.002 v1.91 dependency F-PHL3 now covered by this row; built-in exclusion F-PJL1 captured in v2.3; pipe/SQL split F-PNL1 captured in v1.8/v1.9). No genuine code/BC defects identified beyond the already-deferred pql_hints Category-1 hint-text divergence (BC-2.10.012 §pql_hints vs. code, tracked in deferred items table, requiring PO adjudication). |
 | 2.5 | f-ppl3-low-001-ac-n1b-impl-req-prose-alignment-2026-06-28 | 2026-06-28 | story-writer | **F-PPL3-LOW-001 closure — AC-N1B implementation-requirement prose made mechanism-agnostic.** The prior wording `"the exclusion check MUST use ctx.state().scalar_functions().get(name) (live SessionContext registry), NOT a hard-coded allowlist"` was stricter than the ratified BC: BC-2.11.019 v1.5 §Postconditions implementation note (F-PJL1-HIGH-001) uses `"e.g., ctx.state().scalar_functions().get(name)"` (permissive) and `"or equivalent"`. The shipped code uses `SessionStateDefaults::default_scalar_functions()` (a `LazyLock`), which the BC already ratifies as the equivalent mechanism. New prose: `"the exclusion check MUST exclude DataFusion built-in scalars by querying DataFusion's runtime-derived default scalar-function set (SessionStateDefaults::default_scalar_functions(), or the equivalent ctx.state().scalar_functions()), NOT a hard-coded allowlist."` Observable behavior and BC trace are unchanged. BC-2.11.019 v1.5 is already permissive — no BC amendment required. |

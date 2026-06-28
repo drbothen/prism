@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.967"
+version: "7.968"
 status: current
-timestamp: 2026-06-26T00:00:00Z
+timestamp: 2026-06-28T10:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -40,7 +40,7 @@ timestamp: 2026-06-26T00:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1399** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1399 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `9a09653a` (PR #205 chore/wrap-skill squash-merged 2026-06-27). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.029. D-1402.
+> develop HEAD origin/develop `9a09653a` (PR #205 chore/wrap-skill squash-merged 2026-06-27). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.035. D-1408.
 
 ---
 
@@ -109,6 +109,10 @@ D-1399: session wrap — RESUME SNAPSHOT D-1399 authored (supersedes D-1380); S-
 
 ### D-1407 DELTA (Pass-U fix round — appended to D-1399 snapshot)
 > LOCAL cascade S-DEMO-FIDELITY-REMEDIATION-001 Pass-U: 2 real findings + 1 DISCARDED false-positive. F-PUL3-MED-001 (test-inventory reconcile: red_gate_tests 33→37 exhaustive — added 2 F-PJL mid-cascade tests [test_f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039, test_f_pjl4_med001_scheduled_path_table_gate_fires_before_capability_gate; bc_2_11_019_n1b_test.rs] + 2 F-PQL2-OBS-001 guard tests [test_f_pql2_obs001_query_skeleton_no_bare_timestamp, test_f_pql2_obs001_datetime_arithmetic_uses_placeholder; f_pql2_obs001_skeleton_placeholder_guard_test.rs]; File Structure EXHAUSTIVE [f_pql2_obs001_skeleton_placeholder_guard_test.rs row added; bc_2_11_019_n1b_test.rs 17→19; test_enrich_udf_not_found_display.rs 4→5; Token Budget "8 new test files"→"9 new test files"]; no AC/BC change; story-writer story v2.6→v2.7). F-PUL1-LOW-001 (check_query_column_availability gate-skip doc-comment corrected — stale wording implied E-QUERY-037 pre-empts query rather than continues; doc-comment only; implementer feature HEAD 2c832895→dd666e0b; just iter prism-query 1225/1225). DISCARDED: lens-2 "delivery absent" CRITICAL — VERIFIED FALSE POSITIVE (adversary read main checkout not worktree; delivery confirmed present at worktree HEAD dd666e0b). STORY-INDEX v2.511→v2.512. BC-INDEX v7.23 UNCHANGED. 3-CLEAN streak reset 0/3; NEXT = re-gate Pass V on feature HEAD dd666e0b + story v2.7 (worktree-read-hardened lens prompts). STATE v8.033→v8.034.
+
+### D-1408 DELTA (Pass-W fix round — appended to D-1399 snapshot)
+> Pass-V CLEAN-strict (streak 1/3). Pass-W reset streak 0/3. F-PWL1-LOW-001 MANDATE (HAVING column-gate asymmetry: `check_query_column_availability` lacked Position 6 HAVING while sibling gates E-QUERY-037+E-QUERY-039 both walked HAVING; a `HAVING count(typo_col)` typo bypassed clean E-QUERY-038 diagnostic surfacing opaque DataFusion error instead; PO mandated → BC-2.11.016 v1.4→v1.5 [Precondition 2 exhaustive 6-position list; gate-positions table; EC-11-046 test vector added]; implementer added Position 6 to `check_query_column_availability` + 2 load-bearing HAVING tests; feature HEAD dd666e0b→b49316c2). F-PWL3-MED-001 (red_gate_tests semantics contradiction: story had inconsistent definitions — `red_gate_tests` comment implied full set, File Structure was also full set, but `red_gate_tests` is the TDD-driving SUBSET; story-writer v2.7→v2.8: precise-subset definition; red_gate_tests 37→39 [+2 HAVING tests]; BC-2.11.016 cite v1.4→v1.5 at 4 sites; AC-M2 HAVING note). POL-29 propagation: S-DEMO-PRISMQL-ONBOARDING-001-B v1.9→v2.0 (BC-2.11.016 v1.4→v1.5 at 2 live body cites; version-pin only; AC semantics UNCHANGED). BC-INDEX v7.23→v7.24. STORY-INDEX v2.512→v2.513. 3-CLEAN streak reset 0/3; NEXT = re-gate Pass X on feature HEAD b49316c2 (pending just check confirmation). STATE v8.034→v8.035.
+> Note: SESSION-HANDOFF historical D-1290/D-1292 narrative rows that reference BC-2.11.016 v1.4 are exempt per TD-VSDD-091 (immutable audit trail; do not update).
 
 ---
 

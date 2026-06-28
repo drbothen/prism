@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: active
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -15,7 +15,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: 2026-06-19
-modified: 2026-06-22
+modified: 2026-06-28
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -33,7 +33,7 @@ When a PrismQL query references a column name that does not exist in the `TableR
 ## Preconditions
 
 1. A PQL query has been parsed successfully by Chumsky (no E-QUERY-001 parse error).
-2. The query references a column name in a position where column resolution is possible (e.g., `SELECT <column>`, `WHERE <column> = ...`, `GROUP BY <column>`, `ORDER BY <column>`).
+2. The query references a column name in a position where column resolution is possible: `SELECT <column>`, `WHERE <column> = ...`, `GROUP BY <column>`, `ORDER BY <column>`, `JOIN ON <column>`, or `HAVING <column>` / `HAVING <agg>(<column>)`. The gate covers all six clause positions; HAVING base-column refs (including refs nested inside aggregate function calls such as `count(col)`) are validated on parity with WHERE and GROUP BY.
 3. The table referenced in the query has been validated to exist in the `TableRegistry` (E-QUERY-037 passed — no point checking column availability for a non-existent table).
 4. The `TableRegistry` has been initialized with the per-client schema for the requesting org.
 
@@ -85,6 +85,19 @@ The `available_columns` list is sourced ENTIRELY from the `TableRegistry`, which
 
 The column-not-found gate is colocated with the E-QUERY-037 table-availability gate in `prism-query/src/engine.rs` (or equivalent plan validation step). Both gates share the single `TableRegistry` read at plan time. The column gate fires AFTER the table gate (table must exist before checking its columns).
 
+**Gate positions — `check_query_column_availability`:**
+
+| Position | Clause | Extraction mechanism |
+|----------|--------|---------------------|
+| 1 | SELECT projection | `extract_field_paths_from_expr` per `SelectItem::Expr` |
+| 2 | WHERE predicate | `extract_predicate_columns` over `sql_query.where_` |
+| 3 | GROUP BY | `extract_field_paths_from_expr` per group-by `Expr` |
+| 4 | ORDER BY | `extract_field_paths_from_expr` per `OrderBy::expr` |
+| 5 | JOIN ON | `extract_field_paths_from_expr` over `join.on` |
+| 6 | HAVING predicate | `extract_predicate_columns` over `sql_query.having` (same `Option<Predicate>` type as WHERE; same extraction path) |
+
+HAVING was added at v1.5 to close a pedagogical coverage asymmetry: the sibling gates E-QUERY-037 and E-QUERY-039 both walk HAVING; omitting it from E-QUERY-038 caused a `HAVING count(typo_col)` typo to bypass the clean "column not found" diagnostic and surface a less-actionable DataFusion error instead.
+
 ### PrismError variant
 
 `PrismError::ColumnNotFound(Box<ColumnNotFoundDetails>)` is the variant in `prism-core/src/error.rs`, where `ColumnNotFoundDetails` is a `#[non_exhaustive]` struct carrying `{ column: String, table: String, client_id: String, available_columns: Vec<String>, did_you_mean: Option<String> }`. The boxed form was chosen at implementation time (story v1.4 CORRECTION-2, gate=83) because the `Vec<String>` field for `available_columns` pushes the inline variant over the `clippy::result_large_err` threshold — the same justification as `TableNotAvailableDetails` for E-QUERY-037. The `#[non_exhaustive]` attribute on `ColumnNotFoundDetails` is required per CLAUDE.md `#[non_exhaustive]` discipline (the struct is a public type in `prism-core`; external match arms must include a wildcard). The Display output and MCP surface are unchanged from the original design.
@@ -127,6 +140,7 @@ DataFusion itself would produce a column resolution error if the query reached e
 | EC-11-043 | Query references both a non-existent table AND a non-existent column | E-QUERY-037 fires first (table not found); E-QUERY-038 does not fire (gate is ordered: table check before column check) |
 | EC-11-044 | Multiple columns are invalid in the same query | Behavior at implementer discretion: the gate MAY report the FIRST invalid column encountered (fail-fast) or ALL invalid columns (collect-all). Either is acceptable. The BC requires at minimum one E-QUERY-038 error is returned (not a silent pass). |
 | EC-11-045 | `did_you_mean` is present but the suggested column is itself the only available column (table has one column and the model typed it wrong) | `did_you_mean` present with that single column's name; `available_columns` contains `[that_column_name]` |
+| EC-11-046 | Column typo in HAVING predicate: `SELECT severity, count(*) FROM crowdstrike_alerts GROUP BY severity HAVING count(typo_col) > 5` | `E-QUERY-038` with `column: "typo_col"`, `table: "crowdstrike_alerts"`. The base-column ref inside the `count(…)` aggregate function is extracted and validated against the `TableRegistry` schema; the query does NOT reach DataFusion. |
 
 ## Canonical Test Vectors
 
@@ -137,6 +151,7 @@ DataFusion itself would produce a column resolution error if the query reached e
 | `query("SELECT * FROM crowdstrike_alerts")` when `crowdstrike_alerts` is not registered | `E-QUERY-037` (not E-QUERY-038 — table doesn't exist) | gate-ordering |
 | `query("SELECT sevrity FROM crowdstrike_alerts", clients=["acme"])` in multi-tenant deployment; "globex" has claroty_alerts with `severity` column | `available_columns` for `crowdstrike_alerts` contains ONLY acme's crowdstrike_alerts columns — contoso/globex column names absent | org-isolation |
 | MCP error code for E-QUERY-038 | Surfaces as `-32602 INVALID_PARAMS` (not `-32000`) | mcp-mapping |
+| `query("SELECT severity, count(*) FROM crowdstrike_alerts GROUP BY severity HAVING count(typo_col) > 5", clients=["acme"])` | `E-QUERY-038` with `column: "typo_col"`, `table: "crowdstrike_alerts"`, `client_id: "acme"`, `available_columns` includes registered columns, `did_you_mean` present if a close match exists | having-position |
 
 ## Verification Properties
 
@@ -181,6 +196,7 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | F-PWL1-LOW-001-having-gate-mandate | 2026-06-28 | product-owner | MANDATE verdict on F-PWL1-LOW-001 (E-QUERY-038 HAVING coverage asymmetry). Added HAVING (Position 6) to the column gate scope. Precondition 2 expanded from illustrative "e.g." list to exhaustive six-position enumeration. §Implementation location: added gate-positions table documenting all 6 positions and their extraction mechanisms; added rationale note for HAVING addition. New edge case EC-11-046 (HAVING `count(typo_col)` pattern). New canonical test vector for `having-position`. HAVING uses same `Option<Predicate>` type as WHERE and same `extract_predicate_columns` extraction path — zero new machinery. |
 | 1.4 | F-001B-SCFRESH-MED-001-story-anchor-fix | 2026-06-22 | product-owner | F-001B-SCFRESH-MED-001 closure (POL-4 story-anchor mis-anchoring): `## Story Anchor` corrected from placeholder `S-5.04 (or dedicated ADR-041 teaching story — to be assigned by story-writer)` to the actual implementing story `S-DEMO-PRISMQL-ONBOARDING-001-B`. Exhaustive BC metadata audit: all other surfaces (frontmatter fields, lifecycle_status, subsystem, capability, H1/BC-INDEX title match, DI citations, changelog schema, Related BCs existence) verified clean. `modified:` quote-normalization (YAML scalar, no quotes needed). |
 | 1.3 | F-001B-FRESH2-MED-001-pol20-normalization | 2026-06-22 | product-owner | POL-20 normalization: `introduced: ADR-041-teaching-burst-2026-06-19` → `introduced: 2026-06-19` (opaque burst-ID format prohibited by POL-20 anchored-regex; ISO date extracted). No body semantics changed. |
 | 1.2 | OBS-001-B-FRESH-001-emitter-shape | 2026-06-22 | product-owner | OBS-001-B-FRESH-001 closure: §PrismError-variant prose updated to reflect the CORRECTION-2 boxed implementation. Replaced "not boxed — … box if necessary" speculative text with the ratified shape: `PrismError::ColumnNotFound(Box<ColumnNotFoundDetails>)` where `ColumnNotFoundDetails` is `#[non_exhaustive]` with `{ column, table, client_id, available_columns, did_you_mean }`. Boxing was triggered by `clippy::result_large_err` (same as `TableNotAvailableDetails`; story v1.4 CORRECTION-2, gate=83). Field set, semantics, Display, and MCP surface unchanged. |
