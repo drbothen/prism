@@ -446,7 +446,13 @@ fn build_pql_hints(
 /// Per-sensor severity vocabulary — maps sensor name prefix to the DTU-emitted
 /// severity literal casing.
 ///
-/// # Canonical sources
+/// # Complete demo sensor coverage (all 4 sensors)
+///
+/// Only sensors whose exact DTU-emitted severity casing is known and registered here
+/// will have a severity-filter variant in their example query.  The other two demo
+/// sensors are intentionally absent for the reasons documented below.
+///
+/// ## Sensors IN this vocabulary
 ///
 /// - `crowdstrike`: Title-case — `"High"`, `"Critical"`, `"Medium"`, `"Low"`
 ///   Source: `crates/prism-dtu-crowdstrike/src/generator.rs` `make_detection_with_ioc()`
@@ -456,11 +462,35 @@ fn build_pql_hints(
 ///   Source: `crates/prism-dtu-armis/src/generator.rs` `build_alert()` severity param
 ///   assigned as `"HIGH"`, `"CRITICAL"`, `"MEDIUM"`
 ///
-/// Tables with an unknown sensor prefix (not in this table) fall back to the
-/// count-recent or column-free query variant rather than emitting severity literals
-/// with potentially wrong casing that return 0 rows silently.
+/// ## Sensors INTENTIONALLY OMITTED from this vocabulary
+///
+/// - `cyberint`: lowercase — `"low"`, `"medium"`, `"high"`, `"critical"`
+///   Source: `crates/prism-dtu-cyberint/src/generator.rs`.
+///   Cyberint is intentionally NOT registered here.  The example builder therefore
+///   calls `severity_literals_for_table("cyberint_alerts")` → `None` → the severity
+///   filter is suppressed → the example falls back to the executable count-recent
+///   form.  Rationale: the example builder currently commits to only two casing
+///   conventions; adding a third (lowercase) is a deliberate DEMO-SCOPE decision
+///   that must be made at the story level, not silently inlined here.  No current
+///   demo prompt filters cyberint by severity string, so the count-recent fallback
+///   is both correct and non-lossy for demo purposes.
+///
+/// - `claroty`: NO string `severity` column.  The claroty sensor schema exposes
+///   `severity_id` (Integer) rather than a string `severity` column.  The
+///   `has_severity` check in `build_example_query` tests for a column named
+///   `"severity"` (String), which claroty never declares, so claroty tables never
+///   reach the severity-filter branch at all.  No vocabulary entry is needed or
+///   appropriate.
+///
+/// ## Rule: adding a new sensor
+///
+/// Before adding an entry to this vocabulary, verify the EXACT casing of the
+/// severity string values emitted by the corresponding DTU clone
+/// (`crates/prism-dtu-<sensor>/src/generator.rs`).  Wrong casing causes the
+/// severity filter to silently return 0 rows against live or DTU data.
 ///
 /// F-L2-CRIT-001 fix (S-DEMO-FIDELITY-REMEDIATION-001).
+/// F-PGL2-LOW-001 doc expansion (S-DEMO-FIDELITY-REMEDIATION-001).
 const SENSOR_SEVERITY_VOCABULARY: &[(&str, &str, &str)] = &[
     // (sensor_prefix, high_literal, critical_literal)
     ("crowdstrike", "High", "Critical"),
@@ -469,8 +499,17 @@ const SENSOR_SEVERITY_VOCABULARY: &[(&str, &str, &str)] = &[
 
 /// Derive the severity literals for a table based on its sensor prefix.
 ///
-/// Returns `Some(("High", "Critical"))` or `Some(("HIGH", "CRITICAL"))` for sensors
-/// with a registered vocabulary, `None` for unknown sensors.
+/// Returns `Some((high_literal, critical_literal))` for sensors registered in
+/// `SENSOR_SEVERITY_VOCABULARY`, `None` for all others.
+///
+/// For the four demo sensors:
+/// - `crowdstrike_*` → `Some(("High", "Critical"))` (Title-case)
+/// - `armis_*` → `Some(("HIGH", "CRITICAL"))` (UPPER-case)
+/// - `cyberint_*` → `None` (intentionally absent — falls back to count-recent;
+///   see `SENSOR_SEVERITY_VOCABULARY` doc for rationale)
+/// - `claroty_*` → `None` (no string `severity` column; never reaches this
+///   function from `build_example_query` because `has_severity` is false
+///   for claroty tables)
 ///
 /// F-L2-CRIT-001: unknown sensor → `None` → severity filter is suppressed, falling
 /// back to count-recent or column-free — never a silent zero-row filter.
