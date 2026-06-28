@@ -3474,7 +3474,7 @@ async fn test_F2_explain_alias_domain_error_returns_ok_structured_not_err() {
 
 // ─── MED-4: E-QUERY-039 structured-path tests (TD-VSDD-059 load-bearing test) ────────────────
 
-/// MED-4 BC-2.11.019 v1.3 AC-N1B — `prism_error_to_structured_call_result` for
+/// MED-4 BC-2.11.019 v1.4 AC-N1B — `prism_error_to_structured_call_result` for
 /// `PrismError::EnrichUdfNotFound` must set structured fields:
 ///   - `structuredContent.error.category == "validation"`
 ///   - `structuredContent.error.original_params_valid == false`
@@ -3520,7 +3520,7 @@ fn test_med4_enrich_udf_not_found_structured_category_is_validation() {
         .unwrap_or("<missing>");
     assert_eq!(
         category, "validation",
-        "MED-4 BC-2.11.019 v1.3: EnrichUdfNotFound must emit category='validation', \
+        "MED-4 BC-2.11.019 v1.4: EnrichUdfNotFound must emit category='validation', \
          not 'upstream_error'; got '{category}' — RED GATE (TD-VSDD-059 load-bearing)"
     );
 
@@ -3531,7 +3531,7 @@ fn test_med4_enrich_udf_not_found_structured_category_is_validation() {
     assert_eq!(
         orig_valid,
         Some(false),
-        "MED-4 BC-2.11.019 v1.3: EnrichUdfNotFound must have original_params_valid=false \
+        "MED-4 BC-2.11.019 v1.4: EnrichUdfNotFound must have original_params_valid=false \
          (caller used an unregistered UDF name); got {:?} — RED GATE",
         orig_valid
     );
@@ -3543,7 +3543,7 @@ fn test_med4_enrich_udf_not_found_structured_category_is_validation() {
         .unwrap_or("<missing>");
     assert_eq!(
         code, "E-QUERY-039",
-        "MED-4 BC-2.11.019 v1.3: EnrichUdfNotFound must resolve to code 'E-QUERY-039'; \
+        "MED-4 BC-2.11.019 v1.4: EnrichUdfNotFound must resolve to code 'E-QUERY-039'; \
          got '{code}' — ec_code_override must pin the variant"
     );
 
@@ -3554,7 +3554,7 @@ fn test_med4_enrich_udf_not_found_structured_category_is_validation() {
         .unwrap_or("");
     assert!(
         !suggestion.is_empty(),
-        "MED-4 BC-2.11.019 v1.3: EnrichUdfNotFound structured suggestion must be non-empty; \
+        "MED-4 BC-2.11.019 v1.4: EnrichUdfNotFound structured suggestion must be non-empty; \
          got empty string — owned_suggestion must propagate into the envelope"
     );
 }
@@ -3586,7 +3586,7 @@ fn test_med4_enrich_udf_not_found_empty_infusions_category_is_validation() {
         .unwrap_or("<missing>");
     assert_eq!(
         category, "validation",
-        "MED-4 BC-2.11.019 v1.3: EnrichUdfNotFound (empty infusions) must emit \
+        "MED-4 BC-2.11.019 v1.4: EnrichUdfNotFound (empty infusions) must emit \
          category='validation'; got '{category}'"
     );
     let orig_valid = error_obj
@@ -3595,7 +3595,7 @@ fn test_med4_enrich_udf_not_found_empty_infusions_category_is_validation() {
     assert_eq!(
         orig_valid,
         Some(false),
-        "MED-4 BC-2.11.019 v1.3: EnrichUdfNotFound (empty infusions) original_params_valid \
+        "MED-4 BC-2.11.019 v1.4: EnrichUdfNotFound (empty infusions) original_params_valid \
          must be false; got {:?}",
         orig_valid
     );

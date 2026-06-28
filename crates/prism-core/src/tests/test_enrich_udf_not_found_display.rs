@@ -14,7 +14,7 @@
 
 use crate::error::{EnrichUdfNotFoundDetails, PrismError};
 
-/// BC-2.11.019 v1.3 / HIGH-002/004 — canonical Display with available list and no
+/// BC-2.11.019 v1.4 / HIGH-002/004 — canonical Display with available list and no
 /// did_you_mean suffix.
 ///
 /// Input: infusion="threat_intel", available=["threat_score", "threat_is_known_malicious"],
@@ -44,7 +44,7 @@ fn test_enrich_udf_not_found_display_no_did_you_mean() {
     );
 }
 
-/// BC-2.11.019 v1.3 / HIGH-002/004 — canonical Display WITH did_you_mean suffix.
+/// BC-2.11.019 v1.4 / HIGH-002/004 — canonical Display WITH did_you_mean suffix.
 ///
 /// Input: infusion="thret_score", available=["threat_score"], did_you_mean=Some("threat_score").
 /// Expected: "E-QUERY-039: enrichment infusion 'thret_score' is not registered;
@@ -68,7 +68,7 @@ fn test_enrich_udf_not_found_display_with_did_you_mean() {
     );
 }
 
-/// BC-2.11.019 v1.3 / HIGH-002/004 — empty available_infusions produces `[]` brackets.
+/// BC-2.11.019 v1.4 / HIGH-002/004 — empty available_infusions produces `[]` brackets.
 ///
 /// Edge case: no infusions registered at all.
 /// Expected: "E-QUERY-039: enrichment infusion 'anything' is not registered; available: []"

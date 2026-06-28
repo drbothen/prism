@@ -1,4 +1,4 @@
-//! Red Gate tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B — BC-2.11.019 v1.3.
+//! Red Gate tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B — BC-2.11.019 v1.4.
 //!
 //! Finding N1-B: E-QUERY-039 (EnrichUdfNotFound) gate does NOT yet exist.
 //! `PrismError::EnrichUdfNotFound` variant and `EnrichUdfNotFoundDetails` struct
@@ -31,8 +31,8 @@
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
-//! | test_bc_2_11_019_n1b_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.3 |
-//! | test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.3 |
+//! | test_bc_2_11_019_n1b_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.4 |
+//! | test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.4 |
 
 use std::sync::Arc;
 
@@ -168,7 +168,7 @@ fn make_test_engine_threat_intel() -> QueryEngine {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// BC-2.11.019 v1.3 AC-N1B — pipe path Red Gate test.
+/// BC-2.11.019 v1.4 AC-N1B — pipe path Red Gate test.
 ///
 /// A pipe-mode query `FROM cyberint_alerts | enrich threat_intel(iocs_value)` where
 /// `threat_intel` is an infusion_id (NOT a UDF name — the registered UDF names are
@@ -234,7 +234,7 @@ async fn test_bc_2_11_019_n1b_infusion_id_as_udf_name() {
     );
 }
 
-/// BC-2.11.019 v1.3 AC-N1B — SQL path Red Gate test.
+/// BC-2.11.019 v1.4 AC-N1B — SQL path Red Gate test.
 ///
 /// A SQL-mode query using an unregistered enrichment function name `nvd`
 /// (which is an infusion_id, not a per-field UDF name) must return
@@ -308,7 +308,7 @@ async fn test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name() {
 
 /// HIGH-001 regression guard — gate ordering: table gate fires BEFORE enrich gate.
 ///
-/// BC-2.11.019 v1.3 enrich-LAST ordering: E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+/// BC-2.11.019 v1.4 enrich-LAST ordering: E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
 ///
 /// A query referencing a non-existent table AND an invalid enrichment function name
 /// MUST return E-QUERY-037 (TableNotAvailable), NOT E-QUERY-039 (EnrichUdfNotFound).
@@ -353,7 +353,7 @@ async fn test_high001_gate_ordering_table_error_before_enrich_error() {
 
 /// HIGH-003 regression guard — collect_unknown_scalar_from_predicate wiring check.
 ///
-/// BC-2.11.019 v1.3 §Precondition 1(b): the enrich gate must scan BOTH SELECT projections
+/// BC-2.11.019 v1.4 §Precondition 1(b): the enrich gate must scan BOTH SELECT projections
 /// AND the WHERE clause for `ScalarFunc::Unknown` names.
 ///
 /// NOTE on WHERE-clause coverage: The PrismQL SQL parser's WHERE predicate grammar
@@ -504,7 +504,7 @@ async fn test_med001_available_infusions_sorted_in_e_query_039_error() {
 
 /// HIGH-1 regression guard — SqlPipe SQL head scalar bypass.
 ///
-/// BC-2.11.019 v1.3 §Precondition 1(b): the enrich gate must scan BOTH pipe stages AND
+/// BC-2.11.019 v1.4 §Precondition 1(b): the enrich gate must scan BOTH pipe stages AND
 /// the SQL head (SELECT projection + WHERE clause) for `ScalarFunc::Unknown` names.
 ///
 /// Prior to the HIGH-1 fix, the `Ast::SqlPipe(spq)` arm in `check_enrich_udf_availability`
@@ -588,7 +588,7 @@ async fn test_high1_sqlpipe_head_unknown_scalar_fires_e_query_039() {
 
 /// EC-11-059 — wired-but-empty InfusionRegistry MUST fire E-QUERY-039 with available_infusions=[].
 ///
-/// BC-2.11.019 v1.3 §EC-11-059: When the infusion subsystem is wired (`Some(registry)`) but
+/// BC-2.11.019 v1.4 §EC-11-059: When the infusion subsystem is wired (`Some(registry)`) but
 /// contains zero loaded specs, any query using `enrich` MUST return E-QUERY-039 with
 /// `available_infusions = []` (empty Vec) and `did_you_mean = None`.
 ///
@@ -601,7 +601,7 @@ async fn test_high1_sqlpipe_head_unknown_scalar_fires_e_query_039() {
 ///   - `None` registry → skip gate (test/MVP deployment without enrichment subsystem)
 ///   - `Some(empty)` registry → wired, zero infusions → MUST fire E-QUERY-039 ([])
 ///
-/// Spec canonical test vector "no-infusions" (BC-2.11.019 v1.3 §payload):
+/// Spec canonical test vector "no-infusions" (BC-2.11.019 v1.4 §payload):
 ///   available_infusions: [] (always present, empty Vec)
 ///   did_you_mean: None (absent — no candidates within Levenshtein 3 of empty set)
 #[tokio::test]
@@ -940,7 +940,7 @@ async fn test_c1_sql_order_by_unknown_scalar_triggers_e_query_039() {
 
 /// OBS-2 — ENGINE-LEVEL `did_you_mean = Some(...)` from strsim + lexicographic tie-break.
 ///
-/// BC-2.11.019 v1.3 §EC-11-059 specifies `did_you_mean` carries the closest registered
+/// BC-2.11.019 v1.4 §EC-11-059 specifies `did_you_mean` carries the closest registered
 /// UDF name within Levenshtein distance 3.  The strsim + lexicographic tie-break computation
 /// lives in `check_enrich_udf_availability` in `engine.rs`.
 ///
