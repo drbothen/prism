@@ -8,13 +8,13 @@ title: "Serialize adv_p02 test binary via nextest max-threads=1 group to elimina
 wave: maintenance
 epic_id: maintenance
 priority: P3
-status: ready
+status: merged
 version: "3.1"
 spec_version: "v3.1"
 level: ops
-producer: story-writer
+producer: state-manager
 timestamp: "2026-06-27"
-modified: "2026-06-28"
+modified: "2026-06-29"
 input-hash: ""
 inputs:
   - .factory/research/test-suite-performance-diagnosis-2026-06-26.md
