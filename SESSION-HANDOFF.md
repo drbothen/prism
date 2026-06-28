@@ -40,7 +40,7 @@ timestamp: 2026-06-26T00:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1399** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1399 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `9a09653a` (PR #205 chore/wrap-skill squash-merged 2026-06-27). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.027. D-1400.
+> develop HEAD origin/develop `9a09653a` (PR #205 chore/wrap-skill squash-merged 2026-06-27). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.029. D-1402.
 
 ---
 
@@ -91,6 +91,9 @@ D-1399: session wrap — RESUME SNAPSHOT D-1399 authored (supersedes D-1380); S-
 
 ### D-1401 DELTA (Pass-A LOCAL fix-round closure — appended to D-1399 snapshot)
 > Feature HEAD advanced 510d7de4→ddca76c2 (implementer doc-comment class sweep: F-PAL1-LOW-001 check_query_column_availability docstring + F-PAL4-OBS-001 stale RED-proxy module doc + comprehensive stale-doc sweep across 12 delivery files, 672 stale lines removed; doc-only, no logic change; just check 5039 pass; non-exhaustive 88/88). Story v2.1→v2.2 (story-writer POL-7 title normalization: all 6 BC body-table Title cells now verbatim match BC H1 — BC-N.NN.NNN: prefix added to 5 previously-stripped rows; BC-2.11.016 was already verbatim; Token Budget label v2.1→v2.2). STORY-INDEX v2.506→v2.507. 3-CLEAN streak 0/3; NEXT = re-gate Streak Pass-B (4-lens) on ddca76c2 + story v2.2. STATE v8.027→v8.028.
+
+### D-1402 DELTA (Pass-H PO fix + durability checkpoint — appended to D-1399 snapshot)
+> LOCAL cascade S-DEMO-FIDELITY-REMEDIATION-001 progressed to streak 2/3 (Pass E+F CLEAN-strict), then reset by Pass-G F-PGL2-LOW-001 (cyberint vocab doc-only defer corrected) and Pass-H findings (F-PHL1-HIGH-001 CWE-407 strsim cap; F-PHL1/2-MED column gate single+multi-tenant cap + materialization.rs 4th callsite; F-PHL2-MED-001 cyberint lowercase added to SENSOR_SEVERITY_VOCABULARY; F-PHL3-MED-001 BC-2.16.002 catalog drift). Feature HEAD ddca76c2→0d8f92a5 (implementer: shared `cap_name_for_levenshtein` helper at 4 strsim callsites; cyberint `("cyberint","high","critical")` lowercase added to SENSOR_SEVERITY_VOCABULARY — corrects Pass-G doc-only defer). BC-2.16.002 v1.90→v1.91 (product-owner: `table_registry.rwlock_poisoned` catalog row "Six methods"→"Eight methods/labels" adding `columns_for_table` M1 + `check_availability_gate.dot_notation` N2; `column_not_found.rejected` row reconciled for new single-tenant emission site; comprehensive 79-event_type catalog sweep clean). BC-INDEX v7.20→v7.21. 3-CLEAN streak 0/3; NEXT = re-gate Pass I (4-lens) on feature HEAD 0d8f92a5 + story v2.2 (pending just check confirmation). STATE v8.028→v8.029.
 
 ---
 
