@@ -4693,6 +4693,151 @@ mod sqlpipe_gate_sweep_tests {
              execute_scheduled but AFTER in execute — this test verifies alignment."
         );
     }
+
+    // ── F-P1L4-MED-001: DISCRIMINATING gate-ordering regression guard ─────────
+
+    /// F-P1L4-MED-001 load-bearing (DISCRIMINATING H1 ordering test).
+    ///
+    /// The existing `test_h1_capability_gate_consistent_across_execute_and_execute_scheduled`
+    /// uses a PURE `prism_audit` query with NO competing gate (table/column/enrich).
+    /// That test is NECESSARY but NOT SUFFICIENT — it would PASS against the pre-fix
+    /// `execute_scheduled_inner` where the capability gate ran FIRST (before 037/038/039),
+    /// because a pure `prism_audit` query doesn't hit the table gate at all.
+    ///
+    /// This test DISCRIMINATES the ordering by constructing a query that SIMULTANEOUSLY
+    /// triggers:
+    ///   - E-QUERY-037 (TableNotAvailable): `ghost_sensor_detections` is NOT registered in
+    ///     the wired TableRegistry (which has only `armis` sensors).
+    ///   - E-QUERY-011 (AuditTableAccessDenied): the query JOINs `prism_audit`, which requires
+    ///     `Capability::AuditRead` that is ABSENT from both `QueryOptions::default()` (execute)
+    ///     and the system context `&[]` (execute_scheduled).
+    ///
+    /// With current (post-fix) gate ordering — E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-011:
+    ///   BOTH `execute` and `execute_scheduled` return E-QUERY-037 (table gate fires first).
+    ///
+    /// With pre-fix `execute_scheduled_inner` ordering — E-QUERY-011 BEFORE 037/038/039:
+    ///   `execute` returns E-QUERY-037 (table first) but `execute_scheduled` would return
+    ///   E-QUERY-011 (capability first) — ASYMMETRIC first-error behavior.
+    ///
+    /// This test WOULD FAIL against the pre-fix code because `execute_scheduled` would return
+    /// E-QUERY-011, not E-QUERY-037. It PASSES against the current code.
+    ///
+    /// TableRegistry wiring note: `check_table_availability` skips when `registry` is None.
+    /// A wired registry is REQUIRED for E-QUERY-037 to fire. The engine here has `armis`
+    /// registered so the gate is active for any non-armis table.
+    ///
+    /// `prism_audit` is classified as `SourceRefKind::Internal` and SKIPPED by the table gate
+    /// (`check_availability_gate` line: "Skip internal prism_* tables"). So the table gate
+    /// only fires for `ghost_sensor_detections` (Custom kind, not in registry).
+    ///
+    /// `check_internal_table_capabilities` sees BOTH source names via `extract_source_names_recursive`
+    /// (FROM + JOIN sources) and returns E-QUERY-011 when `prism_audit` is present and no
+    /// AuditRead capability is provided.
+    ///
+    /// F-P1L4-MED-001 / BC-2.11.019 v1.4 / H1 fix (S-DEMO-FIDELITY-REMEDIATION-001)
+    #[tokio::test]
+    async fn test_h1_gate_ordering_discriminating_table_fires_before_capability() {
+        use crate::table_registry::TableRegistry;
+        use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+
+        // Build an engine with a wired TableRegistry containing only `armis`.
+        // This activates the E-QUERY-037 gate for any non-armis table.
+        let armis_spec = SensorSpec::new(
+            "armis",
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&armis_spec)
+            .expect("register armis must not fail");
+
+        let engine = QueryEngine::new_with_cache_config(
+            Arc::new(prism_sensors::AdapterRegistry::new()),
+            Arc::new(NoopCs2),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(Arc::clone(&registry));
+
+        // Discriminating query: references BOTH an unregistered external table AND prism_audit.
+        //   `ghost_sensor_detections` — Custom kind, NOT in registry → E-QUERY-037 (table gate)
+        //   `prism_audit` via JOIN   — Internal kind, SKIPPED by table gate; requires AuditRead
+        //                              capability → E-QUERY-011 (capability gate)
+        //
+        // Pre-fix (capability FIRST in execute_scheduled_inner):
+        //   execute         returns E-QUERY-037 (table first, correct order)
+        //   execute_scheduled returns E-QUERY-011 (capability FIRST — the bug)
+        //   → ASYMMETRIC: the same query gives different first errors per entry point.
+        //
+        // Post-fix (table FIRST in both):
+        //   BOTH return E-QUERY-037 (table gate fires before capability gate).
+        let query = "SELECT * FROM ghost_sensor_detections JOIN prism_audit ON id = id LIMIT 10";
+
+        let execute_result = engine.execute(query, QueryOptions::default()).await;
+        let scheduled_result = engine
+            .execute_scheduled(query, None)
+            .await
+            .map(|(qr, _ctx)| qr);
+
+        // Both must error.
+        assert!(
+            execute_result.is_err(),
+            "F-P1L4-MED-001: execute with unregistered table must return Err; got Ok"
+        );
+        assert!(
+            scheduled_result.is_err(),
+            "F-P1L4-MED-001: execute_scheduled with unregistered table must return Err; got Ok"
+        );
+
+        let exec_err = execute_result.unwrap_err();
+        let sched_err = scheduled_result.unwrap_err();
+
+        // DISCRIMINATING assertion: BOTH must return E-QUERY-037 (TableNotAvailable),
+        // NOT E-QUERY-011 (AuditTableAccessDenied).
+        //
+        // If execute_scheduled_inner still runs the capability gate FIRST (pre-fix ordering),
+        // `sched_err` would be AuditTableAccessDenied (E-QUERY-011), and this assertion fails.
+        assert!(
+            matches!(exec_err, PrismError::TableNotAvailable(_)),
+            "F-P1L4-MED-001 DISCRIMINATING: execute must return TableNotAvailable (E-QUERY-037) \
+             when table gate fires before capability gate. \
+             Got: {exec_err:?}. If AuditTableAccessDenied: the ordering is wrong \
+             (capability gate is running before table gate in execute_inner)."
+        );
+        assert!(
+            matches!(sched_err, PrismError::TableNotAvailable(_)),
+            "F-P1L4-MED-001 DISCRIMINATING: execute_scheduled must return TableNotAvailable \
+             (E-QUERY-037) when table gate fires before capability gate. \
+             Got: {sched_err:?}. \
+             If AuditTableAccessDenied (E-QUERY-011): the H1 fix is incomplete — \
+             execute_scheduled_inner is still running the capability gate FIRST \
+             (before E-QUERY-037), causing asymmetric first-error behavior. \
+             This test FAILS against the pre-fix execute_scheduled_inner ordering."
+        );
+
+        // Sanity-check: error message must mention the unregistered table name.
+        if let PrismError::TableNotAvailable(ref details) = exec_err {
+            assert!(
+                details.to_string().starts_with("E-QUERY-037:"),
+                "F-P1L4-MED-001: E-QUERY-037 error display must start with 'E-QUERY-037:'; \
+                 got: {}",
+                details
+            );
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
