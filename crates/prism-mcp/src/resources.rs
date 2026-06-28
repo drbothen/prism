@@ -1312,14 +1312,20 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
     ),
     (
         ExampleKind::Positive,
-        "temporal — last 7 days (SQL mode)",
+        "temporal — last 7 days (SQL mode) [datetime_col is sensor-specific — use prism_describe]",
         // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        // F-PQL2-MED-001: `timestamp` is an ILLUSTRATIVE placeholder column name. Real datetime
+        // column names are sensor-specific: crowdstrike_detections→created_timestamp,
+        // *_devices→last_seen/first_seen, claroty_alerts→detected_time, cyberint_alerts→created_at,
+        // claroty_audit_logs→timestamp (literal). Always use the column name from prism_describe.
         "SELECT * FROM sensor_table WHERE timestamp > NOW() - INTERVAL '7d'",
     ),
     (
         ExampleKind::Positive,
-        "temporal — last 24 hours (pipe mode)",
+        "temporal — last 24 hours (pipe mode) [datetime_col is sensor-specific — use prism_describe]",
         // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        // F-PQL2-MED-001: `timestamp` is an ILLUSTRATIVE placeholder column name. Real datetime
+        // column names are sensor-specific — always take the column name from prism_describe.
         "FROM sensor_table | where timestamp > NOW() - INTERVAL '24h'",
     ),
     (
@@ -1466,12 +1472,14 @@ pub fn build_reference_content(
          - `NOW()` — current timestamp at query planning time\n\
          - `INTERVAL 'Nd'` — duration literal; units: `s`=seconds, `m`=minutes, `h`=hours, `d`=days\n\
          - `NOW() - INTERVAL 'Nd'` — timestamp subtraction (subtraction only; `+` not supported)\n\n\
-         **Examples:**\n\
+         **Examples** (`datetime_col` is sensor-specific — use the column name returned by \
+         `prism_describe`; e.g., `created_timestamp` for CrowdStrike detections, `detected_time` \
+         for Claroty alerts, `last_seen` for device tables):\n\
          ```sql\n\
          -- Last 7 days\n\
-         WHERE timestamp > NOW() - INTERVAL '7d'\n\
+         WHERE <datetime_col> > NOW() - INTERVAL '7d'\n\
          -- Last 24 hours\n\
-         WHERE timestamp > NOW() - INTERVAL '24h'\n\
+         WHERE <datetime_col> > NOW() - INTERVAL '24h'\n\
          ```\n\n\
          **Note:** Use `'7d'` not `'7 days'` — full English words are not accepted \
          (results in a parse error).\n\n",

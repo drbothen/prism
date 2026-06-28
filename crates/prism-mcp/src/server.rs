@@ -1871,8 +1871,8 @@ impl PrismServer {
         PrismQL (PQL) is a custom DSL for querying Prism security sensor data.\n\
         CLAUSE VOCABULARY: SELECT <cols> FROM <table> WHERE <filter> GROUP BY <col> ORDER BY <col> LIMIT <n>\n\
         PIPE MODE: chain clauses with | for multi-step transformations, e.g.: SELECT * FROM <table> | WHERE severity = <severity_value> | LIMIT 10\n\
-        SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field>/<severity_values> with real names/values from prism_describe):\n\
-          1. SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL '1h'\n\
+        SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field>/<datetime_col>/<severity_values> with real names/values from prism_describe; datetime column name is sensor-specific — use the column name returned by prism_describe for that table):\n\
+          1. SELECT COUNT(*) FROM <table> WHERE <datetime_col> > NOW() - INTERVAL '1h'\n\
           2. SELECT * FROM <table> WHERE severity IN (<severity_values>) LIMIT 50\n\
           3. SELECT <field>, COUNT(*) FROM <table> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10\n\
         SEVERITY CASING WARNING: severity literal casing is per-sensor (Title-case 'High'/'Critical' for CrowdStrike, UPPER-case 'HIGH'/'CRITICAL' for Armis, lowercase 'high'/'critical' for Cyberint). Using the wrong casing returns 0 rows with NO error. Always take severity values from prism_describe's example_query field — it emits the exact casing for that sensor.\n\
