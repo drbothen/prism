@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="drawio" version="26.0.0">
+  <!-- ======================================================= -->
+  <!-- Prism Architecture - Conceptual (C4 L1/L2)              -->
+  <!-- Exec/Customer altitude. Out-of-band day-2 side-analysis. -->
+  <!-- Created: 2026-06-28. do_not_execute: true.              -->
+  <!-- ======================================================= -->
+  <diagram name="Prism - Conceptual (what it is)" id="prism-conceptual">
+    <mxGraphModel dx="1400" dy="900" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="Prism  |  Conceptual Architecture  (C4 L1/L2)" style="text;html=1;align=center;fontStyle=1;fontSize=18;fontColor=#1a1a2e;" vertex="1" parent="1">
+          <mxGeometry x="40" y="16" width="1520" height="32" as="geometry" />
+        </mxCell>
+
+        <!-- Subtitle / tagline -->
+        <mxCell id="tagline" value="One unified view across IT and OT  |  Your data stays on your site  |  Your existing tools stay in place" style="text;html=1;align=center;fontSize=11;fontColor=#555555;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="48" width="1520" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================= -->
+        <!-- ZONE 1 — CUSTOMER ENVIRONMENT (big outer box)     -->
+        <!-- ================================================= -->
+        <mxCell id="zone_customer" value="Your environment  (your infrastructure / on-site)" style="swimlane;startSize=38;html=1;fontStyle=1;fontSize=13;fillColor=#f0f8e8;strokeColor=#82b366;strokeWidth=3;fontColor=#2d5016;verticalAlign=top;align=left;spacingLeft=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="880" height="820" as="geometry" />
+        </mxCell>
+
+        <!-- IT systems block -->
+        <mxCell id="it_systems" value="&lt;b&gt;Your IT systems &amp;amp; security telemetry&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px'&gt;Endpoints  |  Cloud workloads  |  Identity  |  Network  |  Logs&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontColor=#1a3a1a;" vertex="1" parent="zone_customer">
+          <mxGeometry x="40" y="60" width="360" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- OT systems block (Purdue hint) -->
+        <mxCell id="ot_outer" value="Your OT / industrial systems" style="swimlane;startSize=28;html=1;fontStyle=1;fontSize=11;fillColor=#e8f4e8;strokeColor=#5a9e5a;strokeWidth=2;fontColor=#1a3a1a;" vertex="1" parent="zone_customer">
+          <mxGeometry x="40" y="160" width="360" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="purdue_l3" value="&lt;b&gt;L3&lt;/b&gt;  Operations / Historian" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=10;" vertex="1" parent="ot_outer">
+          <mxGeometry x="20" y="36" width="320" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="purdue_l2" value="&lt;b&gt;L2&lt;/b&gt;  SCADA / DCS / HMI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a5d6a7;strokeColor=#388e3c;fontSize=10;" vertex="1" parent="ot_outer">
+          <mxGeometry x="20" y="82" width="320" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="purdue_l1" value="&lt;b&gt;L1&lt;/b&gt;  PLCs  |  RTUs  |  Field devices" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#81c784;strokeColor=#2e7d32;fontSize=10;" vertex="1" parent="ot_outer">
+          <mxGeometry x="20" y="128" width="320" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="purdue_l0" value="&lt;b&gt;L0&lt;/b&gt;  Physical process  |  Sensors  |  Actuators" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#66bb6a;strokeColor=#1b5e20;fontSize=10;" vertex="1" parent="ot_outer">
+          <mxGeometry x="20" y="174" width="320" height="36" as="geometry" />
+        </mxCell>
+
+        <!-- Existing tools block -->
+        <mxCell id="existing_tools" value="&lt;b&gt;Your existing security tools&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px'&gt;OT-discovery platforms (Claroty / Nozomi / Dragos / Armis)&lt;br&gt;SIEM  |  Data lake  |  Identity provider  |  SOAR&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontColor=#1a3a1a;" vertex="1" parent="zone_customer">
+          <mxGeometry x="40" y="440" width="360" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- PRISM SATELLITE -->
+        <mxCell id="satellite" value="&lt;b&gt;Prism Satellite&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:9px'&gt;[headless appliance at the edge]&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Captures &amp;amp; translates on-site&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px'&gt;Listens to your IT/OT network traffic&lt;br&gt;Connects to your existing tools&lt;br&gt;Normalizes everything to one&lt;br&gt;common format&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;font style='font-size:10px;color:#c62828'&gt;&lt;b&gt;Raw data stays here.&lt;/b&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;strokeColor=#0B4884;fontColor=#ffffff;arcSize=8;fontSize=11;" vertex="1" parent="zone_customer">
+          <mxGeometry x="460" y="160" width="360" height="230" as="geometry" />
+        </mxCell>
+
+        <!-- Satellite connection arrows to IT/OT/Tools -->
+        <mxCell id="e_it_sat" value="reads telemetry" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;endArrow=open;strokeColor=#555555;fontColor=#333333;labelBackgroundColor=#f0f8e8;exitX=1;exitY=0.5;entryX=0;entryY=0.3;" edge="1" parent="zone_customer" source="it_systems" target="satellite">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ot_sat" value="passively captures OT traffic" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;endArrow=open;strokeColor=#555555;fontColor=#333333;labelBackgroundColor=#f0f8e8;exitX=1;exitY=0.5;entryX=0;entryY=0.6;" edge="1" parent="zone_customer" source="ot_outer" target="satellite">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tools_sat" value="federates northbound APIs" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;endArrow=open;strokeColor=#555555;fontColor=#333333;labelBackgroundColor=#f0f8e8;exitX=1;exitY=0.5;entryX=0;entryY=0.85;" edge="1" parent="zone_customer" source="existing_tools" target="satellite">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Analysts (inside customer zone, using Central) -->
+        <mxCell id="analysts" value="&lt;b&gt;Your IT SOC Analysts&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px'&gt;Investigations  |  Alert triage  |  Threat hunting&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08427B;strokeColor=#052E56;fontColor=#ffffff;arcSize=12;fontSize=11;" vertex="1" parent="zone_customer">
+          <mxGeometry x="460" y="580" width="360" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================= -->
+        <!-- CONDUIT ARROW (prominent, center stage)           -->
+        <!-- ================================================= -->
+        <mxCell id="conduit_label" value="Only encrypted ANSWERS leave&#xa;&#x2014; never your raw data.&#xa;&#xa;Encrypted with a key only you hold.&#xa;Works even air-gapped." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3cd;strokeColor=#e6a817;strokeWidth=2;fontSize=10;fontStyle=1;fontColor=#5c3d00;" vertex="1" parent="1">
+          <mxGeometry x="970" y="330" width="220" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="conduit_arrow" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;startArrow=block;startFill=1;endFill=1;strokeColor=#e6a817;strokeWidth=4;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="satellite" target="prism_central">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="950" y="490" />
+              <mxPoint x="950" y="490" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ================================================= -->
+        <!-- ZONE 2 — PRISM CENTRAL                            -->
+        <!-- ================================================= -->
+        <mxCell id="prism_central" value="Prism Central  (the console)" style="swimlane;startSize=38;html=1;fontStyle=1;fontSize=13;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=3;fontColor=#002060;verticalAlign=top;align=left;spacingLeft=14;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="80" width="330" height="820" as="geometry" />
+        </mxCell>
+
+        <mxCell id="central_view" value="One view across IT + OT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;strokeColor=#0B4884;fontColor=#ffffff;fontSize=11;" vertex="1" parent="prism_central">
+          <mxGeometry x="20" y="58" width="290" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="central_query" value="Ask questions on demand&#xa;(no data warehouse to maintain)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;strokeColor=#0B4884;fontColor=#ffffff;fontSize=11;" vertex="1" parent="prism_central">
+          <mxGeometry x="20" y="128" width="290" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="central_ai" value="AI assistant&#xa;recommends actions  |  you approve" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;strokeColor=#0B4884;fontColor=#ffffff;fontSize=11;" vertex="1" parent="prism_central">
+          <mxGeometry x="20" y="208" width="290" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="central_detect" value="Detections + correlated alerts&#xa;Threat intel (Prism Intel)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;strokeColor=#0B4884;fontColor=#ffffff;fontSize=11;" vertex="1" parent="prism_central">
+          <mxGeometry x="20" y="288" width="290" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="central_cmek" value="Your-key-encrypted results&#xa;(operator cannot read your data)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4d1a7f;strokeColor=#2e0d4d;fontColor=#ffffff;fontSize=11;" vertex="1" parent="prism_central">
+          <mxGeometry x="20" y="368" width="290" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="central_deploy" value="Runs as:&#xa;SaaS  |  MSSP-managed  |  Self-hosted / on-site  |  Air-gapped&#xa;&#x2014; one product, one codebase" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#444444;strokeColor=#222222;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1" parent="prism_central">
+          <mxGeometry x="20" y="448" width="290" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Analyst arrow to Prism Central -->
+        <mxCell id="e_analyst_central" value="investigate, triage,&#xa;approve actions" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;endArrow=block;strokeColor=#08427B;strokeWidth=2;fontColor=#002060;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="analysts" target="prism_central">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1180" y="655" />
+              <mxPoint x="1180" y="430" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ================================================= -->
+        <!-- VALUE MESSAGES BAND (bottom)                      -->
+        <!-- ================================================= -->
+        <mxCell id="vm_band" value="Four takeaways" style="swimlane;startSize=26;html=1;fontStyle=1;fontSize=11;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="40" y="920" width="1520" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="vm1" value="Data stays home" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;" vertex="1" parent="vm_band">
+          <mxGeometry x="10" y="26" width="350" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="vm2" value="Your IT team sees OT, one unified view" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="vm_band">
+          <mxGeometry x="380" y="26" width="370" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="vm3" value="Ask questions on demand, no data warehouse" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="vm_band">
+          <mxGeometry x="770" y="26" width="390" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="vm4" value="Reuse existing tools or let Prism stand alone" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;fontStyle=1;" vertex="1" parent="vm_band">
+          <mxGeometry x="1180" y="26" width="330" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================= -->
+        <!-- LEGEND                                            -->
+        <!-- ================================================= -->
+        <mxCell id="legend" value="Legend" style="swimlane;startSize=24;html=1;fontStyle=1;fontSize=11;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="40" y="998" width="820" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="lg_cust" value="Customer-owned / on-site" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="legend">
+          <mxGeometry x="10" y="28" width="190" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="lg_prism" value="Prism component" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;strokeColor=#0B4884;fontColor=#ffffff;fontSize=10;" vertex="1" parent="legend">
+          <mxGeometry x="212" y="28" width="160" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="lg_trust" value="Data trust boundary / conduit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3cd;strokeColor=#e6a817;strokeWidth=2;fontSize=10;" vertex="1" parent="legend">
+          <mxGeometry x="384" y="28" width="220" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="lg_enc" value="Operator-zero-access (encrypted store)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4d1a7f;strokeColor=#2e0d4d;fontColor=#ffffff;fontSize=10;" vertex="1" parent="legend">
+          <mxGeometry x="616" y="28" width="194" height="24" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

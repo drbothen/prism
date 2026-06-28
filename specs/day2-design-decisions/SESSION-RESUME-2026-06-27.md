@@ -263,6 +263,8 @@ brief-reframe §5.1 remains PENDING-human-signoff; B remains gated. + §8 featur
 
 + working note prism-as-ot-sensor-note.md captured — finding: passive OT-sensor capability (full-packet PCAP §17.6 E-COLLECTOR-PCAP-001 + native Spicy-style dissector §17.12 E-DISSECTOR-NATIVE-001/OT-001, OT flagship native-schema-on-read, strict passivity TAP>SPAN) is DECIDED + safe-by-design, distinct from the GATED active-polling path (C14 Reading B); records a positioning correction (OT-standalone is stronger than 'gated' — passive path is decided/safe) to fold later; 5 open threads enumerated (protocol-coverage phasing, unify §17+C14 OT-ingestion narrative, adversarial pressure-test the passive-sensor claim, positioning fold, C20 NERC-CIP passive-monitoring synergy). iterate_later working note; NOT yet folded into positioning.
 
++ Prism + Prism Satellite C4 diagram set captured under specs/day2-design-decisions/diagrams/ — prism-architecture-conceptual.drawio (C4 L1/L2 exec/customer: your-environment → encrypted-answers-only conduit → Prism Central; 'raw data stays on-site') and prism-architecture-technical.drawio (C4 L2/L3 container: full Central + Satellite component breakdown, OCSF-normalize chokepoint + derived-results-only hard invariants highlighted, maturity legend marking active-polling [GATED], OOTB/A2A/evidence-pkg [roadmap], GraphRAG-Phase2/continuous-operator [phased]); both exported to PNG/SVG/PDF (draw.io CLI 30.0.4). For customer/exec show-and-tell + engineer reference.
+
 #### C3 reconciliation sweep — DONE (commit f83e3ec7)
 - 3 `[SUPERSEDED by D-C3-1]` inline markers added to matured-vision §12.2 (history preserved, not deleted).
 - 1 label fix in ADR-PROP-dynamic-schema-connectors.md.
@@ -567,6 +569,7 @@ Superseded capture queue (all DONE — do not re-execute):
   - `(this checkpoint)` — §8 feature-map appendix + coverage matrix added to ADR-PROP-positioning-problem-framed.md; path-scoped commit. Prior side HEAD: **6c2bf616**.
   - `(this checkpoint)` — plain-language executive positioning narrative captured (positioning-executive-narrative.md); path-scoped commit. Prior side HEAD: **86a2a334**.
   - `(this checkpoint)` — prism-as-ot-sensor-note.md working note captured (PCAP+dissector passive-OT finding + OT-standalone correction; 5 iterate-later threads); path-scoped commit. Prior side HEAD: **55963381**.
+  - `(this checkpoint)` — Prism+Satellite C4 diagram set (conceptual + technical, .drawio + PNG/SVG/PDF) captured under diagrams/; path-scoped commit. Prior side HEAD: **82594cf1**.
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD before this burst: **929a9758** (consistency audit complete; ADS v1.7).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory BC-2.16.002 left unstaged). No dangling in-flight research.
 
