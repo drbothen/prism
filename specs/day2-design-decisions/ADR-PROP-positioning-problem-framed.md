@@ -297,3 +297,149 @@ a hybrid (problem-framed entry with competitor-relative moat specificity), or
 (c) splits them by audience (D-C10-5 for analyst/competitive context; this candidate
 for buyer discovery/executive context). All three dispositions are valid; the human
 decides at §5.1.
+
+---
+
+## §8 — Feature Map: Mandated-7 to Satisfying Day-2 Features
+
+> **STATUS: APPENDIX — CANDIDATE ONLY.** This appendix maps DECIDED day-2 architecture
+> to the mandated-7 customer problems for the benefit of the §5.1 brief-reframe review.
+> It does NOT ratify any headline, change any decision, or constitute a live artifact.
+> All maturity tags reflect the 2026-06-28 adversarial CONDITIONAL-PASS (§6).
+>
+> **Maturity tag legend:**
+> - **[DECIDED]** — solid, settled decision with no blocking open questions
+> - **[PARTIAL]** — decided with material caveat or phasing dependency
+> - **[GATED]** — decided but blocked on open question(s) before it can ship or be claimed externally
+> - **[PROPOSED]** — epic-level intent, not a registered story
+
+---
+
+### §8.1 — Per-Problem Feature Enumeration
+
+---
+
+#### Problem 1 — Cheap threat hunts (cost / economics of hunting)
+
+- Ephemeral federated query over live sensor APIs — no data lake, no per-GB ingest cost (C5, C8) **[DECIDED]**
+- Demand-driven `RETAIN` caching → `RetentionCache` primitive: pay for hot storage only on repeated access patterns, "SIEM capability without store-everything cost" (C5 D-C5-2) **[DECIDED]**
+- SIEM / Security-Lake / Iceberg cold-tier federation as a queryable source type — query-in-place over existing SIEM investments, no second copy (C5 D-C5-2) **[DECIDED]**
+- Cost-based-degrade join guard: per-side row caps, dynamic filtering, mandatory time-bound injection — query cost bounded structurally, not by analyst discipline (C3 D-C3-1, PAT-ADS-04) **[DECIDED]**
+- NL→PrismQL translation reusing parser/planner diagnostics as validate-repair signal; single LSP server across Monaco/CLI/agent — lowers authoring labor, tier-1 analyst authors tier-3 logic (C8 L-C8-4, L-C8-3) **[DECIDED]**
+- Connector egress to cheap customer lakes — write OCSF results out to customer-owned cold storage (C10 GAP-Q4, E-EGRESS-PIPELINE-001) **[PROPOSED]**
+
+**Honest caveat:** The cost model is uncontested and architecturally solid. Hunt *content authoring* still costs analyst labor until the OOTB detection-content library (E-DETECTION-CONTENT-001) lands — the engine ships content-empty.
+
+---
+
+#### Problem 2 — Tuning is hard (detection-engineering / false-positive burden)
+
+- RBA as default: noisy events accrue risk scores on entities rather than being suppressed — the analyst sees the entity's story, not a flood of individual alerts (C6 D-C6-2) **[DECIDED]**
+- Suppression-as-code: versioned, mandatory written justification, mandatory time-box expiry — suppressions are auditable and self-expiring **[DECIDED]**
+- Auto-tune suggests-only: fire-frequency dashboard surfaces candidate suppressions; analyst approves every one **[DECIDED]**
+- Auto-rollback: shadow→canary-auto / canary→production-human staged gates; CORROBORATION-MASTER-GATE distinguishes a real-attack spike from a broken rule before auto-rollback trips (C6 D-C6-3) **[DECIDED]**
+- Per-tenant alert-rate circuit-breaker with exponential backoff on repeated trips (C6 D-C6-3) **[DECIDED]**
+- Backtest over cold-tier-deterministic (snapshot-id + rule-version pair; reproducible) AND remote-best-effort (non-deterministic, labeled), always with a mandatory coverage map (C6 D-C6-1) **[DECIDED]**
+- CUSUM/ADWIN change detectors as shared primitive for canary trip signals (C9 D-C9-Q2-HEALTH; C6 cross-link) **[DECIDED]**
+- MATCH_RECOGNIZE sequence/correlation + absence-as-timer operator: NFA-based event-sequence correlation native to PrismQL (C6 ADR-PROP-C6-LEAN-1) **[DECIDED]**
+- Rule translation Sigma/SPL/KQL/NL→PrismQL with fidelity report for lossy edges (C6 ADR-PROP-C6-LEAN-3; E-RULE-XLATE-001) **[PARTIAL]** — feasibility confirmed; E-RULE-XLATE-001 is deferred
+
+**Honest caveat:** The continuous/streaming detection operator (C6 ADR-PROP-C6-LEAN-2) is the most expensive, novel piece in C6 — correctness is entirely Prism's responsibility; there is no platform to fall back on. The OOTB rule library is the content gap that makes the tuning machinery useful.
+
+---
+
+#### Problem 3 — Can't ship data out (residency / air-gap / OT segmentation)
+
+- D-C2-12 HARD INVARIANT: raw sensor data NEVER crosses the conduit; only OCSF-normalized results transit upward — structural, not configurable off (P-ADS-03, INV-ADS-01) **[DECIDED]**
+- Edge-computes / Central-surfaces: compute and credentials live at the satellite; Central sees only derived, tenant-keyed results (P-ADS-05) **[DECIDED]**
+- BYOC zero-access by construction: satellite-local credential resolution, operator infrastructure holds ciphertext only, cannot decrypt without tenant key (D-DEPLOY-005, PIV-DEPLOY-004, SS-26 per-tenant DEK, P-ADS-02/P-ADS-04) **[DECIDED]**
+- Operator-zero-access-at-rest / Option-3 tenant-keyed Central persistence: all Central-cached derived results encrypted under tenant-held CMEK — operator blind by cryptographic construction (P-ADS-02, P-ADS-04) **[DECIDED]**
+- Air-gap first-class reference profile: SoftwareKms CMEK backend, no internet requirement, embedded on-box inference (INV-ADS-08) **[DECIDED]**
+- Outbound-dial mTLS mesh — satellite dials out to Central; no inbound firewall rules required at the OT site; Relay/Edge topology traverses Purdue layers (C2 D-C2-6) **[DECIDED]**
+- Signed-bundle air-gap delivery for config, intel feeds, model weights, schema updates — same Ed25519/sigstore mechanism across all bundle types (C9 ADR-PROP-C9-1; PAT-ADS-03) **[DECIDED]**
+- C16 edge tokenizing clearing house: RSI-classified fields masked/tokenized immediately after OCSF normalization at the edge before transit to Central or the AI path (C16 D-C16-3) **[DECIDED]**
+- C20 NERC CIP-011 BCSI entity-key zero-access: "CIP-deployable + CIP-evidence-generating" posture; BCSI as first RSI profile (C20, C16 D-C16-4) **[DECIDED]**
+
+**Honest caveat:** This is the strongest pillar architecturally. Two precision boundaries: (a) "outbound-dial mTLS + signed-bundle," NOT "data-diode" — true one-way diode is explicitly DEFERRED (C2 D-C2-4); (b) OCSF-normalized ≠ PII-free — OQ-DEPLOY-2(a) result-transit residency governance remains a pre-launch required hardening item (P-ADS-03 caution note).
+
+---
+
+#### Problem 4 — Want IT to watch OT (IT/OT convergence without OT-protocol expertise)
+
+- OCSF normalization at the OT edge: OT-vendor output converted to IT-readable OCSF tables at the adapter boundary — IT analyst queries OT assets in PrismQL without any protocol expertise (P-ADS-08, INV-ADS-07) **[DECIDED]**
+- OT asset, config, and vuln data modeled as first-class PrismQL-queryable OCSF source tables, normalized at the satellite boundary (C14 D-C14-4) **[PARTIAL]** — table model decided; OCSF class assignments pending OQ-C14-OCSF
+- Single-pane Central console (S2): all query, alert, entity context across OT and IT in one surface — no analyst tool-switching (P-ADS-01) **[DECIDED]**
+- Satellite mesh topology traverses Purdue layers — Relay/Edge chain reaches into OT L2/L3 without requiring network reachability from Central (C2 D-C2-3) **[DECIDED]**
+- C18 RBAC + C19 nested tenancy scope IT→OT access with CIP-002 impact-level/entity/site boundary map as a first-class tenant-tree dimension **[DECIDED]**
+- Dual-deployment three-operating-model matrix: MSSP-managed or client-managed Prism is deployed AT the OT site; SaaS-only customers retain the federated read path (D-DEPLOY-002) **[DECIDED]**
+
+**Honest caveat:** The convergence abstraction is architecturally sound. The OCSF-OT SCHEMA substrate carries an open lean (OQ-C14-OCSF): OCSF has no ratified native OT classes as of 2026 (open proposal ocsf#1515). OT tables ship as a `prism_ot` private extension — a decided lean, not a ratified standard. Until OQ-C14-OCSF closes, OT-OCSF schema claims must be scoped to "decided extension model" not "standard compliance."
+
+---
+
+#### Problem 5 — What devices exist? (OT asset inventory / discovery)
+
+- **Reading A (decided):** Federate existing OT-discovery platforms via northbound REST APIs — Industrial Defender `asmdataservice`, Nozomi OpenAPI, Claroty xDome API Explorer, Dragos web API, Armis Centrix (C14 D-C14-1) **[DECIDED]** — zero OT-protocol safety risk on this path; platform owns device-side collection
+- Active-query as a capability axis on the unified adapter interface (C3/C4) rather than a separate connector class — "active-query" is a descriptor dimension, not a new connector type (C14 D-C14-3) **[DECIDED]**
+- C12 Entity-360 entity resolution merges discovered assets from multiple platforms into a single authoritative record per physical asset **[DECIDED]**
+- **Reading B (gated):** Direct OT-protocol polling of field devices (Modbus/OPC-UA/DNP3/SNMP) as poller-of-last-resort for customers with NO OT platform (C14 D-C14-2, E-OT-PROTOCOL-CONNECTORS-001) **[GATED]** — blocked on OQ-C14-SAFETY-LIABILITY (legal/insurance — NOT an engineering-resolvable question), OQ-C14-CADENCE-NUMBERS (safe poll-cadence defaults; no published standards numbers), and OQ-C14-PACKAGING (WASM-compilability of Rust OT-protocol crates at morph)
+
+**Honest caveat (biggest overclaim trap):** The correct external claim is "Prism federates your EXISTING OT-discovery platforms." Do NOT claim "Prism discovers your OT." Reading B (direct field-device polling) is gated on three open questions including one legal/insurance question that is not engineering-resolvable before ship. Positioning must lead with Reading A and qualify Reading B explicitly.
+
+---
+
+#### Problem 6 — Full OT environment context (relationships / zones / criticality / attacker-reachability)
+
+- Two-layer embedded KG+vector: indradb (RocksDB-backed graph) for relationship traversal + usearch (hot ANN) + lancedb (cold on-disk) for semantic similarity — all embedded, air-gap capable (C12 D-C12-1, PAT-ADS-07) **[DECIDED]**
+- Entity-360 seven-part view per entity: identity + attributes + neighbors + timeline + risk posture + anomalies + cited synthesized answer **[DECIDED]**
+- Deterministic entity resolution auto-merge on strong identifiers (MAC, hostname, SPIFFE SVID); suspected-links with explicit confidence scores for fuzzy matches; Purdue zone as a first-class entity attribute (C12 D-C12-3) **[DECIDED]**
+- GraphRAG Phase-1 local-search (entity neighborhood retrieval + LLM synthesis + mandatory citations) ships first (C12 D-C12-5) **[DECIDED]**
+- GraphRAG Phase-2 global community summarization (Leiden algorithm, campaign-level sense-making) committed but post-Phase-1 (C12 D-C12-5) **[PARTIAL]** — phased
+- On-box embeddings via fastembed/ort (default) + candle pure-Rust fallback for air-gap audit compliance — no telemetry leaves the satellite for embedding (C12 D-C12-2, PAT-ADS-07 step 3) **[DECIDED]**
+- Mandatory faithful citations on all AI-generated output: every factual claim cites the source OCSF event, detection rule, or asset record; Output Hardener validates before surfacing to the analyst (PAT-ADS-08, C12) **[DECIDED]**
+- C11 CVE/KEV/EPSS/CVSS-v4/CSAF/VEX enrichment: feed-down + match-at-edge — advisory priority conditioned on OT zone, asset criticality, compensating controls (D-C11-1, D-C11-4) **[DECIDED]**
+
+**Honest caveat:** "Cited entity context with confidence" is the correct claim — NOT "ground-truth topology." Faithfulness is enforced and measured (PAT-ADS-08) but the ~57%-unfaithful-RAG baseline means mandatory citations + post-hoc faithfulness scoring are "best achievable, not a proof." GraphRAG Phase-2 community/campaign sense-making is committed but ships after Phase-1 Entity-360.
+
+---
+
+#### Problem 7 — Can't find talent (OT security skills shortage)
+
+- S3 embedded AI agent (conversational canvas): NL→PrismQL, guided investigation workflow, agent-native MCP-first surface as S1 — BYO-agent via MCP from day one (C8 L-C8-4; S1/S3 surfaces) **[DECIDED]**
+- Agent-native MCP-first product identity: built to be consumed by AI agents, not retrofitted (D-C10-2, agent-native identity) **[DECIDED]**
+- C15 ARO recommend-only v1: W3C-PROV provenance on every recommendation, calibrated confidence + conformal sets, per-citation faithfulness check, evidence package in the Observation layer (C15 D-C15-2, D-C15-5) **[DECIDED]**
+- Autonomy ladder designed now — advisory→suggested→auto-with-approval→autonomous — with per-action-class, evidence-measured, REVERSIBLE promotion; OT/safety-critical actions are HITL-permanent by design (C15 D-C15-2) **[DECIDED]**
+- Evidence package: Investigation Report + Replayable Query Log + IOC Ledger + 9-check self-QA gate (C10 GAP-Q2, E-EVIDENCE-PACKAGE-001) **[PROPOSED]** — not a registered story
+- NL→PrismQL + LSP server: tier-1 analyst authors tier-3 detection queries; single LSP reused across Monaco/CLI/NL agent (C8 L-C8-3, L-C8-4) **[DECIDED]**
+- Four analyst surfaces S1–S4 (MCP agent / S2 Central console / S3 conversational canvas / S4 mobile) **[DECIDED]**
+- On-prem model backends for air-gap inference: Qwen3/Mistral-class at Central, Phi-4-mini/Ministral-class at Edge; Llama Prompt Guard 2 + Mistral Moderation as guardrails; wasmtime wasi-nn for AI-opaque per-tenant model isolation (C15 D-C15-7, C7 D-C7-2) **[DECIDED]**
+
+**Honest caveat:** This is AUGMENTATION, not replacement. v1 is recommend-only — zero autonomous action. "A tier-1 analyst who knows IT can learn OT investigation with Prism" is the correct claim; "Prism replaces your OT analyst" is not. The autonomy ladder is designed; every rung above advisory requires per-action-class evidence requirements and CISA-aligned human-gate confirmation.
+
+---
+
+#### Cross-cutting features serving all seven problems
+
+Two features underpin every problem in the mandated-7 and are not specific to any one:
+
+**(a) OCSF-normalize-at-the-edge (P-ADS-08, INV-ADS-07)** — the lingua franca behind federation economics (#1), detection tuning (#2), data-residency transit (#3), IT-readable OT tables (#4), asset context (#5/#6), and AI-consumable telemetry (#7). Without normalization at the boundary, each higher-order capability would require N×M coupling to N vendor schemas. The "no trusted-source exemption" rule is what makes this structural rather than aspirational.
+
+**(b) The single PrismQL surface + shared LSP (C8)** — one query language across hunts (#1), detection rules (#2), NL authoring (#7), the AI agent (#7), and the Central console (#4). The LSP is compiled once and reused across Monaco, CLI, and the NL-to-PrismQL validator-repair loop. This single surface is what lets a tier-1 IT analyst author tier-3 OT detection logic — they learn one language, not one per vendor.
+
+---
+
+### §8.2 — Capability-Coverage Matrix
+
+**Legend:** **[D]** = DECIDED | **[P]** = PARTIAL | **[G]** = GATED | **[PR]** = PROPOSED | blank = not primary for this problem/cluster pairing
+
+| Problem | Federated-query + RETAIN economics | Detection + tuning (C6) | Residency + air-gap mesh (C2/C9/Option-3) | OCSF-edge-normalization (P-ADS-08) | OT active-query (C14) | Prism Context (C12) | Intel enrichment (C11) | AI agent + ARO (C15/S3) | RBAC + tenancy (C18/C19) | Compliance profiles (C20) |
+|---------|-----------------------------------|------------------------|------------------------------------------|-----------------------------------|----------------------|--------------------|-----------------------|------------------------|--------------------------|--------------------------|
+| #1 Cheap hunts | **[D]** | | **[D]** | **[D]** | | | | | | |
+| #2 Tuning is hard | **[D]** | **[D]** | | **[D]** | | | | **[P]** | | |
+| #3 Can't ship data out | | | **[D]** | **[D]** | | | | | **[D]** | **[D]** |
+| #4 IT watches OT | **[D]** | | **[D]** | **[D]** | **[P]** | **[D]** | | | **[D]** | |
+| #5 What devices exist? | **[D]** | | | **[D]** | **[D]+[G]** | **[D]** | | | | |
+| #6 Full OT context | | | **[D]** | **[D]** | **[P]** | **[D]** | **[D]** | **[D]** | | |
+| #7 Can't find talent | **[D]** | **[D]** | | | | **[D]** | | **[D]** | | |
+
+The matrix shows every mandated problem is served by at least one **[D]** (DECIDED) feature-cluster; the **[G]**, **[PR]**, and **[P]** tags are the honesty gates from the 2026-06-28 adversarial CONDITIONAL-PASS (§6), not coverage gaps.

@@ -257,7 +257,7 @@ Built on the human-confirmed MANDATED-7 customer problems (cheap hunts / tuning 
 
 3 candidate headlines (H-PF-1..3). Adversarially pressure-tested 2026-06-28 = CONDITIONAL-PASS (0 gap; P2/P3-context SOLID; 5 binding caveats baked in: OOTB-content-empty, Reading-B-native-discovery-gated, OT-OCSF-schema-open-lean, not-data-diode, recommend-only-v1).
 
-brief-reframe §5.1 remains PENDING-human-signoff; B remains gated.
+brief-reframe §5.1 remains PENDING-human-signoff; B remains gated. + §8 feature-map appendix added — per-problem mandated-7 → satisfying-feature enumeration (maturity-tagged DECIDED/PARTIAL/GATED/PROPOSED) + a 7×10 capability-coverage matrix; every mandated problem served by ≥1 DECIDED feature-cluster.
 
 #### C3 reconciliation sweep — DONE (commit f83e3ec7)
 - 3 `[SUPERSEDED by D-C3-1]` inline markers added to matured-vision §12.2 (history preserved, not deleted).
@@ -560,6 +560,7 @@ Superseded capture queue (all DONE — do not re-execute):
   - `(prior checkpoint)` — fresh-context consistency audit (MINOR-DRIFT: 0 blocker/0 major; 3 minor + 5 obs all fixed); ADS v1.7 (traceability rows C10/C14/C15 + freshness fixes); audit report banked; path-scoped commit. Prior side HEAD: **10875181**.
   - `(this checkpoint)` — customer-problem-coverage-2026-06-28.md removed per explicit human direction (history preserved at a8caac9e); path-scoped commit. Prior side HEAD: **929a9758**.
   - `(this checkpoint)` — problem-framed positioning candidate captured (ADR-PROP-positioning-problem-framed.md; mandated-7; CONDITIONAL-PASS adversarial fitness; 5 caveats baked in); path-scoped commit.
+  - `(this checkpoint)` — §8 feature-map appendix + coverage matrix added to ADR-PROP-positioning-problem-framed.md; path-scoped commit. Prior side HEAD: **6c2bf616**.
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD before this burst: **929a9758** (consistency audit complete; ADS v1.7).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory BC-2.16.002 left unstaged). No dangling in-flight research.
 
