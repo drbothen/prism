@@ -246,6 +246,19 @@ All 8 gaps addressed. Human chose the fuller path on every fork — zero decline
   Leading-candidate headline recorded in ADR-PROP-competitive-positioning.md. FINAL headline deferred to
   brief-reframe/B (§5.1 HUMAN sign-off required).
 
+#### Problem-framed positioning CANDIDATE captured (ADR-PROP-positioning-problem-framed.md; 2026-06-28)
+
+A SECOND positioning candidate was captured as `ADR-PROP-positioning-problem-framed.md`. It is an ALTERNATIVE to D-C10-5 (competitor-relative), NOT a supersession of it. Both are the two inputs to the §5.1 brief-reframe decision.
+
+Built on the human-confirmed MANDATED-7 customer problems (cheap hunts / tuning / can't-ship-data-out / IT-watch-OT / device-discovery / OT-environment-context / talent), synthesized into 3 pillars:
+- A: data-never-leaves + IT-sees-OT
+- B: know-your-OT-environment
+- C: affordable-AI-augmented-hunting
+
+3 candidate headlines (H-PF-1..3). Adversarially pressure-tested 2026-06-28 = CONDITIONAL-PASS (0 gap; P2/P3-context SOLID; 5 binding caveats baked in: OOTB-content-empty, Reading-B-native-discovery-gated, OT-OCSF-schema-open-lean, not-data-diode, recommend-only-v1).
+
+brief-reframe §5.1 remains PENDING-human-signoff; B remains gated.
+
 #### C3 reconciliation sweep — DONE (commit f83e3ec7)
 - 3 `[SUPERSEDED by D-C3-1]` inline markers added to matured-vision §12.2 (history preserved, not deleted).
 - 1 label fix in ADR-PROP-dynamic-schema-connectors.md.
@@ -473,7 +486,7 @@ Folded into ADR-PROP-prismql-deliverables.md (commit b6fa1465).
 
 **C20 ✅ FULLY RESOLVED (SF-2 folded = Defer + Leave-Seams-Open; D-C20-SF2; PIV-C20-007 seams open; ADS v1.6). C17 ✅ C16 ✅ C18 ✅ C19 ✅ C14 ✅ C15 ✅ C12 ✅ C11 ✅ done. ADS created (v1.6), Option-3 locked, conformance pass done. Pre-B feature track C11–C20 COMPLETE.**
 
-**NEXT: B — integration capstone. GATED on §5.1 brief-reframe HUMAN sign-off (do not begin B until the human confirms the brief-reframe direction; leading-candidate headline recorded in ADR-PROP-competitive-positioning.md requires human approval).**
+**NEXT: B — integration capstone. GATED on §5.1 brief-reframe HUMAN sign-off (still PENDING; two positioning candidates are the inputs: D-C10-5 competitor-relative in ADR-PROP-competitive-positioning.md + new problem-framed candidate in ADR-PROP-positioning-problem-framed.md — do not begin B until the human confirms the brief-reframe direction).**
 
 **C14 follow-up research BANKED (committed alongside earlier checkpoint):**
 - `research/ocsf-ot-coverage-2026-06-27.md` — C14 sub-fork F4: OCSF-OT schema coverage. COMPLETE. Committed in same burst as this resume-doc edit (path-scoped).
@@ -546,6 +559,7 @@ Superseded capture queue (all DONE — do not re-execute):
   - `10875181` — C20 SF-2 folded (Defer + Leave-Seams-Open); cloud-BES research banked; ADS v1.6 (PAT-ADS-17 evidence-owner forward-note); C20 fully resolved; pre-B track C11–C20 COMPLETE; path-scoped commit
   - `(prior checkpoint)` — fresh-context consistency audit (MINOR-DRIFT: 0 blocker/0 major; 3 minor + 5 obs all fixed); ADS v1.7 (traceability rows C10/C14/C15 + freshness fixes); audit report banked; path-scoped commit. Prior side HEAD: **10875181**.
   - `(this checkpoint)` — customer-problem-coverage-2026-06-28.md removed per explicit human direction (history preserved at a8caac9e); path-scoped commit. Prior side HEAD: **929a9758**.
+  - `(this checkpoint)` — problem-framed positioning candidate captured (ADR-PROP-positioning-problem-framed.md; mandated-7; CONDITIONAL-PASS adversarial fitness; 5 caveats baked in); path-scoped commit.
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD before this burst: **929a9758** (consistency audit complete; ADS v1.7).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory BC-2.16.002 left unstaged). No dangling in-flight research.
 
