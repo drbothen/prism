@@ -2397,14 +2397,34 @@ fn collect_predicate_columns(
 ) {
     use crate::ast::{Expr, Predicate};
     match pred {
-        // Compare: lhs may be Expr::Field (the column being compared).
-        // F-001B-DC-HIGH-001: use extract_column_name_from_field_path to handle qualified refs.
+        // Compare: lhs may be:
+        //   - Expr::Field(fp)        — bare column ref (WHERE / HAVING bare predicate)
+        //   - Expr::FuncCall(..)     — aggregate fn call (HAVING agg predicate, ADR-048)
+        //
+        // For Expr::Field: extract via extract_column_name_from_field_path (handles
+        //   qualified refs, F-001B-DC-HIGH-001).
+        // For Expr::FuncCall: recurse into args via extract_field_paths_from_expr, which
+        //   already handles FuncCall::Aggregate/Scalar arg lists at any nesting depth.
+        //   This is reachable only from the HAVING predicate path (ADR-048 D.3); WHERE
+        //   grammar cannot produce a FuncCall LHS in Predicate::Compare.
+        //
+        // F-001B-DC-HIGH-001; ADR-048 D.3.
         Predicate::Compare { lhs, .. } => {
-            if let Expr::Field(fp) = lhs.as_ref() {
-                if let Some(name) = extract_column_name_from_field_path(fp, table_name, table_alias)
-                {
-                    out.push(name);
+            match lhs.as_ref() {
+                Expr::Field(fp) => {
+                    if let Some(name) =
+                        extract_column_name_from_field_path(fp, table_name, table_alias)
+                    {
+                        out.push(name);
+                    }
                 }
+                Expr::FuncCall(_) => {
+                    // Aggregate function in HAVING predicate (ADR-048).
+                    // Recurse into the FuncCall args to extract any Expr::Field refs.
+                    extract_field_paths_from_expr(lhs.as_ref(), table_name, table_alias, out);
+                }
+                // Other lhs forms (VirtualField, Literal, etc.) — fail-open.
+                _ => {}
             }
         }
         // StringOp: field is FieldPath directly.
@@ -2530,6 +2550,13 @@ fn collect_predicate_type_pairs_inner(
         // Compare: extract (column, operator) when lhs is a FieldPath.
         // F-001B-DC-HIGH-001: use extract_column_name_from_field_path to correctly
         // resolve qualified refs (`crowdstrike_alerts.severity = ...`) to "severity".
+        //
+        // ADR-048 D.3: When lhs is Expr::FuncCall (HAVING aggregate predicate), the
+        // type-compatibility check is intentionally skipped. The result of an aggregate
+        // function (e.g., COUNT, SUM) is always numeric, and the comparison operator
+        // is already validated by the grammar. Type-checking the column inside the agg
+        // arg is the job of the E-QUERY-038 column-gate (collect_predicate_columns),
+        // not this function.
         Predicate::Compare { lhs, op, .. } => {
             if let Expr::Field(fp) = lhs.as_ref() {
                 if let Some(col_name) =
@@ -2540,6 +2567,7 @@ fn collect_predicate_type_pairs_inner(
                     }
                 }
             }
+            // FuncCall LHS (ADR-048 D.3): intentionally skipped — see comment above.
         }
         // Logical: recurse into each child predicate.
         Predicate::Logical { predicates, .. } => {
@@ -7015,6 +7043,304 @@ mod f_pwl1_low001_having_column_gate_tests {
             // Any other outcome (Ok, execution error, other PrismError) is acceptable —
             // the invariant is only that E-QUERY-038 (ColumnNotFound) does NOT fire.
             _ => {}
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PXL3-MED-002 — HAVING aggregate-predicate column gate (ADR-048)
+// ---------------------------------------------------------------------------
+//
+// Tests for the grammar + extractor extension that makes
+// `HAVING count(typo_col) > 5` fire E-QUERY-038 (column-not-found gate)
+// instead of E-QUERY-001 (parse error).
+//
+// ADR-048 ratifies a deliberate HAVING/WHERE grammar divergence:
+//   - HAVING gains the `agg_fn(col) op literal` predicate form.
+//   - WHERE does NOT (WHERE is pre-aggregation; aggregate predicates there
+//     are semantically invalid and must remain E-QUERY-001).
+//
+// Three load-bearing tests:
+//   1. Red→Green: `HAVING count(typo_col) > 5` → E-QUERY-038 (typo inside agg fn)
+//   2. Acceptance:  `HAVING count(severity) > 0` (valid col) must NOT fire E-QUERY-038
+//   3. WHERE divergence guard: `WHERE count(severity) > 5` must stay E-QUERY-001
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod f_pxl3_med002_having_agg_predicate_col_gate_tests {
+    use std::{collections::HashMap, sync::Arc};
+
+    use prism_core::{OrgSlug, SensorId};
+    use prism_sensors::AdapterRegistry;
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+        ResolvedSensorSpec, ResolvedSpecKey,
+    };
+
+    use super::*;
+    use crate::{scoping::ClientRegistry, table_registry::TableRegistry};
+    use prism_core::column::ColumnType;
+
+    /// No-op credential store (same stub pattern used throughout this module).
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a `QueryEngine` with `crowdstrike_alerts` registered with columns
+    /// `["severity", "timestamp"]` under org "acme".
+    ///
+    /// Mirrors the fixture pattern from `f_pwl1_low001_having_column_gate_tests`.
+    fn make_crowdstrike_engine() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+        let sensor_id = "crowdstrike";
+        let table_suffix = "alerts";
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            sensor_id,
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("F-PXL3-MED-002 fixture: register crowdstrike must not fail");
+
+        let overlay_toml = format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@acme\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("F-PXL3-MED-002 fixture: SensorInstanceOverlay TOML must parse");
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org.clone());
+        let key: ResolvedSpecKey = (org.clone(), SensorId::new(sensor_id));
+        let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_table_registry(registry);
+
+        (engine, org)
+    }
+
+    // ── Test 1 (Red→Green): HAVING count(typo_col) > 5 → E-QUERY-038 ─────────
+
+    /// F-PXL3-MED-002 — E-QUERY-038 must fire for a typo'd column name referenced
+    /// inside an aggregate function in the HAVING predicate.
+    ///
+    /// Query: `HAVING count(typo_col) > 5` — `typo_col` is not in the schema.
+    ///
+    /// Before fix (ADR-048): the HAVING grammar only accepts `field op literal`
+    /// form; `count(typo_col)` is not parseable as such, so the query produces
+    /// E-QUERY-001 (parse error) instead of the correct E-QUERY-038 (column-not-found).
+    ///
+    /// After fix: HAVING gains the `agg_fn(col) op literal` predicate form.
+    /// The column extractor walks the FuncCall args and extracts `typo_col`
+    /// → E-QUERY-038.
+    ///
+    /// ADR-048; BC-2.11.016 v1.5.
+    ///
+    /// Load-bearing (F-PXL3-MED-002): without the grammar + extractor fix,
+    /// this test panics with "expected ColumnNotFound, got different error"
+    /// (i.e., a parse error fires instead).
+    #[tokio::test]
+    async fn test_BC_2_11_016_having_agg_fn_predicate_typo_fires_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+        let query = "SELECT severity, count(*) FROM crowdstrike_alerts \
+                     GROUP BY severity HAVING count(typo_col) > 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref d)) => {
+                assert_eq!(
+                    d.column, "typo_col",
+                    "ADR-048: column in E-QUERY-038 must be 'typo_col', got: {:?}",
+                    d.column
+                );
+                assert_eq!(
+                    d.table, "crowdstrike_alerts",
+                    "ADR-048: table in E-QUERY-038 must be 'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "ADR-048: engine.execute must NOT succeed — E-QUERY-038 must fire for \
+                 typo_col inside count() in HAVING predicate."
+            ),
+            Err(other) => panic!(
+                "ADR-048: expected PrismError::ColumnNotFound (E-QUERY-038) for \
+                 HAVING count(typo_col) > 5, got: {other:?}"
+            ),
+        }
+    }
+
+    // ── Test 2 (acceptance): HAVING count(valid_col) must NOT fire E-QUERY-038 ─
+
+    /// F-PXL3-MED-002 acceptance — HAVING with a valid column in the aggregate
+    /// function must NOT fire E-QUERY-038.
+    ///
+    /// `HAVING count(severity) > 0` — `severity` is valid in `crowdstrike_alerts`.
+    /// The column gate must pass; the query may fail later (no real adapter wired)
+    /// but must NOT produce PrismError::ColumnNotFound.
+    ///
+    /// ADR-048; BC-2.11.016 v1.5.
+    #[tokio::test]
+    async fn test_BC_2_11_016_having_agg_fn_predicate_valid_col_no_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+        let query = "SELECT severity, count(*) FROM crowdstrike_alerts \
+                     GROUP BY severity HAVING count(severity) > 0";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+                "ADR-048 acceptance: E-QUERY-038 fired unexpectedly for valid column \
+                 '{}' inside count(). `severity` is registered; the gate must NOT reject it.",
+                d.column
+            ),
+            // Any other outcome (Ok, execution error, other PrismError) is acceptable —
+            // the invariant is that E-QUERY-038 (ColumnNotFound) does NOT fire.
+            _ => {}
+        }
+    }
+
+    // ── Test 3 (WHERE divergence guard): WHERE count(col) must stay E-QUERY-001 ─
+
+    /// F-PXL3-MED-002 WHERE divergence guard — `WHERE count(severity) > 5` must
+    /// produce a parse error (E-QUERY-001), NOT pass silently.
+    ///
+    /// WHERE is pre-aggregation; aggregate functions in WHERE are semantically
+    /// invalid SQL. ADR-048 ratifies the deliberate grammar divergence: the
+    /// `agg_fn(col) op literal` predicate form is added to HAVING ONLY.
+    ///
+    /// Before and after the fix, this query must result in an error. After the fix,
+    /// the parse error must still occur (not accidentally granted the agg-predicate form).
+    ///
+    /// This test is a regression guard ensuring WHERE did NOT silently gain the
+    /// aggregate-predicate grammar form from the HAVING extension.
+    ///
+    /// ADR-048 §Constraint; BC-2.11.016 v1.5.
+    #[tokio::test]
+    async fn test_BC_2_11_016_where_agg_fn_predicate_stays_e_query_001() {
+        let (engine, org) = make_crowdstrike_engine();
+        // WHERE count(severity) > 5: semantically invalid (aggregate in WHERE).
+        // This must NOT parse successfully — E-QUERY-001 parse error must fire.
+        let query = "SELECT severity, count(*) FROM crowdstrike_alerts \
+                     GROUP BY severity WHERE count(severity) > 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            // QueryParseFailed is the expected outcome — E-QUERY-001.
+            Err(PrismError::QueryParseFailed { .. }) => {}
+            // ColumnNotFound would mean WHERE accidentally gained the agg-predicate form.
+            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+                "ADR-048 divergence guard: WHERE must NOT parse aggregate predicates. \
+                 Got ColumnNotFound for '{}' — WHERE grammar was accidentally extended.",
+                d.column
+            ),
+            // A successful parse+execution would be even worse.
+            Ok(_) => panic!(
+                "ADR-048 divergence guard: `WHERE count(severity) > 5` must NOT succeed — \
+                 aggregate predicates in WHERE are semantically invalid SQL."
+            ),
+            // Any other error (e.g., table/column error) means parse passed — that's wrong.
+            Err(other) => panic!(
+                "ADR-048 divergence guard: expected PrismError::QueryParseFailed for \
+                 WHERE count(severity) > 5, got: {other:?}"
+            ),
         }
     }
 }

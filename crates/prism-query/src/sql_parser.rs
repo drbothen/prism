@@ -31,7 +31,10 @@ use crate::{
         SortDirection, Span, SqlQuery, SqlStatement,
     },
     error_recovery::{rich_to_parse_error, sql_paren_delimiters},
-    filter_parser::{build_literal_parser, build_predicate_parser, build_source_ref_parser},
+    filter_parser::{
+        build_literal_parser, build_predicate_parser, build_source_ref_parser,
+        build_temporal_rhs_parser,
+    },
     security,
     write_ast::{DmlNode, DmlOperation},
 };
@@ -356,11 +359,18 @@ fn build_sql_parser<'a>() -> impl Parser<'a, &'a str, SqlQuery, extra::Err<Rich<
             .or_not()
             .map(|g| g.unwrap_or_default());
 
-        // HAVING clause
+        // HAVING clause (ADR-048: diverges from WHERE — gains agg_fn(col) op literal form).
+        //
+        // WHERE keeps `predicate.clone()` (base predicate, no aggregate form).
+        // HAVING uses `build_having_predicate_parser` which wraps the base predicate
+        // with an additional `agg_fn(col) op literal` arm tried first, so that
+        // `HAVING count(typo_col) > 5` parses and reaches the E-QUERY-038 gate.
+        let having_predicate =
+            build_having_predicate_parser(sql_query.clone(), field_path.clone(), literal.clone());
         let having_clause = text::keyword("HAVING")
             .or(text::keyword("having"))
             .padded()
-            .ignore_then(predicate.clone().padded())
+            .ignore_then(having_predicate.padded())
             .or_not();
 
         // ORDER BY clause
@@ -504,6 +514,187 @@ fn build_sql_predicate_parser<'a>(
 
     // Prefer IN subquery over base (which handles IN list).
     in_subquery.or(base)
+}
+
+// ---------------------------------------------------------------------------
+// ADR-048: HAVING aggregate-predicate grammar extension
+// ---------------------------------------------------------------------------
+//
+// HAVING gains the `agg_fn(col) op literal` predicate form so that
+// queries like `HAVING count(typo_col) > 5` are parsed successfully
+// and can then be checked by the E-QUERY-038 column-availability gate.
+//
+// WHERE does NOT gain this form (WHERE is pre-aggregation; aggregate
+// predicates there remain E-QUERY-001 parse errors by design).
+//
+// PERCENTILE is deliberately excluded from the helper: its 2-argument
+// form `PERCENTILE(field, p)` is ambiguous in predicate context and
+// cannot produce a type-compatible `op literal` comparison without
+// additional grammar complications. PERCENTILE stays in SELECT/GROUP
+// BY/ORDER BY only.
+//
+// In scope: COUNT(*), COUNT(field), SUM, AVG, MIN, MAX, DISTINCT_COUNT.
+
+/// Build a reusable aggregate-call parser for the HAVING predicate extension.
+///
+/// Emits `Expr::FuncCall(FuncCall::Aggregate { .. })` for the following
+/// forms: `COUNT(*)`, `COUNT(field)`, `SUM(field)`, `AVG(field)`,
+/// `MIN(field)`, `MAX(field)`, `DISTINCT_COUNT(field)`.
+///
+/// PERCENTILE is deliberately excluded — its 2-argument form is ambiguous
+/// in a predicate-comparison context. See ADR-048.
+///
+/// Called from `build_having_predicate_parser`.
+fn build_agg_call_parser<'a>(
+    field_path: impl Parser<'a, &'a str, FieldPath, extra::Err<Rich<'a, char>>> + Clone + 'a,
+) -> impl Parser<'a, &'a str, Expr, extra::Err<Rich<'a, char>>> + Clone {
+    // COUNT(*) → AggFunc::Count, COUNT(field) → AggFunc::CountField
+    let count_agg = text::keyword("COUNT")
+        .or(text::keyword("count"))
+        .padded()
+        .ignore_then(
+            choice((
+                just('*').padded().to(Expr::FuncCall(FuncCall::Aggregate {
+                    func: AggFunc::Count,
+                    args: vec![Expr::Star],
+                    distinct: false,
+                })),
+                field_path.clone().padded().map(|fp| {
+                    Expr::FuncCall(FuncCall::Aggregate {
+                        func: AggFunc::CountField(fp.clone()),
+                        args: vec![field_path_to_expr(fp)],
+                        distinct: false,
+                    })
+                }),
+            ))
+            .delimited_by(just('(').padded(), just(')').padded()),
+        );
+
+    // DISTINCT_COUNT(field)
+    let distinct_count_agg = text::keyword("DISTINCT_COUNT")
+        .or(text::keyword("distinct_count"))
+        .padded()
+        .ignore_then(
+            field_path
+                .clone()
+                .padded()
+                .map(|fp| {
+                    Expr::FuncCall(FuncCall::Aggregate {
+                        func: AggFunc::DistinctCount(fp.clone()),
+                        args: vec![field_path_to_expr(fp)],
+                        distinct: false,
+                    })
+                })
+                .delimited_by(just('(').padded(), just(')').padded()),
+        );
+
+    // Generic aggregates: SUM / AVG / MIN / MAX — all take a single field arg.
+    let generic_agg = choice((
+        text::keyword("SUM")
+            .or(text::keyword("sum"))
+            .padded()
+            .to(AggFunc::Sum as fn(FieldPath) -> AggFunc),
+        text::keyword("AVG")
+            .or(text::keyword("avg"))
+            .padded()
+            .to(AggFunc::Avg as fn(FieldPath) -> AggFunc),
+        text::keyword("MIN")
+            .or(text::keyword("min"))
+            .padded()
+            .to(AggFunc::Min as fn(FieldPath) -> AggFunc),
+        text::keyword("MAX")
+            .or(text::keyword("max"))
+            .padded()
+            .to(AggFunc::Max as fn(FieldPath) -> AggFunc),
+    ))
+    .then(
+        field_path
+            .clone()
+            .padded()
+            .delimited_by(just('(').padded(), just(')').padded()),
+    )
+    .map(|(ctor, fp): (fn(FieldPath) -> AggFunc, FieldPath)| {
+        let func = ctor(fp.clone());
+        Expr::FuncCall(FuncCall::Aggregate {
+            func,
+            args: vec![field_path_to_expr(fp)],
+            distinct: false,
+        })
+    });
+
+    // Try COUNT first (most common in HAVING), then DISTINCT_COUNT, then generic.
+    choice((count_agg, distinct_count_agg, generic_agg))
+}
+
+/// Build a HAVING-specific predicate parser.
+///
+/// Extends the base predicate (WHERE grammar) with an `agg_fn(col) op literal`
+/// arm so that HAVING can gate on aggregate results directly:
+///
+/// ```text
+/// HAVING count(severity) > 0    -- valid, passes gate
+/// HAVING count(typo_col) > 5    -- valid parse, fails E-QUERY-038 gate
+/// ```
+///
+/// The aggregate form is tried first; if it does not match, the parser
+/// falls through to `build_sql_predicate_parser`, which handles:
+/// - `IN (SELECT ...)` subquery
+/// - All base predicate forms from `build_predicate_parser`
+///
+/// The WHERE clause MUST continue using `build_sql_predicate_parser` (the
+/// base predicate), NOT this function. WHERE is pre-aggregation; aggregate
+/// predicates there are semantically invalid SQL and must remain E-QUERY-001.
+/// This is the ADR-048 deliberate grammar divergence point.
+///
+/// # RHS
+/// Uses the same `temporal_rhs | literal` RHS as `field_comparison` in the
+/// base predicate — numeric literals are most common but temporal expressions
+/// are allowed for forward-compatibility.
+fn build_having_predicate_parser<'a>(
+    sql_query: impl Parser<'a, &'a str, SqlQuery, extra::Err<Rich<'a, char>>> + Clone + 'a,
+    field_path: impl Parser<'a, &'a str, FieldPath, extra::Err<Rich<'a, char>>> + Clone + 'a,
+    literal: impl Parser<'a, &'a str, Literal, extra::Err<Rich<'a, char>>> + Clone + 'a,
+) -> impl Parser<'a, &'a str, Predicate, extra::Err<Rich<'a, char>>> + Clone {
+    // Build the base SQL predicate (handles IN subquery + all filter predicates).
+    let base = build_sql_predicate_parser(sql_query, field_path.clone(), literal.clone());
+
+    // Compare operators (same set as field_comparison in build_predicate_parser).
+    let compare_op = choice((
+        just(">=").to(CompareOp::Ge),
+        just("<=").to(CompareOp::Le),
+        just("!=").to(CompareOp::Ne),
+        just("==").to(CompareOp::Eq),
+        just('>').to(CompareOp::Gt),
+        just('<').to(CompareOp::Lt),
+        just('=').to(CompareOp::Eq),
+    ))
+    .padded();
+
+    // RHS: temporal expression or plain literal (matches field_comparison in base).
+    let temporal_rhs = build_temporal_rhs_parser();
+    let rhs_expr = temporal_rhs.or(literal.clone().padded().map(crate::ast::Expr::Literal));
+
+    // Aggregate-function comparison arm:
+    //   agg_fn(col) op literal  →  Predicate::Compare { lhs: Expr::FuncCall, op, rhs }
+    //
+    // ADR-048 D.3: The lhs is intentionally an Expr::FuncCall (Aggregate variant).
+    // collect_predicate_columns handles this via the FuncCall arm introduced in the
+    // same fix, which recurses into FuncCall args via extract_field_paths_from_expr.
+    let agg_call = build_agg_call_parser(field_path.clone());
+    let agg_comparison = agg_call
+        .padded()
+        .then(compare_op)
+        .then(rhs_expr.padded())
+        .map(|((agg_expr, op), rhs)| Predicate::Compare {
+            lhs: Box::new(agg_expr),
+            op,
+            rhs: Box::new(rhs),
+        });
+
+    // Try aggregate comparison first; fall through to base predicate if it doesn't match.
+    // This preserves all existing WHERE/HAVING behaviour: bare-column comparisons,
+    // IN subqueries, BETWEEN, LIKE, etc. are all handled by `base`.
+    agg_comparison.or(base)
 }
 
 /// Build an expression parser extended with SQL aggregate functions,
