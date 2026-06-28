@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.035"
+version: "8.036"
 producer: state-manager
-timestamp: 2026-06-28T10:00:00Z
+timestamp: 2026-06-28T12:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -36,7 +36,7 @@ workspace_test_count: 5061
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1408 (2026-06-28). Pass-W fix round. LOCAL cascade S-DEMO-FIDELITY-REMEDIATION-001 Pass-W: F-PWL1-LOW-001 MANDATE (HAVING column-gate asymmetry → PO BC-2.11.016 v1.5, implementer +Position 6 +2 tests, feature HEAD dd666e0b→b49316c2) + F-PWL3-MED-001 (red_gate_tests semantics contradiction → story v2.8 precise-subset definition; red_gate_tests 37→39). POL-29: ONBOARDING-001-B v2.0. BC-INDEX v7.23→v7.24. STORY-INDEX v2.512→v2.513. 3-CLEAN streak reset 0/3 — NEXT = re-gate Pass X on feature HEAD b49316c2 (pending just check confirmation). STATE v8.034→v8.035."
+current_step: "D-1409 (2026-06-28). SESSION WRAP. RESUME SNAPSHOT D-1409 authored (supersedes D-1399). S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN cascade at Pass-X, streak 0/3 on feature HEAD b49316c2 (story v2.8; 6 BCs; BC-2.11.016 committed v1.5 — PO v1.6 weakening REVERTED not adopted). OPEN: F-PXL3-MED-002 HAVING code-vs-spec decision (user-directed: investigate code/grammar FIRST before weakening spec) + dependent F-PXL3-MED-001 + independent F-PXL4-LOW-001 (story cite test_bc_2_11_022_ci_3tier_gate→registry_parity). develop 9a09653a. STATE v8.035→v8.036."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -68,14 +68,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1408."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1409."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-28 (D-1408 Pass-W fix round: BC-2.11.016 v1.5 HAVING gate mandate + story v2.8 [red_gate_tests 37→39]; POL-29 ONBOARDING-001-B v2.0; BC-INDEX v7.24; STORY-INDEX v2.513; feature HEAD b49316c2; streak 0/3; develop 9a09653a; STATE v8.034→v8.035)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-28 (D-1409 SESSION WRAP: RESUME SNAPSHOT D-1409 authored; S-DEMO-FIDELITY-REMEDIATION-001 LOCAL cascade Pass-X streak 0/3 on b49316c2; OPEN F-PXL3 HAVING decision [PO BC v1.6 weakening REVERTED]; BC-INDEX v7.24; STORY-INDEX v2.513; develop 9a09653a; STATE v8.035→v8.036)
 
 ## Active Objective (North Star)
 
@@ -122,6 +122,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 through D-1339 archived to burst-log.md (D-1368 compaction 2026-06-26). D-1344 and D-1393..D-1397 archived to burst-log.md (this compaction)._
+| D-1409 | state-manager | 2026-06-28 | **SESSION WRAP — RESUME SNAPSHOT D-1409 authored (supersedes D-1399). S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN cascade at Pass-X, streak 0/3 on feature HEAD b49316c2. PO's tentative BC-2.11.016 v1.6 spec-weakening REVERTED (not adopted); BC-2.11.016 remains committed v1.5 at factory-artifacts 9d08b42a. OPEN: F-PXL3-MED-002 (HAVING code-vs-spec decision, user-directed: investigate code/grammar BEFORE weakening spec — aggregate `HAVING count(col)` is common/useful; verify whether grammar+extractor should be extended vs deliberately excluded) + F-PXL3-MED-001 (AC-M2 prose depends on F-PXL3-MED-002 resolution) + F-PXL4-LOW-001 (story AC-REG-2 test cite: test_bc_2_11_022_ci_3tier_gate → test_bc_2_11_022_registry_parity; independent of HAVING decision). develop 9a09653a UNCHANGED. BC-INDEX v7.24 UNCHANGED. STORY-INDEX v2.513 UNCHANGED. ARCH-INDEX v2.148 UNCHANGED. active_contracts 254 UNCHANGED. total_stories 216 UNCHANGED. STATE v8.035→v8.036.** | wave-5-e-demo-fidelity | 2026-06-28 |
 | D-1408 | state-manager | 2026-06-28 | **S-DEMO-FIDELITY-REMEDIATION-001 PASS-W FIX ROUND CLOSED (D-1408). Pass-V CLEAN-strict (streak 1/3). Pass-W: F-PWL1-LOW-001 MANDATE (HAVING column-gate asymmetry — BC-2.11.016 v1.4→v1.5; IMPLEMENTER Position 6 + 2 HAVING tests; feature HEAD dd666e0b→b49316c2) + F-PWL3-MED-001 (red_gate_tests semantics contradiction — STORY-WRITER v2.7→v2.8 precise-subset definition; red_gate_tests 37→39). POL-29: ONBOARDING-001-B v1.9→v2.0. BC-INDEX v7.23→v7.24. STORY-INDEX v2.512→v2.513. active_contracts 254 UNCHANGED. total_stories 216 UNCHANGED. develop_head 9a09653a UNCHANGED. ARCH-INDEX v2.148 UNCHANGED. 3-CLEAN streak reset 0/3 — NEXT = re-gate Pass X on feature HEAD b49316c2 (pending just check confirmation). STATE v8.034→v8.035.** | wave-5-e-demo-fidelity | 2026-06-28 |
 | D-1407 | state-manager | 2026-06-28 | **S-DEMO-FIDELITY-REMEDIATION-001 PASS-U FIX ROUND CLOSED (D-1407). LOCAL cascade Pass-U: 2 real findings + 1 DISCARDED false-positive. F-PUL3-MED-001 (test-inventory drift — red_gate_tests 33→37 exhaustive reconcile: added 2 F-PJL mid-cascade tests [test_f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039, test_f_pjl4_med001_scheduled_path_table_gate_fires_before_capability_gate, both bc_2_11_019_n1b_test.rs] + 2 F-PQL2-OBS-001 guard tests [test_f_pql2_obs001_query_skeleton_no_bare_timestamp, test_f_pql2_obs001_datetime_arithmetic_uses_placeholder, f_pql2_obs001_skeleton_placeholder_guard_test.rs]; File Structure table now EXHAUSTIVE [added f_pql2_obs001_skeleton_placeholder_guard_test.rs row, corrected bc_2_11_019_n1b_test.rs 17→19 + test_enrich_udf_not_found_display.rs 4→5]; Token Budget "8 new test files"→"9 new test files"; inventory comment + arithmetic reconciled; Red Gate semantics: ALL story-delivered tests incl mid-cascade regression guards counted; no AC/BC change; STORY-WRITER story v2.6→v2.7). F-PUL1-LOW-001 (check_query_column_availability gate-skip doc-comment corrected — stale wording implied E-QUERY-037 pre-empts query; doc-comment only; IMPLEMENTER feature HEAD 2c832895→dd666e0b; just iter prism-query 1225/1225). DISCARDED: lens-2 "delivery absent" CRITICAL — verified FALSE POSITIVE (adversary read main checkout not worktree; delivery confirmed present at worktree HEAD dd666e0b). STORY-INDEX v2.511→v2.512. BC-INDEX v7.23 UNCHANGED. ARCH-INDEX v2.148 UNCHANGED. develop_head 9a09653a UNCHANGED. active_contracts 254 UNCHANGED. total_stories 216 UNCHANGED. workspace_test_count 5061 UNCHANGED. 3-CLEAN streak reset 0/3 — NEXT = re-gate Pass V on feature HEAD dd666e0b + story v2.7 (worktree-read-hardened lens prompts). STATE v8.033→v8.034.** | wave-5-e-demo-fidelity | 2026-06-28 |
 | D-1406 | state-manager | 2026-06-28 | **S-DEMO-FIDELITY-REMEDIATION-001 PASS-R FIX ROUND CLOSED (D-1406). LOCAL cascade Pass-R: doc/prose-accuracy fixes (code+BC already correct) — F-PRL3-MED-001 (AC-SAP-1 rewritten: no new event_type VALUE but 2 new closed-set method labels [columns_for_table, check_availability_gate.dot_notation] + new column_not_found.rejected site → BC-2.16.002 v1.91 dependency; §References note added to story) + F-PRL3-LOW-001 (AC-AUDIT-001 priority-ladder now lists all 4 sensors incl cyberint lowercase) + F-PRL1-LOW-001 (engine.rs check_enrich_udf_availability docstring updated to enumerate all 6 scalar positions — SELECT projections / pipe EnrichStage / WHERE / JOIN ON / GROUP BY / ORDER BY; was understating SELECT-only). IMPLEMENTER: feature HEAD c780058d→f8e43397 (doc-comment only; just iter prism-query 1225/1225 pass). STORY-WRITER: story v2.5→v2.6. STORY-INDEX v2.510→v2.511. BC-INDEX v7.23 UNCHANGED. ARCH-INDEX v2.148 UNCHANGED. develop_head 9a09653a UNCHANGED. active_contracts 254 UNCHANGED. total_stories 216 UNCHANGED. workspace_test_count 5061 UNCHANGED. 3-CLEAN streak 0/3 — NEXT = re-gate Pass S on feature HEAD f8e43397 + story v2.6. STATE v8.032→v8.033.** | wave-5-e-demo-fidelity | 2026-06-28 |
@@ -264,20 +265,20 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1408 — 2026-06-28; STATE v8.035)
+## Session Resume Checkpoint (D-1409 — 2026-06-28; STATE v8.036)
 
-**STATE v8.035. D-1408 PASS-W FIX ROUND CLOSED. Feature HEAD b49316c2 (dd666e0b→b49316c2 via implementer: HAVING Position 6 added to check_query_column_availability + 2 HAVING load-bearing tests — F-PWL1-LOW-001 MANDATE; just check pending). Story S-DEMO-FIDELITY-REMEDIATION-001 v2.8 (16 ACs, 39 Red Gate tests; 6 BCs; BC-2.11.016 cite v1.4→v1.5 [4 sites]; AC-M2 HAVING note; red_gate_tests 37→39 [+2 HAVING]; F-PWL3-MED-001 semantics fix: red_gate_tests precisely defined as TDD-driving subset, File Structure = full set). Pass-V was CLEAN-strict (streak hit 1/3); Pass-W reset streak 0/3. POL-29: S-DEMO-PRISMQL-ONBOARDING-001-B v2.0 (BC-2.11.016 v1.5 cite propagation; version-pin only). BC-INDEX v7.24. STORY-INDEX v2.513. ARCH-INDEX v2.148. error-taxonomy v2.03. total_stories 216. develop_head 9a09653a (local==origin). DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. non-exhaustive 88 (pending b49316c2 just check). 3-CLEAN streak 0/3 — NEXT = re-gate Pass X on feature HEAD b49316c2 (pending just check confirmation).**
+**STATE v8.036. D-1409 SESSION WRAP. See SESSION-HANDOFF.md §RESUME SNAPSHOT D-1409 for full context. Feature HEAD b49316c2 (story v2.8; 39 Red Gate tests; 6 BCs; BC-2.11.016 committed v1.5 — PO v1.6 weakening REVERTED). 3-CLEAN streak 0/3 on b49316c2. OPEN FINDINGS (resume work): F-PXL3-MED-002 (HAVING code-vs-spec decision: user-directed investigate code/grammar FIRST — do NOT weaken spec; PrismQL HAVING grammar accepts only `field op literal`; `count(col) > 5` form requires grammar+extractor extension OR ratified spec correction with explicit rationale) + F-PXL3-MED-001 (AC-M2 depends on F-PXL3-MED-002) + F-PXL4-LOW-001 (story AC-REG-2 test cite fix: test_bc_2_11_022_ci_3tier_gate → test_bc_2_11_022_registry_parity; independent). BC-INDEX v7.24. STORY-INDEX v2.513. ARCH-INDEX v2.148. error-taxonomy v2.03. total_stories 216. develop_head 9a09653a (local==origin). DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88.**
 
-**NEXT ACTION:** Confirm just check on feature HEAD b49316c2 (HAVING gate implementation). Then re-gate LOCAL adversary cascade Pass X (4-lens, worktree-read-hardened prompts) on b49316c2 + story v2.8 — 3× CLEAN(strict). Then: demo evidence → PR (rebase onto develop 9a09653a) → PR-LEVEL 3-CLEAN → normal squash-merge → state-manager post-merge burst. After merge: PO authors BCs for S-PRISMQL-CASE-INSENSITIVE-001 (OD-1..OD-4 locked) → story-writer body → TDD delivery.
+**NEXT ACTION:** (1) Run `just check` on feature HEAD b49316c2 to confirm green (background run at wrap was NOT EXIT-confirmed). (2) Investigate PrismQL HAVING grammar + `extract_predicate_columns` in sql_parser.rs/engine.rs — decide F-PXL3-MED-002: extend grammar+extractor to support `HAVING <agg>(col) op literal` (keep BC v1.5, add load-bearing test) OR ratified bare-column correction to BC v1.5 with explicit WHY. (3) Apply fix + resolve F-PXL3-MED-001 + fix F-PXL4-LOW-001. (4) State-manager commit. (5) Re-gate 4-lens adversary passes (WORKTREE-READ PREFLIGHT: read from .worktrees/S-DEMO-FIDELITY-REMEDIATION-001, NOT /prism/crates/) to 3 consecutive CLEAN(strict). (6) Demo evidence → PR (rebase onto develop 9a09653a) → PR-LEVEL 3-CLEAN → squash-merge.
 
 **TRACK B — DAY-2 MORPH (POST-T14):** `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
-**PENDING HUMAN AUTH:** (A) brief reframe sign-off; (B) EC-11 namespace collisions.
+**PENDING HUMAN AUTH:** (A) brief reframe sign-off; (B) EC-11 namespace collisions; (C) F-PXL3-MED-002 HAVING decision (grammar-extend vs spec-correct).
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1399 + DELTA D-1400 + DELTA D-1401 + DELTA D-1402 + DELTA D-1403 + DELTA D-1404 + DELTA D-1405 + DELTA D-1406 + DELTA D-1407 + DELTA D-1408 for full context. STATE v8.035.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1409 for full context. STATE v8.036.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `9a09653a`.
-3. Feature branch worktree for S-DEMO-FIDELITY-REMEDIATION-001 at CODE HEAD b49316c2 (story v2.8).
-4. HUMAN DECISIONS PENDING: (A) brief reframe sign-off; (B) EC-11 namespace collisions.
-5. Next: confirm just check b49316c2 → LOCAL adversary Pass X on b49316c2 + v2.8 → 3-CLEAN(strict) → demo evidence → PR. Autonomy D-989 active.
+3. Feature branch worktree S-DEMO-FIDELITY-REMEDIATION-001 at HEAD b49316c2 (story v2.8). Run `just check` first.
+4. HUMAN DECISIONS PENDING: (A) brief reframe sign-off; (B) EC-11 namespace collisions; (C) F-PXL3-MED-002 HAVING grammar decision.
+5. Next: resolve HAVING decision → fix-burst → adversary 4-lens passes → 3-CLEAN(strict) → PR. Autonomy D-989 active.
