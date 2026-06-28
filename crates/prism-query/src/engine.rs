@@ -5278,6 +5278,336 @@ mod m2_column_gate_funccall_and_join_tests {
 }
 
 // ---------------------------------------------------------------------------
+// S-DEMO-FIDELITY-REMEDIATION-001 Pass-B F-PBL1-MED-001 — SELECT-projection
+// FuncCall-arg columns bypass E-QUERY-038
+// ---------------------------------------------------------------------------
+//
+// Finding: the SELECT-projection loop (Position 1) in `check_query_column_availability`
+// matched only `Expr::Field(fp)` directly and returned `None` for `Expr::FuncCall { .. }`.
+// So `SELECT count(typo_col) FROM crowdstrike_alerts` did NOT validate `typo_col` against
+// the column schema — but the identical `GROUP BY count(typo_col)` DID (Position 3 uses
+// the recursive `extract_field_paths_from_expr`).
+//
+// Fix: route the SELECT-projection position through `extract_field_paths_from_expr` so
+// nested FuncCall args are validated, matching GROUP BY/ORDER BY/JOIN ON.
+//
+// Tests assert E-QUERY-038 fires for column typos nested inside FuncCall in SELECT:
+//   1. Aggregate FuncCall: `SELECT count(typo_col) FROM crowdstrike_alerts`
+//   2. Scalar FuncCall: `SELECT lower(typo_col) FROM crowdstrike_alerts`
+//
+// No-regression tests assert the gate does NOT fire for:
+//   1. SELECT * (wildcard — no column validation)
+//   2. SELECT count(severity) (valid column reference inside FuncCall)
+//   3. SELECT severity AS s (field alias — valid column ref)
+//
+// TD-VSDD-059: load-bearing — removing `extract_field_paths_from_expr` from the
+// SELECT-projection position (reverting to direct `Expr::Field` match with `_ => None`)
+// causes test_f_pbl1_med001_select_aggregate_funccall_typo_col_triggers_e_query_038 and
+// test_f_pbl1_med001_select_scalar_funccall_typo_col_triggers_e_query_038 to fail (they
+// would return Ok or a non-E-QUERY-038 error instead of PrismError::ColumnNotFound).
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod f_pbl1_med001_select_funccall_col_gate_tests {
+    use std::{collections::HashMap, sync::Arc};
+
+    use prism_core::{OrgSlug, SensorId};
+    use prism_sensors::AdapterRegistry;
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+        ResolvedSensorSpec, ResolvedSpecKey,
+    };
+
+    use super::*;
+    use crate::{scoping::ClientRegistry, table_registry::TableRegistry};
+    use prism_core::column::ColumnType;
+
+    // ── Helpers (mirrors m2_column_gate_funccall_and_join_tests::make_crowdstrike_engine_with_columns) ──
+
+    /// No-op credential store (same stub as m2 module).
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a `QueryEngine` with `crowdstrike_alerts` registered with columns
+    /// `["severity", "timestamp"]` plus a resolved_spec_map for multi-tenant gate.
+    ///
+    /// Mirrors `m2_column_gate_funccall_and_join_tests::make_crowdstrike_engine_with_columns`.
+    fn make_crowdstrike_engine() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+        let sensor_id = "crowdstrike";
+        let table_suffix = "alerts";
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            sensor_id,
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("register crowdstrike must not fail");
+
+        let overlay_toml = format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@acme\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("F-PBL1-MED-001 fixture: SensorInstanceOverlay TOML must parse");
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org.clone());
+        let key: ResolvedSpecKey = (org.clone(), SensorId::new(sensor_id));
+        let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_table_registry(registry);
+
+        (engine, org)
+    }
+
+    // ── Red gate tests (must FAIL before fix, PASS after fix) ─────────────────
+
+    /// F-PBL1-MED-001 — E-QUERY-038 must fire when a typo'd column is wrapped in
+    /// an aggregate FuncCall in the SELECT clause (e.g. `SELECT count(typo_col) ...`).
+    ///
+    /// Before fix: Position 1 (SELECT) uses a direct `Expr::Field` match; the
+    /// `Expr::FuncCall` arm falls through to `_ => None`, so `typo_col` inside
+    /// `count(typo_col)` is never extracted and the gate silently passes.
+    ///
+    /// After fix: Position 1 routes through `extract_field_paths_from_expr`, which
+    /// recurses into FuncCall args and collects `typo_col` → E-QUERY-038.
+    ///
+    /// Load-bearing (F-PBL1-MED-001): reverting SELECT to direct `Expr::Field` match
+    /// causes this test to produce Ok or a non-E-QUERY-038 error.
+    #[tokio::test]
+    async fn test_f_pbl1_med001_select_aggregate_funccall_typo_col_triggers_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `count(typo_col)` — typo_col is not in the schema (only severity, timestamp are valid).
+        let query = "SELECT count(typo_col) FROM crowdstrike_alerts";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "typo_col",
+                    "F-PBL1-MED-001 SELECT aggregate FuncCall: column must be 'typo_col', \
+                     got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "F-PBL1-MED-001 SELECT aggregate FuncCall: table must be 'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "F-PBL1-MED-001 SELECT aggregate FuncCall: engine.execute must NOT succeed — \
+                 E-QUERY-038 must fire for column typo inside count() in SELECT. Before fix, \
+                 the FuncCall arg in SELECT was not walked (fell through to `_ => None`)."
+            ),
+            Err(other) => panic!(
+                "F-PBL1-MED-001 SELECT aggregate FuncCall: expected \
+                 PrismError::ColumnNotFound (E-QUERY-038), got different error: {other:?}"
+            ),
+        }
+    }
+
+    /// F-PBL1-MED-001 — E-QUERY-038 must fire when a typo'd column is wrapped in
+    /// a scalar FuncCall in the SELECT clause (e.g. `SELECT lower(typo_col) ...`).
+    ///
+    /// Mirrors the aggregate FuncCall test above for scalar functions.
+    ///
+    /// Load-bearing (F-PBL1-MED-001): reverting SELECT to direct `Expr::Field` match
+    /// causes this test to produce Ok or a non-E-QUERY-038 error.
+    #[tokio::test]
+    async fn test_f_pbl1_med001_select_scalar_funccall_typo_col_triggers_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `lower(typo_col)` — typo_col is not in the schema.
+        let query = "SELECT lower(typo_col) FROM crowdstrike_alerts";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "typo_col",
+                    "F-PBL1-MED-001 SELECT scalar FuncCall: column must be 'typo_col', \
+                     got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "F-PBL1-MED-001 SELECT scalar FuncCall: table must be 'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "F-PBL1-MED-001 SELECT scalar FuncCall: engine.execute must NOT succeed — \
+                 E-QUERY-038 must fire for column typo inside lower() in SELECT. Before fix, \
+                 the FuncCall arg in SELECT was not walked (fell through to `_ => None`)."
+            ),
+            Err(other) => panic!(
+                "F-PBL1-MED-001 SELECT scalar FuncCall: expected \
+                 PrismError::ColumnNotFound (E-QUERY-038), got different error: {other:?}"
+            ),
+        }
+    }
+
+    // ── No-regression tests (must PASS before and after fix) ──────────────────
+
+    /// F-PBL1-MED-001 no-regression — `SELECT *` must NOT trigger E-QUERY-038.
+    ///
+    /// Wildcards are excluded from column validation (SelectItem::Star → None in the
+    /// SELECT walk). No columns are extracted → gate passes.
+    #[tokio::test]
+    async fn test_f_pbl1_med001_select_star_no_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        let query = "SELECT * FROM crowdstrike_alerts LIMIT 1";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        // Gate must NOT fire E-QUERY-038 for SELECT * (wildcard — no columns to validate).
+        // The query may fail downstream for other reasons (no data, DataFusion error) but
+        // NOT with PrismError::ColumnNotFound.
+        if let Err(PrismError::ColumnNotFound(ref details)) = result {
+            panic!(
+                "F-PBL1-MED-001 SELECT *: gate must NOT fire E-QUERY-038 for wildcard. \
+                 Got ColumnNotFound for column '{}' in table '{}'.",
+                details.column, details.table
+            );
+        }
+    }
+
+    /// F-PBL1-MED-001 no-regression — `SELECT count(severity)` with a valid column
+    /// inside FuncCall must NOT trigger E-QUERY-038.
+    ///
+    /// After the fix, `extract_field_paths_from_expr` recurses into FuncCall args.
+    /// When the extracted column name IS in the schema, the gate must pass.
+    #[tokio::test]
+    async fn test_f_pbl1_med001_select_aggregate_funccall_valid_col_no_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `count(severity)` — `severity` IS in the schema.
+        let query = "SELECT count(severity) FROM crowdstrike_alerts";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        // Gate must NOT fire E-QUERY-038 for a valid column inside FuncCall.
+        if let Err(PrismError::ColumnNotFound(ref details)) = result {
+            panic!(
+                "F-PBL1-MED-001 SELECT valid FuncCall: gate must NOT fire E-QUERY-038 \
+                 for 'count(severity)' — 'severity' is in the schema. \
+                 Got ColumnNotFound for column '{}' in table '{}'.",
+                details.column, details.table
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // S-DEMO-FIDELITY-REMEDIATION-001 M1 — E-QUERY-038 single-tenant registry path
 // ---------------------------------------------------------------------------
 //
