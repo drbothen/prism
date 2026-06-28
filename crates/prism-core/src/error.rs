@@ -61,7 +61,7 @@ impl EnrichUdfNotFoundDetails {
 
 impl std::fmt::Display for EnrichUdfNotFoundDetails {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Canonical taxonomy template (error-taxonomy.md E-QUERY-039 v2.01,
+        // Canonical taxonomy template (Message Format canonicalized in error-taxonomy.md E-QUERY-039 at v2.01; matches current error-taxonomy.md v2.03;
         // BC-2.11.019 v1.5, PO-reconciled spec S-DEMO-FIDELITY-REMEDIATION-001):
         // "E-QUERY-039: enrichment infusion '{infusion}' is not registered;
         //  available: [{available_infusions}]{did_you_mean}"
@@ -1433,7 +1433,7 @@ pub enum PrismError {
     ///
     /// Raised at planning time by the FORBID-BOTH invariant (ADR-043 §C).
     ///
-    /// Message template is verbatim from error-taxonomy.md v2.00 (POL-24).
+    /// Message template canonicalized in error-taxonomy.md E-QUERY-040 at v2.00 (POL-24); matches current error-taxonomy.md v2.03 (v2.01–v2.03 changed examples/firing condition only, not the template).
     #[error(
         "E-QUERY-040: redundant row limit. This query caps rows in two places: a SQL `LIMIT {sql_limit}` in the head and a row-capping `| limit`/`| tail` pipe stage (cap: {pipe_limit}). PrismQL requires exactly one row cap. Remove the SQL `LIMIT {sql_limit}` and place a single `| limit` at the end of the pipeline (recommended for composed queries), or use `LIMIT` only in pure SQL-mode queries."
     )]
