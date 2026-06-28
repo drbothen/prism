@@ -1614,57 +1614,75 @@ fn check_enrich_udf_availability(
     // Collect enrichment UDF names from the AST via direct pattern matching.
     // Using direct match (not the Visitor trait) to avoid coupling with the full
     // visitor infrastructure — enrichment nodes are a well-defined subset.
-    let mut enrich_fn_names: Vec<String> = Vec::new();
+    //
+    // F-PNL1-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-N LOCAL cascade):
+    // BC-2.11.019 v1.5 §F-PJL1-HIGH-001 "Scope of change" states the DataFusion
+    // built-in exclusion applies to SQL-mode `ScalarFunc::Unknown` gate logic ONLY.
+    // Pipe-mode `EnrichStage.infusion` gate is UNAFFECTED — `| enrich lower(col)`
+    // is an explicit enrichment directive; `lower` there is not a DataFusion scalar
+    // call but an unregistered infusion name, so E-QUERY-039 MUST fire.
+    // Fix: separate pipe-mode names and SQL-mode names into distinct Vecs so the
+    // built-in skip is applied to SQL names only.
+    let mut pipe_enrich_names: Vec<String> = Vec::new(); // no built-in skip
+    let mut sql_unknown_names: Vec<String> = Vec::new(); // built-in skip applied
 
     match &ast {
         // Pipe mode: `FROM table | enrich udf_name(col)` stages.
         Ast::Pipe(pq) => {
             for stage in &pq.stages {
                 if let PipeStage::Enrich(es) = stage {
-                    enrich_fn_names.push(es.infusion.clone());
+                    pipe_enrich_names.push(es.infusion.clone());
                 }
             }
         }
         // SqlPipe mode: SQL head with pipe stages.
         // Enrich names can appear in TWO places:
-        //   (a) pipe stages: `… | enrich udf_name(col)` — same as Pipe mode
+        //   (a) pipe stages: `… | enrich udf_name(col)` — pipe-mode, no built-in skip.
         //   (b) SQL HEAD: any scalar position in the head SqlQuery (SELECT, WHERE,
-        //       JOIN ON, GROUP BY, ORDER BY, HAVING) — via canonical shared walk.
+        //       JOIN ON, GROUP BY, ORDER BY, HAVING) — SQL-mode, built-in skip applied.
         // BC-2.11.019 §Precondition 1(b): projection OR WHERE (either site counts).
         // C1/C2 fix: use collect_unknown_scalars_from_sql_query to cover ALL positions
         // including JOIN ON / GROUP BY / ORDER BY which the previous inline walk missed.
         Ast::SqlPipe(spq) => {
-            // (a) pipe stages.
+            // (a) pipe stages — pipe-mode, no built-in skip.
             for stage in &spq.stages {
                 if let PipeStage::Enrich(es) = stage {
-                    enrich_fn_names.push(es.infusion.clone());
+                    pipe_enrich_names.push(es.infusion.clone());
                 }
             }
-            // (b) SQL head — ALL scalar positions via canonical shared walk.
-            collect_unknown_scalars_from_sql_query(&spq.head, &mut enrich_fn_names);
+            // (b) SQL head — ALL scalar positions via canonical shared walk, SQL-mode.
+            collect_unknown_scalars_from_sql_query(&spq.head, &mut sql_unknown_names);
         }
         // SQL mode: scan ALL scalar positions via canonical shared walk.
         // BC-2.11.019 §Precondition 1(b): projection OR WHERE (either site counts).
         // C1/C2 fix: use collect_unknown_scalars_from_sql_query to cover ALL positions
         // including JOIN ON / GROUP BY / ORDER BY which the previous inline walk missed.
         Ast::Sql(SqlStatement::Select(sq)) => {
-            collect_unknown_scalars_from_sql_query(sq, &mut enrich_fn_names);
+            collect_unknown_scalars_from_sql_query(sq, &mut sql_unknown_names);
         }
         // Filter mode and DML have no enrichment syntax.
         _ => {}
     }
 
-    // Validate each enrichment name against the registered UDF name set.
+    // Validate pipe-mode enrich names — NO DataFusion built-in exclusion.
+    // BC-2.11.019 v1.5 §F-PJL1-HIGH-001: pipe-mode `| enrich <name>` is an explicit
+    // enrichment directive. A built-in name like `lower` used as a pipe-mode infusion
+    // is NOT a DataFusion scalar — it is an unregistered infusion the analyst is trying
+    // to apply, so E-QUERY-039 MUST fire when it is not in InfusionRegistry.
+    //
+    // Validate SQL-mode unknown scalar names — WITH DataFusion built-in exclusion.
     // BC-2.11.019 v1.5: skip names that are DataFusion built-in scalars —
     // they are resolvable by ctx.sql() and must NOT trigger E-QUERY-039.
     // F-PJL1-HIGH-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade).
-    for requested in &enrich_fn_names {
-        let requested_lower = requested.to_ascii_lowercase();
-        if DATAFUSION_BUILTIN_SCALAR_NAMES.contains(&requested_lower) {
-            // This name is a DataFusion built-in (e.g. lower, upper, coalesce).
-            // DataFusion will resolve it in ctx.sql(); skip the enrich gate.
-            continue;
-        }
+    //
+    // Iterator chain: pipe names first (no skip), then filtered SQL names (skip applied).
+    let sql_names_filtered = sql_unknown_names.iter().filter(|name| {
+        let name_lower = name.to_ascii_lowercase();
+        !DATAFUSION_BUILTIN_SCALAR_NAMES.contains(&name_lower)
+    });
+    let all_names_to_check = pipe_enrich_names.iter().chain(sql_names_filtered);
+
+    for requested in all_names_to_check {
         if !registered_names.contains(requested.as_str()) {
             // Requested name is not a registered per-field UDF name.
             // Build available_infusions from all registered per-field names.
@@ -6454,6 +6472,247 @@ instance_id = "crowdstrike@acme""#;
                 "F-PHL1-MED-001 multi-tenant: expected E-QUERY-038 (ColumnNotFound), \
                  got: {other:?}"
             ),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PNL1-MED-001 — pipe-mode built-in name fires E-QUERY-039 (no skip)
+// ---------------------------------------------------------------------------
+//
+// BC-2.11.019 v1.5 §F-PJL1-HIGH-001 "Scope of change":
+//   "SQL-mode `ScalarFunc::Unknown` gate logic only. Pipe-mode `EnrichStage.infusion`
+//    gate is UNAFFECTED (pipe-mode `| enrich` is an explicit enrichment directive —
+//    a built-in name there is NOT a DataFusion scalar, it's an unregistered infusion
+//    the analyst is trying to apply, so it SHOULD fire E-QUERY-039)."
+//
+// Before fix: `check_enrich_udf_availability` collected all names into one Vec and
+//   applied `DATAFUSION_BUILTIN_SCALAR_NAMES` skip uniformly — pipe-mode enrich names
+//   were incorrectly excluded when they matched a DataFusion built-in name (e.g. `lower`).
+// After fix: pipe-mode names and SQL-mode names are collected into separate Vecs;
+//   built-in skip applies only to SQL-mode names.
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod pipe_mode_builtin_enrich_gate_tests {
+    use std::sync::Arc;
+
+    use prism_sensors::AdapterRegistry;
+
+    use super::*;
+    use crate::{scoping::ClientRegistry, table_registry::TableRegistry};
+    use prism_core::column::ColumnType;
+
+    struct NoopCsPipe;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCsPipe {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a QueryEngine with:
+    ///   - TableRegistry containing `crowdstrike_alerts` (columns: `severity`, `ioc_value`)
+    ///   - InfusionRegistry that is empty (no infusions registered — `lower` is NOT an infusion)
+    ///
+    /// This setup ensures E-QUERY-037 (table not found) and E-QUERY-038 (column not found)
+    /// do NOT fire before E-QUERY-039 (enrich gate), so the enrich gate exercises the
+    /// pipe-mode path cleanly.
+    fn make_engine_with_sensor_and_empty_infusion_registry() -> QueryEngine {
+        use prism_spec_engine::{
+            spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+            InfusionRegistry,
+        };
+
+        // Register `crowdstrike` sensor with table `alerts` (→ `crowdstrike_alerts` in queries).
+        // Include `ioc_value` and `severity` columns so E-QUERY-038 does not fire for those.
+        let columns = vec![
+            ColumnSpec::new("ioc_value", ColumnType::String, None, vec![]),
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+        ];
+        let sensor = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        let table_registry = Arc::new(TableRegistry::new());
+        table_registry
+            .register_sensor(&sensor)
+            .expect("register crowdstrike sensor must not fail");
+
+        // Empty InfusionRegistry — `lower` is NOT a registered infusion name.
+        let infusion_registry = Arc::new(InfusionRegistry::new());
+
+        QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCsPipe),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(table_registry)
+        .with_infusion_registry(infusion_registry)
+    }
+
+    /// F-PNL1-MED-001 load-bearing: pipe-mode `| enrich lower(ioc_value)` where `lower`
+    /// is NOT a registered infusion (empty InfusionRegistry) MUST return E-QUERY-039.
+    ///
+    /// Before fix: `lower` matched `DATAFUSION_BUILTIN_SCALAR_NAMES` (it is a DataFusion
+    ///   built-in) and was silently skipped — the gate was a no-op for this pipe query.
+    /// After fix: pipe-mode enrich names bypass the built-in skip entirely. `lower` is not
+    ///   in InfusionRegistry → E-QUERY-039 fires with `infusion: "lower"`.
+    ///
+    /// BC-2.11.019 v1.5 §F-PJL1-HIGH-001 scope: "Pipe-mode `EnrichStage.infusion` gate
+    /// is UNAFFECTED — a built-in name there is NOT a DataFusion scalar, it is an
+    /// unregistered infusion the analyst is trying to apply, so it SHOULD fire E-QUERY-039."
+    ///
+    /// Load-bearing (TD-VSDD-059): before fix the single-Vec approach skips `lower` →
+    /// `execute` succeeds or returns a different error. After fix, E-QUERY-039 is returned.
+    #[tokio::test]
+    async fn test_pipe_mode_builtin_name_fires_e_query_039() {
+        let engine = make_engine_with_sensor_and_empty_infusion_registry();
+
+        // Pipe-mode query: `lower` is not a registered infusion — E-QUERY-039 MUST fire.
+        // Before fix: `lower` is in DATAFUSION_BUILTIN_SCALAR_NAMES → skipped → gate is no-op.
+        // After fix: pipe-mode names bypass DATAFUSION_BUILTIN_SCALAR_NAMES → gate fires.
+        let result = engine
+            .execute(
+                "FROM crowdstrike_alerts | enrich lower(ioc_value)",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result {
+            Err(PrismError::EnrichUdfNotFound(ref details)) => {
+                assert_eq!(
+                    details.infusion, "lower",
+                    "F-PNL1-MED-001: details.infusion must be 'lower'; got: '{}'",
+                    details.infusion
+                );
+                // available_infusions must be empty (empty registry).
+                assert!(
+                    details.available_infusions.is_empty(),
+                    "F-PNL1-MED-001: available_infusions must be empty (no infusions registered); \
+                     got: {:?}",
+                    details.available_infusions
+                );
+            }
+            Ok(_) => panic!(
+                "F-PNL1-MED-001: pipe-mode `| enrich lower(ioc_value)` must NOT succeed — \
+                 `lower` is not a registered infusion; E-QUERY-039 must fire. \
+                 Before fix: built-in skip wrongly silenced the gate for pipe-mode names."
+            ),
+            Err(PrismError::TableNotAvailable(ref details)) => panic!(
+                "F-PNL1-MED-001: E-QUERY-037 fired unexpectedly — table '{}' was not found. \
+                 Test setup registers 'crowdstrike_alerts'; check TableRegistry wiring.",
+                details.table
+            ),
+            Err(PrismError::ColumnNotFound(ref details)) => panic!(
+                "F-PNL1-MED-001: E-QUERY-038 fired unexpectedly — column '{}' was not found. \
+                 Test setup registers 'ioc_value' and 'severity'; check ColumnSpec wiring.",
+                details.column
+            ),
+            Err(other) => panic!(
+                "F-PNL1-MED-001: unexpected error — expected E-QUERY-039 (EnrichUdfNotFound), \
+                 got: {other:?}"
+            ),
+        }
+    }
+
+    /// Regression guard: SQL-mode `SELECT lower(severity) FROM crowdstrike_alerts` with
+    /// InfusionRegistry wired but `lower` NOT a registered infusion MUST NOT fire E-QUERY-039.
+    ///
+    /// `lower` is a DataFusion built-in scalar. In SQL mode, the built-in exclusion applies —
+    /// the gate must pass and DataFusion resolves `lower` during execution.
+    ///
+    /// This test guards against the fix breaking the F-PJL1-HIGH-001 regression guard:
+    /// the built-in exclusion for SQL mode must remain active after the pipe/SQL split.
+    ///
+    /// BC-2.11.019 v1.5 §F-PJL1-HIGH-001 + EC-11-064.
+    #[tokio::test]
+    async fn test_sql_mode_builtin_name_does_not_fire_e_query_039() {
+        let engine = make_engine_with_sensor_and_empty_infusion_registry();
+
+        // SQL-mode query using DataFusion built-in `lower`. The infusion registry is empty
+        // (lower is not a registered infusion), but the built-in exclusion applies in SQL mode.
+        // The gate MUST pass; `lower(severity)` is resolved by DataFusion at execution time.
+        // The execute call will fail with a DataFusion/execution error (no real adapter is
+        // wired), but it must NOT fail with E-QUERY-039.
+        let result = engine
+            .execute(
+                "SELECT lower(severity) FROM crowdstrike_alerts LIMIT 1",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result {
+            Err(PrismError::EnrichUdfNotFound(ref details)) => panic!(
+                "F-PNL1-MED-001 regression guard: SQL-mode `lower` MUST NOT fire E-QUERY-039. \
+                 `lower` is a DataFusion built-in; the SQL-mode built-in exclusion must remain \
+                 active after the pipe/SQL split fix. Got infusion: '{}'",
+                details.infusion
+            ),
+            // Any other outcome (Ok, E-QUERY-037, execution error, etc.) is acceptable —
+            // the important invariant is that E-QUERY-039 does NOT fire for `lower` in SQL mode.
+            _ => {
+                // Passes: the enrich gate correctly did not fire for a DataFusion built-in
+                // in SQL mode. The execution may fail for other reasons (no adapter, no data)
+                // but NOT because of the enrich gate.
+            }
         }
     }
 }
