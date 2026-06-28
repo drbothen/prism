@@ -1981,14 +1981,17 @@ fn check_column_availability(
 /// - WHERE clause (FieldPath refs from all Predicate variants)
 /// - GROUP BY clause (Expr::Field refs)
 /// - ORDER BY clause (Expr::Field refs in each OrderExpr)
+/// - JOIN ON clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
 ///
 /// Gate skip conditions (mirroring `check_table_availability`):
 /// - `resolved_spec_map` is `None`: skip (single-tenant / test mode without wiring)
 /// - Query fails to parse: skip (parse errors handled downstream)
 /// - SELECT * or SELECT table.*: skip for SELECT position (wildcard columns always pass)
 ///
-/// Only SQL SELECT mode is checked. Filter and Pipe modes have no explicit column
-/// projection and DataFusion handles field resolution in those modes.
+/// SQL SELECT mode and SqlPipe head are both checked (the SqlPipe head carries an
+/// explicit column projection in the SELECT clause that is gated identically to SQL
+/// SELECT; F-001B-DC-HIGH-001 / BC-2.11.020). Filter and Pipe modes have no explicit
+/// column projection and DataFusion handles field resolution in those modes.
 ///
 /// # BC-2.11.016 / S-DEMO-PRISMQL-ONBOARDING-001-B
 fn check_query_column_availability(
