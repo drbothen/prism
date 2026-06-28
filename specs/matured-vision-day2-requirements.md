@@ -3279,6 +3279,99 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   C20 (Purdue-zone/OT), AD-017, C16 masking, S3 agent runtime.
   Proposed epic: E-PRISM-CONTEXT-001 (feeds B).
 
+- **C15 ARO Model / SOAR / Actions FULLY DECIDED + CAPTURED 2026-06-27 (human). Eight
+  architecture decisions D-C15-1..8 confirmed.** Capture artifact:
+  `specs/day2-design-decisions/ADR-PROP-soar-actions-aro.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/aro-model-depth-2026-06-27.md` (PRIMARY — five sonar-deep-research passes at
+  `reasoning_effort=high`: Q1 OODA/MAPE-K/Endsley-SA/SPA conceptual lineage; Q2 three-tier
+  data models across SOAR/detection/UEBA/ASM/AI-SOC; Q3 AI-recommendation provenance/
+  calibration/explainability/citation-faithfulness/auditability; Q4 autonomy-level
+  taxonomies + HITL/HOTL/HOOTL + NIST/CISA gating; Q5 lifecycle state machines + dedup/
+  correlation + idempotency + linkage) + `research/prismql-actions-soar-onprem-models-2026-06-27.md`
+  (sweep). Aletheon `aros` table read as ONE reference input; generalized substantially.
+  **D-C15-1 ARO = closed loop, security instantiation of OODA/MAPE-K/Endsley-SA/SPA.** Action
+  feeds new Observations. Observation is a 3-LAYER product (Endsley perceive/comprehend/
+  project), not a flat finding. The shared Knowledge base = **C12 Prism Context** (first-class,
+  not per-ARO). Deliberation-vs-reaction tradeoff justifies tiered autonomy. ARO entity linkage
+  rides the C12 Context graph (already decided two-layer indradb+vector) — NO separate
+  substrate (resolves ARO sub-fork 6).
+  **D-C15-2 Autonomy = recommend-only v1; design the full ladder now; enable post-v1.** v1
+  ships Observation + Recommendation tiers; ALL Actions HITL-gated; ZERO autonomous Action in
+  v1 (matches C10 GAP-Q2 / CISA / NIST / EU AI Act). Full ladder designed now (advisory →
+  suggested → auto-with-approval → autonomous) with **per-action-class, evidence-measured,
+  REVERSIBLE** promotion (Dash0-style floors: >90% pass rate, <5% evaluator FP, <10% override).
+  **Hard CISA invariant (architectural): system designers — NOT the agent — set the gates;
+  agents fail-safe + escalate; OT/safety actions HITL-mandatory (PIV-C15-3/7).**
+  (Conforms AP-ADS-06 ungated/non-idempotent auto-actions forbidden; P-ADS-10 Idempotent-
+  Gated-Actions.)
+  **D-C15-3 Data model = three typed entities (Observation / Recommendation / Action) over a
+  common base.** Type-safe in Rust; `#[non_exhaustive]` on all. Keep from aletheon: `aro_type`-
+  equivalent typing, dual-audience text (plain_english / technical_details / suggested_response
+  — NISTIR-8312-validated), ack/resolve workflow. Generalize: asset→ENTITY (C12),
+  event→observation+evidence. ADD (aletheon lacks): rich W3C-PROV provenance, calibrated
+  confidence + conformal sets, per-citation faithfulness, terminal-vs-reopenable resolution
+  sub-statuses (Xpanse), risk metadata (Tines 5 axes: reversibility/blast/novelty/asset-tier/
+  compliance), `autonomy_level` + `gate_mode` (HITL/HOTL/HOOTL) + `required_approver_role`
+  (C18), dedup fingerprint + correlation, Action idempotency key + rollback.
+  **D-C15-4 Recommendation sources = agent-layer AND read-only PrismQL `RECOMMEND` projection
+  (both, option 1+2).** THREE CONDITIONS: (i) `RECOMMEND` is a PURE read-only data projection
+  with ZERO execution/mutation — guarded by a **perimeter compile-fail test** (same E0432 pattern
+  as `tests/external/perimeter-violation/`) so the read-only-PrismQL perimeter invariant holds
+  (PIV-C15-1); (ii) both sources feed the SAME typed Recommendation entity with
+  **source-discriminated provenance** — agent recs carry full AI-provenance + calibrated-
+  confidence + conformal + faithfulness block; declarative `RECOMMEND` recs carry RULE/RECIPE
+  provenance + author-set priority (no model confidence); (iii) `RECOMMEND` inside a saved
+  detection recipe (C8) IS the declarative authoring path. PrismQL stays READ-ONLY; Actions
+  execute ONLY in the separate `prism-orchestration` layer. (Conforms: read-only-perimeter,
+  AP-ADS-06.)
+  **D-C15-5 AI-recommendation rigor = FULL day one incl. conformal prediction.** Required v1
+  fields on agent-generated Recommendations: W3C-PROV provenance block (model card+version,
+  prompt/system-prompt version, RAG set, gen config, seed); CALIBRATED confidence (ECE/
+  temperature) + **conformal-prediction sets** (raw model confidence is untrustworthy —
+  automation thresholds key off calibrated confidence/conformal-set width, NEVER raw scores);
+  per-citation **faithfulness** with **mandatory post-hoc statement-vs-citation faithfulness
+  check** before surfacing (~57%-unfaithful-RAG finding — naked citations are unsafe; ties C12
+  PAT-ADS-08 Mandatory-Faithful-Citations); explanation block (features/rules/knowledge-limits).
+  Faithfulness-check mechanism (constrained-gen vs token-attribution vs post-hoc NLI) = OQ-C15-5
+  (deferred to E-ARO-MODEL-001 story-spec; the OUTPUT requirement is not deferred).
+  **D-C15-6 SOAR architecture = separate `prism-orchestration` layer.** Playbook/workflow engine;
+  connectors-as-actions (feature-flagged sensor writes); HITL approval gates; mandatory
+  idempotency keys (PIV-C15-2 — C2 offline-queue reconnect retries); dry-run; rollback/undo;
+  blast-radius control; full audit. Write-action creds resolved reference-based at execution
+  tier (AD-017 extended to write path — PIV-C15-6; AI never holds write creds). Edge/satellite
+  action execution: central-decide / satellite-execute with durable offline action queues +
+  idempotency.
+  **D-C15-7 On-prem models** (plug into C7 pluggable AI-opaque ModelBackend candle+ort+wasmtime+
+  tract): Qwen3/Mistral-class central reasoning; Phi-4-mini/Ministral-class edge; Llama Prompt
+  Guard 2 + Mistral Moderation as guardrails; wasmtime wasi-nn strongest for AI-opaque per-tenant
+  isolation. Final picks via benchmark (OQ-C15-4). NOTE: Llama-4 specifics were unconfirmed in
+  research — candidates above use Llama Prompt Guard 2 lineage (confirmed).
+  **D-C15-8 Lifecycle.** Three coupled state machines (Observation/Recommendation/Action) + an
+  Action-approval sub-machine; terminal-vs-reopenable resolution (Xpanse: risk-accepted ≠
+  no-longer-observed); task-completion-aware closure (Sentinel); ack-timeout retrigger
+  (PagerDuty). Dedup/correlation collapses N Observations → fewer Recommendations via
+  fingerprint hashing (Alertmanager fnv64a), correlation windows (Panther), entity-centric
+  grouping (the "1000→10-20" goal).
+  **INVARIANTS (PIV-C15-*):** PrismQL `RECOMMEND` read-only data-only (perimeter compile-fail-
+  tested, cannot execute/mutate); zero autonomous Action in v1 (all Actions HITL-gated);
+  gates set by system designers not the agent (agents fail-safe+escalate); Action tier carries
+  mandatory idempotency keys; agent-generated Recommendations MUST carry provenance+calibrated-
+  confidence+faithfulness-check (no naked AI output); AI never holds write credentials
+  (reference-based at execution tier, AD-017); OT/safety Actions HITL-mandatory.
+  **Open questions:** OQ-C15-1 (autonomy-ladder activation criteria + which action-classes ever
+  qualify — post-v1 human risk-acceptance); OQ-C15-2 (conformal-prediction implementation
+  approach); OQ-C15-3 (`prism-orchestration` playbook DSL design); OQ-C15-4 (on-prem model
+  final picks via benchmark); OQ-C15-5 (faithfulness-check mechanism detail).
+  Downstream SAP-1 obligations (NOT actioned): aro.observation.created/updated/resolved,
+  aro.recommendation.created/approved/rejected, aro.action.submitted/approved/executed/
+  rolled-back events → BC-2.16.002 at morph.
+  Cross-links: C7 (ModelBackend), C8 (detection recipes + RECOMMEND), C10 GAP-Q2 (evidence-
+  package), C12 (Context/Knowledge + entity linkage + faithful citations, MAPE-K Knowledge
+  base = C12 Context), C18 (approver roles/RBAC), C2 (edge execution + offline queue + AD-017),
+  AD-017 (extended to write path), ADS (P-ADS-10/AP-ADS-06/PAT-ADS-08/PAT-ADS-11/INV-ADS-05/06).
+  Proposed epics: E-SOAR-ACTIONS-001 + E-ARO-MODEL-001 (feeds B).
+
 - **C13 §16.4 open-items closeout COMPLETE 2026-06-27 (human).** All residual open items from
   the six §16.4 capture sketches resolved. Key resolutions applied to files under
   `specs/day2-design-decisions/`:
