@@ -1574,8 +1574,19 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
 /// - Name is a DataFusion built-in scalar: skip (resolved by `ctx.sql()` — not an enrichment).
 ///
 /// # SQL path detection
-/// SQL-mode enrichment: `ScalarFunc::Unknown(name)` in `FuncCall::Scalar` nodes in
-/// SELECT projections. Only `SelectItem::Expr` entries are scanned (not `*`).
+/// SQL-mode enrichment: `ScalarFunc::Unknown(name)` in `FuncCall::Scalar` nodes.
+/// Both `Ast::Sql(Select)` and `Ast::SqlPipe` head queries are handled via
+/// `collect_unknown_scalars_from_sql_query`, which scans all six scalar positions:
+///
+/// | Position                        | Coverage rationale |
+/// |---------------------------------|--------------------|
+/// | SELECT projection items         | primary enrichment site (non-wildcard only) |
+/// | WHERE clause predicate          | HIGH-003 fix: `WHERE badudf(x) > 0` bypassed gate |
+/// | JOIN ON conditions (all joins)  | C1/C2 fix: `ON badudf(x)=y` bypassed gate |
+/// | GROUP BY exprs                  | C1/C2 fix: `GROUP BY badudf(x)` bypassed gate |
+/// | ORDER BY exprs                  | C1/C2 fix: `ORDER BY badudf(x)` bypassed gate |
+/// | HAVING predicate                | forward-compat; mirrors WHERE walk |
+///
 /// DataFusion built-in scalars (lower, upper, coalesce, etc.) are excluded via
 /// `DATAFUSION_BUILTIN_SCALAR_NAMES` before the registered-UDF check.
 ///
