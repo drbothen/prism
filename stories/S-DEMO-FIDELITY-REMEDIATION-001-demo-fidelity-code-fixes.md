@@ -70,7 +70,7 @@ status: draft
 #   BC-2.11.016 v1.4) + BC-2.11.019 v1.5 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.5"
+version: "2.6"
 updated: "2026-06-28"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -500,7 +500,7 @@ the table's actual column spec using a priority ladder (highest priority wins an
 | Priority | Condition | Query emitted |
 |----------|-----------|---------------|
 | 1 (highest) | `Integer` or `Float` column present | `SELECT <field>, COUNT(*) FROM <t> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10` |
-| 2 | `severity` column present AND sensor prefix in `SENSOR_SEVERITY_VOCABULARY` (crowdstrike → Title-case, armis → UPPER-case) | `SELECT * FROM <t> WHERE severity IN ('<high>', '<critical>') LIMIT 50` |
+| 2 | `severity` column present AND sensor prefix in `SENSOR_SEVERITY_VOCABULARY` (crowdstrike → Title-case `'High','Critical'`; armis → UPPER-case `'HIGH','CRITICAL'`; cyberint → lowercase `'high','critical'`; claroty → not registered, no `severity` column) | `SELECT * FROM <t> WHERE severity IN ('<high>', '<critical>') LIMIT 50` |
 | 3 | `Datetime` column found (no Integer/Float or no-vocabulary severity) | `SELECT COUNT(*) FROM <t> WHERE <datetime_col> > NOW() - INTERVAL '1h'` |
 | 4 (fallback) | No `Datetime` column and no Integer/Float (e.g., `claroty_devices`) | `SELECT * FROM <t> LIMIT 25` |
 
@@ -718,17 +718,55 @@ captures evidence for each finding:
 - Evidence-AUDIT-004: `triage_alerts` prompt body contains `FROM crowdstrike_detections`
   (no `FROM crowdstrike.alerts`).
 
-**AC-SAP-1** (SAP-1 standing-probe compliance — structured event catalog discipline; NOT a BC-2.16.002
-behavioral trace — PO verdict: this delivery added no new `event_type` emission, so there is no
-behavioral contract trace to BC-2.16.002 here): The implementer MUST run
-`rg 'event_type\s*=' crates/ --type rust` after each fix and confirm every emission has a
-catalog row in BC-2.16.002 §Postconditions. If the fixes use `?`-propagation instead of new
-`tracing::*!` emissions (D-765 precedent), no new catalog row is required. For this delivery,
-all code fixes in scope (`check_enrich_udf_availability`, `columns_for_table`,
-`collect_expr_sources_into_gate`, `build_example_query`, `build_tables_for_client`, `render_*`,
-`build_reference_content`, `map_prism_error`) use `?`-propagation and existing emission sites;
-the SAP-1 scan confirmed zero new `event_type` values were introduced. No BC-2.16.002 catalog
-row addition is required for this delivery.
+**AC-SAP-1** (SAP-1 standing-probe compliance — structured event catalog discipline; partial
+BC-2.16.002 dependency): The implementer MUST run `rg 'event_type\s*=' crates/ --type rust`
+after each fix and confirm every emission site has a catalog row in BC-2.16.002 §Postconditions.
+SAP-1 discipline covers not only new bare `event_type` literal values but also extensions to
+closed-set `method`/`label` enumerations within existing catalog rows.
+
+For this delivery:
+
+- **No new `event_type` literal value was introduced.** The enrich gate (`check_enrich_udf_availability`),
+  column-free helper (`columns_for_table` success path), prompt renderer, describe helper
+  (`build_example_query`, `build_tables_for_client`), and MCP mapper (`map_prism_error`) all
+  use `?`-propagation and do not emit any new `tracing::*!(event_type=…)` call. The enrich
+  gate fix (N1-B) and prompt fixes (AUDIT-004) route errors through the existing map_prism_error
+  surface; no new emission sites.
+
+- **However, two new closed-set `method` labels WERE introduced** on the existing
+  `table_registry.rwlock_poisoned` catalog row, and the `column_not_found.rejected` row was
+  extended with a second emission site:
+
+  1. **M1 fix** (`columns_for_table` in `crates/prism-query/src/table_registry.rs`): emits
+     `method = "columns_for_table"` when the `columns_by_table` RwLock is poisoned — returns
+     empty `Vec` (fail-closed, column-gate single-tenant path degradation). This is the 7th
+     method/label in the `table_registry.rwlock_poisoned` catalog row.
+
+  2. **N2 fix** (`check_availability_gate` dot-notation rejection block in
+     `crates/prism-query/src/table_registry.rs`): emits `method = "check_availability_gate.dot_notation"`
+     when the `sensor_by_table` RwLock is poisoned during org-visible-tables snapshot construction
+     for the dot-name error report — falls back to empty map; dot-notation `TableNotAvailable`
+     error is still returned. This is the 8th label in the `table_registry.rwlock_poisoned`
+     catalog row.
+
+  3. **M1 fix** also added a second emission site to the `column_not_found.rejected` row:
+     the `if resolved_spec_map.is_none()` branch in `check_column_availability`
+     (`crates/prism-query/src/engine.rs`) now emits `column_not_found.rejected` WARN on the
+     single-tenant path when `TableRegistry::columns_for_table` returns a non-empty column list
+     that does not contain the referenced column. Both sites (single-tenant and multi-tenant)
+     emit identical field schema (`column: %display`, `table: %display`, `client_id: %display`,
+     `available_count: usize`).
+
+  These additions required (and received) BC-2.16.002 v1.90→v1.91 catalog amendment
+  (F-PHL3-MED-001, authored by product-owner 2026-06-28). The v1.91 amendment updated the
+  `table_registry.rwlock_poisoned` row's description from "Six methods" to "Eight methods/labels"
+  and extended the `column_not_found.rejected` row's trigger description to reflect both
+  emission sites. The SAP-1 PG-LP11-001 obligation for this delivery is fulfilled by BC-2.16.002
+  v1.91.
+
+**§References:** BC-2.16.002 v1.91 (Canonical Structured Event Catalog amendment — M1/N2 closed-set
+method/label extensions). The enrich-last gate ordering fix (N1-B) requires no catalog amendment
+because `check_enrich_udf_availability` uses `?`-propagation only.
 
 ---
 
@@ -1076,6 +1114,7 @@ spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.6 | f-prl3-prose-reconcile-2026-06-28 | 2026-06-28 | story-writer | **F-PRL3-MED-001 + F-PRL3-LOW-001 + comprehensive prose reconcile.** (1) **F-PRL3-MED-001 (MED) — AC-SAP-1 rewritten.** Prior text falsely stated "this delivery added no new `event_type` emission" and "SAP-1 scan confirmed zero new `event_type` values were introduced. No BC-2.16.002 catalog row addition is required." This was FALSE: M1 + N2 fixes introduced two new closed-set `method` labels on the `table_registry.rwlock_poisoned` catalog row (`columns_for_table`, `check_availability_gate.dot_notation`) and a second emission site on the `column_not_found.rejected` row (M1 single-tenant path), which required and received BC-2.16.002 v1.90→v1.91 amendment (F-PHL3-MED-001). New AC-SAP-1 accurately states: no new `event_type` literal value introduced; two closed-set method labels and one additional emission site extended existing catalog rows; PG-LP11-001 obligation fulfilled by BC-2.16.002 v1.91; §References cite BC-2.16.002 v1.91. (2) **F-PRL3-LOW-001 (LOW) — AC-AUDIT-001 priority-2 severity-vocabulary ladder extended.** Prior prose listed only "(crowdstrike → Title-case, armis → UPPER-case)". BC-2.10.012 v1.5 §Auto-generated example queries and the SENSOR_SEVERITY_VOCABULARY in code also carry: cyberint → lowercase `'high','critical'`; claroty → not registered (no `severity` column). Both entries added to the priority-2 table cell. (3) **Comprehensive prose reconcile (no further stale items found).** All other AC behavioral descriptions (DataFusion built-in exclusion SQL-mode-only, pipe-mode fires E-QUERY-039, CWE-407 cap, dot-notation is_registered suggestion gating, 4-tier example ladder) verified accurate against delivered code+BCs. §Changelog verified complete for substantive cascade fixes (cyberint vocab F-PHL2 already captured in BC-2.10.012 v1.5 cite; BC-2.16.002 v1.91 dependency F-PHL3 now covered by this row; built-in exclusion F-PJL1 captured in v2.3; pipe/SQL split F-PNL1 captured in v1.8/v1.9). No genuine code/BC defects identified beyond the already-deferred pql_hints Category-1 hint-text divergence (BC-2.10.012 §pql_hints vs. code, tracked in deferred items table, requiring PO adjudication). |
 | 2.5 | f-ppl3-low-001-ac-n1b-impl-req-prose-alignment-2026-06-28 | 2026-06-28 | story-writer | **F-PPL3-LOW-001 closure — AC-N1B implementation-requirement prose made mechanism-agnostic.** The prior wording `"the exclusion check MUST use ctx.state().scalar_functions().get(name) (live SessionContext registry), NOT a hard-coded allowlist"` was stricter than the ratified BC: BC-2.11.019 v1.5 §Postconditions implementation note (F-PJL1-HIGH-001) uses `"e.g., ctx.state().scalar_functions().get(name)"` (permissive) and `"or equivalent"`. The shipped code uses `SessionStateDefaults::default_scalar_functions()` (a `LazyLock`), which the BC already ratifies as the equivalent mechanism. New prose: `"the exclusion check MUST exclude DataFusion built-in scalars by querying DataFusion's runtime-derived default scalar-function set (SessionStateDefaults::default_scalar_functions(), or the equivalent ctx.state().scalar_functions()), NOT a hard-coded allowlist."` Observable behavior and BC trace are unchanged. BC-2.11.019 v1.5 is already permissive — no BC amendment required. |
 | 2.4 | bc-2.10.012-v1.5-propagation-2026-06-28 | 2026-06-28 | story-writer | **BC-2.10.012 v1.4→v1.5 cite propagation (F-PLL2-MED-001).** PO bumped BC-2.10.012 v1.4→v1.5 (§"Auto-generated example queries" rewritten to document the accurate shipped 4-tier per-sensor priority ladder; no behavioral/AC change — code already implements this, BC now matches it). Version cite sweep: all live (non-changelog) `BC-2.10.012 v1.4` cites updated to `v1.5` — 4 sites: frontmatter subsystem anchor comment (line 20), frontmatter points breakdown comment (line 64), frontmatter BC status comment (line 69), body BC table version cell, AC-AUDIT-001 header trace. POL-7 body BC table Title cell verified verbatim against BC H1: `BC-2.10.012: \`prism_describe\` Schema Discovery Tool (L2)` — no change needed. AC-AUDIT-001 alignment confirmed: AC specifies the CRIT-1 priority ladder for `build_example_query`; v1.5 BC description now matches what AC-AUDIT-001 and the code already do — no new AC needed, no contradiction introduced. |
 | 2.3 | bc-2.11.019-v1.5-propagation-2026-06-28 | 2026-06-28 | story-writer | **BC-2.11.019 v1.4→v1.5 propagation + F-PJL1-HIGH-001 built-in-exclusion.** PO bumped BC-2.11.019 v1.4→v1.5 (F-PJL1-HIGH-001: DataFusion built-in scalar functions are excluded from E-QUERY-039 SQL-mode firing condition; gate now requires (a) not a PQL built-in ScalarFunc variant AND (b) not in DataFusion `ctx.state().scalar_functions()` AND (c) not in `InfusionRegistry.udf_to_infusion`). **Version cite sweep:** all live (non-changelog) `BC-2.11.019 v1.4` cites updated to `v1.5` — 11 body sites (frontmatter comments ×3, body BC table version cell, AC-N1B header trace, Gate-ordering note, WHERE-clause note, §Precondition 1(b) body-cite, `available_infusions Vec<String>` note, AC-C1C2 trace, Tasks step 6(b), Previous Story Intelligence §5). **AC-N1B decision:** added built-in-exclusion note block-quote to AC-N1B (not a new standalone AC — the exclusion is a refinement of the existing gate firing condition, covered by BC-2.11.019 v1.5 §Postconditions; new tests added per EC-11-064/065). **New tests (EC-11-064/065):** `test_bc_2_11_019_n1b_builtin_passthrough_lower` + `test_bc_2_11_019_n1b_builtin_passthrough_coalesce` added to Red Gate test inventory and File Structure table; `bc_2_11_019_n1b_test.rs` 15→17 tests; `red_gate_tests` 31→33. **New edge cases:** EC-016 (EC-11-064: `lower` passes gate) + EC-017 (EC-11-065: `upper`/`coalesce` pass gate). Token Budget story spec ~16k→~17k, test files ~18k→~19k, total ~88k→~90k. |
