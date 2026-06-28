@@ -144,8 +144,9 @@ but every serious competitor in this space will ship agent support.
 
 2. **AI-opaque trust layer** — Prism's AD-017 (credentials never transit AI context),
    per-tenant DEK envelope encryption (SS-26), prompt-injection-hardened output, and
-   formally-verified PrismQL (Kani VPs). Query stores connector credentials centrally in
-   the SaaS control plane; no published AI-opacity guarantee.
+   formally-verified parser-safety properties (Kani proofs bounding query size / recursion
+   depth — VP-014/VP-015). Query stores connector credentials centrally in the SaaS control
+   plane; no published AI-opacity guarantee.
 
 **Framing rule:** say "the agent-native platform for the data Query can't reach" — the
 agent-native carries identity; OT/air-gap + trust carries defensibility. Do not say
@@ -167,8 +168,21 @@ artifacts per the §2.4 honest-tradeoff discipline.**
 | First/only agent-native | **Do NOT claim.** Query ships Workers + MCP + A2A. |
 
 **What NOT to concede:** Prism's cross-source join framing (D-C10-1 corrected), OT/air-gap
-moat (structural, Query has nothing), AI-opaque trust (no Query equivalent), formal PrismQL
-(Kani-verified grammar, Query's FSQL has no published formal grammar).
+moat (structural, Query has nothing), AI-opaque trust (no Query equivalent), formally-verified
+parser-safety properties (Kani proofs bounding query size / recursion depth — VP-014/VP-015;
+Query's FSQL has no published formal grammar or parser-safety proofs), AI recommendation rigor
+(W3C-PROV provenance + calibrated confidence + conformal-prediction uncertainty sets + mandatory
+per-citation post-hoc faithfulness enforcement — D-C15-5, required from day one — a structural
+output-assurance contract, not a heuristic review checklist; the structural answer to Query's
+nine-check "Senior Analyst Review").
+
+> **OVER-05 scoping note (positioning fidelity fold 2026-06-28):** All downstream artifacts
+> citing Prism's Kani / formal-verification posture MUST use the scoped form
+> "formally-verified parser-safety properties (Kani proofs bounding query size / recursion
+> depth — VP-014/VP-015)" — NOT "formally-verified query language" or "Kani-verified grammar."
+> VP-014 and VP-015 are bounded parser-safety proofs; they are NOT an end-to-end proof of
+> PrismQL semantics or grammar. Exact VP scope: `VP-014` (query size limit),
+> `VP-015` (recursion depth limit). Source: CLAUDE.md §Formal Verification + VP-INDEX.md.
 
 ---
 

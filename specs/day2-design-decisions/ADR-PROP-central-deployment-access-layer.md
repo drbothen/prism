@@ -96,6 +96,14 @@ reconnecting client if the session store is shared.
 **Spec revision note:** rmcp 1.7.0 targets spec revision 2025-06-18. A newer 2025-11-25 revision
 exists; confirm rmcp support level at morph time before committing to the newer revision.
 
+**OVER-06 scope-addition note (positioning fidelity fold 2026-06-28):** A2A (Agent-to-Agent)
+transport is a PROPOSED additive protocol (epic E-A2A-TRANSPORT-001, sourced from C10
+competitive-positioning gap GAP-Q3 — ADR-PROP-competitive-positioning.md D-C10-4-Q3). It is
+NOT part of the decided transport set above. The decided transport set for C1-D1 is MCP
+Streamable HTTP + stdio ONLY. E-A2A-TRANSPORT-001 carries an explicit early-standard risk
+caveat (spec-version pin OQ-C10-5 unresolved at 2026-06-28); no positioning prose should
+claim dual-protocol MCP+A2A as decided or shipping until the epic is ratified at morph.
+
 **DI-017 amendment framing (§5.2):**
 "Single-process" → "single-central-service; the stdio transport constrains to single-analyst
 per-process; the central (Streamable HTTP) transport enables multi-analyst per-process. The

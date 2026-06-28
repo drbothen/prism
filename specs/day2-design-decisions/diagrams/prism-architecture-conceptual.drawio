@@ -56,7 +56,7 @@
         </mxCell>
 
         <!-- PRISM SATELLITE -->
-        <mxCell id="satellite" value="&lt;b&gt;Prism Satellite&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:9px'&gt;[headless appliance at the edge]&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Captures &amp;amp; translates on-site&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px'&gt;Listens to your IT/OT network traffic&lt;br&gt;Connects to your existing tools&lt;br&gt;Normalizes everything to one&lt;br&gt;common format&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;font style='font-size:10px;color:#c62828'&gt;&lt;b&gt;Raw data stays here.&lt;/b&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;strokeColor=#0B4884;fontColor=#ffffff;arcSize=8;fontSize=11;" vertex="1" parent="zone_customer">
+        <mxCell id="satellite" value="&lt;b&gt;Prism Satellite&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:9px'&gt;[headless appliance at the edge]&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Captures &amp;amp; translates on-site&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px'&gt;Passively listens to IT &amp;amp; OT network traffic&lt;br&gt;(TAP/SPAN — understands industrial protocols,&lt;br&gt;Modbus/DNP3/S7, strict passivity: never injects)&lt;br&gt;Connects to your existing tools&lt;br&gt;Normalizes everything to one common format&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;font style='font-size:10px;color:#c62828'&gt;&lt;b&gt;Raw data stays here.&lt;/b&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;strokeColor=#0B4884;fontColor=#ffffff;arcSize=8;fontSize=11;" vertex="1" parent="zone_customer">
           <mxGeometry x="460" y="160" width="360" height="230" as="geometry" />
         </mxCell>
 
@@ -69,6 +69,10 @@
         </mxCell>
         <mxCell id="e_tools_sat" value="federates northbound APIs" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;endArrow=open;strokeColor=#555555;fontColor=#333333;labelBackgroundColor=#f0f8e8;exitX=1;exitY=0.5;entryX=0;entryY=0.85;" edge="1" parent="zone_customer" source="existing_tools" target="satellite">
           <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="masking_note" value="&lt;font style='font-size:9px;color:#6a0000'&gt;&lt;b&gt;Sensitive data masked here&lt;/b&gt;&lt;br&gt;PII / BCSI tokenized at edge&lt;br&gt;AI never sees raw sensitive values&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe8e8;strokeColor=#c62828;strokeWidth=2;fontSize=9;" vertex="1" parent="zone_customer">
+          <mxGeometry x="460" y="400" width="360" height="60" as="geometry" />
         </mxCell>
 
         <!-- Analysts (inside customer zone, using Central) -->
@@ -110,16 +114,20 @@
           <mxGeometry x="20" y="208" width="290" height="60" as="geometry" />
         </mxCell>
 
-        <mxCell id="central_detect" value="Detections + correlated alerts&#xa;Threat intel (Prism Intel)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;strokeColor=#0B4884;fontColor=#ffffff;fontSize=11;" vertex="1" parent="prism_central">
-          <mxGeometry x="20" y="288" width="290" height="60" as="geometry" />
+        <mxCell id="central_s1_agent" value="&lt;b&gt;S1 — Your own AI agent (BYO-agent)&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px'&gt;MCP-native  |  Claude Code or any MCP client&lt;br&gt;Drives Prism directly — no console required&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08427B;strokeColor=#052E56;fontColor=#ffffff;arcSize=12;fontSize=11;" vertex="1" parent="prism_central">
+          <mxGeometry x="20" y="278" width="290" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="central_detect" value="Detections + correlated alerts&#xa;Threat intel (Prism Intel)&#xa;Back up &amp;amp; securely erase (crypto-shred on key destruction)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;strokeColor=#0B4884;fontColor=#ffffff;fontSize=11;" vertex="1" parent="prism_central">
+          <mxGeometry x="20" y="378" width="290" height="70" as="geometry" />
         </mxCell>
 
         <mxCell id="central_cmek" value="Your-key-encrypted results&#xa;(operator cannot read your data)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4d1a7f;strokeColor=#2e0d4d;fontColor=#ffffff;fontSize=11;" vertex="1" parent="prism_central">
-          <mxGeometry x="20" y="368" width="290" height="60" as="geometry" />
+          <mxGeometry x="20" y="458" width="290" height="60" as="geometry" />
         </mxCell>
 
-        <mxCell id="central_deploy" value="Runs as:&#xa;SaaS  |  MSSP-managed  |  Self-hosted / on-site  |  Air-gapped&#xa;&#x2014; one product, one codebase" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#444444;strokeColor=#222222;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1" parent="prism_central">
-          <mxGeometry x="20" y="448" width="290" height="70" as="geometry" />
+        <mxCell id="central_deploy" value="Three operating models:&#xa;SaaS  |  MSSP-managed  |  Self-hosted&#xa;Air-gapped: a profile for fully isolated self-hosted environments&#xa;&#x2014; one product, one codebase" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#444444;strokeColor=#222222;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1" parent="prism_central">
+          <mxGeometry x="20" y="538" width="290" height="80" as="geometry" />
         </mxCell>
 
         <!-- Analyst arrow to Prism Central -->

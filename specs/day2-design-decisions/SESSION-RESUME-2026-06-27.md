@@ -252,6 +252,8 @@ A SECOND positioning candidate was captured as `ADR-PROP-positioning-problem-fra
 
 + Fold-pass B (problem-framed candidate) applied: 22 iterate-list refs — MISAL-01/02/05 (S4=browser-extension, strong-ID set corrected, dropped borrowed 9-check), OVER-04/05/07 (model names→PARTIAL, Kani scope, egress PROPOSED), UNDER-01/02/03/06/07/09/11/12/14 + GAP-01/02/03/04/05/07 + NAME-01 (added passive-OT/Reading-C, bitemporal replay, backtest coverage-map, ML 'model is the memory', enterprise identity SSO/SCIM/RBAC, compliance presets, backup/crypto-shred, PrismQL RECOMMEND, piped surface, bundled-storage air-gap; §8.2 matrix 10→15 columns; S3-vs-AmazonS3 gloss). Fold log appended to the doc. Remaining fold passes: C (diagrams), D (competitive-positioning OVER-05/06 + UNDER-10).
 
++ Fold-pass C (diagrams) + D (competitive-positioning) applied — the iterate-list is now substantially reconciled. Diagrams: MISAL-03 (3 operating models + air-gap profile, both diagrams), GAP-07 (PCAP retrieve/query + download-PCAP flow, technical), NAME-03 (Detection Engine box relabeled RBA/MATCH_RECOGNIZE/staged-rollout), UNDER-03 (dual-tier backtest + coverage-map label), GAP-01 (Backup/Recovery/DR box), conceptual diagram brought to parity (S1 BYO-agent UNDER-05, edge-masking GAP-06, passive-OT made explicit UNDER-01/MISAL-04); all maturity-tagged honestly. Competitive-positioning: OVER-05 (Kani scoped to parser-safety VP-014/015, not 'verified language'), UNDER-10 (AI-rec rigor W3C-PROV/conformal/faithfulness added to 'what NOT to concede'), OVER-06 (A2A=PROPOSED note added to C1 transport ADR). Remaining iterate-list items: only low/cosmetic + a few medium not folded; the HIGH items are all applied across Pass A–D.
+
 Built on the human-confirmed MANDATED-7 customer problems (cheap hunts / tuning / can't-ship-data-out / IT-watch-OT / device-discovery / OT-environment-context / talent), synthesized into 3 pillars:
 - A: data-never-leaves + IT-sees-OT
 - B: know-your-OT-environment
@@ -584,6 +586,7 @@ Superseded capture queue (all DONE — do not re-execute):
   - `(this checkpoint)` — positioning-fidelity-iterate-list.md captured (36-finding master iterate-list; multi-agent corpus→positioning fidelity sweep); path-scoped commit. Prior side HEAD: **9a7434d9**.
   - `(this checkpoint)` — fold-pass A: exec-narrative audit folds applied (OVER-01/02/03 corrected; decided differentiators given plain-language homes; 'Where We Are Today' re-tiered); path-scoped commit. Prior side HEAD: **5951b7ce**.
   - `(this checkpoint)` — fold-pass B: problem-framed candidate audit folds (22 refs); path-scoped commit.
+  - `(this checkpoint)` — fold-pass C+D: diagram + competitive-positioning audit folds; path-scoped commit. Prior side HEAD: **d672772f**.
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD before this burst: **929a9758** (consistency audit complete; ADS v1.7).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory BC-2.16.002 left unstaged). No dangling in-flight research.
 
