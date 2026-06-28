@@ -429,10 +429,15 @@ impl TableRegistry {
             return String::new();
         }
 
+        // Defense-in-depth tie-break parity with enrich/column gates (engine.rs).
+        // `registered_tables()` returns a lex-sorted Vec today so min_by_key(dist)
+        // already yields the lex-smallest equidistant candidate by construction.
+        // The explicit name key makes that determinism contract-enforced regardless
+        // of future input ordering changes.
         let best = tables
             .iter()
             .map(|candidate| (strsim::levenshtein(requested, candidate), candidate))
-            .min_by_key(|(dist, _)| *dist);
+            .min_by_key(|(dist, name)| (*dist, name.to_string()));
 
         match best {
             Some((dist, candidate)) if dist <= 3 => {
@@ -468,10 +473,14 @@ impl TableRegistry {
             return String::new();
         }
 
+        // Defense-in-depth tie-break parity with enrich/column gates (engine.rs).
+        // Caller-supplied `visible_tables` may not be sorted, so the explicit name
+        // key is particularly important here to guarantee deterministic output
+        // across all calling conventions.
         let best = visible_tables
             .iter()
             .map(|candidate| (strsim::levenshtein(requested, candidate), candidate))
-            .min_by_key(|(dist, _)| *dist);
+            .min_by_key(|(dist, name)| (*dist, name.to_string()));
 
         match best {
             Some((dist, candidate)) if dist <= 3 => {
