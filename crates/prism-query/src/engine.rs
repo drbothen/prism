@@ -1827,7 +1827,14 @@ fn check_column_availability(
             // No schema source at all — fail-open.
             return Ok(());
         };
-        let available_columns = registry.columns_for_table(table_name);
+        // F-PBL1-LOW-001 fix (Pass-B S-DEMO-FIDELITY-REMEDIATION-001): sort + dedup
+        // `available_columns` for deterministic ordering, matching the multi-tenant
+        // path (OBS-FRESH-1 fix at line ~1926). `columns_for_table` returns columns
+        // in spec insertion order; without sort+dedup the available_columns in the
+        // E-QUERY-038 error are non-deterministic across sensor registrations.
+        let mut available_columns = registry.columns_for_table(table_name);
+        available_columns.sort();
+        available_columns.dedup();
         // Fail-open: if no columns registered for this table, skip gate.
         if available_columns.is_empty() {
             return Ok(());
@@ -5793,6 +5800,96 @@ mod m1_single_tenant_column_gate_tests {
             ),
             Err(other) => panic!(
                 "M1 single-tenant: expected PrismError::ColumnNotFound (E-QUERY-038), \
+                 got different error: {other:?}"
+            ),
+        }
+    }
+
+    /// F-PBL1-LOW-001 — single-tenant E-QUERY-038 `available_columns` must be
+    /// sorted lexicographically, matching the multi-tenant path.
+    ///
+    /// The multi-tenant path does `available_columns.sort(); available_columns.dedup()`
+    /// before constructing the error (OBS-FRESH-1 fix). The single-tenant path
+    /// (using `registry.columns_for_table()`) previously returned columns in spec
+    /// insertion order, which is non-deterministic across sensor registrations.
+    ///
+    /// This test registers columns in reverse-alphabetical order (`z_col`, `a_col`)
+    /// and asserts the error's `available_columns` field is sorted `["a_col", "z_col"]`.
+    ///
+    /// Before fix: `available_columns` in the error would be `["z_col", "a_col"]`
+    /// (spec insertion order), so the assertion fails.
+    ///
+    /// After fix: `sort(); dedup()` applied to the single-tenant branch produces
+    /// `["a_col", "z_col"]`, matching the expected sorted order.
+    ///
+    /// Load-bearing (F-PBL1-LOW-001): removing the sort/dedup from the single-tenant
+    /// branch causes this assertion to fail when columns are registered in non-sorted order.
+    #[tokio::test]
+    async fn test_f_pbl1_low001_single_tenant_available_columns_sorted() {
+        use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec};
+
+        // Register columns in reverse-alphabetical order to verify sort.
+        let columns = vec![
+            ColumnSpec::new("z_col", ColumnType::String, None, vec![]),
+            ColumnSpec::new("a_col", ColumnType::String, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            "armis",
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://api.armis.com",
+            vec![TableSpec::new_point_in_time(
+                "devices",
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("register armis must not fail");
+
+        let engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(registry);
+
+        // `typo_col` is not in the schema — only `z_col` and `a_col` are valid.
+        let query = "SELECT typo_col FROM armis_devices LIMIT 5";
+
+        let result = engine.execute(query, QueryOptions::default()).await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "typo_col",
+                    "F-PBL1-LOW-001: column must be 'typo_col'"
+                );
+                assert_eq!(
+                    details.available_columns,
+                    vec!["a_col".to_string(), "z_col".to_string()],
+                    "F-PBL1-LOW-001: available_columns must be sorted lexicographically. \
+                     Before fix, columns are returned in spec insertion order [z_col, a_col]; \
+                     after fix, sort+dedup produces [a_col, z_col]."
+                );
+            }
+            Ok(_) => panic!(
+                "F-PBL1-LOW-001: engine.execute must NOT succeed — E-QUERY-038 must fire \
+                 for typo_col when z_col and a_col are registered."
+            ),
+            Err(other) => panic!(
+                "F-PBL1-LOW-001: expected PrismError::ColumnNotFound (E-QUERY-038), \
                  got different error: {other:?}"
             ),
         }
