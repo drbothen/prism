@@ -2291,6 +2291,23 @@ fn check_query_column_availability(
         extract_field_paths_from_expr(&join.on, &table_name, from_alias, &mut join_on_cols);
     }
 
+    // ── Position 6: HAVING clause — reuse the WHERE predicate extractor ────────
+    //
+    // BC-2.11.016 v1.5 / F-PWL1-LOW-001: HAVING is `Option<Predicate>` (identical
+    // in type to WHERE), so we reuse `extract_predicate_columns` — the same helper
+    // used by Position 2 (WHERE). This closes the pedagogical asymmetry where
+    // E-QUERY-039 (enrich gate) and E-QUERY-037 (source-walk) already covered
+    // HAVING but E-QUERY-038 (column-existence gate) did not.
+    //
+    // Column refs directly in HAVING predicates (e.g. `HAVING typo_col > 5`) and
+    // column refs inside `IN` / `BETWEEN` / etc. HAVING predicates are all extracted
+    // by `collect_predicate_columns` via the existing match arms.
+    let having_cols: Vec<String> = sql_query
+        .having
+        .as_ref()
+        .map(|pred| extract_predicate_columns(pred, &table_name, from_alias))
+        .unwrap_or_default();
+
     // ── Gate: check all positions in order ────────────────────────────────────
     for col in select_cols
         .iter()
@@ -2298,6 +2315,7 @@ fn check_query_column_availability(
         .chain(group_by_cols.iter())
         .chain(order_by_cols.iter())
         .chain(join_on_cols.iter())
+        .chain(having_cols.iter())
     {
         check_column_availability(
             col,
