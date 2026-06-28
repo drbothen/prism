@@ -2113,6 +2113,8 @@ fn check_column_availability(
 /// - GROUP BY clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
 /// - ORDER BY clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
 /// - JOIN ON clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
+/// - HAVING clause (FieldPath refs via `extract_predicate_columns` — same helper as WHERE;
+///   BC-2.11.016 v1.5 / F-PWL1-LOW-001 — closes pedagogical asymmetry vs E-QUERY-039 / E-QUERY-037)
 ///
 /// Gate skip conditions:
 /// - BOTH `resolved_spec_map` AND `table_registry` are `None`: skip (no schema source wired).
