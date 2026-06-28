@@ -267,6 +267,8 @@ brief-reframe §5.1 remains PENDING-human-signoff; B remains gated. + §8 featur
 
 + positioning-fidelity-iterate-list.md captured — master iterate-list from the 2026-06-28 multi-agent fidelity sweep (8 agents, 7 areas): 36 findings (14 undersell / 7 coverage-gap incl. architect-added GAP-07 PCAP-retrieve-affordance / 7 oversell / 5 misalignment / 3 naming; 12 HIGH). Verdict MEDIUM-to-HIGH drift, two patterns: (1) decided high-value capabilities with no customer/exec home (passive-OT sensor, bitemporal AS-OF-KNOWN replay, backup+crypto-shred, compliance profiles, SSO/SCIM/RBAC, on-demand ML, edge masking, MSSP nested tenancy, agent-native identity); (2) exec narrative oversells absolute residency/operator-zero-access (OVER-01/02 HIGH — fix BEFORE §5.1). Pre-§5.1 fixes flagged: OVER-01, OVER-02, MISAL-01 (S4=browser-extension not 'mobile'), MISAL-02 (hostname not a strong-ID auto-merge key). Most folds gated on §5.1. Master backlog for positioning reconciliation.
 
++ Fold-pass A (exec narrative) applied from positioning-fidelity-iterate-list: corrected OVER-01 (raw-vs-derived residency + jurisdiction caveat) + OVER-02 (operator-zero-access qualified by operating model + new spectrum note) + OVER-03 (auto-rollback = auto-demote/human-revert); added customer-facing homes for GAP-02 compliance presets, GAP-04/UNDER-04 enterprise identity (SSO/SCIM/RBAC), UNDER-05 agent-native/MCP identity, UNDER-02 bitemporal replay, GAP-01 backup+crypto-shred+CIP-evidence, UNDER-08 MSSP isolation, GAP-06 edge masking, UNDER-01 passive-OT (3-path Theme B), UNDER-13 on-box air-gap AI, GAP-07 on-demand PCAP retrieve; 'Where We Are Today' re-tiered (shipping/near-term/capture-stage). All honestly caveated. Pre-§5.1 oversell fixes (OVER-01/02) now applied to the candidate. Path-scoped commit.
+
 #### C3 reconciliation sweep — DONE (commit f83e3ec7)
 - 3 `[SUPERSEDED by D-C3-1]` inline markers added to matured-vision §12.2 (history preserved, not deleted).
 - 1 label fix in ADR-PROP-dynamic-schema-connectors.md.
@@ -496,6 +498,11 @@ Folded into ADR-PROP-prismql-deliverables.md (commit b6fa1465).
 
 **NEXT: B — integration capstone. GATED on §5.1 brief-reframe HUMAN sign-off (still PENDING; two positioning candidates are the inputs: D-C10-5 competitor-relative in ADR-PROP-competitive-positioning.md + new problem-framed candidate in ADR-PROP-positioning-problem-framed.md — do not begin B until the human confirms the brief-reframe direction).**
 
+**Positioning fold-pass status (out-of-band, gated on §5.1):**
+- Fold-pass A (exec narrative — positioning-executive-narrative.md): ✅ DONE (this burst)
+- Fold-pass B (problem-framed candidate — ADR-PROP-positioning-problem-framed.md): ⏳ PENDING §5.1 gate
+- Fold-pass C (diagrams — prism-architecture-conceptual.drawio / prism-architecture-technical.drawio): ⏳ PENDING §5.1 gate
+
 **C14 follow-up research BANKED (committed alongside earlier checkpoint):**
 - `research/ocsf-ot-coverage-2026-06-27.md` — C14 sub-fork F4: OCSF-OT schema coverage. COMPLETE. Committed in same burst as this resume-doc edit (path-scoped).
   **Findings (closes OQ-C14-OCSF):** OCSF v1.8.0 (2026-03-18). Asset identity (Device Inventory Info 5001), config baseline/drift/exception (Device Config State 5002/5019 + Compliance Finding 2003), and device-vuln (Vulnerability Finding 2002) all FIT CLEANLY into the C14 OCSF source-table model. OT semantics (PLC/RTU/HMI type, firmware, Purdue zone, control topology) NEED a private `prism_ot` extension — the Device type_id enum is IT-only in OCSF core. CPE-matching is a gap (flag — ties to C11 intel enrichment). Data Classification profile SHIPS (v1.5.0+) — adopt as-is for C16/RSI tagging. Upstream ICS work (OCSF Issue #1515, Corelight) is STALLED — **lean = author private `prism_ot` extension now (NOT upstream-first), reserving clean UIDs for future upstream contribution.** 5 sub-forks (SF-1..5) recorded in the research file.
@@ -572,7 +579,8 @@ Superseded capture queue (all DONE — do not re-execute):
   - `(this checkpoint)` — plain-language executive positioning narrative captured (positioning-executive-narrative.md); path-scoped commit. Prior side HEAD: **86a2a334**.
   - `(this checkpoint)` — prism-as-ot-sensor-note.md working note captured (PCAP+dissector passive-OT finding + OT-standalone correction; 5 iterate-later threads); path-scoped commit. Prior side HEAD: **55963381**.
   - `(this checkpoint)` — Prism+Satellite C4 diagram set (conceptual + technical, .drawio + PNG/SVG/PDF) captured under diagrams/; path-scoped commit. Prior side HEAD: **82594cf1**.
-  - `(this checkpoint)` — positioning-fidelity-iterate-list.md captured (36-finding master iterate-list; multi-agent corpus→positioning fidelity sweep); path-scoped commit.
+  - `(this checkpoint)` — positioning-fidelity-iterate-list.md captured (36-finding master iterate-list; multi-agent corpus→positioning fidelity sweep); path-scoped commit. Prior side HEAD: **9a7434d9**.
+  - `(this checkpoint)` — fold-pass A: exec-narrative audit folds applied (OVER-01/02/03 corrected; decided differentiators given plain-language homes; 'Where We Are Today' re-tiered); path-scoped commit.
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD before this burst: **929a9758** (consistency audit complete; ADS v1.7).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory BC-2.16.002 left unstaged). No dangling in-flight research.
 
