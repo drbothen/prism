@@ -70,7 +70,7 @@ status: draft
 #   BC-2.11.016 v1.5) + BC-2.11.019 v1.5 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.8"
+version: "2.9"
 updated: "2026-06-28"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -99,9 +99,9 @@ acceptance_criteria_count: 16
 #     AC-CRIT1 (build_example_query derives datetime column from spec instead of hardcoding)
 #   Regression/workspace/compliance ACs: AC-REG-1, AC-REG-2, AC-DEMO-001, AC-SAP-1
 #   Plus new ACs for SqlPipe modes and did_you_mean engine behavior
-red_gate_tests: 39
-# 39 Red Gate tests (v2.8 fold-in — adds two BC-2.11.016 v1.5 HAVING column-gate tests;
-# see arithmetic below):
+red_gate_tests: 42
+# 42 Red Gate tests (v2.9 fold-in — adds three BC-2.11.016 v1.5 HAVING agg-fn tests
+# from ADR-048 grammar extension; see arithmetic below):
 # --- AC-N1 ---
 #   test_bc_2_11_022_n1_per_field_udf_names (bc_2_11_022_n1_test.rs)
 # --- AC-N1B core ---
@@ -156,12 +156,17 @@ red_gate_tests: 39
 #     module f_pwl1_low001_having_column_gate_tests) ---
 #   test_BC_2_11_016_having_column_gate_typo_fires_e_query_038 (engine.rs inline)
 #   test_BC_2_11_016_having_column_gate_valid_col_no_e_query_038 (engine.rs inline)
+# --- AC-M2 HAVING agg-fn predicate tests (ADR-048 — HAVING agg-fn grammar extension;
+#     inline in engine.rs, module f_pwl1_low001_having_column_gate_tests) ---
+#   test_BC_2_11_016_having_agg_fn_predicate_typo_fires_e_query_038 (engine.rs inline)
+#   test_BC_2_11_016_having_agg_fn_predicate_valid_col_no_e_query_038 (engine.rs inline)
+#   test_BC_2_11_016_where_agg_fn_predicate_stays_e_query_001 (engine.rs inline — WHERE divergence guard)
 # --- AC-REG-1 ---
 #   scripts/check-non-exhaustive.sh EXPECTED=88 (compile-fail gate via shell script, not a Rust fn)
 # --- AC-REG-2 ---
-#   test_bc_2_11_022_ci_3tier_gate (reference_content.rs, existing — updated for per-field UDF parity)
+#   test_bc_2_11_022_registry_parity (reference_content.rs, existing — per-field UDF parity guard)
 #
-# Arithmetic: 37 (v2.7) + 2 HAVING column-gate tests (engine.rs inline, BC-2.11.016 v1.5) = 39.
+# Arithmetic: 39 (v2.8) + 3 HAVING agg-fn tests (ADR-048 grammar extension, engine.rs inline) = 42.
 # Red Gate semantics: the TDD-driving Red Gate subset — tests that were written RED before the
 # corresponding code landed, plus inline and guard tests that drive story-delivered code surfaces
 # (mid-cascade regression guards included). This is a named subset; the COMPLETE delivered test
@@ -609,9 +614,16 @@ as `Ok(_)`, (2) E-QUERY-040 negative examples return `Err(PrismError::RedundantR
 fix specifically updates the registry-parity assertion to verify per-field names (not
 infusion_id aggregate names). No gate test previously passing may regress.
 
-**Red Gate test:** `test_bc_2_11_022_ci_3tier_gate` (existing) — this test MUST continue to
-pass and the implementer MUST update its registry-parity sub-assertion to verify per-field
-UDF name emission (NOT infusion_id emission) as the N1 regression guard.
+**Red Gate test:** `test_bc_2_11_022_registry_parity` (existing in `reference_content.rs`) — this
+is the load-bearing per-field UDF parity guard: it builds a known `InfusionRegistry` with two
+infusion specs (`geoip` / `threatintel`) and asserts `build_reference_content` renders the
+per-field callable names (`enrich geoip_country(col)`, `enrich threatintel_score(col)`), not
+the infusion_ids. This test MUST continue to pass as the N1 regression guard.
+
+Note: `test_bc_2_11_022_ci_3tier_gate` (also in `reference_content.rs`) guards the 3-tier
+`ExampleKind` shape (Positive / NegativeE040 / NegativeOther) — it is a separate concern from
+per-field UDF parity. Both tests remain in the file; only `test_bc_2_11_022_registry_parity`
+is the per-field-UDF-parity guard.
 
 ---
 
@@ -669,21 +681,44 @@ ORDER BY expressions, JOIN ON column refs, and HAVING predicate column refs in a
 SELECT projections and WHERE predicates. Previously GROUP BY, ORDER BY, JOIN ON, and HAVING
 column references were not checked, creating bypass paths where an invalid column in
 `GROUP BY invalid_col` or `HAVING count(typo_col)` would not fire E-QUERY-038 at plan time.
-The fix uses `extract_field_paths_from_expr` — the SINGLE extraction point for all 6 positions
-(BC-2.11.016 v1.5 §Implementation location gate-positions table, Position 6 = HAVING) —
-preventing the `.first()` false-reject pattern from recurring at any single position independently.
-`extract_field_paths_from_expr` recurses into FuncCall args to find `Expr::Field` references,
-so `HAVING count(typo_col)` has `typo_col` extracted and checked against the TableRegistry schema.
+
+For the HAVING position specifically (BC-2.11.016 v1.5 §Implementation location gate-positions
+table, Position 6):
+
+Position 6 (HAVING): uses `extract_predicate_columns` (same helper as WHERE/Position 2), which
+calls `collect_predicate_columns`. The `Predicate::Compare` arm in `collect_predicate_columns`
+now handles both bare `Expr::Field` LHS (bare-column HAVING predicates) and `Expr::FuncCall`
+LHS (aggregate-function HAVING predicates, ADR-048), in both cases recursing via
+`extract_field_paths_from_expr` to collect all `Expr::Field` column references. The WHERE
+predicate grammar deliberately does NOT accept aggregate-function predicate LHS (ADR-048);
+`WHERE count(col) > 5` remains an E-QUERY-001 parse error.
+
+For the other positions (1–5), `extract_field_paths_from_expr` is the single extraction helper
+used to recurse into FuncCall args and find `Expr::Field` references, preventing the `.first()`
+false-reject pattern from recurring at any single position independently.
 
 > **BC-2.11.016 v1.5 HAVING addition (F-PWL1-LOW-001):** HAVING is the 6th column-gate
 > position, added at v1.5 to close a coverage asymmetry: sibling gates E-QUERY-037 and
 > E-QUERY-039 already walk HAVING; omitting it from E-QUERY-038 caused a `HAVING count(typo_col)`
 > typo to bypass the clean column-not-found diagnostic and surface a less-actionable DataFusion
 > error. HAVING uses the same `Option<Predicate>` type as WHERE and the same
-> `extract_predicate_columns` extraction path — zero new machinery. New tests:
-> `test_BC_2_11_016_having_column_gate_typo_fires_e_query_038` (fires E-QUERY-038) and
-> `test_BC_2_11_016_having_column_gate_valid_col_no_e_query_038` (valid column passes gate)
-> in `engine.rs` inline module `f_pwl1_low001_having_column_gate_tests`.
+> `extract_predicate_columns` extraction path — zero new machinery.
+>
+> **ADR-048 HAVING agg-fn grammar extension (F-PXL3-MED-002):** The HAVING predicate grammar was
+> extended (via `build_having_predicate_parser`) to accept the `agg_fn(col) op literal` predicate
+> form in addition to bare-column comparisons. This allows `HAVING count(typo_col) > 5` to parse
+> successfully and reach the E-QUERY-038 column-gate (previously it was an E-QUERY-001 parse error).
+> WHERE deliberately does NOT receive this grammar extension (ADR-048 §Constraint); `WHERE count(col)
+> > 5` remains an E-QUERY-001 parse error. The `Predicate::Compare` arm in `collect_predicate_columns`
+> now handles `Expr::FuncCall` LHS (aggregate-function HAVING predicates) by recursing via
+> `extract_field_paths_from_expr` to find the column reference inside the function argument.
+>
+> Tests in `engine.rs` inline module `f_pwl1_low001_having_column_gate_tests`:
+> - `test_BC_2_11_016_having_column_gate_typo_fires_e_query_038` — bare-column HAVING typo fires E-QUERY-038
+> - `test_BC_2_11_016_having_column_gate_valid_col_no_e_query_038` — valid bare-column HAVING passes gate
+> - `test_BC_2_11_016_having_agg_fn_predicate_typo_fires_e_query_038` — agg-fn HAVING typo fires E-QUERY-038 (ADR-048)
+> - `test_BC_2_11_016_having_agg_fn_predicate_valid_col_no_e_query_038` — agg-fn HAVING with valid col passes gate (ADR-048 acceptance)
+> - `test_BC_2_11_016_where_agg_fn_predicate_stays_e_query_001` — WHERE does NOT accept agg-fn predicate form (ADR-048 divergence guard)
 
 ---
 
@@ -801,6 +836,12 @@ For this delivery:
 **§References:** BC-2.16.002 v1.91 (Canonical Structured Event Catalog amendment — M1/N2 closed-set
 method/label extensions). The enrich-last gate ordering fix (N1-B) requires no catalog amendment
 because `check_enrich_udf_availability` uses `?`-propagation only.
+
+ADR-048 governs the HAVING/WHERE predicate-grammar divergence: the `agg_fn(col) op literal`
+predicate form is added to HAVING only (via `build_having_predicate_parser`); WHERE deliberately
+does not receive this form. BC-2.11.016 v1.5's claim that `HAVING count(typo_col) > 5` triggers
+E-QUERY-038 is now deliverable as a result of the ADR-048 grammar extension (F-PXL3-MED-002).
+BC-2.11.016 stays at v1.5 — no version change required.
 
 ---
 
@@ -1149,6 +1190,7 @@ spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.9 | f-pxl3-med-001-f-pxl4-low-001-adr-048-tests-2026-06-28 | 2026-06-28 | story-writer | **F-PXL3-MED-001 AC-M2 corrected, F-PXL4-LOW-001 cite corrected, 3 HAVING agg-fn Red Gate tests added (ADR-048), red_gate_tests 39→42.** (1) **F-PXL3-MED-001 (MED) — AC-M2 HAVING-extraction prose corrected.** Prior text claimed HAVING (Position 6) uses `extract_field_paths_from_expr` (recurses into FuncCall args). The ACTUAL code path is `extract_predicate_columns` → `collect_predicate_columns`, whose `Predicate::Compare` arm NOW handles both bare `Expr::Field` LHS (bare-column HAVING predicates) and `Expr::FuncCall` LHS (aggregate-function HAVING predicates, ADR-048), in both cases recursing via `extract_field_paths_from_expr` to collect all `Expr::Field` column references. The WHERE predicate grammar deliberately does NOT accept aggregate-function predicate LHS (ADR-048); `WHERE count(col) > 5` remains an E-QUERY-001 parse error. AC-M2 prose replaced with the architect-verified description. BC-2.11.016 v1.5 HAVING blockquote expanded to document the ADR-048 grammar extension and all 5 test names in the inline module. §References extended: ADR-048 governs HAVING/WHERE predicate-grammar divergence; BC-2.11.016 stays v1.5. (2) **F-PXL4-LOW-001 (LOW) — AC-REG-2 test cite corrected.** `test_bc_2_11_022_ci_3tier_gate` was cited as the per-field-UDF-parity guard. The actual per-field parity guard is `test_bc_2_11_022_registry_parity` (in `reference_content.rs`, line 304) — it builds a known `InfusionRegistry` and asserts `build_reference_content` renders per-field callable names, not infusion_ids. `test_bc_2_11_022_ci_3tier_gate` guards the 3-tier `ExampleKind` shape (a separate concern). AC-REG-2 Red Gate test paragraph replaced with accurate prose naming `test_bc_2_11_022_registry_parity` as the parity guard; note added clarifying the distinct role of `test_bc_2_11_022_ci_3tier_gate`. Frontmatter inventory `--- AC-REG-2 ---` comment updated from `test_bc_2_11_022_ci_3tier_gate` to `test_bc_2_11_022_registry_parity`. (3) **3 HAVING agg-fn Red Gate tests added (ADR-048).** Three new tests from the ADR-048 grammar extension (all in `engine.rs` inline module `f_pwl1_low001_having_column_gate_tests`) added to the frontmatter red_gate inventory under a new `--- AC-M2 HAVING agg-fn predicate tests ---` section: `test_BC_2_11_016_having_agg_fn_predicate_typo_fires_e_query_038`, `test_BC_2_11_016_having_agg_fn_predicate_valid_col_no_e_query_038`, `test_BC_2_11_016_where_agg_fn_predicate_stays_e_query_001`. `red_gate_tests` 39→42. Arithmetic updated: 39 (v2.8) + 3 HAVING agg-fn tests = 42. |
 | 2.8 | bc-2.11.016-v1.5-cite-propagation-having-tests-2026-06-28 | 2026-06-28 | story-writer | **BC-2.11.016 v1.4→v1.5 cite propagation + F-PWL3-MED-001 red_gate_tests semantics fix + HAVING tests inventory (ITEM 1/2/3).** (1) **BC-2.11.016 v1.4→v1.5 cite propagation (ITEM 1):** PO bumped BC-2.11.016 v1.4→v1.5 (F-PWL1-LOW-001 HAVING coverage mandate — HAVING added as 6th column-gate position; same `Option<Predicate>` extraction path as WHERE). Live cite sweep (POL-29: `rg 'BC-2.11.016 v1\.4' .factory/`): 2 live cites in this story updated — frontmatter BC status comment (line 70) and body BC table version cell. AC-M1 trace updated from bare `BC-2.11.016` to `BC-2.11.016 v1.5`. AC-M2 header trace updated to `BC-2.11.016 v1.5`; body prose expanded to name HAVING as the 6th gate position per BC-2.11.016 v1.5 §Implementation location table; blockquote added describing the F-PWL1-LOW-001 HAVING mandate, extraction mechanism, and new tests. POL-7 body BC table Title cell verified verbatim: `BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4)` — no change needed. POL-29 sweep result: `S-DEMO-PRISMQL-ONBOARDING-001-B` also has live `BC-2.11.016 v1.4` cites (status: draft, not merged) — OUTSIDE this dispatch scope; reported to orchestrator for separate update (ONBOARDING-001-B is the BC anchor story per PO). (2) **F-PWL3-MED-001 red_gate_tests semantics fix (ITEM 2):** The `red_gate_tests` inventory comment previously claimed "counts ALL story-delivered tests" — a FALSE universal. The correct semantics: `red_gate_tests` is the TDD-driving Red Gate SUBSET (tests written RED before code landed, plus inline and guard tests that drive story-delivered code surfaces). The complete delivered test set is enumerated in §File Structure Requirements. Chosen option: (a) — reword to precise subset definition, point to §File Structure for the full set. Removed the false "ALL" claim. Frontmatter comment, Token Budget (`§File Structure Requirements`), and semantics description are now mutually consistent under the new precise definition. (3) **HAVING tests added (ITEM 3):** Two inline tests in `engine.rs` module `f_pwl1_low001_having_column_gate_tests` — `test_BC_2_11_016_having_column_gate_typo_fires_e_query_038` and `test_BC_2_11_016_having_column_gate_valid_col_no_e_query_038` — added to the frontmatter Red Gate inventory under a new `--- AC-M2 HAVING column gate ---` section. `red_gate_tests` 37→39. Arithmetic updated: 37 (v2.7) + 2 HAVING = 39. |
 | 2.7 | f-pul3-med-001-test-inventory-reconcile-2026-06-28 + f-pql2-obs001-inventory-gap-2026-06-28 | 2026-06-28 | story-writer | **F-PUL3-MED-001 test-inventory reconcile + F-PQL2-OBS-001 inventory gap closure (folded).** (1) F-PUL3-MED-001: `red_gate_tests` corrected 33→35 (+2 F-PJL tests added mid-cascade: `test_f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039` and `test_f_pjl4_med001_scheduled_path_table_gate_fires_before_capability_gate`, both in `bc_2_11_019_n1b_test.rs`). File Structure table: `bc_2_11_019_n1b_test.rs` cell 17→19; `test_enrich_udf_not_found_display.rs` cell 4→5 (5th test: `test_f_pbl1_low002_display_self_sorts_available_infusions`, verified against worktree). `crates_touched` prism-core comment updated 4→5 tests with 5th test name. (2) F-PQL2-OBS-001 inventory gap: `crates/prism-mcp/tests/f_pql2_obs001_skeleton_placeholder_guard_test.rs` (2 tests: `test_f_pql2_obs001_query_skeleton_no_bare_timestamp`, `test_f_pql2_obs001_datetime_arithmetic_uses_placeholder`; BC-2.10.016 v1.2) was unlisted in the File Structure table. Added CREATED row. Red Gate semantics decision: ALL story-delivered tests including mid-cascade regression guards are counted; F-PJL (2) and F-PQL2-OBS-001 (2) guards are both mid-cascade regression guards — counting both or neither is the only consistent choice; both are counted. **Final arithmetic: 33 prior + 2 F-PJL + 2 F-PQL2-OBS-001 = 37.** `red_gate_tests` 35→37. Token Budget table "8 new test files"→"9 new test files". Frontmatter inventory comment: new `F-PQL2-OBS-001 skeleton-placeholder guards` section added with both test names; arithmetic comment added. Internal consistency: 9 named story-owned test files (19+4+2+5+1+3+5+2+2 = 43) + 1 inline test + 1 existing test + 1 compile-fail gate = 46 countable items; `red_gate_tests: 37` counts the 34 Rust `fn test_` items (excluding shared-file pre-existing tests) + 1 inline test + 1 existing test + 1 compile-fail gate. No ACs/BCs modified. |
 | 2.6 | f-prl3-prose-reconcile-2026-06-28 | 2026-06-28 | story-writer | **F-PRL3-MED-001 + F-PRL3-LOW-001 + comprehensive prose reconcile.** (1) **F-PRL3-MED-001 (MED) — AC-SAP-1 rewritten.** Prior text falsely stated "this delivery added no new `event_type` emission" and "SAP-1 scan confirmed zero new `event_type` values were introduced. No BC-2.16.002 catalog row addition is required." This was FALSE: M1 + N2 fixes introduced two new closed-set `method` labels on the `table_registry.rwlock_poisoned` catalog row (`columns_for_table`, `check_availability_gate.dot_notation`) and a second emission site on the `column_not_found.rejected` row (M1 single-tenant path), which required and received BC-2.16.002 v1.90→v1.91 amendment (F-PHL3-MED-001). New AC-SAP-1 accurately states: no new `event_type` literal value introduced; two closed-set method labels and one additional emission site extended existing catalog rows; PG-LP11-001 obligation fulfilled by BC-2.16.002 v1.91; §References cite BC-2.16.002 v1.91. (2) **F-PRL3-LOW-001 (LOW) — AC-AUDIT-001 priority-2 severity-vocabulary ladder extended.** Prior prose listed only "(crowdstrike → Title-case, armis → UPPER-case)". BC-2.10.012 v1.5 §Auto-generated example queries and the SENSOR_SEVERITY_VOCABULARY in code also carry: cyberint → lowercase `'high','critical'`; claroty → not registered (no `severity` column). Both entries added to the priority-2 table cell. (3) **Comprehensive prose reconcile (no further stale items found).** All other AC behavioral descriptions (DataFusion built-in exclusion SQL-mode-only, pipe-mode fires E-QUERY-039, CWE-407 cap, dot-notation is_registered suggestion gating, 4-tier example ladder) verified accurate against delivered code+BCs. §Changelog verified complete for substantive cascade fixes (cyberint vocab F-PHL2 already captured in BC-2.10.012 v1.5 cite; BC-2.16.002 v1.91 dependency F-PHL3 now covered by this row; built-in exclusion F-PJL1 captured in v2.3; pipe/SQL split F-PNL1 captured in v1.8/v1.9). No genuine code/BC defects identified beyond the already-deferred pql_hints Category-1 hint-text divergence (BC-2.10.012 §pql_hints vs. code, tracked in deferred items table, requiring PO adjudication). |
