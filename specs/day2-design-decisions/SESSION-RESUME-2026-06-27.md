@@ -9,12 +9,11 @@ provenance: "Day-2 vision SIDE-ANALYSIS program resume snapshot. SEPARATE from t
 # Day-2 Vision Side-Analysis — Zero-Context Resume Snapshot (2026-06-27)
 
 > **Original C-program (C1–C10 + deployment-matrix + C3 hard-reject reconciliation) COMPLETE and committed.
-> PRE-B feature track: C13 ✅ C12 ✅ C11 ✅ C15 ✅ C14 ✅ C19 ✅ C18 ✅ C16 ✅ C17 ✅ C20 ✅ (bulk) — pre-B feature track essentially complete.
-> SF-2 (cloud-BES Project-2023-09 future) OPEN pending research (research in flight at
-> `research/nerc-project-2023-09-cloud-bes-2026-06-27.md`). ADS v1.5 (PAT-ADS-17). After SF-2 fold → B (integration
-> capstone, GATED on §5.1 brief-reframe HUMAN sign-off).**
+> PRE-B feature track: C13 ✅ C12 ✅ C11 ✅ C15 ✅ C14 ✅ C19 ✅ C18 ✅ C16 ✅ C17 ✅ C20 ✅ — C20 NOW FULLY RESOLVED (SF-2 folded = Defer + Leave-Seams-Open).
+> ENTIRE pre-B feature track (C11–C20) is COMPLETE. ADS v1.6 (PAT-ADS-17 S3 forward-note). Only B (integration
+> capstone) remains, GATED on §5.1 brief-reframe HUMAN sign-off.**
 >
-> **Latest factory-artifacts HEAD: `(this checkpoint)` — C20 NERC CIP support bulk decided + ADR-PROP-nerc-cip-support.md captured (SF-1/3/4; SF-2 OPEN); ADS v1.5 (PAT-ADS-17)**
+> **Latest factory-artifacts HEAD: `(this checkpoint)` — C20 SF-2 folded (Defer + Leave-Seams-Open); cloud-BES research banked; ADS v1.6; C20 fully resolved; pre-B track C11–C20 COMPLETE**
 >
 > **READ THIS FIRST on resume.** This is OUT-OF-BAND day-2 vision work, fully SEPARATE from the live
 > VSDD factory pipeline (which runs its own cascades on the same `factory-artifacts` branch). Everything
@@ -390,7 +389,7 @@ Recorded in `ARCHITECTURE-DESIGN-SYSTEM.md` as INV-ADS cross-cutting invariant. 
 - **RSAW export:** Deferred to C20 (NERC CIP synthesis — CIP-009 requires RSAW documentation; C20 will tie the evidence format to the CIP-009 standard).
 - **ADS v1.4:** PAT-ADS-15 (Logical-Watermark Cross-Store Backup), PAT-ADS-16 (Sealed-Blob Key Escrow + Crypto-Shred), INV-ADS-10 (Recoverability-Preserves-Operator-Zero-Access) added.
 
-#### C20 — NERC CIP support (synthesis capstone) — DECIDED BULK + CAPTURED (ADR-PROP-nerc-cip-support.md, this checkpoint)
+#### C20 — NERC CIP support (synthesis capstone) — FULLY RESOLVED (ADR-PROP-nerc-cip-support.md; SF-2 = Defer + Leave-Seams-Open)
 
 - **Posture:** CIP-deployable + CIP-evidence-generating. NOT pursuing NERC CIP certification as a product; Prism is the tool a covered entity uses to achieve and document compliance.
 - **Synthesis map (prior C-items → CIP standards):**
@@ -405,8 +404,8 @@ Recorded in `ARCHITECTURE-DESIGN-SYSTEM.md` as INV-ADS cross-cutting invariant. 
 - **SF-4 DECIDED — Both CIP-010 system-of-record AND CMDB feeder:** Prism can function as the authoritative CIP-010 BES Cyber System inventory (source of truth) OR as a CMDB feeder (exporting to an existing CMDB). Deployment-profile-configurable. Supports the full range of covered-entity maturity levels.
 - **CIP-013 vendor commitments (pre-B capture):** SBOM generation (for supply-chain traceability), signed releases (for software integrity), no undisclosed remote access (AD-017 + BYOC zero-access invariant). These commitments are documentation + engineering discipline, not a separate certification.
 - **nerc-cip Compliance Profile preset:** The `nerc-cip` Compliance Profile (in ADR-PROP-compliance-profiles.md partial order: `baseline ⊂ soc2 ⊂ iso27001 ⊂ iec-62443-ot ⊂ nerc-cip`) activates all relevant tightening: BCSI masking (C16), CIP-004/005/007 access controls (C18), CIP-009 recovery evidence (C17), CIP-002 asset categorization (C19 regulatory_class), CIP-005 ESP residency enforcement (C2 D-C2-12).
-- **SF-2 OPEN — cloud-BES Project-2023-09 future:** NERC CIP Project 2023-09 (cloud-hosted BES Cyber Systems) is a significant pending regulatory development that could alter the CIP applicability landscape for cloud-native tools like Prism. The **zero-access invariant is LOCKED** as **PIV-C20-006** regardless of how Project 2023-09 resolves. Research in flight: `research/nerc-project-2023-09-cloud-bes-2026-06-27.md`. Decision deferred until research returns.
-- **ADS v1.5:** PAT-ADS-17 (Compliance-Evidence-Export RSAW-aligned) added; traceability row for C20.
+- **SF-2 RESOLVED = Defer + Leave-Seams-Open (D-C20-SF2, Sub-Option B):** Defer the speculative cloud-EACMS feature per P-ADS-12; keep three zero-cost seams open: S1 classification-as-data (OCSF `data_classification` remains a wire-format axis, not hardcoded CIP applicability), S2 open `#[non_exhaustive]` deployment-profile enum (future cloud-EACMS variant addable without breaking changes), S3 evidence-owner provenance dimension reserved in the compliance-evidence data model (entity/csp/shared — when the audit substrate is built). Zero-access invariant **PIV-C20-006** LOCKED regardless of how Project 2023-09 resolves. **PIV-C20-007** (seams S1/S2/S3 kept open). Sub-Option C (design-forward cloud-EACMS now) rejected as default — available only as explicit future market-timing decision. Live-re-verify Project-2023-09 status at morph. Research banked: `research/nerc-project-2023-09-cloud-bes-2026-06-27.md`. **C20 FULLY RESOLVED.**
+- **ADS v1.6:** PAT-ADS-17 evidence-owner provenance dimension forward-note (entity/csp/shared) added; traceability row for C20 SF-2 closure.
 
 ## 3. THE C-PROGRAM (the active plan — "do each remaining day-2 area")
 Each area: research → discuss → decide → capture → commit. **B = integration capstone LAST.**
@@ -433,14 +432,14 @@ Each area: research → discuss → decide → capture → commit. **B = integra
 
 A new batch of feature areas was confirmed BEFORE B — all require research + discussion + decisions + capture. Research is banked for C12 ✅, C11 ✅, C15 (double-banked) ✅, C14 ✅, and ALL remaining items (C19, C18, C16, C17, C20 — commit 664cbbd1). B remains the final capstone, gated on §5.1 brief-reframe HUMAN sign-off.
 
-**Dependency-aware order (human-confirmed): C13 ✅ → C12 ✅ → C11 ✅ → C15 ✅ → C14 ✅ → C19 ✅ → C18 ✅ → C16 ✅ → C17 ✅ → C20 ✅ (bulk; SF-2 fold pending) → B**
+**Dependency-aware order (human-confirmed): C13 ✅ → C12 ✅ → C11 ✅ → C15 ✅ → C14 ✅ → C19 ✅ → C18 ✅ → C16 ✅ → C17 ✅ → C20 ✅ (fully resolved incl. SF-2 fold) → B**
 
 **Cross-cutting conformance frame:** ALL remaining items (C15, C14, C19, C18, C16, C17, C20, B) must pass the ADS conformance checklist (`ARCHITECTURE-DESIGN-SYSTEM.md`) before capture. The first conformance pass (10 ripple-audit items across 9 ADR-PROPs) is done.
 
 | ID | Area | Status | Cross-links |
 |---|---|---|---|
 | C13 | §16.4 open-items closeout (SSO, S3-runtime, secret/DEK, sequence-sugar, PO-ratif, ML-phasing) | ✅ DONE (commit 09c5584d) — 8 residuals resolved; per-credential-DEK = future enhancement (OQ-SECRET-DEK-GRANULARITY); ml OD-3 reconciled to C7 | C7, C2/AD-017, C16, C20 |
-| **ADS** | Architecture Design System — "The Prism Way" (13 Principles, 17 Patterns, 10 Invariants, conformance checklist) | ✅ DONE (commit 7c068714; amended v1.1 + v1.2 + v1.3 + v1.4 + v1.5) — `ARCHITECTURE-DESIGN-SYSTEM.md` v1.5 is the canonical conformance frame for all remaining work | All C-items + B |
+| **ADS** | Architecture Design System — "The Prism Way" (13 Principles, 17 Patterns, 10 Invariants, conformance checklist) | ✅ DONE (commit 7c068714; amended v1.1 + v1.2 + v1.3 + v1.4 + v1.5 + v1.6) — `ARCHITECTURE-DESIGN-SYSTEM.md` v1.6 is the canonical conformance frame for all remaining work | All C-items + B |
 | **Option-3** | Surfacing model locked — Tenant-Keyed-Central-Cache always; derived-results-only; operator-zero-access-at-rest; Central-Sole-Surface principle | ✅ LOCKED (commit 7c068714) — do not re-litigate | ADS INV-ADS, C12, C11, C15 |
 | **Conformance pass** | Ripple audit of existing ADR-PROPs against ADS + Option-3 | ✅ DONE (commit 7c068714) — 10 items closed across 9 ADR-PROPs | All prior C-items |
 | C12 | Prism Context — knowledge graph + vector DB + entity mapping + Entity 360 expansion | ✅ DONE (commit 76f1a3e2) — ADR-PROP-prism-context.md; two-layer embedded (indradb+usearch+lancedb); fastembed/ort+candle; deterministic entity-resolution + suspected-links; hybrid retrieval + mandatory citations; phased GraphRAG; aletheon corrected | aletheon `aros` table → C15 input, AD-017, C16, C7 |
@@ -451,7 +450,7 @@ A new batch of feature areas was confirmed BEFORE B — all require research + d
 | C18 | RBAC depth (into connectors/satellites) | ✅ DONE (ADR-PROP-rbac-depth.md + ADR-PROP-compliance-profiles.md, this checkpoint) — layered RBAC+ReBAC+ABAC; BUILD Prism-native Rust Zanzibar-tuple core; connector/satellite/source/table scoping + ABAC tag masking; strictly-downward inheritance via C19 closure table; decision-level audit (INV-ADS-09); central-authored/edge-enforced signed bundles; IdP→internal-role + SCIM; PII bulk-export hard-block-but-configurable; Compliance-Profile mechanism captured in companion ADR-PROP | CLOSES C10 Query-RBAC gap; extends C9 / E-CENTRAL-AUTHZ-001; C19 (role inheritance), C16 (detokenize-at-surface), C15 (approver roles), C17 (key-escrow Option-3 CMEK) |
 | C16 | Entity masking / tokenizing clearing house (AI-opaque data; BCSI→RSI universal name) | ✅ DONE (ADR-PROP-entity-masking.md) — extends AD-017 to AI-opaque DATA; BUILD Prism-native Rust clearing house (SS-26 DEK + aes-gcm + RocksDB-CF vault, FF1 FPE optional); technique mix keyed by RSI field class; EDGE placement after OCSF normalization (forced INV-ADS-01/Option-3); RSI abstraction + pluggable profiles (BCSI first) over OCSF data_classification; per-field-class token-determinism matrix; per-tenant vault+DEK at edge; detokenize-at-surface via C18 RBAC; dual index; vectors are sensitive-data-class; ADS v1.3 (P-ADS-07 sharpened, PAT-ADS-14) | extends AD-017; C20 confirms BCSI canonical; C18 (detokenize-at-surface via RBAC); C17 (key-escrow/DEK custody) |
 | C17 | Backup & recovery (first-class) | ✅ DONE (ADR-PROP-backup-recovery.md, this checkpoint) — per-store mechanics (pgBackRest/git-bundle/RocksDB-Checkpoint+BackupEngine/Iceberg); cross-store PITR via logical-watermark+C8-AS-OF-KNOWN-T; tenant-held recovery key + M-of-N escrow + crypto-shred (no unilateral operator access); per-tenant PITR + silo escape-hatch + nested scopes; satellite reconstruct-from-central + air-gap signed bundles; DR tier ladder per deployment-profile; unified integrity (signed + CMK-encrypted); recovery-test evidence first-class (CIP-009); RSAW export → C20; ADS v1.4 (PAT-ADS-15/16, INV-ADS-10) | C9 config + bootstrap-recovery; C20 CIP-009; C18 (key-escrow Option-3 CMEK) |
-| C20 | NERC CIP support | ✅ DECIDED (bulk) — ADR-PROP-nerc-cip-support.md; SF-1/SF-3/SF-4 decided; SF-2 cloud-BES-future OPEN pending research (research/nerc-project-2023-09-cloud-bes-2026-06-27.md in flight); zero-access invariant PIV-C20-006 LOCKED; ADS v1.5 (PAT-ADS-17); E-CIP-EVIDENCE-EXPORT-001 proposed | C16(BCSI/RSI), C17, C18, C19, C2, OT |
+| C20 | NERC CIP support | ✅ DONE (fully resolved — ADR-PROP-nerc-cip-support.md; SF-2 = Defer + Leave-Seams-Open; D-C20-SF2; PIV-C20-006 LOCKED; PIV-C20-007 seams open; ADS v1.6) | C16(BCSI/RSI), C17, C18, C19, C2, OT |
 | B | Integration capstone | ⏳ LAST — gated on §5.1 brief-reframe HUMAN sign-off | — |
 
 ## 4. PENDING FOLDS
@@ -471,9 +470,9 @@ Folded into ADR-PROP-prismql-deliverables.md (commit b6fa1465).
 
 ## 5. EXACT NEXT ACTION ON RESUME
 
-**C20 ✅ DONE (bulk). C17 ✅ C16 ✅ C18 ✅ C19 ✅ C14 ✅ C15 ✅ C12 ✅ C11 ✅ done. ADS created (v1.5), Option-3 locked, conformance pass done. Pre-B feature track essentially complete — SF-2 fold remains.**
+**C20 ✅ FULLY RESOLVED (SF-2 folded = Defer + Leave-Seams-Open; D-C20-SF2; PIV-C20-007 seams open; ADS v1.6). C17 ✅ C16 ✅ C18 ✅ C19 ✅ C14 ✅ C15 ✅ C12 ✅ C11 ✅ done. ADS created (v1.6), Option-3 locked, conformance pass done. Pre-B feature track C11–C20 COMPLETE.**
 
-**NEXT: Fold C20 SF-2 (cloud-BES Project-2023-09 future) after `research/nerc-project-2023-09-cloud-bes-2026-06-27.md` returns. Then → B (integration capstone, GATED on §5.1 brief-reframe HUMAN sign-off).**
+**NEXT: B — integration capstone. GATED on §5.1 brief-reframe HUMAN sign-off (do not begin B until the human confirms the brief-reframe direction; leading-candidate headline recorded in ADR-PROP-competitive-positioning.md requires human approval).**
 
 **C14 follow-up research BANKED (committed alongside earlier checkpoint):**
 - `research/ocsf-ot-coverage-2026-06-27.md` — C14 sub-fork F4: OCSF-OT schema coverage. COMPLETE. Committed in same burst as this resume-doc edit (path-scoped).
@@ -487,8 +486,7 @@ Folded into ADR-PROP-prismql-deliverables.md (commit b6fa1465).
 - C20: research BANKED — `research/nerc-cip-support-2026-06-27.md` (scheduled LAST)
 
 **Ordered queue — work through left-to-right, do not skip:**
-1. **C20 SF-2 fold** — cloud-BES Project-2023-09 future — **NEXT** (research in flight: `research/nerc-project-2023-09-cloud-bes-2026-06-27.md`; fold into ADR-PROP-nerc-cip-support.md once returned; zero-access invariant PIV-C20-006 already LOCKED)
-2. **B — integration capstone** (GATED on §5.1 brief-reframe HUMAN sign-off)
+1. **B — integration capstone** (GATED on §5.1 brief-reframe HUMAN sign-off — do not begin until human confirms)
 
 Each remaining item must conform to `ARCHITECTURE-DESIGN-SYSTEM.md` conformance checklist before capture.
 
@@ -515,11 +513,12 @@ Superseded capture queue (all DONE — do not re-execute):
 - ~~C18 discussion + capture → ADR-PROP-rbac-depth.md + ADR-PROP-compliance-profiles.md~~ ✅ b8f59257
 - ~~C16 discussion + capture → ADR-PROP-entity-masking.md~~ ✅ ee3a9e21
 - ~~C17 discussion + capture → ADR-PROP-backup-recovery.md~~ ✅ (prior checkpoint)
-- ~~C20 bulk discussion + capture → ADR-PROP-nerc-cip-support.md~~ ✅ (this checkpoint) — SF-2 cloud-BES-future fold REMAINS (pending research/nerc-project-2023-09-cloud-bes-2026-06-27.md)
+- ~~C20 bulk discussion + capture → ADR-PROP-nerc-cip-support.md~~ ✅ (prior checkpoint)
+- ~~C20 SF-2 fold → ADR-PROP-nerc-cip-support.md (Defer + Leave-Seams-Open; D-C20-SF2; PIV-C20-007; ADS v1.6)~~ ✅ (this checkpoint) — C20 FULLY RESOLVED; pre-B track C11–C20 COMPLETE
 
 ## 6. BASELINE (git state at session wrap)
 
-- **factory-artifacts HEAD (current):** `(this checkpoint)` — C20 NERC CIP support bulk decided + ADR-PROP-nerc-cip-support.md captured (SF-1/3/4; SF-2 OPEN); ADS v1.5 (PAT-ADS-17); path-scoped commit (see commit chain below)
+- **factory-artifacts HEAD (current):** `(this checkpoint)` — C20 SF-2 folded (Defer + Leave-Seams-Open); cloud-BES research banked; ADS v1.6; C20 fully resolved; pre-B track C11–C20 COMPLETE; path-scoped commit (see commit chain below)
 - **Full commit chain for this day-2 side-analysis** (day-2 side commits; live factory interleaved its own commits on the shared branch between these):
   - `b53b22ba` — C9 schema-versioning (Q3) resolved + ADR-PROP-config-management + backing research
   - `91abba90` — deployment matrix captured (ADR-PROP-dual-deployment, three operating models)
@@ -542,9 +541,10 @@ Superseded capture queue (all DONE — do not re-execute):
   - `b8f59257` — C18 RBAC depth + Compliance Profiles decided + ADR-PROP-rbac-depth.md & ADR-PROP-compliance-profiles.md captured; ADS v1.2 (PAT-ADS-12/13, INV-ADS-09); C19 regulatory_class reframed as profile-selector; Compliance-profile research banked (configurable-security-profiles-2026-06-27.md); path-scoped commit
   - `ee3a9e21` — C16 entity masking / RSI clearing house decided + ADR-PROP-entity-masking.md captured; ADS v1.3 (P-ADS-07 sharpened, PAT-ADS-14, C16 traceability row); SESSION-RESUME updated (C16 DONE, next=C17); path-scoped commit
   - `(prior checkpoint)` — C17 backup & recovery decided + ADR-PROP-backup-recovery.md captured; ADS v1.4 (PAT-ADS-15/16, INV-ADS-10); SESSION-RESUME updated (C17 DONE, next=C20); path-scoped commit. Prior side HEAD: **a261cc1d**.
-  - `(this checkpoint)` — C20 NERC CIP support bulk decided + ADR-PROP-nerc-cip-support.md captured (SF-1/3/4; SF-2 OPEN pending research); ADS v1.5 (PAT-ADS-17 Compliance-Evidence-Export RSAW-aligned); SESSION-RESUME updated (C20 bulk DONE, SF-2 fold + B next); path-scoped commit
-- Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD: **a261cc1d** (C17 decided + captured).
-- Working tree otherwise clean (untracked `.DS_Store` only; live-factory files left unstaged). No dangling in-flight research.
+  - `(prior checkpoint)` — C20 NERC CIP support bulk decided + ADR-PROP-nerc-cip-support.md captured (SF-1/3/4; SF-2 OPEN pending research); ADS v1.5 (PAT-ADS-17 Compliance-Evidence-Export RSAW-aligned); SESSION-RESUME updated (C20 bulk DONE, SF-2 fold + B next); path-scoped commit. Prior side HEAD: **a220d879**.
+  - `(this checkpoint)` — C20 SF-2 folded (Defer + Leave-Seams-Open); cloud-BES research banked; ADS v1.6 (PAT-ADS-17 evidence-owner forward-note); C20 fully resolved; pre-B track C11–C20 COMPLETE; path-scoped commit
+- Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD: **a220d879** (C20 bulk decided + captured).
+- Working tree otherwise clean (untracked `.DS_Store` only; live-factory files left unstaged). No dangling in-flight research. C20 SF-2 fold complete — no open items remain in the pre-B track.
 
 ## 7. Gaps / epics introduced (PROPOSED, not in STORY-INDEX)
 Gaps **G-1 … G-36** (plus new cross-cutting dual-deployment gap). Proposed epics:
@@ -595,6 +595,6 @@ E-DUAL-DEPLOYMENT-001 (three operating models + deployment-profile mechanism).
 **New Day-3 proposed epics (PROPOSED):**
 - E-WORKFLOW-ENGINE-001 (PROPOSED, Day-3) — Workflow Engine: configurable approval/review workflow runtime consolidating C9 deferred approval-gate workflows + C18 SF-5 (policy-change approval gates) + C18 SF-2 (unmask-with-approval workflow) + C15 HITL gates; tenant-configurable within central-defined workflow schemas; per-client workflow customization; audit trail on every workflow transition
 
-**ADS conformance frame:** `ARCHITECTURE-DESIGN-SYSTEM.md` (v1.4) is the canonical conformance reference for all epics above and all remaining C-items. Every epic capture must satisfy the ADS conformance checklist (13 Principles, 16 Patterns, 10 Invariants, no anti-patterns) and the Central-Sole-Surface (Option-3) invariant.
+**ADS conformance frame:** `ARCHITECTURE-DESIGN-SYSTEM.md` (v1.6) is the canonical conformance reference for all epics above and remaining work. Every epic capture must satisfy the ADS conformance checklist (13 Principles, 17 Patterns, 10 Invariants, no anti-patterns) and the Central-Sole-Surface (Option-3) invariant.
 
 All deferred to morph (brief-reframe §5.1 HUMAN GATE).

@@ -1063,6 +1063,12 @@ a regulatory audit instrument (e.g., NERC Reliability Standard Audit Worksheets)
    hashes, PAT-ADS-03 signing infrastructure). An auditor with physical access
    to the bundle file does not need an online control plane to verify integrity.
 
+**Forward note (C20 SF-2 seam S3).** When this audit substrate is built, the
+provenance model should carry an evidence-OWNER dimension (`entity` / `csp` /
+`shared`) to remain extensible for future CSP-shared-responsibility evidence
+(C20 SF-2 seam S3, D-C20-SF2). Carry this one field when the substrate is built;
+do not pre-build the substrate for this seam alone.
+
 **Originating feature.** `ADR-PROP-nerc-cip-support.md` D-C20-SF1
 (CIP audit-evidence / RSAW-export module). Consolidates the deferred RSAW export
 packaging from C17 (D-C17-CIP009) and C10 GAP-Q2 evidence-package lean.
@@ -1472,5 +1478,6 @@ architecture tier and must be consistent with this ADS:
 | v1.3 | 2026-06-27 | C16 capture: P-ADS-07 sharpened (clearing-house enforcement mechanism + embeddings-are-sensitive-data-class + dual-index + zero-vault-wiring structural invariant); added PAT-ADS-14 (Edge-Tokenizing-Clearing-House); traceability row for ADR-PROP-entity-masking.md added to Section E. |
 | v1.4 | 2026-06-27 | C17 capture: added PAT-ADS-15 (Logical-Watermark Cross-Store Backup), PAT-ADS-16 (Sealed-Blob Key Escrow + Crypto-Shred), INV-ADS-10 (Recoverability Preserves Operator-Zero-Access); INV-ADS-10 check line added to Section C.2 Conformance Checklist; traceability row for ADR-PROP-backup-recovery.md added to Section E. |
 | v1.5 | 2026-06-27 | C20 capture: added PAT-ADS-17 (Compliance-Evidence-Export RSAW-aligned); traceability row for ADR-PROP-nerc-cip-support.md added to Section E. (C20 SF-2 cloud-BES-future OPEN pending research.) |
+| v1.6 | 2026-06-27 | C20 SF-2 fold: PAT-ADS-17 evidence-owner-dimension forward-note (cloud-BES seam S3, D-C20-SF2); SF-2 resolved = Defer + Leave-Seams-Open (Sub-Option B). |
 
-*End of Prism Architecture Design System v1.5 — 2026-06-27*
+*End of Prism Architecture Design System v1.6 — 2026-06-27*

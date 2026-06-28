@@ -3783,15 +3783,27 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
     cryptographically signed releases + published hashes; CVD + timely-patch policy (NATF-
     ESSCR-answerable); no undisclosed/hard-coded/non-revocable remote access (aligns AD-017 +
     ADR-022 wiring discipline + P-ADS-11 no hidden forks).
-  - **SF-2 cloud-BES-future OPEN pending research.** PIV-C20-006 (entity-key zero-access =
-    central plane NEVER holds plaintext BCSI, entity holds keys) is LOCKED regardless of SF-2
-    outcome — it is independently required by INV-ADS-01/02 + Option-3. The OPEN question =
-    whether to design forward-scaffolding now for the speculative NERC Project-2023-09
-    "EACMS-in-cloud" future. Concurrent research in flight
-    (`research/nerc-project-2023-09-cloud-bes-2026-06-27.md`). Lean = likely defer (production-
-    grade "defer entire speculative feature" boundary); final decision after research resolves.
-  - **ADS v1.5:** added PAT-ADS-17 (Compliance-Evidence-Export RSAW-aligned); traceability row
-    for nerc-cip-support. ADS conformance PASS — all INV-ADS-01..10 satisfied (checklist in
+  - **SF-2 cloud-BES-future RESOLVED 2026-06-27 (human) = Defer + Leave-Seams-Open
+    (Sub-Option B).** Backing research: `research/nerc-project-2023-09-cloud-bes-2026-06-27.md`.
+    Three cheap seams kept open (all already implied by locked principles — conformance hygiene,
+    not new design): S1 — classification-as-data (CIP-classification / EACMS / BCS / aggregator
+    stays a DATA attribute on C19 `regulatory_class` + Compliance-Profile engine; never hardcoded
+    "EACMS == on-prem"); S2 — open/`#[non_exhaustive]` deployment-profile enum so `cloud-eacms`
+    is an addable data row, not a code fork; S3 — when the audit-evidence substrate (PAT-ADS-17 /
+    E-CIP-EVIDENCE-EXPORT-001) is built for independent reasons, give its provenance model an
+    evidence-OWNER dimension (`entity` / `csp` / `shared`). DO NOT pre-build the substrate for
+    this seam. PIV-C20-006 (entity-key zero-access = central plane NEVER holds plaintext BCSI,
+    entity holds keys) LOCKED regardless of SF-2 outcome — independently required by
+    INV-ADS-01/02 + Option-3. D2 cloud-EACMS feature DEFERRED per P-ADS-12 (no enforceable
+    standard text; FERC still at NOI; ~2029-2030 projected; no utility/ISO/RTO precedent).
+    Live-re-verify Project-2023-09 status at morph (nerc.com + ferc.gov: draft/ballot/Board-
+    adoption, FERC NOPR/Order/RM-docket; if enforceable < 2yr out, revisit Sub-Option C
+    market-timing case). Decision record: ADR-PROP-nerc-cip-support.md §4 D-C20-SF2 +
+    §5 OQ-C20-CLOUD-FUTURE (now RESOLVED). PIV-C20-007 (cloud-BES seams S1/S2/S3) added.
+    C20 is now fully resolved; next = B (integration capstone, gated on §5.1 brief-reframe
+    HUMAN sign-off).
+  - **ADS v1.6:** PAT-ADS-17 evidence-owner-dimension forward-note (cloud-BES seam S3);
+    amendment log row added. ADS conformance PASS — all INV-ADS-01..10 satisfied (checklist in
     ADR-PROP §7); C20 is a synthesis that introduces posture + the evidence-export pattern;
     no new invariants beyond the locked zero-access ones (PIV-C20-006 ≡ INV-ADS-01/02).
   - Cross-links: C2 (ESP + passive edge), C10 GAP-Q2 (evidence-package lean resolved here),
