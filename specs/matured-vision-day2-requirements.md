@@ -3641,6 +3641,95 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   - Proposed epic: E-RSI-CLEARING-HOUSE-001 (edge clearing house + token vault + RSI tagging +
     dual-index). PROPOSED, not in STORY-INDEX.
 
+- **C17 Backup & Recovery as a First-Class Citizen DECIDED + CAPTURED 2026-06-27 (human).**
+  Full decision record covering per-store mechanics, cross-store coherent PITR, key escrow/
+  recovery under Option-3 CMEK, per-tenant + nested backup granularity, satellite recovery,
+  DR tier ladder, unified integrity, and CIP-009 recovery evidence. Capture artifact:
+  `specs/day2-design-decisions/ADR-PROP-backup-recovery.md` (`do_not_execute: true`; real
+  ADR numbers deferred to morph). Research basis: `research/backup-recovery-2026-06-27.md`
+  (five perplexity_research sonar-deep-research calls at reasoning_effort=high; crate
+  versions verified against crates.io/docs.rs 2026-06-27).
+  - **Per-store mechanics (D-C17-Q1):** Config DB = pgBackRest 2.55 continuous WAL archiving
+    (PITR `--type=time`, time-based retention, client-side encryption); bitemporal history
+    tables coexist with coarse cluster PITR. Detection content/recipes = `git bundle` or
+    atomic `.git` FS snapshot (NOT `git clone`); complements C9 fast-revert. RocksDB (~19
+    CFs) = Checkpoint API for fast hot snapshots + BackupEngine for retained incremental
+    sets (both confirmed in `rocksdb` 0.24.0 docs.rs), paired with `WAL_ttl_seconds` for
+    PITR within TTL; back up only NON-RECONSTRUCTIBLE CFs (cache CFs disposable). Iceberg
+    cold tier = back up ALL THREE of catalog + metadata/manifest files + data files;
+    retention via `expire_snapshots`; pin survivors with branches/tags; drive maintenance
+    via Java/Spark or verified Rust path (iceberg-rust 0.9.1 pre-1.0 — build verification
+    harness before production-trust). KG+vector = back up authoritative (non-recomputable)
+    embeddings + graph edges; treat ANN indexes (usearch) as rebuildable; OQ-C17-001 to
+    confirm each store's native backup API at morph. Keys = sealed-blob backup (see
+    key-escrow below). ARO state = split authoritative (Config-DB-class, PITR) vs runtime
+    scratch (RocksDB-class, non-reconstructible only); OQ-C17-002 to confirm split at morph.
+  - **Cross-store coherent PITR (D-C17-SF2): LOGICAL-WATERMARK + PER-STORE TIME-TRAVEL as
+    PRIMARY** (NOT a global physical freeze). Stamp a single Hybrid-Logical-Clock transaction-
+    time T; each store snapshots on its native mechanism + restores AS-OF ≤ T via its own
+    PITR/time-travel; a **backup-set manifest** binds per-store snapshot IDs (Postgres LSN,
+    RocksDB checkpoint seq#, Iceberg snapshot-id, git commit/bundle, KG+vector version) to
+    one T. CRITICAL: T is the SAME `AS OF KNOWN <T>` watermark the C8 query engine exposes
+    — backup recovery point = bitemporal query point (PIV-C17-002). Reserve physical freeze
+    for tightly-coupled components only; OQ-C17-003 identifies which at morph. Retention set
+    COLLECTIVELY to a common floor (RPO bounded by shortest per-store window). Adds
+    PAT-ADS-15 (Logical-Watermark Cross-Store Backup) to ADS v1.4.
+  - **KEY escrow/recovery (D-C17-SF1): TENANT-HELD RECOVERY KEY as DEFAULT + optional M-of-N
+    threshold escrow tier.** Envelope = per-tenant DEK wrapped by per-tenant CMEK (Option-3,
+    canonical). Operator backs up ONLY sealed/wrapped key blobs it CANNOT unwrap. DEFAULT =
+    tenant-held recovery key (operator can facilitate transport but NEVER unilaterally
+    recover). OPTIONAL M-of-N threshold escrow tier (Shamir split across independent
+    custodians — tenant/auditor/regulator; audited break-glass; Vault-style recovery keys;
+    Vault 2.0.3 / 1.21.x candidate) for tenants wanting operator-assisted recoverability.
+    Configurable per tenant / via Compliance-Profile key-custody axis (ties P-ADS-13). The
+    zero-access PROMISE wording = "no unilateral operator access." CRYPTO-SHREDDING (destroy
+    tenant CMEK key → data dead everywhere including old backups) = the erasure/offboarding
+    primitive AND the clean reconciliation with operator-zero-access. Aligns NERC CIP-011-3
+    entity-held-key zero-access (C20/C16). Adds PAT-ADS-16 (Sealed-Blob Key Escrow +
+    Crypto-Shred) + INV-ADS-10 (Recoverability Preserves Operator-Zero-Access) to ADS v1.4.
+  - **Per-tenant PITR (D-C17-Q3):** pooled-store model → cluster backup + per-tenant LOGICAL
+    export (RLS/OrgSlug-scoped filtered export) = SOLVED. Per-tenant POINT-IN-TIME restore =
+    GENUINELY HARD (unsolved by DB engines) → operational RESTORE-TO-SIDE-INSTANCE + selective
+    re-ingestion workflow; design for FK/shared-reference-data/ID-collision pitfalls; versioned
+    export format; must be built + heavily tested (NOT a built-in restore). SILO escape-hatch
+    at higher tiers (C19 `isolation_tier = silo`). Nested tenancy (C19) → explicit
+    PARENT-ONLY / SUBTREE / CHILD-ONLY backup scopes using closure-table enumeration;
+    crypto-shred applied in ALL regions where tenant data resides.
+  - **Satellite recovery (D-C17-Q5): RECONSTRUCT-FROM-CENTRAL by default** (satellites
+    disposable/reconstructible, config-as-code); back up only local data BUFFERS + genuinely-
+    local non-reconstructible state; AIR-GAP nodes → signed+encrypted offline-media bundles,
+    verifiable WITHOUT an online control plane (carry signatures + Merkle hashes with bundle).
+    Complements C9 A/B dual-slot self-recovery; C9 handles software-update rollback; C17
+    handles data-buffer archival + full re-provision.
+  - **DR tier ladder (D-C17-SF4): FULL LADDER offered** — Backup-Restore → Pilot-Light →
+    Warm-Standby → Active-Active; tier selected per deployment-profile/contract (a Compliance-
+    Profile / contract setting; ties P-ADS-13). SaaS default = multi-AZ baseline + optional
+    multi-region (pilot-light/warm-standby). On-prem/MSSP = VM-snapshot + config-as-data
+    deterministic re-provision + optional HA-pair. OQ-C17-005: which tier per contract grade
+    is a business decision at morph.
+  - **Unified integrity model (D-C17-Q6):** detached signatures + content-hash/Merkle
+    (TUF/Sigstore prior art) + CUSTOMER-MANAGED-KEY encryption across satellite/SaaS/on-prem
+    so ONLY the customer decrypts — operator-zero-access preserved end-to-end on backups.
+    Restic 0.19.0 (verified) as candidate unified wrapper for content-addressable encrypted
+    snapshots; per-store native mechanisms (pgBackRest, RocksDB, Iceberg) for stores with
+    purpose-built backup APIs.
+  - **CIP-009 recovery evidence FIRST-CLASS (D-C17-CIP009):** Prism generates recovery-test
+    evidence NOW: timestamped restore-test runs + integrity-verification records + post-restore
+    config baseline diff vs the known-good CIP-010 baseline. Prism's OWN state must be
+    backup/restore-testable with integrity verification (Prism may be classified BCS/EACMS).
+    RSAW export PACKAGING consolidated in C20 (avoid duplication).
+  - **ADS v1.4:** PAT-ADS-15 (Logical-Watermark Cross-Store Backup), PAT-ADS-16 (Sealed-Blob
+    Key Escrow + Crypto-Shred), INV-ADS-10 (Recoverability Preserves Operator-Zero-Access).
+    ADS conformance PASS — all INV-ADS-01..10 satisfied (checklist in ADR-PROP §5).
+  - Cross-links: C8 (T = `AS OF KNOWN <T>` watermark), C9 (bootstrap/restart-class recovery
+    complement), C16 (vault/DEK custody + crypto-shred), C19 (nested backup scopes, Option-3
+    child-keyed CMEK), C2 (satellite reconstruct-from-central), C20 (CIP-009 evidence + RSAW
+    export), C5 (Iceberg cold tier), C12 (KG+vector), C15 (ARO state), Option-3/SS-26
+    (CMEK/DEK), Compliance-Profiles (DR-tier + key-custody as Profile settings).
+  - Proposed epic: E-BACKUP-RECOVERY-001 (backup orchestrator + manifest + key escrow +
+    per-tenant logical export + side-restore workflow + satellite buffer backup + air-gap
+    bundle + DR ladder + recovery-test evidence generator). PROPOSED, not in STORY-INDEX.
+
 ### 16.5 Status & boundaries reminder
 
 - This is a **CAPTURE artifact** (`do_not_execute: true`). Nothing here modifies the live brief/PRD/

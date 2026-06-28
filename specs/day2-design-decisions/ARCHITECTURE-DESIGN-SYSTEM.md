@@ -944,6 +944,85 @@ misconfigured or bypassed; structural absence of raw data at Central is the corr
 
 ---
 
+### PAT-ADS-15 — Logical-Watermark Cross-Store Backup
+
+**When to use.** A coherent point-in-time recovery is needed across heterogeneous
+independent stores with unsynchronized write-path timelines (e.g., PostgreSQL WAL,
+RocksDB sequence numbers, Iceberg snapshot IDs, git commits, and LanceDB versions that
+have no shared global commit clock).
+
+**Structure.**
+1. Stamp a single **Hybrid Logical Clock (HLC) transaction-time T** at the start of each
+   coordinated backup. HLCs provide causally ordered, cross-store coherent timestamps.
+2. Each store takes its own native snapshot or archive and is then restored/queried
+   AS-OF ≤ T via its own PITR/time-travel mechanism:
+   - Postgres: `recovery_target_time = T` (WAL replay)
+   - RocksDB: checkpoint sequence# ≤ T + WAL replay to T
+   - Iceberg: `AS OF TIMESTAMP T` (snapshot-as-of-timestamp)
+   - Detection content git: commit at T / `git bundle`
+   - LanceDB/KG+vector: version corresponding to T
+3. A **backup-set manifest** binds the per-store snapshot identifiers (Postgres LSN,
+   RocksDB checkpoint seq#, Iceberg snapshot-id, git bundle SHA, KG+vector version) to
+   the single T. Restore = read the manifest, bring each store to its recorded identifier
+   via its own time-travel mechanism.
+4. T MUST be the same `AS OF KNOWN <T>` watermark the query engine exposes (C8
+   bitemporality — `ADR-PROP-prismql-deliverables.md`): backup recovery point =
+   bitemporal query point. A recovered cluster serves `AS OF KNOWN T` queries consistent
+   with the pre-failure state without additional transforms.
+5. Reserve a physical application-consistent freeze for the few most tightly-coupled
+   components only (components with sub-second write-path synchrony and no independent
+   time-travel mechanism). Default: empty set; identify at morph.
+6. Set per-store retention windows collectively to a **common floor** so that the
+   cross-store RPO is not silently bounded by the shortest per-store window.
+
+**Originating feature.** `ADR-PROP-backup-recovery.md` (C17 D-C17-SF2).
+
+**Composes with.** C8 bitemporality (`AS OF KNOWN <T>` semantics); PAT-ADS-03 (Signed-
+Offline-Bundle, for air-gap and satellite backup bundles); PAT-ADS-12 (Compliance Profile
+DR-tier axis governs the retention floor and target RPO/RTO tier).
+
+---
+
+### PAT-ADS-16 — Sealed-Blob Key Escrow + Crypto-Shred
+
+**When to use.** Key backup/recovery must coexist with operator-zero-access (INV-ADS-02).
+The operator needs to store backup artifacts (including key blobs) but MUST NOT acquire
+the ability to decrypt tenant data unilaterally.
+
+**Structure.**
+1. **Envelope:** per-tenant DEK (AES-GCM, encrypts tenant data) wrapped by per-tenant
+   CMEK/KEK (SS-26 HD-1 + HD-4). This is the standard Option-3 envelope; recovery does
+   not alter it.
+2. **Operator stores ONLY sealed/wrapped key blobs it cannot unwrap.** The wrapping key
+   that seals the blob is held by the tenant (tenant-held recovery key / on-prem HSM /
+   external key manager) or distributed across independent custodians (M-of-N split).
+3. **DEFAULT — Tenant-held recovery key:** the tenant's CMEK hierarchy is backed up as
+   blobs encrypted under a key only the tenant controls. On recovery, the operator
+   facilitates blob transport; the tenant unwraps. Operator = zero unilateral recovery
+   capability.
+4. **OPTIONAL — M-of-N threshold escrow tier (Shamir):** the recovery/root key is split
+   into `n` shares, threshold `k`; shares distributed across tenant + auditor + regulator
+   + (optionally) operator. No single party recovers alone. Modelled on HashiCorp Vault
+   recovery keys. Audited break-glass: every use logged, reviewed, dual-controlled.
+5. **Configuration:** the escrow model is a per-tenant or Compliance-Profile key-custody
+   setting (PAT-ADS-12). The zero-access promise wording is **"no unilateral operator
+   access"** — precise and correct for both the tenant-held default and the M-of-N
+   optional tier.
+6. **Crypto-shredding = erasure primitive AND zero-access reconciliation:** destroy the
+   tenant's CMEK key → ALL encrypted data in ALL stores (including old backup media)
+   becomes unreadable ciphertext. This is the GDPR right-to-erasure mechanism for pooled
+   stores, the tenant offboarding primitive, and the reconciliation that makes operator-
+   zero-access hold end-to-end: the operator always held only ciphertext; once the key is
+   destroyed, the data is cryptographically dead.
+
+**Originating feature.** `ADR-PROP-backup-recovery.md` (C17 D-C17-SF1).
+
+**Composes with.** P-ADS-02 (Operator-Zero-Access-At-Rest); P-ADS-04 (Tenant-Keyed-
+Central-Persistence); PAT-ADS-03 (Signed-Offline-Bundle — backup bundles use the same
+signing infrastructure); INV-ADS-02 (operator zero-access); INV-ADS-10 (new — see C.1).
+
+---
+
 ## Section C — Invariants and Conformance
 
 ### C.1 — Cross-Cutting Invariants (INV-ADS-NNN)
@@ -963,6 +1042,7 @@ Any new ADR-PROP or epic that violates an INV-ADS-NNN is non-conforming.
 | INV-ADS-07 | OCSF normalization applies at ALL adapter boundaries. No trusted-source exemption. | D-C4-1 (no-exemption rule) | `ADR-PROP-dynamic-schema-connectors.md` |
 | INV-ADS-08 | Embedded air-gap deployment is the default reference target. No feature may require internet connectivity for correct operation in the air-gap profile. | SS-26 SoftwareKms HD-1 | `secret-subsystem-sketch.md` |
 | INV-ADS-09 | Every authorization DECISION (subject, resource, action, attributes considered, policy bundle version, outcome) is logged at decision-resolution time — not merely at the access event. Offline satellites buffer decision logs locally and reconcile to Central on reconnect. | C18 decision-log (strongest enforcement); offline buffer + reconcile | `ADR-PROP-rbac-depth.md` D-C18-7 |
+| INV-ADS-10 | Backups are customer-managed-key encrypted (operator stores ciphertext only); key escrow stores only operator-unwrappable blobs (no unilateral operator recovery); crypto-shred is the erasure primitive. Recoverability MUST NOT grant the operator at-rest access to tenant data. | C17 sealed-blob escrow + CMK backup encryption (strongest enforcement) | `ADR-PROP-backup-recovery.md` D-C17-SF1 |
 
 ### C.2 — Conformance Checklist
 
@@ -1021,7 +1101,7 @@ P-ADS-10: Idempotent-Gated-Actions
   [ ] Do all write/action paths carry idempotency keys?
   [ ] Is the autonomy gate system-configured, not agent-configured?
 
-INV-ADS check (all eight):
+INV-ADS check (all ten):
   [ ] INV-ADS-01: No raw sensor data at Central
   [ ] INV-ADS-02: Operator zero-access at rest
   [ ] INV-ADS-03: Per-tenant isolation enforced
@@ -1031,6 +1111,8 @@ INV-ADS check (all eight):
   [ ] INV-ADS-07: OCSF normalization at all boundaries
   [ ] INV-ADS-08: Air-gap deployment is valid reference profile
   [ ] INV-ADS-09: authorization decisions are logged, not just access
+  [ ] INV-ADS-10: backups + key recovery preserve operator-zero-access (CMK-encrypted
+      backups, sealed-blob key escrow, crypto-shred erasure primitive)
 ```
 
 ### C.3 — Known Conformance Gaps (from Ripple Audit)
@@ -1299,6 +1381,7 @@ systematic conformance run against the Day-2 ADR-PROP corpus. Sections:
 | `ADR-PROP-rbac-depth.md` | P-ADS-01, P-ADS-06, P-ADS-09, P-ADS-13 | PAT-ADS-13, PAT-ADS-03, PAT-ADS-10 | INV-ADS-03, INV-ADS-04, INV-ADS-05, INV-ADS-06, INV-ADS-09 |
 | `ADR-PROP-compliance-profiles.md` | P-ADS-09, P-ADS-11, P-ADS-12, P-ADS-13 | PAT-ADS-12, PAT-ADS-03, PAT-ADS-10 | INV-ADS-02, INV-ADS-03, INV-ADS-04 |
 | `ADR-PROP-entity-masking.md` | P-ADS-02, P-ADS-03, P-ADS-06, P-ADS-07 | PAT-ADS-14, PAT-ADS-07 | INV-ADS-01, INV-ADS-02, INV-ADS-03, INV-ADS-06 |
+| `ADR-PROP-backup-recovery.md` | P-ADS-02, P-ADS-04, P-ADS-11 | PAT-ADS-15, PAT-ADS-16, PAT-ADS-03 | INV-ADS-02, INV-ADS-03, INV-ADS-10 |
 
 ### CLAUDE.md Cross-References
 
@@ -1328,5 +1411,6 @@ architecture tier and must be consistent with this ADS:
 | v1.1 | 2026-06-27 | P-ADS-02 clarification (C19 operator-zero-access spectrum + MSSP mediated-access semantics); AP-ADS-11 Cross-Tenant DEK Grantee added (C19 key-plane isolation); P-ADS-13 Configurable-Not-Prescriptive (Policy-as-Configuration) added (C18 configurability directive); P-ADS-11 cross-reference to P-ADS-13 added. |
 | v1.2 | 2026-06-27 | C18 capture: added PAT-ADS-12 (Configurable Compliance Profile), PAT-ADS-13 (Layered-Authz), INV-ADS-09 (Decision-Level Authorization Audit); INV-ADS-09 check line added to Section C.2 Conformance Checklist; traceability rows for ADR-PROP-rbac-depth.md + ADR-PROP-compliance-profiles.md added to Section E. |
 | v1.3 | 2026-06-27 | C16 capture: P-ADS-07 sharpened (clearing-house enforcement mechanism + embeddings-are-sensitive-data-class + dual-index + zero-vault-wiring structural invariant); added PAT-ADS-14 (Edge-Tokenizing-Clearing-House); traceability row for ADR-PROP-entity-masking.md added to Section E. |
+| v1.4 | 2026-06-27 | C17 capture: added PAT-ADS-15 (Logical-Watermark Cross-Store Backup), PAT-ADS-16 (Sealed-Blob Key Escrow + Crypto-Shred), INV-ADS-10 (Recoverability Preserves Operator-Zero-Access); INV-ADS-10 check line added to Section C.2 Conformance Checklist; traceability row for ADR-PROP-backup-recovery.md added to Section E. |
 
-*End of Prism Architecture Design System v1.3 — 2026-06-27*
+*End of Prism Architecture Design System v1.4 — 2026-06-27*
