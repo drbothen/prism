@@ -111,11 +111,47 @@ compete in sensitive verticals (OT, financial, healthcare, government).
   store, day one.
 - OQ-DEPLOY-2 gap (d): "CMEK for central metadata" — now a pre-launch REQUIRED
   item (ripple audit Section 2 CONFLICT-2).
+- `ADR-PROP-nested-tenancy.md` §4 (MSSP reconciliation; authorized mediated access
+  clarification; operator-zero-access spectrum across three operating models).
 
 **Boundary.** This principle governs at-rest data, not in-transit data. In-transit
 residency (OQ-DEPLOY-2 gap a) is a separate concern. This principle also does NOT
 apply to control-plane data that is not client-data: RBAC role definitions, IdP
 config, audit log metadata — these have their own operator-access governance.
+
+**Clarification (C19, 2026-06-27).** The guarantee is about **UNMEDIATED at-rest
+access with operator-controlled keys**. It is NOT violated by authorized, RBAC-scoped,
+audited, consented access by a managing party (an MSSP analyst or a parent tenant
+with proper visibility grants) to the DERIVED corpus, provided that access travels
+through a **mediated tenant-key path** — meaning: the client's own DEK decrypts (not
+an operator-held key), the access is Central-session-authenticated (P-ADS-01), RBAC-
+scoped to delegated clients, and fully attributed in the audit trail.
+
+Key distinctions for the MSSP operating model:
+
+- **What P-ADS-02 blocks:** rogue infra access; raw disk/backup access; subpoena-to-
+  vendor (operator served but does not hold the key); access by non-onboarded parties.
+- **What P-ADS-02 does NOT block:** authorized analyst access to delegated clients
+  via an authenticated Central session where the CLIENT's DEK decrypts. The managed-
+  service onboarding IS the consent. This is the MSSP value proposition — governed,
+  audited, revocable — not a grudging exception to the principle.
+- **MSSP-managed standard posture:** P2 Operational visibility (derived_rows +
+  findings_alerts + config) via per-client delegation with full trust controls (pairing,
+  persistent child-side indicator, granular revocation, child-side audit trail). This
+  is the core MSSP operating mode; it differs from P3 transparent-subtree in legal
+  basis and consent ceremony, not in raw capability.
+
+Operator-zero-access is a **spectrum** across the three operating models:
+
+| Operating model | Zero-access character |
+|---|---|
+| Client-managed / BYOC | Strongest — client holds keys; operator CANNOT decrypt |
+| SaaS | Vendor sees ciphertext at rest; tenant-keyed CMEK means vendor cannot decrypt without tenant key |
+| MSSP-managed | Key separation (per-client DEK/CMEK) + audited mediated access + per-client key isolation. Not cryptographic impossibility — cryptographic proof that access is authorized, attributable, and revocable |
+
+The MSSP default key custody is CLIENT-HELD CMEK (SS-26 CMEK/HYOK) by default;
+MSSP-custodied SoftwareKms is an opt-down. This design maximizes the zero-access
+differentiator even in the MSSP-operated model.
 
 ---
 
@@ -223,8 +259,10 @@ derived output, encrypted under the tenant key.
 
 **Statement.** Strict per-tenant partitioning is enforced everywhere: graph/
 vector/entity-resolution state, keys, config, cache, and audit. No cross-tenant
-edges, similarity scores, or data joins. Nested tenancy rides ONE OrgId
-abstraction — no super-tenant visibility layer exists.
+edges, similarity scores, or data joins. Nested tenancy (C19) adds hierarchy to
+the OrgId abstraction but does not weaken per-tenant isolation — each node in
+the hierarchy retains its own DEK, and cross-tenant visibility requires explicit
+consent via the visibility-grant matrix (see `ADR-PROP-nested-tenancy.md` §3).
 
 **Rationale.** An MSSP is a multi-tenant system where each client IS a
 competitor's intelligence picture. Cross-tenant data leakage would be a
@@ -238,6 +276,13 @@ structural enforcement.
 - SS-26 per-tenant DEK envelope.
 - `ADR-PROP-sso-identity.md`: tenant/user/RBAC in PostgreSQL per-tenant.
 - OrgSlug newtype in existing codebase (CLAUDE.md §Conventions).
+- `ADR-PROP-nested-tenancy.md` PIV-C19-1..6 (isolation invariants under nesting).
+
+**Key-plane enforcement:** AP-ADS-11 (Cross-Tenant DEK Grantee) is the specific
+anti-pattern that violates this principle at the cryptographic key layer — adding
+another tenant's principal as a persistent grantee on a tenant's DEK is the key-
+plane form of cross-tenant isolation violation. See AP-ADS-11 for the full analysis
+and the three correct alternatives.
 
 ---
 
@@ -857,6 +902,11 @@ correlation computation itself creates cross-tenant data access, regardless of
 what each tenant sees. Per-tenant isolation must hold at the computation layer,
 not just the result layer.)
 
+**See also:** AP-ADS-11 (Cross-Tenant DEK Grantee) for the key-plane analog —
+adding another tenant's principal as a persistent grantee on a tenant's DEK is
+the cryptographic form of the same violation this anti-pattern addresses at the
+data/graph layer.
+
 ---
 
 ### AP-ADS-06 — Ungated or Non-Idempotent Auto-Actions
@@ -933,6 +983,49 @@ necessary; do not ship it incomplete.)
 
 ---
 
+### AP-ADS-11 — Cross-Tenant DEK Grantee (amended 2026-06-27, C19)
+
+**Forbidden.** Adding a parent tenant's (or any other tenant's) service account
+or principal as a **persistent KMS grantee** (`cryptoKeyEncrypterDecrypter` in
+GCP terminology, or an equivalent persistent KMS key policy grant in AWS/Azure)
+on another tenant's DEK.
+
+**Violates.** P-ADS-06 (Per-Tenant-Isolation), INV-ADS-03 (per-tenant partition
+strict everywhere, no cross-tenant key sharing).
+
+**Common form.** "The easiest way to let the parent see the child's data is to
+add the parent's service account to the child's KMS key." This "easiest path"
+persistently extends decryption rights across tenant boundaries and blurs the
+semantics of per-tenant key isolation — directly contradicting the GCP multi-
+tenancy baseline ("dedicated service accounts per customer; strongly prohibit
+service accounts accessing across customer tenants") and Prism's own INV-ADS-03.
+
+**Why this feels tempting.** Mechanism (c) (parent-as-grantee on child DEK)
+appears in cloud documentation as a legitimate sharing pattern — and it IS
+legitimate for same-principal / same-tenant data sharing. It becomes the wrong
+mechanism when the grantee is a DIFFERENT tenant, because it creates a persistent
+cross-tenant decryption right that cannot be cleanly scoped to a single query or
+operation, is harder to audit at the application layer (KMS logs may not
+distinguish which tenant initiated the decrypt), and breaks the never-share-a-DEK
+invariant that P-ADS-06 depends on.
+
+**Correct alternatives:**
+- **For persisted parent-visible artifacts:** mechanism (b) — KMS `ReEncrypt`
+  / proxy-re-encryption transforms ciphertext from the child key to the parent
+  key inside the KMS boundary; the parent reads data under its OWN key. No DEK
+  is shared.
+- **For live in-query parent visibility:** mechanism (a) — consent-scoped
+  transient decryption under the child key, scoped to the query duration,
+  never persisted under the child key for the parent, fully audited child-side.
+- **For OT / highest-assurance:** mechanism (d) — BYOC remote-op + HYOK + TEE;
+  parent never holds keys at all.
+
+See `ADR-PROP-nested-tenancy.md` §3.6 (Key-Custody Composition Table) for the
+full mechanism analysis. See also AP-ADS-05 (no cross-tenant edges or similarity)
+for the data-plane analog of this key-plane rule.
+
+---
+
 ## Section E — Cross-References
 
 ### Ripple Audit (Seeding Document)
@@ -967,6 +1060,7 @@ systematic conformance run against the Day-2 ADR-PROP corpus. Sections:
 | `ADR-PROP-sso-identity.md` | P-ADS-01, P-ADS-06 | — | INV-ADS-03 |
 | `ADR-PROP-storage-engine-taxonomy.md` | P-ADS-04 | PAT-ADS-02 | INV-ADS-01 |
 | `ADR-PROP-web-stack.md` | P-ADS-01, P-ADS-10 | — | INV-ADS-05 |
+| `ADR-PROP-nested-tenancy.md` | P-ADS-01, P-ADS-02, P-ADS-04, P-ADS-06, P-ADS-09, P-ADS-11 | PAT-ADS-02 | INV-ADS-01..08 (all pass) |
 | `ADR-PROP-sandboxed-expression-evaluator.md` | P-ADS-01 | — | — |
 | `ADR-PROP-widget-dsl-render-and-schema-validation.md` | P-ADS-01 | — | — |
 | `prismql-sequence-sugar-decisions.md` | P-ADS-01, P-ADS-09 | — | INV-ADS-04 |

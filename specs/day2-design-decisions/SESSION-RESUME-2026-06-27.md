@@ -9,11 +9,11 @@ provenance: "Day-2 vision SIDE-ANALYSIS program resume snapshot. SEPARATE from t
 # Day-2 Vision Side-Analysis — Zero-Context Resume Snapshot (2026-06-27)
 
 > **Original C-program (C1–C10 + deployment-matrix + C3 hard-reject reconciliation) COMPLETE and committed.
-> PRE-B feature track: C13 ✅ C12 ✅ C11 ✅ C15 ✅ — now at C14 (next). ADS (Architecture Design System)
-> created and locked as conformance frame. Surfacing model LOCKED = Option 3. Conformance pass DONE.
-> B remains LAST and gated on the §5.1 brief-reframe HUMAN sign-off.**
+> PRE-B feature track: C13 ✅ C12 ✅ C11 ✅ C15 ✅ C14 ✅ C19 ✅ — now at C18 (next). ADS (Architecture
+> Design System) created and locked as conformance frame. Surfacing model LOCKED = Option 3. Conformance
+> pass DONE. B remains LAST and gated on the §5.1 brief-reframe HUMAN sign-off.**
 >
-> **Latest factory-artifacts HEAD: `b6314532`**
+> **Latest factory-artifacts HEAD: `(this checkpoint)`**
 >
 > **READ THIS FIRST on resume.** This is OUT-OF-BAND day-2 vision work, fully SEPARATE from the live
 > VSDD factory pipeline (which runs its own cascades on the same `factory-artifacts` branch). Everything
@@ -27,8 +27,8 @@ provenance: "Day-2 vision SIDE-ANALYSIS program resume snapshot. SEPARATE from t
   NEVER `git add research/` (would sweep live-factory research files). Leave `.DS_Store` and any
   live-factory files (e.g. `research/demo-finding-remediation-plan-*.md`, `research/test-suite-performance-*.md`)
   UNSTAGED. Push to `origin/factory-artifacts` under standing auth D-1066; on divergence fetch + `pull --rebase`
-  (the live factory pushes concurrently); never `--no-verify`/`--force`. Last side HEAD: **b6314532**
-  (C15 decided + ADR-PROP-soar-actions-aro.md captured; prior: C12/C11 decided + ADS created + Option-3 lock + conformance pass).
+  (the live factory pushes concurrently); never `--no-verify`/`--force`. Last side HEAD: **02599c9b**
+  (ocsf-ot-coverage banked + SESSION-RESUME updated; prior: C15 decided + ADR-PROP-soar-actions-aro.md captured).
 - Working rhythm per area: research-agent pass (background) → I synthesize + give leans → AskUserQuestion on the
   genuine forks → architect captures decisions into the doc/ADR-PROPs → state-manager path-scoped commit.
   Pipeline research ~2–3 areas ahead. Confirm decisions before writing big new sections (mirror→confirm→write).
@@ -317,6 +317,16 @@ Recorded in `ARCHITECTURE-DESIGN-SYSTEM.md` as INV-ADS cross-cutting invariant. 
 - **Air-gap:** reuse C9 signed-bundle mechanism for air-gap intel delivery.
 - **PSI (Private Set Intersection):** evaluated and rejected (complexity vs. benefit; BYOC zero-access already satisfied by feed-down architecture).
 
+#### C19 — Nested tenancy — FULLY DECIDED + CAPTURED (ADR-PROP-nested-tenancy.md, this checkpoint)
+- **Tree model:** Adjacency list + closure table + materialized path — three complementary representations; adjacency = source-of-truth writes; closure = O(1) subtree queries; materialized-path = display breadcrumbs and prefix-routing.
+- **SF-1 (inheritance):** Hybrid — policy + role explicit-override at any node; configurable propagation modes (inherit/override/isolate) per policy class; OQ-DEPLOY-1 CLOSED.
+- **SF-2 (depth):** Unlimited tree depth + configurable soft-cap (default 8) + operator hard-override; no arbitrary depth ceiling in the data model.
+- **SF-3 (parent-visibility):** Visibility-grant matrix; P3 (transparent-subtree to parent) gated to same-legal-entity + re-encrypt-on-grant + transient key custody (KEK never at rest on parent); parent-as-grantee for cross-org tenants forbidden (AP-ADS-11); regulatory_class field overrides visibility grant for CUI/BCSI.
+- **SF-4 (encryption):** Configurable flat-DEK-or-nested-KEK; per-node DEK default; MSSP-managed = client-held CMEK by default; P-ADS-02 sharpened to distinguish unmediated-at-rest access from authorized-mediated access.
+- **SF-5 (reparenting):** Audited reparenting (full audit trail, policy re-evaluation at move time, orphan-prevention guard); cross-legal-entity moves gated by regulatory_class check.
+- **MSSP reconciliation:** P-ADS-02 sharpened; MSSP-managed operating model uses the bridge-node pattern (MSSP_ROOT → client subtrees); client-held CMEK is the default key custody; no cross-client data path by construction.
+- **ADS conformance:** all 8 INV-ADS pass; AP-ADS-11 (Cross-Tenant DEK Grantee) added to ADS anti-patterns; Option-3 Central-Sole-Surface satisfied (tree stored at central; satellites receive subtree views only).
+
 ## 3. THE C-PROGRAM (the active plan — "do each remaining day-2 area")
 Each area: research → discuss → decide → capture → commit. **B = integration capstone LAST.**
 
@@ -342,7 +352,7 @@ Each area: research → discuss → decide → capture → commit. **B = integra
 
 A new batch of feature areas was confirmed BEFORE B — all require research + discussion + decisions + capture. Research is banked for C12 ✅, C11 ✅, C15 (double-banked) ✅, C14 ✅, and ALL remaining items (C19, C18, C16, C17, C20 — commit 664cbbd1). B remains the final capstone, gated on §5.1 brief-reframe HUMAN sign-off.
 
-**Dependency-aware order (human-confirmed): C13 ✅ → C12 ✅ → C11 ✅ → C15 ✅ → C14 ✅ → C19 → C18 → C16 → C17 → C20 → B**
+**Dependency-aware order (human-confirmed): C13 ✅ → C12 ✅ → C11 ✅ → C15 ✅ → C14 ✅ → C19 ✅ → C18 → C16 → C17 → C20 → B**
 
 **Cross-cutting conformance frame:** ALL remaining items (C15, C14, C19, C18, C16, C17, C20, B) must pass the ADS conformance checklist (`ARCHITECTURE-DESIGN-SYSTEM.md`) before capture. The first conformance pass (10 ripple-audit items across 9 ADR-PROPs) is done.
 
@@ -356,7 +366,7 @@ A new batch of feature areas was confirmed BEFORE B — all require research + d
 | C11 | Prism Intel — hosted threat-intel/auto-advisory tied to Entity 360 | ✅ DONE (commit 7c068714) — ADR-PROP-prism-intel.md; feed-down/match-at-edge; opt-in central-match for non-BYOC SaaS; deployment-conditional metering; free public + paid curated tiers; C9 signed-bundle for air-gap; PSI rejected | C12 Entity 360, C9 signed-bundle, BYOC zero-access, Option-3 |
 | C15 | Actions in PrismQL / SOAR + on-prem models (Action·Recommendation·Observation) | ✅ DONE (commit b6314532 — `ADR-PROP-soar-actions-aro.md`) — recommend-only v1 + autonomy ladder designed/enable-post-v1; three typed entities (Observation/Recommendation/Action) over common base; Recommendations from BOTH S3 agent layer AND read-only PrismQL `RECOMMEND` projection (perimeter-compile-fail-tested, source-discriminated provenance); full rec-rigor day one (W3C-PROV + calibrated confidence + conformal sets + mandatory post-hoc citation-faithfulness); separate `prism-orchestration` Action layer (HITL gates, idempotency, dry-run, rollback, AD-017 reference-based write-creds); on-prem models (Qwen3/Mistral central, Phi-4-mini/Ministral edge, Llama Prompt Guard guardrails) via C7 ModelBackend; ARO linkage rides C12 graph; ADS-conformant (all 8 INV pass) | C7 ModelBackend, S3 agent, C10 GAP-Q2, C18, AD-017, aletheon aros |
 | C14 | Active-query device support (Industrial Defender class) | ✅ DONE (commit 59864881 — `ADR-PROP-active-query-devices.md`) — Reading A+B both in v1 (federate OT-platform APIs + direct OT-protocol field-device polling, poller-of-last-resort); active-query = capability-axis on C3/C4 (not a new connector class); read-only-perimeter (writes via C15); OT-safety guardrails as hard invariants; OT asset/config/vuln modeled as OCSF source tables; Reading-B protocol libs as plugins/sidecar; ADS-conformant | C3/C4 connectors, C15 (write perimeter), C20 (OT/ICS) |
-| C19 | Nested tenancy (parent→child→… unlimited) | 🔬 research BANKED (commit 664cbbd1 — `research/nested-tenancy-2026-06-27.md`) — bridge model + per-node isolation_tier, resolves OQ-DEPLOY-1 | CLOSES OQ-DEPLOY-1; C18 (role inheritance), C16 (detokenize-at-surface) |
+| C19 | Nested tenancy (parent→child→… unlimited) | ✅ DONE (ADR-PROP-nested-tenancy.md) — bridge + per-node isolation_tier closes OQ-DEPLOY-1; adjacency+closure+materialized-path tree; SF-1 hybrid / SF-2 unlimited+soft-cap-8 / SF-3 visibility-grant matrix (P3 transparent-subtree gated same-legal-entity; (c) forbidden→AP-ADS-11; regulatory_class override) / SF-4 configurable flat-DEK-or-nested-KEK / SF-5 audited reparenting; MSSP reconciliation sharpened P-ADS-02; MSSP key custody default = client-held CMEK | CLOSES OQ-DEPLOY-1; C18 (role inheritance), C16 (detokenize-at-surface) |
 | C18 | RBAC depth (into connectors/satellites) | 🔬 research BANKED (commit 664cbbd1 — `research/rbac-depth-2026-06-27.md`) — layered RBAC+ReBAC+ABAC, engine build-vs-adopt fork | CLOSES C10 Query-RBAC gap; extends C9 / E-CENTRAL-AUTHZ-001; C19 (role inheritance), C16 (detokenize-at-surface), C15 (approver roles), C17 (key-escrow Option-3 CMEK) |
 | C16 | Entity masking / tokenizing clearing house (AI-opaque data; BCSI→universal name) | 🔬 research BANKED (commit 664cbbd1 — `research/entity-masking-tokenization-2026-06-27.md`) — edge clearing-house, vaulted tokenization, RSI naming | extends AD-017; C20 confirms BCSI canonical + recommends "RSI" abstraction; C18 (detokenize-at-surface via RBAC) |
 | C17 | Backup & recovery (first-class) | 🔬 research BANKED (commit 664cbbd1 — `research/backup-recovery-2026-06-27.md`) — logical-watermark+per-store time-travel tied to C8, key-escrow fork | C9 config + bootstrap-recovery; C20 CIP-009; C18 (key-escrow Option-3 CMEK) |
@@ -380,12 +390,12 @@ Folded into ADR-PROP-prismql-deliverables.md (commit b6fa1465).
 
 ## 5. EXACT NEXT ACTION ON RESUME
 
-**C14 ✅ DONE. C15 ✅ C12 ✅ C11 ✅ done. ADS created, Option-3 locked, conformance pass done. The pre-B feature track continues at C19.**
+**C19 ✅ DONE. C14 ✅ C15 ✅ C12 ✅ C11 ✅ done. ADS created, Option-3 locked, conformance pass done. The pre-B feature track continues at C18.**
 
-**NEXT: C19 — Nested tenancy (parent→child→… unlimited)**
-- Research IS banked: `research/nested-tenancy-2026-06-27.md` (commit 664cbbd1) — bridge model + per-node isolation_tier, resolves OQ-DEPLOY-1.
+**NEXT: C18 — RBAC depth (into connectors/satellites)**
+- Research IS banked: `research/rbac-depth-2026-06-27.md` (commit 664cbbd1) — layered RBAC+ReBAC+ABAC, engine build-vs-adopt fork.
 - Proceed directly to discussion + decision + capture (ADS conformance checklist required before capture).
-- Cross-wiring to note: C18 RBAC (role inheritance) ↔ C19 nested-tenancy ↔ C16 masking (detokenize-at-surface via RBAC) ↔ C15 approver roles ↔ C17 key-escrow (Option-3 CMEK). Decisions must be mutually consistent.
+- Cross-wiring to note: C18 RBAC role-inheritance ↔ C19 (role, scope-node)+closure-table model just decided (ADR-PROP-nested-tenancy.md). Decisions must be mutually consistent across C18↔C19↔C16↔C15↔C17.
 
 **C14 follow-up research BANKED (committed alongside this checkpoint):**
 - `research/ocsf-ot-coverage-2026-06-27.md` — C14 sub-fork F4: OCSF-OT schema coverage. COMPLETE. Committed in same burst as this resume-doc edit (path-scoped).
@@ -399,12 +409,11 @@ Folded into ADR-PROP-prismql-deliverables.md (commit b6fa1465).
 - C20: research BANKED — `research/nerc-cip-support-2026-06-27.md` (scheduled LAST)
 
 **Ordered queue — work through left-to-right, do not skip:**
-1. **C19** — Nested tenancy — **NEXT** (research banked; proceed to discussion + decision + capture)
-2. C18 — RBAC depth (research banked)
-3. C16 — Entity masking / tokenizing clearing house (research banked)
-4. C17 — Backup & recovery (research banked)
-5. C20 — NERC CIP (research banked; scheduled LAST — synthesizes all prior)
-6. **B — integration capstone** (GATED on §5.1 brief-reframe HUMAN sign-off)
+1. **C18** — RBAC depth — **NEXT** (research banked; proceed to discussion + decision + capture; note cross-wiring with C19 closure-table model)
+2. C16 — Entity masking / tokenizing clearing house (research banked)
+3. C17 — Backup & recovery (research banked)
+4. C20 — NERC CIP (research banked; scheduled LAST — synthesizes all prior)
+5. **B — integration capstone** (GATED on §5.1 brief-reframe HUMAN sign-off)
 
 Each remaining item must conform to `ARCHITECTURE-DESIGN-SYSTEM.md` conformance checklist before capture.
 
@@ -427,10 +436,11 @@ Superseded capture queue (all DONE — do not re-execute):
 - ~~C15 discussion + capture → ADR-PROP-soar-actions-aro.md~~ ✅ b6314532
 - ~~C14 discussion + capture → ADR-PROP-active-query-devices.md~~ ✅ 59864881
 - ~~C19/C18/C16/C17/C20 research banking~~ ✅ 664cbbd1
+- ~~C19 discussion + capture → ADR-PROP-nested-tenancy.md~~ ✅ (this checkpoint)
 
 ## 6. BASELINE (git state at session wrap)
 
-- **factory-artifacts HEAD (current):** `664cbbd1` — C19/C18/C16/C17/C20 research files banked (5 research files committed)
+- **factory-artifacts HEAD (current):** `(this checkpoint)` — C19 nested-tenancy decided + captured (see commit chain below)
 - **Full commit chain for this day-2 side-analysis** (day-2 side commits; live factory interleaved its own commits on the shared branch between these):
   - `b53b22ba` — C9 schema-versioning (Q3) resolved + ADR-PROP-config-management + backing research
   - `91abba90` — deployment matrix captured (ADR-PROP-dual-deployment, three operating models)
@@ -447,7 +457,8 @@ Superseded capture queue (all DONE — do not re-execute):
   - `abe5b077` — [live factory interleave — see factory track]
   - `59864881` — C14 decided + ADR-PROP-active-query-devices.md captured (Reading A+B in v1; active-query as capability-axis; OT-safety guardrails; OCSF OT source tables; Reading-B protocol libs as plugins/sidecar; ADS-conformant)
   - `664cbbd1` — C19/C18/C16/C17/C20 research files banked (nested-tenancy, rbac-depth, entity-masking-tokenization, backup-recovery, nerc-cip-support)
-  - `(this checkpoint)` — ocsf-ot-coverage-2026-06-27.md banked + SESSION-RESUME-2026-06-27.md updated; path-scoped commit
+  - `02599c9b` — ocsf-ot-coverage-2026-06-27.md banked + SESSION-RESUME-2026-06-27.md updated; path-scoped commit
+  - `(this checkpoint)` — C19 nested-tenancy decided + ADR-PROP-nested-tenancy.md captured + SF-3 parent-visibility research banked + ADS amended (P-ADS-02 sharpened, AP-ADS-11 added); path-scoped commit
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory files left unstaged). No dangling in-flight research.
 
@@ -479,6 +490,10 @@ E-DUAL-DEPLOYMENT-001 (three operating models + deployment-profile mechanism).
 **New C14 proposed epics:**
 - E-ACTIVE-QUERY-001 — Active-query / polling device support: capability-axis on C3/C4 connector machinery; OT asset/config/vuln as OCSF source tables; Reading-A (OT-platform API federation) + Reading-B (direct OT-protocol field-device polling, poller-of-last-resort); read-only perimeter (writes gated via C15 autonomy ladder); OT-safety guardrails as hard invariants; ADS-conformant
 - E-OT-PROTOCOL-CONNECTORS-001 — OT protocol connector library: Reading-B plugin/sidecar architecture for direct field-device polling (Modbus, EtherNet/IP, DNP3, IEC 61850, BACnet, OPC-UA); protocol libs as WASM plugins or sidecar processes; air-gap capable; phased rollout (platform-native APIs first, direct protocol second)
+
+**New C19 proposed epics (PROPOSED):**
+- E-NESTED-TENANCY-001 — Nested tenancy: adjacency+closure+materialized-path tree; unlimited depth + soft-cap-8 + soft-cap-override; per-node isolation_tier (bridge/silo-subtree/cell-subtree); audited reparenting; MSSP-managed operating model multi-client hierarchy; ADS-conformant (ADR-PROP-nested-tenancy.md)
+- E-TENANT-VISIBILITY-001 — Tenant parent-visibility controls: SF-3 visibility-grant matrix; P3 transparent-subtree gated to same-legal-entity + re-encrypt + transient key custody; parent-as-grantee forbidden (AP-ADS-11); regulatory_class override; MSSP CMEK default = client-held
 
 **ADS conformance frame:** `ARCHITECTURE-DESIGN-SYSTEM.md` is the canonical conformance reference for all epics above and all remaining C-items. Every epic capture must satisfy the ADS conformance checklist (12 Principles, 11 Patterns, 8 Invariants, no anti-patterns) and the Central-Sole-Surface (Option-3) invariant.
 

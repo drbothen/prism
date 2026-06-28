@@ -3469,6 +3469,72 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
     C12 (OT asset graph), C15 (writes/commands gated — never via query fanout), C20 (OT/NERC-CIP).
   - Proposed epics: E-ACTIVE-QUERY-001 (Reading A) + E-OT-PROTOCOL-CONNECTORS-001 (Reading B).
 
+- **C19 Nested / Hierarchical Tenancy DECIDED + CAPTURED 2026-06-27 (human).** Full decision
+  record covering tree representation, isolation tier, config/policy inheritance (SF-1), depth
+  policy (SF-2), parent visibility model (SF-3), key custody (SF-4), reparenting (SF-5), RBAC,
+  metering, and MSSP reconciliation. Capture artifact:
+  `specs/day2-design-decisions/ADR-PROP-nested-tenancy.md` (`do_not_execute: true`; real ADR
+  numbers deferred to morph). Research basis: `research/nested-tenancy-2026-06-27.md` +
+  `research/nested-tenancy-parent-visibility-2026-06-27.md`.
+  - **Tree (D-C19-1):** adjacency list (`parent_id` on existing OrgId/OrgSlug node) as
+    source of truth + closure table (`ancestor, descendant, depth`) as auth/RBAC/policy/
+    metering read-index + optional materialized path for cell/shard placement. Nested-set
+    rejected (write-hostile to tenant onboarding).
+  - **Isolation tier closes OQ-DEPLOY-1 (D-C19-2):** bridge by default; `isolation_tier`
+    (pool | silo | cell) as per-node tenant attribute, orthogonal to the logical hierarchy.
+    Prism is already a bridge (satellite data-plane silo/cell by construction per D-C2-12;
+    Central control-plane pool-with-row-scoping). OQ-DEPLOY-1 RESOLVED: bridge + per-node tier.
+  - **SF-1 inheritance (D-C19-3):** HYBRID — config values inherit-then-child-override
+    (GCP-ergonomic); security guardrails intersect + parent-deny-is-final (AWS-SCP ceiling
+    a child cannot widen). Effective config computed at Central plan-time; satellites receive
+    flattened result (keeps C9 Config-DB-Authoritative / INV-ADS-04 clean).
+  - **SF-2 depth (D-C19-4):** unlimited depth technically (closure table is depth-agnostic)
+    + configurable soft cap, default 8, overridable per-deployment. Central UI provides
+    ancestor breadcrumbs + inherited-vs-overridden config diff + effective-config preview.
+  - **SF-3 parent visibility (D-C19, §3):** configurable visibility-grant matrix (data-class
+    {derived_rows | findings_alerts | config | audit | metering} × grant-scope × default
+    posture). Preset ladder P0 metering-only (default all) → P1 consented derived metrics →
+    P2 operational visibility → P3 transparent subtree. P3 ("parent sees ALL DERIVED data-
+    classes as if its own tenant") is SUPPORTED but gated to `tenant_relationship =
+    same-legal-entity` and blockable by `regulatory_class` override. "Everything" is capped
+    at the DERIVED corpus by D-C2-12 / INV-ADS-01 — raw sensor data NEVER leaves the edge.
+    Key custody: persisted parent-visible artifacts → mechanism (b) re-encrypt under parent
+    DEK; live transparent-view queries → mechanism (a) transient decryption under child key;
+    OT/critical-infra → mechanism (d) BYOC remote-op. Mechanism (c) parent-as-additional-
+    grantee on the child DEK is FORBIDDEN and recorded as AP-ADS-11 (new ADS anti-pattern).
+    Five consent/governance controls required above P0: child-admin pairing approval, persistent
+    child-side indicator, contractual/relationship flag, granular revocation, child-side audit.
+    `regulatory_class` override (nerc_cip, ot_critical) can force P3 OFF or force mechanism (d)
+    and heighten audit; override can only tighten, never loosen. Ties C20.
+  - **SF-4 key custody (D-C19-8):** per-child (leaf, data-owning tenant) DEK is the
+    non-negotiable invariant under both modes. Configurable KEK topology: flat per-tenant DEK
+    OR nested KEK hierarchy (per-sub-partner KEK wrapping per-customer DEKs) as a per-
+    deployment operational choice. MSSP default key custody = CLIENT-HELD CMEK (SS-26
+    CMEK/HYOK); MSSP-custodied SoftwareKms is an opt-down.
+  - **SF-5 reparenting (D-C19-7):** admin-only, audited, Central-authored; moving under a
+    new ancestor requires explicit re-pairing/re-consent and recomputes effective config +
+    key scoping. Never silently inherits new parent's guardrails or key scope.
+  - **MSSP reconciliation:** P-ADS-02 (Operator-Zero-Access-At-Rest) is an UNMEDIATED-AT-REST
+    guarantee about operator-held keys — NOT a rule that "no human at the MSSP ever sees
+    client data." Authorized mediated analyst access (authenticated Central session → RBAC-
+    scoped to delegated clients → CLIENT's DEK decrypts → child persistent indicator + revoke)
+    is the governed MSSP path. MSSP-managed standard posture = P2 operational visibility via
+    per-client delegation. P-ADS-02 sharpened in ARCHITECTURE-DESIGN-SYSTEM.md with explicit
+    clarification (C19, 2026-06-27). AP-ADS-11 (Cross-Tenant DEK Grantee) added to ADS.
+  - **New tenant attributes:** `tenant_relationship` {same-legal-entity | managed-client |
+    saas-customer}, `regulatory_class` {standard | nerc_cip | ot_critical}, `isolation_tier`
+    {pool | silo | cell}. RBAC role bindings = `(role, scope-node)` filtered by closure table.
+    Metering records at leaf with `org_id`, rolls up via closure-table ancestor edges.
+  - ADS conformance: PASS — all INV-ADS-01..08 satisfied (checklist in ADR-PROP §8).
+  - Cross-links: C18 (RBAC role model, (role, scope-node) + closure table), C16 (detokenize-
+    at-surface via RBAC scoped by closure table), C15 (approver roles in gated-action path),
+    C17 (key-escrow / Option-3 CMEK — SS-26 extension for nested KEK), C11 (metering rollup
+    via closure table), C9 (config inheritance, DB-authoritative flattened push), C2 (satellite
+    headless + D-C2-12 raw-data ceiling), C20 (regulatory_class / NERC-CIP).
+  - Proposed epics: E-NESTED-TENANCY-001 (tree + isolation_tier + closure table + effective-
+    config fold) + E-TENANT-VISIBILITY-001 (visibility-grant matrix + preset ladder + consent
+    + key-custody mechanisms). Both PROPOSED, not in STORY-INDEX.
+
 ### 16.5 Status & boundaries reminder
 
 - This is a **CAPTURE artifact** (`do_not_execute: true`). Nothing here modifies the live brief/PRD/
