@@ -70,7 +70,7 @@ status: draft
 #   BC-2.11.016 v1.4) + BC-2.11.019 v1.5 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.6"
+version: "2.7"
 updated: "2026-06-28"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -99,8 +99,9 @@ acceptance_criteria_count: 16
 #     AC-CRIT1 (build_example_query derives datetime column from spec instead of hardcoding)
 #   Regression/workspace/compliance ACs: AC-REG-1, AC-REG-2, AC-DEMO-001, AC-SAP-1
 #   Plus new ACs for SqlPipe modes and did_you_mean engine behavior
-red_gate_tests: 33
-# 33 Red Gate tests (v2.3 — adds two built-in-passthrough tests for BC-2.11.019 v1.5 F-PJL1-HIGH-001):
+red_gate_tests: 37
+# 37 Red Gate tests (v2.7 fold-in — adds two F-PQL2-OBS-001 skeleton-placeholder guard tests;
+# see arithmetic below):
 # --- AC-N1 ---
 #   test_bc_2_11_022_n1_per_field_udf_names (bc_2_11_022_n1_test.rs)
 # --- AC-N1B core ---
@@ -122,6 +123,9 @@ red_gate_tests: 33
 # --- AC-N1B did_you_mean engine (OBS-2) ---
 #   test_obs2_did_you_mean_some_from_strsim_levenshtein_within_threshold (bc_2_11_019_n1b_test.rs)
 #   test_obs2b_did_you_mean_none_when_beyond_levenshtein_threshold (bc_2_11_019_n1b_test.rs)
+# --- AC-N1B F-PJL mid-cascade additions (BC-2.11.019 v1.5 F-PJL1/F-PJL4) ---
+#   test_f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039 (bc_2_11_019_n1b_test.rs — F-PJL1-HIGH-001)
+#   test_f_pjl4_med001_scheduled_path_table_gate_fires_before_capability_gate (bc_2_11_019_n1b_test.rs — F-PJL4-MED-001)
 # --- AC-C1C2 enrich gate JOIN/GROUP/ORDER (unit-level) ---
 #   test_c1_collect_unknown_scalar_from_sql_query_group_by (bc_2_11_019_n1b_test.rs)
 #   test_c1_collect_unknown_scalar_from_sql_query_order_by (bc_2_11_019_n1b_test.rs)
@@ -145,10 +149,19 @@ red_gate_tests: 33
 #   test_bc_2_10_016_audit_004_column_refs_resolve_to_real_columns (bc_2_10_016_audit_004_test.rs)
 #   test_bc_2_10_016_audit_004_column_sets_loaded_for_all_sensor_tables (bc_2_10_016_audit_004_test.rs)
 #   test_bc_2_10_016_med2_prompt_filter_values_match_dtu_vocabulary (bc_2_10_016_audit_004_test.rs — MED-2)
+# --- F-PQL2-OBS-001 skeleton-placeholder guards (BC-2.10.016 v1.2; origin F-PQL2-OBS-001) ---
+#   test_f_pql2_obs001_query_skeleton_no_bare_timestamp (f_pql2_obs001_skeleton_placeholder_guard_test.rs)
+#   test_f_pql2_obs001_datetime_arithmetic_uses_placeholder (f_pql2_obs001_skeleton_placeholder_guard_test.rs)
 # --- AC-REG-1 ---
 #   scripts/check-non-exhaustive.sh EXPECTED=88 (compile-fail gate via shell script, not a Rust fn)
 # --- AC-REG-2 ---
 #   test_bc_2_11_022_ci_3tier_gate (reference_content.rs, existing — updated for per-field UDF parity)
+#
+# Arithmetic: 33 (pre-v2.7) + 2 F-PJL mid-cascade (bc_2_11_019_n1b_test.rs) + 2 F-PQL2-OBS-001
+#   guards (f_pql2_obs001_skeleton_placeholder_guard_test.rs) = 37.
+# Red Gate semantics: counts ALL story-delivered tests including regression guards added
+# mid-cascade. F-PJL and F-PQL2-OBS-001 guard tests were both added mid-cascade, both
+# guard story-delivered code surfaces, both must count for inventory consistency.
 tdd_mode: strict
 behavioral_contracts:
   [BC-2.11.001, BC-2.11.022, BC-2.11.019, BC-2.10.016, BC-2.10.012, BC-2.11.016]
@@ -172,8 +185,9 @@ crates_touched:
   # Vec<String>, did_you_mean: Option<String> } struct. Both carry #[non_exhaustive].
   # error.rs also gains variant_meta category "validation" for structured MCP output (MED-4).
   # New test file: crates/prism-core/src/tests/test_enrich_udf_not_found_display.rs
-  # (4 tests: display_no_did_you_mean, display_with_did_you_mean, display_empty_available,
-  # display_starts_with_error_code). scripts/check-non-exhaustive.sh EXPECTED=88.
+  # (5 tests: display_no_did_you_mean, display_with_did_you_mean, display_empty_available,
+  # display_starts_with_error_code, f_pbl1_low002_display_self_sorts_available_infusions).
+  # scripts/check-non-exhaustive.sh EXPECTED=88.
   - prism-mcp
   # IMPLEMENTED — resources.rs: build_reference_content dedup key changed from infusion_id
   # to descriptor.name; Some(empty)/None placeholders implemented.
@@ -214,10 +228,10 @@ crates_touched:
   # E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-011 (H1 fix:
   # capability gate moved AFTER enrich gate in execute_scheduled_inner to match execute_inner).
   # available_infusions Vec<String> sorted+deduped; strsim did_you_mean lexicographic tie-break.
-  # New test file: crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs (15 tests — see
+  # New test file: crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs (19 tests — see
   # AC-N1B below for full inventory including C1/C2 unit-level + engine-level tests,
   # high001 gate ordering, high003 SQL projection, med001 sort, high1 SqlPipe, ec_11_059
-  # wired-empty, obs2 did_you_mean Some/None tests).
+  # wired-empty, obs2 did_you_mean Some/None tests, F-PJL mid-cascade F-PJL1/F-PJL4 tests).
   # ALSO — engine.rs: check_query_column_availability (E-QUERY-038) column gate now
   # validates GROUP BY/ORDER BY func-args and JOIN ON columns (M2 fix) using
   # extract_field_paths_from_expr helper (the SINGLE extraction point for all 5 positions);
@@ -778,7 +792,7 @@ because `check_enrich_udf_availability` uses `?`-propagation only.
 | BC files (6 BCs) | ~12,000 |
 | Source files touched (resources.rs, prompts.rs, prism_describe.rs, error.rs, table_registry.rs, engine.rs, error_mapping.rs + new test files) | ~32,000 |
 | Research/audit docs (2) | ~6,000 |
-| Test files (existing + new — 33 Red Gate tests across 8 new test files) | ~19,000 |
+| Test files (existing + new — 37 Red Gate tests across 9 new test files) | ~19,000 |
 | Tool outputs (grep, rg scans, call-chain traces) | ~4,000 |
 | **Total estimate** | **~90,000** |
 
@@ -999,7 +1013,7 @@ All files modified in the implemented scope (v2.0):
 | File | Action | Purpose |
 |------|--------|---------|
 | `crates/prism-core/src/error.rs` | MODIFIED | N1-B: added `PrismError::EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>)` variant; added `#[non_exhaustive] pub struct EnrichUdfNotFoundDetails { pub infusion, pub available_infusions, pub did_you_mean }` with variant_meta category "validation" |
-| `crates/prism-core/src/tests/test_enrich_udf_not_found_display.rs` | CREATED | N1-B: 4 Display format tests for EnrichUdfNotFoundDetails |
+| `crates/prism-core/src/tests/test_enrich_udf_not_found_display.rs` | CREATED | N1-B: 5 Display format tests for EnrichUdfNotFoundDetails (display_no_did_you_mean, display_with_did_you_mean, display_empty_available, display_starts_with_error_code, f_pbl1_low002_display_self_sorts_available_infusions) |
 | `crates/prism-core/src/tests/mod.rs` | MODIFIED | N1-B: register new test module |
 | `crates/prism-mcp/src/resources.rs` | MODIFIED | N1: `build_reference_content` dedup key changed from `infusion_id` → `descriptor.name`; Some(empty)/None placeholders |
 | `crates/prism-mcp/src/error_mapping.rs` | MODIFIED | N1-B: explicit `-32602` INVALID_PARAMS arm for `PrismError::EnrichUdfNotFound` (E-QUERY-039); sorted+deduped available_infusions; structured variant_meta category "validation" |
@@ -1011,10 +1025,11 @@ All files modified in the implemented scope (v2.0):
 | `crates/prism-mcp/tests/bc_2_11_019_n1b_mcp_test.rs` | CREATED | N1-B MCP: `test_bc_2_11_019_n1b_mcp_maps_to_32602`, `test_med5_enrich_udf_not_found_suggestion_non_empty_no_brackets`, `test_med5_enrich_udf_not_found_suggestion_empty_infusions` |
 | `crates/prism-mcp/tests/bc_2_10_012_audit_001_test.rs` | CREATED | AUDIT-001: `test_bc_2_10_012_audit_001_sensor_prefixed_table_names`, `test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique` |
 | `crates/prism-mcp/tests/bc_2_10_016_audit_004_test.rs` | CREATED | AUDIT-004 + MED-2: 5 tests (no_dot_notation, from_targets_include_registered, column_refs_resolve, column_sets_loaded, med2_prompt_filter_values_match_dtu_vocabulary) |
+| `crates/prism-mcp/tests/f_pql2_obs001_skeleton_placeholder_guard_test.rs` | CREATED | F-PQL2-OBS-001 process-gap closure: 2 skeleton-placeholder guard tests (`test_f_pql2_obs001_query_skeleton_no_bare_timestamp` — guards server.rs SCHEMA-AGNOSTIC SKELETONS for bare `timestamp` in query tool description; `test_f_pql2_obs001_datetime_arithmetic_uses_placeholder` — guards `build_reference_content` Datetime Arithmetic section for `<datetime_col>` placeholder vs bare `WHERE timestamp >`). Traces to BC-2.10.016 v1.2. |
 | `crates/prism-mcp/tests/reference_content.rs` | MODIFIED | N1: added `test_bc_2_11_022_crit001_positive_examples_runtime_valid` (OBS-4 migration from deleted file), `test_bc_2_11_022_some_empty_registry_placeholder` |
 | `crates/prism-mcp/tests/tool_dispatch_tests.rs` | MODIFIED | OBS-5: new fail-closed guard tests; `test_med4_enrich_udf_not_found_structured_category_is_validation` |
 | `crates/prism-query/src/tests/bc_2_11_001_n2_test.rs` | CREATED | N2 + HIGH-1: 4 tests (`dot_notation_from_target_e_query_037`, `filter_mode_underscore_no_regression`, `dot_notation_sqlpipe_e_query_037`, `sqlpipe_underscore_no_regression`) |
-| `crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs` | CREATED | N1-B + C1/C2 + gate coverage: 17 tests (infusion_id_as_udf_name, sql_path, high001_gate_ordering, high003_sql_select_projection, med001_sort, high1_sqlpipe_head, ec_11_059, c1 unit-level × 3, c1/c2 engine-level × 3, obs2 did_you_mean Some/None, builtin_passthrough_lower, builtin_passthrough_coalesce — added v2.3 for BC-2.11.019 v1.5 EC-11-064/065) |
+| `crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs` | CREATED | N1-B + C1/C2 + gate coverage: 19 tests (infusion_id_as_udf_name, sql_path, high001_gate_ordering, high003_sql_select_projection, med001_sort, high1_sqlpipe_head, ec_11_059, c1 unit-level × 3, c1/c2 engine-level × 3, obs2 did_you_mean Some/None, builtin_passthrough_lower, builtin_passthrough_coalesce — v2.3 for EC-11-064/065; f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039, f_pjl4_med001_scheduled_path_table_gate_fires_before_capability_gate — added v2.7 for F-PJL1/F-PJL4) |
 | `crates/prism-query/src/tests/table_registry_tests.rs` | MODIFIED | M1 + L1 + OBS-1: new tests for `columns_for_table`, availability gate subquery position coverage, OBS-1 SqlPipe JOIN stage, OBS-1 SELECT WHERE IN subquery |
 | `crates/prism-query/src/tests/mod.rs` | MODIFIED | Register new test modules |
 | `scripts/check-non-exhaustive.sh` | MODIFIED | AC-REG-1: `EXPECTED=87` → `EXPECTED=88` (EnrichUdfNotFoundDetails) |
@@ -1101,7 +1116,7 @@ capture evidence of the fixed MCP tool output and prompt rendering as per AC-DEM
 Root causes are all confirmed, code paths are known, and BCs are in place. The implementation
 spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adversarial passes:
 - N1: one-line dedup key change in `build_reference_content` + test
-- N1-B: net-new error type (error.rs) + `collect_unknown_scalars_from_sql_query` + `check_enrich_udf_availability` in engine.rs covering ALL AST positions (SELECT, WHERE, JOIN ON, GROUP BY, ORDER BY, HAVING) for both Sql and SqlPipe; map_prism_error -32602 arm; sorted+deduped available_infusions; strsim did_you_mean; DataFusion built-in exclusion (BC-2.11.019 v1.5 F-PJL1-HIGH-001); + 17 new tests (15 original + 2 builtin_passthrough EC-11-064/065)
+- N1-B: net-new error type (error.rs) + `collect_unknown_scalars_from_sql_query` + `check_enrich_udf_availability` in engine.rs covering ALL AST positions (SELECT, WHERE, JOIN ON, GROUP BY, ORDER BY, HAVING) for both Sql and SqlPipe; map_prism_error -32602 arm; sorted+deduped available_infusions; strsim did_you_mean; DataFusion built-in exclusion (BC-2.11.019 v1.5 F-PJL1-HIGH-001); + 19 new tests (15 original + 2 builtin_passthrough EC-11-064/065 + 2 F-PJL mid-cascade F-PJL1/F-PJL4)
 - N2: gate ordering fix in `check_availability_gate` (table_registry.rs) with SqlPipe-not-exempt scope; 4 new N2 tests
 - AUDIT-001: sensor-prefixed names on both tenant code paths; `build_example_query` datetime column derivation from spec (CRIT-1 fix); 3 new tests
 - AUDIT-004: FROM-ready names in 4 `render_*` functions (not 5 — `render_query_tutorial` was clean); prompt VALUES aligned to DTU vocabulary (MED-1); `all-FROM-resolve` guard; 5 new tests
@@ -1114,6 +1129,7 @@ spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.7 | f-pul3-med-001-test-inventory-reconcile-2026-06-28 + f-pql2-obs001-inventory-gap-2026-06-28 | 2026-06-28 | story-writer | **F-PUL3-MED-001 test-inventory reconcile + F-PQL2-OBS-001 inventory gap closure (folded).** (1) F-PUL3-MED-001: `red_gate_tests` corrected 33→35 (+2 F-PJL tests added mid-cascade: `test_f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039` and `test_f_pjl4_med001_scheduled_path_table_gate_fires_before_capability_gate`, both in `bc_2_11_019_n1b_test.rs`). File Structure table: `bc_2_11_019_n1b_test.rs` cell 17→19; `test_enrich_udf_not_found_display.rs` cell 4→5 (5th test: `test_f_pbl1_low002_display_self_sorts_available_infusions`, verified against worktree). `crates_touched` prism-core comment updated 4→5 tests with 5th test name. (2) F-PQL2-OBS-001 inventory gap: `crates/prism-mcp/tests/f_pql2_obs001_skeleton_placeholder_guard_test.rs` (2 tests: `test_f_pql2_obs001_query_skeleton_no_bare_timestamp`, `test_f_pql2_obs001_datetime_arithmetic_uses_placeholder`; BC-2.10.016 v1.2) was unlisted in the File Structure table. Added CREATED row. Red Gate semantics decision: ALL story-delivered tests including mid-cascade regression guards are counted; F-PJL (2) and F-PQL2-OBS-001 (2) guards are both mid-cascade regression guards — counting both or neither is the only consistent choice; both are counted. **Final arithmetic: 33 prior + 2 F-PJL + 2 F-PQL2-OBS-001 = 37.** `red_gate_tests` 35→37. Token Budget table "8 new test files"→"9 new test files". Frontmatter inventory comment: new `F-PQL2-OBS-001 skeleton-placeholder guards` section added with both test names; arithmetic comment added. Internal consistency: 9 named story-owned test files (19+4+2+5+1+3+5+2+2 = 43) + 1 inline test + 1 existing test + 1 compile-fail gate = 46 countable items; `red_gate_tests: 37` counts the 34 Rust `fn test_` items (excluding shared-file pre-existing tests) + 1 inline test + 1 existing test + 1 compile-fail gate. No ACs/BCs modified. |
 | 2.6 | f-prl3-prose-reconcile-2026-06-28 | 2026-06-28 | story-writer | **F-PRL3-MED-001 + F-PRL3-LOW-001 + comprehensive prose reconcile.** (1) **F-PRL3-MED-001 (MED) — AC-SAP-1 rewritten.** Prior text falsely stated "this delivery added no new `event_type` emission" and "SAP-1 scan confirmed zero new `event_type` values were introduced. No BC-2.16.002 catalog row addition is required." This was FALSE: M1 + N2 fixes introduced two new closed-set `method` labels on the `table_registry.rwlock_poisoned` catalog row (`columns_for_table`, `check_availability_gate.dot_notation`) and a second emission site on the `column_not_found.rejected` row (M1 single-tenant path), which required and received BC-2.16.002 v1.90→v1.91 amendment (F-PHL3-MED-001). New AC-SAP-1 accurately states: no new `event_type` literal value introduced; two closed-set method labels and one additional emission site extended existing catalog rows; PG-LP11-001 obligation fulfilled by BC-2.16.002 v1.91; §References cite BC-2.16.002 v1.91. (2) **F-PRL3-LOW-001 (LOW) — AC-AUDIT-001 priority-2 severity-vocabulary ladder extended.** Prior prose listed only "(crowdstrike → Title-case, armis → UPPER-case)". BC-2.10.012 v1.5 §Auto-generated example queries and the SENSOR_SEVERITY_VOCABULARY in code also carry: cyberint → lowercase `'high','critical'`; claroty → not registered (no `severity` column). Both entries added to the priority-2 table cell. (3) **Comprehensive prose reconcile (no further stale items found).** All other AC behavioral descriptions (DataFusion built-in exclusion SQL-mode-only, pipe-mode fires E-QUERY-039, CWE-407 cap, dot-notation is_registered suggestion gating, 4-tier example ladder) verified accurate against delivered code+BCs. §Changelog verified complete for substantive cascade fixes (cyberint vocab F-PHL2 already captured in BC-2.10.012 v1.5 cite; BC-2.16.002 v1.91 dependency F-PHL3 now covered by this row; built-in exclusion F-PJL1 captured in v2.3; pipe/SQL split F-PNL1 captured in v1.8/v1.9). No genuine code/BC defects identified beyond the already-deferred pql_hints Category-1 hint-text divergence (BC-2.10.012 §pql_hints vs. code, tracked in deferred items table, requiring PO adjudication). |
 | 2.5 | f-ppl3-low-001-ac-n1b-impl-req-prose-alignment-2026-06-28 | 2026-06-28 | story-writer | **F-PPL3-LOW-001 closure — AC-N1B implementation-requirement prose made mechanism-agnostic.** The prior wording `"the exclusion check MUST use ctx.state().scalar_functions().get(name) (live SessionContext registry), NOT a hard-coded allowlist"` was stricter than the ratified BC: BC-2.11.019 v1.5 §Postconditions implementation note (F-PJL1-HIGH-001) uses `"e.g., ctx.state().scalar_functions().get(name)"` (permissive) and `"or equivalent"`. The shipped code uses `SessionStateDefaults::default_scalar_functions()` (a `LazyLock`), which the BC already ratifies as the equivalent mechanism. New prose: `"the exclusion check MUST exclude DataFusion built-in scalars by querying DataFusion's runtime-derived default scalar-function set (SessionStateDefaults::default_scalar_functions(), or the equivalent ctx.state().scalar_functions()), NOT a hard-coded allowlist."` Observable behavior and BC trace are unchanged. BC-2.11.019 v1.5 is already permissive — no BC amendment required. |
 | 2.4 | bc-2.10.012-v1.5-propagation-2026-06-28 | 2026-06-28 | story-writer | **BC-2.10.012 v1.4→v1.5 cite propagation (F-PLL2-MED-001).** PO bumped BC-2.10.012 v1.4→v1.5 (§"Auto-generated example queries" rewritten to document the accurate shipped 4-tier per-sensor priority ladder; no behavioral/AC change — code already implements this, BC now matches it). Version cite sweep: all live (non-changelog) `BC-2.10.012 v1.4` cites updated to `v1.5` — 4 sites: frontmatter subsystem anchor comment (line 20), frontmatter points breakdown comment (line 64), frontmatter BC status comment (line 69), body BC table version cell, AC-AUDIT-001 header trace. POL-7 body BC table Title cell verified verbatim against BC H1: `BC-2.10.012: \`prism_describe\` Schema Discovery Tool (L2)` — no change needed. AC-AUDIT-001 alignment confirmed: AC specifies the CRIT-1 priority ladder for `build_example_query`; v1.5 BC description now matches what AC-AUDIT-001 and the code already do — no new AC needed, no contradiction introduced. |
