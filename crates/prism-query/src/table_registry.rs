@@ -42,7 +42,36 @@ use prism_spec_engine::{ConfigSnapshot, ResolvedSensorSpec, ResolvedSpecKey, Sen
 /// `crowdstrike_detections` = 22 bytes) while bounding worst-case computation to a
 /// trivially fast O(128 × max_registered_name_len) per query.
 /// (SEC-002, CWE-407 — Algorithmic Complexity DoS; S-3.13 fix-burst)
-const DID_YOU_MEAN_MAX_NAME_BYTES: usize = 128;
+/// Maximum byte length for untrusted name inputs to `strsim::levenshtein` did_you_mean
+/// computations (SEC-002 / CWE-407).  Shared across the table gate (this module),
+/// the enrich UDF gate (`engine::check_enrich_udf_availability`), and the column gate
+/// (`engine::check_column_availability`) via `cap_name_for_levenshtein`.
+pub(crate) const DID_YOU_MEAN_MAX_NAME_BYTES: usize = 128;
+
+/// Cap `name` at [`DID_YOU_MEAN_MAX_NAME_BYTES`] (128 bytes) before any
+/// `strsim::levenshtein` call, closing the CWE-407 Algorithmic Complexity DoS
+/// path that exists when untrusted query tokens are passed verbatim.
+///
+/// # Contract
+/// - Returns a `&str` slice of `name` whose byte length is ≤ 128.
+/// - The truncation point is always a UTF-8 char boundary (never mid-codepoint).
+/// - For inputs whose byte length is already ≤ 128, returns `name` unchanged (zero-copy).
+///
+/// # Reference
+/// SEC-002 / CWE-407; mirrors the inline cap in `did_you_mean` (lines 387–396)
+/// and `did_you_mean_for_tables` (lines 428–436) of this module.
+/// Applied to the enrich gate (E-QUERY-039) and column gate (E-QUERY-038) by
+/// F-PHL1-HIGH-001 and F-PHL1-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-H).
+pub(crate) fn cap_name_for_levenshtein(name: &str) -> &str {
+    if name.len() <= DID_YOU_MEAN_MAX_NAME_BYTES {
+        return name;
+    }
+    let mut boundary = DID_YOU_MEAN_MAX_NAME_BYTES;
+    while !name.is_char_boundary(boundary) {
+        boundary -= 1;
+    }
+    &name[..boundary]
+}
 
 // ---------------------------------------------------------------------------
 // TableRegistry

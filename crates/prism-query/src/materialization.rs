@@ -1365,12 +1365,15 @@ pub(crate) async fn resolve_source_refs(
                 .collect();
             let sensor_str: &str = sensor_id.as_ref();
             // Levenshtein ≤ 3 suggestion — matches E-QUERY-037 / E-QUERY-038 threshold (D-1163).
+            // CWE-407 sweep: cap `sensor_str` at 128 bytes before the O(m×n) computation.
+            // `sensor_str` is derived from the table name in the query AST (untrusted input).
+            let sensor_str_capped = crate::table_registry::cap_name_for_levenshtein(sensor_str);
             let did_you_mean = registered
                 .iter()
                 .map(|candidate| {
                     (
                         candidate.as_str(),
-                        strsim::levenshtein(sensor_str, candidate.as_str()),
+                        strsim::levenshtein(sensor_str_capped, candidate.as_str()),
                     )
                 })
                 .filter(|(_, dist)| *dist <= 3)
