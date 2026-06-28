@@ -328,21 +328,74 @@ research pass.
 
 ### OQ-DEPLOY-2 — Residual BYOC Hardening Gaps
 
-**OPEN. Record as open hardening items — NOT blocking architecture decisions.**
+**PARTIALLY RESOLVED (ADS conformance 2026-06-27). Gaps disaggregated into four independent
+tracks below. Option 3 (Tenant-Keyed-Central-Persistence, locked 2026-06-27) RESOLVES gap (d).
+Gaps (b) and (c) remain pre-launch required work independent of the option choice. Gap (a)
+changes character under Option 3 as noted.**
 
-The BYOC zero-access thesis (D-DEPLOY-005) is structurally sound by construction. Several
-residual hardening items require dedicated investigation before the SaaS model can be
-certified as meeting enterprise BYOC requirements:
+The BYOC zero-access thesis (D-DEPLOY-005) is structurally sound by construction. The four
+hardening gaps have DIFFERENT urgency and DIFFERENT relationships to the Option 1 vs Option 3
+surfacing choice — they are disaggregated here per ripple-audit CONFLICT-2. They are NOT a
+uniform block.
 
-| Gap | Description | Status |
-|----|-------------|--------|
-| **Result-transit residency** | OCSF-normalized results transit from satellite to central. Even sanitized results may carry PII (entity names, IP addresses). Is the transit path encrypted end-to-end? Does it respect residency zone boundaries? | Open — C2 per-hop mTLS covers encryption; residency-of-results (vs residency-of-raw) needs explicit policy decision. |
-| **Metadata-leakage audit** | Query execution metadata (query text, table names, timing, plan shape) transits to central for observability. Does query text contain PII? Does table/column naming reveal sensitive schema? | Open — a metadata-scrubbing or metadata-minimization policy pass is needed before SaaS launch. |
-| **Ephemeral dial-home tokens** | Satellites use dial-home tokens to authenticate to the coordinator. Are these tokens ephemeral? What is their rotation cadence? Can a compromised token be revoked before its expiry window? | Open — C2 D-C2-5 bootstrap (join-token OOB + optional TPM) covers initial trust; rotation cadence is OQ-C2 (open in ADR-PROP-satellite-mesh.md). |
-| **CMEK for central metadata** | The central service stores query plans, audit logs, and OCSF-normalized event summaries. Does it support Customer-Managed Encryption Keys so SaaS customers retain key custody for their metadata? | Open — SS-26 per-tenant DEK covers the data-plane; whether CMEK extends to central metadata storage (PostgreSQL, observability) is an open question. |
+**GAP (a) — In-transit result residency (in-transit hardening, independent of option):**
 
-Record these four items as open hardening items. They do NOT block the day-2 architecture
-decisions; they are items for the security-reviewer at the relevant morph stories.
+OCSF-normalized results transit from satellite to central. Even sanitized results carry PII
+(hostnames, IPs, user accounts, process names) in standard OCSF fields — OCSF normalization
+governs data FORMAT, not PII CONTENT (P-ADS-03 caution; also see D-C2-12 note in
+ADR-PROP-satellite-mesh.md). C2 per-hop mTLS covers in-transit encryption. The residency-of-results
+policy (which data-jurisdictions are permissible for OCSF result transit) needs explicit policy
+documentation before SaaS launch.
+
+Under Option 1: the residency risk is in-transit exposure only; results are not persisted at-rest
+at Central beyond the query session.
+Under Option 3 (LOCKED): OCSF-normalized results ARE persisted at Central under CMEK. The
+operator has zero at-rest read access (P-ADS-02), but data at-rest at Central is subject to
+Central's infrastructure geography for residency jurisdiction even with CMEK. EU tenants may
+require EU-region Central deployment. This is a deployment topology constraint, not an encryption
+constraint; it must be addressed in the SaaS deployment design.
+
+Status: **OPEN — pre-launch required** (independent of option for transit; topology constraint
+for at-rest under Option 3). (ADS conformance 2026-06-27)
+
+**GAP (b) — Metadata-leakage audit (pre-launch required, independent of option):**
+
+Query execution metadata (query text, table names, timing, plan shape) transits to central for
+observability. Query text may contain tenant-business-sensitive patterns; table/column naming
+may reveal sensitive schema structure. A metadata-scrubbing or metadata-minimization policy
+pass is needed before SaaS launch. This gap exists regardless of whether Option 1 or Option 3
+is chosen — query metadata is logged at Central under both.
+
+Status: **OPEN — pre-launch required** (independent of option). (ADS conformance 2026-06-27)
+
+**GAP (c) — Ephemeral dial-home tokens (pre-launch required, independent of option):**
+
+Satellites use dial-home tokens to authenticate to the coordinator. C2 D-C2-5 bootstrap
+(join-token OOB + optional TPM) covers initial trust. Rotation cadence is OQ-C2 (open in
+ADR-PROP-satellite-mesh.md). Token TTL and revocation capability must be confirmed before
+SaaS launch. This gap is independent of the Option 1 vs Option 3 choice.
+
+Status: **OPEN — pre-launch required** (independent of option). (ADS conformance 2026-06-27)
+
+**GAP (d) — CMEK for central metadata — NOW IN-SCOPE / RESOLVED BY Option 3 (P-ADS-04):**
+
+~~Open — SS-26 per-tenant DEK covers the data-plane; whether CMEK extends to central metadata
+storage (PostgreSQL, observability) is an open question.~~
+
+**RESOLVED BY OPTION 3 LOCK (2026-06-27; P-ADS-04 Tenant-Keyed-Central-Persistence):**
+Option 3 requires that ALL derived results persisted at Central are encrypted under tenant-held
+CMEK (SS-26 per-tenant DEK). Gap (d) IS the Option 3 design requirement — choosing Option 3
+does not ADD a new gap; it provides the design that closes the gap. CMEK for central metadata
+is now pre-launch required work under Option 3.
+
+The SS-26 SoftwareKms (HD-1 resolution) is the CMEK backend for air-gap and BYOC-first
+deployments. Central caching with local CMEK key custody works without internet connectivity.
+
+Key custody failure recovery (key escrow, key recovery ceremony) is a REMAINING OPEN ITEM
+under gap (d) that must be designed before SaaS launch.
+
+Status: **IN-SCOPE — pre-launch required** under Option 3 (now LOCKED). Remaining open item:
+key custody failure recovery design. (ADS conformance 2026-06-27)
 
 ---
 

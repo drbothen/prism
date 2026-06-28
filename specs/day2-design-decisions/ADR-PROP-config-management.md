@@ -320,6 +320,13 @@ A single config change that spans both tenant-scoped and fleet-distributed surfa
 split at the cohort boundary before rolling out. Compound changes that cannot be split are
 treated as fleet-distributed (the more conservative scope).
 
+**ADS conformance note (PAT-ADS-10; 2026-06-27):** The ripple audit (Section 4) flagged ambiguity
+in whether "canary" meant satellite-percentage or Central-staging-tenant. D-C9-Q2-COHORT resolves
+this: the cohort unit is CONFIG-SCOPE-DEPENDENT (tenant for tenant-scoped config; satellite/site
+for fleet-distributed config). There is no single universal canary cohort unit; the scope of
+the change determines the cohort type. Story-writers implementing E-CONFIG-MGMT-001 must use
+this decision, not a generic "N% of satellites" or "staging tenant" assumption. (ADS conformance 2026-06-27)
+
 ---
 
 ### D-C9-Q2-TIERS — TWO-TIER Apply Model

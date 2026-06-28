@@ -80,10 +80,14 @@ Browser console (S2) ──► Agent Orchestrator (server-side, per-tenant sessi
 - Conversation store: per-tenant, per-session, isolated. No cross-tenant context leakage.
 - Uses Vercel AI SDK `streamText` route handlers (already proven in the generative-UI spike)
   as the implementation mechanism for conversation streaming to the browser.
-- Conversation history is session-scoped. No server-side persistent database for conversation
-  state in S3 v1 — the browser holds Zustand/localStorage state (disposition §4.1 item 5).
-  Rationale: ephemeral-first limits blast radius; server-DB persistence deferred to a named
-  future story with explicit human authorization.
+- Conversation store: **server-side, per-tenant-DEK encrypted, from day one** (OD-1 resolution
+  2026-06-27; P-ADS-02 Operator-Zero-Access-At-Rest; P-ADS-04 Tenant-Keyed-Central-Persistence;
+  PAT-ADS-02 Tenant-Keyed-Central-Cache). Encrypted under the tenant's DEK from SS-26 key
+  hierarchy. Configurable retention policy. Feeds C10 GAP-Q2 evidence-package audit trail and
+  cross-device continuity. ~~[SUPERSEDED pre-OD-1 text: "No server-side persistent database for
+  conversation state in S3 v1 — the browser holds Zustand/localStorage state; server-DB
+  persistence deferred to a named future story." This framing is REPLACED by OD-1 and does NOT
+  govern story decomposition.]~~ (ADS conformance 2026-06-27)
 - Session expiry and idle-timeout enforced server-side, bound to per-connection analyst
   identity (ADR-051).
 
@@ -139,9 +143,11 @@ S3 is an **opt-in, deployment-gated capability**:
 - Air-gapped deployments that opt in: configure `model_backend: local` (vLLM, Ollama, or
   compatible endpoint). No outbound internet traffic is required when a local model backend
   is active.
-- Conversation state is browser-local in v1 (Zustand/localStorage). No server-side
-  conversation database is included in v1; persistence is a named future story requiring
-  explicit human authorization.
+- ~~[SUPERSEDED — Conversation state is browser-local in v1 (Zustand/localStorage). No
+  server-side conversation database is included in v1; persistence is a named future story
+  requiring explicit human authorization.]~~ **OD-1 RESOLVED 2026-06-27: server-side
+  per-tenant-DEK-encrypted conversation store is REQUIRED from day one** (P-ADS-02, P-ADS-04).
+  See Open Decisions §1 resolution. (ADS conformance 2026-06-27)
 - The federated query core (PrismQL, sensor adapters, MCP server) has ZERO dependency on S3
   being present. S3 is an additive layer.
 
@@ -153,12 +159,17 @@ S3 is an **opt-in, deployment-gated capability**:
   strengthens the overall trust posture.
 - Deployment gating makes the architecture safe for OT/air-gap customers from day one.
 - Reusing the `model-routing` skill avoids reinventing model selection logic.
-- No server-side conversation DB in v1 limits blast radius and reduces implementation scope.
+- ~~[SUPERSEDED — No server-side conversation DB in v1 limits blast radius and reduces
+  implementation scope.]~~ **OD-1 RESOLVED: server-side per-tenant-DEK store IS included from
+  day one. The blast-radius rationale was superseded by the cross-device continuity and audit
+  requirements.** (ADS conformance 2026-06-27)
 
 **Negative / trade-offs:**
-- Conversation history is lost on session expiry (browser state only). Acceptable for v1;
-  analysts may want cross-session history in a future cycle — requires explicit human
-  authorization before adding server-side persistence.
+- ~~[SUPERSEDED — Conversation history is lost on session expiry (browser state only). Acceptable
+  for v1; analysts may want cross-session history in a future cycle — requires explicit human
+  authorization before adding server-side persistence.]~~ **OD-1 RESOLVED: the server-side
+  per-tenant-DEK store provides cross-session and cross-device continuity from day one.
+  Key-custody and retention-policy management are the active trade-offs.** (ADS conformance 2026-06-27)
 - Per-tenant model configuration adds operational complexity (credential rotation for LLM keys
   across tenants). Managed by the same broker infrastructure as sensor credentials.
 - Vercel AI SDK dependency introduces a TypeScript-side orchestration layer. The Rust backend
@@ -181,10 +192,15 @@ complexity without benefit at this scale. The agent runtime is scoped as a modul
 central backend, not a standalone service. Architecture can revisit in a later cycle if
 isolation becomes necessary.
 
-**D. Persist conversation history to RocksDB.** Deferred, not rejected: RocksDB is already
-in use for other domains. The deferral is a scope decision — session-local storage is
-sufficient for v1, and adding persistence is a named future story. Any addition of server-side
-conversation storage requires explicit human authorization.
+**D. Persist conversation history to RocksDB.** ~~[SUPERSEDED — Deferred, not rejected:
+RocksDB is already in use for other domains. The deferral is a scope decision — session-local
+storage is sufficient for v1, and adding persistence is a named future story. Any addition of
+server-side conversation storage requires explicit human authorization.]~~ **OD-1 RESOLVED
+2026-06-27: server-side per-tenant-DEK encrypted conversation store IS included from day one
+(P-ADS-02, P-ADS-04, PAT-ADS-02). RocksDB remains a viable backing store option for the
+Central cache layer, but the "deferred to future story" framing is superseded. The key question
+is which backing store (RocksDB hot / Iceberg cold / dedicated store) to use — a morph-time ADR
+decision, not a v1-vs-later decision.** (ADS conformance 2026-06-27)
 
 ## Open Decisions for Human
 
@@ -197,10 +213,20 @@ conversation storage requires explicit human authorization.
    per-tenant server-side conversation/history store required; NOT browser-only. Per-tenant-DEK
    encrypted (ties secret-subsystem HD-4 / SS-26 per-tenant DEK). Configurable retention policy.
    Rationale: feeds the C10 GAP-Q2 evidence-package + audit story and gives cross-device
-   continuity. Must respect AI-opaque output (AD-017) and C16 entity-masking. Supersedes the
-   "browser session/localStorage only for v1" framing in the Deployment Gating section and the
-   Consequences/Alternatives sections above — those passages reflected the pre-resolution
-   position; this resolution governs for story decomposition.
+   continuity. Must respect AI-opaque output (AD-017) and C16 entity-masking.
+
+   **ADS surfacing model nuance (P-ADS-02, Option 3, locked 2026-06-27):** "Central stays blind"
+   means OPERATOR-blind, not client-blind. The operator/vendor running Central infrastructure
+   holds ciphertext only (P-ADS-02 Operator-Zero-Access-At-Rest). The authenticated client
+   (analyst) views their own conversation history through their Central session — this is the
+   correct and intended behavior. The per-tenant DEK (SS-26) is the cryptographic mechanism:
+   the operator decrypts nothing; the tenant key holder (client) decrypts their own data.
+   This is the reference implementation of PAT-ADS-02 Tenant-Keyed-Central-Cache across the
+   entire Day-2 corpus. (ADS conformance 2026-06-27)
+
+   Supersedes the "browser session/localStorage only for v1" framing in the Deployment Gating
+   section and the Consequences/Alternatives sections above — those passages reflected the
+   pre-resolution position; this resolution governs for story decomposition.
 
 2. **Per-tenant model budget enforcement.** ~~The design specifies per-tenant cost budgets in
    the Model Router, but does not define the enforcement mechanism (token counter? API-cost

@@ -171,6 +171,22 @@ records, multi-analyst edits, secondary-index queries, CAS-on-version, audit his
 taxonomy ADR (`ADR-PROP-storage-engine-taxonomy.md`) records this as a CONSCIOUS workload-lane
 decision, not a reversal of §14.3.
 
+**EXPLICIT PROHIBITION — PostgreSQL is CONTROL-PLANE only (ADS conformance 2026-06-27;
+P-ADS-04 Tenant-Keyed-Central-Persistence; CONFLICT-5 resolution):**
+PostgreSQL is the storage engine for CONTROL-PLANE workloads ONLY: case management, RBAC,
+identity, audit logs, config store, and tenant/user records. PostgreSQL MUST NOT be used for:
+- Query result caching or detection result streams
+- Sensor telemetry or OCSF event storage
+- ML/anomaly score persistence
+- GraphRAG summary storage
+- Conversation history (the S3 OD-1 store uses a dedicated per-tenant-DEK cache store, NOT PostgreSQL)
+- Any workload classified as Option 3 Tenant-Keyed-Central-Cache
+
+The Option 3 central cache layer uses RocksDB (hot) and Iceberg (cold) only, NOT PostgreSQL.
+See `ADR-PROP-storage-engine-taxonomy.md` §14.3 reconciliation for the authoritative
+workload-lane taxonomy. Story-writers adding PostgreSQL tables for data-plane caching violate
+this invariant (INV-ADS-01 via CONFLICT-5 anti-pattern). (ADS conformance 2026-06-27)
+
 **Concurrency model (SOC/TheHive/SOAR prior art):**
 - **Optimistic concurrency (version/ETag CAS):** `UPDATE case SET status=…, version=version+1
   WHERE case_id=… AND version=N`. Returns `409 Conflict` on stale write; client re-reads and

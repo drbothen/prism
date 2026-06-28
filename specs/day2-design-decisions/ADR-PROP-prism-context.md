@@ -337,6 +337,25 @@ detection at scale, and operational complexity vs the embedded default.
 central-tier performance or operational need emerges. The embedded edge/satellite decision is
 UNCHANGED regardless of the central-tier escape hatch.
 
+**ADS Option 3 alignment note (P-ADS-04; ADS conformance 2026-06-27; ripple-audit P3 correction):**
+The Option 3 lock (Tenant-Keyed-Central-Persistence, locked 2026-06-27) does NOT accelerate
+the AGE+pgvector central-tier escape hatch. Option 3 specifies that derived results persisted
+at Central use RocksDB (hot) and Iceberg (cold), NOT PostgreSQL (P-ADS-04 boundary: "PostgreSQL
+is CONTROL-PLANE only — never for query result caching"). The AGE+pgvector central-tier option,
+if ever triggered (OQ-C12-3), would colocate in the BUNDLED PostgreSQL control-plane instance —
+which is consistent with C1-D4 (case management on bundled PostgreSQL) but remains a DEFERRED
+escape hatch for the graph/vector query layer, not a substitute for the Option 3 RocksDB/Iceberg
+Central cache architecture. The distinction matters: C12 graph/vector traversal results surfaced
+at Central via Entity 360 WOULD be cached under Option 3 CMEK (P-ADS-04); the AGE+pgvector
+question is specifically about where the GRAPH SUBSTRATE lives, not where derived query results
+are cached. These are orthogonal concerns.
+
+**"Central blind" nuance (P-ADS-02; ADS conformance 2026-06-27):** Entity 360 query results and
+GraphRAG community summaries surfaced at Central are operator-invisible — the operator has zero
+at-rest read access (P-ADS-02 Operator-Zero-Access-At-Rest). Authenticated clients view their
+own Entity 360 data through their Central session. Raw telemetry, graph topology, and vector
+indices NEVER leave the satellite/edge (PIV-C12-2, PIV-C12-5). (ADS conformance 2026-06-27)
+
 ---
 
 ## Entity 360 — Seven-Part View

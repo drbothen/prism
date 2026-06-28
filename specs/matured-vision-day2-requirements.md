@@ -3156,6 +3156,58 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   (table in capture artifact). SAP-1 downstream obligations: 5 new BC-2.16.002 event-catalog rows
   flagged in capture artifact (morph-time).
 
+- **C11 Prism Intel (Threat-Advisory / Vulnerability-Intel Add-On) FULLY DECIDED + CAPTURED
+  2026-06-27 (human). Eight architecture decisions confirmed: D-C11-1 (FEED-DOWN MATCH-AT-EDGE —
+  central aggregates+normalizes CVE/CPE/KEV/EPSS/CSAF-VEX and ships corpus DOWN; satellite/edge
+  joins to Entity 360 LOCALLY; central NEVER receives raw asset identifiers BY CONSTRUCTION —
+  the BYOC zero-access differentiator; no surveyed full-stack VM vendor — Tenable/Qualys/Rapid7/
+  Nucleus/runZero — stays blind to inventory); D-C11-2 (OPT-IN CENTRAL-MATCH — edge-match is
+  DEFAULT everywhere; consent-gated central-match carve-out for non-BYOC SaaS customers who
+  explicitly waive zero-access for cross-tenant analytics; the ONLY inventory-leaves-edge path;
+  PIV-C11-004 governs); D-C11-3 (PRIVACY MECHANISMS — full public CVE/CPE corpus shipped down,
+  no crypto needed; HMAC-keyed hashed indicators + Bloom filters reserved for large IOC feeds or
+  indicator-obfuscation contracts only; PSI EXPLICITLY REJECTED as default — over-serves one-sided
+  privacy, no mainstream SOC production precedent as of 2026); D-C11-4 (ADVISORY GENERATION AT
+  EDGE — `priority = f(KEV, EPSS, CVSS v4, asset_exposure, asset_criticality, compensating_controls)`;
+  KEV-listed + high EPSS = "act now"; VEX "not affected" demotes false positives; computed at edge
+  with local context; standards: FIRST CVSS v4.0 2023-11-01, FIRST EPSS daily, CISA KEV BOD-22-01,
+  NVD CVE API 2.0, CPE 2.3, OASIS CSAF 2.0/VEX ISO/IEC 20153 2025-05-20, SSVC decision-support);
+  D-C11-5 (AIR-GAP = REUSE C9 SIGNED-BUNDLE — Ed25519/sigstore-signed delta tarball over the
+  SAME C9 offline-signed-bundle mechanism, same key custody + integrity verification + delta
+  discipline, NOT a parallel trust path; precedent: Tenable Nessus offline signed plugin feed);
+  D-C11-6 (METERING = DEPLOYMENT-CONDITIONAL ZERO-ACCESS-PRESERVING — air-gap/on-prem =
+  license-entitlement cap, nothing phoned home; SaaS/online = edge-reported AGGREGATE count,
+  NEVER asset-level telemetry; meter dimension = asset count in Entity 360);
+  D-C11-7 (PACKAGING = SEPARATE ANNUAL SKU — free baseline: NVD/CVE+CPE+KEV+EPSS+CSAF/VEX
+  public feeds already actionable; paid premium: commercial/curated feeds + analyst-validated
+  per-CVE advisories [asset-AGNOSTIC, ship down clean] + VEX suppression; pricing dimension =
+  asset count); D-C11-8 (DOWN-FEED STANDARDS = custom signed-delta HTTPS API [online] + C9 signed
+  bundle [air-gap] + CSAF/VEX-native ingestion; TAXII 2.1 optional interop only).
+  **Entity 360 + ARO integration:** advisories decorate entity at asset→exposures→advisories→
+  recommended-actions; Observation ("asset X runs Y vV; CVE-Z; KEV=true; EPSS=0.74") →
+  Recommendation ("patch/compensating control; priority=critical") → Action (gated C15, never
+  auto-fired). **C20 relevance:** advisory priority conditioned on Purdue zone (C12 D-C12-6 OT
+  zone attribute); ties NERC CIP-010 vulnerability assessment.
+  **INVARIANTS (PIV-C11-001..007):** central never receives raw asset IDs (001); corpus is public
+  + signed (002); metering never emits asset-level telemetry (003); opt-in central-match is the
+  ONLY inventory-leaves-edge path + requires recorded consent (004); air-gap reuses C9 trust path,
+  no parallel path (005); advisory priority computed at edge (006); analyst advisories are
+  asset-agnostic at authorship (007).
+  **Open questions:** OQ-C11-1 (commercial feed partners + OEM terms: RF/GTI/MISP);
+  OQ-C11-2 (analyst-advisory authorship pipeline); OQ-C11-3 (opt-in central-match consent/
+  governance + cross-tenant analytics scope); OQ-C11-4 (TAXII 2.1 interop demand);
+  OQ-C11-5 (metering enforcement posture per deployment).
+  Downstream SAP-1 obligations (NOT actioned): intel.feed.bundle.ingested,
+  intel.advisory.generated, intel.feed.bundle.rejected events → BC-2.16.002 at morph.
+  Capture artifact: `specs/day2-design-decisions/ADR-PROP-prism-intel.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/prism-intel-threat-advisory-2026-06-27.md` (Q1–Q6; 8 MCP tool calls; vendor
+  landscape, privacy-preserving matching, risk-scoring standards, feed sourcing, packaging).
+  Cross-links: C12 (Entity 360 substrate), C15 (ARO model), C9 (signed-bundle), C20 (OT/NERC
+  CIP-010), AD-017 (zero-access extends to asset inventory by construction), deployment matrix
+  (opt-in central-match + metering deployment-conditional). Proposed epic: E-PRISM-INTEL-001
+  (feeds B).
+
 - **C12 Prism Context (KG + Vector + Entity 360) DECIDED + CAPTURED 2026-06-27 (human).** Six
   architecture decisions D-C12-1..6 confirmed. Capture artifact:
   `specs/day2-design-decisions/ADR-PROP-prism-context.md`
@@ -3260,6 +3312,18 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
     (genuinely deferred — outcome depends on adversarial review of `samael` at impl time).
   - **prismql HD-2 (raw MATCH_RECOGNIZE escape hatch):** ACCEPTED — YES expose it, lower
     priority / later phase within Phase A.
+
+- **Architecture Design System (ADS) PRODUCED 2026-06-27 (day-2 side-analysis).** Canonical
+  cross-cutting architecture reference for all Day-2 features (C1–C20 + B capstone) — the
+  architecture-tier analog of the UI design system. Seeded from the ripple audit
+  (`research/central-surfacing-ripple-analysis-2026-06-27.md`). Artifact:
+  `specs/day2-design-decisions/ARCHITECTURE-DESIGN-SYSTEM.md` (`do_not_execute: true`).
+  Provides: 12 Principles (P-ADS-01..12), 11 Patterns (PAT-ADS-01..11), 8 cross-cutting
+  Invariants (INV-ADS-01..08), per-feature Conformance Checklist, 10 Anti-Patterns, and a
+  punch-list of the six non-conformances already identified in the ripple audit (Section C.3).
+  All C1–C20 + B feature ADR-PROPs must pass the conformance checklist before morph promotion.
+  The conformance pass (next step) patches the P0/P1 non-conforming ADR-PROPs identified in
+  the ripple audit.
 
 ### 16.5 Status & boundaries reminder
 

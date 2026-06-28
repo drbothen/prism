@@ -418,6 +418,16 @@ The hard invariant: a Satellite normalizes raw sensor data → OCSF / native-sch
 edge, in-zone**, and **only the normalized result transits the conduit upward**. Raw data NEVER
 crosses a Satellite boundary.
 
+**IMPORTANT — OCSF normalization governs data FORMAT, not PII content (ADS conformance
+2026-06-27; P-ADS-03; CONFLICT-7 resolution):** D-C2-12 means raw vendor API responses are
+normalized to OCSF before transit — it does NOT mean the conduit traffic is PII-safe.
+OCSF-normalized events carry first-class PII in standard fields: hostnames, IP addresses,
+user account names, process names, file paths. An implementer who reads "only OCSF results
+transit" must NOT conclude the conduit is PII-safe. OQ-DEPLOY-2(a) result-transit residency
+governance applies to all conduit traffic including OCSF-normalized results. The in-transit
+path is encrypted (per-hop mTLS per D-C2-6), but data jurisdiction / residency-of-results
+policy is a separate concern that must be addressed per OQ-DEPLOY-2(a). (ADS conformance 2026-06-27)
+
 This is not a policy flag that can be turned off. It is enforced by:
 1. The Satellite code processing raw data before placing anything in the outbound stream.
 2. The conduit (inter-Satellite connection) never accepting raw-schema frames from downstream.
