@@ -3418,6 +3418,57 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   The conformance pass (next step) patches the P0/P1 non-conforming ADR-PROPs identified in
   the ripple audit.
 
+- **C14 Active-Query Device Support DECIDED + CAPTURED 2026-06-27 (human).** Seven architecture
+  decisions D-C14-1..7 confirmed; six provable invariants PIV-C14-001..006 specified. Capture
+  artifact: `specs/day2-design-decisions/ADR-PROP-active-query-devices.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/active-query-devices-2026-06-27.md`. **Industrial Defender ownership correction:**
+  Teleo Capital / Cuadrilla Capital, NOT GE Vernova.
+  - **D-C14-1:** Scope = BOTH Reading A (federate OT-platform northbound REST APIs: Industrial
+    Defender / Nozomi / Claroty / Dragos HTTP adapters) AND Reading B (Prism directly polls field
+    devices via Modbus / OPC-UA / DNP3 / SNMP from Edge Satellite) — both in v1 scope.
+  - **D-C14-2:** Poller-of-last-resort = YES. Customers with NO OT platform are supported via
+    Reading B. This makes Prism own OT-safety risk on Reading B — the D-C14-5 guardrails are
+    therefore MANDATORY.
+  - **D-C14-3:** Modeling = capability-descriptor AXIS on the existing unified adapter (C3/C4),
+    NOT a new connector class. Per Trino/Calcite/Steampipe/Apollo unanimity. Adds to the
+    descriptor: `active_query` enum (`on_demand_read` | `cached_read` | `streaming`); `protocol`
+    axis (`http` | `modbus` | `opcua` | `dnp3` | `snmp`); `poll_cadence`/`freshness` +
+    `rate_limit`/`connection_cap` hints feeding cost-based-degrade (PAT-ADS-04); `read_only`
+    safety assertion REQUIRED and MANDATORY on every active-query descriptor.
+  - **D-C14-4:** OT asset-inventory / config-baselines+exceptions / device-vuln / PLC-RTU state
+    modeled as first-class PrismQL-queryable OCSF source tables, normalized at the satellite
+    boundary (mirroring Industrial Defender `AdminProp`/`Exception`/`Vulnerability`
+    decomposition). OCSF OT class assignments gated on OQ-C14-OCSF (in-flight
+    `research/ocsf-ot-coverage-2026-06-27.md`; OCSF has NO OT classes as of 2026, open proposal
+    ocsf#1515 — flagged in §17.12 detection-reshape decisions).
+  - **D-C14-5:** OT-SAFETY GUARDRAILS = HARD INVARIANTS. Active polling has crashed real PLCs
+    (CODESYS Forge incident). Mandatory: read-only semantics (active-query read NEVER implies
+    write — writes via C15 gated-action only); per-source rate-limit + connection-cap; maintenance-
+    window scheduling option; risk-based-justification + non-prod validation before enabling a
+    Reading-B source; cost-based-degrade prefers cached snapshots over re-polling rate-sensitive
+    OT sources. OQ-C14-SAFETY-LIABILITY (legal/insurance/customer-contract risk ownership for
+    Reading B — NOT an engineering question) flagged for legal/sales/CS resolution before
+    E-OT-PROTOCOL-CONNECTORS-001 ships.
+  - **D-C14-6:** Edge-executed, OCSF-at-boundary, C2 topology unchanged. Device access is
+    edge-local (Edge Satellite reaches the device/platform; Central never directly contacts a
+    device). Reading A adds nothing topologically; Reading B changes only the satellite's LOCAL
+    acquisition protocol (HTTPS → OT protocol), not the conduit format (OCSF results only).
+    Per-tenant isolation holds (each satellite is tenant-scoped).
+  - **D-C14-7:** Reading-B OT-protocol client libs ship as plugins (Wave-5 plugin SDK, WASM
+    preferred) or sidecar processes — NOT in the core satellite binary. Isolates OT-protocol
+    attack surface and supply-chain audit scope. Final plugin-vs-sidecar choice gated on
+    OQ-C14-PACKAGING (WASM-compilability of candidate crates at morph).
+  - Open questions: OQ-C14-OCSF (schema coverage — in-flight follow-up); OQ-C14-SAFETY-LIABILITY
+    (legal, not engineering); OQ-C14-CADENCE-NUMBERS (original engineering, non-prod validate);
+    OQ-C14-DESCRIPTOR-SCHEMA (architect at morph); OQ-C14-PACKAGING (crate eval at morph).
+  - ADS conformance: PASS — all INV-ADS-01..08 satisfied. PIV-C14-001 (read-only perimeter +
+    writes via C15) is the primary safety control on the high-liability Reading-B path and
+    requires independent adversarial verification at implementation (not self-reported).
+  - Cross-links: C3/C4 (capability descriptor), C2 (edge topology), C11 (device-vuln intel),
+    C12 (OT asset graph), C15 (writes/commands gated — never via query fanout), C20 (OT/NERC-CIP).
+  - Proposed epics: E-ACTIVE-QUERY-001 (Reading A) + E-OT-PROTOCOL-CONNECTORS-001 (Reading B).
+
 ### 16.5 Status & boundaries reminder
 
 - This is a **CAPTURE artifact** (`do_not_execute: true`). Nothing here modifies the live brief/PRD/
