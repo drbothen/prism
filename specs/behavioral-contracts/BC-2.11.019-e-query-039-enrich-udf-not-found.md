@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
-timestamp: 2026-06-23T00:00:00Z
+timestamp: 2026-06-28T00:00:00Z
 phase: 1a
 inputs: [".factory/specs/domain-spec/capabilities.md", ".factory/specs/domain-spec/invariants.md", ".factory/specs/architecture/decisions/ADR-041-prismql-llm-auto-onboarding-4-layer-teaching-surface-for-automatic-agent-query-authoring.md"]
 input-hash: "TBD"
@@ -34,11 +34,11 @@ When a PrismQL query — in pipe mode (`| enrich <infusion>(<column>)`) or in SQ
 
 1. A PQL query has been submitted containing either:
    - (a) **Pipe mode:** a `| enrich <infusion>(<column>)` stage (parsed successfully with no E-QUERY-001 error), where `EnrichStage.infusion` holds the enrichment function name token; OR
-   - (b) **SQL mode:** a `SELECT` projection or `WHERE` clause containing `FuncCall::Scalar { func: ScalarFunc::Unknown(name), args }` — an analyst-defined UDF call that was not resolved to a built-in `ScalarFunc` variant.
+   - (b) **SQL mode:** a `SELECT` projection or `WHERE` clause containing `FuncCall::Scalar { func: ScalarFunc::Unknown(name), args }` — a function call whose name was not resolved to a built-in `ScalarFunc` variant by the PQL parser AND whose name is NOT a DataFusion built-in scalar function registered in the default `SessionContext` (e.g., `lower`, `upper`, `coalesce`, `date_trunc`, `concat`, `length`). DataFusion built-in scalar functions are excluded from the E-QUERY-039 gate (see §Gate Scope Boundaries — DataFusion Built-Ins Exclusion).
 2. For pipe mode: the parser has successfully identified an `EnrichStage` node with an `infusion` token.
-3. For SQL mode: the Chumsky parser has produced a `FuncCall::Scalar { func: ScalarFunc::Unknown(name) }` node — the `Unknown` escape hatch for enrichment function names not mapped to built-in variants.
+3. For SQL mode: the Chumsky parser has produced a `FuncCall::Scalar { func: ScalarFunc::Unknown(name) }` node — the `Unknown` escape hatch for function names not mapped to PQL built-in variants. The gate is triggered ONLY when `name` is also not resolvable as a DataFusion built-in scalar. A `ScalarFunc::Unknown(name)` for a DataFusion built-in (e.g., `lower`, `upper`, `coalesce`) DOES NOT trigger E-QUERY-039; it passes through to DataFusion for execution.
 4. The `InfusionRegistry` (`prism_spec_engine::infusion`) has been initialized at boot from `{config_dir}/infusions/*.infusion.toml` — its `InfusionRegistryInner.udf_to_infusion` map (keyed by `InfusionField.name`) is available at plan time.
-5. This gate is a no-op for queries that contain neither `EnrichStage` nodes nor `ScalarFunc::Unknown` nodes.
+5. This gate is a no-op for queries that contain neither `EnrichStage` nodes nor qualifying `ScalarFunc::Unknown` nodes (i.e., nodes whose name resolves as a DataFusion built-in are NOT qualifying).
 
 ## Postconditions
 
@@ -46,12 +46,19 @@ When a PrismQL query — in pipe mode (`| enrich <infusion>(<column>)`) or in SQ
 
 E-QUERY-039 fires when EITHER of the following is true at plan time:
 - A pipe-mode query contains an `EnrichStage` node whose `infusion` token is NOT a key in `InfusionRegistry.udf_to_infusion`; OR
-- A SQL-mode query contains a `FuncCall::Scalar { func: ScalarFunc::Unknown(name) }` node (in `SELECT` projection or `WHERE`) where `name` is NOT a key in `InfusionRegistry.udf_to_infusion`.
+- A SQL-mode query contains a `FuncCall::Scalar { func: ScalarFunc::Unknown(name) }` node (in `SELECT` projection or `WHERE`) where ALL THREE of the following hold:
+  (a) `name` is NOT a PQL typed/known scalar function (i.e., the parser produced `ScalarFunc::Unknown` rather than a named variant); AND
+  (b) `name` is NOT a DataFusion built-in scalar function registered in the default `SessionContext` (the `datafusion::functions::all_default_functions()` set — includes `lower`, `upper`, `coalesce`, `date_trunc`, `concat`, `length`, and all other functions registered by DataFusion's default function registry); AND
+  (c) `name` is NOT a key in `InfusionRegistry.udf_to_infusion`.
+
+  A `ScalarFunc::Unknown(name)` where `name` IS a DataFusion built-in MUST pass the gate without error. DataFusion resolves such names during plan/execution — the gate must not intercept them. This preserves pre-story behavior where `SELECT lower(hostname) FROM crowdstrike_detections` executed correctly; with the infusion registry wired, over-broad interception would regress this to `E-QUERY-039: enrichment infusion 'lower' is not registered` (F-PJL1-HIGH-001).
 
 AND:
 - The query has already passed the E-QUERY-037 table-availability check (if the table itself is missing, E-QUERY-037 fires first).
 
 The gate fires at plan time, after AST parse and before fan-out and before DataFusion execution. No sensor API call is made for a rejected query.
+
+**Implementation note (F-PJL1-HIGH-001):** The check for DataFusion built-ins MUST use the same `SessionContext` (or its underlying `FunctionRegistry`) that will be used for execution — specifically `ctx.state().scalar_functions()` or equivalent — so that the gate's built-in exclusion list is always consistent with what DataFusion can actually resolve. Hard-coding an allowlist of built-in names is insufficient; new DataFusion versions may add functions. The canonical check: attempt `ctx.state().scalar_functions().get(name)` (or equivalent); if the function exists in the registry, the name is a DataFusion built-in — pass the gate without E-QUERY-039.
 
 ### E-QUERY-039 error payload shape
 
@@ -123,7 +130,7 @@ E-QUERY-039 gates BOTH AST paths at plan time:
 
 | Error Code | Condition | Behavior |
 |------------|-----------|----------|
-| `E-QUERY-039` | Pipe-mode query contains `\| enrich <infusion>(...)` where `infusion` is not registered in `InfusionRegistry`, OR SQL-mode query contains `ScalarFunc::Unknown(name)` in SELECT/WHERE where `name` is not registered | MCP `-32602 INVALID_PARAMS`; structured payload with `infusion`, `available_infusions` (always present, global set), `did_you_mean` (when within distance ≤ 3 of any global infusion name) |
+| `E-QUERY-039` | Pipe-mode query contains `\| enrich <infusion>(...)` where `infusion` is not registered in `InfusionRegistry`, OR SQL-mode query contains `ScalarFunc::Unknown(name)` in SELECT/WHERE where `name` is (a) not a DataFusion built-in AND (b) not registered in `InfusionRegistry` | MCP `-32602 INVALID_PARAMS`; structured payload with `infusion`, `available_infusions` (always present, global set), `did_you_mean` (when within distance ≤ 3 of any global infusion name). DataFusion built-in scalar names (e.g., `lower`, `upper`, `coalesce`) are EXCLUDED from this condition — they pass the gate and resolve downstream. |
 
 ## Edge Cases
 
@@ -135,7 +142,9 @@ E-QUERY-039 gates BOTH AST paths at plan time:
 | EC-11-060 | Pipe-mode query with `\| enrich` AND a non-existent table | E-QUERY-037 fires first (table not found); E-QUERY-039 does not fire. Gate ordering: table check → column check → infusion check. |
 | EC-11-061 | SQL mode query with no `ScalarFunc::Unknown` nodes AND pipe mode with no `EnrichStage` (no enrichment in query) | E-QUERY-039 does not fire; the gate is a no-op. |
 | EC-11-062 | Hot reload adds a new infusion between parse and gate check | The gate uses the `InfusionRegistry` snapshot at plan time (consistent with `ArcSwap` hot-reload pattern per ADR-022). If the infusion was added during the in-flight query, the gate may reject it; the next query sees the updated registry. |
-| EC-11-063 | SQL-mode `SELECT cvss(device_cves_first) FROM armis_devices` where `cvss` is not registered in `InfusionRegistry` (the AUDIT-005 reproducer) | `E-QUERY-039` with `infusion: "cvss"`, `available_infusions` listing all global infusion names, `did_you_mean` present if any registered name is within Levenshtein ≤ 3 of "cvss"; `E-INT-001` is NOT returned. Gate fires at plan time; DataFusion execution is never reached. |
+| EC-11-063 | SQL-mode `SELECT cvss(device_cves_first) FROM armis_devices` where `cvss` is not registered in `InfusionRegistry` (the AUDIT-005 reproducer) | `E-QUERY-039` with `infusion: "cvss"`, `available_infusions` listing all global infusion names, `did_you_mean` present if any registered name is within Levenshtein ≤ 3 of "cvss"; `E-INT-001` is NOT returned. Gate fires at plan time; DataFusion execution is never reached. (`cvss` is not a DataFusion built-in, so condition (b) of the refined firing condition does not exclude it.) |
+| EC-11-064 | SQL-mode `SELECT lower(hostname) FROM crowdstrike_detections` with infusion registry active but `lower` is not registered as an infusion — F-PJL1-HIGH-001 regression scenario | E-QUERY-039 does NOT fire. `lower` is a DataFusion built-in scalar function registered in the default `SessionContext`; it satisfies DataFusion built-in exclusion condition (b) and passes the gate. The query proceeds to DataFusion execution where `lower(hostname)` resolves normally. No regression vs pre-story behavior. |
+| EC-11-065 | SQL-mode `SELECT upper(device_name), coalesce(severity, 'unknown') FROM armis_devices` with infusion registry active | E-QUERY-039 does NOT fire for `upper` or `coalesce` — both are DataFusion built-in scalar functions. The query proceeds to execution normally. Gate is a no-op for queries that contain only DataFusion built-in scalars (and no pipe-mode `EnrichStage`). |
 
 ## Gate Scope Boundaries
 
@@ -187,6 +196,22 @@ The E-QUERY-039 enrich-gate rejection does NOT emit a dedicated `event_type = "e
 
 **Boundary:** E-QUERY-039 gates SELECT-mode and SqlPipe-mode queries only. DML write-path enrichment gating is deferred to the follow-up story for write-path enrichment support.
 
+### F-PJL1-HIGH-001 — DataFusion Built-In Scalar Functions Are EXCLUDED from E-QUERY-039 (ADJUDICATED — regression fix)
+
+**Finding:** With the infusion registry wired, the original "intentionally broad — ANY unknown scalar function in a SQL SELECT is treated as a potential enrichment UDF when the infusion registry is active" firing condition caused a functional regression. A legitimate query such as `SELECT lower(hostname) FROM crowdstrike_detections` fails at plan time with `E-QUERY-039: enrichment infusion 'lower' is not registered`, whereas before the infusion registry was wired, it executed correctly. The regression arises because `lower` is a `ScalarFunc::Unknown` at the PQL parser level (PQL does not map it to a named `ScalarFunc` variant), but `lower` IS a DataFusion built-in that the `SessionContext` can resolve — it never needed to be an enrichment infusion.
+
+**Root cause:** The gate's SQL-mode firing condition checked only `InfusionRegistry.udf_to_infusion` containment, without first excluding names that DataFusion's default function registry can resolve.
+
+**Adjudication:** The firing condition is refined. DataFusion built-in scalar functions (i.e., any `name` that `ctx.state().scalar_functions().get(name)` resolves in the query execution `SessionContext`) MUST be excluded from E-QUERY-039. The PQL engine emits built-in scalar names (e.g., `lower`, `upper`, `coalesce`, `date_trunc`, `concat`, `length`) in generated SQL (`pipe_sql_emitter.rs`) — these must continue to execute without plan-time rejection.
+
+**Refined firing condition (SQL mode):** E-QUERY-039 fires for `ScalarFunc::Unknown(name)` ONLY when `name` is NEITHER a DataFusion built-in NOR a registered infusion. A name that DataFusion can resolve as a built-in MUST pass the gate. See §Postconditions §Gate firing condition for the full three-part condition.
+
+**Implementation note:** The exclusion check MUST query the live `SessionContext` scalar function registry (e.g., `ctx.state().scalar_functions().get(name)`), not a hard-coded allowlist, to ensure forward compatibility as DataFusion versions evolve. Hard-coding a list of current built-ins is an anti-pattern — a future DataFusion upgrade might add functions that the list misses, re-introducing the regression.
+
+**Scope of change:** SQL-mode `ScalarFunc::Unknown` gate logic only. Pipe-mode `EnrichStage.infusion` gate is unaffected (pipe-mode `| enrich` is an explicit enrichment directive with no DataFusion built-in overlap by construction).
+
+**No regression to AUDIT-005:** The AUDIT-005 reproducer (`SELECT cvss(device_cves_first) FROM armis_devices` where `cvss` is not registered) is still caught: `cvss` is not a DataFusion built-in, so condition (b) in the refined firing condition evaluates to true and E-QUERY-039 fires normally. Only names that DataFusion's built-in registry can resolve are excluded.
+
 ## Canonical Test Vectors
 
 | Input | Expected Output | Category |
@@ -198,6 +223,8 @@ The E-QUERY-039 enrich-gate rejection does NOT emit a dedicated `event_type = "e
 | `query("FROM unknown_table \| enrich threat_score(col)")` when `unknown_table` is not registered | `E-QUERY-037` (not E-QUERY-039) — table gate fires first | gate-ordering |
 | MCP error code for E-QUERY-039 | Surfaces as `-32602 INVALID_PARAMS` (not `-32000`) | mcp-mapping |
 | `query("SELECT cvss(device_cves_first) FROM armis_devices", clients=["acme"])` where `cvss` is not registered in `InfusionRegistry` | `E-QUERY-039` with `infusion: "cvss"`, `available_infusions` lists global infusion names, `did_you_mean` present if applicable; `E-INT-001` NOT returned | audit-005-repro |
+| `query("SELECT lower(hostname) FROM crowdstrike_detections", clients=["acme"])` with infusion registry active, `lower` is not an infusion | Successful result rows — E-QUERY-039 does NOT fire; `lower` is a DataFusion built-in and is excluded from the gate (F-PJL1-HIGH-001 regression guard) | datafusion-builtin-passthrough |
+| `query("SELECT upper(device_name), coalesce(severity, 'unknown') FROM armis_devices", clients=["acme"])` with infusion registry active | Successful result rows — E-QUERY-039 does NOT fire for `upper` or `coalesce`; both are DataFusion built-ins excluded from the gate | datafusion-builtin-multi |
 
 ## Verification Properties
 
@@ -250,6 +277,7 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | S-DEMO-FIDELITY-REMEDIATION-001-F-PJL1-HIGH-001 | 2026-06-28 | product-owner | **F-PJL1-HIGH-001 closure — DataFusion built-in scalar functions excluded from E-QUERY-039 gate (functional regression fix).** The original v1.4 firing condition for SQL-mode was "intentionally broad — ANY `ScalarFunc::Unknown(name)` is treated as a potential enrichment UDF when the infusion registry is active." This was a functional regression: PrismQL's `PqlNormalizer` renders unknown scalar names (including DataFusion built-ins like `lower`, `upper`, `coalesce`, `date_trunc`, `concat`, `length`) as `ScalarFunc::Unknown(name)` — the parser has no awareness of DataFusion's built-in set. With the infusion registry wired, these legitimate built-in calls were being intercepted by E-QUERY-039 at plan time and rejected as unregistered enrichment functions. **Changes:** (1) §Preconditions condition (b) and precondition 3 updated: SQL-mode gate fires ONLY when `name` is not a DataFusion built-in AND not a registered infusion (three-part condition: (a) not a PQL built-in ScalarFunc variant, (b) not in DataFusion `ctx.state().scalar_functions()`, (c) not in `InfusionRegistry.udf_to_infusion`). (2) §Postconditions §Gate firing condition rewritten with explicit three-part SQL-mode condition; added implementation note: exclusion MUST query live `SessionContext` scalar function registry, not a hard-coded allowlist. (3) §Error Cases table updated to reflect DataFusion built-in exclusion. (4) §Gate Scope Boundaries: new subsection §F-PJL1-HIGH-001 — DataFusion Built-In Scalar Functions Are EXCLUDED from E-QUERY-039. (5) §Edge Cases: added EC-11-064 (F-PJL1-HIGH-001 `lower` regression guard) and EC-11-065 (`upper`/`coalesce` multi-builtin passthrough). (6) §Canonical Test Vectors: added `datafusion-builtin-passthrough` and `datafusion-builtin-multi` vectors. AUDIT-005 coverage (EC-11-063, `audit-005-repro` vector) is preserved: `cvss` is not a DataFusion built-in, so it is still caught by E-QUERY-039 as before. |
 | 1.4 | S-DEMO-FIDELITY-REMEDIATION-001-OBS-closure | 2026-06-27 | product-owner | **OBS-001/002/003 + F-L3-OBS-002 closure from LOCAL adversary pass on S-DEMO-FIDELITY-REMEDIATION-001.** **(F-L3-OBS-002) EC-11-058 sort fix:** `available_infusions` example corrected from `["threat_score", "nvd_cvss"]` to `["nvd_cvss", "threat_score"]` — lexicographic order as mandated by error-taxonomy.md E-QUERY-039 v2.01 (`available_infusions.sort()` in gate implementation). The prior example violated the sort contract introduced in MED-001. **(OBS-001) Enrich gate InSubquery subquery-depth coverage:** Scoped out with full rationale in new §Gate Scope Boundaries. `collect_unknown_scalar_from_expr` / `collect_unknown_scalar_from_predicate` correctly fail-open at `Expr::InSubquery` subquery bodies — this is intentional (not a gap). No implementer action required. Subquery-nested `ScalarFunc::Unknown` is not a reachable demo path; if PrismQL grammar is extended to produce such nodes, this BC must be revisited. **(OBS-002) E-QUERY-039 no structured tracing emission:** Documented as D-765 `?`-propagation pattern — `?`-propagation provides the audit trail via `AuditEntry` (DI-004); no `event_type = "enrich_udf_not_found.rejected"` needed, no BC-2.16.002 catalog row required. **(OBS-003) DML source-select projections not enrich-gated:** Scoped out — demo read-path only; DML write-path is feature-gated; DataFusion function-not-found error (not E-INT-001) would surface for DML enrichment calls. |
 | 1.3 | S-DEMO-FIDELITY-REMEDIATION-001-HIGH-002-HIGH-004-canonical | 2026-06-27 | product-owner | **HIGH-002 + HIGH-004 closure from LOCAL adversary Pass 1 on S-DEMO-FIDELITY-REMEDIATION-001: three-way message drift and available_infusions type contradiction resolved.** **(HIGH-002) Message format canonicalized:** §payload-shape prose heading changed from "enrichment function '...' is not registered" to the verbatim canonical Display format `"E-QUERY-039: enrichment infusion '{infusion}' is not registered; available: [{available_infusions}]{did_you_mean}"` — "infusion" (not "function", not "UDF"), "is not registered" (not "not found"), brackets around `{available_infusions}` (parity with E-QUERY-038). The canonical message is the error-taxonomy.md row (POL-24 SOT), now also amended to add brackets (error-taxonomy v2.01). **(HIGH-004) `available_infusions` type corrected String→Vec<String>:** `EnrichUdfNotFoundDetails.available_infusions` changed from `String // comma-separated; "" when none` to `Vec<String>` matching E-QUERY-038 sibling (`ColumnNotFoundDetails.available_columns: Vec<String>`) and the pre-existing taxonomy emitter clause. The BC was wrong; the taxonomy emitter was already correct. Rendering rule added: Display comma-joins the Vec and wraps in brackets; empty Vec renders as `[]`. EC-11-059 updated: `available_infusions: ""` → `available_infusions: []` (empty Vec). no-infusions canonical test vector updated to `available_infusions: []`. `did_you_mean` description clarified: `Option<String>`, rendered as `" Did you mean: '{x}'?"` (leading space) when `Some`; omitted (not empty string) when `None` — consistent with E-QUERY-037/038. **(Gate ordering confirmation + HIGH-001 implementer note):** §Gate ordering prose amended: E-QUERY-039 fires LAST (after E-QUERY-037 and E-QUERY-038); explicit implementer note added that the code fires E-QUERY-039 FIRST (adversary HIGH-001) and MUST be corrected to match spec ordering — spec is the canonical ordering, code is wrong. The gate ordering itself (table→column→enrich) was always correct in the BC; no semantic change, only explicit statement added. |
 | 1.2 | onboarding-001-C-sr-006-ec-renumber-2026-06-23 | 2026-06-23 | product-owner | SR-006 EC-11 namespace collision fix: renumbered all edge-case IDs in this BC from EC-11-046..053 range (which collided with committed BC-2.11.017 046..050 and BC-2.11.018 051..056) into the free range EC-11-057..063. Exact map: EC-11-046→057, 047→058, 048→059, 049→060, 050→061, 052→062, 053→063. Semantic content of every edge case unchanged — ID-only fix. Changelog references to old IDs in v1.1 entry are historical and left intact per append-only audit trail policy. |
