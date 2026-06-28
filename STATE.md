@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.031"
+version: "8.032"
 producer: state-manager
-timestamp: 2026-06-28T05:00:00Z
+timestamp: 2026-06-28T06:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -20,7 +20,7 @@ develop_head: "9a09653a"
 # NOTE: 9a09653a is the squash-merge of PR #205 (chore(skills): add /wrap session-durability skill; normal squash-merge; 2026-06-27). origin/develop is now 9a09653a. Prior origin/develop was f05a9f0e (PR #204 S-PERF-GATE-001). chore/wrap-session-durability-skill branch + worktree cleaned up at merge.
 bc_index_version: "7.23"
 vp_index_version: "1.80"
-story_index_version: "v2.509"
+story_index_version: "v2.510"
 arch_index_version: "2.148"
 error_taxonomy_version: "2.03"
 total_stories: 216
@@ -36,7 +36,7 @@ workspace_test_count: 5061
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1404 (2026-06-28). Pass-L fix round. LOCAL cascade S-DEMO-FIDELITY-REMEDIATION-001 Pass-L: F-PLL2-MED-001 (BC-2.10.012 §Auto-generated example queries stale 3-template → accurate 4-tier per-sensor ladder; demo-breaking spec defect; PO fixed v1.5) + F-PLL1-LOW-001 (dot-notation did_you_mean gated on is_registered + Levenshtein fallback; 2 tests) + F-PLL1-LOW-002 (built-in-exclusion compliance comment). Implementer feature HEAD e2a6c190→7e7c8414 (just check EXIT 0, 5061/5061; non-exhaustive 88/88). PO BC-2.10.012 v1.5; story v2.4. BC-INDEX v7.22→v7.23. 3-CLEAN streak 0/3 — NEXT = re-gate Pass M on 7e7c8414. STATE v8.030→v8.031."
+current_step: "D-1405 (2026-06-28). Pass-P fix round. LOCAL cascade S-DEMO-FIDELITY-REMEDIATION-001 Pass-P: 2 LOW doc/prose nits — F-PPL1-OBS-001 (volatile line-number cites → symbol refs in code comments, implementer feature HEAD a1d03126→2be96b7c) + F-PPL3-LOW-001 (AC-N1B prose aligned to ratified DataFusion-builtin mechanism, story v2.5; BC already permissive, no BC change). STORY-INDEX v2.509→v2.510. 3-CLEAN streak 0/3 — NEXT = re-gate Pass Q on feature HEAD 2be96b7c. STATE v8.031→v8.032."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -68,14 +68,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1404."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1405."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-28 (D-1404 Pass-L fix round: BC-2.10.012 v1.5 (stale example-query ladder F-PLL2-MED-001); BC-INDEX v7.22→v7.23; story v2.4; feature HEAD e2a6c190→7e7c8414 (just check 5061/5061); streak 0/3; develop 9a09653a; STATE v8.030→v8.031)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-28 (D-1405 Pass-P fix round: 2 LOW doc/prose nits; story v2.5; feature HEAD a1d03126→2be96b7c; STORY-INDEX v2.509→v2.510; streak 0/3; develop 9a09653a; STATE v8.031→v8.032)
 
 ## Active Objective (North Star)
 
@@ -122,6 +122,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 through D-1339 archived to burst-log.md (D-1368 compaction 2026-06-26). D-1344 and D-1393..D-1397 archived to burst-log.md (this compaction)._
+| D-1405 | state-manager | 2026-06-28 | **S-DEMO-FIDELITY-REMEDIATION-001 PASS-P FIX ROUND CLOSED (D-1405). LOCAL cascade Pass-P: 2 LOW doc/prose nits — F-PPL1-OBS-001 (volatile line-number citations replaced with symbol references in code comments across table_registry.rs/engine.rs/server.rs and tests; 10 comment-only sites; no logic change; implementer feature HEAD a1d03126→2be96b7c; just iter prism-query 1225 pass) + F-PPL3-LOW-001 (AC-N1B implementation-requirement prose aligned to ratified DataFusion-builtin mechanism — `SessionStateDefaults::default_scalar_functions()` or equivalent; NOT a hardcoded allowlist; story-writer v2.4→v2.5; BC-2.11.019 v1.5 already permissive ("or equivalent"/"e.g.") — no BC change). STORY-INDEX v2.509→v2.510. BC-INDEX v7.23 UNCHANGED. ARCH-INDEX v2.148 UNCHANGED. develop_head 9a09653a UNCHANGED. active_contracts 254 UNCHANGED. total_stories 216 UNCHANGED. workspace_test_count 5061 UNCHANGED. 3-CLEAN streak 0/3 — NEXT = re-gate Pass Q on feature HEAD 2be96b7c. STATE v8.031→v8.032.** | wave-5-e-demo-fidelity | 2026-06-28 |
 | D-1404 | state-manager | 2026-06-28 | **S-DEMO-FIDELITY-REMEDIATION-001 PASS-L FIX ROUND CLOSED (D-1404). LOCAL cascade Pass-L: F-PLL2-MED-001 (BC-2.10.012 §"Auto-generated example queries" — stale 3-template description was a demo-breaking spec defect; PO rewrote to accurate 4-tier per-sensor ladder in v1.5) + F-PLL1-LOW-001 (dot-notation E-QUERY-037 did_you_mean now gated on is_registered + Levenshtein fallback; 2 load-bearing tests added) + F-PLL1-LOW-002 (BC-2.11.019 v1.5 §F-PJL1 compliance-rationale comment added at DATAFUSION_BUILTIN_SCALAR_NAMES; no behavior change). IMPLEMENTER: feature HEAD e2a6c190→7e7c8414 (just check EXIT 0, 5061/5061; non-exhaustive 88/88). PO: BC-2.10.012 v1.4→v1.5 (§"Auto-generated example queries" rewritten from stale 3-template to accurate shipped 4-tier per-sensor ladder). STORY-WRITER: story v2.3→v2.4 (BC-2.10.012 cite v1.4→v1.5 across 5 sites; AC-AUDIT-001 aligned; no new ACs); SESSION-HANDOFF.md live BCs-status cite v1.4→v1.5. BC-INDEX v7.22→v7.23. STORY-INDEX v2.508→v2.509. 3-CLEAN streak 0/3 — NEXT = re-gate Pass M on feature HEAD 7e7c8414. develop_head 9a09653a UNCHANGED. ARCH-INDEX v2.148 UNCHANGED. active_contracts 254 UNCHANGED. total_stories 216 UNCHANGED. workspace_test_count 5061. STATE v8.030→v8.031.** | wave-5-e-demo-fidelity | 2026-06-28 |
 | D-1403 | state-manager | 2026-06-28 | **S-DEMO-FIDELITY-REMEDIATION-001 PASS-J FIX ROUND CLOSED (D-1403). LOCAL cascade Pass-J: F-PJL1-HIGH-001 (enrich gate SQL-mode over-matched DataFusion built-in scalars — `SELECT lower(col)` triggered E-QUERY-039; VERIFIED via DATAFUSION_BUILTIN_SCALAR_NAMES LazyLock exclusion fix) + F-PJL1-MED-001 (docstring) + F-PJL2-LOW-001 (vocab `&["new"]` + full re-audit) + F-PJL4-MED-001 (scheduled-mode gate-ordering discriminating test). IMPLEMENTER: feature HEAD e1f82762→8621f092 (just check EXIT 0, 5059/5059; non-exhaustive 88/88). PO: BC-2.11.019 v1.4→v1.5 (§Gate Scope Boundaries §F-PJL1-HIGH-001 — 3-part SQL-mode gate: not PQL-known + not DataFusion built-in + not registered infusion; EC-11-064/065 added; v1.4→v1.5 code-comment sweep). STORY-WRITER: story v2.2→v2.3 (BC-2.11.019 cite v1.4→v1.5 throughout 13 sites; AC-N1B built-in-exclusion note; EC-016/017 added; red_gate_tests 31→33). error-taxonomy v2.02→v2.03 (E-QUERY-039 BC anchor v1.4→v1.5 + F-PJL1-HIGH-001 note). BC-INDEX v7.21→v7.22. STORY-INDEX v2.507→v2.508. 3-CLEAN streak 0/3 — NEXT = re-gate Pass K (4-lens) on feature HEAD 8621f092. develop_head 9a09653a UNCHANGED. ARCH-INDEX v2.148 UNCHANGED. active_contracts 254 UNCHANGED. total_stories 216 UNCHANGED. workspace_test_count 5059. STATE v8.029→v8.030.** | wave-5-e-demo-fidelity | 2026-06-28 |
 | D-1402 | state-manager | 2026-06-28 | **S-DEMO-FIDELITY-REMEDIATION-001 PASS-H PO FIX + DURABILITY CHECKPOINT (D-1402). LOCAL cascade S-DEMO-FIDELITY-REMEDIATION-001 reached streak 2/3 (Pass E+F CLEAN-strict) then reset by Pass-G F-PGL2-LOW-001 (cyberint vocab doc-only defer corrected) and Pass-H findings (F-PHL1-HIGH-001 CWE-407 strsim cap; F-PHL1-MED-001 column gate cap; F-PHL1-MED comprehensive 4th callsite in materialization.rs; F-PHL2-MED-001 cyberint lowercase severity added to SENSOR_SEVERITY_VOCABULARY; F-PHL3-MED-001 BC-2.16.002 catalog drift). Fix round: (1) IMPLEMENTER feature branch HEAD 1f847799→0d8f92a5 — shared cap_name_for_levenshtein helper introduced; 4 strsim callsites (enrich gate, column gate single-tenant, column gate multi-tenant, materialization.rs) now cap input to 64 chars before levenshtein; cyberint `("cyberint","high","critical")` lowercase added to SENSOR_SEVERITY_VOCABULARY (correcting Pass-G doc-only defer); (2) PO .factory: BC-2.16.002 v1.90→v1.91 — `table_registry.rwlock_poisoned` catalog row "Six methods" → "Eight methods/labels" (adds columns_for_table M1 + check_availability_gate.dot_notation N2); `column_not_found.rejected` row reconciled for new single-tenant emission site; comprehensive 79-event_type catalog sweep clean, no further drift; catalog row count stays 88, label stays (v1.56); BC-INDEX v7.20→v7.21 (inline row + v7.21 changelog). 3-CLEAN streak 0/3 — NEXT = re-gate Pass I (4-lens) on feature HEAD 0d8f92a5 (pending just check confirmation). feature HEAD ddca76c2→0d8f92a5. develop_head 9a09653a UNCHANGED. BC-INDEX v7.20→v7.21. ARCH-INDEX v2.148 UNCHANGED. error_taxonomy_version v2.02 UNCHANGED. active_contracts 254 UNCHANGED. total_stories 216 UNCHANGED. workspace_test_count UNCHANGED 5039. STATE v8.028→v8.029.** | wave-5-e-demo-fidelity | 2026-06-28 |
@@ -258,20 +259,20 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1404 — 2026-06-28; STATE v8.031)
+## Session Resume Checkpoint (D-1405 — 2026-06-28; STATE v8.032)
 
-**STATE v8.031. D-1404 PASS-L FIX ROUND CLOSED. Feature HEAD 7e7c8414 (e2a6c190→7e7c8414 via implementer: dot-notation did_you_mean gated on is_registered + Levenshtein fallback (F-PLL1-LOW-001, 2 tests) + compliance-rationale comment at DATAFUSION_BUILTIN_SCALAR_NAMES (F-PLL1-LOW-002); just check EXIT 0, 5061/5061; non-exhaustive 88/88). Story S-DEMO-FIDELITY-REMEDIATION-001 v2.4 (16 ACs, 33 Red Gate tests; 6 BCs; BC-2.10.012 v1.5; AC-AUDIT-001 aligned; v2.3 was BC-2.11.019 v1.5 propagation). BC-2.10.012 v1.5 (§"Auto-generated example queries" rewritten from stale 3-template to accurate 4-tier per-sensor ladder; F-PLL2-MED-001). BC-INDEX v7.23. STORY-INDEX v2.509. ARCH-INDEX v2.148. error-taxonomy v2.03. total_stories 216. develop_head 9a09653a (local==origin). DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. non-exhaustive 88. workspace_test_count 5061. 3-CLEAN streak 0/3 — NEXT = re-gate Pass M on feature HEAD 7e7c8414 + story v2.4.**
+**STATE v8.032. D-1405 PASS-P FIX ROUND CLOSED. Feature HEAD 2be96b7c (a1d03126→2be96b7c via implementer: volatile line-number citations replaced with symbol references in code comments — F-PPL1-OBS-001; 10 comment-only sites across table_registry.rs/engine.rs/server.rs/tests; just iter prism-query 1225 pass). Story S-DEMO-FIDELITY-REMEDIATION-001 v2.5 (16 ACs, 33 Red Gate tests; 6 BCs; AC-N1B impl-req prose aligned to ratified DataFusion-builtin mechanism — F-PPL3-LOW-001; BC-2.11.019 v1.5 already permissive, no BC change). BC-INDEX v7.23 UNCHANGED. STORY-INDEX v2.510. ARCH-INDEX v2.148. error-taxonomy v2.03. total_stories 216. develop_head 9a09653a (local==origin). DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. non-exhaustive 88. workspace_test_count 5061. 3-CLEAN streak 0/3 — NEXT = re-gate Pass Q on feature HEAD 2be96b7c + story v2.5.**
 
-**NEXT ACTION:** Re-gate LOCAL adversary cascade Pass M (4-lens) on feature HEAD 7e7c8414 + story v2.4 — 3× CLEAN(strict). Then: demo evidence → PR (rebase onto develop 9a09653a) → PR-LEVEL 3-CLEAN → normal squash-merge → state-manager post-merge burst. After merge: PO authors BCs for S-PRISMQL-CASE-INSENSITIVE-001 (OD-1..OD-4 locked) → story-writer body → TDD delivery.
+**NEXT ACTION:** Re-gate LOCAL adversary cascade Pass Q (4-lens) on feature HEAD 2be96b7c + story v2.5 — 3× CLEAN(strict). Then: demo evidence → PR (rebase onto develop 9a09653a) → PR-LEVEL 3-CLEAN → normal squash-merge → state-manager post-merge burst. After merge: PO authors BCs for S-PRISMQL-CASE-INSENSITIVE-001 (OD-1..OD-4 locked) → story-writer body → TDD delivery.
 
 **TRACK B — DAY-2 MORPH (POST-T14):** `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
 **PENDING HUMAN AUTH:** (A) brief reframe sign-off; (B) EC-11 namespace collisions.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1399 + DELTA D-1400 + DELTA D-1401 + DELTA D-1402 + DELTA D-1403 + DELTA D-1404 for full context. STATE v8.031.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1399 + DELTA D-1400 + DELTA D-1401 + DELTA D-1402 + DELTA D-1403 + DELTA D-1404 + DELTA D-1405 for full context. STATE v8.032.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `9a09653a`.
-3. Feature branch worktree for S-DEMO-FIDELITY-REMEDIATION-001 at CODE HEAD 7e7c8414 (story v2.4).
+3. Feature branch worktree for S-DEMO-FIDELITY-REMEDIATION-001 at CODE HEAD 2be96b7c (story v2.5).
 4. HUMAN DECISIONS PENDING: (A) brief reframe sign-off; (B) EC-11 namespace collisions.
-5. Next: LOCAL adversary Pass M on 7e7c8414 + v2.4 → 3-CLEAN(strict) → demo evidence → PR. Autonomy D-989 active.
+5. Next: LOCAL adversary Pass Q on 2be96b7c + v2.5 → 3-CLEAN(strict) → demo evidence → PR. Autonomy D-989 active.

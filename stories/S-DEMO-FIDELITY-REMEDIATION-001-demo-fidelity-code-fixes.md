@@ -70,7 +70,7 @@ status: draft
 #   BC-2.11.016 v1.4) + BC-2.11.019 v1.5 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.4"
+version: "2.5"
 updated: "2026-06-28"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -406,8 +406,10 @@ Gate ordering: this enrichment-validation pass runs AFTER the table availability
 > DataFusion default `SessionContext` — see EC-11-064 and EC-11-065 in BC-2.11.019 v1.5.
 > The AUDIT-005 reproducer (`SELECT cvss(device_cves_first) FROM armis_devices`) is unaffected:
 > `cvss` is not a DataFusion built-in, so E-QUERY-039 still fires for unregistered non-builtin names.
-> **Implementation requirement:** the exclusion check MUST use `ctx.state().scalar_functions().get(name)`
-> (live `SessionContext` registry), NOT a hard-coded allowlist. New tests for EC-11-064/065:
+> **Implementation requirement:** the exclusion check MUST exclude DataFusion built-in scalars by
+> querying DataFusion's runtime-derived default scalar-function set
+> (`SessionStateDefaults::default_scalar_functions()`, or the equivalent `ctx.state().scalar_functions()`),
+> NOT a hard-coded allowlist. New tests for EC-11-064/065:
 > `test_bc_2_11_019_n1b_builtin_passthrough_lower` and
 > `test_bc_2_11_019_n1b_builtin_passthrough_coalesce` in `bc_2_11_019_n1b_test.rs`.
 
@@ -1074,6 +1076,7 @@ spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.5 | f-ppl3-low-001-ac-n1b-impl-req-prose-alignment-2026-06-28 | 2026-06-28 | story-writer | **F-PPL3-LOW-001 closure — AC-N1B implementation-requirement prose made mechanism-agnostic.** The prior wording `"the exclusion check MUST use ctx.state().scalar_functions().get(name) (live SessionContext registry), NOT a hard-coded allowlist"` was stricter than the ratified BC: BC-2.11.019 v1.5 §Postconditions implementation note (F-PJL1-HIGH-001) uses `"e.g., ctx.state().scalar_functions().get(name)"` (permissive) and `"or equivalent"`. The shipped code uses `SessionStateDefaults::default_scalar_functions()` (a `LazyLock`), which the BC already ratifies as the equivalent mechanism. New prose: `"the exclusion check MUST exclude DataFusion built-in scalars by querying DataFusion's runtime-derived default scalar-function set (SessionStateDefaults::default_scalar_functions(), or the equivalent ctx.state().scalar_functions()), NOT a hard-coded allowlist."` Observable behavior and BC trace are unchanged. BC-2.11.019 v1.5 is already permissive — no BC amendment required. |
 | 2.4 | bc-2.10.012-v1.5-propagation-2026-06-28 | 2026-06-28 | story-writer | **BC-2.10.012 v1.4→v1.5 cite propagation (F-PLL2-MED-001).** PO bumped BC-2.10.012 v1.4→v1.5 (§"Auto-generated example queries" rewritten to document the accurate shipped 4-tier per-sensor priority ladder; no behavioral/AC change — code already implements this, BC now matches it). Version cite sweep: all live (non-changelog) `BC-2.10.012 v1.4` cites updated to `v1.5` — 4 sites: frontmatter subsystem anchor comment (line 20), frontmatter points breakdown comment (line 64), frontmatter BC status comment (line 69), body BC table version cell, AC-AUDIT-001 header trace. POL-7 body BC table Title cell verified verbatim against BC H1: `BC-2.10.012: \`prism_describe\` Schema Discovery Tool (L2)` — no change needed. AC-AUDIT-001 alignment confirmed: AC specifies the CRIT-1 priority ladder for `build_example_query`; v1.5 BC description now matches what AC-AUDIT-001 and the code already do — no new AC needed, no contradiction introduced. |
 | 2.3 | bc-2.11.019-v1.5-propagation-2026-06-28 | 2026-06-28 | story-writer | **BC-2.11.019 v1.4→v1.5 propagation + F-PJL1-HIGH-001 built-in-exclusion.** PO bumped BC-2.11.019 v1.4→v1.5 (F-PJL1-HIGH-001: DataFusion built-in scalar functions are excluded from E-QUERY-039 SQL-mode firing condition; gate now requires (a) not a PQL built-in ScalarFunc variant AND (b) not in DataFusion `ctx.state().scalar_functions()` AND (c) not in `InfusionRegistry.udf_to_infusion`). **Version cite sweep:** all live (non-changelog) `BC-2.11.019 v1.4` cites updated to `v1.5` — 11 body sites (frontmatter comments ×3, body BC table version cell, AC-N1B header trace, Gate-ordering note, WHERE-clause note, §Precondition 1(b) body-cite, `available_infusions Vec<String>` note, AC-C1C2 trace, Tasks step 6(b), Previous Story Intelligence §5). **AC-N1B decision:** added built-in-exclusion note block-quote to AC-N1B (not a new standalone AC — the exclusion is a refinement of the existing gate firing condition, covered by BC-2.11.019 v1.5 §Postconditions; new tests added per EC-11-064/065). **New tests (EC-11-064/065):** `test_bc_2_11_019_n1b_builtin_passthrough_lower` + `test_bc_2_11_019_n1b_builtin_passthrough_coalesce` added to Red Gate test inventory and File Structure table; `bc_2_11_019_n1b_test.rs` 15→17 tests; `red_gate_tests` 31→33. **New edge cases:** EC-016 (EC-11-064: `lower` passes gate) + EC-017 (EC-11-065: `upper`/`coalesce` pass gate). Token Budget story spec ~16k→~17k, test files ~18k→~19k, total ~88k→~90k. |
 | 2.2 | pol-7-title-normalization-2026-06-27 | 2026-06-27 | story-writer | POL-7 title normalization (D-571 amendment): normalized all 6 Title cells in the Behavioral Contracts body table to match each BC's H1 VERBATIM — added the `BC-N.NN.NNN:` prefix to the 5 rows that had stripped it (BC-2.11.001, BC-2.11.022, BC-2.11.019, BC-2.10.016, BC-2.10.012). BC-2.11.016 was already verbatim. All 6 version cites confirmed current against BC frontmatter (v1.15, v1.1, v1.4, v1.2, v1.4, v1.4 — no drift). No §References section present; no other citation surfaces. |
