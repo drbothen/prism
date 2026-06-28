@@ -792,6 +792,13 @@ fn test_bc_2_10_016_audit_004_column_sets_loaded_for_all_sensor_tables() {
 //   severity ∈ {"HIGH", "CRITICAL", "MEDIUM", "LOW"}  (UPPER-case)
 //     Source: build_alert() severity parameter values (lines ~288-297 generate_compromised_endpoint)
 //             "HIGH", "CRITICAL", "MEDIUM"
+//
+// cyberint:
+//   severity ∈ {"low", "medium", "high", "critical"}  (lowercase)
+//     Source: prism-dtu-cyberint/src/generator.rs
+//             let severities = ["low", "medium", "high", "critical"];
+//     Note: Added to SENSOR_SEVERITY_VOCABULARY in F-PHL2-MED-001 (Pass-H).
+//           The prompts now emit WHERE severity IN ('high', 'critical') for cyberint_alerts.
 
 /// Canonical per-sensor vocabulary for status and severity columns.
 ///
@@ -831,6 +838,16 @@ const SENSOR_COLUMN_VOCABULARIES: &[(&str, &str, &[&str])] = &[
         "armis_alerts",
         "severity",
         &["HIGH", "CRITICAL", "MEDIUM", "LOW"],
+    ),
+    // cyberint_alerts.severity: lowercase from generator.rs severities array.
+    // Source: generator.rs let severities = ["low", "medium", "high", "critical"];
+    // F-PHL2-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-H): cyberint added to
+    // SENSOR_SEVERITY_VOCABULARY with lowercase literals — MED-2 must now validate
+    // that any prompt example query for cyberint_alerts.severity uses lowercase values.
+    (
+        "cyberint_alerts",
+        "severity",
+        &["low", "medium", "high", "critical"],
     ),
 ];
 

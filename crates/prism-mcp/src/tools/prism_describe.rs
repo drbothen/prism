@@ -462,18 +462,22 @@ fn build_pql_hints(
 ///   Source: `crates/prism-dtu-armis/src/generator.rs` `build_alert()` severity param
 ///   assigned as `"HIGH"`, `"CRITICAL"`, `"MEDIUM"`
 ///
-/// ## Sensors INTENTIONALLY OMITTED from this vocabulary
+/// ## Sensors registered in this vocabulary
 ///
-/// - `cyberint`: lowercase — `"low"`, `"medium"`, `"high"`, `"critical"`
-///   Source: `crates/prism-dtu-cyberint/src/generator.rs`.
-///   Cyberint is intentionally NOT registered here.  The example builder therefore
-///   calls `severity_literals_for_table("cyberint_alerts")` → `None` → the severity
-///   filter is suppressed → the example falls back to the executable count-recent
-///   form.  Rationale: the example builder currently commits to only two casing
-///   conventions; adding a third (lowercase) is a deliberate DEMO-SCOPE decision
-///   that must be made at the story level, not silently inlined here.  No current
-///   demo prompt filters cyberint by severity string, so the count-recent fallback
-///   is both correct and non-lossy for demo purposes.
+/// - `crowdstrike`: Title-case — `"High"`, `"Critical"`
+///   Source: `crates/prism-dtu-crowdstrike/src/generator.rs`
+///   `make_detection_with_ioc()` severity_id mapping: 1→"Low", 2→"Medium", 3→"High", _→"Critical"
+///
+/// - `armis`: UPPER-case — `"HIGH"`, `"CRITICAL"`
+///   Source: `crates/prism-dtu-armis/src/generator.rs` `build_alert()` severity param
+///   assigned as `"HIGH"`, `"CRITICAL"`, `"MEDIUM"`, `"LOW"`
+///
+/// - `cyberint`: lowercase — `"high"`, `"critical"`
+///   Source: `crates/prism-dtu-cyberint/src/generator.rs`
+///   `let severities = ["low", "medium", "high", "critical"];` (F-PHL2-MED-001 fix)
+///   The example query emits `WHERE severity IN ('high', 'critical') LIMIT 50`.
+///
+/// ## Sensors INTENTIONALLY OMITTED from this vocabulary
 ///
 /// - `claroty`: NO string `severity` column.  The claroty sensor schema exposes
 ///   `severity_id` (Integer) rather than a string `severity` column.  The
@@ -491,10 +495,15 @@ fn build_pql_hints(
 ///
 /// F-L2-CRIT-001 fix (S-DEMO-FIDELITY-REMEDIATION-001).
 /// F-PGL2-LOW-001 doc expansion (S-DEMO-FIDELITY-REMEDIATION-001).
+/// F-PHL2-MED-001 cyberint entry (S-DEMO-FIDELITY-REMEDIATION-001 Pass-H).
 const SENSOR_SEVERITY_VOCABULARY: &[(&str, &str, &str)] = &[
     // (sensor_prefix, high_literal, critical_literal)
     ("crowdstrike", "High", "Critical"),
     ("armis", "HIGH", "CRITICAL"),
+    // cyberint emits lowercase severity: "low", "medium", "high", "critical"
+    // Source: crates/prism-dtu-cyberint/src/generator.rs severities array.
+    // F-PHL2-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-H).
+    ("cyberint", "high", "critical"),
 ];
 
 /// Derive the severity literals for a table based on its sensor prefix.
@@ -505,8 +514,7 @@ const SENSOR_SEVERITY_VOCABULARY: &[(&str, &str, &str)] = &[
 /// For the four demo sensors:
 /// - `crowdstrike_*` → `Some(("High", "Critical"))` (Title-case)
 /// - `armis_*` → `Some(("HIGH", "CRITICAL"))` (UPPER-case)
-/// - `cyberint_*` → `None` (intentionally absent — falls back to count-recent;
-///   see `SENSOR_SEVERITY_VOCABULARY` doc for rationale)
+/// - `cyberint_*` → `Some(("high", "critical"))` (lowercase; F-PHL2-MED-001 fix)
 /// - `claroty_*` → `None` (no string `severity` column; never reaches this
 ///   function from `build_example_query` because `has_severity` is false
 ///   for claroty tables)
@@ -838,6 +846,88 @@ mod build_example_query_tests {
         assert!(
             !q.contains("'high'") && !q.contains("'critical'"),
             "F-L2-CRIT-001: unknown sensor must NOT emit lowercase severity literals. Got: {q}"
+        );
+    }
+
+    // ── F-PHL2-MED-001: cyberint severity vocabulary (lowercase) ─────────────
+    //
+    // Cyberint DTU emits lowercase severity: "low", "medium", "high", "critical"
+    //   Source: crates/prism-dtu-cyberint/src/generator.rs
+    //           let severities = ["low", "medium", "high", "critical"];
+    //
+    // Before fix: cyberint was NOT in SENSOR_SEVERITY_VOCABULARY →
+    //   build_example_query("cyberint_alerts", …) with a severity column fell through
+    //   to count-recent (no vocabulary registered). Querying with lowercase literals
+    //   is correct (DTU emits lowercase), so the example returned real rows.
+    //   Suppressing it on "demo-scope" grounds violated Rule 1 (no MVP deferrals).
+    //
+    // After fix: cyberint is added with ("cyberint", "high", "critical") →
+    //   severity branch fires for cyberint_alerts when a severity String column exists.
+    //   The example query emits WHERE severity IN ('high', 'critical') LIMIT 50.
+    //
+    // Load-bearing (TD-VSDD-059): these tests fail before the vocabulary entry is added
+    // and pass after.
+
+    /// F-PHL2-MED-001: cyberint_alerts severity variant must use lowercase literals.
+    ///
+    /// DTU emits: "high", "critical" — lowercase (NOT Title-case or UPPER-case).
+    /// After adding cyberint to SENSOR_SEVERITY_VOCABULARY, severity branch must fire
+    /// when severity String column is present and emit lowercase 'high'/'critical'.
+    ///
+    /// Load-bearing (TD-VSDD-059): before vocabulary entry, severity branch is suppressed
+    /// and count-recent fires instead → this assert on `q.contains("'high'")` fails.
+    #[test]
+    fn test_f_phl2_med001_cyberint_alerts_severity_uses_lower_case() {
+        let columns = vec![
+            col("created_at", ColumnType::Datetime),
+            col("severity", ColumnType::String),
+            col("title", ColumnType::String),
+        ];
+
+        let q = build_example_query("cyberint_alerts", &columns);
+
+        // Must use lowercase (DTU emits "high"/"critical", NOT Title-case or UPPER-case).
+        assert!(
+            q.contains("'high'") && q.contains("'critical'"),
+            "F-PHL2-MED-001: cyberint_alerts severity IN must use lowercase 'high'/'critical' \
+             to match DTU vocabulary. Got: {q}. \
+             Before fix: cyberint had no vocabulary entry → count-recent branch fired."
+        );
+        // Must NOT use Title-case or UPPER-case (wrong casing returns 0 rows against DTU).
+        assert!(
+            !q.contains("'High'") && !q.contains("'CRITICAL'"),
+            "F-PHL2-MED-001: cyberint_alerts must NOT use Title-case or UPPER-case. Got: {q}"
+        );
+        // Severity branch fires (not count-recent which uses COUNT(*)).
+        assert!(
+            q.contains("WHERE severity IN"),
+            "F-PHL2-MED-001: cyberint_alerts with severity column must use severity-filter \
+             branch, not count-recent. Got: {q}"
+        );
+    }
+
+    /// F-PHL2-MED-001: cyberint_alerts with severity_id (Integer) must use aggregate
+    /// branch (Integer wins over severity-filter in priority ladder).
+    ///
+    /// The cyberint spec has severity_id as a u64 (integer) per DTU generator. When
+    /// the spec exposes severity_id as an Integer column, aggregate fires first.
+    ///
+    /// This test verifies the priority ladder is respected: aggregate > severity.
+    #[test]
+    fn test_f_phl2_med001_cyberint_alerts_integer_col_triggers_aggregate_not_severity() {
+        let columns = vec![
+            col("created_at", ColumnType::Datetime),
+            col("severity", ColumnType::String),
+            col("severity_id", ColumnType::Integer), // Integer → aggregate branch wins
+        ];
+
+        let q = build_example_query("cyberint_alerts", &columns);
+
+        // Integer column present → aggregate branch wins (highest priority).
+        assert!(
+            q.contains("GROUP BY") && q.contains("COUNT(*)"),
+            "F-PHL2-MED-001 priority: cyberint_alerts with Integer severity_id must use \
+             aggregate branch (Integer > severity-filter in priority ladder). Got: {q}"
         );
     }
 
