@@ -65,10 +65,21 @@ impl std::fmt::Display for EnrichUdfNotFoundDetails {
         // BC-2.11.019 v1.4, PO-reconciled spec S-DEMO-FIDELITY-REMEDIATION-001):
         // "E-QUERY-039: enrichment infusion '{infusion}' is not registered;
         //  available: [{available_infusions}]{did_you_mean}"
-        // {available_infusions}: available_infusions.join(", ") wrapped in [ ] brackets.
+        // {available_infusions}: available_infusions joined with ", " wrapped in [ ] brackets,
+        //   SORTED lexicographically per BC-2.11.019 v1.4 §PrismError-variant.
+        //   Sort happens here in Display so the contract is self-enforcing; the caller
+        //   (check_enrich_udf_availability) also sorts+deduplicates before constructing
+        //   the error, which is defensive — both are harmless.
         // Empty Vec → [].
         // {did_you_mean}: " Did you mean: '{x}'?" (leading space) when Some, omitted when None.
-        let available = self.available_infusions.join(", ");
+        //
+        // F-PBL1-LOW-002 fix (Pass-B S-DEMO-FIDELITY-REMEDIATION-001): sort within
+        // Display so the contract is self-enforcing. Previously the sort only lived
+        // in check_enrich_udf_availability; any direct construction with unsorted
+        // available_infusions would produce non-deterministic output.
+        let mut sorted = self.available_infusions.clone();
+        sorted.sort();
+        let available = sorted.join(", ");
         let did_you_mean_suffix = match &self.did_you_mean {
             Some(s) => format!(" Did you mean: '{s}'?"),
             None => String::new(),

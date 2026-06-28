@@ -19,9 +19,13 @@ use crate::error::{EnrichUdfNotFoundDetails, PrismError};
 ///
 /// Input: infusion="threat_intel", available=["threat_score", "threat_is_known_malicious"],
 ///        did_you_mean=None.
-/// Expected: "E-QUERY-039: enrichment infusion 'threat_intel' is not registered;
-///            available: [threat_score, threat_is_known_malicious]"
+/// Expected output (sorted): "E-QUERY-039: enrichment infusion 'threat_intel' is not registered;
+///            available: [threat_is_known_malicious, threat_score]"
 /// No trailing space, no "Did you mean" suffix.
+///
+/// Note: "threat_is_known_malicious" < "threat_score" lexicographically, so sorted order is
+/// [threat_is_known_malicious, threat_score]. Display MUST sort per BC-2.11.019 v1.4.
+/// (F-PBL1-LOW-002 fix: updated expected output to reflect self-sorting in Display.)
 #[test]
 fn test_enrich_udf_not_found_display_no_did_you_mean() {
     let details = EnrichUdfNotFoundDetails::new(
@@ -35,12 +39,14 @@ fn test_enrich_udf_not_found_display_no_did_you_mean() {
     let err = PrismError::EnrichUdfNotFound(Box::new(details));
     let display = format!("{err}");
 
-    // Byte-exact match against PO canonical template.
+    // Byte-exact match against PO canonical template (sorted lexicographically).
+    // "threat_is_known_malicious" < "threat_score" alphabetically.
     assert_eq!(
         display,
         "E-QUERY-039: enrichment infusion 'threat_intel' is not registered; \
-         available: [threat_score, threat_is_known_malicious]",
-        "HIGH-002/004: Display must byte-match canonical E-QUERY-039 template (no did_you_mean)"
+         available: [threat_is_known_malicious, threat_score]",
+        "HIGH-002/004: Display must byte-match canonical E-QUERY-039 template \
+         (sorted: threat_is_known_malicious before threat_score)"
     );
 }
 
@@ -95,5 +101,42 @@ fn test_enrich_udf_not_found_display_starts_with_error_code() {
         display.starts_with("E-QUERY-039:"),
         "HIGH-002/004: Display must start with 'E-QUERY-039:' for structured log parsing. \
          Got: {display}"
+    );
+}
+
+/// F-PBL1-LOW-002 — Display must self-sort `available_infusions` lexicographically
+/// per BC-2.11.019 v1.4 §PrismError-variant.
+///
+/// Previously the sort lived only in the gate caller (`check_enrich_udf_availability`).
+/// But the Display contract says "the Display implementation MUST comma-join the
+/// Vec<String> (sorted lexicographically)," which is a self-enforcement requirement.
+///
+/// This test passes an UNSORTED input `["z_infusion", "a_infusion"]` directly to
+/// the Display impl and asserts the output shows them sorted `a_infusion, z_infusion`.
+///
+/// Before fix: Display joins verbatim → `[z_infusion, a_infusion]` → FAIL.
+/// After fix: Display sorts a clone → `[a_infusion, z_infusion]` → PASS.
+///
+/// Load-bearing (F-PBL1-LOW-002): removing the sort from within Display causes
+/// this test to fail (output would be `[z_infusion, a_infusion]`).
+#[test]
+fn test_f_pbl1_low002_display_self_sorts_available_infusions() {
+    let details = EnrichUdfNotFoundDetails::new(
+        "unknown",
+        vec!["z_infusion".to_string(), "a_infusion".to_string()], // intentionally unsorted
+        None,
+    );
+    let err = PrismError::EnrichUdfNotFound(Box::new(details));
+    let display = format!("{err}");
+
+    // The Display impl MUST sort the available_infusions before joining.
+    // Unsorted input [z_infusion, a_infusion] must produce sorted [a_infusion, z_infusion].
+    assert_eq!(
+        display,
+        "E-QUERY-039: enrichment infusion 'unknown' is not registered; \
+         available: [a_infusion, z_infusion]",
+        "F-PBL1-LOW-002: Display must sort available_infusions before joining. \
+         Before fix, joins verbatim → [z_infusion, a_infusion]; \
+         after fix, sorts first → [a_infusion, z_infusion]."
     );
 }
