@@ -21,8 +21,9 @@
 //! split by whitespace, find "FROM" tokens, check the next token for a `.` that is NOT
 //! a URL scheme (i.e., not `://`). Assert zero violations.
 //!
-//! RED GATE: Current code has 7 dot-notation FROM instances across 4 functions.
-//! The test counts them and asserts zero. It fails RED listing all occurrences found.
+//! Load-bearing: the prompts.rs `render_*` functions have been updated to use
+//! underscore-qualified names. Re-introducing dot-notation causes this test to fail
+//! listing all violations found.
 //!
 //! # Test → AC mapping
 //!
@@ -203,8 +204,8 @@ fn test_bc_2_10_016_audit_004_no_dot_notation_in_prompts() {
 
     assert!(
         all_violations.is_empty(),
-        "BC-2.10.016 AUDIT-004 RED GATE: found {} dot-notation FROM reference(s) \
-         across render_* prompt functions. All must be replaced with underscore-qualified \
+        "BC-2.10.016 AUDIT-004: found {} dot-notation FROM reference(s) \
+         across render_* prompt functions. All must use underscore-qualified \
          names (e.g., FROM crowdstrike_alerts). \
          Violations found:\n{}",
         all_violations.len(),

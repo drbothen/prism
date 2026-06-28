@@ -2795,7 +2795,7 @@ mod tests {
     ///
     /// BC-2.10.007 §111 specifies graceful "return None for all other variants" semantics.
     /// The prior implementation `panic!`'d, making the public function a latent footgun.
-    /// After the fix: non-SensorRateLimited variants return `retry_after_ms = 0` gracefully.
+    /// Non-SensorRateLimited variants return `retry_after_ms = 0` gracefully (no panic).
     ///
     /// Uses `PrismError::QueryTimeout` as a representative non-SensorRateLimited variant.
     #[test]
@@ -2934,7 +2934,8 @@ mod tests {
     /// BC-2.11.017 AC-003 postcondition: `near_text` MUST be a valid UTF-8 string.
     /// Production path: `prism_error_to_structured_call_result` (F-001B-PASS-CRIT-001).
     ///
-    /// RED GATE: panics on current HEAD because `pos + 1` is not char-boundary-safe.
+    /// Load-bearing (F-001B-PASS-CRIT-001): removing char-boundary-safe slicing from
+    /// `extract_near_text` causes a panic when `pos + 1` lands mid-char.
     #[test]
     fn test_BC_2_11_017_near_text_no_panic_on_ideographic_space_multibyte_offset() {
         // query = "first\u{3000}word\u{3000}token"
@@ -2955,9 +2956,9 @@ mod tests {
             query: query.clone(),
         };
 
-        // Must NOT panic — current code panics here due to mid-char byte slice at byte 6.
-        // The algorithm does: rfind(whitespace) on "first\u{3000}word" finds \u{3000} at
-        // byte 5, then pos + 1 = 6, which is mid-char. extract_near_text(&query, 6) panics.
+        // Must NOT panic. Load-bearing: without char-boundary-safe slicing, the algorithm
+        // does rfind(whitespace) on "first\u{3000}word", finds \u{3000} at byte 5, then
+        // pos + 1 = 6 (mid-char), and extract_near_text(&query, 6) would panic.
         let result = prism_error_to_structured_call_result(err);
 
         // BC-2.11.017 AC-003: near_text must be present and valid UTF-8.
@@ -2991,7 +2992,8 @@ mod tests {
     /// → rfind(whitespace) on "alpha\u{00A0}beta" finds \u{00A0} at byte 5
     /// → pos + 1 = 6 → NOT a char boundary for the 2-byte U+00A0 → PANIC
     ///
-    /// RED GATE: panics on current HEAD for the same reason as the U+3000 case.
+    /// Load-bearing (F-001B-PASS-CRIT-001): removing char-boundary-safe slicing causes
+    /// the same panic as the U+3000 case — `pos + 1 = 6` is mid-char for 2-byte U+00A0.
     #[test]
     fn test_BC_2_11_017_near_text_no_panic_on_nbsp_multibyte_offset() {
         // query = "alpha\u{00A0}beta\u{00A0}gamma"
@@ -3011,9 +3013,8 @@ mod tests {
             query: query.clone(),
         };
 
-        // Must NOT panic — panics on current HEAD.
-        // The algorithm does: rfind(whitespace) on "alpha\u{00A0}beta" finds \u{00A0} at
-        // byte 5, then pos + 1 = 6 (mid-char). extract_near_text(&query, 6) → PANIC.
+        // Must NOT panic. Load-bearing: without char-boundary-safe slicing, rfind(whitespace)
+        // on "alpha\u{00A0}beta" finds \u{00A0} at byte 5, pos + 1 = 6 (mid-char) → PANIC.
         let result = prism_error_to_structured_call_result(err);
 
         let sc = result
@@ -3081,7 +3082,8 @@ mod tests {
     ///
     /// This is the SYMMETRIC counterpart to F-001B-PASS-CRIT-001 (multibyte-WHITESPACE case).
     ///
-    /// RED GATE: currently returns near_text = "hello" (offset 0) instead of "café".
+    /// Load-bearing: without char-end computation using `char_end = pos + char.len_utf8()`,
+    /// the code falls back to `near_text = "hello"` (offset 0) instead of "café".
     #[test]
     fn test_BC_2_11_017_near_text_correct_when_preceding_token_ends_in_multibyte_nonws_char() {
         // query = "hello café bad"

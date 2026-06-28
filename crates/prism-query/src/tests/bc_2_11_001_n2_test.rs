@@ -102,12 +102,10 @@ fn make_registry_with_cyberint_crowdstrike() -> TableRegistry {
 /// - `table: "cyberint.alerts"` (the name as written)
 /// - `did_you_mean: "cyberint_alerts"` (the correct underscore form)
 ///
-/// RED GATE: `check_availability_gate` currently converts `External { sensor, table }` AST
-/// nodes to `"{sensor}_{table}"` (e.g., `"cyberint_alerts"`) BEFORE checking registration.
-/// Since `cyberint_alerts` IS registered, the gate returns Ok(()) and the dot-notation
-/// string routes to the fan-out, producing a silent E-SENSOR-030 partial failure.
-/// After the fix: `External { sensor, table }` nodes in FROM target position must be
-/// rejected with E-QUERY-037 (the dot-notation itself is the error).
+/// Load-bearing: `check_availability_gate` rejects `External { sensor, table }` AST nodes
+/// in FROM target position with E-QUERY-037. Reverting to underscore-conversion-before-lookup
+/// would cause dot-notation to silently pass the gate (cyberint_alerts IS registered), routing
+/// the dot-notation string to fan-out and producing a silent E-SENSOR-030 partial failure.
 #[test]
 fn test_bc_2_11_001_n2_dot_notation_from_target_e_query_037() {
     let registry = make_registry_with_cyberint_crowdstrike();
@@ -115,21 +113,19 @@ fn test_bc_2_11_001_n2_dot_notation_from_target_e_query_037() {
     // ── Pipe mode: FROM cyberint.alerts ──────────────────────────────────────
     //
     // `cyberint.alerts` is classified as External { sensor: "cyberint", table: "alerts" }.
-    // Current gate converts this to `cyberint_alerts` and finds it registered → Ok(()).
-    // After fix: dot-notation in FROM position → E-QUERY-037 with did_you_mean.
+    // The gate rejects dot-notation in FROM position with E-QUERY-037 + did_you_mean.
     let pipe_result =
         registry.check_availability_gate("FROM cyberint.alerts | limit 10", None, None);
 
     match &pipe_result {
         Err(PrismError::TableNotAvailable(ref details)) => {
-            // After fix: table field must be the dot-notation string as written.
+            // Load-bearing: table field must be the dot-notation string as written.
             assert_eq!(
                 details.table, "cyberint.alerts",
                 "BC-2.11.001 AC-N2: TableNotAvailable.table must be 'cyberint.alerts' \
                  (the name as written). Got: {:?}",
                 details.table
             );
-            // After fix: did_you_mean must be non-empty and contain the underscore form.
             // did_you_mean is a pre-formatted String: "" (no suggestion) or
             // " Did you mean: 'cyberint_alerts'?" (when Levenshtein ≤ 3 match found).
             assert!(
@@ -140,9 +136,8 @@ fn test_bc_2_11_001_n2_dot_notation_from_target_e_query_037() {
             );
         }
         Ok(()) => panic!(
-            "BC-2.11.001 AC-N2 PIPE RED GATE: FROM cyberint.alerts must return \
-             Err(PrismError::TableNotAvailable) — current code converts dot-notation to \
-             underscore form and passes the gate. Got Ok(())."
+            "BC-2.11.001 AC-N2 PIPE: FROM cyberint.alerts must return \
+             Err(PrismError::TableNotAvailable). Got Ok(())."
         ),
         Err(other) => panic!(
             "BC-2.11.001 AC-N2 PIPE: expected Err(PrismError::TableNotAvailable), \
@@ -175,9 +170,8 @@ fn test_bc_2_11_001_n2_dot_notation_from_target_e_query_037() {
             );
         }
         Ok(()) => panic!(
-            "BC-2.11.001 AC-N2 SQL RED GATE: SELECT * FROM crowdstrike.detections must return \
-             Err(PrismError::TableNotAvailable) — current code converts dot-notation to \
-             underscore form and passes the gate. Got Ok(())."
+            "BC-2.11.001 AC-N2 SQL: SELECT * FROM crowdstrike.detections must return \
+             Err(PrismError::TableNotAvailable). Got Ok(())."
         ),
         Err(other) => panic!(
             "BC-2.11.001 AC-N2 SQL: expected Err(PrismError::TableNotAvailable), \
@@ -245,8 +239,8 @@ fn test_bc_2_11_001_n2_dot_notation_sqlpipe_e_query_037() {
     // After HIGH-1 fix: the External guard fires unconditionally (no SqlPipe exemption)
     // and returns E-QUERY-037 with table="crowdstrike.detections".
     //
-    // Before HIGH-1 fix: the `is_sqlpipe` exemption allows the gate to pass because
-    // `crowdstrike_detections` IS registered — the test would get Ok(()) (RED GATE).
+    // Load-bearing: before HIGH-1 fix, the `is_sqlpipe` exemption allowed the gate to pass
+    // because `crowdstrike_detections` IS registered — reverting it causes Ok(()) here.
     let result = registry.check_availability_gate(
         "SELECT * FROM crowdstrike.detections | limit 10",
         None,
@@ -255,7 +249,7 @@ fn test_bc_2_11_001_n2_dot_notation_sqlpipe_e_query_037() {
 
     match &result {
         Err(PrismError::TableNotAvailable(ref details)) => {
-            // After fix: table must be the dot-notation string as written.
+            // Load-bearing: table must be the dot-notation string as written.
             assert_eq!(
                 details.table, "crowdstrike.detections",
                 "BC-2.11.001 v1.15 AC-N2 HIGH-1 SqlPipe: \
@@ -273,10 +267,10 @@ fn test_bc_2_11_001_n2_dot_notation_sqlpipe_e_query_037() {
             );
         }
         Ok(()) => panic!(
-            "BC-2.11.001 v1.15 AC-N2 HIGH-1 SqlPipe RED GATE: \
+            "BC-2.11.001 v1.15 AC-N2 HIGH-1 SqlPipe: \
              'SELECT * FROM crowdstrike.detections | limit 10' must return \
              Err(PrismError::TableNotAvailable) (EC-11-067 applies to SqlPipe). \
-             Got Ok(()). The SqlPipe exemption (is_sqlpipe guard) must be removed."
+             Got Ok(())."
         ),
         Err(other) => panic!(
             "BC-2.11.001 v1.15 AC-N2 HIGH-1 SqlPipe: expected Err(PrismError::TableNotAvailable), \

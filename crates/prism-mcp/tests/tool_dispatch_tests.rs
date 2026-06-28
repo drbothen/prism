@@ -1502,7 +1502,7 @@ fn test_BC_2_10_004_well_formed_unknown_client_id_maps_to_e_cfg_100() {
         orig_valid,
         Some(true),
         "BC-2.10.004 case (c): structured error must have original_params_valid=true; \
-         got: {orig_valid:?} — stub returns wrong shape — RED GATE"
+         got: {orig_valid:?} — stub returns wrong shape — Load-bearing"
     );
 }
 
@@ -1553,13 +1553,13 @@ fn test_BC_2_10_007_structured_error_has_nine_fields_and_meta_trust_level() {
         trust_level,
         Some("internal"),
         "BC-2.10.007: structuredContent._meta.trust_level must be 'internal'; \
-         got: {trust_level:?} — RED GATE"
+         got: {trust_level:?} — Load-bearing"
     );
 
     // Assert structuredContent.error has exactly 9 required fields.
     let error_obj = sc
         .get("error")
-        .expect("BC-2.10.007: structuredContent.error must be present — RED GATE");
+        .expect("BC-2.10.007: structuredContent.error must be present — Load-bearing");
     let required_fields = [
         "code",
         "message",
@@ -1575,7 +1575,7 @@ fn test_BC_2_10_007_structured_error_has_nine_fields_and_meta_trust_level() {
         assert!(
             error_obj.get(field).is_some(),
             "BC-2.10.007: structuredContent.error must contain field '{field}'; \
-             got: {error_obj} — RED GATE"
+             got: {error_obj} — Load-bearing"
         );
     }
 
@@ -1694,14 +1694,14 @@ fn test_BC_2_10_007_no_retry_after_produces_null_not_absent() {
         .expect("BC-2.10.007: structured_content must be present");
     let error_obj = sc
         .get("error")
-        .expect("BC-2.10.007: structuredContent.error must be present — RED GATE");
+        .expect("BC-2.10.007: structuredContent.error must be present — Load-bearing");
 
     // retry_after_seconds must be present as null (not absent) per BC-2.10.007 v1.5.
     let retry_field = error_obj.get("retry_after_seconds");
     assert!(
         retry_field.is_some(),
         "BC-2.10.007 AC-006 null-not-absent: retry_after_seconds must be present as JSON null \
-         even when no Retry-After header was received; field is absent — RED GATE"
+         even when no Retry-After header was received; field is absent — Load-bearing"
     );
     assert!(
         retry_field.map(|v| v.is_null()).unwrap_or(false),
@@ -1741,10 +1741,10 @@ fn test_BC_2_10_007_upstream_message_isolation_from_prose_content() {
 
     let sc = result
         .structured_content
-        .expect("BC-2.10.007 DI-006: structured_content must be present — RED GATE");
+        .expect("BC-2.10.007 DI-006: structured_content must be present — Load-bearing");
     let error_obj = sc
         .get("error")
-        .expect("BC-2.10.007 DI-006: structuredContent.error must be present — RED GATE");
+        .expect("BC-2.10.007 DI-006: structuredContent.error must be present — Load-bearing");
 
     // 1. upstream_message must contain the injection payload.
     let upstream = error_obj
@@ -2017,7 +2017,7 @@ async fn test_BC_2_10_011_compile_time_disabled_has_one_deny_step() {
         status,
         Some("compile_time_disabled"),
         "BC-2.10.011 AC-009: capability '{cap_path}' must have \
-         status='compile_time_disabled'; got: {status:?} — RED GATE (old bool-map returns None)"
+         status='compile_time_disabled'; got: {status:?} — Load-bearing (old bool-map returns None)"
     );
 
     let chain = cap_value.get("resolution_chain").and_then(|c| c.as_array());
@@ -2210,7 +2210,7 @@ fn test_CRIT_A_client_not_found_structured_error_category_configuration_params_v
     assert_eq!(
         category, "configuration",
         "CRIT-A BC-2.10.004 §87: ClientNotFound category must be 'configuration', not \
-         'validation'; got '{category}' — RED GATE (ClientNotFound is in validation arm)"
+         'validation'; got '{category}' — Load-bearing (ClientNotFound is in validation arm)"
     );
 
     let orig_valid = error_obj
@@ -2221,7 +2221,7 @@ fn test_CRIT_A_client_not_found_structured_error_category_configuration_params_v
         Some(true),
         "CRIT-A BC-2.10.004 §87: ClientNotFound original_params_valid must be true \
          (client_id was structurally valid — it just wasn't registered); \
-         got {:?} — RED GATE",
+         got {:?} — Load-bearing",
         orig_valid
     );
 }
@@ -2271,7 +2271,7 @@ fn test_CRIT_B_capability_denied_category_is_permission() {
     assert_eq!(
         category, "permission",
         "CRIT-B BC-2.10.007: CapabilityDenied must emit category='permission', \
-         not 'authorization'; got '{category}' — RED GATE"
+         not 'authorization'; got '{category}' — Load-bearing"
     );
 }
 
@@ -2293,7 +2293,7 @@ fn test_CRIT_B_query_timeout_category_is_transient() {
     assert_eq!(
         category, "transient",
         "CRIT-B BC-2.10.007: QueryTimeout must emit category='transient', \
-         not 'timeout'; got '{category}' — RED GATE"
+         not 'timeout'; got '{category}' — Load-bearing"
     );
 }
 
@@ -2318,7 +2318,7 @@ fn test_CRIT_B_sensor_rate_limited_category_is_transient() {
     assert_eq!(
         category, "transient",
         "CRIT-B BC-2.10.007: SensorRateLimited must emit category='transient', \
-         not 'sensor'; got '{category}' — RED GATE"
+         not 'sensor'; got '{category}' — Load-bearing"
     );
 }
 
@@ -2340,7 +2340,7 @@ fn test_CRIT_B_audit_persistence_failed_category_is_transient() {
     assert_eq!(
         category, "transient",
         "CRIT-B BC-2.10.007: AuditPersistenceFailed must emit category='transient' \
-         (retryable transient error); not 'internal'; got '{category}' — RED GATE"
+         (retryable transient error); not 'internal'; got '{category}' — Load-bearing"
     );
 }
 
@@ -2467,7 +2467,7 @@ fn test_HIGH_B_sensor_http_error_body_isolated_in_upstream_message() {
     assert!(
         upstream.contains(raw_body),
         "HIGH-B DI-006: SensorHttpError body must appear in upstream_message; \
-         got upstream_message='{upstream}' — RED GATE (currently hardcoded None)"
+         got upstream_message='{upstream}' — Load-bearing (currently hardcoded None)"
     );
 
     // message must NOT contain the raw body text (injection defense).
@@ -2582,7 +2582,7 @@ fn test_HIGH_C_sensor_rate_limited_source_is_sensor_name_not_prism_mcp() {
     assert_ne!(
         source, "prism_mcp",
         "HIGH-C BC-2.10.007 §81: SensorRateLimited source must be the sensor name \
-         (e.g. 'crowdstrike'), not 'prism_mcp'; got '{source}' — RED GATE"
+         (e.g. 'crowdstrike'), not 'prism_mcp'; got '{source}' — Load-bearing"
     );
     assert!(
         source.contains("crowdstrike"),
@@ -2617,7 +2617,7 @@ fn test_HIGH_C_sensor_http_error_source_is_sensor_name_not_prism_mcp() {
     assert_ne!(
         source, "prism_mcp",
         "HIGH-C BC-2.10.007 §81: SensorHttpError source must be sensor name 'armis', \
-         not 'prism_mcp'; got '{source}' — RED GATE"
+         not 'prism_mcp'; got '{source}' — Load-bearing"
     );
     assert!(
         source.contains("armis"),
@@ -2649,14 +2649,14 @@ async fn test_BC_2_10_011_not_registered_tools_field_not_not_implemented() {
     assert!(
         body.get("not_implemented").is_none(),
         "BC-2.10.011 AC-011: response must NOT contain 'not_implemented' (renamed); \
-         got: {body} — RED GATE (old field name still present)"
+         got: {body} — Load-bearing (old field name still present)"
     );
 
     // Must NOT have the old `note` field.
     assert!(
         body.get("note").is_none(),
         "BC-2.10.011 AC-011: response must NOT contain 'note' field (removed in v1.5); \
-         got: {body} — RED GATE"
+         got: {body} — Load-bearing"
     );
 
     // MUST have the new `not_registered_tools` key.
@@ -2664,7 +2664,7 @@ async fn test_BC_2_10_011_not_registered_tools_field_not_not_implemented() {
     assert!(
         not_registered.is_some(),
         "BC-2.10.011 AC-011: response must contain 'not_registered_tools' (renamed from \
-         'not_implemented'); got body keys: {:?} — RED GATE",
+         'not_implemented'); got body keys: {:?} — Load-bearing",
         body.as_object().map(|o| o.keys().collect::<Vec<_>>())
     );
     // Must be an array.
@@ -3109,7 +3109,7 @@ async fn test_F6_compile_absent_paths_produce_compile_time_disabled_via_resolver
 /// The .map_err(to_error_data)? at line 2108 currently short-circuits with Err(ErrorData).
 /// After the fix it must return Ok(CallToolResult { is_error: true, structured_content: ... }).
 ///
-/// RED gate: expect_err() succeeds before the fix; after fix, expect() must succeed.
+/// Load-bearing: reverting the fix causes expect_err() to succeed (old path returned Err).
 #[tokio::test]
 async fn test_F2_list_aliases_domain_error_returns_ok_structured_not_err() {
     use prism_mcp::server::{ListAliasesParams, PrismServer};
@@ -3488,7 +3488,7 @@ async fn test_F2_explain_alias_domain_error_returns_ok_structured_not_err() {
 /// TD-VSDD-059 load-bearing: a mutation flipping `category: "validation"` to
 /// `category: "upstream_error"` in `error_mapping.rs` MUST fail this test.
 ///
-/// RED GATE: without the explicit `PrismError::EnrichUdfNotFound(ref d)` arm in
+/// Load-bearing: without the explicit `PrismError::EnrichUdfNotFound(ref d)` arm in
 /// `prism_error_to_structured_call_result`, the variant falls to the catch-all which
 /// emits `category: "upstream_error"` and `original_params_valid: true` — both wrong.
 #[test]
@@ -3521,7 +3521,7 @@ fn test_med4_enrich_udf_not_found_structured_category_is_validation() {
     assert_eq!(
         category, "validation",
         "MED-4 BC-2.11.019 v1.4: EnrichUdfNotFound must emit category='validation', \
-         not 'upstream_error'; got '{category}' — RED GATE (TD-VSDD-059 load-bearing)"
+         not 'upstream_error'; got '{category}' — Load-bearing (TD-VSDD-059 load-bearing)"
     );
 
     // (2) original_params_valid == false
@@ -3532,7 +3532,7 @@ fn test_med4_enrich_udf_not_found_structured_category_is_validation() {
         orig_valid,
         Some(false),
         "MED-4 BC-2.11.019 v1.4: EnrichUdfNotFound must have original_params_valid=false \
-         (caller used an unregistered UDF name); got {:?} — RED GATE",
+         (caller used an unregistered UDF name); got {:?} — Load-bearing",
         orig_valid
     );
 

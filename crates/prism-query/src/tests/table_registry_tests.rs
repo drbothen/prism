@@ -1947,8 +1947,8 @@ async fn test_SEC_001_e_query_037_no_resolved_spec_map_falls_back_to_global() {
 ///
 /// Represents: `SELECT severity FROM crowdstrike_detections GROUP BY field IN (SELECT id FROM armis_devices)`
 ///
-/// RED GATE: before L1 fix, the GROUP BY exprs were not walked — armis_devices
-/// would never reach the availability gate.
+/// Load-bearing: reverting the L1 fix (not walking GROUP BY exprs) causes armis_devices
+/// to never reach the availability gate.
 #[test]
 #[allow(non_snake_case)]
 fn test_l1_sql_select_group_by_in_subquery_source_discovered() {

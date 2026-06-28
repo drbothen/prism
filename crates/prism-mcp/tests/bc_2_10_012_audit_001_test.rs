@@ -176,8 +176,7 @@ async fn test_bc_2_10_012_audit_001_sensor_prefixed_table_names() {
     for name in &expected_prefixed {
         assert!(
             actual_names.contains(name),
-            "BC-2.10.012 AUDIT-001 RED GATE: table 'name' must be sensor-prefixed '{}' \
-             — current code emits bare table name. \
+            "BC-2.10.012 AUDIT-001: table 'name' must be sensor-prefixed '{}'. \
              Actual names: {:?}. Full response: {}",
             name,
             actual_names,

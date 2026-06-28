@@ -721,8 +721,7 @@ mod build_example_query_tests {
     /// DTU emits: "High", "Critical" — NOT lowercase "high"/"critical".
     /// A query with lowercase literals returns 0 rows from DTU data silently.
     ///
-    /// RED GATE: fails against old code (emits 'high', 'critical').
-    /// GREEN GATE: passes after fix (emits 'High', 'Critical').
+    /// Load-bearing: reverting to lowercase 'high'/'critical' makes this test fail.
     #[test]
     fn test_f_l2_crit001_crowdstrike_detections_severity_uses_title_case() {
         let columns = vec![
@@ -751,8 +750,7 @@ mod build_example_query_tests {
     /// DTU emits: "HIGH", "CRITICAL" — NOT lowercase "high"/"critical".
     /// A query with lowercase literals returns 0 rows from DTU data silently.
     ///
-    /// RED GATE: fails against old code (emits 'high', 'critical').
-    /// GREEN GATE: passes after fix (emits 'HIGH', 'CRITICAL').
+    /// Load-bearing: reverting to lowercase 'high'/'critical' makes this test fail.
     #[test]
     fn test_f_l2_crit001_armis_alerts_severity_uses_upper_case() {
         let columns = vec![

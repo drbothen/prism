@@ -1979,8 +1979,8 @@ fn check_column_availability(
 /// # Column positions checked (BC-2.11.016 Precondition 2):
 /// - SELECT clause (non-wildcard field refs)
 /// - WHERE clause (FieldPath refs from all Predicate variants)
-/// - GROUP BY clause (Expr::Field refs)
-/// - ORDER BY clause (Expr::Field refs in each OrderExpr)
+/// - GROUP BY clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
+/// - ORDER BY clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
 /// - JOIN ON clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
 ///
 /// Gate skip conditions (mirroring `check_table_availability`):
@@ -3699,17 +3699,6 @@ mod adr_042_tests {
     //
     // Traces to: ADR-042 §D3 (single-tenant/None mode returns Ok(0) with no side effects).
     //
-    // RED GATE: fails NOW because `rebuild_resolved_spec_map` does not exist.
-    // The method must be added to `QueryEngine` as a `pub fn`.
-    //
-    // NEW API REQUIRED:
-    //   `pub fn rebuild_resolved_spec_map(
-    //        &self,
-    //        customers_dir: &std::path::Path,
-    //        type_specs: &std::collections::HashMap<String, prism_spec_engine::spec_parser::SensorSpec>,
-    //        org_registry: &prism_core::OrgRegistry,
-    //    ) -> Result<usize, prism_spec_engine::error::SpecEngineError>`
-    //
     // When `self.resolved_spec_map` is `None` (single-tenant mode), the method MUST:
     //   - Return `Ok(0)` immediately (no-op).
     //   - Leave `resolved_spec_map()` returning `None`.
@@ -3730,8 +3719,6 @@ mod adr_042_tests {
             HashMap::new();
         let org_registry = OrgRegistry::new();
 
-        // RED GATE: this line fails to compile until the implementer adds
-        // `rebuild_resolved_spec_map` to `QueryEngine`.
         let result = engine.rebuild_resolved_spec_map(&dummy_path, &type_specs, &org_registry);
 
         assert_eq!(
@@ -3754,20 +3741,10 @@ mod adr_042_tests {
     //
     // Traces to: ADR-042 §In-Flight Query Consistency Guarantee.
     //
-    // RED GATE: fails NOW because:
-    //   (a) `rebuild_resolved_spec_map` does not exist.
-    //   (b) Even if it did, the `resolved_spec_map` field is a plain `Arc<HashMap>`,
-    //       not an `ArcSwap`, so `rebuild_resolved_spec_map` would have nowhere to
-    //       store the new map without modifying the original `Arc`.
+    // `resolved_spec_map` is `Option<Arc<arc_swap::ArcSwap<HashMap<...>>>>`.
+    // `resolved_spec_map()` calls `swap.load_full()` to return a fresh Arc snapshot.
     //
-    // NEW API REQUIRED (same as Test 3):
-    //   `pub fn rebuild_resolved_spec_map(...)` (see Test 3 doc for full signature).
-    //
-    // FIELD CHANGE REQUIRED:
-    //   `resolved_spec_map` must be `Option<Arc<arc_swap::ArcSwap<HashMap<...>>>>`.
-    //   `resolved_spec_map()` accessor must call `swap.load_full()` to return a fresh Arc.
-    //
-    // ASSERTION LOGIC:
+    // Assertion logic:
     //   - old_arc snapshot (held before rebuild) must still contain spec_A (acme→alerts).
     //   - fresh load after rebuild must contain spec_B (acme→alerts + acme→hosts).
     //   - These are different Arc pointers — !Arc::ptr_eq.
@@ -3781,13 +3758,7 @@ mod adr_042_tests {
         let mut initial_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
         initial_map.insert(key_a, val_a);
 
-        // Inject into engine via pub(crate) field.
-        // RED GATE (compile failure): resolved_spec_map type is currently
-        //   Option<Arc<HashMap<...>>>
-        // After implementation it becomes:
-        //   Option<Arc<arc_swap::ArcSwap<HashMap<...>>>>
-        // The assignment below must use the new ArcSwap shape:
-        //   engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(initial_map))));
+        // Inject into engine via pub(crate) field using the ArcSwap shape.
         let mut engine = make_minimal_engine();
         engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(initial_map))));
 
@@ -3861,8 +3832,6 @@ mod adr_042_tests {
         type_specs.insert("crowdstrike".to_string(), updated_type_spec);
 
         // ── Step 3: rebuild (simulates hot-reload) ────────────────────────────
-        //
-        // RED GATE: `rebuild_resolved_spec_map` does not exist yet.
         let rebuild_result =
             engine.rebuild_resolved_spec_map(&customers_dir, &type_specs, &org_registry);
 
@@ -4014,10 +3983,11 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
     /// Current code does NOT secondary-sort by column name, so this assertion fails on any
     /// run where the HashMap iterator returns "severity_b" before "severity_a".
     ///
-    /// RED GATE: assertion `did_you_mean == Some("severity_a")` fails non-deterministically
-    /// on current HEAD — structurally guaranteed to fail because the current code has no
-    /// lexicographic tie-break. The test runs `check_column_availability` in a tight loop
-    /// to surface the non-determinism within a single test run.
+    /// Load-bearing (TD-VSDD-059): assertion `did_you_mean == Some("severity_a")` fails
+    /// if lexicographic tie-breaking is removed — the code would return a HashMap-order
+    /// non-deterministic candidate instead of the lexicographically smallest one.
+    /// The test runs `check_column_availability` in a tight loop to expose non-determinism
+    /// if the secondary sort is absent.
     #[test]
     fn test_BC_2_11_016_did_you_mean_lexicographic_tiebreak_on_equidistant_candidates() {
         // Column A: "severity_a" — equidistant from typo.
@@ -4095,8 +4065,7 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
 
         // BC-2.11.016 AC-001: did_you_mean must be deterministic.
         // Expected: "aaac" (lexicographically smallest of equidistant candidates "aaac" / "aaad").
-        // Current code returns the HashMap iteration order (non-deterministic). The assertion
-        // is the CORRECT value; it fails on current HEAD when HashMap returns "aaad" first.
+        // Load-bearing: removing the lexicographic tie-break causes non-deterministic results.
         assert_eq!(
             did_you_mean.as_deref(),
             Some("aaac"),
@@ -4115,8 +4084,9 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
     ///
     /// The multi-org aspect verifies the org_scope filter path is correctly exercised.
     ///
-    /// RED GATE: assertion `did_you_mean == Some("bbb1")` ALWAYS fails on current HEAD
-    /// because `min_by_key` returns "bbb2" (inserted first, encountered first by flat_map).
+    /// Load-bearing (TD-VSDD-059): assertion `did_you_mean == Some("bbb1")` fails if
+    /// lexicographic tie-breaking is removed — without it, `min_by_key` returns "bbb2"
+    /// (inserted first, encountered first by flat_map) instead of the lexicographic minimum.
     #[test]
     fn test_BC_2_11_016_did_you_mean_lexicographic_tiebreak_multi_sensor_same_table() {
         // Multi-org test: org_scope covers "acme". One sensor with two equidistant columns
@@ -4166,8 +4136,7 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
 
         // BC-2.11.016 AC-001: deterministic tie-break → lexicographically smallest.
         // Expected: "bbb1" (alphabetically before "bbb2").
-        // Current code: returns "bbb2" (first in Vec, first minimum found by min_by_key).
-        // This assertion ALWAYS fails on current HEAD.
+        // Load-bearing: without the lex tie-break, min_by_key picks "bbb2" (Vec-order first).
         assert_eq!(
             did_you_mean.as_deref(),
             Some("bbb1"),
@@ -4195,17 +4164,14 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
     ///
     /// Fix: sort + dedup `available_columns` before constructing the error.
     ///
-    /// RED GATE (available_columns order): construct a spec_map with two sensors (alpha, beta)
-    /// each contributing one column ("col_z" and "col_a" respectively). The error's
-    /// `available_columns` field must be sorted ["col_a", "col_z"] regardless of HashMap
-    /// iteration order. On current HEAD, `available_columns` ordering depends on HashMap
-    /// iteration — could be either ["col_a", "col_z"] or ["col_z", "col_a"].
+    /// Load-bearing (available_columns order): two sensors (alpha, beta) each contribute
+    /// one column ("col_z" and "col_a" respectively). The error's `available_columns`
+    /// field must be sorted ["col_a", "col_z"] regardless of HashMap iteration order.
+    /// Removing the sort causes non-deterministic ordering failure.
     ///
-    /// RED GATE (duplicates): two org-scoped entries for the same sensor/table (simulating
-    /// multi-org-scope with overlapping column names) would produce duplicates.
-    /// We exercise this with two entries that have the same table name but different
-    /// sensor IDs — both match the FQ table prefix for different queries. For dedup,
-    /// we add a second sensor with the same column name to verify the output has no dupes.
+    /// Load-bearing (duplicates): two org-scoped entries for the same sensor/table
+    /// (simulating multi-org-scope with overlapping column names) would produce duplicates
+    /// without the dedup. A second sensor with the same column name verifies no dupes appear.
     #[test]
     fn test_BC_2_11_016_available_columns_sorted_deduped_in_column_not_found_error() {
         // Two sensors under "acme", contributing columns in reverse-lex order.
@@ -4292,9 +4258,9 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
         let cols = &details.available_columns;
 
         // OBS-FRESH-1 sort assertion: available_columns must be sorted lexicographically.
-        // On current HEAD, order depends on HashMap iteration (non-deterministic):
-        // could be ["col_z", "col_dup", "col_dup", "col_a"] or ["col_dup", "col_a", "col_z", "col_dup"].
-        // After sort+dedup: ["col_a", "col_dup", "col_z"].
+        // The implementation sorts+deduplicates before returning; without that step,
+        // order would depend on HashMap iteration (non-deterministic).
+        // Expected after sort+dedup: ["col_a", "col_dup", "col_z"].
         let mut expected_sorted = cols.clone();
         expected_sorted.sort();
         expected_sorted.dedup();
@@ -5159,8 +5125,9 @@ mod m2_column_gate_funccall_and_join_tests {
     /// After fix: `extract_field_paths_from_expr` recurses into FuncCall args and
     /// collects `typo_col`, which then fails the schema check → E-QUERY-038.
     ///
-    /// RED GATE: on unpatched code, this query returns a DataFusion error (E-INT-001),
-    /// not E-QUERY-038.
+    /// Load-bearing (M2 fix): removing FuncCall recursion from the GROUP BY walk in
+    /// `extract_field_paths_from_expr` causes this query to bypass the column gate
+    /// and produce a DataFusion error (E-INT-001) instead of E-QUERY-038.
     #[tokio::test]
     async fn test_m2_group_by_funccall_arg_col_typo_triggers_e_query_038() {
         let (engine, org) = make_crowdstrike_engine_with_columns();
@@ -5262,8 +5229,9 @@ mod m2_column_gate_funccall_and_join_tests {
     /// An unqualified bare column ref in JOIN ON is treated as a FROM-table ref,
     /// so `typo_col` in `ON typo_col = other_table.id` will be caught.
     ///
-    /// RED GATE: on unpatched code, this query returns a DataFusion error or no error,
-    /// not E-QUERY-038, because JOIN ON was not walked.
+    /// Load-bearing (M2 fix): removing the JOIN ON walk from `check_query_column_availability`
+    /// causes this query to bypass the column gate, returning a DataFusion error or no error
+    /// instead of E-QUERY-038.
     #[tokio::test]
     async fn test_m2_join_on_col_typo_triggers_e_query_038() {
         let (engine, org) = make_crowdstrike_engine_with_columns();

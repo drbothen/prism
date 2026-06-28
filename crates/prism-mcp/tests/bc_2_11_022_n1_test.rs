@@ -80,9 +80,8 @@ fn make_two_infusion_registry() -> InfusionRegistry {
 /// `threat_sources`) and `nvd` (fields: `cvss_base_score`, `cvss_severity`, `cvss_vector`),
 /// the enrichment section MUST list exactly 6 per-field callable entries.
 ///
-/// RED GATE failure: current code deduplicates by `infusion_id`, producing
-/// `enrich threat_intel(col)` and `enrich nvd(col)` — 2 entries instead of 6.
-/// The assertions for individual per-field names all fail.
+/// Load-bearing: reverting to infusion_id deduplication (producing `enrich threat_intel(col)`
+/// and `enrich nvd(col)` — 2 entries instead of 6) causes all per-field name assertions to fail.
 #[test]
 fn test_bc_2_11_022_n1_per_field_udf_names() {
     let registry = make_two_infusion_registry();

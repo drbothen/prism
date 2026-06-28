@@ -1,31 +1,19 @@
-//! Red Gate tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B — BC-2.11.019 v1.4.
+//! Tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B — BC-2.11.019 v1.4.
 //!
-//! Finding N1-B: E-QUERY-039 (EnrichUdfNotFound) gate does NOT yet exist.
-//! `PrismError::EnrichUdfNotFound` variant and `EnrichUdfNotFoundDetails` struct
-//! have ZERO workspace matches (verified 2026-06-26). The plan-time enrichment gate
-//! in `engine.rs` must be implemented from scratch.
-//!
-//! # Test strategy for net-new variant (pre-implementation)
-//!
-//! Since `PrismError::EnrichUdfNotFound` does not exist yet, tests that try to
-//! CONSTRUCT the variant would produce a compile error, blocking ALL tests in this
-//! target. Per the story's Red Gate guidance (S1 relaxation v1.2): assert on the
-//! OBSERVABLE error at the query boundary via `execute()` output.
+//! Finding N1-B: the plan-time enrichment gate (E-QUERY-039) must fire when a query
+//! references an enrichment function name that is not a registered per-field UDF name.
+//! `PrismError::EnrichUdfNotFound` and `EnrichUdfNotFoundDetails` are implemented in
+//! `prism-core/src/error.rs`; `check_enrich_udf_availability` in `engine.rs` gates
+//! all query modes (pipe, SQL, SqlPipe).
 //!
 //! Tests assert:
-//! 1. Query `FROM cyberint_alerts | enrich threat_intel(iocs_value)` where
-//!    `threat_intel` is an infusion_id (NOT registered as a UDF name) returns Err(_)
-//!    with a Display string containing "E-QUERY-039".
-//! 2. The error is NOT an opaque internal error (Display does NOT contain "E-INT-001"
-//!    / "Internal error").
-//! 3. `available_infusions` is non-empty in the error details — verified by asserting
-//!    that the Display string contains at least one of the registered per-field UDF names.
-//! 4. SQL mode `SELECT nvd(iocs_value) FROM cyberint_alerts` returns Err(_)
-//!    with Display containing "E-QUERY-039" (SQL path gate).
-//!
-//! RED GATE: Current engine has NO E-QUERY-039 gate. Queries with unregistered
-//! enrichment function names either succeed (return empty data) or fail with a
-//! DataFusion error — neither produces "E-QUERY-039" in the display string.
+//! 1. Pipe-mode query `FROM cyberint_alerts | enrich threat_intel(iocs_value)` where
+//!    `threat_intel` is an infusion_id (NOT a registered per-field UDF name) returns
+//!    `Err(PrismError::EnrichUdfNotFound(_))` with Display containing "E-QUERY-039".
+//! 2. SQL-mode `SELECT nvd(iocs_value) FROM cyberint_alerts` returns the same error.
+//! 3. Gate ordering: table gate fires before the enrich gate (E-QUERY-037 before E-QUERY-039).
+//! 4. Supplementary: `available_infusions` sorted, `did_you_mean` Levenshtein logic,
+//!    wired-but-empty registry, C1+C2 GROUP BY / ORDER BY / JOIN ON coverage.
 //!
 //! # Test → AC mapping
 //!
@@ -180,9 +168,8 @@ fn make_test_engine_threat_intel() -> QueryEngine {
 /// Positive assertion: the error Display contains at least one registered UDF name
 /// (proving `available_infusions` is populated).
 ///
-/// RED GATE: Current engine has NO E-QUERY-039 plan-time enrichment gate. The query
-/// either succeeds with empty results (fan-out finds no data for an unregistered
-/// enrichment function) or fails with a DataFusion error — neither produces "E-QUERY-039".
+/// Load-bearing: removing `check_enrich_udf_availability` from the pipe-mode path in
+/// `engine.rs` makes this test fail (no E-QUERY-039 produced).
 #[tokio::test]
 async fn test_bc_2_11_019_n1b_infusion_id_as_udf_name() {
     let engine = make_test_engine_threat_intel();
@@ -240,7 +227,8 @@ async fn test_bc_2_11_019_n1b_infusion_id_as_udf_name() {
 /// (which is an infusion_id, not a per-field UDF name) must return
 /// `Err(PrismError::EnrichUdfNotFound(_))` at plan time.
 ///
-/// RED GATE: Same as pipe path — no E-QUERY-039 gate exists in current engine.
+/// Load-bearing: removing `check_enrich_udf_availability` from the SQL-mode path in
+/// `engine.rs` makes this test fail (no E-QUERY-039 produced).
 #[tokio::test]
 async fn test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name() {
     // Build engine with nvd infusion (per-field UDFs: cvss_base_score, cvss_severity, cvss_vector)
@@ -516,8 +504,9 @@ async fn test_med001_available_infusions_sorted_in_e_query_039_error() {
 /// 038 (column) passes (no resolved_spec_map in test mode → fail-open) →
 /// 039 (enrich) FIRES on `cvss` which is NOT a registered per-field UDF name.
 ///
-/// RED GATE: Prior to the fix, this test returned E-INT-001 (or Ok) instead of E-QUERY-039.
-/// Post-fix: the SqlPipe arm also scans `spq.head.select.items` via
+/// Load-bearing (HIGH-1 fix): prior to the fix, this test returned E-INT-001 (or Ok)
+/// instead of E-QUERY-039 because the SqlPipe arm did not scan `spq.head.select.items`.
+/// Post-fix: the SqlPipe arm scans the SQL head SELECT items via
 /// `collect_unknown_scalar_from_expr`, catching `cvss` as an unknown scalar.
 #[tokio::test]
 async fn test_high1_sqlpipe_head_unknown_scalar_fires_e_query_039() {
