@@ -10,10 +10,10 @@ provenance: "Day-2 vision SIDE-ANALYSIS program resume snapshot. SEPARATE from t
 
 > **Original C-program (C1–C10 + deployment-matrix + C3 hard-reject reconciliation) COMPLETE and committed.
 > PRE-B feature track: C13 ✅ C12 ✅ C11 ✅ C15 ✅ C14 ✅ C19 ✅ C18 ✅ C16 ✅ C17 ✅ C20 ✅ — C20 NOW FULLY RESOLVED (SF-2 folded = Defer + Leave-Seams-Open).
-> ENTIRE pre-B feature track (C11–C20) is COMPLETE. ADS v1.6 (PAT-ADS-17 S3 forward-note). Only B (integration
+> ENTIRE pre-B feature track (C11–C20) is COMPLETE. ADS v1.7 (traceability rows C10/C14/C15 + freshness fixes). Only B (integration
 > capstone) remains, GATED on §5.1 brief-reframe HUMAN sign-off.**
 >
-> **Latest factory-artifacts HEAD: `(this checkpoint)` — C20 SF-2 folded (Defer + Leave-Seams-Open); cloud-BES research banked; ADS v1.6; C20 fully resolved; pre-B track C11–C20 COMPLETE**
+> **Latest factory-artifacts HEAD: `(this checkpoint)` — fresh-context consistency audit (MINOR-DRIFT: 0 blocker/0 major, 3 minor + 5 obs, all fixed); ADS v1.7; pre-B track C11–C20 COMPLETE**
 >
 > **READ THIS FIRST on resume.** This is OUT-OF-BAND day-2 vision work, fully SEPARATE from the live
 > VSDD factory pipeline (which runs its own cascades on the same `factory-artifacts` branch). Everything
@@ -261,14 +261,14 @@ All 8 gaps addressed. Human chose the fuller path on every fork — zero decline
 - ML-phasing: C7 OD-3 (on-prem model deployment phasing) reconciled to C7 pluggable ModelBackend decision; WASM/ort/candle all day-2 capable.
 - All 8 residuals resolved; §16.4 section marked CLOSED.
 
-#### Architecture Design System (ADS) — CREATED (commit 7c068714); AMENDED v1.1 + v1.2 + v1.3 (this checkpoint)
+#### Architecture Design System (ADS) — CREATED (commit 7c068714); AMENDED v1.1 + v1.2 + v1.3 + v1.4 + v1.5 + v1.6 + v1.7 (current)
 `ARCHITECTURE-DESIGN-SYSTEM.md` ("The Prism Way") is the canonical architecture analog of the UI design system. ALL day-2 features + B must conform to it.
-- **13 Principles** (P-ADS-01..13) — P-ADS-13 Configurable-Not-Prescriptive added in prior burst; P-ADS-07 sharpened in C16 (this checkpoint: clearing-house enforcement + embeddings-are-sensitive)
-- **14 Patterns** (PAT-ADS-01..14) — PAT-ADS-12 Configurable Compliance Profile + PAT-ADS-13 Layered-Authz added in C18; PAT-ADS-14 Edge-Tokenizing-Clearing-House added in C16 (this checkpoint)
-- **9 Invariants** (INV-ADS-01..09) — INV-ADS-09 Decision-Level Authorization Audit added in C18 + conformance checklist
+- **13 Principles** (P-ADS-01..13) — P-ADS-13 Configurable-Not-Prescriptive added in prior burst; P-ADS-07 sharpened in C16 (clearing-house enforcement + embeddings-are-sensitive)
+- **17 Patterns** (PAT-ADS-01..17) — PAT-ADS-12 Configurable Compliance Profile + PAT-ADS-13 Layered-Authz added in C18; PAT-ADS-14 Edge-Tokenizing-Clearing-House added in C16; PAT-ADS-15/16 added in C17; PAT-ADS-17 evidence-owner forward-note added in C20
+- **10 Invariants** (INV-ADS-01..10) — INV-ADS-09 Decision-Level Authorization Audit added in C18; INV-ADS-10 Recoverability-Preserves-Operator-Zero-Access added in C17 + conformance checklist
 - **11 Anti-patterns** (AP-ADS-11 added in C19 burst; now 11 total)
 - Basis: `research/central-surfacing-ripple-analysis-2026-06-27.md`
-- ADS bumped **v1.0 → v1.1** (P-ADS-02 clarification, AP-ADS-11, P-ADS-13) then **v1.1 → v1.2** (PAT-ADS-12, PAT-ADS-13, INV-ADS-09 + traceability rows — C18) then **v1.2 → v1.3** (P-ADS-07 sharpened, PAT-ADS-14, C16 traceability row — C16 this checkpoint)
+- ADS bumped v1.0→v1.1 (P-ADS-02, AP-ADS-11, P-ADS-13) → v1.2 (PAT-ADS-12/13, INV-ADS-09 — C18) → v1.3 (P-ADS-07, PAT-ADS-14 — C16) → v1.4 (PAT-ADS-15/16, INV-ADS-10 — C17) → v1.5 (PAT-ADS-17 Compliance-Evidence-Export — C20 bulk) → v1.6 (PAT-ADS-17 evidence-owner forward-note — C20 SF-2) → **v1.7** (traceability rows C10/C14/C15 added; cosmetic amendment-log fix — consistency audit 2026-06-28)
 
 **P-ADS-13 — Configurable-Not-Prescriptive (Policy-as-Configuration) — ADDED (prior checkpoint)**
 Restrictive security/compliance posture is configurable data + named shippable Profiles (baseline / SOC2 / ISO27001 / IEC-62443-OT / NERC-CIP), never hardcoded absolutes and never a single vertical's needs branched into code. OT is a shipped Profile, not a code fork. Floor: configurability sits ABOVE the INV-ADS invariant floor (operator-zero-access, no-raw-at-Central, per-tenant isolation, AI-opaque are NEVER configurable off). Profiles tighten-only down the tenant tree.
@@ -439,7 +439,7 @@ A new batch of feature areas was confirmed BEFORE B — all require research + d
 | ID | Area | Status | Cross-links |
 |---|---|---|---|
 | C13 | §16.4 open-items closeout (SSO, S3-runtime, secret/DEK, sequence-sugar, PO-ratif, ML-phasing) | ✅ DONE (commit 09c5584d) — 8 residuals resolved; per-credential-DEK = future enhancement (OQ-SECRET-DEK-GRANULARITY); ml OD-3 reconciled to C7 | C7, C2/AD-017, C16, C20 |
-| **ADS** | Architecture Design System — "The Prism Way" (13 Principles, 17 Patterns, 10 Invariants, conformance checklist) | ✅ DONE (commit 7c068714; amended v1.1 + v1.2 + v1.3 + v1.4 + v1.5 + v1.6) — `ARCHITECTURE-DESIGN-SYSTEM.md` v1.6 is the canonical conformance frame for all remaining work | All C-items + B |
+| **ADS** | Architecture Design System — "The Prism Way" (13 Principles, 17 Patterns, 10 Invariants, conformance checklist) | ✅ DONE (commit 7c068714; amended v1.1 + v1.2 + v1.3 + v1.4 + v1.5 + v1.6 + v1.7) — `ARCHITECTURE-DESIGN-SYSTEM.md` v1.7 is the canonical conformance frame for all remaining work | All C-items + B |
 | **Option-3** | Surfacing model locked — Tenant-Keyed-Central-Cache always; derived-results-only; operator-zero-access-at-rest; Central-Sole-Surface principle | ✅ LOCKED (commit 7c068714) — do not re-litigate | ADS INV-ADS, C12, C11, C15 |
 | **Conformance pass** | Ripple audit of existing ADR-PROPs against ADS + Option-3 | ✅ DONE (commit 7c068714) — 10 items closed across 9 ADR-PROPs | All prior C-items |
 | C12 | Prism Context — knowledge graph + vector DB + entity mapping + Entity 360 expansion | ✅ DONE (commit 76f1a3e2) — ADR-PROP-prism-context.md; two-layer embedded (indradb+usearch+lancedb); fastembed/ort+candle; deterministic entity-resolution + suspected-links; hybrid retrieval + mandatory citations; phased GraphRAG; aletheon corrected | aletheon `aros` table → C15 input, AD-017, C16, C7 |
@@ -518,7 +518,7 @@ Superseded capture queue (all DONE — do not re-execute):
 
 ## 6. BASELINE (git state at session wrap)
 
-- **factory-artifacts HEAD (current):** `(this checkpoint)` — C20 SF-2 folded (Defer + Leave-Seams-Open); cloud-BES research banked; ADS v1.6; C20 fully resolved; pre-B track C11–C20 COMPLETE; path-scoped commit (see commit chain below)
+- **factory-artifacts HEAD (current):** `(this checkpoint)` — fresh-context consistency audit (MINOR-DRIFT: 0 blocker/0 major; 3 minor + 5 obs all fixed); ADS v1.7 (traceability rows C10/C14/C15 + freshness fixes); audit report banked; path-scoped commit (see commit chain below)
 - **Full commit chain for this day-2 side-analysis** (day-2 side commits; live factory interleaved its own commits on the shared branch between these):
   - `b53b22ba` — C9 schema-versioning (Q3) resolved + ADR-PROP-config-management + backing research
   - `91abba90` — deployment matrix captured (ADR-PROP-dual-deployment, three operating models)
@@ -542,9 +542,10 @@ Superseded capture queue (all DONE — do not re-execute):
   - `ee3a9e21` — C16 entity masking / RSI clearing house decided + ADR-PROP-entity-masking.md captured; ADS v1.3 (P-ADS-07 sharpened, PAT-ADS-14, C16 traceability row); SESSION-RESUME updated (C16 DONE, next=C17); path-scoped commit
   - `(prior checkpoint)` — C17 backup & recovery decided + ADR-PROP-backup-recovery.md captured; ADS v1.4 (PAT-ADS-15/16, INV-ADS-10); SESSION-RESUME updated (C17 DONE, next=C20); path-scoped commit. Prior side HEAD: **a261cc1d**.
   - `(prior checkpoint)` — C20 NERC CIP support bulk decided + ADR-PROP-nerc-cip-support.md captured (SF-1/3/4; SF-2 OPEN pending research); ADS v1.5 (PAT-ADS-17 Compliance-Evidence-Export RSAW-aligned); SESSION-RESUME updated (C20 bulk DONE, SF-2 fold + B next); path-scoped commit. Prior side HEAD: **a220d879**.
-  - `(this checkpoint)` — C20 SF-2 folded (Defer + Leave-Seams-Open); cloud-BES research banked; ADS v1.6 (PAT-ADS-17 evidence-owner forward-note); C20 fully resolved; pre-B track C11–C20 COMPLETE; path-scoped commit
-- Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD: **a220d879** (C20 bulk decided + captured).
-- Working tree otherwise clean (untracked `.DS_Store` only; live-factory files left unstaged). No dangling in-flight research. C20 SF-2 fold complete — no open items remain in the pre-B track.
+  - `10875181` — C20 SF-2 folded (Defer + Leave-Seams-Open); cloud-BES research banked; ADS v1.6 (PAT-ADS-17 evidence-owner forward-note); C20 fully resolved; pre-B track C11–C20 COMPLETE; path-scoped commit
+  - `(this checkpoint)` — fresh-context consistency audit (MINOR-DRIFT: 0 blocker/0 major; 3 minor + 5 obs all fixed); ADS v1.7 (traceability rows C10/C14/C15 + freshness fixes); audit report banked; path-scoped commit. Prior side HEAD: **10875181**.
+- Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD before this burst: **10875181** (C20 SF-2 folded; pre-B track C11–C20 COMPLETE).
+- Working tree otherwise clean (untracked `.DS_Store` only; live-factory BC-2.16.002 left unstaged). No dangling in-flight research. Consistency audit complete — no open drift items remain.
 
 ## 7. Gaps / epics introduced (PROPOSED, not in STORY-INDEX)
 Gaps **G-1 … G-36** (plus new cross-cutting dual-deployment gap). Proposed epics:

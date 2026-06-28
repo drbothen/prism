@@ -1447,6 +1447,9 @@ systematic conformance run against the Day-2 ADR-PROP corpus. Sections:
 | `ADR-PROP-entity-masking.md` | P-ADS-02, P-ADS-03, P-ADS-06, P-ADS-07 | PAT-ADS-14, PAT-ADS-07 | INV-ADS-01, INV-ADS-02, INV-ADS-03, INV-ADS-06 |
 | `ADR-PROP-backup-recovery.md` | P-ADS-02, P-ADS-04, P-ADS-11 | PAT-ADS-15, PAT-ADS-16, PAT-ADS-03 | INV-ADS-02, INV-ADS-03, INV-ADS-10 |
 | `ADR-PROP-nerc-cip-support.md` | P-ADS-09, P-ADS-11, P-ADS-12, P-ADS-13 | PAT-ADS-12, PAT-ADS-17 | INV-ADS-01, INV-ADS-02, INV-ADS-09, INV-ADS-10 |
+| `ADR-PROP-competitive-positioning.md` | P-ADS-01, P-ADS-11, P-ADS-13 | — | — |
+| `ADR-PROP-active-query-devices.md` | P-ADS-01, P-ADS-03, P-ADS-05, P-ADS-08 | PAT-ADS-04, PAT-ADS-03 | INV-ADS-07 |
+| `ADR-PROP-soar-actions-aro.md` | P-ADS-07, P-ADS-10 | PAT-ADS-08, PAT-ADS-11 | INV-ADS-05, INV-ADS-06 |
 
 ### CLAUDE.md Cross-References
 
@@ -1477,7 +1480,8 @@ architecture tier and must be consistent with this ADS:
 | v1.2 | 2026-06-27 | C18 capture: added PAT-ADS-12 (Configurable Compliance Profile), PAT-ADS-13 (Layered-Authz), INV-ADS-09 (Decision-Level Authorization Audit); INV-ADS-09 check line added to Section C.2 Conformance Checklist; traceability rows for ADR-PROP-rbac-depth.md + ADR-PROP-compliance-profiles.md added to Section E. |
 | v1.3 | 2026-06-27 | C16 capture: P-ADS-07 sharpened (clearing-house enforcement mechanism + embeddings-are-sensitive-data-class + dual-index + zero-vault-wiring structural invariant); added PAT-ADS-14 (Edge-Tokenizing-Clearing-House); traceability row for ADR-PROP-entity-masking.md added to Section E. |
 | v1.4 | 2026-06-27 | C17 capture: added PAT-ADS-15 (Logical-Watermark Cross-Store Backup), PAT-ADS-16 (Sealed-Blob Key Escrow + Crypto-Shred), INV-ADS-10 (Recoverability Preserves Operator-Zero-Access); INV-ADS-10 check line added to Section C.2 Conformance Checklist; traceability row for ADR-PROP-backup-recovery.md added to Section E. |
-| v1.5 | 2026-06-27 | C20 capture: added PAT-ADS-17 (Compliance-Evidence-Export RSAW-aligned); traceability row for ADR-PROP-nerc-cip-support.md added to Section E. (C20 SF-2 cloud-BES-future OPEN pending research.) |
+| v1.5 | 2026-06-27 | C20 capture: added PAT-ADS-17 (Compliance-Evidence-Export RSAW-aligned); traceability row for ADR-PROP-nerc-cip-support.md added to Section E. (C20 SF-2 cloud-BES-future closed in v1.6 — see D-C20-SF2.) |
 | v1.6 | 2026-06-27 | C20 SF-2 fold: PAT-ADS-17 evidence-owner-dimension forward-note (cloud-BES seam S3, D-C20-SF2); SF-2 resolved = Defer + Leave-Seams-Open (Sub-Option B). |
+| v1.7 | 2026-06-28 | Consistency-audit corrections: added missing Section E traceability rows for ADR-PROP-competitive-positioning.md (C10), ADR-PROP-active-query-devices.md (C14), and ADR-PROP-soar-actions-aro.md (C15); corrected stale v1.5 amendment-log parenthetical (C20 SF-2 OPEN → closed in v1.6); no principle, pattern, invariant, or anti-pattern added or removed. |
 
-*End of Prism Architecture Design System v1.6 — 2026-06-27*
+*End of Prism Architecture Design System v1.7 — 2026-06-28*

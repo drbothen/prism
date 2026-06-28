@@ -521,7 +521,7 @@ P-ADS-13: Configurable-Not-Prescriptive
 AP-ADS-07: No Per-Deployment-Model Code Forks
   [YES] This ADR-PROP eliminates the OT-code-fork risk. Explicitly conforms to AP-ADS-07.
 
-INV-ADS check (all eight):
+INV-ADS check (all ten):
   [YES] INV-ADS-01: No raw sensor data at Central — profile mechanism is metadata only
   [YES] INV-ADS-02: Operator zero-access at rest — decision logs encrypted under tenant DEK
   [YES] INV-ADS-03: Per-tenant isolation — per-node profile attribute; no cross-tenant evaluation
@@ -531,29 +531,40 @@ INV-ADS check (all eight):
   [YES] INV-ADS-07: OCSF normalization unaffected — no new data sources
   [YES] INV-ADS-08: Air-gap valid — signed bundles + PAT-ADS-03 + SoftwareKms all air-gap
                     compatible; profiles function offline after bundle delivery
+  [YES] INV-ADS-09: Decision-level audit — C18 compliance-profiles IS the originating source of
+                    INV-ADS-09 (D-C18-7 decision-log requirement). Profile enforcement engine
+                    logs every authorization decision with policy-bundle-version, attributes
+                    considered, and outcome. Fully satisfied.
+  [YES] INV-ADS-10: Recoverability preserves operator-zero-access — profile documents are
+                    Config-DB artifacts (not primary tenant data); their backup follows the
+                    standard PAT-ADS-15/16 sealed-blob escrow path. Crypto-shred does not
+                    conflict with this mechanism. Not violated by C18.
+                    (INV-ADS-10 was added by C17, which post-dates this document's original
+                    capture; satisfiability confirmed above.)
 
-NOTE: The Compliance Profile mechanism is the CORRECT operational expression of P-ADS-13
-(Configurable-Not-Prescriptive). This ADR-PROP is flagged for addition as PAT-ADS-12
-"Configurable Compliance Profile" pattern in ARCHITECTURE-DESIGN-SYSTEM.md Section B.
-This pattern addition is a Pass-2 action — NOT authored here per the HARD BOUNDARY.
+NOTE: PAT-ADS-12 "Configurable Compliance Profile" was added to ARCHITECTURE-DESIGN-SYSTEM.md
+Section B in ADS v1.2 (Pass 2, 2026-06-27). This ADR-PROP is the originating feature for that
+pattern. The pattern addition is LANDED and complete.
 ```
 
 All checklist items PASS.
+(Note: INV-ADS-09 was introduced by this document's own D-C18-7; INV-ADS-10 was added by C17
+after C18 was originally captured. The "all eight" label in the original capture has been updated
+to "all ten" to reflect the current ADS v1.6 invariant set.)
 
 ---
 
-## 9 — Pass 2 Flags (do not author these in this pass)
+## 9 — Pass 2 Flags (status as of 2026-06-27 consistency audit)
 
-The following additions are flagged for Pass 2 integration into sibling artifacts. None of
-these are authored in this document — they are recorded here so Pass 2 can apply them consistently.
+The following items were originally flagged for Pass 2 integration. Status is recorded here.
 
-| Item | Target artifact | Nature |
+| Item | Target artifact | Status |
 |------|----------------|--------|
-| **PAT-ADS-12 "Configurable Compliance Profile"** | ARCHITECTURE-DESIGN-SYSTEM.md Section B | New pattern referencing this ADR-PROP; describes the data model, composition, distribution, and conformance report structure as a reusable pattern. |
-| **INV-ADS-09 "Decision-level audit"** | ARCHITECTURE-DESIGN-SYSTEM.md Section C.1 | New cross-cutting invariant: "Authorization decisions MUST be logged at decision-resolution time (not merely at access-event time). Offline satellites buffer and reconcile. Decision logs include policy version, attributes considered, and outcome." Originates from C18 D-C18-7. |
-| **ADR-PROP-nested-tenancy.md §3.8 amendment** | ADR-PROP-nested-tenancy.md | Light amendment: `regulatory_class` now routes through the Compliance Profile engine (D-PROF-6). Behavioral semantics identical; implementation path changes. |
-| **ARCHITECTURE-DESIGN-SYSTEM.md Section E traceability row** | ARCHITECTURE-DESIGN-SYSTEM.md Section E | Add `ADR-PROP-compliance-profiles.md` to the ADR-PROP Traceability table with its principle/pattern/invariant cross-references. |
-| **ARCHITECTURE-DESIGN-SYSTEM.md Section E traceability row** | ARCHITECTURE-DESIGN-SYSTEM.md Section E | Add `ADR-PROP-rbac-depth.md` to the ADR-PROP Traceability table. |
+| **PAT-ADS-12 "Configurable Compliance Profile"** | ARCHITECTURE-DESIGN-SYSTEM.md Section B | EXECUTED — PAT-ADS-12 was added to the ADS in v1.2 (2026-06-27). This ADR-PROP is cited as the originating feature. |
+| **INV-ADS-09 "Decision-level audit"** | ARCHITECTURE-DESIGN-SYSTEM.md Section C.1 | EXECUTED — INV-ADS-09 was added to the ADS in v1.2 (2026-06-27), originating from C18 D-C18-7. The conformance checklist in Section C.2 was updated accordingly. |
+| **ADR-PROP-nested-tenancy.md §3.8 amendment** | ADR-PROP-nested-tenancy.md | EXECUTED — ADR-PROP-nested-tenancy.md §3.8 contains the correct Compliance-Profile routing language (D-PROF-6 reframe is reflected; `regulatory_class` routes through the profile engine via PAT-ADS-12). |
+| **ARCHITECTURE-DESIGN-SYSTEM.md Section E traceability row** | ARCHITECTURE-DESIGN-SYSTEM.md Section E | EXECUTED — `ADR-PROP-compliance-profiles.md` traceability row is present in ADS Section E (added in v1.2). |
+| **ARCHITECTURE-DESIGN-SYSTEM.md Section E traceability row** | ARCHITECTURE-DESIGN-SYSTEM.md Section E | EXECUTED — `ADR-PROP-rbac-depth.md` traceability row is present in ADS Section E (added in v1.2). |
 
 ---
 

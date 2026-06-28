@@ -551,7 +551,7 @@ P-ADS-10: Idempotent-Gated-Actions
   [YES] Pairing requests and approval are explicit, recorded, revocable — consistent
         with the idempotent-gated-actions pattern.
 
-INV-ADS check (all eight):
+INV-ADS check (all ten):
   [YES] INV-ADS-01: No raw sensor data at Central — hard ceiling on "everything" (§3.2)
   [YES] INV-ADS-02: Operator zero-access at rest — MSSP reconciliation clarifies scope (§4)
   [YES] INV-ADS-03: Per-tenant isolation — per-child DEK; (c) forbidden (AP-ADS-11)
@@ -561,9 +561,21 @@ INV-ADS check (all eight):
   [YES] INV-ADS-07: OCSF normalization — no new data sources; derived corpus already normalized
   [YES] INV-ADS-08: Air-gap valid — SoftwareKms + signed bundles + flat/nested DEK both work
                     offline; P2/P3 presets function in air-gap with local-KMS key operations
+  [YES] INV-ADS-09: Decision-level audit — C19 introduces no new authorization engine; existing
+                    decision-log obligation (from C18/INV-ADS-09) applies to tree-traversal
+                    auth decisions; C19 adds reparenting + pairing approval events to the audit
+                    trail (D-C19-7; §3.7 governance requirement 5). Not violated by C19.
+  [YES] INV-ADS-10: Recoverability preserves operator-zero-access — per-child DEK (D-C19-8) is
+                    backed up via SS-26 sealed-blob escrow (PAT-ADS-16); the nested KEK hierarchy
+                    (Option B) similarly uses operator-unwrappable blobs. Crypto-shred applies at
+                    the leaf DEK level; operator cannot recover tenant data unilaterally. Not
+                    violated by C19.
 ```
 
 All checklist items PASS. C19 is ADS-conformant.
+(Note: INV-ADS-09 and INV-ADS-10 were added to the ADS after C19 was originally captured. Both
+are satisfied by the decisions recorded above; this checklist has been updated to reflect the
+current ADS v1.6 invariant set of ten.)
 
 ---
 
