@@ -340,9 +340,9 @@ Each area: research → discuss → decide → capture → commit. **B = integra
 
 ## PRE-B FEATURE TRACK (C11–C20)
 
-A new batch of feature areas was confirmed BEFORE B — all require research + discussion + decisions + capture. Research is banked for C12 ✅, C11 ✅, C15 (double-banked), C20. B remains the final capstone, gated on §5.1 brief-reframe HUMAN sign-off.
+A new batch of feature areas was confirmed BEFORE B — all require research + discussion + decisions + capture. Research is banked for C12 ✅, C11 ✅, C15 (double-banked) ✅, C14 ✅, and ALL remaining items (C19, C18, C16, C17, C20 — commit 664cbbd1). B remains the final capstone, gated on §5.1 brief-reframe HUMAN sign-off.
 
-**Dependency-aware order (human-confirmed): C13 ✅ → C12 ✅ → C11 ✅ → C15 ✅ → C14 → C19 → C18 → C16 → C17 → C20 → B**
+**Dependency-aware order (human-confirmed): C13 ✅ → C12 ✅ → C11 ✅ → C15 ✅ → C14 ✅ → C19 → C18 → C16 → C17 → C20 → B**
 
 **Cross-cutting conformance frame:** ALL remaining items (C15, C14, C19, C18, C16, C17, C20, B) must pass the ADS conformance checklist (`ARCHITECTURE-DESIGN-SYSTEM.md`) before capture. The first conformance pass (10 ripple-audit items across 9 ADR-PROPs) is done.
 
@@ -355,12 +355,12 @@ A new batch of feature areas was confirmed BEFORE B — all require research + d
 | C12 | Prism Context — knowledge graph + vector DB + entity mapping + Entity 360 expansion | ✅ DONE (commit 76f1a3e2) — ADR-PROP-prism-context.md; two-layer embedded (indradb+usearch+lancedb); fastembed/ort+candle; deterministic entity-resolution + suspected-links; hybrid retrieval + mandatory citations; phased GraphRAG; aletheon corrected | aletheon `aros` table → C15 input, AD-017, C16, C7 |
 | C11 | Prism Intel — hosted threat-intel/auto-advisory tied to Entity 360 | ✅ DONE (commit 7c068714) — ADR-PROP-prism-intel.md; feed-down/match-at-edge; opt-in central-match for non-BYOC SaaS; deployment-conditional metering; free public + paid curated tiers; C9 signed-bundle for air-gap; PSI rejected | C12 Entity 360, C9 signed-bundle, BYOC zero-access, Option-3 |
 | C15 | Actions in PrismQL / SOAR + on-prem models (Action·Recommendation·Observation) | ✅ DONE (commit b6314532 — `ADR-PROP-soar-actions-aro.md`) — recommend-only v1 + autonomy ladder designed/enable-post-v1; three typed entities (Observation/Recommendation/Action) over common base; Recommendations from BOTH S3 agent layer AND read-only PrismQL `RECOMMEND` projection (perimeter-compile-fail-tested, source-discriminated provenance); full rec-rigor day one (W3C-PROV + calibrated confidence + conformal sets + mandatory post-hoc citation-faithfulness); separate `prism-orchestration` Action layer (HITL gates, idempotency, dry-run, rollback, AD-017 reference-based write-creds); on-prem models (Qwen3/Mistral central, Phi-4-mini/Ministral edge, Llama Prompt Guard guardrails) via C7 ModelBackend; ARO linkage rides C12 graph; ADS-conformant (all 8 INV pass) | C7 ModelBackend, S3 agent, C10 GAP-Q2, C18, AD-017, aletheon aros |
-| C14 | Active-query device support (Industrial Defender class) | ⏳ pending (no research yet) | C3/C4 connectors |
-| C19 | Nested tenancy (parent→child→… unlimited) | ⏳ pending | CLOSES OQ-DEPLOY-1 (deployment-matrix tenancy-isolation depth) |
-| C18 | RBAC depth (into connectors/satellites) | ⏳ pending | CLOSES C10 Query-RBAC gap; extends C9 / E-CENTRAL-AUTHZ-001 |
-| C16 | Entity masking / tokenizing clearing house (AI-opaque data; BCSI→universal name) | ⏳ pending | extends AD-017; C20 confirms BCSI canonical + recommends "RSI" abstraction |
-| C17 | Backup & recovery (first-class) | ⏳ pending | C9 config + bootstrap-recovery; C20 CIP-009 |
-| C20 | NERC CIP support | 🔬 research BANKED (research/nerc-cip-support-2026-06-27.md) — SCHEDULED LAST (synthesizes C16/C17/C18/C19/C2/OT) | C16(BCSI/RSI), C17, C18, C19, C2, OT |
+| C14 | Active-query device support (Industrial Defender class) | ✅ DONE (commit 59864881 — `ADR-PROP-active-query-devices.md`) — Reading A+B both in v1 (federate OT-platform APIs + direct OT-protocol field-device polling, poller-of-last-resort); active-query = capability-axis on C3/C4 (not a new connector class); read-only-perimeter (writes via C15); OT-safety guardrails as hard invariants; OT asset/config/vuln modeled as OCSF source tables; Reading-B protocol libs as plugins/sidecar; ADS-conformant | C3/C4 connectors, C15 (write perimeter), C20 (OT/ICS) |
+| C19 | Nested tenancy (parent→child→… unlimited) | 🔬 research BANKED (commit 664cbbd1 — `research/nested-tenancy-2026-06-27.md`) — bridge model + per-node isolation_tier, resolves OQ-DEPLOY-1 | CLOSES OQ-DEPLOY-1; C18 (role inheritance), C16 (detokenize-at-surface) |
+| C18 | RBAC depth (into connectors/satellites) | 🔬 research BANKED (commit 664cbbd1 — `research/rbac-depth-2026-06-27.md`) — layered RBAC+ReBAC+ABAC, engine build-vs-adopt fork | CLOSES C10 Query-RBAC gap; extends C9 / E-CENTRAL-AUTHZ-001; C19 (role inheritance), C16 (detokenize-at-surface), C15 (approver roles), C17 (key-escrow Option-3 CMEK) |
+| C16 | Entity masking / tokenizing clearing house (AI-opaque data; BCSI→universal name) | 🔬 research BANKED (commit 664cbbd1 — `research/entity-masking-tokenization-2026-06-27.md`) — edge clearing-house, vaulted tokenization, RSI naming | extends AD-017; C20 confirms BCSI canonical + recommends "RSI" abstraction; C18 (detokenize-at-surface via RBAC) |
+| C17 | Backup & recovery (first-class) | 🔬 research BANKED (commit 664cbbd1 — `research/backup-recovery-2026-06-27.md`) — logical-watermark+per-store time-travel tied to C8, key-escrow fork | C9 config + bootstrap-recovery; C20 CIP-009; C18 (key-escrow Option-3 CMEK) |
+| C20 | NERC CIP support | 🔬 research BANKED (commit 664cbbd1 — `research/nerc-cip-support-2026-06-27.md`) — SCHEDULED LAST (synthesizes C16/C17/C18/C19/C2/OT) | C16(BCSI/RSI), C17, C18, C19, C2, OT |
 | B | Integration capstone | ⏳ LAST — gated on §5.1 brief-reframe HUMAN sign-off | — |
 
 ## 4. PENDING FOLDS
@@ -380,29 +380,31 @@ Folded into ADR-PROP-prismql-deliverables.md (commit b6fa1465).
 
 ## 5. EXACT NEXT ACTION ON RESUME
 
-**C15 ✅ DONE. C12 ✅ C11 ✅ done. ADS created, Option-3 locked, conformance pass done. The pre-B feature track continues at C14.**
+**C14 ✅ DONE. C15 ✅ C12 ✅ C11 ✅ done. ADS created, Option-3 locked, conformance pass done. The pre-B feature track continues at C19.**
 
-**NEXT: C14 — Active-query device support (Industrial Defender class)**
-- NO research banked yet. Kick off C14 research at session start (or now if continuing).
-- C14 covers active-query / polling device support modeled on Industrial Defender adapter class — connects to C3 pushdown and C4 dynamic-schema connector machinery.
-- ADS conformance checklist must pass before capture is complete.
+**NEXT: C19 — Nested tenancy (parent→child→… unlimited)**
+- Research IS banked: `research/nested-tenancy-2026-06-27.md` (commit 664cbbd1) — bridge model + per-node isolation_tier, resolves OQ-DEPLOY-1.
+- Proceed directly to discussion + decision + capture (ADS conformance checklist required before capture).
+- Cross-wiring to note: C18 RBAC (role inheritance) ↔ C19 nested-tenancy ↔ C16 masking (detokenize-at-surface via RBAC) ↔ C15 approver roles ↔ C17 key-escrow (Option-3 CMEK). Decisions must be mutually consistent.
 
-**Research status for remaining items:**
-- C14: NO research banked — recommend kicking off research at next session start (or now)
-- C16: NO research banked
-- C18: NO research banked
-- C19: NO research banked
-- C17: NO research banked
-- C20: research IS banked (`research/nerc-cip-support-2026-06-27.md`) — scheduled LAST
+**C14 follow-up research BANKED (committed alongside this checkpoint):**
+- `research/ocsf-ot-coverage-2026-06-27.md` — C14 sub-fork F4: OCSF-OT schema coverage. COMPLETE. Committed in same burst as this resume-doc edit (path-scoped).
+  **Findings (closes OQ-C14-OCSF):** OCSF v1.8.0 (2026-03-18). Asset identity (Device Inventory Info 5001), config baseline/drift/exception (Device Config State 5002/5019 + Compliance Finding 2003), and device-vuln (Vulnerability Finding 2002) all FIT CLEANLY into the C14 OCSF source-table model. OT semantics (PLC/RTU/HMI type, firmware, Purdue zone, control topology) NEED a private `prism_ot` extension — the Device type_id enum is IT-only in OCSF core. CPE-matching is a gap (flag — ties to C11 intel enrichment). Data Classification profile SHIPS (v1.5.0+) — adopt as-is for C16/RSI tagging. Upstream ICS work (OCSF Issue #1515, Corelight) is STALLED — **lean = author private `prism_ot` extension now (NOT upstream-first), reserving clean UIDs for future upstream contribution.** 5 sub-forks (SF-1..5) recorded in the research file.
+
+**Research status for remaining items (ALL banked as of commit 664cbbd1):**
+- C19: research BANKED — `research/nested-tenancy-2026-06-27.md`
+- C18: research BANKED — `research/rbac-depth-2026-06-27.md`
+- C16: research BANKED — `research/entity-masking-tokenization-2026-06-27.md`
+- C17: research BANKED — `research/backup-recovery-2026-06-27.md`
+- C20: research BANKED — `research/nerc-cip-support-2026-06-27.md` (scheduled LAST)
 
 **Ordered queue — work through left-to-right, do not skip:**
-1. **C14** — Active-query device support (Industrial Defender class) — **NEXT** (no research yet; start with research pass)
-2. C19 — Nested tenancy (research pass needed first)
-3. C18 — RBAC depth (research pass needed first)
-4. C16 — Entity masking / tokenizing clearing house (research pass needed first)
-5. C17 — Backup & recovery (research pass needed first)
-6. C20 — NERC CIP (research banked at `research/nerc-cip-support-2026-06-27.md`; scheduled LAST — synthesizes all prior)
-7. **B — integration capstone** (GATED on §5.1 brief-reframe HUMAN sign-off)
+1. **C19** — Nested tenancy — **NEXT** (research banked; proceed to discussion + decision + capture)
+2. C18 — RBAC depth (research banked)
+3. C16 — Entity masking / tokenizing clearing house (research banked)
+4. C17 — Backup & recovery (research banked)
+5. C20 — NERC CIP (research banked; scheduled LAST — synthesizes all prior)
+6. **B — integration capstone** (GATED on §5.1 brief-reframe HUMAN sign-off)
 
 Each remaining item must conform to `ARCHITECTURE-DESIGN-SYSTEM.md` conformance checklist before capture.
 
@@ -423,10 +425,12 @@ Superseded capture queue (all DONE — do not re-execute):
 - ~~C11 discussion + capture → ADR-PROP-prism-intel.md~~ ✅ 7c068714
 - ~~ARO depth research for C15~~ ✅ 9199174c
 - ~~C15 discussion + capture → ADR-PROP-soar-actions-aro.md~~ ✅ b6314532
+- ~~C14 discussion + capture → ADR-PROP-active-query-devices.md~~ ✅ 59864881
+- ~~C19/C18/C16/C17/C20 research banking~~ ✅ 664cbbd1
 
 ## 6. BASELINE (git state at session wrap)
 
-- **factory-artifacts HEAD (current):** `b6314532` — C15 decided + ADR-PROP-soar-actions-aro.md captured
+- **factory-artifacts HEAD (current):** `664cbbd1` — C19/C18/C16/C17/C20 research files banked (5 research files committed)
 - **Full commit chain for this day-2 side-analysis** (day-2 side commits; live factory interleaved its own commits on the shared branch between these):
   - `b53b22ba` — C9 schema-versioning (Q3) resolved + ADR-PROP-config-management + backing research
   - `91abba90` — deployment matrix captured (ADR-PROP-dual-deployment, three operating models)
@@ -440,8 +444,12 @@ Superseded capture queue (all DONE — do not re-execute):
   - `9199174c` — ARO depth research banked for C15 (aro-model-depth-2026-06-27.md)
   - `996f1d1d` — resume snapshot refresh (SESSION-RESUME-2026-06-27.md updated to current state)
   - `b6314532` — C15 decided + ADR-PROP-soar-actions-aro.md captured (recommend-only v1 + autonomy ladder + dual-source ARO + on-prem ModelBackend; ADS-conformant)
+  - `abe5b077` — [live factory interleave — see factory track]
+  - `59864881` — C14 decided + ADR-PROP-active-query-devices.md captured (Reading A+B in v1; active-query as capability-axis; OT-safety guardrails; OCSF OT source tables; Reading-B protocol libs as plugins/sidecar; ADS-conformant)
+  - `664cbbd1` — C19/C18/C16/C17/C20 research files banked (nested-tenancy, rbac-depth, entity-masking-tokenization, backup-recovery, nerc-cip-support)
+  - `(this checkpoint)` — ocsf-ot-coverage-2026-06-27.md banked + SESSION-RESUME-2026-06-27.md updated; path-scoped commit
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation).
-- Working tree otherwise clean (untracked `.DS_Store` only; live-factory files left unstaged).
+- Working tree otherwise clean (untracked `.DS_Store` only; live-factory files left unstaged). No dangling in-flight research.
 
 ## 7. Gaps / epics introduced (PROPOSED, not in STORY-INDEX)
 Gaps **G-1 … G-36** (plus new cross-cutting dual-deployment gap). Proposed epics:
@@ -467,6 +475,10 @@ E-DUAL-DEPLOYMENT-001 (three operating models + deployment-profile mechanism).
 - E-PRISM-INTEL-001 — Prism Intel: hosted threat-intel enrichment + auto-advisory engine tied to Entity 360 (C11 ✅ DECIDED); feed-down/match-at-edge architecture; deployment-conditional metering; C9 signed-bundle for air-gap; PSI rejected
 - E-SOAR-ACTIONS-001 — Actions in PrismQL: Action/Recommendation/Observation surface + SOAR connector egress (C15 ✅ DECIDED — ADR-PROP-soar-actions-aro.md); recommend-only v1 + autonomy ladder; dual-source ARO (S3 agent + PrismQL RECOMMEND projection); W3C-PROV + conformal confidence; HITL gates + dry-run + rollback; AD-017 reference-based write-creds; on-prem ModelBackend (Qwen3/Mistral/Phi-4-mini)
 - E-ONPREM-MODELS-001 — On-premises model execution: ModelBackend local-deployment profile, air-gap inference, model provenance / signing (C15 on-prem dimension; extends C7 pluggable ModelBackend)
+
+**New C14 proposed epics:**
+- E-ACTIVE-QUERY-001 — Active-query / polling device support: capability-axis on C3/C4 connector machinery; OT asset/config/vuln as OCSF source tables; Reading-A (OT-platform API federation) + Reading-B (direct OT-protocol field-device polling, poller-of-last-resort); read-only perimeter (writes gated via C15 autonomy ladder); OT-safety guardrails as hard invariants; ADS-conformant
+- E-OT-PROTOCOL-CONNECTORS-001 — OT protocol connector library: Reading-B plugin/sidecar architecture for direct field-device polling (Modbus, EtherNet/IP, DNP3, IEC 61850, BACnet, OPC-UA); protocol libs as WASM plugins or sidecar processes; air-gap capable; phased rollout (platform-native APIs first, direct protocol second)
 
 **ADS conformance frame:** `ARCHITECTURE-DESIGN-SYSTEM.md` is the canonical conformance reference for all epics above and all remaining C-items. Every epic capture must satisfy the ADS conformance checklist (12 Principles, 11 Patterns, 8 Invariants, no anti-patterns) and the Central-Sole-Surface (Option-3) invariant.
 
