@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.045"
+version: "8.046"
 producer: state-manager
-timestamp: 2026-06-29T06:00:00Z
+timestamp: 2026-06-29T07:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -20,7 +20,7 @@ develop_head: "4417d691"
 # NOTE: 4417d691 is the squash-merge of PR #206 (perf(S-PERF-GATE-002): serialize adv_p02 test binary (nextest max-threads=1) to eliminate oversubscription blowup; normal squash-merge; 2026-06-29). origin/develop is now 4417d691. Prior origin/develop was 9a09653a (PR #205 /wrap chore). feature/S-PERF-GATE-002 branch + .worktrees/S-PERF-GATE-002 worktree removed.
 bc_index_version: "7.24"
 vp_index_version: "1.80"
-story_index_version: "v2.520"
+story_index_version: "v2.521"
 arch_index_version: "2.149"
 error_taxonomy_version: "2.03"
 total_stories: 217
@@ -36,7 +36,7 @@ workspace_test_count: 5061
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1417 (2026-06-29). S-PERF-GATE-003 IMPLEMENTED — pre-adversary. feature/S-PERF-GATE-003 off develop 4417d691, worktree HEAD 718252f4. Diff = 2 files: .config/nextest.toml (bc-2-01-013-serial max-threads=1 + prepush/ci overrides, binary bc_2_01_013_spec_driven_adapter) + Justfile (check-ci --profile ci, comment aligned). bc_2_01_013 25/25 under --profile prepush (~2.7s); just check EXIT 0 (4974/4974). Story v1.0→v1.1→v1.2 (ready v1.2; AC-005 check-ci added; AC-006 grep anchor `RUSTFLAGS=\"\" PROPTEST_CASES` =2 self-closing drift). sccache/RUSTFLAGS/dev-setup CONFIRMED already-shipped. STORY-INDEX S-PERF-GATE-003 row draft v1.0→ready v1.2. STORY-INDEX v2.519→v2.520. NEXT = LOCAL adversary 3-CLEAN(strict) on 718252f4 + story v1.2 → PR → merge → rebase S-DEMO-FIDELITY-REMEDIATION-001 onto develop → re-gate. develop_head UNCHANGED 4417d691. BC-INDEX UNCHANGED v7.24. ARCH-INDEX UNCHANGED v2.149. active_contracts UNCHANGED 254. total_stories UNCHANGED 217. STATE v8.044→v8.045."
+current_step: "D-1418 (2026-06-29). F-SPG3-MED-001 CLOSED — STORY-INDEX S-PERF-GATE-003 row summary corrected. Source-verified against HEAD 718252f4: bc_2_01_013_spec_driven_adapter = 25 total tests / ~12 wiremock-bearing. Stale '25 wiremock-heavy' claim replaced with accurate count disambiguation. Index-content only; story v1.2 UNCHANGED; code HEAD UNCHANGED 718252f4. LOCAL passes K+L CLEAN(strict)=yes; pass J F-SPG3-MED-001 MED index-count mischaracterization closed this burst. 3-CLEAN streak RESETS 0/3 — NEXT = re-gate on UNCHANGED code HEAD 718252f4 + story v1.2. STORY-INDEX v2.520→v2.521. develop_head UNCHANGED 4417d691. BC-INDEX UNCHANGED v7.24. ARCH-INDEX UNCHANGED v2.149. active_contracts UNCHANGED 254. total_stories UNCHANGED 217. STATE v8.045→v8.046."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-29 (D-1417 S-PERF-GATE-003 IMPLEMENTED pre-adversary; STORY-INDEX v2.520; total_stories 217; STATE v8.044→v8.045)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-29 (D-1418 F-SPG3-MED-001 CLOSED: STORY-INDEX S-PERF-GATE-003 row count disambiguated; STORY-INDEX v2.521; total_stories 217; STATE v8.045→v8.046)
 
 ## Active Objective (North Star)
 
@@ -123,6 +123,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 through D-1339 archived to burst-log.md (D-1368 compaction 2026-06-26). D-1344 and D-1393..D-1397 archived to burst-log.md (this compaction). D-1409 archived to burst-log.md (this D-1410 burst). D-1398..D-1416 archived to burst-log.md (this D-1417 burst)._
+| D-1418 | state-manager | 2026-06-29 | **F-SPG3-MED-001 CLOSED — STORY-INDEX S-PERF-GATE-003 row summary corrected (D-1418). LOCAL re-gate passes K+L CLEAN(strict)=yes; pass J finding F-SPG3-MED-001 MED: STORY-INDEX row for S-PERF-GATE-003 stated "25 wiremock-heavy tests" conflating total test count with wiremock test count. Source-verified against HEAD 718252f4: bc_2_01_013_spec_driven_adapter has 25 total test functions (`grep -cE '#\[(tokio::)?test\]'` = 25) and ~12 wiremock-bearing (`grep -c 'MockServer::start'` = 12). Corrected row summary: "serializes the bc_2_01_013_spec_driven_adapter binary (25 tests total, ~12 wiremock-bearing); ~2.7s under --profile prepush". Index-content only; story v1.2 UNCHANGED; code HEAD UNCHANGED 718252f4; develop_head UNCHANGED 4417d691. 3-CLEAN streak RESETS 0/3 — NEXT = re-gate on UNCHANGED code HEAD 718252f4 + story v1.2 (only STORY-INDEX changed this burst). STORY-INDEX v2.520→v2.521. BC-INDEX UNCHANGED v7.24. ARCH-INDEX UNCHANGED v2.149. active_contracts UNCHANGED 254. total_stories UNCHANGED 217. STATE v8.045→v8.046.** | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1417 | state-manager | 2026-06-29 | **S-PERF-GATE-003 IMPLEMENTED — pre-adversary burst (D-1417). feature/S-PERF-GATE-003 branched off develop 4417d691; worktree HEAD 718252f4. Diff = 2 files: .config/nextest.toml (bc-2-01-013-serial max-threads=1 + prepush/ci overrides, binary bc_2_01_013_spec_driven_adapter) + Justfile (check-ci --profile ci, comment aligned). bc_2_01_013 25/25 under --profile prepush (~2.7s); just check EXIT 0 (4974/4974). Story elaborated v1.0→v1.1 (status draft→ready; AC-005 check-ci --profile ci added) →v1.2 (AC-006 grep anchor corrected: `RUSTFLAGS="" PROPTEST_CASES` = exactly 2 hits, closing bare-grep-returns-3 self-verification drift pre-emptively). All 9 ACs source-verified self-verifying against 718252f4. sccache/RUSTFLAGS/dev-setup ACs confirmed already-shipped on develop (verify-only regression guards). STORY-INDEX S-PERF-GATE-003 row synced draft v1.0→ready v1.2 (POL-13). STORY-INDEX v2.519→v2.520. BC-INDEX UNCHANGED v7.24. ARCH-INDEX UNCHANGED v2.149. active_contracts UNCHANGED 254. total_stories UNCHANGED 217. develop_head UNCHANGED 4417d691. STATE v8.044→v8.045. NEXT = LOCAL adversary 3-CLEAN(strict) on frozen HEAD 718252f4 + story v1.2 → PR → merge → rebase S-DEMO-FIDELITY-REMEDIATION-001 onto develop → resume LOCAL 4-lens re-gate.** | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1392 | state-manager | 2026-06-27 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL adversary Pass 2/3 on frozen CODE HEAD f1054f1d + story v1.5 = NOT CLEAN — OBS-1 (LOW) AC-AUDIT-001 phantom pql_hints[0] "This client has N tables:" string absent from build_pql_hints; CLEAN(PR-merge)=yes, CLEAN(strict)=no → fixed per no-waiver directive. Story-only fix: v1.5→v1.6; full AC-prose-vs-code accuracy sweep: no other inaccuracies found. CODE HEAD UNCHANGED f1054f1d. STORY-INDEX v2.499→v2.500. 3-CLEAN streak 0/3; re-gating on f1054f1d + story v1.6. STATE v8.018→v8.019.** | wave-5-e-demo-fidelity | 2026-06-27 |
 | D-1357 | state-manager | 2026-06-26 | **PR-LEVEL PASSES 1+2+3 ON b65b4d0c + FIX-BURST + INDEX UPDATE (TD-VSDD-053 single-commit). Pass 1 on b65b4d0c: CLEAN(strict)=YES, CLEAN(PR-merge)=YES (streak 1/3). Passes 2+3 (parallel fresh-context on b65b4d0c): CLEAN(strict)=NO. F-P2-HIGH-001 (HIGH — FORBID-BOTH covers `\| limit` but NOT `\| tail`; BC-2.11.020 §Postconditions + E-QUERY-040 + EC-11-020-008/009 + ADR-043 §D4 all missing `\| tail`; closes both BC and ADR portions) — CLOSED: BC-2.11.020 v1.0→v1.1 (PO); ADR-043 v1.1→v1.2 (architect). F-P2-LOW-001 (LOW — `ParseErrorDetails` phantom type stale in ADR-043 §D4 + ADR-046 §D3/§Consequences + design-doc 5 sites; no such type exists per D-1110) — CLOSED: ADR-043 v1.2 + ADR-046 v1.2→v1.3 + demo-readiness-remediation-design v1.0→v1.1 (architect). F-P2-MED-001 (verified CLOSED from P8 @950c19be — confirmed NOT re-present on b65b4d0c). F-P3-CRIT-001 (CRIT — UTF-8 byte-offset panic in `mode_bridge_normalized_pql` when input contains multibyte chars; `error_recovery.rs` uses raw byte index from Chumsky error span to slice into original query string — panics on multibyte boundary; 4 regression tests) — CLOSED by implementer @87fcc7e4. Story v1.8→v1.9 (story-writer: BC-2.11.020 v1.1 pin + AC-002/task-5/EC-002b/§Changelog descending). **Index bursts:** BC-INDEX v7.15→v7.16; ARCH-INDEX v2.145→v2.146; STORY-INDEX v2.477→v2.478. POL-25 sweep: no live-narrative stale BC-2.11.020 v1.0 pins outside historical rows. NEW FROZEN PR HEAD 87fcc7e4 (pre-push just check in flight). PR-LEVEL 3-CLEAN streak RESET 0/3 on 87fcc7e4 (DRIFT-ORCH-PRLEVEL-PUSH-001). develop_head UNCHANGED 903c8fcb. BC-INDEX v7.15→v7.16. ARCH-INDEX v2.145→v2.146. STORY-INDEX v2.477→v2.478. STATE v7.985→v7.986.** | wave-5-e-demo-fidelity | 2026-06-26 |
@@ -259,11 +260,11 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1417 — 2026-06-29; STATE v8.045)
+## Session Resume Checkpoint (D-1418 — 2026-06-29; STATE v8.046)
 
-**STATE v8.045. D-1417 S-PERF-GATE-003 IMPLEMENTED pre-adversary. feature/S-PERF-GATE-003 off develop 4417d691; worktree HEAD 718252f4 (story v1.2 ready). Diff = .config/nextest.toml (bc-2-01-013-serial max-threads=1 + prepush/ci overrides) + Justfile (check-ci --profile ci). bc_2_01_013 25/25 under --profile prepush; just check EXIT 0 (4974/4974). S-DEMO-FIDELITY-REMEDIATION-001 feature HEAD 02c7cb46 (story v2.9; 42 Red Gate tests; REBASE NEEDED onto 4417d691 then LOCAL re-gate 4-lens adversary to 3-CLEAN(strict)). BC-INDEX v7.24. STORY-INDEX v2.520. ARCH-INDEX v2.149. error-taxonomy v2.03. total_stories 217. develop_head 4417d691 (local==origin). DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88 (develop main).**
+**STATE v8.046. D-1418 F-SPG3-MED-001 CLOSED — STORY-INDEX S-PERF-GATE-003 row count disambiguated (25 total / ~12 wiremock-bearing; source-verified HEAD 718252f4). feature/S-PERF-GATE-003 off develop 4417d691; worktree HEAD 718252f4 (story v1.2 ready; UNCHANGED). Diff = .config/nextest.toml (bc-2-01-013-serial max-threads=1 + prepush/ci overrides) + Justfile (check-ci --profile ci). bc_2_01_013 25/25 under --profile prepush; just check EXIT 0 (4974/4974). S-DEMO-FIDELITY-REMEDIATION-001 feature HEAD 02c7cb46 (story v2.9; 42 Red Gate tests; REBASE NEEDED onto 4417d691 then LOCAL re-gate 4-lens adversary to 3-CLEAN(strict)). BC-INDEX v7.24. STORY-INDEX v2.521. ARCH-INDEX v2.149. error-taxonomy v2.03. total_stories 217. develop_head 4417d691 (local==origin). DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88 (develop main).**
 
-**NEXT ACTION:** (1) S-PERF-GATE-003 LOCAL adversary 3-CLEAN(strict) on frozen HEAD 718252f4 + story v1.2 → PR → squash-merge. (2) Rebase feature/S-DEMO-FIDELITY-REMEDIATION-001 onto develop (after S-PERF-GATE-003 merges) → `just check` → LOCAL 4-lens adversary re-gate to 3-CLEAN(strict) → PR → squash-merge.
+**NEXT ACTION:** (1) S-PERF-GATE-003 LOCAL adversary 3-CLEAN(strict) re-gate on UNCHANGED code HEAD 718252f4 + story v1.2 (3-CLEAN streak RESET 0/3 by this STORY-INDEX-only burst) → PR → squash-merge. (2) Rebase feature/S-DEMO-FIDELITY-REMEDIATION-001 onto develop (after S-PERF-GATE-003 merges) → `just check` → LOCAL 4-lens adversary re-gate to 3-CLEAN(strict) → PR → squash-merge.
 
 **TRACK B — DAY-2 MORPH (POST-T14):** `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
