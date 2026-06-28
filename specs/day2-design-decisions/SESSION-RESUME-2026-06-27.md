@@ -453,26 +453,6 @@ A new batch of feature areas was confirmed BEFORE B — all require research + d
 | C20 | NERC CIP support | ✅ DONE (fully resolved — ADR-PROP-nerc-cip-support.md; SF-2 = Defer + Leave-Seams-Open; D-C20-SF2; PIV-C20-006 LOCKED; PIV-C20-007 seams open; ADS v1.6) | C16(BCSI/RSI), C17, C18, C19, C2, OT |
 | B | Integration capstone | ⏳ LAST — gated on §5.1 brief-reframe HUMAN sign-off | — |
 
-#### Customer-problem coverage analysis — BANKED (`customer-problem-coverage-2026-06-28.md`, 2026-06-28)
-
-A PM-facing gap assessment was produced mapping the day-2 corpus against the mandated 7 customer
-problems + candidates A/B/C + enrichments (`customer-problem-coverage-2026-06-28.md`).
-
-- **Q1 (does day-2 FULLY answer the doc?):** NO — substantial coverage at the architecture layer, partial
-  overall. Architecture is solid but product/content/business-service layers are unaddressed.
-- **Q2 (fully address the mandated 7 problems?):** NO — all 7 are PARTIAL. P3 (threat detection +
-  investigation) is strongest; P7 (demonstrate ROI + prioritization) is weakest.
-- **Gap pattern — capability platform not product.** Three gap clusters:
-  - **(a) Architecture gaps:** 3.e remote-access-as-federated-search, clean-to-restart OT recovery,
-    change-management integration, supply-chain software provenance, exposure/ROI scoring, network-arch
-    diagram rendering.
-  - **(b) Content-to-be-authored:** OT playbooks, OOTB hunt/detection content.
-  - **(c) Business/service:** managed-service + pricing model, insurer packs, customer value portal.
-- **Strategic flag:** threat-model reframe (credential-abuse + remote-access + IT→OT lateral movement is
-  the workhorse path; direct-PLC attacks ~4% of incidents). 3.e (remote-access as federated-search
-  surface) is the highest-value untouched architecture item; directly informs the held brief-reframe.
-- **Brief-reframe status unchanged:** HELD pending human sign-off (§5.1). B remains gated. Do not
-  begin B until the human confirms the brief-reframe direction.
 
 ## 4. PENDING FOLDS
 
@@ -539,7 +519,7 @@ Superseded capture queue (all DONE — do not re-execute):
 
 ## 6. BASELINE (git state at session wrap)
 
-- **factory-artifacts HEAD (current):** `(this checkpoint)` — customer-problem coverage analysis banked (PM gap assessment; Q1/Q2 = NO/NO partial; informs held brief-reframe); path-scoped commit (see commit chain below)
+- **factory-artifacts HEAD (current):** `(this checkpoint)` — customer-problem-coverage-2026-06-28.md removed per explicit human direction; path-scoped commit (see commit chain below)
 - **Full commit chain for this day-2 side-analysis** (day-2 side commits; live factory interleaved its own commits on the shared branch between these):
   - `b53b22ba` — C9 schema-versioning (Q3) resolved + ADR-PROP-config-management + backing research
   - `91abba90` — deployment matrix captured (ADR-PROP-dual-deployment, three operating models)
@@ -565,7 +545,7 @@ Superseded capture queue (all DONE — do not re-execute):
   - `(prior checkpoint)` — C20 NERC CIP support bulk decided + ADR-PROP-nerc-cip-support.md captured (SF-1/3/4; SF-2 OPEN pending research); ADS v1.5 (PAT-ADS-17 Compliance-Evidence-Export RSAW-aligned); SESSION-RESUME updated (C20 bulk DONE, SF-2 fold + B next); path-scoped commit. Prior side HEAD: **a220d879**.
   - `10875181` — C20 SF-2 folded (Defer + Leave-Seams-Open); cloud-BES research banked; ADS v1.6 (PAT-ADS-17 evidence-owner forward-note); C20 fully resolved; pre-B track C11–C20 COMPLETE; path-scoped commit
   - `(prior checkpoint)` — fresh-context consistency audit (MINOR-DRIFT: 0 blocker/0 major; 3 minor + 5 obs all fixed); ADS v1.7 (traceability rows C10/C14/C15 + freshness fixes); audit report banked; path-scoped commit. Prior side HEAD: **10875181**.
-  - `(this checkpoint)` — customer-problem coverage analysis banked (customer-problem-coverage-2026-06-28.md); PM gap assessment of day-2 design vs mandated 7 problems + candidates A/B/C + enrichments; Q1 (fully answer doc?) = NO (substantial @ architecture, partial overall); Q2 (fully address the 7?) = NO (all 7 PARTIAL; P3 strongest, P7 weakest); pattern: capability platform not product; gaps cluster as (a) architecture-gaps [3.e remote-access, OT recovery, change-mgmt, supply-chain provenance, exposure/ROI, network-arch], (b) content-to-author [OT playbooks, OOTB hunt/detection], (c) business/service [managed-service+pricing, insurer packs, value portal]; strategic flag: threat-model reframe + 3.e = highest-value untouched; informs held brief-reframe; brief-reframe remains HELD (pending-human-signoff); B still gated; path-scoped commit. Prior side HEAD: **929a9758**.
+  - `(this checkpoint)` — customer-problem-coverage-2026-06-28.md removed per explicit human direction (history preserved at a8caac9e); path-scoped commit. Prior side HEAD: **929a9758**.
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD before this burst: **929a9758** (consistency audit complete; ADS v1.7).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory BC-2.16.002 left unstaged). No dangling in-flight research.
 
