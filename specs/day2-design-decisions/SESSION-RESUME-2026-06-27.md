@@ -9,11 +9,11 @@ provenance: "Day-2 vision SIDE-ANALYSIS program resume snapshot. SEPARATE from t
 # Day-2 Vision Side-Analysis — Zero-Context Resume Snapshot (2026-06-27)
 
 > **Original C-program (C1–C10 + deployment-matrix + C3 hard-reject reconciliation) COMPLETE and committed.
-> PRE-B feature track: C13 ✅ C12 ✅ C11 ✅ C15 ✅ C14 ✅ C19 ✅ C18 ✅ — now at C16 (next). ADS
+> PRE-B feature track: C13 ✅ C12 ✅ C11 ✅ C15 ✅ C14 ✅ C19 ✅ C18 ✅ C16 ✅ — now at C17 (next). ADS
 > (Architecture Design System) created and locked as conformance frame. Surfacing model LOCKED = Option 3.
 > Conformance pass DONE. B remains LAST and gated on the §5.1 brief-reframe HUMAN sign-off.**
 >
-> **Latest factory-artifacts HEAD: `(this checkpoint)` — C18 RBAC depth + Compliance Profiles decided + captured; ADS v1.2**
+> **Latest factory-artifacts HEAD: `(this checkpoint)` — C16 entity masking / RSI clearing house decided + captured; ADS v1.3**
 >
 > **READ THIS FIRST on resume.** This is OUT-OF-BAND day-2 vision work, fully SEPARATE from the live
 > VSDD factory pipeline (which runs its own cascades on the same `factory-artifacts` branch). Everything
@@ -261,14 +261,14 @@ All 8 gaps addressed. Human chose the fuller path on every fork — zero decline
 - ML-phasing: C7 OD-3 (on-prem model deployment phasing) reconciled to C7 pluggable ModelBackend decision; WASM/ort/candle all day-2 capable.
 - All 8 residuals resolved; §16.4 section marked CLOSED.
 
-#### Architecture Design System (ADS) — CREATED (commit 7c068714); AMENDED v1.1 + v1.2 (this checkpoint)
+#### Architecture Design System (ADS) — CREATED (commit 7c068714); AMENDED v1.1 + v1.2 + v1.3 (this checkpoint)
 `ARCHITECTURE-DESIGN-SYSTEM.md` ("The Prism Way") is the canonical architecture analog of the UI design system. ALL day-2 features + B must conform to it.
-- **13 Principles** (P-ADS-01..13) — P-ADS-13 Configurable-Not-Prescriptive added in prior burst
-- **13 Patterns** (PAT-ADS-01..13) — PAT-ADS-12 Configurable Compliance Profile + PAT-ADS-13 Layered-Authz added in C18 (this checkpoint)
-- **9 Invariants** (INV-ADS-01..09) — INV-ADS-09 Decision-Level Authorization Audit added in C18 (this checkpoint) + conformance checklist
+- **13 Principles** (P-ADS-01..13) — P-ADS-13 Configurable-Not-Prescriptive added in prior burst; P-ADS-07 sharpened in C16 (this checkpoint: clearing-house enforcement + embeddings-are-sensitive)
+- **14 Patterns** (PAT-ADS-01..14) — PAT-ADS-12 Configurable Compliance Profile + PAT-ADS-13 Layered-Authz added in C18; PAT-ADS-14 Edge-Tokenizing-Clearing-House added in C16 (this checkpoint)
+- **9 Invariants** (INV-ADS-01..09) — INV-ADS-09 Decision-Level Authorization Audit added in C18 + conformance checklist
 - **11 Anti-patterns** (AP-ADS-11 added in C19 burst; now 11 total)
 - Basis: `research/central-surfacing-ripple-analysis-2026-06-27.md`
-- ADS bumped **v1.0 → v1.1** (P-ADS-02 clarification, AP-ADS-11, P-ADS-13) then **v1.1 → v1.2** (PAT-ADS-12, PAT-ADS-13, INV-ADS-09 + traceability rows — C18 this checkpoint)
+- ADS bumped **v1.0 → v1.1** (P-ADS-02 clarification, AP-ADS-11, P-ADS-13) then **v1.1 → v1.2** (PAT-ADS-12, PAT-ADS-13, INV-ADS-09 + traceability rows — C18) then **v1.2 → v1.3** (P-ADS-07 sharpened, PAT-ADS-14, C16 traceability row — C16 this checkpoint)
 
 **P-ADS-13 — Configurable-Not-Prescriptive (Policy-as-Configuration) — ADDED (prior checkpoint)**
 Restrictive security/compliance posture is configurable data + named shippable Profiles (baseline / SOC2 / ISO27001 / IEC-62443-OT / NERC-CIP), never hardcoded absolutes and never a single vertical's needs branched into code. OT is a shipped Profile, not a code fork. Floor: configurability sits ABOVE the INV-ADS invariant floor (operator-zero-access, no-raw-at-Central, per-tenant isolation, AI-opaque are NEVER configurable off). Profiles tighten-only down the tenant tree.
@@ -324,7 +324,25 @@ Recorded in `ARCHITECTURE-DESIGN-SYSTEM.md` as INV-ADS cross-cutting invariant. 
 - **Air-gap:** reuse C9 signed-bundle mechanism for air-gap intel delivery.
 - **PSI (Private Set Intersection):** evaluated and rejected (complexity vs. benefit; BYOC zero-access already satisfied by feed-down architecture).
 
-#### C18 — RBAC depth (into connectors/satellites) — FULLY DECIDED + CAPTURED (ADR-PROP-rbac-depth.md + ADR-PROP-compliance-profiles.md, this checkpoint)
+#### C16 — Entity masking / RSI tokenizing clearing house — FULLY DECIDED + CAPTURED (ADR-PROP-entity-masking.md, this checkpoint)
+
+- **AD-017 extended to AI-opaque DATA:** Prior AD-017 scope was credentials-only. Extended to cover all RSI (Regulated Sensitive Information) fields flowing through the query path and into AI/RAG surfaces. AI never sees raw RSI values.
+- **BUILD Prism-native Rust clearing house (SS-26):** Per-tenant DEK + aes-gcm; RocksDB-CF token vault; FF1 FPE optional (narrow-domain ≥10^6 only). Vault Transform Enterprise (HashiCorp) rejected (external runtime dependency, licensing, Vault Enterprise cost). SS-26 is a new subsystem designation.
+- **Technique mix keyed by RSI field class:**
+  - Deterministic vaulted tokenization = default for structured identifiers (IPs, MACs, hostnames, usernames).
+  - FF1 FPE = narrow-domain structured fields where domain size ≥10^6 (e.g., full IPv4 space = 4×10^9).
+  - Redaction = fields where token shape reveals sensitivity (e.g., raw credentials, secrets).
+  - NER-based tokenization = free-text fields (entity recognition before tokenization; probabilistic, audited).
+- **EDGE placement after OCSF normalization — FORCED by INV-ADS-01 / D-C2-12 / Option-3:** Clearing house sits at the edge satellite, immediately after OCSF normalization, before any data leaves the satellite boundary. Central holds surrogates only. Not configurable off.
+- **RSI abstraction + pluggable masking profiles:** RSI (Regulated Sensitive Information) is the canonical cross-cutting abstraction over BCSI (CIP-011 / NERC CIP), PII, PHI, and other regulatory classes. `masking_profile` is a compliance-profile axis (configurable, tightens-only, BCSI profile first). OCSF `data_classification` wire format (v1.2.0+, ships in baseline) adopted as-is for RSI field tagging.
+- **Per-field-class token-determinism matrix:** Tunable via compliance-profile masking axis. Controls whether tokens are deterministic (same input → same token within vault) vs non-deterministic (fresh token per occurrence). Deterministic required for cross-event entity correlation; non-deterministic reduces re-identification risk for single-event fields.
+- **Per-tenant vault + DEK at edge; agent zero vault wiring:** Each tenant has an isolated RocksDB-CF vault and DEK at the edge satellite. Agent zero (the satellite management agent) holds the vault-init wire path; key custody follows C9 bootstrap-recovery 4-layer pattern + C16 DEK escrow (→ C18 key-escrow Option-3 CMEK for central metadata custody).
+- **Detokenize-at-surface via C18 RBAC (transient, never re-persisted, audited):** The detokenization path is gated by the C18 ABAC tag-masking layer + CIP-004/007 audit trail. Detokenized values are transient in the query surface layer; never written to RocksDB or cold Iceberg tier. Every detokenization event is audited (INV-ADS-09).
+- **Dual index (raw human-IR secure-zone vs masked AI/RAG):** Two logical indexes maintained: (a) raw-value index in the human-IR secure zone (detokenize-at-surface RBAC gate required for access), (b) tokenized/masked index for AI/RAG pipeline. Vectors (embeddings) are flagged as sensitive-data-class — inversion attacks can recover approximate raw values from embeddings; validates C12 on-box embedding decision (no external embedding API).
+- **Deferred:** Embedding-perturbation defense (differential-privacy noise injection on embeddings before storage) — cost-gated open item (OQ-RSI-EMBED-PERTURB). HIPAA Expert Determination method — deferred to compliance-authority review.
+- **ADS v1.3:** P-ADS-07 sharpened (clearing-house enforcement + embeddings-are-sensitive assertion); PAT-ADS-14 (Edge-Tokenizing-Clearing-House pattern) added; traceability row for C16.
+
+#### C18 — RBAC depth (into connectors/satellites) — FULLY DECIDED + CAPTURED (ADR-PROP-rbac-depth.md + ADR-PROP-compliance-profiles.md, commit prior to this checkpoint)
 
 - **Authorization model:** Layered RBAC+ReBAC+ABAC. Not a single model — all three layers coexist: role-based coarse access, relationship-based scoping (connector/satellite/source/table), attribute-based tag masking.
 - **Engine decision:** BUILD Prism-native Rust Zanzibar-tuple core (SF-1). Fallback options evaluated and ordered: casbin-rs / opa-wasm / gatehouse / oso. SpiceDB (Go sidecar) and OpenFGA (Go sidecar) REJECTED — wrong runtime boundary, cross-language RPC latency in hot query path.
@@ -383,14 +401,14 @@ Each area: research → discuss → decide → capture → commit. **B = integra
 
 A new batch of feature areas was confirmed BEFORE B — all require research + discussion + decisions + capture. Research is banked for C12 ✅, C11 ✅, C15 (double-banked) ✅, C14 ✅, and ALL remaining items (C19, C18, C16, C17, C20 — commit 664cbbd1). B remains the final capstone, gated on §5.1 brief-reframe HUMAN sign-off.
 
-**Dependency-aware order (human-confirmed): C13 ✅ → C12 ✅ → C11 ✅ → C15 ✅ → C14 ✅ → C19 ✅ → C18 ✅ → C16 → C17 → C20 → B**
+**Dependency-aware order (human-confirmed): C13 ✅ → C12 ✅ → C11 ✅ → C15 ✅ → C14 ✅ → C19 ✅ → C18 ✅ → C16 ✅ → C17 → C20 → B**
 
 **Cross-cutting conformance frame:** ALL remaining items (C15, C14, C19, C18, C16, C17, C20, B) must pass the ADS conformance checklist (`ARCHITECTURE-DESIGN-SYSTEM.md`) before capture. The first conformance pass (10 ripple-audit items across 9 ADR-PROPs) is done.
 
 | ID | Area | Status | Cross-links |
 |---|---|---|---|
 | C13 | §16.4 open-items closeout (SSO, S3-runtime, secret/DEK, sequence-sugar, PO-ratif, ML-phasing) | ✅ DONE (commit 09c5584d) — 8 residuals resolved; per-credential-DEK = future enhancement (OQ-SECRET-DEK-GRANULARITY); ml OD-3 reconciled to C7 | C7, C2/AD-017, C16, C20 |
-| **ADS** | Architecture Design System — "The Prism Way" (13 Principles, 13 Patterns, 9 Invariants, conformance checklist) | ✅ DONE (commit 7c068714; amended v1.1 + v1.2) — `ARCHITECTURE-DESIGN-SYSTEM.md` is the canonical conformance frame for all remaining work | All C-items + B |
+| **ADS** | Architecture Design System — "The Prism Way" (13 Principles, 14 Patterns, 9 Invariants, conformance checklist) | ✅ DONE (commit 7c068714; amended v1.1 + v1.2 + v1.3) — `ARCHITECTURE-DESIGN-SYSTEM.md` v1.3 is the canonical conformance frame for all remaining work | All C-items + B |
 | **Option-3** | Surfacing model locked — Tenant-Keyed-Central-Cache always; derived-results-only; operator-zero-access-at-rest; Central-Sole-Surface principle | ✅ LOCKED (commit 7c068714) — do not re-litigate | ADS INV-ADS, C12, C11, C15 |
 | **Conformance pass** | Ripple audit of existing ADR-PROPs against ADS + Option-3 | ✅ DONE (commit 7c068714) — 10 items closed across 9 ADR-PROPs | All prior C-items |
 | C12 | Prism Context — knowledge graph + vector DB + entity mapping + Entity 360 expansion | ✅ DONE (commit 76f1a3e2) — ADR-PROP-prism-context.md; two-layer embedded (indradb+usearch+lancedb); fastembed/ort+candle; deterministic entity-resolution + suspected-links; hybrid retrieval + mandatory citations; phased GraphRAG; aletheon corrected | aletheon `aros` table → C15 input, AD-017, C16, C7 |
@@ -399,7 +417,7 @@ A new batch of feature areas was confirmed BEFORE B — all require research + d
 | C14 | Active-query device support (Industrial Defender class) | ✅ DONE (commit 59864881 — `ADR-PROP-active-query-devices.md`) — Reading A+B both in v1 (federate OT-platform APIs + direct OT-protocol field-device polling, poller-of-last-resort); active-query = capability-axis on C3/C4 (not a new connector class); read-only-perimeter (writes via C15); OT-safety guardrails as hard invariants; OT asset/config/vuln modeled as OCSF source tables; Reading-B protocol libs as plugins/sidecar; ADS-conformant | C3/C4 connectors, C15 (write perimeter), C20 (OT/ICS) |
 | C19 | Nested tenancy (parent→child→… unlimited) | ✅ DONE (ADR-PROP-nested-tenancy.md) — bridge + per-node isolation_tier closes OQ-DEPLOY-1; adjacency+closure+materialized-path tree; SF-1 hybrid / SF-2 unlimited+soft-cap-8 / SF-3 visibility-grant matrix (P3 transparent-subtree gated same-legal-entity; (c) forbidden→AP-ADS-11; regulatory_class override) / SF-4 configurable flat-DEK-or-nested-KEK / SF-5 audited reparenting; MSSP reconciliation sharpened P-ADS-02; MSSP key custody default = client-held CMEK | CLOSES OQ-DEPLOY-1; C18 (role inheritance), C16 (detokenize-at-surface) |
 | C18 | RBAC depth (into connectors/satellites) | ✅ DONE (ADR-PROP-rbac-depth.md + ADR-PROP-compliance-profiles.md, this checkpoint) — layered RBAC+ReBAC+ABAC; BUILD Prism-native Rust Zanzibar-tuple core; connector/satellite/source/table scoping + ABAC tag masking; strictly-downward inheritance via C19 closure table; decision-level audit (INV-ADS-09); central-authored/edge-enforced signed bundles; IdP→internal-role + SCIM; PII bulk-export hard-block-but-configurable; Compliance-Profile mechanism captured in companion ADR-PROP | CLOSES C10 Query-RBAC gap; extends C9 / E-CENTRAL-AUTHZ-001; C19 (role inheritance), C16 (detokenize-at-surface), C15 (approver roles), C17 (key-escrow Option-3 CMEK) |
-| C16 | Entity masking / tokenizing clearing house (AI-opaque data; BCSI→universal name) | 🔬 research BANKED (commit 664cbbd1 — `research/entity-masking-tokenization-2026-06-27.md`) — edge clearing-house, vaulted tokenization, RSI naming | extends AD-017; C20 confirms BCSI canonical + recommends "RSI" abstraction; C18 (detokenize-at-surface via RBAC) |
+| C16 | Entity masking / tokenizing clearing house (AI-opaque data; BCSI→RSI universal name) | ✅ DONE (ADR-PROP-entity-masking.md) — extends AD-017 to AI-opaque DATA; BUILD Prism-native Rust clearing house (SS-26 DEK + aes-gcm + RocksDB-CF vault, FF1 FPE optional); technique mix keyed by RSI field class; EDGE placement after OCSF normalization (forced INV-ADS-01/Option-3); RSI abstraction + pluggable profiles (BCSI first) over OCSF data_classification; per-field-class token-determinism matrix; per-tenant vault+DEK at edge; detokenize-at-surface via C18 RBAC; dual index; vectors are sensitive-data-class; ADS v1.3 (P-ADS-07 sharpened, PAT-ADS-14) | extends AD-017; C20 confirms BCSI canonical; C18 (detokenize-at-surface via RBAC); C17 (key-escrow/DEK custody) |
 | C17 | Backup & recovery (first-class) | 🔬 research BANKED (commit 664cbbd1 — `research/backup-recovery-2026-06-27.md`) — logical-watermark+per-store time-travel tied to C8, key-escrow fork | C9 config + bootstrap-recovery; C20 CIP-009; C18 (key-escrow Option-3 CMEK) |
 | C20 | NERC CIP support | 🔬 research BANKED (commit 664cbbd1 — `research/nerc-cip-support-2026-06-27.md`) — SCHEDULED LAST (synthesizes C16/C17/C18/C19/C2/OT) | C16(BCSI/RSI), C17, C18, C19, C2, OT |
 | B | Integration capstone | ⏳ LAST — gated on §5.1 brief-reframe HUMAN sign-off | — |
@@ -421,29 +439,28 @@ Folded into ADR-PROP-prismql-deliverables.md (commit b6fa1465).
 
 ## 5. EXACT NEXT ACTION ON RESUME
 
-**C18 ✅ DONE. C19 ✅ C14 ✅ C15 ✅ C12 ✅ C11 ✅ done. ADS created (v1.2), Option-3 locked, conformance pass done. The pre-B feature track continues at C16.**
+**C16 ✅ DONE. C18 ✅ C19 ✅ C14 ✅ C15 ✅ C12 ✅ C11 ✅ done. ADS created (v1.3), Option-3 locked, conformance pass done. The pre-B feature track continues at C17.**
 
-**NEXT: C16 — Entity masking / tokenizing clearing house**
-- Research IS banked: `research/entity-masking-tokenization-2026-06-27.md` (commit 664cbbd1) — edge clearing-house, vaulted tokenization, RSI naming.
+**NEXT: C17 — Backup & recovery (first-class)**
+- Research IS banked: `research/backup-recovery-2026-06-27.md` (commit 664cbbd1) — logical-watermark + per-store time-travel tied to C8, key-escrow fork.
 - Proceed directly to discussion + decision + capture (ADS conformance checklist required before capture).
-- Cross-wiring to note: C16 detokenize-at-surface ↔ C18 ABAC masking layer (just decided) ↔ C19 visibility presets. The detokenization path must be consistent with the ABAC tag-masking gate and the C19 SF-3 visibility-grant matrix.
+- Cross-wiring to note: C17 key-escrow / Option-3 CMEK ↔ C16 vault/DEK custody (just decided) ↔ C9 bootstrap-recovery 4-layer pattern ↔ C20 CIP-009 (NERC CIP backup requirements) ↔ C18 (key-escrow RBAC detokenize gate). The key-escrow decision made here must be consistent with SS-26 DEK custody model and C18 deny-on-stale signed-bundle mechanics.
 
-**C14 follow-up research BANKED (committed alongside this checkpoint):**
+**C14 follow-up research BANKED (committed alongside earlier checkpoint):**
 - `research/ocsf-ot-coverage-2026-06-27.md` — C14 sub-fork F4: OCSF-OT schema coverage. COMPLETE. Committed in same burst as this resume-doc edit (path-scoped).
   **Findings (closes OQ-C14-OCSF):** OCSF v1.8.0 (2026-03-18). Asset identity (Device Inventory Info 5001), config baseline/drift/exception (Device Config State 5002/5019 + Compliance Finding 2003), and device-vuln (Vulnerability Finding 2002) all FIT CLEANLY into the C14 OCSF source-table model. OT semantics (PLC/RTU/HMI type, firmware, Purdue zone, control topology) NEED a private `prism_ot` extension — the Device type_id enum is IT-only in OCSF core. CPE-matching is a gap (flag — ties to C11 intel enrichment). Data Classification profile SHIPS (v1.5.0+) — adopt as-is for C16/RSI tagging. Upstream ICS work (OCSF Issue #1515, Corelight) is STALLED — **lean = author private `prism_ot` extension now (NOT upstream-first), reserving clean UIDs for future upstream contribution.** 5 sub-forks (SF-1..5) recorded in the research file.
 
 **Research status for remaining items:**
 - C19: ✅ DONE — `research/nested-tenancy-2026-06-27.md`
 - C18: ✅ DONE — `research/rbac-depth-2026-06-27.md` + `research/configurable-security-profiles-2026-06-27.md`
-- C16: research BANKED — `research/entity-masking-tokenization-2026-06-27.md`
+- C16: ✅ DONE — `research/entity-masking-tokenization-2026-06-27.md` + ADR-PROP-entity-masking.md
 - C17: research BANKED — `research/backup-recovery-2026-06-27.md`
 - C20: research BANKED — `research/nerc-cip-support-2026-06-27.md` (scheduled LAST)
 
 **Ordered queue — work through left-to-right, do not skip:**
-1. **C16** — Entity masking / tokenizing clearing house — **NEXT** (research banked; cross-wiring: C16 detokenize-at-surface ↔ C18 ABAC masking ↔ C19 visibility presets)
-2. C17 — Backup & recovery (research banked)
-3. C20 — NERC CIP (research banked; scheduled LAST — synthesizes all prior)
-4. **B — integration capstone** (GATED on §5.1 brief-reframe HUMAN sign-off)
+1. **C17** — Backup & recovery — **NEXT** (research banked; cross-wiring: C17 key-escrow ↔ C16 vault/DEK custody ↔ C9 bootstrap-recovery ↔ C20 CIP-009 ↔ C18 key-escrow RBAC)
+2. C20 — NERC CIP (research banked; scheduled LAST — synthesizes all prior)
+3. **B — integration capstone** (GATED on §5.1 brief-reframe HUMAN sign-off)
 
 Each remaining item must conform to `ARCHITECTURE-DESIGN-SYSTEM.md` conformance checklist before capture.
 
@@ -467,11 +484,12 @@ Superseded capture queue (all DONE — do not re-execute):
 - ~~C14 discussion + capture → ADR-PROP-active-query-devices.md~~ ✅ 59864881
 - ~~C19/C18/C16/C17/C20 research banking~~ ✅ 664cbbd1
 - ~~C19 discussion + capture → ADR-PROP-nested-tenancy.md~~ ✅ 547319b2
-- ~~C18 discussion + capture → ADR-PROP-rbac-depth.md + ADR-PROP-compliance-profiles.md~~ ✅ (this checkpoint)
+- ~~C18 discussion + capture → ADR-PROP-rbac-depth.md + ADR-PROP-compliance-profiles.md~~ ✅ b8f59257
+- ~~C16 discussion + capture → ADR-PROP-entity-masking.md~~ ✅ (this checkpoint)
 
 ## 6. BASELINE (git state at session wrap)
 
-- **factory-artifacts HEAD (current):** `(this checkpoint)` — C18 + Compliance Profiles decided + captured; ADS v1.2; path-scoped commit (see commit chain below)
+- **factory-artifacts HEAD (current):** `(this checkpoint)` — C16 entity masking / RSI clearing house decided + captured; ADS v1.3; path-scoped commit (see commit chain below)
 - **Full commit chain for this day-2 side-analysis** (day-2 side commits; live factory interleaved its own commits on the shared branch between these):
   - `b53b22ba` — C9 schema-versioning (Q3) resolved + ADR-PROP-config-management + backing research
   - `91abba90` — deployment matrix captured (ADR-PROP-dual-deployment, three operating models)
@@ -490,8 +508,9 @@ Superseded capture queue (all DONE — do not re-execute):
   - `664cbbd1` — C19/C18/C16/C17/C20 research files banked (nested-tenancy, rbac-depth, entity-masking-tokenization, backup-recovery, nerc-cip-support)
   - `02599c9b` — ocsf-ot-coverage-2026-06-27.md banked + SESSION-RESUME-2026-06-27.md updated; path-scoped commit
   - `547319b2` — C19 nested-tenancy decided + ADR-PROP-nested-tenancy.md captured + SF-3 parent-visibility research banked + ADS amended (P-ADS-02 sharpened, AP-ADS-11 added); path-scoped commit
-  - `(this checkpoint prior)` — P-ADS-13 Configurable-Not-Prescriptive added to ARCHITECTURE-DESIGN-SYSTEM.md (configurability principle); ADS bumped v1.0→v1.1 amendment log; path-scoped commit. Prior side HEAD: **5c7fc02b**.
-  - `(this checkpoint)` — C18 RBAC depth + Compliance Profiles decided + ADR-PROP-rbac-depth.md & ADR-PROP-compliance-profiles.md captured; ADS v1.2 (PAT-ADS-12/13, INV-ADS-09); C19 regulatory_class reframed as profile-selector; Compliance-profile research banked (configurable-security-profiles-2026-06-27.md); path-scoped commit
+  - `(prior checkpoint)` — P-ADS-13 Configurable-Not-Prescriptive added to ARCHITECTURE-DESIGN-SYSTEM.md (configurability principle); ADS bumped v1.0→v1.1 amendment log; path-scoped commit. Prior side HEAD: **5c7fc02b**.
+  - `b8f59257` — C18 RBAC depth + Compliance Profiles decided + ADR-PROP-rbac-depth.md & ADR-PROP-compliance-profiles.md captured; ADS v1.2 (PAT-ADS-12/13, INV-ADS-09); C19 regulatory_class reframed as profile-selector; Compliance-profile research banked (configurable-security-profiles-2026-06-27.md); path-scoped commit
+  - `(this checkpoint)` — C16 entity masking / RSI clearing house decided + ADR-PROP-entity-masking.md captured; ADS v1.3 (P-ADS-07 sharpened, PAT-ADS-14, C16 traceability row); SESSION-RESUME updated (C16 DONE, next=C17); path-scoped commit
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory files left unstaged). No dangling in-flight research.
 
@@ -531,6 +550,9 @@ E-DUAL-DEPLOYMENT-001 (three operating models + deployment-profile mechanism).
 **New C18 proposed epics (PROPOSED):**
 - E-CENTRAL-AUTHZ-001 — Central authorization engine: Prism-native Rust Zanzibar-tuple core; layered RBAC+ReBAC+ABAC; connector/satellite/source/table scoping axes; strictly-downward role inheritance via C19 closure table; ABAC tag masking at column-value surface; decision-level audit (INV-ADS-09); IdP→internal-role mapping + SCIM 2.0; PII bulk-export hard-block-but-configurable; central-authored/edge-enforced signed policy bundles; deny-on-stale-beyond-N threshold
 - E-COMPLIANCE-PROFILES-001 (PROPOSED) — Compliance Profile mechanism: monotone tighten-only named/versioned/signed Profiles (baseline⊂soc2⊂iso27001⊂iec-62443-ot⊂nerc-cip); OT as a Profile not a code fork; OSCAL param+constraint model; SF-PROF-3 boolean compliant|drifting + itemized drift + audit-before-enforce mode; SF-PROF-4 open custom-profile authorship; compliance-authority-only exemptions on regulatory hard-locks; C19 regulatory_class reframed as Profile selector/floor
+
+**New C16 proposed epics (PROPOSED):**
+- E-RSI-CLEARING-HOUSE-001 (PROPOSED) — RSI Tokenizing Clearing House: Prism-native Rust edge clearing house (SS-26); per-tenant DEK + aes-gcm + RocksDB-CF token vault; technique mix keyed by RSI field class (deterministic vaulted tokenization / FF1 FPE narrow-domain≥10^6 / redaction / NER free-text); EDGE placement after OCSF normalization; RSI abstraction + pluggable masking profiles (BCSI first) over OCSF data_classification wire format; per-field-class token-determinism matrix tunable via compliance-profile masking axis; per-tenant vault+DEK at edge, agent zero vault wiring; detokenize-at-surface via C18 RBAC (transient, never re-persisted, audited CIP-004/007 + INV-ADS-09); dual index (raw human-IR secure-zone vs masked AI/RAG); vectors flagged as sensitive-data-class (inversion attack risk); C12 on-box embedding validated by this decision; OQ-RSI-EMBED-PERTURB + HIPAA Expert-Determination deferred
 
 **New Day-3 proposed epics (PROPOSED):**
 - E-WORKFLOW-ENGINE-001 (PROPOSED, Day-3) — Workflow Engine: configurable approval/review workflow runtime consolidating C9 deferred approval-gate workflows + C18 SF-5 (policy-change approval gates) + C18 SF-2 (unmask-with-approval workflow) + C15 HITL gates; tenant-configurable within central-defined workflow schemas; per-client workflow customization; audit trail on every workflow transition

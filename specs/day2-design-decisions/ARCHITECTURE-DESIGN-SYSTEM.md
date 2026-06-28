@@ -305,6 +305,31 @@ agent runtime, C12 GraphRAG, C7 ML) are useful without being dangerous.
 - C16 entity/data masking (referenced in C12 cross-links).
 - S3 agent runtime Tool Mediator design: credentials resolved at the tool boundary,
   not exposed to the model layer.
+- `ADR-PROP-entity-masking.md` — the concrete enforcement mechanism for this
+  principle applied to DATA (see Clarification below).
+
+**Clarification (C16, 2026-06-27).** The enforcement mechanism for AI-opaque DATA
+is the **C16 edge tokenizing clearing house** (`ADR-PROP-entity-masking.md`). The
+clearing house masks/tokenizes regulated sensitive fields immediately after OCSF
+normalization at the edge, before any transit to Central or the AI path. The
+agent/ModelBackend path is structurally unwired from the token vault — no route,
+no credential, no role grant for detokenization. This is the data analogue of the
+AD-017 credential broker.
+
+Additionally, **embeddings and vector stores are a sensitive-data class** under this
+principle. Embedding-inversion attacks reconstruct 50–90%+ of source text (including
+names and identifiers) from embedding vectors. Therefore:
+- The agent receives ONLY masked-view embeddings (from the AI/RAG index in the
+  dual-index pattern, PAT-ADS-14). Raw embeddings are embedded on-box at the edge
+  (PIV-C12-2), inside the edge trust boundary, and never shipped to an external
+  embedding service.
+- Raw embeddings and the raw-text human-IR index reside in the secure zone; the
+  agent has NO access to either.
+- Vector stores carry the same custody classification as the token vault: DEK-
+  protected (P-ADS-04), per-tenant isolated (P-ADS-06), RBAC-gated, audited.
+
+This clarification does not loosen any existing constraint; it specifies the concrete
+structural mechanism (clearing house + dual index) that fulfills INV-ADS-06 for data.
 
 ---
 
@@ -871,6 +896,54 @@ The layered model is the standard for MSSP platforms serving regulated industrie
 
 ---
 
+### PAT-ADS-14 — Edge-Tokenizing-Clearing-House
+
+**When to use.** A feature must keep regulated or sensitive fields out of AI context AND out
+of Central at-rest storage. The data sensitivity boundary must coincide structurally with the
+edge-to-Central conduit boundary — policy alone is insufficient because policy can be
+misconfigured or bypassed; structural absence of raw data at Central is the correct invariant.
+
+**Structure.**
+1. **Mask at the edge immediately after OCSF normalization,** before any transit to Central
+   (PAT-ADS-03 conduit). The clearing house is a pipeline stage in the OCSF normalization
+   flow, not a filter at the Central ingestion boundary.
+2. **Technique mix keyed by RSI field class** (driven by the active Compliance Profile
+   masking axis, D-PROF-3):
+   - High-risk identifiers (IP, hostname, asset_id, BCSI configs) → deterministic vaulted
+     tokenization (default; joins preserved; token mathematically unlinked to plaintext).
+   - Fields requiring format-valid surrogates with domain ≥ 10^6 → FF1 FPE (optional, narrow).
+   - Fields the agent never legitimately needs → full redaction (irreversible).
+   - Free-text fields → NER span detection → tokenize/redact spans.
+3. **Per-tenant token vault + DEK at or near the edge** (reuse SS-26 per-tenant DEK
+   hierarchy; vault = a DEK-guarded RocksDB column family). Central holds token values
+   (ciphertext references) + masked OCSF records; Central has NO DEK for the token vault.
+4. **Agent path has ZERO vault wiring.** No route to the detokenize endpoint, no credential
+   for the token CF, no role grant for reveal. This is a structural wiring absence (the data
+   analogue of AD-017), not a policy restriction.
+5. **DUAL INDEX for embeddings:**
+   - Human-IR index (raw text + raw embeddings, inside the secure zone): agent has NO access;
+     used for authorized human investigation and machine correlation.
+   - AI/RAG index (masked view: deterministic tokens + contextual OCSF text): the only index
+     the agent may query. Both indexes use on-box embedding (PIV-C12-2); raw text never
+     transits to an external embedding service.
+6. **Detokenize-at-surface only via C18 RBAC,** gated by analyst identity × tenant × token
+   class × Compliance Profile masking posture. Raw values returned TRANSIENTLY to the analyst
+   client session; NEVER re-persisted to Central. Every reveal is audited.
+
+**Originating feature.** `ADR-PROP-entity-masking.md` (C16 entity masking / RSI clearing house).
+
+**Composes with.**
+- PAT-ADS-07 (Two-Layer-Embedded-KG+Vector): the dual-index structure in item 5 above extends
+  PAT-ADS-07 with the masking-boundary enforcement. The AI/RAG index is the masked projection
+  of the raw human-IR index.
+- PAT-ADS-12 (Configurable Compliance Profile): the masking axis `[settings.masking]` in the
+  Compliance Profile data model controls which RSI field classes map to which technique and
+  whether bulk-export is permitted.
+- P-ADS-07 / INV-ADS-06: this pattern IS the concrete structural enforcement of the AI-Opaque
+  principle for sensitive DATA (as distinct from credentials, which are governed by AD-017).
+
+---
+
 ## Section C — Invariants and Conformance
 
 ### C.1 — Cross-Cutting Invariants (INV-ADS-NNN)
@@ -1225,6 +1298,7 @@ systematic conformance run against the Day-2 ADR-PROP corpus. Sections:
 | `ml-depth-phasing.md` | P-ADS-05, P-ADS-07 | PAT-ADS-05 | INV-ADS-06 |
 | `ADR-PROP-rbac-depth.md` | P-ADS-01, P-ADS-06, P-ADS-09, P-ADS-13 | PAT-ADS-13, PAT-ADS-03, PAT-ADS-10 | INV-ADS-03, INV-ADS-04, INV-ADS-05, INV-ADS-06, INV-ADS-09 |
 | `ADR-PROP-compliance-profiles.md` | P-ADS-09, P-ADS-11, P-ADS-12, P-ADS-13 | PAT-ADS-12, PAT-ADS-03, PAT-ADS-10 | INV-ADS-02, INV-ADS-03, INV-ADS-04 |
+| `ADR-PROP-entity-masking.md` | P-ADS-02, P-ADS-03, P-ADS-06, P-ADS-07 | PAT-ADS-14, PAT-ADS-07 | INV-ADS-01, INV-ADS-02, INV-ADS-03, INV-ADS-06 |
 
 ### CLAUDE.md Cross-References
 
@@ -1253,5 +1327,6 @@ architecture tier and must be consistent with this ADS:
 | v1.0 | 2026-06-27 | Initial capture — 12 principles, 11 patterns, 8 invariants, 11 anti-patterns; seeded from ripple audit. |
 | v1.1 | 2026-06-27 | P-ADS-02 clarification (C19 operator-zero-access spectrum + MSSP mediated-access semantics); AP-ADS-11 Cross-Tenant DEK Grantee added (C19 key-plane isolation); P-ADS-13 Configurable-Not-Prescriptive (Policy-as-Configuration) added (C18 configurability directive); P-ADS-11 cross-reference to P-ADS-13 added. |
 | v1.2 | 2026-06-27 | C18 capture: added PAT-ADS-12 (Configurable Compliance Profile), PAT-ADS-13 (Layered-Authz), INV-ADS-09 (Decision-Level Authorization Audit); INV-ADS-09 check line added to Section C.2 Conformance Checklist; traceability rows for ADR-PROP-rbac-depth.md + ADR-PROP-compliance-profiles.md added to Section E. |
+| v1.3 | 2026-06-27 | C16 capture: P-ADS-07 sharpened (clearing-house enforcement mechanism + embeddings-are-sensitive-data-class + dual-index + zero-vault-wiring structural invariant); added PAT-ADS-14 (Edge-Tokenizing-Clearing-House); traceability row for ADR-PROP-entity-masking.md added to Section E. |
 
-*End of Prism Architecture Design System v1.2 — 2026-06-27*
+*End of Prism Architecture Design System v1.3 — 2026-06-27*

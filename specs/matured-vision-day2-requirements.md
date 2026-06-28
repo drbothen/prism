@@ -3579,6 +3579,68 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
     C11 (metering roles distinct from data/config roles), C20 (NERC-CIP requirements expressed
     as profile:nerc-cip, not a code branch).
 
+- **C16 Entity Masking / RSI Tokenizing Clearing House DECIDED + CAPTURED 2026-06-27 (human).**
+  Extends AD-017 (AI-opaque credentials) to **AI-opaque DATA**: a Prism-native Rust clearing
+  house that masks/tokenizes regulated sensitive fields so the agent/ModelBackend (C7) operates
+  on surrogates; authorized humans detokenize at the surface under C18 RBAC. Capture artifact:
+  `specs/day2-design-decisions/ADR-PROP-entity-masking.md` (`do_not_execute: true`; real ADR
+  numbers deferred to morph). Research basis: `research/entity-masking-tokenization-2026-06-27.md`.
+  - **SF-1 DECIDED — BUILD Prism-native Rust clearing house:** token vault = DEK-guarded RocksDB
+    CF reusing SS-26 per-tenant DEK hierarchy; tokenization via `aes-gcm`; FF1 FPE OPTIONAL
+    (narrow, `fpe` crate) where format-valid surrogates are required with domain ≥ 10^6.
+    HashiCorp Vault Transform Enterprise considered-and-rejected (licensed, heavyweight, duplicates
+    SS-26). Note: `fpe` crate v0.6.1 (2023, FF1-only, no FF3-1) carries maintenance risk →
+    mitigated by FPE-optional-default (OQ-C16-001 morph pin-verification required).
+  - **Technique mix keyed by RSI field class:** deterministic vaulted tokenization = DEFAULT for
+    high-risk identifiers (IP, hostname, asset_id, firewall-rule_id, BCSI configs) — joins
+    preserved, token mathematically unlinked to plaintext, vault = isolation boundary; FF1 FPE
+    only where consumer requires format-valid surrogate AND domain ≥ 10^6; full redaction
+    (irreversible) for fields the agent never needs; Presidio-style NER for free-text only.
+  - **EDGE placement FORCED** (not a free choice): clearing house runs immediately after OCSF
+    normalization, before conduit transit, enforced by INV-ADS-01 / D-C2-12 / P-ADS-03 /
+    Option-3 — central holding raw to mask-at-surface would violate hard invariants. Accepted
+    cost (PIV-C16-001): central operates on surrogates + derived features + deterministic-token
+    joins + OCSF-normalized enums/numerics; central-side analytics needing raw must push to edge.
+  - **SF-5 DECIDED — RSI abstraction:** "Regulated Sensitive Information (RSI)" is Prism's
+    internal abstraction (NOT an industry-standard term — caveat recorded); BCSI = first
+    concrete profile (consistent with C20); OCSF `data_classification` (v1.2.0+, REAL and
+    SHIPPED) as the wire/interchange format. Pluggable profiles: BCSI / PII-GDPR / PHI-HIPAA /
+    PCI; profiles interpret intrinsic field classification, they do not re-tag.
+  - **SF-3 DECIDED — per-field-class token-determinism matrix:** deterministic tokens for
+    join-needed identifiers (C15 cross-entity correlation, entity resolution); randomized or
+    redaction for fields not needing joins. Matrix tunable via Compliance Profile masking axis
+    (D-PROF-3 in ADR-PROP-compliance-profiles.md). Deterministic-token frequency/linkage-attack
+    exposure documented as D-C16-7-TRADEOFF; primary mitigation = per-tenant keyspace (SS-26).
+  - **Key custody DECIDED:** per-tenant token vault + DEK at edge/secure zone (SS-26 reuse);
+    Central holds token values only — NO DEK, can correlate via deterministic tokens, cannot
+    detokenize. Agent/ModelBackend path = ZERO vault wiring (structural absence, not policy).
+    Authority separation: edge/vault team holds DEKs; central AI/analytics operator cannot
+    decrypt raw values.
+  - **Detokenize-at-surface DECIDED:** C18 RBAC ABAC gate (analyst × tenant × token class ×
+    Compliance Profile posture); raw returned TRANSIENTLY to client session; NEVER re-persisted
+    to Central; audited per CIP-004/007 (BCSI profile). Binds C18 ABAC masking layer (D-C18-3).
+  - **SF-4 DECIDED — DUAL INDEX:** human-IR index (raw text + raw embeddings, inside secure zone,
+    agent NO access) vs AI/RAG index (masked view only — deterministic tokens + contextual OCSF
+    text, agent queries only this). **Vectors are a sensitive-data class** (embedding-inversion
+    reconstructs 50–90%+ of source incl. names/identifiers): encryption at rest, per-tenant
+    isolation, RBAC, audit. This validates C12 on-box embedding (PIV-C12-2) as load-bearing —
+    raw embeddings stay in edge trust boundary; raw never shipped to external embedding service.
+    Mask-then-embed degradation acceptable for SOC (signal in behavior/topology/OCSF-enums).
+  - **Deferred (OQ-C16-**):** embedding-perturbation defense (EntroGuard-style) = later-phase
+    option; HIPAA Expert-Determination in-product mode = only if Prism targets healthcare tenants.
+  - **ADS v1.3:** P-ADS-07 sharpened (clearing-house enforcement + embeddings-are-sensitive-class);
+    PAT-ADS-14 (Edge-Tokenizing-Clearing-House) added; traceability row added. ADS conformance
+    PASS — all INV-ADS-01..09 satisfied (checklist in ADR-PROP §8); C16 is the enforcement
+    mechanism for P-ADS-07 + INV-ADS-06 applied to data.
+  - Cross-links: C18 (RBAC detokenize-at-surface + ABAC masking enforcement + masking-strictness
+    Compliance-Profile axis), C12 (on-box embedding + vector-store-sensitive-class + dual index),
+    C15 (AI recommendations over masked data + deterministic-token correlation), C19 (per-tenant
+    vault/DEK isolation), C20 (BCSI = first RSI profile), AD-017 (credential-layer analogue;
+    C16 extends to data), SS-26 (DEK hierarchy + vault), Option-3 (edge/central split, child-keyed
+    DEK at edge forces clearing house placement).
+  - Proposed epic: E-RSI-CLEARING-HOUSE-001 (edge clearing house + token vault + RSI tagging +
+    dual-index). PROPOSED, not in STORY-INDEX.
+
 ### 16.5 Status & boundaries reminder
 
 - This is a **CAPTURE artifact** (`do_not_execute: true`). Nothing here modifies the live brief/PRD/
