@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.036"
+version: "8.037"
 producer: state-manager
-timestamp: 2026-06-28T12:00:00Z
+timestamp: 2026-06-28T12:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -36,7 +36,7 @@ workspace_test_count: 5061
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1409 (2026-06-28). SESSION WRAP. RESUME SNAPSHOT D-1409 authored (supersedes D-1399). S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN cascade at Pass-X, streak 0/3 on feature HEAD b49316c2 (story v2.8; 6 BCs; BC-2.11.016 committed v1.5 — PO v1.6 weakening REVERTED not adopted). OPEN: F-PXL3-MED-002 HAVING code-vs-spec decision (user-directed: investigate code/grammar FIRST before weakening spec) + dependent F-PXL3-MED-001 + independent F-PXL4-LOW-001 (story cite test_bc_2_11_022_ci_3tier_gate→registry_parity). develop 9a09653a. STATE v8.035→v8.036."
+current_step: "D-1409 (2026-06-28). SESSION WRAP. RESUME SNAPSHOT D-1409 authored (supersedes D-1399). S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN cascade at Pass-X, streak 0/3 on feature HEAD b49316c2 (story v2.8; 6 BCs; BC-2.11.016 committed v1.5 — PO v1.6 weakening REVERTED not adopted). OPEN: F-PXL3-MED-002 HAVING code-vs-spec decision (user-directed: investigate code/grammar FIRST before weakening spec) + dependent F-PXL3-MED-001 + independent F-PXL4-LOW-001 (story cite test_bc_2_11_022_ci_3tier_gate→registry_parity). develop 9a09653a. b49316c2 just check CONFIRMED GREEN post-wrap (EXIT 0, 5067/5067). STATE v8.036→v8.037."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──

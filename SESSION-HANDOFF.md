@@ -52,7 +52,7 @@ timestamp: 2026-06-28T10:00:00Z
 Mid-LOCAL-3-CLEAN-cascade on S-DEMO-FIDELITY-REMEDIATION-001 (demo-fidelity remediation). Feature HEAD b49316c2 (feature/S-DEMO-FIDELITY-REMEDIATION-001, worktree .worktrees/S-DEMO-FIDELITY-REMEDIATION-001). 3-CLEAN streak 0/3 on b49316c2. NEXT = resolve the OPEN F-PXL3 HAVING decision (investigate code/grammar FIRST — do NOT weaken the spec to match deficient code), then continue 4-lens adversary passes to 3 consecutive CLEAN(strict).
 
 ### HEADS
-- develop 9a09653a (local==origin). factory-artifacts: this wrap commit becomes HEAD (prior 9d08b42a). No agents in flight (story-writer Pass-X dispatch was interrupted by wrap; PO BC-2.11.016 v1.6 edit REVERTED, not adopted). One background `just check` on b49316c2 was running at wrap (0 failures observed, NOT EXIT-confirmed; /tmp/jc-b49316c2.log) — re-run a full `just check` on resume to confirm b49316c2 green. No open PRs.
+- develop 9a09653a (local==origin). factory-artifacts: this wrap commit becomes HEAD (prior 9d08b42a). No agents in flight (story-writer Pass-X dispatch was interrupted by wrap; PO BC-2.11.016 v1.6 edit REVERTED, not adopted). Full `just check` on b49316c2 CONFIRMED GREEN post-wrap — JUSTCHECK_EXIT=0, 5067/5067 passed, 0 failures (/tmp/jc-b49316c2.log). No re-run needed on resume UNLESS the feature HEAD changes. No open PRs.
 
 ### WORKSTREAM — S-DEMO-FIDELITY-REMEDIATION-001 (CURRENT; code-complete, in LOCAL 3-CLEAN cascade)
 - Branch feature/S-DEMO-FIDELITY-REMEDIATION-001; worktree .worktrees/S-DEMO-FIDELITY-REMEDIATION-001; frozen HEAD **b49316c2**. Story v2.8 (committed at factory-artifacts 9d08b42a; red_gate_tests=39, 9 test files). 6 BCs: BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.11.019 v1.5, BC-2.10.016 v1.2, BC-2.10.012 v1.5, BC-2.11.016 **v1.5** (committed; the PO's v1.6 weakening was reverted). Non-exhaustive EXPECTED=88.
@@ -80,7 +80,7 @@ S-DEMO-FIDELITY-REMEDIATION-001 converge+merge → S-PRISMQL-CASE-INSENSITIVE-00
 BC-2.10.012 §pql_hints Category-1 hint-text divergence (→ wave-gate/phase-5/PO, in story §Deferred Items); PrismQL 4x-query-reparse perf (→ follow-up); PG-CLIPPY-ALLTARGETS-001 (gates omit --all-targets; post-T14).
 
 ### DECISION-LOG DELTA this session (D-1400..D-1409)
-D-1400..D-1408 are the cascade fix-rounds recorded in D-1399 deltas above. D-1409 (this wrap): session wrap — RESUME SNAPSHOT D-1409 authored (supersedes D-1399). S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN cascade at Pass-X, streak 0/3 on feature HEAD b49316c2. OPEN: F-PXL3-MED-002 HAVING code-vs-spec decision (user-directed: investigate code/grammar BEFORE weakening spec; PO's tentative BC v1.6 weakening REVERTED) + dependent F-PXL3-MED-001 + independent F-PXL4-LOW-001. factory-artifacts BC-2.11.016 remains committed v1.5. develop 9a09653a. STATE v8.035→v8.036.
+D-1400..D-1408 are the cascade fix-rounds recorded in D-1399 deltas above. D-1409 (this wrap): session wrap — RESUME SNAPSHOT D-1409 authored (supersedes D-1399). S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN cascade at Pass-X, streak 0/3 on feature HEAD b49316c2. OPEN: F-PXL3-MED-002 HAVING code-vs-spec decision (user-directed: investigate code/grammar BEFORE weakening spec; PO's tentative BC v1.6 weakening REVERTED) + dependent F-PXL3-MED-001 + independent F-PXL4-LOW-001. factory-artifacts BC-2.11.016 remains committed v1.5. develop 9a09653a. STATE v8.035→v8.036. (post-wrap: just check b49316c2 confirmed EXIT 0, 5067/5067)
 
 ---
 
