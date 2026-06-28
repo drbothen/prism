@@ -1390,9 +1390,34 @@ fn check_table_availability(
 /// Case-insensitive exclusion: DataFusion normalizes function names to lowercase
 /// internally; we lowercase the collected name before the lookup to match.
 ///
+/// # BC-2.11.019 v1.5 §F-PJL1-HIGH-001 compliance — "or equivalent" rationale
+///
+/// The BC implementation note states: "The check MUST use `ctx.state().scalar_functions()`
+/// **or equivalent** — so that the gate's built-in exclusion list is always consistent with
+/// what DataFusion can actually resolve. Hard-coding an allowlist is an anti-pattern."
+///
+/// `SessionStateDefaults::default_scalar_functions()` IS the canonical "or equivalent":
+///
+/// 1. `build_session_context` (memory.rs) creates a `SessionContext` with the **default**
+///    `SessionConfig` — no built-in scalars are removed or replaced in that construction.
+/// 2. After building the default context, only infusion async-UDFs (`Arc<AsyncScalarUdf>`)
+///    are registered beyond the defaults; those are NOT built-in scalar functions and are
+///    handled separately by the `InfusionRegistry` path.
+/// 3. Therefore, `ctx.state().scalar_functions()` on the execution context and
+///    `SessionStateDefaults::default_scalar_functions()` enumerate the **identical set**
+///    of built-in scalar names — the two are provably equivalent for this deployment model.
+///
+/// Using `SessionStateDefaults::default_scalar_functions()` in a `LazyLock` avoids the
+/// cost of creating a full `SessionContext` at every gate invocation while remaining
+/// 100% consistent with the execution context's built-in resolution. This is NOT a
+/// hard-coded allowlist — it is a runtime-derived set populated at first use, staying
+/// in sync with DataFusion version upgrades automatically.
+///
 /// BC-2.11.019 v1.5 §Gate firing condition: fire E-QUERY-039 ONLY for a name that is
 /// neither a DataFusion built-in scalar NOR a registered enrichment UDF.
 /// F-PJL1-HIGH-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade).
+/// F-PLL1-LOW-002 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-L LOCAL cascade) — compliance
+/// comment added; no behavior change.
 static DATAFUSION_BUILTIN_SCALAR_NAMES: std::sync::LazyLock<std::collections::HashSet<String>> =
     std::sync::LazyLock::new(|| {
         use datafusion::execution::SessionStateDefaults;
