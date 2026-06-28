@@ -311,6 +311,18 @@ pub fn build_prompt_router() -> PromptRouter<PrismServer> {
 /// Guides the agent through checking all sensors for open high/critical alerts.
 /// Argument: `client_id` (required).
 /// Includes SECURITY_REMINDER (DI-006).
+///
+/// # CrowdStrike demo-data severity distribution (F-PKL2-OBS-001)
+///
+/// The crowdstrike triage query filters `severity IN ('High', 'Critical')`.  The
+/// CrowdStrike DTU generator (`crates/prism-dtu-crowdstrike/src/generator.rs`)
+/// currently emits severity_id ∈ {1→"Low", 2→"Medium", 4→"Critical"} only — it does
+/// NOT currently generate severity_id=3 ("High") rows.  The query therefore returns
+/// rows via the 'Critical' literal against live DTU data, while 'High' matches nothing
+/// in the current demo dataset.  Filtering `severity IN ('High', 'Critical')` is a
+/// correct and intentional analyst query pattern (forward-compat for real sensor data
+/// where 'High' is a common severity level); the absence of 'High' in the demo dataset
+/// is a DTU generator gap, not a logic error in the prompt.
 pub fn render_triage_alerts(client_id: &str) -> Result<GetPromptResult, ErrorData> {
     validate_client_id(client_id)?;
     let body = format!(

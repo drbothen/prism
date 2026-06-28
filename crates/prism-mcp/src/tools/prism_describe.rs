@@ -471,9 +471,12 @@ fn build_pql_hints(
 ///
 /// ## Sensors intentionally omitted
 ///
-/// - `claroty`: NO string `severity` column.  The claroty sensor schema exposes
-///   `severity_id` (Integer) rather than a string `severity` column.  The
-///   `has_severity` check in `build_example_query` tests for a column named
+/// - `claroty`: NO severity column of any kind in its normalized schema
+///   (`has_severity = false`).  The claroty TOML spec declares no `severity` and
+///   no `severity_id` column.  (The Claroty xDome API does emit a `severity_id`
+///   integer field on the wire, but it was intentionally omitted from the declared
+///   column set — see the Gap-CL-005 comment in claroty.sensor.toml for history.)
+///   The `has_severity` check in `build_example_query` tests for a column named
 ///   `"severity"` (String), which claroty never declares, so claroty tables never
 ///   reach the severity-filter branch at all.  No vocabulary entry is needed or
 ///   appropriate.

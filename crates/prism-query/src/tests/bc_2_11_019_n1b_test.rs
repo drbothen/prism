@@ -1095,7 +1095,9 @@ async fn test_c1_sqlpipe_group_by_unknown_scalar_triggers_e_query_039() {
 // `SELECT lower(hostname) FROM crowdstrike_detections` incorrectly returned
 // E-QUERY-039 before this fix.
 
-/// F-PJL1-HIGH-001 — DataFusion built-in `lower()` must NOT trigger E-QUERY-039.
+/// EC-11-064 — DataFusion built-in `lower()` must NOT trigger E-QUERY-039.
+///
+/// Story v2.3 inventory name: `test_bc_2_11_019_n1b_builtin_passthrough_lower` (EC-11-064).
 ///
 /// With an infusion registry wired and `cyberint_alerts` registered, a query
 /// `SELECT lower(iocs_value) FROM cyberint_alerts` must succeed (not return
@@ -1111,7 +1113,7 @@ async fn test_c1_sqlpipe_group_by_unknown_scalar_triggers_e_query_039() {
 /// built-in exclusion check is removed from check_enrich_udf_availability,
 /// this test fails because `lower` returns E-QUERY-039.
 #[tokio::test]
-async fn test_f_pjl1_high001_lower_builtin_does_not_trigger_e_query_039() {
+async fn test_bc_2_11_019_n1b_builtin_passthrough_lower() {
     let engine = make_test_engine_threat_intel();
 
     let result = engine
@@ -1126,7 +1128,7 @@ async fn test_f_pjl1_high001_lower_builtin_does_not_trigger_e_query_039() {
         let display = format!("{e}");
         assert!(
             !display.contains("E-QUERY-039"),
-            "F-PJL1-HIGH-001: DataFusion built-in 'lower' must NOT trigger E-QUERY-039. \
+            "EC-11-064: DataFusion built-in 'lower' must NOT trigger E-QUERY-039. \
              Got: {display}. Fix: add DataFusion built-in exclusion to \
              check_enrich_udf_availability (BC-2.11.019 v1.5)."
         );
@@ -1136,18 +1138,54 @@ async fn test_f_pjl1_high001_lower_builtin_does_not_trigger_e_query_039() {
     // The test runner confirms no E-QUERY-039 in the error path; Ok is also acceptable.
 }
 
-/// F-PJL1-HIGH-001 — Multiple DataFusion built-ins must not trigger E-QUERY-039.
+/// EC-11-065 — DataFusion built-in `coalesce()` and other built-ins must NOT trigger E-QUERY-039.
 ///
-/// Covers: upper, coalesce (two-arg form parsed as scalar), length, abs.
-/// Each is a DataFusion built-in that the AST renders as ScalarFunc::Unknown
-/// before ctx.sql() resolves it. With the fix, none trigger E-QUERY-039.
+/// Story v2.3 inventory name: `test_bc_2_11_019_n1b_builtin_passthrough_coalesce` (EC-11-065).
 ///
-/// Load-bearing: if the built-in exclusion check is removed, at least one of
-/// these assertions will catch E-QUERY-039.
+/// Covers: `coalesce` (the multi-arg form registered as a built-in DataFusion scalar),
+/// `upper`, `length`, `abs`.
+/// Each is a DataFusion built-in that the AST renders as ScalarFunc::Unknown before
+/// ctx.sql() resolves it. With the fix, none trigger E-QUERY-039.
+///
+/// The coalesce assertion is the primary load-bearing one: `SELECT coalesce(iocs_value,
+/// 'unknown') FROM cyberint_alerts` passes the E-QUERY-038 column gate (iocs_value is a
+/// valid column in cyberint_alerts — or gate fails open in test mode) and reaches the
+/// E-QUERY-039 gate, which MUST NOT fire because `coalesce` is in
+/// `DATAFUSION_BUILTIN_SCALAR_NAMES`.
+///
+/// NOTE: `cyberint_alerts` in the test fixture has an empty columns array, so the
+/// E-QUERY-038 column check `fails open` (no resolved_spec_map in test mode) — the
+/// coalesce query proceeds past gate 038 to gate 039, which is the gate under test.
+///
+/// Load-bearing (EC-11-065 / TD-VSDD-059):
+/// - Removing `coalesce` from `DATAFUSION_BUILTIN_SCALAR_NAMES` makes the coalesce
+///   assertion fail with E-QUERY-039.
+/// - Removing the entire built-in exclusion check makes ALL assertions fail.
 #[tokio::test]
-async fn test_f_pjl1_high001_datafusion_builtins_not_flagged_as_missing_udfs() {
+async fn test_bc_2_11_019_n1b_builtin_passthrough_coalesce() {
     let engine = make_test_engine_threat_intel();
 
+    // Primary: coalesce with a valid column — must pass E-QUERY-039 gate (coalesce is built-in).
+    // E-QUERY-038 fails open in test mode (no resolved_spec_map), so this reaches gate 039.
+    let coalesce_result = engine
+        .execute(
+            "SELECT coalesce(iocs_value, 'unknown') FROM cyberint_alerts",
+            QueryOptions::default(),
+        )
+        .await;
+
+    if let Err(ref e) = coalesce_result {
+        let display = format!("{e}");
+        assert!(
+            !display.contains("E-QUERY-039"),
+            "EC-11-065: DataFusion built-in 'coalesce' must NOT trigger E-QUERY-039. \
+             Got: {display}. Fix: verify 'coalesce' is in DATAFUSION_BUILTIN_SCALAR_NAMES \
+             and the built-in exclusion check is active in check_enrich_udf_availability \
+             (BC-2.11.019 v1.5). This test FAILS if coalesce is removed from the exclusion set."
+        );
+    }
+
+    // Secondary: upper, length, abs — also DataFusion built-ins, must not fire E-QUERY-039.
     let builtin_queries = [
         ("upper", "SELECT upper(iocs_value) FROM cyberint_alerts"),
         ("length", "SELECT length(iocs_value) FROM cyberint_alerts"),
@@ -1161,7 +1199,7 @@ async fn test_f_pjl1_high001_datafusion_builtins_not_flagged_as_missing_udfs() {
             let display = format!("{e}");
             assert!(
                 !display.contains("E-QUERY-039"),
-                "F-PJL1-HIGH-001: DataFusion built-in '{fn_name}' must NOT trigger E-QUERY-039. \
+                "EC-11-065: DataFusion built-in '{fn_name}' must NOT trigger E-QUERY-039. \
                  Query: {query}. Got: {display}. \
                  Fix: add DataFusion built-in exclusion to check_enrich_udf_availability \
                  (BC-2.11.019 v1.5)."
