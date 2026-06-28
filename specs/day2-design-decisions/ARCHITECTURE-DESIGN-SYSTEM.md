@@ -409,6 +409,10 @@ behavior is visible in code review; silently diverged codebases are not.
 - S3 `s3_agent_runtime_enabled=false` default: opt-in flag, not a fork.
 - CLAUDE.md Canonical Principle §1: no MVP-driven deferrals or "for now" forks.
 
+Composes with P-ADS-13 (Configurable-Not-Prescriptive): deployment-profile selects
+which capabilities activate; P-ADS-13 governs that restrictive POSTURE within them
+is configurable data, not hardcoded absolutes.
+
 ---
 
 ### P-ADS-12 — Production-Grade-Default
@@ -429,6 +433,67 @@ affects all features built on top of them.
 - ADR-022 Arc-DI wiring contract: no placeholder-construct in the boot path.
 - Standing Rule 3 §4: adding Arc<dyn Foo> to a constructor is "wiring not
   redesign" and must be done in-scope.
+
+---
+
+### P-ADS-13 — Configurable-Not-Prescriptive (Policy-as-Configuration)
+
+**Statement.** Restrictive security/compliance posture is expressed as configurable
+DATA — discrete settings plus named, shippable **Profiles** (e.g. baseline / SOC2 /
+ISO27001 / IEC-62443-OT / NERC-CIP) — never as hardcoded absolutes and never as a
+single vertical's needs branched into code. The axes this governs include:
+staleness/restriction thresholds (e.g. deny-on-stale-beyond-N), action-gating
+strictness, data masking / bulk-export strictness, approval & separation-of-duties
+requirements, key-custody requirements (e.g. force client-held CMEK or
+BYOC-remote-op), and electronic-security-perimeter rules. The product ships SAFE,
+restrictive DEFAULTS and named compliance Profiles; clients tune only WITHIN
+profile-permitted bounds. The product does not prescribe absolute behaviors a client
+cannot adjust within governed bounds, and does not hardcode one vertical (OT) as a
+code branch — OT is a shipped Profile, not a fork.
+
+**Rationale.** A multi-vertical MSSP platform serves clients with divergent and
+sometimes conflicting compliance regimes. Hardcoding one regime's restrictiveness
+(the OT temptation) either over-constrains other clients or forces per-vertical code
+forks (violating P-ADS-11). Expressing posture as configurable data + named Profiles
+lets a single codebase serve every regime, makes conformance auditable ("this tenant
+runs the NERC-CIP Profile; these settings drift"), and lets the restrictive settings
+ride the same DB-authoritative, central-authored, signed-bundle distribution and
+tighten-only tenant-tree inheritance that already govern config (C9) and nested
+tenancy (C19).
+
+**Floor (critical boundary).** Configurability sits ABOVE the INV-ADS invariant
+floor. The hard invariants are NEVER configurable off: operator-zero-access-at-rest
+(INV-ADS-02), no-raw-sensor-data-at-Central (INV-ADS-01), per-tenant isolation
+(INV-ADS-03), AI-opaque credentials/data (INV-ADS-06), config-authored-only-at-
+Central (INV-ADS-04). "Configurable" means tunable-within-governed-bounds and
+tighten-only down the tenant tree — it does NOT mean an invariant can be defeated
+by configuration. A Profile may only TIGHTEN relative to baseline; it can never
+loosen below the invariant floor or below an ancestor tenant's guardrail (C19 hybrid
+inheritance: guardrails intersect, parent-deny-is-final).
+
+**Source decisions.**
+- Recurring human directive across C9 (approval/review workflows deferred to Day-3
+  as configurable, per-client), C18 SF-2 (masking/bulk-export configurable), C18
+  SF-3 ("configurable, not just OT — OT is a profile we ship"), C18 SF-5 (workflows
+  fully client-configurable, no prescribed absolutes).
+- C19 `regulatory_class` tenant attribute (to be reframed as a Profile assignment
+  when C18 lands) — `ADR-PROP-nested-tenancy.md`.
+- CLAUDE.md project memory: built-in sensors are config-driven (TOML specs), full
+  sensor API behind a robust feature-flag system — the same eat-our-own-config
+  philosophy generalized to security posture.
+- Composes with P-ADS-09 (Config-DB-Authoritative), P-ADS-11 (Single-Codebase/
+  Deployment-Profile), P-ADS-12 (Production-Grade-Default: defaults are restrictive,
+  configurability never lowers the bar below production-grade), and PAT-ADS-03
+  (Signed-Offline-Bundle) / PAT-ADS-06 (Hub-and-Spoke-Forward-Migration) for
+  distribution.
+
+**Forward note (pending, do not pre-author).** The concrete structure that
+operationalizes this principle — the **Configurable Compliance Profile pattern
+(provisional PAT-ADS-12)** and its data model, composition/inheritance, and shipped
+presets — is under design in C18 (research pass
+`research/configurable-security-profiles-2026-06-27.md` in flight). This principle
+states the RULE; the forthcoming pattern will state the STRUCTURE. Do not author the
+pattern here.
 
 ---
 
@@ -1084,4 +1149,13 @@ architecture tier and must be consistent with this ADS:
 
 ---
 
-*End of Prism Architecture Design System v1.0 — 2026-06-27*
+---
+
+**Amendment log**
+
+| Version | Date | Change |
+|---------|------|--------|
+| v1.0 | 2026-06-27 | Initial capture — 12 principles, 11 patterns, 8 invariants, 11 anti-patterns; seeded from ripple audit. |
+| v1.1 | 2026-06-27 | P-ADS-02 clarification (C19 operator-zero-access spectrum + MSSP mediated-access semantics); AP-ADS-11 Cross-Tenant DEK Grantee added (C19 key-plane isolation); P-ADS-13 Configurable-Not-Prescriptive (Policy-as-Configuration) added (C18 configurability directive); P-ADS-11 cross-reference to P-ADS-13 added. |
+
+*End of Prism Architecture Design System v1.1 — 2026-06-27*

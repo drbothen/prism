@@ -13,7 +13,7 @@ provenance: "Day-2 vision SIDE-ANALYSIS program resume snapshot. SEPARATE from t
 > Design System) created and locked as conformance frame. Surfacing model LOCKED = Option 3. Conformance
 > pass DONE. B remains LAST and gated on the §5.1 brief-reframe HUMAN sign-off.**
 >
-> **Latest factory-artifacts HEAD: `(this checkpoint)`**
+> **Latest factory-artifacts HEAD: `(this checkpoint)` — P-ADS-13 + ADS v1.1**
 >
 > **READ THIS FIRST on resume.** This is OUT-OF-BAND day-2 vision work, fully SEPARATE from the live
 > VSDD factory pipeline (which runs its own cascades on the same `factory-artifacts` branch). Everything
@@ -261,13 +261,17 @@ All 8 gaps addressed. Human chose the fuller path on every fork — zero decline
 - ML-phasing: C7 OD-3 (on-prem model deployment phasing) reconciled to C7 pluggable ModelBackend decision; WASM/ort/candle all day-2 capable.
 - All 8 residuals resolved; §16.4 section marked CLOSED.
 
-#### Architecture Design System (ADS) — CREATED (commit 7c068714)
+#### Architecture Design System (ADS) — CREATED (commit 7c068714); AMENDED (this checkpoint)
 `ARCHITECTURE-DESIGN-SYSTEM.md` ("The Prism Way") is the canonical architecture analog of the UI design system. ALL day-2 features + B must conform to it.
-- **12 Principles** (P-ADS-01..12)
+- **13 Principles** (P-ADS-01..13) — P-ADS-13 added this session (see below)
 - **11 Patterns** (PAT-ADS-01..11)
 - **8 Invariants** (INV-ADS-01..08) + conformance checklist
-- **10 Anti-patterns**
+- **11 Anti-patterns** (AP-ADS-11 added in C19 burst; now 11 total)
 - Basis: `research/central-surfacing-ripple-analysis-2026-06-27.md`
+- ADS bumped **v1.0 → v1.1** (amendment log in ARCHITECTURE-DESIGN-SYSTEM.md): P-ADS-02 clarification (C19 MSSP mediated-access semantics), AP-ADS-11 Cross-Tenant DEK Grantee (C19), P-ADS-13 Configurable-Not-Prescriptive (this checkpoint), P-ADS-11 cross-ref to P-ADS-13.
+
+**P-ADS-13 — Configurable-Not-Prescriptive (Policy-as-Configuration) — ADDED (this checkpoint)**
+Restrictive security/compliance posture is configurable data + named shippable Profiles (baseline / SOC2 / ISO27001 / IEC-62443-OT / NERC-CIP), never hardcoded absolutes and never a single vertical's needs branched into code. OT is a shipped Profile, not a code fork. Floor: configurability sits ABOVE the INV-ADS invariant floor (operator-zero-access, no-raw-at-Central, per-tenant isolation, AI-opaque are NEVER configurable off). Profiles tighten-only down the tenant tree. Sourced from recurring human directive (C9 approval-gate deferral / C18 SF-2,SF-3,SF-5 / C19 regulatory_class). Cross-refs: P-ADS-09, P-ADS-11, P-ADS-12. Pattern operationalizing this (PAT-ADS-12 / Configurable Compliance Profile) is under design in C18 — NOT authored here. Path-scoped commit.
 
 Every remaining C-item (C15, C14, C19, C18, C16, C17, C20) and B must pass the ADS conformance checklist before capture. The conformance pass against existing ADR-PROPs was its first run (10 ripple-audit items closed across 9 ADR-PROPs — see conformance pass entry below).
 
@@ -440,7 +444,7 @@ Superseded capture queue (all DONE — do not re-execute):
 
 ## 6. BASELINE (git state at session wrap)
 
-- **factory-artifacts HEAD (current):** `(this checkpoint)` — C19 nested-tenancy decided + captured (see commit chain below)
+- **factory-artifacts HEAD (current):** `(this checkpoint)` — P-ADS-13 added to ADS v1.1; path-scoped commit (see commit chain below)
 - **Full commit chain for this day-2 side-analysis** (day-2 side commits; live factory interleaved its own commits on the shared branch between these):
   - `b53b22ba` — C9 schema-versioning (Q3) resolved + ADR-PROP-config-management + backing research
   - `91abba90` — deployment matrix captured (ADR-PROP-dual-deployment, three operating models)
@@ -458,7 +462,8 @@ Superseded capture queue (all DONE — do not re-execute):
   - `59864881` — C14 decided + ADR-PROP-active-query-devices.md captured (Reading A+B in v1; active-query as capability-axis; OT-safety guardrails; OCSF OT source tables; Reading-B protocol libs as plugins/sidecar; ADS-conformant)
   - `664cbbd1` — C19/C18/C16/C17/C20 research files banked (nested-tenancy, rbac-depth, entity-masking-tokenization, backup-recovery, nerc-cip-support)
   - `02599c9b` — ocsf-ot-coverage-2026-06-27.md banked + SESSION-RESUME-2026-06-27.md updated; path-scoped commit
-  - `(this checkpoint)` — C19 nested-tenancy decided + ADR-PROP-nested-tenancy.md captured + SF-3 parent-visibility research banked + ADS amended (P-ADS-02 sharpened, AP-ADS-11 added); path-scoped commit
+  - `547319b2` — C19 nested-tenancy decided + ADR-PROP-nested-tenancy.md captured + SF-3 parent-visibility research banked + ADS amended (P-ADS-02 sharpened, AP-ADS-11 added); path-scoped commit
+  - `(this checkpoint)` — P-ADS-13 Configurable-Not-Prescriptive added to ARCHITECTURE-DESIGN-SYSTEM.md (configurability principle); ADS bumped v1.0→v1.1 amendment log; path-scoped commit
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory files left unstaged). No dangling in-flight research.
 
