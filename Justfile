@@ -52,12 +52,15 @@ timings:
     cargo build --workspace --all-features --timings
     @echo "Timings report: target/cargo-timings/cargo-timing.html"
 
-# CI-only: identical to CI behavior (full-strength)
+# CI-equivalent: mirrors CI nextest behavior (full-strength, including all serial-group overrides).
 # Steps run in spec order: fmt → clippy → nextest → doctests → deny → audit → semver-checks → shellcheck → check-layout
+# --profile ci applies all [[profile.ci.overrides]] serial-group assignments (signal_handlers,
+# adv_p02_e2e_pushdown_pipeline_test, bc_2_01_013_spec_driven_adapter). Without --profile ci,
+# nextest runs under the default profile and silently skips those overrides.
 check-ci:
     cargo fmt --check
     cargo clippy --all-features -- -D warnings
-    cargo nextest run --workspace --all-features --no-fail-fast
+    cargo nextest run --workspace --all-features --no-fail-fast --profile ci
     cargo test --workspace --all-features --doc
     cargo deny check
     cargo audit
