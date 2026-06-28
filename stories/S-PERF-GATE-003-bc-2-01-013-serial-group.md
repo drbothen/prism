@@ -4,7 +4,7 @@ story_id: S-PERF-GATE-003
 title: "Remaining test/build-gate performance levers — bc_2_01_013 serialization + check-ci --profile ci + sccache opt-in + RUSTFLAGS dedup"
 epic_id: EPIC-MAINTENANCE
 version: "1.2"
-status: ready
+status: merged
 producer: story-writer
 phase: 3
 wave: maintenance
@@ -509,6 +509,7 @@ The implementer can proceed immediately without waiting for any upstream story.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 (merged) | 2026-06-29 | state-manager | PR #207 squash-merged to develop 1f491590 (D-1420). Status ready→merged. POL-14 NO-OP: BC-5.39.001 already ACTIVE. Worktree + branch removed. |
 | 1.2 | 2026-06-28 | story-writer | AC-006 grep command anchored to `RUSTFLAGS="" PROPTEST_CASES` to exclude Justfile line-20 comment (bare `RUSTFLAGS=""` returns 3, not 2; same grep-count-drift class as S-PERF-GATE-002 F-SPG2-RG-MED-001); all ACs re-verified against worktree HEAD 718252f4 — no other drift found |
 | 1.1 | 2026-06-28 | story-writer | Promoted draft→ready; added check-ci --profile ci fix as explicit AC-005 (OBS-1/EC-004 routed from S-PERF-GATE-002); tightened all AC grep commands with source-verification against actual files; renumbered ACs (old AC-005→AC-006, AC-006→AC-007, AC-007→AC-008, AC-008→AC-009); updated title, Tasks, File Structure Requirements, Edge Cases, Token Budget, Previous Story Intelligence (noted S-PERF-GATE-002 MERGED PR #206), and Scheduling Note (dependency satisfied) |
 | 1.0 | 2026-06-28 | story-writer | Initial draft |
