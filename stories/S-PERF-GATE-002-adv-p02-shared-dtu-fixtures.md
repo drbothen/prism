@@ -9,8 +9,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P3
 status: ready
-version: "3.0"
-spec_version: "v3.0"
+version: "3.1"
+spec_version: "v3.1"
 level: ops
 producer: story-writer
 timestamp: "2026-06-27"
@@ -165,10 +165,12 @@ pattern as `binary(signal_handlers)` from S-PERF-GATE-001). The override is scop
 
 Self-verifying check (source-verified against worktree HEAD `dacae05e`):
 ```bash
-grep -A2 'adv_p02_e2e_pushdown_pipeline_test' .config/nextest.toml
+grep -A2 "filter = 'binary(adv_p02_e2e_pushdown_pipeline_test)'" .config/nextest.toml
 ```
-Returns two blocks — one under `[[profile.prepush.overrides]]` and one under
-`[[profile.ci.overrides]]`.
+Returns exactly two blocks — one under `[[profile.prepush.overrides]]` and one under
+`[[profile.ci.overrides]]`. The filter-anchored pattern skips the comment line that
+also contains `adv_p02_e2e_pushdown_pipeline_test`, ensuring the count is exactly 2
+and not 3.
 
 ### AC-003: All 8 adv_p02 functional tests pass under `cargo nextest run -E 'binary(adv_p02_e2e_pushdown_pipeline_test)' --profile prepush` (traces to BC-5.39.001 §Delivery process — serial group does not break existing tests)
 
@@ -347,6 +349,7 @@ configuration, not product subsystems in the ARCH-INDEX Subsystem Registry.
 | EC-001 | `adv-p02-serial` test-group override interacts with `[profile.e2e]` or `[profile.e2e-multi-org]` | The override is applied to `prepush` and `ci` profiles only. Other profiles are unaffected. Verified: source-checked `.config/nextest.toml` at HEAD `dacae05e` — no `[profile.default.overrides]` or `[profile.e2e.overrides]` entries exist for this binary. |
 | EC-002 | `just check` passes but adv_p02 tests fail when the profile is not specified | Tests run outside the `prepush` or `ci` profile do not get the serial-group override and may still encounter oversubscription if the default profile allows full parallelism. This is accepted behavior — the serial group is intentionally scoped to the two profiles used in pre-push and CI flows. |
 | EC-003 | Nextest version in CI does not support `binary(...)` filter syntax | `binary(...)` filter syntax is supported since cargo-nextest 0.9.52 (2023-09-12). The workspace already uses nextest with this filter for `signal_handlers` (S-PERF-GATE-001, verified in `.config/nextest.toml`). No version bump required. |
+| EC-004 | `just check-ci` runs nextest without `--profile ci` (default profile), so the `adv-p02-serial` override is NOT active during `check-ci` runs | The `adv-p02-serial` override applies only under the `prepush` and `ci` nextest profiles. `just check-ci` currently invokes nextest with no `--profile` flag, so it uses the default profile and does NOT receive the serial-group override. Its "identical to CI behavior" comment in the Justfile is therefore inaccurate for the adv_p02 binary specifically. Aligning `just check-ci` to use `--profile ci` is tracked in **S-PERF-GATE-003** (which touches the Justfile for RUSTFLAGS dedup). This story's nextest.toml-only perimeter does not include Justfile recipe changes; the gap is documented here and is not a defect against S-PERF-GATE-002 (OBS-1, orchestrator-adjudicated deferral). |
 
 ## Architecture Mapping
 
@@ -369,6 +372,7 @@ Per POL-7 (verbatim BC H1 titles):
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v3.1 | 2026-06-28 | story-writer | LOCAL re-gate findings closed. F-SPG2-RG-MED-001 (MEDIUM): AC-002 verification command anchored to the filter line (`grep -A2 "filter = 'binary(adv_p02_e2e_pushdown_pipeline_test)'"`) so it returns exactly 2 blocks instead of 3 (the old unanchored pattern also matched the comment line). OBS-1 (LOW): EC-004 added documenting that `just check-ci` runs the default nextest profile (no `adv-p02-serial` override); aligning `check-ci` to `--profile ci` routed to S-PERF-GATE-003 per orchestrator adjudication. status: ready unchanged. acceptance_criteria_count: 5 unchanged. red_gate_tests: 0 unchanged. |
 | v3.0 | 2026-06-28 | story-writer | MAJOR REFRAME. Original LazyLock shared-fixtures approach (v1.0–v2.1) abandoned: nextest process-per-test model makes cross-test `LazyLock` sharing impossible (F-SPG2-P5-001 HIGH finding). Human chose Option A: strip LazyLock, keep serial group only, revert test file to develop-verbatim. Scope simplified to CONFIG-ONLY: `.config/nextest.toml` is the only changed file. Test source `adv_p02_e2e_pushdown_pipeline_test.rs` is unchanged from develop (verified `git diff develop...HEAD` empty at HEAD `dacae05e`). Title, Narrative, Background, ACs (9 → 5, all self-verifying), Red Gate (2 → 0), Tasks, Previous Story Intelligence, Architecture Mapping, File Structure Requirements, Library Requirements, Edge Cases, References, Token Budget rewritten to match shipped reality. Version: v2.1 → v3.0. acceptance_criteria_count: 9 → 5. red_gate_tests: 2 → 0. points: 5 → 2. tdd_mode: strict → n/a. crates_touched: [prism-bin] → []. |
 | v2.1 | 2026-06-28 | story-writer | LOCAL Pass-1 adversary findings closed: AC-004 reset-count corrected from "exactly 6" to "exactly 7"; §Changelog reordered newest-first per POL-32; AC-001 volatile line-pin citations replaced with behavioral anchors (TD-VSDD-091). |
 | v2.0 | 2026-06-28 | story-writer | Full elaboration from stub. Two-phase scope (reset refactor + LazyLock). 9 ACs, 2 Red Gate tests. All factual claims source-verified. |
