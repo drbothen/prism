@@ -589,7 +589,6 @@ impl TableRegistry {
                 // Reject dot-notation in all modes (EC-11-067, BC-2.11.001 v1.15).
                 let dot_name = format!("{sensor}.{table}");
                 let underscore_name = format!("{sensor}_{table}");
-                let did_you_mean = format!(" Did you mean: '{underscore_name}'?");
 
                 let sensor_by_table_snapshot = match self.sensor_by_table.read() {
                     Ok(g) => g.clone(),
@@ -618,13 +617,42 @@ impl TableRegistry {
                 let available_sensors = org_visible_sensor_ids.join(", ");
                 let available_tables = org_visible_tables.join(", ");
 
+                // F-PLL1-LOW-001: Only suggest the underscore form when it is actually
+                // registered.  If `cyberint.alerts` → `cyberint_alerts` is registered,
+                // emit the direct suggestion.  If `foo.bar` → `foo_bar` is NOT registered,
+                // fall through to the same Levenshtein-against-registered-tables path that
+                // the non-dot arm uses (capped via cap_name_for_levenshtein), or emit no
+                // suggestion if no candidate is within distance ≤ 3.  This prevents
+                // suggesting non-existent tables (blind suggestion anti-pattern).
+                let did_you_mean = if self.is_registered(&underscore_name) {
+                    // The underscore form exists — direct suggestion (fast path, no Levenshtein).
+                    format!(" Did you mean: '{underscore_name}'?")
+                } else {
+                    // Underscore form not registered — fall back to Levenshtein against the
+                    // org-visible registered tables, same as the non-dot arm.
+                    self.did_you_mean_for_tables(
+                        cap_name_for_levenshtein(&underscore_name),
+                        &org_visible_tables,
+                    )
+                };
+
+                // Extract the matched table name from did_you_mean for the pedagogical suggestion.
+                let did_you_mean_table: Option<&str> = if did_you_mean.is_empty() {
+                    None
+                } else {
+                    did_you_mean.find('\'').and_then(|start| {
+                        let rest = &did_you_mean[start + 1..];
+                        rest.find('\'').map(|end| &rest[..end])
+                    })
+                };
+
                 let client_id_for_suggestion = org_scope
                     .and_then(|s| s.first())
                     .map(|o| o.as_str())
                     .unwrap_or(sensor.as_str());
                 let suggestion = crate::engine::e_query_037_suggestion(
                     client_id_for_suggestion,
-                    Some(underscore_name.as_str()),
+                    did_you_mean_table,
                 );
 
                 return Err(PrismError::TableNotAvailable(Box::new(

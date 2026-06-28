@@ -2328,6 +2328,119 @@ fn build_minimal_subquery(source_table_name: &str) -> crate::ast::SqlQuery {
 }
 
 // ---------------------------------------------------------------------------
+// F-PLL1-LOW-001: dot-notation did_you_mean validation
+// ---------------------------------------------------------------------------
+//
+// BC-2.11.001 v1.15 / AC-N2 / EC-11-067: the `FROM sensor.table` dot-notation
+// arm of `check_availability_gate` MUST only suggest the underscore form when
+// the underscore form is actually registered.  If it is not registered, the
+// suggestion must NOT name a non-existent table — instead, fall back to
+// Levenshtein-based suggestion against the org-visible registered tables (same
+// path used by the non-dot arm).
+//
+// Load-bearing:
+//   - test_F_PLL1_LOW_001_dot_notation_registered_underscore_suggests_correctly:
+//     `FROM cyberint.alerts` with `cyberint_alerts` registered must suggest it.
+//     Reverting the fix (always suggesting blindly) would keep this passing, so
+//     the test alone does not drive the fix — the companion test below does.
+//   - test_F_PLL1_LOW_001_dot_notation_unregistered_does_not_suggest_nonexistent:
+//     `FROM foo.bar` with no `foo_bar` registered must NOT suggest `foo_bar`.
+//     This test FAILS against the pre-fix blind-suggestion code (returns
+//     " Did you mean: 'foo_bar'?" unconditionally) and PASSES after the fix.
+
+/// BC-2.11.001 v1.15 / F-PLL1-LOW-001 regression guard: when `FROM cyberint.alerts`
+/// is used and `cyberint_alerts` IS registered, E-QUERY-037 must suggest
+/// `cyberint_alerts` in the `did_you_mean` field — no regression to the
+/// N2 demo path.
+///
+/// Load-bearing: this test PASSES even on the pre-fix code (blind suggestion also
+/// picks the right name when the form exists).  It is retained as a regression
+/// guard to ensure the fix does not accidentally suppress the valid suggestion.
+#[test]
+#[allow(non_snake_case)]
+fn test_F_PLL1_LOW_001_dot_notation_registered_underscore_suggests_correctly() {
+    let registry = TableRegistry::new();
+    // Register cyberint_alerts — the demo path table.
+    let spec = make_sensor_spec_one_table("cyberint", "alerts");
+    registry
+        .register_sensor(&spec)
+        .expect("register_sensor must not fail");
+
+    // Use dot-notation FROM cyberint.alerts — must be rejected with E-QUERY-037.
+    // The `did_you_mean` field must suggest `cyberint_alerts` (the registered form).
+    let result = registry.check_availability_gate("FROM cyberint.alerts | limit 10", None, None);
+
+    match result {
+        Err(PrismError::TableNotAvailable(ref details)) => {
+            assert_eq!(
+                details.table, "cyberint.alerts",
+                "F-PLL1-LOW-001: table must be the dot-form 'cyberint.alerts', got: '{}'",
+                details.table
+            );
+            assert_eq!(
+                details.did_you_mean, " Did you mean: 'cyberint_alerts'?",
+                "F-PLL1-LOW-001: did_you_mean must suggest 'cyberint_alerts' when it is \
+                 registered; got: '{}'",
+                details.did_you_mean
+            );
+        }
+        other => panic!(
+            "F-PLL1-LOW-001: expected Err(PrismError::TableNotAvailable) for 'cyberint.alerts', \
+             got: {other:?}"
+        ),
+    }
+}
+
+/// BC-2.11.001 v1.15 / F-PLL1-LOW-001 fix: when `FROM foo.bar` is used and
+/// `foo_bar` is NOT registered, E-QUERY-037 must NOT suggest `foo_bar` in the
+/// `did_you_mean` field.
+///
+/// Load-bearing: this test FAILS against the pre-fix code (blind suggestion
+/// always emits " Did you mean: 'foo_bar'?" regardless of whether `foo_bar`
+/// is registered).  It PASSES after the fix (no suggestion when the underscore
+/// form does not exist and no Levenshtein candidate is within distance ≤ 3).
+///
+/// We register a genuinely different table (`cyberint_alerts`) to confirm the
+/// Levenshtein fallback also finds no match (distance from `foo_bar` to
+/// `cyberint_alerts` is > 3).
+#[test]
+#[allow(non_snake_case)]
+fn test_F_PLL1_LOW_001_dot_notation_unregistered_does_not_suggest_nonexistent() {
+    let registry = TableRegistry::new();
+    // Register cyberint_alerts but NOT foo_bar.
+    let spec = make_sensor_spec_one_table("cyberint", "alerts");
+    registry
+        .register_sensor(&spec)
+        .expect("register_sensor must not fail");
+
+    // Use dot-notation FROM foo.bar — must be rejected with E-QUERY-037.
+    // The `did_you_mean` field must NOT suggest `foo_bar` (not registered).
+    // Levenshtein distance from `foo_bar` to `cyberint_alerts` is > 3, so no
+    // candidate should be within threshold.
+    let result = registry.check_availability_gate("FROM foo.bar | limit 10", None, None);
+
+    match result {
+        Err(PrismError::TableNotAvailable(ref details)) => {
+            assert_eq!(
+                details.table, "foo.bar",
+                "F-PLL1-LOW-001: table must be the dot-form 'foo.bar', got: '{}'",
+                details.table
+            );
+            assert!(
+                !details.did_you_mean.contains("foo_bar"),
+                "F-PLL1-LOW-001: did_you_mean must NOT suggest 'foo_bar' (not registered); \
+                 got: '{}'",
+                details.did_you_mean
+            );
+        }
+        other => panic!(
+            "F-PLL1-LOW-001: expected Err(PrismError::TableNotAvailable) for 'FROM foo.bar', \
+             got: {other:?}"
+        ),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Test helper module (not a test itself)
 // ---------------------------------------------------------------------------
 #[cfg(test)]
