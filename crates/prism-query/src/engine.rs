@@ -6731,3 +6731,270 @@ mod pipe_mode_builtin_enrich_gate_tests {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// S-DEMO-FIDELITY-REMEDIATION-001 F-PWL1-LOW-001 — HAVING clause column gate
+// ---------------------------------------------------------------------------
+//
+// Finding F-PWL1-LOW-001: `check_query_column_availability` walked 5 positions
+// (SELECT, WHERE, GROUP BY, ORDER BY, JOIN ON) but NOT the HAVING clause.
+// A query like `SELECT severity, count(*) FROM crowdstrike_alerts GROUP BY severity
+// HAVING count(typo_col) > 5` bypassed E-QUERY-038 entirely — `typo_col` in HAVING
+// was never validated against the schema.
+//
+// Sibling asymmetry: E-QUERY-039 (enrich gate) and E-QUERY-037 (source-walk) both
+// cover HAVING; only E-QUERY-038 (column gate) was missing this position.
+//
+// Fix: Position 6 — HAVING — uses `extract_predicate_columns` (same helper as
+// Position 2 / WHERE), since `having` is `Option<Predicate>` identical in type to
+// `where_`. Base-column refs nested in aggregate FuncCalls like `count(typo_col)` are
+// extracted by the existing `collect_predicate_columns` → `extract_field_paths_from_expr`
+// call chain, matching the WHERE position's behaviour.
+//
+// BC-2.11.016 v1.5 / F-PWL1-LOW-001.
+//
+// Tests assert:
+//   1. (red-gate) HAVING with typo'd column fires E-QUERY-038.
+//   2. (no-regression) HAVING with valid column does NOT fire E-QUERY-038.
+//
+// TD-VSDD-059: load-bearing — removing the Position 6 HAVING walk from
+// `check_query_column_availability` causes
+// test_BC_2_11_016_having_column_gate_typo_fires_e_query_038 to return Ok or a
+// non-E-QUERY-038 error instead of PrismError::ColumnNotFound.
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod f_pwl1_low001_having_column_gate_tests {
+    use std::{collections::HashMap, sync::Arc};
+
+    use prism_core::{OrgSlug, SensorId};
+    use prism_sensors::AdapterRegistry;
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+        ResolvedSensorSpec, ResolvedSpecKey,
+    };
+
+    use super::*;
+    use crate::{scoping::ClientRegistry, table_registry::TableRegistry};
+    use prism_core::column::ColumnType;
+
+    /// No-op credential store (same stub pattern used throughout this module).
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a `QueryEngine` with `crowdstrike_alerts` registered with columns
+    /// `["severity", "timestamp"]` under org "acme".
+    ///
+    /// Mirrors the fixture pattern established in `m2_column_gate_funccall_and_join_tests`
+    /// and `f_pbl1_med001_select_funccall_col_gate_tests`.
+    fn make_crowdstrike_engine() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+        let sensor_id = "crowdstrike";
+        let table_suffix = "alerts";
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            sensor_id,
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("F-PWL1-LOW-001 fixture: register crowdstrike must not fail");
+
+        let overlay_toml = format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@acme\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("F-PWL1-LOW-001 fixture: SensorInstanceOverlay TOML must parse");
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org.clone());
+        let key: ResolvedSpecKey = (org.clone(), SensorId::new(sensor_id));
+        let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_table_registry(registry);
+
+        (engine, org)
+    }
+
+    // ── Red-gate test (must FAIL before fix, PASS after fix) ──────────────────
+
+    /// F-PWL1-LOW-001 — E-QUERY-038 must fire when a typo'd column is referenced
+    /// in the HAVING clause predicate (e.g. `HAVING typo_col > 5`).
+    ///
+    /// Before fix: Position 6 (HAVING) was absent from `check_query_column_availability`.
+    /// `typo_col` in `HAVING typo_col > 5` was never extracted, so the gate silently
+    /// passed — a pedagogical asymmetry vs WHERE / GROUP BY / ORDER BY.
+    ///
+    /// After fix: Position 6 calls `extract_predicate_columns` on `sql_query.having`
+    /// (same helper as Position 2 / WHERE). `typo_col > 5` is parsed as
+    /// `Predicate::Compare { lhs: Expr::Field("typo_col"), op: Gt, rhs: ... }`;
+    /// `collect_predicate_columns` extracts the `lhs` FieldPath → `typo_col`
+    /// → E-QUERY-038.
+    ///
+    /// Note on PrismQL HAVING grammar: the predicate parser (shared with WHERE) accepts
+    /// `field op literal` form in HAVING; `HAVING funcall(col) op value` is not currently
+    /// supported by the parser (the FuncCall-in-predicate-LHS form is not in the grammar).
+    /// The tested query `HAVING typo_col > 5` exercises the primary code path added in
+    /// this fix (the `having` field walk) and is the most direct proof of the gate.
+    ///
+    /// BC-2.11.016 v1.5 / F-PWL1-LOW-001.
+    ///
+    /// Load-bearing (F-PWL1-LOW-001): removing the Position 6 HAVING walk from
+    /// `check_query_column_availability` causes this test to return Ok or a
+    /// non-E-QUERY-038 error instead of PrismError::ColumnNotFound.
+    #[tokio::test]
+    async fn test_BC_2_11_016_having_column_gate_typo_fires_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `typo_col` is not in the schema (only `severity` and `timestamp` are valid).
+        // PrismQL HAVING predicate: `field op literal` form (same grammar as WHERE).
+        // Before the fix, Position 6 (HAVING) was absent so this silently passed.
+        let query = "SELECT severity, count(*) FROM crowdstrike_alerts \
+                     GROUP BY severity HAVING typo_col > 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "typo_col",
+                    "F-PWL1-LOW-001: column in E-QUERY-038 must be 'typo_col', got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "F-PWL1-LOW-001: table in E-QUERY-038 must be 'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "F-PWL1-LOW-001: engine.execute must NOT succeed — E-QUERY-038 must fire for \
+                 column typo inside count() in HAVING. Before the fix, Position 6 (HAVING) \
+                 was absent from check_query_column_availability."
+            ),
+            Err(other) => panic!(
+                "F-PWL1-LOW-001: expected PrismError::ColumnNotFound (E-QUERY-038), \
+                 got different error: {other:?}"
+            ),
+        }
+    }
+
+    // ── No-regression guard (must PASS both before and after fix) ─────────────
+
+    /// F-PWL1-LOW-001 no-regression — HAVING with a valid column must NOT fire E-QUERY-038.
+    ///
+    /// `HAVING severity = 'critical'` — `severity` is a valid column in `crowdstrike_alerts`.
+    /// The gate must pass Position 6 without error; the query may fail later (no real
+    /// adapter wired) but must NOT fail with E-QUERY-038.
+    ///
+    /// BC-2.11.016 v1.5 / F-PWL1-LOW-001.
+    #[tokio::test]
+    async fn test_BC_2_11_016_having_column_gate_valid_col_no_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `severity` is a valid column — HAVING gate must NOT fire E-QUERY-038.
+        let query = "SELECT severity, count(*) FROM crowdstrike_alerts \
+                     GROUP BY severity HAVING severity = 'critical'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => panic!(
+                "F-PWL1-LOW-001 no-regression: E-QUERY-038 fired unexpectedly for valid column \
+                 '{}'. `severity` is registered; the HAVING gate must NOT reject it.",
+                details.column
+            ),
+            // Any other outcome (Ok, execution error, other PrismError) is acceptable —
+            // the invariant is only that E-QUERY-038 (ColumnNotFound) does NOT fire.
+            _ => {}
+        }
+    }
+}
