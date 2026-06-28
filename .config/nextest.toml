@@ -87,16 +87,32 @@ failure-output = "immediate"
 # they can hit SIGSEGV due to concurrent mmap pressure from multiple RocksDB instances.
 # max-threads = 1 ensures they run single-threaded; retries = 1 (set at profile level)
 # is the secondary safety net for any remaining transient flake.
+#
+# S-PERF-GATE-002: adv-p02-serial group for adv_p02_e2e_pushdown_pipeline_test.
+# Each of the 8 tests in this binary constructs its own DTU clone (CrowdStrike or
+# Armis), binds an Axum server on a random port, and opens an in-process RocksDB.
+# Running these tests in parallel oversubscribes CPU/file-descriptors and causes
+# non-deterministic filter_strings assertion failures (ADV-P02-CRIT-001 correctness,
+# AC-005, AC-007). max-threads = 1 serializes the binary, eliminating the race.
 [test-groups]
 serial-subprocess = { max-threads = 1 }
+adv-p02-serial = { max-threads = 1 }
 
 [[profile.prepush.overrides]]
 filter = 'binary(signal_handlers)'
 test-group = 'serial-subprocess'
 
+[[profile.prepush.overrides]]
+filter = 'binary(adv_p02_e2e_pushdown_pipeline_test)'
+test-group = 'adv-p02-serial'
+
 [[profile.ci.overrides]]
 filter = 'binary(signal_handlers)'
 test-group = 'serial-subprocess'
+
+[[profile.ci.overrides]]
+filter = 'binary(adv_p02_e2e_pushdown_pipeline_test)'
+test-group = 'adv-p02-serial'
 
 # S-DEMO-004: Multi-org × multi-sensor isolation smoke test profile.
 # Un-ignores E2E-MULTI-001-tagged tests in e2e_multi_org.rs (currently 10 tests):
