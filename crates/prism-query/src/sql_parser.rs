@@ -231,7 +231,9 @@ fn build_sql_parser<'a>() -> impl Parser<'a, &'a str, SqlQuery, extra::Err<Rich<
         // Build the expression parser for SELECT projections / ORDER BY / GROUP BY / JOIN ON.
         let expr = build_sql_expr_parser(sql_query.clone(), field_path.clone(), literal.clone());
 
-        // Build the predicate parser for WHERE / HAVING (same as filter mode).
+        // Build the predicate parser for WHERE (base filter mode + IN subquery).
+        // HAVING uses a separate parser (build_having_predicate_parser below) that
+        // additionally accepts `agg_fn(col) op literal` form (ADR-048).
         let predicate =
             build_sql_predicate_parser(sql_query.clone(), field_path.clone(), literal.clone());
 

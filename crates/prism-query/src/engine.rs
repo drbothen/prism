@@ -2113,8 +2113,10 @@ fn check_column_availability(
 /// - GROUP BY clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
 /// - ORDER BY clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
 /// - JOIN ON clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
-/// - HAVING clause (FieldPath refs via `extract_predicate_columns` — same helper as WHERE;
-///   BC-2.11.016 v1.5 / F-PWL1-LOW-001 — closes pedagogical asymmetry vs E-QUERY-039 / E-QUERY-037)
+/// - HAVING clause (FieldPath refs and agg-fn column args via `extract_predicate_columns`;
+///   HAVING also accepts `agg_fn(col) op literal` predicate form via `build_having_predicate_parser`
+///   (ADR-048 / F-PXL3-MED-002) — a deliberate grammar divergence from WHERE (which remains
+///   `field op literal` only). BC-2.11.016 v1.5 / F-PWL1-LOW-001 / F-PXL3-MED-002)
 ///
 /// Gate skip conditions:
 /// - BOTH `resolved_spec_map` AND `table_registry` are `None`: skip (no schema source wired).
@@ -6787,23 +6789,31 @@ mod pipe_mode_builtin_enrich_gate_tests {
 // Finding F-PWL1-LOW-001: `check_query_column_availability` walked 5 positions
 // (SELECT, WHERE, GROUP BY, ORDER BY, JOIN ON) but NOT the HAVING clause.
 // A query like `SELECT severity, count(*) FROM crowdstrike_alerts GROUP BY severity
-// HAVING count(typo_col) > 5` bypassed E-QUERY-038 entirely — `typo_col` in HAVING
+// HAVING typo_col > 5` bypassed E-QUERY-038 entirely — `typo_col` in HAVING
 // was never validated against the schema.
 //
 // Sibling asymmetry: E-QUERY-039 (enrich gate) and E-QUERY-037 (source-walk) both
 // cover HAVING; only E-QUERY-038 (column gate) was missing this position.
 //
-// Fix: Position 6 — HAVING — uses `extract_predicate_columns` (same helper as
-// Position 2 / WHERE), since `having` is `Option<Predicate>` identical in type to
-// `where_`. Base-column refs nested in aggregate FuncCalls like `count(typo_col)` are
-// extracted by the existing `collect_predicate_columns` → `extract_field_paths_from_expr`
-// call chain, matching the WHERE position's behaviour.
+// Fix (F-PWL1-LOW-001): Position 6 — HAVING — added to `check_query_column_availability`,
+// using `extract_predicate_columns` (same helper as Position 2 / WHERE), since
+// `having` is `Option<Predicate>` identical in type to `where_`. The bare-column form
+// (`HAVING typo_col > 5`, parsed as `Predicate::Compare { lhs: Expr::Field }`) is
+// extracted via the existing `collect_predicate_columns` Expr::Field arm.
 //
-// BC-2.11.016 v1.5 / F-PWL1-LOW-001.
+// Grammar extension (F-PXL3-MED-002 / ADR-048): HAVING additionally accepts the
+// `agg_fn(col) op literal` predicate form (e.g., `HAVING count(typo_col) > 5`) via
+// `build_having_predicate_parser`. The `collect_predicate_columns` Expr::FuncCall arm
+// (added in F-PXL3-MED-002) extracts the column nested inside the aggregate argument
+// → `typo_col` → E-QUERY-038. WHERE does NOT accept this form (deliberate ADR-048
+// grammar divergence: aggregate predicates in WHERE are semantically invalid SQL).
+//
+// BC-2.11.016 v1.5 / F-PWL1-LOW-001 / F-PXL3-MED-002.
 //
 // Tests assert:
-//   1. (red-gate) HAVING with typo'd column fires E-QUERY-038.
+//   1. (red-gate) HAVING with typo'd bare column fires E-QUERY-038.
 //   2. (no-regression) HAVING with valid column does NOT fire E-QUERY-038.
+//   Additional tests for the agg-fn form are in f_pxl3_med002_having_agg_predicate_col_gate_tests.
 //
 // TD-VSDD-059: load-bearing — removing the Position 6 HAVING walk from
 // `check_query_column_availability` causes
@@ -6952,11 +6962,18 @@ mod f_pwl1_low001_having_column_gate_tests {
     /// `collect_predicate_columns` extracts the `lhs` FieldPath → `typo_col`
     /// → E-QUERY-038.
     ///
-    /// Note on PrismQL HAVING grammar: the predicate parser (shared with WHERE) accepts
-    /// `field op literal` form in HAVING; `HAVING funcall(col) op value` is not currently
-    /// supported by the parser (the FuncCall-in-predicate-LHS form is not in the grammar).
-    /// The tested query `HAVING typo_col > 5` exercises the primary code path added in
-    /// this fix (the `having` field walk) and is the most direct proof of the gate.
+    /// Note on PrismQL HAVING grammar: the HAVING predicate accepts two forms:
+    ///   1. `field op literal` (bare column comparison) — via `build_sql_predicate_parser`,
+    ///      same as WHERE. This is the form tested here (`HAVING typo_col > 5`).
+    ///   2. `agg_fn(col) op literal` (aggregate-function comparison) — via
+    ///      `build_having_predicate_parser` (ADR-048 / F-PXL3-MED-002). This form is HAVING-only;
+    ///      WHERE deliberately does NOT accept it (aggregate in WHERE is pre-aggregation-invalid).
+    ///
+    /// The tested query `HAVING typo_col > 5` exercises form (1) — the bare-column path through
+    /// `collect_predicate_columns` → `Expr::Field` arm. It is the most direct proof that
+    /// Position 6 (HAVING) is walked by `check_query_column_availability`.
+    /// Form (2) is covered by `test_BC_2_11_016_having_agg_fn_predicate_typo_fires_e_query_038`
+    /// in the `f_pxl3_med002_having_agg_predicate_col_gate_tests` module (F-PXL3-MED-002).
     ///
     /// BC-2.11.016 v1.5 / F-PWL1-LOW-001.
     ///
@@ -6968,8 +6985,10 @@ mod f_pwl1_low001_having_column_gate_tests {
         let (engine, org) = make_crowdstrike_engine();
 
         // `typo_col` is not in the schema (only `severity` and `timestamp` are valid).
-        // PrismQL HAVING predicate: `field op literal` form (same grammar as WHERE).
-        // Before the fix, Position 6 (HAVING) was absent so this silently passed.
+        // PrismQL HAVING predicate: `field op literal` form (bare-column form, same as WHERE).
+        // After ADR-048 (F-PXL3-MED-002), HAVING also accepts `agg_fn(col) op literal` form,
+        // but this test exercises the bare-column path specifically (Position 6 HAVING walk).
+        // Before F-PWL1-LOW-001, Position 6 (HAVING) was absent so this silently passed.
         let query = "SELECT severity, count(*) FROM crowdstrike_alerts \
                      GROUP BY severity HAVING typo_col > 5";
 
