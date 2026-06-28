@@ -803,4 +803,128 @@ mod build_example_query_tests {
             "F-L2-CRIT-001: unknown sensor must NOT emit lowercase severity literals. Got: {q}"
         );
     }
+
+    // ── F-P1L2-OBS-001 parse-roundtrip regression guards ─────────────────────
+    //
+    // Purpose: verify that the output of `build_example_query` for each priority-ladder
+    // branch (aggregate / severity-filter / count-recent / column-free) is syntactically
+    // valid PrismQL — i.e., parses without error through `PrismQlParser::parse`.
+    //
+    // Guards against a future grammar or planner change silently making the demo
+    // example non-executable. Each probe uses a representative table + column set that
+    // exercises the branch.
+    //
+    // Branch mapping:
+    //   armis_devices + risk_score Integer → AGGREGATE (Integer col → GROUP BY path)
+    //   crowdstrike_detections + severity String + created_timestamp Datetime → SEVERITY-FILTER
+    //   cyberint_alerts + event_time Datetime (no severity, no Integer) → COUNT-RECENT
+    //   claroty_devices (no Datetime, no Integer) → COLUMN-FREE fallback
+    //
+    // Load-bearing (F-P1L2-OBS-001 / TD-VSDD-059): a grammar regression that makes
+    // any branch non-parseable causes the corresponding assert to fail immediately,
+    // surfacing the breakage before it reaches a demo recording.
+
+    /// F-P1L2-OBS-001: aggregate branch (`SELECT <col>, COUNT(*) FROM <t> GROUP BY <col>
+    /// ORDER BY COUNT(*) DESC LIMIT 10`) parses through PrismQlParser.
+    ///
+    /// Representative table: armis_devices with Integer risk_score.
+    /// The Integer column triggers the aggregate branch (highest priority in the ladder).
+    #[test]
+    fn test_obs001_roundtrip_aggregate_branch_parses() {
+        use prism_query::filter_parser::PrismQlParser;
+        let columns = vec![
+            col("risk_score", ColumnType::Integer),
+            col("name", ColumnType::String),
+        ];
+        let q = build_example_query("armis_devices", &columns);
+        // Verify the aggregate branch was chosen.
+        assert!(
+            q.contains("GROUP BY") && q.contains("COUNT(*)"),
+            "OBS-001 setup: expected aggregate branch for armis_devices+Integer; got: {q}"
+        );
+        let result = PrismQlParser::parse(&q);
+        assert!(
+            result.is_ok(),
+            "F-P1L2-OBS-001: aggregate branch output must parse successfully. \
+             Query: {q:?}. Error: {result:?}"
+        );
+    }
+
+    /// F-P1L2-OBS-001: severity-filter branch (`SELECT * FROM <t> WHERE severity IN
+    /// ('<High>', '<Critical>') LIMIT 50`) parses through PrismQlParser.
+    ///
+    /// Representative table: crowdstrike_detections (known vocabulary: 'High'/'Critical').
+    /// Severity takes priority over count-recent when vocabulary is known.
+    #[test]
+    fn test_obs001_roundtrip_severity_filter_branch_parses() {
+        use prism_query::filter_parser::PrismQlParser;
+        let columns = vec![
+            col("created_timestamp", ColumnType::Datetime),
+            col("severity", ColumnType::String),
+        ];
+        let q = build_example_query("crowdstrike_detections", &columns);
+        // Verify the severity-filter branch was chosen.
+        assert!(
+            q.contains("WHERE severity IN"),
+            "OBS-001 setup: expected severity-filter branch for crowdstrike_detections; got: {q}"
+        );
+        let result = PrismQlParser::parse(&q);
+        assert!(
+            result.is_ok(),
+            "F-P1L2-OBS-001: severity-filter branch output must parse successfully. \
+             Query: {q:?}. Error: {result:?}"
+        );
+    }
+
+    /// F-P1L2-OBS-001: count-recent branch (`SELECT COUNT(*) FROM <t> WHERE <datetime_col>
+    /// > NOW() - INTERVAL '1h'`) parses through PrismQlParser.
+    ///
+    /// Representative table: cyberint_alerts with Datetime event_time, no severity/Integer.
+    /// Datetime col + no severity vocabulary + no Integer → count-recent fallback.
+    #[test]
+    fn test_obs001_roundtrip_count_recent_branch_parses() {
+        use prism_query::filter_parser::PrismQlParser;
+        let columns = vec![
+            col("event_time", ColumnType::Datetime),
+            col("title", ColumnType::String),
+        ];
+        let q = build_example_query("cyberint_alerts", &columns);
+        // Verify the count-recent branch was chosen (no severity vocabulary for cyberint_alerts).
+        assert!(
+            q.contains("COUNT(*)") && q.contains("NOW()") && q.contains("event_time"),
+            "OBS-001 setup: expected count-recent branch for cyberint_alerts; got: {q}"
+        );
+        let result = PrismQlParser::parse(&q);
+        assert!(
+            result.is_ok(),
+            "F-P1L2-OBS-001: count-recent branch output must parse successfully. \
+             Query: {q:?}. Error: {result:?}"
+        );
+    }
+
+    /// F-P1L2-OBS-001: column-free fallback (`SELECT * FROM <t> LIMIT 25`) parses
+    /// through PrismQlParser.
+    ///
+    /// Representative table: claroty_devices (no Datetime, no Integer, no severity).
+    /// All priority-ladder branches skipped → column-free SELECT * fallback.
+    #[test]
+    fn test_obs001_roundtrip_column_free_fallback_parses() {
+        use prism_query::filter_parser::PrismQlParser;
+        let columns = vec![
+            col("uid", ColumnType::String),
+            col("device_category", ColumnType::String),
+        ];
+        let q = build_example_query("claroty_devices", &columns);
+        // Verify the column-free branch was chosen.
+        assert_eq!(
+            q, "SELECT * FROM claroty_devices LIMIT 25",
+            "OBS-001 setup: expected column-free fallback for claroty_devices; got: {q}"
+        );
+        let result = PrismQlParser::parse(&q);
+        assert!(
+            result.is_ok(),
+            "F-P1L2-OBS-001: column-free fallback output must parse successfully. \
+             Query: {q:?}. Error: {result:?}"
+        );
+    }
 }
