@@ -812,13 +812,17 @@ fn test_bc_2_10_016_audit_004_column_sets_loaded_for_all_sensor_tables() {
 /// A WHERE/IN literal in a prompt example query must be a member of the
 /// corresponding valid_values slice.
 const SENSOR_COLUMN_VOCABULARIES: &[(&str, &str, &[&str])] = &[
-    // crowdstrike_detections.status: DTU emits "new" for live detections, "deleted" for tombstones.
-    // Source: generator.rs make_detection_with_ioc() "status": "new"; make_tombstone() "status": "deleted"
-    // NOTE: "contained" is a DEVICE status (make_device / gen_compromised_endpoint sets
-    //       dev["status"] = json!("contained")), never a detection status. Removed to
-    //       prevent over-broad vocabulary that lets a prompt using status='contained' on
-    //       crowdstrike_detections pass the MED-2 guard while returning 0 rows.
-    ("crowdstrike_detections", "status", &["new", "deleted"]),
+    // crowdstrike_detections.status: DTU emits "new" ONLY for live detection records.
+    // Source: generator.rs make_detection_with_ioc() "status": "new" (line ~766).
+    // NOTE: "deleted" is a DEVICE-tombstone status (make_tombstone() "status": "deleted"),
+    //       NOT a detection status. Tombstone records are device surface records and are
+    //       never returned by the detections route. Removed to prevent over-broad vocabulary
+    //       that would allow a prompt using status='deleted' on crowdstrike_detections to
+    //       pass the MED-2 guard while returning 0 rows against live DTU data.
+    // NOTE: "contained" is also a DEVICE status (gen_compromised_endpoint sets
+    //       dev["status"] = json!("contained")), never a detection status.
+    // F-PJL2-LOW-001 fix (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade).
+    ("crowdstrike_detections", "status", &["new"]),
     // crowdstrike_detections.severity: Title-case from severity_id mapping.
     // Source: generator.rs make_detection_with_ioc() 1=>"Low", 2=>"Medium", 3=>"High", _=>"Critical"
     (
