@@ -749,9 +749,12 @@ jobs:
           # S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 added 1 E0004 + 1 E0639:
           #   ExampleKind (exhaustive match, ADR-045 3-tier gate).
           #   SqlPipeQuery (struct literal, BC-2.11.020 SqlPipe AST node).
-          #   Total: 85 + 1 = 86.
+          #   Total: 84 + 2 = 86.
           # S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 AC-021 added 1 E0639 (prism-core error.rs):
           #   UnknownSourceTableDetails (struct literal, E-QUERY-036 available_tables+did_you_mean).
+          #   Total: 86 + 1 = 87.
+          # S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B added 1 E0639 (prism-core error.rs):
+          #   EnrichUdfNotFoundDetails (struct literal, E-QUERY-039 UDF-not-found context).
           #   Total: 87 + 1 = 88.
           E0639_COUNT=$(grep -c 'error\[E0639\]' /tmp/non-exhaustive-check.log || true)
           E0004_COUNT=$(grep -c 'error\[E0004\]' /tmp/non-exhaustive-check.log || true)
