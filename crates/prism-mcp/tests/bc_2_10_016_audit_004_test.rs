@@ -804,11 +804,11 @@ fn test_bc_2_10_016_audit_004_column_sets_loaded_for_all_sensor_tables() {
 const SENSOR_COLUMN_VOCABULARIES: &[(&str, &str, &[&str])] = &[
     // crowdstrike_detections.status: DTU emits "new" for live detections, "deleted" for tombstones.
     // Source: generator.rs make_detection_with_ioc() "status": "new"; make_tombstone() "status": "deleted"
-    (
-        "crowdstrike_detections",
-        "status",
-        &["new", "deleted", "contained"],
-    ),
+    // NOTE: "contained" is a DEVICE status (make_device / gen_compromised_endpoint sets
+    //       dev["status"] = json!("contained")), never a detection status. Removed to
+    //       prevent over-broad vocabulary that lets a prompt using status='contained' on
+    //       crowdstrike_detections pass the MED-2 guard while returning 0 rows.
+    ("crowdstrike_detections", "status", &["new", "deleted"]),
     // crowdstrike_detections.severity: Title-case from severity_id mapping.
     // Source: generator.rs make_detection_with_ioc() 1=>"Low", 2=>"Medium", 3=>"High", _=>"Critical"
     (
@@ -816,9 +816,12 @@ const SENSOR_COLUMN_VOCABULARIES: &[(&str, &str, &[&str])] = &[
         "severity",
         &["Low", "Medium", "High", "Critical"],
     ),
-    // claroty_alerts.status: DTU emits "Unresolved" for all non-tombstone alerts.
+    // claroty_alerts.status: DTU emits "Unresolved" for all alert records.
     // Source: generator.rs make_alert() "status": "Unresolved"
-    ("claroty_alerts", "status", &["Unresolved", "tombstone"]),
+    // NOTE: "tombstone" is a DEVICE status (gen_high_churn() sets device records
+    //       to "status": "tombstone"), never an alert status. Removed to prevent
+    //       over-broad vocabulary on the alerts table.
+    ("claroty_alerts", "status", &["Unresolved"]),
     // armis_alerts.status: DTU emits "UNHANDLED" for all alert records.
     // Source: generator.rs build_alert() "status": "UNHANDLED"
     ("armis_alerts", "status", &["UNHANDLED"]),
