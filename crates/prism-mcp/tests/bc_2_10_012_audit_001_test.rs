@@ -1,4 +1,4 @@
-//! Red Gate test for S-DEMO-FIDELITY-REMEDIATION-001 AC-AUDIT-001 — BC-2.10.012 v1.4.
+//! Red Gate test for S-DEMO-FIDELITY-REMEDIATION-001 AC-AUDIT-001 — BC-2.10.012 v1.5.
 //!
 //! Finding AUDIT-001: `build_tables_for_client` emits bare table names (`alerts`,
 //! `devices`) instead of sensor-prefixed names (`crowdstrike_alerts`,
@@ -19,8 +19,8 @@
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
-//! | test_bc_2_10_012_audit_001_sensor_prefixed_table_names | AUDIT-001 | BC-2.10.012 v1.4 |
-//! | test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique | AUDIT-001 (OBS-2) | BC-2.10.012 v1.4 |
+//! | test_bc_2_10_012_audit_001_sensor_prefixed_table_names | AUDIT-001 | BC-2.10.012 v1.5 |
+//! | test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique | AUDIT-001 (OBS-2) | BC-2.10.012 v1.5 |
 
 use prism_core::column::ColumnType;
 use prism_mcp::tools::prism_describe::handle_prism_describe;
@@ -87,7 +87,7 @@ fn make_config_manager_crowdstrike_two_tables() -> Arc<arc_swap::ArcSwap<ConfigM
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// BC-2.10.012 v1.4 AUDIT-001 — Red Gate test.
+/// BC-2.10.012 v1.5 AUDIT-001 — Red Gate test.
 ///
 /// `handle_prism_describe("crowdstrike", ...)` must return table descriptors with
 /// `name` values set to `crowdstrike_alerts` and `crowdstrike_devices` (sensor-prefixed),
