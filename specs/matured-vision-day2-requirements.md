@@ -3535,6 +3535,50 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
     config fold) + E-TENANT-VISIBILITY-001 (visibility-grant matrix + preset ladder + consent
     + key-custody mechanisms). Both PROPOSED, not in STORY-INDEX.
 
+- **C18 RBAC depth + Compliance Profile mechanism DECIDED + CAPTURED 2026-06-27 (human).**
+  Capture artifacts: `specs/day2-design-decisions/ADR-PROP-rbac-depth.md` +
+  `specs/day2-design-decisions/ADR-PROP-compliance-profiles.md` (`do_not_execute: true`; real
+  ADR numbers deferred to morph). ADS amended to v1.2 with PAT-ADS-12, PAT-ADS-13, INV-ADS-09.
+  - **C18 RBAC depth (ADR-PROP-rbac-depth.md):** Layered RBAC + ReBAC + ABAC authz model;
+    BUILD Prism-native Rust Zanzibar-tuple core (in-process, embeddable at headless satellites;
+    fallback order casbin-rs → opa-wasm → gatehouse); resource scoping = connector / satellite /
+    source / table / action-class as first-class authz resources, columns via ABAC sensitivity
+    tags (NOT per-column roles — avoids role explosion); strictly-downward inheritance via C19
+    closure table, escalation-up prevention as a tested authz-schema invariant; decision-level
+    audit (log the DECISION — subject, resource, action, attributes considered, policy version,
+    outcome — not just the access event); central-authored / edge-enforced signed policy bundles
+    (PAT-ADS-03/10); IdP group → Prism internal role mapping + SCIM 2.0 deprovisioning as
+    fast-path revocation; PII bulk-export hard-blocked-by-default (configurable via Compliance
+    Profile). SoD backend primitives shipped Day-2; full four-eyes workflow state machine = Day-3
+    (E-WORKFLOW-ENGINE-001). Proposed epics: E-CENTRAL-AUTHZ-001 + E-AUTHN-PROVISIONING-001.
+  - **Compliance Profile mechanism (ADR-PROP-compliance-profiles.md):** monotone tighten-only
+    named/versioned/signed settings bundles — `baseline ⊂ soc2 ⊂ iso27001 ⊂ iec-62443-ot ⊂
+    nerc-cip`; OT is a Profile we ship, NOT a code fork (P-ADS-11 / AP-ADS-07); OSCAL
+    param+constraint model (`{ lock = V }` vs `{ min, max }`) for hard-locked vs tunable axes;
+    conformance = boolean `compliant|drifting` gate + itemized drift list + audit-before-enforce
+    `report-only` mode (NOT a flat compliance percentage); open custom-profile authorship
+    (MSSPs extend shipped presets, tighten-only, same validation); compliance-authority-only
+    exemptions on regulatory hard-locks (tenant child-admin cannot exempt `regulatory_class`-
+    forced hard-locks); `regulatory_class` becomes a profile selector/floor per D-PROF-6
+    (`standard ⟹ ≥baseline`; `ot_critical ⟹ ≥iec-62443-ot`; `nerc_cip ⟹ ≥nerc-cip`);
+    deployment-profile and compliance-profile are DISTINCT named axes sharing infrastructure,
+    never collapsed. Proposed epic: E-COMPLIANCE-PROFILES-001.
+  - **ADS amendments (v1.2):** PAT-ADS-12 "Configurable Compliance Profile" added (Section B);
+    PAT-ADS-13 "Layered-Authz (RBAC + ReBAC + ABAC)" added (Section B); INV-ADS-09
+    "Decision-Level Authorization Audit" added (Section C.1 + C.2 checklist); traceability
+    rows for ADR-PROP-rbac-depth.md and ADR-PROP-compliance-profiles.md added (Section E).
+  - **Day-3 Workflow Engine epic (E-WORKFLOW-ENGINE-001)** consolidates: C9 configurable
+    approval/review workflows (human-directed deferral); C18 SF-5 full four-eyes/SoD workflow
+    state machine (requested → pending → approved → executing → completed | denied); C18 SF-2
+    per-record PII-field unmask approval workflow; C15 HITL configurable human-in-the-loop gate.
+    Profile `[workflow_requirements]` block is the contract surface the Day-3 engine must honor.
+  - ADS conformance: PASS — all INV-ADS-01..09 satisfied (checklists in ADR-PROP §10).
+  - Cross-links: C19 (closure table, regulatory_class → profile selector), C9 (signed bundles,
+    Config-DB-Authoritative), C15 (action-class metadata, approver roles), C17 (key-escrow ops
+    governed by RBAC approver roles), C16 (ABAC masking = detokenize-at-surface enforcement),
+    C11 (metering roles distinct from data/config roles), C20 (NERC-CIP requirements expressed
+    as profile:nerc-cip, not a code branch).
+
 ### 16.5 Status & boundaries reminder
 
 - This is a **CAPTURE artifact** (`do_not_execute: true`). Nothing here modifies the live brief/PRD/

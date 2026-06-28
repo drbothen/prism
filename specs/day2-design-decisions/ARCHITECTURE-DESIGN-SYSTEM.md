@@ -780,6 +780,97 @@ context.md` cross-links and S3 agent runtime autonomy-level design).
 
 ---
 
+### PAT-ADS-12 — Configurable Compliance Profile
+
+**When to use.** A feature has a restrictive security/compliance posture that varies by
+vertical or regulatory regime and must NOT be hardcoded. Examples: staleness-window
+thresholds for OT/NERC-CIP action-gating, masking/bulk-export strictness, key-custody
+requirements, audit retention floors, electronic-security-perimeter rules, and
+workflow-approval requirements.
+
+**Structure.**
+1. Define the posture axes (staleness, masking, action-gating, key-custody, audit, etc.)
+   as a NAMED, VERSIONED, SIGNED TOML/JSON document in the Config-DB (P-ADS-09). Each
+   axis is either **hard-locked** (`{ lock = V }`) or **tunable-within-range**
+   (`{ min, max }` / `{ allowed = [...] }`).
+2. Five shipped presets form a monotone tighten-only inclusion chain:
+   `baseline ⊂ soc2 ⊂ iso27001 ⊂ iec-62443-ot ⊂ nerc-cip`. Every preset is a
+   strict superset of restrictions relative to the preceding one; no preset loosens
+   any setting of its parent.
+3. A Compliance Profile is **Central-authored only** (INV-ADS-04), resolved at Central
+   plan-time by folding the C19 closure-table ancestor set (tighten-only fold),
+   and distributed to satellites as a FLATTENED signed bundle (PAT-ADS-03). Satellites
+   never compute profile inheritance — they receive and enforce the flattened result.
+4. **Tighten-only monotone:** the Central authoring engine programmatically REJECTS any
+   profile document that attempts to loosen a setting below its parent preset's lock or
+   tunable range. Out-of-range authoring is rejected (not warned), exceeding the
+   precedents (AWS/Azure/SCAP rely on human governance).
+5. Ride PAT-ADS-10 Two-Tier-Canary-Apply for HIGH-BLAST profile tightening (e.g.,
+   flipping a subtree from `soc2` to `nerc-cip` enforce mode). Deploy in `report-only`
+   (audit/warn) mode first — see drift, remediate, then flip to `enforce`.
+6. **Conformance reporting:** per-setting `compliant | drifting | exempt` status PLUS
+   a boolean gate (any hard-locked-setting drift ⟹ node is non-compliant) PLUS an
+   itemized drift list. NOT a single flat compliance percentage (which masks critical
+   drift). A `[workflow_requirements]` directive the Day-3 engine has not yet implemented
+   reports as `drifting`, never `compliant`.
+7. **Two distinct named axes — never collapsed:** deployment-profile (P-ADS-11: WHERE/HOW
+   Prism runs) and Compliance-Profile (HOW STRICT the posture is) share the signed-bundle
+   + canary mechanism but remain orthogonal. A `saas` deployment can host a `nerc-cip`
+   tenant; an `air-gap` deployment can run `baseline`. A non-satisfiable combination
+   (compliance profile demands a capability the deployment profile cannot provide) is a
+   conformance ERROR at authoring time, not a silent downgrade.
+8. **Custom profiles:** MSSPs may author custom profiles that `extends` a shipped preset
+   and add further tighten-only restrictions. Custom profiles undergo the same Central
+   authoring-boundary validation as shipped presets.
+
+**Originating feature.** `ADR-PROP-compliance-profiles.md`.
+
+**Canonical expression.** This pattern is the concrete structural expression of P-ADS-13
+(Configurable-Not-Prescriptive) / P-ADS-11 (Single-Codebase) / AP-ADS-07
+(No-Deployment-Model-Code-Forks) for the OT/regulatory-restrictiveness concern. "OT is a
+shipped Profile, not a fork" — this pattern is how that statement is operationalized.
+
+---
+
+### PAT-ADS-13 — Layered-Authz (RBAC + ReBAC + ABAC)
+
+**When to use.** A feature needs fine-grained, hierarchy-aware, resource-scoped
+authorization — where a flat single-paradigm model would either produce role explosion
+(per-column RBAC roles) or brittle traversal (ABAC attribute-encoding of hierarchy).
+The layered model is the standard for MSSP platforms serving regulated industries
+(NERC CIP-004/005, SOC2 CC6.x, ISO 27001 Annex A.9).
+
+**Structure.**
+1. **RBAC tier** — Human-facing role surface (`analyst / lead / admin / approver`).
+   Maps to MSSP org structure; satisfies SOC2 CC6.x / ISO A.9 / NERC CIP-004 auditor
+   expectations. Role bindings take the form `(role, scope-node)` filtered by the C19
+   closure table; a binding without a scope-node anchor is invalid.
+2. **ReBAC tier** — Zanzibar-style relationship-tuple graph for the resource hierarchy
+   (`tenant → connector → source → table → action-class`). Inheritance propagates
+   **strictly downward** along edges; escalation-up is a tested authz-schema invariant.
+   The C19 closure table is the materialized tenant-tier projection of the broader
+   relationship graph.
+3. **ABAC tier** — Sensitivity tags and dynamic conditions for column/field masking
+   (`sensitivity:PII`) and row filters. Columns are NOT first-class role-scoped
+   resources; they are governed by ABAC sensitivity tags at catalog level to avoid
+   role explosion. One policy covers all `sensitivity:PII` columns.
+4. **Enforcement point:** the PrismQL query planner is the Policy Enforcement Point
+   (PEP). Every PrismQL query is decomposed into source/table/column accesses at
+   plan time; each is checked against the active policy before fan-out.
+5. **Central-authored / edge-enforced:** policy is authored ONLY at Central (P-ADS-09 /
+   INV-ADS-04) and distributed to satellites as signed, versioned policy bundles
+   (PAT-ADS-03). Each satellite runs a local PDP + PEP and enforces fully offline.
+6. **Decision-level audit:** every authorization DECISION (subject, resource, action,
+   attributes considered, policy bundle version, outcome) is logged — not merely the
+   access event (INV-ADS-09). Offline satellites buffer and reconcile.
+7. **Revocation-lag posture** is a Compliance Profile setting (PAT-ADS-12), not a
+   hardcoded constant in the authz engine. OT-affecting actions' staleness behavior
+   lives in `profile:iec-62443-ot` and `profile:nerc-cip`, not in a `#[cfg]` branch.
+
+**Originating feature.** `ADR-PROP-rbac-depth.md`.
+
+---
+
 ## Section C — Invariants and Conformance
 
 ### C.1 — Cross-Cutting Invariants (INV-ADS-NNN)
@@ -798,6 +889,7 @@ Any new ADR-PROP or epic that violates an INV-ADS-NNN is non-conforming.
 | INV-ADS-06 | Credentials and raw sensitive data NEVER transit AI context. AI backends receive feature vectors or masked representations only. | AD-017 | `CLAUDE.md` + `ADR-PROP-ml-behavior-analytics-depth.md` |
 | INV-ADS-07 | OCSF normalization applies at ALL adapter boundaries. No trusted-source exemption. | D-C4-1 (no-exemption rule) | `ADR-PROP-dynamic-schema-connectors.md` |
 | INV-ADS-08 | Embedded air-gap deployment is the default reference target. No feature may require internet connectivity for correct operation in the air-gap profile. | SS-26 SoftwareKms HD-1 | `secret-subsystem-sketch.md` |
+| INV-ADS-09 | Every authorization DECISION (subject, resource, action, attributes considered, policy bundle version, outcome) is logged at decision-resolution time — not merely at the access event. Offline satellites buffer decision logs locally and reconcile to Central on reconnect. | C18 decision-log (strongest enforcement); offline buffer + reconcile | `ADR-PROP-rbac-depth.md` D-C18-7 |
 
 ### C.2 — Conformance Checklist
 
@@ -865,6 +957,7 @@ INV-ADS check (all eight):
   [ ] INV-ADS-06: AI-opaque
   [ ] INV-ADS-07: OCSF normalization at all boundaries
   [ ] INV-ADS-08: Air-gap deployment is valid reference profile
+  [ ] INV-ADS-09: authorization decisions are logged, not just access
 ```
 
 ### C.3 — Known Conformance Gaps (from Ripple Audit)
@@ -1130,6 +1223,8 @@ systematic conformance run against the Day-2 ADR-PROP corpus. Sections:
 | `ADR-PROP-widget-dsl-render-and-schema-validation.md` | P-ADS-01 | — | — |
 | `prismql-sequence-sugar-decisions.md` | P-ADS-01, P-ADS-09 | — | INV-ADS-04 |
 | `ml-depth-phasing.md` | P-ADS-05, P-ADS-07 | PAT-ADS-05 | INV-ADS-06 |
+| `ADR-PROP-rbac-depth.md` | P-ADS-01, P-ADS-06, P-ADS-09, P-ADS-13 | PAT-ADS-13, PAT-ADS-03, PAT-ADS-10 | INV-ADS-03, INV-ADS-04, INV-ADS-05, INV-ADS-06, INV-ADS-09 |
+| `ADR-PROP-compliance-profiles.md` | P-ADS-09, P-ADS-11, P-ADS-12, P-ADS-13 | PAT-ADS-12, PAT-ADS-03, PAT-ADS-10 | INV-ADS-02, INV-ADS-03, INV-ADS-04 |
 
 ### CLAUDE.md Cross-References
 
@@ -1157,5 +1252,6 @@ architecture tier and must be consistent with this ADS:
 |---------|------|--------|
 | v1.0 | 2026-06-27 | Initial capture — 12 principles, 11 patterns, 8 invariants, 11 anti-patterns; seeded from ripple audit. |
 | v1.1 | 2026-06-27 | P-ADS-02 clarification (C19 operator-zero-access spectrum + MSSP mediated-access semantics); AP-ADS-11 Cross-Tenant DEK Grantee added (C19 key-plane isolation); P-ADS-13 Configurable-Not-Prescriptive (Policy-as-Configuration) added (C18 configurability directive); P-ADS-11 cross-reference to P-ADS-13 added. |
+| v1.2 | 2026-06-27 | C18 capture: added PAT-ADS-12 (Configurable Compliance Profile), PAT-ADS-13 (Layered-Authz), INV-ADS-09 (Decision-Level Authorization Audit); INV-ADS-09 check line added to Section C.2 Conformance Checklist; traceability rows for ADR-PROP-rbac-depth.md + ADR-PROP-compliance-profiles.md added to Section E. |
 
-*End of Prism Architecture Design System v1.1 — 2026-06-27*
+*End of Prism Architecture Design System v1.2 — 2026-06-27*

@@ -360,6 +360,29 @@ may treat parent decryption of BES/OT data as a change in who "controls" critica
 data, potentially extending CIP obligations. Consent may not be purely at the child's discretion
 in regulated contexts. Ties C20 (OT/NERC-CIP).
 
+**Compliance-Profile integration (ADR-PROP-compliance-profiles.md, D-PROF-6).** `regulatory_class`
+is now realized as a **Compliance-Profile SELECTOR / FLOOR** via the profile engine (PAT-ADS-12),
+not as bespoke regulatory logic in the tenancy code:
+
+| `regulatory_class` value | Forced profile floor | Effect |
+|---|---|---|
+| `standard` | `≥ baseline` | Normal tighten-only inheritance; no additional forcing |
+| `ot_critical` | `≥ iec-62443-ot` | Node + all descendants cannot drop below `iec-62443-ot` |
+| `nerc_cip` | `≥ nerc-cip` | Node + all descendants cannot drop below `nerc-cip` |
+
+The forced profile is a floor the node and its descendants cannot drop below — tighten-only, matching
+the parent-deny-is-final semantics of D-C19-3 applied to profile settings. The `regulatory_class`
+attribute SELECTS the floor; the ENFORCEMENT lives in the generic profile engine (PAT-ADS-12) rather
+than as bespoke regulatory branches in the tenancy or authz code. This removes any
+`if regulatory_class == nerc_cip { ... }` branches from the codebase.
+
+The **behavioral semantics are unchanged** by this reframe: `nerc_cip` still forces P3 OFF and
+forces mechanism (d) BYOC remote-op via the `nerc-cip` profile's `[settings.parent_visibility]
+max_preset = { lock = "P0" }` and `[settings.key_custody] require_mechanism = { lock = "d" }` axes.
+What changes is the implementation path — profile engine, not bespoke code branch — which conforms
+to P-ADS-11 (Single-Codebase) and AP-ADS-07 (No-Deployment-Model-Code-Forks). See
+`ADR-PROP-compliance-profiles.md` D-PROF-6 for the full profile-selector/floor decision record.
+
 ---
 
 ## 4 — MSSP Reconciliation
