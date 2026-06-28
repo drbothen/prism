@@ -797,7 +797,7 @@ impl QueryEngine {
 
         // S-3.13 Step 1a: Plan-time table availability gate (BC-2.11.001, AC-2, AC-8).
         //
-        // Gate ordering (BC-2.11.019 v1.4, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
+        // Gate ordering (BC-2.11.019 v1.5, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
         //   E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038 (column not found)
         //   → E-QUERY-039 (enrich UDF not found, LAST).
         //
@@ -847,7 +847,7 @@ impl QueryEngine {
         // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: Plan-time enrichment UDF gate (E-QUERY-039).
         //
         // Fires LAST — after E-QUERY-037 (table gate) and E-QUERY-038 (column gate).
-        // Gate ordering (BC-2.11.019 v1.4): E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+        // Gate ordering (BC-2.11.019 v1.5): E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
         //
         // Validates that all enrichment function names in the query (pipe: `| enrich name(col)`;
         // SQL: `SELECT name(col)` or `WHERE name(col) = val`) are registered per-field UDF names
@@ -1117,7 +1117,7 @@ impl QueryEngine {
         PrismError,
     > {
         // S-3.13: plan-time table availability gate for scheduled queries (AC-8 mode-agnostic).
-        // Gate ordering (BC-2.11.019 v1.4, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
+        // Gate ordering (BC-2.11.019 v1.5, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
         //   E-QUERY-037 (table) → E-QUERY-038 (column) → E-QUERY-039 (enrich) → E-QUERY-011 (capability).
         // H1 fix: capability gate moved AFTER 037/038/039 to match execute_inner canonical order.
         // Rationale: "table not found" and "column not found" are more actionable first errors than
@@ -1150,7 +1150,7 @@ impl QueryEngine {
 
         // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: E-QUERY-039 enrichment UDF gate for
         // scheduled queries — fires LAST among content gates (after E-QUERY-037 and E-QUERY-038).
-        // Gate ordering (BC-2.11.019 v1.4): E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+        // Gate ordering (BC-2.11.019 v1.5): E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
         check_enrich_udf_availability(query_str, self.infusion_registry.as_deref())?;
 
         // H1 fix (S-DEMO-FIDELITY-REMEDIATION-001): capability gate (E-QUERY-011) fires AFTER
@@ -1372,6 +1372,43 @@ fn check_table_availability(
 // E-QUERY-039 plan-time enrichment UDF gate (S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B)
 // ---------------------------------------------------------------------------
 
+/// DataFusion built-in scalar function names — computed once at first use via LazyLock.
+///
+/// The enrich gate must NOT flag a scalar name that DataFusion can resolve as a built-in
+/// (e.g. `lower`, `upper`, `coalesce`, `concat`, `length`, `abs`, `round`, `cast`, …).
+/// These are registered in the default `SessionContext` via `build_session_context` →
+/// `SessionStateDefaults::register_scalar_functions`. The PrismQL AST renderer emits
+/// ALL unrecognized scalar function calls as `ScalarFunc::Unknown(name)`, including
+/// DataFusion built-ins — so the gate must exclude them explicitly.
+///
+/// Mechanism: call `SessionStateDefaults::default_scalar_functions()` once to enumerate
+/// every built-in Arc<ScalarUDF>, collect their lowercase names into a HashSet, and
+/// store it in a static LazyLock. Per-query cost: a single O(1) HashSet lookup per
+/// collected name. LazyLock initialization happens at first gate invocation (process start
+/// in production; first test run otherwise) — not per query.
+///
+/// Case-insensitive exclusion: DataFusion normalizes function names to lowercase
+/// internally; we lowercase the collected name before the lookup to match.
+///
+/// BC-2.11.019 v1.5 §Gate firing condition: fire E-QUERY-039 ONLY for a name that is
+/// neither a DataFusion built-in scalar NOR a registered enrichment UDF.
+/// F-PJL1-HIGH-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade).
+static DATAFUSION_BUILTIN_SCALAR_NAMES: std::sync::LazyLock<std::collections::HashSet<String>> =
+    std::sync::LazyLock::new(|| {
+        use datafusion::execution::SessionStateDefaults;
+        let mut names = std::collections::HashSet::new();
+        for udf in SessionStateDefaults::default_scalar_functions() {
+            // Primary name (e.g. "character_length").
+            names.insert(udf.name().to_ascii_lowercase());
+            // Aliases (e.g. "length", "char_length" for character_length).
+            // DataFusion resolves SQL function calls by both name and aliases.
+            for alias in udf.aliases() {
+                names.insert(alias.to_ascii_lowercase());
+            }
+        }
+        names
+    });
+
 /// Walk ALL scalar-expr positions in a `SqlQuery` and collect `ScalarFunc::Unknown` names.
 ///
 /// This is the SINGLE canonical walk used by `check_enrich_udf_availability` for both
@@ -1390,7 +1427,7 @@ fn check_table_availability(
 /// `Join.on` is typed as `Expr` (not `Predicate`) in the AST, so it goes through
 /// `collect_unknown_scalar_from_expr` directly.
 ///
-/// S-DEMO-FIDELITY-REMEDIATION-001 C1+C2 fix; BC-2.11.019 v1.4.
+/// S-DEMO-FIDELITY-REMEDIATION-001 C1+C2 fix; BC-2.11.019 v1.5.
 fn collect_unknown_scalars_from_sql_query(sq: &crate::ast::SqlQuery, out: &mut Vec<String>) {
     use crate::ast::SelectItem;
 
@@ -1495,10 +1532,10 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
     }
 }
 
-/// Plan-time enrichment UDF availability gate — E-QUERY-039 (BC-2.11.019 v1.4).
+/// Plan-time enrichment UDF availability gate — E-QUERY-039 (BC-2.11.019 v1.5).
 ///
 /// Fires AFTER `check_table_availability` AND `check_query_column_availability`
-/// (BC-2.11.019 v1.4 §Gate ordering: gate sequence is 001 → 037 → 038 → 039;
+/// (BC-2.11.019 v1.5 §Gate ordering: gate sequence is 001 → 037 → 038 → 039;
 /// enrich gate is last in the chain).
 ///
 /// Parses the query string, collects all enrichment function names used in the query
@@ -1509,19 +1546,21 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
 /// - `registry` is `None`: skip immediately (enrichment not configured).
 /// - Query fails to parse: return `Ok(())` — parse errors handled downstream.
 /// - No enrichment names found in the AST: return `Ok(())` (query doesn't use enrichment).
+/// - Name is a DataFusion built-in scalar: skip (resolved by `ctx.sql()` — not an enrichment).
 ///
 /// # SQL path detection
 /// SQL-mode enrichment: `ScalarFunc::Unknown(name)` in `FuncCall::Scalar` nodes in
 /// SELECT projections. Only `SelectItem::Expr` entries are scanned (not `*`).
-/// This is intentionally broad — any unknown scalar function in a SQL SELECT is treated
-/// as a potential enrichment UDF when the infusion registry is active.
+/// DataFusion built-in scalars (lower, upper, coalesce, etc.) are excluded via
+/// `DATAFUSION_BUILTIN_SCALAR_NAMES` before the registered-UDF check.
 ///
 /// # Pipe path detection
 /// Pipe-mode enrichment: `PipeStage::Enrich(EnrichStage { infusion, .. })` nodes in
 /// the pipe stage list. The `infusion` field holds the caller-supplied UDF name.
 ///
 /// # Reference
-/// S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.4; error-taxonomy.md E-QUERY-039.
+/// S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.5; error-taxonomy.md E-QUERY-039.
+/// F-PJL1-HIGH-001 (Pass-J LOCAL cascade): DataFusion built-in exclusion added.
 fn check_enrich_udf_availability(
     query_str: &str,
     registry: Option<&prism_spec_engine::InfusionRegistry>,
@@ -1591,7 +1630,16 @@ fn check_enrich_udf_availability(
     }
 
     // Validate each enrichment name against the registered UDF name set.
+    // BC-2.11.019 v1.5: skip names that are DataFusion built-in scalars —
+    // they are resolvable by ctx.sql() and must NOT trigger E-QUERY-039.
+    // F-PJL1-HIGH-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade).
     for requested in &enrich_fn_names {
+        let requested_lower = requested.to_ascii_lowercase();
+        if DATAFUSION_BUILTIN_SCALAR_NAMES.contains(&requested_lower) {
+            // This name is a DataFusion built-in (e.g. lower, upper, coalesce).
+            // DataFusion will resolve it in ctx.sql(); skip the enrich gate.
+            continue;
+        }
         if !registered_names.contains(requested.as_str()) {
             // Requested name is not a registered per-field UDF name.
             // Build available_infusions from all registered per-field names.
@@ -4733,7 +4781,7 @@ mod sqlpipe_gate_sweep_tests {
     /// (FROM + JOIN sources) and returns E-QUERY-011 when `prism_audit` is present and no
     /// AuditRead capability is provided.
     ///
-    /// F-P1L4-MED-001 / BC-2.11.019 v1.4 / H1 fix (S-DEMO-FIDELITY-REMEDIATION-001)
+    /// F-P1L4-MED-001 / BC-2.11.019 v1.5 / H1 fix (S-DEMO-FIDELITY-REMEDIATION-001)
     #[tokio::test]
     async fn test_h1_gate_ordering_discriminating_table_fires_before_capability() {
         use crate::table_registry::TableRegistry;

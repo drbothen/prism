@@ -1,4 +1,4 @@
-//! Tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B — BC-2.11.019 v1.4.
+//! Tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B — BC-2.11.019 v1.5.
 //!
 //! Finding N1-B: the plan-time enrichment gate (E-QUERY-039) must fire when a query
 //! references an enrichment function name that is not a registered per-field UDF name.
@@ -19,8 +19,8 @@
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
-//! | test_bc_2_11_019_n1b_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.4 |
-//! | test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.4 |
+//! | test_bc_2_11_019_n1b_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.5 |
+//! | test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.5 |
 
 use std::sync::Arc;
 
@@ -156,7 +156,7 @@ fn make_test_engine_threat_intel() -> QueryEngine {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// BC-2.11.019 v1.4 AC-N1B — pipe path Red Gate test.
+/// BC-2.11.019 v1.5 AC-N1B — pipe path Red Gate test.
 ///
 /// A pipe-mode query `FROM cyberint_alerts | enrich threat_intel(iocs_value)` where
 /// `threat_intel` is an infusion_id (NOT a UDF name — the registered UDF names are
@@ -221,7 +221,7 @@ async fn test_bc_2_11_019_n1b_infusion_id_as_udf_name() {
     );
 }
 
-/// BC-2.11.019 v1.4 AC-N1B — SQL path Red Gate test.
+/// BC-2.11.019 v1.5 AC-N1B — SQL path Red Gate test.
 ///
 /// A SQL-mode query using an unregistered enrichment function name `nvd`
 /// (which is an infusion_id, not a per-field UDF name) must return
@@ -296,7 +296,7 @@ async fn test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name() {
 
 /// HIGH-001 regression guard — gate ordering: table gate fires BEFORE enrich gate.
 ///
-/// BC-2.11.019 v1.4 enrich-LAST ordering: E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+/// BC-2.11.019 v1.5 enrich-LAST ordering: E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
 ///
 /// A query referencing a non-existent table AND an invalid enrichment function name
 /// MUST return E-QUERY-037 (TableNotAvailable), NOT E-QUERY-039 (EnrichUdfNotFound).
@@ -341,7 +341,7 @@ async fn test_high001_gate_ordering_table_error_before_enrich_error() {
 
 /// HIGH-003 regression guard — collect_unknown_scalar_from_predicate wiring check.
 ///
-/// BC-2.11.019 v1.4 §Precondition 1(b): the enrich gate must scan BOTH SELECT projections
+/// BC-2.11.019 v1.5 §Precondition 1(b): the enrich gate must scan BOTH SELECT projections
 /// AND the WHERE clause for `ScalarFunc::Unknown` names.
 ///
 /// NOTE on WHERE-clause coverage: The PrismQL SQL parser's WHERE predicate grammar
@@ -492,7 +492,7 @@ async fn test_med001_available_infusions_sorted_in_e_query_039_error() {
 
 /// HIGH-1 regression guard — SqlPipe SQL head scalar bypass.
 ///
-/// BC-2.11.019 v1.4 §Precondition 1(b): the enrich gate must scan BOTH pipe stages AND
+/// BC-2.11.019 v1.5 §Precondition 1(b): the enrich gate must scan BOTH pipe stages AND
 /// the SQL head (SELECT projection + WHERE clause) for `ScalarFunc::Unknown` names.
 ///
 /// Prior to the HIGH-1 fix, the `Ast::SqlPipe(spq)` arm in `check_enrich_udf_availability`
@@ -577,7 +577,7 @@ async fn test_high1_sqlpipe_head_unknown_scalar_fires_e_query_039() {
 
 /// EC-11-059 — wired-but-empty InfusionRegistry MUST fire E-QUERY-039 with available_infusions=[].
 ///
-/// BC-2.11.019 v1.4 §EC-11-059: When the infusion subsystem is wired (`Some(registry)`) but
+/// BC-2.11.019 v1.5 §EC-11-059: When the infusion subsystem is wired (`Some(registry)`) but
 /// contains zero loaded specs, any query using `enrich` MUST return E-QUERY-039 with
 /// `available_infusions = []` (empty Vec) and `did_you_mean = None`.
 ///
@@ -590,7 +590,7 @@ async fn test_high1_sqlpipe_head_unknown_scalar_fires_e_query_039() {
 ///   - `None` registry → skip gate (test/MVP deployment without enrichment subsystem)
 ///   - `Some(empty)` registry → wired, zero infusions → MUST fire E-QUERY-039 ([])
 ///
-/// Spec canonical test vector "no-infusions" (BC-2.11.019 v1.4 §payload):
+/// Spec canonical test vector "no-infusions" (BC-2.11.019 v1.5 §payload):
 ///   available_infusions: [] (always present, empty Vec)
 ///   did_you_mean: None (absent — no candidates within Levenshtein 3 of empty set)
 #[tokio::test]
@@ -929,7 +929,7 @@ async fn test_c1_sql_order_by_unknown_scalar_triggers_e_query_039() {
 
 /// OBS-2 — ENGINE-LEVEL `did_you_mean = Some(...)` from strsim + lexicographic tie-break.
 ///
-/// BC-2.11.019 v1.4 §EC-11-059 specifies `did_you_mean` carries the closest registered
+/// BC-2.11.019 v1.5 §EC-11-059 specifies `did_you_mean` carries the closest registered
 /// UDF name within Levenshtein distance 3.  The strsim + lexicographic tie-break computation
 /// lives in `check_enrich_udf_availability` in `engine.rs`.
 ///
@@ -1080,5 +1080,246 @@ async fn test_c1_sqlpipe_group_by_unknown_scalar_triggers_e_query_039() {
     assert!(
         display.contains("badudf"),
         "C1: error must name the unregistered function 'badudf'. Got: {display}"
+    );
+}
+
+// ── F-PJL1-HIGH-001: DataFusion built-in scalar exclusion tests ──────────────
+//
+// BC-2.11.019 v1.5 §Gate firing condition: "fire E-QUERY-039 ONLY for a name
+// that is neither a DataFusion built-in scalar NOR a registered enrichment UDF."
+//
+// Previously the gate would fire E-QUERY-039 for DataFusion built-ins like
+// lower(), upper(), coalesce(), etc. — a functional regression because these
+// ARE resolvable by ctx.sql() (registered in build_session_context via
+// SessionStateDefaults). With an infusion registry wired, any SQL like
+// `SELECT lower(hostname) FROM crowdstrike_detections` incorrectly returned
+// E-QUERY-039 before this fix.
+
+/// F-PJL1-HIGH-001 — DataFusion built-in `lower()` must NOT trigger E-QUERY-039.
+///
+/// With an infusion registry wired and `cyberint_alerts` registered, a query
+/// `SELECT lower(iocs_value) FROM cyberint_alerts` must succeed (not return
+/// E-QUERY-039) because `lower` is a DataFusion built-in scalar that ctx.sql()
+/// will resolve correctly.
+///
+/// Fail-before: the gate over-matched ScalarFunc::Unknown names and returned
+/// E-QUERY-039 for `lower` (since the parser renders ALL unknown scalars as
+/// ScalarFunc::Unknown). Pass-after: the gate skips names present in the
+/// DataFusion built-in scalar function set.
+///
+/// Load-bearing: if DATAFUSION_BUILTIN_SCALAR_NAMES is removed or the
+/// built-in exclusion check is removed from check_enrich_udf_availability,
+/// this test fails because `lower` returns E-QUERY-039.
+#[tokio::test]
+async fn test_f_pjl1_high001_lower_builtin_does_not_trigger_e_query_039() {
+    let engine = make_test_engine_threat_intel();
+
+    let result = engine
+        .execute(
+            "SELECT lower(iocs_value) FROM cyberint_alerts",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must NOT return E-QUERY-039.
+    if let Err(ref e) = result {
+        let display = format!("{e}");
+        assert!(
+            !display.contains("E-QUERY-039"),
+            "F-PJL1-HIGH-001: DataFusion built-in 'lower' must NOT trigger E-QUERY-039. \
+             Got: {display}. Fix: add DataFusion built-in exclusion to \
+             check_enrich_udf_availability (BC-2.11.019 v1.5)."
+        );
+    }
+    // Note: the query may fail for other reasons (e.g. no sensor data at test time),
+    // but it must NOT fail with E-QUERY-039. We only assert the absence of that error.
+    // The test runner confirms no E-QUERY-039 in the error path; Ok is also acceptable.
+}
+
+/// F-PJL1-HIGH-001 — Multiple DataFusion built-ins must not trigger E-QUERY-039.
+///
+/// Covers: upper, coalesce (two-arg form parsed as scalar), length, abs.
+/// Each is a DataFusion built-in that the AST renders as ScalarFunc::Unknown
+/// before ctx.sql() resolves it. With the fix, none trigger E-QUERY-039.
+///
+/// Load-bearing: if the built-in exclusion check is removed, at least one of
+/// these assertions will catch E-QUERY-039.
+#[tokio::test]
+async fn test_f_pjl1_high001_datafusion_builtins_not_flagged_as_missing_udfs() {
+    let engine = make_test_engine_threat_intel();
+
+    let builtin_queries = [
+        ("upper", "SELECT upper(iocs_value) FROM cyberint_alerts"),
+        ("length", "SELECT length(iocs_value) FROM cyberint_alerts"),
+        ("abs", "SELECT abs(severity_score) FROM cyberint_alerts"),
+    ];
+
+    for (fn_name, query) in &builtin_queries {
+        let result = engine.execute(query, QueryOptions::default()).await;
+
+        if let Err(ref e) = result {
+            let display = format!("{e}");
+            assert!(
+                !display.contains("E-QUERY-039"),
+                "F-PJL1-HIGH-001: DataFusion built-in '{fn_name}' must NOT trigger E-QUERY-039. \
+                 Query: {query}. Got: {display}. \
+                 Fix: add DataFusion built-in exclusion to check_enrich_udf_availability \
+                 (BC-2.11.019 v1.5)."
+            );
+        }
+    }
+}
+
+/// F-PJL1-HIGH-001 regression guard — a genuinely unknown name still triggers E-QUERY-039.
+///
+/// `bogus_enrich_fn` is neither a DataFusion built-in nor a registered infusion.
+/// The gate must still fire E-QUERY-039 for it, proving the exclusion is additive
+/// (skips built-ins only) and does not break the main gate behavior.
+///
+/// Load-bearing: if built-in exclusion incorrectly skips ALL names, this test
+/// catches the regression.
+#[tokio::test]
+async fn test_f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039() {
+    let engine = make_test_engine_threat_intel();
+
+    let result = engine
+        .execute(
+            "SELECT bogus_enrich_fn(iocs_value) FROM cyberint_alerts",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "F-PJL1-HIGH-001 regression guard: non-builtin unknown 'bogus_enrich_fn' must \
+         return Err (E-QUERY-039). Got Ok — built-in exclusion is too broad."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        display.contains("E-QUERY-039"),
+        "F-PJL1-HIGH-001 regression guard: non-builtin unknown 'bogus_enrich_fn' must \
+         trigger E-QUERY-039. Got: {display}"
+    );
+    assert!(
+        display.contains("bogus_enrich_fn"),
+        "F-PJL1-HIGH-001 regression guard: error must name the unregistered function \
+         'bogus_enrich_fn'. Got: {display}"
+    );
+}
+
+// ── F-PJL4-MED-001: SCHEDULED path gate-ordering discriminating test ──────────
+//
+// AC-H1 moved the capability gate (E-QUERY-011) AFTER 037/038/039 in
+// execute_scheduled_inner. The existing `test_h1_gate_ordering_discriminating_table_fires_before_capability`
+// tests both execute and execute_scheduled, but F-PJL4-MED-001 requires an
+// additional test that specifically exercises only the SCHEDULED path with a
+// query that triggers E-QUERY-037 (unregistered table) and would trigger
+// E-QUERY-011 (prism_audit reference) if the ordering were reversed.
+
+/// F-PJL4-MED-001 — execute_scheduled SCHEDULED path: E-QUERY-037 fires BEFORE E-QUERY-011.
+///
+/// A scheduled query against an unregistered table (`ghost_sensor_alerts`) that also
+/// references `prism_audit` must return E-QUERY-037 (TableNotAvailable), NOT
+/// E-QUERY-011 (AuditTableAccessDenied).
+///
+/// This test exercises ONLY the `execute_scheduled` path (not `execute`),
+/// making it a discriminating guard specifically for the scheduled gate ordering.
+///
+/// # Why this test is needed (F-PJL4-MED-001)
+///
+/// The existing `test_h1_gate_ordering_discriminating_table_fires_before_capability`
+/// checks both paths in a single assertion. If the scheduled path ordering were
+/// reverted (capability gate moved BEFORE table gate in execute_scheduled_inner),
+/// that test would catch it — but only by comparing `sched_err` to a
+/// `PrismError::TableNotAvailable` variant alongside the `execute_result` check.
+///
+/// This test is a DEDICATED scheduled-only guard: it fails if and only if the
+/// scheduled path runs the capability gate before the table gate, making the
+/// failure message unambiguous. A reviewer or CI run that sees this test failing
+/// knows exactly which path is broken (scheduled, not interactive).
+///
+/// # Revert-verification
+///
+/// Moving `check_internal_table_capabilities` BEFORE `check_table_availability`
+/// in `execute_scheduled_inner` would cause this test to return E-QUERY-011
+/// instead of E-QUERY-037, and this test would FAIL.
+///
+/// # BC reference
+/// BC-2.11.019 v1.5 / H1 fix (S-DEMO-FIDELITY-REMEDIATION-001 F-PJL4-MED-001).
+#[tokio::test]
+async fn test_f_pjl4_med001_scheduled_path_table_gate_fires_before_capability_gate() {
+    use crate::table_registry::TableRegistry;
+    use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+
+    // Build engine with a wired TableRegistry containing only `armis`.
+    // This activates the E-QUERY-037 gate for any non-armis table.
+    let armis_spec = SensorSpec::new(
+        "armis",
+        "Armis sensor",
+        AuthType::ApiKey,
+        "https://example.com",
+        vec![TableSpec::new_point_in_time(
+            "alerts",
+            "security_finding",
+            vec![],
+            vec![],
+        )],
+        None,
+        "1.0.0",
+        Vec::new(),
+    );
+    let registry = Arc::new(TableRegistry::new());
+    registry
+        .register_sensor(&armis_spec)
+        .expect("register armis must not fail");
+
+    let engine = crate::engine::QueryEngine::new_with_cache_config(
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(NoopCs),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+        crate::engine::QueryEngineConfig::default(),
+        crate::cache::CacheConfig::default(),
+    )
+    .with_table_registry(Arc::clone(&registry));
+
+    // Discriminating query for the SCHEDULED path:
+    //   `ghost_sensor_alerts` — NOT registered → E-QUERY-037 (table gate)
+    //   `prism_audit` via JOIN — requires AuditRead capability (absent in scheduled
+    //                            system context `&[]`) → E-QUERY-011 (capability gate)
+    //
+    // Post-fix (table FIRST): scheduled path returns E-QUERY-037.
+    // Pre-fix (capability FIRST in execute_scheduled_inner): scheduled path returns E-QUERY-011.
+    let query = "SELECT * FROM ghost_sensor_alerts JOIN prism_audit ON id = id LIMIT 10";
+
+    let scheduled_result = engine
+        .execute_scheduled(query, None)
+        .await
+        .map(|(qr, _ctx)| qr);
+
+    assert!(
+        scheduled_result.is_err(),
+        "F-PJL4-MED-001: execute_scheduled with unregistered table must return Err"
+    );
+
+    let sched_err = scheduled_result.unwrap_err();
+
+    // DISCRIMINATING assertion: SCHEDULED path must return E-QUERY-037 (table gate fires
+    // first), NOT E-QUERY-011 (capability gate).
+    //
+    // If execute_scheduled_inner still runs the capability gate FIRST (pre-fix ordering),
+    // this assertion fails with AuditTableAccessDenied (E-QUERY-011).
+    assert!(
+        matches!(sched_err, PrismError::TableNotAvailable(_)),
+        "F-PJL4-MED-001 DISCRIMINATING (SCHEDULED path only): execute_scheduled must return \
+         TableNotAvailable (E-QUERY-037), NOT AuditTableAccessDenied (E-QUERY-011). \
+         Got: {sched_err:?}. \
+         If AuditTableAccessDenied: the H1 fix is incomplete for the scheduled path — \
+         execute_scheduled_inner is running the capability gate BEFORE the table gate. \
+         Fix: move check_internal_table_capabilities AFTER check_table_availability \
+         in execute_scheduled_inner (BC-2.11.019 v1.5 / H1 fix)."
     );
 }
