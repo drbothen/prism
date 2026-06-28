@@ -13,7 +13,7 @@ provenance: "Day-2 vision SIDE-ANALYSIS program resume snapshot. SEPARATE from t
 > ENTIRE pre-B feature track (C11–C20) is COMPLETE. ADS v1.7 (traceability rows C10/C14/C15 + freshness fixes). Only B (integration
 > capstone) remains, GATED on §5.1 brief-reframe HUMAN sign-off.**
 >
-> **Latest factory-artifacts HEAD: `(this checkpoint)` — fresh-context consistency audit (MINOR-DRIFT: 0 blocker/0 major, 3 minor + 5 obs, all fixed); ADS v1.7; pre-B track C11–C20 COMPLETE**
+> **Latest factory-artifacts HEAD: `(this checkpoint)` — prism-as-ot-sensor-note.md working note captured (passive OT-sensor finding + 5 iterate-later threads); ADS v1.7; pre-B track C11–C20 COMPLETE**
 >
 > **READ THIS FIRST on resume.** This is OUT-OF-BAND day-2 vision work, fully SEPARATE from the live
 > VSDD factory pipeline (which runs its own cascades on the same `factory-artifacts` branch). Everything
@@ -27,8 +27,8 @@ provenance: "Day-2 vision SIDE-ANALYSIS program resume snapshot. SEPARATE from t
   NEVER `git add research/` (would sweep live-factory research files). Leave `.DS_Store` and any
   live-factory files (e.g. `research/demo-finding-remediation-plan-*.md`, `research/test-suite-performance-*.md`)
   UNSTAGED. Push to `origin/factory-artifacts` under standing auth D-1066; on divergence fetch + `pull --rebase`
-  (the live factory pushes concurrently); never `--no-verify`/`--force`. Last side HEAD: **02599c9b**
-  (ocsf-ot-coverage banked + SESSION-RESUME updated; prior: C15 decided + ADR-PROP-soar-actions-aro.md captured).
+  (the live factory pushes concurrently); never `--no-verify`/`--force`. Last side HEAD: **55963381**
+  (prism-as-ot-sensor-note.md working note captured; prior: plain-language executive positioning narrative).
 - Working rhythm per area: research-agent pass (background) → I synthesize + give leans → AskUserQuestion on the
   genuine forks → architect captures decisions into the doc/ADR-PROPs → state-manager path-scoped commit.
   Pipeline research ~2–3 areas ahead. Confirm decisions before writing big new sections (mirror→confirm→write).
@@ -260,6 +260,8 @@ Built on the human-confirmed MANDATED-7 customer problems (cheap hunts / tuning 
 brief-reframe §5.1 remains PENDING-human-signoff; B remains gated. + §8 feature-map appendix added — per-problem mandated-7 → satisfying-feature enumeration (maturity-tagged DECIDED/PARTIAL/GATED/PROPOSED) + a 7×10 capability-coverage matrix; every mandated problem served by ≥1 DECIDED feature-cluster.
 
 + plain-language customer/executive narrative captured (positioning-executive-narrative.md) — jargon-free layman version of the problem-framed positioning, organized as 3 themes (data-home+IT-sees-OT / know-your-environment / affordable-hunting-with-the-team-you-have); all binding honest caveats translated into plain terms; gated on §5.1, do_not_execute, not a sales claim.
+
++ working note prism-as-ot-sensor-note.md captured — finding: passive OT-sensor capability (full-packet PCAP §17.6 E-COLLECTOR-PCAP-001 + native Spicy-style dissector §17.12 E-DISSECTOR-NATIVE-001/OT-001, OT flagship native-schema-on-read, strict passivity TAP>SPAN) is DECIDED + safe-by-design, distinct from the GATED active-polling path (C14 Reading B); records a positioning correction (OT-standalone is stronger than 'gated' — passive path is decided/safe) to fold later; 5 open threads enumerated (protocol-coverage phasing, unify §17+C14 OT-ingestion narrative, adversarial pressure-test the passive-sensor claim, positioning fold, C20 NERC-CIP passive-monitoring synergy). iterate_later working note; NOT yet folded into positioning.
 
 #### C3 reconciliation sweep — DONE (commit f83e3ec7)
 - 3 `[SUPERSEDED by D-C3-1]` inline markers added to matured-vision §12.2 (history preserved, not deleted).
@@ -534,7 +536,7 @@ Superseded capture queue (all DONE — do not re-execute):
 
 ## 6. BASELINE (git state at session wrap)
 
-- **factory-artifacts HEAD (current):** `(this checkpoint)` — customer-problem-coverage-2026-06-28.md removed per explicit human direction; path-scoped commit (see commit chain below)
+- **factory-artifacts HEAD (current):** `(this checkpoint)` — prism-as-ot-sensor-note.md working note captured (PCAP+dissector passive-OT finding + OT-standalone correction; 5 iterate-later threads); path-scoped commit
 - **Full commit chain for this day-2 side-analysis** (day-2 side commits; live factory interleaved its own commits on the shared branch between these):
   - `b53b22ba` — C9 schema-versioning (Q3) resolved + ADR-PROP-config-management + backing research
   - `91abba90` — deployment matrix captured (ADR-PROP-dual-deployment, three operating models)
@@ -564,6 +566,7 @@ Superseded capture queue (all DONE — do not re-execute):
   - `(this checkpoint)` — problem-framed positioning candidate captured (ADR-PROP-positioning-problem-framed.md; mandated-7; CONDITIONAL-PASS adversarial fitness; 5 caveats baked in); path-scoped commit.
   - `(this checkpoint)` — §8 feature-map appendix + coverage matrix added to ADR-PROP-positioning-problem-framed.md; path-scoped commit. Prior side HEAD: **6c2bf616**.
   - `(this checkpoint)` — plain-language executive positioning narrative captured (positioning-executive-narrative.md); path-scoped commit. Prior side HEAD: **86a2a334**.
+  - `(this checkpoint)` — prism-as-ot-sensor-note.md working note captured (PCAP+dissector passive-OT finding + OT-standalone correction; 5 iterate-later threads); path-scoped commit. Prior side HEAD: **55963381**.
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD before this burst: **929a9758** (consistency audit complete; ADS v1.7).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory BC-2.16.002 left unstaged). No dangling in-flight research.
 
