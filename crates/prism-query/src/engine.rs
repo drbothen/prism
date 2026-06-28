@@ -2114,8 +2114,12 @@ fn check_column_availability(
 /// - ORDER BY clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
 /// - JOIN ON clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
 ///
-/// Gate skip conditions (mirroring `check_table_availability`):
-/// - `resolved_spec_map` is `None`: skip (single-tenant / test mode without wiring)
+/// Gate skip conditions:
+/// - BOTH `resolved_spec_map` AND `table_registry` are `None`: skip (no schema source wired).
+///   When `table_registry` is wired but `resolved_spec_map` is `None` (single-tenant mode),
+///   the gate FIRES via the `table_registry.columns_for_table()` fallback (M1 fix,
+///   S-DEMO-FIDELITY-REMEDIATION-001). Pre-M1 behavior (skip whenever `resolved_spec_map`
+///   is `None`) was incorrect and has been removed.
 /// - Query fails to parse: skip (parse errors handled downstream)
 /// - SELECT * or SELECT table.*: skip for SELECT position (wildcard columns always pass)
 ///
