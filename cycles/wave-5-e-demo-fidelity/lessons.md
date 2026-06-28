@@ -1985,3 +1985,38 @@ During the PR-LEVEL cascade, several corrections involved updating ADR version p
 **Follow-up story:** None. D-1360 adjudication is the canonical reference. Pattern codified here for future cascade cycles.
 
 **Source:** D-1360 (POL-29-class adjudication during PR-LEVEL cascade); D-1362/D-1365 (in-place sync applications).
+
+---
+
+### [process-gap] [codified] S-PERF-GATE-002: Do NOT propose LazyLock/OnceLock fixture sharing across distinct test FUNCTIONS under cargo-nextest — process-per-test model makes cross-test static sharing impossible
+
+**Date recorded:** 2026-06-28
+**D-NNN anchor:** D-1412 (S-PERF-GATE-002 LOCAL re-gate + Option-A simplification)
+**Story:** S-PERF-GATE-002
+**Tags:** [process-gap] [codified] [cargo-nextest] [LazyLock] [process-per-test] [test-perf] [fixture-sharing]
+**Classification:** PROCESS-GAP — the v2.x story design proposed `LazyLock` statics to amortize DTU boot cost across multiple tests in one binary. The adversary's LOCAL re-gate (F-SPG2-P5-001 HIGH) identified this premise as invalid: nextest runs each test function in its own OS process, so statics reset between tests.
+
+**Description:**
+
+`cargo-nextest` runs each test function in a **separate OS process** (`--process-per-test` is the nextest model). A `LazyLock<T>` or `OnceLock<T>` static is initialized once per **process** — it re-initializes independently in every test's process. There is no cross-process static sharing. Adding `LazyLock` statics to an `adv_p02`-style test file would add structural complexity for zero boot-amortization benefit: 8 tests still boot 8 DTU instances.
+
+**The prior PR #127 LazyLock precedent is valid but was mis-applied:** PR #127 used `LazyLock` inside a single `proptest` invocation that ran multiple **iterations** within ONE test function (one process). That is cross-ITERATION sharing within a single proptest call — NOT cross-FUNCTION sharing. The S-PERF-GATE-002 v2.x diagnosis item #4 conflated "cross-iteration within one process" with "cross-test across nextest processes."
+
+**Correct mechanism when DTU boot cost is the bottleneck:**
+
+The correct structural fix for oversubscription-driven test latency is serialization via a nextest test-group (`max-threads = 1`), not fixture sharing. Individual DTU boots are cheap (~200 ms each) when not oversubscribed. Serialization removes the oversubscription-driven 60–300 s blowup without requiring any test-source changes.
+
+**Correct response (codified rule):**
+
+When diagnosing test-suite performance for nextest-based test binaries:
+
+1. **Check the nextest execution model first.** If each test function boots an external resource (DTU clone, Postgres, etc.), the cost is per-function-invocation, NOT per-binary. `LazyLock` statics will NOT amortize this.
+2. **Cross-test fixture sharing requires a shared process.** This is possible via `--test-threads=1` within a single `#[cfg(test)]` module using `std::sync::OnceLock`, but nextest's default process-per-test model defeats it for top-level integration test binaries.
+3. **Oversubscription is often the real bottleneck, not individual boot time.** Diagnosis should check whether tests run serially vs. parallelized on a saturated system. If serial wall-clock is acceptable, the fix is a nextest `max-threads = 1` test-group.
+4. **LazyLock IS valid for cross-iteration sharing within a single test function** (e.g., inside a `proptest!` invocation). The distinction is function-scope vs. binary-scope.
+
+**OBS-2 candidate follow-up (S-PERF-GATE-003):**
+
+`crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs` performs per-test DTU boots with the same oversubscription-cost pattern as adv_p02 did before serialization. It is a candidate for a future `S-PERF-GATE-003` story that assigns it to a serial nextest test-group (same CONFIG-ONLY mechanism, ~30 min effort).
+
+**Source:** D-1412 (F-SPG2-P5-001 HIGH LOCAL re-gate finding); S-PERF-GATE-002 story v3.0 §Background; PR #127 LazyLock proptest precedent (cross-iteration within one process — valid and distinct from cross-test across nextest processes).
