@@ -2154,6 +2154,144 @@ fn test_l1_sql_select_join_on_in_subquery_source_discovered() {
     );
 }
 
+/// L1 fix — `extract_sources_from_ast_for_gate` must discover InSubquery sources
+/// from the HAVING clause of an `Ast::Sql(Select)`.
+///
+/// Represents: `SELECT severity FROM crowdstrike_detections … HAVING host_id IN (SELECT id FROM armis_devices)`
+///
+/// Load-bearing: reverting the L1 fix (removing the `if let Some(ref having_pred) = sq.having`
+/// branch in `extract_sources_from_ast_for_gate`) causes armis_devices to never reach the
+/// availability gate — deleting the HAVING dispatch would cause this test to fail.
+#[test]
+#[allow(non_snake_case)]
+fn test_l1_sql_select_having_in_subquery_source_discovered() {
+    use crate::{
+        ast::{
+            Ast, FieldPath, FromClause, Predicate, SelectClause, SelectItem, SourceRef,
+            SourceRefKind, Span, SqlQuery, SqlStatement,
+        },
+        table_registry::extract_sources_from_ast_for_gate_test_only,
+    };
+
+    // Subquery: SELECT id FROM armis_devices
+    let subquery = build_minimal_subquery("armis_devices");
+
+    // HAVING: `host_id IN (SELECT id FROM armis_devices)` — Predicate::InSubquery
+    let having_pred = Predicate::InSubquery {
+        field: FieldPath {
+            segments: vec!["host_id".to_string()],
+            span: Span::ZERO,
+        },
+        subquery: Box::new(subquery),
+        negated: false,
+    };
+
+    let select_query = SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Star],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "crowdstrike_detections".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: None,
+        group_by: vec![],
+        having: Some(having_pred),
+        order_by: vec![],
+        limit: None,
+    };
+
+    let ast = Ast::Sql(SqlStatement::Select(select_query));
+    let sources = extract_sources_from_ast_for_gate_test_only(&ast);
+
+    assert!(
+        sources.iter().any(|s| s.raw == "crowdstrike_detections"),
+        "L1 HAVING SQL: outer FROM 'crowdstrike_detections' must be present; got: {sources:?}"
+    );
+    assert!(
+        sources.iter().any(|s| s.raw == "armis_devices"),
+        "L1 HAVING SQL: extract_sources_from_ast_for_gate must discover 'armis_devices' \
+         from InSubquery in HAVING clause. Got sources: {sources:?}"
+    );
+}
+
+/// L1 fix — `extract_sources_from_ast_for_gate` must discover InSubquery sources
+/// from the HAVING clause of the SQL head in an `Ast::SqlPipe`.
+///
+/// Represents a SqlPipe query whose SQL head has:
+///   `SELECT severity FROM crowdstrike_detections … HAVING host_id IN (SELECT id FROM armis_devices)`
+///
+/// Load-bearing: reverting the L1 fix (removing the `if let Some(ref having_pred) = spq.head.having`
+/// branch in `extract_sources_from_ast_for_gate`) causes armis_devices to never reach the
+/// availability gate — deleting the SqlPipe HAVING dispatch would cause this test to fail.
+#[test]
+#[allow(non_snake_case)]
+fn test_l1_sqlpipe_head_having_in_subquery_source_discovered() {
+    use crate::{
+        ast::{
+            Ast, FieldPath, FromClause, Predicate, SelectClause, SelectItem, SourceRef,
+            SourceRefKind, Span, SqlPipeQuery, SqlQuery,
+        },
+        table_registry::extract_sources_from_ast_for_gate_test_only,
+    };
+
+    // Subquery: SELECT id FROM armis_devices
+    let subquery = build_minimal_subquery("armis_devices");
+
+    // HAVING: `host_id IN (SELECT id FROM armis_devices)` — Predicate::InSubquery
+    let having_pred = Predicate::InSubquery {
+        field: FieldPath {
+            segments: vec!["host_id".to_string()],
+            span: Span::ZERO,
+        },
+        subquery: Box::new(subquery),
+        negated: false,
+    };
+
+    // Build the SQL head SqlQuery with the HAVING clause.
+    let head = SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Star],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "crowdstrike_detections".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: None,
+        group_by: vec![],
+        having: Some(having_pred),
+        order_by: vec![],
+        limit: None,
+    };
+
+    // Wrap in SqlPipe (no pipe stages needed — we only test HAVING source discovery).
+    let ast = Ast::SqlPipe(SqlPipeQuery {
+        head,
+        stages: vec![],
+    });
+    let sources = extract_sources_from_ast_for_gate_test_only(&ast);
+
+    assert!(
+        sources.iter().any(|s| s.raw == "crowdstrike_detections"),
+        "L1 HAVING SqlPipe: outer FROM 'crowdstrike_detections' must be present; got: {sources:?}"
+    );
+    assert!(
+        sources.iter().any(|s| s.raw == "armis_devices"),
+        "L1 HAVING SqlPipe: extract_sources_from_ast_for_gate must discover 'armis_devices' \
+         from InSubquery in SqlPipe head HAVING clause. Got sources: {sources:?}"
+    );
+}
+
 /// Helper: build a minimal `SqlQuery` that selects `id` from `source_table_name`.
 ///
 /// Used by L1 tests to build subquery AST nodes without repetition.
