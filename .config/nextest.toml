@@ -94,9 +94,19 @@ failure-output = "immediate"
 # Running these tests in parallel oversubscribes CPU/file-descriptors and causes
 # non-deterministic filter_strings assertion failures (ADV-P02-CRIT-001 correctness,
 # AC-005, AC-007). max-threads = 1 serializes the binary, eliminating the race.
+#
+# S-PERF-GATE-003: bc-2-01-013-serial group for bc_2_01_013_spec_driven_adapter.
+# Each test starts its own wiremock::MockServer (Axum HTTP listener + Tokio runtime)
+# and issues real HTTP requests to it. Under parallel execution, multiple concurrent
+# MockServer startups contend for OS-level socket setup and can inflate wall-clock
+# from ~2-8s per test to 60-300s per test on loaded machines (diagnosis §4.1).
+# Root cause is per-test wiremock startup contention, not shared state — serialization
+# alone is sufficient (no reset endpoint needed, unlike adv_p02 which required
+# LazyLock fixtures). max-threads = 1 eliminates the concurrent-startup race.
 [test-groups]
 serial-subprocess = { max-threads = 1 }
 adv-p02-serial = { max-threads = 1 }
+bc-2-01-013-serial = { max-threads = 1 }
 
 [[profile.prepush.overrides]]
 filter = 'binary(signal_handlers)'
@@ -106,6 +116,10 @@ test-group = 'serial-subprocess'
 filter = 'binary(adv_p02_e2e_pushdown_pipeline_test)'
 test-group = 'adv-p02-serial'
 
+[[profile.prepush.overrides]]
+filter = 'binary(bc_2_01_013_spec_driven_adapter)'
+test-group = 'bc-2-01-013-serial'
+
 [[profile.ci.overrides]]
 filter = 'binary(signal_handlers)'
 test-group = 'serial-subprocess'
@@ -113,6 +127,10 @@ test-group = 'serial-subprocess'
 [[profile.ci.overrides]]
 filter = 'binary(adv_p02_e2e_pushdown_pipeline_test)'
 test-group = 'adv-p02-serial'
+
+[[profile.ci.overrides]]
+filter = 'binary(bc_2_01_013_spec_driven_adapter)'
+test-group = 'bc-2-01-013-serial'
 
 # S-DEMO-004: Multi-org × multi-sensor isolation smoke test profile.
 # Un-ignores E2E-MULTI-001-tagged tests in e2e_multi_org.rs (currently 10 tests):
