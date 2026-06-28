@@ -1023,6 +1023,64 @@ signing infrastructure); INV-ADS-02 (operator zero-access); INV-ADS-10 (new — 
 
 ---
 
+### PAT-ADS-17 — Compliance-Evidence-Export (RSAW-Aligned)
+
+**When to use.** A regulated deployment must produce per-requirement audit evidence
+from the system's own operational record. The operator or their auditor needs
+discrete, well-organized, per-requirement artifacts — not raw logs — aligned to
+a regulatory audit instrument (e.g., NERC Reliability Standard Audit Worksheets).
+
+**Structure.**
+1. **Audit substrate (prerequisite):** a tamper-evident, long-retention,
+   provenance-tagged audit record. This is the C17/C18 decision-level audit output
+   (INV-ADS-09: decision-level authorization log) + integrity-signed backup records
+   (INV-ADS-10) + CIP-007-class event log (logons, privilege changes, config
+   changes, detected events). The substrate must already exist before the export
+   module is built; it is not created by this pattern.
+2. **Per-requirement evidence export module:** a dedicated module that reads the
+   substrate and emits RSAW-aligned evidence bundles, one bundle per CIP
+   requirement (or analogous requirement in any regulatory regime). Each bundle
+   contains the discrete artifact types the auditor expects:
+   - CIP-004 / access-governance: BCSI-access provisioning/review/revocation logs
+   - CIP-007 / logging: ≥90-day online log-retrieval attestations, long-term
+     archive records, log-review activity records
+   - CIP-009 / recovery: recovery-test records, post-restore baseline diffs,
+     integrity-verification records
+   - CIP-010 / config management: baseline snapshots, unauthorized-change
+     detection trails, 15-month vuln-cadence attestation, control-effectiveness
+     reports
+   - CIP-013 / supply chain: software-integrity verification logs, signed-release
+     attestations, support-channel audit records
+3. **GRC-consumable output:** bundles are also parseable by external GRC platforms
+   (OSCAL-compatible structure where applicable; RSAW-structured otherwise).
+4. **Compliance Profile gating:** the active Compliance Profile (PAT-ADS-12)
+   determines which requirement sets are active. A tenant running `nerc-cip`
+   profile generates CIP bundles; a tenant running `iso27001` profile generates
+   ISO 27001 Annex A evidence bundles. The export module is regime-agnostic at
+   the substrate layer and regime-specific at the bundle-emission layer.
+5. **Offline / air-gap safety:** evidence bundles are self-contained and
+   cryptographically verifiable offline (carry detached signatures + Merkle
+   hashes, PAT-ADS-03 signing infrastructure). An auditor with physical access
+   to the bundle file does not need an online control plane to verify integrity.
+
+**Originating feature.** `ADR-PROP-nerc-cip-support.md` D-C20-SF1
+(CIP audit-evidence / RSAW-export module). Consolidates the deferred RSAW export
+packaging from C17 (D-C17-CIP009) and C10 GAP-Q2 evidence-package lean.
+
+**Composes with.**
+- PAT-ADS-12 (Configurable Compliance Profile): the active profile selects which
+  requirement sets drive bundle generation; this pattern is the output-side
+  complement of PAT-ADS-12's posture-enforcement role.
+- INV-ADS-09 (Decision-Level Authorization Audit): the BCSI-access audit log that
+  CIP-004 access reviews require is produced by the INV-ADS-09 substrate.
+- INV-ADS-10 (Integrity-Verified Backups, Sealed-Blob Key Escrow): CIP-009
+  recovery evidence requires integrity-verified backup and restore records, which
+  the INV-ADS-10 substrate provides.
+- PAT-ADS-03 (Signed-Offline-Bundle): evidence bundles use the same
+  signing infrastructure for offline verifiability.
+
+---
+
 ## Section C — Invariants and Conformance
 
 ### C.1 — Cross-Cutting Invariants (INV-ADS-NNN)
@@ -1382,6 +1440,7 @@ systematic conformance run against the Day-2 ADR-PROP corpus. Sections:
 | `ADR-PROP-compliance-profiles.md` | P-ADS-09, P-ADS-11, P-ADS-12, P-ADS-13 | PAT-ADS-12, PAT-ADS-03, PAT-ADS-10 | INV-ADS-02, INV-ADS-03, INV-ADS-04 |
 | `ADR-PROP-entity-masking.md` | P-ADS-02, P-ADS-03, P-ADS-06, P-ADS-07 | PAT-ADS-14, PAT-ADS-07 | INV-ADS-01, INV-ADS-02, INV-ADS-03, INV-ADS-06 |
 | `ADR-PROP-backup-recovery.md` | P-ADS-02, P-ADS-04, P-ADS-11 | PAT-ADS-15, PAT-ADS-16, PAT-ADS-03 | INV-ADS-02, INV-ADS-03, INV-ADS-10 |
+| `ADR-PROP-nerc-cip-support.md` | P-ADS-09, P-ADS-11, P-ADS-12, P-ADS-13 | PAT-ADS-12, PAT-ADS-17 | INV-ADS-01, INV-ADS-02, INV-ADS-09, INV-ADS-10 |
 
 ### CLAUDE.md Cross-References
 
@@ -1412,5 +1471,6 @@ architecture tier and must be consistent with this ADS:
 | v1.2 | 2026-06-27 | C18 capture: added PAT-ADS-12 (Configurable Compliance Profile), PAT-ADS-13 (Layered-Authz), INV-ADS-09 (Decision-Level Authorization Audit); INV-ADS-09 check line added to Section C.2 Conformance Checklist; traceability rows for ADR-PROP-rbac-depth.md + ADR-PROP-compliance-profiles.md added to Section E. |
 | v1.3 | 2026-06-27 | C16 capture: P-ADS-07 sharpened (clearing-house enforcement mechanism + embeddings-are-sensitive-data-class + dual-index + zero-vault-wiring structural invariant); added PAT-ADS-14 (Edge-Tokenizing-Clearing-House); traceability row for ADR-PROP-entity-masking.md added to Section E. |
 | v1.4 | 2026-06-27 | C17 capture: added PAT-ADS-15 (Logical-Watermark Cross-Store Backup), PAT-ADS-16 (Sealed-Blob Key Escrow + Crypto-Shred), INV-ADS-10 (Recoverability Preserves Operator-Zero-Access); INV-ADS-10 check line added to Section C.2 Conformance Checklist; traceability row for ADR-PROP-backup-recovery.md added to Section E. |
+| v1.5 | 2026-06-27 | C20 capture: added PAT-ADS-17 (Compliance-Evidence-Export RSAW-aligned); traceability row for ADR-PROP-nerc-cip-support.md added to Section E. (C20 SF-2 cloud-BES-future OPEN pending research.) |
 
-*End of Prism Architecture Design System v1.4 — 2026-06-27*
+*End of Prism Architecture Design System v1.5 — 2026-06-27*

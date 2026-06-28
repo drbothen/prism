@@ -3730,6 +3730,80 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
     per-tenant logical export + side-restore workflow + satellite buffer backup + air-gap
     bundle + DR ladder + recovery-test evidence generator). PROPOSED, not in STORY-INDEX.
 
+- **C20 NERC CIP Support (synthesis capstone) DECIDED + CAPTURED 2026-06-27 (human; SF-2 OPEN).**
+  C20 assembles and cross-wires C2/C16/C17/C18/C19 into a coherent NERC CIP compliance posture.
+  Capture artifact: `specs/day2-design-decisions/ADR-PROP-nerc-cip-support.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/nerc-cip-support-2026-06-27.md` (three perplexity_research sonar-deep-research
+  calls at reasoning_effort=high covering: CIP standard-by-standard map; BCSI + cloud /
+  Project-2023-09; CIP-010 + CIP-013 + audit/RSAW/log-retention evidence).
+  - **Posture (D-C20-POSTURE):** target = "CIP-deployable + CIP-evidence-generating" — NOT
+    "CIP-certified" (no tool certification exists; compliance attaches to the registered entity).
+    Two value senses: (1) deployable-without-breaking-the-entity's-compliance (CIP-002/005/007/
+    011/013); (2) compliance-accelerating evidence generation (CIP-004/008/009/010 + audit evidence).
+  - **Synthesis map:** CIP-011 BCSI → C16 (RSI clearing house, BCSI = first RSI profile, entity-
+    key zero-access, operator holds ciphertext only); CIP-009 recovery → C17 (recovery-test
+    evidence first-class, integrity-verified backups, post-restore CIP-010 baseline diff);
+    CIP-004/005/007 access + logging → C18 RBAC at BCSI-category granularity + decision-level
+    audit (INV-ADS-09), distributed via `nerc-cip` Compliance Profile preset (PAT-ADS-12);
+    CIP-002 impact-level / registered-entity / site boundaries → C19 `regulatory_class` selector
+    + nested scopes; CIP-005 ESP → C2 (edge nodes EACMS-inside-ESP; passive/one-way/data-diode
+    edge mode; central = zero-access ciphertext + metadata aggregator, never plaintext BCSI,
+    never an EACMS — keeps central out of the unsettled Project-2023-09 zone).
+  - **Regulatory anchor:** CIP-004-7 + CIP-011-3 January-1-2024 pivot (NERC Project 2019-02,
+    FERC docket RD21-6-000) moved BCSI protection from "designated storage location" to
+    "provisioned-access + data-centric encryption." Explicitly permits encrypted cloud /
+    third-party BCSI storage PROVIDED the entity holds keys + provider has zero plaintext
+    access. This is the regulatory blessing for Prism's BYOC zero-access central plane
+    (INV-ADS-01/02 + Option-3). Standard version dates re-verification required at morph
+    (INFERRED/UNCONFIRMED items flagged in ADR-PROP §2 table).
+  - **SF-1 DECIDED — build first-class CIP audit-evidence / RSAW-export module
+    (E-CIP-EVIDENCE-EXPORT-001).** Superset: tamper-evident long-retention audit SUBSTRATE
+    (already in C17/C18) + dedicated export module emitting per-requirement RSAW-aligned
+    evidence bundles (CIP-004 access-review logs, CIP-007 ≥90-day-online + long-term
+    log-retention attestations, CIP-009 recovery-test records, CIP-010 baseline-diff +
+    15-month vuln-cadence proof + change-detection trails, CIP-013 software-integrity logs).
+    Bundles also consumable by external GRC tools. Phasing: substrate in C17/C18 stories;
+    dedicated export module = its own story (E-CIP-EVIDENCE-EXPORT-001). Consolidates C17
+    D-C17-CIP009 deferred RSAW packaging + C10 GAP-Q2 evidence-package lean.
+  - **SF-3 DECIDED — lighter classification by default.** Default edge posture = passive
+    read-only (no control path → avoids being pulled into full EACMS/BCS CIP weight).
+    Write/control features (write-capable sensor APIs, C15 ARO actions, C14 active-query
+    writes) feature-flagged OFF by default; operator explicitly opts into the heavier weight.
+    Matches existing Prism feature-flag model + C14 read-only perimeter + P-ADS-11 Deployment-
+    Profile. PIV-C20-001: no hidden control paths that silently escalate classification.
+    Caveat: "read-only is NOT a safe harbor" — passive nodes aggregating BCSI still appear in
+    ESP docs + still hold BCSI under CIP-011; lighter ≠ out-of-scope.
+  - **SF-4 DECIDED — support both CIP-010 positionings:** Prism as the asset-management
+    system-of-record (commissioning config snapshot tagged "CIP Baseline," retained history,
+    continuous unauthorized-change detection, 15-month vuln-cadence enforcement, control-
+    effectiveness reports) OR Prism as a structured CMDB feeder. Both configurable per
+    deployment (P-ADS-13); go-to-market emphasis deferred to morph (OQ-C20-GTM).
+  - **CIP-013 vendor commitments (PIV-C20-002..005):** SBOM for the Rust binary + dep tree;
+    cryptographically signed releases + published hashes; CVD + timely-patch policy (NATF-
+    ESSCR-answerable); no undisclosed/hard-coded/non-revocable remote access (aligns AD-017 +
+    ADR-022 wiring discipline + P-ADS-11 no hidden forks).
+  - **SF-2 cloud-BES-future OPEN pending research.** PIV-C20-006 (entity-key zero-access =
+    central plane NEVER holds plaintext BCSI, entity holds keys) is LOCKED regardless of SF-2
+    outcome — it is independently required by INV-ADS-01/02 + Option-3. The OPEN question =
+    whether to design forward-scaffolding now for the speculative NERC Project-2023-09
+    "EACMS-in-cloud" future. Concurrent research in flight
+    (`research/nerc-project-2023-09-cloud-bes-2026-06-27.md`). Lean = likely defer (production-
+    grade "defer entire speculative feature" boundary); final decision after research resolves.
+  - **ADS v1.5:** added PAT-ADS-17 (Compliance-Evidence-Export RSAW-aligned); traceability row
+    for nerc-cip-support. ADS conformance PASS — all INV-ADS-01..10 satisfied (checklist in
+    ADR-PROP §7); C20 is a synthesis that introduces posture + the evidence-export pattern;
+    no new invariants beyond the locked zero-access ones (PIV-C20-006 ≡ INV-ADS-01/02).
+  - Cross-links: C2 (ESP + passive edge), C10 GAP-Q2 (evidence-package lean resolved here),
+    C14 (read-only perimeter default), C15 (ARO write/control feature-flagged), C16 (BCSI
+    = first RSI profile; clearing house = CIP-011-3 R1 structural enforcement), C17 (CIP-009
+    evidence + RSAW export consolidation), C18 (RBAC at BCSI granularity + nerc-cip Profile),
+    C19 (CIP-002 entity/site → tenancy boundary), Compliance-Profiles (nerc-cip preset),
+    Option-3 / SS-26 (BYOC zero-access = CIP-011-3 compliant cloud-BCSI path), AD-017,
+    ADR-022.
+  - Proposed epic: E-CIP-EVIDENCE-EXPORT-001 (CIP audit substrate export module + RSAW bundles
+    + GRC-consumable output). PROPOSED, not in STORY-INDEX.
+
 ### 16.5 Status & boundaries reminder
 
 - This is a **CAPTURE artifact** (`do_not_execute: true`). Nothing here modifies the live brief/PRD/
