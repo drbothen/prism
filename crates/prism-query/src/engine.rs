@@ -2065,28 +2065,44 @@ fn check_query_column_availability(
     // F-001B-DC-HIGH-001: use `extract_column_name_from_field_path` instead of
     // `fp.segments.first()` so that qualified refs (`crowdstrike_alerts.severity`)
     // correctly extract "severity" rather than the table name.
-    let select_cols: Vec<String> = sql_query
-        .select
-        .items
-        .iter()
-        .filter_map(|item| match item {
-            SelectItem::Star => None,         // SELECT * — skip
-            SelectItem::TableStar(_) => None, // SELECT table.* — skip
-            SelectItem::Expr { expr, .. } => match expr {
-                Expr::Field(fp) => {
-                    // Use the shared helper to correctly handle qualified refs.
-                    extract_column_name_from_field_path(fp, &table_name, from_alias)
+    //
+    // F-PBL1-MED-001 fix (Pass-B S-DEMO-FIDELITY-REMEDIATION-001): route through
+    // `extract_field_paths_from_expr` so that column refs nested inside FuncCall
+    // args (e.g. `SELECT count(typo_col)`, `SELECT lower(typo_col)`) are also
+    // validated. Previously, only bare `Expr::Field` refs were extracted; FuncCall
+    // args fell through to `_ => None` and bypassed E-QUERY-038.
+    //
+    // Wildcard items (Star / TableStar) are still skipped — no column to extract.
+    // VirtualField (_sensor, _client) are still skipped — always valid sentinels.
+    // This makes AC-M2's claim that `extract_field_paths_from_expr` is the SINGLE
+    // extraction point for ALL 5 positions (SELECT, WHERE, GROUP BY, ORDER BY,
+    // JOIN ON) true for Position 1 as well.
+    let mut select_cols: Vec<String> = Vec::new();
+    for item in &sql_query.select.items {
+        match item {
+            SelectItem::Star => {}         // SELECT * — skip (no column to validate)
+            SelectItem::TableStar(_) => {} // SELECT table.* — skip
+            SelectItem::Expr { expr, .. } => {
+                match expr {
+                    // VirtualField (_sensor, _client, etc.) — always valid, skip.
+                    Expr::VirtualField(_) => {}
+                    // All other Expr variants (Field, FuncCall, Compare, etc.) — use
+                    // the recursive walker so FuncCall args are validated.
+                    _ => {
+                        extract_field_paths_from_expr(
+                            expr,
+                            &table_name,
+                            from_alias,
+                            &mut select_cols,
+                        );
+                    }
                 }
-                // VirtualField (_sensor, _client, etc.) — skip (always valid).
-                Expr::VirtualField(_) => None,
-                // Other expr types (FuncCall, literals, etc.) — skip.
-                _ => None,
-            },
+            }
             // #[non_exhaustive] catch-all for future SelectItem variants.
             #[allow(unreachable_patterns)]
-            _ => None,
-        })
-        .collect();
+            _ => {}
+        }
+    }
 
     // ── Position 2: WHERE clause — recursively extract FieldPath refs ─────────
     //
