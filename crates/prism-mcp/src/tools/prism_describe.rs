@@ -446,38 +446,30 @@ fn build_pql_hints(
 /// Per-sensor severity vocabulary — maps sensor name prefix to the DTU-emitted
 /// severity literal casing.
 ///
-/// # Complete demo sensor coverage (all 4 sensors)
+/// # Demo sensor coverage (all 4 sensors)
 ///
-/// Only sensors whose exact DTU-emitted severity casing is known and registered here
-/// will have a severity-filter variant in their example query.  The other two demo
-/// sensors are intentionally absent for the reasons documented below.
-///
-/// ## Sensors IN this vocabulary
-///
-/// - `crowdstrike`: Title-case — `"High"`, `"Critical"`, `"Medium"`, `"Low"`
-///   Source: `crates/prism-dtu-crowdstrike/src/generator.rs` `make_detection_with_ioc()`
-///   `1 => "Low", 2 => "Medium", 3 => "High", _ => "Critical"`
-///
-/// - `armis`: UPPER-case — `"HIGH"`, `"CRITICAL"`, `"MEDIUM"`, `"LOW"`
-///   Source: `crates/prism-dtu-armis/src/generator.rs` `build_alert()` severity param
-///   assigned as `"HIGH"`, `"CRITICAL"`, `"MEDIUM"`
+/// Only sensors whose exact DTU-emitted severity casing is registered here will have
+/// a severity-filter variant in their example query.  Sensors absent from this list
+/// fall through to the count-recent or column-free query branch.
 ///
 /// ## Sensors registered in this vocabulary
 ///
 /// - `crowdstrike`: Title-case — `"High"`, `"Critical"`
 ///   Source: `crates/prism-dtu-crowdstrike/src/generator.rs`
 ///   `make_detection_with_ioc()` severity_id mapping: 1→"Low", 2→"Medium", 3→"High", _→"Critical"
+///   Example query emits `WHERE severity IN ('High', 'Critical') LIMIT 50`.
 ///
 /// - `armis`: UPPER-case — `"HIGH"`, `"CRITICAL"`
 ///   Source: `crates/prism-dtu-armis/src/generator.rs` `build_alert()` severity param
 ///   assigned as `"HIGH"`, `"CRITICAL"`, `"MEDIUM"`, `"LOW"`
+///   Example query emits `WHERE severity IN ('HIGH', 'CRITICAL') LIMIT 50`.
 ///
 /// - `cyberint`: lowercase — `"high"`, `"critical"`
 ///   Source: `crates/prism-dtu-cyberint/src/generator.rs`
 ///   `let severities = ["low", "medium", "high", "critical"];` (F-PHL2-MED-001 fix)
-///   The example query emits `WHERE severity IN ('high', 'critical') LIMIT 50`.
+///   Example query emits `WHERE severity IN ('high', 'critical') LIMIT 50`.
 ///
-/// ## Sensors INTENTIONALLY OMITTED from this vocabulary
+/// ## Sensors intentionally omitted
 ///
 /// - `claroty`: NO string `severity` column.  The claroty sensor schema exposes
 ///   `severity_id` (Integer) rather than a string `severity` column.  The
@@ -496,6 +488,7 @@ fn build_pql_hints(
 /// F-L2-CRIT-001 fix (S-DEMO-FIDELITY-REMEDIATION-001).
 /// F-PGL2-LOW-001 doc expansion (S-DEMO-FIDELITY-REMEDIATION-001).
 /// F-PHL2-MED-001 cyberint entry (S-DEMO-FIDELITY-REMEDIATION-001 Pass-H).
+/// F-PIL2-LOW-001 doc consolidation (S-DEMO-FIDELITY-REMEDIATION-001 Pass-I).
 const SENSOR_SEVERITY_VOCABULARY: &[(&str, &str, &str)] = &[
     // (sensor_prefix, high_literal, critical_literal)
     ("crowdstrike", "High", "Critical"),
@@ -956,6 +949,18 @@ mod build_example_query_tests {
     ///
     /// Representative table: armis_devices with Integer risk_score.
     /// The Integer column triggers the aggregate branch (highest priority in the ladder).
+    ///
+    /// # End-to-end executability (F-PIL2-OBS-001)
+    ///
+    /// armis_devices uses the AQL-passthrough path (`path_template = /api/v1/search?aql=
+    /// ${query.filter.aql}`).  When the example query carries no AQL predicate, the
+    /// PipelineExecutor pre-seeds `${query.filter.aql}` to an empty string (pipeline.rs,
+    /// ADR-033 T1 / AC-CWS-002), producing `GET /api/v1/search?aql=`.  The DTU
+    /// `get_search` handler receives `params.aql = Some("")`, which does NOT contain
+    /// `"in:alerts"`, so it defaults to returning all device records (EC-001 in search.rs).
+    /// DataFusion then executes the `GROUP BY risk_score` aggregation locally over the
+    /// fetched rows.  The aggregate example is therefore end-to-end executable against
+    /// the DTU without any predicate — VERIFIED EXECUTABLE.
     #[test]
     fn test_obs001_roundtrip_aggregate_branch_parses() {
         use prism_query::filter_parser::PrismQlParser;

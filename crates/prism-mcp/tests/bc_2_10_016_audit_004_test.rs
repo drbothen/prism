@@ -798,7 +798,10 @@ fn test_bc_2_10_016_audit_004_column_sets_loaded_for_all_sensor_tables() {
 //     Source: prism-dtu-cyberint/src/generator.rs
 //             let severities = ["low", "medium", "high", "critical"];
 //     Note: Added to SENSOR_SEVERITY_VOCABULARY in F-PHL2-MED-001 (Pass-H).
-//           The prompts now emit WHERE severity IN ('high', 'critical') for cyberint_alerts.
+//           The cyberint severity vocabulary is validated by
+//           test_f_phl2_med001_cyberint_alerts_severity_uses_lower_case in prism_describe.rs.
+//           No render_* prompt emits a cyberint_alerts query, so cyberint_alerts has no
+//           row in SENSOR_COLUMN_VOCABULARIES below (F-PIL4-LOW-001 fix).
 
 /// Canonical per-sensor vocabulary for status and severity columns.
 ///
@@ -839,16 +842,12 @@ const SENSOR_COLUMN_VOCABULARIES: &[(&str, &str, &[&str])] = &[
         "severity",
         &["HIGH", "CRITICAL", "MEDIUM", "LOW"],
     ),
-    // cyberint_alerts.severity: lowercase from generator.rs severities array.
-    // Source: generator.rs let severities = ["low", "medium", "high", "critical"];
-    // F-PHL2-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-H): cyberint added to
-    // SENSOR_SEVERITY_VOCABULARY with lowercase literals — MED-2 must now validate
-    // that any prompt example query for cyberint_alerts.severity uses lowercase values.
-    (
-        "cyberint_alerts",
-        "severity",
-        &["low", "medium", "high", "critical"],
-    ),
+    // cyberint_alerts is intentionally absent.
+    // No render_* prompt emits a cyberint_alerts SELECT, so any cyberint entry here
+    // would be dead data (the MED-2 loop never matches `FROM cyberint_alerts`).
+    // The cyberint severity vocabulary (lowercase) is validated separately by
+    // test_f_phl2_med001_cyberint_alerts_severity_uses_lower_case in prism_describe.rs.
+    // F-PIL4-LOW-001 fix (S-DEMO-FIDELITY-REMEDIATION-001 Pass-I).
 ];
 
 /// Extract string literal values from a SQL WHERE predicate or IN list.
