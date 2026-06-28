@@ -1689,7 +1689,7 @@ fn check_enrich_udf_availability(
             // MED-001 fix: sort + dedup so the list is deterministic (lexicographic order)
             // as required by error-taxonomy.md §E-QUERY-039 (canonicalized at v2.01, matches current v2.03). This mirrors the
             // sort+dedup fix applied to available_columns in check_column_availability
-            // (OBS-FRESH-1, engine.rs line ~1714) for E-QUERY-038 parity.
+            // (`check_column_availability` OBS-FRESH-1 fix) for E-QUERY-038 parity.
             let mut available_infusions: Vec<String> =
                 descriptors.iter().map(|d| d.name.clone()).collect();
             available_infusions.sort();
@@ -1701,7 +1701,7 @@ fn check_enrich_udf_availability(
             // the column gate's determinism fix (check_query_column_availability).
             // F-PHL1-HIGH-001: cap `requested` at 128 bytes (SEC-002 / CWE-407)
             // before the O(m×n) Levenshtein loop — mirrors the table gate cap in
-            // `table_registry.rs::did_you_mean` (lines ~387-396).
+            // `table_registry::did_you_mean`.
             let requested_capped = crate::table_registry::cap_name_for_levenshtein(requested);
             let did_you_mean = available_infusions
                 .iter()
@@ -1936,7 +1936,7 @@ fn check_column_availability(
         };
         // F-PBL1-LOW-001 fix (Pass-B S-DEMO-FIDELITY-REMEDIATION-001): sort + dedup
         // `available_columns` for deterministic ordering, matching the multi-tenant
-        // path (OBS-FRESH-1 fix at line ~1926). `columns_for_table` returns columns
+        // path (`check_query_column_availability` OBS-FRESH-1 fix). `columns_for_table` returns columns
         // in spec insertion order; without sort+dedup the available_columns in the
         // E-QUERY-038 error are non-deterministic across sensor registrations.
         let mut available_columns = registry.columns_for_table(table_name);
@@ -6389,7 +6389,7 @@ mod cwe407_strsim_cap_tests {
     /// F-PHL1-MED-001 multi-tenant: `check_column_availability` (multi-tenant path)
     /// must also cap over-cap column names.
     ///
-    /// Load-bearing (TD-VSDD-059): the multi-tenant path at engine.rs line ~1949 also
+    /// Load-bearing (TD-VSDD-059): `check_column_availability` (multi-tenant path) also
     /// calls `strsim::levenshtein(column_name, c)` without a cap before this fix.
     ///
     /// SEC-002 / CWE-407 / F-PHL1-MED-001.

@@ -58,8 +58,8 @@ pub(crate) const DID_YOU_MEAN_MAX_NAME_BYTES: usize = 128;
 /// - For inputs whose byte length is already ≤ 128, returns `name` unchanged (zero-copy).
 ///
 /// # Reference
-/// SEC-002 / CWE-407; mirrors the inline cap in `did_you_mean` (lines 387–396)
-/// and `did_you_mean_for_tables` (lines 428–436) of this module.
+/// SEC-002 / CWE-407; mirrors the inline cap in `did_you_mean`
+/// and `did_you_mean_for_tables` of this module.
 /// Applied to the enrich gate (E-QUERY-039) and column gate (E-QUERY-038) by
 /// F-PHL1-HIGH-001 and F-PHL1-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-H).
 pub(crate) fn cap_name_for_levenshtein(name: &str) -> &str {

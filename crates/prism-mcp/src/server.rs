@@ -1435,7 +1435,7 @@ const LIVE_TOOLS: &[&str] = &[
     "validate_config",
     "list_capabilities",
     "prism_describe",
-    // HIGH-3: check_sensor_health has a genuine live handler (line ~3082) that validates
+    // HIGH-3: check_sensor_health has a genuine live handler that validates
     // client_id, calls scan_inputs_audited, emits audit events, and returns SensorHealthStructuredContent.
     // It was incorrectly listed in NOT_YET_AVAILABLE_TOOLS; moved here per adversary pass 1.
     "check_sensor_health",
@@ -3218,7 +3218,7 @@ impl PrismServer {
             // Resolve OrgId from the OrgRegistry.
             // F-S504-P2-006: replace org_slug.expect() with is_err() structural guard.
             //   org_slug is OrgSlug (internal validity state), not Result<OrgSlug, _>.
-            //   The is_err() guard at line ~2983 already returns early when invalid;
+            //   The `org_slug.is_err()` guard in `check_sensor_health` already returns early when invalid;
             //   we add a second guard here as a structural safety belt — no expect() in prod.
             // F-S504-P1-003: when org_registry is wired but resolve() returns None, that is a
             //   registry inconsistency (slug_exists() passed above); surface E-CFG-100 rather
@@ -3641,7 +3641,7 @@ scan/audit/business-logic processing occurs.\n\
         } else {
             // Fallback: derive table set from config_manager snapshot.
             // MUST use `{sensor_id}_{table_name}` (underscore) — same format as
-            // `TableRegistry::register_sensor` (table_registry.rs line 149).
+            // `TableRegistry::register_sensor`.
             // Using `.` (dot) here mismatches the real registry and breaks the
             // old == new set-comparison (F-OBS-2 separator fix).
             self.config_manager
@@ -10894,7 +10894,7 @@ mod adr_042_tests {
     //     second `prism_describe` call see the added table.
     //
     // NOTE: This test exercises the `build_tables_for_client` code path in
-    // `prism_describe.rs` (lines 272–306) — the multi-tenant path that calls
+    // `tools/prism_describe.rs` — the multi-tenant path that calls
     // `qe.resolved_spec_map()`. The single-tenant fallback (sensor_specs lookup)
     // is NOT under test here.
     // ────────────────────────────────────────────────────────────────────────────

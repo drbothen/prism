@@ -405,7 +405,7 @@ async fn test_high003_sql_select_unknown_scalar_triggers_enrich_error() {
 /// from `HashSet` iteration order (non-deterministic), causing:
 /// 1. Non-deterministic error messages (flaky tests, non-reproducible output).
 /// 2. Drift from the E-QUERY-038 sibling which already sorts `available_columns`
-///    (OBS-FRESH-1 fix, engine.rs ~line 1714).
+///    (`check_column_availability` OBS-FRESH-1 fix).
 ///
 /// Test protocol:
 /// 1. Build an engine with 3 infusion UDFs registered in reverse-lex order:
