@@ -3156,6 +3156,77 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   (table in capture artifact). SAP-1 downstream obligations: 5 new BC-2.16.002 event-catalog rows
   flagged in capture artifact (morph-time).
 
+- **C12 Prism Context (KG + Vector + Entity 360) DECIDED + CAPTURED 2026-06-27 (human).** Six
+  architecture decisions D-C12-1..6 confirmed. Capture artifact:
+  `specs/day2-design-decisions/ADR-PROP-prism-context.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/prism-context-kg-vector-2026-06-27.md` (3× perplexity_research sonar-deep-research +
+  1× perplexity_ask; 12 live crates.io version-verifications 2026-06-27). Aletheon spike
+  (`spike/init-db.sql` + `spike/docs/aletheon-vision.md`) read and cited for AGE+pgvector design
+  + control/process edges + ARO model + institutional-memory thesis.
+  **Overall: a two-layer, embedded, air-gap-first Context engine on the OCSF-normalized layer,
+  per-tenant isolated.**
+  **D-C12-1 STORAGE = TWO-LAYER MAINTAINED + TIERED.** Graph = `indradb` 5.0.0
+  (RocksDB-backed, co-located with existing ~19 CFs, MPL-2.0, actively maintained 2025-08).
+  Vector = `usearch` 2.25.3 hot in-memory ANN with INT8/binary quantization (512MB/200MB budget)
+  + `lancedb` 0.30.0 on-disk COLD tier (maps to hot→Iceberg-cold pattern). REJECT `cozo` 0.7.6
+  (last published 2023-12-11, ~2.5 yr stale) — record considered-and-rejected; OQ-C12-4 for
+  future re-check if upstream resumes.
+  **D-C12-2 EMBEDDINGS = ON-BOX IN-PROCESS.** `fastembed` 5.17.2 on `ort` 2.0.0-rc.12 (shared
+  with C7 ModelBackend D-C7-2) DEFAULT; `candle` 0.11.0 pure-Rust fallback for air-gap audit /
+  avoid ort-RC. Final model (BGE-small / all-MiniLM / nomic-embed / multilingual-E5) via
+  perf/recall benchmark (OQ-C12-1). Models pre-staged for air-gap; raw telemetry vectorized
+  in-process, NEVER transits AI context (AD-017 + C16) — PIV-C12-2 invariant.
+  **D-C12-3 ENTITY-RESOLUTION = DETERMINISTIC-ONLY AUTO-MERGE + SUSPECTED-LINKS.** Auto-merge
+  ONLY on strong IDs (SID/UUID/MAC); weak/fuzzy = `suspected` edges NEVER auto-merged;
+  temporal validity intervals on identity edges (DHCP); strictly per-tenant. Security-reviewer
+  sign-off required (PIV-C12-4).
+  **D-C12-4 RETRIEVAL = PERPLEXITY-STYLE HYBRID MULTI-STAGE + MANDATORY CITATIONS.** Lexical/
+  structured filter → graph-neighborhood expand → vector similarity → re-rank (severity /
+  criticality / TI-credibility / recency) → LLM synthesis. Mandatory inline citations (claim →
+  OCSF event ID / rule / asset). Route via C7 ModelBackend (fast vs reasoning).
+  **D-C12-5 GRAPHRAG = PHASED.** Phase 1 = local-search (entity-neighborhood + vector = Entity
+  360 query) SHIPS FIRST. Phase 2 = full GraphRAG global community-summarization (Hierarchical
+  Leiden + LLM community-summaries) for corpus-wide incident/campaign clustering — COMMITTED
+  (not just deferred), cost acknowledged; recompute cadence OQ-C12-2.
+  **D-C12-6 DEPLOYMENT = EMBEDDED AIR-GAP-FIRST, UNIVERSAL DEFAULT; per-tenant partitioned.**
+  `indradb` + `usearch` + `lancedb` are all embedded. Server-backed option NOT built
+  speculatively. **DEFERRED CENTRAL-TIER OPTION (record explicitly): Apache AGE (graph) +
+  pgvector co-resident on Prism's ALREADY-BUNDLED PostgreSQL** is the recorded concrete
+  server-backend escape-hatch for the CENTRAL deployment tier ONLY — revisit if a concrete need
+  emerges; does NOT change the embedded edge/satellite decision. Aletheon spike validates
+  the AGE+pgvector single-store pattern.
+  **ENTITY 360 EXPANSION (7-part view):** identity panel (canonical + aliases + binding
+  confidence); timeline (normalized OCSF activity, time-windowed identity); relationship graph
+  (host↔user↔IP↔process↔alert↔asset, typed+temporal edges — INCLUDING control/process edges
+  CONTROLS/MONITORS/CONNECTS_VIA from aletheon); explainable risk score (cited events);
+  exposures (vulns/misconfig/unpatchable); related findings/similar entities (vector);
+  operational/business-context edges (asset→process→mission) AND **Purdue-level/network-zone
+  (ot_level_0/1/2/dmz/it) as a first-class entity attribute** (OT relevance, ties C20 NERC CIP).
+  **ALETHEON SPIKE CAPTURE (CORRECTED — it DOES have a spike memory design):**
+  Apache AGE + pgvector in ONE PostgreSQL; OT asset graph (`create_graph('ot_assets')`);
+  graph edges = control/process relationships (CONTROLS, MONITORS, CONNECTS_VIA), NOT just
+  network; asset nodes carry criticality/location/`network_zone=Purdue level`;
+  `assets.description_embedding vector(1536)` (semantic search on assets); `events` table
+  (normalized telemetry). `aros` table (Actions/Recommendations/Observations with dual-audience
+  text, AI provenance, confidence/model_version, source_event_ids[], ack/resolve workflow) is a
+  **DIRECT REFERENCE INPUT FOR C15 (SOAR ARO model) — NOT captured here; cross-linked to C15.**
+  Institutional-memory thesis ("the system learns your environment, your patterns, your
+  preferences") = the C12 product framing. What Prism does NOT pull: aletheon's cross-client
+  "community defense" (collides with per-tenant isolation + AD-017).
+  **INVARIANTS (PIV-C12-*):** in-process on-box embeddings (raw telemetry never transits AI
+  context); strictly per-tenant graph/vector/resolution (no cross-tenant edges/similarity);
+  auto-merge only on strong identifiers; temporal validity on identity edges; every LLM-surfaced
+  claim carries an OCSF-event/rule/asset citation; embedded single-binary works air-gap with
+  pre-staged models.
+  **Open questions:** OQ-C12-1 (embedding-model benchmark); OQ-C12-2 (GraphRAG Phase 2
+  recompute cost/cadence); OQ-C12-3 (AGE+pgvector central-tier evaluation trigger);
+  OQ-C12-4 (cozo upstream liveness check); OQ-C12-5 (usearch boot-time index load strategy).
+  Cross-links: C7 ModelBackend (ort shared), C1 storage taxonomy (lancedb cold tier),
+  C11 Prism Intel (Entity 360 parts 4+5), **C15 (ARO model — aletheon aros table banked)**,
+  C20 (Purdue-zone/OT), AD-017, C16 masking, S3 agent runtime.
+  Proposed epic: E-PRISM-CONTEXT-001 (feeds B).
+
 - **C13 §16.4 open-items closeout COMPLETE 2026-06-27 (human).** All residual open items from
   the six §16.4 capture sketches resolved. Key resolutions applied to files under
   `specs/day2-design-decisions/`:
