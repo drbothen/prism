@@ -89,6 +89,9 @@ D-1399: session wrap — RESUME SNAPSHOT D-1399 authored (supersedes D-1380); S-
 ### D-1400 DELTA (discovery-sweep fix-burst — appended to D-1399 snapshot)
 > Feature HEAD advanced 073d305f→a562ebaa. Spec deltas: BC-2.11.019 v1.3→v1.4 (§Gate Scope Boundaries: OBS-001/002/003 + F-L3-OBS-002 adjudicated); error-taxonomy v2.01→v2.02 (E-QUERY-039 example sort + BC anchor v1.4); story v2.0→v2.1 (BC-2.11.016 re-anchored in behavioral_contracts + body BC table; Token Budget 5→6 BCs; BC-2.11.019 cites v1.3→v1.4; AC-SAP-1 reworded to compliance note; F-L3-OBS-001 build_example_query prose fixed). BC-INDEX v7.19→v7.20. STORY-INDEX v2.505→v2.506. 3-CLEAN streak 0/3; NEXT = re-gate LOCAL adversary cascade on a562ebaa + story v2.1. STATE v8.026→v8.027.
 
+### D-1401 DELTA (Pass-A LOCAL fix-round closure — appended to D-1399 snapshot)
+> Feature HEAD advanced 510d7de4→ddca76c2 (implementer doc-comment class sweep: F-PAL1-LOW-001 check_query_column_availability docstring + F-PAL4-OBS-001 stale RED-proxy module doc + comprehensive stale-doc sweep across 12 delivery files, 672 stale lines removed; doc-only, no logic change; just check 5039 pass; non-exhaustive 88/88). Story v2.1→v2.2 (story-writer POL-7 title normalization: all 6 BC body-table Title cells now verbatim match BC H1 — BC-N.NN.NNN: prefix added to 5 previously-stripped rows; BC-2.11.016 was already verbatim; Token Budget label v2.1→v2.2). STORY-INDEX v2.506→v2.507. 3-CLEAN streak 0/3; NEXT = re-gate Streak Pass-B (4-lens) on ddca76c2 + story v2.2. STATE v8.027→v8.028.
+
 ---
 
 ## §RESUME SNAPSHOT — D-1380 (2026-06-26 — SESSION WRAP; develop origin/develop 7e60df03 / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.18; STORY-INDEX v2.492; ARCH-INDEX v2.147; STATE v8.008; PR #204 CONVERGED 3/3 strict @b40ac1e1; pending CI-infra-flake re-run + squash-merge) [SUPERSEDED by D-1399]

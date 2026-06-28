@@ -70,7 +70,7 @@ status: draft
 #   BC-2.11.016 v1.4) + BC-2.11.019 v1.4 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.1"
+version: "2.2"
 updated: "2026-06-27"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -257,11 +257,11 @@ all subquery positions (HAVING, GROUP BY, ORDER BY, JOIN ON).
 
 | BC ID | Version | Title |
 |-------|---------|-------|
-| BC-2.11.001 | v1.15 | `query` MCP Tool Accepts Scoping + PrismQL Query String |
-| BC-2.11.022 | v1.1 | Auto-Generated `prismql://reference` Content Contract and CI Parity Gate |
-| BC-2.11.019 | v1.4 | E-QUERY-039 Enrich-UDF-Not-Found Plan-Time Gate |
-| BC-2.10.016 | v1.2 | MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
-| BC-2.10.012 | v1.4 | `prism_describe` Schema Discovery Tool (L2) |
+| BC-2.11.001 | v1.15 | BC-2.11.001: `query` MCP Tool Accepts Scoping + PrismQL Query String |
+| BC-2.11.022 | v1.1 | BC-2.11.022: Auto-Generated `prismql://reference` Content Contract and CI Parity Gate |
+| BC-2.11.019 | v1.4 | BC-2.11.019: E-QUERY-039 Enrich-UDF-Not-Found Plan-Time Gate |
+| BC-2.10.016 | v1.2 | BC-2.10.016: MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
+| BC-2.10.012 | v1.4 | BC-2.10.012: `prism_describe` Schema Discovery Tool (L2) |
 | BC-2.11.016 | v1.4 | BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
 
 ---
@@ -705,7 +705,7 @@ row addition is required for this delivery.
 
 | Artifact | Estimated Tokens |
 |----------|-----------------|
-| This story spec (v2.1) | ~16,000 |
+| This story spec (v2.2) | ~16,000 |
 | BC files (6 BCs) | ~12,000 |
 | Source files touched (resources.rs, prompts.rs, prism_describe.rs, error.rs, table_registry.rs, engine.rs, error_mapping.rs + new test files) | ~32,000 |
 | Research/audit docs (2) | ~6,000 |
@@ -1043,6 +1043,7 @@ spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.2 | pol-7-title-normalization-2026-06-27 | 2026-06-27 | story-writer | POL-7 title normalization (D-571 amendment): normalized all 6 Title cells in the Behavioral Contracts body table to match each BC's H1 VERBATIM — added the `BC-N.NN.NNN:` prefix to the 5 rows that had stripped it (BC-2.11.001, BC-2.11.022, BC-2.11.019, BC-2.10.016, BC-2.10.012). BC-2.11.016 was already verbatim. All 6 version cites confirmed current against BC frontmatter (v1.15, v1.1, v1.4, v1.2, v1.4, v1.4 — no drift). No §References section present; no other citation surfaces. |
 | 2.1 | f-l3-high-001-f-l3-obs-001-remediation-2026-06-27 | 2026-06-27 | story-writer | F-L3-HIGH-001 (POL-8 frontmatter↔body coherence): Added BC-2.11.016 (E-QUERY-038 Column-Not-Found Plan-Time Gate, v1.4) to `behavioral_contracts:` frontmatter array and body BC table — AC-M1 and AC-M2 genuinely trace to this BC (single-tenant column gate `columns_for_table`/`columns_by_table` + GROUP BY/ORDER BY/JOIN ON column validation). BC-2.11.016 input file added to `inputs:`. All BC-2.11.019 version cites in body updated v1.3→v1.4 (PO bump). Token Budget updated: "5 BCs"→"6 BCs", ~10k→~12k BC tokens, total ~86k→~88k. Frontmatter `behavioral_contracts` comment updated to reference all 6 BCs. AC-SAP-1 rewording: removed "(traces to ... BC-2.16.002)" — per PO verdict, SAP-1 is a standing-probe/discipline compliance reference only; this delivery added no new `event_type` emission, so there is no behavioral trace to BC-2.16.002. AC-SAP-1 now describes the compliance check outcome explicitly (all code fixes use `?`-propagation, SAP-1 scan confirmed zero new `event_type` values). F-L3-OBS-001 (prose accuracy): Updated AC-AUDIT-001 CRIT-1 prose to describe the full `build_example_query` variant priority ladder as implemented in code: (1) aggregate — Integer/Float column present; (2) severity-filter — severity column + registered sensor vocabulary; (3) count-recent — Datetime column found; (4) column-free fallback — no Datetime. Previous prose only described the datetime→column-free axis. EC-015 updated to reference the full priority ladder. Version bump 2.0→2.1. |
 | 2.0 | full-scope-expansion-prose-accuracy-sweep-2026-06-27 | 2026-06-27 | story-writer | Major revision: story updated to comprehensively document ALL implemented work beyond the original 5 findings. Gate-coverage expansion: (1) C1/C2 — enrich gate `collect_unknown_scalars_from_sql_query` scans SELECT, WHERE, JOIN ON, GROUP BY, ORDER BY, HAVING positions via canonical single-walk fn; (2) HIGH-1 — SqlPipe-not-exempt scope for N2 (BC-2.11.001 v1.15 mode-agnostic) + SqlPipe enrich gate (test_high1_sqlpipe_head_unknown_scalar_fires_e_query_039); (3) H1 — capability-gate ordering symmetric in execute_scheduled_inner (E-QUERY-011 moved AFTER 037/038/039); (4) M1 — single-tenant column gate via TableRegistry.columns_by_table + columns_for_table; (5) M2 — E-QUERY-038 validates GROUP BY/ORDER BY/JOIN ON columns; (6) L1 — E-QUERY-037 source walk covers HAVING/GROUP BY/ORDER BY/JOIN ON subqueries via collect_expr_sources_into_gate. Describe+prompt correctness: CRIT-1 (build_example_query derives datetime column from spec, not hardcoded 'timestamp'); MED-1 (prompt VALUES aligned to DTU vocabulary); MED-2 (test_bc_2_10_016_med2_prompt_filter_values_match_dtu_vocabulary); OBS-1 (AUDIT-004 scope = 4 render_* modified, not 5 — render_query_tutorial unchanged); OBS-2 (did_you_mean=Some engine test + None test); OBS-4 (deleted crit001_prompt_table_names.rs, superseded); OBS-5 (fail-closed guards). Prose fixes: CRIT-1 (AC-N2 SqlPipe-not-exempt scope added); HIGH-1 (Red Gate inventory expanded 9→31 tests); HIGH-2 (test_bc_2_11_019_n1b_mcp_maps_to_32602 correct file: crates/prism-mcp/tests/bc_2_11_019_n1b_mcp_test.rs, not error_mapping.rs #[cfg(test)]); HIGH-3 (all ci.yml refs → scripts/check-non-exhaustive.sh, grep command corrected); OBS-2 (Estimated Complexity 8→10 pts; N2 anchor → check_availability_gate in table_registry.rs); OBS-3 (Token Budget label v1.8→v2.0); full crates_touched + File Structure updated to list all 20 files touched/created/deleted; 15 new Edge Cases (EC-007–EC-015); new ACs for gate-coverage (AC-C1C2, AC-M1, AC-M2, AC-L1, AC-H1); acceptance_criteria_count 10→16; red_gate_tests 9→31; case-insensitive querying split noted (→ S-PRISMQL-CASE-INSENSITIVE-001); deferred items noted (BC-2.10.012 §pql_hints divergence, 4x-query-reparse perf). Version bump 1.9→2.0. |
 | 1.9 | med-1-re-correction-where-clause-code-verified-2026-06-27 | 2026-06-27 | story-writer | MED-1 re-correction: AC-N1B WHERE note aligned to code-verified reality (over-corrected in v1.8). `build_predicate_parser` has no scalar-funcall atom → real `WHERE udf(col)=v` is E-QUERY-001 parse error; `collect_unknown_scalar_from_predicate` WHERE scan is DEFENSIVE/forward-compat (programmatic AST), honoring BC-2.11.019 §Precondition 1(b) AST-contract; SQL projection is the reachable gated path. `ScalarFunc::Unknown` is produced ONLY by `build_sql_expr_parser` (SELECT projections), not by the WHERE predicate grammar. Five locations corrected: (1) AC-N1B WHERE-clause note block quote; (2) AC-N1B Step 2 SQL path bullet; (3) Tasks step 6(b); (4) File Structure table engine.rs enrichment gate row; (5) Architecture Mapping E-QUERY-039 gate row. Matches the implementing test docstring in `crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs` (~lines 355-366). Version bump 1.8→1.9. |
