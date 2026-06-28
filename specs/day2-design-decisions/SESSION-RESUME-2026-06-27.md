@@ -265,6 +265,8 @@ brief-reframe §5.1 remains PENDING-human-signoff; B remains gated. + §8 featur
 
 + Prism + Prism Satellite C4 diagram set captured under specs/day2-design-decisions/diagrams/ — prism-architecture-conceptual.drawio (C4 L1/L2 exec/customer: your-environment → encrypted-answers-only conduit → Prism Central; 'raw data stays on-site') and prism-architecture-technical.drawio (C4 L2/L3 container: full Central + Satellite component breakdown, OCSF-normalize chokepoint + derived-results-only hard invariants highlighted, maturity legend marking active-polling [GATED], OOTB/A2A/evidence-pkg [roadmap], GraphRAG-Phase2/continuous-operator [phased]); both exported to PNG/SVG/PDF (draw.io CLI 30.0.4). For customer/exec show-and-tell + engineer reference.
 
++ positioning-fidelity-iterate-list.md captured — master iterate-list from the 2026-06-28 multi-agent fidelity sweep (8 agents, 7 areas): 36 findings (14 undersell / 7 coverage-gap incl. architect-added GAP-07 PCAP-retrieve-affordance / 7 oversell / 5 misalignment / 3 naming; 12 HIGH). Verdict MEDIUM-to-HIGH drift, two patterns: (1) decided high-value capabilities with no customer/exec home (passive-OT sensor, bitemporal AS-OF-KNOWN replay, backup+crypto-shred, compliance profiles, SSO/SCIM/RBAC, on-demand ML, edge masking, MSSP nested tenancy, agent-native identity); (2) exec narrative oversells absolute residency/operator-zero-access (OVER-01/02 HIGH — fix BEFORE §5.1). Pre-§5.1 fixes flagged: OVER-01, OVER-02, MISAL-01 (S4=browser-extension not 'mobile'), MISAL-02 (hostname not a strong-ID auto-merge key). Most folds gated on §5.1. Master backlog for positioning reconciliation.
+
 #### C3 reconciliation sweep — DONE (commit f83e3ec7)
 - 3 `[SUPERSEDED by D-C3-1]` inline markers added to matured-vision §12.2 (history preserved, not deleted).
 - 1 label fix in ADR-PROP-dynamic-schema-connectors.md.
@@ -570,6 +572,7 @@ Superseded capture queue (all DONE — do not re-execute):
   - `(this checkpoint)` — plain-language executive positioning narrative captured (positioning-executive-narrative.md); path-scoped commit. Prior side HEAD: **86a2a334**.
   - `(this checkpoint)` — prism-as-ot-sensor-note.md working note captured (PCAP+dissector passive-OT finding + OT-standalone correction; 5 iterate-later threads); path-scoped commit. Prior side HEAD: **55963381**.
   - `(this checkpoint)` — Prism+Satellite C4 diagram set (conceptual + technical, .drawio + PNG/SVG/PDF) captured under diagrams/; path-scoped commit. Prior side HEAD: **82594cf1**.
+  - `(this checkpoint)` — positioning-fidelity-iterate-list.md captured (36-finding master iterate-list; multi-agent corpus→positioning fidelity sweep); path-scoped commit.
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD before this burst: **929a9758** (consistency audit complete; ADS v1.7).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory BC-2.16.002 left unstaged). No dangling in-flight research.
 
