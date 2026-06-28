@@ -250,6 +250,8 @@ All 8 gaps addressed. Human chose the fuller path on every fork — zero decline
 
 A SECOND positioning candidate was captured as `ADR-PROP-positioning-problem-framed.md`. It is an ALTERNATIVE to D-C10-5 (competitor-relative), NOT a supersession of it. Both are the two inputs to the §5.1 brief-reframe decision.
 
++ Fold-pass B (problem-framed candidate) applied: 22 iterate-list refs — MISAL-01/02/05 (S4=browser-extension, strong-ID set corrected, dropped borrowed 9-check), OVER-04/05/07 (model names→PARTIAL, Kani scope, egress PROPOSED), UNDER-01/02/03/06/07/09/11/12/14 + GAP-01/02/03/04/05/07 + NAME-01 (added passive-OT/Reading-C, bitemporal replay, backtest coverage-map, ML 'model is the memory', enterprise identity SSO/SCIM/RBAC, compliance presets, backup/crypto-shred, PrismQL RECOMMEND, piped surface, bundled-storage air-gap; §8.2 matrix 10→15 columns; S3-vs-AmazonS3 gloss). Fold log appended to the doc. Remaining fold passes: C (diagrams), D (competitive-positioning OVER-05/06 + UNDER-10).
+
 Built on the human-confirmed MANDATED-7 customer problems (cheap hunts / tuning / can't-ship-data-out / IT-watch-OT / device-discovery / OT-environment-context / talent), synthesized into 3 pillars:
 - A: data-never-leaves + IT-sees-OT
 - B: know-your-OT-environment
@@ -580,7 +582,8 @@ Superseded capture queue (all DONE — do not re-execute):
   - `(this checkpoint)` — prism-as-ot-sensor-note.md working note captured (PCAP+dissector passive-OT finding + OT-standalone correction; 5 iterate-later threads); path-scoped commit. Prior side HEAD: **55963381**.
   - `(this checkpoint)` — Prism+Satellite C4 diagram set (conceptual + technical, .drawio + PNG/SVG/PDF) captured under diagrams/; path-scoped commit. Prior side HEAD: **82594cf1**.
   - `(this checkpoint)` — positioning-fidelity-iterate-list.md captured (36-finding master iterate-list; multi-agent corpus→positioning fidelity sweep); path-scoped commit. Prior side HEAD: **9a7434d9**.
-  - `(this checkpoint)` — fold-pass A: exec-narrative audit folds applied (OVER-01/02/03 corrected; decided differentiators given plain-language homes; 'Where We Are Today' re-tiered); path-scoped commit.
+  - `(this checkpoint)` — fold-pass A: exec-narrative audit folds applied (OVER-01/02/03 corrected; decided differentiators given plain-language homes; 'Where We Are Today' re-tiered); path-scoped commit. Prior side HEAD: **5951b7ce**.
+  - `(this checkpoint)` — fold-pass B: problem-framed candidate audit folds (22 refs); path-scoped commit.
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD before this burst: **929a9758** (consistency audit complete; ADS v1.7).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory BC-2.16.002 left unstaged). No dangling in-flight research.
 
