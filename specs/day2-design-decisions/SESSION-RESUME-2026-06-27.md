@@ -9,11 +9,11 @@ provenance: "Day-2 vision SIDE-ANALYSIS program resume snapshot. SEPARATE from t
 # Day-2 Vision Side-Analysis — Zero-Context Resume Snapshot (2026-06-27)
 
 > **Original C-program (C1–C10 + deployment-matrix + C3 hard-reject reconciliation) COMPLETE and committed.
-> PRE-B feature track: C13 ✅ C12 ✅ C11 ✅ — now at C15 (next). ADS (Architecture Design System)
+> PRE-B feature track: C13 ✅ C12 ✅ C11 ✅ C15 ✅ — now at C14 (next). ADS (Architecture Design System)
 > created and locked as conformance frame. Surfacing model LOCKED = Option 3. Conformance pass DONE.
-> ARO depth research banked. B remains LAST and gated on the §5.1 brief-reframe HUMAN sign-off.**
+> B remains LAST and gated on the §5.1 brief-reframe HUMAN sign-off.**
 >
-> **Latest factory-artifacts HEAD: `9199174c`**
+> **Latest factory-artifacts HEAD: `b6314532`**
 >
 > **READ THIS FIRST on resume.** This is OUT-OF-BAND day-2 vision work, fully SEPARATE from the live
 > VSDD factory pipeline (which runs its own cascades on the same `factory-artifacts` branch). Everything
@@ -27,8 +27,8 @@ provenance: "Day-2 vision SIDE-ANALYSIS program resume snapshot. SEPARATE from t
   NEVER `git add research/` (would sweep live-factory research files). Leave `.DS_Store` and any
   live-factory files (e.g. `research/demo-finding-remediation-plan-*.md`, `research/test-suite-performance-*.md`)
   UNSTAGED. Push to `origin/factory-artifacts` under standing auth D-1066; on divergence fetch + `pull --rebase`
-  (the live factory pushes concurrently); never `--no-verify`/`--force`. Last side HEAD: **9199174c**
-  (ARO depth research + C12/C11 decided + ADS created + Option-3 surfacing lock + conformance pass done).
+  (the live factory pushes concurrently); never `--no-verify`/`--force`. Last side HEAD: **b6314532**
+  (C15 decided + ADR-PROP-soar-actions-aro.md captured; prior: C12/C11 decided + ADS created + Option-3 lock + conformance pass).
 - Working rhythm per area: research-agent pass (background) → I synthesize + give leans → AskUserQuestion on the
   genuine forks → architect captures decisions into the doc/ADR-PROPs → state-manager path-scoped commit.
   Pipeline research ~2–3 areas ahead. Confirm decisions before writing big new sections (mirror→confirm→write).
@@ -297,6 +297,18 @@ Recorded in `ARCHITECTURE-DESIGN-SYSTEM.md` as INV-ADS cross-cutting invariant. 
 - **Aletheon CORRECTED:** aletheon DOES have a memory spike: Apache AGE + pgvector on single Postgres, OT asset graph with control/process edges, `aros` table, institutional-memory thesis. AGE+pgvector recorded as DEFERRED central-tier substrate option. Aletheon `aros` table banked as C15 input.
 - **~57% unfaithful RAG caveat:** documented in C12 ADR-PROP; citation requirements and grounding discipline directly address this. Sharpened further by ARO depth research.
 
+#### C15 — Actions in PrismQL / SOAR + on-prem models — FULLY DECIDED + CAPTURED (ADR-PROP-soar-actions-aro.md, commit b6314532)
+
+- **Recommend-only v1:** v1 ships Observation + Recommendation only; Action tier deferred to post-v1 autonomy ladder (hardware-write risk + organizational-readiness gating).
+- **Autonomy ladder designed/enable-post-v1:** three-rung ladder (Observe / Recommend / Act) with per-tenant autonomy cap ceiling; enables graduated activation without re-architecture.
+- **Three typed entities over common base:** Observation, Recommendation, Action share a common `AroBase` (id, timestamp, tenant, provenance, confidence, citations); each adds tier-specific fields.
+- **Dual Recommendation sources:** (a) S3 agent layer (conversational / multi-step reasoning); (b) read-only PrismQL `RECOMMEND` projection (deterministic, auditable, plan-time query path); source discriminated via `provenance.source` field; both tested with perimeter-compile-fail gate.
+- **Full recommendation rigor day one:** W3C-PROV provenance graph, calibrated confidence scores (isotonic regression), conformal prediction sets, mandatory post-hoc citation-faithfulness check (RAG fidelity gate).
+- **Separate `prism-orchestration` Action layer:** HITL approval gates (configurable: auto / human-confirm / human-initiate); idempotency tokens; dry-run mode mandatory before first live run; structured rollback plans required; write-credentials reference-based (AD-017 — never transit AI context).
+- **On-prem model deployment via C7 ModelBackend:** central tier = Qwen3 / Mistral; edge tier = Phi-4-mini / Ministral; guardrails = Llama Prompt Guard; all air-gap capable; model provenance signed.
+- **ARO linkage rides C12 graph:** AROs are nodes in the Prism Context knowledge graph; entity 360 surfaces ARO history; cross-ARO causation tracked via PROV-O `wasDerivedFrom`.
+- **ADS conformance:** all 8 INV-ADS pass (reviewed pre-capture); no anti-patterns; Option-3 Central-Sole-Surface satisfied (action dispatch central; satellite headless for action execution only).
+
 #### C11 — Prism Intel — FULLY DECIDED + CAPTURED (ADR-PROP-prism-intel.md, commit 7c068714)
 - **Distribution model:** Feed-down / match-at-edge (central is blind to inventory by construction; intel delivered to satellite; matching happens at edge).
 - **SaaS non-BYOC exception:** opt-in central-match for non-BYOC SaaS tenants (explicit consent required; default = edge-match only).
@@ -330,7 +342,7 @@ Each area: research → discuss → decide → capture → commit. **B = integra
 
 A new batch of feature areas was confirmed BEFORE B — all require research + discussion + decisions + capture. Research is banked for C12 ✅, C11 ✅, C15 (double-banked), C20. B remains the final capstone, gated on §5.1 brief-reframe HUMAN sign-off.
 
-**Dependency-aware order (human-confirmed): C13 ✅ → C12 ✅ → C11 ✅ → C15 → C14 → C19 → C18 → C16 → C17 → C20 → B**
+**Dependency-aware order (human-confirmed): C13 ✅ → C12 ✅ → C11 ✅ → C15 ✅ → C14 → C19 → C18 → C16 → C17 → C20 → B**
 
 **Cross-cutting conformance frame:** ALL remaining items (C15, C14, C19, C18, C16, C17, C20, B) must pass the ADS conformance checklist (`ARCHITECTURE-DESIGN-SYSTEM.md`) before capture. The first conformance pass (10 ripple-audit items across 9 ADR-PROPs) is done.
 
@@ -342,7 +354,7 @@ A new batch of feature areas was confirmed BEFORE B — all require research + d
 | **Conformance pass** | Ripple audit of existing ADR-PROPs against ADS + Option-3 | ✅ DONE (commit 7c068714) — 10 items closed across 9 ADR-PROPs | All prior C-items |
 | C12 | Prism Context — knowledge graph + vector DB + entity mapping + Entity 360 expansion | ✅ DONE (commit 76f1a3e2) — ADR-PROP-prism-context.md; two-layer embedded (indradb+usearch+lancedb); fastembed/ort+candle; deterministic entity-resolution + suspected-links; hybrid retrieval + mandatory citations; phased GraphRAG; aletheon corrected | aletheon `aros` table → C15 input, AD-017, C16, C7 |
 | C11 | Prism Intel — hosted threat-intel/auto-advisory tied to Entity 360 | ✅ DONE (commit 7c068714) — ADR-PROP-prism-intel.md; feed-down/match-at-edge; opt-in central-match for non-BYOC SaaS; deployment-conditional metering; free public + paid curated tiers; C9 signed-bundle for air-gap; PSI rejected | C12 Entity 360, C9 signed-bundle, BYOC zero-access, Option-3 |
-| C15 | Actions in PrismQL / SOAR + on-prem models (Action·Recommendation·Observation) | 🔬 research DOUBLE-BANKED — prior sweep + `research/aro-model-depth-2026-06-27.md` (OODA/MAPE-K/Endsley; 3-tier ARO; autonomy gating; aletheon aros generalization) — **NEXT** | C7 ModelBackend, S3 agent, C10 GAP-Q2, C18, AD-017, aletheon aros |
+| C15 | Actions in PrismQL / SOAR + on-prem models (Action·Recommendation·Observation) | ✅ DONE (commit b6314532 — `ADR-PROP-soar-actions-aro.md`) — recommend-only v1 + autonomy ladder designed/enable-post-v1; three typed entities (Observation/Recommendation/Action) over common base; Recommendations from BOTH S3 agent layer AND read-only PrismQL `RECOMMEND` projection (perimeter-compile-fail-tested, source-discriminated provenance); full rec-rigor day one (W3C-PROV + calibrated confidence + conformal sets + mandatory post-hoc citation-faithfulness); separate `prism-orchestration` Action layer (HITL gates, idempotency, dry-run, rollback, AD-017 reference-based write-creds); on-prem models (Qwen3/Mistral central, Phi-4-mini/Ministral edge, Llama Prompt Guard guardrails) via C7 ModelBackend; ARO linkage rides C12 graph; ADS-conformant (all 8 INV pass) | C7 ModelBackend, S3 agent, C10 GAP-Q2, C18, AD-017, aletheon aros |
 | C14 | Active-query device support (Industrial Defender class) | ⏳ pending (no research yet) | C3/C4 connectors |
 | C19 | Nested tenancy (parent→child→… unlimited) | ⏳ pending | CLOSES OQ-DEPLOY-1 (deployment-matrix tenancy-isolation depth) |
 | C18 | RBAC depth (into connectors/satellites) | ⏳ pending | CLOSES C10 Query-RBAC gap; extends C9 / E-CENTRAL-AUTHZ-001 |
@@ -368,24 +380,29 @@ Folded into ADR-PROP-prismql-deliverables.md (commit b6fa1465).
 
 ## 5. EXACT NEXT ACTION ON RESUME
 
-**C12 ✅ and C11 ✅ are done. ADS created, Option-3 locked, conformance pass done. ARO depth research
-double-banked for C15. The pre-B feature track continues at C15.**
+**C15 ✅ DONE. C12 ✅ C11 ✅ done. ADS created, Option-3 locked, conformance pass done. The pre-B feature track continues at C14.**
 
-**NEXT: C15 — Actions in PrismQL / SOAR + on-prem models (Action·Recommendation·Observation)**
-- Research DOUBLE-BANKED: prior sweep (`research/prismql-actions-soar-onprem-models-2026-06-27.md`) + ARO depth (`research/aro-model-depth-2026-06-27.md`).
-- Aletheon `aros` table is also a C15 input (banked from C12 aletheon correction).
-- Discuss, decide all forks, capture into `ADR-PROP-soar-actions.md` (or extend existing).
+**NEXT: C14 — Active-query device support (Industrial Defender class)**
+- NO research banked yet. Kick off C14 research at session start (or now if continuing).
+- C14 covers active-query / polling device support modeled on Industrial Defender adapter class — connects to C3 pushdown and C4 dynamic-schema connector machinery.
 - ADS conformance checklist must pass before capture is complete.
 
+**Research status for remaining items:**
+- C14: NO research banked — recommend kicking off research at next session start (or now)
+- C16: NO research banked
+- C18: NO research banked
+- C19: NO research banked
+- C17: NO research banked
+- C20: research IS banked (`research/nerc-cip-support-2026-06-27.md`) — scheduled LAST
+
 **Ordered queue — work through left-to-right, do not skip:**
-1. **C15** (research double-banked; aletheon aros input) — **NEXT**
-2. C14 — Active-query device support (research pass needed first)
-3. C19 — Nested tenancy (research pass needed first)
-4. C18 — RBAC depth (research pass needed first)
-5. C16 — Entity masking / tokenizing clearing house (research pass needed first)
-6. C17 — Backup & recovery (research pass needed first)
-7. C20 — NERC CIP (research banked at `research/nerc-cip-support-2026-06-27.md`; scheduled LAST — synthesizes all prior)
-8. **B — integration capstone** (GATED on §5.1 brief-reframe HUMAN sign-off)
+1. **C14** — Active-query device support (Industrial Defender class) — **NEXT** (no research yet; start with research pass)
+2. C19 — Nested tenancy (research pass needed first)
+3. C18 — RBAC depth (research pass needed first)
+4. C16 — Entity masking / tokenizing clearing house (research pass needed first)
+5. C17 — Backup & recovery (research pass needed first)
+6. C20 — NERC CIP (research banked at `research/nerc-cip-support-2026-06-27.md`; scheduled LAST — synthesizes all prior)
+7. **B — integration capstone** (GATED on §5.1 brief-reframe HUMAN sign-off)
 
 Each remaining item must conform to `ARCHITECTURE-DESIGN-SYSTEM.md` conformance checklist before capture.
 
@@ -405,10 +422,11 @@ Superseded capture queue (all DONE — do not re-execute):
 - ~~ADS creation + Option-3 lock + conformance pass~~ ✅ 7c068714
 - ~~C11 discussion + capture → ADR-PROP-prism-intel.md~~ ✅ 7c068714
 - ~~ARO depth research for C15~~ ✅ 9199174c
+- ~~C15 discussion + capture → ADR-PROP-soar-actions-aro.md~~ ✅ b6314532
 
 ## 6. BASELINE (git state at session wrap)
 
-- **factory-artifacts HEAD (current):** `9199174c` — ARO depth research for C15
+- **factory-artifacts HEAD (current):** `b6314532` — C15 decided + ADR-PROP-soar-actions-aro.md captured
 - **Full commit chain for this day-2 side-analysis** (day-2 side commits; live factory interleaved its own commits on the shared branch between these):
   - `b53b22ba` — C9 schema-versioning (Q3) resolved + ADR-PROP-config-management + backing research
   - `91abba90` — deployment matrix captured (ADR-PROP-dual-deployment, three operating models)
@@ -420,6 +438,8 @@ Superseded capture queue (all DONE — do not re-execute):
   - `76f1a3e2` — C12 decided + ADR-PROP-prism-context.md captured (two-layer embedded; fastembed; phased GraphRAG; aletheon corrected)
   - `7c068714` — ADS created (ARCHITECTURE-DESIGN-SYSTEM.md) + Option-3 surfacing locked + conformance pass (10 ripple items) + C11 decided + ADR-PROP-prism-intel.md captured
   - `9199174c` — ARO depth research banked for C15 (aro-model-depth-2026-06-27.md)
+  - `996f1d1d` — resume snapshot refresh (SESSION-RESUME-2026-06-27.md updated to current state)
+  - `b6314532` — C15 decided + ADR-PROP-soar-actions-aro.md captured (recommend-only v1 + autonomy ladder + dual-source ARO + on-prem ModelBackend; ADS-conformant)
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory files left unstaged).
 
@@ -445,7 +465,7 @@ E-DUAL-DEPLOYMENT-001 (three operating models + deployment-profile mechanism).
 **New C11–C15 proposed epics (C12 + C11 decided; C15 research double-banked, decision pending):**
 - E-PRISM-CONTEXT-001 — Prism Context: knowledge graph + vector DB + entity mapping (C12 ✅ DECIDED); two-layer embedded (indradb+usearch+lancedb); fastembed/ort+candle; phased GraphRAG; OT/asset-layer ingestion; OCSF-layer graph construction; air-gap milestone; mandatory citations + hybrid retrieval
 - E-PRISM-INTEL-001 — Prism Intel: hosted threat-intel enrichment + auto-advisory engine tied to Entity 360 (C11 ✅ DECIDED); feed-down/match-at-edge architecture; deployment-conditional metering; C9 signed-bundle for air-gap; PSI rejected
-- E-SOAR-ACTIONS-001 — Actions in PrismQL: Action/Recommendation/Observation surface + SOAR connector egress (C15 NEXT — research double-banked); human-gate on destructive actions; AD-017 AI-opaque constraint; ARO 3-tier; OODA/MAPE-K grounding
+- E-SOAR-ACTIONS-001 — Actions in PrismQL: Action/Recommendation/Observation surface + SOAR connector egress (C15 ✅ DECIDED — ADR-PROP-soar-actions-aro.md); recommend-only v1 + autonomy ladder; dual-source ARO (S3 agent + PrismQL RECOMMEND projection); W3C-PROV + conformal confidence; HITL gates + dry-run + rollback; AD-017 reference-based write-creds; on-prem ModelBackend (Qwen3/Mistral/Phi-4-mini)
 - E-ONPREM-MODELS-001 — On-premises model execution: ModelBackend local-deployment profile, air-gap inference, model provenance / signing (C15 on-prem dimension; extends C7 pluggable ModelBackend)
 
 **ADS conformance frame:** `ARCHITECTURE-DESIGN-SYSTEM.md` is the canonical conformance reference for all epics above and all remaining C-items. Every epic capture must satisfy the ADS conformance checklist (12 Principles, 11 Patterns, 8 Invariants, no anti-patterns) and the Central-Sole-Surface (Option-3) invariant.
