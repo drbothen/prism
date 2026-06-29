@@ -441,6 +441,66 @@ pub(crate) fn store_or_invalidate_response_cache(
 }
 
 // ---------------------------------------------------------------------------
+// seed_armis_entity_discriminator
+// ---------------------------------------------------------------------------
+
+/// Seed the Armis entity discriminator AQL into `filters` when absent.
+///
+/// Armis uses a single `/api/v1/search?aql=<value>` endpoint for BOTH the
+/// `devices` and `alerts` tables. The `in:alerts` / `in:devices` AQL prefix
+/// is the sole entity discriminator: omitting it causes the DTU to default
+/// to device records (EC-001 in `prism-dtu-armis/src/routes/search.rs`).
+///
+/// Without an explicit `WHERE aql = '...'` predicate the query planner
+/// produces an empty `aql` entry in `filters`, so the path template
+/// `/api/v1/search?aql=${query.filter.aql}` sends `?aql=` (blank) → DTU
+/// returns device records → `armis_alerts` queries silently return 0 rows
+/// after OCSF normalization filters severity/status (F-L2-CRIT-001).
+///
+/// ## Behaviour
+///
+/// - `source_table == "armis_alerts"` → seeds `filters["aql"] = "in:alerts"`
+///   when `"aql"` is absent or empty.
+/// - `source_table == "armis_devices"` → seeds `filters["aql"] = "in:devices"`
+///   when `"aql"` is absent or empty.
+/// - User-supplied non-empty `WHERE aql = '...'` predicates are preserved
+///   verbatim; this function does NOT overwrite them.
+/// - All other `source_table` values are left untouched (no mutation).
+///
+/// ## Injection point
+///
+/// Called per-target in `run_materialization_pipeline` immediately before
+/// constructing the `prism_sensors::adapter::QueryParams` for the fan-out.
+/// The returned `FilterMap` is used instead of the shared `where_filters`
+/// clone so cross-target contamination is impossible.
+///
+/// S-DEMO-FIDELITY-REMEDIATION-001 / F-L2-CRIT-001.
+pub(crate) fn seed_armis_entity_discriminator(
+    source_table: &str,
+    mut filters: prism_sensors::types::FilterMap,
+) -> prism_sensors::types::FilterMap {
+    // Determine the discriminator value for this source_table.
+    let discriminator = match source_table {
+        "armis_alerts" => Some("in:alerts"),
+        "armis_devices" => Some("in:devices"),
+        _ => None,
+    };
+
+    if let Some(disc) = discriminator {
+        // Only seed when absent or empty — never clobber a user-supplied AQL predicate.
+        let existing = filters.get("aql").and_then(|v| v.as_str()).unwrap_or("");
+        if existing.trim().is_empty() {
+            filters.insert(
+                "aql".to_string(),
+                serde_json::Value::String(disc.to_string()),
+            );
+        }
+    }
+
+    filters
+}
+
+// ---------------------------------------------------------------------------
 // run_materialization_pipeline
 // ---------------------------------------------------------------------------
 
@@ -728,6 +788,14 @@ pub async fn run_materialization_pipeline(
         // Build the fan_out FanOutTarget (prism-sensors type, not our local type).
         // One FanOutTarget per (org_id, source_table) pair → correct per-org dispatch.
         // (F-LP1-CRIT-3: org_id matches the adapter's registered key; no random OrgId::new())
+        //
+        // F-L2-CRIT-001 (S-DEMO-FIDELITY-REMEDIATION-001): seed the Armis entity
+        // discriminator AQL when absent. `armis_alerts` → "in:alerts"; `armis_devices` →
+        // "in:devices". Without this, a query without an explicit `WHERE aql = '...'`
+        // clause sends a blank `?aql=` to the DTU, which defaults to device records,
+        // causing `armis_alerts` queries to silently return 0 matching rows.
+        let target_filters =
+            seed_armis_entity_discriminator(&target.source_table, where_filters.clone());
         let fan_target = {
             #[allow(deprecated)]
             prism_sensors::fanout::FanOutTarget {
@@ -750,7 +818,9 @@ pub async fn run_materialization_pipeline(
                     // These were hardcoded None (F-P6-CRIT-001 dead-code gap); now wired per ADR-033.
                     start_time: extracted_start_time.clone(),
                     end_time: extracted_end_time.clone(),
-                    filters: where_filters.clone(),
+                    // F-L2-CRIT-001: use target_filters (discriminator-seeded) rather than
+                    // raw where_filters.clone() so armis_alerts gets "in:alerts" AQL.
+                    filters: target_filters,
                 },
             }
         };
@@ -3113,6 +3183,128 @@ mod unknown_source_table_tests {
         assert!(
             matches!(err, PrismError::UnknownSourceTable(..)),
             "error must be PrismError::UnknownSourceTable (E-QUERY-036) for invalid prefix; got: {err:?}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// seed_armis_entity_discriminator unit tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod armis_discriminator_tests {
+    //! F-L2-CRIT-001 (S-DEMO-FIDELITY-REMEDIATION-001) — unit tests for
+    //! `seed_armis_entity_discriminator`.
+    //!
+    //! These tests prove the production seeding path: when `armis_alerts` is the
+    //! source_table and no explicit `aql` predicate is present, the discriminator
+    //! `"in:alerts"` is seeded into the filters map so the Armis DTU search
+    //! endpoint selects alert records rather than defaulting to device records.
+    //!
+    //! SID-1 compliance: all tests run in-process with no external DTU dependency.
+    //! The DTU round-trip assertion (verifying the Armis DTU actually receives
+    //! `GET /api/v1/search?aql=in:alerts`) is deferred to the e2e_smoke.rs integration
+    //! test suite (requires a running DTU; marked `#[ignore]` per SID-1 §4).
+
+    use super::seed_armis_entity_discriminator;
+    use prism_sensors::types::FilterMap;
+
+    // ─── F-L2-CRIT-001 / AC-DISC-001 ─────────────────────────────────────────
+
+    /// F-L2-CRIT-001 / AC-DISC-001 — Red Gate load-bearing test.
+    ///
+    /// `armis_alerts` with no prior `aql` entry → discriminator `"in:alerts"` seeded.
+    ///
+    /// This is the PRIMARY regression guard for F-L2-CRIT-001: before the fix,
+    /// `where_filters.clone()` was passed directly, leaving `aql` absent. The DTU
+    /// `get_search` route defaults to device records when `aql` is absent or
+    /// does not contain `"in:alerts"` (EC-001 in routes/search.rs), so
+    /// `armis_alerts` queries silently returned 0 rows after OCSF severity filtering.
+    ///
+    /// FAILS without `seed_armis_entity_discriminator` because the function did
+    /// not exist; PASSES once it is implemented and wired.
+    #[test]
+    fn test_f_l2_crit001_armis_alerts_no_aql_seeds_in_alerts_discriminator() {
+        let filters: FilterMap = FilterMap::new(); // no aql entry — mirrors a plain WHERE-free query
+        let result = seed_armis_entity_discriminator("armis_alerts", filters);
+
+        assert_eq!(
+            result.get("aql").and_then(|v| v.as_str()),
+            Some("in:alerts"),
+            "F-L2-CRIT-001: seed_armis_entity_discriminator must set filters[\"aql\"] = \
+             \"in:alerts\" for source_table \"armis_alerts\" when no aql predicate is present; \
+             got: {:?}. Without this, the Armis DTU defaults to device records and \
+             armis_alerts queries silently return 0 rows.",
+            result.get("aql")
+        );
+    }
+
+    /// F-L2-CRIT-001 / AC-DISC-002 — `armis_devices` with no prior `aql` entry
+    /// must seed `"in:devices"`.
+    ///
+    /// Mirror of AC-DISC-001 for the devices table; ensures devices path is also
+    /// explicit rather than relying on DTU default.
+    #[test]
+    fn test_f_l2_crit001_armis_devices_no_aql_seeds_in_devices_discriminator() {
+        let filters: FilterMap = FilterMap::new();
+        let result = seed_armis_entity_discriminator("armis_devices", filters);
+
+        assert_eq!(
+            result.get("aql").and_then(|v| v.as_str()),
+            Some("in:devices"),
+            "F-L2-CRIT-001: seed_armis_entity_discriminator must set filters[\"aql\"] = \
+             \"in:devices\" for source_table \"armis_devices\" when no aql predicate present; \
+             got: {:?}.",
+            result.get("aql")
+        );
+    }
+
+    /// F-L2-CRIT-001 / AC-DISC-003 — user-supplied `WHERE aql = 'in:alerts status:Open'`
+    /// must NOT be overwritten.
+    ///
+    /// Preserves the verbatim-AQL-passthrough contract (BC-2.11.007 §Mechanism B):
+    /// user-provided AQL strings reach the sensor API unchanged.
+    #[test]
+    fn test_f_l2_crit001_armis_alerts_existing_aql_not_overwritten() {
+        let mut filters: FilterMap = FilterMap::new();
+        filters.insert(
+            "aql".to_string(),
+            serde_json::Value::String("in:alerts status:Open".to_string()),
+        );
+        let result = seed_armis_entity_discriminator("armis_alerts", filters);
+
+        assert_eq!(
+            result.get("aql").and_then(|v| v.as_str()),
+            Some("in:alerts status:Open"),
+            "F-L2-CRIT-001: seed_armis_entity_discriminator must NOT overwrite a \
+             user-supplied non-empty AQL predicate; expected \"in:alerts status:Open\", \
+             got: {:?}.",
+            result.get("aql")
+        );
+    }
+
+    /// F-L2-CRIT-001 / AC-DISC-004 — non-armis source_tables are passed through unchanged.
+    ///
+    /// Guards against accidental AQL injection on CrowdStrike/Claroty/Cyberint tables.
+    #[test]
+    fn test_f_l2_crit001_non_armis_table_filters_unchanged() {
+        let filters: FilterMap = FilterMap::new();
+        let result = seed_armis_entity_discriminator("crowdstrike_alerts", filters);
+
+        assert!(
+            result.get("aql").is_none(),
+            "F-L2-CRIT-001: seed_armis_entity_discriminator must NOT inject aql for \
+             non-armis source_table \"crowdstrike_alerts\"; got: {:?}.",
+            result.get("aql")
+        );
+
+        let filters2: FilterMap = FilterMap::new();
+        let result2 = seed_armis_entity_discriminator("claroty_alerts", filters2);
+        assert!(
+            result2.get("aql").is_none(),
+            "F-L2-CRIT-001: seed_armis_entity_discriminator must NOT inject aql for \
+             \"claroty_alerts\"; got: {:?}.",
+            result2.get("aql")
         );
     }
 }

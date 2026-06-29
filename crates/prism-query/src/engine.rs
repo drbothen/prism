@@ -2370,8 +2370,16 @@ fn check_query_column_availability(
 /// Walks all variants that carry a `FieldPath` directly, and recurses into
 /// `Logical` and `Not` for nested predicates. `VirtualField` segments
 /// (`_sensor`, `_client`) are implicitly excluded because those appear as
-/// `Expr::VirtualField`, not `Expr::Field` — the `Compare { lhs, .. }` arm
-/// matches `lhs` only when it is `Expr::Field`.
+/// `Expr::VirtualField`, not `Expr::Field`.
+///
+/// The `Compare { lhs, .. }` arm matches `lhs` on two forms (ADR-048):
+/// - `Expr::Field(fp)` — bare column reference (WHERE / HAVING bare predicate);
+///   extracted via `extract_column_name_from_field_path`.
+/// - `Expr::FuncCall(_)` — aggregate-function call (HAVING `agg_fn(col) op literal`
+///   per ADR-048 D.3); recursed via `extract_field_paths_from_expr` to reach nested
+///   `Expr::Field` args. This form is only reachable from the HAVING predicate path;
+///   WHERE grammar cannot produce a `FuncCall` LHS in `Predicate::Compare`.
+/// - All other `lhs` forms (`VirtualField`, `Literal`, etc.) — fail-open (silently skipped).
 ///
 /// F-001B-DC-HIGH-001: uses `extract_column_name_from_field_path` for each
 /// FieldPath so that qualified refs (`crowdstrike_alerts.severity`) return the
@@ -7326,10 +7334,18 @@ mod f_pxl3_med002_having_agg_predicate_col_gate_tests {
     #[tokio::test]
     async fn test_BC_2_11_016_where_agg_fn_predicate_stays_e_query_001() {
         let (engine, org) = make_crowdstrike_engine();
-        // WHERE count(severity) > 5: semantically invalid (aggregate in WHERE).
+        // WHERE count(severity) > 5 — canonically-ordered: WHERE precedes any GROUP BY.
         // This must NOT parse successfully — E-QUERY-001 parse error must fire.
-        let query = "SELECT severity, count(*) FROM crowdstrike_alerts \
-                     GROUP BY severity WHERE count(severity) > 5";
+        //
+        // Previous query form ("GROUP BY severity WHERE count(severity) > 5") failed on
+        // CLAUSE-ORDERING (WHERE after GROUP BY), not on WHERE rejecting the aggregate
+        // predicate. The test would have passed even if WHERE accidentally gained the
+        // agg-fn form, defeating the divergence guard (F-L2-CRIT-001 sibling, MED finding).
+        //
+        // This form ("SELECT severity FROM … WHERE count(severity) > 5") places WHERE in
+        // the canonical position so the failure is attributable specifically to WHERE
+        // grammar rejecting aggregate-function LHS predicates (ADR-048 D.6 regression guard).
+        let query = "SELECT severity FROM crowdstrike_alerts WHERE count(severity) > 5";
 
         let result = engine
             .execute(
