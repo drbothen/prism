@@ -3308,3 +3308,349 @@ mod armis_discriminator_tests {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// F-LENS4-MED-001 — armis discriminator WIRING SEAM tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod armis_discriminator_wiring_seam_tests {
+    //! F-LENS4-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001) — load-bearing wiring seam tests
+    //! for the Armis entity discriminator AQL injection in `run_materialization_pipeline`.
+    //!
+    //! ## Gap closed
+    //!
+    //! The four `armis_discriminator_tests` above call `seed_armis_entity_discriminator`
+    //! directly in isolation. They do NOT exercise the CALL SITE in
+    //! `run_materialization_pipeline` (line: `seed_armis_entity_discriminator(&target.source_table,
+    //! where_filters.clone())`). A regression that reverts that line to `where_filters.clone()`
+    //! — re-introducing the exact F-L2-CRIT-001 bug — would leave all isolation tests GREEN.
+    //!
+    //! These wiring seam tests drive `run_materialization_pipeline` with a
+    //! `RecordingAdapter` that captures the `QueryParams.filters` it receives from the
+    //! pipeline, then asserts `filters["aql"]` contains the expected discriminator value.
+    //!
+    //! ## SID-1 compliance
+    //!
+    //! All tests run in-process (no DTU, no subprocess). The `RecordingAdapter` returns
+    //! `Ok(vec![])` (no rows) so the pipeline exits cleanly with an empty result;
+    //! the assertion target is solely the captured `QueryParams.filters`.
+    //!
+    //! ## Mental-deletion / Red→Green proof
+    //!
+    //! If the call site in `run_materialization_pipeline` is reverted from:
+    //!
+    //! ```text
+    //! seed_armis_entity_discriminator(&target.source_table, where_filters.clone())
+    //! ```
+    //!
+    //! back to the pre-fix form:
+    //!
+    //! ```text
+    //! where_filters.clone()
+    //! ```
+    //!
+    //! then `RecordingAdapter::fetch` receives `params.filters` with NO `"aql"` key
+    //! (because `where_filters` is empty for a query with no WHERE clause), and
+    //! these tests FAIL with the assertion message.
+    //!
+    //! F-LENS4-MED-001 / TD-VSDD-059 / TD-VSDD-060.
+
+    use std::sync::{Arc, Mutex};
+
+    use async_trait::async_trait;
+    use prism_core::{OrgId, SensorId};
+    use prism_sensors::{
+        adapter::{QueryParams, SensorSpec},
+        AdapterRegistry, BearerStaticSensorAuth, CredentialResolver, SensorAdapter, SensorAuth,
+        SensorError,
+    };
+
+    use crate::{
+        engine::QueryOptions,
+        materialization::{run_materialization_pipeline, MaterializationContext},
+        memory::build_session_context,
+    };
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // RecordingAdapter
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// A `SensorAdapter` stub that records every `QueryParams.filters` map it receives
+    /// and returns zero rows. Used to assert the discriminator AQL is present in the
+    /// `filters` the pipeline hands to the adapter — proving the WIRING SEAM is intact.
+    ///
+    /// `Arc<Mutex<Vec<...>>>` is the test-scoped recording channel.  No DTU or
+    /// external process is involved (SID-1 compliance).
+    struct RecordingAdapter {
+        sensor_id: SensorId,
+        /// Accumulates the `QueryParams.filters` for each `fetch` call.
+        captured_filters: Arc<Mutex<Vec<prism_sensors::types::FilterMap>>>,
+    }
+
+    #[async_trait]
+    impl SensorAdapter for RecordingAdapter {
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "recording-adapter-wiring-seam"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<arrow::record_batch::RecordBatch>, SensorError> {
+            // Record the filters map received from the pipeline.
+            self.captured_filters
+                .lock()
+                .expect("RecordingAdapter: captured_filters lock must not be poisoned")
+                .push(params.filters.clone());
+            // Return zero rows — we only care about the captured filters, not the result.
+            Ok(vec![])
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // StubCredentialResolver
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Stub `CredentialResolver` that always returns a test bearer token.
+    ///
+    /// The `NullMaterializationCredentialResolver` returns `SensorError::Internal` for
+    /// every resolve, which would prevent `fan_out()` from calling `fetch()`. This stub
+    /// returns a minimal `BearerStaticSensorAuth("wiring-seam-test-token")` so the fan-out
+    /// reaches the adapter without credential failures. The `RecordingAdapter::fetch`
+    /// ignores `_auth` — only the captured filters matter.
+    struct StubCredentialResolver;
+
+    impl CredentialResolver for StubCredentialResolver {
+        fn resolve(
+            &self,
+            _client_id: &str,
+            _sensor_id: SensorId,
+        ) -> Result<Box<dyn SensorAuth>, SensorError> {
+            Ok(Box::new(BearerStaticSensorAuth::new(
+                "wiring-seam-test-token",
+            )))
+        }
+    }
+
+    /// Build a minimal `MaterializationContext` with a single `RecordingAdapter` for
+    /// sensor `sensor_id`, wired with a `StubCredentialResolver` so `fan_out()` reaches
+    /// the adapter's `fetch()` method.
+    ///
+    /// Returns the `MaterializationContext` and the shared `captured_filters` channel.
+    fn make_context_with_recording_adapter(
+        sensor_id: SensorId,
+    ) -> (
+        MaterializationContext,
+        Arc<Mutex<Vec<prism_sensors::types::FilterMap>>>,
+    ) {
+        let org_id = OrgId::new();
+        let captured = Arc::new(Mutex::new(Vec::new()));
+        let adapter: Arc<dyn SensorAdapter> = Arc::new(RecordingAdapter {
+            sensor_id: sensor_id.clone(),
+            captured_filters: Arc::clone(&captured),
+        });
+        let mut registry = AdapterRegistry::new();
+        registry.register(org_id, adapter);
+
+        // Use new_with_resolver so fan_out() succeeds past the credential check.
+        // NullMaterializationCredentialResolver would short-circuit at credentials.resolve()
+        // and produce a FanOutError before fetch() is ever called.
+        let ctx = MaterializationContext::new_with_resolver(
+            Arc::new(registry),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            10_000,
+            Arc::new(StubCredentialResolver),
+            None, // no OrgRegistry — test mode synthetic slug fallback
+            None, // no resolved_spec_map — test mode
+        );
+        (ctx, captured)
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // F-LENS4-MED-001 / AC-WIRE-001: armis_alerts → filters["aql"] == "in:alerts"
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// F-LENS4-MED-001 / AC-WIRE-001 — WIRING SEAM load-bearing test.
+    ///
+    /// Drives `run_materialization_pipeline` with a `FROM armis_alerts` query (no WHERE
+    /// clause, so `where_filters` is empty). The `RecordingAdapter` captures the
+    /// `QueryParams.filters` the pipeline passes to `fetch()`. Asserts that
+    /// `filters["aql"] == "in:alerts"` — proving the
+    /// `seed_armis_entity_discriminator(&target.source_table, where_filters.clone())`
+    /// CALL SITE is intact.
+    ///
+    /// ## Red→Green proof
+    ///
+    /// Revert the call site to `where_filters.clone()` → `RecordingAdapter::fetch`
+    /// receives `params.filters = {}` (empty, no `"aql"` key) → assertion FAILS.
+    /// Restore the call site → test PASSES.
+    #[allow(non_snake_case)]
+    #[tokio::test]
+    async fn test_F_LENS4_MED001_armis_alerts_pipeline_seeds_in_alerts_aql_filter() {
+        let armis_sensor_id = SensorId::new("armis");
+        let (mut mat_ctx, captured_filters) = make_context_with_recording_adapter(armis_sensor_id);
+
+        // 50 MiB session pool — sufficient for a zero-row result.
+        let session_ctx = build_session_context(50 * 1024 * 1024)
+            .expect("build_session_context must succeed for wiring seam test");
+
+        // No WHERE clause → `where_filters` is empty inside the pipeline.
+        // Without the discriminator call site, `fetch` receives `filters = {}`.
+        let query = "SELECT * FROM armis_alerts";
+        let options = QueryOptions::default(); // clients: None, no filters
+
+        let result = run_materialization_pipeline(query, &options, &mut mat_ctx, &session_ctx)
+            .await
+            .expect("run_materialization_pipeline must succeed for armis_alerts wiring seam test");
+
+        // The pipeline returns empty batches (RecordingAdapter returned no rows),
+        // but the adapter MUST have been called exactly once.
+        let calls = captured_filters
+            .lock()
+            .expect("captured_filters lock must not be poisoned");
+
+        assert_eq!(
+            calls.len(),
+            1,
+            "F-LENS4-MED-001 / AC-WIRE-001: RecordingAdapter::fetch must have been called \
+             exactly once for FROM armis_alerts; got {} calls. \
+             If 0 calls: the pipeline returned before fan-out (adapter not registered or \
+             sensor_id mismatch). If >1: unexpected fan-out to multiple targets.",
+            calls.len()
+        );
+
+        let received_filters = &calls[0];
+        assert_eq!(
+            received_filters.get("aql").and_then(|v| v.as_str()),
+            Some("in:alerts"),
+            "F-LENS4-MED-001 / AC-WIRE-001 (WIRING SEAM): \
+             run_materialization_pipeline must seed filters[\"aql\"] = \"in:alerts\" for \
+             FROM armis_alerts with no WHERE clause. \
+             Got: {:?}. \
+             Root cause: the call site `seed_armis_entity_discriminator(&target.source_table, \
+             where_filters.clone())` was removed or reverted to `where_filters.clone()`, \
+             re-introducing F-L2-CRIT-001 (armis_alerts returns 0 rows).",
+            received_filters.get("aql")
+        );
+
+        // Batches are empty (RecordingAdapter returned no rows) — that's expected.
+        assert!(
+            result.batches.is_empty(),
+            "wiring seam test expects empty batches (RecordingAdapter returns no rows); \
+             got {} batch(es)",
+            result.batches.len()
+        );
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // F-LENS4-MED-001 / AC-WIRE-002: armis_devices → filters["aql"] == "in:devices"
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// F-LENS4-MED-001 / AC-WIRE-002 — WIRING SEAM companion for `armis_devices`.
+    ///
+    /// Mirror of AC-WIRE-001 for the devices table. A query `FROM armis_devices`
+    /// with no WHERE clause must arrive at `RecordingAdapter::fetch` with
+    /// `filters["aql"] == "in:devices"`.
+    #[allow(non_snake_case)]
+    #[tokio::test]
+    async fn test_F_LENS4_MED001_armis_devices_pipeline_seeds_in_devices_aql_filter() {
+        let armis_sensor_id = SensorId::new("armis");
+        let (mut mat_ctx, captured_filters) = make_context_with_recording_adapter(armis_sensor_id);
+
+        let session_ctx = build_session_context(50 * 1024 * 1024)
+            .expect("build_session_context must succeed for armis_devices wiring seam test");
+
+        let query = "SELECT * FROM armis_devices";
+        let options = QueryOptions::default();
+
+        run_materialization_pipeline(query, &options, &mut mat_ctx, &session_ctx)
+            .await
+            .expect("run_materialization_pipeline must succeed for armis_devices wiring seam test");
+
+        let calls = captured_filters
+            .lock()
+            .expect("captured_filters lock must not be poisoned");
+
+        assert_eq!(
+            calls.len(),
+            1,
+            "F-LENS4-MED-001 / AC-WIRE-002: RecordingAdapter::fetch must have been called \
+             exactly once for FROM armis_devices; got {} calls.",
+            calls.len()
+        );
+
+        assert_eq!(
+            calls[0].get("aql").and_then(|v| v.as_str()),
+            Some("in:devices"),
+            "F-LENS4-MED-001 / AC-WIRE-002 (WIRING SEAM): \
+             run_materialization_pipeline must seed filters[\"aql\"] = \"in:devices\" for \
+             FROM armis_devices with no WHERE clause. \
+             Got: {:?}. \
+             Root cause: call site reverted to `where_filters.clone()` (F-L2-CRIT-001 regression).",
+            calls[0].get("aql")
+        );
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // F-LENS4-MED-001 / AC-WIRE-003: user-supplied WHERE aql='...' passes through
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// F-LENS4-MED-001 / AC-WIRE-003 — WIRING SEAM passthrough test.
+    ///
+    /// A query `FROM armis_alerts WHERE aql = 'in:alerts status:Open'` must arrive
+    /// at `RecordingAdapter::fetch` with the user-supplied AQL preserved verbatim —
+    /// the discriminator must NOT overwrite a non-empty user-supplied `aql` predicate.
+    ///
+    /// This tests BC-2.11.007 §Mechanism B passthrough via the full pipeline (not just
+    /// the helper in isolation).
+    #[allow(non_snake_case)]
+    #[tokio::test]
+    async fn test_F_LENS4_MED001_armis_alerts_user_supplied_aql_passes_through_pipeline() {
+        let armis_sensor_id = SensorId::new("armis");
+        let (mut mat_ctx, captured_filters) = make_context_with_recording_adapter(armis_sensor_id);
+
+        let session_ctx = build_session_context(50 * 1024 * 1024)
+            .expect("build_session_context must succeed for armis passthrough test");
+
+        // User supplies an explicit AQL predicate — must not be overwritten.
+        let query = "SELECT * FROM armis_alerts WHERE aql = 'in:alerts status:Open'";
+        let options = QueryOptions::default();
+
+        run_materialization_pipeline(query, &options, &mut mat_ctx, &session_ctx)
+            .await
+            .expect(
+                "run_materialization_pipeline must succeed for armis_alerts passthrough wiring test",
+            );
+
+        let calls = captured_filters
+            .lock()
+            .expect("captured_filters lock must not be poisoned");
+
+        assert_eq!(
+            calls.len(),
+            1,
+            "F-LENS4-MED-001 / AC-WIRE-003: RecordingAdapter::fetch must have been called \
+             exactly once; got {} calls.",
+            calls.len()
+        );
+
+        assert_eq!(
+            calls[0].get("aql").and_then(|v| v.as_str()),
+            Some("in:alerts status:Open"),
+            "F-LENS4-MED-001 / AC-WIRE-003 (WIRING SEAM passthrough): \
+             run_materialization_pipeline must preserve a user-supplied non-empty \
+             WHERE aql = '...' predicate verbatim. \
+             Expected \"in:alerts status:Open\", got: {:?}. \
+             Root cause: seed_armis_entity_discriminator overwrote the user predicate, \
+             or the WHERE clause was not pushed down to QueryParams.filters.",
+            calls[0].get("aql")
+        );
+    }
+}
