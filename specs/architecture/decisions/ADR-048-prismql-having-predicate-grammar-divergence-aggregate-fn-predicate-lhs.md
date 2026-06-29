@@ -2,10 +2,11 @@
 document_type: adr
 adr_id: "ADR-048"
 title: "PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function Predicate LHS in HAVING"
-status: proposed
+status: accepted
 date: "2026-06-28"
-version: "1.0"
-modified: "2026-06-28"
+accepted_date: "2026-06-29"
+version: "1.1"
+modified: "2026-06-29"
 producer: architect
 subsystems_affected: [SS-11]
 supersedes: null
@@ -14,21 +15,60 @@ amends: null
 anchor_stories: [S-DEMO-FIDELITY-REMEDIATION-001]
 related_adrs: [ADR-041, ADR-043, ADR-046, ADR-003]
 related_bcs: [BC-2.11.016, BC-2.11.003]
-locked_decisions: []
+locked_decisions:
+  - OD-1: ratified by user decision 2026-06-29 (chose Option A — extend HAVING grammar, keep WHERE divergence)
+  - OD-2: PERCENTILE excluded from HAVING aggregate predicate grammar — resolved as accepted technical scope decision
 wiring_deferred_to: null
-open_decisions:
-  - OD-1: human ratification of HAVING/WHERE grammar divergence
-  - OD-2: PERCENTILE exclusion from HAVING aggregate predicates confirmed
+open_decisions: []
 ---
 
 # ADR-048: PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function Predicate LHS in HAVING
 
 ## Status
 
-PROPOSED v1.0 (2026-06-28). Architect decision following architectural analysis of
-F-PXL3-MED-002 (BC-2.11.016 v1.5 canonical test vector gap). Human ratification required
-on OD-1 (grammar divergence acceptance) and OD-2 (PERCENTILE scope confirmation) before
-advancing to ACCEPTED.
+ACCEPTED v1.1 (2026-06-29). Human ratification received 2026-06-29; both open decisions
+resolved. Implementation verified converged across 4 adversarial passes in
+S-DEMO-FIDELITY-REMEDIATION-001 LOCAL re-gate.
+
+## Resolution
+
+### OD-1 — HAVING/WHERE Grammar Divergence: RATIFIED
+
+**Status:** Resolved. Decision: Option A accepted.
+
+The human (user) explicitly ratified the HAVING/WHERE predicate grammar divergence on
+2026-06-29 when presented with the F-PXL3-MED-002 two-option analysis (Option A: extend
+HAVING grammar; Option B: correct BC to bare-column form). The user chose Option A —
+extend the grammar so that `HAVING <agg>(col) op literal` is a valid production gated by
+E-QUERY-038 column checks, while `WHERE <agg>(col) op literal` deliberately remains
+E-QUERY-001 (pre-aggregation WHERE does not accept aggregate function LHS). This OD-1
+ratification locks D.1 and D.6 of this ADR.
+
+### OD-2 — PERCENTILE Exclusion: RESOLVED
+
+**Status:** Resolved as accepted technical scope decision within the ratified Option A extension.
+
+The 2-argument `PERCENTILE(field, p)` form is excluded from `build_agg_call_parser` in
+the HAVING predicate grammar. In scope: `COUNT(*) / COUNT(field) / SUM / AVG / MIN / MAX /
+DISTINCT_COUNT`. Rationale: `PERCENTILE(field, p)` creates parser grammar ambiguity in
+the predicate context (comma inside the agg arg list is indistinguishable from a
+predicate-list separator); it is also non-standard in HAVING predicates across major SQL
+dialects. Analysts needing percentile-based HAVING may alias in SELECT and reference the
+alias. This OD-2 resolution locks D.2 of this ADR.
+
+### Implementation Verification (POL-15)
+
+ADR-048's primary deliverable — the HAVING grammar extension in prism-query — is confirmed
+reachable from a production binary. `prism-mcp` and `prism-bin` both depend on `prism-query`
+via the standard workspace dependency graph. The `build_having_predicate_parser` and
+`collect_predicate_columns` FuncCall arm are in the query execution path invoked for every
+HAVING clause in a GROUP BY query. The grammar/gate ships as part of the live query
+engine — POL-15 (runtime_wiring_required_for_accepted_adrs) is satisfied.
+
+Four adversarial passes during S-DEMO-FIDELITY-REMEDIATION-001 LOCAL re-gate confirmed
+no drift between the shipped code (`build_having_predicate_parser`, `collect_predicate_columns`
+FuncCall arm, WHERE unchanged at `build_predicate_parser`) and the decisions D.1–D.6
+recorded here.
 
 ## Context
 
@@ -270,3 +310,4 @@ and avoids conditional branching inside the parser combinator.
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | F-PXL3-MED-002-adr-048 | 2026-06-28 | architect | Initial ADR — HAVING/WHERE predicate grammar divergence rationale, D.1–D.6, consequences, considered alternatives. Addresses F-PXL3-MED-002 root cause analysis. |
+| 1.1 | adr-048-acceptance-S-DEMO-FIDELITY-REMEDIATION-001 | 2026-06-29 | architect | PROPOSED → ACCEPTED. OD-1 ratified by user decision 2026-06-29 (Option A: extend HAVING grammar, keep WHERE E-QUERY-001). OD-2 resolved: PERCENTILE excluded from HAVING predicate grammar as accepted technical scope decision. §Resolution section added. POL-15 confirmed satisfied. `locked_decisions` populated; `open_decisions` cleared. |

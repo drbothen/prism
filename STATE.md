@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.051"
+version: "8.052"
 producer: state-manager
-timestamp: 2026-06-29T14:00:00Z
+timestamp: 2026-06-29T15:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -20,8 +20,8 @@ develop_head: "1f491590"
 # NOTE: 1f491590 is the squash-merge of PR #207 (perf(S-PERF-GATE-003): serialize bc_2_01_013 test binary + check-ci --profile ci alignment; normal squash-merge; 2026-06-29). origin/develop is now 1f491590. Prior origin/develop was 4417d691 (PR #206 S-PERF-GATE-002). feature/S-PERF-GATE-003 branch + .worktrees/S-PERF-GATE-003 worktree removed.
 bc_index_version: "7.25"
 vp_index_version: "1.80"
-story_index_version: "v2.525"
-arch_index_version: "2.149"
+story_index_version: "v2.526"
+arch_index_version: "2.150"
 error_taxonomy_version: "2.03"
 total_stories: 219
 active_contracts: 254
@@ -36,7 +36,7 @@ workspace_test_count: 5074
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1423 (2026-06-29). S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 4-lens re-gate ROUND-3 CLOSE + OBS dispositions — feature HEAD d9bb75c2→481a0484. Lenses 1 (gate-mode) + 3 (spec-prose) CLEAN(strict); all 4 lenses CLEAN(PR-merge) — zero CRIT/HIGH/MED. OBS-1 (lens 4, LOW) FIXED: wiring-seam module docstring overclaimed mental-deletion proof for AC-WIRE-003 passthrough (doc-only; implementer tightened docstring; feature HEAD d9bb75c2→481a0484). OBS-LENS2-1 (lens 2, LOW) DEFERRED: static crates/prism-dtu-armis/fixtures/alerts.json uses lowercase severity/status while generator emits uppercase HIGH/CRITICAL+UNHANDLED; PRE-EXISTING, out of prism-query/prism-mcp perimeter, non-demo-blocking (T13 uses generator not static fixture); anchor S-DTU-ARMIS-FIXTURE-VOCAB-001 draft stub registered (total_stories 218→219; P3; data-engineer; reconcile static armis alerts.json fixture severity/status casing to match generator canonical vocabulary). OBS-LENS2-2 (lens 2, OBS) ACCEPTED: crowdstrike `severity IN ('High','Critical')` — 'High' (severity_id 3) never emitted by live generator; forward-compat intent documented in prompts.rs (F-PKL2-OBS-001); 'Critical' returns rows, non-empty. OBS-2 (lens 4, OBS) ACCEPTED: test_BC_2_11_016_having_agg_fn_predicate_valid_col_no_e_query_038 is a one-sided false-positive guard (disclosed in docstring). Story unchanged v2.12 (docstring fix code-only; red_gate 49). 3-CLEAN streak RESET 0/3 on feature HEAD 481a0484. prism-query 1237/1237. STORY-INDEX v2.524→v2.525. total_stories 218→219. BC-INDEX UNCHANGED v7.25. ARCH-INDEX UNCHANGED v2.149. active_contracts UNCHANGED 254. develop_head UNCHANGED 1f491590. NEXT = LOCAL 4-lens adversary re-gate on 481a0484 with OBS-LENS2-1/OBS-LENS2-2/OBS-2/S-PRISMQL-SQLPIPE-COLUMN-GATE-001 pre-adjudicated (deferred/accepted). STATE v8.050→v8.051."
+current_step: "D-1424 (2026-06-29). S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN CONVERGED — all 4 lenses CLEAN(strict) on frozen feature HEAD 481a0484 + story v2.12. Zero findings any severity across re-gate round-4. All prior OBS adjudicated: OBS-1 fixed (docstring); OBS-LENS2-1 deferred (→S-DTU-ARMIS-FIXTURE-VOCAB-001); OBS-LENS2-2 + OBS-2 accepted (documented). SqlPipe-gap deferred (→S-PRISMQL-SQLPIPE-COLUMN-GATE-001). ADR-048 PROPOSED v1.0→ACCEPTED v1.1: OD-1 ratified by user (Option A — extend HAVING grammar, keep WHERE E-QUERY-001); OD-2 PERCENTILE exclusion resolved; POL-15 runtime-wiring confirmed. ARCH-INDEX v2.149→v2.150 (architect bump; committed in this burst). LOCAL 3-CLEAN 3/3 achieved on 481a0484. STORY-INDEX v2.525→v2.526. arch_index_version 2.149→2.150. BC-INDEX UNCHANGED v7.25. active_contracts UNCHANGED 254. develop_head UNCHANGED 1f491590. NEXT: demo-recorder per-AC evidence → push 481a0484 (normal permission path) → PR via pr-manager → PR-LEVEL 3-CLEAN → normal squash-merge (D-989; NO --admin) → post-merge state burst. STATE v8.051→v8.052."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-29 (D-1423 S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 4-lens re-gate round-3 close + OBS dispositions; feature HEAD d9bb75c2→481a0484; story UNCHANGED v2.12; S-DTU-ARMIS-FIXTURE-VOCAB-001 draft stub registered; STORY-INDEX v2.524→v2.525; total_stories 218→219; STATE v8.050→v8.051)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-29 (D-1424 S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN CONVERGED on 481a0484 + story v2.12; ADR-048 ACCEPTED v1.1; ARCH-INDEX v2.149→v2.150; STORY-INDEX v2.525→v2.526; STATE v8.051→v8.052)
 
 ## Active Objective (North Star)
 
@@ -124,6 +124,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 through D-1339 archived to burst-log.md (D-1368 compaction 2026-06-26). D-1344 and D-1393..D-1397 archived to burst-log.md (this compaction). D-1409 archived to burst-log.md (this D-1410 burst). D-1398..D-1416 archived to burst-log.md (this D-1417 burst). D-1417..D-1420 archived to burst-log.md (this D-1421 burst). D-1344..D-1355 archived to burst-log.md (this D-1423 burst)._
+| D-1424 | state-manager | 2026-06-29 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN CONVERGED (D-1424). Re-gate round-4: all 4 lenses (gate-mode, query-executability, spec-prose↔code, test-adequacy) CLEAN(strict)=yes on frozen feature HEAD 481a0484 + story v2.12. Zero findings any severity. OBS-LENS2-1/OBS-LENS2-2/OBS-2/S-PRISMQL-SQLPIPE-COLUMN-GATE-001 pre-adjudicated (deferred/accepted) — confirmed not re-raised. LOCAL 3-CLEAN streak 3/3 on 481a0484. ADR-048 PROPOSED v1.0→ACCEPTED v1.1: OD-1 ratified (user chose Option A — extend HAVING grammar, keep WHERE E-QUERY-001 divergence); OD-2 resolved (PERCENTILE excluded as accepted scope decision); §Resolution added; POL-15 confirmed (HAVING gate reachable via prism-mcp/prism-bin → prism-query production path). ARCH-INDEX v2.149→v2.150 (architect bump; ADR-048 row status PROPOSED v1.0→ACCEPTED v1.1; §Changelog v2.150 row added). Story UNCHANGED v2.12; code HEAD UNCHANGED 481a0484; BC-INDEX UNCHANGED v7.25; active_contracts UNCHANGED 254; develop_head UNCHANGED 1f491590. STORY-INDEX v2.525→v2.526. arch_index_version 2.149→2.150. STATE v8.051→v8.052. NEXT: demo-recorder per-AC evidence → push 481a0484 (normal permission path, NOT tmux/bypass) → PR via pr-manager (feature already based on develop 1f491590) → PR-LEVEL 3-CLEAN → normal squash-merge (D-989; NO --admin) → post-merge state burst.** | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1423 | state-manager | 2026-06-29 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 4-LENS RE-GATE ROUND-3 CLOSE + OBS DISPOSITIONS (D-1423). Feature HEAD d9bb75c2→481a0484. Lenses 1+3 CLEAN(strict); all 4 CLEAN(PR-merge). OBS-1 (lens 4, LOW) FIXED: wiring-seam module docstring overclaimed mental-deletion proof for AC-WIRE-003 passthrough (doc-only; feature HEAD d9bb75c2→481a0484). OBS-LENS2-1 (lens 2, LOW) DEFERRED: static crates/prism-dtu-armis/fixtures/alerts.json lowercase severity/status vs. generator uppercase HIGH/CRITICAL+UNHANDLED; PRE-EXISTING, out of prism-query/prism-mcp perimeter, non-demo-blocking (T13 uses fixture-gen generator); S-DTU-ARMIS-FIXTURE-VOCAB-001 draft stub registered (total_stories 218→219; P3; data-engineer). OBS-LENS2-2 (OBS) ACCEPTED: crowdstrike severity IN ('High','Critical') — 'High' never emitted by live generator; forward-compat; documented F-PKL2-OBS-001 in prompts.rs. OBS-2 (lens 4, OBS) ACCEPTED: test_BC_2_11_016_having_agg_fn_predicate_valid_col_no_e_query_038 one-sided false-positive guard (disclosed in docstring). Story UNCHANGED v2.12 (docstring fix code-only; red_gate 49). prism-query 1237/1237. 3-CLEAN streak RESET 0/3 on 481a0484. STORY-INDEX v2.524→v2.525. total_stories 218→219. BC-INDEX UNCHANGED v7.25. ARCH-INDEX UNCHANGED v2.149. active_contracts UNCHANGED 254. develop_head UNCHANGED 1f491590. STATE v8.050→v8.051.** | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1422 | state-manager | 2026-06-29 | **S-DEMO-FIDELITY-REMEDIATION-001 4-LENS RE-GATE ROUND-2 FIX-BURST (D-1422). Feature HEAD 33817a82→d9bb75c2. F-L3-MED-001 CLOSED (POL-4 mis-anchor): BC-2.11.007 v1.8→v1.9 — PO added §Mechanism B.1 planner-side entity-discriminator auto-seeding + PC-DISC-001/002/003 + 2 test vectors; story-writer re-anchored AC-DISC to §Mechanism B.1/PC-DISC-001. F-L3-MED-002 CLOSED: BC-2.10.016 co-trace on AC-DISC dropped (prompt-render surface mismatch; retained for AC-AUDIT-004). F-LENS4-MED-001 CLOSED (TD-VSDD-059/060): 3 wiring-seam tests added (armis_discriminator_wiring_seam_tests, materialization.rs); Red→Green revert-confirmed. F-L3-LOW-001 CLOSED: 6 BCs→7 BCs comment fixed. red_gate_tests 46→49; 17 ACs; 7 BCs. prism-query 1237/1237; non-exhaustive 88/88. BC-INDEX v7.24→v7.25. STORY-INDEX v2.523→v2.524. total_stories UNCHANGED 218. active_contracts UNCHANGED 254. develop_head UNCHANGED 1f491590. STATE v8.049→v8.050.** | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1421 | state-manager | 2026-06-29 | **S-DEMO-FIDELITY-REMEDIATION-001 4-LENS RE-GATE FIX-BURST + GOVERNANCE ITEMS (D-1421). Rebased feature branch onto develop 1f491590 (clean, e0b8d6bb). CRITICAL F-L2-CRIT-001 RESOLVED: armis_alerts demo returned 0 rows (armis /search route returns device records when AQL lacks in:alerts discriminator); FIXED: `seed_armis_entity_discriminator` in materialization.rs seeds aql=in:alerts/in:devices per resolved armis table, preserving user aql; 4 load-bearing tests (s_demo_armis_aql_001_red_gate, parity_armis pipeline roundtrips, adv_p02 armis all pass). MED WHERE-divergence guard test corrected to canonical `SELECT severity FROM crowdstrike_alerts WHERE count(severity) > 5` (was vacuous clause-ordering parse fail; now genuinely guards ADR-048 D.6). LOW doc-comment FuncCall arm fixed; LOW-2 path disambiguation + OBS-1 module attribution closed. Feature HEAD 02c7cb46→33817a82. Story v2.9→v2.10 (armis AC-DISC + prose) →v2.11 (POL-8: BC-2.11.007 active v1.8 added to behavioral_contracts array + body table). red_gate_tests 42→46; acceptance_criteria_count 16→17; BCs 6→7 (BC-2.11.007 already active — POL-14 NO-OP). just check EXIT 0 5074/5074; non-exhaustive 88. 3-CLEAN streak RESET 0/3 on 33817a82. GOVERNANCE: F-LENS1-OBS-001 (SqlPipe E-QUERY-038 column gate parity) deferred per Canonical Principle Rule 3 — BC-2.11.016 §Precondition 2 scopes E-QUERY-038 to SQL clause positions (documented fail-open); demo queries are SQL-mode (not demo-breaking); anchor: S-PRISMQL-SQLPIPE-COLUMN-GATE-001 **draft stub** registered (total_stories 217→218). Force-push process-gap [codified] lesson added to cycles/wave-5-e-demo-fidelity/lessons.md. STORY-INDEX v2.522→v2.523. workspace_test_count 5061→5074. total_stories 217→218. BC-INDEX UNCHANGED v7.24. ARCH-INDEX UNCHANGED v2.149. active_contracts UNCHANGED 254. develop_head UNCHANGED 1f491590. NEXT = LOCAL 4-lens adversary re-gate on 33817a82 + story v2.11 to 3-CLEAN(strict). STATE v8.048→v8.049.** | wave-5-e-demo-fidelity | 2026-06-29 |
@@ -144,6 +145,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1424 | state-manager | S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN CONVERGED on 481a0484 + story v2.12 — all 4 lenses CLEAN(strict) round-4; ADR-048 ACCEPTED v1.1; ARCH-INDEX v2.149→v2.150 | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1423 | state-manager | S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 4-lens re-gate round-3 close + OBS dispositions (feature HEAD 481a0484; S-DTU-ARMIS-FIXTURE-VOCAB-001 stub registered) | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1422 | state-manager | S-DEMO-FIDELITY-REMEDIATION-001 4-lens re-gate round-2 fix-burst (feature HEAD d9bb75c2; BC-2.11.007 v1.9; 3 wiring-seam tests; BC-INDEX v7.25) | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1421 | state-manager | S-DEMO-FIDELITY-REMEDIATION-001 4-lens re-gate fix-burst + governance items | wave-5-e-demo-fidelity | 2026-06-29 |
@@ -267,11 +269,11 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1423 — 2026-06-29; STATE v8.051)
+## Session Resume Checkpoint (D-1424 — 2026-06-29; STATE v8.052)
 
-**STATE v8.051. D-1423 S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 4-lens re-gate ROUND-3 CLOSE + OBS dispositions COMPLETE. Feature HEAD d9bb75c2→481a0484. Story UNCHANGED v2.12 (17 ACs; 49 Red Gate tests; 7 BCs; docstring-only fix applied). Lenses 1+3 CLEAN(strict); all 4 CLEAN(PR-merge). OBS-1 FIXED (doc-only). OBS-LENS2-1 DEFERRED → S-DTU-ARMIS-FIXTURE-VOCAB-001 draft stub (total_stories 219; P3). OBS-LENS2-2 + OBS-2 ACCEPTED. BC-INDEX v7.25. STORY-INDEX v2.525. ARCH-INDEX v2.149. error-taxonomy v2.03. develop_head 1f491590 (local==origin). DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88. 3-CLEAN streak 0/3 on 481a0484.**
+**STATE v8.052. D-1424 S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN CONVERGED on frozen feature HEAD 481a0484 + story v2.12. All 4 lenses CLEAN(strict) round-4; zero findings any severity. ADR-048 ACCEPTED v1.1 (OD-1 ratified by user; OD-2 resolved). ARCH-INDEX v2.149→v2.150. BC-INDEX v7.25. STORY-INDEX v2.526. error-taxonomy v2.03. develop_head 1f491590 (local==origin). DEMO-READY: YES (conditional — S-DEMO-FIDELITY-REMEDIATION-001 LOCAL converged; PR delivery pending). active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88. total_stories 219. LOCAL 3-CLEAN 3/3 on 481a0484 COMPLETE.**
 
-**NEXT ACTION:** LOCAL 4-lens adversary re-gate on feature/S-DEMO-FIDELITY-REMEDIATION-001 HEAD 481a0484 + story v2.12 — OBS-LENS2-1/OBS-LENS2-2/OBS-2/S-PRISMQL-SQLPIPE-COLUMN-GATE-001 pre-adjudicated (deferred/accepted; must not be re-raised) → 3-CLEAN(strict) → PR → merge.
+**NEXT ACTION:** demo-recorder per-AC evidence → push 481a0484 (normal permission path, NOT tmux/bypass) → PR via pr-manager (feature/S-DEMO-FIDELITY-REMEDIATION-001 based on develop 1f491590) → PR-LEVEL 3-CLEAN → normal squash-merge (D-989; NO --admin) → post-merge state burst.
 
 **TRACK B — DAY-2 MORPH (POST-T14):** `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
@@ -281,7 +283,7 @@ _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c
 0. Read SESSION-HANDOFF.md for full context.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `1f491590`.
-3. S-DEMO-FIDELITY-REMEDIATION-001 feature HEAD 481a0484 (story v2.12; 17 ACs; 49 Red Gate; 7 BCs; round-3 OBS dispositions complete; streak 0/3).
-4. NEXT: LOCAL 4-lens adversary re-gate on 481a0484 with OBS-LENS2-1/OBS-LENS2-2/OBS-2/S-PRISMQL-SQLPIPE-COLUMN-GATE-001 pre-adjudicated → 3-CLEAN(strict) → PR → merge.
+3. S-DEMO-FIDELITY-REMEDIATION-001 feature HEAD 481a0484 (story v2.12; 17 ACs; 49 Red Gate; 7 BCs; LOCAL 3-CLEAN CONVERGED 3/3).
+4. NEXT: demo-recorder per-AC evidence → push 481a0484 → PR → PR-LEVEL 3-CLEAN → squash-merge (D-989; NO --admin).
 5. S-PRISMQL-SQLPIPE-COLUMN-GATE-001 + S-DTU-ARMIS-FIXTURE-VOCAB-001 draft stubs registered (P3; depend on S-DEMO merge).
 6. Autonomy D-989 active.
