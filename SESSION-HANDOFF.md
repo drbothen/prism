@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.968"
+version: "7.969"
 status: current
-timestamp: 2026-06-28T10:00:00Z
+timestamp: 2026-06-29T16:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -38,13 +38,56 @@ timestamp: 2026-06-28T10:00:00Z
 >
 > **D-1367 (2026-06-26): PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED develop@7e60df03 (CI 43/43; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; security CLEAN). POL-14: 8 BCs draft→active. POL-13: story merged. active_contracts 254. draft_contracts 0. develop_head 903c8fcb→7e60df03. non-exhaustive 84→87. BC-INDEX v7.18. STORY-INDEX v2.481. STATE v7.994→v7.995. NEXT: pre-flight demo re-audit → T13 capstone → T14 recording. PENDING HUMAN: CLAUDE.md stale EXPECTED=83/84 → now EXPECTED=87; local develop ba1108d2 still DIVERGED.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1409** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1409 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `9a09653a` (PR #205 chore/wrap-skill squash-merged 2026-06-27). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.036. D-1409.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1425** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1425 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `1f491590` (after S-PERF-GATE-002 PR #206 + S-PERF-GATE-003 PR #207 merged 2026-06-29: 9a09653a→4417d691→1f491590). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.053. D-1425.
 
 ---
 
-## §RESUME SNAPSHOT — D-1409 (2026-06-28 — SESSION WRAP; develop origin/develop 9a09653a (local==origin); BC-INDEX v7.24; STORY-INDEX v2.513; ARCH-INDEX v2.148; STATE v8.036; S-DEMO-FIDELITY-REMEDIATION-001 LOCAL cascade at Pass-X streak 0/3 on b49316c2; HAVING decision F-PXL3-MED-002 OPEN) [SUPERSEDES D-1399]
+## §RESUME SNAPSHOT — D-1425 (2026-06-29 — SESSION WRAP; develop origin/develop 1f491590; BC-INDEX v7.25; STORY-INDEX v2.526; ARCH-INDEX v2.150; STATE v8.053; S-DEMO-FIDELITY-REMEDIATION-001 LOCAL-CONVERGED on 481a0484; PR #208 OPEN CI-in-flight; pr-manager watching CI) [SUPERSEDES D-1409]
+
+> **D-1425 burst (2026-06-29).** Session wrap. S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN CONVERGED on 481a0484 (all 4 lenses CLEAN(strict), re-gate round-4, zero findings, story v2.12). Demo evidence committed (docs/demo-evidence/S-DEMO-FIDELITY-REMEDIATION-001/evidence-report.md). Feature branch HEAD pushed to 7b61b196 (= LOCAL-converged code 481a0484 + docs-only demo-evidence commit). PR #208 (feature/S-DEMO-FIDELITY-REMEDIATION-001 → develop) OPEN, HEAD 7b61b196, CI 29 pass/14 pending/0 fail at wrap; mergeStateStatus=UNSTABLE (CI still running). pr-manager in flight watching CI — its durable artifacts (branch push 7b61b196 + PR #208 created) are SAFE on GitHub; CI/security/pr-reviewer verdicts are re-derivable on resume. S-PERF-GATE-002 (PR #206) and S-PERF-GATE-003 (PR #207) both merged this session (develop 9a09653a→4417d691→1f491590). All prior D-1101..D-1424 notes SUPERSEDED.
+
+### RESUME IN ONE BREATH
+S-DEMO-FIDELITY-REMEDIATION-001 LOCAL-CONVERGED on 481a0484 (story v2.12, 17 ACs, 49 red_gate tests, 7 BCs, ADR-048 ACCEPTED v1.1). Feature HEAD 7b61b196 (docs-only delta over 481a0484) on branch feature/S-DEMO-FIDELITY-REMEDIATION-001 / worktree .worktrees/S-DEMO-FIDELITY-REMEDIATION-001. PR #208 OPEN against develop 1f491590; CI still running at wrap (29 pass/14 pending/0 fail). PR-LEVEL 3-CLEAN streak 0/3 on 7b61b196 not yet started. NEXT = confirm CI green, drive PR-LEVEL 3-CLEAN(strict), then user-authorized squash-merge, then deliver S-PRISMQL-CASE-INSENSITIVE-001.
+
+### HEADS
+- develop: **1f491590** (after S-PERF-GATE-002 PR #206 + S-PERF-GATE-003 PR #207 merged this session: 9a09653a→4417d691→1f491590).
+- factory-artifacts: this wrap commit becomes HEAD (prior 2c2d57a2).
+- Agents in flight at wrap: **pr-manager (watching CI on PR #208)** — its durable artifacts (branch push 7b61b196 + PR #208 created) are SAFE on GitHub; its CI/security/pr-reviewer verdicts are re-derivable on resume via `gh pr checks 208` + `gh pr view 208` (do NOT assume they are lost). No other agents in flight.
+
+### WORKSTREAM — S-DEMO-FIDELITY-REMEDIATION-001 (CURRENT; PR #208 OPEN)
+- Branch feature/S-DEMO-FIDELITY-REMEDIATION-001; worktree .worktrees/S-DEMO-FIDELITY-REMEDIATION-001; frozen HEAD **7b61b196** (= LOCAL-converged code 481a0484 + docs-only demo-evidence commit).
+- **LOCAL adversary 4-lens 3-CLEAN CONVERGED** on 481a0484 (re-gate round-4: all 4 lenses — gate-mode, query-executability, spec-prose, test-adequacy — CLEAN(strict), zero findings). Code identical at 7b61b196 (only docs/demo-evidence/ added).
+- **PR #208** (feature → develop) OPEN, HEAD 7b61b196. CI at wrap: 29 pass / 14 pending / 0 fail; mergeable=MERGEABLE, mergeStateStatus=UNSTABLE (CI still running). pr-manager internal security + pr-reviewer: re-check on resume.
+- Story v2.12; 17 ACs; **49 red_gate tests**; 7 BCs: BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.11.019 v1.5, BC-2.10.016 v1.2, BC-2.10.012 v1.5, BC-2.11.016 v1.5, BC-2.11.007 v1.9. **ADR-048 ACCEPTED v1.1** (HAVING/WHERE predicate-grammar divergence; OD-1 ratified by user Option-A; OD-2 PERCENTILE resolved; POL-15 ok). Non-exhaustive gate **EXPECTED=88**. Demo evidence is TEST-DERIVED (docs/demo-evidence/S-DEMO-FIDELITY-REMEDIATION-001/evidence-report.md; live VHS deferred to T14 capstone).
+- **3-CLEAN streak:** LOCAL CONVERGED on 481a0484; **PR-LEVEL streak 0/3** (not yet started) on PR HEAD 7b61b196. Frozen-HEAD rule (DRIFT-ORCH-PRLEVEL-PUSH-001): any new push to the feature branch resets the PR-LEVEL streak.
+- **RESUME NEXT-ACTION:** (1) `gh pr checks 208` → confirm CI fully green; capture pr-manager security + pr-reviewer verdicts. (2) Drive orchestrator-driven PR-LEVEL adversarial 3-CLEAN(strict) on PR HEAD 7b61b196 (substantive story — full PR-diff fresh-context review; pr-manager lacks Agent tool). (3) On CI green + PR-LEVEL 3-CLEAN + pr-reviewer APPROVE → request the USER DIRECT merge authorization (harness requires it; relayed/coordinator consent is NOT user consent; run `gh pr merge 208 --squash` in the MAIN loop after the user authorizes) → NORMAL squash-merge (NO --admin, per D-989) → post-merge state burst (story draft→merged; develop_head bump; POL-14 — all 7 BCs already active so promotion is a no-op). (4) cleanup worktree + branch.
+
+### PENDING USER-APPROVED WORK
+- Strict 3-CLEAN convergence + normal squash-merge of S-DEMO-FIDELITY-REMEDIATION-001 (D-989 autonomy; merge action needs the user's direct click). Then deliver **S-PRISMQL-CASE-INSENSITIVE-001** (demo-critical; ADR-047; OD-1..OD-4 resolved; PO BCs + remove-uncertainty x2 then TDD).
+
+### DEMO / RELEASE ROADMAP REMAINING
+S-DEMO-FIDELITY-REMEDIATION-001 merge → S-PRISMQL-CASE-INSENSITIVE-001 deliver → DEMO-SCOPE.md + T13 runbook update (case-insensitive examples) → T13 capstone → T14 recording.
+
+### WORKTREE INVENTORY
+- ACTIVE / removable-post-merge: .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 (7b61b196 — PR #208 converge PR-LEVEL + merge, then remove).
+- STALE / leave-alone: .worktrees/S-3.09 (43c41389 FROZEN), .worktrees/W3-FIX-S307-001 (fcab8717 BLOCKED).
+
+### DECISION-LOG DELTA this session (D-1410..D-1424; record D-1425 = this wrap)
+- D-1410 HAVING fix-burst (F-PXL3-MED-002 Option-A grammar extension/ADR-048; F-PXL3-MED-001 + F-PXL4-LOW-001 closed; story v2.9).
+- D-1411..D-1418 S-PERF-GATE-002 (#206) + S-PERF-GATE-003 (#207) delivery+merges (develop 9a09653a→4417d691→1f491590); STORY-INDEX changelog backfill; LazyLock-approach-abandoned (nextest process-per-test); force-push-via-tmux lesson codified.
+- D-1419 S-PERF-GATE-003 LOCAL converged; D-1420 S-PERF-GATE-003 merged.
+- D-1421 S-DEMO re-gate round-1 (armis CRIT 0-row fix + WHERE-test + doc; OBS SqlPipe→S-PRISMQL-SQLPIPE-COLUMN-GATE-001 deferred).
+- D-1422 S-DEMO re-gate round-2 (contract mis-anchor → BC-2.11.007 v1.9 PC-DISC-001; 3 wiring-seam tests).
+- D-1423 S-DEMO re-gate round-3 (docstring fix; OBS dispositions; S-DTU-ARMIS-FIXTURE-VOCAB-001 deferred).
+- D-1424 S-DEMO LOCAL 3-CLEAN CONVERGED + ADR-048 accepted v1.1.
+- New stories registered: S-PERF-GATE-003 (merged), S-PRISMQL-SQLPIPE-COLUMN-GATE-001 (draft), S-DTU-ARMIS-FIXTURE-VOCAB-001 (draft).
+- D-1425 (this wrap): session wrap — RESUME SNAPSHOT D-1425 authored (supersedes D-1409); S-DEMO LOCAL-converged, PR #208 open CI-in-flight, NEXT = PR-LEVEL 3-CLEAN → user-auth merge. develop 1f491590. STATE v8.052→v8.053.
+
+---
+
+## §RESUME SNAPSHOT — D-1409 (2026-06-28 — SESSION WRAP; develop origin/develop 9a09653a (local==origin); BC-INDEX v7.24; STORY-INDEX v2.513; ARCH-INDEX v2.148; STATE v8.036; S-DEMO-FIDELITY-REMEDIATION-001 LOCAL cascade at Pass-X streak 0/3 on b49316c2; HAVING decision F-PXL3-MED-002 OPEN) [SUPERSEDES D-1399] [SUPERSEDED by D-1425]
 
 > **D-1409 burst (2026-06-28).** Session wrap. S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN cascade at Pass-X, streak 0/3 on frozen feature HEAD b49316c2. PO's tentative BC-2.11.016 v1.6 weakening REVERTED (not adopted). BC-2.11.016 committed at factory-artifacts 9d08b42a stays v1.5. OPEN: F-PXL3-MED-002 HAVING code-vs-spec decision (user-directed: investigate code/grammar FIRST before weakening spec) + dependent F-PXL3-MED-001 + independent F-PXL4-LOW-001. All prior D-1101..D-1408 notes SUPERSEDED.
 
