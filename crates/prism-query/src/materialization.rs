@@ -3351,8 +3351,17 @@ mod armis_discriminator_wiring_seam_tests {
     //! ```
     //!
     //! then `RecordingAdapter::fetch` receives `params.filters` with NO `"aql"` key
-    //! (because `where_filters` is empty for a query with no WHERE clause), and
-    //! these tests FAIL with the assertion message.
+    //! (because `where_filters` is empty for a no-WHERE-clause query), and
+    //! **AC-WIRE-001** (`armis_alerts` no-WHERE) and **AC-WIRE-002** (`armis_devices`
+    //! no-WHERE) FAIL with the assertion message: `filters["aql"]` is `None`.
+    //!
+    //! **AC-WIRE-003** (`armis_alerts` with `WHERE aql='in:alerts status:Open'`) does
+    //! NOT depend on the seed call site. A `WHERE aql='...'` predicate populates
+    //! `where_filters["aql"]` via `extract_push_down_filters_as_map` →
+    //! `predicate_tree_to_filter_map` regardless of whether
+    //! `seed_armis_entity_discriminator` is called. AC-WIRE-003 is therefore a
+    //! **passthrough-contract guard** (user-supplied AQL preserved through the full
+    //! pipeline), not a seam-revert guard. It stays GREEN on call-site revert.
     //!
     //! F-LENS4-MED-001 / TD-VSDD-059 / TD-VSDD-060.
 
