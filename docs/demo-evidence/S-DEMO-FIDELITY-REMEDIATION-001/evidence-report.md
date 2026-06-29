@@ -1,7 +1,8 @@
 # Evidence Report — S-DEMO-FIDELITY-REMEDIATION-001
 
 **Story:** Demo Fidelity Code Fixes — T13 Pre-Flight Audit Remediation (2026-06-26)
-**Feature branch HEAD:** 481a0484
+**Code HEAD (LOCAL 3-CLEAN converged):** 481a0484
+**Note:** PR tip `7b61b196` differs from the converged code HEAD only by this docs-only demo-evidence commit (no code delta); evidence is current for the merge HEAD.
 **Evidence type:** Test-derived (targeted `cargo nextest run` runs per AC)
 **Evidence date:** 2026-06-29
 **Recording method:** CLI unit/integration tests — not a live DTU/MCP harness
