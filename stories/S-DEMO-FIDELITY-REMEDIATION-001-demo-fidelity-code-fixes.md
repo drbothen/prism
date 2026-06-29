@@ -67,10 +67,10 @@ points: 10
 level: "L4"
 status: draft
 # BC status: 6 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.5,
-#   BC-2.11.016 v1.5, BC-2.11.007 v1.8) + BC-2.11.019 v1.5 draft→active at merge per POL-14. Canonical versions
+#   BC-2.11.016 v1.5, BC-2.11.007 v1.9) + BC-2.11.019 v1.5 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.11"
+version: "2.12"
 updated: "2026-06-28"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -101,9 +101,9 @@ acceptance_criteria_count: 17
 #     AC-DISC (armis entity-discriminator seeding — F-L2-CRIT-001)
 #   Regression/workspace/compliance ACs: AC-REG-1, AC-REG-2, AC-DEMO-001, AC-SAP-1
 #   Plus new ACs for SqlPipe modes and did_you_mean engine behavior
-red_gate_tests: 46
-# 46 Red Gate tests (v2.10 fold-in — adds four armis entity-discriminator tests
-# from F-L2-CRIT-001 fix in materialization.rs; see arithmetic below):
+red_gate_tests: 49
+# 49 Red Gate tests (v2.12 fold-in — adds three armis discriminator wiring-seam tests
+# from F-LENS4-MED-001 fix in materialization.rs; see arithmetic below):
 # --- AC-N1 ---
 #   test_bc_2_11_022_n1_per_field_udf_names (bc_2_11_022_n1_test.rs)
 # --- AC-N1B core ---
@@ -169,12 +169,18 @@ red_gate_tests: 46
 #   test_f_l2_crit001_armis_devices_no_aql_seeds_in_devices_discriminator (materialization.rs inline)
 #   test_f_l2_crit001_armis_alerts_existing_aql_not_overwritten (materialization.rs inline)
 #   test_f_l2_crit001_non_armis_table_filters_unchanged (materialization.rs inline)
+# --- AC-DISC wiring-seam tests (F-LENS4-MED-001 — load-bearing pipeline wiring seam;
+#     materialization.rs inline, module armis_discriminator_wiring_seam_tests) ---
+#   test_F_LENS4_MED001_armis_alerts_pipeline_seeds_in_alerts_aql_filter (materialization.rs inline)
+#   test_F_LENS4_MED001_armis_devices_pipeline_seeds_in_devices_aql_filter (materialization.rs inline)
+#   test_F_LENS4_MED001_armis_alerts_user_supplied_aql_passes_through_pipeline (materialization.rs inline)
 # --- AC-REG-1 ---
 #   scripts/check-non-exhaustive.sh EXPECTED=88 (compile-fail gate via shell script, not a Rust fn)
 # --- AC-REG-2 ---
 #   test_bc_2_11_022_registry_parity (crates/prism-mcp/tests/reference_content.rs, existing — per-field UDF parity guard)
 #
-# Arithmetic: 42 (v2.9) + 4 armis entity-discriminator tests (F-L2-CRIT-001, materialization.rs inline) = 46.
+# Arithmetic: 42 (v2.9) + 4 armis entity-discriminator tests (F-L2-CRIT-001, materialization.rs inline) = 46;
+# 46 (v2.10) + 3 armis discriminator wiring-seam tests (F-LENS4-MED-001, materialization.rs inline) = 49.
 # Red Gate semantics: the TDD-driving Red Gate subset — tests that were written RED before the
 # corresponding code landed, plus inline and guard tests that drive story-delivered code surfaces
 # (mid-cascade regression guards included). This is a named subset; the COMPLETE delivered test
@@ -190,11 +196,11 @@ behavioral_contracts:
 # BC-2.11.001 — query MCP tool (cited in AC-N2: dot-notation EC-11-067 plan-time gate)
 # BC-2.11.022 — prismql://reference content contract (cited in AC-N1: per-field UDF dedup)
 # BC-2.11.019 — E-QUERY-039 enrich-UDF-not-found gate (cited in AC-N1B)
-# BC-2.10.016 — MCP prompts fast-return + FROM-ready names (cited in AC-AUDIT-004 and AC-DISC)
+# BC-2.10.016 — MCP prompts fast-return + FROM-ready names (cited in AC-AUDIT-004)
 # BC-2.10.012 — prism_describe schema discovery tool (cited in AC-AUDIT-001)
 # BC-2.11.016 — E-QUERY-038 column-not-found gate (cited in AC-M1 and AC-M2)
-# BC-2.11.007 — sensor filter push-down (cited in AC-DISC: armis AQL discriminator seeding §Mechanism B)
-# All 6 BCs cited in at least one AC body trace.
+# BC-2.11.007 — sensor filter push-down (cited in AC-DISC: armis AQL discriminator seeding §Mechanism B.1 / PC-DISC-001)
+# All 7 BCs cited in at least one AC body trace.
 verification_properties: [VP-021]
 # VP-021 (PrismQL parser never panics on arbitrary input — fuzz) applies to changes in
 # materialization.rs E-QUERY-037 gate ordering (N2) and any new plan-time checks.
@@ -308,7 +314,7 @@ all subquery positions (HAVING, GROUP BY, ORDER BY, JOIN ON).
 | BC-2.10.016 | v1.2 | BC-2.10.016: MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
 | BC-2.10.012 | v1.5 | BC-2.10.012: `prism_describe` Schema Discovery Tool (L2) |
 | BC-2.11.016 | v1.5 | BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
-| BC-2.11.007 | v1.8 | BC-2.11.007: Sensor Filter Push-Down |
+| BC-2.11.007 | v1.9 | BC-2.11.007: Sensor Filter Push-Down |
 
 ---
 
@@ -755,8 +761,7 @@ bypass the E-QUERY-037 gate and fail later with a less actionable error.
 
 ### Area I-B — Armis Entity-Discriminator Seeding (F-L2-CRIT-001)
 
-**AC-DISC** (traces to BC-2.11.007 v1.8 §Mechanism B — armis AQL discriminator seeding, and
-BC-2.10.016 v1.2 postcondition — "a copied prompt query MUST get a successful result"):
+**AC-DISC** (traces to BC-2.11.007 v1.9 §Mechanism B.1 / PC-DISC-001 — Planner-Side Entity-Discriminator Auto-Seeding):
 `pub(crate) fn seed_armis_entity_discriminator` in `crates/prism-query/src/materialization.rs`
 seeds the AQL search discriminator for armis tables in the `run_materialization_pipeline`
 fan-out loop when the `aql` field is absent or empty:
@@ -777,15 +782,23 @@ fix, `armis_alerts` queries with absent/empty `aql` automatically receive `aql="
 returning alert records as expected.
 
 **Red Gate tests** (inline module `armis_discriminator_tests` in `materialization.rs`,
-verified GREEN on HEAD 33817a82):
+verified GREEN on HEAD d9bb75c2):
 - `test_f_l2_crit001_armis_alerts_no_aql_seeds_in_alerts_discriminator` — armis_alerts table with absent `aql`; assert seeded value equals `"in:alerts"`.
 - `test_f_l2_crit001_armis_devices_no_aql_seeds_in_devices_discriminator` — armis_devices table with absent `aql`; assert seeded value equals `"in:devices"`.
 - `test_f_l2_crit001_armis_alerts_existing_aql_not_overwritten` — armis_alerts table with a non-empty user-supplied `aql`; assert value is preserved verbatim (NOT overwritten to `"in:alerts"`).
 - `test_f_l2_crit001_non_armis_table_filters_unchanged` — non-armis table (e.g., `crowdstrike_detections`); assert filter is unchanged.
 
+**Wiring-seam Red Gate tests** (F-LENS4-MED-001 — inline module `armis_discriminator_wiring_seam_tests`
+in `materialization.rs`; these drive `run_materialization_pipeline` through a recording stub adapter,
+asserting the seeded `aql` reaches `QueryParams` — guarding the call site against revert; Red→Green
+confirmed on HEAD d9bb75c2):
+- `test_F_LENS4_MED001_armis_alerts_pipeline_seeds_in_alerts_aql_filter` — end-to-end pipeline with armis_alerts and absent `aql`; assert `QueryParams.filters["aql"] == "in:alerts"` at the adapter call site.
+- `test_F_LENS4_MED001_armis_devices_pipeline_seeds_in_devices_aql_filter` — companion for armis_devices; assert `QueryParams.filters["aql"] == "in:devices"`.
+- `test_F_LENS4_MED001_armis_alerts_user_supplied_aql_passes_through_pipeline` — armis_alerts with user-supplied `WHERE aql = 'in:alerts status:Open'`; assert the user-supplied value passes through to `QueryParams` unchanged (not overwritten).
+
 **Integration verification:** DTU armis integration tests (`s_demo_armis_aql_001_red_gate`,
 parity_armis pipeline roundtrips, adv_p02 armis) confirmed GREEN on full `just check`
-(5074/5074 tests, HEAD 33817a82).
+(feature HEAD d9bb75c2).
 
 ---
 
@@ -1247,6 +1260,7 @@ spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.12 | 4lens-regate-ac-disc-reanchor-wiring-seam-tests-2026-06-29 | 2026-06-29 | story-writer | **4-lens re-gate reconciliation: AC-DISC re-anchored to BC-2.11.007 v1.9 §Mechanism B.1/PC-DISC-001 (F-L3-MED-001); BC-2.10.016 co-trace dropped from AC-DISC (F-L3-MED-002); 3 wiring-seam tests added (F-LENS4-MED-001); "7 BCs" comment fix (F-L3-LOW-001); feature HEAD 33817a82→d9bb75c2.** (1) **F-L3-MED-001 — AC-DISC re-anchored to BC-2.11.007 v1.9 §Mechanism B.1/PC-DISC-001.** PO amended BC-2.11.007 v1.8→v1.9 adding §Mechanism B.1 "Planner-Side Entity-Discriminator Auto-Seeding" with postconditions PC-DISC-001/002/003. AC-DISC now single-anchors to `BC-2.11.007 v1.9 §Mechanism B.1 / PC-DISC-001` — the precise contractual anchor for the absent-aql auto-seeding behavior. BC-2.11.007 version updated v1.8→v1.9 in: frontmatter BC status comment, body BC table row, BC-array-propagation comment line. (2) **F-L3-MED-002 — BC-2.10.016 co-trace dropped from AC-DISC.** BC-2.10.016 governs `render_*` prompt FROM-ready names (AC-AUDIT-004's domain), not the planner seeding behavior. The co-trace was a semantic mismatch. BC-2.10.016 REMAINS in the `behavioral_contracts:` array and body BC table — it is still validly cited by AC-AUDIT-004. Only removed from AC-DISC's single anchor line. BC-array-propagation comment for BC-2.10.016 updated: "cited in AC-AUDIT-004 and AC-DISC" → "cited in AC-AUDIT-004". (3) **F-LENS4-MED-001 — 3 wiring-seam tests added to red_gate inventory.** Source-verified against worktree (`.worktrees/S-DEMO-FIDELITY-REMEDIATION-001/crates/prism-query/src/materialization.rs`, module `armis_discriminator_wiring_seam_tests`, lines 3317+): `test_F_LENS4_MED001_armis_alerts_pipeline_seeds_in_alerts_aql_filter`, `test_F_LENS4_MED001_armis_devices_pipeline_seeds_in_devices_aql_filter`, `test_F_LENS4_MED001_armis_alerts_user_supplied_aql_passes_through_pipeline`. These drive `run_materialization_pipeline` through a recording stub adapter asserting the seeded `aql` reaches `QueryParams`. `red_gate_tests` 46→49. Arithmetic: 46 (v2.10) + 3 wiring-seam tests = 49. AC-DISC body section updated with wiring-seam test descriptions. Integration verification HEAD updated 33817a82→d9bb75c2. (4) **F-L3-LOW-001 — "6 BCs" comment corrected to "7 BCs".** Frontmatter BC-array-propagation comment "All 6 BCs cited in at least one AC body trace" was stale (array has 7 entries). Fixed to "All 7 BCs cited in at least one AC body trace." Array verified: BC-2.11.001, BC-2.11.022, BC-2.11.019, BC-2.10.016, BC-2.10.012, BC-2.11.016, BC-2.11.007 = 7 entries. |
 | 2.11 | pol-8-bc-2.11.007-propagation-2026-06-28 | 2026-06-28 | story-writer | **POL-8 reconciliation: BC-2.11.007 v1.8 added to `behavioral_contracts:` array and body BC table for AC-DISC anchor; BC count 6→7.** AC-DISC traces to BC-2.11.007 v1.8 §Mechanism B (armis AQL discriminator seeding) — the precise contractual anchor for AQL discriminator injection behavior. BC-2.11.007 was absent from the frontmatter array (POL-8 violation: every AC-traced BC must be in the array + propagated to the body BC table). Fixes: (1) BC-2.11.007 added to `behavioral_contracts:` array (now 7 entries). (2) Body BC table row added: `| BC-2.11.007 | v1.8 | BC-2.11.007: Sensor Filter Push-Down |` (H1 title verbatim per POL-7 — read from BC file). (3) BC-array-propagation comment updated: BC-2.16.002 → BC-2.10.016 line now notes AC-DISC co-trace; new BC-2.11.007 line added. (4) Token Budget "6 BCs" → "7 BCs" (~12k → ~14k). (5) AC-DISC trace pinned to `BC-2.11.007 v1.8 §Mechanism B`. (6) BC-2.11.007 added to inputs list. BC-2.11.007 is `status: active`, `lifecycle_status: active` (v1.8 since 2026-06-05) — POL-14 draft→active at merge is a no-op. Version bump 2.10→2.11. |
 | 2.10 | f-l2-crit001-armis-discriminator-4lens-regate-2026-06-28 | 2026-06-28 | story-writer | **Armis entity-discriminator AC added (F-L2-CRIT-001), WHERE-divergence guard test made load-bearing, doc-comment + LOW-2 path + OBS-1 module-attribution corrections; red_gate_tests 42→46.** (1) **F-L2-CRIT-001 (CRIT) — AC-DISC added.** `pub(crate) fn seed_armis_entity_discriminator` in `materialization.rs` seeds the Armis AQL discriminator when absent/empty: `armis_alerts → aql="in:alerts"`, `armis_devices → aql="in:devices"`; user-supplied non-empty `aql` preserved verbatim; non-armis tables unaffected. Four Red Gate tests in inline module `armis_discriminator_tests`: `test_f_l2_crit001_armis_alerts_no_aql_seeds_in_alerts_discriminator`, `_devices_no_aql_seeds_in_devices_discriminator`, `_armis_alerts_existing_aql_not_overwritten`, `_non_armis_table_filters_unchanged`. Full `just check` GREEN (5074/5074, HEAD 33817a82), DTU armis integration tests pass. AC-DISC added to story body (new §Area I-B), frontmatter inventory, crates_touched prism-query comment, File Structure MODIFIED row, Architecture Mapping row. `acceptance_criteria_count` 16→17. `red_gate_tests` 42→46 (arithmetic: 42 v2.9 + 4 AC-DISC tests). materialization.rs removed from "Files NOT modified" note (now MODIFIED). (2) **WHERE-divergence guard test (note only).** `test_BC_2_11_016_where_agg_fn_predicate_stays_e_query_001` is a load-bearing guard ensuring WHERE does NOT accept the agg-fn predicate form per ADR-048 §Constraint. The test lives in `f_pxl3_med002_having_agg_predicate_col_gate_tests` module — code was already delivered by the implementer; this entry records the module attribution verification. (3) **LOW-2 — AC-REG-2 path disambiguation.** `test_bc_2_11_022_registry_parity` is cited with full path `crates/prism-mcp/tests/reference_content.rs` (integration test file, not a src inline module). Companion note for `test_bc_2_11_022_ci_3tier_gate` also updated with full path. (4) **OBS-1 — module attribution correction.** Frontmatter Red Gate inventory comment and AC-M2 blockquote both previously attributed the three ADR-048 agg-fn tests (`test_BC_2_11_016_having_agg_fn_predicate_typo_fires_e_query_038`, `_valid_col_no_e_query_038`, `test_BC_2_11_016_where_agg_fn_predicate_stays_e_query_001`) to `f_pwl1_low001_having_column_gate_tests`. Source-verified against engine.rs: these tests are in `f_pxl3_med002_having_agg_predicate_col_gate_tests` (line 7102); `f_pwl1_low001_having_column_gate_tests` (line 6838) contains only the bare-column tests. Both frontmatter comment and AC-M2 blockquote corrected. Anchored to BC-2.11.007 §Mechanism B and BC-2.10.016 v1.2 postcondition. |
 | 2.9 | f-pxl3-med-001-f-pxl4-low-001-adr-048-tests-2026-06-28 | 2026-06-28 | story-writer | **F-PXL3-MED-001 AC-M2 corrected, F-PXL4-LOW-001 cite corrected, 3 HAVING agg-fn Red Gate tests added (ADR-048), red_gate_tests 39→42.** (1) **F-PXL3-MED-001 (MED) — AC-M2 HAVING-extraction prose corrected.** Prior text claimed HAVING (Position 6) uses `extract_field_paths_from_expr` (recurses into FuncCall args). The ACTUAL code path is `extract_predicate_columns` → `collect_predicate_columns`, whose `Predicate::Compare` arm NOW handles both bare `Expr::Field` LHS (bare-column HAVING predicates) and `Expr::FuncCall` LHS (aggregate-function HAVING predicates, ADR-048), in both cases recursing via `extract_field_paths_from_expr` to collect all `Expr::Field` column references. The WHERE predicate grammar deliberately does NOT accept aggregate-function predicate LHS (ADR-048); `WHERE count(col) > 5` remains an E-QUERY-001 parse error. AC-M2 prose replaced with the architect-verified description. BC-2.11.016 v1.5 HAVING blockquote expanded to document the ADR-048 grammar extension and all 5 test names in the inline module. §References extended: ADR-048 governs HAVING/WHERE predicate-grammar divergence; BC-2.11.016 stays v1.5. (2) **F-PXL4-LOW-001 (LOW) — AC-REG-2 test cite corrected.** `test_bc_2_11_022_ci_3tier_gate` was cited as the per-field-UDF-parity guard. The actual per-field parity guard is `test_bc_2_11_022_registry_parity` (in `reference_content.rs`, line 304) — it builds a known `InfusionRegistry` and asserts `build_reference_content` renders per-field callable names, not infusion_ids. `test_bc_2_11_022_ci_3tier_gate` guards the 3-tier `ExampleKind` shape (a separate concern). AC-REG-2 Red Gate test paragraph replaced with accurate prose naming `test_bc_2_11_022_registry_parity` as the parity guard; note added clarifying the distinct role of `test_bc_2_11_022_ci_3tier_gate`. Frontmatter inventory `--- AC-REG-2 ---` comment updated from `test_bc_2_11_022_ci_3tier_gate` to `test_bc_2_11_022_registry_parity`. (3) **3 HAVING agg-fn Red Gate tests added (ADR-048).** Three new tests from the ADR-048 grammar extension (all in `engine.rs` inline module `f_pwl1_low001_having_column_gate_tests`) added to the frontmatter red_gate inventory under a new `--- AC-M2 HAVING agg-fn predicate tests ---` section: `test_BC_2_11_016_having_agg_fn_predicate_typo_fires_e_query_038`, `test_BC_2_11_016_having_agg_fn_predicate_valid_col_no_e_query_038`, `test_BC_2_11_016_where_agg_fn_predicate_stays_e_query_001`. `red_gate_tests` 39→42. Arithmetic updated: 39 (v2.8) + 3 HAVING agg-fn tests = 42. |
