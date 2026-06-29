@@ -445,3 +445,389 @@ async fn test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique() {
         );
     }
 }
+
+// ── AC-CAT2: Category-2 enrichment UDF discovery hints (BC-2.10.012 v1.7 §pql_hints) ──────────
+//
+// These 3 tests cover the Category-2 enrichment-discovery hint introduced by BC-2.10.012 v1.7
+// (ADV-P208-P02-001 follow-on; human directive: implement AC-CAT2 in-scope on PR #208).
+//
+// Test vehicle: end-to-end via handle_prism_describe (SID-1: drives the real production path).
+//   - Tests 1 and 2: assert pql_hints.len() == 3 (2 Cat-1 + 1 Cat-2).
+//   - Test 3: assert pql_hints.len() == 1 (Cat-2 suppressed for N = 0 tables).
+//
+// Red Gate status:
+//   - test_bc_2_10_012_cat2_enrichment_hint_with_udfs: ASSERTION-FAIL
+//     (build_pql_hints currently emits 2 hints only; 4th param infusion_registry not yet added)
+//   - test_bc_2_10_012_cat2_enrichment_absent_hint: ASSERTION-FAIL (same reason)
+//   - test_bc_2_10_012_cat2_zero_table_no_category2: REGRESSION GUARD (passes vacuously
+//     before implementation; guards against Cat-2 being emitted in the zero-table case)
+//
+// Implementation prerequisites (AC-CAT2 spec from story crates_touched §prism-mcp):
+//   1. `InfusionUdfDescriptor` gains `pub input_field: String` (prism-spec-engine udf.rs + new()).
+//   2. `udf_descriptors()` propagates `field.input_field.clone()` into each descriptor (mod.rs).
+//   3. `build_pql_hints` gains 4th param `infusion_registry: Option<&prism_spec_engine::InfusionRegistry>`.
+//   4. `handle_prism_describe` resolves
+//      `let infusion_registry = query_engine.and_then(|qe| qe.infusion_registry());`
+//      and passes `infusion_registry.as_deref()` as 4th arg to `build_pql_hints`.
+
+/// Build the canonical Cat-2 fixture InfusionRegistry with 2 UDFs per BC-2.10.012 v1.7 EC-10-030:
+///   - `nvd_cvss`     (input_field: `"device_cves_first"`)   — alphabetically first ('n' < 't')
+///   - `threat_score` (input_field: `"ioc_value_singleton"`) — alphabetically second
+///
+/// After the AC-CAT2 fix: `InfusionUdfDescriptor` gains `pub input_field: String`; `udf_descriptors()`
+/// propagates `field.input_field` into each descriptor; `build_pql_hints` uses `d.input_field` to
+/// format each UDF entry as `"d.name(d.input_field)"`.
+///
+/// The `InfusionSpec::new()` sets `source: None` → `NullSource` for `LocalLookup` (no real data
+/// file needed; enrichment lookup is not exercised by these tests). `pipe_stage: None` skips
+/// `validate_pipe_stage_columns`. Both specs load successfully.
+fn make_cat2_infusion_registry() -> Arc<prism_spec_engine::InfusionRegistry> {
+    use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+    let registry = Arc::new(InfusionRegistry::new());
+
+    // UDF 1: nvd_cvss — sorts before threat_score ('n' < 't') → becomes the example call.
+    let nvd_spec = InfusionSpec::new(
+        "nvd",
+        "NVD CVE Lookup",
+        InfusionType::LocalLookup,
+        vec![InfusionField::new(
+            "nvd_cvss",
+            "device_cves_first",
+            "string",
+            "float",
+        )],
+        "/test/nvd.infusion.toml",
+    );
+    registry.load_spec(nvd_spec).expect(
+        "AC-CAT2 fixture: nvd spec load must succeed (1 field, no duplicates, no pipe_stage)",
+    );
+
+    // UDF 2: threat_score — sorts after nvd_cvss alphabetically.
+    let threat_spec = InfusionSpec::new(
+        "threat_intel",
+        "Threat Intelligence Lookup",
+        InfusionType::LocalLookup,
+        vec![InfusionField::new(
+            "threat_score",
+            "ioc_value_singleton",
+            "string",
+            "float",
+        )],
+        "/test/threat.infusion.toml",
+    );
+    registry
+        .load_spec(threat_spec)
+        .expect("AC-CAT2 fixture: threat_intel spec load must succeed");
+
+    registry
+}
+
+/// BC-2.10.012 v1.7 AC-CAT2 (test 1 of 3) — Red Gate (assertion-fail).
+///
+/// When `infusion_registry` is `Some(reg)` with 2 non-empty UDFs AND N ≥ 1 tables, `pql_hints`
+/// MUST have exactly 3 elements; `pql_hints[2]` MUST be the byte-exact enrichment-presence hint
+/// with UDFs sorted alphabetically by name, each formatted as `name(input_field)`.
+///
+/// # Byte-exact expected string (BC-2.10.012 v1.7 §pql_hints Category-2, EC-10-030):
+///
+/// `"Enrichment available via pipe syntax: | enrich nvd_cvss(device_cves_first). Available UDFs
+/// for this client: nvd_cvss(device_cves_first), threat_score(ioc_value_singleton)"`
+///
+/// # Wiring: how the infusion_registry reaches build_pql_hints
+///
+/// `query_engine` is wired via `.with_infusion_registry(registry)`. After the AC-CAT2 fix,
+/// `handle_prism_describe` resolves:
+/// `let infusion_registry = query_engine.and_then(|qe| qe.infusion_registry());`
+/// and passes `infusion_registry.as_deref()` as the 4th arg to `build_pql_hints`.
+///
+/// `QueryEngine::new()` leaves `resolved_spec_map: None`, so `build_tables_for_client` falls
+/// through to `config_manager` for table data — 2 crowdstrike tables (N = 2).
+///
+/// # Red Gate failure (assertion-fail)
+///
+/// Currently `build_pql_hints` emits exactly 2 Category-1 hints for non-empty tables
+/// (`pql_hints.len() == 2`). `assert_eq!(pql_hints.len(), 3)` fails → Red Gate confirmed.
+#[tokio::test]
+async fn test_bc_2_10_012_cat2_enrichment_hint_with_udfs() {
+    use prism_credentials::InMemoryCredentialStore;
+    use prism_ocsf::OcsfNormalizer;
+    use prism_query::{
+        engine::{QueryEngine, QueryEngineConfig},
+        scoping::ClientRegistry,
+    };
+    use prism_sensors::registry::AdapterRegistry;
+
+    // InfusionRegistry with nvd_cvss and threat_score (2 UDFs per BC-2.10.012 EC-10-030).
+    let infusion_registry = make_cat2_infusion_registry();
+
+    // Minimal QueryEngine wired with infusion_registry; no resolved_spec_map.
+    // handle_prism_describe falls through to config_manager for table data.
+    let query_engine = Arc::new(
+        QueryEngine::new(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(InMemoryCredentialStore::new()),
+            Arc::new(OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+        )
+        .with_infusion_registry(infusion_registry),
+    );
+
+    // config_manager with 2 crowdstrike tables (N = 2 ≥ 1 → Category-2 must be emitted).
+    let config_manager = make_config_manager_crowdstrike_two_tables();
+
+    let result = handle_prism_describe(
+        "crowdstrike".to_string(),
+        Some(&query_engine), // infusion_registry wired; resolved_spec_map = None
+        Some(&config_manager), // N = 2 tables via single-tenant fallback
+        None,
+    )
+    .await;
+
+    let call_result = result.expect(
+        "BC-2.10.012 AC-CAT2: handle_prism_describe must return Ok for valid 'crowdstrike'",
+    );
+    assert!(
+        !call_result.is_error.unwrap_or(false),
+        "BC-2.10.012 AC-CAT2: prism_describe must not return is_error=true; got: {:?}",
+        call_result
+    );
+
+    let content_text: String = call_result
+        .content
+        .iter()
+        .filter_map(|c| c.as_text().map(|t| t.text.clone()))
+        .collect::<Vec<_>>()
+        .join("");
+
+    let parsed: serde_json::Value = serde_json::from_str(&content_text)
+        .expect("BC-2.10.012 AC-CAT2: prism_describe response must be valid JSON");
+
+    let results = parsed
+        .get("results")
+        .expect("BC-2.10.012 AC-CAT2: SafetyEnvelope response must have 'results' field");
+
+    let pql_hints = results
+        .get("pql_hints")
+        .and_then(|v| v.as_array())
+        .expect("BC-2.10.012 AC-CAT2: results must contain 'pql_hints' array");
+
+    // ── RED GATE: currently pql_hints.len() == 2 (no Category-2 hint emitted yet) ──────────
+    assert_eq!(
+        pql_hints.len(),
+        3,
+        "BC-2.10.012 AC-CAT2: non-empty tables + UDFs registered → pql_hints MUST have \
+         exactly 3 elements (2 Category-1 + 1 Category-2 enrichment-presence hint). \
+         Currently fails because build_pql_hints does not yet accept infusion_registry (4th param). \
+         Got {} elements: {:?}",
+        pql_hints.len(),
+        pql_hints
+    );
+
+    let hint2 = pql_hints[2]
+        .as_str()
+        .expect("BC-2.10.012 AC-CAT2: pql_hints[2] must be a JSON string");
+
+    // Byte-exact assertion per BC-2.10.012 v1.7 §pql_hints Category-2, EC-10-030:
+    // Sort order: nvd_cvss < threat_score ('n' < 't'); first sorted entry is the example call.
+    // Entry format: "name(input_field)" — requires InfusionUdfDescriptor.input_field (not yet present).
+    const EXPECTED_CAT2_WITH_UDFS: &str = concat!(
+        "Enrichment available via pipe syntax: | enrich nvd_cvss(device_cves_first). ",
+        "Available UDFs for this client: nvd_cvss(device_cves_first), threat_score(ioc_value_singleton)"
+    );
+    assert_eq!(
+        hint2, EXPECTED_CAT2_WITH_UDFS,
+        "BC-2.10.012 AC-CAT2: pql_hints[2] must be byte-exact enrichment hint with UDFs sorted \
+         alphabetically as 'name(input_field)' pairs. Got: {:?}",
+        hint2
+    );
+}
+
+/// BC-2.10.012 v1.7 AC-CAT2 (test 2 of 3) — Red Gate (assertion-fail).
+///
+/// When `infusion_registry` is `None` (no enrichment configured) AND N ≥ 1 tables, `pql_hints`
+/// MUST have exactly 3 elements; `pql_hints[2]` MUST be the byte-exact enrichment-absence hint.
+///
+/// # Byte-exact expected string (BC-2.10.012 v1.7 §pql_hints Category-2, EC-10-031):
+///
+/// `"No enrichment UDFs are registered for this client — enrichment is not available."`
+///
+/// # Test vehicle note
+///
+/// Uses `query_engine = None` (single-tenant path through config_manager). After the fix,
+/// `handle_prism_describe` resolves `infusion_registry = None` (from `None` query_engine)
+/// and passes it to `build_pql_hints` as the 4th parameter. This exercises the "None registry"
+/// case per BC-2.10.012 v1.7: both `None` and empty registry emit the absence hint.
+///
+/// # Red Gate failure (assertion-fail)
+///
+/// Currently `build_pql_hints` emits exactly 2 Category-1 hints for non-empty tables.
+/// `assert_eq!(pql_hints.len(), 3)` fails → Red Gate confirmed.
+#[tokio::test]
+async fn test_bc_2_10_012_cat2_enrichment_absent_hint() {
+    // No query_engine → infusion_registry resolves to None after the fix.
+    // N = 2 tables via config_manager (non-empty → Category-2 must be emitted with absence hint).
+    let config_manager = make_config_manager_crowdstrike_two_tables();
+
+    let result = handle_prism_describe(
+        "crowdstrike".to_string(),
+        None,                  // no query_engine → infusion_registry = None after fix
+        Some(&config_manager), // N = 2 tables
+        None,
+    )
+    .await;
+
+    let call_result = result.expect(
+        "BC-2.10.012 AC-CAT2 absent: handle_prism_describe must return Ok for valid 'crowdstrike'",
+    );
+    assert!(
+        !call_result.is_error.unwrap_or(false),
+        "BC-2.10.012 AC-CAT2 absent: prism_describe must not return is_error=true",
+    );
+
+    let content_text: String = call_result
+        .content
+        .iter()
+        .filter_map(|c| c.as_text().map(|t| t.text.clone()))
+        .collect::<Vec<_>>()
+        .join("");
+
+    let parsed: serde_json::Value = serde_json::from_str(&content_text)
+        .expect("BC-2.10.012 AC-CAT2 absent: response must be valid JSON");
+
+    let results = parsed
+        .get("results")
+        .expect("BC-2.10.012 AC-CAT2 absent: must have 'results' field");
+
+    let pql_hints = results
+        .get("pql_hints")
+        .and_then(|v| v.as_array())
+        .expect("BC-2.10.012 AC-CAT2 absent: must have 'pql_hints' array");
+
+    // ── RED GATE: currently pql_hints.len() == 2 (no Category-2 hint emitted yet) ──────────
+    assert_eq!(
+        pql_hints.len(),
+        3,
+        "BC-2.10.012 AC-CAT2 absent: non-empty tables + no InfusionRegistry → pql_hints MUST \
+         have 3 elements (2 Category-1 + 1 Category-2 absence hint). \
+         Currently fails because build_pql_hints does not yet emit Category-2 for None registry. \
+         Got {} elements: {:?}",
+        pql_hints.len(),
+        pql_hints
+    );
+
+    let hint2 = pql_hints[2]
+        .as_str()
+        .expect("BC-2.10.012 AC-CAT2 absent: pql_hints[2] must be a JSON string");
+
+    // Byte-exact assertion per BC-2.10.012 v1.7 §pql_hints Category-2, EC-10-031:
+    const EXPECTED_CAT2_ABSENT: &str =
+        "No enrichment UDFs are registered for this client — enrichment is not available.";
+    assert_eq!(
+        hint2, EXPECTED_CAT2_ABSENT,
+        "BC-2.10.012 AC-CAT2 absent: pql_hints[2] must be byte-exact absence hint. Got: {:?}",
+        hint2
+    );
+}
+
+/// BC-2.10.012 v1.7 AC-CAT2 (test 3 of 3) — Regression guard.
+///
+/// When UDFs ARE registered but N = 0 tables, Category-2 MUST be suppressed entirely.
+/// `pql_hints` must have exactly 1 element (the zero-table Category-1 hint only).
+///
+/// # Regression guard semantics (not a pure Red Gate)
+///
+/// This test currently PASSES vacuously before the AC-CAT2 implementation: Category-2 does not
+/// exist yet, so the zero-table path already produces 1 hint. It becomes load-bearing after the
+/// fix: if the implementer accidentally emits Category-2 for the zero-table case,
+/// `assert_eq!(pql_hints.len(), 1)` fails here.
+///
+/// # Setup
+///
+/// `client_id = "zero-tables-sensor"` has no entry in `config_manager`'s `sensor_specs`
+/// (which only contains "crowdstrike"). `build_tables_for_client` returns `Vec::new()` (N = 0).
+/// `query_engine` is wired with 2 UDFs to verify suppression holds even when UDFs are present.
+#[tokio::test]
+async fn test_bc_2_10_012_cat2_zero_table_no_category2() {
+    use prism_credentials::InMemoryCredentialStore;
+    use prism_ocsf::OcsfNormalizer;
+    use prism_query::{
+        engine::{QueryEngine, QueryEngineConfig},
+        scoping::ClientRegistry,
+    };
+    use prism_sensors::registry::AdapterRegistry;
+
+    // QueryEngine wired with 2 UDFs — but client "zero-tables-sensor" has no tables.
+    let infusion_registry = make_cat2_infusion_registry();
+    let query_engine = Arc::new(
+        QueryEngine::new(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(InMemoryCredentialStore::new()),
+            Arc::new(OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+        )
+        .with_infusion_registry(infusion_registry),
+    );
+
+    // config_manager has "crowdstrike" tables but we request "zero-tables-sensor".
+    // build_tables_for_client: resolved_spec_map = None → config_manager → no matching sensor
+    // → returns Vec::new() (N = 0).
+    let config_manager = make_config_manager_crowdstrike_two_tables();
+
+    let result = handle_prism_describe(
+        "zero-tables-sensor".to_string(), // no matching sensor spec → N = 0
+        Some(&query_engine),
+        Some(&config_manager),
+        None,
+    )
+    .await;
+
+    let call_result =
+        result.expect("BC-2.10.012 AC-CAT2 zero-table: handle_prism_describe must return Ok");
+
+    let content_text: String = call_result
+        .content
+        .iter()
+        .filter_map(|c| c.as_text().map(|t| t.text.clone()))
+        .collect::<Vec<_>>()
+        .join("");
+
+    let parsed: serde_json::Value = serde_json::from_str(&content_text)
+        .expect("BC-2.10.012 AC-CAT2 zero-table: response must be valid JSON");
+
+    let results = parsed
+        .get("results")
+        .expect("BC-2.10.012 AC-CAT2 zero-table: must have 'results' field");
+
+    let pql_hints = results
+        .get("pql_hints")
+        .and_then(|v| v.as_array())
+        .expect("BC-2.10.012 AC-CAT2 zero-table: must have 'pql_hints' array");
+
+    // N = 0 → Category-2 is suppressed; exactly 1 zero-table hint (BC-2.10.012 §pql_hints Cat-2).
+    // Load-bearing regression guard: after implementation, 2 here means Cat-2 leaked into
+    // the zero-table path.
+    assert_eq!(
+        pql_hints.len(),
+        1,
+        "BC-2.10.012 AC-CAT2 zero-table: N=0 tables → Category-2 MUST be suppressed; \
+         pql_hints must have exactly 1 element (zero-table Category-1 hint only). \
+         Got {} elements: {:?}",
+        pql_hints.len(),
+        pql_hints
+    );
+
+    // Guard: the single hint must be the zero-table informational hint, NOT an enrichment hint.
+    // Prevents Cat-2 from leaking into the zero-table path even when UDFs are registered.
+    let hint0 = pql_hints[0]
+        .as_str()
+        .expect("BC-2.10.012 AC-CAT2 zero-table: pql_hints[0] must be a JSON string");
+    assert!(
+        !hint0.contains("Enrichment") && !hint0.contains("UDF"),
+        "BC-2.10.012 AC-CAT2 zero-table: pql_hints[0] for zero-table case must be the \
+         zero-table informational hint, NOT an enrichment hint. Got: {:?}",
+        hint0
+    );
+}
