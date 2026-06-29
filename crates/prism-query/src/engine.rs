@@ -3070,6 +3070,7 @@ mod alias_wiring_tests {
                 Arc::new(NullSrc),
                 None,
                 3600,
+                "",
             ),
             InfusionUdfDescriptor::new(
                 "threat_score", // duplicate name
@@ -3079,6 +3080,7 @@ mod alias_wiring_tests {
                 Arc::new(NullSrc),
                 None,
                 3600,
+                "",
             ),
         ];
 

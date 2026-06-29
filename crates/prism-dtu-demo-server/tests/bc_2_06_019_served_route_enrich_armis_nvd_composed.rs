@@ -309,6 +309,7 @@ async fn test_BC_2_06_019_armis_served_route_to_nvd_enrich_pipeline_composed_ful
         Arc::clone(&nvd_source),
         None, // no source_column: return full JSON for assertion
         3600,
+        "",
     );
 
     register_infusion_udfs(&ctx, vec![descriptor])

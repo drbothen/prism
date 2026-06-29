@@ -49,6 +49,12 @@ pub struct InfusionUdfDescriptor {
     /// Used by `prism-query::InfusionAsyncUdf` when writing entries to Tier 2 (LRU) and
     /// Tier 3 (RocksDB) after a live source call (BC-2.19.002 / Story Task 6 + Task 8).
     pub cache_ttl_secs: u64,
+    /// The input column fed to this UDF (from `InfusionField::input_field`).
+    ///
+    /// Used by `prism_describe` to build Category-2 enrichment-discovery hints
+    /// (BC-2.10.012 v1.7 §pql_hints, AC-CAT2). Example: `"device_cves_first"` for a
+    /// NVD CVE lookup keyed on the device CVE field.
+    pub input_field: String,
 }
 
 impl InfusionUdfDescriptor {
@@ -65,6 +71,7 @@ impl InfusionUdfDescriptor {
         source: Arc<dyn InfusionSource>,
         source_column: Option<String>,
         cache_ttl_secs: u64,
+        input_field: impl Into<String>,
     ) -> Self {
         Self {
             name: name.into(),
@@ -74,6 +81,7 @@ impl InfusionUdfDescriptor {
             source,
             source_column,
             cache_ttl_secs,
+            input_field: input_field.into(),
         }
     }
 }

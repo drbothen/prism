@@ -213,7 +213,18 @@ pub async fn handle_prism_describe(
     //   - not-registered: org is absent from OrgRegistry entirely
     let org_registry: Option<std::sync::Arc<prism_core::OrgRegistry>> =
         query_engine.and_then(|qe| qe.org_registry());
-    let pql_hints = build_pql_hints(org_slug.as_str(), &tables, org_registry.as_deref());
+
+    // BC-2.10.012 v1.7 §pql_hints AC-CAT2: resolve infusion_registry for Category-2 hint.
+    // `query_engine.infusion_registry()` returns `Option<Arc<InfusionRegistry>>`.
+    // Pass `as_deref()` to get `Option<&InfusionRegistry>` for the pure hint builder.
+    let infusion_registry: Option<std::sync::Arc<prism_spec_engine::InfusionRegistry>> =
+        query_engine.and_then(|qe| qe.infusion_registry());
+    let pql_hints = build_pql_hints(
+        org_slug.as_str(),
+        &tables,
+        org_registry.as_deref(),
+        infusion_registry.as_deref(),
+    );
 
     let response = PrismDescribeResponse {
         client_id: org_slug.as_str().to_string(),
@@ -398,10 +409,26 @@ fn build_tables_for_client(
 ///
 /// When `org_registry` is None (single-tenant / config_manager-only path), uses the
 /// registered-but-empty hint by default (no registry available to distinguish).
+///
+/// # Category-2 enrichment-discovery hint (BC-2.10.012 v1.7 §pql_hints, AC-CAT2)
+///
+/// When `tables` is non-empty, a third hint is appended:
+///
+/// - `infusion_registry` is `Some(reg)` and `reg.udf_descriptors()` is non-empty:
+///   UDFs are sorted alphabetically by name. The first sorted UDF is used as the example.
+///   Hint: `"Enrichment available via pipe syntax: | enrich <first>(input). Available UDFs
+///   for this client: <name1>(input1), <name2>(input2)"`
+///
+/// - `infusion_registry` is `None` or `reg.udf_descriptors()` is empty:
+///   Hint: `"No enrichment UDFs are registered for this client — enrichment is not available."`
+///
+/// Category-2 is suppressed entirely when `tables` is empty (N = 0 tables). This prevents
+/// advertising enrichment for clients that have no sensor data at all.
 fn build_pql_hints(
     client_id: &str,
     tables: &[TableDescriptor],
     org_registry: Option<&prism_core::OrgRegistry>,
+    infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
 ) -> Vec<String> {
     if tables.is_empty() {
         // Consult org_registry when available (multi-tenant path) to distinguish
@@ -428,19 +455,74 @@ fn build_pql_hints(
             }
         }
         // Single-tenant fallback (no registry): use the registered-but-empty hint.
-        vec![format!(
+        return vec![format!(
             "No sensor tables are available for client '{client_id}'. \
              The client may not have any sensor overlays configured."
-        )]
-    } else {
-        vec![
-            format!(
-                "Use 'SELECT * FROM <table> LIMIT 25' to query any of the {} table(s) above.",
-                tables.len()
-            ),
-            "Consult prismql://reference for full PQL grammar and operator reference.".to_string(),
-        ]
+        )];
     }
+
+    // N ≥ 1 tables: emit two Category-1 hints + one Category-2 enrichment hint.
+    let mut hints = vec![
+        format!(
+            "Use 'SELECT * FROM <table> LIMIT 25' to query any of the {} table(s) above.",
+            tables.len()
+        ),
+        "Consult prismql://reference for full PQL grammar and operator reference.".to_string(),
+    ];
+
+    // Category-2: enrichment-discovery hint (BC-2.10.012 v1.7 §pql_hints AC-CAT2).
+    // Only emitted when N ≥ 1 tables (suppressed for zero-table case above).
+    let cat2_hint = build_enrichment_hint(infusion_registry);
+    hints.push(cat2_hint);
+
+    hints
+}
+
+/// Build the Category-2 enrichment-discovery hint (BC-2.10.012 v1.7 §pql_hints AC-CAT2).
+///
+/// - Non-empty registry: sort UDFs alphabetically by name; build comma-joined list of
+///   `"name(input_field)"` entries; use first sorted entry as the example call.
+///   Format: `"Enrichment available via pipe syntax: | enrich <first>. Available UDFs
+///   for this client: <list>"`
+///
+/// - None registry or empty registry: `"No enrichment UDFs are registered for this
+///   client — enrichment is not available."`
+///
+/// SAP-1 note: this is pure string assembly — NO `event_type` tracing emission is added
+/// (PO-confirmed: BC-2.10.012 v1.7 / AC-CAT2 does not require a new catalog row).
+fn build_enrichment_hint(
+    infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
+) -> String {
+    const ABSENT: &str =
+        "No enrichment UDFs are registered for this client — enrichment is not available.";
+
+    let Some(reg) = infusion_registry else {
+        return ABSENT.to_string();
+    };
+
+    let mut descriptors = reg.udf_descriptors();
+    if descriptors.is_empty() {
+        return ABSENT.to_string();
+    }
+
+    // Sort alphabetically by UDF name for deterministic output (BC-2.10.012 EC-10-030).
+    descriptors.sort_by(|a, b| a.name.cmp(&b.name));
+
+    // Build the comma-joined list: "name(input_field)" for each UDF.
+    let list: String = descriptors
+        .iter()
+        .map(|d| format!("{}({})", d.name, d.input_field))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    // First sorted entry is the example call (BC-2.10.012 EC-10-030).
+    // SAFETY: `descriptors` is non-empty (checked above).
+    let first = format!("{}({})", descriptors[0].name, descriptors[0].input_field);
+
+    format!(
+        "Enrichment available via pipe syntax: | enrich {first}. \
+         Available UDFs for this client: {list}"
+    )
 }
 
 /// Per-sensor severity vocabulary — maps sensor name prefix to the DTU-emitted
