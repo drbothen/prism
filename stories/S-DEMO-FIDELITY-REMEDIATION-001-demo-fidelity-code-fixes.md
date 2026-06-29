@@ -61,16 +61,16 @@ points: 10
 #     4 pts (net-new > 2 pts originally)
 #   BC-2.11.001 v1.15 — N2: fix gate ordering across table_registry.rs + engine.rs
 #     (NOT materialization.rs only — gate is in check_availability_gate/is_registered): 2 pts
-#   BC-2.10.012 v1.5 — AUDIT-001: fix build_tables_for_client emit format: 1 pt
+#   BC-2.10.012 v1.7 — AUDIT-001 + AC-CAT2: fix build_tables_for_client emit format + build_pql_hints Cat2: 1 pt
 #   BC-2.10.016 v1.2 — AUDIT-004: fix render_* prompt FROM-ready table names: 1 pt
 #   Total: 10 pts (N1-B is full net-new implementation, not a routing investigation)
 level: "L4"
 status: draft
-# BC status: 6 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.5,
+# BC status: 6 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.7,
 #   BC-2.11.016 v1.5, BC-2.11.007 v1.9) + BC-2.11.019 v1.5 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.13"
+version: "2.14"
 updated: "2026-06-29"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -89,19 +89,17 @@ cycle: "v1.0.0-greenfield"
 epic_id: "E-5"
 # Epic E-5 (MCP Interface / Query Engine). Remediation story targeting T13 capstone demo fidelity.
 phase: 2
-acceptance_criteria_count: 17
-# 17 ACs (v2.10 — adds AC-DISC for armis entity-discriminator seeding; prior 16 ACs per v2.0):
-#   Original 5 code-fix ACs: AC-N1, AC-N1B, AC-N2, AC-AUDIT-001, AC-AUDIT-004
-#   New gate-coverage ACs: AC-C1C2 (enrich gate JOIN/GROUP/ORDER), AC-M2 (E-QUERY-038
-#     column gate validates GROUP BY/ORDER BY func-args + JOIN ON columns), AC-L1 (E-QUERY-037
-#     source walk covers HAVING/GROUP BY/ORDER BY/JOIN ON subqueries)
-#   New behavioral ACs: AC-H1 (capability-gate ordering aligned), AC-M1 (single-tenant
-#     column gate fires via TableRegistry.columns_by_table / columns_for_table),
-#     AC-CRIT1 (build_example_query derives datetime column from spec instead of hardcoding),
-#     AC-DISC (armis entity-discriminator seeding — F-L2-CRIT-001)
-#   Regression/workspace/compliance ACs: AC-REG-1, AC-REG-2, AC-DEMO-001, AC-SAP-1
-#   Plus new ACs for SqlPipe modes and did_you_mean engine behavior
-red_gate_tests: 49
+acceptance_criteria_count: 16
+# 16 ACs (v2.14 reconciliation — ADV-P208-P02-002 honest body count; prior frontmatter claimed 17):
+#   Discrete **AC-XXX** headers enumerated (15 pre-v2.14 + 1 new AC-CAT2 = 16):
+#     AC-N1, AC-N1B, AC-N2, AC-AUDIT-001, AC-AUDIT-004, AC-CAT2,
+#     AC-C1C2, AC-M1, AC-M2, AC-L1, AC-H1, AC-DISC,
+#     AC-REG-1, AC-REG-2, AC-DEMO-001, AC-SAP-1
+#   Sub-behaviors folded into parent ACs (NOT counted as standalone headers):
+#     CRIT-1 (embedded bold section within AC-AUDIT-001, not a separate **AC-CRIT1** header)
+#     SqlPipe modes (covered in AC-N1B, AC-N2, AC-C1C2 — no standalone **AC-SQLPIPE** header)
+#     did_you_mean (covered in AC-N1B — no standalone **AC-DID_YOU_MEAN** header)
+red_gate_tests: 52
 # 49 Red Gate tests (v2.12 fold-in — adds three armis discriminator wiring-seam tests
 # from F-LENS4-MED-001 fix in materialization.rs; see arithmetic below):
 # --- AC-N1 ---
@@ -145,6 +143,10 @@ red_gate_tests: 49
 #   test_bc_2_10_012_audit_001_sensor_prefixed_table_names (bc_2_10_012_audit_001_test.rs)
 #   test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique (bc_2_10_012_audit_001_test.rs)
 #   test_crit1_no_datetime_column_produces_column_free_query (prism_describe.rs inline tests)
+# --- AC-CAT2 (BC-2.10.012 v1.7 §pql_hints Category-2) ---
+#   test_bc_2_10_012_cat2_enrichment_hint_with_udfs (bc_2_10_012_audit_001_test.rs)
+#   test_bc_2_10_012_cat2_enrichment_absent_hint (bc_2_10_012_audit_001_test.rs)
+#   test_bc_2_10_012_cat2_zero_table_no_category2 (bc_2_10_012_audit_001_test.rs)
 # --- AC-AUDIT-004 ---
 #   test_bc_2_10_016_audit_004_no_dot_notation_in_prompts (bc_2_10_016_audit_004_test.rs)
 #   test_bc_2_10_016_audit_004_prompt_from_targets_include_registered_table (bc_2_10_016_audit_004_test.rs)
@@ -180,7 +182,8 @@ red_gate_tests: 49
 #   test_bc_2_11_022_registry_parity (crates/prism-mcp/tests/reference_content.rs, existing — per-field UDF parity guard)
 #
 # Arithmetic: 42 (v2.9) + 4 armis entity-discriminator tests (F-L2-CRIT-001, materialization.rs inline) = 46;
-# 46 (v2.10) + 3 armis discriminator wiring-seam tests (F-LENS4-MED-001, materialization.rs inline) = 49.
+# 46 (v2.10) + 3 armis discriminator wiring-seam tests (F-LENS4-MED-001, materialization.rs inline) = 49;
+# 49 (v2.13) + 3 Cat2 enrichment hint tests (AC-CAT2, bc_2_10_012_audit_001_test.rs) = 52.
 # Red Gate semantics: the TDD-driving Red Gate subset — tests that were written RED before the
 # corresponding code landed, plus inline and guard tests that drive story-delivered code surfaces
 # (mid-cascade regression guards included). This is a named subset; the COMPLETE delivered test
@@ -197,7 +200,7 @@ behavioral_contracts:
 # BC-2.11.022 — prismql://reference content contract (cited in AC-N1: per-field UDF dedup)
 # BC-2.11.019 — E-QUERY-039 enrich-UDF-not-found gate (cited in AC-N1B)
 # BC-2.10.016 — MCP prompts fast-return + FROM-ready names (cited in AC-AUDIT-004)
-# BC-2.10.012 — prism_describe schema discovery tool (cited in AC-AUDIT-001)
+# BC-2.10.012 — prism_describe schema discovery tool (cited in AC-AUDIT-001 and AC-CAT2)
 # BC-2.11.016 — E-QUERY-038 column-not-found gate (cited in AC-M1 and AC-M2)
 # BC-2.11.007 — sensor filter push-down (cited in AC-DISC: armis AQL discriminator seeding §Mechanism B.1 / PC-DISC-001)
 # All 7 BCs cited in at least one AC body trace.
@@ -226,8 +229,16 @@ crates_touched:
   # build_example_query derives the datetime column from the spec (CRIT-1 fix: no longer
   # hardcodes 'timestamp'). New inline test module build_example_query_tests with
   # test_crit1_no_datetime_column_produces_column_free_query.
+  # AC-CAT2: build_pql_hints gains 4th param
+  # `infusion_registry: Option<&prism_spec_engine::InfusionRegistry>` (BC-2.10.012 v1.7
+  # §pql_hints Category-2). pql_hints.len()==3 for non-empty tables (index 2 = enrichment
+  # presence hint — sorted UDFs as `<name>(<input_field>)`); pql_hints.len()==1 for empty
+  # tables (Category-2 suppressed). handle_prism_describe wired:
+  # `let infusion_registry = query_engine.and_then(|qe| qe.infusion_registry());`
+  # pass `infusion_registry.as_deref()` as 4th arg.
   # New test file: crates/prism-mcp/tests/bc_2_10_012_audit_001_test.rs
-  # (test_bc_2_10_012_audit_001_sensor_prefixed_table_names, _multi_tenant_sensor_prefixed_unique)
+  # (test_bc_2_10_012_audit_001_sensor_prefixed_table_names, _multi_tenant_sensor_prefixed_unique,
+  #  test_bc_2_10_012_cat2_enrichment_hint_with_udfs, _absent_hint, _zero_table_no_category2)
   # IMPLEMENTED — prompts.rs: 4 render_* functions updated with FROM-ready names; all
   # filter VALUES in embedded queries now match each DTU's exact emitted vocabulary (MED-1 fix).
   # New test file: crates/prism-mcp/tests/bc_2_10_016_audit_004_test.rs
@@ -246,6 +257,11 @@ crates_touched:
   # test_med4_enrich_udf_not_found_structured_category_is_validation (in tool_dispatch_tests.rs)
   # DELETED — crates/prism-mcp/tests/crit001_prompt_table_names.rs: superseded by
   # AUDIT-004 TOML-derived guard (bc_2_10_016_audit_004_test.rs) per OBS-4 finding.
+  - prism-spec-engine
+  # AC-CAT2: crates/prism-spec-engine/src/infusion/udf.rs —
+  # `InfusionUdfDescriptor` gains `pub input_field: String`; `new()` gains this param
+  # (BC-2.10.012 v1.7 §pql_hints Category-2). `udf_descriptors()` in
+  # crates/prism-spec-engine/src/infusion/mod.rs propagates `field.input_field.clone()`.
   - prism-query
   # IMPLEMENTED — materialization.rs: `pub(crate) fn seed_armis_entity_discriminator`
   # (F-L2-CRIT-001 fix) seeds the AQL search discriminator for armis tables when `aql`
@@ -312,7 +328,7 @@ all subquery positions (HAVING, GROUP BY, ORDER BY, JOIN ON).
 | BC-2.11.022 | v1.1 | BC-2.11.022: Auto-Generated `prismql://reference` Content Contract and CI Parity Gate |
 | BC-2.11.019 | v1.5 | BC-2.11.019: E-QUERY-039 Enrich-UDF-Not-Found Plan-Time Gate |
 | BC-2.10.016 | v1.2 | BC-2.10.016: MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
-| BC-2.10.012 | v1.5 | BC-2.10.012: `prism_describe` Schema Discovery Tool (L2) |
+| BC-2.10.012 | v1.7 | BC-2.10.012: `prism_describe` Schema Discovery Tool (L2) |
 | BC-2.11.016 | v1.5 | BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
 | BC-2.11.007 | v1.9 | BC-2.11.007: Sensor Filter Push-Down |
 
@@ -532,7 +548,7 @@ arm for `PrismError::TableNotAvailable` (E-QUERY-037) is CONFIRMED PRESENT in
 
 ### Area D — prism_describe: FROM-Ready Sensor-Prefixed Table Names (AUDIT-001)
 
-**AC-AUDIT-001** (traces to BC-2.10.012 v1.5 postcondition — `name` postcondition fully-qualified
+**AC-AUDIT-001** (traces to BC-2.10.012 v1.7 postcondition — `name` postcondition fully-qualified
 FROM-ready token, closes AUDIT-001 + AUDIT-008): `build_tables_for_client` in
 `crates/prism-mcp/src/tools/prism_describe.rs` emits `name: format!("{sensor_id}_{}", table.table_name)`
 for each table entry on BOTH code paths (multi-tenant: `resolved_spec_map` filtered by `OrgSlug`;
@@ -566,6 +582,55 @@ N table(s) above."`) — no embedded table names.
 - `test_bc_2_10_012_audit_001_sensor_prefixed_table_names` — single-tenant 3-sensor call; assert no two `name` fields are identical; assert each `name` equals `format!("{sensor_id}_{table_name}")`; assert each `example_query` references the fully-qualified name.
 - `test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique` — multi-tenant resolved_spec_map path; assert sensor-prefixed uniqueness.
 - `test_crit1_no_datetime_column_produces_column_free_query` (inline test in `prism_describe.rs`) — table with NO datetime column produces `SELECT * FROM claroty_devices LIMIT 25` (not `WHERE timestamp > ...`).
+
+---
+
+### Area D-B — prism_describe: Category-2 Enrichment UDF Discovery Hints (pql_hints)
+
+**AC-CAT2** (traces to BC-2.10.012 v1.7 §pql_hints Category-2):
+
+`build_pql_hints` in `crates/prism-mcp/src/tools/prism_describe.rs` gains a 4th parameter
+`infusion_registry: Option<&prism_spec_engine::InfusionRegistry>`. The `pql_hints` array behavior
+for non-empty-tables calls:
+
+- When `infusion_registry` is `Some(reg)` AND `reg.udf_descriptors()` is non-empty:
+  `pql_hints[2]` is the enrichment-presence hint. UDFs are sorted alphabetically by name
+  (`str::cmp`); each entry formatted as `<name>(<input_field>)`; the first sorted entry is used as
+  the example call. Byte-exact format (no trailing period or space variations):
+  `"Enrichment available via pipe syntax: | enrich <first>. Available UDFs for this client: <comma-joined list>"`
+- When `infusion_registry` is `None` OR `reg.udf_descriptors()` is empty:
+  `pql_hints[2]` = `"No enrichment UDFs are registered for this client — enrichment is not available."`
+- For any non-empty-tables call: `pql_hints.len() == 3` (always — regardless of registry state).
+- When `tables` is empty: `pql_hints.len() == 1` (Category-2 suppressed — no enrichment hint
+  when no tables are returned).
+
+`InfusionUdfDescriptor` gains `pub input_field: String`; its `new()` constructor gains this
+parameter; `udf_descriptors()` propagates `field.input_field.clone()` per descriptor; all
+prism-query `new()` callers (including test fixtures) are updated to pass `""` for `input_field`
+(TD-VSDD-060 sibling-site sweep — approximately 10 call sites).
+
+Call-site wiring in `handle_prism_describe` (ADR-022 §C — adding proper plumbing, not redesign):
+```rust
+let infusion_registry = query_engine.and_then(|qe| qe.infusion_registry());
+// ... (mirrors existing org_registry pattern)
+build_pql_hints(&tables, org_registry.as_deref(), ..., infusion_registry.as_deref())
+```
+
+**Red Gate tests** (all in `crates/prism-mcp/tests/bc_2_10_012_audit_001_test.rs`):
+
+- `test_bc_2_10_012_cat2_enrichment_hint_with_udfs` — construct an `InfusionRegistry` with 2 UDFs:
+  `nvd_cvss` (input_field `device_cves_first`) and `threat_score` (input_field `ioc_value_singleton`);
+  call `build_pql_hints` with non-empty tables and `Some(&registry)`; assert `pql_hints.len()==3`;
+  assert `pql_hints[2]` equals exactly
+  `"Enrichment available via pipe syntax: | enrich nvd_cvss(device_cves_first). Available UDFs for this client: nvd_cvss(device_cves_first), threat_score(ioc_value_singleton)"`.
+  (Sorted alphabetically: `nvd_cvss` before `threat_score`.)
+
+- `test_bc_2_10_012_cat2_enrichment_absent_hint` — call `build_pql_hints` with N≥1 tables and
+  `infusion_registry: None`; assert `pql_hints.len()==3`; assert `pql_hints[2]` equals exactly
+  `"No enrichment UDFs are registered for this client — enrichment is not available."`.
+
+- `test_bc_2_10_012_cat2_zero_table_no_category2` — call `build_pql_hints` with N=0 tables and
+  a non-empty `InfusionRegistry`; assert `pql_hints.len()==1` (Category-2 suppressed).
 
 ---
 
@@ -835,7 +900,6 @@ for this story and deferred with explicit anchors:
 
 | Item | Disposition | Target |
 |------|-------------|--------|
-| BC-2.10.012 §pql_hints Category-1 hint-text divergence (BC text vs. rendered output wording) | PO adjudication required; not a runtime defect | wave-gate / Phase 5 / PO |
 | 4x-query-reparse perf (enrich gate re-parses the full query string instead of accepting the already-parsed AST) | Performance, not correctness; no user-visible impact at current demo scale | S-QUERY-GATE-REPARSE-CONSOLIDATION-001 |
 
 ---
@@ -917,8 +981,8 @@ BC-2.11.016 stays at v1.5 — no version change required.
 
 | Artifact | Estimated Tokens |
 |----------|-----------------|
-| This story spec (v2.3) | ~17,000 |
-| BC files (7 BCs) | ~14,000 |
+| This story spec (v2.14) | ~18,000 |
+| BC files (7 BCs, BC-2.10.012 now v1.7) | ~14,000 |
 | Source files touched (resources.rs, prompts.rs, prism_describe.rs, error.rs, table_registry.rs, engine.rs, error_mapping.rs + new test files) | ~32,000 |
 | Research/audit docs (2) | ~6,000 |
 | Test files (existing + new — 37 Red Gate tests across 9 new test files) | ~19,000 |
@@ -1007,6 +1071,30 @@ to ~88k. Implementations should be delivered in sub-bursts to avoid context over
 - [ ] 19. Write Red Gate test `test_bc_2_10_016_audit_004_no_dot_notation_in_prompts`;
         confirm RED.
 - [ ] 20. Apply the fix; confirm test GREEN.
+
+### AC-CAT2 — Category-2 enrichment UDF discovery hints (BC-2.10.012 v1.7)
+- [ ] 24. Read `crates/prism-spec-engine/src/infusion/udf.rs`; add `pub input_field: String`
+         to `InfusionUdfDescriptor` struct; update `new()` constructor to accept this param.
+         Read `crates/prism-spec-engine/src/infusion/mod.rs`; update `udf_descriptors()` to
+         propagate `field.input_field.clone()` per descriptor.
+- [ ] 25. TD-VSDD-060 sibling-site sweep: `grep -rn 'InfusionUdfDescriptor::new(' crates/`
+         — update ALL ~10 prism-query test-fixture call sites to pass `""` for `input_field`.
+         Do NOT miss any site; the compiler will confirm exhaustiveness once the struct changes.
+- [ ] 26. Update `build_pql_hints` in `crates/prism-mcp/src/tools/prism_describe.rs` to accept
+         a 4th parameter `infusion_registry: Option<&prism_spec_engine::InfusionRegistry>`.
+         Implement Category-2 logic per BC-2.10.012 v1.7 §pql_hints:
+         when `tables` non-empty, compute `pql_hints[2]` (sorted UDFs as `<name>(<input_field>)`,
+         byte-exact format); when `tables` empty, suppress (return only `pql_hints[0]`).
+- [ ] 27. Wire `infusion_registry` call-site in `handle_prism_describe` (ADR-022 §C):
+         `let infusion_registry = query_engine.and_then(|qe| qe.infusion_registry());`
+         Pass `infusion_registry.as_deref()` as 4th arg to `build_pql_hints`
+         (mirrors existing `org_registry` pattern).
+- [ ] 28. Write three Red Gate tests in `crates/prism-mcp/tests/bc_2_10_012_audit_001_test.rs`;
+         confirm RED:
+         `test_bc_2_10_012_cat2_enrichment_hint_with_udfs` (2 UDFs, assert exact hint string),
+         `test_bc_2_10_012_cat2_enrichment_absent_hint` (None registry, assert absent hint string),
+         `test_bc_2_10_012_cat2_zero_table_no_category2` (N=0 tables, assert pql_hints.len()==1).
+- [ ] 29. Apply fixes; confirm all three Cat2 tests GREEN; confirm AUDIT-001 tests still pass.
 
 ### Final gates
 - [ ] 21. Run `just check` (full workspace); confirm EXIT 0.
@@ -1146,13 +1234,16 @@ All files modified in the implemented scope (v2.0):
 | `crates/prism-core/src/tests/mod.rs` | MODIFIED | N1-B: register new test module |
 | `crates/prism-mcp/src/resources.rs` | MODIFIED | N1: `build_reference_content` dedup key changed from `infusion_id` → `descriptor.name`; Some(empty)/None placeholders |
 | `crates/prism-mcp/src/error_mapping.rs` | MODIFIED | N1-B: explicit `-32602` INVALID_PARAMS arm for `PrismError::EnrichUdfNotFound` (E-QUERY-039); sorted+deduped available_infusions; structured variant_meta category "validation" |
-| `crates/prism-mcp/src/tools/prism_describe.rs` | MODIFIED | AUDIT-001 + CRIT-1: `build_tables_for_client` emits `format!("{sensor_id}_{}", table.table_name)` on BOTH multi-tenant and single-tenant paths; new `pub fn build_example_query(table_name, columns)` derives datetime column from spec (no hardcoded 'timestamp'); inline test module |
+| `crates/prism-mcp/src/tools/prism_describe.rs` | MODIFIED | AUDIT-001 + CRIT-1 + AC-CAT2: `build_tables_for_client` emits `format!("{sensor_id}_{}", table.table_name)` on BOTH multi-tenant and single-tenant paths; new `pub fn build_example_query(table_name, columns)` derives datetime column from spec (no hardcoded 'timestamp'); `build_pql_hints` gains 4th param `infusion_registry: Option<&prism_spec_engine::InfusionRegistry>` (Cat2 hint); `handle_prism_describe` wired with `query_engine.and_then(|qe| qe.infusion_registry()).as_deref()`; inline test module |
 | `crates/prism-mcp/src/prompts.rs` | MODIFIED | AUDIT-004 + MED-1: 4 `render_*` functions updated with FROM-ready names; filter VALUES aligned to DTU vocabulary; all-FROM-resolve guard |
 | `crates/prism-query/src/engine.rs` | MODIFIED | N1-B + N2 + H1 + M2: new `collect_unknown_scalars_from_sql_query`, `collect_unknown_scalar_from_expr`, `collect_unknown_scalar_from_predicate`, `check_enrich_udf_availability` functions; E-QUERY-039 gate wired in execute_inner AND execute_scheduled_inner (fires LAST); capability-gate moved AFTER enrich gate in execute_scheduled_inner (H1); `check_query_column_availability` signature updated to accept `table_registry` param + validates GROUP BY/ORDER BY/JOIN ON columns (M2) |
 | `crates/prism-query/src/table_registry.rs` | MODIFIED | N2 + M1 + L1: `columns_by_table` field + `columns_for_table()` method (M1 single-tenant column gate); `collect_expr_sources_into_gate` fn for subquery source walk at HAVING/GROUP BY/ORDER BY/JOIN ON positions (L1) |
 | `crates/prism-mcp/tests/bc_2_11_022_n1_test.rs` | CREATED | N1: `test_bc_2_11_022_n1_per_field_udf_names` |
 | `crates/prism-mcp/tests/bc_2_11_019_n1b_mcp_test.rs` | CREATED | N1-B MCP: `test_bc_2_11_019_n1b_mcp_maps_to_32602`, `test_med5_enrich_udf_not_found_suggestion_non_empty_no_brackets`, `test_med5_enrich_udf_not_found_suggestion_empty_infusions` |
-| `crates/prism-mcp/tests/bc_2_10_012_audit_001_test.rs` | CREATED | AUDIT-001: `test_bc_2_10_012_audit_001_sensor_prefixed_table_names`, `test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique` |
+| `crates/prism-spec-engine/src/infusion/udf.rs` | MODIFIED | AC-CAT2: `InfusionUdfDescriptor` gains `pub input_field: String`; `new()` gains this param (BC-2.10.012 v1.7 §pql_hints Category-2) |
+| `crates/prism-spec-engine/src/infusion/mod.rs` | MODIFIED | AC-CAT2: `udf_descriptors()` propagates `field.input_field.clone()` per descriptor |
+| `crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs` (+ ~10 other `InfusionUdfDescriptor::new()` call sites) | MODIFIED | AC-CAT2: TD-VSDD-060 sibling-site sweep — all `new()` callers in prism-query updated to pass `""` for `input_field` |
+| `crates/prism-mcp/tests/bc_2_10_012_audit_001_test.rs` | CREATED | AUDIT-001 + AC-CAT2: `test_bc_2_10_012_audit_001_sensor_prefixed_table_names`, `test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique`, `test_bc_2_10_012_cat2_enrichment_hint_with_udfs`, `test_bc_2_10_012_cat2_enrichment_absent_hint`, `test_bc_2_10_012_cat2_zero_table_no_category2` |
 | `crates/prism-mcp/tests/bc_2_10_016_audit_004_test.rs` | CREATED | AUDIT-004 + MED-2: 5 tests (no_dot_notation, from_targets_include_registered, column_refs_resolve, column_sets_loaded, med2_prompt_filter_values_match_dtu_vocabulary) |
 | `crates/prism-mcp/tests/f_pql2_obs001_skeleton_placeholder_guard_test.rs` | CREATED | F-PQL2-OBS-001 process-gap closure: 2 skeleton-placeholder guard tests (`test_f_pql2_obs001_query_skeleton_no_bare_timestamp` — guards server.rs SCHEMA-AGNOSTIC SKELETONS for bare `timestamp` in query tool description; `test_f_pql2_obs001_datetime_arithmetic_uses_placeholder` — guards `build_reference_content` Datetime Arithmetic section for `<datetime_col>` placeholder vs bare `WHERE timestamp >`). Traces to BC-2.10.016 v1.2. |
 | `crates/prism-mcp/tests/reference_content.rs` | MODIFIED | N1: added `test_bc_2_11_022_crit001_positive_examples_runtime_valid` (OBS-4 migration from deleted file), `test_bc_2_11_022_some_empty_registry_placeholder` |
@@ -1260,6 +1351,7 @@ spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.14 | cat2-ac-adv-p208-p02-fold-2026-06-29 | 2026-06-29 | story-writer | **AC-CAT2 add + ADV-P208-P02-001 close + ADV-P208-P02-002 close.** (1) **AC-CAT2 (BC-2.10.012 v1.7 §pql_hints Category-2):** `build_pql_hints` gains 4th param `infusion_registry: Option<&prism_spec_engine::InfusionRegistry>`; `pql_hints[2]` = enrichment-presence hint when tables non-empty (sorted UDFs as `<name>(<input_field>)`, byte-exact format); absent hint when `None`/empty registry; Category-2 suppressed when tables empty. `InfusionUdfDescriptor` gains `pub input_field: String`; `new()` gains this param; `udf_descriptors()` propagates `field.input_field.clone()`; ~10 prism-query `new()` callers updated (TD-VSDD-060). `handle_prism_describe` wired via `query_engine.and_then(|qe| qe.infusion_registry()).as_deref()` (ADR-022 §C). 3 new Red Gate tests in `bc_2_10_012_audit_001_test.rs`. `red_gate_tests` 49→52. `prism-spec-engine` added to `crates_touched`. (2) **ADV-P208-P02-001 close (MED, Category-1):** Deferred-items table row 1 ("BC-2.10.012 §pql_hints Category-1 hint-text divergence — PO adjudication required") removed. Resolved spec-only by PO via BC-2.10.012 v1.6→v1.7. Category-2 implemented in-scope; row is no longer deferred. Row 2 (S-QUERY-GATE-REPARSE-CONSOLIDATION-001) unchanged. (3) **ADV-P208-P02-002 close (LOW, AC count drift):** `acceptance_criteria_count` 17→16 (honest body count: 15 pre-v2.14 discrete `**AC-XXX**` headers + 1 new AC-CAT2 = 16). CRIT-1 is a folded sub-behavior within AC-AUDIT-001, not a standalone `**AC-CRIT1**` header; SqlPipe/did_you_mean are folded into AC-N1B/AC-N2/AC-C1C2. Frontmatter count comment rewritten with explicit enumeration. (4) **BC-2.10.012 v1.5→v1.7** in body BC table, AC-AUDIT-001 trace, frontmatter BC status comment, and points breakdown comment. |
 | 2.13 | adv-p208-p01-001-deferral-anchor-2026-06-29 | 2026-06-29 | story-writer | **ADV-P208-P01-001 deferral-anchor fix: "4x-query-reparse perf" Target cell updated from "follow-up story" to concrete story ID S-QUERY-GATE-REPARSE-CONSOLIDATION-001.** Per CLAUDE.md Canonical Principle Rule 3, a deferral target must be a concrete real story ID, not an open-ended phrase. Searched STORY-INDEX (v2.526, 219 stories) — no existing query-engine performance/gate-consolidation story covers this surface. Created NEW draft stub story `S-QUERY-GATE-REPARSE-CONSOLIDATION-001-query-gate-reparse-consolidation.md` (P3; SS-11 Query Execution; prism-query; 5 pts; depends_on S-DEMO-FIDELITY-REMEDIATION-001; `behavioral_contracts: []` — pending PO authorship per Spec-First Gate S-7.01; post-demo-backlog wave). Deferred items table Target cell: "follow-up story" → "S-QUERY-GATE-REPARSE-CONSOLIDATION-001". No code change. No AC, BC, or Red Gate test change. State-manager to register new story in STORY-INDEX. |
 | 2.12 | 4lens-regate-ac-disc-reanchor-wiring-seam-tests-2026-06-29 | 2026-06-29 | story-writer | **4-lens re-gate reconciliation: AC-DISC re-anchored to BC-2.11.007 v1.9 §Mechanism B.1/PC-DISC-001 (F-L3-MED-001); BC-2.10.016 co-trace dropped from AC-DISC (F-L3-MED-002); 3 wiring-seam tests added (F-LENS4-MED-001); "7 BCs" comment fix (F-L3-LOW-001); feature HEAD 33817a82→d9bb75c2.** (1) **F-L3-MED-001 — AC-DISC re-anchored to BC-2.11.007 v1.9 §Mechanism B.1/PC-DISC-001.** PO amended BC-2.11.007 v1.8→v1.9 adding §Mechanism B.1 "Planner-Side Entity-Discriminator Auto-Seeding" with postconditions PC-DISC-001/002/003. AC-DISC now single-anchors to `BC-2.11.007 v1.9 §Mechanism B.1 / PC-DISC-001` — the precise contractual anchor for the absent-aql auto-seeding behavior. BC-2.11.007 version updated v1.8→v1.9 in: frontmatter BC status comment, body BC table row, BC-array-propagation comment line. (2) **F-L3-MED-002 — BC-2.10.016 co-trace dropped from AC-DISC.** BC-2.10.016 governs `render_*` prompt FROM-ready names (AC-AUDIT-004's domain), not the planner seeding behavior. The co-trace was a semantic mismatch. BC-2.10.016 REMAINS in the `behavioral_contracts:` array and body BC table — it is still validly cited by AC-AUDIT-004. Only removed from AC-DISC's single anchor line. BC-array-propagation comment for BC-2.10.016 updated: "cited in AC-AUDIT-004 and AC-DISC" → "cited in AC-AUDIT-004". (3) **F-LENS4-MED-001 — 3 wiring-seam tests added to red_gate inventory.** Source-verified against worktree (`.worktrees/S-DEMO-FIDELITY-REMEDIATION-001/crates/prism-query/src/materialization.rs`, module `armis_discriminator_wiring_seam_tests`, lines 3317+): `test_F_LENS4_MED001_armis_alerts_pipeline_seeds_in_alerts_aql_filter`, `test_F_LENS4_MED001_armis_devices_pipeline_seeds_in_devices_aql_filter`, `test_F_LENS4_MED001_armis_alerts_user_supplied_aql_passes_through_pipeline`. These drive `run_materialization_pipeline` through a recording stub adapter asserting the seeded `aql` reaches `QueryParams`. `red_gate_tests` 46→49. Arithmetic: 46 (v2.10) + 3 wiring-seam tests = 49. AC-DISC body section updated with wiring-seam test descriptions. Integration verification HEAD updated 33817a82→d9bb75c2. (4) **F-L3-LOW-001 — "6 BCs" comment corrected to "7 BCs".** Frontmatter BC-array-propagation comment "All 6 BCs cited in at least one AC body trace" was stale (array has 7 entries). Fixed to "All 7 BCs cited in at least one AC body trace." Array verified: BC-2.11.001, BC-2.11.022, BC-2.11.019, BC-2.10.016, BC-2.10.012, BC-2.11.016, BC-2.11.007 = 7 entries. |
 | 2.11 | pol-8-bc-2.11.007-propagation-2026-06-28 | 2026-06-28 | story-writer | **POL-8 reconciliation: BC-2.11.007 v1.8 added to `behavioral_contracts:` array and body BC table for AC-DISC anchor; BC count 6→7.** AC-DISC traces to BC-2.11.007 v1.8 §Mechanism B (armis AQL discriminator seeding) — the precise contractual anchor for AQL discriminator injection behavior. BC-2.11.007 was absent from the frontmatter array (POL-8 violation: every AC-traced BC must be in the array + propagated to the body BC table). Fixes: (1) BC-2.11.007 added to `behavioral_contracts:` array (now 7 entries). (2) Body BC table row added: `| BC-2.11.007 | v1.8 | BC-2.11.007: Sensor Filter Push-Down |` (H1 title verbatim per POL-7 — read from BC file). (3) BC-array-propagation comment updated: BC-2.16.002 → BC-2.10.016 line now notes AC-DISC co-trace; new BC-2.11.007 line added. (4) Token Budget "6 BCs" → "7 BCs" (~12k → ~14k). (5) AC-DISC trace pinned to `BC-2.11.007 v1.8 §Mechanism B`. (6) BC-2.11.007 added to inputs list. BC-2.11.007 is `status: active`, `lifecycle_status: active` (v1.8 since 2026-06-05) — POL-14 draft→active at merge is a no-op. Version bump 2.10→2.11. |
