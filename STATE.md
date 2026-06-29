@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.053"
+version: "8.054"
 producer: state-manager
-timestamp: 2026-06-29T16:00:00Z
+timestamp: 2026-06-29T17:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -20,10 +20,10 @@ develop_head: "1f491590"
 # NOTE: 1f491590 is the squash-merge of PR #207 (perf(S-PERF-GATE-003): serialize bc_2_01_013 test binary + check-ci --profile ci alignment; normal squash-merge; 2026-06-29). origin/develop is now 1f491590. Prior origin/develop was 4417d691 (PR #206 S-PERF-GATE-002). feature/S-PERF-GATE-003 branch + .worktrees/S-PERF-GATE-003 worktree removed.
 bc_index_version: "7.25"
 vp_index_version: "1.80"
-story_index_version: "v2.526"
+story_index_version: "v2.527"
 arch_index_version: "2.150"
 error_taxonomy_version: "2.03"
-total_stories: 219
+total_stories: 220
 active_contracts: 254
 draft_contracts: 0
 retired_contracts: 6
@@ -36,7 +36,7 @@ workspace_test_count: 5074
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1425 (2026-06-29). SESSION WRAP — RESUME SNAPSHOT D-1425 authored (supersedes D-1409). S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN CONVERGED on 481a0484 (re-gate round-4 all 4 lenses CLEAN(strict), zero findings). Feature HEAD 7b61b196 (= 481a0484 + docs-only demo-evidence commit). PR #208 OPEN (feature→develop), HEAD 7b61b196, CI 29 pass/14 pending/0 fail at wrap; pr-manager watching CI. PR-LEVEL 3-CLEAN streak 0/3 on 7b61b196 (not yet started). ADR-048 ACCEPTED v1.1. Story v2.12; 17 ACs; 49 red_gate tests; 7 BCs. PERF-GATE-002 (#206) + PERF-GATE-003 (#207) merged this session (develop 9a09653a→4417d691→1f491590). develop_head 1f491590. STORY-INDEX v2.526. BC-INDEX v7.25. ARCH-INDEX v2.150. active_contracts 254. NEXT: gh pr checks 208 → PR-LEVEL 3-CLEAN(strict) on 7b61b196 → user-auth squash-merge (D-989; NO --admin) → post-merge burst → S-PRISMQL-CASE-INSENSITIVE-001. STATE v8.052→v8.053."
+current_step: "D-1426 (2026-06-29). PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) PR-LEVEL cascade in progress. Feature HEAD 4a624a08 (4a624a08 = 7b61b196 + evidence-report HEAD de-pin, docs-only). PR-LEVEL pass 1 on 7b61b196: ADV-P208-P01-001 LOW (evidence-report HEAD label stale) CLOSED demo-recorder (7b61b196→4a624a08, docs-only). PR-LEVEL pass 2 on 4a624a08: CLEAN(PR-merge)=yes, CLEAN(strict)=no — OBS (deferral-target hygiene, CLAUDE.md Rule 3) CLOSED story-writer SPEC-ONLY (S-QUERY-GATE-REPARSE-CONSOLIDATION-001 draft stub registered + S-DEMO-FIDELITY-REMEDIATION-001 v2.12→v2.13; deferred-items Target → S-QUERY-GATE-REPARSE-CONSOLIDATION-001). PR-LEVEL 3-CLEAN(strict) streak 0/3. Feature HEAD UNCHANGED 4a624a08. NEXT: adversary re-gate on 4a624a08. Story v2.13; 17 ACs; 49 red_gate tests; 7 BCs. develop_head 1f491590. STORY-INDEX v2.527. BC-INDEX v7.25. ARCH-INDEX v2.150. active_contracts 254. total_stories 220. STATE v8.053→v8.054."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-29 (D-1424 S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN CONVERGED on 481a0484 + story v2.12; ADR-048 ACCEPTED v1.1; ARCH-INDEX v2.149→v2.150; STORY-INDEX v2.525→v2.526; STATE v8.051→v8.052)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-29 (D-1426 PR #208 PR-LEVEL cascade passes 1+2 closed; S-QUERY-GATE-REPARSE-CONSOLIDATION-001 stub registered; S-DEMO-FIDELITY-REMEDIATION-001 v2.13; STORY-INDEX v2.526→v2.527; total_stories 219→220; STATE v8.053→v8.054)
 
 ## Active Objective (North Star)
 
@@ -124,6 +124,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 through D-1339 archived to burst-log.md (D-1368 compaction 2026-06-26). D-1344 and D-1393..D-1397 archived to burst-log.md (this compaction). D-1409 archived to burst-log.md (this D-1410 burst). D-1398..D-1416 archived to burst-log.md (this D-1417 burst). D-1417..D-1420 archived to burst-log.md (this D-1421 burst). D-1344..D-1355 archived to burst-log.md (this D-1423 burst)._
+| D-1426 | state-manager | 2026-06-29 | **PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) PR-LEVEL ADVERSARIAL CASCADE STARTED — PASSES 1+2 CLOSED (D-1426). Pass 1 on feature HEAD 7b61b196: ADV-P208-P01-001 LOW (evidence-report HEAD label stale — evidence file cited 7b61b196 instead of actual code HEAD 4a624a08) CLOSED demo-recorder — evidence-report de-pin docs-only fix; feature HEAD 7b61b196→4a624a08. Pass 2 on feature HEAD 4a624a08 (UNCHANGED): CLEAN(PR-merge)=yes, CLEAN(strict)=no — 1 OBS (ADV-P208-P01-001 deferral-target hygiene: deferred-items Target row had "follow-up story" instead of a concrete story ID, CLAUDE.md Rule 3 violation) CLOSED story-writer SPEC-ONLY: S-QUERY-GATE-REPARSE-CONSOLIDATION-001 draft stub v1.0 registered (total_stories 219→220; P3; 5 pts; SS-11 Query Execution; prism-query; behavioral_contracts [] pending PO authorship; depends_on S-DEMO-FIDELITY-REMEDIATION-001; file: S-QUERY-GATE-REPARSE-CONSOLIDATION-001-query-gate-reparse-consolidation.md) + S-DEMO-FIDELITY-REMEDIATION-001 v2.12→v2.13 (deferred-items Target updated "follow-up story" → S-QUERY-GATE-REPARSE-CONSOLIDATION-001). Feature HEAD UNCHANGED at 4a624a08. PR-LEVEL 3-CLEAN(strict) streak 0/3 (pass 1: 1 LOW; pass 2: 1 OBS). NEXT = adversary re-gate on frozen feature HEAD 4a624a08. STORY-INDEX v2.526→v2.527. total_stories 219→220. BC-INDEX UNCHANGED v7.25. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. develop_head UNCHANGED 1f491590. STATE v8.053→v8.054.** | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1424 | state-manager | 2026-06-29 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN CONVERGED (D-1424). Re-gate round-4: all 4 lenses (gate-mode, query-executability, spec-prose↔code, test-adequacy) CLEAN(strict)=yes on frozen feature HEAD 481a0484 + story v2.12. Zero findings any severity. OBS-LENS2-1/OBS-LENS2-2/OBS-2/S-PRISMQL-SQLPIPE-COLUMN-GATE-001 pre-adjudicated (deferred/accepted) — confirmed not re-raised. LOCAL 3-CLEAN streak 3/3 on 481a0484. ADR-048 PROPOSED v1.0→ACCEPTED v1.1: OD-1 ratified (user chose Option A — extend HAVING grammar, keep WHERE E-QUERY-001 divergence); OD-2 resolved (PERCENTILE excluded as accepted scope decision); §Resolution added; POL-15 confirmed (HAVING gate reachable via prism-mcp/prism-bin → prism-query production path). ARCH-INDEX v2.149→v2.150 (architect bump; ADR-048 row status PROPOSED v1.0→ACCEPTED v1.1; §Changelog v2.150 row added). Story UNCHANGED v2.12; code HEAD UNCHANGED 481a0484; BC-INDEX UNCHANGED v7.25; active_contracts UNCHANGED 254; develop_head UNCHANGED 1f491590. STORY-INDEX v2.525→v2.526. arch_index_version 2.149→2.150. STATE v8.051→v8.052. NEXT: demo-recorder per-AC evidence → push 481a0484 (normal permission path, NOT tmux/bypass) → PR via pr-manager (feature already based on develop 1f491590) → PR-LEVEL 3-CLEAN → normal squash-merge (D-989; NO --admin) → post-merge state burst.** | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1423 | state-manager | 2026-06-29 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 4-LENS RE-GATE ROUND-3 CLOSE + OBS DISPOSITIONS (D-1423). Feature HEAD d9bb75c2→481a0484. Lenses 1+3 CLEAN(strict); all 4 CLEAN(PR-merge). OBS-1 (lens 4, LOW) FIXED: wiring-seam module docstring overclaimed mental-deletion proof for AC-WIRE-003 passthrough (doc-only; feature HEAD d9bb75c2→481a0484). OBS-LENS2-1 (lens 2, LOW) DEFERRED: static crates/prism-dtu-armis/fixtures/alerts.json lowercase severity/status vs. generator uppercase HIGH/CRITICAL+UNHANDLED; PRE-EXISTING, out of prism-query/prism-mcp perimeter, non-demo-blocking (T13 uses fixture-gen generator); S-DTU-ARMIS-FIXTURE-VOCAB-001 draft stub registered (total_stories 218→219; P3; data-engineer). OBS-LENS2-2 (OBS) ACCEPTED: crowdstrike severity IN ('High','Critical') — 'High' never emitted by live generator; forward-compat; documented F-PKL2-OBS-001 in prompts.rs. OBS-2 (lens 4, OBS) ACCEPTED: test_BC_2_11_016_having_agg_fn_predicate_valid_col_no_e_query_038 one-sided false-positive guard (disclosed in docstring). Story UNCHANGED v2.12 (docstring fix code-only; red_gate 49). prism-query 1237/1237. 3-CLEAN streak RESET 0/3 on 481a0484. STORY-INDEX v2.524→v2.525. total_stories 218→219. BC-INDEX UNCHANGED v7.25. ARCH-INDEX UNCHANGED v2.149. active_contracts UNCHANGED 254. develop_head UNCHANGED 1f491590. STATE v8.050→v8.051.** | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1422 | state-manager | 2026-06-29 | **S-DEMO-FIDELITY-REMEDIATION-001 4-LENS RE-GATE ROUND-2 FIX-BURST (D-1422). Feature HEAD 33817a82→d9bb75c2. F-L3-MED-001 CLOSED (POL-4 mis-anchor): BC-2.11.007 v1.8→v1.9 — PO added §Mechanism B.1 planner-side entity-discriminator auto-seeding + PC-DISC-001/002/003 + 2 test vectors; story-writer re-anchored AC-DISC to §Mechanism B.1/PC-DISC-001. F-L3-MED-002 CLOSED: BC-2.10.016 co-trace on AC-DISC dropped (prompt-render surface mismatch; retained for AC-AUDIT-004). F-LENS4-MED-001 CLOSED (TD-VSDD-059/060): 3 wiring-seam tests added (armis_discriminator_wiring_seam_tests, materialization.rs); Red→Green revert-confirmed. F-L3-LOW-001 CLOSED: 6 BCs→7 BCs comment fixed. red_gate_tests 46→49; 17 ACs; 7 BCs. prism-query 1237/1237; non-exhaustive 88/88. BC-INDEX v7.24→v7.25. STORY-INDEX v2.523→v2.524. total_stories UNCHANGED 218. active_contracts UNCHANGED 254. develop_head UNCHANGED 1f491590. STATE v8.049→v8.050.** | wave-5-e-demo-fidelity | 2026-06-29 |
@@ -145,6 +146,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1426 | state-manager | PR #208 PR-LEVEL cascade passes 1+2 closed; ADV-P208-P01-001 LOW closed demo-recorder (7b61b196→4a624a08, docs-only); pass 2 OBS closed story-writer SPEC-ONLY (S-QUERY-GATE-REPARSE-CONSOLIDATION-001 draft stub registered; S-DEMO-FIDELITY-REMEDIATION-001 v2.13; deferred-items Target → S-QUERY-GATE-REPARSE-CONSOLIDATION-001); feature HEAD UNCHANGED 4a624a08; streak 0/3; STORY-INDEX v2.526→v2.527; total_stories 219→220; STATE v8.053→v8.054 | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1425 | state-manager | SESSION WRAP — RESUME SNAPSHOT D-1425 authored (supersedes D-1409); S-DEMO LOCAL-converged on 481a0484 (story v2.12); feature HEAD 7b61b196 pushed; PR #208 OPEN (CI in-flight); pr-manager watching CI; PR-LEVEL 0/3 not yet started; S-PERF-GATE-002 #206 + S-PERF-GATE-003 #207 merged this session (develop 9a09653a→4417d691→1f491590); STORY-INDEX v2.526; BC-INDEX v7.25; ARCH-INDEX v2.150; STATE v8.052→v8.053 | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1424 | state-manager | S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN CONVERGED on 481a0484 + story v2.12 — all 4 lenses CLEAN(strict) round-4; ADR-048 ACCEPTED v1.1; ARCH-INDEX v2.149→v2.150 | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1423 | state-manager | S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 4-lens re-gate round-3 close + OBS dispositions (feature HEAD 481a0484; S-DTU-ARMIS-FIXTURE-VOCAB-001 stub registered) | wave-5-e-demo-fidelity | 2026-06-29 |
