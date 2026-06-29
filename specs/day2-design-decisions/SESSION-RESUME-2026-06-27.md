@@ -8,12 +8,29 @@ provenance: "Day-2 vision SIDE-ANALYSIS program resume snapshot. SEPARATE from t
 
 # Day-2 Vision Side-Analysis — Zero-Context Resume Snapshot (2026-06-27)
 
+## ZERO-CONTEXT RESUME — IN ONE BREATH
+> _(Updated 2026-06-29 session wrap. Supersedes the prior callout block below.)_
+>
+> This is the OUT-OF-BAND day-2 vision SIDE-ANALYSIS, separate from the live factory; NEVER touch STATE.md/SESSION-HANDOFF.md or live specs/BCs/stories; commit day-2 files path-scoped to factory-artifacts (explicit-path, no stash — live factory shares the worktree).
+>
+> DONE + durable: the entire pre-B feature track C11–C20 is decided + consistency-audited (ADS now v1.7, 13 principles / 17 patterns / 10 invariants / 11 anti-patterns). A full positioning set exists: TWO headline candidates (competitor-relative D-C10-5 in ADR-PROP-competitive-positioning.md + problem-framed in ADR-PROP-positioning-problem-framed.md), a plain-language exec narrative (positioning-executive-narrative.md), the mandated-7 feature map (§8 + matrix), and a 2-diagram C4 set (diagrams/ — conceptual + technical, .drawio + PNG/SVG/PDF).
+>
+> A multi-agent positioning-FIDELITY audit (8 agents) produced positioning-fidelity-iterate-list.md (36 findings). ALL HIGH + nearly all MEDIUM folds were applied across 4 commits — fold-pass A exec-narrative (5951b7ce), B problem-framed (d672772f), C diagrams + D competitive-positioning (10e6aa10). Only a few LOW/cosmetic iterate-list items remain (e.g., NAME-02 S4-descriptor consistency).
+>
+> The ONLY open decision: the §5.1 brief-reframe HUMAN sign-off — STILL PENDING by the human's explicit hold; it gates B (the integration capstone).
+>
+> NEXT ACTION on resume: either (a) make the §5.1 call — pick or synthesize a positioning headline from the two candidates + approve the reframe direction → unlocks B; or (b) close the remaining low/cosmetic iterate-list items first. The exec-narrative's two HIGH oversells were already corrected pre-§5.1.
+
+---
+
+> _(Prior top-level callout block — superseded by ZERO-CONTEXT RESUME above)_
+>
 > **Original C-program (C1–C10 + deployment-matrix + C3 hard-reject reconciliation) COMPLETE and committed.
 > PRE-B feature track: C13 ✅ C12 ✅ C11 ✅ C15 ✅ C14 ✅ C19 ✅ C18 ✅ C16 ✅ C17 ✅ C20 ✅ — C20 NOW FULLY RESOLVED (SF-2 folded = Defer + Leave-Seams-Open).
 > ENTIRE pre-B feature track (C11–C20) is COMPLETE. ADS v1.7 (traceability rows C10/C14/C15 + freshness fixes). Only B (integration
 > capstone) remains, GATED on §5.1 brief-reframe HUMAN sign-off.**
 >
-> **Latest factory-artifacts HEAD: `(this checkpoint)` — prism-as-ot-sensor-note.md working note captured (passive OT-sensor finding + 5 iterate-later threads); ADS v1.7; pre-B track C11–C20 COMPLETE**
+> **Latest factory-artifacts HEAD: `10e6aa10` — fold-pass C+D applied (diagrams + competitive-positioning audit folds); all HIGH/MEDIUM positioning folds done across passes A–D; §5.1 still PENDING human sign-off.**
 >
 > **READ THIS FIRST on resume.** This is OUT-OF-BAND day-2 vision work, fully SEPARATE from the live
 > VSDD factory pipeline (which runs its own cascades on the same `factory-artifacts` branch). Everything
@@ -498,14 +515,24 @@ Folded into ADR-PROP-prismql-deliverables.md (commit b6fa1465).
 
 ## 5. EXACT NEXT ACTION ON RESUME
 
-**C20 ✅ FULLY RESOLVED (SF-2 folded = Defer + Leave-Seams-Open; D-C20-SF2; PIV-C20-007 seams open; ADS v1.6). C17 ✅ C16 ✅ C18 ✅ C19 ✅ C14 ✅ C15 ✅ C12 ✅ C11 ✅ done. ADS created (v1.6), Option-3 locked, conformance pass done. Pre-B feature track C11–C20 COMPLETE.**
+**C20 ✅ FULLY RESOLVED (SF-2 folded = Defer + Leave-Seams-Open; D-C20-SF2; PIV-C20-007 seams open; ADS v1.6). C17 ✅ C16 ✅ C18 ✅ C19 ✅ C14 ✅ C15 ✅ C12 ✅ C11 ✅ done. ADS created (v1.7), Option-3 locked, conformance pass done. Pre-B feature track C11–C20 COMPLETE.**
 
-**NEXT: B — integration capstone. GATED on §5.1 brief-reframe HUMAN sign-off (still PENDING; two positioning candidates are the inputs: D-C10-5 competitor-relative in ADR-PROP-competitive-positioning.md + new problem-framed candidate in ADR-PROP-positioning-problem-framed.md — do not begin B until the human confirms the brief-reframe direction).**
+**Positioning fold-pass status (ALL HIGH/MEDIUM done; §5.1 still PENDING):**
+- Fold-pass A (exec narrative — positioning-executive-narrative.md): ✅ DONE (5951b7ce)
+- Fold-pass B (problem-framed candidate — ADR-PROP-positioning-problem-framed.md): ✅ DONE (d672772f)
+- Fold-pass C+D (diagrams + competitive-positioning): ✅ DONE (10e6aa10)
+- Remaining: LOW/cosmetic iterate-list items only (e.g., NAME-02 S4-descriptor consistency). The two pre-§5.1 HIGH oversells (OVER-01/02) were corrected in fold-pass A.
 
-**Positioning fold-pass status (out-of-band, gated on §5.1):**
-- Fold-pass A (exec narrative — positioning-executive-narrative.md): ✅ DONE (this burst)
-- Fold-pass B (problem-framed candidate — ADR-PROP-positioning-problem-framed.md): ⏳ PENDING §5.1 gate
-- Fold-pass C (diagrams — prism-architecture-conceptual.drawio / prism-architecture-technical.drawio): ⏳ PENDING §5.1 gate
+**NEXT (as of 2026-06-29 session wrap): Choose one of two paths:**
+
+**(a) Make the §5.1 call (GATES B):** Pick or synthesize a positioning headline from the two candidates:
+- D-C10-5 competitor-relative: `ADR-PROP-competitive-positioning.md`
+- Problem-framed: `ADR-PROP-positioning-problem-framed.md` (H-PF-1..3)
+Approve the brief-reframe direction → unlocks B (integration capstone).
+
+**(b) Close remaining LOW/cosmetic iterate-list items first:** Review `positioning-fidelity-iterate-list.md` for any remaining items; apply folds; then proceed to §5.1.
+
+**B remains GATED on §5.1 brief-reframe HUMAN sign-off. Do not begin B until the human confirms the brief-reframe direction.**
 
 **C14 follow-up research BANKED (committed alongside earlier checkpoint):**
 - `research/ocsf-ot-coverage-2026-06-27.md` — C14 sub-fork F4: OCSF-OT schema coverage. COMPLETE. Committed in same burst as this resume-doc edit (path-scoped).
@@ -551,7 +578,7 @@ Superseded capture queue (all DONE — do not re-execute):
 
 ## 6. BASELINE (git state at session wrap)
 
-- **factory-artifacts HEAD (current):** `(this checkpoint)` — prism-as-ot-sensor-note.md working note captured (PCAP+dissector passive-OT finding + OT-standalone correction; 5 iterate-later threads); path-scoped commit
+- **factory-artifacts HEAD (current):** `(wrap checkpoint — see row below)` — session wrap 2026-06-29; day-2 resume snapshot refreshed; all positioning folds (A–D) committed; §5.1 still pending. Last day-2 side commit before this wrap was `10e6aa10`; current branch HEAD is live-factory `2c2d57a2` (concurrent).
 - **Full commit chain for this day-2 side-analysis** (day-2 side commits; live factory interleaved its own commits on the shared branch between these):
   - `b53b22ba` — C9 schema-versioning (Q3) resolved + ADR-PROP-config-management + backing research
   - `91abba90` — deployment matrix captured (ADR-PROP-dual-deployment, three operating models)
@@ -586,7 +613,8 @@ Superseded capture queue (all DONE — do not re-execute):
   - `(this checkpoint)` — positioning-fidelity-iterate-list.md captured (36-finding master iterate-list; multi-agent corpus→positioning fidelity sweep); path-scoped commit. Prior side HEAD: **9a7434d9**.
   - `(this checkpoint)` — fold-pass A: exec-narrative audit folds applied (OVER-01/02/03 corrected; decided differentiators given plain-language homes; 'Where We Are Today' re-tiered); path-scoped commit. Prior side HEAD: **5951b7ce**.
   - `(this checkpoint)` — fold-pass B: problem-framed candidate audit folds (22 refs); path-scoped commit.
-  - `(this checkpoint)` — fold-pass C+D: diagram + competitive-positioning audit folds; path-scoped commit. Prior side HEAD: **d672772f**.
+  - `10e6aa10` — fold-pass C+D: diagram + competitive-positioning audit folds; path-scoped commit. Prior side HEAD: **d672772f**.
+  - `(wrap checkpoint — 2026-06-29)` — session wrap; day-2 resume snapshot refreshed with ZERO-CONTEXT RESUME IN ONE BREATH block; all positioning folds (A–D) committed; §5.1 still pending. Last day-2 side commit `10e6aa10`; current branch HEAD is live-factory `2c2d57a2` (concurrent).
 - Note: live-factory commits interleaved on `factory-artifacts` between the above (normal concurrent operation). Prior side HEAD before this burst: **929a9758** (consistency audit complete; ADS v1.7).
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory BC-2.16.002 left unstaged). No dangling in-flight research.
 
