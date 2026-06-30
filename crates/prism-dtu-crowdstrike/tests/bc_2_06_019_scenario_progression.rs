@@ -297,13 +297,14 @@ async fn test_BPRL_P4_02_detections_stage_guard_primary_device() {
     let client = prism_dtu_common::build_test_client();
 
     // -------------------------------------------------------------------------
-    // Stage 0 server (scenario_start = now - 10s → elapsed ≈ 10s < 60s)
+    // Stage 0 server (scenario_start = now + 30s → elapsed ≈ D-30s, 90s budget)
     // At request time: current_stage_index returns 0 (Baseline).
     // BPRL-P4-02: primary device is NOT visible at stage 0 (hosts.rs stage_idx > 0 guard).
     // Detections referencing the primary device must ALSO be withheld at stage 0.
+    // +30s compensates for CPU contention from plugin tests in full workspace runs.
     // -------------------------------------------------------------------------
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0 (Baseline)
+    let start_stage0: i64 = now + 30; // elapsed ≈ D-30s (stage 0 budget 90s)
 
     let timeline_stage0 = Arc::new(build_default_incident_timeline(
         catalog.clone(),

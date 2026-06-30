@@ -157,7 +157,7 @@ async fn test_dormant_tenant_seeded_empty_records_not_static_fallback() {
     let primary_id = catalog.primary_device_id_armis.clone();
 
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0 (Baseline)
+    let start_stage0: i64 = now + 30; // elapsed ≈ D-30s (stage 0 budget 90s: +30s CPU contention margin)
 
     let timeline = Arc::new(build_default_incident_timeline(
         catalog.clone(),
