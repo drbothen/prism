@@ -107,6 +107,45 @@ failure-output = "immediate"
 serial-subprocess = { max-threads = 1 }
 adv-p02-serial = { max-threads = 1 }
 bc-2-01-013-serial = { max-threads = 1 }
+# S-PERF-GATE-004: DTU HTTP-server concurrency cap.
+# Each prism-dtu-* test binary launches an Axum HTTP server + tokio multi-threaded
+# runtime + RocksDB on every test case. Under the default nextest thread budget (one
+# process per logical core), up to 16 binaries run concurrently on this machine; each
+# binary's tokio runtime spawns ~num_cpus worker threads, yielding ~256 concurrent
+# threads competing for 16 cores (~16x oversubscription). This inflates per-test
+# wall-clock by 10-300x and causes stage-clock drift in scenario-progression tests
+# (bc_2_06_019): elapsed time crosses the 60s stage-0 threshold before the assertion
+# fires, causing the stage-0 "primary device ABSENT" check to see stage-1 data.
+# Confirmed root cause: armis bc_2_06_019 measured at 55.846s under full workspace load
+# vs 0.412s in isolation (commit 0a9fc5e7 band-aid comment).
+#
+# max-threads = 4: limits concurrent DTU binaries to 4.
+#   - Dev machine (16 cores): 4 binaries × 16 tokio threads = 64 active threads / 16
+#     cores = 4x oversubscription — manageable; CPU contention drops dramatically.
+#   - CI runner (ubuntu-latest, 2 vCPU): 4 binaries × 2 tokio threads = 8 threads / 2
+#     cores = 4x — acceptable; previously the default was already ~2-3x on 2 vCPU so
+#     this is a marginal increase but eliminates the full-workspace fan-out spike.
+#   - macOS CI runner (3 vCPU): 4 binaries × 3 tokio threads = 12 / 3 = 4x — same.
+#
+# This group applies to ALL 12 prism-dtu-* packages (194 test binaries total across
+# armis/claroty/crowdstrike/cyberint/common/harness/demo-server/jira/nvd/pagerduty/
+# slack/threatintel). It does NOT touch the existing adv-p02-serial / bc-2-01-013-serial
+# / serial-subprocess groups — those three are all in prism-bin, not prism-dtu-*, so
+# there is no overlap and no group-composition ambiguity.
+#
+# Expected outcome: scenario-progression tests (bc_2_06_019) complete in <20s under
+# full workspace load (safely within the 50s stage-0 budget for now-10 timing),
+# making the now+30 band-aid in S-DEMO-FIDELITY-REMEDIATION-001 revertible.
+dtu-cap = { max-threads = 4 }
+
+[[profile.prepush.overrides]]
+# S-PERF-GATE-004: cap all prism-dtu-* test binaries to 4 concurrent processes.
+# Placed first; the per-binary overrides below target prism-bin exclusively (no
+# package overlap with prism-dtu-*), so there is no group conflict.
+# (nextest test-group is a scalar field: when multiple overrides match the same
+# test, the last matching override wins — only one group assignment takes effect.)
+filter = 'package(/^prism-dtu-/)'
+test-group = 'dtu-cap'
 
 [[profile.prepush.overrides]]
 filter = 'binary(signal_handlers)'
@@ -119,6 +158,11 @@ test-group = 'adv-p02-serial'
 [[profile.prepush.overrides]]
 filter = 'binary(bc_2_01_013_spec_driven_adapter)'
 test-group = 'bc-2-01-013-serial'
+
+[[profile.ci.overrides]]
+# S-PERF-GATE-004: cap all prism-dtu-* test binaries to 4 concurrent processes.
+filter = 'package(/^prism-dtu-/)'
+test-group = 'dtu-cap'
 
 [[profile.ci.overrides]]
 filter = 'binary(signal_handlers)'
