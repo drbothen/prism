@@ -398,9 +398,10 @@ async fn test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic() 
     );
     let catalog_hash = catalog.ioc_hashes[0].clone();
 
-    // Stage 0 server: elapsed ≈ 10s < 60s → ioc_hashes=false.
+    // Stage 0 server: scenario_start = now + 30s → elapsed clamped to 0s < 60s → ioc_hashes=false.
+    // 90-second execution budget (vs 50s with now-10). EC-019-003 clamps negative elapsed to 0.
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10;
+    let start_stage0: i64 = now + 30; // elapsed clamped to 0s → stage 0 (Baseline), 90s budget
     let time_anchor_stage0 = chrono::DateTime::from_timestamp(start_stage0, 0)
         .expect("valid timestamp")
         .with_timezone(&chrono::Utc);
@@ -743,10 +744,11 @@ async fn test_BC_2_06_019_ioc_hashes_false_withholds_cyberint_alert_with_matchin
     let catalog_hash = catalog.ioc_hashes[0].clone();
 
     // -------------------------------------------------------------------------
-    // Stage 0 server: elapsed ≈ 10s < 60s → ioc_hashes=false
+    // Stage 0 server: scenario_start = now + 30s → elapsed clamped to 0s < 60s → ioc_hashes=false
+    // 90-second execution budget (vs 50s with now-10). EC-019-003 clamps negative elapsed to 0.
     // -------------------------------------------------------------------------
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10;
+    let start_stage0: i64 = now + 30; // elapsed clamped to 0s → stage 0 (Baseline), 90s budget
     let time_anchor_stage0 = chrono::DateTime::from_timestamp(start_stage0, 0)
         .expect("valid timestamp")
         .with_timezone(&chrono::Utc);
@@ -1113,10 +1115,11 @@ async fn test_BC_2_06_019_ip_domain_ioc_stage_gating_served_route() {
     let catalog_domain = catalog.ioc_domains[0].clone();
 
     // -------------------------------------------------------------------------
-    // Pre-Exfil server: stage 0 (elapsed ≈ 10s < 60s → ioc_ips=false, ioc_domains=false)
+    // Pre-Exfil server: stage 0 (scenario_start = now + 30s → elapsed clamped to 0s < 60s)
+    // ioc_ips=false, ioc_domains=false. 90-second budget. EC-019-003 clamps negative elapsed.
     // -------------------------------------------------------------------------
     let now = chrono::Utc::now().timestamp();
-    let start_pre_exfil: i64 = now - 10;
+    let start_pre_exfil: i64 = now + 30; // elapsed clamped to 0s → stage 0 (Baseline), 90s budget
     let time_anchor_pre_exfil = chrono::DateTime::from_timestamp(start_pre_exfil, 0)
         .expect("valid timestamp")
         .with_timezone(&chrono::Utc);

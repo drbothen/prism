@@ -1,16 +1,13 @@
-//! Red Gate test 7: BC-2.06.019 PC-4 / TV-019-009, TV-019-010
+//! BC-2.06.019 PC-4 / TV-019-009, TV-019-010
 //!
 //! test_BC_2_06_019_armis_primary_device_stage_visibility
 //!
 //! Traces to: BC-2.06.019 postcondition 4 / TV-019-009, TV-019-010
 //! Story: S-DEMO-DTU-LIVE-SCENARIO-001-B
 //!
-//! FAIL mode (Red Gate): route handler in routes/devices.rs does not implement
-//! StageMask projection (BC-2.06.019 PC-4). The handler currently serves all
-//! generated_records regardless of stage, so:
-//! - At stage 0 (T+30s): primary device IS visible (should be ABSENT per AC-007 /
-//!   task spec: primary appears from stage 1+ only at the HTTP response level)
-//! - At stage 1 (T+90s): lateral devices ARE visible (should be ABSENT per mask)
+//! StageMask projection IS implemented in routes/devices.rs (stage_idx > 0 guard).
+//! These tests verify the HTTP-level behavior of that projection at two stage-clock
+//! positions.
 //!
 //! HTTP-level load-bearing assertion pattern (B-P1-02): this test starts a real
 //! ArmisClone server and makes actual GET /api/v1/devices requests with stage-clock
@@ -18,16 +15,18 @@
 //!
 //! Stage clock control (spec'd mechanism ADR-036 §2.1):
 //!   Handlers call current_stage_index(&timeline, Utc::now().timestamp()) per request.
-//!   We control the stage by placing scenario_start_secs far enough in the past:
-//!   - Stage 0: scenario_start_secs = now - 10   (elapsed ≈ 10s < 60s threshold)
-//!   - Stage 1: scenario_start_secs = now - 90   (elapsed ≈ 90s, in [60, 180))
+//!   We control the stage by placing scenario_start_secs relative to Utc::now():
+//!   - Stage 0: scenario_start_secs = now + 30  (elapsed clamped to 0s < 60s threshold;
+//!              +30 offset gives 90-second execution budget — see timing comment below)
+//!   - Stage 1: scenario_start_secs = now - 90  (elapsed ≈ 90s, in [60, 180))
 //!   With stage_duration_secs default [60, 180, 360, 600].
 //!
-//! Primary Red Gate failures:
-//! 1. Stage 0: primary device IS in HTTP response (should be absent per task spec).
-//!    Without StageMask projection, all generated records are served.
-//! 2. Stage 1: lateral device IDs ARE in HTTP response (should be absent — mask
-//!    lateral_devices=false at stage 1).
+//! Timing budget rationale (stage 0 offset now+30 vs former now-10):
+//!   Stage 1 activates when elapsed ≥ 60s. With start=now+30, elapsed at request time
+//!   equals test_exec_time−30. For elapsed < 60s we need test_exec_time < 90s. Under
+//!   full workspace load the server startup + HTTP round-trip took ≈ 55 s, which exceeds
+//!   the former 50-second budget (now−10 → elapsed = test_exec_time + 10; for elapsed <
+//!   60s → test_exec_time < 50s). Changing to now+30 raises the budget to 90s.
 
 #![cfg(feature = "fixture-gen")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -55,30 +54,33 @@ fn deadbeef_org() -> OrgId {
 /// HTTP-level load-bearing test (B-P1-02). Starts a real ArmisClone server and
 /// makes GET /api/v1/devices requests at two controlled stage-clock positions.
 ///
-/// Stage clock control: scenario_start_secs is placed in the past so that
-/// Utc::now().timestamp() - scenario_start_secs yields the desired elapsed time
-/// at the moment of the HTTP request.
+/// Stage clock control: scenario_start_secs controls the elapsed time seen by the
+/// handler. Stage 0 uses `now+30` (elapsed clamped to 0s, 90-second budget before
+/// stage 1). Stage 1 uses `now-90` (elapsed ≈ 90s ∈ [60, 180)).
 ///
 /// Asserts:
-/// - At stage 0 (scenario_start = now - 10s): primary device ABSENT from response.
+/// - At stage 0 (scenario_start = now + 30s): primary device ABSENT from response.
 ///   The primary device only appears from stage 1 onward (AC-007 / task spec).
 /// - At stage 1 (scenario_start = now - 90s): primary device PRESENT in response;
 ///   lateral device IDs ABSENT (StageMask lateral_devices=false at stage 1).
 ///
-/// FAIL mode (without StageMask projection):
-/// - Stage 0 request: ALL generated records are served → primary device IS visible
-///   → assertion "primary absent at stage 0" FAILS.
-/// - Stage 1 request: ALL generated records are served → lateral devices ARE visible
-///   → assertion "lateral absent at stage 1" FAILS.
+/// StageMask projection is implemented in routes/devices.rs (`stage_idx > 0` guard
+/// for primary device; `mask.lateral_devices` for lateral devices).
 #[tokio::test]
 async fn test_BC_2_06_019_armis_primary_device_stage_visibility() {
     let org = deadbeef_org();
     let seed: u64 = 100;
 
-    // --- Stage 0 server (scenario_start = now - 10s → elapsed ≈ 10s < 60s) ---
-    // At request time the handler computes: elapsed = now - start ≈ 10s → stage 0.
+    // --- Stage 0 server (scenario_start = now + 30s → elapsed ≈ –30s clamped to 0s < 60s) ---
+    // At request time the handler computes elapsed = now - start. By placing start 30 seconds
+    // IN THE FUTURE the elapsed value (clamped to 0 per EC-019-003) is always < 60 s as long
+    // as the server start + HTTP round-trip completes within 90 s. Stage 1 activates at 60 s;
+    // with start = now+30 the test has a full 90-second execution budget before the assertion
+    // would be threatened, compared to the previous 50-second budget (now-10).
+    // Rationale: under full workspace load the test took 55 s (55 > 60 - 10 = 50) causing
+    // a spurious stage-1 activation. current_stage_index() clamps negative elapsed to 0.
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0 (Baseline)
+    let start_stage0: i64 = now + 30; // elapsed clamped to 0s → stage 0 (Baseline), 90s budget
 
     let catalog = build_scenario_entity_catalog(seed, &org);
     let primary_id = catalog.primary_device_id_armis.clone();
@@ -147,14 +149,13 @@ async fn test_BC_2_06_019_armis_primary_device_stage_visibility() {
         .collect();
 
     // BC-2.06.019 AC-007 / TV-019-009: primary device must NOT appear at stage 0.
-    // Without StageMask projection the handler returns all records → this FAILS.
+    // StageMask projection is implemented in routes/devices.rs (stage_idx > 0 guard).
     assert!(
         !device_ids0.contains(&primary_id),
-        "TV-019-009: at stage 0 (elapsed ≈ 10s < 60s), primary device '{}' must be ABSENT \
+        "TV-019-009: at stage 0 (elapsed < 60s), primary device '{}' must be ABSENT \
          from GET /api/v1/devices response; found it in {:?}. \
-         Route handler must apply StageMask projection before serving records. \
-         BC-2.06.019 PC-4 / AC-007 \
-         [RED GATE: StageMask projection not implemented in routes/devices.rs]",
+         StageMask projection (routes/devices.rs stage_idx > 0 guard) must filter \
+         the primary device at stage 0. BC-2.06.019 PC-4 / AC-007",
         primary_id,
         device_ids0
     );
@@ -280,7 +281,7 @@ async fn test_BC_2_06_019_armis_primary_device_stage_visibility() {
 /// narrative incoherence (an alert references a device that doesn't exist yet).
 ///
 /// HTTP-level load-bearing test (BPRL-P4-02, SID-1):
-/// - Stage 0 (scenario_start = now - 10s): alert referencing primary device ABSENT.
+/// - Stage 0 (scenario_start = now + 30s → elapsed clamped to 0s < 60s): alert referencing primary device ABSENT.
 /// - Stage 2 (scenario_start = now - 200s): alert referencing primary device PRESENT.
 #[tokio::test]
 async fn test_BPRL_P4_02_armis_alerts_stage_guard_primary_device() {
@@ -293,13 +294,14 @@ async fn test_BPRL_P4_02_armis_alerts_stage_guard_primary_device() {
     let client = prism_dtu_common::build_test_client();
 
     // -------------------------------------------------------------------------
-    // Stage 0 server (scenario_start = now - 10s → elapsed ≈ 10s < 60s)
+    // Stage 0 server (scenario_start = now + 30s → elapsed clamped to 0s < 60s)
     // At request time: current_stage_index returns 0 (Baseline).
     // BPRL-P4-02: primary device is NOT visible at stage 0 (devices.rs stage_idx > 0 guard).
     // Alerts referencing the primary device must ALSO be withheld at stage 0.
+    // start = now+30 gives 90-second execution budget (vs previous 50 s with now-10).
     // -------------------------------------------------------------------------
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0
+    let start_stage0: i64 = now + 30; // elapsed clamped to 0s → stage 0, 90s budget
 
     let timeline_stage0 = Arc::new(build_default_incident_timeline(
         catalog.clone(),
@@ -815,9 +817,11 @@ async fn test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility() {
 
     let client = prism_dtu_common::build_test_client();
 
-    // ---- Stage 0 server (elapsed ≈ 10s → stage 0 Baseline) ----
+    // ---- Stage 0 server (scenario_start = now + 30s → elapsed clamped to 0s < 60s, 90s budget) ----
+    // Placing start 30s in the future gives a 90-second execution budget before stage 1 activates
+    // (vs 50s with now-10). current_stage_index clamps negative elapsed to 0 (EC-019-003).
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10;
+    let start_stage0: i64 = now + 30; // elapsed clamped to 0s → stage 0 (Baseline), 90s budget
     let timeline_stage0 = Arc::new(build_default_incident_timeline(
         catalog.clone(),
         start_stage0,
@@ -879,7 +883,7 @@ async fn test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility() {
     // BC-2.06.019 PC-4 / F-PIVOT003-R8C-001: primary device MUST be absent at stage 0.
     assert!(
         !ids0.contains(&primary_id),
-        "F-PIVOT003-R8C-001: at stage 0 (elapsed ≈ 10s < 60s), primary device '{}' \
+        "F-PIVOT003-R8C-001: at stage 0 (elapsed clamped to 0s < 60s), primary device '{}' \
          MUST be ABSENT from GET /api/v1/search?aql=in:devices (canonical table query path); \
          found it in {:?}. \
          search.rs device branch must apply StageMask projection (stage_idx > 0 guard). \

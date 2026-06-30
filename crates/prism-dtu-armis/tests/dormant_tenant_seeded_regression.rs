@@ -156,8 +156,11 @@ async fn test_dormant_tenant_seeded_empty_records_not_static_fallback() {
     let catalog = build_scenario_entity_catalog(seed, &org);
     let primary_id = catalog.primary_device_id_armis.clone();
 
+    // Place scenario_start 30s in the future → elapsed clamped to 0s < 60s at request time.
+    // Gives a 90-second execution budget before stage 1 activates (vs 50s with now-10).
+    // current_stage_index clamps negative elapsed to 0 (EC-019-003). BC-2.06.019.
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10; // elapsed ≈ 10s < 60s → stage 0 (Baseline)
+    let start_stage0: i64 = now + 30; // elapsed clamped to 0s → stage 0 (Baseline), 90s budget
 
     let timeline = Arc::new(build_default_incident_timeline(
         catalog.clone(),
@@ -187,8 +190,6 @@ async fn test_dormant_tenant_seeded_empty_records_not_static_fallback() {
     let scenario_token = scenario_server.admin_token().to_owned();
 
     // GET /api/v1/devices at stage 0: primary device must be ABSENT.
-    // FAIL: without StageMask projection, all generated records are served →
-    //       primary device IS in the response → this assertion FAILS.
     let resp_s0 = client
         .get(format!("{scenario_url}/api/v1/devices"))
         .header("Authorization", format!("Bearer {scenario_token}"))
@@ -223,16 +224,14 @@ async fn test_dormant_tenant_seeded_empty_records_not_static_fallback() {
     // BC-2.06.019 PC-4 / AC-007: at stage 0 primary device must be ABSENT.
     // Three-way composition guard: scenario path (seeded + timeline.is_some()) must apply
     // StageMask, NOT fall through to serve all records (seeded path) or static fixture.
-    // FAIL: without StageMask projection the primary device IS in the response.
     assert!(
         !device_ids_s0.contains(&primary_id),
-        "TV-017-regression: at stage 0 (elapsed ≈ 10s < 60s), primary device '{}' must be \
+        "TV-017-regression: at stage 0 (elapsed clamped to 0s < 60s), primary device '{}' must be \
          ABSENT from GET /api/v1/devices on a scenario-mode server; found it in {:?}. \
          Route handler must apply StageMask projection for scenario path \
          (fixture_gen_seeded=true && timeline.is_some()); must NOT regress to serving \
          all generated records or branching on generated_records.is_empty(). \
-         BC-2.06.019 PC-4 / ADR-036 v2.3 §2.4 \
-         [RED GATE: StageMask projection not implemented — scenario path leaks primary at stage 0]",
+         BC-2.06.019 PC-4 / ADR-036 v2.3 §2.4",
         primary_id,
         device_ids_s0
     );
