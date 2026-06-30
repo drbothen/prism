@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.055"
+version: "8.056"
 producer: state-manager
 timestamp: 2026-06-29T17:00:00Z
 inputs: []
@@ -20,10 +20,10 @@ develop_head: "1f491590"
 # NOTE: 1f491590 is the squash-merge of PR #207 (perf(S-PERF-GATE-003): serialize bc_2_01_013 test binary + check-ci --profile ci alignment; normal squash-merge; 2026-06-29). origin/develop is now 1f491590. Prior origin/develop was 4417d691 (PR #206 S-PERF-GATE-002). feature/S-PERF-GATE-003 branch + .worktrees/S-PERF-GATE-003 worktree removed.
 bc_index_version: "7.26"
 vp_index_version: "1.80"
-story_index_version: "v2.528"
+story_index_version: "v2.529"
 arch_index_version: "2.150"
 error_taxonomy_version: "2.03"
-total_stories: 220
+total_stories: 221
 active_contracts: 254
 draft_contracts: 0
 retired_contracts: 6
@@ -36,7 +36,7 @@ workspace_test_count: 5074
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1427 (2026-06-29). HUMAN DECISION: implement BC-2.10.012 §pql_hints Category-2 (UDF-discovery hints) IN-SCOPE on PR #208 (not deferred). ADV-P208-P02-001 (MED) CLOSED: §pql_hints Category-1 wording correction BC-2.10.012 v1.5→v1.6. ADV-P208-P02-002 (LOW) CLOSED: acceptance_criteria_count reconciled 17→16. BC-2.10.012 v1.6→v1.7 Category-2 implementation-ready (product-owner). Story v2.13→v2.14: AC-CAT2 (Area D-B UDF-discovery hints) added; deferred-items row 1 removed; red_gate_tests 49→52; crates_touched += prism-spec-engine (story-writer). PR-LEVEL 3-CLEAN streak RESET 0/3 — upcoming TDD for AC-CAT2 WILL change feature HEAD. NEXT: remove-uncertainty on AC-CAT2 → TDD (test-writer Red Gate → implementer) → LOCAL 3-CLEAN → demo evidence refresh → push → PR-LEVEL 3-CLEAN → merge. Story v2.14; 16 ACs; 52 red_gate tests; 7 BCs. Feature HEAD 4a624a08 (UNCHANGED pre-TDD). develop_head 1f491590. STORY-INDEX v2.528. BC-INDEX v7.26. ARCH-INDEX v2.150. active_contracts 254. total_stories 220. STATE v8.054→v8.055."
+current_step: "D-1428 (2026-06-29). S-PERF-GATE-004 registered — draft v1.0; nextest dtu-cap test-group (max-threads=4) for package(/^prism-dtu-/) on prepush + ci profiles; measured full just check nextest ~185min→220.8s (4974 tests, all pass); eliminates DTU CPU/thread oversubscription root cause + BC-2.06.019 scenario-flakiness root cause; now+30 band-aid in S-DEMO-FIDELITY-REMEDIATION-001 becomes revertible post-delivery. Test-speed initiative (user directive: make tests faster; concurrency-control-first approach; S-PERF-GATE-001..004 series). S-PERF-GATE-004 IN DELIVERY (test-infra-first per user directive). PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) PAUSED pending fast gate: S-PERF-GATE-004 merge → rebase PR #208 → revert now+30 band-aid → resume PR #208 PR-LEVEL 3-CLEAN. BC-2.10.012 Category-2 AC-CAT2 TDD STILL PENDING (feature HEAD 4a624a08 UNCHANGED pre-TDD). NEXT: S-PERF-GATE-004 PR open → merge → rebase PR #208 → revert now+30 → resume PR-LEVEL 3-CLEAN for PR #208. develop_head 1f491590. STORY-INDEX v2.529. BC-INDEX v7.26. ARCH-INDEX v2.150. active_contracts 254. total_stories 221. STATE v8.055→v8.056."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -68,14 +68,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1423."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1428."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-29 (D-1427 BC-2.10.012 Category-2 spec-evolution IN-SCOPE; ADV-P208-P02-001/002 CLOSED; BC v1.7; S-DEMO-FIDELITY-REMEDIATION-001 v2.14; BC-INDEX v7.25→v7.26; STORY-INDEX v2.527→v2.528; STATE v8.054→v8.055)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-29 (D-1428 S-PERF-GATE-004 registered; total_stories 220→221; STORY-INDEX v2.528→v2.529; STATE v8.055→v8.056)
 
 ## Active Objective (North Star)
 
@@ -124,6 +124,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 through D-1339 archived to burst-log.md (D-1368 compaction 2026-06-26). D-1344 and D-1393..D-1397 archived to burst-log.md (this compaction). D-1409 archived to burst-log.md (this D-1410 burst). D-1398..D-1416 archived to burst-log.md (this D-1417 burst). D-1417..D-1420 archived to burst-log.md (this D-1421 burst). D-1344..D-1355 archived to burst-log.md (this D-1423 burst)._
+| D-1428 | state-manager | 2026-06-29 | **S-PERF-GATE-004 REGISTERED — STORY-INDEX + STATE UPDATED (D-1428). S-PERF-GATE-004 draft v1.0 registered: nextest dtu-cap test-group (`max-threads=4`) for `package(/^prism-dtu-/)` filter on prepush + ci profiles — caps 12 prism-dtu-* package test binaries at 4 concurrent nextest threads total; measured full workspace `just check` nextest ~185min→220.8s (4974 tests, all pass); eliminates DTU CPU/thread oversubscription root cause + BC-2.06.019 scenario-flakiness root cause; `now+30` band-aid in S-DEMO-FIDELITY-REMEDIATION-001 becomes revertible post-delivery. Test-speed initiative context: user directive "make tests faster"; concurrency-control-first approach chosen (S-PERF-GATE-001..004 series). PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) PAUSED pending fast gate. NEXT: S-PERF-GATE-004 PR merge → rebase PR #208 → revert `now+30` band-aid → resume PR #208 PR-LEVEL 3-CLEAN. 8 ACs; 0 Red Gate; 2 pts; P2; tdd_mode: n/a; depends_on [S-PERF-GATE-003]; file: S-PERF-GATE-004-nextest-dtu-oversubscription-cap.md. POL-14 NO-OP: BC-5.39.001 already ACTIVE. story_index_version v2.528→v2.529. total_stories 220→221. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. develop_head UNCHANGED 1f491590. STATE v8.055→v8.056.** | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1427 | state-manager | 2026-06-29 | **BC-2.10.012 CATEGORY-2 SPEC-EVOLUTION IN-SCOPE — STORY + BC INDEX UPDATED (D-1427). HUMAN DECISION: implement BC-2.10.012 §pql_hints Category-2 (UDF-discovery hints) IN-SCOPE on PR #208 (not deferred). ADV-P208-P02-001 (MED) CLOSED: Category-1 §pql_hints wording correction fixed spec-only (BC-2.10.012 v1.5→v1.6; PRD-LEVEL cascade pass 2 finding). ADV-P208-P02-002 (LOW) CLOSED: acceptance_criteria_count reconciled 17→16 (CRIT-1 + SqlPipe sub-behavior were overcounted in prior story revision). BC-2.10.012 v1.6→v1.7 Category-2 implementation-ready spec authored by product-owner (§pql_hints UDF-discovery hints; implementation contract targets prism-spec-engine). Story-writer S-DEMO-FIDELITY-REMEDIATION-001 v2.13→v2.14: AC-CAT2 (Area D-B) added; deferred-items row 1 removed; §File Structure + §Tasks updated; §Changelog v2.14 row added; red_gate_tests 49→52; acceptance_criteria_count 17→16; crates_touched += prism-spec-engine. PR-LEVEL 3-CLEAN(strict) streak RESET 0/3 — upcoming TDD for AC-CAT2 WILL change feature HEAD (BC-5.39.001 frozen-HEAD streak rule DRIFT-ORCH-PRLEVEL-PUSH-001); LOCAL cascade restarts on new code HEAD after TDD. bc_index_version 7.25→7.26. story_index_version v2.527→v2.528. develop_head UNCHANGED 1f491590. active_contracts UNCHANGED 254. total_stories UNCHANGED 220. ARCH-INDEX UNCHANGED v2.150. STATE v8.054→v8.055.** | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1426 | state-manager | 2026-06-29 | **PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) PR-LEVEL ADVERSARIAL CASCADE STARTED — PASSES 1+2 CLOSED (D-1426). Pass 1 on feature HEAD 7b61b196: ADV-P208-P01-001 LOW (evidence-report HEAD label stale — evidence file cited 7b61b196 instead of actual code HEAD 4a624a08) CLOSED demo-recorder — evidence-report de-pin docs-only fix; feature HEAD 7b61b196→4a624a08. Pass 2 on feature HEAD 4a624a08 (UNCHANGED): CLEAN(PR-merge)=yes, CLEAN(strict)=no — 1 OBS (ADV-P208-P01-001 deferral-target hygiene: deferred-items Target row had "follow-up story" instead of a concrete story ID, CLAUDE.md Rule 3 violation) CLOSED story-writer SPEC-ONLY: S-QUERY-GATE-REPARSE-CONSOLIDATION-001 draft stub v1.0 registered (total_stories 219→220; P3; 5 pts; SS-11 Query Execution; prism-query; behavioral_contracts [] pending PO authorship; depends_on S-DEMO-FIDELITY-REMEDIATION-001; file: S-QUERY-GATE-REPARSE-CONSOLIDATION-001-query-gate-reparse-consolidation.md) + S-DEMO-FIDELITY-REMEDIATION-001 v2.12→v2.13 (deferred-items Target updated "follow-up story" → S-QUERY-GATE-REPARSE-CONSOLIDATION-001). Feature HEAD UNCHANGED at 4a624a08. PR-LEVEL 3-CLEAN(strict) streak 0/3 (pass 1: 1 LOW; pass 2: 1 OBS). NEXT = adversary re-gate on frozen feature HEAD 4a624a08. STORY-INDEX v2.526→v2.527. total_stories 219→220. BC-INDEX UNCHANGED v7.25. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. develop_head UNCHANGED 1f491590. STATE v8.053→v8.054.** | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1424 | state-manager | 2026-06-29 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN CONVERGED (D-1424). Re-gate round-4: all 4 lenses (gate-mode, query-executability, spec-prose↔code, test-adequacy) CLEAN(strict)=yes on frozen feature HEAD 481a0484 + story v2.12. Zero findings any severity. OBS-LENS2-1/OBS-LENS2-2/OBS-2/S-PRISMQL-SQLPIPE-COLUMN-GATE-001 pre-adjudicated (deferred/accepted) — confirmed not re-raised. LOCAL 3-CLEAN streak 3/3 on 481a0484. ADR-048 PROPOSED v1.0→ACCEPTED v1.1: OD-1 ratified (user chose Option A — extend HAVING grammar, keep WHERE E-QUERY-001 divergence); OD-2 resolved (PERCENTILE excluded as accepted scope decision); §Resolution added; POL-15 confirmed (HAVING gate reachable via prism-mcp/prism-bin → prism-query production path). ARCH-INDEX v2.149→v2.150 (architect bump; ADR-048 row status PROPOSED v1.0→ACCEPTED v1.1; §Changelog v2.150 row added). Story UNCHANGED v2.12; code HEAD UNCHANGED 481a0484; BC-INDEX UNCHANGED v7.25; active_contracts UNCHANGED 254; develop_head UNCHANGED 1f491590. STORY-INDEX v2.525→v2.526. arch_index_version 2.149→2.150. STATE v8.051→v8.052. NEXT: demo-recorder per-AC evidence → push 481a0484 (normal permission path, NOT tmux/bypass) → PR via pr-manager (feature already based on develop 1f491590) → PR-LEVEL 3-CLEAN → normal squash-merge (D-989; NO --admin) → post-merge state burst.** | wave-5-e-demo-fidelity | 2026-06-29 |
