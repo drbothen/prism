@@ -16,7 +16,9 @@
 //! Stage clock control (spec'd mechanism ADR-036 §2.1):
 //!   Handlers call current_stage_index(&timeline, Utc::now().timestamp()) per request.
 //!   We control the stage by placing scenario_start_secs relative to Utc::now():
-//!   - Stage 0: scenario_start_secs = now - 10  (elapsed ≈ 10s < 60s threshold)
+//!   - Stage 0: scenario_start_secs = now - 10  (elapsed = -10s → stage 0, 50s budget;
+//!     DTU graceful-shutdown wiring (#210) ensures clone.stop() completes in <20ms,
+//!     keeping boot fast for all sensors including armis.)
 //!   - Stage 1: scenario_start_secs = now - 90  (elapsed ≈ 90s, in [60, 180))
 //!   With stage_duration_secs default [60, 180, 360, 600].
 
@@ -47,8 +49,9 @@ fn deadbeef_org() -> OrgId {
 /// makes GET /api/v1/devices requests at two controlled stage-clock positions.
 ///
 /// Stage clock control: scenario_start_secs controls the elapsed time seen by the
-/// handler. Stage 0 uses `now-10` (elapsed ≈ 10s < 60s threshold). Stage 1 uses
-/// `now-90` (elapsed ≈ 90s ∈ [60, 180)).
+/// handler. Stage 0 uses `now-10` (elapsed = -10s, 50s budget; S-PERF-GATE-005
+/// graceful-shutdown wiring ensures clone.stop() completes in <20ms). Stage 1
+/// uses `now-90` (elapsed ≈ 90s ∈ [60, 180)).
 ///
 /// Asserts:
 /// - At stage 0 (scenario_start = now - 10s): primary device ABSENT from response.
@@ -63,10 +66,11 @@ async fn test_BC_2_06_019_armis_primary_device_stage_visibility() {
     let org = deadbeef_org();
     let seed: u64 = 100;
 
-    // --- Stage 0 server (scenario_start = now - 10s → elapsed ≈ 10s < 60s) ---
-    // At request time the handler computes: elapsed = now - start ≈ 10s → stage 0.
+    // --- Stage 0 server (scenario_start = now - 10s → elapsed = -10s, 50s budget) ---
+    // S-PERF-GATE-005: clone.stop() now completes in <20ms (graceful shutdown wiring).
+    // All DTU sensors including armis use now-10 uniformly.
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0 (Baseline)
+    let start_stage0: i64 = now - 10; // elapsed = -10s → stage 0, 50s budget
 
     let catalog = build_scenario_entity_catalog(seed, &org);
     let primary_id = catalog.primary_device_id_armis.clone();
@@ -281,13 +285,13 @@ async fn test_BPRL_P4_02_armis_alerts_stage_guard_primary_device() {
     let client = prism_dtu_common::build_test_client();
 
     // -------------------------------------------------------------------------
-    // Stage 0 server (scenario_start = now - 10s → elapsed ≈ 10s < 60s)
-    // At request time: current_stage_index returns 0 (Baseline).
+    // Stage 0 server (scenario_start = now - 10s → elapsed = -10s, 50s budget)
+    // S-PERF-GATE-005: clone.stop() <20ms; all DTU sensors use now-10 uniformly.
     // BPRL-P4-02: primary device is NOT visible at stage 0 (devices.rs stage_idx > 0 guard).
     // Alerts referencing the primary device must ALSO be withheld at stage 0.
     // -------------------------------------------------------------------------
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0
+    let start_stage0: i64 = now - 10; // elapsed = -10s → stage 0, 50s budget
 
     let timeline_stage0 = Arc::new(build_default_incident_timeline(
         catalog.clone(),
@@ -352,7 +356,7 @@ async fn test_BPRL_P4_02_armis_alerts_stage_guard_primary_device() {
 
     assert!(
         primary_alert_stage0.is_none(),
-        "BPRL-P4-02 / BC-2.06.019 PC-4: at stage 0 (Baseline, elapsed ≈ 10s), \
+        "BPRL-P4-02 / BC-2.06.019 PC-4: at stage 0 (Baseline, elapsed = -30s → 90s budget), \
          no alert referencing primary device '{}' must appear at GET /api/v1/alerts; \
          got alert: {:?}. \
          StageMask projection (alerts.rs stage_idx > 0 guard, mirroring devices.rs) \
@@ -803,9 +807,10 @@ async fn test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility() {
 
     let client = prism_dtu_common::build_test_client();
 
-    // ---- Stage 0 server (elapsed ≈ 10s → stage 0 Baseline) ----
+    // ---- Stage 0 server (elapsed = -10s → stage 0 Baseline, 50s budget) ----
+    // S-PERF-GATE-005: clone.stop() <20ms; all DTU sensors use now-10 uniformly.
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0 (Baseline)
+    let start_stage0: i64 = now - 10; // elapsed = -10s → stage 0, 50s budget
     let timeline_stage0 = Arc::new(build_default_incident_timeline(
         catalog.clone(),
         start_stage0,
