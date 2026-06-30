@@ -245,8 +245,9 @@ impl MultiInstanceHarness {
             // Signal via the shared sender — wakes all graceful-shutdown receivers inside axum.
             let _ = shutdown_tx.send(());
             // Call stop() on each successfully-bound clone.
-            // stop() awaits the real axum server JoinHandle (with 5s timeout + hard-abort fallback),
-            // guaranteeing actual server termination and port release before we return the error.
+            // stop() awaits the real axum server JoinHandle (with 250ms timeout + hard-abort fallback,
+            // S-PERF-GATE-005), guaranteeing actual server termination and port release before we
+            // return the error.
             // This replaces the prior pattern of a dummy task + 100ms sleep, which provided
             // no actual guarantee of server termination. (F-P1-MED-002)
             for mut entry in bound {

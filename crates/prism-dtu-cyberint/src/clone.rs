@@ -563,7 +563,11 @@ mod tests {
         // complete in < 500ms (the root cause is the missing internal shutdown channel,
         // not a lingering connection; both idle and post-request paths must be fast).
         let base_url = clone.base_url();
-        let client = reqwest::Client::new();
+        // Use a 5s timeout so a stuck health request doesn't block the test indefinitely.
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .expect("S-PERF-GATE-005: reqwest Client::builder must succeed");
         let _ = client
             .get(format!("{base_url}/dtu/health"))
             .send()

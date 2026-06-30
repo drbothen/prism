@@ -15,7 +15,9 @@
 //! # Shutdown (ADR-002 Amendment §H2)
 //!
 //! Graceful drain via `shutdown_tx` broadcast; hard-abort via `JoinHandle::abort()`
-//! inside `clone.stop()` after a 5-second timeout.
+//! inside `clone.stop()` after a 250ms timeout (S-PERF-GATE-005).
+//! The harness supervisor join at `stop_all()` uses a separate 5s window to
+//! accommodate multiple clones draining sequentially in CI.
 
 use std::{collections::HashMap, net::SocketAddr};
 
