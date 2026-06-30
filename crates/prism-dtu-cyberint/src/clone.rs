@@ -481,3 +481,91 @@ impl BehavioralClone for CyberintClone {
         &self.admin_token
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used)]
+    // S-PERF-GATE-005 test names follow the factory naming convention for perf gate stories.
+    #![allow(non_snake_case)]
+
+    use prism_dtu_common::BehavioralClone;
+
+    use super::CyberintClone;
+
+    /// Red Gate test for S-PERF-GATE-005: stop() must complete in < 500ms for an idle
+    /// clone started via the direct start() path (shutdown=None internal channel).
+    ///
+    /// BEFORE FIX: fails — stop() always hits the 5s select! timeout and hard-aborts,
+    /// taking ~5.0s. The assertion fires because 5000ms >> 500ms.
+    ///
+    /// AFTER FIX: passes — stop() fires the internal shutdown sender, the server task
+    /// completes its graceful-shutdown future immediately (no in-flight requests), the
+    /// select! handle-done arm fires in < 10ms, total < 500ms.
+    #[tokio::test]
+    async fn test_PERF_GATE_005_stop_completes_promptly_for_idle_clone() {
+        let mut clone = CyberintClone::new().expect("CyberintClone::new() must succeed");
+        clone
+            .start()
+            .await
+            .expect("CyberintClone::start() must succeed");
+
+        let t = std::time::Instant::now();
+        clone
+            .stop()
+            .await
+            .expect("CyberintClone::stop() must succeed");
+        let elapsed = t.elapsed();
+
+        assert!(
+            elapsed < std::time::Duration::from_millis(500),
+            "S-PERF-GATE-005: idle clone.stop() must complete in <500ms \
+             (graceful shutdown wired), not hit the ~5s hard-abort timeout; \
+             elapsed {:?}",
+            elapsed
+        );
+    }
+
+    /// Red Gate variant for S-PERF-GATE-005: stop() after one completed request
+    /// must also complete in < 500ms (no lingering connection delays teardown).
+    ///
+    /// BEFORE FIX: fails — stop() always hits the 5s select! timeout and hard-aborts
+    /// regardless of whether a request was made (the root cause is the missing internal
+    /// shutdown channel, not a lingering connection).
+    ///
+    /// AFTER FIX: passes — the connection is idle/closed at teardown; stop() fires
+    /// the internal sender and the server drains in < 10ms.
+    #[tokio::test]
+    async fn test_PERF_GATE_005_stop_completes_promptly_after_one_request() {
+        let mut clone = CyberintClone::new().expect("CyberintClone::new() must succeed");
+        clone
+            .start()
+            .await
+            .expect("CyberintClone::start() must succeed");
+
+        // Make one completed request to the health endpoint (no auth required).
+        // After this request completes the connection is idle — stop() must still
+        // complete in < 500ms (the root cause is the missing internal shutdown channel,
+        // not a lingering connection; both idle and post-request paths must be fast).
+        let base_url = clone.base_url();
+        let client = reqwest::Client::new();
+        let _ = client
+            .get(format!("{base_url}/dtu/health"))
+            .send()
+            .await
+            .expect("S-PERF-GATE-005: health request must succeed before stop");
+
+        let t = std::time::Instant::now();
+        clone
+            .stop()
+            .await
+            .expect("CyberintClone::stop() must succeed");
+        let elapsed = t.elapsed();
+
+        assert!(
+            elapsed < std::time::Duration::from_millis(500),
+            "S-PERF-GATE-005: stop() after one completed request must complete \
+             in <500ms (no lingering connection delays teardown); elapsed {:?}",
+            elapsed
+        );
+    }
+}
