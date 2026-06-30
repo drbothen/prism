@@ -140,8 +140,10 @@ dtu-cap = { max-threads = 4 }
 
 [[profile.prepush.overrides]]
 # S-PERF-GATE-004: cap all prism-dtu-* test binaries to 4 concurrent processes.
-# Placed first so per-binary overrides below remain additive (nextest applies all
-# matching overrides; a test can be in multiple groups simultaneously).
+# Placed first; the per-binary overrides below target prism-bin exclusively (no
+# package overlap with prism-dtu-*), so there is no group conflict.
+# (nextest test-group is a scalar field: when multiple overrides match the same
+# test, the last matching override wins — only one group assignment takes effect.)
 filter = 'package(/^prism-dtu-/)'
 test-group = 'dtu-cap'
 
