@@ -38,13 +38,57 @@ timestamp: 2026-06-29T16:00:00Z
 >
 > **D-1367 (2026-06-26): PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED develop@7e60df03 (CI 43/43; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; security CLEAN). POL-14: 8 BCs draft→active. POL-13: story merged. active_contracts 254. draft_contracts 0. develop_head 903c8fcb→7e60df03. non-exhaustive 84→87. BC-INDEX v7.18. STORY-INDEX v2.481. STATE v7.994→v7.995. NEXT: pre-flight demo re-audit → T13 capstone → T14 recording. PENDING HUMAN: CLAUDE.md stale EXPECTED=83/84 → now EXPECTED=87; local develop ba1108d2 still DIVERGED.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1425** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1425 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `1f491590` (after S-PERF-GATE-002 PR #206 + S-PERF-GATE-003 PR #207 merged 2026-06-29: 9a09653a→4417d691→1f491590). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.053. D-1425.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1433** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1433 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `8bc0404e` (after S-PERF-GATE-004 PR #209 + S-PERF-GATE-005 PR #210 merged 2026-06-30: e3148007→8bc0404e). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.061. D-1433.
 
 ---
 
-## §RESUME SNAPSHOT — D-1425 (2026-06-29 — SESSION WRAP; develop origin/develop 1f491590; BC-INDEX v7.25; STORY-INDEX v2.526; ARCH-INDEX v2.150; STATE v8.053; S-DEMO-FIDELITY-REMEDIATION-001 LOCAL-CONVERGED on 481a0484; PR #208 OPEN; security PASS + pr-reviewer APPROVE done; CI 29 pass/7 in-progress/0 fail) [SUPERSEDES D-1409]
+## §RESUME SNAPSHOT — D-1433 (2026-06-30 -- SESSION WRAP; develop origin/develop 8bc0404e; BC-INDEX v7.26; STORY-INDEX v2.533; ARCH-INDEX v2.150; STATE v8.061; S-DEMO-FIDELITY-REMEDIATION-001 Category-2 LOCAL-ONLY REBASED @59474484; PR #208 OPEN at stale 4a624a08; just check UNCONFIRMED) [SUPERSEDES D-1425]
+
+> **D-1433 burst (2026-06-30).** Session wrap. TEST-SPEED INITIATIVE COMPLETE: S-PERF-GATE-004 (PR #209 @e3148007) + S-PERF-GATE-005 (PR #210 @8bc0404e) MERGED to develop@8bc0404e -- full nextest suite ~hours->86.4s; root cause clone.stop() never wiring graceful shutdown (fixed via prism-dtu-common server helper across 9 clone crates). PR #208 (S-DEMO-FIDELITY-REMEDIATION-001, Category-2 UDF hints added in-scope per human decision) REBASED LOCALLY onto develop@8bc0404e at 59474484 (band-aid removed, Category-2 intact) but NOT PUSHED. Both prior LOCAL 3-CLEAN (was @481a0484, pre-Category-2) and PR-LEVEL cascade (was @4a624a08) VOIDED by Category-2 addition + rebase. All prior D-1101..D-1432 notes SUPERSEDED.
+
+### RESUME IN ONE BREATH
+Test-speed initiative COMPLETE: S-PERF-GATE-004 (#209) + S-PERF-GATE-005 (#210) MERGED to develop@8bc0404e -- full nextest suite ~hours->86s; root cause was clone.stop() never wiring graceful shutdown (fixed). PR #208 (S-DEMO-FIDELITY-REMEDIATION-001, Category-2 UDF hints) is REBASED LOCALLY onto develop@8bc0404e at 59474484 (band-aid removed, Category-2 intact) but NOT PUSHED (local-only) and just check NOT yet confirmed green. VERY NEXT ACTION: cd .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 && just check (confirm green incl. armis bc_2_06_019 scenario tests reliable at now-10) THEN git push --force-with-lease -- then resume #208 adversarial re-convergence (streak 0/3 on the new HEAD).
+
+### HEADS
+- develop: **8bc0404e** -- PUSHED (origin/develop). Includes #209 (nextest dtu-cap=4), #210 (DTU graceful-shutdown wiring + prism-dtu-common/src/server.rs helper), anyhow 1.0.103 (RUSTSEC-2026-0190 closed).
+- factory-artifacts: this wrap commit (prior 807b96e8 = D-1432) -- PUSHED (run `git -C .factory log -1 --format='%h %s'` for current HEAD).
+- Agents in flight at wrap: **none**.
+
+### WORKSTREAM -- S-DEMO-FIDELITY-REMEDIATION-001 (CURRENT; PR #208 OPEN; LOCAL-ONLY REBASE)
+- Branch feature/S-DEMO-FIDELITY-REMEDIATION-001; worktree .worktrees/S-DEMO-FIDELITY-REMEDIATION-001; local HEAD **59474484** (rebased onto 8bc0404e) -- **LOCAL-ONLY, NOT PUSHED**. Origin feature branch + PR #208 still at stale 4a624a08.
+- State at wrap: Category-2 (BC-2.10.012 pql_hints Category-2 UDF discovery hints) implemented IN-SCOPE (human decision this session). Story S-DEMO-FIDELITY-REMEDIATION-001 v2.14; BC-2.10.012 v1.7; acceptance_criteria_count 16; AC-CAT2 added. Local commit 59474484 has: AC-CAT2 Red Gate tests + impl (build_pql_hints 4th param infusion_registry, InfusionUdfDescriptor.input_field + 23-callsite sweep), evidence de-pin, band-aid (`now + 30`) fully removed. EXPECTED=88 non-exhaustive on this branch (Category-2 added EnrichUdfNotFoundDetails; develop=87). Working tree CLEAN, no rebase-in-progress.
+- **3-CLEAN streaks VOIDED:** Prior LOCAL 3-CLEAN (was on 481a0484, pre-Category-2) VOID -- Category-2 code changes applied. Prior PR-LEVEL cascade (was on 4a624a08) VOID -- rebase + Category-2 changes reset streak. Current streak: **0/3** on 59474484 (local-only, unpushed).
+- **just check status on 59474484: UNCONFIRMED** -- the rebase agent was killed mid pre-push verification; `just check` outcome unknown. Must confirm before pushing.
+- **RESUME NEXT-ACTION:** (1) `just check` in .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 -- confirm exits 0 (incl. armis/crowdstrike/cyberint bc_2_06_019 scenario tests reliable at now-10 under #209 cap + #210 shutdown fix). (2) `git -C .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 push --force-with-lease` to update origin feature branch + PR #208. (3) Fresh full adversarial re-convergence on new pushed HEAD; streak 0/3. (4) Demo evidence refresh (AC-CAT2 + de-pin to new converged SHA). (5) PR-LEVEL 3-CLEAN(strict) -> security + pr-reviewer + CI green -> squash-merge (REQUIRES direct user authorization -- pr-manager refuses relayed auth; orchestrator merges via gh after user approval) -> post-merge burst -> next story S-PRISMQL-CASE-INSENSITIVE-001.
+
+### PENDING USER-APPROVED WORK
+- Category-2 in-scope implementation: DONE in 59474484 (pending push + re-convergence confirmation).
+- CR-002 (anyhow >=1.0.103 workspace constraint pin): DEFERRED follow-up -- 14 crates declare anyhow="1" directly; RUSTSEC-2026-0190 already closed in Cargo.lock + cargo-audit gates downgrades; non-urgent dep-hygiene (Task tracker #12).
+
+### DEMO / RELEASE ROADMAP REMAINING
+S-DEMO-FIDELITY-REMEDIATION-001: just check confirm -> push -> LOCAL 3-CLEAN -> demo evidence refresh -> PR-LEVEL 3-CLEAN -> user-merge -> S-PRISMQL-CASE-INSENSITIVE-001 -> DEMO-SCOPE.md + T13 runbook update -> T13 capstone -> T14 recording.
+
+### WORKTREE INVENTORY
+- ACTIVE / removable-post-merge: .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 (59474484 local-only -- push -> converge PR-LEVEL + merge, then remove).
+- STALE / leave-alone: .worktrees/S-3.09 (43c41389 FROZEN), .worktrees/W3-FIX-S307-001 (fcab8717 BLOCKED superseded).
+
+### DECISION-LOG DELTA this session (D-1426..D-1432; record D-1433 = this wrap)
+- D-1426: PR #208 PR-LEVEL cascade passes 1+2; feature HEAD 7b61b196->4a624a08; S-QUERY-GATE-REPARSE-CONSOLIDATION-001 draft stub registered; story v2.13.
+- D-1427: BC-2.10.012 Category-2 spec-evolution in-scope (human decision); story v2.14; BC v1.7; bc_index_version 7.25->7.26; acceptance_criteria_count reconciled 17->16.
+- D-1428: S-PERF-GATE-004 registered (nextest dtu-cap=4).
+- D-1429: S-PERF-GATE-004 PR #209 MERGED develop@e3148007; full nextest ~185min->~4min; RUSTSEC-2026-0190 closed (anyhow 1.0.103).
+- D-1430: S-PERF-GATE-005 registered (DTU clone graceful-shutdown wiring).
+- D-1431: S-PERF-GATE-005 v1.0->v1.1 story-reconcile (AC-007 lint + Evidence + cap-revisit RESOLVED keep cap=4).
+- D-1432: S-PERF-GATE-005 PR #210 MERGED develop@8bc0404e; stop() 5.002s->0.019s; scenario 3-test suite 49s->49ms; TEST-SPEED INITIATIVE COMPLETE.
+- Also this session: rebase-agent for #208 killed mid pre-push verify; #208 rebased locally to 59474484 (local-only, unpushed).
+- D-1433 (this wrap): session wrap -- RESUME SNAPSHOT D-1433 authored (supersedes D-1425); TEST-SPEED INITIATIVE COMPLETE (develop@8bc0404e); PR #208 rebased LOCAL-ONLY @59474484 (just check UNCONFIRMED); streak 0/3; NEXT = just check + push --force-with-lease + re-convergence. STATE v8.060->v8.061.
+
+
+---
+
+## §RESUME SNAPSHOT — D-1425 (2026-06-29 — SESSION WRAP; develop origin/develop 1f491590; BC-INDEX v7.25; STORY-INDEX v2.526; ARCH-INDEX v2.150; STATE v8.053; S-DEMO-FIDELITY-REMEDIATION-001 LOCAL-CONVERGED on 481a0484; PR #208 OPEN; security PASS + pr-reviewer APPROVE done; CI 29 pass/7 in-progress/0 fail) [SUPERSEDES D-1409] [SUPERSEDED by D-1433]
 
 > **D-1425 burst (2026-06-29).** Session wrap. S-DEMO-FIDELITY-REMEDIATION-001 LOCAL 3-CLEAN CONVERGED on 481a0484 (all 4 lenses CLEAN(strict), re-gate round-4, zero findings, story v2.12). Demo evidence committed (docs/demo-evidence/S-DEMO-FIDELITY-REMEDIATION-001/evidence-report.md). Feature branch HEAD pushed to 7b61b196 (= LOCAL-converged code 481a0484 + docs-only demo-evidence commit); pre-push `just check` green on retry — 5077 tests pass, EXPECTED=88 (attempt 1 had a flaky prism-dtu-armis::bc_2_06_019_scenario_progression timing test under concurrency; passed clean on retry — pre-existing, unrelated to this story). PR #208 (feature/S-DEMO-FIDELITY-REMEDIATION-001 → develop) OPEN, HEAD 7b61b196. pr-manager returned final verdicts: **security PASS** (0 CRIT/HIGH/MED; 2 LOW SEC-001/SEC-002 accepted-risk; 5 INFORMATIONAL mitigated); **pr-reviewer APPROVE** (cycle 1, zero blocking, all 10 convention checks pass). CI at session close: 29 pass / 7 in-progress (macOS+Windows matrix + fuzz smoke) / 0 fail; mergeStateStatus=UNSTABLE (in-progress only). S-PERF-GATE-002 (PR #206) and S-PERF-GATE-003 (PR #207) both merged this session (develop 9a09653a→4417d691→1f491590). All prior D-1101..D-1424 notes SUPERSEDED.
 
