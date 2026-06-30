@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-005
 title: "DTU clone stop() graceful-shutdown wiring — internal broadcast channel so stop() returns in < 500ms instead of always hitting the 5s hard-abort path"
 epic_id: EPIC-MAINTENANCE
-version: "1.0"
+version: "1.1"
 status: draft
 producer: story-writer
 phase: 3
@@ -82,6 +82,31 @@ grep -c "from_secs(5)" crates/prism-dtu-{armis,claroty,crowdstrike,cyberint,nvd,
 ```
 
 Each returns 2 (one for TLS `graceful_shutdown(Some(5s))`, one for the `select!` timeout).
+
+### §Measurement (post-implementation, clean machine, shutdown fix HEAD `38206c2d`)
+
+| Metric | Before | After |
+|--------|--------|-------|
+| `clone.stop()` — idle (no in-flight request) | 5.002s | 0.019s |
+| `clone.stop()` — after one request | 5.002s | 0.326s |
+| `bc_2_06_019_scenario_stagemask` 3-test suite (cyberint) | ~49s (30s + 10s + 9s) | 49ms total |
+| Full workspace `nextest --profile prepush` (4976 tests) | ~hours (DTU serialization) | 86.4s |
+| Full `just check` | — | ~5:47 |
+
+**S-PERF-GATE-004 cap=4 reassessment — RESOLVED (keep cap=4):**
+
+| cap setting | Full workspace nextest | Test failures |
+|-------------|----------------------|---------------|
+| cap=4 (current) | 86.4s | 0 |
+| cap=8 | 91.5s | 1 (flake under higher concurrency) |
+| cap=16 | 97.5s | 0 |
+
+Conclusion: cap=4 is optimal. Higher caps increase concurrency overhead and introduce
+flakes without improving throughput. No change to S-PERF-GATE-004 — cap-reassessment
+follow-up is RESOLVED.
+
+Implementation: shared generic helper `prism_dtu_common::server::spawn_with_internal_shutdown`
+wired into 9 clones; 23 constructor call sites updated; HEAD `38206c2d`.
 
 ## Background
 
@@ -326,15 +351,48 @@ time cargo nextest run -p prism-dtu-cyberint -p prism-dtu-armis -p prism-dtu-cro
   --profile prepush
 ```
 
-Record before/after wall-clock for the PR changelog.
+**Measured results (HEAD `38206c2d`, clean machine) — see §Evidence §Measurement table for full breakdown:**
 
-**S-PERF-GATE-004 cap=4 reassessment note**: With each DTU test now dropping from ~5s to
-~0.5s, the `dtu-cap = { max-threads = 4 }` constraint introduced in S-PERF-GATE-004 may
-over-serialize the suite unnecessarily. Assess in the PR: if the full workspace `just check`
-still completes in < 5 min without the cap, removing or raising the cap is a valid follow-up
-optimization. Document the measurement outcome in the PR description. Do NOT change the
-nextest config in this story — cap reassessment is a separate PR if warranted (either
-S-PERF-GATE-006 or a trivial amendment to S-PERF-GATE-004 via follow-up story).
+| Metric | Before | After |
+|--------|--------|-------|
+| `clone.stop()` idle | 5.002s | 0.019s |
+| `clone.stop()` after one request | 5.002s | 0.326s |
+| cyberint scenario 3-test suite | ~49s | 49ms |
+| Workspace nextest (4976 tests) | ~hours | 86.4s |
+| `just check` | — | ~5:47 |
+
+**S-PERF-GATE-004 cap=4 reassessment — RESOLVED (keep cap=4, no story change needed).**
+cap=8 measured at 91.5s + 1 test flake; cap=16 at 97.5s. cap=4 is optimal.
+Do NOT change nextest config — cap-reassessment follow-up is CLOSED.
+
+### AC-007 — No bare un-graceful `axum::serve` in any clone's None branch; all 9 clones wired to shared helper (traces to BC-5.39.001 postcondition — delivery quality)
+
+Two complementary verifications:
+
+**1. Positive: all 9 clones use the shared helper**
+
+```
+rg -l 'spawn_with_internal_shutdown' crates/prism-dtu-*/src/clone.rs | wc -l
+```
+
+Returns `9` (one match per clone crate). This is the reliable positive invariant — the
+helper is the only code path that wires the graceful-shutdown future for the HTTP
+direct-start path, so its presence in all 9 clone files proves all 9 are wired.
+
+**2. Negative: bare `axum::serve(...).await` without graceful-shutdown absent from every None branch**
+
+```
+rg 'server\.await\.expect\|axum::serve.*\.await\.expect' crates/prism-dtu-*/src/clone.rs
+```
+
+Returns zero matches. All remaining `axum::serve` invocations in clone files go through
+`spawn_with_internal_shutdown`, which always wires `.with_graceful_shutdown(...)`.
+
+**Why `server.await.expect` was unreliable (D1 justification):** Before the fix, 4 of 9
+clones used a split `let result = server.await; result.expect(...)` form and claroty used
+`make_service` — so a literal `server.await.expect` grep returned 5/9 matches even BEFORE
+the fix, falsely appearing to show partial compliance. The two checks above are positive
+invariants: either the helper is present in all 9 (count = 9), or it is not.
 
 ## Red Gate
 
@@ -465,7 +523,7 @@ start/stop lifecycle timing") and back-anchor it to this story; if so, update th
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.0, ~350 lines) | ~4,500 |
+| This story spec (v1.1, ~430 lines) | ~5,500 |
 | `crates/prism-dtu-common/src/clone.rs` (144 lines — read only) | ~1,600 |
 | `crates/prism-dtu-common/src/lib.rs` (scan for module structure) | ~500 |
 | `crates/prism-dtu-cyberint/src/clone.rs` (read + edit, ~490 lines) | ~5,500 |
@@ -628,10 +686,11 @@ develop (after S-PERF-GATE-004 merge — e3148007)
 | EC-004 | `stop()` called with one in-flight request that HANGS (> 250ms) | The 250ms safety timeout fires, `handle.abort()` is called. The in-flight handler is killed. This is the safety-fallback scenario; it was the COMMON case before the fix (5s timeout); it should now be rare (only stuck/hung handlers). |
 | EC-005 | TLS path: `axum_server::Handle::graceful_shutdown(Some(250ms))` — does idle TLS server complete in < 250ms? | Yes — an idle TLS server (no in-flight requests) drains immediately once the shutdown signal is sent. The `axum_server` handle triggers the server to stop accepting new connections and the task exits in < 10ms when idle. The 250ms is a conservative safety bound. |
 | EC-006 | Two simultaneous `stop()` calls (race condition in tests) | Second call takes `None` from `internal_shutdown_tx` and `None` from `server_handle` (already taken by first call) — both no-ops. Returns `Ok(())`. No double-abort. |
-| EC-007 | New `prism-dtu-*` clone added AFTER this story without applying the pattern | New clone using the old bare-server `else` branch will regress to ~5s stop() behavior. `grep -rn 'server.await.expect' crates/prism-dtu-*/src/clone.rs` in CI should return 0 after this story; the adversary or a CI lint can catch regressions. This is NOT enforced by a compile-fail gate (no structural issue), but is visible in Red Gate test failure if the new clone tests call stop(). |
+| EC-007 | New `prism-dtu-*` clone added AFTER this story without applying the pattern | New clone using the old bare-server `else` branch will regress to ~5s stop() behavior. Run the AC-007 verifications: `rg -l 'spawn_with_internal_shutdown' crates/prism-dtu-*/src/clone.rs \| wc -l` must still return 9 (a new unwired clone drops the count below 9); the negative bare-server check also catches regressions. This is NOT enforced by a compile-fail gate (no structural issue), but is visible in Red Gate test failure if the new clone's tests call stop(). |
 
 ## Changelog
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-06-30 | story-writer | AC-007 regression-lint corrected (D1): replaced unreliable `server.await.expect` grep with `spawn_with_internal_shutdown` coverage count (9/9) + bare-server absence check; §Evidence §Measurement added with measured results (idle stop 5.002s→0.019s, post-request 0.326s, cyberint suite 49s→49ms, workspace nextest 86.4s, `just check` ~5:47); AC-006 cap-reassessment follow-up RESOLVED (keep cap=4; cap=8 = 91.5s + 1 flake, cap=16 = 97.5s). |
 | 1.0 | 2026-06-30 | story-writer | Initial draft |

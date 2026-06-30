@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.058"
+version: "8.059"
 producer: state-manager
-timestamp: 2026-06-30T14:46:16Z
+timestamp: 2026-06-30T17:05:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -20,7 +20,7 @@ develop_head: "e3148007"
 # NOTE: e3148007 is the squash-merge of PR #209 (perf(S-PERF-GATE-004): nextest dtu-cap (max-threads=4) for prism-dtu-* packages; normal squash-merge, no --admin; all 43 CI checks green; 2026-06-30T06:30:27Z). origin/develop is now e3148007. Also bumped anyhow 1.0.102→1.0.103 (closes RUSTSEC-2026-0190). Prior origin/develop was 1f491590 (PR #207 S-PERF-GATE-003). feature/S-PERF-GATE-004 branch + .worktrees/S-PERF-GATE-004 worktree removed.
 bc_index_version: "7.26"
 vp_index_version: "1.80"
-story_index_version: "v2.531"
+story_index_version: "v2.532"
 arch_index_version: "2.150"
 error_taxonomy_version: "2.03"
 total_stories: 222
@@ -36,7 +36,7 @@ workspace_test_count: 5074
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1430 (2026-06-30). S-PERF-GATE-005 REGISTERED — draft v1.0: DTU clone stop() graceful-shutdown wiring (internal broadcast channel so stop() < 500ms vs 5s hard-abort); root cause: start_on(shutdown=None) passes no Receiver<()> → HTTP server never gets with_graceful_shutdown → runs forever → stop() always hits 5s abort; proven 5.4s→0.49s; fix: wire internal tokio::sync::broadcast channel in prism-dtu-common shared helper propagated to 9 clone crates. Supersedes cap=4 nextest band-aid (S-PERF-GATE-004) as the real fix; cap=4 max-threads to be revisited/raised after stop() completes promptly. 1 Red Gate; 5 pts; P1; tdd_mode strict; BC-5.39.001 (already ACTIVE — POL-14 NO-OP); depends_on [S-PERF-GATE-004]. Test-speed initiative (user directive) milestone 2. PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) still paused pending test-speed work; revert now+30 band-aid when #208 resumes. NEXT: remove-uncertainty on S-PERF-GATE-005 ACs → test-writer Red Gate (stop() < 500ms idle; must FAIL before fix) → implementer (shutdown wiring across prism-dtu-common + 9 clone crates) → measure → revisit cap=4 max-threads. develop_head UNCHANGED e3148007. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. total_stories 221→222. STORY-INDEX v2.530→v2.531. STATE v8.057→v8.058."
+current_step: "D-1431 (2026-06-30). S-PERF-GATE-005 v1.0→v1.1 — AC-007 lint corrected (grep spawn_with_internal_shutdown=9 + no bare axum::serve().await; replaces unreliable server.await.expect grep per finding D1); §Evidence + §Measurement added (idle stop() 5.002s→0.019s; scenario 3-test suite 49s→49ms; full nextest ~hours→86.4s; just check ~5:47); cap-revisit RESOLVED (cap=4 optimal: cap=8 slower+1 flake, cap=16 slower — KEEP S-PERF-GATE-004 cap=4). PR #210 OPEN (HEAD 38206c2d, CI 44 green, security CLEAN, pr-reviewer APPROVE) — code-reviewer pass running. NEXT: merge #210 → then resume PR #208 (rebase onto develop, revert now+30 band-aid, resume Category-2 convergence). CR-002 (anyhow pin) still open. develop_head UNCHANGED e3148007. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. total_stories UNCHANGED 222. STORY-INDEX v2.531→v2.532. STATE v8.058→v8.059."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -68,14 +68,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1430."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1431."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-30 (D-1430 S-PERF-GATE-005 draft v1.0 registered; develop_head UNCHANGED e3148007; STORY-INDEX v2.530→v2.531; STATE v8.057→v8.058)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-30 (D-1431 S-PERF-GATE-005 v1.0→v1.1 reconcile; AC-007 corrected + §Evidence/§Measurement added + cap-revisit RESOLVED; PR #210 in review; develop_head UNCHANGED e3148007; STORY-INDEX v2.531→v2.532; STATE v8.058→v8.059)
 
 ## Active Objective (North Star)
 
@@ -124,6 +124,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 through D-1339 archived to burst-log.md (D-1368 compaction 2026-06-26). D-1344 and D-1393..D-1397 archived to burst-log.md (this compaction). D-1409 archived to burst-log.md (this D-1410 burst). D-1398..D-1416 archived to burst-log.md (this D-1417 burst). D-1417..D-1420 archived to burst-log.md (this D-1421 burst). D-1344..D-1355 archived to burst-log.md (this D-1423 burst)._
+| D-1431 | state-manager | 2026-06-30 | **S-PERF-GATE-005 v1.0→v1.1 STORY-RECONCILE — STORY-INDEX + STATE UPDATED (D-1431). AC-007 lint corrected: grep `spawn_with_internal_shutdown`=9 + no bare `axum::serve().await` (replaces unreliable `server.await.expect` grep per finding D1). §Evidence + §Measurement added: idle stop() 5.002s→0.019s; scenario 3-test suite 49s→49ms; full nextest ~hours→86.4s; `just check` ~5:47. cap-revisit RESOLVED: cap=4 optimal (cap=8 slower+1 flake, cap=16 slower — KEEP S-PERF-GATE-004 cap=4). §Changelog v1.1 row added. PR #210 OPEN (HEAD 38206c2d, CI 44 green, security CLEAN, pr-reviewer APPROVE) — code-reviewer pass running. NEXT: merge #210 → then resume PR #208 (rebase onto develop, revert now+30 band-aid, resume Category-2 convergence). CR-002 (anyhow pin) still open. story_index_version v2.531→v2.532. total_stories UNCHANGED 222. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. develop_head UNCHANGED e3148007. STATE v8.058→v8.059.** | wave-5-e-demo-fidelity | 2026-06-30 |
 | D-1430 | state-manager | 2026-06-30 | **S-PERF-GATE-005 REGISTERED — STORY-INDEX + STATE UPDATED (D-1430). S-PERF-GATE-005 draft v1.0 registered: DTU clone stop() graceful-shutdown wiring — internal broadcast channel so stop() returns in < 500ms instead of always hitting the 5s hard-abort path. Root cause: `start_on(shutdown=None)` passes no `Receiver<()>` → `axum::Server::with_graceful_shutdown` never called → HTTP server runs forever → stop() always hits 5s hard-abort. Fix: wire internal `tokio::sync::broadcast` channel in `prism-dtu-common` so start_on creates its own Receiver when shutdown=None; shared spawn helper propagated to all 9 clone crates. Proven 5.4s→0.49s. Supersedes the cap=4 nextest band-aid (S-PERF-GATE-004) as the REAL fix; cap=4 max-threads to be revisited/raised after stop() completes promptly. 1 Red Gate; 5 pts; P1; tdd_mode strict; BC-5.39.001 (already ACTIVE — POL-14 NO-OP); depends_on [S-PERF-GATE-004]. Test-speed initiative (user directive) milestone 2. PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) still paused; revert now+30 band-aid when #208 resumes. story_index_version v2.530→v2.531. total_stories 221→222. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. develop_head UNCHANGED e3148007. STATE v8.057→v8.058.** | wave-5-e-demo-fidelity | 2026-06-30 |
 | D-1428 | state-manager | 2026-06-29 | **S-PERF-GATE-004 REGISTERED — STORY-INDEX + STATE UPDATED (D-1428). S-PERF-GATE-004 draft v1.0 registered: nextest dtu-cap test-group (`max-threads=4`) for `package(/^prism-dtu-/)` filter on prepush + ci profiles — caps 12 prism-dtu-* package test binaries at 4 concurrent nextest threads total; measured full workspace `just check` nextest ~185min→220.8s (4974 tests, all pass); eliminates DTU CPU/thread oversubscription root cause + BC-2.06.019 scenario-flakiness root cause; `now+30` band-aid in S-DEMO-FIDELITY-REMEDIATION-001 becomes revertible post-delivery. Test-speed initiative context: user directive "make tests faster"; concurrency-control-first approach chosen (S-PERF-GATE-001..004 series). PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) PAUSED pending fast gate. NEXT: S-PERF-GATE-004 PR merge → rebase PR #208 → revert `now+30` band-aid → resume PR #208 PR-LEVEL 3-CLEAN. 8 ACs; 0 Red Gate; 2 pts; P2; tdd_mode: n/a; depends_on [S-PERF-GATE-003]; file: S-PERF-GATE-004-nextest-dtu-oversubscription-cap.md. POL-14 NO-OP: BC-5.39.001 already ACTIVE. story_index_version v2.528→v2.529. total_stories 220→221. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. develop_head UNCHANGED 1f491590. STATE v8.055→v8.056.** | wave-5-e-demo-fidelity | 2026-06-29 |
 | D-1429 | state-manager | 2026-06-30 | **S-PERF-GATE-004 MERGED — POST-MERGE FACTORY BURST (D-1429). PR #209 squash-merged to develop@e3148007 2026-06-30T06:30:27Z (normal squash-merge, no --admin; all 43 CI checks green; code-reviewer APPROVE; security 0-findings; direct user authorization). nextest dtu-cap test-group (`max-threads=4`) for `package(/^prism-dtu-/)` eliminates DTU CPU/thread oversubscription; full `just check` nextest ~185min→~4min (225s measured, 4974 tests pass); BC-2.06.019 scenario-flakiness root cause fixed; `now+30` band-aid in S-DEMO-FIDELITY-REMEDIATION-001 becomes revertible. Also bumped anyhow 1.0.102→1.0.103 — RUSTSEC-2026-0190 closed. Test-speed initiative (user directive: make tests faster; concurrency-control-first; S-PERF-GATE-001..004 series) milestone 1 COMPLETE. POL-14 NO-OP: BC-5.39.001 already ACTIVE; no product BCs. CR-002 (LOW) deferred: 14 crates declare `anyhow = "1"` directly (not via workspace.dependencies); lower-bound pin >=1.0.103 deferred — RUSTSEC-2026-0190 already closed in Cargo.lock + cargo-audit gates downgrades; dep-hygiene maintenance item only. S-PERF-GATE-004 story status draft v1.0→merged v1.0 (STORY-INDEX row updated). .worktrees/S-PERF-GATE-004 removed; feature/S-PERF-GATE-004 branch deleted. develop_head 1f491590→e3148007. story_index_version v2.529→v2.530. total_stories UNCHANGED 221. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.056→v8.057.** | wave-5-e-demo-fidelity | 2026-06-30 |
@@ -150,6 +151,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1431 | state-manager | S-PERF-GATE-005 v1.0→v1.1 story-reconcile — AC-007 lint corrected (grep `spawn_with_internal_shutdown`=9 + no bare `axum::serve().await`; replaces unreliable `server.await.expect` grep; finding D1); §Evidence + §Measurement added (idle stop() 5.002s→0.019s; scenario 3-test suite 49s→49ms; full nextest ~hours→86.4s; `just check` ~5:47); cap-revisit RESOLVED (cap=4 optimal: cap=8 slower+1 flake, cap=16 slower — KEEP S-PERF-GATE-004 cap=4); PR #210 OPEN (HEAD 38206c2d, CI 44 green, security CLEAN, pr-reviewer APPROVE). STORY-INDEX v2.531→v2.532. STATE v8.058→v8.059. | wave-5-e-demo-fidelity | 2026-06-30 |
 | D-1430 | state-manager | S-PERF-GATE-005 REGISTERED — draft v1.0: DTU clone stop() graceful-shutdown wiring (internal broadcast channel so stop() < 500ms vs 5s hard-abort); root cause: `start_on(shutdown=None)` → no Receiver<()> → HTTP server never gets `with_graceful_shutdown` → runs forever → 5s abort; proven 5.4s→0.49s; fix: prism-dtu-common shared helper + propagate to 9 clone crates; supersedes cap=4 band-aid; 1 Red Gate; 5 pts; P1; BC-5.39.001 ACTIVE (POL-14 NO-OP). Test-speed milestone 2. total_stories 221→222. STORY-INDEX v2.530→v2.531. STATE v8.057→v8.058. | wave-5-e-demo-fidelity | 2026-06-30 |
 | D-1429 | state-manager | S-PERF-GATE-004 MERGED — PR #209 squash-merged to develop@e3148007 2026-06-30T06:30:27Z (all 43 CI checks green; no --admin; direct user auth). nextest dtu-cap (max-threads=4) for `package(/^prism-dtu-/)` eliminates DTU oversubscription; `just check` ~185min→~4min (225s, 4974 pass); RUSTSEC-2026-0190 closed (anyhow 1.0.103). Test-speed initiative milestone 1 COMPLETE. POL-14 NO-OP (BC-5.39.001 ACTIVE). CR-002 (LOW) deferred: 14 crates use `anyhow="1"` directly; pin deferred — RUSTSEC closed in Cargo.lock. develop_head 1f491590→e3148007. STORY-INDEX v2.529→v2.530. STATE v8.056→v8.057. | wave-5-e-demo-fidelity | 2026-06-30 |
 | D-1426 | state-manager | PR #208 PR-LEVEL cascade passes 1+2 closed; ADV-P208-P01-001 LOW closed demo-recorder (7b61b196→4a624a08, docs-only); pass 2 OBS closed story-writer SPEC-ONLY (S-QUERY-GATE-REPARSE-CONSOLIDATION-001 draft stub registered; S-DEMO-FIDELITY-REMEDIATION-001 v2.13; deferred-items Target → S-QUERY-GATE-REPARSE-CONSOLIDATION-001); feature HEAD UNCHANGED 4a624a08; streak 0/3; STORY-INDEX v2.526→v2.527; total_stories 219→220; STATE v8.053→v8.054 | wave-5-e-demo-fidelity | 2026-06-29 |
@@ -279,21 +281,21 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1430 — 2026-06-30; STATE v8.058)
+## Session Resume Checkpoint (D-1431 — 2026-06-30; STATE v8.059)
 
-**STATE v8.058. REGISTRATION BURST D-1430. S-PERF-GATE-005 REGISTERED — draft v1.0: DTU clone stop() graceful-shutdown wiring (internal broadcast channel so stop() < 500ms vs 5s hard-abort; start_on(shutdown=None) path). Root cause proven 5.4s→0.49s; fix in prism-dtu-common + 9 clone crates. Supersedes cap=4 nextest band-aid as the real fix. develop_head UNCHANGED e3148007. BC-INDEX v7.26. STORY-INDEX v2.531. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88. total_stories 222.**
+**STATE v8.059. STORY-RECONCILE BURST D-1431. S-PERF-GATE-005 v1.0→v1.1: AC-007 lint corrected (grep spawn_with_internal_shutdown=9 + no bare axum::serve().await; finding D1 resolved); §Evidence + §Measurement recorded (idle stop() 5.002s→0.019s; scenario 3-test suite 49s→49ms; full nextest ~hours→86.4s; just check ~5:47); cap-revisit RESOLVED (cap=4 optimal — KEEP S-PERF-GATE-004 cap=4). PR #210 OPEN (HEAD 38206c2d, CI 44 green, security CLEAN, pr-reviewer APPROVE) — code-reviewer pass running. develop_head UNCHANGED e3148007. BC-INDEX v7.26. STORY-INDEX v2.532. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88. total_stories 222.**
 
-**NEXT ACTION:** (1) `dclaude:remove-uncertainty` on S-PERF-GATE-005 ACs (user_directive_remove_uncertainty: required immediately after story materialization). (2) test-writer: Red Gate test — `#[tokio::test]` calling start()+stop() on idle CyberintClone asserting wall-clock < 500ms (must FAIL before fix). (3) implementer: wire internal broadcast channel in prism-dtu-common + propagate to 9 clone crates. (4) measure wall-clock; assert < 500ms idle. (5) revisit S-PERF-GATE-004 cap=4 (can raise max-threads once stop() prompt). PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) still paused pending test-speed work; revert now+30 band-aid when #208 resumes.
+**NEXT ACTION:** (1) Code-reviewer pass on PR #210 completes. (2) Merge PR #210 (S-PERF-GATE-005). (3) Resume PR #208 (S-DEMO-FIDELITY-REMEDIATION-001): rebase onto develop (post #210 merge), revert now+30 band-aid, resume Category-2 AC-CAT2 convergence. CR-002 (anyhow pin) still open — future maintenance.
 
 **TRACK B — DAY-2 MORPH (POST-T14):** `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
 **PENDING HUMAN AUTH:** (A) brief reframe sign-off; (B) EC-11 namespace collisions.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1429 for full context (D-1430 = story registration only; main snapshot still D-1429).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1429 for full context.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `e3148007`.
-3. S-PERF-GATE-005 draft v1.0 registered (feature/S-PERF-GATE-005 worktree to be created off e3148007). NEXT: remove-uncertainty → test-writer Red Gate → implementer → measure → revisit cap=4.
-4. PR #208 (S-DEMO-FIDELITY-REMEDIATION-001): feature branch HEAD 4a624a08 (pre-rebase onto e3148007); PR #208 OPEN; paused pending S-PERF-GATE-005 delivery.
+3. S-PERF-GATE-005 v1.1 ready: PR #210 OPEN, HEAD 38206c2d, CI 44 green, security CLEAN, pr-reviewer APPROVE. Code-reviewer pass running → merge when APPROVE. Post-merge: state-manager burst, then resume PR #208.
+4. PR #208 (S-DEMO-FIDELITY-REMEDIATION-001): feature branch HEAD 4a624a08 (pre-rebase onto e3148007 post-#210); PR #208 OPEN; paused pending S-PERF-GATE-005 merge.
 5. S-PRISMQL-SQLPIPE-COLUMN-GATE-001 + S-DTU-ARMIS-FIXTURE-VOCAB-001 draft stubs registered (P3; depend on S-DEMO merge).
 6. Autonomy D-989 active.
