@@ -25,6 +25,8 @@ pub mod fixture;
 pub mod generator;
 #[cfg(feature = "fixture-gen")]
 pub mod scenario;
+#[cfg(any(test, feature = "dtu"))]
+pub mod server;
 #[cfg(feature = "fixture-gen")]
 pub use scenario::{
     build_default_incident_timeline, build_scenario_entity_catalog, current_stage_index,

@@ -58,6 +58,12 @@ pub struct PagerDutyClone {
     tls_handle: Option<axum_server::Handle>,
     /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
     admin_token: String,
+    /// Internal broadcast sender for graceful HTTP shutdown (S-PERF-GATE-005).
+    ///
+    /// Set by `start_on` when `shutdown=None` (the direct `start()` path). Fired by
+    /// `stop()` so the server task drains immediately instead of timing out on the
+    /// 5s select! fallback. `None` when the harness-provided or TLS path is used.
+    internal_shutdown_tx: Option<tokio::sync::broadcast::Sender<()>>,
 }
 
 impl PagerDutyClone {
@@ -73,6 +79,7 @@ impl PagerDutyClone {
             #[cfg(feature = "tls")]
             tls_handle: None,
             admin_token,
+            internal_shutdown_tx: None,
         })
     }
 
@@ -155,48 +162,62 @@ impl BehavioralClone for PagerDutyClone {
         self.bound_addr = Some(addr);
         self.tls_active = false;
 
-        let handle = tokio::spawn(async move {
-            let server = axum::serve(listener, router);
-            if let Some(mut rx) = shutdown {
-                let result = server
-                    .with_graceful_shutdown(async move {
-                        let _ = rx.recv().await;
-                    })
-                    .await;
+        if let Some(mut rx) = shutdown {
+            // Harness-provided shutdown: keep the external broadcast receiver path unchanged.
+            let handle = tokio::spawn(async move {
+                let server = axum::serve(listener, router);
+                let serve_future = server.with_graceful_shutdown(async move {
+                    let _ = rx.recv().await;
+                });
                 // SAFETY: server task panic is fatal; surfacing it immediately is correct.
                 #[allow(clippy::expect_used)]
-                result.expect("PagerDuty DTU server error");
-            } else {
-                let result = server.await;
-                // SAFETY: same as above — server task panic must surface immediately.
-                #[allow(clippy::expect_used)]
-                result.expect("PagerDuty DTU server error");
-            }
-        });
-        self.server_handle = Some(handle);
+                serve_future.await.expect("PagerDuty DTU server error");
+            });
+            self.server_handle = Some(handle);
+        } else {
+            // Internal shutdown path (S-PERF-GATE-005): wire a broadcast channel so
+            // stop() can signal the server task directly, completing in < 10ms for idle
+            // clones instead of timing out on the 5s hard-abort fallback.
+            let (handle, tx) = prism_dtu_common::server::spawn_with_internal_shutdown(
+                listener,
+                router,
+                "PagerDuty DTU server error",
+            );
+            self.server_handle = Some(handle);
+            self.internal_shutdown_tx = Some(tx);
+        }
 
         Ok(addr)
     }
 
-    /// Stop the server: graceful drain then hard-abort fallback for both TLS and HTTP.
+    /// Stop the server: signal internal shutdown then await with a short fallback.
+    ///
+    /// # S-PERF-GATE-005 — graceful shutdown wiring
+    ///
+    /// All three paths (HTTP-internal, HTTP-harness, TLS) now resolve promptly:
+    ///
+    /// - **HTTP internal** (`shutdown=None` on start): fires `internal_shutdown_tx`,
+    ///   the server task's `with_graceful_shutdown` future resolves, the select!
+    ///   handle-done arm fires in < 10ms.  Fallback hard-abort at 250ms (safety only).
+    /// - **HTTP harness** (`shutdown=Some(rx)` on start): the harness already sent
+    ///   the broadcast before calling `stop()`; we wait up to 250ms before abort.
+    /// - **TLS path**: fires `axum_server::Handle::graceful_shutdown(250ms)`, then
+    ///   waits up to 250ms before abort.
     async fn stop(&mut self) -> anyhow::Result<()> {
         // TLS path: signal graceful shutdown via the retained axum_server::Handle.
         #[cfg(feature = "tls")]
         if let Some(h) = self.tls_handle.take() {
-            h.graceful_shutdown(Some(std::time::Duration::from_secs(5)));
+            h.graceful_shutdown(Some(std::time::Duration::from_millis(250)));
         }
 
-        // Both paths: attempt graceful drain; hard-abort after 5s.
-        if let Some(mut handle) = self.server_handle.take() {
-            tokio::select! {
-                _ = &mut handle => {
-                    // Server task completed within the drain window — clean shutdown.
-                }
-                _ = tokio::time::sleep(std::time::Duration::from_secs(5)) => {
-                    // Drain window expired — hard-abort the server task.
-                    handle.abort();
-                }
-            }
+        // All paths: fire internal sender (if present) and await with short fallback.
+        if let Some(handle) = self.server_handle.take() {
+            prism_dtu_common::server::graceful_stop(
+                self.internal_shutdown_tx.take(),
+                handle,
+                std::time::Duration::from_millis(250),
+            )
+            .await;
         }
 
         self.tls_active = false;

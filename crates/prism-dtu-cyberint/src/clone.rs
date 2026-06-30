@@ -51,6 +51,12 @@ pub struct CyberintClone {
     tls_handle: Option<axum_server::Handle>,
     /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
     admin_token: String,
+    /// Internal broadcast sender for graceful HTTP shutdown (S-PERF-GATE-005).
+    ///
+    /// Set by `start_on` when `shutdown=None` (the direct `start()` path). Fired by
+    /// `stop()` so the server task drains immediately instead of timing out on the
+    /// 5s select! fallback. `None` when the harness-provided or TLS path is used.
+    internal_shutdown_tx: Option<tokio::sync::broadcast::Sender<()>>,
     /// Organisation this clone instance is bound to (BC-3.2.001).
     ///
     /// S-3.2.04 stub: set to a freshly-minted OrgId on `new()`. The implementation
@@ -96,6 +102,7 @@ impl CyberintClone {
             #[cfg(feature = "tls")]
             tls_handle: None,
             admin_token,
+            internal_shutdown_tx: None,
             org_id,
         })
     }
@@ -128,6 +135,7 @@ impl CyberintClone {
             #[cfg(feature = "tls")]
             tls_handle: None,
             admin_token,
+            internal_shutdown_tx: None,
             org_id,
         })
     }
@@ -219,6 +227,7 @@ impl CyberintClone {
             #[cfg(feature = "tls")]
             tls_handle: None,
             admin_token,
+            internal_shutdown_tx: None,
             org_id: instance_org_id,
         })
     }
@@ -311,6 +320,7 @@ impl CyberintClone {
             #[cfg(feature = "tls")]
             tls_handle: None,
             admin_token,
+            internal_shutdown_tx: None,
             org_id: instance_org_id,
         })
     }
@@ -398,56 +408,62 @@ impl BehavioralClone for CyberintClone {
         self.bound_addr = Some(addr);
         self.tls_active = false;
 
-        let handle = tokio::spawn(async move {
-            let server = axum::serve(listener, router);
-            if let Some(mut rx) = shutdown {
+        if let Some(mut rx) = shutdown {
+            // Harness-provided shutdown: keep the external broadcast receiver path unchanged.
+            let handle = tokio::spawn(async move {
+                let server = axum::serve(listener, router);
                 let serve_future = server.with_graceful_shutdown(async move {
                     let _ = rx.recv().await;
                 });
                 // SAFETY: server task crash must surface immediately as a fatal error.
                 #[allow(clippy::expect_used)]
                 serve_future.await.expect("Cyberint DTU server error");
-            } else {
-                // SAFETY: same as above.
-                #[allow(clippy::expect_used)]
-                server.await.expect("Cyberint DTU server error");
-            }
-        });
-        self.server_handle = Some(handle);
+            });
+            self.server_handle = Some(handle);
+        } else {
+            // Internal shutdown path (S-PERF-GATE-005): wire a broadcast channel so
+            // stop() can signal the server task directly, completing in < 10ms for idle
+            // clones instead of timing out on the 5s hard-abort fallback.
+            let (handle, tx) = prism_dtu_common::server::spawn_with_internal_shutdown(
+                listener,
+                router,
+                "Cyberint DTU server error",
+            );
+            self.server_handle = Some(handle);
+            self.internal_shutdown_tx = Some(tx);
+        }
 
         Ok(addr)
     }
 
-    /// Stop the server: graceful drain then hard-abort fallback for both TLS and HTTP.
+    /// Stop the server: signal internal shutdown then await with a short fallback.
     ///
-    /// # TD-WV1-04-FU-001 — shutdown symmetry
+    /// # S-PERF-GATE-005 — graceful shutdown wiring
     ///
-    /// Both TLS and HTTP paths now use the same graceful-drain-then-abort pattern:
+    /// All three paths (HTTP-internal, HTTP-harness, TLS) now resolve promptly:
     ///
-    /// - **TLS path**: signals `axum_server::Handle::graceful_shutdown(5s)` to begin
-    ///   draining, then awaits the `JoinHandle` up to 5 s before hard-aborting.
-    /// - **HTTP path**: the harness broadcast signal has already been sent before
-    ///   `stop()` is called, so axum's `with_graceful_shutdown` future is already
-    ///   resolving. We await the `JoinHandle` up to 5 s before hard-aborting —
-    ///   matching the TLS drain window instead of the previous immediate abort.
+    /// - **HTTP internal** (`shutdown=None` on start): fires `internal_shutdown_tx`,
+    ///   the server task's `with_graceful_shutdown` future resolves, the select!
+    ///   handle-done arm fires in < 10ms.  Fallback hard-abort at 250ms (safety only).
+    /// - **HTTP harness** (`shutdown=Some(rx)` on start): the harness already sent
+    ///   the broadcast before calling `stop()`; we wait up to 250ms before abort.
+    /// - **TLS path**: fires `axum_server::Handle::graceful_shutdown(250ms)`, then
+    ///   waits up to 250ms before abort.
     async fn stop(&mut self) -> anyhow::Result<()> {
         // TLS path: signal graceful shutdown via the retained axum_server::Handle.
         #[cfg(feature = "tls")]
         if let Some(h) = self.tls_handle.take() {
-            h.graceful_shutdown(Some(std::time::Duration::from_secs(5)));
+            h.graceful_shutdown(Some(std::time::Duration::from_millis(250)));
         }
 
-        // Both paths: attempt graceful drain; hard-abort after 5s.
-        if let Some(mut handle) = self.server_handle.take() {
-            tokio::select! {
-                _ = &mut handle => {
-                    // Server task completed within the drain window — clean shutdown.
-                }
-                _ = tokio::time::sleep(std::time::Duration::from_secs(5)) => {
-                    // Drain window expired — hard-abort the server task.
-                    handle.abort();
-                }
-            }
+        // All paths: fire internal sender (if present) and await with short fallback.
+        if let Some(handle) = self.server_handle.take() {
+            prism_dtu_common::server::graceful_stop(
+                self.internal_shutdown_tx.take(),
+                handle,
+                std::time::Duration::from_millis(250),
+            )
+            .await;
         }
 
         self.tls_active = false;
@@ -479,5 +495,97 @@ impl BehavioralClone for CyberintClone {
 
     fn admin_token(&self) -> &str {
         &self.admin_token
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used)]
+    // S-PERF-GATE-005 test names follow the factory naming convention for perf gate stories.
+    #![allow(non_snake_case)]
+
+    use prism_dtu_common::BehavioralClone;
+
+    use super::CyberintClone;
+
+    /// Red Gate test for S-PERF-GATE-005: stop() must complete in < 500ms for an idle
+    /// clone started via the direct start() path (shutdown=None internal channel).
+    ///
+    /// BEFORE FIX: fails — stop() always hits the 5s select! timeout and hard-aborts,
+    /// taking ~5.0s. The assertion fires because 5000ms >> 500ms.
+    ///
+    /// AFTER FIX: passes — stop() fires the internal shutdown sender, the server task
+    /// completes its graceful-shutdown future immediately (no in-flight requests), the
+    /// select! handle-done arm fires in < 10ms, total < 500ms.
+    #[tokio::test]
+    async fn test_PERF_GATE_005_stop_completes_promptly_for_idle_clone() {
+        let mut clone = CyberintClone::new().expect("CyberintClone::new() must succeed");
+        clone
+            .start()
+            .await
+            .expect("CyberintClone::start() must succeed");
+
+        let t = std::time::Instant::now();
+        clone
+            .stop()
+            .await
+            .expect("CyberintClone::stop() must succeed");
+        let elapsed = t.elapsed();
+
+        assert!(
+            elapsed < std::time::Duration::from_millis(500),
+            "S-PERF-GATE-005: idle clone.stop() must complete in <500ms \
+             (graceful shutdown wired), not hit the ~5s hard-abort timeout; \
+             elapsed {:?}",
+            elapsed
+        );
+    }
+
+    /// Red Gate variant for S-PERF-GATE-005: stop() after one completed request
+    /// must also complete in < 500ms (no lingering connection delays teardown).
+    ///
+    /// BEFORE FIX: fails — stop() always hits the 5s select! timeout and hard-aborts
+    /// regardless of whether a request was made (the root cause is the missing internal
+    /// shutdown channel, not a lingering connection).
+    ///
+    /// AFTER FIX: passes — the connection is idle/closed at teardown; stop() fires
+    /// the internal sender and the server drains in < 10ms.
+    #[tokio::test]
+    async fn test_PERF_GATE_005_stop_completes_promptly_after_one_request() {
+        let mut clone = CyberintClone::new().expect("CyberintClone::new() must succeed");
+        clone
+            .start()
+            .await
+            .expect("CyberintClone::start() must succeed");
+
+        // Make one completed request to the health endpoint (no auth required).
+        // After this request completes the connection is idle — stop() must still
+        // complete in < 500ms (the root cause is the missing internal shutdown channel,
+        // not a lingering connection; both idle and post-request paths must be fast).
+        let base_url = clone.base_url();
+        // Use a 5s timeout so a stuck health request doesn't block the test indefinitely.
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .expect("S-PERF-GATE-005: reqwest Client::builder must succeed");
+        let _ = client
+            .get(format!("{base_url}/dtu/health"))
+            .send()
+            .await
+            .expect("S-PERF-GATE-005: health request must succeed before stop");
+
+        let t = std::time::Instant::now();
+        clone
+            .stop()
+            .await
+            .expect("CyberintClone::stop() must succeed");
+        let elapsed = t.elapsed();
+
+        assert!(
+            elapsed < std::time::Duration::from_millis(500),
+            "S-PERF-GATE-005: stop() after one completed request must complete \
+             in <500ms (no lingering connection delays teardown); elapsed {:?}",
+            elapsed
+        );
     }
 }
