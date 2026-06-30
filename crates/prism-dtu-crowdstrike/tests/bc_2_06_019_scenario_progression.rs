@@ -163,14 +163,12 @@ async fn test_BC_2_06_019_crowdstrike_containment_visible_at_stage4_only() {
         .unwrap_or("");
 
     assert_ne!(
-        containment_stage2,
-        "contained",
+        containment_stage2, "contained",
         "TV-019-011: at stage 2 (elapsed ≈ 200s, LateralMovement), primary device '{}' \
          containment_status must NOT be 'contained' (containment only visible at stage 4); \
-         got '{}'. BC-2.06.019 PC-4 / AC-008 \
-         [RED GATE: StageMask projection not implemented — raw 'contained' record served at stage 2]",
-        primary_id,
-        containment_stage2
+         got '{}'. BC-2.06.019 PC-4 / AC-008. \
+         StageMask projection (hosts.rs containment_status override) must apply at stage 2.",
+        primary_id, containment_stage2
     );
 
     clone_stage2
@@ -286,7 +284,7 @@ async fn test_BC_2_06_019_crowdstrike_containment_visible_at_stage4_only() {
 /// narrative incoherence (a detection references a device that doesn't exist yet).
 ///
 /// HTTP-level load-bearing test (BPRL-P4-02):
-/// - Stage 0 (scenario_start = now + 30s → elapsed clamped to 0s < 60s): detection referencing primary device ABSENT.
+/// - Stage 0 (scenario_start = now - 10s): detection referencing primary device ABSENT.
 /// - Stage 2 (scenario_start = now - 200s): detection referencing primary device PRESENT.
 #[tokio::test]
 async fn test_BPRL_P4_02_detections_stage_guard_primary_device() {
@@ -299,16 +297,13 @@ async fn test_BPRL_P4_02_detections_stage_guard_primary_device() {
     let client = prism_dtu_common::build_test_client();
 
     // -------------------------------------------------------------------------
-    // Stage 0 server (scenario_start = now + 30s → elapsed ≈ -30s clamped to 0s < 60s)
+    // Stage 0 server (scenario_start = now - 10s → elapsed ≈ 10s < 60s)
     // At request time: current_stage_index returns 0 (Baseline).
     // BPRL-P4-02: primary device is NOT visible at stage 0 (hosts.rs stage_idx > 0 guard).
     // Detections referencing the primary device must ALSO be withheld at stage 0.
-    // Timing: placing start 30s in the future gives a 90s execution budget before
-    // stage 1 activates (vs 50s with now-10). current_stage_index clamps negative
-    // elapsed to 0 (EC-019-003), so now+30 safely stays at stage 0.
     // -------------------------------------------------------------------------
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now + 30; // elapsed clamped to 0s → stage 0 (Baseline), 90s budget
+    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0 (Baseline)
 
     let timeline_stage0 = Arc::new(build_default_incident_timeline(
         catalog.clone(),

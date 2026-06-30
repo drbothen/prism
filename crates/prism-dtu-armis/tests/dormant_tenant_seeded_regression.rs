@@ -156,11 +156,8 @@ async fn test_dormant_tenant_seeded_empty_records_not_static_fallback() {
     let catalog = build_scenario_entity_catalog(seed, &org);
     let primary_id = catalog.primary_device_id_armis.clone();
 
-    // Place scenario_start 30s in the future → elapsed clamped to 0s < 60s at request time.
-    // Gives a 90-second execution budget before stage 1 activates (vs 50s with now-10).
-    // current_stage_index clamps negative elapsed to 0 (EC-019-003). BC-2.06.019.
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now + 30; // elapsed clamped to 0s → stage 0 (Baseline), 90s budget
+    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0 (Baseline)
 
     let timeline = Arc::new(build_default_incident_timeline(
         catalog.clone(),
