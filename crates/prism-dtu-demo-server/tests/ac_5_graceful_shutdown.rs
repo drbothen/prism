@@ -33,11 +33,12 @@ async fn ac_5_stop_all_completes_within_graceful_timeout() {
         .await
         .expect("AC-5: start_all must succeed");
 
-    // stop_all() must complete within the 5s graceful drain window (+ test overhead).
-    // We allow 8s total to accommodate slow CI environments.
+    // stop_all() must complete within the 250ms graceful drain window (+ test overhead).
+    // S-PERF-GATE-005: each clone.stop() uses a 250ms fallback; we allow 8s total to
+    // accommodate slow CI environments and multiple clones draining serially.
     timeout(Duration::from_secs(8), harness.stop_all())
         .await
-        .expect("AC-5: stop_all() must complete within 8 seconds (5s graceful + 3s overhead)");
+        .expect("AC-5: stop_all() must complete within 8 seconds (250ms graceful + overhead)");
 }
 
 /// AC-5: After stop_all(), clone endpoints no longer accept connections.
@@ -131,11 +132,19 @@ async fn ac_5_tls_graceful_shutdown_releases_port() {
         "AC-5 TLS: /dtu/health must return 200 while TLS clone is running"
     );
 
-    // 4. Stop the clone — must complete within 10s (5s drain + 5s overhead).
-    timeout(Duration::from_secs(10), clone.stop())
+    // 4. Stop the clone — must complete within 1s (250ms drain + 250ms fallback + test overhead).
+    // S-PERF-GATE-005: the TLS drain timeout is 250ms; assert actual elapsed is also < 1s
+    // so this test distinguishes the old 5s behaviour from the new 250ms drain.
+    let t = std::time::Instant::now();
+    timeout(Duration::from_millis(1000), clone.stop())
         .await
-        .expect("AC-5 TLS: stop() must complete within 10 seconds")
+        .expect("AC-5 TLS: stop() must complete within 1s (250ms drain + 250ms fallback)")
         .expect("AC-5 TLS: stop() must return Ok");
+    assert!(
+        t.elapsed() < Duration::from_millis(1000),
+        "AC-5 TLS: stop() elapsed {:?} must be < 1s (S-PERF-GATE-005 TLS drain 250ms)",
+        t.elapsed()
+    );
 
     // 5. Verify the port is released — a new TcpListener must bind successfully.
     prism_dtu_demo_server::harness::test_utils::assert_port_released(
