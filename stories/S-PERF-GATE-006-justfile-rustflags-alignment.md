@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-006
 title: "Justfile RUSTFLAGS fingerprint alignment — align check, check-fast, and iter clippy/nextest fingerprints with RUSTFLAGS=\"\" so all dev-loop recipes share the test-artifact cache"
 epic_id: EPIC-MAINTENANCE
-version: "2.0"
+version: "2.1"
 status: draft
 producer: story-writer
 phase: 3
@@ -269,7 +269,7 @@ One file modified; three `RUSTFLAGS=""` insertions (required) plus comment-block
 | `Justfile` | Prepend `RUSTFLAGS="" ` to `cargo clippy --all-features -- -D warnings` in the `check` recipe | Aligns clippy fingerprint with nextest/doctest; eliminates the ~157s rebuild |
 | `Justfile` | Prepend `RUSTFLAGS="" ` to `cargo clippy --all-features -- -D warnings` in the `check-fast` recipe | Aligns check-fast clippy fingerprint with check; eliminates cross-recipe clippy divergence |
 | `Justfile` | Prepend `RUSTFLAGS="" ` to `cargo nextest run -p` in the `iter` recipe | Aligns iter nextest fingerprint with check/check-fast nextest; eliminates ~157s rebuild on iter → check transition (primary TDD inner loop per CLAUDE.md) |
-| `Justfile` | Rewrite preceding comment block on the `check` recipe to document the full `RUSTFLAGS=""` convention (all dev-loop recipes now aligned) | Behavioral-anchor rewrite, not cosmetic; records the full convention for future contributors (OBS-006-001 in-scope treatment) |
+| `Justfile` | Rewrite preceding comment block on the `check` recipe to document the intra-`check` `RUSTFLAGS=""` convention and the measured savings (intra-recipe behavioral anchor; cross-recipe alignment documented reciprocally in `check-fast` and `iter` comments) | Behavioral-anchor rewrite, not cosmetic; documents the intra-check fingerprint convention and measured cache savings without enumerating sibling recipes (OBS-006-001 in-scope treatment) |
 | `Justfile` | Add preceding comment block to the `check-fast` recipe documenting that its clippy fingerprint is aligned with `check` | Behavioral-anchor addition, not cosmetic; mirrors the comment-block treatment of `check` (F-006-LOW-001 in-scope) |
 | `Justfile` | Add preceding comment block to the `iter` recipe documenting that its nextest fingerprint is aligned with `check` | Behavioral-anchor addition; documents the fingerprint convention for the primary TDD inner loop (F-006-P-MED-002 in-scope treatment) |
 
@@ -491,14 +491,17 @@ correctly-written test). The change affects build time, not correctness.
      ```
    Three lines are modified (one per recipe). Do NOT modify any other line in the file.
 
-   Update the preceding comment block in `check` to note that ALL dev-loop recipes now
-   carry `RUSTFLAGS=""` (including `iter`), and that `check-fast` and `iter` are aligned
-   (OBS-006-001 — behavioral-anchor rewrite, not cosmetic). Add a preceding comment block
-   to the `check-fast` recipe documenting clippy fingerprint alignment with `check`
-   (F-006-LOW-001 in-scope treatment). Add a preceding comment block to the `iter` recipe
-   documenting nextest fingerprint alignment with `check` (F-006-P-MED-002 in-scope
-   treatment). Three comment changes total: one rewrite on `check`, one addition on
-   `check-fast`, one addition on `iter`.
+   Rewrite the preceding comment block in `check` to document the intra-`check`
+   `RUSTFLAGS=""` convention and the measured savings (intra-recipe behavioral anchor).
+   Do NOT enumerate sibling recipes within `check`'s comment — cross-recipe alignment
+   is documented reciprocally in the sibling recipe comments (OBS-006-001 — behavioral-anchor
+   rewrite, not cosmetic). Add a preceding comment block to the `check-fast` recipe noting
+   that its clippy fingerprint is aligned with `check` (F-006-LOW-001 in-scope treatment).
+   Add a preceding comment block to the `iter` recipe noting that its nextest fingerprint is
+   aligned with `check` (F-006-P-MED-002 in-scope treatment). Three comment changes total:
+   one rewrite on `check`, one addition on `check-fast`, one addition on `iter`; each
+   comment is minimal and measured-only, with cross-recipe alignment noted reciprocally in
+   the sibling comments.
 
 3. **Verify** AC-001 through AC-004, AC-007, and AC-008 grep commands each return their
    expected values. Run each grep before running `just check`.
@@ -525,11 +528,11 @@ correctly-written test). The change affects build time, not correctness.
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v2.0, ~680 lines) | ~8,200 |
+| This story spec (v2.1, ~695 lines) | ~8,400 |
 | `Justfile` (full file, ~220 lines — read + modify) | ~2,000 |
 | AC verification grep outputs (7 commands) | ~350 |
 | `just check` output (two warm runs, abbreviated) | ~2,000 |
-| **Total** | **~12,550** |
+| **Total** | **~12,750** |
 
 Well within the implementer agent's context window. Simpler than S-PERF-GATE-003 (one-word
 or one-line insertion per recipe in one file; no nextest.toml surgery, no shell script changes).
@@ -613,7 +616,7 @@ env-var assignment and is fully supported by `just` (which uses sh for recipe ex
 
 | File | Change type | Details |
 |------|-------------|---------|
-| `Justfile` | Modify | Prepend `RUSTFLAGS="" ` to the `cargo clippy` line in both the `check` and `check-fast` recipes and to the `cargo nextest run -p` line in the `iter` recipe; rewrite the preceding comment block on `check` to document the full `RUSTFLAGS=""` convention across all dev-loop recipes; add a preceding comment block to `check-fast` documenting clippy fingerprint alignment with `check`; add a preceding comment block to `iter` documenting nextest fingerprint alignment with `check` (all comment changes are behavioral-anchor updates per F-006-LOW-001 and F-006-P-MED-002 in-scope treatment) |
+| `Justfile` | Modify | Prepend `RUSTFLAGS="" ` to the `cargo clippy` line in both the `check` and `check-fast` recipes and to the `cargo nextest run -p` line in the `iter` recipe; rewrite the preceding comment block on `check` to document the intra-`check` `RUSTFLAGS=""` convention and measured savings (intra-recipe anchor; cross-recipe alignment documented reciprocally in sibling comments); add a preceding comment block to `check-fast` documenting clippy fingerprint alignment with `check`; add a preceding comment block to `iter` documenting nextest fingerprint alignment with `check` (all comment changes are behavioral-anchor updates per F-006-LOW-001 and F-006-P-MED-002 in-scope treatment; each comment is minimal and measured-only) |
 
 **Files explicitly excluded from this story:**
 
@@ -660,6 +663,7 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 2.1 | 2026-07-01 | story-writer | F-1 (MED) story-to-delivery reconciliation: §Scope table row 4, §Tasks Task 2, and §File Structure Requirements over-described the delivered `check` comment structure — the story mandated that `check`'s comment centralize the cross-recipe convention ("document ALL dev-loop recipes now carry RUSTFLAGS="", including iter"). The delivered comments were deliberately simplified per human directive: `check`'s comment documents only the intra-check `RUSTFLAGS=""` convention and measured savings; `check-fast`'s and `iter`'s comments each note reciprocal alignment with `check` (distributed documentation). Reconciled all three sections to accurately describe the delivered reciprocal/minimal comment structure. No AC change, no behavioral scope change, no RUSTFLAGS prefix changes. Token budget updated to v2.1. |
 | 2.0 | 2026-07-01 | story-writer | F-006-P-MED-002 (iter scope): expanded scope to include the `just iter` recipe's nextest line (`RUSTFLAGS=""` on `cargo nextest run -p`), aligning the project's primary TDD inner loop (per CLAUDE.md) with `check`/`check-fast`. Updated: frontmatter title + version; tdd_mode rationale comment (three recipes); intro paragraph (three effects, all dev-loop transitions); narrative (iter added); §Background saved estimates (two → three effects; Effect 3 added); post-fix fingerprint sequence (now mentions iter); new `### iter is in scope` subsection; §Scope prose + table (iter row added); Task 1 (read iter recipe); Task 2 (three-recipe edit, three comment changes); Task 3 (AC-008 added); AC-008 (new iter nextest grep); Token Budget (v2.0, ~680 lines, ~12,550 tokens); §File Structure Requirements (Justfile row updated). F-006-P-MED-001 (causal-narrative de-inference): removed "second consecutive just check is fast" as a load-bearing trigger for Effect 1. All four occurrences (§Evidence note, §Background pre-fix sequence note, §Background Effect 1, §check-fast scope Effect 1) are now explicitly hedged as "the research profile infers … a plausible cargo-model inference, not a directly measured figure." Value proposition simplified to the measured and unfalsifiable claim: aligning all dev-loop recipes to `RUSTFLAGS=""` keeps nextest's test-artifact cache warm across transitions, eliminating the measured ~157s→~1.25s rebuild. No load-bearing claim now requires an unmeasured cargo-cache model. AC-005 note updated (removes second-consecutive-check framing; cites iter scenario covered by AC-008). |
 | 1.9 | 2026-07-01 | story-writer | MED-1 causal-narrative simplification: removed all "nextest reuses clippy's library artifacts" claims (false — `cargo clippy` without `--all-targets` produces no codegen artifacts that nextest links against) and removed "regardless of whether check-fast ran first" clause (contradicts the measured second-consecutive-check-is-fast behavior in the Evidence section). Rewrote three sections to state only observed/measured behavior: (1) Narrative: replaced artifact-reuse framing with "clippy and nextest steps share the same RUSTFLAGS value — keeping nextest's RUSTFLAGS="" build cache warm"; (2) §Background Effect 1 savings estimate: replaced "nextest cannot reuse clippy's library artifacts" with "clippy-only invocation leaves nextest's RUSTFLAGS="" artifact cache cold"; (3) §check-fast is in scope Effect 1: replaced both false claims with observation-grounded text naming the trigger (clippy-only invocation under ambient RUSTFLAGS leaves nextest's cache cold) and explicitly preserving the second-consecutive-check-is-fast observation already present in the Evidence section. Narrative is now internally consistent with §Evidence. No ACs, Evidence figures, or behavioral scope changed. Token budget updated: v1.9, ~605 lines, ~7,300 tokens; total ~11,600. |
 | 1.8 | 2026-07-01 | story-writer | F-006-LOW-001: spec under-described the delivered diff — `check-fast` comment-block addition was unlisted in §Scope, §Scope table, and §File Structure Requirements. Updated intro paragraph (added check-fast comment-block addition alongside check rewrite); §Scope prose (now names both recipes); §Scope table (two new rows: check comment-block rewrite + check-fast comment-block addition); Task 2 (explicit instruction to add check-fast comment block, mirrors check treatment); §File Structure Requirements (Details now lists both comment changes); frontmatter tdd_mode rationale comment (explicit "rewrite on check, addition on check-fast"). Delivery diff is now fully described: two RUSTFLAGS="" clippy-line prefixes AND two comment-block changes (one rewrite on `check`, one addition on `check-fast`). Token budget updated to v1.8, ~645 lines, ~7,800 tokens; total ~12,100. |

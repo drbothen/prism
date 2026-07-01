@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-007
 title: "nextest cap groups for uncapped WASMtime + HTTP binaries — spec-engine-wasm-cap and spec-engine-http-cap (max-threads=4) to eliminate Cranelift JIT + wiremock oversubscription and close bc_2_11_007_pushdown_test DTU-cap gap (~150-200s savings)"
 epic_id: EPIC-MAINTENANCE
-version: "1.4"
+version: "1.5"
 status: ready
 producer: story-writer
 phase: 3
@@ -121,11 +121,13 @@ for implementation-scope decisions.)
 
 ### PR Evidence Framing Note
 
-The measured performance headline (wall-clock improvement vs baseline, reported as
-approximately 5.4x / 585.84s → 108.4s in the PR evidence bundle) reflects BOTH the
-scheduling caps introduced by this story AND the elimination of timing-out (TMT) tests
-that previously consumed large wall-clock before termination. These two effects compound
-in the measured wall-clock time.
+The measured performance headline is 5.4x / 585.84s → 108.4s. Both endpoints are
+TMT-free: the 585.84s profiling-report baseline (develop@8bc0404e) was GREEN (4976
+passed, 60 skipped, zero timing-out tests); the 108.4s post-cap run is also GREEN.
+The full ~477s delta (585.84s − 108.4s) is therefore a scheduling and
+measurement-condition improvement — NOT a TMT-elimination effect. The 585.84s baseline
+contains no 180s timeout contributions, so the baseline→post-cap delta cannot contain
+a TMT-elimination component; there is nothing to eliminate from the baseline endpoint.
 
 **Measurement provenance (required for PR evidence bundle):**
 
@@ -134,30 +136,38 @@ in the measured wall-clock time.
 this run as GREEN: 4976 passed, 60 skipped, zero timing-out tests. The 585.84s figure does
 NOT include any 180s timeout contributions.
 
-(b) **"28 TMT → 0" comes from a separate, heavier-contention run.** The 28 timing-out
-tests were observed during S-PERF-GATE-007 delivery (the PR #208 resume sequence), in a
-full-workspace `just check` run taken BEFORE the cap fix was applied. Under that
-heavier-contention condition (more concurrent processes competing for the same 16 CPUs),
-the uncapped WASMtime binaries caused 28 tests to hit the 180s nextest hard timeout. The
-PR evidence bundle must record the specific run (timestamp, machine, exact command) where
-the 28-TMT baseline was observed so the headline is substantiated rather than asserted.
+(b) **"28 TMT" comes from a SEPARATE, heavier-contention run — not the 585.84s baseline.**
+The 28 timing-out tests were observed during S-PERF-GATE-007 delivery (the PR #208 resume
+sequence), in a full-workspace `just check` run taken BEFORE the cap fix was applied. Under
+that heavier-contention condition (more concurrent processes competing for the same 16 CPUs),
+the uncapped WASMtime binaries caused 28 tests to hit the 180s nextest hard timeout. That
+run's wall-clock is a SEPARATE measurement from the 585.84s profiling baseline — its value
+does NOT enter the 585.84→108.4 delta arithmetic. Do NOT perform 28×180 arithmetic against
+the (585.84−108.4) delta; these are endpoints from two different runs under two different
+conditions. The PR evidence bundle must record that heavier-contention run's provenance
+(timestamp, machine, exact command) as CONTEXT showing the cap groups prevent TMT
+recurrence under high-contention conditions.
 
 (c) **108.4s post-cap is measured on the same machine after the cap fix.** The before/after
 pair (`time cargo nextest run --workspace --all-features --profile prepush`) must be taken
-on the same machine under comparable load conditions; the PR evidence bundle should note
+on the same machine under comparable load conditions; the PR evidence bundle should record
 both runs side-by-side.
 
-(d) **The 5.4x headline compounds two distinct effects.** The profiling report's REC-1 +
-REC-4 predicted ~190-260s of scheduling savings from the WASMtime/HTTP cap groups. The
-~477s of observed wall-clock improvement (585.84s − 108.4s) substantially exceeds that
-prediction. The gap (~220-290s) is the TMT-elimination contribution: 28 tests × up to
-180s timeout each, partially reclaimed by the cap fix preventing the oversubscription
-that caused them. A future re-baseline that starts from a cap-already-applied state (no
-TMT tests at baseline) would show only the scheduling-improvement component — the
-standalone value of the cap groups for future tuning decisions is the ~190-260s figure,
-not the full 5.4x headline.
+(d) **The ~477s delta exceeds the caps' scheduling model — excess is presently unexplained.**
+The profiling report's REC-1 + REC-4 predicted ~190-260s of scheduling savings from the
+WASMtime/HTTP cap groups. The ~477s measured delta (585.84s − 108.4s) substantially exceeds
+that prediction. The ~220-290s excess is NOT attributable to TMT-elimination (the 585.84s
+baseline had zero TMT tests). Candidate causes: cache and contention differences between
+the 2026-06-30 profiling run and the post-cap verification run (different machine load
+state, warm-cache state, other concurrent processes at measurement time). This excess should
+be noted in the PR evidence bundle as presently unexplained rather than attributed to any
+specific mechanism. For future tuning decisions, the caps' standalone scheduling value is
+the ~190-260s figure (from the model); the full 5.4x / ~477s improvement is the measured
+outcome under the specific conditions of these two runs.
 
-The headline should NOT be cited as a pure-scheduling effect without this provenance context.
+The headline should be cited with full provenance context: both endpoints are TMT-free,
+the ~477s delta is a scheduling/measurement-condition improvement, and the ~220-290s
+excess over the model prediction is presently unexplained.
 
 ## Background
 
@@ -491,12 +501,12 @@ correct tests). The change affects wall-clock and CPU contention, not test corre
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.4, ~695 lines) | ~8,300 |
+| This story spec (v1.5, ~715 lines) | ~8,600 |
 | `.config/nextest.toml` (full file, ~213 lines — read + modify) | ~2,500 |
 | AC verification grep outputs (8 commands × ~2 lines each) | ~400 |
 | `cargo nextest show-config` output (AC-009 resolution check) | ~300 |
 | `cargo nextest run` output (workspace run) | ~1,000 |
-| **Total** | **~12,500** |
+| **Total** | **~12,800** |
 
 Well within the implementer agent's context window. Similar complexity to S-PERF-GATE-004
 (two test-groups + four override stanzas vs one test-group + two override stanzas).
@@ -664,6 +674,7 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.5 | 2026-07-01 | story-writer | F-PG007-MED-001 (framing-note contradiction resolved): §PR Evidence Framing Note simultaneously asserted (a) 585.84s baseline was TMT-free and (d) attributed the (585.84−108.4) delta's ~220-290s excess to "28 tests × up to 180s timeout each" — internally contradictory because a TMT-free baseline endpoint cannot contribute TMT-elimination to the delta. Fixed: intro paragraph now states both endpoints are TMT-free and the full ~477s delta is a scheduling/measurement-condition improvement; (b) explicitly states the 28-TMT heavier-contention run is a SEPARATE measurement whose wall-clock does NOT enter the delta arithmetic, and the 28×180 arithmetic against the 585.84→108.4 delta is removed; (d) reclassifies the ~220-290s excess as presently unexplained (candidate: cache/contention differences between runs) rather than attributed to TMT-elimination; closing note updated to reflect the corrected framing. Token budget updated: v1.5 / ~715 lines / ~12,800 tokens. |
 | 1.4 | 2026-07-01 | story-writer | F-LOW-1 fix: §Tasks 2a comment sample for spec-engine-http-cap — replaced bare underscore token `bc_2_11_007_pushdown_test` with "The bc_2_11_007 pushdown test" (matching delivered nextest.toml) and added explicit AC-005 guard note so implementers do not inadvertently introduce a third grep match that would cause AC-005 to return 3 instead of 2. F-OBS-1 fix: §PR Evidence Framing Note — added four-part measurement provenance: (a) 585.84s baseline is GREEN (no TMT per profiling report); (b) 28-TMT figure comes from separate heavier-contention `just check` run pre-cap during PR #208 delivery; (c) 108.4s post-cap on same machine; (d) 5.4x headline compounds ~190-260s scheduling savings with TMT-elimination contribution; headline must not be cited as pure-scheduling effect without this provenance. Token budget updated: v1.4 / ~695 lines / ~12,500 tokens. |
 | 1.3 | 2026-07-01 | story-writer | F-LOW-1 fix: §Background "Relation to Existing PERF-GATE Cap Groups" table — corrected S-PERF-GATE-004 rationale from "12 DTU HTTP-server + RocksDB binaries" to "12 DTU packages (194 test binaries)" per nextest.toml authoritative comment line 130 ("ALL 12 prism-dtu-* packages (194 test binaries total)"). OBS-1 fix: status draft→ready — behavioral_contracts: [BC-5.39.001] is non-empty (S-7.01 gate satisfied); story is implemented GREEN and in LOCAL adversarial 3-CLEAN cascade; S-PERF-GATE-002 precedent confirms status=ready is maintained through LOCAL cascade; state-manager flips to merged at PR merge per POL-14. Token budget updated: v1.3 / ~665 lines / ~12,300 tokens. |
 | 1.2 | 2026-07-01 | story-writer | OBS-1 fix: §Evidence DTU-cap Gap section — documented REC-4 implementation variant: `bc_2_11_007_pushdown_test` is assigned to the new dedicated `spec-engine-http-cap` pool rather than folded into `dtu-cap` as REC-4's code sample shows; added one-line rationale (preserves `bc_2_11_007` throughput vs ~194 dtu-cap binaries; wasm-cap+http-cap groups remove 11 uncapped heavy binaries simultaneously; zero TMT, GREEN). Added PR Evidence Framing Note: the ~5.4x / ~108.4s headline compounds scheduling-cap savings with TMT-elimination and must not be read as a pure-scheduling effect on re-baseline. Updated token budget to v1.2 / ~660 lines / ~12,100 tokens. |
