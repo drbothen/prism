@@ -3,7 +3,7 @@
 **Story:** S-PERF-GATE-007 — nextest cap groups for uncapped WASMtime + HTTP binaries  
 **Branch:** feature/S-PERF-GATE-007  
 **Config change commit:** 2d11f540de9e3d555aec7e8258b8e56c2033de4b (`.config/nextest.toml`: wasm-cap + http-cap groups)  
-**Current PR HEAD:** 8e611daf (evidence commits on top of the config change)  
+**Current PR HEAD:** cf065761 (evidence commits on top of the config change)  
 **Machine:** 16-core warm dev machine (macOS aarch64)  
 **Baseline SHA:** develop@8bc0404e (post-S-PERF-GATE-005)
 
