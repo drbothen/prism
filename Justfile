@@ -21,10 +21,9 @@ test:
 # so they share the same fingerprint cache. Without alignment, a RUSTFLAGS drift (e.g. a
 # shell export) forces a full recompile between steps (see RUSTFLAGS alignment on ci.yml's
 # nextest and doctest steps in the test job — mold-linker fingerprint-cache rationale).
-# S-PERF-GATE-006: RUSTFLAGS="" aligns the clippy build fingerprint with nextest and
-# doctest (which already use RUSTFLAGS=""), so `just check` following a clippy-only run
-# reuses cached artifacts instead of recompiling test binaries. A second consecutive
-# `just check` is already fast. See story S-PERF-GATE-006 for full rationale.
+# S-PERF-GATE-006: RUSTFLAGS="" aligns clippy's build fingerprint with the nextest/doctest
+# steps (all RUSTFLAGS=""), so dev-loop transitions reuse cached test artifacts instead of
+# recompiling (measured: ~157s rebuild eliminated). See story S-PERF-GATE-006 for rationale.
 check:
     cargo fmt --check
     RUSTFLAGS="" cargo clippy --all-features -- -D warnings
