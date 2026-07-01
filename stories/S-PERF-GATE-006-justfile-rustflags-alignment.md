@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-006
 title: "Justfile RUSTFLAGS fingerprint alignment — align check and check-fast clippy fingerprints with RUSTFLAGS=\"\" to eliminate ~157s test-target rebuild on just check following a clippy-only run"
 epic_id: EPIC-MAINTENANCE
-version: "1.7"
+version: "1.8"
 status: draft
 producer: story-writer
 phase: 3
@@ -14,7 +14,7 @@ tdd_mode: "n/a"
 # tdd_mode rationale: pure config story — no production Rust code added or modified.
 # No function bodies, no Red Gate tests. The only changes are two RUSTFLAGS="" prefixes
 # on the cargo clippy lines in the Justfile check and check-fast recipes, plus comment-block
-# rewrites. Validated by running `just check` twice on a warm build and confirming the
+# rewrites on both recipes (rewrite on check, addition on check-fast). Validated by running `just check` twice on a warm build and confirming the
 # nextest build phase does not force a full test-binary recompile. Mutation testing
 # (facade-mode quality gate) does not apply to Justfile recipes.
 target_module: "n/a — build tooling only (Justfile)"
@@ -34,10 +34,11 @@ estimated_days: "0.1"
 
 # S-PERF-GATE-006: Justfile RUSTFLAGS Fingerprint Alignment
 
-Two clippy-line insertions plus comment-block rewrites: prepend `RUSTFLAGS=""` to the
+Two clippy-line insertions plus comment-block rewrites on both recipes: prepend `RUSTFLAGS=""` to the
 `cargo clippy` lines in both the `check` and `check-fast` recipes (the functional fix),
-and update the preceding comment block in `check` to document the full three-step
-`RUSTFLAGS=""` convention. Two separable effects result: (1) aligning `check`'s clippy to `RUSTFLAGS=""` eliminates
+update the preceding comment block in `check` to document the full three-step
+`RUSTFLAGS=""` convention, and add a preceding comment block to `check-fast` documenting
+that its clippy fingerprint is aligned with `check`. Two separable effects result: (1) aligning `check`'s clippy to `RUSTFLAGS=""` eliminates
 the ~157s nextest rebuild (Evidence table nextest build cost) by resolving the
 clippy(ambient)↔nextest(RUSTFLAGS="") fingerprint mismatch internal to the `check` recipe;
 (2) aligning `check-fast`'s clippy additionally eliminates the ~44s residual clippy re-check
@@ -212,12 +213,14 @@ both residual clippy re-check directions.
 
 ## Scope
 
-One file modified; two clippy-line insertions (required) plus comment-block rewrites in the `check` recipe documenting the full three-step `RUSTFLAGS=""` convention (behavioral-anchor updates, not cosmetic):
+One file modified; two clippy-line insertions (required) plus comment-block rewrites on BOTH the `check` and `check-fast` recipes (behavioral-anchor updates, not cosmetic):
 
 | File | Change | Rationale |
 |------|--------|-----------|
 | `Justfile` | Prepend `RUSTFLAGS="" ` to `cargo clippy --all-features -- -D warnings` in the `check` recipe | Aligns clippy fingerprint with nextest/doctest; eliminates the ~157s rebuild |
 | `Justfile` | Prepend `RUSTFLAGS="" ` to `cargo clippy --all-features -- -D warnings` in the `check-fast` recipe | Aligns check-fast clippy fingerprint with check; eliminates cross-recipe clippy divergence |
+| `Justfile` | Rewrite preceding comment block on the `check` recipe to document the full three-step `RUSTFLAGS=""` convention (all non-fmt steps now aligned) | Behavioral-anchor rewrite, not cosmetic; records the full convention for future contributors (OBS-006-001 in-scope treatment) |
+| `Justfile` | Add preceding comment block to the `check-fast` recipe documenting that its clippy fingerprint is aligned with `check` | Behavioral-anchor addition, not cosmetic; mirrors the comment-block treatment of `check` (F-006-LOW-001 in-scope) |
 
 **NOT in scope:**
 
@@ -410,9 +413,11 @@ correctly-written test). The change affects build time, not correctness.
    modified (one per recipe). Do NOT modify any other line in the file.
 
    Update the preceding comment block in `check` to note that ALL three non-fmt steps
-   now carry `RUSTFLAGS=""`, and that `check-fast` is now aligned as well. This comment
-   update is in scope (OBS-006-001) — it is a behavioral-anchor rewrite, not a cosmetic
-   change.
+   now carry `RUSTFLAGS=""`, and that `check-fast` is now aligned as well (OBS-006-001 —
+   behavioral-anchor rewrite, not cosmetic). Additionally, add a preceding comment block
+   to the `check-fast` recipe documenting that its clippy fingerprint is aligned with
+   `check` (F-006-LOW-001 in-scope treatment — mirrors the comment-block treatment of
+   `check`). Two comment changes total: one rewrite on `check`, one addition on `check-fast`.
 
 3. **Verify** AC-001 through AC-004 and AC-007 grep commands each return their expected
    values. Run each grep before running `just check`.
@@ -439,11 +444,11 @@ correctly-written test). The change affects build time, not correctness.
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.7, ~615 lines) | ~7,400 |
+| This story spec (v1.8, ~645 lines) | ~7,800 |
 | `Justfile` (full file, ~220 lines — read + modify) | ~2,000 |
 | AC verification grep outputs (6 commands) | ~300 |
 | `just check` output (two warm runs, abbreviated) | ~2,000 |
-| **Total** | **~11,700** |
+| **Total** | **~12,100** |
 
 Well within the implementer agent's context window. Simpler than S-PERF-GATE-003 (one word
 insertion per recipe in one file; no nextest.toml surgery, no shell script changes).
@@ -527,7 +532,7 @@ env-var assignment and is fully supported by `just` (which uses sh for recipe ex
 
 | File | Change type | Details |
 |------|-------------|---------|
-| `Justfile` | Modify | Prepend `RUSTFLAGS="" ` to the `cargo clippy` line in the `check` recipe and the `check-fast` recipe |
+| `Justfile` | Modify | Prepend `RUSTFLAGS="" ` to the `cargo clippy` line in both the `check` and `check-fast` recipes; rewrite the preceding comment block on `check` to document the full three-step `RUSTFLAGS=""` convention; add a preceding comment block to `check-fast` documenting fingerprint alignment with `check` (both comment changes are behavioral-anchor updates per F-006-LOW-001 in-scope treatment) |
 
 **Files explicitly excluded from this story:**
 
@@ -574,6 +579,7 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.8 | 2026-07-01 | story-writer | F-006-LOW-001: spec under-described the delivered diff — `check-fast` comment-block addition was unlisted in §Scope, §Scope table, and §File Structure Requirements. Updated intro paragraph (added check-fast comment-block addition alongside check rewrite); §Scope prose (now names both recipes); §Scope table (two new rows: check comment-block rewrite + check-fast comment-block addition); Task 2 (explicit instruction to add check-fast comment block, mirrors check treatment); §File Structure Requirements (Details now lists both comment changes); frontmatter tdd_mode rationale comment (explicit "rewrite on check, addition on check-fast"). Delivery diff is now fully described: two RUSTFLAGS="" clippy-line prefixes AND two comment-block changes (one rewrite on `check`, one addition on `check-fast`). Token budget updated to v1.8, ~645 lines, ~7,800 tokens; total ~12,100. |
 | 1.7 | 2026-07-01 | story-writer | OBS-2 grounding: the ~1.25s nextest build-phase figure was presented without a cited source and numerically coincides with the §2a per-test average in the research profile (conflation risk). Re-framed in all three occurrences (post-fix fingerprint sequence, AC-005, Task 5): labeled as "measured in the implementation verification run" and made explicit that this figure is not yet a persisted artifact — it becomes traceable at merge time when captured in the PR evidence bundle, which AC-005 already requires. Kept the existing disclaimer distinguishing it from the §2a per-test average. No other figures changed: all other numbers (157s, 43.85s, 1.49s, 585.84s, ~8s, ~798s, ~44s) are pinned to the Evidence table in `.factory/research/test-suite-perf-profile-2026-06-30.md` and remain correctly grounded. Token budget updated to v1.7, ~615 lines, ~7,400 tokens; total ~11,700. |
 | 1.6 | 2026-07-01 | story-writer | F-006-P1-MED-002 + grounding discipline sweep: corrected the "fixing only `check` would move the ~157s rebuild from nextest to clippy" claim — `cargo clippy --all-features` (no `--all-targets`) does NOT compile test binaries and cannot incur the ~157s test-binary codegen cost; the Evidence table pins clippy at 43.85s (~44s). Separated the two fix effects with explicit Evidence table traces: (1) aligning `check`'s clippy eliminates the ~157s nextest rebuild by resolving the clippy(ambient)↔nextest(RUSTFLAGS="") fingerprint mismatch internal to the `check` recipe (Evidence table nextest build cost); (2) aligning `check-fast`'s clippy eliminates the ~44s residual clippy re-check in the check-fast → check dev loop (Evidence table clippy cost: 43.85s). Fixed incorrect narrative claim "test binary artifacts compiled by clippy" — clippy without `--all-targets` compiles library/binary targets, not test binaries; changed to "library artifacts compiled by clippy are reusable by nextest." Changed "approximately 150 seconds" (narrative) to trace explicitly to Evidence table (~157s nextest, ~44s clippy). Rewrote intro, narrative, Background savings estimate, and check-fast scope section to keep the two effects clearly separate with Evidence table source citations throughout. Updated Token Budget: v1.6, ~600 lines, ~7,200 tokens; total ~11,500. |
 | 1.5 | 2026-07-01 | story-writer | F-006-MED-001 causal-model reconciliation: corrected the penalty trigger throughout — the ~157s rebuild occurs on `just check` following a clippy-only run (e.g., `just check-fast`, IDE clippy-on-save), NOT on every consecutive warm `just check`. A second consecutive `just check` is already fast before the fix; the research profile §1 note is now the authoritative framing. Updated: frontmatter title, intro paragraph, narrative, evidence table note, Background pre-fix fingerprint sequence (header + added clarifying note), Background post-fix fingerprint sequence (header renamed; added ~1.25s measured figure), savings estimate (removed ~25 min/day inflation; added load-bearing framing for AC-007), check-fast scope section (rewrote to lead with primary check-fast→check penalty; explained why check-fast alignment is load-bearing, not supplementary), Tasks 4-5 (updated verification scenario to check-fast → check). OBS-1: updated AC-001 header to name both `check` and `check-fast` recipes (matching expected count of 2). OBS-2: AC-005 corrected pre-fix scenario (check-fast → check triggers 157s, not second consecutive check); added measured ~1.25s build-phase figure alongside ~5-10s research estimate with non-conflation note. Token Budget updated: v1.5, ~555 lines, ~6,700 tokens; total ~11,000. |

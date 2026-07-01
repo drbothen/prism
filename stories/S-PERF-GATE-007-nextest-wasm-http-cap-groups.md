@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-007
 title: "nextest cap groups for uncapped WASMtime + HTTP binaries — spec-engine-wasm-cap and spec-engine-http-cap (max-threads=4) to eliminate Cranelift JIT + wiremock oversubscription and close bc_2_11_007_pushdown_test DTU-cap gap (~150-200s savings)"
 epic_id: EPIC-MAINTENANCE
-version: "1.0"
+version: "1.1"
 status: draft
 producer: story-writer
 phase: 3
@@ -82,9 +82,11 @@ serializes on global compiler state, causing each `Engine::new()` to wait for ot
 | `prism-spec-engine::pipeline_oauth_retry` | wiremock HTTP | 9.73s | 58.4s | `spec-engine-http-cap` |
 | `prism-bin::infusion_boot_integration` | WASMtime | 9.68s | 48.4s | `spec-engine-wasm-cap` |
 
-**Total WASMtime serial time (8 uncapped WASMtime binaries, incl. `bc_2_16_002_crowdstrike_two_step`):**
-approximately 1022.7s. All run under default nextest concurrency (= 16 on dev machine),
-competing with the dtu-cap=4 DTU binaries and each other.
+**Total WASMtime serial time (8 uncapped WASMtime binaries per report §3b — includes
+`infusion_tests`, which this story intentionally does NOT cap per REC-1; does NOT include
+`bc_2_16_002_crowdstrike_two_step`, which is an HTTP/wiremock binary assigned to
+`spec-engine-http-cap`):** approximately 1022.7s. All run under default nextest concurrency
+(= 16 on dev machine), competing with the dtu-cap=4 DTU binaries and each other.
 
 ### DTU-cap Gap — bc_2_11_007_pushdown_test
 
@@ -305,6 +307,43 @@ of the implementer's work, before committing.
 
 Traces to: BC-5.39.001 postcondition — the config change must not break the pre-push gate.
 
+### AC-009 — Binary-name resolution: all 11 filtered binaries appear in their groups with non-empty test lists (mistyped-filter detection)
+
+```
+cargo nextest show-config test-groups --profile prepush
+```
+
+Expected output (verified on implementation run): the command resolves each test-group's
+filter against the compiled test binary inventory. All 11 capped binaries must appear under
+their assigned group with non-empty test lists:
+
+**`spec-engine-wasm-cap` (7 binaries):**
+- `plugin_integration_tests` (prism-spec-engine)
+- `plugin_tests` (prism-spec-engine)
+- `crowdstrike_oauth2_plugin_tests` (prism-spec-engine)
+- `enrichment_pivot_002_tests` (prism-spec-engine)
+- `spec_driven_mapper_fixtures` (prism-ocsf)
+- `plugin_boot_tests` (prism-bin)
+- `infusion_boot_integration` (prism-bin)
+
+**`spec-engine-http-cap` (4 binaries):**
+- `pipeline_http_integration` (prism-spec-engine)
+- `pipeline_oauth_retry` (prism-spec-engine)
+- `bc_2_11_007_pushdown_test` (prism-spec-engine)
+- `bc_2_16_002_crowdstrike_two_step` (prism-spec-engine)
+
+A binary name that appears in a `filter = 'binary(...)'` expression but does NOT resolve
+in `show-config` output (or resolves to an empty test list) indicates a mistyped binary
+name. nextest silently no-ops a zero-match `binary()` filter, so a mistyped name leaves
+`just check` GREEN and all grep-count ACs (AC-001 through AC-007) passing while the cap
+constraint binds to nothing. This AC detects that class of false-green.
+
+Output of this command must be captured in the PR evidence bundle alongside the wall-clock
+timing improvement.
+
+Traces to: BC-5.39.001 postcondition — delivery quality; the cap groups are only effective
+if their binary-name filters resolve to actual compiled binaries with tests to constrain.
+
 ## Red Gate
 
 Zero Red Gate tests. This story makes no changes to production Rust source code. The only
@@ -391,11 +430,12 @@ correct tests). The change affects wall-clock and CPU contention, not test corre
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.0, ~360 lines) | ~4,300 |
+| This story spec (v1.1, ~405 lines) | ~4,900 |
 | `.config/nextest.toml` (full file, ~213 lines — read + modify) | ~2,500 |
 | AC verification grep outputs (8 commands × ~2 lines each) | ~400 |
+| `cargo nextest show-config` output (AC-009 resolution check) | ~300 |
 | `cargo nextest run` output (workspace run) | ~1,000 |
-| **Total** | **~8,200** |
+| **Total** | **~9,100** |
 
 Well within the implementer agent's context window. Similar complexity to S-PERF-GATE-004
 (two test-groups + four override stanzas vs one test-group + two override stanzas).
@@ -563,4 +603,5 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-07-01 | story-writer | F-1 fix: corrected §Evidence "Total WASMtime serial time" sentence — removed erroneous `bc_2_16_002_crowdstrike_two_step` (HTTP/wiremock binary, not WASMtime), clarified the 1022.7s covers report §3b's 8 WASMtime binaries including `infusion_tests` (intentionally uncapped). OBS-2: added AC-009 binary-name resolution check (`cargo nextest show-config test-groups --profile prepush`) to detect zero-match `binary()` filters that would leave `just check` false-green. |
 | 1.0 | 2026-06-30 | story-writer | Initial draft (T-PERF-PROFILE initiative, D-1435) |
