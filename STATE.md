@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.067"
+version: "8.068"
 producer: state-manager
-timestamp: 2026-07-01T00:01:00Z
+timestamp: 2026-07-01T00:02:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -21,7 +21,7 @@ develop_head: "8bc0404e"
 # NOTE-CORRECTION D-1435: "TEST-SPEED INITIATIVE COMPLETE" + "full nextest ~86.4s" are FALSE IN PRACTICE. Real full-workspace `just check` is ~30+ min: 5 prism-spec-engine WASMtime binaries (plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests) run UNCAPPED in nextest; wasmtime::Engine::new() (LLVM JIT init) costs ~120-143s per binary under full-suite concurrency → ~28 pre-existing TMT failures. S-PERF-GATE-001..005 fixed DTU oversubscription + clone graceful-shutdown only; did NOT touch spec-engine WASMtime binaries. Initiative INCOMPLETE / SUPERSEDED by T-PERF-PROFILE (D-1435).
 bc_index_version: "7.26"
 vp_index_version: "1.80"
-story_index_version: "v2.538"
+story_index_version: "v2.539"
 arch_index_version: "2.150"
 error_taxonomy_version: "2.03"
 total_stories: 224
@@ -37,7 +37,7 @@ workspace_test_count: 5074
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1439 — S-PERF-GATE-006 LOCAL adversary pass-3 fix-burst CLOSED (story v1.2→v1.3; spec-only, feature HEAD UNCHANGED 089b36df; F-006-MED-001 false fingerprint-equivalence claim + F-006-MED-002 POL-32 changelog order + OBS-006-001 scope undercount + 7 consistency-sweep propagation gaps all closed). [process-gap] flag: three consecutive passes surfaced story-prose internal contradictions from prior partial fixes — story-writer should do full-doc consistency sweep on first fix. NEXT: LOCAL adversary pass-4 re-gate on frozen 089b36df + story v1.3. S-PERF-GATE-007 pending after S-PERF-GATE-006 3-CLEAN converges. PR #208 PARKED at 0978983f."
+current_step: "D-1440 — S-PERF-GATE-006 LOCAL adversary pass-4 fix-burst CLOSED (story v1.3→v1.4; spec-only, feature HEAD UNCHANGED 089b36df; LOW-1 TD-VSDD-091 volatile line-pin removed + full story pin scan (1 found+fixed); OBS-1 intro wording aligned with §Scope; OBS-2 EC-004 deferral tail replaced with permanent scope-boundary framing). CLEAN(PR-merge)=yes / CLEAN(strict)=no (1 LOW + 2 OBS). Novelty decayed to LOW (content converged). 3-CLEAN streak 0/3; re-gate pending. NEXT: LOCAL adversary pass-5 re-gate on frozen 089b36df + story v1.4. S-PERF-GATE-007 pending after S-PERF-GATE-006 3-CLEAN converges. PR #208 PARKED at 0978983f."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -76,7 +76,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-01 (D-1439 — S-PERF-GATE-006 LOCAL pass-3 fix-burst; story v1.2→v1.3; spec-only, feature HEAD UNCHANGED 089b36df; STORY-INDEX v2.537→v2.538; STATE v8.066→v8.067)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-01 (D-1440 — S-PERF-GATE-006 LOCAL pass-4 fix-burst; story v1.3→v1.4; spec-only, feature HEAD UNCHANGED 089b36df; STORY-INDEX v2.538→v2.539; STATE v8.067→v8.068)
 
 ## Active Objective (North Star)
 
@@ -126,6 +126,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 through D-1339 archived to burst-log.md (D-1368 compaction 2026-06-26). D-1344 and D-1393..D-1397 archived to burst-log.md (this compaction). D-1409 archived to burst-log.md (this D-1410 burst). D-1398..D-1416 archived to burst-log.md (this D-1417 burst). D-1417..D-1420 archived to burst-log.md (this D-1421 burst). D-1344..D-1355 archived to burst-log.md (this D-1423 burst)._
+| D-1440 | state-manager | 2026-07-01 | **S-PERF-GATE-006 LOCAL ADVERSARY PASS-4 FIX-BURST CLOSED (D-1440). S-PERF-GATE-006 **draft v1.3→v1.4** — LOCAL adversary pass-4 re-gate on 089b36df NOT CLEAN: LOW-1 (TD-VSDD-091 volatile line-pin in Task 1 — replaced with behavioral anchor; full-story line-pin scan, 1 found+fixed). OBS-1 (intro wording disagreed with §Scope — intro reworded to agree with §Scope). OBS-2 (EC-004 deferral tail — replaced with permanent scope-boundary framing). All findings closed. CLEAN(PR-merge)=yes / CLEAN(strict)=no at pass-4 start. Novelty decayed to LOW (content converged). Feature HEAD UNCHANGED 089b36df (spec-only; story-writer changed story file only; no code commit). 3-CLEAN streak 0/3 on 089b36df; LOCAL adversary pass-5 re-gate pending. PR #208 still PARKED. story_index_version v2.538→v2.539. STATE v8.067→v8.068.** | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1439 | state-manager | 2026-07-01 | **S-PERF-GATE-006 LOCAL ADVERSARY PASS-3 FIX-BURST CLOSED (D-1439). S-PERF-GATE-006 **draft v1.2→v1.3** — LOCAL adversary pass-3 re-gate on 089b36df NOT CLEAN: F-006-MED-001 MED (false fingerprint-equivalence claim in §EC-006 canonical-value section — "RUSTFLAGS="" matches CI's effective clippy fingerprint" removed; CI never invokes `just check`/`just check-fast`; reworded to CI-neutrality argument only). F-006-MED-002 MED (POL-32 story §Changelog ascending→descending order violation — reordered to newest-first descending per POL-32). OBS-006-001 OBS (scope statement undercount — two clippy-line insertions PLUS comment-block rewrites, not just two-line fix; Task 2 "Optionally" removed). Full consistency sweep resolved 7 additional propagation gaps: "one-line fix" intro claim corrected (two-line fix + comment blocks); narrative updated; frontmatter title updated to mention both check and check-fast; tdd_mode comment updated; scheduling diagram updated; Token Budget version reference updated to v1.3. Feature HEAD UNCHANGED 089b36df (spec-only; story-writer changed story file only; no code commit). 3-CLEAN streak 0/3 on 089b36df; LOCAL adversary pass-4 re-gate pending. PR #208 still PARKED. [process-gap] THREE CONSECUTIVE PASSES each surfaced story-prose internal contradictions introduced by prior partial fixes; story-writer should do full-document consistency sweep on first fix, not incremental patches — candidate for wave-5-e-demo-fidelity/lessons.md. story_index_version v2.537→v2.538. STATE v8.066→v8.067.** | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1438 | state-manager | 2026-06-30 | **S-PERF-GATE-006 LOCAL ADVERSARY PASS-2 FIX-BURST CLOSED (D-1438). S-PERF-GATE-006 **draft v1.1→v1.2** — LOCAL adversary pass-2 re-gate on f287373d NOT CLEAN: F1 MED (EC-006 internal contradiction — §EC-006 AC text self-contradiction resolved; story spec only). F2 LOW (EC-004 check↔check-ci clippy divergence gap not documented — EC-004 amended to document deliberate all-three-or-none design decision). OBS (volatile-pin TD-VSDD-091 + floating deferral-anchor — Justfile comment behavioral-anchor commit 089b36df; deferral reframed as explicit design decision). All closed. Feature HEAD f287373d→089b36df. 3-CLEAN streak UNCHANGED 0/3 on 089b36df. PR #208 still PARKED. story_index_version v2.536→v2.537. STATE v8.065→v8.066.** | wave-5-e-demo-fidelity | 2026-06-30 |
 | D-1437 | state-manager | 2026-06-30 | **S-PERF-GATE-006 LOCAL ADVERSARY PASS-1 FIX-BURST CLOSED (D-1437). S-PERF-GATE-006 **draft v1.0→v1.1** — LOCAL adversary pass-1 NOT CLEAN: MED-1 (sibling-sweep regression: check-fast clippy lacking RUSTFLAGS="" → cross-recipe fingerprint divergence after `just check`; code commit f287373d on feature/S-PERF-GATE-006 adds RUSTFLAGS="" prefix to check-fast clippy line; story scope expanded; AC-001+AC-004 grep counts 1→2; AC-007 added). MED-2 (false CI-neutral claim: CI `test` job sets RUSTFLAGS=-C link-arg=-fuse-ld=mold on Linux mold linker; story §Background corrected — local Justfile change is CI-independent but CI does not use the same RUSTFLAGS on test job). OBS-2 (research report REC-3 header `~50-80s`→`~150s`; REC-2 header `~120-150s`→`~120-180s`): report reconciled. All findings closed. Feature HEAD 509df061→f287373d. 3-CLEAN streak RESET 0/3 on f287373d. PR #208 still PARKED. story_index_version v2.535→v2.536. STATE v8.064→v8.065.** | wave-5-e-demo-fidelity | 2026-06-30 |
@@ -299,26 +300,26 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1439 -- 2026-07-01; STATE v8.067)
+## Session Resume Checkpoint (D-1440 -- 2026-07-01; STATE v8.068)
 
-**STATE v8.067. D-1439 — S-PERF-GATE-006 LOCAL ADVERSARY PASS-3 FIX-BURST CLOSED. develop_head 8bc0404e. BC-INDEX v7.26. STORY-INDEX v2.538. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88. total_stories 224.**
+**STATE v8.068. D-1440 — S-PERF-GATE-006 LOCAL ADVERSARY PASS-4 FIX-BURST CLOSED. develop_head 8bc0404e. BC-INDEX v7.26. STORY-INDEX v2.539. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88. total_stories 224.**
 
-**T-PERF-PROFILE DELIVERY PLAN:** Full optimization BEFORE PR #208 ships (human decision D-1436). Three-story sequence: S-PERF-GATE-006 (Justfile RUSTFLAGS="" fingerprint alignment; ~150s savings; 7 ACs; 1 pt; **draft v1.3**) → S-PERF-GATE-007 (.config/nextest.toml wasm-cap + http-cap groups; ~150-200s savings; 8 ACs; 2 pts; draft v1.0) → S-PERF-GATE-008 (shared wasmtime Engine — pending architect/research consult; NOT yet authored). Baseline: `just check` ~13.3min warm (report: `.factory/research/test-suite-perf-profile-2026-06-30.md`). Combined projected → ~4.5-6.3min.
+**T-PERF-PROFILE DELIVERY PLAN:** Full optimization BEFORE PR #208 ships (human decision D-1436). Three-story sequence: S-PERF-GATE-006 (Justfile RUSTFLAGS="" fingerprint alignment; ~150s savings; 7 ACs; 1 pt; **draft v1.4**) → S-PERF-GATE-007 (.config/nextest.toml wasm-cap + http-cap groups; ~150-200s savings; 8 ACs; 2 pts; draft v1.0) → S-PERF-GATE-008 (shared wasmtime Engine — pending architect/research consult; NOT yet authored). Baseline: `just check` ~13.3min warm (report: `.factory/research/test-suite-perf-profile-2026-06-30.md`). Combined projected → ~4.5-6.3min.
 
-**S-PERF-GATE-006 STATUS:** LOCAL adversary pass-3 closed (NOT CLEAN — F-006-MED-001 false fingerprint-equivalence claim + F-006-MED-002 POL-32 changelog order + OBS-006-001 scope undercount + 7 consistency-sweep propagation gaps; all closed). Story v1.2→v1.3; feature HEAD UNCHANGED 089b36df (spec-only fix; no new code commit). 3-CLEAN streak 0/3 on 089b36df. NEXT: LOCAL adversary pass-4 re-gate on frozen 089b36df + story v1.3. [process-gap]: three consecutive passes each surfaced story-prose internal contradictions from prior partial fixes — candidate lesson for cycle-closing retrospective.
+**S-PERF-GATE-006 STATUS:** LOCAL adversary pass-4 closed (NOT CLEAN — LOW-1 TD-VSDD-091 volatile line-pin in Task 1 + OBS-1 intro wording + OBS-2 EC-004 scope-boundary framing; all closed). Story v1.3→v1.4; feature HEAD UNCHANGED 089b36df (spec-only fix; no new code commit). CLEAN(PR-merge)=yes / CLEAN(strict)=no at pass-4 start. Novelty decayed to LOW (content converged). 3-CLEAN streak 0/3 on 089b36df. NEXT: LOCAL adversary pass-5 re-gate on frozen 089b36df + story v1.4.
 
 **PR #208 STATUS:** PARKED. Feature branch LOCAL HEAD 0978983f (NOT pushed; origin + PR #208 stale at 4a624a08). Local state: now-10 (band-aid reverted); 4 wall-clock-racy DTU scenario tests QUARANTINED with SID-1 `#[ignore]` (test_BC_2_06_019_armis_primary_device_stage_visibility, test_BPRL_P4_02_armis_alerts_stage_guard_primary_device, test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility, test_BPRL_P4_02_detections_stage_guard_primary_device). Streak 0/3. BLOCKED until S-PERF-GATE-006+007+008 merge.
 
-**PENDING USER-APPROVED WORK:** LOCAL adversary pass-4 on S-PERF-GATE-006 089b36df + story v1.3 → 3-CLEAN → PR → merge → S-PERF-GATE-007 → S-PERF-GATE-008 (gated on architect/research consult). CR-002 (anyhow >=1.0.103 pin in 14 crates) DEFERRED -- non-urgent dep-hygiene.
+**PENDING USER-APPROVED WORK:** LOCAL adversary pass-5 on S-PERF-GATE-006 089b36df + story v1.4 → 3-CLEAN → PR → merge → S-PERF-GATE-007 → S-PERF-GATE-008 (gated on architect/research consult). CR-002 (anyhow >=1.0.103 pin in 14 crates) DEFERRED -- non-urgent dep-hygiene.
 
 **TRACK B -- DAY-2 MORPH (POST-T14):** `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md RESUME SNAPSHOT D-1433 for prior context; D-1435 PIVOT + D-1436 delivery plan + D-1437 pass-1 + D-1438 pass-2 + D-1439 pass-3 fix-bursts recorded in STATE.md Current Phase Steps.
+0. Read SESSION-HANDOFF.md RESUME SNAPSHOT D-1433 for prior context; D-1435 PIVOT + D-1436 delivery plan + D-1437 pass-1 + D-1438 pass-2 + D-1439 pass-3 + D-1440 pass-4 fix-bursts recorded in STATE.md Current Phase Steps.
 1. Run vsdd-factory:factory-worktree-health (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `8bc0404e`.
-3. S-PERF-GATE-006 LOCAL adversary pass-4 pending on frozen 089b36df + story v1.3 (7 ACs; 3-CLEAN streak 0/3).
+3. S-PERF-GATE-006 LOCAL adversary pass-5 pending on frozen 089b36df + story v1.4 (7 ACs; 3-CLEAN streak 0/3).
 4. PR #208 PARKED at LOCAL 0978983f (4 tests quarantined; NOT pushed to origin).
-5. NEXT: LOCAL adversary pass-4 on 089b36df + story v1.3 → 3-CLEAN → PR S-PERF-GATE-006 → merge → deliver S-PERF-GATE-007 → S-PERF-GATE-008 (pending arch/research) → rebase PR #208 + un-quarantine 4 tests → ship PR #208.
+5. NEXT: LOCAL adversary pass-5 on 089b36df + story v1.4 → 3-CLEAN → PR S-PERF-GATE-006 → merge → deliver S-PERF-GATE-007 → S-PERF-GATE-008 (pending arch/research) → rebase PR #208 + un-quarantine 4 tests → ship PR #208.
 6. S-PRISMQL-SQLPIPE-COLUMN-GATE-001 + S-DTU-ARMIS-FIXTURE-VOCAB-001 draft stubs registered (P3; depend on S-DEMO merge).
 7. Autonomy D-989 active.

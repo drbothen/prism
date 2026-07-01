@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-006
 title: "Justfile RUSTFLAGS fingerprint alignment — align check and check-fast clippy fingerprints with RUSTFLAGS=\"\" to eliminate ~157s test-target rebuild on every warm just check"
 epic_id: EPIC-MAINTENANCE
-version: "1.3"
+version: "1.4"
 status: draft
 producer: story-writer
 phase: 3
@@ -34,10 +34,12 @@ estimated_days: "0.1"
 
 # S-PERF-GATE-006: Justfile RUSTFLAGS Fingerprint Alignment
 
-Two-line fix: add `RUSTFLAGS=""` to the `check` and `check-fast` clippy steps so clippy
-and nextest share the same build-fingerprint cache, eliminating the ~157s rebuild on every
-warm `just check` run after clippy, and eliminating cross-recipe clippy recompilation when
-alternating between `just check` and `just check-fast`
+Two clippy-line insertions plus comment-block rewrites: prepend `RUSTFLAGS=""` to the
+`cargo clippy` lines in both the `check` and `check-fast` recipes (the functional fix),
+and update the preceding comment block in `check` to document the full three-step
+`RUSTFLAGS=""` convention. Together these eliminate the ~157s rebuild on every warm
+`just check` run after clippy, and eliminate cross-recipe clippy recompilation when
+alternating between `just check` and `just check-fast`.
 
 ## Narrative
 
@@ -326,9 +328,9 @@ correctly-written test). The change affects build time, not correctness.
 
 ## Tasks
 
-1. **Read** `Justfile` lines 14-29 (the `check` recipe and its preceding comment block) to
-   confirm the current `cargo clippy` line has no `RUSTFLAGS=""` prefix and that the
-   existing nextest/doctest lines already carry `RUSTFLAGS=""`.
+1. **Read** the `check` recipe and its preceding comment block in `Justfile` to confirm
+   the current `cargo clippy` line has no `RUSTFLAGS=""` prefix and that the existing
+   nextest/doctest lines already carry `RUSTFLAGS=""`.
 
 2. **Edit** `Justfile`: in BOTH the `check` recipe AND the `check-fast` recipe, change
    each occurrence of:
@@ -367,11 +369,11 @@ correctly-written test). The change affects build time, not correctness.
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.3, ~355 lines) | ~4,200 |
+| This story spec (v1.4, ~515 lines) | ~6,200 |
 | `Justfile` (full file, ~220 lines — read + modify) | ~2,000 |
 | AC verification grep outputs (6 commands) | ~300 |
 | `just check` output (two warm runs, abbreviated) | ~2,000 |
-| **Total** | **~7,600** |
+| **Total** | **~10,500** |
 
 Well within the implementer agent's context window. Simpler than S-PERF-GATE-003 (one word
 insertion in one file; no nextest.toml surgery, no shell script changes).
@@ -494,7 +496,7 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 | EC-001 | Developer has `RUSTFLAGS` set in their shell environment (e.g., `export RUSTFLAGS="-C instrument-coverage"`) | `RUSTFLAGS="" cargo clippy` explicitly overrides the ambient RUSTFLAGS with the empty string. The developer's shell RUSTFLAGS is ignored for this one clippy invocation — matching the existing behavior of the nextest and doctest steps. This is the intended behavior per the Justfile comment. |
 | EC-002 | First `just check` run after the fix shows a full rebuild (~157s nextest build phase) | This is expected on the FIRST run after the change because the cache needs to be rebuilt under the new (aligned) fingerprint. All subsequent runs with no code changes will be fast (< 30s build phase). This is documented in the Tasks (Task 4 warms the cache). |
 | EC-003 | `RUSTFLAGS=""` breaks a clippy lint that previously relied on an ambient RUSTFLAGS value | No currently-passing clippy lint in the workspace depends on RUSTFLAGS. `-D warnings` is in the cargo argument vector, not RUSTFLAGS. AC-006 (`just check` exit 0) is the safety net. If AC-006 fails, inspect `RUSTFLAGS="" cargo clippy --all-features -- -D warnings 2>&1` output directly. |
-| EC-004 | Cross-recipe fingerprint drift: developer runs `just check` (RUSTFLAGS="" on all non-fmt steps) then `just check-ci` (default RUSTFLAGS on all steps) | `check-ci` uses default RUSTFLAGS for ALL steps — clippy, nextest, and doctest — making it internally consistent. This story introduces a NEW `check` ↔ `check-ci` CLIPPY fingerprint divergence (in addition to the pre-existing nextest divergence): `check` clippy now runs under `RUSTFLAGS=""` while `check-ci` clippy still uses ambient RUSTFLAGS. Before this story, only nextest caused cross-recipe cache misses when switching between `check` and `check-ci`; after this story, both clippy AND nextest produce cache misses. The net effect is marginal — `check` ↔ `check-ci` already forced a full nextest/doctest rebuild pre-story, so the added clippy recompile is a small increment to an already-full rebuild, not a new category of waste. **Deliberate design decision (all-three-or-none):** `check-ci` is intentionally left on ambient RUSTFLAGS for all steps. Aligning only `check-ci`'s clippy to `RUSTFLAGS=""` while leaving nextest and doctest on ambient would CREATE a new check-ci-internal fingerprint mismatch — the same class of problem this story fixes in `check`. `check-ci` must align ALL three non-fmt steps simultaneously or none. That full alignment is deferred until CI caching semantics justify it. |
+| EC-004 | Cross-recipe fingerprint drift: developer runs `just check` (RUSTFLAGS="" on all non-fmt steps) then `just check-ci` (default RUSTFLAGS on all steps) | `check-ci` uses default RUSTFLAGS for ALL steps — clippy, nextest, and doctest — making it internally consistent. This story introduces a NEW `check` ↔ `check-ci` CLIPPY fingerprint divergence (in addition to the pre-existing nextest divergence): `check` clippy now runs under `RUSTFLAGS=""` while `check-ci` clippy still uses ambient RUSTFLAGS. Before this story, only nextest caused cross-recipe cache misses when switching between `check` and `check-ci`; after this story, both clippy AND nextest produce cache misses. The net effect is marginal — `check` ↔ `check-ci` already forced a full nextest/doctest rebuild pre-story, so the added clippy recompile is a small increment to an already-full rebuild, not a new category of waste. **Deliberate design decision (all-three-or-none):** `check-ci` is intentionally left on ambient RUSTFLAGS for all steps. Aligning only `check-ci`'s clippy to `RUSTFLAGS=""` while leaving nextest and doctest on ambient would CREATE a new check-ci-internal fingerprint mismatch — the same class of problem this story fixes in `check`. `check-ci` must align ALL three non-fmt steps simultaneously or none. That full three-step alignment of `check-ci` is intentionally out of this story's scope — it is a permanent scope boundary, not a deferred fix. |
 | EC-005 | New step added to `check` recipe after this fix that compiles Rust code without `RUSTFLAGS=""` | The new step would create a fingerprint mismatch if it compiles under a different RUSTFLAGS. This is a process discipline issue for future stories. The Justfile comment explains the convention; implementers of future `check` steps must add `RUSTFLAGS=""` to maintain consistency. |
 | EC-006 | Ambient RUSTFLAGS vs explicit `RUSTFLAGS=""` — fingerprint distinctness | In this workspace's `just check` context, the clippy step's ambient RUSTFLAGS and an explicit `RUSTFLAGS=""` produce DISTINCT cargo build fingerprints — empirically verified: aligning the clippy step to `RUSTFLAGS=""` eliminated the ~157s test-target rebuild entirely. Cargo incorporates the RUSTFLAGS value into its build fingerprint; therefore all non-CI clippy steps must use the same explicit `RUSTFLAGS=""` value to share the artifact cache with the nextest and doctest steps (which already carry `RUSTFLAGS=""`). The explicit `RUSTFLAGS=""` form also makes the fingerprint environment-independent and deterministic: a developer with an ambient RUSTFLAGS export (e.g., `export RUSTFLAGS="-C instrument-coverage"`) sees a different fingerprint than a developer with no RUSTFLAGS set, causing non-reproducible cache behavior across workstations. The observed rebuild-elimination is the authoritative evidence: the two states demonstrably produced different fingerprints in this workspace. Do NOT assume "empty string and unset produce identical fingerprints" — that reasoning is unprovable for all cargo versions and contradicts the measured evidence this story rests on. |
 
@@ -502,6 +504,7 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-07-01 | story-writer | LOW-1 (TD-VSDD-091): replaced volatile line pin "lines 14-29" in Task 1 with behavioral anchor "the `check` recipe and its preceding comment block". OBS-1: reworded intro from "Two-line fix:" to "Two clippy-line insertions plus comment-block rewrites:" to agree exactly with §Scope (acknowledges comment-block rewrites are part of the delivered change while noting the functional fix is the two clippy-line prefixes). OBS-2: removed deferral language from EC-004 ("deferred until CI caching semantics justify it") — reworded to permanent scope-boundary framing per the all-three-or-none design decision (out of this story's scope, not a deferred fix). Token Budget updated: v1.4, ~515 lines, ~6,200 tokens; total ~10,500. |
 | 1.3 | 2026-07-01 | story-writer | F-006-MED-001: removed false fingerprint-equivalence claim ("RUSTFLAGS="" matches CI's effective clippy fingerprint") from canonical-value section — CI clippy fingerprint is DISTINCT from RUSTFLAGS="" per EC-006, but CI never invokes `just check`/`just check-fast` so it is irrelevant; reworded to lead with CI-neutrality argument only. F-006-MED-002: changelog reordered DESCENDING per POL-32 (newest first). OBS-006-001: scope statement corrected — now documents two clippy-line insertions PLUS comment-block rewrites; Task 2 "Optionally" removed (comment-block update is in scope). Consistency sweep: fixed "one-line fix" intro claim (two-line fix + comment blocks); updated narrative and frontmatter title to mention both check and check-fast; updated Token Budget version reference to v1.3. |
 | 1.2 | 2026-06-30 | story-writer | LOCAL re-gate F1 [MED] EC-006 rewritten: old text claimed RUSTFLAGS="" and ambient produce the same cargo fingerprint — directly contradicts root-cause and measured evidence; new text anchors the claim in the observed rebuild-elimination (empirically verified: two states produced DISTINCT fingerprints). F2 [LOW] EC-004 amended: documents new check↔check-ci CLIPPY fingerprint divergence this story introduces; net effect is marginal (already forced full rebuild pre-story); floating "follow-up may" reframed as documented deliberate design decision (all-three-or-none rule; check-ci alignment deferred until CI caching semantics justify full three-step alignment simultaneously). |
 | 1.1 | 2026-06-30 | story-writer | MED-2: corrected false CI-neutral claim — CI clippy job sets no RUSTFLAGS (verified in ci.yml), CI does not invoke just check or just check-fast, but CI test nextest/doctest steps DO set RUSTFLAGS=-C link-arg=-fuse-ld=mold on Linux (mold linker); MED-1: expanded scope to include check-fast clippy alignment (cross-recipe divergence), added AC-007 (check-fast recipe grep), updated AC-001 and AC-004 expected counts from 1 to 2, updated Scope table, Task 2, File Structure Requirements |
