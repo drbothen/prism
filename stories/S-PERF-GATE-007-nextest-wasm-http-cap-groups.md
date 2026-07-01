@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-007
 title: "nextest cap groups for uncapped WASMtime + HTTP binaries — spec-engine-wasm-cap and spec-engine-http-cap (max-threads=4) to eliminate Cranelift JIT + wiremock oversubscription and close bc_2_11_007_pushdown_test DTU-cap gap (~150-200s from WASMtime/HTTP caps + ~40-60s from bc_2_11_007 gap closure, ~190-260s combined scheduling savings)"
 epic_id: EPIC-MAINTENANCE
-version: "1.6"
+version: "1.7"
 status: ready
 producer: story-writer
 phase: 3
@@ -121,13 +121,29 @@ for implementation-scope decisions.)
 
 ### PR Evidence Framing Note
 
-The measured performance headline is 5.4x / 585.84s → 108.4s. Both endpoints are
-TMT-free: the 585.84s profiling-report baseline (develop@8bc0404e) was GREEN (4976
-passed, 60 skipped, zero timing-out tests); the 108.4s post-cap run is also GREEN.
-The full ~477s delta (585.84s − 108.4s) is therefore a scheduling and
-measurement-condition improvement — NOT a TMT-elimination effect. The 585.84s baseline
-contains no 180s timeout contributions, so the baseline→post-cap delta cannot contain
-a TMT-elimination component; there is nothing to eliminate from the baseline endpoint.
+**Robust, reproducible outcomes — lead these in the PR description:**
+
+- TMT failures: 28 → 0 (eliminated). Under high-contention workspace runs before the
+  caps were applied, 28 tests hit the 180s nextest hard timeout. With the caps applied,
+  the same workspace runs complete with zero TMT failures.
+- `just check` completion: was timing out / severely oversubscribed under contention;
+  now completes in approximately 2-7 minutes warm.
+- Modeled attributable scheduling savings from the caps: approximately 190-260s
+  (~1.5-1.8x on nextest execution), per profiling-report REC-1 + REC-4 predictions for
+  WASMtime Cranelift JIT contention reduction and DTU-cap gap closure.
+
+**Observed run-to-run comparison (upper-observed-bound — NOT the causal headline):**
+
+The 585.84s → 108.4s / 5.4x figure was measured across two runs under UNCONTROLLED
+conditions (different cache/load state between the 2026-06-30 profiling run and the
+post-cap verification run). It is NOT fully attributable to the caps; ~220-290s of the
+~477s delta exceeds the model prediction and is presently unexplained. Both endpoints
+are TMT-free: the 585.84s profiling-report baseline (develop@8bc0404e) was GREEN (4976
+passed, 60 skipped, zero timing-out tests); the 108.4s post-cap run is also GREEN. The
+full ~477s delta (585.84s − 108.4s) is a scheduling and measurement-condition
+improvement — NOT a TMT-elimination effect. Present the 5.4x figure in the PR evidence
+bundle as a measured upper bound under specific run conditions, not as the attributable
+effect of the cap groups alone.
 
 **Measurement provenance (required for PR evidence bundle):**
 
@@ -162,12 +178,13 @@ the 2026-06-30 profiling run and the post-cap verification run (different machin
 state, warm-cache state, other concurrent processes at measurement time). This excess should
 be noted in the PR evidence bundle as presently unexplained rather than attributed to any
 specific mechanism. For future tuning decisions, the caps' standalone scheduling value is
-the ~190-260s figure (from the model); the full 5.4x / ~477s improvement is the measured
-outcome under the specific conditions of these two runs.
+the ~190-260s figure (from the model); the observed 5.4x / ~477s is the measured upper
+bound under the specific conditions of these two runs — not the attributable effect.
 
-The headline should be cited with full provenance context: both endpoints are TMT-free,
-the ~477s delta is a scheduling/measurement-condition improvement, and the ~220-290s
-excess over the model prediction is presently unexplained.
+The PR evidence bundle must record all three frames: (1) the robust outcomes (TMT 28→0,
+`just check` ~2-7 min warm, ~190-260s modeled savings), (2) the observed 5.4x measurement
+with full provenance as an upper bound under uncontrolled conditions, and (3) the
+~220-290s unexplained delta explicitly flagged as presently unattributed.
 
 ## Background
 
@@ -372,15 +389,18 @@ of the implementer's work, before committing.
 
 Traces to: BC-5.39.001 postcondition — the config change must not break the pre-push gate.
 
-### AC-009 — Binary-name resolution: all 11 filtered binaries appear in their groups with non-empty test lists (mistyped-filter detection)
+### AC-009 — Binary-name resolution: all 11 filtered binaries appear in their groups with non-empty test lists in BOTH prepush and ci profiles (mistyped-filter detection)
+
+Both profiles must be checked independently:
 
 ```
 cargo nextest show-config test-groups --profile prepush
+cargo nextest show-config test-groups --profile ci
 ```
 
-Expected output (verified on implementation run): the command resolves each test-group's
-filter against the compiled test binary inventory. All 11 capped binaries must appear under
-their assigned group with non-empty test lists:
+Expected output for EACH profile (verified on implementation run): each command resolves
+the test-group filters against the compiled test binary inventory. All 11 capped binaries
+must appear under their assigned group with non-empty test lists in BOTH profiles:
 
 **`spec-engine-wasm-cap` (7 binaries):**
 - `plugin_integration_tests` (prism-spec-engine)
@@ -401,13 +421,17 @@ A binary name that appears in a `filter = 'binary(...)'` expression but does NOT
 in `show-config` output (or resolves to an empty test list) indicates a mistyped binary
 name. nextest silently no-ops a zero-match `binary()` filter, so a mistyped name leaves
 `just check` GREEN and all grep-count ACs (AC-001 through AC-007) passing while the cap
-constraint binds to nothing. This AC detects that class of false-green.
+constraint binds to nothing. **Checking only the prepush profile is insufficient: a
+ci-only mistyped binary name would produce a false-green on the prepush check while
+leaving the CI profile unprotected.** This AC requires both profiles to resolve all 11
+binaries with non-empty test lists.
 
-Output of this command must be captured in the PR evidence bundle alongside the wall-clock
-timing improvement.
+Output of BOTH commands must be captured in the PR evidence bundle alongside the
+wall-clock timing improvement.
 
 Traces to: BC-5.39.001 postcondition — delivery quality; the cap groups are only effective
-if their binary-name filters resolve to actual compiled binaries with tests to constrain.
+if their binary-name filters resolve to actual compiled binaries with tests to constrain
+in BOTH profiles.
 
 ## Red Gate
 
@@ -501,12 +525,12 @@ correct tests). The change affects wall-clock and CPU contention, not test corre
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.6, ~720 lines) | ~8,700 |
+| This story spec (v1.7, ~745 lines) | ~8,950 |
 | `.config/nextest.toml` (full file, ~213 lines — read + modify) | ~2,500 |
 | AC verification grep outputs (8 commands × ~2 lines each) | ~400 |
-| `cargo nextest show-config` output (AC-009 resolution check) | ~300 |
+| `cargo nextest show-config` output (AC-009 — 2 profiles × ~150 tokens) | ~300 |
 | `cargo nextest run` output (workspace run) | ~1,000 |
-| **Total** | **~12,900** |
+| **Total** | **~13,200** |
 
 Well within the implementer agent's context window. Similar complexity to S-PERF-GATE-004
 (two test-groups + four override stanzas vs one test-group + two override stanzas).
@@ -674,6 +698,7 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.7 | 2026-07-01 | story-writer | MED-001 + MED-002 PR-LEVEL adversary findings. MED-001 (5.4x overclaim): §PR Evidence Framing Note restructured to lead with robust reproducible outcomes — TMT failures 28→0, `just check` ~2-7 min warm, modeled ~190-260s / ~1.5-1.8x attributable savings — and to present the 585.84s→108.4s / 5.4x figure explicitly as an upper-observed-bound measured across two runs under uncontrolled conditions, not the causal headline. The closing "The headline should be cited..." sentence replaced with three-frame evidence bundle instruction. (d) closing sentence updated from "full 5.4x / ~477s improvement is the measured outcome" to "observed 5.4x / ~477s is the measured upper bound." MED-002 (AC-009 ci-profile gap): AC-009 title and body extended to require BOTH `cargo nextest show-config test-groups --profile prepush` AND `--profile ci`; added explicit rationale that prepush-only check fails to catch a ci-only mistyped binary name. Token budget updated: v1.7 / ~745 lines / ~13,200 tokens. |
 | 1.6 | 2026-07-01 | story-writer | F-PG007-LOW-001 fix: frontmatter title cited "~150-200s savings" — understating this story's own combined estimate by omitting the ~40-60s bc_2_11_007 gap-closure contribution. Title updated to "~150-200s from WASMtime/HTTP caps + ~40-60s from bc_2_11_007 gap closure (~190-260s combined scheduling savings)" to match the authoritative §Evidence breakdown and §PR Framing Note (d) (~190-260s). Also corrected the §Scheduling Note sentence which likewise cited only "~150-200s" for this story; updated to "~190-260s combined". Token budget updated: v1.6 / ~720 lines / ~12,900 tokens. |
 | 1.5 | 2026-07-01 | story-writer | F-PG007-MED-001 (framing-note contradiction resolved): §PR Evidence Framing Note simultaneously asserted (a) 585.84s baseline was TMT-free and (d) attributed the (585.84−108.4) delta's ~220-290s excess to "28 tests × up to 180s timeout each" — internally contradictory because a TMT-free baseline endpoint cannot contribute TMT-elimination to the delta. Fixed: intro paragraph now states both endpoints are TMT-free and the full ~477s delta is a scheduling/measurement-condition improvement; (b) explicitly states the 28-TMT heavier-contention run is a SEPARATE measurement whose wall-clock does NOT enter the delta arithmetic, and the 28×180 arithmetic against the 585.84→108.4 delta is removed; (d) reclassifies the ~220-290s excess as presently unexplained (candidate: cache/contention differences between runs) rather than attributed to TMT-elimination; closing note updated to reflect the corrected framing. Token budget updated: v1.5 / ~715 lines / ~12,800 tokens. |
 | 1.4 | 2026-07-01 | story-writer | F-LOW-1 fix: §Tasks 2a comment sample for spec-engine-http-cap — replaced bare underscore token `bc_2_11_007_pushdown_test` with "The bc_2_11_007 pushdown test" (matching delivered nextest.toml) and added explicit AC-005 guard note so implementers do not inadvertently introduce a third grep match that would cause AC-005 to return 3 instead of 2. F-OBS-1 fix: §PR Evidence Framing Note — added four-part measurement provenance: (a) 585.84s baseline is GREEN (no TMT per profiling report); (b) 28-TMT figure comes from separate heavier-contention `just check` run pre-cap during PR #208 delivery; (c) 108.4s post-cap on same machine; (d) 5.4x headline compounds ~190-260s scheduling savings with TMT-elimination contribution; headline must not be cited as pure-scheduling effect without this provenance. Token budget updated: v1.4 / ~695 lines / ~12,500 tokens. |
