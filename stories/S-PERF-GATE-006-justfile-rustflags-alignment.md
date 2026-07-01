@@ -1,9 +1,9 @@
 ---
 document_type: story
 story_id: S-PERF-GATE-006
-title: "Justfile RUSTFLAGS fingerprint alignment — align check and check-fast clippy fingerprints with RUSTFLAGS=\"\" to eliminate ~157s test-target rebuild on just check following a clippy-only run"
+title: "Justfile RUSTFLAGS fingerprint alignment — align check, check-fast, and iter clippy/nextest fingerprints with RUSTFLAGS=\"\" so all dev-loop recipes share the test-artifact cache"
 epic_id: EPIC-MAINTENANCE
-version: "1.9"
+version: "2.0"
 status: draft
 producer: story-writer
 phase: 3
@@ -12,11 +12,13 @@ priority: P2
 points: 1
 tdd_mode: "n/a"
 # tdd_mode rationale: pure config story — no production Rust code added or modified.
-# No function bodies, no Red Gate tests. The only changes are two RUSTFLAGS="" prefixes
-# on the cargo clippy lines in the Justfile check and check-fast recipes, plus comment-block
-# rewrites on both recipes (rewrite on check, addition on check-fast). Validated by running `just check` twice on a warm build and confirming the
-# nextest build phase does not force a full test-binary recompile. Mutation testing
-# (facade-mode quality gate) does not apply to Justfile recipes.
+# No function bodies, no Red Gate tests. The only changes are RUSTFLAGS="" prefixes on
+# cargo clippy lines in the Justfile check and check-fast recipes, and on the cargo nextest
+# run -p line in the iter recipe, plus comment-block updates on all three recipes (rewrite
+# on check, addition on check-fast, addition on iter). Validated by running just check-fast
+# followed immediately by just check and confirming the nextest build phase does not force a
+# full test-binary recompile. Mutation testing (facade-mode quality gate) does not apply to
+# Justfile recipes.
 target_module: "n/a — build tooling only (Justfile)"
 subsystems: []
 depends_on: [S-PERF-GATE-005]
@@ -34,30 +36,35 @@ estimated_days: "0.1"
 
 # S-PERF-GATE-006: Justfile RUSTFLAGS Fingerprint Alignment
 
-Two clippy-line insertions plus comment-block rewrites on both recipes: prepend `RUSTFLAGS=""` to the
-`cargo clippy` lines in both the `check` and `check-fast` recipes (the functional fix),
-update the preceding comment block in `check` to document the full three-step
-`RUSTFLAGS=""` convention, and add a preceding comment block to `check-fast` documenting
-that its clippy fingerprint is aligned with `check`. Two separable effects result: (1) aligning `check`'s clippy to `RUSTFLAGS=""` eliminates
-the ~157s nextest rebuild (Evidence table nextest build cost) by resolving the
-clippy(ambient)↔nextest(RUSTFLAGS="") fingerprint mismatch internal to the `check` recipe;
+Three `RUSTFLAGS=""` insertions plus comment-block updates on three recipes: prepend `RUSTFLAGS=""` to the
+`cargo clippy` lines in both the `check` and `check-fast` recipes and to the
+`cargo nextest run -p` line in the `iter` recipe (the project's primary TDD inner loop per CLAUDE.md),
+plus comment-block rewrites (rewrite on `check`, addition on `check-fast`, addition on `iter`).
+With all three dev-loop recipes aligned to `RUSTFLAGS=""`, nextest's test-artifact cache
+stays warm across all dev-loop transitions (iter → check, check-fast → check, iter → check-fast),
+eliminating the measured ~157s rebuild and the ~44s residual clippy re-check. Three separable effects:
+(1) aligning `check`'s clippy to `RUSTFLAGS=""` eliminates the ~157s nextest rebuild
+(Evidence table nextest build cost) by resolving the clippy(ambient)↔nextest(RUSTFLAGS="")
+fingerprint mismatch internal to the `check` recipe;
 (2) aligning `check-fast`'s clippy additionally eliminates the ~44s residual clippy re-check
 (Evidence table clippy cost: 43.85s) that would otherwise remain in the check-fast → check
 dev loop — `cargo clippy` without `--all-targets` does not compile test binaries and cannot
-incur the ~157s test-binary codegen cost, so the clippy-side residual is ~44s, not ~157s.
+incur the ~157s test-binary codegen cost, so the clippy-side residual is ~44s, not ~157s;
+(3) aligning `iter`'s nextest to `RUSTFLAGS=""` eliminates the ~157s rebuild on the primary
+iter → check dev-loop transition (iter previously used ambient RUSTFLAGS for nextest, creating
+the same fingerprint mismatch as check's unaligned clippy).
 
 ## Narrative
 
-As a Prism developer, I want `cargo clippy` in both the `just check` and `just check-fast`
-recipes to use `RUSTFLAGS=""` (matching the existing nextest and doctest convention already
-present in `check`), so that the clippy and nextest steps share the same RUSTFLAGS value —
-keeping nextest's `RUSTFLAGS=""` build cache warm across clippy-only dev-loop invocations
-(eliminating the ~157s nextest rebuild — Evidence table nextest build cost — caused by the
-clippy(ambient)↔nextest(RUSTFLAGS="") fingerprint mismatch internal to `check`), and
-cross-recipe clippy recompilation is eliminated when alternating between `just check` and
-`just check-fast` — additionally saving the ~44s residual clippy re-check (Evidence table
-clippy cost: 43.85s) in the check-fast → check dev loop (edit → `just check-fast` [or IDE
-clippy fires] → fix → `just check` → push).
+As a Prism developer, I want `cargo clippy` in the `just check` and `just check-fast` recipes
+and `cargo nextest run -p` in the `just iter` recipe to use `RUSTFLAGS=""`, so that all
+dev-loop recipes share the same RUSTFLAGS value — keeping nextest's `RUSTFLAGS=""` test-artifact
+cache warm across dev-loop transitions (iter → check, check-fast → check, iter → check-fast).
+This eliminates the measured ~157s nextest rebuild (Evidence table nextest build cost) caused
+by the fingerprint mismatch between ambient-RUSTFLAGS steps and `RUSTFLAGS=""` steps, and
+the ~44s residual clippy re-check (Evidence table clippy cost: 43.85s) in the check-fast → check
+dev loop (edit → `just iter` [primary TDD inner loop] or `just check-fast` [refactor sweep] →
+fix → `just check` [pre-push gate] → push).
 
 ## §Evidence
 
@@ -73,19 +80,24 @@ From profiling report `.factory/research/test-suite-perf-profile-2026-06-30.md`
 | doctest | `cargo test --workspace --all-features --doc` | ~8s |
 | **TOTAL (just check)** | | **~798s (≈ 13.3 min)** |
 
-The ~157s nextest build phase represents pure waste on a `just check` run that follows a
-clippy-only invocation (e.g., `just check-fast` or IDE clippy-on-save): no code changed
-since the prior clippy run, yet all test binary targets are recompiled from scratch because
-the prior clippy warmed the ambient-RUSTFLAGS bucket while nextest requires the RUSTFLAGS=""
-bucket. A second consecutive `just check` (with no intervening clippy-only run) is already
-fast (~5-10s nextest build) because nextest warmed the RUSTFLAGS="" bucket on the first run.
+The ~157s nextest build phase represents pure waste on a `just check` run that follows any
+ambient-RUSTFLAGS step (e.g., `just check-fast` clippy, `just iter` nextest before this fix,
+or IDE clippy-on-save): no code changed, yet all test binary targets are recompiled from scratch
+because the prior step populated the ambient-RUSTFLAGS bucket while nextest requires the
+`RUSTFLAGS=""` bucket. The research profile infers that a second consecutive `just check`
+(no intervening ambient-RUSTFLAGS step) would be fast — a plausible inference from the cargo
+fingerprinting model, but not a directly measured figure and not load-bearing for this story's
+value proposition. What is measured and unfalsifiable: with all dev-loop recipes aligned to
+`RUSTFLAGS=""`, the nextest build phase after `just check-fast` drops from ~157s to ~1.25s
+(implementation verification run, recorded in PR evidence bundle per AC-005).
 
-**Root cause:** `cargo clippy` in the `check` recipe uses the default RUSTFLAGS (whatever
-the shell environment provides). `cargo nextest run` uses `RUSTFLAGS=""` explicitly. These
-are different Cargo compiler fingerprints; artifacts compiled under one fingerprint are
+**Root cause:** `cargo clippy` in the `check` and `check-fast` recipes uses the default
+RUSTFLAGS (whatever the shell environment provides), as did `cargo nextest run -p` in the
+`iter` recipe before this fix. `cargo nextest run` in `check` uses `RUSTFLAGS=""` explicitly.
+These are different Cargo compiler fingerprints; artifacts compiled under one fingerprint are
 treated as stale by the other, forcing a full test-binary rebuild each time nextest follows
-a clippy step that ran under a different RUSTFLAGS value (i.e., after any clippy-only
-invocation warmed the ambient-RUSTFLAGS bucket).
+any ambient-RUSTFLAGS step (clippy-only run or iter nextest before fix) that warmed the
+ambient-RUSTFLAGS bucket while leaving the `RUSTFLAGS=""` bucket cold.
 
 **The fix intent already exists in the Justfile comment:**
 
@@ -94,8 +106,9 @@ invocation warmed the ambient-RUSTFLAGS bucket).
 # the same fingerprint cache. Without alignment, a RUSTFLAGS drift (e.g. a shell export)
 ```
 
-Nextest and doctest already carry `RUSTFLAGS=""`. Clippy was left unaligned. This story
-closes the gap.
+The `check` recipe's nextest and doctest already carry `RUSTFLAGS=""`. Clippy in `check` and
+`check-fast` was left unaligned; `iter`'s nextest was also left unaligned. This story closes
+all three gaps.
 
 ## Background
 
@@ -111,14 +124,16 @@ check:
     @scripts/check-non-exhaustive.sh
 ```
 
-Fingerprint sequence (just check following a clippy-only run — the common dev loop penalty):
-1. clippy — reuses fingerprint A artifacts (default/ambient RUSTFLAGS) populated by prior `just check-fast` or IDE clippy
+Fingerprint sequence (just check following any ambient-RUSTFLAGS step — the common dev loop penalty):
+1. clippy — reuses fingerprint A artifacts (default/ambient RUSTFLAGS) populated by prior ambient-RUSTFLAGS step (e.g., `just check-fast` clippy or `just iter` nextest before this fix)
 2. nextest — compiles under fingerprint B (RUSTFLAGS="") → **MISMATCH → ~157s full test-binary rebuild**
 3. doctest — compiles under fingerprint B → reuses nextest cache → ~8s
 
-Note: a second consecutive `just check` (no intervening clippy-only run) does NOT trigger
-this penalty — nextest reuses its own RUSTFLAGS="" artifacts from the first run. The 157s
-rebuild recurs only when a clippy-only invocation refreshes the ambient-RUSTFLAGS bucket.
+Note: the research profile infers a second consecutive `just check` (no intervening ambient-RUSTFLAGS
+step) would be fast — a plausible cargo-model inference, not a directly measured figure.
+The story's value is independent of this inference: aligning all dev-loop recipes to `RUSTFLAGS=""`
+eliminates the fingerprint mismatch that triggers the ~157s rebuild on any ambient-RUSTFLAGS →
+`just check` transition.
 
 ### Fixed `check` recipe (after fix)
 
@@ -132,20 +147,20 @@ check:
     @scripts/check-non-exhaustive.sh
 ```
 
-Fingerprint sequence (just check following just check-fast — with both fixes applied):
+Fingerprint sequence (just check following just check-fast or just iter — with all three fixes applied):
 1. clippy — reuses fingerprint B (RUSTFLAGS="") artifacts populated by prior `just check-fast` (now aligned)
-2. nextest — reuses fingerprint B → **MATCH → ~5-10s research estimate (implementation verification run measured ~1.25s; to be recorded in PR evidence bundle per AC-005)**
+2. nextest — reuses fingerprint B → **MATCH → implementation verification run measured ~1.25s (to be recorded in PR evidence bundle per AC-005); also matches artifacts from prior `just iter` (now aligned)**
 3. doctest — reuses fingerprint B → reuses nextest cache → ~8s
 
-**Estimated savings — two separable effects:**
+**Estimated savings — three separable effects:**
 
 - **Effect 1 (~157s saving from aligning `check`'s clippy, Evidence table nextest build
   cost):** The mismatch is internal to the `check` recipe: clippy runs under ambient
-  RUSTFLAGS, nextest uses `RUSTFLAGS=""`. These produce different fingerprints; a
-  clippy-only invocation (ambient RUSTFLAGS) leaves nextest's `RUSTFLAGS=""` artifact
-  cache cold → ~157s full rebuild. Aligning `check`'s clippy to `RUSTFLAGS=""` keeps
-  nextest's artifact cache warm across clippy-only dev-loop runs, and the rebuild
-  disappears.
+  RUSTFLAGS, nextest uses `RUSTFLAGS=""`. These produce different fingerprints; any
+  ambient-RUSTFLAGS step preceding `just check` (e.g., `just check-fast`, `just iter`
+  before this fix, or IDE clippy-on-save) leaves nextest's `RUSTFLAGS=""` artifact cache
+  cold → ~157s full rebuild. Aligning `check`'s clippy to `RUSTFLAGS=""` keeps nextest's
+  artifact cache warm across dev-loop transitions, and the rebuild disappears.
 
 - **Effect 2 (~44s additional saving from aligning `check-fast`'s clippy, Evidence table
   clippy cost: 43.85s):** Once Effect 1 is applied, `check-fast`'s clippy (ambient RUSTFLAGS)
@@ -154,6 +169,14 @@ Fingerprint sequence (just check following just check-fast — with both fixes a
   compile test binaries; the clippy re-check costs the Evidence-table clippy figure (~44s),
   not the ~157s nextest test-binary codegen cost. Aligning `check-fast`'s clippy eliminates
   this residual ~44s penalty, making the check-fast → check dev loop fully penalty-free.
+
+- **Effect 3 (~157s saving from aligning `iter`'s nextest, Evidence table nextest build
+  cost):** Before the fix, `iter`'s `cargo nextest run -p` used ambient RUSTFLAGS, creating
+  the same fingerprint mismatch as `check`'s unaligned clippy. Any `just iter` invocation
+  left nextest's `RUSTFLAGS=""` artifact cache cold; the next `just check` must rebuild
+  (~157s). Aligning `iter`'s nextest to `RUSTFLAGS=""` eliminates this rebuild on the
+  primary iter → check TDD dev-loop transition (the most common transition for a developer
+  using `just iter` as the inner loop and `just check` as the pre-push gate).
 
 ### Why `RUSTFLAGS=""` is the correct canonical value
 
@@ -191,13 +214,14 @@ re-check (Evidence table clippy cost: 43.85s):
 
 **Effect 1 — ~157s nextest rebuild (fixed by aligning `check`'s clippy, not `check-fast`):**
 The mismatch is internal to the `check` recipe: `check`'s clippy runs under ambient RUSTFLAGS
-while `check`'s nextest uses `RUSTFLAGS=""`. These produce different fingerprints; when a
-clippy-only invocation (e.g., `just check-fast` or IDE clippy-on-save) runs under ambient
-RUSTFLAGS, it leaves nextest's `RUSTFLAGS=""` cache cold — so the next `just check`'s nextest
-step must rebuild (~157s, Evidence table nextest build cost). A second consecutive `just check`
-(no intervening clippy-only run) does NOT trigger this penalty; it reuses nextest's own
-`RUSTFLAGS=""` artifacts from the first run. Aligning `check`'s own clippy to `RUSTFLAGS=""`
-keeps the `RUSTFLAGS=""` cache warm regardless of what ran before, eliminating the ~157s rebuild.
+while `check`'s nextest uses `RUSTFLAGS=""`. These produce different fingerprints; any
+ambient-RUSTFLAGS step preceding `just check` (e.g., `just check-fast`, `just iter` before
+this fix, or IDE clippy-on-save) leaves nextest's `RUSTFLAGS=""` cache cold — so the next
+`just check`'s nextest step must rebuild (~157s, Evidence table nextest build cost). Aligning
+`check`'s own clippy to `RUSTFLAGS=""` keeps the `RUSTFLAGS=""` cache warm across dev-loop
+transitions, eliminating the ~157s rebuild. (The research profile infers a second consecutive
+`just check` is already fast — a plausible cargo-model inference, but not a directly measured
+figure and not load-bearing for this story.)
 
 **Effect 2 — ~44s residual clippy re-check (fixed by aligning `check-fast`'s clippy):**
 Once `check`'s clippy is aligned to `RUSTFLAGS=""`, the check-fast → check dev loop has a
@@ -215,16 +239,39 @@ encounters a fingerprint change: check-fast uses ambient RUSTFLAGS while check u
 43.85s). This story prepends `RUSTFLAGS=""` to the `check-fast` clippy line to eliminate
 both residual clippy re-check directions.
 
+### `iter` is in scope
+
+The `iter` recipe is the project's primary TDD inner loop (per CLAUDE.md:
+`just iter <crate> [test_filter]` — single crate, fast iteration ~10-30 sec warm).
+Before this fix, `iter`'s `cargo nextest run -p` line used ambient RUSTFLAGS (no `RUSTFLAGS=""`
+prefix). This creates the same fingerprint mismatch as `check`'s unaligned clippy: any
+`just iter` invocation (ambient RUSTFLAGS nextest) leaves the `RUSTFLAGS=""` artifact bucket
+cold — so the next `just check`'s nextest step must rebuild all test binaries (~157s,
+Evidence table nextest build cost).
+
+**Effect 3 — ~157s nextest rebuild on iter → check transition (fixed by aligning `iter`'s nextest):**
+Adding `RUSTFLAGS=""` to `iter`'s `cargo nextest run -p` line aligns the primary TDD inner
+loop with the pre-push gate fingerprint. After this fix, a developer who runs `just iter <crate>`
+then `just check` does not incur the ~157s full test-binary rebuild — the `RUSTFLAGS=""` bucket
+populated by `just iter` is reused directly by `just check`'s nextest step. This is the same
+mechanism as Effect 1 (aligning `check`'s clippy), applied to the iter → check transition.
+
+Note: `just iter` only runs `cargo nextest run -p <crate>` — it does NOT run `cargo clippy`.
+There is no clippy alignment needed for `iter`. The fix is a single `RUSTFLAGS=""` prefix on
+the `cargo nextest run -p` line in the `iter` recipe.
+
 ## Scope
 
-One file modified; two clippy-line insertions (required) plus comment-block rewrites on BOTH the `check` and `check-fast` recipes (behavioral-anchor updates, not cosmetic):
+One file modified; three `RUSTFLAGS=""` insertions (required) plus comment-block updates on all three dev-loop recipes (`check`, `check-fast`, `iter`):
 
 | File | Change | Rationale |
 |------|--------|-----------|
 | `Justfile` | Prepend `RUSTFLAGS="" ` to `cargo clippy --all-features -- -D warnings` in the `check` recipe | Aligns clippy fingerprint with nextest/doctest; eliminates the ~157s rebuild |
 | `Justfile` | Prepend `RUSTFLAGS="" ` to `cargo clippy --all-features -- -D warnings` in the `check-fast` recipe | Aligns check-fast clippy fingerprint with check; eliminates cross-recipe clippy divergence |
-| `Justfile` | Rewrite preceding comment block on the `check` recipe to document the full three-step `RUSTFLAGS=""` convention (all non-fmt steps now aligned) | Behavioral-anchor rewrite, not cosmetic; records the full convention for future contributors (OBS-006-001 in-scope treatment) |
+| `Justfile` | Prepend `RUSTFLAGS="" ` to `cargo nextest run -p` in the `iter` recipe | Aligns iter nextest fingerprint with check/check-fast nextest; eliminates ~157s rebuild on iter → check transition (primary TDD inner loop per CLAUDE.md) |
+| `Justfile` | Rewrite preceding comment block on the `check` recipe to document the full `RUSTFLAGS=""` convention (all dev-loop recipes now aligned) | Behavioral-anchor rewrite, not cosmetic; records the full convention for future contributors (OBS-006-001 in-scope treatment) |
 | `Justfile` | Add preceding comment block to the `check-fast` recipe documenting that its clippy fingerprint is aligned with `check` | Behavioral-anchor addition, not cosmetic; mirrors the comment-block treatment of `check` (F-006-LOW-001 in-scope) |
+| `Justfile` | Add preceding comment block to the `iter` recipe documenting that its nextest fingerprint is aligned with `check` | Behavioral-anchor addition; documents the fingerprint convention for the primary TDD inner loop (F-006-P-MED-002 in-scope treatment) |
 
 **NOT in scope:**
 
@@ -325,13 +372,14 @@ Before the fix, this sequence shows ~157s of Compiling lines in the nextest buil
 bucket — full rebuild. After the fix, `just check-fast` populates the RUSTFLAGS="" bucket
 (via AC-007), so nextest reuses it without a rebuild.
 
-Note: a second consecutive `just check` (without an intervening clippy-only run) is already
-fast before the fix — this AC specifically measures the check-fast → check scenario, which
-is the actual dev-loop penalty this story eliminates.
+This AC specifically measures the check-fast → check scenario (the common refactor-sweep →
+pre-push-gate transition). The iter → check scenario (primary TDD loop) is additionally
+covered by AC-008's grep verification; the same ~157s penalty is eliminated there via the
+iter nextest alignment.
 
 This AC is measurement-based. Record the nextest build phase wall-clock for the PR
 description changelog. If the sequence still shows 100+ Compiling lines, the RUSTFLAGS
-prefix may have a typo or trailing whitespace — re-verify AC-001 and AC-007.
+prefix may have a typo or trailing whitespace — re-verify AC-001, AC-007, and AC-008.
 
 Traces to: BC-5.39.001 postcondition — delivery quality; the fingerprint fix must produce
 the measurable build-time improvement that motivates this story.
@@ -377,12 +425,35 @@ Traces to: BC-5.39.001 postcondition — delivery quality; the `check-fast` clip
 fingerprint must be aligned with `check` to prevent cross-recipe clippy recompilation
 after running `just check`.
 
+### AC-008 — `iter` recipe: RUSTFLAGS="" prefix present on the nextest run line (primary TDD inner loop alignment)
+
+```
+grep -A10 '^iter ' Justfile | grep -c 'RUSTFLAGS="" .*cargo nextest run -p'
+```
+
+Expected output: `1`.
+
+Source-verification: this grep uses context anchoring (`-A10`: 10 lines after the `iter `
+recipe header) to isolate the `iter` recipe and verify the `RUSTFLAGS=""` prefix is present
+on its `cargo nextest run -p` line. Before the change, the output is `0` (the `iter` nextest
+line lacks the prefix). After the change, it is `1`.
+
+This AC covers the project's primary TDD inner loop (per CLAUDE.md: `just iter <crate>
+[test_filter]` — single crate, fast iteration ~10-30 sec warm). Without this alignment, a
+developer using `just iter` (ambient RUSTFLAGS nextest) followed by `just check`
+(RUSTFLAGS="" nextest) incurs the same ~157s full test-binary rebuild as the check-fast →
+check transition fixed by AC-005.
+
+Traces to: BC-5.39.001 postcondition — delivery quality; the `iter` nextest fingerprint
+must be aligned with `check` to prevent cache thrash on the primary TDD dev loop
+(F-006-P-MED-002 in-scope treatment).
+
 ## Red Gate
 
 Zero Red Gate tests. This story makes no changes to production Rust source code. The only
 file modified is `Justfile`. There is no `todo!()` stub to introduce and no failing test to
 write first. Validation is via `just check` exit code (AC-006), grep assertions (AC-001
-through AC-004), and warm-cache timing observation (AC-005).
+through AC-004, AC-007, AC-008), and warm-cache timing observation (AC-005).
 
 This is consistent with S-PERF-GATE-001 through S-PERF-GATE-004 (all zero Red Gate tests
 for config-only portions) and S-PERF-GATE-003 (Justfile + nextest.toml, zero Red Gate).
@@ -400,31 +471,37 @@ correctly-written test). The change affects build time, not correctness.
 
 ## Tasks
 
-1. **Read** the `check` recipe and its preceding comment block in `Justfile` to confirm
-   the current `cargo clippy` line has no `RUSTFLAGS=""` prefix and that the existing
-   nextest/doctest lines already carry `RUSTFLAGS=""`.
+1. **Read** the `check`, `check-fast`, and `iter` recipes in `Justfile` to confirm
+   the current `cargo clippy` lines have no `RUSTFLAGS=""` prefix (in `check` and
+   `check-fast`) and that the `iter` `cargo nextest run -p` line has no `RUSTFLAGS=""`
+   prefix. Confirm the existing nextest/doctest lines in `check` already carry `RUSTFLAGS=""`.
 
-2. **Edit** `Justfile`: in BOTH the `check` recipe AND the `check-fast` recipe, change
-   each occurrence of:
-   ```
-   cargo clippy --all-features -- -D warnings
-   ```
-   to:
-   ```
-   RUSTFLAGS="" cargo clippy --all-features -- -D warnings
-   ```
-   The change is a single word insertion (`RUSTFLAGS="" `) before `cargo`. Two lines are
-   modified (one per recipe). Do NOT modify any other line in the file.
+2. **Edit** `Justfile`:
+   - In BOTH the `check` recipe AND the `check-fast` recipe, change each occurrence of:
+     ```
+     cargo clippy --all-features -- -D warnings
+     ```
+     to:
+     ```
+     RUSTFLAGS="" cargo clippy --all-features -- -D warnings
+     ```
+   - In the `iter` recipe, prepend `RUSTFLAGS=""` to the `cargo nextest run -p` line:
+     ```
+     RUSTFLAGS="" cargo nextest run -p ...
+     ```
+   Three lines are modified (one per recipe). Do NOT modify any other line in the file.
 
-   Update the preceding comment block in `check` to note that ALL three non-fmt steps
-   now carry `RUSTFLAGS=""`, and that `check-fast` is now aligned as well (OBS-006-001 —
-   behavioral-anchor rewrite, not cosmetic). Additionally, add a preceding comment block
-   to the `check-fast` recipe documenting that its clippy fingerprint is aligned with
-   `check` (F-006-LOW-001 in-scope treatment — mirrors the comment-block treatment of
-   `check`). Two comment changes total: one rewrite on `check`, one addition on `check-fast`.
+   Update the preceding comment block in `check` to note that ALL dev-loop recipes now
+   carry `RUSTFLAGS=""` (including `iter`), and that `check-fast` and `iter` are aligned
+   (OBS-006-001 — behavioral-anchor rewrite, not cosmetic). Add a preceding comment block
+   to the `check-fast` recipe documenting clippy fingerprint alignment with `check`
+   (F-006-LOW-001 in-scope treatment). Add a preceding comment block to the `iter` recipe
+   documenting nextest fingerprint alignment with `check` (F-006-P-MED-002 in-scope
+   treatment). Three comment changes total: one rewrite on `check`, one addition on
+   `check-fast`, one addition on `iter`.
 
-3. **Verify** AC-001 through AC-004 and AC-007 grep commands each return their expected
-   values. Run each grep before running `just check`.
+3. **Verify** AC-001 through AC-004, AC-007, and AC-008 grep commands each return their
+   expected values. Run each grep before running `just check`.
 
 4. **Run** `just check` once (with no preceding `just check-fast`) to pre-populate the
    RUSTFLAGS="" bucket for all steps. The nextest build phase on this first run will be
@@ -448,14 +525,14 @@ correctly-written test). The change affects build time, not correctness.
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.9, ~605 lines) | ~7,300 |
+| This story spec (v2.0, ~680 lines) | ~8,200 |
 | `Justfile` (full file, ~220 lines — read + modify) | ~2,000 |
-| AC verification grep outputs (6 commands) | ~300 |
+| AC verification grep outputs (7 commands) | ~350 |
 | `just check` output (two warm runs, abbreviated) | ~2,000 |
-| **Total** | **~11,600** |
+| **Total** | **~12,550** |
 
-Well within the implementer agent's context window. Simpler than S-PERF-GATE-003 (one word
-insertion per recipe in one file; no nextest.toml surgery, no shell script changes).
+Well within the implementer agent's context window. Simpler than S-PERF-GATE-003 (one-word
+or one-line insertion per recipe in one file; no nextest.toml surgery, no shell script changes).
 
 ## Previous Story Intelligence
 
@@ -536,7 +613,7 @@ env-var assignment and is fully supported by `just` (which uses sh for recipe ex
 
 | File | Change type | Details |
 |------|-------------|---------|
-| `Justfile` | Modify | Prepend `RUSTFLAGS="" ` to the `cargo clippy` line in both the `check` and `check-fast` recipes; rewrite the preceding comment block on `check` to document the full three-step `RUSTFLAGS=""` convention; add a preceding comment block to `check-fast` documenting fingerprint alignment with `check` (both comment changes are behavioral-anchor updates per F-006-LOW-001 in-scope treatment) |
+| `Justfile` | Modify | Prepend `RUSTFLAGS="" ` to the `cargo clippy` line in both the `check` and `check-fast` recipes and to the `cargo nextest run -p` line in the `iter` recipe; rewrite the preceding comment block on `check` to document the full `RUSTFLAGS=""` convention across all dev-loop recipes; add a preceding comment block to `check-fast` documenting clippy fingerprint alignment with `check`; add a preceding comment block to `iter` documenting nextest fingerprint alignment with `check` (all comment changes are behavioral-anchor updates per F-006-LOW-001 and F-006-P-MED-002 in-scope treatment) |
 
 **Files explicitly excluded from this story:**
 
@@ -565,7 +642,7 @@ constraint between them.
 ```
 develop (after S-PERF-GATE-005 merge — 8bc0404e)
   └── feature/S-PERF-GATE-006   ← branch from here
-        └── Edit Justfile (RUSTFLAGS="" on clippy lines in check and check-fast recipes)
+        └── Edit Justfile (RUSTFLAGS="" on clippy lines in check and check-fast, nextest line in iter)
 ```
 
 ## Edge Cases
@@ -583,6 +660,7 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 2.0 | 2026-07-01 | story-writer | F-006-P-MED-002 (iter scope): expanded scope to include the `just iter` recipe's nextest line (`RUSTFLAGS=""` on `cargo nextest run -p`), aligning the project's primary TDD inner loop (per CLAUDE.md) with `check`/`check-fast`. Updated: frontmatter title + version; tdd_mode rationale comment (three recipes); intro paragraph (three effects, all dev-loop transitions); narrative (iter added); §Background saved estimates (two → three effects; Effect 3 added); post-fix fingerprint sequence (now mentions iter); new `### iter is in scope` subsection; §Scope prose + table (iter row added); Task 1 (read iter recipe); Task 2 (three-recipe edit, three comment changes); Task 3 (AC-008 added); AC-008 (new iter nextest grep); Token Budget (v2.0, ~680 lines, ~12,550 tokens); §File Structure Requirements (Justfile row updated). F-006-P-MED-001 (causal-narrative de-inference): removed "second consecutive just check is fast" as a load-bearing trigger for Effect 1. All four occurrences (§Evidence note, §Background pre-fix sequence note, §Background Effect 1, §check-fast scope Effect 1) are now explicitly hedged as "the research profile infers … a plausible cargo-model inference, not a directly measured figure." Value proposition simplified to the measured and unfalsifiable claim: aligning all dev-loop recipes to `RUSTFLAGS=""` keeps nextest's test-artifact cache warm across transitions, eliminating the measured ~157s→~1.25s rebuild. No load-bearing claim now requires an unmeasured cargo-cache model. AC-005 note updated (removes second-consecutive-check framing; cites iter scenario covered by AC-008). |
 | 1.9 | 2026-07-01 | story-writer | MED-1 causal-narrative simplification: removed all "nextest reuses clippy's library artifacts" claims (false — `cargo clippy` without `--all-targets` produces no codegen artifacts that nextest links against) and removed "regardless of whether check-fast ran first" clause (contradicts the measured second-consecutive-check-is-fast behavior in the Evidence section). Rewrote three sections to state only observed/measured behavior: (1) Narrative: replaced artifact-reuse framing with "clippy and nextest steps share the same RUSTFLAGS value — keeping nextest's RUSTFLAGS="" build cache warm"; (2) §Background Effect 1 savings estimate: replaced "nextest cannot reuse clippy's library artifacts" with "clippy-only invocation leaves nextest's RUSTFLAGS="" artifact cache cold"; (3) §check-fast is in scope Effect 1: replaced both false claims with observation-grounded text naming the trigger (clippy-only invocation under ambient RUSTFLAGS leaves nextest's cache cold) and explicitly preserving the second-consecutive-check-is-fast observation already present in the Evidence section. Narrative is now internally consistent with §Evidence. No ACs, Evidence figures, or behavioral scope changed. Token budget updated: v1.9, ~605 lines, ~7,300 tokens; total ~11,600. |
 | 1.8 | 2026-07-01 | story-writer | F-006-LOW-001: spec under-described the delivered diff — `check-fast` comment-block addition was unlisted in §Scope, §Scope table, and §File Structure Requirements. Updated intro paragraph (added check-fast comment-block addition alongside check rewrite); §Scope prose (now names both recipes); §Scope table (two new rows: check comment-block rewrite + check-fast comment-block addition); Task 2 (explicit instruction to add check-fast comment block, mirrors check treatment); §File Structure Requirements (Details now lists both comment changes); frontmatter tdd_mode rationale comment (explicit "rewrite on check, addition on check-fast"). Delivery diff is now fully described: two RUSTFLAGS="" clippy-line prefixes AND two comment-block changes (one rewrite on `check`, one addition on `check-fast`). Token budget updated to v1.8, ~645 lines, ~7,800 tokens; total ~12,100. |
 | 1.7 | 2026-07-01 | story-writer | OBS-2 grounding: the ~1.25s nextest build-phase figure was presented without a cited source and numerically coincides with the §2a per-test average in the research profile (conflation risk). Re-framed in all three occurrences (post-fix fingerprint sequence, AC-005, Task 5): labeled as "measured in the implementation verification run" and made explicit that this figure is not yet a persisted artifact — it becomes traceable at merge time when captured in the PR evidence bundle, which AC-005 already requires. Kept the existing disclaimer distinguishing it from the §2a per-test average. No other figures changed: all other numbers (157s, 43.85s, 1.49s, 585.84s, ~8s, ~798s, ~44s) are pinned to the Evidence table in `.factory/research/test-suite-perf-profile-2026-06-30.md` and remain correctly grounded. Token budget updated to v1.7, ~615 lines, ~7,400 tokens; total ~11,700. |

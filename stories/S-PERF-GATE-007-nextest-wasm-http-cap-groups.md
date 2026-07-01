@@ -3,8 +3,8 @@ document_type: story
 story_id: S-PERF-GATE-007
 title: "nextest cap groups for uncapped WASMtime + HTTP binaries — spec-engine-wasm-cap and spec-engine-http-cap (max-threads=4) to eliminate Cranelift JIT + wiremock oversubscription and close bc_2_11_007_pushdown_test DTU-cap gap (~150-200s savings)"
 epic_id: EPIC-MAINTENANCE
-version: "1.2"
-status: draft
+version: "1.3"
+status: ready
 producer: story-writer
 phase: 3
 wave: maintenance
@@ -139,7 +139,7 @@ for future tuning decisions.
 | S-PERF-GATE-001 | `serial-subprocess` | `binary(signal_handlers)` | 1 | RocksDB mmap SIGSEGV under parallel subprocess spawn |
 | S-PERF-GATE-002 | `adv-p02-serial` | `binary(adv_p02_e2e_pushdown_pipeline_test)` | 1 | DTU + DataFusion per-process re-init |
 | S-PERF-GATE-003 | `bc-2-01-013-serial` | `binary(bc_2_01_013_spec_driven_adapter)` | 1 | Concurrent wiremock startup socket contention |
-| S-PERF-GATE-004 | `dtu-cap` | `package(/^prism-dtu-/)` | 4 | 12 DTU HTTP-server + RocksDB binaries oversubscription |
+| S-PERF-GATE-004 | `dtu-cap` | `package(/^prism-dtu-/)` | 4 | 12 DTU packages (194 test binaries) oversubscription |
 | **S-PERF-GATE-007** | **`spec-engine-wasm-cap`** | `binary(...)` (7 WASMtime binaries) | **4** | Cranelift JIT init contention |
 | **S-PERF-GATE-007** | **`spec-engine-http-cap`** | `binary(...)` (4 HTTP binaries, incl. bc_2_11_007) | **4** | Wiremock socket contention + DTU-cap gap |
 
@@ -456,7 +456,7 @@ correct tests). The change affects wall-clock and CPU contention, not test corre
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.2, ~660 lines) | ~7,900 |
+| This story spec (v1.3, ~665 lines) | ~7,950 |
 | `.config/nextest.toml` (full file, ~213 lines — read + modify) | ~2,500 |
 | AC verification grep outputs (8 commands × ~2 lines each) | ~400 |
 | `cargo nextest show-config` output (AC-009 resolution check) | ~300 |
@@ -629,6 +629,7 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-07-01 | story-writer | F-LOW-1 fix: §Background "Relation to Existing PERF-GATE Cap Groups" table — corrected S-PERF-GATE-004 rationale from "12 DTU HTTP-server + RocksDB binaries" to "12 DTU packages (194 test binaries)" per nextest.toml authoritative comment line 130 ("ALL 12 prism-dtu-* packages (194 test binaries total)"). OBS-1 fix: status draft→ready — behavioral_contracts: [BC-5.39.001] is non-empty (S-7.01 gate satisfied); story is implemented GREEN and in LOCAL adversarial 3-CLEAN cascade; S-PERF-GATE-002 precedent confirms status=ready is maintained through LOCAL cascade; state-manager flips to merged at PR merge per POL-14. Token budget updated: v1.3 / ~665 lines / ~12,300 tokens. |
 | 1.2 | 2026-07-01 | story-writer | OBS-1 fix: §Evidence DTU-cap Gap section — documented REC-4 implementation variant: `bc_2_11_007_pushdown_test` is assigned to the new dedicated `spec-engine-http-cap` pool rather than folded into `dtu-cap` as REC-4's code sample shows; added one-line rationale (preserves `bc_2_11_007` throughput vs ~194 dtu-cap binaries; wasm-cap+http-cap groups remove 11 uncapped heavy binaries simultaneously; zero TMT, GREEN). Added PR Evidence Framing Note: the ~5.4x / ~108.4s headline compounds scheduling-cap savings with TMT-elimination and must not be read as a pure-scheduling effect on re-baseline. Updated token budget to v1.2 / ~660 lines / ~12,100 tokens. |
 | 1.1 | 2026-07-01 | story-writer | F-1 fix: corrected §Evidence "Total WASMtime serial time" sentence — removed erroneous `bc_2_16_002_crowdstrike_two_step` (HTTP/wiremock binary, not WASMtime), clarified the 1022.7s covers report §3b's 8 WASMtime binaries including `infusion_tests` (intentionally uncapped). OBS-2: added AC-009 binary-name resolution check (`cargo nextest show-config test-groups --profile prepush`) to detect zero-match `binary()` filters that would leave `just check` false-green. |
 | 1.0 | 2026-06-30 | story-writer | Initial draft (T-PERF-PROFILE initiative, D-1435) |
