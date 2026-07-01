@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.969"
+version: "7.970"
 status: current
-timestamp: 2026-06-29T16:00:00Z
+timestamp: 2026-07-01T23:59:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -38,13 +38,81 @@ timestamp: 2026-06-29T16:00:00Z
 >
 > **D-1367 (2026-06-26): PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED develop@7e60df03 (CI 43/43; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; security CLEAN). POL-14: 8 BCs draft→active. POL-13: story merged. active_contracts 254. draft_contracts 0. develop_head 903c8fcb→7e60df03. non-exhaustive 84→87. BC-INDEX v7.18. STORY-INDEX v2.481. STATE v7.994→v7.995. NEXT: pre-flight demo re-audit → T13 capstone → T14 recording. PENDING HUMAN: CLAUDE.md stale EXPECTED=83/84 → now EXPECTED=87; local develop ba1108d2 still DIVERGED.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1433** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1433 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `8bc0404e` (after S-PERF-GATE-004 PR #209 + S-PERF-GATE-005 PR #210 merged 2026-06-30: e3148007→8bc0404e). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.061. D-1433.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1474** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1474 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `8bc0404e` (unchanged since S-PERF-GATE-005 PR #210 merged 2026-06-30). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.089. D-1474.
 
 ---
 
-## §RESUME SNAPSHOT — D-1433 (2026-06-30 -- SESSION WRAP; develop origin/develop 8bc0404e; BC-INDEX v7.26; STORY-INDEX v2.533; ARCH-INDEX v2.150; STATE v8.061; S-DEMO-FIDELITY-REMEDIATION-001 Category-2 LOCAL-ONLY REBASED @59474484; PR #208 OPEN at stale 4a624a08; just check UNCONFIRMED) [SUPERSEDES D-1425]
+## §RESUME SNAPSHOT — D-1474 (2026-07-01 — SESSION WRAP; develop origin/develop 8bc0404e; BC-INDEX v7.26; STORY-INDEX v2.549; ARCH-INDEX v2.150; STATE v8.089; S-PERF-GATE-006 LOCAL streak 1/3 on e1f79d75 v2.3; S-PERF-GATE-007 PR #211 cf065761 PR-LEVEL streak 0/3; S-PERF-GATE-008 QUEUED; PR #208 PARKED) [SUPERSEDES D-1433]
+
+> **D-1474 burst (2026-07-01).** Session wrap. T-PERF-PROFILE test-suite optimization in flight; nothing merged to develop since 8bc0404e (unchanged). S-PERF-GATE-006 LOCAL cascade ~22 passes total; code correct throughout; nearly all findings were story/comment prose consistency. Streak at 1/3 on e1f79d75 v2.3 with one pre-identified title MED to fix before pass-22. S-PERF-GATE-007 PR #211 open, PR-LEVEL pass-1 not clean (evidence HEAD line stale 8e611daf→cf065761, one-line fix, config verified identical). S-PERF-GATE-008 queued (WASMtime compilation-cache; wip/perf-wasmtime-exploration-76821af7 ref available). PR #208 parked at 0978983f. All prior D-1101..D-1473 notes SUPERSEDED.
+
+### RESUME IN ONE BREATH
+T-PERF-PROFILE test-suite optimization in flight; nothing merged to develop yet (still 8bc0404e). Two config fix-stories are in strict-3-CLEAN cascades, each with ONE open doc-consistency finding to fix on resume, then 008 to author, then un-park PR #208. VERY NEXT: fix S-PERF-GATE-006 title MED (story-writer reword frontmatter title) + S-PERF-GATE-007 evidence-HEAD LOW (implementer one-line update), re-gate both.
+
+### HEADS
+- develop: **8bc0404e** — PUSHED (origin/develop). No changes since D-1433 wrap.
+- factory-artifacts: this wrap commit (prior a019f8dc) — PUSHED (run `git -C .factory log -1 --format='%h %s'` for current HEAD).
+- PR #211: HEAD **cf065761** PUSHED (feature/S-PERF-GATE-007→develop; OPEN).
+- S-PERF-GATE-006 worktree: HEAD **e1f79d75** LOCAL-ONLY (NOT pushed — only local-backed).
+- Agents in flight at wrap: **none**.
+
+### WORKSTREAM — S-PERF-GATE-006 (LOCAL cascade)
+- Story v2.3; worktree .worktrees/S-PERF-GATE-006; feature HEAD **e1f79d75** (LOCAL-ONLY, not pushed).
+- LOCAL 3-CLEAN streak **1/3** on e1f79d75 (pass-21 CLEAN(strict)+CLEAN(PR-merge); passes 22+23 pending).
+- Code (3 RUSTFLAGS="" prefixes on check+check-fast clippy + iter nextest) CORRECT throughout; passes 18 and 21 were CLEAN (hit 1/3 twice).
+- **OPEN: F-PG006-ADV-MED-001 [MED, pre-identified for pass-22]** — frontmatter `title` still labels check-fast as sharing the "test-artifact cache", contradicting body Effect 2 + the delivered check-fast comment (check-fast runs only `cargo clippy --all-features`, no --all-targets → builds NO test binaries; the test-artifact cache is preserved by Effect 1 = check's OWN clippy alignment, not check-fast).
+- **RESUME NEXT-ACTION:** story-writer rewords the frontmatter title so check-fast is NOT described as preserving the "test-artifact cache" (align with body Effects 1/2 + code comments) → state-manager commit → re-gate LOCAL adversary from 1/3 (adversary is read-only — dispatch it to READ worktree files at .worktrees/S-PERF-GATE-006/, not git).
+
+### WORKSTREAM — S-PERF-GATE-007 (PR #211, PR-LEVEL cascade)
+- Story v1.7; LOCAL 3-CLEAN CONVERGED (passes 8/9/10 on 2d11f540). PR #211 OPEN (feature/S-PERF-GATE-007→develop) HEAD **cf065761** (PUSHED).
+- pr-reviewer APPROVE (on 8e611daf; cf065761 is docs-only — re-review NOT required). Security 0 findings. CI UNSTABLE (matrix finishing, no failures) as of last check; confirm CI green on resume.
+- PR-LEVEL 3-CLEAN streak **0/3** on cf065761. Re-gate pending.
+- **OPEN: F-PG007-P1-MED-001 → ADJUDICATED DOWN TO LOW** — evidence.md line ~6 says "Current PR HEAD: 8e611daf" but gated HEAD is cf065761. VERIFIED: `git diff 8e611daf cf065761 -- .config/nextest.toml` is EMPTY (cf065761 was docs-only); config + AC-009/timing evidence remain valid. One-line evidence HEAD update only (8e611daf→cf065761).
+- Measured wins (branch, warm 16-core): nextest 585.84s→108.4s; just check ~798s→407s (1.96x); 28 TMT→0 eliminated. HONEST FRAMING (keep): caps' attributable effect ~190-260s/~1.5-1.8x + zero-TMT; the 5.4x is uncontrolled context, not causal headline.
+- **RESUME NEXT-ACTION:** implementer updates evidence.md "Current PR HEAD" line to cf065761 → re-push → re-gate PR-LEVEL adversary (read worktree files at .worktrees/S-PERF-GATE-007/; do NOT direct adversary to run git — that caused a false-BLOCK earlier). Then: 3 consecutive CLEAN(strict) passes → CI green → **USER AUTHORIZATION required before merge** (human directive D-1473: NO early-merge at CLEAN(PR-merge) only; no relayed auth; run `gh pr merge 211 --squash` in main loop after user authorizes).
+
+### WORKSTREAM — S-PERF-GATE-008 (QUEUED, not authored)
+- WASMtime compilation-cache further-speedup. Deliver AFTER 006/007 converge. Human-directed (D-1473).
+- Primary ref: branch wip/perf-wasmtime-exploration-76821af7 (wasmtime Cache in prism-spec-engine plugin/mod.rs + Cargo feature + spec-engine-wasmtime nextest cap max-threads=1; VERIFIED green just check, 5079 pass, zero TMT).
+- Secondary ref: stash@{1} on .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 (OnceLock Engine-share prototype) — has expect()-in-production-constructor issue; do NOT adopt as-is; use Result-based error handling.
+- **RESUME NEXT-ACTION (after 006+007 converge):** story-writer authors S-PERF-GATE-008 using primary ref wip/perf-wasmtime-exploration-76821af7.
+
+### PENDING USER-APPROVED WORK
+(1) Continue strict 3-CLEAN on 006 (fix title MED → passes 22+23) and 007 (fix evidence HEAD LOW → PR-LEVEL re-gate cascade). (2) Deliver 006 AND 008. (3) PR #211 hold-for-strict-PR-LEVEL-3-CLEAN + CI green → user-auth squash-merge. All granted, in progress.
+
+### DEMO/RELEASE ROADMAP
+006 LOCAL 3-CLEAN → push → PR → PR-LEVEL → user-auth merge. 007 PR-LEVEL 3-CLEAN(strict) + CI green → user-auth squash-merge #211 → develop. 008 author+deliver. Then un-park PR #208 (S-DEMO-FIDELITY-REMEDIATION-001, LOCAL HEAD 0978983f, origin stale 4a624a08, 4 wall-clock DTU scenario tests quarantined SID-1 #[ignore]): un-quarantine (verify pass on fast suite; deterministic stage-control only if still racy) → rebase onto fast develop → converge → ship. Then next demo story S-PRISMQL-CASE-INSENSITIVE-001.
+
+### WORKTREE INVENTORY
+- active-removable-post-merge: .worktrees/S-PERF-GATE-006 (e1f79d75 LOCAL-ONLY); .worktrees/S-PERF-GATE-007 (cf065761 = PR#211).
+- parked: .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 (0978983f).
+- stale-leave: .worktrees/S-3.09 (43c41389 FROZEN); .worktrees/W3-FIX-S307-001 (fcab8717 BLOCKED superseded).
+- ref: wip/perf-wasmtime-exploration-76821af7.
+
+### DECISION-LOG DELTA (this session, since D-1433)
+- D-1435: T-PERF-PROFILE pivot — full optimization BEFORE PR #208 ships (human decision; PR #208 parked).
+- D-1436: T-PERF-PROFILE delivery plan (S-PERF-GATE-006+007+008 sequence).
+- D-1437: S-PERF-GATE-006 registered + LOCAL adversary pass-1; RUSTFLAGS="" approach.
+- D-1438..D-1447: S-PERF-GATE-006 LOCAL cascade passes 1–9 fix-bursts + simplification (D-1443: human directive simplify Justfile comments; story v1.x→v2.0). [S-7.02 PROCESS-GAP]: code comments must not carry mechanistic quantitative claims.
+- D-1444: PR #208 orphaned-agent cleanup (76821af7 soft-reset; wip/perf-wasmtime-exploration-76821af7 preserved).
+- D-1446: S-PERF-GATE-007 implemented+verified (2d11f540; 5.4x nextest; 28 TMT→0).
+- D-1448..D-1467: S-PERF-GATE-007 LOCAL passes 1–10 (3/3 LOCAL CONVERGED on 2d11f540 at D-1467); S-PERF-GATE-006 LOCAL passes 10–20 fix-bursts.
+- D-1449: AC-009 binary-resolution pattern codified (process-gap: grep-count ACs cannot detect mistyped nextest filters).
+- D-1468: 006 pass-18 CLEAN(strict) streak 1/3 on 630cabb6.
+- D-1469: 006 passes 19+20 NOT CLEAN (Effect-3 overclaim + title propagation; story v2.3; code e1f79d75; streak RESET 0/3).
+- D-1470: 007 PR #211 OPEN (story v1.7; evidence.md rewrite; re-pushed 8e611daf; PR-LEVEL streak 0/3).
+- D-1471: 006 pass-21 CLEAN(strict) streak 1/3 on e1f79d75 v2.3 (title de-inflation F-PG006-P1-MED-001 confirmed propagated in body+comments; pre-identified title MED remains for pass-22).
+- D-1472: 007 PR-LEVEL pass-1 redo NOT CLEAN (F-P1-MED-001 MED provenance triple omitted + unbacked figure → implementer evidence-honesty fix cf065761; PR HEAD 8e611daf→cf065761; PR-LEVEL streak 0/3 on cf065761).
+- D-1473: human directive: continue-strict PR-LEVEL 3-CLEAN for PR #211 (do NOT early-merge at CLEAN(PR-merge)); deliver S-PERF-GATE-006 AND S-PERF-GATE-008.
+- **D-1474 (this wrap):** SESSION WRAP — RESUME SNAPSHOT D-1474 authored (supersedes D-1433). 006 LOCAL streak 1/3 on e1f79d75 v2.3; F-PG006-ADV-MED-001 title MED pre-identified for pass-22 (fix-on-resume). 007 PR-LEVEL streak 0/3 on cf065761; F-PG007-P1-MED-001 ADJUDICATED-LOW one-line evidence HEAD fix (fix-on-resume). 008 queued. PR #208 parked. No live agents. STATE v8.088→v8.089.
+
+**[PROCESS-GAP — S-7.02]:** ~22 combined adversary passes on the two config stories (006 × ~21 + 007 × ~10); code correct throughout; nearly all findings were story/comment prose consistency, several INTRODUCED by prior fixes (propagation-gap loop). Lessons to codify: (a) code comments must not carry mechanistic quantitative claims; (b) perf-story quantitative claims must trace to the Evidence table on first authoring; (c) fixes must sweep title+body+comments+FSR together; (d) nextest-cap stories need a binary-resolution AC (AC-009 pattern, added per D-1449).
+
+---
+
+## §RESUME SNAPSHOT — D-1433 (2026-06-30 -- SESSION WRAP; develop origin/develop 8bc0404e; BC-INDEX v7.26; STORY-INDEX v2.533; ARCH-INDEX v2.150; STATE v8.061; S-DEMO-FIDELITY-REMEDIATION-001 Category-2 LOCAL-ONLY REBASED @59474484; PR #208 OPEN at stale 4a624a08; just check UNCONFIRMED) [SUPERSEDES D-1425] [SUPERSEDED by D-1474]
 
 > **D-1433 burst (2026-06-30).** Session wrap. TEST-SPEED INITIATIVE COMPLETE: S-PERF-GATE-004 (PR #209 @e3148007) + S-PERF-GATE-005 (PR #210 @8bc0404e) MERGED to develop@8bc0404e -- full nextest suite ~hours->86.4s; root cause clone.stop() never wiring graceful shutdown (fixed via prism-dtu-common server helper across 9 clone crates). PR #208 (S-DEMO-FIDELITY-REMEDIATION-001, Category-2 UDF hints added in-scope per human decision) REBASED LOCALLY onto develop@8bc0404e at 59474484 (band-aid removed, Category-2 intact) but NOT PUSHED. Both prior LOCAL 3-CLEAN (was @481a0484, pre-Category-2) and PR-LEVEL cascade (was @4a624a08) VOIDED by Category-2 addition + rebase. All prior D-1101..D-1432 notes SUPERSEDED.
 
