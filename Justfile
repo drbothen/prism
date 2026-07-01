@@ -42,8 +42,13 @@ check:
 #        just iter prism-query test_parser
 # This is the recommended inner loop. Do NOT use `just check` during TDD —
 # reserve it for pre-push verification.
+# NOTE: RUSTFLAGS="" keeps this nextest fingerprint aligned with `check`/`check-fast`,
+# so the iter → check dev loop reuses cached test artifacts instead of recompiling.
+# Without alignment, ambient RUSTFLAGS (e.g. a shell export) cause a separate fingerprint
+# bucket and force a full recompile on the first `just check` after `just iter`.
+# See story S-PERF-GATE-006 F-006-P-MED-002 for full rationale.
 iter crate test_filter='':
-    PROPTEST_CASES=32 cargo nextest run -p {{crate}} {{test_filter}}
+    RUSTFLAGS="" PROPTEST_CASES=32 cargo nextest run -p {{crate}} {{test_filter}}
 
 # Fast workspace check — lint only, no tests. Use to confirm the workspace
 # still type-checks during a refactor sweep before running tests.
