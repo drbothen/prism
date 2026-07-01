@@ -41,3 +41,27 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 4. NEXT: rebase onto e3148007 → revert now+30 → adversarial re-converge → PR-LEVEL 3-CLEAN(strict) → user-auth squash-merge (NO --admin).
 5. S-PRISMQL-SQLPIPE-COLUMN-GATE-001 + S-DTU-ARMIS-FIXTURE-VOCAB-001 draft stubs registered (P3; depend on S-DEMO merge).
 6. Autonomy D-989 active.
+
+---
+
+## Archived: D-1441 — 2026-07-01; STATE v8.069
+
+**STATE v8.069. D-1441 — S-PERF-GATE-006 LOCAL ADVERSARY PASS-5 FIX-BURST CLOSED. develop_head 8bc0404e. BC-INDEX v7.26. STORY-INDEX v2.540. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88. total_stories 224.**
+
+**T-PERF-PROFILE DELIVERY PLAN:** Full optimization BEFORE PR #208 ships (human decision D-1436). Three-story sequence: S-PERF-GATE-006 (Justfile RUSTFLAGS="" fingerprint alignment; ~150s savings; 7 ACs; 1 pt; **draft v1.5**) → S-PERF-GATE-007 (.config/nextest.toml wasm-cap + http-cap groups; ~150-200s savings; 8 ACs; 2 pts; draft v1.0) → S-PERF-GATE-008 (shared wasmtime Engine — pending architect/research consult; NOT yet authored). Baseline: `just check` ~13.3min warm (report: `.factory/research/test-suite-perf-profile-2026-06-30.md`). Combined projected → ~4.5-6.3min.
+
+**S-PERF-GATE-006 STATUS:** LOCAL adversary pass-5 closed (NOT CLEAN — F-006-MED-001 MED causal-model contradiction + OBS-1/OBS-2; all closed). Story v1.4→v1.5; feature HEAD UNCHANGED 089b36df (spec-only fix; no new code commit). Key insight: AC-007 check-fast alignment is load-bearing — fixing only `just check` clippy would move the ~157s penalty to `just clippy`, not eliminate it. 3-CLEAN streak 0/3 on 089b36df. NEXT: LOCAL adversary pass-6 re-gate on frozen 089b36df + story v1.5.
+
+**PR #208 STATUS:** PARKED. Feature branch LOCAL HEAD 0978983f (NOT pushed; origin + PR #208 stale at 4a624a08). Local state: now-10 (band-aid reverted); 4 wall-clock-racy DTU scenario tests QUARANTINED with SID-1 `#[ignore]` (test_BC_2_06_019_armis_primary_device_stage_visibility, test_BPRL_P4_02_armis_alerts_stage_guard_primary_device, test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility, test_BPRL_P4_02_detections_stage_guard_primary_device). Streak 0/3. BLOCKED until S-PERF-GATE-006+007+008 merge.
+
+**PENDING USER-APPROVED WORK:** LOCAL adversary pass-6 on S-PERF-GATE-006 089b36df + story v1.5 → 3-CLEAN → PR → merge → S-PERF-GATE-007 → S-PERF-GATE-008 (gated on architect/research consult). CR-002 (anyhow >=1.0.103 pin in 14 crates) DEFERRED -- non-urgent dep-hygiene.
+
+**RESUME PROTOCOL (zero prior context):**
+0. Read SESSION-HANDOFF.md RESUME SNAPSHOT D-1433 for prior context; D-1435 PIVOT + D-1436 delivery plan + D-1437 pass-1 + D-1438 pass-2 + D-1439 pass-3 + D-1440 pass-4 + D-1441 pass-5 fix-bursts recorded in STATE.md Current Phase Steps.
+1. Run vsdd-factory:factory-worktree-health (BLOCKING).
+2. `git log --oneline -1 origin/develop` → expect `8bc0404e`.
+3. S-PERF-GATE-006 LOCAL adversary pass-6 pending on frozen 089b36df + story v1.5 (7 ACs; 3-CLEAN streak 0/3).
+4. PR #208 PARKED at LOCAL 0978983f (4 tests quarantined; NOT pushed to origin).
+5. NEXT: LOCAL adversary pass-6 on 089b36df + story v1.5 → 3-CLEAN → PR S-PERF-GATE-006 → merge → deliver S-PERF-GATE-007 → S-PERF-GATE-008 (pending arch/research) → rebase PR #208 + un-quarantine 4 tests → ship PR #208.
+6. S-PRISMQL-SQLPIPE-COLUMN-GATE-001 + S-DTU-ARMIS-FIXTURE-VOCAB-001 draft stubs registered (P3; depend on S-DEMO merge).
+7. Autonomy D-989 active.
