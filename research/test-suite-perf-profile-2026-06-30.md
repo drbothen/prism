@@ -318,7 +318,7 @@ check:
 
 ---
 
-### REC-4 [MEDIUM, Medium effort, ~60-100s savings] — Cap `prism-spec-engine::bc_2_11_007_pushdown_test` under dtu-cap
+### REC-4 [MEDIUM, Medium effort, ~40-60s savings] — Cap `prism-spec-engine::bc_2_11_007_pushdown_test` under dtu-cap
 
 **Problem:** `bc_2_11_007_pushdown_test` (11 tests, avg 7.80s, 85.8s serial) starts in-process CrowdStrike and Armis DTU clones (Axum HTTP servers + tokio runtimes). It is in the `prism-spec-engine` package, so it is NOT matched by the `dtu-cap` filter (`package(/^prism-dtu-/)`). These 11 tests run completely uncapped, adding DTU server load on top of the dtu-cap=4 budget.
 
