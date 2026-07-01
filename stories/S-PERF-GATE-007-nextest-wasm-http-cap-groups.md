@@ -1,9 +1,9 @@
 ---
 document_type: story
 story_id: S-PERF-GATE-007
-title: "nextest cap groups for uncapped WASMtime + HTTP binaries — spec-engine-wasm-cap and spec-engine-http-cap (max-threads=4) to eliminate Cranelift JIT + wiremock oversubscription and close bc_2_11_007_pushdown_test DTU-cap gap (~150-200s savings)"
+title: "nextest cap groups for uncapped WASMtime + HTTP binaries — spec-engine-wasm-cap and spec-engine-http-cap (max-threads=4) to eliminate Cranelift JIT + wiremock oversubscription and close bc_2_11_007_pushdown_test DTU-cap gap (~150-200s from WASMtime/HTTP caps + ~40-60s from bc_2_11_007 gap closure, ~190-260s combined scheduling savings)"
 epic_id: EPIC-MAINTENANCE
-version: "1.5"
+version: "1.6"
 status: ready
 producer: story-writer
 phase: 3
@@ -501,12 +501,12 @@ correct tests). The change affects wall-clock and CPU contention, not test corre
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.5, ~715 lines) | ~8,600 |
+| This story spec (v1.6, ~720 lines) | ~8,700 |
 | `.config/nextest.toml` (full file, ~213 lines — read + modify) | ~2,500 |
 | AC verification grep outputs (8 commands × ~2 lines each) | ~400 |
 | `cargo nextest show-config` output (AC-009 resolution check) | ~300 |
 | `cargo nextest run` output (workspace run) | ~1,000 |
-| **Total** | **~12,800** |
+| **Total** | **~12,900** |
 
 Well within the implementer agent's context window. Similar complexity to S-PERF-GATE-004
 (two test-groups + four override stanzas vs one test-group + two override stanzas).
@@ -648,8 +648,8 @@ S-PERF-GATE-006 and S-PERF-GATE-007 are INDEPENDENT of each other (different fil
 
 They may be developed in parallel on separate worktrees or sequentially; no ordering
 constraint between them. When both are merged to develop, the combined savings from the
-RUSTFLAGS alignment (S-PERF-GATE-006, ~150s) and the WASMtime/HTTP cap groups (this story,
-~150-200s) will compound.
+RUSTFLAGS alignment (S-PERF-GATE-006, ~150s) and the WASMtime/HTTP cap groups + bc_2_11_007
+gap closure (this story, ~190-260s combined) will compound.
 
 ```
 develop (after S-PERF-GATE-005 merge — 8bc0404e)
@@ -674,6 +674,7 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.6 | 2026-07-01 | story-writer | F-PG007-LOW-001 fix: frontmatter title cited "~150-200s savings" — understating this story's own combined estimate by omitting the ~40-60s bc_2_11_007 gap-closure contribution. Title updated to "~150-200s from WASMtime/HTTP caps + ~40-60s from bc_2_11_007 gap closure (~190-260s combined scheduling savings)" to match the authoritative §Evidence breakdown and §PR Framing Note (d) (~190-260s). Also corrected the §Scheduling Note sentence which likewise cited only "~150-200s" for this story; updated to "~190-260s combined". Token budget updated: v1.6 / ~720 lines / ~12,900 tokens. |
 | 1.5 | 2026-07-01 | story-writer | F-PG007-MED-001 (framing-note contradiction resolved): §PR Evidence Framing Note simultaneously asserted (a) 585.84s baseline was TMT-free and (d) attributed the (585.84−108.4) delta's ~220-290s excess to "28 tests × up to 180s timeout each" — internally contradictory because a TMT-free baseline endpoint cannot contribute TMT-elimination to the delta. Fixed: intro paragraph now states both endpoints are TMT-free and the full ~477s delta is a scheduling/measurement-condition improvement; (b) explicitly states the 28-TMT heavier-contention run is a SEPARATE measurement whose wall-clock does NOT enter the delta arithmetic, and the 28×180 arithmetic against the 585.84→108.4 delta is removed; (d) reclassifies the ~220-290s excess as presently unexplained (candidate: cache/contention differences between runs) rather than attributed to TMT-elimination; closing note updated to reflect the corrected framing. Token budget updated: v1.5 / ~715 lines / ~12,800 tokens. |
 | 1.4 | 2026-07-01 | story-writer | F-LOW-1 fix: §Tasks 2a comment sample for spec-engine-http-cap — replaced bare underscore token `bc_2_11_007_pushdown_test` with "The bc_2_11_007 pushdown test" (matching delivered nextest.toml) and added explicit AC-005 guard note so implementers do not inadvertently introduce a third grep match that would cause AC-005 to return 3 instead of 2. F-OBS-1 fix: §PR Evidence Framing Note — added four-part measurement provenance: (a) 585.84s baseline is GREEN (no TMT per profiling report); (b) 28-TMT figure comes from separate heavier-contention `just check` run pre-cap during PR #208 delivery; (c) 108.4s post-cap on same machine; (d) 5.4x headline compounds ~190-260s scheduling savings with TMT-elimination contribution; headline must not be cited as pure-scheduling effect without this provenance. Token budget updated: v1.4 / ~695 lines / ~12,500 tokens. |
 | 1.3 | 2026-07-01 | story-writer | F-LOW-1 fix: §Background "Relation to Existing PERF-GATE Cap Groups" table — corrected S-PERF-GATE-004 rationale from "12 DTU HTTP-server + RocksDB binaries" to "12 DTU packages (194 test binaries)" per nextest.toml authoritative comment line 130 ("ALL 12 prism-dtu-* packages (194 test binaries total)"). OBS-1 fix: status draft→ready — behavioral_contracts: [BC-5.39.001] is non-empty (S-7.01 gate satisfied); story is implemented GREEN and in LOCAL adversarial 3-CLEAN cascade; S-PERF-GATE-002 precedent confirms status=ready is maintained through LOCAL cascade; state-manager flips to merged at PR merge per POL-14. Token budget updated: v1.3 / ~665 lines / ~12,300 tokens. |
