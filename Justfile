@@ -19,7 +19,8 @@ test:
 # NOTE: cargo-nextest skips doctests by default; the separate --doc step covers them.
 # NOTE: RUSTFLAGS="" is set explicitly on all three non-fmt steps (clippy, nextest, doctest)
 # so they share the same fingerprint cache. Without alignment, a RUSTFLAGS drift (e.g. a
-# shell export) forces a full recompile between steps (ci.yml lines 127-134 rationale).
+# shell export) forces a full recompile between steps (see RUSTFLAGS alignment on ci.yml's
+# nextest and doctest steps in the test job — mold-linker fingerprint-cache rationale).
 # S-PERF-GATE-006: added RUSTFLAGS="" to clippy to eliminate ~157s nextest rebuild on warm
 # check (fingerprint A from clippy → fingerprint B from nextest caused full test-binary recompile).
 check:
