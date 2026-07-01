@@ -44,8 +44,13 @@ iter crate test_filter='':
 
 # Fast workspace check — lint only, no tests. Use to confirm the workspace
 # still type-checks during a refactor sweep before running tests.
+# NOTE: RUSTFLAGS="" aligns the clippy fingerprint with `check` so that
+# alternating `just check-fast` (refactor sweep) → `just check` (pre-push)
+# does not force a full clippy rebuild (~44s).
+# S-PERF-GATE-006 MED-1 sibling-sweep: RUSTFLAGS="" on both `check` and `check-fast`
+# clippy steps restores a shared artifact cache between the two recipes.
 check-fast:
-    cargo clippy --all-features -- -D warnings
+    RUSTFLAGS="" cargo clippy --all-features -- -D warnings
 
 # Generate a build-timings report for diagnostics. Outputs HTML at
 # target/cargo-timings/cargo-timing.html. See research sidecar §7 for
