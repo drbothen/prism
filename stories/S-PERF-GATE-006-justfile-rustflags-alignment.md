@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-006
 title: "Justfile RUSTFLAGS fingerprint alignment — align check and check-fast clippy fingerprints with RUSTFLAGS=\"\" to eliminate ~157s test-target rebuild on just check following a clippy-only run"
 epic_id: EPIC-MAINTENANCE
-version: "1.8"
+version: "1.9"
 status: draft
 producer: story-writer
 phase: 3
@@ -50,7 +50,8 @@ incur the ~157s test-binary codegen cost, so the clippy-side residual is ~44s, n
 
 As a Prism developer, I want `cargo clippy` in both the `just check` and `just check-fast`
 recipes to use `RUSTFLAGS=""` (matching the existing nextest and doctest convention already
-present in `check`), so that library artifacts compiled by clippy are reusable by nextest across tool invocations
+present in `check`), so that the clippy and nextest steps share the same RUSTFLAGS value —
+keeping nextest's `RUSTFLAGS=""` build cache warm across clippy-only dev-loop invocations
 (eliminating the ~157s nextest rebuild — Evidence table nextest build cost — caused by the
 clippy(ambient)↔nextest(RUSTFLAGS="") fingerprint mismatch internal to `check`), and
 cross-recipe clippy recompilation is eliminated when alternating between `just check` and
@@ -140,10 +141,11 @@ Fingerprint sequence (just check following just check-fast — with both fixes a
 
 - **Effect 1 (~157s saving from aligning `check`'s clippy, Evidence table nextest build
   cost):** The mismatch is internal to the `check` recipe: clippy runs under ambient
-  RUSTFLAGS, nextest uses `RUSTFLAGS=""`. These produce different fingerprints; nextest
-  cannot reuse clippy's library artifacts → ~157s full rebuild. Aligning `check`'s clippy
-  to `RUSTFLAGS=""` resolves this mismatch; nextest reuses the shared artifact bucket and
-  the rebuild disappears.
+  RUSTFLAGS, nextest uses `RUSTFLAGS=""`. These produce different fingerprints; a
+  clippy-only invocation (ambient RUSTFLAGS) leaves nextest's `RUSTFLAGS=""` artifact
+  cache cold → ~157s full rebuild. Aligning `check`'s clippy to `RUSTFLAGS=""` keeps
+  nextest's artifact cache warm across clippy-only dev-loop runs, and the rebuild
+  disappears.
 
 - **Effect 2 (~44s additional saving from aligning `check-fast`'s clippy, Evidence table
   clippy cost: 43.85s):** Once Effect 1 is applied, `check-fast`'s clippy (ambient RUSTFLAGS)
@@ -189,11 +191,13 @@ re-check (Evidence table clippy cost: 43.85s):
 
 **Effect 1 — ~157s nextest rebuild (fixed by aligning `check`'s clippy, not `check-fast`):**
 The mismatch is internal to the `check` recipe: `check`'s clippy runs under ambient RUSTFLAGS
-while `check`'s nextest uses `RUSTFLAGS=""`. These produce different fingerprints; nextest
-cannot reuse `check`'s clippy library artifacts → ~157s full rebuild (Evidence table nextest
-build cost). This occurs after any ambient-RUSTFLAGS clippy invocation, regardless of whether
-`just check-fast` ran first. Aligning `check`'s own clippy to `RUSTFLAGS=""` resolves this
-mismatch and eliminates the ~157s rebuild.
+while `check`'s nextest uses `RUSTFLAGS=""`. These produce different fingerprints; when a
+clippy-only invocation (e.g., `just check-fast` or IDE clippy-on-save) runs under ambient
+RUSTFLAGS, it leaves nextest's `RUSTFLAGS=""` cache cold — so the next `just check`'s nextest
+step must rebuild (~157s, Evidence table nextest build cost). A second consecutive `just check`
+(no intervening clippy-only run) does NOT trigger this penalty; it reuses nextest's own
+`RUSTFLAGS=""` artifacts from the first run. Aligning `check`'s own clippy to `RUSTFLAGS=""`
+keeps the `RUSTFLAGS=""` cache warm regardless of what ran before, eliminating the ~157s rebuild.
 
 **Effect 2 — ~44s residual clippy re-check (fixed by aligning `check-fast`'s clippy):**
 Once `check`'s clippy is aligned to `RUSTFLAGS=""`, the check-fast → check dev loop has a
@@ -444,11 +448,11 @@ correctly-written test). The change affects build time, not correctness.
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.8, ~645 lines) | ~7,800 |
+| This story spec (v1.9, ~605 lines) | ~7,300 |
 | `Justfile` (full file, ~220 lines — read + modify) | ~2,000 |
 | AC verification grep outputs (6 commands) | ~300 |
 | `just check` output (two warm runs, abbreviated) | ~2,000 |
-| **Total** | **~12,100** |
+| **Total** | **~11,600** |
 
 Well within the implementer agent's context window. Simpler than S-PERF-GATE-003 (one word
 insertion per recipe in one file; no nextest.toml surgery, no shell script changes).
@@ -579,6 +583,7 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.9 | 2026-07-01 | story-writer | MED-1 causal-narrative simplification: removed all "nextest reuses clippy's library artifacts" claims (false — `cargo clippy` without `--all-targets` produces no codegen artifacts that nextest links against) and removed "regardless of whether check-fast ran first" clause (contradicts the measured second-consecutive-check-is-fast behavior in the Evidence section). Rewrote three sections to state only observed/measured behavior: (1) Narrative: replaced artifact-reuse framing with "clippy and nextest steps share the same RUSTFLAGS value — keeping nextest's RUSTFLAGS="" build cache warm"; (2) §Background Effect 1 savings estimate: replaced "nextest cannot reuse clippy's library artifacts" with "clippy-only invocation leaves nextest's RUSTFLAGS="" artifact cache cold"; (3) §check-fast is in scope Effect 1: replaced both false claims with observation-grounded text naming the trigger (clippy-only invocation under ambient RUSTFLAGS leaves nextest's cache cold) and explicitly preserving the second-consecutive-check-is-fast observation already present in the Evidence section. Narrative is now internally consistent with §Evidence. No ACs, Evidence figures, or behavioral scope changed. Token budget updated: v1.9, ~605 lines, ~7,300 tokens; total ~11,600. |
 | 1.8 | 2026-07-01 | story-writer | F-006-LOW-001: spec under-described the delivered diff — `check-fast` comment-block addition was unlisted in §Scope, §Scope table, and §File Structure Requirements. Updated intro paragraph (added check-fast comment-block addition alongside check rewrite); §Scope prose (now names both recipes); §Scope table (two new rows: check comment-block rewrite + check-fast comment-block addition); Task 2 (explicit instruction to add check-fast comment block, mirrors check treatment); §File Structure Requirements (Details now lists both comment changes); frontmatter tdd_mode rationale comment (explicit "rewrite on check, addition on check-fast"). Delivery diff is now fully described: two RUSTFLAGS="" clippy-line prefixes AND two comment-block changes (one rewrite on `check`, one addition on `check-fast`). Token budget updated to v1.8, ~645 lines, ~7,800 tokens; total ~12,100. |
 | 1.7 | 2026-07-01 | story-writer | OBS-2 grounding: the ~1.25s nextest build-phase figure was presented without a cited source and numerically coincides with the §2a per-test average in the research profile (conflation risk). Re-framed in all three occurrences (post-fix fingerprint sequence, AC-005, Task 5): labeled as "measured in the implementation verification run" and made explicit that this figure is not yet a persisted artifact — it becomes traceable at merge time when captured in the PR evidence bundle, which AC-005 already requires. Kept the existing disclaimer distinguishing it from the §2a per-test average. No other figures changed: all other numbers (157s, 43.85s, 1.49s, 585.84s, ~8s, ~798s, ~44s) are pinned to the Evidence table in `.factory/research/test-suite-perf-profile-2026-06-30.md` and remain correctly grounded. Token budget updated to v1.7, ~615 lines, ~7,400 tokens; total ~11,700. |
 | 1.6 | 2026-07-01 | story-writer | F-006-P1-MED-002 + grounding discipline sweep: corrected the "fixing only `check` would move the ~157s rebuild from nextest to clippy" claim — `cargo clippy --all-features` (no `--all-targets`) does NOT compile test binaries and cannot incur the ~157s test-binary codegen cost; the Evidence table pins clippy at 43.85s (~44s). Separated the two fix effects with explicit Evidence table traces: (1) aligning `check`'s clippy eliminates the ~157s nextest rebuild by resolving the clippy(ambient)↔nextest(RUSTFLAGS="") fingerprint mismatch internal to the `check` recipe (Evidence table nextest build cost); (2) aligning `check-fast`'s clippy eliminates the ~44s residual clippy re-check in the check-fast → check dev loop (Evidence table clippy cost: 43.85s). Fixed incorrect narrative claim "test binary artifacts compiled by clippy" — clippy without `--all-targets` compiles library/binary targets, not test binaries; changed to "library artifacts compiled by clippy are reusable by nextest." Changed "approximately 150 seconds" (narrative) to trace explicitly to Evidence table (~157s nextest, ~44s clippy). Rewrote intro, narrative, Background savings estimate, and check-fast scope section to keep the two effects clearly separate with Evidence table source citations throughout. Updated Token Budget: v1.6, ~600 lines, ~7,200 tokens; total ~11,500. |

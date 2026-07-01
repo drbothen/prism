@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-007
 title: "nextest cap groups for uncapped WASMtime + HTTP binaries — spec-engine-wasm-cap and spec-engine-http-cap (max-threads=4) to eliminate Cranelift JIT + wiremock oversubscription and close bc_2_11_007_pushdown_test DTU-cap gap (~150-200s savings)"
 epic_id: EPIC-MAINTENANCE
-version: "1.1"
+version: "1.2"
 status: draft
 producer: story-writer
 phase: 3
@@ -103,6 +103,32 @@ With max 4 concurrent WASMtime inits (vs uncontrolled ~10-16), per-init time dro
 For `plugin_integration_tests` (34 tests × avg −4s): −136s serial. Wall-clock improvement
 depends on critical path, but ~150-200s wall-clock is achievable. Closing the
 `bc_2_11_007_pushdown_test` gap adds ~40-60s more.
+
+**REC-4 implementation variant — deviation from report code sample:** The profiling
+report's REC-4 code sample prescribes folding `bc_2_11_007_pushdown_test` INTO the
+existing `dtu-cap` group (sharing dtu-cap's 4-slot budget alongside the ~194
+`package(/^prism-dtu-/)` binaries). The delivered implementation instead assigns
+`bc_2_11_007_pushdown_test` to the new dedicated `spec-engine-http-cap` pool (runs
+concurrently with `dtu-cap`, not inside it). This is an intentional authorial choice:
+a dedicated pool preserves `bc_2_11_007`'s own throughput rather than contending with
+the ~194 DTU binaries already filling the `dtu-cap` budget. Additionally, the wasm-cap
+and http-cap groups simultaneously remove 11 previously-uncapped heavy binaries from
+free-running concurrency, so total contention pressure is materially lower than baseline
+regardless of which pool captures `bc_2_11_007`. Empirically validated: zero TMT tests,
+GREEN `just check`. (Source-of-truth precedence: story spec supersedes the research
+report code sample per CLAUDE.md §Source-of-Truth Precedence — story overrides research
+for implementation-scope decisions.)
+
+### PR Evidence Framing Note
+
+The measured performance headline (wall-clock improvement vs baseline, expected to be
+reported as approximately 5.4x / 108.4s in the PR evidence bundle) reflects BOTH the
+scheduling caps introduced by this story AND the elimination of timing-out (TMT) tests
+that previously consumed large wall-clock before termination. These two effects compound
+in the measured wall-clock time. The headline should NOT be mistaken for a pure-scheduling
+effect on a future re-baseline — a re-baseline measurement should separately account for
+the TMT-removal contribution to avoid overstating the standalone value of the cap groups
+for future tuning decisions.
 
 ## Background
 
@@ -430,12 +456,12 @@ correct tests). The change affects wall-clock and CPU contention, not test corre
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.1, ~405 lines) | ~4,900 |
+| This story spec (v1.2, ~660 lines) | ~7,900 |
 | `.config/nextest.toml` (full file, ~213 lines — read + modify) | ~2,500 |
 | AC verification grep outputs (8 commands × ~2 lines each) | ~400 |
 | `cargo nextest show-config` output (AC-009 resolution check) | ~300 |
 | `cargo nextest run` output (workspace run) | ~1,000 |
-| **Total** | **~9,100** |
+| **Total** | **~12,100** |
 
 Well within the implementer agent's context window. Similar complexity to S-PERF-GATE-004
 (two test-groups + four override stanzas vs one test-group + two override stanzas).
@@ -603,5 +629,6 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-07-01 | story-writer | OBS-1 fix: §Evidence DTU-cap Gap section — documented REC-4 implementation variant: `bc_2_11_007_pushdown_test` is assigned to the new dedicated `spec-engine-http-cap` pool rather than folded into `dtu-cap` as REC-4's code sample shows; added one-line rationale (preserves `bc_2_11_007` throughput vs ~194 dtu-cap binaries; wasm-cap+http-cap groups remove 11 uncapped heavy binaries simultaneously; zero TMT, GREEN). Added PR Evidence Framing Note: the ~5.4x / ~108.4s headline compounds scheduling-cap savings with TMT-elimination and must not be read as a pure-scheduling effect on re-baseline. Updated token budget to v1.2 / ~660 lines / ~12,100 tokens. |
 | 1.1 | 2026-07-01 | story-writer | F-1 fix: corrected §Evidence "Total WASMtime serial time" sentence — removed erroneous `bc_2_16_002_crowdstrike_two_step` (HTTP/wiremock binary, not WASMtime), clarified the 1022.7s covers report §3b's 8 WASMtime binaries including `infusion_tests` (intentionally uncapped). OBS-2: added AC-009 binary-name resolution check (`cargo nextest show-config test-groups --profile prepush`) to detect zero-match `binary()` filters that would leave `just check` false-green. |
 | 1.0 | 2026-06-30 | story-writer | Initial draft (T-PERF-PROFILE initiative, D-1435) |
