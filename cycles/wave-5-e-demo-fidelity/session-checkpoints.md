@@ -11,6 +11,18 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 
 ---
 
+## Archived: D-1433 — 2026-06-30; STATE v8.061
+
+**STATE v8.061. SESSION WRAP D-1433. TEST-SPEED INITIATIVE COMPLETE (at time of writing; corrected by D-1435): S-PERF-GATE-004 (PR #209 @e3148007) + S-PERF-GATE-005 (PR #210 @8bc0404e) MERGED. Full nextest ~hours->86.4s. stop() 5.002s->0.019s. develop_head 8bc0404e. BC-INDEX v7.26. STORY-INDEX v2.533. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88. total_stories 222.**
+
+**PR #208 STATUS (at time of writing):** S-DEMO-FIDELITY-REMEDIATION-001 Category-2 (BC-2.10.012 pql_hints UDF-discovery hints) implemented. Feature branch rebased LOCAL-ONLY onto develop@8bc0404e at 59474484 (band-aid removed; Category-2 intact). just check UNCONFIRMED (rebase agent killed mid pre-push verify). Origin feature branch + PR #208 still at stale 4a624a08. Prior LOCAL 3-CLEAN (was @481a0484) + PR-LEVEL cascade (was @4a624a08) VOIDED by rebase+Category-2. Streak 0/3.
+
+**NEXT ACTION (at time of writing):** (1) In .worktrees/S-DEMO-FIDELITY-REMEDIATION-001: run `just check` to confirm green. (2) `git push --force-with-lease` to update origin feature branch + PR #208. (3) Fresh full adversarial re-convergence on new pushed HEAD (streak 0/3). (4) Demo evidence refresh (AC-CAT2 + de-pin). (5) PR-LEVEL 3-CLEAN(strict) -> security + pr-reviewer + CI green -> user-authorized squash-merge -> post-merge burst -> S-PRISMQL-CASE-INSENSITIVE-001.
+
+**NOTE: Superseded by D-1435 PIVOT — T-PERF-PROFILE brought forward; PR #208 PARKED; test-speed initiative marked INCOMPLETE. See STATE.md Session Resume Checkpoint (D-1435).**
+
+---
+
 ## Archived: D-1429 — 2026-06-30; STATE v8.057
 
 **STATE v8.057. POST-MERGE BURST D-1429. S-PERF-GATE-004 MERGED — PR #209 squash-merged to develop@e3148007 2026-06-30T06:30:27Z. develop_head e3148007. RUSTSEC-2026-0190 closed (anyhow 1.0.102→1.0.103). Test-speed initiative milestone 1 COMPLETE. POL-14 NO-OP (BC-5.39.001 ACTIVE; no product BCs). CR-002 (LOW) deferred to future maintenance (14 crates direct `anyhow="1"`; dep-hygiene only). PR #208 (S-DEMO-FIDELITY-REMEDIATION-001): feature branch HEAD 4a624a08 (pre-rebase onto e3148007); PR #208 OPEN; PR-LEVEL streak 0/3 (passes 1+2 already completed per D-1426/D-1427). BC-INDEX v7.26. STORY-INDEX v2.530. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88. total_stories 221.**
