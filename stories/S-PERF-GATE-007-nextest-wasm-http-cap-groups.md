@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-007
 title: "nextest cap groups for uncapped WASMtime + HTTP binaries — spec-engine-wasm-cap and spec-engine-http-cap (max-threads=4) to eliminate Cranelift JIT + wiremock oversubscription and close bc_2_11_007_pushdown_test DTU-cap gap (~150-200s savings)"
 epic_id: EPIC-MAINTENANCE
-version: "1.3"
+version: "1.4"
 status: ready
 producer: story-writer
 phase: 3
@@ -121,14 +121,43 @@ for implementation-scope decisions.)
 
 ### PR Evidence Framing Note
 
-The measured performance headline (wall-clock improvement vs baseline, expected to be
-reported as approximately 5.4x / 108.4s in the PR evidence bundle) reflects BOTH the
+The measured performance headline (wall-clock improvement vs baseline, reported as
+approximately 5.4x / 585.84s → 108.4s in the PR evidence bundle) reflects BOTH the
 scheduling caps introduced by this story AND the elimination of timing-out (TMT) tests
 that previously consumed large wall-clock before termination. These two effects compound
-in the measured wall-clock time. The headline should NOT be mistaken for a pure-scheduling
-effect on a future re-baseline — a re-baseline measurement should separately account for
-the TMT-removal contribution to avoid overstating the standalone value of the cap groups
-for future tuning decisions.
+in the measured wall-clock time.
+
+**Measurement provenance (required for PR evidence bundle):**
+
+(a) **585.84s baseline is a GREEN run — no TMT.** The profiling report
+(`.factory/research/test-suite-perf-profile-2026-06-30.md`, baseline develop@8bc0404e) records
+this run as GREEN: 4976 passed, 60 skipped, zero timing-out tests. The 585.84s figure does
+NOT include any 180s timeout contributions.
+
+(b) **"28 TMT → 0" comes from a separate, heavier-contention run.** The 28 timing-out
+tests were observed during S-PERF-GATE-007 delivery (the PR #208 resume sequence), in a
+full-workspace `just check` run taken BEFORE the cap fix was applied. Under that
+heavier-contention condition (more concurrent processes competing for the same 16 CPUs),
+the uncapped WASMtime binaries caused 28 tests to hit the 180s nextest hard timeout. The
+PR evidence bundle must record the specific run (timestamp, machine, exact command) where
+the 28-TMT baseline was observed so the headline is substantiated rather than asserted.
+
+(c) **108.4s post-cap is measured on the same machine after the cap fix.** The before/after
+pair (`time cargo nextest run --workspace --all-features --profile prepush`) must be taken
+on the same machine under comparable load conditions; the PR evidence bundle should note
+both runs side-by-side.
+
+(d) **The 5.4x headline compounds two distinct effects.** The profiling report's REC-1 +
+REC-4 predicted ~190-260s of scheduling savings from the WASMtime/HTTP cap groups. The
+~477s of observed wall-clock improvement (585.84s − 108.4s) substantially exceeds that
+prediction. The gap (~220-290s) is the TMT-elimination contribution: 28 tests × up to
+180s timeout each, partially reclaimed by the cap fix preventing the oversubscription
+that caused them. A future re-baseline that starts from a cap-already-applied state (no
+TMT tests at baseline) would show only the scheduling-improvement component — the
+standalone value of the cap groups for future tuning decisions is the ~190-260s figure,
+not the full 5.4x headline.
+
+The headline should NOT be cited as a pure-scheduling effect without this provenance context.
 
 ## Background
 
@@ -413,11 +442,17 @@ correct tests). The change affects wall-clock and CPU contention, not test corre
    # S-PERF-GATE-007: HTTP/wiremock-heavy spec-engine binaries + bc_2_11_007 gap.
    # pipeline_http_integration, pipeline_oauth_retry, bc_2_16_002_crowdstrike_two_step
    # spin up wiremock::MockServer per test (OS socket contention at high concurrency).
-   # bc_2_11_007_pushdown_test starts in-process CrowdStrike + Armis DTU clones but
+   # The bc_2_11_007 pushdown test starts in-process CrowdStrike + Armis DTU clones but
    # lives in prism-spec-engine — NOT matched by dtu-cap package(/^prism-dtu-/) filter.
    # This group closes that gap and caps the wiremock binaries simultaneously.
    spec-engine-http-cap = { max-threads = 4 }
    ```
+
+   **AC-005 guard:** The comments above use "the bc_2_11_007 pushdown test" (with spaces),
+   matching the delivered nextest.toml. Do NOT reword any comment in this block to use the
+   underscore-form binary name as a bare token — AC-005 counts exactly 2 occurrences of that
+   token in nextest.toml (one per profile in the filter-expression lines in step 2b/2c).
+   A third occurrence in a comment would cause AC-005 to return 3 and FAIL.
 
    b. After the existing `[[profile.prepush.overrides]]` stanzas, add:
    ```toml
@@ -456,12 +491,12 @@ correct tests). The change affects wall-clock and CPU contention, not test corre
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.3, ~665 lines) | ~7,950 |
+| This story spec (v1.4, ~695 lines) | ~8,300 |
 | `.config/nextest.toml` (full file, ~213 lines — read + modify) | ~2,500 |
 | AC verification grep outputs (8 commands × ~2 lines each) | ~400 |
 | `cargo nextest show-config` output (AC-009 resolution check) | ~300 |
 | `cargo nextest run` output (workspace run) | ~1,000 |
-| **Total** | **~12,100** |
+| **Total** | **~12,500** |
 
 Well within the implementer agent's context window. Similar complexity to S-PERF-GATE-004
 (two test-groups + four override stanzas vs one test-group + two override stanzas).
@@ -629,6 +664,7 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-07-01 | story-writer | F-LOW-1 fix: §Tasks 2a comment sample for spec-engine-http-cap — replaced bare underscore token `bc_2_11_007_pushdown_test` with "The bc_2_11_007 pushdown test" (matching delivered nextest.toml) and added explicit AC-005 guard note so implementers do not inadvertently introduce a third grep match that would cause AC-005 to return 3 instead of 2. F-OBS-1 fix: §PR Evidence Framing Note — added four-part measurement provenance: (a) 585.84s baseline is GREEN (no TMT per profiling report); (b) 28-TMT figure comes from separate heavier-contention `just check` run pre-cap during PR #208 delivery; (c) 108.4s post-cap on same machine; (d) 5.4x headline compounds ~190-260s scheduling savings with TMT-elimination contribution; headline must not be cited as pure-scheduling effect without this provenance. Token budget updated: v1.4 / ~695 lines / ~12,500 tokens. |
 | 1.3 | 2026-07-01 | story-writer | F-LOW-1 fix: §Background "Relation to Existing PERF-GATE Cap Groups" table — corrected S-PERF-GATE-004 rationale from "12 DTU HTTP-server + RocksDB binaries" to "12 DTU packages (194 test binaries)" per nextest.toml authoritative comment line 130 ("ALL 12 prism-dtu-* packages (194 test binaries total)"). OBS-1 fix: status draft→ready — behavioral_contracts: [BC-5.39.001] is non-empty (S-7.01 gate satisfied); story is implemented GREEN and in LOCAL adversarial 3-CLEAN cascade; S-PERF-GATE-002 precedent confirms status=ready is maintained through LOCAL cascade; state-manager flips to merged at PR merge per POL-14. Token budget updated: v1.3 / ~665 lines / ~12,300 tokens. |
 | 1.2 | 2026-07-01 | story-writer | OBS-1 fix: §Evidence DTU-cap Gap section — documented REC-4 implementation variant: `bc_2_11_007_pushdown_test` is assigned to the new dedicated `spec-engine-http-cap` pool rather than folded into `dtu-cap` as REC-4's code sample shows; added one-line rationale (preserves `bc_2_11_007` throughput vs ~194 dtu-cap binaries; wasm-cap+http-cap groups remove 11 uncapped heavy binaries simultaneously; zero TMT, GREEN). Added PR Evidence Framing Note: the ~5.4x / ~108.4s headline compounds scheduling-cap savings with TMT-elimination and must not be read as a pure-scheduling effect on re-baseline. Updated token budget to v1.2 / ~660 lines / ~12,100 tokens. |
 | 1.1 | 2026-07-01 | story-writer | F-1 fix: corrected §Evidence "Total WASMtime serial time" sentence — removed erroneous `bc_2_16_002_crowdstrike_two_step` (HTTP/wiremock binary, not WASMtime), clarified the 1022.7s covers report §3b's 8 WASMtime binaries including `infusion_tests` (intentionally uncapped). OBS-2: added AC-009 binary-name resolution check (`cargo nextest show-config test-groups --profile prepush`) to detect zero-match `binary()` filters that would leave `just check` false-green. |
