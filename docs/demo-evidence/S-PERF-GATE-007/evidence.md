@@ -3,7 +3,7 @@
 **Story:** S-PERF-GATE-007 — nextest cap groups for uncapped WASMtime + HTTP binaries  
 **Branch:** feature/S-PERF-GATE-007  
 **Config change commit:** 2d11f540de9e3d555aec7e8258b8e56c2033de4b (`.config/nextest.toml`: wasm-cap + http-cap groups)  
-**Current PR HEAD:** cf065761 (evidence commits on top of the config change)  
+**Evidence provenance:** generated against config commit 2d11f540; latest evidence-refresh commit cf065761  
 **Machine:** 16-core warm dev machine (macOS aarch64)  
 **Baseline SHA:** develop@8bc0404e (post-S-PERF-GATE-005)
 
@@ -46,7 +46,7 @@ prediction is not attributable to any specific mechanism (see Honest Framing bel
 | Metric | Before (TMT-free baseline) | After (this change) | Measured delta |
 |--------|---------------------------|---------------------|----------------|
 | nextest wall-clock (`--profile prepush`) | 585.84s | 108.4s | -477s (5.4x) |
-| `just check` total | ~798s | 407.3s | -391s (~1.96x) |
+| `just check` total | (no provenanced baseline) | 127s (lighter load) / 407.3s (heavier load) | n/a |
 | Tests passed / skipped | 4976 / 60 | 4976 / 60 | unchanged |
 | non-exhaustive gate EXPECTED | 87 | 87 | unchanged |
 
@@ -91,8 +91,8 @@ differences between the 2026-06-30 profiling run and the post-cap verification r
 (different machine load state, warm-cache state, other concurrent processes at
 measurement time). This excess is presently unexplained and should not be attributed
 to any specific mechanism. For future tuning decisions, the caps' standalone scheduling
-value is the modeled ~190-260s figure; the full 5.4x / ~477s is the measured outcome
-under the specific conditions of these two runs.
+value is the modeled ~190-260s figure; the observed 5.4x / ~477s is the **measured upper bound**
+under the specific conditions of these two runs — **not the attributable effect**.
 
 ---
 
