@@ -65,3 +65,15 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 5. NEXT: LOCAL adversary pass-6 on 089b36df + story v1.5 → 3-CLEAN → PR S-PERF-GATE-006 → merge → deliver S-PERF-GATE-007 → S-PERF-GATE-008 (pending arch/research) → rebase PR #208 + un-quarantine 4 tests → ship PR #208.
 6. S-PRISMQL-SQLPIPE-COLUMN-GATE-001 + S-DTU-ARMIS-FIXTURE-VOCAB-001 draft stubs registered (P3; depend on S-DEMO merge).
 7. Autonomy D-989 active.
+
+---
+
+## Session Resume Checkpoint (D-1464 -- 2026-07-01; STATE v8.084)
+
+**STATE v8.084. D-1462 — S-PERF-GATE-007 pass-8 CLEAN(strict)=YES, CLEAN(PR-merge)=YES (zero findings in per-story perimeter; adversary verified all 9 ACs, all 11 binaries resolve per AC-009, ~190-260s savings consistent, §PR Evidence Framing Note internally consistent, POL-32 ok; REC-4 heading out-of-perimeter, did NOT reset streak; 3-CLEAN streak advanced to 1/3 on 2d11f540); D-1463 — S-PERF-GATE-006 pass-16 FIX-BURST CLOSED (OBS-1 `check` comment "all three non-fmt steps" imprecise; FIXED: implementer cfae9375 comment-only "the three cargo-compilation steps"; HEAD 442911b8→cfae9375; streak 0/3 on cfae9375; adversary noted next pass should be strict-clean); D-1464 — profiling report REC-4 heading corrected ~60-100s→~40-60s. develop_head 8bc0404e. BC-INDEX v7.26. STORY-INDEX v2.548. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87. total_stories 224. [PROCESS-GAP]: ~25 combined LOCAL passes; code verified correct throughout; findings consistently prose/doc-consistency on zero-blast-radius tooling stories. Human directive = continue strict 3-CLEAN on both.**
+
+**S-PERF-GATE-006 STATUS:** LOCAL adversary pass-16 CLEAN(PR-merge)=YES / CLEAN(strict)=NO. OBS-1 OBS (`check` recipe comment "all three non-fmt steps" — recipe has 5 non-fmt steps, only 3 are cargo-compilation steps; phrasing invites miscount). FIXED: implementer comment-only (commit cfae9375) — comment updated to "the three cargo-compilation steps". Feature HEAD advanced 442911b8→cfae9375 (comment-only). **3-CLEAN streak 0/3 on cfae9375** (new HEAD per frozen-HEAD rule; pass-17 re-gate pending on cfae9375). Adversary noted: with OBS-1 fixed, next pass should be strict-clean. Story v2.1.
+
+**S-PERF-GATE-007 STATUS:** IMPLEMENTED + VERIFIED + READY. 3-CLEAN LOCAL in progress (1/3 on 2d11f540). **3-CLEAN streak 1/3 on 2d11f540** (pass-8 CLEAN per BC-5.39.001 frozen-HEAD rule). Passes 9+10 must stay on unchanged 2d11f540. Story v1.6.
+
+**PENDING USER-APPROVED WORK:** Human directive = continue strict 3-CLEAN on both. S-PERF-GATE-006 pass-17 on cfae9375 + story v2.1. S-PERF-GATE-007 pass-9 on 2d11f540 + story v1.6. S-PERF-GATE-008 (gated on architect/research consult).
