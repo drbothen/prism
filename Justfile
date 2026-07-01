@@ -21,8 +21,9 @@ test:
 # so they share the same fingerprint cache. Without alignment, a RUSTFLAGS drift (e.g. a
 # shell export) forces a full recompile between steps (see RUSTFLAGS alignment on ci.yml's
 # nextest and doctest steps in the test job — mold-linker fingerprint-cache rationale).
-# S-PERF-GATE-006: added RUSTFLAGS="" to clippy to eliminate ~157s nextest rebuild on warm
-# check (fingerprint A from clippy → fingerprint B from nextest caused full test-binary recompile).
+# S-PERF-GATE-006: added RUSTFLAGS="" to clippy (and check-fast) to eliminate the ~157s
+# nextest rebuild that occurs on `just check` following a clippy-only run (e.g., `just
+# check-fast` or IDE clippy-on-save). A second consecutive `just check` is already fast.
 check:
     cargo fmt --check
     RUSTFLAGS="" cargo clippy --all-features -- -D warnings
@@ -45,9 +46,10 @@ iter crate test_filter='':
 
 # Fast workspace check — lint only, no tests. Use to confirm the workspace
 # still type-checks during a refactor sweep before running tests.
-# NOTE: RUSTFLAGS="" aligns the clippy fingerprint with `check` so that
-# alternating `just check-fast` (refactor sweep) → `just check` (pre-push)
-# does not force a full clippy rebuild (~44s).
+# NOTE: RUSTFLAGS="" aligns the clippy fingerprint with `check` so that the
+# dev loop (edit → `just check-fast` → `just check` → push) avoids the ~157s
+# nextest rebuild. Without this, fixing only `check`'s clippy would move the
+# penalty to clippy (~44s) rather than eliminate it.
 # S-PERF-GATE-006 MED-1 sibling-sweep: RUSTFLAGS="" on both `check` and `check-fast`
 # clippy steps restores a shared artifact cache between the two recipes.
 check-fast:
