@@ -17,7 +17,7 @@ test:
 # NOTE: PROPTEST_CASES=100 in the recipe overrides any value set in your shell environment
 # for the duration of the cargo nextest invocation.
 # NOTE: cargo-nextest skips doctests by default; the separate --doc step covers them.
-# NOTE: RUSTFLAGS="" is set explicitly on all three non-fmt steps (clippy, nextest, doctest)
+# NOTE: RUSTFLAGS="" is set explicitly on the three cargo-compilation steps (clippy, nextest, doctest)
 # so they share the same fingerprint cache. Without alignment, a RUSTFLAGS drift (e.g. a
 # shell export) forces a full recompile between steps (see RUSTFLAGS alignment on ci.yml's
 # nextest and doctest steps in the test job — mold-linker fingerprint-cache rationale).
