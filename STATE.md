@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.064"
+version: "8.065"
 producer: state-manager
-timestamp: 2026-06-30T23:59:00Z
+timestamp: 2026-06-30T23:59:30Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -21,7 +21,7 @@ develop_head: "8bc0404e"
 # NOTE-CORRECTION D-1435: "TEST-SPEED INITIATIVE COMPLETE" + "full nextest ~86.4s" are FALSE IN PRACTICE. Real full-workspace `just check` is ~30+ min: 5 prism-spec-engine WASMtime binaries (plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests) run UNCAPPED in nextest; wasmtime::Engine::new() (LLVM JIT init) costs ~120-143s per binary under full-suite concurrency → ~28 pre-existing TMT failures. S-PERF-GATE-001..005 fixed DTU oversubscription + clone graceful-shutdown only; did NOT touch spec-engine WASMtime binaries. Initiative INCOMPLETE / SUPERSEDED by T-PERF-PROFILE (D-1435).
 bc_index_version: "7.26"
 vp_index_version: "1.80"
-story_index_version: "v2.535"
+story_index_version: "v2.536"
 arch_index_version: "2.150"
 error_taxonomy_version: "2.03"
 total_stories: 224
@@ -37,7 +37,7 @@ workspace_test_count: 5074
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1436 — T-PERF-PROFILE delivery started (full-optimization-first plan). S-PERF-GATE-006 + 007 authored (draft, trace BC-5.39.001). NEXT: deliver S-PERF-GATE-006 (RUSTFLAGS) via per-story delivery. S-PERF-GATE-008 pending architect/research consult. PR #208 PARKED at 0978983f."
+current_step: "D-1437 — S-PERF-GATE-006 LOCAL adversary pass-1 fix-burst CLOSED (story v1.0→v1.1; code commit f287373d; check-fast scope included; MED-1+MED-2+OBS-2 all closed). NEXT: LOCAL adversary pass-2 re-gate on f287373d. S-PERF-GATE-007 pending after S-PERF-GATE-006 3-CLEAN converges. PR #208 PARKED at 0978983f."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -69,14 +69,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1436."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1437."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-30 (D-1436 — T-PERF-PROFILE delivery plan APPROVED; S-PERF-GATE-006+007 authored draft v1.0; STORY-INDEX v2.533→v2.535; total_stories 222→224; STATE v8.063→v8.064)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-30 (D-1437 — S-PERF-GATE-006 LOCAL pass-1 fix-burst; story v1.0→v1.1; code f287373d; STORY-INDEX v2.535→v2.536; STATE v8.064→v8.065)
 
 ## Active Objective (North Star)
 
@@ -126,6 +126,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 through D-1339 archived to burst-log.md (D-1368 compaction 2026-06-26). D-1344 and D-1393..D-1397 archived to burst-log.md (this compaction). D-1409 archived to burst-log.md (this D-1410 burst). D-1398..D-1416 archived to burst-log.md (this D-1417 burst). D-1417..D-1420 archived to burst-log.md (this D-1421 burst). D-1344..D-1355 archived to burst-log.md (this D-1423 burst)._
+| D-1437 | state-manager | 2026-06-30 | **S-PERF-GATE-006 LOCAL ADVERSARY PASS-1 FIX-BURST CLOSED (D-1437). S-PERF-GATE-006 **draft v1.0→v1.1** — LOCAL adversary pass-1 NOT CLEAN: MED-1 (sibling-sweep regression: check-fast clippy lacking RUSTFLAGS="" → cross-recipe fingerprint divergence after `just check`; code commit f287373d on feature/S-PERF-GATE-006 adds RUSTFLAGS="" prefix to check-fast clippy line; story scope expanded; AC-001+AC-004 grep counts 1→2; AC-007 added). MED-2 (false CI-neutral claim: CI `test` job sets RUSTFLAGS=-C link-arg=-fuse-ld=mold on Linux mold linker; story §Background corrected — local Justfile change is CI-independent but CI does not use the same RUSTFLAGS on test job). OBS-2 (research report REC-3 header `~50-80s`→`~150s`; REC-2 header `~120-150s`→`~120-180s`): report reconciled. All findings closed. Feature HEAD 509df061→f287373d. 3-CLEAN streak RESET 0/3 on f287373d. PR #208 still PARKED. story_index_version v2.535→v2.536. STATE v8.064→v8.065.** | wave-5-e-demo-fidelity | 2026-06-30 |
 | D-1436 | state-manager | 2026-06-30 | **T-PERF-PROFILE DELIVERY PLAN APPROVED — S-PERF-GATE-006 + 007 REGISTERED (D-1436). Human decision (2026-06-30): full optimization BEFORE shipping PR #208 (not after). Three-story delivery sequence: S-PERF-GATE-006 (Justfile RUSTFLAGS="" fingerprint alignment; ~150s savings per warm `just check`; 6 ACs; 1 pt; draft v1.0), S-PERF-GATE-007 (nextest wasm-cap + http-cap groups; ~150-200s savings; 7 WASMtime + 4 HTTP binaries capped; 8 ACs; 2 pts; draft v1.0), S-PERF-GATE-008 (shared PluginRuntime/Engine — pending architect/research consult on wasmtime Engine sharing + epoch_interruption + test isolation; NOT yet authored). Baseline profile confirmed: `just check` ~13.3min warm (from .factory/research/test-suite-perf-profile-2026-06-30.md). Combined projected → ~4.5-6.3min. After all 3 merge: un-quarantine 4 DTU scenario tests (verify at now-10 on fast suite; add deterministic stage-control only if still racy) → rebase + ship PR #208. Both stories trace BC-5.39.001 (already ACTIVE; POL-14 NO-OP). S-PERF-GATE-006 file: S-PERF-GATE-006-justfile-rustflags-alignment.md. S-PERF-GATE-007 file: S-PERF-GATE-007-nextest-wasm-http-cap-groups.md. Research report: .factory/research/test-suite-perf-profile-2026-06-30.md (performance-engineer baseline profiling). develop_head UNCHANGED 8bc0404e. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. story_index_version v2.533→v2.535. total_stories 222→224. STATE v8.063→v8.064.** | wave-5-e-demo-fidelity | 2026-06-30 |
 | D-1435 | state-manager | 2026-06-30 | **PIVOT D-1435 — T-PERF-PROFILE BROUGHT FORWARD; PR #208 PARKED (D-1435). Human decision (2026-06-30): run T-PERF-PROFILE NOW before PR #208 ships — PR #208 local `just check` is blocked by pre-existing WASMtime spec-engine test oversubscription unrelated to PR #208; perf issues entangled. Reorders D-1434 "after PR #208" sequencing. PR #208 status → PARKED: feature HEAD LOCAL-ONLY 0978983f (NOT pushed; origin + PR #208 stale at 4a624a08); now+30 band-aid REVERTED to now-10; 4 wall-clock-racy DTU scenario tests QUARANTINED with SID-1 #[ignore] (test_BC_2_06_019_armis_primary_device_stage_visibility, test_BPRL_P4_02_armis_alerts_stage_guard_primary_device, test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility, test_BPRL_P4_02_detections_stage_guard_primary_device); streak 0/3. NARRATIVE CORRECTION: "TEST-SPEED INITIATIVE COMPLETE" + "full nextest ~86.4s" claims FALSE in practice — real `just check` ~30+ min because 5 prism-spec-engine WASMtime binaries (plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests) run UNCAPPED in nextest; wasmtime::Engine::new() (LLVM JIT init) costs ~120-143s per binary under full-suite concurrency, saturating all CPU cores → ~28 pre-existing TMT failures not caused by any PR (CI on develop@8bc0404e 43/43 green — CI environment differs). S-PERF-GATE-001..005 fixed DTU oversubscription + clone graceful-shutdown only; did NOT touch spec-engine WASMtime binaries. Test-speed initiative INCOMPLETE / SUPERSEDED by T-PERF-PROFILE. T-PERF-PROFILE scope confirmed: (a) baseline per-group/per-binary profiling [IN PROGRESS — performance-engineer running now; report at .factory/research/test-suite-perf-profile-2026-06-30.md]; (b) WASMtime Engine oversubscription fix — shared process-wide Engine cache + spec-engine-wasmtime nextest cap; prototype parked at stash@{0} on feature/S-DEMO-FIDELITY-REMEDIATION-001 [WARNING: prototype uses .expect() in production constructor — VIOLATES no-expect-in-production rule; real fix must preserve Result-based error handling]; (c) deterministic stage-control to replace wall-clock racing in 4 quarantined tests, then un-quarantine; (d) full per-group optimization per D-1434 done-when. T-PERF-PROFILE status → IN-PROGRESS; set as BLOCKER/prerequisite for PR #208 completion. Task ledger v1.45→v1.46 (T-PERF-PROFILE row updated). develop_head UNCHANGED 8bc0404e. BC-INDEX UNCHANGED v7.26. STORY-INDEX UNCHANGED v2.533. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. total_stories UNCHANGED 222. STATE v8.062→v8.063.** | wave-5-e-demo-fidelity | 2026-06-30 |
 | D-1434 | state-manager | 2026-06-30 | **HUMAN-DIRECTED FOLLOW-UP RECORDED (D-1434). Full test-suite profiling + optimization initiative (S-PERF-TEST-PROFILE-NNN family) queued POST-S-DEMO-FIDELITY-REMEDIATION-001-MERGE. User directive (2026-06-30): characterize per-group/per-binary wall-clock timing across full workspace; drive all groups to fastest RELIABLE runtime; address cold `just check` > 10min SIGTERM issue (3104/5074 tests at 603s before SIGTERM during PR #208 session). Builds on S-PERF-GATE-001..005 (develop@8bc0404e; nextest dtu-cap=4, per-binary serialization, DTU clone graceful-shutdown). Task ledger T-PERF-PROFILE appended. Story family to be authored by story-writer when picked up. current_step UNCHANGED (PR #208 convergence). develop_head UNCHANGED 8bc0404e. STATE v8.061->v8.062.** | wave-5-e-demo-fidelity | 2026-06-30 |
@@ -158,6 +159,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1437 | state-manager | S-PERF-GATE-006 LOCAL adversary pass-1 fix-burst (D-1437 2026-06-30): NOT CLEAN — MED-1 (sibling-sweep: check-fast clippy RUSTFLAGS="" missing → cross-recipe fingerprint divergence), MED-2 (false CI-neutral claim corrected: CI test job sets RUSTFLAGS=-C link-arg=-fuse-ld=mold on Linux), OBS-2 (report header inconsistency reconciled). All closed: code commit f287373d (Justfile check-fast clippy RUSTFLAGS="" prefix); story v1.0→v1.1 (7 ACs; AC-007 added; AC-001+AC-004 grep counts 1→2; §Background corrected); report test-suite-perf-profile-2026-06-30.md reconciled (REC-2+REC-3 headers). Feature HEAD 509df061→f287373d. 3-CLEAN streak RESET 0/3 on f287373d. PR #208 PARKED. story_index_version v2.535→v2.536. STATE v8.064→v8.065. | wave-5-e-demo-fidelity | 2026-06-30 |
 | D-1436 | state-manager | T-PERF-PROFILE delivery plan APPROVED (D-1436 2026-06-30): human decision — full optimization BEFORE PR #208 ships. Three-story sequence: S-PERF-GATE-006 (RUSTFLAGS fingerprint; ~150s savings; 1 pt), S-PERF-GATE-007 (nextest wasm-cap + http-cap; ~150-200s savings; 2 pts), S-PERF-GATE-008 (shared wasmtime Engine — pending architect/research; NOT yet authored). Baseline: `just check` ~13.3min warm (.factory/research/test-suite-perf-profile-2026-06-30.md). Combined projected → ~4.5-6.3min. S-PERF-GATE-006+007 registered draft v1.0. Both trace BC-5.39.001 (ACTIVE; POL-14 NO-OP). story_index_version v2.533→v2.535. total_stories 222→224. STATE v8.063→v8.064. | wave-5-e-demo-fidelity | 2026-06-30 |
 | D-1435 | state-manager | PIVOT (D-1435 2026-06-30): T-PERF-PROFILE investigation brought forward to run NOW (before PR #208 ships) per human decision this session; reorders D-1434 "after PR #208" sequencing. PR #208 PARKED at LOCAL HEAD 0978983f (band-aid reverted, 4 wall-clock tests quarantined w/ SID-1 #[ignore]; NOT pushed; origin+PR still stale at 4a624a08; streak 0/3). NARRATIVE CORRECTION: "TEST-SPEED INITIATIVE COMPLETE" FALSE — 5 prism-spec-engine WASMtime binaries run UNCAPPED → ~30min `just check` + ~28 pre-existing TMT failures (not caused by any PR; CI on develop@8bc0404e 43/43 green). S-PERF-GATE-001..005 did NOT fix WASMtime oversubscription. Test-speed initiative INCOMPLETE / SUPERSEDED by T-PERF-PROFILE. T-PERF-PROFILE scope confirmed: (a) baseline profiling in-flight [performance-engineer; report at .factory/research/test-suite-perf-profile-2026-06-30.md]; (b) WASMtime shared-Engine + nextest cap [prototype at stash@{0} — WARNING: uses .expect(), violates no-expect rule; real fix = Result-based]; (c) deterministic stage-control for 4 quarantined tests; (d) full per-group optimization. T-PERF-PROFILE → IN-PROGRESS; BLOCKER for PR #208. Ledger v1.45→v1.46. STATE v8.062→v8.063. | wave-5-e-demo-fidelity | 2026-06-30 |
 | D-1434 | state-manager | HUMAN-DIRECTED (D-1434 2026-06-30): full test-suite profiling + optimization initiative (S-PERF-TEST-PROFILE-NNN family) queued POST-S-DEMO-FIDELITY-REMEDIATION-001-MERGE. Characterize per-group/per-binary wall-clock timing across full workspace; drive all groups to fastest RELIABLE runtime; address cold `just check` > 10min SIGTERM (3104/5074 tests at 603s during PR #208 session). Builds on S-PERF-GATE-001..005 (develop@8bc0404e). Task ledger T-PERF-PROFILE appended. Story family S-PERF-TEST-PROFILE-NNN to be authored by story-writer when picked up. current_step UNCHANGED. STATE v8.061->v8.062. | wave-5-e-demo-fidelity | 2026-06-30 |
@@ -293,24 +295,26 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1436 -- 2026-06-30; STATE v8.064)
+## Session Resume Checkpoint (D-1437 -- 2026-06-30; STATE v8.065)
 
-**STATE v8.064. D-1436 — T-PERF-PROFILE DELIVERY PLAN APPROVED. develop_head 8bc0404e. BC-INDEX v7.26. STORY-INDEX v2.535. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88. total_stories 224. TEST-SPEED INITIATIVE MARKED INCOMPLETE (D-1435 correction — see develop_head NOTE-CORRECTION above).**
+**STATE v8.065. D-1437 — S-PERF-GATE-006 LOCAL ADVERSARY PASS-1 FIX-BURST CLOSED. develop_head 8bc0404e. BC-INDEX v7.26. STORY-INDEX v2.536. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88. total_stories 224.**
 
-**T-PERF-PROFILE DELIVERY PLAN:** Full optimization BEFORE PR #208 ships (human decision D-1436). Three-story sequence: S-PERF-GATE-006 (Justfile RUSTFLAGS="" fingerprint alignment; ~150s savings; 6 ACs; 1 pt; draft v1.0) → S-PERF-GATE-007 (.config/nextest.toml wasm-cap + http-cap groups; ~150-200s savings; 8 ACs; 2 pts; draft v1.0) → S-PERF-GATE-008 (shared wasmtime Engine — pending architect/research consult; NOT yet authored). Baseline: `just check` ~13.3min warm (report: `.factory/research/test-suite-perf-profile-2026-06-30.md`). Combined projected → ~4.5-6.3min.
+**T-PERF-PROFILE DELIVERY PLAN:** Full optimization BEFORE PR #208 ships (human decision D-1436). Three-story sequence: S-PERF-GATE-006 (Justfile RUSTFLAGS="" fingerprint alignment; ~150s savings; 7 ACs; 1 pt; **draft v1.1**) → S-PERF-GATE-007 (.config/nextest.toml wasm-cap + http-cap groups; ~150-200s savings; 8 ACs; 2 pts; draft v1.0) → S-PERF-GATE-008 (shared wasmtime Engine — pending architect/research consult; NOT yet authored). Baseline: `just check` ~13.3min warm (report: `.factory/research/test-suite-perf-profile-2026-06-30.md`). Combined projected → ~4.5-6.3min.
+
+**S-PERF-GATE-006 STATUS:** LOCAL adversary pass-1 closed (NOT CLEAN — MED-1+MED-2+OBS-2 all closed). Story v1.0→v1.1; code commit f287373d on feature/S-PERF-GATE-006 (Justfile check-fast clippy RUSTFLAGS="" alignment; scope expanded to 2 Justfile lines). Feature HEAD 509df061→f287373d. 3-CLEAN streak RESET 0/3 on f287373d. NEXT: LOCAL adversary pass-2 re-gate on frozen f287373d + story v1.1.
 
 **PR #208 STATUS:** PARKED. Feature branch LOCAL HEAD 0978983f (NOT pushed; origin + PR #208 stale at 4a624a08). Local state: now-10 (band-aid reverted); 4 wall-clock-racy DTU scenario tests QUARANTINED with SID-1 `#[ignore]` (test_BC_2_06_019_armis_primary_device_stage_visibility, test_BPRL_P4_02_armis_alerts_stage_guard_primary_device, test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility, test_BPRL_P4_02_detections_stage_guard_primary_device). Streak 0/3. BLOCKED until S-PERF-GATE-006+007+008 merge.
 
-**PENDING USER-APPROVED WORK:** Deliver S-PERF-GATE-006 (NEXT), then 007, then 008 (gated on architect/research consult). CR-002 (anyhow >=1.0.103 pin in 14 crates) DEFERRED -- non-urgent dep-hygiene.
+**PENDING USER-APPROVED WORK:** LOCAL adversary pass-2 on S-PERF-GATE-006 f287373d → 3-CLEAN → PR → merge → S-PERF-GATE-007 → S-PERF-GATE-008 (gated on architect/research consult). CR-002 (anyhow >=1.0.103 pin in 14 crates) DEFERRED -- non-urgent dep-hygiene.
 
 **TRACK B -- DAY-2 MORPH (POST-T14):** `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md RESUME SNAPSHOT D-1433 for prior context; D-1435 PIVOT + D-1436 delivery plan recorded here.
+0. Read SESSION-HANDOFF.md RESUME SNAPSHOT D-1433 for prior context; D-1435 PIVOT + D-1436 delivery plan + D-1437 pass-1 fix-burst recorded here.
 1. Run vsdd-factory:factory-worktree-health (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `8bc0404e`.
-3. T-PERF-PROFILE DELIVERY PLAN ACTIVE — deliver S-PERF-GATE-006 first (Justfile RUSTFLAGS; story file: .factory/stories/S-PERF-GATE-006-justfile-rustflags-alignment.md).
+3. S-PERF-GATE-006 LOCAL adversary pass-2 pending on frozen f287373d + story v1.1 (7 ACs; 3-CLEAN streak 0/3).
 4. PR #208 PARKED at LOCAL 0978983f (4 tests quarantined; NOT pushed to origin).
-5. NEXT: per-story delivery S-PERF-GATE-006 → S-PERF-GATE-007 → S-PERF-GATE-008 (pending arch/research) → rebase PR #208 + un-quarantine 4 tests → ship PR #208.
+5. NEXT: LOCAL adversary pass-2 on f287373d → 3-CLEAN → PR S-PERF-GATE-006 → merge → deliver S-PERF-GATE-007 → S-PERF-GATE-008 (pending arch/research) → rebase PR #208 + un-quarantine 4 tests → ship PR #208.
 6. S-PRISMQL-SQLPIPE-COLUMN-GATE-001 + S-DTU-ARMIS-FIXTURE-VOCAB-001 draft stubs registered (P3; depend on S-DEMO merge).
 7. Autonomy D-989 active.

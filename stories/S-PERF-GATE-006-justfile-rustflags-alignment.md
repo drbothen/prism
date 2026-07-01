@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-006
 title: "Justfile RUSTFLAGS fingerprint alignment — add RUSTFLAGS=\"\" to check clippy step to eliminate ~157s test-target rebuild on every just check"
 epic_id: EPIC-MAINTENANCE
-version: "1.0"
+version: "1.1"
 status: draft
 producer: story-writer
 phase: 3
@@ -122,8 +122,13 @@ Fingerprint sequence (warm build, no code changes):
   the build deterministic regardless of the developer's shell environment.
 - `RUSTFLAGS=""` is already the established convention for nextest and doctest in `check`
   (per the existing Justfile comment).
-- CI does not set RUSTFLAGS in the environment, so `RUSTFLAGS=""` and default RUSTFLAGS
-  produce the same fingerprint in CI — this change is CI-neutral.
+- CI's `clippy` job sets no RUSTFLAGS (it runs `cargo clippy --workspace --all-features
+  -- -D warnings` with no env override), so `RUSTFLAGS=""` matches CI's effective clippy
+  fingerprint. This local-recipe change is CI-neutral because CI does not invoke
+  `just check` or `just check-fast` at all — it runs individual cargo steps directly.
+  CI's `test` job nextest and doctest steps DO set `RUSTFLAGS=-C link-arg=-fuse-ld=mold`
+  on Linux (to use the mold linker), but this is unrelated to the local Justfile change
+  and does not affect the fingerprint alignment this story addresses.
 - `RUSTFLAGS=""` does NOT suppress `-D warnings`. The `-D warnings` lint flag is passed
   via cargo's `--` argument separator (`-- -D warnings`), NOT via RUSTFLAGS. Adding
   `RUSTFLAGS=""` before `cargo clippy` has zero effect on lint coverage.
@@ -136,23 +141,28 @@ so there is no rebuild issue internal to `check-ci`. This story does NOT change 
 Cross-recipe fingerprint drift (running `just check` then `just check-ci`) is a secondary
 concern documented in EC-004 below.
 
-### `check-fast` is not in scope
+### `check-fast` is in scope
 
-The `check-fast` recipe is a lint-only recipe (`cargo clippy --all-features -- -D warnings`
-with no nextest step). There is no fingerprint interplay to resolve in `check-fast`.
+The `check-fast` recipe runs `cargo clippy --all-features -- -D warnings` with default
+RUSTFLAGS (no `RUSTFLAGS=""` prefix). A developer who runs `just check` (which now sets
+`RUSTFLAGS=""` on clippy) and then runs `just check-fast` encounters a fingerprint change:
+`check-fast` uses ambient RUSTFLAGS while `check` uses `RUSTFLAGS=""` — two different
+fingerprints — causing a full clippy recompile even though no code changed. This story
+therefore also prepends `RUSTFLAGS=""` to the `check-fast` clippy line to eliminate
+the cross-recipe clippy divergence.
 
 ## Scope
 
-One file modified, one line changed:
+One file modified, two lines changed:
 
 | File | Change | Rationale |
 |------|--------|-----------|
 | `Justfile` | Prepend `RUSTFLAGS="" ` to `cargo clippy --all-features -- -D warnings` in the `check` recipe | Aligns clippy fingerprint with nextest/doctest; eliminates the ~157s rebuild |
+| `Justfile` | Prepend `RUSTFLAGS="" ` to `cargo clippy --all-features -- -D warnings` in the `check-fast` recipe | Aligns check-fast clippy fingerprint with check; eliminates cross-recipe clippy divergence |
 
 **NOT in scope:**
 
 - `Justfile` `check-ci` recipe — no change needed (internally consistent; see EC-004)
-- `Justfile` `check-fast` recipe — no change needed (lint-only, no nextest step)
 - `.config/nextest.toml` — no change needed
 - `.cargo/config.toml` — no change needed
 - `.github/workflows/ci.yml` — no change needed
@@ -167,13 +177,13 @@ One file modified, one line changed:
 grep -c 'RUSTFLAGS="" cargo clippy --all-features -- -D warnings' Justfile
 ```
 
-Expected output: `1`.
+Expected output: `2` (one match in the `check` recipe, one in the `check-fast` recipe).
 
-Source-verification: before the change, the `check` recipe contains
-`cargo clippy --all-features -- -D warnings` without a RUSTFLAGS prefix — this grep
-returns 0. After the change, it returns 1. The grep string is anchored to the full command
-including the `-- -D warnings` suffix, preventing a false match against any future clippy
-variant that lacks the warnings flag.
+Source-verification: before the change, neither recipe carries the RUSTFLAGS prefix —
+this grep returns 0. After the change, both `check` and `check-fast` carry the prefix and
+it returns 2. The grep string is anchored to the full command including the
+`-- -D warnings` suffix, preventing a false match against any future clippy variant that
+lacks the warnings flag.
 
 Traces to: BC-5.39.001 postcondition — delivery quality; the config change is present and
 correctly formed. Without this line, the fingerprint mismatch persists.
@@ -212,12 +222,13 @@ must not be disturbed.
 grep -c 'RUSTFLAGS="" cargo clippy.*-- -D warnings' Justfile
 ```
 
-Expected output: `1`.
+Expected output: `2` (one match per recipe: `check` and `check-fast`).
 
 This AC is complementary to AC-001. It explicitly asserts that the `-D warnings` argument
-is present in the final command (not accidentally dropped when the RUSTFLAGS prefix was
-added). The `-D warnings` flag is in the cargo argument vector after `--`; it is NOT in
-RUSTFLAGS. A count of 0 means the lint flag was accidentally removed.
+is present in both the `check` and `check-fast` clippy commands (not accidentally dropped
+when the RUSTFLAGS prefix was added). The `-D warnings` flag is in the cargo argument
+vector after `--`; it is NOT in RUSTFLAGS. A count of 0 means the lint flag was
+accidentally removed; a count of 1 means only one recipe was updated.
 
 Traces to: BC-5.39.001 postcondition — delivery quality; lint coverage must be preserved.
 No production-grade project ships with weakened clippy enforcement.
@@ -266,6 +277,27 @@ at the end of the implementer's work, before committing.
 Traces to: BC-5.39.001 postcondition — delivery quality; the config change must not break
 the pre-push gate.
 
+### AC-007 — `check-fast` recipe: RUSTFLAGS="" prefix present on the clippy line (cross-recipe alignment)
+
+```
+grep -A5 '^check-fast:' Justfile | grep -c 'RUSTFLAGS="" cargo clippy'
+```
+
+Expected output: `1`.
+
+Source-verification: this grep uses context anchoring (`-A5`: 5 lines after the
+`check-fast:` recipe header) to isolate the `check-fast` recipe and verify the
+`RUSTFLAGS=""` prefix is present on its clippy line specifically. Before the change, the
+output is `0` (the `check-fast` clippy line lacks the prefix). After the change, it is `1`.
+
+This AC is distinct from AC-001 (which counts all global recipe matches) — it positively
+confirms the `check-fast` recipe received the alignment, not just that two global matches
+exist.
+
+Traces to: BC-5.39.001 postcondition — delivery quality; the `check-fast` clippy
+fingerprint must be aligned with `check` to prevent cross-recipe clippy recompilation
+after running `just check`.
+
 ## Red Gate
 
 Zero Red Gate tests. This story makes no changes to production Rust source code. The only
@@ -293,7 +325,8 @@ correctly-written test). The change affects build time, not correctness.
    confirm the current `cargo clippy` line has no `RUSTFLAGS=""` prefix and that the
    existing nextest/doctest lines already carry `RUSTFLAGS=""`.
 
-2. **Edit** `Justfile`: in the `check` recipe, change:
+2. **Edit** `Justfile`: in BOTH the `check` recipe AND the `check-fast` recipe, change
+   each occurrence of:
    ```
    cargo clippy --all-features -- -D warnings
    ```
@@ -301,14 +334,14 @@ correctly-written test). The change affects build time, not correctness.
    ```
    RUSTFLAGS="" cargo clippy --all-features -- -D warnings
    ```
-   The change is a single word insertion (`RUSTFLAGS="" `) before `cargo`. Do NOT modify
-   any other line in the file.
+   The change is a single word insertion (`RUSTFLAGS="" `) before `cargo`. Two lines are
+   modified (one per recipe). Do NOT modify any other line in the file.
 
-   Optionally update the preceding comment block to note that ALL three non-fmt steps now
-   carry `RUSTFLAGS=""` (extending the existing intent documented in the comment).
+   Optionally update the preceding comment block in `check` to note that ALL three
+   non-fmt steps now carry `RUSTFLAGS=""`, and that `check-fast` is now aligned as well.
 
-3. **Verify** AC-001 through AC-004 grep commands each return their expected values. Run
-   each grep before running `just check`.
+3. **Verify** AC-001 through AC-004 and AC-007 grep commands each return their expected
+   values. Run each grep before running `just check`.
 
 4. **Run** `just check` once to warm the RUSTFLAGS="" cache for all steps (nextest build
    phase will be slow on this first run as it recompiles under the new fingerprint).
@@ -327,7 +360,7 @@ correctly-written test). The change affects build time, not correctness.
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.0, ~280 lines) | ~3,300 |
+| This story spec (v1.1, ~330 lines) | ~3,900 |
 | `Justfile` (full file, ~220 lines — read + modify) | ~2,000 |
 | AC verification grep outputs (6 commands) | ~300 |
 | `just check` output (two warm runs, abbreviated) | ~2,000 |
@@ -415,12 +448,11 @@ env-var assignment and is fully supported by `just` (which uses sh for recipe ex
 
 | File | Change type | Details |
 |------|-------------|---------|
-| `Justfile` | Modify | Prepend `RUSTFLAGS="" ` to the `cargo clippy` line in the `check` recipe only |
+| `Justfile` | Modify | Prepend `RUSTFLAGS="" ` to the `cargo clippy` line in the `check` recipe and the `check-fast` recipe |
 
 **Files explicitly excluded from this story:**
 
 - `Justfile` `check-ci` recipe — no change (internally consistent; see EC-004)
-- `Justfile` `check-fast` recipe — no change (lint-only; no fingerprint alignment needed)
 - `.config/nextest.toml` — no change needed
 - `.cargo/config.toml` — no change needed
 - `.github/workflows/ci.yml` — no change needed
@@ -464,3 +496,4 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.0 | 2026-06-30 | story-writer | Initial draft (T-PERF-PROFILE initiative, D-1434) |
+| 1.1 | 2026-06-30 | story-writer | MED-2: corrected false CI-neutral claim — CI clippy job sets no RUSTFLAGS (verified in ci.yml), CI does not invoke just check or just check-fast, but CI test nextest/doctest steps DO set RUSTFLAGS=-C link-arg=-fuse-ld=mold on Linux (mold linker); MED-1: expanded scope to include check-fast clippy alignment (cross-recipe divergence), added AC-007 (check-fast recipe grep), updated AC-001 and AC-004 expected counts from 1 to 2, updated Scope table, Task 2, File Structure Requirements |

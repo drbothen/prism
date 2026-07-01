@@ -262,7 +262,7 @@ test-group = 'spec-engine-http-cap'
 
 ---
 
-### REC-2 [HIGH, Easy, ~120-150s savings] — Shared `PluginRuntime` via `LazyLock` per test binary
+### REC-2 [HIGH, Easy, ~120-180s savings] — Shared `PluginRuntime` via `LazyLock` per test binary
 
 **Problem:** Every test function that needs a `PluginRuntime` calls `PluginRuntime::new()`, paying the Engine::new() Cranelift JIT cost each time. There is no shared state across tests in the same binary.
 
@@ -294,7 +294,7 @@ A prototype was referenced in the S-PERF-GATE-005 history; check git stash on th
 
 ---
 
-### REC-3 [HIGH, Easy, ~50-80s savings] — Fix RUSTFLAGS fingerprint alignment between clippy and nextest
+### REC-3 [HIGH, Easy, ~150s savings] — Fix RUSTFLAGS fingerprint alignment between clippy and nextest
 
 **Problem:** `cargo clippy` uses the default RUSTFLAGS. `cargo nextest run` uses `RUSTFLAGS=""`. These are different compiler fingerprints, so clippy artifacts cannot be reused by nextest. Every `just check` run (which runs clippy before nextest) incurs a ~157s full recompile of test binary targets.
 
