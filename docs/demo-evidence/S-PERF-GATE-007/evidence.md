@@ -2,11 +2,14 @@
 
 **Story:** S-PERF-GATE-007 — nextest cap groups for uncapped WASMtime + HTTP binaries  
 **Branch:** feature/S-PERF-GATE-007  
-**Implementation commit:** 2d11f540de9e3d555aec7e8258b8e56c2033de4b  
+**Config change commit:** 2d11f540de9e3d555aec7e8258b8e56c2033de4b (`.config/nextest.toml`: wasm-cap + http-cap groups)  
+**Current PR HEAD:** 8e611daf (evidence commits on top of the config change)  
 **Machine:** 16-core warm dev machine (macOS aarch64)  
 **Baseline SHA:** develop@8bc0404e (post-S-PERF-GATE-005)
 
 ---
+
+> **POL-10 note:** This is a manually-authored config-story evidence bundle (no VHS/Playwright demo-recorder output was produced for this story). POL-10's `evidence-report.md` naming convention applies to demo-recorder artifacts; this manual bundle retains `evidence.md`.
 
 ## Robust, Reproducible Outcomes (Lead)
 
@@ -18,10 +21,10 @@ runs, not artefacts of specific machine-load conditions:
    starve and hit the 180s nextest hard timeout. With the caps applied, zero tests
    hit the timeout even under heavy contention.
 
-2. **`just check` completes in ~2-7 min warm.** Before the caps, `just check` runs
-   under contention would time out or finish severely oversubscribed (30-40 min+
-   wall-clock in the worst case). After the caps, `just check` completes reliably
-   in the expected warm range.
+2. **`just check` completes in ~2-7 min warm.** After the caps, `just check` completes
+   reliably in the expected warm range. Measured post-cap `just check` (full workspace)
+   runs: 127s on a clean pre-push run, 407s on a heavier-load run (Table 1, `just check`
+   total row). Both are TMT-free.
 
 3. **Modeled attributable scheduling savings from the caps: ~190-260s** (~1.5-1.8x
    on the nextest execution component). This figure is from the profiling model
@@ -47,12 +50,16 @@ prediction is not attributable to any specific mechanism (see Honest Framing bel
 | Tests passed / skipped | 4976 / 60 | 4976 / 60 | unchanged |
 | non-exhaustive gate EXPECTED | 87 | 87 | unchanged |
 
+**Post-cap run commands:** nextest row (`--profile prepush`) — `cargo nextest run --workspace --all-features --profile prepush` (post-cap: 108.4s); `just check` row — `just check` (full workspace: fmt + clippy + nextest + doctests + crate-layout) (post-cap: 407.3s). A separate lighter-load post-cap `just check` run also measured 127s.
+
 ### Table 2 — TMT failure elimination (separate, heavier-contention run)
 
-This run is DISTINCT from the 585.84s baseline in Table 1. It was taken under higher
-contention during S-PERF-GATE-007 delivery before the cap fix was applied. Do NOT
-apply 28×180=5040s arithmetic against the 477s delta from Table 1 — these are endpoints
-from different runs under different conditions.
+This run is DISTINCT from the 585.84s baseline in Table 1. Provenance: ~2026-06-30/07-01,
+16 logical cores (macOS aarch64), command `just check` (full workspace), before the cap
+fix was applied. Under high contention, 28 tests hit the 180s hard timeout; the run
+completed only ~3600/5082 tests before stopping (wall-clock ~31 min at interruption).
+Do NOT apply 28×180=5040s arithmetic against the 477s delta from Table 1 — these are
+endpoints from different runs under different conditions.
 
 | Metric | Before caps (contended run) | After caps |
 |--------|-----------------------------|------------|
@@ -65,7 +72,8 @@ from different runs under different conditions.
 **Both the 585.84s baseline and the 108.4s post-cap run in Table 1 are TMT-free.**
 The 585.84s profiling-report baseline (`.factory/research/test-suite-perf-profile-2026-06-30.md`,
 develop@8bc0404e) was a GREEN run: 4976 passed, 60 skipped, zero timing-out tests. The
-108.4s post-cap run is also GREEN: 4976 passed, 60 skipped, zero TMT tests.
+108.4s post-cap run (`cargo nextest run --workspace --all-features --profile prepush`,
+16 logical cores, macOS aarch64) is also GREEN: 4976 passed, 60 skipped, zero TMT tests.
 
 **The 28 TMT failures in Table 2 come from a SEPARATE, heavier-contention run.**
 During S-PERF-GATE-007 delivery (the PR #208 resume sequence), a full-workspace
