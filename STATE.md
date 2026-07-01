@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.090"
+version: "8.091"
 producer: state-manager
-timestamp: 2026-07-02T00:00:01Z
+timestamp: 2026-07-02T00:01:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -21,7 +21,7 @@ develop_head: "8bc0404e"
 # NOTE-CORRECTION D-1435: "TEST-SPEED INITIATIVE COMPLETE" + "full nextest ~86.4s" are FALSE IN PRACTICE. Real full-workspace `just check` is ~30+ min: 5 prism-spec-engine WASMtime binaries (plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests) run UNCAPPED in nextest; wasmtime::Engine::new() (LLVM JIT init) costs ~120-143s per binary under full-suite concurrency → ~28 pre-existing TMT failures. S-PERF-GATE-001..005 fixed DTU oversubscription + clone graceful-shutdown only; did NOT touch spec-engine WASMtime binaries. Initiative INCOMPLETE / SUPERSEDED by T-PERF-PROFILE (D-1435).
 bc_index_version: "7.26"
 vp_index_version: "1.80"
-story_index_version: "v2.550"
+story_index_version: "v2.551"
 arch_index_version: "2.150"
 error_taxonomy_version: "2.03"
 total_stories: 224
@@ -37,7 +37,7 @@ workspace_test_count: 5074
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1475 — S-PERF-GATE-006 title MED F-PG006-ADV-MED-001 FIXED (story v2.4); LOCAL cascade re-gating from 0/3 on e1f79d75 (spec changed → streak reset; pass-22 pending). S-PERF-GATE-007 PR #211 HEAD cf065761 (PR-LEVEL streak 0/3; F-PG007-P1-MED-001 ADJUDICATED-LOW; NEXT: implementer 1-line fix → re-push → re-gate; human directive hold-for-strict-3-CLEAN). S-PERF-GATE-008 QUEUED. PR #208 PARKED at 0978983f."
+current_step: "D-1476 — S-PERF-GATE-006 F-PG006-P22-MED-001 FIXED per human-affirmed D-1443 (check comment de-quantified @worktree 34aa4a78; story v2.5); LOCAL cascade re-gating 0/3 on 34aa4a78. S-PERF-GATE-007 PR #211 HEAD 5c2832f6 PR-LEVEL streak 1/3 (pass-1 CLEAN strict). S-PERF-GATE-008 QUEUED. PR #208 PARKED at 0978983f."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -69,14 +69,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1475."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1476."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-01 (D-1475 — S-PERF-GATE-006 title MED F-PG006-ADV-MED-001 FIXED; story v2.3→v2.4; LOCAL cascade re-gate 0/3 on e1f79d75; 007 PR #211 cf065761 PR-LEVEL streak 0/3; 008 QUEUED; PR #208 PARKED; STATE v8.089→v8.090)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-02 (D-1476 — S-PERF-GATE-006 F-PG006-P22-MED-001 FIXED per D-1443; story v2.4→v2.5; implementer 34aa4a78; LOCAL cascade re-gate 0/3 on 34aa4a78; 007 PR #211 5c2832f6 PR-LEVEL streak 1/3; STATE v8.090→v8.091)
 
 ## Active Objective (North Star)
 
@@ -131,6 +131,7 @@ _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and
 | D-1472 | state-manager | 2026-07-01 | **S-PERF-GATE-007 PR-LEVEL pass-1 (redo on worktree files @ PR HEAD 8e611daf) NOT CLEAN — F-P1-MED-001 MED: evidence bundle omitted mandated 28-TMT-run provenance triple + added unsubstantiated "30-40 min+" figure in reproducible-facts lead; config verified CORRECT. FIXED: implementer evidence-honesty edit (commit cf065761) — removed unbacked figure; recorded 28-TMT run provenance (2026-06-30/07-01, 16-core macOS, `just check` full workspace pre-cap, ~3600/5082 at ~31min interruption) as context (not in 585.84→108.4 delta); added exact commands (OBS-1); split config-commit 2d11f540 vs PR HEAD (OBS-4); kept evidence.md filename per POL-10 rationale (OBS-3, demo-recorder-scoped). PR #211 HEAD advanced 8e611daf→cf065761. PR-LEVEL 3-CLEAN streak 0/3, re-gate pending on cf065761. STATE v8.087→v8.088.** | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1473 | state-manager | 2026-07-01 | **HUMAN DECISION: continue-strict PR-LEVEL 3-CLEAN for PR #211 — do NOT early-merge at CLEAN(PR-merge); merge only after 3 consecutive CLEAN(strict) PR-LEVEL passes + CI green + user authorization. Also: human directs S-PERF-GATE-006 AND S-PERF-GATE-008 both be delivered (008 = WASMtime compilation-cache further-speedup, not yet authored — to be authored+delivered after 006/007 converge). STATE v8.087→v8.088.** | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1475 | state-manager | 2026-07-01 | **S-PERF-GATE-006 TITLE MED F-PG006-ADV-MED-001 FIXED (D-1475). story-writer rewrote frontmatter title to close F-PG006-ADV-MED-001 MED finding — title v2.3 falsely labeled check-fast effect as "shares the test-artifact cache" (check-fast runs `cargo clippy --all-targets` only; does not share nextest test-artifact cache with check; the ~44s clippy residual eliminated by check-fast alignment is separate from the ~157s test-binary rebuild). New title v2.4 accurately separates three effects: (1) check's RUSTFLAGS="" resolves clippy↔nextest fingerprint mismatch eliminating ~157s test-binary rebuild; (2) check-fast's RUSTFLAGS="" eliminates ~44s residual clippy re-check on check-fast→check transitions; (3) iter's RUSTFLAGS="" prevents RUSTFLAGS-axis poisoning of shared workspace-dependency cache. Story v2.3→v2.4 (spec-only). Feature HEAD UNCHANGED e1f79d75. LOCAL cascade streak RESET 0/3 on e1f79d75 (spec changed → must re-gate on new story version; pass-22 re-gate pending). STORY-INDEX v2.549→v2.550. develop_head UNCHANGED 8bc0404e. total_stories UNCHANGED 224. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.089→v8.090.** | wave-5-e-demo-fidelity | 2026-07-01 |
+| D-1476 | state-manager | 2026-07-02 | **S-PERF-GATE-006 F-PG006-P22-MED-001 FIXED — D-1443 ENFORCED (D-1476). LOCAL adversary pass-22 raised F-PG006-P22-MED-001 MED: `check` recipe comment in worktree still cited the measured ~157s figure, violating D-1443 human directive (simplify Justfile comments, remove mechanistic quantification, point reader to story for rationale). Human adjudication D-1476: enforce D-1443 as-is (de-quantify) rather than amend D-1443 to permit measured figures. FIXED: implementer de-quantified check comment @worktree commit 34aa4a78 (comment-only; no RUSTFLAGS="" changes; no test changes). Story v2.4→v2.5 (spec-only): §Scope row 4, §Tasks Task 2, §FSR Justfile row updated to STOP mandating the ~157s figure in the check code comment (point to story instead); §Evidence table's ~157s figure KEPT (lives in story, not comment — correct per D-1443); Architecture Compliance rule 10 added (spec↔code reconciliation toward recorded decisions); §Changelog v2.5 row prepended; token-budget row updated. Feature HEAD e1f79d75→34aa4a78 (local-only; not pushed to origin). LOCAL cascade streak RESET 0/3 on 34aa4a78 (new HEAD per BC-5.39.001 frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). STORY-INDEX v2.550→v2.551. develop_head UNCHANGED 8bc0404e. total_stories UNCHANGED 224. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.090→v8.091.** | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1469 | state-manager | 2026-07-01 | **S-PERF-GATE-006 LOCAL ADVERSARY PASSES 19+20 FIX-BURST CLOSED (D-1469). Pass-19 on frozen feature HEAD 630cabb6 + story v2.1 NOT CLEAN(strict)/NOT CLEAN(PR-merge). F-PG006-MED-001 MED (Effect-3 overclaim: story cited ~157s savings from iter test-artifact cache alignment with check — but iter is single-crate/default-features and check is --workspace/--all-features; these commands do not share a test-artifact cache; real benefit is RUSTFLAGS-axis dependency-cache non-poisoning, not test-artifact reuse). OBS-1 OBS (timings scope — §Evidence timings subsumed under full-workspace check which includes non-RUSTFLAGS-sensitive steps). FIXED: story v2.1→v2.2 (Effect-3 de-inflated; value prop grounded in RUSTFLAGS-axis non-poisoning; OBS-1 timings scope narrowed) + implementer iter-comment de-inflation commit e1f79d75 (comment-only; no test changes). Feature HEAD 630cabb6→e1f79d75. 3-CLEAN streak RESET 1/3→0/3 on e1f79d75 (new HEAD per BC-5.39.001 frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). Pass-20 on frozen feature HEAD e1f79d75 + story v2.2 NOT CLEAN(strict). F-PG006-P1-MED-001 MED (frontmatter title re-introduced the iter test-artifact-cache overclaim — propagation gap from v2.2 spec body fix; title still cited overclaimed ~157s test-artifact savings). FIXED: story v2.2→v2.3 (spec-only; title de-inflated to reflect RUSTFLAGS-axis dependency-cache non-poisoning benefit only; code HEAD e1f79d75 UNCHANGED). 3-CLEAN streak 0/3 on e1f79d75; LOCAL adversary pass-21 re-gate pending on e1f79d75. develop_head UNCHANGED 8bc0404e. total_stories UNCHANGED 224. STORY-INDEX v2.548→v2.549. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.086→v8.087.** | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1468 | state-manager | 2026-07-01 | **S-PERF-GATE-006 LOCAL ADVERSARY PASS-18 CLEAN (D-1468). Pass-18 re-gate on frozen feature HEAD 630cabb6 + story v2.1 = CLEAN(strict)=YES, CLEAN(PR-merge)=YES. Zero findings any severity. 3-CLEAN streak advanced to 1/3 on unchanged feature HEAD 630cabb6 (BC-5.39.001 frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). Passes 19+20 must stay on unchanged 630cabb6. develop_head UNCHANGED 8bc0404e. total_stories UNCHANGED 224. story_index_version UNCHANGED v2.548. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.085→v8.086.** | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1467 | state-manager | 2026-07-01 | **S-PERF-GATE-007 LOCAL ADVERSARY 3-CLEAN CONVERGED (D-1467). Pass-10 re-gate on frozen feature HEAD 2d11f540 + story v1.6 = CLEAN(strict)=YES, CLEAN(PR-merge)=YES. Zero findings any severity. Passes 8+9+10 all CLEAN(strict)+CLEAN(PR-merge) on unchanged 2d11f540 → 3-CLEAN streak 3/3 → LOCAL 3-CLEAN CONVERGED. The verified core slow-test fix (nextest 585.84s→108.4s 5.4x; just check ~798s→407s; 28 TMT→0) has passed the full LOCAL adversarial gate. NEXT: capture evidence bundle → push feature/S-PERF-GATE-007 → PR to develop → PR-LEVEL 3-CLEAN cascade → security + pr-reviewer + CI green → USER-AUTHORIZED squash-merge. develop_head UNCHANGED 8bc0404e. total_stories UNCHANGED 224. story_index_version UNCHANGED v2.548. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.085→v8.086.** | wave-5-e-demo-fidelity | 2026-07-01 |
@@ -367,23 +368,23 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1475 -- 2026-07-01; STATE v8.090)
+## Session Resume Checkpoint (D-1476 -- 2026-07-02; STATE v8.091)
 
-**Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1474 (authoritative zero-context snapshot; D-1475 is spec-only bookkeeping burst, SESSION-HANDOFF not updated). Summary below.**
+**Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1474 (authoritative zero-context snapshot; D-1476 is spec-only bookkeeping burst, SESSION-HANDOFF not updated). Summary below.**
 
-**STATE v8.090. develop 8bc0404e. BC-INDEX v7.26. STORY-INDEX v2.550. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87. total_stories 224.**
+**STATE v8.091. develop 8bc0404e. BC-INDEX v7.26. STORY-INDEX v2.551. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87. total_stories 224.**
 
-**T-PERF-PROFILE:** Three-story sequence before PR #208 ships. 006 (Justfile RUSTFLAGS fingerprint; story v2.4; draft) → 007 (nextest wasm-cap+http-cap; story v1.7; PR #211 cf065761 OPEN) → 008 (WASMtime compilation-cache; QUEUED, not authored). Baseline: `just check` ~13.3min warm (`.factory/research/test-suite-perf-profile-2026-06-30.md`).
+**T-PERF-PROFILE:** Three-story sequence before PR #208 ships. 006 (Justfile RUSTFLAGS fingerprint; story v2.5; draft) → 007 (nextest wasm-cap+http-cap; story v1.7; PR #211 5c2832f6 OPEN) → 008 (WASMtime compilation-cache; QUEUED, not authored). Baseline: `just check` ~13.3min warm (`.factory/research/test-suite-perf-profile-2026-06-30.md`).
 
-**S-PERF-GATE-006:** LOCAL streak **0/3** on e1f79d75 v2.4. F-PG006-ADV-MED-001 MED FIXED (D-1475) — title v2.4 now accurately describes three separate effects: check's ~157s test-binary rebuild elimination, check-fast's ~44s clippy re-check elimination, iter's RUSTFLAGS-axis dependency-cache non-poisoning. Streak RESET (spec changed → must re-gate on v2.4). NEXT: LOCAL adversary pass-22 on e1f79d75 + story v2.4.
+**S-PERF-GATE-006:** LOCAL streak **0/3** on 34aa4a78 v2.5. F-PG006-P22-MED-001 MED FIXED (D-1476) — LOCAL adversary pass-22 found `check` comment still cited ~157s figure in violation of D-1443; human affirmed enforce-D-1443 (de-quantify); implementer 34aa4a78 de-quantified check comment (comment-only; local-only); story v2.5 updated spec to match. Streak RESET (new HEAD per BC-5.39.001 frozen-HEAD rule). NEXT: LOCAL adversary pass-23 on 34aa4a78 + story v2.5.
 
-**S-PERF-GATE-007:** PR #211 HEAD cf065761 PUSHED. LOCAL 3-CLEAN CONVERGED (3/3 on 2d11f540). PR-LEVEL streak **0/3** on cf065761. OPEN: F-PG007-P1-MED-001 ADJUDICATED-LOW — evidence.md HEAD line says 8e611daf; actual HEAD cf065761 (docs-only diff; config identical). NEXT: implementer 1-line fix → re-push → re-gate PR-LEVEL. Human directive: hold-for-strict-3-CLEAN; NO early-merge at CLEAN(PR-merge); USER authorization required before merge.
+**S-PERF-GATE-007:** PR #211 HEAD 5c2832f6 PUSHED. LOCAL 3-CLEAN CONVERGED (3/3 on 2d11f540). PR-LEVEL streak **1/3** on 5c2832f6 (pass-1 CLEAN strict). Human directive: hold-for-strict-3-CLEAN; NO early-merge at CLEAN(PR-merge); USER authorization required before merge.
 
 **PR #208:** PARKED at LOCAL 0978983f (4 DTU tests #[ignore]-quarantined; NOT pushed; origin stale 4a624a08). wip/perf-wasmtime-exploration-76821af7 preserved (VERIFIED GREEN, zero TMT). stash@{0} = working-tree; stash@{1} = OnceLock prototype (expect() in production — do NOT adopt as-is).
 
 **RESUME PROTOCOL:**
 1. Run vsdd-factory:factory-worktree-health (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `8bc0404e`.
-3. VERY NEXT: LOCAL adversary re-gate S-PERF-GATE-006 pass-22+23 on unchanged e1f79d75 + story v2.4. Separately: implementer fixes S-PERF-GATE-007 evidence HEAD → re-push cf065761-updated → PR-LEVEL adversary re-gate (streak 0/3).
+3. VERY NEXT: LOCAL adversary re-gate S-PERF-GATE-006 pass-23 on unchanged 34aa4a78 + story v2.5. Separately: PR-LEVEL adversary pass-2 re-gate on S-PERF-GATE-007 PR #211 HEAD 5c2832f6 (streak 1/3).
 4. 006 LOCAL 3-CLEAN → push → PR → PR-LEVEL → user-auth merge. 007 PR-LEVEL 3-CLEAN + CI green → user-auth squash-merge #211. 008 author+deliver. Then un-park PR #208.
 5. Autonomy D-989 active.

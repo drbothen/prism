@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-006
 title: "Justfile RUSTFLAGS fingerprint alignment — align check, check-fast, and iter with RUSTFLAGS=\"\": check's clippy alignment resolves the internal clippy↔nextest fingerprint mismatch (eliminating the ~157s test-binary rebuild), check-fast's clippy alignment eliminates the ~44s residual re-check on check-fast → check transitions, and iter's nextest alignment prevents RUSTFLAGS-axis poisoning of the shared workspace-dependency cache"
 epic_id: EPIC-MAINTENANCE
-version: "2.4"
+version: "2.5"
 status: draft
 producer: story-writer
 phase: 3
@@ -305,7 +305,7 @@ One file modified; three `RUSTFLAGS=""` insertions (required) plus comment-block
 | `Justfile` | Prepend `RUSTFLAGS="" ` to `cargo clippy --all-features -- -D warnings` in the `check` recipe | Aligns clippy fingerprint with nextest/doctest; eliminates the ~157s rebuild |
 | `Justfile` | Prepend `RUSTFLAGS="" ` to `cargo clippy --all-features -- -D warnings` in the `check-fast` recipe | Aligns check-fast clippy fingerprint with check; eliminates cross-recipe clippy divergence |
 | `Justfile` | Prepend `RUSTFLAGS="" ` to `cargo nextest run -p` in the `iter` recipe | Aligns iter nextest RUSTFLAGS with check/check-fast; prevents RUSTFLAGS-axis poisoning of shared workspace-dependency artifacts on iter → check transitions (Effect 3). Does NOT eliminate the full test-binary rebuild (iter is single-crate/default-features; check is --workspace/--all-features). Primary TDD inner loop per CLAUDE.md. |
-| `Justfile` | Rewrite preceding comment block on the `check` recipe to document the intra-`check` `RUSTFLAGS=""` convention and the measured savings (intra-recipe behavioral anchor; cross-recipe alignment documented reciprocally in `check-fast` and `iter` comments) | Behavioral-anchor rewrite, not cosmetic; documents the intra-check fingerprint convention and measured cache savings without enumerating sibling recipes (OBS-006-001 in-scope treatment) |
+| `Justfile` | Rewrite preceding comment block on the `check` recipe to a brief non-quantitative note documenting the intra-`check` `RUSTFLAGS=""` convention and pointing to S-PERF-GATE-006 for rationale + measured savings (D-1443; intra-recipe behavioral anchor; cross-recipe alignment documented reciprocally in `check-fast` and `iter` comments) | Behavioral-anchor rewrite, not cosmetic; documents the intra-check fingerprint convention as a brief story-reference note — no ~157s figure or mechanistic recompile phrasing in the code comment (D-1443; OBS-006-001 in-scope treatment) |
 | `Justfile` | Add preceding comment block to the `check-fast` recipe documenting that its clippy fingerprint is aligned with `check` | Behavioral-anchor addition, not cosmetic; mirrors the comment-block treatment of `check` (F-006-LOW-001 in-scope) |
 | `Justfile` | Add preceding comment block to the `iter` recipe documenting that its nextest fingerprint is aligned with `check` | Behavioral-anchor addition; documents the fingerprint convention for the primary TDD inner loop (F-006-P-MED-002 in-scope treatment) |
 
@@ -537,17 +537,20 @@ correctly-written test). The change affects build time, not correctness.
      ```
    Three lines are modified (one per recipe). Do NOT modify any other line in the file.
 
-   Rewrite the preceding comment block in `check` to document the intra-`check`
-   `RUSTFLAGS=""` convention and the measured savings (intra-recipe behavioral anchor).
+   Rewrite the preceding comment block in `check` to a brief non-quantitative note that
+   documents the intra-`check` `RUSTFLAGS=""` convention and points to S-PERF-GATE-006
+   for rationale + measured savings (D-1443; intra-recipe behavioral anchor).
    Do NOT enumerate sibling recipes within `check`'s comment — cross-recipe alignment
    is documented reciprocally in the sibling recipe comments (OBS-006-001 — behavioral-anchor
-   rewrite, not cosmetic). Add a preceding comment block to the `check-fast` recipe noting
+   rewrite, not cosmetic). Do NOT embed the ~157s figure or mechanistic recompile phrasing
+   in the code comment; quantitative claims belong in the story's §Evidence table, not in
+   the Justfile. Add a preceding comment block to the `check-fast` recipe noting
    that its clippy fingerprint is aligned with `check` (F-006-LOW-001 in-scope treatment).
    Add a preceding comment block to the `iter` recipe noting that its nextest fingerprint is
    aligned with `check` (F-006-P-MED-002 in-scope treatment). Three comment changes total:
    one rewrite on `check`, one addition on `check-fast`, one addition on `iter`; each
-   comment is minimal and measured-only, with cross-recipe alignment noted reciprocally in
-   the sibling comments.
+   comment is a brief non-quantitative alignment note, with cross-recipe alignment noted
+   reciprocally in the sibling comments.
 
 3. **Verify** AC-001 through AC-004, AC-007, and AC-008 grep commands each return their
    expected values. Run each grep before running `just check`.
@@ -574,11 +577,11 @@ correctly-written test). The change affects build time, not correctness.
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v2.4, ~740 lines) | ~8,900 |
+| This story spec (v2.5, ~752 lines) | ~9,050 |
 | `Justfile` (full file, ~220 lines — read + modify) | ~2,000 |
 | AC verification grep outputs (7 commands) | ~350 |
 | `just check` output (two warm runs, abbreviated) | ~2,000 |
-| **Total** | **~13,200** |
+| **Total** | **~13,400** |
 
 Well within the implementer agent's context window. Simpler than S-PERF-GATE-003 (one-word
 or one-line insertion per recipe in one file; no nextest.toml surgery, no shell script changes).
@@ -651,6 +654,13 @@ Extracted from architecture sections and ADRs relevant to this story:
 9. **`.factory/` not modified by this story**: state-manager handles STORY-INDEX
    registration.
 
+10. **Spec↔code reconciliation direction (CLAUDE.md Source-of-Truth Precedence rule 7)**:
+    When a spec instruction and the delivered code diverge on a value or phrasing governed
+    by a recorded human decision (D-NNN), the decision is the source of truth — reconcile
+    the spec toward the decision, not the code toward the old spec. This rule was triggered
+    by F-PG006-P22-MED-001: D-1443 mandated non-quantitative code comments; the story's
+    comment-writing instructions were the drifting side and were corrected in v2.5.
+
 ## Library and Framework Requirements
 
 This story does not introduce or change any library dependency. The only toolchain
@@ -662,7 +672,7 @@ env-var assignment and is fully supported by `just` (which uses sh for recipe ex
 
 | File | Change type | Details |
 |------|-------------|---------|
-| `Justfile` | Modify | Prepend `RUSTFLAGS="" ` to the `cargo clippy` line in both the `check` and `check-fast` recipes and to the `cargo nextest run -p` line in the `iter` recipe; rewrite the preceding comment block on `check` to document the intra-`check` `RUSTFLAGS=""` convention and measured savings (intra-recipe anchor; cross-recipe alignment documented reciprocally in sibling comments); add a preceding comment block to `check-fast` documenting clippy fingerprint alignment with `check`; add a preceding comment block to `iter` documenting nextest fingerprint alignment with `check` (all comment changes are behavioral-anchor updates per F-006-LOW-001 and F-006-P-MED-002 in-scope treatment; each comment is minimal and measured-only) |
+| `Justfile` | Modify | Prepend `RUSTFLAGS="" ` to the `cargo clippy` line in both the `check` and `check-fast` recipes and to the `cargo nextest run -p` line in the `iter` recipe; rewrite the preceding comment block on `check` to a brief non-quantitative note documenting the intra-`check` `RUSTFLAGS=""` convention and pointing to S-PERF-GATE-006 for rationale + measured savings (D-1443; intra-recipe anchor; cross-recipe alignment documented reciprocally in sibling comments); add a preceding comment block to `check-fast` documenting clippy fingerprint alignment with `check`; add a preceding comment block to `iter` documenting nextest fingerprint alignment with `check` (all comment changes are behavioral-anchor updates per F-006-LOW-001 and F-006-P-MED-002 in-scope treatment; each comment is a brief non-quantitative alignment note — no ~157s figure or mechanistic recompile phrasing in code comments) |
 
 **Files explicitly excluded from this story:**
 
@@ -710,6 +720,7 @@ develop (after S-PERF-GATE-005 merge — 8bc0404e)
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 2.5 | 2026-07-01 | story-writer | F-PG006-P22-MED-001 + D-1443/S-7.02 enforcement (comment de-quantified): three story sections mandated that the `check` recipe comment carry "the measured savings" / mechanistic quantification (~157s figure, recompile phrasing) — in conflict with human decision D-1443 which requires code comments be brief non-quantitative notes pointing to the story. Reconciled per CLAUDE.md Source-of-Truth Precedence rule 7 (decision wins over drifted spec). Changed: §Scope table row 4 ("measured savings" → "brief non-quantitative note pointing to S-PERF-GATE-006 for rationale + measured savings"); §Tasks Task 2 (same mandate → explicit "Do NOT embed ~157s figure or mechanistic recompile phrasing; quantitative claims belong in §Evidence table"); §File Structure Requirements Justfile row (same). §Evidence table ~157s figure kept intact (story-body quantitative claims are correct and required). Sibling sweep (TD-VSDD-060): no additional mandate-to-embed-figures found in ACs, Effects, or FSR sibling rows. Added Architecture Compliance rule 10 (spec↔code reconciliation direction — process-gap OBS, CLAUDE.md SoT rule 7). Token budget updated to v2.5, ~752 lines, ~9,050 tokens. |
 | 2.4 | 2026-07-01 | story-writer | F-PG006-ADV-MED-001 (title false cache claim): frontmatter `title:` claimed "check and check-fast share the test-artifact cache" — false. `check-fast` runs only `cargo clippy --all-features` with no `--all-targets` and builds no test binaries; it cannot populate or share the test-artifact cache. Effect 1 (aligning `check`'s own clippy to `RUSTFLAGS=""`) is what preserves the test-artifact cache — it resolves the clippy(ambient)↔nextest(RUSTFLAGS="") fingerprint mismatch INTERNAL to the `check` recipe. Effect 2 (aligning `check-fast`'s clippy) eliminates only the ~44s residual clippy re-check on check-fast → check transitions, not the test-artifact cache. Title rewritten: `check`'s clippy alignment resolves the internal clippy↔nextest fingerprint mismatch (eliminating the ~157s test-binary rebuild); `check-fast`'s clippy alignment eliminates the ~44s residual re-check on check-fast → check transitions; `iter`'s nextest alignment prevents RUSTFLAGS-axis poisoning of the shared workspace-dependency cache. Sibling sweep (TD-VSDD-060): fixed matching false clause in v2.3 changelog entry ("check and check-fast share the test-artifact cache (Effects 1/2)"). Token budget updated to v2.4, ~740 lines, ~8,900 tokens. |
 | 2.3 | 2026-07-01 | story-writer | F-PG006-P1-MED-001 (title de-inflation propagation): rewrote frontmatter title trailing clause — v2.2 correctly de-inflated Effect 3 in the body, but the title still claimed all three recipes "share the test-artifact cache." `iter` does NOT share the test-artifact cache with `check` (iter is single-crate/default-features; check is --workspace/--all-features → different test-binary fingerprints; ~24 other workspace crates' test binaries remain unbuilt after iter). Title now distinguishes `iter` (Effect 3: RUSTFLAGS-axis dependency-cache non-poisoning) from `check`/`check-fast` (Effects 1/2: test-binary rebuild elimination and clippy re-check elimination). Note: the v2.3 title still retained the imprecision that `check-fast` "shares the test-artifact cache" — `check-fast` runs only `cargo clippy` with no `--all-targets` and builds no test binaries; it cannot share the test-artifact cache. That residual false claim is corrected in v2.4. No body changes. Token budget updated to v2.3, ~735 lines, ~8,850 tokens. |
 | 2.2 | 2026-07-01 | story-writer | F-PG006-MED-001 (Effect 3 de-inflation): removed unmeasured ~157s iter→check claim and "same mechanism as Effect 1" framing throughout. Effect 3 rewritten to defensible framing: iter RUSTFLAGS="" alignment prevents RUSTFLAGS-axis poisoning of shared workspace-dependency artifact cache; does NOT eliminate the full test-binary rebuild on iter → check (iter is single-crate/default-features; check is --workspace/--all-features; ~24 crates' test binaries remain unbuilt after iter; features axis also differs). Affected sections: intro Effect 3 paragraph, Narrative, Background saved estimates Effect 3, Background post-fix sequence iter note, §iter is in scope Effect 3 paragraph, Scope table iter row, AC-005 last paragraph, AC-008 justification. OBS-1 (timings scope): narrowed frontmatter title from "all dev-loop recipes" to "three TDD dev-loop recipes (check, check-fast, iter)"; added EC-007 (timings is ad-hoc diagnostic build, deliberately out of scope; equivalent to EC-004 check-ci treatment); added timings to NOT in scope list. Token budget updated to v2.2 (~730 lines, ~13,150 tokens total). |
