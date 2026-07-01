@@ -23,7 +23,7 @@ test:
 # nextest and doctest steps in the test job — mold-linker fingerprint-cache rationale).
 # S-PERF-GATE-006: RUSTFLAGS="" aligns clippy's build fingerprint with the nextest/doctest
 # steps (all RUSTFLAGS=""), so dev-loop transitions reuse cached test artifacts instead of
-# recompiling (measured: ~157s rebuild eliminated). See story S-PERF-GATE-006 for rationale.
+# recompiling (measured: ~157s rebuild eliminated). See story S-PERF-GATE-006 for full rationale.
 check:
     cargo fmt --check
     RUSTFLAGS="" cargo clippy --all-features -- -D warnings
@@ -45,7 +45,7 @@ check:
 # so the iter → check dev loop reuses cached test artifacts instead of recompiling.
 # Without alignment, ambient RUSTFLAGS (e.g. a shell export) cause a separate fingerprint
 # bucket and force a full recompile on the first `just check` after `just iter`.
-# See story S-PERF-GATE-006 F-006-P-MED-002 for full rationale.
+# See story S-PERF-GATE-006 for full rationale.
 iter crate test_filter='':
     RUSTFLAGS="" PROPTEST_CASES=32 cargo nextest run -p {{crate}} {{test_filter}}
 
