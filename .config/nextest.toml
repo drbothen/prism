@@ -137,6 +137,21 @@ bc-2-01-013-serial = { max-threads = 1 }
 # full workspace load (safely within the 50s stage-0 budget for now-10 timing),
 # making the now+30 band-aid in S-DEMO-FIDELITY-REMEDIATION-001 revertible.
 dtu-cap = { max-threads = 4 }
+# S-PERF-GATE-007: WASMtime-heavy spec-engine + ocsf + prism-bin binaries.
+# wasmtime v44 + wasm_component_model + epoch_interruption triggers Cranelift JIT
+# on every PluginRuntime::new() call. Under default concurrency (~10-16 concurrent
+# binaries), Cranelift serializes on global compiler state → per-init cost inflates
+# from ~1-2s (isolated) to ~8-9s (under load), ~5-9x oversubscription.
+# max-threads = 4 limits concurrent WASMtime binaries to 4, reducing Cranelift
+# contention back toward isolation cost.
+spec-engine-wasm-cap = { max-threads = 4 }
+# S-PERF-GATE-007: HTTP/wiremock-heavy spec-engine binaries + bc_2_11_007 gap.
+# pipeline_http_integration, pipeline_oauth_retry, bc_2_16_002_crowdstrike_two_step
+# spin up wiremock::MockServer per test (OS socket contention at high concurrency).
+# The bc_2_11_007 pushdown test starts in-process CrowdStrike + Armis DTU clones but
+# lives in prism-spec-engine — NOT matched by dtu-cap package(/^prism-dtu-/) filter.
+# This group closes that gap and caps the wiremock binaries simultaneously.
+spec-engine-http-cap = { max-threads = 4 }
 
 [[profile.prepush.overrides]]
 # S-PERF-GATE-004: cap all prism-dtu-* test binaries to 4 concurrent processes.
@@ -159,6 +174,16 @@ test-group = 'adv-p02-serial'
 filter = 'binary(bc_2_01_013_spec_driven_adapter)'
 test-group = 'bc-2-01-013-serial'
 
+[[profile.prepush.overrides]]
+# S-PERF-GATE-007: cap WASMtime-heavy binaries at 4 concurrent threads.
+filter = 'binary(plugin_integration_tests) | binary(plugin_tests) | binary(crowdstrike_oauth2_plugin_tests) | binary(enrichment_pivot_002_tests) | binary(spec_driven_mapper_fixtures) | binary(plugin_boot_tests) | binary(infusion_boot_integration)'
+test-group = 'spec-engine-wasm-cap'
+
+[[profile.prepush.overrides]]
+# S-PERF-GATE-007: cap HTTP/wiremock-heavy binaries + close bc_2_11_007 DTU-cap gap.
+filter = 'binary(pipeline_http_integration) | binary(pipeline_oauth_retry) | binary(bc_2_11_007_pushdown_test) | binary(bc_2_16_002_crowdstrike_two_step)'
+test-group = 'spec-engine-http-cap'
+
 [[profile.ci.overrides]]
 # S-PERF-GATE-004: cap all prism-dtu-* test binaries to 4 concurrent processes.
 filter = 'package(/^prism-dtu-/)'
@@ -175,6 +200,16 @@ test-group = 'adv-p02-serial'
 [[profile.ci.overrides]]
 filter = 'binary(bc_2_01_013_spec_driven_adapter)'
 test-group = 'bc-2-01-013-serial'
+
+[[profile.ci.overrides]]
+# S-PERF-GATE-007: cap WASMtime-heavy binaries at 4 concurrent threads.
+filter = 'binary(plugin_integration_tests) | binary(plugin_tests) | binary(crowdstrike_oauth2_plugin_tests) | binary(enrichment_pivot_002_tests) | binary(spec_driven_mapper_fixtures) | binary(plugin_boot_tests) | binary(infusion_boot_integration)'
+test-group = 'spec-engine-wasm-cap'
+
+[[profile.ci.overrides]]
+# S-PERF-GATE-007: cap HTTP/wiremock-heavy binaries + close bc_2_11_007 DTU-cap gap.
+filter = 'binary(pipeline_http_integration) | binary(pipeline_oauth_retry) | binary(bc_2_11_007_pushdown_test) | binary(bc_2_16_002_crowdstrike_two_step)'
+test-group = 'spec-engine-http-cap'
 
 # S-DEMO-004: Multi-org × multi-sensor isolation smoke test profile.
 # Un-ignores E2E-MULTI-001-tagged tests in e2e_multi_org.rs (currently 10 tests):
