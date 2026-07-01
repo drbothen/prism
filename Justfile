@@ -17,12 +17,14 @@ test:
 # NOTE: PROPTEST_CASES=100 in the recipe overrides any value set in your shell environment
 # for the duration of the cargo nextest invocation.
 # NOTE: cargo-nextest skips doctests by default; the separate --doc step covers them.
-# NOTE: RUSTFLAGS="" is set explicitly on both the nextest and doctest steps so they share
-# the same fingerprint cache. Without alignment, a RUSTFLAGS drift (e.g. a shell export)
-# forces a full recompile for the doctest step (ci.yml lines 127-134 rationale).
+# NOTE: RUSTFLAGS="" is set explicitly on all three non-fmt steps (clippy, nextest, doctest)
+# so they share the same fingerprint cache. Without alignment, a RUSTFLAGS drift (e.g. a
+# shell export) forces a full recompile between steps (ci.yml lines 127-134 rationale).
+# S-PERF-GATE-006: added RUSTFLAGS="" to clippy to eliminate ~157s nextest rebuild on warm
+# check (fingerprint A from clippy → fingerprint B from nextest caused full test-binary recompile).
 check:
     cargo fmt --check
-    cargo clippy --all-features -- -D warnings
+    RUSTFLAGS="" cargo clippy --all-features -- -D warnings
     RUSTFLAGS="" PROPTEST_CASES=100 cargo nextest run --workspace --all-features --profile prepush
     RUSTFLAGS="" PROPTEST_CASES=100 cargo test --workspace --all-features --doc
     @scripts/check-crate-layout.sh
