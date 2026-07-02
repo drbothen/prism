@@ -2081,3 +2081,38 @@ S-PERF-GATE-006 (Justfile RUSTFLAGS fingerprint alignment) and S-PERF-GATE-007 (
 - Evaluate whether a PR-description generation guard or review checklist step could verify that timing figures in the PR description match the story's §Evidence table attribution before the PR is opened.
 
 **Source:** D-1479+D-1480 (S-PERF-GATE-007 MERGED + S-PERF-GATE-006 PR-LEVEL CONVERGED state-manager burst, 2026-07-01).
+
+---
+
+## Lesson z28 — Grep-Count AC Instruments Must Exclude Comment Tokens and Restrict Scope to Modified Files (D-1483, 2026-07-01)
+
+**Category:** Process (S-7.02 cycle-close checklist — recurrence of S-PERF-GATE-007 F-LOW-1 / Lesson z27 pattern)
+
+**Observation:**
+
+S-PERF-GATE-008 LOCAL pass-1 produced F-1 MED: four grep-based AC self-verification recipes in story v1.1 returned wrong counts against the correct, production-grade delivered code. The code itself was never wrong. The spec instruments were wrong. Four ACs affected:
+
+- **AC-003 check-1:** `grep -c 'event_type = "plugin.compilation_cache_init_skipped"'` on `plugin/mod.rs` returned `3` (1 production `tracing::warn!` + 1 `///` doc comment + 1 `//` code comment in test module). The Expected value said `1`. Fix: comment-excluding pipeline `grep 'event_type = "..."' crates/... | grep -vE '^\s*(///|//)' | wc -l` → Expected `1`.
+- **AC-003 check-3:** `grep -B10 'plugin.compilation_cache_init_skipped' crates/... | grep -c 'cfg(test)'` returned `1` because the B10 context captured a string-literal anti-pattern description comment (`// ... using #[cfg(test)] on the helper is the paper-fix pattern`) — an anti-pattern PROSE comment, not a real `#[cfg(test)]` attribute. The Expected value said `0`. Fix: `grep -B1 'fn apply_wasmtime_cache' crates/... | grep -c '#\[cfg(test)\]'` → Expected `0` (the line immediately preceding the function definition is a doc comment, not an attribute).
+- **AC-008:** `grep -c 'infusion_tests' .config/nextest.toml` returned `3` (2 filter references `binary(infusion_tests)` + 1 D5 comment token `# Binaries: ... infusion_tests`). The Expected value said `2`. Fix: `grep -c 'binary(infusion_tests)'` anchored to filter form → Expected `2`.
+- **AC-010:** `grep -rn 'S-PERF-GATE-006' crates/prism-spec-engine/ .config/nextest.toml Justfile` — `Justfile` was included in scope, which contains 4 legitimate `S-PERF-GATE-006` references (the merged sibling story's own RUSTFLAGS rationale comments). The grep was never supposed to cover `Justfile` — S-PERF-GATE-008 does not modify `Justfile`. Fix: remove `Justfile` from scope → Expected `no hits`.
+
+**Root cause:**
+
+The same class as S-PERF-GATE-007 F-LOW-1 (see Lesson z27): grep-count ACs were written against the INTENDED token without accounting for the same token appearing in comments, doc strings, or sibling-story files that are in the searched scope. The adversary correctly identified these as MED (imprecise instruments), not LOW (minor wording), because a false-count AC can mask real regressions: if a future change removes the production emission, AC-003 check-1 would still count `2` (the two comments) and falsely PASS.
+
+**Correct authoring pattern (codified):**
+
+When writing a grep-count AC that checks for N occurrences of a token in a source file:
+
+1. **Run the exact grep against the expected delivered artifact BEFORE finalizing the AC** — not just mentally. Count both production and non-production (comment, doc, test) occurrences. If count > Expected N, add exclusion filters.
+2. **Exclude comment lines** when the token is also used in prose: `grep 'token' file | grep -vE '^\s*(///|//)'` or similar. Do NOT use `grep -c` on a bare token if the token appears in doc comments or code comments.
+3. **Anchor to the syntactic form used in the artifact** when the token can appear in multiple forms: `binary(infusion_tests)` (filter form) vs `infusion_tests` (bare, also appears in comments). Always use the more specific anchored form.
+4. **Restrict scope to files that are IN the story's modification perimeter.** For AC-010-style sibling-story sweeps, explicitly list only the files S-PERF-GATE-008 modifies (`crates/prism-spec-engine/`, `.config/nextest.toml`) — do NOT include `Justfile`, `.factory/`, or git history in the grep scope.
+5. **For "is this function outside #[cfg(test)]?" checks:** use `grep -B1 'fn function_name'` (look at the line immediately before the function definition) rather than scanning a large context window that may pick up anti-pattern description comments.
+
+**Connection to prior lesson:**
+
+This is a recurrence of the S-PERF-GATE-007 F-LOW-1 finding (Lesson z27 root cause #1: "Quantitative perf claims are high-information-density and easy to misattribute"). The same applies to grep-count ACs: any AC that counts tokens is high-information-density and easy to mis-specify. Both lessons point to the same discipline: run the recipe against the actual artifact before committing the AC, not just the intended artifact.
+
+**Source:** D-1483 (S-PERF-GATE-008 story v1.2 AC-instrument fix, state-manager burst, 2026-07-01).
