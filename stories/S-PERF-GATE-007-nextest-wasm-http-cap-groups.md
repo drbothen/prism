@@ -4,7 +4,7 @@ story_id: S-PERF-GATE-007
 title: "nextest cap groups for uncapped WASMtime + HTTP binaries — spec-engine-wasm-cap and spec-engine-http-cap (max-threads=4) to eliminate Cranelift JIT + wiremock oversubscription and close bc_2_11_007_pushdown_test DTU-cap gap (~150-200s from WASMtime/HTTP caps + ~40-60s from bc_2_11_007 gap closure, ~190-260s combined scheduling savings)"
 epic_id: EPIC-MAINTENANCE
 version: "1.7"
-status: ready
+status: merged
 producer: story-writer
 phase: 3
 wave: maintenance

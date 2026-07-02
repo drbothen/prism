@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.970"
+version: "7.971"
 status: current
 timestamp: 2026-07-01T23:59:00Z
 ---
@@ -38,13 +38,63 @@ timestamp: 2026-07-01T23:59:00Z
 >
 > **D-1367 (2026-06-26): PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED develop@7e60df03 (CI 43/43; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; security CLEAN). POL-14: 8 BCs draft→active. POL-13: story merged. active_contracts 254. draft_contracts 0. develop_head 903c8fcb→7e60df03. non-exhaustive 84→87. BC-INDEX v7.18. STORY-INDEX v2.481. STATE v7.994→v7.995. NEXT: pre-flight demo re-audit → T13 capstone → T14 recording. PENDING HUMAN: CLAUDE.md stale EXPECTED=83/84 → now EXPECTED=87; local develop ba1108d2 still DIVERGED.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1474** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1474 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `8bc0404e` (unchanged since S-PERF-GATE-005 PR #210 merged 2026-06-30). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.089. D-1474.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1480** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1480 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `c6d6e4fa` (S-PERF-GATE-007 PR #211 squash-merged 2026-07-01). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.093. D-1480.
 
 ---
 
-## §RESUME SNAPSHOT — D-1474 (2026-07-01 — SESSION WRAP; develop origin/develop 8bc0404e; BC-INDEX v7.26; STORY-INDEX v2.549; ARCH-INDEX v2.150; STATE v8.089; S-PERF-GATE-006 LOCAL streak 1/3 on e1f79d75 v2.3; S-PERF-GATE-007 PR #211 cf065761 PR-LEVEL streak 0/3; S-PERF-GATE-008 QUEUED; PR #208 PARKED) [SUPERSEDES D-1433]
+## §RESUME SNAPSHOT — D-1480 (2026-07-01 — STATE-MANAGER BURST; develop origin/develop c6d6e4fa; BC-INDEX v7.26; STORY-INDEX v2.553; ARCH-INDEX v2.150; STATE v8.093; S-PERF-GATE-007 MERGED; S-PERF-GATE-006 PR-LEVEL 3-CLEAN CONVERGED @34aa4a78; S-PERF-GATE-008 QUEUED; PR #208 PARKED) [SUPERSEDES D-1474]
+
+> **D-1479+D-1480 burst (2026-07-01).** S-PERF-GATE-007 MERGED (PR #211 squash-merged into develop@c6d6e4fa). S-PERF-GATE-006 PR-LEVEL 3-CLEAN CONVERGED (passes 1/2/3 CLEAN(strict) on frozen 34aa4a78; pr-reviewer APPROVE 1 NIT non-blocking; security APPROVE 1 pre-existing LOW CWE-78 non-blocking). Awaiting CI-green on PR #212 + user authorization to merge. S-PERF-GATE-008 still queued. PR #208 still parked. All prior D-1101..D-1478 notes SUPERSEDED.
+
+### RESUME IN ONE BREATH
+S-PERF-GATE-007 is MERGED (develop@c6d6e4fa). S-PERF-GATE-006 PR #212 is PR-LEVEL 3-CLEAN CONVERGED and waiting only for CI-green + USER AUTHORIZATION to merge. After 006 merges: author + deliver S-PERF-GATE-008 (WASMtime compilation-cache; ref wip/perf-wasmtime-exploration-76821af7). Then un-park PR #208.
+
+### HEADS
+- develop: **c6d6e4fa** — PUSHED (origin/develop). S-PERF-GATE-007 PR #211 merged 2026-07-01.
+- factory-artifacts: this burst commit — PUSHED (run `git -C .factory log -1 --format='%h %s'` for current HEAD).
+- PR #212: HEAD **34aa4a78** PUSHED (feature/S-PERF-GATE-006→develop; OPEN; PR-LEVEL 3-CLEAN CONVERGED).
+- PR #208: HEAD **0978983f** LOCAL-ONLY (NOT pushed; origin stale 4a624a08; PARKED).
+- Agents in flight at wrap: **none**.
+
+### WORKSTREAM — S-PERF-GATE-007
+- **MERGED**. PR #211 squash-merged into develop@c6d6e4fa (2026-07-01). Branch deleted. Worktree .worktrees/S-PERF-GATE-007 removed. POL-14 NO-OP.
+
+### WORKSTREAM — S-PERF-GATE-006 (PR #212)
+- Story v2.5; PR #212 HEAD **34aa4a78** PUSHED (feature/S-PERF-GATE-006→develop; OPEN).
+- LOCAL 3-CLEAN CONVERGED (3/3 @34aa4a78). **PR-LEVEL 3-CLEAN CONVERGED** (passes 1/2/3 all CLEAN(strict) on frozen 34aa4a78).
+- pr-reviewer APPROVE (1 non-blocking NIT: no action required). security-reviewer APPROVE (1 pre-existing LOW CWE-78 iter interpolation, developer-only, non-blocking).
+- **AWAITING: CI-green on PR #212 + USER AUTHORIZATION to merge** (D-1473 pattern — no relayed auth; user must explicitly authorize `gh pr merge 212 --squash`).
+- **RESUME NEXT-ACTION:** Check CI on PR #212 → if green + user authorizes → squash-merge PR #212 into develop.
+
+### WORKSTREAM — S-PERF-GATE-008 (QUEUED, not authored)
+- WASMtime compilation-cache further-speedup. Deliver AFTER 006 merges. Human-directed (D-1473).
+- Primary ref: branch wip/perf-wasmtime-exploration-76821af7 (wasmtime Cache in prism-spec-engine plugin/mod.rs + Cargo feature + spec-engine-wasmtime nextest cap max-threads=1; VERIFIED green just check, 5079 pass, zero TMT).
+- Secondary ref: stash@{1} on .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 (OnceLock Engine-share prototype) — has expect()-in-production-constructor issue; do NOT adopt as-is; use Result-based error handling.
+- **RESUME NEXT-ACTION (after 006 merges):** story-writer authors S-PERF-GATE-008 using primary ref wip/perf-wasmtime-exploration-76821af7.
+
+### WORKSTREAM — PR #208 (PARKED)
+- S-DEMO-FIDELITY-REMEDIATION-001 parked at LOCAL HEAD 0978983f (4 DTU scenario tests quarantined via SID-1 #[ignore]; NOT pushed; origin stale at 4a624a08).
+- stash@{0} = working-tree state; stash@{1} = OnceLock Engine-share prototype (expect()-in-production; do NOT adopt as-is).
+- wip/perf-wasmtime-exploration-76821af7 PRESERVED (VERIFIED GREEN, zero TMT).
+- **RESUME NEXT-ACTION (after 007+006+008 ship):** un-quarantine the 4 DTU scenario tests (verify pass on fast suite; deterministic stage-control only if still racy) → rebase onto fast develop → converge → ship.
+
+### PRIORITY ORDER
+006 merge → 008 author+deliver → un-park PR #208. Autonomy D-989 active.
+
+### RECENT DECISIONS
+- D-1473: HUMAN decision: continue-strict PR-LEVEL 3-CLEAN; deliver 006 AND 008; no early-merge.
+- D-1474: Session wrap — RESUME SNAPSHOT D-1474 (superseded by this D-1480).
+- D-1476: S-PERF-GATE-006 F-PG006-P22-MED-001 FIXED (D-1443 enforced; check comment de-quantified; 34aa4a78).
+- D-1477: S-PERF-GATE-007 PR-LEVEL 3-CLEAN CONVERGED (5c2832f6; all 3 passes CLEAN(strict)).
+- D-1478: S-PERF-GATE-006 LOCAL 3-CLEAN CONVERGED + PR #212 OPEN + OBS-1/OBS-2 FIXED.
+- D-1479: S-PERF-GATE-007 MERGED develop@c6d6e4fa. POL-14 NO-OP.
+- **D-1480 (this burst):** S-PERF-GATE-006 PR-LEVEL 3-CLEAN CONVERGED @34aa4a78 (PR #212 awaiting CI+user-auth). SESSION-HANDOFF D-1480 written.
+
+---
+
+## §RESUME SNAPSHOT — D-1474 (2026-07-01 — SESSION WRAP; develop origin/develop 8bc0404e; BC-INDEX v7.26; STORY-INDEX v2.549; ARCH-INDEX v2.150; STATE v8.089; S-PERF-GATE-006 LOCAL streak 1/3 on e1f79d75 v2.3; S-PERF-GATE-007 PR #211 cf065761 PR-LEVEL streak 0/3; S-PERF-GATE-008 QUEUED; PR #208 PARKED) [SUPERSEDES D-1433] [SUPERSEDED by D-1480]
 
 > **D-1474 burst (2026-07-01).** Session wrap. T-PERF-PROFILE test-suite optimization in flight; nothing merged to develop since 8bc0404e (unchanged). S-PERF-GATE-006 LOCAL cascade ~22 passes total; code correct throughout; nearly all findings were story/comment prose consistency. Streak at 1/3 on e1f79d75 v2.3 with one pre-identified title MED to fix before pass-22. S-PERF-GATE-007 PR #211 open, PR-LEVEL pass-1 not clean (evidence HEAD line stale 8e611daf→cf065761, one-line fix, config verified identical). S-PERF-GATE-008 queued (WASMtime compilation-cache; wip/perf-wasmtime-exploration-76821af7 ref available). PR #208 parked at 0978983f. All prior D-1101..D-1473 notes SUPERSEDED.
 

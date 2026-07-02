@@ -2054,3 +2054,30 @@ The dominant real-world cause of `just check` slowness observed this session was
 4. **One heavy gate at a time.** Never run concurrent `just check` invocations on the same workspace from multiple sessions. Use `just iter <crate>` for the inner loop; reserve `just check` for the final gate run in isolation.
 
 **Source:** D-1421 (security monitor flag; no harm to origin develop/main; killed mid-pre-push-gate).
+
+---
+
+## Lesson z27 — Perf/Tooling Config Stories: PR-Description and Comment Prose Requires Multiple Adversary Passes (D-1479+D-1480, 2026-07-01)
+
+**Category:** Process (S-7.02 cycle-close checklist)
+
+**Observation:**
+
+S-PERF-GATE-006 (Justfile RUSTFLAGS fingerprint alignment) and S-PERF-GATE-007 (nextest wasm-cap + http-cap groups) are zero-blast-radius config-only stories with no production Rust code changes. Both stories had their underlying code correct and verified from the first implementation commit onward. However:
+
+- S-PERF-GATE-006 required ~23 LOCAL adversary passes across 10+ fix-bursts before achieving 3-CLEAN. The findings were almost entirely prose consistency: story title overclaims, description of build-tool cache internals (nextest vs clippy artifact types), comment wording precision (per D-1443 simplify directive), and PR-description attribution errors (which recipe and which effect produced which time saving).
+- S-PERF-GATE-007 required ~10 LOCAL adversary passes and 7 PR-LEVEL passes before achieving PR-LEVEL 3-CLEAN. Findings were: evidence provenance precision (uncontrolled baseline vs causal attribution), FR title missing ~40-60s bc_2_11_007 contribution, PR-description HEAD citation stale between fix-bursts.
+
+**Root causes:**
+
+1. **Quantitative perf claims are high-information-density and easy to misattribute.** Statements about timing savings require specifying (a) which recipe, (b) which effect, (c) what baseline, (d) under what conditions. Any under-specification is a finding.
+2. **Comment simplify-directives (D-1443) interacted with story specs.** Story v2.0 described the comment structure that existed before the D-1443 simplify commit; the spec lagged the code, generating ~5 findings on a simple mismatch.
+3. **PR-description.md is part of the convergence surface.** Code-delivery/ is gitignored; PR description changes are not tracked by the adversary unless the adversary is explicitly pointed at the PR description file. Two OBS-level findings (OBS-1 + OBS-2) in PR-LEVEL pass-2 caught a description misattribution not caught by LOCAL cascade.
+4. **Several findings were INTRODUCED by prior fixes.** Adding an Evidence Framing Note to clarify one ambiguity introduced a new self-contradiction in a subsequent pass (MED-001 in S-PERF-GATE-007 pass-6).
+
+**Follow-up for session-review (non-blocking, no new story now):**
+
+- Evaluate whether a "perf-story evidence-table authoring checklist" could pre-check: (a) per-effect savings isolation, (b) which baseline (controlled vs uncontrolled), (c) which recipe each effect belongs to, (d) that code comments reference the story for rationale rather than duplicating quantitative claims.
+- Evaluate whether a PR-description generation guard or review checklist step could verify that timing figures in the PR description match the story's §Evidence table attribution before the PR is opened.
+
+**Source:** D-1479+D-1480 (S-PERF-GATE-007 MERGED + S-PERF-GATE-006 PR-LEVEL CONVERGED state-manager burst, 2026-07-01).
