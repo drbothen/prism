@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.110"
+version: "8.111"
 producer: state-manager
-timestamp: 2026-07-02T16:00:00Z
+timestamp: 2026-07-02T17:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -26,7 +26,7 @@ bc_index_version: "7.27"
 vp_index_version: "1.80"
 story_index_version: "v2.569"
 arch_index_version: "2.155"
-error_taxonomy_version: "2.03"
+error_taxonomy_version: "2.04"
 total_stories: 226
 active_contracts: 254
 draft_contracts: 0
@@ -40,7 +40,7 @@ workspace_test_count: 4978  # NOTE: develop@aaa9bfe8 baseline — 4978 passed (4
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) UN-PARKED + REBASED onto develop@aaa9bfe8 (D-1497). Feature HEAD cf66151f. rustls-tls fold-in committed: 11 Cargo.toml dev-dep + 1 optional-dep standardized; 4 SID-1 DTU tests un-quarantined; 7 stop() cleanups in prism-dtu-claroty. Root cause CORRECTED: macOS native-tls Keychain init ~65s (NOT WASMtime starvation). just check GREEN 5085 passed. Security APPROVE. Story v2.15. ADR-050 ACCEPTED (ARCH-INDEX v2.155). S-MAINT-REQWEST-RUSTLS-GATE-001 draft registered. total_stories 225→226. NEXT: LOCAL adversarial 3-CLEAN on cf66151f, then push → PR #208 → PR-LEVEL 3-CLEAN → merge."
+current_step: "PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) LOCAL pass-2 fixes complete (D-1498). Branch HEAD cf66151f→a926746c. F1 stale quarantine doc comment FIXED by implementer (prism-dtu-armis/src/routes/devices.rs; 3 occurrences sibling-swept). OBS-2 E-QUERY-039 attribution FIXED by product-owner (error-taxonomy v2.03→v2.04; attribution corrected to 'allocated by S-DEMO-PRISMQL-ONBOARDING-001-C/AUDIT-005; implemented by S-DEMO-FIDELITY-REMEDIATION-001'). LOCAL 3-CLEAN streak RESET 0/3 on frozen a926746c. develop_head UNCHANGED aaa9bfe8. story UNCHANGED draft. NEXT: LOCAL adversarial 3-CLEAN re-gate on frozen a926746c → push → PR #208 → PR-LEVEL 3-CLEAN → merge."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -72,14 +72,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1497."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1498."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-02 (D-1497 — PR #208 un-parked+rebased cf66151f; rustls-tls fold-in; story v2.15; ADR-050; S-MAINT-REQWEST-RUSTLS-GATE-001 registered; ARCH-INDEX v2.154→v2.155; STORY-INDEX v2.568→v2.569; STATE v8.109→v8.110)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-02 (D-1498 — PR #208 LOCAL pass-2 fixes: F1 quarantine comment (a926746c) + OBS-2 E-QUERY-039 attribution (error-taxonomy v2.04); HEAD cf66151f→a926746c; 0/3 re-gate pending; STATE v8.110→v8.111)
 
 ## Active Objective (North Star)
 
@@ -132,6 +132,7 @@ pre_compact_snapshot_at: "2026-06-15"
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 through D-1339 archived to burst-log.md (D-1368 compaction 2026-06-26). D-1344 and D-1393..D-1397 archived to burst-log.md (this compaction). D-1409 archived to burst-log.md (this D-1410 burst). D-1398..D-1416 archived to burst-log.md (this D-1417 burst). D-1417..D-1420 archived to burst-log.md (this D-1421 burst). D-1344..D-1355 archived to burst-log.md (this D-1423 burst). D-1436 archived to burst-log.md (this D-1441 burst). D-1437 archived to burst-log.md (this D-1442 burst). D-1438..D-1442 archived to burst-log.md (this D-1444 burst). D-1443..D-1444 archived to burst-log.md (this D-1446 burst). D-1445..D-1446 archived to burst-log.md (this D-1447 burst). D-1470..D-1472 archived to burst-log.md (this D-1478 burst). D-1473 and D-1475 archived to burst-log.md (this D-1479+D-1480 burst). D-1476 archived to burst-log.md (this D-1481 burst). D-1492 archived to burst-log.md (this D-1497 burst)._
 _(D-1476 archived to burst-log.md this burst: S-PERF-GATE-006 F-PG006-P22-MED-001 FIXED D-1443 ENFORCED; LOCAL pass-22; check comment de-quantified 34aa4a78; story v2.4→v2.5; STORY-INDEX v2.550→v2.551; STATE v8.090→v8.091)_
+| D-1498 | state-manager | 2026-07-02 | **PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) LOCAL adversarial pass-2 fix-burst (D-1498). Pass-2 on frozen cf66151f found 2 LOW findings: F1 (stale quarantine doc comment in prism-dtu-armis/src/routes/devices.rs — FIXED by implementer; sibling-swept 3 occurrences; branch HEAD cf66151f→a926746c); OBS-2 (E-QUERY-039 error-taxonomy attribution — FIXED by product-owner; error-taxonomy v2.03→v2.04, attribution corrected to "allocated by S-DEMO-PRISMQL-ONBOARDING-001-C/AUDIT-005; implemented by S-DEMO-FIDELITY-REMEDIATION-001"). Both fixes committed. Branch HEAD cf66151f→a926746c. LOCAL 3-CLEAN streak RESET 0/3 (2 findings → reset). develop_head UNCHANGED aaa9bfe8. story UNCHANGED draft. NEXT: LOCAL adversarial 3-CLEAN re-gate on frozen a926746c → push → PR #208 → PR-LEVEL 3-CLEAN → merge. STATE v8.110→v8.111.** | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1497 | state-manager | 2026-07-02 | **PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) UN-PARKED + REBASED develop@aaa9bfe8; branch HEAD cf66151f (D-1497). Root cause CORRECTED: macOS native-tls Security.framework Keychain init ~65s (NOT WASMtime starvation — prior D-1435 hypothesis superseded by cf66151f proof). rustls-tls fold-in committed cf66151f: 11 Cargo.toml dev-dep + 1 optional-dep standardized to default-features=false features=["rustls-tls"]; Cargo.lock −151 lines. 4 SID-1 #[ignore]-quarantined DTU scenario tests UN-QUARANTINED (test_BC_2_06_019_armis_primary_device_stage_visibility, test_BPRL_P4_02_armis_alerts_stage_guard_primary_device, test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility, test_BPRL_P4_02_detections_stage_guard_primary_device). 7 prism-dtu-claroty stop() resource-cleanup calls added (sec_p3_003_constant_time_admin_token.rs). just check GREEN 5085 passed (feature branch baseline; develop@aaa9bfe8 baseline UNCHANGED 4978). Security review APPROVE. Story v2.14→v2.15 (Area L / AC-TLS added; native-tls root cause corrected; subsystems [SS-01, SS-10, SS-11, SS-22]; points 10→11; days 2→2.5). ADR-050 ACCEPTED v1.0 (workspace rustls-tls mandatory / native-tls forbidden; ARCH-INDEX v2.154→v2.155). S-MAINT-REQWEST-RUSTLS-GATE-001 draft v0.1 registered (ADR-050 CI enforcement gate fast-follow; 3 pts; P2; 4 ACs; 2 Red Gate tests; total_stories 225→226). STORY-INDEX v2.568→v2.569. STATE v8.109→v8.110. develop_head UNCHANGED aaa9bfe8. story status UNCHANGED draft (NOT merged). NEXT: LOCAL adversarial 3-CLEAN on cf66151f, then push → PR #208 → PR-LEVEL 3-CLEAN → merge.** | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1496 | state-manager | 2026-07-02 | **S-PERF-GATE-008 MERGED — PR #213 squash-merged develop@aaa9bfe8. PR-LEVEL 3-CLEAN converged on frozen 091f1af8 (passes 1/2/3 CLEAN strict; F-P3-MED-001 warm-figure fully reconciled — ADR-049 v1.3 / story v1.10 / PR-desc). CI GREEN 43/43. WASMtime compilation cache + nextest spec-engine-wasmtime group (max-threads=1). feature/S-PERF-GATE-008 branch + .worktrees/S-PERF-GATE-008 removed. POL-14 NO-OP (BC-5.39.001 + BC-2.16.002 already active). STORY-INDEX v2.567→v2.568. STATE v8.108→v8.109. develop_head 67518790→aaa9bfe8. workspace_test_count 4976→4978. NEXT: un-park PR #208 (S-DEMO-FIDELITY-REMEDIATION-001).** | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1495 | state-manager | 2026-07-02 | **F-P3-MED-001 fix-burst COMPLETE (D-1495). ADR-049 v1.2→v1.3 (§Context "<1s" drift bullet corrected to "<0.1s" + qualifying note). Story v1.9→v1.10 (6 warm-figure locations reconciled + §Evidence column header corrected). pr-manager reconciled PR-desc (GitHub-side; headRefOid 091f1af8 frozen). ARCH-INDEX v2.153→v2.154. STORY-INDEX v2.566→v2.567. STATE v8.107→v8.108. PR-LEVEL 3-CLEAN streak 0/3 on frozen 091f1af8 — RE-GATE REQUIRED.** | wave-5-e-demo-fidelity | 2026-07-02 |
@@ -407,11 +408,11 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1497 -- 2026-07-02; STATE v8.110)
+## Session Resume Checkpoint (D-1498 -- 2026-07-02; STATE v8.111)
 
-**PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) UN-PARKED + REBASED develop@aaa9bfe8 (D-1497 2026-07-02). Feature HEAD cf66151f. rustls-tls fold-in committed. Story v2.15. ADR-050 ACCEPTED. NEXT: LOCAL adversarial 3-CLEAN on cf66151f.**
+**PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) LOCAL pass-2 fixes complete (D-1498 2026-07-02). Branch HEAD cf66151f→a926746c. F1 stale quarantine comment FIXED (implementer; 3 occurrences swept). OBS-2 E-QUERY-039 attribution FIXED (error-taxonomy v2.04). LOCAL 3-CLEAN streak 0/3 on frozen a926746c. NEXT: LOCAL adversarial 3-CLEAN re-gate on a926746c → push → PR #208 → PR-LEVEL 3-CLEAN → merge.**
 
-**STATE v8.110. develop aaa9bfe8. BC-INDEX v7.27. STORY-INDEX v2.569. ARCH-INDEX v2.155. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87. total_stories 226. workspace_test_count 4978 (develop@aaa9bfe8 baseline; feature cf66151f: 5085 passed).**
+**STATE v8.111. develop aaa9bfe8. BC-INDEX v7.27. STORY-INDEX v2.569. ARCH-INDEX v2.155. error-taxonomy v2.04. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87. total_stories 226. workspace_test_count 4978 (develop@aaa9bfe8 baseline; feature a926746c: 5085 passed).**
 
 **T-PERF-PROFILE:** 006 (RUSTFLAGS) **MERGED** develop@67518790 (PR #212). 007 (wasm-cap+http-cap) **MERGED** develop@c6d6e4fa (PR #211). 008 (wasmtime cache) **MERGED** develop@aaa9bfe8 (PR #213). T-PERF-PROFILE COMPLETE.
 
