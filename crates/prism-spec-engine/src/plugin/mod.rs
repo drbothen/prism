@@ -114,6 +114,29 @@ pub struct PluginRuntime {
     _epoch_ticker: EpochTickerHandle,
 }
 
+// ---------------------------------------------------------------------------
+// wasmtime compilation cache helper (S-PERF-GATE-008 / ADR-049 D3)
+// ---------------------------------------------------------------------------
+
+/// Attempts to enable the wasmtime compilation cache on `config`.
+///
+/// Cache-init failure is DEGRADABLE (ADR-049 D3 — LOCKED decision): on `Err`, emits a
+/// `WARN` structured event and returns without error, leaving the engine uncached.
+/// On `Ok`, attaches the cache to `config` via `config.cache(Some(cache))`.
+///
+/// Extracted as a standalone function (not inline in `new_with_audit_sink`) so that
+/// the `Err` branch can be exercised by unit tests without needing a live wasmtime
+/// Engine or a real `.prx` artifact (SID-1).
+///
+/// S-PERF-GATE-008 / ADR-049 D3.
+#[allow(dead_code)] // stub — wired into new_with_audit_sink by implementer (S-PERF-GATE-008)
+fn apply_wasmtime_cache(
+    _config: &mut wasmtime::Config,
+    _cache_result: Result<wasmtime::Cache, wasmtime::Error>,
+) {
+    todo!("S-PERF-GATE-008: apply_wasmtime_cache")
+}
+
 impl PluginRuntime {
     /// Create a new `PluginRuntime` with the given `http_client` and a `NoOpPluginAuditSink`.
     ///
@@ -1692,5 +1715,42 @@ mod tests {
              call dispatch_plugin_acquire_token with modified plugin (core_module=None), \
              assert plugin_auth_token_parse_error fires from host path"
         )
+    }
+
+    // ---------------------------------------------------------------------------
+    // S-PERF-GATE-008 Red Gate tests (RG-001, RG-002 / AC-004, AC-005 / ADR-049 D3+D8)
+    // ---------------------------------------------------------------------------
+
+    /// RG-001: `apply_wasmtime_cache` degradable path does not panic on Err.
+    ///
+    /// Verifies that calling `apply_wasmtime_cache` with a forced-failure
+    /// `Result::Err` (from `CacheConfig::with_directory("relative/not/absolute")`)
+    /// returns normally — no panic, no `Err` propagation.
+    ///
+    /// Pre-implementation state: `todo!()` body panics → RED.
+    /// Post-implementation state: degradable match arm returns normally → GREEN.
+    ///
+    /// SID-1: not `#[ignore]`'d; forced-failure uses `is_absolute()` check (pre-FS, deterministic).
+    /// S-PERF-GATE-008 / AC-004 / ADR-049 D3.
+    #[test]
+    fn test_S_PERF_GATE_008_apply_wasmtime_cache_degradable_path_does_not_panic() {
+        todo!("RG-001: implement after apply_wasmtime_cache is extracted")
+    }
+
+    /// RG-002: `apply_wasmtime_cache` emits `plugin.compilation_cache_init_skipped` WARN on Err.
+    ///
+    /// Verifies that the `Err` branch of `apply_wasmtime_cache` fires
+    /// `tracing::warn!(event_type = "plugin.compilation_cache_init_skipped", ...)`.
+    /// Uses `Arc<Mutex<Vec<u8>>>` tracing capture pattern (established in
+    /// `test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally`).
+    ///
+    /// Pre-implementation state: `todo!()` body panics → RED.
+    /// Post-implementation state: WARN fires with correct event_type → GREEN.
+    ///
+    /// SID-1: not `#[ignore]`'d; SAP-1 load-bearing runtime assertion for BC-2.16.002 catalog row.
+    /// S-PERF-GATE-008 / AC-005 / ADR-049 D8 / SAP-1.
+    #[test]
+    fn test_S_PERF_GATE_008_apply_wasmtime_cache_emits_warn_on_err() {
+        todo!("RG-002: implement after apply_wasmtime_cache is extracted")
     }
 }
