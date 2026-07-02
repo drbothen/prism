@@ -2192,3 +2192,35 @@ This is the PR-LEVEL counterpart to Lesson z27's AC-009 binary-resolution patter
 **Action taken:** PR #213 HEAD 2b2abb25 fixes the ordering. `show-config` evidence captured. Story v1.4 (D-1486). Process-gap lesson codified. ADR-049 D6 prose amendment ("first-match-wins" clarification) deferred to architect adjudication (LOW; non-blocking).
 
 **Source:** D-1486 (S-PERF-GATE-008 F-PG008-P1-HIGH-001 fix @2b2abb25, state-manager burst, 2026-07-02).
+
+---
+
+## Process-Gap Lesson 5 — PR Description Must Be Regenerated in the Same Fix Round as the Push (D-1487, 2026-07-02)
+
+**What happened:**
+
+PR-LEVEL cascade Pass 1 on S-PERF-GATE-008 HEAD 2b2abb25 found F-PG008-PRL1-HIGH-001 HIGH — the PR description was a stale pre-fix snapshot. It stated the WRONG "last-match-wins" mechanism (the exact defect that F-PG008-P1-HIGH-001 had just fixed), cited the superseded HEAD 5d2d7aad and story v1.3 in approximately 13 places, and referenced the wrong rollback SHA. Additionally OBS-1 flagged the show-config evidence file as hand-annotated rather than raw tool output.
+
+The underlying fix round (code + evidence + story v1.4) was completed correctly and produced a new HEAD (2b2abb25 pushed as PR #213). However, the PR description — stored in `.factory/code-delivery/S-PERF-GATE-008/pr-description.md` and uploaded to GitHub — was authored against the pre-fix HEAD and never regenerated before the PR-LEVEL adversary pass was dispatched. This caused a full re-gate cycle: implementer re-captured raw `show-config` output, pr-manager regenerated the PR description, a new commit was pushed (e6a357fe), and the 3-CLEAN streak reset to 0/3 on the new HEAD.
+
+**Why this happens:**
+
+The PR description is authored by pr-manager once during initial PR creation and lives in `code-delivery/` (gitignored from factory-artifacts). When a fix-burst pushes a new HEAD, the orchestrator must trigger pr-manager to regenerate the description before dispatching the adversary. The re-generation is not automatic — it is an explicit orchestrator obligation that was missed.
+
+**Codified rules:**
+
+1. **Whenever a PR-LEVEL fix push changes the HEAD, the PR description MUST be regenerated in the same fix round.** The regeneration is not optional even if the description "mostly still applies" — it must be verified against the new HEAD, the current story version, and correct SHAs throughout.
+
+2. **The fix-round completion checklist for any PR-LEVEL push includes:** (a) implementer commit pushed to branch; (b) `gh pr view` confirms new HEAD; (c) pr-manager regenerates PR description against new HEAD; (d) GitHub PR body updated via `gh pr edit`; (e) evidence files are raw tool output (not hand-annotated). Only after all five are confirmed may the orchestrator dispatch the next adversary pass.
+
+3. **Show-config evidence must be raw verbatim tool output.** Hand-annotated or summarized show-config output is OBS-severity. The canonical capture command is `cargo nextest show-config test-groups --profile <profile>` piped verbatim to `docs/demo-evidence/<story>/show-config-evidence.txt`. Annotations belong in the PR description body, not in the evidence file.
+
+4. **PR description staleness is a HIGH finding under the PR-LEVEL adversary protocol.** A description that cites the wrong mechanism, wrong HEAD SHA, or wrong story version directly misleads the reviewer and constitutes an integrity failure in the PR evidence bundle. It is not OBS-severity.
+
+**Relationship to prior lessons:**
+
+Process-Gap Lesson 4 (D-1278) established that post-merge CLAUDE.md commits must parent the actual merged HEAD. This lesson is the pre-merge counterpart: PR description updates must happen before the adversary pass, not after.
+
+**Action taken:** PR #213 HEAD e6a357fe. PR description regenerated (D-1487). Raw show-config evidence recaptured (3245 lines). PR-LEVEL 3-CLEAN streak 0/3 on e6a357fe. Process-gap lesson codified.
+
+**Source:** D-1487 (S-PERF-GATE-008 F-PG008-PRL1-HIGH-001 + OBS-1 fix @e6a357fe, state-manager burst, 2026-07-02).

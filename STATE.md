@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.099"
+version: "8.100"
 producer: state-manager
 timestamp: 2026-07-02T00:00:00Z
 inputs: []
@@ -23,7 +23,7 @@ develop_head: "67518790"
 # NOTE-CORRECTION D-1435: "TEST-SPEED INITIATIVE COMPLETE" + "full nextest ~86.4s" are FALSE IN PRACTICE. Real full-workspace `just check` is ~30+ min: 5 prism-spec-engine WASMtime binaries (plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests) run UNCAPPED in nextest; wasmtime::Engine::new() (LLVM JIT init) costs ~120-143s per binary under full-suite concurrency → ~28 pre-existing TMT failures. S-PERF-GATE-001..005 fixed DTU oversubscription + clone graceful-shutdown only; did NOT touch spec-engine WASMtime binaries. Initiative INCOMPLETE / SUPERSEDED by T-PERF-PROFILE (D-1435).
 bc_index_version: "7.27"
 vp_index_version: "1.80"
-story_index_version: "v2.559"
+story_index_version: "v2.560"
 arch_index_version: "2.151"
 error_taxonomy_version: "2.03"
 total_stories: 225
@@ -39,7 +39,7 @@ workspace_test_count: 4976  # NOTE: develop@67518790 baseline — 4976 passed + 
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "S-PERF-GATE-008 PR #213 HEAD **2b2abb25** (F-PG008-P1-HIGH-001 nextest first-match-wins defect FIXED + story v1.4; show-config evidence captured; security APPROVE 2 LOW; pr-reviewer F1 fixed). PR-LEVEL 3-CLEAN streak **0/3** on 2b2abb25. VERY NEXT: (a) confirm PR #213 CI green on 2b2abb25; (b) PR-LEVEL adversary 3-CLEAN re-gate on 2b2abb25 (read worktree files, NOT git); (c) then USER-AUTH squash-merge (D-1473 pattern — orchestrator runs gh pr merge 213 --squash after user authorizes); (d) post-merge: worktree/branch cleanup + develop_head bump + STORY-INDEX merged + POL-14 (BC-2.16.002 already active → likely no-op). Then S-PERF-GATE-008 DONE → un-park PR #208."
+current_step: "S-PERF-GATE-008 PR #213 HEAD **e6a357fe** (F-PG008-PRL1-HIGH-001 stale-PR-desc + OBS-1 raw-evidence FIXED: PR desc regenerated first-match-wins + all SHAs + v1.4 + rollback; raw show-config recaptured 3245 lines verbatim to docs/demo-evidence/S-PERF-GATE-008/show-config-evidence.txt). PR-LEVEL 3-CLEAN streak **0/3** on e6a357fe. VERY NEXT: (a) confirm CI green on e6a357fe; (b) PR-LEVEL adversary 3-CLEAN re-gate on e6a357fe (read worktree files, NOT git); (c) USER-AUTH squash-merge (user said 'push through' = authorized once CI green + PR-LEVEL 3/3); (d) post-merge cleanup + develop_head bump + STORY-INDEX merged + POL-14 (BC-2.16.002 already active → no-op). Then S-PERF-GATE-008 DONE → un-park PR #208."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -71,14 +71,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1486."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1487."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-02 (D-1486 — S-PERF-GATE-008 F-PG008-P1-HIGH-001 nextest first-match-wins fix @2b2abb25 + story v1.4 + PR-LEVEL re-gate 0/3; STORY-INDEX v2.558→v2.559; STATE v8.098→v8.099)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-02 (D-1487 — S-PERF-GATE-008 PR-LEVEL fix @e6a357fe: F-PG008-PRL1-HIGH-001 PR-desc regen first-match-wins + all SHAs + v1.4 + rollback + OBS-1 raw show-config recaptured; PR-LEVEL 3-CLEAN 0/3 on e6a357fe; STORY-INDEX v2.559→v2.560; STATE v8.099→v8.100)
 
 ## Active Objective (North Star)
 
@@ -130,6 +130,7 @@ pre_compact_snapshot_at: "2026-06-15"
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 through D-1339 archived to burst-log.md (D-1368 compaction 2026-06-26). D-1344 and D-1393..D-1397 archived to burst-log.md (this compaction). D-1409 archived to burst-log.md (this D-1410 burst). D-1398..D-1416 archived to burst-log.md (this D-1417 burst). D-1417..D-1420 archived to burst-log.md (this D-1421 burst). D-1344..D-1355 archived to burst-log.md (this D-1423 burst). D-1436 archived to burst-log.md (this D-1441 burst). D-1437 archived to burst-log.md (this D-1442 burst). D-1438..D-1442 archived to burst-log.md (this D-1444 burst). D-1443..D-1444 archived to burst-log.md (this D-1446 burst). D-1445..D-1446 archived to burst-log.md (this D-1447 burst). D-1470..D-1472 archived to burst-log.md (this D-1478 burst). D-1473 and D-1475 archived to burst-log.md (this D-1479+D-1480 burst). D-1476 archived to burst-log.md (this D-1481 burst)._
 _(D-1476 archived to burst-log.md this burst: S-PERF-GATE-006 F-PG006-P22-MED-001 FIXED D-1443 ENFORCED; LOCAL pass-22; check comment de-quantified 34aa4a78; story v2.4→v2.5; STORY-INDEX v2.550→v2.551; STATE v8.090→v8.091)_
+| D-1487 | state-manager | 2026-07-02 | **S-PERF-GATE-008 PR-LEVEL fix @e6a357fe — F-PG008-PRL1-HIGH-001 stale-PR-desc + OBS-1 raw-evidence FIXED (D-1487). PR-LEVEL cascade Pass 1 on prior HEAD 2b2abb25 found: F-PG008-PRL1-HIGH-001 HIGH — PR description `.factory/code-delivery/S-PERF-GATE-008/pr-description.md` was a STALE pre-fix snapshot: stated the WRONG "last-match-wins" mechanism (the exact defect F-PG008-P1-HIGH-001 fixed), cited superseded HEAD 5d2d7aad/story v1.3 in ~13 places, wrong rollback SHA. OBS-1 — show-config evidence file was hand-annotated rather than raw tool output. FIXES: (a) implementer re-captured RAW `cargo nextest show-config` output (both profiles, verbatim, 3245 lines) to `docs/demo-evidence/S-PERF-GATE-008/show-config-evidence.txt`; worktree commit pushed; NEW PR #213 HEAD = e6a357fe (was 2b2abb25). (b) pr-manager regenerated PR description against e6a357fe/story v1.4: mechanism (b)→first-match-wins; all SHA citations 5d2d7aad→e6a357fe; correct post-merge rollback guidance; story-version 1.4; F-PG008-P1-HIGH-001 fix narrative added; test-count-delta reconciliation (prototype 5079 on parked-#208-base vs 4978 = develop 4976 + 2 RG tests); LOCAL vs PR-LEVEL cascade sections split. GitHub PR #213 body updated. Code/config/story v1.4 remain verified-correct and unchanged. PR-LEVEL 3-CLEAN streak RESET to 0/3 on e6a357fe (new HEAD per frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). Process-Gap Lesson 5 appended to cycles/wave-5-e-demo-fidelity/lessons.md (orchestrator must regenerate PR description whenever a PR-LEVEL fix push changes the HEAD — same-round obligation). STORY-INDEX v2.559→v2.560. STATE v8.099→v8.100. develop_head UNCHANGED 67518790. total_stories UNCHANGED 225. BC-INDEX UNCHANGED v7.27. ARCH-INDEX UNCHANGED v2.151. active_contracts UNCHANGED 254.** | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1486 | state-manager | 2026-07-02 | **S-PERF-GATE-008 F-PG008-P1-HIGH-001 nextest first-match-wins FIXED @2b2abb25 + story v1.4 + PR-LEVEL re-gate 0/3 (D-1486). F-PG008-P1-HIGH-001 HIGH CLOSED: PR-LEVEL adversary + pr-reviewer proved via `cargo nextest show-config` that nextest override resolution is first-match-wins (NOT last-match-wins); delivered `.config/nextest.toml` had `spec-engine-wasm-cap` (max-threads=4) BEFORE `spec-engine-wasmtime` (max-threads=1) → 5 of 6 WASMtime binaries silently stayed at max-threads=4; story's serialization goal no-op for 5/6 binaries; genuine functional defect, false-green under `just check`. FIX pushed as PR #213 NEW HEAD 2b2abb25: implementer reordered `spec-engine-wasmtime` BEFORE `spec-engine-wasm-cap` in BOTH prepush+ci profiles; fixed 6 comment sites incl. pre-existing stale S-PERF-GATE-004-era "last matching override wins" comment; captured `show-config` evidence (both profiles) to `.worktrees/S-PERF-GATE-008/docs/demo-evidence/S-PERF-GATE-008/show-config-evidence.txt` proving all 6 binaries → max-threads=1; `just check` EXIT 0 (3:16). Story-writer corrected all 8 "last-match" story sites → first-match-wins + tightened AC-009 (story v1.3→v1.4). pr-reviewer verdict was REQUEST-CHANGES on F1 (now fixed). Security review APPROVE: 2 LOW non-blocking (SEC-001 CWE-426 XDG cache redirect, SEC-002 CWE-494 cache artifact integrity — both mitigated by per-analyst deployment model AD-001). PR-LEVEL 3-CLEAN streak RESET to 0/3 on 2b2abb25 (new HEAD per frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). Deferred LOWs: (a) ADR-049 §Context "150-170s" vs §Consequences "80-150s" internal figure inconsistency (architect adjudication); (b) ADR-049 D6 prose "hash validation" wording suggestion from security — both non-blocking, registered as drift items. Process-gap lesson z29 appended to cycles/wave-5-e-demo-fidelity/lessons.md (nextest first-match-wins; `show-config` verification required for any nextest-cap story with binary-overlap potential). STORY-INDEX v2.558→v2.559. STATE v8.098→v8.099. develop_head UNCHANGED 67518790. total_stories UNCHANGED 225. BC-INDEX UNCHANGED v7.27. ARCH-INDEX UNCHANGED v2.151. active_contracts UNCHANGED 254.** | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1485 | state-manager | 2026-07-01 | **S-PERF-GATE-008 LOCAL 3-CLEAN CONVERGED (D-1485). LOCAL cascade CONVERGED 3/3 on frozen worktree HEAD 5d2d7aad + story v1.3. Passes 1/2/3 all CLEAN(strict)=YES on unchanged 5d2d7aad. Code verified production-grade: D1/D3/D4/D5/D9 checked; SAP-1 single ungated emission `plugin.compilation_cache_init_skipped` matches BC-2.16.002 v1.92 catalog row; SID-1 RG-001+RG-002 load-bearing runtime proofs. Prior finding-rounds (F-1, F-M1) were story grep-AC instrument defects fixed in story v1.2/v1.3; code was correct+production-grade+unchanged throughout all LOCAL passes. NEXT: push feature/S-PERF-GATE-008 → PR → PR-LEVEL 3-CLEAN → CI → user-auth merge. STORY-INDEX v2.557→v2.558. STATE v8.097→v8.098. develop_head UNCHANGED 67518790. total_stories UNCHANGED 225. BC-INDEX UNCHANGED v7.27. ARCH-INDEX UNCHANGED v2.151. active_contracts UNCHANGED 254.** | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1484 | state-manager | 2026-07-01 | **S-PERF-GATE-008 story v1.2→v1.3 F-M1 grep-portability fix (D-1484). F-M1 MED CLOSED: AC-003 check-1 recipe used GNU-only `\s` (non-portable on BSD/macOS grep) → replaced with POSIX `[[:space:]]`; full portability class-sweep of all 22 grep/awk self-verification recipes in story confirmed no other GNU-isms. Spec-only; code on frozen worktree HEAD 5d2d7aad CORRECT+production-grade UNCHANGED. 3-CLEAN streak RESET 0/3 on 5d2d7aad (BC-5.39.001 frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). Portability sub-class lesson appended to cycles/wave-5-e-demo-fidelity/lessons.md. total_stories UNCHANGED 225. BC-INDEX UNCHANGED v7.27. ARCH-INDEX UNCHANGED v2.151. active_contracts UNCHANGED 254. STORY-INDEX v2.556→v2.557. STATE v8.096→v8.097. develop_head UNCHANGED 67518790. NEXT: LOCAL pass-2 adversary on frozen 5d2d7aad + story v1.3.** | wave-5-e-demo-fidelity | 2026-07-01 |
@@ -387,25 +388,25 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1486 -- 2026-07-02; STATE v8.099)
+## Session Resume Checkpoint (D-1487 -- 2026-07-02; STATE v8.100)
 
-**Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1481 (last authoritative zero-context snapshot; D-1486 is a PR-LEVEL fix burst — no develop merge; SESSION-HANDOFF will be updated at next merge).**
+**Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1481 (last authoritative zero-context snapshot; D-1487 is a PR-LEVEL fix burst — no develop merge; SESSION-HANDOFF will be updated at next merge).**
 
-**STATE v8.099. develop 67518790. BC-INDEX v7.27. STORY-INDEX v2.559. ARCH-INDEX v2.151. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87. total_stories 225. workspace_test_count 4978 on PR #213 HEAD 2b2abb25 (develop 4976 + 2 Red Gate tests).**
+**STATE v8.100. develop 67518790. BC-INDEX v7.27. STORY-INDEX v2.560. ARCH-INDEX v2.151. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87. total_stories 225. workspace_test_count 4978 on PR #213 HEAD e6a357fe (develop 4976 + 2 Red Gate tests).**
 
-**T-PERF-PROFILE:** 006 (Justfile RUSTFLAGS) **MERGED** develop@67518790 (PR #212). 007 (nextest wasm-cap+http-cap) **MERGED** develop@c6d6e4fa (PR #211). **008 story v1.4** (F-PG008-P1-HIGH-001 FIXED @2b2abb25; PR #213 HEAD 2b2abb25; PR-LEVEL 3-CLEAN streak 0/3 on 2b2abb25 — re-gate in progress).
+**T-PERF-PROFILE:** 006 (Justfile RUSTFLAGS) **MERGED** develop@67518790 (PR #212). 007 (nextest wasm-cap+http-cap) **MERGED** develop@c6d6e4fa (PR #211). **008 story v1.4** (F-PG008-P1-HIGH-001 FIXED; F-PG008-PRL1-HIGH-001 PR-desc + OBS-1 FIXED; PR #213 HEAD e6a357fe; PR-LEVEL 3-CLEAN streak 0/3 on e6a357fe — re-gate in progress).
 
-**S-PERF-GATE-008:** Story v1.4. ADR-049 ACCEPTED. BC-2.16.002 v1.92. 12 ACs, 2 Red Gate tests. PR #213 HEAD **2b2abb25** (F-PG008-P1-HIGH-001 nextest first-match-wins fix; `spec-engine-wasmtime` reordered BEFORE `spec-engine-wasm-cap`; `show-config` evidence captured; `just check` EXIT 0 3:16). pr-reviewer F1 REQUEST-CHANGES → FIXED. Security APPROVE (2 LOW non-blocking). PR-LEVEL 3-CLEAN streak **0/3 on 2b2abb25**.
+**S-PERF-GATE-008:** Story v1.4. ADR-049 ACCEPTED. BC-2.16.002 v1.92. 12 ACs, 2 Red Gate tests. PR #213 HEAD **e6a357fe** (F-PG008-P1-HIGH-001 nextest first-match-wins fix confirmed; F-PG008-PRL1-HIGH-001 FIXED: PR desc regenerated — mechanism first-match-wins, all SHAs → e6a357fe, correct rollback, story-version 1.4; OBS-1 FIXED: raw `show-config` output 3245 lines verbatim to docs/demo-evidence/S-PERF-GATE-008/show-config-evidence.txt; `just check` EXIT 0 3:16). Security APPROVE (2 LOW non-blocking). PR-LEVEL 3-CLEAN streak **0/3 on e6a357fe**.
 
 **PR #208:** PARKED at LOCAL 0978983f (4 DTU tests #[ignore]-quarantined; NOT pushed; origin stale 4a624a08). wip/perf-wasmtime-exploration-76821af7 preserved (VERIFIED GREEN, zero TMT). stash@{0} = working-tree; stash@{1} = OnceLock prototype (expect() in production — do NOT adopt as-is).
 
 **RESUME PROTOCOL:**
 1. Run vsdd-factory:factory-worktree-health (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `67518790` (S-PERF-GATE-006 merged).
-3. `gh pr view 213 --json headRefOid` → expect `2b2abb25` (confirm PR #213 HEAD unchanged).
+3. `gh pr view 213 --json headRefOid` → expect `e6a357fe` (confirm PR #213 HEAD unchanged).
 4. Check PR #213 CI status: `gh pr checks 213` → all green.
-5. Run PR-LEVEL adversary 3-CLEAN re-gate on frozen PR HEAD 2b2abb25 (read worktree `.worktrees/S-PERF-GATE-008/` files, NOT main checkout; standard adversary dispatch tuple).
-6. After PR-LEVEL 3/3: confirm CI green + USER-AUTH squash-merge per D-1473 pattern (`gh pr merge 213 --squash`).
+5. Run PR-LEVEL adversary 3-CLEAN re-gate on frozen PR HEAD e6a357fe (read worktree `.worktrees/S-PERF-GATE-008/` files, NOT main checkout; standard adversary dispatch tuple).
+6. After PR-LEVEL 3/3: confirm CI green + USER-AUTH squash-merge (user authorized "push through" = merge once CI green + 3/3; `gh pr merge 213 --squash`).
 7. Post-merge: worktree/branch cleanup + develop_head bump + STORY-INDEX merged status + POL-14 (BC-2.16.002 draft→active).
 8. After 008 merges: un-park PR #208 (rebase onto develop, run just check, resume adversarial convergence).
-7. Autonomy D-989 active.
+9. Autonomy D-989 active.
