@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-008
 title: "wasmtime compilation cache — enable on-disk native-code cache in PluginRuntime with degradable boot semantics (D3), SAP-1 structured event, and nextest spec-engine-wasmtime serialization group (max-threads=1)"
 epic_id: EPIC-MAINTENANCE
-version: "1.6"
+version: "1.7"
 status: draft
 producer: story-writer
 phase: 3
@@ -42,7 +42,9 @@ Enable the wasmtime on-disk compilation cache in `PluginRuntime::new_with_audit_
 implement degradable boot semantics per ADR-049 D3, emit the SAP-1 structured tracing event
 on cache-init failure, and add the `spec-engine-wasmtime` nextest serialization group
 (max-threads=1) so the 6 wasmtime-heavy spec-engine test binaries run sequentially after
-the cache warms — turning 80-150 s per-test cold-compile waits into <1 s cache-hit loads.
+the cache warms — reducing per-call `PluginRuntime::new()` cost from ~8-9 s (cold, parallel
+workspace contention; profiling §3c) to <1 s (warm cache hit), saving ~150-200 s total
+wall-clock across the wasmtime test group (profiling §REC-1).
 
 ## Narrative
 
@@ -50,9 +52,11 @@ As a Prism developer, I want `PluginRuntime::new_with_audit_sink()` to initializ
 wasmtime on-disk compilation cache with degradable semantics (cache-init failure logs a
 `WARN` and continues — it does NOT abort boot), so that repeated nextest runs and production
 process restarts load compiled `.prx` native code from disk instead of re-running the
-Cranelift JIT compiler, reducing per-test wasmtime cost from 80-150 s (cold, parallel) to
-<1 s (warm cache hit) and keeping the 6 wasmtime-heavy test binaries within the nextest
-180 s hard-kill ceiling under full workspace load.
+Cranelift JIT compiler, reducing per-call `PluginRuntime::new()` cost from ~8-9 s (cold,
+parallel workspace contention; profiling §3c) to <1 s (warm cache hit), saving ~150-200 s
+total wall-clock across the wasmtime test group (profiling §REC-1), and keeping the 6
+wasmtime-heavy test binaries within the nextest 180 s hard-kill ceiling under full
+workspace load.
 
 ## §Evidence
 
@@ -79,10 +83,10 @@ timing-out tests (TMT). The prototype makes exactly 3 file changes:
 **Performance context from profiling report `.factory/research/test-suite-perf-profile-2026-06-30.md`
 (baseline develop@8bc0404e after S-PERF-GATE-004/005/006/007):**
 
-| Condition | wasmtime Component::new() per-test cost |
+| Condition | wasmtime Component::new() per-call cost |
 |-----------|----------------------------------------|
-| Cold start, isolated | ~1-5 s (Cranelift JIT, single process) |
-| Cold start, parallel workspace (before this story) | 80-150 s (engine contention) |
+| Cold start, isolated | ~1-2 s (Cranelift JIT, single process; profiling §3c) |
+| Cold start, parallel workspace (before this story) | ~8-9 s (Cranelift JIT under CPU contention; profiling §3c) |
 | Warm cache hit (after this story) | <1 s (cache load, no Cranelift) |
 
 The nextest `spec-engine-wasmtime = { max-threads = 1 }` group (D5) ensures that during
@@ -132,8 +136,9 @@ The exact implementation required by ADR-049 D3 (do not deviate):
 //
 // wasmtime::Component::new() (WASM-to-native Cranelift compilation) caches compiled
 // native code to disk, addressed by (wasm_binary_hash, compiler_version, cpu_isa_flags).
-// Warm cache hits skip Cranelift entirely, reducing per-plugin load from 80-150s
-// (cold parallel) to <1s. Cache directory: OS default (~/.cache/wasmtime/ or
+// Warm cache hits skip Cranelift entirely, reducing per-call load from ~8-9 s
+// (cold, parallel workspace contention; profiling §3c) to <1 s. Cache directory:
+// OS default (~/.cache/wasmtime/ or
 // ~/Library/Caches/wasmtime/). Created automatically on first use.
 //
 // Cache-init failure is DEGRADABLE (ADR-049 D3): a disk-full, permissions, or
@@ -668,9 +673,10 @@ without external subscribers.
       ```toml
       # S-PERF-GATE-008: Serialize wasmtime-heavy spec-engine + prism-ocsf binaries.
       # With the on-disk compilation cache enabled in PluginRuntime::new_with_audit_sink
-      # (ADR-049 D1), warm cache hits skip Cranelift JIT entirely (<1s per plugin vs
-      # 80-150s cold). max-threads=1 serializes the cold-start warm-up run so each .prx
-      # file is compiled once, then all subsequent binaries load from cache.
+      # (ADR-049 D1), warm cache hits skip Cranelift JIT entirely (<1 s per call vs
+      # ~8-9 s cold, parallel workspace contention (profiling §3c)). max-threads=1
+      # serializes the cold-start warm-up run so each .prx file is compiled once,
+      # then all subsequent binaries load from cache.
       # For the degradable path (ADR-049 D3, cache unavailable), max-threads=1 also
       # bounds total WASMtime CPU overhead — correctness is unaffected.
       # Binaries (all call PluginRuntime::new_with_audit_sink with a real .prx file):
@@ -735,7 +741,7 @@ without external subscribers.
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.6, ~900 lines) | ~24,000 |
+| This story spec (v1.7, ~900 lines) | ~24,000 |
 | `plugin/mod.rs` (1696 lines — read in full for test pattern context) | ~20,000 |
 | `Cargo.toml` (prism-spec-engine, ~100 lines — read + edit 1 line) | ~1,000 |
 | `.config/nextest.toml` (~215 lines — read + add ~20 lines) | ~2,500 |
@@ -890,6 +896,7 @@ No `cargo deny` or `cargo audit` action is required per ADR-049 D4.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.7 | 2026-07-02 | story-writer | F-PG008-PRL-P1-MED-001 remediation: retired "80-150 s" / "80-150s" figure swept from all live story content (opening description, §Narrative, §Evidence table, §Background §Degradable-Path Code Rust comment, §Tasks step 6a TOML comment) and replaced with profiling-sourced figures — per-call `PluginRuntime::new()` cost ~8-9 s under workspace-parallel CPU contention / ~1-2 s in isolation (profiling §3c); group savings ~150-200 s (profiling §REC-1). False profiling-report attribution corrected: "80-150 s" never appeared in `.factory/research/test-suite-perf-profile-2026-06-30.md`; the §Evidence table column header changed from "per-test cost" to "per-call cost" and the isolated-case figure updated from ~1-5 s to ~1-2 s to match profiling §3c. Token Budget self-reference updated to v1.7 (line count ~unchanged). ADR-049 v1.1 already retired the same figure; story now matches ADR-049 v1.1 §Context/§Consequences. Version bump 1.6 → 1.7. |
 | 1.6 | 2026-07-02 | story-writer | Pass-2 LOW + comprehensive self-reference currency sweep. Token Budget self-reference corrected: story spec row updated from (v1.0, ~340 lines, ~9,000 tokens) to (v1.6, ~900 lines, ~24,000 tokens); total recomputed ~37,700 → ~52,700. Comprehensive self-reference sweep: no other stale self-references found — 12 ACs (AC-001..AC-012), 2 Red Gate tests (red_gate_tests: 2 frontmatter and RG-001/RG-002 in body), and 2 BCs (behavioral_contracts: [BC-5.39.001, BC-2.16.002] in frontmatter and Behavioral Contracts table in body) all match current story content; external artifact versions confirmed current: ADR-049 v1.0 (read and verified), BC-2.16.002 v1.92 (read and verified). Version bump 1.5 → 1.6. |
 | 1.5 | 2026-07-02 | story-writer | F-PG008-PRL2-MED-001 + F-PG008-PRL2-LOW-001 remediation (spec-only; PR HEAD e6a357fe frozen). MED-001: corrected frontmatter `# BC status:` comment that falsely stated "BC-2.16.002 transitions draft→active at merge per POL-14" — BC-2.16.002 is already ACTIVE at v1.92; this story amended its §Postconditions catalog only (added plugin.compilation_cache_init_skipped row, SAP-1 D8 obligation); no lifecycle transition occurs at merge; POL-14 is a NO-OP for BOTH BCs (both already ACTIVE before this story). LOW-001: removed fabricated BC-2.16.002 postcondition attributions from AC-001 ("WASM plugin runtime correctness"), AC-002 ("degradable boot"), and AC-004 ("degradable path") — none of these postconditions exist in BC-2.16.002 (Multi-Step Fetch Pipeline Execution / CAP-029); re-anchored AC-001 to ADR-049 D4 (wasmtime cache feature), AC-002 and AC-004 to ADR-049 D3 (LOCKED degradable decision). BC-2.16.002 citations now reserved for AC-003 and AC-005 (catalog-row tracing) only. POL-8 bidirectional coherence verified: BC-2.16.002 remains in frontmatter array, cited by AC-003 + AC-005; BC-5.39.001 cited by delivery-quality ACs throughout. |
 | 1.4 | 2026-07-02 | story-writer | F-PG008-P1-HIGH-001 remediation: corrected a genuine functional defect — nextest per-test override resolution is first-match-wins per setting (not last-match-wins as previously stated). The prior spec asserted the wasmtime override stanzas should appear AFTER wasm-cap, which caused the delivered `.config/nextest.toml` to leave 5 of 6 wasmtime-heavy binaries silently at max-threads=4 instead of the intended 1. Corrections: (1) §Evidence heading + body: "last-match-wins semantics" → "first-match-wins per setting"; "appear AFTER" → "must appear BEFORE"; added defect summary sentence. (2) AC-008: "last-match semantics means the binary ultimately uses spec-engine-wasmtime" → "first-match-wins per setting: spec-engine-wasmtime stanza appears BEFORE spec-engine-wasm-cap". (3) AC-009: tightened from "capture output in PR evidence bundle" to require saving actual `cargo nextest show-config` output for both profiles to `docs/demo-evidence/S-PERF-GATE-008/show-config-evidence.txt`; explicit "summarized ✓ is insufficient"; added per-binary max-threads=1 verification requirement. (4) Tasks step 6a TOML comment: "last-match semantics … appears later in the file" → "first-match-wins … placed BEFORE wasm-cap". (5) Tasks step 6b: "After the existing [[profile.prepush.overrides]] stanzas" → "BEFORE the existing [[profile.prepush.overrides]] stanza for spec-engine-wasm-cap". (6) Tasks step 6c: same correction for ci profile. (7) Tasks step 8: replaced "capture outputs for the PR evidence bundle" with mkdir + redirect commands to the evidence file and explicit max-threads=1 verification. (8) EC-005: "last-match wins … appended AFTER" → "first-match-wins … placed BEFORE"; added future-amendment verification instruction. Version bump 1.3 → 1.4 per POL-32 (newest-first changelog). |

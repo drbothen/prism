@@ -2224,3 +2224,37 @@ Process-Gap Lesson 4 (D-1278) established that post-merge CLAUDE.md commits must
 **Action taken:** PR #213 HEAD e6a357fe. PR description regenerated (D-1487). Raw show-config evidence recaptured (3245 lines). PR-LEVEL 3-CLEAN streak 0/3 on e6a357fe. Process-gap lesson codified.
 
 **Source:** D-1487 (S-PERF-GATE-008 F-PG008-PRL1-HIGH-001 + OBS-1 fix @e6a357fe, state-manager burst, 2026-07-02).
+
+## Process-Gap Lesson 6 — ADR Figure Correction Must Propagate to ALL Downstream Sibling Artifacts (S-7.01; D-1491, 2026-07-02)
+
+**What happened:**
+
+ADR-049 was amended from v1.0 to v1.1 (D-1490, 2026-07-02) to correct the "80-150s" per-test figure that contradicted the profiling report. The ADR amendment reconciled §Context/§Consequences to profiling-report-sourced per-call values (~8-9s under parallel workspace contention / ~1-2s isolated; §REC-1 ~150-200s savings). However, the same "80-150s" figure had been duplicated into three sibling artifacts that were NOT updated in the same burst:
+
+1. **Shipped code comments** — `crates/prism-spec-engine/src/plugin/mod.rs` and `.config/nextest.toml` both contained inline comments citing "80-150s" per-call waits. These are live artifacts in the delivered codebase (committed to `feature/S-PERF-GATE-008`, in PR #213).
+2. **Story body** — S-PERF-GATE-008 v1.6 had "80-150s" in 5 places: the opening description, §Narrative, §Evidence table (column header "per-test cost" and Cranelift figure), §Background Rust comment block, and §Tasks step 6a TOML comment.
+3. **PR description** — The PR description cited the figure and falsely attributed it to the profiling report.
+
+All three surfaces were caught only during the PR-LEVEL adversary passes (F-PG008-PRL-P1-MED-001, confirmed genuine across all 3 passes). The fix required a new implementer commit (091f1af8), story-writer v1.7, and PR-desc update — resetting the PR-LEVEL 3-CLEAN streak to 0/3.
+
+**Root cause:**
+
+The ADR amendment (D-1490) was treated as a standalone spec-layer fix. The correction was NOT treated as triggering an S-7.02 sibling-sweep obligation across all artifacts that cited the same figure. The figure had migrated from the ADR into code comments, story prose, and PR description during the story's implementation — so fixing only the ADR left all three downstream surfaces stale.
+
+**Codified rules:**
+
+1. **When an ADR figure is corrected, the S-7.02 sibling-sweep obligation applies to ALL artifacts that transitively cite the corrected figure.** This includes: (a) code comments in the implementation, (b) story body text, (c) PR description, (d) any other spec artifacts that echo the figure (BC prose, evidence files, session-handoff).
+
+2. **The partial-fix sweep must explicitly cover code comments.** Code comments are delivered artifacts (committed to the feature branch). They are NOT exempted from the S-7.02 sweep even though they are "just comments" — a comment citing a wrong performance figure is an accuracy defect in the delivered artifact.
+
+3. **The story body is a downstream artifact of the ADR.** When an ADR-sourced figure is corrected in the ADR, the story that cites that figure must also be updated in the same burst. Story prose is not immutable once a story has been written — it is a living spec artifact.
+
+4. **"DRIFT-ADR049-FIGURE-001 RESOLVED" does NOT mean the figure correction is complete.** It means the ADR itself is corrected. The resolution entry in STATE.md must be accompanied by a sibling-sweep to identify all artifacts that cited the same figure. Only after all surfaces are updated is the correction truly complete.
+
+5. **False profiling-report attribution is a separate accuracy defect from the wrong figure itself.** When a figure is claimed to come from a profiling report but does not appear there, that false attribution must be corrected in the same sweep — it is not an OBS-level prose issue; it is a correctness failure under the production-grade default.
+
+**Pattern:** S-7.01 (partial-fix sweep must include downstream artifacts when a source figure is corrected). Cross-class overlap with TD-VSDD-060 (sibling-site sweep on value changes) applied to spec/comment surfaces rather than code callsites.
+
+**Action taken:** Implementer swept code comments (mod.rs + nextest.toml) → PR #213 HEAD 091f1af8. Story-writer v1.7: 5 story sites updated with profiling-sourced figures. PR-desc corrected (gitignored). PR-LEVEL 3-CLEAN streak reset 0/3 on 091f1af8.
+
+**Source:** D-1491 (F-PG008-PRL-P1-MED-001 fix @091f1af8, state-manager burst, 2026-07-02).
