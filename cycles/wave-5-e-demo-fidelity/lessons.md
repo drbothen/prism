@@ -2258,3 +2258,35 @@ The ADR amendment (D-1490) was treated as a standalone spec-layer fix. The corre
 **Action taken:** Implementer swept code comments (mod.rs + nextest.toml) → PR #213 HEAD 091f1af8. Story-writer v1.7: 5 story sites updated with profiling-sourced figures. PR-desc corrected (gitignored). PR-LEVEL 3-CLEAN streak reset 0/3 on 091f1af8.
 
 **Source:** D-1491 (F-PG008-PRL-P1-MED-001 fix @091f1af8, state-manager burst, 2026-07-02).
+
+---
+
+## Process-Gap Lesson 7 — Perf-Story Figures Need a Single Canonical Source; All Restatements Must Reference, Not Copy (S-7.02 Extension; D-1494, 2026-07-02)
+
+**What happened:**
+
+S-PERF-GATE-008 underwent a long tail of adversary passes (PR-LEVEL passes 1–3 plus multiple fix-bursts) where the dominant failure mode was documentation figure/version/attribution defects rather than code correctness. Several were substantive:
+
+1. **nextest first-match-wins bug (D-1486, genuine code defect)** — the story spec incorrectly described the nextest override resolution model; the implementation had a real bug in filter ordering. Caught only at PR-LEVEL.
+2. **80-150s unsourced figure (D-1491, code comment + story + PR-desc)** — a per-test-binary cost figure cited in ADR, code comments, story body, and PR description was wrong and falsely attributed to the profiling report. Catching it required a full sibling-sweep (see Process-Gap Lesson 6 above).
+3. **Warm-figure contradiction (F-P3-MED-001, open at session wrap)** — story narrative and PR description stated "<1s warm cache hit" while ADR-049 §Consequences correctly stated "~1-2s". Additionally, the §Evidence column header conflated `Component::new()` (the inner Cranelift compilation step, ~<0.1s warm) with `PluginRuntime::new()` (the full runtime initialization including `Engine::new()`, ~1-2s warm). The headline "< 1s" benefit comes from avoiding COLD Engine::new() (~8-9s) via compilation cache, not from achieving sub-second WARM latency.
+
+The warm-figure contradiction persisted across multiple fix bursts because the figure had been independently stated in multiple documents (story narrative, PR-desc Performance table, ADR prose) rather than centralized in one canonical location.
+
+**Root cause:**
+
+Quantitative performance figures (cold cost, warm cost, group savings) were authored redundantly across: story narrative, §Evidence table, PR description, ADR §Consequences, code comments. When the canonical understanding changed (e.g., after profiling clarified warm vs cold vs concurrency contributions), ALL restatements required separate manual fixes. Each fix risked missing some surfaces, leading to find→fix→find loops.
+
+**Codified rules:**
+
+1. **Perf-stories MUST centralize ALL authoritative figures in the §Evidence table, cross-referenced to the profiling report.** The §Evidence table is the single canonical source. Every other location (story narrative, ADR prose, PR description, code comments) MUST reference the §Evidence table or ADR rather than restate figures independently. Acceptable: "~1-2s per §Evidence §3c" or "see §Evidence warm per-call cost". Forbidden: re-quoting the figure without attribution to §Evidence.
+
+2. **§Evidence table column headers MUST precisely name the metric scope.** A column header like "per-call cost" is ambiguous. Use the form: "metric name (scope: subsystem/function): unit". For S-PERF-GATE-008's lesson: the correct header is "PluginRuntime::new() per-call cost (cold vs warm)". Do NOT use "Component::new() per-call cost" for a figure that includes Engine::new() initialization overhead — that is a metric-scope mislabel.
+
+3. **When a figure is revised (e.g., cold→warm distinction clarified), the S-7.02 sweep applies to ALL locations that transitively cite that figure.** See Process-Gap Lesson 6 for the full sibling-sweep obligation. This rule extends it to the column-level: even if the §Evidence table header is technically separate from the body figures, mislabeled headers are accuracy defects under the production-grade default.
+
+4. **The distinction between cold cost, warm cost, and concurrency savings MUST be maintained throughout.** These are three distinct metrics with different magnitudes and different physical explanations. Conflating them (e.g., attributing the ~150-200s group savings to a sub-second warm cache hit) introduces a causal-model error that will be found by an adversary. Story authoring must clearly label which metric each figure represents.
+
+**Pattern:** S-7.02 extension — canonical-source discipline for perf-story quantitative figures. Prevents the find→fix→find propagation loop that cost 3+ adversary passes on S-PERF-GATE-008. No new story needed; this is process discipline, not a deliverable.
+
+**Source:** D-1494 (SESSION WRAP, state-manager burst, 2026-07-02). Warm-figure contradiction F-P3-MED-001 open at session wrap; will be resolved on resume.

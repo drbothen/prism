@@ -38,9 +38,83 @@ timestamp: 2026-07-01T23:59:00Z
 >
 > **D-1367 (2026-06-26): PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED develop@7e60df03 (CI 43/43; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; security CLEAN). POL-14: 8 BCs draft→active. POL-13: story merged. active_contracts 254. draft_contracts 0. develop_head 903c8fcb→7e60df03. non-exhaustive 84→87. BC-INDEX v7.18. STORY-INDEX v2.481. STATE v7.994→v7.995. NEXT: pre-flight demo re-audit → T13 capstone → T14 recording. PENDING HUMAN: CLAUDE.md stale EXPECTED=83/84 → now EXPECTED=87; local develop ba1108d2 still DIVERGED.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1480** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1480 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `c6d6e4fa` (S-PERF-GATE-007 PR #211 squash-merged 2026-07-01). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.093. D-1480.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1494** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1494 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `67518790` (S-PERF-GATE-006 PR #212 squash-merged 2026-07-02). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.107. D-1494.
+
+---
+
+## §RESUME SNAPSHOT — D-1494 (2026-07-02 — SESSION WRAP; develop origin/develop 67518790; BC-INDEX v7.27; STORY-INDEX v2.566; ARCH-INDEX v2.153; STATE v8.107; S-PERF-GATE-008 PR-LEVEL streak 0/3 on 091f1af8; F-P3-MED-001 open; CI GREEN 43/43) [SUPERSEDES D-1480]
+
+> **D-1494 burst (2026-07-02).** SESSION WRAP. S-PERF-GATE-006 (PR #212 @67518790) + S-PERF-GATE-007 (PR #211 @c6d6e4fa) MERGED to develop this session. ADR-049 authored + converged to v1.2. S-PERF-GATE-008 story converged to v1.9 (DEFINITIVE). PR #213 FROZEN at 091f1af8 — CI GREEN 43/43, security APPROVE (2 LOW non-blocking), pr-reviewer APPROVE. PR-LEVEL strict-3-CLEAN grind: passes 1 & 2 CLEAN(strict), pass 3 found F-P3-MED-001 MED (warm-figure contradiction) → streak reset 0/3. STORY-INDEX digest synced (F-P3-LOW-001 fixed). Lesson Process-Gap-7 captured. All prior D-1101..D-1493 notes SUPERSEDED.
+
+### RESUME IN ONE BREATH
+S-PERF-GATE-006 (#212) and S-PERF-GATE-007 (#211) are both MERGED to develop@67518790. S-PERF-GATE-008 PR #213 is frozen at 091f1af8, CI GREEN 43/43, pr-reviewer+security APPROVE. PR-LEVEL strict-3-CLEAN streak 0/3 — pass 3 found F-P3-MED-001 MED (warm-figure contradiction, spec/doc only). FIX-ON-RESUME (4-step spec/doc; HEAD 091f1af8 stays frozen; no code push): reconcile warm figure to ~1-2s across story narrative + §Evidence column label + PR-desc. Then re-gate PR-LEVEL 3-CLEAN on frozen 091f1af8. After 3/3: user-auth merge → post-merge → un-park PR #208.
+
+### HEADS
+- develop: **67518790** — PUSHED (origin/develop). S-PERF-GATE-006 PR #212 squash-merged 2026-07-02. Prior: c6d6e4fa (PR #211 S-PERF-GATE-007, 2026-07-01).
+- factory-artifacts: this wrap commit — PUSHED (run `git -C .factory log -1 --format='%h %s'` for current HEAD).
+- PR #213 (S-PERF-GATE-008): HEAD **091f1af8** PUSHED, FROZEN (code unchanged throughout). CI GREEN 43/43.
+- PR #208: HEAD **0978983f** LOCAL-ONLY (NOT pushed; origin stale 4a624a08; PARKED).
+- Agents in flight at wrap: **none**.
+
+### MERGED THIS SESSION
+- **S-PERF-GATE-006** — PR #212 → develop@67518790 (2026-07-02). Justfile RUSTFLAGS="" alignment for check/check-fast/iter fingerprint consistency. Story v2.5. 3-CLEAN LOCAL + PR-LEVEL. POL-14 NO-OP.
+- **S-PERF-GATE-007** — PR #211 → develop@c6d6e4fa (2026-07-01). nextest wasm-cap (max-threads=4, 7 WASMtime binaries) + http-cap (max-threads=4, 4 HTTP/wiremock binaries) groups; bc_2_11_007 DTU-cap gap closed. Story v1.7. POL-14 NO-OP.
+- workspace_test_count corrected: 5074→4976 (D-1483; prior 5074 measured on parked PR #208 feature branch; develop baseline is 4976 passed).
+
+### AUTHORED THIS SESSION
+- **ADR-049** — WASMtime compilation cache with degradable boot semantics. Converged to v1.2. D3 single-engine-per-process; nextest spec-engine-wasmtime group (max-threads=1); SAP-1 event obligation. ARCH-INDEX v2.153.
+- **S-PERF-GATE-008 story** — WASMtime compilation cache. v1.0→v1.9 (DEFINITIVE). 12 ACs, 2 Red Gate tests. BC-2.16.002 v1.92. remove-uncertainty DONE.
+
+### WORKSTREAM — S-PERF-GATE-008 (PR #213, PR-LEVEL cascade)
+- Story **v1.9** (DEFINITIVE figure/version/attribution consolidation). ADR-049 ACCEPTED **v1.2**. BC-2.16.002 **v1.92**.
+- PR #213 HEAD **091f1af8** PUSHED+FROZEN (code unchanged; all spec/doc fixes applied).
+- CI: **GREEN 43/43** (mergeState CLEAN, MERGEABLE).
+- security-reviewer: **APPROVE** — 2 LOWs (SEC-001 CWE-426 path interpolation in CI test script; SEC-002 CWE-494 dynamic library loading via wasmtime; both AD-001-mitigated, pre-existing pattern, non-blocking).
+- pr-reviewer: **APPROVE**.
+- PR-LEVEL 3-CLEAN streak: **0/3 on 091f1af8** (passes 1 & 2 CLEAN(strict); pass 3 found F-P3-MED-001 → streak reset).
+
+#### OPEN: F-P3-MED-001 (MED — fix before re-gate)
+**Warm-figure contradiction + §Evidence column mislabel.** Story narrative ("Within < 1s warm cache hit") and PR-desc Performance table ("< 1s warm") contradict ADR-049 v1.2 §Consequences ("~1-2s"). Physical grounding: `Engine::new()` isolation cost (~1-2s) persists warm; the compilation cache only removes the `Component::new()` Cranelift step (~<0.1s); the ~150-200s group win comes from D5 serialization eliminating CPU contention, NOT from a sub-second cache hit. Additionally, the §Evidence column header "wasmtime `Component::new()` per-call cost" mislabels the metric scope — the figures (~8-9s cold / ~1-2s warm) are `PluginRuntime::new()` per-call costs (profiling §3c), not the inner `Component::new()` step alone.
+
+**FIX-ON-RESUME (spec/doc only; HEAD 091f1af8 stays frozen; no code push):**
+1. **Architect** confirms ADR-049 §Consequences "~1-2s" is the physically-correct authoritative warm figure for `PluginRuntime::new()`; ensures ADR-049 §Consequences remains the single authoritative source (no independent restatement in other artifacts).
+2. **Story-writer** reconciles story narrative warm figure to "~1-2s (per ADR-049 §Consequences / §Evidence §3c)" AND fixes §Evidence column label from "wasmtime `Component::new()` per-call cost" to "wasmtime `PluginRuntime::new()` per-call cost (cold = ~8-9s; warm = ~1-2s)". Do NOT restate figures independently — reference §Evidence or ADR-049.
+3. **pr-manager** reconciles PR-desc warm figure + Performance table to "~1-2s (see §Evidence)" — no independent restatement.
+4. **state-manager** commits: story vNEXT + STORY-INDEX version bump + STATE bump. HEAD 091f1af8 stays frozen throughout (spec/doc files updated via worktree path `.worktrees/S-PERF-GATE-008/`).
+
+#### PASS HISTORY (PR-LEVEL)
+- Pass 1 on 091f1af8: CLEAN(strict). Streak 1/3.
+- Pass 2 on 091f1af8: CLEAN(strict). Streak 2/3.
+- Pass 3 on 091f1af8: NOT CLEAN(strict) — F-P3-MED-001 warm-figure contradiction. Streak RESET 0/3.
+
+### WORKSTREAM — PR #208 (PARKED)
+- S-DEMO-FIDELITY-REMEDIATION-001 parked at LOCAL HEAD **0978983f** (4 DTU scenario tests quarantined via SID-1 #[ignore]; NOT pushed; origin stale 4a624a08).
+- stash@{0} = working-tree state; stash@{1} = OnceLock Engine-share prototype (expect()-in-production; do NOT adopt as-is).
+- wip/perf-wasmtime-exploration-76821af7 PRESERVED (VERIFIED GREEN, zero TMT).
+- **RESUME NEXT-ACTION (after 008 merges):** un-quarantine the 4 DTU scenario tests → rebase onto develop → converge → ship.
+
+### PRIORITY ORDER
+Fix F-P3-MED-001 (4-step spec/doc) → re-gate PR-LEVEL 3-CLEAN on frozen 091f1af8 → 3/3 → user-auth merge → post-merge → un-park PR #208. Autonomy D-989 active.
+
+### DECISION-LOG DELTA (this session, since D-1480)
+- D-1481: S-PERF-GATE-006 MERGED develop@67518790 (PR #212). POL-14 NO-OP. Worktree removed.
+- D-1482: S-PERF-GATE-008 SPEC LAYER COMMITTED (ADR-049 ACCEPTED v1.0 + BC-2.16.002 v1.92 + story v1.1 + remove-uncertainty DONE).
+- D-1483: workspace_test_count correction 5074→4976 (develop baseline; ~96 tests on parked PR #208 feature branch never merged).
+- D-1484: S-PERF-GATE-008 story v1.2→v1.3 grep-portability fix (F-M1: \s→[[:space:]]).
+- D-1485: S-PERF-GATE-008 LOCAL 3-CLEAN CONVERGED (3/3 @5d2d7aad v1.3).
+- D-1486: F-PG008-P1-HIGH-001 nextest first-match-wins FIXED @2b2abb25 + story v1.4 (genuine code defect: nextest override resolution first-match-wins via `show-config`). PR-LEVEL re-gate 0/3.
+- D-1487: F-PG008-PRL1-HIGH-001 stale-PR-desc + OBS-1 raw-evidence FIXED @e6a357fe; PR-desc regenerated.
+- D-1488: PR-LEVEL passes 2/3 F-PG008-PRL2-MED-001 + LOW-001 CLOSED (story v1.5; BC-status comment + token-budget currency).
+- D-1489: story v1.5→v1.6 token-budget self-ref currency fix + comprehensive self-ref sweep.
+- D-1490: ADR-049 v1.1 drift closures (DRIFT-ADR049-FIGURE-001 + DRIFT-ADR049-D6-HASH-001 RESOLVED) + evidence-purity fix @e1282d49.
+- D-1491: F-PG008-PRL-P1-MED-001 REAL fix — 80-150s unsourced code comment sweep + story v1.6→v1.7 @091f1af8. Lesson S-7.01 (Process-Gap-6).
+- D-1492: story v1.7→v1.8 + ADR-049 v1.1→v1.2 + ARCH-INDEX v2.152→v2.153 — 3 genuine LOW fixes.
+- D-1493: story v1.8→v1.9 — DEFINITIVE figure/version/attribution consolidation (F-PRLx-MED-001 §Background corrected + F-PRL-P2-MED-001 §Why-max-threads ~1-2s + PR-desc DRIFT-D6/FIGURE v1.1).
+- **D-1494 (this wrap):** SESSION WRAP — F-P3-MED-001 MED OPEN (warm-figure contradiction; fix-on-resume 4-step); F-P3-LOW-001 FIXED (STORY-INDEX digest synced v1.8→v1.9/D-1493); PR-LEVEL streak 0/3 on frozen 091f1af8; CI GREEN 43/43; §RESUME SNAPSHOT D-1494 authored (supersedes D-1480). Lesson Process-Gap-7 added (perf-story figures: single canonical source; restatements reference §Evidence). STATE v8.106→v8.107. STORY-INDEX v2.565→v2.566.
+
+**[LESSON — S-7.02 EXTENSION — Process-Gap Lesson 7]:** The strict-grind on S-PERF-GATE-008 surfaced a long tail of documentation figure/version/attribution defects — several substantive (nextest first-match-wins bug [real code], 80-150s unsourced figure, warm-figure contradiction). Codified rule: perf-story quantitative figures MUST be centralized in the §Evidence table, cross-referenced to the profiling report. All other mentions (narrative, ADR, PR-desc, code comments) MUST reference §Evidence, not restate figures independently. Independent restatement creates a propagation-gap loop whenever the figure is revised. No new story; pure process discipline.
 
 ---
 
