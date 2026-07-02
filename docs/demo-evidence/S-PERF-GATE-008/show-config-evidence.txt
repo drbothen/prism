@@ -1,12 +1,29 @@
-# S-PERF-GATE-008 nextest show-config evidence
-# Captured: 2026-07-02T05:52:23Z
-# Commit: 2b2abb25602a32709970b1bca177846ca424c58e
-# Commands run from worktree root (.worktrees/S-PERF-GATE-008):
-#   (1) cargo nextest show-config test-groups --profile prepush 2>/dev/null
-#   (2) cargo nextest show-config test-groups --profile ci     2>/dev/null
-# Compiler warnings (stderr) suppressed; stdout verbatim below.
+## SUMMARY (human-authored — NOT tool output)
 
---- profile: prepush ---
+Capture date: 2026-07-02
+Branch: feature/S-PERF-GATE-008
+Source of truth: .config/nextest.toml
+  The show-config output below is a pure function of .config/nextest.toml.
+  To re-verify, run the two commands from the worktree root.
+  (No commit SHA cited: a file cannot embed the hash of the commit that will contain it.
+   Provenance is the nextest.toml config on the S-PERF-GATE-008 feature branch, not a SHA.)
+
+Commands used (stderr suppressed, stdout captured verbatim in sections below):
+  (1) cargo nextest show-config test-groups --profile prepush 2>/dev/null
+  (2) cargo nextest show-config test-groups --profile ci     2>/dev/null
+
+Key spec-engine-wasmtime group resolution (first-match-wins, per .config/nextest.toml):
+  spec-engine-wasmtime (max threads = 1) — 6 binaries matched by first override stanza:
+    plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests,
+    plugin_integration_tests, infusion_tests, spec_driven_mapper_fixtures
+  spec-engine-wasm-cap (max threads = 4) — 2 binaries fall through to second stanza:
+    plugin_boot_tests, infusion_boot_integration
+    (NOT in the spec-engine-wasmtime binary() filter; fall through to spec-engine-wasm-cap)
+
+Both profiles (prepush and ci) resolve identically for the spec-engine-wasmtime group.
+The verbatim output for each profile follows below in clearly-delimited sections.
+
+===== VERBATIM: cargo nextest show-config test-groups --profile prepush 2>/dev/null =====
 group: adv-p02-serial (max threads = 1)
   * override for prepush profile with filter 'binary(adv_p02_e2e_pushdown_pipeline_test)':
       prism-bin::adv_p02_e2e_pushdown_pipeline_test:
@@ -1623,9 +1640,8 @@ group: spec-engine-wasmtime (max threads = 1)
           test_BC_2_17_006_ec17_027_empty_plugin_id_rejected
           test_F6_body_read_failure_maps_to_synthetic_error_status
           test_F6_non_utf8_header_value_is_lossy_not_empty
-# [prepush] spec-engine-wasmtime (max-threads=1): 6 binaries — plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests, spec_driven_mapper_fixtures. spec-engine-wasm-cap (max-threads=4): plugin_boot_tests, infusion_boot_integration.
 
---- profile: ci ---
+===== VERBATIM: cargo nextest show-config test-groups --profile ci 2>/dev/null =====
 group: adv-p02-serial (max threads = 1)
   * override for ci profile with filter 'binary(adv_p02_e2e_pushdown_pipeline_test)':
       prism-bin::adv_p02_e2e_pushdown_pipeline_test:
@@ -3242,4 +3258,3 @@ group: spec-engine-wasmtime (max threads = 1)
           test_BC_2_17_006_ec17_027_empty_plugin_id_rejected
           test_F6_body_read_failure_maps_to_synthetic_error_status
           test_F6_non_utf8_header_value_is_lossy_not_empty
-# [ci] spec-engine-wasmtime (max-threads=1): 6 binaries — plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests, spec_driven_mapper_fixtures. spec-engine-wasm-cap (max-threads=4): plugin_boot_tests, infusion_boot_integration.
