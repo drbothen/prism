@@ -2116,3 +2116,35 @@ When writing a grep-count AC that checks for N occurrences of a token in a sourc
 This is a recurrence of the S-PERF-GATE-007 F-LOW-1 finding (Lesson z27 root cause #1: "Quantitative perf claims are high-information-density and easy to misattribute"). The same applies to grep-count ACs: any AC that counts tokens is high-information-density and easy to mis-specify. Both lessons point to the same discipline: run the recipe against the actual artifact before committing the AC, not just the intended artifact.
 
 **Source:** D-1483 (S-PERF-GATE-008 story v1.2 AC-instrument fix, state-manager burst, 2026-07-01).
+
+---
+
+## Lesson z28 — Addendum: Grep Recipe Portability Sub-Class (GNU `\s` vs POSIX `[[:space:]]`) (D-1484, 2026-07-01)
+
+**Category:** Process (S-7.02 cycle-close checklist — portability sub-class of Lesson z28 / F-1/F-LOW-1 pattern)
+
+**Observation:**
+
+S-PERF-GATE-008 LOCAL pass-1 result (F-1 MED) triggered a follow-up portability sweep by story-writer. During the v1.2→v1.3 revision (F-M1), it was discovered that AC-003 check-1's refined recipe introduced a GNU-specific character class: `grep -vE '^\s*(///|//)'` uses `\s` (GNU extension for `[[:space:]]`). The `\s` shorthand is recognized by GNU grep but not by BSD grep (the default on macOS / BSD). On macOS (the primary developer platform for this project), `grep -E '\s'` treats `\s` as a literal `\s` match rather than whitespace — silently producing wrong counts.
+
+**Full portability class-sweep result:**
+
+Story-writer audited all 22 grep/awk recipes in S-PERF-GATE-008 v1.2. One GNU-ism found: `\s` in AC-003 check-1. Replaced with `[[:space:]]`. No other GNU-specific constructs (`\w`, `\d`, `\b`, `\+`, `\?`) were found in the remaining 21 recipes. Portability confirmed.
+
+**Codified rule (addendum to Lesson z28 rule #2):**
+
+When writing grep/awk recipes in story AC self-verification sections:
+
+- **Use POSIX character classes only:** `[[:space:]]`, `[[:alpha:]]`, `[[:digit:]]`, `[[:alnum:]]`, `[[:punct:]]` — NOT GNU-only shortcuts `\s`, `\w`, `\d`, `\b`, `\+`, `\?`.
+- **Use `[[:space:]]` instead of `\s`** in `-E` regex patterns. Both GNU grep and BSD grep recognize the POSIX bracket expression.
+- **Portability check:** if a recipe was developed/tested only on Linux (GNU grep), verify all character class shortcuts before committing to the story. The developer platform is macOS (BSD grep); CI runs on Linux (GNU grep). Recipes must be correct on both.
+- **`\b` word-boundary:** also GNU-only in grep; use `\<` and `\>` for POSIX word boundaries, or restructure the pattern to avoid word-boundary anchors.
+- **Scope of this rule:** applies to ALL story AC recipes, not just AC-003 or S-PERF-GATE-008 stories. Any story that uses grep-count ACs for self-verification is subject to this portability requirement.
+
+**Connection to prior lessons:**
+
+This portability sub-class is part of the F-1/F-LOW-1 codified lesson family (Lessons z27 and z28): a grep self-verification recipe that produces wrong output is as harmful as missing the recipe entirely. The GNU-vs-BSD portability gap is a systematic risk whenever recipe development happens on Linux CI/Linux workstations but the primary developer runs macOS.
+
+**Action taken:** No new story opened. The fix is spec-only (story v1.3). This lesson documents the sub-class for future story-writer discipline. Story-writer must self-check GNU-isms whenever authoring grep recipes for macOS-compatible portability.
+
+**Source:** D-1484 (S-PERF-GATE-008 story v1.3 F-M1 grep-portability fix, state-manager burst, 2026-07-01).

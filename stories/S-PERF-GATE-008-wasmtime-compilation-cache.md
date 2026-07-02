@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-008
 title: "wasmtime compilation cache — enable on-disk native-code cache in PluginRuntime with degradable boot semantics (D3), SAP-1 structured event, and nextest spec-engine-wasmtime serialization group (max-threads=1)"
 epic_id: EPIC-MAINTENANCE
-version: "1.2"
+version: "1.3"
 status: draft
 producer: story-writer
 phase: 3
@@ -267,13 +267,13 @@ plugin runtime construction); ADR-049 D3 (LOCKED decision); BC-5.39.001 postcond
 ### AC-003 — Degradable path emits `plugin.compilation_cache_init_skipped` WARN with `error` field (D8 / SAP-1)
 
 ```
-grep 'event_type = "plugin.compilation_cache_init_skipped"' crates/prism-spec-engine/src/plugin/mod.rs | grep -vE '^\s*(///|//)' | wc -l
+grep 'event_type = "plugin.compilation_cache_init_skipped"' crates/prism-spec-engine/src/plugin/mod.rs | grep -vE '^[[:space:]]*(///|//)' | wc -l
 ```
 
 Expected output: `1`. Intent: verify exactly ONE production emission (non-comment) of the
 SAP-1 event per SAP-1 single-emission requirement. The bare `event_type = "..."` string also
 appears in a doc comment (`///`) and a code comment (`//`) within the test module; those are
-excluded by the `grep -vE '^\s*(///|//)'` filter so that only the unconditional `tracing::warn!`
+excluded by the `grep -vE '^[[:space:]]*(///|//)'` filter so that only the unconditional `tracing::warn!`
 call in the `Err` arm of `apply_wasmtime_cache` is counted.
 
 Verify the `error = %e` field is present:
@@ -858,6 +858,7 @@ No `cargo deny` or `cargo audit` action is required per ADR-049 D4.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-07-01 | story-writer | F-M1 (MED) remediation: portability class-sweep for grep-recipe BSD/GNU divergence. AC-003 check-1: replaced GNU-only `\s` with POSIX bracket class `[[:space:]]` in `grep -vE '^[[:space:]]*(///|//)'` — `\s` is not guaranteed portable on BSD/macOS grep (treated as literal `s` on some systems, causing indented comment lines to pass the filter and returning 3 instead of Expected 1). Updated matching prose description in AC-003 body to stay consistent with the executable recipe. Full class-sweep of all grep/rg/shell recipes in the story (AC-001 through AC-012, Red Gate, §FSR, Tasks): no other GNU-only constructs found — all remaining recipes use only fixed-string literals, POSIX ERE alternation `(a|b)`, standard anchors `^` and `$`, and quantifiers `*` and `+`. Codified fix for the grep-recipe-portability sub-class of the F-1 lesson (recurrence prevention). Version bump 1.2 → 1.3 per POL-32 (newest-first changelog). Spec-only; frozen HEAD 5d2d7aad unchanged. |
 | 1.2 | 2026-07-01 | story-writer | F-1 (MED) remediation: four grep-based AC self-verification recipes made precise, anchored, and scope-restricted so each returns its stated Expected value against correct delivered code (code unchanged). AC-003 check 1: replaced bare `grep -c 'event_type = "..."'` (returned 3 due to doc/code comments) with comment-excluding pipeline `grep ... | grep -vE '^\s*(///|//)' | wc -l` → Expected 1. AC-003 check 3: replaced fragile `grep -B10 'plugin.compilation_cache_init_skipped' | grep -c 'cfg(test)'` (returned 1 due to anti-pattern comment in B10 context of a string-literal match) with `grep -B1 'fn apply_wasmtime_cache' | grep -c '#\[cfg(test)\]'` → Expected 0; cited RG-002 as load-bearing runtime proof per adversary confirmation. AC-008: replaced bare `grep -c 'infusion_tests'` (returned 3 due to D5 comment token) with `grep -c 'binary(infusion_tests)'` → Expected 2. AC-010: removed `Justfile` from grep scope (4 legitimate S-PERF-GATE-006 sibling-story comments, outside 008's modification perimeter); restricted to `crates/prism-spec-engine/ .config/nextest.toml` → Expected no hits; updated Tasks step 11 to match. Pattern: recurrence of S-PERF-GATE-007 F-LOW-1 (grep-recipe false-failure on correct artifacts). |
 | 1.1 | 2026-07-01 | story-writer | Remove-uncertainty pass: confirmed wasmtime 44 API signatures (`Cache::new -> Result<Cache, wasmtime::Error>`, `Config::cache(Option<Cache>)`); replaced synthetic `anyhow::anyhow!` SID-1 forced-failure with verified `CacheConfig::with_directory("relative/not/absolute")` mechanism (is_absolute check, pre-FS, deterministic cross-platform, zero side effects); updated helper signature from `anyhow::Error` to `wasmtime::Error`; added §References citation to `.factory/research/wasmtime-44-cache-api-S-PERF-GATE-008.md`; removed line-number citations from RG-002 narrative, Previous Story Intelligence, and Tasks step 1 per TD-VSDD-091. |
 | 1.0 | 2026-07-01 | story-writer | Initial draft. Human-directed perf story per ADR-049 (ACCEPTED 2026-07-01). Prototype branch 76821af7 verified green. Two required corrections: D3 degradable path (override prototype `?` pattern) + D9 relabeling (S-PERF-GATE-006 → S-PERF-GATE-008). BC-2.16.002 v1.92 catalog row already present (spec burst). |

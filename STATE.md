@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.096"
+version: "8.097"
 producer: state-manager
-timestamp: 2026-07-01T02:00:00Z
+timestamp: 2026-07-01T03:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -23,7 +23,7 @@ develop_head: "67518790"
 # NOTE-CORRECTION D-1435: "TEST-SPEED INITIATIVE COMPLETE" + "full nextest ~86.4s" are FALSE IN PRACTICE. Real full-workspace `just check` is ~30+ min: 5 prism-spec-engine WASMtime binaries (plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests) run UNCAPPED in nextest; wasmtime::Engine::new() (LLVM JIT init) costs ~120-143s per binary under full-suite concurrency → ~28 pre-existing TMT failures. S-PERF-GATE-001..005 fixed DTU oversubscription + clone graceful-shutdown only; did NOT touch spec-engine WASMtime binaries. Initiative INCOMPLETE / SUPERSEDED by T-PERF-PROFILE (D-1435).
 bc_index_version: "7.27"
 vp_index_version: "1.80"
-story_index_version: "v2.556"
+story_index_version: "v2.557"
 arch_index_version: "2.151"
 error_taxonomy_version: "2.03"
 total_stories: 225
@@ -39,7 +39,7 @@ workspace_test_count: 4976  # NOTE: develop@67518790 baseline — 4976 passed + 
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "S-PERF-GATE-008 LOCAL cascade Pass 1 = NOT CLEAN(strict) (F-1 MED: 4 grep-AC instruments imprecise — code CORRECT, production-grade per adversary). Story v1.2 closes F-1 (AC-003×2, AC-008, AC-010 recipes fixed). workspace_test_count corrected 5074→4976 (was stale parked-PR-#208-branch figure D-1421; develop@67518790 baseline 4976 passed + 60 skipped). NEXT: re-gate LOCAL pass-2 on frozen worktree HEAD 5d2d7aad + story v1.2. develop@67518790."
+current_step: "S-PERF-GATE-008 story v1.3 (F-M1 grep-portability fix; code CORRECT & unchanged @5d2d7aad); re-gating LOCAL fresh 3-CLEAN. F-M1 MED: AC-003 check-1 recipe used GNU-only \\s (non-portable on BSD/macOS grep) → replaced with POSIX [[:space:]]; full portability class-sweep of all 22 recipes confirmed no other GNU-isms. Spec-only; 3-CLEAN streak RESET 0/3 on frozen worktree HEAD 5d2d7aad (per BC-5.39.001 frozen-HEAD rule). NEXT: LOCAL pass-2 adversary on frozen 5d2d7aad + story v1.3. develop@67518790."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -71,14 +71,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1483."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1484."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-01 (D-1483 — S-PERF-GATE-008 story v1.1→v1.2 AC-instrument fix (F-1 MED) + workspace_test_count 5074→4976 corrected; STORY-INDEX v2.555→v2.556; STATE v8.095→v8.096)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-01 (D-1484 — S-PERF-GATE-008 story v1.2→v1.3 F-M1 grep-portability fix (\s→[[:space:]]); STORY-INDEX v2.556→v2.557; STATE v8.096→v8.097)
 
 ## Active Objective (North Star)
 
@@ -130,6 +130,7 @@ pre_compact_snapshot_at: "2026-06-15"
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 through D-1339 archived to burst-log.md (D-1368 compaction 2026-06-26). D-1344 and D-1393..D-1397 archived to burst-log.md (this compaction). D-1409 archived to burst-log.md (this D-1410 burst). D-1398..D-1416 archived to burst-log.md (this D-1417 burst). D-1417..D-1420 archived to burst-log.md (this D-1421 burst). D-1344..D-1355 archived to burst-log.md (this D-1423 burst). D-1436 archived to burst-log.md (this D-1441 burst). D-1437 archived to burst-log.md (this D-1442 burst). D-1438..D-1442 archived to burst-log.md (this D-1444 burst). D-1443..D-1444 archived to burst-log.md (this D-1446 burst). D-1445..D-1446 archived to burst-log.md (this D-1447 burst). D-1470..D-1472 archived to burst-log.md (this D-1478 burst). D-1473 and D-1475 archived to burst-log.md (this D-1479+D-1480 burst). D-1476 archived to burst-log.md (this D-1481 burst)._
 _(D-1476 archived to burst-log.md this burst: S-PERF-GATE-006 F-PG006-P22-MED-001 FIXED D-1443 ENFORCED; LOCAL pass-22; check comment de-quantified 34aa4a78; story v2.4→v2.5; STORY-INDEX v2.550→v2.551; STATE v8.090→v8.091)_
+| D-1484 | state-manager | 2026-07-01 | **S-PERF-GATE-008 story v1.2→v1.3 F-M1 grep-portability fix (D-1484). F-M1 MED CLOSED: AC-003 check-1 recipe used GNU-only `\s` (non-portable on BSD/macOS grep) → replaced with POSIX `[[:space:]]`; full portability class-sweep of all 22 grep/awk self-verification recipes in story confirmed no other GNU-isms. Spec-only; code on frozen worktree HEAD 5d2d7aad CORRECT+production-grade UNCHANGED. 3-CLEAN streak RESET 0/3 on 5d2d7aad (BC-5.39.001 frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). Portability sub-class lesson appended to cycles/wave-5-e-demo-fidelity/lessons.md. total_stories UNCHANGED 225. BC-INDEX UNCHANGED v7.27. ARCH-INDEX UNCHANGED v2.151. active_contracts UNCHANGED 254. STORY-INDEX v2.556→v2.557. STATE v8.096→v8.097. develop_head UNCHANGED 67518790. NEXT: LOCAL pass-2 adversary on frozen 5d2d7aad + story v1.3.** | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1477 | state-manager | 2026-07-02 | **S-PERF-GATE-007 PR-LEVEL 3-CLEAN CONVERGED (D-1477). PR #211 HEAD 5c2832f6 frozen. PR-LEVEL passes 1/2/3 all CLEAN(strict)+CLEAN(PR-merge) on frozen 5c2832f6 → 3-CLEAN streak 3/3. Awaiting: CI green (42/43 checks pass; 1 fuzz-smoke pending) + user-auth merge per D-1473. pr-reviewer APPROVE + security 0-findings already on record. develop_head UNCHANGED 8bc0404e. total_stories UNCHANGED 224. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.091→v8.092.** | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1478 | state-manager | 2026-07-02 | **S-PERF-GATE-006 LOCAL 3-CLEAN CONVERGED + PR #212 OPEN + PR-LEVEL passes + OBS-1/OBS-2 FIXED (D-1478). LOCAL cascade CONVERGED 3/3 on frozen HEAD 34aa4a78 (story v2.5). Branch feature/S-PERF-GATE-006 pushed to origin. PR #212 OPEN (feature/S-PERF-GATE-006→develop). PR-LEVEL adversarial cascade: pass-1 CLEAN(strict); pass-2 NOT CLEAN(strict) [OBS-1: pr-description.md §Summary attributed ~157s test-binary rebuild to iter/"the primary TDD dev loop" — corrected to check-fast→check transition per Effect 1 (fix on disk; code-delivery/ gitignored); OBS-2: STORY-INDEX S-PERF-GATE-006 row showed stale "pass-23 re-gate pending" state, lagging LOCAL convergence + PR creation — FIXED this burst]; pass-3 CLEAN(strict). PR-LEVEL re-gating to fresh 3-CLEAN on frozen HEAD 34aa4a78 (code unchanged; description + index now correct). develop_head UNCHANGED 8bc0404e. total_stories UNCHANGED 224. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STORY-INDEX v2.551→v2.552. STATE v8.091→v8.092.** | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1479 | state-manager | 2026-07-01 | **S-PERF-GATE-007 MERGED develop@c6d6e4fa + develop_head BUMPED + POL-14 assessed (D-1479). PR #211 squash-merged into develop; new develop HEAD c6d6e4fa. feature/S-PERF-GATE-007 branch deleted; .worktrees/S-PERF-GATE-007 removed. develop_head 8bc0404e→c6d6e4fa. POL-14 ASSESSMENT: behavioral_contracts: [BC-5.39.001] — BC-5.39.001 is the delivery-quality contract, already ACTIVE; no product BCs in this story. POL-14 IS A NO-OP for S-PERF-GATE-007. STORY-INDEX v2.552→v2.553 (S-PERF-GATE-007 row updated: status merged). S-PERF-GATE-007 story file: status ready→merged. total_stories UNCHANGED 224. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.092→v8.093.** | wave-5-e-demo-fidelity | 2026-07-01 |
@@ -200,6 +201,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1484 | state-manager | S-PERF-GATE-008 story v1.2→v1.3 F-M1 grep-portability fix (D-1484 2026-07-01): F-M1 MED CLOSED — AC-003 check-1 recipe used GNU-only `\s` (non-portable on BSD/macOS grep) → replaced with POSIX `[[:space:]]`; story-writer performed full portability class-sweep of all 22 grep/awk self-verification recipes in story — confirmed no other GNU-isms present. Spec-only change; code on frozen worktree HEAD 5d2d7aad CORRECT+production-grade UNCHANGED. 3-CLEAN streak RESET 0/3 on 5d2d7aad (spec change per BC-5.39.001 frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). Portability sub-class lesson (GNU `\s` vs POSIX `[[:space:]]` in self-verification grep recipes) appended to cycles/wave-5-e-demo-fidelity/lessons.md as addendum to existing F-1/F-LOW-1 codified lesson. total_stories UNCHANGED 225. BC-INDEX UNCHANGED v7.27. ARCH-INDEX UNCHANGED v2.151. active_contracts UNCHANGED 254. STORY-INDEX v2.556→v2.557. STATE v8.096→v8.097. develop_head UNCHANGED 67518790. NEXT: LOCAL pass-2 adversary on frozen 5d2d7aad + story v1.3. | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1483 | state-manager | S-PERF-GATE-008 story v1.1→v1.2 AC-instrument fix + workspace_test_count 5074→4976 corrected (D-1483 2026-07-01): (A) story v1.2 — F-1 MED remediation (LOCAL pass-1 NOT CLEAN result): 4 grep-based AC self-verification recipes made precise/anchored/scope-restricted; code CORRECT+production-grade throughout, spec instrument was wrong. AC-003 check-1 (bare `grep -c 'event_type = "..."'` returned 3 due to doc+code comments → comment-excluding pipeline `grep ... \| grep -vE '^\s*(///|//)' \| wc -l` → Expected 1). AC-003 check-3 (fragile B10 cfg-test context scan based on string-literal match returned 1 due to anti-pattern comment → `grep -B1 'fn apply_wasmtime_cache' \| grep -c '#\[cfg(test)\]'` → Expected 0; cited RG-002 as load-bearing runtime proof). AC-008 (bare `grep -c 'infusion_tests'` returned 3 due to D5 comment token → `grep -c 'binary(infusion_tests)'` → Expected 2). AC-010 (Justfile included in grep scope — 4 legitimate S-PERF-GATE-006 sibling-story comments; removed Justfile; restricted to `crates/prism-spec-engine/ .config/nextest.toml` → Expected no hits). 3-CLEAN streak RESET 0/3 on frozen worktree HEAD 5d2d7aad (story spec change re-gates per BC-5.39.001 DRIFT-ORCH-PRLEVEL-PUSH-001). (B) workspace_test_count 5074→4976: prior value 5074 was measured on parked PR-#208 feature branch (D-1421; S-DEMO-FIDELITY-REMEDIATION-001 carries ~96 tests never merged to develop); user-flagged. Correct develop@67518790 baseline = 4976 passed + 60 skipped (5036 run) per S-PERF-GATE-007 CI on develop@8bc0404e; 006+007 are config/Justfile-only (zero new test functions). Process-gap lesson logged to cycles/wave-5-e-demo-fidelity/lessons.md (recurrence of S-PERF-GATE-007 F-LOW-1 grep-recipe false-failure pattern). STORY-INDEX v2.555→v2.556. STATE v8.095→v8.096. develop_head UNCHANGED 67518790. active_contracts UNCHANGED 254. | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1482 | state-manager | S-PERF-GATE-008 spec layer committed (D-1482 2026-07-01): ADR-049 ACCEPTED + BC-2.16.002 v1.92 (catalog 88→89) + story v1.1 + wasmtime research artifact. SAP-1 PASSED. ARCH-INDEX v2.150→v2.151. BC-INDEX v7.26→v7.27. STORY-INDEX v2.554→v2.555. total_stories 224→225. active_contracts UNCHANGED 254. develop_head UNCHANGED 67518790. STATE v8.094→v8.095. NEXT: TDD delivery (stub-architect → test-writer → implementer → LOCAL 3-CLEAN → PR → PR-LEVEL 3-CLEAN → merge). | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1481 | state-manager | S-PERF-GATE-006 MERGED develop@67518790 (D-1481 2026-07-02): PR #212 squash-merged; new develop HEAD 67518790. feature/S-PERF-GATE-006 branch deleted; .worktrees/S-PERF-GATE-006 removed. develop_head c6d6e4fa→67518790. POL-14 NO-OP: behavioral_contracts [BC-5.39.001] — delivery-quality contract only, already ACTIVE; no product BCs. S-PERF-GATE-006 story status draft→merged. STORY-INDEX v2.553→v2.554. SESSION-HANDOFF §RESUME SNAPSHOT D-1481 written. total_stories UNCHANGED 224. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.093→v8.094. NEXT: author + deliver S-PERF-GATE-008 (WASMtime compilation-cache; ref wip/perf-wasmtime-exploration-76821af7). Then un-park PR #208. | wave-5-e-demo-fidelity | 2026-07-02 |
@@ -379,15 +381,15 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1483 -- 2026-07-01; STATE v8.096)
+## Session Resume Checkpoint (D-1484 -- 2026-07-01; STATE v8.097)
 
-**Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1481 (last authoritative zero-context snapshot; D-1483 is a spec-only burst — no develop merge; SESSION-HANDOFF will be updated at next merge).**
+**Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1481 (last authoritative zero-context snapshot; D-1484 is a spec-only burst — no develop merge; SESSION-HANDOFF will be updated at next merge).**
 
-**STATE v8.096. develop 67518790. BC-INDEX v7.27. STORY-INDEX v2.556. ARCH-INDEX v2.151. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87. total_stories 225. workspace_test_count 4976 (develop@67518790 baseline: 4976 passed + 60 skipped = 5036 run; corrected D-1483 from stale 5074).**
+**STATE v8.097. develop 67518790. BC-INDEX v7.27. STORY-INDEX v2.557. ARCH-INDEX v2.151. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87. total_stories 225. workspace_test_count 4976 (develop@67518790 baseline: 4976 passed + 60 skipped = 5036 run).**
 
-**T-PERF-PROFILE:** 006 (Justfile RUSTFLAGS) **MERGED** develop@67518790 (PR #212). 007 (nextest wasm-cap+http-cap) **MERGED** develop@c6d6e4fa (PR #211). **008 LOCAL PASS 1 NOT CLEAN(strict)** (F-1 MED: 4 grep-AC instruments imprecise; code CORRECT+production-grade per adversary; story v1.2 closes F-1; 3-CLEAN streak 0/3 on frozen worktree HEAD 5d2d7aad; re-gate pending).
+**T-PERF-PROFILE:** 006 (Justfile RUSTFLAGS) **MERGED** develop@67518790 (PR #212). 007 (nextest wasm-cap+http-cap) **MERGED** develop@c6d6e4fa (PR #211). **008 story v1.3** (F-M1 grep-portability fix D-1484; code CORRECT+production-grade UNCHANGED at frozen HEAD 5d2d7aad; 3-CLEAN streak RESET 0/3; LOCAL pass-2 re-gate pending).
 
-**S-PERF-GATE-008:** Story v1.2 (AC-instrument fix, D-1483). ADR-049 ACCEPTED. BC-2.16.002 v1.92. 12 ACs, 2 Red Gate tests, tdd_mode strict. Code on worktree HEAD 5d2d7aad (FROZEN — do not push until LOCAL 3-CLEAN). 3-CLEAN streak 0/3 on 5d2d7aad. NEXT: LOCAL pass-2 adversary on frozen 5d2d7aad + story v1.2.
+**S-PERF-GATE-008:** Story v1.3 (F-M1 grep-portability fix, D-1484). ADR-049 ACCEPTED. BC-2.16.002 v1.92. 12 ACs, 2 Red Gate tests, tdd_mode strict. Code on worktree HEAD 5d2d7aad (FROZEN — do not push until LOCAL 3-CLEAN). 3-CLEAN streak 0/3 on 5d2d7aad. NEXT: LOCAL pass-2 adversary on frozen 5d2d7aad + story v1.3.
 
 **PR #208:** PARKED at LOCAL 0978983f (4 DTU tests #[ignore]-quarantined; NOT pushed; origin stale 4a624a08). wip/perf-wasmtime-exploration-76821af7 preserved (VERIFIED GREEN, zero TMT). stash@{0} = working-tree; stash@{1} = OnceLock prototype (expect() in production — do NOT adopt as-is).
 
