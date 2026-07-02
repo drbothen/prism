@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-008
 title: "wasmtime compilation cache — enable on-disk native-code cache in PluginRuntime with degradable boot semantics (D3), SAP-1 structured event, and nextest spec-engine-wasmtime serialization group (max-threads=1)"
 epic_id: EPIC-MAINTENANCE
-version: "1.8"
+version: "1.9"
 status: draft
 producer: story-writer
 phase: 3
@@ -81,7 +81,7 @@ timing-out tests (TMT). The prototype makes exactly 3 file changes:
    `S-PERF-GATE-006`. Delivered working-source comments must cite `S-PERF-GATE-008`.
 
 **Performance context from profiling report `.factory/research/test-suite-perf-profile-2026-06-30.md`
-(baseline develop@8bc0404e after S-PERF-GATE-004/005/006/007):**
+(baseline develop@8bc0404e (the S-PERF-GATE-005 merge; profiled before S-PERF-GATE-006/007 merged)):**
 
 | Condition | wasmtime Component::new() per-call cost |
 |-----------|----------------------------------------|
@@ -203,7 +203,7 @@ Engine — this is the SID-1 "mock/stub at the dependency boundary" pattern.
 by `spec-engine-wasm-cap` (S-PERF-GATE-007). Rationale:
 
 - With the compilation cache active, the FIRST binary in the serialized queue incurs the
-  full Cranelift cold-compile cost (~1-5 s per plugin in isolation). Subsequent binaries
+  full Cranelift cold-compile cost (~1-2 s per plugin in isolation (profiling §3c)). Subsequent binaries
   load the same `.prx` files from cache at <1 s each.
 - Serial order (max-threads=1) maximizes the cache hit rate for this warm-up sequence.
   Under max-threads=4, all four concurrent binaries might compile the same `.prx` file
@@ -741,7 +741,7 @@ without external subscribers.
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.8, ~900 lines) | ~24,000 |
+| This story spec (v1.9, ~900 lines) | ~24,000 |
 | `plugin/mod.rs` (1696 lines — read in full for test pattern context) | ~20,000 |
 | `Cargo.toml` (prism-spec-engine, ~100 lines — read + edit 1 line) | ~1,000 |
 | `.config/nextest.toml` (~215 lines — read + add ~20 lines) | ~2,500 |
@@ -896,6 +896,7 @@ No `cargo deny` or `cargo audit` action is required per ADR-049 D4.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.9 | 2026-07-02 | story-writer | F-PRLx-MED-001 + F-PRL-P2-MED-001 + definitive figure/version/ref consolidation. (1) §Evidence performance-context label corrected: "baseline develop@8bc0404e after S-PERF-GATE-004/005/006/007" → "baseline develop@8bc0404e (the S-PERF-GATE-005 merge; profiled before S-PERF-GATE-006/007 merged)" matching ADR-049 §Context ("S-PERF-GATE-004 and -005"). (2) §Why max-threads = 1 first bullet corrected: "~1-5 s per plugin in isolation" (retired stale figure) → "~1-2 s per plugin in isolation (profiling §3c)" matching §Evidence table row. Definitive consolidation sweep — every perf-figure location audited: opening description (~8-9 s §3c / <1 s / ~150-200 s §REC-1), §Narrative (same, canonical), §Evidence table (canonical source: ~1-2 s §3c / ~8-9 s §3c / <1 s), §Background Degradable-Path Code Rust comment and §Tasks 6a TOML comment template (both qualitative "see ADR-049 / S-PERF-GATE-008 for measured figures" from v1.8) — no additional figures found; §Why max-threads (the single remaining stale value) now reconciled. Cross-story PR#/SHA sweep: develop@8bc0404e = S-PERF-GATE-005 merge (PR #210) ✓; PR #211/c6d6e4fa = S-PERF-GATE-007 ✓; no 004/006 PR# mis-references found. BC-2.16.002 v1.92 citations consistent (AC-003, AC-005, Behavioral Contracts table). Token Budget self-reference updated v1.8 → v1.9. TD-VSDD-091. |
 | 1.8 | 2026-07-02 | story-writer | F-P1a-LOW-001 (code-comment templates de-figured, S-7.02): removed time figures from §Background Degradable-Path Code Rust comment template (lines "reducing per-call load from ~8-9 s / (cold, parallel workspace contention; profiling §3c) to <1 s") and §Tasks step 6a TOML comment template ("warm cache hits skip Cranelift JIT entirely (<1 s per call vs / ~8-9 s cold, parallel workspace contention (profiling §3c))") — replaced both with qualitative "see ADR-049 / S-PERF-GATE-008 for measured figures" form matching the delivered code (mod.rs + nextest.toml comments are already qualitative per S-7.02 as confirmed by ADR-049 v1.1 and the v1.7 code sweep). F-P3-LOW-002 (S-PERF-GATE-007 PR#/SHA corrected): §Previous Story Intelligence heading corrected from "PR #209, merged develop@e3148007" (that is S-PERF-GATE-004's merge info) to "PR #211, merged develop@c6d6e4fa" (S-PERF-GATE-007's actual merge info per STORY-INDEX D-1479). Cross-story PR#/SHA sweep results: develop@8bc0404e in §Evidence is the correct profiling-baseline SHA (= S-PERF-GATE-005 merge SHA; not a PR# misattribution); no further PR#/SHA misattributions found in §Evidence, §Background, §Dependencies, or any other section. Token Budget self-reference updated to v1.8. Version bump 1.7 → 1.8. |
 | 1.7 | 2026-07-02 | story-writer | F-PG008-PRL-P1-MED-001 remediation: retired "80-150 s" / "80-150s" figure swept from all live story content (opening description, §Narrative, §Evidence table, §Background §Degradable-Path Code Rust comment, §Tasks step 6a TOML comment) and replaced with profiling-sourced figures — per-call `PluginRuntime::new()` cost ~8-9 s under workspace-parallel CPU contention / ~1-2 s in isolation (profiling §3c); group savings ~150-200 s (profiling §REC-1). False profiling-report attribution corrected: "80-150 s" never appeared in `.factory/research/test-suite-perf-profile-2026-06-30.md`; the §Evidence table column header changed from "per-test cost" to "per-call cost" and the isolated-case figure updated from ~1-5 s to ~1-2 s to match profiling §3c. Token Budget self-reference updated to v1.7 (line count ~unchanged). ADR-049 v1.1 already retired the same figure; story now matches ADR-049 v1.1 §Context/§Consequences. Version bump 1.6 → 1.7. |
 | 1.6 | 2026-07-02 | story-writer | Pass-2 LOW + comprehensive self-reference currency sweep. Token Budget self-reference corrected: story spec row updated from (v1.0, ~340 lines, ~9,000 tokens) to (v1.6, ~900 lines, ~24,000 tokens); total recomputed ~37,700 → ~52,700. Comprehensive self-reference sweep: no other stale self-references found — 12 ACs (AC-001..AC-012), 2 Red Gate tests (red_gate_tests: 2 frontmatter and RG-001/RG-002 in body), and 2 BCs (behavioral_contracts: [BC-5.39.001, BC-2.16.002] in frontmatter and Behavioral Contracts table in body) all match current story content; external artifact versions confirmed current: ADR-049 v1.0 (read and verified), BC-2.16.002 v1.92 (read and verified). Version bump 1.5 → 1.6. |
