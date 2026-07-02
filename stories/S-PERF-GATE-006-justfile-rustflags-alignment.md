@@ -4,7 +4,7 @@ story_id: S-PERF-GATE-006
 title: "Justfile RUSTFLAGS fingerprint alignment — align check, check-fast, and iter with RUSTFLAGS=\"\": check's clippy alignment resolves the internal clippy↔nextest fingerprint mismatch (eliminating the ~157s test-binary rebuild), check-fast's clippy alignment eliminates the ~44s residual re-check on check-fast → check transitions, and iter's nextest alignment prevents RUSTFLAGS-axis poisoning of the shared workspace-dependency cache"
 epic_id: EPIC-MAINTENANCE
 version: "2.5"
-status: draft
+status: merged
 producer: story-writer
 phase: 3
 wave: maintenance
