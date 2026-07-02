@@ -1,0 +1,51 @@
+=== S-PERF-GATE-008 nextest show-config evidence ===
+=== AC-009: All 6 spec-engine-wasmtime binaries must resolve to max-threads=1 ===
+=== Captured: 2026-07-02T05:23:13Z ===
+
+--- Profile: prepush (group+binary assignments) ---
+group: adv-p02-serial (max threads = 1)
+group: bc-2-01-013-serial (max threads = 1)
+group: dtu-cap (max threads = 4)
+group: serial-subprocess (max threads = 1)
+group: spec-engine-http-cap (max threads = 4)
+group: spec-engine-wasm-cap (max threads = 4)
+      prism-bin::infusion_boot_integration:
+      prism-bin::plugin_boot_tests:
+group: spec-engine-wasmtime (max threads = 1)
+      prism-ocsf::spec_driven_mapper_fixtures:
+      prism-spec-engine::crowdstrike_oauth2_plugin_tests:
+      prism-spec-engine::enrichment_pivot_002_tests:
+      prism-spec-engine::infusion_tests:
+      prism-spec-engine::plugin_integration_tests:
+      prism-spec-engine::plugin_tests:
+
+--- Profile: ci (group+binary assignments) ---
+group: adv-p02-serial (max threads = 1)
+group: bc-2-01-013-serial (max threads = 1)
+group: dtu-cap (max threads = 4)
+group: serial-subprocess (max threads = 1)
+group: spec-engine-http-cap (max threads = 4)
+group: spec-engine-wasm-cap (max threads = 4)
+      prism-bin::infusion_boot_integration:
+      prism-bin::plugin_boot_tests:
+group: spec-engine-wasmtime (max threads = 1)
+      prism-ocsf::spec_driven_mapper_fixtures:
+      prism-spec-engine::crowdstrike_oauth2_plugin_tests:
+      prism-spec-engine::enrichment_pivot_002_tests:
+      prism-spec-engine::infusion_tests:
+      prism-spec-engine::plugin_integration_tests:
+      prism-spec-engine::plugin_tests:
+
+=== VERIFICATION SUMMARY ===
+Expected in spec-engine-wasmtime (max-threads=1): 6 binaries
+  plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests,
+  plugin_integration_tests, infusion_tests, spec_driven_mapper_fixtures
+
+Expected in spec-engine-wasm-cap (max-threads=4): 2 binaries
+  plugin_boot_tests, infusion_boot_integration
+
+F-PG008-P1-HIGH-001 status: FIXED
+  Before fix: spec-engine-wasm-cap stanza appeared first (first-match-wins),
+    causing 5/6 wasmtime binaries to resolve to max-threads=4 (wrong).
+  After fix: spec-engine-wasmtime stanza appears first, all 6 binaries
+    resolve to max-threads=1 (correct).
