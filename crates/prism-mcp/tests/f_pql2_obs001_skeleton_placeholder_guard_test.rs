@@ -205,9 +205,9 @@ fn test_f_pql2_obs001_datetime_arithmetic_uses_placeholder() {
     assert!(
         dt_section.contains("<datetime_col>"),
         "F-PQL2-OBS-001: Datetime Arithmetic section in build_reference_content must contain \
-         '<datetime_col>' placeholder in the example SQL blocks. The section currently uses \
-         a concrete column name that is sensor-specific. Fix: replace the bare column name \
-         with '<datetime_col>' and add a note that the real name comes from prism_describe.\n\
+         '<datetime_col>' placeholder in the example SQL blocks. The section previously used \
+         a concrete column name that is sensor-specific (regression: the fix was reverted). \
+         Fix: restore '<datetime_col>' and the note that the real name comes from prism_describe.\n\
          Section content (first 600 chars): {:?}",
         &dt_section[..dt_section.len().min(600)]
     );

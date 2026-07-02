@@ -187,7 +187,7 @@ async fn test_bc_2_11_019_n1b_infusion_id_as_udf_name() {
     assert!(
         result.is_err(),
         "BC-2.11.019 AC-N1B: query with unregistered enrichment UDF name 'threat_intel' \
-         must return Err — current code has no plan-time E-QUERY-039 gate. \
+         must return Err (regression: the plan-time E-QUERY-039 gate was removed). \
          Got Ok result."
     );
 
@@ -270,7 +270,7 @@ async fn test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name() {
     assert!(
         result.is_err(),
         "BC-2.11.019 AC-N1B SQL path: query with unregistered enrichment UDF 'nvd' in \
-         SQL SELECT must return Err — current code has no plan-time E-QUERY-039 gate. \
+         SQL SELECT must return Err (regression: the plan-time E-QUERY-039 gate was removed). \
          Got Ok result."
     );
 
