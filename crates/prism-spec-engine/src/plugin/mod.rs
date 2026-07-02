@@ -1734,7 +1734,36 @@ mod tests {
     /// S-PERF-GATE-008 / AC-004 / ADR-049 D3.
     #[test]
     fn test_S_PERF_GATE_008_apply_wasmtime_cache_degradable_path_does_not_panic() {
-        todo!("RG-001: implement after apply_wasmtime_cache is extracted")
+        // S-PERF-GATE-008 / AC-004 / ADR-049 D3 / SID-1
+        //
+        // Forced-failure driver: CacheConfig::with_directory("relative/not/absolute")
+        // triggers the is_absolute() check in CacheConfig::validate() BEFORE any
+        // filesystem I/O, returning Err deterministically on all platforms.
+        // Zero side effects — no temp dirs, no permission juggling, no external services.
+        // Source: .factory/research/wasmtime-44-cache-api-S-PERF-GATE-008.md §2
+        let mut cfg = wasmtime::CacheConfig::new();
+        cfg.with_directory("relative/not/absolute");
+        let err_result = wasmtime::Cache::new(cfg);
+
+        // Pre-assert: the forced-failure driver produces a real wasmtime::Error (not a
+        // synthetic injection). If this fails, the SID-1 test design is invalid.
+        assert!(
+            err_result.is_err(),
+            "S-PERF-GATE-008 RG-001: forced-failure driver MUST return Err; \
+             relative path 'relative/not/absolute' must fail is_absolute() check \
+             in wasmtime 44 CacheConfig::validate_directory_or_default()"
+        );
+
+        // Exercise the degradable path.
+        //
+        // Red Gate: apply_wasmtime_cache has todo!() body — this call panics, test FAILS.
+        // Post-implementation: the Err branch emits WARN and returns () — test PASSES.
+        //
+        // apply_wasmtime_cache returns () so reaching this point confirms the Err branch
+        // did not panic, did not return Err, and did not abort construction (ADR-049 D3).
+        let mut config = wasmtime::Config::new();
+        apply_wasmtime_cache(&mut config, err_result);
+        // Reaching here: degradable-path semantics confirmed — Err does not abort.
     }
 
     /// RG-002: `apply_wasmtime_cache` emits `plugin.compilation_cache_init_skipped` WARN on Err.
@@ -1751,6 +1780,74 @@ mod tests {
     /// S-PERF-GATE-008 / AC-005 / ADR-049 D8 / SAP-1.
     #[test]
     fn test_S_PERF_GATE_008_apply_wasmtime_cache_emits_warn_on_err() {
-        todo!("RG-002: implement after apply_wasmtime_cache is extracted")
+        // S-PERF-GATE-008 / AC-005 / ADR-049 D8 / SAP-1
+        //
+        // SAP-1 load-bearing: independently asserts at RUNTIME that the WARN fires
+        // with the correct event_type value. Removes reliance on grep-only SAP-1 probes.
+        //
+        // Pattern: Arc<Mutex<Vec<u8>>> + BufWriter tracing capture, established in
+        // test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally.
+
+        // Set up tracing capture buffer.
+        let captured: Arc<std::sync::Mutex<Vec<u8>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let captured_clone = captured.clone();
+
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(move || {
+                struct BufWriter(Arc<std::sync::Mutex<Vec<u8>>>);
+                impl std::io::Write for BufWriter {
+                    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                        if let Ok(mut guard) = self.0.lock() {
+                            guard.extend_from_slice(buf);
+                        }
+                        Ok(buf.len())
+                    }
+                    fn flush(&mut self) -> std::io::Result<()> {
+                        Ok(())
+                    }
+                }
+                BufWriter(captured_clone.clone())
+            })
+            .with_ansi(false)
+            // WARN level: capture WARN + ERROR (WARN alone would miss co-emitted ERROR).
+            // Must NOT be ERROR-only — that would filter out the WARN emission under test.
+            .with_max_level(tracing::Level::WARN)
+            .finish();
+
+        use tracing_subscriber::util::SubscriberInitExt;
+        let _guard = subscriber.set_default();
+
+        // Forced-failure driver (same as RG-001): relative path triggers is_absolute() pre-FS.
+        let mut cfg = wasmtime::CacheConfig::new();
+        cfg.with_directory("relative/not/absolute");
+        let err_result = wasmtime::Cache::new(cfg);
+        assert!(
+            err_result.is_err(),
+            "S-PERF-GATE-008 RG-002: forced-failure driver MUST return Err"
+        );
+
+        // Red Gate: apply_wasmtime_cache has todo!() body — panics, test FAILS.
+        // Post-implementation: WARN fires with event_type field → captured, test PASSES.
+        let mut config = wasmtime::Config::new();
+        apply_wasmtime_cache(&mut config, err_result);
+
+        // Read captured output BEFORE dropping the subscriber guard.
+        let output = captured.lock().expect("capture mutex not poisoned").clone();
+        let output_str = String::from_utf8_lossy(&output);
+        drop(_guard);
+
+        // LOAD-BEARING assertion (SAP-1 / BC-2.16.002 v1.92 catalog row):
+        // The WARN emission MUST carry event_type = "plugin.compilation_cache_init_skipped".
+        // This assertion fails if:
+        //   - apply_wasmtime_cache uses a different event_type value
+        //   - the tracing::warn! is gated with #[cfg(test)] (paper-fix pattern — TD-VSDD-059)
+        //   - the Err branch is missing the tracing::warn! call entirely
+        assert!(
+            output_str.contains("plugin.compilation_cache_init_skipped"),
+            "S-PERF-GATE-008 RG-002 / SAP-1: apply_wasmtime_cache Err branch MUST emit \
+             event_type='plugin.compilation_cache_init_skipped' UNCONDITIONALLY \
+             (ADR-049 D8, BC-2.16.002 v1.92 catalog row). \
+             Captured output: {output_str}"
+        );
     }
 }
