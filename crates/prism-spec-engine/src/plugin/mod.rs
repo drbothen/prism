@@ -129,12 +129,22 @@ pub struct PluginRuntime {
 /// Engine or a real `.prx` artifact (SID-1).
 ///
 /// S-PERF-GATE-008 / ADR-049 D3.
-#[allow(dead_code)] // stub — wired into new_with_audit_sink by implementer (S-PERF-GATE-008)
 fn apply_wasmtime_cache(
-    _config: &mut wasmtime::Config,
-    _cache_result: Result<wasmtime::Cache, wasmtime::Error>,
+    config: &mut wasmtime::Config,
+    cache_result: Result<wasmtime::Cache, wasmtime::Error>,
 ) {
-    todo!("S-PERF-GATE-008: apply_wasmtime_cache")
+    match cache_result {
+        Ok(cache) => {
+            config.cache(Some(cache));
+        }
+        Err(e) => {
+            tracing::warn!(
+                event_type = "plugin.compilation_cache_init_skipped",
+                error = %e,
+                "wasmtime compilation cache init failed; proceeding without cache (degraded performance)"
+            );
+        }
+    }
 }
 
 impl PluginRuntime {
@@ -172,6 +182,23 @@ impl PluginRuntime {
         let mut config = wasmtime::Config::new();
         config.wasm_component_model(true);
         config.epoch_interruption(true);
+
+        // Enable the wasmtime compilation cache (S-PERF-GATE-008).
+        //
+        // wasmtime::Component::new() (WASM-to-native Cranelift compilation) caches compiled
+        // native code to disk, addressed by (wasm_binary_hash, compiler_version, cpu_isa_flags).
+        // Warm cache hits skip Cranelift entirely, reducing per-plugin load from 80-150s
+        // (cold parallel) to <1s. Cache directory: OS default (~/.cache/wasmtime/ or
+        // ~/Library/Caches/wasmtime/). Created automatically on first use.
+        //
+        // Cache-init failure is DEGRADABLE (ADR-049 D3): a disk-full, permissions, or
+        // read-only-filesystem condition must not abort the analyst's session. PluginRuntime
+        // construction continues without the cache; plugins recompile on each cold start
+        // (slower but functionally correct).
+        apply_wasmtime_cache(
+            &mut config,
+            wasmtime::Cache::new(wasmtime::CacheConfig::new()),
+        );
 
         let engine =
             wasmtime::Engine::new(&config).map_err(|e| prism_core::PrismError::Internal {

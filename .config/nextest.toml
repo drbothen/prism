@@ -152,6 +152,21 @@ spec-engine-wasm-cap = { max-threads = 4 }
 # lives in prism-spec-engine — NOT matched by dtu-cap package(/^prism-dtu-/) filter.
 # This group closes that gap and caps the wiremock binaries simultaneously.
 spec-engine-http-cap = { max-threads = 4 }
+# S-PERF-GATE-008: Serialize wasmtime-heavy spec-engine + prism-ocsf binaries.
+# With the on-disk compilation cache enabled in PluginRuntime::new_with_audit_sink
+# (ADR-049 D1), warm cache hits skip Cranelift JIT entirely (<1s per plugin vs
+# 80-150s cold). max-threads=1 serializes the cold-start warm-up run so each .prx
+# file is compiled once, then all subsequent binaries load from cache.
+# For the degradable path (ADR-049 D3, cache unavailable), max-threads=1 also
+# bounds total WASMtime CPU overhead — correctness is unaffected.
+# Binaries (all call PluginRuntime::new_with_audit_sink with a real .prx file):
+#   plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests,
+#   plugin_integration_tests, infusion_tests (prism-spec-engine)
+#   spec_driven_mapper_fixtures (prism-ocsf)
+# nextest last-match semantics: for the 5 binaries also in spec-engine-wasm-cap
+# (S-PERF-GATE-007), this override wins (appears later in the file), downgrading
+# their cap from max-threads=4 to max-threads=1.
+spec-engine-wasmtime = { max-threads = 1 }
 
 [[profile.prepush.overrides]]
 # S-PERF-GATE-004: cap all prism-dtu-* test binaries to 4 concurrent processes.
@@ -184,6 +199,13 @@ test-group = 'spec-engine-wasm-cap'
 filter = 'binary(pipeline_http_integration) | binary(pipeline_oauth_retry) | binary(bc_2_11_007_pushdown_test) | binary(bc_2_16_002_crowdstrike_two_step)'
 test-group = 'spec-engine-http-cap'
 
+[[profile.prepush.overrides]]
+# S-PERF-GATE-008: Serialize wasmtime-heavy test binaries via compilation cache group.
+# nextest last-match semantics: this stanza appears AFTER spec-engine-wasm-cap overrides
+# so spec-engine-wasmtime (max-threads=1) takes precedence for the 5 overlapping binaries.
+filter = 'binary(plugin_tests) | binary(crowdstrike_oauth2_plugin_tests) | binary(enrichment_pivot_002_tests) | binary(plugin_integration_tests) | binary(infusion_tests) | binary(spec_driven_mapper_fixtures)'
+test-group = 'spec-engine-wasmtime'
+
 [[profile.ci.overrides]]
 # S-PERF-GATE-004: cap all prism-dtu-* test binaries to 4 concurrent processes.
 filter = 'package(/^prism-dtu-/)'
@@ -210,6 +232,13 @@ test-group = 'spec-engine-wasm-cap'
 # S-PERF-GATE-007: cap HTTP/wiremock-heavy binaries + close bc_2_11_007 DTU-cap gap.
 filter = 'binary(pipeline_http_integration) | binary(pipeline_oauth_retry) | binary(bc_2_11_007_pushdown_test) | binary(bc_2_16_002_crowdstrike_two_step)'
 test-group = 'spec-engine-http-cap'
+
+[[profile.ci.overrides]]
+# S-PERF-GATE-008: Serialize wasmtime-heavy test binaries via compilation cache group.
+# nextest last-match semantics: this stanza appears AFTER spec-engine-wasm-cap overrides
+# so spec-engine-wasmtime (max-threads=1) takes precedence for the 5 overlapping binaries.
+filter = 'binary(plugin_tests) | binary(crowdstrike_oauth2_plugin_tests) | binary(enrichment_pivot_002_tests) | binary(plugin_integration_tests) | binary(infusion_tests) | binary(spec_driven_mapper_fixtures)'
+test-group = 'spec-engine-wasmtime'
 
 # S-DEMO-004: Multi-org × multi-sensor isolation smoke test profile.
 # Un-ignores E2E-MULTI-001-tagged tests in e2e_multi_org.rs (currently 10 tests):
