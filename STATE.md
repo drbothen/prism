@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.101"
+version: "8.102"
 producer: state-manager
 timestamp: 2026-07-02T00:00:00Z
 inputs: []
@@ -23,7 +23,7 @@ develop_head: "67518790"
 # NOTE-CORRECTION D-1435: "TEST-SPEED INITIATIVE COMPLETE" + "full nextest ~86.4s" are FALSE IN PRACTICE. Real full-workspace `just check` is ~30+ min: 5 prism-spec-engine WASMtime binaries (plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests) run UNCAPPED in nextest; wasmtime::Engine::new() (LLVM JIT init) costs ~120-143s per binary under full-suite concurrency → ~28 pre-existing TMT failures. S-PERF-GATE-001..005 fixed DTU oversubscription + clone graceful-shutdown only; did NOT touch spec-engine WASMtime binaries. Initiative INCOMPLETE / SUPERSEDED by T-PERF-PROFILE (D-1435).
 bc_index_version: "7.27"
 vp_index_version: "1.80"
-story_index_version: "v2.561"
+story_index_version: "v2.562"
 arch_index_version: "2.151"
 error_taxonomy_version: "2.03"
 total_stories: 225
@@ -39,7 +39,7 @@ workspace_test_count: 4976  # NOTE: develop@67518790 baseline — 4976 passed + 
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "S-PERF-GATE-008 PR #213 HEAD e6a357fe (UNCHANGED — code frozen). Story v1.5 fixes F-PG008-PRL2-MED-001 (BC-2.16.002 already-active/POL-14-NO-OP correction) + LOW-001 (AC-001/002/004 re-anchored ADR-049). Evidence-header OBS adjudicated non-blocking (immaterial per D-1487). PR-LEVEL 3-CLEAN streak reset 0/3 on e6a357fe (reviewed artifact changed; HEAD frozen). VERY NEXT: PR-LEVEL 3-CLEAN re-gate on e6a357fe + story v1.5; CI green (in progress on e6a357fe); then USER-AUTH squash-merge (authorized: user said 'push through'); post-merge cleanup + develop_head bump + POL-14 NO-OP (both BCs already active). Then S-PERF-GATE-008 DONE → un-park PR #208."
+current_step: "S-PERF-GATE-008 PR #213 HEAD e6a357fe (FROZEN). Story v1.6 (token-budget currency fix + full self-ref sweep). CI GREEN 43/43. Security APPROVE (2 LOW AD-001-mitigated), pr-reviewer APPROVE. PR-LEVEL 3-CLEAN streak reset 0/3 on e6a357fe (story artifact changed; HEAD frozen). VERY NEXT: FINAL PR-LEVEL 3-CLEAN re-gate on e6a357fe + v1.6; then USER-AUTH squash-merge (user authorized 'push through' — merge once 3/3 strict + CI green, both nearly met); post-merge cleanup + develop_head bump + POL-14 NO-OP (both BCs active). Then S-PERF-GATE-008 DONE → un-park PR #208. NOTE: convergence tail has been documentation-currency LOWs only; code converged since nextest-ordering fix."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -71,7 +71,7 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1488."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1489."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
@@ -205,6 +205,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1489 | state-manager | S-PERF-GATE-008 story v1.5→v1.6 token-budget currency fix + comprehensive self-ref sweep (D-1489 2026-07-02): Pass-2 LOW CLOSED — §Token Budget self-reference stale (v1.0/~340 lines → v1.6/~900 lines/~24,000 tokens). Story-writer performed comprehensive self-reference currency sweep: 12 ACs, 2 Red Gate tests, 2 BCs (BC-5.39.001/BC-2.16.002), ADR-049 v1.0 confirmed current, BC-2.16.002 v1.92 confirmed current; no other stale self-refs found. CI GREEN 43/43 on PR #213 HEAD e6a357fe. Security APPROVE (2 LOW SEC-001 CWE-426 XDG cache redirect / SEC-002 CWE-494 cache artifact integrity — both mitigated by per-analyst deployment model AD-001; non-blocking). pr-reviewer APPROVE. Story v1.5→v1.6 (spec-only; PR HEAD e6a357fe FROZEN — code unchanged). PR-LEVEL 3-CLEAN streak RESET 0/3 on e6a357fe (reviewed artifact changed; frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). STORY-INDEX v2.561→v2.562. STATE v8.101→v8.102. develop_head UNCHANGED 67518790. total_stories UNCHANGED 225. BC-INDEX UNCHANGED v7.27. ARCH-INDEX UNCHANGED v2.151. active_contracts UNCHANGED 254. | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1488 | state-manager | S-PERF-GATE-008 PR-LEVEL passes 2/3 F-PG008-PRL2-MED-001 + LOW-001 CLOSED (story v1.5) + evidence-header OBS adjudicated non-blocking (D-1488 2026-07-02): F-PG008-PRL2-MED-001 CLOSED — story frontmatter `# BC status:` comment falsely stated "BC-2.16.002 transitions draft→active at merge per POL-14"; BC-2.16.002 is already ACTIVE at v1.92; this story amended its §Postconditions catalog only (SAP-1 D8 obligation); no lifecycle transition occurs; POL-14 is a NO-OP for BOTH BCs. F-PG008-PRL2-LOW-001 CLOSED — fabricated BC-2.16.002 postcondition attributions removed from AC-001 ("WASM plugin runtime correctness"), AC-002 ("degradable boot"), AC-004 ("degradable path") — none exist in BC-2.16.002 (Multi-Step Fetch Pipeline Execution / CAP-029); re-anchored AC-001 to ADR-049 D4, AC-002+AC-004 to ADR-049 D3; BC-2.16.002 citations now reserved for AC-003+AC-005 (catalog-row tracing only). POL-8 bidirectional coherence verified: BC-2.16.002 remains in frontmatter array. Evidence-header provenance OBS adjudicated NON-BLOCKING: nextest.toml identical between 2b2abb25/e6a357fe; show-config is a pure function of nextest.toml; 2 of 3 passes explicitly deemed not-a-defect. Story v1.5 spec-only; PR HEAD e6a357fe UNCHANGED (code frozen). PR-LEVEL 3-CLEAN streak RESET 0/3 on e6a357fe (reviewed artifact changed; frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). STORY-INDEX v2.560→v2.561. STATE v8.100→v8.101. develop_head UNCHANGED 67518790. total_stories UNCHANGED 225. BC-INDEX UNCHANGED v7.27. ARCH-INDEX UNCHANGED v2.151. active_contracts UNCHANGED 254. | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1486 | state-manager | S-PERF-GATE-008 F-PG008-P1-HIGH-001 nextest first-match-wins fix @2b2abb25 + story v1.4 + PR-LEVEL re-gate 0/3 (D-1486 2026-07-02): F-PG008-P1-HIGH-001 HIGH CLOSED — nextest override resolution is first-match-wins; delivered nextest.toml had `spec-engine-wasm-cap` (max-threads=4) BEFORE `spec-engine-wasmtime` (max-threads=1); 5/6 WASMtime binaries silently stayed at max-threads=4; functional defect, false-green. FIX: PR #213 NEW HEAD 2b2abb25 — implementer reordered wasmtime group BEFORE wasm-cap in prepush+ci; fixed 6 comment sites (incl. stale "last-match-wins" comment); `show-config` evidence captured (all 6 binaries → max-threads=1); `just check` EXIT 0 (3:16). Story-writer corrected all 8 "last-match" story sites + tightened AC-009 (story v1.3→v1.4). pr-reviewer F1 REQUEST-CHANGES → fixed. Security APPROVE: 2 LOW non-blocking (SEC-001 CWE-426 XDG cache redirect, SEC-002 CWE-494 cache artifact integrity — both mitigated by per-analyst deployment model AD-001). PR-LEVEL 3-CLEAN streak 0/3 on 2b2abb25 (frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). Deferred LOWs registered as drift items: ADR-049 §Context vs §Consequences figure inconsistency + ADR-049 D6 "hash validation" wording — both architect-adjudication, non-blocking. Lesson z29 appended. STORY-INDEX v2.558→v2.559. STATE v8.098→v8.099. develop_head UNCHANGED 67518790. total_stories UNCHANGED 225. BC-INDEX UNCHANGED v7.27. ARCH-INDEX UNCHANGED v2.151. active_contracts UNCHANGED 254. | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1485 | state-manager | S-PERF-GATE-008 LOCAL 3-CLEAN CONVERGED (D-1485 2026-07-01): LOCAL cascade CONVERGED 3/3 on frozen worktree HEAD 5d2d7aad + story v1.3. All 3 passes CLEAN(strict)=YES on unchanged 5d2d7aad. Code verified production-grade: D1/D3/D4/D5/D9 checked; SAP-1 single ungated emission `plugin.compilation_cache_init_skipped` matches BC-2.16.002 v1.92 catalog row; SID-1 RG-001+RG-002 load-bearing runtime proofs. Prior finding-rounds F-1+F-M1 were story grep-AC instrument defects (fixed in story v1.2/v1.3); code correct+unchanged throughout all LOCAL passes. STORY-INDEX v2.557→v2.558. STATE v8.097→v8.098. develop_head UNCHANGED 67518790. total_stories UNCHANGED 225. BC-INDEX UNCHANGED v7.27. ARCH-INDEX UNCHANGED v2.151. active_contracts UNCHANGED 254. NEXT: push feature/S-PERF-GATE-008 → PR → PR-LEVEL 3-CLEAN → CI → user-auth merge. | wave-5-e-demo-fidelity | 2026-07-01 |
@@ -390,15 +391,15 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1488 -- 2026-07-02; STATE v8.101)
+## Session Resume Checkpoint (D-1489 -- 2026-07-02; STATE v8.102)
 
-**Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1481 (last authoritative zero-context snapshot; D-1488 is a spec-fix burst — no develop merge; SESSION-HANDOFF will be updated at next merge).**
+**Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1481 (last authoritative zero-context snapshot; D-1489 is a spec-fix burst — no develop merge; SESSION-HANDOFF will be updated at next merge).**
 
-**STATE v8.101. develop 67518790. BC-INDEX v7.27. STORY-INDEX v2.561. ARCH-INDEX v2.151. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87. total_stories 225. workspace_test_count 4978 on PR #213 HEAD e6a357fe (develop 4976 + 2 Red Gate tests).**
+**STATE v8.102. develop 67518790. BC-INDEX v7.27. STORY-INDEX v2.562. ARCH-INDEX v2.151. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87. total_stories 225. workspace_test_count 4978 on PR #213 HEAD e6a357fe (develop 4976 + 2 Red Gate tests).**
 
-**T-PERF-PROFILE:** 006 (Justfile RUSTFLAGS) **MERGED** develop@67518790 (PR #212). 007 (nextest wasm-cap+http-cap) **MERGED** develop@c6d6e4fa (PR #211). **008 story v1.5** (F-PG008-PRL2-MED-001 + LOW-001 FIXED; evidence-header OBS non-blocking; PR #213 HEAD e6a357fe; PR-LEVEL 3-CLEAN streak 0/3 on e6a357fe — re-gate in progress).
+**T-PERF-PROFILE:** 006 (Justfile RUSTFLAGS) **MERGED** develop@67518790 (PR #212). 007 (nextest wasm-cap+http-cap) **MERGED** develop@c6d6e4fa (PR #211). **008 story v1.6** (token-budget currency fix + self-ref sweep; CI GREEN 43/43; security APPROVE; pr-reviewer APPROVE; PR #213 HEAD e6a357fe; PR-LEVEL 3-CLEAN streak 0/3 on e6a357fe — FINAL re-gate pending).
 
-**S-PERF-GATE-008:** Story v1.5. ADR-049 ACCEPTED. BC-2.16.002 v1.92. 12 ACs, 2 Red Gate tests. PR #213 HEAD **e6a357fe** (UNCHANGED — code frozen). Story v1.5: F-PG008-PRL2-MED-001 CLOSED (BC-2.16.002 already-active/POL-14-NO-OP comment corrected) + F-PG008-PRL2-LOW-001 CLOSED (fabricated BC-2.16.002 postconditions removed from AC-001/002/004; re-anchored to ADR-049 D4/D3). Evidence-header OBS adjudicated NON-BLOCKING (nextest.toml identical between 2b2abb25/e6a357fe; show-config pure fn; 2/3 passes explicitly non-defect). Security APPROVE (2 LOW non-blocking). PR-LEVEL 3-CLEAN streak **0/3 on e6a357fe** (reviewed artifact changed; frozen-HEAD rule resets streak).
+**S-PERF-GATE-008:** Story v1.6. ADR-049 ACCEPTED. BC-2.16.002 v1.92. 12 ACs, 2 Red Gate tests. PR #213 HEAD **e6a357fe** (FROZEN — code unchanged). Story v1.6: §Token Budget self-ref currency fix (v1.0/~340 lines → v1.6/~900 lines/~24,000 tokens) + comprehensive self-ref sweep (12 ACs, 2 RG, 2 BCs, ADR-049 v1.0, BC-2.16.002 v1.92 all current; no stale refs found). CI GREEN 43/43. Security APPROVE (2 LOW SEC-001/SEC-002, AD-001-mitigated, non-blocking). pr-reviewer APPROVE. PR-LEVEL 3-CLEAN streak **0/3 on e6a357fe** (story artifact changed; frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001 resets streak).
 
 **PR #208:** PARKED at LOCAL 0978983f (4 DTU tests #[ignore]-quarantined; NOT pushed; origin stale 4a624a08). wip/perf-wasmtime-exploration-76821af7 preserved (VERIFIED GREEN, zero TMT). stash@{0} = working-tree; stash@{1} = OnceLock prototype (expect() in production — do NOT adopt as-is).
 
@@ -407,7 +408,7 @@ _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c
 2. `git log --oneline -1 origin/develop` → expect `67518790` (S-PERF-GATE-006 merged).
 3. `gh pr view 213 --json headRefOid` → expect `e6a357fe` (confirm PR #213 HEAD unchanged).
 4. Check PR #213 CI status: `gh pr checks 213` → all green.
-5. Run PR-LEVEL adversary 3-CLEAN re-gate on frozen PR HEAD e6a357fe + story v1.5 (read worktree `.worktrees/S-PERF-GATE-008/` files, NOT main checkout; standard adversary dispatch tuple).
+5. Run PR-LEVEL adversary 3-CLEAN re-gate on frozen PR HEAD e6a357fe + story v1.6 (read worktree `.worktrees/S-PERF-GATE-008/` files, NOT main checkout; standard adversary dispatch tuple).
 6. After PR-LEVEL 3/3: confirm CI green + USER-AUTH squash-merge (user authorized "push through" = merge once CI green + 3/3; `gh pr merge 213 --squash`).
 7. Post-merge: worktree/branch cleanup + develop_head bump + STORY-INDEX merged status + POL-14 NO-OP (both BCs already ACTIVE before merge).
 8. After 008 merges: un-park PR #208 (rebase onto develop, run just check, resume adversarial convergence).
