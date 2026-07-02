@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-008
 title: "wasmtime compilation cache — enable on-disk native-code cache in PluginRuntime with degradable boot semantics (D3), SAP-1 structured event, and nextest spec-engine-wasmtime serialization group (max-threads=1)"
 epic_id: EPIC-MAINTENANCE
-version: "1.7"
+version: "1.8"
 status: draft
 producer: story-writer
 phase: 3
@@ -136,8 +136,8 @@ The exact implementation required by ADR-049 D3 (do not deviate):
 //
 // wasmtime::Component::new() (WASM-to-native Cranelift compilation) caches compiled
 // native code to disk, addressed by (wasm_binary_hash, compiler_version, cpu_isa_flags).
-// Warm cache hits skip Cranelift entirely, reducing per-call load from ~8-9 s
-// (cold, parallel workspace contention; profiling §3c) to <1 s. Cache directory:
+// Warm cache hits skip Cranelift entirely (see ADR-049 / S-PERF-GATE-008 for
+// measured figures). Cache directory:
 // OS default (~/.cache/wasmtime/ or
 // ~/Library/Caches/wasmtime/). Created automatically on first use.
 //
@@ -673,8 +673,8 @@ without external subscribers.
       ```toml
       # S-PERF-GATE-008: Serialize wasmtime-heavy spec-engine + prism-ocsf binaries.
       # With the on-disk compilation cache enabled in PluginRuntime::new_with_audit_sink
-      # (ADR-049 D1), warm cache hits skip Cranelift JIT entirely (<1 s per call vs
-      # ~8-9 s cold, parallel workspace contention (profiling §3c)). max-threads=1
+      # (ADR-049 D1), warm cache hits skip Cranelift JIT entirely (see ADR-049 /
+      # S-PERF-GATE-008 for measured figures). max-threads=1
       # serializes the cold-start warm-up run so each .prx file is compiled once,
       # then all subsequent binaries load from cache.
       # For the degradable path (ADR-049 D3, cache unavailable), max-threads=1 also
@@ -741,7 +741,7 @@ without external subscribers.
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.7, ~900 lines) | ~24,000 |
+| This story spec (v1.8, ~900 lines) | ~24,000 |
 | `plugin/mod.rs` (1696 lines — read in full for test pattern context) | ~20,000 |
 | `Cargo.toml` (prism-spec-engine, ~100 lines — read + edit 1 line) | ~1,000 |
 | `.config/nextest.toml` (~215 lines — read + add ~20 lines) | ~2,500 |
@@ -757,7 +757,7 @@ the `apply_wasmtime_cache` helper and its call site.
 
 ## Previous Story Intelligence
 
-### From S-PERF-GATE-007 (PR #209, merged develop@e3148007)
+### From S-PERF-GATE-007 (PR #211, merged develop@c6d6e4fa)
 
 - The `[test-groups]` + `[[profile.prepush.overrides]]` / `[[profile.ci.overrides]]`
   TOML pattern is established. Copy-adapt: add one group with max-threads=1 (more
@@ -896,6 +896,7 @@ No `cargo deny` or `cargo audit` action is required per ADR-049 D4.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.8 | 2026-07-02 | story-writer | F-P1a-LOW-001 (code-comment templates de-figured, S-7.02): removed time figures from §Background Degradable-Path Code Rust comment template (lines "reducing per-call load from ~8-9 s / (cold, parallel workspace contention; profiling §3c) to <1 s") and §Tasks step 6a TOML comment template ("warm cache hits skip Cranelift JIT entirely (<1 s per call vs / ~8-9 s cold, parallel workspace contention (profiling §3c))") — replaced both with qualitative "see ADR-049 / S-PERF-GATE-008 for measured figures" form matching the delivered code (mod.rs + nextest.toml comments are already qualitative per S-7.02 as confirmed by ADR-049 v1.1 and the v1.7 code sweep). F-P3-LOW-002 (S-PERF-GATE-007 PR#/SHA corrected): §Previous Story Intelligence heading corrected from "PR #209, merged develop@e3148007" (that is S-PERF-GATE-004's merge info) to "PR #211, merged develop@c6d6e4fa" (S-PERF-GATE-007's actual merge info per STORY-INDEX D-1479). Cross-story PR#/SHA sweep results: develop@8bc0404e in §Evidence is the correct profiling-baseline SHA (= S-PERF-GATE-005 merge SHA; not a PR# misattribution); no further PR#/SHA misattributions found in §Evidence, §Background, §Dependencies, or any other section. Token Budget self-reference updated to v1.8. Version bump 1.7 → 1.8. |
 | 1.7 | 2026-07-02 | story-writer | F-PG008-PRL-P1-MED-001 remediation: retired "80-150 s" / "80-150s" figure swept from all live story content (opening description, §Narrative, §Evidence table, §Background §Degradable-Path Code Rust comment, §Tasks step 6a TOML comment) and replaced with profiling-sourced figures — per-call `PluginRuntime::new()` cost ~8-9 s under workspace-parallel CPU contention / ~1-2 s in isolation (profiling §3c); group savings ~150-200 s (profiling §REC-1). False profiling-report attribution corrected: "80-150 s" never appeared in `.factory/research/test-suite-perf-profile-2026-06-30.md`; the §Evidence table column header changed from "per-test cost" to "per-call cost" and the isolated-case figure updated from ~1-5 s to ~1-2 s to match profiling §3c. Token Budget self-reference updated to v1.7 (line count ~unchanged). ADR-049 v1.1 already retired the same figure; story now matches ADR-049 v1.1 §Context/§Consequences. Version bump 1.6 → 1.7. |
 | 1.6 | 2026-07-02 | story-writer | Pass-2 LOW + comprehensive self-reference currency sweep. Token Budget self-reference corrected: story spec row updated from (v1.0, ~340 lines, ~9,000 tokens) to (v1.6, ~900 lines, ~24,000 tokens); total recomputed ~37,700 → ~52,700. Comprehensive self-reference sweep: no other stale self-references found — 12 ACs (AC-001..AC-012), 2 Red Gate tests (red_gate_tests: 2 frontmatter and RG-001/RG-002 in body), and 2 BCs (behavioral_contracts: [BC-5.39.001, BC-2.16.002] in frontmatter and Behavioral Contracts table in body) all match current story content; external artifact versions confirmed current: ADR-049 v1.0 (read and verified), BC-2.16.002 v1.92 (read and verified). Version bump 1.5 → 1.6. |
 | 1.5 | 2026-07-02 | story-writer | F-PG008-PRL2-MED-001 + F-PG008-PRL2-LOW-001 remediation (spec-only; PR HEAD e6a357fe frozen). MED-001: corrected frontmatter `# BC status:` comment that falsely stated "BC-2.16.002 transitions draft→active at merge per POL-14" — BC-2.16.002 is already ACTIVE at v1.92; this story amended its §Postconditions catalog only (added plugin.compilation_cache_init_skipped row, SAP-1 D8 obligation); no lifecycle transition occurs at merge; POL-14 is a NO-OP for BOTH BCs (both already ACTIVE before this story). LOW-001: removed fabricated BC-2.16.002 postcondition attributions from AC-001 ("WASM plugin runtime correctness"), AC-002 ("degradable boot"), and AC-004 ("degradable path") — none of these postconditions exist in BC-2.16.002 (Multi-Step Fetch Pipeline Execution / CAP-029); re-anchored AC-001 to ADR-049 D4 (wasmtime cache feature), AC-002 and AC-004 to ADR-049 D3 (LOCKED degradable decision). BC-2.16.002 citations now reserved for AC-003 and AC-005 (catalog-row tracing) only. POL-8 bidirectional coherence verified: BC-2.16.002 remains in frontmatter array, cited by AC-003 + AC-005; BC-5.39.001 cited by delivery-quality ACs throughout. |

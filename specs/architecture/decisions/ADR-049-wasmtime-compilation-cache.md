@@ -5,7 +5,7 @@ title: "wasmtime Compilation Cache — On-Disk Native-Code Cache for PluginRunti
 status: ACCEPTED
 date: "2026-07-01"
 modified: "2026-07-02"
-version: "1.1"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-17]
 supersedes: []
@@ -22,7 +22,7 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.1 (2026-07-02). Human-directed performance story S-PERF-GATE-008.
+ACCEPTED v1.2 (2026-07-02). Human-directed performance story S-PERF-GATE-008.
 Enables the wasmtime on-disk compilation cache in `PluginRuntime::new_with_audit_sink()`,
 defines degradable boot semantics for cache-init failure, mandates SAP-1 structured
 event registration, and codifies nextest test-group serialization for all
@@ -122,7 +122,10 @@ wasmtime config file, but prism does not manage or require one.
   wasmtime compiles WASM to native on every process start — slower, but functionally
   correct.
 - In production there is typically one process start per analyst session. The cold-start
-  cost (1–5 s per plugin, not 150 s under concurrency) is acceptable.
+  cost is ~1–2 s per plugin in isolation (profiling §3c), which is acceptable. The
+  ~8–9 s per-call inflation under workspace-parallel CPU contention (profiling §3c)
+  is a test-suite oversubscription effect; production analyst sessions start one
+  process, not tens of concurrent test binaries, so that inflation does not apply.
 - Failing to open a cache directory (disk-full, permissions issue, read-only filesystem)
   should not prevent the analyst's toolchain from starting. Boot failure on a cache I/O
   issue would be a confusing and unhelpful operator experience.
@@ -314,5 +317,6 @@ broken cache config (e.g., a read-only temp dir) — per SID-1.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-07-02 | architect | F-PG008-P1a-LOW-002: §D3 Rationale second bullet reconciled to profiling-sourced figures. "1–5 s per plugin, not 150 s under concurrency" replaced with: "~1–2 s per plugin in isolation (profiling §3c)" for the production baseline, plus explicit callout that the "~8–9 s per-call" inflation (profiling §3c) is a test-suite oversubscription effect that does not apply to production sessions. Comprehensive figure sweep of all numeric values in §Context, §Consequences, §D3, and §D5–D9: no other unreconciled values found; §Context and §Consequences remain as corrected in v1.1. No D1–D9 decision rulings changed. TD-VSDD-091 compliant (behavioral anchors, no line-number citations). |
 | 1.1 | 2026-07-02 | architect | DRIFT-ADR049-FIGURE-001: §Context "per-test wall-clock 150–170 s" replaced with profiling-report-sourced per-call figures (~8–9 s under load, ~1–2 s isolated; `plugin_tests` ~205 s per-binary, `plugin_integration_tests` ~277 s; profiling @8bc0404e §3c/§2a). §Consequences "80–150 s" replaced with per-binary serial-sum range and §REC-1 ~150–200 s savings estimate. DRIFT-ADR049-D6-HASH-001: §D6 "validates the content hash ... Silent cache poisoning is not possible" overstatement corrected — wasmtime validates metadata (WASM binary hash, compiler version, CPU ISA flags), not the stored native-code blob; artifact signing caveat and AD-001 trust-domain boundary added. No D1–D9 decision rulings changed. |
 | 1.0 | 2026-07-01 | architect | Initial ACCEPTED. Human-directed perf story S-PERF-GATE-008. |
