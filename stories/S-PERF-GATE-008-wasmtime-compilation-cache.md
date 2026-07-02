@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-008
 title: "wasmtime compilation cache — enable on-disk native-code cache in PluginRuntime with degradable boot semantics (D3), SAP-1 structured event, and nextest spec-engine-wasmtime serialization group (max-threads=1)"
 epic_id: EPIC-MAINTENANCE
-version: "1.9"
+version: "1.10"
 status: draft
 producer: story-writer
 phase: 3
@@ -43,7 +43,7 @@ implement degradable boot semantics per ADR-049 D3, emit the SAP-1 structured tr
 on cache-init failure, and add the `spec-engine-wasmtime` nextest serialization group
 (max-threads=1) so the 6 wasmtime-heavy spec-engine test binaries run sequentially after
 the cache warms — reducing per-call `PluginRuntime::new()` cost from ~8-9 s (cold, parallel
-workspace contention; profiling §3c) to <1 s (warm cache hit), saving ~150-200 s total
+workspace contention; profiling §3c) to ~1-2 s (warm cache hit; per §Evidence §3c / ADR-049 §Consequences), saving ~150-200 s total
 wall-clock across the wasmtime test group (profiling §REC-1).
 
 ## Narrative
@@ -53,7 +53,7 @@ wasmtime on-disk compilation cache with degradable semantics (cache-init failure
 `WARN` and continues — it does NOT abort boot), so that repeated nextest runs and production
 process restarts load compiled `.prx` native code from disk instead of re-running the
 Cranelift JIT compiler, reducing per-call `PluginRuntime::new()` cost from ~8-9 s (cold,
-parallel workspace contention; profiling §3c) to <1 s (warm cache hit), saving ~150-200 s
+parallel workspace contention; profiling §3c) to ~1-2 s (warm cache hit; per §Evidence §3c / ADR-049 §Consequences), saving ~150-200 s
 total wall-clock across the wasmtime test group (profiling §REC-1), and keeping the 6
 wasmtime-heavy test binaries within the nextest 180 s hard-kill ceiling under full
 workspace load.
@@ -83,16 +83,16 @@ timing-out tests (TMT). The prototype makes exactly 3 file changes:
 **Performance context from profiling report `.factory/research/test-suite-perf-profile-2026-06-30.md`
 (baseline develop@8bc0404e (the S-PERF-GATE-005 merge; profiled before S-PERF-GATE-006/007 merged)):**
 
-| Condition | wasmtime Component::new() per-call cost |
-|-----------|----------------------------------------|
+| Condition | wasmtime `PluginRuntime::new()` per-call cost (cold = ~8–9s; warm = ~1–2s) |
+|-----------|----------------------------------------------------------------------------|
 | Cold start, isolated | ~1-2 s (Cranelift JIT, single process; profiling §3c) |
 | Cold start, parallel workspace (before this story) | ~8-9 s (Cranelift JIT under CPU contention; profiling §3c) |
-| Warm cache hit (after this story) | <1 s (cache load, no Cranelift) |
+| Warm cache hit (after this story) | ~1-2 s (cache load, no Cranelift; see ADR-049 §Consequences) |
 
 The nextest `spec-engine-wasmtime = { max-threads = 1 }` group (D5) ensures that during
 the cold cache warm-up run, only one wasmtime-heavy binary runs at a time. Once the first
 binary has compiled and cached each `.prx` file, all subsequent binaries load from cache
-at <1 s per plugin. The `max-threads = 1` serialization is intentionally more aggressive
+at ~1-2 s per plugin (per §Evidence §3c / ADR-049 §Consequences). The `max-threads = 1` serialization is intentionally more aggressive
 than the `spec-engine-wasm-cap = { max-threads = 4 }` group from S-PERF-GATE-007 — with
 cache hits, there is no CPU contention to manage; serialization maximizes cache hit rate
 on the cold-start run.
@@ -204,7 +204,7 @@ by `spec-engine-wasm-cap` (S-PERF-GATE-007). Rationale:
 
 - With the compilation cache active, the FIRST binary in the serialized queue incurs the
   full Cranelift cold-compile cost (~1-2 s per plugin in isolation (profiling §3c)). Subsequent binaries
-  load the same `.prx` files from cache at <1 s each.
+  load the same `.prx` files from cache at ~1-2 s each (per §Evidence §3c / ADR-049 §Consequences).
 - Serial order (max-threads=1) maximizes the cache hit rate for this warm-up sequence.
   Under max-threads=4, all four concurrent binaries might compile the same `.prx` file
   simultaneously on the first cold run, each writing to the cache — wasted duplicate work.
@@ -741,7 +741,7 @@ without external subscribers.
 
 | Context component | Estimated tokens |
 |-------------------|-----------------|
-| This story spec (v1.9, ~900 lines) | ~24,000 |
+| This story spec (v1.10, ~900 lines) | ~24,000 |
 | `plugin/mod.rs` (1696 lines — read in full for test pattern context) | ~20,000 |
 | `Cargo.toml` (prism-spec-engine, ~100 lines — read + edit 1 line) | ~1,000 |
 | `.config/nextest.toml` (~215 lines — read + add ~20 lines) | ~2,500 |
@@ -896,6 +896,7 @@ No `cargo deny` or `cargo audit` action is required per ADR-049 D4.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.10 | 2026-07-02 | story-writer | F-P3-MED-001 warm-cache-figure reconciliation (spec-only; PR HEAD 091f1af8 frozen). (1) §Evidence column header corrected: "wasmtime Component::new() per-call cost" → "wasmtime `PluginRuntime::new()` per-call cost (cold = ~8–9s; warm = ~1–2s)" — the metric scope was previously mislabeled as the inner `Component::new()` step rather than the full `PluginRuntime::new()` per-call cost that §3c measures. (2) §Evidence warm row corrected: "<1 s (cache load, no Cranelift)" → "~1-2 s (cache load, no Cranelift; see ADR-049 §Consequences)" — aligns the canonical figure with ADR-049 v1.3 §Consequences authority. (3) Opening description line 46: "<1 s (warm cache hit)" → "~1-2 s (warm cache hit; per §Evidence §3c / ADR-049 §Consequences)". (4) §Narrative line 56: same substitution. (5) §Evidence narrative (post-table paragraph): "at <1 s per plugin" → "at ~1-2 s per plugin (per §Evidence §3c / ADR-049 §Consequences)". (6) §Why max-threads = 1 second bullet: "from cache at <1 s each" → "from cache at ~1-2 s each (per §Evidence §3c / ADR-049 §Consequences)". §Evidence table is now the single canonical figure source; all other mentions cross-reference it. Changelog rows 1.8/1.9 (immutable historical records, TD-VSDD-091) left unchanged. Token Budget self-reference updated v1.9 → v1.10. |
 | 1.9 | 2026-07-02 | story-writer | F-PRLx-MED-001 + F-PRL-P2-MED-001 + definitive figure/version/ref consolidation. (1) §Evidence performance-context label corrected: "baseline develop@8bc0404e after S-PERF-GATE-004/005/006/007" → "baseline develop@8bc0404e (the S-PERF-GATE-005 merge; profiled before S-PERF-GATE-006/007 merged)" matching ADR-049 §Context ("S-PERF-GATE-004 and -005"). (2) §Why max-threads = 1 first bullet corrected: "~1-5 s per plugin in isolation" (retired stale figure) → "~1-2 s per plugin in isolation (profiling §3c)" matching §Evidence table row. Definitive consolidation sweep — every perf-figure location audited: opening description (~8-9 s §3c / <1 s / ~150-200 s §REC-1), §Narrative (same, canonical), §Evidence table (canonical source: ~1-2 s §3c / ~8-9 s §3c / <1 s), §Background Degradable-Path Code Rust comment and §Tasks 6a TOML comment template (both qualitative "see ADR-049 / S-PERF-GATE-008 for measured figures" from v1.8) — no additional figures found; §Why max-threads (the single remaining stale value) now reconciled. Cross-story PR#/SHA sweep: develop@8bc0404e = S-PERF-GATE-005 merge (PR #210) ✓; PR #211/c6d6e4fa = S-PERF-GATE-007 ✓; no 004/006 PR# mis-references found. BC-2.16.002 v1.92 citations consistent (AC-003, AC-005, Behavioral Contracts table). Token Budget self-reference updated v1.8 → v1.9. TD-VSDD-091. |
 | 1.8 | 2026-07-02 | story-writer | F-P1a-LOW-001 (code-comment templates de-figured, S-7.02): removed time figures from §Background Degradable-Path Code Rust comment template (lines "reducing per-call load from ~8-9 s / (cold, parallel workspace contention; profiling §3c) to <1 s") and §Tasks step 6a TOML comment template ("warm cache hits skip Cranelift JIT entirely (<1 s per call vs / ~8-9 s cold, parallel workspace contention (profiling §3c))") — replaced both with qualitative "see ADR-049 / S-PERF-GATE-008 for measured figures" form matching the delivered code (mod.rs + nextest.toml comments are already qualitative per S-7.02 as confirmed by ADR-049 v1.1 and the v1.7 code sweep). F-P3-LOW-002 (S-PERF-GATE-007 PR#/SHA corrected): §Previous Story Intelligence heading corrected from "PR #209, merged develop@e3148007" (that is S-PERF-GATE-004's merge info) to "PR #211, merged develop@c6d6e4fa" (S-PERF-GATE-007's actual merge info per STORY-INDEX D-1479). Cross-story PR#/SHA sweep results: develop@8bc0404e in §Evidence is the correct profiling-baseline SHA (= S-PERF-GATE-005 merge SHA; not a PR# misattribution); no further PR#/SHA misattributions found in §Evidence, §Background, §Dependencies, or any other section. Token Budget self-reference updated to v1.8. Version bump 1.7 → 1.8. |
 | 1.7 | 2026-07-02 | story-writer | F-PG008-PRL-P1-MED-001 remediation: retired "80-150 s" / "80-150s" figure swept from all live story content (opening description, §Narrative, §Evidence table, §Background §Degradable-Path Code Rust comment, §Tasks step 6a TOML comment) and replaced with profiling-sourced figures — per-call `PluginRuntime::new()` cost ~8-9 s under workspace-parallel CPU contention / ~1-2 s in isolation (profiling §3c); group savings ~150-200 s (profiling §REC-1). False profiling-report attribution corrected: "80-150 s" never appeared in `.factory/research/test-suite-perf-profile-2026-06-30.md`; the §Evidence table column header changed from "per-test cost" to "per-call cost" and the isolated-case figure updated from ~1-5 s to ~1-2 s to match profiling §3c. Token Budget self-reference updated to v1.7 (line count ~unchanged). ADR-049 v1.1 already retired the same figure; story now matches ADR-049 v1.1 §Context/§Consequences. Version bump 1.6 → 1.7. |

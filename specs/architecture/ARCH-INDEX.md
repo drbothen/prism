@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.153"
+version: "2.154"
 status: draft
 producer: state-manager
 timestamp: 2026-06-26T17:00:00Z
@@ -115,7 +115,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 | ADR-046 | Three-Mode Correctness — Filter / SQL / Pipe Mode-Bridge Error and Execution Validation | ACCEPTED v1.3 | 2026-06-26 | decisions/ADR-046-three-mode-correctness-filter-sql-pipe-mode-bridge-error-and-execution-validation.md |
 | ADR-047 | PrismQL Case-Sensitivity Policy — Case-Sensitive Default, IEQ/IIN Opt-In, and Adapter-Boundary OCSF Enum-Label Normalization | PROPOSED v1.0 | 2026-06-27 | decisions/ADR-047-prismql-case-sensitivity-policy-ieq-iin-and-adapter-boundary-normalization.md |
 | ADR-048 | PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function Predicate LHS in HAVING | ACCEPTED v1.1 | 2026-06-29 | decisions/ADR-048-prismql-having-predicate-grammar-divergence-aggregate-fn-predicate-lhs.md |
-| ADR-049 | wasmtime Compilation Cache — On-Disk Native-Code Cache for PluginRuntime, Degradable Boot Failure Semantics, and Test-Binary Serialization | ACCEPTED v1.2 | 2026-07-02 | decisions/ADR-049-wasmtime-compilation-cache.md |
+| ADR-049 | wasmtime Compilation Cache — On-Disk Native-Code Cache for PluginRuntime, Degradable Boot Failure Semantics, and Test-Binary Serialization | ACCEPTED v1.3 | 2026-07-02 | decisions/ADR-049-wasmtime-compilation-cache.md |
 
 ## Architecture Decisions
 
@@ -175,6 +175,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.154 | F-P3-MED-001-ADR-049-v1.3 | 2026-07-02 | architect | ADR-049 v1.2→v1.3: §Context "<1s" drift bullet corrected to "<0.1s" + qualifying note: compilation cache removes Component::new() Cranelift step only; Engine::new() LLVM JIT init (~1–2 s) persists warm; §Consequences "~1–2 s" warm figure confirmed authoritative single source. F-P3-MED-001 root cause fixed. ADR Registry row updated ACCEPTED v1.2→v1.3. ARCH-INDEX v2.153→v2.154. |
 | 2.153 | F-PG008-P1a-LOW-002-ADR-049-v1.2 | 2026-07-02 | architect | ADR-049 v1.1→v1.2: §D3 Rationale "1–5 s per plugin, not 150 s under concurrency" reconciled to profiling-sourced figures — ~1–2 s isolated / ~8–9 s under workspace-parallel CPU contention (profiling §3c). Comprehensive figure sweep: no other unreconciled values found. ADR Registry row updated ACCEPTED v1.1→v1.2. ARCH-INDEX v2.152→v2.153. |
 | 2.152 | drift-closure-ADR-049-v1.1 | 2026-07-02 | state-manager | ADR-049 v1.0→v1.1 (DRIFT-ADR049-FIGURE-001 + DRIFT-ADR049-D6-HASH-001 RESOLVED). §Context/§Consequences figures reconciled to profiling-report-sourced per-call values: ~8–9 s per-call under load / ~1–2 s isolated; plugin_tests ~205 s per-binary; plugin_integration_tests ~277 s per-binary; §REC-1 ~150–200 s savings estimate. §D6 security prose corrected: wasmtime validates cache-entry metadata (WASM binary hash, compiler version, CPU ISA flags), NOT the stored native-code blob; artifact signing caveat added; AD-001 trust-domain boundary stated. No D1–D9 decision rulings changed. ADR Registry row updated ACCEPTED v1.0→v1.1. ARCH-INDEX v2.151→v2.152. |
 | 2.151 | S-PERF-GATE-008-ADR-049 | 2026-07-01 | architect | **ADR-049 ACCEPTED v1.0** — wasmtime Compilation Cache. Decisions: D1 enable `wasmtime::Cache` with `CacheConfig::new()` defaults in `PluginRuntime::new_with_audit_sink()`; D2 OS-default cache dir, no external config file; D3 LOCKED — cache-init failure is DEGRADABLE (WARN + proceed without cache; override of prototype `?`-fatal pattern); D4 wasmtime `"cache"` feature, zero new transitive deps, cargo-deny clean confirmed on prototype; D5 nextest `spec-engine-wasmtime` group `max-threads = 1` covering 6 binaries in prepush + ci profiles; D6 security — OS-default trust domain, wasmtime hash validation prevents silent poisoning; D7 no dedicated E-PLUGIN code (degradable path, no MCP surface); D8 structured event `plugin.compilation_cache_init_skipped` (SAP-1 obligation; BC-2.16.002 catalog row required before PR merges); D9 story relabeling S-PERF-GATE-006 → S-PERF-GATE-008 in all working-source comments. Scoping summary: architect-done; product-owner must add BC-2.16.002 catalog row; story-writer must author S-PERF-GATE-008 spec citing this ADR. ARCH-INDEX v2.150→v2.151. |

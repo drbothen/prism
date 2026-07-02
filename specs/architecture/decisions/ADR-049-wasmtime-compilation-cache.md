@@ -5,7 +5,7 @@ title: "wasmtime Compilation Cache — On-Disk Native-Code Cache for PluginRunti
 status: ACCEPTED
 date: "2026-07-01"
 modified: "2026-07-02"
-version: "1.2"
+version: "1.3"
 producer: architect
 subsystems_affected: [SS-17]
 supersedes: []
@@ -22,7 +22,7 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.2 (2026-07-02). Human-directed performance story S-PERF-GATE-008.
+ACCEPTED v1.3 (2026-07-02). Human-directed performance story S-PERF-GATE-008.
 Enables the wasmtime on-disk compilation cache in `PluginRuntime::new_with_audit_sink()`,
 defines degradable boot semantics for cache-init failure, mandates SAP-1 structured
 event registration, and codifies nextest test-group serialization for all
@@ -79,7 +79,11 @@ wasmtime's `"cache"` feature provides an on-disk compilation artifact cache:
   (macOS: `~/Library/Caches/wasmtime/`, Linux: `~/.cache/wasmtime/`).
   Created automatically on first use.
 - **Cold vs warm:** cold start compiles and stores to disk; warm start loads the
-  cached native artifact in <1 s, skipping Cranelift entirely.
+  cached native artifact in <0.1 s, skipping Cranelift entirely.
+  Note: this <0.1 s figure covers only the `Component::new()` Cranelift step.
+  Full `PluginRuntime::new()` per-call cost in isolation remains ~1–2 s on a warm
+  cache hit because `Engine::new()` initialization (~1–2 s) persists regardless of
+  cache state. See §Consequences for the authoritative per-call figure.
 - **No external config file:** `CacheConfig::new()` uses built-in defaults.
   Works without `~/.config/wasmtime/config.toml`.
 
@@ -317,6 +321,7 @@ broken cache config (e.g., a read-only temp dir) — per SID-1.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-07-02 | architect | F-P3-MED-001: §Context "Cold vs warm" bullet updated — `<1 s` corrected to `<0.1 s` (matching §Consequences) and qualified as the `Component::new()` Cranelift sub-step only; clarifying note added that full `PluginRuntime::new()` per-call cost in isolation remains ~1–2 s on a warm cache hit due to `Engine::new()` persistence. Eliminates the sole internal source of the "< 1s warm cache hit" misread that surfaced in the S-PERF-GATE-008 PR description and story narrative. §Consequences remains the sole authoritative per-call figure. No D1–D9 decision rulings changed. |
 | 1.2 | 2026-07-02 | architect | F-PG008-P1a-LOW-002: §D3 Rationale second bullet reconciled to profiling-sourced figures. "1–5 s per plugin, not 150 s under concurrency" replaced with: "~1–2 s per plugin in isolation (profiling §3c)" for the production baseline, plus explicit callout that the "~8–9 s per-call" inflation (profiling §3c) is a test-suite oversubscription effect that does not apply to production sessions. Comprehensive figure sweep of all numeric values in §Context, §Consequences, §D3, and §D5–D9: no other unreconciled values found; §Context and §Consequences remain as corrected in v1.1. No D1–D9 decision rulings changed. TD-VSDD-091 compliant (behavioral anchors, no line-number citations). |
 | 1.1 | 2026-07-02 | architect | DRIFT-ADR049-FIGURE-001: §Context "per-test wall-clock 150–170 s" replaced with profiling-report-sourced per-call figures (~8–9 s under load, ~1–2 s isolated; `plugin_tests` ~205 s per-binary, `plugin_integration_tests` ~277 s; profiling @8bc0404e §3c/§2a). §Consequences "80–150 s" replaced with per-binary serial-sum range and §REC-1 ~150–200 s savings estimate. DRIFT-ADR049-D6-HASH-001: §D6 "validates the content hash ... Silent cache poisoning is not possible" overstatement corrected — wasmtime validates metadata (WASM binary hash, compiler version, CPU ISA flags), not the stored native-code blob; artifact signing caveat and AD-001 trust-domain boundary added. No D1–D9 decision rulings changed. |
 | 1.0 | 2026-07-01 | architect | Initial ACCEPTED. Human-directed perf story S-PERF-GATE-008. |
