@@ -4,7 +4,7 @@ story_id: S-PERF-GATE-008
 title: "wasmtime compilation cache — enable on-disk native-code cache in PluginRuntime with degradable boot semantics (D3), SAP-1 structured event, and nextest spec-engine-wasmtime serialization group (max-threads=1)"
 epic_id: EPIC-MAINTENANCE
 version: "1.10"
-status: draft
+status: merged
 producer: story-writer
 phase: 3
 wave: maintenance
