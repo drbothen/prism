@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-008
 title: "wasmtime compilation cache — enable on-disk native-code cache in PluginRuntime with degradable boot semantics (D3), SAP-1 structured event, and nextest spec-engine-wasmtime serialization group (max-threads=1)"
 epic_id: EPIC-MAINTENANCE
-version: "1.4"
+version: "1.5"
 status: draft
 producer: story-writer
 phase: 3
@@ -25,10 +25,10 @@ blocks: []
 behavioral_contracts: [BC-5.39.001, BC-2.16.002]
 # BC status:
 #   BC-5.39.001 — delivery-quality / 3-CLEAN convergence protocol (already ACTIVE).
-#   BC-2.16.002 — multi-step fetch pipeline; v1.92 already includes the
-#     plugin.compilation_cache_init_skipped catalog row (SAP-1 D8 obligation discharged by
-#     product-owner in the same spec burst). POL-14 will be a NO-OP at merge for BC-5.39.001
-#     (already ACTIVE); BC-2.16.002 transitions draft→active at merge per POL-14.
+#   BC-2.16.002 — multi-step fetch pipeline; already ACTIVE (v1.92). This story amended
+#     its §Postconditions catalog only (added plugin.compilation_cache_init_skipped row,
+#     SAP-1 D8 obligation discharged in the spec burst). No lifecycle transition — POL-14
+#     is a NO-OP at merge for BOTH BCs (both already ACTIVE before this story).
 verification_properties: []
 assumption_validations: []
 risk_mitigations: []
@@ -242,8 +242,8 @@ Source-verification: before this change, `grep '"cache"' crates/prism-spec-engin
 returns 0. After the change, it returns 1. The full grep string anchors to both features
 to prevent false matches against any future wasmtime feature addition.
 
-Traces to: BC-2.16.002 postcondition (WASM plugin runtime correctness — cache feature
-enables the `Cache` and `CacheConfig` types); BC-5.39.001 postcondition (delivery quality).
+Traces to: ADR-049 D4 (wasmtime `"cache"` feature addition — activates `Cache` and
+`CacheConfig` types); BC-5.39.001 postcondition (delivery quality).
 
 ### AC-002 — `apply_wasmtime_cache` helper extracted with degradable match arm (D3)
 
@@ -263,9 +263,9 @@ grep -c 'Cache::new.*map_err.*cache init failed' crates/prism-spec-engine/src/pl
 Expected output: `0` (the prototype's fatal `map_err(|e| PrismError::Internal { ... })?`
 pattern must be absent — it was replaced by the degradable match arm).
 
-Traces to: BC-2.16.002 postcondition (degradable boot — cache-init error must not abort
-plugin runtime construction); ADR-049 D3 (LOCKED decision); BC-5.39.001 postcondition
-(delivery quality; ADR-049 D3 is a locked architectural constraint).
+Traces to: ADR-049 D3 (LOCKED decision — cache-init failure must not abort plugin
+runtime construction); BC-5.39.001 postcondition (delivery quality; ADR-049 D3 is a
+locked architectural constraint).
 
 ### AC-003 — Degradable path emits `plugin.compilation_cache_init_skipped` WARN with `error` field (D8 / SAP-1)
 
@@ -339,9 +339,9 @@ This test must NOT be `#[ignore]`'d. If any external dependency is required, the
 strategy is wrong — `apply_wasmtime_cache` is a pure function over `(config, cache_result)`
 and has no external deps.
 
-Traces to: BC-2.16.002 postcondition (degradable path — `Err` branch must not abort
-construction); ADR-049 D3; SID-1 (CLAUDE.md §Standing Implementer Disciplines — no
-`#[ignore]`-rationalization prohibition).
+Traces to: ADR-049 D3 (LOCKED decision — `Err` branch must not abort plugin runtime
+construction); SID-1 (CLAUDE.md §Standing Implementer Disciplines — no
+`#[ignore]`-rationalization prohibition); BC-5.39.001 postcondition (delivery quality).
 
 ### AC-005 — SID-1 unit test: WARN event emitted with correct `event_type` on cache-init failure (D8)
 
@@ -890,6 +890,7 @@ No `cargo deny` or `cargo audit` action is required per ADR-049 D4.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.5 | 2026-07-02 | story-writer | F-PG008-PRL2-MED-001 + F-PG008-PRL2-LOW-001 remediation (spec-only; PR HEAD e6a357fe frozen). MED-001: corrected frontmatter `# BC status:` comment that falsely stated "BC-2.16.002 transitions draft→active at merge per POL-14" — BC-2.16.002 is already ACTIVE at v1.92; this story amended its §Postconditions catalog only (added plugin.compilation_cache_init_skipped row, SAP-1 D8 obligation); no lifecycle transition occurs at merge; POL-14 is a NO-OP for BOTH BCs (both already ACTIVE before this story). LOW-001: removed fabricated BC-2.16.002 postcondition attributions from AC-001 ("WASM plugin runtime correctness"), AC-002 ("degradable boot"), and AC-004 ("degradable path") — none of these postconditions exist in BC-2.16.002 (Multi-Step Fetch Pipeline Execution / CAP-029); re-anchored AC-001 to ADR-049 D4 (wasmtime cache feature), AC-002 and AC-004 to ADR-049 D3 (LOCKED degradable decision). BC-2.16.002 citations now reserved for AC-003 and AC-005 (catalog-row tracing) only. POL-8 bidirectional coherence verified: BC-2.16.002 remains in frontmatter array, cited by AC-003 + AC-005; BC-5.39.001 cited by delivery-quality ACs throughout. |
 | 1.4 | 2026-07-02 | story-writer | F-PG008-P1-HIGH-001 remediation: corrected a genuine functional defect — nextest per-test override resolution is first-match-wins per setting (not last-match-wins as previously stated). The prior spec asserted the wasmtime override stanzas should appear AFTER wasm-cap, which caused the delivered `.config/nextest.toml` to leave 5 of 6 wasmtime-heavy binaries silently at max-threads=4 instead of the intended 1. Corrections: (1) §Evidence heading + body: "last-match-wins semantics" → "first-match-wins per setting"; "appear AFTER" → "must appear BEFORE"; added defect summary sentence. (2) AC-008: "last-match semantics means the binary ultimately uses spec-engine-wasmtime" → "first-match-wins per setting: spec-engine-wasmtime stanza appears BEFORE spec-engine-wasm-cap". (3) AC-009: tightened from "capture output in PR evidence bundle" to require saving actual `cargo nextest show-config` output for both profiles to `docs/demo-evidence/S-PERF-GATE-008/show-config-evidence.txt`; explicit "summarized ✓ is insufficient"; added per-binary max-threads=1 verification requirement. (4) Tasks step 6a TOML comment: "last-match semantics … appears later in the file" → "first-match-wins … placed BEFORE wasm-cap". (5) Tasks step 6b: "After the existing [[profile.prepush.overrides]] stanzas" → "BEFORE the existing [[profile.prepush.overrides]] stanza for spec-engine-wasm-cap". (6) Tasks step 6c: same correction for ci profile. (7) Tasks step 8: replaced "capture outputs for the PR evidence bundle" with mkdir + redirect commands to the evidence file and explicit max-threads=1 verification. (8) EC-005: "last-match wins … appended AFTER" → "first-match-wins … placed BEFORE"; added future-amendment verification instruction. Version bump 1.3 → 1.4 per POL-32 (newest-first changelog). |
 | 1.3 | 2026-07-01 | story-writer | F-M1 (MED) remediation: portability class-sweep for grep-recipe BSD/GNU divergence. AC-003 check-1: replaced GNU-only `\s` with POSIX bracket class `[[:space:]]` in `grep -vE '^[[:space:]]*(///|//)'` — `\s` is not guaranteed portable on BSD/macOS grep (treated as literal `s` on some systems, causing indented comment lines to pass the filter and returning 3 instead of Expected 1). Updated matching prose description in AC-003 body to stay consistent with the executable recipe. Full class-sweep of all grep/rg/shell recipes in the story (AC-001 through AC-012, Red Gate, §FSR, Tasks): no other GNU-only constructs found — all remaining recipes use only fixed-string literals, POSIX ERE alternation `(a|b)`, standard anchors `^` and `$`, and quantifiers `*` and `+`. Codified fix for the grep-recipe-portability sub-class of the F-1 lesson (recurrence prevention). Version bump 1.2 → 1.3 per POL-32 (newest-first changelog). Spec-only; frozen HEAD 5d2d7aad unchanged. |
 | 1.2 | 2026-07-01 | story-writer | F-1 (MED) remediation: four grep-based AC self-verification recipes made precise, anchored, and scope-restricted so each returns its stated Expected value against correct delivered code (code unchanged). AC-003 check 1: replaced bare `grep -c 'event_type = "..."'` (returned 3 due to doc/code comments) with comment-excluding pipeline `grep ... | grep -vE '^\s*(///|//)' | wc -l` → Expected 1. AC-003 check 3: replaced fragile `grep -B10 'plugin.compilation_cache_init_skipped' | grep -c 'cfg(test)'` (returned 1 due to anti-pattern comment in B10 context of a string-literal match) with `grep -B1 'fn apply_wasmtime_cache' | grep -c '#\[cfg(test)\]'` → Expected 0; cited RG-002 as load-bearing runtime proof per adversary confirmation. AC-008: replaced bare `grep -c 'infusion_tests'` (returned 3 due to D5 comment token) with `grep -c 'binary(infusion_tests)'` → Expected 2. AC-010: removed `Justfile` from grep scope (4 legitimate S-PERF-GATE-006 sibling-story comments, outside 008's modification perimeter); restricted to `crates/prism-spec-engine/ .config/nextest.toml` → Expected no hits; updated Tasks step 11 to match. Pattern: recurrence of S-PERF-GATE-007 F-LOW-1 (grep-recipe false-failure on correct artifacts). |
