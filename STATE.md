@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.094"
+version: "8.095"
 producer: state-manager
-timestamp: 2026-07-02T14:00:00Z
+timestamp: 2026-07-01T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -21,12 +21,12 @@ develop_head: "67518790"
 # NOTE: c6d6e4fa is the squash-merge of PR #211 (perf(S-PERF-GATE-007): add nextest wasm-cap + http-cap groups to eliminate WASMtime/wiremock oversubscription; normal squash-merge, no --admin; 2026-07-01). S-PERF-GATE-007 MERGED. Prior origin/develop was 8bc0404e (PR #210 S-PERF-GATE-005). feature/S-PERF-GATE-007 branch + .worktrees/S-PERF-GATE-007 worktree removed.
 # NOTE: 8bc0404e is the squash-merge of PR #210 (perf(S-PERF-GATE-005): DTU clone graceful-shutdown wiring via shared prism-dtu-common::server helper; normal squash-merge, no --admin; CI 43/43 green; 2026-06-30T17:29:50Z). origin/develop is now 8bc0404e. stop() 5.002s→0.019s; scenario 3-test suite 49s→49ms; full nextest ~hours→86.4s. TEST-SPEED INITIATIVE COMPLETE (S-PERF-GATE-001..005). Prior origin/develop was e3148007 (PR #209 S-PERF-GATE-004). feature/S-PERF-GATE-005 branch + .worktrees/S-PERF-GATE-005 worktree removed.
 # NOTE-CORRECTION D-1435: "TEST-SPEED INITIATIVE COMPLETE" + "full nextest ~86.4s" are FALSE IN PRACTICE. Real full-workspace `just check` is ~30+ min: 5 prism-spec-engine WASMtime binaries (plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests) run UNCAPPED in nextest; wasmtime::Engine::new() (LLVM JIT init) costs ~120-143s per binary under full-suite concurrency → ~28 pre-existing TMT failures. S-PERF-GATE-001..005 fixed DTU oversubscription + clone graceful-shutdown only; did NOT touch spec-engine WASMtime binaries. Initiative INCOMPLETE / SUPERSEDED by T-PERF-PROFILE (D-1435).
-bc_index_version: "7.26"
+bc_index_version: "7.27"
 vp_index_version: "1.80"
-story_index_version: "v2.554"
-arch_index_version: "2.150"
+story_index_version: "v2.555"
+arch_index_version: "2.151"
 error_taxonomy_version: "2.03"
-total_stories: 224
+total_stories: 225
 active_contracts: 254
 draft_contracts: 0
 retired_contracts: 6
@@ -39,7 +39,7 @@ workspace_test_count: 5074
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "S-PERF-GATE-006 + S-PERF-GATE-007 BOTH MERGED (develop@67518790). Test-suite optimization stories 006/007 shipped. NEXT: author + deliver S-PERF-GATE-008 (WASMtime compilation-cache; primary ref branch wip/perf-wasmtime-exploration-76821af7). Then un-park PR #208 (S-DEMO-FIDELITY-REMEDIATION-001)."
+current_step: "S-PERF-GATE-008 SPEC LAYER COMPLETE + COMMITTED (ADR-049 ACCEPTED, BC-2.16.002 v1.92 catalog row, story v1.1, remove-uncertainty done). NEXT: TDD delivery — stub-architect (Red Gate) → test-writer → implementer (D3 degradable path + SID-1 test) → LOCAL 3-CLEAN → PR → PR-LEVEL 3-CLEAN → user-auth merge. develop@67518790."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -71,14 +71,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1481."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1482."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-02 (D-1481 — S-PERF-GATE-006 MERGED develop@67518790 POL-14 NO-OP; STORY-INDEX v2.553→v2.554; STATE v8.093→v8.094)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-01 (D-1482 — S-PERF-GATE-008 spec layer committed: ADR-049 ACCEPTED + BC-2.16.002 v1.92 + story v1.1; STORY-INDEX v2.554→v2.555; ARCH-INDEX v2.150→v2.151; BC-INDEX v7.26→v7.27; total_stories 224→225; STATE v8.094→v8.095)
 
 ## Active Objective (North Star)
 
@@ -134,6 +134,7 @@ _(D-1476 archived to burst-log.md this burst: S-PERF-GATE-006 F-PG006-P22-MED-00
 | D-1478 | state-manager | 2026-07-02 | **S-PERF-GATE-006 LOCAL 3-CLEAN CONVERGED + PR #212 OPEN + PR-LEVEL passes + OBS-1/OBS-2 FIXED (D-1478). LOCAL cascade CONVERGED 3/3 on frozen HEAD 34aa4a78 (story v2.5). Branch feature/S-PERF-GATE-006 pushed to origin. PR #212 OPEN (feature/S-PERF-GATE-006→develop). PR-LEVEL adversarial cascade: pass-1 CLEAN(strict); pass-2 NOT CLEAN(strict) [OBS-1: pr-description.md §Summary attributed ~157s test-binary rebuild to iter/"the primary TDD dev loop" — corrected to check-fast→check transition per Effect 1 (fix on disk; code-delivery/ gitignored); OBS-2: STORY-INDEX S-PERF-GATE-006 row showed stale "pass-23 re-gate pending" state, lagging LOCAL convergence + PR creation — FIXED this burst]; pass-3 CLEAN(strict). PR-LEVEL re-gating to fresh 3-CLEAN on frozen HEAD 34aa4a78 (code unchanged; description + index now correct). develop_head UNCHANGED 8bc0404e. total_stories UNCHANGED 224. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STORY-INDEX v2.551→v2.552. STATE v8.091→v8.092.** | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1479 | state-manager | 2026-07-01 | **S-PERF-GATE-007 MERGED develop@c6d6e4fa + develop_head BUMPED + POL-14 assessed (D-1479). PR #211 squash-merged into develop; new develop HEAD c6d6e4fa. feature/S-PERF-GATE-007 branch deleted; .worktrees/S-PERF-GATE-007 removed. develop_head 8bc0404e→c6d6e4fa. POL-14 ASSESSMENT: behavioral_contracts: [BC-5.39.001] — BC-5.39.001 is the delivery-quality contract, already ACTIVE; no product BCs in this story. POL-14 IS A NO-OP for S-PERF-GATE-007. STORY-INDEX v2.552→v2.553 (S-PERF-GATE-007 row updated: status merged). S-PERF-GATE-007 story file: status ready→merged. total_stories UNCHANGED 224. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.092→v8.093.** | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1480 | state-manager | 2026-07-01 | **S-PERF-GATE-006 PR-LEVEL 3-CLEAN CONVERGED — AWAITING CI-GREEN + USER-AUTH MERGE (D-1480). PR #212 HEAD 34aa4a78 frozen. PR-LEVEL passes 1/2/3 all CLEAN(strict) on frozen HEAD 34aa4a78. CLEAN(strict): YES for all 3 passes. pr-reviewer APPROVE (1 non-blocking NIT). security-reviewer APPROVE (1 pre-existing LOW CWE-78 iter interpolation, developer-only, non-blocking). Status: LOCAL 3/3 + PR-LEVEL 3/3 CONVERGED on frozen 34aa4a78. AWAITING: CI-green on PR #212 + explicit USER merge authorization (D-1473 pattern). SESSION-HANDOFF §RESUME SNAPSHOT D-1480 written (supersedes D-1474). develop_head c6d6e4fa (D-1479). total_stories UNCHANGED 224. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STORY-INDEX v2.552→v2.553 (S-PERF-GATE-006 row updated: PR-LEVEL CONVERGED status). STATE v8.092→v8.093.** | wave-5-e-demo-fidelity | 2026-07-01 |
+| D-1482 | state-manager | 2026-07-01 | **S-PERF-GATE-008 SPEC LAYER COMMITTED (D-1482). ONE atomic factory-artifacts burst: (1) ADR-049 ACCEPTED v1.0 — wasmtime compilation cache with degradable boot semantics (D3), nextest spec-engine-wasmtime group (max-threads=1), SAP-1 event obligation; (2) BC-2.16.002 v1.91→v1.92 — added `plugin.compilation_cache_init_skipped` WARN catalog row (SAP-1 PG-LP11-001 compliance; catalog 88→89; label v1.56→v1.57); (3) story S-PERF-GATE-008 v1.1 registered (12 ACs, 2 Red Gate tests, tdd_mode strict, remove-uncertainty done); (4) research artifact wasmtime-44-cache-api-S-PERF-GATE-008.md committed. SAP-1 consistency check PASSED: `plugin.compilation_cache_init_skipped` event_type in BC-2.16.002 catalog (line 182) matches ADR-049 D3+D8 spec exactly (level=WARN, field `error = %e` Display). INDEX BUMPS: ARCH-INDEX v2.150→v2.151 (ADR-049 registered by architect). BC-INDEX v7.26→v7.27 (BC-2.16.002 v1.92). STORY-INDEX v2.554→v2.555 (S-PERF-GATE-008 row registered, total_stories 224→225). active_contracts UNCHANGED 254. develop_head UNCHANGED 67518790. STATE v8.094→v8.095.** | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1481 | state-manager | 2026-07-02 | **S-PERF-GATE-006 MERGED develop@67518790 — POL-14 NO-OP — worktree removed (D-1481). PR #212 squash-merged into develop; new develop HEAD 67518790 (perf(S-PERF-GATE-006): align check, check-fast, iter RUSTFLAGS for fingerprint consistency (#212); 2026-07-02). feature/S-PERF-GATE-006 branch deleted; .worktrees/S-PERF-GATE-006 removed. develop_head c6d6e4fa→67518790. POL-14 ASSESSMENT: behavioral_contracts: [BC-5.39.001] — BC-5.39.001 is the delivery-quality contract, already ACTIVE; no product BCs in this story. POL-14 IS A NO-OP for S-PERF-GATE-006. S-PERF-GATE-006 story status draft→merged (story file + STORY-INDEX row updated). S-PERF-GATE-006 + S-PERF-GATE-007 BOTH MERGED. STORY-INDEX v2.553→v2.554. SESSION-HANDOFF §RESUME SNAPSHOT D-1481 written (supersedes D-1480). total_stories UNCHANGED 224. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.093→v8.094.** | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1469 | state-manager | 2026-07-01 | **S-PERF-GATE-006 LOCAL ADVERSARY PASSES 19+20 FIX-BURST CLOSED (D-1469). Pass-19 on frozen feature HEAD 630cabb6 + story v2.1 NOT CLEAN(strict)/NOT CLEAN(PR-merge). F-PG006-MED-001 MED (Effect-3 overclaim: story cited ~157s savings from iter test-artifact cache alignment with check — but iter is single-crate/default-features and check is --workspace/--all-features; these commands do not share a test-artifact cache; real benefit is RUSTFLAGS-axis dependency-cache non-poisoning, not test-artifact reuse). OBS-1 OBS (timings scope — §Evidence timings subsumed under full-workspace check which includes non-RUSTFLAGS-sensitive steps). FIXED: story v2.1→v2.2 (Effect-3 de-inflated; value prop grounded in RUSTFLAGS-axis non-poisoning; OBS-1 timings scope narrowed) + implementer iter-comment de-inflation commit e1f79d75 (comment-only; no test changes). Feature HEAD 630cabb6→e1f79d75. 3-CLEAN streak RESET 1/3→0/3 on e1f79d75 (new HEAD per BC-5.39.001 frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). Pass-20 on frozen feature HEAD e1f79d75 + story v2.2 NOT CLEAN(strict). F-PG006-P1-MED-001 MED (frontmatter title re-introduced the iter test-artifact-cache overclaim — propagation gap from v2.2 spec body fix; title still cited overclaimed ~157s test-artifact savings). FIXED: story v2.2→v2.3 (spec-only; title de-inflated to reflect RUSTFLAGS-axis dependency-cache non-poisoning benefit only; code HEAD e1f79d75 UNCHANGED). 3-CLEAN streak 0/3 on e1f79d75; LOCAL adversary pass-21 re-gate pending on e1f79d75. develop_head UNCHANGED 8bc0404e. total_stories UNCHANGED 224. STORY-INDEX v2.548→v2.549. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.086→v8.087.** | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1468 | state-manager | 2026-07-01 | **S-PERF-GATE-006 LOCAL ADVERSARY PASS-18 CLEAN (D-1468). Pass-18 re-gate on frozen feature HEAD 630cabb6 + story v2.1 = CLEAN(strict)=YES, CLEAN(PR-merge)=YES. Zero findings any severity. 3-CLEAN streak advanced to 1/3 on unchanged feature HEAD 630cabb6 (BC-5.39.001 frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). Passes 19+20 must stay on unchanged 630cabb6. develop_head UNCHANGED 8bc0404e. total_stories UNCHANGED 224. story_index_version UNCHANGED v2.548. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.085→v8.086.** | wave-5-e-demo-fidelity | 2026-07-01 |
@@ -199,6 +200,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1482 | state-manager | S-PERF-GATE-008 spec layer committed (D-1482 2026-07-01): ADR-049 ACCEPTED + BC-2.16.002 v1.92 (catalog 88→89) + story v1.1 + wasmtime research artifact. SAP-1 PASSED. ARCH-INDEX v2.150→v2.151. BC-INDEX v7.26→v7.27. STORY-INDEX v2.554→v2.555. total_stories 224→225. active_contracts UNCHANGED 254. develop_head UNCHANGED 67518790. STATE v8.094→v8.095. NEXT: TDD delivery (stub-architect → test-writer → implementer → LOCAL 3-CLEAN → PR → PR-LEVEL 3-CLEAN → merge). | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1481 | state-manager | S-PERF-GATE-006 MERGED develop@67518790 (D-1481 2026-07-02): PR #212 squash-merged; new develop HEAD 67518790. feature/S-PERF-GATE-006 branch deleted; .worktrees/S-PERF-GATE-006 removed. develop_head c6d6e4fa→67518790. POL-14 NO-OP: behavioral_contracts [BC-5.39.001] — delivery-quality contract only, already ACTIVE; no product BCs. S-PERF-GATE-006 story status draft→merged. STORY-INDEX v2.553→v2.554. SESSION-HANDOFF §RESUME SNAPSHOT D-1481 written. total_stories UNCHANGED 224. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STATE v8.093→v8.094. NEXT: author + deliver S-PERF-GATE-008 (WASMtime compilation-cache; ref wip/perf-wasmtime-exploration-76821af7). Then un-park PR #208. | wave-5-e-demo-fidelity | 2026-07-02 |
 | D-1480 | state-manager | S-PERF-GATE-006 PR-LEVEL 3-CLEAN CONVERGED — AWAITING CI-GREEN + USER-AUTH MERGE (D-1480 2026-07-01): PR #212 HEAD 34aa4a78 frozen. PR-LEVEL passes 1/2/3 all CLEAN(strict). pr-reviewer APPROVE (1 non-blocking NIT). security-reviewer APPROVE (1 pre-existing LOW CWE-78 iter interpolation, developer-only, non-blocking). LOCAL 3/3 + PR-LEVEL 3/3 CONVERGED on frozen 34aa4a78. AWAITING: CI-green on PR #212 + explicit USER merge authorization (D-1473 pattern). SESSION-HANDOFF §RESUME SNAPSHOT D-1480 written. develop_head c6d6e4fa. total_stories UNCHANGED 224. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STORY-INDEX v2.552→v2.553. STATE v8.092→v8.093. | wave-5-e-demo-fidelity | 2026-07-01 |
 | D-1479 | state-manager | S-PERF-GATE-007 MERGED develop@c6d6e4fa + develop_head BUMPED + POL-14 NO-OP (D-1479 2026-07-01): PR #211 squash-merged into develop; new develop HEAD c6d6e4fa. feature/S-PERF-GATE-007 branch deleted; .worktrees/S-PERF-GATE-007 removed. develop_head 8bc0404e→c6d6e4fa. POL-14: behavioral_contracts [BC-5.39.001] — delivery-quality contract only, already ACTIVE; no product BCs; NO-OP. S-PERF-GATE-007 story status ready→merged. total_stories UNCHANGED 224. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STORY-INDEX v2.552→v2.553. STATE v8.092→v8.093. | wave-5-e-demo-fidelity | 2026-07-01 |
@@ -376,23 +378,21 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1481 -- 2026-07-02; STATE v8.094)
+## Session Resume Checkpoint (D-1482 -- 2026-07-01; STATE v8.095)
 
-**Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1481 (authoritative zero-context snapshot). Summary below.**
+**Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1481 (last authoritative zero-context snapshot; D-1482 is a spec-only burst — no develop merge; SESSION-HANDOFF will be updated at next merge).**
 
-**STATE v8.094. develop 67518790. BC-INDEX v7.26. STORY-INDEX v2.554. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87. total_stories 224.**
+**STATE v8.095. develop 67518790. BC-INDEX v7.27. STORY-INDEX v2.555. ARCH-INDEX v2.151. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87. total_stories 225.**
 
-**T-PERF-PROFILE:** Three-story sequence before PR #208 ships. 007 (nextest wasm-cap+http-cap) **MERGED** develop@c6d6e4fa (PR #211). 006 (Justfile RUSTFLAGS fingerprint) **MERGED** develop@67518790 (PR #212 2026-07-02). **008 NEXT** (WASMtime compilation-cache; QUEUED, not yet authored; ref wip/perf-wasmtime-exploration-76821af7). Baseline: `just check` ~13.3min warm.
+**T-PERF-PROFILE:** 006 (Justfile RUSTFLAGS) **MERGED** develop@67518790 (PR #212). 007 (nextest wasm-cap+http-cap) **MERGED** develop@c6d6e4fa (PR #211). **008 SPEC LAYER DONE** (ADR-049 + BC-2.16.002 v1.92 + story v1.1 committed to factory-artifacts D-1482). **TDD DELIVERY NEXT.**
 
-**S-PERF-GATE-006:** **MERGED** PR #212 squash-merged develop@67518790 (2026-07-02). Story v2.5 status merged. Branch feature/S-PERF-GATE-006 deleted; .worktrees/S-PERF-GATE-006 removed. POL-14 NO-OP (BC-5.39.001 only, already ACTIVE).
-
-**S-PERF-GATE-007:** **MERGED** PR #211 squash-merged develop@c6d6e4fa (2026-07-01). Branch deleted; worktree removed. POL-14 NO-OP.
+**S-PERF-GATE-008:** Spec layer committed (D-1482). ADR-049 ACCEPTED. BC-2.16.002 v1.92. Story v1.1 (12 ACs, 2 Red Gate tests, tdd_mode strict). remove-uncertainty done. SAP-1 PASSED. NEXT: stub-architect → test-writer → implementer → LOCAL 3-CLEAN → PR → PR-LEVEL 3-CLEAN → user-auth merge.
 
 **PR #208:** PARKED at LOCAL 0978983f (4 DTU tests #[ignore]-quarantined; NOT pushed; origin stale 4a624a08). wip/perf-wasmtime-exploration-76821af7 preserved (VERIFIED GREEN, zero TMT). stash@{0} = working-tree; stash@{1} = OnceLock prototype (expect() in production — do NOT adopt as-is).
 
 **RESUME PROTOCOL:**
 1. Run vsdd-factory:factory-worktree-health (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `67518790` (S-PERF-GATE-006 merged).
-3. Author + deliver S-PERF-GATE-008 (WASMtime compilation-cache; ref wip/perf-wasmtime-exploration-76821af7).
+3. Deliver S-PERF-GATE-008: stub-architect (Red Gate stubs) → test-writer → implementer (D3 degradable path + SID-1 unit test per wasmtime-44-cache-api research) → LOCAL 3-CLEAN → PR → PR-LEVEL 3-CLEAN → user-auth merge.
 4. After 008 merges: un-park PR #208 (rebase onto develop, run just check, resume adversarial convergence).
 5. Autonomy D-989 active.
