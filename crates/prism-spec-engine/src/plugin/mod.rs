@@ -187,8 +187,8 @@ impl PluginRuntime {
         //
         // wasmtime::Component::new() (WASM-to-native Cranelift compilation) caches compiled
         // native code to disk, addressed by (wasm_binary_hash, compiler_version, cpu_isa_flags).
-        // Warm cache hits skip Cranelift entirely, reducing per-plugin load from 80-150s
-        // (cold parallel) to <1s. Cache directory: OS default (~/.cache/wasmtime/ or
+        // Warm cache hits skip Cranelift entirely; see ADR-049 / S-PERF-GATE-008 for
+        // measured figures. Cache directory: OS default (~/.cache/wasmtime/ or
         // ~/Library/Caches/wasmtime/). Created automatically on first use.
         //
         // Cache-init failure is DEGRADABLE (ADR-049 D3): a disk-full, permissions, or

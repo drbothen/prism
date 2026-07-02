@@ -154,8 +154,8 @@ spec-engine-wasm-cap = { max-threads = 4 }
 spec-engine-http-cap = { max-threads = 4 }
 # S-PERF-GATE-008: Serialize wasmtime-heavy spec-engine + prism-ocsf binaries.
 # With the on-disk compilation cache enabled in PluginRuntime::new_with_audit_sink
-# (ADR-049 D1), warm cache hits skip Cranelift JIT entirely (<1s per plugin vs
-# 80-150s cold). max-threads=1 serializes the cold-start warm-up run so each .prx
+# (ADR-049 D1), warm cache hits skip Cranelift JIT entirely; see ADR-049 / S-PERF-GATE-008
+# for measured figures. max-threads=1 serializes the cold-start warm-up run so each .prx
 # file is compiled once, then all subsequent binaries load from cache.
 # For the degradable path (ADR-049 D3, cache unavailable), max-threads=1 also
 # bounds total WASMtime CPU overhead — correctness is unaffected.
