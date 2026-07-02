@@ -2148,3 +2148,47 @@ This portability sub-class is part of the F-1/F-LOW-1 codified lesson family (Le
 **Action taken:** No new story opened. The fix is spec-only (story v1.3). This lesson documents the sub-class for future story-writer discipline. Story-writer must self-check GNU-isms whenever authoring grep recipes for macOS-compatible portability.
 
 **Source:** D-1484 (S-PERF-GATE-008 story v1.3 F-M1 grep-portability fix, state-manager burst, 2026-07-01).
+
+---
+
+## Lesson z29 — Nextest Override Precedence: First-Match-Wins; Override Stories Require `show-config` Verification (D-1486, 2026-07-02)
+
+**Category:** Process (S-7.02 cycle-close checklist — false-green class for nextest test-group override ordering)
+
+**Finding:** F-PG008-P1-HIGH-001 (PR-LEVEL adversary + pr-reviewer, empirically proven via `cargo nextest show-config`).
+
+**What happened:**
+
+S-PERF-GATE-008 delivered `.config/nextest.toml` with the new `spec-engine-wasmtime` stanza (max-threads=1 for 6 wasmtime-heavy binaries) positioned AFTER the pre-existing `spec-engine-wasm-cap` stanza (max-threads=4). Nextest override resolution is **first-match-wins per setting**, NOT last-match-wins. Because `spec-engine-wasm-cap` (max-threads=4) matched 5 of the 6 target binaries FIRST, those 5 binaries silently stayed at max-threads=4. Only `infusion_tests` (which was in `spec-engine-wasmtime` but not in `spec-engine-wasm-cap`) received max-threads=1. The story's serialization goal was therefore a no-op for 5 of 6 binaries.
+
+**Why LOCAL passes missed it:**
+
+The LOCAL adversary cascade (3/3 CLEAN on 5d2d7aad) verified the grep-count ACs (nextest.toml contains the stanza), the Red Gate tests (degradable boot semantics), and the SAP-1 tracing event. No LOCAL adversary ran `cargo nextest show-config test-groups --profile prepush` to empirically verify which binaries each group actually resolved to at runtime. The false-green was invisible to text-based AC verification — only resolved-binary-name enumeration via `show-config` could expose it.
+
+**Why PR-LEVEL caught it:**
+
+The pr-reviewer ran `cargo nextest show-config test-groups --profile prepush` and `--profile ci` against the actual PR diff. The output proved that 5 of 6 wasmtime binaries resolved to `spec-engine-wasm-cap` (max-threads=4) rather than `spec-engine-wasmtime` (max-threads=1). This was an empirical proof, not inference.
+
+**Fix (PR #213 HEAD 2b2abb25):**
+
+Implementer reordered `spec-engine-wasmtime` BEFORE `spec-engine-wasm-cap` in BOTH prepush and ci profiles. Fixed 6 comment sites (including the pre-existing stale S-PERF-GATE-004-era "last matching override wins" comment, which was factually inverted). `show-config` evidence captured to `.worktrees/S-PERF-GATE-008/docs/demo-evidence/S-PERF-GATE-008/show-config-evidence.txt` proving all 6 binaries → max-threads=1. `just check` EXIT 0 (3:16).
+
+**Codified rules:**
+
+1. **Nextest override resolution is first-match-wins per setting.** The first group that matches a binary and sets a parameter wins for that parameter. Later groups can only ADD parameters not already set by an earlier group. When two groups overlap on binary coverage, ordering matters.
+
+2. **Any story that adds a nextest override group with potential binary-overlap with an existing group MUST run `cargo nextest show-config test-groups --profile <profile>` and verify that every target binary appears under the intended group.** This is the AC-009 pattern from S-PERF-GATE-007 (Lesson z27 / D-1449) extended to ordering correctness — not just binary-name resolution but also which group "wins" for that binary.
+
+3. **An AC that only greps for the stanza text CANNOT detect ordering/precedence defects.** When a story's correctness depends on a specific group being FIRST, the story MUST include an AC that runs `show-config` and verifies the per-binary group assignment.
+
+4. **`show-config` evidence must be captured and committed as PR evidence.** The worktree path `docs/demo-evidence/<story>/show-config-evidence.txt` is the canonical location. The PR description MUST cite this file and quote the key output lines.
+
+5. **Pre-existing comments asserting "last-match-wins" are a red flag.** When modifying nextest.toml overrides, sweep all existing comments about override resolution order and verify they match the true first-match-wins behavior. Stale comments that assert inverted semantics will mislead future engineers.
+
+**Relationship to prior lessons:**
+
+This is the PR-LEVEL counterpart to Lesson z27's AC-009 binary-resolution pattern. Lesson z27 (D-1449) established that grep-count ACs cannot detect mistyped binary names. Lesson z29 establishes that even correct binary names can produce a false-green if group ordering is wrong. Both lessons converge on the same discipline: `show-config` must be part of every nextest-group story's verification AC set, not just the delivery evidence.
+
+**Action taken:** PR #213 HEAD 2b2abb25 fixes the ordering. `show-config` evidence captured. Story v1.4 (D-1486). Process-gap lesson codified. ADR-049 D6 prose amendment ("first-match-wins" clarification) deferred to architect adjudication (LOW; non-blocking).
+
+**Source:** D-1486 (S-PERF-GATE-008 F-PG008-P1-HIGH-001 fix @2b2abb25, state-manager burst, 2026-07-02).

@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PERF-GATE-008
 title: "wasmtime compilation cache — enable on-disk native-code cache in PluginRuntime with degradable boot semantics (D3), SAP-1 structured event, and nextest spec-engine-wasmtime serialization group (max-threads=1)"
 epic_id: EPIC-MAINTENANCE
-version: "1.3"
+version: "1.4"
 status: draft
 producer: story-writer
 phase: 3
@@ -93,18 +93,21 @@ than the `spec-engine-wasm-cap = { max-threads = 4 }` group from S-PERF-GATE-007
 cache hits, there is no CPU contention to manage; serialization maximizes cache hit rate
 on the cold-start run.
 
-**Interaction with S-PERF-GATE-007 (nextest last-match semantics):**
+**Interaction with S-PERF-GATE-007 (nextest first-match-wins per setting):**
 
 S-PERF-GATE-007 added `spec-engine-wasm-cap = { max-threads = 4 }` for 7 binaries. This
 story adds `spec-engine-wasmtime = { max-threads = 1 }` for 6 binaries. The 5 binaries
 present in BOTH filters (`plugin_tests`, `crowdstrike_oauth2_plugin_tests`,
 `enrichment_pivot_002_tests`, `plugin_integration_tests`, `spec_driven_mapper_fixtures`)
-will be governed by `spec-engine-wasmtime` (max-threads=1) when the new overrides appear
-AFTER the existing `spec-engine-wasm-cap` overrides — nextest last-match-wins semantics.
-The 2 binaries only in `spec-engine-wasm-cap` (`plugin_boot_tests`,
-`infusion_boot_integration`) remain at max-threads=4. The 1 binary only in
-`spec-engine-wasmtime` (`infusion_tests`) gains a max-threads=1 constraint not previously
-applied.
+will be governed by `spec-engine-wasmtime` (max-threads=1) because the new override stanzas
+must appear BEFORE the existing `spec-engine-wasm-cap` override stanzas — nextest
+first-match-wins per setting (confirmed via `cargo nextest show-config`, empirically
+verified; F-PG008-P1-HIGH-001). Placing wasmtime AFTER wasm-cap silently leaves 5 of 6
+binaries at max-threads=4 — the exact functional defect this correction closes. The 2
+binaries only in `spec-engine-wasm-cap` (`plugin_boot_tests`, `infusion_boot_integration`)
+do not match the `spec-engine-wasmtime` filter and fall through to max-threads=4 via the
+later wasm-cap stanza. The 1 binary only in `spec-engine-wasmtime` (`infusion_tests`) gains
+a max-threads=1 constraint not previously applied.
 
 ## Background
 
@@ -416,8 +419,10 @@ grep -c "binary(crowdstrike_oauth2_plugin_tests)" .config/nextest.toml
 ```
 
 Expected output: `4` (2 from S-PERF-GATE-007 `spec-engine-wasm-cap` prepush+ci, 2 from
-this story's `spec-engine-wasmtime` prepush+ci — last-match semantics means the binary
-ultimately uses `spec-engine-wasmtime`).
+this story's `spec-engine-wasmtime` prepush+ci — first-match-wins per setting: the
+`spec-engine-wasmtime` override stanza appears BEFORE `spec-engine-wasm-cap` in each
+profile, so `crowdstrike_oauth2_plugin_tests` resolves to `spec-engine-wasmtime`
+(max-threads=1) on first match).
 
 Note: `infusion_tests` (`tests/infusion_tests.rs` in `prism-spec-engine`) is DISTINCT from
 `infusion_boot_integration` (`tests/infusion_boot_integration.rs` in `prism-bin`). The
@@ -427,35 +432,48 @@ former is in the `spec-engine-wasmtime` filter (this story). The latter is in
 Traces to: ADR-049 D5; BC-5.39.001 postcondition (delivery quality; all 6 binaries must
 appear in the filter for the serialization to take effect).
 
-### AC-009 — Binary-name resolution: all 6 spec-engine-wasmtime binaries resolve in BOTH profiles (D5)
+### AC-009 — Binary-name resolution: all 6 spec-engine-wasmtime binaries resolve to max-threads=1 in BOTH profiles, with full output saved (D5)
 
-Both profiles must be checked independently:
+Both profiles must be checked independently. Run BOTH commands and redirect the combined
+output to the evidence file:
 
 ```
-cargo nextest show-config test-groups --profile prepush
-cargo nextest show-config test-groups --profile ci
+cargo nextest show-config test-groups --profile prepush  > docs/demo-evidence/S-PERF-GATE-008/show-config-evidence.txt
+cargo nextest show-config test-groups --profile ci       >> docs/demo-evidence/S-PERF-GATE-008/show-config-evidence.txt
 ```
 
-Expected output for EACH profile: the `spec-engine-wasmtime` group resolves all 6 binaries
-with non-empty test lists:
+Create the directory `docs/demo-evidence/S-PERF-GATE-008/` if absent before running.
 
-- `plugin_tests` (prism-spec-engine)
-- `crowdstrike_oauth2_plugin_tests` (prism-spec-engine)
-- `enrichment_pivot_002_tests` (prism-spec-engine)
-- `plugin_integration_tests` (prism-spec-engine)
-- `infusion_tests` (prism-spec-engine)
-- `spec_driven_mapper_fixtures` (prism-ocsf)
+**A summarized "resolves ✓" in the PR description is insufficient (F-PG008-P1-HIGH-001
+under-verification).** The actual raw `show-config` output must be committed to the
+evidence file so reviewers can independently verify that each of the 6 binaries is listed
+under `spec-engine-wasmtime` with `max-threads = 1` — not under `spec-engine-wasm-cap`
+with `max-threads = 4` (the pre-fix ordering silently left 5 of 6 binaries uncapped-to-intent).
+
+Expected output for EACH profile section in the evidence file: the `spec-engine-wasmtime`
+group resolves all 6 binaries with non-empty test lists AND each binary shows
+max-threads = 1 (not 4):
+
+- `plugin_tests` (prism-spec-engine) — resolves under `spec-engine-wasmtime`, max-threads=1
+- `crowdstrike_oauth2_plugin_tests` (prism-spec-engine) — resolves under `spec-engine-wasmtime`, max-threads=1
+- `enrichment_pivot_002_tests` (prism-spec-engine) — resolves under `spec-engine-wasmtime`, max-threads=1
+- `plugin_integration_tests` (prism-spec-engine) — resolves under `spec-engine-wasmtime`, max-threads=1
+- `infusion_tests` (prism-spec-engine) — resolves under `spec-engine-wasmtime`, max-threads=1
+- `spec_driven_mapper_fixtures` (prism-ocsf) — resolves under `spec-engine-wasmtime`, max-threads=1
+
+If any of these 6 binaries resolves under `spec-engine-wasm-cap` (max-threads=4), the
+`spec-engine-wasmtime` override stanza is incorrectly positioned AFTER the wasm-cap stanza
+for that profile — reverse the ordering.
 
 A binary name that appears in the filter but resolves to an empty test list indicates a
 mistyped binary name. nextest silently no-ops a zero-match `binary()` filter, so a mistyped
 name leaves `just check` GREEN while the serialization constraint is binding to nothing.
-Both profiles must be checked — a ci-only mistyped name produces a false-green on the
-prepush check (S-PERF-GATE-007 AC-009 lesson, version 1.7).
-
-Output of BOTH commands must be captured in the PR evidence bundle.
+Both profiles must be checked independently — a ci-only mistyped name produces a false-green
+on the prepush check (S-PERF-GATE-007 AC-009 lesson, version 1.7).
 
 Traces to: ADR-049 D5; BC-5.39.001 postcondition (delivery quality; caps are only
-effective when binary-name filters resolve to real compiled test binaries).
+effective when binary-name filters resolve to real compiled test binaries and the
+show-config output is verified, not merely summarized).
 
 ### AC-010 — D9 relabeling: no working-source `S-PERF-GATE-006` references (D9)
 
@@ -659,13 +677,18 @@ without external subscribers.
       #   plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests,
       #   plugin_integration_tests, infusion_tests (prism-spec-engine)
       #   spec_driven_mapper_fixtures (prism-ocsf)
-      # nextest last-match semantics: for the 5 binaries also in spec-engine-wasm-cap
-      # (S-PERF-GATE-007), this override wins (appears later in the file), downgrading
-      # their cap from max-threads=4 to max-threads=1.
+      # nextest first-match-wins per setting: for the 5 binaries also in spec-engine-wasm-cap
+      # (S-PERF-GATE-007), this override wins because the spec-engine-wasmtime override stanza
+      # is placed BEFORE spec-engine-wasm-cap in each profile's override list (see steps 6b/6c).
+      # Placing wasmtime AFTER wasm-cap silently leaves 5 of 6 binaries at max-threads=4
+      # (F-PG008-P1-HIGH-001 — functional defect, not a prose nit).
       spec-engine-wasmtime = { max-threads = 1 }
       ```
 
-   b. After the existing `[[profile.prepush.overrides]]` stanzas, add:
+   b. BEFORE the existing `[[profile.prepush.overrides]]` stanza for `spec-engine-wasm-cap`
+      (nextest first-match-wins per setting — the wasmtime stanza must appear first so the
+      5 overlapping binaries resolve to max-threads=1 before the wasm-cap stanza is reached;
+      inserting AFTER the wasm-cap stanza is the F-PG008-P1-HIGH-001 defect), add:
       ```toml
       [[profile.prepush.overrides]]
       # S-PERF-GATE-008: Serialize wasmtime-heavy test binaries via compilation cache group.
@@ -673,15 +696,24 @@ without external subscribers.
       test-group = 'spec-engine-wasmtime'
       ```
 
-   c. After the existing `[[profile.ci.overrides]]` stanzas, add the same override with
+   c. BEFORE the existing `[[profile.ci.overrides]]` stanza for `spec-engine-wasm-cap`
+      (same first-match-wins principle as step (b)), add the same override with
       `[[profile.ci.overrides]]` header (identical filter and test-group).
 
 7. **Verify** AC-001 through AC-011 grep/check commands each return their expected values.
    Run each before running `just check`.
 
-8. **Run** `cargo nextest show-config test-groups --profile prepush` and
-   `cargo nextest show-config test-groups --profile ci` (AC-009). Capture both outputs
-   for the PR evidence bundle.
+8. **Run** AC-009 evidence capture (F-PG008-P1-HIGH-001 tightening — a summarized
+   "resolves ✓" is no longer accepted):
+   ```
+   mkdir -p docs/demo-evidence/S-PERF-GATE-008
+   cargo nextest show-config test-groups --profile prepush  > docs/demo-evidence/S-PERF-GATE-008/show-config-evidence.txt
+   cargo nextest show-config test-groups --profile ci       >> docs/demo-evidence/S-PERF-GATE-008/show-config-evidence.txt
+   ```
+   Verify in the saved file that all 6 expected binaries appear under `spec-engine-wasmtime`
+   with max-threads=1 for EACH profile. If any shows max-threads=4 the stanza ordering is
+   wrong — fix the ordering before proceeding. Commit the evidence file with the
+   implementation commit (AC-009).
 
 9. **Run** `cargo nextest run -p prism-spec-engine -E 'test(S_PERF_GATE_008)'` to verify
    both Red Gate tests pass GREEN (not `todo!()` panic).
@@ -840,7 +872,7 @@ No `cargo deny` or `cargo audit` action is required per ADR-049 D4.
 | EC-002 | Cache directory does not exist yet | `CacheConfig::new()` uses OS defaults; wasmtime creates the directory automatically on first cache write. No error from `Cache::new`. |
 | EC-003 | `.prx` plugin binary changes (e.g., plugin upgrade) | wasmtime cache key includes `wasm_binary_hash`. The new binary gets a cache miss on first load; Cranelift recompiles and updates the cache entry. No intervention required. |
 | EC-004 | wasmtime version upgrade | Cache key includes `compiler_version`. A new wasmtime version invalidates all existing cache entries (cold start on first run post-upgrade). Expected and correct behavior. |
-| EC-005 | Two spec-engine-wasmtime overrides conflict with a future spec-engine-wasm-cap amendment | nextest last-match wins. The spec-engine-wasmtime overrides must be appended AFTER spec-engine-wasm-cap overrides in the file so that spec-engine-wasmtime (max-threads=1) takes precedence for the 5 overlapping binaries. |
+| EC-005 | Two spec-engine-wasmtime overrides conflict with a future spec-engine-wasm-cap amendment | nextest first-match-wins per setting. The spec-engine-wasmtime override stanzas must be placed BEFORE spec-engine-wasm-cap override stanzas in each profile so that spec-engine-wasmtime (max-threads=1) is the first match for the 5 overlapping binaries. Any future amendment to spec-engine-wasm-cap that inserts a new stanza before the wasmtime stanza will silently re-cap those binaries at max-threads=4; verify ordering via `cargo nextest show-config test-groups` after any amendment. |
 | EC-006 | `apply_wasmtime_cache` called on a platform where wasmtime cache is unsupported | `Cache::new` returns `Err` on unsupported platforms; the D3 degradable path triggers; WARN emitted; boot continues. AC-004 / AC-005 unit tests exercise this path (inject `Err` directly). |
 | EC-007 | `infusion_tests` binary renamed in a future story | The `binary(infusion_tests)` filter would stop matching. The binary would fall under `spec-engine-wasm-cap` (max-threads=4) via S-PERF-GATE-007's override, rather than `spec-engine-wasmtime` (max-threads=1). A future story renaming the binary MUST update this filter. |
 
@@ -858,6 +890,7 @@ No `cargo deny` or `cargo audit` action is required per ADR-049 D4.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-07-02 | story-writer | F-PG008-P1-HIGH-001 remediation: corrected a genuine functional defect — nextest per-test override resolution is first-match-wins per setting (not last-match-wins as previously stated). The prior spec asserted the wasmtime override stanzas should appear AFTER wasm-cap, which caused the delivered `.config/nextest.toml` to leave 5 of 6 wasmtime-heavy binaries silently at max-threads=4 instead of the intended 1. Corrections: (1) §Evidence heading + body: "last-match-wins semantics" → "first-match-wins per setting"; "appear AFTER" → "must appear BEFORE"; added defect summary sentence. (2) AC-008: "last-match semantics means the binary ultimately uses spec-engine-wasmtime" → "first-match-wins per setting: spec-engine-wasmtime stanza appears BEFORE spec-engine-wasm-cap". (3) AC-009: tightened from "capture output in PR evidence bundle" to require saving actual `cargo nextest show-config` output for both profiles to `docs/demo-evidence/S-PERF-GATE-008/show-config-evidence.txt`; explicit "summarized ✓ is insufficient"; added per-binary max-threads=1 verification requirement. (4) Tasks step 6a TOML comment: "last-match semantics … appears later in the file" → "first-match-wins … placed BEFORE wasm-cap". (5) Tasks step 6b: "After the existing [[profile.prepush.overrides]] stanzas" → "BEFORE the existing [[profile.prepush.overrides]] stanza for spec-engine-wasm-cap". (6) Tasks step 6c: same correction for ci profile. (7) Tasks step 8: replaced "capture outputs for the PR evidence bundle" with mkdir + redirect commands to the evidence file and explicit max-threads=1 verification. (8) EC-005: "last-match wins … appended AFTER" → "first-match-wins … placed BEFORE"; added future-amendment verification instruction. Version bump 1.3 → 1.4 per POL-32 (newest-first changelog). |
 | 1.3 | 2026-07-01 | story-writer | F-M1 (MED) remediation: portability class-sweep for grep-recipe BSD/GNU divergence. AC-003 check-1: replaced GNU-only `\s` with POSIX bracket class `[[:space:]]` in `grep -vE '^[[:space:]]*(///|//)'` — `\s` is not guaranteed portable on BSD/macOS grep (treated as literal `s` on some systems, causing indented comment lines to pass the filter and returning 3 instead of Expected 1). Updated matching prose description in AC-003 body to stay consistent with the executable recipe. Full class-sweep of all grep/rg/shell recipes in the story (AC-001 through AC-012, Red Gate, §FSR, Tasks): no other GNU-only constructs found — all remaining recipes use only fixed-string literals, POSIX ERE alternation `(a|b)`, standard anchors `^` and `$`, and quantifiers `*` and `+`. Codified fix for the grep-recipe-portability sub-class of the F-1 lesson (recurrence prevention). Version bump 1.2 → 1.3 per POL-32 (newest-first changelog). Spec-only; frozen HEAD 5d2d7aad unchanged. |
 | 1.2 | 2026-07-01 | story-writer | F-1 (MED) remediation: four grep-based AC self-verification recipes made precise, anchored, and scope-restricted so each returns its stated Expected value against correct delivered code (code unchanged). AC-003 check 1: replaced bare `grep -c 'event_type = "..."'` (returned 3 due to doc/code comments) with comment-excluding pipeline `grep ... | grep -vE '^\s*(///|//)' | wc -l` → Expected 1. AC-003 check 3: replaced fragile `grep -B10 'plugin.compilation_cache_init_skipped' | grep -c 'cfg(test)'` (returned 1 due to anti-pattern comment in B10 context of a string-literal match) with `grep -B1 'fn apply_wasmtime_cache' | grep -c '#\[cfg(test)\]'` → Expected 0; cited RG-002 as load-bearing runtime proof per adversary confirmation. AC-008: replaced bare `grep -c 'infusion_tests'` (returned 3 due to D5 comment token) with `grep -c 'binary(infusion_tests)'` → Expected 2. AC-010: removed `Justfile` from grep scope (4 legitimate S-PERF-GATE-006 sibling-story comments, outside 008's modification perimeter); restricted to `crates/prism-spec-engine/ .config/nextest.toml` → Expected no hits; updated Tasks step 11 to match. Pattern: recurrence of S-PERF-GATE-007 F-LOW-1 (grep-recipe false-failure on correct artifacts). |
 | 1.1 | 2026-07-01 | story-writer | Remove-uncertainty pass: confirmed wasmtime 44 API signatures (`Cache::new -> Result<Cache, wasmtime::Error>`, `Config::cache(Option<Cache>)`); replaced synthetic `anyhow::anyhow!` SID-1 forced-failure with verified `CacheConfig::with_directory("relative/not/absolute")` mechanism (is_absolute check, pre-FS, deterministic cross-platform, zero side effects); updated helper signature from `anyhow::Error` to `wasmtime::Error`; added §References citation to `.factory/research/wasmtime-44-cache-api-S-PERF-GATE-008.md`; removed line-number citations from RG-002 narrative, Previous Story Intelligence, and Tasks step 1 per TD-VSDD-091. |
