@@ -17,12 +17,16 @@ test:
 # NOTE: PROPTEST_CASES=100 in the recipe overrides any value set in your shell environment
 # for the duration of the cargo nextest invocation.
 # NOTE: cargo-nextest skips doctests by default; the separate --doc step covers them.
-# NOTE: RUSTFLAGS="" is set explicitly on both the nextest and doctest steps so they share
-# the same fingerprint cache. Without alignment, a RUSTFLAGS drift (e.g. a shell export)
-# forces a full recompile for the doctest step (ci.yml lines 127-134 rationale).
+# NOTE: RUSTFLAGS="" is set explicitly on the three cargo-compilation steps (clippy, nextest, doctest)
+# so they share the same fingerprint cache. Without alignment, a RUSTFLAGS drift (e.g. a
+# shell export) forces a full recompile between steps (see RUSTFLAGS alignment on ci.yml's
+# nextest and doctest steps in the test job — mold-linker fingerprint-cache rationale).
+# S-PERF-GATE-006: RUSTFLAGS="" aligns clippy's build fingerprint with the
+# nextest/doctest steps for shared-cache reuse. See story S-PERF-GATE-006
+# for rationale + measured savings.
 check:
     cargo fmt --check
-    cargo clippy --all-features -- -D warnings
+    RUSTFLAGS="" cargo clippy --all-features -- -D warnings
     RUSTFLAGS="" PROPTEST_CASES=100 cargo nextest run --workspace --all-features --profile prepush
     RUSTFLAGS="" PROPTEST_CASES=100 cargo test --workspace --all-features --doc
     @scripts/check-crate-layout.sh
@@ -37,13 +41,20 @@ check:
 #        just iter prism-query test_parser
 # This is the recommended inner loop. Do NOT use `just check` during TDD —
 # reserve it for pre-push verification.
+# NOTE: RUSTFLAGS="" keeps iter's nextest builds in the same RUSTFLAGS bucket as check,
+# so `just iter` does not invalidate check's shared dependency cache on the RUSTFLAGS axis.
+# (iter is single-crate/default-features, so this does not make iter → check rebuild-free.)
+# See story S-PERF-GATE-006 for full rationale.
 iter crate test_filter='':
-    PROPTEST_CASES=32 cargo nextest run -p {{crate}} {{test_filter}}
+    RUSTFLAGS="" PROPTEST_CASES=32 cargo nextest run -p {{crate}} {{test_filter}}
 
 # Fast workspace check — lint only, no tests. Use to confirm the workspace
 # still type-checks during a refactor sweep before running tests.
+# NOTE: RUSTFLAGS="" keeps this clippy fingerprint aligned with `check`, so the
+# edit → `just check-fast` → `just check` dev loop reuses clippy artifacts instead
+# of re-checking. See story S-PERF-GATE-006 for full rationale.
 check-fast:
-    cargo clippy --all-features -- -D warnings
+    RUSTFLAGS="" cargo clippy --all-features -- -D warnings
 
 # Generate a build-timings report for diagnostics. Outputs HTML at
 # target/cargo-timings/cargo-timing.html. See research sidecar §7 for
