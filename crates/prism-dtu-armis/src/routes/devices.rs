@@ -492,12 +492,11 @@ fn check_bearer_auth(headers: &HeaderMap) -> Option<axum::response::Response> {
 /// These tests verify the `mask.primary_device && stage_idx > 0` guard implemented in
 /// `paginate_devices` without wall-clock dependency or HTTP server spin-up. The HTTP-level
 /// integration tests that exercise the full route are in
-/// `tests/bc_2_06_019_scenario_progression.rs`; those are quarantined (#[ignore]) due to a
-/// wall-clock race under full-suite load (TV-019-009). These unit tests provide deterministic
-/// behavioral coverage for SID-1 compliance.
-///
-/// SID-1: quarantined #[ignore]'d tests must have a unit test in the production module's
-/// `#[cfg(test)]` block that drives the behavior WITHOUT the external dependency.
+/// `tests/bc_2_06_019_scenario_progression.rs`; those tests now run in CI — the macOS
+/// native-tls Keychain init race that previously exceeded the 50s stage-0 window was
+/// resolved by standardizing reqwest to rustls-tls per ADR-050 (S-DEMO-FIDELITY-REMEDIATION-001).
+/// These in-process unit tests remain as a fast, deterministic complement to the subprocess
+/// HTTP integration tests.
 #[cfg(all(test, feature = "fixture-gen"))]
 mod tests {
     use prism_dtu_common::{
@@ -517,8 +516,8 @@ mod tests {
     ///   - false at stage 0 (elapsed < 60s) → primary device ABSENT
     ///   - true  at stage 1 (elapsed >= 60s) → primary device PRESENT
     ///
-    /// Uses fixed epoch (no wall clock). This is the deterministic coverage required by
-    /// SID-1 for the quarantined TV-019-009 HTTP integration tests.
+    /// Uses fixed epoch (no wall clock). This is the deterministic complement to the
+    /// HTTP integration tests in `tests/bc_2_06_019_scenario_progression.rs` (TV-019-009).
     #[test]
     fn test_BC_2_06_019_stage0_primary_device_filtering_predicate_deterministic() {
         let org = deadbeef_org();
