@@ -13,13 +13,25 @@ target_module: prism-mcp
 # EnrichUdfNotFound variant + struct do not yet exist anywhere in the workspace (verified
 # 2026-06-26 remove-uncertainty pass). E-QUERY-037 map_prism_error arm is CONFIRMED PRESENT
 # (v1.2 C1 correction — NOT net-new as stated in v1.1).
-subsystems: [SS-10, SS-11]
+# v2.15 fold-in (TLS-REMEDIATION): 9 DTU crates' [dev-dependencies] + prism-bin [dev-dependencies]
+# + ocsf-proto-gen optional download-feature [dependencies] standardized to rustls-tls
+# (default-features=false); 4 DTU integration tests un-quarantined; 7 stop() cleanups in
+# prism-dtu-claroty tests. prism-mcp remains primary target_module; DTU crates are co-owners
+# of the TLS-REMEDIATION scope.
+subsystems: [SS-01, SS-10, SS-11, SS-22]
 # Subsystem anchor justifications:
-#   SS-10 (MCP Interface) owns the prism-mcp work:
+#   SS-01 (Sensor Adapters) owns the TLS-REMEDIATION fold-in work per ARCH-INDEX Subsystem
+#     Registry (SS-01 row lists prism-dtu-common, prism-dtu-claroty, prism-dtu-armis,
+#     prism-dtu-crowdstrike, prism-dtu-cyberint, prism-dtu-slack, prism-dtu-pagerduty,
+#     prism-dtu-jira, prism-dtu-nvd, prism-dtu-threatintel):
+#     - TLS-REMEDIATION: [dev-dependencies] reqwest standardized to rustls-tls in all 9 DTU crates;
+#       4 integration tests un-quarantined in prism-dtu-armis (3) and prism-dtu-crowdstrike (1);
+#       7 stop() resource-cleanup calls added in prism-dtu-claroty sec_p3_003_constant_time_admin_token.rs
+#   SS-10 (MCP Interface) owns the prism-mcp work per ARCH-INDEX Subsystem Registry:
 #     - N1: build_reference_content in resources.rs (BC-2.11.022 v1.1) — per-field UDF names
 #     - AUDIT-001: build_tables_for_client in prism_describe.rs (BC-2.10.012 v1.5) — sensor-prefixed name
 #     - AUDIT-004: render_* functions in prompts.rs (BC-2.10.016 v1.2) — FROM-ready table names
-#   SS-11 (Query Execution Engine) owns the prism-query + prism-core work:
+#   SS-11 (Query Execution Engine) owns the prism-query + prism-core work per ARCH-INDEX:
 #     - N1-B: E-QUERY-039 NET-NEW implementation: EnrichUdfNotFound variant+struct in prism-core/error.rs;
 #             plan-time enrichment gate in prism-query/engine.rs (AST visitor, pipe EnrichStage +
 #             SQL ScalarFunc::Unknown paths); map_prism_error -32602 net-new arm in error_mapping.rs.
@@ -28,7 +40,13 @@ subsystems: [SS-10, SS-11]
 #             at merge (POL-14).
 #     - N2: E-QUERY-037 gate-ordering fix located in table_registry.rs (check_availability_gate /
 #           is_registered) + engine.rs — NOT materialization.rs only (verified 2026-06-26).
-#   Both subsystems are touched; SS-10 is primary (larger scope); SS-11 is co-owner.
+#   SS-22 (Process Lifecycle) owns prism-bin per ARCH-INDEX Subsystem Registry:
+#     - TLS-REMEDIATION: prism-bin [dev-dependencies] reqwest standardized to rustls-tls
+#   NOTE: ocsf-proto-gen (optional download-feature dep) is a build-helper not registered in the
+#     ARCH-INDEX Subsystem Registry; its change is a single Cargo.toml dep-feature flag and
+#     does not alter any subsystem boundary.
+#   SS-01 is added at v2.15 (TLS fold-in); SS-22 is added at v2.15 (TLS fold-in).
+#   SS-10 is primary (largest scope); SS-11 and SS-01 are co-owners.
 priority: P0
 # P0: ALL findings targeted by this story are DEMO-BLOCKING under the human directive
 # "fix everything before T13" (2026-06-26). The T13 recording cannot proceed with incorrect
@@ -43,15 +61,17 @@ depends_on:
   # materialization.rs E-QUERY-037 gate, prompts.rs render_* functions) introduced by PR #203
   # are the exact functions this story modifies.
 blocks: []
-estimated_days: 2
-# Estimate: 5 targeted code fixes, each well-scoped with a BC and known root cause.
+estimated_days: 2.5
+# Estimate: 5 targeted code fixes + gate-coverage + TLS-REMEDIATION fold-in.
 # N1 (resources.rs dedup key change): 0.5d
 # N1-B (E-QUERY-039 gate investigation + fix): 0.5d
 # N2 (E-QUERY-037 plan-time dot-notation gate ordering): 0.5d
 # AUDIT-001 (build_tables_for_client sensor-prefix): 0.25d
 # AUDIT-004 (prompts.rs FROM-ready names): 0.25d
-points: 10
-# Points breakdown (revised v1.2 — C1/I1/I2/S1 corrections; total unchanged from v1.1):
+# TLS-REMEDIATION fold-in (v2.15): standardize 11 Cargo.toml reqwest deps to rustls-tls,
+#   un-quarantine 4 DTU integration tests, add 7 stop() calls: 0.5d
+points: 11
+# Points breakdown (v2.15 — adds 1pt for TLS-REMEDIATION fold-in; prior total was 10):
 #   BC-2.11.022 v1.1 — N1: fix dedup key in build_reference_content: 2 pts
 #   BC-2.11.019 v1.5 — N1-B: NET-NEW E-QUERY-039 implementation:
 #     create EnrichUdfNotFound variant + EnrichUdfNotFoundDetails #[non_exhaustive] struct
@@ -63,15 +83,17 @@ points: 10
 #     (NOT materialization.rs only — gate is in check_availability_gate/is_registered): 2 pts
 #   BC-2.10.012 v1.7 — AUDIT-001 + AC-CAT2: fix build_tables_for_client emit format + build_pql_hints Cat2: 1 pt
 #   BC-2.10.016 v1.2 — AUDIT-004: fix render_* prompt FROM-ready table names: 1 pt
-#   Total: 10 pts (N1-B is full net-new implementation, not a routing investigation)
+#   TLS-REMEDIATION (v2.15 fold-in): rustls-tls standardization across 11 Cargo.toml entries,
+#     4 test un-quarantine + root-cause correction, 7 stop() cleanups: 1 pt
+#   Total: 11 pts
 level: "L4"
 status: draft
 # BC status: 6 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.7,
 #   BC-2.11.016 v1.5, BC-2.11.007 v1.9) + BC-2.11.019 v1.5 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.14"
-updated: "2026-06-29"
+version: "2.15"
+updated: "2026-07-02"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
 input-hash: "TBD"
@@ -89,12 +111,12 @@ cycle: "v1.0.0-greenfield"
 epic_id: "E-5"
 # Epic E-5 (MCP Interface / Query Engine). Remediation story targeting T13 capstone demo fidelity.
 phase: 2
-acceptance_criteria_count: 16
-# 16 ACs (v2.14 reconciliation — ADV-P208-P02-002 honest body count; prior frontmatter claimed 17):
-#   Discrete **AC-XXX** headers enumerated (15 pre-v2.14 + 1 new AC-CAT2 = 16):
+acceptance_criteria_count: 17
+# 17 ACs (v2.15 — adds AC-TLS for the TLS-REMEDIATION fold-in):
+#   Discrete **AC-XXX** headers enumerated (16 pre-v2.15 + 1 new AC-TLS = 17):
 #     AC-N1, AC-N1B, AC-N2, AC-AUDIT-001, AC-AUDIT-004, AC-CAT2,
 #     AC-C1C2, AC-M1, AC-M2, AC-L1, AC-H1, AC-DISC,
-#     AC-REG-1, AC-REG-2, AC-DEMO-001, AC-SAP-1
+#     AC-REG-1, AC-REG-2, AC-DEMO-001, AC-SAP-1, AC-TLS
 #   Sub-behaviors folded into parent ACs (NOT counted as standalone headers):
 #     CRIT-1 (embedded bold section within AC-AUDIT-001, not a separate **AC-CRIT1** header)
 #     SqlPipe modes (covered in AC-N1B, AC-N2, AC-C1C2 — no standalone **AC-SQLPIPE** header)
@@ -262,6 +284,39 @@ crates_touched:
   # `InfusionUdfDescriptor` gains `pub input_field: String`; `new()` gains this param
   # (BC-2.10.012 v1.7 §pql_hints Category-2). `udf_descriptors()` in
   # crates/prism-spec-engine/src/infusion/mod.rs propagates `field.input_field.clone()`.
+  - prism-dtu-armis
+  # TLS-REMEDIATION (v2.15): [dev-dependencies] reqwest → rustls-tls (default-features=false).
+  # 3 tests un-quarantined (removed #[ignore]):
+  #   test_BC_2_06_019_armis_primary_device_stage_visibility
+  #   test_BPRL_P4_02_armis_alerts_stage_guard_primary_device
+  #   test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility
+  - prism-dtu-crowdstrike
+  # TLS-REMEDIATION (v2.15): [dev-dependencies] reqwest → rustls-tls (default-features=false).
+  # 1 test un-quarantined (removed #[ignore]):
+  #   test_BPRL_P4_02_detections_stage_guard_primary_device
+  - prism-dtu-claroty
+  # TLS-REMEDIATION (v2.15): [dev-dependencies] reqwest → rustls-tls (default-features=false).
+  # 7 stop() resource-cleanup calls added in
+  #   crates/prism-dtu-claroty/tests/sec_p3_003_constant_time_admin_token.rs
+  - prism-dtu-cyberint
+  # TLS-REMEDIATION (v2.15): [dev-dependencies] reqwest → rustls-tls (default-features=false).
+  - prism-dtu-slack
+  # TLS-REMEDIATION (v2.15): [dev-dependencies] reqwest → rustls-tls (default-features=false).
+  - prism-dtu-pagerduty
+  # TLS-REMEDIATION (v2.15): [dev-dependencies] reqwest → rustls-tls (default-features=false).
+  - prism-dtu-jira
+  # TLS-REMEDIATION (v2.15): [dev-dependencies] reqwest → rustls-tls (default-features=false).
+  - prism-dtu-nvd
+  # TLS-REMEDIATION (v2.15): [dev-dependencies] reqwest → rustls-tls (default-features=false).
+  - prism-dtu-threatintel
+  # TLS-REMEDIATION (v2.15): [dev-dependencies] reqwest → rustls-tls (default-features=false).
+  - prism-bin
+  # TLS-REMEDIATION (v2.15): [dev-dependencies] reqwest → rustls-tls (default-features=false).
+  #   Scope: dev-dependencies only; prism-bin production reqwest was ALREADY rustls — unchanged.
+  - ocsf-proto-gen
+  # TLS-REMEDIATION (v2.15): optional download-feature [dependencies] reqwest →
+  #   rustls-tls (default-features=false). Production security posture unchanged
+  #   (download feature is build-time only; not a runtime dep).
   - prism-query
   # IMPLEMENTED — materialization.rs: `pub(crate) fn seed_armis_entity_discriminator`
   # (F-L2-CRIT-001 fix) seeds the AQL search discriminator for armis tables when `aql`
@@ -304,7 +359,10 @@ crates_touched:
 
 As a Prism developer preparing the T13 capstone demo recording, I want the five
 code defects identified in the 2026-06-26 pre-flight re-audit fixed, plus all
-gate-coverage gaps found during LOCAL adversarial passes, so that: the `prismql://reference`
+gate-coverage gaps found during LOCAL adversarial passes, AND the test-infrastructure
+TLS reliability fix folded in from the un-parking rebase (commit cf66151f —
+rustls-tls standardization removing macOS native-tls Keychain-init latency from DTU
+integration tests), so that: the `prismql://reference`
 resource lists the correct callable enrichment UDF names; calling an unregistered
 enrichment name at any AST position (SELECT projection, JOIN ON, GROUP BY, ORDER BY,
 HAVING, WHERE, or SqlPipe head) returns a self-correcting E-QUERY-039 error (not an
@@ -893,6 +951,67 @@ E-QUERY-039 (enrich) → E-QUERY-011 (capability, last pre-I/O gate).
 
 ---
 
+### Area L — TLS Standardization: native-tls → rustls-tls for DTU Test Infrastructure (TLS-REMEDIATION)
+
+> **ROOT CAUSE CORRECTION (v2.15 fold-in — commit cf66151f):** During un-parking of this
+> branch (rebased onto develop@aaa9bfe8), the REAL root cause of the 4 quarantined DTU
+> stage-0 integration test failures was identified and fixed. The 4 tests were NOT failing
+> due to "WASMtime plugin-init starvation" (the original misdiagnosis). The actual root
+> cause was: macOS `native-tls` backend initializes the Security.framework Keychain
+> per-test-process, adding ~65s of one-time overhead per test binary. Under full-suite
+> parallel load (nextest running multiple test binaries concurrently), the stage-0 window
+> (50s) was exhausted by TLS init BEFORE any HTTP request was issued — causing the 4
+> stage-0 scenario tests to fail DETERMINISTICALLY (not flakily). The fix:
+> standardize the `reqwest` dependency to `rustls-tls` (default-features=false) across
+> all affected test configurations. `rustls-tls` init is ~0ms, giving ~800x margin over
+> the 50s window.
+
+**AC-TLS** (traces to BC-2.06.019 v1.? precondition — DTU stage-0 scenarios execute within
+the stage-0 window under parallel test load):
+
+The 4 previously-quarantined DTU integration tests MUST pass when run under full-suite
+parallel load (nextest default concurrency) on macOS:
+
+| Test | Crate | Removal commit |
+|------|-------|----------------|
+| `test_BC_2_06_019_armis_primary_device_stage_visibility` | `prism-dtu-armis` | cf66151f |
+| `test_BPRL_P4_02_armis_alerts_stage_guard_primary_device` | `prism-dtu-armis` | cf66151f |
+| `test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility` | `prism-dtu-armis` | cf66151f |
+| `test_BPRL_P4_02_detections_stage_guard_primary_device` | `prism-dtu-crowdstrike` | cf66151f |
+
+**Additional observable behaviors (all part of AC-TLS):**
+
+1. **`just check` passes workspace-wide** after the TLS standardization (5085 tests pass,
+   Cargo.lock shrinks by −151 lines as native-tls and its macOS Security.framework transitive
+   deps are removed from the lock file).
+
+2. **Production reqwest deps are unchanged.** The `[dependencies]` (production) reqwest
+   entries in `prism-bin`, `prism-spec-engine`, and `prism-sensors` were ALREADY configured
+   with `rustls-tls` before this fix. This remediation touches ONLY `[dev-dependencies]`
+   entries (test binaries) and the optional `download` feature `[dependencies]` in
+   `ocsf-proto-gen`. The production TLS configuration and runtime security posture are
+   unchanged — confirmed by the security review APPROVE on commit cf66151f.
+
+3. **All 11 Cargo.toml entries use `default-features=false` with the `rustls-tls` feature**
+   (not the mixed `native-tls`/`rustls-tls` feature set that caused the init overhead).
+
+4. **`prism-dtu-claroty/tests/sec_p3_003_constant_time_admin_token.rs`** — 7 tests in this
+   file gain explicit `stop()` resource-cleanup calls to ensure DTU clone shutdown completes
+   before the test process exits, preventing port-reuse races in subsequent test runs.
+
+**Verification:** Run `cargo nextest run -p prism-dtu-armis -p prism-dtu-crowdstrike
+--no-fail-fast` and confirm the 4 formerly-quarantined tests pass. Run `just check` and
+confirm workspace exits 0.
+
+> **No BC authorship required for TLS standardization.** The rustls-tls standardization is
+> a test-infrastructure dependency configuration change, not a behavioral contract change.
+> BC-2.06.019 (DTU stage-0 scenario visibility) is unchanged — the tests simply RUN now
+> rather than being quarantined. If the architect or PO determines that a standing ADR is
+> warranted for the rustls-tls-only convention in DTU dev-dependencies, that authorship
+> is routed to architect/product-owner — NOT authored here.
+
+---
+
 ### Deferred / Out-of-Perimeter Items (v2.0)
 
 The following items were identified during the LOCAL adversarial cascade but are out of scope
@@ -981,20 +1100,22 @@ BC-2.11.016 stays at v1.5 — no version change required.
 
 | Artifact | Estimated Tokens |
 |----------|-----------------|
-| This story spec (v2.14) | ~18,000 |
+| This story spec (v2.15) | ~20,000 |
 | BC files (7 BCs, BC-2.10.012 now v1.7) | ~14,000 |
 | Source files touched (resources.rs, prompts.rs, prism_describe.rs, error.rs, table_registry.rs, engine.rs, error_mapping.rs + new test files) | ~32,000 |
+| DTU Cargo.toml files (11 entries — 9 DTU crates + prism-bin + ocsf-proto-gen) | ~2,000 |
+| DTU test files (sec_p3_003_constant_time_admin_token.rs + 2 un-quarantine test files) | ~3,000 |
 | Research/audit docs (2) | ~6,000 |
-| Test files (existing + new — 37 Red Gate tests across 9 new test files) | ~19,000 |
+| Test files (existing + new — 52 Red Gate tests across 9 new test files) | ~19,000 |
 | Tool outputs (grep, rg scans, call-chain traces) | ~4,000 |
-| **Total estimate** | **~90,000** |
+| **Total estimate** | **~100,000** |
 
 Within the 20-30% context window budget for a Sonnet-class agent context (≈200k tokens).
-The story has grown substantially from the original 5-finding scope to cover gate-coverage
-expansion, describe correctness, and prompt-value fixes. It remains within a single dispatch
-budget — no splitting required. The addition of BC-2.11.016 (6th BC, ~2k tokens) brings total
-to ~88k. Implementations should be delivered in sub-bursts to avoid context overflow (more than
-8 artifacts → sub-burst A: create files, sub-burst B: update indexes).
+The story has grown from the original 5-finding scope to cover gate-coverage expansion,
+describe correctness, prompt-value fixes, and the TLS-REMEDIATION fold-in (v2.15). It
+remains within a single dispatch budget — no splitting required. Implementations should be
+delivered in sub-bursts to avoid context overflow (more than 8 artifacts → sub-burst A:
+create files, sub-burst B: update indexes).
 
 ---
 
@@ -1101,6 +1222,33 @@ to ~88k. Implementations should be delivered in sub-bursts to avoid context over
 - [ ] 22. Verify `grep 'EXPECTED=' scripts/check-non-exhaustive.sh` shows `88` (not 87).
 - [ ] 23. Run `rg 'event_type\s*=' crates/ --type rust`; verify every emission has a
         BC-2.16.002 catalog row (SAP-1 compliance).
+
+### TLS-REMEDIATION — native-tls → rustls-tls (folded in via commit cf66151f)
+
+> **STATUS: IMPLEMENTED** (commit cf66151f, `just check` green, 5085 tests pass, security
+> review APPROVE). These tasks are documented for traceability; the implementer verifies
+> they are already done on the branch before PR merge.
+
+- [x] TLS-1. Read each DTU crate's `[dev-dependencies]` in `Cargo.toml`; confirm
+        `reqwest` uses `default-features=false, features=["rustls-tls"]` (not `native-tls`).
+        Affected crates: prism-dtu-armis, prism-dtu-crowdstrike, prism-dtu-claroty,
+        prism-dtu-cyberint, prism-dtu-slack, prism-dtu-pagerduty, prism-dtu-jira,
+        prism-dtu-nvd, prism-dtu-threatintel (9 DTU dev-dep entries).
+- [x] TLS-2. Read `crates/prism-bin/Cargo.toml` `[dev-dependencies]`; confirm
+        `reqwest` uses `rustls-tls` (dev-dep only; production dep already was rustls).
+- [x] TLS-3. Read `crates/ocsf-proto-gen/Cargo.toml`; confirm the optional `download`
+        feature's `[dependencies]` reqwest uses `rustls-tls` (default-features=false).
+- [x] TLS-4. Confirm the 4 `#[ignore]` attributes are removed:
+        `test_BC_2_06_019_armis_primary_device_stage_visibility`,
+        `test_BPRL_P4_02_armis_alerts_stage_guard_primary_device`,
+        `test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility` (prism-dtu-armis);
+        `test_BPRL_P4_02_detections_stage_guard_primary_device` (prism-dtu-crowdstrike).
+- [x] TLS-5. Confirm 7 `stop()` calls added in
+        `crates/prism-dtu-claroty/tests/sec_p3_003_constant_time_admin_token.rs`.
+- [x] TLS-6. Run the 4 formerly-quarantined tests at least 3 times; confirm no flakiness
+        at ~0.05s vs 50s window (≥800x margin):
+        `cargo nextest run -p prism-dtu-armis -p prism-dtu-crowdstrike -E 'test(BPRL_P4_02)' --no-fail-fast`
+- [x] TLS-7. Run `just check` (full workspace); confirm EXIT 0 with 5085 tests.
 
 ---
 
@@ -1288,6 +1436,9 @@ Files NOT modified:
 | Gate ordering (execute_inner + execute_scheduled_inner) | `crates/prism-query/src/engine.rs` | Pure (plan-time orchestration); canonical: E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-011 |
 | `map_prism_error` (E-QUERY-039 arm net-new; E-QUERY-037 arm confirmed-present — no change) | `crates/prism-mcp/src/error_mapping.rs` | Pure (mapping function) |
 | `seed_armis_entity_discriminator` (NEW — AC-DISC, F-L2-CRIT-001; wired into run_materialization_pipeline fan-out) | `crates/prism-query/src/materialization.rs` | Pure (takes table_name + filters, returns seeded filters) |
+| reqwest `[dev-dependencies]` — rustls-tls standardization (AC-TLS) | `crates/prism-dtu-{armis,crowdstrike,claroty,cyberint,slack,pagerduty,jira,nvd,threatintel}/Cargo.toml`, `crates/prism-bin/Cargo.toml`, `crates/ocsf-proto-gen/Cargo.toml` | Effectful (HTTP test client dep config change only; no production code path affected) |
+| DTU integration tests — un-quarantined (AC-TLS) | `crates/prism-dtu-armis/tests/`, `crates/prism-dtu-crowdstrike/tests/` | Effectful (integration tests start DTU HTTP server; root cause was native-tls Keychain init latency, fixed by rustls-tls) |
+| `stop()` resource-cleanup (AC-TLS) | `crates/prism-dtu-claroty/tests/sec_p3_003_constant_time_admin_token.rs` | Effectful (test teardown — ensures DTU clone shuts down before next test run) |
 
 ---
 
@@ -1328,15 +1479,18 @@ capture evidence of the fixed MCP tool output and prompt rendering as per AC-DEM
 | EC-015 | AUDIT-001: No datetime column in table spec → column-free example_query (when also no Integer/Float column) | `build_example_query` produces `SELECT * FROM <t> LIMIT 25` (not `WHERE timestamp > ...`). This is the lowest-priority fallback in the variant ladder: aggregate (Integer/Float) → severity-filter (severity + known vocabulary) → count-recent (Datetime) → column-free (fallback). Test: `test_crit1_no_datetime_column_produces_column_free_query`. |
 | EC-016 | N1-B (BC-2.11.019 v1.5 EC-11-064): `SELECT lower(hostname) FROM crowdstrike_detections` with infusion registry wired but `lower` not registered as an infusion | E-QUERY-039 does NOT fire. `lower` is a DataFusion built-in scalar resolved via `ctx.state().scalar_functions()`; it satisfies built-in exclusion condition (b). Query proceeds to DataFusion execution. Test: `test_bc_2_11_019_n1b_builtin_passthrough_lower`. |
 | EC-017 | N1-B (BC-2.11.019 v1.5 EC-11-065): `SELECT upper(device_name), coalesce(severity, 'unknown') FROM armis_devices` with infusion registry wired | E-QUERY-039 does NOT fire for `upper` or `coalesce` — both are DataFusion built-ins excluded from the gate. Query proceeds normally. Test: `test_bc_2_11_019_n1b_builtin_passthrough_coalesce`. |
+| EC-018 | TLS-REMEDIATION: macOS native-tls/Security.framework Keychain init overhead (~65s) under nextest full-suite parallel load | Resolved by rustls-tls standardization (commit cf66151f). With rustls-tls, init is ~0ms → ~800x margin over the 50s stage-0 window. DTU stage-0 tests no longer time out deterministically. This was NOT flakiness — it was a deterministic failure masked as a random one because parallel test scheduling varied which binary crossed the threshold. |
+| EC-019 | TLS-REMEDIATION: production reqwest deps in prism-bin/prism-spec-engine/prism-sensors were ALREADY rustls-tls before this fix | Production code path is unaffected. Only `[dev-dependencies]` (test binaries) and the optional build-tool dep in ocsf-proto-gen changed. Security posture unchanged — confirmed by security review APPROVE on commit cf66151f. |
 
 ---
 
 ## Estimated Complexity
 
-**10 story points.**
+**11 story points** (v2.15 — +1 pt for TLS-REMEDIATION fold-in; prior total was 10).
 
 Root causes are all confirmed, code paths are known, and BCs are in place. The implementation
-spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adversarial passes:
+spans the original 5 findings, 6 gate-coverage fixes found during LOCAL adversarial passes,
+and the TLS-REMEDIATION fold-in (commit cf66151f):
 - N1: one-line dedup key change in `build_reference_content` + test
 - N1-B: net-new error type (error.rs) + `collect_unknown_scalars_from_sql_query` + `check_enrich_udf_availability` in engine.rs covering ALL AST positions (SELECT, WHERE, JOIN ON, GROUP BY, ORDER BY, HAVING) for both Sql and SqlPipe; map_prism_error -32602 arm; sorted+deduped available_infusions; strsim did_you_mean; DataFusion built-in exclusion (BC-2.11.019 v1.5 F-PJL1-HIGH-001); + 19 new tests (15 original + 2 builtin_passthrough EC-11-064/065 + 2 F-PJL mid-cascade F-PJL1/F-PJL4)
 - N2: gate ordering fix in `check_availability_gate` (table_registry.rs) with SqlPipe-not-exempt scope; 4 new N2 tests
@@ -1344,6 +1498,7 @@ spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adve
 - AUDIT-004: FROM-ready names in 4 `render_*` functions (not 5 — `render_query_tutorial` was clean); prompt VALUES aligned to DTU vocabulary (MED-1); `all-FROM-resolve` guard; 5 new tests
 - Gate-coverage fixes: C1/C2 (enrich gate JOIN/GROUP/ORDER), M1 (single-tenant column gate via `columns_for_table`), M2 (E-QUERY-038 validates GROUP BY/ORDER BY/JOIN ON columns), L1 (E-QUERY-037 source walk covers all subquery positions), H1 (capability-gate ordering symmetric in execute_scheduled_inner)
 - Deleted: `crates/prism-mcp/tests/crit001_prompt_table_names.rs` (superseded by AUDIT-004 TOML-derived guard, OBS-4)
+- TLS-REMEDIATION (v2.15 fold-in): standardize 11 reqwest Cargo.toml entries to rustls-tls; remove 4 `#[ignore]` attributes from DTU stage-0 integration tests; add 7 stop() resource-cleanup calls in prism-dtu-claroty. Root cause was macOS native-tls/Security.framework Keychain init (~65s per test process) exceeding the 50s stage-0 window under parallel nextest load — corrected root cause replaces prior misdiagnosis of "WASMtime plugin-init starvation".
 
 ---
 
@@ -1351,6 +1506,7 @@ spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.15 | tls-remediation-fold-2026-07-02 | 2026-07-02 | story-writer | **TLS-REMEDIATION fold-in (commit cf66151f) + root cause correction.** (1) **AC-TLS added (Area L):** documents the native-tls → rustls-tls standardization across 11 Cargo.toml entries (9 DTU `[dev-dependencies]`, prism-bin `[dev-dependencies]`, ocsf-proto-gen optional download-feature `[dependencies]`); 4 DTU integration tests un-quarantined (removed `#[ignore]`): `test_BC_2_06_019_armis_primary_device_stage_visibility`, `test_BPRL_P4_02_armis_alerts_stage_guard_primary_device`, `test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility` (prism-dtu-armis), `test_BPRL_P4_02_detections_stage_guard_primary_device` (prism-dtu-crowdstrike); 7 stop() resource-cleanup calls added in prism-dtu-claroty `sec_p3_003_constant_time_admin_token.rs`. (2) **Root cause corrected:** prior misdiagnosis "WASMtime plugin-init starvation" replaced with the REAL root cause: macOS native-tls/Security.framework Keychain init (~65s/process) exceeding the 50s stage-0 window under nextest parallel load — a DETERMINISTIC failure, not flakiness. (3) **Frontmatter updates:** `version` 2.14→2.15; `updated` 2026-06-29→2026-07-02; `subsystems` [SS-10, SS-11]→[SS-01, SS-10, SS-11, SS-22] (SS-01 for 9 DTU crates; SS-22 for prism-bin); `points` 10→11 (+1pt TLS-REMEDIATION); `estimated_days` 2→2.5 (+0.5d); `acceptance_criteria_count` 16→17 (+AC-TLS); `crates_touched` adds 9 DTU crates + prism-bin + ocsf-proto-gen (11 entries). (4) **No BC authorship:** BC-2.06.019 behavior is unchanged — the tests simply run now. ADR/BC recommendation for rustls-tls convention flagged to orchestrator for routing to architect. |
 | 2.14 | cat2-ac-adv-p208-p02-fold-2026-06-29 | 2026-06-29 | story-writer | **AC-CAT2 add + ADV-P208-P02-001 close + ADV-P208-P02-002 close.** (1) **AC-CAT2 (BC-2.10.012 v1.7 §pql_hints Category-2):** `build_pql_hints` gains 4th param `infusion_registry: Option<&prism_spec_engine::InfusionRegistry>`; `pql_hints[2]` = enrichment-presence hint when tables non-empty (sorted UDFs as `<name>(<input_field>)`, byte-exact format); absent hint when `None`/empty registry; Category-2 suppressed when tables empty. `InfusionUdfDescriptor` gains `pub input_field: String`; `new()` gains this param; `udf_descriptors()` propagates `field.input_field.clone()`; ~10 prism-query `new()` callers updated (TD-VSDD-060). `handle_prism_describe` wired via `query_engine.and_then(|qe| qe.infusion_registry()).as_deref()` (ADR-022 §C). 3 new Red Gate tests in `bc_2_10_012_audit_001_test.rs`. `red_gate_tests` 49→52. `prism-spec-engine` added to `crates_touched`. (2) **ADV-P208-P02-001 close (MED, Category-1):** Deferred-items table row 1 ("BC-2.10.012 §pql_hints Category-1 hint-text divergence — PO adjudication required") removed. Resolved spec-only by PO via BC-2.10.012 v1.6→v1.7. Category-2 implemented in-scope; row is no longer deferred. Row 2 (S-QUERY-GATE-REPARSE-CONSOLIDATION-001) unchanged. (3) **ADV-P208-P02-002 close (LOW, AC count drift):** `acceptance_criteria_count` 17→16 (honest body count: 15 pre-v2.14 discrete `**AC-XXX**` headers + 1 new AC-CAT2 = 16). CRIT-1 is a folded sub-behavior within AC-AUDIT-001, not a standalone `**AC-CRIT1**` header; SqlPipe/did_you_mean are folded into AC-N1B/AC-N2/AC-C1C2. Frontmatter count comment rewritten with explicit enumeration. (4) **BC-2.10.012 v1.5→v1.7** in body BC table, AC-AUDIT-001 trace, frontmatter BC status comment, and points breakdown comment. |
 | 2.13 | adv-p208-p01-001-deferral-anchor-2026-06-29 | 2026-06-29 | story-writer | **ADV-P208-P01-001 deferral-anchor fix: "4x-query-reparse perf" Target cell updated from "follow-up story" to concrete story ID S-QUERY-GATE-REPARSE-CONSOLIDATION-001.** Per CLAUDE.md Canonical Principle Rule 3, a deferral target must be a concrete real story ID, not an open-ended phrase. Searched STORY-INDEX (v2.526, 219 stories) — no existing query-engine performance/gate-consolidation story covers this surface. Created NEW draft stub story `S-QUERY-GATE-REPARSE-CONSOLIDATION-001-query-gate-reparse-consolidation.md` (P3; SS-11 Query Execution; prism-query; 5 pts; depends_on S-DEMO-FIDELITY-REMEDIATION-001; `behavioral_contracts: []` — pending PO authorship per Spec-First Gate S-7.01; post-demo-backlog wave). Deferred items table Target cell: "follow-up story" → "S-QUERY-GATE-REPARSE-CONSOLIDATION-001". No code change. No AC, BC, or Red Gate test change. State-manager to register new story in STORY-INDEX. |
 | 2.12 | 4lens-regate-ac-disc-reanchor-wiring-seam-tests-2026-06-29 | 2026-06-29 | story-writer | **4-lens re-gate reconciliation: AC-DISC re-anchored to BC-2.11.007 v1.9 §Mechanism B.1/PC-DISC-001 (F-L3-MED-001); BC-2.10.016 co-trace dropped from AC-DISC (F-L3-MED-002); 3 wiring-seam tests added (F-LENS4-MED-001); "7 BCs" comment fix (F-L3-LOW-001); feature HEAD 33817a82→d9bb75c2.** (1) **F-L3-MED-001 — AC-DISC re-anchored to BC-2.11.007 v1.9 §Mechanism B.1/PC-DISC-001.** PO amended BC-2.11.007 v1.8→v1.9 adding §Mechanism B.1 "Planner-Side Entity-Discriminator Auto-Seeding" with postconditions PC-DISC-001/002/003. AC-DISC now single-anchors to `BC-2.11.007 v1.9 §Mechanism B.1 / PC-DISC-001` — the precise contractual anchor for the absent-aql auto-seeding behavior. BC-2.11.007 version updated v1.8→v1.9 in: frontmatter BC status comment, body BC table row, BC-array-propagation comment line. (2) **F-L3-MED-002 — BC-2.10.016 co-trace dropped from AC-DISC.** BC-2.10.016 governs `render_*` prompt FROM-ready names (AC-AUDIT-004's domain), not the planner seeding behavior. The co-trace was a semantic mismatch. BC-2.10.016 REMAINS in the `behavioral_contracts:` array and body BC table — it is still validly cited by AC-AUDIT-004. Only removed from AC-DISC's single anchor line. BC-array-propagation comment for BC-2.10.016 updated: "cited in AC-AUDIT-004 and AC-DISC" → "cited in AC-AUDIT-004". (3) **F-LENS4-MED-001 — 3 wiring-seam tests added to red_gate inventory.** Source-verified against worktree (`.worktrees/S-DEMO-FIDELITY-REMEDIATION-001/crates/prism-query/src/materialization.rs`, module `armis_discriminator_wiring_seam_tests`, lines 3317+): `test_F_LENS4_MED001_armis_alerts_pipeline_seeds_in_alerts_aql_filter`, `test_F_LENS4_MED001_armis_devices_pipeline_seeds_in_devices_aql_filter`, `test_F_LENS4_MED001_armis_alerts_user_supplied_aql_passes_through_pipeline`. These drive `run_materialization_pipeline` through a recording stub adapter asserting the seeded `aql` reaches `QueryParams`. `red_gate_tests` 46→49. Arithmetic: 46 (v2.10) + 3 wiring-seam tests = 49. AC-DISC body section updated with wiring-seam test descriptions. Integration verification HEAD updated 33817a82→d9bb75c2. (4) **F-L3-LOW-001 — "6 BCs" comment corrected to "7 BCs".** Frontmatter BC-array-propagation comment "All 6 BCs cited in at least one AC body trace" was stale (array has 7 entries). Fixed to "All 7 BCs cited in at least one AC body trace." Array verified: BC-2.11.001, BC-2.11.022, BC-2.11.019, BC-2.10.016, BC-2.10.012, BC-2.11.016, BC-2.11.007 = 7 entries. |
