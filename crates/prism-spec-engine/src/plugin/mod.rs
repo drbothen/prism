@@ -114,6 +114,39 @@ pub struct PluginRuntime {
     _epoch_ticker: EpochTickerHandle,
 }
 
+// ---------------------------------------------------------------------------
+// wasmtime compilation cache helper (S-PERF-GATE-008 / ADR-049 D3)
+// ---------------------------------------------------------------------------
+
+/// Attempts to enable the wasmtime compilation cache on `config`.
+///
+/// Cache-init failure is DEGRADABLE (ADR-049 D3 — LOCKED decision): on `Err`, emits a
+/// `WARN` structured event and returns without error, leaving the engine uncached.
+/// On `Ok`, attaches the cache to `config` via `config.cache(Some(cache))`.
+///
+/// Extracted as a standalone function (not inline in `new_with_audit_sink`) so that
+/// the `Err` branch can be exercised by unit tests without needing a live wasmtime
+/// Engine or a real `.prx` artifact (SID-1).
+///
+/// S-PERF-GATE-008 / ADR-049 D3.
+fn apply_wasmtime_cache(
+    config: &mut wasmtime::Config,
+    cache_result: Result<wasmtime::Cache, wasmtime::Error>,
+) {
+    match cache_result {
+        Ok(cache) => {
+            config.cache(Some(cache));
+        }
+        Err(e) => {
+            tracing::warn!(
+                event_type = "plugin.compilation_cache_init_skipped",
+                error = %e,
+                "wasmtime compilation cache init failed; proceeding without cache (degraded performance)"
+            );
+        }
+    }
+}
+
 impl PluginRuntime {
     /// Create a new `PluginRuntime` with the given `http_client` and a `NoOpPluginAuditSink`.
     ///
@@ -149,6 +182,23 @@ impl PluginRuntime {
         let mut config = wasmtime::Config::new();
         config.wasm_component_model(true);
         config.epoch_interruption(true);
+
+        // Enable the wasmtime compilation cache (S-PERF-GATE-008).
+        //
+        // wasmtime::Component::new() (WASM-to-native Cranelift compilation) caches compiled
+        // native code to disk, addressed by (wasm_binary_hash, compiler_version, cpu_isa_flags).
+        // Warm cache hits skip Cranelift entirely; see ADR-049 / S-PERF-GATE-008 for
+        // measured figures. Cache directory: OS default (~/.cache/wasmtime/ or
+        // ~/Library/Caches/wasmtime/). Created automatically on first use.
+        //
+        // Cache-init failure is DEGRADABLE (ADR-049 D3): a disk-full, permissions, or
+        // read-only-filesystem condition must not abort the analyst's session. PluginRuntime
+        // construction continues without the cache; plugins recompile on each cold start
+        // (slower but functionally correct).
+        apply_wasmtime_cache(
+            &mut config,
+            wasmtime::Cache::new(wasmtime::CacheConfig::new()),
+        );
 
         let engine =
             wasmtime::Engine::new(&config).map_err(|e| prism_core::PrismError::Internal {
@@ -1692,5 +1742,139 @@ mod tests {
              call dispatch_plugin_acquire_token with modified plugin (core_module=None), \
              assert plugin_auth_token_parse_error fires from host path"
         )
+    }
+
+    // ---------------------------------------------------------------------------
+    // S-PERF-GATE-008 Red Gate tests (RG-001, RG-002 / AC-004, AC-005 / ADR-049 D3+D8)
+    // ---------------------------------------------------------------------------
+
+    /// RG-001: `apply_wasmtime_cache` degradable path does not panic on Err.
+    ///
+    /// Verifies that calling `apply_wasmtime_cache` with a forced-failure
+    /// `Result::Err` (from `CacheConfig::with_directory("relative/not/absolute")`)
+    /// returns normally — no panic, no `Err` propagation.
+    ///
+    /// Pre-implementation state: `todo!()` body panics → RED.
+    /// Post-implementation state: degradable match arm returns normally → GREEN.
+    ///
+    /// SID-1: not `#[ignore]`'d; forced-failure uses `is_absolute()` check (pre-FS, deterministic).
+    /// S-PERF-GATE-008 / AC-004 / ADR-049 D3.
+    #[test]
+    fn test_S_PERF_GATE_008_apply_wasmtime_cache_degradable_path_does_not_panic() {
+        // S-PERF-GATE-008 / AC-004 / ADR-049 D3 / SID-1
+        //
+        // Forced-failure driver: CacheConfig::with_directory("relative/not/absolute")
+        // triggers the is_absolute() check in CacheConfig::validate() BEFORE any
+        // filesystem I/O, returning Err deterministically on all platforms.
+        // Zero side effects — no temp dirs, no permission juggling, no external services.
+        // Source: .factory/research/wasmtime-44-cache-api-S-PERF-GATE-008.md §2
+        let mut cfg = wasmtime::CacheConfig::new();
+        cfg.with_directory("relative/not/absolute");
+        let err_result = wasmtime::Cache::new(cfg);
+
+        // Pre-assert: the forced-failure driver produces a real wasmtime::Error (not a
+        // synthetic injection). If this fails, the SID-1 test design is invalid.
+        assert!(
+            err_result.is_err(),
+            "S-PERF-GATE-008 RG-001: forced-failure driver MUST return Err; \
+             relative path 'relative/not/absolute' must fail is_absolute() check \
+             in wasmtime 44 CacheConfig::validate_directory_or_default()"
+        );
+
+        // Exercise the degradable path.
+        //
+        // Red Gate: apply_wasmtime_cache has todo!() body — this call panics, test FAILS.
+        // Post-implementation: the Err branch emits WARN and returns () — test PASSES.
+        //
+        // apply_wasmtime_cache returns () so reaching this point confirms the Err branch
+        // did not panic, did not return Err, and did not abort construction (ADR-049 D3).
+        let mut config = wasmtime::Config::new();
+        apply_wasmtime_cache(&mut config, err_result);
+        // Reaching here: degradable-path semantics confirmed — Err does not abort.
+    }
+
+    /// RG-002: `apply_wasmtime_cache` emits `plugin.compilation_cache_init_skipped` WARN on Err.
+    ///
+    /// Verifies that the `Err` branch of `apply_wasmtime_cache` fires
+    /// `tracing::warn!(event_type = "plugin.compilation_cache_init_skipped", ...)`.
+    /// Uses `Arc<Mutex<Vec<u8>>>` tracing capture pattern (established in
+    /// `test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally`).
+    ///
+    /// Pre-implementation state: `todo!()` body panics → RED.
+    /// Post-implementation state: WARN fires with correct event_type → GREEN.
+    ///
+    /// SID-1: not `#[ignore]`'d; SAP-1 load-bearing runtime assertion for BC-2.16.002 catalog row.
+    /// S-PERF-GATE-008 / AC-005 / ADR-049 D8 / SAP-1.
+    #[test]
+    fn test_S_PERF_GATE_008_apply_wasmtime_cache_emits_warn_on_err() {
+        // S-PERF-GATE-008 / AC-005 / ADR-049 D8 / SAP-1
+        //
+        // SAP-1 load-bearing: independently asserts at RUNTIME that the WARN fires
+        // with the correct event_type value. Removes reliance on grep-only SAP-1 probes.
+        //
+        // Pattern: Arc<Mutex<Vec<u8>>> + BufWriter tracing capture, established in
+        // test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally.
+
+        // Set up tracing capture buffer.
+        let captured: Arc<std::sync::Mutex<Vec<u8>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let captured_clone = captured.clone();
+
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(move || {
+                struct BufWriter(Arc<std::sync::Mutex<Vec<u8>>>);
+                impl std::io::Write for BufWriter {
+                    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                        if let Ok(mut guard) = self.0.lock() {
+                            guard.extend_from_slice(buf);
+                        }
+                        Ok(buf.len())
+                    }
+                    fn flush(&mut self) -> std::io::Result<()> {
+                        Ok(())
+                    }
+                }
+                BufWriter(captured_clone.clone())
+            })
+            .with_ansi(false)
+            // WARN level: capture WARN + ERROR (WARN alone would miss co-emitted ERROR).
+            // Must NOT be ERROR-only — that would filter out the WARN emission under test.
+            .with_max_level(tracing::Level::WARN)
+            .finish();
+
+        use tracing_subscriber::util::SubscriberInitExt;
+        let _guard = subscriber.set_default();
+
+        // Forced-failure driver (same as RG-001): relative path triggers is_absolute() pre-FS.
+        let mut cfg = wasmtime::CacheConfig::new();
+        cfg.with_directory("relative/not/absolute");
+        let err_result = wasmtime::Cache::new(cfg);
+        assert!(
+            err_result.is_err(),
+            "S-PERF-GATE-008 RG-002: forced-failure driver MUST return Err"
+        );
+
+        // Red Gate: apply_wasmtime_cache has todo!() body — panics, test FAILS.
+        // Post-implementation: WARN fires with event_type field → captured, test PASSES.
+        let mut config = wasmtime::Config::new();
+        apply_wasmtime_cache(&mut config, err_result);
+
+        // Read captured output BEFORE dropping the subscriber guard.
+        let output = captured.lock().expect("capture mutex not poisoned").clone();
+        let output_str = String::from_utf8_lossy(&output);
+        drop(_guard);
+
+        // LOAD-BEARING assertion (SAP-1 / BC-2.16.002 v1.92 catalog row):
+        // The WARN emission MUST carry event_type = "plugin.compilation_cache_init_skipped".
+        // This assertion fails if:
+        //   - apply_wasmtime_cache uses a different event_type value
+        //   - the tracing::warn! is gated with #[cfg(test)] (paper-fix pattern — TD-VSDD-059)
+        //   - the Err branch is missing the tracing::warn! call entirely
+        assert!(
+            output_str.contains("plugin.compilation_cache_init_skipped"),
+            "S-PERF-GATE-008 RG-002 / SAP-1: apply_wasmtime_cache Err branch MUST emit \
+             event_type='plugin.compilation_cache_init_skipped' UNCONDITIONALLY \
+             (ADR-049 D8, BC-2.16.002 v1.92 catalog row). \
+             Captured output: {output_str}"
+        );
     }
 }
