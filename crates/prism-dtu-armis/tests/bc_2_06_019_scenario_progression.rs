@@ -58,7 +58,6 @@ fn deadbeef_org() -> OrgId {
 ///
 /// StageMask projection is implemented in routes/devices.rs (`stage_idx > 0` guard
 /// for primary device; `mask.lateral_devices` for lateral devices).
-#[ignore = "TV-019-009 wall-clock race: stage-0 window elapses under full-suite load (WASMtime plugin-init starvation). Deterministic stage-control fix folded into T-PERF-PROFILE / D-1434. Passes in isolation (53.9s)."]
 #[tokio::test]
 async fn test_BC_2_06_019_armis_primary_device_stage_visibility() {
     let org = deadbeef_org();
@@ -270,7 +269,6 @@ async fn test_BC_2_06_019_armis_primary_device_stage_visibility() {
 /// HTTP-level load-bearing test (BPRL-P4-02, SID-1):
 /// - Stage 0 (scenario_start = now - 10s): alert referencing primary device ABSENT.
 /// - Stage 2 (scenario_start = now - 200s): alert referencing primary device PRESENT.
-#[ignore = "TV-019-009 wall-clock race: stage-0 window elapses under full-suite load (WASMtime plugin-init starvation). Deterministic stage-control fix folded into T-PERF-PROFILE / D-1434. Passes in isolation (53.9s)."]
 #[tokio::test]
 async fn test_BPRL_P4_02_armis_alerts_stage_guard_primary_device() {
     let org = deadbeef_org();
@@ -791,7 +789,6 @@ async fn test_BC_2_06_019_armis_device_cves_first_stagemask_served_route() {
 ///
 /// FAIL mode (before fix): search.rs device branch served all records without scenario
 /// sub-path → primary device leaked at stage 0.
-#[ignore = "TV-019-009 wall-clock race: stage-0 window elapses under full-suite load (WASMtime plugin-init starvation). Deterministic stage-control fix folded into T-PERF-PROFILE / D-1434. Passes in isolation (53.9s)."]
 #[tokio::test]
 #[allow(non_snake_case)]
 async fn test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility() {

@@ -286,7 +286,6 @@ async fn test_BC_2_06_019_crowdstrike_containment_visible_at_stage4_only() {
 /// HTTP-level load-bearing test (BPRL-P4-02):
 /// - Stage 0 (scenario_start = now - 10s): detection referencing primary device ABSENT.
 /// - Stage 2 (scenario_start = now - 200s): detection referencing primary device PRESENT.
-#[ignore = "TV-019-009 wall-clock race: stage-0 window elapses under full-suite load (WASMtime plugin-init starvation). Deterministic stage-control fix folded into T-PERF-PROFILE / D-1434. Passes in isolation (53.9s)."]
 #[tokio::test]
 async fn test_BPRL_P4_02_detections_stage_guard_primary_device() {
     let org = deadbeef_org();

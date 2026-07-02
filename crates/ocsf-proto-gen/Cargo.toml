@@ -17,7 +17,7 @@ thiserror = "2.0.18"
 # reqwest is only used when the `download` feature is enabled (CI --all-features).
 # It is intentionally not enabled in normal builds — ocsf-proto-gen is a build-tool
 # library only; schema downloading is a developer convenience not a build requirement.
-reqwest = { version = "0.12.28", features = ["json"], optional = true }
+reqwest = { version = "0.12.28", default-features = false, features = ["json", "rustls-tls"], optional = true }
 tokio = { version = "1.52.1", features = ["rt-multi-thread", "macros"], optional = true }
 
 # The `download` feature enables schema download support via reqwest.
