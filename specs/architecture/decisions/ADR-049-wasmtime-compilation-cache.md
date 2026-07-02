@@ -4,8 +4,8 @@ adr_id: "ADR-049"
 title: "wasmtime Compilation Cache — On-Disk Native-Code Cache for PluginRuntime, Degradable Boot Failure Semantics, and Test-Binary Serialization"
 status: ACCEPTED
 date: "2026-07-01"
-modified: "2026-07-01"
-version: "1.0"
+modified: "2026-07-02"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-17]
 supersedes: []
@@ -22,7 +22,7 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.0 (2026-07-01). Human-directed performance story S-PERF-GATE-008.
+ACCEPTED v1.1 (2026-07-02). Human-directed performance story S-PERF-GATE-008.
 Enables the wasmtime on-disk compilation cache in `PluginRuntime::new_with_audit_sink()`,
 defines degradable boot semantics for cache-init failure, mandates SAP-1 structured
 event registration, and codifies nextest test-group serialization for all
@@ -38,9 +38,14 @@ wasmtime-heavy test binaries.
 plugin binary into CPU-ISA-specific native code on every process start. Under full
 workspace parallel load (nextest spawns one OS process per test binary), multiple
 concurrent `Engine::new()` initializations and `Component::new()` compilations saturate
-all CPU cores simultaneously. The resulting per-test wall-clock time inflates from
-<1 s (isolation) to 150–170 s (workspace-parallel) — within 10 s of the nextest
-180 s hard-kill ceiling. S-PERF-GATE-004 and S-PERF-GATE-005 (merged PRs #209, #210)
+all CPU cores simultaneously. The resulting per-call `PluginRuntime::new()` cost
+inflates from ~1–2 s in isolation to ~8–9 s under workspace-parallel CPU contention
+(profiling report §3c, develop@8bc0404e). At that per-call rate, the most-affected
+test binaries accumulate per-binary serial wall-clock times well above the 180 s
+per-binary nextest termination threshold: `plugin_tests` (25 tests, ~205 s serial)
+and `plugin_integration_tests` (34 tests, ~277 s serial) are the two highest-impact
+cases; total wasmtime serial overhead across the 8 uncapped binaries is ~1 023 s
+(profiling §2a and §3). S-PERF-GATE-004 and S-PERF-GATE-005 (merged PRs #209, #210)
 reduced DTU and clone oversubscription but could not eliminate the wasmtime compilation
 cost itself.
 
@@ -177,9 +182,13 @@ code artifacts. Security properties:
 - **Trust domain:** the cache directory is in the user's home directory — the same
   trust boundary as the prism binary, `.prx` plugin files, and prism configuration.
   No cross-trust-domain exposure.
-- **Cache poisoning protection:** wasmtime validates the content hash on every cache
-  load. A tampered cache entry fails hash validation and triggers fresh recompilation.
-  Silent cache poisoning is not possible.
+- **Cache poisoning protection:** wasmtime validates cache-entry metadata (WASM binary
+  hash, compiler version, CPU ISA flags) on load; a metadata mismatch triggers fresh
+  recompilation. Stored native-code artifacts are NOT cryptographically signed —
+  integrity within the per-analyst trust domain relies on OS-level per-user
+  cache-directory permissions (AD-001). An attacker who can write to the user's cache
+  directory with a metadata-matching artifact is already within the OS trust boundary
+  and outside wasmtime's threat model.
 - **No credential content:** cached artifacts are compiled native code — no credential
   values, API keys, or OCSF event data.
 - **No hardening required:** accept OS-default directory permissions. No
@@ -255,8 +264,14 @@ to ensure CI coverage of the serialized test behavior.
 ## Consequences
 
 ### Positive
-- wasmtime `Component::new()` warm-load time drops from 80–150 s (parallel) to <1 s
-  (cache hit) for tests; previously-seen 150–170 s wall-clock times are eliminated.
+- Per-call `PluginRuntime::new()` time drops from ~8–9 s (workspace-parallel, 70–90
+  concurrent Engine inits across 8 uncapped binaries, profiling §3b) to approximately
+  the in-isolation baseline of ~1–2 s (profiling §3c): each `Component::new()`
+  compilation result is served from the on-disk cache in <0.1 s, and D5 serialization
+  eliminates the CPU contention that inflated `Engine::new()` from ~1–2 s to ~8–9 s.
+  Per-binary serial wall-clock for `plugin_tests` falls from ~205 s to ~30–50 s, and
+  `plugin_integration_tests` from ~277 s to ~40–70 s; combined with D5 the expected
+  total wall-clock savings across the group is ~150–200 s (profiling §REC-1).
 - Nextest `spec-engine-wasmtime` group enforces a strict serial order for all
   wasmtime-heavy binaries in both prepush and CI profiles.
 - Production process restart (e.g., hot-reload) benefits from cached compilation on
@@ -299,4 +314,5 @@ broken cache config (e.g., a read-only temp dir) — per SID-1.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-07-02 | architect | DRIFT-ADR049-FIGURE-001: §Context "per-test wall-clock 150–170 s" replaced with profiling-report-sourced per-call figures (~8–9 s under load, ~1–2 s isolated; `plugin_tests` ~205 s per-binary, `plugin_integration_tests` ~277 s; profiling @8bc0404e §3c/§2a). §Consequences "80–150 s" replaced with per-binary serial-sum range and §REC-1 ~150–200 s savings estimate. DRIFT-ADR049-D6-HASH-001: §D6 "validates the content hash ... Silent cache poisoning is not possible" overstatement corrected — wasmtime validates metadata (WASM binary hash, compiler version, CPU ISA flags), not the stored native-code blob; artifact signing caveat and AD-001 trust-domain boundary added. No D1–D9 decision rulings changed. |
 | 1.0 | 2026-07-01 | architect | Initial ACCEPTED. Human-directed perf story S-PERF-GATE-008. |
