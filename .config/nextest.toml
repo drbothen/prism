@@ -152,13 +152,29 @@ spec-engine-wasm-cap = { max-threads = 4 }
 # lives in prism-spec-engine — NOT matched by dtu-cap package(/^prism-dtu-/) filter.
 # This group closes that gap and caps the wiremock binaries simultaneously.
 spec-engine-http-cap = { max-threads = 4 }
+# S-PERF-GATE-008: Serialize wasmtime-heavy spec-engine + prism-ocsf binaries.
+# With the on-disk compilation cache enabled in PluginRuntime::new_with_audit_sink
+# (ADR-049 D1), warm cache hits skip Cranelift JIT entirely; see ADR-049 / S-PERF-GATE-008
+# for measured figures. max-threads=1 serializes the cold-start warm-up run so each .prx
+# file is compiled once, then all subsequent binaries load from cache.
+# For the degradable path (ADR-049 D3, cache unavailable), max-threads=1 also
+# bounds total WASMtime CPU overhead — correctness is unaffected.
+# Binaries (all call PluginRuntime::new_with_audit_sink with a real .prx file):
+#   plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests,
+#   plugin_integration_tests, infusion_tests (prism-spec-engine)
+#   spec_driven_mapper_fixtures (prism-ocsf)
+# nextest first-match-wins: the [[overrides]] stanza for spec-engine-wasmtime must
+# appear BEFORE the spec-engine-wasm-cap stanza so the 6 wasmtime binaries resolve
+# to max-threads=1 on first match; plugin_boot_tests/infusion_boot_integration are
+# not in the wasmtime filter and fall through to spec-engine-wasm-cap (max-threads=4).
+spec-engine-wasmtime = { max-threads = 1 }
 
 [[profile.prepush.overrides]]
 # S-PERF-GATE-004: cap all prism-dtu-* test binaries to 4 concurrent processes.
 # Placed first; the per-binary overrides below target prism-bin exclusively (no
 # package overlap with prism-dtu-*), so there is no group conflict.
 # (nextest test-group is a scalar field: when multiple overrides match the same
-# test, the last matching override wins — only one group assignment takes effect.)
+# test, the first matching override wins — only one group assignment takes effect.)
 filter = 'package(/^prism-dtu-/)'
 test-group = 'dtu-cap'
 
@@ -175,7 +191,19 @@ filter = 'binary(bc_2_01_013_spec_driven_adapter)'
 test-group = 'bc-2-01-013-serial'
 
 [[profile.prepush.overrides]]
+# S-PERF-GATE-008: Serialize wasmtime-heavy test binaries via compilation cache group.
+# nextest first-match-wins: this stanza appears BEFORE spec-engine-wasm-cap so the 6
+# wasmtime binaries resolve to spec-engine-wasmtime (max-threads=1) on first match.
+# plugin_boot_tests + infusion_boot_integration are NOT in this filter and fall
+# through to spec-engine-wasm-cap (max-threads=4) in the stanza below.
+filter = 'binary(plugin_tests) | binary(crowdstrike_oauth2_plugin_tests) | binary(enrichment_pivot_002_tests) | binary(plugin_integration_tests) | binary(infusion_tests) | binary(spec_driven_mapper_fixtures)'
+test-group = 'spec-engine-wasmtime'
+
+[[profile.prepush.overrides]]
 # S-PERF-GATE-007: cap WASMtime-heavy binaries at 4 concurrent threads.
+# First-match-wins: the 6 spec-engine-wasmtime binaries already matched the stanza
+# above; plugin_boot_tests + infusion_boot_integration (not in wasmtime filter) land
+# here and get max-threads=4.
 filter = 'binary(plugin_integration_tests) | binary(plugin_tests) | binary(crowdstrike_oauth2_plugin_tests) | binary(enrichment_pivot_002_tests) | binary(spec_driven_mapper_fixtures) | binary(plugin_boot_tests) | binary(infusion_boot_integration)'
 test-group = 'spec-engine-wasm-cap'
 
@@ -202,7 +230,19 @@ filter = 'binary(bc_2_01_013_spec_driven_adapter)'
 test-group = 'bc-2-01-013-serial'
 
 [[profile.ci.overrides]]
+# S-PERF-GATE-008: Serialize wasmtime-heavy test binaries via compilation cache group.
+# nextest first-match-wins: this stanza appears BEFORE spec-engine-wasm-cap so the 6
+# wasmtime binaries resolve to spec-engine-wasmtime (max-threads=1) on first match.
+# plugin_boot_tests + infusion_boot_integration are NOT in this filter and fall
+# through to spec-engine-wasm-cap (max-threads=4) in the stanza below.
+filter = 'binary(plugin_tests) | binary(crowdstrike_oauth2_plugin_tests) | binary(enrichment_pivot_002_tests) | binary(plugin_integration_tests) | binary(infusion_tests) | binary(spec_driven_mapper_fixtures)'
+test-group = 'spec-engine-wasmtime'
+
+[[profile.ci.overrides]]
 # S-PERF-GATE-007: cap WASMtime-heavy binaries at 4 concurrent threads.
+# First-match-wins: the 6 spec-engine-wasmtime binaries already matched the stanza
+# above; plugin_boot_tests + infusion_boot_integration (not in wasmtime filter) land
+# here and get max-threads=4.
 filter = 'binary(plugin_integration_tests) | binary(plugin_tests) | binary(crowdstrike_oauth2_plugin_tests) | binary(enrichment_pivot_002_tests) | binary(spec_driven_mapper_fixtures) | binary(plugin_boot_tests) | binary(infusion_boot_integration)'
 test-group = 'spec-engine-wasm-cap'
 
