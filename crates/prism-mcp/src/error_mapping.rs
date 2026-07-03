@@ -149,7 +149,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // Maps to INVALID_PARAMS (-32602): caller-resolvable by using a per-field UDF name
         // from `prism_describe` or the PQL reference resource.
         //
-        // Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.5; error-taxonomy.md E-QUERY-039.
+        // Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019; error-taxonomy.md E-QUERY-039.
         PrismError::EnrichUdfNotFound(..) => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-QUERY-002: Query type mismatch → -32602 Invalid params (caller-resolvable).
@@ -1799,13 +1799,13 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // `InfusionRegistry` — commonly an infusion_id (e.g. `threat_intel`) used as if
         // it were a callable per-field UDF name (e.g. `threat_score`).
         //
-        // HIGH-2 fix (BC-2.11.019 v1.5 §MCP surface): bind the boxed details (ref d) to
+        // HIGH-2 fix (BC-2.11.019 §MCP surface): bind the boxed details (ref d) to
         // thread the available_infusions list into the structured suggestion text, and
         // `did_you_mean` into the `did_you_mean` field. Without this arm, `EnrichUdfNotFound`
         // falls to the catch-all with category "upstream_error", original_params_valid: true,
         // and a generic suggestion — losing all E-QUERY-039 pedagogical guidance.
         //
-        // Suggestion text per BC-2.11.019 v1.5 §MCP surface (NO brackets around list):
+        // Suggestion text per BC-2.11.019 §MCP surface (NO brackets around list):
         //   non-empty: "Use one of the registered enrichment functions: {infusions}. Call
         //               prism_describe('<client_id>') to see pql_hints including available
         //               enrichment functions."
@@ -1825,7 +1825,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // the variant falls to the catch-all `-32000 INTERNAL_ERROR`, losing the
         // caller-actionable E-QUERY-039 guidance.
         //
-        // Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B HIGH-2; BC-2.11.019 v1.5;
+        // Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B HIGH-2; BC-2.11.019;
         //            error-taxonomy.md E-QUERY-039.
         PrismError::EnrichUdfNotFound(ref d) => {
             let infusions_list = d.available_infusions.join(", ");
@@ -1859,7 +1859,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
                 valid_operators_for_type: None,
                 how_to_fix: None,
                 available_columns: None,
-                // BC-2.11.019 v1.5: did_you_mean is the best-match infusion name (Option<String>).
+                // BC-2.11.019 §EC-11-059: did_you_mean is the best-match infusion name (Option<String>).
                 // Present when Levenshtein ≤ 3 of any registered InfusionField.name.
                 // Omitted (not null) when None — consistent with E-QUERY-037/038 convention.
                 did_you_mean: d.did_you_mean.clone(),
@@ -3220,9 +3220,9 @@ mod tests {
         );
     }
 
-    // ── HIGH-2: BC-2.11.019 v1.5 AC-N1B — E-QUERY-039 structured payload ────────────
+    // ── HIGH-2: BC-2.11.019 AC-N1B — E-QUERY-039 structured payload ────────────
 
-    /// BC-2.11.019 v1.5 AC-N1B HIGH-2 — `prism_error_to_structured_call_result` structured
+    /// BC-2.11.019 AC-N1B HIGH-2 — `prism_error_to_structured_call_result` structured
     /// payload for `PrismError::EnrichUdfNotFound`.
     ///
     /// The existing `test_bc_2_11_019_n1b_mcp_maps_to_32602` (in the integration tests)
@@ -3323,7 +3323,7 @@ mod tests {
         );
     }
 
-    /// BC-2.11.019 v1.5 AC-N1B HIGH-2 — empty available_infusions suggestion form.
+    /// BC-2.11.019 AC-N1B HIGH-2 — empty available_infusions suggestion form.
     ///
     /// When `available_infusions` is empty, the suggestion must use the "not available"
     /// form: "No enrichment functions are registered. Enrichment is not available in this

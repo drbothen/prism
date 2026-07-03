@@ -1,4 +1,4 @@
-//! Tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B — BC-2.11.019 v1.5.
+//! Tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B — BC-2.11.019.
 //!
 //! Finding N1-B: the plan-time enrichment gate (E-QUERY-039) must fire when a query
 //! references an enrichment function name that is not a registered per-field UDF name.
@@ -19,8 +19,8 @@
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
-//! | test_bc_2_11_019_n1b_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.5 |
-//! | test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.5 |
+//! | test_bc_2_11_019_n1b_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 |
+//! | test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 |
 
 use std::sync::Arc;
 
@@ -156,7 +156,7 @@ fn make_test_engine_threat_intel() -> QueryEngine {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// BC-2.11.019 v1.5 AC-N1B — pipe path Red Gate test.
+/// BC-2.11.019 AC-N1B — pipe path Red Gate test.
 ///
 /// A pipe-mode query `FROM cyberint_alerts | enrich threat_intel(iocs_value)` where
 /// `threat_intel` is an infusion_id (NOT a UDF name — the registered UDF names are
@@ -221,7 +221,7 @@ async fn test_bc_2_11_019_n1b_infusion_id_as_udf_name() {
     );
 }
 
-/// BC-2.11.019 v1.5 AC-N1B — SQL path Red Gate test.
+/// BC-2.11.019 AC-N1B — SQL path Red Gate test.
 ///
 /// A SQL-mode query using an unregistered enrichment function name `nvd`
 /// (which is an infusion_id, not a per-field UDF name) must return
@@ -296,7 +296,7 @@ async fn test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name() {
 
 /// HIGH-001 regression guard — gate ordering: table gate fires BEFORE enrich gate.
 ///
-/// BC-2.11.019 v1.5 enrich-LAST ordering: E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+/// BC-2.11.019 §Gate ordering (enrich-LAST): E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
 ///
 /// A query referencing a non-existent table AND an invalid enrichment function name
 /// MUST return E-QUERY-037 (TableNotAvailable), NOT E-QUERY-039 (EnrichUdfNotFound).
@@ -341,7 +341,7 @@ async fn test_high001_gate_ordering_table_error_before_enrich_error() {
 
 /// HIGH-003 regression guard — collect_unknown_scalar_from_predicate wiring check.
 ///
-/// BC-2.11.019 v1.5 §Precondition 1(b): the enrich gate must scan BOTH SELECT projections
+/// BC-2.11.019 §Precondition 1(b): the enrich gate must scan BOTH SELECT projections
 /// AND the WHERE clause for `ScalarFunc::Unknown` names.
 ///
 /// NOTE on WHERE-clause coverage: The PrismQL SQL parser's WHERE predicate grammar
@@ -492,7 +492,7 @@ async fn test_med001_available_infusions_sorted_in_e_query_039_error() {
 
 /// HIGH-1 regression guard — SqlPipe SQL head scalar bypass.
 ///
-/// BC-2.11.019 v1.5 §Precondition 1(b): the enrich gate must scan BOTH pipe stages AND
+/// BC-2.11.019 §Precondition 1(b): the enrich gate must scan BOTH pipe stages AND
 /// the SQL head (SELECT projection + WHERE clause) for `ScalarFunc::Unknown` names.
 ///
 /// Prior to the HIGH-1 fix, the `Ast::SqlPipe(spq)` arm in `check_enrich_udf_availability`
@@ -577,7 +577,7 @@ async fn test_high1_sqlpipe_head_unknown_scalar_fires_e_query_039() {
 
 /// EC-11-059 — wired-but-empty InfusionRegistry MUST fire E-QUERY-039 with available_infusions=[].
 ///
-/// BC-2.11.019 v1.5 §EC-11-059: When the infusion subsystem is wired (`Some(registry)`) but
+/// BC-2.11.019 §EC-11-059: When the infusion subsystem is wired (`Some(registry)`) but
 /// contains zero loaded specs, any query using `enrich` MUST return E-QUERY-039 with
 /// `available_infusions = []` (empty Vec) and `did_you_mean = None`.
 ///
@@ -590,7 +590,7 @@ async fn test_high1_sqlpipe_head_unknown_scalar_fires_e_query_039() {
 ///   - `None` registry → skip gate (test/MVP deployment without enrichment subsystem)
 ///   - `Some(empty)` registry → wired, zero infusions → MUST fire E-QUERY-039 ([])
 ///
-/// Spec canonical test vector "no-infusions" (BC-2.11.019 v1.5 §payload):
+/// Spec canonical test vector "no-infusions" (BC-2.11.019 §payload):
 ///   available_infusions: [] (always present, empty Vec)
 ///   did_you_mean: None (absent — no candidates within Levenshtein 3 of empty set)
 #[tokio::test]
@@ -929,7 +929,7 @@ async fn test_c1_sql_order_by_unknown_scalar_triggers_e_query_039() {
 
 /// OBS-2 — ENGINE-LEVEL `did_you_mean = Some(...)` from strsim + lexicographic tie-break.
 ///
-/// BC-2.11.019 v1.5 §EC-11-059 specifies `did_you_mean` carries the closest registered
+/// BC-2.11.019 §EC-11-059 specifies `did_you_mean` carries the closest registered
 /// UDF name within Levenshtein distance 3.  The strsim + lexicographic tie-break computation
 /// lives in `check_enrich_udf_availability` in `engine.rs`.
 ///
@@ -1085,7 +1085,7 @@ async fn test_c1_sqlpipe_group_by_unknown_scalar_triggers_e_query_039() {
 
 // ── F-PJL1-HIGH-001: DataFusion built-in scalar exclusion tests ──────────────
 //
-// BC-2.11.019 v1.5 §Gate firing condition: "fire E-QUERY-039 ONLY for a name
+// BC-2.11.019 §Gate firing condition: "fire E-QUERY-039 ONLY for a name
 // that is neither a DataFusion built-in scalar NOR a registered enrichment UDF."
 //
 // Previously the gate would fire E-QUERY-039 for DataFusion built-ins like
@@ -1257,9 +1257,9 @@ async fn test_f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039() {
 // query that triggers E-QUERY-037 (unregistered table) and would trigger
 // E-QUERY-011 (prism_audit reference) if the ordering were reversed.
 
-// ── F1 RED GATE: DataFusion built-in aggregate + window exclusion (BC-2.11.019 v1.6) ──────
+// ── F1 RED GATE: DataFusion built-in aggregate + window exclusion (BC-2.11.019 §F-PJL1-HIGH-001) ──
 //
-// BC-2.11.019 v1.6 §F-PJL1-HIGH-001 amendment: SQL-mode E-QUERY-039 fires ONLY when the
+// BC-2.11.019 §F-PJL1-HIGH-001 amendment: SQL-mode E-QUERY-039 fires ONLY when the
 // name is (a) not a PQL typed scalar variant, (b) NOT in scalar + aggregate + window
 // built-ins, AND (c) not in InfusionRegistry.
 //
@@ -1277,7 +1277,7 @@ async fn test_f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039() {
 
 /// EC-11-066 RED GATE — DataFusion built-in aggregate `stddev()` must NOT trigger E-QUERY-039.
 ///
-/// Story v2.4 inventory name: EC-11-066 (BC-2.11.019 v1.6 §F-PJL1-HIGH-001 amendment).
+/// Story v2.4 inventory name: EC-11-066 (BC-2.11.019 §F-PJL1-HIGH-001 amendment).
 ///
 /// `SELECT stddev(severity_score) FROM cyberint_alerts` must NOT return E-QUERY-039.
 /// `stddev` is a DataFusion built-in aggregate function (in `default_aggregate_functions()`),
@@ -1321,7 +1321,7 @@ async fn test_bc_2_11_019_ec_11_066_builtin_aggregate_stddev_not_e_query_039() {
 /// EC-11-067 RED GATE — DataFusion built-in window function `row_number()` must NOT
 /// trigger E-QUERY-039.
 ///
-/// Story v2.4 inventory name: EC-11-067 (BC-2.11.019 v1.6 §F-PJL1-HIGH-001 amendment).
+/// Story v2.4 inventory name: EC-11-067 (BC-2.11.019 §F-PJL1-HIGH-001 amendment).
 ///
 /// `SELECT row_number() FROM cyberint_alerts` must NOT return E-QUERY-039.
 /// `row_number` is a DataFusion built-in window function (in `default_window_functions()`),
@@ -1362,7 +1362,7 @@ async fn test_bc_2_11_019_ec_11_067_builtin_window_row_number_not_e_query_039() 
 
 /// F-PNL1 pipe-mode guard — `| enrich stddev(col)` in PIPE mode STILL fires E-QUERY-039.
 ///
-/// BC-2.11.019 v1.6 §F-PJL1-HIGH-001: the built-in exclusion applies to SQL-mode
+/// BC-2.11.019 §F-PJL1-HIGH-001: the built-in exclusion applies to SQL-mode
 /// `ScalarFunc::Unknown` paths ONLY. Pipe-mode `| enrich <name>(...)` is an explicit
 /// enrichment directive — even if `<name>` is a DataFusion built-in aggregate name,
 /// when used as a pipe enrich infusion and NOT in the `InfusionRegistry`, E-QUERY-039
@@ -1435,7 +1435,7 @@ async fn test_f_pnl1_pipe_mode_builtin_aggregate_still_fires_e_query_039() {
 /// instead of E-QUERY-037, and this test would FAIL.
 ///
 /// # BC reference
-/// BC-2.11.019 v1.5 / H1 fix (S-DEMO-FIDELITY-REMEDIATION-001 F-PJL4-MED-001).
+/// BC-2.11.019 / H1 fix (S-DEMO-FIDELITY-REMEDIATION-001 F-PJL4-MED-001).
 #[tokio::test]
 async fn test_f_pjl4_med001_scheduled_path_table_gate_fires_before_capability_gate() {
     use crate::table_registry::TableRegistry;

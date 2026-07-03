@@ -797,7 +797,7 @@ impl QueryEngine {
 
         // S-3.13 Step 1a: Plan-time table availability gate (BC-2.11.001, AC-2, AC-8).
         //
-        // Gate ordering (BC-2.11.019 v1.5, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
+        // Gate ordering (BC-2.11.019 §Gate ordering, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
         //   E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038 (column not found)
         //   → E-QUERY-039 (enrich UDF not found, LAST).
         //
@@ -847,7 +847,7 @@ impl QueryEngine {
         // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: Plan-time enrichment UDF gate (E-QUERY-039).
         //
         // Fires LAST — after E-QUERY-037 (table gate) and E-QUERY-038 (column gate).
-        // Gate ordering (BC-2.11.019 v1.5): E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+        // Gate ordering (BC-2.11.019 §Gate ordering): E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
         //
         // Validates that all enrichment function names in the query (pipe: `| enrich name(col)`;
         // SQL: `SELECT name(col)` or `WHERE name(col) = val`) are registered per-field UDF names
@@ -1117,7 +1117,7 @@ impl QueryEngine {
         PrismError,
     > {
         // S-3.13: plan-time table availability gate for scheduled queries (AC-8 mode-agnostic).
-        // Gate ordering (BC-2.11.019 v1.5, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
+        // Gate ordering (BC-2.11.019 §Gate ordering, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
         //   E-QUERY-037 (table) → E-QUERY-038 (column) → E-QUERY-039 (enrich) → E-QUERY-011 (capability).
         // H1 fix: capability gate moved AFTER 037/038/039 to match execute_inner canonical order.
         // Rationale: "table not found" and "column not found" are more actionable first errors than
@@ -1150,7 +1150,7 @@ impl QueryEngine {
 
         // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: E-QUERY-039 enrichment UDF gate for
         // scheduled queries — fires LAST among content gates (after E-QUERY-037 and E-QUERY-038).
-        // Gate ordering (BC-2.11.019 v1.5): E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+        // Gate ordering (BC-2.11.019 §Gate ordering): E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
         check_enrich_udf_availability(query_str, self.infusion_registry.as_deref())?;
 
         // H1 fix (S-DEMO-FIDELITY-REMEDIATION-001): capability gate (E-QUERY-011) fires AFTER
@@ -1397,7 +1397,7 @@ fn check_table_availability(
 /// Case-insensitive exclusion: DataFusion normalizes function names to lowercase
 /// internally; we lowercase the collected name before lookup to match.
 ///
-/// # BC-2.11.019 v1.6 §F-PJL1-HIGH-001 amendment — extended "or equivalent" rationale
+/// # BC-2.11.019 §F-PJL1-HIGH-001 amendment — extended "or equivalent" rationale
 ///
 /// BC-2.11.019 v1.5 stated: "fire E-QUERY-039 ONLY for a name that is neither a
 /// DataFusion built-in scalar NOR a registered enrichment UDF."
@@ -1471,7 +1471,7 @@ static DATAFUSION_BUILTIN_FUNCTION_NAMES: std::sync::LazyLock<std::collections::
 /// `Join.on` is typed as `Expr` (not `Predicate`) in the AST, so it goes through
 /// `collect_unknown_scalar_from_expr` directly.
 ///
-/// S-DEMO-FIDELITY-REMEDIATION-001 C1+C2 fix; BC-2.11.019 v1.5.
+/// S-DEMO-FIDELITY-REMEDIATION-001 C1+C2 fix; BC-2.11.019 §Precondition 1(b).
 fn collect_unknown_scalars_from_sql_query(sq: &crate::ast::SqlQuery, out: &mut Vec<String>) {
     use crate::ast::SelectItem;
 
@@ -1576,10 +1576,10 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
     }
 }
 
-/// Plan-time enrichment UDF availability gate — E-QUERY-039 (BC-2.11.019 v1.5).
+/// Plan-time enrichment UDF availability gate — E-QUERY-039 (BC-2.11.019).
 ///
 /// Fires AFTER `check_table_availability` AND `check_query_column_availability`
-/// (BC-2.11.019 v1.5 §Gate ordering: gate sequence is 001 → 037 → 038 → 039;
+/// (BC-2.11.019 §Gate ordering: gate sequence is 001 → 037 → 038 → 039;
 /// enrich gate is last in the chain).
 ///
 /// Parses the query string, collects all enrichment function names used in the query
@@ -1615,7 +1615,7 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
 /// the pipe stage list. The `infusion` field holds the caller-supplied UDF name.
 ///
 /// # Reference
-/// S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.6; error-taxonomy.md E-QUERY-039.
+/// S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019; error-taxonomy.md E-QUERY-039.
 /// F-PJL1-HIGH-001 (Pass-J LOCAL cascade): original scalar exclusion.
 /// F1 amendment (Pass-N1b): expanded to aggregate + window functions.
 fn check_enrich_udf_availability(
@@ -1648,7 +1648,7 @@ fn check_enrich_udf_availability(
     // visitor infrastructure — enrichment nodes are a well-defined subset.
     //
     // F-PNL1-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-N LOCAL cascade):
-    // BC-2.11.019 v1.5 §F-PJL1-HIGH-001 "Scope of change" states the DataFusion
+    // BC-2.11.019 §F-PJL1-HIGH-001 "Scope of change" states the DataFusion
     // built-in exclusion applies to SQL-mode `ScalarFunc::Unknown` gate logic ONLY.
     // Pipe-mode `EnrichStage.infusion` gate is UNAFFECTED — `| enrich lower(col)`
     // is an explicit enrichment directive; `lower` there is not a DataFusion scalar
@@ -1697,13 +1697,13 @@ fn check_enrich_udf_availability(
     }
 
     // Validate pipe-mode enrich names — NO DataFusion built-in exclusion.
-    // BC-2.11.019 v1.5 §F-PJL1-HIGH-001: pipe-mode `| enrich <name>` is an explicit
+    // BC-2.11.019 §F-PJL1-HIGH-001: pipe-mode `| enrich <name>` is an explicit
     // enrichment directive. A built-in name like `lower` used as a pipe-mode infusion
     // is NOT a DataFusion scalar — it is an unregistered infusion the analyst is trying
     // to apply, so E-QUERY-039 MUST fire when it is not in InfusionRegistry.
     //
     // Validate SQL-mode unknown scalar names — WITH DataFusion built-in exclusion.
-    // BC-2.11.019 v1.6: skip names that are DataFusion built-in functions of ANY kind
+    // BC-2.11.019 §F-PJL1-HIGH-001 (F1 amendment): skip names that are DataFusion built-in functions of ANY kind
     // (scalar, aggregate, or window) — they are resolvable by ctx.sql() and must NOT
     // trigger E-QUERY-039.
     // F-PJL1-HIGH-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade) — original.
@@ -4934,7 +4934,7 @@ mod sqlpipe_gate_sweep_tests {
     /// (FROM + JOIN sources) and returns E-QUERY-011 when `prism_audit` is present and no
     /// AuditRead capability is provided.
     ///
-    /// F-P1L4-MED-001 / BC-2.11.019 v1.5 / H1 fix (S-DEMO-FIDELITY-REMEDIATION-001)
+    /// F-P1L4-MED-001 / BC-2.11.019 / H1 fix (S-DEMO-FIDELITY-REMEDIATION-001)
     #[tokio::test]
     async fn test_h1_gate_ordering_discriminating_table_fires_before_capability() {
         use crate::table_registry::TableRegistry;
@@ -6578,7 +6578,7 @@ instance_id = "crowdstrike@acme""#;
 // F-PNL1-MED-001 — pipe-mode built-in name fires E-QUERY-039 (no skip)
 // ---------------------------------------------------------------------------
 //
-// BC-2.11.019 v1.5 §F-PJL1-HIGH-001 "Scope of change":
+// BC-2.11.019 §F-PJL1-HIGH-001 "Scope of change":
 //   "SQL-mode `ScalarFunc::Unknown` gate logic only. Pipe-mode `EnrichStage.infusion`
 //    gate is UNAFFECTED (pipe-mode `| enrich` is an explicit enrichment directive —
 //    a built-in name there is NOT a DataFusion scalar, it's an unregistered infusion
@@ -6714,7 +6714,7 @@ mod pipe_mode_builtin_enrich_gate_tests {
     /// After fix: pipe-mode enrich names bypass the built-in skip entirely. `lower` is not
     ///   in InfusionRegistry → E-QUERY-039 fires with `infusion: "lower"`.
     ///
-    /// BC-2.11.019 v1.5 §F-PJL1-HIGH-001 scope: "Pipe-mode `EnrichStage.infusion` gate
+    /// BC-2.11.019 §F-PJL1-HIGH-001 scope: "Pipe-mode `EnrichStage.infusion` gate
     /// is UNAFFECTED — a built-in name there is NOT a DataFusion scalar, it is an
     /// unregistered infusion the analyst is trying to apply, so it SHOULD fire E-QUERY-039."
     ///
@@ -6780,7 +6780,7 @@ mod pipe_mode_builtin_enrich_gate_tests {
     /// This test guards against the fix breaking the F-PJL1-HIGH-001 regression guard:
     /// the built-in exclusion for SQL mode must remain active after the pipe/SQL split.
     ///
-    /// BC-2.11.019 v1.5 §F-PJL1-HIGH-001 + EC-11-064.
+    /// BC-2.11.019 §F-PJL1-HIGH-001 + EC-11-064.
     #[tokio::test]
     async fn test_sql_mode_builtin_name_does_not_fire_e_query_039() {
         let engine = make_engine_with_sensor_and_empty_infusion_registry();

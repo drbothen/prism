@@ -12,7 +12,7 @@
 //! mode-specific sub-parsers.
 
 pub mod alias_tests;
-// S-DEMO-FIDELITY-REMEDIATION-001: Red Gate tests for AC-N1B — BC-2.11.019 v1.5 E-QUERY-039
+// S-DEMO-FIDELITY-REMEDIATION-001: Red Gate tests for AC-N1B — BC-2.11.019 E-QUERY-039
 // plan-time enrichment gate (net-new: EnrichUdfNotFound variant + engine.rs AST visitor).
 pub mod bc_2_11_019_n1b_test;
 // S-DEMO-FIDELITY-REMEDIATION-001: Red Gate tests for AC-N2 — BC-2.11.001 v1.15 EC-11-067

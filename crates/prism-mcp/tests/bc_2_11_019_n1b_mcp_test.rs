@@ -1,4 +1,4 @@
-//! Tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B MCP mapping — BC-2.11.019 v1.5.
+//! Tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B MCP mapping — BC-2.11.019.
 //!
 //! Finding N1-B: `map_prism_error(PrismError::EnrichUdfNotFound(...))` must return
 //! `-32602` (INVALID_PARAMS), NOT `-32000` (INTERNAL_ERROR catch-all).
@@ -17,7 +17,7 @@
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
-//! | test_bc_2_11_019_n1b_mcp_maps_to_32602 | AC-N1B | BC-2.11.019 v1.5 |
+//! | test_bc_2_11_019_n1b_mcp_maps_to_32602 | AC-N1B | BC-2.11.019 |
 
 use prism_core::{
     error::{EnrichUdfNotFoundDetails, PrismError},
@@ -25,7 +25,7 @@ use prism_core::{
 };
 use prism_mcp::error_mapping::{codes, map_prism_error, prism_error_to_structured_call_result};
 
-/// BC-2.11.019 v1.5 AC-N1B — `map_prism_error` for E-QUERY-039.
+/// BC-2.11.019 AC-N1B — `map_prism_error` for E-QUERY-039.
 ///
 /// Asserts that `PrismError::EnrichUdfNotFound` maps to `-32602` INVALID_PARAMS:
 /// - Regression guard: `PrismError::UnknownSourceTable` (E-QUERY-036) maps to -32602.
@@ -76,9 +76,9 @@ fn test_bc_2_11_019_n1b_mcp_maps_to_32602() {
     );
 }
 
-// ─── MED-5: suggestion string byte-for-byte conformance to BC-2.11.019 v1.5 §MCP surface ─────
+// ─── MED-5: suggestion string byte-for-byte conformance to BC-2.11.019 §MCP surface ─────────
 
-/// MED-5 BC-2.11.019 v1.5 §MCP surface — non-empty suggestion form.
+/// MED-5 BC-2.11.019 §MCP surface — non-empty suggestion form.
 ///
 /// BC specifies the suggestion text (NO brackets, comma-joined list):
 ///   "Use one of the registered enrichment functions: {available_infusions}. Call
@@ -111,7 +111,7 @@ fn test_med5_enrich_udf_not_found_suggestion_non_empty_no_brackets() {
         .and_then(|v| v.as_str())
         .unwrap_or("<missing>");
 
-    // BC-2.11.019 v1.5 §MCP surface canonical text (no brackets around list):
+    // BC-2.11.019 §MCP surface canonical text (no brackets around list):
     let expected = "Use one of the registered enrichment functions: \
                     threat_score, threat_is_known_malicious. \
                     Call prism_describe('<client_id>') to see pql_hints including available \
@@ -125,7 +125,7 @@ fn test_med5_enrich_udf_not_found_suggestion_non_empty_no_brackets() {
     );
 }
 
-/// MED-5 BC-2.11.019 v1.5 §MCP surface — empty infusions form.
+/// MED-5 BC-2.11.019 §MCP surface — empty infusions form.
 ///
 /// BC specifies:
 ///   "No enrichment functions are registered. Enrichment is not available in this deployment."

@@ -3474,7 +3474,7 @@ async fn test_F2_explain_alias_domain_error_returns_ok_structured_not_err() {
 
 // ─── MED-4: E-QUERY-039 structured-path tests (TD-VSDD-059 load-bearing test) ────────────────
 
-/// MED-4 BC-2.11.019 v1.5 AC-N1B — `prism_error_to_structured_call_result` for
+/// MED-4 BC-2.11.019 AC-N1B — `prism_error_to_structured_call_result` for
 /// `PrismError::EnrichUdfNotFound` must set structured fields:
 ///   - `structuredContent.error.category == "validation"`
 ///   - `structuredContent.error.original_params_valid == false`

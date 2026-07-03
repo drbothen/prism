@@ -14,7 +14,7 @@
 
 use crate::error::{EnrichUdfNotFoundDetails, PrismError};
 
-/// BC-2.11.019 v1.5 / HIGH-002/004 — canonical Display with available list and no
+/// BC-2.11.019 / HIGH-002/004 — canonical Display with available list and no
 /// did_you_mean suffix.
 ///
 /// Input: infusion="threat_intel", available=["threat_score", "threat_is_known_malicious"],
@@ -24,7 +24,7 @@ use crate::error::{EnrichUdfNotFoundDetails, PrismError};
 /// No trailing space, no "Did you mean" suffix.
 ///
 /// Note: "threat_is_known_malicious" < "threat_score" lexicographically, so sorted order is
-/// [threat_is_known_malicious, threat_score]. Display MUST sort per BC-2.11.019 v1.5.
+/// [threat_is_known_malicious, threat_score]. Display MUST sort per BC-2.11.019 §PrismError-variant.
 /// (F-PBL1-LOW-002 fix: updated expected output to reflect self-sorting in Display.)
 #[test]
 fn test_enrich_udf_not_found_display_no_did_you_mean() {
@@ -50,7 +50,7 @@ fn test_enrich_udf_not_found_display_no_did_you_mean() {
     );
 }
 
-/// BC-2.11.019 v1.5 / HIGH-002/004 — canonical Display WITH did_you_mean suffix.
+/// BC-2.11.019 / HIGH-002/004 — canonical Display WITH did_you_mean suffix.
 ///
 /// Input: infusion="thret_score", available=["threat_score"], did_you_mean=Some("threat_score").
 /// Expected: "E-QUERY-039: enrichment infusion 'thret_score' is not registered;
@@ -74,7 +74,7 @@ fn test_enrich_udf_not_found_display_with_did_you_mean() {
     );
 }
 
-/// BC-2.11.019 v1.5 / HIGH-002/004 — empty available_infusions produces `[]` brackets.
+/// BC-2.11.019 / HIGH-002/004 — empty available_infusions produces `[]` brackets.
 ///
 /// Edge case: no infusions registered at all.
 /// Expected: "E-QUERY-039: enrichment infusion 'anything' is not registered; available: []"
@@ -105,7 +105,7 @@ fn test_enrich_udf_not_found_display_starts_with_error_code() {
 }
 
 /// F-PBL1-LOW-002 — Display must self-sort `available_infusions` lexicographically
-/// per BC-2.11.019 v1.5 §PrismError-variant.
+/// per BC-2.11.019 §PrismError-variant.
 ///
 /// Previously the sort lived only in the gate caller (`check_enrich_udf_availability`).
 /// But the Display contract says "the Display implementation MUST comma-join the

@@ -24,7 +24,7 @@ use thiserror::Error;
 /// )));
 /// ```
 ///
-/// Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.5; error-taxonomy.md E-QUERY-039.
+/// Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019; error-taxonomy.md E-QUERY-039.
 ///
 /// # `#[non_exhaustive]` note
 /// Marked `#[non_exhaustive]` per CLAUDE.md convention for public `prism-core` structs.
@@ -62,11 +62,11 @@ impl EnrichUdfNotFoundDetails {
 impl std::fmt::Display for EnrichUdfNotFoundDetails {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Canonical taxonomy template (error-taxonomy.md §E-QUERY-039 Message Format;
-        // BC-2.11.019 v1.5, PO-reconciled spec S-DEMO-FIDELITY-REMEDIATION-001):
+        // BC-2.11.019, PO-reconciled spec S-DEMO-FIDELITY-REMEDIATION-001):
         // "E-QUERY-039: enrichment infusion '{infusion}' is not registered;
         //  available: [{available_infusions}]{did_you_mean}"
         // {available_infusions}: available_infusions joined with ", " wrapped in [ ] brackets,
-        //   SORTED lexicographically per BC-2.11.019 v1.5 §PrismError-variant.
+        //   SORTED lexicographically per BC-2.11.019 §PrismError-variant.
         //   Sort happens here in Display so the contract is self-enforcing; the caller
         //   (check_enrich_udf_availability) also sorts+deduplicates before constructing
         //   the error, which is defensive — both are harmless.
@@ -961,7 +961,7 @@ pub enum PrismError {
     #[error("{0}")]
     ColumnNotFound(Box<ColumnNotFoundDetails>),
 
-    /// E-QUERY-039: Enrichment UDF not found at plan time (BC-2.11.019 v1.5).
+    /// E-QUERY-039: Enrichment UDF not found at plan time (BC-2.11.019).
     ///
     /// Returned by the plan-time enrichment gate in `engine.rs` BEFORE fan-out when a
     /// query's enrichment stage names a UDF that is not registered in the `InfusionRegistry`.
@@ -980,7 +980,7 @@ pub enum PrismError {
     /// Construct via `PrismError::EnrichUdfNotFound(Box::new(EnrichUdfNotFoundDetails::new(...)))`.
     /// Match via `PrismError::EnrichUdfNotFound(ref d)` or `PrismError::EnrichUdfNotFound(..)`.
     ///
-    /// Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.5; error-taxonomy.md E-QUERY-039.
+    /// Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019; error-taxonomy.md E-QUERY-039.
     #[error("{0}")]
     EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>),
 
