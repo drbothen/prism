@@ -222,7 +222,7 @@ fn test_ADR_038_map_prism_error_client_not_found_to_32602() {
     );
 }
 
-/// P5-02 (error-taxonomy.md v1.72 / ADR-038 v1.3): PrismError::
+/// P5-02 (error-taxonomy.md §E-QUERY-003 / ADR-038 §P5-02): PrismError::
 /// QuerySecurityLimitExceeded maps to -32602 (Invalid params) with the
 /// caller-visible single-prefix E-QUERY-003 display string.
 ///

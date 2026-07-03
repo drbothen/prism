@@ -400,7 +400,7 @@ async fn test_high003_sql_select_unknown_scalar_triggers_enrich_error() {
 
 /// MED-001 regression guard — `available_infusions` in E-QUERY-039 is sorted + deduped.
 ///
-/// error-taxonomy.md §E-QUERY-039 (canonicalized at v2.01, matches current v2.03) specifies the `available_infusions` field
+/// error-taxonomy.md §E-QUERY-039 specifies the `available_infusions` field
 /// MUST be sorted (lexicographic ascending). Without the sort fix, the field is built
 /// from `HashSet` iteration order (non-deterministic), causing:
 /// 1. Non-deterministic error messages (flaky tests, non-reproducible output).

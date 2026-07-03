@@ -97,7 +97,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         PrismError::QueryLimitExceeded { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-QUERY-003: Query security limit exceeded → -32602 Invalid params
-        // (error-taxonomy.md v1.72 / ADR-038 v1.3 §P5-02). Caller-resolvable:
+        // (error-taxonomy.md §E-QUERY-003 / ADR-038 §P5-02). Caller-resolvable:
         // narrow or simplify the query. EXPLICIT arm required: PrismError is
         // #[non_exhaustive]; letting this variant fall to the catch-all would
         // regress to opaque -32000 INTERNAL_ERROR and violate BC-2.11.006's
@@ -120,7 +120,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // E-QUERY-036: Unknown source table → -32602 Invalid params (caller-resolvable)
         // MUST be explicit: #[non_exhaustive] fall-through would regress to opaque -32000.
         // Caller can fix by checking spelling or registering the sensor in prism.toml.
-        // P6-02 adjudication 2026-06-11; error-taxonomy.md v1.73 E-QUERY-036.
+        // P6-02 adjudication 2026-06-11; error-taxonomy.md §E-QUERY-036.
         PrismError::UnknownSourceTable(..) => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-QUERY-038: Column not found → -32602 INVALID_PARAMS (caller-resolvable).

@@ -3014,7 +3014,7 @@ mod unknown_source_table_tests {
     //! After the fix, `UnknownSourceTable` routes to -32602 INVALID_PARAMS.
     //!
     //! No external DTU or subprocess required (SID-1 compliance).
-    //! Ref: error-taxonomy.md v1.73 E-QUERY-036; BC-2.11.007 EC-001; P6-02 adjudication.
+    //! Ref: error-taxonomy.md §E-QUERY-036; BC-2.11.007 EC-001; P6-02 adjudication.
 
     use std::sync::Arc;
 

@@ -1346,7 +1346,7 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
         // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
         "SELECT * FROM sensor_table LIMIT 10 | limit 5",
     ),
-    // OBS-1 fix: error-taxonomy.md v2.00 E-QUERY-040 CI-gate obligation (ADR-045 D3)
+    // OBS-1 fix: error-taxonomy.md §E-QUERY-040 CI-gate obligation (ADR-045 D3)
     // mandates NegativeE040 examples for BOTH `| limit` AND `| tail`. The `| tail`
     // variant combines SQL LIMIT in the head with a `| tail` stage — both consume
     // the shared row-limit slot and thus violate the FORBID-BOTH invariant (ADR-043 §C).

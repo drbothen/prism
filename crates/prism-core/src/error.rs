@@ -61,7 +61,7 @@ impl EnrichUdfNotFoundDetails {
 
 impl std::fmt::Display for EnrichUdfNotFoundDetails {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Canonical taxonomy template (Message Format canonicalized in error-taxonomy.md E-QUERY-039 at v2.01; matches current error-taxonomy.md v2.03;
+        // Canonical taxonomy template (error-taxonomy.md §E-QUERY-039 Message Format;
         // BC-2.11.019 v1.5, PO-reconciled spec S-DEMO-FIDELITY-REMEDIATION-001):
         // "E-QUERY-039: enrichment infusion '{infusion}' is not registered;
         //  available: [{available_infusions}]{did_you_mean}"
@@ -154,7 +154,7 @@ impl ColumnNotFoundDetails {
 
 impl std::fmt::Display for ColumnNotFoundDetails {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Taxonomy template (error-taxonomy.md v1.92 E-QUERY-038, POL-24 byte-verbatim):
+        // Taxonomy template (error-taxonomy.md §E-QUERY-038 Message Format, POL-24 byte-verbatim):
         // "E-QUERY-038: column '{column}' not found in table '{table}' for client '{client_id}';
         //  available: [{available_columns}]{did_you_mean}"
         // {available_columns}: comma-separated list (may be empty).
@@ -807,7 +807,7 @@ pub enum PrismError {
 
     /// E-QUERY-003: Query security limit exceeded (security-only variant).
     ///
-    /// Per error-taxonomy.md v1.72, E-QUERY-003 is reserved for security-limit
+    /// Per error-taxonomy.md §E-QUERY-003, this variant is reserved for security-limit
     /// violations (query size cap, AST depth cap, regex complexity caps, IN-list
     /// caps, etc.). The `detail` carries the specific limit violation message;
     /// the Display impl supplies the single canonical "E-QUERY-003: " prefix —
@@ -822,7 +822,7 @@ pub enum PrismError {
 
     /// E-QUERY-034: Query execution error (generic runtime execution failure).
     ///
-    /// Renumbered from E-QUERY-003 per error-taxonomy.md v1.72 + ADR-038 v1.3
+    /// Renumbered from E-QUERY-003 per error-taxonomy.md §E-QUERY-034 + ADR-038 §P5-02
     /// §P5-02: E-QUERY-003 is now security-only (`QuerySecurityLimitExceeded`);
     /// generic execution failures carry E-QUERY-034 and map to JSON-RPC `-32000`.
     #[error("E-QUERY-034: query execution error: {detail}")]
@@ -940,7 +940,7 @@ pub enum PrismError {
     /// Construct via `PrismError::UnknownSourceTable(Box::new(UnknownSourceTableDetails::new(...)))`.
     /// Match via `PrismError::UnknownSourceTable(ref d)` or `PrismError::UnknownSourceTable(..)`.
     ///
-    /// Reference: error-taxonomy.md v1.73 E-QUERY-036; BC-2.11.007 EC-001; P6-02 adjudication 2026-06-11;
+    /// Reference: error-taxonomy.md §E-QUERY-036; BC-2.11.007 EC-001; P6-02 adjudication 2026-06-11;
     ///            S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 AC-021.
     #[error("{0}")]
     UnknownSourceTable(Box<UnknownSourceTableDetails>),
@@ -1018,7 +1018,7 @@ pub enum PrismError {
     /// Maps to MCP code -32602 (INVALID_PARAMS) — the caller supplied an org
     /// scoping parameter that refers to a sensor it is not entitled to query.
     ///
-    /// Reference: error-taxonomy.md v1.58 E-QUERY-032;
+    /// Reference: error-taxonomy.md §E-QUERY-032;
     ///            ADR-007 §2.2 cross-org isolation;
     ///            BC-3.2.001 postcondition 5.
     #[error("E-QUERY-032: Sensor '{sensor_id}' is not registered for org '{org_slug}'")]
@@ -1231,7 +1231,7 @@ pub enum PrismError {
     /// E-WATCHDOG-002 (query kill): Watchdog killed the running query because process RSS
     /// exceeded the Kill threshold (95% of 512 MB budget) on two consecutive checks
     /// (BC-2.15.007, VP-058). Distinct from E-WATCHDOG-001 (per-query DataFusion
-    /// memory-pool trip, `QueryMemoryBudgetExceeded`) — error-taxonomy.md v1.68,
+    /// memory-pool trip, `QueryMemoryBudgetExceeded`) — error-taxonomy.md §E-WATCHDOG-002,
     /// P1-04 adjudication.
     #[error(
         "E-WATCHDOG-002: watchdog killed query — process RSS exceeded kill threshold \
@@ -1433,7 +1433,7 @@ pub enum PrismError {
     ///
     /// Raised at planning time by the FORBID-BOTH invariant (ADR-043 §C).
     ///
-    /// Message template canonicalized in error-taxonomy.md E-QUERY-040 at v2.00 (POL-24); matches current error-taxonomy.md v2.03 (v2.01–v2.03 changed examples/firing condition only, not the template).
+    /// Message template per error-taxonomy.md §E-QUERY-040 Message Format (POL-24).
     #[error(
         "E-QUERY-040: redundant row limit. This query caps rows in two places: a SQL `LIMIT {sql_limit}` in the head and a row-capping `| limit`/`| tail` pipe stage (cap: {pipe_limit}). PrismQL requires exactly one row cap. Remove the SQL `LIMIT {sql_limit}` and place a single `| limit` at the end of the pipeline (recommended for composed queries), or use `LIMIT` only in pure SQL-mode queries."
     )]
@@ -1485,7 +1485,7 @@ pub enum SpecErrorCode {
     /// Emitted during response-to-Arrow materialization when `ColumnSpec::timestamp_formats`
     /// is non-empty and no format successfully parsed the field value.
     /// BC-2.16.013 §O-001 (Option A grammar extension); ADR-028 v1.10 §D8-C;
-    /// error-taxonomy.md v1.45 E-SPEC-018.
+    /// error-taxonomy.md §E-SPEC-018.
     ESpec018,
     /// E-SPEC-019: Per-org overlay `extends` field references a sensor TYPE spec that does
     /// not exist in the loaded TYPE spec set. Boot hard error (exit 2).
@@ -1534,7 +1534,7 @@ pub enum SpecErrorCode {
     /// Only the var NAME and TOML field path are reported.
     ///
     /// BC-2.16.009 §Validation Rules 6 (AC-6); S-SPEC-ENV-VAR-001.
-    /// error-taxonomy.md v1.56 E-SPEC-024.
+    /// error-taxonomy.md §E-SPEC-024.
     ESpec024,
     /// E-SPEC-025: A `FetchStep::method` value (after env-var token resolution) is not in the
     /// allowed HTTP method set: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`.
@@ -1925,7 +1925,7 @@ mod tests {
         );
     }
 
-    /// E-QUERY-003 security-only variant Display (error-taxonomy.md v1.72,
+    /// E-QUERY-003 security-only variant Display (error-taxonomy.md §E-QUERY-003,
     /// ADR-038 v1.3 §P5-02): exactly "E-QUERY-003: {detail}" — the Display
     /// impl supplies the single canonical prefix; `detail` carries no prefix.
     #[test]
@@ -1939,7 +1939,7 @@ mod tests {
         );
     }
 
-    /// E-QUERY-034 generic execution error Display (error-taxonomy.md v1.72,
+    /// E-QUERY-034 generic execution error Display (error-taxonomy.md §E-QUERY-034,
     /// ADR-038 v1.3 §P5-02): `QueryExecutionFailed` renumbered 003 → 034.
     #[test]
     fn test_query_execution_failed_display_e_query_034() {

@@ -1698,7 +1698,7 @@ fn check_enrich_udf_availability(
             // Requested name is not a registered per-field UDF name.
             // Build available_infusions from all registered per-field names.
             // MED-001 fix: sort + dedup so the list is deterministic (lexicographic order)
-            // as required by error-taxonomy.md §E-QUERY-039 (canonicalized at v2.01, matches current v2.03). This mirrors the
+            // as required by error-taxonomy.md §E-QUERY-039 Message Format. This mirrors the
             // sort+dedup fix applied to available_columns in check_column_availability
             // (`check_column_availability` OBS-FRESH-1 fix) for E-QUERY-038 parity.
             let mut available_infusions: Vec<String> =
