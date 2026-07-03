@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 version: "1.6"
-status: draft
+status: active
 producer: product-owner
 timestamp: 2026-06-28T00:00:00Z
 phase: 1a
@@ -13,9 +13,9 @@ extracted_from: null
 origin: greenfield
 subsystem: "SS-11"
 capability: "CAP-015"
-lifecycle_status: draft
+lifecycle_status: active
 introduced: 2026-06-23
-modified: 2026-07-02
+modified: 2026-07-03
 deprecated: null
 deprecated_by: null
 replacement: null

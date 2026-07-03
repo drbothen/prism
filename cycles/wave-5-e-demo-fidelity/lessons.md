@@ -2290,3 +2290,27 @@ Quantitative performance figures (cold cost, warm cost, group savings) were auth
 **Pattern:** S-7.02 extension — canonical-source discipline for perf-story quantitative figures. Prevents the find→fix→find propagation loop that cost 3+ adversary passes on S-PERF-GATE-008. No new story needed; this is process discipline, not a deliverable.
 
 **Source:** D-1494 (SESSION WRAP, state-manager burst, 2026-07-02). Warm-figure contradiction F-P3-MED-001 open at session wrap; will be resolved on resume.
+
+---
+
+## Process-Gap Lesson 8 — Parallel Dispatch of Spec-Citer and Artifact-Author Causes Test-Name Citation Drift [codified] (S-7.02 Process-Gap; D-1509, 2026-07-03)
+
+**What happened:**
+
+During the F1 fix-burst for S-DEMO-FIDELITY-REMEDIATION-001, the orchestrator dispatched story-writer and implementer in parallel to close the EC-11-066/EC-11-067 requirement (built-in aggregate/window function passthrough for E-QUERY-039). The story-writer cited expected test names in the story spec before the implementer had committed the actual test names to the branch. The implementer chose different names (`test_bc_2_11_019_ec_11_066_builtin_aggregate_stddev_not_e_query_039` + `test_bc_2_11_019_ec_11_067_builtin_window_row_number_not_e_query_039`) than the story-writer had predicted (`test_bc_2_11_019_n1b_builtin_passthrough_stddev` + `test_bc_2_11_019_n1b_builtin_passthrough_row_number`). The names were never reconciled. Nine citation sites in the story were left pointing at nonexistent test names. The defect was caught during PR-LEVEL adversarial pass 1 (F-P208-N1B-TESTNAME-DRIFT MED, D-1503).
+
+**Root cause:**
+
+A spec artifact (story) cited an artifact being created in parallel (test file, by the implementer). Because the two agents worked concurrently from the same intent-description without a serialized handoff, the story-writer had no access to the implementer's chosen names.
+
+**Codified rules:**
+
+1. **When a story spec cites test names for tests being authored in the same burst, source-verify the cited names after the implementer commits.** Do not treat the story-writer's predicted names as authoritative. After the implementer's commit lands, run a grep against the actual test file(s) and reconcile any drift before declaring the burst closed.
+
+2. **Alternative: serialize the story-cite-of-tests step AFTER the implementer.** If the story must cite exact test names (e.g., for AC-traceability or Red Gate count accounting), the story-writer step that cites those names must be dispatched AFTER the implementer has committed and the test names are known. Pre-dispatch citation is acceptable only for test names that are well-established conventions not subject to implementer discretion.
+
+3. **This applies to any burst where a spec artifact cites an artifact being created in parallel.** Not just test names: any spec reference to a new function name, struct name, or other identifier being authored in the same burst is subject to the same source-verification obligation.
+
+**Pattern:** Process discipline for parallel dispatch in fix-bursts. No new story needed — this is an orchestration discipline lesson.
+
+**Source:** D-1503 (F-P208-N1B-TESTNAME-DRIFT MED fix-burst) + D-1509 cycle-close codification (2026-07-03).

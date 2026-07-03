@@ -87,8 +87,8 @@ points: 11
 #     4 test un-quarantine + root-cause correction, 7 stop() cleanups: 1 pt
 #   Total: 11 pts
 level: "L4"
-status: draft
-# BC status: 6 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.7,
+status: merged
+# BC status: 7 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.7,
 #   BC-2.11.016 v1.5, BC-2.11.007 v1.9) + BC-2.11.019 v1.6 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
