@@ -38,13 +38,100 @@ timestamp: 2026-07-01T23:59:00Z
 >
 > **D-1367 (2026-06-26): PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED develop@7e60df03 (CI 43/43; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; security CLEAN). POL-14: 8 BCs draft→active. POL-13: story merged. active_contracts 254. draft_contracts 0. develop_head 903c8fcb→7e60df03. non-exhaustive 84→87. BC-INDEX v7.18. STORY-INDEX v2.481. STATE v7.994→v7.995. NEXT: pre-flight demo re-audit → T13 capstone → T14 recording. PENDING HUMAN: CLAUDE.md stale EXPECTED=83/84 → now EXPECTED=87; local develop ba1108d2 still DIVERGED.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1494** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1494 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `67518790` (S-PERF-GATE-006 PR #212 squash-merged 2026-07-02). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.107. D-1494.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1512** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1512 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `122228e8` (S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.125. D-1512.
 
 ---
 
-## §RESUME SNAPSHOT — D-1494 (2026-07-02 — SESSION WRAP; develop origin/develop 67518790; BC-INDEX v7.27; STORY-INDEX v2.566; ARCH-INDEX v2.153; STATE v8.107; S-PERF-GATE-008 PR-LEVEL streak 0/3 on 091f1af8; F-P3-MED-001 open; CI GREEN 43/43) [SUPERSEDES D-1480]
+## §RESUME SNAPSHOT — D-1512 (2026-07-03 — SESSION WRAP; develop origin/develop 122228e8; BC-INDEX v7.29; STORY-INDEX v2.578; ARCH-INDEX v2.156; STATE v8.125; BOTH SESSION OBJECTIVES MERGED; T13 PRE-FLIGHT DEMO-READY:YES 18/18; NEXT=COMPREHENSIVE T13 AUDIT) [SUPERSEDES D-1494]
+
+> **D-1512 burst (2026-07-03).** SESSION WRAP. Both session objectives MERGED to develop@122228e8: S-PERF-GATE-008 (PR #213 @aaa9bfe8, WASMtime compilation cache + ADR-049 D3 degradable boot) and S-DEMO-FIDELITY-REMEDIATION-001 (PR #208 @122228e8, demo-fidelity fixes N1/N1-B/N2/AUDIT-001/AUDIT-004 + E-QUERY-039 net-new built-in aggregate/window false-positive F1 HIGH caught+fixed by PR-LEVEL adversary + ADR-050 rustls-tls + 4 DTU tests un-quarantined). T13 pre-flight re-audit on develop@122228e8 = DEMO-READY:YES (18/18 PASS, 0 FAIL). User directive: author COMPREHENSIVE T13 pre-flight audit (all features/pathways) before T13 capstone → T14 recording. S-3.09 parked day-2. All prior D-1101..D-1511 notes SUPERSEDED.
+
+### RESUME IN ONE BREATH
+Both session objectives MERGED to develop@122228e8: S-PERF-GATE-008 (PR #213, WASMtime compilation cache) + S-DEMO-FIDELITY-REMEDIATION-001 (PR #208, demo-fidelity fixes + rustls-tls/ADR-050 + 4 DTU tests un-quarantined; a real HIGH bug F1 caught+fixed by PR-LEVEL adversary). T13 pre-flight demo re-audit = DEMO-READY:YES (18/18 PASS) on 122228e8. NEXT (user directive): author a COMPREHENSIVE T13 pre-flight demo audit that exercises ALL demo features and pathways (builds on existing `scripts/t13-preflight-audit.py`). After comprehensive audit passes → T13 capstone narrative story (roadmap order 6; product-owner + story-writer) → T14 demo recording. S-3.09 preserved + parked day-2 (NOT demo-critical).
+
+### HEADS
+- develop: **122228e8** — PUSHED (origin/develop). S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03. Prior: aaa9bfe8 (PR #213 S-PERF-GATE-008, 2026-07-02). No open PRs.
+- factory-artifacts: this wrap commit — PUSHED (run `git -C .factory log -1 --format='%h %s'` for current HEAD).
+- .worktrees/S-3.09: HEAD **43c41389** [feature/S-3.09] — LOCAL-ONLY (NOT on origin); backup ref `backup/S-3.09-preresume-43c41389@43c41389`. DAY-2 PARKED.
+- .worktrees/W3-FIX-S307-001: HEAD **fcab8717** — DIRTY (1 unstaged file), 1 unpushed commit, local-only, UNTOUCHED — awaiting human decision (deferred TDE write-back / E-SENSOR-070).
+- .worktrees/S-DEMO-FIDELITY-REMEDIATION-001: HEAD **0dbe81f6** — MERGED via PR #208; worktree CORRUPTED + REMOVABLE (`git worktree remove` hangs environmentally — needs manual stuck-process check or `rm -rf` + `git worktree prune`).
+- Agents in flight at wrap: **none**.
+
+### MERGED THIS SESSION
+- **S-PERF-GATE-008** — PR #213 → develop@aaa9bfe8 (2026-07-02). WASMtime on-disk compilation cache in `PluginRuntime::new_with_audit_sink()`; degradable boot semantics (ADR-049 D3); `plugin.compilation_cache_init_skipped` WARN event (SAP-1 catalog row); nextest `spec-engine-wasmtime` group (max-threads=1). Story v1.10; ADR-049 ACCEPTED v1.3; BC-2.16.002 v1.92. PR-LEVEL 3-CLEAN converged on frozen 091f1af8. feature/S-PERF-GATE-008 + .worktrees/S-PERF-GATE-008 removed. POL-14 NO-OP.
+- **S-DEMO-FIDELITY-REMEDIATION-001** — PR #208 → develop@122228e8 (2026-07-03). 5 demo-fidelity fixes (N1/N1-B/N2/AUDIT-001/AUDIT-004); E-QUERY-039 built-in aggregate/window false-positive (F1 HIGH) caught+fixed by PR-LEVEL adversary (BC-2.11.019 v1.5→v1.6); ADR-050 rustls-tls workspace standardization (ACCEPTED v1.1); 4 SID-1 quarantined DTU scenario tests un-quarantined; 7 prism-dtu-claroty stop() resource-cleanup calls added; BC-2.11.019 v1.6 draft→active (POL-14); workspace_test_count 4978→5088; active_contracts 254→255. feature/S-DEMO-FIDELITY-REMEDIATION-001 deleted; .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 cleaned.
+- **workspace_test_count baseline:** develop@122228e8 = 5088 passed.
+
+### WORKSTREAM — COMPREHENSIVE T13 PRE-FLIGHT AUDIT (NEXT)
+- develop@122228e8 = DEMO-READY:YES per D-1511 smoke audit (18/18 PASS; `.factory/research/demo-pre-flight-audit-2026-07-03.md`).
+- **User directive:** extend to COMPREHENSIVE coverage — ALL demo features, ALL pathways. Build on `scripts/t13-preflight-audit.py` (untracked; commit as demo-tooling or fold into this work).
+- **Coverage MUST include:**
+  - Every MCP tool: `list_capabilities`, `prism_describe`, `query`, `query_tutorial`, `investigate_host`, `list_infusions`, `plugin_status`, `infusion_status`, MCP prompts, `prismql://` resources
+  - ALL 6 sensors (CrowdStrike, Cyberint, Claroty, Armis operational + ThreatIntel, NVD enrichment) × all their tables
+  - ALL query modes: SQL / pipe / SqlPipe + patterns (filters, aggregates incl. built-ins, joins, enrichment UDFs, temporal NOW()/INTERVAL)
+  - ALL scenario stages (recon→lateral→exfil→containment) per client with determinism (same seed+clock → same timeline)
+  - Multi-client REAL data segregation + org-scoping errors (E-QUERY-032)
+  - Enrichment correlation: ThreatIntel IOCs + NVD CVEs resolve scenario-introduced entities
+  - Error-taxonomy paths: E-QUERY-037/038/039, E-DEMO-NNN, etc.
+  - Capability discovery
+- **Output:** coverage MATRIX + DEMO-READY verdict
+- **References:** `.factory/objectives/DEMO-SCOPE.md`, `.factory/objectives/T13-capstone-demo-runbook.md`, `.factory/research/demo-pre-flight-audit-2026-07-03.md`
+- **AFTER comprehensive audit passes:** T13 capstone (product-owner + story-writer, roadmap order 6) → T14 recording
+
+### WORKSTREAM — S-3.09 (DAY-2 PARKED)
+- `feature/S-3.09` HEAD **43c41389** [LOCAL-ONLY; backup ref `backup/S-3.09-preresume-43c41389@43c41389`].
+- 20 unique commits: net-new `metrics.rs` + `planner.rs` + `ring_buffer.rs` + 512 lines tests. NEVER on develop.
+- Freeze blocker BUG-S309-PLUGIN CLEARED (PLUGIN-MIGRATION-001-A..F all merged).
+- Re-home effort: re-apply net semantic delta onto develop@122228e8 (107 behind develop; develop deleted table_registry.rs/error_recovery.rs/infusion_udf.rs that S-3.09 modified). Recommended: fresh session.
+- NOT blocking T13/T14 path; unblocks S-3.10.
+- **RESUME NEXT-ACTION (after T13/T14 complete):** fresh session → re-home S-3.09 onto develop@122228e8; finish remaining 4/15 tests; LOCAL 3-CLEAN + PR-LEVEL 3-CLEAN → merge.
+
+### PENDING USER-APPROVED / OPEN ITEMS
+1. **CLAUDE.md §Conventions rustls-tls rule (ADR-050)** — human ratification PENDING (human chose "ratify"); exact text provided in-session (a Highlights bullet + a Forbidden-patterns row); CLAUDE.md is human-mandated-edit-only → human pastes it.
+2. **`scripts/t13-preflight-audit.py`** — new untracked reusable audit runner; commit via a small demo-tooling change or fold into the comprehensive-audit work.
+3. **Corrupted S-208 worktree removal** — cosmetic; `git worktree remove` hangs; clear manually with `rm -rf .worktrees/S-DEMO-FIDELITY-REMEDIATION-001` + `git worktree prune`.
+4. **W3-FIX-S307-001** — dirty worktree, 1 unpushed commit, awaiting human decision (deferred TDE write-back / E-SENSOR-070).
+5. **S-MAINT-REQWEST-RUSTLS-GATE-001** — draft follow-up story for ADR-050 CI enforcement gate (already registered, P2).
+
+### DEMO RELEASE ROADMAP (remaining)
+1. **COMPREHENSIVE T13 pre-flight audit** (all features/pathways) — NEXT
+2. **T13 capstone:** multi-client SOC-analyst narrative story (product-owner + story-writer, roadmap order 6)
+3. **T14 demo recording**
+4. [Post-T14] S-PRISMQL-CASE-INSENSITIVE-001 (DEMO-CRITICAL; blocked on human PO BCs BC-2.11.024/BC-2.02.013)
+5. [Post-T14] Day-2 Track B morph (`.factory/specs/matured-vision-day2-requirements.md`)
+
+### WORKTREE INVENTORY
+| Worktree | HEAD | Branch | Status |
+|----------|------|--------|--------|
+| .worktrees/S-3.09 | 43c41389 | feature/S-3.09 | DAY-2 PARKED (local-only; backup/S-3.09-preresume-43c41389) |
+| .worktrees/W3-FIX-S307-001 | fcab8717 | — | DIRTY + 1 unpushed (awaiting human decision) |
+| .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 | 0dbe81f6 | — | REMOVABLE (merged PR #208; worktree corrupted; manual cleanup needed) |
+
+### DECISION-LOG DELTA (D-1495..D-1512 this session, since D-1494)
+- **D-1495:** F-P3-MED-001 fix-burst COMPLETE — ADR-049 v1.2→v1.3 + story v1.9→v1.10 + ARCH-INDEX v2.153→v2.154 + STORY-INDEX v2.566→v2.567; warm-figure (<1s→~1-2s) reconciled across story+PR-desc; §Evidence column label corrected to PluginRuntime::new(). PR-LEVEL re-gate 0/3 on frozen 091f1af8. develop_head UNCHANGED 67518790. STATE v8.107→v8.108.
+- **D-1496:** S-PERF-GATE-008 MERGED — PR #213 squash-merged develop@67518790→aaa9bfe8 (2026-07-02T15:57:09Z). PR-LEVEL 3-CLEAN converged on frozen 091f1af8 (passes 1/2/3 CLEAN strict; F-P3-MED-001 fully reconciled). feature/S-PERF-GATE-008 + .worktrees/S-PERF-GATE-008 removed. POL-14 NO-OP. workspace_test_count 4976→4978. STORY-INDEX v2.567→v2.568. STATE v8.108→v8.109.
+- **D-1497:** PR #208 un-parked + rebased develop@aaa9bfe8; rustls-tls fold-in (11 Cargo.toml dev-dep standardized); 4 SID-1 quarantined DTU scenario tests un-quarantined; 7 prism-dtu-claroty stop() calls; just check GREEN 5085. ADR-050 ACCEPTED v1.0. S-MAINT-REQWEST-RUSTLS-GATE-001 draft registered. total_stories 225→226. STATE v8.109→v8.110.
+- **D-1498:** PR #208 LOCAL pass-2 fix-burst — F1 stale quarantine doc comment sibling-swept; OBS-2 error-taxonomy attribution corrected. STATE v8.110→v8.111.
+- **D-1499:** PR #208 LOCAL pass-2 re-gate — 2 LOW (OBS-1 volatile taxonomy pins; OBS-2 gate-mechanism over-specified); fixes applied on ef7b0061. STATE v8.111→v8.112.
+- **D-1500:** PR #208 LOCAL 3-CLEAN CONVERGED on frozen ef7b0061; force-pushed origin; CI GREEN (21+ checks / 5 platforms). STORY-INDEX UNCHANGED v2.570. STATE v8.112→v8.113.
+- **D-1501:** PR #208 PR-LEVEL pass-1 F1 HIGH FIXED — E-QUERY-039 false-positive on DataFusion built-in agg/window funcs; BC-2.11.019 v1.5→v1.6; error-taxonomy v2.04→v2.05; story v2.16→v2.17; code ce78ea45; just check 5088 passed. BC-INDEX v7.27→v7.28. STORY-INDEX v2.570→v2.571. PR-LEVEL streak RESET 0/3. STATE v8.113→v8.114.
+- **D-1502:** PR #208 PR-LEVEL pass-1 LOW fixes — OBS-1 (~30 BC-2.11.019 v1.5 version-pin comments swept to §-anchor; commit b0261232) + F-FRESH-01 (E-QUERY-039 AST-walk doc overclaim corrected; commit 0dbe81f6). PR-LEVEL streak RESET 0/3 on 0dbe81f6. STATE v8.114→v8.115.
+- **D-1503:** F-P208-N1B-TESTNAME-DRIFT (MED) FIXED story-side — story v2.17→v2.18; 9 citation sites corrected to verified actual test names. CODE 0dbe81f6 UNCHANGED. STORY-INDEX v2.571→v2.572. STATE v8.115→v8.116.
+- **D-1504:** F-P208-TLS-ANCHOR-001 (LOW) FIXED story-side — story v2.18→v2.19; AC-TLS `v1.?` placeholder resolved to BC-2.06.019 v1.15. STORY-INDEX v2.572→v2.573. STATE v8.116→v8.117.
+- **D-1505:** 5 spec-hygiene defects FIXED story-side — story v2.19→v2.20; test count 19→22; 3 missing test names added; 4 LOW fixes. STORY-INDEX v2.573→v2.574. STATE v8.117→v8.118.
+- **D-1506:** F-P208-ADR050-ANCHOR (MED) FIXED — story v2.20→v2.21; ADR-050 v1.0→v1.1 (§Pre-Fix State corrected); ARCH-INDEX v2.155→v2.156. STORY-INDEX v2.574→v2.575. STATE v8.118→v8.119.
+- **D-1507:** F-P208-BC21012-VER-DRIFT-001 (LOW) FIXED — exhaustive version-pin sweep; story v2.21→v2.22. STORY-INDEX v2.575→v2.576. STATE v8.119→v8.120.
+- **D-1508:** F-P208-P1-LOW-001 (LOW) FIXED — exhaustive count/annotation sweep; story v2.22→v2.23 (red_gate_tests 49→54; test-file count 9→8). STORY-INDEX v2.576→v2.577. STATE v8.120→v8.121.
+- **D-1509:** PR #208 MERGED — develop@aaa9bfe8→122228e8 (2026-07-03); CI GREEN 44 checks; BC-2.11.019 v1.6 draft→active (POL-14); workspace_test_count 4978→5088; active_contracts 254→255; BC-INDEX v7.28→v7.29; STORY-INDEX v2.577→v2.578. Process-gap lesson 8 codified. STATE v8.121→v8.122.
+- **D-1510:** S-3.09 PRESERVED + RESUMPTION QUEUED — backup ref backup/S-3.09-preresume-43c41389@43c41389; freeze blocker cleared; re-home effort documented. Superseded by D-1511 re-framing. STATE v8.122→v8.123.
+- **D-1511:** T13 PRE-FLIGHT DEMO RE-AUDIT PASS — develop@122228e8 = DEMO-READY:YES (18/18 PASS); all D-1312 blockers CLOSED; all S-DEMO-FIDELITY-REMEDIATION-001 fixes verified live. Audit record `.factory/research/demo-pre-flight-audit-2026-07-03.md`. S-3.09 reframed DAY-2/PARKED (human demo re-orientation). STATE v8.123→v8.124. STORY-INDEX UNCHANGED v2.578. ARCH-INDEX UNCHANGED v2.156.
+- **D-1512 (this wrap):** SESSION WRAP — §RESUME SNAPSHOT D-1512 authored (supersedes D-1494). Both session objectives MERGED (S-PERF-GATE-008 @aaa9bfe8, S-DEMO-FIDELITY-REMEDIATION-001 @122228e8); DEMO-READY:YES 18/18; user directive = COMPREHENSIVE T13 audit before T13 capstone; S-3.09 day-2/parked. PENDING-HUMAN: rustls-tls CLAUDE.md ratification + py script commit + worktree cleanup. STATE v8.124→v8.125.
+
+---
+
+## §RESUME SNAPSHOT — D-1494 (2026-07-02 — SESSION WRAP; develop origin/develop 67518790; BC-INDEX v7.27; STORY-INDEX v2.566; ARCH-INDEX v2.153; STATE v8.107; S-PERF-GATE-008 PR-LEVEL streak 0/3 on 091f1af8; F-P3-MED-001 open; CI GREEN 43/43) [SUPERSEDES D-1480] [SUPERSEDED by D-1512]
 
 > **D-1494 burst (2026-07-02).** SESSION WRAP. S-PERF-GATE-006 (PR #212 @67518790) + S-PERF-GATE-007 (PR #211 @c6d6e4fa) MERGED to develop this session. ADR-049 authored + converged to v1.2. S-PERF-GATE-008 story converged to v1.9 (DEFINITIVE). PR #213 FROZEN at 091f1af8 — CI GREEN 43/43, security APPROVE (2 LOW non-blocking), pr-reviewer APPROVE. PR-LEVEL strict-3-CLEAN grind: passes 1 & 2 CLEAN(strict), pass 3 found F-P3-MED-001 MED (warm-figure contradiction) → streak reset 0/3. STORY-INDEX digest synced (F-P3-LOW-001 fixed). Lesson Process-Gap-7 captured. All prior D-1101..D-1493 notes SUPERSEDED.
 
