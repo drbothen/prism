@@ -1305,7 +1305,7 @@ fn test_BC_2_19_001_e_infuse_008_plugin_call_failed_display_contains_all_fields(
 
 /// E-INFUSE-008 (HIGH-2 / POL-24): PluginCallFailed Display MUST match taxonomy verbatim.
 ///
-/// error-taxonomy.md v1.87 mandates:
+/// error-taxonomy.md §E-INFUSE-008 Message Format mandates:
 ///   `"E-INFUSE-008: plugin infusion call failed for '{infusion_id}' via plugin '{plugin_id}': {reason}"`
 ///
 /// This test pins the EXACT format (not just `.contains`) to prevent silent drift from the
@@ -1315,7 +1315,7 @@ fn test_BC_2_19_001_e_infuse_008_plugin_call_failed_display_contains_all_fields(
 /// HIGH-2 finding: the prior Display template `"E-INFUSE-008: Plugin infusion call failed for
 /// plugin '{plugin_id}' (infusion '{infusion_id}'): {reason}"` differed from the taxonomy on
 /// three counts: capital P, plugin_id-first field order, and "(infusion ...)" phrasing.
-/// Fixed by aligning with the error-taxonomy.md v1.87 canonical template.
+/// Fixed by aligning with the error-taxonomy.md §E-INFUSE-008 canonical template.
 #[test]
 fn test_BC_2_19_001_e_infuse_008_plugin_call_failed_display_exact_taxonomy_format() {
     let err = InfusionError::PluginCallFailed {
@@ -1325,7 +1325,7 @@ fn test_BC_2_19_001_e_infuse_008_plugin_call_failed_display_exact_taxonomy_forma
     };
     let msg = err.to_string();
 
-    // Pin the EXACT message template from error-taxonomy.md v1.87:
+    // Pin the EXACT message template from error-taxonomy.md §E-INFUSE-008 Message Format:
     //   "E-INFUSE-008: plugin infusion call failed for '{infusion_id}' via plugin '{plugin_id}': {reason}"
     let expected = "E-INFUSE-008: plugin infusion call failed for 'threat_intel' via plugin 'threat_plugin': plugin trapped: unreachable instruction";
 

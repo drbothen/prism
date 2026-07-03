@@ -10,3 +10,7 @@ pub mod capability_tests;
 
 // S-2.08: TableType canonical enum tests.
 pub mod table_type_tests;
+
+// S-DEMO-FIDELITY-REMEDIATION-001: HIGH-002/004 Display regression tests for
+// EnrichUdfNotFoundDetails — byte-exact match against PO canonical E-QUERY-039 template.
+pub mod test_enrich_udf_not_found_display;

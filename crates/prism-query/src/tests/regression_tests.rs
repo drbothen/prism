@@ -1417,7 +1417,7 @@ fn test_clamp_regex_pattern_above_max_clamped_down() {
     );
 }
 
-/// P5-02 (QRY cascade, error-taxonomy.md v1.72 / ADR-038 v1.3): security-limit
+/// P5-02 (QRY cascade, error-taxonomy.md §E-QUERY-003 / ADR-038 §P5-02): security-limit
 /// errors carry exactly ONE "E-QUERY-003" prefix in their Display output.
 ///
 /// Pre-split, security limits routed through `QueryExecutionFailed` with an
@@ -1427,7 +1427,7 @@ fn test_clamp_regex_pattern_above_max_clamped_down() {
 /// supplies the single canonical prefix via its Display impl; emission sites
 /// no longer embed it.
 ///
-/// Traces: P5-02, BC-2.11.006, error-taxonomy.md v1.72 E-QUERY-003/E-QUERY-034
+/// Traces: P5-02, BC-2.11.006, error-taxonomy.md §E-QUERY-003/§E-QUERY-034
 #[test]
 fn test_p5_02_security_limit_display_has_exactly_one_e_query_003_prefix() {
     use crate::security::{check_query_size, PRISM_MAX_QUERY_SIZE};
@@ -1475,7 +1475,7 @@ fn test_p5_02_security_limit_display_has_exactly_one_e_query_003_prefix() {
 ///   `"E-QUERY-034: query execution error: <redacted; see server logs>"`
 /// — exactly ONE occurrence of "query execution error" in the Display output.
 ///
-/// Traces: P6-01, BC-2.11.006, error-taxonomy.md v1.72 E-QUERY-034
+/// Traces: P6-01, BC-2.11.006, error-taxonomy.md §E-QUERY-034
 #[test]
 fn test_p6_01_map_datafusion_memory_error_fallback_display_has_exactly_one_query_execution_error_phrase(
 ) {

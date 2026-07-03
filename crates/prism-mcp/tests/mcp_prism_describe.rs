@@ -94,40 +94,14 @@ use ulid::Ulid;
 ///
 /// # BC-2.10.012 v1.1 extended capture (AC-002 hardening)
 ///
-/// BC-2.10.012 v1.1 requires `write_tool_call` to carry BOTH `operation` (the
-/// canonical operation name, e.g. `"schema_enumeration"`) AND `outcome` (the
-/// result of that operation, `"success"` or `"error"`) as SEPARATE parameters.
-/// The current production signature `write_tool_call(tool_name, client_id, outcome)`
-/// has only ONE result-string parameter — it cannot distinguish operation from outcome.
+/// BC-2.10.012 v1.1: `write_tool_call` carries BOTH `operation` (the canonical
+/// operation name, e.g. `"schema_enumeration"`) AND `outcome` (`"success"` or
+/// `"error"`) as SEPARATE parameters — implemented in the production trait.
 ///
-/// This mock captures a 4-tuple `(tool_name, client_id, operation, outcome)`:
-/// - `operation`: populated from the `outcome` parameter that the current production
-///   code passes (currently `"schema_enumeration"`, which is actually the operation
-///   name, not the result — correct by accident).
-/// - `outcome`: set to the sentinel `"(not_provided)"` because the current production
-///   trait does NOT have a separate `outcome` parameter.
+/// This mock captures a 4-tuple `(tool_name, client_id, operation, outcome)`.
 ///
 /// The AC-002 assertions verify `operation == "schema_enumeration"` AND
 /// `outcome == "success"` (happy path) / `outcome == "error"` (error path).
-/// The `outcome == "success"` assertion FAILS now because `outcome` is
-/// `"(not_provided)"` — the Red Gate failure.
-///
-/// ## What the implementer must formalize (SID-1)
-///
-/// Extend `prism_query::write_dispatch::AuditWriter::write_tool_call` signature to:
-/// ```rust
-/// async fn write_tool_call(
-///     &self,
-///     tool_name: &str,
-///     client_id: Option<&str>,
-///     operation: &str,   // canonical operation name, e.g. "schema_enumeration"
-///     outcome: &str,     // result: "success" | "error"
-/// ) -> Result<(), PrismError>;
-/// ```
-/// Update `handle_prism_describe` to pass `operation = "schema_enumeration"` and
-/// `outcome = "success"` / `outcome = "error"` as separate arguments.
-/// Update all other `write_tool_call` call sites (TD-VSDD-060 sibling-site sweep).
-/// Update all `AuditWriter` implementors in `prism-query` and `prism-audit`.
 // (type alias below: clippy requires no blank doc-comment line before a non-doc item)
 type AuditRecord = (String, Option<String>, String, String);
 
@@ -324,13 +298,9 @@ fn make_two_org_resolved_spec_map() -> Arc<
 /// annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=false.
 /// The tool description must include the AC-001 annotation summary string.
 ///
-/// RED GATE: Fails if the catalog tool does not carry the correct annotations.
-/// This test does NOT call todo!() code — it drives the real production catalog
-/// inspection path to verify annotations are wired.
-///
-/// Currently FAILS because: the test verifies the annotations field explicitly
-/// and the description must contain "readOnlyHint:true" — verifying the annotations
-/// struct is present and correctly set.
+/// Load-bearing: if `prism_describe` loses its annotations (readOnlyHint, idempotentHint,
+/// openWorldHint) or the description drops the AC-001 annotation summary string,
+/// this test fails.
 #[test]
 fn test_BC_2_10_012_prism_describe_tool_annotations() {
     let catalog = PrismServer::production_tool_catalog();
@@ -412,8 +382,8 @@ fn test_BC_2_10_012_prism_describe_tool_annotations() {
 /// non-empty `name`, `sensor_type`, `columns`, and `example_query`), and
 /// non-empty `pql_hints`.
 ///
-/// RED GATE: Fails with todo!() panic from `handle_prism_describe` in
-/// `crates/prism-mcp/src/tools/prism_describe.rs`.
+/// Load-bearing: `handle_prism_describe` is fully implemented; removing it causes a
+/// compile/link failure.
 #[tokio::test]
 async fn test_BC_2_10_012_prism_describe_happy_path_catalog() {
     let config_manager = make_config_manager_acme_crowdstrike();
@@ -549,7 +519,8 @@ async fn test_BC_2_10_012_prism_describe_happy_path_catalog() {
 /// Every call to `prism_describe` must invoke `audit_writer.write_tool_call` with
 /// `tool_name: "prism_describe"`, the correct `client_id`, and an outcome tag.
 ///
-/// RED GATE: Fails with todo!() panic from `handle_prism_describe`.
+/// Load-bearing: `handle_prism_describe` emits the audit event; removing the
+/// `write_tool_call` call causes `calls.len() == 0` and this test fails.
 #[tokio::test]
 async fn test_BC_2_10_012_prism_describe_audit_event_emitted() {
     let config_manager = make_config_manager_acme_crowdstrike();
@@ -615,32 +586,12 @@ async fn test_BC_2_10_012_prism_describe_audit_event_emitted() {
 ///   - `operation = "schema_enumeration"` — the canonical operation name
 ///   - `outcome = "success"` — the result on the happy path
 ///
-/// The current implementation passes only ONE string to `write_tool_call`, using
-/// `"schema_enumeration"` as the single "outcome" argument. This conflates the
-/// operation name with the outcome — the BC distinguishes them.
+/// The production `write_tool_call` signature carries both `operation` and `outcome` as
+/// separate parameters; `handle_prism_describe` passes each on its happy path.
 ///
-/// ## RED GATE: This test FAILS now because:
-///
-/// 1. `CapturingAuditWriter::write_tool_call(tool_name, client_id, outcome)` receives
-///    `outcome = "schema_enumeration"` from production code.
-/// 2. The mock maps this to `operation = "schema_enumeration"` and sets
-///    `outcome = "(not_provided)"` (sentinel — the trait has no separate outcome param).
-/// 3. The assertion `outcome == "success"` FAILS: got `"(not_provided)"`.
-///
-/// ## What the implementer must do
-///
-/// Extend `prism_query::write_dispatch::AuditWriter::write_tool_call` to:
-/// ```rust
-/// async fn write_tool_call(
-///     &self,
-///     tool_name: &str,
-///     client_id: Option<&str>,
-///     operation: &str,   // "schema_enumeration"
-///     outcome: &str,     // "success" | "error"
-/// ) -> Result<(), PrismError>;
-/// ```
-/// Then update `handle_prism_describe` to pass both fields as separate arguments.
-/// Run TD-VSDD-060 sibling sweep over all `write_tool_call` call sites.
+/// Load-bearing (TD-VSDD-059): removing the `outcome` parameter from `write_tool_call`
+/// or passing `outcome = "(not_provided)"` causes the `outcome == "success"` assertion
+/// to fail.
 #[tokio::test]
 async fn test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path() {
     let config_manager = make_config_manager_acme_crowdstrike();
@@ -685,23 +636,13 @@ async fn test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path(
     );
 
     // BC-2.10.012 v1.1 §Audit: outcome must be "success" on the happy path.
-    //
-    // RED GATE ASSERTION: This FAILS now.
-    // Current production code passes only ONE string ("schema_enumeration") to
-    // write_tool_call — the CapturingAuditWriter maps that string to `operation`
-    // and sets `outcome = "(not_provided)"` (sentinel). "success" != "(not_provided)".
-    //
-    // Fix: extend write_tool_call to take `operation` AND `outcome` as separate params,
-    // call write_tool_call("prism_describe", Some(client_id), "schema_enumeration", "success")
-    // on the happy path.
+    // Load-bearing: removing the `outcome` parameter from write_tool_call (or passing
+    // only one string) causes outcome = "(not_provided)" and this assertion fails.
     assert_eq!(
         outcome.as_str(),
         "success",
-        "BC-2.10.012 AC-002 RED GATE: write_tool_call outcome MUST be 'success' on the happy path \
-         (BC-2.10.012 v1.1 §Audit). The production AuditWriter trait does not yet have a separate \
-         `outcome` parameter — the mock captures '{}' as the sentinel '(not_provided)'. \
-         Implementer: extend AuditWriter::write_tool_call with an `outcome: &str` param, \
-         then pass 'success' here.",
+        "BC-2.10.012 AC-002: write_tool_call outcome MUST be 'success' on the happy path \
+         (BC-2.10.012 v1.1 §Audit). Got: '{}'",
         outcome
     );
 }
@@ -714,18 +655,12 @@ async fn test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path(
 /// BC-2.10.012 v1.1: "on invalid client_id, the audit emission still occurs
 /// (fail-open DI-004) with `outcome = 'error'`."
 ///
-/// ## RED GATE: This test FAILS now because:
+/// On validation failure (E-MCP-001), `handle_prism_describe` calls `write_tool_call`
+/// with `operation = "schema_enumeration"` and `outcome = "error"` BEFORE returning
+/// the `Err(ErrorData)` (fail-open DI-004, audit before return).
 ///
-/// 1. The current `handle_prism_describe` returns `Err(ErrorData)` early when
-///    client_id fails OrgSlug validation — WITHOUT calling `write_tool_call`.
-///    The mock captures zero calls → the assertion `calls.len() == 1` FAILS.
-/// 2. Even if it did call write_tool_call, the outcome param doesn't exist yet.
-///
-/// ## What the implementer must do
-///
-/// On validation failure (E-MCP-001), STILL call `write_tool_call` with
-/// `operation = "schema_enumeration"` and `outcome = "error"` BEFORE returning
-/// the `Err(ErrorData)`. Then return the error.
+/// Load-bearing (TD-VSDD-059): removing the audit call in the validation-failure branch
+/// of `handle_prism_describe` causes `calls.len() == 0` instead of 1.
 #[tokio::test]
 async fn test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_id() {
     let config_manager = make_config_manager_acme_crowdstrike();
@@ -750,18 +685,12 @@ async fn test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_i
 
     // BC-2.10.012 v1.1 §Audit: write_tool_call MUST be invoked even on validation failure
     // (audit before return, fail-open DI-004).
-    //
-    // RED GATE ASSERTION: This FAILS now.
-    // Current code returns Err BEFORE calling write_tool_call — zero audit records.
-    // Fix: add write_tool_call("prism_describe", None, "schema_enumeration", "error")
-    // in the validation-failure branch, BEFORE the return.
     let calls = audit_writer.calls.lock().unwrap();
     assert_eq!(
         calls.len(),
         1,
-        "BC-2.10.012 AC-002 RED GATE: write_tool_call MUST be called even on validation \
-         failure (E-MCP-001), with outcome='error'. Got {} calls instead of 1. \
-         Implementer: call write_tool_call before returning Err in handle_prism_describe.",
+        "BC-2.10.012 AC-002: write_tool_call MUST be called even on validation \
+         failure (E-MCP-001), with outcome='error'. Got {} calls instead of 1.",
         calls.len()
     );
 
@@ -775,11 +704,10 @@ async fn test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_i
         operation
     );
 
-    // RED GATE ASSERTION: outcome must be "error" on the E-MCP-001 path.
     assert_eq!(
         outcome.as_str(),
         "error",
-        "BC-2.10.012 AC-002 RED GATE: write_tool_call outcome MUST be 'error' on the \
+        "BC-2.10.012 AC-002: write_tool_call outcome MUST be 'error' on the \
          E-MCP-001 invalid-client_id path (BC-2.10.012 v1.1 §Audit). \
          Got outcome='{}'.",
         outcome
@@ -819,30 +747,13 @@ async fn test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_i
 /// hint string. That leniency let the implementation emit one generic hint for all empty
 /// cases — masking the missing behavior mandated by BC-2.10.012.
 ///
-/// ## RED GATE: The not-registered assertion FAILS now.
+/// `build_pql_hints` consults `org_registry` to distinguish the two cases:
+/// - Registered-but-empty: "No sensor tables are available for client '...'. The client
+///   may not have any sensor overlays configured."
+/// - Not-registered: "Client '...' is not registered. Check prism.toml [[orgs]] configuration."
 ///
-/// The current `build_pql_hints` implementation uses a single generic message for BOTH
-/// cases:
-/// ```
-/// "No sensor tables are available for client '...'. Ensure sensors are configured ..."
-/// ```
-/// The assertion `hint_text.contains("is not registered")` will FAIL with the current
-/// code because it never produces a registration-specific hint.
-///
-/// ## What the implementer must wire (SID-1)
-///
-/// 1. Thread `org_registry: Option<Arc<OrgRegistry>>` into `build_pql_hints` (or pass
-///    it as a separate flag resolved by `handle_prism_describe` before calling it).
-/// 2. In `handle_prism_describe`, after `build_tables_for_client` returns empty, consult
-///    `query_engine.org_registry()` (or the passed-in registry) to check whether the
-///    OrgSlug is registered.
-/// 3. If registered-but-empty: emit "No sensor tables are available for client '...' \
-///    The client may not have any sensor overlays configured."
-/// 4. If not-registered: emit "Client '...' is not registered. Check prism.toml \
-///    [[orgs]] configuration."
-/// 5. The org_registry check ONLY applies when `query_engine` is wired (multi-tenant
-///    path). Single-tenant (config_manager-only) path uses the registered-but-empty
-///    hint by default (no registry available to distinguish).
+/// Load-bearing: removing the OrgRegistry consultation causes both cases to emit the same
+/// generic hint, failing the `hint_text.contains("is not registered")` assertion.
 #[tokio::test]
 async fn test_BC_2_10_012_prism_describe_empty_and_unknown_client() {
     use prism_core::{OrgId, OrgRegistry, OrgSlug};
@@ -1034,22 +945,9 @@ async fn test_BC_2_10_012_prism_describe_empty_and_unknown_client() {
     );
 
     // BC-2.10.012 §Non-existent client_id handling: not-registered hint.
-    //
-    // RED GATE ASSERTION: This FAILS now.
-    //
-    // Current `build_pql_hints` uses the SAME generic string for both cases:
-    //   "No sensor tables are available for client '...'. Ensure sensors are configured ..."
-    // It does NOT consult org_registry to detect "not registered" vs "registered-but-empty".
-    // The assertion `hint_text.contains("is not registered")` → FAILS on current code.
-    //
-    // Implementer must:
-    // 1. Thread org_registry (from query_engine.org_registry()) into build_pql_hints or
-    //    pre-compute the registration flag in handle_prism_describe before calling it.
-    // 2. When tables.is_empty() AND org_registry.is_some():
-    //    - If org_registry.slug_exists(&org_slug): registered-but-empty hint
-    //    - If !org_registry.slug_exists(&org_slug): not-registered hint
-    // 3. Canonical not-registered hint (BC-2.10.012):
-    //    "Client '<client_id>' is not registered. Check prism.toml [[orgs]] configuration."
+    // `build_pql_hints` consults org_registry to distinguish registered-but-empty from
+    // not-registered. Load-bearing: removing the org_registry consultation causes both
+    // cases to emit the same generic hint, failing the "is not registered" assertion.
     let unknown_hints = unknown_results
         .get("pql_hints")
         .and_then(|v| v.as_array())
@@ -1068,21 +966,19 @@ async fn test_BC_2_10_012_prism_describe_empty_and_unknown_client() {
     // BC-2.10.012 canonical not-registered hint: must contain "is not registered"
     // AND "prism.toml" guidance (so the operator knows where to look).
     //
-    // RED GATE: This assertion FAILS against current implementation.
+    // Load-bearing: if build_pql_hints collapses the registered-but-empty and not-registered
+    // cases into a single generic message, the "is not registered" / "prism.toml" strings
+    // will be absent and these assertions fail.
     assert!(
         unknown_hint_text.contains("is not registered"),
-        "BC-2.10.012 AC-003 RED GATE: not-registered hint MUST contain \
+        "BC-2.10.012 AC-003: not-registered hint MUST contain \
          \"'notregistered' is not registered\" (BC canonical registration hint). \
-         Current build_pql_hints emits the generic empty-client string for BOTH \
-         registered-but-empty AND not-registered cases — it does not consult org_registry. \
-         Implementer: consult org_registry.slug_exists() in the empty-tables branch of \
-         handle_prism_describe / build_pql_hints to distinguish the two cases. \
          Got hint: {:?}",
         unknown_hint_text
     );
     assert!(
         unknown_hint_text.contains("prism.toml"),
-        "BC-2.10.012 AC-003 RED GATE: not-registered hint MUST contain 'prism.toml' \
+        "BC-2.10.012 AC-003: not-registered hint MUST contain 'prism.toml' \
          (BC canonical string: 'Check prism.toml [[orgs]] configuration.'). \
          Got hint: {:?}",
         unknown_hint_text
@@ -1098,7 +994,8 @@ async fn test_BC_2_10_012_prism_describe_empty_and_unknown_client() {
 ///
 /// DI-006: the raw path-traversal payload must NOT be echoed in the error message.
 ///
-/// RED GATE: Fails with todo!() panic from `handle_prism_describe`.
+/// Load-bearing: `handle_prism_describe` validates client_id with `OrgSlug::new()`;
+/// removing validation causes this test to get Ok instead of Err.
 #[tokio::test]
 async fn test_BC_2_10_012_prism_describe_invalid_client_id() {
     let config_manager = make_config_manager_acme_crowdstrike();
@@ -1150,9 +1047,9 @@ async fn test_BC_2_10_012_prism_describe_invalid_client_id() {
 /// `prism_describe("acme")` must return ONLY acme's crowdstrike tables and
 /// NEVER any globex/claroty strings.
 ///
-/// RED GATE: Fails because `handle_prism_describe` ignores `_query_engine` —
-/// the resolved_spec_map multi-tenant path is NOT yet implemented.
-/// The `_query_engine` parameter is currently an underscore-prefixed ignored argument.
+/// Load-bearing (AC-004 multi-tenant path): `handle_prism_describe` consults
+/// `query_engine.resolved_spec_map()` filtered by OrgSlug. Removing that path causes
+/// acme to receive globex/claroty tables, failing the isolation assertions.
 #[tokio::test]
 async fn test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map() {
     use prism_core::{OrgId, OrgRegistry, OrgSlug, SensorId};
@@ -1293,9 +1190,8 @@ async fn test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map(
 /// "Unknown or unsupported resource URI" (404-equivalent). It must route to
 /// `render_pql_schema_resource` and return the schema catalog.
 ///
-/// RED GATE: Fails because `dispatch_read_resource` in `resources.rs` has no
-/// handler for the `prismql://schema/{client_id}` URI pattern — it falls through
-/// to the generic 404 return.
+/// Load-bearing: removing the `prismql://schema/{client_id}` handler in `resources.rs`
+/// causes this test to fail with a 404 "Unknown or unsupported resource URI".
 #[tokio::test]
 async fn test_BC_2_10_013_schema_resource_dispatch_routed() {
     use prism_mcp::context::PrismContext;
@@ -1313,14 +1209,11 @@ async fn test_BC_2_10_013_schema_resource_dispatch_routed() {
     )
     .await;
 
-    // The dispatch must NOT return Err with the 404-equivalent message.
-    // Currently dispatch_read_resource falls through to the not_found_error catchall.
+    // The dispatch must return Ok (the schema handler is registered for this URI pattern).
     assert!(
         result.is_ok(),
         "BC-2.10.013 AC-005: dispatch_read_resource('prismql://schema/crowdstrike') must \
-         return Ok — not a 404 error. The dispatch table does NOT yet have a handler for \
-         the 'prismql://schema/{{client_id}}' URI pattern. \
-         Got Err: {:?}",
+         return Ok. Got Err: {:?}",
         result.err()
     );
 
@@ -1365,8 +1258,8 @@ async fn test_BC_2_10_013_schema_resource_dispatch_routed() {
 /// FULL structural equality to `handle_prism_describe("crowdstrike")`:
 /// same client_id, same tables array (length AND content), same pql_hints.
 ///
-/// RED GATE: Fails because dispatch_read_resource doesn't route to the schema handler.
-/// Once routing is wired, this verifies the single-source-of-truth parity invariant.
+/// Load-bearing: verifies the single-source-of-truth parity invariant — both paths
+/// must produce identical JSON shapes.
 #[tokio::test]
 async fn test_BC_2_10_013_schema_resource_parity_via_dispatch() {
     use prism_mcp::context::PrismContext;
@@ -1384,7 +1277,7 @@ async fn test_BC_2_10_013_schema_resource_parity_via_dispatch() {
     .await
     .expect(
         "BC-2.10.013 AC-005 parity: dispatch_read_resource('prismql://schema/crowdstrike') \
-         must return Ok for parity check; currently 404 (dispatch not wired)",
+         must return Ok for parity check",
     );
 
     let tool_result =
@@ -1533,9 +1426,8 @@ async fn test_BC_2_10_013_schema_resource_parity_via_dispatch() {
 /// `ServerCapabilities` so MCP clients know they can subscribe to
 /// `prismql://schema/{client_id}` for change notifications.
 ///
-/// RED GATE: Fails because `get_info()` calls `.enable_resources()` but NOT
-/// `.enable_resources_subscribe()`. The `ServerCapabilities` therefore has
-/// `resources.subscribe = None` instead of `resources.subscribe = Some(true)`.
+/// Load-bearing: if `.enable_resources_subscribe()` is removed from `get_info()`,
+/// `resources.subscribe` becomes `None` and this assertion fails.
 #[test]
 fn test_BC_2_10_013_schema_resource_subscribe_capability_declared() {
     let server = PrismServer::new();
@@ -1552,9 +1444,7 @@ fn test_BC_2_10_013_schema_resource_subscribe_capability_declared() {
         resources_cap.subscribe,
         Some(true),
         "BC-2.10.013 AC-006: ServerCapabilities.resources.subscribe MUST be Some(true). \
-         Current code calls .enable_resources() but not .enable_resources_subscribe() in \
-         get_info(). Add .enable_resources_subscribe() to the ServerCapabilities builder \
-         in server.rs. Got: {:?}",
+         Got: {:?}",
         resources_cap.subscribe
     );
 }
@@ -1682,7 +1572,7 @@ fn test_BC_2_10_013_schema_resource_subscribe_notify() {
     );
 }
 
-// ─── AC-006 (hardened): notify dispatch requires injectable sink — RED GATE ──
+// ─── AC-006 (hardened): notify dispatch requires injectable sink ─────────────
 
 /// AC-006 (BC-2.10.013 — Real notification dispatch, DI-008 per-client scoping):
 ///
@@ -1691,40 +1581,13 @@ fn test_BC_2_10_013_schema_resource_subscribe_notify() {
 /// EVERY subscriber of "acme". Subscribers of "globex" MUST NOT receive this notification
 /// (DI-008 per-client scoping, EC-10-030).
 ///
-/// The current `notify_schema_updated` implementation is a stub that only logs
-/// dispatch intent — it does NOT call any notification target. `SubscriberHandle` holds
-/// only `id: String` with no notification target.
+/// `SubscriberHandle` holds `notifier: Arc<dyn SchemaChangeNotifier>` so notification
+/// dispatch is injectable and observable. `notify_schema_updated` calls
+/// `handle.notifier.notify_resource_updated(uri)` for each subscriber of the target
+/// client (DI-004 fail-open: one subscriber failure must not abort others).
 ///
-/// This test drives the REAL production behavior: a `SchemaChangeNotifier` trait that
-/// `SubscriberHandle` holds, so notification dispatch is injectable and observable.
-///
-/// ## RED GATE: This test FAILS TO COMPILE now because:
-///
-/// `SubscriberHandle` does NOT have a `notifier` field. The struct is:
-/// ```rust
-/// pub struct SubscriberHandle { pub id: String }
-/// ```
-/// Constructing `SubscriberHandle { id: "conn-1".to_string(), notifier: ... }` is a
-/// compile error: unknown field `notifier`.
-///
-/// ## What the implementer must formalize (SID-1)
-///
-/// 1. Define `SchemaChangeNotifier` trait in `prism_mcp::resources::schema`:
-///    ```rust
-///    #[async_trait]
-///    pub trait SchemaChangeNotifier: Send + Sync + 'static {
-///        async fn notify_resource_updated(&self, uri: &str) -> Result<(), rmcp::model::ErrorData>;
-///    }
-///    ```
-/// 2. Add `notifier: Arc<dyn SchemaChangeNotifier>` to `SubscriberHandle`.
-/// 3. Implement `SchemaChangeNotifier` for `Peer<RoleServer>` (the real MCP peer)
-///    using `Peer::notify_resource_updated(...)`.
-/// 4. Update `notify_schema_updated` to call `handle.notifier.notify_resource_updated(uri)`
-///    for each subscriber of the target client, propagating errors as WARN-and-continue
-///    (DI-004 fail-open: one subscriber's notification failure must not abort others).
-///
-/// The production implementation of `SchemaChangeNotifier` for `Peer<RoleServer>`
-/// is the gate — this test drives the trait boundary so a mock can verify dispatch.
+/// Load-bearing: removing the `notifier` field from `SubscriberHandle` causes a compile
+/// error on this test; removing the dispatch loop causes the mock to record zero calls.
 #[tokio::test]
 async fn test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped() {
     use prism_mcp::resources::schema::{
@@ -1871,8 +1734,8 @@ async fn test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped() {
 ///
 /// | Variant       | Required template |
 /// |---------------|------------------|
-/// | count-recent  | `SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL '1h'` |
-/// | severity      | `SELECT * FROM <table> WHERE severity IN ('high', 'critical') LIMIT 50` |
+/// | count-recent  | `SELECT COUNT(*) FROM <table> WHERE <dt_col> > NOW() - INTERVAL '1h'` |
+/// | severity      | `SELECT * FROM <table> WHERE severity IN ('<High>', '<Critical>') LIMIT 50` (per-sensor casing) |
 /// | aggregate     | `SELECT <field>, COUNT(*) FROM <table> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10` |
 ///
 /// ## Fixture design
@@ -1883,54 +1746,21 @@ async fn test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped() {
 /// production `build_tables_for_client` → `build_example_query` call chain via
 /// `handle_prism_describe`.
 ///
-/// - `zero-col sensor` ("sensor_zero_col"): table `zct` with NO columns → count-recent.
-/// - `severity-only sensor` ("sensor_sev_only"): table `svt` with ONLY a `severity`
-///    column (String, no Integer/Float) → severity variant.
+/// - `zero-col sensor` ("sensor_zero_col"): table `zct` with NO columns → column-free fallback.
+/// - `severity-only sensor` ("crowdstrike"): table `svt` with ONLY a `severity`
+///    column (String, no Integer/Float) → severity variant with CrowdStrike Title-case vocabulary.
 /// - `agg-only sensor` ("sensor_agg_only"): table `agt` with ONLY `hit_count` (Integer,
 ///   no severity column) → aggregate variant.
 ///
-/// ## RED GATE: All three assertions FAIL now.
+/// ## CRIT-1 + F-L2-CRIT-001 fix status
 ///
-/// Current `build_example_query` emits:
+/// This test was originally a Red Gate for BC-2.10.012 asserting:
+/// - count-recent: `COUNT(*) + NOW() + INTERVAL` (now: column-free fallback — CRIT-1 fix)
+/// - severity: `IN ('high', 'critical')` (now: per-sensor casing — F-L2-CRIT-001 fix)
+/// - aggregate: `ORDER BY COUNT(*) DESC LIMIT 10` (unchanged, still correct)
 ///
-/// - count-recent (fallback): `SELECT * FROM zct LIMIT 25`
-///   Missing: `COUNT(*)`, `NOW() - INTERVAL`.
-///   Assertion `contains("COUNT(*)")` → FAILS.
-///
-/// - severity variant: `SELECT * FROM svt WHERE severity = 'HIGH' LIMIT 25`
-///   Wrong: `severity = 'HIGH' LIMIT 25` vs. BC-canonical `severity IN ('high', 'critical') LIMIT 50`.
-///   Assertion `contains("IN ('high', 'critical')")` → FAILS.
-///   Assertion `contains("LIMIT 50")` → FAILS.
-///
-/// - aggregate variant: `SELECT hit_count, COUNT(*) FROM agt GROUP BY hit_count LIMIT 25`
-///   Missing: `ORDER BY COUNT(*) DESC`. Wrong limit: 25 vs. 10.
-///   Assertion `contains("ORDER BY COUNT(*) DESC")` → FAILS.
-///   Assertion `contains("LIMIT 10")` → FAILS.
-///
-/// ## What the implementer must change in `build_example_query`
-///
-/// ```rust
-/// // count-recent (always present — fallback for zero-column tables EC-002):
-/// let mut query = format!(
-///     "SELECT COUNT(*) FROM {table_name} WHERE timestamp > NOW() - INTERVAL '1h'"
-/// );
-///
-/// // severity variant (when a "severity" column is present):
-/// if has_severity {
-///     query = format!(
-///         "SELECT * FROM {table_name} WHERE severity IN ('high', 'critical') LIMIT 50"
-///     );
-/// }
-///
-/// // aggregate variant (when an Integer/Float column is present):
-/// if let Some(col) = agg_col {
-///     query = format!(
-///         "SELECT {col_name}, COUNT(*) FROM {table_name} GROUP BY {col_name} \
-///          ORDER BY COUNT(*) DESC LIMIT 10",
-///         col_name = col.name
-///     );
-/// }
-/// ```
+/// Both `count-recent` and `severity` assertions have been updated to reflect the
+/// production-grade corrected behavior. The aggregate assertion is unchanged.
 #[tokio::test]
 async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
     use prism_core::column::ColumnType;
@@ -1993,35 +1823,51 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
         .as_str()
         .expect("BC-2.10.012 AC-002: zct table must have example_query string");
 
-    // RED GATE: current code emits "SELECT * FROM zct LIMIT 25" — no COUNT(*).
+    // CRIT-1 fix (S-DEMO-FIDELITY-REMEDIATION-001): zero-column table has NO Datetime column,
+    // so the time-window form `WHERE timestamp > NOW() - INTERVAL '1h'` cannot be generated
+    // without referencing a non-existent column. The correct fallback is `SELECT * FROM <t> LIMIT 25`.
+    // The old Red Gate assertion (COUNT(*) + NOW() + INTERVAL) was written when the BC assumed
+    // `timestamp` always existed. The CRIT-1 fix makes the column-free form the correct fallback.
+    //
+    // Updated assertion: zero-column table → column-free fallback.
     assert!(
-        zero_eq.contains("COUNT(*)"),
-        "BC-2.10.012 AC-002 RED GATE [count-recent]: example_query for zero-column table \
-         MUST contain 'COUNT(*)'. BC-canonical: \
-         'SELECT COUNT(*) FROM zct WHERE timestamp > NOW() - INTERVAL \\'1h\\''. \
-         Got: {:?}. \
-         Fix `build_example_query`: change fallback from `SELECT * FROM ... LIMIT 25` \
-         to `SELECT COUNT(*) FROM ... WHERE timestamp > NOW() - INTERVAL '1h'`.",
+        zero_eq.contains("SELECT * FROM"),
+        "BC-2.10.012 AC-002 [count-recent/CRIT-1]: example_query for zero-column table must \
+         use column-free fallback 'SELECT * FROM zct LIMIT 25' (CRIT-1 fix: no Datetime column \
+         means the timestamp time-window form would reference a non-existent column). Got: {:?}.",
         zero_eq
     );
-
     assert!(
-        zero_eq.contains("NOW()") && zero_eq.contains("INTERVAL"),
-        "BC-2.10.012 AC-002 RED GATE [count-recent]: example_query MUST contain \
-         time-window clause `NOW() - INTERVAL '1h'`. Got: {:?}.",
+        zero_eq.contains("LIMIT"),
+        "BC-2.10.012 AC-002 [count-recent/CRIT-1]: column-free fallback must include LIMIT. \
+         Got: {:?}.",
         zero_eq
     );
-
     assert!(
         zero_eq.contains("zct"),
         "BC-2.10.012 AC-002 [count-recent]: example_query must substitute the real table \
          name 'zct'. Got: {:?}.",
         zero_eq
     );
+    // Must NOT contain hardcoded "timestamp" (the column-free form avoids all column refs).
+    assert!(
+        !zero_eq.contains("timestamp"),
+        "BC-2.10.012 AC-002 [CRIT-1 regression guard]: column-free fallback must NOT contain \
+         hardcoded 'timestamp'. Got: {:?}.",
+        zero_eq
+    );
 
     // ── Case 2: severity variant — table with ONLY a severity String column ──────
     //
-    // BC canonical: SELECT * FROM svt WHERE severity IN ('high', 'critical') LIMIT 50
+    // F-L2-CRIT-001 fix (S-DEMO-FIDELITY-REMEDIATION-001): the original Red Gate asserted
+    // `IN ('high', 'critical')` (lowercase). That was the defect — CrowdStrike DTU emits
+    // Title-case "High"/"Critical", Armis DTU emits UPPER-case "HIGH"/"CRITICAL". The
+    // fixture MUST use a registered sensor prefix so the severity vocabulary lookup fires.
+    //
+    // Updated: sensor_id "crowdstrike" → table name becomes "crowdstrike_svt" → vocabulary
+    // lookup returns ("High", "Critical") → severity variant uses Title-case.
+    //
+    // BC canonical post-fix: SELECT * FROM crowdstrike_svt WHERE severity IN ('High', 'Critical') LIMIT 50
     //
     // No Integer/Float column → aggregate branch does NOT override; severity branch wins.
     let sev_col = ColumnSpec::new(
@@ -2030,11 +1876,10 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
         Some("severity".to_string()),
         vec![],
     );
-    let cm_sev = make_sensor_config_manager("sensor_sev_only", "svt", vec![sev_col]);
-    let result_sev =
-        handle_prism_describe("sensor_sev_only".to_string(), None, Some(&cm_sev), None)
-            .await
-            .expect("BC-2.10.012 AC-002 [severity]: handle_prism_describe must return Ok");
+    let cm_sev = make_sensor_config_manager("crowdstrike", "svt", vec![sev_col]);
+    let result_sev = handle_prism_describe("crowdstrike".to_string(), None, Some(&cm_sev), None)
+        .await
+        .expect("BC-2.10.012 AC-002 [severity]: handle_prism_describe must return Ok");
 
     let json_sev: String = result_sev
         .content
@@ -2049,31 +1894,30 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
     let sev_table = &parsed_sev["results"]["tables"][0];
     let sev_eq = sev_table["example_query"]
         .as_str()
-        .expect("BC-2.10.012 AC-002: svt table must have example_query string");
+        .expect("BC-2.10.012 AC-002: crowdstrike_svt table must have example_query string");
 
-    // RED GATE: current code emits "WHERE severity = 'HIGH' LIMIT 25".
+    // F-L2-CRIT-001 fix: CrowdStrike DTU emits Title-case 'High'/'Critical'.
+    // The old assertion `IN ('high', 'critical')` was a paper-confirmation of the bug;
+    // now corrected to assert the DTU-correct vocabulary.
     assert!(
-        sev_eq.contains("IN ('high', 'critical')"),
-        "BC-2.10.012 AC-002 RED GATE [severity]: example_query MUST contain \
-         `IN ('high', 'critical')`. BC-canonical: \
-         'SELECT * FROM svt WHERE severity IN (\\'high\\', \\'critical\\') LIMIT 50'. \
-         Got: {:?}. \
-         Fix `build_example_query`: change `severity = 'HIGH' LIMIT 25` to \
-         `severity IN ('high', 'critical') LIMIT 50`.",
+        sev_eq.contains("IN ('High', 'Critical')"),
+        "BC-2.10.012 AC-002 [severity] F-L2-CRIT-001: example_query for crowdstrike table MUST \
+         use Title-case severity literals `IN ('High', 'Critical')` to match DTU vocabulary. \
+         Got: {:?}.",
         sev_eq
     );
 
     assert!(
         sev_eq.contains("LIMIT 50"),
-        "BC-2.10.012 AC-002 RED GATE [severity]: example_query MUST have LIMIT 50 \
-         (BC-canonical). Current code uses LIMIT 25. Got: {:?}.",
+        "BC-2.10.012 AC-002 [severity]: example_query MUST have LIMIT 50 (BC-canonical). \
+         Got: {:?}.",
         sev_eq
     );
 
     assert!(
-        sev_eq.contains("svt"),
-        "BC-2.10.012 AC-002 [severity]: example_query must substitute table name 'svt'. \
-         Got: {:?}.",
+        sev_eq.contains("crowdstrike_svt"),
+        "BC-2.10.012 AC-002 [severity]: example_query must substitute sensor-prefixed table name \
+         'crowdstrike_svt'. Got: {:?}.",
         sev_eq
     );
 
@@ -2105,23 +1949,21 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
         .as_str()
         .expect("BC-2.10.012 AC-002: agt table must have example_query string");
 
-    // RED GATE: current code emits "SELECT hit_count, COUNT(*) FROM agt GROUP BY
-    // hit_count LIMIT 25" — missing "ORDER BY COUNT(*) DESC", wrong LIMIT.
+    // Load-bearing: if build_example_query reverts to "LIMIT 25" or drops "ORDER BY COUNT(*) DESC",
+    // these assertions fail.
     assert!(
         agg_eq.contains("ORDER BY COUNT(*) DESC"),
-        "BC-2.10.012 AC-002 RED GATE [aggregate]: example_query MUST contain \
+        "BC-2.10.012 AC-002 [aggregate]: example_query MUST contain \
          'ORDER BY COUNT(*) DESC'. BC-canonical: \
          'SELECT hit_count, COUNT(*) FROM agt GROUP BY hit_count \
-         ORDER BY COUNT(*) DESC LIMIT 10'. Got: {:?}. \
-         Fix `build_example_query`: append `ORDER BY COUNT(*) DESC LIMIT 10` \
-         (not `LIMIT 25`).",
+         ORDER BY COUNT(*) DESC LIMIT 10'. Got: {:?}.",
         agg_eq
     );
 
     assert!(
         agg_eq.contains("LIMIT 10"),
-        "BC-2.10.012 AC-002 RED GATE [aggregate]: example_query MUST have LIMIT 10 \
-         (BC-canonical), not LIMIT 25. Got: {:?}.",
+        "BC-2.10.012 AC-002 [aggregate]: example_query MUST have LIMIT 10 (BC-canonical). \
+         Got: {:?}.",
         agg_eq
     );
 
@@ -2161,39 +2003,27 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
 /// | Skeleton | Required text |
 /// |----------|--------------|
 /// | count-recent | `COUNT(*) ... NOW() - INTERVAL` |
-/// | severity     | `severity IN ('high', 'critical') ... LIMIT 50` |
+/// | severity     | `severity IN (<severity_values>) ... LIMIT 50` |
 /// | aggregate    | `GROUP BY ... ORDER BY COUNT(*) DESC ... LIMIT 10` |
 ///
-/// ## RED GATE: All three assertions FAIL now.
-///
-/// Current query tool description (server.rs `#[tool(description = ...)]`) has:
+/// The `SCHEMA-AGNOSTIC SKELETONS` section in `server.rs` reads:
 ///
 /// ```
-/// 1. SELECT * FROM <table> LIMIT 25
-/// 2. SELECT * FROM <table> WHERE severity = 'HIGH' LIMIT 25
-/// 3. SELECT col1, COUNT(*) FROM <table> GROUP BY col1 LIMIT 25
-/// ```
-///
-/// - Skeleton 1: `SELECT * FROM <table> LIMIT 25` — does NOT contain `COUNT(*)` or
-///   `NOW() - INTERVAL`. Assertion `contains("COUNT(*)")` → FAILS.
-///
-/// - Skeleton 2: uses `severity = 'HIGH' LIMIT 25` — does NOT contain
-///   `IN ('high', 'critical')` or `LIMIT 50`. Assertion → FAILS.
-///
-/// - Skeleton 3: `GROUP BY col1 LIMIT 25` — does NOT contain
-///   `ORDER BY COUNT(*) DESC` or `LIMIT 10`. Assertion → FAILS.
-///
-/// ## What the implementer must change
-///
-/// In `server.rs`, update the `#[tool(description = ...)]` for the `query` tool.
-/// The `SCHEMA-AGNOSTIC SKELETONS` section must read:
-///
-/// ```
-/// SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field> with real names from prism_describe):\n
+/// SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field>/<severity_values> with real names/values from prism_describe):\n
 ///   1. SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL '1h'\n
-///   2. SELECT * FROM <table> WHERE severity IN ('high', 'critical') LIMIT 50\n
+///   2. SELECT * FROM <table> WHERE severity IN (<severity_values>) LIMIT 50\n
 ///   3. SELECT <field>, COUNT(*) FROM <table> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10\n
 /// ```
+///
+/// F-PML2-MED-001 fix: skeleton #2 now uses `<severity_values>` placeholder instead of
+/// hardcoded `('high', 'critical')` literals. Severity literal casing is per-sensor
+/// (crowdstrike: Title-case, armis: UPPER-case, cyberint: lowercase); hardcoding any
+/// single casing breaks all other sensors silently (0 rows, no error).
+/// The SEVERITY CASING WARNING added to the description directs agents to use
+/// prism_describe's `example_query` field for correct per-sensor casing.
+///
+/// Load-bearing: reverting to the old skeletons (LIMIT 25, `= 'HIGH'`, no COUNT(*) / ORDER BY)
+/// fails all three assertions.
 #[test]
 fn test_BC_2_10_009_query_tool_description_l1_primer_skeleton_shapes() {
     let catalog = PrismServer::production_tool_catalog();
@@ -2210,28 +2040,19 @@ fn test_BC_2_10_009_query_tool_description_l1_primer_skeleton_shapes() {
 
     // ── Skeleton 1: count-recent — must use COUNT(*) + time-window ──────────────
     //
-    // BC-2.10.009 §L1 primer mandates the first skeleton shows a time-windowed
-    // count query so agents learn the temporal filter idiom immediately.
-    //
-    // RED GATE: current description has "SELECT * FROM <table> LIMIT 25" — no COUNT(*).
+    // BC-2.10.009 §L1 primer: first skeleton shows a time-windowed count query.
     assert!(
         description.contains("COUNT(*)"),
-        "BC-2.10.009 AC-002 RED GATE [L1 skeleton 1 — count-recent]: query tool description \
-         MUST contain 'COUNT(*)' in its first skeleton (BC-canonical: \
-         'SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL \\'1h\\''). \
-         Current description has 'SELECT * FROM <table> LIMIT 25' which lacks COUNT(*). \
-         Fix server.rs #[tool(description = ...)] for the 'query' tool. \
+        "BC-2.10.009 AC-002 [L1 skeleton 1 — count-recent]: query tool description \
+         MUST contain 'COUNT(*)'. \
          Got description (first 400 chars): {:?}",
         &description[..description.len().min(400)]
     );
 
     assert!(
         description.contains("NOW()") && description.contains("INTERVAL"),
-        "BC-2.10.009 AC-002 RED GATE [L1 skeleton 1 — count-recent]: query tool description \
-         MUST contain time-window clause 'NOW() - INTERVAL' in its first skeleton. \
-         Current description lacks this. \
-         Fix server.rs: replace skeleton 1 with \
-         'SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL \\'1h\\''. \
+        "BC-2.10.009 AC-002 [L1 skeleton 1 — count-recent]: query tool description \
+         MUST contain time-window clause 'NOW() - INTERVAL'. \
          Got description (first 400 chars): {:?}",
         &description[..description.len().min(400)]
     );
@@ -2239,52 +2060,40 @@ fn test_BC_2_10_009_query_tool_description_l1_primer_skeleton_shapes() {
     // ── Skeleton 2: severity filter — must use IN clause + LIMIT 50 ─────────────
     //
     // BC-2.10.009 §L1 primer: severity filter uses multi-value IN predicate and LIMIT 50.
-    //
-    // RED GATE: current description has "WHERE severity = 'HIGH' LIMIT 25".
+    // F-PML2-MED-001 fix: severity values are now a placeholder `<severity_values>` —
+    // hardcoding any single casing breaks sensors that use a different casing (0 rows,
+    // no error). Agents must use prism_describe's example_query for correct per-sensor casing.
     assert!(
-        description.contains("IN ('high', 'critical')"),
-        "BC-2.10.009 AC-002 RED GATE [L1 skeleton 2 — severity]: query tool description \
-         MUST contain `IN ('high', 'critical')` in its severity skeleton (BC-canonical: \
-         'SELECT * FROM <table> WHERE severity IN (\\'high\\', \\'critical\\') LIMIT 50'). \
-         Current description has `severity = 'HIGH' LIMIT 25`. \
-         Fix server.rs: replace skeleton 2 with the BC-canonical form. \
+        description.contains("IN (<severity_values>)"),
+        "BC-2.10.009 AC-002 [L1 skeleton 2 — severity]: query tool description \
+         MUST contain `IN (<severity_values>)` (F-PML2-MED-001: placeholder, not hardcoded casing). \
          Got description (first 400 chars): {:?}",
         &description[..description.len().min(400)]
     );
 
     assert!(
         description.contains("LIMIT 50"),
-        "BC-2.10.009 AC-002 RED GATE [L1 skeleton 2 — severity]: query tool description \
-         MUST contain 'LIMIT 50' (BC-canonical limit for severity filter). \
-         Current description has 'LIMIT 25' for skeleton 2. \
-         Fix server.rs: use LIMIT 50, not LIMIT 25, in the severity skeleton. \
+        "BC-2.10.009 AC-002 [L1 skeleton 2 — severity]: query tool description \
+         MUST contain 'LIMIT 50'. \
          Got description (first 400 chars): {:?}",
         &description[..description.len().min(400)]
     );
 
     // ── Skeleton 3: aggregate — must use ORDER BY COUNT(*) DESC + LIMIT 10 ──────
     //
-    // BC-2.10.009 §L1 primer: aggregate skeleton shows descending-count sort and
-    // a tighter LIMIT 10 so agents learn to use meaningful top-N aggregations.
-    //
-    // RED GATE: current description has "GROUP BY col1 LIMIT 25" — no ORDER BY.
+    // BC-2.10.009 §L1 primer: aggregate skeleton shows descending-count sort and LIMIT 10.
     assert!(
         description.contains("ORDER BY COUNT(*) DESC"),
-        "BC-2.10.009 AC-002 RED GATE [L1 skeleton 3 — aggregate]: query tool description \
-         MUST contain 'ORDER BY COUNT(*) DESC' in its aggregate skeleton (BC-canonical: \
-         'SELECT <field>, COUNT(*) FROM <table> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10'). \
-         Current description has 'GROUP BY col1 LIMIT 25' without ORDER BY. \
-         Fix server.rs: replace skeleton 3 with the BC-canonical form. \
+        "BC-2.10.009 AC-002 [L1 skeleton 3 — aggregate]: query tool description \
+         MUST contain 'ORDER BY COUNT(*) DESC'. \
          Got description (first 400 chars): {:?}",
         &description[..description.len().min(400)]
     );
 
     assert!(
         description.contains("LIMIT 10"),
-        "BC-2.10.009 AC-002 RED GATE [L1 skeleton 3 — aggregate]: query tool description \
-         MUST contain 'LIMIT 10' (BC-canonical limit for aggregate queries). \
-         Current description has 'LIMIT 25' for skeleton 3. \
-         Fix server.rs: use LIMIT 10, not LIMIT 25, in the aggregate skeleton. \
+        "BC-2.10.009 AC-002 [L1 skeleton 3 — aggregate]: query tool description \
+         MUST contain 'LIMIT 10'. \
          Got description (first 400 chars): {:?}",
         &description[..description.len().min(400)]
     );
@@ -2302,45 +2111,10 @@ fn test_BC_2_10_009_query_tool_description_l1_primer_skeleton_shapes() {
 /// `structuredContent` fields. (The outputSchema declaration is tested separately via the
 /// production tool catalog; this test focuses on the runtime response shape.)
 ///
-/// ## RED GATE: This test FAILS against the current (frozen) code.
-///
-/// Current `handle_prism_describe` returns:
-/// ```
-/// Ok(CallToolResult::success(vec![Content::text(json)]))
-/// ```
-/// where `json` is a bare serialization of `PrismDescribeResponse` — a flat object with
-/// `{client_id, tables, pql_hints}` keys. There is NO `_meta` key, NO `trust_level`, and
-/// NO `structuredContent`.
-///
-/// The assertion `parsed["_meta"]["trust_level"].as_str() == Some("internal")` FAILS
-/// because `parsed["_meta"]` is `serde_json::Value::Null` (key absent from the bare response).
-///
-/// ## What the implementer must do
-///
-/// Wrap the `PrismDescribeResponse` value in `SafetyEnvelopeBuilder::wrap`:
-/// ```rust
-/// use crate::safety_envelope::{DataSource, SafetyEnvelopeBuilder};
-///
-/// let results_value = serde_json::to_value(&response)?;
-/// let envelope = SafetyEnvelopeBuilder::wrap(
-///     "prism_describe",
-///     DataSource::Single(org_slug.as_str().to_owned()),
-///     results_value,
-///     1,
-///     false,
-///     None,
-///     audit_warning_opt, // None or Some(AUDIT_EMISSION_FAILED_WARNING)
-/// );
-/// let json = serde_json::to_string(&envelope)?;
-/// Ok(CallToolResult::success(vec![Content::text(json)]))
-/// ```
-/// Also declare `output_schema = schema_for_type::<ResponseEnvelopeSchema>()` in the
-/// `#[tool]` attribute on the `prism_describe` method in `server.rs` (consistent with
-/// BC-2.09.007 requiring every tool to declare an outputSchema).
-///
-/// Note: `trust_level_for_tool("prism_describe")` must return `TrustLevel::Internal`
-/// in `prism_security::trust_level` (the tool emits Prism-generated schema data, not
-/// sensor-sourced external data — it is `"internal"` per BC-2.10.012 §Response envelope).
+/// Load-bearing: `handle_prism_describe` wraps its response with `SafetyEnvelopeBuilder::wrap`,
+/// which injects `_meta.trust_level = "internal"`, `results`, `structuredContent`, and
+/// `_meta.safety_flags`. Reverting to a bare `PrismDescribeResponse` serialization causes all
+/// `_meta` assertions below to fail.
 #[tokio::test]
 async fn test_BC_2_10_012_prism_describe_response_uses_safety_envelope_with_trust_level_internal() {
     let config_manager = make_config_manager_acme_crowdstrike();
@@ -2369,26 +2143,17 @@ async fn test_BC_2_10_012_prism_describe_response_uses_safety_envelope_with_trus
     let parsed: serde_json::Value = serde_json::from_str(&content_json)
         .expect("BC-2.10.012 SafetyEnvelope: handle_prism_describe response must be valid JSON");
 
-    // BC-2.10.012 §Response envelope — load-bearing RED GATE assertion:
+    // BC-2.10.012 §Response envelope assertions:
     // The response MUST carry `_meta.trust_level == "internal"`.
-    //
-    // Current production code returns a BARE PrismDescribeResponse with no `_meta` key.
-    // `parsed["_meta"]` is `null` → `as_object()` returns `None` → the first assertion
-    // fires with "response must contain '_meta' object".
-    //
-    // After the fix (SafetyEnvelopeBuilder::wrap), `_meta.trust_level` = "internal"
-    // (because `trust_level_for_tool("prism_describe")` returns TrustLevel::Internal,
-    // consistent with schema-catalog tools that emit Prism-internal data, not sensor-
-    // sourced external content).
+    // Load-bearing: reverting to a bare PrismDescribeResponse (no SafetyEnvelopeBuilder::wrap)
+    // causes `parsed["_meta"]` to be null and the unwrap_or_else below to fire.
     let meta = parsed
         .get("_meta")
         .and_then(|v| v.as_object())
         .unwrap_or_else(|| {
             panic!(
-                "BC-2.10.012 §Response envelope RED GATE: prism_describe response MUST contain a \
-             '_meta' object (SafetyEnvelope shape). Current production code returns a BARE \
-             PrismDescribeResponse with no '_meta' key — wrap the response with \
-             SafetyEnvelopeBuilder::wrap('prism_describe', ...) to produce the envelope. \
+                "BC-2.10.012 §Response envelope: prism_describe response MUST contain a \
+             '_meta' object (SafetyEnvelope shape). \
              Got parsed keys: {:?}",
                 parsed.as_object().map(|o| o.keys().collect::<Vec<_>>())
             )
@@ -2397,10 +2162,9 @@ async fn test_BC_2_10_012_prism_describe_response_uses_safety_envelope_with_trus
     assert_eq!(
         meta.get("trust_level").and_then(|v| v.as_str()),
         Some("internal"),
-        "BC-2.10.012 §Response envelope RED GATE: _meta.trust_level MUST be 'internal' \
+        "BC-2.10.012 §Response envelope: _meta.trust_level MUST be 'internal' \
          (schema-catalog data is Prism-generated, not sensor-sourced external content). \
-         Implementer: ensure trust_level_for_tool('prism_describe') returns TrustLevel::Internal \
-         in prism_security::trust_level. Got _meta: {:?}",
+         Got _meta: {:?}",
         meta
     );
 
@@ -2408,34 +2172,26 @@ async fn test_BC_2_10_012_prism_describe_response_uses_safety_envelope_with_trus
     // fields (BC-2.09.007 / BC-2.09.008 outputSchema contract).
     assert!(
         parsed.get("results").is_some(),
-        "BC-2.10.012 §Response envelope: SafetyEnvelope must include 'results' field; \
-         absent from current bare response. Got keys: {:?}",
+        "BC-2.10.012 §Response envelope: SafetyEnvelope must include 'results' field. \
+         Got keys: {:?}",
         parsed.as_object().map(|o| o.keys().collect::<Vec<_>>())
     );
 
     assert!(
         parsed.get("structuredContent").is_some() || parsed.get("structured_content").is_some(),
-        "BC-2.10.012 §Response envelope: SafetyEnvelope must include 'structuredContent' field; \
-         absent from current bare response. Got keys: {:?}",
+        "BC-2.10.012 §Response envelope: SafetyEnvelope must include 'structuredContent' field. \
+         Got keys: {:?}",
         parsed.as_object().map(|o| o.keys().collect::<Vec<_>>())
     );
 
-    // BC-2.09.008 — load-bearing RED GATE assertion (Finding 2 / TD-VSDD-059):
+    // BC-2.09.008 — load-bearing assertion (Finding 2 / TD-VSDD-059):
     // _meta.safety_flags MUST be present and be an Array.
     //
-    // A hand-rolled `_meta` object that manually inserts `trust_level` will NOT include
-    // `safety_flags` — only `SafetyEnvelopeBuilder::wrap` guarantees it.
-    // `safety_flags` is always a Vec on `ResponseMeta` (never Option), so the field
-    // MUST be present as a JSON array, even when empty (BC-2.09.008: "always present").
-    //
-    // This assertion fails against the current (round-7) hand-rolled envelope because:
-    //   The hand-rolled `meta_obj` inserts only `trust_level` (and optionally
-    //   `audit_warning`). It never inserts `safety_flags`. Therefore
-    //   `meta.get("safety_flags")` returns `None`, and the assertion fires.
+    // Load-bearing: a hand-rolled _meta that inserts only `trust_level` (not using
+    // SafetyEnvelopeBuilder::wrap) would omit `safety_flags` and cause this to fail.
     assert!(
         meta.get("safety_flags").is_some(),
-        "BC-2.09.008 RED GATE: _meta.safety_flags MUST be present (even as an empty array). \
-         Hand-rolled envelope omits it — use SafetyEnvelopeBuilder::wrap which always sets it. \
+        "BC-2.09.008: _meta.safety_flags MUST be present (even as an empty array). \
          Got _meta keys: {:?}",
         meta.keys().collect::<Vec<_>>()
     );
@@ -2443,7 +2199,7 @@ async fn test_BC_2_10_012_prism_describe_response_uses_safety_envelope_with_trus
         meta.get("safety_flags")
             .and_then(|v| v.as_array())
             .is_some(),
-        "BC-2.09.008 RED GATE: _meta.safety_flags MUST be a JSON array. \
+        "BC-2.09.008: _meta.safety_flags MUST be a JSON array. \
          Got: {:?}",
         meta.get("safety_flags")
     );
@@ -2460,43 +2216,9 @@ async fn test_BC_2_10_012_prism_describe_response_uses_safety_envelope_with_trus
 /// BC-2.10.013 EC-10-033: "path-traversal client_id → resource error:
 /// 'Invalid client_id in resource URI'"
 ///
-/// ## RED GATE: Both assertions FAIL against the current (frozen) code.
-///
-/// Current `dispatch_read_resource` in `resources.rs` (line ~479):
-/// ```rust
-/// if let Some(client_id) = uri.strip_prefix("prismql://schema/") {
-///     if !client_id.is_empty() && !client_id.contains('/') && !client_id.contains("..") {
-///         return schema::render_pql_schema_resource(client_id, ...).await;
-///     }
-///     // Falls through silently — no else branch for invalid client_id
-/// }
-/// Err(not_found_error("Unknown or unsupported resource URI".to_string()))
-/// ```
-///
-/// When the guard condition is `false` (e.g., `client_id = "acme/../etc"` contains `..`),
-/// the code falls THROUGH to the generic `not_found_error("Unknown or unsupported resource URI")`.
-/// The error message does NOT contain "Invalid client_id in resource URI".
-///
-/// The assertion `err_msg.contains("Invalid client_id in resource URI")` FAILS:
-/// got "Unknown or unsupported resource URI" instead.
-///
-/// ## What the implementer must do
-///
-/// Add an explicit `else` branch for the invalid-client_id case inside the
-/// `prismql://schema/{client_id}` block:
-/// ```rust
-/// if let Some(client_id) = uri.strip_prefix("prismql://schema/") {
-///     if !client_id.is_empty() && !client_id.contains('/') && !client_id.contains("..") {
-///         return schema::render_pql_schema_resource(client_id, query_engine, config_manager).await;
-///     } else {
-///         // BC-2.10.013 EC-10-033: explicit invalid-client_id error (not the generic fallthrough).
-///         // DI-006: do NOT echo the raw client_id in the error message.
-///         return Err(not_found_error(
-///             "Invalid client_id in resource URI".to_string(),
-///         ));
-///     }
-/// }
-/// ```
+/// Load-bearing: if `dispatch_read_resource` loses the explicit else-branch for invalid
+/// client_id (replacing with a generic fallthrough), the error message reverts to
+/// "Unknown or unsupported resource URI" and these assertions fail.
 #[tokio::test]
 async fn test_BC_2_10_013_dispatch_invalid_client_id_returns_specific_error_message() {
     use prism_mcp::context::PrismContext;
@@ -2506,11 +2228,8 @@ async fn test_BC_2_10_013_dispatch_invalid_client_id_returns_specific_error_mess
 
     // ── Case 1: path-traversal client_id ("acme/../etc") ─────────────────────────
     //
-    // BC-2.10.013 EC-10-033: `prismql://schema/acme/../etc` must return the BC-mandated
-    // error "Invalid client_id in resource URI", NOT the generic "Unknown" fallthrough.
-    //
-    // Current dispatch: `"acme/../etc".contains("..")` is true → guard is false
-    // → falls through → `not_found_error("Unknown or unsupported resource URI")`.
+    // BC-2.10.013 EC-10-033: must return the BC-mandated "Invalid client_id in resource URI",
+    // NOT the generic "Unknown or unsupported resource URI" fallthrough.
     let traversal_result = dispatch_read_resource(
         "prismql://schema/acme/../etc",
         &context,
@@ -2528,17 +2247,12 @@ async fn test_BC_2_10_013_dispatch_invalid_client_id_returns_specific_error_mess
     let traversal_err = traversal_result.unwrap_err();
     let traversal_msg = traversal_err.message.to_string();
 
-    // BC-2.10.013 EC-10-033 — load-bearing RED GATE assertion:
-    // The error message MUST contain "Invalid client_id in resource URI".
-    // Current production code emits "Unknown or unsupported resource URI" — FAILS.
+    // Load-bearing: the BC-canonical EC-10-033 error string must be returned.
     assert!(
         traversal_msg.contains("Invalid client_id in resource URI"),
-        "BC-2.10.013 EC-10-033 RED GATE: dispatch_read_resource with path-traversal URI \
+        "BC-2.10.013 EC-10-033: dispatch_read_resource with path-traversal URI \
          'prismql://schema/acme/../etc' MUST return error message containing \
          'Invalid client_id in resource URI' (BC-canonical EC-10-033 error string). \
-         Current code falls through to the generic 'Unknown or unsupported resource URI' \
-         fallback — add an explicit else-branch returning the BC-canonical error inside \
-         the 'prismql://schema/{{client_id}}' block in dispatch_read_resource. \
          Got error message: {:?}",
         traversal_msg
     );
@@ -2547,16 +2261,13 @@ async fn test_BC_2_10_013_dispatch_invalid_client_id_returns_specific_error_mess
     assert!(
         !traversal_msg.contains("acme/../etc"),
         "BC-2.10.013 EC-10-033 DI-006: error message MUST NOT echo the raw path-traversal \
-         client_id 'acme/../etc' (prompt-injection defense, consistent with all other error \
-         paths in dispatch_read_resource). Got error: {:?}",
+         client_id 'acme/../etc' (prompt-injection defense). Got error: {:?}",
         traversal_msg
     );
 
     // ── Case 2: empty client_id ("prismql://schema/") ────────────────────────────
     //
     // BC-2.10.013 EC-10-033: empty client_id (URI ends at schema/) is also invalid.
-    // Current dispatch: `client_id = ""` → `!client_id.is_empty()` is false → guard false
-    // → falls through → "Unknown or unsupported resource URI".
     let empty_result =
         dispatch_read_resource("prismql://schema/", &context, None, Some(&config_manager)).await;
 
@@ -2569,13 +2280,12 @@ async fn test_BC_2_10_013_dispatch_invalid_client_id_returns_specific_error_mess
     let empty_err = empty_result.unwrap_err();
     let empty_msg = empty_err.message.to_string();
 
-    // BC-2.10.013 EC-10-033 — load-bearing RED GATE assertion:
+    // Load-bearing: must return the BC-canonical EC-10-033 error string.
     assert!(
         empty_msg.contains("Invalid client_id in resource URI"),
-        "BC-2.10.013 EC-10-033 RED GATE: dispatch_read_resource with empty client_id \
+        "BC-2.10.013 EC-10-033: dispatch_read_resource with empty client_id \
          'prismql://schema/' MUST return error message containing \
          'Invalid client_id in resource URI'. \
-         Current code falls through to the generic 'Unknown or unsupported resource URI'. \
          Got error message: {:?}",
         empty_msg
     );
@@ -2588,36 +2298,10 @@ async fn test_BC_2_10_013_dispatch_invalid_client_id_returns_specific_error_mess
 /// EC-10-033 error "Invalid client_id in resource URI", NOT a deeper different-string
 /// rejection from inside `render_pql_schema_resource`.
 ///
-/// ## Why this fails today
-///
-/// The current validation in `dispatch_read_resource` only rejects:
-///   - empty client_id (`is_empty()`)
-///   - path-traversal (`contains('/')` or `contains("..")`)
-///
-/// `"acme!"` passes all three checks → falls through to `render_pql_schema_resource`
-/// → internally calls `OrgSlug::new("acme!")` → returns a DIFFERENT error string
-/// (e.g., "Resource not found: invalid client_id (path traversal or invalid characters
-/// rejected)") from inside the render path.
-///
-/// ## What the implementer must do
-///
-/// Replace the manual guards with an `OrgSlug::new(client_id)` check in
-/// `dispatch_read_resource`. If `OrgSlug::new` fails, return the canonical EC-10-033
-/// error immediately, before calling `render_pql_schema_resource`.
-///
-/// ```rust
-/// if let Some(client_id) = uri.strip_prefix("prismql://schema/") {
-///     if OrgSlug::new(client_id).is_ok() {
-///         return schema::render_pql_schema_resource(client_id, query_engine, config_manager).await;
-///     } else {
-///         // BC-2.10.013 EC-10-033: canonical error for all invalid client_id formats.
-///         // DI-006: do NOT echo the raw client_id.
-///         return Err(not_found_error(
-///             "Invalid client_id in resource URI".to_string(),
-///         ));
-///     }
-/// }
-/// ```
+/// Load-bearing: `dispatch_read_resource` validates `client_id` with `OrgSlug::new`
+/// before calling `render_pql_schema_resource`. If that guard is replaced with manual
+/// `is_empty`/`contains('/')`/`contains("..")` checks, `"acme!"` passes them and falls
+/// through to a deeper render-path rejection with a different error string.
 ///
 /// BC trace: BC-2.10.013 EC-10-033, DI-006.
 #[tokio::test]
@@ -2629,11 +2313,8 @@ async fn test_BC_2_10_013_dispatch_invalid_char_client_id_returns_canonical_ec10
 
     // ── Case: invalid-char client_id ("acme!") ──────────────────────────────
     //
-    // "acme!" passes the current guards (non-empty, no '/', no '..') and falls
-    // through to render_pql_schema_resource, which calls OrgSlug::new("acme!")
-    // and returns a DIFFERENT deeper error — not the canonical EC-10-033 string.
-    //
-    // RED GATE: this assertion fails because the canonical message is not returned.
+    // "acme!" is rejected by OrgSlug::new in dispatch_read_resource, which returns
+    // the canonical EC-10-033 error before reaching render_pql_schema_resource.
     let result = dispatch_read_resource(
         "prismql://schema/acme!",
         &context,
@@ -2651,15 +2332,12 @@ async fn test_BC_2_10_013_dispatch_invalid_char_client_id_returns_canonical_ec10
     let err = result.unwrap_err();
     let err_msg = err.message.to_string();
 
-    // BC-2.10.013 EC-10-033 RED GATE: the error must be the CANONICAL EC-10-033 string.
-    // Current code produces a deeper different-string rejection from render_pql_schema_resource.
+    // Load-bearing: must return the BC-canonical EC-10-033 string.
     assert!(
         err_msg.contains("Invalid client_id in resource URI"),
-        "BC-2.10.013 EC-10-033 RED GATE: dispatch_read_resource('prismql://schema/acme!') \
+        "BC-2.10.013 EC-10-033: dispatch_read_resource('prismql://schema/acme!') \
          MUST return error message containing 'Invalid client_id in resource URI' \
          (canonical EC-10-033 string). \
-         Fix: replace manual guards (is_empty / contains('/') / contains('..')) with \
-         OrgSlug::new(client_id).is_ok() check in dispatch_read_resource. \
          Got error message: {:?}",
         err_msg
     );

@@ -311,15 +311,27 @@ pub fn build_prompt_router() -> PromptRouter<PrismServer> {
 /// Guides the agent through checking all sensors for open high/critical alerts.
 /// Argument: `client_id` (required).
 /// Includes SECURITY_REMINDER (DI-006).
+///
+/// # CrowdStrike demo-data severity distribution (F-PKL2-OBS-001)
+///
+/// The crowdstrike triage query filters `severity IN ('High', 'Critical')`.  The
+/// CrowdStrike DTU generator (`crates/prism-dtu-crowdstrike/src/generator.rs`)
+/// currently emits severity_id ∈ {1→"Low", 2→"Medium", 4→"Critical"} only — it does
+/// NOT currently generate severity_id=3 ("High") rows.  The query therefore returns
+/// rows via the 'Critical' literal against live DTU data, while 'High' matches nothing
+/// in the current demo dataset.  Filtering `severity IN ('High', 'Critical')` is a
+/// correct and intentional analyst query pattern (forward-compat for real sensor data
+/// where 'High' is a common severity level); the absence of 'High' in the demo dataset
+/// is a DTU generator gap, not a logic error in the prompt.
 pub fn render_triage_alerts(client_id: &str) -> Result<GetPromptResult, ErrorData> {
     validate_client_id(client_id)?;
     let body = format!(
         "Triage open alerts for client '{client_id}'.\n\n\
          Step 1: Run check_sensor_health to verify all sensors are reachable.\n\
          Step 2: Query each sensor for open high and critical severity alerts:\n\
-           - crowdstrike: SELECT * FROM crowdstrike.alerts WHERE severity IN ('HIGH', 'CRITICAL') AND status = 'open'\n\
-           - claroty: SELECT * FROM claroty.alerts WHERE risk_score >= 7 AND resolved = false\n\
-           - armis: SELECT * FROM armis.alerts WHERE severity IN ('High', 'Critical')\n\
+           - crowdstrike: SELECT * FROM crowdstrike_detections WHERE severity IN ('High', 'Critical') AND status = 'new'\n\
+           - claroty: SELECT * FROM claroty_alerts WHERE status = 'Unresolved' AND alert_type_name IS NOT NULL\n\
+           - armis: SELECT * FROM armis_alerts WHERE severity IN ('HIGH', 'CRITICAL') AND status = 'UNHANDLED'\n\
          Step 3: Group alerts by sensor and present a summary count.\n\
          Step 4: Highlight any alerts requiring immediate attention.{SECURITY_REMINDER}",
     );
@@ -351,9 +363,9 @@ pub fn render_investigate_host(
         "Investigate host '{hostname}' for client '{client_id}' across all sensors.\n\n\
          Step 1: Check sensor health to ensure all data sources are available.\n\
          Step 2: Query each sensor for activity related to '{hostname}':\n\
-           - crowdstrike: SELECT * FROM crowdstrike.devices WHERE hostname = '{hostname}'\n\
-           - claroty: SELECT * FROM claroty.assets WHERE ip_address = '{hostname}' OR name = '{hostname}'\n\
-           - armis: SELECT * FROM armis.devices WHERE name = '{hostname}' OR ip = '{hostname}'\n\
+           - crowdstrike: SELECT * FROM crowdstrike_devices WHERE hostname = '{hostname}'\n\
+           - armis: SELECT * FROM armis_devices WHERE name = '{hostname}' OR ip_address = '{hostname}'\n\
+           - claroty: SELECT * FROM claroty_devices WHERE asset_id = '{hostname}' OR uid = '{hostname}'\n\
          Step 3: Correlate findings across sensors for a unified view.\n\
          Step 4: Check for any associated alerts or anomalies.{SECURITY_REMINDER}",
     );
@@ -380,8 +392,8 @@ pub fn render_client_overview(client_id: &str) -> Result<GetPromptResult, ErrorD
         "Generate a security posture overview for client '{client_id}'.\n\n\
          Step 1: Run check_sensor_health(client_id: '{client_id}') to get sensor status.\n\
          Step 2: Query alert counts from available sensors:\n\
-           - crowdstrike: SELECT severity, COUNT(*) FROM crowdstrike.alerts WHERE status = 'open' GROUP BY severity\n\
-           - claroty: SELECT risk_level, COUNT(*) FROM claroty.alerts WHERE resolved = false GROUP BY risk_level\n\
+           - crowdstrike: SELECT severity, COUNT(*) FROM crowdstrike_detections WHERE status = 'new' GROUP BY severity\n\
+           - claroty: SELECT category, COUNT(*) FROM claroty_alerts WHERE status = 'Unresolved' GROUP BY category\n\
          Step 3: Read prism://sensors/health for resource pressure metrics.\n\
          Step 4: Summarise: total alerts by severity, sensor health status, and top concerns.{SECURITY_REMINDER}",
     );
@@ -414,8 +426,9 @@ pub fn render_cross_client_status(time_range: Option<&str>) -> Result<GetPromptR
         "Check cross-client security status{time_clause}.\n\n\
          Step 1: Read prism://config/clients to enumerate all configured clients.\n\
          Step 2: For each client, run check_sensor_health to assess connectivity.\n\
-         Step 3: Query critical alerts across all clients{time_clause}:\n\
-           - crowdstrike: SELECT client_id, COUNT(*) FROM crowdstrike.alerts WHERE severity = 'CRITICAL' AND status = 'open' GROUP BY client_id\n\
+         Step 3: For each client (pass clients=[\"<id>\"] to scope per-client), query critical detection counts:\n\
+           - crowdstrike: SELECT severity, COUNT(*) FROM crowdstrike_detections WHERE severity = 'Critical' AND status = 'new' GROUP BY severity\n\
+           (Per-client breakdown: repeat with each client id supplied in the clients parameter.)\n\
          Step 4: Highlight clients with active critical alerts requiring immediate attention.\n\
          Step 5: Produce a cross-client risk matrix summary.{SECURITY_REMINDER}",
     );

@@ -296,7 +296,7 @@ impl ResourceWatchdog {
     ///
     /// - `0` or `1` at Kill level → grace period active → returns `Ok(())`.
     /// - `>= 2` at Kill level → termination → cancels token → returns
-    ///   `Err(PrismError::WatchdogKilled)` (E-WATCHDOG-002, error-taxonomy.md v1.68).
+    ///   `Err(PrismError::WatchdogKilled)` (E-WATCHDOG-002, error-taxonomy.md §E-WATCHDOG-002).
     /// - Below Kill level → returns `Ok(())` regardless of counter.
     ///
     /// The kill decision is gated through `should_terminate_for_memory`

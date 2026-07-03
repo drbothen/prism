@@ -30,8 +30,9 @@
 # S-5.04 F-S504-P5-002: bumped 83→84 for HealthSummary (prism_mcp::resources E0639 v84).
 # S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: bumped 84→87 for ExampleKind (E0004), SqlPipeQuery (E0639),
 #   UnknownSourceTableDetails (E0639) — Groups 1+3.
+# S-DEMO-FIDELITY-REMEDIATION-001: bumped 87→88 for EnrichUdfNotFoundDetails (prism-core::error E0639 AC-N1B).
 
-EXPECTED=87
+EXPECTED=88
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 

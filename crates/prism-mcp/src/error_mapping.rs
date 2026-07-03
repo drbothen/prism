@@ -97,7 +97,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         PrismError::QueryLimitExceeded { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-QUERY-003: Query security limit exceeded → -32602 Invalid params
-        // (error-taxonomy.md v1.72 / ADR-038 v1.3 §P5-02). Caller-resolvable:
+        // (error-taxonomy.md §E-QUERY-003 / ADR-038 §P5-02). Caller-resolvable:
         // narrow or simplify the query. EXPLICIT arm required: PrismError is
         // #[non_exhaustive]; letting this variant fall to the catch-all would
         // regress to opaque -32000 INTERNAL_ERROR and violate BC-2.11.006's
@@ -120,7 +120,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // E-QUERY-036: Unknown source table → -32602 Invalid params (caller-resolvable)
         // MUST be explicit: #[non_exhaustive] fall-through would regress to opaque -32000.
         // Caller can fix by checking spelling or registering the sensor in prism.toml.
-        // P6-02 adjudication 2026-06-11; error-taxonomy.md v1.73 E-QUERY-036.
+        // P6-02 adjudication 2026-06-11; error-taxonomy.md §E-QUERY-036.
         PrismError::UnknownSourceTable(..) => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-QUERY-038: Column not found → -32602 INVALID_PARAMS (caller-resolvable).
@@ -136,6 +136,21 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // Gate ordering: fires AFTER E-QUERY-037 passes (table must exist first).
         // Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.016; error-taxonomy.md E-QUERY-038.
         PrismError::ColumnNotFound(..) => (codes::INVALID_PARAMS, format!("{err}")),
+
+        // E-QUERY-039: Enrichment UDF not found → -32602 Invalid params (caller-resolvable).
+        //
+        // The caller used an enrichment function name that is not registered in the
+        // `InfusionRegistry` — commonly an infusion_id (e.g. `threat_intel`) used as if
+        // it were a callable per-field UDF name (e.g. `threat_score`).
+        //
+        // MUST be explicit: without this arm, `EnrichUdfNotFound` falls to the catch-all
+        // `-32000 INTERNAL_ERROR`, losing the caller-actionable available_infusions guidance.
+        //
+        // Maps to INVALID_PARAMS (-32602): caller-resolvable by using a per-field UDF name
+        // from `prism_describe` or the PQL reference resource.
+        //
+        // Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019; error-taxonomy.md E-QUERY-039.
+        PrismError::EnrichUdfNotFound(..) => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-QUERY-002: Query type mismatch → -32602 Invalid params (caller-resolvable).
         //
@@ -1778,6 +1793,80 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         normalized_pql: None,
         },
 
+        // E-QUERY-039: EnrichUdfNotFound → "validation", original_params_valid: false.
+        //
+        // The caller used an enrichment function name that is not registered in the
+        // `InfusionRegistry` — commonly an infusion_id (e.g. `threat_intel`) used as if
+        // it were a callable per-field UDF name (e.g. `threat_score`).
+        //
+        // HIGH-2 fix (BC-2.11.019 §MCP surface): bind the boxed details (ref d) to
+        // thread the available_infusions list into the structured suggestion text, and
+        // `did_you_mean` into the `did_you_mean` field. Without this arm, `EnrichUdfNotFound`
+        // falls to the catch-all with category "upstream_error", original_params_valid: true,
+        // and a generic suggestion — losing all E-QUERY-039 pedagogical guidance.
+        //
+        // Suggestion text per BC-2.11.019 §MCP surface (NO brackets around list):
+        //   non-empty: "Use one of the registered enrichment functions: {infusions}. Call
+        //               prism_describe('<client_id>') to see pql_hints including available
+        //               enrichment functions."
+        //   empty:     "No enrichment functions are registered. Enrichment is not available
+        //               in this deployment."
+        //
+        // NOTE: the top-level Display error message (EnrichUdfNotFoundDetails::fmt) keeps
+        // brackets around the list — "available: [...]" — as that is the taxonomy template
+        // format (error-taxonomy.md E-QUERY-039). Only the §MCP-surface SUGGESTION drops
+        // brackets: the suggestion provides a comma-joined list for readability.
+        //
+        // available_infusions is inlined in the suggestion (BC does not define a separate
+        // structured field for it). did_you_mean is the best-match name (Option<String>),
+        // threaded into StructuredErrorFields.did_you_mean for agent self-correction.
+        //
+        // Explicit arm required: `PrismError` is `#[non_exhaustive]`; without this arm
+        // the variant falls to the catch-all `-32000 INTERNAL_ERROR`, losing the
+        // caller-actionable E-QUERY-039 guidance.
+        //
+        // Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B HIGH-2; BC-2.11.019;
+        //            error-taxonomy.md E-QUERY-039.
+        PrismError::EnrichUdfNotFound(ref d) => {
+            let infusions_list = d.available_infusions.join(", ");
+            let suggestion = if d.available_infusions.is_empty() {
+                "No enrichment functions are registered. Enrichment is not available in this deployment.".to_owned()
+            } else {
+                format!(
+                    "Use one of the registered enrichment functions: {infusions_list}. \
+                     Call prism_describe('<client_id>') to see pql_hints including available \
+                     enrichment functions."
+                )
+            };
+            VariantMeta {
+                category: "validation",
+                suggestion: "Use a registered enrichment function name.",
+                retryable: false,
+                retry_after_seconds: None,
+                original_params_valid: false,
+                source_override: None,
+                upstream_message: None,
+                // Thread the BC-canonical suggestion verbatim via owned_suggestion
+                // (takes precedence over the static `suggestion` fallback above).
+                owned_suggestion: Some(suggestion),
+                // Pin E-QUERY-039 directly: map_prism_error returns the Display string
+                // "E-QUERY-039: enrichment infusion '...' is not registered; available: [...]"
+                // which DOES start with "E-" so the code inference path would infer "E-QUERY-039"
+                // correctly. ec_code_override is set explicitly for clarity + mutation resistance.
+                ec_code_override: Some("E-QUERY-039"),
+                near_text: None,
+                reference_pointer: None,
+                valid_operators_for_type: None,
+                how_to_fix: None,
+                available_columns: None,
+                // BC-2.11.019 §EC-11-059: did_you_mean is the best-match infusion name (Option<String>).
+                // Present when Levenshtein ≤ 3 of any registered InfusionField.name.
+                // Omitted (not null) when None — consistent with E-QUERY-037/038 convention.
+                did_you_mean: d.did_you_mean.clone(),
+                normalized_pql: None,
+            }
+        }
+
         // E-QUERY-038: ColumnNotFound → "validation", original_params_valid: false.
         //
         // The caller supplied a column name that does not exist in the target table —
@@ -2706,7 +2795,7 @@ mod tests {
     ///
     /// BC-2.10.007 §111 specifies graceful "return None for all other variants" semantics.
     /// The prior implementation `panic!`'d, making the public function a latent footgun.
-    /// After the fix: non-SensorRateLimited variants return `retry_after_ms = 0` gracefully.
+    /// Non-SensorRateLimited variants return `retry_after_ms = 0` gracefully (no panic).
     ///
     /// Uses `PrismError::QueryTimeout` as a representative non-SensorRateLimited variant.
     #[test]
@@ -2845,7 +2934,8 @@ mod tests {
     /// BC-2.11.017 AC-003 postcondition: `near_text` MUST be a valid UTF-8 string.
     /// Production path: `prism_error_to_structured_call_result` (F-001B-PASS-CRIT-001).
     ///
-    /// RED GATE: panics on current HEAD because `pos + 1` is not char-boundary-safe.
+    /// Load-bearing (F-001B-PASS-CRIT-001): removing char-boundary-safe slicing from
+    /// `extract_near_text` causes a panic when `pos + 1` lands mid-char.
     #[test]
     fn test_BC_2_11_017_near_text_no_panic_on_ideographic_space_multibyte_offset() {
         // query = "first\u{3000}word\u{3000}token"
@@ -2866,9 +2956,9 @@ mod tests {
             query: query.clone(),
         };
 
-        // Must NOT panic — current code panics here due to mid-char byte slice at byte 6.
-        // The algorithm does: rfind(whitespace) on "first\u{3000}word" finds \u{3000} at
-        // byte 5, then pos + 1 = 6, which is mid-char. extract_near_text(&query, 6) panics.
+        // Must NOT panic. Load-bearing: without char-boundary-safe slicing, the algorithm
+        // does rfind(whitespace) on "first\u{3000}word", finds \u{3000} at byte 5, then
+        // pos + 1 = 6 (mid-char), and extract_near_text(&query, 6) would panic.
         let result = prism_error_to_structured_call_result(err);
 
         // BC-2.11.017 AC-003: near_text must be present and valid UTF-8.
@@ -2902,7 +2992,8 @@ mod tests {
     /// → rfind(whitespace) on "alpha\u{00A0}beta" finds \u{00A0} at byte 5
     /// → pos + 1 = 6 → NOT a char boundary for the 2-byte U+00A0 → PANIC
     ///
-    /// RED GATE: panics on current HEAD for the same reason as the U+3000 case.
+    /// Load-bearing (F-001B-PASS-CRIT-001): removing char-boundary-safe slicing causes
+    /// the same panic as the U+3000 case — `pos + 1 = 6` is mid-char for 2-byte U+00A0.
     #[test]
     fn test_BC_2_11_017_near_text_no_panic_on_nbsp_multibyte_offset() {
         // query = "alpha\u{00A0}beta\u{00A0}gamma"
@@ -2922,9 +3013,8 @@ mod tests {
             query: query.clone(),
         };
 
-        // Must NOT panic — panics on current HEAD.
-        // The algorithm does: rfind(whitespace) on "alpha\u{00A0}beta" finds \u{00A0} at
-        // byte 5, then pos + 1 = 6 (mid-char). extract_near_text(&query, 6) → PANIC.
+        // Must NOT panic. Load-bearing: without char-boundary-safe slicing, rfind(whitespace)
+        // on "alpha\u{00A0}beta" finds \u{00A0} at byte 5, pos + 1 = 6 (mid-char) → PANIC.
         let result = prism_error_to_structured_call_result(err);
 
         let sc = result
@@ -2992,7 +3082,8 @@ mod tests {
     ///
     /// This is the SYMMETRIC counterpart to F-001B-PASS-CRIT-001 (multibyte-WHITESPACE case).
     ///
-    /// RED GATE: currently returns near_text = "hello" (offset 0) instead of "café".
+    /// Load-bearing: without char-end computation using `char_end = pos + char.len_utf8()`,
+    /// the code falls back to `near_text = "hello"` (offset 0) instead of "café".
     #[test]
     fn test_BC_2_11_017_near_text_correct_when_preceding_token_ends_in_multibyte_nonws_char() {
         // query = "hello café bad"
@@ -3126,6 +3217,151 @@ mod tests {
         assert_eq!(
             nt_str, "field\u{2014}",
             "near_text must be 'field\u{2014}' (the whole preceding token); got '{nt_str}'"
+        );
+    }
+
+    // ── HIGH-2: BC-2.11.019 AC-N1B — E-QUERY-039 structured payload ────────────
+
+    /// BC-2.11.019 AC-N1B HIGH-2 — `prism_error_to_structured_call_result` structured
+    /// payload for `PrismError::EnrichUdfNotFound`.
+    ///
+    /// The existing `test_bc_2_11_019_n1b_mcp_maps_to_32602` (in the integration tests)
+    /// only checks the flat `-32602` code returned by `map_prism_error`. This test verifies
+    /// the STRUCTURED payload returned by `prism_error_to_structured_call_result`:
+    ///
+    /// - `category == "validation"` (not "upstream_error" catch-all)
+    /// - `original_params_valid == false` (bad enrichment name — caller parameter)
+    /// - `code == "E-QUERY-039"` (pinned via ec_code_override)
+    /// - `suggestion` contains the available infusions list (BC §MCP surface non-empty form)
+    /// - `did_you_mean` is present (threaded from EnrichUdfNotFoundDetails.did_you_mean)
+    ///
+    /// This test validates the HIGH-2 finding: without the dedicated `EnrichUdfNotFound`
+    /// arm, the variant falls to the catch-all with category "upstream_error",
+    /// original_params_valid: true, and a generic suggestion.
+    #[test]
+    fn test_bc_2_11_019_n1b_structured_payload_validation_category_and_suggestion() {
+        use prism_core::error::EnrichUdfNotFoundDetails;
+
+        let err = PrismError::EnrichUdfNotFound(Box::new(EnrichUdfNotFoundDetails::new(
+            "threat_intel",
+            vec![
+                "threat_score".to_string(),
+                "threat_is_known_malicious".to_string(),
+            ],
+            Some("threat_score".to_string()),
+        )));
+
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        // category must be "validation" (not "upstream_error" catch-all).
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "validation",
+            "BC-2.11.019 AC-N1B HIGH-2: EnrichUdfNotFound must have category 'validation', \
+             not 'upstream_error' catch-all. Got: '{category}'"
+        );
+
+        // original_params_valid must be false (bad enrichment name — caller parameter).
+        let opv = error_obj
+            .get("original_params_valid")
+            .and_then(|v| v.as_bool())
+            .expect("original_params_valid must be a bool");
+        assert!(
+            !opv,
+            "BC-2.11.019 AC-N1B HIGH-2: EnrichUdfNotFound must have original_params_valid: false. \
+             Got: true"
+        );
+
+        // code must be "E-QUERY-039".
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("code must be a string");
+        assert_eq!(
+            code, "E-QUERY-039",
+            "BC-2.11.019 AC-N1B HIGH-2: EnrichUdfNotFound must have code 'E-QUERY-039'. \
+             Got: '{code}'"
+        );
+
+        // suggestion must contain the available infusions list (BC §MCP surface non-empty form).
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("suggestion must be a string");
+        assert!(
+            suggestion.contains("threat_score") && suggestion.contains("threat_is_known_malicious"),
+            "BC-2.11.019 AC-N1B HIGH-2: suggestion must contain available infusions. \
+             Got: '{suggestion}'"
+        );
+        assert!(
+            suggestion.contains("prism_describe"),
+            "BC-2.11.019 AC-N1B HIGH-2: suggestion must reference prism_describe per BC §MCP surface. \
+             Got: '{suggestion}'"
+        );
+
+        // did_you_mean must be present (threaded from EnrichUdfNotFoundDetails.did_you_mean).
+        let did_you_mean = error_obj
+            .get("did_you_mean")
+            .and_then(|v| v.as_str())
+            .expect(
+                "BC-2.11.019 AC-N1B HIGH-2: did_you_mean must be present when EnrichUdfNotFoundDetails.did_you_mean is Some",
+            );
+        assert_eq!(
+            did_you_mean, "threat_score",
+            "BC-2.11.019 AC-N1B HIGH-2: did_you_mean must contain the best-match infusion name. \
+             Got: '{did_you_mean}'"
+        );
+    }
+
+    /// BC-2.11.019 AC-N1B HIGH-2 — empty available_infusions suggestion form.
+    ///
+    /// When `available_infusions` is empty, the suggestion must use the "not available"
+    /// form: "No enrichment functions are registered. Enrichment is not available in this
+    /// deployment."
+    #[test]
+    fn test_bc_2_11_019_n1b_structured_payload_empty_infusions_suggestion() {
+        use prism_core::error::EnrichUdfNotFoundDetails;
+
+        let err = PrismError::EnrichUdfNotFound(Box::new(EnrichUdfNotFoundDetails::new(
+            "anything",
+            vec![],
+            None,
+        )));
+
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc.get("error").expect("error must be present");
+
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("suggestion must be a string");
+        assert!(
+            suggestion.contains("No enrichment functions are registered"),
+            "BC-2.11.019 AC-N1B HIGH-2 empty form: suggestion must be the 'not available' form \
+             when available_infusions is empty. Got: '{suggestion}'"
+        );
+
+        // did_you_mean must be absent when None (not null, key omitted).
+        assert!(
+            error_obj.get("did_you_mean").is_none(),
+            "BC-2.11.019 AC-N1B HIGH-2: did_you_mean must be absent (key omitted) when \
+             EnrichUdfNotFoundDetails.did_you_mean is None. \
+             Got: {:?}",
+            error_obj.get("did_you_mean")
         );
     }
 }

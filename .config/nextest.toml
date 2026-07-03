@@ -133,9 +133,9 @@ bc-2-01-013-serial = { max-threads = 1 }
 # / serial-subprocess groups — those three are all in prism-bin, not prism-dtu-*, so
 # there is no overlap and no group-composition ambiguity.
 #
-# Expected outcome: scenario-progression tests (bc_2_06_019) complete in <20s under
-# full workspace load (safely within the 50s stage-0 budget for now-10 timing),
-# making the now+30 band-aid in S-DEMO-FIDELITY-REMEDIATION-001 revertible.
+# Observed outcome: all DTU bc_2_06_019 scenario tests — including armis — pass
+# with now-10 (50s stage-0 budget). S-PERF-GATE-005 (#210) wired clone graceful
+# shutdown so clone.stop() completes in <20ms; the now+30 armis band-aid is removed.
 dtu-cap = { max-threads = 4 }
 # S-PERF-GATE-007: WASMtime-heavy spec-engine + ocsf + prism-bin binaries.
 # wasmtime v44 + wasm_component_model + epoch_interruption triggers Cranelift JIT

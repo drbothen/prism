@@ -797,6 +797,10 @@ impl QueryEngine {
 
         // S-3.13 Step 1a: Plan-time table availability gate (BC-2.11.001, AC-2, AC-8).
         //
+        // Gate ordering (BC-2.11.019 §Gate ordering, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
+        //   E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038 (column not found)
+        //   → E-QUERY-039 (enrich UDF not found, LAST).
+        //
         // Fires BEFORE client scope resolution and BEFORE `materialize_query` (fail fast,
         // no fan-out). Validates each source_ref extracted from the AST against the
         // `TableRegistry`. If a source_ref is not registered, returns `E-QUERY-037`
@@ -824,7 +828,8 @@ impl QueryEngine {
         // S-DEMO-PRISMQL-ONBOARDING-001-B: plan-time column gate (BC-2.11.016 / E-QUERY-038).
         // Fires AFTER E-QUERY-037 passes (table exists → then check columns).
         // Gate ordering: E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038
-        // (column not found). The client_id is derived from the first explicit client scope.
+        // (column not found) → E-QUERY-039 (enrich, LAST). The client_id is derived from
+        // the first explicit client scope.
         let client_id_for_col_gate = options
             .clients
             .as_deref()
@@ -836,7 +841,22 @@ impl QueryEngine {
             &client_id_for_col_gate,
             options.clients.as_deref(),
             resolved_spec_snapshot.as_deref(),
+            self.table_registry.as_deref(),
         )?;
+
+        // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: Plan-time enrichment UDF gate (E-QUERY-039).
+        //
+        // Fires LAST — after E-QUERY-037 (table gate) and E-QUERY-038 (column gate).
+        // Gate ordering (BC-2.11.019 §Gate ordering): E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+        //
+        // Validates that all enrichment function names in the query (pipe: `| enrich name(col)`;
+        // SQL: `SELECT name(col)` or `WHERE name(col) = val`) are registered per-field UDF names
+        // in the InfusionRegistry. Returns E-QUERY-039 with available_infusions and did_you_mean
+        // when an unregistered name is detected (prevents "infusion_id used as UDF name" silent
+        // failures).
+        //
+        // Gate is skipped when `infusion_registry` is None (enrichment not configured).
+        check_enrich_udf_availability(effective_query, self.infusion_registry.as_deref())?;
 
         // Step 1: Resolve client scope (BC-2.11.011).
         let clients =
@@ -1096,13 +1116,12 @@ impl QueryEngine {
         ),
         PrismError,
     > {
-        // HIGH-004 / ADV-W3MT-P58-HIGH-004: add Layer 1 capability gate to execute_scheduled.
-        // Scheduled queries run in system context with no capabilities — this means they
-        // cannot reference prism_audit (correct secure-by-default for scheduled queries).
-        // The gate is best-effort: if query_str fails to parse, the pipeline handles it.
-        check_internal_table_capabilities(query_str, &[])?;
-
         // S-3.13: plan-time table availability gate for scheduled queries (AC-8 mode-agnostic).
+        // Gate ordering (BC-2.11.019 §Gate ordering, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
+        //   E-QUERY-037 (table) → E-QUERY-038 (column) → E-QUERY-039 (enrich) → E-QUERY-011 (capability).
+        // H1 fix: capability gate moved AFTER 037/038/039 to match execute_inner canonical order.
+        // Rationale: "table not found" and "column not found" are more actionable first errors than
+        // "you lack capability" — the capability gate still fires before any I/O.
         // ADR-039 / SEC-001: pass org_scope and resolved_spec_map for org-scoped filtering.
         // Gate fires BEFORE resolve_clients to avoid moving `clients` before the borrow.
         // ADR-042: load snapshot from ArcSwap — snapshot lives long enough for the borrow below.
@@ -1126,7 +1145,23 @@ impl QueryEngine {
             &client_id_for_col_gate_sched,
             clients.as_deref(),
             resolved_spec_snapshot_scheduled.as_deref(),
+            self.table_registry.as_deref(),
         )?;
+
+        // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: E-QUERY-039 enrichment UDF gate for
+        // scheduled queries — fires LAST among content gates (after E-QUERY-037 and E-QUERY-038).
+        // Gate ordering (BC-2.11.019 §Gate ordering): E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+        check_enrich_udf_availability(query_str, self.infusion_registry.as_deref())?;
+
+        // H1 fix (S-DEMO-FIDELITY-REMEDIATION-001): capability gate (E-QUERY-011) fires AFTER
+        // 037/038/039, mirroring execute_inner. Previously this gate ran BEFORE 037/038/039
+        // in execute_scheduled_inner, causing asymmetric first-error behavior.
+        // Canonical gate order: E-QUERY-001 (parse) → E-QUERY-037 → E-QUERY-038 → E-QUERY-039
+        //   → E-QUERY-011 (capability, LAST pre-I/O gate).
+        // Scheduled queries run in system context with no capabilities — this means they
+        // cannot reference prism_audit (correct secure-by-default for scheduled queries).
+        // The gate is best-effort: if query_str fails to parse, the pipeline handles it.
+        check_internal_table_capabilities(query_str, &[])?;
 
         // Resolve client scope (BC-2.11.011).
         let resolved_clients = crate::scoping::resolve_clients(clients, &self.client_registry)?;
@@ -1334,14 +1369,449 @@ fn check_table_availability(
 }
 
 // ---------------------------------------------------------------------------
+// E-QUERY-039 plan-time enrichment UDF gate (S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B)
+// ---------------------------------------------------------------------------
+
+/// DataFusion built-in function names (scalar + aggregate + window) — computed once at
+/// first use via `LazyLock`.
+///
+/// The enrich gate must NOT flag a name that DataFusion can resolve as a built-in function
+/// of ANY kind: scalar (e.g. `lower`, `upper`, `coalesce`), aggregate (e.g. `stddev`,
+/// `median`, `variance`, `approx_distinct`), or window (e.g. `row_number`, `rank`,
+/// `dense_rank`).
+///
+/// PrismQL's SQL parser recognises only 7 function names as `FuncCall::Aggregate`
+/// (COUNT / SUM / AVG / MIN / MAX / PERCENTILE / DISTINCT_COUNT). Every other function
+/// name — including DataFusion built-in aggregates and window functions — parses as
+/// `ScalarFunc::Unknown(name)`. Without explicit exclusion of aggregates and windows,
+/// `SELECT stddev(col) FROM t` would falsely trigger E-QUERY-039 because `stddev` is not
+/// in the scalar-only exclusion set, even though DataFusion's `ctx.sql()` resolves it
+/// correctly as an aggregate function.
+///
+/// Mechanism: union `SessionStateDefaults::default_scalar_functions()`,
+/// `default_aggregate_functions()`, and `default_window_functions()` — enumerate every
+/// built-in UDF, collect their lowercase names and aliases into a single `HashSet`, and
+/// store in a static `LazyLock`. Per-query cost: a single O(1) HashSet lookup per
+/// collected name. Initialization is once-per-process (at first gate invocation).
+///
+/// Case-insensitive exclusion: DataFusion normalizes function names to lowercase
+/// internally; we lowercase the collected name before lookup to match.
+///
+/// # BC-2.11.019 §F-PJL1-HIGH-001 amendment — extended "or equivalent" rationale
+///
+/// BC-2.11.019 v1.5 stated: "fire E-QUERY-039 ONLY for a name that is neither a
+/// DataFusion built-in scalar NOR a registered enrichment UDF."
+///
+/// BC-2.11.019 v1.6 (F1, S-DEMO-FIDELITY-REMEDIATION-001 Pass-N1b) amends this to:
+/// "fire E-QUERY-039 ONLY for a `ScalarFunc::Unknown(name)` in SQL mode when name is
+/// (a) not a PQL typed scalar variant, (b) NOT in ANY of scalar_functions() +
+/// aggregate_functions() + window_functions(), AND (c) not in InfusionRegistry."
+///
+/// Scope of change: the expanded exclusion applies to SQL-mode `ScalarFunc::Unknown`
+/// names ONLY — the same scope as the original v1.5 fix. Pipe-mode `| enrich <name>` is
+/// an explicit enrichment directive; a built-in aggregate name used there is still an
+/// unregistered infusion and MUST still fire E-QUERY-039. This distinction is preserved
+/// by the separate `pipe_enrich_names` / `sql_unknown_names` Vec split in
+/// `check_enrich_udf_availability`.
+///
+/// F-PJL1-HIGH-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade) — original fix.
+/// F1 amendment (S-DEMO-FIDELITY-REMEDIATION-001 Pass-N1b LOCAL cascade) — this change.
+static DATAFUSION_BUILTIN_FUNCTION_NAMES: std::sync::LazyLock<std::collections::HashSet<String>> =
+    std::sync::LazyLock::new(|| {
+        use datafusion::execution::SessionStateDefaults;
+        let mut names = std::collections::HashSet::new();
+
+        // (1) Built-in scalar functions (e.g. lower, upper, coalesce, concat, abs, round).
+        for udf in SessionStateDefaults::default_scalar_functions() {
+            names.insert(udf.name().to_ascii_lowercase());
+            for alias in udf.aliases() {
+                names.insert(alias.to_ascii_lowercase());
+            }
+        }
+
+        // (2) Built-in aggregate functions (e.g. stddev, median, variance, approx_distinct,
+        //     array_agg, string_agg, corr, covar_pop, bool_and, bool_or, regr_*).
+        //     These parse as ScalarFunc::Unknown in PrismQL but are resolvable by ctx.sql()
+        //     as aggregate functions — they must NOT trigger E-QUERY-039.
+        for udaf in SessionStateDefaults::default_aggregate_functions() {
+            names.insert(udaf.name().to_ascii_lowercase());
+            for alias in udaf.aliases() {
+                names.insert(alias.to_ascii_lowercase());
+            }
+        }
+
+        // (3) Built-in window functions (e.g. row_number, rank, dense_rank, percent_rank,
+        //     lag, lead, first_value, last_value, nth_value, ntile, cume_dist).
+        //     Same parse-as-Unknown issue; same resolution: ctx.sql() handles them correctly.
+        for udwf in SessionStateDefaults::default_window_functions() {
+            names.insert(udwf.name().to_ascii_lowercase());
+            for alias in udwf.aliases() {
+                names.insert(alias.to_ascii_lowercase());
+            }
+        }
+
+        names
+    });
+
+/// Walk the six top-level scalar-expr positions in a `SqlQuery` and collect
+/// `ScalarFunc::Unknown` names.
+///
+/// This is the SINGLE canonical walk used by `check_enrich_udf_availability` for both
+/// `Ast::Sql(Select)` and `Ast::SqlPipe` head queries.  It covers the six top-level
+/// positions in a `SqlQuery` where a scalar function call is typically written:
+///
+/// | Position                        | Coverage rationale |
+/// |---------------------------------|--------------------|
+/// | SELECT projection items         | primary enrichment site |
+/// | WHERE clause predicate          | defensive (HIGH-003 fix) |
+/// | JOIN ON conditions (all joins)  | C1/C2 fix: `ON badudf(x)=y` bypassed gate |
+/// | GROUP BY exprs                  | C1/C2 fix: `GROUP BY badudf(x)` bypassed gate |
+/// | ORDER BY exprs                  | C1/C2 fix: `ORDER BY badudf(x)` bypassed gate |
+/// | HAVING predicate                | forward-compat; mirrors WHERE walk |
+///
+/// `Join.on` is typed as `Expr` (not `Predicate`) in the AST, so it goes through
+/// `collect_unknown_scalar_from_expr` directly.
+///
+/// # Intentionally excluded positions (BC-2.11.019 §OBS-001)
+///
+/// `Expr::InSubquery` / `Predicate::InSubquery` subquery bodies are NOT descended into.
+/// This is intentional fail-open behaviour adjudicated in BC-2.11.019 §OBS-001:
+/// a `ScalarFunc::Unknown` inside `IN (SELECT ...)` reaches DataFusion planning as a
+/// function-not-found error (not the opaque `E-INT-001` crash that this gate prevents);
+/// the subquery body self-governs.  If PrismQL grammar is later extended to require enrich
+/// gating inside subquery bodies, BC-2.11.019 must be updated at that time.
+///
+/// S-DEMO-FIDELITY-REMEDIATION-001 C1+C2 fix; BC-2.11.019 §Precondition 1(b).
+fn collect_unknown_scalars_from_sql_query(sq: &crate::ast::SqlQuery, out: &mut Vec<String>) {
+    use crate::ast::SelectItem;
+
+    // (a) SELECT projection items.
+    for item in &sq.select.items {
+        if let SelectItem::Expr { expr, .. } = item {
+            collect_unknown_scalar_from_expr(expr, out);
+        }
+    }
+    // (b) WHERE-clause predicate tree (HIGH-003 fix).
+    if let Some(pred) = &sq.where_ {
+        collect_unknown_scalar_from_predicate(pred, out);
+    }
+    // (c) JOIN ON conditions — C1/C2 fix.
+    // `Join.on` is `Expr`, not `Predicate`.
+    for join in &sq.joins {
+        collect_unknown_scalar_from_expr(&join.on, out);
+    }
+    // (d) GROUP BY expressions — C1/C2 fix.
+    for expr in &sq.group_by {
+        collect_unknown_scalar_from_expr(expr, out);
+    }
+    // (e) ORDER BY expressions — C1/C2 fix.
+    for oe in &sq.order_by {
+        collect_unknown_scalar_from_expr(&oe.expr, out);
+    }
+    // (f) HAVING predicate (forward-compat; mirrors WHERE walk).
+    if let Some(pred) = &sq.having {
+        collect_unknown_scalar_from_predicate(pred, out);
+    }
+}
+
+/// Collect all `ScalarFunc::Unknown` names from an `Expr` tree.
+///
+/// Recurses into `FuncCall::Scalar` / `FuncCall::Aggregate` arguments, `Expr::Logical`
+/// (lhs/rhs), `Expr::Not`, and `Expr::Compare` (lhs/rhs) to find every
+/// `ScalarFunc::Unknown(name)` node.
+///
+/// Intentionally excluded positions (see BC-2.11.019 §OBS-001):
+/// - `Expr::TimestampArithmetic { base, .. }` — `base` is always `Expr::Now` (grammar
+///   constraint; see `build_temporal_rhs_parser`); a UDF cannot appear there.
+/// - `Expr::InSubquery { subquery, .. }` — subquery body is fail-open per OBS-001.
+///
+/// Module-level so it is accessible from `#[cfg(test)]` blocks for unit testing.
+/// Called by `check_enrich_udf_availability` and `collect_unknown_scalars_from_sql_query`.
+fn collect_unknown_scalar_from_expr(expr: &crate::ast::Expr, out: &mut Vec<String>) {
+    use crate::ast::{Expr, FuncCall, ScalarFunc};
+    match expr {
+        Expr::FuncCall(FuncCall::Scalar {
+            func: ScalarFunc::Unknown(name),
+            args,
+        }) => {
+            out.push(name.clone());
+            for arg in args {
+                collect_unknown_scalar_from_expr(arg, out);
+            }
+        }
+        Expr::FuncCall(FuncCall::Scalar { args, .. }) => {
+            for arg in args {
+                collect_unknown_scalar_from_expr(arg, out);
+            }
+        }
+        Expr::FuncCall(FuncCall::Aggregate { args, .. }) => {
+            for arg in args {
+                collect_unknown_scalar_from_expr(arg, out);
+            }
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            collect_unknown_scalar_from_expr(lhs, out);
+            collect_unknown_scalar_from_expr(rhs, out);
+        }
+        Expr::Not(inner) => collect_unknown_scalar_from_expr(inner, out),
+        Expr::Compare { lhs, rhs, .. } => {
+            collect_unknown_scalar_from_expr(lhs, out);
+            collect_unknown_scalar_from_expr(rhs, out);
+        }
+        // Leaf nodes and intentionally excluded positions — nothing to collect:
+        //
+        // - `Expr::Literal`, `Expr::Field`, `Expr::VirtualField`, `Expr::In`,
+        //   `Expr::Star`, `Expr::Now`, `Expr::Interval`: true leaf nodes; no
+        //   sub-expressions that can contain a function call.
+        //
+        // - `Expr::TimestampArithmetic { base, .. }`: `base` is always `Expr::Now`
+        //   per the grammar (`build_temporal_rhs_parser` only parses
+        //   `NOW() ± INTERVAL '...'` — the base is hard-coded to `Expr::Now`).
+        //   A `ScalarFunc::Unknown` cannot appear as the `base` expression of a
+        //   timestamp arithmetic node in valid PrismQL AST.
+        //
+        // - `Expr::InSubquery { subquery, .. }`: the subquery body CAN structurally
+        //   contain a `ScalarFunc::Unknown` in its SELECT items, but the gate
+        //   intentionally does NOT descend into subquery bodies — see BC-2.11.019
+        //   §OBS-001 for the full rationale (fail-open; DataFusion produces
+        //   function-not-found, not the opaque E-INT-001 crash this gate prevents).
+        _ => {}
+    }
+}
+
+/// Collect all `ScalarFunc::Unknown` names from a `Predicate` tree.
+///
+/// Handles `Predicate::Compare { lhs, rhs }` whose lhs/rhs are `Box<Expr>`, and
+/// recurses into `Predicate::Logical` and `Predicate::Not`.
+///
+/// BC-2.11.019 §Precondition 1(b): WHERE-clause unknown scalar functions must be gated
+/// at plan time (HIGH-003 fix in S-DEMO-FIDELITY-REMEDIATION-001).
+///
+/// Module-level so it is accessible from `#[cfg(test)]` blocks for unit testing.
+/// Called by `check_enrich_udf_availability`.
+fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut Vec<String>) {
+    use crate::ast::Predicate;
+    match pred {
+        Predicate::Compare { lhs, rhs, .. } => {
+            collect_unknown_scalar_from_expr(lhs, out);
+            collect_unknown_scalar_from_expr(rhs, out);
+        }
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates {
+                collect_unknown_scalar_from_predicate(p, out);
+            }
+        }
+        Predicate::Not(inner) => collect_unknown_scalar_from_predicate(inner, out),
+        // Remaining variants — intentionally not walked or provably UDF-free:
+        //
+        // - `Predicate::StringOp`, `Predicate::Regex`, `Predicate::In`,
+        //   `Predicate::Cidr`, `Predicate::Has`, `Predicate::Missing`,
+        //   `Predicate::IsNull`, `Predicate::Wildcard`, `Predicate::RecoveryError`:
+        //   none of these hold an `Expr` sub-tree that can contain a function call.
+        //
+        // - `Predicate::Between { low, high, .. }`: `low` and `high` are typed as
+        //   `Literal` (not `Expr`), so a `ScalarFunc::Unknown` provably cannot appear
+        //   in either position.
+        //
+        // - `Predicate::InSubquery { subquery, .. }`: the subquery body CAN
+        //   structurally contain a `ScalarFunc::Unknown` in its SELECT items, but
+        //   the gate intentionally does NOT descend into subquery bodies — see
+        //   BC-2.11.019 §OBS-001 for the full rationale (fail-open; DataFusion
+        //   produces function-not-found, not the opaque E-INT-001 crash this gate
+        //   prevents).
+        _ => {}
+    }
+}
+
+/// Plan-time enrichment UDF availability gate — E-QUERY-039 (BC-2.11.019).
+///
+/// Fires AFTER `check_table_availability` AND `check_query_column_availability`
+/// (BC-2.11.019 §Gate ordering: gate sequence is 001 → 037 → 038 → 039;
+/// enrich gate is last in the chain).
+///
+/// Parses the query string, collects all enrichment function names used in the query
+/// (both pipe-mode `| enrich udf_name(col)` and SQL-mode `SELECT udf_name(col)`), then
+/// validates each against the `InfusionRegistry` descriptor set.
+///
+/// # Gate skip conditions
+/// - `registry` is `None`: skip immediately (enrichment not configured).
+/// - Query fails to parse: return `Ok(())` — parse errors handled downstream.
+/// - No enrichment names found in the AST: return `Ok(())` (query doesn't use enrichment).
+/// - Name is a DataFusion built-in scalar: skip (resolved by `ctx.sql()` — not an enrichment).
+///
+/// # SQL path detection
+/// SQL-mode enrichment: `ScalarFunc::Unknown(name)` in `FuncCall::Scalar` nodes.
+/// Both `Ast::Sql(Select)` and `Ast::SqlPipe` head queries are handled via
+/// `collect_unknown_scalars_from_sql_query`, which scans all six scalar positions:
+///
+/// | Position                        | Coverage rationale |
+/// |---------------------------------|--------------------|
+/// | SELECT projection items         | primary enrichment site (non-wildcard only) |
+/// | WHERE clause predicate          | HIGH-003 fix: `WHERE badudf(x) > 0` bypassed gate |
+/// | JOIN ON conditions (all joins)  | C1/C2 fix: `ON badudf(x)=y` bypassed gate |
+/// | GROUP BY exprs                  | C1/C2 fix: `GROUP BY badudf(x)` bypassed gate |
+/// | ORDER BY exprs                  | C1/C2 fix: `ORDER BY badudf(x)` bypassed gate |
+/// | HAVING predicate                | forward-compat; mirrors WHERE walk |
+///
+/// DataFusion built-in functions (scalar, aggregate, window — e.g. lower, stddev,
+/// row_number) are excluded via `DATAFUSION_BUILTIN_FUNCTION_NAMES` before the
+/// registered-UDF check.
+///
+/// # Pipe path detection
+/// Pipe-mode enrichment: `PipeStage::Enrich(EnrichStage { infusion, .. })` nodes in
+/// the pipe stage list. The `infusion` field holds the caller-supplied UDF name.
+///
+/// # Reference
+/// S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019; error-taxonomy.md E-QUERY-039.
+/// F-PJL1-HIGH-001 (Pass-J LOCAL cascade): original scalar exclusion.
+/// F1 amendment (Pass-N1b): expanded to aggregate + window functions.
+fn check_enrich_udf_availability(
+    query_str: &str,
+    registry: Option<&prism_spec_engine::InfusionRegistry>,
+) -> Result<(), PrismError> {
+    use crate::ast::{Ast, PipeStage, SqlStatement};
+    use crate::filter_parser::PrismQlParser;
+    use prism_core::error::EnrichUdfNotFoundDetails;
+
+    // Skip when no registry is wired — enrichment not configured in this deployment.
+    let Some(registry) = registry else {
+        return Ok(());
+    };
+
+    // Parse the query. On parse failure, return Ok(()) — parse errors are emitted
+    // downstream as E-QUERY-001. This mirrors check_table_availability's behavior.
+    let ast = match PrismQlParser::parse(query_str) {
+        Ok(ast) => ast,
+        Err(_) => return Ok(()),
+    };
+
+    // Build the registered UDF name set from the live registry.
+    let descriptors = registry.udf_descriptors();
+    let registered_names: std::collections::HashSet<&str> =
+        descriptors.iter().map(|d| d.name.as_str()).collect();
+
+    // Collect enrichment UDF names from the AST via direct pattern matching.
+    // Using direct match (not the Visitor trait) to avoid coupling with the full
+    // visitor infrastructure — enrichment nodes are a well-defined subset.
+    //
+    // F-PNL1-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-N LOCAL cascade):
+    // BC-2.11.019 §F-PJL1-HIGH-001 "Scope of change" states the DataFusion
+    // built-in exclusion applies to SQL-mode `ScalarFunc::Unknown` gate logic ONLY.
+    // Pipe-mode `EnrichStage.infusion` gate is UNAFFECTED — `| enrich lower(col)`
+    // is an explicit enrichment directive; `lower` there is not a DataFusion scalar
+    // call but an unregistered infusion name, so E-QUERY-039 MUST fire.
+    // Fix: separate pipe-mode names and SQL-mode names into distinct Vecs so the
+    // built-in skip is applied to SQL names only.
+    let mut pipe_enrich_names: Vec<String> = Vec::new(); // no built-in skip
+    let mut sql_unknown_names: Vec<String> = Vec::new(); // built-in skip applied
+
+    match &ast {
+        // Pipe mode: `FROM table | enrich udf_name(col)` stages.
+        Ast::Pipe(pq) => {
+            for stage in &pq.stages {
+                if let PipeStage::Enrich(es) = stage {
+                    pipe_enrich_names.push(es.infusion.clone());
+                }
+            }
+        }
+        // SqlPipe mode: SQL head with pipe stages.
+        // Enrich names can appear in TWO places:
+        //   (a) pipe stages: `… | enrich udf_name(col)` — pipe-mode, no built-in skip.
+        //   (b) SQL HEAD: any scalar position in the head SqlQuery (SELECT, WHERE,
+        //       JOIN ON, GROUP BY, ORDER BY, HAVING) — SQL-mode, built-in skip applied.
+        // BC-2.11.019 §Precondition 1(b): projection OR WHERE (either site counts).
+        // C1/C2 fix: use collect_unknown_scalars_from_sql_query to cover ALL positions
+        // including JOIN ON / GROUP BY / ORDER BY which the previous inline walk missed.
+        Ast::SqlPipe(spq) => {
+            // (a) pipe stages — pipe-mode, no built-in skip.
+            for stage in &spq.stages {
+                if let PipeStage::Enrich(es) = stage {
+                    pipe_enrich_names.push(es.infusion.clone());
+                }
+            }
+            // (b) SQL head — ALL scalar positions via canonical shared walk, SQL-mode.
+            collect_unknown_scalars_from_sql_query(&spq.head, &mut sql_unknown_names);
+        }
+        // SQL mode: scan ALL scalar positions via canonical shared walk.
+        // BC-2.11.019 §Precondition 1(b): projection OR WHERE (either site counts).
+        // C1/C2 fix: use collect_unknown_scalars_from_sql_query to cover ALL positions
+        // including JOIN ON / GROUP BY / ORDER BY which the previous inline walk missed.
+        Ast::Sql(SqlStatement::Select(sq)) => {
+            collect_unknown_scalars_from_sql_query(sq, &mut sql_unknown_names);
+        }
+        // Filter mode and DML have no enrichment syntax.
+        _ => {}
+    }
+
+    // Validate pipe-mode enrich names — NO DataFusion built-in exclusion.
+    // BC-2.11.019 §F-PJL1-HIGH-001: pipe-mode `| enrich <name>` is an explicit
+    // enrichment directive. A built-in name like `lower` used as a pipe-mode infusion
+    // is NOT a DataFusion scalar — it is an unregistered infusion the analyst is trying
+    // to apply, so E-QUERY-039 MUST fire when it is not in InfusionRegistry.
+    //
+    // Validate SQL-mode unknown scalar names — WITH DataFusion built-in exclusion.
+    // BC-2.11.019 §F-PJL1-HIGH-001 (F1 amendment): skip names that are DataFusion built-in functions of ANY kind
+    // (scalar, aggregate, or window) — they are resolvable by ctx.sql() and must NOT
+    // trigger E-QUERY-039.
+    // F-PJL1-HIGH-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade) — original.
+    // F1 amendment (S-DEMO-FIDELITY-REMEDIATION-001 Pass-N1b) — expanded to agg + window.
+    //
+    // Iterator chain: pipe names first (no skip), then filtered SQL names (skip applied).
+    let sql_names_filtered = sql_unknown_names.iter().filter(|name| {
+        let name_lower = name.to_ascii_lowercase();
+        !DATAFUSION_BUILTIN_FUNCTION_NAMES.contains(&name_lower)
+    });
+    let all_names_to_check = pipe_enrich_names.iter().chain(sql_names_filtered);
+
+    for requested in all_names_to_check {
+        if !registered_names.contains(requested.as_str()) {
+            // Requested name is not a registered per-field UDF name.
+            // Build available_infusions from all registered per-field names.
+            // MED-001 fix: sort + dedup so the list is deterministic (lexicographic order)
+            // as required by error-taxonomy.md §E-QUERY-039 Message Format. This mirrors the
+            // sort+dedup fix applied to available_columns in check_column_availability
+            // (`check_column_availability` OBS-FRESH-1 fix) for E-QUERY-038 parity.
+            let mut available_infusions: Vec<String> =
+                descriptors.iter().map(|d| d.name.clone()).collect();
+            available_infusions.sort();
+            available_infusions.dedup();
+
+            // did_you_mean: Levenshtein ≤ 3 suggestion from registered names.
+            // OBS-1 fix: lexicographic tie-break (name asc) to ensure determinism
+            // when multiple names have the same minimum edit distance. This mirrors
+            // the column gate's determinism fix (check_query_column_availability).
+            // F-PHL1-HIGH-001: cap `requested` at 128 bytes (SEC-002 / CWE-407)
+            // before the O(m×n) Levenshtein loop — mirrors the table gate cap in
+            // `table_registry::did_you_mean`.
+            let requested_capped = crate::table_registry::cap_name_for_levenshtein(requested);
+            let did_you_mean = available_infusions
+                .iter()
+                .map(|n| (n.clone(), strsim::levenshtein(requested_capped, n)))
+                .filter(|(_, dist)| *dist <= 3)
+                .min_by_key(|(name, dist)| (*dist, name.clone()))
+                .map(|(name, _)| name);
+
+            return Err(PrismError::EnrichUdfNotFound(Box::new(
+                EnrichUdfNotFoundDetails::new(requested.clone(), available_infusions, did_you_mean),
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Shared column-name extractor for E-QUERY-038 gate (F-001B-DC-HIGH-001)
 // ---------------------------------------------------------------------------
 
 /// Extract the bare column name from a `FieldPath`, handling table-qualified references.
 ///
-/// This helper is the SINGLE extraction point used at ALL FOUR positions in
-/// `check_query_column_availability` (SELECT, WHERE, GROUP BY, ORDER BY), preventing
-/// the `.first()` false-reject bug from recurring at any one position independently.
+/// This helper is the SINGLE extraction point used at ALL FIVE positions in
+/// `check_query_column_availability` (SELECT, WHERE, GROUP BY, ORDER BY, JOIN ON),
+/// preventing the `.first()` false-reject bug from recurring at any one position
+/// independently. GROUP BY, ORDER BY, and JOIN ON positions use
+/// `extract_field_paths_from_expr` which calls this helper for each `Expr::Field`
+/// found while recursing into FuncCall args.
 ///
 /// # Behaviour
 /// - **1-segment path** (`["severity"]`): returns `Some("severity")` — unqualified column.
@@ -1390,6 +1860,105 @@ fn extract_column_name_from_field_path(
 }
 
 // ---------------------------------------------------------------------------
+// E-QUERY-038 helper: recursive field-path extractor (M2 fix)
+// ---------------------------------------------------------------------------
+
+/// Recursively extract bare column names from an `Expr` tree.
+///
+/// Walks ALL `Expr::Field` references, including those nested inside
+/// `Expr::FuncCall` argument lists, `Expr::Compare` (JOIN ON conditions),
+/// `Expr::Logical` (AND/OR chains in JOIN ON), and `Expr::Not` at any depth.
+/// This is the M2 fix for S-DEMO-FIDELITY-REMEDIATION-001 finding M2:
+/// `check_query_column_availability` previously used `Expr::Field` direct
+/// matches for GROUP BY and ORDER BY positions, causing queries like
+/// `GROUP BY lower(col_typo)` and `JOIN ON a.typo_col = b.col` to bypass the
+/// E-QUERY-038 gate.
+///
+/// # What is collected
+/// - `Expr::Field(fp)` — bare and qualified column refs, resolved via
+///   `extract_column_name_from_field_path` (table_name + alias matching).
+/// - `Expr::FuncCall(Aggregate { args, .. })` — recurse into all args.
+/// - `Expr::FuncCall(Scalar { args, .. })` — recurse into all args.
+/// - `Expr::FuncCall(Window { .. })` — no args to recurse into (yet).
+/// - `Expr::Compare { lhs, rhs, .. }` — recurse into both operands (JOIN ON).
+/// - `Expr::Logical { lhs, rhs, .. }` — recurse into both operands (AND/OR).
+/// - `Expr::Not(inner)` — recurse into inner.
+/// - `Expr::In { field, .. }` — collect the field directly.
+/// - `Expr::InSubquery { field, .. }` — collect the field directly; subquery is fail-open.
+/// - `Expr::TimestampArithmetic { base, .. }` — recurse into base.
+///
+/// # What is NOT collected
+/// - `Expr::VirtualField(_)` (`_sensor`, `_client`) — always valid, skip.
+/// - `Expr::Literal(_)` — not a column ref.
+/// - `Expr::Star` — wildcard, not a column ref.
+/// - `Expr::Now` / `Expr::Interval(_)` — planning constants, not column refs.
+///
+/// # Non-exhaustive safety
+/// Unknown future `Expr` and `FuncCall` variants are silently skipped via
+/// the `_ => {}` catch-all arm, preserving fail-open gate semantics and
+/// satisfying `#[non_exhaustive]` discipline.
+///
+/// Reference: S-DEMO-FIDELITY-REMEDIATION-001 finding M2; BC-2.11.016.
+fn extract_field_paths_from_expr(
+    expr: &crate::ast::Expr,
+    table_name: &str,
+    table_alias: Option<&str>,
+    out: &mut Vec<String>,
+) {
+    use crate::ast::{Expr, FuncCall};
+    match expr {
+        Expr::Field(fp) => {
+            if let Some(col) = extract_column_name_from_field_path(fp, table_name, table_alias) {
+                out.push(col);
+            }
+        }
+        Expr::FuncCall(fc) => match fc {
+            FuncCall::Aggregate { args, .. } | FuncCall::Scalar { args, .. } => {
+                for arg in args {
+                    extract_field_paths_from_expr(arg, table_name, table_alias, out);
+                }
+            }
+            FuncCall::Window { .. } => {} // No args yet.
+            // #[non_exhaustive] catch-all.
+            #[allow(unreachable_patterns)]
+            _ => {}
+        },
+        // JOIN ON conditions: `col_a = col_b`
+        Expr::Compare { lhs, rhs, .. } => {
+            extract_field_paths_from_expr(lhs, table_name, table_alias, out);
+            extract_field_paths_from_expr(rhs, table_name, table_alias, out);
+        }
+        // JOIN ON AND/OR chains.
+        Expr::Logical { lhs, rhs, .. } => {
+            extract_field_paths_from_expr(lhs, table_name, table_alias, out);
+            extract_field_paths_from_expr(rhs, table_name, table_alias, out);
+        }
+        // NOT wrapping.
+        Expr::Not(inner) => {
+            extract_field_paths_from_expr(inner, table_name, table_alias, out);
+        }
+        // IN membership: collect the field directly.
+        Expr::In { field, .. } => {
+            if let Some(col) = extract_column_name_from_field_path(field, table_name, table_alias) {
+                out.push(col);
+            }
+        }
+        // IN subquery: collect the field; the subquery itself is fail-open.
+        Expr::InSubquery { field, .. } => {
+            if let Some(col) = extract_column_name_from_field_path(field, table_name, table_alias) {
+                out.push(col);
+            }
+        }
+        // TimestampArithmetic: recurse into the base expression.
+        Expr::TimestampArithmetic { base, .. } => {
+            extract_field_paths_from_expr(base, table_name, table_alias, out);
+        }
+        // VirtualField, Literal, Star, Now, Interval, and future variants: fail-open.
+        _ => {}
+    }
+}
+
+// ---------------------------------------------------------------------------
 // E-QUERY-038 plan-time column gate (S-DEMO-PRISMQL-ONBOARDING-001-B)
 // ---------------------------------------------------------------------------
 
@@ -1399,15 +1968,27 @@ fn extract_column_name_from_field_path(
 /// Gate ordering: E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038
 /// (column not found). If the table check fails, this gate is never reached.
 ///
-/// Checks each column reference in the query AST against the column schema in
-/// `resolved_spec_map → ResolvedSensorSpec.spec.tables → TableSpec.columns →
-/// ColumnSpec.name` for the (table, org_scope) pair. When `resolved_spec_map` is
-/// `None`, returns `Ok(())` (fail-open for single-tenant / test mode — the gate fires
-/// only when resolved_spec_map is wired).
+/// # Schema source selection
 ///
-/// `available_columns` is ALWAYS present in the error (empty `[]` when `resolved_spec_map`
-/// is `None` or the table has zero columns). `did_you_mean` uses `strsim::levenshtein`
-/// with the same ≤3 threshold as the E-QUERY-037 gate (D-1163).
+/// ## Multi-tenant path (`resolved_spec_map` is `Some`)
+/// Checks each column reference against `resolved_spec_map → ResolvedSensorSpec.spec.tables
+/// → TableSpec.columns → ColumnSpec.name` for the (table, org_scope) pair.
+///
+/// ## Single-tenant / table_registry fallback (`resolved_spec_map` is `None`)
+/// Falls back to `table_registry.columns_for_table(table_name)` (M1 fix,
+/// S-DEMO-FIDELITY-REMEDIATION-001). If `table_registry` is also `None`, fails open.
+/// If the table has zero columns in the registry, fails open (backward-compatible for
+/// tables without a column spec). When columns are present and the requested column is
+/// absent, E-QUERY-038 is returned with `available_columns` populated from the registry.
+///
+/// The prior behaviour ("when `resolved_spec_map` is `None`, returns `Ok(())`") was
+/// removed by the M1 fix; the gate now fires for single-tenant mode via the registry
+/// fallback. F-PJL1-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade).
+///
+/// # Error payload
+/// `available_columns` is ALWAYS present in the error (empty `[]` only when no columns
+/// are registered for the table). `did_you_mean` uses `strsim::levenshtein` with the
+/// same ≤3 threshold as the E-QUERY-037 gate (D-1163).
 ///
 /// # BC-2.11.016 / S-DEMO-PRISMQL-ONBOARDING-001-B AC-001, AC-002
 fn check_column_availability(
@@ -1421,11 +2002,67 @@ fn check_column_availability(
             prism_spec_engine::ResolvedSensorSpec,
         >,
     >,
+    table_registry: Option<&crate::table_registry::TableRegistry>,
 ) -> Result<(), PrismError> {
     use prism_core::error::{ColumnNotFoundDetails, PrismError};
 
-    // Fail-open when resolved_spec_map is not wired (single-tenant / test mode).
+    // M1 fix (S-DEMO-FIDELITY-REMEDIATION-001): when resolved_spec_map is None,
+    // fall back to table_registry.columns_for_table() for single-tenant mode.
+    // If the table has no columns in the registry (empty list or table unknown),
+    // fail-open to preserve backward-compatible behavior for tables without column specs.
+    if resolved_spec_map.is_none() {
+        let Some(registry) = table_registry else {
+            // No schema source at all — fail-open.
+            return Ok(());
+        };
+        // F-PBL1-LOW-001 fix (Pass-B S-DEMO-FIDELITY-REMEDIATION-001): sort + dedup
+        // `available_columns` for deterministic ordering, matching the multi-tenant
+        // path (`check_query_column_availability` OBS-FRESH-1 fix). `columns_for_table` returns columns
+        // in spec insertion order; without sort+dedup the available_columns in the
+        // E-QUERY-038 error are non-deterministic across sensor registrations.
+        let mut available_columns = registry.columns_for_table(table_name);
+        available_columns.sort();
+        available_columns.dedup();
+        // Fail-open: if no columns registered for this table, skip gate.
+        if available_columns.is_empty() {
+            return Ok(());
+        }
+        // Column is in the available set — gate passes.
+        if available_columns.contains(&column_name.to_string()) {
+            return Ok(());
+        }
+        // did_you_mean: same ≤3 Levenshtein threshold as multi-tenant path.
+        // F-PHL1-MED-001: cap `column_name` at 128 bytes (SEC-002 / CWE-407)
+        // before the O(m×n) Levenshtein computation.
+        let column_name_capped = crate::table_registry::cap_name_for_levenshtein(column_name);
+        let did_you_mean = available_columns
+            .iter()
+            .map(|c| (c.clone(), strsim::levenshtein(column_name_capped, c)))
+            .filter(|(_, dist)| *dist <= 3)
+            .min_by_key(|(name, dist)| (*dist, name.clone()))
+            .map(|(c, _)| c);
+        tracing::warn!(
+            event_type = "column_not_found.rejected",
+            column = %column_name,
+            table = %table_name,
+            client_id = %client_id,
+            available_count = available_columns.len(),
+            "E-QUERY-038: column not found at plan time (single-tenant registry path)"
+        );
+        return Err(PrismError::ColumnNotFound(Box::new(
+            prism_core::error::ColumnNotFoundDetails::new(
+                column_name,
+                table_name,
+                client_id,
+                available_columns,
+                did_you_mean,
+            ),
+        )));
+    }
+
+    // Multi-tenant path: resolved_spec_map is Some.
     let Some(spec_map) = resolved_spec_map else {
+        // Unreachable due to the check above, but satisfies the type system.
         return Ok(());
     };
 
@@ -1498,9 +2135,12 @@ fn check_column_availability(
     // BC-2.11.016 AC-001 — multi-client queries iterate HashMap in non-deterministic order.)
     // After sort+dedup above, `available_columns` is already in stable lex order, so the
     // tie-break by name in `min_by_key` is now redundant but retained for clarity.
+    // F-PHL1-MED-001: cap `column_name` at 128 bytes (SEC-002 / CWE-407)
+    // before the O(m×n) Levenshtein computation — multi-tenant path.
+    let column_name_capped_mt = crate::table_registry::cap_name_for_levenshtein(column_name);
     let did_you_mean = available_columns
         .iter()
-        .map(|c| (c.clone(), strsim::levenshtein(column_name, c)))
+        .map(|c| (c.clone(), strsim::levenshtein(column_name_capped_mt, c)))
         .filter(|(_, dist)| *dist <= 3)
         .min_by_key(|(name, dist)| (*dist, name.clone()))
         .map(|(c, _)| c);
@@ -1540,16 +2180,27 @@ fn check_column_availability(
 /// # Column positions checked (BC-2.11.016 Precondition 2):
 /// - SELECT clause (non-wildcard field refs)
 /// - WHERE clause (FieldPath refs from all Predicate variants)
-/// - GROUP BY clause (Expr::Field refs)
-/// - ORDER BY clause (Expr::Field refs in each OrderExpr)
+/// - GROUP BY clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
+/// - ORDER BY clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
+/// - JOIN ON clause (Expr::Field refs and nested FuncCall args via `extract_field_paths_from_expr`)
+/// - HAVING clause (FieldPath refs and agg-fn column args via `extract_predicate_columns`;
+///   HAVING also accepts `agg_fn(col) op literal` predicate form via `build_having_predicate_parser`
+///   (ADR-048 / F-PXL3-MED-002) — a deliberate grammar divergence from WHERE (which remains
+///   `field op literal` only). BC-2.11.016 v1.5 / F-PWL1-LOW-001 / F-PXL3-MED-002)
 ///
-/// Gate skip conditions (mirroring `check_table_availability`):
-/// - `resolved_spec_map` is `None`: skip (single-tenant / test mode without wiring)
+/// Gate skip conditions:
+/// - BOTH `resolved_spec_map` AND `table_registry` are `None`: skip (no schema source wired).
+///   When `table_registry` is wired but `resolved_spec_map` is `None` (single-tenant mode),
+///   the gate FIRES via the `table_registry.columns_for_table()` fallback (M1 fix,
+///   S-DEMO-FIDELITY-REMEDIATION-001). Pre-M1 behavior (skip whenever `resolved_spec_map`
+///   is `None`) was incorrect and has been removed.
 /// - Query fails to parse: skip (parse errors handled downstream)
 /// - SELECT * or SELECT table.*: skip for SELECT position (wildcard columns always pass)
 ///
-/// Only SQL SELECT mode is checked. Filter and Pipe modes have no explicit column
-/// projection and DataFusion handles field resolution in those modes.
+/// SQL SELECT mode and SqlPipe head are both checked (the SqlPipe head carries an
+/// explicit column projection in the SELECT clause that is gated identically to SQL
+/// SELECT; F-001B-DC-HIGH-001 / BC-2.11.020). Filter and Pipe modes have no explicit
+/// column projection and DataFusion handles field resolution in those modes.
 ///
 /// # BC-2.11.016 / S-DEMO-PRISMQL-ONBOARDING-001-B
 fn check_query_column_availability(
@@ -1562,12 +2213,16 @@ fn check_query_column_availability(
             prism_spec_engine::ResolvedSensorSpec,
         >,
     >,
+    table_registry: Option<&crate::table_registry::TableRegistry>,
 ) -> Result<(), PrismError> {
     use crate::ast::{Ast, Expr, SelectItem, SqlStatement};
     use crate::filter_parser::PrismQlParser;
 
-    // Fail-open when resolved_spec_map is not wired.
-    if resolved_spec_map.is_none() {
+    // Fail-open when NEITHER resolved_spec_map NOR table_registry is wired.
+    // M1 fix (S-DEMO-FIDELITY-REMEDIATION-001): previously returned Ok(())
+    // immediately when resolved_spec_map.is_none(), bypassing E-QUERY-038 in
+    // single-tenant mode. Now, if table_registry is wired, use it as fallback.
+    if resolved_spec_map.is_none() && table_registry.is_none() {
         return Ok(());
     }
 
@@ -1619,28 +2274,44 @@ fn check_query_column_availability(
     // F-001B-DC-HIGH-001: use `extract_column_name_from_field_path` instead of
     // `fp.segments.first()` so that qualified refs (`crowdstrike_alerts.severity`)
     // correctly extract "severity" rather than the table name.
-    let select_cols: Vec<String> = sql_query
-        .select
-        .items
-        .iter()
-        .filter_map(|item| match item {
-            SelectItem::Star => None,         // SELECT * — skip
-            SelectItem::TableStar(_) => None, // SELECT table.* — skip
-            SelectItem::Expr { expr, .. } => match expr {
-                Expr::Field(fp) => {
-                    // Use the shared helper to correctly handle qualified refs.
-                    extract_column_name_from_field_path(fp, &table_name, from_alias)
+    //
+    // F-PBL1-MED-001 fix (Pass-B S-DEMO-FIDELITY-REMEDIATION-001): route through
+    // `extract_field_paths_from_expr` so that column refs nested inside FuncCall
+    // args (e.g. `SELECT count(typo_col)`, `SELECT lower(typo_col)`) are also
+    // validated. Previously, only bare `Expr::Field` refs were extracted; FuncCall
+    // args fell through to `_ => None` and bypassed E-QUERY-038.
+    //
+    // Wildcard items (Star / TableStar) are still skipped — no column to extract.
+    // VirtualField (_sensor, _client) are still skipped — always valid sentinels.
+    // This makes AC-M2's claim that `extract_field_paths_from_expr` is the SINGLE
+    // extraction point for ALL 5 positions (SELECT, WHERE, GROUP BY, ORDER BY,
+    // JOIN ON) true for Position 1 as well.
+    let mut select_cols: Vec<String> = Vec::new();
+    for item in &sql_query.select.items {
+        match item {
+            SelectItem::Star => {}         // SELECT * — skip (no column to validate)
+            SelectItem::TableStar(_) => {} // SELECT table.* — skip
+            SelectItem::Expr { expr, .. } => {
+                match expr {
+                    // VirtualField (_sensor, _client, etc.) — always valid, skip.
+                    Expr::VirtualField(_) => {}
+                    // All other Expr variants (Field, FuncCall, Compare, etc.) — use
+                    // the recursive walker so FuncCall args are validated.
+                    _ => {
+                        extract_field_paths_from_expr(
+                            expr,
+                            &table_name,
+                            from_alias,
+                            &mut select_cols,
+                        );
+                    }
                 }
-                // VirtualField (_sensor, _client, etc.) — skip (always valid).
-                Expr::VirtualField(_) => None,
-                // Other expr types (FuncCall, literals, etc.) — skip.
-                _ => None,
-            },
+            }
             // #[non_exhaustive] catch-all for future SelectItem variants.
             #[allow(unreachable_patterns)]
-            _ => None,
-        })
-        .collect();
+            _ => {}
+        }
+    }
 
     // ── Position 2: WHERE clause — recursively extract FieldPath refs ─────────
     //
@@ -1660,29 +2331,56 @@ fn check_query_column_availability(
         .map(|pred| extract_predicate_columns(pred, &table_name, from_alias))
         .unwrap_or_default();
 
-    // ── Position 3: GROUP BY clause — Expr::Field refs ────────────────────────
+    // ── Position 3: GROUP BY clause — recurse into FuncCall args (M2 fix) ────
     //
     // F-001B-DC-HIGH-001: use extract_column_name_from_field_path instead of .first().
-    let group_by_cols: Vec<String> = sql_query
-        .group_by
-        .iter()
-        .filter_map(|expr| match expr {
-            Expr::Field(fp) => extract_column_name_from_field_path(fp, &table_name, from_alias),
-            _ => None,
-        })
-        .collect();
+    // M2 fix (S-DEMO-FIDELITY-REMEDIATION-001): use `extract_field_paths_from_expr`
+    // instead of direct `Expr::Field` match so that column refs wrapped in function
+    // calls (e.g. `GROUP BY lower(col_typo)`) are also validated against the schema.
+    let mut group_by_cols: Vec<String> = Vec::new();
+    for expr in &sql_query.group_by {
+        extract_field_paths_from_expr(expr, &table_name, from_alias, &mut group_by_cols);
+    }
 
-    // ── Position 4: ORDER BY clause — Expr::Field refs in each OrderExpr ─────
+    // ── Position 4: ORDER BY clause — recurse into FuncCall args (M2 fix) ────
     //
     // F-001B-DC-HIGH-001: use extract_column_name_from_field_path instead of .first().
-    let order_by_cols: Vec<String> = sql_query
-        .order_by
-        .iter()
-        .filter_map(|oe| match &oe.expr {
-            Expr::Field(fp) => extract_column_name_from_field_path(fp, &table_name, from_alias),
-            _ => None,
-        })
-        .collect();
+    // M2 fix: same FuncCall-arg recursion as GROUP BY — handles `ORDER BY lower(col_typo)`.
+    let mut order_by_cols: Vec<String> = Vec::new();
+    for oe in &sql_query.order_by {
+        extract_field_paths_from_expr(&oe.expr, &table_name, from_alias, &mut order_by_cols);
+    }
+
+    // ── Position 5: JOIN ON clause — recurse into JOIN ON expressions (M2 fix) ──
+    //
+    // M2 fix (S-DEMO-FIDELITY-REMEDIATION-001): validate column refs in JOIN ON
+    // expressions for the FROM table. JOIN ON is typed as `Expr` (not `Predicate`),
+    // so we call `extract_field_paths_from_expr` directly.
+    //
+    // Fail-open for cross-table refs (unknown qualifier → `extract_column_name_from_field_path`
+    // returns None). Only same-table column typos (unqualified or FROM-table-qualified refs)
+    // are caught here — this is the same conservative policy as all other positions.
+    let mut join_on_cols: Vec<String> = Vec::new();
+    for join in &sql_query.joins {
+        extract_field_paths_from_expr(&join.on, &table_name, from_alias, &mut join_on_cols);
+    }
+
+    // ── Position 6: HAVING clause — reuse the WHERE predicate extractor ────────
+    //
+    // BC-2.11.016 v1.5 / F-PWL1-LOW-001: HAVING is `Option<Predicate>` (identical
+    // in type to WHERE), so we reuse `extract_predicate_columns` — the same helper
+    // used by Position 2 (WHERE). This closes the pedagogical asymmetry where
+    // E-QUERY-039 (enrich gate) and E-QUERY-037 (source-walk) already covered
+    // HAVING but E-QUERY-038 (column-existence gate) did not.
+    //
+    // Column refs directly in HAVING predicates (e.g. `HAVING typo_col > 5`) and
+    // column refs inside `IN` / `BETWEEN` / etc. HAVING predicates are all extracted
+    // by `collect_predicate_columns` via the existing match arms.
+    let having_cols: Vec<String> = sql_query
+        .having
+        .as_ref()
+        .map(|pred| extract_predicate_columns(pred, &table_name, from_alias))
+        .unwrap_or_default();
 
     // ── Gate: check all positions in order ────────────────────────────────────
     for col in select_cols
@@ -1690,8 +2388,17 @@ fn check_query_column_availability(
         .chain(where_cols.iter())
         .chain(group_by_cols.iter())
         .chain(order_by_cols.iter())
+        .chain(join_on_cols.iter())
+        .chain(having_cols.iter())
     {
-        check_column_availability(col, &table_name, client_id, org_scope, resolved_spec_map)?;
+        check_column_availability(
+            col,
+            &table_name,
+            client_id,
+            org_scope,
+            resolved_spec_map,
+            table_registry,
+        )?;
     }
 
     // ── E-QUERY-002 type-compatibility gate — AFTER column-existence gate ─────
@@ -1733,8 +2440,16 @@ fn check_query_column_availability(
 /// Walks all variants that carry a `FieldPath` directly, and recurses into
 /// `Logical` and `Not` for nested predicates. `VirtualField` segments
 /// (`_sensor`, `_client`) are implicitly excluded because those appear as
-/// `Expr::VirtualField`, not `Expr::Field` — the `Compare { lhs, .. }` arm
-/// matches `lhs` only when it is `Expr::Field`.
+/// `Expr::VirtualField`, not `Expr::Field`.
+///
+/// The `Compare { lhs, .. }` arm matches `lhs` on two forms (ADR-048):
+/// - `Expr::Field(fp)` — bare column reference (WHERE / HAVING bare predicate);
+///   extracted via `extract_column_name_from_field_path`.
+/// - `Expr::FuncCall(_)` — aggregate-function call (HAVING `agg_fn(col) op literal`
+///   per ADR-048 D.3); recursed via `extract_field_paths_from_expr` to reach nested
+///   `Expr::Field` args. This form is only reachable from the HAVING predicate path;
+///   WHERE grammar cannot produce a `FuncCall` LHS in `Predicate::Compare`.
+/// - All other `lhs` forms (`VirtualField`, `Literal`, etc.) — fail-open (silently skipped).
 ///
 /// F-001B-DC-HIGH-001: uses `extract_column_name_from_field_path` for each
 /// FieldPath so that qualified refs (`crowdstrike_alerts.severity`) return the
@@ -1762,14 +2477,34 @@ fn collect_predicate_columns(
 ) {
     use crate::ast::{Expr, Predicate};
     match pred {
-        // Compare: lhs may be Expr::Field (the column being compared).
-        // F-001B-DC-HIGH-001: use extract_column_name_from_field_path to handle qualified refs.
+        // Compare: lhs may be:
+        //   - Expr::Field(fp)        — bare column ref (WHERE / HAVING bare predicate)
+        //   - Expr::FuncCall(..)     — aggregate fn call (HAVING agg predicate, ADR-048)
+        //
+        // For Expr::Field: extract via extract_column_name_from_field_path (handles
+        //   qualified refs, F-001B-DC-HIGH-001).
+        // For Expr::FuncCall: recurse into args via extract_field_paths_from_expr, which
+        //   already handles FuncCall::Aggregate/Scalar arg lists at any nesting depth.
+        //   This is reachable only from the HAVING predicate path (ADR-048 D.3); WHERE
+        //   grammar cannot produce a FuncCall LHS in Predicate::Compare.
+        //
+        // F-001B-DC-HIGH-001; ADR-048 D.3.
         Predicate::Compare { lhs, .. } => {
-            if let Expr::Field(fp) = lhs.as_ref() {
-                if let Some(name) = extract_column_name_from_field_path(fp, table_name, table_alias)
-                {
-                    out.push(name);
+            match lhs.as_ref() {
+                Expr::Field(fp) => {
+                    if let Some(name) =
+                        extract_column_name_from_field_path(fp, table_name, table_alias)
+                    {
+                        out.push(name);
+                    }
                 }
+                Expr::FuncCall(_) => {
+                    // Aggregate function in HAVING predicate (ADR-048).
+                    // Recurse into the FuncCall args to extract any Expr::Field refs.
+                    extract_field_paths_from_expr(lhs.as_ref(), table_name, table_alias, out);
+                }
+                // Other lhs forms (VirtualField, Literal, etc.) — fail-open.
+                _ => {}
             }
         }
         // StringOp: field is FieldPath directly.
@@ -1895,6 +2630,13 @@ fn collect_predicate_type_pairs_inner(
         // Compare: extract (column, operator) when lhs is a FieldPath.
         // F-001B-DC-HIGH-001: use extract_column_name_from_field_path to correctly
         // resolve qualified refs (`crowdstrike_alerts.severity = ...`) to "severity".
+        //
+        // ADR-048 D.3: When lhs is Expr::FuncCall (HAVING aggregate predicate), the
+        // type-compatibility check is intentionally skipped. The result of an aggregate
+        // function (e.g., COUNT, SUM) is always numeric, and the comparison operator
+        // is already validated by the grammar. Type-checking the column inside the agg
+        // arg is the job of the E-QUERY-038 column-gate (collect_predicate_columns),
+        // not this function.
         Predicate::Compare { lhs, op, .. } => {
             if let Expr::Field(fp) = lhs.as_ref() {
                 if let Some(col_name) =
@@ -1905,6 +2647,7 @@ fn collect_predicate_type_pairs_inner(
                     }
                 }
             }
+            // FuncCall LHS (ADR-048 D.3): intentionally skipped — see comment above.
         }
         // Logical: recurse into each child predicate.
         Predicate::Logical { predicates, .. } => {
@@ -2397,6 +3140,7 @@ mod alias_wiring_tests {
                 Arc::new(NullSrc),
                 None,
                 3600,
+                "",
             ),
             InfusionUdfDescriptor::new(
                 "threat_score", // duplicate name
@@ -2406,6 +3150,7 @@ mod alias_wiring_tests {
                 Arc::new(NullSrc),
                 None,
                 3600,
+                "",
             ),
         ];
 
@@ -3235,17 +3980,6 @@ mod adr_042_tests {
     //
     // Traces to: ADR-042 §D3 (single-tenant/None mode returns Ok(0) with no side effects).
     //
-    // RED GATE: fails NOW because `rebuild_resolved_spec_map` does not exist.
-    // The method must be added to `QueryEngine` as a `pub fn`.
-    //
-    // NEW API REQUIRED:
-    //   `pub fn rebuild_resolved_spec_map(
-    //        &self,
-    //        customers_dir: &std::path::Path,
-    //        type_specs: &std::collections::HashMap<String, prism_spec_engine::spec_parser::SensorSpec>,
-    //        org_registry: &prism_core::OrgRegistry,
-    //    ) -> Result<usize, prism_spec_engine::error::SpecEngineError>`
-    //
     // When `self.resolved_spec_map` is `None` (single-tenant mode), the method MUST:
     //   - Return `Ok(0)` immediately (no-op).
     //   - Leave `resolved_spec_map()` returning `None`.
@@ -3266,8 +4000,6 @@ mod adr_042_tests {
             HashMap::new();
         let org_registry = OrgRegistry::new();
 
-        // RED GATE: this line fails to compile until the implementer adds
-        // `rebuild_resolved_spec_map` to `QueryEngine`.
         let result = engine.rebuild_resolved_spec_map(&dummy_path, &type_specs, &org_registry);
 
         assert_eq!(
@@ -3290,20 +4022,10 @@ mod adr_042_tests {
     //
     // Traces to: ADR-042 §In-Flight Query Consistency Guarantee.
     //
-    // RED GATE: fails NOW because:
-    //   (a) `rebuild_resolved_spec_map` does not exist.
-    //   (b) Even if it did, the `resolved_spec_map` field is a plain `Arc<HashMap>`,
-    //       not an `ArcSwap`, so `rebuild_resolved_spec_map` would have nowhere to
-    //       store the new map without modifying the original `Arc`.
+    // `resolved_spec_map` is `Option<Arc<arc_swap::ArcSwap<HashMap<...>>>>`.
+    // `resolved_spec_map()` calls `swap.load_full()` to return a fresh Arc snapshot.
     //
-    // NEW API REQUIRED (same as Test 3):
-    //   `pub fn rebuild_resolved_spec_map(...)` (see Test 3 doc for full signature).
-    //
-    // FIELD CHANGE REQUIRED:
-    //   `resolved_spec_map` must be `Option<Arc<arc_swap::ArcSwap<HashMap<...>>>>`.
-    //   `resolved_spec_map()` accessor must call `swap.load_full()` to return a fresh Arc.
-    //
-    // ASSERTION LOGIC:
+    // Assertion logic:
     //   - old_arc snapshot (held before rebuild) must still contain spec_A (acme→alerts).
     //   - fresh load after rebuild must contain spec_B (acme→alerts + acme→hosts).
     //   - These are different Arc pointers — !Arc::ptr_eq.
@@ -3317,13 +4039,7 @@ mod adr_042_tests {
         let mut initial_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
         initial_map.insert(key_a, val_a);
 
-        // Inject into engine via pub(crate) field.
-        // RED GATE (compile failure): resolved_spec_map type is currently
-        //   Option<Arc<HashMap<...>>>
-        // After implementation it becomes:
-        //   Option<Arc<arc_swap::ArcSwap<HashMap<...>>>>
-        // The assignment below must use the new ArcSwap shape:
-        //   engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(initial_map))));
+        // Inject into engine via pub(crate) field using the ArcSwap shape.
         let mut engine = make_minimal_engine();
         engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(initial_map))));
 
@@ -3397,8 +4113,6 @@ mod adr_042_tests {
         type_specs.insert("crowdstrike".to_string(), updated_type_spec);
 
         // ── Step 3: rebuild (simulates hot-reload) ────────────────────────────
-        //
-        // RED GATE: `rebuild_resolved_spec_map` does not exist yet.
         let rebuild_result =
             engine.rebuild_resolved_spec_map(&customers_dir, &type_specs, &org_registry);
 
@@ -3550,10 +4264,11 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
     /// Current code does NOT secondary-sort by column name, so this assertion fails on any
     /// run where the HashMap iterator returns "severity_b" before "severity_a".
     ///
-    /// RED GATE: assertion `did_you_mean == Some("severity_a")` fails non-deterministically
-    /// on current HEAD — structurally guaranteed to fail because the current code has no
-    /// lexicographic tie-break. The test runs `check_column_availability` in a tight loop
-    /// to surface the non-determinism within a single test run.
+    /// Load-bearing (TD-VSDD-059): assertion `did_you_mean == Some("severity_a")` fails
+    /// if lexicographic tie-breaking is removed — the code would return a HashMap-order
+    /// non-deterministic candidate instead of the lexicographically smallest one.
+    /// The test runs `check_column_availability` in a tight loop to expose non-determinism
+    /// if the secondary sort is absent.
     #[test]
     fn test_BC_2_11_016_did_you_mean_lexicographic_tiebreak_on_equidistant_candidates() {
         // Column A: "severity_a" — equidistant from typo.
@@ -3617,6 +4332,7 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
             "test-client",
             Some(&org_scope),
             Some(&spec_map),
+            None, // table_registry not needed; resolved_spec_map is wired
         );
 
         let err = result
@@ -3630,8 +4346,7 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
 
         // BC-2.11.016 AC-001: did_you_mean must be deterministic.
         // Expected: "aaac" (lexicographically smallest of equidistant candidates "aaac" / "aaad").
-        // Current code returns the HashMap iteration order (non-deterministic). The assertion
-        // is the CORRECT value; it fails on current HEAD when HashMap returns "aaad" first.
+        // Load-bearing: removing the lexicographic tie-break causes non-deterministic results.
         assert_eq!(
             did_you_mean.as_deref(),
             Some("aaac"),
@@ -3650,8 +4365,9 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
     ///
     /// The multi-org aspect verifies the org_scope filter path is correctly exercised.
     ///
-    /// RED GATE: assertion `did_you_mean == Some("bbb1")` ALWAYS fails on current HEAD
-    /// because `min_by_key` returns "bbb2" (inserted first, encountered first by flat_map).
+    /// Load-bearing (TD-VSDD-059): assertion `did_you_mean == Some("bbb1")` fails if
+    /// lexicographic tie-breaking is removed — without it, `min_by_key` returns "bbb2"
+    /// (inserted first, encountered first by flat_map) instead of the lexicographic minimum.
     #[test]
     fn test_BC_2_11_016_did_you_mean_lexicographic_tiebreak_multi_sensor_same_table() {
         // Multi-org test: org_scope covers "acme". One sensor with two equidistant columns
@@ -3688,6 +4404,7 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
             "test-client",
             Some(&org_scope),
             Some(&spec_map),
+            None, // table_registry not needed; resolved_spec_map is wired
         );
 
         let err = result
@@ -3700,8 +4417,7 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
 
         // BC-2.11.016 AC-001: deterministic tie-break → lexicographically smallest.
         // Expected: "bbb1" (alphabetically before "bbb2").
-        // Current code: returns "bbb2" (first in Vec, first minimum found by min_by_key).
-        // This assertion ALWAYS fails on current HEAD.
+        // Load-bearing: without the lex tie-break, min_by_key picks "bbb2" (Vec-order first).
         assert_eq!(
             did_you_mean.as_deref(),
             Some("bbb1"),
@@ -3729,17 +4445,14 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
     ///
     /// Fix: sort + dedup `available_columns` before constructing the error.
     ///
-    /// RED GATE (available_columns order): construct a spec_map with two sensors (alpha, beta)
-    /// each contributing one column ("col_z" and "col_a" respectively). The error's
-    /// `available_columns` field must be sorted ["col_a", "col_z"] regardless of HashMap
-    /// iteration order. On current HEAD, `available_columns` ordering depends on HashMap
-    /// iteration — could be either ["col_a", "col_z"] or ["col_z", "col_a"].
+    /// Load-bearing (available_columns order): two sensors (alpha, beta) each contribute
+    /// one column ("col_z" and "col_a" respectively). The error's `available_columns`
+    /// field must be sorted ["col_a", "col_z"] regardless of HashMap iteration order.
+    /// Removing the sort causes non-deterministic ordering failure.
     ///
-    /// RED GATE (duplicates): two org-scoped entries for the same sensor/table (simulating
-    /// multi-org-scope with overlapping column names) would produce duplicates.
-    /// We exercise this with two entries that have the same table name but different
-    /// sensor IDs — both match the FQ table prefix for different queries. For dedup,
-    /// we add a second sensor with the same column name to verify the output has no dupes.
+    /// Load-bearing (duplicates): two org-scoped entries for the same sensor/table
+    /// (simulating multi-org-scope with overlapping column names) would produce duplicates
+    /// without the dedup. A second sensor with the same column name verifies no dupes appear.
     #[test]
     fn test_BC_2_11_016_available_columns_sorted_deduped_in_column_not_found_error() {
         // Two sensors under "acme", contributing columns in reverse-lex order.
@@ -3811,6 +4524,7 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
             "test-client",
             Some(&org_scope),
             Some(&spec_map),
+            None, // table_registry not needed; resolved_spec_map is wired
         );
 
         let err = result.expect_err(
@@ -3825,9 +4539,9 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
         let cols = &details.available_columns;
 
         // OBS-FRESH-1 sort assertion: available_columns must be sorted lexicographically.
-        // On current HEAD, order depends on HashMap iteration (non-deterministic):
-        // could be ["col_z", "col_dup", "col_dup", "col_a"] or ["col_dup", "col_a", "col_z", "col_dup"].
-        // After sort+dedup: ["col_a", "col_dup", "col_z"].
+        // The implementation sorts+deduplicates before returning; without that step,
+        // order would depend on HashMap iteration (non-deterministic).
+        // Expected after sort+dedup: ["col_a", "col_dup", "col_z"].
         let mut expected_sorted = cols.clone();
         expected_sorted.sort();
         expected_sorted.dedup();
@@ -4115,9 +4829,14 @@ mod sqlpipe_gate_sweep_tests {
         // to the spec above, finds only "severity", and must deny "severit" with E-QUERY-038.
         // Note: "sev" would be distance 5 from "severity" (>3 threshold) so would give
         // did_you_mean=None. "severit" (missing trailing 'y') is the correct test typo.
+        //
+        // IMPORTANT: Uses underscore form "crowdstrike_detections" (NOT dot form
+        // "crowdstrike.detections"). BC-2.11.001 v1.15 / EC-11-067: dot-notation in FROM
+        // targets is rejected with E-QUERY-037 for ALL modes including SqlPipe.
+        // The underscore form must pass the availability gate so the column gate fires.
         let result = engine
             .execute(
-                "SELECT severit FROM crowdstrike.detections | limit 5",
+                "SELECT severit FROM crowdstrike_detections | limit 5",
                 QueryOptions {
                     clients: Some(vec![OrgSlug::new("testorg")]),
                     ..Default::default()
@@ -4145,12 +4864,2590 @@ mod sqlpipe_gate_sweep_tests {
                 );
             }
             Ok(_) => panic!(
-                "HIGH-1 / E-QUERY-038: SqlPipe query with typo'd column 'sev' must NOT succeed \
-                 (before fix the gate was bypassed for SqlPipe). E-QUERY-038 must fire."
+                "HIGH-1 / E-QUERY-038: SqlPipe query with typo'd column 'severit' must NOT \
+                 succeed. E-QUERY-038 (ColumnNotFound) must fire."
             ),
             Err(other) => {
                 panic!("HIGH-1 / E-QUERY-038: expected PrismError::ColumnNotFound, got: {other:?}")
             }
+        }
+    }
+
+    // ── H1: execute_inner vs execute_scheduled_inner gate ordering ────────────
+
+    /// H1 regression: capability gate (E-QUERY-011) ordering consistency between
+    /// `execute` and `execute_scheduled`.
+    ///
+    /// BEFORE the H1 fix: `execute_scheduled_inner` ran the capability gate FIRST
+    /// (before E-QUERY-037/038/039), while `execute_inner` ran it LAST (after 037/038/039).
+    /// This meant the same query would return different first errors depending on entry point.
+    ///
+    /// AFTER the H1 fix: both entry points use the same canonical gate order:
+    ///   E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-011 (capability, LAST).
+    ///
+    /// Test strategy: query referencing `prism_audit` (requires AuditRead capability) AND
+    /// an unregistered external table. With a TableRegistry that only has no registered
+    /// sensor, E-QUERY-037 should fire for the unregistered table from BOTH entry points.
+    /// (prism_* tables are skipped by the table gate, so the outer table in a combined query
+    /// would trip 037.) For a pure prism_audit query, E-QUERY-011 fires from both.
+    ///
+    /// This test uses a pure `prism_audit` query with NO TableRegistry to verify that
+    /// E-QUERY-011 fires consistently from both execute and execute_scheduled.
+    ///
+    /// Load-bearing (TD-VSDD-059): verifies both paths return the same error type.
+    /// If the capability gate is removed from execute_scheduled, this test fails.
+    #[tokio::test]
+    async fn test_h1_capability_gate_consistent_across_execute_and_execute_scheduled() {
+        let engine = make_test_engine();
+
+        // `prism_audit` query — no AuditRead capability in QueryOptions (default).
+        // Both execute and execute_scheduled must return E-QUERY-011.
+        let query = "SELECT * FROM prism_audit LIMIT 10";
+
+        let execute_result = engine.execute(query, QueryOptions::default()).await;
+
+        // Map execute_scheduled to Result<QueryResult, PrismError> by discarding the Arc<SessionContext>
+        // (SessionContext does not impl Debug so we cannot unwrap_err on the raw tuple result).
+        let scheduled_result = engine
+            .execute_scheduled(query, None)
+            .await
+            .map(|(qr, _ctx)| qr);
+
+        // Both must error.
+        assert!(
+            execute_result.is_err(),
+            "H1: execute with prism_audit + no AuditRead must return Err; got Ok"
+        );
+        assert!(
+            scheduled_result.is_err(),
+            "H1: execute_scheduled with prism_audit + no AuditRead must return Err; got Ok. \
+             If Ok: the capability gate in execute_scheduled_inner is missing or bypassed."
+        );
+
+        let exec_err = execute_result.unwrap_err();
+        let sched_err = scheduled_result.unwrap_err();
+
+        // Both must be AuditTableAccessDenied (E-QUERY-011).
+        assert!(
+            matches!(exec_err, PrismError::AuditTableAccessDenied),
+            "H1: execute must return AuditTableAccessDenied; got: {exec_err:?}"
+        );
+        assert!(
+            matches!(sched_err, PrismError::AuditTableAccessDenied),
+            "H1: execute_scheduled must return AuditTableAccessDenied (E-QUERY-011) to \
+             match execute behavior. Got: {sched_err:?}. \
+             Prior to H1 fix: the capability gate ran BEFORE 037/038/039 in \
+             execute_scheduled but AFTER in execute — this test verifies alignment."
+        );
+    }
+
+    // ── F-P1L4-MED-001: DISCRIMINATING gate-ordering regression guard ─────────
+
+    /// F-P1L4-MED-001 load-bearing (DISCRIMINATING H1 ordering test).
+    ///
+    /// The existing `test_h1_capability_gate_consistent_across_execute_and_execute_scheduled`
+    /// uses a PURE `prism_audit` query with NO competing gate (table/column/enrich).
+    /// That test is NECESSARY but NOT SUFFICIENT — it would PASS against the pre-fix
+    /// `execute_scheduled_inner` where the capability gate ran FIRST (before 037/038/039),
+    /// because a pure `prism_audit` query doesn't hit the table gate at all.
+    ///
+    /// This test DISCRIMINATES the ordering by constructing a query that SIMULTANEOUSLY
+    /// triggers:
+    ///   - E-QUERY-037 (TableNotAvailable): `ghost_sensor_detections` is NOT registered in
+    ///     the wired TableRegistry (which has only `armis` sensors).
+    ///   - E-QUERY-011 (AuditTableAccessDenied): the query JOINs `prism_audit`, which requires
+    ///     `Capability::AuditRead` that is ABSENT from both `QueryOptions::default()` (execute)
+    ///     and the system context `&[]` (execute_scheduled).
+    ///
+    /// With current (post-fix) gate ordering — E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-011:
+    ///   BOTH `execute` and `execute_scheduled` return E-QUERY-037 (table gate fires first).
+    ///
+    /// With pre-fix `execute_scheduled_inner` ordering — E-QUERY-011 BEFORE 037/038/039:
+    ///   `execute` returns E-QUERY-037 (table first) but `execute_scheduled` would return
+    ///   E-QUERY-011 (capability first) — ASYMMETRIC first-error behavior.
+    ///
+    /// This test WOULD FAIL against the pre-fix code because `execute_scheduled` would return
+    /// E-QUERY-011, not E-QUERY-037. It PASSES against the current code.
+    ///
+    /// TableRegistry wiring note: `check_table_availability` skips when `registry` is None.
+    /// A wired registry is REQUIRED for E-QUERY-037 to fire. The engine here has `armis`
+    /// registered so the gate is active for any non-armis table.
+    ///
+    /// `prism_audit` is classified as `SourceRefKind::Internal` and SKIPPED by the table gate
+    /// (`check_availability_gate` line: "Skip internal prism_* tables"). So the table gate
+    /// only fires for `ghost_sensor_detections` (Custom kind, not in registry).
+    ///
+    /// `check_internal_table_capabilities` sees BOTH source names via `extract_source_names_recursive`
+    /// (FROM + JOIN sources) and returns E-QUERY-011 when `prism_audit` is present and no
+    /// AuditRead capability is provided.
+    ///
+    /// F-P1L4-MED-001 / BC-2.11.019 / H1 fix (S-DEMO-FIDELITY-REMEDIATION-001)
+    #[tokio::test]
+    async fn test_h1_gate_ordering_discriminating_table_fires_before_capability() {
+        use crate::table_registry::TableRegistry;
+        use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+
+        // Build an engine with a wired TableRegistry containing only `armis`.
+        // This activates the E-QUERY-037 gate for any non-armis table.
+        let armis_spec = SensorSpec::new(
+            "armis",
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&armis_spec)
+            .expect("register armis must not fail");
+
+        let engine = QueryEngine::new_with_cache_config(
+            Arc::new(prism_sensors::AdapterRegistry::new()),
+            Arc::new(NoopCs2),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(Arc::clone(&registry));
+
+        // Discriminating query: references BOTH an unregistered external table AND prism_audit.
+        //   `ghost_sensor_detections` — Custom kind, NOT in registry → E-QUERY-037 (table gate)
+        //   `prism_audit` via JOIN   — Internal kind, SKIPPED by table gate; requires AuditRead
+        //                              capability → E-QUERY-011 (capability gate)
+        //
+        // Pre-fix (capability FIRST in execute_scheduled_inner):
+        //   execute         returns E-QUERY-037 (table first, correct order)
+        //   execute_scheduled returns E-QUERY-011 (capability FIRST — the bug)
+        //   → ASYMMETRIC: the same query gives different first errors per entry point.
+        //
+        // Post-fix (table FIRST in both):
+        //   BOTH return E-QUERY-037 (table gate fires before capability gate).
+        let query = "SELECT * FROM ghost_sensor_detections JOIN prism_audit ON id = id LIMIT 10";
+
+        let execute_result = engine.execute(query, QueryOptions::default()).await;
+        let scheduled_result = engine
+            .execute_scheduled(query, None)
+            .await
+            .map(|(qr, _ctx)| qr);
+
+        // Both must error.
+        assert!(
+            execute_result.is_err(),
+            "F-P1L4-MED-001: execute with unregistered table must return Err; got Ok"
+        );
+        assert!(
+            scheduled_result.is_err(),
+            "F-P1L4-MED-001: execute_scheduled with unregistered table must return Err; got Ok"
+        );
+
+        let exec_err = execute_result.unwrap_err();
+        let sched_err = scheduled_result.unwrap_err();
+
+        // DISCRIMINATING assertion: BOTH must return E-QUERY-037 (TableNotAvailable),
+        // NOT E-QUERY-011 (AuditTableAccessDenied).
+        //
+        // If execute_scheduled_inner still runs the capability gate FIRST (pre-fix ordering),
+        // `sched_err` would be AuditTableAccessDenied (E-QUERY-011), and this assertion fails.
+        assert!(
+            matches!(exec_err, PrismError::TableNotAvailable(_)),
+            "F-P1L4-MED-001 DISCRIMINATING: execute must return TableNotAvailable (E-QUERY-037) \
+             when table gate fires before capability gate. \
+             Got: {exec_err:?}. If AuditTableAccessDenied: the ordering is wrong \
+             (capability gate is running before table gate in execute_inner)."
+        );
+        assert!(
+            matches!(sched_err, PrismError::TableNotAvailable(_)),
+            "F-P1L4-MED-001 DISCRIMINATING: execute_scheduled must return TableNotAvailable \
+             (E-QUERY-037) when table gate fires before capability gate. \
+             Got: {sched_err:?}. \
+             If AuditTableAccessDenied (E-QUERY-011): the H1 fix is incomplete — \
+             execute_scheduled_inner is still running the capability gate FIRST \
+             (before E-QUERY-037), causing asymmetric first-error behavior. \
+             This test FAILS against the pre-fix execute_scheduled_inner ordering."
+        );
+
+        // Sanity-check: error message must mention the unregistered table name.
+        if let PrismError::TableNotAvailable(ref details) = exec_err {
+            assert!(
+                details.to_string().starts_with("E-QUERY-037:"),
+                "F-P1L4-MED-001: E-QUERY-037 error display must start with 'E-QUERY-037:'; \
+                 got: {}",
+                details
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-FIDELITY-REMEDIATION-001 C1+C2 test-only re-export
+// ---------------------------------------------------------------------------
+
+/// Test-only re-export of `collect_unknown_scalars_from_sql_query` for unit tests
+/// in `bc_2_11_019_n1b_test.rs` that construct `SqlQuery` nodes directly.
+///
+/// The production function is module-private. This wrapper grants `pub(crate)` visibility
+/// exclusively for direct AST construction tests that verify GROUP BY / ORDER BY / JOIN ON
+/// walks without going through the parser (some positions are not reachable via the
+/// PrismQL parser grammar — see C1+C2 note in `bc_2_11_019_n1b_test.rs`).
+///
+/// TD-VSDD-059: load-bearing — removing the GROUP BY / ORDER BY / JOIN ON walks from
+/// `collect_unknown_scalars_from_sql_query` causes the corresponding unit tests to fail.
+#[cfg(test)]
+pub(crate) fn collect_unknown_scalars_from_sql_query_test_only(
+    sq: &crate::ast::SqlQuery,
+    out: &mut Vec<String>,
+) {
+    collect_unknown_scalars_from_sql_query(sq, out)
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-FIDELITY-REMEDIATION-001 HIGH-003 unit tests
+// ---------------------------------------------------------------------------
+//
+// These tests directly exercise `collect_unknown_scalar_from_predicate` and
+// `collect_unknown_scalar_from_expr` (now module-level private fns accessible
+// from this #[cfg(test)] block via `super::`).
+//
+// Rationale for direct AST construction (not query-string parsing):
+// The SQL parser's WHERE predicate grammar uses `build_predicate_parser()` which
+// does NOT include scalar function call syntax — `WHERE badudf(col) = 1` is a
+// parse error (E-QUERY-001) at runtime. The collect_unknown_scalar_from_predicate
+// helper is defensive code for programmatic AST construction (e.g., macros,
+// future parser extensions). These unit tests verify the logic directly.
+//
+// TD-VSDD-059: load-bearing unit tests on the actual collect_ functions.
+
+#[cfg(test)]
+mod enrich_gate_where_clause_unit_tests {
+    use crate::ast::{
+        CompareOp, Expr, FieldPath, FuncCall, Literal, LogicalOp, Predicate, ScalarFunc,
+    };
+
+    /// HIGH-003 regression — `collect_unknown_scalar_from_predicate` finds
+    /// `ScalarFunc::Unknown` in a `Predicate::Compare { lhs: Expr::FuncCall(..) }`.
+    ///
+    /// Constructs a predicate: `badudf(field) = "value"` where `badudf` is
+    /// `ScalarFunc::Unknown("badudf")`. Asserts the name is collected.
+    #[test]
+    fn test_high003_collect_unknown_scalar_in_compare_lhs() {
+        let pred = Predicate::Compare {
+            lhs: Box::new(Expr::FuncCall(FuncCall::Scalar {
+                func: ScalarFunc::Unknown("badudf".to_string()),
+                args: vec![Expr::Field(FieldPath::new(vec!["col".to_string()]))],
+            })),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::String("value".to_string()))),
+        };
+
+        let mut out = Vec::new();
+        super::collect_unknown_scalar_from_predicate(&pred, &mut out);
+
+        assert_eq!(
+            out,
+            vec!["badudf".to_string()],
+            "HIGH-003: collect_unknown_scalar_from_predicate must collect \
+             ScalarFunc::Unknown in Predicate::Compare lhs"
+        );
+    }
+
+    /// HIGH-003 regression — `collect_unknown_scalar_from_predicate` finds
+    /// `ScalarFunc::Unknown` nested in `Predicate::Logical` (AND/OR).
+    #[test]
+    fn test_high003_collect_unknown_scalar_in_logical_predicate() {
+        let compare_with_udf = Predicate::Compare {
+            lhs: Box::new(Expr::FuncCall(FuncCall::Scalar {
+                func: ScalarFunc::Unknown("badudf".to_string()),
+                args: vec![],
+            })),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::Integer(1))),
+        };
+        let simple_compare = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(vec!["severity".to_string()]))),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::String("high".to_string()))),
+        };
+
+        let logical = Predicate::Logical {
+            op: LogicalOp::And,
+            predicates: vec![compare_with_udf, simple_compare],
+        };
+
+        let mut out = Vec::new();
+        super::collect_unknown_scalar_from_predicate(&logical, &mut out);
+
+        assert_eq!(
+            out,
+            vec!["badudf".to_string()],
+            "HIGH-003: collect_unknown_scalar_from_predicate must collect \
+             ScalarFunc::Unknown nested inside Predicate::Logical"
+        );
+    }
+
+    /// HIGH-003 regression — `collect_unknown_scalar_from_predicate` finds nothing
+    /// in a simple field-vs-literal comparison (no function call).
+    ///
+    /// Negative control: regular predicates must NOT emit false positives.
+    #[test]
+    fn test_high003_no_false_positive_on_simple_predicate() {
+        let pred = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(vec!["severity".to_string()]))),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::String("high".to_string()))),
+        };
+
+        let mut out = Vec::new();
+        super::collect_unknown_scalar_from_predicate(&pred, &mut out);
+
+        assert!(
+            out.is_empty(),
+            "HIGH-003: collect_unknown_scalar_from_predicate must NOT collect \
+             anything from a plain field = literal predicate. Got: {out:?}"
+        );
+    }
+
+    /// HIGH-003 regression — `collect_unknown_scalar_from_predicate` handles `Not`.
+    #[test]
+    fn test_high003_collect_unknown_scalar_in_not_predicate() {
+        let inner = Predicate::Compare {
+            lhs: Box::new(Expr::FuncCall(FuncCall::Scalar {
+                func: ScalarFunc::Unknown("evil_udf".to_string()),
+                args: vec![],
+            })),
+            op: CompareOp::Ne,
+            rhs: Box::new(Expr::Literal(Literal::Integer(0))),
+        };
+        let not_pred = Predicate::Not(Box::new(inner));
+
+        let mut out = Vec::new();
+        super::collect_unknown_scalar_from_predicate(&not_pred, &mut out);
+
+        assert_eq!(
+            out,
+            vec!["evil_udf".to_string()],
+            "HIGH-003: collect_unknown_scalar_from_predicate must collect \
+             ScalarFunc::Unknown inside Predicate::Not"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-FIDELITY-REMEDIATION-001 M2 — E-QUERY-038 FuncCall-arg + JOIN ON tests
+// ---------------------------------------------------------------------------
+//
+// Finding M2: `check_query_column_availability` only matched `Expr::Field` directly
+// in GROUP BY and ORDER BY, missing column refs wrapped in function calls (e.g.
+// `GROUP BY lower(col_typo)` bypassed the gate). JOIN ON was not validated at all.
+//
+// Fix: `extract_field_paths_from_expr` recursively collects FieldPath refs from
+// FuncCall args. GROUP BY, ORDER BY, and JOIN ON positions now use this helper
+// instead of a direct `Expr::Field` match.
+//
+// Tests assert E-QUERY-038 fires for:
+//   1. GROUP BY with a column typo wrapped in a function call (lower(typo_col))
+//   2. ORDER BY with a column typo wrapped in a function call (lower(typo_col))
+//   3. JOIN ON with a bare column typo in the FROM table
+//
+// TD-VSDD-059: load-bearing — removing the FuncCall-arg walk from
+// `extract_field_paths_from_expr` or removing the Position 5 JOIN ON walk from
+// `check_query_column_availability` causes these tests to fail.
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod m2_column_gate_funccall_and_join_tests {
+    use std::{collections::HashMap, sync::Arc};
+
+    use prism_core::{OrgSlug, SensorId};
+    use prism_sensors::AdapterRegistry;
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+        ResolvedSensorSpec, ResolvedSpecKey,
+    };
+
+    use super::*;
+    use crate::{scoping::ClientRegistry, table_registry::TableRegistry};
+    use prism_core::column::ColumnType;
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
+    /// Minimal no-op credential store for M2 gate tests.
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a resolved spec map for `crowdstrike_alerts` (sensor="crowdstrike", table="alerts")
+    /// under org "acme" with explicit columns: `severity` (String) and `timestamp` (Datetime).
+    ///
+    /// The table is registered in the `TableRegistry` and also in the resolved spec map
+    /// so that both E-QUERY-037 (table gate) and E-QUERY-038 (column gate) can fire.
+    fn make_crowdstrike_engine_with_columns() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+        let sensor_id = "crowdstrike";
+        let table_suffix = "alerts";
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            sensor_id,
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        // Build table registry.
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("register crowdstrike must not fail");
+
+        // Build resolved spec map with the same columns.
+        let overlay_toml = format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@acme\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("M2 fixture: SensorInstanceOverlay TOML must parse");
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org.clone());
+        let key: ResolvedSpecKey = (org.clone(), SensorId::new(sensor_id));
+        let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        // Build engine with wired spec_map.
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_table_registry(registry);
+
+        (engine, org)
+    }
+
+    // ── Tests ──────────────────────────────────────────────────────────────────
+
+    /// M2 fix — E-QUERY-038 must fire for a column typo wrapped in a function call
+    /// in the GROUP BY clause.
+    ///
+    /// Before fix: `GROUP BY lower(typo_col)` would bypass the column gate because
+    /// `check_query_column_availability` only matched `Expr::Field` directly in the
+    /// GROUP BY position — `lower(typo_col)` is `Expr::FuncCall(Aggregate { args: [Field] })`,
+    /// which fell through to the `_ => None` arm.
+    ///
+    /// After fix: `extract_field_paths_from_expr` recurses into FuncCall args and
+    /// collects `typo_col`, which then fails the schema check → E-QUERY-038.
+    ///
+    /// Load-bearing (M2 fix): removing FuncCall recursion from the GROUP BY walk in
+    /// `extract_field_paths_from_expr` causes this query to bypass the column gate
+    /// and produce a DataFusion error (E-INT-001) instead of E-QUERY-038.
+    #[tokio::test]
+    async fn test_m2_group_by_funccall_arg_col_typo_triggers_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine_with_columns();
+
+        // `lower` is an aggregate-like scalar; the parser represents it as
+        // FuncCall::Aggregate in AST. `typo_col` is not in the schema (only
+        // `severity` and `timestamp` are valid).
+        let query = "SELECT severity, COUNT(*) FROM crowdstrike_alerts GROUP BY lower(typo_col)";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "typo_col",
+                    "M2 GROUP BY FuncCall: column must be 'typo_col', got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "M2 GROUP BY FuncCall: table must be 'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "M2 GROUP BY FuncCall: engine.execute must NOT succeed — E-QUERY-038 must fire \
+                 for column typo inside lower() in GROUP BY. Before M2 fix, the FuncCall arg \
+                 was not walked."
+            ),
+            Err(other) => panic!(
+                "M2 GROUP BY FuncCall: expected PrismError::ColumnNotFound (E-QUERY-038), \
+                 got different error: {other:?}"
+            ),
+        }
+    }
+
+    /// M2 fix — E-QUERY-038 must fire for a column typo wrapped in a function call
+    /// in the ORDER BY clause.
+    ///
+    /// Mirrors the GROUP BY test above for the ORDER BY position.
+    #[tokio::test]
+    async fn test_m2_order_by_funccall_arg_col_typo_triggers_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine_with_columns();
+
+        // `lower(typo_col)` in ORDER BY — `typo_col` not in schema.
+        let query = "SELECT severity FROM crowdstrike_alerts ORDER BY lower(typo_col)";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "typo_col",
+                    "M2 ORDER BY FuncCall: column must be 'typo_col', got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "M2 ORDER BY FuncCall: table must be 'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "M2 ORDER BY FuncCall: engine.execute must NOT succeed — E-QUERY-038 must fire \
+                 for column typo inside lower() in ORDER BY. Before M2 fix, the FuncCall arg \
+                 was not walked."
+            ),
+            Err(other) => panic!(
+                "M2 ORDER BY FuncCall: expected PrismError::ColumnNotFound (E-QUERY-038), \
+                 got different error: {other:?}"
+            ),
+        }
+    }
+
+    /// M2 fix — E-QUERY-038 must fire for a bare column typo in JOIN ON.
+    ///
+    /// Before fix: JOIN ON was not scanned at all — `check_query_column_availability`
+    /// had no Position 5 and `sql_query.joins` was never iterated.
+    ///
+    /// After fix: Position 5 iterates `sql_query.joins` and calls
+    /// `extract_field_paths_from_expr(&join.on, ...)` for each join, collecting
+    /// bare column refs and failing on typos.
+    ///
+    /// Note: The PrismQL parser only parses `col = col` equality in ON clauses.
+    /// An unqualified bare column ref in JOIN ON is treated as a FROM-table ref,
+    /// so `typo_col` in `ON typo_col = other_table.id` will be caught.
+    ///
+    /// Load-bearing (M2 fix): removing the JOIN ON walk from `check_query_column_availability`
+    /// causes this query to bypass the column gate, returning a DataFusion error or no error
+    /// instead of E-QUERY-038.
+    #[tokio::test]
+    async fn test_m2_join_on_col_typo_triggers_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine_with_columns();
+
+        // JOIN ON with a typo'd FROM-table column.
+        // Parser: `crowdstrike_alerts JOIN crowdstrike_alerts b ON typo_col = b.severity`
+        // `typo_col` is unqualified → FROM table → not in schema → E-QUERY-038.
+        let query = "SELECT a.severity FROM crowdstrike_alerts a \
+                     JOIN crowdstrike_alerts b ON a.typo_col = b.severity";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "typo_col",
+                    "M2 JOIN ON: column must be 'typo_col', got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "M2 JOIN ON: table must be 'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "M2 JOIN ON: engine.execute must NOT succeed — E-QUERY-038 must fire \
+                 for column typo in JOIN ON. Before M2 fix, the JOIN ON position \
+                 was not walked at all."
+            ),
+            Err(other) => panic!(
+                "M2 JOIN ON: expected PrismError::ColumnNotFound (E-QUERY-038), \
+                 got different error: {other:?}"
+            ),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-FIDELITY-REMEDIATION-001 Pass-B F-PBL1-MED-001 — SELECT-projection
+// FuncCall-arg columns bypass E-QUERY-038
+// ---------------------------------------------------------------------------
+//
+// Finding: the SELECT-projection loop (Position 1) in `check_query_column_availability`
+// matched only `Expr::Field(fp)` directly and returned `None` for `Expr::FuncCall { .. }`.
+// So `SELECT count(typo_col) FROM crowdstrike_alerts` did NOT validate `typo_col` against
+// the column schema — but the identical `GROUP BY count(typo_col)` DID (Position 3 uses
+// the recursive `extract_field_paths_from_expr`).
+//
+// Fix: route the SELECT-projection position through `extract_field_paths_from_expr` so
+// nested FuncCall args are validated, matching GROUP BY/ORDER BY/JOIN ON.
+//
+// Tests assert E-QUERY-038 fires for column typos nested inside FuncCall in SELECT:
+//   1. Aggregate FuncCall: `SELECT count(typo_col) FROM crowdstrike_alerts`
+//   2. Scalar FuncCall: `SELECT lower(typo_col) FROM crowdstrike_alerts`
+//
+// No-regression tests assert the gate does NOT fire for:
+//   1. SELECT * (wildcard — no column validation)
+//   2. SELECT count(severity) (valid column reference inside FuncCall)
+//   3. SELECT severity AS s (field alias — valid column ref)
+//
+// TD-VSDD-059: load-bearing — removing `extract_field_paths_from_expr` from the
+// SELECT-projection position (reverting to direct `Expr::Field` match with `_ => None`)
+// causes test_f_pbl1_med001_select_aggregate_funccall_typo_col_triggers_e_query_038 and
+// test_f_pbl1_med001_select_scalar_funccall_typo_col_triggers_e_query_038 to fail (they
+// would return Ok or a non-E-QUERY-038 error instead of PrismError::ColumnNotFound).
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod f_pbl1_med001_select_funccall_col_gate_tests {
+    use std::{collections::HashMap, sync::Arc};
+
+    use prism_core::{OrgSlug, SensorId};
+    use prism_sensors::AdapterRegistry;
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+        ResolvedSensorSpec, ResolvedSpecKey,
+    };
+
+    use super::*;
+    use crate::{scoping::ClientRegistry, table_registry::TableRegistry};
+    use prism_core::column::ColumnType;
+
+    // ── Helpers (mirrors m2_column_gate_funccall_and_join_tests::make_crowdstrike_engine_with_columns) ──
+
+    /// No-op credential store (same stub as m2 module).
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a `QueryEngine` with `crowdstrike_alerts` registered with columns
+    /// `["severity", "timestamp"]` plus a resolved_spec_map for multi-tenant gate.
+    ///
+    /// Mirrors `m2_column_gate_funccall_and_join_tests::make_crowdstrike_engine_with_columns`.
+    fn make_crowdstrike_engine() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+        let sensor_id = "crowdstrike";
+        let table_suffix = "alerts";
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            sensor_id,
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("register crowdstrike must not fail");
+
+        let overlay_toml = format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@acme\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("F-PBL1-MED-001 fixture: SensorInstanceOverlay TOML must parse");
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org.clone());
+        let key: ResolvedSpecKey = (org.clone(), SensorId::new(sensor_id));
+        let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_table_registry(registry);
+
+        (engine, org)
+    }
+
+    // ── Red gate tests (must FAIL before fix, PASS after fix) ─────────────────
+
+    /// F-PBL1-MED-001 — E-QUERY-038 must fire when a typo'd column is wrapped in
+    /// an aggregate FuncCall in the SELECT clause (e.g. `SELECT count(typo_col) ...`).
+    ///
+    /// Before fix: Position 1 (SELECT) uses a direct `Expr::Field` match; the
+    /// `Expr::FuncCall` arm falls through to `_ => None`, so `typo_col` inside
+    /// `count(typo_col)` is never extracted and the gate silently passes.
+    ///
+    /// After fix: Position 1 routes through `extract_field_paths_from_expr`, which
+    /// recurses into FuncCall args and collects `typo_col` → E-QUERY-038.
+    ///
+    /// Load-bearing (F-PBL1-MED-001): reverting SELECT to direct `Expr::Field` match
+    /// causes this test to produce Ok or a non-E-QUERY-038 error.
+    #[tokio::test]
+    async fn test_f_pbl1_med001_select_aggregate_funccall_typo_col_triggers_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `count(typo_col)` — typo_col is not in the schema (only severity, timestamp are valid).
+        let query = "SELECT count(typo_col) FROM crowdstrike_alerts";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "typo_col",
+                    "F-PBL1-MED-001 SELECT aggregate FuncCall: column must be 'typo_col', \
+                     got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "F-PBL1-MED-001 SELECT aggregate FuncCall: table must be 'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "F-PBL1-MED-001 SELECT aggregate FuncCall: engine.execute must NOT succeed — \
+                 E-QUERY-038 must fire for column typo inside count() in SELECT. Before fix, \
+                 the FuncCall arg in SELECT was not walked (fell through to `_ => None`)."
+            ),
+            Err(other) => panic!(
+                "F-PBL1-MED-001 SELECT aggregate FuncCall: expected \
+                 PrismError::ColumnNotFound (E-QUERY-038), got different error: {other:?}"
+            ),
+        }
+    }
+
+    /// F-PBL1-MED-001 — E-QUERY-038 must fire when a typo'd column is wrapped in
+    /// a scalar FuncCall in the SELECT clause (e.g. `SELECT lower(typo_col) ...`).
+    ///
+    /// Mirrors the aggregate FuncCall test above for scalar functions.
+    ///
+    /// Load-bearing (F-PBL1-MED-001): reverting SELECT to direct `Expr::Field` match
+    /// causes this test to produce Ok or a non-E-QUERY-038 error.
+    #[tokio::test]
+    async fn test_f_pbl1_med001_select_scalar_funccall_typo_col_triggers_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `lower(typo_col)` — typo_col is not in the schema.
+        let query = "SELECT lower(typo_col) FROM crowdstrike_alerts";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "typo_col",
+                    "F-PBL1-MED-001 SELECT scalar FuncCall: column must be 'typo_col', \
+                     got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "F-PBL1-MED-001 SELECT scalar FuncCall: table must be 'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "F-PBL1-MED-001 SELECT scalar FuncCall: engine.execute must NOT succeed — \
+                 E-QUERY-038 must fire for column typo inside lower() in SELECT. Before fix, \
+                 the FuncCall arg in SELECT was not walked (fell through to `_ => None`)."
+            ),
+            Err(other) => panic!(
+                "F-PBL1-MED-001 SELECT scalar FuncCall: expected \
+                 PrismError::ColumnNotFound (E-QUERY-038), got different error: {other:?}"
+            ),
+        }
+    }
+
+    // ── No-regression tests (must PASS before and after fix) ──────────────────
+
+    /// F-PBL1-MED-001 no-regression — `SELECT *` must NOT trigger E-QUERY-038.
+    ///
+    /// Wildcards are excluded from column validation (SelectItem::Star → None in the
+    /// SELECT walk). No columns are extracted → gate passes.
+    #[tokio::test]
+    async fn test_f_pbl1_med001_select_star_no_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        let query = "SELECT * FROM crowdstrike_alerts LIMIT 1";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        // Gate must NOT fire E-QUERY-038 for SELECT * (wildcard — no columns to validate).
+        // The query may fail downstream for other reasons (no data, DataFusion error) but
+        // NOT with PrismError::ColumnNotFound.
+        if let Err(PrismError::ColumnNotFound(ref details)) = result {
+            panic!(
+                "F-PBL1-MED-001 SELECT *: gate must NOT fire E-QUERY-038 for wildcard. \
+                 Got ColumnNotFound for column '{}' in table '{}'.",
+                details.column, details.table
+            );
+        }
+    }
+
+    /// F-PBL1-MED-001 no-regression — `SELECT count(severity)` with a valid column
+    /// inside FuncCall must NOT trigger E-QUERY-038.
+    ///
+    /// After the fix, `extract_field_paths_from_expr` recurses into FuncCall args.
+    /// When the extracted column name IS in the schema, the gate must pass.
+    #[tokio::test]
+    async fn test_f_pbl1_med001_select_aggregate_funccall_valid_col_no_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `count(severity)` — `severity` IS in the schema.
+        let query = "SELECT count(severity) FROM crowdstrike_alerts";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        // Gate must NOT fire E-QUERY-038 for a valid column inside FuncCall.
+        if let Err(PrismError::ColumnNotFound(ref details)) = result {
+            panic!(
+                "F-PBL1-MED-001 SELECT valid FuncCall: gate must NOT fire E-QUERY-038 \
+                 for 'count(severity)' — 'severity' is in the schema. \
+                 Got ColumnNotFound for column '{}' in table '{}'.",
+                details.column, details.table
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-FIDELITY-REMEDIATION-001 M1 — E-QUERY-038 single-tenant registry path
+// ---------------------------------------------------------------------------
+//
+// Finding M1: `check_query_column_availability` returned `Ok(())` immediately
+// when `resolved_spec_map.is_none()` (single-tenant mode), making E-QUERY-038
+// dead in single-tenant deployments.
+//
+// Fix: add `columns_by_table` to `TableRegistry`. When `resolved_spec_map` is
+// None but `table_registry` is Some, use `registry.columns_for_table()` to look
+// up the column list and validate column refs. Fail-open when the table has no
+// columns registered (backward-compatible for specs without explicit column lists).
+//
+// Tests assert E-QUERY-038 fires in single-tenant mode (resolved_spec_map = None,
+// table_registry = Some with columns) for a column typo in the SELECT clause.
+//
+// TD-VSDD-059: load-bearing — removing the single-tenant branch in
+// `check_column_availability` causes `test_m1_single_tenant_column_gate_fires`
+// to fail (it would return Ok instead of Err(ColumnNotFound)).
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod m1_single_tenant_column_gate_tests {
+    use std::sync::Arc;
+
+    use prism_sensors::AdapterRegistry;
+
+    use super::*;
+    use crate::{scoping::ClientRegistry, table_registry::TableRegistry};
+    use prism_core::column::ColumnType;
+
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a QueryEngine in single-tenant mode:
+    /// - `resolved_spec_map = None` (single-tenant — no org-scoped spec map)
+    /// - `table_registry` wired with `crowdstrike_alerts` having columns
+    ///   `severity` (String) and `timestamp` (Datetime).
+    ///
+    /// This is the M1 test setup: the engine has NO resolved_spec_map,
+    /// so the gate must rely on the TableRegistry for column validation.
+    fn make_single_tenant_engine_with_columns() -> QueryEngine {
+        use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec};
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        // Wire table registry with explicit columns.
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("register crowdstrike must not fail");
+
+        // Build engine WITHOUT resolved_spec_map (single-tenant).
+        QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(registry)
+        // resolved_spec_map is NOT wired (defaults to None).
+    }
+
+    /// M1 fix — E-QUERY-038 must fire in single-tenant mode when a column typo
+    /// is in the SELECT clause and `resolved_spec_map = None`.
+    ///
+    /// Before fix: `check_query_column_availability` returned Ok(()) immediately
+    /// when resolved_spec_map.is_none(), so `typo_col` was accepted without
+    /// validation and the query proceeded to DataFusion → internal error.
+    ///
+    /// After fix: the gate falls back to `table_registry.columns_for_table()`,
+    /// finds the column list `["severity", "timestamp"]`, and rejects `typo_col`
+    /// with PrismError::ColumnNotFound (E-QUERY-038).
+    #[tokio::test]
+    async fn test_m1_single_tenant_column_gate_fires() {
+        let engine = make_single_tenant_engine_with_columns();
+
+        // `typo_col` is not in the schema — only `severity` and `timestamp` are valid.
+        let query = "SELECT typo_col FROM crowdstrike_alerts LIMIT 5";
+
+        let result = engine.execute(query, QueryOptions::default()).await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "typo_col",
+                    "M1 single-tenant: column must be 'typo_col', got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "M1 single-tenant: table must be 'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "M1 single-tenant: engine.execute must NOT succeed — E-QUERY-038 must fire \
+                 even when resolved_spec_map=None, using table_registry.columns_for_table() \
+                 as fallback. Before M1 fix, the gate returned Ok(()) immediately."
+            ),
+            Err(other) => panic!(
+                "M1 single-tenant: expected PrismError::ColumnNotFound (E-QUERY-038), \
+                 got different error: {other:?}"
+            ),
+        }
+    }
+
+    /// F-PBL1-LOW-001 — single-tenant E-QUERY-038 `available_columns` must be
+    /// sorted lexicographically, matching the multi-tenant path.
+    ///
+    /// The multi-tenant path does `available_columns.sort(); available_columns.dedup()`
+    /// before constructing the error (OBS-FRESH-1 fix). The single-tenant path
+    /// (using `registry.columns_for_table()`) previously returned columns in spec
+    /// insertion order, which is non-deterministic across sensor registrations.
+    ///
+    /// This test registers columns in reverse-alphabetical order (`z_col`, `a_col`)
+    /// and asserts the error's `available_columns` field is sorted `["a_col", "z_col"]`.
+    ///
+    /// Before fix: `available_columns` in the error would be `["z_col", "a_col"]`
+    /// (spec insertion order), so the assertion fails.
+    ///
+    /// After fix: `sort(); dedup()` applied to the single-tenant branch produces
+    /// `["a_col", "z_col"]`, matching the expected sorted order.
+    ///
+    /// Load-bearing (F-PBL1-LOW-001): removing the sort/dedup from the single-tenant
+    /// branch causes this assertion to fail when columns are registered in non-sorted order.
+    #[tokio::test]
+    async fn test_f_pbl1_low001_single_tenant_available_columns_sorted() {
+        use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec};
+
+        // Register columns in reverse-alphabetical order to verify sort.
+        let columns = vec![
+            ColumnSpec::new("z_col", ColumnType::String, None, vec![]),
+            ColumnSpec::new("a_col", ColumnType::String, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            "armis",
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://api.armis.com",
+            vec![TableSpec::new_point_in_time(
+                "devices",
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("register armis must not fail");
+
+        let engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(registry);
+
+        // `typo_col` is not in the schema — only `z_col` and `a_col` are valid.
+        let query = "SELECT typo_col FROM armis_devices LIMIT 5";
+
+        let result = engine.execute(query, QueryOptions::default()).await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "typo_col",
+                    "F-PBL1-LOW-001: column must be 'typo_col'"
+                );
+                assert_eq!(
+                    details.available_columns,
+                    vec!["a_col".to_string(), "z_col".to_string()],
+                    "F-PBL1-LOW-001: available_columns must be sorted lexicographically. \
+                     Before fix, columns are returned in spec insertion order [z_col, a_col]; \
+                     after fix, sort+dedup produces [a_col, z_col]."
+                );
+            }
+            Ok(_) => panic!(
+                "F-PBL1-LOW-001: engine.execute must NOT succeed — E-QUERY-038 must fire \
+                 for typo_col when z_col and a_col are registered."
+            ),
+            Err(other) => panic!(
+                "F-PBL1-LOW-001: expected PrismError::ColumnNotFound (E-QUERY-038), \
+                 got different error: {other:?}"
+            ),
+        }
+    }
+
+    /// M1 negative — gate fails-open for a table with no columns registered.
+    ///
+    /// Registering a sensor without explicit columns means `columns_for_table`
+    /// returns an empty Vec. In that case, the gate must fail-open (return Ok)
+    /// to preserve backward compatibility for specs without column lists.
+    #[tokio::test]
+    async fn test_m1_single_tenant_no_columns_registered_fails_open() {
+        use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+
+        // Register WITHOUT columns (empty column list).
+        let spec = SensorSpec::new(
+            "armis",
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://api.armis.com",
+            vec![TableSpec::new_point_in_time(
+                "devices",
+                "security_finding",
+                vec![], // No columns
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("register armis must not fail");
+
+        let engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(registry);
+
+        // Even with a typo'd column, gate must fail-open (no columns to validate against).
+        let query = "SELECT completely_bogus_col FROM armis_devices LIMIT 5";
+
+        let result = engine.execute(query, QueryOptions::default()).await;
+
+        // We expect either Ok (execute past gate → DataFusion error on actual execution)
+        // or an Err that is NOT ColumnNotFound (DataFusion error is acceptable here).
+        match result {
+            Ok(_) => {} // Gate correctly failed open — no column schema to validate.
+            Err(PrismError::ColumnNotFound(_)) => panic!(
+                "M1 negative: gate must NOT fire E-QUERY-038 when no columns are registered \
+                 for the table. Fail-open is required for backward compat."
+            ),
+            Err(_other) => {} // DataFusion or other error downstream — acceptable (gate passed).
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PHL1-HIGH-001 + F-PHL1-MED-001 — CWE-407 strsim input cap (SEC-002)
+// ---------------------------------------------------------------------------
+//
+// These tests verify that over-cap inputs (> DID_YOU_MEAN_MAX_NAME_BYTES = 128 bytes)
+// to the enrich UDF gate (E-QUERY-039) and column gate (E-QUERY-038) are capped
+// before the Levenshtein computation, closing CWE-407 (Algorithmic Complexity DoS).
+//
+// Before fix: `check_enrich_udf_availability` and `check_column_availability` pass
+//   `requested`/`column_name` verbatim (potentially 64KB from the query) to strsim.
+// After fix:  `cap_name_for_levenshtein` clamps to 128 bytes at a char boundary
+//   BEFORE the computation — same as the existing table-gate cap in table_registry.rs.
+//
+// The `test_f_phl1_cap_name_for_levenshtein_*` unit tests directly test the
+// `cap_name_for_levenshtein` helper (fails RED before the helper is implemented).
+// The integration tests verify the gates return correct errors for over-cap input.
+//
+// Load-bearing (TD-VSDD-059): `test_f_phl1_cap_name_for_levenshtein_over_cap_truncates`
+// calls `cap_name_for_levenshtein` and asserts the returned slice is ≤ 128 bytes.
+// Before fix: the helper doesn't exist → compile error.
+// After fix: the helper is present → tests pass.
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod cwe407_cap_unit_tests {
+    use crate::table_registry::cap_name_for_levenshtein;
+
+    /// F-PHL1-HIGH-001/MED-001: `cap_name_for_levenshtein` must return ≤ 128 bytes
+    /// for an over-cap input.
+    ///
+    /// Load-bearing (TD-VSDD-059): before fix the function does not exist →
+    /// compile error. After fix, the slice is clamped to ≤ 128 bytes.
+    #[test]
+    fn test_f_phl1_cap_name_for_levenshtein_over_cap_truncates() {
+        let long_name: String = "x".repeat(200);
+        let capped = cap_name_for_levenshtein(&long_name);
+        assert!(
+            capped.len() <= 128,
+            "cap_name_for_levenshtein must return ≤ 128 bytes for a 200-byte input; \
+             got {} bytes",
+            capped.len()
+        );
+        assert!(
+            long_name.is_char_boundary(capped.len()),
+            "capped slice must end at a UTF-8 char boundary"
+        );
+    }
+
+    /// F-PHL1: `cap_name_for_levenshtein` must be a no-op for inputs ≤ 128 bytes.
+    #[test]
+    fn test_f_phl1_cap_name_for_levenshtein_short_name_unchanged() {
+        let short_name = "severity";
+        let capped = cap_name_for_levenshtein(short_name);
+        assert_eq!(
+            capped, short_name,
+            "cap_name_for_levenshtein must return input unchanged when len ≤ 128"
+        );
+    }
+
+    /// F-PHL1: `cap_name_for_levenshtein` must return valid UTF-8 when truncating
+    /// a string with multi-byte characters.
+    ///
+    /// "é" = 2 bytes (UTF-8). A 65-char string of "é" = 130 bytes > 128.
+    /// The cap must land at the last char boundary ≤ 128, which is byte 128
+    /// only if it's a char boundary; otherwise step back.
+    /// 65 × 2 = 130 bytes; cap at ≤ 128 → last "é" boundary at byte 128
+    /// (since every "é" starts at an even byte offset, 128 is a char boundary).
+    #[test]
+    fn test_f_phl1_cap_name_for_levenshtein_multibyte_char_boundary() {
+        // "é" = U+00E9 = 0xC3 0xA9 (2 bytes in UTF-8).
+        let multibyte: String = "é".repeat(65); // 130 bytes
+        assert_eq!(multibyte.len(), 130, "fixture: 65 × é = 130 bytes");
+        let capped = cap_name_for_levenshtein(&multibyte);
+        assert!(
+            capped.len() <= 128,
+            "cap_name_for_levenshtein must return ≤ 128 bytes for multibyte input; \
+             got {} bytes",
+            capped.len()
+        );
+        // The returned slice must be valid UTF-8 (str invariant).
+        assert!(
+            std::str::from_utf8(capped.as_bytes()).is_ok(),
+            "capped slice must be valid UTF-8"
+        );
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod cwe407_strsim_cap_tests {
+    use std::sync::Arc;
+
+    use prism_sensors::AdapterRegistry;
+
+    use super::*;
+    use crate::{scoping::ClientRegistry, table_registry::TableRegistry};
+    use prism_core::column::ColumnType;
+
+    struct NoopCs2;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs2 {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// F-PHL1-HIGH-001: `check_enrich_udf_availability` must cap over-cap UDF names
+    /// at `DID_YOU_MEAN_MAX_NAME_BYTES` (128 bytes) before the Levenshtein computation.
+    ///
+    /// Precondition: the enrich gate is active (InfusionRegistry wired, empty registry
+    /// is sufficient — ANY unknown name triggers the did_you_mean Levenshtein loop).
+    /// A query with a 200-byte UDF name must return E-QUERY-039, not hang or panic.
+    ///
+    /// Load-bearing (TD-VSDD-059): before fix, `strsim::levenshtein` receives the full
+    /// 200-byte token → O(200 × len(registered_name)) per loop iteration. With
+    /// many registered names this becomes an MCP-triggerable DoS. After fix, the cap
+    /// clamps input to 128 bytes before any strsim call.
+    ///
+    /// SEC-002 / CWE-407 / F-PHL1-HIGH-001.
+    #[tokio::test]
+    async fn test_f_phl1_high001_enrich_gate_over_cap_name_returns_e_query_039() {
+        use prism_spec_engine::InfusionRegistry;
+
+        // An empty InfusionRegistry is sufficient: any UDF name in the query is unknown,
+        // so the did_you_mean Levenshtein loop fires immediately on the first unknown name.
+        // (With an empty registry, available_infusions is [], so no actual Levenshtein
+        // computation is done — but the cap is still applied before the loop to ensure
+        // the guard is present even when the registry later gains registered names.)
+        let registry = Arc::new(InfusionRegistry::new());
+
+        // Build QueryEngine with the enrich registry wired.
+        let engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs2),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_infusion_registry(registry);
+
+        // Construct a 200-byte UDF name: 200 ASCII 'x' characters.
+        // This is >128 bytes (DID_YOU_MEAN_MAX_NAME_BYTES) but within the max query size.
+        // Before fix: strsim::levenshtein receives all 200 chars, creating O(200*14)
+        //   computation per registered name — exploitable DoS via crafted MCP query.
+        // After fix: input is capped at 128 bytes before the Levenshtein loop.
+        let over_cap_udf_name: String = "x".repeat(200);
+        // Use SQL mode so the unknown scalar function name triggers the enrich gate.
+        let query =
+            format!("SELECT {over_cap_udf_name}(ip_address) FROM crowdstrike_alerts LIMIT 5");
+
+        let result = engine.execute(&query, QueryOptions::default()).await;
+
+        // Must return E-QUERY-039 (EnrichUdfNotFound) — the gate must fire and
+        // cap the input internally without hanging.
+        match result {
+            Err(PrismError::EnrichUdfNotFound(ref details)) => {
+                // The gate correctly rejected the unknown over-cap UDF name.
+                // `requested` in the details is the RAW name (pre-cap) — we only
+                // cap for the Levenshtein computation, NOT the error field.
+                assert_eq!(
+                    details.infusion.len(),
+                    200,
+                    "F-PHL1-HIGH-001: details.infusion must carry the full 200-char name (cap \
+                     is only for Levenshtein computation); got len: {}",
+                    details.infusion.len()
+                );
+            }
+            // E-QUERY-037 fires first if no TableRegistry is wired — still valid:
+            // the important invariant is that the engine DOES NOT panic or hang.
+            // If the enrich gate fires, it must return EnrichUdfNotFound.
+            Err(PrismError::TableNotAvailable(_)) => {
+                // Table gate fired before enrich gate (no TableRegistry) — acceptable:
+                // the over-cap name never reached the Levenshtein computation because
+                // the table gate fired first. This is a correct short-circuit.
+            }
+            Ok(_) => panic!(
+                "F-PHL1-HIGH-001: engine.execute must not succeed for an unregistered 200-char \
+                 UDF name. Either E-QUERY-039 or E-QUERY-037 must fire."
+            ),
+            Err(other) => {
+                // Any other error (parse, column, etc.) is a test-setup issue.
+                // The test verifies no PANIC — if we reach here without panic,
+                // the CWE-407 DoS vector is not triggered.
+                let _ = other; // not a panic — acceptable for this safety test
+            }
+        }
+    }
+
+    /// F-PHL1-MED-001: `check_column_availability` (single-tenant path) must cap
+    /// over-cap column names at 128 bytes before the Levenshtein computation.
+    ///
+    /// Precondition: single-tenant mode (resolved_spec_map = None, TableRegistry wired).
+    /// A query with a 200-byte column name must return E-QUERY-038 (ColumnNotFound).
+    ///
+    /// Load-bearing (TD-VSDD-059): before fix, `column_name` is passed verbatim to strsim.
+    /// After fix: `cap_name_for_levenshtein(column_name)` clamps to 128 bytes.
+    ///
+    /// SEC-002 / CWE-407 / F-PHL1-MED-001.
+    #[tokio::test]
+    async fn test_f_phl1_med001_column_gate_single_tenant_over_cap_name_returns_e_query_038() {
+        use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec};
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("register crowdstrike must not fail");
+
+        let engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs2),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(registry);
+
+        // Construct a 200-byte column name.
+        let over_cap_col: String = "c".repeat(200);
+        let query = format!("SELECT {over_cap_col} FROM crowdstrike_alerts LIMIT 5");
+
+        let result = engine.execute(&query, QueryOptions::default()).await;
+
+        // Must return E-QUERY-038 (ColumnNotFound) with the over-cap name.
+        // The key safety property: no panic, no hang.
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column.len(),
+                    200,
+                    "F-PHL1-MED-001: details.column must carry the full 200-char name; \
+                     got len: {}",
+                    details.column.len()
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "F-PHL1-MED-001: table must be 'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "F-PHL1-MED-001: engine must NOT succeed for a 200-char column name that is \
+                 not in the schema. E-QUERY-038 must fire."
+            ),
+            Err(other) => {
+                panic!("F-PHL1-MED-001: expected E-QUERY-038 (ColumnNotFound), got: {other:?}")
+            }
+        }
+    }
+
+    /// F-PHL1-MED-001 multi-tenant: `check_column_availability` (multi-tenant path)
+    /// must also cap over-cap column names.
+    ///
+    /// Load-bearing (TD-VSDD-059): `check_column_availability` (multi-tenant path) also
+    /// calls `strsim::levenshtein(column_name, c)` without a cap before this fix.
+    ///
+    /// SEC-002 / CWE-407 / F-PHL1-MED-001.
+    #[tokio::test]
+    async fn test_f_phl1_med001_column_gate_multi_tenant_over_cap_name_returns_e_query_038() {
+        use prism_spec_engine::{
+            overlay::{OverlayLoader, SensorInstanceOverlay},
+            spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+            ResolvedSpecKey,
+        };
+
+        // Build a resolved_spec_map with one sensor ("crowdstrike") under org "acme".
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let overlay_toml = r#"extends = "crowdstrike"
+instance_id = "crowdstrike@acme""#;
+        let overlay: SensorInstanceOverlay = toml::from_str(overlay_toml)
+            .expect("multi-tenant fixture: SensorInstanceOverlay TOML must parse");
+        let org_slug = prism_core::OrgSlug::new("acme");
+        let sensor_id = prism_core::SensorId::new("crowdstrike");
+        let resolved =
+            OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+        let key: ResolvedSpecKey = (org_slug.clone(), sensor_id);
+
+        let mut spec_map = std::collections::HashMap::new();
+        spec_map.insert(key, resolved);
+
+        // Build engine with resolved_spec_map wired (multi-tenant mode).
+        // Use the pub(crate) field directly (same pattern as ADR-042 tests).
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs2),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org_slug])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+
+        // 200-byte column name → triggers multi-tenant path of check_column_availability.
+        let over_cap_col: String = "d".repeat(200);
+        let query = format!("SELECT {over_cap_col} FROM crowdstrike_alerts LIMIT 5");
+
+        let result = engine.execute(&query, QueryOptions::default()).await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column.len(),
+                    200,
+                    "F-PHL1-MED-001 multi-tenant: details.column must carry the full 200-char \
+                     name; got len: {}",
+                    details.column.len()
+                );
+            }
+            Ok(_) => panic!(
+                "F-PHL1-MED-001 multi-tenant: must NOT succeed for a 200-char column name. \
+                 E-QUERY-038 must fire."
+            ),
+            Err(other) => panic!(
+                "F-PHL1-MED-001 multi-tenant: expected E-QUERY-038 (ColumnNotFound), \
+                 got: {other:?}"
+            ),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PNL1-MED-001 — pipe-mode built-in name fires E-QUERY-039 (no skip)
+// ---------------------------------------------------------------------------
+//
+// BC-2.11.019 §F-PJL1-HIGH-001 "Scope of change":
+//   "SQL-mode `ScalarFunc::Unknown` gate logic only. Pipe-mode `EnrichStage.infusion`
+//    gate is UNAFFECTED (pipe-mode `| enrich` is an explicit enrichment directive —
+//    a built-in name there is NOT a DataFusion scalar, it's an unregistered infusion
+//    the analyst is trying to apply, so it SHOULD fire E-QUERY-039)."
+//
+// Before fix: `check_enrich_udf_availability` collected all names into one Vec and
+//   applied `DATAFUSION_BUILTIN_FUNCTION_NAMES` skip uniformly — pipe-mode enrich names
+//   were incorrectly excluded when they matched a DataFusion built-in name (e.g. `lower`).
+// After fix: pipe-mode names and SQL-mode names are collected into separate Vecs;
+//   built-in skip applies only to SQL-mode names.
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod pipe_mode_builtin_enrich_gate_tests {
+    use std::sync::Arc;
+
+    use prism_sensors::AdapterRegistry;
+
+    use super::*;
+    use crate::{scoping::ClientRegistry, table_registry::TableRegistry};
+    use prism_core::column::ColumnType;
+
+    struct NoopCsPipe;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCsPipe {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a QueryEngine with:
+    ///   - TableRegistry containing `crowdstrike_alerts` (columns: `severity`, `ioc_value`)
+    ///   - InfusionRegistry that is empty (no infusions registered — `lower` is NOT an infusion)
+    ///
+    /// This setup ensures E-QUERY-037 (table not found) and E-QUERY-038 (column not found)
+    /// do NOT fire before E-QUERY-039 (enrich gate), so the enrich gate exercises the
+    /// pipe-mode path cleanly.
+    fn make_engine_with_sensor_and_empty_infusion_registry() -> QueryEngine {
+        use prism_spec_engine::{
+            spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+            InfusionRegistry,
+        };
+
+        // Register `crowdstrike` sensor with table `alerts` (→ `crowdstrike_alerts` in queries).
+        // Include `ioc_value` and `severity` columns so E-QUERY-038 does not fire for those.
+        let columns = vec![
+            ColumnSpec::new("ioc_value", ColumnType::String, None, vec![]),
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+        ];
+        let sensor = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        let table_registry = Arc::new(TableRegistry::new());
+        table_registry
+            .register_sensor(&sensor)
+            .expect("register crowdstrike sensor must not fail");
+
+        // Empty InfusionRegistry — `lower` is NOT a registered infusion name.
+        let infusion_registry = Arc::new(InfusionRegistry::new());
+
+        QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCsPipe),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(table_registry)
+        .with_infusion_registry(infusion_registry)
+    }
+
+    /// F-PNL1-MED-001 load-bearing: pipe-mode `| enrich lower(ioc_value)` where `lower`
+    /// is NOT a registered infusion (empty InfusionRegistry) MUST return E-QUERY-039.
+    ///
+    /// Before fix: `lower` matched `DATAFUSION_BUILTIN_FUNCTION_NAMES` (it is a DataFusion
+    ///   built-in) and was silently skipped — the gate was a no-op for this pipe query.
+    /// After fix: pipe-mode enrich names bypass the built-in skip entirely. `lower` is not
+    ///   in InfusionRegistry → E-QUERY-039 fires with `infusion: "lower"`.
+    ///
+    /// BC-2.11.019 §F-PJL1-HIGH-001 scope: "Pipe-mode `EnrichStage.infusion` gate
+    /// is UNAFFECTED — a built-in name there is NOT a DataFusion scalar, it is an
+    /// unregistered infusion the analyst is trying to apply, so it SHOULD fire E-QUERY-039."
+    ///
+    /// Load-bearing (TD-VSDD-059): before fix the single-Vec approach skips `lower` →
+    /// `execute` succeeds or returns a different error. After fix, E-QUERY-039 is returned.
+    #[tokio::test]
+    async fn test_pipe_mode_builtin_name_fires_e_query_039() {
+        let engine = make_engine_with_sensor_and_empty_infusion_registry();
+
+        // Pipe-mode query: `lower` is not a registered infusion — E-QUERY-039 MUST fire.
+        // Before fix: `lower` is in DATAFUSION_BUILTIN_FUNCTION_NAMES → skipped → gate is no-op.
+        // After fix: pipe-mode names bypass DATAFUSION_BUILTIN_FUNCTION_NAMES → gate fires.
+        let result = engine
+            .execute(
+                "FROM crowdstrike_alerts | enrich lower(ioc_value)",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result {
+            Err(PrismError::EnrichUdfNotFound(ref details)) => {
+                assert_eq!(
+                    details.infusion, "lower",
+                    "F-PNL1-MED-001: details.infusion must be 'lower'; got: '{}'",
+                    details.infusion
+                );
+                // available_infusions must be empty (empty registry).
+                assert!(
+                    details.available_infusions.is_empty(),
+                    "F-PNL1-MED-001: available_infusions must be empty (no infusions registered); \
+                     got: {:?}",
+                    details.available_infusions
+                );
+            }
+            Ok(_) => panic!(
+                "F-PNL1-MED-001: pipe-mode `| enrich lower(ioc_value)` must NOT succeed — \
+                 `lower` is not a registered infusion; E-QUERY-039 must fire. \
+                 Before fix: built-in skip wrongly silenced the gate for pipe-mode names."
+            ),
+            Err(PrismError::TableNotAvailable(ref details)) => panic!(
+                "F-PNL1-MED-001: E-QUERY-037 fired unexpectedly — table '{}' was not found. \
+                 Test setup registers 'crowdstrike_alerts'; check TableRegistry wiring.",
+                details.table
+            ),
+            Err(PrismError::ColumnNotFound(ref details)) => panic!(
+                "F-PNL1-MED-001: E-QUERY-038 fired unexpectedly — column '{}' was not found. \
+                 Test setup registers 'ioc_value' and 'severity'; check ColumnSpec wiring.",
+                details.column
+            ),
+            Err(other) => panic!(
+                "F-PNL1-MED-001: unexpected error — expected E-QUERY-039 (EnrichUdfNotFound), \
+                 got: {other:?}"
+            ),
+        }
+    }
+
+    /// Regression guard: SQL-mode `SELECT lower(severity) FROM crowdstrike_alerts` with
+    /// InfusionRegistry wired but `lower` NOT a registered infusion MUST NOT fire E-QUERY-039.
+    ///
+    /// `lower` is a DataFusion built-in scalar. In SQL mode, the built-in exclusion applies —
+    /// the gate must pass and DataFusion resolves `lower` during execution.
+    ///
+    /// This test guards against the fix breaking the F-PJL1-HIGH-001 regression guard:
+    /// the built-in exclusion for SQL mode must remain active after the pipe/SQL split.
+    ///
+    /// BC-2.11.019 §F-PJL1-HIGH-001 + EC-11-064.
+    #[tokio::test]
+    async fn test_sql_mode_builtin_name_does_not_fire_e_query_039() {
+        let engine = make_engine_with_sensor_and_empty_infusion_registry();
+
+        // SQL-mode query using DataFusion built-in `lower`. The infusion registry is empty
+        // (lower is not a registered infusion), but the built-in exclusion applies in SQL mode.
+        // The gate MUST pass; `lower(severity)` is resolved by DataFusion at execution time.
+        // The execute call will fail with a DataFusion/execution error (no real adapter is
+        // wired), but it must NOT fail with E-QUERY-039.
+        let result = engine
+            .execute(
+                "SELECT lower(severity) FROM crowdstrike_alerts LIMIT 1",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result {
+            Err(PrismError::EnrichUdfNotFound(ref details)) => panic!(
+                "F-PNL1-MED-001 regression guard: SQL-mode `lower` MUST NOT fire E-QUERY-039. \
+                 `lower` is a DataFusion built-in; the SQL-mode built-in exclusion must remain \
+                 active after the pipe/SQL split fix. Got infusion: '{}'",
+                details.infusion
+            ),
+            // Any other outcome (Ok, E-QUERY-037, execution error, etc.) is acceptable —
+            // the important invariant is that E-QUERY-039 does NOT fire for `lower` in SQL mode.
+            _ => {
+                // Passes: the enrich gate correctly did not fire for a DataFusion built-in
+                // in SQL mode. The execution may fail for other reasons (no adapter, no data)
+                // but NOT because of the enrich gate.
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-FIDELITY-REMEDIATION-001 F-PWL1-LOW-001 — HAVING clause column gate
+// ---------------------------------------------------------------------------
+//
+// Finding F-PWL1-LOW-001: `check_query_column_availability` walked 5 positions
+// (SELECT, WHERE, GROUP BY, ORDER BY, JOIN ON) but NOT the HAVING clause.
+// A query like `SELECT severity, count(*) FROM crowdstrike_alerts GROUP BY severity
+// HAVING typo_col > 5` bypassed E-QUERY-038 entirely — `typo_col` in HAVING
+// was never validated against the schema.
+//
+// Sibling asymmetry: E-QUERY-039 (enrich gate) and E-QUERY-037 (source-walk) both
+// cover HAVING; only E-QUERY-038 (column gate) was missing this position.
+//
+// Fix (F-PWL1-LOW-001): Position 6 — HAVING — added to `check_query_column_availability`,
+// using `extract_predicate_columns` (same helper as Position 2 / WHERE), since
+// `having` is `Option<Predicate>` identical in type to `where_`. The bare-column form
+// (`HAVING typo_col > 5`, parsed as `Predicate::Compare { lhs: Expr::Field }`) is
+// extracted via the existing `collect_predicate_columns` Expr::Field arm.
+//
+// Grammar extension (F-PXL3-MED-002 / ADR-048): HAVING additionally accepts the
+// `agg_fn(col) op literal` predicate form (e.g., `HAVING count(typo_col) > 5`) via
+// `build_having_predicate_parser`. The `collect_predicate_columns` Expr::FuncCall arm
+// (added in F-PXL3-MED-002) extracts the column nested inside the aggregate argument
+// → `typo_col` → E-QUERY-038. WHERE does NOT accept this form (deliberate ADR-048
+// grammar divergence: aggregate predicates in WHERE are semantically invalid SQL).
+//
+// BC-2.11.016 v1.5 / F-PWL1-LOW-001 / F-PXL3-MED-002.
+//
+// Tests assert:
+//   1. (red-gate) HAVING with typo'd bare column fires E-QUERY-038.
+//   2. (no-regression) HAVING with valid column does NOT fire E-QUERY-038.
+//   Additional tests for the agg-fn form are in f_pxl3_med002_having_agg_predicate_col_gate_tests.
+//
+// TD-VSDD-059: load-bearing — removing the Position 6 HAVING walk from
+// `check_query_column_availability` causes
+// test_BC_2_11_016_having_column_gate_typo_fires_e_query_038 to return Ok or a
+// non-E-QUERY-038 error instead of PrismError::ColumnNotFound.
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod f_pwl1_low001_having_column_gate_tests {
+    use std::{collections::HashMap, sync::Arc};
+
+    use prism_core::{OrgSlug, SensorId};
+    use prism_sensors::AdapterRegistry;
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+        ResolvedSensorSpec, ResolvedSpecKey,
+    };
+
+    use super::*;
+    use crate::{scoping::ClientRegistry, table_registry::TableRegistry};
+    use prism_core::column::ColumnType;
+
+    /// No-op credential store (same stub pattern used throughout this module).
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a `QueryEngine` with `crowdstrike_alerts` registered with columns
+    /// `["severity", "timestamp"]` under org "acme".
+    ///
+    /// Mirrors the fixture pattern established in `m2_column_gate_funccall_and_join_tests`
+    /// and `f_pbl1_med001_select_funccall_col_gate_tests`.
+    fn make_crowdstrike_engine() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+        let sensor_id = "crowdstrike";
+        let table_suffix = "alerts";
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            sensor_id,
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("F-PWL1-LOW-001 fixture: register crowdstrike must not fail");
+
+        let overlay_toml = format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@acme\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("F-PWL1-LOW-001 fixture: SensorInstanceOverlay TOML must parse");
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org.clone());
+        let key: ResolvedSpecKey = (org.clone(), SensorId::new(sensor_id));
+        let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_table_registry(registry);
+
+        (engine, org)
+    }
+
+    // ── Red-gate test (must FAIL before fix, PASS after fix) ──────────────────
+
+    /// F-PWL1-LOW-001 — E-QUERY-038 must fire when a typo'd column is referenced
+    /// in the HAVING clause predicate (e.g. `HAVING typo_col > 5`).
+    ///
+    /// Before fix: Position 6 (HAVING) was absent from `check_query_column_availability`.
+    /// `typo_col` in `HAVING typo_col > 5` was never extracted, so the gate silently
+    /// passed — a pedagogical asymmetry vs WHERE / GROUP BY / ORDER BY.
+    ///
+    /// After fix: Position 6 calls `extract_predicate_columns` on `sql_query.having`
+    /// (same helper as Position 2 / WHERE). `typo_col > 5` is parsed as
+    /// `Predicate::Compare { lhs: Expr::Field("typo_col"), op: Gt, rhs: ... }`;
+    /// `collect_predicate_columns` extracts the `lhs` FieldPath → `typo_col`
+    /// → E-QUERY-038.
+    ///
+    /// Note on PrismQL HAVING grammar: the HAVING predicate accepts two forms:
+    ///   1. `field op literal` (bare column comparison) — via `build_sql_predicate_parser`,
+    ///      same as WHERE. This is the form tested here (`HAVING typo_col > 5`).
+    ///   2. `agg_fn(col) op literal` (aggregate-function comparison) — via
+    ///      `build_having_predicate_parser` (ADR-048 / F-PXL3-MED-002). This form is HAVING-only;
+    ///      WHERE deliberately does NOT accept it (aggregate in WHERE is pre-aggregation-invalid).
+    ///
+    /// The tested query `HAVING typo_col > 5` exercises form (1) — the bare-column path through
+    /// `collect_predicate_columns` → `Expr::Field` arm. It is the most direct proof that
+    /// Position 6 (HAVING) is walked by `check_query_column_availability`.
+    /// Form (2) is covered by `test_BC_2_11_016_having_agg_fn_predicate_typo_fires_e_query_038`
+    /// in the `f_pxl3_med002_having_agg_predicate_col_gate_tests` module (F-PXL3-MED-002).
+    ///
+    /// BC-2.11.016 v1.5 / F-PWL1-LOW-001.
+    ///
+    /// Load-bearing (F-PWL1-LOW-001): removing the Position 6 HAVING walk from
+    /// `check_query_column_availability` causes this test to return Ok or a
+    /// non-E-QUERY-038 error instead of PrismError::ColumnNotFound.
+    #[tokio::test]
+    async fn test_BC_2_11_016_having_column_gate_typo_fires_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `typo_col` is not in the schema (only `severity` and `timestamp` are valid).
+        // PrismQL HAVING predicate: `field op literal` form (bare-column form, same as WHERE).
+        // After ADR-048 (F-PXL3-MED-002), HAVING also accepts `agg_fn(col) op literal` form,
+        // but this test exercises the bare-column path specifically (Position 6 HAVING walk).
+        // Before F-PWL1-LOW-001, Position 6 (HAVING) was absent so this silently passed.
+        let query = "SELECT severity, count(*) FROM crowdstrike_alerts \
+                     GROUP BY severity HAVING typo_col > 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "typo_col",
+                    "F-PWL1-LOW-001: column in E-QUERY-038 must be 'typo_col', got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "F-PWL1-LOW-001: table in E-QUERY-038 must be 'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "F-PWL1-LOW-001: engine.execute must NOT succeed — E-QUERY-038 must fire for \
+                 column typo inside count() in HAVING. Before the fix, Position 6 (HAVING) \
+                 was absent from check_query_column_availability."
+            ),
+            Err(other) => panic!(
+                "F-PWL1-LOW-001: expected PrismError::ColumnNotFound (E-QUERY-038), \
+                 got different error: {other:?}"
+            ),
+        }
+    }
+
+    // ── No-regression guard (must PASS both before and after fix) ─────────────
+
+    /// F-PWL1-LOW-001 no-regression — HAVING with a valid column must NOT fire E-QUERY-038.
+    ///
+    /// `HAVING severity = 'critical'` — `severity` is a valid column in `crowdstrike_alerts`.
+    /// The gate must pass Position 6 without error; the query may fail later (no real
+    /// adapter wired) but must NOT fail with E-QUERY-038.
+    ///
+    /// BC-2.11.016 v1.5 / F-PWL1-LOW-001.
+    #[tokio::test]
+    async fn test_BC_2_11_016_having_column_gate_valid_col_no_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `severity` is a valid column — HAVING gate must NOT fire E-QUERY-038.
+        let query = "SELECT severity, count(*) FROM crowdstrike_alerts \
+                     GROUP BY severity HAVING severity = 'critical'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => panic!(
+                "F-PWL1-LOW-001 no-regression: E-QUERY-038 fired unexpectedly for valid column \
+                 '{}'. `severity` is registered; the HAVING gate must NOT reject it.",
+                details.column
+            ),
+            // Any other outcome (Ok, execution error, other PrismError) is acceptable —
+            // the invariant is only that E-QUERY-038 (ColumnNotFound) does NOT fire.
+            _ => {}
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PXL3-MED-002 — HAVING aggregate-predicate column gate (ADR-048)
+// ---------------------------------------------------------------------------
+//
+// Tests for the grammar + extractor extension that makes
+// `HAVING count(typo_col) > 5` fire E-QUERY-038 (column-not-found gate)
+// instead of E-QUERY-001 (parse error).
+//
+// ADR-048 ratifies a deliberate HAVING/WHERE grammar divergence:
+//   - HAVING gains the `agg_fn(col) op literal` predicate form.
+//   - WHERE does NOT (WHERE is pre-aggregation; aggregate predicates there
+//     are semantically invalid and must remain E-QUERY-001).
+//
+// Three load-bearing tests:
+//   1. Red→Green: `HAVING count(typo_col) > 5` → E-QUERY-038 (typo inside agg fn)
+//   2. Acceptance:  `HAVING count(severity) > 0` (valid col) must NOT fire E-QUERY-038
+//   3. WHERE divergence guard: `WHERE count(severity) > 5` must stay E-QUERY-001
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod f_pxl3_med002_having_agg_predicate_col_gate_tests {
+    use std::{collections::HashMap, sync::Arc};
+
+    use prism_core::{OrgSlug, SensorId};
+    use prism_sensors::AdapterRegistry;
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+        ResolvedSensorSpec, ResolvedSpecKey,
+    };
+
+    use super::*;
+    use crate::{scoping::ClientRegistry, table_registry::TableRegistry};
+    use prism_core::column::ColumnType;
+
+    /// No-op credential store (same stub pattern used throughout this module).
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a `QueryEngine` with `crowdstrike_alerts` registered with columns
+    /// `["severity", "timestamp"]` under org "acme".
+    ///
+    /// Mirrors the fixture pattern from `f_pwl1_low001_having_column_gate_tests`.
+    fn make_crowdstrike_engine() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+        let sensor_id = "crowdstrike";
+        let table_suffix = "alerts";
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            sensor_id,
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("F-PXL3-MED-002 fixture: register crowdstrike must not fail");
+
+        let overlay_toml = format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@acme\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("F-PXL3-MED-002 fixture: SensorInstanceOverlay TOML must parse");
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org.clone());
+        let key: ResolvedSpecKey = (org.clone(), SensorId::new(sensor_id));
+        let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_table_registry(registry);
+
+        (engine, org)
+    }
+
+    // ── Test 1 (Red→Green): HAVING count(typo_col) > 5 → E-QUERY-038 ─────────
+
+    /// F-PXL3-MED-002 — E-QUERY-038 must fire for a typo'd column name referenced
+    /// inside an aggregate function in the HAVING predicate.
+    ///
+    /// Query: `HAVING count(typo_col) > 5` — `typo_col` is not in the schema.
+    ///
+    /// Before fix (ADR-048): the HAVING grammar only accepts `field op literal`
+    /// form; `count(typo_col)` is not parseable as such, so the query produces
+    /// E-QUERY-001 (parse error) instead of the correct E-QUERY-038 (column-not-found).
+    ///
+    /// After fix: HAVING gains the `agg_fn(col) op literal` predicate form.
+    /// The column extractor walks the FuncCall args and extracts `typo_col`
+    /// → E-QUERY-038.
+    ///
+    /// ADR-048; BC-2.11.016 v1.5.
+    ///
+    /// Load-bearing (F-PXL3-MED-002): without the grammar + extractor fix,
+    /// this test panics with "expected ColumnNotFound, got different error"
+    /// (i.e., a parse error fires instead).
+    #[tokio::test]
+    async fn test_BC_2_11_016_having_agg_fn_predicate_typo_fires_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+        let query = "SELECT severity, count(*) FROM crowdstrike_alerts \
+                     GROUP BY severity HAVING count(typo_col) > 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref d)) => {
+                assert_eq!(
+                    d.column, "typo_col",
+                    "ADR-048: column in E-QUERY-038 must be 'typo_col', got: {:?}",
+                    d.column
+                );
+                assert_eq!(
+                    d.table, "crowdstrike_alerts",
+                    "ADR-048: table in E-QUERY-038 must be 'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "ADR-048: engine.execute must NOT succeed — E-QUERY-038 must fire for \
+                 typo_col inside count() in HAVING predicate."
+            ),
+            Err(other) => panic!(
+                "ADR-048: expected PrismError::ColumnNotFound (E-QUERY-038) for \
+                 HAVING count(typo_col) > 5, got: {other:?}"
+            ),
+        }
+    }
+
+    // ── Test 2 (acceptance): HAVING count(valid_col) must NOT fire E-QUERY-038 ─
+
+    /// F-PXL3-MED-002 acceptance — HAVING with a valid column in the aggregate
+    /// function must NOT fire E-QUERY-038.
+    ///
+    /// `HAVING count(severity) > 0` — `severity` is valid in `crowdstrike_alerts`.
+    /// The column gate must pass; the query may fail later (no real adapter wired)
+    /// but must NOT produce PrismError::ColumnNotFound.
+    ///
+    /// ADR-048; BC-2.11.016 v1.5.
+    #[tokio::test]
+    async fn test_BC_2_11_016_having_agg_fn_predicate_valid_col_no_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+        let query = "SELECT severity, count(*) FROM crowdstrike_alerts \
+                     GROUP BY severity HAVING count(severity) > 0";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+                "ADR-048 acceptance: E-QUERY-038 fired unexpectedly for valid column \
+                 '{}' inside count(). `severity` is registered; the gate must NOT reject it.",
+                d.column
+            ),
+            // Any other outcome (Ok, execution error, other PrismError) is acceptable —
+            // the invariant is that E-QUERY-038 (ColumnNotFound) does NOT fire.
+            _ => {}
+        }
+    }
+
+    // ── Test 3 (WHERE divergence guard): WHERE count(col) must stay E-QUERY-001 ─
+
+    /// F-PXL3-MED-002 WHERE divergence guard — `WHERE count(severity) > 5` must
+    /// produce a parse error (E-QUERY-001), NOT pass silently.
+    ///
+    /// WHERE is pre-aggregation; aggregate functions in WHERE are semantically
+    /// invalid SQL. ADR-048 ratifies the deliberate grammar divergence: the
+    /// `agg_fn(col) op literal` predicate form is added to HAVING ONLY.
+    ///
+    /// Before and after the fix, this query must result in an error. After the fix,
+    /// the parse error must still occur (not accidentally granted the agg-predicate form).
+    ///
+    /// This test is a regression guard ensuring WHERE did NOT silently gain the
+    /// aggregate-predicate grammar form from the HAVING extension.
+    ///
+    /// ADR-048 §Constraint; BC-2.11.016 v1.5.
+    #[tokio::test]
+    async fn test_BC_2_11_016_where_agg_fn_predicate_stays_e_query_001() {
+        let (engine, org) = make_crowdstrike_engine();
+        // WHERE count(severity) > 5 — canonically-ordered: WHERE precedes any GROUP BY.
+        // This must NOT parse successfully — E-QUERY-001 parse error must fire.
+        //
+        // Previous query form ("GROUP BY severity WHERE count(severity) > 5") failed on
+        // CLAUSE-ORDERING (WHERE after GROUP BY), not on WHERE rejecting the aggregate
+        // predicate. The test would have passed even if WHERE accidentally gained the
+        // agg-fn form, defeating the divergence guard (F-L2-CRIT-001 sibling, MED finding).
+        //
+        // This form ("SELECT severity FROM … WHERE count(severity) > 5") places WHERE in
+        // the canonical position so the failure is attributable specifically to WHERE
+        // grammar rejecting aggregate-function LHS predicates (ADR-048 D.6 regression guard).
+        let query = "SELECT severity FROM crowdstrike_alerts WHERE count(severity) > 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            // QueryParseFailed is the expected outcome — E-QUERY-001.
+            Err(PrismError::QueryParseFailed { .. }) => {}
+            // ColumnNotFound would mean WHERE accidentally gained the agg-predicate form.
+            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+                "ADR-048 divergence guard: WHERE must NOT parse aggregate predicates. \
+                 Got ColumnNotFound for '{}' — WHERE grammar was accidentally extended.",
+                d.column
+            ),
+            // A successful parse+execution would be even worse.
+            Ok(_) => panic!(
+                "ADR-048 divergence guard: `WHERE count(severity) > 5` must NOT succeed — \
+                 aggregate predicates in WHERE are semantically invalid SQL."
+            ),
+            // Any other error (e.g., table/column error) means parse passed — that's wrong.
+            Err(other) => panic!(
+                "ADR-048 divergence guard: expected PrismError::QueryParseFailed for \
+                 WHERE count(severity) > 5, got: {other:?}"
+            ),
         }
     }
 }

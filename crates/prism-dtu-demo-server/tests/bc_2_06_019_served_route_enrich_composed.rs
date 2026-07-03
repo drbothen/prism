@@ -304,6 +304,7 @@ async fn test_BC_2_06_019_served_route_to_enrich_pipeline_composed_full_chain() 
         Arc::clone(&ti_source),
         Some("threat_is_known_malicious".to_string()),
         3600,
+        "",
     );
 
     register_infusion_udfs(&ctx, vec![descriptor])

@@ -129,7 +129,7 @@ fn test_ac5_prism_error_display_e_cfg_103() {
 
 /// AC-5: E-CFG-100 — NEW `ClientNotFound` variant (ADR-038 D3 variant split).
 ///
-/// Canonical display (ADR-038 D1 / error-taxonomy v1.66):
+/// Canonical display (ADR-038 D1 / error-taxonomy §E-CFG-100):
 ///   "E-CFG-100: client '{client_id}' not found in configuration"
 #[test]
 fn test_ac5_prism_error_display_e_cfg_100() {

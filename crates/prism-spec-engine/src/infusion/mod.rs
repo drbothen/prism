@@ -667,6 +667,7 @@ impl InfusionRegistry {
                 source: source.clone(),
                 source_column: field.source_column.clone(),
                 cache_ttl_secs,
+                input_field: field.input_field.clone(),
             })
             .collect();
 
@@ -821,6 +822,7 @@ impl InfusionRegistry {
                 source: source.clone(),
                 source_column: d.source_column.clone(),
                 cache_ttl_secs: d.cache_ttl_secs,
+                input_field: d.input_field.clone(),
             })
             .collect();
 
@@ -973,6 +975,7 @@ impl InfusionRegistry {
                 source: source.clone(),
                 source_column: d.source_column.clone(),
                 cache_ttl_secs: d.cache_ttl_secs,
+                input_field: d.input_field.clone(),
             })
             .collect();
 
@@ -1007,6 +1010,7 @@ impl InfusionRegistry {
                         source: source.clone(),
                         source_column: field.source_column.clone(),
                         cache_ttl_secs,
+                        input_field: field.input_field.clone(),
                     })
             })
             .collect()
@@ -1184,6 +1188,7 @@ impl InfusionRegistry {
                 source: source.clone(),
                 source_column: d.source_column.clone(),
                 cache_ttl_secs: d.cache_ttl_secs,
+                input_field: d.input_field.clone(),
             })
             .collect();
 

@@ -42,7 +42,36 @@ use prism_spec_engine::{ConfigSnapshot, ResolvedSensorSpec, ResolvedSpecKey, Sen
 /// `crowdstrike_detections` = 22 bytes) while bounding worst-case computation to a
 /// trivially fast O(128 × max_registered_name_len) per query.
 /// (SEC-002, CWE-407 — Algorithmic Complexity DoS; S-3.13 fix-burst)
-const DID_YOU_MEAN_MAX_NAME_BYTES: usize = 128;
+/// Maximum byte length for untrusted name inputs to `strsim::levenshtein` did_you_mean
+/// computations (SEC-002 / CWE-407).  Shared across the table gate (this module),
+/// the enrich UDF gate (`engine::check_enrich_udf_availability`), and the column gate
+/// (`engine::check_column_availability`) via `cap_name_for_levenshtein`.
+pub(crate) const DID_YOU_MEAN_MAX_NAME_BYTES: usize = 128;
+
+/// Cap `name` at [`DID_YOU_MEAN_MAX_NAME_BYTES`] (128 bytes) before any
+/// `strsim::levenshtein` call, closing the CWE-407 Algorithmic Complexity DoS
+/// path that exists when untrusted query tokens are passed verbatim.
+///
+/// # Contract
+/// - Returns a `&str` slice of `name` whose byte length is ≤ 128.
+/// - The truncation point is always a UTF-8 char boundary (never mid-codepoint).
+/// - For inputs whose byte length is already ≤ 128, returns `name` unchanged (zero-copy).
+///
+/// # Reference
+/// SEC-002 / CWE-407; mirrors the inline cap in `did_you_mean`
+/// and `did_you_mean_for_tables` of this module.
+/// Applied to the enrich gate (E-QUERY-039) and column gate (E-QUERY-038) by
+/// F-PHL1-HIGH-001 and F-PHL1-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-H).
+pub(crate) fn cap_name_for_levenshtein(name: &str) -> &str {
+    if name.len() <= DID_YOU_MEAN_MAX_NAME_BYTES {
+        return name;
+    }
+    let mut boundary = DID_YOU_MEAN_MAX_NAME_BYTES;
+    while !name.is_char_boundary(boundary) {
+        boundary -= 1;
+    }
+    &name[..boundary]
+}
 
 // ---------------------------------------------------------------------------
 // TableRegistry
@@ -69,6 +98,17 @@ pub struct TableRegistry {
     registered: Arc<RwLock<HashSet<String>>>,
     /// Table name → sensor_id reverse mapping for error messages.
     sensor_by_table: Arc<RwLock<HashMap<String, String>>>,
+    /// Table name → column name list, used for single-tenant E-QUERY-038 gate.
+    ///
+    /// M1 fix (S-DEMO-FIDELITY-REMEDIATION-001): `check_query_column_availability`
+    /// previously returned `Ok(())` immediately when `resolved_spec_map.is_none()`
+    /// (single-tenant mode), silently bypassing E-QUERY-038 for all queries.
+    ///
+    /// By retaining column names here, the gate can fire in single-tenant mode by
+    /// looking up columns from the registry rather than the resolved_spec_map.
+    /// Only populated when `register_sensor` is called with a spec that has columns
+    /// defined in its `[[tables]]` entries; empty = fail-open (gate skips that table).
+    columns_by_table: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
 
 impl TableRegistry {
@@ -80,6 +120,7 @@ impl TableRegistry {
         Self {
             registered: Arc::new(RwLock::new(HashSet::new())),
             sensor_by_table: Arc::new(RwLock::new(HashMap::new())),
+            columns_by_table: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -130,6 +171,14 @@ impl TableRegistry {
                     detail: "TableRegistry::register_sensor: sensor_by_table RwLock poisoned"
                         .to_string(),
                 })?;
+        // M1 fix: acquire columns_by_table lock atomically with the other two.
+        let mut columns_by_table =
+            self.columns_by_table
+                .write()
+                .map_err(|_| PrismError::Internal {
+                    detail: "TableRegistry::register_sensor: columns_by_table RwLock poisoned"
+                        .to_string(),
+                })?;
 
         // Remove existing tables for this sensor (the deregister phase).
         // Executed under the held locks — no visibility gap.
@@ -141,6 +190,7 @@ impl TableRegistry {
         for name in to_remove {
             registered.remove(&name);
             sensor_by_table.remove(&name);
+            columns_by_table.remove(&name);
         }
 
         // Insert new tables for this sensor (the register phase).
@@ -148,7 +198,13 @@ impl TableRegistry {
         for table in &spec.tables {
             let full_name = format!("{}_{}", spec.sensor_id, table.table_name);
             registered.insert(full_name.clone());
-            sensor_by_table.insert(full_name, spec.sensor_id.clone());
+            sensor_by_table.insert(full_name.clone(), spec.sensor_id.clone());
+            // M1 fix: retain column names for single-tenant E-QUERY-038 gate.
+            // Only populated when the spec has explicit columns defined.
+            if !table.columns.is_empty() {
+                let col_names: Vec<String> = table.columns.iter().map(|c| c.name.clone()).collect();
+                columns_by_table.insert(full_name, col_names);
+            }
         }
 
         Ok(())
@@ -179,6 +235,16 @@ impl TableRegistry {
                          for sensor_id={sensor_id}"
                     ),
                 })?;
+        // M1 fix: also acquire columns_by_table for cleanup.
+        let mut columns_by_table =
+            self.columns_by_table
+                .write()
+                .map_err(|_| PrismError::Internal {
+                    detail: format!(
+                        "TableRegistry::deregister_sensor: columns_by_table RwLock poisoned \
+                         for sensor_id={sensor_id}"
+                    ),
+                })?;
 
         // Collect keys to remove (avoid modifying while iterating).
         let to_remove: Vec<String> = registered
@@ -190,6 +256,7 @@ impl TableRegistry {
         for name in to_remove {
             registered.remove(&name);
             sensor_by_table.remove(&name);
+            columns_by_table.remove(&name);
         }
 
         Ok(())
@@ -250,6 +317,33 @@ impl TableRegistry {
         let mut tables: Vec<String> = guard.iter().cloned().collect();
         tables.sort();
         tables
+    }
+
+    /// Return the column names for `table_name`, or an empty `Vec` if unknown.
+    ///
+    /// Used by `check_query_column_availability` (E-QUERY-038) in single-tenant
+    /// mode when `resolved_spec_map` is `None`. Returns column names populated via
+    /// `register_sensor` from the sensor spec's `[[tables]][*].columns` entries.
+    ///
+    /// Returns an empty `Vec` (fail-open) when:
+    /// - `table_name` is not registered
+    /// - `table_name` was registered with an empty column list (no columns in spec)
+    /// - The `columns_by_table` lock is poisoned
+    ///
+    /// M1 fix: S-DEMO-FIDELITY-REMEDIATION-001.
+    pub fn columns_for_table(&self, table_name: &str) -> Vec<String> {
+        match self.columns_by_table.read() {
+            Ok(guard) => guard.get(table_name).cloned().unwrap_or_default(),
+            Err(_) => {
+                tracing::warn!(
+                    event_type = "table_registry.rwlock_poisoned",
+                    method = "columns_for_table",
+                    "TableRegistry::columns_for_table: RwLock poisoned — returning empty list. \
+                     Another thread panicked while holding the lock."
+                );
+                Vec::new()
+            }
+        }
     }
 
     /// Return the sensor_id that owns `table_name`, or `None` if not registered.
@@ -335,10 +429,15 @@ impl TableRegistry {
             return String::new();
         }
 
+        // Defense-in-depth tie-break parity with enrich/column gates (engine.rs).
+        // `registered_tables()` returns a lex-sorted Vec today so min_by_key(dist)
+        // already yields the lex-smallest equidistant candidate by construction.
+        // The explicit name key makes that determinism contract-enforced regardless
+        // of future input ordering changes.
         let best = tables
             .iter()
             .map(|candidate| (strsim::levenshtein(requested, candidate), candidate))
-            .min_by_key(|(dist, _)| *dist);
+            .min_by_key(|(dist, name)| (*dist, name.to_string()));
 
         match best {
             Some((dist, candidate)) if dist <= 3 => {
@@ -374,10 +473,14 @@ impl TableRegistry {
             return String::new();
         }
 
+        // Defense-in-depth tie-break parity with enrich/column gates (engine.rs).
+        // Caller-supplied `visible_tables` may not be sorted, so the explicit name
+        // key is particularly important here to guarantee deterministic output
+        // across all calling conventions.
         let best = visible_tables
             .iter()
             .map(|candidate| (strsim::levenshtein(requested, candidate), candidate))
-            .min_by_key(|(dist, _)| *dist);
+            .min_by_key(|(dist, name)| (*dist, name.to_string()));
 
         match best {
             Some((dist, candidate)) if dist <= 3 => {
@@ -464,14 +567,123 @@ impl TableRegistry {
             }
 
             // Derive the registered table name from the source ref.
+            //
             // Custom kind: raw is already the full table name (e.g. "crowdstrike_alerts").
-            // External kind: sensor.table dotted → "sensor_table" underscore convention.
+            //
+            // External kind: `sensor.table` dot-notation parsing.
+            //
+            // All modes (Pipe, SQL, SqlPipe): dot-notation in FROM target position is INVALID
+            //   PrismQL syntax. Only underscore-qualified names (`sensor_table`) are valid in
+            //   FROM. Reject with E-QUERY-037 immediately using the dot-notation string as the
+            //   error table name (EC-11-067 / BC-2.11.001 v1.15 / AC-N2). Do NOT silently
+            //   convert to underscore form and let the fan-out proceed.
+            //
+            //   Example (pipe):    `FROM cyberint.alerts` → Err(TableNotAvailable { table:
+            //     "cyberint.alerts", did_you_mean: " Did you mean: 'cyberint_alerts'?" })
+            //   Example (SqlPipe): `SELECT * FROM crowdstrike.detections | limit 10` →
+            //     Err(TableNotAvailable { table: "crowdstrike.detections",
+            //     did_you_mean: " Did you mean: 'crowdstrike_detections'?" })
+            //
+            //   HIGH-1 (BC-2.11.001 v1.15): the prior SqlPipe exemption (`is_sqlpipe` guard)
+            //   allowed dot-notation in SqlPipe queries to bypass E-QUERY-037, silently routing
+            //   to fan-out. EC-11-067 applies to ALL AST modes — the exemption is removed.
+            //   The later `SourceRefKind::External { sensor, table } => format!("{sensor}_{table}")`
+            //   underscore-conversion arm remains as a safety fallback but is dead for External
+            //   sources that reach it (the rejection above fires first).
+            //
+            // Filter-mode queries parse External source refs only for the table-source
+            //   position, and they emit Custom refs (underscore form) — not External —
+            //   so BC-2.11.023 / ADR-046 filter-mode queries are not affected.
+            if let SourceRefKind::External { sensor, table } = &source.kind {
+                // Reject dot-notation in all modes (EC-11-067, BC-2.11.001 v1.15).
+                let dot_name = format!("{sensor}.{table}");
+                let underscore_name = format!("{sensor}_{table}");
+
+                let sensor_by_table_snapshot = match self.sensor_by_table.read() {
+                    Ok(g) => g.clone(),
+                    Err(_) => {
+                        tracing::warn!(
+                            event_type = "table_registry.rwlock_poisoned",
+                            method = "check_availability_gate.dot_notation",
+                            "TableRegistry::check_availability_gate: sensor_by_table RwLock \
+                             poisoned — using empty map for dot-notation org filter."
+                        );
+                        HashMap::new()
+                    }
+                };
+
+                let global_sensor_ids = self.registered_sensor_ids();
+                let global_tables = self.registered_tables();
+                let org_visible_sensor_ids =
+                    filter_to_org_visible_sensors(global_sensor_ids, org_scope, resolved_spec_map);
+                let org_visible_tables = filter_to_org_visible_tables(
+                    global_tables,
+                    &sensor_by_table_snapshot,
+                    &org_visible_sensor_ids,
+                    org_scope,
+                    resolved_spec_map,
+                );
+                let available_sensors = org_visible_sensor_ids.join(", ");
+                let available_tables = org_visible_tables.join(", ");
+
+                // F-PLL1-LOW-001: Only suggest the underscore form when it is actually
+                // registered.  If `cyberint.alerts` → `cyberint_alerts` is registered,
+                // emit the direct suggestion.  If `foo.bar` → `foo_bar` is NOT registered,
+                // fall through to the same Levenshtein-against-registered-tables path that
+                // the non-dot arm uses (capped via cap_name_for_levenshtein), or emit no
+                // suggestion if no candidate is within distance ≤ 3.  This prevents
+                // suggesting non-existent tables (blind suggestion anti-pattern).
+                let did_you_mean = if self.is_registered(&underscore_name) {
+                    // The underscore form exists — direct suggestion (fast path, no Levenshtein).
+                    format!(" Did you mean: '{underscore_name}'?")
+                } else {
+                    // Underscore form not registered — fall back to Levenshtein against the
+                    // org-visible registered tables, same as the non-dot arm.
+                    self.did_you_mean_for_tables(
+                        cap_name_for_levenshtein(&underscore_name),
+                        &org_visible_tables,
+                    )
+                };
+
+                // Extract the matched table name from did_you_mean for the pedagogical suggestion.
+                let did_you_mean_table: Option<&str> = if did_you_mean.is_empty() {
+                    None
+                } else {
+                    did_you_mean.find('\'').and_then(|start| {
+                        let rest = &did_you_mean[start + 1..];
+                        rest.find('\'').map(|end| &rest[..end])
+                    })
+                };
+
+                let client_id_for_suggestion = org_scope
+                    .and_then(|s| s.first())
+                    .map(|o| o.as_str())
+                    .unwrap_or(sensor.as_str());
+                let suggestion = crate::engine::e_query_037_suggestion(
+                    client_id_for_suggestion,
+                    did_you_mean_table,
+                );
+
+                return Err(PrismError::TableNotAvailable(Box::new(
+                    TableNotAvailableDetails::new(
+                        dot_name,
+                        sensor.clone(),
+                        available_sensors,
+                        available_tables,
+                        did_you_mean,
+                        suggestion,
+                    ),
+                )));
+            }
+
             let table_name = match &source.kind {
                 SourceRefKind::Custom => source.raw.clone(),
-                SourceRefKind::External { sensor, table } => {
-                    format!("{sensor}_{table}")
-                }
+                // External sources are always rejected by the dot-notation guard above
+                // (EC-11-067 / BC-2.11.001 v1.15 — all modes including SqlPipe).
+                // This arm is unreachable for External sources but kept as a safety
+                // fallback for hypothetical future AST variants that reach this point.
                 // Internal and Composite already handled above.
+                SourceRefKind::External { sensor, table } => format!("{sensor}_{table}"),
                 _ => continue,
             };
 
@@ -712,6 +924,22 @@ fn extract_sources_from_ast_for_gate(ast: &crate::ast::Ast) -> Vec<crate::ast::S
             if let Some(ref where_pred) = sq.where_ {
                 collect_predicate_sources_into_gate(where_pred, &mut sources);
             }
+            // L1 fix (S-DEMO-FIDELITY-REMEDIATION-001): also walk HAVING, GROUP BY,
+            // ORDER BY, and JOIN ON positions for InSubquery expressions.
+            // Previously only WHERE was walked; subqueries in these positions bypassed
+            // the gate and produced opaque DataFusion errors instead of E-QUERY-037.
+            if let Some(ref having_pred) = sq.having {
+                collect_predicate_sources_into_gate(having_pred, &mut sources);
+            }
+            for expr in &sq.group_by {
+                collect_expr_sources_into_gate(expr, &mut sources);
+            }
+            for oe in &sq.order_by {
+                collect_expr_sources_into_gate(&oe.expr, &mut sources);
+            }
+            for join in &sq.joins {
+                collect_expr_sources_into_gate(&join.on, &mut sources);
+            }
         }
         Ast::Sql(SqlStatement::Dml(dml)) => {
             if let Some(ref source_select) = dml.source_select {
@@ -757,6 +985,20 @@ fn extract_sources_from_ast_for_gate(ast: &crate::ast::Ast) -> Vec<crate::ast::S
             // reach the E-QUERY-037 gate.
             if let Some(ref where_pred) = spq.head.where_ {
                 collect_predicate_sources_into_gate(where_pred, &mut sources);
+            }
+            // L1 fix (S-DEMO-FIDELITY-REMEDIATION-001): mirror the SQL Select arm —
+            // also walk HAVING, GROUP BY, ORDER BY, and JOIN ON in the SqlPipe head.
+            if let Some(ref having_pred) = spq.head.having {
+                collect_predicate_sources_into_gate(having_pred, &mut sources);
+            }
+            for expr in &spq.head.group_by {
+                collect_expr_sources_into_gate(expr, &mut sources);
+            }
+            for oe in &spq.head.order_by {
+                collect_expr_sources_into_gate(&oe.expr, &mut sources);
+            }
+            for join in &spq.head.joins {
+                collect_expr_sources_into_gate(&join.on, &mut sources);
             }
             for stage in &spq.stages {
                 if let crate::ast::PipeStage::Join(js) = stage {
@@ -811,6 +1053,72 @@ fn collect_predicate_sources_into_gate(
         // Other predicate variants (Compare, Between, Cidr, Has, Missing, IsNull,
         // Wildcard, RecoveryError, In, StringOp, Regex) do not carry nested SqlQuery
         // references and need no traversal.
+        _ => {}
+    }
+}
+
+/// Walk an `Expr` tree and collect `SourceRef`s from any `Expr::InSubquery` nodes.
+///
+/// Used by `extract_sources_from_ast_for_gate` for HAVING, GROUP BY, ORDER BY, and
+/// JOIN ON positions — all of which can contain subqueries in expressions
+/// (e.g. `GROUP BY (SELECT MAX(ts) FROM other_table)`). Without this walk,
+/// an InSubquery expression in those positions would bypass the E-QUERY-037 gate
+/// and fail later with a less helpful error. (L1 fix, S-DEMO-FIDELITY-REMEDIATION-001)
+///
+/// # What is walked
+/// - `Expr::InSubquery { subquery, .. }` — collect the subquery's FROM source and joins.
+/// - `Expr::FuncCall(Aggregate | Scalar)` — recurse into args.
+/// - `Expr::Compare { lhs, rhs, .. }` — recurse into both operands (JOIN ON conditions).
+/// - `Expr::Logical { lhs, rhs, .. }` — recurse into both operands (AND/OR).
+/// - `Expr::Not(inner)` — recurse into inner.
+/// - `Expr::TimestampArithmetic { base, .. }` — recurse into base.
+///
+/// # Non-exhaustive safety
+/// Unknown future `Expr` and `FuncCall` variants are silently skipped via
+/// the `_ => {}` catch-all arm, preserving fail-open gate semantics and
+/// satisfying `#[non_exhaustive]` discipline.
+fn collect_expr_sources_into_gate(
+    expr: &crate::ast::Expr,
+    sources: &mut Vec<crate::ast::SourceRef>,
+) {
+    use crate::ast::{Expr, FuncCall};
+
+    fn push_dedup(sources: &mut Vec<crate::ast::SourceRef>, s: &crate::ast::SourceRef) {
+        if !sources.iter().any(|x| x.raw == s.raw) {
+            sources.push(s.clone());
+        }
+    }
+
+    match expr {
+        Expr::InSubquery { subquery, .. } => {
+            push_dedup(sources, &subquery.from.source);
+            for join in &subquery.joins {
+                push_dedup(sources, &join.source);
+            }
+        }
+        Expr::FuncCall(fc) => match fc {
+            FuncCall::Aggregate { args, .. } | FuncCall::Scalar { args, .. } => {
+                for arg in args {
+                    collect_expr_sources_into_gate(arg, sources);
+                }
+            }
+            FuncCall::Window { .. } => {} // No args yet.
+            #[allow(unreachable_patterns)]
+            _ => {}
+        },
+        Expr::Compare { lhs, rhs, .. } => {
+            collect_expr_sources_into_gate(lhs, sources);
+            collect_expr_sources_into_gate(rhs, sources);
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            collect_expr_sources_into_gate(lhs, sources);
+            collect_expr_sources_into_gate(rhs, sources);
+        }
+        Expr::Not(inner) => collect_expr_sources_into_gate(inner, sources),
+        Expr::TimestampArithmetic { base, .. } => {
+            collect_expr_sources_into_gate(base, sources);
+        }
+        // Literal, Field, VirtualField, In, Star, Now, Interval, and future variants: skip.
         _ => {}
     }
 }

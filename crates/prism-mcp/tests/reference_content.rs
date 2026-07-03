@@ -15,8 +15,11 @@
 )]
 
 use prism_mcp::resources::{build_reference_content, ExampleKind, REFERENCE_EXAMPLES};
-use prism_query::{ast::Ast, plan_sqlpipe_query, PrismQlParser};
-use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+use prism_query::{ast::Ast, plan_sqlpipe_query, table_registry::TableRegistry, PrismQlParser};
+use prism_spec_engine::{
+    spec_parser::{AuthType, SensorSpec, TableSpec},
+    InfusionField, InfusionRegistry, InfusionSpec, InfusionType,
+};
 
 /// AC-006 / BC-2.11.022 postcondition — content completeness.
 ///
@@ -278,19 +281,21 @@ fn test_bc_2_11_022_low002_all_examples_rendered() {
 
 // ─── CRIT-003: registry-parity assertion ──────────────────────────────────────
 
-/// CRIT-003 / BC-2.11.022 — `build_reference_content(Some(&registry))` renders
-/// EXACTLY the enrichment names from the live registry.
+/// CRIT-003 / BC-2.11.022 v1.1 — `build_reference_content(Some(&registry))` renders
+/// EXACTLY the per-field UDF callable names from the live registry (EC-11-022-006).
 ///
-/// A registry is constructed with two known infusion specs: `"geoip"` and `"threatintel"`.
-/// After calling `build_reference_content(Some(&registry))`:
-/// - Content must list `enrich geoip(col)` and `enrich threatintel(col)`.
+/// A registry is constructed with two known infusion specs: `"geoip"` (field: `geoip_country`)
+/// and `"threatintel"` (field: `threatintel_score`). After calling
+/// `build_reference_content(Some(&registry))`:
+/// - Content must list `enrich geoip_country(col)` and `enrich threatintel_score(col)`
+///   (per-field descriptor.name, NOT the infusion_id).
 /// - Content must NOT contain the placeholder text (registry is present and non-empty).
 /// - Content must contain "Available enrichment functions:" (the populated header).
 /// - Content must NOT list any enrichment not in the registry (no phantom names).
 ///
 /// This is a LOAD-BEARING production test: `build_reference_content` calls
-/// `registry.udf_descriptors()` and deduplicates by `infusion_id` — testing that
-/// the infusion_id values from the specs match what is rendered.
+/// `registry.udf_descriptors()` and deduplicates by `descriptor.name` (v1.1 contract) —
+/// testing that per-field callable names match what is rendered.
 ///
 /// Red Gate (CRIT-003): build_reference_content used `include_str!` (static file)
 /// that ignored the registry entirely; the registry-controlled enrichment section
@@ -335,19 +340,25 @@ fn test_bc_2_11_022_registry_parity() {
     // Call the production function.
     let content = build_reference_content(Some(&registry));
 
-    // Both registered infusion names MUST appear as formatted lines.
-    let geoip_line = "- `enrich geoip(col)`";
-    let threatintel_line = "- `enrich threatintel(col)`";
+    // Both registered per-field UDF callable names MUST appear as formatted lines.
+    // BC-2.11.022 v1.1 / EC-11-022-006: the reference lists descriptor.name (per-field
+    // callable), NOT the infusion_id. For geoip field "geoip_country" the callable is
+    // "enrich geoip_country(col)"; for threatintel field "threatintel_score" it is
+    // "enrich threatintel_score(col)".
+    let geoip_line = "- `enrich geoip_country(col)`";
+    let threatintel_line = "- `enrich threatintel_score(col)`";
 
     assert!(
         content.contains(geoip_line),
-        "CRIT-003 BC-2.11.022: content must contain '{geoip_line}' for registered infusion 'geoip'; \
+        "CRIT-003 BC-2.11.022 v1.1: content must contain '{geoip_line}' for registered \
+         per-field UDF 'geoip_country' (descriptor.name); \
          content snippet: {:?}",
         &content[..content.len().min(600)]
     );
     assert!(
         content.contains(threatintel_line),
-        "CRIT-003 BC-2.11.022: content must contain '{threatintel_line}' for registered infusion 'threatintel'; \
+        "CRIT-003 BC-2.11.022 v1.1: content must contain '{threatintel_line}' for registered \
+         per-field UDF 'threatintel_score' (descriptor.name); \
          content snippet: {:?}",
         &content[..content.len().min(600)]
     );
@@ -409,6 +420,112 @@ fn test_bc_2_11_022_ac023_json_list_is_not_null_note() {
          semantics note; note not found in content (first 800 chars): {:?}",
         &content[..content.len().min(800)]
     );
+}
+
+// ─── CRIT-001: plan-availability gate for Positive examples ──────────────────
+
+/// CRIT-001 / BC-2.11.022 CI gate — every `Positive` entry in `REFERENCE_EXAMPLES`
+/// must NOT trigger E-QUERY-037 (`TableNotAvailable`) at plan time against a registry
+/// that contains the `sensor_table` generic placeholder as a registered table.
+///
+/// This closes the false-green in the existing parse-only positive gate:
+/// `PrismQlParser::parse` succeeds on dot-notation FROM targets (e.g.
+/// `SELECT * FROM crowdstrike.detections …`) because parsing is purely syntactic.
+/// The plan-time check fires only when the registry is wired. Without this test,
+/// a Positive example using a dot-notation FROM target (which returns E-QUERY-037
+/// at plan time) would pass the parse-only gate, teaching users an erroring query.
+///
+/// Test protocol:
+/// 1. Build a `TableRegistry` containing `sensor_table` (generic placeholder used in
+///    REFERENCE_EXAMPLES; sensor_id="sensor", table_name="table" → registered name
+///    = "sensor_table" per {sensor_id}_{table_name} convention). This also satisfies
+///    BC-2.10.014 AC-008 (no hardcoded vendor names in reference content) — the generic
+///    placeholder `sensor_table` is not vendor-specific.
+/// 2. For each `(Positive, title, snippet)` in REFERENCE_EXAMPLES (skip comment-prefixed):
+///    a. Call `TableRegistry::check_availability_gate(snippet, None, None)`.
+///    b. Assert it returns `Ok(())` — NOT `Err(PrismError::TableNotAvailable)`.
+///
+/// Load-bearing: this gate will RED if a future Positive example reintroduces a
+/// dot-notation FROM target (e.g. `crowdstrike.detections`) that would return
+/// E-QUERY-037 at runtime on a properly-wired deployment.
+///
+/// Relation to CRIT-003 residual: that gate verifies NegativeE040 entries fire
+/// `RedundantRowLimit`; this gate verifies Positive entries do NOT fire
+/// `TableNotAvailable`. Together they close both sides of the plan-validity invariant.
+///
+/// Pass 3 fix (S-DEMO-FIDELITY-REMEDIATION-001 CRIT-001 sibling-sweep recurrence
+/// prevention): the parse-only gate is insufficient because dot-notation parses fine;
+/// plan-time table availability checking is the only gate that catches E-QUERY-037.
+#[test]
+fn test_bc_2_11_022_crit001_positive_examples_runtime_valid() {
+    use prism_core::error::PrismError;
+
+    // Build a TableRegistry with `sensor_table` registered.
+    // The REFERENCE_EXAMPLES use "sensor_table" as a generic placeholder (BC-2.10.014
+    // AC-008: no hardcoded vendor names). Sensor ID = "sensor", table_name = "table" →
+    // registered key = "sensor_table" (TableRegistry::register_sensor format:
+    // "{sensor_id}_{table_name}").
+    let registry = TableRegistry::new();
+    let placeholder_spec = SensorSpec::new(
+        "sensor",
+        "Generic sensor (test fixture for CRIT-001 plan-time gate)",
+        AuthType::ApiKey,
+        "https://example.com",
+        vec![TableSpec::new_point_in_time(
+            "table",
+            "security_finding",
+            vec![],
+            vec![],
+        )],
+        None,
+        "1.0.0",
+        Vec::new(),
+    );
+    registry
+        .register_sensor(&placeholder_spec)
+        .expect("CRIT-001 gate: register sensor_table placeholder must not fail");
+
+    // Sanity check: sensor_table must be registered.
+    let gate_result = registry.check_availability_gate("FROM sensor_table | limit 1", None, None);
+    assert!(
+        gate_result.is_ok(),
+        "CRIT-001 gate setup: sanity check failed — sensor_table must be registered; \
+         got: {gate_result:?}"
+    );
+
+    // For each Positive example, assert plan-time availability passes (no E-QUERY-037).
+    for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
+        if !matches!(kind, ExampleKind::Positive) {
+            continue;
+        }
+        // Skip comment-prefixed entries (guard defensively; no Positive entries should be comments).
+        if snippet.trim_start().starts_with("--") {
+            continue;
+        }
+
+        let result = registry.check_availability_gate(snippet, None, None);
+        match &result {
+            Ok(()) => {
+                // Expected: Positive example is runtime-valid against a registered registry.
+            }
+            Err(PrismError::TableNotAvailable(details)) => {
+                panic!(
+                    "CRIT-001 BC-2.11.022 AC-007: Positive example '{title}' returns E-QUERY-037 \
+                     (TableNotAvailable) at plan time against a registry containing \
+                     crowdstrike_detections. This means the example uses a dot-notation FROM \
+                     target (e.g. crowdstrike.detections) that is illegal in SQL/pipe mode. \
+                     Fix: change the FROM target to the sensor-prefixed table name \
+                     (crowdstrike_detections). Details: {details}"
+                );
+            }
+            Err(other) => {
+                // Other plan-time errors (E-QUERY-038 column not found, etc.) are NOT failures
+                // for this gate — the registry has no column spec, so column gates are skipped.
+                // Only E-QUERY-037 (table not found) indicates a broken Positive example.
+                let _ = other; // Non-E-QUERY-037 errors are acceptable for this gate.
+            }
+        }
+    }
 }
 
 // ─── CRIT-003 residual: plan-rejection gate ───────────────────────────────────
@@ -487,6 +604,70 @@ fn test_bc_2_11_022_crit003_residual_negativee040_plan_rejected() {
                 "CRIT-003 residual: NegativeE040 example '{title}' must fail with \
                  PrismError::RedundantRowLimit; got different error: {other:?}"
             ),
+        }
+    }
+}
+
+// ─── Some(empty-registry) placeholder path ───────────────────────────────────
+
+/// BC-2.11.022 — `build_reference_content(Some(&empty_registry))` renders the
+/// wired-but-empty placeholder (not the `None`/unwired placeholder).
+///
+/// This test covers the `Some(registry)` branch where the registry has ZERO
+/// loaded infusion specs (zero `load_spec` calls). The code path at
+/// `resources.rs` emits:
+///   "No enrichment functions are currently registered for your deployment."
+///
+/// This is DISTINCT from the `None` path (`test_bc_2_11_022_none_registry_placeholder`)
+/// which emits the `list_infusions` placeholder.
+///
+/// Invariants asserted:
+/// 1. Content contains the exact Some(empty) placeholder string.
+/// 2. Content does NOT contain the None-path placeholder (`list_infusions`).
+/// 3. Content does NOT contain any `enrich <name>(col)` line (zero infusions registered).
+#[test]
+fn test_bc_2_11_022_some_empty_registry_placeholder() {
+    // Construct a wired-but-EMPTY registry — no load_spec calls.
+    let empty_registry = InfusionRegistry::new();
+
+    let content = build_reference_content(Some(&empty_registry));
+
+    // Must not be empty.
+    assert!(
+        !content.is_empty(),
+        "BC-2.11.022: build_reference_content(Some(&empty_registry)) must return non-empty string"
+    );
+
+    // Must contain the Some(empty) placeholder (resources.rs ~line 1519).
+    let some_empty_placeholder =
+        "No enrichment functions are currently registered for your deployment.";
+    assert!(
+        content.contains(some_empty_placeholder),
+        "BC-2.11.022: build_reference_content(Some(&empty_registry)) must contain the \
+         wired-but-empty placeholder; got content (first 300 chars): {:?}",
+        &content[..content.len().min(300)]
+    );
+
+    // Must NOT contain the None-path placeholder (list_infusions text).
+    let none_placeholder =
+        "Call `list_infusions` to see available enrichment functions for your deployment.";
+    assert!(
+        !content.contains(none_placeholder),
+        "BC-2.11.022: build_reference_content(Some(&empty_registry)) must NOT contain the \
+         None-path list_infusions placeholder — these are distinct code paths"
+    );
+
+    // Must NOT contain any `enrich <name>(col)` line (no infusions registered).
+    // Scan line-by-line: any line containing "enrich " followed by a word and "(col)" is a bug.
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("- `enrich ") && trimmed.contains("(col)`") {
+            panic!(
+                "BC-2.11.022: build_reference_content(Some(&empty_registry)) must NOT render \
+                 any `enrich <name>(col)` line when no infusions are registered; \
+                 found line: {:?}",
+                trimmed
+            );
         }
     }
 }

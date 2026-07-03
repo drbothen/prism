@@ -148,7 +148,7 @@ mod inner {
     /// `check_query` with `consecutive_over_limit=2` (second consecutive observation)
     /// DOES cancel the token and returns `Err(PrismError::WatchdogKilled)`.
     ///
-    /// The error Display must contain `"E-WATCHDOG-002"` (error-taxonomy.md v1.68,
+    /// The error Display must contain `"E-WATCHDOG-002"` (error-taxonomy.md §E-WATCHDOG-002,
     /// P1-04 adjudication: the process-RSS watchdog kill is E-WATCHDOG-002;
     /// E-WATCHDOG-001 is reserved for the per-query DataFusion memory-pool trip).
     #[test]
@@ -183,7 +183,7 @@ mod inner {
         );
 
         // Error Display must contain the canonical error code E-WATCHDOG-002
-        // (error-taxonomy.md v1.68 / P1-04 adjudication: process-RSS watchdog kill
+        // (error-taxonomy.md §E-WATCHDOG-002 / P1-04 adjudication: process-RSS watchdog kill
         // is E-WATCHDOG-002; E-WATCHDOG-001 is the per-query memory-pool trip).
         let display = err.to_string();
         assert!(
