@@ -92,7 +92,7 @@ status: draft
 #   BC-2.11.016 v1.5, BC-2.11.007 v1.9) + BC-2.11.019 v1.6 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.19"
+version: "2.20"
 updated: "2026-07-03"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -336,7 +336,7 @@ crates_touched:
   # E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-011 (H1 fix:
   # capability gate moved AFTER enrich gate in execute_scheduled_inner to match execute_inner).
   # available_infusions Vec<String> sorted+deduped; strsim did_you_mean lexicographic tie-break.
-  # New test file: crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs (19 tests — see
+  # New test file: crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs (22 tests — see
   # AC-N1B below for full inventory including C1/C2 unit-level + engine-level tests,
   # high001 gate ordering, high003 SQL projection, med001 sort, high1 SqlPipe, ec_11_059
   # wired-empty, obs2 did_you_mean Some/None tests, F-PJL mid-cascade F-PJL1/F-PJL4 tests).
@@ -1116,8 +1116,7 @@ For this delivery:
   emission sites. The SAP-1 PG-LP11-001 obligation for this delivery is fulfilled by BC-2.16.002
   v1.91.
 
-**§References:** BC-2.16.002 v1.91 (Canonical Structured Event Catalog amendment — M1/N2 closed-set
-method/label extensions). The enrich-last gate ordering fix (N1-B) requires no catalog amendment
+**§References:** BC-2.16.002 §Canonical Structured Event Catalog (this story's SAP-1 M1/N2 obligation was fulfilled by the v1.91 amendment; subsequent v1.92 amendment by S-PERF-GATE-008 is unrelated to this story). The enrich-last gate ordering fix (N1-B) requires no catalog amendment
 because `check_enrich_udf_availability` uses `?`-propagation only.
 
 ADR-048 governs the HAVING/WHERE predicate-grammar divergence: the `agg_fn(col) op literal`
@@ -1132,13 +1131,13 @@ BC-2.11.016 stays at v1.5 — no version change required.
 
 | Artifact | Estimated Tokens |
 |----------|-----------------|
-| This story spec (v2.15) | ~20,000 |
+| This story spec (v2.20) | ~20,000 |
 | BC files (7 BCs, BC-2.10.012 now v1.7) | ~14,000 |
 | Source files touched (resources.rs, prompts.rs, prism_describe.rs, error.rs, table_registry.rs, engine.rs, error_mapping.rs + new test files) | ~32,000 |
 | DTU Cargo.toml files (11 entries — 9 DTU crates + prism-bin + ocsf-proto-gen) | ~2,000 |
 | DTU test files (sec_p3_003_constant_time_admin_token.rs + 2 un-quarantine test files) | ~3,000 |
 | Research/audit docs (2) | ~6,000 |
-| Test files (existing + new — 52 Red Gate tests across 9 new test files) | ~19,000 |
+| Test files (existing + new — 54 Red Gate tests across 9 new test files) | ~19,000 |
 | Tool outputs (grep, rg scans, call-chain traces) | ~4,000 |
 | **Total estimate** | **~100,000** |
 
@@ -1430,7 +1429,7 @@ All files modified in the implemented scope (v2.0):
 | `crates/prism-mcp/tests/reference_content.rs` | MODIFIED | N1: added `test_bc_2_11_022_crit001_positive_examples_runtime_valid` (OBS-4 migration from deleted file), `test_bc_2_11_022_some_empty_registry_placeholder` |
 | `crates/prism-mcp/tests/tool_dispatch_tests.rs` | MODIFIED | OBS-5: new fail-closed guard tests; `test_med4_enrich_udf_not_found_structured_category_is_validation` |
 | `crates/prism-query/src/tests/bc_2_11_001_n2_test.rs` | CREATED | N2 + HIGH-1: 4 tests (`dot_notation_from_target_e_query_037`, `filter_mode_underscore_no_regression`, `dot_notation_sqlpipe_e_query_037`, `sqlpipe_underscore_no_regression`) |
-| `crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs` | CREATED | N1-B + C1/C2 + gate coverage: 19 tests (infusion_id_as_udf_name, sql_path, high001_gate_ordering, high003_sql_select_projection, med001_sort, high1_sqlpipe_head, ec_11_059, c1 unit-level × 3, c1/c2 engine-level × 3, obs2 did_you_mean Some/None, builtin_passthrough_lower, builtin_passthrough_coalesce — v2.3 for EC-11-064/065; f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039, f_pjl4_med001_scheduled_path_table_gate_fires_before_capability_gate — added v2.7 for F-PJL1/F-PJL4) |
+| `crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs` | CREATED | N1-B + C1/C2 + gate coverage: 22 tests (infusion_id_as_udf_name, sql_path, high001_gate_ordering, high003_sql_select_projection, med001_sort, high1_sqlpipe_head, ec_11_059, c1 unit-level × 3, c1/c2 engine-level × 3, obs2 did_you_mean Some/None, builtin_passthrough_lower, builtin_passthrough_coalesce — v2.3 for EC-11-064/065; ec_11_066_builtin_aggregate_stddev_not_e_query_039, ec_11_067_builtin_window_row_number_not_e_query_039 — v2.17 for EC-11-066/067; f_pnl1_pipe_mode_builtin_aggregate_still_fires_e_query_039 — v2.17 pipe-mode guard; f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039, f_pjl4_med001_scheduled_path_table_gate_fires_before_capability_gate — added v2.7 for F-PJL1/F-PJL4) |
 | `crates/prism-query/src/tests/table_registry_tests.rs` | MODIFIED | M1 + L1 + OBS-1: new tests for `columns_for_table`, availability gate subquery position coverage, OBS-1 SqlPipe JOIN stage, OBS-1 SELECT WHERE IN subquery |
 | `crates/prism-query/src/tests/mod.rs` | MODIFIED | Register new test modules |
 | `crates/prism-query/src/materialization.rs` | MODIFIED | AC-DISC (F-L2-CRIT-001): `pub(crate) fn seed_armis_entity_discriminator` added; wired into run_materialization_pipeline fan-out loop; inline test module `armis_discriminator_tests` with 4 tests |
@@ -1541,6 +1540,7 @@ and the TLS-REMEDIATION fold-in (commit cf66151f):
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.20 | consistency-audit-5-findings-2026-07-03 | 2026-07-03 | story-writer | **Consistency-audit 5-finding cleanup.** Source-verified `bc_2_11_019_n1b_test.rs` contains 22 test functions (not 19). Five fixes applied: (1) **F1 (MED)** File Structure table row for `bc_2_11_019_n1b_test.rs`: count 19→22; added 3 missing tests to description: `ec_11_066_builtin_aggregate_stddev_not_e_query_039`, `ec_11_067_builtin_window_row_number_not_e_query_039` (v2.17 EC-11-066/067), `f_pnl1_pipe_mode_builtin_aggregate_still_fires_e_query_039` (v2.17 pipe-mode guard). (2) **F2 (LOW)** `crates_touched` frontmatter comment: `(19 tests — see` → `(22 tests — see`. (3) **F3 (LOW)** Token Budget row: `52 Red Gate tests` → `54 Red Gate tests` (aligns with `red_gate_tests: 54` frontmatter). (4) **F4 (LOW)** Token Budget story-spec row: `(v2.15)` → `(v2.20)`. (5) **F5 (LOW)** AC-SAP-1 §References: volatile `BC-2.16.002 v1.91` pin replaced with TD-VSDD-091 preferred §-anchor form `BC-2.16.002 §Canonical Structured Event Catalog (this story's SAP-1 M1/N2 obligation was fulfilled by the v1.91 amendment; subsequent v1.92 amendment by S-PERF-GATE-008 is unrelated to this story)`. Immutable historical narrative (line ~1112, v1.90→v1.91) left unchanged. No additional stale self-refs found in sweep. No code, BC, or STORY-INDEX change. |
 | 2.19 | f-p208-tls-anchor-001-2026-07-03 | 2026-07-03 | story-writer | **F-P208-TLS-ANCHOR-001 (LOW) — AC-TLS unfilled version placeholder + S-7.01 compliance-note reword.** (1) `v1.?` placeholder resolved to `v1.15` (BC-2.06.019 confirmed at v1.15 from frontmatter). (2) AC-TLS header reworded from `(traces to BC-2.06.019 v1.? precondition — DTU stage-0 scenarios execute within the stage-0 window under parallel test load)` to `(TLS-REMEDIATION compliance — DTU stage-0 test un-quarantine; partial BC-2.06.019 v1.15 context)`, mirroring AC-SAP-1's compliance-note pattern (SAP-1 references BC-2.16.002 as "partial dependency" without frontmatter inclusion; same treatment applied here). BC-2.06.019 is NOT added to frontmatter array — the existing blockquote already states "BC-2.06.019 behavior is unchanged — the tests simply RUN now rather than being quarantined"; this is compliance/context reference, not a primary behavioral anchor. (3) Sibling sweep (`rg -n 'v[0-9]+\.\?\|v\?\.' .factory/stories/S-DEMO-FIDELITY-REMEDIATION-001-*`): only one instance found and fixed; no other unfilled version placeholders present. No BC, frontmatter array, body BC table, or STORY-INDEX change. |
 | 2.18 | f-p208-n1b-testname-drift-2026-07-03 | 2026-07-03 | story-writer | **F-P208-N1B-TESTNAME-DRIFT (MED) — test-name citation correction.** The two EC-11-066/067 Red Gate test names cited in v2.17 did not match the actual implemented test function names. Story cited `test_bc_2_11_019_n1b_builtin_passthrough_stddev` and `test_bc_2_11_019_n1b_builtin_passthrough_row_number`; source-verified actual names in `bc_2_11_019_n1b_test.rs` (lines 1294, 1338) are `test_bc_2_11_019_ec_11_066_builtin_aggregate_stddev_not_e_query_039` and `test_bc_2_11_019_ec_11_067_builtin_window_row_number_not_e_query_039`. Behavior IS covered (real tests exist and pass); this is a citation/traceability defect only. Six citation sites corrected: (1) frontmatter `red_gate_tests` inventory comments (lines 145–146); (2) DataFusion built-in exclusion blockquote EC-11-066/067 note; (3) Red Gate test paragraph for EC-11-066 (stddev); (4) Red Gate test paragraph for EC-11-067 (row_number); (5) EC-020 edge-case table Test cell; (6) EC-021 edge-case table Test cell; (7) v2.17 changelog row retrospective cite. Adjudication per CLAUDE.md SoT rule 7: test-name spelling is an implementation detail; story is updated to match the verified-passing code. No code, BC, or STORY-INDEX change. |
 | 2.17 | bc-2.11.019-v1.6-propagation-2026-07-02 | 2026-07-02 | story-writer | **BC-2.11.019 v1.5→v1.6 cite propagation + F1 aggregate/window DataFusion built-in exclusion expansion.** PO amended BC-2.11.019 v1.5→v1.6 (F1 HIGH fix: E-QUERY-039 enrich gate's DataFusion built-in exclusion corrected from SCALAR-ONLY to SCALAR + AGGREGATE + WINDOW — DataFusion built-in aggregate/window functions that parse as `ScalarFunc::Unknown` in SQL-mode must pass the gate via `aggregate_functions()` and `window_functions()` registries in addition to `scalar_functions()`; pipe-mode `\| enrich <name>(...)` still fires E-QUERY-039 for unregistered names regardless of DataFusion registries). **Version cite sweep (POLICY 23):** all live (non-changelog) `BC-2.11.019 v1.5` cites updated to `v1.6`. **Functional story changes:** (1) Step 2 SQL path bullet: exclusion check expanded to all three registries with aggregate/window examples (`stddev`, `median`, `array_agg`, `row_number`, `rank`); (2) DataFusion built-in exclusion note blockquote broadened from scalar-only to scalar+aggregate+window, pipe-mode-still-fires distinction made explicit, EC-11-066/067 references added; (3) Implementation requirement expanded to cover all three registry APIs including `default_aggregate_functions()` and `default_window_functions()`; (4) New edge cases EC-020 (EC-11-066: aggregate built-in `stddev`/`median` passes gate) and EC-021 (EC-11-067: window built-in `row_number`/`rank` passes gate); (5) Two new Red Gate test paragraphs: `test_bc_2_11_019_ec_11_066_builtin_aggregate_stddev_not_e_query_039` and `test_bc_2_11_019_ec_11_067_builtin_window_row_number_not_e_query_039`; (6) `red_gate_tests` 52→54; (7) Frontmatter inventory: 2 new tests added under built-in passthrough section. |
