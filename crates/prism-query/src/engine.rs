@@ -1453,11 +1453,12 @@ static DATAFUSION_BUILTIN_FUNCTION_NAMES: std::sync::LazyLock<std::collections::
         names
     });
 
-/// Walk ALL scalar-expr positions in a `SqlQuery` and collect `ScalarFunc::Unknown` names.
+/// Walk the six top-level scalar-expr positions in a `SqlQuery` and collect
+/// `ScalarFunc::Unknown` names.
 ///
 /// This is the SINGLE canonical walk used by `check_enrich_udf_availability` for both
-/// `Ast::Sql(Select)` and `Ast::SqlPipe` head queries.  It covers every position where a
-/// scalar function call can appear in a `SqlQuery`:
+/// `Ast::Sql(Select)` and `Ast::SqlPipe` head queries.  It covers the six top-level
+/// positions in a `SqlQuery` where a scalar function call is typically written:
 ///
 /// | Position                        | Coverage rationale |
 /// |---------------------------------|--------------------|
@@ -1470,6 +1471,15 @@ static DATAFUSION_BUILTIN_FUNCTION_NAMES: std::sync::LazyLock<std::collections::
 ///
 /// `Join.on` is typed as `Expr` (not `Predicate`) in the AST, so it goes through
 /// `collect_unknown_scalar_from_expr` directly.
+///
+/// # Intentionally excluded positions (BC-2.11.019 §OBS-001)
+///
+/// `Expr::InSubquery` / `Predicate::InSubquery` subquery bodies are NOT descended into.
+/// This is intentional fail-open behaviour adjudicated in BC-2.11.019 §OBS-001:
+/// a `ScalarFunc::Unknown` inside `IN (SELECT ...)` reaches DataFusion planning as a
+/// function-not-found error (not the opaque `E-INT-001` crash that this gate prevents);
+/// the subquery body self-governs.  If PrismQL grammar is later extended to require enrich
+/// gating inside subquery bodies, BC-2.11.019 must be updated at that time.
 ///
 /// S-DEMO-FIDELITY-REMEDIATION-001 C1+C2 fix; BC-2.11.019 §Precondition 1(b).
 fn collect_unknown_scalars_from_sql_query(sq: &crate::ast::SqlQuery, out: &mut Vec<String>) {
@@ -1506,8 +1516,14 @@ fn collect_unknown_scalars_from_sql_query(sq: &crate::ast::SqlQuery, out: &mut V
 
 /// Collect all `ScalarFunc::Unknown` names from an `Expr` tree.
 ///
-/// Recurses into `FuncCall::Scalar` arguments, `Expr::Logical`, `Expr::Not`, and
-/// `Expr::Compare` (lhs/rhs) to find every `ScalarFunc::Unknown(name)` node.
+/// Recurses into `FuncCall::Scalar` / `FuncCall::Aggregate` arguments, `Expr::Logical`
+/// (lhs/rhs), `Expr::Not`, and `Expr::Compare` (lhs/rhs) to find every
+/// `ScalarFunc::Unknown(name)` node.
+///
+/// Intentionally excluded positions (see BC-2.11.019 §OBS-001):
+/// - `Expr::TimestampArithmetic { base, .. }` — `base` is always `Expr::Now` (grammar
+///   constraint; see `build_temporal_rhs_parser`); a UDF cannot appear there.
+/// - `Expr::InSubquery { subquery, .. }` — subquery body is fail-open per OBS-001.
 ///
 /// Module-level so it is accessible from `#[cfg(test)]` blocks for unit testing.
 /// Called by `check_enrich_udf_availability` and `collect_unknown_scalars_from_sql_query`.
@@ -1542,7 +1558,23 @@ fn collect_unknown_scalar_from_expr(expr: &crate::ast::Expr, out: &mut Vec<Strin
             collect_unknown_scalar_from_expr(lhs, out);
             collect_unknown_scalar_from_expr(rhs, out);
         }
-        // Leaf nodes or non-function expressions — nothing to collect.
+        // Leaf nodes and intentionally excluded positions — nothing to collect:
+        //
+        // - `Expr::Literal`, `Expr::Field`, `Expr::VirtualField`, `Expr::In`,
+        //   `Expr::Star`, `Expr::Now`, `Expr::Interval`: true leaf nodes; no
+        //   sub-expressions that can contain a function call.
+        //
+        // - `Expr::TimestampArithmetic { base, .. }`: `base` is always `Expr::Now`
+        //   per the grammar (`build_temporal_rhs_parser` only parses
+        //   `NOW() ± INTERVAL '...'` — the base is hard-coded to `Expr::Now`).
+        //   A `ScalarFunc::Unknown` cannot appear as the `base` expression of a
+        //   timestamp arithmetic node in valid PrismQL AST.
+        //
+        // - `Expr::InSubquery { subquery, .. }`: the subquery body CAN structurally
+        //   contain a `ScalarFunc::Unknown` in its SELECT items, but the gate
+        //   intentionally does NOT descend into subquery bodies — see BC-2.11.019
+        //   §OBS-001 for the full rationale (fail-open; DataFusion produces
+        //   function-not-found, not the opaque E-INT-001 crash this gate prevents).
         _ => {}
     }
 }
@@ -1570,8 +1602,23 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
             }
         }
         Predicate::Not(inner) => collect_unknown_scalar_from_predicate(inner, out),
-        // All other variants (StringOp, Regex, In, InSubquery, Between, Cidr,
-        // Has, Missing, IsNull, Wildcard, RecoveryError) do not embed function calls.
+        // Remaining variants — intentionally not walked or provably UDF-free:
+        //
+        // - `Predicate::StringOp`, `Predicate::Regex`, `Predicate::In`,
+        //   `Predicate::Cidr`, `Predicate::Has`, `Predicate::Missing`,
+        //   `Predicate::IsNull`, `Predicate::Wildcard`, `Predicate::RecoveryError`:
+        //   none of these hold an `Expr` sub-tree that can contain a function call.
+        //
+        // - `Predicate::Between { low, high, .. }`: `low` and `high` are typed as
+        //   `Literal` (not `Expr`), so a `ScalarFunc::Unknown` provably cannot appear
+        //   in either position.
+        //
+        // - `Predicate::InSubquery { subquery, .. }`: the subquery body CAN
+        //   structurally contain a `ScalarFunc::Unknown` in its SELECT items, but
+        //   the gate intentionally does NOT descend into subquery bodies — see
+        //   BC-2.11.019 §OBS-001 for the full rationale (fail-open; DataFusion
+        //   produces function-not-found, not the opaque E-INT-001 crash this gate
+        //   prevents).
         _ => {}
     }
 }
