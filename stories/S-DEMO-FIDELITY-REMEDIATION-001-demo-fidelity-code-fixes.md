@@ -92,7 +92,7 @@ status: draft
 #   BC-2.11.016 v1.5, BC-2.11.007 v1.9) + BC-2.11.019 v1.6 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.22"
+version: "2.23"
 updated: "2026-07-03"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -122,8 +122,7 @@ acceptance_criteria_count: 17
 #     SqlPipe modes (covered in AC-N1B, AC-N2, AC-C1C2 — no standalone **AC-SQLPIPE** header)
 #     did_you_mean (covered in AC-N1B — no standalone **AC-DID_YOU_MEAN** header)
 red_gate_tests: 54
-# 49 Red Gate tests (v2.12 fold-in — adds three armis discriminator wiring-seam tests
-# from F-LENS4-MED-001 fix in materialization.rs; see arithmetic below):
+# 54 Red Gate tests total (42 base + fold-ins through v2.17; see arithmetic block at end):
 # --- AC-N1 ---
 #   test_bc_2_11_022_n1_per_field_udf_names (bc_2_11_022_n1_test.rs)
 # --- AC-N1B core ---
@@ -1136,13 +1135,13 @@ architect for this story (`anchor_stories: [S-DEMO-FIDELITY-REMEDIATION-001]`); 
 
 | Artifact | Estimated Tokens |
 |----------|-----------------|
-| This story spec (v2.22) | ~20,000 |
+| This story spec (v2.23) | ~20,000 |
 | BC files (7 BCs, BC-2.10.012 now v1.7) | ~14,000 |
 | Source files touched (resources.rs, prompts.rs, prism_describe.rs, error.rs, table_registry.rs, engine.rs, error_mapping.rs + new test files) | ~32,000 |
 | DTU Cargo.toml files (11 entries — 9 DTU crates + prism-bin + ocsf-proto-gen) | ~2,000 |
 | DTU test files (sec_p3_003_constant_time_admin_token.rs + 2 un-quarantine test files) | ~3,000 |
 | Research/audit docs (2) | ~6,000 |
-| Test files (existing + new — 54 Red Gate tests across 9 new test files) | ~19,000 |
+| Test files (existing + new — 54 Red Gate tests across 8 new test files) | ~19,000 |
 | Tool outputs (grep, rg scans, call-chain traces) | ~4,000 |
 | **Total estimate** | **~100,000** |
 
@@ -1545,6 +1544,7 @@ and the TLS-REMEDIATION fold-in (commit cf66151f):
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.23 | exhaustive-count-annotation-reconciliation-2026-07-03 | 2026-07-03 | story-writer | **Exhaustive count/annotation reconciliation sweep — zeroes stale-count defect class.** Ran complete grep sweep across all count claims (red_gate_tests, acceptance_criteria_count, points, estimated_days, per-test-file counts, test-file totals, Token Budget rows). Built a 17-row reconciliation table; found 3 stale live-current count claims. Fixes applied: (1) **R-02 (PRIMARY DEFECT — STALE LEAD-IN)** `red_gate_tests:` comment lead-in at line ~125: `# 49 Red Gate tests (v2.12 fold-in — adds three armis discriminator wiring-seam tests / # from F-LENS4-MED-001 fix in materialization.rs; see arithmetic below):` → `# 54 Red Gate tests total (42 base + fold-ins through v2.17; see arithmetic block at end):`. The two-line v2.12-framed comment implied 49 as current; the field value is 54. The arithmetic block at end of the comment (42→46→49→52→54) is CORRECT and UNCHANGED. (2) **R-15 (Token Budget self-ref)** `This story spec (v2.22)` → `(v2.23)` (version bump). (3) **R-17 (Token Budget test-file count)** `54 Red Gate tests across 9 new test files` → `8 new test files` — source-verified: File Structure CREATED rows = 8 (test_enrich_udf_not_found_display.rs, bc_2_11_022_n1_test.rs, bc_2_11_019_n1b_mcp_test.rs, bc_2_10_012_audit_001_test.rs, bc_2_10_016_audit_004_test.rs, f_pql2_obs001_skeleton_placeholder_guard_test.rs, bc_2_11_001_n2_test.rs, bc_2_11_019_n1b_test.rs); worktree-verified by directory listing. All other 14 count rows verified CORRECT: acceptance_criteria_count 17 ✓, points 11 ✓, estimated_days 2.5 ✓, 5-test display file ✓, 22-test N1B file ✓, 4-test N2 file ✓, 4-test armis discriminator module ✓, 7 BCs ✓, arithmetic 42→46→49→52→54 ✓, all dated-historical annotations correctly dated. ADR-050 citation verified present. No code, BC, or STORY-INDEX change. |
 | 2.22 | version-pin-reconciliation-2026-07-03 | 2026-07-03 | story-writer | **Exhaustive version-pin reconciliation sweep.** Ran full BC/ADR version audit across all 1580 lines of the story. Found exactly **one** stale live-prose pin: **line 32 (frontmatter subsystem anchor comment, SS-10 entry)** cited `BC-2.10.012 v1.5` — canonical is `v1.7`. Fixed to `v1.7`. All other version citations verified current against BC frontmatter: BC-2.11.001 v1.15 ✓, BC-2.11.022 v1.1 ✓, BC-2.11.019 v1.6 ✓, BC-2.10.016 v1.2 ✓, BC-2.10.012 v1.7 (all other sites) ✓, BC-2.11.016 v1.5 ✓, BC-2.11.007 v1.9 ✓, BC-2.06.019 v1.15 ✓. BC-2.16.002 v1.91 citations at lines 1112 and 1119 are historical narrative accurately describing when this story's SAP-1 obligation was fulfilled; v1.92 is a subsequent S-PERF-GATE-008 amendment correctly noted as unrelated — left unchanged. Token Budget story-spec row updated v2.20→v2.22. |
 | 2.21 | f-p208-adr050-anchor-2026-07-03 | 2026-07-03 | story-writer | **F-P208-ADR050-ANCHOR (MED) — ADR-050 anchor added to AC-TLS + §References; stale conditional blockquote replaced.** (1) **Stale blockquote replaced (AC-TLS, ~line 1038):** The six-line blockquote ending "if the architect or PO determines that a standing ADR is warranted... that authorship is routed to architect/product-owner — NOT authored here" was FALSE — ADR-050 (ACCEPTED) was authored specifically for this story. Replaced with accurate text: "The workspace-wide rustls-tls-only convention for reqwest dev-dependencies IS codified as ADR-050 (workspace reqwest rustls-tls backend convention, ACCEPTED), established during this story." (2) **§References extended:** Added ADR-050 citation paragraph after ADR-048 paragraph: "ADR-050 (workspace reqwest rustls-tls backend convention, ACCEPTED) governs the rustls-tls-only standardization delivered by the TLS-REMEDIATION scope of this story. ADR-050 was authored by the architect for this story (`anchor_stories: [S-DEMO-FIDELITY-REMEDIATION-001]`); it codifies the `default-features=false, features=["rustls-tls"]` convention for all workspace reqwest entries." (3) **Sibling sweep:** grep for "standing ADR\|route to architect\|not authored here\|pending architect\|ADR.*warranted\|warranted for\|authorship is routed" — two instances found. Instance 1: the stale blockquote at line 1038 (FIXED). Instance 2: changelog row 2.15 historical record ("ADR/BC recommendation for rustls-tls convention flagged to orchestrator for routing to architect") — this is an immutable historical record of what was believed at that time; it accurately records past state and is NOT stale prose in active AC scope. Left unchanged. No code, BC, or STORY-INDEX change. |
 | 2.20 | consistency-audit-5-findings-2026-07-03 | 2026-07-03 | story-writer | **Consistency-audit 5-finding cleanup.** Source-verified `bc_2_11_019_n1b_test.rs` contains 22 test functions (not 19). Five fixes applied: (1) **F1 (MED)** File Structure table row for `bc_2_11_019_n1b_test.rs`: count 19→22; added 3 missing tests to description: `ec_11_066_builtin_aggregate_stddev_not_e_query_039`, `ec_11_067_builtin_window_row_number_not_e_query_039` (v2.17 EC-11-066/067), `f_pnl1_pipe_mode_builtin_aggregate_still_fires_e_query_039` (v2.17 pipe-mode guard). (2) **F2 (LOW)** `crates_touched` frontmatter comment: `(19 tests — see` → `(22 tests — see`. (3) **F3 (LOW)** Token Budget row: `52 Red Gate tests` → `54 Red Gate tests` (aligns with `red_gate_tests: 54` frontmatter). (4) **F4 (LOW)** Token Budget story-spec row: `(v2.15)` → `(v2.20)`. (5) **F5 (LOW)** AC-SAP-1 §References: volatile `BC-2.16.002 v1.91` pin replaced with TD-VSDD-091 preferred §-anchor form `BC-2.16.002 §Canonical Structured Event Catalog (this story's SAP-1 M1/N2 obligation was fulfilled by the v1.91 amendment; subsequent v1.92 amendment by S-PERF-GATE-008 is unrelated to this story)`. Immutable historical narrative (line ~1112, v1.90→v1.91) left unchanged. No additional stale self-refs found in sweep. No code, BC, or STORY-INDEX change. |
