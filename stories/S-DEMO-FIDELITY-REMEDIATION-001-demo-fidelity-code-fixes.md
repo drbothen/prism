@@ -36,7 +36,7 @@ subsystems: [SS-01, SS-10, SS-11, SS-22]
 #             plan-time enrichment gate in prism-query/engine.rs (direct match, pipe EnrichStage +
 #             SQL ScalarFunc::Unknown paths); map_prism_error -32602 net-new arm in error_mapping.rs.
 #             NOTE: map_prism_error arm for E-QUERY-037 (TableNotAvailable) is CONFIRMED PRESENT —
-#             only the E-QUERY-039 (EnrichUdfNotFound) arm is net-new. BC-2.11.019 v1.5 draft→active
+#             only the E-QUERY-039 (EnrichUdfNotFound) arm is net-new. BC-2.11.019 v1.6 draft→active
 #             at merge (POL-14).
 #     - N2: E-QUERY-037 gate-ordering fix located in table_registry.rs (check_availability_gate /
 #           is_registered) + engine.rs — NOT materialization.rs only (verified 2026-06-26).
@@ -73,7 +73,7 @@ estimated_days: 2.5
 points: 11
 # Points breakdown (v2.15 — adds 1pt for TLS-REMEDIATION fold-in; prior total was 10):
 #   BC-2.11.022 v1.1 — N1: fix dedup key in build_reference_content: 2 pts
-#   BC-2.11.019 v1.5 — N1-B: NET-NEW E-QUERY-039 implementation:
+#   BC-2.11.019 v1.6 — N1-B: NET-NEW E-QUERY-039 implementation:
 #     create EnrichUdfNotFound variant + EnrichUdfNotFoundDetails #[non_exhaustive] struct
 #     in prism-core/error.rs; plan-time enrichment gate in prism-query/engine.rs (AST visitor,
 #     pipe PipeStage::Enrich + SQL ScalarFunc::Unknown paths; derive UDF names from udf_descriptors());
@@ -89,10 +89,10 @@ points: 11
 level: "L4"
 status: draft
 # BC status: 6 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.7,
-#   BC-2.11.016 v1.5, BC-2.11.007 v1.9) + BC-2.11.019 v1.5 draft→active at merge per POL-14. Canonical versions
+#   BC-2.11.016 v1.5, BC-2.11.007 v1.9) + BC-2.11.019 v1.6 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.16"
+version: "2.17"
 updated: "2026-07-02"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -121,7 +121,7 @@ acceptance_criteria_count: 17
 #     CRIT-1 (embedded bold section within AC-AUDIT-001, not a separate **AC-CRIT1** header)
 #     SqlPipe modes (covered in AC-N1B, AC-N2, AC-C1C2 — no standalone **AC-SQLPIPE** header)
 #     did_you_mean (covered in AC-N1B — no standalone **AC-DID_YOU_MEAN** header)
-red_gate_tests: 52
+red_gate_tests: 54
 # 49 Red Gate tests (v2.12 fold-in — adds three armis discriminator wiring-seam tests
 # from F-LENS4-MED-001 fix in materialization.rs; see arithmetic below):
 # --- AC-N1 ---
@@ -139,13 +139,15 @@ red_gate_tests: 52
 #   test_high1_sqlpipe_head_unknown_scalar_fires_e_query_039 (bc_2_11_019_n1b_test.rs)
 # --- AC-N1B EC-11-059 wired-but-empty registry ---
 #   test_ec_11_059_wired_empty_registry_fires_e_query_039_with_empty_available (bc_2_11_019_n1b_test.rs)
-# --- AC-N1B DataFusion built-in passthrough (BC-2.11.019 v1.5 F-PJL1-HIGH-001) ---
+# --- AC-N1B DataFusion built-in passthrough (BC-2.11.019 v1.6 F-PJL1-HIGH-001) ---
 #   test_bc_2_11_019_n1b_builtin_passthrough_lower (bc_2_11_019_n1b_test.rs — EC-11-064)
 #   test_bc_2_11_019_n1b_builtin_passthrough_coalesce (bc_2_11_019_n1b_test.rs — EC-11-065)
+#   test_bc_2_11_019_n1b_builtin_passthrough_stddev (bc_2_11_019_n1b_test.rs — EC-11-066)
+#   test_bc_2_11_019_n1b_builtin_passthrough_row_number (bc_2_11_019_n1b_test.rs — EC-11-067)
 # --- AC-N1B did_you_mean engine (OBS-2) ---
 #   test_obs2_did_you_mean_some_from_strsim_levenshtein_within_threshold (bc_2_11_019_n1b_test.rs)
 #   test_obs2b_did_you_mean_none_when_beyond_levenshtein_threshold (bc_2_11_019_n1b_test.rs)
-# --- AC-N1B F-PJL mid-cascade additions (BC-2.11.019 v1.5 F-PJL1/F-PJL4) ---
+# --- AC-N1B F-PJL mid-cascade additions (BC-2.11.019 v1.6 F-PJL1/F-PJL4) ---
 #   test_f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039 (bc_2_11_019_n1b_test.rs — F-PJL1-HIGH-001)
 #   test_f_pjl4_med001_scheduled_path_table_gate_fires_before_capability_gate (bc_2_11_019_n1b_test.rs — F-PJL4-MED-001)
 # --- AC-C1C2 enrich gate JOIN/GROUP/ORDER (unit-level) ---
@@ -205,7 +207,8 @@ red_gate_tests: 52
 #
 # Arithmetic: 42 (v2.9) + 4 armis entity-discriminator tests (F-L2-CRIT-001, materialization.rs inline) = 46;
 # 46 (v2.10) + 3 armis discriminator wiring-seam tests (F-LENS4-MED-001, materialization.rs inline) = 49;
-# 49 (v2.13) + 3 Cat2 enrichment hint tests (AC-CAT2, bc_2_10_012_audit_001_test.rs) = 52.
+# 49 (v2.13) + 3 Cat2 enrichment hint tests (AC-CAT2, bc_2_10_012_audit_001_test.rs) = 52;
+# 52 (v2.16) + 2 built-in passthrough aggregate/window tests (BC-2.11.019 v1.6 F1 EC-11-066/067) = 54.
 # Red Gate semantics: the TDD-driving Red Gate subset — tests that were written RED before the
 # corresponding code landed, plus inline and guard tests that drive story-delivered code surfaces
 # (mid-cascade regression guards included). This is a named subset; the COMPLETE delivered test
@@ -384,7 +387,7 @@ all subquery positions (HAVING, GROUP BY, ORDER BY, JOIN ON).
 |-------|---------|-------|
 | BC-2.11.001 | v1.15 | BC-2.11.001: `query` MCP Tool Accepts Scoping + PrismQL Query String |
 | BC-2.11.022 | v1.1 | BC-2.11.022: Auto-Generated `prismql://reference` Content Contract and CI Parity Gate |
-| BC-2.11.019 | v1.5 | BC-2.11.019: E-QUERY-039 Enrich-UDF-Not-Found Plan-Time Gate |
+| BC-2.11.019 | v1.6 | BC-2.11.019: E-QUERY-039 Enrich-UDF-Not-Found Plan-Time Gate |
 | BC-2.10.016 | v1.2 | BC-2.10.016: MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
 | BC-2.10.012 | v1.7 | BC-2.10.012: `prism_describe` Schema Discovery Tool (L2) |
 | BC-2.11.016 | v1.5 | BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
@@ -431,7 +434,7 @@ callable fn forms (the N1 regression guard).
 > `PrismError::EnrichUdfNotFound` and `EnrichUdfNotFoundDetails` do NOT exist anywhere in the
 > workspace (zero matches as of 2026-06-26). E-QUERY-039 appears only as a doc table row in
 > resources.rs. PR #203 did NOT implement this variant. This AC creates the variant, struct,
-> gate, and MCP mapping from scratch per BC-2.11.019 v1.5. BC-2.11.019 promotes draft→active
+> gate, and MCP mapping from scratch per BC-2.11.019 v1.6. BC-2.11.019 promotes draft→active
 > at merge (POL-14).
 >
 > **NO NEW PUBLIC API on `InfusionRegistry`** (I1 correction v1.2): Do NOT add a `udf_names()`
@@ -447,21 +450,21 @@ callable fn forms (the N1 regression guard).
 > doc block: "Reference: S-3.13 AC-2; BC-2.11.001; error-taxonomy.md E-QUERY-037"). No change
 > needed to that arm. ONLY the `EnrichUdfNotFound` arm (E-QUERY-039) is net-new.
 
-**AC-N1B** (traces to BC-2.11.019 v1.5 postconditions — EnrichUdfNotFound variant shape,
+**AC-N1B** (traces to BC-2.11.019 v1.6 postconditions — EnrichUdfNotFound variant shape,
 gate firing condition for pipe-mode `EnrichStage.infusion` NOT in
 `InfusionRegistry.udf_to_infusion`, and SQL-mode `ScalarFunc::Unknown` gate (with DataFusion
 built-in exclusion per F-PJL1-HIGH-001), and MCP -32602 mapping):
 
-> **Gate-ordering note (BC-2.11.019 v1.5):** E-QUERY-039 fires LAST in the plan-time gate
+> **Gate-ordering note (BC-2.11.019 v1.6):** E-QUERY-039 fires LAST in the plan-time gate
 > sequence. The full ordered sequence is: E-QUERY-001 (parse error) → E-QUERY-037 (table
 > availability, `check_availability_gate`) → E-QUERY-038 (column gate) → E-QUERY-039 (enrichment
 > UDF not found, this gate). A query with both a dot-notation FROM target AND an invalid
 > enrichment name returns E-QUERY-037, NOT E-QUERY-039 — the table gate fires first.
 >
-> **WHERE-clause note (BC-2.11.019 v1.5 §Precondition 1(b)):** SQL-mode enrichment-validation
+> **WHERE-clause note (BC-2.11.019 v1.6 §Precondition 1(b)):** SQL-mode enrichment-validation
 > gates `ScalarFunc::Unknown(name)` in SELECT PROJECTION expressions — this is the reachable,
 > real-query path. The WHERE-predicate scan via `collect_unknown_scalar_from_predicate` is
-> DEFENSIVE / forward-compatible coverage: it honors BC-2.11.019 v1.5 §Precondition 1(b)'s
+> DEFENSIVE / forward-compatible coverage: it honors BC-2.11.019 v1.6 §Precondition 1(b)'s
 > AST-contract ("a WHERE clause containing FuncCall::Scalar{...} must be gated at plan time"),
 > but a real SQL query `WHERE udf(col) = v` is currently an **E-QUERY-001 parse error** —
 > `build_predicate_parser` (the WHERE grammar, `comparison` atom) parses
@@ -478,7 +481,7 @@ built-in exclusion per F-PJL1-HIGH-001), and MCP -32602 mapping):
 **Step 1 — Create the error type** (in `crates/prism-core/src/error.rs`):
 - Add variant `EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>)` to `PrismError`.
 - Add `#[non_exhaustive]` struct `EnrichUdfNotFoundDetails { pub infusion: String, pub available_infusions: Vec<String>, pub did_you_mean: Option<String> }`.
-  - `available_infusions` is `Vec<String>` (canonical type per BC-2.11.019 v1.5; PO-ratified).
+  - `available_infusions` is `Vec<String>` (canonical type per BC-2.11.019 v1.6; PO-ratified).
 - Both type and variant MUST carry `#[non_exhaustive]`. Increment `ci.yml EXPECTED` 87→88. Update `CLAUDE.md` non-exhaustive sentence + attribution list in the same atomic commit.
 
 **Step 2 — Add plan-time enrichment gate** (in `crates/prism-query/src/engine.rs`) (I2 anchor v1.3):
@@ -488,7 +491,7 @@ BEFORE `check_availability_gate`/fan-out. This pass uses a direct `match &ast { 
 enrichment function names from BOTH query paths and validates each against the registered
 UDF name set (derived from `registry.udf_descriptors()`):
 - **Pipe path** — match arm collects `EnrichStage.infusion` values from `PipeStage::Enrich` nodes.
-- **SQL path** — match arm collects `ScalarFunc::Unknown(name)` values from SELECT projection expressions (reachable from real queries via `build_sql_expr_parser`) AND from WHERE clause predicates via `collect_unknown_scalar_from_predicate` (DEFENSIVE / forward-compat coverage per BC-2.11.019 v1.5 §Precondition 1(b) AST-contract; see WHERE-clause note above — a real `WHERE udf(col) = v` is an E-QUERY-001 parse error today; the WHERE scan is exercised by programmatic AST unit tests, not real parsed query text). **DataFusion built-in exclusion (v1.5 F-PJL1-HIGH-001):** for SQL-mode, the gate fires ONLY when `name` is NEITHER a DataFusion built-in (check `ctx.state().scalar_functions().get(name)`) NOR a registered infusion. Names like `lower`, `upper`, `coalesce` that DataFusion can resolve must pass the gate without E-QUERY-039.
+- **SQL path** — match arm collects `ScalarFunc::Unknown(name)` values from SELECT projection expressions (reachable from real queries via `build_sql_expr_parser`) AND from WHERE clause predicates via `collect_unknown_scalar_from_predicate` (DEFENSIVE / forward-compat coverage per BC-2.11.019 v1.6 §Precondition 1(b) AST-contract; see WHERE-clause note above — a real `WHERE udf(col) = v` is an E-QUERY-001 parse error today; the WHERE scan is exercised by programmatic AST unit tests, not real parsed query text). **DataFusion built-in exclusion (v1.6 F-PJL1-HIGH-001):** for SQL-mode, the gate fires ONLY when `name` is NEITHER a DataFusion built-in (check `ctx.state().scalar_functions().get(name)`, `ctx.state().aggregate_functions().get(name)`, or `ctx.state().window_functions().get(name)`) NOR a registered infusion. Names like `lower`, `upper`, `coalesce` (scalar), `stddev`, `median`, `array_agg` (aggregate), or `row_number`, `rank` (window) that DataFusion can resolve in ANY registry must pass the gate without E-QUERY-039.
 
 Both collection paths are DISTINCT match arms but feed the same validation loop and the same
 `EnrichUdfNotFound` error type. For each collected name: if `name` is NOT a key in
@@ -506,7 +509,7 @@ Gate ordering: this enrichment-validation pass runs AFTER the table availability
 
 **Step 3 — Add MCP mapping** (in `crates/prism-mcp/src/error_mapping.rs`):
 - Add an explicit arm for `PrismError::EnrichUdfNotFound(d)` in `map_prism_error` that returns
-  `(codes::INVALID_PARAMS, ...)` with the canonical Display message format (BC-2.11.019 v1.5):
+  `(codes::INVALID_PARAMS, ...)` with the canonical Display message format (BC-2.11.019 v1.6):
   ```
   E-QUERY-039: enrichment infusion '{infusion}' is not registered; available: [{available_infusions}]{did_you_mean}
   ```
@@ -520,22 +523,32 @@ Gate ordering: this enrichment-validation pass runs AFTER the table availability
 
 **Observable behavior**: A pipe-mode query `FROM cyberint_alerts | enrich threat_intel(iocs_value)` where `threat_intel` is an infusion_id (not a per-field UDF name) and therefore NOT a key in `InfusionRegistry.udf_to_infusion`, returns `PrismError::EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>)` at plan time, surfaced as MCP `-32602 INVALID_PARAMS` with `code: "E-QUERY-039"`. It MUST NOT return `E-INT-001` "Internal error; see audit log". The `available_infusions: Vec<String>` field MUST list the registered per-field UDF names (e.g., `threat_score`, `threat_is_known_malicious`, `threat_sources`, ...). A `did_you_mean` suggestion is present IF any registered UDF name is within Levenshtein distance 3 of the queried name; `None` is a valid outcome when no registered name is within distance 3 (e.g., `"threat_intel"` vs per-field names like `"threat_score"` may exceed distance 3). The same gate applies to a SQL-mode `ScalarFunc::Unknown("nvd")` in a SELECT projection: it returns E-QUERY-039, NOT E-INT-001.
 
-> **DataFusion built-in exclusion note (BC-2.11.019 v1.5 §F-PJL1-HIGH-001):** A SQL-mode query
+> **DataFusion built-in exclusion note (BC-2.11.019 v1.6 §F-PJL1-HIGH-001):** A SQL-mode query
 > `SELECT lower(hostname) FROM crowdstrike_detections` with the infusion registry wired MUST NOT
 > return E-QUERY-039. `lower` is a DataFusion built-in scalar function resolvable via
 > `ctx.state().scalar_functions().get("lower")`; it satisfies the DataFusion built-in exclusion
 > condition (b) of the three-part firing condition and passes the gate. The query proceeds to
-> DataFusion execution where `lower(hostname)` resolves normally. The same applies to `upper`,
-> `coalesce`, `date_trunc`, `concat`, `length`, and all other functions registered in the
-> DataFusion default `SessionContext` — see EC-11-064 and EC-11-065 in BC-2.11.019 v1.5.
-> The AUDIT-005 reproducer (`SELECT cvss(device_cves_first) FROM armis_devices`) is unaffected:
-> `cvss` is not a DataFusion built-in, so E-QUERY-039 still fires for unregistered non-builtin names.
-> **Implementation requirement:** the exclusion check MUST exclude DataFusion built-in scalars by
-> querying DataFusion's runtime-derived default scalar-function set
-> (`SessionStateDefaults::default_scalar_functions()`, or the equivalent `ctx.state().scalar_functions()`),
-> NOT a hard-coded allowlist. New tests for EC-11-064/065:
-> `test_bc_2_11_019_n1b_builtin_passthrough_lower` and
-> `test_bc_2_11_019_n1b_builtin_passthrough_coalesce` in `bc_2_11_019_n1b_test.rs`.
+> DataFusion execution where `lower(hostname)` resolves normally. The same exclusion applies to
+> DataFusion built-in **aggregate** functions (e.g., `stddev`, `median`, `variance`, `array_agg` —
+> resolvable via `ctx.state().aggregate_functions()`) and built-in **window** functions (e.g.,
+> `row_number`, `rank` — resolvable via `ctx.state().window_functions()`). Any `ScalarFunc::Unknown`
+> name that resolves in ANY of the three DataFusion function registries (scalar, aggregate, or window)
+> passes the gate without E-QUERY-039. The AUDIT-005 reproducer
+> (`SELECT cvss(device_cves_first) FROM armis_devices`) is unaffected: `cvss` is not a DataFusion
+> built-in in any registry, so E-QUERY-039 still fires for unregistered non-builtin names.
+> The pipe-mode `| enrich <name>(...)` path does NOT use this exclusion — pipe-mode fires E-QUERY-039
+> for any `EnrichStage.infusion` name not in `InfusionRegistry.udf_to_infusion`, regardless of
+> DataFusion registries. See EC-11-064, EC-11-065 (scalar examples), EC-11-066 (aggregate),
+> EC-11-067 (window) in BC-2.11.019 v1.6.
+> **Implementation requirement:** the exclusion check MUST exclude DataFusion built-in functions
+> (scalar, aggregate, and window) by querying all three of DataFusion's runtime-derived function
+> registries: `scalar_functions()` (or `SessionStateDefaults::default_scalar_functions()`),
+> `aggregate_functions()` (or `SessionStateDefaults::default_aggregate_functions()`), and
+> `window_functions()` (or `SessionStateDefaults::default_window_functions()`), NOT a hard-coded
+> allowlist. New tests for EC-11-064/065: `test_bc_2_11_019_n1b_builtin_passthrough_lower` and
+> `test_bc_2_11_019_n1b_builtin_passthrough_coalesce` in `bc_2_11_019_n1b_test.rs`. New tests
+> for EC-11-066/067: `test_bc_2_11_019_n1b_builtin_passthrough_stddev` (aggregate) and
+> `test_bc_2_11_019_n1b_builtin_passthrough_row_number` (window) in `bc_2_11_019_n1b_test.rs`.
 
 **Red Gate tests:**
 
@@ -560,11 +573,30 @@ SQL-mode query `SELECT lower(hostname) FROM crowdstrike_detections` with the inf
 wired and `lower` NOT registered as an infusion; assert the result is `Ok(...)` (E-QUERY-039
 does NOT fire); assert the result is NOT `Err(PrismError::EnrichUdfNotFound(_))`. This guards
 the F-PJL1-HIGH-001 regression: DataFusion built-in `lower` must pass the gate (BC-2.11.019
-v1.5 EC-11-064).
+v1.6 EC-11-064).
 
 `test_bc_2_11_019_n1b_builtin_passthrough_coalesce` — same as above but for
 `SELECT upper(device_name), coalesce(severity, 'unknown') FROM armis_devices`; assert neither
-`upper` nor `coalesce` trigger E-QUERY-039 (BC-2.11.019 v1.5 EC-11-065).
+`upper` nor `coalesce` trigger E-QUERY-039 (BC-2.11.019 v1.6 EC-11-065).
+
+`test_bc_2_11_019_n1b_builtin_passthrough_stddev` — execute a plan-time validation with a
+SQL-mode query `SELECT stddev(latency) FROM crowdstrike_detections` with the infusion registry
+wired and `stddev` NOT registered as an infusion; assert the result is `Ok(...)` (E-QUERY-039
+does NOT fire); assert the result is NOT `Err(PrismError::EnrichUdfNotFound(_))`. This guards
+the F1-HIGH DataFusion aggregate built-in exclusion: `stddev` is a DataFusion built-in aggregate
+function resolvable via `ctx.state().aggregate_functions()` and must pass the gate (BC-2.11.019
+v1.6 EC-11-066). The same check applies to `median`, `variance`, `array_agg`, and any other
+DataFusion aggregate built-in. SQL-mode only — pipe-mode `| enrich stddev(col)` still fires
+E-QUERY-039 if `stddev` is not a registered infusion.
+
+`test_bc_2_11_019_n1b_builtin_passthrough_row_number` — execute a plan-time validation with a
+SQL-mode query that includes `row_number()` as a `ScalarFunc::Unknown` node with the infusion
+registry wired and `row_number` NOT registered as an infusion; assert the result is `Ok(...)`
+(E-QUERY-039 does NOT fire); assert the result is NOT `Err(PrismError::EnrichUdfNotFound(_))`.
+This guards the F1-HIGH DataFusion window built-in exclusion: `row_number` is a DataFusion
+built-in window function resolvable via `ctx.state().window_functions()` and must pass the gate
+(BC-2.11.019 v1.6 EC-11-067). The same check applies to `rank`, `dense_rank`, `lead`, `lag`,
+and other DataFusion window built-ins. SQL-mode only — pipe-mode still fires E-QUERY-039.
 
 ---
 
@@ -776,7 +808,7 @@ is the per-field-UDF-parity guard.
 
 ### Area F — Gate Coverage: Enrich Gate at All AST Positions (C1/C2)
 
-**AC-C1C2** (traces to BC-2.11.019 v1.5 postcondition — gate covers all scalar-expr positions):
+**AC-C1C2** (traces to BC-2.11.019 v1.6 postcondition — gate covers all scalar-expr positions):
 `collect_unknown_scalars_from_sql_query` walks ALL scalar-expression positions in a `SqlQuery`:
 SELECT projections, WHERE predicate, JOIN ON conditions (typed as `Expr` in the AST), GROUP BY
 expressions, ORDER BY expressions, and HAVING predicate. For both `Ast::Sql(Select)` and
@@ -1144,7 +1176,7 @@ create files, sub-burst B: update indexes).
        the full visitor infrastructure) — (a) pipe path: `PipeStage::Enrich` nodes → `EnrichStage.infusion`;
        (b) SQL path: `ScalarFunc::Unknown(name)` in SELECT projection expressions (reachable
        from real queries) AND WHERE predicates via `collect_unknown_scalar_from_predicate`
-       (DEFENSIVE / forward-compat per BC-2.11.019 v1.5 §Precondition 1(b) AST-contract;
+       (DEFENSIVE / forward-compat per BC-2.11.019 v1.6 §Precondition 1(b) AST-contract;
        real `WHERE udf(col)=v` is E-QUERY-001 parse error today; WHERE scan is exercised by
        programmatic AST unit tests, not real parsed query text); these are DISTINCT match
        arms but feed the same validation loop. For each collected `name`: if NOT in
@@ -1282,7 +1314,7 @@ create files, sub-burst B: update indexes).
 5. **E-QUERY-039 (N1-B) is NET-NEW, not an investigation.** A 2026-06-26 remove-uncertainty
    pass confirmed that `PrismError::EnrichUdfNotFound` and `EnrichUdfNotFoundDetails` have
    ZERO workspace matches — the variant, struct, plan-time gate, and MCP mapping all need to
-   be created from scratch per BC-2.11.019 v1.5. The original remediation plan framed this as
+   be created from scratch per BC-2.11.019 v1.6. The original remediation plan framed this as
    a "gate should fire / routing fix" but that was based on the incorrect assumption that PR
    #203 implemented E-QUERY-039. It did not. The implementer MUST create the error type first
    (error.rs), then the gate (prism-query/engine.rs), then the MCP mapping (error_mapping.rs),
@@ -1479,10 +1511,12 @@ capture evidence of the fixed MCP tool output and prompt rendering as per AC-DEM
 | EC-013 | H1: Query in execute_scheduled_inner with both unknown table and capability violation — first error is E-QUERY-037 (table), not E-QUERY-011 (capability) | Gate ordering symmetric with execute_inner: table gate fires first. This is the canonical first-error ordering. |
 | EC-014 | M1: Single-tenant column gate for table with NO columns in spec | `columns_for_table` returns empty `Vec` → column gate skips that table (fail-open). No false E-QUERY-038 for tables without column metadata in the spec. |
 | EC-015 | AUDIT-001: No datetime column in table spec → column-free example_query (when also no Integer/Float column) | `build_example_query` produces `SELECT * FROM <t> LIMIT 25` (not `WHERE timestamp > ...`). This is the lowest-priority fallback in the variant ladder: aggregate (Integer/Float) → severity-filter (severity + known vocabulary) → count-recent (Datetime) → column-free (fallback). Test: `test_crit1_no_datetime_column_produces_column_free_query`. |
-| EC-016 | N1-B (BC-2.11.019 v1.5 EC-11-064): `SELECT lower(hostname) FROM crowdstrike_detections` with infusion registry wired but `lower` not registered as an infusion | E-QUERY-039 does NOT fire. `lower` is a DataFusion built-in scalar resolved via `ctx.state().scalar_functions()`; it satisfies built-in exclusion condition (b). Query proceeds to DataFusion execution. Test: `test_bc_2_11_019_n1b_builtin_passthrough_lower`. |
-| EC-017 | N1-B (BC-2.11.019 v1.5 EC-11-065): `SELECT upper(device_name), coalesce(severity, 'unknown') FROM armis_devices` with infusion registry wired | E-QUERY-039 does NOT fire for `upper` or `coalesce` — both are DataFusion built-ins excluded from the gate. Query proceeds normally. Test: `test_bc_2_11_019_n1b_builtin_passthrough_coalesce`. |
+| EC-016 | N1-B (BC-2.11.019 v1.6 EC-11-064): `SELECT lower(hostname) FROM crowdstrike_detections` with infusion registry wired but `lower` not registered as an infusion | E-QUERY-039 does NOT fire. `lower` is a DataFusion built-in scalar resolved via `ctx.state().scalar_functions()`; it satisfies built-in exclusion condition (b). Query proceeds to DataFusion execution. Test: `test_bc_2_11_019_n1b_builtin_passthrough_lower`. |
+| EC-017 | N1-B (BC-2.11.019 v1.6 EC-11-065): `SELECT upper(device_name), coalesce(severity, 'unknown') FROM armis_devices` with infusion registry wired | E-QUERY-039 does NOT fire for `upper` or `coalesce` — both are DataFusion built-in scalars excluded from the gate. Query proceeds normally. Test: `test_bc_2_11_019_n1b_builtin_passthrough_coalesce`. |
 | EC-018 | TLS-REMEDIATION: macOS native-tls/Security.framework Keychain init overhead (~65s) under nextest full-suite parallel load | Resolved by rustls-tls standardization (commit cf66151f). With rustls-tls, init is ~0ms → ~800x margin over the 50s stage-0 window. DTU stage-0 tests no longer time out deterministically. This was NOT flakiness — it was a deterministic failure masked as a random one because parallel test scheduling varied which binary crossed the threshold. |
 | EC-019 | TLS-REMEDIATION: production reqwest deps in prism-bin/prism-spec-engine/prism-sensors were ALREADY rustls-tls before this fix | Production code path is unaffected. Only `[dev-dependencies]` (test binaries) and the optional build-tool dep in ocsf-proto-gen changed. Security posture unchanged — confirmed by security review APPROVE on commit cf66151f. |
+| EC-020 | N1-B (BC-2.11.019 v1.6 EC-11-066): `SELECT stddev(latency) FROM crowdstrike_detections` with infusion registry wired but `stddev` not registered as an infusion | E-QUERY-039 does NOT fire. `stddev` is a DataFusion built-in **aggregate** function resolved via `ctx.state().aggregate_functions()`; it satisfies the built-in exclusion condition (b). The same applies to `median`, `variance`, `array_agg`, and other DataFusion aggregate built-ins. Query proceeds to DataFusion execution. SQL-mode exclusion only — pipe-mode `| enrich stddev(col)` still fires E-QUERY-039 if `stddev` is not a registered infusion. Test: `test_bc_2_11_019_n1b_builtin_passthrough_stddev`. |
+| EC-021 | N1-B (BC-2.11.019 v1.6 EC-11-067): SQL-mode query with `row_number()` appearing as `ScalarFunc::Unknown` with infusion registry wired but `row_number` not registered as an infusion | E-QUERY-039 does NOT fire. `row_number` is a DataFusion built-in **window** function resolved via `ctx.state().window_functions()`; it satisfies the built-in exclusion condition (b). The same applies to `rank`, `dense_rank`, `lead`, `lag`, and other DataFusion window built-ins. SQL-mode exclusion only — pipe-mode still fires E-QUERY-039 for unregistered names. Test: `test_bc_2_11_019_n1b_builtin_passthrough_row_number`. |
 
 ---
 
@@ -1494,7 +1528,7 @@ Root causes are all confirmed, code paths are known, and BCs are in place. The i
 spans the original 5 findings, 6 gate-coverage fixes found during LOCAL adversarial passes,
 and the TLS-REMEDIATION fold-in (commit cf66151f):
 - N1: one-line dedup key change in `build_reference_content` + test
-- N1-B: net-new error type (error.rs) + `collect_unknown_scalars_from_sql_query` + `check_enrich_udf_availability` in engine.rs covering ALL AST positions (SELECT, WHERE, JOIN ON, GROUP BY, ORDER BY, HAVING) for both Sql and SqlPipe; map_prism_error -32602 arm; sorted+deduped available_infusions; strsim did_you_mean; DataFusion built-in exclusion (BC-2.11.019 v1.5 F-PJL1-HIGH-001); + 19 new tests (15 original + 2 builtin_passthrough EC-11-064/065 + 2 F-PJL mid-cascade F-PJL1/F-PJL4)
+- N1-B: net-new error type (error.rs) + `collect_unknown_scalars_from_sql_query` + `check_enrich_udf_availability` in engine.rs covering ALL AST positions (SELECT, WHERE, JOIN ON, GROUP BY, ORDER BY, HAVING) for both Sql and SqlPipe; map_prism_error -32602 arm; sorted+deduped available_infusions; strsim did_you_mean; DataFusion built-in exclusion (BC-2.11.019 v1.6 F-PJL1-HIGH-001: scalar+aggregate+window via scalar_functions(), aggregate_functions(), window_functions()); + 21 new tests (15 original + 2 builtin_passthrough scalar EC-11-064/065 + 2 F-PJL mid-cascade F-PJL1/F-PJL4 + 2 builtin_passthrough aggregate/window EC-11-066/067)
 - N2: gate ordering fix in `check_availability_gate` (table_registry.rs) with SqlPipe-not-exempt scope; 4 new N2 tests
 - AUDIT-001: sensor-prefixed names on both tenant code paths; `build_example_query` datetime column derivation from spec (CRIT-1 fix); 3 new tests
 - AUDIT-004: FROM-ready names in 4 `render_*` functions (not 5 — `render_query_tutorial` was clean); prompt VALUES aligned to DTU vocabulary (MED-1); `all-FROM-resolve` guard; 5 new tests
@@ -1508,6 +1542,7 @@ and the TLS-REMEDIATION fold-in (commit cf66151f):
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.17 | bc-2.11.019-v1.6-propagation-2026-07-02 | 2026-07-02 | story-writer | **BC-2.11.019 v1.5→v1.6 cite propagation + F1 aggregate/window DataFusion built-in exclusion expansion.** PO amended BC-2.11.019 v1.5→v1.6 (F1 HIGH fix: E-QUERY-039 enrich gate's DataFusion built-in exclusion corrected from SCALAR-ONLY to SCALAR + AGGREGATE + WINDOW — DataFusion built-in aggregate/window functions that parse as `ScalarFunc::Unknown` in SQL-mode must pass the gate via `aggregate_functions()` and `window_functions()` registries in addition to `scalar_functions()`; pipe-mode `\| enrich <name>(...)` still fires E-QUERY-039 for unregistered names regardless of DataFusion registries). **Version cite sweep (POLICY 23):** all live (non-changelog) `BC-2.11.019 v1.5` cites updated to `v1.6`. **Functional story changes:** (1) Step 2 SQL path bullet: exclusion check expanded to all three registries with aggregate/window examples (`stddev`, `median`, `array_agg`, `row_number`, `rank`); (2) DataFusion built-in exclusion note blockquote broadened from scalar-only to scalar+aggregate+window, pipe-mode-still-fires distinction made explicit, EC-11-066/067 references added; (3) Implementation requirement expanded to cover all three registry APIs including `default_aggregate_functions()` and `default_window_functions()`; (4) New edge cases EC-020 (EC-11-066: aggregate built-in `stddev`/`median` passes gate) and EC-021 (EC-11-067: window built-in `row_number`/`rank` passes gate); (5) Two new Red Gate test paragraphs: `test_bc_2_11_019_n1b_builtin_passthrough_stddev` and `test_bc_2_11_019_n1b_builtin_passthrough_row_number`; (6) `red_gate_tests` 52→54; (7) Frontmatter inventory: 2 new tests added under built-in passthrough section. |
 | 2.16 | obs-2-mechanism-description-reconcile-2026-07-02 | 2026-07-02 | story-writer | **OBS-2 mechanism-description reconciliation.** Story over-specified the E-QUERY-039 enrichment gate as using the AST `visit::Visitor` trait. The implementation (engine.rs:1625-1676) deliberately uses a direct `match &ast { ... }` traversal instead, with documented rationale: "avoids coupling with the full visitor infrastructure." Observable behavior is identical and BC-2.11.019 is unaffected — only the story's prose was wrong. Three sites updated: (1) **Frontmatter subsystem anchor comment (SS-11 N1-B line):** `(AST visitor, pipe EnrichStage +` → `(direct match, pipe EnrichStage +`. (2) **Step 2 body (~lines 486-492):** opening sentence `"This pass uses the AST \`visit::Visitor\` to collect"` → `"This pass uses a direct \`match &ast { ... }\` traversal (not the \`visit::Visitor\` trait — avoids coupling with the full visitor infrastructure) to collect"`; pipe/SQL path bullets `"visitor arm"` → `"match arm"`; `"DISTINCT visitor arms but feed"` → `"DISTINCT match arms but feed"`. (3) **Tasks step 6 (~lines 1141-1148):** `"use AST \`visit::Visitor\` to collect"` → `"collect via direct \`match &ast { ... }\` (not the \`visit::Visitor\` trait — avoids coupling with the full visitor infrastructure)"`; `"DISTINCT visitor arms"` → `"DISTINCT match arms"`. BC-2.11.019 not touched — behavioral contract is spec-compliant and unaffected. |
 | 2.15 | tls-remediation-fold-2026-07-02 | 2026-07-02 | story-writer | **TLS-REMEDIATION fold-in (commit cf66151f) + root cause correction.** (1) **AC-TLS added (Area L):** documents the native-tls → rustls-tls standardization across 11 Cargo.toml entries (9 DTU `[dev-dependencies]`, prism-bin `[dev-dependencies]`, ocsf-proto-gen optional download-feature `[dependencies]`); 4 DTU integration tests un-quarantined (removed `#[ignore]`): `test_BC_2_06_019_armis_primary_device_stage_visibility`, `test_BPRL_P4_02_armis_alerts_stage_guard_primary_device`, `test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility` (prism-dtu-armis), `test_BPRL_P4_02_detections_stage_guard_primary_device` (prism-dtu-crowdstrike); 7 stop() resource-cleanup calls added in prism-dtu-claroty `sec_p3_003_constant_time_admin_token.rs`. (2) **Root cause corrected:** prior misdiagnosis "WASMtime plugin-init starvation" replaced with the REAL root cause: macOS native-tls/Security.framework Keychain init (~65s/process) exceeding the 50s stage-0 window under nextest parallel load — a DETERMINISTIC failure, not flakiness. (3) **Frontmatter updates:** `version` 2.14→2.15; `updated` 2026-06-29→2026-07-02; `subsystems` [SS-10, SS-11]→[SS-01, SS-10, SS-11, SS-22] (SS-01 for 9 DTU crates; SS-22 for prism-bin); `points` 10→11 (+1pt TLS-REMEDIATION); `estimated_days` 2→2.5 (+0.5d); `acceptance_criteria_count` 16→17 (+AC-TLS); `crates_touched` adds 9 DTU crates + prism-bin + ocsf-proto-gen (11 entries). (4) **No BC authorship:** BC-2.06.019 behavior is unchanged — the tests simply run now. ADR/BC recommendation for rustls-tls convention flagged to orchestrator for routing to architect. |
 | 2.14 | cat2-ac-adv-p208-p02-fold-2026-06-29 | 2026-06-29 | story-writer | **AC-CAT2 add + ADV-P208-P02-001 close + ADV-P208-P02-002 close.** (1) **AC-CAT2 (BC-2.10.012 v1.7 §pql_hints Category-2):** `build_pql_hints` gains 4th param `infusion_registry: Option<&prism_spec_engine::InfusionRegistry>`; `pql_hints[2]` = enrichment-presence hint when tables non-empty (sorted UDFs as `<name>(<input_field>)`, byte-exact format); absent hint when `None`/empty registry; Category-2 suppressed when tables empty. `InfusionUdfDescriptor` gains `pub input_field: String`; `new()` gains this param; `udf_descriptors()` propagates `field.input_field.clone()`; ~10 prism-query `new()` callers updated (TD-VSDD-060). `handle_prism_describe` wired via `query_engine.and_then(|qe| qe.infusion_registry()).as_deref()` (ADR-022 §C). 3 new Red Gate tests in `bc_2_10_012_audit_001_test.rs`. `red_gate_tests` 49→52. `prism-spec-engine` added to `crates_touched`. (2) **ADV-P208-P02-001 close (MED, Category-1):** Deferred-items table row 1 ("BC-2.10.012 §pql_hints Category-1 hint-text divergence — PO adjudication required") removed. Resolved spec-only by PO via BC-2.10.012 v1.6→v1.7. Category-2 implemented in-scope; row is no longer deferred. Row 2 (S-QUERY-GATE-REPARSE-CONSOLIDATION-001) unchanged. (3) **ADV-P208-P02-002 close (LOW, AC count drift):** `acceptance_criteria_count` 17→16 (honest body count: 15 pre-v2.14 discrete `**AC-XXX**` headers + 1 new AC-CAT2 = 16). CRIT-1 is a folded sub-behavior within AC-AUDIT-001, not a standalone `**AC-CRIT1**` header; SqlPipe/did_you_mean are folded into AC-N1B/AC-N2/AC-C1C2. Frontmatter count comment rewritten with explicit enumeration. (4) **BC-2.10.012 v1.5→v1.7** in body BC table, AC-AUDIT-001 trace, frontmatter BC status comment, and points breakdown comment. |
