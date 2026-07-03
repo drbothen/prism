@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.119"
+version: "8.120"
 producer: state-manager
-timestamp: 2026-07-03T08:00:00Z
+timestamp: 2026-07-03T09:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -24,7 +24,7 @@ develop_head: "aaa9bfe8"
 # NOTE-CORRECTION D-1435: "TEST-SPEED INITIATIVE COMPLETE" + "full nextest ~86.4s" are FALSE IN PRACTICE. Real full-workspace `just check` is ~30+ min: 5 prism-spec-engine WASMtime binaries (plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests) run UNCAPPED in nextest; wasmtime::Engine::new() (LLVM JIT init) costs ~120-143s per binary under full-suite concurrency → ~28 pre-existing TMT failures. S-PERF-GATE-001..005 fixed DTU oversubscription + clone graceful-shutdown only; did NOT touch spec-engine WASMtime binaries. Initiative INCOMPLETE / SUPERSEDED by T-PERF-PROFILE (D-1435).
 bc_index_version: "7.28"
 vp_index_version: "1.80"
-story_index_version: "v2.575"
+story_index_version: "v2.576"
 arch_index_version: "2.156"
 error_taxonomy_version: "2.05"
 total_stories: 226
@@ -40,7 +40,7 @@ workspace_test_count: 4978  # NOTE: develop@aaa9bfe8 baseline — 4978 passed (4
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "PR #208 F-P208-ADR050-ANCHOR (MED) FIXED — story v2.20→v2.21 + ADR-050 v1.1 + ARCH-INDEX v2.156 (D-1506). PR-LEVEL re-gate found F-P208-ADR050-ANCHOR (MED): story omitted governing ADR-050 (authored for it) + retained stale 'no ADR authored / route if warranted' blockquote contradicting the now-ACCEPTED ADR. FIXED: story v2.21 (ADR-050 cited in AC-TLS + §References; stale blockquote replaced with ACCEPTED ADR-050 reference) + ADR-050 v1.0→v1.1 (§Pre-Fix State corrected: prism-spec-engine/prism-sensors are production-only reqwest already-rustls, not dev-deps; prism-ocsf confirmed already correct) + ARCH-INDEX v2.155→v2.156 (ADR-050 row ACCEPTED v1.1; changelog 2.156). CODE HEAD 0dbe81f6 UNCHANGED (CI green; spec-only fix). develop_head UNCHANGED aaa9bfe8. story status UNCHANGED draft. PR-LEVEL 3-CLEAN streak 0/3. NEXT: PR-LEVEL 3-CLEAN re-gate on frozen 0dbe81f6 + story v2.21 (no re-CI; code unchanged) → pr-reviewer APPROVE → user-auth merge → post-merge."
+current_step: "PR #208 F-P208-BC21012-VER-DRIFT-001 (LOW) FIXED via EXHAUSTIVE version-pin sweep — story v2.21→v2.22 (D-1507). PR-LEVEL re-gate pass 1 @0dbe81f6 found F-P208-BC21012-VER-DRIFT-001 (LOW): stale BC-2.10.012 v1.5 pin in subsystems anchor comment (line 32). FIXED: exhaustive version-pin sweep run — line-32 v1.5→v1.7 (1 live stale pin); full reconciliation confirmed all other BC/ADR/taxonomy citations canonical-correct or legitimately historical; version-pin defect class zeroed. CODE HEAD 0dbe81f6 UNCHANGED (CI green; story-only fix). develop_head UNCHANGED aaa9bfe8. story status UNCHANGED draft. PR-LEVEL 3-CLEAN streak 0/3. NEXT: PR-LEVEL 3-CLEAN re-gate on frozen 0dbe81f6 + story v2.22 (no re-CI; code unchanged) → pr-reviewer APPROVE → user-auth merge → post-merge."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -72,14 +72,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1506."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1507."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-03 (D-1506 — PR #208 F-P208-ADR050-ANCHOR (MED) fixed: story v2.20→v2.21 (ADR-050 cited; stale prose removed) + ADR-050 v1.1 (§Pre-Fix State correction) + ARCH-INDEX v2.155→v2.156; CODE HEAD 0dbe81f6 UNCHANGED; STORY-INDEX v2.574→v2.575; STATE v8.118→v8.119)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-03 (D-1507 — PR #208 F-P208-BC21012-VER-DRIFT-001 (LOW) fixed via exhaustive version-pin sweep: story v2.21→v2.22 (line-32 BC-2.10.012 v1.5→v1.7; all other pins verified canonical or legitimately historical; defect class zeroed); CODE HEAD 0dbe81f6 UNCHANGED; STORY-INDEX v2.575→v2.576; STATE v8.119→v8.120)
 
 ## Active Objective (North Star)
 
@@ -223,6 +223,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1507 | state-manager | PR #208 F-P208-BC21012-VER-DRIFT-001 (LOW) FIXED via exhaustive version-pin sweep — story v2.21→v2.22 (D-1507 2026-07-03): PR-LEVEL re-gate pass 1 @0dbe81f6 found F-P208-BC21012-VER-DRIFT-001 (LOW): stale BC-2.10.012 v1.5 pin in subsystems anchor comment at story line 32. FIXED: exhaustive version-pin sweep across all BC/ADR/error-taxonomy citations in the story — 1 live stale pin corrected (line-32 v1.5→v1.7); full reconciliation table confirms all other citations canonical-correct (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.11.019 v1.6, BC-2.10.016 v1.2, BC-2.11.016 v1.5, BC-2.11.007 v1.9, BC-2.06.019 v1.15, BC-2.16.002 §-anchor, ADR-050 v1.1, error-taxonomy v2.05) or legitimately historical (§Changelog rows exempt per TD-VSDD-091). Version-pin defect class zeroed — to break the recurring one-stale-pin-per-pass loop. CODE HEAD 0dbe81f6 UNCHANGED; CI green; story-only fix. develop_head UNCHANGED aaa9bfe8. story UNCHANGED draft. STORY-INDEX v2.575→v2.576. STATE v8.119→v8.120. | wave-5-e-demo-fidelity | 2026-07-03 |
 | D-1506 | state-manager | PR #208 F-P208-ADR050-ANCHOR (MED) FIXED story-side — story v2.20→v2.21 + ADR-050 v1.1 + ARCH-INDEX v2.156 (D-1506 2026-07-03): PR-LEVEL re-gate found F-P208-ADR050-ANCHOR (MED): story omitted governing ADR-050 (authored for it) + retained stale "no ADR authored / route if warranted" blockquote contradicting the now-ACCEPTED ADR. FIXED: story v2.21 (ADR-050 cited in AC-TLS + §References; stale blockquote replaced with ACCEPTED ADR-050 reference; changelog row added). ADR-050 v1.0→v1.1 (§Pre-Fix State corrected: prism-spec-engine/prism-sensors are production-only reqwest already-rustls, not dev-deps; prism-ocsf confirmed in already-correct group). ARCH-INDEX v2.155→v2.156 (ADR-050 ACCEPTED v1.0→v1.1; changelog 2.156 added). CODE HEAD 0dbe81f6 UNCHANGED; CI green; spec-only fix. develop_head UNCHANGED aaa9bfe8. story UNCHANGED draft. STORY-INDEX v2.574→v2.575. STATE v8.118→v8.119. | wave-5-e-demo-fidelity | 2026-07-03 |
 | D-1505 | state-manager | PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) consistency-audit hygiene fixes complete (D-1505 2026-07-03): fresh-context consistency-validator audit of story v2.19 surfaced 5 spec-hygiene defects. (1 MED) test count cited 19 in description but source-verified actual = 22 — corrected 19→22 + 3 missing test names added. (4 LOW) crates_touched comment 19→22; Token Budget cited 52 Red Gate tests (stale from v1.17) → corrected to 54; story-spec self-reference v2.15→v2.20; AC-SAP-1 BC-2.16.002 version cite v1.91→§-anchor per TD-VSDD-091. ALL 5 FIXED story-side (v2.20). Audit confirmed all other checks CLEAN: 54 test names resolve, all 7 BC versions match, no placeholders, frontmatter↔body↔AC coherence, changelog monotonic, STORY-INDEX consistency. CODE HEAD 0dbe81f6 UNCHANGED; CI green; no re-push needed. develop_head UNCHANGED aaa9bfe8. story UNCHANGED draft. STORY-INDEX v2.573→v2.574. STATE v8.117→v8.118. | wave-5-e-demo-fidelity | 2026-07-03 |
 | D-1503 | state-manager | PR #208 (S-DEMO-FIDELITY-REMEDIATION-001) F-P208-N1B-TESTNAME-DRIFT (MED) fixed story-side (D-1503 2026-07-03): story cited 2 nonexistent F1 test names for EC-11-066/067 (`test_bc_2_11_019_n1b_builtin_passthrough_stddev` + `test_bc_2_11_019_n1b_builtin_passthrough_row_number`); root cause = parallel story-writer/implementer dispatch in F1 burst (story-writer cited expected names before implementer committed actual names; never reconciled). FIXED story-side: 9 citation sites corrected to verified actual names (`test_bc_2_11_019_ec_11_066_builtin_aggregate_stddev_not_e_query_039` + `test_bc_2_11_019_ec_11_067_builtin_window_row_number_not_e_query_039`) source-verified in `bc_2_11_019_n1b_test.rs` lines 1294 + 1338. Behavior covered (real tests pass at 0dbe81f6); citation/traceability defect only. CODE HEAD 0dbe81f6 UNCHANGED; CI stays green; no re-push needed. PROCESS-GAP noted: future bursts must source-verify test-name citations after implementer commits, or serialize story-cite-of-tests after implementer. PR-LEVEL 3-CLEAN streak 0/3; re-gate on frozen 0dbe81f6 + story v2.18. develop_head UNCHANGED aaa9bfe8. story UNCHANGED draft. STORY-INDEX v2.571→v2.572. STATE v8.115→v8.116. | wave-5-e-demo-fidelity | 2026-07-03 |
@@ -422,15 +423,15 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1506 -- 2026-07-03; STATE v8.119)
+## Session Resume Checkpoint (D-1507 -- 2026-07-03; STATE v8.120)
 
-**PR #208 F-P208-ADR050-ANCHOR (MED) FIXED story-side — story v2.20→v2.21 + ADR-050 v1.1 + ARCH-INDEX v2.156 (D-1506 2026-07-03). Story v2.21: ADR-050 cited in AC-TLS + §References; stale "no ADR authored / route if warranted" blockquote replaced with reference to ACCEPTED ADR-050. ADR-050 v1.0→v1.1: §Pre-Fix State corrected (prism-spec-engine/prism-sensors are production-only reqwest already-rustls, not dev-deps; prism-ocsf confirmed already correct). ARCH-INDEX v2.155→v2.156 (ADR-050 row ACCEPTED v1.1; changelog 2.156 added). CODE HEAD 0dbe81f6 UNCHANGED (CI green; spec-only fix). PR-LEVEL 3-CLEAN streak 0/3; re-gate pending on frozen 0dbe81f6 + story v2.21. develop_head UNCHANGED aaa9bfe8. story UNCHANGED draft. NEXT: PR-LEVEL 3-CLEAN re-gate on frozen 0dbe81f6 + story v2.21 (no re-CI; code unchanged) → pr-reviewer APPROVE → user-auth merge → post-merge.**
+**PR #208 F-P208-BC21012-VER-DRIFT-001 (LOW) FIXED via exhaustive version-pin sweep — story v2.21→v2.22 (D-1507 2026-07-03). Story v2.22: line-32 BC-2.10.012 v1.5→v1.7 (1 stale live pin corrected); Token Budget self-ref v2.20→v2.22; full reconciliation table confirms all other BC/ADR/taxonomy citations canonical-correct or legitimately historical; version-pin defect class zeroed. CODE HEAD 0dbe81f6 UNCHANGED (CI green; story-only fix). PR-LEVEL 3-CLEAN streak 0/3; re-gate pending on frozen 0dbe81f6 + story v2.22. develop_head UNCHANGED aaa9bfe8. story UNCHANGED draft. NEXT: PR-LEVEL 3-CLEAN re-gate on frozen 0dbe81f6 + story v2.22 (no re-CI; code unchanged) → pr-reviewer APPROVE → user-auth merge → post-merge.**
 
-**STATE v8.119. develop aaa9bfe8. BC-INDEX v7.28. STORY-INDEX v2.575. ARCH-INDEX v2.156. error-taxonomy v2.05. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87 (develop) / 88 (feature 0dbe81f6). total_stories 226. workspace_test_count 4978 (develop@aaa9bfe8 baseline; feature 0dbe81f6: 5088 passed).**
+**STATE v8.120. develop aaa9bfe8. BC-INDEX v7.28. STORY-INDEX v2.576. ARCH-INDEX v2.156. error-taxonomy v2.05. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=87 (develop) / 88 (feature 0dbe81f6). total_stories 226. workspace_test_count 4978 (develop@aaa9bfe8 baseline; feature 0dbe81f6: 5088 passed).**
 
 **T-PERF-PROFILE:** 006 (RUSTFLAGS) **MERGED** develop@67518790 (PR #212). 007 (wasm-cap+http-cap) **MERGED** develop@c6d6e4fa (PR #211). 008 (wasmtime cache) **MERGED** develop@aaa9bfe8 (PR #213). T-PERF-PROFILE COMPLETE.
 
-**S-DEMO-FIDELITY-REMEDIATION-001 (PR #208):** F-P208-ADR050-ANCHOR (MED) fixed (D-1506). Feature HEAD 0dbe81f6 (local worktree — needs push to origin). Story v2.21 (ADR-050 cited in AC-TLS + §References; ADR-050 v1.1 anchored; stale "no ADR authored" prose removed). Story status draft (NOT merged).
+**S-DEMO-FIDELITY-REMEDIATION-001 (PR #208):** F-P208-BC21012-VER-DRIFT-001 (LOW) fixed (D-1507). Feature HEAD 0dbe81f6 (local worktree — needs push to origin). Story v2.22 (version-pin defect class zeroed; all BC/ADR/taxonomy citations reconciled). Story status draft (NOT merged).
 
 **RESUME PROTOCOL:**
 1. Run vsdd-factory:factory-worktree-health (BLOCKING).
@@ -438,6 +439,6 @@ _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c
 3. `git -C .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 log -1 --format="%H"` → expect `0dbe81f6`.
 4. Force-push 0dbe81f6 to origin: `git -C .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 push --force-with-lease origin HEAD:feature/S-DEMO-FIDELITY-REMEDIATION-001`.
 5. Wait for CI green on PR #208 (HEAD 0dbe81f6; CI already green from prior push — confirm before dispatching re-gate).
-6. Dispatch PR-LEVEL adversarial 3-CLEAN on frozen 0dbe81f6 + story v2.21. Use worktree `.worktrees/S-DEMO-FIDELITY-REMEDIATION-001/` for code reads.
+6. Dispatch PR-LEVEL adversarial 3-CLEAN on frozen 0dbe81f6 + story v2.22. Use worktree `.worktrees/S-DEMO-FIDELITY-REMEDIATION-001/` for code reads.
 7. After PR-LEVEL 3-CLEAN: dispatch pr-reviewer APPROVE → user-auth merge → post-merge state burst (POL-14 BC-5.39.001 + POL-14 product BCs draft→active).
 8. Autonomy D-989 active.
