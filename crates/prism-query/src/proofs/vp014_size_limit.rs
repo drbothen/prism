@@ -124,7 +124,7 @@ mod kani_proofs {
 
         // Defense in depth: the error MUST be QuerySecurityLimitExceeded (the
         // only Err variant `check_query_size` constructs; E-QUERY-003 per
-        // error-taxonomy.md v1.72 / ADR-038 v1.3 §P5-02). We do not
+        // error-taxonomy.md §E-QUERY-003 / ADR-038 §P5-02). We do not
         // string-match `E-QUERY-003` here because Kani's String handling
         // would balloon the search space; the dynamic test below covers
         // the error code string.

@@ -1435,7 +1435,7 @@ const LIVE_TOOLS: &[&str] = &[
     "validate_config",
     "list_capabilities",
     "prism_describe",
-    // HIGH-3: check_sensor_health has a genuine live handler (line ~3082) that validates
+    // HIGH-3: check_sensor_health has a genuine live handler that validates
     // client_id, calls scan_inputs_audited, emits audit events, and returns SensorHealthStructuredContent.
     // It was incorrectly listed in NOT_YET_AVAILABLE_TOOLS; moved here per adversary pass 1.
     "check_sensor_health",
@@ -1870,11 +1870,12 @@ impl PrismServer {
         description = "Execute a PrismQL query against configured sensor data sources.\n\
         PrismQL (PQL) is a custom DSL for querying Prism security sensor data.\n\
         CLAUSE VOCABULARY: SELECT <cols> FROM <table> WHERE <filter> GROUP BY <col> ORDER BY <col> LIMIT <n>\n\
-        PIPE MODE: chain clauses with | for multi-step transformations, e.g.: SELECT * FROM <table> | WHERE severity = 'HIGH' | LIMIT 10\n\
-        SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field> with real names from prism_describe):\n\
-          1. SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL '1h'\n\
-          2. SELECT * FROM <table> WHERE severity IN ('high', 'critical') LIMIT 50\n\
+        PIPE MODE: chain clauses with | for multi-step transformations, e.g.: SELECT * FROM <table> | WHERE severity = <severity_value> | LIMIT 10\n\
+        SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field>/<datetime_col>/<severity_values> with real names/values from prism_describe; datetime column name is sensor-specific — use the column name returned by prism_describe for that table):\n\
+          1. SELECT COUNT(*) FROM <table> WHERE <datetime_col> > NOW() - INTERVAL '1h'\n\
+          2. SELECT * FROM <table> WHERE severity IN (<severity_values>) LIMIT 50\n\
           3. SELECT <field>, COUNT(*) FROM <table> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10\n\
+        SEVERITY CASING WARNING: severity literal casing is per-sensor (Title-case 'High'/'Critical' for CrowdStrike, UPPER-case 'HIGH'/'CRITICAL' for Armis, lowercase 'high'/'critical' for Cyberint). Using the wrong casing returns 0 rows with NO error. Always take severity values from prism_describe's example_query field — it emits the exact casing for that sensor.\n\
         DISCOVERY: Call `prism_describe` with the client_id before writing queries to discover which tables and columns are available. Read prismql://reference for full grammar reference.\n\
         DATA TRUST LEVEL: External/untrusted — results are sensor-originated.\n\
         SECURITY NOTE: All parameters are scanned for prompt injection before execution.\n\
@@ -3217,7 +3218,7 @@ impl PrismServer {
             // Resolve OrgId from the OrgRegistry.
             // F-S504-P2-006: replace org_slug.expect() with is_err() structural guard.
             //   org_slug is OrgSlug (internal validity state), not Result<OrgSlug, _>.
-            //   The is_err() guard at line ~2983 already returns early when invalid;
+            //   The `org_slug.is_err()` guard in `check_sensor_health` already returns early when invalid;
             //   we add a second guard here as a structural safety belt — no expect() in prod.
             // F-S504-P1-003: when org_registry is wired but resolve() returns None, that is a
             //   registry inconsistency (slug_exists() passed above); surface E-CFG-100 rather
@@ -3640,7 +3641,7 @@ scan/audit/business-logic processing occurs.\n\
         } else {
             // Fallback: derive table set from config_manager snapshot.
             // MUST use `{sensor_id}_{table_name}` (underscore) — same format as
-            // `TableRegistry::register_sensor` (table_registry.rs line 149).
+            // `TableRegistry::register_sensor`.
             // Using `.` (dot) here mismatches the real registry and breaks the
             // old == new set-comparison (F-OBS-2 separator fix).
             self.config_manager
@@ -10893,7 +10894,7 @@ mod adr_042_tests {
     //     second `prism_describe` call see the added table.
     //
     // NOTE: This test exercises the `build_tables_for_client` code path in
-    // `prism_describe.rs` (lines 272–306) — the multi-tenant path that calls
+    // `tools/prism_describe.rs` — the multi-tenant path that calls
     // `qe.resolved_spec_map()`. The single-tenant fallback (sensor_specs lookup)
     // is NOT under test here.
     // ────────────────────────────────────────────────────────────────────────────

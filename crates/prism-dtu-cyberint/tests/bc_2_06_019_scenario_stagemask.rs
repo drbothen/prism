@@ -9,8 +9,7 @@
 //! IP reference appears at stage 0 (where ioc_ips=false) — the assertion that it
 //! is ABSENT fails because no filter is applied.
 //!
-//! Stage clock control: scenario_start_secs placed in the past to force a known
-//! elapsed time:
+//! Stage clock control: scenario_start_secs chosen to ensure a known stage at request time:
 //!   Stage 0 (Baseline): scenario_start = now - 10s → elapsed ≈ 10s < 60s → ioc_ips=false
 //!   Stage 3 (Exfil):    scenario_start = now - 400s → elapsed ≈ 400s ≥ 360s → ioc_ips=true
 //!
@@ -83,11 +82,11 @@ async fn test_BC_2_06_019_cyberint_alerts_stagemask_ioc_filter() {
     let catalog_ioc_ip = catalog.ioc_ips[0].clone();
 
     // -------------------------------------------------------------------------
-    // Stage 0 server: scenario_start = now - 10s → elapsed ≈ 10s < 60s
-    // At stage 0 (Baseline): ioc_ips=false, ioc_domains=false, ioc_hashes=false
+    // Stage 0 server: scenario_start = now - 10 → elapsed ≈ 10s < 60s (Baseline)
+    // At stage 0 (Baseline): ioc_ips=false, ioc_domains=false, ioc_hashes=false.
     // -------------------------------------------------------------------------
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10;
+    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0 (Baseline)
 
     let timeline_stage0 = Arc::new(build_default_incident_timeline(
         catalog.clone(),
@@ -202,8 +201,8 @@ async fn test_BC_2_06_019_cyberint_alerts_stagemask_ioc_filter() {
         "BC-2.06.019 PC-4 / BPRL-P2-01: at stage 0 (ioc_ips=false), alert \
          'synthetic-ioc-alert-bc-2-06-019' referencing catalog IOC IP '{}' \
          must be ABSENT from GET /api/v1/alerts response; found it in {:?}. \
-         Route handler must apply StageMask filtering. \
-         [RED GATE: StageMask projection not implemented in routes/alerts.rs]",
+         StageMask projection (alerts.rs ioc_ips filter) must exclude IOC-referencing \
+         alerts when ioc_ips=false. BC-2.06.019 PC-4 / BPRL-P2-01.",
         catalog_ioc_ip,
         alert_ids0
     );
@@ -345,9 +344,9 @@ async fn test_BC_2_06_019_cyberint_non_ioc_alerts_not_filtered() {
     let seed: u64 = 42;
     let demo_token = "test-demo-token-non-ioc-filter".to_owned();
 
-    // Stage 0: ioc_ips=false → IOC-referencing alerts excluded, others pass.
+    // Stage 0: ioc_ips=false → IOC-referencing alerts excluded, others pass (Baseline).
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10;
+    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0 (Baseline)
 
     let catalog = build_scenario_entity_catalog(seed, &org);
     let catalog_ioc_ip = catalog.ioc_ips[0].clone();
@@ -510,7 +509,7 @@ async fn test_BC_2_06_019_cyberint_ioc_value_without_ioc_type_withheld() {
 
     // Stage 0 (Baseline): ioc_hashes=false → alert with iocs[].value = catalog hash must be ABSENT.
     let now = chrono::Utc::now().timestamp();
-    let start_stage0: i64 = now - 10;
+    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0 (Baseline)
 
     let timeline = Arc::new(build_default_incident_timeline(
         catalog.clone(),

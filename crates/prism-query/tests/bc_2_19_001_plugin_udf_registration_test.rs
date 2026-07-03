@@ -329,6 +329,7 @@ async fn test_BC_2_19_001_real_infusion_async_udf_delegates_to_stub_source() {
         stub_source,
         None,
         3600,
+        "",
     );
 
     // Build a SessionContext.

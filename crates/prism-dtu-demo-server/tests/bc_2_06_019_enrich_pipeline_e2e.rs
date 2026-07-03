@@ -312,6 +312,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
         Arc::clone(&ti_source),
         Some("threat_is_known_malicious".to_string()),
         3600,
+        "",
     );
 
     register_infusion_udfs(&ctx, vec![descriptor])
@@ -442,6 +443,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
         Arc::clone(&ti_score_source),
         Some("threat_score".to_string()),
         3600,
+        "",
     );
 
     register_infusion_udfs(&ctx, vec![score_descriptor])
@@ -647,6 +649,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_nvd_pivot_executes_udf_and_returns
         Arc::clone(&nvd_source),
         None, // no source_column: return full JSON for assertion
         3600,
+        "",
     );
 
     register_infusion_udfs(&ctx, vec![descriptor])

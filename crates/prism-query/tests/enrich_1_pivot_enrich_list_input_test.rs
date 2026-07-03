@@ -76,6 +76,7 @@ async fn test_ENRICH_1_pivot_enrich_scalar_input_backward_compat() {
         stub_source,
         None,
         3600,
+        "",
     );
 
     let ctx = build_session_context(prism_query::memory::QUERY_MEMORY_POOL_BYTES)
@@ -149,6 +150,7 @@ async fn test_ENRICH_1_pivot_enrich_json_list_input_enriches_each_element() {
         stub_source,
         None,
         3600,
+        "",
     );
 
     let ctx = build_session_context(prism_query::memory::QUERY_MEMORY_POOL_BYTES)
@@ -254,6 +256,7 @@ async fn test_ENRICH_1_pivot_enrich_single_element_json_list() {
         stub_source,
         None,
         3600,
+        "",
     );
 
     let ctx = build_session_context(prism_query::memory::QUERY_MEMORY_POOL_BYTES)
@@ -329,6 +332,7 @@ async fn test_ENRICH_1_pivot_enrich_malformed_json_falls_through_to_scalar() {
         stub_source,
         None,
         3600,
+        "",
     );
 
     let ctx = build_session_context(prism_query::memory::QUERY_MEMORY_POOL_BYTES)

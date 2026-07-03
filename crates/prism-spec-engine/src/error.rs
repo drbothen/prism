@@ -393,7 +393,7 @@ pub enum SpecEngineError {
     /// `SpecEngineError::EnvVarNotSet` construction sites MUST NOT pass
     /// `std::env::var(&var_name).unwrap_or_default()` or any resolved value into any field.
     ///
-    /// BC-2.16.009 §Validation Rules 6 (AC-6); error-taxonomy.md v1.56 E-SPEC-024;
+    /// BC-2.16.009 §Validation Rules 6 (AC-6); error-taxonomy.md §E-SPEC-024;
     /// S-SPEC-ENV-VAR-001.
     #[error(
         "Sensor spec '{file_path}' field '{toml_path}' references environment \
@@ -420,11 +420,11 @@ pub enum SpecEngineError {
     /// Emitted during response-to-Arrow materialization when `ColumnSpec::timestamp_formats`
     /// is non-empty and no format successfully parsed the field value.
     ///
-    /// Field names match the canonical error-taxonomy.md v1.45 E-SPEC-018 template
+    /// Field names match the canonical error-taxonomy.md §E-SPEC-018 Message Format template
     /// byte-for-byte (F-LP2-HIGH-002; POLICY 24).
     ///
     /// Maps to `prism_core::SpecErrorCode::ESpec018`.
-    /// BC-2.16.013 §O-001; ADR-028 v1.10 §D8-C; error-taxonomy.md v1.45 E-SPEC-018.
+    /// BC-2.16.013 §O-001; ADR-028 v1.10 §D8-C; error-taxonomy.md §E-SPEC-018.
     #[error(
         "Failed to parse timestamp for column '{column_name}' in sensor '{sensor_id}': \
          tried formats [{}], value='{value}'",
@@ -450,7 +450,7 @@ pub enum SpecEngineError {
 mod tests {
     use super::*;
 
-    /// F-LP3-MEDIUM-003: E-SPEC-018 Display must match error-taxonomy.md v1.45 template
+    /// F-LP3-MEDIUM-003: E-SPEC-018 Display must match error-taxonomy.md §E-SPEC-018 Message Format template
     /// byte-for-byte (POLICY 24). This test pins the format string to prevent silent drift.
     ///
     /// Template: "Failed to parse timestamp for column '{column_name}' in sensor '{sensor_id}':
@@ -476,11 +476,11 @@ mod tests {
         );
     }
 
-    /// F-LOCAL-P1-MED-001 / POL-24: E-SPEC-024 Display must match error-taxonomy.md v1.56
+    /// F-LOCAL-P1-MED-001 / POL-24: E-SPEC-024 Display must match error-taxonomy.md §E-SPEC-024
     /// template byte-for-byte (no code prefix). This test pins the format string to prevent
     /// silent drift and mirrors the pattern established for E-SPEC-018.
     ///
-    /// Taxonomy template (v1.56):
+    /// Taxonomy template (error-taxonomy.md §E-SPEC-024 Message Format):
     ///   "Sensor spec '{file}' field '{toml_path}' references environment variable '{var_name}'
     ///    which is not set or is empty. Set '{var_name}' before starting prism."
     ///
@@ -494,7 +494,7 @@ mod tests {
             file_path: "specs/armis.sensor.toml".to_string(),
         };
         let display = err.to_string();
-        // Taxonomy template (error-taxonomy.md v1.56 E-SPEC-024 Message Format):
+        // Taxonomy template (error-taxonomy.md §E-SPEC-024 Message Format):
         // No "E-SPEC-024: " prefix — matches E-SPEC-018 precedent where the code
         // is NOT prefixed in the Display output (POL-24 byte-for-byte alignment).
         let expected = "Sensor spec 'specs/armis.sensor.toml' field 'sensor.base_url' references \

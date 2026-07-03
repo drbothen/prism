@@ -1922,6 +1922,525 @@ async fn test_SEC_001_e_query_037_no_resolved_spec_map_falls_back_to_global() {
 }
 
 // ---------------------------------------------------------------------------
+// L1 fix — extract_sources_from_ast_for_gate must walk HAVING, GROUP BY,
+// ORDER BY, and JOIN ON for InSubquery expressions
+// ---------------------------------------------------------------------------
+//
+// Finding L1 (S-DEMO-FIDELITY-REMEDIATION-001): extract_sources_from_ast_for_gate
+// only walked WHERE InSubquery predicates. GROUP BY, ORDER BY, and JOIN ON
+// expressions can also carry InSubquery nodes (e.g. GROUP BY field IN (SELECT …)).
+// Without this walk, subqueries in those positions bypass E-QUERY-037 and fail
+// with an opaque DataFusion error.
+//
+// Fix: `collect_expr_sources_into_gate` recursively walks Expr trees for
+// InSubquery nodes. The Sql(Select) and SqlPipe arms now call it for GROUP BY,
+// ORDER BY, and JOIN ON positions in addition to the existing WHERE walk.
+//
+// TD-VSDD-059: load-bearing — removing the GROUP BY, ORDER BY, or JOIN ON
+// calls to `collect_expr_sources_into_gate` causes these tests to fail.
+//
+// Test strategy: construct ASTs directly (bypassing the parser) to prove
+// the walker discovers InSubquery sources in each new position.
+
+/// L1 fix — `extract_sources_from_ast_for_gate` must discover InSubquery sources
+/// from the GROUP BY clause of an `Ast::Sql(Select)`.
+///
+/// Represents: `SELECT severity FROM crowdstrike_detections GROUP BY field IN (SELECT id FROM armis_devices)`
+///
+/// Load-bearing: reverting the L1 fix (not walking GROUP BY exprs) causes armis_devices
+/// to never reach the availability gate.
+#[test]
+#[allow(non_snake_case)]
+fn test_l1_sql_select_group_by_in_subquery_source_discovered() {
+    use crate::{
+        ast::{
+            Ast, Expr, FieldPath, FromClause, SelectClause, SelectItem, SourceRef, SourceRefKind,
+            Span, SqlQuery, SqlStatement,
+        },
+        table_registry::extract_sources_from_ast_for_gate_test_only,
+    };
+
+    // Subquery: SELECT id FROM armis_devices
+    let subquery = build_minimal_subquery("armis_devices");
+
+    // GROUP BY: `host_id IN (SELECT id FROM armis_devices)` — Expr::InSubquery
+    let group_by_expr = Expr::InSubquery {
+        field: FieldPath {
+            segments: vec!["host_id".to_string()],
+            span: Span::ZERO,
+        },
+        subquery: Box::new(subquery),
+    };
+
+    let select_query = SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Star],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "crowdstrike_detections".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: None,
+        group_by: vec![group_by_expr],
+        having: None,
+        order_by: vec![],
+        limit: None,
+    };
+
+    let ast = Ast::Sql(SqlStatement::Select(select_query));
+    let sources = extract_sources_from_ast_for_gate_test_only(&ast);
+
+    assert!(
+        sources.iter().any(|s| s.raw == "crowdstrike_detections"),
+        "L1 GROUP BY: outer FROM 'crowdstrike_detections' must be present; got: {sources:?}"
+    );
+    assert!(
+        sources.iter().any(|s| s.raw == "armis_devices"),
+        "L1 GROUP BY: extract_sources_from_ast_for_gate must discover 'armis_devices' \
+         from InSubquery in GROUP BY clause. Got sources: {sources:?}"
+    );
+}
+
+/// L1 fix — `extract_sources_from_ast_for_gate` must discover InSubquery sources
+/// from the ORDER BY clause of an `Ast::Sql(Select)`.
+///
+/// Represents: `SELECT severity FROM crowdstrike_detections ORDER BY field IN (SELECT id FROM armis_devices)`
+#[test]
+#[allow(non_snake_case)]
+fn test_l1_sql_select_order_by_in_subquery_source_discovered() {
+    use crate::{
+        ast::{
+            Ast, Expr, FieldPath, FromClause, OrderExpr, SelectClause, SelectItem, SortDirection,
+            SourceRef, SourceRefKind, Span, SqlQuery, SqlStatement,
+        },
+        table_registry::extract_sources_from_ast_for_gate_test_only,
+    };
+
+    // Subquery: SELECT id FROM armis_devices
+    let subquery = build_minimal_subquery("armis_devices");
+
+    // ORDER BY: `host_id IN (SELECT id FROM armis_devices) ASC` — Expr::InSubquery
+    let order_by_expr = OrderExpr {
+        expr: Expr::InSubquery {
+            field: FieldPath {
+                segments: vec!["host_id".to_string()],
+                span: Span::ZERO,
+            },
+            subquery: Box::new(subquery),
+        },
+        direction: SortDirection::Asc,
+    };
+
+    let select_query = SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Star],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "crowdstrike_detections".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: None,
+        group_by: vec![],
+        having: None,
+        order_by: vec![order_by_expr],
+        limit: None,
+    };
+
+    let ast = Ast::Sql(SqlStatement::Select(select_query));
+    let sources = extract_sources_from_ast_for_gate_test_only(&ast);
+
+    assert!(
+        sources.iter().any(|s| s.raw == "crowdstrike_detections"),
+        "L1 ORDER BY: outer FROM 'crowdstrike_detections' must be present; got: {sources:?}"
+    );
+    assert!(
+        sources.iter().any(|s| s.raw == "armis_devices"),
+        "L1 ORDER BY: extract_sources_from_ast_for_gate must discover 'armis_devices' \
+         from InSubquery in ORDER BY clause. Got sources: {sources:?}"
+    );
+}
+
+/// L1 fix — `extract_sources_from_ast_for_gate` must discover InSubquery sources
+/// from the JOIN ON clause of an `Ast::Sql(Select)`.
+///
+/// Represents: `SELECT * FROM crowdstrike_detections JOIN other_table ON host_id IN (SELECT id FROM armis_devices)`
+#[test]
+#[allow(non_snake_case)]
+fn test_l1_sql_select_join_on_in_subquery_source_discovered() {
+    use crate::{
+        ast::{
+            Ast, CompareOp, Expr, FieldPath, FromClause, Join, JoinKind, SelectClause, SelectItem,
+            SourceRef, SourceRefKind, Span, SqlQuery, SqlStatement,
+        },
+        table_registry::extract_sources_from_ast_for_gate_test_only,
+    };
+
+    // Subquery: SELECT id FROM armis_devices
+    let subquery = build_minimal_subquery("armis_devices");
+
+    // JOIN ON: `host_id = (SELECT id FROM armis_devices)` wrapped as Expr::Compare
+    // where the rhs is an InSubquery. Real parser uses field_comparison for ON,
+    // but we construct directly to test the walker.
+    let join_on_expr = Expr::Compare {
+        lhs: Box::new(Expr::Field(FieldPath {
+            segments: vec!["host_id".to_string()],
+            span: Span::ZERO,
+        })),
+        op: CompareOp::Eq,
+        rhs: Box::new(Expr::InSubquery {
+            field: FieldPath {
+                segments: vec!["id".to_string()],
+                span: Span::ZERO,
+            },
+            subquery: Box::new(subquery),
+        }),
+    };
+
+    let join = Join {
+        kind: JoinKind::Inner,
+        source: SourceRef {
+            raw: "other_table".to_string(),
+            kind: SourceRefKind::Custom,
+        },
+        alias: None,
+        on: join_on_expr,
+    };
+
+    let select_query = SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Star],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "crowdstrike_detections".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![join],
+        where_: None,
+        group_by: vec![],
+        having: None,
+        order_by: vec![],
+        limit: None,
+    };
+
+    let ast = Ast::Sql(SqlStatement::Select(select_query));
+    let sources = extract_sources_from_ast_for_gate_test_only(&ast);
+
+    assert!(
+        sources.iter().any(|s| s.raw == "crowdstrike_detections"),
+        "L1 JOIN ON: outer FROM 'crowdstrike_detections' must be present; got: {sources:?}"
+    );
+    assert!(
+        sources.iter().any(|s| s.raw == "other_table"),
+        "L1 JOIN ON: 'other_table' (the join source) must be present; got: {sources:?}"
+    );
+    assert!(
+        sources.iter().any(|s| s.raw == "armis_devices"),
+        "L1 JOIN ON: extract_sources_from_ast_for_gate must discover 'armis_devices' \
+         from InSubquery nested in JOIN ON Expr::Compare rhs. Got sources: {sources:?}"
+    );
+}
+
+/// L1 fix — `extract_sources_from_ast_for_gate` must discover InSubquery sources
+/// from the HAVING clause of an `Ast::Sql(Select)`.
+///
+/// Represents: `SELECT severity FROM crowdstrike_detections … HAVING host_id IN (SELECT id FROM armis_devices)`
+///
+/// Load-bearing: reverting the L1 fix (removing the `if let Some(ref having_pred) = sq.having`
+/// branch in `extract_sources_from_ast_for_gate`) causes armis_devices to never reach the
+/// availability gate — deleting the HAVING dispatch would cause this test to fail.
+#[test]
+#[allow(non_snake_case)]
+fn test_l1_sql_select_having_in_subquery_source_discovered() {
+    use crate::{
+        ast::{
+            Ast, FieldPath, FromClause, Predicate, SelectClause, SelectItem, SourceRef,
+            SourceRefKind, Span, SqlQuery, SqlStatement,
+        },
+        table_registry::extract_sources_from_ast_for_gate_test_only,
+    };
+
+    // Subquery: SELECT id FROM armis_devices
+    let subquery = build_minimal_subquery("armis_devices");
+
+    // HAVING: `host_id IN (SELECT id FROM armis_devices)` — Predicate::InSubquery
+    let having_pred = Predicate::InSubquery {
+        field: FieldPath {
+            segments: vec!["host_id".to_string()],
+            span: Span::ZERO,
+        },
+        subquery: Box::new(subquery),
+        negated: false,
+    };
+
+    let select_query = SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Star],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "crowdstrike_detections".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: None,
+        group_by: vec![],
+        having: Some(having_pred),
+        order_by: vec![],
+        limit: None,
+    };
+
+    let ast = Ast::Sql(SqlStatement::Select(select_query));
+    let sources = extract_sources_from_ast_for_gate_test_only(&ast);
+
+    assert!(
+        sources.iter().any(|s| s.raw == "crowdstrike_detections"),
+        "L1 HAVING SQL: outer FROM 'crowdstrike_detections' must be present; got: {sources:?}"
+    );
+    assert!(
+        sources.iter().any(|s| s.raw == "armis_devices"),
+        "L1 HAVING SQL: extract_sources_from_ast_for_gate must discover 'armis_devices' \
+         from InSubquery in HAVING clause. Got sources: {sources:?}"
+    );
+}
+
+/// L1 fix — `extract_sources_from_ast_for_gate` must discover InSubquery sources
+/// from the HAVING clause of the SQL head in an `Ast::SqlPipe`.
+///
+/// Represents a SqlPipe query whose SQL head has:
+///   `SELECT severity FROM crowdstrike_detections … HAVING host_id IN (SELECT id FROM armis_devices)`
+///
+/// Load-bearing: reverting the L1 fix (removing the `if let Some(ref having_pred) = spq.head.having`
+/// branch in `extract_sources_from_ast_for_gate`) causes armis_devices to never reach the
+/// availability gate — deleting the SqlPipe HAVING dispatch would cause this test to fail.
+#[test]
+#[allow(non_snake_case)]
+fn test_l1_sqlpipe_head_having_in_subquery_source_discovered() {
+    use crate::{
+        ast::{
+            Ast, FieldPath, FromClause, Predicate, SelectClause, SelectItem, SourceRef,
+            SourceRefKind, Span, SqlPipeQuery, SqlQuery,
+        },
+        table_registry::extract_sources_from_ast_for_gate_test_only,
+    };
+
+    // Subquery: SELECT id FROM armis_devices
+    let subquery = build_minimal_subquery("armis_devices");
+
+    // HAVING: `host_id IN (SELECT id FROM armis_devices)` — Predicate::InSubquery
+    let having_pred = Predicate::InSubquery {
+        field: FieldPath {
+            segments: vec!["host_id".to_string()],
+            span: Span::ZERO,
+        },
+        subquery: Box::new(subquery),
+        negated: false,
+    };
+
+    // Build the SQL head SqlQuery with the HAVING clause.
+    let head = SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Star],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "crowdstrike_detections".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: None,
+        group_by: vec![],
+        having: Some(having_pred),
+        order_by: vec![],
+        limit: None,
+    };
+
+    // Wrap in SqlPipe (no pipe stages needed — we only test HAVING source discovery).
+    let ast = Ast::SqlPipe(SqlPipeQuery {
+        head,
+        stages: vec![],
+    });
+    let sources = extract_sources_from_ast_for_gate_test_only(&ast);
+
+    assert!(
+        sources.iter().any(|s| s.raw == "crowdstrike_detections"),
+        "L1 HAVING SqlPipe: outer FROM 'crowdstrike_detections' must be present; got: {sources:?}"
+    );
+    assert!(
+        sources.iter().any(|s| s.raw == "armis_devices"),
+        "L1 HAVING SqlPipe: extract_sources_from_ast_for_gate must discover 'armis_devices' \
+         from InSubquery in SqlPipe head HAVING clause. Got sources: {sources:?}"
+    );
+}
+
+/// Helper: build a minimal `SqlQuery` that selects `id` from `source_table_name`.
+///
+/// Used by L1 tests to build subquery AST nodes without repetition.
+fn build_minimal_subquery(source_table_name: &str) -> crate::ast::SqlQuery {
+    use crate::ast::{
+        Expr, FieldPath, FromClause, SelectClause, SelectItem, SourceRef, SourceRefKind, Span,
+        SqlQuery,
+    };
+    SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Expr {
+                expr: Expr::Field(FieldPath {
+                    segments: vec!["id".to_string()],
+                    span: Span::ZERO,
+                }),
+                alias: None,
+            }],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: source_table_name.to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: None,
+        group_by: vec![],
+        having: None,
+        order_by: vec![],
+        limit: None,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PLL1-LOW-001: dot-notation did_you_mean validation
+// ---------------------------------------------------------------------------
+//
+// BC-2.11.001 v1.15 / AC-N2 / EC-11-067: the `FROM sensor.table` dot-notation
+// arm of `check_availability_gate` MUST only suggest the underscore form when
+// the underscore form is actually registered.  If it is not registered, the
+// suggestion must NOT name a non-existent table — instead, fall back to
+// Levenshtein-based suggestion against the org-visible registered tables (same
+// path used by the non-dot arm).
+//
+// Load-bearing:
+//   - test_F_PLL1_LOW_001_dot_notation_registered_underscore_suggests_correctly:
+//     `FROM cyberint.alerts` with `cyberint_alerts` registered must suggest it.
+//     Reverting the fix (always suggesting blindly) would keep this passing, so
+//     the test alone does not drive the fix — the companion test below does.
+//   - test_F_PLL1_LOW_001_dot_notation_unregistered_does_not_suggest_nonexistent:
+//     `FROM foo.bar` with no `foo_bar` registered must NOT suggest `foo_bar`.
+//     This test FAILS against the pre-fix blind-suggestion code (returns
+//     " Did you mean: 'foo_bar'?" unconditionally) and PASSES after the fix.
+
+/// BC-2.11.001 v1.15 / F-PLL1-LOW-001 regression guard: when `FROM cyberint.alerts`
+/// is used and `cyberint_alerts` IS registered, E-QUERY-037 must suggest
+/// `cyberint_alerts` in the `did_you_mean` field — no regression to the
+/// N2 demo path.
+///
+/// Load-bearing: this test PASSES even on the pre-fix code (blind suggestion also
+/// picks the right name when the form exists).  It is retained as a regression
+/// guard to ensure the fix does not accidentally suppress the valid suggestion.
+#[test]
+#[allow(non_snake_case)]
+fn test_F_PLL1_LOW_001_dot_notation_registered_underscore_suggests_correctly() {
+    let registry = TableRegistry::new();
+    // Register cyberint_alerts — the demo path table.
+    let spec = make_sensor_spec_one_table("cyberint", "alerts");
+    registry
+        .register_sensor(&spec)
+        .expect("register_sensor must not fail");
+
+    // Use dot-notation FROM cyberint.alerts — must be rejected with E-QUERY-037.
+    // The `did_you_mean` field must suggest `cyberint_alerts` (the registered form).
+    let result = registry.check_availability_gate("FROM cyberint.alerts | limit 10", None, None);
+
+    match result {
+        Err(PrismError::TableNotAvailable(ref details)) => {
+            assert_eq!(
+                details.table, "cyberint.alerts",
+                "F-PLL1-LOW-001: table must be the dot-form 'cyberint.alerts', got: '{}'",
+                details.table
+            );
+            assert_eq!(
+                details.did_you_mean, " Did you mean: 'cyberint_alerts'?",
+                "F-PLL1-LOW-001: did_you_mean must suggest 'cyberint_alerts' when it is \
+                 registered; got: '{}'",
+                details.did_you_mean
+            );
+        }
+        other => panic!(
+            "F-PLL1-LOW-001: expected Err(PrismError::TableNotAvailable) for 'cyberint.alerts', \
+             got: {other:?}"
+        ),
+    }
+}
+
+/// BC-2.11.001 v1.15 / F-PLL1-LOW-001 fix: when `FROM foo.bar` is used and
+/// `foo_bar` is NOT registered, E-QUERY-037 must NOT suggest `foo_bar` in the
+/// `did_you_mean` field.
+///
+/// Load-bearing: this test FAILS against the pre-fix code (blind suggestion
+/// always emits " Did you mean: 'foo_bar'?" regardless of whether `foo_bar`
+/// is registered).  It PASSES after the fix (no suggestion when the underscore
+/// form does not exist and no Levenshtein candidate is within distance ≤ 3).
+///
+/// We register a genuinely different table (`cyberint_alerts`) to confirm the
+/// Levenshtein fallback also finds no match (distance from `foo_bar` to
+/// `cyberint_alerts` is > 3).
+#[test]
+#[allow(non_snake_case)]
+fn test_F_PLL1_LOW_001_dot_notation_unregistered_does_not_suggest_nonexistent() {
+    let registry = TableRegistry::new();
+    // Register cyberint_alerts but NOT foo_bar.
+    let spec = make_sensor_spec_one_table("cyberint", "alerts");
+    registry
+        .register_sensor(&spec)
+        .expect("register_sensor must not fail");
+
+    // Use dot-notation FROM foo.bar — must be rejected with E-QUERY-037.
+    // The `did_you_mean` field must NOT suggest `foo_bar` (not registered).
+    // Levenshtein distance from `foo_bar` to `cyberint_alerts` is > 3, so no
+    // candidate should be within threshold.
+    let result = registry.check_availability_gate("FROM foo.bar | limit 10", None, None);
+
+    match result {
+        Err(PrismError::TableNotAvailable(ref details)) => {
+            assert_eq!(
+                details.table, "foo.bar",
+                "F-PLL1-LOW-001: table must be the dot-form 'foo.bar', got: '{}'",
+                details.table
+            );
+            assert!(
+                !details.did_you_mean.contains("foo_bar"),
+                "F-PLL1-LOW-001: did_you_mean must NOT suggest 'foo_bar' (not registered); \
+                 got: '{}'",
+                details.did_you_mean
+            );
+        }
+        other => panic!(
+            "F-PLL1-LOW-001: expected Err(PrismError::TableNotAvailable) for 'FROM foo.bar', \
+             got: {other:?}"
+        ),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Test helper module (not a test itself)
 // ---------------------------------------------------------------------------
 #[cfg(test)]

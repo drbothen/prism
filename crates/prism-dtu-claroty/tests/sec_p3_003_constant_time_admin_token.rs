@@ -101,6 +101,8 @@ async fn test_AC_001_constant_time_compare_correct_token_returns_200() {
         "ok",
         "AC-001 (SEC-P3-003): 200 response body must contain {{\"status\": \"ok\"}}"
     );
+
+    clone.stop().await.expect("stop must succeed");
 }
 
 /// BC-3.5.002 precondition 6 / AC-001 (SEC-P3-003):
@@ -137,6 +139,8 @@ async fn test_AC_001_configure_correct_token_returns_200() {
         "AC-001 (SEC-P3-003): POST /dtu/configure with correct X-Admin-Token must \
          return 200 after constant-time refactor"
     );
+
+    clone.stop().await.expect("stop must succeed");
 }
 
 // ===========================================================================
@@ -193,6 +197,8 @@ async fn test_AC_002_constant_time_compare_wrong_token_returns_401() {
         "missing or invalid admin token",
         "AC-002 (SEC-P3-003): 401 body must carry {{\"error\": \"missing or invalid admin token\"}}"
     );
+
+    clone.stop().await.expect("stop must succeed");
 }
 
 /// BC-3.5.002 precondition 6 / AC-002 (SEC-P3-003):
@@ -224,6 +230,8 @@ async fn test_AC_002_absent_token_returns_401() {
         "AC-002 (SEC-P3-003 / EC-007): POST /dtu/reset with absent X-Admin-Token \
          must return 401; ct_eq on empty vs non-empty slice must return false"
     );
+
+    clone.stop().await.expect("stop must succeed");
 }
 
 /// BC-3.5.002 precondition 6 / AC-002 (SEC-P3-003) / EC-006:
@@ -257,6 +265,8 @@ async fn test_AC_002_wrong_length_token_returns_401() {
         "AC-002 (SEC-P3-003 / EC-006): POST /dtu/reset with a truncated token \
          (correct prefix, wrong length) must return 401"
     );
+
+    clone.stop().await.expect("stop must succeed");
 }
 
 /// BC-3.5.002 precondition 6 / AC-002 (SEC-P3-003):
@@ -289,6 +299,8 @@ async fn test_AC_002_configure_wrong_token_returns_401() {
         "AC-002 (SEC-P3-003): POST /dtu/configure with wrong X-Admin-Token must \
          return 401 after constant-time refactor"
     );
+
+    clone.stop().await.expect("stop must succeed");
 }
 
 // ===========================================================================
@@ -333,4 +345,7 @@ async fn test_AC_002_cross_clone_constant_time_token_returns_401() {
         "EC-008 (SEC-P3-003): clone-B token on clone-A /dtu/reset must return 401 \
          after constant-time refactor; per-clone token isolation must be preserved"
     );
+
+    clone_a.stop().await.expect("clone-A stop must succeed");
+    clone_b.stop().await.expect("clone-B stop must succeed");
 }

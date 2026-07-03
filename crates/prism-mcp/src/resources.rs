@@ -1288,51 +1288,73 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
     (
         ExampleKind::Positive,
         "filter — detections with HIGH severity",
-        "crowdstrike.detections | severity = 'HIGH'",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        // The canonical FROM-target syntax is `<sensor_table>` (sensor_name + "_" + table_name).
+        // Dot-notation (`sensor.table`) is illegal in FROM position — returns E-QUERY-037
+        // at plan time (BC-2.11.001 / EC-11-067 / N2). ADR-046 / BC-2.11.023: filter mode
+        // uses `<table_name> | <predicate>` — the table name is always underscore-qualified.
+        // Generic `sensor_table` placeholder satisfies BC-2.10.014 AC-008 (no vendor names).
+        "sensor_table | severity = 'HIGH'",
     ),
     (
         ExampleKind::Positive,
         "SQL — select all detections",
-        "SELECT * FROM crowdstrike.detections WHERE severity = 'HIGH'",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        // Replaces dot-notation (crowdstrike.detections) which returns E-QUERY-037 at plan time.
+        // Generic `sensor_table` satisfies BC-2.10.014 AC-008 (no hardcoded vendor prefixes).
+        "SELECT * FROM sensor_table WHERE severity = 'HIGH'",
     ),
     (
         ExampleKind::Positive,
         "pipe — filter by severity",
-        "FROM crowdstrike.detections | where severity = 'HIGH'",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        "FROM sensor_table | where severity = 'HIGH'",
     ),
     (
         ExampleKind::Positive,
-        "temporal — last 7 days (SQL mode)",
-        "SELECT * FROM crowdstrike.detections WHERE timestamp > NOW() - INTERVAL '7d'",
+        "temporal — last 7 days (SQL mode) [datetime_col is sensor-specific — use prism_describe]",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        // F-PQL2-MED-001: `timestamp` is an ILLUSTRATIVE placeholder column name. Real datetime
+        // column names are sensor-specific: crowdstrike_detections→created_timestamp,
+        // *_devices→last_seen/first_seen, claroty_alerts→detected_time, cyberint_alerts→created_at,
+        // claroty_audit_logs→timestamp (literal). Always use the column name from prism_describe.
+        "SELECT * FROM sensor_table WHERE timestamp > NOW() - INTERVAL '7d'",
     ),
     (
         ExampleKind::Positive,
-        "temporal — last 24 hours (pipe mode)",
-        "FROM crowdstrike.detections | where timestamp > NOW() - INTERVAL '24h'",
+        "temporal — last 24 hours (pipe mode) [datetime_col is sensor-specific — use prism_describe]",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        // F-PQL2-MED-001: `timestamp` is an ILLUSTRATIVE placeholder column name. Real datetime
+        // column names are sensor-specific — always take the column name from prism_describe.
+        "FROM sensor_table | where timestamp > NOW() - INTERVAL '24h'",
     ),
     (
         ExampleKind::Positive,
         "SQL→Pipe — enrich with stats",
-        "SELECT * FROM crowdstrike.detections | enrich threat_score(src_ip) | limit 10",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        "SELECT * FROM sensor_table | enrich threat_score(src_ip) | limit 10",
     ),
     (
         ExampleKind::Positive,
         "pipe stats — count by severity",
-        "FROM crowdstrike.detections | stats count() by severity",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        "FROM sensor_table | stats count() by severity",
     ),
     (
         ExampleKind::NegativeE040,
         "E-QUERY-040 FORBID-BOTH — SQL LIMIT + pipe limit",
-        "SELECT * FROM crowdstrike.detections LIMIT 10 | limit 5",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        "SELECT * FROM sensor_table LIMIT 10 | limit 5",
     ),
-    // OBS-1 fix: error-taxonomy.md v2.00 E-QUERY-040 CI-gate obligation (ADR-045 D3)
+    // OBS-1 fix: error-taxonomy.md §E-QUERY-040 CI-gate obligation (ADR-045 D3)
     // mandates NegativeE040 examples for BOTH `| limit` AND `| tail`. The `| tail`
     // variant combines SQL LIMIT in the head with a `| tail` stage — both consume
     // the shared row-limit slot and thus violate the FORBID-BOTH invariant (ADR-043 §C).
     (
         ExampleKind::NegativeE040,
         "E-QUERY-040 FORBID-BOTH — SQL LIMIT + pipe tail",
-        "SELECT * FROM crowdstrike.detections LIMIT 10 | tail 5",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        "SELECT * FROM sensor_table LIMIT 10 | tail 5",
     ),
     (
         ExampleKind::NegativeOther,
@@ -1450,12 +1472,14 @@ pub fn build_reference_content(
          - `NOW()` — current timestamp at query planning time\n\
          - `INTERVAL 'Nd'` — duration literal; units: `s`=seconds, `m`=minutes, `h`=hours, `d`=days\n\
          - `NOW() - INTERVAL 'Nd'` — timestamp subtraction (subtraction only; `+` not supported)\n\n\
-         **Examples:**\n\
+         **Examples** (`datetime_col` is sensor-specific — use the column name returned by \
+         `prism_describe`; e.g., `created_timestamp` for CrowdStrike detections, `detected_time` \
+         for Claroty alerts, `last_seen` for device tables):\n\
          ```sql\n\
          -- Last 7 days\n\
-         WHERE timestamp > NOW() - INTERVAL '7d'\n\
+         WHERE <datetime_col> > NOW() - INTERVAL '7d'\n\
          -- Last 24 hours\n\
-         WHERE timestamp > NOW() - INTERVAL '24h'\n\
+         WHERE <datetime_col> > NOW() - INTERVAL '24h'\n\
          ```\n\n\
          **Note:** Use `'7d'` not `'7 days'` — full English words are not accepted \
          (results in a parse error).\n\n",
@@ -1485,12 +1509,17 @@ pub fn build_reference_content(
             // Build enrichment list from live registry via udf_descriptors().
             // Collect unique infusion names (multiple UDFs can belong to one infusion).
             let descriptors = registry.udf_descriptors();
-            // Deduplicate by infusion_id to list each infusion once.
-            let mut seen_ids = std::collections::BTreeSet::new();
+            // Deduplicate by per-field UDF name (descriptor.name), NOT by infusion_id.
+            // Each UDF descriptor's `.name` field is the callable per-field name
+            // (e.g., `threat_score`, `cvss_base_score`) — the name an analyst uses in
+            // `| enrich threat_score(col)`. The `infusion_id` (e.g., `threat_intel`, `nvd`)
+            // is the registry key for the infusion, NOT a callable name.
+            // AC-N1 / BC-2.11.022 v1.1 EC-11-022-006.
+            let mut seen_names = std::collections::BTreeSet::new();
             let mut infusion_names: Vec<String> = Vec::new();
             for desc in &descriptors {
-                if seen_ids.insert(desc.infusion_id.clone()) {
-                    infusion_names.push(desc.infusion_id.clone());
+                if seen_names.insert(desc.name.clone()) {
+                    infusion_names.push(desc.name.clone());
                 }
             }
             if infusion_names.is_empty() {

@@ -486,3 +486,78 @@ fn check_bearer_auth(headers: &HeaderMap) -> Option<axum::response::Response> {
         Some((StatusCode::FORBIDDEN, Json(body)).into_response())
     }
 }
+
+/// Deterministic unit tests for BC-2.06.019 PC-4 stage-0 device-filtering predicate.
+///
+/// These tests verify the `mask.primary_device && stage_idx > 0` guard implemented in
+/// `paginate_devices` without wall-clock dependency or HTTP server spin-up. The HTTP-level
+/// integration tests that exercise the full route are in
+/// `tests/bc_2_06_019_scenario_progression.rs`; those tests now run in CI — the macOS
+/// native-tls Keychain init race that previously exceeded the 50s stage-0 window was
+/// resolved by standardizing reqwest to rustls-tls per ADR-050 (S-DEMO-FIDELITY-REMEDIATION-001).
+/// These in-process unit tests remain as a fast, deterministic complement to the subprocess
+/// HTTP integration tests.
+#[cfg(all(test, feature = "fixture-gen"))]
+mod tests {
+    use prism_dtu_common::{
+        build_default_incident_timeline, build_scenario_entity_catalog, current_stage_index, OrgId,
+    };
+
+    fn deadbeef_org() -> OrgId {
+        OrgId([
+            0xde, 0xad, 0xbe, 0xef, 0x00, 0x00, 0x70, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00,
+        ])
+    }
+
+    /// BC-2.06.019 PC-4 — stage-0 filtering predicate is deterministic.
+    ///
+    /// Verifies that `mask.primary_device && stage_idx > 0` evaluates to:
+    ///   - false at stage 0 (elapsed < 60s) → primary device ABSENT
+    ///   - true  at stage 1 (elapsed >= 60s) → primary device PRESENT
+    ///
+    /// Uses fixed epoch (no wall clock). This is the deterministic complement to the
+    /// HTTP integration tests in `tests/bc_2_06_019_scenario_progression.rs` (TV-019-009).
+    #[test]
+    fn test_BC_2_06_019_stage0_primary_device_filtering_predicate_deterministic() {
+        let org = deadbeef_org();
+        let catalog = build_scenario_entity_catalog(42, &org);
+        let start_epoch: i64 = 2_000_000; // fixed — no wall clock
+
+        let timeline = build_default_incident_timeline(catalog, start_epoch, &[]);
+
+        // Stage 0: elapsed = 10s < 60s → stage_idx = 0.
+        // Predicate: mask.primary_device && stage_idx > 0 = true && false = false → ABSENT.
+        let stage_idx_0 = current_stage_index(&timeline, start_epoch + 10);
+        assert_eq!(
+            stage_idx_0, 0,
+            "TV-019-001: at elapsed=10s, stage must be 0 (Baseline); got {stage_idx_0}"
+        );
+        let mask_0 = &timeline.stages[stage_idx_0].visible_entity_mask;
+        let primary_visible_at_0 = mask_0.primary_device && stage_idx_0 > 0;
+        assert!(
+            !primary_visible_at_0,
+            "BC-2.06.019 PC-4: at stage 0 (elapsed 10s < 60s), primary device must be ABSENT \
+             (mask.primary_device={}  stage_idx={} → predicate={}). \
+             The `stage_idx > 0` guard must suppress primary_device at Baseline.",
+            mask_0.primary_device, stage_idx_0, primary_visible_at_0
+        );
+
+        // Stage 1: elapsed = 90s >= 60s → stage_idx = 1.
+        // Predicate: mask.primary_device && stage_idx > 0 = true && true = true → PRESENT.
+        let stage_idx_1 = current_stage_index(&timeline, start_epoch + 90);
+        assert_eq!(
+            stage_idx_1, 1,
+            "TV-019-002: at elapsed=90s, stage must be 1 (Recon); got {stage_idx_1}"
+        );
+        let mask_1 = &timeline.stages[stage_idx_1].visible_entity_mask;
+        let primary_visible_at_1 = mask_1.primary_device && stage_idx_1 > 0;
+        assert!(
+            primary_visible_at_1,
+            "BC-2.06.019 PC-4: at stage 1 (elapsed 90s >= 60s), primary device must be PRESENT \
+             (mask.primary_device={}  stage_idx={} → predicate={}). \
+             Primary device becomes visible at stage 1 (Recon) per StageMask.",
+            mask_1.primary_device, stage_idx_1, primary_visible_at_1
+        );
+    }
+}

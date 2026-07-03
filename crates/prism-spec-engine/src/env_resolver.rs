@@ -25,7 +25,7 @@
 //! `SpecEngineError::EnvVarNotSet` carries only the var NAME and TOML path.
 //! The resolved VALUE is NEVER included in any error or log emitted by this module.
 //!
-//! BC-2.16.009 §Validation Rules 6; error-taxonomy.md v1.56 E-SPEC-024;
+//! BC-2.16.009 §Validation Rules 6; error-taxonomy.md §E-SPEC-024;
 //! S-SPEC-ENV-VAR-001.
 
 use std::env::VarError;

@@ -94,7 +94,7 @@ fn test_bc_2_11_020_forbid_both_dual_limit_e_query_040() {
         }) => {
             assert_eq!(sql_limit, 5, "BC-2.11.020: sql_limit must be 5");
             assert_eq!(pipe_limit, 3, "BC-2.11.020: pipe_limit must be 3");
-            // Verify verbatim E-QUERY-040 message (POL-24 — error-taxonomy.md v2.00).
+            // Verify verbatim E-QUERY-040 message (POL-24 — error-taxonomy.md §E-QUERY-040).
             let err = PrismError::RedundantRowLimit {
                 sql_limit,
                 pipe_limit,

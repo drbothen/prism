@@ -696,6 +696,7 @@ mod tests {
             source,
             None,
             super::DEFAULT_CACHE_TTL_SECS,
+            "",
         )
     }
 
@@ -713,6 +714,7 @@ mod tests {
             source,
             Some(source_column.to_string()),
             super::DEFAULT_CACHE_TTL_SECS,
+            "",
         )
     }
 
@@ -1526,6 +1528,7 @@ mod tests {
             src,
             None,
             NON_DEFAULT_TTL,
+            "",
         );
 
         let lru = Arc::new(InfusionLruCache::new(
