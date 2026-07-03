@@ -33,7 +33,7 @@ subsystems: [SS-01, SS-10, SS-11, SS-22]
 #     - AUDIT-004: render_* functions in prompts.rs (BC-2.10.016 v1.2) — FROM-ready table names
 #   SS-11 (Query Execution Engine) owns the prism-query + prism-core work per ARCH-INDEX:
 #     - N1-B: E-QUERY-039 NET-NEW implementation: EnrichUdfNotFound variant+struct in prism-core/error.rs;
-#             plan-time enrichment gate in prism-query/engine.rs (AST visitor, pipe EnrichStage +
+#             plan-time enrichment gate in prism-query/engine.rs (direct match, pipe EnrichStage +
 #             SQL ScalarFunc::Unknown paths); map_prism_error -32602 net-new arm in error_mapping.rs.
 #             NOTE: map_prism_error arm for E-QUERY-037 (TableNotAvailable) is CONFIRMED PRESENT —
 #             only the E-QUERY-039 (EnrichUdfNotFound) arm is net-new. BC-2.11.019 v1.5 draft→active
@@ -92,7 +92,7 @@ status: draft
 #   BC-2.11.016 v1.5, BC-2.11.007 v1.9) + BC-2.11.019 v1.5 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.15"
+version: "2.16"
 updated: "2026-07-02"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -483,13 +483,14 @@ built-in exclusion per F-PJL1-HIGH-001), and MCP -32602 mapping):
 
 **Step 2 — Add plan-time enrichment gate** (in `crates/prism-query/src/engine.rs`) (I2 anchor v1.3):
 Add a new plan-time enrichment-validation pass in `crates/prism-query/src/engine.rs`, invoked
-BEFORE `check_availability_gate`/fan-out. This pass uses the AST `visit::Visitor` to collect
+BEFORE `check_availability_gate`/fan-out. This pass uses a direct `match &ast { ... }` traversal
+(not the `visit::Visitor` trait — avoids coupling with the full visitor infrastructure) to collect
 enrichment function names from BOTH query paths and validates each against the registered
 UDF name set (derived from `registry.udf_descriptors()`):
-- **Pipe path** — visitor arm collects `EnrichStage.infusion` values from `PipeStage::Enrich` nodes.
-- **SQL path** — visitor arm collects `ScalarFunc::Unknown(name)` values from SELECT projection expressions (reachable from real queries via `build_sql_expr_parser`) AND from WHERE clause predicates via `collect_unknown_scalar_from_predicate` (DEFENSIVE / forward-compat coverage per BC-2.11.019 v1.5 §Precondition 1(b) AST-contract; see WHERE-clause note above — a real `WHERE udf(col) = v` is an E-QUERY-001 parse error today; the WHERE scan is exercised by programmatic AST unit tests, not real parsed query text). **DataFusion built-in exclusion (v1.5 F-PJL1-HIGH-001):** for SQL-mode, the gate fires ONLY when `name` is NEITHER a DataFusion built-in (check `ctx.state().scalar_functions().get(name)`) NOR a registered infusion. Names like `lower`, `upper`, `coalesce` that DataFusion can resolve must pass the gate without E-QUERY-039.
+- **Pipe path** — match arm collects `EnrichStage.infusion` values from `PipeStage::Enrich` nodes.
+- **SQL path** — match arm collects `ScalarFunc::Unknown(name)` values from SELECT projection expressions (reachable from real queries via `build_sql_expr_parser`) AND from WHERE clause predicates via `collect_unknown_scalar_from_predicate` (DEFENSIVE / forward-compat coverage per BC-2.11.019 v1.5 §Precondition 1(b) AST-contract; see WHERE-clause note above — a real `WHERE udf(col) = v` is an E-QUERY-001 parse error today; the WHERE scan is exercised by programmatic AST unit tests, not real parsed query text). **DataFusion built-in exclusion (v1.5 F-PJL1-HIGH-001):** for SQL-mode, the gate fires ONLY when `name` is NEITHER a DataFusion built-in (check `ctx.state().scalar_functions().get(name)`) NOR a registered infusion. Names like `lower`, `upper`, `coalesce` that DataFusion can resolve must pass the gate without E-QUERY-039.
 
-Both collection paths are DISTINCT visitor arms but feed the same validation loop and the same
+Both collection paths are DISTINCT match arms but feed the same validation loop and the same
 `EnrichUdfNotFound` error type. For each collected name: if `name` is NOT a key in
 `InfusionRegistry.udf_to_infusion`, return at plan time:
 ```rust
@@ -1138,13 +1139,14 @@ create files, sub-burst B: update indexes).
        update `CLAUDE.md` non-exhaustive sentence (87→88) and add `EnrichUdfNotFoundDetails`
        to the attribution list. Also update `.github/workflows/ci.yml` if it pins EXPECTED.
 - [ ] 6. Add plan-time enrichment-validation pass in `crates/prism-query/src/engine.rs`
-       BEFORE `check_availability_gate`/fan-out; use AST `visit::Visitor` to collect
-       enrichment function names — (a) pipe path: `PipeStage::Enrich` nodes → `EnrichStage.infusion`;
+       BEFORE `check_availability_gate`/fan-out; collect enrichment function names via
+       direct `match &ast { ... }` (not the `visit::Visitor` trait — avoids coupling with
+       the full visitor infrastructure) — (a) pipe path: `PipeStage::Enrich` nodes → `EnrichStage.infusion`;
        (b) SQL path: `ScalarFunc::Unknown(name)` in SELECT projection expressions (reachable
        from real queries) AND WHERE predicates via `collect_unknown_scalar_from_predicate`
        (DEFENSIVE / forward-compat per BC-2.11.019 v1.5 §Precondition 1(b) AST-contract;
        real `WHERE udf(col)=v` is E-QUERY-001 parse error today; WHERE scan is exercised by
-       programmatic AST unit tests, not real parsed query text); these are DISTINCT visitor
+       programmatic AST unit tests, not real parsed query text); these are DISTINCT match
        arms but feed the same validation loop. For each collected `name`: if NOT in
        `InfusionRegistry.udf_to_infusion`, build the UDF name vec inline via
        `registry.udf_descriptors().iter().map(|d| d.name.clone()).collect::<Vec<_>>()`
@@ -1506,6 +1508,7 @@ and the TLS-REMEDIATION fold-in (commit cf66151f):
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.16 | obs-2-mechanism-description-reconcile-2026-07-02 | 2026-07-02 | story-writer | **OBS-2 mechanism-description reconciliation.** Story over-specified the E-QUERY-039 enrichment gate as using the AST `visit::Visitor` trait. The implementation (engine.rs:1625-1676) deliberately uses a direct `match &ast { ... }` traversal instead, with documented rationale: "avoids coupling with the full visitor infrastructure." Observable behavior is identical and BC-2.11.019 is unaffected — only the story's prose was wrong. Three sites updated: (1) **Frontmatter subsystem anchor comment (SS-11 N1-B line):** `(AST visitor, pipe EnrichStage +` → `(direct match, pipe EnrichStage +`. (2) **Step 2 body (~lines 486-492):** opening sentence `"This pass uses the AST \`visit::Visitor\` to collect"` → `"This pass uses a direct \`match &ast { ... }\` traversal (not the \`visit::Visitor\` trait — avoids coupling with the full visitor infrastructure) to collect"`; pipe/SQL path bullets `"visitor arm"` → `"match arm"`; `"DISTINCT visitor arms but feed"` → `"DISTINCT match arms but feed"`. (3) **Tasks step 6 (~lines 1141-1148):** `"use AST \`visit::Visitor\` to collect"` → `"collect via direct \`match &ast { ... }\` (not the \`visit::Visitor\` trait — avoids coupling with the full visitor infrastructure)"`; `"DISTINCT visitor arms"` → `"DISTINCT match arms"`. BC-2.11.019 not touched — behavioral contract is spec-compliant and unaffected. |
 | 2.15 | tls-remediation-fold-2026-07-02 | 2026-07-02 | story-writer | **TLS-REMEDIATION fold-in (commit cf66151f) + root cause correction.** (1) **AC-TLS added (Area L):** documents the native-tls → rustls-tls standardization across 11 Cargo.toml entries (9 DTU `[dev-dependencies]`, prism-bin `[dev-dependencies]`, ocsf-proto-gen optional download-feature `[dependencies]`); 4 DTU integration tests un-quarantined (removed `#[ignore]`): `test_BC_2_06_019_armis_primary_device_stage_visibility`, `test_BPRL_P4_02_armis_alerts_stage_guard_primary_device`, `test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility` (prism-dtu-armis), `test_BPRL_P4_02_detections_stage_guard_primary_device` (prism-dtu-crowdstrike); 7 stop() resource-cleanup calls added in prism-dtu-claroty `sec_p3_003_constant_time_admin_token.rs`. (2) **Root cause corrected:** prior misdiagnosis "WASMtime plugin-init starvation" replaced with the REAL root cause: macOS native-tls/Security.framework Keychain init (~65s/process) exceeding the 50s stage-0 window under nextest parallel load — a DETERMINISTIC failure, not flakiness. (3) **Frontmatter updates:** `version` 2.14→2.15; `updated` 2026-06-29→2026-07-02; `subsystems` [SS-10, SS-11]→[SS-01, SS-10, SS-11, SS-22] (SS-01 for 9 DTU crates; SS-22 for prism-bin); `points` 10→11 (+1pt TLS-REMEDIATION); `estimated_days` 2→2.5 (+0.5d); `acceptance_criteria_count` 16→17 (+AC-TLS); `crates_touched` adds 9 DTU crates + prism-bin + ocsf-proto-gen (11 entries). (4) **No BC authorship:** BC-2.06.019 behavior is unchanged — the tests simply run now. ADR/BC recommendation for rustls-tls convention flagged to orchestrator for routing to architect. |
 | 2.14 | cat2-ac-adv-p208-p02-fold-2026-06-29 | 2026-06-29 | story-writer | **AC-CAT2 add + ADV-P208-P02-001 close + ADV-P208-P02-002 close.** (1) **AC-CAT2 (BC-2.10.012 v1.7 §pql_hints Category-2):** `build_pql_hints` gains 4th param `infusion_registry: Option<&prism_spec_engine::InfusionRegistry>`; `pql_hints[2]` = enrichment-presence hint when tables non-empty (sorted UDFs as `<name>(<input_field>)`, byte-exact format); absent hint when `None`/empty registry; Category-2 suppressed when tables empty. `InfusionUdfDescriptor` gains `pub input_field: String`; `new()` gains this param; `udf_descriptors()` propagates `field.input_field.clone()`; ~10 prism-query `new()` callers updated (TD-VSDD-060). `handle_prism_describe` wired via `query_engine.and_then(|qe| qe.infusion_registry()).as_deref()` (ADR-022 §C). 3 new Red Gate tests in `bc_2_10_012_audit_001_test.rs`. `red_gate_tests` 49→52. `prism-spec-engine` added to `crates_touched`. (2) **ADV-P208-P02-001 close (MED, Category-1):** Deferred-items table row 1 ("BC-2.10.012 §pql_hints Category-1 hint-text divergence — PO adjudication required") removed. Resolved spec-only by PO via BC-2.10.012 v1.6→v1.7. Category-2 implemented in-scope; row is no longer deferred. Row 2 (S-QUERY-GATE-REPARSE-CONSOLIDATION-001) unchanged. (3) **ADV-P208-P02-002 close (LOW, AC count drift):** `acceptance_criteria_count` 17→16 (honest body count: 15 pre-v2.14 discrete `**AC-XXX**` headers + 1 new AC-CAT2 = 16). CRIT-1 is a folded sub-behavior within AC-AUDIT-001, not a standalone `**AC-CRIT1**` header; SqlPipe/did_you_mean are folded into AC-N1B/AC-N2/AC-C1C2. Frontmatter count comment rewritten with explicit enumeration. (4) **BC-2.10.012 v1.5→v1.7** in body BC table, AC-AUDIT-001 trace, frontmatter BC status comment, and points breakdown comment. |
 | 2.13 | adv-p208-p01-001-deferral-anchor-2026-06-29 | 2026-06-29 | story-writer | **ADV-P208-P01-001 deferral-anchor fix: "4x-query-reparse perf" Target cell updated from "follow-up story" to concrete story ID S-QUERY-GATE-REPARSE-CONSOLIDATION-001.** Per CLAUDE.md Canonical Principle Rule 3, a deferral target must be a concrete real story ID, not an open-ended phrase. Searched STORY-INDEX (v2.526, 219 stories) — no existing query-engine performance/gate-consolidation story covers this surface. Created NEW draft stub story `S-QUERY-GATE-REPARSE-CONSOLIDATION-001-query-gate-reparse-consolidation.md` (P3; SS-11 Query Execution; prism-query; 5 pts; depends_on S-DEMO-FIDELITY-REMEDIATION-001; `behavioral_contracts: []` — pending PO authorship per Spec-First Gate S-7.01; post-demo-backlog wave). Deferred items table Target cell: "follow-up story" → "S-QUERY-GATE-REPARSE-CONSOLIDATION-001". No code change. No AC, BC, or Red Gate test change. State-manager to register new story in STORY-INDEX. |
