@@ -92,7 +92,7 @@ status: draft
 #   BC-2.11.016 v1.5, BC-2.11.007 v1.9) + BC-2.11.019 v1.6 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.20"
+version: "2.21"
 updated: "2026-07-03"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -1038,9 +1038,9 @@ confirm workspace exits 0.
 > **No BC authorship required for TLS standardization.** The rustls-tls standardization is
 > a test-infrastructure dependency configuration change, not a behavioral contract change.
 > BC-2.06.019 (DTU stage-0 scenario visibility) is unchanged — the tests simply RUN now
-> rather than being quarantined. If the architect or PO determines that a standing ADR is
-> warranted for the rustls-tls-only convention in DTU dev-dependencies, that authorship
-> is routed to architect/product-owner — NOT authored here.
+> rather than being quarantined. The workspace-wide rustls-tls-only convention for reqwest
+> dev-dependencies IS codified as **ADR-050** (workspace reqwest rustls-tls backend
+> convention, ACCEPTED), established during this story.
 
 ---
 
@@ -1124,6 +1124,11 @@ predicate form is added to HAVING only (via `build_having_predicate_parser`); WH
 does not receive this form. BC-2.11.016 v1.5's claim that `HAVING count(typo_col) > 5` triggers
 E-QUERY-038 is now deliverable as a result of the ADR-048 grammar extension (F-PXL3-MED-002).
 BC-2.11.016 stays at v1.5 — no version change required.
+
+ADR-050 (workspace reqwest rustls-tls backend convention, ACCEPTED) governs the rustls-tls-only
+standardization delivered by the TLS-REMEDIATION scope of this story. ADR-050 was authored by the
+architect for this story (`anchor_stories: [S-DEMO-FIDELITY-REMEDIATION-001]`); it codifies the
+`default-features=false, features=["rustls-tls"]` convention for all workspace reqwest entries.
 
 ---
 
@@ -1540,6 +1545,7 @@ and the TLS-REMEDIATION fold-in (commit cf66151f):
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.21 | f-p208-adr050-anchor-2026-07-03 | 2026-07-03 | story-writer | **F-P208-ADR050-ANCHOR (MED) — ADR-050 anchor added to AC-TLS + §References; stale conditional blockquote replaced.** (1) **Stale blockquote replaced (AC-TLS, ~line 1038):** The six-line blockquote ending "if the architect or PO determines that a standing ADR is warranted... that authorship is routed to architect/product-owner — NOT authored here" was FALSE — ADR-050 (ACCEPTED) was authored specifically for this story. Replaced with accurate text: "The workspace-wide rustls-tls-only convention for reqwest dev-dependencies IS codified as ADR-050 (workspace reqwest rustls-tls backend convention, ACCEPTED), established during this story." (2) **§References extended:** Added ADR-050 citation paragraph after ADR-048 paragraph: "ADR-050 (workspace reqwest rustls-tls backend convention, ACCEPTED) governs the rustls-tls-only standardization delivered by the TLS-REMEDIATION scope of this story. ADR-050 was authored by the architect for this story (`anchor_stories: [S-DEMO-FIDELITY-REMEDIATION-001]`); it codifies the `default-features=false, features=["rustls-tls"]` convention for all workspace reqwest entries." (3) **Sibling sweep:** grep for "standing ADR\|route to architect\|not authored here\|pending architect\|ADR.*warranted\|warranted for\|authorship is routed" — two instances found. Instance 1: the stale blockquote at line 1038 (FIXED). Instance 2: changelog row 2.15 historical record ("ADR/BC recommendation for rustls-tls convention flagged to orchestrator for routing to architect") — this is an immutable historical record of what was believed at that time; it accurately records past state and is NOT stale prose in active AC scope. Left unchanged. No code, BC, or STORY-INDEX change. |
 | 2.20 | consistency-audit-5-findings-2026-07-03 | 2026-07-03 | story-writer | **Consistency-audit 5-finding cleanup.** Source-verified `bc_2_11_019_n1b_test.rs` contains 22 test functions (not 19). Five fixes applied: (1) **F1 (MED)** File Structure table row for `bc_2_11_019_n1b_test.rs`: count 19→22; added 3 missing tests to description: `ec_11_066_builtin_aggregate_stddev_not_e_query_039`, `ec_11_067_builtin_window_row_number_not_e_query_039` (v2.17 EC-11-066/067), `f_pnl1_pipe_mode_builtin_aggregate_still_fires_e_query_039` (v2.17 pipe-mode guard). (2) **F2 (LOW)** `crates_touched` frontmatter comment: `(19 tests — see` → `(22 tests — see`. (3) **F3 (LOW)** Token Budget row: `52 Red Gate tests` → `54 Red Gate tests` (aligns with `red_gate_tests: 54` frontmatter). (4) **F4 (LOW)** Token Budget story-spec row: `(v2.15)` → `(v2.20)`. (5) **F5 (LOW)** AC-SAP-1 §References: volatile `BC-2.16.002 v1.91` pin replaced with TD-VSDD-091 preferred §-anchor form `BC-2.16.002 §Canonical Structured Event Catalog (this story's SAP-1 M1/N2 obligation was fulfilled by the v1.91 amendment; subsequent v1.92 amendment by S-PERF-GATE-008 is unrelated to this story)`. Immutable historical narrative (line ~1112, v1.90→v1.91) left unchanged. No additional stale self-refs found in sweep. No code, BC, or STORY-INDEX change. |
 | 2.19 | f-p208-tls-anchor-001-2026-07-03 | 2026-07-03 | story-writer | **F-P208-TLS-ANCHOR-001 (LOW) — AC-TLS unfilled version placeholder + S-7.01 compliance-note reword.** (1) `v1.?` placeholder resolved to `v1.15` (BC-2.06.019 confirmed at v1.15 from frontmatter). (2) AC-TLS header reworded from `(traces to BC-2.06.019 v1.? precondition — DTU stage-0 scenarios execute within the stage-0 window under parallel test load)` to `(TLS-REMEDIATION compliance — DTU stage-0 test un-quarantine; partial BC-2.06.019 v1.15 context)`, mirroring AC-SAP-1's compliance-note pattern (SAP-1 references BC-2.16.002 as "partial dependency" without frontmatter inclusion; same treatment applied here). BC-2.06.019 is NOT added to frontmatter array — the existing blockquote already states "BC-2.06.019 behavior is unchanged — the tests simply RUN now rather than being quarantined"; this is compliance/context reference, not a primary behavioral anchor. (3) Sibling sweep (`rg -n 'v[0-9]+\.\?\|v\?\.' .factory/stories/S-DEMO-FIDELITY-REMEDIATION-001-*`): only one instance found and fixed; no other unfilled version placeholders present. No BC, frontmatter array, body BC table, or STORY-INDEX change. |
 | 2.18 | f-p208-n1b-testname-drift-2026-07-03 | 2026-07-03 | story-writer | **F-P208-N1B-TESTNAME-DRIFT (MED) — test-name citation correction.** The two EC-11-066/067 Red Gate test names cited in v2.17 did not match the actual implemented test function names. Story cited `test_bc_2_11_019_n1b_builtin_passthrough_stddev` and `test_bc_2_11_019_n1b_builtin_passthrough_row_number`; source-verified actual names in `bc_2_11_019_n1b_test.rs` (lines 1294, 1338) are `test_bc_2_11_019_ec_11_066_builtin_aggregate_stddev_not_e_query_039` and `test_bc_2_11_019_ec_11_067_builtin_window_row_number_not_e_query_039`. Behavior IS covered (real tests exist and pass); this is a citation/traceability defect only. Six citation sites corrected: (1) frontmatter `red_gate_tests` inventory comments (lines 145–146); (2) DataFusion built-in exclusion blockquote EC-11-066/067 note; (3) Red Gate test paragraph for EC-11-066 (stddev); (4) Red Gate test paragraph for EC-11-067 (row_number); (5) EC-020 edge-case table Test cell; (6) EC-021 edge-case table Test cell; (7) v2.17 changelog row retrospective cite. Adjudication per CLAUDE.md SoT rule 7: test-name spelling is an implementation detail; story is updated to match the verified-passing code. No code, BC, or STORY-INDEX change. |

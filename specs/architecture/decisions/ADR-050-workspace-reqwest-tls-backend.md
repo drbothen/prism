@@ -4,8 +4,8 @@ adr_id: "ADR-050"
 title: "Workspace reqwest TLS Backend — rustls-tls Mandatory, native-tls Forbidden"
 status: ACCEPTED
 date: "2026-07-02"
-modified: "2026-07-02"
-version: "1.0"
+modified: "2026-07-03"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-01, SS-16, SS-17, SS-22]
 supersedes: []
@@ -22,7 +22,7 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.0 (2026-07-02). Established during S-DEMO-FIDELITY-REMEDIATION-001 to
+ACCEPTED v1.1 (2026-07-03). Established during S-DEMO-FIDELITY-REMEDIATION-001 to
 resolve 4 deterministically-failing DTU stage-0 scenario tests caused by macOS
 native-tls/Security.framework Keychain initialization overhead (~65s/process cold
 start). Commit cf66151f standardized all remaining dev-dependency and optional-dep
@@ -54,8 +54,8 @@ by ADR-049).
 
 | Cargo.toml section | Pre-fix state | Post-fix (cf66151f) |
 |--------------------|--------------|---------------------|
-| prism-bin, prism-spec-engine, prism-sensors `[dependencies]` | Already `default-features = false, features = ["rustls-tls"]` | Unchanged — already correct |
-| prism-bin, prism-spec-engine, prism-sensors `[dev-dependencies]` | Missing `default-features = false` — native-tls active | Fixed |
+| prism-bin, prism-spec-engine, prism-sensors `[dependencies]`; prism-ocsf `[dev-dependencies]` | Already `default-features = false, features = ["rustls-tls"]` | Unchanged — already correct |
+| prism-bin `[dev-dependencies]` | Missing `default-features = false` — native-tls active | Fixed |
 | prism-dtu-{armis,claroty,crowdstrike,cyberint,jira,nvd,pagerduty,slack,threatintel} `[dev-dependencies]` | Missing `default-features = false` — native-tls active | Fixed (9 crates) |
 | ocsf-proto-gen optional `download` feature dep | Missing `default-features = false` — native-tls active | Fixed |
 
@@ -221,4 +221,5 @@ rejects a synthetic Cargo.toml violating D1 or D2.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-07-03 | architect | §Pre-Fix State table corrected (factual imprecision found during PR #208 PR-LEVEL adversarial review). Row 1 expanded: prism-ocsf `[dev-dependencies]` was already `rustls-tls, default-features=false` (unchanged by story) and is now listed in the "already correct" group alongside prism-bin/prism-spec-engine/prism-sensors `[dependencies]`. Row 2 narrowed: prism-spec-engine and prism-sensors had NO separate `[dev-dependencies]` reqwest entry and were NOT changed by cf66151f — removed from the "Fixed" row, which now lists only prism-bin `[dev-dependencies]`. Decision text (D1–D4), §Decisions, §Considered Alternatives, §Consequences, §Enforcement Recommendation, and §Context unchanged. |
 | 1.0 | 2026-07-02 | architect | Initial ACCEPTED. S-DEMO-FIDELITY-REMEDIATION-001 cf66151f establishes workspace-wide reqwest TLS backend convention. D1: `default-features = false, features = ["rustls-tls"]` mandatory in all Cargo.toml sections; D2: native-tls + aliases forbidden; D3: new-crate declaration rule; D4: DTU stage-0 timing-budget calibration assumes rustls ~0ms init. Security review APPROVED (MSSP MITM threat model, memory-safety, supply-chain). Enforcement gate: fast-follow story (multi-line TOML check complexity; cf66151f fixes all current violations). |
