@@ -1109,7 +1109,7 @@ async fn test_c1_sqlpipe_group_by_unknown_scalar_triggers_e_query_039() {
 /// ScalarFunc::Unknown). Pass-after: the gate skips names present in the
 /// DataFusion built-in scalar function set.
 ///
-/// Load-bearing: if DATAFUSION_BUILTIN_SCALAR_NAMES is removed or the
+/// Load-bearing: if DATAFUSION_BUILTIN_FUNCTION_NAMES is removed or the
 /// built-in exclusion check is removed from check_enrich_udf_availability,
 /// this test fails because `lower` returns E-QUERY-039.
 #[tokio::test]
@@ -1151,14 +1151,14 @@ async fn test_bc_2_11_019_n1b_builtin_passthrough_lower() {
 /// 'unknown') FROM cyberint_alerts` passes the E-QUERY-038 column gate (iocs_value is a
 /// valid column in cyberint_alerts — or gate fails open in test mode) and reaches the
 /// E-QUERY-039 gate, which MUST NOT fire because `coalesce` is in
-/// `DATAFUSION_BUILTIN_SCALAR_NAMES`.
+/// `DATAFUSION_BUILTIN_FUNCTION_NAMES`.
 ///
 /// NOTE: `cyberint_alerts` in the test fixture has an empty columns array, so the
 /// E-QUERY-038 column check `fails open` (no resolved_spec_map in test mode) — the
 /// coalesce query proceeds past gate 038 to gate 039, which is the gate under test.
 ///
 /// Load-bearing (EC-11-065 / TD-VSDD-059):
-/// - Removing `coalesce` from `DATAFUSION_BUILTIN_SCALAR_NAMES` makes the coalesce
+/// - Removing `coalesce` from `DATAFUSION_BUILTIN_FUNCTION_NAMES` makes the coalesce
 ///   assertion fail with E-QUERY-039.
 /// - Removing the entire built-in exclusion check makes ALL assertions fail.
 #[tokio::test]
@@ -1179,7 +1179,7 @@ async fn test_bc_2_11_019_n1b_builtin_passthrough_coalesce() {
         assert!(
             !display.contains("E-QUERY-039"),
             "EC-11-065: DataFusion built-in 'coalesce' must NOT trigger E-QUERY-039. \
-             Got: {display}. Fix: verify 'coalesce' is in DATAFUSION_BUILTIN_SCALAR_NAMES \
+             Got: {display}. Fix: verify 'coalesce' is in DATAFUSION_BUILTIN_FUNCTION_NAMES \
              and the built-in exclusion check is active in check_enrich_udf_availability \
              (BC-2.11.019 v1.5). This test FAILS if coalesce is removed from the exclusion set."
         );
@@ -1256,6 +1256,155 @@ async fn test_f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039() {
 // additional test that specifically exercises only the SCHEDULED path with a
 // query that triggers E-QUERY-037 (unregistered table) and would trigger
 // E-QUERY-011 (prism_audit reference) if the ordering were reversed.
+
+// ── F1 RED GATE: DataFusion built-in aggregate + window exclusion (BC-2.11.019 v1.6) ──────
+//
+// BC-2.11.019 v1.6 §F-PJL1-HIGH-001 amendment: SQL-mode E-QUERY-039 fires ONLY when the
+// name is (a) not a PQL typed scalar variant, (b) NOT in scalar + aggregate + window
+// built-ins, AND (c) not in InfusionRegistry.
+//
+// Current bug (F1, HIGH): DATAFUSION_BUILTIN_FUNCTION_NAMES is built ONLY from
+// `SessionStateDefaults::default_scalar_functions()`. DataFusion built-in aggregate
+// functions (stddev, median, variance, approx_distinct, etc.) and window functions
+// (row_number, rank, dense_rank, etc.) parse as `ScalarFunc::Unknown` in PrismQL, but
+// are NOT in the scalar-only exclusion set — causing them to falsely trigger E-QUERY-039.
+//
+// Fix: expand the LazyLock to union scalar + aggregate + window functions; rename to
+// DATAFUSION_BUILTIN_FUNCTION_NAMES.
+//
+// Pipe-mode guard: the built-in exclusion applies to SQL-mode ONLY. `| enrich stddev(col)`
+// still fires E-QUERY-039 because pipe-mode enrich is an explicit infusion directive.
+
+/// EC-11-066 RED GATE — DataFusion built-in aggregate `stddev()` must NOT trigger E-QUERY-039.
+///
+/// Story v2.4 inventory name: EC-11-066 (BC-2.11.019 v1.6 §F-PJL1-HIGH-001 amendment).
+///
+/// `SELECT stddev(severity_score) FROM cyberint_alerts` must NOT return E-QUERY-039.
+/// `stddev` is a DataFusion built-in aggregate function (in `default_aggregate_functions()`),
+/// NOT a scalar function. The current `DATAFUSION_BUILTIN_FUNCTION_NAMES` exclusion set
+/// is scalar-only, so `stddev` parses as `ScalarFunc::Unknown("stddev")` and falsely
+/// triggers E-QUERY-039 before `ctx.sql()` gets to resolve it correctly.
+///
+/// FAIL-BEFORE: exclusion set is scalar-only → stddev triggers E-QUERY-039.
+/// PASS-AFTER: exclusion set includes aggregate functions (DATAFUSION_BUILTIN_FUNCTION_NAMES).
+///
+/// Load-bearing: removing `default_aggregate_functions()` from the exclusion union causes
+/// this test to fail with E-QUERY-039.
+#[tokio::test]
+async fn test_bc_2_11_019_ec_11_066_builtin_aggregate_stddev_not_e_query_039() {
+    let engine = make_test_engine_threat_intel();
+
+    let result = engine
+        .execute(
+            "SELECT stddev(severity_score) FROM cyberint_alerts",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Primary assertion: must NOT trigger E-QUERY-039.
+    // The query may fail for other reasons (e.g. table has no data at test time,
+    // column validation) but the enrich gate MUST NOT be the reason.
+    if let Err(ref e) = result {
+        let display = format!("{e}");
+        assert!(
+            !display.contains("E-QUERY-039"),
+            "EC-11-066 RED GATE: DataFusion built-in aggregate 'stddev' must NOT trigger \
+             E-QUERY-039 in SQL mode. Got: {display}. \
+             Fix: expand DATAFUSION_BUILTIN_FUNCTION_NAMES to include \
+             SessionStateDefaults::default_aggregate_functions() and rename to \
+             DATAFUSION_BUILTIN_FUNCTION_NAMES (BC-2.11.019 v1.6 §F-PJL1-HIGH-001)."
+        );
+    }
+    // Ok result is also acceptable (no E-QUERY-039 means the gate was correctly bypassed).
+}
+
+/// EC-11-067 RED GATE — DataFusion built-in window function `row_number()` must NOT
+/// trigger E-QUERY-039.
+///
+/// Story v2.4 inventory name: EC-11-067 (BC-2.11.019 v1.6 §F-PJL1-HIGH-001 amendment).
+///
+/// `SELECT row_number() FROM cyberint_alerts` must NOT return E-QUERY-039.
+/// `row_number` is a DataFusion built-in window function (in `default_window_functions()`),
+/// not a scalar. It parses as `ScalarFunc::Unknown("row_number")` in PrismQL's SQL parser
+/// (PrismQL recognises only 7 aggregates as `FuncCall::Aggregate`; everything else is
+/// `ScalarFunc::Unknown`). The current scalar-only exclusion set misses it.
+///
+/// FAIL-BEFORE: exclusion set is scalar-only → row_number triggers E-QUERY-039.
+/// PASS-AFTER: exclusion set includes window functions (DATAFUSION_BUILTIN_FUNCTION_NAMES).
+///
+/// Load-bearing: removing `default_window_functions()` from the exclusion union causes
+/// this test to fail with E-QUERY-039.
+#[tokio::test]
+async fn test_bc_2_11_019_ec_11_067_builtin_window_row_number_not_e_query_039() {
+    let engine = make_test_engine_threat_intel();
+
+    let result = engine
+        .execute(
+            "SELECT row_number() FROM cyberint_alerts",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Primary assertion: must NOT trigger E-QUERY-039.
+    if let Err(ref e) = result {
+        let display = format!("{e}");
+        assert!(
+            !display.contains("E-QUERY-039"),
+            "EC-11-067 RED GATE: DataFusion built-in window function 'row_number' must NOT \
+             trigger E-QUERY-039 in SQL mode. Got: {display}. \
+             Fix: expand DATAFUSION_BUILTIN_FUNCTION_NAMES to include \
+             SessionStateDefaults::default_window_functions() and rename to \
+             DATAFUSION_BUILTIN_FUNCTION_NAMES (BC-2.11.019 v1.6 §F-PJL1-HIGH-001)."
+        );
+    }
+    // Ok result is also acceptable.
+}
+
+/// F-PNL1 pipe-mode guard — `| enrich stddev(col)` in PIPE mode STILL fires E-QUERY-039.
+///
+/// BC-2.11.019 v1.6 §F-PJL1-HIGH-001: the built-in exclusion applies to SQL-mode
+/// `ScalarFunc::Unknown` paths ONLY. Pipe-mode `| enrich <name>(...)` is an explicit
+/// enrichment directive — even if `<name>` is a DataFusion built-in aggregate name,
+/// when used as a pipe enrich infusion and NOT in the `InfusionRegistry`, E-QUERY-039
+/// MUST still fire (the analyst is trying to call an unregistered infusion, not a scalar).
+///
+/// This guards against over-broadening: if the built-in exclusion were incorrectly applied
+/// to pipe-mode names (`pipe_enrich_names`), the gate would silently pass unregistered
+/// pipe-mode enrich directives.
+///
+/// Load-bearing: if the fix applies the built-in exclusion to `pipe_enrich_names`,
+/// this test fails (no E-QUERY-039 produced for `stddev` in pipe mode).
+#[tokio::test]
+async fn test_f_pnl1_pipe_mode_builtin_aggregate_still_fires_e_query_039() {
+    // engine has threat_intel infusion (per-field UDFs: threat_score, etc.)
+    // `stddev` is NOT a registered infusion name.
+    let engine = make_test_engine_threat_intel();
+
+    let result = engine
+        .execute(
+            "FROM cyberint_alerts | enrich stddev(severity_score)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "F-PNL1 pipe-mode guard: `| enrich stddev(col)` must return Err(E-QUERY-039) \
+         because 'stddev' is not a registered infusion name (pipe-mode enrich directives \
+         are NOT subject to the DataFusion built-in exclusion). Got Ok — \
+         the built-in exclusion was incorrectly applied to pipe-mode names."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        display.contains("E-QUERY-039"),
+        "F-PNL1 pipe-mode guard: `| enrich stddev(...)` must trigger E-QUERY-039. \
+         Got: {display}. The fix must NOT apply the DataFusion built-in exclusion to \
+         pipe-mode enrich names (BC-2.11.019 v1.6 §F-PJL1-HIGH-001 scope of change)."
+    );
+}
 
 /// F-PJL4-MED-001 — execute_scheduled SCHEDULED path: E-QUERY-037 fires BEFORE E-QUERY-011.
 ///

@@ -1372,65 +1372,84 @@ fn check_table_availability(
 // E-QUERY-039 plan-time enrichment UDF gate (S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B)
 // ---------------------------------------------------------------------------
 
-/// DataFusion built-in scalar function names — computed once at first use via LazyLock.
+/// DataFusion built-in function names (scalar + aggregate + window) — computed once at
+/// first use via `LazyLock`.
 ///
-/// The enrich gate must NOT flag a scalar name that DataFusion can resolve as a built-in
-/// (e.g. `lower`, `upper`, `coalesce`, `concat`, `length`, `abs`, `round`, `cast`, …).
-/// These are registered in the default `SessionContext` via `build_session_context` →
-/// `SessionStateDefaults::register_scalar_functions`. The PrismQL AST renderer emits
-/// ALL unrecognized scalar function calls as `ScalarFunc::Unknown(name)`, including
-/// DataFusion built-ins — so the gate must exclude them explicitly.
+/// The enrich gate must NOT flag a name that DataFusion can resolve as a built-in function
+/// of ANY kind: scalar (e.g. `lower`, `upper`, `coalesce`), aggregate (e.g. `stddev`,
+/// `median`, `variance`, `approx_distinct`), or window (e.g. `row_number`, `rank`,
+/// `dense_rank`).
 ///
-/// Mechanism: call `SessionStateDefaults::default_scalar_functions()` once to enumerate
-/// every built-in Arc<ScalarUDF>, collect their lowercase names into a HashSet, and
-/// store it in a static LazyLock. Per-query cost: a single O(1) HashSet lookup per
-/// collected name. LazyLock initialization happens at first gate invocation (process start
-/// in production; first test run otherwise) — not per query.
+/// PrismQL's SQL parser recognises only 7 function names as `FuncCall::Aggregate`
+/// (COUNT / SUM / AVG / MIN / MAX / PERCENTILE / DISTINCT_COUNT). Every other function
+/// name — including DataFusion built-in aggregates and window functions — parses as
+/// `ScalarFunc::Unknown(name)`. Without explicit exclusion of aggregates and windows,
+/// `SELECT stddev(col) FROM t` would falsely trigger E-QUERY-039 because `stddev` is not
+/// in the scalar-only exclusion set, even though DataFusion's `ctx.sql()` resolves it
+/// correctly as an aggregate function.
+///
+/// Mechanism: union `SessionStateDefaults::default_scalar_functions()`,
+/// `default_aggregate_functions()`, and `default_window_functions()` — enumerate every
+/// built-in UDF, collect their lowercase names and aliases into a single `HashSet`, and
+/// store in a static `LazyLock`. Per-query cost: a single O(1) HashSet lookup per
+/// collected name. Initialization is once-per-process (at first gate invocation).
 ///
 /// Case-insensitive exclusion: DataFusion normalizes function names to lowercase
-/// internally; we lowercase the collected name before the lookup to match.
+/// internally; we lowercase the collected name before lookup to match.
 ///
-/// # BC-2.11.019 v1.5 §F-PJL1-HIGH-001 compliance — "or equivalent" rationale
+/// # BC-2.11.019 v1.6 §F-PJL1-HIGH-001 amendment — extended "or equivalent" rationale
 ///
-/// The BC implementation note states: "The check MUST use `ctx.state().scalar_functions()`
-/// **or equivalent** — so that the gate's built-in exclusion list is always consistent with
-/// what DataFusion can actually resolve. Hard-coding an allowlist is an anti-pattern."
+/// BC-2.11.019 v1.5 stated: "fire E-QUERY-039 ONLY for a name that is neither a
+/// DataFusion built-in scalar NOR a registered enrichment UDF."
 ///
-/// `SessionStateDefaults::default_scalar_functions()` IS the canonical "or equivalent":
+/// BC-2.11.019 v1.6 (F1, S-DEMO-FIDELITY-REMEDIATION-001 Pass-N1b) amends this to:
+/// "fire E-QUERY-039 ONLY for a `ScalarFunc::Unknown(name)` in SQL mode when name is
+/// (a) not a PQL typed scalar variant, (b) NOT in ANY of scalar_functions() +
+/// aggregate_functions() + window_functions(), AND (c) not in InfusionRegistry."
 ///
-/// 1. `build_session_context` (memory.rs) creates a `SessionContext` with the **default**
-///    `SessionConfig` — no built-in scalars are removed or replaced in that construction.
-/// 2. After building the default context, only infusion async-UDFs (`Arc<AsyncScalarUdf>`)
-///    are registered beyond the defaults; those are NOT built-in scalar functions and are
-///    handled separately by the `InfusionRegistry` path.
-/// 3. Therefore, `ctx.state().scalar_functions()` on the execution context and
-///    `SessionStateDefaults::default_scalar_functions()` enumerate the **identical set**
-///    of built-in scalar names — the two are provably equivalent for this deployment model.
+/// Scope of change: the expanded exclusion applies to SQL-mode `ScalarFunc::Unknown`
+/// names ONLY — the same scope as the original v1.5 fix. Pipe-mode `| enrich <name>` is
+/// an explicit enrichment directive; a built-in aggregate name used there is still an
+/// unregistered infusion and MUST still fire E-QUERY-039. This distinction is preserved
+/// by the separate `pipe_enrich_names` / `sql_unknown_names` Vec split in
+/// `check_enrich_udf_availability`.
 ///
-/// Using `SessionStateDefaults::default_scalar_functions()` in a `LazyLock` avoids the
-/// cost of creating a full `SessionContext` at every gate invocation while remaining
-/// 100% consistent with the execution context's built-in resolution. This is NOT a
-/// hard-coded allowlist — it is a runtime-derived set populated at first use, staying
-/// in sync with DataFusion version upgrades automatically.
-///
-/// BC-2.11.019 v1.5 §Gate firing condition: fire E-QUERY-039 ONLY for a name that is
-/// neither a DataFusion built-in scalar NOR a registered enrichment UDF.
-/// F-PJL1-HIGH-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade).
-/// F-PLL1-LOW-002 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-L LOCAL cascade) — compliance
-/// comment added; no behavior change.
-static DATAFUSION_BUILTIN_SCALAR_NAMES: std::sync::LazyLock<std::collections::HashSet<String>> =
+/// F-PJL1-HIGH-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade) — original fix.
+/// F1 amendment (S-DEMO-FIDELITY-REMEDIATION-001 Pass-N1b LOCAL cascade) — this change.
+static DATAFUSION_BUILTIN_FUNCTION_NAMES: std::sync::LazyLock<std::collections::HashSet<String>> =
     std::sync::LazyLock::new(|| {
         use datafusion::execution::SessionStateDefaults;
         let mut names = std::collections::HashSet::new();
+
+        // (1) Built-in scalar functions (e.g. lower, upper, coalesce, concat, abs, round).
         for udf in SessionStateDefaults::default_scalar_functions() {
-            // Primary name (e.g. "character_length").
             names.insert(udf.name().to_ascii_lowercase());
-            // Aliases (e.g. "length", "char_length" for character_length).
-            // DataFusion resolves SQL function calls by both name and aliases.
             for alias in udf.aliases() {
                 names.insert(alias.to_ascii_lowercase());
             }
         }
+
+        // (2) Built-in aggregate functions (e.g. stddev, median, variance, approx_distinct,
+        //     array_agg, string_agg, corr, covar_pop, bool_and, bool_or, regr_*).
+        //     These parse as ScalarFunc::Unknown in PrismQL but are resolvable by ctx.sql()
+        //     as aggregate functions — they must NOT trigger E-QUERY-039.
+        for udaf in SessionStateDefaults::default_aggregate_functions() {
+            names.insert(udaf.name().to_ascii_lowercase());
+            for alias in udaf.aliases() {
+                names.insert(alias.to_ascii_lowercase());
+            }
+        }
+
+        // (3) Built-in window functions (e.g. row_number, rank, dense_rank, percent_rank,
+        //     lag, lead, first_value, last_value, nth_value, ntile, cume_dist).
+        //     Same parse-as-Unknown issue; same resolution: ctx.sql() handles them correctly.
+        for udwf in SessionStateDefaults::default_window_functions() {
+            names.insert(udwf.name().to_ascii_lowercase());
+            for alias in udwf.aliases() {
+                names.insert(alias.to_ascii_lowercase());
+            }
+        }
+
         names
     });
 
@@ -1587,16 +1606,18 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
 /// | ORDER BY exprs                  | C1/C2 fix: `ORDER BY badudf(x)` bypassed gate |
 /// | HAVING predicate                | forward-compat; mirrors WHERE walk |
 ///
-/// DataFusion built-in scalars (lower, upper, coalesce, etc.) are excluded via
-/// `DATAFUSION_BUILTIN_SCALAR_NAMES` before the registered-UDF check.
+/// DataFusion built-in functions (scalar, aggregate, window — e.g. lower, stddev,
+/// row_number) are excluded via `DATAFUSION_BUILTIN_FUNCTION_NAMES` before the
+/// registered-UDF check.
 ///
 /// # Pipe path detection
 /// Pipe-mode enrichment: `PipeStage::Enrich(EnrichStage { infusion, .. })` nodes in
 /// the pipe stage list. The `infusion` field holds the caller-supplied UDF name.
 ///
 /// # Reference
-/// S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.5; error-taxonomy.md E-QUERY-039.
-/// F-PJL1-HIGH-001 (Pass-J LOCAL cascade): DataFusion built-in exclusion added.
+/// S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.6; error-taxonomy.md E-QUERY-039.
+/// F-PJL1-HIGH-001 (Pass-J LOCAL cascade): original scalar exclusion.
+/// F1 amendment (Pass-N1b): expanded to aggregate + window functions.
 fn check_enrich_udf_availability(
     query_str: &str,
     registry: Option<&prism_spec_engine::InfusionRegistry>,
@@ -1682,14 +1703,16 @@ fn check_enrich_udf_availability(
     // to apply, so E-QUERY-039 MUST fire when it is not in InfusionRegistry.
     //
     // Validate SQL-mode unknown scalar names — WITH DataFusion built-in exclusion.
-    // BC-2.11.019 v1.5: skip names that are DataFusion built-in scalars —
-    // they are resolvable by ctx.sql() and must NOT trigger E-QUERY-039.
-    // F-PJL1-HIGH-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade).
+    // BC-2.11.019 v1.6: skip names that are DataFusion built-in functions of ANY kind
+    // (scalar, aggregate, or window) — they are resolvable by ctx.sql() and must NOT
+    // trigger E-QUERY-039.
+    // F-PJL1-HIGH-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade) — original.
+    // F1 amendment (S-DEMO-FIDELITY-REMEDIATION-001 Pass-N1b) — expanded to agg + window.
     //
     // Iterator chain: pipe names first (no skip), then filtered SQL names (skip applied).
     let sql_names_filtered = sql_unknown_names.iter().filter(|name| {
         let name_lower = name.to_ascii_lowercase();
-        !DATAFUSION_BUILTIN_SCALAR_NAMES.contains(&name_lower)
+        !DATAFUSION_BUILTIN_FUNCTION_NAMES.contains(&name_lower)
     });
     let all_names_to_check = pipe_enrich_names.iter().chain(sql_names_filtered);
 
@@ -6562,7 +6585,7 @@ instance_id = "crowdstrike@acme""#;
 //    the analyst is trying to apply, so it SHOULD fire E-QUERY-039)."
 //
 // Before fix: `check_enrich_udf_availability` collected all names into one Vec and
-//   applied `DATAFUSION_BUILTIN_SCALAR_NAMES` skip uniformly — pipe-mode enrich names
+//   applied `DATAFUSION_BUILTIN_FUNCTION_NAMES` skip uniformly — pipe-mode enrich names
 //   were incorrectly excluded when they matched a DataFusion built-in name (e.g. `lower`).
 // After fix: pipe-mode names and SQL-mode names are collected into separate Vecs;
 //   built-in skip applies only to SQL-mode names.
@@ -6686,7 +6709,7 @@ mod pipe_mode_builtin_enrich_gate_tests {
     /// F-PNL1-MED-001 load-bearing: pipe-mode `| enrich lower(ioc_value)` where `lower`
     /// is NOT a registered infusion (empty InfusionRegistry) MUST return E-QUERY-039.
     ///
-    /// Before fix: `lower` matched `DATAFUSION_BUILTIN_SCALAR_NAMES` (it is a DataFusion
+    /// Before fix: `lower` matched `DATAFUSION_BUILTIN_FUNCTION_NAMES` (it is a DataFusion
     ///   built-in) and was silently skipped — the gate was a no-op for this pipe query.
     /// After fix: pipe-mode enrich names bypass the built-in skip entirely. `lower` is not
     ///   in InfusionRegistry → E-QUERY-039 fires with `infusion: "lower"`.
@@ -6702,8 +6725,8 @@ mod pipe_mode_builtin_enrich_gate_tests {
         let engine = make_engine_with_sensor_and_empty_infusion_registry();
 
         // Pipe-mode query: `lower` is not a registered infusion — E-QUERY-039 MUST fire.
-        // Before fix: `lower` is in DATAFUSION_BUILTIN_SCALAR_NAMES → skipped → gate is no-op.
-        // After fix: pipe-mode names bypass DATAFUSION_BUILTIN_SCALAR_NAMES → gate fires.
+        // Before fix: `lower` is in DATAFUSION_BUILTIN_FUNCTION_NAMES → skipped → gate is no-op.
+        // After fix: pipe-mode names bypass DATAFUSION_BUILTIN_FUNCTION_NAMES → gate fires.
         let result = engine
             .execute(
                 "FROM crowdstrike_alerts | enrich lower(ioc_value)",
