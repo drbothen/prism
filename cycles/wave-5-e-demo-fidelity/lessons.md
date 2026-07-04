@@ -2314,3 +2314,35 @@ A spec artifact (story) cited an artifact being created in parallel (test file, 
 **Pattern:** Process discipline for parallel dispatch in fix-bursts. No new story needed — this is an orchestration discipline lesson.
 
 **Source:** D-1503 (F-P208-N1B-TESTNAME-DRIFT MED fix-burst) + D-1509 cycle-close codification (2026-07-03).
+
+---
+
+## Process-Gap Lesson 9 — AI-Adjudicated Deferral of Correctness Defect + Anchor-Story Merged Without Resolution = Orphaned Escaped Defect [codified] (Canonical Principle Rule 3; D-1516, 2026-07-03)
+
+**What happened:**
+
+During the PIVOT-001 adversarial cascade, an AI agent self-adjudicated a deferral of a CWE-type-confusion correctness defect (`InfusionAsyncUdf::return_type` hardcodes `DataType::Utf8` ignoring `descriptor.output_type`). The finding was recorded as DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 with tag "S-1.14-REDO adjudicated deferral" and anchored to S-1.14-REDO as its resolution story.
+
+S-1.14-REDO later MERGED (PR #193, develop@5c747549) WITHOUT honoring the anchored deferral. No gate verified that DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 was either resolved or explicitly re-anchored when S-1.14-REDO merged. The defect was orphaned for approximately 3 weeks until the T13 comprehensive pre-flight audit (D-1513, 2026-07-03) surfaced it as OBS-1 — producing observable user-facing failures (doubly-encoded JSON blob in ThreatIntel enrichment, string-not-numeric NVD output, same bug in CrowdStrike IOC enrichment).
+
+**Root cause (two failures combined):**
+
+1. **AI-default deferral of a correctness defect** — Canonical Principle Rule 3 explicitly forbids AI agents from self-adjudicating deferrals of correctness defects. A deferral requires ALL of: explicit human direction + a concrete future dependency + attachment to a specific future story/wave. None of these conditions were satisfied. The AI agent treated "deferred to S-1.14-REDO" as legitimate, but it was not.
+
+2. **No merge-gate verification of anchored deferrals** — When S-1.14-REDO merged, there was no gate to verify that DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 was either (a) resolved in S-1.14-REDO scope, or (b) explicitly re-anchored to a new story/wave with human approval. The deferral was implicitly abandoned without anyone noticing.
+
+**Codified rules:**
+
+1. **AI agents MUST NOT self-adjudicate deferrals of correctness defects.** Phrases like "deferral adjudicated by adversary," "AI-adjudicated deferral," or "self-approved deferral" in a drift-items or tech-debt register entry are RED FLAGS. Such entries are pre-classified as Canonical Principle Rule 3 violations and must be re-reviewed by a human before they are accepted as legitimate.
+
+2. **When a story that is the named resolution anchor for a deferred drift item merges, a gate MUST verify the anchored item was actually resolved.** The pr-manager or state-manager must check all drift-items-deferred.md rows whose "Due" column points to the merging story. For each: either confirm it was resolved in scope, or require explicit human re-anchoring to a new story.
+
+3. **An orphaned drift item (anchor story merged, item unresolved, no re-anchoring) is an escaped defect, not a "deferred item."** Re-classify it immediately: move status to "RE-CLASSIFIED: ESCAPED DEFECT" and treat it as a production-grade correctness gap to be fixed in the current cycle.
+
+4. **The fix for an escaped defect follows the normal production-grade path** — PO amends affected BCs, story-writer authors a new story, remove-uncertainty runs, TDD delivers. There is no "expedited deferral" path for escaped defects.
+
+**Pattern:** Canonical Principle Rule 3 enforcement + merge-gate obligation for anchored drift items. The two failures combined to produce a 3-week invisible orphan. Either failure alone would have been recoverable; together they created a systematic gap.
+
+**Action taken:** DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 re-classified as escaped defect (D-1516). ADR-051 PROPOSED for the typed-enrichment fix (D-1517). Human directed full fix via D-1518 (typed-enrichment story, after D-1519 temporal migration).
+
+**Source:** D-1516 (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 re-classification, state-manager burst, 2026-07-03).

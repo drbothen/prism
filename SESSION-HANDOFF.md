@@ -40,7 +40,7 @@ timestamp: 2026-07-01T23:59:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1512** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1512 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `122228e8` (S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.125. D-1512.
+> develop HEAD origin/develop `122228e8` (S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.126. D-1519 (decision checkpoint D-1513..D-1519; T13 62/62 DEMO-READY:YES; DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 escaped defect; ADR-051 PROPOSED; temporal migration FIRST directive).
 
 ---
 
@@ -56,7 +56,7 @@ Both session objectives MERGED to develop@122228e8: S-PERF-GATE-008 (PR #213, WA
 - factory-artifacts: this wrap commit — PUSHED (run `git -C .factory log -1 --format='%h %s'` for current HEAD).
 - .worktrees/S-3.09: HEAD **43c41389** [feature/S-3.09] — LOCAL-ONLY (NOT on origin); backup ref `backup/S-3.09-preresume-43c41389@43c41389`. DAY-2 PARKED.
 - .worktrees/W3-FIX-S307-001: HEAD **fcab8717** — DIRTY (1 unstaged file), 1 unpushed commit, local-only, UNTOUCHED — awaiting human decision (deferred TDE write-back / E-SENSOR-070).
-- .worktrees/S-DEMO-FIDELITY-REMEDIATION-001: HEAD **0dbe81f6** — MERGED via PR #208; worktree CORRUPTED + REMOVABLE (`git worktree remove` hangs environmentally — needs manual stuck-process check or `rm -rf` + `git worktree prune`).
+- .worktrees/S-DEMO-FIDELITY-REMEDIATION-001: REMOVED (D-1514 2026-07-03). Was 18GB Rust target cache; `git worktree prune` run; feature/S-DEMO-FIDELITY-REMEDIATION-001 branch deleted (was 0dbe81f6). Active worktrees: main + .factory + S-3.09 + W3-FIX-S307-001.
 - Agents in flight at wrap: **none**.
 
 ### MERGED THIS SESSION
@@ -64,21 +64,18 @@ Both session objectives MERGED to develop@122228e8: S-PERF-GATE-008 (PR #213, WA
 - **S-DEMO-FIDELITY-REMEDIATION-001** — PR #208 → develop@122228e8 (2026-07-03). 5 demo-fidelity fixes (N1/N1-B/N2/AUDIT-001/AUDIT-004); E-QUERY-039 built-in aggregate/window false-positive (F1 HIGH) caught+fixed by PR-LEVEL adversary (BC-2.11.019 v1.5→v1.6); ADR-050 rustls-tls workspace standardization (ACCEPTED v1.1); 4 SID-1 quarantined DTU scenario tests un-quarantined; 7 prism-dtu-claroty stop() resource-cleanup calls added; BC-2.11.019 v1.6 draft→active (POL-14); workspace_test_count 4978→5088; active_contracts 254→255. feature/S-DEMO-FIDELITY-REMEDIATION-001 deleted; .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 cleaned.
 - **workspace_test_count baseline:** develop@122228e8 = 5088 passed.
 
-### WORKSTREAM — COMPREHENSIVE T13 PRE-FLIGHT AUDIT (NEXT)
-- develop@122228e8 = DEMO-READY:YES per D-1511 smoke audit (18/18 PASS; `.factory/research/demo-pre-flight-audit-2026-07-03.md`).
-- **User directive:** extend to COMPREHENSIVE coverage — ALL demo features, ALL pathways. Build on `scripts/t13-preflight-audit.py` (untracked; commit as demo-tooling or fold into this work).
-- **Coverage MUST include:**
-  - Every MCP tool: `list_capabilities`, `prism_describe`, `query`, `query_tutorial`, `investigate_host`, `list_infusions`, `plugin_status`, `infusion_status`, MCP prompts, `prismql://` resources
-  - ALL 6 sensors (CrowdStrike, Cyberint, Claroty, Armis operational + ThreatIntel, NVD enrichment) × all their tables
-  - ALL query modes: SQL / pipe / SqlPipe + patterns (filters, aggregates incl. built-ins, joins, enrichment UDFs, temporal NOW()/INTERVAL)
-  - ALL scenario stages (recon→lateral→exfil→containment) per client with determinism (same seed+clock → same timeline)
-  - Multi-client REAL data segregation + org-scoping errors (E-QUERY-032)
-  - Enrichment correlation: ThreatIntel IOCs + NVD CVEs resolve scenario-introduced entities
-  - Error-taxonomy paths: E-QUERY-037/038/039, E-DEMO-NNN, etc.
-  - Capability discovery
-- **Output:** coverage MATRIX + DEMO-READY verdict
-- **References:** `.factory/objectives/DEMO-SCOPE.md`, `.factory/objectives/T13-capstone-demo-runbook.md`, `.factory/research/demo-pre-flight-audit-2026-07-03.md`
-- **AFTER comprehensive audit passes:** T13 capstone (product-owner + story-writer, roadmap order 6) → T14 recording
+### WORKSTREAM — COMPREHENSIVE T13 PRE-FLIGHT AUDIT (DONE — D-1513 2026-07-03)
+- **COMPLETE.** develop@122228e8 = DEMO-READY:YES (62/62 PASS, 0 FAIL). Audit record: `.factory/research/demo-comprehensive-preflight-audit-2026-07-03.md`. Coverage: 54 MCP tools + 3 resources + 5 prompts; all 6 sensors×tables; DataFusion built-in aggregates; multi-client isolation; ThreatIntel+NVD enrichment; error taxonomy; capability discovery.
+- **OBS-1 DOCUMENTED (genuine escaped defect):** `| enrich threat_score(iocs_value)` returns doubly-encoded JSON; NVD returns string not numeric. Root cause: InfusionAsyncUdf::return_type hardcodes DataType::Utf8. See DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 re-classification (D-1516) and typed-enrichment fix (D-1518).
+- `scripts/t13-preflight-audit.py` extended 18→62 checks (untracked; commit with enrichment story work).
+
+### WORKSTREAM — PrismQL NATIVE TEMPORAL-TYPING MIGRATION (ACTIVE NEXT — D-1519 2026-07-03)
+- **Human directive (D-1519):** Migrate PrismQL from string-based datetime (Utf8) to native Arrow Timestamp across the whole language BEFORE the typed-enrichment fix.
+- **Current state confirmed:** spec_driven_adapter registers ColumnType::Datetime→Utf8; NOW()/INTERVAL lowered to ISO-8601 Utf8 literal per ADR-044 D4/BC-2.11.021; pipe_sql_emitter + tests confirm full string-datetime end-to-end.
+- **This migration SUPERSEDES ADR-044 D4.** ADR-051 §datetime→Utf8 row is SUPERSEDED-PENDING by this migration ADR.
+- **Blast radius:** spec_driven_adapter column_type_to_arrow, pushdown, inject_now predicate path (BC-2.11.021), all 6 sensor TOML schemas, pipe-SQL emitter, query engine tests, stale `prism-core/src/column.rs` comment.
+- **Next step:** architect authors temporal-migration ADR → human ratification → PO BCs → story-writer → remove-uncertainty ×2 → TDD.
+- **Unblocks:** typed-enrichment fix A+B+C (D-1518; datetime→Timestamp consistent with migrated language).
 
 ### WORKSTREAM — S-3.09 (DAY-2 PARKED)
 - `feature/S-3.09` HEAD **43c41389** [LOCAL-ONLY; backup ref `backup/S-3.09-preresume-43c41389@43c41389`].
@@ -90,24 +87,28 @@ Both session objectives MERGED to develop@122228e8: S-PERF-GATE-008 (PR #213, WA
 
 ### PENDING USER-APPROVED / OPEN ITEMS
 1. **CLAUDE.md §Conventions rustls-tls rule (ADR-050)** — human ratification PENDING (human chose "ratify"); exact text provided in-session (a Highlights bullet + a Forbidden-patterns row); CLAUDE.md is human-mandated-edit-only → human pastes it.
-2. **`scripts/t13-preflight-audit.py`** — new untracked reusable audit runner; commit via a small demo-tooling change or fold into the comprehensive-audit work.
-3. **Corrupted S-208 worktree removal** — cosmetic; `git worktree remove` hangs; clear manually with `rm -rf .worktrees/S-DEMO-FIDELITY-REMEDIATION-001` + `git worktree prune`.
-4. **W3-FIX-S307-001** — dirty worktree, 1 unpushed commit, awaiting human decision (deferred TDE write-back / E-SENSOR-070).
-5. **S-MAINT-REQWEST-RUSTLS-GATE-001** — draft follow-up story for ADR-050 CI enforcement gate (already registered, P2).
+2. **`scripts/t13-preflight-audit.py`** — untracked reusable audit runner (extended 18→62 checks); commit via demo-tooling change or fold into enrichment story work.
+3. **W3-FIX-S307-001** — dirty worktree, 1 unpushed commit, awaiting human decision (deferred TDE write-back / E-SENSOR-070).
+4. **S-MAINT-REQWEST-RUSTLS-GATE-001** — draft follow-up story for ADR-050 CI enforcement gate (already registered, P2).
+5. **ADR-051 ratification** — PROPOSED; human must ratify before story decomposition (D-1517). Note: §datetime→Utf8 row in ADR-051 is SUPERSEDED-PENDING by temporal migration ADR (D-1519).
+6. **Temporal migration ADR** — architect must author the PrismQL native Timestamp migration ADR (D-1519 directive); this is the ACTIVE NEXT step.
 
-### DEMO RELEASE ROADMAP (remaining)
-1. **COMPREHENSIVE T13 pre-flight audit** (all features/pathways) — NEXT
-2. **T13 capstone:** multi-client SOC-analyst narrative story (product-owner + story-writer, roadmap order 6)
-3. **T14 demo recording**
-4. [Post-T14] S-PRISMQL-CASE-INSENSITIVE-001 (DEMO-CRITICAL; blocked on human PO BCs BC-2.11.024/BC-2.02.013)
-5. [Post-T14] Day-2 Track B morph (`.factory/specs/matured-vision-day2-requirements.md`)
+### DEMO RELEASE ROADMAP (updated D-1519 2026-07-03)
+1. **PrismQL native temporal-typing migration** — ACTIVE NEXT (architect ADR → PO BCs → story-writer → remove-uncertainty ×2 → TDD → merge). Supersedes ADR-044 D4 string-based temporal design. D-1519.
+2. **Typed-enrichment fix A+B+C** — after #1 (PO amends BC-2.19.001; D-1518; closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 escaped defect). ADR-051 PROPOSED (D-1517).
+3. **T13 capstone:** multi-client SOC-analyst narrative story (product-owner + story-writer, roadmap order 6)
+4. **T14 demo recording**
+5. [Post-T14] S-PRISMQL-CASE-INSENSITIVE-001 (DEMO-CRITICAL; blocked on human PO BCs BC-2.11.024/BC-2.02.013)
+6. [Post-T14] Day-2 Track B morph (`.factory/specs/matured-vision-day2-requirements.md`)
+
+**Prior roadmap (D-1511/D-1512):** COMPREHENSIVE T13 audit → T13 capstone → T14. UPDATED by D-1519: temporal migration + typed-enrichment inserted first; comprehensive T13 audit DONE (62/62 PASS).
 
 ### WORKTREE INVENTORY
 | Worktree | HEAD | Branch | Status |
 |----------|------|--------|--------|
 | .worktrees/S-3.09 | 43c41389 | feature/S-3.09 | DAY-2 PARKED (local-only; backup/S-3.09-preresume-43c41389) |
 | .worktrees/W3-FIX-S307-001 | fcab8717 | — | DIRTY + 1 unpushed (awaiting human decision) |
-| .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 | 0dbe81f6 | — | REMOVABLE (merged PR #208; worktree corrupted; manual cleanup needed) |
+| .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 | — | — | REMOVED (D-1514 2026-07-03; 18GB cache; git worktree prune run; branch deleted) |
 
 ### DECISION-LOG DELTA (D-1495..D-1512 this session, since D-1494)
 - **D-1495:** F-P3-MED-001 fix-burst COMPLETE — ADR-049 v1.2→v1.3 + story v1.9→v1.10 + ARCH-INDEX v2.153→v2.154 + STORY-INDEX v2.566→v2.567; warm-figure (<1s→~1-2s) reconciled across story+PR-desc; §Evidence column label corrected to PluginRuntime::new(). PR-LEVEL re-gate 0/3 on frozen 091f1af8. develop_head UNCHANGED 67518790. STATE v8.107→v8.108.
@@ -128,6 +129,13 @@ Both session objectives MERGED to develop@122228e8: S-PERF-GATE-008 (PR #213, WA
 - **D-1510:** S-3.09 PRESERVED + RESUMPTION QUEUED — backup ref backup/S-3.09-preresume-43c41389@43c41389; freeze blocker cleared; re-home effort documented. Superseded by D-1511 re-framing. STATE v8.122→v8.123.
 - **D-1511:** T13 PRE-FLIGHT DEMO RE-AUDIT PASS — develop@122228e8 = DEMO-READY:YES (18/18 PASS); all D-1312 blockers CLOSED; all S-DEMO-FIDELITY-REMEDIATION-001 fixes verified live. Audit record `.factory/research/demo-pre-flight-audit-2026-07-03.md`. S-3.09 reframed DAY-2/PARKED (human demo re-orientation). STATE v8.123→v8.124. STORY-INDEX UNCHANGED v2.578. ARCH-INDEX UNCHANGED v2.156.
 - **D-1512 (this wrap):** SESSION WRAP — §RESUME SNAPSHOT D-1512 authored (supersedes D-1494). Both session objectives MERGED (S-PERF-GATE-008 @aaa9bfe8, S-DEMO-FIDELITY-REMEDIATION-001 @122228e8); DEMO-READY:YES 18/18; user directive = COMPREHENSIVE T13 audit before T13 capstone; S-3.09 day-2/parked. PENDING-HUMAN: rustls-tls CLAUDE.md ratification + py script commit + worktree cleanup. STATE v8.124→v8.125.
+- **D-1513:** T13 COMPREHENSIVE PRE-FLIGHT AUDIT PASS — develop@122228e8 = DEMO-READY:YES (62/62 PASS, 0 FAIL). Coverage 18→62 checks. OBS-1 documented (doubly-encoded JSON + NVD type-mismatch). Audit: `.factory/research/demo-comprehensive-preflight-audit-2026-07-03.md`. STATE v8.125→v8.126.
+- **D-1514:** S-208 worktree CLEANED — .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 removed (18GB); git worktree prune; feature/S-DEMO-FIDELITY-REMEDIATION-001 deleted (was 0dbe81f6). Worktree inventory updated. STATE UNCHANGED v8.126.
+- **D-1515:** OBS-1 = GENUINE ESCAPED DEFECT — InfusionAsyncUdf::return_type hardcodes DataType::Utf8 ignoring descriptor.output_type. Two failure modes: ThreatIntel doubly-encoded JSON (no source_column); NVD string-not-numeric. CrowdStrike IOC same bug. STATE UNCHANGED v8.126.
+- **D-1516:** DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 RE-CLASSIFIED ESCAPED DEFECT — AI-default deferral Canonical Principle Rule 3 violation; S-1.14-REDO merged without resolving it; orphaned 3 weeks. drift-items-deferred.md updated. lessons.md Process-Gap Lesson 9 appended. STATE UNCHANGED v8.126.
+- **D-1517:** ADR-051 PROPOSED v1.1 committed — "Typed & Consistent Enrichment UDF Output." Closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001. Note: §datetime→Utf8 SUPERSEDED-PENDING by temporal migration ADR. ARCH-INDEX v2.156→v2.157. STATE UNCHANGED v8.126.
+- **D-1518:** HUMAN DECISION — typed-enrichment fix A+B+C AFTER temporal migration. PO amends BC-2.19.001 → story → TDD. Three components: (A) typed return_type; (B) mandatory source_column; (C) scalar-first consistency. STATE UNCHANGED v8.126.
+- **D-1519:** HUMAN DECISION — PrismQL native temporal-typing migration SEQUENCED FIRST. Full language migration Utf8→Arrow Timestamp; supersedes ADR-044 D4. Blast radius documented. Architect authors migration ADR NEXT. UPDATED ROADMAP: (1) temporal migration; (2) typed-enrichment; (3) T13 capstone; (4) T14. develop_head UNCHANGED 122228e8. STATE v8.125→v8.126.
 
 ---
 

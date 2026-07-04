@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.156"
+version: "2.157"
 status: draft
 producer: state-manager
 timestamp: 2026-06-26T17:00:00Z
@@ -117,6 +117,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 | ADR-048 | PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function Predicate LHS in HAVING | ACCEPTED v1.1 | 2026-06-29 | decisions/ADR-048-prismql-having-predicate-grammar-divergence-aggregate-fn-predicate-lhs.md |
 | ADR-049 | wasmtime Compilation Cache — On-Disk Native-Code Cache for PluginRuntime, Degradable Boot Failure Semantics, and Test-Binary Serialization | ACCEPTED v1.3 | 2026-07-02 | decisions/ADR-049-wasmtime-compilation-cache.md |
 | ADR-050 | Workspace reqwest TLS Backend — rustls-tls Mandatory, native-tls Forbidden | ACCEPTED v1.1 | 2026-07-03 | decisions/ADR-050-workspace-reqwest-tls-backend.md |
+| ADR-051 | Typed & Consistent Enrichment UDF Output — output_type→Arrow DataType Mapping, Mandatory source_column, Scalar-Input Rule, and INV-ENRICH-TYPED-001 | PROPOSED v1.1 | 2026-07-03 | decisions/ADR-051-typed-consistent-enrichment-udf-output.md |
 
 ## Architecture Decisions
 
@@ -176,6 +177,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.157 | ADR-051-proposed | 2026-07-03 | state-manager | ADR-051 PROPOSED v1.1 committed. "Typed & Consistent Enrichment UDF Output — output_type→Arrow DataType Mapping, Mandatory source_column, Scalar-Input Rule, and INV-ENRICH-TYPED-001." Closes escaped defect DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 (AI-default deferral, Canonical Principle Rule 3 violation; D-1516). Status: PROPOSED — awaiting human ratification before story decomposition. Related: ADR-024 (ColumnType mapping), ADR-040, ADR-044. NOTE: ADR-051 §datetime→Utf8 row is SUPERSEDED-PENDING by the PrismQL temporal-migration ADR (D-1519) — once temporal migration ADR is accepted, datetime will map to Arrow Timestamp, not Utf8. ARCH-INDEX v2.156→v2.157. |
 | 2.156 | ADR-050-v1.1-pre-fix-state-correction | 2026-07-03 | architect | ADR-050 v1.0→v1.1: §Pre-Fix State table corrected (PR #208 PR-LEVEL adversarial finding). Row 1 expanded to include prism-ocsf `[dev-dependencies]` in the "already correct" group (was already `rustls-tls, default-features=false`; unchanged by cf66151f). Row 2 narrowed from "prism-bin, prism-spec-engine, prism-sensors `[dev-dependencies]`" to "prism-bin `[dev-dependencies]`" only — prism-spec-engine and prism-sensors have NO separate `[dev-dependencies]` reqwest entry and were NOT changed by the story. Decision text D1–D4 and all other sections unchanged. ADR Registry row updated ACCEPTED v1.0→v1.1, date 2026-07-02→2026-07-03. ARCH-INDEX v2.155→v2.156. |
 | 2.155 | ADR-050-rustls-tls | 2026-07-02 | architect | **ADR-050 ACCEPTED v1.0** — Workspace reqwest TLS Backend. D1: all workspace reqwest deps (including `[dev-dependencies]` and optional-feature entries) MUST use `default-features = false, features = ["rustls-tls"]`; D2: native-tls + aliases forbidden workspace-wide (Security.framework Keychain init ~65s/process on macOS cold start, deterministically breaks DTU stage-0 50s window per BC-2.06.019); D3: new-crate declaration rule (declare correctly at first write); D4: stage-0 timing budgets calibrated for rustls ~0ms TLS init — widening budgets to mask native-tls overhead is forbidden. Root-cause: S-DEMO-FIDELITY-REMEDIATION-001 cf66151f fixed 11 dev-dep + 1 optional-dep Cargo.toml entries; Cargo.lock −151 lines. Security review APPROVED (MSSP threat model: rustls-webpki-roots resists corporate MITM proxy interception, memory-safe pure Rust, TLS 1.2+ floor, smaller supply chain). Enforcement gate: fast-follow story (multi-line TOML check; current codebase already correct per cf66151f). Subsystems: SS-01, SS-16, SS-17, SS-22. ARCH-INDEX v2.154→v2.155. |
 | 2.154 | F-P3-MED-001-ADR-049-v1.3 | 2026-07-02 | architect | ADR-049 v1.2→v1.3: §Context "<1s" drift bullet corrected to "<0.1s" + qualifying note: compilation cache removes Component::new() Cranelift step only; Engine::new() LLVM JIT init (~1–2 s) persists warm; §Consequences "~1–2 s" warm figure confirmed authoritative single source. F-P3-MED-001 root cause fixed. ADR Registry row updated ACCEPTED v1.2→v1.3. ARCH-INDEX v2.153→v2.154. |
