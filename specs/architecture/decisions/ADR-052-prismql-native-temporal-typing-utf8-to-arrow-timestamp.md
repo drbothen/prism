@@ -4,7 +4,7 @@ adr_id: "ADR-052"
 title: "PrismQL Native Temporal Typing — Datetime Columns and Literals from Arrow Utf8 to Timestamp(Microsecond, UTC)"
 status: accepted
 date: "2026-07-03"
-version: "1.3"
+version: "1.4"
 producer: architect
 subsystems_affected: [SS-09, SS-10, SS-11, SS-17]
 supersedes: "ADR-044 §D4"
@@ -21,8 +21,12 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.2 (2026-07-04). Human ratification of core decisions recorded 2026-07-03
-(D-1520). **§D4 v1.3 PROPOSED (2026-07-04) — awaiting human ratification.**
+ACCEPTED v1.4 (2026-07-04). Human ratification of core decisions recorded 2026-07-03
+(D-1520). **§D4 v1.3 ACCEPTED (human-ratified 2026-07-04, Option A + String-column
+coercion modification). v1.4 (pre-TDD, remove-uncertainty): `is_date_like` acceptance
+set expanded from 2 to 7 format strings (date-only + T-sep/space-sep × full-seconds/
+fractional/no-seconds); over-match disposition (unpadded digits, big/signed years)
+documented as ACCEPTED BENIGN.**
 
 v1.1 amends v1.0: D3 emitter form changed from `TIMESTAMP '...'` to explicit
 `arrow_cast(...)` (DataFusion 53.1.0 verified: `TIMESTAMP '...'` produces
@@ -36,13 +40,24 @@ corrected.
 
 v1.2 (2026-07-04): OBS-4 typo fix — `Arc::from("UTF")` → `Arc::from("UTC")`.
 
-**v1.3 §D4 PROPOSED (2026-07-04):** §D4 redesigned from parse-fail text-scanner
-(8 fix-bursts, Unicode byte-offset panic / VP-021 violation, dotted/filter/qualified
-false positives) to **Option A — lenient-parse-then-AST-walk**. `Literal::RawTemporalLiteral`
-AST node; parser emits it for date-only/offset-less; `check_temporal_literals` plan-time
-walker uses schema + resolved AST. All text-scanner functions deleted. D1–D3, D5–D8
-unchanged. Awaiting human ratification before TDD proceeds on the §D4 implementation
-tasks.
+**v1.3 §D4 ACCEPTED (human-ratified 2026-07-04):** §D4 redesigned from parse-fail
+text-scanner (8 fix-bursts, Unicode byte-offset panic / VP-021 violation,
+dotted/filter/qualified false positives) to **Option A — lenient-parse-then-AST-walk**.
+`Literal::RawTemporalLiteral` AST node; parser emits it for date-only/offset-less;
+`check_temporal_literals` plan-time walker uses schema + resolved AST. All text-scanner
+functions deleted. D1–D3, D5–D8 unchanged. **Ratification modification:** `check_temporal_literals`
+COERCES (not rejects) `RawTemporalLiteral` against String/Utf8 columns — rewrites to
+`Literal::String(s)`, byte-identical to pre-ADR-052 behavior. RISK-5 eliminated by
+design (see §D4 Step 3 coercion arm and RISK-5 below).
+
+**v1.4 (pre-TDD, remove-uncertainty, 2026-07-04):** `is_date_like` acceptance set
+expanded from 2 format strings to 7. Under-match defect (space-separator, no-seconds,
+fractional-seconds forms) corrected; over-match forms (unpadded digits, big/signed years)
+evaluated and accepted as BENIGN with documented rationale. New
+`### is_date_like Acceptance Set (Canonical)` subsection added to §D4. E-QUERY-001↔
+E-QUERY-041 boundary table updated with 3 new examples. Red Gate test table expanded
+with 3 new forms. BC-2.11.021 amendment text updated to enumerate all 7 accepted forms.
+D1–D3, D5–D8, RISK-1 through RISK-5 unchanged.
 
 Supersedes **ADR-044 §D4** (planning-time constant injection as ISO-8601 string
 comparison). ADR-044 §D1–D3, §D5–D7 remain valid and are NOT affected.
@@ -256,9 +271,13 @@ text scanning.
 A new variant is added to the `Literal` enum (alongside `Literal::Timestamp`):
 ```rust
 /// A quoted string that resembles a date or datetime but is NOT valid RFC-3339.
-/// Produced by the parser for date-only (`'2026-06-24'`) and offset-less
-/// (`'2026-06-24T12:00:00'`) forms. Validated at plan time by
-/// `check_temporal_literals`. Must never reach SQL emission.
+/// Produced by the parser when `is_date_like` matches — covers 7 forms:
+/// date-only (`'2026-06-24'`); T-sep full seconds (`'2026-06-24T12:00:00'`);
+/// T-sep fractional (`'2026-06-24T12:00:00.123'`); T-sep no seconds
+/// (`'2026-06-24T12:00'`); space-sep full seconds (`'2026-06-24 12:00:00'`);
+/// space-sep fractional (`'2026-06-24 12:00:00.500'`); space-sep no seconds
+/// (`'2026-06-24 12:00'`). Validated at plan time by `check_temporal_literals`.
+/// Must never reach SQL emission.
 RawTemporalLiteral(String),
 ```
 
@@ -276,15 +295,85 @@ quoted_string →
   else → Literal::Utf8(s)                               (unchanged)
 ```
 
-`is_date_like(s)` is defined as: `chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok()` OR
-`chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S").is_ok()` — covering the
-two documented problem forms (date-only and offset-less ISO datetime). The heuristic
-DOES NOT match arbitrary strings (e.g., `'not-a-date'`, `'sensor-id-abc'`); those remain
-`Literal::Utf8`.
+`is_date_like(s)` is a multi-format heuristic covering the common offset-less
+date/datetime forms a SOC analyst might write. The canonical format-string list is
+EXHAUSTIVE — the implementer transcribes these exact 7 format strings, no more,
+no fewer:
 
-With this change, parsing a query containing `'2026-06-24'` SUCCEEDS and produces an
-AST containing `Expr::Literal(Literal::RawTemporalLiteral("2026-06-24"))`. No
-`E-QUERY-001` is emitted at parse time for this class of input.
+```rust
+fn is_date_like(s: &str) -> bool {
+    use chrono::{NaiveDate, NaiveDateTime};
+    // Form 1: date-only
+    NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok()
+    // Form 2: T-separator, full seconds, no fractional
+    || NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S").is_ok()
+    // Form 3: T-separator, fractional seconds (%.f matches .NNN including the dot)
+    || NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f").is_ok()
+    // Form 4: T-separator, no seconds (hour:minute only)
+    || NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M").is_ok()
+    // Form 5: space-separator, full seconds, no fractional
+    || NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").is_ok()
+    // Form 6: space-separator, fractional seconds
+    || NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f").is_ok()
+    // Form 7: space-separator, no seconds (hour:minute only)
+    || NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").is_ok()
+}
+```
+
+All `parse_from_str` calls require full input consumption — trailing characters cause
+rejection. Forms 2 and 3 are belt-and-suspenders: if chrono 0.4.44 `%.f` is a true
+zero-or-more optional that consumes nothing when there is no decimal point, then form 3
+subsumes form 2 and form 6 subsumes form 5; having both is safe (at most one extra parse
+attempt per call, negligible cost). The heuristic DOES NOT match arbitrary strings (e.g.,
+`'not-a-date'`, `'sensor-id-abc'`); those remain `Literal::Utf8`.
+
+With this change, parsing a query containing `'2026-06-24'`, `'2026-06-24T12:00'`,
+`'2026-06-24 12:00:00'`, or `'2026-06-24T12:00:00.123'` SUCCEEDS and produces an
+AST containing `Expr::Literal(Literal::RawTemporalLiteral("..."))`. No `E-QUERY-001`
+is emitted at parse time for any of these forms.
+
+### `is_date_like` Acceptance Set (Canonical)
+
+**Forms that MATCH (produce `Literal::RawTemporalLiteral`)**
+
+| Example | Form # | Matching Format |
+|---------|--------|----------------|
+| `'2026-06-24'` | 1 | `%Y-%m-%d` |
+| `'2026-06-24T12:00:00'` | 2 | `%Y-%m-%dT%H:%M:%S` |
+| `'2026-06-24T12:00:00.123'` | 3 | `%Y-%m-%dT%H:%M:%S%.f` |
+| `'2026-06-24T12:00:00.123456'` | 3 | `%Y-%m-%dT%H:%M:%S%.f` |
+| `'2026-06-24T12:00'` | 4 | `%Y-%m-%dT%H:%M` |
+| `'2026-06-24 12:00:00'` | 5 | `%Y-%m-%d %H:%M:%S` |
+| `'2026-06-24 12:00:00.500'` | 6 | `%Y-%m-%d %H:%M:%S%.f` |
+| `'2026-06-24 12:00'` | 7 | `%Y-%m-%d %H:%M` |
+
+**Over-matched forms (match but are ACCEPTED BENIGN)**
+
+| Example | Why Over-matched | Disposition |
+|---------|-----------------|-------------|
+| `'2026-6-24'` (unpadded month/day) | `%m`/`%d` accept single digits in chrono | ACCEPTED BENIGN — not RFC-3339 regardless; E-QUERY-041 ("use RFC-3339") is an accurate and helpful message; against String col, coerced to string comparison (correct); against numeric/bool, E-QUERY-001 (correct). |
+| `'12345-06-24'` (big year) | `%Y` accepts arbitrary-width year | ACCEPTED BENIGN — same rationale; security sensor data from year 12345 is not a real concern. |
+| `'-0044-03-15'` (negative year) | `%Y` accepts signed year | ACCEPTED BENIGN — same rationale. |
+
+**Decision — no year-width guard or regex layer:** A `%4Y` constraint or regex pre-filter
+would add implementation complexity with no diagnostic benefit. For every over-matched
+input, `check_temporal_literals` produces the correct outcome — E-QUERY-041 for a
+Datetime column (the "use RFC-3339" message is accurate), coercion for a String column,
+or E-QUERY-001 for a numeric/bool column. The benign-accept path is the production-grade
+default.
+
+**Forms that stay `Literal::Utf8` (NOT matched by `is_date_like`)**
+
+| Example | Reason Not Matched |
+|---------|-------------------|
+| `'not-a-date'` | No format matches |
+| `'sensor-id-abc'` | No format matches |
+| `'2026-06-24Z'` | Trailing `Z` is not consumed by any NaiveDate/NaiveDateTime format; `parse_from_str` rejects on leftover `Z` |
+| `'2026-06-24T12:00:00Z'` | Matched by `parse_from_rfc3339` at Step 1; never reaches `is_date_like`; emitted as `Literal::Timestamp` |
+| `'2026-06-24T12:00:00+00:00'` | Same — RFC-3339 form, `Literal::Timestamp` at Step 1 |
+| `'abc-12-34'` | Non-numeric year rejected by `%Y`; no format matches |
+
+---
 
 **Step 3 — Plan-time validator: `check_temporal_literals` AST walker in `engine.rs`.**
 
@@ -293,9 +382,11 @@ the full `Expr` tree:
 
 | `RawTemporalLiteral` position | Schema check | Result |
 |-------------------------------|--------------|--------|
-| Comparison (`>`, `<`, `>=`, `<=`, `=`, `!=`) against Datetime column | `column_type == Timestamp(Microsecond, UTC)` | E-QUERY-041 |
-| Comparison against non-Datetime column | any other type | E-QUERY-001 (type mismatch) |
-| Non-comparison position (projection, etc.) | N/A | E-QUERY-001 (invalid literal) |
+| Comparison (`>`, `<`, `>=`, `<=`, `=`, `!=`) against Datetime/Timestamp column | `column_type == Timestamp(Microsecond, UTC)` | E-QUERY-041 (pedagogical upgrade — the primary purpose of this mechanism) |
+| Comparison against String/Utf8 column | `column_type == DataType::Utf8` | COERCE: rewrite node in-place to `Literal::String(s)`; compare as ordinary string literal (SUCCESS — no error emitted, byte-identical to pre-ADR-052 behavior) |
+| Comparison against Integer / Float / Bool column | numeric or boolean type | E-QUERY-001 (type mismatch — date-shaped string cannot equal a number or bool) |
+| Non-comparison position where surrounding type context resolves to String/Utf8 | `column_type == DataType::Utf8` | COERCE: rewrite to `Literal::String(s)` (SUCCESS) |
+| Non-comparison position with no resolvable String context (projection, function arg, etc.) | no schema context or non-String type | E-QUERY-001 (invalid literal) |
 
 The schema-resolved column type is determined by the same path that resolves
 `ColumnType::Datetime → DataType::Timestamp(...)` (D2). This path correctly handles:
@@ -307,6 +398,28 @@ The schema-resolved column type is determined by the same path that resolves
   the correct source table, not the `.last()` segment
 - **Unicode inputs**: operates on already-parsed `String` values (valid UTF-8); no
   raw byte-offset operations. VP-021 violation eliminated by construction.
+
+**Coercion arm — String/Utf8 column (ratification modification, 2026-07-04):**
+
+When `check_temporal_literals` encounters a `Literal::RawTemporalLiteral(s)` in
+comparison position against a column whose resolved type is `DataType::Utf8` (a String
+column), it rewrites the AST node in-place to `Literal::String(s)`. Because
+`RawTemporalLiteral(String)` carries the exact original string bytes, and
+`pipe_sql_emitter.rs` emits `Literal::String(s)` as a plain `'{escaped}'` SQL string
+literal — the same emission path used before ADR-052 — this coercion is byte-identical
+to pre-ADR-052 behavior. No error is emitted.
+
+**Why coercion is correct for String columns:** String columns legitimately store
+date-formatted values (partition keys, report-date labels, ISO-date-formatted external
+IDs). Rejecting `WHERE string_col = '2026-06-24'` with E-QUERY-001 would make a valid
+query unqueryable — a real behavior regression. The coercion arm eliminates this
+false-positive entirely while preserving E-QUERY-041 exclusively for its intended
+purpose: upgrading the error message when a non-RFC-3339 literal is compared against
+an actual Datetime/Timestamp column.
+
+E-QUERY-041 fires ONLY when `check_temporal_literals` resolves the comparison target
+to `DataType::Timestamp(Microsecond, UTC)`. The coercion rule has no effect on that
+path.
 
 **Step 4 — Deletion: text-scanner apparatus removed.**
 
@@ -329,9 +442,16 @@ is a belt-and-suspenders defensive check.
 | Input | Parser output | Validator result |
 |-------|--------------|-----------------|
 | `'2026-07-03T00:00:00Z'` (full RFC-3339) | `Literal::Timestamp` | No error |
-| `'2026-06-24'` vs Datetime col | `Literal::RawTemporalLiteral` | E-QUERY-041 |
-| `'2026-06-24T12:00:00'` (offset-less) vs Datetime col | `Literal::RawTemporalLiteral` | E-QUERY-041 |
-| `'2026-06-24'` vs non-Datetime col | `Literal::RawTemporalLiteral` | E-QUERY-001 |
+| `'2026-06-24'` (date-only) vs Datetime/Timestamp col | `Literal::RawTemporalLiteral` | E-QUERY-041 |
+| `'2026-06-24T12:00:00'` (T-sep, full seconds) vs Datetime/Timestamp col | `Literal::RawTemporalLiteral` | E-QUERY-041 |
+| `'2026-06-24T12:00:00.123'` (T-sep, fractional) vs Datetime/Timestamp col | `Literal::RawTemporalLiteral` | E-QUERY-041 |
+| `'2026-06-24T12:00'` (T-sep, no seconds) vs Datetime/Timestamp col | `Literal::RawTemporalLiteral` | E-QUERY-041 |
+| `'2026-06-24 12:00:00'` (space-sep, full seconds) vs Datetime/Timestamp col | `Literal::RawTemporalLiteral` | E-QUERY-041 |
+| `'2026-06-24 12:00:00.500'` (space-sep, fractional) vs Datetime/Timestamp col | `Literal::RawTemporalLiteral` | E-QUERY-041 |
+| `'2026-06-24 12:00'` (space-sep, no seconds) vs Datetime/Timestamp col | `Literal::RawTemporalLiteral` | E-QUERY-041 |
+| `'2026-06-24'` vs String/Utf8 col | `Literal::RawTemporalLiteral` | COERCE → `Literal::String("2026-06-24")`; compare as string literal (SUCCESS — zero regression from pre-ADR-052 behavior) |
+| `'2026-06-24 12:00:00'` vs String/Utf8 col | `Literal::RawTemporalLiteral` | COERCE → `Literal::String("2026-06-24 12:00:00")`; compare as string literal (SUCCESS) |
+| `'2026-06-24'` vs Integer / Float / Bool col | `Literal::RawTemporalLiteral` | E-QUERY-001 (type mismatch — date-shaped string cannot equal a number or bool) |
 | `'not-a-date'` anywhere | `Literal::Utf8` | No temporal error (other type errors apply) |
 
 **E-QUERY-041 message format (unchanged from v1.2):**
@@ -346,10 +466,11 @@ NOW() - INTERVAL 'Nh' (e.g., WHERE timestamp > NOW() - INTERVAL '24h').
 parsing path (`spec_driven_adapter.rs`, ISO-8601 string → `i64` microseconds-since-epoch)
 continues to use `chrono::DateTime::parse_from_rfc3339`. The plan-time validator uses
 `chrono::NaiveDate::parse_from_str` / `chrono::NaiveDateTime::parse_from_str` for the
-`is_date_like` heuristic and implicitly rejects non-RFC-3339 forms (the heuristic
-succeeds for date-only and offset-less, and `check_temporal_literals` then raises
-E-QUERY-041, which is the rejection). The sensor boundary and query path both reject
-non-RFC-3339 forms; the mechanism differs but the invariant is preserved.
+`is_date_like` heuristic (7 formats: date-only, T-sep full/fractional/no-seconds,
+space-sep full/fractional/no-seconds) and implicitly rejects non-RFC-3339 forms
+(the heuristic succeeds for these 7 accepted sub-forms, and `check_temporal_literals`
+then raises E-QUERY-041, which is the rejection). The sensor boundary and query path
+both reject non-RFC-3339 forms; the mechanism differs but the invariant is preserved.
 
 **D5 — Pushdown / adapter-boundary semantics (explicit no-change statement).**
 
@@ -563,21 +684,36 @@ and audit every match. The mandatory `pipe_sql_emitter.rs` guard arm (Step 5 in 
 is the most critical — `RawTemporalLiteral` reaching the SQL emitter is an internal
 logic error. All other arms must produce E-QUERY-001 (not silently succeed).
 
-### RISK-5 (LOW): `is_date_like` false positives in non-Datetime string comparisons
+**Coercion arm blast-radius note (ratification modification):** The String-column
+coercion arm is contained entirely within `check_temporal_literals` — it is one
+additional branch on the resolved column type inside the existing AST walker. It does
+not add new match sites on `Literal::RawTemporalLiteral` beyond what Option A already
+requires; the TD-VSDD-060 sibling-site sweep scope is unchanged.
 
-The `is_date_like` heuristic classifies `'2026-06-24'` as `RawTemporalLiteral`. If an
-analyst writes `WHERE string_col = '2026-06-24'` (a string column that happens to store
-ISO-date-format sensor IDs), the parser produces `RawTemporalLiteral` for the literal.
-`check_temporal_literals` sees it against a non-Datetime column → E-QUERY-001
-(timestamp-like literal against non-timestamp column). The query fails.
+### RISK-5: `is_date_like` false positives in non-Datetime string comparisons — RESOLVED BY DESIGN
 
-**Assessment**: This is a correctness improvement, not a regression. A string column
-containing ISO-date-formatted IDs being compared with `'2026-06-24'` is ambiguous and
-arguably a bug in the analyst query. The error message guides the analyst to use a
-non-date-formatted string or `NOW() - INTERVAL` for actual datetime filtering.
-**Mitigation**: The E-QUERY-001 message for this case should say "this looks like a
-date — if comparing against a string column, ensure the value is not ISO-date formatted;
-if comparing against a datetime column, use RFC-3339 (`'2026-06-24T00:00:00Z'`)."
+**Status: ELIMINATED** (hardened during human ratification, 2026-07-04).
+
+This risk was identified in the v1.3 draft as a LOW accepted risk: the `is_date_like`
+heuristic would classify `'2026-06-24'` as `RawTemporalLiteral`, causing
+`check_temporal_literals` to reject `WHERE string_col = '2026-06-24'` with E-QUERY-001
+when `string_col` is a String/Utf8 column. The human ratification review correctly
+identified this as a real behavior regression, not "arguably a bug" — partition keys,
+report-date labels, and ISO-date-formatted external IDs are legitimate String column
+values, and analysts querying them with date-shaped string literals have a valid query
+that must not break.
+
+**Resolution:** The String-column coercion arm in `check_temporal_literals` detects
+when a `RawTemporalLiteral(s)` is compared against a String/Utf8 column and rewrites
+it in-place to `Literal::String(s)`. Because `pipe_sql_emitter.rs` emits
+`Literal::String(s)` as a plain `'{escaped}'` SQL string literal — the same emission
+path used before ADR-052 — the coercion is byte-identical to pre-ADR-052 behavior.
+`WHERE string_col = '2026-06-24'` works exactly as it did before: no error, no
+regression.
+
+E-QUERY-041 fires ONLY against `DataType::Timestamp(Microsecond, UTC)` columns. The
+false-positive is eliminated by construction. No E-QUERY-001 message guidance for this
+case is needed because the case no longer produces an error.
 
 ---
 
@@ -609,17 +745,25 @@ Scan for any postcondition or assertion that describes Datetime columns as
 `DataType::Timestamp(Microsecond, UTC)`. The product-owner must perform this sweep
 as part of the BC amendment burst triggered by ADR-052 ratification.
 
-**E-QUERY-041 detection semantics for BC-2.11.003 / BC-2.11.004 (v1.3 revision):**
+**E-QUERY-041 detection semantics for BC-2.11.003 / BC-2.11.004 (v1.4 revision):**
 Any postcondition or AC describing E-QUERY-041 must specify the **Option A
-lenient-parse-then-AST-walk mechanism**:
+lenient-parse-then-AST-walk mechanism** with the FULL 7-form acceptance set:
 
-> "The PrismQL parser accepts date-only (`'2026-06-24'`) and offset-less datetime
-> (`'2026-06-24T12:00:00'`) string literals as `Literal::RawTemporalLiteral` AST
-> nodes (parse succeeds). The plan-time validator `check_temporal_literals` walks
-> the resolved AST; for `RawTemporalLiteral` nodes in comparison position against
-> a `Timestamp(Microsecond, UTC)` column, E-QUERY-041 is raised. For
-> `RawTemporalLiteral` nodes in any other context (non-Datetime column, non-comparison
-> position), E-QUERY-001 is raised."
+> "The PrismQL parser accepts the following offset-less date/datetime string literals
+> as `Literal::RawTemporalLiteral` AST nodes (parse succeeds for all 7 forms):
+> date-only (`'2026-06-24'`); T-separator full seconds (`'2026-06-24T12:00:00'`);
+> T-separator fractional seconds (`'2026-06-24T12:00:00.123'`); T-separator no seconds
+> (`'2026-06-24T12:00'`); space-separator full seconds (`'2026-06-24 12:00:00'`);
+> space-separator fractional seconds (`'2026-06-24 12:00:00.500'`); space-separator
+> no seconds (`'2026-06-24 12:00'`). The plan-time validator `check_temporal_literals`
+> walks the resolved AST with a three-way column-type dispatch: (1) for
+> `RawTemporalLiteral` nodes in comparison position against a
+> `Timestamp(Microsecond, UTC)` column, E-QUERY-041 is raised; (2) for
+> `RawTemporalLiteral` nodes in comparison position against a String/Utf8 column,
+> the node is rewritten in-place to `Literal::String(s)` and processing continues
+> without error (byte-identical to pre-ADR-052 behavior); (3) for
+> `RawTemporalLiteral` nodes against Integer/Float/Bool columns or in non-comparison
+> positions without a resolvable String context, E-QUERY-001 is raised."
 
 Do NOT describe E-QUERY-041 as: a parse-time error, a DataFusion cast error, a text-
 scanner result, or a raw-query-string scan. These descriptions applied to the retired
@@ -694,7 +838,7 @@ zero tests for them):
 |---------|------|-------------|
 | Add `Literal::RawTemporalLiteral(String)` | `ast.rs` | New variant with doc comment per §D4 |
 | Modify timestamp literal parser combinator | `sql_parser.rs` (+ `filter_parser.rs` if separate) | Lenient `is_date_like` fallback; emit `RawTemporalLiteral` instead of parse error for date-only + offset-less |
-| Implement `check_temporal_literals` | `engine.rs` | AST walker: `RawTemporalLiteral` + Datetime col → E-QUERY-041; other contexts → E-QUERY-001 |
+| Implement `check_temporal_literals` | `engine.rs` | AST walker with three-way column-type dispatch: `RawTemporalLiteral` + Timestamp/Datetime col → E-QUERY-041; `RawTemporalLiteral` + String/Utf8 col → COERCE in-place to `Literal::String(s)` (SUCCESS, no error); `RawTemporalLiteral` + Integer/Float/Bool col → E-QUERY-001; non-comparison position without String context → E-QUERY-001 |
 | Add `Literal::RawTemporalLiteral` guard arm | `pipe_sql_emitter.rs` | Must never reach emission — E-QUERY-001 internal error guard |
 | TD-VSDD-060 sibling-site sweep on `Literal` | `prism-query/src/*.rs` | Add `RawTemporalLiteral` arm to all internal `match` on `Literal` |
 
@@ -705,9 +849,14 @@ zero tests for them):
 | "parse `WHERE ts > '2026-06-24'` → parse fails → E-QUERY-041 via text-scanner" | "parse `WHERE ts > '2026-06-24'` → parse succeeds → `check_temporal_literals` → E-QUERY-041" |
 | "parse `WHERE ts > '2026-06-24T12:00:00'` → parse fails → E-QUERY-041" | Same, with `check_temporal_literals` path |
 | VP-021 Unicode panic test (if exists) | "non-ASCII query input → no panic → E-QUERY-041 or E-QUERY-001 (no byte-offset crash)" |
-| (new) | "`RawTemporalLiteral` vs non-Datetime column → E-QUERY-001 (not E-QUERY-041)" |
-| (new) | "filter-mode `source | WHERE ts > '2026-06-24'` → E-QUERY-041 (not misclassified)" |
+| (new) | "`RawTemporalLiteral` vs Integer/Float/Bool column → E-QUERY-001 (not E-QUERY-041)" |
+| (new) | "`RawTemporalLiteral` vs String/Utf8 column → COERCE → compare as string literal (SUCCESS — no E-QUERY error emitted; e.g. `WHERE string_col = '2026-06-24'` works)" |
+| (new) | "filter-mode `source \| WHERE ts > '2026-06-24'` → E-QUERY-041 (not misclassified)" |
 | (new) | "dotted column `payload.ts > '2026-06-24'` → E-QUERY-041 (schema resolves correctly)" |
+| (new, v1.4) | "`WHERE ts > '2026-06-24T12:00'` (T-sep, no seconds) vs Datetime col → parse succeeds → E-QUERY-041" |
+| (new, v1.4) | "`WHERE ts > '2026-06-24 12:00:00'` (space-sep) vs Datetime col → parse succeeds → E-QUERY-041" |
+| (new, v1.4) | "`WHERE ts > '2026-06-24T12:00:00.123'` (fractional) vs Datetime col → parse succeeds → E-QUERY-041" |
+| (new, v1.4) | "`WHERE string_col = '2026-06-24 12:00:00'` (space-sep vs String/Utf8 col) → COERCE → compare as string literal (SUCCESS — no E-QUERY error)" |
 
 ---
 
@@ -758,8 +907,9 @@ implementation story.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-07-04 | architect | §D4 `is_date_like` acceptance set expanded (pre-TDD remove-uncertainty): 2 format strings → 7 format strings — adds space-separator forms (`%Y-%m-%d %H:%M:%S`, `%Y-%m-%d %H:%M:%S%.f`, `%Y-%m-%d %H:%M`), T-separator no-seconds form (`%Y-%m-%dT%H:%M`), and T-separator fractional form (`%Y-%m-%dT%H:%M:%S%.f`). Over-match disposition (unpadded digits via `%m`/`%d`, big/signed years via `%Y`) documented as ACCEPTED BENIGN — no regex layer or year-width guard. `### is_date_like Acceptance Set (Canonical)` subsection added with matched/over-matched/rejected tables. E-QUERY-001↔E-QUERY-041 boundary table updated with 5 new example rows (3 new forms vs Datetime col, 1 new form vs String col). RG test table expanded with 4 new tests. BC-2.11.021 amendment text updated to enumerate all 7 accepted forms. D1–D3, D5–D8, all RISK entries, Blast Radius table: unchanged. |
 | 1.1 (ratified) | 2026-07-03 | state-manager | Human ratification recorded 2026-07-03 (D-1520). Status: PROPOSED → ACCEPTED. No decision content changes; v1.1 content ratified as authored. |
-| 1.3 | 2026-07-04 | architect | §D4 redesign (PROPOSED — awaiting human ratification): E-QUERY-041 detection mechanism replaced from parse-fail text-scanner (8 fix-bursts, Unicode panic, VP-021 violation) to Option A lenient-parse-then-AST-walk. New `Literal::RawTemporalLiteral` AST node; parser emits it for date-only/offset-less; `check_temporal_literals` plan-time walker handles dotted/filter/qualified/Unicode uniformly. Text-scanner functions deleted. Option B (parser-carried predicate context) evaluated and rejected (schema not available at parse time). Blast radius extended to 20 files. 5 risks documented. D4 story-impact table added. |
+| 1.3 | 2026-07-04 | architect | §D4 ACCEPTED (human-ratified 2026-07-04, Option A + String-column coercion modification): E-QUERY-041 detection replaced from parse-fail text-scanner to lenient-parse-then-AST-walk. New `Literal::RawTemporalLiteral` AST node; `check_temporal_literals` walker uses three-way column-type dispatch — Timestamp col → E-QUERY-041; String/Utf8 col → COERCE to `Literal::String(s)` (SUCCESS, byte-identical no-op, RISK-5 eliminated); Integer/Float/Bool col → E-QUERY-001. Text-scanner functions deleted. RISK-5 reclassified from LOW accepted to RESOLVED BY DESIGN. Blast radius 20 files; no new sibling-site sweep scope from coercion arm (contained in `check_temporal_literals`). Option B evaluated and rejected. |
 | 1.2 | 2026-07-04 | architect | OBS-4 typo fix: `Arc::from("UTF")` → `Arc::from("UTC")` in §D1 canonical construction form (adversary LOCAL cascade catch) |
 | 1.1 | 2026-07-03 | architect | remove-uncertainty PASS-1 amendments: D3 emitter changed to arrow_cast (TIMESTAMP '...' → Nanosecond/None in DF 53.1.0); D4 E-QUERY-041 changed from DataFusion cast-failure intercept to Prism-level chrono pre-validator (arrow-cast 58.2.0 lenient — accepts date-only); Arrow construction form corrected Arc::new("UTF".into())→Arc::from("UTC"); RISK-1 downgraded HIGH→MEDIUM (arrow_cast eliminates coercion reliance); BC-amendment guidance updated with pre-validator semantics |
 | 1.0 | 2026-07-03 | architect | Initial PROPOSED — full PrismQL Utf8→Timestamp migration; supersedes ADR-044 §D4 |
