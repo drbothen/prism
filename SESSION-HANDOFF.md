@@ -40,7 +40,7 @@ timestamp: 2026-07-01T23:59:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1512** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1512 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `122228e8` (S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.126. D-1519 (decision checkpoint D-1513..D-1519; T13 62/62 DEMO-READY:YES; DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 escaped defect; ADR-051 PROPOSED; temporal migration FIRST directive).
+> develop HEAD origin/develop `122228e8` (S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.127. D-1525 (spec burst D-1520..D-1525; ADR-052 ACCEPTED; temporal BCs amended; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 v1.2 TDD-ready; ARCH-INDEX v2.160; BC-INDEX v7.31; STORY-INDEX v2.581; total_stories 227).
 
 ---
 
@@ -69,13 +69,12 @@ Both session objectives MERGED to develop@122228e8: S-PERF-GATE-008 (PR #213, WA
 - **OBS-1 DOCUMENTED (genuine escaped defect):** `| enrich threat_score(iocs_value)` returns doubly-encoded JSON; NVD returns string not numeric. Root cause: InfusionAsyncUdf::return_type hardcodes DataType::Utf8. See DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 re-classification (D-1516) and typed-enrichment fix (D-1518).
 - `scripts/t13-preflight-audit.py` extended 18→62 checks (untracked; commit with enrichment story work).
 
-### WORKSTREAM — PrismQL NATIVE TEMPORAL-TYPING MIGRATION (ACTIVE NEXT — D-1519 2026-07-03)
-- **Human directive (D-1519):** Migrate PrismQL from string-based datetime (Utf8) to native Arrow Timestamp across the whole language BEFORE the typed-enrichment fix.
-- **Current state confirmed:** spec_driven_adapter registers ColumnType::Datetime→Utf8; NOW()/INTERVAL lowered to ISO-8601 Utf8 literal per ADR-044 D4/BC-2.11.021; pipe_sql_emitter + tests confirm full string-datetime end-to-end.
-- **This migration SUPERSEDES ADR-044 D4.** ADR-051 §datetime→Utf8 row is SUPERSEDED-PENDING by this migration ADR.
-- **Blast radius:** spec_driven_adapter column_type_to_arrow, pushdown, inject_now predicate path (BC-2.11.021), all 6 sensor TOML schemas, pipe-SQL emitter, query engine tests, stale `prism-core/src/column.rs` comment.
-- **Next step:** architect authors temporal-migration ADR → human ratification → PO BCs → story-writer → remove-uncertainty ×2 → TDD.
-- **Unblocks:** typed-enrichment fix A+B+C (D-1518; datetime→Timestamp consistent with migrated language).
+### WORKSTREAM — PrismQL NATIVE TEMPORAL-TYPING MIGRATION (ACTIVE NEXT — D-1525 2026-07-03)
+- **ADR-052 ACCEPTED v1.1 (D-1520).** Human ratification recorded 2026-07-03. Supersedes ADR-044 §D4. Key decisions: D1 `Timestamp(Microsecond, Some(Arc::from("UTC")))` canonical type; D2 spec_driven_adapter.rs:886 column registration change; D3 `arrow_cast(...)` emitter form (TIMESTAMP '...' → Nanosecond/None in DF 53.1.0, verified); D4 E-QUERY-041 Prism-level chrono pre-validator (arrow-cast 58.2.0 lenient — cast-failure cannot be gate).
+- **Story S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 v1.2 TDD-READY (D-1523).** 16 ACs, 10 Red Gate tests. Blast radius: 15 files. remove-uncertainty pass-1 + pass-2 CLEAN (D-1524).
+- **Temporal BCs stable (D-1522):** BC-2.11.021 v1.2 + BC-2.11.003 v1.6 + BC-2.11.004 v1.7. E-QUERY-041 in error-taxonomy v2.07.
+- **NEXT STEP:** TDD delivery of S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (stubs → red gate → green → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge).
+- **Unblocks:** ADR-051 §datetime row amendment Utf8→Timestamp; typed-enrichment fix A+B+C (D-1518).
 
 ### WORKSTREAM — S-3.09 (DAY-2 PARKED)
 - `feature/S-3.09` HEAD **43c41389** [LOCAL-ONLY; backup ref `backup/S-3.09-preresume-43c41389@43c41389`].
@@ -90,18 +89,17 @@ Both session objectives MERGED to develop@122228e8: S-PERF-GATE-008 (PR #213, WA
 2. **`scripts/t13-preflight-audit.py`** — untracked reusable audit runner (extended 18→62 checks); commit via demo-tooling change or fold into enrichment story work.
 3. **W3-FIX-S307-001** — dirty worktree, 1 unpushed commit, awaiting human decision (deferred TDE write-back / E-SENSOR-070).
 4. **S-MAINT-REQWEST-RUSTLS-GATE-001** — draft follow-up story for ADR-050 CI enforcement gate (already registered, P2).
-5. **ADR-051 ratification** — PROPOSED; human must ratify before story decomposition (D-1517). Note: §datetime→Utf8 row in ADR-051 is SUPERSEDED-PENDING by temporal migration ADR (D-1519).
-6. **Temporal migration ADR** — architect must author the PrismQL native Timestamp migration ADR (D-1519 directive); this is the ACTIVE NEXT step.
+5. **ADR-051 ratification** — PROPOSED; human must ratify before story decomposition (D-1517). NOTE: ADR-051 §datetime→Utf8 row is superseded-pending by ADR-052; once S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 merges, product-owner must amend ADR-051 §D1 datetime row Utf8→Timestamp.
 
-### DEMO RELEASE ROADMAP (updated D-1519 2026-07-03)
-1. **PrismQL native temporal-typing migration** — ACTIVE NEXT (architect ADR → PO BCs → story-writer → remove-uncertainty ×2 → TDD → merge). Supersedes ADR-044 D4 string-based temporal design. D-1519.
-2. **Typed-enrichment fix A+B+C** — after #1 (PO amends BC-2.19.001; D-1518; closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 escaped defect). ADR-051 PROPOSED (D-1517).
+### DEMO RELEASE ROADMAP (updated D-1525 2026-07-03)
+1. **PrismQL native temporal-typing migration** — ACTIVE NEXT (story S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 v1.2 TDD-ready → stubs → red gate → TDD green → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge). ADR-052 ACCEPTED (D-1520). D-1525.
+2. **Typed-enrichment fix A+B+C** — after #1 (PO amends BC-2.19.001 + ADR-051 §datetime row; D-1518; closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 escaped defect). ADR-051 PROPOSED (D-1517).
 3. **T13 capstone:** multi-client SOC-analyst narrative story (product-owner + story-writer, roadmap order 6)
 4. **T14 demo recording**
 5. [Post-T14] S-PRISMQL-CASE-INSENSITIVE-001 (DEMO-CRITICAL; blocked on human PO BCs BC-2.11.024/BC-2.02.013)
 6. [Post-T14] Day-2 Track B morph (`.factory/specs/matured-vision-day2-requirements.md`)
 
-**Prior roadmap (D-1511/D-1512):** COMPREHENSIVE T13 audit → T13 capstone → T14. UPDATED by D-1519: temporal migration + typed-enrichment inserted first; comprehensive T13 audit DONE (62/62 PASS).
+**Prior roadmap (D-1511/D-1512):** COMPREHENSIVE T13 audit → T13 capstone → T14. UPDATED by D-1519: temporal migration + typed-enrichment inserted first; comprehensive T13 audit DONE (62/62 PASS). D-1525: temporal migration story now TDD-ready (spec complete).
 
 ### WORKTREE INVENTORY
 | Worktree | HEAD | Branch | Status |
@@ -110,7 +108,15 @@ Both session objectives MERGED to develop@122228e8: S-PERF-GATE-008 (PR #213, WA
 | .worktrees/W3-FIX-S307-001 | fcab8717 | — | DIRTY + 1 unpushed (awaiting human decision) |
 | .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 | — | — | REMOVED (D-1514 2026-07-03; 18GB cache; git worktree prune run; branch deleted) |
 
-### DECISION-LOG DELTA (D-1495..D-1512 this session, since D-1494)
+### DECISION-LOG DELTA (D-1520..D-1525 this session, since D-1519)
+- **D-1520:** ADR-052 ACCEPTED v1.1. Human ratification recorded 2026-07-03. ADR-052 authored v1.0 then revised v1.1 (remove-uncertainty PASS-1: D3 arrow_cast form; D4 E-QUERY-041 chrono pre-validator; Arc::from fix; RISK-1 HIGH→MEDIUM). Supersedes ADR-044 §D4. ADR-052 frontmatter status: proposed→accepted. ARCH-INDEX v2.159→v2.160.
+- **D-1521:** ADR-044 §D4 PARTIALLY SUPERSEDED by ADR-052 v1.1. frontmatter superseded_by field present; §Status "PARTIALLY SUPERSEDED by ADR-052 v1.1" block confirmed. §D1–D3, §D5–D7 remain valid. ARCH-INDEX v2.160 (ADR-052 row PROPOSED→ACCEPTED).
+- **D-1522:** Temporal BCs amended + E-QUERY-041 added. BC-2.11.021 v1.2 (arrow_cast postcondition + E-QUERY-041 plan-time pre-validator semantics). BC-2.11.003 v1.6 + BC-2.11.004 v1.7 (Utf8→Timestamp type assertions). error-taxonomy v2.05→v2.07 (E-QUERY-041 TemporalLiteralUnparseable; chrono::DateTime::parse_from_rfc3339 strictness; NOT DataFusion cast intercept). BC-INDEX v7.29→v7.31.
+- **D-1523:** Story S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 v1.2 materialized TDD-ready. 16 ACs, 10 Red Gate tests (RG-001..RG-010). Blast radius: 15 files. v1.0→v1.1 (pass-1 corrections)→v1.2 (pass-2 corrections). STORY-INDEX v2.578→v2.581; total_stories 226→227.
+- **D-1524:** remove-uncertainty pass-1 + pass-2 completed. Pass-1: 2 CRIT (RG-008 micros constant + arrow-cast leniency forcing pre-validator) + H1/H2/H3 + all resolved in ADR-052 v1.1. Pass-2: 2 MED + 5 LOW, all resolved. Story v1.2 TDD-ready. DF 53.1.0 / arrow-cast 58.2.0 / chrono 0.4.44 research-validated.
+- **D-1525:** Roadmap update + spec burst complete. S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 TDD-READY ACTIVE-NEXT. ROADMAP: (1) temporal migration TDD; (2) typed-enrichment A+B+C (ADR-051); (3) T13 capstone → T14. develop_head UNCHANGED 122228e8. STATE v8.126→v8.127.
+
+### DECISION-LOG DELTA (D-1495..D-1512 prior session, since D-1494)
 - **D-1495:** F-P3-MED-001 fix-burst COMPLETE — ADR-049 v1.2→v1.3 + story v1.9→v1.10 + ARCH-INDEX v2.153→v2.154 + STORY-INDEX v2.566→v2.567; warm-figure (<1s→~1-2s) reconciled across story+PR-desc; §Evidence column label corrected to PluginRuntime::new(). PR-LEVEL re-gate 0/3 on frozen 091f1af8. develop_head UNCHANGED 67518790. STATE v8.107→v8.108.
 - **D-1496:** S-PERF-GATE-008 MERGED — PR #213 squash-merged develop@67518790→aaa9bfe8 (2026-07-02T15:57:09Z). PR-LEVEL 3-CLEAN converged on frozen 091f1af8 (passes 1/2/3 CLEAN strict; F-P3-MED-001 fully reconciled). feature/S-PERF-GATE-008 + .worktrees/S-PERF-GATE-008 removed. POL-14 NO-OP. workspace_test_count 4976→4978. STORY-INDEX v2.567→v2.568. STATE v8.108→v8.109.
 - **D-1497:** PR #208 un-parked + rebased develop@aaa9bfe8; rustls-tls fold-in (11 Cargo.toml dev-dep standardized); 4 SID-1 quarantined DTU scenario tests un-quarantined; 7 prism-dtu-claroty stop() calls; just check GREEN 5085. ADR-050 ACCEPTED v1.0. S-MAINT-REQWEST-RUSTLS-GATE-001 draft registered. total_stories 225→226. STATE v8.109→v8.110.

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.7"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,7 +18,7 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
-inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md", ".factory/specs/architecture/decisions/ADR-052-prismql-native-temporal-typing-utf8-to-arrow-timestamp.md"]
 input-hash: "c36ec87"
 traces_to: ["CAP-015"]
 extracted_from: ".factory/specs/prd.md"
@@ -48,6 +48,7 @@ S-3.06 extends pipe mode with write stages: a write stage (sensor-registered ver
   - `fields [+|-] <field> [, <field>]` -- include (`+`) or exclude (`-`) specific fields from output
 - Each pipe stage is translated to a DataFusion `DataFrame` API call in sequence
 - Pipe stages are applied left-to-right (first stage operates on the full dataset, each subsequent stage operates on the previous stage's output)
+- **ADR-052 D2 — Datetime column Arrow type:** `ColumnType::Datetime` sensor columns are registered in the DataFusion execution schema as `DataType::Timestamp(Microsecond, Some("UTC"))` (not `DataType::Utf8`). Temporal predicates in `| where` stages such as `| where timestamp > arrow_cast('2026-06-24T00:00:00Z', 'Timestamp(Microsecond, Some("UTC"))')` compare typed Timestamp values against Timestamp columns. Bare string literals in datetime column comparisons in `| where` stages are validated at plan time by Prism's literal pre-validator using `chrono::DateTime::parse_from_rfc3339` strictness — date-only and offset-less forms are rejected with `Err(E-QUERY-041)` before DataFusion execution (arrow-cast 58.2.0 is lenient and would silently coerce these forms; see Error Cases). The same `chrono::DateTime::parse_from_rfc3339` strictness is applied at the sensor-boundary datetime parsing path — query-planner validation and sensor-boundary parsing use identical strictness.
 
 ### Write Parser Extension (S-3.06)
 
@@ -97,6 +98,7 @@ When `WriteVerbRegistry` is empty (no sensor write endpoints registered), `rejec
 | `E-QUERY-022` | Unbounded DML write: DELETE or UPDATE without WHERE clause, or INSERT INTO SELECT without LIMIT or WHERE | `"E-QUERY-022: unbounded {verb} rejected — add a WHERE clause (or LIMIT for INSERT...SELECT) to scope the operation, or use explicit opt-in if provided by the sensor spec"` — rejected at parse time before any API call |
 | `E-QUERY-023` | Unknown write verb in terminal pipe position | `"E-QUERY-023: unknown write verb '{verb}' for sensor '{sensor}'"` — includes suggestion list of available verbs from `WriteVerbRegistry::verbs_for_sensor` |
 | `E-QUERY-024` | Write stage in non-terminal pipe position | `"E-QUERY-024: write stage must be in terminal pipe position"` — write stages cannot be followed by additional stages |
+| `E-QUERY-041` | A `Timestamp(Microsecond, UTC)` datetime column compared against a bare string literal in a `| where` stage that Prism's plan-time literal pre-validator (`chrono::DateTime::parse_from_rfc3339` strictness) rejects — e.g., `| where timestamp > '2026-06-24'` (date-only, no time component) or `| where timestamp > '2026-06-24T12:00:00'` (offset-less ISO form); detected before DataFusion sees the query (arrow-cast 58.2.0 is lenient and would silently coerce these to wrong values) | `"E-QUERY-041: The value '{first_50_chars}' cannot be interpreted as a UTC timestamp. Expected RFC-3339 format with UTC offset (e.g., '2026-07-03T00:00:00Z'). Date-only and offset-less forms are not accepted. For relative time filters, use NOW() - INTERVAL 'Nh' (e.g., WHERE timestamp > NOW() - INTERVAL '24h')."` |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -105,6 +107,8 @@ When `WriteVerbRegistry` is empty (no sensor write endpoints registered), `rejec
 | EC-11-010 | `head 0` | Returns empty result set (valid but unusual) |
 | EC-11-011 | `dedup` on a field with all unique values | Returns all rows (no deduplication occurs) |
 | EC-11-012 | Multiple `where` stages in sequence | Valid; equivalent to AND-ing the conditions. Each `where` narrows the previous result. |
+| EC-11-004-001 | `| where timestamp > '2026-06-24'` (date-only bare string literal in datetime `| where` predicate) | `Err(E-QUERY-041)`: Prism plan-time pre-validator (`chrono::DateTime::parse_from_rfc3339` strictness) rejects `'2026-06-24'` (date-only form fails strict RFC-3339 parse) — use full RFC-3339 UTC form `'2026-06-24T00:00:00Z'` or `NOW() - INTERVAL 'Nh'` |
+| EC-11-004-002 | `| where timestamp > '2026-06-24T00:00:00Z'` (valid RFC-3339 UTC string literal in datetime `| where` predicate) | Valid; passes Prism plan-time pre-validator (`chrono::DateTime::parse_from_rfc3339` accepts full RFC-3339 with `Z` UTC offset) — proceeds to DataFusion without error |
 
 ## Canonical Test Vectors
 
@@ -117,6 +121,8 @@ When `WriteVerbRegistry` is empty (no sensor write endpoints registered), `rejec
 | 33 pipe stages chained | `Err(E-QUERY-003)` pipe stage limit exceeded | error |
 | `| stats invalid_func by severity` | `Err(E-QUERY-001)` invalid aggregation function | error |
 | `| head 0` | Empty result set (valid) | edge-case |
+| `FROM crowdstrike_detections \| where timestamp > '2026-06-24'` | `Err(E-QUERY-041)` Prism plan-time pre-validator rejects date-only string (use `'2026-06-24T00:00:00Z'` or `NOW() - INTERVAL 'Nh'`) | error |
+| `FROM crowdstrike_detections \| where timestamp > '2026-06-24T00:00:00Z'` | Valid query; passes Prism plan-time pre-validator — full RFC-3339 UTC form accepted | happy-path |
 
 ## Verification Properties
 
@@ -135,6 +141,8 @@ When `WriteVerbRegistry` is empty (no sensor write endpoints registered), `rejec
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | ADR-052-bc-amendment-burst | 2026-07-03 | product-owner | **ADR-052 v1.1 correction (remove-uncertainty PASS-1 amendments).** §Postconditions ADR-052 D2 bullet: corrected E-QUERY-041 detection mechanism from "DataFusion cannot implicitly cast" to Prism plan-time literal pre-validator using `chrono::DateTime::parse_from_rfc3339` strictness — arrow-cast 58.2.0 is LENIENT (accepts date-only and offset-less strings via coercion); Prism must validate at parse/plan time before DataFusion sees the query. Added: same chrono strictness applies at sensor-boundary datetime parsing (AC-013 consistency). Postcondition `| where` example updated to `arrow_cast(...)` form. Error Cases E-QUERY-041: trigger condition corrected to "Prism plan-time pre-validator rejects" (not "DataFusion cannot cast"); offset-less ISO form example added. Edge cases EC-11-004-001/002: mechanism descriptions updated (chrono pre-validator, not DataFusion implicit cast). Test vectors: descriptions updated to reflect pre-validator language. |
+| 1.6 | ADR-052-bc-amendment-burst | 2026-07-03 | product-owner | **ADR-052 amendment (ratified 2026-07-03).** §Postconditions: added ADR-052 D2 datetime column Arrow type assertion — `ColumnType::Datetime` registers as `DataType::Timestamp(Microsecond, Some("UTC"))` (not `Utf8`); typed Timestamp-vs-Timestamp comparison in `| where` stages; bare string literal cast failure returns `Err(E-QUERY-041)`. Error Cases: E-QUERY-041 `TemporalLiteralUnparseable` added. Edge Cases: EC-11-004-001 (date-only bare string → E-QUERY-041) and EC-11-004-002 (valid RFC-3339 UTC string → OK) added. Canonical Test Vectors: two E-QUERY-041 / RFC-3339 vectors added. inputs: ADR-052 file added. |
 | 1.5 | bundle-a.2.2 | 2026-05-08 | state-manager | POL-14 promotion: draft → active. S-3.06 flipped to merged (D-304 / Bundle A.2). |
 | 1.4 | pre-impl-amendments | 2026-05-06 | product-owner | AMENDMENT 4 — three S-3.06 implementer gaps: (a) write verb case-insensitive matching specified (normalize to lowercase on insert+lookup, consistent with SQL conventions); (b) E-QUERY-022 added to Error Cases table (unbounded DML write rejected at parse time); (c) INV-FILTER-EMPTY-REGISTRY specified (empty WriteVerbRegistry → reject_write_verbs_in_filter always Ok(())). Also added E-QUERY-010/023/024 rows to Error Cases for completeness. Three new invariants added to §Invariants. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

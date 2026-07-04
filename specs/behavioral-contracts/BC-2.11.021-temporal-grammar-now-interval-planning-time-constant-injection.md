@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.2"
 status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -22,6 +22,7 @@ inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/domain-spec/invariants.md"
   - ".factory/specs/architecture/decisions/ADR-044-temporal-grammar-now-and-interval-relative-duration-literals.md"
+  - ".factory/specs/architecture/decisions/ADR-052-prismql-native-temporal-typing-utf8-to-arrow-timestamp.md"
 input-hash: "TBD"
 traces_to: ["CAP-015"]
 extracted_from: null
@@ -44,7 +45,7 @@ extracted_from: null
 - **`Expr::Now` parsing:** The token sequence `NOW` `(` `)` (case-insensitive) in any expression position produces `Expr::Now`. Any argument to `NOW()` (e.g., `NOW(1)`) produces `Err(E-QUERY-001)`: "NOW() takes no arguments".
 - **`Expr::Interval` parsing:** The token sequence `INTERVAL` followed by a quoted duration string (`'24h'`, `'7d'`, `'30s'`) OR a bare duration literal (`24h`, `7d`, `30s`) produces `Expr::Interval(Duration)`. The inner `Duration` type reuses the existing `ast::Literal::Duration` representation.
 - **`Expr::TimestampArithmetic` parsing:** The expression `NOW() - <duration_expr>` where `<duration_expr>` is either `Expr::Interval` or a bare `Duration` literal produces `Expr::TimestampArithmetic { base: Box<Expr::Now>, op: Sub, offset: Duration }`. `NOW() + <duration>` is NOT supported in v1 and produces `Err(E-QUERY-001)`: "timestamp arithmetic only supports subtraction: use `NOW() - INTERVAL 'Nh'`".
-- **Planning-time constant injection:** At planning time, `Expr::Now` (and any `TimestampArithmetic` whose `base` is `Expr::Now`) is evaluated using the query's execution timestamp (`DateTime<Utc>`) and replaced with a `Literal::Timestamp` constant before the logical plan is handed to DataFusion. DataFusion sees a concrete `WHERE timestamp > '2026-06-24T00:00:00Z'` comparison.
+- **Planning-time constant injection:** At planning time, `Expr::Now` (and any `TimestampArithmetic` whose `base` is `Expr::Now`) is evaluated using the query's execution timestamp (`DateTime<Utc>`) and replaced with a `Literal::Timestamp` constant before the logical plan is handed to DataFusion. DataFusion sees a concrete `WHERE timestamp > arrow_cast('2026-06-24T00:00:00Z', 'Timestamp(Microsecond, Some("UTC"))')` comparison against a `Timestamp(Microsecond, UTC)` column — a fully explicit typed comparison with no implicit coercion. (ADR-052 D3/D7: `Literal::Timestamp` emitter uses the explicit `arrow_cast(...)` form, NOT `TIMESTAMP '...'` — DataFusion 53.1.0 lowers `TIMESTAMP '...'` to naive `Timestamp(Nanosecond, None)`, making implicit coercion non-deterministic across DF versions; `arrow_cast` produces exactly `Timestamp(Microsecond, Some("UTC"))` matching the column type. The column is `DataType::Timestamp(Microsecond, Some("UTC"))` per ADR-052 D2.)
 - **ADR-033 push-down benefit:** Once lowered to a `Literal::Timestamp`, the timestamp predicate is automatically recognized by ADR-033's T1 push-down heuristic in `pushdown.rs` and passed as `start_time`/`end_time` range hints to sensor adapters — no changes to `pushdown.rs` required.
 - **`build_example_query` validity:** After this BC is implemented, `prism_describe.rs`'s `build_example_query` function generates `WHERE timestamp > NOW() - INTERVAL '1h'` and this query parses and plans successfully. No change to `build_example_query` is needed.
 
@@ -64,6 +65,7 @@ extracted_from: null
 | `E-QUERY-001` | `NOW() + INTERVAL '1h'` (addition, not subtraction) | `"E-QUERY-001: timestamp arithmetic only supports subtraction: use NOW() - INTERVAL 'Nh'. Future addition support is planned."` |
 | `E-QUERY-001` | `INTERVAL` without a valid duration literal following it (e.g., `INTERVAL 'bogus'`) | `"E-QUERY-001: INTERVAL requires a duration literal (e.g., INTERVAL '24h', INTERVAL '7d', INTERVAL '30s'). Found: '{found}'."` |
 | `E-QUERY-001` | `NOW()` in a non-expression context (e.g., as a table name) | Standard syntax error at position |
+| `E-QUERY-041` | A datetime column compared against a bare string literal in any query mode — Prism's plan-time literal pre-validator (`chrono::DateTime::parse_from_rfc3339` strictness) rejects date-only (`'2026-06-24'`) and offset-less ISO (`'2026-06-24T12:00:00'`) forms before DataFusion execution (arrow-cast 58.2.0 is lenient and would silently coerce these forms; Prism must gate at plan time) | `"E-QUERY-041: The value '{first_50_chars}' cannot be interpreted as a UTC timestamp. Expected RFC-3339 format with UTC offset (e.g., '2026-07-03T00:00:00Z'). Date-only and offset-less forms are not accepted. For relative time filters, use NOW() - INTERVAL 'Nh' (e.g., WHERE timestamp > NOW() - INTERVAL '24h')."` |
 
 ## Edge Cases
 
@@ -77,6 +79,7 @@ extracted_from: null
 | EC-11-021-006 | `NOW() - INTERVAL '52w'` (52 weeks) | Valid; large durations are accepted as long as they parse as `Duration` |
 | EC-11-021-007 | `NOW() + INTERVAL '24h'` | `Err(E-QUERY-001)`: subtraction-only in v1 |
 | EC-11-021-008 | `NOW(tz='UTC')` | `Err(E-QUERY-001)`: no arguments accepted |
+| EC-11-021-009 | `WHERE timestamp > '2026-06-24'` (date-only bare string literal, no time component or UTC offset, compared against a `Timestamp(Microsecond, UTC)` column) | `Err(E-QUERY-041)`: Prism plan-time pre-validator (`chrono::DateTime::parse_from_rfc3339` strictness) rejects `'2026-06-24'` (date-only form) — use `NOW() - INTERVAL 'Nh'` or a full RFC-3339 UTC literal (e.g., `'2026-06-24T00:00:00Z'`) instead |
 
 ## Canonical Test Vectors
 
@@ -89,6 +92,7 @@ extracted_from: null
 | `timestamp > NOW() - 7d` (Filter mode) | Parse OK as `Ast::Filter`; plan-time injection | happy-path |
 | `SELECT * FROM t WHERE timestamp > NOW() + INTERVAL '1h'` | `Err(E-QUERY-001)` subtraction-only | error |
 | `SELECT * FROM t WHERE timestamp > NOW(utc)` | `Err(E-QUERY-001)` no args to NOW() | error |
+| `SELECT * FROM crowdstrike_detections WHERE timestamp > '2026-06-24'` | `Err(E-QUERY-041)` Prism plan-time pre-validator rejects date-only string (use `'2026-06-24T00:00:00Z'` or `NOW() - INTERVAL 'Nh'`) | error |
 
 ## Verification Properties
 
@@ -127,11 +131,13 @@ VP-021 (fuzz)
 | L2 Invariants | DI-019 |
 | Priority | P0 |
 | Closes findings | GRAMMAR-011 (NOW() + INTERVAL grammar implementation) |
-| ADR traces | ADR-044 v1.0, ADR-033 (push-down benefits automatically) |
+| ADR traces | ADR-044 v1.0, ADR-033 (push-down benefits automatically), ADR-052 v1.1 (§D3 `arrow_cast` explicit emission — `TIMESTAMP '...'` produces `Nanosecond/None` in DF 53.1.0; §D7 ADR-044 §D4 supersession; §D4 E-QUERY-041 Prism plan-time chrono pre-validator, NOT DataFusion cast intercept — arrow-cast 58.2.0 is lenient) |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | ADR-052-bc-amendment-burst | 2026-07-03 | product-owner | **ADR-052 v1.1 correction (remove-uncertainty PASS-1 amendments).** §Postconditions Planning-time constant injection bullet: corrected from `TIMESTAMP '...'` form to explicit `arrow_cast('...', 'Timestamp(Microsecond, Some("UTC"))')` form per ADR-052 v1.1 D3 — DataFusion 53.1.0 lowers `TIMESTAMP '...'` to `Timestamp(Nanosecond, None)` (not Microsecond/UTC); `arrow_cast` is the deterministic form. Error Cases E-QUERY-041: corrected mechanism from "DataFusion cannot implicitly cast" to Prism plan-time pre-validator using `chrono::DateTime::parse_from_rfc3339` strictness — arrow-cast 58.2.0 is LENIENT (accepts date-only and offset-less strings); Prism must gate at plan time before DataFusion sees the query. Edge Cases EC-11-021-009: description updated to reference Prism pre-validator, not DataFusion cast. Test vector description updated. Traceability ADR traces: ADR-052 v1.0 → v1.1. |
+| 1.1 | ADR-052-bc-amendment-burst | 2026-07-03 | product-owner | **ADR-052 amendment (ratified 2026-07-03).** §Postconditions Planning-time constant injection bullet updated: bare string literal `'...'` → typed `TIMESTAMP '...'` emission per ADR-052 D3; comparison now Timestamp-vs-Timestamp against `Timestamp(Microsecond, UTC)` column per ADR-052 D7/D3. Error Cases: E-QUERY-041 `TemporalLiteralUnparseable` added — fires when bare string literal in datetime comparison cannot be cast to `Timestamp(Microsecond, UTC)`. Edge Cases: EC-11-021-009 added. Test Vectors: E-QUERY-041 vector added. Traceability ADR traces: ADR-052 v1.0 added. inputs: ADR-052 file added. Invariants UNCHANGED (invariants concern `Literal::Timestamp.iso8601` RFC-3339 internal format, which is unchanged by ADR-052). |
 | 1.0 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-044 v1.0. Closes GRAMMAR-011. |

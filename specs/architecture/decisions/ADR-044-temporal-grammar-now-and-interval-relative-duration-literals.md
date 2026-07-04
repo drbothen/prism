@@ -8,7 +8,7 @@ version: "1.0"
 producer: architect
 subsystems_affected: [SS-11]
 supersedes: null
-superseded_by: null
+superseded_by: "ADR-052 (§D4 only — planning-time injection as ISO-8601 string; §D1–D3, §D5–D7 remain valid)"
 amends: null
 anchor_stories: []
 related_adrs: [ADR-003, ADR-033, ADR-041, ADR-043]
@@ -25,6 +25,22 @@ PROPOSED v1.0 (2026-06-24). Architect decision following grammar usability audit
 `.factory/research/prismql-grammar-usability-audit-2026-06-24.md` (GRAMMAR-011) and
 human direction to implement `NOW()` + relative-duration, not delete the documented
 syntax. Human ratification not required — the human explicitly chose implementation.
+
+**PARTIALLY SUPERSEDED by ADR-052 v1.1 (2026-07-03) — §D4 only.**
+
+§D4 (planning-time constant injection as ISO-8601 string comparison) is superseded
+by **ADR-052 v1.1**. After ADR-052: sensor `datetime` columns register as
+`Timestamp(Microsecond, Some("UTC"))` rather than `Utf8`; `Literal::Timestamp`
+emission changes from a bare quoted string (`'...'`) to an explicit
+`arrow_cast('<rfc3339>', 'Timestamp(Microsecond, Some("UTC"))')` call (DataFusion
+53.1.0 verified: `TIMESTAMP '...'` produces `Timestamp(Nanosecond, None)`, requiring
+the explicit form); and string literals compared against datetime columns are
+pre-validated at plan time by `chrono::DateTime::parse_from_rfc3339` (strict RFC-3339,
+not arrow-cast's lenient form) with E-QUERY-041 raised on rejection.
+
+§D1 (`Expr::Now` variant), §D2 (`INTERVAL` syntax), §D3 (`TimestampArithmetic` AST),
+§D5 (`build_example_query` fix), §D6 (reference accuracy), and §D7 (SQL mode + Pipe
+mode both support `NOW()`) remain **fully valid and unchanged**.
 
 ---
 
