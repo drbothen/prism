@@ -4,7 +4,7 @@ adr_id: "ADR-052"
 title: "PrismQL Native Temporal Typing — Datetime Columns and Literals from Arrow Utf8 to Timestamp(Microsecond, UTC)"
 status: accepted
 date: "2026-07-03"
-version: "1.1"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-09, SS-10, SS-11, SS-17]
 supersedes: "ADR-044 §D4"
@@ -115,7 +115,7 @@ DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC")))
 ```
 The timezone field is `Option<Arc<str>>`. `Arc::from("UTC")` produces `Arc<str>` directly.
 `Some(Arc::new("UTC".into()))` does NOT compile correctly — `"UTC".into()` infers to
-`String`, producing `Arc<String>` which is the wrong type. Use `Arc::from("UTF")` or,
+`String`, producing `Arc<String>` which is the wrong type. Use `Arc::from("UTC")` or,
 with explicit type context, `Some("UTC".into())`.
 
 Rationale for `Microsecond` (not `Nanosecond`):
@@ -585,5 +585,6 @@ implementation story.
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.1 (ratified) | 2026-07-03 | state-manager | Human ratification recorded 2026-07-03 (D-1520). Status: PROPOSED → ACCEPTED. No decision content changes; v1.1 content ratified as authored. |
+| 1.2 | 2026-07-04 | architect | OBS-4 typo fix: `Arc::from("UTF")` → `Arc::from("UTC")` in §D1 canonical construction form (adversary LOCAL cascade catch) |
 | 1.1 | 2026-07-03 | architect | remove-uncertainty PASS-1 amendments: D3 emitter changed to arrow_cast (TIMESTAMP '...' → Nanosecond/None in DF 53.1.0); D4 E-QUERY-041 changed from DataFusion cast-failure intercept to Prism-level chrono pre-validator (arrow-cast 58.2.0 lenient — accepts date-only); Arrow construction form corrected Arc::new("UTF".into())→Arc::from("UTC"); RISK-1 downgraded HIGH→MEDIUM (arrow_cast eliminates coercion reliance); BC-amendment guidance updated with pre-validator semantics |
 | 1.0 | 2026-07-03 | architect | Initial PROPOSED — full PrismQL Utf8→Timestamp migration; supersedes ADR-044 §D4 |
