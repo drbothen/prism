@@ -4,7 +4,7 @@ adr_id: "ADR-052"
 title: "PrismQL Native Temporal Typing — Datetime Columns and Literals from Arrow Utf8 to Timestamp(Microsecond, UTC)"
 status: accepted
 date: "2026-07-03"
-version: "1.2"
+version: "1.3"
 producer: architect
 subsystems_affected: [SS-09, SS-10, SS-11, SS-17]
 supersedes: "ADR-044 §D4"
@@ -21,8 +21,8 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.1 (2026-07-03). Human ratification recorded 2026-07-03 (D-1520).
-Ready for product-owner BC amendments and story decomposition.
+ACCEPTED v1.2 (2026-07-04). Human ratification of core decisions recorded 2026-07-03
+(D-1520). **§D4 v1.3 PROPOSED (2026-07-04) — awaiting human ratification.**
 
 v1.1 amends v1.0: D3 emitter form changed from `TIMESTAMP '...'` to explicit
 `arrow_cast(...)` (DataFusion 53.1.0 verified: `TIMESTAMP '...'` produces
@@ -33,6 +33,16 @@ accepts date-only and offset-less strings — so cast-failure cannot be the gate
 Arrow construction form corrected from `Some(Arc::new("UTC".into()))` (compiles to
 `Arc<String>`) to `Some(Arc::from("UTC"))` (correct `Arc<str>`); RISK-1 narrative
 corrected.
+
+v1.2 (2026-07-04): OBS-4 typo fix — `Arc::from("UTF")` → `Arc::from("UTC")`.
+
+**v1.3 §D4 PROPOSED (2026-07-04):** §D4 redesigned from parse-fail text-scanner
+(8 fix-bursts, Unicode byte-offset panic / VP-021 violation, dotted/filter/qualified
+false positives) to **Option A — lenient-parse-then-AST-walk**. `Literal::RawTemporalLiteral`
+AST node; parser emits it for date-only/offset-less; `check_temporal_literals` plan-time
+walker uses schema + resolved AST. All text-scanner functions deleted. D1–D3, D5–D8
+unchanged. Awaiting human ratification before TDD proceeds on the §D4 implementation
+tasks.
 
 Supersedes **ADR-044 §D4** (planning-time constant injection as ISO-8601 string
 comparison). ADR-044 §D1–D3, §D5–D7 remain valid and are NOT affected.
@@ -209,56 +219,122 @@ This path operates on the Prism AST layer, not on Arrow DataType. Sensor API cal
 receive the same RFC-3339 UTC string before and after this migration — **zero
 behavioral change at the adapter boundary** (see D5).
 
-**Pushdown path (`pushdown.rs`) is UNCHANGED.** The pre-fan-out ADR-033 T1 extractor
-at `pushdown.rs:450` already operates on `Literal::Timestamp.instant` (a
-`chrono::DateTime<Utc>`) and calls `.to_rfc3339()` to produce the API string:
+**D4 — E-QUERY-041: Lenient-parse-then-AST-walk (Option A).**
+
+### v1.3 Redesign: Why the §D4 v1.2 design was retired
+
+The v1.2 design (Prism plan-time pre-validator using `chrono::parse_from_rfc3339`) was
+implemented with a PARSE-FAIL recovery path: the PrismQL parser rejected date-like
+literals (E-QUERY-001), then engine.rs re-scanned the raw query string
+(`extract_table_name_from_query_str`, `extract_column_name_adjacent_to_quoted_value`,
+`is_bad_literal_in_datetime_column`) to determine if the comparison was against a
+datetime column and upgrade the error to E-QUERY-041. This text-scanner was fragile:
+- Dotted-source expressions (`source.column`) were mis-classified as missing sources
+- Filter-mode `source |` prefix broke the table-name extractor
+- Non-ASCII MCP input caused a **Unicode byte-offset panic** (to_lowercase slicing into
+  raw bytes → VP-021 violation — unchecked panic on valid analyst input)
+- Qualified nested columns (`other.timestamp`, `payload.event_time`) produced
+  false E-QUERY-041 (`.last()` collapse matched the primary table)
+
+8 fix-bursts failed to converge the text-scanner. The root cause is structural: a
+text-scanner over unparsed query strings cannot correctly resolve dotted sources,
+filter-mode syntax, or qualified columns — these require the AST + schema that are
+only available at plan time.
+
+**Key reframe:** E-QUERY-041 is a MESSAGE-SPECIFICITY UPGRADE, not a correctness gate.
+Date-only and offset-less literals already FAIL the PrismQL parser and never reach
+DataFusion — there is NO silent-wrong-result risk regardless. The purpose of E-QUERY-041
+is pedagogical: upgrade a generic `E-QUERY-001: invalid ISO-8601 timestamp` into the
+actionable `E-QUERY-041: use RFC-3339 for datetime columns`. The entire text-scanner
+apparatus existed only for this upgrade. Option A achieves the same upgrade with zero
+text scanning.
+
+### Mechanism: Lenient-parse-then-AST-walk
+
+**Step 1 — New AST node: `Literal::RawTemporalLiteral(String)` in `ast.rs`.**
+
+A new variant is added to the `Literal` enum (alongside `Literal::Timestamp`):
 ```rust
-Expr::Literal(Literal::Timestamp(ts)) => ts.instant.to_rfc3339()
+/// A quoted string that resembles a date or datetime but is NOT valid RFC-3339.
+/// Produced by the parser for date-only (`'2026-06-24'`) and offset-less
+/// (`'2026-06-24T12:00:00'`) forms. Validated at plan time by
+/// `check_temporal_literals`. Must never reach SQL emission.
+RawTemporalLiteral(String),
 ```
-This path operates on the Prism AST layer, not on Arrow DataType. Sensor API calls
-receive the same RFC-3339 UTC string before and after this migration — **zero
-behavioral change at the adapter boundary** (see D5).
 
-**D4 — E-QUERY-041: Prism-level temporal literal pre-validator (NOT a DataFusion cast intercept).**
+**Step 2 — Parser change: lenient fallback in the timestamp literal production.**
 
-**Background — why DataFusion cast-failure cannot be the detection mechanism:**
-arrow-cast 58.2.0 (verified via remove-uncertainty PASS-1, 2026-07-03) implements
-Utf8→Timestamp casting with LENIENT semantics. It ACCEPTS:
-- Date-only form: `'2026-06-24'` → midnight of that date in the target timezone
-- Offset-less ISO: `'2026-06-24T12:00:00'` → treated as target timezone (not UTC)
-- Full RFC-3339 with `Z`: `'2026-06-24T00:00:00Z'` → accepted
-- Full RFC-3339 with numeric offset: `'2026-06-24T00:00:00+00:00'` → accepted
+The PrismQL parser's timestamp literal combinator (in `sql_parser.rs` and/or
+`filter_parser.rs`) currently fails with E-QUERY-001 when `chrono::parse_from_rfc3339`
+rejects the quoted string. Under Option A, it instead applies a LENIENT secondary
+classification:
 
-Genuinely malformed strings (e.g., `'not-a-date'`) only error at EXECUTION time as
-`ArrowError::CastError` — not at planning time. There is no planning-time DataFusion
-cast error to intercept. A date-only or offset-less comparison against a sensor
-`Timestamp(Microsecond, UTC)` column would silently produce wrong comparisons
-(comparing against midnight-local rather than UTC). This is the gap that Prism's
-pre-validator must close.
+```
+quoted_string → 
+  if parse_from_rfc3339 succeeds → Literal::Timestamp   (unchanged)
+  else if is_date_like(s) → Literal::RawTemporalLiteral(s)  (new: parse SUCCEEDS)
+  else → Literal::Utf8(s)                               (unchanged)
+```
 
-**E-QUERY-041 — `TemporalLiteralUnparseable` — Prism pre-validator at parse/plan time:**
+`is_date_like(s)` is defined as: `chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok()` OR
+`chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S").is_ok()` — covering the
+two documented problem forms (date-only and offset-less ISO datetime). The heuristic
+DOES NOT match arbitrary strings (e.g., `'not-a-date'`, `'sensor-id-abc'`); those remain
+`Literal::Utf8`.
 
-When the query planner encounters a string literal compared against a datetime column
-(`Timestamp(Microsecond, UTC)`), Prism validates the literal using
-`chrono::DateTime::parse_from_rfc3339` BEFORE the SQL is forwarded to DataFusion.
+With this change, parsing a query containing `'2026-06-24'` SUCCEEDS and produces an
+AST containing `Expr::Literal(Literal::RawTemporalLiteral("2026-06-24"))`. No
+`E-QUERY-001` is emitted at parse time for this class of input.
 
-`chrono::DateTime::parse_from_rfc3339` applies STRICT RFC-3339 semantics:
-- REJECTS date-only (`'2026-06-24'`) — E-QUERY-041 raised
-- REJECTS offset-less ISO (`'2026-06-24T12:00:00'`) — E-QUERY-041 raised
-- ACCEPTS full RFC-3339 with `Z` (`'2026-06-24T00:00:00Z'`) — passes
-- ACCEPTS full RFC-3339 with numeric offset (`'2026-06-24T00:00:00+00:00'`) — passes
+**Step 3 — Plan-time validator: `check_temporal_literals` AST walker in `engine.rs`.**
 
-Prism raises E-QUERY-041 with the offending value BEFORE DataFusion sees the query.
-The error is deterministic and plan-time (not execution-time). This eliminates the
-silent-wrong-answer risk from arrow-cast's lenient coercion.
+After the AST is produced and the schema is resolved, `check_temporal_literals` walks
+the full `Expr` tree:
 
-**Chrono strictness as the single source of truth (AC-013):** The same
-`chrono::DateTime::parse_from_rfc3339` validation is applied at the sensor-boundary
-datetime parsing path (the incoming ISO-8601 string → `i64` microseconds-since-epoch
-conversion in `spec_driven_adapter.rs`). Query-planner validation and sensor-boundary
-parsing diverge from each other is forbidden — both use chrono strictness.
+| `RawTemporalLiteral` position | Schema check | Result |
+|-------------------------------|--------------|--------|
+| Comparison (`>`, `<`, `>=`, `<=`, `=`, `!=`) against Datetime column | `column_type == Timestamp(Microsecond, UTC)` | E-QUERY-041 |
+| Comparison against non-Datetime column | any other type | E-QUERY-001 (type mismatch) |
+| Non-comparison position (projection, etc.) | N/A | E-QUERY-001 (invalid literal) |
 
-**E-QUERY-041 message format:**
+The schema-resolved column type is determined by the same path that resolves
+`ColumnType::Datetime → DataType::Timestamp(...)` (D2). This path correctly handles:
+- **Dotted expressions** (`source.column`, `payload.event_time`): resolved via the
+  schema map, not by string parsing
+- **Filter-mode** (`source | WHERE col > ...`): the AST captures the source and
+  predicate structure; column resolution is identical to SQL mode
+- **Qualified/nested columns** (`other.timestamp`): resolved against the schema of
+  the correct source table, not the `.last()` segment
+- **Unicode inputs**: operates on already-parsed `String` values (valid UTF-8); no
+  raw byte-offset operations. VP-021 violation eliminated by construction.
+
+**Step 4 — Deletion: text-scanner apparatus removed.**
+
+The following functions and code paths are DELETED from `engine.rs`:
+- `extract_table_name_from_query_str`
+- `extract_column_name_adjacent_to_quoted_value`
+- `is_bad_literal_in_datetime_column`
+- The parse-fail branch that called the above functions
+
+**Step 5 — Guard: `RawTemporalLiteral` must never reach SQL emission.**
+
+`pipe_sql_emitter.rs` adds a `Literal::RawTemporalLiteral` arm that returns E-QUERY-001
+(internal error: unvalidated temporal literal reached emission). Under correct plan
+execution, `check_temporal_literals` runs before emission and consumes all
+`RawTemporalLiteral` nodes (producing E-QUERY-041 or E-QUERY-001). The emission guard
+is a belt-and-suspenders defensive check.
+
+### E-QUERY-001 ↔ E-QUERY-041 boundary (preserved from v1.2, mechanism changed)
+
+| Input | Parser output | Validator result |
+|-------|--------------|-----------------|
+| `'2026-07-03T00:00:00Z'` (full RFC-3339) | `Literal::Timestamp` | No error |
+| `'2026-06-24'` vs Datetime col | `Literal::RawTemporalLiteral` | E-QUERY-041 |
+| `'2026-06-24T12:00:00'` (offset-less) vs Datetime col | `Literal::RawTemporalLiteral` | E-QUERY-041 |
+| `'2026-06-24'` vs non-Datetime col | `Literal::RawTemporalLiteral` | E-QUERY-001 |
+| `'not-a-date'` anywhere | `Literal::Utf8` | No temporal error (other type errors apply) |
+
+**E-QUERY-041 message format (unchanged from v1.2):**
 ```
 E-QUERY-041: The value '{first_50_chars}' cannot be interpreted as a UTC timestamp.
 Expected RFC-3339 format with UTC offset (e.g., '2026-07-03T00:00:00Z'). Date-only
@@ -266,10 +342,14 @@ and offset-less forms are not accepted. For relative time filters, use
 NOW() - INTERVAL 'Nh' (e.g., WHERE timestamp > NOW() - INTERVAL '24h').
 ```
 
-E-QUERY-041 is the next available code in the `E-QUERY-NNN` namespace. The error is a
-query-level user error (not an internal error). The `{first_50_chars}` truncation follows
-E-INFUSE-014 convention — credential values MUST NOT appear in query literals; truncation
-prevents inadvertent secret exposure.
+**Chrono strictness invariant (AC-013, preserved):** The sensor-boundary datetime
+parsing path (`spec_driven_adapter.rs`, ISO-8601 string → `i64` microseconds-since-epoch)
+continues to use `chrono::DateTime::parse_from_rfc3339`. The plan-time validator uses
+`chrono::NaiveDate::parse_from_str` / `chrono::NaiveDateTime::parse_from_str` for the
+`is_date_like` heuristic and implicitly rejects non-RFC-3339 forms (the heuristic
+succeeds for date-only and offset-less, and `check_temporal_literals` then raises
+E-QUERY-041, which is the rejection). The sensor boundary and query path both reject
+non-RFC-3339 forms; the mechanism differs but the invariant is preserved.
 
 **D5 — Pushdown / adapter-boundary semantics (explicit no-change statement).**
 
@@ -468,6 +548,37 @@ schema mismatch error.
 startup migration step that clears the `diff_results` CF. Given the ephemeral model,
 old diff packs have no persistent value — this is a safe operation.
 
+### RISK-4 (MEDIUM): `Literal` enum sibling-site sweep (TD-VSDD-060)
+
+Adding `Literal::RawTemporalLiteral` triggers the TD-VSDD-060 sibling-site sweep rule.
+All internal `match` arms on `Literal` within `crates/prism-query/src/` must be
+updated. External crates have `#[non_exhaustive]` wildcard arms already (enforced by
+the perimeter-violation compile-fail gate). Missing internal arms will produce compile
+errors — BUT only if the match is exhaustive (no wildcard). Some internal match arms
+may silently fall through to a wildcard and produce incorrect behavior rather than a
+compile error.
+
+**Mitigation**: The implementer MUST run `grep -r 'Literal::' crates/prism-query/src/`
+and audit every match. The mandatory `pipe_sql_emitter.rs` guard arm (Step 5 in §D4)
+is the most critical — `RawTemporalLiteral` reaching the SQL emitter is an internal
+logic error. All other arms must produce E-QUERY-001 (not silently succeed).
+
+### RISK-5 (LOW): `is_date_like` false positives in non-Datetime string comparisons
+
+The `is_date_like` heuristic classifies `'2026-06-24'` as `RawTemporalLiteral`. If an
+analyst writes `WHERE string_col = '2026-06-24'` (a string column that happens to store
+ISO-date-format sensor IDs), the parser produces `RawTemporalLiteral` for the literal.
+`check_temporal_literals` sees it against a non-Datetime column → E-QUERY-001
+(timestamp-like literal against non-timestamp column). The query fails.
+
+**Assessment**: This is a correctness improvement, not a regression. A string column
+containing ISO-date-formatted IDs being compared with `'2026-06-24'` is ambiguous and
+arguably a bug in the analyst query. The error message guides the analyst to use a
+non-date-formatted string or `NOW() - INTERVAL` for actual datetime filtering.
+**Mitigation**: The E-QUERY-001 message for this case should say "this looks like a
+date — if comparing against a string column, ensure the value is not ISO-date formatted;
+if comparing against a datetime column, use RFC-3339 (`'2026-06-24T00:00:00Z'`)."
+
 ---
 
 ## Recommended BC Amendments
@@ -498,12 +609,21 @@ Scan for any postcondition or assertion that describes Datetime columns as
 `DataType::Timestamp(Microsecond, UTC)`. The product-owner must perform this sweep
 as part of the BC amendment burst triggered by ADR-052 ratification.
 
-**E-QUERY-041 detection semantics for BC-2.11.003 / BC-2.11.004:** Any postcondition
-or AC describing E-QUERY-041 must specify it as a **Prism plan-time literal
-pre-validation** (chrono `DateTime::parse_from_rfc3339` strictness, raised before
-DataFusion sees the query), NOT as an intercepted DataFusion or Arrow cast error.
-The distinction is: arrow-cast 58.2.0 accepts date-only and offset-less forms
-leniently — only full chrono RFC-3339 strictness provides the correct gate.
+**E-QUERY-041 detection semantics for BC-2.11.003 / BC-2.11.004 (v1.3 revision):**
+Any postcondition or AC describing E-QUERY-041 must specify the **Option A
+lenient-parse-then-AST-walk mechanism**:
+
+> "The PrismQL parser accepts date-only (`'2026-06-24'`) and offset-less datetime
+> (`'2026-06-24T12:00:00'`) string literals as `Literal::RawTemporalLiteral` AST
+> nodes (parse succeeds). The plan-time validator `check_temporal_literals` walks
+> the resolved AST; for `RawTemporalLiteral` nodes in comparison position against
+> a `Timestamp(Microsecond, UTC)` column, E-QUERY-041 is raised. For
+> `RawTemporalLiteral` nodes in any other context (non-Datetime column, non-comparison
+> position), E-QUERY-001 is raised."
+
+Do NOT describe E-QUERY-041 as: a parse-time error, a DataFusion cast error, a text-
+scanner result, or a raw-query-string scan. These descriptions applied to the retired
+v1.2 design.
 
 ### Error Taxonomy (`prd-supplements/error-taxonomy.md`)
 
@@ -516,11 +636,10 @@ Date-only and offset-less forms are not accepted. For relative time filters,
 use NOW() - INTERVAL 'Nh'.
 ```
 
-**Error taxonomy classification note:** E-QUERY-041 emitter/phase = Prism
-plan-time literal pre-validation (deterministic, raised by `chrono::DateTime::
-parse_from_rfc3339`). It is NOT classified as a DataFusion execution error or an
-Arrow `ArrowError::CastError` — those only surface at execution time and are too
-lenient to serve as the gate (arrow-cast 58.2.0 verified).
+**Error taxonomy classification note (v1.3):** E-QUERY-041 emitter/phase = plan-time
+AST validator (`check_temporal_literals`), raised when `Literal::RawTemporalLiteral`
+is found in comparison position against a Datetime column. It is NOT a parse-time
+error, NOT a DataFusion execution error, and NOT an Arrow `ArrowError::CastError`.
 
 ---
 
@@ -539,13 +658,56 @@ code modifications; items marked [VERIFY] require review to confirm no change is
 | 6 | `crates/prism-query/src/infusion_udf.rs` | [VERIFY] | After ADR-052 ships, the datetime row in the `output_type` mapping (ADR-051) must be updated to `Timestamp` — no change in ADR-052 story itself |
 | 7 | `crates/prism-spec-engine/src/infusion/udf.rs` | [VERIFY] | `InfusionUdfDescriptor.output_type` is a `String` — no change at spec-engine level |
 | 8 | `specs/infusions/*.infusion.toml` | [VERIFY] | No TOML schema change; `output_type = "datetime"` is the string that ADR-051 will map to the new type after ADR-052 |
-| 9 | `crates/prism-query/src/pipe_sql_emitter.rs:817-818` | [CHANGE] | Update stale comment "Datetime fields is DataType::Utf8" to reflect the new type |
-| 10 | `.factory/specs/architecture/decisions/ADR-044-*.md` | [CHANGE] | Add `superseded_by: "ADR-052 (§D4 only)"` to frontmatter; add "PARTIALLY SUPERSEDED by ADR-052 (§D4)" to Status section |
-| 11 | `.factory/specs/prd-supplements/error-taxonomy.md` | [CHANGE] | Add E-QUERY-041 row |
-| 12 | `.factory/specs/behavioral-contracts/BC-2.11.021-*.md` | [CHANGE] | Amend postcondition; E-QUERY-041 description must specify Prism plan-time literal pre-validator (chrono strictness), not DataFusion/Arrow cast intercept |
-| 13 | `crates/prism-query/src/tests/` | [VERIFY] | Grep all test files for `DataType::Utf8` assertions on fields identified as Datetime columns; update each |
-| 14 | `crates/prism-sensors/` (normalization paths) | [CHANGE] | Add ISO-8601 string → microseconds-since-epoch parsing at the OCSF normalization boundary for Datetime fields |
-| 15 | `crates/prism-query/src/` — remaining files | [VERIFY] | `grep -r 'Utf8\|DataType::Utf8' crates/prism-query/src/` to catch any hardcoded Utf8 assertions for datetime columns |
+| 9 | `crates/prism-query/src/pipe_sql_emitter.rs:817-818` | [CHANGE] | Update stale comment "Datetime fields is DataType::Utf8" to reflect the new type; add `Literal::RawTemporalLiteral` arm (E-QUERY-001 guard) |
+| 10 | `.factory/specs/architecture/decisions/ADR-044-*.md` | [DONE] | `superseded_by` frontmatter added; §Status "PARTIALLY SUPERSEDED by ADR-052 v1.1" block added (2026-07-03) |
+| 11 | `.factory/specs/prd-supplements/error-taxonomy.md` | [CHANGE] | Add E-QUERY-041 row; phase = "plan-time AST validator (`check_temporal_literals`)" |
+| 12 | `.factory/specs/behavioral-contracts/BC-2.11.021-*.md` | [CHANGE] | Amend postcondition to Option A mechanism; E-QUERY-041 = `check_temporal_literals` walker, NOT parse-fail/text-scanner/DataFusion-cast-intercept |
+| 13 | `crates/prism-query/src/ast.rs` | [CHANGE] | Add `Literal::RawTemporalLiteral(String)` variant; doc comment per §D4 |
+| 14 | `crates/prism-query/src/sql_parser.rs` (+ `filter_parser.rs` if separate) | [CHANGE] | Modify timestamp literal production: lenient `is_date_like` fallback → `RawTemporalLiteral` instead of parse error |
+| 15 | `crates/prism-query/src/engine.rs` | [CHANGE] | DELETE `extract_table_name_from_query_str`, `extract_column_name_adjacent_to_quoted_value`, `is_bad_literal_in_datetime_column`, parse-fail branch; ADD `check_temporal_literals` AST walker |
+| 16 | `crates/prism-query/src/tests/` | [CHANGE] | Rewrite E-QUERY-041 RG tests from parse-fail path to `check_temporal_literals` path; add Unicode VP-021 regression test (non-ASCII input → no panic → correct E-QUERY-041/001) |
+| 17 | `crates/prism-query/src/` — all `match` on `Literal` | [CHANGE] | TD-VSDD-060 sweep: `grep -r 'Literal::' crates/prism-query/src/` — add `Literal::RawTemporalLiteral` arm to every internal match |
+| 18 | `crates/prism-query/src/tests/` — Utf8 datetime assertions | [CHANGE] | Grep for `DataType::Utf8` assertions on Datetime columns; update to `DataType::Timestamp(Microsecond, UTC)` |
+| 19 | `crates/prism-sensors/` (normalization paths) | [CHANGE] | Add ISO-8601 string → microseconds-since-epoch parsing at OCSF normalization boundary for Datetime fields |
+| 20 | `crates/prism-query/src/` — remaining Utf8 datetime refs | [VERIFY] | `grep -r 'DataType::Utf8' crates/prism-query/src/` to catch any residual hardcoded Utf8 for datetime columns |
+
+---
+
+## D4 Story Impact (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001)
+
+### Tasks to DELETE (text-scanner apparatus)
+
+The following tasks/ACs in the story are deleted by Option A. The implementer must
+remove these from the story spec before TDD begins (or the test-writer must write
+zero tests for them):
+
+| Deleted artifact | File | Reason |
+|-----------------|------|--------|
+| `extract_table_name_from_query_str` | `engine.rs` | Replaced by `check_temporal_literals` schema lookup |
+| `extract_column_name_adjacent_to_quoted_value` | `engine.rs` | Same |
+| `is_bad_literal_in_datetime_column` | `engine.rs` | Same |
+| Parse-fail branch that invokes the above | `engine.rs` | E-QUERY-041 is no longer raised on parse failure |
+
+### Tasks to ADD (Option A)
+
+| New task | File | Description |
+|---------|------|-------------|
+| Add `Literal::RawTemporalLiteral(String)` | `ast.rs` | New variant with doc comment per §D4 |
+| Modify timestamp literal parser combinator | `sql_parser.rs` (+ `filter_parser.rs` if separate) | Lenient `is_date_like` fallback; emit `RawTemporalLiteral` instead of parse error for date-only + offset-less |
+| Implement `check_temporal_literals` | `engine.rs` | AST walker: `RawTemporalLiteral` + Datetime col → E-QUERY-041; other contexts → E-QUERY-001 |
+| Add `Literal::RawTemporalLiteral` guard arm | `pipe_sql_emitter.rs` | Must never reach emission — E-QUERY-001 internal error guard |
+| TD-VSDD-060 sibling-site sweep on `Literal` | `prism-query/src/*.rs` | Add `RawTemporalLiteral` arm to all internal `match` on `Literal` |
+
+### Red Gate tests that change
+
+| Old RG test | New RG test |
+|------------|------------|
+| "parse `WHERE ts > '2026-06-24'` → parse fails → E-QUERY-041 via text-scanner" | "parse `WHERE ts > '2026-06-24'` → parse succeeds → `check_temporal_literals` → E-QUERY-041" |
+| "parse `WHERE ts > '2026-06-24T12:00:00'` → parse fails → E-QUERY-041" | Same, with `check_temporal_literals` path |
+| VP-021 Unicode panic test (if exists) | "non-ASCII query input → no panic → E-QUERY-041 or E-QUERY-001 (no byte-offset crash)" |
+| (new) | "`RawTemporalLiteral` vs non-Datetime column → E-QUERY-001 (not E-QUERY-041)" |
+| (new) | "filter-mode `source | WHERE ts > '2026-06-24'` → E-QUERY-041 (not misclassified)" |
+| (new) | "dotted column `payload.ts > '2026-06-24'` → E-QUERY-041 (schema resolves correctly)" |
 
 ---
 
@@ -574,6 +736,18 @@ Nanosecond would eliminate precision-mismatch risk (RISK-1) at the cost of:
 overflow at ~2262 CE timestamps (irrelevant for security sensor data),
 minor memory overhead (8 bytes either way), and deviation from the Microsecond
 baseline established in `high002_plan_pinning_tests.rs`.
+
+**B — Parser-carried predicate context (rejected for §D4 redesign).**
+On parse failure for an invalid timestamp literal, record the enclosing predicate's
+column name and operator in the structured error type. The plan-time validator
+consumes the structured error context to raise E-QUERY-041 without text scanning.
+Rejected: the parser still doesn't have schema information at parse time — it can
+record the column NAME but cannot resolve `source.column`, `payload.field`, or
+filter-mode `source |` syntax into a concrete schema type. The structured error carries
+a raw name that has the same resolution gap as the text-scanner. Option B replaces
+a text-scanner with a name-in-error-struct; same failure modes, different data
+structure. Option A (lenient-parse-then-AST-walk) eliminates the gap entirely by
+deferring validation to plan time where schema is fully resolved.
 Rejected: Microsecond is the established codebase baseline; overflow is irrelevant
 for security sensor use cases; RISK-1 is mitigated by a probe test in the
 implementation story.
@@ -585,6 +759,7 @@ implementation story.
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.1 (ratified) | 2026-07-03 | state-manager | Human ratification recorded 2026-07-03 (D-1520). Status: PROPOSED → ACCEPTED. No decision content changes; v1.1 content ratified as authored. |
+| 1.3 | 2026-07-04 | architect | §D4 redesign (PROPOSED — awaiting human ratification): E-QUERY-041 detection mechanism replaced from parse-fail text-scanner (8 fix-bursts, Unicode panic, VP-021 violation) to Option A lenient-parse-then-AST-walk. New `Literal::RawTemporalLiteral` AST node; parser emits it for date-only/offset-less; `check_temporal_literals` plan-time walker handles dotted/filter/qualified/Unicode uniformly. Text-scanner functions deleted. Option B (parser-carried predicate context) evaluated and rejected (schema not available at parse time). Blast radius extended to 20 files. 5 risks documented. D4 story-impact table added. |
 | 1.2 | 2026-07-04 | architect | OBS-4 typo fix: `Arc::from("UTF")` → `Arc::from("UTC")` in §D1 canonical construction form (adversary LOCAL cascade catch) |
 | 1.1 | 2026-07-03 | architect | remove-uncertainty PASS-1 amendments: D3 emitter changed to arrow_cast (TIMESTAMP '...' → Nanosecond/None in DF 53.1.0); D4 E-QUERY-041 changed from DataFusion cast-failure intercept to Prism-level chrono pre-validator (arrow-cast 58.2.0 lenient — accepts date-only); Arrow construction form corrected Arc::new("UTF".into())→Arc::from("UTC"); RISK-1 downgraded HIGH→MEDIUM (arrow_cast eliminates coercion reliance); BC-amendment guidance updated with pre-validator semantics |
 | 1.0 | 2026-07-03 | architect | Initial PROPOSED — full PrismQL Utf8→Timestamp migration; supersedes ADR-044 §D4 |

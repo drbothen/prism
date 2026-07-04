@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.161"
+version: "2.162"
 status: draft
 producer: state-manager
 timestamp: 2026-06-26T17:00:00Z
@@ -118,7 +118,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 | ADR-049 | wasmtime Compilation Cache — On-Disk Native-Code Cache for PluginRuntime, Degradable Boot Failure Semantics, and Test-Binary Serialization | ACCEPTED v1.3 | 2026-07-02 | decisions/ADR-049-wasmtime-compilation-cache.md |
 | ADR-050 | Workspace reqwest TLS Backend — rustls-tls Mandatory, native-tls Forbidden | ACCEPTED v1.1 | 2026-07-03 | decisions/ADR-050-workspace-reqwest-tls-backend.md |
 | ADR-051 | Typed & Consistent Enrichment UDF Output — output_type→Arrow DataType Mapping, Mandatory source_column, Scalar-Input Rule, and INV-ENRICH-TYPED-001 | PROPOSED v1.1 | 2026-07-03 | decisions/ADR-051-typed-consistent-enrichment-udf-output.md |
-| ADR-052 | PrismQL Native Temporal Typing — Datetime Columns and Literals from Arrow Utf8 to Timestamp(Microsecond, UTC); supersedes ADR-044 §D4 | ACCEPTED v1.2 | 2026-07-04 | decisions/ADR-052-prismql-native-temporal-typing-utf8-to-arrow-timestamp.md |
+| ADR-052 | PrismQL Native Temporal Typing — Datetime Columns and Literals from Arrow Utf8 to Timestamp(Microsecond, UTC); supersedes ADR-044 §D4 | ACCEPTED v1.2 / §D4 PROPOSED v1.3 | 2026-07-04 | decisions/ADR-052-prismql-native-temporal-typing-utf8-to-arrow-timestamp.md |
 
 ## Architecture Decisions
 
@@ -178,6 +178,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.162 | ADR-052-D4-v1.3-proposed | 2026-07-04 | architect | ADR-052 §D4 PROPOSED v1.3 — E-QUERY-041 detection redesign. Replaces parse-fail text-scanner (8 fix-bursts, Unicode byte-offset panic VP-021 violation, dotted/filter/qualified false positives) with Option A lenient-parse-then-AST-walk: `Literal::RawTemporalLiteral` in ast.rs; parser emits for date-only/offset-less; `check_temporal_literals` plan-time walker uses schema + resolved AST; text-scanner functions deleted. Option B (parser-carried predicate context) evaluated and rejected. D4 story-impact table added (delete 4 tasks, add 5 tasks, 6 RG test changes). 2 new risks (RISK-4 `Literal` sibling-site sweep, RISK-5 `is_date_like` false positive). 20-file blast radius. Status PROPOSED — awaiting human ratification before TDD. D1–D3, D5–D8 unchanged. ARCH-INDEX v2.161→v2.162. |
 | 2.161 | ADR-052-v1.2-typo-fix | 2026-07-04 | architect | ADR-052 v1.1→v1.2: OBS-4 typo fix in §D1 canonical construction form — `Arc::from("UTF")` → `Arc::from("UTC")` (LOCAL adversary cascade catch). No decision content changed. ARCH-INDEX v2.160→v2.161. |
 | 2.160 | ADR-052-ratified | 2026-07-03 | state-manager | ADR-052 PROPOSED v1.1 → ACCEPTED. Human ratification recorded 2026-07-03 (D-1520). Accepts full PrismQL temporal-typing migration: Datetime→Arrow Timestamp(Microsecond, UTC) across sensor column registration (spec_driven_adapter.rs:886), SQL emitter (arrow_cast explicit form, pipe_sql_emitter.rs:822), and Prism-level literal pre-validator (E-QUERY-041, chrono RFC-3339 strictness). Supersedes ADR-044 §D4. ADR-051 §datetime→Utf8 row SUPERSEDED-PENDING by ADR-052 implementation. ARCH-INDEX v2.159→v2.160. |
 | 2.159 | ADR-052-v1.1-remove-uncertainty | 2026-07-03 | architect | ADR-052 v1.0→v1.1 (remove-uncertainty PASS-1 amendments). D3: emitter form changed from `TIMESTAMP '...'` to `arrow_cast(...)` — DataFusion 53.1.0 verified `TIMESTAMP '...'` produces Nanosecond/None, not Microsecond/UTC. D4: E-QUERY-041 detection mechanism changed from DataFusion-cast-failure intercept to Prism-level chrono pre-validator — arrow-cast 58.2.0 is lenient (accepts date-only, offset-less), so cast failure cannot be the gate. Arrow construction form corrected: `Arc::new("UTC".into())` (wrong, `Arc<String>`) → `Arc::from("UTC")` (correct, `Arc<str>`). RISK-1 downgraded HIGH→MEDIUM (arrow_cast form eliminates implicit coercion reliance). BC-amendment guidance updated. ARCH-INDEX v2.158→v2.159. |

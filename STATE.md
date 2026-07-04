@@ -26,7 +26,7 @@ develop_head: "122228e8"
 bc_index_version: "7.31"
 vp_index_version: "1.80"
 story_index_version: "v2.581"
-arch_index_version: "2.161"
+arch_index_version: "2.162"
 error_taxonomy_version: "2.10"
 total_stories: 227
 active_contracts: 255
@@ -41,7 +41,7 @@ workspace_test_count: 5109  # NOTE: S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 feature
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "LOCAL RE-GATE ON ee8a3a61 + FIX-BURST 6 CLOSED LOW-1+OBS-1+OBS-2 (D-1529 2026-07-04). S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 LOCAL cascade: re-gate on ee8a3a61 = PR-merge-CLEAN (0 CRIT/HIGH/MED), 1 LOW + 2 OBS (all version-citation hygiene; novelty LOW; 'substantively converged'). Fix-burst 6 closed all: LOW-1 (error-taxonomy E-QUERY-041 volatile ADR cites de-pinned to stable §D4 behavioral anchors per TD-VSDD-091; taxonomy v2.09→v2.10); OBS-1 (20 volatile version pins de-pinned across 6 code files per TD-VSDD-091; code HEAD 634ba350; just check 5109 passed; non-exhaustive 88/88); OBS-2 (column_source_path_extraction_failed confirmed cataloged in BC-2.16.002 — no gap). 3-CLEAN(strict) streak: 0/3 — beginning streak attempts on FROZEN state (code HEAD 634ba350 + factory specs). error-taxonomy v2.09→v2.10. STATE v8.131→v8.132."
+current_step: "SESSION WRAP (D-1531 2026-07-04). ADR-052 §D4 v1.3 PROPOSED Option A redesign committed (D-1530; ARCH-INDEX v2.161→v2.162). §RESUME SNAPSHOT D-1531 authored (supersedes D-1512). S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: E-QUERY-041 detection robustly redesigned (Option A lenient-parse-then-AST-walk; awaiting human ratification of §D4 v1.3 before TDD). VERY NEXT ACTION = present ADR-052 §D4 v1.3 Option A to human for ratification. On ratify → PO amends BCs + error-taxonomy → story-writer revises tasks → implementer re-implements → fresh LOCAL 3-CLEAN. develop_head UNCHANGED 122228e8. STATE v8.133→v8.134."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -73,14 +73,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1529."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1531."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-04 (D-1529 — FIX-BURST 6 LOW-1+OBS-1+OBS-2 closed; error-taxonomy v2.09→v2.10 (E-QUERY-041 ADR cites de-pinned §D4); STATE v8.131→v8.132)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-04 (D-1531 — SESSION WRAP; ADR-052 §D4 v1.3 PROPOSED Option A redesign committed; §RESUME SNAPSHOT D-1531 authored; ARCH-INDEX v2.161→v2.162; STATE v8.133→v8.134)
 
 ## Active Objective (North Star)
 
@@ -148,6 +148,9 @@ _(D-1513..D-1520 archived to burst-log.md this D-1521..D-1525 burst)_
 _(D-1521..D-1525 archived to burst-log.md this D-1526..D-1527 burst)_
 _(D-1526 archived to burst-log.md this D-1528 burst)_
 _(D-1527..D-1528 archived to burst-log.md this D-1529 burst)_
+_(D-1529 archived to burst-log.md this D-1530..D-1531 burst)_
+| D-1530 | architect/state-manager | 2026-07-04 | **ADR-052 §D4 v1.3 PROPOSED Option A redesign committed (D-1530). E-QUERY-041 detection mechanism redesigned from parse-fail text-scanner (8 fix-bursts, Unicode byte-offset panic VP-021 violation, dotted/filter/qualified false positives) to Option A lenient-parse-then-AST-walk: `Literal::RawTemporalLiteral` in ast.rs; parser emits for date-only/offset-less; `check_temporal_literals` plan-time walker uses schema + resolved AST; text-scanner functions deleted. Option B (parser-carried predicate context) evaluated and rejected (schema unavailable at parse time). Blast radius extended to 20 files; 5 risks documented; D4 story-impact table added (delete 4 tasks, add 5 tasks, 6 RG test changes). ARCH-INDEX v2.161→v2.162. Status PROPOSED — awaiting human ratification before TDD. D1–D3, D5–D8 unchanged. LOCAL 3-CLEAN streak: 0/3 (moot — will re-implement after ratification). develop_head UNCHANGED 122228e8. STATE v8.132→v8.133.** | wave-5-e-demo-fidelity | 2026-07-04 |
+| D-1531 | state-manager | 2026-07-04 | **SESSION WRAP — §RESUME SNAPSHOT D-1531 authored (supersedes D-1512). ADR-052 §D4 v1.3 PROPOSED (D-1530; Option A lenient-parse-then-AST-walk; awaiting human ratification). S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 feature branch fe19be39 LOCAL-ONLY (NOT pushed); current HEAD 634ba350 carries text-scanner being REPLACED by Option A on ratification. SOLID + untouched by redesign: Datetime→Timestamp(µs,UTC) typing, arrow_cast emitter, dual MCP error surfaces, parse_datetime_to_micros→SpecEngineError::TimestampParseFailure, byte-for-byte Display regression test, SAP-2 parity. WORKTREES: S-3.09 DAY-2/PARKED (backup/S-3.09-preresume-43c41389@43c41389); W3-FIX-S307-001 dirty awaiting human decision. develop_head UNCHANGED 122228e8. STATE v8.133→v8.134.** | wave-5-e-demo-fidelity | 2026-07-04 |
 | D-1529 | state-manager | 2026-07-04 | **LOCAL RE-GATE ON ee8a3a61 + FIX-BURST 6 CLOSED LOW-1+OBS-1+OBS-2 (D-1529). Re-gate on ee8a3a61: CLEAN(PR-merge) 0 CRIT/HIGH/MED, 1 LOW + 2 OBS (all version-citation hygiene; novelty LOW; 'substantively converged'). Fix-burst 6 closed all: LOW-1 (error-taxonomy E-QUERY-041 volatile ADR cites de-pinned to stable §D4 behavioral anchors per TD-VSDD-091; taxonomy v2.09→v2.10); OBS-1 (20 volatile version pins de-pinned across 6 code files per TD-VSDD-091; code HEAD 634ba350; just check 5109 passed; non-exhaustive 88/88); OBS-2 (column_source_path_extraction_failed confirmed cataloged in BC-2.16.002 — no gap). 3-CLEAN(strict) streak: 0/3 — beginning streak attempts on FROZEN state (code HEAD 634ba350 + factory specs). error-taxonomy v2.09→v2.10. STATE v8.131→v8.132.** | wave-5-e-demo-fidelity | 2026-07-04 |
 | D-1521 | state-manager | 2026-07-03 | **ADR-044 §D4 PARTIALLY SUPERSEDED by ADR-052 v1.1 (D-1521). ADR-044 frontmatter `superseded_by` field already present; §Status "PARTIALLY SUPERSEDED by ADR-052 v1.1" block confirmed in place. ADR-044 §D1–D3, §D5–D7 remain fully valid. Only §D4 (planning-time injection as ISO-8601 string → Utf8 column) superseded by ADR-052's explicit Timestamp typing + E-QUERY-041 pre-validator. ARCH-INDEX v2.159→v2.160 (ADR-052 row PROPOSED→ACCEPTED). STATE UNCHANGED v8.127.** | wave-5-e-demo-fidelity | 2026-07-03 |
 | D-1522 | state-manager | 2026-07-03 | **TEMPORAL BCs AMENDED + E-QUERY-041 ADDED (D-1522). BC-2.11.021 v1.2 (postcondition updated: DataFusion now sees explicit `arrow_cast('...', 'Timestamp(Microsecond, Some("UTC"))')` comparison against Timestamp column; E-QUERY-041 Prism plan-time literal pre-validator semantics added — chrono RFC-3339 strictness, NOT DataFusion cast intercept). BC-2.11.003 v1.6 (Datetime column type assertions updated Utf8→Timestamp(Microsecond,UTC); E-QUERY-041 detection semantics specified). BC-2.11.004 v1.7 (same temporal type assertion sweep). error-taxonomy v2.05→v2.07 (E-QUERY-040 row confirmed v2.06; E-QUERY-041 TemporalLiteralUnparseable row added v2.07: Prism plan-time pre-validation, chrono::DateTime::parse_from_rfc3339 strictness; first_50_chars truncation; E-QUERY-041 is NOT a DataFusion/Arrow cast error). BC-INDEX v7.29→v7.31. STATE UNCHANGED v8.127.** | wave-5-e-demo-fidelity | 2026-07-03 |
@@ -461,24 +464,24 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1529 -- 2026-07-04; STATE v8.132)
+## Session Resume Checkpoint (D-1531 -- 2026-07-04; STATE v8.134)
 
-**LOCAL RE-GATE ON ee8a3a61 + FIX-BURST 6 CLOSED (D-1529 2026-07-04). S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 LOCAL cascade: re-gate on ee8a3a61 = PR-merge-CLEAN (0 CRIT/HIGH/MED), 1 LOW + 2 OBS (all version-citation hygiene; novelty LOW; 'substantively converged'). Fix-burst 6 closed all: LOW-1 (error-taxonomy E-QUERY-041 volatile ADR cites de-pinned to stable §D4 behavioral anchors per TD-VSDD-091; taxonomy v2.09→v2.10); OBS-1 (20 volatile version pins de-pinned across 6 code files per TD-VSDD-091; code HEAD 634ba350; just check 5109 passed; non-exhaustive 88/88); OBS-2 (column_source_path_extraction_failed confirmed cataloged in BC-2.16.002 — no gap). 3-CLEAN(strict) streak: 0/3 — beginning streak attempts on FROZEN reviewed state.**
+**SESSION WRAP (D-1531 2026-07-04). ADR-052 §D4 v1.3 PROPOSED Option A redesign committed (D-1530). §RESUME SNAPSHOT D-1531 authored (supersedes D-1512). S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: VERY NEXT ACTION = present ADR-052 §D4 v1.3 Option A to human for ratification. On ratify → PO amends BCs (BC-2.11.003/004/021, E-QUERY-041 phase) + error-taxonomy → story-writer (delete 4 text-scanner tasks, add 5 Option-A tasks, rewrite 3 RG + add 3 RG) → implementer re-implements → fresh LOCAL 3-CLEAN cascade → demo → PR → merge.**
 
-**STATE v8.132. develop 122228e8. BC-INDEX v7.31. STORY-INDEX v2.581. ARCH-INDEX v2.161. error-taxonomy v2.10. active_contracts 255. draft_contracts 0. non-exhaustive EXPECTED=88 (feature 634ba350). total_stories 227. workspace_test_count 5109 (feature branch; develop baseline 5088).**
+**STATE v8.134. develop 122228e8. BC-INDEX v7.31. STORY-INDEX v2.581. ARCH-INDEX v2.162. error-taxonomy v2.10. active_contracts 255. draft_contracts 0. non-exhaustive EXPECTED=88 (feature 634ba350). total_stories 227. workspace_test_count 5109 (feature branch; develop baseline 5088).**
 
 **LAST MERGED:** S-DEMO-FIDELITY-REMEDIATION-001 (PR #208 → develop@122228e8, 2026-07-03). No open PRs.
 
-**HEADLINE NEXT-ACTION:** Dispatch LOCAL adversary pass 3 on S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (FROZEN state: code HEAD 634ba350 + factory specs at this commit; 3-CLEAN streak currently 0/3). THEN continue cascade toward 3-CLEAN(strict). After convergence: PR-LEVEL cascade → merge. THEN typed-enrichment A+B+C (D-1518; ADR-051). THEN T13 capstone → T14.
+**HEADLINE NEXT-ACTION:** Present ADR-052 §D4 v1.3 Option A (lenient-parse-then-AST-walk) to human for ratification. Human already approved redesign DIRECTION; specific Option-A mechanism needs explicit sign-off. On ratification → PO burst (BC-2.11.003/004/021 + error-taxonomy E-QUERY-041 phase) → story-writer burst → implementer.
 
-**WORKTREES:** S-3.09 DAY-2/PARKED (backup/S-3.09-preresume-43c41389@43c41389). W3-FIX-S307-001 dirty, 1 unpushed commit — awaiting human decision.
+**WORKTREES:** .worktrees/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 at feature HEAD 634ba350 (text-scanner; being REPLACED post-ratification — do NOT continue text-scanner cascade). S-3.09 DAY-2/PARKED (backup/S-3.09-preresume-43c41389@43c41389). W3-FIX-S307-001 dirty, awaiting human decision.
 
-**PENDING-HUMAN:** (1) CLAUDE.md §Conventions rustls-tls (ADR-050) ratification. (2) Commit `scripts/t13-preflight-audit.py`. (3) W3-FIX-S307-001 decision (deferred TDE write-back / E-SENSOR-070). (4) ADR-051 ratification (PROPOSED; after temporal migration story merges, ADR-051 §datetime row amended Utf8→Timestamp). (5) E-OCSF-005..023 gap (DRIFT-EOCSF-GAP-005-023-001): PO burst or S-MAINT-EOCSF-REGISTRY-001 story routing.
+**PENDING-HUMAN:** (1) ADR-052 §D4 v1.3 Option A RATIFICATION (FIRST ACTION on resume). (2) CLAUDE.md §Conventions rustls-tls (ADR-050) ratification. (3) Commit `scripts/t13-preflight-audit.py`. (4) W3-FIX-S307-001 decision (deferred TDE write-back / E-SENSOR-070). (5) ADR-051 ratification (PROPOSED; after temporal migration merges, §datetime row amended Utf8→Timestamp). (6) E-OCSF-005..023 gap (DRIFT-EOCSF-GAP-005-023-001).
 
 **RESUME PROTOCOL:**
 1. Run vsdd-factory:factory-worktree-health (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `122228e8`.
-3. Feature branch S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 is IN LOCAL CASCADE: worktree at .worktrees/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001, feature HEAD 634ba350 (fix-burst 6 code). FROZEN STATE for streak attempts: code HEAD 634ba350 + factory specs at this commit. NEXT = LOCAL adversary pass 3 on FROZEN state.
-4. S-3.09 is day-2/parked: do NOT start re-home until T13/T14 complete.
-5. Full state: SESSION-HANDOFF.md §RESUME SNAPSHOT D-1512 + §DECISION-LOG DELTA D-1520..D-1529.
+3. Feature branch S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 at fe19be39 (LOCAL-ONLY; current HEAD 634ba350 text-scanner). The text-scanner is being REPLACED by Option A. Do NOT continue the text-scanner LOCAL 3-CLEAN cascade.
+4. Present ADR-052 §D4 v1.3 Option A to human for explicit ratification (first action).
+5. Full state: SESSION-HANDOFF.md §RESUME SNAPSHOT D-1531 (this wrap).
 6. Autonomy D-989 active.

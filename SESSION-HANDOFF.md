@@ -38,13 +38,49 @@ timestamp: 2026-07-01T23:59:00Z
 >
 > **D-1367 (2026-06-26): PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED develop@7e60df03 (CI 43/43; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; security CLEAN). POL-14: 8 BCs draft→active. POL-13: story merged. active_contracts 254. draft_contracts 0. develop_head 903c8fcb→7e60df03. non-exhaustive 84→87. BC-INDEX v7.18. STORY-INDEX v2.481. STATE v7.994→v7.995. NEXT: pre-flight demo re-audit → T13 capstone → T14 recording. PENDING HUMAN: CLAUDE.md stale EXPECTED=83/84 → now EXPECTED=87; local develop ba1108d2 still DIVERGED.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1512** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1512 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `122228e8` (S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.127. D-1525 (spec burst D-1520..D-1525; ADR-052 ACCEPTED; temporal BCs amended; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 v1.2 TDD-ready; ARCH-INDEX v2.160; BC-INDEX v7.31; STORY-INDEX v2.581; total_stories 227).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1531** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1531 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `122228e8` (S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.134. D-1531 (session wrap; ADR-052 §D4 v1.3 PROPOSED Option A redesign committed; ARCH-INDEX v2.162; VERY NEXT ACTION = ADR-052 §D4 v1.3 ratification by human).
 
 ---
 
-## §RESUME SNAPSHOT — D-1512 (2026-07-03 — SESSION WRAP; develop origin/develop 122228e8; BC-INDEX v7.29; STORY-INDEX v2.578; ARCH-INDEX v2.156; STATE v8.125; BOTH SESSION OBJECTIVES MERGED; T13 PRE-FLIGHT DEMO-READY:YES 18/18; NEXT=COMPREHENSIVE T13 AUDIT) [SUPERSEDES D-1494]
+## §RESUME SNAPSHOT — D-1531 (2026-07-04 — SESSION WRAP; develop origin/develop 122228e8; BC-INDEX v7.31; STORY-INDEX v2.581; ARCH-INDEX v2.162; STATE v8.134; ADR-052 §D4 v1.3 PROPOSED Option A; VERY NEXT ACTION = human ratification of §D4 v1.3) [SUPERSEDES D-1512]
+
+> **D-1531 burst (2026-07-04).** SESSION WRAP. ADR-052 §D4 v1.3 PROPOSED Option A redesign committed (D-1530). E-QUERY-041 detection mechanism redesigned from parse-fail text-scanner (8 fix-bursts, Unicode byte-offset panic VP-021 violation) to Option A lenient-parse-then-AST-walk. `Literal::RawTemporalLiteral` AST node; parser emits for date-only/offset-less; `check_temporal_literals` plan-time walker. Text-scanner deleted. Human approved redesign DIRECTION; specific Option-A mechanism awaits explicit ratification. All prior D-1520..D-1530 notes recorded.
+
+### RESUME IN ONE BREATH
+Mid-delivery of story **S-PRISMQL-NATIVE-TEMPORAL-TYPING-001** (PrismQL datetime Arrow Utf8→Timestamp(µs,UTC) migration; ADR-052). The functional core is solid; the E-QUERY-041 detection mechanism is being ROBUSTLY REDESIGNED (Option A lenient-parse-then-AST-walk) because the old text-scanner was fragile (introduced a Unicode panic). **VERY NEXT ACTION: present ADR-052 §D4 v1.3 (PROPOSED, Option A) to the HUMAN for ratification** — human already approved the redesign *direction*; the specific mechanism needs their sign-off. On ratify → PO amends BC-2.11.003/004/021 + error-taxonomy E-QUERY-041 phase → story-writer (delete 4 text-scanner tasks, add 5 Option-A tasks, rewrite 3 RG + add 3 RG) → implementer re-implements → fresh LOCAL 3-CLEAN cascade → demo → PR → merge.
+
+### PER-WORKSTREAM
+- **S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (ACTIVE, feature branch fe19be39 LOCAL-ONLY NOT pushed):** Story v1.2, 16 ACs. Committed spec layer (durable): ADR-052 ACCEPTED (v1.2; §D4 v1.3 PROPOSED pending redesign ratification), ADR-044 §D4 PARTIALLY SUPERSEDED, BC-2.11.021 v1.2 / BC-2.11.003 v1.6 / BC-2.11.004 v1.7, error-taxonomy v2.10 (E-QUERY-041, E-OCSF-024). SOLID + untouched by redesign: Datetime→Timestamp(µs,UTC) typing (column_type_to_arrow + build_column_array parity), arrow_cast emitter, dual MCP error surfaces (flat INVALID_PARAMS + structured category="validation"), parse_datetime_to_micros→SpecEngineError::TimestampParseFailure, byte-for-byte Display regression test, SAP-2 parity. BEING REPLACED: the E-QUERY-041 parse-fail text-scanner (extract_table_name_from_query_str / extract_column_name_adjacent_to_quoted_value / is_bad_literal_in_datetime_column) → Option A. Current code HEAD: 634ba350. LOCAL 3-CLEAN streak: 0/3 (moot — code will be re-implemented). **RESUME NEXT-ACTION:** present ADR-052 §D4 v1.3 Option A to human → on ratify, spec-cascade (PO→story-writer) then implementer redesign (add `Literal::RawTemporalLiteral`, parser emits for date-like/offset-less, delete text-scanner+parse-fail branch, plan-time AST-walker `check_temporal_literals` validates RawTemporalLiteral vs Datetime→E-QUERY-041 else E-QUERY-001, emitter guard arm, TD-VSDD-060 Literal sibling-sweep across all `match Literal` arms — 20-file blast radius; RISK-4 sibling-sweep, RISK-5 is_date_like false-positive). Then fresh LOCAL 3-CLEAN → demo-recorder → push → pr-manager 9-step → merge.
+- **Demo roadmap (after temporal merges):** typed-enrichment story (ADR-051 A+B+C, datetime→Timestamp; closes OBS-1 doubly-encoded threat_score + escaped DRIFT-PIVOT-UDF-OUTPUT-TYPE-001) → T13 capstone narrative story (product-owner + story-writer) → T14 recording.
+- **PARKED:** S-3.09 (day-2, local-only, backup ref backup/S-3.09-preresume-43c41389@43c41389) + W3-FIX-S307-001 (awaiting human decision).
+
+### HEADS
+- develop: **122228e8** — PUSHED (origin/develop). S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03. No open PRs.
+- factory-artifacts: this wrap commit — PUSHED (run `git -C .factory log -1 --format='%h %s'` for current HEAD).
+- feature/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: **fe19be39** — LOCAL-ONLY (NOT pushed), clean, 5113 tests pass. NOTE: its E-QUERY-041 detection (text-scanner) is about to be REPLACED by the ratified redesign; it currently carries an unfixed MED-1 (Unicode byte-offset panic in `extract_table_name_from_query_str`) + LOW-1 (qualified-column over-rejection) that the redesign supersedes (do NOT fix the text-scanner — it is being deleted).
+- .worktrees/S-3.09: **43c41389** [feature/S-3.09] LOCAL-ONLY, DAY-2 PARKED (backup ref backup/S-3.09-preresume-43c41389).
+- .worktrees/W3-FIX-S307-001: **fcab8717** LOCAL-ONLY, PARKED (awaiting human decision).
+- Agents in flight at wrap: NONE.
+
+### PENDING USER-APPROVED / OPEN ITEMS
+1. **ADR-052 §D4 v1.3 Option A redesign** — human approved the DIRECTION ("robust redesign"); the specific Option-A mechanism awaits explicit ratification (present first thing on resume).
+2. **Comprehensive T13 pre-flight audit PASSED** this session — 62/62, DEMO-READY:YES on develop@122228e8 (`.factory/research/demo-comprehensive-preflight-audit-2026-07-03.md`).
+3. **OBS-1 (enrichment doubly-encoded threat_score)** → full A+B+C typed-enrichment fix approved by user; scoped as the ADR-051 story queued AFTER temporal migration.
+4. **DRIFT-EOCSF-GAP-005-023-001** — 19 pre-existing E-OCSF codes missing from error-taxonomy; PO maintenance-sweep follow-up (out of temporal scope).
+5. **scripts/t13-preflight-audit.py** (extended to 62 checks) still UNTRACKED — commit with enrichment/T13 work.
+6. **CLAUDE.md rustls-tls ratification** still pending (human-mandated edit; ADR-050).
+7. **ADR-051 ratification** — PROPOSED; human must ratify before story decomposition (D-1517).
+
+### DECISION DELTA (this session)
+D-1513..D-1529 already committed (T13 comprehensive audit PASS; OBS-1 escaped-defect + ADR-051; ADR-052 temporal migration authored→ratified→ACCEPTED; ADR-044 partial supersession; temporal BCs + E-QUERY-041 + E-OCSF-024; story materialized + LOCAL cascade fix-bursts 1–6 + de-pin).
+- **D-1530 (this session):** ADR-052 §D4 v1.3 PROPOSED Option A redesign — supersedes text-scanner (8 fix-bursts, Unicode panic, VP-021); new `Literal::RawTemporalLiteral` AST node; lenient parser fallback; `check_temporal_literals` plan-time walker; 5 risks documented; 20-file blast radius. ARCH-INDEX v2.161→v2.162.
+- **D-1531 (this wrap):** SESSION WRAP — §RESUME SNAPSHOT D-1531 authored (supersedes D-1512). STATE v8.133→v8.134.
+
+---
+
+## §RESUME SNAPSHOT — D-1512 (2026-07-03 — SESSION WRAP; develop origin/develop 122228e8; BC-INDEX v7.29; STORY-INDEX v2.578; ARCH-INDEX v2.156; STATE v8.125; BOTH SESSION OBJECTIVES MERGED; T13 PRE-FLIGHT DEMO-READY:YES 18/18; NEXT=COMPREHENSIVE T13 AUDIT) [SUPERSEDES D-1494] [SUPERSEDED by D-1531]
 
 > **D-1512 burst (2026-07-03).** SESSION WRAP. Both session objectives MERGED to develop@122228e8: S-PERF-GATE-008 (PR #213 @aaa9bfe8, WASMtime compilation cache + ADR-049 D3 degradable boot) and S-DEMO-FIDELITY-REMEDIATION-001 (PR #208 @122228e8, demo-fidelity fixes N1/N1-B/N2/AUDIT-001/AUDIT-004 + E-QUERY-039 net-new built-in aggregate/window false-positive F1 HIGH caught+fixed by PR-LEVEL adversary + ADR-050 rustls-tls + 4 DTU tests un-quarantined). T13 pre-flight re-audit on develop@122228e8 = DEMO-READY:YES (18/18 PASS, 0 FAIL). User directive: author COMPREHENSIVE T13 pre-flight audit (all features/pathways) before T13 capstone → T14 recording. S-3.09 parked day-2. All prior D-1101..D-1511 notes SUPERSEDED.
 
