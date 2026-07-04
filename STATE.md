@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.130"
+version: "8.131"
 producer: state-manager
 timestamp: 2026-07-04T08:00:00Z
 inputs: []
@@ -27,7 +27,7 @@ bc_index_version: "7.31"
 vp_index_version: "1.80"
 story_index_version: "v2.581"
 arch_index_version: "2.161"
-error_taxonomy_version: "2.08"
+error_taxonomy_version: "2.09"
 total_stories: 227
 active_contracts: 255
 draft_contracts: 0
@@ -41,7 +41,7 @@ workspace_test_count: 5109  # NOTE: S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 feature
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "FIX-BURST 4 CLOSED OBS-1..OBS-4 (D-1527 2026-07-04). S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 LOCAL cascade: pass 2 on 668b4272 = PR-merge-CLEAN (0 CRIT/HIGH/MED), 4 OBS remaining. fix-burst 4 closed all: OBS-1 (parse_datetime_to_micros → structured SpecEngineError::TimestampParseFailure); OBS-2 (E-QUERY-041 Eq/Ne gating extended, schema-aware, +3 tests); OBS-3 (fail-open scope doc extended; multi-tenant TableRegistry confirmed fires E-QUERY-041 in live demo, no deployment gap); OBS-4 (ADR-052 §D1 typo Arc::from("UTF")→Arc::from("UTC") v1.1→v1.2, committed factory-artifacts). code HEAD d05da060. just check 5109 passed. non-exhaustive 88/88. ARCH-INDEX v2.161. 3-CLEAN(strict) streak: 0/3 (re-gate pending on d05da060). STATE v8.129→v8.130."
+current_step: "FIX-BURST 5 CLOSED LOW-1+LOW-2 (D-1528 2026-07-04). S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 LOCAL cascade: re-gate on d05da060 = PR-merge-CLEAN (0 CRIT/HIGH/MED), 2 LOW doc/citation-drift findings. Fix-burst 5 closed both: LOW-1 (error-taxonomy E-QUERY-041 gate-ordering summary line corrected — removed stale 'plan/execution phase' insertion + 'castable' label; now '→ E-QUERY-041 (plan-time chrono pre-validator) → DataFusion execution'; taxonomy v2.08→v2.09); LOW-2 (engine.rs volatile v2.07/v2.08 taxonomy-version pins replaced with stable §E-QUERY-041 behavioral anchors per TD-VSDD-091; code HEAD ee8a3a61). just check 5109 passed. non-exhaustive 88/88. 3-CLEAN(strict) streak: 0/3 — re-gate pending on ee8a3a61. error-taxonomy v2.08→v2.09. STATE v8.130→v8.131."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -73,14 +73,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1527."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1528."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-04 (D-1527 — FIX-BURST 4 OBS-1..OBS-4 closed; ADR-052 v1.2 (OBS-4 typo); ARCH-INDEX v2.161; STATE v8.129→v8.130)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-04 (D-1528 — FIX-BURST 5 LOW-1+LOW-2 closed; error-taxonomy v2.08→v2.09 (E-QUERY-041 gate-ordering); STATE v8.130→v8.131)
 
 ## Active Objective (North Star)
 
@@ -146,8 +146,9 @@ _(D-1511 archived to burst-log.md this D-1512 burst)_
 | D-1512 | state-manager | 2026-07-03 | **SESSION WRAP — §RESUME SNAPSHOT D-1512 authored (supersedes D-1494). Both session objectives MERGED to develop@122228e8: S-PERF-GATE-008 (PR #213 @aaa9bfe8; WASMtime compilation cache; ADR-049 D3; PR-LEVEL 3-CLEAN converged on 091f1af8) + S-DEMO-FIDELITY-REMEDIATION-001 (PR #208 @122228e8; F1 HIGH E-QUERY-039 built-in agg/window false-positive caught+fixed by PR-LEVEL adversary; ADR-050 rustls-tls accepted v1.1; 4 DTU tests un-quarantined; BC-2.11.019 v1.6 active; workspace_test_count 4978→5088). T13 pre-flight re-audit DEMO-READY:YES (18/18 PASS) on 122228e8. NEXT = COMPREHENSIVE T13 audit (all features/pathways; build on scripts/t13-preflight-audit.py) → T13 capstone (roadmap order 6) → T14 recording. S-3.09 DAY-2/PARKED (backup/S-3.09-preresume-43c41389@43c41389). ANOMALY-WORKTREES: W3-FIX-S307-001 (dirty, 1 unpushed commit, awaiting human decision). PENDING-HUMAN: CLAUDE.md §Conventions rustls-tls (ADR-050) ratification + scripts/t13-preflight-audit.py commit + corrupted-worktree cleanup. develop_head UNCHANGED 122228e8. STATE v8.124→v8.125.** | wave-5-e-demo-fidelity | 2026-07-03 |
 _(D-1513..D-1520 archived to burst-log.md this D-1521..D-1525 burst)_
 _(D-1521..D-1525 archived to burst-log.md this D-1526..D-1527 burst)_
-| D-1526 | state-manager | 2026-07-04 | **LOCAL PASS 1 FIX-BURST — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (D-1526). 2 HIGH + 3 MED + 2 OBS found → all resolved. HIGH-1: check_temporal_literals schema-aware (Datetime-only; code fd9c78fe). HIGH-2: parse path → PrismError::OcsfTimestampParseError; E-OCSF-024 registered taxonomy v2.08. MED-1: stale comments + negative-control assertion fixed. MED-2: CLOSED-SAFE (OcsfNormalizer guarantee). MED-3: negative-control tests added. OBS-1: closed by HIGH-1. OBS-2: TODO comments swept. SAP-1: BC-2.16.002 v1.93 (44cbee29). 3-CLEAN(strict) streak: 0/3. error-taxonomy v2.07→v2.08. STATE v8.127→v8.128.** | wave-5-e-demo-fidelity | 2026-07-04 |
+_(D-1526 archived to burst-log.md this D-1528 burst)_
 | D-1527 | state-manager | 2026-07-04 | **LOCAL PASS 2 RE-GATE + FIX-BURST 4 — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (D-1527). Pass 2 on 668b4272: CLEAN(PR-merge) 0 CRIT/HIGH/MED, 4 OBS remaining. Fix-burst 4 closed all OBS: OBS-1 (parse_datetime_to_micros → structured SpecEngineError::TimestampParseFailure); OBS-2 (E-QUERY-041 Eq/Ne gating extended, schema-aware, +3 tests); OBS-3 (fail-open scope doc extended; multi-tenant TableRegistry confirmed fires E-QUERY-041 in live demo, no deployment gap); OBS-4 (ADR-052 §D1 typo Arc::from("UTF")→Arc::from("UTC") v1.1→v1.2 committed factory-artifacts). code HEAD d05da060. just check 5109 passed. non-exhaustive 88/88. ARCH-INDEX v2.160→v2.161. 3-CLEAN(strict) streak: 0/3 — re-gate pending on d05da060. STATE v8.129→v8.130.** | wave-5-e-demo-fidelity | 2026-07-04 |
+| D-1528 | state-manager | 2026-07-04 | **LOCAL RE-GATE ON d05da060 + FIX-BURST 5 (D-1528). Re-gate on d05da060: CLEAN(PR-merge) 0 CRIT/HIGH/MED, 2 LOW doc/citation-drift. Novelty: LOW. Fix-burst 5 closed both: LOW-1 (error-taxonomy E-QUERY-041 §Gate ordering summary line corrected — removed stale 'plan/execution phase' insertion + 'castable' label, now '→ E-QUERY-041 (plan-time chrono pre-validator) → DataFusion execution'; taxonomy v2.08→v2.09); LOW-2 (engine.rs volatile v2.07/v2.08 taxonomy-version pins replaced with stable §E-QUERY-041 behavioral anchors per TD-VSDD-091; code HEAD ee8a3a61). just check 5109 passed. non-exhaustive 88/88. 3-CLEAN(strict) streak: 0/3 — re-gate pending on ee8a3a61. error-taxonomy v2.08→v2.09. STATE v8.130→v8.131.** | wave-5-e-demo-fidelity | 2026-07-04 |
 | D-1521 | state-manager | 2026-07-03 | **ADR-044 §D4 PARTIALLY SUPERSEDED by ADR-052 v1.1 (D-1521). ADR-044 frontmatter `superseded_by` field already present; §Status "PARTIALLY SUPERSEDED by ADR-052 v1.1" block confirmed in place. ADR-044 §D1–D3, §D5–D7 remain fully valid. Only §D4 (planning-time injection as ISO-8601 string → Utf8 column) superseded by ADR-052's explicit Timestamp typing + E-QUERY-041 pre-validator. ARCH-INDEX v2.159→v2.160 (ADR-052 row PROPOSED→ACCEPTED). STATE UNCHANGED v8.127.** | wave-5-e-demo-fidelity | 2026-07-03 |
 | D-1522 | state-manager | 2026-07-03 | **TEMPORAL BCs AMENDED + E-QUERY-041 ADDED (D-1522). BC-2.11.021 v1.2 (postcondition updated: DataFusion now sees explicit `arrow_cast('...', 'Timestamp(Microsecond, Some("UTC"))')` comparison against Timestamp column; E-QUERY-041 Prism plan-time literal pre-validator semantics added — chrono RFC-3339 strictness, NOT DataFusion cast intercept). BC-2.11.003 v1.6 (Datetime column type assertions updated Utf8→Timestamp(Microsecond,UTC); E-QUERY-041 detection semantics specified). BC-2.11.004 v1.7 (same temporal type assertion sweep). error-taxonomy v2.05→v2.07 (E-QUERY-040 row confirmed v2.06; E-QUERY-041 TemporalLiteralUnparseable row added v2.07: Prism plan-time pre-validation, chrono::DateTime::parse_from_rfc3339 strictness; first_50_chars truncation; E-QUERY-041 is NOT a DataFusion/Arrow cast error). BC-INDEX v7.29→v7.31. STATE UNCHANGED v8.127.** | wave-5-e-demo-fidelity | 2026-07-03 |
 | D-1523 | state-manager | 2026-07-03 | **STORY S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 MATERIALIZED v1.2 + TDD-READY (D-1523). Story materialized v1.0 (initial) → v1.1 (remove-uncertainty pass-1 corrections) → v1.2 (remove-uncertainty pass-2 corrections). 16 ACs covering: D1 Timestamp type, D2 column registration, D3 arrow_cast emitter, D4 E-QUERY-041 pre-validator, D5 pushdown UNCHANGED, D6 diff_results CF investigation, D7 ADR-044 §D4 supersession, D8 sequencing before ADR-051. 10 Red Gate tests (RG-001..RG-010) including RG-008 micros-constant year-error probe. Blast radius: 15 files (spec_driven_adapter.rs, column.rs, pipe_sql_emitter.rs, high002_plan_pinning_tests.rs, pushdown.rs + 10 more). TDD-READY: stubs phase blocked on BC-INDEX v7.31 + story v1.2 stable. STORY-INDEX v2.578→v2.581 (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 registered + total_stories 226→227; ADR-052 ratification backfill note). STATE UNCHANGED v8.127.** | wave-5-e-demo-fidelity | 2026-07-03 |
@@ -237,6 +238,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1528 | state-manager | LOCAL RE-GATE ON d05da060 + FIX-BURST 5 — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001. Re-gate on d05da060: CLEAN(PR-merge) 0 CRIT/HIGH/MED, 2 LOW doc/citation-drift findings, novelty LOW. Fix-burst 5 closed both: LOW-1 (error-taxonomy E-QUERY-041 §Gate ordering summary line corrected — stale 'plan/execution phase' insertion + 'castable' label removed; rewritten to '→ E-QUERY-041 (plan-time chrono pre-validator) → DataFusion execution'; contradicted ADR-052 v1.2 §D4 + row's own prose + implementation; taxonomy v2.08→v2.09); LOW-2 (engine.rs volatile v2.07/v2.08 taxonomy version pins replaced with stable §E-QUERY-041 behavioral anchors per TD-VSDD-091; code HEAD ee8a3a61). just check 5109 passed. non-exhaustive 88/88. 3-CLEAN(strict) streak: 0/3 — re-gate pending on ee8a3a61. error-taxonomy v2.08→v2.09. STATE v8.130→v8.131. | wave-5-e-demo-fidelity | 2026-07-04 |
 | D-1527 | state-manager | LOCAL PASS 2 RE-GATE + FIX-BURST 4 — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001. Pass 2 on 668b4272: CLEAN(PR-merge) 0 CRIT/HIGH/MED, 4 OBS remaining, novelty LOW. Fix-burst 4 closed all OBS: OBS-1 (parse_datetime_to_micros → structured SpecEngineError::TimestampParseFailure; E-OCSF-024/OcsfTimestampParseError remains a valid pre-existing prism-ocsf variant, taxonomy v2.08 registration stands); OBS-2 (E-QUERY-041 gating extended to Eq/Ne, schema-aware, +3 tests); OBS-3 (fail-open scope doc extended; multi-tenant path DOES populate TableRegistry column types → E-QUERY-041 fires in live demo, NO deployment gap); OBS-4 (ADR-052 §D1 typo Arc::from("UTF")→Arc::from("UTC") v1.1→v1.2 — architect-edited, committed factory-artifacts this burst). code HEAD d05da060. just check 5109 passed. non-exhaustive 88/88. ARCH-INDEX v2.160→v2.161. 3-CLEAN(strict) streak: 0/3 — re-gate pending on d05da060. STATE v8.129→v8.130. | wave-5-e-demo-fidelity | 2026-07-04 |
 | D-1526 | state-manager | LOCAL PASS 1 FIX-BURST — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001. 2 HIGH + 3 MED + 2 OBS found → all resolved. HIGH-1: check_temporal_literals schema-aware (Datetime-column-only, code fd9c78fe). HIGH-2: parse path returns PrismError::OcsfTimestampParseError; E-OCSF-024 registered in taxonomy v2.08 (HIGH-2 closure). MED-1: stale comments swept + negative-control assertion fixed. MED-2: CLOSED-SAFE — OcsfNormalizer.normalize_timestamp_fields structurally guarantees RFC-3339+Z output before build_column_array; parse failures → E-SPEC-018 batch rejection; retiring non-PipelineExecutor bypass path only warns; no silent data loss on canonical path; no strict-vs-lenient design fork required. MED-3: negative-control tests added (string-column comparison NOT rejected). OBS-1: closed by HIGH-1. OBS-2: dead-code/TODO comments swept. SAP-1: BC-2.16.002 v1.92→v1.93 already on factory-artifacts (44cbee29, single commit — VERIFIED NOT A CHAIN). E-OCSF-005..023 (19 codes) pre-existing gap noted as DRIFT-EOCSF-GAP-005-023-001. 3-CLEAN(strict) streak: 0/3 — re-gate dispatch pending on feature HEAD fd9c78fe. error-taxonomy v2.07→v2.08. STATE v8.127→v8.128. | wave-5-e-demo-fidelity | 2026-07-04 |
 | D-1525 | state-manager | ROADMAP UPDATE + SPEC BURST COMPLETE. S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 TDD-READY ACTIVE-NEXT. ROADMAP: (1) temporal migration TDD; (2) typed-enrichment A+B+C (D-1518; ADR-051); (3) T13 capstone → T14. ARCH-INDEX v2.157→v2.160; BC-INDEX v7.29→v7.31; STORY-INDEX v2.578→v2.581; error-taxonomy v2.05→v2.07; total_stories 226→227. develop_head UNCHANGED 122228e8. STATE v8.126→v8.127 (D-1525 2026-07-03). | wave-5-e-demo-fidelity | 2026-07-03 |
@@ -458,15 +460,15 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1527 -- 2026-07-04; STATE v8.130)
+## Session Resume Checkpoint (D-1528 -- 2026-07-04; STATE v8.131)
 
-**FIX-BURST 4 CLOSED OBS-1..OBS-4 (D-1527 2026-07-04). S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 LOCAL cascade: pass 2 on 668b4272 = PR-merge-CLEAN (0 CRIT/HIGH/MED), 4 OBS. Fix-burst 4 closed all. ADR-052 §D1 typo fixed v1.2 (OBS-4). E-QUERY-041 Eq/Ne gating + schema-aware (OBS-2). 3-CLEAN(strict) streak: 0/3 — re-gate pending on d05da060.**
+**FIX-BURST 5 CLOSED LOW-1+LOW-2 (D-1528 2026-07-04). S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 LOCAL cascade: re-gate on d05da060 = PR-merge-CLEAN (0 CRIT/HIGH/MED), 2 LOW doc/citation-drift findings. Fix-burst 5 closed both: LOW-1 (error-taxonomy E-QUERY-041 gate-ordering summary corrected, taxonomy v2.09); LOW-2 (engine.rs volatile version pins → §E-QUERY-041 behavioral anchors, TD-VSDD-091; code HEAD ee8a3a61). 3-CLEAN(strict) streak: 0/3 — re-gate pending on ee8a3a61.**
 
-**STATE v8.130. develop 122228e8. BC-INDEX v7.31. STORY-INDEX v2.581. ARCH-INDEX v2.161. error-taxonomy v2.08. active_contracts 255. draft_contracts 0. non-exhaustive EXPECTED=88 (feature d05da060). total_stories 227. workspace_test_count 5109 (feature branch; develop baseline 5088).**
+**STATE v8.131. develop 122228e8. BC-INDEX v7.31. STORY-INDEX v2.581. ARCH-INDEX v2.161. error-taxonomy v2.09. active_contracts 255. draft_contracts 0. non-exhaustive EXPECTED=88 (feature ee8a3a61). total_stories 227. workspace_test_count 5109 (feature branch; develop baseline 5088).**
 
 **LAST MERGED:** S-DEMO-FIDELITY-REMEDIATION-001 (PR #208 → develop@122228e8, 2026-07-03). No open PRs.
 
-**HEADLINE NEXT-ACTION:** Dispatch LOCAL adversary pass 3 on S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (feature HEAD d05da060; 3-CLEAN streak currently 0/3). THEN continue cascade toward 3-CLEAN(strict). After convergence: PR-LEVEL cascade → merge. THEN typed-enrichment A+B+C (D-1518; ADR-051). THEN T13 capstone → T14.
+**HEADLINE NEXT-ACTION:** Dispatch LOCAL adversary pass 3 on S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (feature HEAD ee8a3a61; 3-CLEAN streak currently 0/3). THEN continue cascade toward 3-CLEAN(strict). After convergence: PR-LEVEL cascade → merge. THEN typed-enrichment A+B+C (D-1518; ADR-051). THEN T13 capstone → T14.
 
 **WORKTREES:** S-3.09 DAY-2/PARKED (backup/S-3.09-preresume-43c41389@43c41389). W3-FIX-S307-001 dirty, 1 unpushed commit — awaiting human decision.
 
@@ -475,7 +477,7 @@ _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c
 **RESUME PROTOCOL:**
 1. Run vsdd-factory:factory-worktree-health (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `122228e8`.
-3. Feature branch S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 is IN LOCAL CASCADE: worktree at .worktrees/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001, feature HEAD d05da060, 3-CLEAN(strict) streak 0/3. NEXT = LOCAL adversary pass 3 on d05da060.
+3. Feature branch S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 is IN LOCAL CASCADE: worktree at .worktrees/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001, feature HEAD ee8a3a61, 3-CLEAN(strict) streak 0/3. NEXT = LOCAL adversary pass 3 on ee8a3a61.
 4. S-3.09 is day-2/parked: do NOT start re-home until T13/T14 complete.
-5. Full state: SESSION-HANDOFF.md §RESUME SNAPSHOT D-1512 + §DECISION-LOG DELTA D-1520..D-1527.
+5. Full state: SESSION-HANDOFF.md §RESUME SNAPSHOT D-1512 + §DECISION-LOG DELTA D-1520..D-1528.
 6. Autonomy D-989 active.
