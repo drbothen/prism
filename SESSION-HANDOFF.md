@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.972"
+version: "7.973"
 status: current
-timestamp: 2026-07-01T23:59:00Z
+timestamp: 2026-07-05T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -38,38 +38,39 @@ timestamp: 2026-07-01T23:59:00Z
 >
 > **D-1367 (2026-06-26): PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED develop@7e60df03 (CI 43/43; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; security CLEAN). POL-14: 8 BCs draft→active. POL-13: story merged. active_contracts 254. draft_contracts 0. develop_head 903c8fcb→7e60df03. non-exhaustive 84→87. BC-INDEX v7.18. STORY-INDEX v2.481. STATE v7.994→v7.995. NEXT: pre-flight demo re-audit → T13 capstone → T14 recording. PENDING HUMAN: CLAUDE.md stale EXPECTED=83/84 → now EXPECTED=87; local develop ba1108d2 still DIVERGED.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1539** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1539 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `122228e8` (S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.140. D-1539 (four-way propagation sweep: ADR-052 v1.9, ARCH-INDEX v2.169, BC-2.11.003 v1.10, BC-2.11.004 v1.11, story v1.7, STORY-INDEX v2.585, BC-INDEX v7.34; feature HEAD 95b3a3b6; 1318 prism-query tests; just check PASS; LOCAL 3-CLEAN streak 0/3 on frozen 95b3a3b6; VERY NEXT ACTION = fresh LOCAL adversary passes to 3-CLEAN(strict)).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1541** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1541 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `122228e8` (S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.141. D-1541 (E-QUERY-042 refined dispatch cascade: ADR-052 v1.10, ARCH-INDEX v2.170, BC-2.11.021 v1.7, BC-2.11.003 v1.11, BC-2.11.004 v1.12, error-taxonomy v2.14, story v1.8, STORY-INDEX v2.586, BC-INDEX v7.35; non-exhaustive 89; feature HEAD 6fc9b6a7; 2007 prism-query tests; just check PASS; LOCAL 3-CLEAN streak 0/3 on frozen 6fc9b6a7; VERY NEXT ACTION = fresh LOCAL adversary passes to 3-CLEAN(strict)).
 
 ---
 
-## §RESUME SNAPSHOT — D-1539 (2026-07-05 — FOUR-WAY PROPAGATION SWEEP; develop origin/develop 122228e8; BC-INDEX v7.34; STORY-INDEX v2.585; ARCH-INDEX v2.169; STATE v8.140; ADR-052 v1.9; feature HEAD 95b3a3b6; 1318 prism-query tests; just check PASS; LOCAL 3-CLEAN streak 0/3 on frozen 95b3a3b6; VERY NEXT ACTION = fresh LOCAL adversary passes) [SUPERSEDES D-1538]
+## §RESUME SNAPSHOT — D-1541 (2026-07-05 — E-QUERY-042 REFINED DISPATCH CASCADE; develop origin/develop 122228e8; BC-INDEX v7.35; STORY-INDEX v2.586; ARCH-INDEX v2.170; STATE v8.141; ADR-052 v1.10; feature HEAD 6fc9b6a7; 2007 prism-query tests; just check PASS; LOCAL 3-CLEAN streak 0/3 on frozen 6fc9b6a7; VERY NEXT ACTION = fresh LOCAL adversary passes) [SUPERSEDES D-1539]
 
-> **D-1539 burst (2026-07-05).** FOUR-WAY PROPAGATION SWEEP — SPEC-ARTIFACT SIBLING SYNC. Feature HEAD advanced 430f601e→95b3a3b6 via LOW-2 code fix (DML coerce arm non-comparison→Literal::String consistency + DML-position test) + OBS-1 code-comment sweep (22 three-way→four-way sweeps). Spec cascade: HIGH-1 (BC-2.11.003 v1.9→v1.10 + BC-2.11.004 v1.10→v1.11: four-way dispatch + non-comparison coerce arm + E-QUERY-041 Datetime path propagated); MED-1 (ADR-052 v1.8→v1.9: §D4 BC-amendments guidance-block label three-way→four-way); LOW-1 (story v1.6→v1.7: ~110 stale anchored-artifact version-pin cites de-pinned to §-anchor citations per TD-VSDD-091); ARCH-INDEX v2.168→v2.169; STORY-INDEX v2.584→v2.585; BC-INDEX v7.33→v7.34. NOTE: code has been production-grade+correct since early passes; this sweep closes ALL residual spec-artifact sibling-propagation so next LOCAL adversary pass starts with zero spec-layer findings. streak RESET 0/3 on frozen 95b3a3b6 (DRIFT-ORCH-PRLEVEL-PUSH-001).
+> **D-1540..D-1541 burst (2026-07-05).** E-QUERY-042 REFINED DISPATCH HUMAN PRODUCT DECISIONS + SPEC CASCADE. Human product decisions ratified: (a) GROUP BY + ORDER BY bare temporal → REJECT E-QUERY-042 (both SQL-mode GROUP BY/ORDER BY positions); SELECT projection coerce KEPT. (b) Non-column-LHS comparison date-like RHS → REJECT E-QUERY-042 NonColumnLhsComparison (-32602, not -32000). (c) F-MED-1: BC-2.11.004 pipe stats-by example reclassified from coerce-success to parse-time E-QUERY-001 (pipe grammar accepts only FieldPath in stats-by/sort). NOTE: WHERE lower(hostname)=date-like fails at parse anyway (SQL grammar FieldPath-only LHS); NonColumnLhsComparison arm is defensive/synthetic-reachable for programmatic AST. Spec cascade: ADR-052 v1.9→v1.10 (§D4 9-position refined dispatch; E-QUERY-042 TemporalLiteralInvalidPosition; non-exhaustive TemporalInvalidPosition enum); BC-2.11.021 v1.6→v1.7; BC-2.11.003 v1.10→v1.11; BC-2.11.004 v1.11→v1.12; error-taxonomy v2.13→v2.14 (E-QUERY-042 registered; 3 position messages); story v1.7→v1.8 (39 RG, 34 ACs; RG-035/036 FLIPPED to reject; +3 RGs RG-037/038/039; +5 ACs AC-030..034); ARCH-INDEX v2.169→v2.170; STORY-INDEX v2.585→v2.586; BC-INDEX v7.34→v7.35. non-exhaustive 88→89 (TemporalLiteralPosition; ci.yml + CLAUDE.md + violation-test updated on feature branch). Feature HEAD 95b3a3b6→6fc9b6a7; 2007 prism-query tests; just check PASS. streak RESET 0/3 on frozen 6fc9b6a7 (DRIFT-ORCH-PRLEVEL-PUSH-001).
 
-**STATE v8.140. develop 122228e8. BC-INDEX v7.34. STORY-INDEX v2.585. ARCH-INDEX v2.169. error-taxonomy v2.13. active_contracts 255. draft_contracts 0. non-exhaustive EXPECTED=88. total_stories 227. workspace_test_count ≥5170 (feature branch HEAD 95b3a3b6; 1318 prism-query tests; develop baseline 5088).**
+**STATE v8.141. develop 122228e8. BC-INDEX v7.35. STORY-INDEX v2.586. ARCH-INDEX v2.170. error-taxonomy v2.14. active_contracts 255. draft_contracts 0. non-exhaustive EXPECTED=89 (feature 6fc9b6a7). total_stories 227. workspace_test_count ≥5170 (feature branch HEAD 6fc9b6a7; 2007 prism-query tests; develop baseline 5088).**
 
-**LAST MERGED:** S-DEMO-FIDELITY-REMEDIATION-001 (PR #208 → develop@122228e8, 2026-07-03). PR #214 OPEN (feature/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001, HEAD 95b3a3b6).
+**LAST MERGED:** S-DEMO-FIDELITY-REMEDIATION-001 (PR #208 → develop@122228e8, 2026-07-03). PR #214 OPEN (feature/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001, HEAD 6fc9b6a7).
 
-**HEADLINE NEXT-ACTION:** Fresh LOCAL adversary passes to 3-CLEAN(strict) on frozen feature HEAD 95b3a3b6 (streak 0/3; spec+code+comments fully four-way consistent + de-pinned). On convergence: demo-recorder per-AC → pr-manager 9-step PR-LEVEL cascade + merge (human-authorized per wave5_autonomy_granted D-989).
+**HEADLINE NEXT-ACTION:** Fresh LOCAL adversary passes to 3-CLEAN(strict) on frozen feature HEAD 6fc9b6a7 (streak 0/3; E-QUERY-042 refined dispatch implemented; spec fully aligned with human product decisions). On convergence: demo-recorder per-AC → pr-manager 9-step PR-LEVEL cascade + merge (human-authorized per wave5_autonomy_granted D-989).
 
-**WORKTREES:** .worktrees/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 at feature HEAD 95b3a3b6 (PUSHED to origin; PR #214 OPEN). S-3.09 DAY-2/PARKED (backup/S-3.09-preresume-43c41389@43c41389). W3-FIX-S307-001 dirty, awaiting human decision.
+**WORKTREES:** .worktrees/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 at feature HEAD 6fc9b6a7 (PUSHED to origin; PR #214 OPEN). S-3.09 DAY-2/PARKED (backup/S-3.09-preresume-43c41389@43c41389). W3-FIX-S307-001 dirty, awaiting human decision.
 
 **PENDING-HUMAN:** (1) CLAUDE.md §Conventions rustls-tls (ADR-050) ratification. (2) Commit `scripts/t13-preflight-audit.py`. (3) W3-FIX-S307-001 decision (deferred TDE write-back / E-SENSOR-070). (4) ADR-051 ratification (PROPOSED; after temporal migration merges, §datetime row amended Utf8→Timestamp). (5) E-OCSF-005..023 gap (DRIFT-EOCSF-GAP-005-023-001).
 
 **RESUME PROTOCOL:**
 1. Run vsdd-factory:factory-worktree-health (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `122228e8`.
-3. Feature branch S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 HEAD 95b3a3b6 (PUSHED; PR #214 OPEN).
-4. Dispatch fresh LOCAL adversary on frozen 95b3a3b6 (streak 0/3). On 3-CLEAN(strict): demo-recorder → pr-manager PR-LEVEL cascade → merge.
-5. Full state: STATE.md Session Resume Checkpoint D-1539.
+3. Feature branch S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 HEAD 6fc9b6a7 (PUSHED; PR #214 OPEN).
+4. Dispatch fresh LOCAL adversary on frozen 6fc9b6a7 (streak 0/3). On 3-CLEAN(strict): demo-recorder → pr-manager PR-LEVEL cascade → merge.
+5. Full state: STATE.md Session Resume Checkpoint D-1541.
 6. Autonomy D-989 active.
 
 ---
 
-**Decisions since D-1538:**
-- **D-1539 (2026-07-05):** FOUR-WAY PROPAGATION SWEEP — SPEC-ARTIFACT SIBLING SYNC. HIGH-1: BC-2.11.003 v1.9→v1.10 + BC-2.11.004 v1.10→v1.11 (four-way dispatch + non-comparison coerce arm propagated). MED-1: ADR-052 v1.8→v1.9 (§D4 label three-way→four-way). LOW-1: story v1.6→v1.7 (~110 stale version-pin de-pins TD-VSDD-091). LOW-2: DML coerce arm + test; feature HEAD 430f601e→95b3a3b6; 1318 prism-query tests; just check PASS. OBS-1: 22 code-comment sweeps. ARCH-INDEX v2.169. STORY-INDEX v2.585. BC-INDEX v7.34. §RESUME SNAPSHOT D-1539 (supersedes D-1538). 3-CLEAN streak 0/3 on frozen 95b3a3b6. develop_head UNCHANGED 122228e8. STATE v8.139→v8.140.
+**Decisions since D-1539:**
+- **D-1540 (2026-07-05):** HUMAN PRODUCT DECISIONS — E-QUERY-042 refined dispatch ratification. (a) GROUP BY + ORDER BY bare temporal → REJECT E-QUERY-042; SELECT projection coerce KEPT. (b) Non-column-LHS comparison date-like RHS → REJECT E-QUERY-042 NonColumnLhsComparison (-32602). (c) F-MED-1: BC-2.11.004 pipe stats-by reclassified coerce→parse-time E-QUERY-001. E-QUERY-042 TemporalLiteralInvalidPosition allocated. develop_head UNCHANGED 122228e8. STATE UNCHANGED v8.140.
+- **D-1541 (2026-07-05):** E-QUERY-042 SPEC CASCADE + CHECKPOINT. ADR-052 v1.9→v1.10; BC-2.11.021 v1.6→v1.7; BC-2.11.003 v1.10→v1.11; BC-2.11.004 v1.11→v1.12; error-taxonomy v2.13→v2.14; story v1.7→v1.8 (39 RG/34 AC); ARCH-INDEX v2.170; STORY-INDEX v2.586; BC-INDEX v7.35; non-exhaustive 89. feature HEAD 95b3a3b6→6fc9b6a7; 2007 prism-query tests; just check PASS. §RESUME SNAPSHOT D-1541 (supersedes D-1539). 3-CLEAN streak 0/3 on frozen 6fc9b6a7. develop_head UNCHANGED 122228e8. STATE v8.140→v8.141.
 
 ---
 
