@@ -2588,6 +2588,111 @@ fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_042_non_column_lhs_comparis
     );
 }
 
+// ── E-QUERY-042 parser-driven HAVING end-to-end test ─────────────────────────
+
+/// E-QUERY-042 (NonColumnLhsComparison): HAVING `max(timestamp) > '2026-06-24'`
+/// must return E-QUERY-042 (NonColumnLhsComparison) through a real `engine.execute()` call.
+///
+/// The F-HIGH-1 fix (ADR-052 §D4 v1.10 arm (4)) adds E-QUERY-042 for non-Field LHS
+/// comparisons. The complementary unit-level test (`test_...e_query_042_non_column_lhs_comparison`
+/// in `temporal_typing_tests.rs` and `test_having_non_field_lhs_raw_temporal_fires_e_query_042_non_column_lhs_comparison`
+/// in `materialization.rs`) exercises the `check_temporal_literals` function directly with
+/// a hand-constructed AST. This test closes the gap by exercising the HAVING path
+/// end-to-end through the real SQL parser and engine.
+///
+/// # How the path is reached
+/// The HAVING parser (`build_having_predicate_parser` in `sql_parser.rs`) supports the
+/// `agg_fn(col) op literal` form (ADR-048). Parsing
+/// `HAVING max(timestamp) > '2026-06-24'` produces:
+/// ```
+/// Predicate::Compare {
+///     lhs: Expr::FuncCall::Aggregate(Max(timestamp)),   // NOT Expr::Field
+///     op:  Gt,
+///     rhs: Expr::Literal(RawTemporalLiteral("2026-06-24")),
+/// }
+/// ```
+/// The early `check_temporal_literals` gate (skip_projection=true, runs before E-QUERY-037)
+/// walks the HAVING predicate, finds a non-Field LHS with a `RawTemporalLiteral` RHS,
+/// and returns `E-QUERY-042 NonColumnLhsComparison` per ADR-052 §D4 v1.10 arm (4).
+///
+/// # MCP mapping
+/// `PrismError::TemporalLiteralInvalidPosition { position: NonColumnLhsComparison, .. }` maps
+/// to JSON-RPC -32602 INVALID_PARAMS (not -32000 INTERNAL_ERROR).
+/// Verified by the independent mapping test in `prism-mcp::error_mapping` (line ~3628).
+///
+/// Traces to: ADR-052 §D4 v1.10 arm (4); BC-2.11.003; error-taxonomy.md §E-QUERY-042 v2.14;
+///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 MED-1.
+#[tokio::test]
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_having_agg_date_only_raises_e_query_042_parser_driven(
+) {
+    use prism_core::error::TemporalLiteralPosition;
+
+    let engine = make_test_engine();
+
+    // Full SQL query parsed through the real PrismQL parser.
+    // GROUP BY hostname (String col) is valid; HAVING max(timestamp) > '2026-06-24'
+    // uses the ADR-048 agg_fn(col) op literal HAVING form.
+    let result = engine
+        .execute(
+            "SELECT count(*) FROM test_events GROUP BY hostname \
+             HAVING max(timestamp) > '2026-06-24'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must be an error — the temporal gate fires at plan time.
+    assert!(
+        result.is_err(),
+        "MED-1 e2e: HAVING max(timestamp) > '2026-06-24' must return Err(E-QUERY-042). \
+         Got Ok. \
+         Check: check_pred_raw_temporal HAVING arm, early gate in engine.rs (skip_projection=true)."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // Primary: must be E-QUERY-042 NonColumnLhsComparison.
+    assert!(
+        matches!(
+            &err,
+            PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::NonColumnLhsComparison,
+                ..
+            }
+        ),
+        "MED-1 e2e: error must be PrismError::TemporalLiteralInvalidPosition \
+         (NonColumnLhsComparison). ADR-052 §D4 v1.10 arm (4). Got: {err:?} (Display: {display})"
+    );
+
+    // value_prefix must be the date-only string.
+    if let PrismError::TemporalLiteralInvalidPosition { value_prefix, .. } = &err {
+        assert!(
+            value_prefix.starts_with("2026-06-24"),
+            "MED-1 e2e: value_prefix must start with '2026-06-24'. Got: {value_prefix:?}"
+        );
+    }
+
+    // Must contain E-QUERY-042 code in the Display string.
+    assert!(
+        display.contains("E-QUERY-042"),
+        "MED-1 e2e: error Display must contain 'E-QUERY-042'. Got: {display}"
+    );
+
+    // Must NOT contain DataFusion/Arrow errors — fires at Prism plan time (early gate).
+    assert!(
+        !display.contains("Arrow error") && !display.contains("DataFusion"),
+        "MED-1 e2e: E-QUERY-042 must fire at Prism plan time (early gate), NOT as a \
+         DataFusion/Arrow error. Got: {display}"
+    );
+
+    // Must NOT be QueryPlanFailed — the pre-ADR-052-v1.10 analyst-hostile -32000 behavior.
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "MED-1 e2e: HAVING non-column-LHS must NOT return QueryPlanFailed (-32000). \
+         Must return TemporalLiteralInvalidPosition (-32602). Got: {err:?}"
+    );
+}
+
 // ── E-QUERY-042: Pipe mode parse-time rejection (stats by / sort) ─────────────
 
 /// Pipe `stats … by '2026-06-24'` MUST fail at parse time with a clear E-QUERY-001

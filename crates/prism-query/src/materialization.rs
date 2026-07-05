@@ -5276,15 +5276,25 @@ mod temporal_walker_unit_tests {
 
     // ── F-HIGH-1: Predicate::Compare non-Field-LHS HAVING path → E-QUERY-042 ──
 
-    /// F-HIGH-1 Red Gate (REACHABLE via real parseable HAVING query):
+    /// F-HIGH-1 unit test (hand-constructed AST — NOT a parser-driven test):
     ///
-    /// `SELECT count(*) FROM test_events GROUP BY hostname HAVING max(timestamp) > '2026-06-24'`
+    /// Directly calls `check_temporal_literals` with a manually built
+    /// `Ast::Sql(Select)` containing a HAVING predicate whose LHS is a
+    /// `Expr::FuncCall::Aggregate(Max(timestamp))` (a non-Field expression).
     ///
-    /// The HAVING predicate `max(timestamp) > RawTemporalLiteral("2026-06-24")` has a non-Field
-    /// LHS (`Expr::FuncCall::Aggregate(Max(timestamp))`). The `check_pred_raw_temporal` Predicate
-    /// non-Field-LHS else-branch MUST return E-QUERY-042 TemporalLiteralInvalidPosition::
-    /// NonColumnLhsComparison (-32602 INVALID_PARAMS), NOT the pre-refinement
-    /// QueryPlanFailed (-32000 INTERNAL_ERROR).
+    /// # Why this is a unit test, not engine.execute()
+    /// This test bypasses the PrismQL parser and constructs the AST at the Rust level to
+    /// isolate the `check_pred_raw_temporal` non-Field-LHS else-branch from parser behavior.
+    /// The corresponding parser-driven end-to-end test is
+    /// `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_having_agg_date_only_raises_e_query_042_parser_driven`
+    /// in `temporal_typing_tests.rs`, which calls
+    /// `engine.execute("... HAVING max(timestamp) > '2026-06-24'", ...)` and verifies the
+    /// same E-QUERY-042 NonColumnLhsComparison result end-to-end.
+    ///
+    /// # What this test verifies (unit level)
+    /// The `check_pred_raw_temporal` Predicate non-Field-LHS else-branch MUST return
+    /// E-QUERY-042 TemporalLiteralInvalidPosition::NonColumnLhsComparison
+    /// (-32602 INVALID_PARAMS), NOT the pre-refinement QueryPlanFailed (-32000 INTERNAL_ERROR).
     ///
     /// ADR-052 §D4 v1.10 arm (4); BC-2.11.003; error-taxonomy.md E-QUERY-042 v2.14.
     ///

@@ -380,12 +380,30 @@ fn detect_literal_in_pipe_key_position(input: &str) -> Option<String> {
 /// Extract the contents of a single-quoted string starting at byte offset `start`
 /// in `input` (which points at the opening `'`).
 ///
-/// Returns up to 50 chars (codepoint-safe) or `None` if the literal is malformed
-/// (no closing quote found).
+/// Returns up to 50 Unicode codepoints (codepoint-safe) or `None` if the literal
+/// is malformed (no closing quote found).
+///
+/// The 50-codepoint cap is an AD-017 belt-and-suspenders guard against inadvertent
+/// secret exposure via pipe-key-position error messages — consistent with the
+/// E-QUERY-041/042 `value_prefix` 50-char cap.
+///
+/// **Codepoint-safe:** uses `.char_indices().nth(50)` to locate the truncation byte
+/// offset, never slicing at a raw byte count that might land inside a multibyte
+/// UTF-8 sequence (no VP-021 violation).
 fn extract_quoted_literal(input: &str, start: usize) -> Option<&str> {
     let rest = input.get(start + 1..)?; // skip the opening quote
     let end = rest.find('\'')?;
-    Some(&rest[..end])
+    let content = &rest[..end];
+    // Truncate at 50 Unicode codepoints.
+    // `.char_indices().nth(50)` yields (byte_offset_of_51st_char, char).
+    // Slicing [..that_offset] gives exactly the first 50 codepoints.
+    // Falls back to `content.len()` when the literal has fewer than 50 codepoints.
+    let truncation_byte = content
+        .char_indices()
+        .nth(50)
+        .map(|(i, _)| i)
+        .unwrap_or(content.len());
+    Some(&content[..truncation_byte])
 }
 
 #[cfg(test)]
@@ -527,6 +545,140 @@ mod tests {
         assert!(
             !is_enrich_missing_column_at("FROM t | where severity", 23),
             "F-P3-CRIT-001 unit-e: non-enrich pattern must return false"
+        );
+    }
+
+    // ── LOW-1: extract_quoted_literal 50-codepoint truncation (AD-017) ───────
+    //
+    // `extract_quoted_literal` doc says "Returns up to 50 chars (codepoint-safe)"
+    // but the pre-fix impl returns the FULL literal without any truncation.
+    // `detect_literal_in_pipe_key_position` interpolates the returned value into the
+    // E-QUERY-001 sort / stats-by messages, so a >50-char literal would be echoed in full.
+    // AD-017 consistency: E-QUERY-041/042 apply a 50-char cap on value snippets;
+    // the pipe-key-position messages must match.
+    //
+    // These tests fail before the fix (full literal echoed) and pass after (truncated at 50).
+
+    /// LOW-1: `| sort '<51-ASCII-chars>'` → error message must NOT contain the full 51-char
+    /// literal; must contain the 50-char prefix only.
+    ///
+    /// Pre-fix: `extract_quoted_literal` returns `&rest[..end]` (full content, 51 chars).
+    /// Post-fix: `extract_quoted_literal` truncates at `.chars().take(50)` boundary (50 chars).
+    ///
+    /// Traces to: AD-017; error-taxonomy.md §E-QUERY-041/042 value_prefix 50-cap convention;
+    ///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 LOW-1.
+    #[test]
+    fn test_extract_quoted_literal_truncates_sort_message_at_50_ascii_codepoints() {
+        // Construct a 51-character literal: 'aaa...a' (51 'a's).
+        let long_literal = "a".repeat(51);
+        let input = format!("FROM t | sort '{long_literal}'");
+
+        // Pass a dummy non-empty error list so the rewriter fires.
+        let errors = vec![ParseError::new(0, "dummy error".to_string())];
+        let rewritten = rewrite_temporal_literal_in_pipe_key_position(&input, errors);
+
+        assert_eq!(
+            rewritten.len(),
+            1,
+            "LOW-1 sort truncation: rewriter must produce exactly 1 message. Got: {rewritten:?}"
+        );
+        let msg = &rewritten[0].message;
+
+        let fifty_a = "a".repeat(50);
+        let fifty_one_a = "a".repeat(51);
+
+        // Message must contain the 50-char prefix (the truncated snippet).
+        assert!(
+            msg.contains(&fifty_a),
+            "LOW-1 sort truncation: message must contain the 50-'a' prefix. \
+             AD-017: value snippets must be capped at 50 codepoints. Got: {msg:?}"
+        );
+
+        // Message must NOT contain all 51 'a' chars (the un-truncated literal).
+        assert!(
+            !msg.contains(&fifty_one_a),
+            "LOW-1 sort truncation: message MUST NOT echo the full 51-char literal. \
+             extract_quoted_literal must truncate at 50 codepoints (AD-017 consistency \
+             with E-QUERY-041/042 value_prefix cap). Got: {msg:?}"
+        );
+    }
+
+    /// LOW-1: `| stats count by '<51-ASCII-chars>'` → error message truncated at 50.
+    ///
+    /// Sibling-path to the sort test — `detect_literal_in_pipe_key_position` also
+    /// calls `extract_quoted_literal` for the `stats by` branch.
+    ///
+    /// Traces to: AD-017; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 LOW-1.
+    #[test]
+    fn test_extract_quoted_literal_truncates_stats_by_message_at_50_ascii_codepoints() {
+        let long_literal = "b".repeat(51);
+        let input = format!("FROM t | stats count by '{long_literal}'");
+
+        let errors = vec![ParseError::new(0, "dummy".to_string())];
+        let rewritten = rewrite_temporal_literal_in_pipe_key_position(&input, errors);
+
+        assert_eq!(
+            rewritten.len(),
+            1,
+            "LOW-1 stats-by: rewriter must produce 1 message"
+        );
+        let msg = &rewritten[0].message;
+
+        let fifty_b = "b".repeat(50);
+        let fifty_one_b = "b".repeat(51);
+
+        assert!(
+            msg.contains(&fifty_b),
+            "LOW-1 stats-by truncation: message must contain 50-'b' prefix. Got: {msg:?}"
+        );
+        assert!(
+            !msg.contains(&fifty_one_b),
+            "LOW-1 stats-by truncation: message must NOT echo full 51-char literal. \
+             extract_quoted_literal must truncate at 50 codepoints. Got: {msg:?}"
+        );
+    }
+
+    /// LOW-1 Unicode: truncation must be codepoint-safe (no VP-021 byte-split on multibyte chars).
+    ///
+    /// 51 × U+65E5 '日' (3 bytes each) = 153 bytes total in the literal.
+    /// After truncation: 50 codepoints = 150 bytes — a valid UTF-8 slice boundary.
+    /// The 51st codepoint (bytes 150-152) must NOT appear in the message.
+    ///
+    /// Pre-fix: `extract_quoted_literal` returns the full 153-byte slice.
+    /// Post-fix: `.chars().take(50)` → 50 codepoints (150 bytes), no panic.
+    ///
+    /// Traces to: VP-021 (no panic on multibyte input); AD-017; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 LOW-1.
+    #[test]
+    fn test_extract_quoted_literal_truncates_unicode_codepoint_safe_no_panic() {
+        let cjk_51 = "日".repeat(51);
+        let input = format!("FROM t | sort '{cjk_51}'");
+
+        // Must not panic (VP-021 codepoint-safe truncation).
+        let errors = vec![ParseError::new(0, "dummy".to_string())];
+        let result = std::panic::catch_unwind(|| {
+            rewrite_temporal_literal_in_pipe_key_position(&input, errors)
+        });
+        assert!(
+            result.is_ok(),
+            "LOW-1 Unicode: rewrite_temporal_literal_in_pipe_key_position panicked on \
+             51-codepoint CJK literal — codepoint-safe truncation must not panic."
+        );
+
+        let rewritten = result.unwrap();
+        assert_eq!(
+            rewritten.len(),
+            1,
+            "LOW-1 Unicode: rewriter must produce 1 message. Got: {rewritten:?}"
+        );
+        let msg = &rewritten[0].message;
+
+        // Message must NOT contain the 51st codepoint (the 51st '日').
+        // If the full literal were echoed, it would contain 51 × '日'.
+        let cjk_51_in_msg = "日".repeat(51);
+        assert!(
+            !msg.contains(&cjk_51_in_msg),
+            "LOW-1 Unicode: message must NOT echo all 51 CJK codepoints. \
+             Truncation at 50 codepoints (codepoint-safe, AD-017). Got: {msg:?}"
         );
     }
 }
