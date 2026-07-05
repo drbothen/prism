@@ -625,19 +625,21 @@ pub async fn run_materialization_pipeline(
         crate::plan_sqlpipe_query(spq)?;
     }
 
-    // Step 1c: ADR-052 §D4 Option-A four-way dispatch for RawTemporalLiteral nodes.
+    // Step 1c: ADR-052 §D4 v1.10 Option-A seven-arm dispatch for RawTemporalLiteral nodes.
     // Fires after inject_now (so Timestamp literals are already resolved) and before
     // fan-out (no sensor I/O has occurred yet — this is still a plan-time gate).
     //
     // Gate ordering: E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-041 → DataFusion.
     // E-QUERY-037/038/039 fire in engine.rs before run_materialization_pipeline is called.
     //
-    // Four-way dispatch on each RawTemporalLiteral found in a comparison:
-    //   - vs Datetime column  → Err(TemporalLiteralUnparseable)  [E-QUERY-041]
-    //   - vs String column    → COERCE in-place to Literal::String
-    //   - vs Integer/Float/Bool column → Err(QueryTypeMismatch)  [E-QUERY-002]
-    // RawTemporalLiteral in non-comparison position (SELECT / GROUP BY / ORDER BY)
-    //   → COERCE in-place to Literal::String (ADR-052 §D4 v1.8 OBS-2)
+    // Seven-arm dispatch (ADR-052 §D4 v1.10):
+    //   (1) Comparison, Field LHS, Datetime col       → Err(TemporalLiteralUnparseable) [E-QUERY-041]
+    //   (2) Comparison, Field LHS, String col         → COERCE in-place to Literal::String
+    //   (3) Comparison, Field LHS, Integer/Float/Bool → Err(QueryTypeMismatch) [E-QUERY-002]
+    //   (4) Comparison, NON-Field LHS, date-like RHS  → Err(E-QUERY-042 NonColumnLhsComparison) [-32602]
+    //   (5) SELECT projection bare literal            → COERCE in-place to Literal::String
+    //   (6) GROUP BY position bare literal            → Err(E-QUERY-042 GroupBy) [-32602]
+    //   (7) ORDER BY position bare literal            → Err(E-QUERY-042 OrderBy) [-32602]
     // skip_projection=false: full walk (this runs after check_table_availability, so
     // the table is confirmed to exist and the projection check is appropriate).
     check_temporal_literals(&mut ast, mat_ctx.table_registry.as_deref(), false)?;
@@ -2243,22 +2245,26 @@ pub(crate) async fn collect_record_batch_stream(
 // check_temporal_literals — ADR-052 §D4 Option-A AST-walker
 // ---------------------------------------------------------------------------
 
-/// Plan-time four-way dispatch for `Literal::RawTemporalLiteral` nodes (ADR-052 §D4 Option A).
+/// Plan-time seven-arm dispatch for `Literal::RawTemporalLiteral` nodes (ADR-052 §D4 v1.10 Option A).
 ///
 /// Called inside `run_materialization_pipeline` after `inject_now` and before fan-out
 /// (full mode, `skip_projection = false`), and as an early gate in `engine::execute` before
 /// `check_table_availability` (predicate-only mode, `skip_projection = true`).
 ///
 /// Walks the parsed AST for every `RawTemporalLiteral` node (produced by the lenient parser
-/// for date-like strings that are NOT valid RFC-3339). For each node found in a comparison
-/// context, resolves the compared column's type via the `TableRegistry` and dispatches:
+/// for date-like strings that are NOT valid RFC-3339). For each node found, dispatches across
+/// seven arms based on position and resolved column type:
 ///
-/// - vs `ColumnType::Datetime`              → `Err(TemporalLiteralUnparseable)` [E-QUERY-041]
-/// - vs `ColumnType::String`                → COERCE in-place to `Literal::String`
-/// - vs `ColumnType::Integer/Float/Boolean` → `Err(QueryTypeMismatch)`           [E-QUERY-002]
-/// - In non-comparison position (SELECT / GROUP BY / ORDER BY, no column context) →
-///   COERCE in-place to `Literal::String` (ADR-052 §D4 v1.8 OBS-2)
+/// - (arm 1) Comparison, Field LHS, `ColumnType::Datetime`              → `Err(TemporalLiteralUnparseable)` [E-QUERY-041]
+/// - (arm 2) Comparison, Field LHS, `ColumnType::String`                → COERCE in-place to `Literal::String`
+/// - (arm 3) Comparison, Field LHS, `ColumnType::Integer/Float/Boolean` → `Err(QueryTypeMismatch)` [E-QUERY-002]
+/// - (arm 4) Comparison, NON-Field LHS (function/aggregate/expr), date-like RHS →
+///   `Err(TemporalLiteralInvalidPosition::NonColumnLhsComparison)` [E-QUERY-042, -32602]
+/// - (arm 5) SELECT projection bare literal (non-comparison, no column context) →
+///   COERCE in-place to `Literal::String` (ADR-052 §D4 v1.10 OBS-2)
 ///   (only when `skip_projection = false`; skipped when `true` to let E-QUERY-037 win)
+/// - (arm 6) GROUP BY position bare literal → `Err(TemporalLiteralInvalidPosition::GroupBy)` [E-QUERY-042]
+/// - (arm 7) ORDER BY position bare literal → `Err(TemporalLiteralInvalidPosition::OrderBy)` [E-QUERY-042]
 /// - Unknown/unresolvable column type       → fail-open (skip, DataFusion handles)
 ///
 /// ## `skip_projection` flag
@@ -2276,12 +2282,14 @@ pub(crate) async fn collect_record_batch_stream(
 /// - Bare `RawTemporalLiteral` in non-comparison position is COERCED to `Literal::String`.
 ///
 /// When `registry` is `None`, the column-type dispatch arm fails-open (same as
-/// E-QUERY-037/038 legacy mode). Bare `RawTemporalLiteral` in non-comparison position
-/// is still coerced to `Literal::String` regardless of registry state (OBS-2).
-/// `RawTemporalLiteral` in comparisons with a non-Field LHS still returns
-/// `Err(QueryPlanFailed)` regardless of registry state when `skip_projection = false`.
+/// E-QUERY-037/038 legacy mode). SELECT-projection bare `RawTemporalLiteral` is still
+/// coerced to `Literal::String` regardless of registry state (arm 5 OBS-2).
+/// GROUP BY and ORDER BY bare `RawTemporalLiteral` still return E-QUERY-042 regardless
+/// of registry state (arms 6-7). `RawTemporalLiteral` in comparisons with a non-Field LHS
+/// returns `Err(TemporalLiteralInvalidPosition::NonColumnLhsComparison)` [E-QUERY-042]
+/// regardless of registry state when `skip_projection = false`.
 ///
-/// Traces to: ADR-052 §D4 v1.8 Steps 3–5 OBS-2; BC-2.11.021 v1.6 §Postconditions;
+/// Traces to: ADR-052 §D4 v1.10 seven-arm dispatch; BC-2.11.021 v1.7 §Postconditions;
 /// S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 14; FIX-2 (early gate scoping).
 pub(crate) fn check_temporal_literals(
     ast: &mut crate::ast::Ast,
@@ -2407,10 +2415,10 @@ pub(crate) fn check_temporal_literals(
                 check_pred_raw_temporal(filter, Some(dml_table.as_str()), registry)?;
             }
             // SET assignments (UPDATE) — value is Expr, can contain RawTemporalLiteral.
-            // Apply four-way dispatch using the assignment's target column name, mirroring
-            // the behavior of check_pred_raw_temporal::Compare for field comparisons
-            // (ADR-052 §D4 v1.8: Datetime→E-QUERY-041; String→coerce; numeric/bool→E-QUERY-002;
-            // unknown→coerce to Literal::String per OBS-2).
+            // Apply column-typed dispatch (arms 1-3 of seven-arm, ADR-052 §D4 v1.10) using
+            // the assignment's target column name, mirroring check_pred_raw_temporal::Compare
+            // for field comparisons (Datetime→E-QUERY-041; String→coerce;
+            // numeric/bool→E-QUERY-002; unknown→coerce to Literal::String per OBS-2).
             for assignment in &mut dml.assignments {
                 use crate::ast::{Expr, Literal};
                 use prism_core::column::ColumnType;
@@ -2598,8 +2606,8 @@ fn compare_op_to_str(op: &crate::ast::CompareOp) -> &'static str {
     }
 }
 
-/// Apply four-way temporal dispatch to a `Literal` in a filter position where the
-/// column field path is known.
+/// Apply column-typed temporal dispatch (arms 1-3 of the seven-arm dispatch) to a `Literal`
+/// in a filter position where the column field path is known.
 ///
 /// Used by `check_pred_raw_temporal` for `Between.low`/`Between.high` and `In.values`
 /// positions (which hold `Literal` directly, not `Box<Expr>`).
@@ -2608,7 +2616,9 @@ fn compare_op_to_str(op: &crate::ast::CompareOp) -> &'static str {
 /// `"="`) — used to populate `PrismError::QueryTypeMismatch { operator }` with accurate
 /// context for the analyst (P3-MED-1 fix).
 ///
-/// Four-way dispatch (ADR-052 §D4):
+/// Column-typed dispatch — arms (1)-(3) of the seven-arm dispatch (ADR-052 §D4 v1.10).
+/// Used for `Between` and `In` positions where the subject is always a named field
+/// (no non-Field-LHS arm needed; GROUP BY / ORDER BY positions do not apply here):
 /// - `ColumnType::Datetime`  → `Err(TemporalLiteralUnparseable)` (E-QUERY-041)
 /// - `ColumnType::String`    → coerce `*lit` in-place to `Literal::String`
 /// - `Integer/Float/Boolean` → `Err(QueryTypeMismatch)` (E-QUERY-002)
@@ -2661,8 +2671,8 @@ fn apply_literal_dispatch(
     }
 }
 
-/// Recursively walk a `Predicate` tree and apply four-way dispatch to every
-/// `RawTemporalLiteral` found in filter-position comparisons.
+/// Recursively walk a `Predicate` tree and apply the column-typed and non-Field-LHS
+/// temporal dispatch to every `RawTemporalLiteral` found in filter-position comparisons.
 ///
 /// Handles:
 /// - `Predicate::Compare { lhs: Field(fp), rhs: Literal(RawTemporalLiteral) }` — dispatch
@@ -2744,7 +2754,7 @@ fn check_pred_raw_temporal(
                 } else {
                     // E-QUERY-042 (NonColumnLhsComparison): non-Field LHS in Predicate path
                     // (e.g., `MAX(timestamp) > '2026-06-24'` in a HAVING clause). No column
-                    // context for four-way dispatch; silently coercing would reintroduce
+                    // context for the column-typed dispatch (arms 1-3); silently coercing would reintroduce
                     // RISK-1 for datetime-valued expressions like `to_timestamp(col)`.
                     //
                     // ADR-052 §D4 v1.10 arm (4). Mirrors check_expr_temporal_pos::Expr::Compare

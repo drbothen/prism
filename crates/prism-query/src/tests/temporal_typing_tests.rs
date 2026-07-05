@@ -853,7 +853,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_f_local_low1_pipe_no_from_dot
 // ── Option-A typed-column fixture ────────────────────────────────────────────
 
 /// Build a `TableRegistry` with sensor "metrics_sensor" / table "events" registered as
-/// "metrics_sensor_events". Includes multiple column types for four-way dispatch tests:
+/// "metrics_sensor_events". Includes multiple column types for seven-arm dispatch tests:
 ///   - `timestamp_col: ColumnType::Datetime` — for E-QUERY-041 tests (Datetime arm)
 ///   - `label_col: ColumnType::String`       — for coercion tests (String/Utf8 arm)
 ///   - `count_col: ColumnType::Integer`      — for E-QUERY-001 type-mismatch tests
@@ -868,7 +868,7 @@ fn make_typed_columns_registry() -> Arc<TableRegistry> {
     let registry = Arc::new(TableRegistry::new());
     let spec = SensorSpec::new(
         "metrics_sensor",
-        "Typed column sensor for Option-A four-way dispatch tests",
+        "Typed column sensor for Option-A seven-arm dispatch tests",
         AuthType::ApiKey,
         "https://metrics.invalid",
         vec![TableSpec::new_point_in_time(
@@ -1233,8 +1233,8 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_offset_le
 /// `count_col` → `ColumnType::Integer` → returns E-QUERY-001 (type mismatch, NOT E-QUERY-041).
 ///
 /// # Why load-bearing
-/// The four-way dispatch must be exhaustive: Integer (and Float, Bool) columns must route
-/// to E-QUERY-001, not E-QUERY-041. Incorrect routing would mislead the analyst with a
+/// The seven-arm dispatch must be exhaustive: Integer (and Float, Bool) columns must route
+/// to E-QUERY-002, not E-QUERY-041. Incorrect routing would mislead the analyst with a
 /// wrong error message ("cannot interpret as UTC timestamp" for a type that never holds
 /// timestamps).
 ///
@@ -1289,9 +1289,9 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query
 
 /// RG-016 (stub q): Date-like literal against `ColumnType::Float` column → E-QUERY-001.
 ///
-/// Same four-way dispatch pattern as RG-015 but for Float type.
+/// Same dispatch pattern as RG-015 (arm 3 of the seven-arm dispatch) but for Float type.
 ///
-/// Traces to: ADR-052 §D4 v1.4 Step 3 third arm.
+/// Traces to: ADR-052 §D4 v1.10 arm (3); ADR-052 §D4 v1.4 Step 3 third arm.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_float_col_date_like_e_query_001() {
     let engine = make_typed_columns_engine();
@@ -1331,9 +1331,9 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_float_col_date_like_e_query_0
 
 /// RG-017 (stub r): Date-like literal against `ColumnType::Boolean` column → E-QUERY-001.
 ///
-/// Same four-way dispatch pattern as RG-015 but for Boolean type.
+/// Same dispatch pattern as RG-015 (arm 3 of the seven-arm dispatch) but for Boolean type.
 ///
-/// Traces to: ADR-052 §D4 v1.4 Step 3 third arm.
+/// Traces to: ADR-052 §D4 v1.10 arm (3); ADR-052 §D4 v1.4 Step 3 third arm.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_bool_col_date_like_e_query_001() {
     let engine = make_typed_columns_engine();
@@ -1527,7 +1527,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_qualified_nested_column_resol
 /// Query: `SELECT * FROM test_events WHERE timestamp = '2026-06-24'`
 ///
 /// Tests that the equality operator (`=`) is also gated by the temporal pre-validator,
-/// not only ordering operators (`>`, `<`, `>=`, `<=`). Under Option-A, the four-way
+/// not only ordering operators (`>`, `<`, `>=`, `<=`). Under Option-A, the seven-arm
 /// dispatch fires for ALL comparison operators when the LHS column is Datetime.
 ///
 /// # Pre-implementation state (Red Gate)
@@ -2105,10 +2105,11 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_unpadded_
     );
 }
 
-// ── MED-1: SqlPipe RawTemporalLiteral four-way dispatch coverage ─────────────
+// ── MED-1: SqlPipe RawTemporalLiteral seven-arm dispatch coverage ────────────
 //
-// ADR-052 §D4 Step 3 four-way dispatch (Datetime→E-QUERY-041 / String→COERCE /
-// Integer|Float|Bool→E-QUERY-002) applies equally to SqlPipe head predicates.
+// ADR-052 §D4 v1.10 column-typed arms (1)-(3) of the seven-arm dispatch
+// (Datetime→E-QUERY-041 / String→COERCE / Integer|Float|Bool→E-QUERY-002) apply
+// equally to SqlPipe head predicates.
 // `check_temporal_literals` Ast::SqlPipe arm walks the head SELECT + WHERE +
 // HAVING + JOIN ON + GROUP BY + ORDER BY positions plus each pipe stage.
 //
@@ -2224,7 +2225,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_string_col_date_only_
 /// `RawTemporalLiteral` + non-Datetime/non-String column combination and return
 /// `E-QUERY-002` (type mismatch), NOT `E-QUERY-041` (temporal gate).
 ///
-/// This is the third arm of the four-way dispatch, exercised via SqlPipe.
+/// This is arm (3) of the seven-arm dispatch (ADR-052 §D4 v1.10), exercised via SqlPipe.
 ///
 /// Traces to: ADR-052 §D4 v1.4 Step 3 third arm; BC-2.11.021 v1.5; ADR-052 §D4 v1.6 MED-1.
 #[tokio::test]

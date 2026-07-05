@@ -997,9 +997,9 @@ impl QueryEngine {
         )
         .with_response_cache(Arc::clone(&self.cache));
 
-        // ADR-052 §D4 Option A: wire table_registry so check_temporal_literals
-        // can resolve column types for the four-way dispatch
-        // (E-QUERY-041 / coerce / mismatch / non-comparison coerce).
+        // ADR-052 §D4 v1.10 Option A: wire table_registry so check_temporal_literals
+        // can resolve column types for the seven-arm dispatch
+        // (E-QUERY-041 / coerce / mismatch / E-QUERY-042 for non-Field-LHS and GROUP BY/ORDER BY).
         if let Some(ref tr) = self.table_registry {
             mat_ctx = mat_ctx.with_table_registry(Arc::clone(tr));
         }

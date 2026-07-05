@@ -984,7 +984,7 @@ pub enum Literal {
     /// A quoted string that resembles a date or datetime but is NOT valid RFC-3339.
     /// Produced by the lenient parser fallback for date-only (`'2026-06-24'`) and
     /// offset-less (`'2026-06-24T12:00:00'`) forms per ADR-052 §D4 v1.4.
-    /// Validated at plan time by `check_temporal_literals` (four-way dispatch).
+    /// Validated at plan time by `check_temporal_literals` (seven-arm dispatch, ADR-052 §D4 v1.10).
     /// Must never reach SQL emission — `pipe_sql_emitter.rs` guards this with a
     /// belt-and-suspenders E-QUERY-002 (`QueryPlanFailed`) arm (Pipe/Filter mode).
     /// (ADR-052 §D4 Step 1; BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001)
