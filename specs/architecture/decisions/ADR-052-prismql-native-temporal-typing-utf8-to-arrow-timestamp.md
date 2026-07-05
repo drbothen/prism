@@ -4,7 +4,7 @@ adr_id: "ADR-052"
 title: "PrismQL Native Temporal Typing — Datetime Columns and Literals from Arrow Utf8 to Timestamp(Microsecond, UTC)"
 status: accepted
 date: "2026-07-03"
-version: "1.4"
+version: "1.7"
 producer: architect
 subsystems_affected: [SS-09, SS-10, SS-11, SS-17]
 supersedes: "ADR-044 §D4"
@@ -21,12 +21,51 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.4 (2026-07-04). Human ratification of core decisions recorded 2026-07-03
+ACCEPTED v1.7 (2026-07-04). Human ratification of core decisions recorded 2026-07-03
 (D-1520). **§D4 v1.3 ACCEPTED (human-ratified 2026-07-04, Option A + String-column
 coercion modification). v1.4 (pre-TDD, remove-uncertainty): `is_date_like` acceptance
 set expanded from 2 to 7 format strings (date-only + T-sep/space-sep × full-seconds/
 fractional/no-seconds); over-match disposition (unpadded digits, big/signed years)
 documented as ACCEPTED BENIGN.**
+
+**v1.5 (LOCAL adversary cascade fix-burst, 2026-07-04):** Three §D4 corrections: (A)
+E-QUERY-001→E-QUERY-002 for `RawTemporalLiteral` against Integer/Float/Bool columns
+and non-comparison positions — `QueryTypeMismatch`/`QueryPlanFailed` are the shipped
+error variants (error-taxonomy.md v2.12 source of truth); (B) `check_temporal_literals`
+DEFINED in `materialization.rs`, not `engine.rs` — `engine.rs` retains the early-gate
+INVOCATION; (C) SQL-mode DataFusion emission path (`materialization.rs::execute_against_session`
+`Ast::Sql` arm → `PqlNormalizer::normalize_literal`) also requires `arrow_cast(...)` for
+`Literal::Timestamp` — currently emits bare `'{iso8601}'` violating BC-2.11.021; dedicated
+`emit_literal_for_datafusion` function proposed as resolution in §D4 addendum. Blast radius
+expanded to 22 rows.
+
+**v1.6 (LOCAL adversary cascade spec↔code alignment, 2026-07-04):** Two §D4 SQL-mode
+emission corrections. (FIX 1 / LOW-2) §D4 SQL-Mode Emission Addendum corrected to document
+the SHIPPED mechanism: v1.5 described a phantom `emit_literal_for_datafusion` free function
+in `materialization.rs`; the actual implementation uses a thread-local scoped-context in
+`ast.rs` — `NORMALIZE_FOR_DATAFUSION: Cell<bool>` set by `PqlNormalizer::normalize_for_datafusion`
+with save-and-restore drop-guard; `normalize_literal_dispatch` routes `Literal::Timestamp` to
+`normalize_literal_for_datafusion` (arrow_cast emitter) within the context; `PqlNormalizer::normalize_literal`
+(BC-2.11.018 round-trip) unchanged. Blast-radius row 22 reclassified `[VERIFY/NO-CHANGE]` →
+`[CHANGE]` (4 new symbols added to `ast.rs`). (FIX 2 / HIGH-1 sibling) `Ast::SqlPipe` head-SQL
+derivation (`materialization.rs::execute_against_session Ast::SqlPipe arm`) used round-trip
+`normalize` — same RISK-1 bare-string violation as the `Ast::Sql` arm. Fix: `Ast::SqlPipe` arm
+also routes through `PqlNormalizer::normalize_for_datafusion`. Mode-agnostic arrow_cast invariant
+stated: NO DataFusion-executed query, in any mode, may emit a bare Utf8 timestamp literal against
+a Timestamp column. Three-row emission-path table added to Addendum. Blast-radius row 21 updated
+(SqlPipe arm added). BC-2.11.021 unchanged. Blast radius rows 21-22 updated (count remains 22).
+ARCH-INDEX v2.165→v2.166.
+
+**v1.7 (LOCAL adversary MED-1: §D4 emitter-guard E-QUERY-001→E-QUERY-002, 2026-07-04):**
+Four §D4 references to the `pipe_sql_emitter.rs` `Literal::RawTemporalLiteral` guard
+corrected from E-QUERY-001 to E-QUERY-002 (QueryPlanFailed): §D4 Step-5 body, RISK-4
+narrative, blast-radius row 9, and Tasks-to-ADD guard arm row. Source of truth: shipped
+`PrismError::QueryPlanFailed` (= E-QUERY-002 per error-taxonomy.md), story RG-024, and
+the §D4 dispatch table row "Non-comparison position with no resolvable String context →
+E-QUERY-002 `QueryPlanFailed`" — which already said E-QUERY-002 in v1.5 but was not
+propagated to Step-5/RISK-4/blast-row-9/task-table when FIX A landed. The guard is a
+plan-time invariant violation (QueryPlanFailed), not a parse-time error (QueryParseFailed
+= E-QUERY-001). ARCH-INDEX v2.166→v2.167.
 
 v1.1 amends v1.0: D3 emitter form changed from `TIMESTAMP '...'` to explicit
 `arrow_cast(...)` (DataFusion 53.1.0 verified: `TIMESTAMP '...'` produces
@@ -351,7 +390,7 @@ is emitted at parse time for any of these forms.
 
 | Example | Why Over-matched | Disposition |
 |---------|-----------------|-------------|
-| `'2026-6-24'` (unpadded month/day) | `%m`/`%d` accept single digits in chrono | ACCEPTED BENIGN — not RFC-3339 regardless; E-QUERY-041 ("use RFC-3339") is an accurate and helpful message; against String col, coerced to string comparison (correct); against numeric/bool, E-QUERY-001 (correct). |
+| `'2026-6-24'` (unpadded month/day) | `%m`/`%d` accept single digits in chrono | ACCEPTED BENIGN — not RFC-3339 regardless; E-QUERY-041 ("use RFC-3339") is an accurate and helpful message; against String col, coerced to string comparison (correct); against numeric/bool, E-QUERY-002 `QueryTypeMismatch` (correct). |
 | `'12345-06-24'` (big year) | `%Y` accepts arbitrary-width year | ACCEPTED BENIGN — same rationale; security sensor data from year 12345 is not a real concern. |
 | `'-0044-03-15'` (negative year) | `%Y` accepts signed year | ACCEPTED BENIGN — same rationale. |
 
@@ -359,8 +398,8 @@ is emitted at parse time for any of these forms.
 would add implementation complexity with no diagnostic benefit. For every over-matched
 input, `check_temporal_literals` produces the correct outcome — E-QUERY-041 for a
 Datetime column (the "use RFC-3339" message is accurate), coercion for a String column,
-or E-QUERY-001 for a numeric/bool column. The benign-accept path is the production-grade
-default.
+or E-QUERY-002 `QueryTypeMismatch` for a numeric/bool column. The benign-accept path is
+the production-grade default.
 
 **Forms that stay `Literal::Utf8` (NOT matched by `is_date_like`)**
 
@@ -375,7 +414,7 @@ default.
 
 ---
 
-**Step 3 — Plan-time validator: `check_temporal_literals` AST walker in `engine.rs`.**
+**Step 3 — Plan-time validator: `check_temporal_literals` AST walker — DEFINED in `materialization.rs`, invoked as an early gate from `engine.rs`.**
 
 After the AST is produced and the schema is resolved, `check_temporal_literals` walks
 the full `Expr` tree:
@@ -384,9 +423,9 @@ the full `Expr` tree:
 |-------------------------------|--------------|--------|
 | Comparison (`>`, `<`, `>=`, `<=`, `=`, `!=`) against Datetime/Timestamp column | `column_type == Timestamp(Microsecond, UTC)` | E-QUERY-041 (pedagogical upgrade — the primary purpose of this mechanism) |
 | Comparison against String/Utf8 column | `column_type == DataType::Utf8` | COERCE: rewrite node in-place to `Literal::String(s)`; compare as ordinary string literal (SUCCESS — no error emitted, byte-identical to pre-ADR-052 behavior) |
-| Comparison against Integer / Float / Bool column | numeric or boolean type | E-QUERY-001 (type mismatch — date-shaped string cannot equal a number or bool) |
+| Comparison against Integer / Float / Bool column | numeric or boolean type | E-QUERY-002 (`QueryTypeMismatch` — date-shaped literal cannot equal a numeric or boolean column; carries structured `column`, `table`, `actual_type`, `operator` fields per BC-2.11.017) |
 | Non-comparison position where surrounding type context resolves to String/Utf8 | `column_type == DataType::Utf8` | COERCE: rewrite to `Literal::String(s)` (SUCCESS) |
-| Non-comparison position with no resolvable String context (projection, function arg, etc.) | no schema context or non-String type | E-QUERY-001 (invalid literal) |
+| Non-comparison position with no resolvable String context (projection, function arg, etc.) | no schema context or non-String type | E-QUERY-002 (`QueryPlanFailed` — unresolvable literal position; carries `detail` string) |
 
 The schema-resolved column type is determined by the same path that resolves
 `ColumnType::Datetime → DataType::Timestamp(...)` (D2). This path correctly handles:
@@ -431,13 +470,142 @@ The following functions and code paths are DELETED from `engine.rs`:
 
 **Step 5 — Guard: `RawTemporalLiteral` must never reach SQL emission.**
 
-`pipe_sql_emitter.rs` adds a `Literal::RawTemporalLiteral` arm that returns E-QUERY-001
-(internal error: unvalidated temporal literal reached emission). Under correct plan
+`pipe_sql_emitter.rs` adds a `Literal::RawTemporalLiteral` arm that returns E-QUERY-002
+(`QueryPlanFailed` — unvalidated temporal literal reached emission). Under correct plan
 execution, `check_temporal_literals` runs before emission and consumes all
-`RawTemporalLiteral` nodes (producing E-QUERY-041 or E-QUERY-001). The emission guard
+`RawTemporalLiteral` nodes (producing E-QUERY-041 or E-QUERY-002). The emission guard
 is a belt-and-suspenders defensive check.
 
-### E-QUERY-001 ↔ E-QUERY-041 boundary (preserved from v1.2, mechanism changed)
+### DataFusion Emission Addendum — SQL and SqlPipe Modes (HIGH-1, v1.5; SqlPipe sibling added v1.6)
+
+**Problem — SQL-mode DataFusion emission path uses implicit coercion (RISK-1 violation).**
+
+The `arrow_cast(...)` explicit-typing emitter specified in §D3 was applied ONLY to the
+Pipe/Filter/SqlPipe-tail path (`pipe_sql_emitter.rs::literal_to_sql`). The **SQL-mode**
+DataFusion emission path was not covered:
+
+```
+materialization.rs::execute_against_session (Ast::Sql arm)
+  → ast.rs::PqlNormalizer::normalize
+      → normalize_literal(Literal::Timestamp(ts))
+          → currently emits: format!("'{}'", ts.iso8601)   ← BARE QUOTED STRING
+```
+
+This bare form `'2026-07-03T00:00:00Z'` is passed to DataFusion as a SQL expression. DataFusion
+53.1.0 applies implicit `temporal_coercion_nonstrict_timezone` to reconcile it against a
+`Timestamp(Microsecond, Some("UTC"))` column. This is exactly RISK-1: implicit coercion that
+is non-deterministic across DataFusion minor versions. It also violates BC-2.11.021
+§Postconditions, which states (mode-agnostically):
+
+> "DataFusion sees ... `arrow_cast('...', 'Timestamp(Microsecond, Some(\"UTC\"))')` ... with no implicit coercion"
+
+and EC-11-021-001 enumerates the SQL-mode form explicitly.
+
+**Root-cause — `PqlNormalizer::normalize` is dual-purpose.**
+
+`PqlNormalizer` in `ast.rs` serves TWO contracts:
+1. **BC-2.11.018 PrismQL round-trip canonicalizer** — must emit a form the PrismQL grammar can
+   re-parse. `Literal::Timestamp(ts)` emitted as `'2026-07-03T00:00:00Z'` (bare RFC-3339 in
+   single quotes) is correct for this contract: it round-trips through the PrismQL parser.
+2. **DataFusion SQL emitter** (Ast::Sql arm of `execute_against_session`) — must emit a form
+   DataFusion evaluates with explicit types and no implicit coercion. The bare `'...'` form
+   FAILS this requirement because DataFusion treats it as a `Utf8` string and applies implicit
+   `temporal_coercion_nonstrict_timezone`.
+
+Emitting `arrow_cast(...)` from `PqlNormalizer::normalize_literal` directly would break
+BC-2.11.018: `arrow_cast('...', 'Timestamp(...)')` is not PrismQL grammar and cannot be
+re-parsed. The dual-purpose constraint requires a separation.
+
+**Resolution — thread-local scoped-context via `PqlNormalizer::normalize_for_datafusion` (ratified mechanism, v1.6).**
+
+The ratified implementation uses a **thread-local scoped-context** in `ast.rs` to switch the
+emission mode without threading an extra parameter through the entire recursive normalizer call
+tree. Key additions to `ast.rs`:
+
+```rust
+// New thread-local flag (ast.rs)
+thread_local! {
+    static NORMALIZE_FOR_DATAFUSION: Cell<bool> = Cell::new(false);
+}
+```
+
+`PqlNormalizer::normalize_for_datafusion(ast)` is a new method that:
+1. Saves the current `NORMALIZE_FOR_DATAFUSION` value (save-and-restore drop-guard — re-entrant-safe).
+2. Sets `NORMALIZE_FOR_DATAFUSION` to `true`.
+3. Calls `normalize(ast)` (the existing recursive normalizer, unchanged).
+4. Restores the saved value on drop via the guard.
+
+Within this scoped context, `normalize_literal_dispatch` replaces `normalize_literal` as the
+literal-emission dispatch point:
+
+```
+normalize_literal_dispatch(lit):
+  if NORMALIZE_FOR_DATAFUSION → normalize_literal_for_datafusion(lit)
+  else                        → PqlNormalizer::normalize_literal(lit)
+```
+
+`normalize_literal_for_datafusion` emits
+`arrow_cast('...', 'Timestamp(Microsecond, Some("UTC"))')` for `Literal::Timestamp`; all other
+variants delegate to `normalize_literal`.
+
+`PqlNormalizer::normalize()` (BC-2.11.018 round-trip) delegates to `normalize_literal` (not
+`normalize_literal_dispatch`) and therefore never consults the thread-local. The round-trip form
+is completely isolated from the DataFusion emission path.
+
+**Why thread-local scoped-context over an explicit emission-mode parameter:** Threading an
+emission-mode flag through every recursive level of the `normalize_*` call tree would require
+signature changes at every intermediate function. The thread-local installs the mode at the
+`normalize_for_datafusion` entry point and makes it visible at the `normalize_literal_dispatch`
+leaf with zero intermediate changes. The save-and-restore drop-guard makes it re-entrant-safe:
+nested `normalize_for_datafusion` calls (e.g., correlated subqueries) correctly restore the
+outer flag when the inner guard drops.
+
+**Call site change in `materialization.rs::execute_against_session` (`Ast::Sql` arm):**
+
+The `Ast::Sql` arm replaces its call to `PqlNormalizer::normalize(...)` for the DataFusion SQL
+string derivation with `PqlNormalizer::normalize_for_datafusion(...)`. This installs the scoped
+context so all `Literal::Timestamp` instances in that derivation emit `arrow_cast(...)`.
+
+**Mode-Agnostic arrow_cast Invariant — SqlPipe Head Coverage (HIGH-1 sibling, v1.6).**
+
+The v1.5 addendum covered only the `Ast::Sql` arm. The `execute_against_session` `Ast::SqlPipe`
+arm derives `_sqlpipe_head` CTE SQL from the AST head and was using the round-trip `normalize`
+(bare `'{iso8601}'`) — the same RISK-1 violation as the `Ast::Sql` arm.
+
+**Fix:** The `Ast::SqlPipe` arm of `execute_against_session` also routes the head-SQL derivation
+through `PqlNormalizer::normalize_for_datafusion` (same mechanism as the `Ast::Sql` arm).
+
+**Mode-agnostic invariant (RISK-1):** No DataFusion-executed query, in any mode, may emit a
+bare Utf8 timestamp literal against a Timestamp column. The three DataFusion-executed emission
+paths and their `Literal::Timestamp` mechanisms:
+
+| Emission path | Source location (behavioral anchor) | Mechanism |
+|---------------|-------------------------------------|-----------|
+| Pipe / Filter / SqlPipe-tail | `pipe_sql_emitter.rs::literal_to_sql` | Direct `format!("arrow_cast('{}', ...)", ts.iso8601)` (§D3) |
+| SQL mode (`Ast::Sql`) | `materialization.rs::execute_against_session Ast::Sql arm` | `PqlNormalizer::normalize_for_datafusion` → `normalize_literal_dispatch` → `normalize_literal_for_datafusion` (arrow_cast) |
+| SqlPipe head (`Ast::SqlPipe` → `_sqlpipe_head` CTE) | `materialization.rs::execute_against_session Ast::SqlPipe arm` | Same: `PqlNormalizer::normalize_for_datafusion` (v1.6 fix) |
+
+The round-trip path (`PqlNormalizer::normalize`, BC-2.11.018) is NOT a DataFusion-executed path
+and correctly continues to emit the bare re-parseable string.
+
+**Invariant preserved (updated symbol names):**
+- `PqlNormalizer::normalize(ast)` (round-trip, BC-2.11.018) — `Literal::Timestamp(ts)` emits
+  `'2026-07-03T00:00:00Z'` (UNCHANGED — re-parseable by PrismQL grammar)
+- `PqlNormalizer::normalize_for_datafusion(ast)` — `Literal::Timestamp(ts)` emits
+  `arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(Microsecond, Some("UTC"))')` via
+  `normalize_literal_dispatch` → `normalize_literal_for_datafusion` (NEW — BC-2.11.021 satisfied)
+
+Key shipped symbols (behavioral anchors, not line numbers — TD-VSDD-091):
+- `NORMALIZE_FOR_DATAFUSION` — thread-local flag in `ast.rs`
+- `PqlNormalizer::normalize_for_datafusion` — scoped-context entry point in `ast.rs`
+- `normalize_literal_dispatch` — flag-sensitive dispatch function in `ast.rs`
+- `normalize_literal_for_datafusion` — `arrow_cast` emitter for `Literal::Timestamp` in `ast.rs`
+
+**BC-2.11.021 is NOT weakened.** The BC correctly requires no implicit coercion for all query
+modes. The thread-local scoped-context mechanism satisfies this requirement and now covers all
+three DataFusion-executed emission paths.
+
+### E-QUERY-001 / E-QUERY-002 / E-QUERY-041 dispatch boundary (v1.5 correction: numeric/bool arm uses E-QUERY-002)
 
 | Input | Parser output | Validator result |
 |-------|--------------|-----------------|
@@ -451,7 +619,7 @@ is a belt-and-suspenders defensive check.
 | `'2026-06-24 12:00'` (space-sep, no seconds) vs Datetime/Timestamp col | `Literal::RawTemporalLiteral` | E-QUERY-041 |
 | `'2026-06-24'` vs String/Utf8 col | `Literal::RawTemporalLiteral` | COERCE → `Literal::String("2026-06-24")`; compare as string literal (SUCCESS — zero regression from pre-ADR-052 behavior) |
 | `'2026-06-24 12:00:00'` vs String/Utf8 col | `Literal::RawTemporalLiteral` | COERCE → `Literal::String("2026-06-24 12:00:00")`; compare as string literal (SUCCESS) |
-| `'2026-06-24'` vs Integer / Float / Bool col | `Literal::RawTemporalLiteral` | E-QUERY-001 (type mismatch — date-shaped string cannot equal a number or bool) |
+| `'2026-06-24'` vs Integer / Float / Bool col | `Literal::RawTemporalLiteral` | E-QUERY-002 (`QueryTypeMismatch` — date-shaped literal cannot equal a numeric or boolean column) |
 | `'not-a-date'` anywhere | `Literal::Utf8` | No temporal error (other type errors apply) |
 
 **E-QUERY-041 message format (unchanged from v1.2):**
@@ -562,13 +730,21 @@ and unchanged.
    sensor APIs before SQL is ever emitted to DataFusion. The migration is invisible
    to the push-down subsystem.
 
-2. **The emitter change is one line with a verified form.** The `arrow_cast` form
-   in `pipe_sql_emitter.rs` is the only emitter change required. The
-   `Literal::Timestamp` struct carries both `instant` (chrono) and `iso8601`
-   (string) — the emitter uses `iso8601`, pushdown uses `instant`. These paths do
-   not interfere. The explicit `arrow_cast` form is preferred over `TIMESTAMP '...'`
-   because DataFusion 53.1.0 produces `Timestamp(Nanosecond, None)` for the latter,
-   requiring an implicit coercion that `arrow_cast` eliminates entirely.
+2. **Three DataFusion-executed emission paths each require explicit `arrow_cast`, via
+   path-appropriate mechanisms.**
+   The `Literal::Timestamp` struct carries both `instant` (chrono) and `iso8601`
+   (string) — emitters use `iso8601`, pushdown uses `instant`. These paths do not
+   interfere. (a) **Pipe/Filter/SqlPipe-tail path** (`pipe_sql_emitter.rs::literal_to_sql`):
+   direct `format!("arrow_cast('{}', ...)", ts.iso8601)` per §D3. (b) **SQL mode
+   (`Ast::Sql`) and SqlPipe head (`Ast::SqlPipe`) paths**
+   (`materialization.rs::execute_against_session` — both arms): each calls
+   `PqlNormalizer::normalize_for_datafusion`, which installs a thread-local scoped
+   context (`NORMALIZE_FOR_DATAFUSION`) so that `normalize_literal_dispatch` routes
+   `Literal::Timestamp` to `normalize_literal_for_datafusion` (arrow_cast emitter).
+   `PqlNormalizer::normalize_literal` (BC-2.11.018 round-trip, invoked outside the scoped
+   context) remains unchanged. The explicit `arrow_cast` form eliminates DataFusion's implicit
+   `temporal_coercion_nonstrict_timezone`, which is non-deterministic across DataFusion
+   minor versions (RISK-1).
 
 3. **OCSF UTC contract.** The OCSF normalization guarantee — all sensor datetime
    values are normalized to UTC at the adapter boundary — makes `Some("UTC")` the
@@ -682,7 +858,7 @@ compile error.
 **Mitigation**: The implementer MUST run `grep -r 'Literal::' crates/prism-query/src/`
 and audit every match. The mandatory `pipe_sql_emitter.rs` guard arm (Step 5 in §D4)
 is the most critical — `RawTemporalLiteral` reaching the SQL emitter is an internal
-logic error. All other arms must produce E-QUERY-001 (not silently succeed).
+logic error. All other arms must produce E-QUERY-002 (not silently succeed).
 
 **Coercion arm blast-radius note (ratification modification):** The String-column
 coercion arm is contained entirely within `check_temporal_literals` — it is one
@@ -762,8 +938,11 @@ lenient-parse-then-AST-walk mechanism** with the FULL 7-form acceptance set:
 > `RawTemporalLiteral` nodes in comparison position against a String/Utf8 column,
 > the node is rewritten in-place to `Literal::String(s)` and processing continues
 > without error (byte-identical to pre-ADR-052 behavior); (3) for
-> `RawTemporalLiteral` nodes against Integer/Float/Bool columns or in non-comparison
-> positions without a resolvable String context, E-QUERY-001 is raised."
+> `RawTemporalLiteral` nodes against Integer/Float/Bool columns, E-QUERY-002 is
+> raised (`QueryTypeMismatch` — date-shaped literal cannot equal a numeric or boolean
+> column); for `RawTemporalLiteral` nodes in non-comparison positions without a
+> resolvable String context, E-QUERY-002 is raised (`QueryPlanFailed` — unresolvable
+> literal position)."
 
 Do NOT describe E-QUERY-041 as: a parse-time error, a DataFusion cast error, a text-
 scanner result, or a raw-query-string scan. These descriptions applied to the retired
@@ -802,18 +981,20 @@ code modifications; items marked [VERIFY] require review to confirm no change is
 | 6 | `crates/prism-query/src/infusion_udf.rs` | [VERIFY] | After ADR-052 ships, the datetime row in the `output_type` mapping (ADR-051) must be updated to `Timestamp` — no change in ADR-052 story itself |
 | 7 | `crates/prism-spec-engine/src/infusion/udf.rs` | [VERIFY] | `InfusionUdfDescriptor.output_type` is a `String` — no change at spec-engine level |
 | 8 | `specs/infusions/*.infusion.toml` | [VERIFY] | No TOML schema change; `output_type = "datetime"` is the string that ADR-051 will map to the new type after ADR-052 |
-| 9 | `crates/prism-query/src/pipe_sql_emitter.rs:817-818` | [CHANGE] | Update stale comment "Datetime fields is DataType::Utf8" to reflect the new type; add `Literal::RawTemporalLiteral` arm (E-QUERY-001 guard) |
+| 9 | `crates/prism-query/src/pipe_sql_emitter.rs:817-818` | [CHANGE] | Update stale comment "Datetime fields is DataType::Utf8" to reflect the new type; add `Literal::RawTemporalLiteral` arm (E-QUERY-002 guard) |
 | 10 | `.factory/specs/architecture/decisions/ADR-044-*.md` | [DONE] | `superseded_by` frontmatter added; §Status "PARTIALLY SUPERSEDED by ADR-052 v1.1" block added (2026-07-03) |
 | 11 | `.factory/specs/prd-supplements/error-taxonomy.md` | [CHANGE] | Add E-QUERY-041 row; phase = "plan-time AST validator (`check_temporal_literals`)" |
 | 12 | `.factory/specs/behavioral-contracts/BC-2.11.021-*.md` | [CHANGE] | Amend postcondition to Option A mechanism; E-QUERY-041 = `check_temporal_literals` walker, NOT parse-fail/text-scanner/DataFusion-cast-intercept |
 | 13 | `crates/prism-query/src/ast.rs` | [CHANGE] | Add `Literal::RawTemporalLiteral(String)` variant; doc comment per §D4 |
 | 14 | `crates/prism-query/src/sql_parser.rs` (+ `filter_parser.rs` if separate) | [CHANGE] | Modify timestamp literal production: lenient `is_date_like` fallback → `RawTemporalLiteral` instead of parse error |
-| 15 | `crates/prism-query/src/engine.rs` | [CHANGE] | DELETE `extract_table_name_from_query_str`, `extract_column_name_adjacent_to_quoted_value`, `is_bad_literal_in_datetime_column`, parse-fail branch; ADD `check_temporal_literals` AST walker |
+| 15 | `crates/prism-query/src/engine.rs` | [CHANGE] | DELETE `extract_table_name_from_query_str`, `extract_column_name_adjacent_to_quoted_value`, `is_bad_literal_in_datetime_column`, parse-fail branch; ADD early-gate INVOCATION of `materialization.rs::check_temporal_literals` (DEFINITION lives in `materialization.rs` — see row 21) |
 | 16 | `crates/prism-query/src/tests/` | [CHANGE] | Rewrite E-QUERY-041 RG tests from parse-fail path to `check_temporal_literals` path; add Unicode VP-021 regression test (non-ASCII input → no panic → correct E-QUERY-041/001) |
 | 17 | `crates/prism-query/src/` — all `match` on `Literal` | [CHANGE] | TD-VSDD-060 sweep: `grep -r 'Literal::' crates/prism-query/src/` — add `Literal::RawTemporalLiteral` arm to every internal match |
 | 18 | `crates/prism-query/src/tests/` — Utf8 datetime assertions | [CHANGE] | Grep for `DataType::Utf8` assertions on Datetime columns; update to `DataType::Timestamp(Microsecond, UTC)` |
 | 19 | `crates/prism-sensors/` (normalization paths) | [CHANGE] | Add ISO-8601 string → microseconds-since-epoch parsing at OCSF normalization boundary for Datetime fields |
 | 20 | `crates/prism-query/src/` — remaining Utf8 datetime refs | [VERIFY] | `grep -r 'DataType::Utf8' crates/prism-query/src/` to catch any residual hardcoded Utf8 for datetime columns |
+| 21 | `crates/prism-query/src/materialization.rs` | [CHANGE] | ADD `check_temporal_literals` function DEFINITION — plan-time AST walker with three-way dispatch (§D4 Step 3). The early-gate INVOCATION remains in `engine.rs` (row 15). Update `execute_against_session` `Ast::Sql` arm to call `PqlNormalizer::normalize_for_datafusion` (not the round-trip `normalize`) for DataFusion SQL string derivation. Update `execute_against_session` `Ast::SqlPipe` arm (head-SQL derivation for `_sqlpipe_head` CTE) to also call `PqlNormalizer::normalize_for_datafusion` (v1.6 FIX 2 — SqlPipe head coverage). |
+| 22 | `crates/prism-query/src/ast.rs` | [CHANGE] | ADD `NORMALIZE_FOR_DATAFUSION: Cell<bool>` thread-local; ADD `PqlNormalizer::normalize_for_datafusion(ast)` method with save-and-restore drop-guard; ADD `normalize_literal_dispatch` (flag-sensitive literal dispatch: `Literal::Timestamp` → `normalize_literal_for_datafusion` when flag set, else `normalize_literal`); ADD `normalize_literal_for_datafusion` (`arrow_cast` emitter for `Literal::Timestamp`). `PqlNormalizer::normalize_literal` (BC-2.11.018 round-trip) is NOT modified — continues to emit `'{iso8601}'`. |
 
 ---
 
@@ -838,8 +1019,9 @@ zero tests for them):
 |---------|------|-------------|
 | Add `Literal::RawTemporalLiteral(String)` | `ast.rs` | New variant with doc comment per §D4 |
 | Modify timestamp literal parser combinator | `sql_parser.rs` (+ `filter_parser.rs` if separate) | Lenient `is_date_like` fallback; emit `RawTemporalLiteral` instead of parse error for date-only + offset-less |
-| Implement `check_temporal_literals` | `engine.rs` | AST walker with three-way column-type dispatch: `RawTemporalLiteral` + Timestamp/Datetime col → E-QUERY-041; `RawTemporalLiteral` + String/Utf8 col → COERCE in-place to `Literal::String(s)` (SUCCESS, no error); `RawTemporalLiteral` + Integer/Float/Bool col → E-QUERY-001; non-comparison position without String context → E-QUERY-001 |
-| Add `Literal::RawTemporalLiteral` guard arm | `pipe_sql_emitter.rs` | Must never reach emission — E-QUERY-001 internal error guard |
+| Implement `check_temporal_literals` | `materialization.rs` (DEFINITION); early-gate INVOCATION in `engine.rs` | AST walker with three-way column-type dispatch: `RawTemporalLiteral` + Timestamp/Datetime col → E-QUERY-041; `RawTemporalLiteral` + String/Utf8 col → COERCE in-place to `Literal::String(s)` (SUCCESS, no error); `RawTemporalLiteral` + Integer/Float/Bool col → E-QUERY-002 (`QueryTypeMismatch`); non-comparison position without String context → E-QUERY-002 (`QueryPlanFailed`) |
+| Implement `PqlNormalizer::normalize_for_datafusion` and `normalize_literal_dispatch` | `ast.rs` | Thread-local scoped-context DataFusion emission mechanism. ADD `NORMALIZE_FOR_DATAFUSION: Cell<bool>` thread-local; `normalize_for_datafusion(ast)` saves-and-restores flag via drop-guard (re-entrant-safe), sets flag to `true`, calls `normalize(ast)` (unchanged); `normalize_literal_dispatch` routes `Literal::Timestamp` to `normalize_literal_for_datafusion` (arrow_cast emitter) when flag set, else delegates to `normalize_literal` (unchanged, BC-2.11.018). Call sites: `execute_against_session` `Ast::Sql` arm AND `Ast::SqlPipe` head-SQL arm (both in `materialization.rs`). `PqlNormalizer::normalize_literal` is NOT modified. |
+| Add `Literal::RawTemporalLiteral` guard arm | `pipe_sql_emitter.rs` | Must never reach emission — E-QUERY-002 (`QueryPlanFailed`) internal error guard |
 | TD-VSDD-060 sibling-site sweep on `Literal` | `prism-query/src/*.rs` | Add `RawTemporalLiteral` arm to all internal `match` on `Literal` |
 
 ### Red Gate tests that change
@@ -849,7 +1031,7 @@ zero tests for them):
 | "parse `WHERE ts > '2026-06-24'` → parse fails → E-QUERY-041 via text-scanner" | "parse `WHERE ts > '2026-06-24'` → parse succeeds → `check_temporal_literals` → E-QUERY-041" |
 | "parse `WHERE ts > '2026-06-24T12:00:00'` → parse fails → E-QUERY-041" | Same, with `check_temporal_literals` path |
 | VP-021 Unicode panic test (if exists) | "non-ASCII query input → no panic → E-QUERY-041 or E-QUERY-001 (no byte-offset crash)" |
-| (new) | "`RawTemporalLiteral` vs Integer/Float/Bool column → E-QUERY-001 (not E-QUERY-041)" |
+| (new) | "`RawTemporalLiteral` vs Integer/Float/Bool column → E-QUERY-002 `QueryTypeMismatch` (not E-QUERY-041, not E-QUERY-001)" |
 | (new) | "`RawTemporalLiteral` vs String/Utf8 column → COERCE → compare as string literal (SUCCESS — no E-QUERY error emitted; e.g. `WHERE string_col = '2026-06-24'` works)" |
 | (new) | "filter-mode `source \| WHERE ts > '2026-06-24'` → E-QUERY-041 (not misclassified)" |
 | (new) | "dotted column `payload.ts > '2026-06-24'` → E-QUERY-041 (schema resolves correctly)" |
@@ -907,6 +1089,9 @@ implementation story.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.7 | 2026-07-04 | architect | **MED-1: reconcile §D4 Step-5 emitter-guard refs E-QUERY-001→E-QUERY-002 (align to shipped `QueryPlanFailed` + RG-024 + dispatch table).** Four §D4 references corrected from E-QUERY-001 to E-QUERY-002 (`QueryPlanFailed`): (1) §D4 Step-5 body — `pipe_sql_emitter.rs` guard arm return value; (2) RISK-4 narrative — "all other arms must produce E-QUERY-002"; (3) blast-radius row 9 — "E-QUERY-002 guard"; (4) Tasks-to-ADD guard arm row — "E-QUERY-002 (`QueryPlanFailed`) internal error guard". Root cause: §D4 v1.5 FIX A corrected the dispatch table rows and boundary table for Integer/Float/Bool columns and non-comparison positions, but did not propagate the correction to Step-5/RISK-4/blast-row-9/task-table. The `pipe_sql_emitter.rs` guard is a plan-time defensive check (invariant violated if `RawTemporalLiteral` reaches emission) — correctly classified as `QueryPlanFailed` (E-QUERY-002), not `QueryParseFailed` (E-QUERY-001). Source of truth: shipped `PrismError::QueryPlanFailed` (= E-QUERY-002 per error-taxonomy.md v2.12), story RG-024, §D4 dispatch table "Non-comparison position with no resolvable String context → E-QUERY-002 `QueryPlanFailed`". No code change — code is correct. ARCH-INDEX v2.166→v2.167. |
+| 1.6 | 2026-07-04 | architect | **LOCAL adversary cascade spec↔code alignment (FIX 1 / LOW-2 + FIX 2 / HIGH-1 sibling).** (FIX 1 / LOW-2) §D4 SQL-Mode Emission Addendum corrected: v1.5 described a phantom `emit_literal_for_datafusion` free function in `materialization.rs`; the SHIPPED mechanism is a thread-local scoped-context in `ast.rs` — `NORMALIZE_FOR_DATAFUSION: Cell<bool>` set by `PqlNormalizer::normalize_for_datafusion` with save-and-restore drop-guard; `normalize_literal_dispatch` routes `Literal::Timestamp` to `normalize_literal_for_datafusion` (arrow_cast emitter) when flag set; `PqlNormalizer::normalize_literal` (BC-2.11.018 round-trip) unchanged. Rationale for thread-local: avoids threading emission-mode parameter through entire recursive normalizer call tree; save-and-restore makes it re-entrant-safe. Phantom `emit_literal_for_datafusion` symbol removed. Blast-radius row 22 reclassified `[VERIFY/NO-CHANGE]` → `[CHANGE]` (4 new symbols: `NORMALIZE_FOR_DATAFUSION`, `normalize_for_datafusion`, `normalize_literal_dispatch`, `normalize_literal_for_datafusion` all in `ast.rs`). Rationale point 2 updated (2 paths → 3 paths). Tasks-to-ADD table updated. Section header updated. (FIX 2 / HIGH-1 sibling) `execute_against_session` `Ast::SqlPipe` head-SQL derivation used round-trip `normalize` (bare `'{iso8601}'`) — same RISK-1 violation as the `Ast::Sql` arm. Fix: `Ast::SqlPipe` arm also routes through `PqlNormalizer::normalize_for_datafusion`. Mode-agnostic arrow_cast invariant stated: NO DataFusion-executed query, in any mode, may emit a bare Utf8 timestamp literal against a Timestamp column. Three-row emission-path table added to Addendum. Blast-radius row 21 updated (SqlPipe arm added). BC-2.11.021 unchanged (already requires mode-agnostic arrow_cast). Blast radius rows 21-22 updated (count remains 22). ARCH-INDEX v2.165→v2.166. |
+| 1.5 | 2026-07-04 | architect | **LOCAL adversary cascade fix-burst: three §D4 corrections.** (FIX A / MED-1) E-QUERY-001→E-QUERY-002 for `RawTemporalLiteral` against Integer/Float/Bool columns (`QueryTypeMismatch` — has structured `column`/`table`/`actual_type`/`operator` fields) and non-comparison positions without String context (`QueryPlanFailed` — unresolvable literal position). Updated in: Step-3 dispatch table (2 rows), E-QUERY-002/E-QUERY-041 dispatch boundary table (1 row), Recommended BC Amendments §D4 (3) clause, Red Gate tests table (1 row), Tasks-to-ADD table. Error-taxonomy.md v2.12 is the source of truth confirming both arms use E-QUERY-002. (FIX B / LOW-1) `check_temporal_literals` DEFINED in `materialization.rs` (not `engine.rs`); `engine.rs` retains early-gate INVOCATION only. Corrected in: §D4 Step-3 heading, blast-radius row 15, Tasks-to-ADD table. (FIX C / HIGH-1) SQL-mode DataFusion emission path (`materialization.rs::execute_against_session` `Ast::Sql` arm → `PqlNormalizer::normalize_literal`) emits bare `'{iso8601}'` for `Literal::Timestamp`, violating BC-2.11.021 (implicit coercion, RISK-1). Added `### SQL-Mode DataFusion Emission Addendum` to §D4: dedicated `emit_literal_for_datafusion` function in `materialization.rs` wraps Timestamp in `arrow_cast(...)` for the DataFusion path; `PqlNormalizer::normalize_literal` UNCHANGED (BC-2.11.018 round-trip contract preserved). Blast radius expanded from 20 to 22 rows (rows 21–22). Rationale point 2 updated to note both emission paths. BC-2.11.021 NOT weakened. |
 | 1.4 | 2026-07-04 | architect | §D4 `is_date_like` acceptance set expanded (pre-TDD remove-uncertainty): 2 format strings → 7 format strings — adds space-separator forms (`%Y-%m-%d %H:%M:%S`, `%Y-%m-%d %H:%M:%S%.f`, `%Y-%m-%d %H:%M`), T-separator no-seconds form (`%Y-%m-%dT%H:%M`), and T-separator fractional form (`%Y-%m-%dT%H:%M:%S%.f`). Over-match disposition (unpadded digits via `%m`/`%d`, big/signed years via `%Y`) documented as ACCEPTED BENIGN — no regex layer or year-width guard. `### is_date_like Acceptance Set (Canonical)` subsection added with matched/over-matched/rejected tables. E-QUERY-001↔E-QUERY-041 boundary table updated with 5 new example rows (3 new forms vs Datetime col, 1 new form vs String col). RG test table expanded with 4 new tests. BC-2.11.021 amendment text updated to enumerate all 7 accepted forms. D1–D3, D5–D8, all RISK entries, Blast Radius table: unchanged. |
 | 1.1 (ratified) | 2026-07-03 | state-manager | Human ratification recorded 2026-07-03 (D-1520). Status: PROPOSED → ACCEPTED. No decision content changes; v1.1 content ratified as authored. |
 | 1.3 | 2026-07-04 | architect | §D4 ACCEPTED (human-ratified 2026-07-04, Option A + String-column coercion modification): E-QUERY-041 detection replaced from parse-fail text-scanner to lenient-parse-then-AST-walk. New `Literal::RawTemporalLiteral` AST node; `check_temporal_literals` walker uses three-way column-type dispatch — Timestamp col → E-QUERY-041; String/Utf8 col → COERCE to `Literal::String(s)` (SUCCESS, byte-identical no-op, RISK-5 eliminated); Integer/Float/Bool col → E-QUERY-001. Text-scanner functions deleted. RISK-5 reclassified from LOW accepted to RESOLVED BY DESIGN. Blast radius 20 files; no new sibling-site sweep scope from coercion arm (contained in `check_temporal_literals`). Option B evaluated and rejected. |

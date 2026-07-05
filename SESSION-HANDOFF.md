@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.971"
+version: "7.972"
 status: current
 timestamp: 2026-07-01T23:59:00Z
 ---
@@ -38,13 +38,47 @@ timestamp: 2026-07-01T23:59:00Z
 >
 > **D-1367 (2026-06-26): PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED develop@7e60df03 (CI 43/43; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; security CLEAN). POL-14: 8 BCs draft→active. POL-13: story merged. active_contracts 254. draft_contracts 0. develop_head 903c8fcb→7e60df03. non-exhaustive 84→87. BC-INDEX v7.18. STORY-INDEX v2.481. STATE v7.994→v7.995. NEXT: pre-flight demo re-audit → T13 capstone → T14 recording. PENDING HUMAN: CLAUDE.md stale EXPECTED=83/84 → now EXPECTED=87; local develop ba1108d2 still DIVERGED.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1534** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1534 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `122228e8` (S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.137. D-1534 (spec cascade complete; ADR-052 §D4 ACCEPTED v1.4; ARCH-INDEX v2.164; VERY NEXT ACTION = implementer TDD on feature/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1536** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1536 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `122228e8` (S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.138. D-1536 (PR #214 LOCAL cascade checkpoint; ADR-052 v1.7; ARCH-INDEX v2.167; LOCAL 3-CLEAN streak 0/3 on frozen 648e2729; VERY NEXT ACTION = fresh LOCAL adversary passes to 3-CLEAN(strict)).
 
 ---
 
-## §RESUME SNAPSHOT — D-1534 (2026-07-04 — SPEC CASCADE COMPLETE; develop origin/develop 122228e8; BC-INDEX v7.32; STORY-INDEX v2.582; ARCH-INDEX v2.164; STATE v8.137; ADR-052 §D4 ACCEPTED v1.4; VERY NEXT ACTION = implementer TDD re-implementation) [SUPERSEDES D-1531]
+## §RESUME SNAPSHOT — D-1536 (2026-07-04 — PR #214 LOCAL CASCADE CHECKPOINT; develop origin/develop 122228e8; BC-INDEX v7.33; STORY-INDEX v2.583; ARCH-INDEX v2.167; STATE v8.138; ADR-052 v1.7; LOCAL 3-CLEAN streak 0/3 on frozen 648e2729; VERY NEXT ACTION = fresh LOCAL adversary passes) [SUPERSEDES D-1534]
+
+> **D-1535..D-1536 burst (2026-07-04).** PR #214 LOCAL CASCADE CHECKPOINT. Code delivered (Option A — RawTemporalLiteral + three-way dispatch + String-coercion arm) to feature/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 HEAD 648e2729; PR #214 OPEN (base develop@122228e8; 5109 tests pass). All code fix-bursts closed. Specs synchronized: ADR-052 v1.7; BC-2.11.021 v1.5; BC-2.11.003 v1.9; BC-2.11.004 v1.10; error-taxonomy v2.12; story v1.5; ARCH-INDEX v2.167; BC-INDEX v7.33; STORY-INDEX v2.583. Streak RESET 0/3 (spec-only MED-1 ADR §D4 emitter-guard E-QUERY-001→E-QUERY-002 reconciliation). PROCESS LESSON: implementer self-cascade discarded; genuine fresh-context adversary found HIGH-1+MED-1.
+
+### RESUME IN ONE BREATH
+Mid-delivery of story **S-PRISMQL-NATIVE-TEMPORAL-TYPING-001** (PrismQL datetime Arrow Utf8→Timestamp(µs,UTC) migration; ADR-052). Code DELIVERED, PR #214 OPEN (HEAD 648e2729). All code fix-bursts closed. **VERY NEXT ACTION: fresh LOCAL adversary passes to 3-CLEAN(strict)** on frozen feature HEAD 648e2729. On convergence: demo-recorder per-AC → pr-manager 9-step PR-LEVEL cascade + merge (human-authorized per wave5_autonomy_granted).
+
+### PER-WORKSTREAM
+- **S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (ACTIVE, PR #214 OPEN):** Story v1.5, 28 ACs, 34 RGs. Code HEAD 648e2729 (feature/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001; PUSHED to origin; PR #214 OPEN; base develop@122228e8; 5109 tests pass). Spec layer COMPLETE: ADR-052 ACCEPTED v1.7 (§D4 fully synchronized — three-way dispatch; 7-form canonical set; E-QUERY-002 emitter-guard; thread-local NORMALIZE_FOR_DATAFUSION on both Ast::Sql + Ast::SqlPipe paths; mode-agnostic invariant); BC-2.11.021 v1.5 / BC-2.11.003 v1.9 / BC-2.11.004 v1.10; error-taxonomy v2.12; ARCH-INDEX v2.167. LOCAL 3-CLEAN streak: 0/3 on frozen 648e2729 (reset by spec-only MED-1 ADR §D4 emitter-guard fix — code HEAD unchanged). RESUME NEXT-ACTION: dispatch fresh LOCAL adversary passes (3-CLEAN(strict) to convergence on frozen 648e2729).
+- **Demo roadmap (after temporal merges):** typed-enrichment story (ADR-051 A+B+C, datetime→Timestamp; closes OBS-1 doubly-encoded threat_score + escaped DRIFT-PIVOT-UDF-OUTPUT-TYPE-001) → T13 capstone narrative story (product-owner + story-writer) → T14 recording.
+- **PARKED:** S-3.09 (day-2, local-only, backup ref backup/S-3.09-preresume-43c41389@43c41389) + W3-FIX-S307-001 (awaiting human decision).
+
+### HEADS
+- develop: **122228e8** — PUSHED (origin/develop). S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03.
+- factory-artifacts: this wrap commit — PUSHED (run `git -C .factory log -1 --format='%h %s'` for current HEAD).
+- feature/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: **648e2729** — PUSHED to origin, PR #214 OPEN. 5109 tests pass. Worktree `.worktrees/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001` active.
+- .worktrees/S-3.09: **43c41389** [feature/S-3.09] LOCAL-ONLY, DAY-2 PARKED (backup ref backup/S-3.09-preresume-43c41389).
+- .worktrees/W3-FIX-S307-001: **fcab8717** LOCAL-ONLY, PARKED (awaiting human decision).
+- Agents in flight at wrap: NONE.
+
+### PENDING USER-APPROVED / OPEN ITEMS
+1. **Comprehensive T13 pre-flight audit PASSED** — 62/62, DEMO-READY:YES on develop@122228e8 (`.factory/research/demo-comprehensive-preflight-audit-2026-07-03.md`).
+2. **OBS-1 (enrichment doubly-encoded threat_score)** → full A+B+C typed-enrichment fix approved by user; scoped as the ADR-051 story queued AFTER temporal migration.
+3. **DRIFT-EOCSF-GAP-005-023-001** — 19 pre-existing E-OCSF codes missing from error-taxonomy; PO maintenance-sweep follow-up (out of temporal scope).
+4. **scripts/t13-preflight-audit.py** (extended to 62 checks) still UNTRACKED — commit with enrichment/T13 work.
+5. **CLAUDE.md rustls-tls ratification** still pending (human-mandated edit; ADR-050).
+6. **ADR-051 ratification** — PROPOSED; human must ratify before story decomposition (D-1517).
+
+### DECISION DELTA (D-1534 burst forward)
+- **D-1535 (2026-07-04):** PR #214 (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001) CODE DELIVERED + LOCAL CASCADE FIX-BURSTS. Implementer delivered Option A (RawTemporalLiteral + three-way dispatch + String-coercion arm) HEAD 648e2729; PR #214 OPEN (base develop@122228e8). PROCESS LESSON: implementer OVERSTEPPED (self-cascade discarded; CLAUDE.md Standing Rule 3: self-disclosure of risk severity is NOT authoritative); genuine cascade found HIGH-1+MED-1. Fix-bursts: LOW-1/LOW-2/OBS-1/OBS-2 comment hygiene; rename check_temporal_literals_opt_a→check_temporal_literals; HIGH-1 SQL-mode arrow_cast (thread-local NORMALIZE_FOR_DATAFUSION + save-and-restore); MED-1 E-QUERY-002 propagation (ADR-052 v1.5; BCs/taxonomy); HIGH-1 SqlPipe-head arrow_cast sibling (ADR-052 v1.6; mode-agnostic invariant); thread-local async-soundness CLEAN under tokio work-stealing. develop_head UNCHANGED 122228e8.
+- **D-1536 (2026-07-04):** CHECKPOINT BURST — spec-only MED-1 ADR §D4 emitter-guard reconciliation (ADR-052 v1.6→v1.7: 4 §D4 refs E-QUERY-001→E-QUERY-002; code HEAD 648e2729 UNCHANGED). BC-INDEX v7.32→v7.33; STORY-INDEX v2.582→v2.583; ARCH-INDEX v2.164→v2.167; error-taxonomy v2.11→v2.12; story v1.4→v1.5. §RESUME SNAPSHOT D-1536 authored (supersedes D-1534). 3-CLEAN(strict) streak 0/3 on frozen 648e2729. develop_head UNCHANGED 122228e8. STATE v8.137→v8.138.
+
+---
+
+## §RESUME SNAPSHOT — D-1534 (2026-07-04 — SPEC CASCADE COMPLETE; develop origin/develop 122228e8; BC-INDEX v7.32; STORY-INDEX v2.582; ARCH-INDEX v2.164; STATE v8.137; ADR-052 §D4 ACCEPTED v1.4; VERY NEXT ACTION = implementer TDD re-implementation) [SUPERSEDES D-1531] [SUPERSEDED by D-1536]
 
 > **D-1532..D-1534 burst (2026-07-04).** SPEC CASCADE COMPLETE. Human RATIFIED ADR-052 §D4 v1.3 Option A (lenient-parse-then-AST-walk) + String-column coercion arm (RISK-5 eliminated by design). Pre-TDD remove-uncertainty pinned is_date_like to 7 canonical forms. User deep-testing mandate: RG 10→34 (28 ACs). ADR-052 ACCEPTED v1.4; BC-2.11.021 v1.4; BC-2.11.003 v1.8; BC-2.11.004 v1.9; error-taxonomy v2.11; story v1.4.
 
