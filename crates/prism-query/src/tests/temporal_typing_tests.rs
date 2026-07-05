@@ -1637,29 +1637,33 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_unicode_input_no_panic() {
     );
 }
 
-// ── RG-023 (stub x): projection-position RawTemporalLiteral → E-QUERY-002 ────
+// ── RG-023: projection-position RawTemporalLiteral → COERCE to Literal::String ────
 
-/// RG-023 (stub x): `RawTemporalLiteral` in a projection (SELECT) position without a
-/// comparison context MUST return E-QUERY-002 (`QueryPlanFailed`; not E-QUERY-041, not
-/// silent pass-through).
+/// RG-023 (OBS-2): `RawTemporalLiteral` in a projection (SELECT) position without a
+/// comparison context MUST be COERCED to `Literal::String` (ADR-052 §D4 v1.8 OBS-2).
 ///
-/// # Pre-implementation state (Red Gate)
-/// Parse fails (`QueryParseFailed`) for `'2026-06-24'`. Test asserts "NOT QueryParseFailed"
-/// → FAILS. ✓
+/// The query `SELECT '2026-06-24' FROM test_events` succeeds — the date-like literal
+/// is treated as a plain string constant when there is no column type to constrain it.
+///
+/// # Spec change (OBS-2, ratified 2026-07-05)
+/// ADR-052 §D4 v1.4 said: non-comparison position → E-QUERY-002 (QueryPlanFailed).
+/// ADR-052 §D4 v1.8 says: non-comparison position → COERCE to Literal::String.
+/// `check_expr_temporal` coerces the bare `RawTemporalLiteral` in-place.
+///
+/// # Pre-implementation state (Red Gate for OBS-2)
+/// Code returns E-QUERY-002 `QueryPlanFailed` for bare literal in SELECT.
+/// Test asserts `result.is_ok()` → FAILS. ✓
 ///
 /// # Post-implementation state
-/// `is_date_like = true` → `RawTemporalLiteral`. `check_temporal_literals` finds
-/// `RawTemporalLiteral` in SELECT clause (no comparison context, no column to look up) →
-/// returns E-QUERY-002 `QueryPlanFailed` (malformed literal in non-comparison position).
-/// Must NOT silently pass `RawTemporalLiteral` through to the emitter (belt-and-suspenders).
+/// `check_expr_temporal` coerces `RawTemporalLiteral("2026-06-24")` → `Literal::String("2026-06-24")`.
+/// Query continues; DataFusion executes `SELECT '2026-06-24' FROM test_events` normally.
+/// Result: Ok(QueryResult { rows: [] }) — 0 rows (no real sensor in test engine), no error.
 ///
-/// Traces to: ADR-052 §D4 v1.4 Step 3 last row; BC-2.11.021 v1.4 §Postconditions.
+/// Traces to: ADR-052 §D4 v1.8 OBS-2; BC-2.11.021 v1.6 §Postconditions.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_e_query_001() {
     let engine = make_test_engine();
 
-    // Red Gate: parse fails (QueryParseFailed) for '2026-06-24' in SELECT.
-    // Post-implementation: parse succeeds (RawTemporalLiteral in SELECT); check fires → E-QUERY-002.
     let result = engine
         .execute(
             "SELECT '2026-06-24' FROM test_events",
@@ -1667,32 +1671,33 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_e_query_0
         )
         .await;
 
-    // Post-implementation: must NOT be a parse error (Option-A parser emits RawTemporalLiteral).
+    // OBS-2: must NOT be a parse error.
     assert!(
         !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
         "RG-023: '2026-06-24' in SELECT must NOT return QueryParseFailed under Option-A. \
-         Parser should emit RawTemporalLiteral; check_temporal_literals handles it. \
          Got: {result:?}"
     );
 
-    // Must be an error — RawTemporalLiteral in non-comparison position is not valid.
-    assert!(
-        result.is_err(),
-        "RG-023: RawTemporalLiteral in SELECT must return an error (E-QUERY-002). Got Ok."
-    );
-
-    // Must NOT be E-QUERY-041 (that requires a Datetime column comparison context).
+    // OBS-2: must NOT be E-QUERY-041.
     assert!(
         !matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
-        "RG-023: RawTemporalLiteral in projection must return E-QUERY-002, NOT E-QUERY-041. \
+        "RG-023: RawTemporalLiteral in projection must NOT trigger E-QUERY-041. \
          Got: {result:?}"
     );
 
-    // Must be QueryPlanFailed (E-QUERY-002) — plan-time check for uncontextual RawTemporalLiteral.
+    // OBS-2: must NOT be E-QUERY-002 (QueryPlanFailed) — OBS-2 coercion must fire instead.
     assert!(
-        matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
-        "RG-023: RawTemporalLiteral in SELECT projection must return QueryPlanFailed \
-         (E-QUERY-002). Got: {result:?}"
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "RG-023: RawTemporalLiteral in SELECT projection must NOT return QueryPlanFailed \
+         (E-QUERY-002) — OBS-2 requires coerce-to-Literal::String. \
+         Got: {result:?}"
+    );
+
+    // OBS-2: query must SUCCEED — bare literal in SELECT is coerced to a string constant.
+    assert!(
+        result.is_ok(),
+        "RG-023: SELECT '2026-06-24' FROM test_events must succeed (OBS-2 coerce). \
+         Got Err: {result:?}"
     );
 }
 
@@ -2263,5 +2268,116 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_integer_col_date_only
          different PrismError variant. Got: {display}. \
          If check_temporal_literals Ast::SqlPipe arm does not handle the third arm (non-Datetime, \
          non-String) correctly, it may swallow the error or return E-QUERY-041."
+    );
+}
+
+// ── RG-035: GROUP BY position RawTemporalLiteral → COERCE (OBS-2) ─────────────
+
+/// RG-035 (OBS-2): `RawTemporalLiteral` in a GROUP BY position without a comparison
+/// context MUST be COERCED to `Literal::String` — query succeeds.
+///
+/// `SELECT count(*) FROM test_events GROUP BY '2026-06-24'` — date-like literal
+/// in GROUP BY has no column type to constrain it; ADR-052 §D4 v1.8 OBS-2 requires
+/// coerce-to-String, not error.
+///
+/// # Pre-implementation state (Red Gate for OBS-2)
+/// `check_expr_temporal` returns `Err(QueryPlanFailed)` for the bare GROUP BY literal.
+/// Test asserts `result.is_ok()` → FAILS. ✓
+///
+/// # Post-implementation state
+/// `check_expr_temporal` coerces `RawTemporalLiteral("2026-06-24")` → `Literal::String`.
+/// Query continues; result is Ok (0 rows — no real sensor in test engine).
+///
+/// Traces to: ADR-052 §D4 v1.8 OBS-2; BC-2.11.021 v1.6.
+#[tokio::test]
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg035_group_by_position_coerce_success() {
+    let engine = make_test_engine();
+
+    let result = engine
+        .execute(
+            "SELECT count(*) FROM test_events GROUP BY '2026-06-24'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must NOT be E-QUERY-041.
+    assert!(
+        !matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
+        "RG-035: GROUP BY '2026-06-24' must NOT trigger E-QUERY-041. Got: {result:?}"
+    );
+
+    // Must NOT be E-QUERY-002 (OBS-2 coercion must fire).
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "RG-035: GROUP BY '2026-06-24' must NOT return QueryPlanFailed (E-QUERY-002). \
+         OBS-2 coerce must fire. Got: {result:?}"
+    );
+
+    // Must NOT be a parse error.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "RG-035: GROUP BY '2026-06-24' must parse successfully. Got: {result:?}"
+    );
+
+    // Query must SUCCEED — bare literal in GROUP BY is coerced to string constant.
+    assert!(
+        result.is_ok(),
+        "RG-035: SELECT count(*) FROM test_events GROUP BY '2026-06-24' must succeed \
+         (OBS-2 coerce). Got Err: {result:?}"
+    );
+}
+
+// ── RG-036: ORDER BY position RawTemporalLiteral → COERCE (OBS-2) ─────────────
+
+/// RG-036 (OBS-2): `RawTemporalLiteral` in an ORDER BY position without a comparison
+/// context MUST be COERCED to `Literal::String` — query succeeds.
+///
+/// `SELECT * FROM test_events ORDER BY '2026-06-24'` — date-like literal in ORDER BY
+/// has no column type to constrain it; ADR-052 §D4 v1.8 OBS-2 requires coerce-to-String.
+///
+/// # Pre-implementation state (Red Gate for OBS-2)
+/// `check_expr_temporal` returns `Err(QueryPlanFailed)` for the bare ORDER BY literal.
+/// Test asserts `result.is_ok()` → FAILS. ✓
+///
+/// # Post-implementation state
+/// `check_expr_temporal` coerces `RawTemporalLiteral("2026-06-24")` → `Literal::String`.
+/// Query continues; result is Ok (0 rows — no real sensor in test engine).
+///
+/// Traces to: ADR-052 §D4 v1.8 OBS-2; BC-2.11.021 v1.6.
+#[tokio::test]
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg036_order_by_position_coerce_success() {
+    let engine = make_test_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM test_events ORDER BY '2026-06-24'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must NOT be E-QUERY-041.
+    assert!(
+        !matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
+        "RG-036: ORDER BY '2026-06-24' must NOT trigger E-QUERY-041. Got: {result:?}"
+    );
+
+    // Must NOT be E-QUERY-002 (OBS-2 coercion must fire).
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "RG-036: ORDER BY '2026-06-24' must NOT return QueryPlanFailed (E-QUERY-002). \
+         OBS-2 coerce must fire. Got: {result:?}"
+    );
+
+    // Must NOT be a parse error.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "RG-036: ORDER BY '2026-06-24' must parse successfully. Got: {result:?}"
+    );
+
+    // Query must SUCCEED — bare literal in ORDER BY is coerced to string constant.
+    assert!(
+        result.is_ok(),
+        "RG-036: SELECT * FROM test_events ORDER BY '2026-06-24' must succeed \
+         (OBS-2 coerce). Got Err: {result:?}"
     );
 }

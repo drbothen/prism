@@ -636,7 +636,8 @@ pub async fn run_materialization_pipeline(
     //   - vs Datetime column  → Err(TemporalLiteralUnparseable)  [E-QUERY-041]
     //   - vs String column    → COERCE in-place to Literal::String
     //   - vs Integer/Float/Bool column → Err(QueryTypeMismatch)  [E-QUERY-002]
-    // RawTemporalLiteral in projection (SELECT) → Err(QueryPlanFailed) [E-QUERY-002]
+    // RawTemporalLiteral in non-comparison position (SELECT / GROUP BY / ORDER BY)
+    //   → COERCE in-place to Literal::String (ADR-052 §D4 v1.8 OBS-2)
     // skip_projection=false: full walk (this runs after check_table_availability, so
     // the table is confirmed to exist and the projection check is appropriate).
     check_temporal_literals(&mut ast, mat_ctx.table_registry.as_deref(), false)?;
@@ -2255,7 +2256,8 @@ pub(crate) async fn collect_record_batch_stream(
 /// - vs `ColumnType::Datetime`              → `Err(TemporalLiteralUnparseable)` [E-QUERY-041]
 /// - vs `ColumnType::String`                → COERCE in-place to `Literal::String`
 /// - vs `ColumnType::Integer/Float/Boolean` → `Err(QueryTypeMismatch)`           [E-QUERY-002]
-/// - In SELECT projection (no column context)→ `Err(QueryPlanFailed)` [E-QUERY-002]
+/// - In non-comparison position (SELECT / GROUP BY / ORDER BY, no column context) →
+///   COERCE in-place to `Literal::String` (ADR-052 §D4 v1.8 OBS-2)
 ///   (only when `skip_projection = false`; skipped when `true` to let E-QUERY-037 win)
 /// - Unknown/unresolvable column type       → fail-open (skip, DataFusion handles)
 ///
@@ -2265,21 +2267,21 @@ pub(crate) async fn collect_record_batch_stream(
 /// - SELECT items, GROUP BY, and ORDER BY expression checks are **not** run.
 /// - Only WHERE predicates, HAVING predicates, and JOIN ON expressions are checked.
 /// - This preserves the canonical gate ordering (BC-2.11.019): for an unregistered table,
-///   `check_table_availability` (E-QUERY-037) wins over a projection-position E-QUERY-002.
+///   `check_table_availability` (E-QUERY-037) wins over projection-position coercion.
 /// - EC-013 is still enforced: dotted external-source WHERE predicates with Datetime columns
 ///   fire E-QUERY-041 before E-QUERY-037 (the predicate check still runs in this mode).
 ///
 /// When `skip_projection = false` (in-pipeline call after `check_table_availability` passes):
 /// - Full walk — SELECT items, GROUP BY, and ORDER BY are also checked.
-/// - Projection-position `RawTemporalLiteral` returns E-QUERY-002 as expected.
+/// - Bare `RawTemporalLiteral` in non-comparison position is COERCED to `Literal::String`.
 ///
 /// When `registry` is `None`, the column-type dispatch arm fails-open (same as
-/// E-QUERY-037/038 legacy mode). However, bare `RawTemporalLiteral` in projection
-/// position (no comparison context) and `RawTemporalLiteral` in comparisons with a
-/// non-Field LHS still return `Err(QueryPlanFailed)` regardless of registry state
-/// when `skip_projection = false` — those branches do not consult the registry at all.
+/// E-QUERY-037/038 legacy mode). Bare `RawTemporalLiteral` in non-comparison position
+/// is still coerced to `Literal::String` regardless of registry state (OBS-2).
+/// `RawTemporalLiteral` in comparisons with a non-Field LHS still returns
+/// `Err(QueryPlanFailed)` regardless of registry state when `skip_projection = false`.
 ///
-/// Traces to: ADR-052 §D4 v1.4 Steps 3–5; BC-2.11.021 v1.4 §Postconditions;
+/// Traces to: ADR-052 §D4 v1.8 Steps 3–5 OBS-2; BC-2.11.021 v1.6 §Postconditions;
 /// S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 14; FIX-2 (early gate scoping).
 pub(crate) fn check_temporal_literals(
     ast: &mut crate::ast::Ast,
@@ -2792,8 +2794,8 @@ fn check_pred_raw_temporal(
 /// For `Expr::Compare { lhs: Field(fp), rhs: Literal(RawTemporalLiteral) }`:
 /// applies three-way dispatch using `fp` as the column reference.
 ///
-/// For bare `RawTemporalLiteral` without a field-path context:
-/// returns `Err(QueryPlanFailed)` (no schema resolution possible).
+/// For bare `RawTemporalLiteral` without a field-path context (non-comparison position):
+/// COERCE in-place to `Literal::String` (ADR-052 §D4 v1.8 OBS-2).
 ///
 /// HIGH-2 fix (F-LP3-HIGH-2-EXPR-WALKER): walk JOIN ON and SELECT Expr trees.
 fn check_expr_temporal(
@@ -2805,15 +2807,23 @@ fn check_expr_temporal(
     use prism_core::column::ColumnType;
 
     match expr {
-        Expr::Literal(Literal::RawTemporalLiteral(_)) => {
-            // Bare RawTemporalLiteral in expression position without a comparison field context.
-            // Returns E-QUERY-002 (QueryPlanFailed — plan-time check, not parse-time).
-            Err(PrismError::QueryPlanFailed {
-                detail: "RawTemporalLiteral in expression position without column context \
-                         — provide a valid RFC-3339 timestamp (e.g., '2026-07-03T00:00:00Z') \
-                         or use NOW() - INTERVAL 'Nh'."
-                    .to_string(),
-            })
+        Expr::Literal(Literal::RawTemporalLiteral(raw)) => {
+            // Non-comparison position (SELECT projection, GROUP BY, ORDER BY, etc.) — no column
+            // type is available to constrain the literal. COERCE in-place to Literal::String.
+            //
+            // The original string value is preserved byte-for-byte as a plain string constant
+            // (byte-identical to the existing String-column coercion arm in Expr::Compare).
+            //
+            // ADR-052 §D4 v1.8 OBS-2 (ratified 2026-07-05): non-comparison position coerces
+            // instead of erroring. The analyst likely meant a string constant, not a timestamp
+            // comparison. Examples: `SELECT '2026-06-24' FROM t` (bare projection),
+            // `GROUP BY '2026-06-24'`, `ORDER BY '2026-06-24'`.
+            //
+            // NLL: `raw` is last used in `std::mem::take(raw)`; the borrow ends there.
+            // Reassigning `*expr` is safe after that point.
+            let s = std::mem::take(raw);
+            *expr = Expr::Literal(Literal::String(s));
+            Ok(())
         }
         // P3-MED-1 fix: capture `op` to populate QueryTypeMismatch { operator } with the actual
         // operator from the query (previously hardcoded "=" regardless of actual op used).
@@ -4769,12 +4779,18 @@ mod temporal_walker_unit_tests {
 
     #[test]
     fn test_check_expr_temporal_bare_raw_temporal_errors() {
+        // ADR-052 §D4 v1.8 OBS-2: bare RawTemporalLiteral in non-comparison position
+        // COERCES in-place to Literal::String instead of returning QueryPlanFailed.
         let registry = make_registry();
         let mut expr = Expr::Literal(raw_lit("2026-06-24"));
         let result = check_expr_temporal(&mut expr, Some("test_events"), Some(registry.as_ref()));
         assert!(
-            matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
-            "bare RawTemporalLiteral in Expr → QueryPlanFailed, got {result:?}"
+            result.is_ok(),
+            "OBS-2: bare RawTemporalLiteral in non-comparison Expr → coerce + Ok(()), got {result:?}"
+        );
+        assert!(
+            matches!(&expr, Expr::Literal(Literal::String(s)) if s == "2026-06-24"),
+            "OBS-2: coerced expression must be Literal::String('2026-06-24'), got {expr:?}"
         );
     }
 
@@ -4904,19 +4920,31 @@ mod temporal_walker_unit_tests {
 
     #[test]
     fn test_funcall_arg_raw_temporal_fires_plan_failed() {
-        // F-P4-MED-1: RawTemporalLiteral inside a scalar function argument must be caught
-        // by check_expr_temporal's FuncCall arm (not silently ignored via the old _ => Ok(())).
-        // A bare RawTemporalLiteral in arg position fires QueryPlanFailed because there is no
-        // field-path context for three-way dispatch.
+        // F-P4-MED-1 (updated for OBS-2): RawTemporalLiteral inside a scalar function argument
+        // is still caught by check_expr_temporal's FuncCall arm (not silently ignored via
+        // the old `_ => Ok(())`) — the walking behavior is preserved. Under ADR-052 §D4 v1.8
+        // OBS-2, the bare RawTemporalLiteral in arg position is now COERCED to Literal::String
+        // (non-comparison position, no column type context) instead of returning QueryPlanFailed.
+        // The arg is coerced in-place; the function call receives a plain string constant.
         let mut expr = Expr::FuncCall(FuncCall::Scalar {
             func: ScalarFunc::IocMatch,
             args: vec![Expr::Literal(raw_lit("2026-06-24"))],
         });
         let result = check_expr_temporal(&mut expr, Some("test_events"), None);
+        // Walking happens — OBS-2 coerces the arg instead of erroring.
         assert!(
-            matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
-            "F-P4-MED-1: bare RawTemporalLiteral in FuncCall arg must → QueryPlanFailed, got {result:?}"
+            result.is_ok(),
+            "F-P4-MED-1 OBS-2: bare RawTemporalLiteral in FuncCall arg → coerce + Ok(()), got {result:?}"
         );
+        // Verify the arg was coerced to Literal::String.
+        if let Expr::FuncCall(FuncCall::Scalar { args, .. }) = &expr {
+            assert!(
+                matches!(&args[0], Expr::Literal(Literal::String(s)) if s == "2026-06-24"),
+                "F-P4-MED-1 OBS-2: FuncCall arg must be coerced to Literal::String, got {args:?}"
+            );
+        } else {
+            panic!("F-P4-MED-1: outer Expr must remain FuncCall::Scalar, got {expr:?}");
+        }
     }
 
     // ── 3-segment FieldPath resolution (LOW-3 coverage) ────────────────────────
