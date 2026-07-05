@@ -436,6 +436,25 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // Reference: BC-2.11.021 v1.2; ADR-052 D4; error-taxonomy.md E-QUERY-041.
         PrismError::TemporalLiteralUnparseable { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
+        // E-QUERY-042: Temporal literal in structurally invalid position → -32602 INVALID_PARAMS.
+        //
+        // Covers three positions per ADR-052 §D4 v1.10:
+        //   - TemporalLiteralPosition::GroupBy: `GROUP BY '2026-06-24'` — constant has no effect
+        //   - TemporalLiteralPosition::OrderBy: `ORDER BY '2026-06-24'` — constant has no effect
+        //   - TemporalLiteralPosition::NonColumnLhsComparison: non-Field LHS with date-like RHS
+        //
+        // Caller-resolvable: use a column name in GROUP BY/ORDER BY, or use RFC-3339 for
+        // datetime comparisons with bare column references. See Display message for guidance.
+        //
+        // MUST be explicit: `PrismError` is `#[non_exhaustive]`; without this arm the variant
+        // falls through to catch-all `-32000 INTERNAL_ERROR`, making a caller-resolvable
+        // query mistake appear as an internal server error.
+        //
+        // Reference: error-taxonomy.md §E-QUERY-042 v2.14; ADR-052 §D4 v1.10.
+        PrismError::TemporalLiteralInvalidPosition { .. } => {
+            (codes::INVALID_PARAMS, format!("{err}"))
+        }
+
         // E-INT-001: Internal invariant violated → -32000 Internal
         // Detail is suppressed — audit log has it.
         PrismError::Internal { .. } => (
@@ -1271,6 +1290,34 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
                 "Date-only and offset-less forms are rejected. ",
                 "For relative time filters, use NOW() - INTERVAL 'Nh'.",
             ).to_owned()),
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
+        // E-QUERY-042: temporal literal in structurally invalid position (ADR-052 §D4 v1.10).
+        //
+        // category: "validation" — the malpositioned literal IS the caller-resolvable bad input.
+        // original_params_valid: false — the temporal literal in GROUP BY/ORDER BY/non-column-LHS
+        //   is the invalid parameter; the caller must correct the query structure.
+        // ec_code_override: None — Display starts with "E-QUERY-042:" so the inference path
+        //   (`message.starts_with("E-")` → split ':' → take first part) derives "E-QUERY-042".
+        //
+        // Reference: error-taxonomy.md §E-QUERY-042 v2.14; ADR-052 §D4 v1.10.
+        PrismError::TemporalLiteralInvalidPosition { .. } => VariantMeta {
+            category: "validation",
+            suggestion: "Use a column name in GROUP BY/ORDER BY, or RFC-3339 for datetime column comparisons.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
             ec_code_override: None,
             near_text: None,
             reference_pointer: None,
@@ -3571,6 +3618,139 @@ mod tests {
                 || suggestion.contains("2026"),
             "HIGH-1: suggestion must contain RFC-3339 format guidance for the analyst. \
              Got: '{suggestion}'"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // E-QUERY-042 — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 MCP mapping tests
+    // -----------------------------------------------------------------------
+
+    /// E-QUERY-042 flat path test: `map_prism_error(PrismError::TemporalLiteralInvalidPosition)`
+    /// MUST return `-32602 INVALID_PARAMS` for ALL three position variants (GroupBy, OrderBy,
+    /// NonColumnLhsComparison) — MUST NOT fall through to catch-all `-32000 INTERNAL_ERROR`.
+    ///
+    /// Without an explicit arm in `map_prism_error`, the `#[non_exhaustive]` PrismError
+    /// catch-all would map E-QUERY-042 to `-32000 INTERNAL_ERROR`, making an analyst-resolvable
+    /// error appear to be an internal server error.
+    ///
+    /// Sibling of `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_map_prism_error_invalid_params`
+    /// (same pattern for E-QUERY-041).
+    ///
+    /// Traces to: error-taxonomy.md §E-QUERY-042 v2.14 `map_prism_error` constraint;
+    ///            ADR-052 §D4 v1.10; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001.
+    #[test]
+    fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_042_map_prism_error_all_positions_invalid_params(
+    ) {
+        use prism_core::error::TemporalLiteralPosition;
+
+        let positions = [
+            (TemporalLiteralPosition::GroupBy, "GroupBy"),
+            (TemporalLiteralPosition::OrderBy, "OrderBy"),
+            (
+                TemporalLiteralPosition::NonColumnLhsComparison,
+                "NonColumnLhsComparison",
+            ),
+        ];
+
+        for (position, pos_name) in positions {
+            let err = PrismError::TemporalLiteralInvalidPosition {
+                position,
+                value_prefix: "2026-06-24".to_string(),
+            };
+
+            let (code, message) = map_prism_error(err);
+
+            // Primary: must map to INVALID_PARAMS (-32602).
+            assert_eq!(
+                code,
+                codes::INVALID_PARAMS,
+                "E-QUERY-042 ({pos_name}): PrismError::TemporalLiteralInvalidPosition must map \
+                 to codes::INVALID_PARAMS (-32602), not the catch-all INTERNAL_ERROR (-32000). \
+                 Got code: {code}."
+            );
+
+            // Negative: must NOT be INTERNAL_ERROR (-32000).
+            assert_ne!(
+                code,
+                codes::INTERNAL_ERROR,
+                "E-QUERY-042 ({pos_name}): TemporalLiteralInvalidPosition must NOT fall through \
+                 to catch-all INTERNAL_ERROR. This is caller-resolvable — returning -32000 \
+                 misleads the MCP caller. Got code: {code}."
+            );
+
+            // The message must mention E-QUERY-042 (from the PrismError Display impl).
+            assert!(
+                message.contains("E-QUERY-042"),
+                "E-QUERY-042 ({pos_name}): map_prism_error message must include 'E-QUERY-042' \
+                 from the TemporalLiteralInvalidPosition Display. Got: {message:?}"
+            );
+        }
+    }
+
+    /// E-QUERY-042 structured path test: `prism_error_to_structured_call_result` must
+    /// produce `category == "validation"`, `original_params_valid == false`, and
+    /// `code == "E-QUERY-042"` for all three position variants.
+    ///
+    /// Without a dedicated `VariantMeta` arm, `TemporalLiteralInvalidPosition` would fall
+    /// to the catch-all with `category: "upstream_error"` and `original_params_valid: true`
+    /// — semantically wrong for a caller-resolvable plan-time validation error.
+    ///
+    /// Sibling of `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_structured_path_validation_category`
+    /// (same pattern for E-QUERY-041).
+    ///
+    /// Traces to: error-taxonomy.md §E-QUERY-042 v2.14; ADR-052 §D4 v1.10;
+    ///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001.
+    #[test]
+    fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_042_structured_path_validation_category() {
+        use prism_core::error::TemporalLiteralPosition;
+
+        // Test with GroupBy as representative position (all positions use same VariantMeta).
+        let err = PrismError::TemporalLiteralInvalidPosition {
+            position: TemporalLiteralPosition::GroupBy,
+            value_prefix: "2026-06-24".to_string(),
+        };
+
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        // category must be "validation" (not "upstream_error" catch-all).
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "validation",
+            "E-QUERY-042: TemporalLiteralInvalidPosition structured path must have \
+             category 'validation', not 'upstream_error' catch-all. \
+             E-QUERY-042 is caller-resolvable. Got: '{category}'"
+        );
+
+        // original_params_valid must be false — the malpositioned literal IS the bad param.
+        let opv = error_obj
+            .get("original_params_valid")
+            .and_then(|v| v.as_bool())
+            .expect("original_params_valid must be a bool");
+        assert!(
+            !opv,
+            "E-QUERY-042: TemporalLiteralInvalidPosition must have original_params_valid: false. \
+             Got: true (catch-all default)"
+        );
+
+        // code must be "E-QUERY-042".
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("code must be a string");
+        assert_eq!(
+            code, "E-QUERY-042",
+            "E-QUERY-042: TemporalLiteralInvalidPosition structured path must have \
+             code 'E-QUERY-042'. Got: '{code}'"
         );
     }
 }

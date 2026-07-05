@@ -335,6 +335,68 @@ impl std::fmt::Display for UnknownSourceTableDetails {
     }
 }
 
+// ---------------------------------------------------------------------------
+// E-QUERY-042 support type: TemporalLiteralPosition
+// ---------------------------------------------------------------------------
+
+/// The clause/position where an invalid `RawTemporalLiteral` was found.
+///
+/// Used by `PrismError::TemporalLiteralInvalidPosition` (E-QUERY-042) to select the
+/// correct analyst-facing error message for each structural position.
+///
+/// `#[non_exhaustive]`: new positions may be added in future ADR-052 revisions.
+/// External match arms MUST include a wildcard `_ => {}` arm per CLAUDE.md §Conventions.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TemporalLiteralPosition {
+    /// Temporal literal found as a GROUP BY key.
+    ///
+    /// e.g. `GROUP BY '2026-06-24'` — grouping by a constant is a degenerate no-op.
+    GroupBy,
+    /// Temporal literal found as an ORDER BY key.
+    ///
+    /// e.g. `ORDER BY '2026-06-24'` — ordering by a constant is a degenerate no-op.
+    OrderBy,
+    /// Temporal literal found in a comparison where the LHS is a function call or
+    /// compound expression (not a bare `Field` node).
+    ///
+    /// e.g. `WHERE lower(hostname) = '2026-06-24'` — LHS type cannot be resolved at
+    /// plan time; silent coercion would reintroduce RISK-1 for datetime-valued exprs.
+    NonColumnLhsComparison,
+}
+
+impl TemporalLiteralPosition {
+    /// Format the E-QUERY-042 error message for this position variant.
+    ///
+    /// `value_prefix` is the first ≤50 UTF-8 codepoints of the offending literal
+    /// (used in GroupBy and OrderBy messages; not interpolated in NonColumnLhsComparison).
+    ///
+    /// Called by the `PrismError::TemporalLiteralInvalidPosition` thiserror Display impl.
+    /// POL-24: messages MUST match error-taxonomy.md §E-QUERY-042 v2.14 byte-for-byte.
+    pub fn as_display_string(&self, value_prefix: &str) -> String {
+        match self {
+            Self::GroupBy => format!(
+                "E-QUERY-042: GROUP BY expects a column reference, not a literal constant. \
+                 '{value_prefix}' is a date-shaped literal \u{2014} grouping by a constant has \
+                 no effect and is almost certainly a query mistake. Did you mean to reference a \
+                 column name, or to add a WHERE filter before grouping?"
+            ),
+            Self::OrderBy => format!(
+                "E-QUERY-042: ORDER BY expects a column reference, not a literal constant. \
+                 '{value_prefix}' is a date-shaped literal \u{2014} ordering by a constant has \
+                 no effect. Did you mean to reference a column name that contains this value?"
+            ),
+            Self::NonColumnLhsComparison => {
+                "E-QUERY-042: A date-like literal compared against a computed expression cannot be \
+                 type-checked at plan time. Compare against a bare datetime column using RFC-3339 \
+                 (e.g., '2026-07-03T00:00:00Z'), against a string column using a non-date-shaped \
+                 value, or wrap the expression in an explicit CAST."
+                    .to_string()
+            }
+        }
+    }
+}
+
 /// Canonical error type for the Prism platform.
 ///
 /// Covers all 90+ error codes across every subsystem category. Group variants
@@ -1470,6 +1532,43 @@ pub enum PrismError {
         ///
         /// Truncated at UTF-8 codepoint boundary per error-taxonomy.md §E-QUERY-041
         /// `value_prefix` field convention (AD-017 / E-INFUSE-014 truncation convention).
+        value_prefix: String,
+    },
+
+    // -------------------------------------------------------------------------
+    // E-QUERY-042 — Temporal literal invalid position (ADR-052 §D4 v1.10)
+    // -------------------------------------------------------------------------
+    /// E-QUERY-042: Date-like literal in a structurally invalid position or with
+    /// an unresolvable LHS expression type.
+    ///
+    /// Three position variants (GroupBy, OrderBy, NonColumnLhsComparison) with
+    /// distinct analyst-facing messages (POL-24 byte-for-byte match required).
+    ///
+    /// **GroupBy**: `GROUP BY '2026-06-24'` — grouping by a bare literal constant is a
+    /// degenerate no-op (every row maps to the same group), almost always an analyst mistake.
+    ///
+    /// **OrderBy**: `ORDER BY '2026-06-24'` — ordering by a bare literal constant is a
+    /// degenerate no-op, almost always an analyst mistake.
+    ///
+    /// **NonColumnLhsComparison**: `WHERE lower(hostname) = '2026-06-24'` — the LHS is a
+    /// function or compound expression; the walker cannot resolve the LHS type at plan time.
+    /// Silently coercing to `Literal::String` would reintroduce RISK-1 for datetime-valued
+    /// expressions. Prior behavior: `QueryPlanFailed → -32000 INTERNAL_ERROR` (analyst-hostile).
+    ///
+    /// Maps to MCP code -32602 (INVALID_PARAMS) for all three variants — caller-resolvable.
+    ///
+    /// Reference: ADR-052 §D4 v1.10; error-taxonomy.md §E-QUERY-042 v2.14;
+    ///            BC-2.11.021 v1.7; BC-2.11.003 v1.11; BC-2.11.004 v1.12;
+    ///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001.
+    #[error("{}", position.as_display_string(value_prefix))]
+    TemporalLiteralInvalidPosition {
+        /// The clause/position where the literal was found.
+        position: TemporalLiteralPosition,
+        /// First ≤50 UTF-8 codepoints of the offending literal string.
+        ///
+        /// Truncated at UTF-8 codepoint boundary per error-taxonomy.md §E-QUERY-042
+        /// `value_prefix` field convention (AD-017 / E-INFUSE-014 truncation convention).
+        /// Used in GroupBy and OrderBy messages; not interpolated in NonColumnLhsComparison.
         value_prefix: String,
     },
 

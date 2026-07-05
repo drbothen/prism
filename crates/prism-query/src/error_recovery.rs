@@ -255,6 +255,139 @@ fn detect_sql_keyword_in_pipe_stage(input: &str) -> Option<&'static str> {
     None
 }
 
+// ---------------------------------------------------------------------------
+// Temporal-literal-in-pipe-key-position rewrite (ADR-052 §D4 v1.10 option (a))
+// ---------------------------------------------------------------------------
+
+/// Rewrite pipe-mode parse errors that occur when a quoted string literal appears
+/// in `sort` or `stats by` key position.
+///
+/// Chumsky produces a generic `"found ''' expected something else"` error when a
+/// quoted literal is used in position where a field name (FieldPath) is required.
+/// This is not actionable — analysts need to know they must use a column name.
+///
+/// **Patterns detected (case-insensitive, after a `|` separator):**
+///
+/// - `| sort '<literal>'` → sort key must be a field name
+/// - `| stats … by '<literal>'` → stats-by key must be a field name
+///
+/// **Messages produced (always contain both "field name" and "literal value"
+/// so callers can assert on either substring):**
+///
+/// ```text
+/// E-QUERY-001: 'sort' expects a field name, not a literal value '<...>'.
+/// Use a column name (e.g., `| sort timestamp DESC`) instead of a quoted string.
+///
+/// E-QUERY-001: 'stats by' expects a field name, not a literal value '<...>'.
+/// Use a column name (e.g., `| stats count by hostname`) instead of a quoted string.
+/// ```
+///
+/// Only fires in the error path — no false-positive risk for valid queries.
+///
+/// Story: S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 pipe-parse enhancement (ADR-052 §D4 v1.10).
+pub fn rewrite_temporal_literal_in_pipe_key_position(
+    input: &str,
+    errors: Vec<ParseError>,
+) -> Vec<ParseError> {
+    if errors.is_empty() {
+        return errors;
+    }
+    if let Some(msg) = detect_literal_in_pipe_key_position(input) {
+        // Collapse all accumulated errors into one analyst-readable message.
+        vec![ParseError::new(0, msg)]
+    } else {
+        errors
+    }
+}
+
+/// Returns `Some(message)` if `input` contains `| sort '<...'` or `by '<...'`
+/// (with optional whitespace), `None` otherwise.
+fn detect_literal_in_pipe_key_position(input: &str) -> Option<String> {
+    // Work on the ASCII-lowercased bytes for case-insensitive matching.
+    // (Query size is bounded by `check_query_length`; allocation is O(N).)
+    let lc = input.to_ascii_lowercase();
+    let bytes = lc.as_bytes();
+    let len = bytes.len();
+
+    let mut i = 0;
+    while i < len {
+        if bytes[i] == b'|' {
+            // Skip whitespace after `|`.
+            let mut j = i + 1;
+            while j < len && bytes[j].is_ascii_whitespace() {
+                j += 1;
+            }
+
+            // Pattern: `| sort '<literal>'`
+            // `sort` (4 bytes) must be a whole word (followed by whitespace).
+            if j + 4 <= len && &bytes[j..j + 4] == b"sort" {
+                let after_sort = j + 4;
+                if after_sort >= len || bytes[after_sort].is_ascii_whitespace() {
+                    let mut k = after_sort;
+                    while k < len && bytes[k].is_ascii_whitespace() {
+                        k += 1;
+                    }
+                    if k < len && bytes[k] == b'\'' {
+                        // Extract the literal value for a more helpful message.
+                        let lit = extract_quoted_literal(input, k).unwrap_or("...");
+                        return Some(format!(
+                            "E-QUERY-001: 'sort' expects a field name, not a literal value \
+                             '{lit}'.\n\
+                             Use a column name (e.g., `| sort timestamp DESC`) \
+                             instead of a quoted string literal."
+                        ));
+                    }
+                }
+            }
+
+            // Pattern: `| stats … by '<literal>'` — scan the rest of this stage for `by '`.
+            // Note: we don't validate that `stats` precedes `by` — any `by '` in a pipe
+            // stage is an analyst mistake.  False positives in `stats by` position are
+            // acceptable since the message is strictly better than the generic chumsky error.
+            let mut k = j;
+            while k < len && bytes[k] != b'|' {
+                // Look for word-boundary `by ` followed by `'`.
+                if k + 2 <= len
+                    && &bytes[k..k + 2] == b"by"
+                    // Must be a whole word (preceded by whitespace or start-of-stage).
+                    && (k == 0 || bytes[k - 1].is_ascii_whitespace())
+                {
+                    let after_by = k + 2;
+                    if after_by < len && bytes[after_by].is_ascii_whitespace() {
+                        let mut m = after_by;
+                        while m < len && bytes[m].is_ascii_whitespace() {
+                            m += 1;
+                        }
+                        if m < len && bytes[m] == b'\'' {
+                            let lit = extract_quoted_literal(input, m).unwrap_or("...");
+                            return Some(format!(
+                                "E-QUERY-001: 'stats by' expects a field name, not a literal \
+                                 value '{lit}'.\n\
+                                 Use a column name (e.g., `| stats count by hostname`) \
+                                 instead of a quoted string literal."
+                            ));
+                        }
+                    }
+                }
+                k += 1;
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Extract the contents of a single-quoted string starting at byte offset `start`
+/// in `input` (which points at the opening `'`).
+///
+/// Returns up to 50 chars (codepoint-safe) or `None` if the literal is malformed
+/// (no closing quote found).
+fn extract_quoted_literal(input: &str, start: usize) -> Option<&str> {
+    let rest = input.get(start + 1..)?; // skip the opening quote
+    let end = rest.find('\'')?;
+    Some(&rest[..end])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

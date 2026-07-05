@@ -2273,24 +2273,28 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_integer_col_date_only
 
 // ── RG-035: GROUP BY position RawTemporalLiteral → COERCE (OBS-2) ─────────────
 
-/// RG-035 (OBS-2): `RawTemporalLiteral` in a GROUP BY position without a comparison
-/// context MUST be COERCED to `Literal::String` — query succeeds.
+/// RG-035 (ADR-052 §D4 v1.10): `RawTemporalLiteral` in a GROUP BY position MUST be
+/// REJECTED with E-QUERY-042 (GroupBy position).
 ///
-/// `SELECT count(*) FROM test_events GROUP BY '2026-06-24'` — date-like literal
-/// in GROUP BY has no column type to constrain it; ADR-052 §D4 v1.8 OBS-2 requires
-/// coerce-to-String, not error.
+/// `SELECT count(*) FROM test_events GROUP BY '2026-06-24'` — grouping by a bare literal
+/// constant is a degenerate no-op (all rows map to the same group) and is almost always
+/// an analyst mistake. ADR-052 §D4 v1.10 tightens OBS-2: GROUP BY and ORDER BY positions
+/// now REJECT rather than coerce (SELECT projection continues to coerce — see RG-023).
 ///
-/// # Pre-implementation state (Red Gate for OBS-2)
-/// `check_expr_temporal` returns `Err(QueryPlanFailed)` for the bare GROUP BY literal.
-/// Test asserts `result.is_ok()` → FAILS. ✓
+/// # Pre-implementation state (Red Gate — GROUP BY rejects)
+/// `check_expr_temporal_pos(..., TemporalCheckPos::GroupBy)` is NOT YET wired.
+/// The current code coerces (OBS-2 behavior); the test FAILS because it asserts Err. ✓
 ///
 /// # Post-implementation state
-/// `check_expr_temporal` coerces `RawTemporalLiteral("2026-06-24")` → `Literal::String`.
-/// Query continues; result is Ok (0 rows — no real sensor in test engine).
+/// `check_expr_temporal_pos(..., GroupBy)` returns
+/// `Err(PrismError::TemporalLiteralInvalidPosition { position: GroupBy, value_prefix: "2026-06-24" })`.
 ///
-/// Traces to: ADR-052 §D4 v1.8 OBS-2; BC-2.11.021 v1.6.
+/// Traces to: ADR-052 §D4 v1.10 arm (6); BC-2.11.021 v1.7 §Error Cases; error-taxonomy.md
+///            §E-QUERY-042 v2.14; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 F-MED-1.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg035_group_by_position_coerce_success() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg035_group_by_position_rejects_e_query_042() {
+    use prism_core::error::TemporalLiteralPosition;
+
     let engine = make_test_engine();
 
     let result = engine
@@ -2300,52 +2304,65 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg035_group_by_position_coerc
         )
         .await;
 
-    // Must NOT be E-QUERY-041.
+    // Primary: must be E-QUERY-042 TemporalLiteralInvalidPosition with GroupBy.
+    assert!(
+        matches!(
+            &result,
+            Err(PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::GroupBy,
+                ..
+            })
+        ),
+        "RG-035: GROUP BY '2026-06-24' must return E-QUERY-042 (GroupBy position). \
+         ADR-052 §D4 v1.10 arm (6). Got: {result:?}"
+    );
+
+    // value_prefix must be the first ≤50 chars of the literal.
+    if let Err(PrismError::TemporalLiteralInvalidPosition { value_prefix, .. }) = &result {
+        assert_eq!(
+            value_prefix, "2026-06-24",
+            "RG-035: value_prefix must be '2026-06-24'. Got: {value_prefix:?}"
+        );
+    }
+
+    // Must NOT be E-QUERY-041 (wrong code — GROUP BY position, not datetime-col comparison).
     assert!(
         !matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
-        "RG-035: GROUP BY '2026-06-24' must NOT trigger E-QUERY-041. Got: {result:?}"
+        "RG-035: GROUP BY position must NOT trigger E-QUERY-041 (that's for datetime-col \
+         comparisons). Got: {result:?}"
     );
 
-    // Must NOT be E-QUERY-002 (OBS-2 coercion must fire).
+    // Must NOT succeed — OBS-2 coerce NO LONGER applies to GROUP BY (ADR-052 §D4 v1.10).
     assert!(
-        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
-        "RG-035: GROUP BY '2026-06-24' must NOT return QueryPlanFailed (E-QUERY-002). \
-         OBS-2 coerce must fire. Got: {result:?}"
-    );
-
-    // Must NOT be a parse error.
-    assert!(
-        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
-        "RG-035: GROUP BY '2026-06-24' must parse successfully. Got: {result:?}"
-    );
-
-    // Query must SUCCEED — bare literal in GROUP BY is coerced to string constant.
-    assert!(
-        result.is_ok(),
-        "RG-035: SELECT count(*) FROM test_events GROUP BY '2026-06-24' must succeed \
-         (OBS-2 coerce). Got Err: {result:?}"
+        result.is_err(),
+        "RG-035: GROUP BY '2026-06-24' must FAIL (E-QUERY-042). OBS-2 coerce is \
+         retired for GROUP BY/ORDER BY in ADR-052 §D4 v1.10. Got Ok: {result:?}"
     );
 }
 
-// ── RG-036: ORDER BY position RawTemporalLiteral → COERCE (OBS-2) ─────────────
+// ── RG-036: ORDER BY position RawTemporalLiteral → E-QUERY-042 (ADR-052 §D4 v1.10) ─────
 
-/// RG-036 (OBS-2): `RawTemporalLiteral` in an ORDER BY position without a comparison
-/// context MUST be COERCED to `Literal::String` — query succeeds.
+/// RG-036 (ADR-052 §D4 v1.10): `RawTemporalLiteral` in an ORDER BY position MUST be
+/// REJECTED with E-QUERY-042 (OrderBy position).
 ///
-/// `SELECT * FROM test_events ORDER BY '2026-06-24'` — date-like literal in ORDER BY
-/// has no column type to constrain it; ADR-052 §D4 v1.8 OBS-2 requires coerce-to-String.
+/// `SELECT * FROM test_events ORDER BY '2026-06-24'` — ordering by a bare literal constant
+/// is a degenerate no-op (sort order on a constant is undefined) and is almost always an
+/// analyst mistake. ADR-052 §D4 v1.10 tightens OBS-2 for ORDER BY positions.
 ///
-/// # Pre-implementation state (Red Gate for OBS-2)
-/// `check_expr_temporal` returns `Err(QueryPlanFailed)` for the bare ORDER BY literal.
-/// Test asserts `result.is_ok()` → FAILS. ✓
+/// # Pre-implementation state (Red Gate — ORDER BY rejects)
+/// `check_expr_temporal_pos(..., TemporalCheckPos::OrderBy)` is NOT YET wired.
+/// The current code coerces; the test FAILS because it asserts Err. ✓
 ///
 /// # Post-implementation state
-/// `check_expr_temporal` coerces `RawTemporalLiteral("2026-06-24")` → `Literal::String`.
-/// Query continues; result is Ok (0 rows — no real sensor in test engine).
+/// `check_expr_temporal_pos(..., OrderBy)` returns
+/// `Err(PrismError::TemporalLiteralInvalidPosition { position: OrderBy, value_prefix: "2026-06-24" })`.
 ///
-/// Traces to: ADR-052 §D4 v1.8 OBS-2; BC-2.11.021 v1.6.
+/// Traces to: ADR-052 §D4 v1.10 arm (7); BC-2.11.021 v1.7 §Error Cases; error-taxonomy.md
+///            §E-QUERY-042 v2.14; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 F-MED-1.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg036_order_by_position_coerce_success() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg036_order_by_position_rejects_e_query_042() {
+    use prism_core::error::TemporalLiteralPosition;
+
     let engine = make_test_engine();
 
     let result = engine
@@ -2355,30 +2372,39 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg036_order_by_position_coerc
         )
         .await;
 
-    // Must NOT be E-QUERY-041.
+    // Primary: must be E-QUERY-042 TemporalLiteralInvalidPosition with OrderBy.
+    assert!(
+        matches!(
+            &result,
+            Err(PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::OrderBy,
+                ..
+            })
+        ),
+        "RG-036: ORDER BY '2026-06-24' must return E-QUERY-042 (OrderBy position). \
+         ADR-052 §D4 v1.10 arm (7). Got: {result:?}"
+    );
+
+    // value_prefix must be the first ≤50 chars of the literal.
+    if let Err(PrismError::TemporalLiteralInvalidPosition { value_prefix, .. }) = &result {
+        assert_eq!(
+            value_prefix, "2026-06-24",
+            "RG-036: value_prefix must be '2026-06-24'. Got: {value_prefix:?}"
+        );
+    }
+
+    // Must NOT be E-QUERY-041 (wrong code — ORDER BY position, not datetime-col comparison).
     assert!(
         !matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
-        "RG-036: ORDER BY '2026-06-24' must NOT trigger E-QUERY-041. Got: {result:?}"
+        "RG-036: ORDER BY position must NOT trigger E-QUERY-041 (that's for datetime-col \
+         comparisons). Got: {result:?}"
     );
 
-    // Must NOT be E-QUERY-002 (OBS-2 coercion must fire).
+    // Must NOT succeed — OBS-2 coerce NO LONGER applies to ORDER BY (ADR-052 §D4 v1.10).
     assert!(
-        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
-        "RG-036: ORDER BY '2026-06-24' must NOT return QueryPlanFailed (E-QUERY-002). \
-         OBS-2 coerce must fire. Got: {result:?}"
-    );
-
-    // Must NOT be a parse error.
-    assert!(
-        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
-        "RG-036: ORDER BY '2026-06-24' must parse successfully. Got: {result:?}"
-    );
-
-    // Query must SUCCEED — bare literal in ORDER BY is coerced to string constant.
-    assert!(
-        result.is_ok(),
-        "RG-036: SELECT * FROM test_events ORDER BY '2026-06-24' must succeed \
-         (OBS-2 coerce). Got Err: {result:?}"
+        result.is_err(),
+        "RG-036: ORDER BY '2026-06-24' must FAIL (E-QUERY-042). OBS-2 coerce is \
+         retired for GROUP BY/ORDER BY in ADR-052 §D4 v1.10. Got Ok: {result:?}"
     );
 }
 
@@ -2449,5 +2475,207 @@ fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_low2_dml_set_unknown_col_coerces_to
         );
     } else {
         panic!("LOW-2: expected Ast::Sql(SqlStatement::Dml) after check_temporal_literals");
+    }
+}
+
+// ── E-QUERY-042 tests: NonColumnLhsComparison ─────────────────────────────────
+
+/// E-QUERY-042 (NonColumnLhsComparison): `WHERE lower(hostname) = '2026-06-24'` must
+/// return E-QUERY-042 (NonColumnLhsComparison), NOT QueryPlanFailed / -32000.
+///
+/// Prior behavior (before ADR-052 §D4 v1.10): the non-Field LHS arm of
+/// `check_expr_temporal` returned `Err(PrismError::QueryPlanFailed { ... })` —
+/// an analyst-hostile INTERNAL_ERROR. This test verifies the migration to the
+/// analyst-readable `-32602 INVALID_PARAMS` E-QUERY-042 error.
+///
+/// `lower(hostname)` is a `FuncCall::Scalar` expression — the walker cannot resolve
+/// the LHS type at plan time. Silently coercing `'2026-06-24'` to `Literal::String`
+/// would reintroduce RISK-1 for datetime-valued expressions like `to_timestamp(col)`.
+///
+/// # Pre-implementation state (Red Gate)
+/// `check_expr_temporal`'s non-Field LHS arm returns `QueryPlanFailed`.
+/// Test asserts `TemporalLiteralInvalidPosition(NonColumnLhsComparison)` → FAILS. ✓
+///
+/// # Post-implementation state
+/// Non-Field LHS arm returns `Err(PrismError::TemporalLiteralInvalidPosition {
+///     position: NonColumnLhsComparison, value_prefix: "2026-06-24" })`.
+///
+/// Traces to: ADR-052 §D4 v1.10 arm (4); error-taxonomy.md §E-QUERY-042 v2.14;
+///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 F-LOW-1.
+///
+/// # Implementation note — why direct AST test, not engine.execute()
+///
+/// The Prism SQL grammar only allows `FieldPath` as comparison LHS in WHERE predicates
+/// (see `sql_parser.rs` `comparison` parser, which always wraps lhs with
+/// `field_path_to_expr(fp)` producing `Expr::Field` or `Expr::VirtualField`).
+/// Queries like `WHERE lower(hostname) = '2026-06-24'` fail at PARSE time with
+/// `QueryParseFailed` before the temporal walker ever runs.
+///
+/// This test exercises the non-Field LHS arm directly via `check_temporal_literals`
+/// with a synthetic AST containing `Expr::Now = '2026-06-24'` in a SELECT item.
+/// This is the correct vehicle for a wall-of-defense function that is theoretically
+/// reachable when the grammar is extended (future `CAST(col AS TIMESTAMP)` LHS support).
+#[test]
+fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_042_non_column_lhs_comparison() {
+    use crate::ast::{
+        Ast, CompareOp, Expr, FromClause, Literal, SelectClause, SelectItem, SourceRef,
+        SourceRefKind, SqlQuery, SqlStatement,
+    };
+    use crate::materialization::check_temporal_literals;
+    use prism_core::error::TemporalLiteralPosition;
+
+    // Build: SELECT (NOW() = '2026-06-24') FROM test_events
+    // Expr::Now is a non-Field LHS — not a FieldPath — so it cannot be resolved to a column
+    // type. This is the canonical non-column-LHS scenario per ADR-052 §D4 v1.10 arm (4).
+    let mut ast = Ast::Sql(SqlStatement::Select(SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Expr {
+                expr: Expr::Compare {
+                    lhs: Box::new(Expr::Now), // non-Field LHS — triggers E-QUERY-042
+                    op: CompareOp::Eq,
+                    rhs: Box::new(Expr::Literal(Literal::RawTemporalLiteral(
+                        "2026-06-24".to_string(),
+                    ))),
+                },
+                alias: None,
+            }],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "test_events".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: None,
+        group_by: vec![],
+        having: None,
+        order_by: vec![],
+        limit: None,
+    }));
+
+    let result = check_temporal_literals(&mut ast, None, false);
+
+    // Primary: must be E-QUERY-042 with NonColumnLhsComparison.
+    assert!(
+        matches!(
+            &result,
+            Err(PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::NonColumnLhsComparison,
+                ..
+            })
+        ),
+        "E-QUERY-042: SELECT (NOW() = '2026-06-24') must return \
+         TemporalLiteralInvalidPosition(NonColumnLhsComparison). \
+         ADR-052 §D4 v1.10 arm (4). Got: {result:?}"
+    );
+
+    // value_prefix must be the first ≤50 chars of the literal.
+    if let Err(PrismError::TemporalLiteralInvalidPosition { value_prefix, .. }) = &result {
+        assert_eq!(
+            value_prefix, "2026-06-24",
+            "E-QUERY-042: value_prefix must be '2026-06-24'. Got: {value_prefix:?}"
+        );
+    }
+
+    // Must NOT be QueryPlanFailed — old analyst-hostile -32000 behavior.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "E-QUERY-042: non-column-LHS comparison must NOT return QueryPlanFailed (-32000). \
+         Must return TemporalLiteralInvalidPosition (-32602). Got: {result:?}"
+    );
+}
+
+// ── E-QUERY-042: Pipe mode parse-time rejection (stats by / sort) ─────────────
+
+/// Pipe `stats … by '2026-06-24'` MUST fail at parse time with a clear E-QUERY-001
+/// message indicating that `stats by` expects a field name, not a literal value.
+///
+/// ADR-052 §D4 v1.10 option (a): pipe `stats … by` and `sort` keys accept ONLY
+/// `FieldPath` — a quoted string literal is rejected at parse time by the chumsky
+/// parser. The enhancement requires the error message to clearly say "field name,
+/// not a literal value" rather than a generic chumsky positional error.
+///
+/// # Pre-implementation state (Red Gate)
+/// `FROM t | stats count by '2026-06-24'` fails with generic parse error.
+/// Test asserts the message contains "field name" OR "literal" → FAILS. ✓
+///
+/// # Post-implementation state
+/// Parse error message includes "field name" or "literal value" per the enhanced
+/// `rewrite_temporal_literal_in_pipe_key_position` rewriter.
+///
+/// Traces to: ADR-052 §D4 v1.10 option (a); BC-2.11.004 v1.12 §Error Cases;
+///            error-taxonomy.md §E-QUERY-042 v2.14 pipe-mode note;
+///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 pipe-parse enhancement.
+#[tokio::test]
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_pipe_stats_by_literal_clear_error() {
+    let engine = make_test_engine();
+
+    let result = engine
+        .execute(
+            "FROM test_events | stats count by '2026-06-24'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must be a parse error (E-QUERY-001).
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "pipe stats by literal: must fail with QueryParseFailed (E-QUERY-001). \
+         Got: {result:?}"
+    );
+
+    // Error message must be CLEAR — contain "field name" or "literal".
+    if let Err(PrismError::QueryParseFailed { detail, .. }) = &result {
+        assert!(
+            detail.contains("field name") || detail.contains("literal"),
+            "pipe stats by literal: error message must contain 'field name' or 'literal' \
+             to guide the analyst. Got: {detail:?}"
+        );
+    }
+}
+
+/// Pipe `sort '2026-06-24'` MUST fail at parse time with a clear E-QUERY-001 message
+/// indicating that `sort` expects a field name, not a literal value.
+///
+/// Counterpart to the `stats by` test above, for the sort stage.
+///
+/// # Pre-implementation state (Red Gate)
+/// `FROM t | sort '2026-06-24'` fails with generic parse error.
+/// Test asserts the message contains "field name" OR "literal" → FAILS. ✓
+///
+/// # Post-implementation state
+/// Parse error message includes "field name" or "literal value" per the enhanced
+/// `rewrite_temporal_literal_in_pipe_key_position` rewriter.
+///
+/// Traces to: ADR-052 §D4 v1.10 option (a); BC-2.11.004 v1.12 §Error Cases;
+///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 pipe-parse enhancement.
+#[tokio::test]
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_pipe_sort_literal_clear_error() {
+    let engine = make_test_engine();
+
+    let result = engine
+        .execute(
+            "FROM test_events | sort '2026-06-24'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must be a parse error (E-QUERY-001).
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "pipe sort literal: must fail with QueryParseFailed (E-QUERY-001). \
+         Got: {result:?}"
+    );
+
+    // Error message must be CLEAR — contain "field name" or "literal".
+    if let Err(PrismError::QueryParseFailed { detail, .. }) = &result {
+        assert!(
+            detail.contains("field name") || detail.contains("literal"),
+            "pipe sort literal: error message must contain 'field name' or 'literal' \
+             to guide the analyst. Got: {detail:?}"
+        );
     }
 }

@@ -2320,11 +2320,22 @@ pub(crate) fn check_temporal_literals(
                     registry,
                 )?;
                 // MED-1 fix: walk GROUP BY and ORDER BY expressions.
+                // ADR-052 §D4 v1.10: GROUP BY / ORDER BY use position-aware rejection.
                 for expr in &mut q.group_by {
-                    check_expr_temporal(expr, primary_table.as_deref(), registry)?;
+                    check_expr_temporal_pos(
+                        expr,
+                        primary_table.as_deref(),
+                        registry,
+                        TemporalCheckPos::GroupBy,
+                    )?;
                 }
                 for order_expr in &mut q.order_by {
-                    check_expr_temporal(&mut order_expr.expr, primary_table.as_deref(), registry)?;
+                    check_expr_temporal_pos(
+                        &mut order_expr.expr,
+                        primary_table.as_deref(),
+                        registry,
+                        TemporalCheckPos::OrderBy,
+                    )?;
                 }
             }
         }
@@ -2359,11 +2370,22 @@ pub(crate) fn check_temporal_literals(
                     registry,
                 )?;
                 // MED-1 fix: walk GROUP BY and ORDER BY expressions.
+                // ADR-052 §D4 v1.10: GROUP BY / ORDER BY use position-aware rejection.
                 for expr in &mut spq.head.group_by {
-                    check_expr_temporal(expr, primary_table.as_deref(), registry)?;
+                    check_expr_temporal_pos(
+                        expr,
+                        primary_table.as_deref(),
+                        registry,
+                        TemporalCheckPos::GroupBy,
+                    )?;
                 }
                 for order_expr in &mut spq.head.order_by {
-                    check_expr_temporal(&mut order_expr.expr, primary_table.as_deref(), registry)?;
+                    check_expr_temporal_pos(
+                        &mut order_expr.expr,
+                        primary_table.as_deref(),
+                        registry,
+                        TemporalCheckPos::OrderBy,
+                    )?;
                 }
             }
             for stage in &mut spq.stages {
@@ -2453,11 +2475,22 @@ pub(crate) fn check_temporal_literals(
                     sub_primary.as_deref(),
                     registry,
                 )?;
+                // ADR-052 §D4 v1.10: DML source_select GROUP BY / ORDER BY use position-aware rejection.
                 for expr in &mut src_q.group_by {
-                    check_expr_temporal(expr, sub_primary.as_deref(), registry)?;
+                    check_expr_temporal_pos(
+                        expr,
+                        sub_primary.as_deref(),
+                        registry,
+                        TemporalCheckPos::GroupBy,
+                    )?;
                 }
                 for order_expr in &mut src_q.order_by {
-                    check_expr_temporal(&mut order_expr.expr, sub_primary.as_deref(), registry)?;
+                    check_expr_temporal_pos(
+                        &mut order_expr.expr,
+                        sub_primary.as_deref(),
+                        registry,
+                        TemporalCheckPos::OrderBy,
+                    )?;
                 }
             }
         }
@@ -2770,11 +2803,22 @@ fn check_pred_raw_temporal(
                 sub_primary.as_deref(),
                 registry,
             )?;
+            // ADR-052 §D4 v1.10: subquery GROUP BY / ORDER BY use position-aware rejection.
             for expr in &mut subquery.group_by {
-                check_expr_temporal(expr, sub_primary.as_deref(), registry)?;
+                check_expr_temporal_pos(
+                    expr,
+                    sub_primary.as_deref(),
+                    registry,
+                    TemporalCheckPos::GroupBy,
+                )?;
             }
             for order_expr in &mut subquery.order_by {
-                check_expr_temporal(&mut order_expr.expr, sub_primary.as_deref(), registry)?;
+                check_expr_temporal_pos(
+                    &mut order_expr.expr,
+                    sub_primary.as_deref(),
+                    registry,
+                    TemporalCheckPos::OrderBy,
+                )?;
             }
             Ok(())
         }
@@ -2795,16 +2839,35 @@ fn check_pred_raw_temporal(
     }
 }
 
-/// Recursively walk an `Expr` tree and apply temporal literal dispatch.
+/// Internal position context for temporal literal checks.
 ///
-/// Used for JOIN ON conditions (which are `Expr`, not `Predicate`) and for
-/// expressions inside SELECT items that contain comparisons.
+/// Used by `check_expr_temporal_pos` to determine behavior for bare
+/// `RawTemporalLiteral` nodes outside comparison context.
 ///
-/// For `Expr::Compare { lhs: Field(fp), rhs: Literal(RawTemporalLiteral) }`:
-/// applies four-way dispatch using `fp` as the column reference.
+/// ADR-052 §D4 v1.10:
+/// - GROUP BY and ORDER BY positions REJECT with E-QUERY-042 (tightening OBS-2).
+/// - All other non-comparison positions COERCE to `Literal::String` (OBS-2 preserved).
 ///
-/// For bare `RawTemporalLiteral` without a field-path context (non-comparison position):
-/// COERCE in-place to `Literal::String` (ADR-052 §D4 v1.8 OBS-2).
+/// Compare arms (Field LHS) are not affected by position — their behavior is determined
+/// by the column type resolved from the registry, not the clause position.
+#[derive(Clone, Copy)]
+enum TemporalCheckPos {
+    /// Default: SELECT projection, JOIN ON, FuncCall args, subexpressions.
+    /// Bare `RawTemporalLiteral` → COERCE to `Literal::String` (OBS-2 preserved).
+    Other,
+    /// GROUP BY key position.
+    /// Bare `RawTemporalLiteral` → E-QUERY-042 (TemporalLiteralPosition::GroupBy).
+    GroupBy,
+    /// ORDER BY key position.
+    /// Bare `RawTemporalLiteral` → E-QUERY-042 (TemporalLiteralPosition::OrderBy).
+    OrderBy,
+}
+
+/// Thin shim: walk an `Expr` with the default `Other` position context.
+///
+/// All call sites that do NOT need position-specific behavior use this function.
+/// GROUP BY and ORDER BY call sites use `check_expr_temporal_pos` with the
+/// appropriate `TemporalCheckPos` variant.
 ///
 /// HIGH-2 fix (F-LP3-HIGH-2-EXPR-WALKER): walk JOIN ON and SELECT Expr trees.
 fn check_expr_temporal(
@@ -2812,27 +2875,78 @@ fn check_expr_temporal(
     primary_table: Option<&str>,
     registry: Option<&crate::table_registry::TableRegistry>,
 ) -> Result<(), PrismError> {
+    check_expr_temporal_pos(expr, primary_table, registry, TemporalCheckPos::Other)
+}
+
+/// Recursively walk an `Expr` tree and apply temporal literal dispatch,
+/// with awareness of the clause position for bare `RawTemporalLiteral` nodes.
+///
+/// Used for JOIN ON conditions (which are `Expr`, not `Predicate`) and for
+/// expressions inside SELECT items that contain comparisons, and for GROUP BY /
+/// ORDER BY keys (with position-specific rejection per ADR-052 §D4 v1.10).
+///
+/// **Seven-arm dispatch (ADR-052 §D4 v1.10):**
+///
+/// For `Expr::Literal(Literal::RawTemporalLiteral)` (bare, non-comparison):
+/// - `TemporalCheckPos::GroupBy` → E-QUERY-042 (GroupBy)
+/// - `TemporalCheckPos::OrderBy` → E-QUERY-042 (OrderBy)
+/// - `TemporalCheckPos::Other` → COERCE to `Literal::String` (OBS-2 preserved for
+///   SELECT projection, JOIN ON, FuncCall args, DML SET unknown-column, etc.)
+///
+/// For `Expr::Compare { lhs: Field(fp), rhs: Literal(RawTemporalLiteral) }`:
+/// - `ColumnType::Datetime` → E-QUERY-041 (TemporalLiteralUnparseable)
+/// - `ColumnType::String` → COERCE to `Literal::String`
+/// - `ColumnType::Integer/Float/Boolean` → E-QUERY-002 (QueryTypeMismatch)
+/// - Unknown/Json/None → fail-open (RawTemporalLiteral remains; emitter guard fires)
+///
+/// For `Expr::Compare` with a non-Field LHS and `RawTemporalLiteral` RHS:
+/// - E-QUERY-042 (NonColumnLhsComparison) — caller must use RFC-3339 for datetime columns,
+///   a non-date-shaped string for string columns, or wrap in CAST.
+///   (Replaces prior `QueryPlanFailed → -32000 INTERNAL_ERROR` behavior.)
+fn check_expr_temporal_pos(
+    expr: &mut crate::ast::Expr,
+    primary_table: Option<&str>,
+    registry: Option<&crate::table_registry::TableRegistry>,
+    pos: TemporalCheckPos,
+) -> Result<(), PrismError> {
     use crate::ast::{Expr, Literal};
     use prism_core::column::ColumnType;
+    use prism_core::error::TemporalLiteralPosition;
 
     match expr {
         Expr::Literal(Literal::RawTemporalLiteral(raw)) => {
-            // Non-comparison position (SELECT projection, GROUP BY, ORDER BY, etc.) — no column
-            // type is available to constrain the literal. COERCE in-place to Literal::String.
+            // Non-comparison position — dispatch on clause context.
             //
-            // The original string value is preserved byte-for-byte as a plain string constant
-            // (byte-identical to the existing String-column coercion arm in Expr::Compare).
+            // ADR-052 §D4 v1.10:
+            // - GROUP BY / ORDER BY: REJECT with E-QUERY-042 (grouping/ordering by a
+            //   constant is a degenerate no-op; almost always an analyst mistake).
+            // - Other (SELECT projection, JOIN ON, FuncCall args, DML SET, etc.): COERCE
+            //   to Literal::String (OBS-2 preserved for non-GROUP-BY/ORDER-BY positions).
             //
-            // ADR-052 §D4 v1.8 OBS-2 (ratified 2026-07-05): non-comparison position coerces
-            // instead of erroring. The analyst likely meant a string constant, not a timestamp
-            // comparison. Examples: `SELECT '2026-06-24' FROM t` (bare projection),
-            // `GROUP BY '2026-06-24'`, `ORDER BY '2026-06-24'`.
-            //
-            // NLL: `raw` is last used in `std::mem::take(raw)`; the borrow ends there.
-            // Reassigning `*expr` is safe after that point.
-            let s = std::mem::take(raw);
-            *expr = Expr::Literal(Literal::String(s));
-            Ok(())
+            // NLL: `raw` is last used in `std::mem::take(raw)` or `raw.chars()`;
+            // the borrow ends there. Reassigning `*expr` is safe after that point.
+            match pos {
+                TemporalCheckPos::GroupBy => {
+                    let value_prefix: String = raw.chars().take(50).collect();
+                    Err(PrismError::TemporalLiteralInvalidPosition {
+                        position: TemporalLiteralPosition::GroupBy,
+                        value_prefix,
+                    })
+                }
+                TemporalCheckPos::OrderBy => {
+                    let value_prefix: String = raw.chars().take(50).collect();
+                    Err(PrismError::TemporalLiteralInvalidPosition {
+                        position: TemporalLiteralPosition::OrderBy,
+                        value_prefix,
+                    })
+                }
+                TemporalCheckPos::Other => {
+                    // COERCE: preserve OBS-2 for non-GROUP-BY/ORDER-BY positions.
+                    let s = std::mem::take(raw);
+                    *expr = Expr::Literal(Literal::String(s));
+                    Ok(())
+                }
+            }
         }
         // P3-MED-1 fix: capture `op` to populate QueryTypeMismatch { operator } with the actual
         // operator from the query (previously hardcoded "=" regardless of actual op used).
@@ -2888,19 +3002,26 @@ fn check_expr_temporal(
                         }
                     }
                 } else {
-                    // LHS is not a FieldPath — can't dispatch, but rhs is RawTemporalLiteral.
-                    // Returns E-QUERY-002 (QueryPlanFailed — plan-time check, not parse-time).
-                    return Err(PrismError::QueryPlanFailed {
-                        detail: format!(
-                            "RawTemporalLiteral '{raw_val}' in comparison without column field \
-                             path context — provide a valid RFC-3339 timestamp."
-                        ),
+                    // LHS is not a FieldPath — can't dispatch at plan time.
+                    //
+                    // E-QUERY-042 (NonColumnLhsComparison): the walker cannot resolve the LHS
+                    // type (e.g., `lower(hostname)` is a FuncCall). Silently coercing would
+                    // reintroduce RISK-1 for datetime-valued expressions like `to_timestamp(col)`.
+                    //
+                    // ADR-052 §D4 v1.10 arm (4). Replaces prior `QueryPlanFailed → -32000`
+                    // (analyst-hostile) with analyst-readable `-32602 INVALID_PARAMS`.
+                    let value_prefix: String = raw_val.chars().take(50).collect();
+                    return Err(PrismError::TemporalLiteralInvalidPosition {
+                        position: TemporalLiteralPosition::NonColumnLhsComparison,
+                        value_prefix,
                     });
                 }
             }
             // Recurse into lhs and, if rhs wasn't a top-level RawTemporalLiteral (already
             // dispatched above), also into rhs. This catches nested temporal literals in
             // subexpressions like `field > fn_call(expr)` (LOW-1 fix).
+            // Recursive calls use Other position — sub-expressions inside Compare arms are
+            // not directly in GROUP BY / ORDER BY key position.
             check_expr_temporal(lhs, primary_table, registry)?;
             if !rhs_is_top_level_raw_temporal {
                 check_expr_temporal(rhs, primary_table, registry)?;
@@ -2926,6 +3047,7 @@ fn check_expr_temporal(
             // dot-notation sources (e.g., crowdstrike.detections → crowdstrike_detections).
             // MED-1 fix (subquery internals): also walk subquery GROUP BY and ORDER BY.
             // F-P4-MED-2 fix: also walk subquery JOIN ON expressions and SELECT items.
+            // ADR-052 §D4 v1.10: subquery GROUP BY/ORDER BY use position-aware checks.
             let sub_primary = normalized_table_name_for_source(&subquery.from.source);
             if let Some(where_pred) = &mut subquery.where_ {
                 check_pred_raw_temporal(where_pred, sub_primary.as_deref(), registry)?;
@@ -2942,10 +3064,20 @@ fn check_expr_temporal(
                 registry,
             )?;
             for expr in &mut subquery.group_by {
-                check_expr_temporal(expr, sub_primary.as_deref(), registry)?;
+                check_expr_temporal_pos(
+                    expr,
+                    sub_primary.as_deref(),
+                    registry,
+                    TemporalCheckPos::GroupBy,
+                )?;
             }
             for order_expr in &mut subquery.order_by {
-                check_expr_temporal(&mut order_expr.expr, sub_primary.as_deref(), registry)?;
+                check_expr_temporal_pos(
+                    &mut order_expr.expr,
+                    sub_primary.as_deref(),
+                    registry,
+                    TemporalCheckPos::OrderBy,
+                )?;
             }
             Ok(())
         }
