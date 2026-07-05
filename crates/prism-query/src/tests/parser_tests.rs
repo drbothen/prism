@@ -1226,7 +1226,7 @@ fn test_AC_09_parse_error_with_recovery_label_attaches_label() {
 
 /// AC-9: `ParseError::to_json` produces a non-empty JSON string.
 ///
-/// Traces: error.rs to_json() (todo!() stub), AC-9
+/// Traces: error.rs to_json() (implemented), AC-9
 #[test]
 fn test_AC_09_parse_error_to_json_produces_json_string() {
     let err = ParseError::new(5, "test error");
@@ -1241,7 +1241,7 @@ fn test_AC_09_parse_error_to_json_produces_json_string() {
 
 /// AC-9: `ParseError::format_report` produces a non-empty report string.
 ///
-/// Traces: error.rs format_report() (todo!() stub), AC-9
+/// Traces: error.rs format_report() (implemented), AC-9
 #[test]
 fn test_AC_09_parse_error_format_report_produces_string() {
     let errors = vec![

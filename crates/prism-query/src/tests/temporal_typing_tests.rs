@@ -127,7 +127,7 @@ fn make_test_events_registry() -> Arc<TableRegistry> {
 
 /// Build a `QueryEngine` wired with the "test_events" table registry and no infusion
 /// registry. The engine gates fire in order: E-QUERY-037 → E-QUERY-038 (fail-open) →
-/// E-QUERY-039 (skipped, no registry) → E-QUERY-041 (todo!() stub).
+/// E-QUERY-039 (skipped, no registry) → E-QUERY-041 (fully implemented).
 fn make_test_engine() -> QueryEngine {
     let registry = make_test_events_registry();
     QueryEngine::new_with_cache_config(
@@ -146,7 +146,7 @@ fn make_test_engine() -> QueryEngine {
 ///
 /// Used by MED-1 tests for dotted external-source path verification: the registered
 /// name is `ghost_sensor_devices` (not `ghost_sensor`). The `check_temporal_literals`
-/// AST-walk uses `extract_primary_table_from_ast` which translates the
+/// AST-walk uses `primary_table_from_ast` which translates the
 /// `SourceRefKind::External { sensor, table }` form to `"{sensor}_{table}"`
 /// (i.e., `ghost_sensor_devices`) for registry lookup.
 fn make_ghost_sensor_devices_registry() -> Arc<TableRegistry> {
@@ -429,13 +429,13 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_column_ordering_not_re
 /// Registered table: `ghost_sensor_devices` (sensor `ghost_sensor` + table `devices`).
 ///
 /// # Red Gate pre-fix failure (Option-A AST-walk bug)
-/// `check_temporal_literals` Ast::Pipe arm's `extract_primary_table_from_ast` call
+/// `check_temporal_literals` Ast::Pipe arm's `primary_table_from_ast` call
 /// was not correctly handling the `SourceRefKind::External { sensor, table }` form,
 /// returning `None` for table lookup → fail-open → E-QUERY-041 NOT raised → silent
 /// wrong result.
 ///
 /// # Post-fix state
-/// `extract_primary_table_from_ast` translates `SourceRefKind::External { sensor, table }`
+/// `primary_table_from_ast` translates `SourceRefKind::External { sensor, table }`
 /// to `"{sensor}_{table}"` (e.g., `"ghost_sensor_devices"`). The schema lookup succeeds
 /// and `check_temporal_literals` fires E-QUERY-041.
 ///
@@ -706,7 +706,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_obs2_string_column_equality_n
 /// with NO `FROM` keyword. `'2026-06-24'` is date-like: the PrismQL parser's
 /// `classify_string_literal` produces a `RawTemporalLiteral`. The Option-A
 /// `check_temporal_literals` AST-walk resolves `test_events` via
-/// `extract_primary_table_from_ast` → `Ast::Pipe` → `SourceRefKind::Custom` → `source.raw`,
+/// `primary_table_from_ast` → `Ast::Pipe` → `SourceRefKind::Custom` → `source.raw`,
 /// looks up `timestamp` in the `TableRegistry`, finds `ColumnType::Datetime`,
 /// and fires E-QUERY-041.
 ///
@@ -714,7 +714,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_obs2_string_column_equality_n
 /// the `SourceRefKind::Custom` case → table lookup returned `None` → fail-open →
 /// E-QUERY-001 (QueryParseFailed) propagated instead of E-QUERY-041.
 ///
-/// Post-fix (GREEN): `extract_primary_table_from_ast` correctly resolves `SourceRefKind::Custom`
+/// Post-fix (GREEN): `primary_table_from_ast` correctly resolves `SourceRefKind::Custom`
 /// → `"test_events"` → `ColumnType::Datetime` → E-QUERY-041 fires.
 ///
 /// Traces to: ADR-052 §D4; F-LOCAL-LOW-1 adversary pass finding.
@@ -799,7 +799,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_f_local_low1_pipe_no_from_val
 ///
 /// The source is `ghost_sensor.devices` (dotted External form, `SourceRefKind::External`)
 /// preceding the `|` with NO `FROM` keyword. The Option-A `check_temporal_literals`
-/// AST-walk uses `extract_primary_table_from_ast` → `Ast::Pipe` → `SourceRefKind::External`
+/// AST-walk uses `primary_table_from_ast` → `Ast::Pipe` → `SourceRefKind::External`
 /// → `format!("{sensor}_{table}")` → `"ghost_sensor_devices"` to resolve the registered
 /// table name. `timestamp` is `ColumnType::Datetime` → E-QUERY-041 fires.
 ///
@@ -807,7 +807,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_f_local_low1_pipe_no_from_val
 /// `SourceRefKind::External` dotted-source form → table lookup returned `None` → fail-open
 /// → E-QUERY-001 propagated.
 ///
-/// Post-fix (GREEN): `extract_primary_table_from_ast` resolves `SourceRefKind::External`
+/// Post-fix (GREEN): `primary_table_from_ast` resolves `SourceRefKind::External`
 /// → `"ghost_sensor_devices"` → E-QUERY-041 fires.
 ///
 /// Traces to: ADR-052 §D4; F-LOCAL-LOW-1 adversary pass finding (dotted-source parity).
