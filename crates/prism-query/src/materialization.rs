@@ -625,14 +625,14 @@ pub async fn run_materialization_pipeline(
         crate::plan_sqlpipe_query(spq)?;
     }
 
-    // Step 1c: ADR-052 §D4 Option-A three-way dispatch for RawTemporalLiteral nodes.
+    // Step 1c: ADR-052 §D4 Option-A four-way dispatch for RawTemporalLiteral nodes.
     // Fires after inject_now (so Timestamp literals are already resolved) and before
     // fan-out (no sensor I/O has occurred yet — this is still a plan-time gate).
     //
     // Gate ordering: E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-041 → DataFusion.
     // E-QUERY-037/038/039 fire in engine.rs before run_materialization_pipeline is called.
     //
-    // Three-way dispatch on each RawTemporalLiteral found in a comparison:
+    // Four-way dispatch on each RawTemporalLiteral found in a comparison:
     //   - vs Datetime column  → Err(TemporalLiteralUnparseable)  [E-QUERY-041]
     //   - vs String column    → COERCE in-place to Literal::String
     //   - vs Integer/Float/Bool column → Err(QueryTypeMismatch)  [E-QUERY-002]
@@ -2243,7 +2243,7 @@ pub(crate) async fn collect_record_batch_stream(
 // check_temporal_literals — ADR-052 §D4 Option-A AST-walker
 // ---------------------------------------------------------------------------
 
-/// Plan-time three-way dispatch for `Literal::RawTemporalLiteral` nodes (ADR-052 §D4 Option A).
+/// Plan-time four-way dispatch for `Literal::RawTemporalLiteral` nodes (ADR-052 §D4 Option A).
 ///
 /// Called inside `run_materialization_pipeline` after `inject_now` and before fan-out
 /// (full mode, `skip_projection = false`), and as an early gate in `engine::execute` before
@@ -2385,8 +2385,10 @@ pub(crate) fn check_temporal_literals(
                 check_pred_raw_temporal(filter, Some(dml_table.as_str()), registry)?;
             }
             // SET assignments (UPDATE) — value is Expr, can contain RawTemporalLiteral.
-            // Apply three-way dispatch using the assignment's target column name, mirroring
-            // the behavior of check_pred_raw_temporal::Compare for field comparisons.
+            // Apply four-way dispatch using the assignment's target column name, mirroring
+            // the behavior of check_pred_raw_temporal::Compare for field comparisons
+            // (ADR-052 §D4 v1.8: Datetime→E-QUERY-041; String→coerce; numeric/bool→E-QUERY-002;
+            // unknown→coerce to Literal::String per OBS-2).
             for assignment in &mut dml.assignments {
                 use crate::ast::{Expr, Literal};
                 use prism_core::column::ColumnType;
@@ -2417,9 +2419,16 @@ pub(crate) fn check_temporal_literals(
                             });
                         }
                         None | Some(_) => {
-                            // Unknown type — fail-open; do NOT recurse into check_expr_temporal
-                            // (the bare RawTemporalLiteral arm would return Err unconditionally).
-                            // Secondary gate in pipe_sql_emitter / DataFusion handles it.
+                            // Unknown/unresolvable column type (None: registry absent or column
+                            // not found; Some(_): Json or a future type variant) — coerce in-place
+                            // to Literal::String. ADR-052 §D4 v1.8 OBS-2: mirrors
+                            // check_expr_temporal's bare-RawTemporalLiteral arm, which COERCES to
+                            // Literal::String and returns Ok(()). The previous comment
+                            // ("do NOT recurse: bare arm would Err unconditionally") was stale
+                            // after OBS-2 landed. DML execution returns Ok(vec![]) pending S-3.06
+                            // wiring; this coercion is defense-in-depth so the literal is clean if
+                            // DML execution is wired later.
+                            assignment.value = Expr::Literal(Literal::String(raw_val.clone()));
                         }
                     }
                 } else {
@@ -2556,7 +2565,7 @@ fn compare_op_to_str(op: &crate::ast::CompareOp) -> &'static str {
     }
 }
 
-/// Apply three-way temporal dispatch to a `Literal` in a filter position where the
+/// Apply four-way temporal dispatch to a `Literal` in a filter position where the
 /// column field path is known.
 ///
 /// Used by `check_pred_raw_temporal` for `Between.low`/`Between.high` and `In.values`
@@ -2566,7 +2575,7 @@ fn compare_op_to_str(op: &crate::ast::CompareOp) -> &'static str {
 /// `"="`) — used to populate `PrismError::QueryTypeMismatch { operator }` with accurate
 /// context for the analyst (P3-MED-1 fix).
 ///
-/// Three-way dispatch (ADR-052 §D4):
+/// Four-way dispatch (ADR-052 §D4):
 /// - `ColumnType::Datetime`  → `Err(TemporalLiteralUnparseable)` (E-QUERY-041)
 /// - `ColumnType::String`    → coerce `*lit` in-place to `Literal::String`
 /// - `Integer/Float/Boolean` → `Err(QueryTypeMismatch)` (E-QUERY-002)
@@ -2619,7 +2628,7 @@ fn apply_literal_dispatch(
     }
 }
 
-/// Recursively walk a `Predicate` tree and apply three-way dispatch to every
+/// Recursively walk a `Predicate` tree and apply four-way dispatch to every
 /// `RawTemporalLiteral` found in filter-position comparisons.
 ///
 /// Handles:
@@ -2700,7 +2709,7 @@ fn check_pred_raw_temporal(
                     }
                 } else {
                     // MED-2 fix: non-Field LHS (e.g., `MAX(timestamp) > '2026-06-24'`).
-                    // No column context for three-way dispatch — return E-QUERY-002
+                    // No column context for four-way dispatch — return E-QUERY-002
                     // (QueryPlanFailed; symmetry with check_expr_temporal.Expr::Compare else-branch).
                     return Err(PrismError::QueryPlanFailed {
                         detail: format!(
@@ -2792,7 +2801,7 @@ fn check_pred_raw_temporal(
 /// expressions inside SELECT items that contain comparisons.
 ///
 /// For `Expr::Compare { lhs: Field(fp), rhs: Literal(RawTemporalLiteral) }`:
-/// applies three-way dispatch using `fp` as the column reference.
+/// applies four-way dispatch using `fp` as the column reference.
 ///
 /// For bare `RawTemporalLiteral` without a field-path context (non-comparison position):
 /// COERCE in-place to `Literal::String` (ADR-052 §D4 v1.8 OBS-2).

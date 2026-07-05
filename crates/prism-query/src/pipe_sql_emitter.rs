@@ -836,8 +836,9 @@ fn literal_to_sql(lit: &Literal) -> Result<String, PrismError> {
         // ADR-052 §D4 Step 5 guard (BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001):
         // Belt-and-suspenders secondary defense: RawTemporalLiteral must NEVER reach SQL
         // emission. It is an intermediate AST node that check_temporal_literals must
-        // consume at plan time via three-way dispatch:
-        //   Datetime col → E-QUERY-041; String col → COERCE; Integer/Float/Bool → E-QUERY-002.
+        // consume at plan time via four-way dispatch:
+        //   Datetime col → E-QUERY-041; String col → COERCE; Integer/Float/Bool → E-QUERY-002;
+        //   non-comparison position → COERCE.
         // When the column type is unresolvable (fail-open in the walker), the walker leaves
         // the RawTemporalLiteral in the AST; this guard catches it as the secondary gate,
         // returning E-QUERY-002 (QueryPlanFailed).

@@ -1210,7 +1210,8 @@ pub(crate) fn build_string_parser<'a>(
 /// RFC-3339 string (i.e., `chrono::DateTime::parse_from_rfc3339` would reject it).
 /// Used by the lenient parser fallback to produce `Literal::RawTemporalLiteral` instead
 /// of a hard parse error, so that `check_temporal_literals` can perform schema-aware
-/// three-way dispatch (Datetime col → E-QUERY-041; String col → COERCE; other → E-QUERY-002).
+/// four-way dispatch (Datetime col → E-QUERY-041; String col → COERCE; other → E-QUERY-002;
+/// non-comparison position → COERCE).
 ///
 /// The seven canonical forms (exhaustive — must match exactly, per BC-2.11.021 v1.4):
 ///   1. `%Y-%m-%d`              — date-only

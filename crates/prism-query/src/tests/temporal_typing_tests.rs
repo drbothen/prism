@@ -853,7 +853,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_f_local_low1_pipe_no_from_dot
 // ── Option-A typed-column fixture ────────────────────────────────────────────
 
 /// Build a `TableRegistry` with sensor "metrics_sensor" / table "events" registered as
-/// "metrics_sensor_events". Includes multiple column types for three-way dispatch tests:
+/// "metrics_sensor_events". Includes multiple column types for four-way dispatch tests:
 ///   - `timestamp_col: ColumnType::Datetime` — for E-QUERY-041 tests (Datetime arm)
 ///   - `label_col: ColumnType::String`       — for coercion tests (String/Utf8 arm)
 ///   - `count_col: ColumnType::Integer`      — for E-QUERY-001 type-mismatch tests
@@ -868,7 +868,7 @@ fn make_typed_columns_registry() -> Arc<TableRegistry> {
     let registry = Arc::new(TableRegistry::new());
     let spec = SensorSpec::new(
         "metrics_sensor",
-        "Typed column sensor for Option-A three-way dispatch tests",
+        "Typed column sensor for Option-A four-way dispatch tests",
         AuthType::ApiKey,
         "https://metrics.invalid",
         vec![TableSpec::new_point_in_time(
@@ -1233,7 +1233,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_offset_le
 /// `count_col` → `ColumnType::Integer` → returns E-QUERY-001 (type mismatch, NOT E-QUERY-041).
 ///
 /// # Why load-bearing
-/// The three-way dispatch must be exhaustive: Integer (and Float, Bool) columns must route
+/// The four-way dispatch must be exhaustive: Integer (and Float, Bool) columns must route
 /// to E-QUERY-001, not E-QUERY-041. Incorrect routing would mislead the analyst with a
 /// wrong error message ("cannot interpret as UTC timestamp" for a type that never holds
 /// timestamps).
@@ -1289,7 +1289,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query
 
 /// RG-016 (stub q): Date-like literal against `ColumnType::Float` column → E-QUERY-001.
 ///
-/// Same three-way dispatch pattern as RG-015 but for Float type.
+/// Same four-way dispatch pattern as RG-015 but for Float type.
 ///
 /// Traces to: ADR-052 §D4 v1.4 Step 3 third arm.
 #[tokio::test]
@@ -1331,7 +1331,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_float_col_date_like_e_query_0
 
 /// RG-017 (stub r): Date-like literal against `ColumnType::Boolean` column → E-QUERY-001.
 ///
-/// Same three-way dispatch pattern as RG-015 but for Boolean type.
+/// Same four-way dispatch pattern as RG-015 but for Boolean type.
 ///
 /// Traces to: ADR-052 §D4 v1.4 Step 3 third arm.
 #[tokio::test]
@@ -1527,7 +1527,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_qualified_nested_column_resol
 /// Query: `SELECT * FROM test_events WHERE timestamp = '2026-06-24'`
 ///
 /// Tests that the equality operator (`=`) is also gated by the temporal pre-validator,
-/// not only ordering operators (`>`, `<`, `>=`, `<=`). Under Option-A, the three-way
+/// not only ordering operators (`>`, `<`, `>=`, `<=`). Under Option-A, the four-way
 /// dispatch fires for ALL comparison operators when the LHS column is Datetime.
 ///
 /// # Pre-implementation state (Red Gate)
@@ -2105,9 +2105,9 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_unpadded_
     );
 }
 
-// ── MED-1: SqlPipe RawTemporalLiteral three-way dispatch coverage ─────────────
+// ── MED-1: SqlPipe RawTemporalLiteral four-way dispatch coverage ─────────────
 //
-// ADR-052 §D4 Step 3 three-way dispatch (Datetime→E-QUERY-041 / String→COERCE /
+// ADR-052 §D4 Step 3 four-way dispatch (Datetime→E-QUERY-041 / String→COERCE /
 // Integer|Float|Bool→E-QUERY-002) applies equally to SqlPipe head predicates.
 // `check_temporal_literals` Ast::SqlPipe arm walks the head SELECT + WHERE +
 // HAVING + JOIN ON + GROUP BY + ORDER BY positions plus each pipe stage.
@@ -2224,7 +2224,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_string_col_date_only_
 /// `RawTemporalLiteral` + non-Datetime/non-String column combination and return
 /// `E-QUERY-002` (type mismatch), NOT `E-QUERY-041` (temporal gate).
 ///
-/// This is the third arm of the three-way dispatch, exercised via SqlPipe.
+/// This is the third arm of the four-way dispatch, exercised via SqlPipe.
 ///
 /// Traces to: ADR-052 §D4 v1.4 Step 3 third arm; BC-2.11.021 v1.5; ADR-052 §D4 v1.6 MED-1.
 #[tokio::test]
@@ -2380,4 +2380,74 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg036_order_by_position_coerc
         "RG-036: SELECT * FROM test_events ORDER BY '2026-06-24' must succeed \
          (OBS-2 coerce). Got Err: {result:?}"
     );
+}
+
+// ── LOW-2: DML SET unknown-column RawTemporalLiteral → coerce to String ──────
+
+/// LOW-2 (OBS-1/LOW-2 fix-burst): `RawTemporalLiteral` in a DML SET assignment
+/// value for a column whose type is UNKNOWN (not found in the registry) MUST be
+/// coerced to `Literal::String` in-place by `check_temporal_literals`.
+///
+/// This exercises the `None | Some(_)` arm of the DML SET dispatch block.
+/// Post-OBS-2, `check_expr_temporal`'s bare-`RawTemporalLiteral` arm COERCES to
+/// `Literal::String` and returns `Ok(())` — the DML unknown-column arm must mirror
+/// that behavior for consistency (ADR-052 §D4 v1.8 OBS-2 defense-in-depth).
+///
+/// # Test approach (SID-1 compliant)
+/// Calls `check_temporal_literals` directly with a manually constructed DML AST.
+/// DML execution falls to `Ok(vec![])` pending S-3.06 wiring, so no end-to-end
+/// DML test is possible; this unit test at the `check_temporal_literals` boundary
+/// is the load-bearing regression guard for the coerce behavior.
+///
+/// Traces to: ADR-052 §D4 v1.8 OBS-2 + LOW-2; BC-2.11.021 v1.6.
+#[test]
+fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_low2_dml_set_unknown_col_coerces_to_string() {
+    use crate::ast::{Ast, Expr, Literal, SqlStatement};
+    use crate::materialization::check_temporal_literals;
+    use crate::write_ast::{Assignment, DmlNode, DmlOperation};
+
+    let registry = make_test_events_registry();
+
+    // UPDATE test_events SET unknown_col = '2026-06-24'
+    // `unknown_col` is NOT registered in the test registry — col_type resolves to None
+    // → the `None | Some(_)` arm of the SET assignment dispatch fires.
+    let dml = DmlNode {
+        operation: DmlOperation::Update,
+        target_table: "test_events".to_string(),
+        columns: None,
+        assignments: vec![Assignment {
+            column: "unknown_col".to_string(),
+            value: Expr::Literal(Literal::RawTemporalLiteral("2026-06-24".to_string())),
+        }],
+        // filter: None — UPDATE without WHERE is legal at the AST level; the parser
+        // enforces the WHERE-required rule; we bypass the parser here to test the
+        // temporal walker in isolation.
+        filter: None,
+        source_select: None,
+    };
+    let mut ast = Ast::Sql(SqlStatement::Dml(dml));
+
+    let result = check_temporal_literals(&mut ast, Some(registry.as_ref()), false);
+
+    assert!(
+        result.is_ok(),
+        "LOW-2: DML SET RawTemporalLiteral with unknown column MUST NOT error \
+         (unknown-type arm coerces to String per OBS-2). Got: {result:?}"
+    );
+
+    // Verify the value was coerced from RawTemporalLiteral → Literal::String in-place.
+    if let Ast::Sql(SqlStatement::Dml(ref dml_out)) = ast {
+        let assignment = &dml_out.assignments[0];
+        assert!(
+            matches!(
+                &assignment.value,
+                Expr::Literal(Literal::String(s)) if s == "2026-06-24"
+            ),
+            "LOW-2: DML SET value MUST be coerced from RawTemporalLiteral to \
+             Literal::String(\"2026-06-24\"). Got: {:?}",
+            assignment.value
+        );
+    } else {
+        panic!("LOW-2: expected Ast::Sql(SqlStatement::Dml) after check_temporal_literals");
+    }
 }
