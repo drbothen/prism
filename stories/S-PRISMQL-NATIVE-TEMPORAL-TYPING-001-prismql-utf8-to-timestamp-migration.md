@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-NATIVE-TEMPORAL-TYPING-001
 title: "PrismQL Native Temporal Typing — migrate ColumnType::Datetime from Arrow Utf8 to Timestamp(Microsecond, UTC) (ADR-052)"
 epic_id: EPIC-DEMO
-version: "1.8"
+version: "1.10"
 status: draft
 producer: story-writer
 phase: 3
@@ -245,14 +245,14 @@ a companion error variant and enum to `crates/prism-core/src/error.rs`:
 /// E-QUERY-042: A date-like temporal literal appeared in a structurally invalid position.
 /// Positions: GroupBy, OrderBy, NonColumnLhsComparison.
 TemporalLiteralInvalidPosition {
-    position: TemporalInvalidPosition,
+    position: TemporalLiteralPosition,
     value_prefix: String,  // first 50 chars, UTF-8 boundary-safe (same as E-QUERY-041)
 },
 
 /// Position variants for `PrismError::TemporalLiteralInvalidPosition` (E-QUERY-042).
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
-pub enum TemporalInvalidPosition {
+pub enum TemporalLiteralPosition {
     GroupBy,
     OrderBy,
     NonColumnLhsComparison,
@@ -260,12 +260,12 @@ pub enum TemporalInvalidPosition {
 ```
 
 - **SQL `GROUP BY '2026-06-24'`**: `check_temporal_literals` detects `RawTemporalLiteral` in a
-  GROUP BY clause → `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalInvalidPosition::GroupBy, value_prefix })`.
+  GROUP BY clause → `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition::GroupBy, value_prefix })`.
   Display per error-taxonomy.md §E-QUERY-042. Maps to `codes::INVALID_PARAMS` (-32602).
-- **SQL `ORDER BY '2026-06-24'`**: same, with `TemporalInvalidPosition::OrderBy`.
+- **SQL `ORDER BY '2026-06-24'`**: same, with `TemporalLiteralPosition::OrderBy`.
 - **Non-column-LHS comparison** (e.g., `WHERE lower(hostname) = '2026-06-24'`): the LHS of the
   comparison is a function call or expression, not a plain column reference; `check_temporal_literals`
-  detects `RawTemporalLiteral` on the RHS when the LHS is non-column → `TemporalInvalidPosition::NonColumnLhsComparison`.
+  detects `RawTemporalLiteral` on the RHS when the LHS is non-column → `TemporalLiteralPosition::NonColumnLhsComparison`.
   Maps to `codes::INVALID_PARAMS` — NOT `-32000` (internal error).
 - **Pipe-mode `stats … by '2026-06-24'`** and **`sort '2026-06-24'`**: rejected at PARSE TIME by
   `filter_parser.rs` with enhanced E-QUERY-001 messages before `check_temporal_literals` runs.
@@ -427,13 +427,13 @@ Estimated at ~61% of a 200K context window. Within the per-story limit. No split
       in `crates/prism-query/src/tests/` — same as stub n but for offset-less
       `'2026-06-24T12:00:00'` vs String col → COERCE, SUCCEEDS.
 
-   p. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query_001`
-      in `crates/prism-query/src/tests/` — asserts `'2026-06-24'` vs Integer col → E-QUERY-002 (`QueryTypeMismatch`). (Test function name retains `_e_query_001` suffix — not renamed per append-only naming policy.)
+   p. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query_002`
+      in `crates/prism-query/src/tests/` — asserts `'2026-06-24'` vs Integer col → E-QUERY-002 (`QueryTypeMismatch`).
 
-   q. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_float_col_date_like_e_query_001`
+   q. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_float_col_date_like_e_query_002`
       in `crates/prism-query/src/tests/` — asserts `'2026-06-24'` vs Float col → E-QUERY-002 (`QueryTypeMismatch`).
 
-   r. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_bool_col_date_like_e_query_001`
+   r. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_bool_col_date_like_e_query_002`
       in `crates/prism-query/src/tests/` — asserts `'2026-06-24'` vs Bool col → E-QUERY-002 (`QueryTypeMismatch`).
 
    s. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_non_date_like_stays_string_literal`
@@ -461,11 +461,10 @@ Estimated at ~61% of a 200K context window. Within the per-story limit. No split
       embedded in a query with CJK or emoji chars) does NOT panic. Assert graceful error or
       success; assert NOT a panic. VP-021 regression guard.
 
-   x. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_e_query_001`
+   x. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_coerces_to_string`
       in `crates/prism-query/src/tests/` — asserts `RawTemporalLiteral` in a non-comparison
       projection position (e.g., `SELECT '2026-06-24' FROM t`) COERCES to `Literal::String` →
       query SUCCEEDS; emitted projection is `'2026-06-24'` (string constant; per ADR-052 §D4).
-      (Test function name retains `_e_query_001` suffix — not renamed per append-only naming policy.)
 
    y. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_emitter_guard_raw_temporal_literal`
       in `crates/prism-query/src/` (emitter test module) — directly calls the
@@ -522,21 +521,17 @@ Estimated at ~61% of a 200K context window. Within the per-story limit. No split
 
    **New stubs for ADR-052 §D4 v1.8 non-comparison coerce — Red Gate coverage:**
 
-   aj. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_group_by_date_like_coerces`
-       in `crates/prism-query/src/tests/` — FLIPPED per ADR-052 §D4 v1.10 / error-taxonomy v2.14:
-       asserts a date-like literal (`'2026-06-24'`) in a SQL GROUP BY position
-       (e.g., `SELECT count(*) FROM t GROUP BY '2026-06-24'`) → E-QUERY-042
+   aj. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_group_by_date_like_rejects_e_query_042`
+       in `crates/prism-query/src/tests/` — asserts a date-like literal (`'2026-06-24'`) in a SQL
+       GROUP BY position (e.g., `SELECT count(*) FROM t GROUP BY '2026-06-24'`) → E-QUERY-042
        (`TemporalLiteralInvalidPosition::GroupBy`); maps to INVALID_PARAMS (-32602).
        Assert error IS `TemporalLiteralInvalidPosition`; assert it does NOT map to -32000. (RG-035)
-       (Test function name unchanged per append-only naming policy — "coerces" is a historical artifact.)
 
-   ak. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_order_by_date_like_coerces`
-       in `crates/prism-query/src/tests/` — FLIPPED per ADR-052 §D4 v1.10 / error-taxonomy v2.14:
-       asserts a date-like literal (`'2026-06-24'`) in a SQL ORDER BY position
-       (e.g., `SELECT * FROM t ORDER BY '2026-06-24'`) → E-QUERY-042
+   ak. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_order_by_date_like_rejects_e_query_042`
+       in `crates/prism-query/src/tests/` — asserts a date-like literal (`'2026-06-24'`) in a SQL
+       ORDER BY position (e.g., `SELECT * FROM t ORDER BY '2026-06-24'`) → E-QUERY-042
        (`TemporalLiteralInvalidPosition::OrderBy`); maps to INVALID_PARAMS (-32602).
        Assert error IS `TemporalLiteralInvalidPosition`; assert it does NOT map to -32000. (RG-036)
-       (Test function name unchanged per append-only naming policy.)
 
    al. `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_pipe_stats_by_date_like_e_query_001`
        in `crates/prism-query/src/tests/` — asserts `FROM t | stats count by '2026-06-24'`
@@ -574,11 +569,11 @@ Estimated at ~61% of a 200K context window. Within the per-story limit. No split
    truncated at UTF-8 codepoint boundary per error-taxonomy.md §E-QUERY-041 convention).
 
    Also add **`PrismError::TemporalLiteralInvalidPosition`** variant and companion
-   **`TemporalInvalidPosition`** enum (E-QUERY-042, error-taxonomy v2.14):
+   **`TemporalLiteralPosition`** enum (E-QUERY-042, error-taxonomy v2.14):
    ```rust
    /// E-QUERY-042: A date-like temporal literal appeared in a structurally invalid position.
    TemporalLiteralInvalidPosition {
-       position: TemporalInvalidPosition,
+       position: TemporalLiteralPosition,
        value_prefix: String,  // first 50 chars, UTF-8 boundary-safe (same truncation as E-QUERY-041)
    },
    ```
@@ -587,14 +582,14 @@ Estimated at ~61% of a 200K context window. Within the per-story limit. No split
    /// Identifies the invalid position for `PrismError::TemporalLiteralInvalidPosition` (E-QUERY-042).
    #[derive(Debug, Clone, PartialEq)]
    #[non_exhaustive]
-   pub enum TemporalInvalidPosition {
+   pub enum TemporalLiteralPosition {
        GroupBy,
        OrderBy,
        NonColumnLhsComparison,
    }
    ```
    The Display for `TemporalLiteralInvalidPosition` MUST match error-taxonomy.md §E-QUERY-042 POL-24
-   template for the specific position variant. `TemporalInvalidPosition` must carry `#[non_exhaustive]`
+   template for the specific position variant. `TemporalLiteralPosition` must carry `#[non_exhaustive]`
    per CLAUDE.md pub-API discipline. Both are in `prism-core::error`.
 
 7. **Add** `map_prism_error` arms for BOTH new error variants in `crates/prism-mcp/src/error_mapping.rs`.
@@ -779,11 +774,11 @@ Estimated at ~61% of a 200K context window. Within the per-story limit. No split
        a. If position is a **comparison** (`>`, `<`, `>=`, `<=`, `=`, `!=`):
           - If LHS is a **plain column reference**: resolve the column type (step 2)
           - If LHS is a **function call or other non-column expression** (non-column-LHS):
-            → `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalInvalidPosition::NonColumnLhsComparison, value_prefix: first_50_chars(s) })` (E-QUERY-042; NOT E-QUERY-041)
+            → `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition::NonColumnLhsComparison, value_prefix: first_50_chars(s) })` (E-QUERY-042; NOT E-QUERY-041)
        b. If position is **GROUP BY** (SQL mode):
-          → `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalInvalidPosition::GroupBy, value_prefix: first_50_chars(s) })` (E-QUERY-042)
+          → `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition::GroupBy, value_prefix: first_50_chars(s) })` (E-QUERY-042)
        c. If position is **ORDER BY** (SQL mode):
-          → `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalInvalidPosition::OrderBy, value_prefix: first_50_chars(s) })` (E-QUERY-042)
+          → `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition::OrderBy, value_prefix: first_50_chars(s) })` (E-QUERY-042)
        d. If position is **SELECT projection** or **function arg** (non-comparison, not GROUP BY/ORDER BY):
           COERCE — rewrite node: `*literal = Literal::String(s.clone())` → Ok(()) (ADR-052 §D4 v1.10)
     2. Resolve the column type from `schema` for the comparison operand (step 1a plain-column path only):
@@ -973,7 +968,7 @@ None — no new files.
 
 | File | Change Type | What Changes |
 |------|-------------|--------------|
-| `crates/prism-core/src/error.rs` | [CHANGE] | Add `PrismError::TemporalLiteralUnparseable { value_prefix: String }` (E-QUERY-041) and `PrismError::TemporalLiteralInvalidPosition { position: TemporalInvalidPosition, value_prefix: String }` (E-QUERY-042) variants + `TemporalInvalidPosition` enum (GroupBy/OrderBy/NonColumnLhsComparison, `#[non_exhaustive]`); add `Display` arms per error-taxonomy §E-QUERY-041/§E-QUERY-042; verify `PrismError` carries `#[non_exhaustive]` |
+| `crates/prism-core/src/error.rs` | [CHANGE] | Add `PrismError::TemporalLiteralUnparseable { value_prefix: String }` (E-QUERY-041) and `PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition, value_prefix: String }` (E-QUERY-042) variants + `TemporalLiteralPosition` enum (GroupBy/OrderBy/NonColumnLhsComparison, `#[non_exhaustive]`); add `Display` arms per error-taxonomy §E-QUERY-041/§E-QUERY-042; verify `PrismError` carries `#[non_exhaustive]` |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | [CHANGE] | `column_type_to_arrow`: `Datetime → DataType::Utf8` → `Timestamp(Microsecond, Some(Arc::from("UTC")))`; add `parse_datetime_to_micros` helper + sensor datetime string → microsecond parsing |
 | `crates/prism-core/src/column.rs` | [CHANGE] | Fix stale doc comment on `ColumnType::Datetime` |
 | `crates/prism-query/src/ast.rs` | [CHANGE] | Add `Literal::RawTemporalLiteral(String)` variant with doc comment per §D4 Step 1 |
@@ -1371,7 +1366,7 @@ Traces to: BC-2.11.003 §Postconditions (coercion success path); ADR-052 §D4 co
 
 ```bash
 cargo nextest run -p prism-query \
-  -E 'test(S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query_001)' \
+  -E 'test(S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query_002)' \
   2>&1 | grep -c 'PASS'
 ```
 
@@ -1580,7 +1575,7 @@ Traces to: ADR-052 §D4 `is_date_like` function (7 `parse_from_str` calls, each 
 
 ```bash
 cargo nextest run -p prism-query \
-  -E 'test(S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_e_query_001)' \
+  -E 'test(S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_coerces_to_string)' \
   2>&1 | grep -c 'PASS'
 ```
 
@@ -1611,7 +1606,7 @@ Traces to: BC-2.11.021 §Postconditions (non-comparison SELECT projection coerce
 
 ```bash
 cargo nextest run -p prism-query \
-  -E 'test(S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_group_by_date_like_coerces)' \
+  -E 'test(S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_group_by_date_like_rejects_e_query_042)' \
   2>&1 | grep -c 'PASS'
 ```
 
@@ -1620,7 +1615,7 @@ Expected output: `1`. (RG-035 — GROUP BY position → E-QUERY-042 GroupBy reje
 This test verifies:
 - `SELECT count(*) FROM t GROUP BY '2026-06-24'` (date-like literal in SQL GROUP BY clause)
 - `check_temporal_literals` detects `RawTemporalLiteral("2026-06-24")` in GROUP BY position →
-  `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalInvalidPosition::GroupBy, value_prefix: "2026-06-24".into() })`
+  `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition::GroupBy, value_prefix: "2026-06-24".into() })`
 - `map_prism_error` maps it to `codes::INVALID_PARAMS` (-32602)
 - Does NOT map to -32000 (INTERNAL_ERROR) — this is a caller-resolvable semantic error
 
@@ -1638,7 +1633,7 @@ Traces to: BC-2.11.021 §Postconditions (GROUP BY position → E-QUERY-042); err
 
 ```bash
 cargo nextest run -p prism-query \
-  -E 'test(S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_order_by_date_like_coerces)' \
+  -E 'test(S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_order_by_date_like_rejects_e_query_042)' \
   2>&1 | grep -c 'PASS'
 ```
 
@@ -1646,7 +1641,7 @@ Expected output: `1`. (RG-036 — ORDER BY position → E-QUERY-042 OrderBy reje
 
 This test verifies:
 - `SELECT * FROM t ORDER BY '2026-06-24'` (date-like literal in SQL ORDER BY clause)
-- `check_temporal_literals` → `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalInvalidPosition::OrderBy, value_prefix: "2026-06-24".into() })`
+- `check_temporal_literals` → `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition::OrderBy, value_prefix: "2026-06-24".into() })`
 - `map_prism_error` → `codes::INVALID_PARAMS` — NOT -32000
 
 Verify the `TemporalLiteralInvalidPosition` variant exists in `error.rs`:
@@ -1710,7 +1705,7 @@ This test verifies:
 - `WHERE lower(hostname) = '2026-06-24'` (function call on LHS, date-like literal on RHS)
 - `check_temporal_literals` detects `RawTemporalLiteral("2026-06-24")` on the RHS where the
   LHS is NOT a plain column reference (it is a function expression `lower(hostname)`)
-- Returns `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalInvalidPosition::NonColumnLhsComparison, value_prefix: "2026-06-24".into() })` (E-QUERY-042)
+- Returns `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition::NonColumnLhsComparison, value_prefix: "2026-06-24".into() })` (E-QUERY-042)
 - `map_prism_error` → `codes::INVALID_PARAMS` — NOT -32000 (INTERNAL_ERROR)
 
 This is distinct from the plain-column-LHS path:
@@ -1914,7 +1909,7 @@ The test asserts: error IS `TemporalLiteralUnparseable`; error is NOT from parse
 
 **Why load-bearing:** Verifies the coercion arm handles the `NaiveDateTime` (offset-less) pattern too.
 
-### RG-015 — `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query_001`
+### RG-015 — `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query_002`
 
 **Location:** `crates/prism-query/src/tests/`
 
@@ -1929,7 +1924,7 @@ The test asserts: error IS `TemporalLiteralUnparseable`; error is NOT from parse
 
 **Why load-bearing:** The four-way dispatch must route Integer columns to E-QUERY-002 (`QueryTypeMismatch`), not E-QUERY-041.
 
-### RG-016 — `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_float_col_date_like_e_query_001`
+### RG-016 — `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_float_col_date_like_e_query_002`
 
 **Location:** `crates/prism-query/src/tests/`
 
@@ -1939,7 +1934,7 @@ The test asserts: error IS `TemporalLiteralUnparseable`; error is NOT from parse
 
 **Why load-bearing:** The four-way dispatch must be exhaustive across numeric types.
 
-### RG-017 — `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_bool_col_date_like_e_query_001`
+### RG-017 — `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_bool_col_date_like_e_query_002`
 
 **Location:** `crates/prism-query/src/tests/`
 
@@ -2022,7 +2017,7 @@ The test asserts: error IS `TemporalLiteralUnparseable`; error is NOT from parse
 
 **SID-1 compliance:** in-process, deterministic — no `#[ignore]`.
 
-### RG-023 — `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_e_query_001`
+### RG-023 — `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_coerces_to_string`
 
 **Location:** `crates/prism-query/src/tests/`
 
@@ -2033,7 +2028,7 @@ The test asserts: error IS `TemporalLiteralUnparseable`; error is NOT from parse
 - `check_temporal_literals` finds `Literal::RawTemporalLiteral("2026-06-24")` in non-comparison position
 - COERCE: rewrites in-place to `Literal::String("2026-06-24")` → Ok(()) — query SUCCEEDS
 - Emitted SQL projection is `'2026-06-24'` (string constant)
-- NOT E-QUERY-002 (behavior reversed from pre-v1.8 spec; test function name unchanged per append-only naming policy)
+- NOT E-QUERY-002 (behavior ratified per ADR-052 §D4 v1.10 — SELECT projection coerces to string constant)
 - NOT E-QUERY-041 (that requires a Datetime column comparison)
 
 (Regression guards: the Datetime-comparison arm in RG-004/005 still produces E-QUERY-041 — unchanged.
@@ -2210,11 +2205,9 @@ and that the coerced literal is safely emitted as a string constant without trig
 
 **SID-1 compliance:** in-process, deterministic — no `#[ignore]`.
 
-### RG-035 — `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_group_by_date_like_coerces`
+### RG-035 — `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_group_by_date_like_rejects_e_query_042`
 
 **Location:** `crates/prism-query/src/tests/`
-
-**Note:** Function name unchanged per append-only naming policy; "coerces" is a historical artifact from v1.6. Behavior FLIPPED in v1.8 per ADR-052 §D4 v1.10 / error-taxonomy v2.14.
 
 **Pre-implementation state (v1.8):** compile error — `Literal::RawTemporalLiteral` and `PrismError::TemporalLiteralInvalidPosition` variants do not exist.
 
@@ -2222,7 +2215,7 @@ and that the coerced literal is safely emitted as a string constant without trig
 - Query: `SELECT count(*) FROM t GROUP BY '2026-06-24'` (date-like literal in SQL GROUP BY)
 - Parser emits `Literal::RawTemporalLiteral("2026-06-24")` in the GROUP BY clause
 - `check_temporal_literals` finds the literal in GROUP BY position → REJECT:
-  `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalInvalidPosition::GroupBy, value_prefix: "2026-06-24".into() })`
+  `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition::GroupBy, value_prefix: "2026-06-24".into() })`
 - `map_prism_error` → `codes::INVALID_PARAMS` (-32602)
 - Query FAILS with E-QUERY-042 — NOT success, NOT -32000
 
@@ -2230,11 +2223,9 @@ and that the coerced literal is safely emitted as a string constant without trig
 
 **SID-1 compliance:** in-process, deterministic — no `#[ignore]`.
 
-### RG-036 — `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_order_by_date_like_coerces`
+### RG-036 — `test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_order_by_date_like_rejects_e_query_042`
 
 **Location:** `crates/prism-query/src/tests/`
-
-**Note:** Function name unchanged per append-only naming policy; "coerces" is a historical artifact from v1.6. Behavior FLIPPED in v1.8 per ADR-052 §D4 v1.10 / error-taxonomy v2.14.
 
 **Pre-implementation state (v1.8):** compile error — `Literal::RawTemporalLiteral` and `PrismError::TemporalLiteralInvalidPosition` variants do not exist.
 
@@ -2242,7 +2233,7 @@ and that the coerced literal is safely emitted as a string constant without trig
 - Query: `SELECT * FROM t ORDER BY '2026-06-24'` (date-like literal in SQL ORDER BY)
 - Parser emits `Literal::RawTemporalLiteral("2026-06-24")` in the ORDER BY clause
 - `check_temporal_literals` finds the literal in ORDER BY position → REJECT:
-  `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalInvalidPosition::OrderBy, value_prefix: "2026-06-24".into() })`
+  `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition::OrderBy, value_prefix: "2026-06-24".into() })`
 - `map_prism_error` → `codes::INVALID_PARAMS` (-32602)
 - Query FAILS with E-QUERY-042 — NOT success, NOT -32000
 
@@ -2296,7 +2287,7 @@ and that the coerced literal is safely emitted as a string constant without trig
 - Parser produces `Literal::RawTemporalLiteral("2026-06-24")` on the RHS
 - `check_temporal_literals` detects the literal in a comparison where the LHS is a non-column
   expression (function call `lower(hostname)`) → REJECT:
-  `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalInvalidPosition::NonColumnLhsComparison, value_prefix: "2026-06-24".into() })`
+  `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition::NonColumnLhsComparison, value_prefix: "2026-06-24".into() })`
 - `map_prism_error` → `codes::INVALID_PARAMS` (-32602) — NOT -32000
 
 The test MUST verify:
@@ -2340,7 +2331,7 @@ Per `architecture/ARCH-INDEX.md` Subsystem Registry:
 | `check_temporal_literals` function | `crates/prism-query/src/engine.rs` | Pure (AST walker + schema resolution; coercion mutates AST in-place) | D4 ADD: four-way dispatch; inserted after `check_enrich_udf_availability` |
 | Text-scanner functions (DELETED) | `crates/prism-query/src/engine.rs` | N/A | D4 DELETE: `extract_table_name_from_query_str`, `extract_column_name_adjacent_to_quoted_value`, `is_bad_literal_in_datetime_column`, parse-fail branch (if present in workspace) |
 | `PrismError::TemporalLiteralUnparseable` | `crates/prism-core/src/error.rs` | Pure (error type definition) | D4 ADD: new variant (E-QUERY-041) |
-| `PrismError::TemporalLiteralInvalidPosition` + `TemporalInvalidPosition` | `crates/prism-core/src/error.rs` | Pure (error type definitions) | D4 ADD: new variant + enum (E-QUERY-042; positions: GroupBy/OrderBy/NonColumnLhsComparison) |
+| `PrismError::TemporalLiteralInvalidPosition` + `TemporalLiteralPosition` | `crates/prism-core/src/error.rs` | Pure (error type definitions) | D4 ADD: new variant + enum (E-QUERY-042; positions: GroupBy/OrderBy/NonColumnLhsComparison) |
 | `map_prism_error` arms | `crates/prism-mcp/src/error_mapping.rs` | Pure (error code mapping) | D4 ADD: `codes::INVALID_PARAMS` arms for both E-QUERY-041 and E-QUERY-042 variants |
 | `pipe_sql_emitter.rs` `Literal::Timestamp` | `crates/prism-query/src/pipe_sql_emitter.rs` | Pure (AST → SQL string) | D3 CHANGE: `arrow_cast(...)` form |
 | `pipe_sql_emitter.rs` `Literal::RawTemporalLiteral` guard | `crates/prism-query/src/pipe_sql_emitter.rs` | Pure (returns Err) | D4 ADD: E-QUERY-002 (`QueryPlanFailed`) belt-and-suspenders guard arm |
@@ -2410,7 +2401,9 @@ revised to 3 days due to Option-A redesign and deep Red Gate mandate.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.8 | S-PRISMQL-NATIVE-TEMPORAL-TYPING-001-D4-v1.10-refined-dispatch | 2026-07-05 | story-writer | **Refined non-comparison dispatch per ADR-052 §D4 v1.10 / error-taxonomy v2.14 (E-QUERY-042).** RG-035 (GROUP BY) and RG-036 (ORDER BY) FLIPPED from coerce success to E-QUERY-042 (`TemporalLiteralInvalidPosition::GroupBy/OrderBy`, INVALID_PARAMS) reject. RG-023 (SELECT projection coerce) UNCHANGED. THREE new RGs added: RG-037 (pipe `stats by` → parse-time E-QUERY-001), RG-038 (pipe `sort` → parse-time E-QUERY-001), RG-039 (non-column-LHS comparison → E-QUERY-042 `NonColumnLhsComparison`, INVALID_PARAMS). `red_gate_tests` 36→39. **New ACs:** AC-030 (GROUP BY → E-QUERY-042 GroupBy), AC-031 (ORDER BY → E-QUERY-042 OrderBy), AC-032 (pipe stats-by → parse E-QUERY-001), AC-033 (pipe sort → parse E-QUERY-001), AC-034 (non-column-LHS → E-QUERY-042 NonColumnLhsComparison); AC-029 narrowed to SELECT-projection-only coerce. **Spec additions:** §D4 dispatch table expanded to 9 rows; E-QUERY-042 `TemporalLiteralInvalidPosition` + `TemporalInvalidPosition` enum added to Task 6 + File Structure + Architecture Mapping; `map_prism_error` arm for E-QUERY-042 added to Task 7; Task 13 extended with pipe parse-time rejection; Task 14 dispatch logic updated (step 1 now 4-branch with non-column-LHS + GROUP BY + ORDER BY + projection). EC-025 updated (was coerce → now reject); EC-025b, EC-026, EC-027 added. Architecture Compliance Rules: 3 new rows for E-QUERY-042 discipline. Token budget ~120k→~122k. Frontmatter BC comment updated for §D4 v1.10. Stubs aj/ak descriptions updated (flip to reject; names unchanged per append-only policy); stubs al/am/an added. |
+| 1.10 | S-PRISMQL-NATIVE-TEMPORAL-TYPING-001-LOW-1-behavior-accurate-rg-names | 2026-07-05 | story-writer | **LOW-1: behavior-accurate RG/AC test-name reconciliation.** Updated 9 stale test function names throughout Task 5 stubs, AC verification commands, and Red Gate headings to match canonical shipped behavior: (1) RG-015/016/017 numeric-col arms: `_e_query_001` suffix → `_e_query_002` (Integer/Float/Bool → E-QUERY-002, not E-QUERY-001); (2) RG-023 SELECT projection: `_projection_position_e_query_001` → `_projection_position_coerces_to_string` (COERCE success, not error); (3) RG-035 GROUP BY: `_projection_group_by_date_like_coerces` → `_group_by_date_like_rejects_e_query_042` (REJECT E-QUERY-042, not coerce); (4) RG-036 ORDER BY: `_order_by_date_like_coerces` → `_order_by_date_like_rejects_e_query_042` (REJECT E-QUERY-042, not coerce). RG-037/038/039 names already correct (unmodified). Stale "(Test function name retains `_e_query_001` suffix — not renamed per append-only naming policy)" notes removed from stubs p, q, r, x. Stale "(Test function name unchanged per append-only naming policy — "coerces" is a historical artifact)" notes removed from stubs aj, ak and RG-035/036 Note blocks. RG-023 stale prose "(behavior reversed from pre-v1.8 spec; test function name unchanged per append-only naming policy)" updated to current-behavior anchor. RG NUMBERS immutable (POL-1) — only descriptive suffixes corrected. |
+| 1.9 | S-PRISMQL-NATIVE-TEMPORAL-TYPING-001-F-LOW-1-enum-rename | 2026-07-05 | story-writer | **F-LOW-1: reconcile story enum name TemporalInvalidPosition→TemporalLiteralPosition (match shipped code + ADR-052 §D4 + error-taxonomy §E-QUERY-042).** All 22 occurrences of the wrong name `TemporalInvalidPosition` replaced with the correct shipped name `TemporalLiteralPosition` across Task 6 code blocks, Task 14 dispatch logic, AC traces (AC-030/031/034), Red Gate vectors (RG-035/036/039), File Structure table, Architecture Mapping table, and edge-case prose. The error VARIANT `PrismError::TemporalLiteralInvalidPosition` (which carries a `position: TemporalLiteralPosition` field) is correctly preserved throughout — enum-name fix does not touch the variant name. |
+| 1.8 | S-PRISMQL-NATIVE-TEMPORAL-TYPING-001-D4-v1.10-refined-dispatch | 2026-07-05 | story-writer | **Refined non-comparison dispatch per ADR-052 §D4 v1.10 / error-taxonomy v2.14 (E-QUERY-042).** RG-035 (GROUP BY) and RG-036 (ORDER BY) FLIPPED from coerce success to E-QUERY-042 (`TemporalLiteralInvalidPosition::GroupBy/OrderBy`, INVALID_PARAMS) reject. RG-023 (SELECT projection coerce) UNCHANGED. THREE new RGs added: RG-037 (pipe `stats by` → parse-time E-QUERY-001), RG-038 (pipe `sort` → parse-time E-QUERY-001), RG-039 (non-column-LHS comparison → E-QUERY-042 `NonColumnLhsComparison`, INVALID_PARAMS). `red_gate_tests` 36→39. **New ACs:** AC-030 (GROUP BY → E-QUERY-042 GroupBy), AC-031 (ORDER BY → E-QUERY-042 OrderBy), AC-032 (pipe stats-by → parse E-QUERY-001), AC-033 (pipe sort → parse E-QUERY-001), AC-034 (non-column-LHS → E-QUERY-042 NonColumnLhsComparison); AC-029 narrowed to SELECT-projection-only coerce. **Spec additions:** §D4 dispatch table expanded to 9 rows; E-QUERY-042 `TemporalLiteralInvalidPosition` + `TemporalLiteralPosition` enum added to Task 6 + File Structure + Architecture Mapping; `map_prism_error` arm for E-QUERY-042 added to Task 7; Task 13 extended with pipe parse-time rejection; Task 14 dispatch logic updated (step 1 now 4-branch with non-column-LHS + GROUP BY + ORDER BY + projection). EC-025 updated (was coerce → now reject); EC-025b, EC-026, EC-027 added. Architecture Compliance Rules: 3 new rows for E-QUERY-042 discipline. Token budget ~120k→~122k. Frontmatter BC comment updated for §D4 v1.10. Stubs aj/ak descriptions updated (flip to reject; names unchanged per append-only policy); stubs al/am/an added. |
 | 1.7 | S-PRISMQL-NATIVE-TEMPORAL-TYPING-001-LOW1-depinning | 2026-07-05 | story-writer | **LOW-1: de-pin stale anchored-artifact version cites (TD-VSDD-091).** Removed all vX.Y version pins from live narrative (frontmatter comments, Background table, Token Budget table, Tasks, Architecture Compliance Rules, AC headings/Traces, Red Gate post-implementation states, Behavioral Contracts table, Edge Cases table, Known Limitations). Replaced with ID + behavioral anchor form (e.g., BC-2.11.003 §Postconditions, ADR-052 §D4, error-taxonomy §E-QUERY-041). Story own version, changelog entries, and Red Gate AC↔test source-of-truth tables left intact per constraint. Behavioral Contracts table: Version column removed entirely (not needed — BCs are cited by §Postconditions/§Error Cases/§Edge Cases anchors in AC traces). |
 | 1.6 | S-PRISMQL-NATIVE-TEMPORAL-TYPING-001-OBS2-noncomparison-coerce | 2026-07-05 | story-writer | **OBS-2 human-ratified non-comparison coerce + OBS-1 Literal::Utf8→String naming; align ADR-052 §D4 v1.8 / BC-2.11.021 v1.6.** OBS-2 (behavior change): `RawTemporalLiteral` in a non-comparison position (SELECT projection, GROUP BY, ORDER BY, function arg) now COERCES to `Literal::String(s)` → query SUCCEEDS, instead of returning E-QUERY-002/QueryPlanFailed. Changes: (1) §D4 Step 3 dispatch table row 4 updated (E-QUERY-002 → COERCE); (2) `THREE-WAY dispatch` → `FOUR-WAY dispatch` in §D4 heading, narrative, decision table D4, Task 14 heading, File Structure table, Architecture Mapping table, BC table; (3) Task 14 implementation logic updated: "If NO" branch now describes COERCE; last bullet replaced with non-comparison coerce; (4) Option-A dispatch table: new non-comparison COERCE row added; (5) Stub x updated (E-QUERY-002 → SUCCESS+coerce); (6) Stubs aj and ak added (GROUP BY and ORDER BY coerce success); (7) RG-023 post-implementation state updated (E-QUERY-002 → SUCCESS+coerce); (8) RG-035 and RG-036 added (GROUP BY, ORDER BY coerce success); (9) AC-029 added (non-comparison coerce success); (10) EC-024 and EC-025 added; (11) red_gate_tests 34 → 36; (12) Token budget story spec ~16k→~17.5k, total ~118.5k→~120k. OBS-1 (naming fix): ALL `Literal::Utf8` references in story body replaced with `Literal::String` (19 instances: §D4 Step 2 pseudocode, Step 2 text, Option-A dispatch table, Task 13 comment+code, Task 5 stub s, stub ai, Architecture Compliance Rules, File Structure table, AC-021 heading+body+traces, AC-028 heading+body+traces, RG-018, RG-026 why, RG-027 why, RG-034 body, EC-005, EC-012, EC-023). Changelog/historical references to `Literal::Utf8` (v1.3 changelog) left intact per constraint. Comparison-arm RG vectors (Datetime→E-QUERY-041: RG-004/005/012/025/026/027/028/029/030/032; numeric→E-QUERY-002: RG-015/016/017) are UNCHANGED. |
 | 1.5 | S-PRISMQL-NATIVE-TEMPORAL-TYPING-001-F-P5-MED-2 | 2026-07-04 | product-owner | **F-P5-MED-2 spec-code drift correction: E-QUERY-001 references in the Integer/Float/Bool dispatch arm, emitter guard arm, and non-comparison position arm corrected to E-QUERY-002 (`QueryTypeMismatch` / `QueryPlanFailed`).** The v1.4 spec used `PrismError::InvalidQuery` (non-existent variant) and E-QUERY-001 for these three paths. The implementation correctly uses `PrismError::QueryTypeMismatch { column, table, actual_type, operator }` (E-QUERY-002) for the Integer/Float/Bool arm and `PrismError::QueryPlanFailed { detail }` (E-QUERY-002) for the emitter guard and non-comparison position. **Spec changes:** (1) Three-way dispatch table rows 3+4 updated; (2) Step 5 emitter guard description updated; (3) Option-A dispatch table header renamed (was "E-QUERY-001 ↔ E-QUERY-041 boundary"); (4) Task 11B code example updated to `QueryPlanFailed`; (5) Task 14 implementation guidance updated to `QueryTypeMismatch` and `QueryPlanFailed`; (6) Task 15 TD-VSDD-060 guidance updated; (7) AC-020 and AC-022 headings + bodies updated; (8) D3 decision table updated; (9) RG-015/016/017 post-implementation states updated; (10) RG-023/024 post-implementation states updated; (11) EC-005/EC-011 expected behavior updated; (12) Pre-implementation "would have" comments in RG-013/RG-031 updated; (13) Error taxonomy reference updated to v2.12. Story version bumped 1.4→1.5. |
