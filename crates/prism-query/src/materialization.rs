@@ -2289,7 +2289,7 @@ pub(crate) async fn collect_record_batch_stream(
 /// returns `Err(TemporalLiteralInvalidPosition::NonColumnLhsComparison)` [E-QUERY-042]
 /// regardless of registry state when `skip_projection = false`.
 ///
-/// Traces to: ADR-052 §D4 v1.10 seven-arm dispatch; BC-2.11.021 v1.7 §Postconditions;
+/// Traces to: ADR-052 §D4 v1.10 seven-arm dispatch; BC-2.11.021 §Postconditions;
 /// S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 14; FIX-2 (early gate scoping).
 pub(crate) fn check_temporal_literals(
     ast: &mut crate::ast::Ast,

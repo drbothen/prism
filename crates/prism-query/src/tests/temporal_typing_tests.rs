@@ -23,9 +23,9 @@
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
-//! | test_…_e_query_041_sql_mode_date_only_string | AC-005 | BC-2.11.021 v1.2 EC-11-021-009 |
-//! | test_…_e_query_041_pipe_mode_date_only_string | AC-005 | BC-2.11.004 v1.7 EC-11-004-001 |
-//! | test_…_valid_rfc3339_utc_string_not_rejected | AC-007 | BC-2.11.003 v1.6; BC-2.11.004 v1.7 |
+//! | test_…_e_query_041_sql_mode_date_only_string | AC-005 | BC-2.11.021 EC-11-021-009 |
+//! | test_…_e_query_041_pipe_mode_date_only_string | AC-005 | BC-2.11.004 EC-11-004-001 |
+//! | test_…_valid_rfc3339_utc_string_not_rejected | AC-007 | BC-2.11.003; BC-2.11.004 |
 
 use std::sync::Arc;
 
@@ -212,7 +212,7 @@ fn make_ghost_sensor_engine() -> QueryEngine {
 /// midnight-local — producing a wrong temporal comparison with no error. The Prism
 /// chrono pre-validator provides the only deterministic rejection (ADR-052 D4).
 ///
-/// Traces to: BC-2.11.021 v1.2 EC-11-021-009; BC-2.11.003 v1.6 EC-11-003-001;
+/// Traces to: BC-2.11.021 EC-11-021-009; BC-2.11.003 EC-11-003-001;
 /// ADR-052 §D4.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_sql_mode_date_only_string() {
@@ -272,14 +272,14 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_sql_mode_date_onl
 ///
 /// # Post-implementation state (AC-005)
 /// Returns `Err(PrismError::TemporalLiteralUnparseable { .. })`.
-/// BC-2.11.004 v1.7 EC-11-004-001 specifies E-QUERY-041 in pipe `| where` stages —
+/// BC-2.11.004 EC-11-004-001 specifies E-QUERY-041 in pipe `| where` stages —
 /// parity with SQL mode is required.
 ///
 /// # Why load-bearing (pipe-mode parity)
 /// If E-QUERY-041 only fires in SQL mode, analysts using pipe syntax could bypass the
 /// gate with the same date-only pattern, getting wrong results silently.
 ///
-/// Traces to: BC-2.11.004 v1.7 EC-11-004-001; ADR-052 §D4.
+/// Traces to: BC-2.11.004 EC-11-004-001; ADR-052 §D4.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_pipe_mode_date_only_string() {
     let engine = make_test_engine();
@@ -338,7 +338,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_pipe_mode_date_on
 /// RFC-3339 strings, existing analyst queries break silently. This negative-path test
 /// guards against an overly-aggressive implementation.
 ///
-/// Traces to: BC-2.11.003 v1.6 §Valid accepted forms; BC-2.11.004 v1.7 §Valid accepted;
+/// Traces to: BC-2.11.003 §Valid accepted forms; BC-2.11.004 §Valid accepted;
 /// ADR-052 §D4.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_valid_rfc3339_utc_string_not_rejected() {
@@ -396,7 +396,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_valid_rfc3339_utc_string_not_
 /// The query proceeds to DataFusion (which may fail with a sensor error, but NOT
 /// E-QUERY-041).
 ///
-/// Traces to: ADR-052 §D4 ("schema-aware"); BC-2.11.021 v1.2 §Gate conditions.
+/// Traces to: ADR-052 §D4 ("schema-aware"); BC-2.11.021 §Gate conditions.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_column_ordering_not_rejected() {
     let engine = make_test_engine();
@@ -439,7 +439,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_column_ordering_not_re
 /// to `"{sensor}_{table}"` (e.g., `"ghost_sensor_devices"`). The schema lookup succeeds
 /// and `check_temporal_literals` fires E-QUERY-041.
 ///
-/// Traces to: ADR-052 §D4; BC-2.11.021 v1.2 EC-11-021-009; BC-2.11.004 v1.7 EC-11-004-001.
+/// Traces to: ADR-052 §D4; BC-2.11.021 EC-11-021-009; BC-2.11.004 EC-11-004-001.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_dotted_external_source_pipe_date_only_raises_e_query_041(
 ) {
@@ -517,7 +517,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_filter_mode_valid_rfc3339_not
 /// `check_temporal_literals` walks the AST, finds `RawTemporalLiteral` compared
 /// against the `timestamp` Datetime column → fires E-QUERY-041.
 ///
-/// Traces to: ADR-052 §D4; BC-2.11.021 v1.2 §Invalid forms (EC-006 "offset-less").
+/// Traces to: ADR-052 §D4; BC-2.11.021 §Invalid forms (EC-006 "offset-less").
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_ec006_offset_less_datetime_raises_e_query_041() {
     let engine = make_test_engine();
@@ -643,7 +643,7 @@ fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_low1_grammar_rejects_literal_lhs_co
 /// operator. The query will fail with a sensor error (no sensor wired) but must NOT
 /// fail with `TemporalLiteralUnparseable`.
 ///
-/// Traces to: BC-2.11.003 v1.6 §Postconditions; ADR-052 §D4 valid-pass-through.
+/// Traces to: BC-2.11.003 §Postconditions; ADR-052 §D4 valid-pass-through.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_obs2_equality_valid_rfc3339_not_rejected() {
     let engine = make_test_engine();
@@ -856,9 +856,9 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_f_local_low1_pipe_no_from_dot
 /// "metrics_sensor_events". Includes multiple column types for seven-arm dispatch tests:
 ///   - `timestamp_col: ColumnType::Datetime` — for E-QUERY-041 tests (Datetime arm)
 ///   - `label_col: ColumnType::String`       — for coercion tests (String/Utf8 arm)
-///   - `count_col: ColumnType::Integer`      — for E-QUERY-001 type-mismatch tests
-///   - `ratio_col: ColumnType::Float`        — for E-QUERY-001 type-mismatch tests
-///   - `active_col: ColumnType::Boolean`     — for E-QUERY-001 type-mismatch tests
+///   - `count_col: ColumnType::Integer`      — for E-QUERY-002 type-mismatch tests
+///   - `ratio_col: ColumnType::Float`        — for E-QUERY-002 type-mismatch tests
+///   - `active_col: ColumnType::Boolean`     — for E-QUERY-002 type-mismatch tests
 ///
 /// Used by RG-015/016/017 (Integer/Float/Bool type-mismatch) and RG-013/014 (coerce).
 fn make_typed_columns_registry() -> Arc<TableRegistry> {
@@ -932,7 +932,7 @@ fn make_typed_columns_engine() -> QueryEngine {
 /// Any parser change that accidentally classifies full RFC-3339 as `RawTemporalLiteral`
 /// would break all temporal queries silently. This test catches that regression.
 ///
-/// Traces to: BC-2.11.003 v1.7 §Valid accepted forms; BC-2.11.021 v1.4 §Postconditions;
+/// Traces to: BC-2.11.003 §Valid accepted forms; BC-2.11.021 §Postconditions;
 /// ADR-052 §D4 Step 2.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_full_rfc3339_regression_guard() {
@@ -978,7 +978,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_full_rfc3339_regression_guard
 /// The `is_date_like` heuristic MUST cover both `NaiveDate` (form 1) and `NaiveDateTime`
 /// (forms 2-7) patterns to gate all date-like inputs.
 ///
-/// Traces to: BC-2.11.021 v1.4 EC-11-021-009; ADR-052 §D4 v1.4 form 2.
+/// Traces to: BC-2.11.021 EC-11-021-009; ADR-052 §D4 form 2.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_offset_less_datetime_col() {
     let engine = make_test_engine();
@@ -1047,8 +1047,8 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_offset_less_datet
 /// fragment is `hostname = '2026-06-24'` byte-identical to pre-ADR-052, making the claim
 /// in the docstring load-bearing (not just absence-of-error).
 ///
-/// Traces to: ADR-052 §D4 v1.4 coercion arm (RISK-5 RESOLVED BY DESIGN);
-/// BC-2.11.021 v1.4 EC-11-021-013; BC-2.11.003 v1.7 EC-11-003-001.
+/// Traces to: ADR-052 §D4 coercion arm (RISK-5 RESOLVED BY DESIGN);
+/// BC-2.11.021 EC-11-021-013; BC-2.11.003 EC-11-003-001.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_date_only_succeeds() {
     let engine = make_test_engine();
@@ -1147,7 +1147,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_date_only
 /// The body also drives the coercion through the pipe SQL emitter and asserts the emitted
 /// fragment is `hostname = '2026-06-24T12:00:00'` byte-identical to pre-ADR-052.
 ///
-/// Traces to: ADR-052 §D4 v1.4 coercion arm; BC-2.11.021 v1.4 EC-11-021-013.
+/// Traces to: ADR-052 §D4 coercion arm; BC-2.11.021 EC-11-021-013.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_offset_less_succeeds() {
     let engine = make_test_engine();
@@ -1220,7 +1220,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_offset_le
 // ── RG-015 (stub p): Integer col type-mismatch ────────────────────────────────
 
 /// RG-015 (stub p): Date-like literal against `ColumnType::Integer` column MUST return
-/// E-QUERY-001 (NOT E-QUERY-041 — E-QUERY-041 is only for Datetime columns).
+/// E-QUERY-002 (NOT E-QUERY-041 — E-QUERY-041 is only for Datetime columns).
 ///
 /// Query: `SELECT * FROM metrics_sensor_events WHERE count_col = '2026-06-24'`
 ///
@@ -1230,7 +1230,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_offset_le
 ///
 /// # Post-implementation state (ADR-052 §D4 Step 3 third arm)
 /// `is_date_like = true` → `RawTemporalLiteral`. `check_temporal_literals` resolves
-/// `count_col` → `ColumnType::Integer` → returns E-QUERY-001 (type mismatch, NOT E-QUERY-041).
+/// `count_col` → `ColumnType::Integer` → returns E-QUERY-002 (type mismatch, NOT E-QUERY-041).
 ///
 /// # Why load-bearing
 /// The seven-arm dispatch must be exhaustive: Integer (and Float, Bool) columns must route
@@ -1238,9 +1238,9 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_offset_le
 /// wrong error message ("cannot interpret as UTC timestamp" for a type that never holds
 /// timestamps).
 ///
-/// Traces to: ADR-052 §D4 v1.4 Step 3 third arm; BC-2.11.021 v1.4 §Postconditions.
+/// Traces to: ADR-052 §D4 Step 3 third arm; BC-2.11.021 §Postconditions.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query_001() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query_002() {
     let engine = make_typed_columns_engine();
 
     // Red Gate: parse fails (QueryParseFailed) for '2026-06-24'.
@@ -1271,7 +1271,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query
     // Must NOT be E-QUERY-041 (only Datetime columns trigger the temporal gate).
     assert!(
         !matches!(&err, PrismError::TemporalLiteralUnparseable { .. }),
-        "RG-015: date-like vs Integer col must return E-QUERY-001, NOT E-QUERY-041. \
+        "RG-015: date-like vs Integer col must return E-QUERY-002, NOT E-QUERY-041. \
          Got: {display}"
     );
 
@@ -1287,13 +1287,13 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query
 
 // ── RG-016 (stub q): Float col type-mismatch ─────────────────────────────────
 
-/// RG-016 (stub q): Date-like literal against `ColumnType::Float` column → E-QUERY-001.
+/// RG-016 (stub q): Date-like literal against `ColumnType::Float` column → E-QUERY-002.
 ///
 /// Same dispatch pattern as RG-015 (arm 3 of the seven-arm dispatch) but for Float type.
 ///
-/// Traces to: ADR-052 §D4 v1.10 arm (3); ADR-052 §D4 v1.4 Step 3 third arm.
+/// Traces to: ADR-052 §D4 v1.10 arm (3); ADR-052 §D4 Step 3 third arm.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_float_col_date_like_e_query_001() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_float_col_date_like_e_query_002() {
     let engine = make_typed_columns_engine();
 
     let result = engine
@@ -1317,7 +1317,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_float_col_date_like_e_query_0
 
     assert!(
         !matches!(&err, PrismError::TemporalLiteralUnparseable { .. }),
-        "RG-016: date-like vs Float col must return E-QUERY-001, NOT E-QUERY-041. Got: {err:?}"
+        "RG-016: date-like vs Float col must return E-QUERY-002, NOT E-QUERY-041. Got: {err:?}"
     );
 
     // Must be QueryTypeMismatch (E-QUERY-002) — the structured type-mismatch variant.
@@ -1329,13 +1329,13 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_float_col_date_like_e_query_0
 
 // ── RG-017 (stub r): Boolean col type-mismatch ───────────────────────────────
 
-/// RG-017 (stub r): Date-like literal against `ColumnType::Boolean` column → E-QUERY-001.
+/// RG-017 (stub r): Date-like literal against `ColumnType::Boolean` column → E-QUERY-002.
 ///
 /// Same dispatch pattern as RG-015 (arm 3 of the seven-arm dispatch) but for Boolean type.
 ///
-/// Traces to: ADR-052 §D4 v1.10 arm (3); ADR-052 §D4 v1.4 Step 3 third arm.
+/// Traces to: ADR-052 §D4 v1.10 arm (3); ADR-052 §D4 Step 3 third arm.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_bool_col_date_like_e_query_001() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_bool_col_date_like_e_query_002() {
     let engine = make_typed_columns_engine();
 
     let result = engine
@@ -1359,7 +1359,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_bool_col_date_like_e_query_00
 
     assert!(
         !matches!(&err, PrismError::TemporalLiteralUnparseable { .. }),
-        "RG-017: date-like vs Bool col must return E-QUERY-001, NOT E-QUERY-041. Got: {err:?}"
+        "RG-017: date-like vs Bool col must return E-QUERY-002, NOT E-QUERY-041. Got: {err:?}"
     );
 
     // Must be QueryTypeMismatch (E-QUERY-002) — the structured type-mismatch variant.
@@ -1386,8 +1386,8 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_bool_col_date_like_e_query_00
 /// `Literal::String("not-a-date")`. `check_temporal_literals` finds no
 /// `RawTemporalLiteral` → returns `Ok(())`. No temporal error.
 ///
-/// Traces to: ADR-052 §D4 v1.4 Step 2 (heuristic negative case);
-/// BC-2.11.003 v1.7 §Non-date-like forms (EC-005).
+/// Traces to: ADR-052 §D4 Step 2 (heuristic negative case);
+/// BC-2.11.003 §Non-date-like forms (EC-005).
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_non_date_like_stays_string_literal() {
     let engine = make_test_engine();
@@ -1437,8 +1437,8 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_non_date_like_stays_string_li
 /// `[ghost_sensor_devices, timestamp]` against the registered schema →
 /// `ColumnType::Datetime` → E-QUERY-041.
 ///
-/// Traces to: ADR-052 §D4 v1.4 Step 3 (dotted column resolved via schema, not text-split);
-/// BC-2.11.021 v1.4 EC-11-021-009.
+/// Traces to: ADR-052 §D4 Step 3 (dotted column resolved via schema, not text-split);
+/// BC-2.11.021 EC-11-021-009.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_dotted_source_column_resolution() {
     let engine = make_ghost_sensor_engine();
@@ -1492,8 +1492,8 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_dotted_source_column_resoluti
 /// The qualified column is looked up in the CORRECT source's schema (ghost_sensor_devices),
 /// not collapsed to the last segment (`hostname`) and resolved in any arbitrary table.
 ///
-/// Traces to: ADR-052 §D4 v1.4 Step 3 (qualified column via schema map);
-/// BC-2.11.021 v1.4.
+/// Traces to: ADR-052 §D4 Step 3 (qualified column via schema map);
+/// BC-2.11.021.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_qualified_nested_column_resolution() {
     let engine = make_ghost_sensor_engine();
@@ -1539,7 +1539,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_qualified_nested_column_resol
 /// of whether the comparison operator is ordering or equality.
 ///
 /// Traces to: error-taxonomy.md §E-QUERY-041 ("compared against a bare string literal" —
-/// not operator-specific); ADR-052 §D4 v1.4 Step 3.
+/// not operator-specific); ADR-052 §D4 Step 3.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_filter_pipe_syntax_e_query_041() {
     let engine = make_test_engine();
@@ -1599,7 +1599,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_filter_pipe_syntax_e_query_04
 /// `check_temporal_literals` → `timestamp` is Datetime → E-QUERY-041.
 /// No panic (VP-021 satisfied by construction).
 ///
-/// Traces to: VP-021 (never panics on multi-byte input); ADR-052 §D4 v1.4.
+/// Traces to: VP-021 (never panics on multi-byte input); ADR-052 §D4.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_unicode_input_no_panic() {
     let engine = make_test_engine();
@@ -1640,14 +1640,14 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_unicode_input_no_panic() {
 // ── RG-023: projection-position RawTemporalLiteral → COERCE to Literal::String ────
 
 /// RG-023 (OBS-2): `RawTemporalLiteral` in a projection (SELECT) position without a
-/// comparison context MUST be COERCED to `Literal::String` (ADR-052 §D4 v1.8 OBS-2).
+/// comparison context MUST be COERCED to `Literal::String` (ADR-052 §D4 OBS-2).
 ///
 /// The query `SELECT '2026-06-24' FROM test_events` succeeds — the date-like literal
 /// is treated as a plain string constant when there is no column type to constrain it.
 ///
 /// # Spec change (OBS-2, ratified 2026-07-05)
-/// ADR-052 §D4 v1.4 said: non-comparison position → E-QUERY-002 (QueryPlanFailed).
-/// ADR-052 §D4 v1.8 says: non-comparison position → COERCE to Literal::String.
+/// ADR-052 §D4 said: non-comparison position → E-QUERY-002 (QueryPlanFailed).
+/// ADR-052 §D4 says: non-comparison position → COERCE to Literal::String.
 /// `check_expr_temporal` coerces the bare `RawTemporalLiteral` in-place.
 ///
 /// # Pre-implementation state (Red Gate for OBS-2)
@@ -1659,9 +1659,9 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_unicode_input_no_panic() {
 /// Query continues; DataFusion executes `SELECT '2026-06-24' FROM test_events` normally.
 /// Result: Ok(QueryResult { rows: [] }) — 0 rows (no real sensor in test engine), no error.
 ///
-/// Traces to: ADR-052 §D4 v1.8 OBS-2; BC-2.11.021 v1.6 §Postconditions.
+/// Traces to: ADR-052 §D4 OBS-2; BC-2.11.021 §Postconditions.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_e_query_001() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_coerces_to_string() {
     let engine = make_test_engine();
 
     let result = engine
@@ -1762,7 +1762,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_message_format_by
 /// RG-026 (stub aa): Fractional-seconds T-sep literal (form 3: `%Y-%m-%dT%H:%M:%S%.f`)
 /// vs `ColumnType::Datetime` → E-QUERY-041.
 ///
-/// Traces to: BC-2.11.021 v1.4 EC-11-021-011; ADR-052 §D4 v1.4 form 3.
+/// Traces to: BC-2.11.021 EC-11-021-011; ADR-052 §D4 form 3.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_fractional_t_sep_datetime_col() {
     let engine = make_test_engine();
@@ -1796,7 +1796,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_fractional_t_sep_
 /// RG-027 (stub ab): T-sep no-seconds literal (form 4: `%Y-%m-%dT%H:%M`)
 /// vs `ColumnType::Datetime` → E-QUERY-041.
 ///
-/// Traces to: BC-2.11.021 v1.4 EC-11-021-010; ADR-052 §D4 v1.4 form 4.
+/// Traces to: BC-2.11.021 EC-11-021-010; ADR-052 §D4 form 4.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_no_seconds_t_sep_datetime_col() {
     let engine = make_test_engine();
@@ -1829,7 +1829,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_no_seconds_t_sep_
 /// RG-028 (stub ac): Space-sep full-seconds literal (form 5: `%Y-%m-%d %H:%M:%S`)
 /// vs `ColumnType::Datetime` → E-QUERY-041.
 ///
-/// Traces to: BC-2.11.021 v1.4 EC-11-021-012; ADR-052 §D4 v1.4 form 5.
+/// Traces to: BC-2.11.021 EC-11-021-012; ADR-052 §D4 form 5.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_space_sep_full_seconds_datetime_col()
 {
@@ -1864,7 +1864,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_space_sep_full_se
 /// RG-029 (stub ad): Space-sep fractional-seconds literal (form 6: `%Y-%m-%d %H:%M:%S%.f`)
 /// vs `ColumnType::Datetime` → E-QUERY-041.
 ///
-/// Traces to: ADR-052 §D4 v1.4 form 6.
+/// Traces to: ADR-052 §D4 form 6.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_space_sep_fractional_datetime_col() {
     let engine = make_test_engine();
@@ -1898,7 +1898,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_space_sep_fractio
 /// RG-030 (stub ae): Space-sep no-seconds literal (form 7: `%Y-%m-%d %H:%M`)
 /// vs `ColumnType::Datetime` → E-QUERY-041.
 ///
-/// Traces to: ADR-052 §D4 v1.4 form 7.
+/// Traces to: ADR-052 §D4 form 7.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_space_sep_no_seconds_datetime_col() {
     let engine = make_test_engine();
@@ -1941,7 +1941,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_space_sep_no_seco
 /// → `hostname` is String → COERCE → `Literal::String("2026-06-24 12:00:00")`.
 /// Emitted SQL: `hostname = '2026-06-24 12:00:00'` (byte-identical to pre-ADR-052).
 ///
-/// Traces to: BC-2.11.021 v1.4 EC-11-021-013; ADR-052 §D4 v1.4 coercion arm.
+/// Traces to: BC-2.11.021 EC-11-021-013; ADR-052 §D4 coercion arm.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_space_sep_succeeds() {
     let engine = make_test_engine();
@@ -1978,7 +1978,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_space_sep
 /// # Pre-implementation state (Red Gate)
 /// Parse fails (`QueryParseFailed`). Test asserts `TemporalLiteralUnparseable` → FAILS. ✓
 ///
-/// Traces to: BC-2.11.021 v1.4 EC-11-021-014; ADR-052 §D4 v1.4 over-match ACCEPTED BENIGN.
+/// Traces to: BC-2.11.021 EC-11-021-014; ADR-052 §D4 over-match ACCEPTED BENIGN.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_unpadded_date_overmatch_datetime_col(
 ) {
@@ -2080,8 +2080,8 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_fix2_projection_literal_unreg
 /// `check_temporal_literals` → `hostname` is String → COERCE → `Literal::String("2026-6-24")`.
 /// Unpadded date labels are valid sensor identifiers in some APIs; coercion is correct.
 ///
-/// Traces to: ADR-052 §D4 v1.4 coercion arm + over-match disposition;
-/// BC-2.11.021 v1.4.
+/// Traces to: ADR-052 §D4 coercion arm + over-match disposition;
+/// BC-2.11.021.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_unpadded_date_succeeds() {
     let engine = make_test_engine();
@@ -2127,7 +2127,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_unpadded_
 /// compared against the `timestamp` Datetime column.  `check_temporal_literals`
 /// Ast::SqlPipe arm must walk this position and return `E-QUERY-041`.
 ///
-/// Traces to: BC-2.11.021 v1.5 §Postconditions; ADR-052 §D4 v1.6 MED-1.
+/// Traces to: BC-2.11.021 §Postconditions; ADR-052 §D4 MED-1.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_datetime_col_date_only_raises_e_query_041(
 ) {
@@ -2187,7 +2187,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_datetime_col_date_onl
 /// fail with `E-QUERY-041` (that would mean the Datetime arm fired incorrectly
 /// against a String column).
 ///
-/// Traces to: BC-2.11.021 v1.5 §Postconditions coerce arm; ADR-052 §D4 v1.6 MED-1.
+/// Traces to: BC-2.11.021 §Postconditions coerce arm; ADR-052 §D4 MED-1.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_string_col_date_only_coerce_succeeds() {
     let engine = make_test_engine();
@@ -2227,7 +2227,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_string_col_date_only_
 ///
 /// This is arm (3) of the seven-arm dispatch (ADR-052 §D4 v1.10), exercised via SqlPipe.
 ///
-/// Traces to: ADR-052 §D4 v1.4 Step 3 third arm; BC-2.11.021 v1.5; ADR-052 §D4 v1.6 MED-1.
+/// Traces to: ADR-052 §D4 Step 3 third arm; BC-2.11.021; ADR-052 §D4 MED-1.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_integer_col_date_only_raises_e_query_002(
 ) {
@@ -2272,7 +2272,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_integer_col_date_only
     );
 }
 
-// ── RG-035: GROUP BY position RawTemporalLiteral → COERCE (OBS-2) ─────────────
+// ── RG-035: GROUP BY position RawTemporalLiteral → REJECT E-QUERY-042 (GroupBy) ─────────────
 
 /// RG-035 (ADR-052 §D4 v1.10): `RawTemporalLiteral` in a GROUP BY position MUST be
 /// REJECTED with E-QUERY-042 (GroupBy position).
@@ -2290,7 +2290,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_integer_col_date_only
 /// `check_expr_temporal_pos(..., GroupBy)` returns
 /// `Err(PrismError::TemporalLiteralInvalidPosition { position: GroupBy, value_prefix: "2026-06-24" })`.
 ///
-/// Traces to: ADR-052 §D4 v1.10 arm (6); BC-2.11.021 v1.7 §Error Cases; error-taxonomy.md
+/// Traces to: ADR-052 §D4 v1.10 arm (6); BC-2.11.021 §Error Cases; error-taxonomy.md
 ///            §E-QUERY-042 v2.14; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 F-MED-1.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg035_group_by_position_rejects_e_query_042() {
@@ -2358,7 +2358,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg035_group_by_position_rejec
 /// `check_expr_temporal_pos(..., OrderBy)` returns
 /// `Err(PrismError::TemporalLiteralInvalidPosition { position: OrderBy, value_prefix: "2026-06-24" })`.
 ///
-/// Traces to: ADR-052 §D4 v1.10 arm (7); BC-2.11.021 v1.7 §Error Cases; error-taxonomy.md
+/// Traces to: ADR-052 §D4 v1.10 arm (7); BC-2.11.021 §Error Cases; error-taxonomy.md
 ///            §E-QUERY-042 v2.14; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 F-MED-1.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg036_order_by_position_rejects_e_query_042() {
@@ -2418,7 +2418,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg036_order_by_position_rejec
 /// This exercises the `None | Some(_)` arm of the DML SET dispatch block.
 /// Post-OBS-2, `check_expr_temporal`'s bare-`RawTemporalLiteral` arm COERCES to
 /// `Literal::String` and returns `Ok(())` — the DML unknown-column arm must mirror
-/// that behavior for consistency (ADR-052 §D4 v1.8 OBS-2 defense-in-depth).
+/// that behavior for consistency (ADR-052 §D4 OBS-2 defense-in-depth).
 ///
 /// # Test approach (SID-1 compliant)
 /// Calls `check_temporal_literals` directly with a manually constructed DML AST.
@@ -2426,7 +2426,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg036_order_by_position_rejec
 /// DML test is possible; this unit test at the `check_temporal_literals` boundary
 /// is the load-bearing regression guard for the coerce behavior.
 ///
-/// Traces to: ADR-052 §D4 v1.8 OBS-2 + LOW-2; BC-2.11.021 v1.6.
+/// Traces to: ADR-052 §D4 OBS-2 + LOW-2; BC-2.11.021.
 #[test]
 fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_low2_dml_set_unknown_col_coerces_to_string() {
     use crate::ast::{Ast, Expr, Literal, SqlStatement};

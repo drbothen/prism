@@ -1519,8 +1519,8 @@ pub enum PrismError {
     /// Maps to MCP code -32602 (INVALID_PARAMS) — caller-resolvable by using RFC-3339 form
     /// or switching to `NOW() - INTERVAL 'Nh'` for relative time filters.
     ///
-    /// Reference: ADR-052 §D4; error-taxonomy.md §E-QUERY-041 v2.12; BC-2.11.021 v1.4;
-    ///            BC-2.11.003 v1.7; BC-2.11.004 v1.8; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001.
+    /// Reference: ADR-052 §D4; error-taxonomy §E-QUERY-041; BC-2.11.021 / BC-2.11.003 / BC-2.11.004 §Error Cases;
+    ///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001.
     #[error(
         "E-QUERY-041: The value '{value_prefix}' cannot be interpreted as a UTC timestamp. \
          Expected RFC-3339 format with UTC offset (e.g., '2026-07-03T00:00:00Z'). Date-only \
