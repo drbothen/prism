@@ -829,9 +829,17 @@ fn literal_to_sql(lit: &Literal) -> Result<String, PrismError> {
         // which mismatches the UTC-tagged Microsecond column type. Use arrow_cast() to produce
         // the correct Timestamp(Microsecond, Some("UTC")) typed literal.
         // (Supersedes ADR-044 D4 F-HIGH-002 comment; ADR-044 superseded by ADR-052.)
+        //
+        // SEC-001 (MED-1 sibling sweep): escape single-quotes in iso8601 before interpolating
+        // into the arrow_cast first argument. RFC-3339 validation in TimestampLiteral::new()
+        // prevents embedded `'` via the parser path, but direct in-crate AST construction
+        // is a reachable injection vector. Matches the escape applied in
+        // ast.rs::normalize_literal_for_datafusion (TD-VSDD-060 sibling sweep).
+        // For valid RFC-3339 (no quotes): escape_sql_string is a no-op — byte-identical
+        // to the pre-fix form (RG-003/RG-010 byte-identity preserved).
         Literal::Timestamp(ts) => format!(
             "arrow_cast('{}', 'Timestamp(Microsecond, Some(\"UTC\"))')",
-            ts.iso8601
+            escape_sql_string(&ts.iso8601)
         ),
         // ADR-052 §D4 Step 5 guard (BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001):
         // Belt-and-suspenders secondary defense: RawTemporalLiteral must NEVER reach SQL
@@ -1184,6 +1192,78 @@ mod tests {
         );
         let result = pipe_to_executable_sql(&pipe, &Default::default());
         assert!(result.is_err(), "JOIN should return Err");
+    }
+
+    // -----------------------------------------------------------------------
+    // SEC-001 MED-1 sibling sweep — injection guard for literal_to_sql Timestamp arm
+    // -----------------------------------------------------------------------
+
+    /// SEC-001 (MED-1 sibling sweep): `literal_to_sql(Literal::Timestamp(...))` must
+    /// SQL-double any single-quote embedded in `TimestampLiteral.iso8601` so the
+    /// `arrow_cast` first argument is injection-safe.
+    ///
+    /// This mirrors `test_sec_001_normalize_literal_for_datafusion_escapes_single_quote`
+    /// in `ast.rs` but targets `literal_to_sql` in `pipe_sql_emitter.rs` — the sibling
+    /// DataFusion-executed emission site identified by TD-VSDD-060 (sibling-site sweep).
+    ///
+    /// RFC-3339 validation in `TimestampLiteral::new()` prevents embedded `'` via the
+    /// parser path; this test covers the direct-AST-construction vector (defense-in-depth).
+    ///
+    /// Verifies: single-quote is SQL-doubled (`'` → `''`), NOT passed through raw.
+    #[test]
+    fn test_sec_001_pipe_sql_emitter_timestamp_escapes_single_quote() {
+        use crate::ast::TimestampLiteral;
+        use chrono::Utc;
+        // Adversarially-constructed TimestampLiteral: parser-unreachable but reachable
+        // via direct struct construction inside the crate.
+        let ts_lit = Literal::Timestamp(TimestampLiteral {
+            iso8601: "2026-07-03T00:00:00Z' OR '1'='1".to_string(),
+            instant: Utc::now(),
+        });
+        let emitted = literal_to_sql(&ts_lit)
+            .expect("Literal::Timestamp must not return Err from literal_to_sql");
+        // Must NOT contain the raw injection sequence.
+        assert!(
+            !emitted.contains("Z' OR '1'='1"),
+            "SEC-001 MED-1: raw single-quote injection must be neutralized in literal_to_sql. \
+             Got: {emitted:?}"
+        );
+        // Must contain the SQL-doubled form inside the arrow_cast first argument.
+        assert!(
+            emitted.contains("Z'' OR ''1''=''1"),
+            "SEC-001 MED-1: single-quotes in iso8601 must be SQL-doubled (`'` → `''`) in \
+             literal_to_sql. Got: {emitted:?}"
+        );
+    }
+
+    /// SEC-001 MED-1 byte-identity: for valid RFC-3339 (no single-quotes),
+    /// `escape_sql_string` is a no-op — output is byte-identical to the pre-fix form.
+    ///
+    /// This guards RG-003/RG-010 — those tests assert the EXACT
+    /// `arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(…)')` string. If the escape
+    /// were not a no-op for clean input, it would break those tests.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn test_sec_001_pipe_sql_emitter_timestamp_noop_for_valid_rfc3339() {
+        use crate::ast::TimestampLiteral;
+        use chrono::Utc;
+        let instant = chrono::DateTime::parse_from_rfc3339("2026-07-03T00:00:00Z")
+            .expect("known-good RFC-3339 must parse")
+            .with_timezone(&Utc);
+        let ts_lit = Literal::Timestamp(TimestampLiteral {
+            iso8601: "2026-07-03T00:00:00Z".to_string(),
+            instant,
+        });
+        let emitted = literal_to_sql(&ts_lit)
+            .expect("Literal::Timestamp must not return Err from literal_to_sql");
+        let expected =
+            r#"arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(Microsecond, Some("UTC"))')"#;
+        assert_eq!(
+            emitted, expected,
+            "SEC-001 MED-1 byte-identity: for valid RFC-3339, literal_to_sql \
+             must produce the exact arrow_cast form (guards RG-003/RG-010). \
+             Got: {emitted:?}"
+        );
     }
 
     // -----------------------------------------------------------------------

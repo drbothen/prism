@@ -2396,15 +2396,21 @@ impl PqlNormalizer {
                 };
                 format!("{}{unit_str}", d.value())
             }
-            // Cidr and Timestamp values are produced by validated parsers; they cannot contain
-            // `'` (CIDR strings are dotted-decimal/colon hex + slash prefix; ISO-8601 timestamps
-            // use digits/hyphens/colons/Z/+). Single-quoted form is always safe.
+            // Cidr values are produced by a validated parser (dotted-decimal/colon hex + slash
+            // prefix); they cannot contain `'`. Single-quoted form is always safe.
             Literal::Cidr(c) => format!("'{}'", c.cidr),
             // Regex patterns CAN contain `'` (e.g. `can't`). Use emit_quoted_string.
             // (F-001B-FRESH-HIGH-001 sibling-sweep fix)
             Literal::Regex(r) => Self::emit_quoted_string(&r.pattern),
             Literal::IpAddr(ip) => ip.0 .0.to_string(),
-            Literal::Timestamp(ts) => format!("'{}'", ts.iso8601),
+            // SEC-001 MED-1 (round-trip sweep, TD-VSDD-060): route through emit_quoted_string
+            // to match the String arm convention and provide defense-in-depth against direct
+            // in-crate AST construction with embedded `'`. For valid RFC-3339 (no `'` possible),
+            // emit_quoted_string produces a single-quoted form byte-identical to the pre-fix
+            // `format!("'{}'", ts.iso8601)`. The grammar's single-quoted rule (none_of('\''))
+            // CANNOT represent embedded `'`; emit_quoted_string switches to double-quoted form
+            // for that impossible-in-practice case — preserving re-parseability.
+            Literal::Timestamp(ts) => Self::emit_quoted_string(&ts.iso8601),
             // TD-VSDD-060 / HIGH-1 + MED-3 fix: explicit arm — must never be reached because
             // check_temporal_literals consumes RawTemporalLiteral before normalization.
             // Emit as a properly-quoted string (emit_quoted_string) so DataFusion can at minimum
