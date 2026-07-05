@@ -1351,6 +1351,19 @@ pub enum BinaryOp {
 // PqlNormalizer — Chumsky AST re-serializer (S-DEMO-PRISMQL-ONBOARDING-001-B)
 // ---------------------------------------------------------------------------
 
+// Thread-local flag used by `PqlNormalizer::normalize_for_datafusion` to switch
+// the literal emitter from PQL round-trip form (`'<iso>'`) to DataFusion form
+// (`arrow_cast('...', 'Timestamp(Microsecond, Some("UTC"))')`).
+//
+// The flag is safe in async contexts because `PqlNormalizer::normalize` contains
+// no `.await` points — the thread-local is set, the synchronous traversal runs,
+// and the drop guard resets the flag before any executor can schedule a
+// concurrent task on the same thread.  (ADR-052 §D4 v1.5 SQL-Mode Addendum)
+thread_local! {
+    static NORMALIZE_FOR_DATAFUSION: std::cell::Cell<bool> =
+        const { std::cell::Cell::new(false) };
+}
+
 /// Canonicalizing PQL re-serializer (BC-2.11.018).
 ///
 /// Walks the parsed `Ast` and produces a whitespace-normalized, uppercase-keyword
@@ -1441,6 +1454,60 @@ impl PqlNormalizer {
     /// (MED-1 / OBS-1 fix — fold↔detect exhaustive symmetry sweep).
     pub fn expr_has_unfolded_temporal_pub(expr: &Expr) -> bool {
         Self::expr_has_unfolded_temporal(expr)
+    }
+
+    /// SQL-mode normalizer variant for DataFusion.
+    ///
+    /// Identical to `normalize` (same pre-checks, same AST traversal) EXCEPT that
+    /// `Literal::Timestamp` values are emitted as:
+    ///
+    ///   `arrow_cast('<iso>', 'Timestamp(Microsecond, Some("UTC"))')`
+    ///
+    /// instead of the bare `'<iso>'` that `normalize` emits.  The bare form relies
+    /// on DataFusion's implicit string→timestamp coercion (ADR-052 §RISK-1), which
+    /// is non-deterministic across DataFusion minor versions.  The `arrow_cast` form
+    /// produces an explicit `Timestamp(Microsecond, Some("UTC"))` literal that
+    /// compares directly against `Timestamp(Microsecond, UTC)` columns without
+    /// implicit coercion.
+    ///
+    /// BC-2.11.018 round-trip invariant: `normalize` MUST NOT be changed to emit
+    /// `arrow_cast` — the round-trip form must remain re-parseable by the Chumsky
+    /// grammar (which has no `arrow_cast` production rule).  This method exists
+    /// precisely to keep the two paths separate (ADR-052 §D4 v1.5 SQL-Mode Addendum).
+    ///
+    /// Used by `execute_against_session` for the `Ast::Sql(Select)` DataFusion
+    /// emission path (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001).
+    pub(crate) fn normalize_for_datafusion(ast: &Ast) -> Option<String> {
+        // Drop guard: reset the thread-local even if `normalize` panics.
+        struct DataFusionModeGuard;
+        impl Drop for DataFusionModeGuard {
+            fn drop(&mut self) {
+                NORMALIZE_FOR_DATAFUSION.with(|m| m.set(false));
+            }
+        }
+        NORMALIZE_FOR_DATAFUSION.with(|m| m.set(true));
+        let _guard = DataFusionModeGuard;
+        Self::normalize(ast)
+    }
+
+    /// DataFusion-mode literal emitter: emits `arrow_cast(...)` for
+    /// `Literal::Timestamp`, delegates to `normalize_literal` for all other
+    /// literal variants.
+    ///
+    /// This is the per-literal complement of `normalize_for_datafusion` — it is
+    /// called automatically when the NORMALIZE_FOR_DATAFUSION thread-local is
+    /// set, and is also exposed `pub(crate)` so `materialization.rs` can call it
+    /// from `emit_literal_for_datafusion` and tests can assert the exact form.
+    ///
+    /// ADR-052 §D4 v1.5 SQL-Mode DataFusion Emission Addendum.
+    pub(crate) fn normalize_literal_for_datafusion(lit: &Literal) -> String {
+        match lit {
+            Literal::Timestamp(ts) => format!(
+                "arrow_cast('{}', 'Timestamp(Microsecond, Some(\"UTC\"))')",
+                ts.iso8601
+            ),
+            other => Self::normalize_literal(other),
+        }
     }
 
     /// SEC-001 helper: returns `true` if any string-**literal**-bearing node in `ast`
@@ -2018,7 +2085,11 @@ impl PqlNormalizer {
                 values,
                 negated,
             } => {
-                let vals: Vec<String> = values.iter().map(Self::normalize_literal).collect();
+                // Use dispatch so Timestamp literals emit arrow_cast in DataFusion mode.
+                let vals: Vec<String> = values
+                    .iter()
+                    .map(Self::normalize_literal_dispatch)
+                    .collect();
                 let not_kw = if *negated { "NOT IN" } else { "IN" };
                 format!(
                     "{} {not_kw} ({})",
@@ -2042,11 +2113,12 @@ impl PqlNormalizer {
                 negated,
             } => {
                 let not_kw = if *negated { "NOT BETWEEN" } else { "BETWEEN" };
+                // Use dispatch so Timestamp literals emit arrow_cast in DataFusion mode.
                 format!(
                     "{} {not_kw} {} AND {}",
                     Self::normalize_field_path(field),
-                    Self::normalize_literal(low),
-                    Self::normalize_literal(high)
+                    Self::normalize_literal_dispatch(low),
+                    Self::normalize_literal_dispatch(high)
                 )
             }
             Predicate::Cidr {
@@ -2149,7 +2221,11 @@ impl PqlNormalizer {
             }
             Expr::Not(inner) => format!("NOT {}", Self::normalize_expr(inner)),
             Expr::In { field, values } => {
-                let vals: Vec<String> = values.iter().map(Self::normalize_literal).collect();
+                // Use dispatch so Timestamp literals emit arrow_cast in DataFusion mode.
+                let vals: Vec<String> = values
+                    .iter()
+                    .map(Self::normalize_literal_dispatch)
+                    .collect();
                 format!(
                     "{} IN ({})",
                     Self::normalize_field_path(field),
@@ -2258,7 +2334,22 @@ impl PqlNormalizer {
         }
     }
 
-    fn normalize_literal(lit: &Literal) -> String {
+    /// Mode-dispatching wrapper: returns `normalize_literal_for_datafusion` when the
+    /// NORMALIZE_FOR_DATAFUSION thread-local is set (i.e., the call is made from
+    /// within `normalize_for_datafusion`), otherwise returns `normalize_literal`.
+    ///
+    /// Call sites that can carry `Literal::Timestamp` values (Compare predicates,
+    /// IN/BETWEEN expressions) MUST use this helper instead of calling
+    /// `normalize_literal` directly so that the DataFusion mode is respected.
+    fn normalize_literal_dispatch(lit: &Literal) -> String {
+        if NORMALIZE_FOR_DATAFUSION.with(|m| m.get()) {
+            Self::normalize_literal_for_datafusion(lit)
+        } else {
+            Self::normalize_literal(lit)
+        }
+    }
+
+    pub(crate) fn normalize_literal(lit: &Literal) -> String {
         match lit {
             // BC-2.11.018 round-trip invariant: emit a form the grammar CAN re-parse.
             // All string-wrapping emit sites use `emit_quoted_string` (F-001B-FRESH-HIGH-001
@@ -2308,9 +2399,13 @@ impl PqlNormalizer {
         }
     }
 
-    /// Normalize a literal in expression context (same as `normalize_literal`).
+    /// Normalize a literal in expression context.
+    ///
+    /// Routes through `normalize_literal_dispatch` so that the DataFusion mode
+    /// (set by `normalize_for_datafusion`) is respected: Timestamp literals emit
+    /// `arrow_cast(...)` instead of bare `'<iso>'` when the mode flag is set.
     fn normalize_literal_as_expr(lit: &Literal) -> String {
-        Self::normalize_literal(lit)
+        Self::normalize_literal_dispatch(lit)
     }
 }
 

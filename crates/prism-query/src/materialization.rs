@@ -1099,33 +1099,40 @@ pub async fn execute_against_session(
             // BC-2.11.021 / ADR-044 D4 / D-1333 Option A (plan-time pinning):
             // Re-emit the SQL from the inject_now-ed AST (which has folded all
             // TimestampArithmetic nodes into bare Literal::Timestamp constants).
-            // DataFusion receives the plan-pinned `'<iso8601>'` literal rather than
-            // runtime `NOW()` or `NOW() - INTERVAL '...'`. This ensures:
+            // DataFusion receives the plan-pinned constant rather than runtime `NOW()`
+            // or `NOW() - INTERVAL '...'`. This ensures:
             //   1. The temporal bound used by DataFusion's post-filter is IDENTICAL
             //      to the plan-time bound used for ADR-033 T1 push-down (QueryParams).
             //   2. No PrismQL INTERVAL syntax (`'24h'`) reaches DataFusion (which uses
             //      different syntax), eliminating the parsing ambiguity.
             //   3. Cross-mode consistency: SQL/filter/pipe all see the same pinned instant.
             //
-            // F-P1-MED-002 / OBS-1 sibling hardening: replace the silent `unwrap_or_else`
-            // fallback with a structured `ok_or_else` error. `normalize` returns `None`
-            // when the AST contains unfolded temporal expressions (Expr::Now /
-            // Expr::Interval / Expr::TimestampArithmetic — detected by the
-            // `ast_has_unfolded_temporal_expr` pre-check added by F-P1-MED-001).
-            // The old `unwrap_or_else(|| query_str.to_string())` would silently hand
-            // malformed SQL to DataFusion; `ok_or_else` returns a structured
-            // PrismError::QueryExecutionFailed instead. Consistent with the OBS-1 fix
-            // already applied to the sibling `Ast::SqlPipe` arm. (BC-2.11.021, ADR-044)
-            let plan_pinned_sql = crate::ast::PqlNormalizer::normalize(ast).ok_or_else(|| {
-                PrismError::QueryExecutionFailed {
+            // ADR-052 §D4 v1.5 SQL-Mode DataFusion Emission Addendum (HIGH-1):
+            // `normalize_for_datafusion` emits `arrow_cast('<iso>', 'Timestamp(Microsecond,
+            // Some("UTC"))')` for `Literal::Timestamp` values instead of the bare `'<iso>'`
+            // that `normalize` emits.  The bare form relies on DataFusion's implicit
+            // string→timestamp coercion (RISK-1), which is non-deterministic across
+            // DataFusion minor versions.  The `arrow_cast` form produces an explicit
+            // `Timestamp(Microsecond, Some("UTC"))` literal that compares directly against
+            // `Timestamp(Microsecond, UTC)` columns without implicit coercion.
+            //
+            // BC-2.11.018 round-trip invariant: `normalize` (PQL round-trip path) is NOT
+            // used here — keeping the two paths separate ensures `normalize_literal` is
+            // never changed to emit `arrow_cast`.
+            //
+            // F-P1-MED-002 / OBS-1 sibling hardening: `normalize_for_datafusion` returns
+            // `None` on the same conditions as `normalize` (unfolded temporal expressions,
+            // both-quote-string guard). `ok_or_else` converts None → structured
+            // PrismError::QueryExecutionFailed. (BC-2.11.021, ADR-044)
+            let plan_pinned_sql = crate::ast::PqlNormalizer::normalize_for_datafusion(ast)
+                .ok_or_else(|| PrismError::QueryExecutionFailed {
                     detail: "SQL normalization failed: query contains unfolded temporal \
-                             expression (Expr::Now / Expr::Interval / \
-                             Expr::TimestampArithmetic). This indicates inject_now did not \
-                             fully constant-fold the AST before normalization. Retry the \
-                             query or report to support."
+                                 expression (Expr::Now / Expr::Interval / \
+                                 Expr::TimestampArithmetic). This indicates inject_now did not \
+                                 fully constant-fold the AST before normalization. Retry the \
+                                 query or report to support."
                         .to_string(),
-                }
-            })?;
+                })?;
             // Execute the plan-pinned SQL string via DataFusion.
             let df = session_ctx.sql(&plan_pinned_sql).await.map_err(|e| {
                 tracing::error!(error = %e, "DataFusion SQL planning error");

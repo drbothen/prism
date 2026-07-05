@@ -1272,9 +1272,8 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query
     );
 
     // Must be QueryTypeMismatch (E-QUERY-002) — the structured type-mismatch variant.
-    // Note: the spec says E-QUERY-001 for this case; the implementation returns E-QUERY-002
-    // (QueryTypeMismatch) per ADV-W3MT-P58-CRIT-001 deliberate decision to avoid collision
-    // with QueryParseFailed. Spec amendment pending (F-P5-MED-2 adjudication).
+    // ADR-052 §D4 v1.5 + BC-2.11.021 v1.5 + error-taxonomy v2.12 all specify E-QUERY-002
+    // for numeric/bool type-mismatch (distinguishes from E-QUERY-001 QueryParseFailed).
     assert!(
         matches!(&err, PrismError::QueryTypeMismatch { .. }),
         "RG-015: date-like vs Integer col must return QueryTypeMismatch (E-QUERY-002). \

@@ -231,12 +231,18 @@ mod high002_plan_pinning_tests {
     /// predicate on a `Timestamp(Microsecond, Some("UTC"))` column.
     ///
     /// Discriminating: exactly 1 in-window row returned.
-    /// Negative-control: PqlNormalizer::normalize emits `arrow_cast(...)` form, not
-    ///   bare `TIMESTAMP '<iso>'`, `NOW()`, or `INTERVAL`.
+    /// Negative-control: asserts normalized SQL does NOT contain bare `TIMESTAMP '`
+    ///   form, `NOW()`, or `INTERVAL`. This proves the pinned constant is present.
     ///
-    /// Red Gate (before F-HIGH-002 fix): PASSES — SQL-mode uses PqlNormalizer
-    /// which already emits `'<iso>'`. This test locks in SQL-mode correctness.
-    /// Red Gate (F-HIGH-001 requirement): documents the full E2E proof for SQL-mode.
+    /// NOTE: this test uses a pre-pinned boundary string (`'<iso>'`) so the literal
+    /// in the query is a `Literal::String`, NOT a `Literal::Timestamp` (which only
+    /// arises from inject_now folding `NOW() - INTERVAL '...'`). The arrow_cast
+    /// form is therefore NOT asserted here — that assertion is in the companion
+    /// test `test_high001_sql_mode_arrow_cast_in_datafusion_emission` which uses
+    /// a folded `Literal::Timestamp` query. (ADR-052 §D4 v1.5 HIGH-1)
+    ///
+    /// Red Gate (F-HIGH-001 requirement): documents the full E2E proof for SQL-mode
+    /// with a pre-pinned boundary. The companion test covers the inject_now path.
     #[tokio::test]
     async fn test_high001_sql_mode_temporal_utf8_discriminating() {
         use std::collections::HashMap;
@@ -1503,6 +1509,218 @@ mod high002_plan_pinning_tests {
              column per ADR-052 D2. If this fails, the test fixture regressed to a different \
              Arrow type — update make_timestamp_batch to restore the Timestamp(Microsecond, UTC) \
              schema (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 8)."
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // HIGH-1 (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 fix-burst):
+    // SQL-mode DataFusion emission must use arrow_cast for Literal::Timestamp
+    // (ADR-052 §D4 v1.5 SQL-Mode DataFusion Emission Addendum)
+    // -----------------------------------------------------------------------
+
+    /// HIGH-1 load-bearing: `PqlNormalizer::normalize_for_datafusion` emits
+    /// `arrow_cast('<iso>', 'Timestamp(Microsecond, Some("UTC"))')` for a
+    /// `Literal::Timestamp` produced by inject_now folding `NOW() - INTERVAL '24h'`.
+    ///
+    /// Two assertions:
+    /// 1. `normalize_for_datafusion` output CONTAINS `arrow_cast(` with the exact
+    ///    `Timestamp(Microsecond, Some("UTC"))` type string.
+    /// 2. `normalize` output (round-trip / BC-2.11.018 path) does NOT contain
+    ///    `arrow_cast(` — proving the two emitter paths remain separate.
+    ///
+    /// # Why load-bearing (ADR-052 §RISK-1 mitigation)
+    /// The bare `'<iso>'` form handed to DataFusion relies on IMPLICIT string→timestamp
+    /// coercion.  DataFusion 53.1.0 coerces bare ISO strings to `Timestamp(Nanosecond,
+    /// None)` — mismatching the `Timestamp(Microsecond, UTC)` column type.  The
+    /// `arrow_cast` form produces an explicit `Timestamp(Microsecond, UTC)` literal
+    /// that is directly comparable, eliminating the coercion risk across DataFusion
+    /// minor versions.
+    ///
+    /// # TDD protocol
+    /// This test was written before the implementation.  With only the stub
+    /// `normalize_for_datafusion` (which delegated to `normalize` → bare `'<iso>'`),
+    /// assertion 1 FAILS.  After implementing the thread-local dispatch in
+    /// `normalize_literal_as_expr` / `normalize_literal_dispatch`, both assertions pass.
+    #[test]
+    fn test_high001_sql_mode_arrow_cast_in_datafusion_emission() {
+        use crate::ast::{PqlNormalizer, TimestampLiteral};
+        use crate::{inject_now, parse_and_plan};
+        use chrono::Utc;
+
+        // Build a query with NOW() - INTERVAL '24h' so inject_now produces a Literal::Timestamp.
+        let query = "SELECT * FROM crowdstrike_detections WHERE timestamp > NOW() - INTERVAL '24h'";
+        let ast = parse_and_plan(query).expect("temporal SQL query must parse");
+
+        let now = Utc::now();
+        let now_ts = TimestampLiteral {
+            iso8601: now.to_rfc3339(),
+            instant: now,
+        };
+        let now_literal = Expr::Literal(Literal::Timestamp(now_ts));
+        let ast =
+            inject_now(ast, &now_literal).expect("inject_now must succeed — constant folds NOW()");
+
+        // Path 1: DataFusion emission — MUST contain arrow_cast.
+        let datafusion_sql = PqlNormalizer::normalize_for_datafusion(&ast)
+            .expect("normalize_for_datafusion must return Some for injected SQL AST");
+
+        assert!(
+            datafusion_sql.contains("arrow_cast("),
+            "HIGH-1: normalize_for_datafusion must emit arrow_cast( for Literal::Timestamp \
+             (ADR-052 §D4 v1.5 SQL-Mode Addendum). \
+             Got: {datafusion_sql:?}. \
+             If this fails, the NORMALIZE_FOR_DATAFUSION thread-local dispatch is not wired \
+             through normalize_literal_as_expr / normalize_literal_dispatch."
+        );
+
+        // Verify the EXACT type string required by DataFusion (no implicit coercion RISK-1).
+        let expected_type = "Timestamp(Microsecond, Some(\"UTC\"))";
+        assert!(
+            datafusion_sql.contains(expected_type),
+            "HIGH-1: normalize_for_datafusion must embed the exact DataFusion type string \
+             '{expected_type}' in the arrow_cast. \
+             Got: {datafusion_sql:?}. \
+             Review the arrow_cast format string in normalize_literal_for_datafusion."
+        );
+
+        // Path 2: PQL round-trip emission (BC-2.11.018) — MUST NOT contain arrow_cast.
+        let roundtrip_sql = PqlNormalizer::normalize(&ast)
+            .expect("normalize must return Some for injected SQL AST");
+
+        assert!(
+            !roundtrip_sql.contains("arrow_cast("),
+            "HIGH-1 round-trip invariant: PqlNormalizer::normalize must NOT emit arrow_cast \
+             (BC-2.11.018 round-trip — the bare '<iso>' form must remain re-parseable). \
+             Got: {roundtrip_sql:?}. \
+             If this fails, normalize_literal was changed to emit arrow_cast — that is FORBIDDEN."
+        );
+    }
+
+    /// HIGH-1 unit: `PqlNormalizer::normalize_literal_for_datafusion` formats
+    /// Timestamp literals as `arrow_cast('<iso>', 'Timestamp(Microsecond, Some("UTC"))')` and
+    /// delegates non-Timestamp literals to `PqlNormalizer::normalize_literal` unchanged.
+    ///
+    /// This is the per-literal building block that `normalize_for_datafusion` (the AST-level
+    /// method) calls via the `normalize_literal_dispatch` thread-local gate.  Testing it
+    /// directly gives a focused assertion on the emission format independent of the full
+    /// AST traversal path.
+    ///
+    /// (ADR-052 §D4 v1.5)
+    #[test]
+    fn test_high001_normalize_literal_for_datafusion_formats_timestamp() {
+        use crate::ast::TimestampLiteral;
+
+        // Timestamp literal → arrow_cast form.
+        let ts_lit = TimestampLiteral {
+            iso8601: "2026-07-04T12:00:00+00:00".to_string(),
+            instant: chrono::DateTime::parse_from_rfc3339("2026-07-04T12:00:00+00:00")
+                .expect("fixture must parse")
+                .with_timezone(&Utc),
+        };
+        let emitted = PqlNormalizer::normalize_literal_for_datafusion(&Literal::Timestamp(ts_lit));
+        assert!(
+            emitted.contains("arrow_cast("),
+            "normalize_literal_for_datafusion: Timestamp must produce arrow_cast form. \
+             Got: {emitted:?}"
+        );
+        assert!(
+            emitted.contains("2026-07-04T12:00:00+00:00"),
+            "normalize_literal_for_datafusion: arrow_cast must embed the ISO string. \
+             Got: {emitted:?}"
+        );
+        assert!(
+            emitted.contains("Timestamp(Microsecond, Some(\"UTC\"))"),
+            "normalize_literal_for_datafusion: arrow_cast must embed the exact DataFusion type \
+             string. Got: {emitted:?}"
+        );
+
+        // Non-Timestamp literal → delegated to PqlNormalizer::normalize_literal (unchanged).
+        let int_emitted = PqlNormalizer::normalize_literal_for_datafusion(&Literal::Integer(42));
+        assert_eq!(
+            int_emitted, "42",
+            "normalize_literal_for_datafusion: Integer literal must delegate to normalize_literal \
+             unchanged. Got: {int_emitted:?}"
+        );
+        let str_emitted =
+            PqlNormalizer::normalize_literal_for_datafusion(&Literal::String("hello".to_string()));
+        assert_eq!(
+            str_emitted, "'hello'",
+            "normalize_literal_for_datafusion: String literal must delegate to normalize_literal \
+             unchanged. Got: {str_emitted:?}"
+        );
+    }
+
+    /// HIGH-1 E2E companion: SQL-mode `execute_against_session` with a NOW()-folded
+    /// temporal predicate succeeds and returns exactly 1 in-window row.
+    ///
+    /// Proves that the arrow_cast emission path actually works in DataFusion (not just
+    /// that the string is formatted correctly).  A discriminating table contains one
+    /// in-window row and one out-of-window row; the filter returns exactly 1 row.
+    ///
+    /// This test uses `NOW() - INTERVAL '24h'` (inject_now path) rather than a
+    /// pre-pinned boundary, exercising the full production pipeline.
+    #[tokio::test]
+    async fn test_high001_sql_mode_arrow_cast_e2e_discriminating() {
+        use std::collections::HashMap;
+
+        use crate::filter_parser::PrismQlParser;
+        use crate::materialization::{execute_against_session, register_mem_table};
+        use crate::memory::build_session_context;
+
+        let now = Utc::now();
+        let (in_window_ts, out_window_ts) = make_temporal_fixtures(now);
+
+        // Build pinned NOW() for inject_now.
+        let now_ts = TimestampLiteral {
+            iso8601: now.to_rfc3339(),
+            instant: now,
+        };
+        let now_literal = Expr::Literal(Literal::Timestamp(now_ts));
+
+        // Query uses NOW() - INTERVAL so inject_now produces a Literal::Timestamp.
+        // This exercises the arrow_cast emission path in execute_against_session.
+        let query =
+            "SELECT timestamp FROM crowdstrike_detections WHERE timestamp > NOW() - INTERVAL '24h'";
+        let ast = PrismQlParser::parse(query).expect("temporal SQL query must parse");
+        let ast = inject_now(ast, &now_literal).expect("inject_now must succeed");
+
+        let ctx = build_session_context(50 * 1024 * 1024).expect("session context must build");
+        let batch = make_timestamp_batch(&in_window_ts, &out_window_ts);
+        register_mem_table(&ctx, "crowdstrike_detections", vec![batch])
+            .expect("mem table registration must succeed");
+
+        let table_batches: HashMap<String, Vec<arrow::record_batch::RecordBatch>> = HashMap::new();
+        let result = execute_against_session(&ctx, query, &ast, table_batches)
+            .await
+            .expect(
+                "SQL temporal query with NOW()-folded Literal::Timestamp must succeed \
+                 (arrow_cast emission path — ADR-052 §D4 v1.5 HIGH-1 fix)",
+            );
+
+        let total_rows: usize = result.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 1,
+            "HIGH-1 E2E: exactly 1 in-window row must be returned via the arrow_cast path. \
+             in_window={in_window_ts:?}, out_window={out_window_ts:?}. \
+             Got {total_rows} rows. If 0: arrow_cast form is rejected or type comparison fails. \
+             If 2: the filter predicate is not applied."
+        );
+
+        // Identity check: the returned row is the in-window timestamp.
+        use arrow::array::TimestampMicrosecondArray;
+        let first_batch = &result[0];
+        let ts_col = first_batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<TimestampMicrosecondArray>()
+            .expect("timestamp column must be TimestampMicrosecondArray (ADR-052 D2)");
+        let expected_micros = chrono::DateTime::parse_from_rfc3339(&in_window_ts)
+            .expect("in_window_ts must be valid RFC-3339")
+            .timestamp_micros();
+        assert_eq!(
+            ts_col.value(0),
+            expected_micros,
+            "HIGH-1 E2E identity: returned row must be the in-window timestamp (as i64 µs)"
         );
     }
 }
