@@ -1517,7 +1517,11 @@ impl PqlNormalizer {
         match lit {
             Literal::Timestamp(ts) => format!(
                 "arrow_cast('{}', 'Timestamp(Microsecond, Some(\"UTC\"))')",
-                ts.iso8601
+                // SEC-001 (CWE-20): escape embedded single-quotes via SQL doubling so no
+                // future in-crate direct-AST-construction can inject into the arrow_cast
+                // string. For valid RFC-3339 input (no `'` chars), replace is a no-op —
+                // byte-identical output preserves RG-003/RG-010 assertions.
+                ts.iso8601.replace('\'', "''")
             ),
             other => Self::normalize_literal(other),
         }
@@ -3283,6 +3287,71 @@ mod low1_datafusion_guard_tests {
             "LOW-1 basic: after a top-level normalize_for_datafusion call (prior=false), \
              the guard must restore the thread-local to false. Got true — the guard is \
              leaking the DataFusion mode flag."
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // SEC-001 regression guards — CWE-20 single-quote neutralization
+    // -----------------------------------------------------------------------
+
+    /// SEC-001: `normalize_literal_for_datafusion` must SQL-double any single-quote
+    /// embedded in `TimestampLiteral.iso8601` so the arrow_cast first argument is
+    /// injection-safe even for hypothetically adversarial direct-AST construction.
+    ///
+    /// RFC-3339 validation in `TimestampLiteral::new()` PREVENTS such values from
+    /// entering via the parser path. This test targets defense-in-depth for future
+    /// in-crate direct struct construction (the only remaining injection vector).
+    ///
+    /// Verifies: single-quote is doubled (`'` → `''`), NOT passed through.
+    #[test]
+    fn test_sec_001_normalize_literal_for_datafusion_escapes_single_quote() {
+        use chrono::Utc;
+        // Simulate an adversarially-constructed TimestampLiteral with an injection
+        // payload in iso8601. This is parser-unreachable (RFC-3339 does not include `'`),
+        // but reachable via direct struct construction inside the crate.
+        let ts_lit = TimestampLiteral {
+            iso8601: "2026-07-03T00:00:00Z' OR '1'='1".to_string(),
+            instant: Utc::now(),
+        };
+        let emitted = PqlNormalizer::normalize_literal_for_datafusion(&Literal::Timestamp(ts_lit));
+        // Must NOT contain the raw injection sequence.
+        assert!(
+            !emitted.contains("Z' OR '1'='1"),
+            "SEC-001: raw single-quote injection must be neutralized. Got: {emitted:?}"
+        );
+        // Must contain the SQL-doubled form.
+        assert!(
+            emitted.contains("Z'' OR ''1''=''1"),
+            "SEC-001: single-quotes in iso8601 must be SQL-doubled (`'` → `''`). \
+             Got: {emitted:?}"
+        );
+    }
+
+    /// SEC-001 byte-identity: for valid RFC-3339 (no single-quotes), `replace` is a
+    /// no-op — output is byte-identical to the pre-fix form.
+    ///
+    /// This guards RG-003/RG-010 — those tests assert the EXACT
+    /// `arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(…)')` string. If the escape
+    /// were not a no-op for clean input, it would break those tests.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn test_sec_001_normalize_literal_for_datafusion_noop_for_valid_rfc3339() {
+        use chrono::Utc;
+        let instant = chrono::DateTime::parse_from_rfc3339("2026-07-03T00:00:00Z")
+            .expect("known-good RFC-3339 must parse")
+            .with_timezone(&Utc);
+        let ts_lit = TimestampLiteral {
+            iso8601: "2026-07-03T00:00:00Z".to_string(),
+            instant,
+        };
+        let emitted = PqlNormalizer::normalize_literal_for_datafusion(&Literal::Timestamp(ts_lit));
+        let expected =
+            r#"arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(Microsecond, Some("UTC"))')"#;
+        assert_eq!(
+            emitted, expected,
+            "SEC-001 byte-identity: for valid RFC-3339, normalize_literal_for_datafusion \
+             must produce the exact arrow_cast form (guards RG-003/RG-010). \
+             Got: {emitted:?}"
         );
     }
 }

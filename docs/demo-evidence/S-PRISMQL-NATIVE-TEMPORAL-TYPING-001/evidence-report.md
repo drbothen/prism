@@ -171,7 +171,8 @@
 All recordings drive the **production engine code directly** via `cargo nextest run`. No tests are `#[ignore]`'d. The 59 Red Gate tests (53 in `prism-query` + 6 in `prism-bin`/`prism-mcp`) are all green on feature HEAD 9346153e.
 
 Key production modules exercised:
-- `crates/prism-query/src/pipe_sql_emitter.rs` — `check_temporal_literals` four-way dispatch + `arrow_cast` emitter
+- `crates/prism-query/src/materialization.rs` — `check_temporal_literals` seven-arm dispatch (ADR-052 §D4 v1.10)
+- `crates/prism-query/src/pipe_sql_emitter.rs` — `arrow_cast` emitter (`literal_to_sql`)
 - `crates/prism-core/src/error.rs` — `TemporalLiteralUnparseable` (E-QUERY-041), `TemporalLiteralInvalidPosition` (E-QUERY-042), `TemporalLiteralPosition` enum
 - `crates/prism-query/src/filter_parser.rs` — parse-time rejection for pipe `stats-by`/`sort` literal positions
 - `crates/prism-mcp/src/error_mapping.rs` — E-QUERY-041/042 → INVALID_PARAMS (-32602) MCP mapping

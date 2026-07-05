@@ -1036,7 +1036,11 @@ fn build_column_array(
                             tracing::warn!(
                                 column = %col.name,
                                 sensor_id = %sensor_id,
-                                value = %s,
+                                // SEC-002 (CWE-532 / AD-017): cap raw sensor value at
+                                // 50 codepoints so unbounded strings from untrusted sensor
+                                // data cannot flood logs. Consistent with E-QUERY-041/042
+                                // value_prefix convention.
+                                value = %s.chars().take(50).collect::<String>(),
                                 error = %e,
                                 "ADR-052: datetime string not parseable as RFC-3339 UTC; \
                                  cell produced null (sensor data should be RFC-3339)"
@@ -1478,7 +1482,10 @@ pub(super) fn parse_datetime_to_micros(
             sensor_id: sensor_id.to_owned(),
             column_name: column_name.to_owned(),
             attempted_formats: vec!["rfc3339".to_owned()],
-            value: value.to_owned(),
+            // SEC-002 (CWE-532 / AD-017): cap raw sensor value at 50 codepoints before
+            // storing in the error struct. The Display output (`value='{value}'`) then
+            // naturally caps — consistent with E-QUERY-041/042 value_prefix convention.
+            value: value.chars().take(50).collect(),
         })
 }
 
@@ -1871,5 +1878,38 @@ mod tests {
              Ok({expected_micros}) (microseconds since Unix epoch via chrono derivation). \
              ADR-052 D5 — sensor ISO-8601 strings must be converted to i64 µs-since-epoch."
         );
+    }
+
+    /// SEC-002 (CWE-532 / AD-017): `parse_datetime_to_micros` with a >50-codepoint invalid
+    /// value must produce a `TimestampParseFailure` whose `value` field is capped at exactly
+    /// 50 codepoints.
+    ///
+    /// Prevents unbounded raw sensor data from flowing into operator logs via the error
+    /// Display (`value='{value}'`). Consistent with E-QUERY-041/042 value_prefix convention.
+    #[test]
+    #[allow(clippy::expect_used, clippy::unwrap_used)]
+    fn test_sec_002_parse_datetime_to_micros_caps_value_at_50_codepoints() {
+        use prism_spec_engine::error::SpecEngineError;
+        // 60-character invalid timestamp string — exceeds the 50-codepoint cap.
+        let long_value = "INVALID_TIMESTAMP_STRING_THAT_IS_DEFINITELY_MORE_THAN_FIFTY";
+        assert!(
+            long_value.chars().count() > 50,
+            "test precondition: value must be >50 chars; got {}",
+            long_value.chars().count()
+        );
+        let result = parse_datetime_to_micros(long_value, "created_at", "test-sensor");
+        assert!(result.is_err(), "invalid timestamp must produce Err");
+        match result.unwrap_err() {
+            SpecEngineError::TimestampParseFailure { value, .. } => {
+                assert_eq!(
+                    value.chars().count(),
+                    50,
+                    "SEC-002 (AD-017): TimestampParseFailure.value must be capped at \
+                     50 codepoints; got {} codepoints in {value:?}",
+                    value.chars().count()
+                );
+            }
+            other => panic!("expected TimestampParseFailure, got: {other:?}"),
+        }
     }
 }
