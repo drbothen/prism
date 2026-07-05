@@ -840,8 +840,15 @@ fn literal_to_sql(lit: &Literal) -> Result<String, PrismError> {
         //   Datetime col → E-QUERY-041; String col → COERCE; Integer/Float/Bool → E-QUERY-002.
         // When the column type is unresolvable (fail-open in the walker), the walker leaves
         // the RawTemporalLiteral in the AST; this guard catches it as the secondary gate,
-        // returning E-QUERY-002 (QueryPlanFailed). This is intentionally asymmetric with the
-        // SQL-mode walker fail-open: both modes are fail-closed at emission time.
+        // returning E-QUERY-002 (QueryPlanFailed).
+        //
+        // Asymmetry between Pipe/Filter and SQL mode (intentional, ADR-sanctioned):
+        //   Pipe/Filter (this guard): FAIL-CLOSED — returns Err(QueryPlanFailed) E-QUERY-002.
+        //   SQL mode (ast.rs::normalize_literal): FAIL-OPEN — emits a plain quoted string
+        //     (`Self::emit_quoted_string(s)`) so DataFusion acts as the tertiary correctness gate.
+        //   The SQL-mode fail-open is ADR-sanctioned: E-QUERY-041 is a message upgrade;
+        //   DataFusion rejects or correctly handles the quoted string at execution time.
+        //
         // HIGH-3 fix: use QueryPlanFailed (plan-time invariant violation) not QueryParseFailed
         // (parse-time failure). This literal was parsed successfully; the gate runs post-parse.
         Literal::RawTemporalLiteral(s) => {

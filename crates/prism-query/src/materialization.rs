@@ -637,7 +637,9 @@ pub async fn run_materialization_pipeline(
     //   - vs String column    → COERCE in-place to Literal::String
     //   - vs Integer/Float/Bool column → Err(QueryTypeMismatch)  [E-QUERY-002]
     // RawTemporalLiteral in projection (SELECT) → Err(QueryPlanFailed) [E-QUERY-002]
-    check_temporal_literals_opt_a(&mut ast, mat_ctx.table_registry.as_deref())?;
+    // skip_projection=false: full walk (this runs after check_table_availability, so
+    // the table is confirmed to exist and the projection check is appropriate).
+    check_temporal_literals_opt_a(&mut ast, mat_ctx.table_registry.as_deref(), false)?;
 
     let source_names = extract_source_names(&ast);
 
@@ -2235,7 +2237,10 @@ pub(crate) async fn collect_record_batch_stream(
 
 /// Plan-time three-way dispatch for `Literal::RawTemporalLiteral` nodes (ADR-052 §D4 Option A).
 ///
-/// Called inside `run_materialization_pipeline` after `inject_now` and before fan-out.
+/// Called inside `run_materialization_pipeline` after `inject_now` and before fan-out
+/// (full mode, `skip_projection = false`), and as an early gate in `engine::execute` before
+/// `check_table_availability` (predicate-only mode, `skip_projection = true`).
+///
 /// Walks the parsed AST for every `RawTemporalLiteral` node (produced by the lenient parser
 /// for date-like strings that are NOT valid RFC-3339). For each node found in a comparison
 /// context, resolves the compared column's type via the `TableRegistry` and dispatches:
@@ -2243,20 +2248,36 @@ pub(crate) async fn collect_record_batch_stream(
 /// - vs `ColumnType::Datetime`              → `Err(TemporalLiteralUnparseable)` [E-QUERY-041]
 /// - vs `ColumnType::String`                → COERCE in-place to `Literal::String`
 /// - vs `ColumnType::Integer/Float/Boolean` → `Err(QueryTypeMismatch)`           [E-QUERY-002]
-/// - In SELECT projection (no column context)→ `Err(QueryPlanFailed)`            [E-QUERY-002]
+/// - In SELECT projection (no column context)→ `Err(QueryPlanFailed)` [E-QUERY-002]
+///   (only when `skip_projection = false`; skipped when `true` to let E-QUERY-037 win)
 /// - Unknown/unresolvable column type       → fail-open (skip, DataFusion handles)
+///
+/// ## `skip_projection` flag
+///
+/// When `skip_projection = true` (early gate in `engine::execute`):
+/// - SELECT items, GROUP BY, and ORDER BY expression checks are **not** run.
+/// - Only WHERE predicates, HAVING predicates, and JOIN ON expressions are checked.
+/// - This preserves the canonical gate ordering (BC-2.11.019): for an unregistered table,
+///   `check_table_availability` (E-QUERY-037) wins over a projection-position E-QUERY-002.
+/// - EC-013 is still enforced: dotted external-source WHERE predicates with Datetime columns
+///   fire E-QUERY-041 before E-QUERY-037 (the predicate check still runs in this mode).
+///
+/// When `skip_projection = false` (in-pipeline call after `check_table_availability` passes):
+/// - Full walk — SELECT items, GROUP BY, and ORDER BY are also checked.
+/// - Projection-position `RawTemporalLiteral` returns E-QUERY-002 as expected.
 ///
 /// When `registry` is `None`, the column-type dispatch arm fails-open (same as
 /// E-QUERY-037/038 legacy mode). However, bare `RawTemporalLiteral` in projection
 /// position (no comparison context) and `RawTemporalLiteral` in comparisons with a
-/// non-Field LHS still return `Err(QueryPlanFailed)` regardless of registry state —
-/// those branches do not consult the registry at all.
+/// non-Field LHS still return `Err(QueryPlanFailed)` regardless of registry state
+/// when `skip_projection = false` — those branches do not consult the registry at all.
 ///
 /// Traces to: ADR-052 §D4 v1.4 Steps 3–5; BC-2.11.021 v1.4 §Postconditions;
-/// S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 14.
+/// S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 14; FIX-2 (early gate scoping).
 pub(crate) fn check_temporal_literals_opt_a(
     ast: &mut crate::ast::Ast,
     registry: Option<&crate::table_registry::TableRegistry>,
+    skip_projection: bool,
 ) -> Result<(), PrismError> {
     use crate::ast::{Ast, PipeStage, SqlStatement};
 
@@ -2279,21 +2300,27 @@ pub(crate) fn check_temporal_literals_opt_a(
             for join in &mut q.joins {
                 check_expr_temporal(&mut join.on, primary_table.as_deref(), registry)?;
             }
-            // Walk SELECT items for projection-position RawTemporalLiteral.
-            check_select_items_raw_temporal(
-                &mut q.select.items,
-                primary_table.as_deref(),
-                registry,
-            )?;
-            // MED-1 fix: walk GROUP BY and ORDER BY expressions.
-            for expr in &mut q.group_by {
-                check_expr_temporal(expr, primary_table.as_deref(), registry)?;
-            }
-            for order_expr in &mut q.order_by {
-                check_expr_temporal(&mut order_expr.expr, primary_table.as_deref(), registry)?;
+            if !skip_projection {
+                // Walk SELECT items for projection-position RawTemporalLiteral.
+                // Skipped in early-gate (skip_projection=true) so that E-QUERY-037
+                // (table availability) wins over projection-position E-QUERY-002
+                // for unregistered tables (BC-2.11.019 gate ordering, FIX-2).
+                check_select_items_raw_temporal(
+                    &mut q.select.items,
+                    primary_table.as_deref(),
+                    registry,
+                )?;
+                // MED-1 fix: walk GROUP BY and ORDER BY expressions.
+                for expr in &mut q.group_by {
+                    check_expr_temporal(expr, primary_table.as_deref(), registry)?;
+                }
+                for order_expr in &mut q.order_by {
+                    check_expr_temporal(&mut order_expr.expr, primary_table.as_deref(), registry)?;
+                }
             }
         }
         Ast::Pipe(pq) => {
+            // Pipe mode has no SELECT items — skip_projection has no effect here.
             for stage in &mut pq.stages {
                 if let PipeStage::Where(pred) = stage {
                     check_pred_raw_temporal(pred, primary_table.as_deref(), registry)?;
@@ -2301,6 +2328,7 @@ pub(crate) fn check_temporal_literals_opt_a(
             }
         }
         Ast::Filter(f) => {
+            // Filter mode has no SELECT items — skip_projection has no effect here.
             check_pred_raw_temporal(&mut f.predicate, primary_table.as_deref(), registry)?;
         }
         Ast::SqlPipe(spq) => {
@@ -2314,17 +2342,20 @@ pub(crate) fn check_temporal_literals_opt_a(
             for join in &mut spq.head.joins {
                 check_expr_temporal(&mut join.on, primary_table.as_deref(), registry)?;
             }
-            check_select_items_raw_temporal(
-                &mut spq.head.select.items,
-                primary_table.as_deref(),
-                registry,
-            )?;
-            // MED-1 fix: walk GROUP BY and ORDER BY expressions.
-            for expr in &mut spq.head.group_by {
-                check_expr_temporal(expr, primary_table.as_deref(), registry)?;
-            }
-            for order_expr in &mut spq.head.order_by {
-                check_expr_temporal(&mut order_expr.expr, primary_table.as_deref(), registry)?;
+            if !skip_projection {
+                // Skipped in early-gate for the same reason as Sql(Select) above.
+                check_select_items_raw_temporal(
+                    &mut spq.head.select.items,
+                    primary_table.as_deref(),
+                    registry,
+                )?;
+                // MED-1 fix: walk GROUP BY and ORDER BY expressions.
+                for expr in &mut spq.head.group_by {
+                    check_expr_temporal(expr, primary_table.as_deref(), registry)?;
+                }
+                for order_expr in &mut spq.head.order_by {
+                    check_expr_temporal(&mut order_expr.expr, primary_table.as_deref(), registry)?;
+                }
             }
             for stage in &mut spq.stages {
                 if let PipeStage::Where(pred) = stage {
@@ -4640,7 +4671,7 @@ mod temporal_walker_unit_tests {
             },
         }];
         let mut ast = Ast::Sql(SqlStatement::Select(sql));
-        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()));
+        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()), false);
         assert!(
             matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
             "OBS-1/HIGH-2: JOIN ON Expr::Compare+Datetime → E-QUERY-041, got {result:?}"
@@ -4665,7 +4696,7 @@ mod temporal_walker_unit_tests {
             }],
         };
         let mut ast = Ast::Sql(SqlStatement::Select(sql));
-        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()));
+        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()), false);
         assert!(
             matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
             "OBS-1/HIGH-2: SELECT Expr::Compare+Datetime → E-QUERY-041, got {result:?}"
@@ -4978,7 +5009,7 @@ mod temporal_walker_unit_tests {
             source_select: None,
         }));
 
-        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()));
+        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()), false);
         assert!(
             matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
             "MED-1: DML assignment of RawTemporalLiteral to Datetime column must → E-QUERY-041. \
@@ -5006,7 +5037,7 @@ mod temporal_walker_unit_tests {
             source_select: None,
         }));
 
-        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()));
+        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()), false);
         assert!(
             result.is_ok(),
             "MED-1: DML assignment of RawTemporalLiteral to String column must coerce → Ok. \
@@ -5054,7 +5085,7 @@ mod temporal_walker_unit_tests {
             source_select: None,
         }));
 
-        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()));
+        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()), false);
         assert!(
             matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
             "MED-1: DML WHERE with unqualified timestamp vs RawTemporalLiteral must fire \

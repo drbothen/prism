@@ -818,10 +818,19 @@ impl QueryEngine {
         // When no temporal literals are present, this check returns Ok(()) immediately and the
         // canonical E-QUERY-037 → E-QUERY-038 → E-QUERY-039 ordering is preserved.
         // Parse failure → pass through (pipeline surfaces E-QUERY-001 downstream).
+        //
+        // skip_projection=true (FIX-2): the early gate only checks WHERE/HAVING/JOIN predicates
+        // so that a projection-position RawTemporalLiteral (e.g., `SELECT '2026-06-24' FROM t`)
+        // does NOT fire E-QUERY-002 before check_table_availability fires E-QUERY-037 for
+        // unregistered tables (BC-2.11.019 gate ordering). Projection checks run in the
+        // in-pipeline check_temporal_literals_opt_a call (skip_projection=false, after table
+        // availability is confirmed). EC-013 is preserved: WHERE-predicate Datetime checks still
+        // fire E-QUERY-041 before E-QUERY-037 for registered dotted-source queries.
         if let Ok(mut ast) = crate::filter_parser::PrismQlParser::parse(effective_query) {
             crate::materialization::check_temporal_literals_opt_a(
                 &mut ast,
                 self.table_registry.as_deref(),
+                true, // skip_projection: defer SELECT/GROUP-BY/ORDER-BY to in-pipeline pass
             )?;
         }
 
@@ -1162,10 +1171,13 @@ impl QueryEngine {
         // EC-013: dotted external-source temporal literal queries → E-QUERY-041, not E-QUERY-037.
         // Mirrors execute_inner's early temporal check. See execute_inner HIGH-4 comment for
         // the EARLY-GATE-ORDERING-ONLY design rationale (intentional double-parse).
+        // skip_projection=true (FIX-2): same scoping as execute_inner — projection checks
+        // deferred to in-pipeline pass so E-QUERY-037 wins for unregistered tables.
         if let Ok(mut ast) = crate::filter_parser::PrismQlParser::parse(query_str) {
             crate::materialization::check_temporal_literals_opt_a(
                 &mut ast,
                 self.table_registry.as_deref(),
+                true, // skip_projection: defer SELECT/GROUP-BY/ORDER-BY to in-pipeline pass
             )?;
         }
 
