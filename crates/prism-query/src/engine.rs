@@ -795,6 +795,36 @@ impl QueryEngine {
             };
         let effective_query: &str = &effective_query;
 
+        // ADR-052 §D4 Option A: E-QUERY-041 temporal literal gate fires BEFORE E-QUERY-037.
+        //
+        // EC-013 (story spec): dotted external-source queries with temporal literals must
+        // produce E-QUERY-041 (bad timestamp format), NOT E-QUERY-037 (table not found).
+        // Example: `FROM ghost_sensor.devices | where timestamp > '2026-06-24'`
+        //   → E-QUERY-041 (not E-QUERY-037), because the dotted source normalises to
+        //   "ghost_sensor_devices" for schema lookup in check_temporal_literals_opt_a.
+        //
+        // HIGH-4 design note (EARLY-GATE-ORDERING-ONLY): this early check re-parses the
+        // query string intentionally. It does NOT share the AST with run_materialization_pipeline
+        // because inject_now (which runs inside the pipeline, pre-temporal-gate) has NOT yet
+        // fired here. The double-parse is the minimal correct design: (1) this pass enforces
+        // E-QUERY-041 BEFORE E-QUERY-037 for dotted-source queries (EC-013 ordering); (2) the
+        // mutation-carrying coercion pass runs inside run_materialization_pipeline on the
+        // inject_now-resolved AST. Any mutation applied here is intentionally discarded — the
+        // coerced AST is produced by Step 1c of run_materialization_pipeline. Refactoring to
+        // share the AST would require moving inject_now before check_table_availability, which
+        // changes the semantic order of planner steps and risks inject_now side-effects
+        // (resolving $NOW before the table-availability check) — that is a larger spec change.
+        //
+        // When no temporal literals are present, this check returns Ok(()) immediately and the
+        // canonical E-QUERY-037 → E-QUERY-038 → E-QUERY-039 ordering is preserved.
+        // Parse failure → pass through (pipeline surfaces E-QUERY-001 downstream).
+        if let Ok(mut ast) = crate::filter_parser::PrismQlParser::parse(effective_query) {
+            crate::materialization::check_temporal_literals_opt_a(
+                &mut ast,
+                self.table_registry.as_deref(),
+            )?;
+        }
+
         // S-3.13 Step 1a: Plan-time table availability gate (BC-2.11.001, AC-2, AC-8).
         //
         // Gate ordering (BC-2.11.019 §Gate ordering, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
@@ -857,6 +887,12 @@ impl QueryEngine {
         //
         // Gate is skipped when `infusion_registry` is None (enrichment not configured).
         check_enrich_udf_availability(effective_query, self.infusion_registry.as_deref())?;
+
+        // ADR-052 D4 Option A: plan-time temporal literal gate is now implemented as
+        // an AST-walk inside run_materialization_pipeline (check_temporal_literals_opt_a).
+        // The old text-scanner (check_temporal_literals) is deleted; the AST-walk fires
+        // against the same parsed AST used for execution, after inject_now.
+        // Gate ordering: E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → [AST-walk in mat pipeline].
 
         // Step 1: Resolve client scope (BC-2.11.011).
         let clients =
@@ -951,6 +987,12 @@ impl QueryEngine {
             self.resolved_spec_map(),
         )
         .with_response_cache(Arc::clone(&self.cache));
+
+        // ADR-052 §D4 Option A: wire table_registry so check_temporal_literals_opt_a
+        // can resolve column types for the three-way dispatch (E-QUERY-041 / coerce / mismatch).
+        if let Some(ref tr) = self.table_registry {
+            mat_ctx = mat_ctx.with_table_registry(Arc::clone(tr));
+        }
 
         // Step 4: Resolve effective options (merge client scope into options).
         //
@@ -1116,6 +1158,17 @@ impl QueryEngine {
         ),
         PrismError,
     > {
+        // ADR-052 §D4 Option A: E-QUERY-041 temporal literal gate fires BEFORE E-QUERY-037.
+        // EC-013: dotted external-source temporal literal queries → E-QUERY-041, not E-QUERY-037.
+        // Mirrors execute_inner's early temporal check. See execute_inner HIGH-4 comment for
+        // the EARLY-GATE-ORDERING-ONLY design rationale (intentional double-parse).
+        if let Ok(mut ast) = crate::filter_parser::PrismQlParser::parse(query_str) {
+            crate::materialization::check_temporal_literals_opt_a(
+                &mut ast,
+                self.table_registry.as_deref(),
+            )?;
+        }
+
         // S-3.13: plan-time table availability gate for scheduled queries (AC-8 mode-agnostic).
         // Gate ordering (BC-2.11.019 §Gate ordering, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
         //   E-QUERY-037 (table) → E-QUERY-038 (column) → E-QUERY-039 (enrich) → E-QUERY-011 (capability).
@@ -1152,6 +1205,9 @@ impl QueryEngine {
         // scheduled queries — fires LAST among content gates (after E-QUERY-037 and E-QUERY-038).
         // Gate ordering (BC-2.11.019 §Gate ordering): E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
         check_enrich_udf_availability(query_str, self.infusion_registry.as_deref())?;
+
+        // ADR-052 D4 Option A: temporal gate is now in run_materialization_pipeline.
+        // See execute_inner for the full gate-ordering comment.
 
         // H1 fix (S-DEMO-FIDELITY-REMEDIATION-001): capability gate (E-QUERY-011) fires AFTER
         // 037/038/039, mirroring execute_inner. Previously this gate ran BEFORE 037/038/039
@@ -1227,6 +1283,11 @@ impl QueryEngine {
             self.resolved_spec_map(),
         )
         .with_response_cache(Arc::clone(&self.cache));
+
+        // ADR-052 §D4 Option A: wire table_registry for AST-walk temporal gate.
+        if let Some(ref tr) = self.table_registry {
+            mat_ctx = mat_ctx.with_table_registry(Arc::clone(tr));
+        }
 
         let effective_options = QueryOptions {
             clients: Some(resolved_clients.clone()),
@@ -1799,6 +1860,17 @@ fn check_enrich_udf_availability(
 
     Ok(())
 }
+
+// NOTE: E-QUERY-041 temporal literal gate is now implemented as an AST-walk
+// inside run_materialization_pipeline (materialization.rs::check_temporal_literals_opt_a).
+// The old text-scanner (check_temporal_literals + TemporalChecker + helpers) has been
+// deleted as part of ADR-052 §D4 Option A implementation.
+// Deleted functions: check_temporal_literals, extract_temporal_value_from_parse_error,
+//   check_temporal_literals_opt_a (old stub), extract_primary_table_from_ast,
+//   TemporalChecker, is_bad_literal_in_datetime_column,
+//   extract_column_name_adjacent_to_quoted_value, extract_table_name_from_query_str,
+//   check_string_is_valid_rfc3339.
+// Reference: ADR-052 §D4 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 14.
 
 // ---------------------------------------------------------------------------
 // Shared column-name extractor for E-QUERY-038 gate (F-001B-DC-HIGH-001)

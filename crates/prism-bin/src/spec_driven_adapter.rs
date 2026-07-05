@@ -39,8 +39,11 @@ use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc, time::Durat
 use serde_json::Value as JsonValue;
 
 use arrow::{
-    array::{Array, BooleanArray, Float64Array, Int32Array, Int64Array, StringArray},
-    datatypes::{DataType, Field, Schema},
+    array::{
+        Array, BooleanArray, Float64Array, Int32Array, Int64Array, StringArray,
+        TimestampMicrosecondArray,
+    },
+    datatypes::{DataType, Field, Schema, TimeUnit},
     record_batch::RecordBatch,
 };
 use async_trait::async_trait;
@@ -847,10 +850,10 @@ fn pipeline_result_to_record_batch(
                 let vals: Vec<Option<String>> = vec![s; n];
                 Arc::new(arrow::array::StringArray::from(vals)) as Arc<dyn Array>
             } else {
-                build_column_array(&result.records, col_spec)
+                build_column_array(&result.records, col_spec, sensor_id)
             }
         } else {
-            build_column_array(&result.records, col_spec)
+            build_column_array(&result.records, col_spec, sensor_id)
         };
         col_arrays.push(array);
     }
@@ -881,9 +884,10 @@ fn column_type_to_arrow(col_type: &ColumnType) -> DataType {
         ColumnType::Integer => DataType::Int64,
         ColumnType::Float => DataType::Float64,
         ColumnType::Boolean => DataType::Boolean,
-        // Datetime → Utf8 for the spec-driven adapter layer.
-        // Full timestamp typing is done at the DataFusion materialization layer (S-3.02).
-        ColumnType::Datetime => DataType::Utf8,
+        // Datetime → Timestamp(Microsecond, UTC-tagged) per ADR-052 D1/D2.
+        // Sensor data is normalized to RFC-3339 at the adapter boundary;
+        // Arrow stores it as i64 microseconds-since-epoch.
+        ColumnType::Datetime => DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC"))),
         // Json → Utf8 (serialized JSON string in Arrow column).
         ColumnType::Json => DataType::Utf8,
         // Non-exhaustive guard: future variants default to Utf8.
@@ -902,7 +906,11 @@ fn column_type_to_arrow(col_type: &ColumnType) -> DataType {
 ///   On `Err` from `extract_at_path`, the cell becomes null.
 ///
 /// Records where the field is absent or null produce a null entry in the array.
-fn build_column_array(records: &[serde_json::Value], col: &ColumnSpec) -> Arc<dyn Array> {
+fn build_column_array(
+    records: &[serde_json::Value],
+    col: &ColumnSpec,
+    sensor_id: &str,
+) -> Arc<dyn Array> {
     /// Extract a single raw `serde_json::Value` from a record for this column.
     fn extract_raw(r: &serde_json::Value, col: &ColumnSpec) -> Option<serde_json::Value> {
         if let Some(ref path) = col.source_path {
@@ -997,7 +1005,50 @@ fn build_column_array(records: &[serde_json::Value], col: &ColumnSpec) -> Arc<dy
                 .collect();
             Arc::new(BooleanArray::from(vals))
         }
-        // String / Datetime / Json / future variants → Utf8
+        // Datetime → Timestamp(Microsecond, Some("UTC")) (ADR-052 D5 / AC-013).
+        // ISO-8601 datetime strings from sensor APIs are parsed via `parse_datetime_to_micros`
+        // → i64 microseconds-since-epoch, matching the Arrow column type registered by
+        // `column_type_to_arrow`. Identical chrono strictness to the E-QUERY-041 pre-validator
+        // (ADR-052 D4 invariant).
+        //
+        // Normalizer contract (ADR-052 D5): `prism_spec_engine::pipeline::normalize_timestamp_fields`
+        // runs BEFORE this arm and guarantees all non-null datetime values are emitted as
+        // RFC-3339 with a Z-suffix via `dt.to_rfc3339_opts(Secs, use_z=true)`. The
+        // `Err` branch below (warn + null cell) is defense-in-depth for any sensor
+        // adapter that bypasses the normalizer; it is unreachable in the canonical path.
+        // Note: the normalizer itself is lenient-IN (tries multiple date formats) but
+        // strict-OUT (always emits Z-suffix RFC-3339); this arm is strict-IN via
+        // `parse_datetime_to_micros` → `parse_from_rfc3339`, which the normalizer's
+        // strict-OUT guarantee satisfies on the canonical path.
+        ColumnType::Datetime => {
+            let vals: Vec<Option<i64>> = records
+                .iter()
+                .map(|r| {
+                    let raw = extract_raw(r, col)?;
+                    let s = match raw {
+                        serde_json::Value::String(s) => s,
+                        serde_json::Value::Null => return None,
+                        other => other.to_string(),
+                    };
+                    match parse_datetime_to_micros(&s, &col.name, sensor_id) {
+                        Ok(micros) => Some(micros),
+                        Err(e) => {
+                            tracing::warn!(
+                                column = %col.name,
+                                sensor_id = %sensor_id,
+                                value = %s,
+                                error = %e,
+                                "ADR-052: datetime string not parseable as RFC-3339 UTC; \
+                                 cell produced null (sensor data should be RFC-3339)"
+                            );
+                            None
+                        }
+                    }
+                })
+                .collect();
+            Arc::new(TimestampMicrosecondArray::from(vals).with_timezone("UTC"))
+        }
+        // String / Json / future variants → Utf8
         // Wildcard source_path (`[*]`) arrays are serialized to a compact JSON-list string.
         // Json column values are serialized as their compact string representation.
         _ => {
@@ -1380,6 +1431,58 @@ fn build_crowdstrike_fql(start_time: Option<&str>, end_time: Option<&str>) -> St
 }
 
 // ---------------------------------------------------------------------------
+// Datetime parsing helper — OCSF normalization boundary (ADR-052 D5)
+// ---------------------------------------------------------------------------
+
+/// Parse an RFC-3339 datetime string to microseconds since Unix epoch.
+///
+/// Used at the OCSF normalization boundary in `build_column_array` to convert
+/// incoming sensor API ISO-8601 datetime strings into `i64` microseconds-since-epoch
+/// for storage in `DataType::Timestamp(TimeUnit::Microsecond, Some("UTC"))` Arrow columns.
+///
+/// # ADR-052 D4/D5 chrono-strictness invariant
+/// Uses the same `chrono::DateTime::parse_from_rfc3339` strictness as the query-planner
+/// pre-validator (`check_temporal_literals_opt_a`). Both components reject date-only and
+/// offset-less ISO-8601 forms — only full RFC-3339 with explicit UTC offset is accepted.
+///
+/// # Normalizer contract (ADR-052 D5)
+/// In the canonical production path, `prism_spec_engine::pipeline::normalize_timestamp_fields`
+/// is called before `build_column_array` reaches this function. That free function converts
+/// ALL successfully-parsed datetime values to RFC-3339 with a Z-suffix via
+/// `dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)` — strict-OUT guarantee.
+/// The normalizer is lenient-IN (attempts multiple ISO-8601 parse formats before rejecting);
+/// `parse_datetime_to_micros` here is strict-IN (`parse_from_rfc3339` only). On the
+/// canonical path, the normalizer's strict-OUT guarantee ensures this function always
+/// receives well-formed RFC-3339+Z input. The `Err` branch in `build_column_array`
+/// (tracing::warn + null cell) is therefore defense-in-depth only; it is unreachable
+/// in the canonical data path.
+///
+/// # ADR-052 D5 "identical chrono strictness" scope
+/// The D5 invariant ("identical chrono strictness") applies to the QUERY PATH only:
+/// `check_temporal_literals_opt_a` (E-QUERY-041 plan-time gate) and `parse_datetime_to_micros`
+/// both use `chrono::DateTime::parse_from_rfc3339`. The normalizer's lenient-IN behaviour is intentionally
+/// outside D5 scope — it occurs in the ingestion/ETL boundary, not the query validation path.
+///
+/// # Error type
+/// Returns `Err(SpecEngineError::TimestampParseFailure)` when the string is not valid
+/// RFC-3339. Callers in `build_column_array` log the structured error as a `tracing::warn`
+/// and emit a null cell — sensor-layer datetime parse failures are non-fatal at the row level.
+pub(super) fn parse_datetime_to_micros(
+    value: &str,
+    column_name: &str,
+    sensor_id: &str,
+) -> Result<i64, SpecEngineError> {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|dt| dt.timestamp_micros())
+        .map_err(|_| SpecEngineError::TimestampParseFailure {
+            sensor_id: sensor_id.to_owned(),
+            column_name: column_name.to_owned(),
+            attempted_formats: vec!["rfc3339".to_owned()],
+            value: value.to_owned(),
+        })
+}
+
+// ---------------------------------------------------------------------------
 // Unit tests — BearerStaticCredentialAuthProvider fail-closed contract
 // ---------------------------------------------------------------------------
 
@@ -1393,7 +1496,10 @@ mod tests {
     use prism_spec_engine::AuthProvider;
     use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
 
-    use super::{BearerStaticCredentialAuthProvider, build_http_client_with_custom_timeout};
+    use super::{
+        BearerStaticCredentialAuthProvider, build_http_client_with_custom_timeout,
+        column_type_to_arrow, parse_datetime_to_micros,
+    };
 
     /// Build a minimal SensorSpec for bearer_static sensors (Armis fixture).
     fn bearer_static_spec() -> SensorSpec {
@@ -1523,7 +1629,7 @@ mod tests {
             "$.iocs[*].value",
         );
 
-        let array = build_column_array(&records, &col);
+        let array = build_column_array(&records, &col, "test-sensor");
         let string_array = array
             .as_any()
             .downcast_ref::<ArrowStringArray>()
@@ -1563,7 +1669,7 @@ mod tests {
             "$.iocs[*].value",
         );
 
-        let array = build_column_array(&records, &col);
+        let array = build_column_array(&records, &col, "test-sensor");
         let string_array = array
             .as_any()
             .downcast_ref::<ArrowStringArray>()
@@ -1600,7 +1706,7 @@ mod tests {
             "$.arr[*].value",
         );
 
-        let array = build_column_array(&records, &col);
+        let array = build_column_array(&records, &col, "test-sensor");
         let int_array = array
             .as_any()
             .downcast_ref::<Int64Array>()
@@ -1683,6 +1789,87 @@ mod tests {
              reqwest client construction must succeed regardless of timeout value. \
              Got Err: {:?}",
             result.err()
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // RG-001 / RG-008 — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Red Gate tests
+    // -----------------------------------------------------------------------
+
+    /// RG-001: `column_type_to_arrow(ColumnType::Datetime)` must register as
+    /// `DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC")))`.
+    ///
+    /// # Red Gate pre-implementation failure
+    /// Returns `DataType::Utf8` — `assert_eq!` FAILS with:
+    ///   left:  `Utf8`
+    ///   right: `Timestamp(Microsecond, Some("UTC"))`
+    ///
+    /// # Why load-bearing
+    /// If the Datetime arm remains `DataType::Utf8`, all temporal comparisons are
+    /// lexicographic. Every downstream test (RG-009, RG-010) depends on this being
+    /// `Timestamp(Microsecond, UTC)`. This is the foundation gate for the migration.
+    ///
+    /// # Arc form discipline
+    /// `Some(Arc::from("UTC"))` produces `Arc<str>` — the correct Arrow API form.
+    /// `Some(Arc::new("UTC".into()))` produces `Arc<String>` and is FORBIDDEN
+    /// (ADR-052 §D1 canonical form).
+    ///
+    /// Traces to: BC-2.11.003 v1.6 §Postconditions; ADR-052 §D1/§D2.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_datetime_column_registers_as_timestamp_micros_utc()
+    {
+        use arrow::datatypes::TimeUnit;
+
+        let result = column_type_to_arrow(&ColumnType::Datetime);
+        assert_eq!(
+            result,
+            arrow::datatypes::DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC"))),
+            "RG-001: column_type_to_arrow(ColumnType::Datetime) must return \
+             DataType::Timestamp(Microsecond, Some(\"UTC\")) per ADR-052 D1/D2. \
+             Currently returns DataType::Utf8 — assertion FAILS until the Datetime arm \
+             is updated in column_type_to_arrow (Task 8 of S-PRISMQL-NATIVE-TEMPORAL-TYPING-001)."
+        );
+    }
+
+    /// RG-008: `parse_datetime_to_micros("2026-07-03T00:00:00Z")` returns the correct
+    /// `i64` microseconds-since-epoch value.
+    ///
+    /// # Red Gate pre-implementation failure
+    /// `parse_datetime_to_micros` body is `todo!()` — panics with "not yet implemented"
+    /// before the `.expect(...)` assertion is reached.
+    ///
+    /// # Why load-bearing
+    /// Arrow `Timestamp(Microsecond, Some("UTC"))` columns store `i64` micros since epoch.
+    /// If sensor datetime strings are stored as-is (Utf8 bytes) into a Timestamp schema
+    /// column, Arrow produces null or panics at materialization time — silent data loss.
+    ///
+    /// # TD-VSDD-091 compliance
+    /// The expected value is DERIVED at test time via chrono — NOT a hardcoded magic
+    /// constant. If the epoch representation changes (e.g., leap second handling), the
+    /// derivation remains correct.
+    ///
+    /// Traces to: ADR-052 §D5; BC-2.11.003 v1.6 §Postconditions D4/D5
+    /// chrono-strictness invariant.
+    #[test]
+    #[allow(clippy::expect_used, clippy::unwrap_used)]
+    fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sensor_datetime_string_parsed_to_micros() {
+        // Derive the expected microsecond value via chrono at test time (TD-VSDD-091:
+        // behavioral anchors, not magic constants).
+        let expected_micros = chrono::DateTime::parse_from_rfc3339("2026-07-03T00:00:00Z")
+            .expect("known-good RFC-3339 literal must parse cleanly")
+            .timestamp_micros();
+
+        // Red Gate: parse_datetime_to_micros is todo!() — panics here before the
+        // assertion below is reached. Failure mode: "not yet implemented: ..."
+        let micros = parse_datetime_to_micros("2026-07-03T00:00:00Z", "timestamp", "test-sensor")
+            .expect("parse_datetime_to_micros must return Ok(i64) for valid RFC-3339 input");
+
+        assert_eq!(
+            micros, expected_micros,
+            "RG-008: parse_datetime_to_micros(\"2026-07-03T00:00:00Z\") must return \
+             Ok({expected_micros}) (microseconds since Unix epoch via chrono derivation). \
+             ADR-052 D5 — sensor ISO-8601 strings must be converted to i64 µs-since-epoch."
         );
     }
 }

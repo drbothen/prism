@@ -425,6 +425,17 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // Reference: BC-2.11.020; ADR-043 §C; error-taxonomy.md E-QUERY-040.
         PrismError::RedundantRowLimit { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
+        // E-QUERY-041: Temporal literal not parseable as RFC-3339 UTC → -32602 INVALID_PARAMS.
+        //
+        // MUST be explicit: `PrismError` is `#[non_exhaustive]`; without this arm the
+        // variant would fall through to the catch-all `-32000 INTERNAL_ERROR`, losing the
+        // caller-actionable datetime format guidance (ADR-052 D4; BC-2.11.021 §MCP mapping).
+        //
+        // Caller-resolvable: supply a full RFC-3339 timestamp with UTC offset
+        // (e.g., '2026-07-03T00:00:00Z'). Date-only and offset-less forms are rejected.
+        // Reference: BC-2.11.021 v1.2; ADR-052 D4; error-taxonomy.md E-QUERY-041.
+        PrismError::TemporalLiteralUnparseable { .. } => (codes::INVALID_PARAMS, format!("{err}")),
+
         // E-INT-001: Internal invariant violated → -32000 Internal
         // Detail is suppressed — audit log has it.
         PrismError::Internal { .. } => (
@@ -1234,6 +1245,37 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             reference_pointer: None,
             valid_operators_for_type: None,
             how_to_fix: Some(prism_query::engine::how_to_fix_for_security_limit(detail)),
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
+        // E-QUERY-041: plan-time temporal literal pre-validator (ADR-052 D4).
+        // Dedicated arm: RFC-3339 format guidance must appear in the suggestion field for
+        // analyst-actionable structured output. ec_code_override: None because the Display
+        // starts with "E-QUERY-041:" so the message.starts_with("E-") inference path
+        // correctly derives the code without explicit override.
+        // original_params_valid: false — the bad date-format literal IS the invalid parameter.
+        // TD-VSDD-060 sibling-site: RedundantRowLimit (E-QUERY-040) was in shared group but
+        // TemporalLiteralUnparseable requires dedicated arm for analyst guidance (pass-3 HIGH-1).
+        PrismError::TemporalLiteralUnparseable { .. } => VariantMeta {
+            category: "validation",
+            suggestion: "Use RFC-3339 format with UTC offset.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: Some(concat!(
+                "Use RFC-3339 format with UTC offset (e.g., '2026-07-03T00:00:00Z'). ",
+                "Date-only and offset-less forms are rejected. ",
+                "For relative time filters, use NOW() - INTERVAL 'Nh'.",
+            ).to_owned()),
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
             available_columns: None,
             did_you_mean: None,
             normalized_pql: None,
@@ -3362,6 +3404,173 @@ mod tests {
              EnrichUdfNotFoundDetails.did_you_mean is None. \
              Got: {:?}",
             error_obj.get("did_you_mean")
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // RG-006 — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Red Gate test
+    // -----------------------------------------------------------------------
+
+    /// RG-006: `map_prism_error(PrismError::TemporalLiteralUnparseable { .. })` must return
+    /// MCP error code `-32602` (`INVALID_PARAMS`), NOT `-32000` (`INTERNAL_ERROR`).
+    ///
+    /// # Red Gate pre-implementation failure
+    /// No explicit arm for `PrismError::TemporalLiteralUnparseable` exists in
+    /// `map_prism_error`. The variant falls through to the catch-all `_ => (INTERNAL_ERROR, ...)`
+    /// arm → returns `-32000`. The assertion `code == codes::INVALID_PARAMS` FAILS with:
+    ///   left:  `-32000` (INTERNAL_ERROR)
+    ///   right: `-32602` (INVALID_PARAMS)
+    ///
+    /// # Why load-bearing (AC-006)
+    /// E-QUERY-041 is a CALLER-RESOLVABLE error (the analyst sent a bad date format).
+    /// Returning `-32000` (server-side internal error) misleads the MCP caller into
+    /// thinking the error is transient or server-side. `-32602` INVALID_PARAMS signals
+    /// the caller must fix their query.
+    ///
+    /// The explicit arm MUST use the symbolic constant `codes::INVALID_PARAMS`,
+    /// NOT the bare literal `-32602` — repo convention (every existing arm uses
+    /// `codes::` symbolic constants).
+    ///
+    /// # Negative assertion
+    /// A separate assertion verifies the code is NOT `-32000` INTERNAL_ERROR —
+    /// mutation-resistant proof that the explicit arm is load-bearing, not accidentally
+    /// green via the catch-all.
+    ///
+    /// Traces to: BC-2.11.001 v1.15 §E-QUERY-041 gate ordering + MCP -32602 constraint;
+    /// ADR-052 §D4; error-taxonomy.md §E-QUERY-041.
+    #[test]
+    fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_map_prism_error_invalid_params() {
+        let err = PrismError::TemporalLiteralUnparseable {
+            value_prefix: "2026-06-24".to_string(),
+        };
+
+        let (code, message) = map_prism_error(err);
+
+        // Primary: must map to INVALID_PARAMS (-32602).
+        assert_eq!(
+            code,
+            codes::INVALID_PARAMS,
+            "RG-006: PrismError::TemporalLiteralUnparseable must map to \
+             codes::INVALID_PARAMS (-32602), not the catch-all INTERNAL_ERROR (-32000). \
+             Got code: {code}. Fix: add explicit arm in map_prism_error \
+             (Task 7 of S-PRISMQL-NATIVE-TEMPORAL-TYPING-001)."
+        );
+
+        // Negative: must NOT be INTERNAL_ERROR (-32000).
+        assert_ne!(
+            code,
+            codes::INTERNAL_ERROR,
+            "RG-006: TemporalLiteralUnparseable must NOT fall through to catch-all \
+             INTERNAL_ERROR arm. E-QUERY-041 is caller-resolvable; returning -32000 \
+             misleads the MCP caller. Got code: {code}."
+        );
+
+        // The message must mention E-QUERY-041 (from the PrismError Display impl).
+        assert!(
+            message.contains("E-QUERY-041"),
+            "RG-006: map_prism_error message must include 'E-QUERY-041' from the \
+             TemporalLiteralUnparseable Display. Got: {message:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // HIGH-1 — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 structured-path test
+    // -----------------------------------------------------------------------
+
+    /// HIGH-1: `prism_error_to_structured_call_result(PrismError::TemporalLiteralUnparseable)`
+    /// must produce a structured payload with `category == "validation"`,
+    /// `original_params_valid == false`, and `code == "E-QUERY-041"`.
+    ///
+    /// # Why this is a real production defect (TD-VSDD-060 sibling-site miss)
+    /// The flat `map_prism_error` path (RG-006) correctly maps `TemporalLiteralUnparseable`
+    /// → INVALID_PARAMS (`-32602`). But the STRUCTURED path — `prism_error_to_structured_call_result`
+    /// — which the `query` MCP tool actually uses (server.rs routes domain errors through it)
+    /// has NO `VariantMeta` arm for `TemporalLiteralUnparseable`. It falls to the catch-all
+    /// (~line 1924-1941): `category: "upstream_error"`, `original_params_valid: true`,
+    /// `suggestion: "See audit log for details."` — semantically wrong for a
+    /// caller-resolvable plan-time validation error.
+    ///
+    /// The sibling error E-QUERY-040 `RedundantRowLimit` IS correctly in the "validation"
+    /// `VariantMeta` group; E-QUERY-041 was not swept in (TD-VSDD-060 sibling-site miss).
+    ///
+    /// # Pre-fix failure
+    /// Without the dedicated arm:
+    ///   `category == "upstream_error"` (NOT "validation")
+    ///   `original_params_valid == true` (NOT false — E-QUERY-041 IS a bad-params error)
+    ///   `code != "E-QUERY-041"` (falls to default code derivation)
+    ///
+    /// # Fix
+    /// Add `PrismError::TemporalLiteralUnparseable { .. }` to the "validation" `VariantMeta`
+    /// group alongside `RedundantRowLimit`, with `original_params_valid: false` and
+    /// `ec_code_override: Some("E-QUERY-041")`.
+    ///
+    /// Mirrors: `test_bc_2_11_019_n1b_structured_payload_validation_category_and_suggestion`
+    /// (EnrichUdfNotFound HIGH-2 fix, same pattern).
+    ///
+    /// Traces to: ADR-052 §D4; BC-2.11.001 v1.15 §E-QUERY-041 gate ordering;
+    /// error-taxonomy.md §E-QUERY-041; TD-VSDD-060 sibling-site sweep.
+    #[test]
+    fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_structured_path_validation_category() {
+        let err = PrismError::TemporalLiteralUnparseable {
+            value_prefix: "2026-06-24".to_string(),
+        };
+
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        // category must be "validation" (not "upstream_error" catch-all).
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "validation",
+            "HIGH-1: TemporalLiteralUnparseable structured path must have category 'validation', \
+             not 'upstream_error' catch-all. E-QUERY-041 is a caller-resolvable plan-time \
+             validation error — wrong category misleads the MCP caller. Got: '{category}'"
+        );
+
+        // original_params_valid must be false — the date-only/offset-less literal IS the bad param.
+        let opv = error_obj
+            .get("original_params_valid")
+            .and_then(|v| v.as_bool())
+            .expect("original_params_valid must be a bool");
+        assert!(
+            !opv,
+            "HIGH-1: TemporalLiteralUnparseable must have original_params_valid: false. \
+             The query literal is the invalid parameter — the caller must fix it to RFC-3339. \
+             Got: true (catch-all default)"
+        );
+
+        // code must be "E-QUERY-041" (via ec_code_override in the VariantMeta arm).
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("code must be a string");
+        assert_eq!(
+            code, "E-QUERY-041",
+            "HIGH-1: TemporalLiteralUnparseable structured path must have code 'E-QUERY-041'. \
+             Got: '{code}'"
+        );
+
+        // suggestion must be analyst-actionable (RFC-3339 format guidance).
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("suggestion must be a string");
+        assert!(
+            suggestion.contains("RFC-3339")
+                || suggestion.contains("rfc3339")
+                || suggestion.contains("UTC")
+                || suggestion.contains("2026"),
+            "HIGH-1: suggestion must contain RFC-3339 format guidance for the analyst. \
+             Got: '{suggestion}'"
         );
     }
 }

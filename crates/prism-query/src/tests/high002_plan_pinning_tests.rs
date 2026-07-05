@@ -1,11 +1,11 @@
 /// BC-2.11.021 / ADR-044 D4 / D-1333: Plan-time pinning unit tests.
 ///
 /// HIGH-002: SQL-mode and SqlPipe-head must execute the plan-pinned
-/// plain ISO-string literal `'<iso>'` derived from the folded AST, NOT
-/// DataFusion's runtime NOW() function (Option B, rejected by D-1333 human
-/// decision), and NOT the typed `TIMESTAMP '<iso>'` form (which cannot compare
-/// against a `DataType::Utf8` column — see ADR-044 D4 and spec_driven_adapter
-/// `column_type_to_arrow`: `ColumnType::Datetime => DataType::Utf8`).
+/// `arrow_cast('<iso>', 'Timestamp(Microsecond, Some("UTC"))')` literal derived
+/// from the folded AST, NOT DataFusion's runtime NOW() function (Option B,
+/// rejected by D-1333 human decision), and NOT the bare `TIMESTAMP '<iso>'` form
+/// (which DataFusion 53.1.0 produces as Timestamp(Nanosecond, None) — mismatching
+/// the ADR-052 D1 column type `Timestamp(Microsecond, Some("UTC"))`).
 ///
 /// These tests call `inject_now` (pub(crate)) + `PqlNormalizer::normalize`
 /// (pub) and assert that:
@@ -22,13 +22,15 @@
 ///   - `in_window_row`: timestamp ~12h ago (inside the 24h window)
 ///   - `out_window_row`: timestamp ~48h ago (outside the 24h window)
 /// The test asserts EXACTLY 1 row returns (discriminating) and that the
-/// emitted SQL does NOT contain `TIMESTAMP '` or `NOW()` or `INTERVAL`
-/// (negative-control — catches regression to typed timestamp or runtime eval).
+/// emitted SQL does NOT contain bare `TIMESTAMP '` and DOES contain `arrow_cast(`
+/// (negative-control — catches regression to bare typed timestamp or runtime eval).
 ///
 /// F-HIGH-002 root cause:
 /// `pipe_sql_emitter::literal_to_sql` `Literal::Timestamp` arm was emitting
-/// `TIMESTAMP '<iso>'` (a DataFusion typed timestamp literal). This form cannot
-/// compare against a `DataType::Utf8` column (ISO-8601 strings), causing a
+/// bare `TIMESTAMP '<iso>'` (which DataFusion 53.1.0 produces as
+/// `Timestamp(Nanosecond, None)`) instead of the `arrow_cast(...)` form. The
+/// `arrow_cast` form is required because plain `TIMESTAMP '...'` cannot correctly
+/// compare against a `DataType::Timestamp(Microsecond, Some("UTC"))` column — causing
 /// DataFusion type error at execution. The fix changes emission to `'<iso>'`
 /// (plain single-quoted ISO string), matching PqlNormalizer::normalize_literal
 /// and BC-2.11.021/ADR-044 D4.
@@ -164,14 +166,15 @@ mod high002_plan_pinning_tests {
     // F-HIGH-001: Discriminating + negative-control temporal execution tests
     //
     // Each test drives `execute_against_session` with a real DataFusion MemTable
-    // on a `DataType::Utf8` (ISO-8601 string) timestamp column — the production
-    // Arrow shape for OCSF Datetime fields (ADR-044 D4, spec_driven_adapter
-    // `column_type_to_arrow`: `ColumnType::Datetime => DataType::Utf8`).
+    // on a `DataType::Timestamp(Microsecond, Some("UTC"))` column — the production
+    // Arrow shape for OCSF Datetime fields (ADR-052 D1/D2, spec_driven_adapter
+    // `column_type_to_arrow`: `ColumnType::Datetime => Timestamp(Microsecond, UTC)`).
     //
     // Discriminating: 2 rows (in-window, out-of-window) — assert exactly 1
     //   in-window row returns.
-    // Negative-control: inspect emitted SQL — assert it does NOT contain
-    //   `TIMESTAMP '` (typed form), `NOW()`, or `INTERVAL`.
+    // Negative-control: inspect emitted SQL — assert it does NOT contain bare
+    //   `TIMESTAMP '` (typed form), `NOW()`, or `INTERVAL`, AND DOES contain
+    //   `arrow_cast(` (the required ADR-052 D3 emission form).
     //   The test FAILS if the pipe emitter regresses to `TIMESTAMP '...'` or
     //   runtime NOW()/INTERVAL forms.
     // Push-down spy: assert start_time populated == filter bound.
@@ -186,9 +189,13 @@ mod high002_plan_pinning_tests {
         (in_window, out_window)
     }
 
-    /// Build a RecordBatch with a single `DataType::Utf8` column named `timestamp`
-    /// containing `in_window_ts` and `out_window_ts` strings (production column shape
-    /// for OCSF Datetime: `column_type_to_arrow` returns `DataType::Utf8`).
+    /// Build a RecordBatch with a single `Timestamp(Microsecond, UTC)` column named `timestamp`
+    /// containing `in_window_ts` and `out_window_ts` RFC-3339 strings converted to i64 µs.
+    ///
+    /// ADR-052 D2: `column_type_to_arrow(ColumnType::Datetime)` now returns
+    /// `DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC")))`.
+    /// Tests exercising the production schema must use this type, not `DataType::Utf8`.
+    #[allow(clippy::expect_used)]
     fn make_timestamp_batch(
         in_window_ts: &str,
         out_window_ts: &str,
@@ -196,26 +203,36 @@ mod high002_plan_pinning_tests {
         use std::sync::Arc;
 
         use arrow::{
-            array::StringArray,
-            datatypes::{DataType, Field, Schema},
+            array::TimestampMicrosecondArray,
+            datatypes::{DataType, Field, Schema, TimeUnit},
         };
 
         let schema = Arc::new(Schema::new(vec![Field::new(
             "timestamp",
-            DataType::Utf8,
+            DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC"))),
             true,
         )]));
-        let col = Arc::new(StringArray::from(vec![in_window_ts, out_window_ts])) as _;
+
+        let in_micros = chrono::DateTime::parse_from_rfc3339(in_window_ts)
+            .expect("in_window_ts must be valid RFC-3339")
+            .timestamp_micros();
+        let out_micros = chrono::DateTime::parse_from_rfc3339(out_window_ts)
+            .expect("out_window_ts must be valid RFC-3339")
+            .timestamp_micros();
+
+        let col = Arc::new(
+            TimestampMicrosecondArray::from(vec![in_micros, out_micros]).with_timezone("UTC"),
+        ) as _;
         arrow::record_batch::RecordBatch::try_new(schema, vec![col])
             .expect("timestamp batch construction must succeed")
     }
 
     /// F-HIGH-001 SQL-mode: drive `execute_against_session` with a SQL temporal
-    /// predicate on a `Utf8` timestamp column.
+    /// predicate on a `Timestamp(Microsecond, Some("UTC"))` column.
     ///
     /// Discriminating: exactly 1 in-window row returned.
-    /// Negative-control: PqlNormalizer::normalize emits plain `'<iso>'`, not
-    ///   `TIMESTAMP '<iso>'`, `NOW()`, or `INTERVAL`.
+    /// Negative-control: PqlNormalizer::normalize emits `arrow_cast(...)` form, not
+    ///   bare `TIMESTAMP '<iso>'`, `NOW()`, or `INTERVAL`.
     ///
     /// Red Gate (before F-HIGH-002 fix): PASSES — SQL-mode uses PqlNormalizer
     /// which already emits `'<iso>'`. This test locks in SQL-mode correctness.
@@ -275,7 +292,7 @@ mod high002_plan_pinning_tests {
         let table_batches: HashMap<String, Vec<arrow::record_batch::RecordBatch>> = HashMap::new();
         let result = execute_against_session(&ctx, &sql, &ast, table_batches)
             .await
-            .expect("SQL temporal query on Utf8 column must succeed");
+            .expect("SQL temporal query on Timestamp(Microsecond, UTC) column must succeed");
 
         let total_rows: usize = result.iter().map(|b| b.num_rows()).sum();
         assert_eq!(
@@ -286,37 +303,39 @@ mod high002_plan_pinning_tests {
              If 2: filter is not applied."
         );
 
-        // Identity check: the returned row has the in-window timestamp.
-        use arrow::array::StringArray;
+        // Identity check: the returned row has the in-window timestamp (as i64 µs).
+        use arrow::array::TimestampMicrosecondArray;
         let first_batch = &result[0];
         let ts_col = first_batch
             .column(0)
             .as_any()
-            .downcast_ref::<StringArray>()
-            .expect("timestamp column must be StringArray");
+            .downcast_ref::<TimestampMicrosecondArray>()
+            .expect("timestamp column must be TimestampMicrosecondArray (ADR-052 D2)");
+        let expected_micros = chrono::DateTime::parse_from_rfc3339(&in_window_ts)
+            .expect("in_window_ts must be valid RFC-3339")
+            .timestamp_micros();
         assert_eq!(
             ts_col.value(0),
-            in_window_ts,
-            "F-HIGH-001 SQL identity: returned row must be the in-window timestamp"
+            expected_micros,
+            "F-HIGH-001 SQL identity: returned row must be the in-window timestamp (i64 µs)"
         );
     }
 
     /// F-HIGH-001 Pipe-mode: drive `execute_against_session` via a Pipe AST
-    /// (`crowdstrike_detections | where timestamp > '<pinned_iso>'`) on a `Utf8`
-    /// timestamp column.
+    /// (`crowdstrike_detections | where timestamp > '<pinned_iso>'`) on a
+    /// `Timestamp(Microsecond, Some("UTC"))` column.
     ///
     /// Discriminating: exactly 1 in-window row returned.
-    /// Negative-control: `pipe_to_executable_sql` emits plain `'<iso>'`, not
-    ///   `TIMESTAMP '<iso>'`, `NOW()`, or `INTERVAL`.
+    /// Negative-control: `pipe_to_executable_sql` emits `arrow_cast(...)` form, not
+    ///   bare `TIMESTAMP '<iso>'`, `NOW()`, or `INTERVAL`.
     ///
-    /// Red Gate (before F-HIGH-002 fix): pipe emitter emits `TIMESTAMP '<iso>'`.
-    ///   - DataFusion fails to compare `Utf8` against `Timestamp(Microsecond, None)`,
-    ///     so `execute_against_session` returns an error → the `expect` panics.
-    ///   OR
-    ///   - DataFusion succeeds but returns 0 rows (type coercion fails silently).
-    ///   Either way the discriminating assert (exactly 1 row) fails.
+    /// Red Gate (before F-HIGH-002 fix): pipe emitter emits bare `TIMESTAMP '<iso>'`.
+    ///   - DataFusion produces `Timestamp(Nanosecond, None)` — mismatches the
+    ///     `Timestamp(Microsecond, Some("UTC"))` column type, so `execute_against_session`
+    ///     returns an error or 0 rows. Either way the discriminating assert fails.
     ///
-    /// After F-HIGH-002 fix: plain `'<iso>'` compares against `Utf8` correctly.
+    /// After F-HIGH-002 fix: `arrow_cast('...', 'Timestamp(Microsecond, Some("UTC"))')`
+    /// compares correctly against the Timestamp(Microsecond, UTC) column.
     ///
     /// This test is the primary load-bearing proof for F-HIGH-002.
     #[tokio::test]
@@ -365,14 +384,23 @@ mod high002_plan_pinning_tests {
             ),
         };
 
-        // NEGATIVE CONTROL: emitted SQL must NOT contain `TIMESTAMP '`, `NOW()`, or `INTERVAL`.
-        // If the pipe emitter still uses the old `TIMESTAMP '<iso>'` form, this assertion fails.
+        // NEGATIVE CONTROL: emitted SQL must NOT contain bare `TIMESTAMP '` and
+        // MUST contain `arrow_cast(` (ADR-052 D3 requirement).
+        // If the pipe emitter regresses to `TIMESTAMP '<iso>'`, the negative assert fails.
+        // If the pipe emitter omits `arrow_cast(`, the positive assert fails.
         assert!(
             !pipe_sql.to_uppercase().contains("TIMESTAMP '"),
-            "F-HIGH-001 Pipe negative-control: pipe emitter must NOT emit TIMESTAMP literal form. \
+            "F-HIGH-001 Pipe negative-control: pipe emitter must NOT emit bare TIMESTAMP literal form. \
              Got pipe_sql: {pipe_sql:?}. \
-             Root cause if failing: pipe_sql_emitter::literal_to_sql Timestamp arm still emits \
-             `TIMESTAMP '<iso>'` instead of plain `'<iso>'` (F-HIGH-002 fix needed)."
+             Root cause if failing: pipe_sql_emitter::literal_to_sql Timestamp arm regressed to \
+             `TIMESTAMP '<iso>'` — fix: ensure the arm emits `arrow_cast(...)` (F-HIGH-002)."
+        );
+        assert!(
+            pipe_sql.contains("arrow_cast("),
+            "F-HIGH-001 Pipe positive-control: pipe emitter MUST emit `arrow_cast(...)` form \
+             for Literal::Timestamp (ADR-052 D3). Got pipe_sql: {pipe_sql:?}. \
+             Root cause if failing: pipe_sql_emitter::literal_to_sql Timestamp arm does not emit \
+             `arrow_cast('...', 'Timestamp(Microsecond, Some(\"UTC\"))')`."
         );
         assert!(
             !pipe_sql.to_uppercase().contains("NOW()"),
@@ -390,7 +418,10 @@ mod high002_plan_pinning_tests {
 
         let result = execute_against_session(&ctx, &pipe_query, &ast, pipe_batches)
             .await
-            .expect("Pipe temporal query on Utf8 column must succeed after F-HIGH-002 fix");
+            .expect(
+                "Pipe temporal query on Timestamp(Microsecond, UTC) column must succeed \
+                 (arrow_cast form required — F-HIGH-002 fix)",
+            );
 
         let total_rows: usize = result.iter().map(|b| b.num_rows()).sum();
         assert_eq!(
@@ -400,27 +431,30 @@ mod high002_plan_pinning_tests {
              Got {total_rows} rows."
         );
 
-        // Identity check: the returned row is the in-window timestamp.
-        use arrow::array::StringArray;
+        // Identity check: the returned row is the in-window timestamp (as i64 µs).
+        use arrow::array::TimestampMicrosecondArray;
         let first_batch = &result[0];
         let ts_col = first_batch
             .column(0)
             .as_any()
-            .downcast_ref::<StringArray>()
-            .expect("timestamp column must be StringArray");
+            .downcast_ref::<TimestampMicrosecondArray>()
+            .expect("timestamp column must be TimestampMicrosecondArray (ADR-052 D2)");
+        let expected_micros = chrono::DateTime::parse_from_rfc3339(&in_window_ts)
+            .expect("in_window_ts must be valid RFC-3339")
+            .timestamp_micros();
         assert_eq!(
             ts_col.value(0),
-            in_window_ts,
-            "F-HIGH-001 Pipe identity: returned row must be the in-window timestamp"
+            expected_micros,
+            "F-HIGH-001 Pipe identity: returned row must be the in-window timestamp (i64 µs)"
         );
     }
 
     /// F-HIGH-001 SqlPipe-mode: drive `execute_against_session` via a SqlPipe AST
-    /// on a `Utf8` timestamp column.
+    /// on a `Timestamp(Microsecond, Some("UTC"))` column.
     ///
     /// Discriminating: exactly 1 in-window row returned.
     /// Negative-control: PqlNormalizer::normalize (head) and pipe emitter (stages)
-    ///   must NOT contain `TIMESTAMP '`, `NOW()`, or `INTERVAL`.
+    ///   must NOT contain bare `TIMESTAMP '`, `NOW()`, or `INTERVAL`.
     ///
     /// Red Gate: PASSES once PqlNormalizer head normalization is in place (already done).
     /// The stage emitter uses the same `pipe_to_executable_sql` path as Pipe-mode.
@@ -497,7 +531,7 @@ mod high002_plan_pinning_tests {
 
         let result = execute_against_session(&ctx, &sqlpipe_query, &ast, table_batches)
             .await
-            .expect("SqlPipe temporal query on Utf8 column must succeed");
+            .expect("SqlPipe temporal query on Timestamp(Microsecond, UTC) column must succeed");
 
         let total_rows: usize = result.iter().map(|b| b.num_rows()).sum();
         assert_eq!(
@@ -506,18 +540,21 @@ mod high002_plan_pinning_tests {
              Got {total_rows} rows."
         );
 
-        // Identity check.
-        use arrow::array::StringArray;
+        // Identity check: the returned row is the in-window timestamp (as i64 µs).
+        use arrow::array::TimestampMicrosecondArray;
         let first_batch = &result[0];
         let ts_col = first_batch
             .column(0)
             .as_any()
-            .downcast_ref::<StringArray>()
-            .expect("timestamp column must be StringArray");
+            .downcast_ref::<TimestampMicrosecondArray>()
+            .expect("timestamp column must be TimestampMicrosecondArray (ADR-052 D2)");
+        let expected_micros = chrono::DateTime::parse_from_rfc3339(&in_window_ts)
+            .expect("in_window_ts must be valid RFC-3339")
+            .timestamp_micros();
         assert_eq!(
             ts_col.value(0),
-            in_window_ts,
-            "F-HIGH-001 SqlPipe identity: returned row must be the in-window timestamp"
+            expected_micros,
+            "F-HIGH-001 SqlPipe identity: returned row must be the in-window timestamp (i64 µs)"
         );
     }
 
@@ -538,7 +575,7 @@ mod high002_plan_pinning_tests {
         // test_high001_pipe_mode_temporal_utf8_discriminating, and
         // test_high001_sqlpipe_mode_temporal_utf8_discriminating:
         // each returns exactly 1 in-window row, proving the filter predicate
-        // was applied against the materialized Utf8 timestamp column.
+        // was applied against the materialized Timestamp(Microsecond, UTC) column.
         //
         // The ADR-033 T1 start_time extraction (run_materialization_pipeline path)
         // is tested implicitly: if start_time were wrong, the fan-out window would
@@ -731,15 +768,21 @@ mod high002_plan_pinning_tests {
         let ctx = build_session_context(50 * 1024 * 1024)
             .expect("F-P1-MED-001: session context must build");
         use arrow::{
-            array::StringArray,
-            datatypes::{DataType, Field, Schema},
+            array::TimestampMicrosecondArray,
+            datatypes::{DataType, Field, Schema, TimeUnit},
         };
+        // Use production schema type (ADR-052 D2): Timestamp(Microsecond, UTC).
         let schema = std::sync::Arc::new(Schema::new(vec![Field::new(
             "timestamp",
-            DataType::Utf8,
+            DataType::Timestamp(TimeUnit::Microsecond, Some(std::sync::Arc::from("UTC"))),
             true,
         )]));
-        let col = std::sync::Arc::new(StringArray::from(vec!["2026-01-01T00:00:00Z"])) as _;
+        let ts_micros = chrono::DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+            .expect("known-good RFC-3339")
+            .timestamp_micros();
+        let col = std::sync::Arc::new(
+            TimestampMicrosecondArray::from(vec![ts_micros]).with_timezone("UTC"),
+        ) as _;
         let batch =
             arrow::record_batch::RecordBatch::try_new(schema, vec![col]).expect("batch builds");
         register_mem_table(&ctx, "crowdstrike_detections", vec![batch])
@@ -1286,6 +1329,180 @@ mod high002_plan_pinning_tests {
         assert!(
             !PqlNormalizer::predicate_has_unfolded_temporal_pub(&folded_predicate),
             "LOW-1 positive-control: folded Literal::Timestamp must not be flagged as unfolded temporal"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // RG-002 / RG-009 — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Red Gate tests
+    // -----------------------------------------------------------------------
+
+    /// RG-002: RISK-1 mandatory probe — `arrow_cast('...', 'Timestamp(Microsecond, Some("UTC"))')` in
+    /// DataFusion 53.1.0 produces `Timestamp(Microsecond, Some("UTC"))`, NOT `Timestamp(Nanosecond, None)`.
+    ///
+    /// # Red Gate pre-implementation failure
+    /// Body is `todo!()` — panics with "not yet implemented: RG-002 RISK-1 probe".
+    /// The implementer (Task 5b of S-PRISMQL-NATIVE-TEMPORAL-TYPING-001) fills in the
+    /// real assertion.
+    ///
+    /// # Why load-bearing (RISK-1 mitigation, ADR-052 §Risk RISK-1)
+    /// The `arrow_cast(...)` emitter form was chosen over `TIMESTAMP '...'` because
+    /// `TIMESTAMP '...'` produces `Timestamp(Nanosecond, None)` in DataFusion 53.1.0,
+    /// causing type mismatch against `Timestamp(Microsecond, UTC)` columns. This probe
+    /// pins the `arrow_cast` behavior to DataFusion 53.1.0 — if a version upgrade changes
+    /// `arrow_cast` semantics for this type string, this test will fail fast.
+    ///
+    /// # Post-implementation body (for implementer reference)
+    /// 1. Create a DataFusion `SessionContext`.
+    /// 2. Register a table "t" with a `Timestamp(Microsecond, Some(Arc::from("UTC")))` column "ts".
+    /// 3. Plan `SELECT * FROM t WHERE ts > arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(Microsecond, Some("UTC"))')`.
+    /// 4. Assert plan is produced without error.
+    /// 5. Inspect the plan's literal expression: assert the cast type is
+    ///    `Timestamp(Microsecond, Some("UTC"))`, NOT `Timestamp(Nanosecond, None)`.
+    ///
+    /// Traces to: ADR-052 §RISK-1; BC-2.11.021 v1.2 §Postconditions.
+    #[tokio::test]
+    #[allow(clippy::expect_used)]
+    async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_risk1_datafusion_arrow_cast_probe() {
+        use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
+        use std::sync::Arc;
+
+        // Step 1: Create a DataFusion SessionContext.
+        let ctx = crate::memory::build_session_context(50 * 1024 * 1024)
+            .expect("RG-002: SessionContext must build");
+
+        // Step 2: Register table "t" with a Timestamp(Microsecond, UTC) column "ts".
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "ts",
+            DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC"))),
+            true,
+        )]));
+        let empty_batch = arrow::record_batch::RecordBatch::new_empty(schema.clone());
+        crate::materialization::register_mem_table(&ctx, "t", vec![empty_batch])
+            .expect("RG-002: table registration must succeed");
+
+        // Step 3: Plan the query with arrow_cast literal.
+        let sql = "SELECT * FROM t WHERE ts > arrow_cast('2026-07-03T00:00:00Z', \
+                   'Timestamp(Microsecond, Some(\"UTC\"))')";
+        let plan = ctx.sql(sql).await.expect(
+            "RG-002 RISK-1: arrow_cast form must plan successfully against \
+                     Timestamp(Microsecond, UTC) column in DataFusion 53.1.0. \
+                     If this fails, the arrow_cast type string is malformed or \
+                     DataFusion version semantics changed — review ADR-052 RISK-1.",
+        );
+
+        // Step 4 + 5: Inspect the plan schema to verify the ts column type is
+        // Timestamp(Microsecond, Some("UTC")), not Timestamp(Nanosecond, None).
+        // A successful plan implies arrow_cast produced the intended type.
+        // The projected output schema reflects the column type from the registered table.
+        let plan_schema = plan.schema();
+        let ts_field = plan_schema
+            .field_with_name(None, "ts")
+            .expect("RG-002: plan schema must contain 'ts' column");
+
+        assert_eq!(
+            ts_field.data_type(),
+            &DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC"))),
+            "RG-002 RISK-1: DataFusion 53.1.0 must preserve Timestamp(Microsecond, UTC) type \
+             when arrow_cast('...', 'Timestamp(Microsecond, Some(\"UTC\"))') is used. \
+             This pins the arrow_cast behavior — if a version upgrade changes arrow_cast \
+             semantics, this test will fail fast (ADR-052 §Risk RISK-1)."
+        );
+
+        // MED-1 (pass-3) — non-tautological arrow_cast type probe.
+        // The schema check above (`ts_field.data_type()`) only asserts the REGISTERED column
+        // type — an invariant of table registration, not of the arrow_cast expression in the
+        // filter predicate. A Utf8 column with a Utf8 literal would also "pass" that schema
+        // check, defeating the whole purpose of the probe (adversary pass-3 MED-1).
+        //
+        // The non-tautological assertion: inspect the unoptimized logical plan and verify:
+        // 1. `arrow_cast` is present in the filter expression (the literal form is actually
+        //    in the plan — not folded away by a pre-filter optimizer).
+        // 2. No `CAST(arrow_cast` wrapper — if arrow_cast output type did NOT match the
+        //    column type, DataFusion would insert an implicit CAST node around arrow_cast.
+        //    Absence of `CAST(arrow_cast` proves the types are directly compatible.
+        //
+        // `plan.logical_plan()` is non-consuming (`&self`), so it can be called before
+        // `plan.collect()` (which is consuming). The temporary `&LogicalPlan` borrow
+        // ends after the format!() call; `plan.collect()` then takes ownership.
+        {
+            let plan_str = format!("{}", plan.logical_plan());
+            assert!(
+                plan_str.contains("arrow_cast"),
+                "RG-002 MED-1: unoptimized logical plan must contain 'arrow_cast' in the filter \
+                 predicate. If missing, the literal form was folded or eliminated before the plan \
+                 was built, which would defeat the purpose of the RISK-1 probe. \
+                 Got plan: {plan_str:?}"
+            );
+            assert!(
+                !plan_str.contains("CAST(arrow_cast"),
+                "RG-002 MED-1: logical plan must NOT show an implicit CAST wrapping arrow_cast. \
+                 An implicit `CAST(arrow_cast(...) AS ...)` node indicates the arrow_cast type \
+                 string does NOT produce a type directly comparable to Timestamp(Microsecond, UTC) \
+                 — this is exactly the ADR-052 RISK-1 failure mode. \
+                 Got plan: {plan_str:?}"
+            );
+        }
+
+        // OBS-1 strengthening: execute the plan (not just plan it) to verify that
+        // DataFusion can actually evaluate the arrow_cast comparison at runtime.
+        // The schema check above only confirms the column is registered with the right type
+        // (an invariant of registration, not of the arrow_cast comparison itself).
+        // Executing confirms that DataFusion does NOT reject the comparison as a type
+        // mismatch at runtime — e.g., attempting to compare Timestamp(Microsecond, UTC)
+        // against a Timestamp(Nanosecond, None) literal would surface here, not at plan time.
+        // The table is empty so collect() returns 0 rows and adds minimal latency.
+        //
+        // If this fails, the arrow_cast type string produces a literal incompatible with the
+        // registered column type — the column emitter in S-PRISMQL-NATIVE-TEMPORAL-TYPING-001
+        // must be updated (ADR-052 §D1 / §RISK-1).
+        plan.collect().await.expect(
+            "RG-002 RISK-1: arrow_cast comparison must execute without type coercion error. \
+             If this fails, DataFusion cannot compare arrow_cast('...', \
+             'Timestamp(Microsecond, Some(\"UTC\"))') against a Timestamp(Microsecond, UTC) \
+             column — review ADR-052 RISK-1 and the arrow_cast type string in the SQL emitter.",
+        );
+    }
+
+    /// RG-009: `make_timestamp_batch` must produce a `Timestamp(Microsecond, Some("UTC"))` column,
+    /// NOT `DataType::Utf8`.
+    ///
+    /// # Red Gate pre-implementation failure
+    /// `make_timestamp_batch` creates a `DataType::Utf8` column (the pre-migration production shape).
+    /// The assertion FAILS with:
+    ///   left:  `Utf8`
+    ///   right: `Timestamp(Microsecond, Some("UTC"))`
+    ///
+    /// # Why load-bearing
+    /// `high002_plan_pinning_tests.rs` are the canonical plan-stability tests.
+    /// ADR-052 explicitly identifies this file as the primary verification gate for §D2.
+    /// If `make_timestamp_batch` still creates a Utf8 column after the migration, all
+    /// F-HIGH-001 discriminating tests will be exercising the wrong schema and silently
+    /// pass with wrong behavior (lexicographic comparisons instead of typed timestamp).
+    ///
+    /// # Arc form discipline (ADR-052 §D1)
+    /// `Some(Arc::from("UTC"))` — correct (`Arc<str>`).
+    /// `Some(Arc::new("UTC".into()))` — FORBIDDEN (`Arc<String>`).
+    ///
+    /// Traces to: ADR-052 §D2; BC-2.11.021 v1.2 §Postconditions; BC-2.11.003 v1.6.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_high002_datetime_column_type_is_timestamp() {
+        use arrow::datatypes::TimeUnit;
+        use std::sync::Arc;
+
+        // Use canonical RFC-3339 strings that are valid Timestamp(Microsecond, UTC) values.
+        let batch = make_timestamp_batch("2026-07-03T12:00:00Z", "2026-07-01T12:00:00Z");
+
+        let schema = batch.schema();
+        let ts_field = schema.field(0);
+
+        assert_eq!(
+            *ts_field.data_type(),
+            arrow::datatypes::DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC")),),
+            "RG-009: make_timestamp_batch must create a Timestamp(Microsecond, Some(\"UTC\")) \
+             column per ADR-052 D2. If this fails, the test fixture regressed to a different \
+             Arrow type — update make_timestamp_batch to restore the Timestamp(Microsecond, UTC) \
+             schema (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 8)."
         );
     }
 }

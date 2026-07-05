@@ -3119,36 +3119,74 @@ fn test_timestamp_literal_valid_iso8601_parsed_as_timestamp() {
     }
 }
 
-/// Fix 3: A malformed timestamp (month 13) is rejected at parse time with an error.
+/// ADR-052 §D4 (lenient-parse-then-AST-walk): A truly malformed timestamp (month 13,
+/// day 99, hour 99) is NOT date-like per `is_date_like` (chrono rejects invalid calendar
+/// values). It parses as `Literal::String` — the infallible parser no longer fails at
+/// parse time. Validation moves downstream to DataFusion which rejects it at execution time
+/// when compared against a Timestamp column.
 ///
-/// Traces: Fix 3 (TimestampLiteral parse-time validation — malformed rejected)
+/// Pre-ADR-052 behavior: `parse_filter` returned Err(E-QUERY-001).
+/// Post-ADR-052 behavior: `parse_filter` returns Ok with `Literal::String`.
+///
+/// Traces: Fix 3 (updated for ADR-052 §D4 lenient-parse behavior)
 #[test]
+#[allow(clippy::unwrap_used)]
 fn test_timestamp_literal_malformed_month_rejected_at_parse() {
+    use crate::ast::Literal;
+    // ADR-052 §D4: parse now succeeds for malformed strings; they become Literal::String.
+    // '2026-13-99T99:99:99Z' is NOT date-like (chrono rejects month=13, day=99, hour=99)
+    // so it does not become RawTemporalLiteral — it becomes a plain String literal.
     let result = parse_filter("crowdstrike.detections | created_at = '2026-13-99T99:99:99Z'");
     assert!(
-        result.is_err(),
-        "malformed timestamp '2026-13-99T99:99:99Z' must be rejected at parse time"
+        result.is_ok(),
+        "ADR-052 §D4: malformed timestamp '2026-13-99T99:99:99Z' must parse as Literal::String \
+         (infallible parser). Got err: {:?}",
+        result.err()
     );
-    let errs = result.unwrap_err();
-    assert!(
-        errs.iter().any(|e| e.message.contains("E-QUERY-001")),
-        "error message must contain E-QUERY-001"
-    );
+    let fe = result.unwrap();
+    if let Predicate::Compare { rhs, .. } = &fe.predicate {
+        assert!(
+            matches!(rhs.as_ref(), Expr::Literal(Literal::String(_))),
+            "ADR-052 §D4: malformed datetime string must produce Literal::String (not date-like). \
+             Got: {:?}",
+            rhs
+        );
+    } else {
+        panic!("expected Predicate::Compare");
+    }
 }
 
-/// Fix 3: A timestamp without a timezone specifier is rejected (strict RFC-3339 policy).
+/// ADR-052 §D4 (lenient-parse-then-AST-walk): A timestamp without a timezone specifier is
+/// accepted by the lenient parser as `Literal::RawTemporalLiteral`. Plan-time gating in
+/// `check_temporal_literals_opt_a` fires E-QUERY-041 when compared against a Datetime column.
 ///
-/// Bare local time `"2026-05-04T12:00:00"` (no `Z` or `+HH:MM`) is rejected to
-/// avoid silent UTC-assumption bugs.
+/// Pre-ADR-052 behavior: `parse_filter` returned Err (strict RFC-3339 policy at parse time).
+/// Post-ADR-052 behavior: `parse_filter` returns Ok with `Literal::RawTemporalLiteral`; the
+/// E-QUERY-041 gate fires at plan time (see temporal_typing_tests::*ec006*).
 ///
-/// Traces: Fix 3 (TimestampLiteral parse-time validation — no-timezone rejected)
+/// Traces: Fix 3 (updated for ADR-052 §D4 lenient-parse behavior)
 #[test]
+#[allow(clippy::unwrap_used)]
 fn test_timestamp_literal_no_timezone_rejected() {
+    use crate::ast::Literal;
+    // ADR-052 §D4: parse now succeeds for offset-less datetimes as RawTemporalLiteral.
+    // '2026-05-04T12:00:00' is date-like per is_date_like (chrono NaiveDateTime accepts it).
     let result = parse_filter("crowdstrike.detections | created_at = '2026-05-04T12:00:00'");
     assert!(
-        result.is_err(),
-        "bare local-time timestamp '2026-05-04T12:00:00' (no timezone) must be rejected"
+        result.is_ok(),
+        "ADR-052 §D4: offset-less datetime must parse as Literal::RawTemporalLiteral. Got err: {:?}",
+        result.err()
     );
+    let fe = result.unwrap();
+    if let Predicate::Compare { rhs, .. } = &fe.predicate {
+        assert!(
+            matches!(rhs.as_ref(), Expr::Literal(Literal::RawTemporalLiteral(_))),
+            "ADR-052 §D4: offset-less datetime must produce Literal::RawTemporalLiteral. Got: {:?}",
+            rhs
+        );
+    } else {
+        panic!("expected Predicate::Compare");
+    }
 }
 
 /// Fix 3: A timestamp with offset (+05:30) is accepted (RFC-3339 allows non-UTC offsets).
@@ -3188,6 +3226,109 @@ fn test_timestamp_literal_plain_string_not_promoted() {
             other => panic!("expected Literal::String, got {:?}", other),
         },
         other => panic!("expected Predicate::Compare, got {:?}", other),
+    }
+}
+
+// ── Option-A parser tests (stub l, stub ai / RG-034) ─────────────────────────
+
+/// RG (stub l): Option-A lenient-fallback — `classify_string_literal("2026-06-24")`
+/// MUST emit `Literal::RawTemporalLiteral("2026-06-24")` instead of a parse error.
+///
+/// Under the pre-ADR-052 parser, `'2026-06-24'` fails parse because
+/// `TimestampLiteral::new("2026-06-24")` rejects the date-only form (no UTC offset).
+/// Under Option-A (ADR-052 §D4 Task 13), `classify_string_literal` checks `is_date_like`
+/// first: `NaiveDate::parse_from_str("2026-06-24", "%Y-%m-%d")` → SUCCEEDS →
+/// `Literal::RawTemporalLiteral("2026-06-24")` returned.
+///
+/// # Pre-implementation state (Red Gate)
+/// The pre-ADR-052 `classify_string_literal` still applies: `looks_like_timestamp = true` →
+/// `TimestampLiteral::new("2026-06-24")` → FAILS → parse FAILS → test asserting `Ok(...)` FAILS. ✓
+///
+/// Traces to: ADR-052 §D4 Step 2 (is_date_like heuristic); BC-2.11.003 v1.7 form 1.
+#[test]
+fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_parser_emits_raw_temporal_for_date_only() {
+    use crate::ast::Literal;
+
+    // Red Gate: parse currently FAILS (TimestampLiteral parse error) for '2026-06-24'.
+    // Post-implementation: parse SUCCEEDS and RHS is Literal::RawTemporalLiteral("2026-06-24").
+    let result = parse_filter("test_events | timestamp > '2026-06-24'");
+
+    assert!(
+        result.is_ok(),
+        "stub l: Under Option-A, '2026-06-24' must parse successfully as \
+         Literal::RawTemporalLiteral. classify_string_literal must check is_date_like first \
+         before calling TimestampLiteral::new. Got: {result:?}"
+    );
+
+    let fe = result.unwrap();
+    match &fe.predicate {
+        Predicate::Compare { rhs, .. } => match rhs.as_ref() {
+            Expr::Literal(Literal::RawTemporalLiteral(s)) => {
+                assert_eq!(
+                    s, "2026-06-24",
+                    "stub l: RawTemporalLiteral value must be the exact input string"
+                );
+            }
+            other => panic!(
+                "stub l: expected Literal::RawTemporalLiteral(\"2026-06-24\"), got: {other:?}"
+            ),
+        },
+        other => panic!("stub l: expected Predicate::Compare, got: {other:?}"),
+    }
+}
+
+/// RG-034 (stub ai): Near-miss string with trailing non-date chars `'2026-06-24extra'`
+/// MUST remain `Literal::String` — `is_date_like` MUST return `false` for strings that
+/// have date-like prefixes but also have trailing characters.
+///
+/// `chrono::NaiveDate::parse_from_str("2026-06-24extra", "%Y-%m-%d")` FAILS (extra chars) →
+/// `is_date_like` returns `false` → `classify_string_literal` falls through to the existing
+/// non-date-like branch → `Literal::String("2026-06-24extra")`.
+///
+/// # Pre-implementation state (Red Gate)
+/// The pre-ADR-052 `classify_string_literal`:
+/// `looks_like_timestamp("2026-06-24extra")` → `bytes[0..4]` are `"2026"` (digits) and
+/// `bytes[4]` is `'-'` → `true` → `TimestampLiteral::new("2026-06-24extra")` → FAILS →
+/// parse ERROR → test asserting `Literal::String` FAILS. ✓
+///
+/// Under Option-A post-implementation: `is_date_like` returns `false` → falls through to
+/// `Literal::String`. No parse error. The `'2026-06-24extra'` string is preserved as-is.
+///
+/// Traces to: ADR-052 §D4 v1.4 near-miss guard (chrono strict parsing handles this by design);
+/// BC-2.11.003 v1.7 §Non-date-like forms.
+#[test]
+fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_near_miss_trailing_chars_stays_utf8() {
+    use crate::ast::Literal;
+
+    // Red Gate: parse currently FAILS (looks_like_timestamp = true; TimestampLiteral fails).
+    // Post-implementation: is_date_like("2026-06-24extra") = false → Literal::String.
+    let result = parse_filter("test_events | hostname = '2026-06-24extra'");
+
+    assert!(
+        result.is_ok(),
+        "RG-034: '2026-06-24extra' (near-miss trailing chars) must parse as Literal::String. \
+         is_date_like must return false for strings with trailing non-date characters. \
+         Got: {result:?}"
+    );
+
+    let fe = result.unwrap();
+    match &fe.predicate {
+        Predicate::Compare { rhs, .. } => match rhs.as_ref() {
+            Expr::Literal(Literal::String(s)) => {
+                assert_eq!(
+                    s, "2026-06-24extra",
+                    "RG-034: near-miss string must be preserved as-is as Literal::String"
+                );
+            }
+            Expr::Literal(Literal::RawTemporalLiteral(_)) => {
+                panic!(
+                    "RG-034: '2026-06-24extra' must NOT produce RawTemporalLiteral. \
+                     is_date_like must return false for trailing-char near-misses."
+                )
+            }
+            other => panic!("RG-034: expected Literal::String, got: {other:?}"),
+        },
+        other => panic!("RG-034: expected Predicate::Compare, got: {other:?}"),
     }
 }
 

@@ -30,7 +30,7 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 
-use prism_core::{error::TableNotAvailableDetails, OrgSlug, PrismError};
+use prism_core::{column::ColumnType, error::TableNotAvailableDetails, OrgSlug, PrismError};
 use prism_spec_engine::{ConfigSnapshot, ResolvedSensorSpec, ResolvedSpecKey, SensorSpec};
 
 /// Maximum byte length accepted for the `requested` parameter of `did_you_mean`.
@@ -109,6 +109,17 @@ pub struct TableRegistry {
     /// Only populated when `register_sensor` is called with a spec that has columns
     /// defined in its `[[tables]]` entries; empty = fail-open (gate skips that table).
     columns_by_table: Arc<RwLock<HashMap<String, Vec<String>>>>,
+    /// Table name → (column name → `ColumnType`) map, used by the schema-aware
+    /// E-QUERY-041 temporal pre-validator (`check_temporal_literals_opt_a`).
+    ///
+    /// ADR-052 v1.1 D4 / HIGH-1 fix: `check_temporal_literals_opt_a` must only fire for
+    /// string literals compared against `ColumnType::Datetime` columns. This map
+    /// provides the column type lookup without requiring the resolved_spec_map
+    /// (which is absent in single-tenant / test mode).
+    ///
+    /// Only populated for tables that have explicit column definitions.
+    /// Missing entry = fail-open (gate does not validate).
+    column_types_by_table: Arc<RwLock<HashMap<String, HashMap<String, ColumnType>>>>,
 }
 
 impl TableRegistry {
@@ -121,6 +132,7 @@ impl TableRegistry {
             registered: Arc::new(RwLock::new(HashSet::new())),
             sensor_by_table: Arc::new(RwLock::new(HashMap::new())),
             columns_by_table: Arc::new(RwLock::new(HashMap::new())),
+            column_types_by_table: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -179,6 +191,14 @@ impl TableRegistry {
                     detail: "TableRegistry::register_sensor: columns_by_table RwLock poisoned"
                         .to_string(),
                 })?;
+        // ADR-052 / HIGH-1: acquire column_types_by_table lock in the same atomic window.
+        let mut column_types_by_table =
+            self.column_types_by_table
+                .write()
+                .map_err(|_| PrismError::Internal {
+                    detail: "TableRegistry::register_sensor: column_types_by_table RwLock poisoned"
+                        .to_string(),
+                })?;
 
         // Remove existing tables for this sensor (the deregister phase).
         // Executed under the held locks — no visibility gap.
@@ -191,6 +211,7 @@ impl TableRegistry {
             registered.remove(&name);
             sensor_by_table.remove(&name);
             columns_by_table.remove(&name);
+            column_types_by_table.remove(&name);
         }
 
         // Insert new tables for this sensor (the register phase).
@@ -203,7 +224,14 @@ impl TableRegistry {
             // Only populated when the spec has explicit columns defined.
             if !table.columns.is_empty() {
                 let col_names: Vec<String> = table.columns.iter().map(|c| c.name.clone()).collect();
-                columns_by_table.insert(full_name, col_names);
+                columns_by_table.insert(full_name.clone(), col_names);
+                // ADR-052 / HIGH-1: retain column types for schema-aware E-QUERY-041 gate.
+                let type_map: HashMap<String, ColumnType> = table
+                    .columns
+                    .iter()
+                    .map(|c| (c.name.clone(), c.column_type.clone()))
+                    .collect();
+                column_types_by_table.insert(full_name, type_map);
             }
         }
 
@@ -245,6 +273,16 @@ impl TableRegistry {
                          for sensor_id={sensor_id}"
                     ),
                 })?;
+        // ADR-052 / HIGH-1: also clean up column_types_by_table.
+        let mut column_types_by_table =
+            self.column_types_by_table
+                .write()
+                .map_err(|_| PrismError::Internal {
+                    detail: format!(
+                        "TableRegistry::deregister_sensor: column_types_by_table RwLock poisoned \
+                         for sensor_id={sensor_id}"
+                    ),
+                })?;
 
         // Collect keys to remove (avoid modifying while iterating).
         let to_remove: Vec<String> = registered
@@ -257,6 +295,7 @@ impl TableRegistry {
             registered.remove(&name);
             sensor_by_table.remove(&name);
             columns_by_table.remove(&name);
+            column_types_by_table.remove(&name);
         }
 
         Ok(())
@@ -342,6 +381,35 @@ impl TableRegistry {
                      Another thread panicked while holding the lock."
                 );
                 Vec::new()
+            }
+        }
+    }
+
+    /// Return the `ColumnType` for a named column in a given table.
+    ///
+    /// Used by `check_temporal_literals_opt_a` (E-QUERY-041 gate) to determine whether
+    /// a column is `ColumnType::Datetime` before validating a string literal as RFC-3339.
+    ///
+    /// Returns `None` when:
+    /// - The table is not registered (fail-open: no temporal validation)
+    /// - The column is not found in the spec (fail-open)
+    /// - The `column_types_by_table` lock is poisoned
+    ///
+    /// ADR-052 v1.1 D4 / HIGH-1 schema-aware gate.
+    pub fn column_type_for(&self, table_name: &str, col_name: &str) -> Option<ColumnType> {
+        match self.column_types_by_table.read() {
+            Ok(guard) => guard
+                .get(table_name)
+                .and_then(|cols| cols.get(col_name))
+                .cloned(),
+            Err(_) => {
+                tracing::warn!(
+                    event_type = "table_registry.rwlock_poisoned",
+                    method = "column_type_for",
+                    "TableRegistry::column_type_for: RwLock poisoned — returning None (fail-open). \
+                     Another thread panicked while holding the lock."
+                );
+                None
             }
         }
     }

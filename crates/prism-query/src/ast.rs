@@ -981,6 +981,14 @@ pub enum Literal {
     IpAddr(IpAddrLiteral),
     /// ISO-8601 timestamp literal.
     Timestamp(TimestampLiteral),
+    /// A quoted string that resembles a date or datetime but is NOT valid RFC-3339.
+    /// Produced by the lenient parser fallback for date-only (`'2026-06-24'`) and
+    /// offset-less (`'2026-06-24T12:00:00'`) forms per ADR-052 §D4 v1.4.
+    /// Validated at plan time by `check_temporal_literals_opt_a` (three-way dispatch).
+    /// Must never reach SQL emission — `pipe_sql_emitter.rs` guards this with a
+    /// belt-and-suspenders E-QUERY-002 (`QueryPlanFailed`) arm (Pipe/Filter mode).
+    /// (ADR-052 §D4 Step 1; BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001)
+    RawTemporalLiteral(String),
 }
 
 /// Duration literal with explicit unit (prismql-grammar.md §3.3).
@@ -1255,6 +1263,9 @@ impl Literal {
             Literal::Regex(r) => r.pattern.clone(),
             Literal::IpAddr(ip) => ip.0 .0.to_string(),
             Literal::Timestamp(ts) => ts.iso8601.clone(),
+            // ADR-052 §D4 Step 1: RawTemporalLiteral carries the raw literal string.
+            // to_user_string returns it as-is (no surrounding quotes — context supplies them).
+            Literal::RawTemporalLiteral(s) => s.clone(),
         }
     }
 }
@@ -2286,6 +2297,13 @@ impl PqlNormalizer {
             Literal::Regex(r) => Self::emit_quoted_string(&r.pattern),
             Literal::IpAddr(ip) => ip.0 .0.to_string(),
             Literal::Timestamp(ts) => format!("'{}'", ts.iso8601),
+            // TD-VSDD-060 / HIGH-1 + MED-3 fix: explicit arm — must never be reached because
+            // check_temporal_literals_opt_a consumes RawTemporalLiteral before normalization.
+            // Emit as a properly-quoted string (emit_quoted_string) so DataFusion can at minimum
+            // reject it with a type-mismatch error rather than a tokenization crash caused by
+            // the hyphens in a sentinel like `__raw_temporal_unvalidated_2026-07-03__` which
+            // DataFusion misparses as arithmetic subtraction (MED-3 defense-in-depth fix).
+            Literal::RawTemporalLiteral(s) => Self::emit_quoted_string(s),
             _ => "NULL".to_string(), // non_exhaustive arm
         }
     }

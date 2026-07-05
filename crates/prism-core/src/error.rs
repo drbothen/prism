@@ -1445,6 +1445,35 @@ pub enum PrismError {
     },
 
     // -------------------------------------------------------------------------
+    // E-QUERY-041 — Temporal literal pre-validator (ADR-052 D4)
+    // -------------------------------------------------------------------------
+    /// E-QUERY-041: String literal in datetime comparison failed RFC-3339 pre-validation.
+    ///
+    /// Returned by `check_temporal_literals_opt_a` (Prism plan-time AST walker, ADR-052 §D4
+    /// Option A) when a `Literal::RawTemporalLiteral` node is found in a comparison against a
+    /// `ColumnType::Datetime` column. Date-only (`'2026-06-24'`) and offset-less ISO
+    /// (`'2026-06-24T12:00:00'`) forms are rejected; full RFC-3339 with UTC offset is required.
+    ///
+    /// Maps to MCP code -32602 (INVALID_PARAMS) — caller-resolvable by using RFC-3339 form
+    /// or switching to `NOW() - INTERVAL 'Nh'` for relative time filters.
+    ///
+    /// Reference: ADR-052 §D4; error-taxonomy.md §E-QUERY-041 v2.12; BC-2.11.021 v1.4;
+    ///            BC-2.11.003 v1.7; BC-2.11.004 v1.8; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001.
+    #[error(
+        "E-QUERY-041: The value '{value_prefix}' cannot be interpreted as a UTC timestamp. \
+         Expected RFC-3339 format with UTC offset (e.g., '2026-07-03T00:00:00Z'). Date-only \
+         and offset-less forms are not accepted. For relative time filters, use \
+         NOW() - INTERVAL 'Nh' (e.g., WHERE timestamp > NOW() - INTERVAL '24h')."
+    )]
+    TemporalLiteralUnparseable {
+        /// First ≤50 UTF-8 codepoints of the offending literal string.
+        ///
+        /// Truncated at UTF-8 codepoint boundary per error-taxonomy.md §E-QUERY-041
+        /// `value_prefix` field convention (AD-017 / E-INFUSE-014 truncation convention).
+        value_prefix: String,
+    },
+
+    // -------------------------------------------------------------------------
     // Catch-all for unexpected internal errors
     // -------------------------------------------------------------------------
     /// E-INT-001: Internal invariant violated — indicates a bug.
@@ -1992,6 +2021,41 @@ mod tests {
             "E-QUERY-036: unknown source table 'crowdstrik': table is not a registered \
              sensor or internal table. Check spelling or register the sensor in prism.toml. \
              Available tables: [crowdstrike]. Did you mean: 'crowdstrike'?"
+        );
+    }
+
+    /// POL-24 / TD-VSDD-059: `PrismError::TemporalLiteralUnparseable` Display must match
+    /// error-taxonomy.md §E-QUERY-041 message template byte-for-byte.
+    ///
+    /// Taxonomy template (error-taxonomy.md §E-QUERY-041 Message Format):
+    ///   "E-QUERY-041: The value '<value_prefix>' cannot be interpreted as a UTC timestamp.
+    ///    Expected RFC-3339 format with UTC offset (e.g., '2026-07-03T00:00:00Z').
+    ///    Date-only and offset-less forms are not accepted.
+    ///    For relative time filters, use NOW() - INTERVAL 'Nh'
+    ///    (e.g., WHERE timestamp > NOW() - INTERVAL '24h')."
+    ///
+    /// Any change to the Display impl that breaks this test is a POLICY 24 violation
+    /// requiring an error-taxonomy.md version bump and synchronized test update.
+    /// Mirrors the pattern established by `test_E_SPEC_018_display_matches_error_taxonomy_template_byte_for_byte`
+    /// in `crates/prism-spec-engine/src/error.rs` (TD-VSDD-060 sibling-site discipline).
+    ///
+    /// Traces to: error-taxonomy.md §E-QUERY-041; ADR-052 §D4;
+    /// S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 LOW-1 (adversary pass-3).
+    #[test]
+    fn test_E_QUERY_041_display_matches_error_taxonomy_template_byte_for_byte() {
+        let err = PrismError::TemporalLiteralUnparseable {
+            value_prefix: "2026-06-24".to_string(),
+        };
+        let display = err.to_string();
+        let expected = "E-QUERY-041: The value '2026-06-24' cannot be interpreted as a UTC \
+                        timestamp. Expected RFC-3339 format with UTC offset \
+                        (e.g., '2026-07-03T00:00:00Z'). Date-only and offset-less forms are \
+                        not accepted. For relative time filters, use NOW() - INTERVAL 'Nh' \
+                        (e.g., WHERE timestamp > NOW() - INTERVAL '24h').";
+        assert_eq!(
+            display, expected,
+            "E-QUERY-041 Display must match error-taxonomy.md §E-QUERY-041 template \
+             byte-for-byte (POLICY 24). Got:\n  {display:?}\nExpected:\n  {expected:?}"
         );
     }
 }
