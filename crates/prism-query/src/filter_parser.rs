@@ -1209,7 +1209,7 @@ pub(crate) fn build_string_parser<'a>(
 /// Returns `true` when `s` looks like a date or offset-less datetime but is NOT a valid
 /// RFC-3339 string (i.e., `chrono::DateTime::parse_from_rfc3339` would reject it).
 /// Used by the lenient parser fallback to produce `Literal::RawTemporalLiteral` instead
-/// of a hard parse error, so that `check_temporal_literals_opt_a` can perform schema-aware
+/// of a hard parse error, so that `check_temporal_literals` can perform schema-aware
 /// three-way dispatch (Datetime col → E-QUERY-041; String col → COERCE; other → E-QUERY-002).
 ///
 /// The seven canonical forms (exhaustive — must match exactly, per BC-2.11.021 v1.4):
@@ -1257,7 +1257,7 @@ pub(crate) fn is_date_like(s: &str) -> bool {
 ///
 ///   - RFC-3339 parse succeeds → `Literal::Timestamp` (full ISO-8601 with UTC offset)
 ///   - `is_date_like(s)` is true → `Literal::RawTemporalLiteral(s)` (date/offset-less form;
-///     validated at plan time by `check_temporal_literals_opt_a`)
+///     validated at plan time by `check_temporal_literals`)
 ///   - Otherwise → `Literal::String(s)` (plain string, no temporal semantics)
 ///
 /// Infallible: parse ALWAYS succeeds. Validation of the temporal forms moves to plan time.

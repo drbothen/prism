@@ -218,7 +218,7 @@ pub struct MaterializationContext {
     pub(crate) response_cache: Option<Arc<SensorResponseCache>>,
     /// Table registry for plan-time temporal literal validation (ADR-052 §D4 Option A).
     ///
-    /// When `Some`, `check_temporal_literals_opt_a` can resolve column types for
+    /// When `Some`, `check_temporal_literals` can resolve column types for
     /// `Literal::RawTemporalLiteral` nodes found in the parsed AST. When `None`
     /// (legacy / test mode without spec engine wiring), the temporal check is skipped.
     /// Wired from `QueryEngine` via `with_table_registry` (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001).
@@ -290,7 +290,7 @@ impl MaterializationContext {
 
     /// Attach the table registry for plan-time temporal literal validation (ADR-052 §D4).
     ///
-    /// Called by `QueryEngine` so `check_temporal_literals_opt_a` can resolve column
+    /// Called by `QueryEngine` so `check_temporal_literals` can resolve column
     /// types for `Literal::RawTemporalLiteral` nodes in the parsed query AST.
     /// (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001)
     pub fn with_table_registry(
@@ -587,7 +587,7 @@ pub async fn run_materialization_pipeline(
     // (see plan_pinned_head_sql below). For Pipe-mode, inject_now fires on stage
     // expressions (Expr::Now replaced inline). All modes are covered.
     //
-    // NOTE: `mut` is required here for Step 1c (check_temporal_literals_opt_a) which
+    // NOTE: `mut` is required here for Step 1c (check_temporal_literals) which
     // mutably coerces RawTemporalLiteral → Literal::String for String-column comparisons
     // (ADR-052 §D4 Option-A coercion arm; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001).
     let mut ast = {
@@ -639,7 +639,7 @@ pub async fn run_materialization_pipeline(
     // RawTemporalLiteral in projection (SELECT) → Err(QueryPlanFailed) [E-QUERY-002]
     // skip_projection=false: full walk (this runs after check_table_availability, so
     // the table is confirmed to exist and the projection check is appropriate).
-    check_temporal_literals_opt_a(&mut ast, mat_ctx.table_registry.as_deref(), false)?;
+    check_temporal_literals(&mut ast, mat_ctx.table_registry.as_deref(), false)?;
 
     let source_names = extract_source_names(&ast);
 
@@ -2232,7 +2232,7 @@ pub(crate) async fn collect_record_batch_stream(
 }
 
 // ---------------------------------------------------------------------------
-// check_temporal_literals_opt_a — ADR-052 §D4 Option-A AST-walker
+// check_temporal_literals — ADR-052 §D4 Option-A AST-walker
 // ---------------------------------------------------------------------------
 
 /// Plan-time three-way dispatch for `Literal::RawTemporalLiteral` nodes (ADR-052 §D4 Option A).
@@ -2274,7 +2274,7 @@ pub(crate) async fn collect_record_batch_stream(
 ///
 /// Traces to: ADR-052 §D4 v1.4 Steps 3–5; BC-2.11.021 v1.4 §Postconditions;
 /// S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 14; FIX-2 (early gate scoping).
-pub(crate) fn check_temporal_literals_opt_a(
+pub(crate) fn check_temporal_literals(
     ast: &mut crate::ast::Ast,
     registry: Option<&crate::table_registry::TableRegistry>,
     skip_projection: bool,
@@ -4475,7 +4475,7 @@ mod temporal_walker_unit_tests {
     // Private helpers in the parent (materialization) module — accessible via `super::`.
     use super::{
         apply_literal_dispatch, check_expr_temporal, check_pred_raw_temporal,
-        check_temporal_literals_opt_a,
+        check_temporal_literals,
     };
 
     fn make_registry() -> Arc<TableRegistry> {
@@ -4671,7 +4671,7 @@ mod temporal_walker_unit_tests {
             },
         }];
         let mut ast = Ast::Sql(SqlStatement::Select(sql));
-        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()), false);
+        let result = check_temporal_literals(&mut ast, Some(registry.as_ref()), false);
         assert!(
             matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
             "OBS-1/HIGH-2: JOIN ON Expr::Compare+Datetime → E-QUERY-041, got {result:?}"
@@ -4696,7 +4696,7 @@ mod temporal_walker_unit_tests {
             }],
         };
         let mut ast = Ast::Sql(SqlStatement::Select(sql));
-        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()), false);
+        let result = check_temporal_literals(&mut ast, Some(registry.as_ref()), false);
         assert!(
             matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
             "OBS-1/HIGH-2: SELECT Expr::Compare+Datetime → E-QUERY-041, got {result:?}"
@@ -4993,7 +4993,7 @@ mod temporal_walker_unit_tests {
     fn test_dml_walker_assignment_datetime_col_fires_e_query_041() {
         // MED-1 coverage: DML assignment to Datetime column with RawTemporalLiteral.
         // `UPDATE test_events SET timestamp = '2026-06-24'` should fire E-QUERY-041.
-        use super::check_temporal_literals_opt_a;
+        use super::check_temporal_literals;
         use crate::write_ast::{Assignment, DmlNode, DmlOperation};
 
         let registry = make_registry();
@@ -5009,7 +5009,7 @@ mod temporal_walker_unit_tests {
             source_select: None,
         }));
 
-        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()), false);
+        let result = check_temporal_literals(&mut ast, Some(registry.as_ref()), false);
         assert!(
             matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
             "MED-1: DML assignment of RawTemporalLiteral to Datetime column must → E-QUERY-041. \
@@ -5021,7 +5021,7 @@ mod temporal_walker_unit_tests {
     fn test_dml_walker_assignment_string_col_coerces() {
         // MED-1 coverage: DML assignment to String column with RawTemporalLiteral → COERCE.
         // `UPDATE test_events SET hostname = '2026-06-24'` should coerce → Literal::String.
-        use super::check_temporal_literals_opt_a;
+        use super::check_temporal_literals;
         use crate::write_ast::{Assignment, DmlNode, DmlOperation};
 
         let registry = make_registry();
@@ -5037,7 +5037,7 @@ mod temporal_walker_unit_tests {
             source_select: None,
         }));
 
-        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()), false);
+        let result = check_temporal_literals(&mut ast, Some(registry.as_ref()), false);
         assert!(
             result.is_ok(),
             "MED-1: DML assignment of RawTemporalLiteral to String column must coerce → Ok. \
@@ -5058,7 +5058,7 @@ mod temporal_walker_unit_tests {
         // MED-1 coverage: DML WHERE predicate uses target_table as primary_table, so
         // unqualified column references resolve correctly.
         // `UPDATE test_events SET hostname = '...' WHERE timestamp > '2026-06-24'` → E-QUERY-041.
-        use super::check_temporal_literals_opt_a;
+        use super::check_temporal_literals;
         use crate::ast::Span;
         use crate::write_ast::{Assignment, DmlNode, DmlOperation};
 
@@ -5085,7 +5085,7 @@ mod temporal_walker_unit_tests {
             source_select: None,
         }));
 
-        let result = check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()), false);
+        let result = check_temporal_literals(&mut ast, Some(registry.as_ref()), false);
         assert!(
             matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
             "MED-1: DML WHERE with unqualified timestamp vs RawTemporalLiteral must fire \

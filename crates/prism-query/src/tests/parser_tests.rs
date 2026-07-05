@@ -3158,7 +3158,7 @@ fn test_timestamp_literal_malformed_month_rejected_at_parse() {
 
 /// ADR-052 §D4 (lenient-parse-then-AST-walk): A timestamp without a timezone specifier is
 /// accepted by the lenient parser as `Literal::RawTemporalLiteral`. Plan-time gating in
-/// `check_temporal_literals_opt_a` fires E-QUERY-041 when compared against a Datetime column.
+/// `check_temporal_literals` fires E-QUERY-041 when compared against a Datetime column.
 ///
 /// Pre-ADR-052 behavior: `parse_filter` returned Err (strict RFC-3339 policy at parse time).
 /// Post-ADR-052 behavior: `parse_filter` returns Ok with `Literal::RawTemporalLiteral`; the

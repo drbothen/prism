@@ -1449,7 +1449,7 @@ pub enum PrismError {
     // -------------------------------------------------------------------------
     /// E-QUERY-041: String literal in datetime comparison failed RFC-3339 pre-validation.
     ///
-    /// Returned by `check_temporal_literals_opt_a` (Prism plan-time AST walker, ADR-052 §D4
+    /// Returned by `check_temporal_literals` (Prism plan-time AST walker, ADR-052 §D4
     /// Option A) when a `Literal::RawTemporalLiteral` node is found in a comparison against a
     /// `ColumnType::Datetime` column. Date-only (`'2026-06-24'`) and offset-less ISO
     /// (`'2026-06-24T12:00:00'`) forms are rejected; full RFC-3339 with UTC offset is required.

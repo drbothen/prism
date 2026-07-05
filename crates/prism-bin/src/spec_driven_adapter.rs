@@ -1442,7 +1442,7 @@ fn build_crowdstrike_fql(start_time: Option<&str>, end_time: Option<&str>) -> St
 ///
 /// # ADR-052 D4/D5 chrono-strictness invariant
 /// Uses the same `chrono::DateTime::parse_from_rfc3339` strictness as the query-planner
-/// pre-validator (`check_temporal_literals_opt_a`). Both components reject date-only and
+/// pre-validator (`check_temporal_literals`). Both components reject date-only and
 /// offset-less ISO-8601 forms — only full RFC-3339 with explicit UTC offset is accepted.
 ///
 /// # Normalizer contract (ADR-052 D5)
@@ -1459,7 +1459,7 @@ fn build_crowdstrike_fql(start_time: Option<&str>, end_time: Option<&str>) -> St
 ///
 /// # ADR-052 D5 "identical chrono strictness" scope
 /// The D5 invariant ("identical chrono strictness") applies to the QUERY PATH only:
-/// `check_temporal_literals_opt_a` (E-QUERY-041 plan-time gate) and `parse_datetime_to_micros`
+/// `check_temporal_literals` (E-QUERY-041 plan-time gate) and `parse_datetime_to_micros`
 /// both use `chrono::DateTime::parse_from_rfc3339`. The normalizer's lenient-IN behaviour is intentionally
 /// outside D5 scope — it occurs in the ingestion/ETL boundary, not the query validation path.
 ///

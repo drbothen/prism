@@ -2,13 +2,13 @@
 //! E-QUERY-041 temporal literal pre-validator (ADR-052 D4 Option A).
 //!
 //! Tests RG-004, RG-005, RG-007 verify the plan-time AST-walk pre-validator
-//! (`check_temporal_literals_opt_a` in `materialization.rs`) that fires AFTER E-QUERY-037,
+//! (`check_temporal_literals` in `materialization.rs`) that fires AFTER E-QUERY-037,
 //! E-QUERY-038, E-QUERY-039 and BEFORE DataFusion execution.
 //!
 //! Gate ordering: E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-041 → DataFusion.
 //!
 //! # Red Gate pre-implementation failure
-//! The `check_temporal_literals_opt_a` body was `todo!()` in the stubs commit (9401a6ca).
+//! The `check_temporal_literals` body was `todo!()` in the stubs commit (9401a6ca).
 //! ALL three tests (RG-004, RG-005, RG-007) panicked with "not yet implemented"
 //! when `engine.execute(...)` reached the temporal gate call.
 //!
@@ -92,7 +92,7 @@ impl prism_credentials::CredentialStore for NoopCs {
 /// Gate ordering guarantee: E-QUERY-037 (table_check) passes because "test_events"
 /// IS registered. E-QUERY-038 (column_check) validates known columns.
 /// E-QUERY-039 (enrich gate) is skipped (no infusion_registry wired).
-/// E-QUERY-041 (`check_temporal_literals_opt_a`) is schema-aware: only rejects bad date
+/// E-QUERY-041 (`check_temporal_literals`) is schema-aware: only rejects bad date
 /// literals when the compared column is `ColumnType::Datetime`.
 fn make_test_events_registry() -> Arc<TableRegistry> {
     use prism_core::ColumnType;
@@ -198,7 +198,7 @@ fn make_ghost_sensor_engine() -> QueryEngine {
 /// Query: `SELECT * FROM test_events WHERE timestamp > '2026-06-24'`
 ///
 /// # Red Gate pre-implementation failure
-/// `check_temporal_literals_opt_a` body was `todo!()` — `engine.execute(...)` panicked with
+/// `check_temporal_literals` body was `todo!()` — `engine.execute(...)` panicked with
 /// "not yet implemented: E-QUERY-041 temporal literal pre-validator".
 ///
 /// # Post-implementation state (AC-005)
@@ -217,7 +217,7 @@ fn make_ghost_sensor_engine() -> QueryEngine {
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_sql_mode_date_only_string() {
     let engine = make_test_engine();
 
-    // Red Gate: check_temporal_literals_opt_a was todo!() — panicked here.
+    // Red Gate: check_temporal_literals was todo!() — panicked here.
     // Post-implementation: returns Err(TemporalLiteralUnparseable { value_prefix: "2026-06-24" }).
     let result = engine
         .execute(
@@ -283,7 +283,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_sql_mode_date_onl
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_pipe_mode_date_only_string() {
     let engine = make_test_engine();
 
-    // Red Gate: check_temporal_literals_opt_a is todo!() — panics here.
+    // Red Gate: check_temporal_literals is todo!() — panics here.
     // Post-implementation: returns Err(TemporalLiteralUnparseable { .. }).
     let result = engine
         .execute(
@@ -323,7 +323,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_pipe_mode_date_on
 /// Query: `SELECT * FROM test_events WHERE timestamp > '2026-06-24T00:00:00Z'`
 ///
 /// # Red Gate pre-implementation failure
-/// Same `todo!()` panic as RG-004 and RG-005 — `check_temporal_literals_opt_a` panics for
+/// Same `todo!()` panic as RG-004 and RG-005 — `check_temporal_literals` panics for
 /// ALL inputs before any validation logic exists.
 ///
 /// # Post-implementation state (AC-007)
@@ -343,7 +343,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_pipe_mode_date_on
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_valid_rfc3339_utc_string_not_rejected() {
     let engine = make_test_engine();
 
-    // Red Gate: check_temporal_literals_opt_a is todo!() — panics here for ALL inputs.
+    // Red Gate: check_temporal_literals is todo!() — panics here for ALL inputs.
     // Post-implementation: pre-validator passes; query may fail with sensor/DataFusion error
     // but MUST NOT return PrismError::TemporalLiteralUnparseable.
     let result = engine
@@ -382,7 +382,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_valid_rfc3339_utc_string_not_
 /// rejection from the temporal pre-validator.
 ///
 /// # Red Gate pre-HIGH-1-fix failure (schema-blind behavior)
-/// `check_temporal_literals_opt_a` is schema-blind: it validates ALL string literals in
+/// `check_temporal_literals` is schema-blind: it validates ALL string literals in
 /// ordering comparisons, regardless of column type. `'server-a'` fails
 /// `chrono::DateTime::parse_from_rfc3339("server-a")`, so the schema-blind implementation
 /// returns `Err(PrismError::TemporalLiteralUnparseable { value_prefix: "server-a" })`.
@@ -390,7 +390,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_valid_rfc3339_utc_string_not_
 /// which confirms the Red Gate property (TDD-first per MED-3).
 ///
 /// # Post-HIGH-1-fix state
-/// `check_temporal_literals_opt_a` looks up `hostname` in the `TableRegistry` and finds
+/// `check_temporal_literals` looks up `hostname` in the `TableRegistry` and finds
 /// `ColumnType::String` → not a datetime column → skips RFC-3339 validation.
 /// The query proceeds to DataFusion (which may fail with a sensor error, but NOT
 /// E-QUERY-041).
@@ -414,7 +414,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_column_ordering_not_re
              must NOT trigger E-QUERY-041. The temporal pre-validator must only reject \
              non-RFC-3339 literals when the compared column is ColumnType::Datetime. \
              Got E-QUERY-041 with value_prefix={value_prefix:?}. \
-             Fix: make check_temporal_literals_opt_a schema-aware (HIGH-1)."
+             Fix: make check_temporal_literals schema-aware (HIGH-1)."
         );
     }
     // Any other result (Ok or a different Err) is acceptable for this test.
@@ -482,7 +482,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_dotted_external_source_pipe_d
 /// Query: `test_events | timestamp > '2026-07-04T00:00:00Z'`
 ///
 /// Uses underscore source form (same reasoning as the positive LOW-1 test above).
-/// Valid RFC-3339 must pass through `check_temporal_literals_opt_a` without triggering E-QUERY-041.
+/// Valid RFC-3339 must pass through `check_temporal_literals` without triggering E-QUERY-041.
 ///
 /// Traces to: BC-2.11.023; ADR-052 §D4.
 #[tokio::test]
@@ -565,7 +565,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_ec006_offset_less_datetime_ra
 /// FieldPath, so the grammar CANNOT parse `'2026-06-24' < timestamp` in either filter
 /// mode or SQL mode (which delegates to the same base predicate parser).
 ///
-/// # Consequence for `check_temporal_literals_opt_a` literal-LHS handling
+/// # Consequence for `check_temporal_literals` literal-LHS handling
 /// The `RawTemporalLiteral`-on-LHS case (a literal as `lhs`, field as `rhs`) is STRUCTURALLY
 /// UNREACHABLE: it can only fire if the PrismQL parser produces an AST where a raw temporal
 /// literal appears as the left operand — but the grammar never does this (quoted strings are
@@ -579,7 +579,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_ec006_offset_less_datetime_ra
 ///
 /// # What happens if an analyst writes this in SQL to DataFusion?
 /// `SELECT * FROM t WHERE '2026-06-24' < timestamp` — PrismQL parser rejects the
-/// WHERE predicate (non-temporal parse error), `check_temporal_literals_opt_a` returns `Ok(())`,
+/// WHERE predicate (non-temporal parse error), `check_temporal_literals` returns `Ok(())`,
 /// then DataFusion processes the query. DataFusion will likely fail with a type error
 /// (string vs Timestamp) or implicit coerce — but NOT with analyst-friendly E-QUERY-041.
 /// This is an accepted limitation of the best-effort gate (ADR-052 D4).
@@ -702,13 +702,13 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_obs2_string_column_equality_n
 /// The source is `test_events` (bare identifier, `SourceRefKind::Custom`) preceding the `|`
 /// with NO `FROM` keyword. `'2026-06-24'` is date-like: the PrismQL parser's
 /// `classify_string_literal` produces a temporal parse error (E-QUERY-001). The parse-fail
-/// path in `check_temporal_literals_opt_a` must resolve `test_events` from the text before `|`
+/// path in `check_temporal_literals` must resolve `test_events` from the text before `|`
 /// (mirroring `extract_primary_table_from_ast` → `Ast::Filter/Ast::Pipe` → `SourceRefKind::Custom`
 /// → `source.raw`), look up `timestamp` in the TableRegistry, and fire E-QUERY-041.
 ///
 /// Pre-fix (RED GATE): `extract_table_name_from_query_str` finds no `FROM` clause → returns
 /// `None` → `is_bad_literal_in_datetime_column` returns `false` → fail-open →
-/// `check_temporal_literals_opt_a` returns `Ok(())` → downstream pipeline re-parses → E-QUERY-001
+/// `check_temporal_literals` returns `Ok(())` → downstream pipeline re-parses → E-QUERY-001
 /// (QueryParseFailed) propagates instead of E-QUERY-041.
 ///
 /// Post-fix (GREEN): `extract_table_name_from_query_str` detects `test_events` before `|`
@@ -761,7 +761,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_f_local_low1_pipe_no_from_dat
 /// `'2026-07-04T00:00:00Z'` is a valid RFC-3339 UTC timestamp. The PrismQL parser's
 /// `classify_string_literal` calls `TimestampLiteral::new` (via `parse_from_rfc3339`),
 /// which succeeds — emitting `Literal::Datetime`, not `RawTemporalLiteral`. Consequently
-/// `check_temporal_literals_opt_a` finds no `RawTemporalLiteral` nodes and E-QUERY-041 must NOT fire.
+/// `check_temporal_literals` finds no `RawTemporalLiteral` nodes and E-QUERY-041 must NOT fire.
 ///
 /// (Any other error — E-QUERY-001, sensor-not-found — is acceptable; only
 /// `TemporalLiteralUnparseable` is forbidden here.)
@@ -911,15 +911,15 @@ fn make_typed_columns_engine() -> QueryEngine {
 /// Query: `SELECT * FROM test_events WHERE timestamp > '2026-07-03T00:00:00Z'`
 ///
 /// # Pre-implementation state (Red Gate)
-/// `check_temporal_literals_opt_a` is `todo!()` → panics for ALL queries that reach it.
+/// `check_temporal_literals` is `todo!()` → panics for ALL queries that reach it.
 /// The valid RFC-3339 string parses successfully (no parse error) → the engine reaches
-/// `check_temporal_literals_opt_a` → PANIC → test FAILS. ✓
+/// `check_temporal_literals` → PANIC → test FAILS. ✓
 ///
 /// # Post-implementation state (ADR-052 §D4 Step 2)
 /// `classify_string_literal("2026-07-03T00:00:00Z")`:
 ///   - `TimestampLiteral::new("2026-07-03T00:00:00Z")` → SUCCEEDS → `Literal::Timestamp`
 ///   - NOT `Literal::RawTemporalLiteral` (only date-like, non-RFC-3339 strings become RawTemporal)
-/// `check_temporal_literals_opt_a`: finds no `RawTemporalLiteral` in AST → returns `Ok(())`.
+/// `check_temporal_literals`: finds no `RawTemporalLiteral` in AST → returns `Ok(())`.
 /// Query may fail with sensor error (no real sensor wired) but MUST NOT return
 /// `PrismError::TemporalLiteralUnparseable`.
 ///
@@ -934,8 +934,8 @@ fn make_typed_columns_engine() -> QueryEngine {
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_full_rfc3339_regression_guard() {
     let engine = make_test_engine();
 
-    // Red Gate: check_temporal_literals_opt_a is todo!() — panics for this query.
-    // Post-implementation: check_temporal_literals_opt_a finds no RawTemporalLiteral → passes.
+    // Red Gate: check_temporal_literals is todo!() — panics for this query.
+    // Post-implementation: check_temporal_literals finds no RawTemporalLiteral → passes.
     let result = engine
         .execute(
             "SELECT * FROM test_events WHERE timestamp > '2026-07-03T00:00:00Z'",
@@ -947,7 +947,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_full_rfc3339_regression_guard
     assert!(
         !matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
         "RG-011: valid RFC-3339 '2026-07-03T00:00:00Z' must NOT trigger E-QUERY-041. \
-         check_temporal_literals_opt_a must leave Literal::Timestamp nodes untouched. \
+         check_temporal_literals must leave Literal::Timestamp nodes untouched. \
          Got: {result:?}"
     );
 }
@@ -967,7 +967,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_full_rfc3339_regression_guard
 /// # Post-implementation state (ADR-052 §D4 Steps 2-3)
 /// `is_date_like("2026-06-24T12:00:00")` → `NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S")`
 /// → SUCCEEDS → `Literal::RawTemporalLiteral("2026-06-24T12:00:00")`.
-/// `check_temporal_literals_opt_a` → `timestamp` column is `ColumnType::Datetime` → E-QUERY-041.
+/// `check_temporal_literals` → `timestamp` column is `ColumnType::Datetime` → E-QUERY-041.
 ///
 /// # Why load-bearing
 /// Offset-less ISO datetime is the second most common malformed form in analyst queries.
@@ -980,7 +980,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_offset_less_datet
     let engine = make_test_engine();
 
     // Red Gate: parse currently fails (E-QUERY-001 QueryParseFailed) for '2026-06-24T12:00:00'.
-    // Post-implementation: parser emits RawTemporalLiteral; check_temporal_literals_opt_a
+    // Post-implementation: parser emits RawTemporalLiteral; check_temporal_literals
     // returns TemporalLiteralUnparseable (E-QUERY-041).
     let result = engine
         .execute(
@@ -1028,7 +1028,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_offset_less_datet
 ///
 /// # Post-implementation state (ADR-052 §D4 Step 3 coercion arm; RISK-5)
 /// `is_date_like("2026-06-24")` → `true` (form 1) → `Literal::RawTemporalLiteral`.
-/// `check_temporal_literals_opt_a` resolves `hostname` → `ColumnType::String` → COERCE:
+/// `check_temporal_literals` resolves `hostname` → `ColumnType::String` → COERCE:
 /// rewrites `RawTemporalLiteral("2026-06-24")` to `Literal::String("2026-06-24")` in-place.
 /// Query proceeds; emitted SQL: `hostname = '2026-06-24'` (byte-identical to pre-ADR-052).
 /// Result is Ok or sensor-level error, NOT `QueryParseFailed` or `TemporalLiteralUnparseable`.
@@ -1050,7 +1050,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_date_only
     let engine = make_test_engine();
 
     // Red Gate: parse currently fails (QueryParseFailed) for date-like '2026-06-24'.
-    // Post-implementation: parser emits RawTemporalLiteral; check_temporal_literals_opt_a
+    // Post-implementation: parser emits RawTemporalLiteral; check_temporal_literals
     // resolves hostname → String → COERCE; no parse error.
     let result = engine
         .execute(
@@ -1076,13 +1076,13 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_date_only
 
     // FIX-3 (OBS-1): Drive through the pipe SQL emitter to prove byte-identity.
     // Constructs the post-parse AST directly (RawTemporalLiteral in WHERE predicate),
-    // applies check_temporal_literals_opt_a (coerces to Literal::String), then
+    // applies check_temporal_literals (coerces to Literal::String), then
     // asserts the emitted SQL fragment is `hostname = '2026-06-24'`.
     {
         use crate::ast::{
             Ast, CompareOp, Expr, FieldPath, Literal, PipeQuery, PipeStage, Predicate, SourceRef,
         };
-        use crate::materialization::check_temporal_literals_opt_a;
+        use crate::materialization::check_temporal_literals;
         use crate::pipe_sql_emitter::pipe_to_executable_sql;
 
         let registry = make_test_events_registry();
@@ -1100,9 +1100,9 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_date_only
             vec![PipeStage::Where(pred)],
         ));
 
-        // Run check_temporal_literals_opt_a: coerces RawTemporalLiteral("2026-06-24")
+        // Run check_temporal_literals: coerces RawTemporalLiteral("2026-06-24")
         // vs String column → Literal::String("2026-06-24") in-place.
-        check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()), false)
+        check_temporal_literals(&mut ast, Some(registry.as_ref()), false)
             .expect("RG-013 byte-identity: coercion must not fail for String column");
 
         // Extract PipeQuery after coercion and emit SQL via pipe_to_executable_sql.
@@ -1136,7 +1136,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_date_only
 ///
 /// # Post-implementation state
 /// `is_date_like("2026-06-24T12:00:00") = true` (form 2) → `RawTemporalLiteral`.
-/// `check_temporal_literals_opt_a` → `hostname` is String → COERCE → `Literal::String`.
+/// `check_temporal_literals` → `hostname` is String → COERCE → `Literal::String`.
 /// Emitted SQL: `hostname = '2026-06-24T12:00:00'` (byte-identical to pre-ADR-052).
 ///
 /// # FIX-3 (OBS-1) byte-identity assertion
@@ -1172,7 +1172,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_offset_le
         use crate::ast::{
             Ast, CompareOp, Expr, FieldPath, Literal, PipeQuery, PipeStage, Predicate, SourceRef,
         };
-        use crate::materialization::check_temporal_literals_opt_a;
+        use crate::materialization::check_temporal_literals;
         use crate::pipe_sql_emitter::pipe_to_executable_sql;
 
         let registry = make_test_events_registry();
@@ -1190,9 +1190,9 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_offset_le
             vec![PipeStage::Where(pred)],
         ));
 
-        // Run check_temporal_literals_opt_a: coerces RawTemporalLiteral("2026-06-24T12:00:00")
+        // Run check_temporal_literals: coerces RawTemporalLiteral("2026-06-24T12:00:00")
         // vs String column → Literal::String("2026-06-24T12:00:00") in-place.
-        check_temporal_literals_opt_a(&mut ast, Some(registry.as_ref()), false)
+        check_temporal_literals(&mut ast, Some(registry.as_ref()), false)
             .expect("RG-014 byte-identity: coercion must not fail for String column");
 
         // Extract PipeQuery after coercion and emit SQL via pipe_to_executable_sql.
@@ -1225,7 +1225,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_offset_le
 /// → FAILS. ✓
 ///
 /// # Post-implementation state (ADR-052 §D4 Step 3 third arm)
-/// `is_date_like = true` → `RawTemporalLiteral`. `check_temporal_literals_opt_a` resolves
+/// `is_date_like = true` → `RawTemporalLiteral`. `check_temporal_literals` resolves
 /// `count_col` → `ColumnType::Integer` → returns E-QUERY-001 (type mismatch, NOT E-QUERY-041).
 ///
 /// # Why load-bearing
@@ -1375,12 +1375,12 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_bool_col_date_like_e_query_00
 ///
 /// # Pre-implementation state (Red Gate)
 /// `'not-a-date'` does NOT start with 4 ASCII digits → `looks_like_timestamp = false` →
-/// parse SUCCEEDS as `Literal::String`. The engine then reaches `check_temporal_literals_opt_a`
+/// parse SUCCEEDS as `Literal::String`. The engine then reaches `check_temporal_literals`
 /// (todo!()) → PANICS → test FAILS. ✓
 ///
 /// # Post-implementation state
 /// `is_date_like("not-a-date")` → `false` (no chrono pattern matches). Parser emits
-/// `Literal::String("not-a-date")`. `check_temporal_literals_opt_a` finds no
+/// `Literal::String("not-a-date")`. `check_temporal_literals` finds no
 /// `RawTemporalLiteral` → returns `Ok(())`. No temporal error.
 ///
 /// Traces to: ADR-052 §D4 v1.4 Step 2 (heuristic negative case);
@@ -1389,8 +1389,8 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_bool_col_date_like_e_query_00
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_non_date_like_stays_string_literal() {
     let engine = make_test_engine();
 
-    // Red Gate: check_temporal_literals_opt_a is todo!() — panics for all queries that reach it.
-    // 'not-a-date' parses fine (not date-like) → the engine reaches check_temporal_literals_opt_a
+    // Red Gate: check_temporal_literals is todo!() — panics for all queries that reach it.
+    // 'not-a-date' parses fine (not date-like) → the engine reaches check_temporal_literals
     // → PANIC → test FAILS. ✓
     let result = engine
         .execute(
@@ -1430,7 +1430,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_non_date_like_stays_string_li
 /// `TemporalLiteralUnparseable` → FAILS. ✓
 ///
 /// # Post-implementation state
-/// `check_temporal_literals_opt_a` resolves the 2-segment FieldPath
+/// `check_temporal_literals` resolves the 2-segment FieldPath
 /// `[ghost_sensor_devices, timestamp]` against the registered schema →
 /// `ColumnType::Datetime` → E-QUERY-041.
 ///
@@ -1464,7 +1464,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_dotted_source_column_resoluti
             if value_prefix.starts_with("2026-06-24")
         ),
         "RG-019: must be TemporalLiteralUnparseable with value_prefix '2026-06-24'. \
-         check_temporal_literals_opt_a must resolve ghost_sensor_devices.timestamp → \
+         check_temporal_literals must resolve ghost_sensor_devices.timestamp → \
          Datetime via schema (NOT string-split on '.'). Got: {err:?} (Display: {display})"
     );
 
@@ -1484,7 +1484,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_dotted_source_column_resoluti
 /// → FAILS. ✓
 ///
 /// # Post-implementation state
-/// `check_temporal_literals_opt_a` resolves 2-segment FieldPath `[ghost_sensor_devices, hostname]`
+/// `check_temporal_literals` resolves 2-segment FieldPath `[ghost_sensor_devices, hostname]`
 /// against the schema → `ColumnType::String` → COERCE → no E-QUERY-041.
 /// The qualified column is looked up in the CORRECT source's schema (ghost_sensor_devices),
 /// not collapsed to the last segment (`hostname`) and resolved in any arbitrary table.
@@ -1582,7 +1582,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_filter_pipe_syntax_e_query_04
 /// # VP-021 regression guard
 /// The old text-scanner VP-021 violation caused raw byte-offset slicing on multi-byte
 /// UTF-8 strings, triggering SIGBUS / panic on non-UTF-8-safe offsets. Under Option-A,
-/// `check_temporal_literals_opt_a` operates on already-parsed `String` values (valid
+/// `check_temporal_literals` operates on already-parsed `String` values (valid
 /// UTF-8 by construction). No raw byte-offset slicing ever occurs — VP-021 is eliminated
 /// by construction.
 ///
@@ -1593,7 +1593,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_filter_pipe_syntax_e_query_04
 /// # Post-implementation state
 /// `hostname = '日本語'` → `Literal::String("日本語")` (non-date-like, `looks_like_timestamp = false`).
 /// `timestamp > '2026-06-24'` → `Literal::RawTemporalLiteral("2026-06-24")`.
-/// `check_temporal_literals_opt_a` → `timestamp` is Datetime → E-QUERY-041.
+/// `check_temporal_literals` → `timestamp` is Datetime → E-QUERY-041.
 /// No panic (VP-021 satisfied by construction).
 ///
 /// Traces to: VP-021 (never panics on multi-byte input); ADR-052 §D4 v1.4.
@@ -1645,7 +1645,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_unicode_input_no_panic() {
 /// → FAILS. ✓
 ///
 /// # Post-implementation state
-/// `is_date_like = true` → `RawTemporalLiteral`. `check_temporal_literals_opt_a` finds
+/// `is_date_like = true` → `RawTemporalLiteral`. `check_temporal_literals` finds
 /// `RawTemporalLiteral` in SELECT clause (no comparison context, no column to look up) →
 /// returns E-QUERY-002 `QueryPlanFailed` (malformed literal in non-comparison position).
 /// Must NOT silently pass `RawTemporalLiteral` through to the emitter (belt-and-suspenders).
@@ -1668,7 +1668,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_e_query_0
     assert!(
         !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
         "RG-023: '2026-06-24' in SELECT must NOT return QueryParseFailed under Option-A. \
-         Parser should emit RawTemporalLiteral; check_temporal_literals_opt_a handles it. \
+         Parser should emit RawTemporalLiteral; check_temporal_literals handles it. \
          Got: {result:?}"
     );
 
@@ -1929,7 +1929,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_space_sep_no_seco
 /// QueryParseFailed" → FAILS. ✓
 ///
 /// # Post-implementation state (RISK-5 extension to space-sep family)
-/// `is_date_like = true` (form 5) → `RawTemporalLiteral`. `check_temporal_literals_opt_a`
+/// `is_date_like = true` (form 5) → `RawTemporalLiteral`. `check_temporal_literals`
 /// → `hostname` is String → COERCE → `Literal::String("2026-06-24 12:00:00")`.
 /// Emitted SQL: `hostname = '2026-06-24 12:00:00'` (byte-identical to pre-ADR-052).
 ///
@@ -2007,7 +2007,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_unpadded_date_ove
 /// E-QUERY-037 (TableNotAvailable), NOT E-QUERY-002 (QueryPlanFailed).
 ///
 /// # Pre-fix state (RED gate)
-/// The early temporal gate in `engine::execute` calls the FULL `check_temporal_literals_opt_a`
+/// The early temporal gate in `engine::execute` calls the FULL `check_temporal_literals`
 /// walker, which includes `check_select_items_raw_temporal`. A bare `RawTemporalLiteral` in
 /// SELECT position returns `Err(QueryPlanFailed)` (E-QUERY-002) immediately, BEFORE
 /// `check_table_availability` (E-QUERY-037) fires. This is wrong — the more actionable
@@ -2015,7 +2015,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_unpadded_date_ove
 ///
 /// # Post-fix state (GREEN)
 /// The early gate uses `skip_projection: true`, so SELECT-item / GROUP BY / ORDER BY checks
-/// are deferred to the in-pipeline `check_temporal_literals_opt_a` pass (which only runs after
+/// are deferred to the in-pipeline `check_temporal_literals` pass (which only runs after
 /// `check_table_availability` confirms the table exists). For an unregistered table,
 /// `check_table_availability` fires first and returns E-QUERY-037.
 ///
@@ -2053,7 +2053,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_fix2_projection_literal_unreg
         display.contains("E-QUERY-037"),
         "FIX-2 regression: unregistered table + projection-position temporal literal must yield \
          E-QUERY-037 (not E-QUERY-002). Early gate must not pre-empt the table availability check. \
-         Pre-fix failure: early gate calls full check_temporal_literals_opt_a (including SELECT \
+         Pre-fix failure: early gate calls full check_temporal_literals (including SELECT \
          item walker) which fires E-QUERY-002 for bare RawTemporalLiteral before E-QUERY-037 \
          fires. Fix: early gate must use skip_projection=true. Got: {display}"
     );
@@ -2069,7 +2069,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_fix2_projection_literal_unreg
 ///
 /// # Post-implementation state
 /// `is_date_like("2026-6-24") = true` (over-match) → `RawTemporalLiteral`.
-/// `check_temporal_literals_opt_a` → `hostname` is String → COERCE → `Literal::String("2026-6-24")`.
+/// `check_temporal_literals` → `hostname` is String → COERCE → `Literal::String("2026-6-24")`.
 /// Unpadded date labels are valid sensor identifiers in some APIs; coercion is correct.
 ///
 /// Traces to: ADR-052 §D4 v1.4 coercion arm + over-match disposition;

@@ -799,7 +799,7 @@ fn expr_to_sql(expr: &Expr) -> Result<String, PrismError> {
 /// Convert a `Literal` to its SQL string representation.
 ///
 /// Returns `Err` only for `Literal::RawTemporalLiteral` — that intermediate AST node
-/// must be consumed by `check_temporal_literals_opt_a` at plan time before the emitter
+/// must be consumed by `check_temporal_literals` at plan time before the emitter
 /// is called (belt-and-suspenders guard; ADR-052 §D4 Step 5; BC-2.11.021 v1.4;
 /// S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 11B).
 fn literal_to_sql(lit: &Literal) -> Result<String, PrismError> {
@@ -835,7 +835,7 @@ fn literal_to_sql(lit: &Literal) -> Result<String, PrismError> {
         ),
         // ADR-052 §D4 Step 5 guard (BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001):
         // Belt-and-suspenders secondary defense: RawTemporalLiteral must NEVER reach SQL
-        // emission. It is an intermediate AST node that check_temporal_literals_opt_a must
+        // emission. It is an intermediate AST node that check_temporal_literals must
         // consume at plan time via three-way dispatch:
         //   Datetime col → E-QUERY-041; String col → COERCE; Integer/Float/Bool → E-QUERY-002.
         // When the column type is unresolvable (fail-open in the walker), the walker leaves
@@ -855,7 +855,7 @@ fn literal_to_sql(lit: &Literal) -> Result<String, PrismError> {
             return Err(PrismError::QueryPlanFailed {
                 detail: format!(
                     "internal error — unvalidated RawTemporalLiteral '{s}' reached SQL \
-                     emission; check_temporal_literals_opt_a must run before emission"
+                     emission; check_temporal_literals must run before emission"
                 ),
             });
         }
@@ -1343,7 +1343,7 @@ mod tests {
     /// RG-024 (stub y): `literal_to_sql(Literal::RawTemporalLiteral(_))` MUST return
     /// `Err(QueryPlanFailed)` — the emitter guard is a belt-and-suspenders defense ensuring
     /// that no `RawTemporalLiteral` ever reaches SQL emission without being resolved by
-    /// `check_temporal_literals_opt_a` first.
+    /// `check_temporal_literals` first.
     ///
     /// HIGH-3 fix: changed from `QueryParseFailed` to `QueryPlanFailed` because the literal
     /// was parsed successfully — this is a plan-time invariant violation, not a parse failure.
@@ -1355,7 +1355,7 @@ mod tests {
     fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_emitter_guard_raw_temporal_literal() {
         use prism_core::error::PrismError;
         // Belt-and-suspenders: if a RawTemporalLiteral reaches the emitter without being
-        // consumed by check_temporal_literals_opt_a, literal_to_sql MUST return
+        // consumed by check_temporal_literals, literal_to_sql MUST return
         // Err(QueryPlanFailed) — never panic and never silently emit a bare string.
         // HIGH-3 fix: QueryPlanFailed (plan-time invariant), not QueryParseFailed (parse failure).
         // Traces to: ADR-052 §D4 Step 5 (emitter guard); BC-2.11.021 v1.4 guard arm.

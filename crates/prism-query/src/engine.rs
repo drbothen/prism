@@ -801,7 +801,7 @@ impl QueryEngine {
         // produce E-QUERY-041 (bad timestamp format), NOT E-QUERY-037 (table not found).
         // Example: `FROM ghost_sensor.devices | where timestamp > '2026-06-24'`
         //   → E-QUERY-041 (not E-QUERY-037), because the dotted source normalises to
-        //   "ghost_sensor_devices" for schema lookup in check_temporal_literals_opt_a.
+        //   "ghost_sensor_devices" for schema lookup in check_temporal_literals.
         //
         // HIGH-4 design note (EARLY-GATE-ORDERING-ONLY): this early check re-parses the
         // query string intentionally. It does NOT share the AST with run_materialization_pipeline
@@ -823,11 +823,11 @@ impl QueryEngine {
         // so that a projection-position RawTemporalLiteral (e.g., `SELECT '2026-06-24' FROM t`)
         // does NOT fire E-QUERY-002 before check_table_availability fires E-QUERY-037 for
         // unregistered tables (BC-2.11.019 gate ordering). Projection checks run in the
-        // in-pipeline check_temporal_literals_opt_a call (skip_projection=false, after table
+        // in-pipeline check_temporal_literals call (skip_projection=false, after table
         // availability is confirmed). EC-013 is preserved: WHERE-predicate Datetime checks still
         // fire E-QUERY-041 before E-QUERY-037 for registered dotted-source queries.
         if let Ok(mut ast) = crate::filter_parser::PrismQlParser::parse(effective_query) {
-            crate::materialization::check_temporal_literals_opt_a(
+            crate::materialization::check_temporal_literals(
                 &mut ast,
                 self.table_registry.as_deref(),
                 true, // skip_projection: defer SELECT/GROUP-BY/ORDER-BY to in-pipeline pass
@@ -898,7 +898,7 @@ impl QueryEngine {
         check_enrich_udf_availability(effective_query, self.infusion_registry.as_deref())?;
 
         // ADR-052 D4 Option A: plan-time temporal literal gate is now implemented as
-        // an AST-walk inside run_materialization_pipeline (check_temporal_literals_opt_a).
+        // an AST-walk inside run_materialization_pipeline (check_temporal_literals).
         // The old text-scanner (check_temporal_literals) is deleted; the AST-walk fires
         // against the same parsed AST used for execution, after inject_now.
         // Gate ordering: E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → [AST-walk in mat pipeline].
@@ -997,7 +997,7 @@ impl QueryEngine {
         )
         .with_response_cache(Arc::clone(&self.cache));
 
-        // ADR-052 §D4 Option A: wire table_registry so check_temporal_literals_opt_a
+        // ADR-052 §D4 Option A: wire table_registry so check_temporal_literals
         // can resolve column types for the three-way dispatch (E-QUERY-041 / coerce / mismatch).
         if let Some(ref tr) = self.table_registry {
             mat_ctx = mat_ctx.with_table_registry(Arc::clone(tr));
@@ -1174,7 +1174,7 @@ impl QueryEngine {
         // skip_projection=true (FIX-2): same scoping as execute_inner — projection checks
         // deferred to in-pipeline pass so E-QUERY-037 wins for unregistered tables.
         if let Ok(mut ast) = crate::filter_parser::PrismQlParser::parse(query_str) {
-            crate::materialization::check_temporal_literals_opt_a(
+            crate::materialization::check_temporal_literals(
                 &mut ast,
                 self.table_registry.as_deref(),
                 true, // skip_projection: defer SELECT/GROUP-BY/ORDER-BY to in-pipeline pass
@@ -1874,11 +1874,11 @@ fn check_enrich_udf_availability(
 }
 
 // NOTE: E-QUERY-041 temporal literal gate is now implemented as an AST-walk
-// inside run_materialization_pipeline (materialization.rs::check_temporal_literals_opt_a).
+// inside run_materialization_pipeline (materialization.rs::check_temporal_literals).
 // The old text-scanner (check_temporal_literals + TemporalChecker + helpers) has been
 // deleted as part of ADR-052 §D4 Option A implementation.
 // Deleted functions: check_temporal_literals, extract_temporal_value_from_parse_error,
-//   check_temporal_literals_opt_a (old stub), extract_primary_table_from_ast,
+//   check_temporal_literals (old stub), extract_primary_table_from_ast,
 //   TemporalChecker, is_bad_literal_in_datetime_column,
 //   extract_column_name_adjacent_to_quoted_value, extract_table_name_from_query_str,
 //   check_string_is_valid_rfc3339.

@@ -110,9 +110,9 @@ pub struct TableRegistry {
     /// defined in its `[[tables]]` entries; empty = fail-open (gate skips that table).
     columns_by_table: Arc<RwLock<HashMap<String, Vec<String>>>>,
     /// Table name → (column name → `ColumnType`) map, used by the schema-aware
-    /// E-QUERY-041 temporal pre-validator (`check_temporal_literals_opt_a`).
+    /// E-QUERY-041 temporal pre-validator (`check_temporal_literals`).
     ///
-    /// ADR-052 v1.1 D4 / HIGH-1 fix: `check_temporal_literals_opt_a` must only fire for
+    /// ADR-052 v1.1 D4 / HIGH-1 fix: `check_temporal_literals` must only fire for
     /// string literals compared against `ColumnType::Datetime` columns. This map
     /// provides the column type lookup without requiring the resolved_spec_map
     /// (which is absent in single-tenant / test mode).
@@ -387,7 +387,7 @@ impl TableRegistry {
 
     /// Return the `ColumnType` for a named column in a given table.
     ///
-    /// Used by `check_temporal_literals_opt_a` (E-QUERY-041 gate) to determine whether
+    /// Used by `check_temporal_literals` (E-QUERY-041 gate) to determine whether
     /// a column is `ColumnType::Datetime` before validating a string literal as RFC-3339.
     ///
     /// Returns `None` when:
