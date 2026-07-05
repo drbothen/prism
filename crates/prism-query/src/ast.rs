@@ -1478,15 +1478,21 @@ impl PqlNormalizer {
     /// Used by `execute_against_session` for the `Ast::Sql(Select)` DataFusion
     /// emission path (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001).
     pub(crate) fn normalize_for_datafusion(ast: &Ast) -> Option<String> {
-        // Drop guard: reset the thread-local even if `normalize` panics.
-        struct DataFusionModeGuard;
+        // Drop guard: restore the thread-local to its prior value even if `normalize`
+        // panics.  Save-and-restore (not hard-set false) so that nested calls to
+        // `normalize_for_datafusion` do not destroy an outer caller's mode setting.
+        // (ADR-052 §D4 v1.6 LOW-1.)
+        struct DataFusionModeGuard {
+            prior: bool,
+        }
         impl Drop for DataFusionModeGuard {
             fn drop(&mut self) {
-                NORMALIZE_FOR_DATAFUSION.with(|m| m.set(false));
+                NORMALIZE_FOR_DATAFUSION.with(|m| m.set(self.prior));
             }
         }
+        let prior = NORMALIZE_FOR_DATAFUSION.with(|m| m.get());
         NORMALIZE_FOR_DATAFUSION.with(|m| m.set(true));
-        let _guard = DataFusionModeGuard;
+        let _guard = DataFusionModeGuard { prior };
         Self::normalize(ast)
     }
 
@@ -1494,10 +1500,17 @@ impl PqlNormalizer {
     /// `Literal::Timestamp`, delegates to `normalize_literal` for all other
     /// literal variants.
     ///
-    /// This is the per-literal complement of `normalize_for_datafusion` — it is
-    /// called automatically when the NORMALIZE_FOR_DATAFUSION thread-local is
-    /// set, and is also exposed `pub(crate)` so `materialization.rs` can call it
-    /// from `emit_literal_for_datafusion` and tests can assert the exact form.
+    /// This is the per-literal building block for `normalize_for_datafusion`.  It
+    /// is invoked automatically when the `NORMALIZE_FOR_DATAFUSION` thread-local
+    /// flag is `true` — specifically, `normalize_literal_dispatch` (called from
+    /// every `normalize_literal` call site during AST traversal) checks the flag
+    /// and routes to this function.  Callers set the flag by calling
+    /// `normalize_for_datafusion`, which installs a `DataFusionModeGuard` and then
+    /// calls `normalize`.  The `execute_against_session` `Ast::Sql` and `Ast::SqlPipe`
+    /// arms in `materialization.rs` are the production call sites.
+    ///
+    /// Also exposed `pub(crate)` so tests can assert the exact emission format
+    /// independently of the full AST traversal path.
     ///
     /// ADR-052 §D4 v1.5 SQL-Mode DataFusion Emission Addendum.
     pub(crate) fn normalize_literal_for_datafusion(lit: &Literal) -> String {
@@ -3137,6 +3150,139 @@ mod obs_1_sqlpipe_prechek_parity_tests {
             "OBS-1: ast_has_unfolded_temporal_expr must detect Expr::Now in SqlPipe pipe stage \
              and cause normalize to return None; got: {:?}",
             result
+        );
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOW-1: DataFusionModeGuard save-and-restore tests
+//
+// ADR-052 §D4 v1.6: DataFusionModeGuard::drop MUST restore the prior value of
+// NORMALIZE_FOR_DATAFUSION, NOT hard-set it to false.
+//
+// Bug: current Drop implementation calls `m.set(false)` unconditionally.
+// Fix: save the prior bool on construction; Drop restores saved value.
+//
+// The nesting test below constructs a scenario where the thread-local is `true`
+// when normalize_for_datafusion is called, and asserts the guard restores it to
+// `true` on Drop.  With the current hard-set=false implementation the assertion
+// FAILS (RED).  After the fix it PASSES (GREEN).
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
+mod low1_datafusion_guard_tests {
+    use super::*;
+
+    /// LOW-1 nesting test: `DataFusionModeGuard::drop` must RESTORE the prior value
+    /// of `NORMALIZE_FOR_DATAFUSION`, not hard-set it to `false`.
+    ///
+    /// Scenario:
+    ///   1. Thread-local is manually set to `true` (simulating an outer
+    ///      `normalize_for_datafusion` guard already active on the call stack).
+    ///   2. `normalize_for_datafusion` is called (inner call) — it creates its own
+    ///      `DataFusionModeGuard` and then drops it when the function returns.
+    ///   3. After the inner call returns, the thread-local MUST still be `true`
+    ///      because the inner guard must restore the value it found on construction
+    ///      (true), not hard-set false.
+    ///
+    /// RED GATE: with current `impl Drop { m.set(false) }`, the inner guard
+    /// unconditionally sets false → assertion FAILS.
+    ///
+    /// GREEN (after fix): `DataFusionModeGuard` saves `prior = m.get()` on construction
+    /// and restores it in Drop → thread-local remains `true` → assertion PASSES.
+    ///
+    /// Traces to: ADR-052 §D4 v1.6 LOW-1.
+    #[test]
+    fn test_low1_normalize_for_datafusion_guard_save_restore_nesting() {
+        // Step 1: Manually set thread-local to true (outer guard context).
+        NORMALIZE_FOR_DATAFUSION.with(|m| m.set(true));
+
+        // Step 2: Call normalize_for_datafusion (inner call).
+        // A minimal valid SQL AST with a Timestamp literal.
+        let now = chrono::Utc::now();
+        let ts_lit = TimestampLiteral {
+            iso8601: now.to_rfc3339(),
+            instant: now,
+        };
+        let sql = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Star]),
+            FromClause::new(SourceRef::from_raw("test_table")),
+        )
+        .with_where(Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["timestamp"]))),
+            op: CompareOp::Gt,
+            rhs: Box::new(Expr::Literal(Literal::Timestamp(ts_lit))),
+        });
+        let ast = Ast::Sql(SqlStatement::Select(sql));
+
+        // Inner call — the guard must restore NORMALIZE_FOR_DATAFUSION to true (prior),
+        // NOT hard-set it to false.
+        let result = PqlNormalizer::normalize_for_datafusion(&ast);
+        assert!(
+            result.is_some(),
+            "LOW-1 nesting test precondition: normalize_for_datafusion must return Some for \
+             valid SQL AST. Got None."
+        );
+
+        // Verify the inner call emitted arrow_cast (correct operation).
+        let sql_str = result.unwrap();
+        assert!(
+            sql_str.contains("arrow_cast("),
+            "LOW-1 nesting test precondition: inner normalize_for_datafusion must emit \
+             arrow_cast for Literal::Timestamp. Got: {sql_str:?}"
+        );
+
+        // Step 3: Assert the thread-local was restored to true (the prior value).
+        let state_after_inner_call = NORMALIZE_FOR_DATAFUSION.with(|m| m.get());
+        assert!(
+            state_after_inner_call,
+            "LOW-1: DataFusionModeGuard::drop must RESTORE prior value (true) rather than \
+             hard-setting false. After the inner normalize_for_datafusion call returned, \
+             NORMALIZE_FOR_DATAFUSION should be true (the value it had before the inner call). \
+             Got false — the hard-set=false Drop destroyed the outer context's setting. \
+             Fix: save `prior = m.get()` in DataFusionModeGuard, restore in Drop."
+        );
+
+        // Cleanup: reset thread-local to false so we don't leak state into other tests.
+        NORMALIZE_FOR_DATAFUSION.with(|m| m.set(false));
+    }
+
+    /// LOW-1 basic: after a top-level `normalize_for_datafusion` call (thread-local
+    /// starts false), the guard must restore it to false.
+    ///
+    /// This is the normal (non-nested) case — must continue to work after the save-and-restore
+    /// fix.  A regression here would mean the guard accidentally keeps the flag set.
+    #[test]
+    fn test_low1_normalize_for_datafusion_guard_resets_to_false_for_top_level_call() {
+        // Thread-local starts at false (normal initial state for each thread).
+        NORMALIZE_FOR_DATAFUSION.with(|m| m.set(false));
+
+        let now = chrono::Utc::now();
+        let ts_lit = TimestampLiteral {
+            iso8601: now.to_rfc3339(),
+            instant: now,
+        };
+        let sql = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Star]),
+            FromClause::new(SourceRef::from_raw("test_table")),
+        )
+        .with_where(Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["ts"]))),
+            op: CompareOp::Gt,
+            rhs: Box::new(Expr::Literal(Literal::Timestamp(ts_lit))),
+        });
+        let ast = Ast::Sql(SqlStatement::Select(sql));
+
+        let _ = PqlNormalizer::normalize_for_datafusion(&ast);
+
+        // After the top-level call, the thread-local must be false (restored to prior=false).
+        let state_after = NORMALIZE_FOR_DATAFUSION.with(|m| m.get());
+        assert!(
+            !state_after,
+            "LOW-1 basic: after a top-level normalize_for_datafusion call (prior=false), \
+             the guard must restore the thread-local to false. Got true — the guard is \
+             leaking the DataFusion mode flag."
         );
     }
 }

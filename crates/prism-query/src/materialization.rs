@@ -1349,9 +1349,9 @@ pub async fn execute_against_session(
                 // silently pass `query_str` (which may contain runtime NOW() or
                 // INTERVAL) to DataFusion, violating BC-2.11.021 plan-pinning.
                 // Return a structured error instead — the query can be retried.
-                crate::ast::PqlNormalizer::normalize(&InnerAst::Sql(SqlStatement::Select(
-                    spq.head.clone(),
-                )))
+                crate::ast::PqlNormalizer::normalize_for_datafusion(&InnerAst::Sql(
+                    SqlStatement::Select(spq.head.clone()),
+                ))
                 .ok_or_else(|| PrismError::QueryExecutionFailed {
                     detail: "SqlPipe head SQL normalization failed: plan-pinned SQL could not be \
                              derived. This is an internal error; retry the query or report to \

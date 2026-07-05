@@ -1723,4 +1723,196 @@ mod high002_plan_pinning_tests {
             "HIGH-1 E2E identity: returned row must be the in-window timestamp (as i64 µs)"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // HIGH-1 SqlPipe sibling: head SQL must emit arrow_cast for Literal::Timestamp
+    // (ADR-052 §D4 v1.6 — sibling of the SQL-mode fix above)
+    // -----------------------------------------------------------------------
+
+    /// HIGH-1 SqlPipe unit: `PqlNormalizer::normalize_for_datafusion` on a SqlPipe
+    /// head AST (wrapped as `Ast::Sql(SqlStatement::Select(...))`) produces
+    /// `arrow_cast(...)` for a `Literal::Timestamp`.  `PqlNormalizer::normalize`
+    /// on the same AST produces a bare `'<iso>'` string (no arrow_cast).
+    ///
+    /// This test characterises the two paths:
+    ///  - normalize()              → bare `'<iso>'` (round-trip form, NOT for DataFusion)
+    ///  - normalize_for_datafusion() → `arrow_cast(...)` (DataFusion execution form)
+    ///
+    /// The `execute_against_session` Ast::SqlPipe arm CURRENTLY calls `normalize()` —
+    /// the wrong path for Literal::Timestamp.  The HIGH-1 fix changes it to
+    /// `normalize_for_datafusion()`.
+    ///
+    /// After the fix, both the unit assertions below and the companion E2E test
+    /// `test_high001_sqlpipe_mode_arrow_cast_e2e_discriminating` must pass.
+    ///
+    /// # TDD protocol
+    /// This test documents the bug and the required behavior.  With only `normalize`
+    /// in the SqlPipe arm (current), `normalize_for_datafusion` already returns
+    /// `arrow_cast` — so assertion 2 PASSES — but `normalize` returns bare string so
+    /// the CTE-SQL assertion in the sibling E2E test FAILS until the production arm
+    /// is changed to call `normalize_for_datafusion`.
+    #[test]
+    fn test_high001_sqlpipe_head_normalize_for_datafusion_emits_arrow_cast() {
+        use crate::ast::{Ast, PqlNormalizer, SqlStatement};
+        use crate::filter_parser::PrismQlParser;
+
+        // Build a SqlPipe with NOW() - INTERVAL '24h' so inject_now
+        // produces a Literal::Timestamp in the head WHERE clause.
+        let query = "SELECT timestamp FROM crowdstrike_detections \
+                     WHERE timestamp > NOW() - INTERVAL '24h' | limit 5";
+        let ast = PrismQlParser::parse(query).expect("SqlPipe temporal query must parse");
+
+        let now = Utc::now();
+        let now_ts = TimestampLiteral {
+            iso8601: now.to_rfc3339(),
+            instant: now,
+        };
+        let now_literal = Expr::Literal(Literal::Timestamp(now_ts));
+        let ast =
+            inject_now(ast, &now_literal).expect("inject_now must succeed — constant folds NOW()");
+
+        let spq = match &ast {
+            Ast::SqlPipe(spq) => spq,
+            other => panic!(
+                "HIGH-1 SqlPipe unit: expected Ast::SqlPipe after inject, got {:?}",
+                std::mem::discriminant(other)
+            ),
+        };
+
+        let inner = Ast::Sql(SqlStatement::Select(spq.head.clone()));
+
+        // ── Path 1: PqlNormalizer::normalize (round-trip, bare 'iso' form) ────
+        // This is what execute_against_session Ast::SqlPipe CURRENTLY uses (the bug).
+        let round_trip_sql = PqlNormalizer::normalize(&inner)
+            .expect("normalize must return Some for well-formed SqlPipe head");
+
+        assert!(
+            !round_trip_sql.contains("arrow_cast("),
+            "HIGH-1 SqlPipe characterisation: PqlNormalizer::normalize MUST NOT emit arrow_cast \
+             for SqlPipe head (round-trip form). \
+             Got: {round_trip_sql:?}"
+        );
+
+        // ── Path 2: PqlNormalizer::normalize_for_datafusion (arrow_cast form) ─
+        // This is what execute_against_session Ast::SqlPipe MUST use after the fix.
+        let datafusion_sql = PqlNormalizer::normalize_for_datafusion(&inner)
+            .expect("normalize_for_datafusion must return Some for well-formed SqlPipe head");
+
+        assert!(
+            datafusion_sql.contains("arrow_cast("),
+            "HIGH-1 SqlPipe unit: normalize_for_datafusion on SqlPipe head MUST emit \
+             arrow_cast(...) for Literal::Timestamp (ADR-052 §D4). \
+             Got: {datafusion_sql:?}. \
+             If failing: the thread-local NORMALIZE_FOR_DATAFUSION dispatch is broken in \
+             the SqlPipe head path."
+        );
+
+        // Exact DataFusion type string (no implicit coercion RISK-1).
+        let expected_type = "Timestamp(Microsecond, Some(\"UTC\"))";
+        assert!(
+            datafusion_sql.contains(expected_type),
+            "HIGH-1 SqlPipe unit: arrow_cast must embed the exact type string '{expected_type}'. \
+             Got: {datafusion_sql:?}"
+        );
+    }
+
+    /// HIGH-1 SqlPipe E2E: `execute_against_session` with a SqlPipe query where
+    /// `inject_now` folds `NOW() - INTERVAL '24h'` to a `Literal::Timestamp` in
+    /// the head `WHERE` clause must succeed and return exactly 1 discriminating row.
+    ///
+    /// Mirrors `test_high001_sql_mode_arrow_cast_e2e_discriminating` for the SqlPipe
+    /// execution path.
+    ///
+    /// RED GATE (ADR-052 §RISK-1): if `execute_against_session` Ast::SqlPipe arm
+    /// calls `PqlNormalizer::normalize` (bare `'<iso>'` form), DataFusion receives a
+    /// `Utf8` literal compared against a `Timestamp(Microsecond, Some("UTC"))` column.
+    /// DataFusion 53.1.0 coerces the bare string to `Timestamp(Nanosecond, None)` —
+    /// a type mismatch that produces a DataFusion planning error or 0 rows, causing
+    /// this test to FAIL.
+    ///
+    /// GREEN (after fix): `execute_against_session` Ast::SqlPipe arm calls
+    /// `normalize_for_datafusion` → `arrow_cast('...', 'Timestamp(Microsecond, Some("UTC"))')` —
+    /// which DataFusion can compare directly against the column, returning exactly 1 row.
+    #[tokio::test]
+    async fn test_high001_sqlpipe_mode_arrow_cast_e2e_discriminating() {
+        use std::collections::HashMap;
+
+        use crate::filter_parser::PrismQlParser;
+        use crate::materialization::{execute_against_session, register_mem_table};
+        use crate::memory::build_session_context;
+        use crate::plan_sqlpipe_query;
+
+        let now = Utc::now();
+        let (in_window_ts, out_window_ts) = make_temporal_fixtures(now);
+
+        let now_ts = TimestampLiteral {
+            iso8601: now.to_rfc3339(),
+            instant: now,
+        };
+        let now_literal = Expr::Literal(Literal::Timestamp(now_ts));
+
+        // SqlPipe with NOW() - INTERVAL so inject_now produces Literal::Timestamp
+        // in the head WHERE clause (not a pre-pinned Literal::String).
+        let query =
+            "SELECT timestamp FROM crowdstrike_detections WHERE timestamp > NOW() - INTERVAL '24h' \
+             | limit 5";
+        let ast = PrismQlParser::parse(query).expect("SqlPipe temporal query must parse");
+        let ast = inject_now(ast, &now_literal).expect("inject_now must succeed");
+
+        // FORBID-BOTH check required before execute_against_session for SqlPipe.
+        if let crate::ast::Ast::SqlPipe(ref spq) = ast {
+            plan_sqlpipe_query(spq).expect("FORBID-BOTH check must pass for valid SqlPipe query");
+        }
+
+        let ctx = build_session_context(50 * 1024 * 1024).expect("session context must build");
+        let batch = make_timestamp_batch(&in_window_ts, &out_window_ts);
+        register_mem_table(&ctx, "crowdstrike_detections", vec![batch.clone()])
+            .expect("mem table must register");
+
+        let table_batches: HashMap<String, Vec<arrow::record_batch::RecordBatch>> = {
+            let mut m = HashMap::new();
+            m.insert("crowdstrike_detections".to_string(), vec![batch]);
+            m
+        };
+
+        let result = execute_against_session(&ctx, query, &ast, table_batches)
+            .await
+            .expect(
+                "HIGH-1 SqlPipe E2E: SqlPipe with NOW()-folded Literal::Timestamp must succeed \
+                 (arrow_cast emission path — ADR-052 §D4 v1.6 HIGH-1 fix). \
+                 If this fails, execute_against_session Ast::SqlPipe arm uses normalize() \
+                 (bare string) instead of normalize_for_datafusion() (arrow_cast form), \
+                 causing a DataFusion Timestamp type mismatch.",
+            );
+
+        let total_rows: usize = result.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 1,
+            "HIGH-1 SqlPipe E2E: exactly 1 in-window row must be returned via arrow_cast path. \
+             in_window={in_window_ts:?}, out_window={out_window_ts:?}. \
+             Got {total_rows} rows. \
+             If 0: type comparison fails — DataFusion coerced bare string to \
+             Timestamp(Nanosecond, None) which mismatches Timestamp(Microsecond, UTC). \
+             If error: bare string rejected by DataFusion planning. \
+             Both failures indicate the HIGH-1 bug: normalize() used instead of \
+             normalize_for_datafusion()."
+        );
+
+        // Identity check: the returned row is the in-window timestamp (as i64 µs).
+        use arrow::array::TimestampMicrosecondArray;
+        let first_batch = &result[0];
+        let ts_col = first_batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<TimestampMicrosecondArray>()
+            .expect("timestamp column must be TimestampMicrosecondArray (ADR-052 D2)");
+        let expected_micros = chrono::DateTime::parse_from_rfc3339(&in_window_ts)
+            .expect("in_window_ts must be valid RFC-3339")
+            .timestamp_micros();
+        assert_eq!(
+            ts_col.value(0),
+            expected_micros,
+            "HIGH-1 SqlPipe E2E identity: returned row must be the in-window timestamp (i64 µs)"
+        );
+    }
 }

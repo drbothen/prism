@@ -145,9 +145,10 @@ fn make_test_engine() -> QueryEngine {
 /// "ghost_sensor_devices". Includes a "timestamp" `ColumnType::Datetime` column.
 ///
 /// Used by MED-1 tests for dotted external-source path verification: the registered
-/// name is `ghost_sensor_devices` (not `ghost_sensor`). The parse-fail path's
-/// `extract_table_name_from_query_str` must correctly translate `ghost_sensor.devices`
-/// to `ghost_sensor_devices` to resolve the column type.
+/// name is `ghost_sensor_devices` (not `ghost_sensor`). The `check_temporal_literals`
+/// AST-walk uses `extract_primary_table_from_ast` which translates the
+/// `SourceRefKind::External { sensor, table }` form to `"{sensor}_{table}"`
+/// (i.e., `ghost_sensor_devices`) for registry lookup.
 fn make_ghost_sensor_devices_registry() -> Arc<TableRegistry> {
     use prism_core::ColumnType;
     use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec};
@@ -427,15 +428,16 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_column_ordering_not_re
 ///
 /// Registered table: `ghost_sensor_devices` (sensor `ghost_sensor` + table `devices`).
 ///
-/// # Red Gate pre-fix failure (parse-fail path bug)
-/// `extract_table_name_from_query_str` stops at `.` in `FROM ghost_sensor.devices`,
-/// returning `"ghost_sensor"` instead of `"ghost_sensor_devices"`. `column_type_for`
-/// then returns `None` → fail-open → E-QUERY-041 NOT raised → silent wrong result.
+/// # Red Gate pre-fix failure (Option-A AST-walk bug)
+/// `check_temporal_literals` Ast::Pipe arm's `extract_primary_table_from_ast` call
+/// was not correctly handling the `SourceRefKind::External { sensor, table }` form,
+/// returning `None` for table lookup → fail-open → E-QUERY-041 NOT raised → silent
+/// wrong result.
 ///
 /// # Post-fix state
-/// `extract_table_name_from_query_str` recognises the `sensor.table` dotted form and
-/// returns `"ghost_sensor_devices"`, matching `extract_primary_table_from_ast`'s
-/// `SourceRefKind::External` output. The schema lookup succeeds and E-QUERY-041 fires.
+/// `extract_primary_table_from_ast` translates `SourceRefKind::External { sensor, table }`
+/// to `"{sensor}_{table}"` (e.g., `"ghost_sensor_devices"`). The schema lookup succeeds
+/// and `check_temporal_literals` fires E-QUERY-041.
 ///
 /// Traces to: ADR-052 §D4; BC-2.11.021 v1.2 EC-11-021-009; BC-2.11.004 v1.7 EC-11-004-001.
 #[tokio::test]
@@ -454,8 +456,8 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_dotted_external_source_pipe_d
         result.is_err(),
         "MED-1: dotted external-source pipe query with date-only literal '2026-06-24' \
          must return Err(E-QUERY-041). Got Ok result. \
-         Root cause: extract_table_name_from_query_str returns 'ghost_sensor' (stops at '.') \
-         instead of 'ghost_sensor_devices' — fix: handle dotted sensor.table form."
+         Root cause: check_temporal_literals AST-walk must translate SourceRefKind::External \
+         'ghost_sensor.devices' → 'ghost_sensor_devices' for the registry lookup."
     );
 
     let err = result.unwrap_err();
@@ -506,14 +508,14 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_filter_mode_valid_rfc3339_not
 }
 
 /// LOW-2 EC-006: Offset-less datetime string literal MUST raise E-QUERY-041 via the
-/// parse-fail path (old mechanism) or Option-A RawTemporalLiteral AST-walk path.
+/// Option-A `RawTemporalLiteral` AST-walk path.
 ///
 /// Query: `SELECT * FROM test_events WHERE timestamp > '2026-06-24T12:00:00'`
 ///
 /// `'2026-06-24T12:00:00'` starts with 4 digits → `classify_string_literal` attempts
-/// `TimestampLiteral::new` → fails (no UTC offset) → PARSE FAILS with E-QUERY-001.
-/// The parse-fail path extracts the value, finds the column is `ColumnType::Datetime`
-/// in the registry → returns E-QUERY-041.
+/// `TimestampLiteral::new` → fails (no UTC offset) → parser emits `RawTemporalLiteral`.
+/// `check_temporal_literals` walks the AST, finds `RawTemporalLiteral` compared
+/// against the `timestamp` Datetime column → fires E-QUERY-041.
 ///
 /// Traces to: ADR-052 §D4; BC-2.11.021 v1.2 §Invalid forms (EC-006 "offset-less").
 #[tokio::test]
@@ -571,11 +573,12 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_ec006_offset_less_datetime_ra
 /// literal appears as the left operand — but the grammar never does this (quoted strings are
 /// rejected as LHS values at parse time). The case is unreachable under the current grammar.
 ///
-/// # Consequence for the parse-fail path
-/// `extract_column_name_adjacent_to_quoted_value` only scans BACKWARDS (column before
-/// the literal). Since the grammar can't parse `'literal' op field` in PrismQL, there
-/// is no parse-fail path that would have a column AFTER a literal where the parse error
-/// is an E-QUERY-001 temporal error. The asymmetry is harmless but should be documented.
+/// # Consequence for `check_temporal_literals`
+/// The `RawTemporalLiteral`-on-LHS case is structurally unreachable in the AST-walk
+/// path as well: the walk resolves the column from the `Predicate::Compare` lhs/rhs
+/// positions, expecting the field to be on the left. Since the grammar never produces
+/// a `RawTemporalLiteral` on the LHS (it's always the RHS), this case is harmless but
+/// should be documented.
 ///
 /// # What happens if an analyst writes this in SQL to DataFusion?
 /// `SELECT * FROM t WHERE '2026-06-24' < timestamp` — PrismQL parser rejects the
@@ -598,8 +601,8 @@ fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_low1_grammar_rejects_literal_lhs_co
         filter_result.is_err(),
         "LOW-1 grammar probe: '2026-06-24' < timestamp must FAIL PrismQL parse (literal \
          is not a valid FieldPath LHS). If this passes, the grammar now admits literal-LHS \
-         comparisons and the temporal walker's literal-LHS case is no \
-         longer dead code — the parse-fail path asymmetry becomes a real gap."
+         comparisons and the temporal walker's literal-LHS unreachability assumption \
+         becomes a real gap requiring check_temporal_literals coverage."
     );
 
     // Verify the parse error is NOT an E-QUERY-001 temporal error (it's a grammar error).
@@ -701,18 +704,18 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_obs2_string_column_equality_n
 ///
 /// The source is `test_events` (bare identifier, `SourceRefKind::Custom`) preceding the `|`
 /// with NO `FROM` keyword. `'2026-06-24'` is date-like: the PrismQL parser's
-/// `classify_string_literal` produces a temporal parse error (E-QUERY-001). The parse-fail
-/// path in `check_temporal_literals` must resolve `test_events` from the text before `|`
-/// (mirroring `extract_primary_table_from_ast` → `Ast::Filter/Ast::Pipe` → `SourceRefKind::Custom`
-/// → `source.raw`), look up `timestamp` in the TableRegistry, and fire E-QUERY-041.
+/// `classify_string_literal` produces a `RawTemporalLiteral`. The Option-A
+/// `check_temporal_literals` AST-walk resolves `test_events` via
+/// `extract_primary_table_from_ast` → `Ast::Pipe` → `SourceRefKind::Custom` → `source.raw`,
+/// looks up `timestamp` in the `TableRegistry`, finds `ColumnType::Datetime`,
+/// and fires E-QUERY-041.
 ///
-/// Pre-fix (RED GATE): `extract_table_name_from_query_str` finds no `FROM` clause → returns
-/// `None` → `is_bad_literal_in_datetime_column` returns `false` → fail-open →
-/// `check_temporal_literals` returns `Ok(())` → downstream pipeline re-parses → E-QUERY-001
-/// (QueryParseFailed) propagates instead of E-QUERY-041.
+/// Pre-fix (RED GATE): `check_temporal_literals` Ast::Pipe arm did not correctly handle
+/// the `SourceRefKind::Custom` case → table lookup returned `None` → fail-open →
+/// E-QUERY-001 (QueryParseFailed) propagated instead of E-QUERY-041.
 ///
-/// Post-fix (GREEN): `extract_table_name_from_query_str` detects `test_events` before `|`
-/// → `is_bad_literal_in_datetime_column` returns `true` → E-QUERY-041 returned.
+/// Post-fix (GREEN): `extract_primary_table_from_ast` correctly resolves `SourceRefKind::Custom`
+/// → `"test_events"` → `ColumnType::Datetime` → E-QUERY-041 fires.
 ///
 /// Traces to: ADR-052 §D4; F-LOCAL-LOW-1 adversary pass finding.
 #[tokio::test]
@@ -731,8 +734,8 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_f_local_low1_pipe_no_from_dat
         result.is_err(),
         "F-LOCAL-LOW-1: pipe-without-FROM date-only literal '2026-06-24' must return \
          Err(E-QUERY-041). Got Ok. \
-         Root cause: extract_table_name_from_query_str must detect 'test_events' before '|' \
-         when no FROM clause is present."
+         Root cause: check_temporal_literals Ast::Pipe arm must resolve SourceRefKind::Custom \
+         'test_events' via extract_primary_table_from_ast for the registry lookup."
     );
 
     let err = result.unwrap_err();
@@ -795,16 +798,17 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_f_local_low1_pipe_no_from_val
 /// Query: `ghost_sensor.devices | timestamp > '2026-06-24'`
 ///
 /// The source is `ghost_sensor.devices` (dotted External form, `SourceRefKind::External`)
-/// preceding the `|` with NO `FROM` keyword. The parse-fail path must normalise
-/// `ghost_sensor.devices` → `ghost_sensor_devices` (mirroring `SourceRefKind::External`
-/// mapping: `format!("{sensor}_{table}")`) to resolve the registered table name, then look up
-/// `timestamp` → `ColumnType::Datetime` → E-QUERY-041.
+/// preceding the `|` with NO `FROM` keyword. The Option-A `check_temporal_literals`
+/// AST-walk uses `extract_primary_table_from_ast` → `Ast::Pipe` → `SourceRefKind::External`
+/// → `format!("{sensor}_{table}")` → `"ghost_sensor_devices"` to resolve the registered
+/// table name. `timestamp` is `ColumnType::Datetime` → E-QUERY-041 fires.
 ///
-/// Pre-fix (RED GATE): `extract_table_name_from_query_str` finds no `FROM` clause → `None`
-/// → fail-open → E-QUERY-001 propagates.
+/// Pre-fix (RED GATE): `check_temporal_literals` Ast::Pipe arm did not correctly handle
+/// `SourceRefKind::External` dotted-source form → table lookup returned `None` → fail-open
+/// → E-QUERY-001 propagated.
 ///
-/// Post-fix (GREEN): pipe-path extracts `ghost_sensor.devices` before `|` → normalises to
-/// `ghost_sensor_devices` → E-QUERY-041.
+/// Post-fix (GREEN): `extract_primary_table_from_ast` resolves `SourceRefKind::External`
+/// → `"ghost_sensor_devices"` → E-QUERY-041 fires.
 ///
 /// Traces to: ADR-052 §D4; F-LOCAL-LOW-1 adversary pass finding (dotted-source parity).
 #[tokio::test]
@@ -823,8 +827,8 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_f_local_low1_pipe_no_from_dot
         result.is_err(),
         "F-LOCAL-LOW-1(d): pipe-without-FROM dotted-source date-only literal '2026-06-24' \
          must return Err(E-QUERY-041). Got Ok. \
-         Root cause: extract_table_name_from_query_str must normalise 'ghost_sensor.devices' \
-         (before '|') → 'ghost_sensor_devices' and detect ColumnType::Datetime."
+         Root cause: check_temporal_literals AST-walk must resolve SourceRefKind::External \
+         'ghost_sensor.devices' → 'ghost_sensor_devices' and detect ColumnType::Datetime."
     );
 
     let err = result.unwrap_err();
@@ -2093,5 +2097,171 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_unpadded_
     assert!(
         !matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
         "RG-033: unpadded over-match vs String col must be COERCED, NOT E-QUERY-041. Got: {result:?}"
+    );
+}
+
+// ── MED-1: SqlPipe RawTemporalLiteral three-way dispatch coverage ─────────────
+//
+// ADR-052 §D4 Step 3 three-way dispatch (Datetime→E-QUERY-041 / String→COERCE /
+// Integer|Float|Bool→E-QUERY-002) applies equally to SqlPipe head predicates.
+// `check_temporal_literals` Ast::SqlPipe arm walks the head SELECT + WHERE +
+// HAVING + JOIN ON + GROUP BY + ORDER BY positions plus each pipe stage.
+//
+// These tests exercise the SqlPipe code path which was previously zero-coverage.
+// The implementation already handles SqlPipe; these tests are the load-bearing
+// regression guards that prevent future removal of the SqlPipe arm.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// MED-1 SqlPipe Datetime col: date-only literal in SqlPipe head WHERE clause
+/// against a `ColumnType::Datetime` column MUST trigger E-QUERY-041.
+///
+/// Query: `SELECT * FROM test_events WHERE timestamp > '2026-06-24' | limit 10`
+///
+/// The head `WHERE timestamp > '2026-06-24'` contains a `RawTemporalLiteral`
+/// compared against the `timestamp` Datetime column.  `check_temporal_literals`
+/// Ast::SqlPipe arm must walk this position and return `E-QUERY-041`.
+///
+/// Traces to: BC-2.11.021 v1.5 §Postconditions; ADR-052 §D4 v1.6 MED-1.
+#[tokio::test]
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_datetime_col_date_only_raises_e_query_041(
+) {
+    let engine = make_test_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM test_events WHERE timestamp > '2026-06-24' | limit 10",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "MED-1 SqlPipe Datetime: SqlPipe head WHERE with date-only '2026-06-24' against \
+         Datetime col must return Err(E-QUERY-041). Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(
+            &err,
+            PrismError::TemporalLiteralUnparseable { value_prefix }
+            if value_prefix.starts_with("2026-06-24")
+        ),
+        "MED-1 SqlPipe Datetime: error must be PrismError::TemporalLiteralUnparseable with \
+         value_prefix '2026-06-24'. Got: {err:?} (Display: {display}). \
+         If this returns a different error, check_temporal_literals Ast::SqlPipe arm may \
+         not be walking the head WHERE clause."
+    );
+
+    assert!(
+        display.contains("E-QUERY-041"),
+        "MED-1 SqlPipe Datetime: error Display must contain 'E-QUERY-041'. Got: {display}"
+    );
+
+    assert!(
+        !display.contains("Arrow error") && !display.contains("DataFusion"),
+        "MED-1 SqlPipe Datetime: E-QUERY-041 must fire at Prism plan time, NOT as a \
+         DataFusion error. Got: {display}"
+    );
+}
+
+/// MED-1 SqlPipe String col: date-only literal in SqlPipe head WHERE clause
+/// against a `ColumnType::String` column MUST be coerced (COERCE arm) —
+/// NOT rejected with E-QUERY-041.
+///
+/// Query: `SELECT * FROM test_events WHERE hostname = '2026-06-24' | limit 10`
+///
+/// `hostname` is a String column.  `check_temporal_literals` must detect the
+/// `RawTemporalLiteral` + String-column combination and coerce it to
+/// `Literal::String("2026-06-24")`, allowing the query to proceed.
+///
+/// The query may fail at sensor execution (no real sensor), but it MUST NOT
+/// fail with `E-QUERY-041` (that would mean the Datetime arm fired incorrectly
+/// against a String column).
+///
+/// Traces to: BC-2.11.021 v1.5 §Postconditions coerce arm; ADR-052 §D4 v1.6 MED-1.
+#[tokio::test]
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_string_col_date_only_coerce_succeeds() {
+    let engine = make_test_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM test_events WHERE hostname = '2026-06-24' | limit 10",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must NOT be E-QUERY-041 — String column uses COERCE arm.
+    assert!(
+        !matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
+        "MED-1 SqlPipe String col: date-only '2026-06-24' against String col MUST NOT \
+         trigger E-QUERY-041 (coerce arm must fire). Got: {result:?}. \
+         If this returns E-QUERY-041, check_temporal_literals Ast::SqlPipe arm is \
+         incorrectly routing String-col comparisons to the Datetime gate."
+    );
+
+    // Must NOT be a parse error.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "MED-1 SqlPipe String col: date-only string must parse successfully under Option-A. \
+         Got: {result:?}"
+    );
+}
+
+/// MED-1 SqlPipe Integer col: date-only literal in SqlPipe head WHERE clause
+/// against a `ColumnType::Integer` column MUST trigger E-QUERY-002 (QueryTypeMismatch).
+///
+/// Query: `SELECT * FROM metrics_sensor_events WHERE count_col = '2026-06-24' | limit 10`
+///
+/// `count_col` is an Integer column.  `check_temporal_literals` must detect the
+/// `RawTemporalLiteral` + non-Datetime/non-String column combination and return
+/// `E-QUERY-002` (type mismatch), NOT `E-QUERY-041` (temporal gate).
+///
+/// This is the third arm of the three-way dispatch, exercised via SqlPipe.
+///
+/// Traces to: ADR-052 §D4 v1.4 Step 3 third arm; BC-2.11.021 v1.5; ADR-052 §D4 v1.6 MED-1.
+#[tokio::test]
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_integer_col_date_only_raises_e_query_002(
+) {
+    let engine = make_typed_columns_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM metrics_sensor_events WHERE count_col = '2026-06-24' | limit 10",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "MED-1 SqlPipe Integer col: date-only '2026-06-24' against Integer col must return \
+         an error. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // Must NOT be E-QUERY-041 (Datetime arm must not fire for Integer col).
+    assert!(
+        !matches!(&err, PrismError::TemporalLiteralUnparseable { .. }),
+        "MED-1 SqlPipe Integer col: E-QUERY-041 must NOT fire for Integer col — use \
+         E-QUERY-002 (QueryTypeMismatch). Got: {display}"
+    );
+
+    // Must NOT be a parse error.
+    assert!(
+        !matches!(&err, PrismError::QueryParseFailed { .. }),
+        "MED-1 SqlPipe Integer col: must NOT be a parse error under Option-A. Got: {display}"
+    );
+
+    // Must be QueryTypeMismatch (E-QUERY-002).
+    assert!(
+        matches!(&err, PrismError::QueryTypeMismatch { .. }),
+        "MED-1 SqlPipe Integer col: error must be QueryTypeMismatch (E-QUERY-002), not a \
+         different PrismError variant. Got: {display}. \
+         If check_temporal_literals Ast::SqlPipe arm does not handle the third arm (non-Datetime, \
+         non-String) correctly, it may swallow the error or return E-QUERY-041."
     );
 }
