@@ -755,6 +755,9 @@ jobs:
           #   Total: 86 + 1 = 87.
           # S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B added 1 E0639 (prism-core error.rs):
           #   EnrichUdfNotFoundDetails (struct literal, E-QUERY-039 UDF-not-found context).
+          #   Total: 87 + 1 = 88.
+          # S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 added 1 E0004 (prism-core error.rs):
+          #   TemporalLiteralPosition (exhaustive match, E-QUERY-042 temporal-literal-position).
           #   Total: 88 + 1 = 89.
           E0639_COUNT=$(grep -c 'error\[E0639\]' /tmp/non-exhaustive-check.log || true)
           E0004_COUNT=$(grep -c 'error\[E0004\]' /tmp/non-exhaustive-check.log || true)

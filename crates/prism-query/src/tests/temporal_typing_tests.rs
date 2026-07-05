@@ -1240,7 +1240,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_offset_le
 ///
 /// Traces to: ADR-052 §D4 Step 3 third arm; BC-2.11.021 §Postconditions.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query_002() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query_001() {
     let engine = make_typed_columns_engine();
 
     // Red Gate: parse fails (QueryParseFailed) for '2026-06-24'.
@@ -1661,7 +1661,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_unicode_input_no_panic() {
 ///
 /// Traces to: ADR-052 §D4 OBS-2; BC-2.11.021 §Postconditions.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_coerces_to_string() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_e_query_001() {
     let engine = make_test_engine();
 
     let result = engine
@@ -2293,7 +2293,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_integer_col_date_only
 /// Traces to: ADR-052 §D4 v1.10 arm (6); BC-2.11.021 §Error Cases; error-taxonomy.md
 ///            §E-QUERY-042 v2.14; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 F-MED-1.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg035_group_by_position_rejects_e_query_042() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_group_by_date_like_coerces() {
     use prism_core::error::TemporalLiteralPosition;
 
     let engine = make_test_engine();
@@ -2361,7 +2361,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg035_group_by_position_rejec
 /// Traces to: ADR-052 §D4 v1.10 arm (7); BC-2.11.021 §Error Cases; error-taxonomy.md
 ///            §E-QUERY-042 v2.14; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 F-MED-1.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_rg036_order_by_position_rejects_e_query_042() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_order_by_date_like_coerces() {
     use prism_core::error::TemporalLiteralPosition;
 
     let engine = make_test_engine();
@@ -2517,7 +2517,7 @@ fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_low2_dml_set_unknown_col_coerces_to
 /// This is the correct vehicle for a wall-of-defense function that is theoretically
 /// reachable when the grammar is extended (future `CAST(col AS TIMESTAMP)` LHS support).
 #[test]
-fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_042_non_column_lhs_comparison() {
+fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_non_column_lhs_date_like_e_query_042() {
     use crate::ast::{
         Ast, CompareOp, Expr, FromClause, Literal, SelectClause, SelectItem, SourceRef,
         SourceRefKind, SqlQuery, SqlStatement,
@@ -2595,7 +2595,7 @@ fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_042_non_column_lhs_comparis
 /// must return E-QUERY-042 (NonColumnLhsComparison) through a real `engine.execute()` call.
 ///
 /// The F-HIGH-1 fix (ADR-052 §D4 v1.10 arm (4)) adds E-QUERY-042 for non-Field LHS
-/// comparisons. The complementary unit-level test (`test_...e_query_042_non_column_lhs_comparison`
+/// comparisons. The complementary unit-level test (`test_...non_column_lhs_date_like_e_query_042`
 /// in `temporal_typing_tests.rs` and `test_having_non_field_lhs_raw_temporal_fires_e_query_042_non_column_lhs_comparison`
 /// in `materialization.rs`) exercises the `check_temporal_literals` function directly with
 /// a hand-constructed AST. This test closes the gap by exercising the HAVING path
@@ -2716,7 +2716,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_having_agg_date_only_raises_e
 ///            error-taxonomy.md §E-QUERY-042 v2.14 pipe-mode note;
 ///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 pipe-parse enhancement.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_pipe_stats_by_literal_clear_error() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_pipe_stats_by_date_like_e_query_001() {
     let engine = make_test_engine();
 
     let result = engine
@@ -2759,7 +2759,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_pipe_stats_by_literal_clear_e
 /// Traces to: ADR-052 §D4 v1.10 option (a); BC-2.11.004 v1.12 §Error Cases;
 ///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 pipe-parse enhancement.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_pipe_sort_literal_clear_error() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_pipe_sort_date_like_e_query_001() {
     let engine = make_test_engine();
 
     let result = engine
