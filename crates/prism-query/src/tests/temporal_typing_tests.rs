@@ -1240,7 +1240,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_offset_le
 ///
 /// Traces to: ADR-052 §D4 Step 3 third arm; BC-2.11.021 §Postconditions.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query_001() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query_002() {
     let engine = make_typed_columns_engine();
 
     // Red Gate: parse fails (QueryParseFailed) for '2026-06-24'.
@@ -1661,7 +1661,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_unicode_input_no_panic() {
 ///
 /// Traces to: ADR-052 §D4 OBS-2; BC-2.11.021 §Postconditions.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_e_query_001() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_coerces_to_string() {
     let engine = make_test_engine();
 
     let result = engine
@@ -2282,18 +2282,15 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_sqlpipe_integer_col_date_only
 /// an analyst mistake. ADR-052 §D4 v1.10 tightens OBS-2: GROUP BY and ORDER BY positions
 /// now REJECT rather than coerce (SELECT projection continues to coerce — see RG-023).
 ///
-/// # Pre-implementation state (Red Gate — GROUP BY rejects)
-/// `check_expr_temporal_pos(..., TemporalCheckPos::GroupBy)` is NOT YET wired.
-/// The current code coerces (OBS-2 behavior); the test FAILS because it asserts Err. ✓
-///
-/// # Post-implementation state
+/// # Implementation state (GREEN)
+/// GROUP BY date-like literal → REJECT E-QUERY-042 (GroupBy); test asserts Err and PASSES.
 /// `check_expr_temporal_pos(..., GroupBy)` returns
 /// `Err(PrismError::TemporalLiteralInvalidPosition { position: GroupBy, value_prefix: "2026-06-24" })`.
 ///
 /// Traces to: ADR-052 §D4 v1.10 arm (6); BC-2.11.021 §Error Cases; error-taxonomy.md
 ///            §E-QUERY-042 v2.14; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 F-MED-1.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_group_by_date_like_coerces() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_group_by_date_like_rejects_e_query_042() {
     use prism_core::error::TemporalLiteralPosition;
 
     let engine = make_test_engine();
@@ -2350,18 +2347,15 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_group_by_date_like
 /// is a degenerate no-op (sort order on a constant is undefined) and is almost always an
 /// analyst mistake. ADR-052 §D4 v1.10 tightens OBS-2 for ORDER BY positions.
 ///
-/// # Pre-implementation state (Red Gate — ORDER BY rejects)
-/// `check_expr_temporal_pos(..., TemporalCheckPos::OrderBy)` is NOT YET wired.
-/// The current code coerces; the test FAILS because it asserts Err. ✓
-///
-/// # Post-implementation state
+/// # Implementation state (GREEN)
+/// ORDER BY date-like literal → REJECT E-QUERY-042 (OrderBy); test asserts Err and PASSES.
 /// `check_expr_temporal_pos(..., OrderBy)` returns
 /// `Err(PrismError::TemporalLiteralInvalidPosition { position: OrderBy, value_prefix: "2026-06-24" })`.
 ///
 /// Traces to: ADR-052 §D4 v1.10 arm (7); BC-2.11.021 §Error Cases; error-taxonomy.md
 ///            §E-QUERY-042 v2.14; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 F-MED-1.
 #[tokio::test]
-async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_order_by_date_like_coerces() {
+async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_order_by_date_like_rejects_e_query_042() {
     use prism_core::error::TemporalLiteralPosition;
 
     let engine = make_test_engine();
