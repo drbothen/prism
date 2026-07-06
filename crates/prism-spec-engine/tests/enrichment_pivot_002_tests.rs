@@ -3360,3 +3360,99 @@ fn test_crowdstrike_sensor_toml_has_behaviors_ioc_value_first_column() {
          source_path = \"$.behaviors[0].ioc_value\". Got: \"{source_path}\"."
     );
 }
+
+// ---------------------------------------------------------------------------
+// AC-011 e2e: column population via extract_at_path  (HIGH-001 fix)
+// ---------------------------------------------------------------------------
+
+/// AC-011 e2e: cyberint_alerts `iocs_value_first` column populates via `$.iocs[0].value`.
+///
+/// The spec-driven adapter uses `source_path = "$.iocs[0].value"` to populate the
+/// `iocs_value_first` column in the `cyberint_alerts` table (cyberint.sensor.toml).
+/// This test verifies `extract_at_path` — the exact function called by the adapter —
+/// correctly extracts the value from a scenario-mode alert record with a nested `iocs` array.
+///
+/// HIGH-001 fix (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 LOCAL pass-1): RGT-015 was testing IOC
+/// surface records (wrong surface for AC-011) for a top-level key — it passes even if the
+/// spec-driven adapter's `$.iocs[0].value` extraction broke. This test is load-bearing:
+/// fails if `extract_at_path` breaks for this path OR if the sensor TOML changes the path
+/// without a corresponding test update.
+#[test]
+fn test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath() {
+    use prism_spec_engine::extract_at_path;
+
+    let ioc_hash = "aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
+
+    // Scenario-mode alert record: mirrors what generate_with_scenario_iocs stamps on
+    // CompromisedEndpoint alert records (iocs[0] = {type: "hash_sha256", value: hash}).
+    let alert_record = serde_json::json!({
+        "_surface": "alert",
+        "alert_id": "alert-test-001",
+        "iocs": [
+            {"type": "hash_sha256", "value": ioc_hash}
+        ]
+    });
+
+    // spec-driven adapter uses source_path = "$.iocs[0].value" for iocs_value_first column
+    // (cyberint.sensor.toml alerts table). Verify extract_at_path succeeds and returns hash.
+    let result = extract_at_path(&alert_record, "$.iocs[0].value");
+    assert!(
+        result.is_ok(),
+        "AC-011 HIGH-001: extract_at_path(alert_record, \"$.iocs[0].value\") must return Ok. \
+         Got: {result:?}. Alert record must carry iocs[0].value for iocs_value_first column."
+    );
+    assert_eq!(
+        result.unwrap().as_str().unwrap_or(""),
+        ioc_hash,
+        "AC-011: iocs_value_first column value must equal iocs[0].value from the alert record."
+    );
+}
+
+/// AC-011 e2e: crowdstrike_detections `behaviors_ioc_value_first` column populates
+/// via `$.behaviors[0].ioc_value`.
+///
+/// The spec-driven adapter uses `source_path = "$.behaviors[0].ioc_value"` to populate
+/// `behaviors_ioc_value_first` in the `crowdstrike_detections` table.
+/// This test verifies the exact adapter extraction path is load-bearing.
+///
+/// HIGH-001 fix: RGT-016 tested a top-level key on detection records — it passed even if
+/// the spec-driven adapter's `$.behaviors[0].ioc_value` extraction broke. This test fails
+/// if `extract_at_path` breaks for this path.
+#[test]
+fn test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath() {
+    use prism_spec_engine::extract_at_path;
+
+    let ioc_hash = "aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
+
+    // Scenario-mode detection record: mirrors what make_detection_with_ioc emits with
+    // behaviors[0].ioc_value set to the catalog hash (crowdstrike generator).
+    let detection_record = serde_json::json!({
+        "_record_type": "detection",
+        "detection_id": "det-test-001",
+        "behaviors": [
+            {
+                "tactic": "Execution",
+                "technique": "User Execution",
+                "technique_id": "T1204",
+                "ioc_type": "hash_sha256",
+                "ioc_value": ioc_hash,
+                "ioc_source": "catalog"
+            }
+        ],
+        "behaviors_ioc_value_first": ioc_hash
+    });
+
+    // spec-driven adapter uses source_path = "$.behaviors[0].ioc_value" for
+    // behaviors_ioc_value_first column (crowdstrike.sensor.toml detections table).
+    let result = extract_at_path(&detection_record, "$.behaviors[0].ioc_value");
+    assert!(
+        result.is_ok(),
+        "AC-011 HIGH-001: extract_at_path(detection_record, \"$.behaviors[0].ioc_value\") \
+         must return Ok. Got: {result:?}."
+    );
+    assert_eq!(
+        result.unwrap().as_str().unwrap_or(""),
+        ioc_hash,
+        "AC-011: behaviors_ioc_value_first column value must equal behaviors[0].ioc_value."
+    );
+}

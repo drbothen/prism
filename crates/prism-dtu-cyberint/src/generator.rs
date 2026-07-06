@@ -539,9 +539,16 @@ fn generate_iocs(
             _ => format!("ioc-value-{}", i),
         };
 
-        // `iocs_value_first` is the scalar companion to the JSON-list wildcard column
-        // `iocs_value` (source_path = "$.iocs[*].value").  Each IOC record holds a
-        // single value, so `iocs_value_first` == `value`.  ADR-051 D4 Scalar-Input rule.
+        // `iocs_value_first` top-level field is for the IOC surface records served by the
+        // DTU endpoint directly. Each IOC record holds a single IOC value, so the
+        // "first" is the value itself.
+        //
+        // NOTE: The `cyberint_alerts` table column `iocs_value_first` is populated by the
+        // spec-driven adapter using `source_path = "$.iocs[0].value"` against ALERT records
+        // (which carry an `iocs` array). This top-level field on IOC surface records is NOT
+        // consumed by the spec-driven adapter for the alerts table — it is present for
+        // direct IOC endpoint consumers and potential future `cyberint_iocs` table spec.
+        // (HIGH-001 justification, S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 LOCAL pass-1.)
         let record = json!({
             "alert_id": ioc_id,
             "id": ioc_id,
