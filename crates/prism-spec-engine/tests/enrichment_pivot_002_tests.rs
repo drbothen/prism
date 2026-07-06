@@ -33,12 +33,15 @@
 use std::sync::Arc;
 
 use prism_core::InfusionError;
+// LOW-002 fix: structural TOML assertions for RGT-012/013/014.
 use prism_spec_engine::infusion::sources::HttpLookupSource;
 use prism_spec_engine::{
     HttpLookupAuthType, HttpLookupConfig, HttpLookupCredentialConfig, InfusionLoader,
     InfusionRegistry, InfusionSource, InfusionType, PluginConfigMap, PluginInfusionSource,
     PluginRuntime,
 };
+#[allow(unused_imports)]
+use toml;
 
 // ---------------------------------------------------------------------------
 // Test 1: AC-001 — threatintel.infusion.toml parses and loads as plugin-type
@@ -3156,37 +3159,69 @@ fn test_unknown_output_type_rejected_e_infuse_013_sub_condition_7() {
 
 /// RGT-012 (ADR-051 D3 + D4): the threatintel infusion TOML must declare `source_column`
 /// on all plugin-type fields AND use `iocs_value_first` (scalar companion column) as the
-/// input_field for typed enrichment fields.
+/// input_field for typed enrichment fields (non-json output_type).
 ///
-/// ADR-051 D3: plugin-type fields require `source_column`.
-/// ADR-051 D4 Scalar-Input rule: typed enrichment (integer/float/boolean/datetime) fields
-/// must source from the scalar companion column `iocs_value_first` (not the JSON-list
-/// `iocs_value`), to avoid the NULL E-INFUSE-014 list-input sentinel.
-///
-/// RED GATE: `specs/infusions/threatintel.infusion.toml` currently:
-///   - has no `source_column` on any field → `contains("source_column")` fails → RED.
-///   - uses `input_field = "iocs_value"` not `iocs_value_first` → `contains("iocs_value_first")` fails → RED.
+/// LOW-002 fix (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 pass-1): replaced weak substring
+/// `content.contains(...)` with structural TOML parse + field-level assertions so the
+/// test fails if source_column or input_field = "iocs_value_first" is only in a comment.
 #[test]
 fn test_threatintel_toml_has_source_column_and_iocs_value_first_input_field() {
     let content = include_str!("../../../specs/infusions/threatintel.infusion.toml");
+    let doc: toml::Value = content
+        .parse()
+        .expect("RGT-012: threatintel.infusion.toml must be valid TOML");
 
-    // ADR-051 D3: plugin-type fields require source_column.
-    // RED GATE: no source_column in current threatintel.infusion.toml.
+    let fields = doc
+        .get("infusion")
+        .and_then(|i| i.get("fields"))
+        .and_then(|f| f.as_array())
+        .expect("RGT-012: infusion.fields array must exist in threatintel.infusion.toml");
+
     assert!(
-        content.contains("source_column"),
-        "ADR-051 D3 RGT-012: threatintel.infusion.toml must declare 'source_column' on \
-         plugin-type fields. Currently absent — implementer must add source_column entries."
+        !fields.is_empty(),
+        "RGT-012: infusion.fields must have at least one entry"
     );
 
-    // ADR-051 D4 Scalar-Input rule: typed fields must use iocs_value_first, not the
-    // JSON-list iocs_value column.
-    // RED GATE: current file uses `input_field = "iocs_value"` only.
-    assert!(
-        content.contains("iocs_value_first"),
-        "ADR-051 D4 RGT-012: threatintel.infusion.toml must use 'iocs_value_first' (scalar \
-         companion) as input_field for typed enrichment fields (integer/float/boolean). \
-         Currently uses 'iocs_value' (JSON-list), which violates the Scalar-Input rule."
-    );
+    for field in fields {
+        let field_name = field
+            .get("name")
+            .and_then(|n| n.as_str())
+            .unwrap_or("<unnamed>");
+        let output_type = field
+            .get("output_type")
+            .and_then(|t| t.as_str())
+            .unwrap_or("");
+
+        // ADR-051 D3: ALL plugin-type fields (every field in a plugin-source infusion) must
+        // declare source_column. Structural assertion: key must be present with a non-empty
+        // string value, not just appear somewhere in file text.
+        let source_col = field
+            .get("source_column")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        assert!(
+            !source_col.is_empty(),
+            "ADR-051 D3 RGT-012: infusion field '{field_name}' in threatintel.infusion.toml \
+             must declare a non-empty source_column. \
+             Absent or empty — spec-driven adapter needs this to project the correct \
+             scalar from the plugin response object."
+        );
+
+        // ADR-051 D4 Scalar-Input rule: typed fields (non-json) must use iocs_value_first.
+        // json-typed fields retain iocs_value (ENRICH-1 list-dispatch path is intentional).
+        if output_type != "json" {
+            let input_field = field
+                .get("input_field")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            assert_eq!(
+                input_field, "iocs_value_first",
+                "ADR-051 D4 RGT-012: typed (non-json) infusion field '{field_name}' \
+                 (output_type='{output_type}') must use input_field = \"iocs_value_first\" \
+                 (scalar companion). Got: \"{input_field}\"."
+            );
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -3194,27 +3229,66 @@ fn test_threatintel_toml_has_source_column_and_iocs_value_first_input_field() {
 // ---------------------------------------------------------------------------
 
 /// RGT-013 (ADR-051 D4 Scalar-Input rule): the cyberint sensor TOML must declare an
-/// `iocs_value_first` column — the scalar companion to the JSON-list `iocs_value`
-/// (source_path = "$.iocs[*].value").
+/// `iocs_value_first` column in the `alerts` table with `column_type = "string"` and
+/// `source_path = "$.iocs[0].value"`.
 ///
-/// `iocs_value_first` uses a scalar JSONPath (e.g., `$.iocs[0].value`) to extract the
-/// first IOC value as a plain string. Typed enrichment UDFs receive this scalar string
-/// rather than a `[...]` JSON-list, avoiding the NULL E-INFUSE-014 sentinel.
-///
-/// RED GATE: `crates/prism-sensors/specs/cyberint.sensor.toml` currently has `iocs_value`
-/// but not `iocs_value_first` → `contains("iocs_value_first")` fails → RED.
+/// LOW-002 fix (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 pass-1): replaced weak substring
+/// check with structural TOML parse asserting the specific column fields carry the
+/// required values (not just appearing somewhere in comment text).
 #[test]
 fn test_cyberint_sensor_toml_has_iocs_value_first_column() {
     let content = include_str!("../../prism-sensors/specs/cyberint.sensor.toml");
+    let doc: toml::Value = content
+        .parse()
+        .expect("RGT-013: cyberint.sensor.toml must be valid TOML");
 
-    // RED GATE: cyberint.sensor.toml has iocs_value ($.iocs[*].value wildcard)
-    // but no scalar companion iocs_value_first.
-    assert!(
-        content.contains("iocs_value_first"),
+    let tables = doc
+        .get("tables")
+        .and_then(|t| t.as_array())
+        .expect("RGT-013: tables array must exist in cyberint.sensor.toml");
+
+    // Find the iocs_value_first column across all tables.
+    let mut found: Option<&toml::Value> = None;
+    for table in tables {
+        if let Some(cols) = table.get("columns").and_then(|c| c.as_array()) {
+            for col in cols {
+                if col.get("name").and_then(|n| n.as_str()).unwrap_or("") == "iocs_value_first" {
+                    found = Some(col);
+                    break;
+                }
+            }
+        }
+        if found.is_some() {
+            break;
+        }
+    }
+
+    let col = found.expect(
         "ADR-051 D4 RGT-013: cyberint.sensor.toml must declare an 'iocs_value_first' column \
-         (scalar companion to the JSON-list 'iocs_value'). Currently absent — implementer \
-         must add the scalar companion column with a non-wildcard JSONPath (e.g., \
-         source_path = \"$.iocs[0].value\")."
+         (scalar companion to 'iocs_value'). Not found in any [[tables.columns]] entry. \
+         Implementer must add: name = \"iocs_value_first\", column_type = \"string\", \
+         source_path = \"$.iocs[0].value\".",
+    );
+
+    let col_type = col
+        .get("column_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(
+        col_type, "string",
+        "ADR-051 D4 RGT-013: 'iocs_value_first' column must have column_type = \"string\". \
+         Got: \"{col_type}\"."
+    );
+
+    let source_path = col
+        .get("source_path")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(
+        source_path, "$.iocs[0].value",
+        "ADR-051 D4 RGT-013: 'iocs_value_first' column must have \
+         source_path = \"$.iocs[0].value\" (non-wildcard scalar JSONPath). \
+         Got: \"{source_path}\"."
     );
 }
 
@@ -3223,25 +3297,66 @@ fn test_cyberint_sensor_toml_has_iocs_value_first_column() {
 // ---------------------------------------------------------------------------
 
 /// RGT-014 (ADR-051 D4 Scalar-Input rule): the crowdstrike sensor TOML must declare a
-/// `behaviors_ioc_value_first` column — the scalar companion to the JSON-list
-/// `behaviors_ioc_value` (source_path = "$.behaviors[*].ioc_value").
+/// `behaviors_ioc_value_first` column with `column_type = "string"` and
+/// `source_path = "$.behaviors[0].ioc_value"`.
 ///
-/// `behaviors_ioc_value_first` extracts the first behavior's IOC value as a plain string
-/// (e.g., source_path = "$.behaviors[0].ioc_value"). Typed enrichment UDFs receive this
-/// scalar string rather than a `[...]` JSON-list.
-///
-/// RED GATE: `crates/prism-sensors/specs/crowdstrike.sensor.toml` currently has
-/// `behaviors_ioc_value` but not `behaviors_ioc_value_first` → assertion fails → RED.
+/// LOW-002 fix (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 pass-1): replaced weak substring
+/// check with structural TOML parse asserting the specific column fields carry the
+/// required values (not just appearing somewhere in comment text).
 #[test]
 fn test_crowdstrike_sensor_toml_has_behaviors_ioc_value_first_column() {
     let content = include_str!("../../prism-sensors/specs/crowdstrike.sensor.toml");
+    let doc: toml::Value = content
+        .parse()
+        .expect("RGT-014: crowdstrike.sensor.toml must be valid TOML");
 
-    // RED GATE: crowdstrike.sensor.toml has behaviors_ioc_value ($.behaviors[*].ioc_value)
-    // but no scalar companion behaviors_ioc_value_first.
-    assert!(
-        content.contains("behaviors_ioc_value_first"),
-        "ADR-051 D4 RGT-014: crowdstrike.sensor.toml must declare a 'behaviors_ioc_value_first' \
-         column (scalar companion to 'behaviors_ioc_value'). Currently absent — implementer \
-         must add the scalar companion column with source_path = \"$.behaviors[0].ioc_value\"."
+    let tables = doc
+        .get("tables")
+        .and_then(|t| t.as_array())
+        .expect("RGT-014: tables array must exist in crowdstrike.sensor.toml");
+
+    let mut found: Option<&toml::Value> = None;
+    for table in tables {
+        if let Some(cols) = table.get("columns").and_then(|c| c.as_array()) {
+            for col in cols {
+                if col.get("name").and_then(|n| n.as_str()).unwrap_or("")
+                    == "behaviors_ioc_value_first"
+                {
+                    found = Some(col);
+                    break;
+                }
+            }
+        }
+        if found.is_some() {
+            break;
+        }
+    }
+
+    let col = found.expect(
+        "ADR-051 D4 RGT-014: crowdstrike.sensor.toml must declare a \
+         'behaviors_ioc_value_first' column (scalar companion to 'behaviors_ioc_value'). \
+         Not found in any [[tables.columns]] entry. Implementer must add: \
+         name = \"behaviors_ioc_value_first\", column_type = \"string\", \
+         source_path = \"$.behaviors[0].ioc_value\".",
+    );
+
+    let col_type = col
+        .get("column_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(
+        col_type, "string",
+        "ADR-051 D4 RGT-014: 'behaviors_ioc_value_first' column must have \
+         column_type = \"string\". Got: \"{col_type}\"."
+    );
+
+    let source_path = col
+        .get("source_path")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(
+        source_path, "$.behaviors[0].ioc_value",
+        "ADR-051 D4 RGT-014: 'behaviors_ioc_value_first' column must have \
+         source_path = \"$.behaviors[0].ioc_value\". Got: \"{source_path}\"."
     );
 }
