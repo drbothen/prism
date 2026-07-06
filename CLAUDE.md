@@ -250,6 +250,8 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 
 - **HTTP client timeout.** Production `reqwest::Client` instances must use `.timeout(Duration::from_secs(30))`. The historical PipelineExecutor gap (TD-S-PLUGIN-PREREQ-B-005) was closed by PR #149 (plugin clients via `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS`, boot.rs) and PR #166 (`build_http_client_with_timeout()` on the spec-driven adapter path); verified closed 2026-06-10. The rule remains binding for all new clients.
 
+- **`reqwest` TLS backend — rustls-tls mandatory (ADR-050).** Every `reqwest` dependency entry in the workspace — `[dependencies]`, `[dev-dependencies]`, and optional/feature-gated entries — must declare `default-features = false, features = ["rustls-tls"]`. Omitting `default-features = false` silently enables `native-tls`, which causes ~65s macOS Keychain init overhead and opens a corporate MITM proxy interception path for outbound sensor API credentials. The `native-tls` feature and its aliases (`default-tls`, `native-tls-alpn`, `native-tls-vendored`) are forbidden workspace-wide. New workspace crates must declare `rustls-tls` at first write — there is no acceptable "fix in a follow-up" (ADR-050 D3).
+
 ### Forbidden patterns
 
 | Pattern | Reason |
@@ -259,6 +261,7 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 | `OrgSlug::new_unchecked` in any production code path, or a new call site without a `new_unchecked_audit.rs` allowlist entry | Credential safety (AD-017); enforced by the symbol-keyed audit test, not a feature gate |
 | `Arc::new(SomeThing::placeholder())` style stub construction in production boot path | ADR-022 wiring contract; placeholder-construct is Standing Rule 3 §4 violation |
 | `reqwest::Client::new()` without `.timeout()` in production code | Must set 30s timeout (TD-S-PLUGIN-PREREQ-B-005 precedent, closed 2026-06-10) |
+| `reqwest` dep without `default-features = false` or with `native-tls` / `default-tls` / `native-tls-alpn` / `native-tls-vendored` feature | ADR-050 D1/D2: native-tls causes ~65s macOS Keychain init in tests and allows MITM proxy interception of sensor API credentials; use `rustls-tls` |
 | `unwrap()` / `expect()` on `Result` in non-test code paths | Error taxonomy rule; use `?` + structured `SpecEngineError` / `PrismError` variants |
 | `tracing::*!(event_type=…)` without BC-2.16.002 catalog row | PG-LP11-001; structured event catalog must be kept in sync |
 
