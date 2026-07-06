@@ -1468,8 +1468,7 @@ fn test_ac_10_vp_049_dedup_source_calls_equal_unique_value_count() {
 // Tests 1, 2, 4, 5 from the story's Red Gate table.
 // Test 3 lives in prism-query/tests/bc_2_19_001_plugin_udf_registration_test.rs.
 //
-// RED GATE: all tests below FAIL before implementation (todo!()/unimplemented!()).
-// GREEN: tests pass after S-DEMO-ENRICHMENT-PIVOT-001 TDD implementation.
+// GREEN: all tests pass after S-DEMO-ENRICHMENT-PIVOT-001 TDD implementation.
 
 use prism_spec_engine::{InfusionLoader, PluginInfusionSource, PluginRuntime};
 
@@ -1501,12 +1500,14 @@ name = "threat_score"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "float"
+source_column = "threat_score"
 
 [[infusion.fields]]
 name = "is_known_bad"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "boolean"
+source_column = "threat_is_known_malicious"
 "#;
 
     // FAILS RED: InfusionLoader::parse is unimplemented!()
@@ -1631,12 +1632,14 @@ name = "threat_score"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "float"
+source_column = "threat_score"
 
 [[infusion.fields]]
 name = "is_known_bad"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "boolean"
+source_column = "threat_is_known_malicious"
 "#;
 
     let spec_path = infusions_dir.join("threat_intel.infusion.toml");
@@ -1980,6 +1983,7 @@ name = "threat_score"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "float"
+source_column = "threat_score"
 
 [[infusion.credentials]]
 field_name = "api_key"
@@ -2032,6 +2036,7 @@ name = "threat_score"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "float"
+source_column = "threat_score"
 
 [[infusion.credentials]]
 field_name = "api_key"
@@ -2086,12 +2091,14 @@ name = "threat_score"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "float"
+source_column = "threat_score"
 
 [[infusion.fields]]
 name = "is_known_bad"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "boolean"
+source_column = "threat_is_known_malicious"
 
 [infusion.pipe_stage]
 adds_columns = ["threat_score", "is_known_bad"]
@@ -2136,6 +2143,7 @@ name = "threat_score"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "float"
+source_column = "threat_score"
 
 [infusion.pipe_stage]
 adds_columns = ["threat_score", "nonexistent_field"]

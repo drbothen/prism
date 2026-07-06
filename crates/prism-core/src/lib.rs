@@ -107,8 +107,8 @@ pub use decorator_context::DecoratorContext;
 // S-3.0.02
 pub use dtu::{DtuMode, DtuRegistryEntry, DTU_DEFAULT_MODE};
 pub use error::{
-    InfusionError, PluginError, PrismError, SpecError, SpecErrorCode, TableNotAvailableDetails,
-    TemporalLiteralPosition, UnknownSourceTableDetails,
+    sanitize_for_log, InfusionError, PluginError, PrismError, SpecError, SpecErrorCode,
+    TableNotAvailableDetails, TemporalLiteralPosition, UnknownSourceTableDetails,
 };
 pub use ids::{AlertId, CaseId, OrgId, RuleId, ScheduleId};
 pub use internal_table_descriptor::InternalTableDescriptor;

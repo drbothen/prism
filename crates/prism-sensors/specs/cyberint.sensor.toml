@@ -156,6 +156,18 @@ ocsf_class = "detection_finding"
   column_type = "string"
   source_path = "$.iocs[*].value"
 
+  # ADR-051 D4 Scalar-Input rule (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001):
+  # Scalar companion to `iocs_value`. Extracts the FIRST IOC value as a plain string
+  # rather than a JSON-list. Typed enrichment UDFs (integer/float/boolean/datetime output)
+  # receive this scalar so coerce_to_typed() gets a plain string, not a "[...]" list.
+  # Paired with `threatintel.infusion.toml` fields `threat_score` and `threat_is_known_malicious`
+  # which declare `input_field = "iocs_value_first"`.
+  [[tables.columns]]
+  name = "iocs_value_first"
+  column_type = "string"
+  source_path = "$.iocs[0].value"
+  description = "Scalar companion to iocs_value: the first IOC value as a plain string (ADR-051 D4)"
+
   # Network IOC surface — alert_data.ip, alert_data.domain, alert_data.url.
   # `url` CONFIRMED via FortiSOAR connector; `ip`/`domain` UNCONFIRMED-plausible.
   # DTU: Alert.alert_data.ip / .domain / .url (Option<String> each).

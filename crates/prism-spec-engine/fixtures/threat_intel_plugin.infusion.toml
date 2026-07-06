@@ -1,6 +1,11 @@
 # Threat intelligence plugin infusion spec — test fixture for S-1.14.
 # Used by tests/infusion_tests.rs (AC-4, BC-2.19.003).
 # type = "plugin" — rejected in detection rule filters (E-RULE-012).
+#
+# POSITIVE fixture — models a VALID plugin-type infusion spec.
+# source_column added on all fields per ADR-051 D3 sub-condition 8
+# (E-INFUSE-013: plugin-type fields MUST declare source_column).
+# Fix-burst-8 ADV-P10-LOW-001 (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001).
 
 [infusion]
 infusion_id = "threat_intel"
@@ -15,6 +20,7 @@ name = "threat_score"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "float"
+source_column = "threat_score"
 description = "Threat intelligence score for the IP (0.0 - 1.0)"
 
 [[infusion.fields]]
@@ -22,6 +28,7 @@ name = "is_known_bad"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "boolean"
+source_column = "is_known_bad"
 description = "True if the IP is in the threat intelligence blocklist"
 
 [infusion.pipe_stage]

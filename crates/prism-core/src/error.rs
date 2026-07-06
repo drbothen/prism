@@ -1853,6 +1853,95 @@ pub enum InfusionError {
         /// The configured limit (default `MAX_SOURCE_FILE_BYTES = 104_857_600`).
         limit: u64,
     },
+
+    /// E-INFUSE-014: Runtime coercion failure for a typed enrichment UDF output field.
+    ///
+    /// Emitted as `tracing::warn!` (not a query error) when a projected value cannot be
+    /// coerced to the declared `output_type`. The output row contains NULL.
+    ///
+    /// Defined in ADR-051 D2 and BC-2.19.001 v2.2 §E-INFUSE-014.
+    /// A corresponding BC-2.16.002 Canonical Structured Event Catalog row for
+    /// `event_type = "infusion.coercion_failed"` MUST be added in the same commit as
+    /// the `tracing::warn!` emission in `infusion_udf.rs` (SAP-1 obligation; AC-012).
+    ///
+    /// `truncated_value`: first 50 chars of the projected string value (AD-017 guard —
+    /// enrichment response values are external data, not credentials, but truncated as
+    /// a defense-in-depth precaution).
+    ///
+    /// Variant is `#[non_exhaustive]` per CLAUDE.md §Conventions pub-API discipline.
+    /// Adding new fields (e.g., `row_index: usize`) in a follow-up story will not break
+    /// existing match arms in external crates.
+    ///
+    /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (AC-005).
+    #[non_exhaustive]
+    #[error(
+        "E-INFUSE-014: enrichment field '{field_name}' (infusion '{infusion_id}'): \
+         declared output_type is '{declared_type}', but projected value \
+         '{truncated_value}' (first 50 chars) cannot be coerced; row produces NULL"
+    )]
+    TypeCoercionFailed {
+        /// The UDF / infusion field name (e.g., `"threat_score"`).
+        field_name: String,
+        /// The `infusion_id` from the `InfusionSpec` (e.g., `"threat_intel"`).
+        infusion_id: String,
+        /// The declared `output_type` value (e.g., `"integer"`, `"float"`, `"boolean"`, `"datetime"`).
+        declared_type: String,
+        /// First 50 characters of the projected string value (AD-017: truncated to prevent
+        /// accidental exposure of long external data in structured log lines).
+        truncated_value: String,
+    },
+}
+
+impl InfusionError {
+    /// Construct an `E-INFUSE-014: TypeCoercionFailed` error from outside `prism-core`.
+    ///
+    /// Required because `TypeCoercionFailed` is `#[non_exhaustive]`, which prevents struct
+    /// literal construction from outside the defining crate.  Callers in `prism-query`
+    /// (infusion_udf.rs `coerce_to_typed`) use this to emit the canonical E-INFUSE-014
+    /// Display format via `tracing::warn!("{}", err)`.
+    ///
+    /// `value` is truncated to 50 codepoints per AD-017 (CWE-532 guard — enrichment response
+    /// values are external data; truncated as defense-in-depth, consistent with the analogous
+    /// truncation in `parse_datetime_to_micros`).
+    ///
+    /// SEC-001 (CWE-117, error-taxonomy v2.17): `field_name`, `infusion_id`, and `declared_type`
+    /// are stripped of ASCII control characters (0x00–0x1F, 0x7F) before storage to prevent
+    /// log injection and LLM prompt injection when rendered via `tracing::warn!("{}", err)`.
+    /// `truncated_value` is stripped AFTER the 50-char truncation (truncation removes excess
+    /// content first; stripping removes any control chars that survived the 50-char window).
+    ///
+    /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 LOCAL adversary pass-1 MED-001 fix.
+    pub fn new_type_coercion_failed(
+        field_name: impl Into<String>,
+        infusion_id: impl Into<String>,
+        declared_type: impl Into<String>,
+        value: &str,
+    ) -> Self {
+        // SEC-001 (CWE-117): strip control chars from all metadata fields and from
+        // truncated_value (AFTER the 50-char truncation — order matters per spec).
+        let truncated: String = value.chars().take(50).collect();
+        Self::TypeCoercionFailed {
+            field_name: sanitize_for_log(&field_name.into()),
+            infusion_id: sanitize_for_log(&infusion_id.into()),
+            declared_type: sanitize_for_log(&declared_type.into()),
+            truncated_value: sanitize_for_log(&truncated),
+        }
+    }
+}
+
+/// Strip ASCII control characters (0x00–0x1F, 0x7F) from `s` before embedding in log or error
+/// messages.
+///
+/// **Contract A — canonical log/error-message sanitizer (CWE-117):**
+/// Removes chars where `c.is_ascii_control()` is true; no length cap; no replacement character.
+/// Use this function for log and error message value sanitization across all crates.
+/// Distinct from `prism_spec_engine::overlay::sanitize_for_display` which uses U+FFFD replacement
+/// and a 256-char cap for display-facing overlay error strings.
+///
+/// Prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured logs
+/// (AD-017 extension, error-taxonomy v2.17 SEC-001 Rendering Note).
+pub fn sanitize_for_log(s: &str) -> String {
+    s.chars().filter(|c| !c.is_ascii_control()).collect()
 }
 
 // ---------------------------------------------------------------------------

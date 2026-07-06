@@ -25,6 +25,8 @@
 //! SS-19 — Infusion Enrichment Framework (Layer 2: Business Logic)
 
 pub mod column_mapping;
+// S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 — shared RFC-3339→µs helper (ADR-052 D2/D5)
+pub mod datetime;
 // S-SPEC-ENV-VAR-001 — Post-TOML-parse env var token resolver (BC-2.16.009 §Validation Rules 6)
 pub mod env_resolver;
 // SS-19 — Infusion Enrichment Framework (S-1.14)
@@ -81,6 +83,7 @@ pub use auth_provider::{CredentialResolver, PrismCredentialResolver, StaticCooki
 pub use column_mapping::{ColumnMapping, MappingResult};
 // S-1.12 hot-reload re-exports
 pub use config_manager::ConfigManager;
+pub use datetime::parse_datetime_to_micros;
 pub use error::SpecEngineError;
 // S-1.14 infusion exports
 pub use infusion::cache::{InfusionLruCache, InfusionTier3Cache, QueryScopedInfusionCache};

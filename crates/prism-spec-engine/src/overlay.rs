@@ -333,9 +333,9 @@ impl OverlayLoader {
                 // SEC-PASS6-001: sanitize slug_str at derivation — readdir-sourced and may contain
                 // control characters.  `customers_dir_name` is embedded verbatim in the E-SPEC-022
                 // error message body (make_e_spec_022_unknown_org_slug line ~821) and file_path
-                // field; sanitize_for_log here mirrors the SEC-PASS5-002 pattern at line 405-406
+                // field; sanitize_for_display here mirrors the SEC-PASS5-002 pattern at line 405-406
                 // (overlay_file_path) to complete the TD-VSDD-060 sibling-sweep (CWE-117).
-                let dir_display = format!("customers/{}/", sanitize_for_log(&slug_str));
+                let dir_display = format!("customers/{}/", sanitize_for_display(&slug_str));
                 errors.push(make_e_spec_022_unknown_org_slug(&dir_display, &slug_str));
             }
 
@@ -410,7 +410,7 @@ impl OverlayLoader {
                 // `overlay_file_path`: E-SPEC-001 size-check, TOML parse, table-type, deser,
                 // SSRF rejection, and E-SPEC-019/020/021/023 validation errors.
                 let overlay_file_path =
-                    sanitize_for_log(&format!("customers/{slug_str}/{file_name}"));
+                    sanitize_for_display(&format!("customers/{slug_str}/{file_name}"));
 
                 // SEC-REDUX-005: enforce overlay file size limit (CWE-400).
                 // Pre-check size via metadata() before reading to prevent boot-time DoS.
@@ -597,8 +597,8 @@ impl OverlayLoader {
             // but sanitized here too for defense-in-depth at the concatenation site.
             let instance_id_for_msg = format!(
                 "{}@{}",
-                sanitize_for_log(expected_sensor_id),
-                sanitize_for_log(expected_org_slug)
+                sanitize_for_display(expected_sensor_id),
+                sanitize_for_display(expected_org_slug)
             );
             validation_errors.push(make_e_spec_021_tables_in_overlay(
                 overlay_file_path,
@@ -731,7 +731,7 @@ impl OverlayLoader {
                      (must start with http:// or https://). Non-HTTP schemes are \
                      rejected to prevent SSRF attacks (CWE-918).",
                     overlay_file_path,
-                    sanitize_for_log(overlay_base_url)
+                    sanitize_for_display(overlay_base_url)
                 ),
                 toml_path: Some("base_url".to_string()),
                 file_path: Some(overlay_file_path.to_string()),
@@ -746,8 +746,8 @@ impl OverlayLoader {
         // [[tables]] check above (SEC-PASS4-002 / TD-VSDD-060).
         let expected_instance_id = format!(
             "{}@{}",
-            sanitize_for_log(expected_sensor_id),
-            sanitize_for_log(expected_org_slug)
+            sanitize_for_display(expected_sensor_id),
+            sanitize_for_display(expected_org_slug)
         );
         if overlay.instance_id != expected_instance_id {
             validation_errors.push(make_e_spec_020_instance_id_mismatch(
@@ -851,15 +851,18 @@ impl OverlayLoader {
 }
 
 // ---------------------------------------------------------------------------
-// Log-injection sanitizer (SEC-REDUX-004, CWE-117)
+// Display-injection sanitizer (SEC-REDUX-004, CWE-117)
 // ---------------------------------------------------------------------------
 
-/// Sanitize a user-controlled value before embedding it in an error message or log.
+/// Sanitize a user-controlled value before embedding it in a display-facing error message.
 ///
-/// Replaces control characters (including `\n`, `\r`, `\t`, null bytes, and all
-/// Unicode control points) with U+FFFD (replacement character) and caps the output
-/// at 256 Unicode scalar values.  This prevents log injection when error messages
+/// **Contract B — display sanitizer:** replaces control characters (including `\n`, `\r`,
+/// `\t`, null bytes, and all Unicode control points) with U+FFFD (replacement character) and
+/// caps the output at 256 Unicode scalar values. This prevents log injection when error messages
 /// are forwarded to SIEM/log aggregators (CWE-117).
+///
+/// Distinct from `prism_core::error::sanitize_for_log` (Contract A) which strips control chars
+/// with no replacement and no length cap — used for structured log field sanitization.
 ///
 /// Called on all TOML-sourced values that land in error message bodies:
 /// - `actual_instance_id` in `make_e_spec_020_instance_id_mismatch`
@@ -877,7 +880,7 @@ impl OverlayLoader {
 /// - `dir_display` in the E-SPEC-022 unknown-org-slug error path — `slug_str` is readdir-sourced
 ///   and sanitized at derivation before constructing the `customers/{slug}/` display string
 ///   (SEC-PASS6-001 — TD-VSDD-060 sibling-sweep completion, CWE-117)
-fn sanitize_for_log(value: &str) -> String {
+fn sanitize_for_display(value: &str) -> String {
     value
         .chars()
         .map(|c| if c.is_control() { '\u{FFFD}' } else { c })
@@ -894,11 +897,11 @@ fn sanitize_for_log(value: &str) -> String {
 /// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
 /// row E-SPEC-022. The `format!` body below produces the exact emission text.
 ///
-/// `slug` is sanitized via `sanitize_for_log` before embedding in the message
+/// `slug` is sanitized via `sanitize_for_display` before embedding in the message
 /// to prevent log injection (PRR-010 / SEC-REDUX-004, CWE-117): the raw filesystem
 /// directory name may contain attacker-controlled data.
 pub fn make_e_spec_022_unknown_org_slug(customers_dir_name: &str, slug: &str) -> PrismError {
-    let safe_slug = sanitize_for_log(slug);
+    let safe_slug = sanitize_for_display(slug);
     PrismError::Spec(SpecError {
         code: SpecErrorCode::ESpec022,
         message: format!(
@@ -935,10 +938,10 @@ pub fn make_e_spec_021_tables_in_overlay(file_path: &str, instance_id: &str) -> 
 /// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
 /// row E-SPEC-023. The `format!` body below produces the exact emission text.
 ///
-/// `field_name` is sanitized via `sanitize_for_log` before embedding in the message
+/// `field_name` is sanitized via `sanitize_for_display` before embedding in the message
 /// to prevent log injection (SEC-REDUX-004, CWE-117).
 pub fn make_e_spec_023_unrecognized_field(file_path: &str, field_name: &str) -> PrismError {
-    let safe_field = sanitize_for_log(field_name);
+    let safe_field = sanitize_for_display(field_name);
     PrismError::Spec(SpecError {
         code: SpecErrorCode::ESpec023,
         message: format!(
@@ -957,14 +960,14 @@ pub fn make_e_spec_023_unrecognized_field(file_path: &str, field_name: &str) -> 
 /// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
 /// row E-SPEC-020. The `format!` body below produces the exact emission text.
 ///
-/// `actual_instance_id` is sanitized via `sanitize_for_log` before embedding in the
+/// `actual_instance_id` is sanitized via `sanitize_for_display` before embedding in the
 /// message to prevent log injection (SEC-REDUX-004, CWE-117).
 pub fn make_e_spec_020_instance_id_mismatch(
     file_path: &str,
     actual_instance_id: &str,
     expected_instance_id: &str,
 ) -> PrismError {
-    let safe_actual = sanitize_for_log(actual_instance_id);
+    let safe_actual = sanitize_for_display(actual_instance_id);
     PrismError::Spec(SpecError {
         code: SpecErrorCode::ESpec020,
         message: format!(
@@ -983,12 +986,12 @@ pub fn make_e_spec_020_instance_id_mismatch(
 /// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
 /// row E-SPEC-019. The `format!` body below produces the exact emission text.
 ///
-/// `extends_value` is sanitized via `sanitize_for_log` before embedding in the message
+/// `extends_value` is sanitized via `sanitize_for_display` before embedding in the message
 /// to prevent log injection (SEC-PASS2-002 / SEC-REDUX-004, CWE-117): the TOML-sourced
 /// `extends` field may contain attacker-controlled data.  All three occurrences use the
 /// sanitized value (TD-VSDD-060 sibling-sweep compliance).
 pub fn make_e_spec_019_unknown_extends(file_path: &str, extends_value: &str) -> PrismError {
-    let safe_extends = sanitize_for_log(extends_value);
+    let safe_extends = sanitize_for_display(extends_value);
     PrismError::Spec(SpecError {
         code: SpecErrorCode::ESpec019,
         message: format!(
@@ -1008,7 +1011,7 @@ pub fn make_e_spec_019_unknown_extends(file_path: &str, extends_value: &str) -> 
 
 #[cfg(test)]
 mod tests {
-    use super::sanitize_for_log;
+    use super::sanitize_for_display;
 
     /// Placeholder — real Red Gate tests for overlay loading are in
     /// `prism-spec-engine/tests/overlay_loading_tests.rs` (S-CONFIG-MULTI-TENANT-OVERRIDE-001).
@@ -1021,14 +1024,14 @@ mod tests {
     }
 
     // ---------------------------------------------------------------------------
-    // sanitize_for_log unit tests (F-PR155-P2-003)
+    // sanitize_for_display unit tests (F-PR155-P2-003)
     // SEC-REDUX-004 / CWE-117: log injection sanitizer correctness
     // ---------------------------------------------------------------------------
 
     #[test]
-    fn sanitize_for_log_replaces_newline_with_replacement_char() {
+    fn sanitize_for_display_replaces_newline_with_replacement_char() {
         let input = "value\nwith\nnewlines";
-        let output = sanitize_for_log(input);
+        let output = sanitize_for_display(input);
         assert!(
             !output.contains('\n'),
             "newlines must be replaced; got: {output:?}"
@@ -1040,9 +1043,9 @@ mod tests {
     }
 
     #[test]
-    fn sanitize_for_log_replaces_carriage_return() {
+    fn sanitize_for_display_replaces_carriage_return() {
         let input = "value\r\ninjected";
-        let output = sanitize_for_log(input);
+        let output = sanitize_for_display(input);
         assert!(
             !output.contains('\r'),
             "CR must be replaced; got: {output:?}"
@@ -1054,9 +1057,9 @@ mod tests {
     }
 
     #[test]
-    fn sanitize_for_log_replaces_null_byte() {
+    fn sanitize_for_display_replaces_null_byte() {
         let input = "value\x00null";
-        let output = sanitize_for_log(input);
+        let output = sanitize_for_display(input);
         assert!(
             !output.contains('\x00'),
             "null byte must be replaced; got: {output:?}"
@@ -1068,9 +1071,9 @@ mod tests {
     }
 
     #[test]
-    fn sanitize_for_log_truncates_at_256_chars() {
+    fn sanitize_for_display_truncates_at_256_chars() {
         let input = "a".repeat(300);
-        let output = sanitize_for_log(&input);
+        let output = sanitize_for_display(&input);
         let char_count = output.chars().count();
         assert_eq!(
             char_count, 256,
@@ -1079,9 +1082,9 @@ mod tests {
     }
 
     #[test]
-    fn sanitize_for_log_passes_clean_ascii_unchanged() {
+    fn sanitize_for_display_passes_clean_ascii_unchanged() {
         let input = "clean-ascii-value_123";
-        let output = sanitize_for_log(input);
+        let output = sanitize_for_display(input);
         assert_eq!(
             output, input,
             "clean ASCII must pass through unchanged; got: {output:?}"
@@ -1089,10 +1092,10 @@ mod tests {
     }
 
     #[test]
-    fn sanitize_for_log_preserves_unicode_non_control() {
+    fn sanitize_for_display_preserves_unicode_non_control() {
         // Emoji and CJK are NOT control characters — must not be replaced.
         let input = "hello \u{1F600} \u{4E2D}\u{6587}";
-        let output = sanitize_for_log(input);
+        let output = sanitize_for_display(input);
         assert!(
             output.contains('\u{1F600}'),
             "emoji must be preserved; got: {output:?}"

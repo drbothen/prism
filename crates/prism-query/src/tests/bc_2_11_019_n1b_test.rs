@@ -123,9 +123,14 @@ fn make_threat_intel_infusion_registry() -> Arc<InfusionRegistry> {
         "ThreatIntel enrichment",
         InfusionType::LocalLookup,
         vec![
-            InfusionField::new("threat_score", "iocs_value", "string", "float64"),
-            InfusionField::new("threat_is_known_malicious", "iocs_value", "string", "bool"),
-            InfusionField::new("threat_sources", "iocs_value", "string", "string"),
+            InfusionField::new("threat_score", "iocs_value_first", "string", "float64"),
+            InfusionField::new(
+                "threat_is_known_malicious",
+                "iocs_value_first",
+                "string",
+                "bool",
+            ),
+            InfusionField::new("threat_sources", "iocs_value_first", "string", "string"),
         ],
         "/dev/null",
     );

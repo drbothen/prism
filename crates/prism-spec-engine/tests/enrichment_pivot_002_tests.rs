@@ -4,21 +4,20 @@
 //! integration, 6 mandatory security gates, SAP-2 DTU↔TOML parity, HttpLookup
 //! architecture (ADR-040 v2.0), error taxonomy, SSRF protection, and Val-lift fix.
 //!
-//! Tests 1-2: TOML spec loading and UDF registration (AC-001, AC-002). RED (loader stubs).
+//! Tests 1-2: TOML spec loading and UDF registration (AC-001, AC-002). GREEN.
 //! Tests 3-6: InfusionSource boundary tests (AC-003-006). GREEN-BY-DESIGN.
-//! Tests 7-9: AC-007 UDF name identifier validation (SEC-001 CWE-20). RED.
+//! Tests 7-9: AC-007 UDF name identifier validation (SEC-001 CWE-20). GREEN.
 //! Test 10: AC-008 PluginInfusionSource.config not pub (SEC-002 CWE-200). GREEN-BY-DESIGN.
 //! Test 11: AC-009 SandboxViolation URL not in WARN log (SEC-003 CWE-209). GREEN-BY-DESIGN.
 //! Test 12: AC-010 spawn_blocking gate for async UDF (CWE-400). GREEN-BY-DESIGN.
-//! Tests 13-14: AC-011 path traversal rejection (SEC-003 CWE-22). RED (stub todo).
-//! Test 15: AC-012 load_all error does not leak absolute path (SEC-002 CWE-209). RED.
-//! Tests 16-17: SAP-2 DTU↔TOML parity (ThreatIntel + NVD column-to-field mapping). RED.
-//! Test 18: BC-2.19.001 E-INFUSE-002 duplicate UDF name rejection. RED.
-//! Test 19: BC-2.19.001 EC-19-001 zero-field spec rejection. RED.
+//! Tests 13-14: AC-011 path traversal rejection (SEC-003 CWE-22). GREEN.
+//! Test 15: AC-012 load_all error does not leak absolute path (SEC-002 CWE-209). GREEN.
+//! Tests 16-17: SAP-2 DTU↔TOML parity (ThreatIntel + NVD column-to-field mapping). GREEN.
+//! Test 18: BC-2.19.001 E-INFUSE-002 duplicate UDF name rejection. GREEN.
+//! Test 19: BC-2.19.001 EC-19-001 zero-field spec rejection. GREEN.
 //! Tests 16-32 (v1.3 NEW): HttpLookup type parsing, error format, source construction,
-//!   SSRF protection, nvd crate removal, Val-lift fix. All RED (todo!() stubs).
+//!   SSRF protection, nvd crate removal, Val-lift fix. All GREEN (fully implemented).
 //!
-//! All RED tests fail against stubs — this is the Red Gate invariant (BC-5.38.001).
 //! GREEN-BY-DESIGN tests (3-6, 10, 11, 12): in-process mock sources; no external deps.
 //! Per SID-1, no tests are #[ignore]'d without a specific story ID and test name citation.
 
@@ -33,12 +32,15 @@
 use std::sync::Arc;
 
 use prism_core::InfusionError;
+// LOW-002 fix: structural TOML assertions for RGT-012/013/014.
 use prism_spec_engine::infusion::sources::HttpLookupSource;
 use prism_spec_engine::{
     HttpLookupAuthType, HttpLookupConfig, HttpLookupCredentialConfig, InfusionLoader,
     InfusionRegistry, InfusionSource, InfusionType, PluginConfigMap, PluginInfusionSource,
     PluginRuntime,
 };
+#[allow(unused_imports)]
+use toml;
 
 // ---------------------------------------------------------------------------
 // Test 1: AC-001 — threatintel.infusion.toml parses and loads as plugin-type
@@ -55,7 +57,7 @@ use prism_spec_engine::{
 /// then InfusionRegistry contains 3 InfusionUdfDescriptor entries and
 /// registry.is_api_backed("threat_score") returns true.
 ///
-/// RED GATE: fails against stubs because TOML parse + field registration is not yet wired.
+/// RED GATE (pre-fix): failed against stubs because TOML parse + field registration was not yet wired.
 #[test]
 fn test_enrichment_pivot_002_threatintel_toml_loads_and_registers_3_udfs() {
     use std::io::Write;
@@ -74,8 +76,8 @@ fn test_enrichment_pivot_002_threatintel_toml_loads_and_registers_3_udfs() {
     let loader = InfusionLoader::new(tmp.path().to_str().unwrap());
     let (specs, errors) = loader.load_all();
 
-    // RED GATE: fails until TOML parse is extended to support [source] top-level block
-    // with [source.credential] sub-table, and validate_field_name is implemented.
+    // RED GATE (pre-fix): failed until TOML parse was extended to support [source] top-level block
+    // with [source.credential] sub-table, and validate_field_name was implemented.
     assert!(
         errors.is_empty(),
         "BC-2.19.001: threatintel.infusion.toml must parse without errors; got: {:?}",
@@ -140,7 +142,7 @@ fn test_enrichment_pivot_002_threatintel_toml_loads_and_registers_3_udfs() {
 /// spec.http_lookup_config.is_some(),
 /// and registry.is_api_backed("cvss_base_score") returns true.
 ///
-/// RED GATE: fails because InfusionLoader::parse doesn't yet handle "http_lookup" type.
+/// RED GATE (pre-fix): failed because InfusionLoader::parse did not yet handle "http_lookup" type.
 #[test]
 fn test_enrichment_pivot_002_nvd_toml_loads_as_http_lookup_and_registers_3_udfs() {
     use std::io::Write;
@@ -159,7 +161,7 @@ fn test_enrichment_pivot_002_nvd_toml_loads_as_http_lookup_and_registers_3_udfs(
     let loader = InfusionLoader::new(tmp.path().to_str().unwrap());
     let (specs, errors) = loader.load_all();
 
-    // RED GATE: fails until InfusionLoader::parse handles "http_lookup" type.
+    // RED GATE (pre-fix): failed until InfusionLoader::parse handled "http_lookup" type.
     assert!(
         errors.is_empty(),
         "BC-2.19.001: nvd.infusion.toml (http_lookup) must parse without errors; got: {:?}",
@@ -637,7 +639,7 @@ fn test_enrichment_pivot_002_enrich_nvd_pipe_stage_returns_high_cvss_for_scenari
 /// when InfusionLoader::validate_field_name is called,
 /// then it returns Err(InfusionError::InvalidFieldSpec).
 ///
-/// RED GATE: fails until validate_field_name is implemented (currently todo!()).
+/// validate_field_name is implemented (AC-007 / SEC-001 CWE-20); asserts E-INFUSE-013 rejection.
 #[test]
 fn test_enrichment_pivot_002_sec001_udf_name_rejects_sql_injection_chars() {
     use prism_core::InfusionError;
@@ -679,7 +681,7 @@ fn test_enrichment_pivot_002_sec001_udf_name_rejects_sql_injection_chars() {
 
 /// AC-007 (BC-2.19.001 precondition): UDF name starting with a digit is rejected.
 ///
-/// RED GATE: fails until validate_field_name is implemented (currently todo!()).
+/// validate_field_name is implemented; asserts leading-digit names return E-INFUSE-013.
 #[test]
 fn test_enrichment_pivot_002_sec001_udf_name_rejects_leading_digit() {
     use prism_core::InfusionError;
@@ -708,7 +710,7 @@ fn test_enrichment_pivot_002_sec001_udf_name_rejects_leading_digit() {
 ///
 /// Valid names: threat_is_known_malicious, cvss_base_score, field1, THREAT_SCORE.
 ///
-/// RED GATE: fails until validate_field_name is implemented (currently todo!()).
+/// validate_field_name is implemented; asserts valid identifiers are accepted.
 #[test]
 fn test_enrichment_pivot_002_sec001_udf_name_accepts_valid_identifiers() {
     let spec_path = "test.infusion.toml";
@@ -1002,7 +1004,7 @@ async fn test_enrichment_pivot_002_sec001_wasm_enrich_wraps_spawn_blocking() {
 /// when validate_plugin_path is called,
 /// then Err(InfusionError::InvalidFieldSpec) is returned and no file I/O is performed.
 ///
-/// RED GATE: fails until validate_plugin_path is implemented (currently todo!()).
+/// validate_plugin_path is implemented (AC-011 / SEC-003 CWE-22); asserts dotdot traversal rejected.
 #[test]
 fn test_enrichment_pivot_002_sec003_path_traversal_rejected_for_dotdot_plugin_ref() {
     use std::path::Path;
@@ -1056,7 +1058,7 @@ fn test_enrichment_pivot_002_sec003_path_traversal_rejected_for_dotdot_plugin_re
 /// when validate_plugin_path is called (and the file exists),
 /// then Ok(canonicalized_path) is returned.
 ///
-/// RED GATE: fails until validate_plugin_path is implemented (currently todo!()).
+/// validate_plugin_path is implemented; asserts paths within plugin_dir are accepted.
 #[test]
 fn test_enrichment_pivot_002_sec003_path_within_plugin_dir_accepted() {
     use std::io::Write;
@@ -1095,8 +1097,7 @@ fn test_enrichment_pivot_002_sec003_path_within_plugin_dir_accepted() {
 /// then the InfusionError message surfaced for MCP contains only the filename or relative path,
 /// NOT the absolute filesystem path.
 ///
-/// RED GATE: fails until sanitize_error_path is implemented and wired in load_all
-/// (currently todo!()).
+/// sanitize_error_path is implemented and wired in load_all (AC-012 / SEC-002 CWE-209).
 #[test]
 fn test_enrichment_pivot_002_sec002_load_all_error_does_not_leak_absolute_path() {
     use std::io::Write;
@@ -1154,9 +1155,8 @@ fn test_enrichment_pivot_002_sec002_load_all_error_does_not_leak_absolute_path()
 /// This test asserts the structural parity by loading the TOML and verifying field names
 /// against the known DTU struct fields. Column in TOML with no DTU equivalent = P1 CRITICAL.
 ///
-/// RED GATE: fails until validate_field_name is implemented (todo!()), because load_spec
-/// calls validate_field_name internally. Once validate_field_name is implemented, this test
-/// passes on the TOML spec's fields — confirming SAP-2 parity.
+/// validate_field_name is implemented; load_spec calls it and fields are parsed correctly.
+/// This test confirms SAP-2 parity: every TOML field name maps to a real DTU struct field.
 ///
 /// NOTE: If this test fails because a field name in the TOML has no DTU equivalent,
 /// that is a P1 CRITICAL finding per SAP-2. Do NOT suppress — fix the TOML column.
@@ -1210,10 +1210,7 @@ fn test_enrichment_pivot_002_sap2_threatintel_toml_columns_match_dtu_fields() {
     let mut f = std::fs::File::create(&spec_path).expect("create toml");
     f.write_all(toml_content.as_bytes()).expect("write toml");
 
-    // Parse via InfusionLoader::parse (bypass load_all to avoid validate_field_name todo!).
-    // We use the raw parse path to extract field names even while validate_field_name is a stub.
-    // NOTE: parse() currently calls validate_field_name via a todo!() — so this test will
-    // fail with a todo! panic until validate_field_name is implemented (correct RED behavior).
+    // Parse via InfusionLoader::parse. validate_field_name is implemented and called from parse().
     let parse_result = InfusionLoader::parse(toml_content, "threatintel.infusion.toml");
 
     match parse_result {
@@ -1250,15 +1247,12 @@ fn test_enrichment_pivot_002_sap2_threatintel_toml_columns_match_dtu_fields() {
             );
         }
         Err(e) => {
-            // If parse fails due to todo!() in validate_field_name: this IS the expected
-            // RED Gate behavior (validate_field_name not yet implemented).
-            // Any other parse failure is a bug — fail loudly with the error.
+            // Any parse failure is a structural TOML bug — fail loudly with the error.
             panic!(
                 "test_enrichment_pivot_002_sap2_threatintel_toml_columns_match_dtu_fields: \
-                 RED GATE — InfusionLoader::parse failed for threatintel.infusion.toml: {:?}. \
-                 If this is a todo!() panic from validate_field_name: expected RED behavior until \
-                 AC-007 is implemented. If this is a structural parse error: TOML spec has a bug \
-                 that must be fixed before SAP-2 parity can be verified. \
+                 InfusionLoader::parse failed for threatintel.infusion.toml: {:?}. \
+                 validate_field_name is implemented; a structural parse error indicates a TOML spec \
+                 bug that must be fixed before SAP-2 parity can be verified. \
                  (SAP-2 / CLAUDE.md §SAP-2 / S-DEMO-ENRICHMENT-PIVOT-002)",
                 e
             );
@@ -1284,7 +1278,7 @@ fn test_enrichment_pivot_002_sap2_threatintel_toml_columns_match_dtu_fields() {
 /// the CVE ID is "id" in CveRecord, NOT "cve_id" — confirmed types.rs; this is a
 /// SAP-2-class error if present).
 ///
-/// RED GATE: same as test 16 — fails until validate_field_name implemented.
+/// RED GATE (pre-fix): same as test 16 — failed until validate_field_name was implemented.
 #[test]
 fn test_enrichment_pivot_002_sap2_nvd_toml_columns_match_dtu_fields() {
     use std::collections::HashSet;
@@ -1369,9 +1363,9 @@ fn test_enrichment_pivot_002_sap2_nvd_toml_columns_match_dtu_fields() {
         Err(e) => {
             panic!(
                 "test_enrichment_pivot_002_sap2_nvd_toml_columns_match_dtu_fields: \
-                 RED GATE — InfusionLoader::parse failed for nvd.infusion.toml: {:?}. \
-                 If this is a todo!() panic from validate_field_name: expected RED behavior until \
-                 AC-007 is implemented. If structural: TOML has a bug. \
+                 InfusionLoader::parse failed for nvd.infusion.toml: {:?}. \
+                 validate_field_name is implemented; a structural parse error indicates a TOML spec \
+                 bug that must be fixed. \
                  (SAP-2 / CLAUDE.md §SAP-2 / S-DEMO-ENRICHMENT-PIVOT-002)",
                 e
             );
@@ -1392,11 +1386,9 @@ fn test_enrichment_pivot_002_sap2_nvd_toml_columns_match_dtu_fields() {
 /// This tests the INV-INFUSE-001 duplicate detection invariant from BC-2.19.001:
 /// "UDF names are global within a DataFusion SessionContext; duplicates are a load-time error"
 ///
-/// RED GATE: fails until InfusionRegistry::load_spec implements duplicate detection.
-/// Looking at current code (mod.rs): validate_spec_against checks for duplicates via
-/// udf_to_infusion. This SHOULD already work — the test verifies the gate is operational.
-/// If load_spec already implements this correctly, the test will PASS (green-by-design).
-/// Either way, the test documents the required behavioral invariant.
+/// RED GATE (pre-fix): failed until InfusionRegistry::load_spec implemented duplicate detection.
+/// `validate_spec_against` checks for duplicates via `udf_to_infusion`; the test verifies
+/// the gate is operational. The test documents the required behavioral invariant.
 #[test]
 fn test_enrichment_pivot_002_bc2_19_001_duplicate_udf_name_rejected() {
     use std::io::Write;
@@ -1419,6 +1411,7 @@ name = "threat_score"
 input_field = "ioc"
 input_type = "ioc"
 output_type = "integer"
+source_column = "threat_score"
 
 [infusion.pipe_stage]
 adds_columns = ["threat_score"]
@@ -1439,21 +1432,20 @@ name = "threat_score"
 input_field = "ioc"
 input_type = "ioc"
 output_type = "integer"
+source_column = "threat_score"
 
 [infusion.pipe_stage]
 adds_columns = ["threat_score"]
 "#;
 
-    // Parse both specs. Since validate_field_name is todo!() (a stub), parsing may panic here.
-    // This IS the expected RED Gate behavior — until validate_field_name is implemented,
-    // the duplicate detection test also fails (correct: all stubs fail together).
+    // Parse both specs. validate_field_name is implemented; parsing succeeds for well-formed specs.
     let spec1 = match InfusionLoader::parse(spec1_toml, "spec_one.infusion.toml") {
         Ok(s) => s,
         Err(e) => {
             panic!(
                 "test_enrichment_pivot_002_bc2_19_001_duplicate_udf_name_rejected: \
-                 RED GATE — parse of spec1 failed: {:?}. \
-                 If todo!() from validate_field_name: expected RED state. \
+                 parse of spec1 failed: {:?}. \
+                 validate_field_name is implemented; this is a structural parse error. \
                  (BC-2.19.001 E-INFUSE-002 / S-DEMO-ENRICHMENT-PIVOT-002)",
                 e
             );
@@ -1464,7 +1456,7 @@ adds_columns = ["threat_score"]
         Err(e) => {
             panic!(
                 "test_enrichment_pivot_002_bc2_19_001_duplicate_udf_name_rejected: \
-                 RED GATE — parse of spec2 failed: {:?}. \
+                 parse of spec2 failed: {:?}. \
                  (BC-2.19.001 E-INFUSE-002 / S-DEMO-ENRICHMENT-PIVOT-002)",
                 e
             );
@@ -1519,8 +1511,8 @@ adds_columns = ["threat_score"]
 /// This tests EC-19-001: "Spec with 0 [[infusion.fields]] entries — Rejected: at least one
 /// field required per INV-INFUSE-001"
 ///
-/// RED GATE: fails until validate_field_name is implemented. Once parse is functional,
-/// a spec with 0 fields would be rejected by InfusionLoader::parse (missing field check).
+/// RED GATE (pre-fix): failed until validate_field_name was implemented. Once parse became functional,
+/// a spec with 0 fields is rejected by InfusionLoader::parse (missing field check).
 /// The test verifies the rejection at PARSE time (not just registry time).
 #[test]
 fn test_enrichment_pivot_002_bc2_19_001_zero_fields_spec_rejected() {
@@ -1571,18 +1563,18 @@ adds_columns = []
 /// AC-002 v1.3 (ADR-040 D8.1): nvd.infusion.toml with type="http_lookup" parses as
 /// InfusionType::HttpLookup and has http_lookup_config populated.
 ///
-/// RED GATE: fails because InfusionLoader::parse does not yet handle "http_lookup".
+/// RED GATE (pre-fix): failed because InfusionLoader::parse did not yet handle "http_lookup".
 #[test]
 fn test_enrichment_pivot_002_http_lookup_infusion_type_parses_nvd_spec() {
     let toml_content = include_str!("../../../specs/infusions/nvd.infusion.toml");
 
-    // RED GATE: InfusionLoader::parse currently does not handle type="http_lookup".
-    // When implemented, must parse and produce InfusionType::HttpLookup.
+    // RED GATE (pre-fix): InfusionLoader::parse did not handle type="http_lookup".
+    // Implemented: parses and produces InfusionType::HttpLookup.
     let result = InfusionLoader::parse(toml_content, "nvd.infusion.toml");
 
     let spec = result.expect(
         "AC-002 v1.3: nvd.infusion.toml with type='http_lookup' must parse without error. \
-         RED GATE until InfusionLoader::parse handles http_lookup type (ADR-040 D8.1).",
+         (pre-fix: RED GATE until InfusionLoader::parse handled http_lookup type; ADR-040 D8.1)",
     );
 
     assert_eq!(
@@ -1612,7 +1604,7 @@ fn test_enrichment_pivot_002_http_lookup_infusion_type_parses_nvd_spec() {
 /// AC-016 (ADR-040 D8.3): InfusionLoader must reject http_lookup specs where url_template
 /// does not contain `${input}` — the interpolation placeholder is required.
 ///
-/// RED GATE: fails because loader doesn't yet validate url_template.
+/// RED GATE (pre-fix): failed because loader did not yet validate url_template.
 #[test]
 fn test_enrichment_pivot_002_http_lookup_parse_rejects_missing_input_placeholder() {
     let bad_toml = r#"
@@ -1639,8 +1631,7 @@ adds_columns = ["cvss_score"]
 
     let result = InfusionLoader::parse(bad_toml, "bad_lookup.infusion.toml");
 
-    // RED GATE: InfusionLoader::parse must return Err for missing ${input} placeholder.
-    // When loader is not yet implemented, this test panics with todo!() — correct RED.
+    // InfusionLoader::parse must return Err for missing ${input} placeholder (AC-016 / ADR-040 D8.3).
     assert!(
         result.is_err(),
         "AC-016: url_template without the input placeholder must be rejected at parse time. \
@@ -1662,7 +1653,7 @@ adds_columns = ["cvss_score"]
 /// AC-016 (ADR-040 D8.3): InfusionLoader must reject http_lookup specs with unsupported
 /// HTTP methods. Only "GET" and "POST" are permitted.
 ///
-/// RED GATE: fails because loader doesn't yet validate method field.
+/// RED GATE (pre-fix): failed because loader did not yet validate method field.
 #[test]
 fn test_enrichment_pivot_002_http_lookup_parse_rejects_invalid_method() {
     let bad_toml = r#"
@@ -1689,7 +1680,7 @@ adds_columns = ["result"]
 
     let result = InfusionLoader::parse(bad_toml, "delete_lookup.infusion.toml");
 
-    // RED GATE: InfusionLoader::parse must return Err for unsupported method "DELETE".
+    // RED GATE (pre-fix): InfusionLoader::parse now returns Err for unsupported method "DELETE".
     assert!(
         result.is_err(),
         "AC-016: http_lookup method='DELETE' must be rejected at parse time. \
@@ -1891,7 +1882,7 @@ fn test_enrichment_pivot_002_ssrf_rejected_error_excludes_resolved_ip() {
 /// AC-016 (ADR-040 D8.4): HttpLookupSource::enrich_single must interpolate `${input}`
 /// in the url_template before issuing the HTTP request.
 ///
-/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
+/// HttpLookupSource::new is implemented (AC-016 / ADR-040 D8.4).
 ///
 /// DTU-EXT-NVD-001: requires live NVD API (services.nvd.nist.gov) which is rate-limited /
 /// intermittently returns 503. Unit-level coverage is provided by:
@@ -1914,7 +1905,6 @@ fn test_enrichment_pivot_002_http_lookup_source_enrich_single_calls_url_template
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .expect("reqwest::Client::build");
-    // todo!() in new() will panic here — correct RED behavior.
     let source = HttpLookupSource::new(client, config, "nvd.infusion.toml").expect("construct");
     let result = source.enrich_single("CVE-2024-1234", "cve_id");
     // When implemented: result must be Some(...) with the CVSS subtree.
@@ -1931,7 +1921,7 @@ fn test_enrichment_pivot_002_http_lookup_source_enrich_single_calls_url_template
 /// AC-016 (ADR-040 D8.4): HttpLookupSource must extract the subtree at `response_path`
 /// from the HTTP response JSON and return it as the enrichment value.
 ///
-/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
+/// HttpLookupSource::new is implemented (ADR-040 D8.4).
 ///
 /// DTU-EXT-NVD-001: requires live NVD API which is rate-limited / intermittently unavailable.
 /// Unit coverage in http_lookup.rs::tests::test_enrich_single_extracts_response_path_via_wiremock.
@@ -1949,7 +1939,6 @@ fn test_enrichment_pivot_002_http_lookup_source_extracts_response_path_fields() 
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .expect("reqwest::Client::build");
-    // RED GATE: todo!() in new() panics — correct RED behavior.
     let source = HttpLookupSource::new(client, config, "nvd.infusion.toml").expect("construct");
     let result = source.enrich_single("CVE-2024-1234", "cve_id");
     let json_val = result.expect("AC-016: enrich_single must return Some for valid CVE");
@@ -1962,18 +1951,34 @@ fn test_enrichment_pivot_002_http_lookup_source_extracts_response_path_fields() 
 }
 
 // ---------------------------------------------------------------------------
-// Test 25: HttpLookupSource returns None on path not found
+// Test 25: HttpLookupSource returns None on path not found  [FLAKE-HARDENED]
 // ---------------------------------------------------------------------------
 
 /// AC-016 (ADR-040 D8.4): HttpLookupSource::enrich_single must return `Ok(None)` when
 /// the `response_path` JSONPath does not match any node in the HTTP response.
 ///
-/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
-#[test]
-fn test_enrichment_pivot_002_http_lookup_source_returns_none_on_path_not_found() {
+/// FLAKE-HARDENED (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 FLAKE-HARDENING):
+/// Original test used services.nvd.nist.gov which fails offline (DNS → SsrfRejected).
+/// Replaced with wiremock at loopback + PRISM_DTU_MODE=true (bypasses validate_ssrf_safe).
+///
+/// GREEN-BY-DESIGN: HttpLookupSource is fully implemented; this tests correct behavior.
+#[tokio::test]
+async fn test_enrichment_pivot_002_http_lookup_source_returns_none_on_path_not_found() {
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::method};
+
+    // Start a mock HTTP server on loopback (no DNS; no SSRF risk).
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "result_key": "some_value",
+            "data": {"nested": "value"}
+        })))
+        .mount(&mock_server)
+        .await;
+
     let config = HttpLookupConfig::new(
-        "https://services.nvd.nist.gov",
-        "/rest/json/cves/2.0?cveId=${input}",
+        &mock_server.uri(),
+        "/v1/lookup/${input}",
         "GET",
         "$.nonexistent.path.that.will.never.match",
         None,
@@ -1982,10 +1987,21 @@ fn test_enrichment_pivot_002_http_lookup_source_returns_none_on_path_not_found()
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .expect("reqwest::Client::build");
-    // RED GATE: todo!() in new() panics — correct RED behavior.
-    let source = HttpLookupSource::new(client, config, "nvd.infusion.toml").expect("construct");
-    let result = source.enrich_single("CVE-2024-1234", "cve_id");
-    // When implemented: must return None (path not found → no enrichment).
+
+    // PRISM_DTU_MODE=true bypasses validate_ssrf_safe for loopback.
+    // Safety: single-use test env var set immediately before construction and cleared after.
+    unsafe { std::env::set_var("PRISM_DTU_MODE", "true") };
+    let source = HttpLookupSource::new(client, config, "test.infusion.toml")
+        .expect("HttpLookupSource::new must succeed with DTU mode + loopback");
+    unsafe { std::env::remove_var("PRISM_DTU_MODE") };
+
+    // enrich_single creates its own current_thread runtime internally;
+    // spawn_blocking ensures we don't enter it from within the tokio test executor.
+    let result =
+        tokio::task::spawn_blocking(move || source.enrich_single("CVE-2024-1234", "cve_id"))
+            .await
+            .expect("spawn_blocking join");
+
     assert!(
         result.is_none(),
         "AC-016: enrich_single must return None when response_path doesn't match. Got: {:?}",
@@ -1994,27 +2010,36 @@ fn test_enrichment_pivot_002_http_lookup_source_returns_none_on_path_not_found()
 }
 
 // ---------------------------------------------------------------------------
-// Test 26: HttpLookupSource returns Err on non-2xx
+// Test 26: HttpLookupSource returns None on non-2xx  [FLAKE-HARDENED]
 // ---------------------------------------------------------------------------
 
-/// AC-016 (ADR-040 D8.4): HttpLookupSource::enrich_single must propagate
-/// `E-INFUSE-009` when the HTTP server returns a non-2xx status code.
+/// AC-016 (ADR-040 D8.4): HttpLookupSource::enrich_single must handle
+/// non-2xx HTTP responses gracefully — returning None (logging E-INFUSE-009) rather than
+/// panicking the caller.
 ///
-/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
-/// NOTE: InfusionSource::enrich_single currently returns Option<Value> not Result.
-/// This test documents the INTENDED behavior once the trait is updated to return Result.
-#[test]
-fn test_enrichment_pivot_002_http_lookup_source_returns_err_on_non_2xx() {
-    // This test documents the intended behavior post-implementation.
-    // Currently enrich_single returns Option<Value>, not Result.
-    // The implementer must either:
-    //   a) Update InfusionSource::enrich_single to return Result<Option<Value>, InfusionError>, OR
-    //   b) Handle the error internally and return None with a tracing::warn! (logging the
-    //      E-INFUSE-009 without surfacing it in the return type).
-    // The test verifies option (b): non-2xx → None is returned (error is logged, not panicked).
+/// FLAKE-HARDENED (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 FLAKE-HARDENING):
+/// Original test used services.nvd.nist.gov which fails offline (DNS → SsrfRejected).
+/// Replaced with wiremock returning 403 at loopback + PRISM_DTU_MODE=true.
+///
+/// Non-2xx handling: HttpLookupSource handles the error internally (E-INFUSE-009 warning
+/// logged via tracing); enrich_single returns None rather than propagating (Option<Value>
+/// return type; error is not surfaced as Result).
+///
+/// GREEN-BY-DESIGN: HttpLookupSource is fully implemented; this tests correct behavior.
+#[tokio::test]
+async fn test_enrichment_pivot_002_http_lookup_source_returns_err_on_non_2xx() {
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::method};
+
+    // Start a mock HTTP server that returns 403 Forbidden for all requests.
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(403))
+        .mount(&mock_server)
+        .await;
+
     let config = HttpLookupConfig::new(
-        "https://services.nvd.nist.gov",
-        "/rest/json/cves/2.0?cveId=${input}",
+        &mock_server.uri(),
+        "/v1/lookup/${input}",
         "GET",
         "$.data",
         None,
@@ -2023,14 +2048,22 @@ fn test_enrichment_pivot_002_http_lookup_source_returns_err_on_non_2xx() {
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .expect("reqwest::Client::build");
-    // RED GATE: todo!() in new() panics — correct RED behavior.
-    let source = HttpLookupSource::new(client, config, "nvd.infusion.toml").expect("construct");
-    // When implemented with a mock that returns 403: expect None (error handled internally).
-    let result = source.enrich_single("CVE-NONEXISTENT-9999", "cve_id");
-    // Non-2xx must not panic the caller — returns None with logged E-INFUSE-009.
+
+    unsafe { std::env::set_var("PRISM_DTU_MODE", "true") };
+    let source = HttpLookupSource::new(client, config, "test.infusion.toml")
+        .expect("HttpLookupSource::new must succeed with DTU mode + loopback");
+    unsafe { std::env::remove_var("PRISM_DTU_MODE") };
+
+    let result =
+        tokio::task::spawn_blocking(move || source.enrich_single("CVE-NONEXISTENT-9999", "cve_id"))
+            .await
+            .expect("spawn_blocking join");
+
+    // Non-2xx must not panic the caller — E-INFUSE-009 is logged, None returned.
     assert!(
         result.is_none(),
-        "AC-016: non-2xx HTTP response must return None (not panic). Got: {:?}",
+        "AC-016: non-2xx HTTP response must return None (E-INFUSE-009 logged, not panicked). \
+         Got: {:?}",
         result
     );
 }
@@ -2042,7 +2075,7 @@ fn test_enrichment_pivot_002_http_lookup_source_returns_err_on_non_2xx() {
 /// AC-015 (CWE-918): HttpLookupSource::new must reject base_url that resolves to a
 /// private/loopback address when PRISM_DTU_MODE is not set.
 ///
-/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
+/// HttpLookupSource::new is implemented (AC-015 / ADR-040 D8.5 / CWE-918).
 #[test]
 fn test_enrichment_pivot_002_ssrf_rejects_private_base_url_without_dtu_mode() {
     // Ensure PRISM_DTU_MODE is not set.
@@ -2061,8 +2094,7 @@ fn test_enrichment_pivot_002_ssrf_rejects_private_base_url_without_dtu_mode() {
         .build()
         .expect("reqwest::Client::build");
 
-    // RED GATE: todo!() in new() panics — correct RED behavior.
-    // When implemented: must return Err(InfusionError::SsrfRejected { .. }).
+    // Must return Err(InfusionError::SsrfRejected { .. }) for private base_url without DTU mode.
     let result = HttpLookupSource::new(client, config, "test.infusion.toml");
 
     assert!(
@@ -2086,7 +2118,7 @@ fn test_enrichment_pivot_002_ssrf_rejects_private_base_url_without_dtu_mode() {
 /// AC-015 (ADR-040 D8.5): HttpLookupSource::new must allow private base_url when
 /// PRISM_DTU_MODE=true (for test/demo deployments using local DTU clones).
 ///
-/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
+/// HttpLookupSource::new is implemented; PRISM_DTU_MODE=true bypasses the SSRF guard.
 #[test]
 fn test_enrichment_pivot_002_ssrf_accepts_private_base_url_with_dtu_mode() {
     // Set PRISM_DTU_MODE to allow private addresses (test/demo override).
@@ -2105,8 +2137,7 @@ fn test_enrichment_pivot_002_ssrf_accepts_private_base_url_with_dtu_mode() {
         .build()
         .expect("reqwest::Client::build");
 
-    // RED GATE: todo!() in new() panics — correct RED behavior.
-    // When implemented: PRISM_DTU_MODE=true must allow private addresses.
+    // PRISM_DTU_MODE=true must allow private addresses.
     let result = HttpLookupSource::new(client, config, "test.infusion.toml");
 
     // Clean up env var after test.
@@ -2156,10 +2187,10 @@ fn test_enrichment_pivot_002_nvd_plugin_crate_removed() {
 /// Pre-fix behavior: always returns Ok(None) (F-001 CRIT defect).
 /// This test verifies the fix drives the PRODUCTION code path (not a reimplementation).
 ///
-/// RED GATE: requires a WAT fixture or minimal .prx Component Model binary. Until that
-/// fixture is available, this test panics with todo!() to signal the RED gate.
-/// The implementer must provide a WAT or .prx fixture that exports enrich-single
-/// returning Val::Option(Some(Box<Val::String("{}")))). See ADR-040 D2 / AC-019.
+/// Requires the val_lift_some.prx fixture at crates/prism-spec-engine/fixtures/. Until that
+/// fixture is available, this test panics with an explicit message to signal the RED gate.
+/// The fixture must export enrich-single returning Val::Option(Some(Val::String("{}"))).
+/// See ADR-040 D2 / AC-019.
 #[test]
 fn test_enrichment_pivot_002_val_lift_fix_option_some_returns_json_value() {
     // AC-019: Val-lift fix — Component Model path returns Ok(Some(json_value)).
@@ -2222,7 +2253,7 @@ fn test_enrichment_pivot_002_val_lift_fix_option_some_returns_json_value() {
 /// AC-019 F-003 rigor: PluginRuntime::enrich_single must return Ok(None)
 /// when the WASM component returns Val::Option(None) (no enrichment found).
 ///
-/// RED GATE: requires a WAT fixture returning Val::Option(None).
+/// RED GATE (pre-fix): required a WAT fixture returning Val::Option(None).
 #[test]
 fn test_enrichment_pivot_002_val_lift_fix_option_none_returns_ok_none() {
     // AC-019: Val-lift fix — Component Model path returns Ok(None) for option::none.
@@ -2562,7 +2593,7 @@ fn test_enrichment_pivot_002_high1_crit2b_plugin_infusion_source_canonical_ident
 /// Err(PluginError::EnrichCallFailed { .. }) when the WASM component returns an unexpected
 /// Val type (e.g., Val::String directly instead of Val::Option).
 ///
-/// RED GATE: requires a WAT fixture returning an unexpected Val type.
+/// RED GATE (pre-fix): required a WAT fixture returning an unexpected Val type.
 #[test]
 fn test_enrichment_pivot_002_val_lift_fix_unexpected_val_returns_enrich_call_failed() {
     // AC-019: Val-lift fix — Component Model path returns Err(EnrichCallFailed) for unexpected Val.
@@ -2667,6 +2698,7 @@ name = "test_field"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "string"
+source_column = "test_result"
 "#;
 
     let spec_file = infusions_dir.join("traversal_test.infusion.toml");
@@ -2995,4 +3027,529 @@ fn test_enrichment_pivot_002_sec003_symlink_escape_rejected_by_canonicalize_guar
          components (so Step 0 passes and Steps 3-4 are exercised). \
          Found a non-Normal component — test setup is incorrect."
     );
+}
+
+// ---------------------------------------------------------------------------
+// RGT-006: plugin-type field without source_column rejected (E-INFUSE-013 §8)
+// ---------------------------------------------------------------------------
+
+/// RGT-002 (ADR-051 D3 sub-condition 8 / E-INFUSE-013): a plugin-type infusion field
+/// that does not declare `source_column` must be rejected at parse time.
+///
+/// Without `source_column`, `project_value()` falls into the passthrough branch and
+/// serializes the entire plugin response object — the root cause of
+/// DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 Failure A (doubly-encoded JSON).
+///
+/// GREEN: `validate_field_name` and `validate_plugin_type_has_source_column` are both
+/// implemented and wired into `parse()` → returns Err(InvalidFieldSpec) with
+/// E-INFUSE-013 sub-condition 8 message.
+#[test]
+fn test_plugin_type_field_without_source_column_rejected_e_infuse_013() {
+    // A plugin-type infusion spec where the field is missing the required `source_column`.
+    // Per ADR-051 D3: every plugin-type field MUST declare source_column.
+    let toml_input = r#"
+[infusion]
+infusion_id = "test_plugin_no_src_col"
+name = "Test Plugin Infusion"
+type = "plugin"
+
+[source]
+type = "plugin"
+plugin_ref = "test.prx"
+
+[[infusion.credentials]]
+field_name = "api_key"
+env_var    = "TEST_API_KEY"
+
+[[infusion.fields]]
+name = "result_field"
+input_field = "ioc_val"
+input_type = "ioc"
+output_type = "string"
+description = "Plugin-type field missing required source_column (ADR-051 D3)"
+# source_column is intentionally absent — the spec must reject this
+"#;
+
+    // Both validators are implemented and wired; parse() returns Err for missing source_column.
+    let result = InfusionLoader::parse(toml_input, "test_plugin_no_src_col.infusion.toml");
+    assert!(
+        result.is_err(),
+        "ADR-051 D3 RGT-006 E-INFUSE-013 sub-condition 8: plugin-type field 'result_field' \
+         without source_column must be rejected (parse must return Err). \
+         Got: Ok({:?})",
+        result.ok()
+    );
+    // MED-001 fix-burst-12: use Display (not Debug) and assert the canonical header token
+    // "invalid field name 'source_column'" — the {field} slot MUST be "source_column"
+    // (the missing attribute name), NOT the enclosing field name (e.g. "result_field").
+    //
+    // Display form of InfusionError::InvalidFieldSpec:
+    //   "E-INFUSE-013: invalid field name '{field}' in infusion spec '{spec_path}': {message}"
+    //
+    // Current DEFECT (sub-condition 8 in validate_plugin_type_has_source_column):
+    //   field: field_name.to_owned()  → renders "invalid field name 'result_field' ..."
+    //   This is MISLEADING — result_field IS a valid field name; the fault is the missing
+    //   source_column attribute.  The correct form (as in sibling sub-condition 7
+    //   validate_output_type_recognized which puts field: "output_type") must use
+    //   field: "source_column".
+    //
+    // This assertion is LOAD-BEARING on the {field} slot value:
+    //   FAILS  against current code  → "invalid field name 'result_field' ..." ≠ token
+    //   PASSES after implementer fix → "invalid field name 'source_column' ..." = token
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("invalid field name 'source_column'"),
+        "RGT-006 MED-001 E-INFUSE-013 sub-condition 8: the rendered Display MUST contain \
+         \"invalid field name 'source_column'\" — the {{field}} slot must be 'source_column' \
+         (the missing attribute), NOT the enclosing field name 'result_field'. \
+         Got: '{}'",
+        err_display
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RGT-011: unknown output_type rejected (E-INFUSE-013 sub-condition 7)
+// ---------------------------------------------------------------------------
+
+/// RGT-011 (ADR-051 D3 sub-condition 7 / E-INFUSE-013 / CR-002 fix-burst-13):
+/// `validate_output_type_recognized` must reject output types that are not in
+/// {string, integer, float, boolean, json, datetime}, and the rendered Display message
+/// must contain the NEW canonical body verbatim (CR-002, error-taxonomy v2.17):
+///   - `{field}` header slot = literal "output_type" (unchanged)
+///   - `{message}` body = "field entry '{field_name}' declares unknown output_type '{value}';
+///     must be one of: string, integer, float, boolean, json, datetime
+///     (datetime maps to Timestamp(µs,UTC) per ADR-051 v1.2 / ADR-052)"
+///
+/// where `{field_name}` = the enclosing `[[infusion.fields]]` entry's `name` attribute.
+///
+/// RED (fix-burst-13): current code uses the OLD body
+/// `"output_type '<value>' is not a recognized type; valid values: ..."` and ignores the
+/// `field_name` parameter (`_field_name`). This test FAILS against current code because:
+/// (a) the new body prefix "field entry 'my_field' declares unknown output_type" is absent,
+/// (b) the current body says "is not a recognized type; valid values:" not "must be one of:".
+///
+/// Implementer action: change `_field_name` → `field_name` in the parameter list and update
+/// the `message` string to the new format.
+#[test]
+fn test_unknown_output_type_rejected_e_infuse_013_sub_condition_7() {
+    // validate_output_type_recognized is called with:
+    //   output_type = "unknown_type_xyz"   → {value} slot
+    //   field_name  = "my_field"           → {field_name} slot in the NEW body
+    //   spec_path   = "test.infusion.toml" → {spec_path} slot
+    let result = InfusionLoader::validate_output_type_recognized(
+        "unknown_type_xyz",
+        "my_field",
+        "test.infusion.toml",
+    );
+    assert!(
+        result.is_err(),
+        "ADR-051 D3 sub-condition 7 RGT-011 E-INFUSE-013: output_type 'unknown_type_xyz' \
+         is not in {{string, integer, float, boolean, json, datetime}} and must be rejected. \
+         Got: Ok(())"
+    );
+
+    let err_display = format!("{}", result.unwrap_err());
+
+    // Assert the {field} header slot = literal "output_type" (UNCHANGED from previous spec).
+    assert!(
+        err_display.contains("invalid field name 'output_type'"),
+        "RGT-011 CR-002: {{field}} header slot must be the literal 'output_type'. \
+         Got: '{err_display}'"
+    );
+
+    // Assert the NEW canonical body (CR-002, error-taxonomy v2.17):
+    // "field entry 'my_field' declares unknown output_type 'unknown_type_xyz'; must be one of:
+    //  string, integer, float, boolean, json, datetime
+    //  (datetime maps to Timestamp(µs,UTC) per ADR-051 v1.2 / ADR-052)"
+    //
+    // RED: current code body is "output_type 'unknown_type_xyz' is not a recognized type;
+    // valid values: ..." — different prefix and different phrasing. This assertion fails
+    // against current code and passes only after the implementer updates the message format
+    // AND starts using the field_name parameter.
+    let expected_body = "field entry 'my_field' declares unknown output_type \
+        'unknown_type_xyz'; must be one of: string, integer, float, boolean, json, datetime \
+        (datetime maps to Timestamp(\u{b5}s,UTC) per ADR-051 v1.2 / ADR-052)";
+    assert!(
+        err_display.contains(expected_body),
+        "RGT-011 CR-002 E-INFUSE-013 sub-cond 7: rendered Display must contain the new \
+         canonical body verbatim (error-taxonomy v2.17).\n\
+         EXPECTED body substring: {:?}\n\
+         GOT display:             {:?}\n\
+         Implementer: update validate_output_type_recognized message format and remove \
+         the underscore from `_field_name` so the parameter is used.",
+        expected_body,
+        err_display
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RGT-012: threatintel.infusion.toml has source_column + iocs_value_first  (ADR-051 D3/D4)
+// ---------------------------------------------------------------------------
+
+/// RGT-012 (ADR-051 D3 + D4 + ADV-P11-OBS-001): the threatintel infusion TOML must declare
+/// `source_column` on all plugin-type fields AND use `iocs_value_first` (scalar companion
+/// column) as the input_field for ALL enrichment fields — including json output_type.
+///
+/// LOW-002 fix (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 pass-1): replaced weak substring
+/// `content.contains(...)` with structural TOML parse + field-level assertions so the
+/// test fails if source_column or input_field = "iocs_value_first" is only in a comment.
+///
+/// fix-burst-9 (ADV-P11-OBS-001 DEFECT): removed the `if output_type != "json"` exemption.
+/// json-typed fields (threat_sources) must ALSO use iocs_value_first — using iocs_value
+/// (JSON-list) triggers ENRICH-1 list-dispatch and produces double-encoded output (Failure A).
+#[test]
+fn test_threatintel_toml_has_source_column_and_iocs_value_first_input_field() {
+    let content = include_str!("../../../specs/infusions/threatintel.infusion.toml");
+    let doc: toml::Value = content
+        .parse()
+        .expect("RGT-012: threatintel.infusion.toml must be valid TOML");
+
+    let fields = doc
+        .get("infusion")
+        .and_then(|i| i.get("fields"))
+        .and_then(|f| f.as_array())
+        .expect("RGT-012: infusion.fields array must exist in threatintel.infusion.toml");
+
+    assert!(
+        !fields.is_empty(),
+        "RGT-012: infusion.fields must have at least one entry"
+    );
+
+    for field in fields {
+        let field_name = field
+            .get("name")
+            .and_then(|n| n.as_str())
+            .unwrap_or("<unnamed>");
+        let output_type = field
+            .get("output_type")
+            .and_then(|t| t.as_str())
+            .unwrap_or("");
+
+        // ADR-051 D3: ALL plugin-type fields (every field in a plugin-source infusion) must
+        // declare source_column. Structural assertion: key must be present with a non-empty
+        // string value, not just appear somewhere in file text.
+        let source_col = field
+            .get("source_column")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        assert!(
+            !source_col.is_empty(),
+            "ADR-051 D3 RGT-012: infusion field '{field_name}' in threatintel.infusion.toml \
+             must declare a non-empty source_column. \
+             Absent or empty — spec-driven adapter needs this to project the correct \
+             scalar from the plugin response object."
+        );
+
+        // ADV-P11-OBS-001 fix-burst-9: ALL fields (including json output_type) must use
+        // iocs_value_first as input_field. The prior exemption for json-typed fields
+        // (comment: "ENRICH-1 list-dispatch path is intentional") allowed threat_sources to
+        // retain input_field = "iocs_value" (JSON-list), which triggers ENRICH-1 list-dispatch
+        // and produces DOUBLE-ENCODED output — Failure A per ADV-P11-OBS-001 DEFECT verdict.
+        // Using iocs_value_first (scalar companion) prevents ENRICH-1 from firing entirely.
+        let input_field = field
+            .get("input_field")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        assert_eq!(
+            input_field, "iocs_value_first",
+            "ADV-P11-OBS-001 RGT-012: ALL infusion fields (including json output_type) in \
+             threatintel.infusion.toml must use input_field = \"iocs_value_first\" (scalar \
+             companion). json-typed fields are NO LONGER EXEMPT — iocs_value (JSON-list input) \
+             triggers ENRICH-1 list-dispatch which double-encodes Vec<String> arrays (Failure A). \
+             Field '{field_name}' (output_type='{output_type}') has input_field = \"{input_field}\"."
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RGT-013: cyberint sensor TOML has iocs_value_first column  (ADR-051 D4)
+// ---------------------------------------------------------------------------
+
+/// RGT-013 (ADR-051 D4 Scalar-Input rule): the cyberint sensor TOML must declare an
+/// `iocs_value_first` column in the `alerts` table with `column_type = "string"` and
+/// `source_path = "$.iocs[0].value"`.
+///
+/// LOW-002 fix (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 pass-1): replaced weak substring
+/// check with structural TOML parse asserting the specific column fields carry the
+/// required values (not just appearing somewhere in comment text).
+#[test]
+fn test_cyberint_sensor_toml_has_iocs_value_first_column() {
+    let content = include_str!("../../prism-sensors/specs/cyberint.sensor.toml");
+    let doc: toml::Value = content
+        .parse()
+        .expect("RGT-013: cyberint.sensor.toml must be valid TOML");
+
+    let tables = doc
+        .get("tables")
+        .and_then(|t| t.as_array())
+        .expect("RGT-013: tables array must exist in cyberint.sensor.toml");
+
+    // Find the iocs_value_first column across all tables.
+    let mut found: Option<&toml::Value> = None;
+    for table in tables {
+        if let Some(cols) = table.get("columns").and_then(|c| c.as_array()) {
+            for col in cols {
+                if col.get("name").and_then(|n| n.as_str()).unwrap_or("") == "iocs_value_first" {
+                    found = Some(col);
+                    break;
+                }
+            }
+        }
+        if found.is_some() {
+            break;
+        }
+    }
+
+    let col = found.expect(
+        "ADR-051 D4 RGT-013: cyberint.sensor.toml must declare an 'iocs_value_first' column \
+         (scalar companion to 'iocs_value'). Not found in any [[tables.columns]] entry. \
+         Implementer must add: name = \"iocs_value_first\", column_type = \"string\", \
+         source_path = \"$.iocs[0].value\".",
+    );
+
+    let col_type = col
+        .get("column_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(
+        col_type, "string",
+        "ADR-051 D4 RGT-013: 'iocs_value_first' column must have column_type = \"string\". \
+         Got: \"{col_type}\"."
+    );
+
+    let source_path = col
+        .get("source_path")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(
+        source_path, "$.iocs[0].value",
+        "ADR-051 D4 RGT-013: 'iocs_value_first' column must have \
+         source_path = \"$.iocs[0].value\" (non-wildcard scalar JSONPath). \
+         Got: \"{source_path}\"."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RGT-014: crowdstrike sensor TOML has behaviors_ioc_value_first column  (ADR-051 D4)
+// ---------------------------------------------------------------------------
+
+/// RGT-014 (ADR-051 D4 Scalar-Input rule): the crowdstrike sensor TOML must declare a
+/// `behaviors_ioc_value_first` column with `column_type = "string"` and
+/// `source_path = "$.behaviors[0].ioc_value"`.
+///
+/// LOW-002 fix (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 pass-1): replaced weak substring
+/// check with structural TOML parse asserting the specific column fields carry the
+/// required values (not just appearing somewhere in comment text).
+#[test]
+fn test_crowdstrike_sensor_toml_has_behaviors_ioc_value_first_column() {
+    let content = include_str!("../../prism-sensors/specs/crowdstrike.sensor.toml");
+    let doc: toml::Value = content
+        .parse()
+        .expect("RGT-014: crowdstrike.sensor.toml must be valid TOML");
+
+    let tables = doc
+        .get("tables")
+        .and_then(|t| t.as_array())
+        .expect("RGT-014: tables array must exist in crowdstrike.sensor.toml");
+
+    let mut found: Option<&toml::Value> = None;
+    for table in tables {
+        if let Some(cols) = table.get("columns").and_then(|c| c.as_array()) {
+            for col in cols {
+                if col.get("name").and_then(|n| n.as_str()).unwrap_or("")
+                    == "behaviors_ioc_value_first"
+                {
+                    found = Some(col);
+                    break;
+                }
+            }
+        }
+        if found.is_some() {
+            break;
+        }
+    }
+
+    let col = found.expect(
+        "ADR-051 D4 RGT-014: crowdstrike.sensor.toml must declare a \
+         'behaviors_ioc_value_first' column (scalar companion to 'behaviors_ioc_value'). \
+         Not found in any [[tables.columns]] entry. Implementer must add: \
+         name = \"behaviors_ioc_value_first\", column_type = \"string\", \
+         source_path = \"$.behaviors[0].ioc_value\".",
+    );
+
+    let col_type = col
+        .get("column_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(
+        col_type, "string",
+        "ADR-051 D4 RGT-014: 'behaviors_ioc_value_first' column must have \
+         column_type = \"string\". Got: \"{col_type}\"."
+    );
+
+    let source_path = col
+        .get("source_path")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(
+        source_path, "$.behaviors[0].ioc_value",
+        "ADR-051 D4 RGT-014: 'behaviors_ioc_value_first' column must have \
+         source_path = \"$.behaviors[0].ioc_value\". Got: \"{source_path}\"."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// AC-011 e2e: column population via extract_at_path  (HIGH-001 fix)
+// ---------------------------------------------------------------------------
+
+/// AC-011 e2e: cyberint_alerts `iocs_value_first` column populates via `$.iocs[0].value`.
+///
+/// The spec-driven adapter uses `source_path = "$.iocs[0].value"` to populate the
+/// `iocs_value_first` column in the `cyberint_alerts` table (cyberint.sensor.toml).
+/// This test verifies `extract_at_path` — the exact function called by the adapter —
+/// correctly extracts the value from a scenario-mode alert record with a nested `iocs` array.
+///
+/// HIGH-001 fix (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 LOCAL pass-1): RGT-015 was testing IOC
+/// surface records (wrong surface for AC-011) for a top-level key — it passes even if the
+/// spec-driven adapter's `$.iocs[0].value` extraction broke. This test is load-bearing:
+/// fails if `extract_at_path` breaks for this path OR if the sensor TOML changes the path
+/// without a corresponding test update.
+#[test]
+fn test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath() {
+    use prism_spec_engine::extract_at_path;
+
+    let ioc_hash = "aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
+
+    // Scenario-mode alert record: mirrors what generate_with_scenario_iocs stamps on
+    // CompromisedEndpoint alert records (iocs[0] = {type: "hash_sha256", value: hash}).
+    let alert_record = serde_json::json!({
+        "_surface": "alert",
+        "alert_id": "alert-test-001",
+        "iocs": [
+            {"type": "hash_sha256", "value": ioc_hash}
+        ]
+    });
+
+    // spec-driven adapter uses source_path = "$.iocs[0].value" for iocs_value_first column
+    // (cyberint.sensor.toml alerts table). Verify extract_at_path succeeds and returns hash.
+    let result = extract_at_path(&alert_record, "$.iocs[0].value");
+    assert!(
+        result.is_ok(),
+        "AC-011 HIGH-001: extract_at_path(alert_record, \"$.iocs[0].value\") must return Ok. \
+         Got: {result:?}. Alert record must carry iocs[0].value for iocs_value_first column."
+    );
+    assert_eq!(
+        result.unwrap().as_str().unwrap_or(""),
+        ioc_hash,
+        "AC-011: iocs_value_first column value must equal iocs[0].value from the alert record."
+    );
+}
+
+/// AC-011 e2e: crowdstrike_detections `behaviors_ioc_value_first` column populates
+/// via `$.behaviors[0].ioc_value`.
+///
+/// The spec-driven adapter uses `source_path = "$.behaviors[0].ioc_value"` to populate
+/// `behaviors_ioc_value_first` in the `crowdstrike_detections` table.
+/// This test verifies the exact adapter extraction path is load-bearing.
+///
+/// HIGH-001 fix: RGT-016 tested a top-level key on detection records — it passed even if
+/// the spec-driven adapter's `$.behaviors[0].ioc_value` extraction broke. This test fails
+/// if `extract_at_path` breaks for this path.
+#[test]
+fn test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath() {
+    use prism_spec_engine::extract_at_path;
+
+    let ioc_hash = "aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
+
+    // Scenario-mode detection record: mirrors what make_detection_with_ioc emits with
+    // behaviors[0].ioc_value set to the catalog hash (crowdstrike generator).
+    let detection_record = serde_json::json!({
+        "_record_type": "detection",
+        "detection_id": "det-test-001",
+        "behaviors": [
+            {
+                "tactic": "Execution",
+                "technique": "User Execution",
+                "technique_id": "T1204",
+                "ioc_type": "hash_sha256",
+                "ioc_value": ioc_hash,
+                "ioc_source": "catalog"
+            }
+        ],
+        "behaviors_ioc_value_first": ioc_hash
+    });
+
+    // spec-driven adapter uses source_path = "$.behaviors[0].ioc_value" for
+    // behaviors_ioc_value_first column (crowdstrike.sensor.toml detections table).
+    let result = extract_at_path(&detection_record, "$.behaviors[0].ioc_value");
+    assert!(
+        result.is_ok(),
+        "AC-011 HIGH-001: extract_at_path(detection_record, \"$.behaviors[0].ioc_value\") \
+         must return Ok. Got: {result:?}."
+    );
+    assert_eq!(
+        result.unwrap().as_str().unwrap_or(""),
+        ioc_hash,
+        "AC-011: behaviors_ioc_value_first column value must equal behaviors[0].ioc_value."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// SEC-001(a): E-INFUSE-013 sub-cond 7 control-char sanitization (fix-burst-13)
+// ---------------------------------------------------------------------------
+
+/// SEC-001 (CWE-117, PR-216) / AC-007 — control-char sanitization in E-INFUSE-013 sub-cond 7.
+///
+/// Given a `[[infusion.fields]]` entry with an `output_type` value containing ASCII control
+/// characters (e.g. `\n` = 0x0A) and a `field_name` containing a control char (e.g. 0x01),
+/// when `validate_output_type_recognized` is called,
+/// then the rendered `InfusionError::InvalidFieldSpec` Display message must contain NO ASCII
+/// control characters (0x00–0x1F, 0x7F) in any position.
+///
+/// This prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured
+/// logs (AD-017 extension) when malicious TOML spec content is loaded.
+///
+/// RED (fix-burst-13): current code calls `format!("output_type '{}' ...", output_type)` without
+/// any sanitization, so the control chars pass through verbatim into the rendered message.
+///
+/// Implementer action (per error-taxonomy v2.17 SEC-001 Rendering Note):
+/// Apply `s.chars().filter(|c| !c.is_ascii_control()).collect::<String>()` to `output_type` value
+/// and `field_name` value before constructing `InvalidFieldSpec { field, spec_path, message }`.
+#[test]
+fn test_sec001_e_infuse_013_sub_cond_7_control_chars_stripped_from_rendered_message() {
+    // A malicious TOML spec might have control chars in the output_type value or field name.
+    let value_with_ctrl = "bad\ntype"; // 0x0A (newline) — CWE-117 log injection candidate
+    let field_name_with_ctrl = "my\x01field"; // 0x01 (SOH) — LLM prompt injection candidate
+
+    let result = InfusionLoader::validate_output_type_recognized(
+        value_with_ctrl,
+        field_name_with_ctrl,
+        "test.infusion.toml",
+    );
+
+    // Prerequisite: this IS an unknown output_type, so it MUST be rejected.
+    assert!(
+        result.is_err(),
+        "SEC-001 prerequisite: control-char-containing output_type value \
+         must be rejected as unknown. Got: Ok(())"
+    );
+
+    let err_display = format!("{}", result.unwrap_err());
+
+    // Assert NO ASCII control chars (0x00–0x1F, 0x7F) anywhere in the rendered Display.
+    // RED: current code passes control chars through — err_display will contain \n at the
+    // position where "bad\ntype" was interpolated.
+    for (i, c) in err_display.char_indices() {
+        assert!(
+            !c.is_ascii_control(),
+            "SEC-001 E-INFUSE-013 CWE-117: rendered error message must NOT contain ASCII \
+             control character U+{:04X} at byte position {} in the Display string.\n\
+             The control char at position {} must be stripped before message construction.\n\
+             Got Display: {:?}",
+            c as u32,
+            i,
+            i,
+            err_display
+        );
+    }
 }
