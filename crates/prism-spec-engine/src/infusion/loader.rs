@@ -19,7 +19,7 @@ use std::io::Read;
 use std::path::Path;
 
 use prism_core::InfusionError;
-use prism_core::error::sanitize_for_log;
+use prism_core::sanitize_for_log;
 use serde::Deserialize;
 
 use super::{
