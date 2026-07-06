@@ -19,6 +19,7 @@ use std::io::Read;
 use std::path::Path;
 
 use prism_core::InfusionError;
+use prism_core::error::sanitize_for_log;
 use serde::Deserialize;
 
 use super::{
@@ -1068,15 +1069,6 @@ impl InfusionLoader {
             ),
         })
     }
-}
-
-/// Strip ASCII control characters (0x00–0x1F, 0x7F) from `s` before embedding in log messages.
-///
-/// Prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured logs
-/// (AD-017 extension, error-taxonomy v2.17 SEC-001 Rendering Note).
-/// Used by `validate_output_type_recognized` and `validate_plugin_type_has_source_column`.
-fn sanitize_for_log(s: &str) -> String {
-    s.chars().filter(|c| !c.is_ascii_control()).collect()
 }
 
 // ---------------------------------------------------------------------------

@@ -46,7 +46,7 @@ use datafusion::logical_expr::async_udf::{AsyncScalarUDF, AsyncScalarUDFImpl};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use prism_core::error::InfusionError;
+use prism_core::error::{sanitize_for_log, InfusionError};
 use prism_spec_engine::{
     parse_datetime_to_micros, InfusionLruCache, InfusionTier3Cache, InfusionUdfDescriptor,
     QueryScopedInfusionCache,
@@ -589,17 +589,12 @@ impl InfusionAsyncUdf {
     /// Coerce a projected string value to the Arrow typed representation declared by `output_type`.
     ///
     /// Returns `Some(typed_value)` on successful coercion, or `None` on failure.
-    /// On failure, emits:
-    /// ```text
-    /// tracing::warn!(
-    ///     event_type = "infusion.coercion_failed",
-    ///     field_name = %field_name,
-    ///     infusion_id = %self.descriptor.infusion_id,
-    ///     declared_type = %self.descriptor.output_type,
-    ///     truncated_value = %value.chars().take(50).collect::<String>(),
-    ///     "{}", err
-    /// )
-    /// ```
+    /// On failure, delegates to `warn_coercion_failed` which emits a `tracing::warn!` with
+    /// `event_type = "infusion.coercion_failed"` and sanitizes all four structured fields
+    /// (`field_name`, `infusion_id`, `declared_type`, `truncated_value`) through
+    /// `prism_core::error::sanitize_for_log` before embedding in the structured log (CWE-117,
+    /// NEW-SEC-001-R). See `warn_coercion_failed` for the exact emission shape.
+    ///
     /// A BC-2.16.002 Canonical Structured Event Catalog row for `event_type = "infusion.coercion_failed"`
     /// MUST be added in the same commit as this tracing emission (SAP-1 standing obligation; AC-012).
     ///
@@ -750,20 +745,6 @@ impl InfusionAsyncUdf {
             other => other.to_string(),
         }
     }
-}
-
-// ---------------------------------------------------------------------------
-// Module-level helpers
-// ---------------------------------------------------------------------------
-
-/// Strip ASCII control characters (0x00–0x1F, 0x7F) from `s` before embedding in log messages.
-///
-/// Prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured logs
-/// (AD-017 extension, NEW-SEC-001-R fix-burst-14). Mirrors the identical helper in
-/// `prism-core/src/error.rs` and `prism-spec-engine/src/infusion/loader.rs`; duplicated here
-/// because those copies are private `fn`s inaccessible from `prism-query`.
-fn sanitize_for_log(s: &str) -> String {
-    s.chars().filter(|c| !c.is_ascii_control()).collect()
 }
 
 // ---------------------------------------------------------------------------

@@ -1929,12 +1929,18 @@ impl InfusionError {
     }
 }
 
-/// Strip ASCII control characters (0x00–0x1F, 0x7F) from `s` before embedding in log messages.
+/// Strip ASCII control characters (0x00–0x1F, 0x7F) from `s` before embedding in log or error
+/// messages.
+///
+/// **Contract A — canonical log/error-message sanitizer (CWE-117):**
+/// Removes chars where `c.is_ascii_control()` is true; no length cap; no replacement character.
+/// Use this function for log and error message value sanitization across all crates.
+/// Distinct from `prism_spec_engine::overlay::sanitize_for_display` which uses U+FFFD replacement
+/// and a 256-char cap for display-facing overlay error strings.
 ///
 /// Prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured logs
 /// (AD-017 extension, error-taxonomy v2.17 SEC-001 Rendering Note).
-/// Called from `InfusionError::new_type_coercion_failed` for metadata fields and truncated_value.
-fn sanitize_for_log(s: &str) -> String {
+pub fn sanitize_for_log(s: &str) -> String {
     s.chars().filter(|c| !c.is_ascii_control()).collect()
 }
 
