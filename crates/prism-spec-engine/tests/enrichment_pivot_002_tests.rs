@@ -57,7 +57,7 @@ use toml;
 /// then InfusionRegistry contains 3 InfusionUdfDescriptor entries and
 /// registry.is_api_backed("threat_score") returns true.
 ///
-/// RED GATE: fails against stubs because TOML parse + field registration is not yet wired.
+/// RED GATE (pre-fix): failed against stubs because TOML parse + field registration was not yet wired.
 #[test]
 fn test_enrichment_pivot_002_threatintel_toml_loads_and_registers_3_udfs() {
     use std::io::Write;
@@ -76,8 +76,8 @@ fn test_enrichment_pivot_002_threatintel_toml_loads_and_registers_3_udfs() {
     let loader = InfusionLoader::new(tmp.path().to_str().unwrap());
     let (specs, errors) = loader.load_all();
 
-    // RED GATE: fails until TOML parse is extended to support [source] top-level block
-    // with [source.credential] sub-table, and validate_field_name is implemented.
+    // RED GATE (pre-fix): failed until TOML parse was extended to support [source] top-level block
+    // with [source.credential] sub-table, and validate_field_name was implemented.
     assert!(
         errors.is_empty(),
         "BC-2.19.001: threatintel.infusion.toml must parse without errors; got: {:?}",
@@ -142,7 +142,7 @@ fn test_enrichment_pivot_002_threatintel_toml_loads_and_registers_3_udfs() {
 /// spec.http_lookup_config.is_some(),
 /// and registry.is_api_backed("cvss_base_score") returns true.
 ///
-/// RED GATE: fails because InfusionLoader::parse doesn't yet handle "http_lookup" type.
+/// RED GATE (pre-fix): failed because InfusionLoader::parse did not yet handle "http_lookup" type.
 #[test]
 fn test_enrichment_pivot_002_nvd_toml_loads_as_http_lookup_and_registers_3_udfs() {
     use std::io::Write;
@@ -161,7 +161,7 @@ fn test_enrichment_pivot_002_nvd_toml_loads_as_http_lookup_and_registers_3_udfs(
     let loader = InfusionLoader::new(tmp.path().to_str().unwrap());
     let (specs, errors) = loader.load_all();
 
-    // RED GATE: fails until InfusionLoader::parse handles "http_lookup" type.
+    // RED GATE (pre-fix): failed until InfusionLoader::parse handled "http_lookup" type.
     assert!(
         errors.is_empty(),
         "BC-2.19.001: nvd.infusion.toml (http_lookup) must parse without errors; got: {:?}",
@@ -1278,7 +1278,7 @@ fn test_enrichment_pivot_002_sap2_threatintel_toml_columns_match_dtu_fields() {
 /// the CVE ID is "id" in CveRecord, NOT "cve_id" — confirmed types.rs; this is a
 /// SAP-2-class error if present).
 ///
-/// RED GATE: same as test 16 — fails until validate_field_name implemented.
+/// RED GATE (pre-fix): same as test 16 — failed until validate_field_name was implemented.
 #[test]
 fn test_enrichment_pivot_002_sap2_nvd_toml_columns_match_dtu_fields() {
     use std::collections::HashSet;
@@ -1386,11 +1386,9 @@ fn test_enrichment_pivot_002_sap2_nvd_toml_columns_match_dtu_fields() {
 /// This tests the INV-INFUSE-001 duplicate detection invariant from BC-2.19.001:
 /// "UDF names are global within a DataFusion SessionContext; duplicates are a load-time error"
 ///
-/// RED GATE: fails until InfusionRegistry::load_spec implements duplicate detection.
-/// Looking at current code (mod.rs): validate_spec_against checks for duplicates via
-/// udf_to_infusion. This SHOULD already work — the test verifies the gate is operational.
-/// If load_spec already implements this correctly, the test will PASS (green-by-design).
-/// Either way, the test documents the required behavioral invariant.
+/// RED GATE (pre-fix): failed until InfusionRegistry::load_spec implemented duplicate detection.
+/// `validate_spec_against` checks for duplicates via `udf_to_infusion`; the test verifies
+/// the gate is operational. The test documents the required behavioral invariant.
 #[test]
 fn test_enrichment_pivot_002_bc2_19_001_duplicate_udf_name_rejected() {
     use std::io::Write;
@@ -1513,8 +1511,8 @@ adds_columns = ["threat_score"]
 /// This tests EC-19-001: "Spec with 0 [[infusion.fields]] entries — Rejected: at least one
 /// field required per INV-INFUSE-001"
 ///
-/// RED GATE: fails until validate_field_name is implemented. Once parse is functional,
-/// a spec with 0 fields would be rejected by InfusionLoader::parse (missing field check).
+/// RED GATE (pre-fix): failed until validate_field_name was implemented. Once parse became functional,
+/// a spec with 0 fields is rejected by InfusionLoader::parse (missing field check).
 /// The test verifies the rejection at PARSE time (not just registry time).
 #[test]
 fn test_enrichment_pivot_002_bc2_19_001_zero_fields_spec_rejected() {
@@ -1565,18 +1563,18 @@ adds_columns = []
 /// AC-002 v1.3 (ADR-040 D8.1): nvd.infusion.toml with type="http_lookup" parses as
 /// InfusionType::HttpLookup and has http_lookup_config populated.
 ///
-/// RED GATE: fails because InfusionLoader::parse does not yet handle "http_lookup".
+/// RED GATE (pre-fix): failed because InfusionLoader::parse did not yet handle "http_lookup".
 #[test]
 fn test_enrichment_pivot_002_http_lookup_infusion_type_parses_nvd_spec() {
     let toml_content = include_str!("../../../specs/infusions/nvd.infusion.toml");
 
-    // RED GATE: InfusionLoader::parse currently does not handle type="http_lookup".
-    // When implemented, must parse and produce InfusionType::HttpLookup.
+    // RED GATE (pre-fix): InfusionLoader::parse did not handle type="http_lookup".
+    // Implemented: parses and produces InfusionType::HttpLookup.
     let result = InfusionLoader::parse(toml_content, "nvd.infusion.toml");
 
     let spec = result.expect(
         "AC-002 v1.3: nvd.infusion.toml with type='http_lookup' must parse without error. \
-         RED GATE until InfusionLoader::parse handles http_lookup type (ADR-040 D8.1).",
+         (pre-fix: RED GATE until InfusionLoader::parse handled http_lookup type; ADR-040 D8.1)",
     );
 
     assert_eq!(
@@ -1606,7 +1604,7 @@ fn test_enrichment_pivot_002_http_lookup_infusion_type_parses_nvd_spec() {
 /// AC-016 (ADR-040 D8.3): InfusionLoader must reject http_lookup specs where url_template
 /// does not contain `${input}` — the interpolation placeholder is required.
 ///
-/// RED GATE: fails because loader doesn't yet validate url_template.
+/// RED GATE (pre-fix): failed because loader did not yet validate url_template.
 #[test]
 fn test_enrichment_pivot_002_http_lookup_parse_rejects_missing_input_placeholder() {
     let bad_toml = r#"
@@ -1655,7 +1653,7 @@ adds_columns = ["cvss_score"]
 /// AC-016 (ADR-040 D8.3): InfusionLoader must reject http_lookup specs with unsupported
 /// HTTP methods. Only "GET" and "POST" are permitted.
 ///
-/// RED GATE: fails because loader doesn't yet validate method field.
+/// RED GATE (pre-fix): failed because loader did not yet validate method field.
 #[test]
 fn test_enrichment_pivot_002_http_lookup_parse_rejects_invalid_method() {
     let bad_toml = r#"
@@ -1682,7 +1680,7 @@ adds_columns = ["result"]
 
     let result = InfusionLoader::parse(bad_toml, "delete_lookup.infusion.toml");
 
-    // RED GATE: InfusionLoader::parse must return Err for unsupported method "DELETE".
+    // RED GATE (pre-fix): InfusionLoader::parse now returns Err for unsupported method "DELETE".
     assert!(
         result.is_err(),
         "AC-016: http_lookup method='DELETE' must be rejected at parse time. \
@@ -2255,7 +2253,7 @@ fn test_enrichment_pivot_002_val_lift_fix_option_some_returns_json_value() {
 /// AC-019 F-003 rigor: PluginRuntime::enrich_single must return Ok(None)
 /// when the WASM component returns Val::Option(None) (no enrichment found).
 ///
-/// RED GATE: requires a WAT fixture returning Val::Option(None).
+/// RED GATE (pre-fix): required a WAT fixture returning Val::Option(None).
 #[test]
 fn test_enrichment_pivot_002_val_lift_fix_option_none_returns_ok_none() {
     // AC-019: Val-lift fix — Component Model path returns Ok(None) for option::none.
@@ -2595,7 +2593,7 @@ fn test_enrichment_pivot_002_high1_crit2b_plugin_infusion_source_canonical_ident
 /// Err(PluginError::EnrichCallFailed { .. }) when the WASM component returns an unexpected
 /// Val type (e.g., Val::String directly instead of Val::Option).
 ///
-/// RED GATE: requires a WAT fixture returning an unexpected Val type.
+/// RED GATE (pre-fix): required a WAT fixture returning an unexpected Val type.
 #[test]
 fn test_enrichment_pivot_002_val_lift_fix_unexpected_val_returns_enrich_call_failed() {
     // AC-019: Val-lift fix — Component Model path returns Err(EnrichCallFailed) for unexpected Val.

@@ -1923,9 +1923,9 @@ mod tests {
     /// BC-2.19.001 v2.2 INV-ENRICH-TYPED-001: every enrichment UDF must produce typed output
     /// consistent with the declared output_type field in the infusion spec.
     ///
-    /// RED GATE: `return_type()` is hardcoded to `DataType::Utf8` (lines 198-206).
-    /// Assertions for integer/float/boolean/datetime fail; string/json happen to pass vacuously.
-    /// After Phase F (output_arrow_type wired into return_type): all 6 cases pass.
+    /// RED GATE (pre-fix): `return_type()` returned `DataType::Utf8` for all types.
+    /// Assertions for integer/float/boolean/datetime failed; string/json passed vacuously.
+    /// After `output_arrow_type` was wired into `return_type()`: all 6 cases pass.
     #[test]
     fn test_return_type_matches_output_type_for_all_declared_types() {
         use datafusion::arrow::datatypes::{DataType, TimeUnit};
@@ -1963,7 +1963,7 @@ mod tests {
             assert_eq!(
                 actual, *expected,
                 "ADR-051 D1 RGT-001: output_type='{}' → expected {:?} but return_type() \
-                 returned {:?}. RED GATE: return_type() is hardcoded to Utf8. \
+                 returned {:?}. (pre-fix: return_type() returned Utf8 for all types) \
                  (INV-ENRICH-TYPED-001 / BC-2.19.001 v2.2)",
                 output_type_str, expected, actual
             );
@@ -1972,9 +1972,9 @@ mod tests {
 
     /// RGT-002 (ADR-051 D1): DataFusion executes integer-output UDF and emits Int64 column.
     ///
-    /// RED GATE: `return_type()` returns Utf8 → DataFusion plans a Utf8 output column;
-    /// `assert_eq!(actual_type, DataType::Int64)` fails with Utf8 ≠ Int64.
-    /// After Phase F/H: output schema field is DataType::Int64.
+    /// RED GATE (pre-fix): `return_type()` returned Utf8 → DataFusion planned a Utf8 output column;
+    /// `assert_eq!(actual_type, DataType::Int64)` failed with Utf8 ≠ Int64.
+    /// After `output_arrow_type` was wired into `return_type()`: output schema field is DataType::Int64.
     #[tokio::test]
     async fn test_invoke_async_with_args_returns_int64_array_for_integer_output_type() {
         use datafusion::arrow::array::StringArray;
@@ -2017,7 +2017,7 @@ mod tests {
             actual_type,
             DataType::Int64,
             "ADR-051 D1 RGT-002: output_type='integer' → enriched column must be Int64 \
-             but got {:?}. RED GATE: return_type() hardcoded to Utf8 (INV-ENRICH-TYPED-001)",
+             but got {:?}. (pre-fix: return_type() returned Utf8 — INV-ENRICH-TYPED-001)",
             actual_type
         );
         // MED-001+LOW-001: assert the actual row VALUE (not just the schema type).
@@ -2042,7 +2042,7 @@ mod tests {
 
     /// RGT-003 (ADR-051 D1): DataFusion emits Float64 column for float output_type.
     ///
-    /// RED GATE: `return_type()` returns Utf8 → Float64 assertion fails.
+    /// RED GATE (pre-fix): `return_type()` returned Utf8 → Float64 assertion failed.
     #[tokio::test]
     async fn test_invoke_async_with_args_returns_float64_array_for_float_output_type() {
         use datafusion::arrow::array::StringArray;
@@ -2085,7 +2085,7 @@ mod tests {
             actual_type,
             DataType::Float64,
             "ADR-051 D1 RGT-003: output_type='float' → enriched column must be Float64 \
-             but got {:?}. RED GATE: return_type() hardcoded to Utf8.",
+             but got {:?}. (pre-fix: return_type() returned Utf8 for all types)",
             actual_type
         );
         // MED-001+LOW-001: assert the actual row VALUE.
@@ -2107,7 +2107,7 @@ mod tests {
 
     /// RGT-004 (ADR-051 D1): DataFusion emits Boolean column for boolean output_type.
     ///
-    /// RED GATE: `return_type()` returns Utf8 → Boolean assertion fails.
+    /// RED GATE (pre-fix): `return_type()` returned Utf8 → Boolean assertion failed.
     #[tokio::test]
     async fn test_invoke_async_with_args_returns_boolean_array_for_boolean_output_type() {
         use datafusion::arrow::array::StringArray;
@@ -2150,7 +2150,7 @@ mod tests {
             actual_type,
             DataType::Boolean,
             "ADR-051 D1 RGT-004: output_type='boolean' → enriched column must be Boolean \
-             but got {:?}. RED GATE: return_type() hardcoded to Utf8.",
+             but got {:?}. (pre-fix: return_type() returned Utf8 for all types)",
             actual_type
         );
         // MED-001+LOW-001: assert the actual row VALUE.
@@ -2174,7 +2174,7 @@ mod tests {
     ///
     /// ADR-052: sensor datetime → Timestamp(µs, UTC). ADR-051 D1 extends this to enrichment UDFs.
     ///
-    /// RED GATE: `return_type()` returns Utf8 → Timestamp assertion fails.
+    /// RED GATE (pre-fix): `return_type()` returned Utf8 → Timestamp assertion failed.
     #[tokio::test]
     async fn test_invoke_async_with_args_returns_timestamp_microsecond_array_for_datetime_output_type(
     ) {
@@ -2218,7 +2218,7 @@ mod tests {
         assert_eq!(
             actual_type, expected_type,
             "ADR-051 D1+ADR-052 RGT-005: output_type='datetime' → enriched column must be \
-             Timestamp(Microsecond,UTC) but got {:?}. RED GATE: return_type() hardcoded to Utf8.",
+             Timestamp(Microsecond,UTC) but got {:?}. (pre-fix: return_type() returned Utf8 for all types)",
             actual_type
         );
         // MED-001+LOW-001: assert the actual row VALUE (microseconds since epoch).

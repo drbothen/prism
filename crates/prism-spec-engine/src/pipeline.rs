@@ -2572,10 +2572,10 @@ mod execute_step_tests {
 // When `Some(n)`, `page_size=n` MUST appear in first-call and continuation URLs.
 // When `None`, no `page_size` parameter may appear.
 //
-// RED GATE MECHANISM: `build_paged_url` currently ignores the `page_size` field
+// RED GATE (pre-fix): `build_paged_url` ignored the `page_size` field
 // (see TD-S-PLUGIN-PREREQ-B-001 comment at pipeline.rs build_paged_url). These tests
-// assert the EXPECTED postcondition; they fail until `build_paged_url` reads and
-// threads `page_size` into the URL.
+// assert the EXPECTED postcondition; they pass once `build_paged_url` was updated to
+// thread `page_size` into the URL.
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -2602,8 +2602,8 @@ mod cursor_page_size_tests {
 
     /// AC-1(a): `page_size: Some(50)` on a first call (no cursor) → URL contains `page_size=50`.
     ///
-    /// RED GATE: `build_paged_url` does not yet thread `page_size` into the URL.
-    /// This test MUST FAIL until AC-1 implementation is complete.
+    /// RED GATE (pre-fix): `build_paged_url` did not thread `page_size` into the URL.
+    /// This test was the red gate for AC-1; now passes.
     #[test]
     fn test_BC_2_16_002_cursor_pagination_first_call_includes_page_size() {
         let step = cursor_step(Some(50));
@@ -2611,18 +2611,16 @@ mod cursor_page_size_tests {
         let url = build_paged_url(base, &step, &None, 0);
         assert!(
             url.contains("page_size=50"),
-            "AC-1 RED GATE: first-call URL must contain 'page_size=50' when page_size=Some(50); \
-             got: {url}\n\
-             IMPLEMENTATION NEEDED: update build_paged_url to read \
-             PaginationConfig::CursorToken {{ page_size }} and append page_size=N to the URL."
+            "AC-1 regression guard: first-call URL must contain 'page_size=50' when page_size=Some(50); \
+             got: {url}"
         );
     }
 
     /// AC-1(b): `page_size: Some(50)` on a continuation call (cursor present) → URL contains
     /// both `page_size=50` and the cursor parameter.
     ///
-    /// RED GATE: `build_paged_url` does not yet append `page_size` on continuation calls.
-    /// This test MUST FAIL until AC-1 implementation is complete.
+    /// RED GATE (pre-fix): `build_paged_url` did not append `page_size` on continuation calls.
+    /// Test was the red gate for AC-1; now passes.
     #[test]
     fn test_BC_2_16_002_cursor_pagination_continuation_includes_page_size() {
         let step = cursor_step(Some(50));
@@ -2631,7 +2629,7 @@ mod cursor_page_size_tests {
         let url = build_paged_url(base, &step, &cursor, 0);
         assert!(
             url.contains("page_size=50"),
-            "AC-1 RED GATE: continuation URL must contain 'page_size=50' when page_size=Some(50); \
+            "AC-1 regression guard: continuation URL must contain 'page_size=50' when page_size=Some(50); \
              got: {url}"
         );
         assert!(
@@ -2670,9 +2668,9 @@ mod cursor_page_size_tests {
 // BC-2.16.002 postcondition: `extract_at_path` supports dot-notation paths.
 // AC-2 extends this to bracket indexing (`$.x[0]`) and wildcard (`$.x[*]`).
 //
-// RED GATE MECHANISM: `extract_at_path` currently only supports dot-notation paths
-// (see TD-S-PLUGIN-PREREQ-B-003 comment). Bracket notation returns Err.
-// These tests assert the EXPECTED postcondition; they fail until AC-2 is implemented.
+// RED GATE (pre-fix): `extract_at_path` supported only dot-notation paths
+// (see TD-S-PLUGIN-PREREQ-B-003 comment). Bracket notation returned Err.
+// These tests assert the EXPECTED postcondition; they pass once AC-2 was implemented.
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -2683,8 +2681,8 @@ mod jsonpath_bracket_tests {
 
     /// AC-2(a): `$.devices[0].id` on an array-valued JSON object extracts the first element.
     ///
-    /// RED GATE: `extract_at_path` splits on `.` only; `[0]` is not recognized as an
-    /// array index, so this path fails to match. Test MUST FAIL until AC-2 is complete.
+    /// RED GATE (pre-fix): `extract_at_path` split on `.` only; `[0]` was not recognized as an
+    /// array index, so this path failed to match. Test was the red gate for AC-2; now passes.
     #[test]
     fn test_BC_2_16_002_extract_bracket_index() {
         let body = json!({
@@ -2696,8 +2694,8 @@ mod jsonpath_bracket_tests {
         let result = extract_at_path(&body, "$.devices[0].id");
         assert!(
             result.is_ok(),
-            "AC-2 RED GATE: $.devices[0].id must succeed; got Err: {:?}\n\
-             IMPLEMENTATION NEEDED: extend extract_at_path to parse bracket index notation.",
+            "AC-2 regression guard: $.devices[0].id must succeed; got Err: {:?}\n\
+             if this fails, extract_at_path bracket-index support regressed.",
             result.err()
         );
         assert_eq!(
@@ -2709,8 +2707,8 @@ mod jsonpath_bracket_tests {
 
     /// AC-2(b): `$.devices[*].id` on an array-valued JSON object returns all matching values.
     ///
-    /// RED GATE: wildcard `[*]` is not supported by the current dot-split path traversal.
-    /// Test MUST FAIL until AC-2 is complete.
+    /// RED GATE (pre-fix): wildcard `[*]` was not supported by the dot-split path traversal.
+    /// Test was the red gate for AC-2; now passes.
     #[test]
     fn test_BC_2_16_002_extract_wildcard_enumeration() {
         let body = json!({
@@ -2722,9 +2720,8 @@ mod jsonpath_bracket_tests {
         let result = extract_at_path(&body, "$.devices[*].id");
         assert!(
             result.is_ok(),
-            "AC-2 RED GATE: $.devices[*].id must succeed; got Err: {:?}\n\
-             IMPLEMENTATION NEEDED: extend extract_at_path to support wildcard [*] enumeration \
-             returning a JSON array of matched values.",
+            "AC-2 regression guard: $.devices[*].id must succeed; got Err: {:?}\n\
+             if this fails, extract_at_path wildcard [*] enumeration support regressed.",
             result.err()
         );
         let values = result.unwrap();
@@ -2759,35 +2756,31 @@ mod jsonpath_bracket_tests {
 
     /// AC-2(d): `$.x[99]` on a 3-element array returns a structured error (not panic, not None).
     ///
-    /// RED GATE: current `extract_at_path` returns `Err(String)` for any bracket path.
-    /// After AC-2, it must return `Err` specifically for out-of-bounds (not panic).
-    /// This test will fail at the first assertion because `$.x[99]` syntax is not
-    /// parsed — after AC-2 it should return Err due to out-of-bounds (not due to
-    /// unrecognized syntax). The behavior changes but the no-panic invariant is the goal.
+    /// RED GATE (pre-fix): `extract_at_path` returned `Err(String)` for any bracket path.
+    /// After AC-2, it returns `Err` specifically for out-of-bounds (not panic).
+    /// Pre-fix, this test failed at the first assertion because `$.x[99]` syntax was not
+    /// parsed; after AC-2 it returns Err due to out-of-bounds. The no-panic invariant holds.
     #[test]
     fn test_BC_2_16_002_extract_bracket_out_of_bounds_structured_error() {
         let body = json!({
             "x": [1, 2, 3]
         });
         let result = extract_at_path(&body, "$.x[99]");
-        // Post-AC-2: must return Err (structured, not panic). Currently returns Err for a
-        // different reason (unrecognized bracket syntax). The invariant: MUST NOT panic.
+        // Post-AC-2: returns Err (structured, not panic). The invariant: MUST NOT panic.
         assert!(
             result.is_err(),
             "AC-2: $.x[99] on a 3-element array must return Err (out-of-bounds); \
              after AC-2 impl this Err should have a descriptive message, not just 'path not found'"
         );
-        // Post-AC-2 refinement: the error message should indicate out-of-bounds.
-        // Before AC-2 this message says "path must start with '$.'..." or "path not found".
-        // After AC-2 this message should say something like "index 99 out of bounds".
-        // This assertion documents the EXPECTED post-AC-2 error message and FAILS before AC-2.
+        // Post-AC-2: the error message indicates out-of-bounds (implemented).
+        // Pre-fix the message said "path must start with '$.'..." or "path not found".
         let err_msg = result.unwrap_err();
         assert!(
             err_msg.contains("out of bounds")
                 || err_msg.contains("index")
                 || err_msg.contains("99"),
-            "AC-2 RED GATE: out-of-bounds error message must reference the index or 'out of bounds'; \
-             current message before AC-2 is: '{err_msg}'"
+            "AC-2 regression guard: out-of-bounds error message must reference the index or 'out of bounds'; \
+             got: '{err_msg}'"
         );
     }
 
@@ -3394,14 +3387,13 @@ mod timestamp_normalization_tests {
 //
 // Red Gate tests for AC-001, AC-002, AC-003, AC-004, AC-005, AC-006.
 //
-// RED GATE MECHANISM:
-//   AC-001, AC-004, AC-005, AC-003-unit FAIL: `build_paged_url_impl` currently
-//   appends `?offset=N&limit=M` to the URL regardless of HTTP method and
-//   `build_request` never injects offset/limit into the POST body.
-//   These tests assert the EXPECTED postcondition; they MUST FAIL until the
-//   implementation is complete.
+// RED GATE (pre-fix):
+//   AC-001, AC-004, AC-005, AC-003-unit: `build_paged_url_impl` previously
+//   appended `?offset=N&limit=M` to the URL regardless of HTTP method and
+//   `build_request` did not inject offset/limit into the POST body.
+//   These tests assert the EXPECTED postcondition; now passing.
 //
-//   AC-002, AC-006 PASS: existing GET behavior is correct today.
+//   AC-002, AC-006: existing GET behavior was correct.
 // ---------------------------------------------------------------------------
 #[cfg(test)]
 mod pagination_post_body_tests {
@@ -3497,8 +3489,8 @@ mod pagination_post_body_tests {
     // -----------------------------------------------------------------------
     // AC-001 (URL side): POST step with OffsetLimit → URL unchanged (no ?offset=&limit=)
     //
-    // RED GATE: `build_paged_url_impl` currently appends ?offset=N&limit=M to ALL
-    // methods. This test MUST FAIL until build_paged_url_impl branches on step.method.
+    // RED GATE (pre-fix): `build_paged_url_impl` appended ?offset=N&limit=M to ALL
+    // methods. This test passed once build_paged_url_impl branched on step.method.
     // -----------------------------------------------------------------------
 
     /// AC-001 / BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
@@ -3508,8 +3500,8 @@ mod pagination_post_body_tests {
     /// MUST return the base URL unchanged. The `?offset=` and `?limit=` params
     /// MUST NOT appear in the URL — they go in the request body instead.
     ///
-    /// RED GATE: build_paged_url_impl currently appends ?offset=N&limit=M regardless
-    /// of method. This FAILS until Task 2 (build_paged_url_impl POST branch) is done.
+    /// RED GATE (pre-fix): build_paged_url_impl appended ?offset=N&limit=M regardless
+    /// of method. Now passes with Task 2 (build_paged_url_impl POST branch) done.
     #[test]
     fn test_BC_2_16_002_pagination_post_method_url_unchanged() {
         let step = post_offset_limit_step(100);
@@ -3519,11 +3511,8 @@ mod pagination_post_body_tests {
         let url_page1 = build_paged_url(base, &step, &None, 0);
         assert_eq!(
             url_page1, base,
-            "AC-001 RED GATE (URL-side): POST step page1 URL must equal base URL unchanged; \
-             got: {url_page1}\n\
-             IMPLEMENTATION NEEDED: update build_paged_url_impl so that \
-             PaginationConfig::OffsetLimit with method=POST returns base_url unchanged \
-             (offset+limit go in the body, not the URL)."
+            "AC-001 regression guard: POST step page1 URL must equal base URL unchanged; \
+             got: {url_page1}"
         );
         assert!(
             !url_page1.contains("offset="),
@@ -3538,7 +3527,7 @@ mod pagination_post_body_tests {
         let url_page2 = build_paged_url(base, &step, &None, 100);
         assert_eq!(
             url_page2, base,
-            "AC-001 RED GATE (URL-side): POST step page2 URL must equal base URL unchanged; \
+            "AC-001 regression guard: POST step page2 URL must equal base URL unchanged; \
              got: {url_page2}"
         );
     }
@@ -3547,10 +3536,10 @@ mod pagination_post_body_tests {
     // AC-001 (body side): POST step with OffsetLimit → request body contains
     // top-level "offset" and "limit" integer keys.
     //
-    // RED GATE: build_request does not yet inject offset/limit into the body.
+    // RED GATE (pre-fix): build_request did not inject offset/limit into the body.
     // This test drives the real production code path (PipelineExecutor::execute_with_max_requests
     // → build_request) via wiremock and inspects the received request body.
-    // MUST FAIL until Task 3a (thread offset/page_size) + Task 3b (body injection) complete.
+    // Passes once Task 3a (thread offset/page_size) + Task 3b (body injection) completed.
     // -----------------------------------------------------------------------
 
     /// AC-001 / BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
@@ -3563,8 +3552,8 @@ mod pagination_post_body_tests {
     /// `build_request` via `PipelineExecutor::execute_with_max_requests`. The
     /// received request body is inspected via `mock_server.received_requests()`.
     ///
-    /// RED GATE: build_request does not inject offset/limit into the body today.
-    /// FAILS until Tasks 3a + 3b complete.
+    /// RED GATE (pre-fix): build_request did not inject offset/limit into the body.
+    /// Passes once Tasks 3a + 3b completed.
     #[tokio::test]
     async fn test_BC_2_16_002_pagination_post_method_sends_offset_limit_in_body() {
         let mock_server = MockServer::start().await;
@@ -3637,29 +3626,30 @@ mod pagination_post_body_tests {
         let url_str = req.url.as_str();
         assert!(
             !url_str.contains("offset="),
-            "AC-001 RED GATE (URL-side): POST URL must not contain 'offset='; url={url_str}"
+            "AC-001 regression guard: POST URL must not contain 'offset='; url={url_str}"
         );
         assert!(
             !url_str.contains("limit="),
-            "AC-001 RED GATE (URL-side): POST URL must not contain 'limit='; url={url_str}"
+            "AC-001 regression guard: POST URL must not contain 'limit='; url={url_str}"
         );
 
         // The request body must contain top-level "offset" and "limit" integer keys.
         let body_json: serde_json::Value = serde_json::from_slice(&req.body).unwrap_or_else(|e| {
-            panic!("AC-001 RED GATE: POST request body must be valid JSON; parse error: {e}; raw body: {:?}", String::from_utf8_lossy(&req.body))
+            panic!(
+                "AC-001: POST request body must be valid JSON; parse error: {e}; raw body: {:?}",
+                String::from_utf8_lossy(&req.body)
+            )
         });
 
         let offset_val = body_json.get("offset").unwrap_or_else(|| {
             panic!(
-                "AC-001 RED GATE: POST body must contain top-level 'offset' key; \
-                 body={body_json}\n\
-                 IMPLEMENTATION NEEDED: inject offset+limit into request body in build_request \
-                 (Tasks 3a + 3b in S-DEMO-CLAROTY-PAGINATION-001)."
+                "AC-001: POST body must contain top-level 'offset' key; \
+                 body={body_json}"
             )
         });
         let limit_val = body_json.get("limit").unwrap_or_else(|| {
             panic!(
-                "AC-001 RED GATE: POST body must contain top-level 'limit' key; \
+                "AC-001: POST body must contain top-level 'limit' key; \
                  body={body_json}"
             )
         });
@@ -3731,9 +3721,9 @@ mod pagination_post_body_tests {
     // -----------------------------------------------------------------------
     // AC-004: Body template merging preserves existing body fields
     //
-    // RED GATE: build_request does not yet inject offset/limit into the body.
-    // When it does, existing body_template keys must be preserved (merge, not replace).
-    // MUST FAIL until Tasks 3a + 3b complete.
+    // RED GATE (pre-fix): build_request did not inject offset/limit into the body.
+    // Now implemented: existing body_template keys are preserved (merge, not replace).
+    // Passes once Tasks 3a + 3b completed.
     // -----------------------------------------------------------------------
 
     /// AC-004 / BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
@@ -3746,8 +3736,8 @@ mod pagination_post_body_tests {
     /// Test vector: body_template = `{"filter": "active"}` → after injection body
     /// must contain ALL OF: `"filter": "active"`, `"offset": 0`, `"limit": 100`.
     ///
-    /// RED GATE: build_request currently sets body to the raw interpolated body_template
-    /// string without merging offset/limit. FAILS until Task 3b complete.
+    /// RED GATE (pre-fix): build_request set the body to the raw interpolated body_template
+    /// string without merging offset/limit. Now passes with Task 3b complete.
     #[tokio::test]
     async fn test_BC_2_16_002_pagination_body_template_merge_preserves_existing_keys() {
         let mock_server = MockServer::start().await;
@@ -3801,7 +3791,7 @@ mod pagination_post_body_tests {
         let body_json: serde_json::Value =
             serde_json::from_slice(&post_req.body).unwrap_or_else(|e| {
                 panic!(
-                    "AC-004 RED GATE: POST request body must be valid JSON; error: {e}; \
+                    "AC-004: POST request body must be valid JSON; error: {e}; \
                      raw: {:?}",
                     String::from_utf8_lossy(&post_req.body)
                 )
@@ -3810,9 +3800,8 @@ mod pagination_post_body_tests {
         // The pre-existing "filter" key must survive the offset/limit merge.
         let filter_val = body_json.get("filter").unwrap_or_else(|| {
             panic!(
-                "AC-004 RED GATE: merged POST body must preserve existing 'filter' key; \
-                 body={body_json}\n\
-                 IMPLEMENTATION NEEDED: merge offset+limit INTO body object, do not replace it."
+                "AC-004: merged POST body must preserve existing 'filter' key; \
+                 body={body_json}"
             )
         });
         assert_eq!(
@@ -3824,19 +3813,19 @@ mod pagination_post_body_tests {
         // offset and limit must also be present.
         assert!(
             body_json.get("offset").is_some(),
-            "AC-004 RED GATE: merged body must also contain 'offset'; body={body_json}"
+            "AC-004: merged body must also contain 'offset'; body={body_json}"
         );
         assert!(
             body_json.get("limit").is_some(),
-            "AC-004 RED GATE: merged body must also contain 'limit'; body={body_json}"
+            "AC-004: merged body must also contain 'limit'; body={body_json}"
         );
     }
 
     // -----------------------------------------------------------------------
     // AC-005: First-page request uses offset=0 in body
     //
-    // RED GATE: body injection does not yet exist.
-    // MUST FAIL until Tasks 3a + 3b complete.
+    // RED GATE (pre-fix): body injection did not yet exist.
+    // Passes once Tasks 3a + 3b completed.
     //
     // Note: AC-005 offset=0 assertion is also covered by test_BC_2_16_002_pagination_post_method_sends_offset_limit_in_body
     // above. This test provides focused dedicated coverage with a clearer diagnostic.
@@ -3848,7 +3837,7 @@ mod pagination_post_body_tests {
     /// For the first pagination step, `offset = 0` and `limit = page_size` MUST be
     /// present in the POST body.
     ///
-    /// RED GATE: body injection does not exist today. FAILS until Task 3b complete.
+    /// RED GATE (pre-fix): body injection did not exist. Passes with Task 3b complete.
     #[tokio::test]
     async fn test_BC_2_16_002_pagination_post_first_page_offset_zero_in_body() {
         let mock_server = MockServer::start().await;
@@ -3900,7 +3889,7 @@ mod pagination_post_body_tests {
 
         let body_json: serde_json::Value = serde_json::from_slice(&req.body).unwrap_or_else(|e| {
             panic!(
-                "AC-005 RED GATE: first-page POST body must be valid JSON; error: {e}; \
+                "AC-005: first-page POST body must be valid JSON; error: {e}; \
                      raw: {:?}",
                 String::from_utf8_lossy(&req.body)
             )
@@ -3911,9 +3900,8 @@ mod pagination_post_body_tests {
             .and_then(|v| v.as_u64())
             .unwrap_or_else(|| {
                 panic!(
-                    "AC-005 RED GATE: first-page POST body must contain numeric 'offset' key; \
-                     body={body_json}\n\
-                     IMPLEMENTATION NEEDED: inject offset=0 in body for first page (Task 3b)."
+                    "AC-005: first-page POST body must contain numeric 'offset' key; \
+                     body={body_json}"
                 )
             });
 
@@ -3927,7 +3915,7 @@ mod pagination_post_body_tests {
             .and_then(|v| v.as_u64())
             .unwrap_or_else(|| {
                 panic!(
-                    "AC-005 RED GATE: first-page POST body must contain numeric 'limit' key; \
+                    "AC-005: first-page POST body must contain numeric 'limit' key; \
                      body={body_json}"
                 )
             });
@@ -3982,23 +3970,10 @@ mod pagination_post_body_tests {
     // AC-003 companion unit test (SID-1 compliance):
     // Multi-page POST pagination advances offset across pages.
     //
-    // RED GATE: offset/limit are not yet injected into the body. With no body-side
-    // pagination, the mock cannot distinguish page 1 from page 2, so this test
-    // uses up_to_n_times to serve 2 identical-body responses and verifies that
-    // 2 requests were made (pagination loop advanced to page 2) AND the total
-    // record count is 102 (50 + 52 across the 2 pages served).
-    //
-    // More precisely: to advance to page 2, the pipeline needs page 1 to return
-    // exactly page_size records. With body injection in place, the mock distinguishes
-    // pages by their body content (offset=0 vs offset=page_size). Without body
-    // injection (current state), the pipeline appends ?offset=0&limit=N to the POST
-    // URL (current buggy behavior), and the mock — which matches only on method+path —
-    // still serves both responses. So the request_count=2 assertion is actually the
-    // key gate: it verifies the pagination loop ran twice (i.e., the offset DID
-    // advance correctly in the execute_impl loop even if the URL was wrong). The
-    // URL-clean + body-has-offset assertions are the POST-body correctness gates.
-    //
-    // FAILS until Tasks 3a + 3b complete (body injection).
+    // RED GATE (pre-fix): offset/limit were not injected into the body. Body injection
+    // now implemented: the mock distinguishes pages by their body content
+    // (offset=0 vs offset=page_size). The URL-clean + body-has-offset assertions are
+    // the POST-body correctness gates. Passes once Tasks 3a + 3b completed.
     // -----------------------------------------------------------------------
 
     /// AC-003 companion unit test / BC-2.01.013 postcondition §1 (SID-1 compliance).
@@ -4014,9 +3989,9 @@ mod pagination_post_body_tests {
     /// It drives the pagination loop WITHOUT the external Claroty DTU (wiremock mock
     /// HTTP boundary) per SID-1.
     ///
-    /// RED GATE: Without body injection, page 1 and page 2 POSTs are indistinguishable
-    /// at the body level. The key assertion `"offset": 51` in the page 2 body will
-    /// FAIL (body will not contain the key at all). FAILS until Tasks 3a + 3b complete.
+    /// RED GATE (pre-fix): Without body injection, page 1 and page 2 POSTs were indistinguishable
+    /// at the body level. The key assertion `"offset": 51` in the page 2 body now passes
+    /// with Tasks 3a + 3b complete.
     #[tokio::test]
     async fn test_BC_2_16_002_pagination_post_offset_advances_across_pages() {
         let mock_server = MockServer::start().await;
@@ -4101,10 +4076,8 @@ mod pagination_post_body_tests {
         assert_eq!(
             post_reqs.len(),
             2,
-            "AC-003-unit RED GATE: pagination must issue 2 POST requests (page 1 + page 2); \
-             got {} requests\n\
-             IMPLEMENTATION NEEDED: offset must advance in execute_impl for POST steps \
-             AND body injection must work for the pagination loop to recognize page 1 as full.",
+            "AC-003-unit regression guard: pagination must issue 2 POST requests (page 1 + page 2); \
+             got {} requests",
             post_reqs.len()
         );
 
@@ -4112,18 +4085,18 @@ mod pagination_post_body_tests {
         let page2_url = post_reqs[1].url.as_str();
         assert!(
             !page2_url.contains("offset="),
-            "AC-003-unit RED GATE: page 2 POST URL must not contain 'offset='; url={page2_url}"
+            "AC-003-unit regression guard: page 2 POST URL must not contain 'offset='; url={page2_url}"
         );
         assert!(
             !page2_url.contains("limit="),
-            "AC-003-unit RED GATE: page 2 POST URL must not contain 'limit='; url={page2_url}"
+            "AC-003-unit regression guard: page 2 POST URL must not contain 'limit='; url={page2_url}"
         );
 
         // Assert page 2 body contains "offset": 51 (offset advanced by page_size).
         let page2_body: serde_json::Value = serde_json::from_slice(&post_reqs[1].body)
             .unwrap_or_else(|e| {
                 panic!(
-                    "AC-003-unit RED GATE: page 2 POST body must be valid JSON; error: {e}; \
+                    "AC-003-unit: page 2 POST body must be valid JSON; error: {e}; \
                      raw: {:?}",
                     String::from_utf8_lossy(&post_reqs[1].body)
                 )
@@ -4134,16 +4107,14 @@ mod pagination_post_body_tests {
             .and_then(|v| v.as_u64())
             .unwrap_or_else(|| {
                 panic!(
-                    "AC-003-unit RED GATE: page 2 POST body must contain 'offset' key; \
-                     body={page2_body}\n\
-                     IMPLEMENTATION NEEDED: offset must be injected into body (Task 3b) and \
-                     must advance by page_size between pages (Task 3a wiring)."
+                    "AC-003-unit: page 2 POST body must contain 'offset' key; \
+                     body={page2_body}"
                 )
             });
 
         assert_eq!(
             page2_offset, 51,
-            "AC-003-unit RED GATE: page 2 offset in body must be 51 (advanced by page_size=51); \
+            "AC-003-unit: page 2 offset in body must be 51 (advanced by page_size=51); \
              got: {page2_offset}"
         );
     }
