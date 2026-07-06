@@ -3079,13 +3079,31 @@ description = "Plugin-type field missing required source_column (ADR-051 D3)"
          Got: Ok({:?})",
         result.ok()
     );
-    let err_str = format!("{:?}", result.unwrap_err());
+    // MED-001 fix-burst-12: use Display (not Debug) and assert the canonical header token
+    // "invalid field name 'source_column'" — the {field} slot MUST be "source_column"
+    // (the missing attribute name), NOT the enclosing field name (e.g. "result_field").
+    //
+    // Display form of InfusionError::InvalidFieldSpec:
+    //   "E-INFUSE-013: invalid field name '{field}' in infusion spec '{spec_path}': {message}"
+    //
+    // Current DEFECT (sub-condition 8 in validate_plugin_type_has_source_column):
+    //   field: field_name.to_owned()  → renders "invalid field name 'result_field' ..."
+    //   This is MISLEADING — result_field IS a valid field name; the fault is the missing
+    //   source_column attribute.  The correct form (as in sibling sub-condition 7
+    //   validate_output_type_recognized which puts field: "output_type") must use
+    //   field: "source_column".
+    //
+    // This assertion is LOAD-BEARING on the {field} slot value:
+    //   FAILS  against current code  → "invalid field name 'result_field' ..." ≠ token
+    //   PASSES after implementer fix → "invalid field name 'source_column' ..." = token
+    let err_display = format!("{}", result.unwrap_err());
     assert!(
-        err_str.contains("source_column")
-            || err_str.contains("E-INFUSE-013")
-            || err_str.contains("InvalidFieldSpec"),
-        "E-INFUSE-013 error message must reference source_column or E-INFUSE-013. Got: {}",
-        err_str
+        err_display.contains("invalid field name 'source_column'"),
+        "RGT-006 MED-001 E-INFUSE-013 sub-condition 8: the rendered Display MUST contain \
+         \"invalid field name 'source_column'\" — the {{field}} slot must be 'source_column' \
+         (the missing attribute), NOT the enclosing field name 'result_field'. \
+         Got: '{}'",
+        err_display
     );
 }
 
