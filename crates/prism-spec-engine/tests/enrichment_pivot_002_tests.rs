@@ -3129,13 +3129,17 @@ fn test_unknown_output_type_rejected_e_infuse_013_sub_condition_7() {
 // RGT-012: threatintel.infusion.toml has source_column + iocs_value_first  (ADR-051 D3/D4)
 // ---------------------------------------------------------------------------
 
-/// RGT-012 (ADR-051 D3 + D4): the threatintel infusion TOML must declare `source_column`
-/// on all plugin-type fields AND use `iocs_value_first` (scalar companion column) as the
-/// input_field for typed enrichment fields (non-json output_type).
+/// RGT-012 (ADR-051 D3 + D4 + ADV-P11-OBS-001): the threatintel infusion TOML must declare
+/// `source_column` on all plugin-type fields AND use `iocs_value_first` (scalar companion
+/// column) as the input_field for ALL enrichment fields — including json output_type.
 ///
 /// LOW-002 fix (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 pass-1): replaced weak substring
 /// `content.contains(...)` with structural TOML parse + field-level assertions so the
 /// test fails if source_column or input_field = "iocs_value_first" is only in a comment.
+///
+/// fix-burst-9 (ADV-P11-OBS-001 DEFECT): removed the `if output_type != "json"` exemption.
+/// json-typed fields (threat_sources) must ALSO use iocs_value_first — using iocs_value
+/// (JSON-list) triggers ENRICH-1 list-dispatch and produces double-encoded output (Failure A).
 #[test]
 fn test_threatintel_toml_has_source_column_and_iocs_value_first_input_field() {
     let content = include_str!("../../../specs/infusions/threatintel.infusion.toml");
@@ -3179,20 +3183,24 @@ fn test_threatintel_toml_has_source_column_and_iocs_value_first_input_field() {
              scalar from the plugin response object."
         );
 
-        // ADR-051 D4 Scalar-Input rule: typed fields (non-json) must use iocs_value_first.
-        // json-typed fields retain iocs_value (ENRICH-1 list-dispatch path is intentional).
-        if output_type != "json" {
-            let input_field = field
-                .get("input_field")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            assert_eq!(
-                input_field, "iocs_value_first",
-                "ADR-051 D4 RGT-012: typed (non-json) infusion field '{field_name}' \
-                 (output_type='{output_type}') must use input_field = \"iocs_value_first\" \
-                 (scalar companion). Got: \"{input_field}\"."
-            );
-        }
+        // ADV-P11-OBS-001 fix-burst-9: ALL fields (including json output_type) must use
+        // iocs_value_first as input_field. The prior exemption for json-typed fields
+        // (comment: "ENRICH-1 list-dispatch path is intentional") allowed threat_sources to
+        // retain input_field = "iocs_value" (JSON-list), which triggers ENRICH-1 list-dispatch
+        // and produces DOUBLE-ENCODED output — Failure A per ADV-P11-OBS-001 DEFECT verdict.
+        // Using iocs_value_first (scalar companion) prevents ENRICH-1 from firing entirely.
+        let input_field = field
+            .get("input_field")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        assert_eq!(
+            input_field, "iocs_value_first",
+            "ADV-P11-OBS-001 RGT-012: ALL infusion fields (including json output_type) in \
+             threatintel.infusion.toml must use input_field = \"iocs_value_first\" (scalar \
+             companion). json-typed fields are NO LONGER EXEMPT — iocs_value (JSON-list input) \
+             triggers ENRICH-1 list-dispatch which double-encodes Vec<String> arrays (Failure A). \
+             Field '{field_name}' (output_type='{output_type}') has input_field = \"{input_field}\"."
+        );
     }
 }
 

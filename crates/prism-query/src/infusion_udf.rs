@@ -2663,4 +2663,169 @@ mod tests {
             result
         );
     }
+
+    // ── RGT-023 (ADV-P11-OBS-001 fix-burst-9): no double-encoding on json output ──────────
+
+    /// RGT-023 (ADV-P11-OBS-001): `threat_sources` with `output_type = "json"`,
+    /// `source_column = "threat_sources"`, and scalar input (`iocs_value_first`) produces
+    /// single-encoded JSON array output, NOT double-encoded.
+    ///
+    /// # Defect context (ADV-P11-OBS-001)
+    ///
+    /// When `input_field = "iocs_value"` (JSON-list column), ENRICH-1 list-dispatch fires:
+    /// (a) UDF receives input `["1.2.3.4"]` (JSON list from the iocs_value column).
+    /// (b) ENRICH-1 fires (starts with `[`), calls `enrich_one_scalar("1.2.3.4")` per element.
+    /// (c) Source returns `{"threat_sources": ["greynoise","abuseipdb"]}` for "1.2.3.4".
+    /// (d) `project_value` extracts the Array via `other.to_string()` → String `["greynoise","abuseipdb"]`.
+    /// (e) `serde_json::to_string(&list_results)` wraps it → `["[\"greynoise\",\"abuseipdb\"]"]`.
+    /// RESULT: outer JSON array wrapping a JSON-encoded array string — double-encoding (Failure A).
+    ///
+    /// # Fix path (this test validates)
+    ///
+    /// With `input_field = "iocs_value_first"` (scalar), the UDF receives `"1.2.3.4"` (NOT `["1.2.3.4"]`):
+    /// (a) ENRICH-1 does NOT fire (input does not start with `[`).
+    /// (b) `enrich_one_scalar("1.2.3.4")` → source returns full response object.
+    /// (c) `project_value("threat_sources")` extracts the Array via `other.to_string()` →
+    ///     String `["greynoise","abuseipdb"]` stored directly as Utf8 cell value.
+    /// RESULT: `["greynoise","abuseipdb"]` — single-encoded JSON array (plain string elements).
+    ///
+    /// # SID-1 rationale
+    ///
+    /// The TOML fix (`input_field = "iocs_value_first"` for threat_sources) is the implementer's
+    /// task. This test validates the UDF correctly handles the fixed scalar path. It is a unit
+    /// test in-process at the dependency boundary — no external service, no DTU clone required.
+    ///
+    /// Traces to: AC-009, BC-2.19.001 v2.2 INV-ENRICH-TYPED-001, ADV-P11-OBS-001.
+    #[tokio::test]
+    async fn test_threat_sources_json_output_no_double_encoding() {
+        use datafusion::arrow::array::{Array, StringArray};
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+
+        // Mock source: returns the full ThreatIntel response object for any input.
+        // Confirmed shape from prism-dtu-threatintel/src/routes/lookup.rs Malicious fixture
+        // (2026-06-17): threat_sources is Vec<String> (JSON array), NOT a plain string.
+        // Direct CountingSource construction — `return_value` holds the JSON object.
+        let src: Arc<dyn InfusionSource> = Arc::new(CountingSource {
+            call_count: Arc::new(AtomicUsize::new(0)),
+            return_value: Some(serde_json::json!({
+                "lookup_value": "1.2.3.4",
+                "threat_score": 95,
+                "threat_is_known_malicious": true,
+                "threat_sources": ["greynoise", "abuseipdb"]
+            })),
+        });
+
+        // Descriptor: output_type = "json", source_column = "threat_sources",
+        // input_field = "iocs_value_first" — the CORRECT threatintel.infusion.toml config
+        // after the ADV-P11-OBS-001 fix.
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_sources", // name — UDF is named after the enrichment field
+            "ip",             // input_type — enriched by IP address lookup
+            "json",           // output_type — Vec<String> array serialized as JSON
+            "threatintel",    // infusion_id
+            src,
+            Some("threat_sources".to_string()), // source_column — project this field from response
+            super::DEFAULT_CACHE_TTL_SECS,      // cache_ttl_secs
+            "iocs_value_first",                 // input_field — scalar companion, NOT iocs_value
+        );
+        register_infusion_udfs(&ctx, vec![descriptor])
+            .expect("RGT-023: UDF registration must succeed");
+
+        // Table: one row with scalar input "1.2.3.4".
+        // This represents the value from the `iocs_value_first` column in the sensor data —
+        // the first extracted IOC scalar (not the JSON list from `iocs_value`).
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "iocs_value_first",
+            DataType::Utf8,
+            false,
+        )]));
+        let arr = StringArray::from(vec!["1.2.3.4"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("RecordBatch construction must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("MemTable construction must succeed");
+        ctx.register_table("enrichment_test", Arc::new(table))
+            .expect("register_table must succeed");
+
+        // Execute the enrichment query: scalar `iocs_value_first` column feeds the UDF.
+        // Simulates: `SELECT threat_sources(iocs_value_first) FROM enrichment_test`
+        // which is the post-fix T13 canonical query pattern (AC-009).
+        let df = ctx
+            .sql("SELECT threat_sources(iocs_value_first) AS ts_enriched FROM enrichment_test")
+            .await
+            .expect("RGT-023: SQL must parse and plan");
+        let batches = df.collect().await.expect("RGT-023: query must execute");
+
+        assert_eq!(
+            batches.len(),
+            1,
+            "RGT-023: must have exactly 1 output batch"
+        );
+        let batch = &batches[0];
+        assert_eq!(
+            batch.num_rows(),
+            1,
+            "RGT-023: must have exactly 1 output row"
+        );
+
+        let output_col = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .expect("RGT-023: threat_sources output must be StringArray (output_type=json → Utf8)");
+
+        assert!(
+            !output_col.is_null(0),
+            "RGT-023: threat_sources enrichment for scalar input '1.2.3.4' must return \
+             a non-NULL value. Got NULL."
+        );
+
+        let cell_value = output_col.value(0);
+
+        // LOAD-BEARING assertion (TD-VSDD-059): exact string content check.
+        // Expected: `["greynoise","abuseipdb"]` — single-encoded JSON array.
+        // Forbidden: `["[\"greynoise\",\"abuseipdb\"]"]` — double-encoded (ENRICH-1 Failure A).
+        // The double-encoded form would arise if ENRICH-1 list-dispatch fired, wrapped the
+        // projected array-string in `serde_json::to_string(&list_results)`.
+        assert_eq!(
+            cell_value, r#"["greynoise","abuseipdb"]"#,
+            "RGT-023 ADV-P11-OBS-001: threat_sources output must be the single-encoded JSON \
+             array '[\"greynoise\",\"abuseipdb\"]' (plain string elements). \
+             Double-encoded form '[\"[\\\"greynoise\\\",\\\"abuseipdb\\\"]\"]' would indicate \
+             ENRICH-1 list-dispatch fired on scalar input (Failure A — prevented by using \
+             iocs_value_first instead of iocs_value). Got: {:?}",
+            cell_value
+        );
+
+        // Verify parsed elements are plain strings, not JSON-encoded strings.
+        // This catches any double-encoding that produces elements like `["greynoise","abuseipdb"]`
+        // as a single string element rather than two separate string elements.
+        let parsed: Vec<String> = serde_json::from_str(cell_value).unwrap_or_else(|e| {
+            panic!(
+                "RGT-023: threat_sources cell value must be valid JSON array of strings. \
+                 Parse error: {e}. Got cell value: {:?}",
+                cell_value
+            )
+        });
+        assert_eq!(
+            parsed,
+            vec!["greynoise", "abuseipdb"],
+            "RGT-023 ADV-P11-OBS-001: parsed threat_sources elements must be plain strings \
+             [\"greynoise\", \"abuseipdb\"], NOT JSON-encoded strings. \
+             Double-encoded elements would look like '[\"greynoise\",\"abuseipdb\"]' as a \
+             single element (Failure A). Got: {:?}",
+            parsed
+        );
+        assert_eq!(
+            parsed.len(),
+            2,
+            "RGT-023: parsed threat_sources must have exactly 2 elements (greynoise, abuseipdb). \
+             Got: {:?}",
+            parsed
+        );
+    }
 }
