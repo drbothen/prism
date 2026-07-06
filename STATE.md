@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.148"
+version: "8.149"
 producer: state-manager
-timestamp: 2026-07-05T10:00:00Z
+timestamp: 2026-07-05T12:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,8 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "11edbd36"
+develop_head: "d098be6f"
+# NOTE: d098be6f is the squash-merge of PR #215 (maintenance/housekeeping-post-pr214): docs(housekeeping): ADR-050 rustls-tls in CLAUDE.md conventions + commit t13-preflight-audit.py; docs/script-only; no BCs; normal squash-merge; CI green; 2026-07-05. Prior origin/develop was 11edbd36 (PR #214 S-PRISMQL-NATIVE-TEMPORAL-TYPING-001).
 # NOTE: 11edbd36 is the squash-merge of PR #214 (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: ADR-052 §D4 v1.10 seven-arm temporal dispatch; PrismQL Datetime→Timestamp(µs,UTC); E-QUERY-042 TemporalLiteralInvalidPosition (GroupBy/OrderBy/NonColumnLhsComparison); non-exhaustive gate 88→89 (TemporalLiteralPosition); SEC-001 arrow_cast escape + SEC-002 log value cap hardening; normal squash-merge, no --admin; CI green; 2026-07-05; final feature HEAD b81e7808). S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 MERGED. Prior origin/develop was 122228e8 (PR #208 S-DEMO-FIDELITY-REMEDIATION-001).
 # NOTE: 122228e8 is the squash-merge of PR #208 (S-DEMO-FIDELITY-REMEDIATION-001: 5 demo-fidelity fixes N1/N1-B/N2/AUDIT-001/AUDIT-004 + E-QUERY-039 net-new + ADR-050 rustls-tls standardization + 4 DTU scenario tests un-quarantined + claroty stop() cleanup; normal squash-merge, no --admin; CI GREEN 44 checks; 2026-07-03). S-DEMO-FIDELITY-REMEDIATION-001 MERGED. Prior origin/develop was aaa9bfe8 (PR #213 S-PERF-GATE-008). feature/S-DEMO-FIDELITY-REMEDIATION-001 branch deleted; .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 worktree cleaned by devops.
 # NOTE: aaa9bfe8 is the squash-merge of PR #213 (perf(S-PERF-GATE-008): WASMtime compilation cache + nextest spec-engine-wasmtime group (max-threads=1); normal squash-merge, no --admin; 2026-07-02T15:57:09Z). S-PERF-GATE-008 MERGED. Prior origin/develop was 67518790 (PR #212 S-PERF-GATE-006). feature/S-PERF-GATE-008 branch + .worktrees/S-PERF-GATE-008 worktree removed.
@@ -42,7 +43,7 @@ workspace_test_count: 5182  # NOTE: develop@11edbd36 (PR #214 merged 2026-07-05)
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "ADR-051 RATIFICATION + S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 DECOMPOSED (D-1548 2026-07-05). ADR-051 v1.2→ACCEPTED v1.3 (human-ratified). BC-2.19.001 v2.1→v2.2. error-taxonomy v2.14→v2.15. ARCH-INDEX v2.171→v2.172. BC-INDEX v7.36→v7.37. STORY-INDEX v2.590→v2.591 (total_stories 227→228). S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 draft v1.0 registered — 14 ACs, 16 RGTs, 13 pts, Wave 5, depends_on [S-DEMO-ENRICHMENT-PIVOT-003]. NEXT: per-story TDD delivery pending human dispatch. develop_head UNCHANGED 11edbd36. STATE v8.147→v8.148 (D-1548)."
+current_step: "PR #215 HOUSEKEEPING MERGED + develop_head SYNCED (D-1549 2026-07-05). PR #215 (maintenance/housekeeping-post-pr214): docs(housekeeping) ADR-050 rustls-tls CLAUDE.md note + t13-preflight-audit.py committed; squash-merged develop@d098be6f; docs/script-only; no BCs; no POL-14. develop_head 11edbd36→d098be6f. CLAUDE.md rustls-tls convention + reqwest forbidden-pattern row LANDED (PENDING-HUMAN item 3 RESOLVED). t13-preflight-audit.py COMMITTED (PENDING-HUMAN item 4 RESOLVED). non-exhaustive gate 89/89 GREEN UNCHANGED. NEXT: per-story TDD delivery of S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (depends_on S-DEMO-ENRICHMENT-PIVOT-003) pending human dispatch. STATE v8.148→v8.149 (D-1549)."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,14 +75,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1548."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1549."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-05 (D-1548 — ADR-051 ACCEPTED v1.3; S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 draft v1.0 registered; BC-2.19.001 v2.2; error-taxonomy v2.15; ARCH-INDEX v2.172; BC-INDEX v7.37; STORY-INDEX v2.591; STATE v8.147→v8.148)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-05 (D-1549 — PR #215 housekeeping merged; develop_head 11edbd36→d098be6f; CLAUDE.md rustls-tls + t13-preflight-audit.py landed; STATE v8.148→v8.149)
 
 ## Active Objective (North Star)
 
@@ -247,6 +248,7 @@ _(D-1530..D-1531 archived to burst-log.md this D-1532..D-1534 burst)_
 | D-1352 | state-manager | 2026-06-25 | **PR-LEVEL PASS 6 ON b58a1a49 — SqlPipe-JOIN-SOURCE-PARITY (TD-VSDD-053 single-commit; factory-only; code-only fix). OBS-1 (LOW, TD-VSDD-060 parity) SqlPipe extractor arms did NOT iterate PipeStage::Join sources — CLOSED by implementer (b58a1a49→9eab936b); 4 sites fixed; 2 load-bearing tests added. just check EXIT 0 (4938 tests). FROZEN PR HEAD 9eab936b. 3-CLEAN streak RESET 0/3. STATE v7.980→v7.981.** | wave-5-e-demo-fidelity | 2026-06-25 |
 | D-1351 | state-manager | 2026-06-25 | **PR-LEVEL PASS 5 ON 216e19fa — SqlPipe-GATE-SWEEP + TAIL-EXAMPLE (TD-VSDD-053 single-commit; factory-only; code-only fix). HIGH-1 SqlPipe 11 AST match sites + OBS-1 tail NegativeE040 example ALL CLOSED @b58a1a49. FROZEN PR HEAD b58a1a49. 3-CLEAN streak RESET 0/3. STATE v7.979→v7.980.** | wave-5-e-demo-fidelity | 2026-06-25 |
 | D-1344 | state-manager | 2026-06-25 | **LOCAL PASS 8 ON a0ebd740 + OBS-1 FIX-BURST (TD-VSDD-053 single-commit; factory-only; code-only fix, no STORY-INDEX/BC-INDEX bump). CLEAN(strict)=NO, CLEAN(PR-merge)=YES. 1 LOW OBS-1 (SqlPipe enrich parity) CLOSED f58bb9a0. 3-CLEAN streak RESET 0/3 on f58bb9a0. STATE v7.972→v7.973.** | wave-5-e-demo-fidelity | 2026-06-25 |
+| D-1549 | state-manager | 2026-07-05 | **PR #215 HOUSEKEEPING MERGED — develop_head SYNCED (D-1549 2026-07-05). PR #215 (maintenance/housekeeping-post-pr214) squash-merged develop@d098be6f (docs(housekeeping): ADR-050 rustls-tls in CLAUDE.md conventions + commit t13-preflight-audit.py; 2026-07-05). docs/script-only; no BCs → no POL-14. develop_head 11edbd36→d098be6f. CLAUDE.md §Conventions: rustls-tls convention sentence + reqwest forbidden-pattern row landed (PENDING-HUMAN item 3 RESOLVED; ADR-050 ratification complete). scripts/t13-preflight-audit.py COMMITTED (PENDING-HUMAN item 4 RESOLVED). non-exhaustive gate 89/89 GREEN UNCHANGED. active_contracts 255 / draft_contracts 0 / STORY-INDEX v2.591 / BC-INDEX v7.37 / ARCH-INDEX v2.172 / error-taxonomy v2.15 ALL UNCHANGED. workspace_test_count 5182 UNCHANGED. NEXT: per-story TDD delivery of S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (depends_on S-DEMO-ENRICHMENT-PIVOT-003) pending human dispatch. STATE v8.148→v8.149.** | wave-5-e-demo-fidelity | 2026-07-05 |
 
 ## Decisions Log
 
@@ -254,6 +256,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1549 | state-manager | PR #215 HOUSEKEEPING MERGED — develop_head SYNCED (D-1549 2026-07-05). PR #215 (maintenance/housekeeping-post-pr214) squash-merged develop@d098be6f (docs(housekeeping): ADR-050 rustls-tls in CLAUDE.md conventions + commit t13-preflight-audit.py; 2026-07-05). docs/script-only; no BCs → no POL-14. develop_head 11edbd36→d098be6f. CLAUDE.md §Conventions: rustls-tls convention sentence + reqwest forbidden-pattern row landed (PENDING-HUMAN item 3 RESOLVED; ADR-050 ratification complete). scripts/t13-preflight-audit.py COMMITTED (PENDING-HUMAN item 4 RESOLVED). non-exhaustive gate 89/89 GREEN UNCHANGED. active_contracts 255 / draft_contracts 0 / STORY-INDEX v2.591 / BC-INDEX v7.37 / ARCH-INDEX v2.172 / error-taxonomy v2.15 ALL UNCHANGED. workspace_test_count 5182 UNCHANGED. NEXT: per-story TDD delivery of S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (depends_on S-DEMO-ENRICHMENT-PIVOT-003) pending human dispatch. STATE v8.148→v8.149. | wave-5-e-demo-fidelity | 2026-07-05 |
 | D-1548 | state-manager | ADR-051 RATIFICATION + S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 DECOMPOSED (D-1548 2026-07-05). ADR-051 v1.2→ACCEPTED v1.3: human-ratified (no decision-content change from v1.2; datetime=Timestamp(µs,UTC) per ADR-052 confirmed). ARCH-INDEX v2.171→v2.172 (ADR-051 row PROPOSED→ACCEPTED v1.3). BC-2.19.001 v2.1→v2.2 (INV-ENRICH-TYPED-001; plugin source_column postcondition; E-INFUSE-013 sub-conditions 7/8; E-INFUSE-014 TypeCoercionFailed; EC-19-008/009; typed test vectors). BC-INDEX v7.36→v7.37. error-taxonomy v2.14→v2.15 (E-INFUSE-014 + E-INFUSE-013 sub-conditions 7/8). S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 draft v1.0 registered: 14 ACs; 16 Red Gate tests; 13 pts; Wave 5; behavioral_contracts [BC-2.19.001 v2.2, BC-2.16.002]; depends_on [S-DEMO-ENRICHMENT-PIVOT-003]; total_stories 227→228. STORY-INDEX v2.590→v2.591. active_contracts 255 / draft_contracts 0 UNCHANGED. develop_head UNCHANGED 11edbd36. NEXT: per-story TDD delivery pending human dispatch. STATE v8.147→v8.148. | wave-5-e-demo-fidelity | 2026-07-05 |
 | D-1547 | state-manager | ADR-051 v1.1→v1.2 AMENDMENT RECORDED (D-1547 2026-07-05). §datetime row reconciled DataType::Utf8→DataType::Timestamp(Microsecond, Some("UTC")) to align with merged ADR-052 (PR #214, develop@11edbd36). Rationale section rewritten; D2/D4/D5/D6 reconciled; blast-radius citations corrected (column.rs inverted-fix withdrawn; spec_driven_adapter.rs / pipe_sql_emitter.rs / high002_plan_pinning_tests.rs citations updated to reflect merged Timestamp reality). related_adrs += ADR-052. Status remains PROPOSED — AWAITING HUMAN RATIFICATION of v1.2 before typed-enrichment story decomposition. ARCH-INDEX v2.170→v2.171. develop_head UNCHANGED 11edbd36. STATE v8.146→v8.147. | wave-5-e-demo-fidelity | 2026-07-05 |
 | D-1545 | state-manager | PR #214 MERGED (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001) — POL-14 auto-promotions + story→merged + index syncs (D-1545 2026-07-05). PR #214 squash-merged to develop@11edbd36 (normal merge; final feature HEAD b81e7808; ADR-052 §D4 v1.10 seven-arm temporal dispatch; PrismQL Datetime→Timestamp(µs,UTC); E-QUERY-041/E-QUERY-042 TemporalLiteralInvalidPosition; non-exhaustive 88→89 TemporalLiteralPosition; SEC-001 arrow_cast escape + SEC-002 log value cap). POL-14 BC auto-promotions: BC-2.11.003 legacy status draft→active (lifecycle_status was already active — no count change); BC-2.11.021 idempotent (already active); BC-2.11.004 idempotent (already active); BC-2.11.001 idempotent (already active). active_contracts 255 / draft_contracts 0 UNCHANGED. Story S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 status draft→merged (POL-13). error-taxonomy v2.14 confirmed (E-QUERY-042 registered). ARCH-INDEX v2.170 confirmed (ADR-052 ACCEPTED v1.10). STORY-INDEX v2.589→v2.590. BC-INDEX v7.35→v7.36. develop_head 122228e8→11edbd36. workspace_test_count 5182 (on develop@11edbd36; non-exhaustive 89/89). VERY NEXT ACTION: ADR-051 ratification AWAITING HUMAN DIRECTION (PROPOSED; §datetime row must be amended Utf8→Timestamp now that ADR-052 merged; typed-enrichment fix A+B+C blocked) → T13 capstone → T14 recording. Feature-branch worktree cleanup dispatched to devops. STATE v8.144→v8.145. | wave-5-e-demo-fidelity | 2026-07-05 |

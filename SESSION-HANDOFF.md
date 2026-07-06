@@ -46,7 +46,7 @@ timestamp: 2026-07-05T00:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1546** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1546 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `11edbd36` (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 PR #214 squash-merged 2026-07-05). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.146. D-1546 (SESSION WRAP; feature worktree removed; no cascade in flight; VERY NEXT ACTION = ADR-051 ratification AWAITING HUMAN DIRECTION).
+> develop HEAD origin/develop `d098be6f` (PR #215 housekeeping squash-merged 2026-07-05: ADR-050 rustls-tls CLAUDE.md + t13-preflight-audit.py). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.149. D-1549 (develop_head sync post PR #215 merge; no cascade in flight; VERY NEXT ACTION = per-story TDD delivery of S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 pending human dispatch).
 
 ---
 
