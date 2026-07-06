@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.8"
+version: "1.9"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-05T00:00:00Z"
@@ -32,7 +32,7 @@ behavioral_contracts: [BC-2.19.001, BC-2.16.002]
 # E-INFUSE-013 sub-cond 7 (unknown output_type), and E-INFUSE-014 (TypeCoercionFailed).
 # Every AC in this story traces back to a BC-2.19.001 postcondition or invariant.
 #
-# BC-2.16.002 v1.95: SAP-1 standing obligation — a Canonical Structured Event Catalog row
+# BC-2.16.002 v1.96: SAP-1 standing obligation — a Canonical Structured Event Catalog row
 # for event_type = "infusion.coercion_failed" MUST be registered before the implementation
 # PR merges (per ADR-051 D2 and CLAUDE.md §SAP-1). AC-012 anchors this obligation.
 # Both BCs cited by ACs below; bidirectional trace requirement satisfied.
@@ -72,7 +72,7 @@ points: 13
 #   9. BC-2.16.002 SAP-1 catalog row addition (infusion.coercion_failed): 0.5 pt
 #  10. prism-mcp resources.rs example update + t13-preflight-audit.py update: 0.5 pt
 #  11. TD-VSDD-060 sibling sweep across crates_touched: 0.5 pt
-#  12. Red Gate test suite (16 tests across 4 crates): 3.5 pt
+#  12. Red Gate test suite (23 tests across 4 crates): 3.5 pt
 #   Total: 13 pts
 estimated_days: 4
 risk: HIGH
@@ -171,7 +171,7 @@ faithfully represents production enrichment behavior and numeric filters work co
 | BC | Version | Title | Key Clauses Used |
 |----|---------|-------|-----------------|
 | BC-2.19.001 | v2.2 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | INV-ENRICH-TYPED-001; INV-INFUSE-001 (extended); Typed UDF output postcondition; Plugin-type field projection postcondition; E-INFUSE-013 sub-conditions 7 and 8; E-INFUSE-014; EC-19-008; EC-19-009; TV-19-001-typed-{integer,float,boolean,datetime}; TV-19-001-coerce-fail-{integer,datetime}; TV-19-001-json-list-typed-output; TV-19-001-plugin-no-source-col; TV-19-001-unknown-output-type |
-| BC-2.16.002 | v1.95 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | SAP-1 Canonical Structured Event Catalog: new row for event_type = "infusion.coercion_failed" must be added in same commit as the tracing::warn! emission (per ADR-051 D2 E-INFUSE-014 section) |
+| BC-2.16.002 | v1.96 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | SAP-1 Canonical Structured Event Catalog: new row for event_type = "infusion.coercion_failed" must be added in same commit as the tracing::warn! emission (per ADR-051 D2 E-INFUSE-014 section) |
 
 ---
 
@@ -401,7 +401,7 @@ Red Gate: `test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath` (pri
 Red Gate: `test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath` (prism-dtu-crowdstrike/src/generator.rs; reads source_path from crowdstrike.sensor.toml; asserts `$.behaviors[0].ioc_value` JSONPath value; also asserts top-level `behaviors_ioc_value_first` scalar field is ABSENT from the generated record)
 
 ### AC-012 — BC-2.16.002 Canonical Structured Event Catalog gains row for infusion.coercion_failed (SAP-1)
-(traces to BC-2.16.002 v1.95 SAP-1 Canonical Structured Event Catalog standing obligation; BC-2.19.001 v2.2 E-INFUSE-014 — "BC-2.16.002 catalog row required for event_type = 'infusion.coercion_failed' (SAP-1)")
+(traces to BC-2.16.002 v1.96 SAP-1 Canonical Structured Event Catalog standing obligation; BC-2.19.001 v2.2 E-INFUSE-014 — "BC-2.16.002 catalog row required for event_type = 'infusion.coercion_failed' (SAP-1)")
 
 Given `.factory/specs/behavioral-contracts/BC-2.16.002-*.md` after this story,
 when the Canonical Structured Event Catalog table is inspected,
@@ -594,14 +594,14 @@ Confirm all 23 Red Gate tests are failing before starting implementation.
 
 ## Previous Story Intelligence
 
-**From S-DEMO-ENRICHMENT-PIVOT-003 (predecessor in enrichment family, merged PR #196 develop@f6739764):**
+**From S-DEMO-ENRICHMENT-PIVOT-003 (predecessor in enrichment family, merged PR #196):**
 
 - The canonical ThreatIntel pivot query uses `iocs[].value` (list form). After this story, the query MUST be updated to use `iocs_value_first` (scalar form) for `threat_score` and `threat_is_known_malicious`. The `iocs[].value` form no longer works with typed-output enrichment fields.
 - The Cyberint Alert struct uses serde dual-alias for ioc fields (`#[serde(rename = "type", alias = "ioc_type")]`). This story does not change the struct — it only adds `iocs_value_first` emission to the fixture generator.
 - CrowdStrike detection records are untyped `serde_json::Value` built by `generator.rs`. The SAP-2 check reads `src/generator.rs` `make_detection()` — NOT `types.rs` (no typed struct). Apply the same approach for `behaviors_ioc_value_first`.
 - The PIVOT-003 adversary cascade ran 12 LOCAL rounds and 2 PR-LEVEL rounds. Expect similar depth for this story given multi-crate impact. Budget 3-5 LOCAL rounds minimum.
 
-**From S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (merged PR #214 develop@11edbd36):**
+**From S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (merged PR #214):**
 
 - `parse_datetime_to_micros` is now available on develop. The function is used in `spec_driven_adapter.rs` `column_type_to_arrow` to convert `ColumnType::Datetime` to `Timestamp(Microsecond, Some("UTC"))`. Implementer: find the function by name (not line number), confirm it is accessible from `infusion_udf.rs` (same crate or pub(crate)), and reuse it.
 - The seven-arm temporal dispatch in `check_temporal_literals` handles Timestamp columns correctly. After this story, enrichment `datetime` columns will also be `Timestamp(Microsecond, Some("UTC"))`, so they are handled by the same dispatch automatically.
@@ -635,13 +635,13 @@ Extracted from ADR-051 v1.4, ADR-052, ADR-040, ADR-024, and CLAUDE.md §Conventi
 
 | Library | Version | Purpose | Source |
 |---------|---------|---------|--------|
-| `datafusion` | workspace pin (develop@11edbd36) | `DataType`, `Int64Array`, `Float64Array`, `BooleanArray`, `TimestampMicrosecondArray`, `StringArray`, `ColumnarValue`, `ScalarUDF` | Cargo.toml workspace |
+| `datafusion` | workspace pin | `DataType`, `Int64Array`, `Float64Array`, `BooleanArray`, `TimestampMicrosecondArray`, `StringArray`, `ColumnarValue`, `ScalarUDF` | Cargo.toml workspace |
 | `arrow` | workspace pin (same as DataFusion) | Arrow DataType definitions and array builders | Cargo.toml workspace |
 | `tracing` | workspace pin | Structured event logging for E-INFUSE-014 emission | Cargo.toml workspace |
 | `serde_json` | workspace pin | JSON Number projection via `as_i64()`, `as_f64()` in coerce_to_typed() | Cargo.toml workspace |
 | `chrono` | workspace pin | Used internally by `parse_datetime_to_micros` — do NOT add a new chrono dependency; reuse the function | Existing dependency |
 
-NOTE: Do not pin specific version numbers in this story — always defer to the workspace `Cargo.toml` and `Cargo.lock` on develop@11edbd36. The workspace uses DataFusion 53 and Arrow 53 (verified by ADR-052 implementation). If the workspace Cargo.lock is your source of truth, use it; these numbers may have advanced since the story was written.
+NOTE: Do not pin specific version numbers in this story — always defer to the workspace `Cargo.toml` and `Cargo.lock`. The workspace uses DataFusion 53 and Arrow 53 (verified by ADR-052 implementation). If the workspace Cargo.lock is your source of truth, use it; these numbers may have advanced since the story was written.
 
 ---
 
@@ -694,8 +694,8 @@ NOTE: Do not pin specific version numbers in this story — always defer to the 
 
 ### Reuse parse_datetime_to_micros (no new parser)
 
-`parse_datetime_to_micros` is the shared datetime parser introduced by ADR-052 (PR #214,
-merged develop@11edbd36). It is used in `spec_driven_adapter.rs` `column_type_to_arrow`
+`parse_datetime_to_micros` is the shared datetime parser introduced by ADR-052 (PR #214).
+It is used in `spec_driven_adapter.rs` `column_type_to_arrow`
 for the `ColumnType::Datetime` → `Timestamp(Microsecond, Some("UTC"))` mapping.
 
 The implementer MUST find this function by name (not file path — TD-VSDD-091), confirm it
@@ -761,7 +761,7 @@ risk_mitigations for the full runtime chain. RGT-023 enforces this at the test l
 | ADR-040 v2.0 | Dual-path infusion architecture (HttpLookup NVD + WASM ThreatIntel); no changes to the architecture in this story |
 | ADR-024 | prism_core::column::ColumnType six-type vocabulary; alignment with infusion output_type vocabulary |
 | BC-2.19.001 v2.2 | Primary behavioral contract: INV-ENRICH-TYPED-001, Plugin-type field projection, E-INFUSE-013 sub-conds 7/8, E-INFUSE-014 |
-| BC-2.16.002 v1.95 | SAP-1 catalog row obligation for infusion.coercion_failed |
+| BC-2.16.002 v1.96 | SAP-1 catalog row obligation for infusion.coercion_failed |
 | error-taxonomy v2.16 | E-INFUSE-013 sub-conditions 7/8 added; E-INFUSE-014 TypeCoercionFailed allocated |
 | DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 | Root defect this story closes: return_type() hardcoded Utf8; missing source_column on ThreatIntel |
 | T13 audit OBS-1 | Original defect documentation: doubly-encoded JSON + lexicographic CVSS comparison bugs |
@@ -775,6 +775,7 @@ risk_mitigations for the full runtime chain. RGT-023 enforces this at the test l
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.9 | 2026-07-06 | story-writer | ADV-P22-LOW-001 closure + BC-2.16.002 v1.95→v1.96 pin propagation (POL-23) + final count/pin sweep. **(LOW-001)** Points justification item 12 corrected: "16 tests" → "23 tests" (matches `red_gate_tests: 23` frontmatter and 23-row Red Gate Test Plan table; "across 4 crates" verified accurate: prism-query, prism-spec-engine, prism-dtu-cyberint, prism-dtu-crowdstrike). **(POL-23)** BC-2.16.002 version pin propagated v1.95→v1.96 at all four non-historical sites: frontmatter comment, Behavioral Contracts table, AC-012 trace citation, References table. Changelog v1.2 `v1.93→v1.95` historical entry left intact. **(Sweep — SHA volatile pins)** Five SHA volatile pins removed from non-exempted narrative prose per TD-VSDD-091: `develop@f6739764` (Previous Story Intelligence §PIVOT-003), `develop@11edbd36` (§TEMPORAL-TYPING-001 heading), `develop@11edbd36` (Library table datafusion cell), `develop@11edbd36` (Library NOTE paragraph), `develop@11edbd36` (Implementation Notes §Reuse parse_datetime_to_micros). Frontmatter comment SHA (`commit 11edbd36`) left intact — frontmatter comments are not narrative prose. **(Sweep — counts)** All other counts verified: `red_gate_tests: 23` ✓, Phase A "17 Red Gate tests" ✓, Phase D "23 Red Gate tests" ✓, test crate placement Note "Tests 1–10 and 17–23" ✓. No ACs added or removed; no BC-semantics, code, or test changes. |
 | 1.8 | 2026-07-06 | story-writer | ADV-P19-MED-002 + ADV-P18-OBS-001 closure (prose-accuracy only; no code/AC/BC changes). **(MED-002) Stale abandoned-approach prose removed**: File Structure Requirements generator rows, Phase C tasks, and Phase L tasks previously described the abandoned top-level-scalar approach (DTU generators emitting pre-computed `iocs_value_first` / `behaviors_ioc_value_first` scalar fields). All three sections rewritten to describe the actual implemented approach: JSONPath `source_path` resolution at the spec-driven adapter layer (`$.iocs[0].value`, `$.behaviors[0].ioc_value`) against nested array structures already emitted by the DTU generators — consistent with AC-011 v1.1, RGT-015, and RGT-016 (which explicitly asserts the top-level scalar is ABSENT). **(OBS-001) File Structure completeness**: five files present in the `d098be6f..d51c508a` diff added to MODIFIED table: `.github/workflows/ci.yml` (non-exhaustive gate note), `crates/prism-spec-engine/src/datetime.rs` (parse_datetime_to_micros extraction per ADR-052 D2), `crates/prism-spec-engine/src/lib.rs` (pub use re-export), `crates/prism-bin/src/spec_driven_adapter.rs` (JSONPath extraction for AC-011), `crates/prism-spec-engine/src/pipeline.rs` (extract_at_path index support for AC-011). **(Belt-and-suspenders)** `depends_on` comment stale "adds the _first scalar columns to the DTU fixture generators" and "scalar _first projections" language replaced with accurate description: PIVOT-003's nested array structures are the JSONPath resolution targets, not a scalar-emission substrate. |
 | 1.7 | 2026-07-06 | story-writer | ADV-P15-LOW-001 closure + comprehensive prose-accuracy audit. (1) **Forbidden Dependencies**: opening clause corrected from "`crates/prism-query` MUST NOT depend on `crates/prism-spec-engine`" to "`crates/prism-spec-engine` MUST NOT depend on `crates/prism-query`" — the original was a self-contradicting inversion of the true invariant; confirmed against Cargo.toml: `prism-query/Cargo.toml` declares `prism-spec-engine` as a dependency (correct direction); `prism-spec-engine/Cargo.toml` carries an explicit "MUST NOT depend on datafusion" comment and no `prism-query` dep. (2) **Phase A Red Gate count**: "all 16 Red Gate tests (those in prism-query)" corrected to "all 17 Red Gate tests (those in prism-query: tests 1–10 and 17–23)" — count 16 was stale from v1.0 origin; actual prism-query subset is tests 1–10, 17–20, 21–22, 23 = 17 tests. (3) **Phase D Red Gate count**: "all 16 Red Gate tests" corrected to "all 23 Red Gate tests" — matches `red_gate_tests: 23` frontmatter. (4) **Test crate placement Note**: "Tests 1–10 and 17–20" corrected to "Tests 1–10 and 17–23" — tests 21–22 (added v1.3) and test 23 (added v1.6) were omitted from the Note when they were added. (5) **AC-006 E-INFUSE-013 sub-condition 8 error message**: `{field_name}` template slot corrected to the literal `source_column` per error-taxonomy v2.16 sub-condition 8 canonical form — `{field}` = the attribute name whose absence triggered the error (`"source_column"`), consistent with sub-condition 7 precedent where `{field}` = the literal string `"output_type"` (v2.16 taxonomy text, v1.6 story MED-002 closure). No ACs added or removed; no BC changes; no code changes. |
 | 1.6 | 2026-07-06 | product-owner | ADV-P11-OBS-001 adjudication: DEFECT verdict. Runtime trace proves double-encoding when `threat_sources` uses `input_field = "iocs_value"` (JSON-list): ENRICH-1 fires, `project_value` returns JSON-serialized array string, `serde_json::to_string` double-wraps to `["[\"greynoise\",\"abuseipdb\"]"]`. Fix: `input_field = "iocs_value_first"` (scalar) so ENRICH-1 does NOT fire and output is `["greynoise","abuseipdb"]`. risk_mitigations "Either approach is valid" entry replaced with DEFECT notice + exact runtime chain. AC-009 `threat_sources` row updated to require `input_field = "iocs_value_first"`. AC-009 T13 canonical query corrected to per-field UDF syntax. RGT-023 `test_threat_sources_json_output_no_double_encoding` added. red_gate_tests 22→23. |
