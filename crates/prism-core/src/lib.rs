@@ -108,7 +108,7 @@ pub use decorator_context::DecoratorContext;
 pub use dtu::{DtuMode, DtuRegistryEntry, DTU_DEFAULT_MODE};
 pub use error::{
     InfusionError, PluginError, PrismError, SpecError, SpecErrorCode, TableNotAvailableDetails,
-    UnknownSourceTableDetails,
+    TemporalLiteralPosition, UnknownSourceTableDetails,
 };
 pub use ids::{AlertId, CaseId, OrgId, RuleId, ScheduleId};
 pub use internal_table_descriptor::InternalTableDescriptor;

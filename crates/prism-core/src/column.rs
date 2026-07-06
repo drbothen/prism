@@ -25,7 +25,8 @@ pub enum ColumnType {
     Float,
     /// Boolean. Arrow: Boolean.
     Boolean,
-    /// Microsecond-precision UTC timestamp. Arrow: TimestampMicrosecond.
+    /// Microsecond-precision UTC timestamp, normalized to UTC at the adapter boundary.
+    /// Arrow: Timestamp(Microsecond, UTC-tagged). Stored and transmitted as RFC-3339.
     Datetime,
     /// JSON blob stored as UTF-8 string. Arrow: Utf8 (JSON string).
     Json,

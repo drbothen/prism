@@ -31,8 +31,9 @@
 # S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: bumped 84→87 for ExampleKind (E0004), SqlPipeQuery (E0639),
 #   UnknownSourceTableDetails (E0639) — Groups 1+3.
 # S-DEMO-FIDELITY-REMEDIATION-001: bumped 87→88 for EnrichUdfNotFoundDetails (prism-core::error E0639 AC-N1B).
+# S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: bumped 88→89 for TemporalLiteralPosition (prism-core::error E0004 v86).
 
-EXPECTED=88
+EXPECTED=89
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 

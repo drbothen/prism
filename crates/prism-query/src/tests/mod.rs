@@ -15,6 +15,12 @@ pub mod alias_tests;
 // S-DEMO-FIDELITY-REMEDIATION-001: Red Gate tests for AC-N1B — BC-2.11.019 E-QUERY-039
 // plan-time enrichment gate (net-new: EnrichUdfNotFound variant + engine.rs AST visitor).
 pub mod bc_2_11_019_n1b_test;
+// S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: Red Gate tests RG-004, RG-005, RG-007 —
+// E-QUERY-041 temporal literal pre-validator (check_temporal_literals defined in
+// materialization.rs; invoked as an early gate in engine.rs before check_table_availability).
+// Tests verify that date-only string literals trigger E-QUERY-041, and valid RFC-3339
+// strings pass the gate (BC-2.11.021 v1.2, BC-2.11.003 v1.6, BC-2.11.004 v1.7; ADR-052 D4).
+pub mod temporal_typing_tests;
 // S-DEMO-FIDELITY-REMEDIATION-001: Red Gate tests for AC-N2 — BC-2.11.001 v1.15 EC-11-067
 // dot-notation FROM target must return E-QUERY-037 (TableNotAvailable) with did_you_mean,
 // not route to fan-out silently. Includes BC-2.11.023/ADR-046 filter-mode regression guard.

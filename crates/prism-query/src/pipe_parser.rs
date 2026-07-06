@@ -28,7 +28,7 @@ use crate::{
     error::ParseError,
     error_recovery::{
         pipe_boundary_chars, rewrite_d2_sql_keyword_in_pipe_position, rewrite_enrich_parse_errors,
-        rich_to_parse_error,
+        rewrite_temporal_literal_in_pipe_key_position, rich_to_parse_error,
     },
     filter_parser::{build_predicate_parser, build_source_ref_parser},
     security,
@@ -105,6 +105,10 @@ pub(crate) fn parse_pipe_with_limits(
     // the generic enrich-missing-column message when both could apply.
     let parse_errors = rewrite_d2_sql_keyword_in_pipe_position(input, parse_errors);
     let parse_errors = rewrite_enrich_parse_errors(input, parse_errors);
+    // ADR-052 §D4 v1.10 option (a): enrich `| sort '...'` and `| stats … by '...'`
+    // parse errors with analyst-friendly "field name, not literal value" guidance.
+    // Runs last so it does not interfere with D2 or enrich rewriters.
+    let parse_errors = rewrite_temporal_literal_in_pipe_key_position(input, parse_errors);
     if parse_errors.is_empty() {
         Err(vec![ParseError::new(0, "E-QUERY-001: pipe parse failed")])
     } else {
