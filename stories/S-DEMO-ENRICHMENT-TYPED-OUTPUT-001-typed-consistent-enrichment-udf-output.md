@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.4"
+version: "1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-05T00:00:00Z"
@@ -125,7 +125,7 @@ supersedes: []
 
 # S-DEMO-ENRICHMENT-TYPED-OUTPUT-001: Typed & Consistent Enrichment UDF Output
 
-Closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001. Implements ADR-051 (ACCEPTED v1.3, 2026-07-05)
+Closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001. Implements ADR-051 (ACCEPTED v1.4, 2026-07-06)
 decisions D1–D6: typed `output_arrow_type()` helper, typed array construction in
 `invoke_async_with_args()`, `coerce_to_typed()` with NULL + E-INFUSE-014, spec-load
 validation of plugin-type `source_column` (E-INFUSE-013 sub-condition 8) and unknown
@@ -231,7 +231,7 @@ Given a UDF with `output_type = "integer"` / `"float"` / `"boolean"` / `"datetim
 when `invoke_async_with_args()` processes the failing row,
 then:
 1. The output array contains NULL at that row position (not a panic, not a passthrough string)
-2. `tracing::warn!(event_type = "infusion.coercion_failed", field_name = ..., infusion_id = ..., declared_type = ..., truncated_value = ...)` is emitted (truncated_value = first 50 chars; AD-017 guard)
+2. `tracing::warn!(event_type = "infusion.coercion_failed", field_name = ..., infusion_id = ..., declared_type = ..., truncated_value = ...)` is emitted (`truncated_value` = first 50 chars via `value.chars().take(50).collect::<String>()`, char-based, genuinely UTF-8-safe; AD-017 guard; `declared_type` = `output_type` spec-vocabulary string, e.g., `"integer"` — NOT Arrow debug format `Int64`)
 3. The query does NOT fail — it returns successfully with NULL in the typed column
 4. Recurrence is per-row, NOT aggregated per-batch
 
@@ -460,7 +460,7 @@ Red Gate: `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_d
 | `crates/prism-spec-engine/src/infusion/loader.rs` | 10k |
 | `crates/prism-core/src/error.rs` (InfusionError enum) | 6k |
 | BC-2.19.001 v2.2 (spec reference during impl) | 15k |
-| ADR-051 v1.3 (decisions D1–D6) | 12k |
+| ADR-051 v1.4 (decisions D1–D6) | 12k |
 | ADR-052 (parse_datetime_to_micros reference) | 8k |
 | `specs/infusions/threatintel.infusion.toml` | 2k |
 | `specs/sensors/cyberint.sensor.toml` + `crowdstrike.sensor.toml` | 4k |
@@ -585,7 +585,7 @@ Confirm all 16 Red Gate tests are failing before starting implementation.
 
 ## Architecture Compliance Rules
 
-Extracted from ADR-051 v1.3, ADR-052, ADR-040, ADR-024, and CLAUDE.md §Conventions:
+Extracted from ADR-051 v1.4, ADR-052, ADR-040, ADR-024, and CLAUDE.md §Conventions:
 
 1. **INV-ENRICH-TYPED-001 invariant (ADR-051 D6):** All enrichment UDFs must produce typed output per the D1 mapping. No enrichment UDF may return `DataType::Utf8` for a field whose `output_type` is `integer`, `float`, `boolean`, or `datetime`. This is machine-checkable: adversary greps for `DataType::Utf8` in `return_type()` implementations.
 
@@ -652,7 +652,7 @@ NOTE: Do not pin specific version numbers in this story — always defer to the 
 | EC-002 | `Number.as_i64()` returns `None` for a float projected into an integer field (e.g., source returns `95.7` and `output_type = "integer"`) | NULL + E-INFUSE-014 emitted (ADR-051 D2 JSON Number precision mismatch case) | AC-004; Red Gate: `test_ec002_float_string_to_integer_yields_null` (RGT-021) |
 | EC-003 | Boolean coercion with mixed-case input (`"True"`, `"YES"`, `"FALSE"`) | Case-insensitive match: `"True"` → true, `"YES"` → true, `"FALSE"` → false | AC-003 |
 | EC-004 | Empty string projected into typed field | `i64::from_str("".trim())` fails → NULL + E-INFUSE-014; `f64::from_str("".trim())` fails → NULL | AC-004 |
-| EC-005 | `truncated_value` in E-INFUSE-014 is exactly 50 chars (no credential in log) | `truncated_value = &value[..50.min(value.len())]` (valid UTF-8 boundary); AD-017 guard | AC-004 |
+| EC-005 | `truncated_value` in E-INFUSE-014 is at most 50 chars (no credential in log) | `truncated_value = value.chars().take(50).collect::<String>()` (char-based, genuinely UTF-8-safe; AD-017 guard) | AC-004 |
 | EC-006 | `iocs_value` array is empty (e.g., cyberint alert with no IOCs) | `iocs_value_first = ""` (empty string); enrichment UDF receives `""` as input; `i64::from_str("".trim())` fails → NULL + E-INFUSE-014 (benign: no IOC to enrich) | AC-011; Red Gate: `test_ec006_empty_input_yields_null` (RGT-022) |
 | EC-007 | json-typed `threat_sources` field with list input via ENRICH-1 path | ENRICH-1 path retained; returns JSON array of source strings in `StringArray` | AC-008 |
 | EC-008 | Pre-existing `crates/prism-dtu-threatintel/tests/` integration tests assert JSON-encoded output | Tests must be updated in this story to assert bare typed output (integer 95, boolean true) | Phase N tasks |
@@ -722,7 +722,7 @@ retained (for backward compat or simplicity), the adversary will accept it per A
 
 | Document | Relevance |
 |----------|-----------|
-| ADR-051 v1.3 | Closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001; D1 type mapping; D2 coercion semantics + E-INFUSE-014; D3 mandatory source_column + E-INFUSE-013 sub-conditions 7/8; D4 scalar-input rule; D5 PrismQL comparison semantics; D6 INV-ENRICH-TYPED-001 |
+| ADR-051 v1.4 | Closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001; D1 type mapping; D2 coercion semantics + E-INFUSE-014; D3 mandatory source_column + E-INFUSE-013 sub-conditions 7/8; D4 scalar-input rule; D5 PrismQL comparison semantics; D6 INV-ENRICH-TYPED-001 |
 | ADR-052 (merged PR #214) | parse_datetime_to_micros; Timestamp(µs,UTC) mapping for ColumnType::Datetime; consistency argument for enrichment datetime |
 | ADR-040 v2.0 | Dual-path infusion architecture (HttpLookup NVD + WASM ThreatIntel); no changes to the architecture in this story |
 | ADR-024 | prism_core::column::ColumnType six-type vocabulary; alignment with infusion output_type vocabulary |
@@ -741,6 +741,7 @@ retained (for backward compat or simplicity), the adversary will accept it per A
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.5 | 2026-07-06 | story-writer | Comprehensive prose-accuracy audit against code HEAD a3083468 (ADV-P08 closure). (EC-005) `truncated_value` truncation corrected: byte-slice description `&value[..50.min(value.len())]` replaced with char-based implementation `value.chars().take(50).collect::<String>()` (genuinely UTF-8-safe; "exactly 50 chars" → "at most 50 chars"). (AC-004) Point 2 updated: added explicit note that `declared_type` uses the `output_type` spec-vocabulary string (e.g., `"integer"`) — NOT Arrow debug format (`Int64`); truncation implementation cited for completeness. (ADR-051 cite-pin) Body intro and §References updated v1.3→v1.4 (canonical current version; v1.4 = post-pass-1 column_type example PascalCase→lowercase fix; no D1–D6 decision-content change). red_gate_tests UNCHANGED 22. No ACs added or removed; no BC changes; no code changes. |
 | 1.4 | 2026-07-06 | story-writer | Spec-only fix: ADV-P05-LOW-001 closure (POL-25 sibling-cite propagation). §References error-taxonomy pin v2.15→v2.16 (canonical version; E-INFUSE-013 sub-cond 7/8 + E-INFUSE-014 present in v2.16). v1.0 changelog entry error-taxonomy pin updated to match (sweep complete — 0 remaining v2.15 citations). red_gate_tests UNCHANGED 22. No ACs added or removed; no BC changes; no code changes. |
 | 1.3 | 2026-07-06 | story-writer | Spec reconciliation to code HEAD ce93229a (LOCAL adversary pass-3 OBS-003 closure + test-plan drift). (OBS-003) File Structure resources.rs row corrected: blast-radius task uses GENERIC `sensor_table`/`src_ip` placeholders per genericization decision (F-PQL2/CRIT-001) — no sensor-specific `iocs_value_first` column change; annotation updated accordingly. (fix-burst-3 test additions) RGT-021 added: `test_ec002_float_string_to_integer_yields_null` (`coerce_to_typed("95.7", Int64)` → None, EC-002); RGT-022 added: `test_ec006_empty_input_yields_null` (`coerce_to_typed("", Int64)` → None, EC-006); both in prism-query infusion_udf.rs; red_gate_tests 20→22. (fix-burst-3 test removal) `test_cyberint_dtu_fixture_emits_iocs_value_first_field` removed from code (asserted now-removed speculative top-level scalar field); cyberint AC-011 coverage retained via `test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath` (already RGT-015 since v1.1 — no table removal needed). EC-002 and EC-006 edge-case rows updated to reference their Red Gate tests (RGT-021, RGT-022). No ACs added or removed; no BC changes; no code changes. |
 | 1.2 | 2026-07-06 | story-writer | Spec reconciliation to code HEAD 4699551e (LOCAL adversary pass-2 LOW-002 closure). (LOW-002) All BC-2.16.002 version pins updated v1.93→v1.95 (canonical version on factory-artifacts). (fix-burst-2 test-name reconciliation) RGT-003..006 (invoke_async typed-array tests) now note `.value(0)` value assertions (42, 3.14, true, micros) added in fix-burst-2. (fix-burst-2 test-name reconciliation) RGT-015 (cyberint AC-011 test) updated: lives in prism-dtu-cyberint/src/generator.rs, uses `generate_with_scenario_iocs`. RGT-016 (crowdstrike AC-011 test) updated: lives in prism-dtu-crowdstrike/src/generator.rs, asserts `$.behaviors[0].ioc_value` + asserts top-level `behaviors_ioc_value_first` ABSENT. (fix-burst-2 new tests) 4 new positive-value coerce_to_typed tests added as RGT-017..020: test_coerce_to_typed_integer_valid_returns_some_number, test_coerce_to_typed_float_valid_returns_some_number, test_coerce_to_typed_boolean_valid_variants_return_some_bool, test_coerce_to_typed_datetime_valid_returns_some_micros; red_gate_tests 16→20. No ACs added or removed; no BC changes; no code changes. |
