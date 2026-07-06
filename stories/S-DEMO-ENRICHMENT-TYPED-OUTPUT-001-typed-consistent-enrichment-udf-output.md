@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-05T00:00:00Z"
@@ -83,7 +83,7 @@ risk: HIGH
 #   the implementer commits the emission without the catalog row, the adversary will find a P1.
 #   SAP-2 applies to all sensor TOML changes — adversary must read DTU types.rs/generator.rs
 #   before validating TOML column declarations.
-red_gate_tests: 20
+red_gate_tests: 22
 estimated_passes: "3-5 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -440,6 +440,8 @@ Red Gate: `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_d
 | 18 | `test_coerce_to_typed_float_valid_returns_some_number` | prism-query | BC-2.19.001 v2.2 TV-19-001-typed-float; MED-001+LOW-001: `coerce_to_typed("8.1", Float64)` returns `Some(Number(8.1))` within 1e-10 | unit |
 | 19 | `test_coerce_to_typed_boolean_valid_variants_return_some_bool` | prism-query | BC-2.19.001 v2.2 TV-19-001-typed-boolean; MED-001+LOW-001: all true-variants (true/1/yes/TRUE/YES) and false-variants (false/0/no/FALSE/NO) return `Some(Bool(_))` | unit |
 | 20 | `test_coerce_to_typed_datetime_valid_returns_some_micros` | prism-query | BC-2.19.001 v2.2 TV-19-001-typed-datetime; MED-001+LOW-001: `coerce_to_typed("2024-01-01T00:00:00Z", Timestamp(µs,UTC))` returns `Some(Number(micros))` | unit |
+| 21 | `test_ec002_float_string_to_integer_yields_null` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; EC-002: `coerce_to_typed("95.7", Int64)` → None (JSON Number float-to-integer precision mismatch; fix-burst-3) | unit |
+| 22 | `test_ec006_empty_input_yields_null` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; EC-006: `coerce_to_typed("", Int64)` → None (empty `iocs_value` array produces `""` first element; fix-burst-3) | unit |
 
 **Note on test crate placement:**
 - Tests 1–10 and 17–20: live in `crates/prism-query/src/infusion_udf.rs` `#[cfg(test)] mod tests` block
@@ -634,7 +636,7 @@ NOTE: Do not pin specific version numbers in this story — always defer to the 
 | `.factory/specs/behavioral-contracts/BC-2.16.002-*.md` | Add SAP-1 catalog row for `event_type = "infusion.coercion_failed"` | AC-012 |
 | `crates/prism-spec-engine/tests/enrichment_pivot_002_tests.rs` | Add test vectors for typed output (tests 11–14): unknown output_type rejection, threatintel TOML source_column, sensor TOML _first columns | AC-006, AC-007, AC-009, AC-010 |
 | `crates/prism-dtu-threatintel/tests/` | Update expected column values from JSON-encoded strings to typed (integer/boolean) output | AC-003 (integration side effect) |
-| `crates/prism-mcp/src/resources.rs` | Update enrichment UDF examples in PrismQL reference resource to use `iocs_value_first` and show bare typed values | Phase M blast radius |
+| `crates/prism-mcp/src/resources.rs` | Update enrichment UDF examples in PrismQL reference resource — uses GENERIC `sensor_table` / `src_ip` placeholders per genericization decision (F-PQL2/CRIT-001); no sensor-specific `iocs_value_first` column change applied | Phase M blast radius |
 | `scripts/t13-preflight-audit.py` | Update E6 check for numeric comparison; update E1/E5 to use `_first` columns | Phase M blast radius |
 | `.factory/objectives/T13-capstone-demo-runbook.md` | Steps 3.2 and 6.2: update expected output to show `threat_score = 95` (bare integer); update queries to use `_first` columns | Phase M blast radius |
 
@@ -647,11 +649,11 @@ NOTE: Do not pin specific version numbers in this story — always defer to the 
 | ID | Description | Expected Behavior | BC Anchor |
 |----|-------------|-------------------|-----------|
 | EC-001 | `output_type = "datetime"` — no current infusion spec uses this; future-proofing only | `return_type()` returns `Timestamp(µs,UTC)`; `invoke_async_with_args()` calls `parse_datetime_to_micros`; behavior correct when such a spec is authored | AC-014; BC-2.19.001 TV-19-001-typed-datetime |
-| EC-002 | `Number.as_i64()` returns `None` for a float projected into an integer field (e.g., source returns `95.7` and `output_type = "integer"`) | NULL + E-INFUSE-014 emitted (ADR-051 D2 JSON Number precision mismatch case) | AC-004 |
+| EC-002 | `Number.as_i64()` returns `None` for a float projected into an integer field (e.g., source returns `95.7` and `output_type = "integer"`) | NULL + E-INFUSE-014 emitted (ADR-051 D2 JSON Number precision mismatch case) | AC-004; Red Gate: `test_ec002_float_string_to_integer_yields_null` (RGT-021) |
 | EC-003 | Boolean coercion with mixed-case input (`"True"`, `"YES"`, `"FALSE"`) | Case-insensitive match: `"True"` → true, `"YES"` → true, `"FALSE"` → false | AC-003 |
 | EC-004 | Empty string projected into typed field | `i64::from_str("".trim())` fails → NULL + E-INFUSE-014; `f64::from_str("".trim())` fails → NULL | AC-004 |
 | EC-005 | `truncated_value` in E-INFUSE-014 is exactly 50 chars (no credential in log) | `truncated_value = &value[..50.min(value.len())]` (valid UTF-8 boundary); AD-017 guard | AC-004 |
-| EC-006 | `iocs_value` array is empty (e.g., cyberint alert with no IOCs) | `iocs_value_first = ""` (empty string); enrichment UDF receives `""` as input; `i64::from_str("".trim())` fails → NULL + E-INFUSE-014 (benign: no IOC to enrich) | AC-011 |
+| EC-006 | `iocs_value` array is empty (e.g., cyberint alert with no IOCs) | `iocs_value_first = ""` (empty string); enrichment UDF receives `""` as input; `i64::from_str("".trim())` fails → NULL + E-INFUSE-014 (benign: no IOC to enrich) | AC-011; Red Gate: `test_ec006_empty_input_yields_null` (RGT-022) |
 | EC-007 | json-typed `threat_sources` field with list input via ENRICH-1 path | ENRICH-1 path retained; returns JSON array of source strings in `StringArray` | AC-008 |
 | EC-008 | Pre-existing `crates/prism-dtu-threatintel/tests/` integration tests assert JSON-encoded output | Tests must be updated in this story to assert bare typed output (integer 95, boolean true) | Phase N tasks |
 
@@ -739,6 +741,7 @@ retained (for backward compat or simplicity), the adversary will accept it per A
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-07-06 | story-writer | Spec reconciliation to code HEAD ce93229a (LOCAL adversary pass-3 OBS-003 closure + test-plan drift). (OBS-003) File Structure resources.rs row corrected: blast-radius task uses GENERIC `sensor_table`/`src_ip` placeholders per genericization decision (F-PQL2/CRIT-001) — no sensor-specific `iocs_value_first` column change; annotation updated accordingly. (fix-burst-3 test additions) RGT-021 added: `test_ec002_float_string_to_integer_yields_null` (`coerce_to_typed("95.7", Int64)` → None, EC-002); RGT-022 added: `test_ec006_empty_input_yields_null` (`coerce_to_typed("", Int64)` → None, EC-006); both in prism-query infusion_udf.rs; red_gate_tests 20→22. (fix-burst-3 test removal) `test_cyberint_dtu_fixture_emits_iocs_value_first_field` removed from code (asserted now-removed speculative top-level scalar field); cyberint AC-011 coverage retained via `test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath` (already RGT-015 since v1.1 — no table removal needed). EC-002 and EC-006 edge-case rows updated to reference their Red Gate tests (RGT-021, RGT-022). No ACs added or removed; no BC changes; no code changes. |
 | 1.2 | 2026-07-06 | story-writer | Spec reconciliation to code HEAD 4699551e (LOCAL adversary pass-2 LOW-002 closure). (LOW-002) All BC-2.16.002 version pins updated v1.93→v1.95 (canonical version on factory-artifacts). (fix-burst-2 test-name reconciliation) RGT-003..006 (invoke_async typed-array tests) now note `.value(0)` value assertions (42, 3.14, true, micros) added in fix-burst-2. (fix-burst-2 test-name reconciliation) RGT-015 (cyberint AC-011 test) updated: lives in prism-dtu-cyberint/src/generator.rs, uses `generate_with_scenario_iocs`. RGT-016 (crowdstrike AC-011 test) updated: lives in prism-dtu-crowdstrike/src/generator.rs, asserts `$.behaviors[0].ioc_value` + asserts top-level `behaviors_ioc_value_first` ABSENT. (fix-burst-2 new tests) 4 new positive-value coerce_to_typed tests added as RGT-017..020: test_coerce_to_typed_integer_valid_returns_some_number, test_coerce_to_typed_float_valid_returns_some_number, test_coerce_to_typed_boolean_valid_variants_return_some_bool, test_coerce_to_typed_datetime_valid_returns_some_micros; red_gate_tests 16→20. No ACs added or removed; no BC changes; no code changes. |
 | 1.1 | 2026-07-06 | story-writer | Spec reconciliation to code HEAD 89a09782 (LOCAL adversary pass-1 closures). (HIGH-001) AC-011 clarified: iocs_value_first/behaviors_ioc_value_first populated by spec-driven adapter via JSONPath source_path extraction ($.iocs[0].value, $.behaviors[0].ioc_value) from nested DTU array structures — NOT pre-computed top-level scalar fields; RGT-015/016 test names reconciled to test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath / test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath. (LOW-003) AC-002 TD-VSDD-060 grep narrowed from 'output_type.*Utf8\|return_type.*Utf8' to 'return_type.*Utf8' (output_type.*Utf8 excluded — sanctioned _ => DataType::Utf8 fallback in output_arrow_type() and legitimate *output_type != DataType::Utf8 guard comparisons are correct behavior). (process-gap) AC-010 column_type examples corrected PascalCase "String" → lowercase "string" (prism-core/src/column.rs #[serde(rename_all = "snake_case")] canonical form). No ACs added or removed; no BC changes; no code changes. |
 | 1.0 | 2026-07-05 | story-writer | Initial decomposition. ADR-051 ACCEPTED v1.3 (2026-07-05); BC-2.19.001 v2.2 (amended 2026-07-05); error-taxonomy v2.15. 14 ACs; 16 Red Gate tests; 13 pts; Wave 5; E-DEMO; depends_on S-DEMO-ENRICHMENT-PIVOT-003. |
