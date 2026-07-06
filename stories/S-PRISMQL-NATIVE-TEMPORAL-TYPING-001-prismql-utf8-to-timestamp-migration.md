@@ -4,7 +4,7 @@ story_id: S-PRISMQL-NATIVE-TEMPORAL-TYPING-001
 title: "PrismQL Native Temporal Typing — migrate ColumnType::Datetime from Arrow Utf8 to Timestamp(Microsecond, UTC) (ADR-052)"
 epic_id: EPIC-DEMO
 version: "1.10"
-status: draft
+status: merged
 producer: story-writer
 phase: 3
 wave: wave-5-e-demo-fidelity
