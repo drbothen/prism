@@ -1033,4 +1033,72 @@ mod tests {
             "MITRE-only behavior entry must NOT have 'ioc_value' key; got: {b0}"
         );
     }
+
+    // ── S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Red Gate Test ─────────────────────
+    // RGT-016 (ADR-051 D4 Scalar-Input rule): CrowdStrike detection records must
+    // emit `behaviors_ioc_value_first` as a top-level scalar companion field.
+
+    /// RGT-016 (ADR-051 D4): `make_detection_with_ioc` must emit `behaviors_ioc_value_first`
+    /// as a top-level scalar string field on the detection record JSON object.
+    ///
+    /// ADR-051 D4 Scalar-Input rule: typed enrichment UDFs receive scalar string input.
+    /// `behaviors_ioc_value_first` is the scalar companion to the JSON-list wildcard
+    /// `behaviors_ioc_value` (source_path = "$.behaviors[*].ioc_value").
+    /// It holds the first behavior's IOC value (`behaviors[0].ioc_value`) as a plain string,
+    /// allowing typed enrichment UDFs to receive a scalar rather than a JSON-array.
+    ///
+    /// This field must appear at the top level of every detection record (alongside
+    /// the existing `"behaviors"` array), so that the DataFusion table-scan surfaces
+    /// it as a flat column.
+    ///
+    /// RED GATE: `make_detection_with_ioc` does not yet emit `behaviors_ioc_value_first`
+    /// as a top-level key → `record.get("behaviors_ioc_value_first").is_some()` fails → RED.
+    ///
+    /// GREEN: generator emits `"behaviors_ioc_value_first": "<ioc_hash>"` at the top level.
+    #[test]
+    fn test_crowdstrike_dtu_fixture_emits_behaviors_ioc_value_first_field() {
+        let org = OrgId([
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+            0x0F, 0x10,
+        ]);
+        let seed: u64 = 42;
+        let opts = GenOpts {
+            seed,
+            ..Default::default()
+        };
+        // Canonical test vector: known SHA256-like IOC hash.
+        let ioc_hash = "aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
+
+        let slug = org_slug(&org);
+        let detection_id = format!("det-{slug}-{seed}-0");
+        let device_id = format!("dev-{slug}-{seed}-0");
+
+        let record = make_detection_with_ioc(
+            &detection_id,
+            &device_id,
+            2, // severity_id: Medium
+            0, // det_index: 0
+            &opts,
+            Some(ioc_hash),
+        );
+
+        // RED GATE: top-level "behaviors_ioc_value_first" key is not yet emitted.
+        assert!(
+            record.get("behaviors_ioc_value_first").is_some(),
+            "ADR-051 D4 RGT-016: detection record must have top-level key \
+             'behaviors_ioc_value_first' (scalar companion for typed enrichment UDFs). \
+             Missing — implementer must add this field alongside the 'behaviors' array. \
+             Record JSON: {}",
+            record
+        );
+
+        // When GREEN: verify the value matches the passed IOC hash (behaviors[0].ioc_value).
+        if let Some(v) = record.get("behaviors_ioc_value_first") {
+            assert_eq!(
+                v.as_str().unwrap_or(""),
+                ioc_hash,
+                "behaviors_ioc_value_first must equal behaviors[0].ioc_value = '{ioc_hash}'"
+            );
+        }
+    }
 }

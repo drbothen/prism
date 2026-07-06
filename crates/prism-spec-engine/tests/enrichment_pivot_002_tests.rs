@@ -1962,18 +1962,34 @@ fn test_enrichment_pivot_002_http_lookup_source_extracts_response_path_fields() 
 }
 
 // ---------------------------------------------------------------------------
-// Test 25: HttpLookupSource returns None on path not found
+// Test 25: HttpLookupSource returns None on path not found  [FLAKE-HARDENED]
 // ---------------------------------------------------------------------------
 
 /// AC-016 (ADR-040 D8.4): HttpLookupSource::enrich_single must return `Ok(None)` when
 /// the `response_path` JSONPath does not match any node in the HTTP response.
 ///
-/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
-#[test]
-fn test_enrichment_pivot_002_http_lookup_source_returns_none_on_path_not_found() {
+/// FLAKE-HARDENED (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 FLAKE-HARDENING):
+/// Original test used services.nvd.nist.gov which fails offline (DNS → SsrfRejected).
+/// Replaced with wiremock at loopback + PRISM_DTU_MODE=true (bypasses validate_ssrf_safe).
+///
+/// GREEN-BY-DESIGN: HttpLookupSource is fully implemented; this tests correct behavior.
+#[tokio::test]
+async fn test_enrichment_pivot_002_http_lookup_source_returns_none_on_path_not_found() {
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::method};
+
+    // Start a mock HTTP server on loopback (no DNS; no SSRF risk).
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "result_key": "some_value",
+            "data": {"nested": "value"}
+        })))
+        .mount(&mock_server)
+        .await;
+
     let config = HttpLookupConfig::new(
-        "https://services.nvd.nist.gov",
-        "/rest/json/cves/2.0?cveId=${input}",
+        &mock_server.uri(),
+        "/v1/lookup/${input}",
         "GET",
         "$.nonexistent.path.that.will.never.match",
         None,
@@ -1982,10 +1998,21 @@ fn test_enrichment_pivot_002_http_lookup_source_returns_none_on_path_not_found()
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .expect("reqwest::Client::build");
-    // RED GATE: todo!() in new() panics — correct RED behavior.
-    let source = HttpLookupSource::new(client, config, "nvd.infusion.toml").expect("construct");
-    let result = source.enrich_single("CVE-2024-1234", "cve_id");
-    // When implemented: must return None (path not found → no enrichment).
+
+    // PRISM_DTU_MODE=true bypasses validate_ssrf_safe for loopback.
+    // Safety: single-use test env var set immediately before construction and cleared after.
+    unsafe { std::env::set_var("PRISM_DTU_MODE", "true") };
+    let source = HttpLookupSource::new(client, config, "test.infusion.toml")
+        .expect("HttpLookupSource::new must succeed with DTU mode + loopback");
+    unsafe { std::env::remove_var("PRISM_DTU_MODE") };
+
+    // enrich_single creates its own current_thread runtime internally;
+    // spawn_blocking ensures we don't enter it from within the tokio test executor.
+    let result =
+        tokio::task::spawn_blocking(move || source.enrich_single("CVE-2024-1234", "cve_id"))
+            .await
+            .expect("spawn_blocking join");
+
     assert!(
         result.is_none(),
         "AC-016: enrich_single must return None when response_path doesn't match. Got: {:?}",
@@ -1994,27 +2021,36 @@ fn test_enrichment_pivot_002_http_lookup_source_returns_none_on_path_not_found()
 }
 
 // ---------------------------------------------------------------------------
-// Test 26: HttpLookupSource returns Err on non-2xx
+// Test 26: HttpLookupSource returns None on non-2xx  [FLAKE-HARDENED]
 // ---------------------------------------------------------------------------
 
-/// AC-016 (ADR-040 D8.4): HttpLookupSource::enrich_single must propagate
-/// `E-INFUSE-009` when the HTTP server returns a non-2xx status code.
+/// AC-016 (ADR-040 D8.4): HttpLookupSource::enrich_single must handle
+/// non-2xx HTTP responses gracefully — returning None (logging E-INFUSE-009) rather than
+/// panicking the caller.
 ///
-/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
-/// NOTE: InfusionSource::enrich_single currently returns Option<Value> not Result.
-/// This test documents the INTENDED behavior once the trait is updated to return Result.
-#[test]
-fn test_enrichment_pivot_002_http_lookup_source_returns_err_on_non_2xx() {
-    // This test documents the intended behavior post-implementation.
-    // Currently enrich_single returns Option<Value>, not Result.
-    // The implementer must either:
-    //   a) Update InfusionSource::enrich_single to return Result<Option<Value>, InfusionError>, OR
-    //   b) Handle the error internally and return None with a tracing::warn! (logging the
-    //      E-INFUSE-009 without surfacing it in the return type).
-    // The test verifies option (b): non-2xx → None is returned (error is logged, not panicked).
+/// FLAKE-HARDENED (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 FLAKE-HARDENING):
+/// Original test used services.nvd.nist.gov which fails offline (DNS → SsrfRejected).
+/// Replaced with wiremock returning 403 at loopback + PRISM_DTU_MODE=true.
+///
+/// Non-2xx handling: HttpLookupSource handles the error internally (E-INFUSE-009 warning
+/// logged via tracing); enrich_single returns None rather than propagating (Option<Value>
+/// return type; error is not surfaced as Result).
+///
+/// GREEN-BY-DESIGN: HttpLookupSource is fully implemented; this tests correct behavior.
+#[tokio::test]
+async fn test_enrichment_pivot_002_http_lookup_source_returns_err_on_non_2xx() {
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::method};
+
+    // Start a mock HTTP server that returns 403 Forbidden for all requests.
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(403))
+        .mount(&mock_server)
+        .await;
+
     let config = HttpLookupConfig::new(
-        "https://services.nvd.nist.gov",
-        "/rest/json/cves/2.0?cveId=${input}",
+        &mock_server.uri(),
+        "/v1/lookup/${input}",
         "GET",
         "$.data",
         None,
@@ -2023,14 +2059,22 @@ fn test_enrichment_pivot_002_http_lookup_source_returns_err_on_non_2xx() {
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .expect("reqwest::Client::build");
-    // RED GATE: todo!() in new() panics — correct RED behavior.
-    let source = HttpLookupSource::new(client, config, "nvd.infusion.toml").expect("construct");
-    // When implemented with a mock that returns 403: expect None (error handled internally).
-    let result = source.enrich_single("CVE-NONEXISTENT-9999", "cve_id");
-    // Non-2xx must not panic the caller — returns None with logged E-INFUSE-009.
+
+    unsafe { std::env::set_var("PRISM_DTU_MODE", "true") };
+    let source = HttpLookupSource::new(client, config, "test.infusion.toml")
+        .expect("HttpLookupSource::new must succeed with DTU mode + loopback");
+    unsafe { std::env::remove_var("PRISM_DTU_MODE") };
+
+    let result =
+        tokio::task::spawn_blocking(move || source.enrich_single("CVE-NONEXISTENT-9999", "cve_id"))
+            .await
+            .expect("spawn_blocking join");
+
+    // Non-2xx must not panic the caller — E-INFUSE-009 is logged, None returned.
     assert!(
         result.is_none(),
-        "AC-016: non-2xx HTTP response must return None (not panic). Got: {:?}",
+        "AC-016: non-2xx HTTP response must return None (E-INFUSE-009 logged, not panicked). \
+         Got: {:?}",
         result
     );
 }
@@ -2994,5 +3038,207 @@ fn test_enrichment_pivot_002_sec003_symlink_escape_rejected_by_canonicalize_guar
         "PIVOT002-LOCAL-OBS-1 test invariant: 'evil_plugin.prx' must have ONLY Normal \
          components (so Step 0 passes and Steps 3-4 are exercised). \
          Found a non-Normal component — test setup is incorrect."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RGT-006: plugin-type field without source_column rejected (E-INFUSE-013 §8)
+// ---------------------------------------------------------------------------
+
+/// RGT-006 (ADR-051 D3 sub-condition 8 / E-INFUSE-013): a plugin-type infusion field
+/// that does not declare `source_column` must be rejected at parse time.
+///
+/// Without `source_column`, `project_value()` falls into the passthrough branch and
+/// serializes the entire plugin response object — the root cause of
+/// DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 Failure A (doubly-encoded JSON).
+///
+/// RED GATE (Phase 1): `validate_field_name` is `todo!()` (loader.rs:433) → `parse()` panics
+/// for any TOML. Test FAILS with panic → cargo nextest marks FAILED → RED gate satisfied.
+///
+/// RED GATE (Phase 2 — after validate_field_name implemented): `parse()` succeeds, but
+/// `validate_plugin_type_has_source_column` is not yet wired → `result.is_ok()` →
+/// `result.is_err()` assertion FAILS → RED gate still satisfied.
+///
+/// GREEN (Phase J): `validate_plugin_type_has_source_column` is implemented and wired →
+/// `parse()` returns Err(InvalidFieldSpec) with E-INFUSE-013 sub-condition 8 message → GREEN.
+#[test]
+fn test_plugin_type_field_without_source_column_rejected_e_infuse_013() {
+    // A plugin-type infusion spec where the field is missing the required `source_column`.
+    // Per ADR-051 D3: every plugin-type field MUST declare source_column.
+    let toml_input = r#"
+[infusion]
+infusion_id = "test_plugin_no_src_col"
+name = "Test Plugin Infusion"
+type = "plugin"
+
+[source]
+type = "plugin"
+plugin_ref = "test.prx"
+
+[[infusion.credentials]]
+field_name = "api_key"
+env_var    = "TEST_API_KEY"
+
+[[infusion.fields]]
+name = "result_field"
+input_field = "ioc_val"
+input_type = "ioc"
+output_type = "string"
+description = "Plugin-type field missing required source_column (ADR-051 D3)"
+# source_column is intentionally absent — the spec must reject this
+"#;
+
+    // RED GATE (Phase 1): panics from validate_field_name todo!() before reaching the assertion.
+    // RED GATE (Phase 2): parse() succeeds but no source_column check → result.is_err() fails.
+    let result = InfusionLoader::parse(toml_input, "test_plugin_no_src_col.infusion.toml");
+    assert!(
+        result.is_err(),
+        "ADR-051 D3 RGT-006 E-INFUSE-013 sub-condition 8: plugin-type field 'result_field' \
+         without source_column must be rejected (parse must return Err). \
+         Got: Ok({:?})",
+        result.ok()
+    );
+    let err_str = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_str.contains("source_column")
+            || err_str.contains("E-INFUSE-013")
+            || err_str.contains("InvalidFieldSpec"),
+        "E-INFUSE-013 error message must reference source_column or E-INFUSE-013. Got: {}",
+        err_str
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RGT-011: unknown output_type rejected (E-INFUSE-013 sub-condition 7)
+// ---------------------------------------------------------------------------
+
+/// RGT-011 (ADR-051 D3 sub-condition 7 / E-INFUSE-013): `validate_output_type_recognized`
+/// must reject output types that are not in {string, integer, float, boolean, json, datetime}.
+///
+/// Direct unit test for the validator sub-function (callable as InfusionLoader::validate_output_type_recognized).
+///
+/// RED GATE: `validate_output_type_recognized` is `todo!()` (loader.rs:973) → panics.
+/// Test FAILS with panic → cargo nextest marks FAILED → RED gate satisfied.
+///
+/// GREEN: returns Err(InvalidFieldSpec) with message citing "unknown_type_xyz" and
+/// E-INFUSE-013 sub-condition 7.
+#[test]
+fn test_unknown_output_type_rejected_e_infuse_013_sub_condition_7() {
+    // RED GATE: validate_output_type_recognized is todo!() → panics before the assertion.
+    let result = InfusionLoader::validate_output_type_recognized(
+        "unknown_type_xyz",
+        "my_field",
+        "test.infusion.toml",
+    );
+    assert!(
+        result.is_err(),
+        "ADR-051 D3 sub-condition 7 RGT-011 E-INFUSE-013: output_type 'unknown_type_xyz' \
+         is not in {{string, integer, float, boolean, json, datetime}} and must be rejected. \
+         Got: Ok(())"
+    );
+    let err_str = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_str.contains("unknown_type_xyz")
+            || err_str.contains("output_type")
+            || err_str.contains("E-INFUSE-013")
+            || err_str.contains("InvalidFieldSpec"),
+        "E-INFUSE-013 sub-condition 7 error must reference the unknown output_type. Got: {}",
+        err_str
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RGT-012: threatintel.infusion.toml has source_column + iocs_value_first  (ADR-051 D3/D4)
+// ---------------------------------------------------------------------------
+
+/// RGT-012 (ADR-051 D3 + D4): the threatintel infusion TOML must declare `source_column`
+/// on all plugin-type fields AND use `iocs_value_first` (scalar companion column) as the
+/// input_field for typed enrichment fields.
+///
+/// ADR-051 D3: plugin-type fields require `source_column`.
+/// ADR-051 D4 Scalar-Input rule: typed enrichment (integer/float/boolean/datetime) fields
+/// must source from the scalar companion column `iocs_value_first` (not the JSON-list
+/// `iocs_value`), to avoid the NULL E-INFUSE-014 list-input sentinel.
+///
+/// RED GATE: `specs/infusions/threatintel.infusion.toml` currently:
+///   - has no `source_column` on any field → `contains("source_column")` fails → RED.
+///   - uses `input_field = "iocs_value"` not `iocs_value_first` → `contains("iocs_value_first")` fails → RED.
+#[test]
+fn test_threatintel_toml_has_source_column_and_iocs_value_first_input_field() {
+    let content = include_str!("../../../specs/infusions/threatintel.infusion.toml");
+
+    // ADR-051 D3: plugin-type fields require source_column.
+    // RED GATE: no source_column in current threatintel.infusion.toml.
+    assert!(
+        content.contains("source_column"),
+        "ADR-051 D3 RGT-012: threatintel.infusion.toml must declare 'source_column' on \
+         plugin-type fields. Currently absent — implementer must add source_column entries."
+    );
+
+    // ADR-051 D4 Scalar-Input rule: typed fields must use iocs_value_first, not the
+    // JSON-list iocs_value column.
+    // RED GATE: current file uses `input_field = "iocs_value"` only.
+    assert!(
+        content.contains("iocs_value_first"),
+        "ADR-051 D4 RGT-012: threatintel.infusion.toml must use 'iocs_value_first' (scalar \
+         companion) as input_field for typed enrichment fields (integer/float/boolean). \
+         Currently uses 'iocs_value' (JSON-list), which violates the Scalar-Input rule."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RGT-013: cyberint sensor TOML has iocs_value_first column  (ADR-051 D4)
+// ---------------------------------------------------------------------------
+
+/// RGT-013 (ADR-051 D4 Scalar-Input rule): the cyberint sensor TOML must declare an
+/// `iocs_value_first` column — the scalar companion to the JSON-list `iocs_value`
+/// (source_path = "$.iocs[*].value").
+///
+/// `iocs_value_first` uses a scalar JSONPath (e.g., `$.iocs[0].value`) to extract the
+/// first IOC value as a plain string. Typed enrichment UDFs receive this scalar string
+/// rather than a `[...]` JSON-list, avoiding the NULL E-INFUSE-014 sentinel.
+///
+/// RED GATE: `crates/prism-sensors/specs/cyberint.sensor.toml` currently has `iocs_value`
+/// but not `iocs_value_first` → `contains("iocs_value_first")` fails → RED.
+#[test]
+fn test_cyberint_sensor_toml_has_iocs_value_first_column() {
+    let content = include_str!("../../prism-sensors/specs/cyberint.sensor.toml");
+
+    // RED GATE: cyberint.sensor.toml has iocs_value ($.iocs[*].value wildcard)
+    // but no scalar companion iocs_value_first.
+    assert!(
+        content.contains("iocs_value_first"),
+        "ADR-051 D4 RGT-013: cyberint.sensor.toml must declare an 'iocs_value_first' column \
+         (scalar companion to the JSON-list 'iocs_value'). Currently absent — implementer \
+         must add the scalar companion column with a non-wildcard JSONPath (e.g., \
+         source_path = \"$.iocs[0].value\")."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RGT-014: crowdstrike sensor TOML has behaviors_ioc_value_first column  (ADR-051 D4)
+// ---------------------------------------------------------------------------
+
+/// RGT-014 (ADR-051 D4 Scalar-Input rule): the crowdstrike sensor TOML must declare a
+/// `behaviors_ioc_value_first` column — the scalar companion to the JSON-list
+/// `behaviors_ioc_value` (source_path = "$.behaviors[*].ioc_value").
+///
+/// `behaviors_ioc_value_first` extracts the first behavior's IOC value as a plain string
+/// (e.g., source_path = "$.behaviors[0].ioc_value"). Typed enrichment UDFs receive this
+/// scalar string rather than a `[...]` JSON-list.
+///
+/// RED GATE: `crates/prism-sensors/specs/crowdstrike.sensor.toml` currently has
+/// `behaviors_ioc_value` but not `behaviors_ioc_value_first` → assertion fails → RED.
+#[test]
+fn test_crowdstrike_sensor_toml_has_behaviors_ioc_value_first_column() {
+    let content = include_str!("../../prism-sensors/specs/crowdstrike.sensor.toml");
+
+    // RED GATE: crowdstrike.sensor.toml has behaviors_ioc_value ($.behaviors[*].ioc_value)
+    // but no scalar companion behaviors_ioc_value_first.
+    assert!(
+        content.contains("behaviors_ioc_value_first"),
+        "ADR-051 D4 RGT-014: crowdstrike.sensor.toml must declare a 'behaviors_ioc_value_first' \
+         column (scalar companion to 'behaviors_ioc_value'). Currently absent — implementer \
+         must add the scalar companion column with source_path = \"$.behaviors[0].ioc_value\"."
     );
 }

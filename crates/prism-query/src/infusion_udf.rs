@@ -1714,4 +1714,402 @@ mod tests {
              distance={distance}s. If this fails, the per-descriptor TTL is not being applied."
         );
     }
+
+    // ── S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Red Gate Tests ───────────────────
+    // RGT-001 through RGT-010 (ADR-051 D1/D2/D4; BC-2.19.001 v2.2)
+    // BC-5.38.001 Red Gate: all tests FAIL against todo!() stubs before implementation.
+
+    /// RGT-001 (ADR-051 D1): output_type string → Arrow DataType mapping via return_type().
+    ///
+    /// BC-2.19.001 v2.2 INV-ENRICH-TYPED-001: every enrichment UDF must produce typed output
+    /// consistent with the declared output_type field in the infusion spec.
+    ///
+    /// RED GATE: `return_type()` is hardcoded to `DataType::Utf8` (lines 198-206).
+    /// Assertions for integer/float/boolean/datetime fail; string/json happen to pass vacuously.
+    /// After Phase F (output_arrow_type wired into return_type): all 6 cases pass.
+    #[test]
+    fn test_return_type_matches_output_type_for_all_declared_types() {
+        use datafusion::arrow::datatypes::{DataType, TimeUnit};
+        use datafusion::logical_expr::ScalarUDFImpl;
+
+        // ADR-051 D1 canonical mapping: output_type string → Arrow DataType.
+        let cases: &[(&str, DataType)] = &[
+            ("string", DataType::Utf8),
+            ("json", DataType::Utf8),
+            ("integer", DataType::Int64),
+            ("float", DataType::Float64),
+            ("boolean", DataType::Boolean),
+            (
+                "datetime",
+                DataType::Timestamp(TimeUnit::Microsecond, Some("UTC".into())),
+            ),
+        ];
+
+        for (output_type_str, expected) in cases {
+            let (_, src) = CountingSource::new_returning("42");
+            let descriptor = InfusionUdfDescriptor::new(
+                &format!("rgt001_{output_type_str}"),
+                "ip",
+                *output_type_str,
+                "typed_test_infusion",
+                src,
+                None,
+                super::DEFAULT_CACHE_TTL_SECS,
+                "",
+            );
+            let udf = super::InfusionAsyncUdf::new(descriptor);
+            let actual = udf
+                .return_type(&[DataType::Utf8])
+                .expect("return_type must not error");
+            assert_eq!(
+                actual, *expected,
+                "ADR-051 D1 RGT-001: output_type='{}' → expected {:?} but return_type() \
+                 returned {:?}. RED GATE: return_type() is hardcoded to Utf8. \
+                 (INV-ENRICH-TYPED-001 / BC-2.19.001 v2.2)",
+                output_type_str, expected, actual
+            );
+        }
+    }
+
+    /// RGT-002 (ADR-051 D1): DataFusion executes integer-output UDF and emits Int64 column.
+    ///
+    /// RED GATE: `return_type()` returns Utf8 → DataFusion plans a Utf8 output column;
+    /// `assert_eq!(actual_type, DataType::Int64)` fails with Utf8 ≠ Int64.
+    /// After Phase F/H: output schema field is DataType::Int64.
+    #[tokio::test]
+    async fn test_invoke_async_with_args_returns_int64_array_for_integer_output_type() {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+        let (_, src) = CountingSource::new_returning("42");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score_int",
+            "ip",
+            "integer",
+            "threat_intel_infusion",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        register_infusion_udfs(&ctx, vec![descriptor]).expect("UDF registration must succeed");
+
+        let schema = Arc::new(Schema::new(vec![Field::new("ioc", DataType::Utf8, false)]));
+        let arr = StringArray::from(vec!["8.8.8.8"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("RecordBatch::try_new must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("MemTable::try_new must succeed");
+        ctx.register_table("ioc_events_int", Arc::new(table))
+            .expect("register_table must succeed");
+
+        let df = ctx
+            .sql("SELECT threat_score_int(ioc) AS enriched FROM ioc_events_int")
+            .await
+            .expect("SQL must parse");
+        let batches = df.collect().await.expect("query must execute");
+        assert!(!batches.is_empty(), "must have at least one output batch");
+
+        let actual_type = batches[0].schema().field(0).data_type().clone();
+        assert_eq!(
+            actual_type,
+            DataType::Int64,
+            "ADR-051 D1 RGT-002: output_type='integer' → enriched column must be Int64 \
+             but got {:?}. RED GATE: return_type() hardcoded to Utf8 (INV-ENRICH-TYPED-001)",
+            actual_type
+        );
+    }
+
+    /// RGT-003 (ADR-051 D1): DataFusion emits Float64 column for float output_type.
+    ///
+    /// RED GATE: `return_type()` returns Utf8 → Float64 assertion fails.
+    #[tokio::test]
+    async fn test_invoke_async_with_args_returns_float64_array_for_float_output_type() {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+        let (_, src) = CountingSource::new_returning("3.14");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score_float",
+            "ip",
+            "float",
+            "threat_intel_infusion",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        register_infusion_udfs(&ctx, vec![descriptor]).expect("UDF registration must succeed");
+
+        let schema = Arc::new(Schema::new(vec![Field::new("ioc", DataType::Utf8, false)]));
+        let arr = StringArray::from(vec!["8.8.8.8"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("RecordBatch::try_new must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("MemTable::try_new must succeed");
+        ctx.register_table("ioc_events_float", Arc::new(table))
+            .expect("register_table must succeed");
+
+        let df = ctx
+            .sql("SELECT threat_score_float(ioc) AS enriched FROM ioc_events_float")
+            .await
+            .expect("SQL must parse");
+        let batches = df.collect().await.expect("query must execute");
+        assert!(!batches.is_empty(), "must have at least one output batch");
+
+        let actual_type = batches[0].schema().field(0).data_type().clone();
+        assert_eq!(
+            actual_type,
+            DataType::Float64,
+            "ADR-051 D1 RGT-003: output_type='float' → enriched column must be Float64 \
+             but got {:?}. RED GATE: return_type() hardcoded to Utf8.",
+            actual_type
+        );
+    }
+
+    /// RGT-004 (ADR-051 D1): DataFusion emits Boolean column for boolean output_type.
+    ///
+    /// RED GATE: `return_type()` returns Utf8 → Boolean assertion fails.
+    #[tokio::test]
+    async fn test_invoke_async_with_args_returns_boolean_array_for_boolean_output_type() {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+        let (_, src) = CountingSource::new_returning("true");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_is_malicious",
+            "ip",
+            "boolean",
+            "threat_intel_infusion",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        register_infusion_udfs(&ctx, vec![descriptor]).expect("UDF registration must succeed");
+
+        let schema = Arc::new(Schema::new(vec![Field::new("ioc", DataType::Utf8, false)]));
+        let arr = StringArray::from(vec!["8.8.8.8"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("RecordBatch::try_new must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("MemTable::try_new must succeed");
+        ctx.register_table("ioc_events_bool", Arc::new(table))
+            .expect("register_table must succeed");
+
+        let df = ctx
+            .sql("SELECT threat_is_malicious(ioc) AS enriched FROM ioc_events_bool")
+            .await
+            .expect("SQL must parse");
+        let batches = df.collect().await.expect("query must execute");
+        assert!(!batches.is_empty(), "must have at least one output batch");
+
+        let actual_type = batches[0].schema().field(0).data_type().clone();
+        assert_eq!(
+            actual_type,
+            DataType::Boolean,
+            "ADR-051 D1 RGT-004: output_type='boolean' → enriched column must be Boolean \
+             but got {:?}. RED GATE: return_type() hardcoded to Utf8.",
+            actual_type
+        );
+    }
+
+    /// RGT-005 (ADR-051 D1 + ADR-052): DataFusion emits Timestamp(Microsecond, UTC)
+    /// for datetime output_type.
+    ///
+    /// ADR-052: sensor datetime → Timestamp(µs, UTC). ADR-051 D1 extends this to enrichment UDFs.
+    ///
+    /// RED GATE: `return_type()` returns Utf8 → Timestamp assertion fails.
+    #[tokio::test]
+    async fn test_invoke_async_with_args_returns_timestamp_microsecond_array_for_datetime_output_type(
+    ) {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema, TimeUnit};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+        let (_, src) = CountingSource::new_returning("2024-01-01T00:00:00Z");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_last_seen",
+            "ip",
+            "datetime",
+            "threat_intel_infusion",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        register_infusion_udfs(&ctx, vec![descriptor]).expect("UDF registration must succeed");
+
+        let schema = Arc::new(Schema::new(vec![Field::new("ioc", DataType::Utf8, false)]));
+        let arr = StringArray::from(vec!["8.8.8.8"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("RecordBatch::try_new must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("MemTable::try_new must succeed");
+        ctx.register_table("ioc_events_dt", Arc::new(table))
+            .expect("register_table must succeed");
+
+        let df = ctx
+            .sql("SELECT threat_last_seen(ioc) AS enriched FROM ioc_events_dt")
+            .await
+            .expect("SQL must parse");
+        let batches = df.collect().await.expect("query must execute");
+        assert!(!batches.is_empty(), "must have at least one output batch");
+
+        let actual_type = batches[0].schema().field(0).data_type().clone();
+        let expected_type = DataType::Timestamp(TimeUnit::Microsecond, Some("UTC".into()));
+        assert_eq!(
+            actual_type, expected_type,
+            "ADR-051 D1+ADR-052 RGT-005: output_type='datetime' → enriched column must be \
+             Timestamp(Microsecond,UTC) but got {:?}. RED GATE: return_type() hardcoded to Utf8.",
+            actual_type
+        );
+    }
+
+    /// RGT-007 (ADR-051 D2 / E-INFUSE-014): integer coercion failure returns None (NULL row).
+    ///
+    /// "not-a-number" cannot be parsed by i64::from_str → coerce_to_typed must return None.
+    /// On None: the UDF row produces NULL (AD-017: truncated_value = first 50 chars in warning).
+    ///
+    /// RED GATE: `coerce_to_typed()` is `todo!()` (line 528) → panics; test FAILS.
+    /// After Phase G: returns None for invalid integer strings; assertion passes.
+    #[test]
+    fn test_coerce_to_typed_integer_failure_produces_null_e_infuse_014() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("42");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score",
+            "ip",
+            "integer",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // ADR-051 D2: "not-a-number" → i64::from_str fails → must return None (E-INFUSE-014 NULL).
+        // RED GATE: coerce_to_typed is todo!() → panics before reaching the assertion.
+        let result = udf.coerce_to_typed("not-a-number", &DataType::Int64, "threat_score");
+        assert!(
+            result.is_none(),
+            "ADR-051 D2 RGT-007 E-INFUSE-014: coerce_to_typed('not-a-number', Int64, \
+             'threat_score') must return None (invalid integer). Got: {:?}",
+            result
+        );
+    }
+
+    /// RGT-008 (ADR-051 D2 / E-INFUSE-014): float coercion failure returns None.
+    ///
+    /// RED GATE: `coerce_to_typed()` is `todo!()` → panics; test FAILS.
+    #[test]
+    fn test_coerce_to_typed_float_failure_produces_null_e_infuse_014() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("3.14");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_confidence",
+            "ip",
+            "float",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // ADR-051 D2: "not-a-float" → f64::from_str fails → must return None (E-INFUSE-014).
+        // RED GATE: coerce_to_typed is todo!() → panics before reaching the assertion.
+        let result = udf.coerce_to_typed("not-a-float", &DataType::Float64, "threat_confidence");
+        assert!(
+            result.is_none(),
+            "ADR-051 D2 RGT-008 E-INFUSE-014: coerce_to_typed('not-a-float', Float64, \
+             'threat_confidence') must return None (invalid float). Got: {:?}",
+            result
+        );
+    }
+
+    /// RGT-009 (ADR-051 D2 / E-INFUSE-014): unrecognized boolean string returns None.
+    ///
+    /// ADR-051 D2 boolean branch: case-insensitive {true,1,yes} → true; {false,0,no} → false.
+    /// Any other value (e.g., "xyz") is unrecognized → return None (E-INFUSE-014).
+    ///
+    /// RED GATE: `coerce_to_typed()` is `todo!()` → panics; test FAILS.
+    #[test]
+    fn test_coerce_to_typed_boolean_unrecognized_value_produces_null_e_infuse_014() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("xyz");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_is_malicious",
+            "ip",
+            "boolean",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // ADR-051 D2: "xyz" ∉ {true,1,yes,false,0,no} → must return None (E-INFUSE-014).
+        // RED GATE: coerce_to_typed is todo!() → panics before reaching the assertion.
+        let result = udf.coerce_to_typed("xyz", &DataType::Boolean, "threat_is_malicious");
+        assert!(
+            result.is_none(),
+            "ADR-051 D2 RGT-009 E-INFUSE-014: coerce_to_typed('xyz', Boolean, \
+             'threat_is_malicious') must return None (unrecognized boolean). Got: {:?}",
+            result
+        );
+    }
+
+    /// RGT-010 (ADR-051 D4): JSON-list input to non-json typed UDF returns None (E-INFUSE-014).
+    ///
+    /// ADR-051 D4 Scalar-Input rule: if the projected value begins with `[` (JSON array)
+    /// and `output_type != "json"`, coerce_to_typed must return None.
+    /// ENRICH-1 list-dispatch is RETAINED only for `output_type = "json"`.
+    ///
+    /// RED GATE: `coerce_to_typed()` is `todo!()` → panics; test FAILS.
+    #[test]
+    fn test_json_list_input_to_typed_output_udf_produces_null_e_infuse_014() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("[\"hash1\",\"hash2\"]");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score_list",
+            "ip",
+            "integer",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // ADR-051 D4: "[...]" starts with '[' → JSON-list input to non-json (integer) UDF
+        // → must return None (E-INFUSE-014 NULL; ENRICH-1 list-dispatch disabled for Int64).
+        // RED GATE: coerce_to_typed is todo!() → panics before reaching the assertion.
+        let result = udf.coerce_to_typed("[\"hash1\",\"hash2\"]", &DataType::Int64, "threat_score");
+        assert!(
+            result.is_none(),
+            "ADR-051 D4 RGT-010 E-INFUSE-014: JSON-list input '[...]' to integer UDF must \
+             return None (Scalar-Input rule). Got: {:?}",
+            result
+        );
+    }
 }
