@@ -2021,6 +2021,24 @@ mod tests {
              but got {:?}. RED GATE: return_type() hardcoded to Utf8 (INV-ENRICH-TYPED-001)",
             actual_type
         );
+        // MED-001+LOW-001: assert the actual row VALUE (not just the schema type).
+        // A regression where coerce_to_typed returned Some(Value::String("42")) instead of
+        // Some(Value::Number(42)) would yield a NULL row here; schema type alone would still pass.
+        // NOTE: Arrow's Int64Array.value(n) returns 0 on null; since 42 ≠ 0 this catches
+        // both the null-row regression AND the wrong-value regression.
+        use datafusion::arrow::array::Int64Array;
+        let col = batches[0].column(0);
+        let int_arr = col
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .expect("output column must downcast to Int64Array");
+        assert_eq!(
+            int_arr.value(0),
+            42_i64,
+            "MED-001+LOW-001 RGT-002: Int64 row[0] value must be 42 (source returns '42'). \
+             A null row or wrong type produces 0, not 42. Got: {}",
+            int_arr.value(0)
+        );
     }
 
     /// RGT-003 (ADR-051 D1): DataFusion emits Float64 column for float output_type.
@@ -2071,6 +2089,21 @@ mod tests {
              but got {:?}. RED GATE: return_type() hardcoded to Utf8.",
             actual_type
         );
+        // MED-001+LOW-001: assert the actual row VALUE.
+        use datafusion::arrow::array::Float64Array;
+        let col = batches[0].column(0);
+        let float_arr = col
+            .as_any()
+            .downcast_ref::<Float64Array>()
+            .expect("output column must downcast to Float64Array");
+        // NOTE: Float64Array.value(n) returns 0.0 on null; 3.14 ≠ 0.0 catches both null and
+        // wrong-type regressions without needing the Array trait in scope.
+        assert!(
+            (float_arr.value(0) - 3.14_f64).abs() < 1e-10,
+            "MED-001+LOW-001 RGT-003: Float64 row[0] value must be ~3.14 (source returns '3.14'). \
+             Got: {}",
+            float_arr.value(0)
+        );
     }
 
     /// RGT-004 (ADR-051 D1): DataFusion emits Boolean column for boolean output_type.
@@ -2120,6 +2153,20 @@ mod tests {
             "ADR-051 D1 RGT-004: output_type='boolean' → enriched column must be Boolean \
              but got {:?}. RED GATE: return_type() hardcoded to Utf8.",
             actual_type
+        );
+        // MED-001+LOW-001: assert the actual row VALUE.
+        use datafusion::arrow::array::BooleanArray;
+        let col = batches[0].column(0);
+        let bool_arr = col
+            .as_any()
+            .downcast_ref::<BooleanArray>()
+            .expect("output column must downcast to BooleanArray");
+        // NOTE: BooleanArray.value(n) returns false on null; expected is true, so false ≠ true
+        // catches both the null-row and wrong-type regressions without needing Array trait in scope.
+        assert!(
+            bool_arr.value(0),
+            "MED-001+LOW-001 RGT-004: Boolean row[0] value must be true (source returns 'true'). \
+             Got: false"
         );
     }
 
@@ -2174,6 +2221,24 @@ mod tests {
             "ADR-051 D1+ADR-052 RGT-005: output_type='datetime' → enriched column must be \
              Timestamp(Microsecond,UTC) but got {:?}. RED GATE: return_type() hardcoded to Utf8.",
             actual_type
+        );
+        // MED-001+LOW-001: assert the actual row VALUE (microseconds since epoch).
+        // 2024-01-01T00:00:00Z = 1704067200 seconds = 1704067200_000_000 µs since epoch.
+        use datafusion::arrow::array::TimestampMicrosecondArray;
+        let col = batches[0].column(0);
+        let ts_arr = col
+            .as_any()
+            .downcast_ref::<TimestampMicrosecondArray>()
+            .expect("output column must downcast to TimestampMicrosecondArray");
+        // NOTE: TimestampMicrosecondArray.value(n) returns 0 on null; EXPECTED_MICROS ≠ 0
+        // catches both the null-row and wrong-value regressions without needing Array trait in scope.
+        const EXPECTED_MICROS: i64 = 1_704_067_200_000_000;
+        assert_eq!(
+            ts_arr.value(0),
+            EXPECTED_MICROS,
+            "MED-001+LOW-001 RGT-005: Timestamp row[0] value must be {EXPECTED_MICROS} µs \
+             (2024-01-01T00:00:00Z). Got: {}",
+            ts_arr.value(0)
         );
     }
 
@@ -2274,6 +2339,155 @@ mod tests {
             "ADR-051 D2 RGT-009 E-INFUSE-014: coerce_to_typed('xyz', Boolean, \
              'threat_is_malicious') must return None (unrecognized boolean). Got: {:?}",
             result
+        );
+    }
+
+    // ── MED-001+LOW-001 (LOCAL adversary pass-2): positive-value assertions ──────────────
+    // The following tests assert that coerce_to_typed returns the correct TYPED VALUE
+    // (not just that failures return None). A regression where the Int64 branch returned
+    // Some(Value::String("42")) instead of Some(Value::Number(42)) would silently produce
+    // an ALL-NULL Int64 column and every prior type-only test would still pass.
+
+    /// MED-001+LOW-001: coerce_to_typed("42", Int64) must return Some(Number(42)).
+    ///
+    /// This is the load-bearing positive-value assertion: coerce_to_typed must produce
+    /// `Some(serde_json::Value::Number(42.into()))` — the type-only tests in RGT-002 did
+    /// not catch a regression where Some(Value::String("42")) was returned.
+    #[test]
+    fn test_coerce_to_typed_integer_valid_returns_some_number() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("42");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score",
+            "ip",
+            "integer",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        let result = udf.coerce_to_typed("42", &DataType::Int64, "threat_score");
+        assert_eq!(
+            result,
+            Some(serde_json::Value::Number(42_i64.into())),
+            "MED-001+LOW-001: coerce_to_typed('42', Int64) must return Some(Number(42)). \
+             Got: {:?}",
+            result
+        );
+    }
+
+    /// MED-001+LOW-001: coerce_to_typed("8.1", Float64) must return Some(Number(8.1)).
+    #[test]
+    fn test_coerce_to_typed_float_valid_returns_some_number() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("8.1");
+        let descriptor = InfusionUdfDescriptor::new(
+            "cvss_base_score",
+            "ip",
+            "float",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        let result = udf.coerce_to_typed("8.1", &DataType::Float64, "cvss_base_score");
+        match result {
+            Some(serde_json::Value::Number(n)) => {
+                let f = n.as_f64().expect("must be representable as f64");
+                assert!(
+                    (f - 8.1_f64).abs() < 1e-10,
+                    "MED-001+LOW-001: coerce_to_typed('8.1', Float64) must return ~8.1. Got: {f}"
+                );
+            }
+            other => panic!(
+                "MED-001+LOW-001: coerce_to_typed('8.1', Float64) must return Some(Number(8.1)). \
+                 Got: {other:?}"
+            ),
+        }
+    }
+
+    /// MED-001+LOW-001: coerce_to_typed for boolean — all true-variants and false-variants.
+    ///
+    /// ADR-051 D2: case-insensitive {true,1,yes} → true; {false,0,no} → false.
+    #[test]
+    fn test_coerce_to_typed_boolean_valid_variants_return_some_bool() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("true");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_is_known_malicious",
+            "ip",
+            "boolean",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // true-valued variants.
+        for true_str in &["true", "1", "yes", "TRUE", "YES"] {
+            let result =
+                udf.coerce_to_typed(true_str, &DataType::Boolean, "threat_is_known_malicious");
+            assert_eq!(
+                result,
+                Some(serde_json::Value::Bool(true)),
+                "MED-001+LOW-001: coerce_to_typed('{true_str}', Boolean) must return \
+                 Some(Bool(true)). Got: {result:?}"
+            );
+        }
+        // false-valued variants.
+        for false_str in &["false", "0", "no", "FALSE", "NO"] {
+            let result =
+                udf.coerce_to_typed(false_str, &DataType::Boolean, "threat_is_known_malicious");
+            assert_eq!(
+                result,
+                Some(serde_json::Value::Bool(false)),
+                "MED-001+LOW-001: coerce_to_typed('{false_str}', Boolean) must return \
+                 Some(Bool(false)). Got: {result:?}"
+            );
+        }
+    }
+
+    /// MED-001+LOW-001: coerce_to_typed("2024-01-01T00:00:00Z", Datetime) → Some(Number(micros)).
+    ///
+    /// ADR-052: datetime strings → i64 microseconds since epoch via parse_datetime_to_micros.
+    #[test]
+    fn test_coerce_to_typed_datetime_valid_returns_some_micros() {
+        use datafusion::arrow::datatypes::{DataType, TimeUnit};
+
+        let (_, src) = CountingSource::new_returning("2024-01-01T00:00:00Z");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_last_seen",
+            "ip",
+            "datetime",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        let dt_type = DataType::Timestamp(TimeUnit::Microsecond, Some("UTC".into()));
+        let result = udf.coerce_to_typed("2024-01-01T00:00:00Z", &dt_type, "threat_last_seen");
+
+        // 2024-01-01T00:00:00Z = 1704067200 seconds = 1704067200_000_000 µs since epoch.
+        const EXPECTED_MICROS: i64 = 1_704_067_200_000_000;
+        assert_eq!(
+            result,
+            Some(serde_json::Value::Number(EXPECTED_MICROS.into())),
+            "MED-001+LOW-001: coerce_to_typed('2024-01-01T00:00:00Z', Datetime) must return \
+             Some(Number({EXPECTED_MICROS})). Got: {result:?}"
         );
     }
 
