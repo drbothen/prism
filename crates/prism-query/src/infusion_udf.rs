@@ -564,12 +564,24 @@ impl InfusionAsyncUdf {
             &self.descriptor.output_type,
             value,
         );
+        // NEW-SEC-001-R (CWE-117, fix-burst-14): sanitize ALL structured tracing fields before
+        // passing them to the `= %...` named field slots. JSON log consumers (e.g., Vector, Loki,
+        // SIEM ingestors) parse named fields directly from the serialized tracing event — a raw
+        // control char in `field_name` or `infusion_id` reaches the JSON field value verbatim,
+        // enabling log injection and LLM prompt injection (AD-017 extension).
+        // `truncated_value` is sanitized AFTER the 50-char truncation (order per spec).
+        // The Display message `"{}", err` is already sanitized via InfusionError (fix-burst-13).
+        let safe_field_name = sanitize_for_log(field_name);
+        let safe_infusion_id = sanitize_for_log(&self.descriptor.infusion_id);
+        let safe_declared_type = sanitize_for_log(&self.descriptor.output_type);
+        let truncated_value: String = value.chars().take(50).collect();
+        let safe_truncated_value = sanitize_for_log(&truncated_value);
         tracing::warn!(
             event_type = "infusion.coercion_failed",
-            field_name = %field_name,
-            infusion_id = %self.descriptor.infusion_id,
-            declared_type = %self.descriptor.output_type,
-            truncated_value = %value.chars().take(50).collect::<String>(),
+            field_name = %safe_field_name,
+            infusion_id = %safe_infusion_id,
+            declared_type = %safe_declared_type,
+            truncated_value = %safe_truncated_value,
             "{}", err
         );
     }
@@ -675,20 +687,27 @@ impl InfusionAsyncUdf {
                 None
             }
             DataType::Boolean => {
-                // SEC-002 (CWE-770): size guard — prevent O(n) to_lowercase() allocation on
-                // pathologically large values (error-taxonomy v2.17 SEC-002 / AC-014).
-                if value.len() > 1024 {
-                    self.warn_coercion_failed(field_name, value);
-                    return None;
-                }
                 // ADR-051 D2: case-insensitive {true,1,yes}→true, {false,0,no}→false, else None.
                 // CR-004: trim() BEFORE to_lowercase() — idiomatic; avoids allocating a
                 // lowercase copy of leading/trailing whitespace that gets thrown away.
-                match value.trim().to_lowercase().as_str() {
-                    "true" | "1" | "yes" => Some(serde_json::Value::Bool(true)),
-                    "false" | "0" | "no" => Some(serde_json::Value::Bool(false)),
+                // SEC-002 / NEW-CR-005 (CWE-770, fix-burst-14): skip O(n) to_lowercase() for
+                // pathologically large values (> 1024 bytes) by computing the normalized candidate
+                // only when len <= 1024. Oversized values produce `None` from the normalize step
+                // and fall through to the `_` failure arm, which calls warn_coercion_failed ONCE
+                // (preserving the 5-site pattern: no separate 6th call site for the size guard).
+                let normalized = if value.len() <= 1024 {
+                    Some(value.trim().to_lowercase())
+                } else {
+                    None
+                };
+                match normalized.as_deref() {
+                    Some("true") | Some("1") | Some("yes") => Some(serde_json::Value::Bool(true)),
+                    Some("false") | Some("0") | Some("no") => Some(serde_json::Value::Bool(false)),
                     _ => {
                         // CR-001: delegated to warn_coercion_failed.
+                        // SEC-002: oversized inputs reach here via normalized=None (skips
+                        // to_lowercase), ensuring a single warn_coercion_failed call site for
+                        // the boolean branch (5-site pattern, BC-2.16.002 catalog).
                         self.warn_coercion_failed(field_name, value);
                         None
                     }
@@ -731,6 +750,20 @@ impl InfusionAsyncUdf {
             other => other.to_string(),
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Module-level helpers
+// ---------------------------------------------------------------------------
+
+/// Strip ASCII control characters (0x00–0x1F, 0x7F) from `s` before embedding in log messages.
+///
+/// Prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured logs
+/// (AD-017 extension, NEW-SEC-001-R fix-burst-14). Mirrors the identical helper in
+/// `prism-core/src/error.rs` and `prism-spec-engine/src/infusion/loader.rs`; duplicated here
+/// because those copies are private `fn`s inaccessible from `prism-query`.
+fn sanitize_for_log(s: &str) -> String {
+    s.chars().filter(|c| !c.is_ascii_control()).collect()
 }
 
 // ---------------------------------------------------------------------------

@@ -3033,7 +3033,7 @@ fn test_enrichment_pivot_002_sec003_symlink_escape_rejected_by_canonicalize_guar
 // RGT-006: plugin-type field without source_column rejected (E-INFUSE-013 §8)
 // ---------------------------------------------------------------------------
 
-/// RGT-006 (ADR-051 D3 sub-condition 8 / E-INFUSE-013): a plugin-type infusion field
+/// RGT-002 (ADR-051 D3 sub-condition 8 / E-INFUSE-013): a plugin-type infusion field
 /// that does not declare `source_column` must be rejected at parse time.
 ///
 /// Without `source_column`, `project_value()` falls into the passthrough branch and
