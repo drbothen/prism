@@ -2976,4 +2976,181 @@ mod tests {
             result
         );
     }
+
+    // ── NEW-SEC-001-R (PR-216 fix-burst-14): structured tracing field control-char sanitization ──
+
+    /// NEW-SEC-001-R (CWE-117, PR-216 fix-burst-14) RED GATE — structured tracing fields in
+    /// `warn_coercion_failed` pass raw values, not sanitized ones.
+    ///
+    /// `warn_coercion_failed` emits `tracing::warn!` with named structured fields:
+    ///
+    /// ```text
+    /// tracing::warn!(
+    ///     event_type = "infusion.coercion_failed",
+    ///     field_name        = %field_name,                              // RAW — no sanitization
+    ///     infusion_id       = %self.descriptor.infusion_id,             // RAW — no sanitization
+    ///     declared_type     = %self.descriptor.output_type,             // RAW — no sanitization
+    ///     truncated_value   = %value.chars().take(50)...,               // RAW — no sanitization
+    ///     "{}", err                                                      // sanitized Display
+    /// )
+    /// ```
+    ///
+    /// Fix-burst-13 (SEC-001) sanitized the `E-INFUSE-014` Display message (via
+    /// `InfusionError::new_type_coercion_failed`), but the STRUCTURED FIELDS still receive raw
+    /// values via `%`. JSON log consumers (e.g., Vector, Loki, SIEM ingestors) parse named fields
+    /// directly from the serialized tracing event — a control char in `field_name` or `infusion_id`
+    /// reaches the JSON field value verbatim, enabling CWE-117 log injection and LLM prompt
+    /// injection into agent-consumed structured logs (AD-017 extension).
+    ///
+    /// **RED GATE (current code):** `%field_name` with value `"threat_score\x01injected"` emits
+    /// U+0001 (SOH) into the captured tracing output. `logs_contain("\x01")` returns `true`.
+    /// The assertion `!logs_contain("\x01")` therefore FAILS against current code.
+    ///
+    /// **After fix:** sanitize `field_name`/`infusion_id`/`declared_type`/`truncated_value` with
+    /// `sanitize_for_log()` (strip chars where `c.is_ascii_control()`) inside `warn_coercion_failed`
+    /// BEFORE passing them as named tracing fields. The U+0001 is removed; `logs_contain("\x01")`
+    /// returns `false`; the assertion PASSES.
+    ///
+    /// Traces to: NEW-SEC-001-R (PR-216 re-review), CWE-117, AD-017, SAP-1.
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_new_sec001_r_warn_coercion_failed_structured_fields_no_raw_control_chars() {
+        use datafusion::arrow::datatypes::DataType;
+
+        // field_name contains SOH (U+0001, ASCII 1) — canonical CWE-117 injection vector.
+        // SOH never appears in normal formatted log output, so its presence is unambiguous.
+        // U+0001 is distinct from the U+0002/U+0003 used in fix-burst-13 SEC-001 tests.
+        let ctrl_field_name = "threat_score\x01injected";
+
+        let (_, src) = CountingSource::new_returning("ignored");
+        let descriptor = InfusionUdfDescriptor::new(
+            "sec001r_udf",
+            "ip",
+            "integer", // output_type = integer; "not-an-integer" → coercion fails → warn fires
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // Drive warn_coercion_failed: "not-an-integer" cannot be coerced to i64.
+        let result = udf.coerce_to_typed("not-an-integer", &DataType::Int64, ctrl_field_name);
+        assert!(
+            result.is_none(),
+            "NEW-SEC-001-R: coerce_to_typed('not-an-integer', Int64, ctrl_field_name) \
+             must return None (prerequisite for the tracing assertion)"
+        );
+
+        // Confirm the coercion_failed event was emitted at all.
+        assert!(
+            logs_contain("infusion.coercion_failed"),
+            "NEW-SEC-001-R: warn_coercion_failed must emit \
+             event_type=infusion.coercion_failed for an uncoercible integer input"
+        );
+
+        // NEW-SEC-001-R LOAD-BEARING ASSERTION: no raw ASCII control char U+0001 in the
+        // captured tracing output.
+        //
+        // Current code:   `field_name = %ctrl_field_name` passes raw bytes →
+        //                 "threat_score\x01injected" IS in the structured field output →
+        //                 logs_contain("\x01") == true → !logs_contain("\x01") == false → FAIL
+        //
+        // After fix:      sanitize_for_log strips U+0001 from field_name before tracing::warn! →
+        //                 "\x01" is absent from the output →
+        //                 logs_contain("\x01") == false → !logs_contain("\x01") == true → PASS
+        assert!(
+            !logs_contain("threat_score\x01injected"),
+            "NEW-SEC-001-R CWE-117 RED GATE (precise): raw value 'threat_score\\x01injected' \
+             found in captured tracing output. The structured field `field_name` in \
+             infusion.coercion_failed emits the raw field_name argument without control-char \
+             sanitization. JSON log consumers receive U+0001 in the field value. \
+             FIX: call sanitize_for_log(field_name) (strip .is_ascii_control() chars) inside \
+             warn_coercion_failed before passing to the `field_name = %...` tracing field."
+        );
+        assert!(
+            !logs_contain("\x01"),
+            "NEW-SEC-001-R CWE-117 RED GATE (general): raw ASCII control char U+0001 found \
+             anywhere in the captured tracing output. This fires because \
+             `field_name = %ctrl_field_name` emits the SOH byte from the raw field name. \
+             After fix (sanitize_for_log in warn_coercion_failed), this assertion must pass."
+        );
+    }
+
+    // ── NEW-CR-005 (PR-216 fix-burst-14): oversized boolean emits infusion.coercion_failed ──
+
+    /// NEW-CR-005 (SAP-1, Standing Rule 3 §2, PR-216 fix-burst-14) — regression guard verifying
+    /// that oversized boolean input emits `infusion.coercion_failed` (E-INFUSE-014 semantics).
+    ///
+    /// The SEC-002 boolean size guard (CWE-770) MUST call `warn_coercion_failed` before returning
+    /// `None` for inputs > 1024 bytes. A bare `return None` without event emission is a silent
+    /// failure per Standing Rule 3 §2 and a SAP-1 violation (BC-2.16.002 catalog must be complete).
+    ///
+    /// **REGRESSION GUARD NOTE:** Fix-burst-13 implementation (4bb0cad5) already added the
+    /// `warn_coercion_failed` call to the boolean size guard branch. This test PASSES against the
+    /// current HEAD (not a red gate, due to TDD ordering: implementation preceded this test).
+    /// It serves as a load-bearing regression guard: if a future change accidentally reverts the
+    /// boolean size guard to a bare `return None` (no event emission), this test will fail,
+    /// surfacing the silent-failure regression immediately.
+    ///
+    /// The existing `test_sec002_boolean_coercion_oversized_input_yields_null_regression_guard`
+    /// asserts the `None` outcome only. This test adds the event emission assertion.
+    ///
+    /// Traces to: NEW-CR-005 (PR-216 re-review), SAP-1, Standing Rule 3 §2, E-INFUSE-014.
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_new_cr005_oversized_boolean_input_emits_coercion_failed_event_and_returns_null() {
+        use datafusion::arrow::datatypes::DataType;
+
+        // > 1024 bytes — triggers the SEC-002 size guard in the boolean coercion branch.
+        let oversized_value = "a".repeat(1025);
+
+        let (_, src) = CountingSource::new_returning("true"); // source value is irrelevant
+        let descriptor = InfusionUdfDescriptor::new(
+            "cr005_udf",
+            "ip",
+            "boolean",
+            "threat_intel_infusion",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        let result =
+            udf.coerce_to_typed(&oversized_value, &DataType::Boolean, "threat_is_malicious");
+
+        // REGRESSION GUARD assertion 1: return value must be None (E-INFUSE-014 NULL sentinel).
+        assert!(
+            result.is_none(),
+            "NEW-CR-005: coerce_to_typed(1025-byte input, Boolean, 'threat_is_malicious') \
+             must return None. The SEC-002 size guard must short-circuit to None."
+        );
+
+        // REGRESSION GUARD assertion 2: infusion.coercion_failed event MUST be emitted.
+        //
+        // Spec (BC-2.16.002 event catalog, E-INFUSE-014): oversized boolean input is a coercion
+        // failure — it must emit infusion.coercion_failed exactly like any other uncoercible value.
+        // A bare `return None` without event emission is a silent failure (Standing Rule 3 §2)
+        // and a SAP-1 violation.
+        //
+        // If this assertion fails, the boolean size guard was changed to skip warn_coercion_failed,
+        // silently swallowing the E-INFUSE-014 event for oversized inputs.
+        assert!(
+            logs_contain("infusion.coercion_failed"),
+            "NEW-CR-005 SAP-1 REGRESSION GUARD: oversized (>1024 byte) boolean input MUST emit \
+             event_type=infusion.coercion_failed. A silent `return None` without event emission \
+             violates Standing Rule 3 §2 and the BC-2.16.002 event catalog. \
+             If this fails, the SEC-002 boolean size guard was changed to a bare `return None`."
+        );
+
+        // Confirm the emitted event references the correct field_name (not a spurious emission).
+        assert!(
+            logs_contain("threat_is_malicious"),
+            "NEW-CR-005: field_name 'threat_is_malicious' must appear in the \
+             infusion.coercion_failed event emitted for the oversized boolean input."
+        );
+    }
 }
