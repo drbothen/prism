@@ -57,7 +57,7 @@ use prism_sensors::{
 use prism_spec_engine::{
     AuthProvider, AuthToken, PluginAuthProvider, ResolvedSensorSpec, ResolvedSpecKey,
     error::SpecEngineError,
-    extract_at_path,
+    extract_at_path, parse_datetime_to_micros,
     pipeline::{FetchContext, PipelineExecutor, PipelineResult},
     spec_parser::{AuthType, ColumnSpec, SensorSpec as SpecEngineSensorSpec, TableSpec},
 };
@@ -1437,57 +1437,6 @@ fn build_crowdstrike_fql(start_time: Option<&str>, end_time: Option<&str>) -> St
 // ---------------------------------------------------------------------------
 // Datetime parsing helper — OCSF normalization boundary (ADR-052 D5)
 // ---------------------------------------------------------------------------
-
-/// Parse an RFC-3339 datetime string to microseconds since Unix epoch.
-///
-/// Used at the OCSF normalization boundary in `build_column_array` to convert
-/// incoming sensor API ISO-8601 datetime strings into `i64` microseconds-since-epoch
-/// for storage in `DataType::Timestamp(TimeUnit::Microsecond, Some("UTC"))` Arrow columns.
-///
-/// # ADR-052 D4/D5 chrono-strictness invariant
-/// Uses the same `chrono::DateTime::parse_from_rfc3339` strictness as the query-planner
-/// pre-validator (`check_temporal_literals`). Both components reject date-only and
-/// offset-less ISO-8601 forms — only full RFC-3339 with explicit UTC offset is accepted.
-///
-/// # Normalizer contract (ADR-052 D5)
-/// In the canonical production path, `prism_spec_engine::pipeline::normalize_timestamp_fields`
-/// is called before `build_column_array` reaches this function. That free function converts
-/// ALL successfully-parsed datetime values to RFC-3339 with a Z-suffix via
-/// `dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)` — strict-OUT guarantee.
-/// The normalizer is lenient-IN (attempts multiple ISO-8601 parse formats before rejecting);
-/// `parse_datetime_to_micros` here is strict-IN (`parse_from_rfc3339` only). On the
-/// canonical path, the normalizer's strict-OUT guarantee ensures this function always
-/// receives well-formed RFC-3339+Z input. The `Err` branch in `build_column_array`
-/// (tracing::warn + null cell) is therefore defense-in-depth only; it is unreachable
-/// in the canonical data path.
-///
-/// # ADR-052 D5 "identical chrono strictness" scope
-/// The D5 invariant ("identical chrono strictness") applies to the QUERY PATH only:
-/// `check_temporal_literals` (E-QUERY-041 plan-time gate) and `parse_datetime_to_micros`
-/// both use `chrono::DateTime::parse_from_rfc3339`. The normalizer's lenient-IN behaviour is intentionally
-/// outside D5 scope — it occurs in the ingestion/ETL boundary, not the query validation path.
-///
-/// # Error type
-/// Returns `Err(SpecEngineError::TimestampParseFailure)` when the string is not valid
-/// RFC-3339. Callers in `build_column_array` log the structured error as a `tracing::warn`
-/// and emit a null cell — sensor-layer datetime parse failures are non-fatal at the row level.
-pub(super) fn parse_datetime_to_micros(
-    value: &str,
-    column_name: &str,
-    sensor_id: &str,
-) -> Result<i64, SpecEngineError> {
-    chrono::DateTime::parse_from_rfc3339(value)
-        .map(|dt| dt.timestamp_micros())
-        .map_err(|_| SpecEngineError::TimestampParseFailure {
-            sensor_id: sensor_id.to_owned(),
-            column_name: column_name.to_owned(),
-            attempted_formats: vec!["rfc3339".to_owned()],
-            // SEC-002 (CWE-532 / AD-017): cap raw sensor value at 50 codepoints before
-            // storing in the error struct. The Display output (`value='{value}'`) then
-            // naturally caps — consistent with E-QUERY-041/042 value_prefix convention.
-            value: value.chars().take(50).collect(),
-        })
-}
 
 // ---------------------------------------------------------------------------
 // Unit tests — BearerStaticCredentialAuthProvider fail-closed contract
