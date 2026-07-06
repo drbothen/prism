@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.6"
+version: "1.7"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-05T00:00:00Z"
 created: "2026-07-05"
-modified: "2026-07-06T12:00:00Z"
+modified: "2026-07-06T14:00:00Z"
 tdd_mode: strict
 subsystems: [SS-09, SS-10, SS-19]
 # Subsystem anchor justifications:
@@ -283,7 +283,7 @@ Given `InfusionLoader::validate` is called during spec loading,
 when a `[[infusion.fields]]` entry has `type = "plugin"` (or the parent infusion is `type = "plugin"`) and no `source_column` is declared on that field,
 then the spec is rejected at parse time with `E-INFUSE-013` sub-condition 8:
 ```
-"E-INFUSE-013: invalid field name '{field_name}' in infusion spec '{spec_path}':
+"E-INFUSE-013: invalid field name 'source_column' in infusion spec '{spec_path}':
  plugin-type field '{name}' in infusion '{infusion_id}' must declare 'source_column'
  to project a specific field from the plugin response object; without source_column
  the full response object is serialized (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 root cause)"
@@ -468,7 +468,7 @@ Red Gate: `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_d
 | 23 | `test_threat_sources_json_output_no_double_encoding` | prism-query | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001; ADV-P11-OBS-001: source_column + Vec<String> Array field + scalar input_field (`iocs_value_first`) → output `["greynoise","abuseipdb"]` (valid JSON array, elements are plain strings — NOT double-encoded `["[\"greynoise\",\"abuseipdb\"]"]`) | unit |
 
 **Note on test crate placement:**
-- Tests 1–10 and 17–20: live in `crates/prism-query/src/infusion_udf.rs` `#[cfg(test)] mod tests` block
+- Tests 1–10 and 17–23: live in `crates/prism-query/src/infusion_udf.rs` `#[cfg(test)] mod tests` block
 - Tests 11–12: live in `crates/prism-spec-engine/tests/enrichment_pivot_002_tests.rs` (extend the existing test file per ADR-051 §Blast Radius)
 - Tests 13–14: live in sensor spec tests or `enrichment_pivot_002_tests.rs`
 - Tests 15–16: live in `crates/prism-dtu-cyberint/src/generator.rs` and `crates/prism-dtu-crowdstrike/src/generator.rs` respectively; exercise JSONPath `source_path` extraction — test 15 uses `generate_with_scenario_iocs`; test 16 additionally asserts the dead top-level `behaviors_ioc_value_first` scalar has been removed from `make_detection_with_ioc`
@@ -509,7 +509,7 @@ Implementation checklist for the TDD implementer:
 - [ ] Modify `return_type()` to call `output_arrow_type()` instead of returning hardcoded `DataType::Utf8` — bodies are `todo!()`
 - [ ] Add `coerce_to_typed()` helper function — body is `todo!()`
 - [ ] Modify `invoke_async_with_args()` to dispatch on `output_arrow_type()` — bodies are `todo!()`
-- [ ] Run `just iter prism-query` — all 16 Red Gate tests (those in prism-query) must FAIL
+- [ ] Run `just iter prism-query` — all 17 Red Gate tests (those in prism-query: tests 1–10 and 17–23) must FAIL
 
 **Phase B — Red Gate stubs (loader.rs changes)**
 - [ ] Add sub-condition 7 check (unknown `output_type`) to `InfusionLoader::validate` — body is `todo!()` / returns Ok for now
@@ -522,7 +522,7 @@ Implementation checklist for the TDD implementer:
 - [ ] Run `just iter prism-dtu-cyberint` and `just iter prism-dtu-crowdstrike` — tests 15–16 must FAIL
 
 **Phase D — Red Gate density check**
-Confirm all 16 Red Gate tests are failing before starting implementation.
+Confirm all 23 Red Gate tests are failing before starting implementation.
 
 **Phase E — Implement InfusionError::TypeCoercionFailed**
 - [ ] Add `TypeCoercionFailed` variant to `InfusionError` in `prism-core/src/error.rs` (or equivalent)
@@ -739,7 +739,7 @@ risk_mitigations for the full runtime chain. RGT-023 enforces this at the test l
 
 ## Forbidden Dependencies
 
-- `crates/prism-query` MUST NOT depend on `crates/prism-spec-engine` (existing architectural constraint per BC-2.19.001 §Invariants — "prism-spec-engine does NOT depend on DataFusion"). The dependency is one-way: `prism-spec-engine` exports `InfusionUdfDescriptor`; `prism-query` imports and registers it. If the implementer introduces a reverse dependency to share `coerce_to_typed()`, refactor: move the coercion helper to `prism-core` (shared types crate) instead.
+- `crates/prism-spec-engine` MUST NOT depend on `crates/prism-query` (existing architectural constraint per BC-2.19.001 §Invariants — "prism-spec-engine does NOT depend on DataFusion"). The dependency is one-way: `prism-spec-engine` exports `InfusionUdfDescriptor`; `prism-query` imports and registers it. If the implementer introduces a reverse dependency to share `coerce_to_typed()`, refactor: move the coercion helper to `prism-core` (shared types crate) instead.
 - `crates/prism-query/src/infusion_udf.rs` MUST NOT import `chrono` directly. Use `parse_datetime_to_micros` which encapsulates the chrono dependency.
 - No `unwrap()` or `expect()` on `Result` in the coerce_to_typed() production path — use `?` or explicit NULL production.
 
@@ -768,6 +768,7 @@ risk_mitigations for the full runtime chain. RGT-023 enforces this at the test l
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.7 | 2026-07-06 | story-writer | ADV-P15-LOW-001 closure + comprehensive prose-accuracy audit. (1) **Forbidden Dependencies**: opening clause corrected from "`crates/prism-query` MUST NOT depend on `crates/prism-spec-engine`" to "`crates/prism-spec-engine` MUST NOT depend on `crates/prism-query`" — the original was a self-contradicting inversion of the true invariant; confirmed against Cargo.toml: `prism-query/Cargo.toml` declares `prism-spec-engine` as a dependency (correct direction); `prism-spec-engine/Cargo.toml` carries an explicit "MUST NOT depend on datafusion" comment and no `prism-query` dep. (2) **Phase A Red Gate count**: "all 16 Red Gate tests (those in prism-query)" corrected to "all 17 Red Gate tests (those in prism-query: tests 1–10 and 17–23)" — count 16 was stale from v1.0 origin; actual prism-query subset is tests 1–10, 17–20, 21–22, 23 = 17 tests. (3) **Phase D Red Gate count**: "all 16 Red Gate tests" corrected to "all 23 Red Gate tests" — matches `red_gate_tests: 23` frontmatter. (4) **Test crate placement Note**: "Tests 1–10 and 17–20" corrected to "Tests 1–10 and 17–23" — tests 21–22 (added v1.3) and test 23 (added v1.6) were omitted from the Note when they were added. (5) **AC-006 E-INFUSE-013 sub-condition 8 error message**: `{field_name}` template slot corrected to the literal `source_column` per error-taxonomy v2.16 sub-condition 8 canonical form — `{field}` = the attribute name whose absence triggered the error (`"source_column"`), consistent with sub-condition 7 precedent where `{field}` = the literal string `"output_type"` (v2.16 taxonomy text, v1.6 story MED-002 closure). No ACs added or removed; no BC changes; no code changes. |
 | 1.6 | 2026-07-06 | product-owner | ADV-P11-OBS-001 adjudication: DEFECT verdict. Runtime trace proves double-encoding when `threat_sources` uses `input_field = "iocs_value"` (JSON-list): ENRICH-1 fires, `project_value` returns JSON-serialized array string, `serde_json::to_string` double-wraps to `["[\"greynoise\",\"abuseipdb\"]"]`. Fix: `input_field = "iocs_value_first"` (scalar) so ENRICH-1 does NOT fire and output is `["greynoise","abuseipdb"]`. risk_mitigations "Either approach is valid" entry replaced with DEFECT notice + exact runtime chain. AC-009 `threat_sources` row updated to require `input_field = "iocs_value_first"`. AC-009 T13 canonical query corrected to per-field UDF syntax. RGT-023 `test_threat_sources_json_output_no_double_encoding` added. red_gate_tests 22→23. |
 | 1.5 | 2026-07-06 | story-writer | Comprehensive prose-accuracy audit against code HEAD a3083468 (ADV-P08 closure). (EC-005) `truncated_value` truncation corrected: byte-slice description `&value[..50.min(value.len())]` replaced with char-based implementation `value.chars().take(50).collect::<String>()` (genuinely UTF-8-safe; "exactly 50 chars" → "at most 50 chars"). (AC-004) Point 2 updated: added explicit note that `declared_type` uses the `output_type` spec-vocabulary string (e.g., `"integer"`) — NOT Arrow debug format (`Int64`); truncation implementation cited for completeness. (ADR-051 cite-pin) Body intro and §References updated v1.3→v1.4 (canonical current version; v1.4 = post-pass-1 column_type example PascalCase→lowercase fix; no D1–D6 decision-content change). red_gate_tests UNCHANGED 22. No ACs added or removed; no BC changes; no code changes. |
 | 1.4 | 2026-07-06 | story-writer | Spec-only fix: ADV-P05-LOW-001 closure (POL-25 sibling-cite propagation). §References error-taxonomy pin v2.15→v2.16 (canonical version; E-INFUSE-013 sub-cond 7/8 + E-INFUSE-014 present in v2.16). v1.0 changelog entry error-taxonomy pin updated to match (sweep complete — 0 remaining v2.15 citations). red_gate_tests UNCHANGED 22. No ACs added or removed; no BC changes; no code changes. |
