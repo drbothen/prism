@@ -4,15 +4,15 @@ adr_id: "ADR-051"
 title: "Typed & Consistent Enrichment UDF Output — output_type→Arrow DataType Mapping, Mandatory source_column, Scalar-Input Rule, and INV-ENRICH-TYPED-001"
 status: PROPOSED
 date: "2026-07-03"
-modified: "2026-07-03"
-version: "1.1"
+modified: "2026-07-05"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-09, SS-10, SS-19]
 supersedes: []
 superseded_by: null
 amends: null
 anchor_stories: []
-related_adrs: [ADR-024, ADR-040, ADR-044]
+related_adrs: [ADR-024, ADR-040, ADR-044, ADR-052]
 related_bcs: [BC-2.19.001]
 locked_decisions: []
 wiring_deferred_to: null
@@ -23,9 +23,14 @@ closes_defect: "DRIFT-PIVOT-UDF-OUTPUT-TYPE-001"
 
 ## Status
 
-PROPOSED v1.0 (2026-07-03). Awaiting human ratification before story decomposition.
+PROPOSED v1.2 (2026-07-05). Awaiting human ratification before story decomposition.
 Closes escaped defect DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 (former AI-default deferral in
 `InfusionAsyncUdf::return_type`, Canonical Principle Rule 3 violation).
+v1.2 amends the datetime type mapping from `DataType::Utf8` to
+`DataType::Timestamp(Microsecond, Some("UTC"))` to reflect merged ADR-052 (PR #214,
+develop@11edbd36, 2026-07-05), which migrated all sensor Datetime columns to
+Arrow Timestamp. The blast-radius reconciliation against ADR-052 is documented in the
+v1.2 Changelog entry below.
 
 ---
 
@@ -104,7 +109,7 @@ mapping also governs which typed Arrow array `invoke_async_with_args()` must bui
 | `"float"` | `DataType::Float64` | JSON Number parsed via `as_f64()` or string parsed via `f64::from_str(s.trim())` |
 | `"boolean"` | `DataType::Boolean` | JSON Bool passthrough; string coercion: `"true"`/`"1"`/`"yes"` → true; `"false"`/`"0"`/`"no"` → false; case-insensitive |
 | `"json"` | `DataType::Utf8` | JSON stored as Utf8 string; DataFusion JSON path functions operate on Utf8 |
-| `"datetime"` | `DataType::Utf8` | ISO 8601 string. **This is the correct consistency choice — not a deferral.** See "Datetime = Utf8 rationale" below. |
+| `"datetime"` | `DataType::Timestamp(Microsecond, Some("UTC"))` | ISO-8601/RFC-3339 string → `parse_datetime_to_micros` (same parser as `spec_driven_adapter.rs` `column_type_to_arrow`, ADR-052 D2); parse failure → NULL + E-INFUSE-014. **This is the correct consistency choice post-ADR-052 — not a deferral.** See "Datetime = Timestamp(µs,UTC) rationale" below. |
 | unknown / missing | `DataType::Utf8` | Fallback only; spec-load validation (E-INFUSE-013 sub-condition 7, D3 below) MUST reject unknown type names before any UDF is registered |
 
 **Alignment with ADR-024:** The semantic taxonomy (`string`, `integer`, `float`,
@@ -113,60 +118,70 @@ variants (String, Integer, Float, Boolean, Json, Datetime). Infusion output type
 use lowercase-kebab vocabulary; ColumnType uses PascalCase variants; both represent
 the same six-type domain. No new type vocabulary is introduced.
 
-**Datetime = Utf8 rationale (authoritative cross-reference, related_adrs: ADR-044):**
+**Datetime = Timestamp(µs,UTC) rationale (authoritative cross-reference, related_adrs: ADR-052):**
 
-The query language's Datetime representation is a settled architectural fact. The
-authoritative mapping in `crates/prism-bin/src/spec_driven_adapter.rs` line 886 is:
+ADR-052 (§D4, merged 2026-07-05, PR #214, develop@11edbd36) migrated ALL PrismQL sensor
+`Datetime` columns from `DataType::Utf8` (ISO-8601 string) to
+`DataType::Timestamp(Microsecond, Some("UTC"))`. The authoritative mapping in
+`crates/prism-bin/src/spec_driven_adapter.rs` `column_type_to_arrow` is now:
 
 ```rust
-ColumnType::Datetime => DataType::Utf8,
+ColumnType::Datetime => DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC"))),
 ```
 
-Every sensor Datetime column registered in DataFusion today is `DataType::Utf8` (ISO-8601
-string). This is confirmed by `crates/prism-query/src/pipe_sql_emitter.rs` lines 817-818:
-"Datetime fields is DataType::Utf8 (ISO-8601 string) — see spec_driven_adapter
-`column_type_to_arrow`: `ColumnType::Datetime => DataType::Utf8`", and by the
-load-bearing test commentary in
-`crates/prism-query/src/tests/high002_plan_pinning_tests.rs` lines 169/191/313, which
-explicitly states: "for OCSF Datetime: `column_type_to_arrow` returns `DataType::Utf8`"
-and "DataFusion fails to compare `Utf8` against `Timestamp(Microsecond, None)`".
+`crates/prism-query/src/pipe_sql_emitter.rs` `literal_to_sql` confirms in its inline
+comment: "Datetime fields is now DataType::Timestamp(Microsecond, UTC) per ADR-052
+D1/D2." The load-bearing tests in `crates/prism-query/src/tests/high002_plan_pinning_tests.rs`
+confirm: "`column_type_to_arrow`: `ColumnType::Datetime => Timestamp(Microsecond, UTC)`".
 
-ADR-044 D4 / BC-2.11.021: `NOW() - INTERVAL 'Nh'` is lowered to a `Literal::Timestamp`
-that DataFusion receives as an ISO-8601 string `'2026-06-24T00:00:00Z'` — a `Utf8`→`Utf8`
-comparison against sensor datetime columns. ISO-8601 is lexicographically sortable, so
-this is correct in practice.
+**The v1.1 rationale (Utf8 for consistency) is now INVERTED:**
 
-If enrichment `datetime` output used `DataType::Timestamp(Microsecond, None)`, any
-predicate crossing a sensor datetime column and an enrichment datetime column — e.g.,
-`| filter sensor_timestamp > enriched_created_at` — would produce a DataFusion type
-error (`Utf8 > Timestamp(Microsecond, None)` is unsupported without explicit CAST).
-This would create a two-representation split that breaks PrismQL's consistency guarantee.
-Changing enrichment datetime to Timestamp while sensor datetimes remain Utf8 would WORSEN
-consistency, not improve it.
+v1.1 argued that enrichment `datetime` must remain `DataType::Utf8` to stay consistent with
+sensor Datetime columns, which were all `DataType::Utf8` at the time. If enrichment used
+`Timestamp(Microsecond, None)`, any predicate crossing a sensor datetime column and an
+enrichment datetime column would produce a DataFusion type error. The consistency argument
+pointed *toward* Utf8.
 
-**Active usage:** No current infusion spec declares `output_type = "datetime"`. This
-mapping is future-proofing. When such a spec is authored it receives Utf8 output consistent
-with the rest of the query language.
+Post-ADR-052, the consistency argument points the *opposite way*: sensor Datetime columns
+are now `Timestamp(Microsecond, Some("UTC"))`. Leaving enrichment `datetime` as `Utf8` would
+**create** the two-representation split that v1.1 was trying to avoid. Any predicate of the
+form `| filter sensor_timestamp > enriched_created_at` would fail with a DataFusion
+`Utf8 > Timestamp(Microsecond, UTC)` type error — a regression introduced by *not* updating
+this ADR to match. The correct consistency choice post-ADR-052 is `Timestamp(µs,UTC)` for
+enrichment datetime output.
 
-**Note — stale doc-comment in `column.rs`:** `crates/prism-core/src/column.rs` line 28
-currently reads `/// Microsecond-precision UTC timestamp. Arrow: TimestampMicrosecond.`
-This does NOT match the implementation (`DataType::Utf8`). The comment must be corrected
-in the implementation story to: `/// ISO-8601 UTC datetime string. Arrow: Utf8.` This is
-a code-comment fix, not a behavioral change (the code is correct; the comment is wrong).
+**Coercion:** When an enrichment `datetime` field receives an ISO-8601/RFC-3339 string from
+a plugin or HTTP lookup response, it is parsed to `i64` microseconds-since-epoch via the
+same `parse_datetime_to_micros` helper that ADR-052 adopted in `spec_driven_adapter.rs`.
+On parse failure → NULL + E-INFUSE-014.
 
-**What "typing datetime properly" requires:** Migrating PrismQL Datetime to Arrow
-`Timestamp` requires changing `spec_driven_adapter.rs`, the pushdown logic, the
-`inject_now_predicate` path (BC-2.11.021), ALL sensor schemas, the pipe-SQL emitter, and
-the corresponding query tests. That is a cross-cutting language-level story that is
-correctly out of scope for this defect fix. This ADR does not defer it — it documents that
-the datetime-as-Utf8 design is intentional in the current system and that enrichment must
-match it for consistency.
+ADR-052 §D4 (seven-arm temporal dispatch) also applies on the *query* side: when a temporal
+literal appears in a comparison against an enrichment datetime column, the ADR-052 dispatch
+path handles it correctly because the column type is `Timestamp(Microsecond, Some("UTC"))` —
+the same type as sensor datetime columns. No special enrichment-side query handling is needed.
+
+**Active usage:** No current infusion spec declares `output_type = "datetime"`. This mapping
+is future-proofing. When such a spec is authored it receives `Timestamp(µs,UTC)` output
+consistent with the rest of the query language.
+
+**Note — `column.rs` doc-comment:** `crates/prism-core/src/column.rs` `ColumnType::Datetime`
+doc-comment was updated by ADR-052's implementation story and already correctly reads:
+
+```
+/// Microsecond-precision UTC timestamp, normalized to UTC at the adapter boundary.
+/// Arrow: Timestamp(Microsecond, UTC-tagged). Stored and transmitted as RFC-3339.
+```
+
+No code-comment fix is needed. The v1.1 blast-radius item directing the implementer to
+"fix" the `column.rs` comment FROM `TimestampMicrosecond` TO `Utf8` is **withdrawn** —
+that guidance was inverted relative to the ADR-052 reality and would have introduced a
+regression. The current comment is correct.
 
 **Implementation:** `InfusionAsyncUdf` must add a private `output_arrow_type()`
 helper that pattern-matches `self.descriptor.output_type.as_str()` and returns the
 `DataType`. `return_type()` delegates to this helper. `invoke_async_with_args()`
 dispatches on `output_arrow_type()` to build the correct output array type (e.g.,
-`Int64Array`, `Float64Array`, `BooleanArray`, or `StringArray`).
+`Int64Array`, `Float64Array`, `BooleanArray`, `TimestampMicrosecondArray`, or `StringArray`).
 
 ### D2 — Coercion Semantics and Failure Mode
 
@@ -182,6 +197,7 @@ coercion step produces the declared output type:
 | `Float64` | `f64::from_str(s.trim())` → `Ok(f64)` or `Err` → NULL + E-INFUSE-014 |
 | `Boolean` | case-insensitive match against `{"true","1","yes"}` / `{"false","0","no"}` → `true`/`false`; anything else → NULL + E-INFUSE-014 |
 | `Utf8` (`string`, `json`) | passthrough; no coercion; no error |
+| `Timestamp(Microsecond, Some("UTC"))` (`datetime`) | ISO-8601/RFC-3339 string → `parse_datetime_to_micros` (same parser as `spec_driven_adapter.rs` `column_type_to_arrow`, ADR-052 D2) → `i64` microseconds-since-epoch → `TimestampMicrosecondArray` with timezone "UTC"; on parse failure → NULL + E-INFUSE-014 |
 
 **Coercion path (JSON Number → typed value):**
 
@@ -258,8 +274,8 @@ fires at spec-load time and rejects the spec.
 
 ### D4 — Scalar-Input Consistency Rule
 
-**Rule:** Typed (`integer`, `float`, `boolean`) enrichment output requires a scalar
-input column. A JSON-list string (detected by leading `[`) as input to a typed-output
+**Rule:** Typed (`integer`, `float`, `boolean`, `datetime`) enrichment output requires a
+scalar input column. A JSON-list string (detected by leading `[`) as input to a typed-output
 UDF produces NULL + E-INFUSE-014 at runtime, because a list cannot coerce to a single
 scalar of these types.
 
@@ -296,6 +312,7 @@ auto-casts literal constants to match the column type in comparison predicates:
 | `\| filter threat_score >= 75` | `Utf8 >= Utf8("75")` — lexicographic, wrong | `Int64 >= Int64(75)` — numeric, correct |
 | `\| filter cvss_base_score >= 8.0` | `Utf8 >= Utf8("8.0")` — lexicographic, wrong | `Float64 >= Float64(8.0)` — numeric, correct |
 | `\| filter threat_is_known_malicious = true` | `Utf8 = Utf8("true")` — string comparison | `Boolean = Boolean(true)` — native boolean |
+| `\| filter enriched_event_time > sensor_timestamp` | `Utf8 > Timestamp(Microsecond, UTC)` — DataFusion type error | `Timestamp(Microsecond, UTC) > Timestamp(Microsecond, UTC)` — native timestamp comparison, correct |
 
 No CAST wrappers are required in the query. DataFusion's type coercion rules handle
 literal constant promotion automatically when the column type is non-Utf8.
@@ -315,8 +332,8 @@ satisfy:
    Arrow array type matches `return_type()`.
 3. For `type = "plugin"` sources: a `source_column` is declared and applied, preventing
    whole-response-object serialization.
-4. For typed output (`integer`, `float`, `boolean`): the input column is a scalar
-   (not a JSON-list); JSON-list inputs produce NULL + E-INFUSE-014.
+4. For typed output (`integer`, `float`, `boolean`, `datetime`): the input column is a
+   scalar (not a JSON-list); JSON-list inputs produce NULL + E-INFUSE-014.
 5. On coercion failure: the output row is NULL, not a panic, not a passthrough string,
    not an empty string.
 
@@ -386,7 +403,7 @@ The following surfaces must be updated in the implementation story:
 
 | Surface | Required Change |
 |---|---|
-| `crates/prism-query/src/infusion_udf.rs` | `return_type()`: implement D1 mapping; `invoke_async_with_args()`: dispatch on output type to build typed array; add `coerce_to_typed()` helper; ENRICH-1 list-dispatch: restrict to `output_type = "json"` only; add E-INFUSE-014 emission on coercion failure |
+| `crates/prism-query/src/infusion_udf.rs` | `return_type()`: implement D1 mapping (including `datetime` → `DataType::Timestamp(Microsecond, Some("UTC"))` per ADR-052); `invoke_async_with_args()`: dispatch on output type to build typed array (including `TimestampMicrosecondArray` for datetime); add `coerce_to_typed()` helper with `parse_datetime_to_micros` branch for datetime; ENRICH-1 list-dispatch: restrict to `output_type = "json"` only; add E-INFUSE-014 emission on coercion failure |
 | `crates/prism-spec-engine/src/infusion/loader.rs` (or equivalent validation path) | Add E-INFUSE-013 sub-condition 7 (unknown output_type) and sub-condition 8 (plugin-type field missing source_column) to spec-load validation |
 | `crates/prism-core/src/error.rs` (or `infusion.rs`) | Add `InfusionError::TypeCoercionFailed { field_name: String, infusion_id: String, declared_type: String, truncated_value: String }` variant with `#[error("E-INFUSE-014: ...")]`; add BC-2.16.002 catalog row for `event_type = "infusion.coercion_failed"` |
 | `specs/infusions/threatintel.infusion.toml` | Add `source_column` to all three fields; change `input_field` to `iocs_value_first`; verify `output_type` values |
@@ -427,7 +444,8 @@ implementation. The following changes are required:
 Add after the existing `enrich_descriptor()` API postcondition:
 
 > "**Typed UDF output (INV-ENRICH-TYPED-001):** Each `InfusionUdfDescriptor.output_type`
-> value maps to a specific Arrow `DataType` per the ADR-051 D1 table.
+> value maps to a specific Arrow `DataType` per the ADR-051 D1 table (updated by
+> ADR-051 v1.2: `datetime` maps to `Timestamp(Microsecond, Some("UTC"))` per ADR-052).
 > `InfusionAsyncUdf::return_type()` MUST return this mapped type (not always
 > `DataType::Utf8`). `invoke_async_with_args()` MUST produce a typed output
 > `ColumnarValue::Array` whose Arrow array type matches `return_type()`. On
@@ -457,14 +475,15 @@ Add to the Invariants section:
 
 > "INV-ENRICH-TYPED-001: All enrichment UDFs registered from `[[infusion.fields]]`
 > entries produce typed output per the ADR-051 D1 mapping. No enrichment UDF may
-> return `DataType::Utf8` for a field whose `output_type` is `integer`, `float`, or
-> `boolean`. Typed input columns (`integer`, `float`, `boolean`) require scalar input;
-> JSON-list input to a typed-output UDF produces NULL + E-INFUSE-014."
+> return `DataType::Utf8` for a field whose `output_type` is `integer`, `float`,
+> `boolean`, or `datetime`. Typed input columns (`integer`, `float`, `boolean`,
+> `datetime`) require scalar input; JSON-list input to a typed-output UDF produces
+> NULL + E-INFUSE-014."
 
 **5. New E-INFUSE-013 sub-conditions**
 
 Add to the E-INFUSE-013 error row's sub-condition list:
-- Sub-condition 7: `output_type` value is not in `{string, integer, float, boolean, json, datetime}`
+- Sub-condition 7: `output_type` value is not in `{string, integer, float, boolean, json, datetime}` (the `datetime` type maps to `Timestamp(µs,UTC)` per ADR-051 v1.2 / ADR-052)
 - Sub-condition 8: `type = "plugin"` field lacks `source_column`
 
 **6. New error row E-INFUSE-014**
@@ -566,5 +585,6 @@ produces E-INFUSE-013.
 
 | Version | Date | Author | Change |
 |---|---|---|---|
-| 1.1 | 2026-07-03 | architect | Post-ratification datetime reconciliation. D1 `"datetime"` → `DataType::Utf8` row: replaced stale "deferred" language with the correct consistency rationale. Cross-references added: `spec_driven_adapter.rs:886` (authoritative mapping), `pipe_sql_emitter.rs:817-818` (confirming comment), `high002_plan_pinning_tests.rs:169/191/313` (load-bearing test documentation), ADR-044 D4 / BC-2.11.021 (NOW() string-comparison pattern). Documents that Datetime=Utf8 is intentional pipeline-wide design (not deferral); explains the two-representation-split risk of using Arrow Timestamp for enrichment while sensors use Utf8; notes the stale `column.rs` doc-comment as a blast-radius fix item. `related_adrs` extended: [ADR-024, ADR-040, ADR-044]. |
+| 1.2 | 2026-07-05 | architect | Blast-radius reconciliation against merged ADR-052 (PR #214, develop@11edbd36). **D1 datetime row**: `DataType::Utf8` → `DataType::Timestamp(Microsecond, Some("UTC"))` with ISO-8601/RFC-3339 coercion note via `parse_datetime_to_micros`. **"Datetime = Utf8 rationale" replaced**: v1.1 rationale was inverted post-ADR-052; new section "Datetime = Timestamp(µs,UTC) rationale" explains that the consistency argument now points toward Timestamp (sensor columns are Timestamp; enrichment Utf8 would create the two-representation split v1.1 was trying to avoid). **Corrected v1.1 blast-radius errors**: (a) `column_type_to_arrow` in `spec_driven_adapter.rs` is now `ColumnType::Datetime => Timestamp(Microsecond, Some("UTC"))` — v1.1 citation of `DataType::Utf8` withdrawn; (b) `pipe_sql_emitter.rs` comment now confirms Timestamp — v1.1 citation of Utf8 withdrawn; (c) `high002_plan_pinning_tests.rs` now confirms Timestamp — v1.1 citation of Utf8 withdrawn; (d) `column.rs` Datetime doc-comment is already correct (says Timestamp/UTC) — v1.1 blast-radius item directing implementer to "fix" it FROM Timestamp TO Utf8 explicitly **withdrawn** (was inverted). **D2**: added `Timestamp(µs,UTC)` coercion row. **D4/D6**: extended typed-output scalar-input rule to include `datetime`. **D5**: added datetime comparison semantics row. **Infusion_udf blast-radius row**: updated to include `TimestampMicrosecondArray` branch and `parse_datetime_to_micros` for datetime coercion. **BC-2.19.001 amendments**: INV-ENRICH-TYPED-001 text extended to include `datetime` in the non-Utf8 typed list. `related_adrs` extended: [ADR-024, ADR-040, ADR-044, ADR-052]. |
+| 1.1 | 2026-07-03 | architect | Post-ratification datetime reconciliation. D1 `"datetime"` → `DataType::Utf8` row: replaced stale "deferred" language with the correct consistency rationale (NOW SUPERSEDED BY v1.2 — the Utf8 rationale was valid pre-ADR-052 but inverted after ADR-052 merged). Cross-references to `spec_driven_adapter.rs:886`, `pipe_sql_emitter.rs:817-818`, `high002_plan_pinning_tests.rs:169/191/313` added (all citing Utf8 — those citations are withdrawn by v1.2). `related_adrs` extended: [ADR-024, ADR-040, ADR-044]. |
 | 1.0 | 2026-07-03 | architect | Initial PROPOSED. Closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001. D1 type-mapping table; D2 coercion semantics + E-INFUSE-014; D3 mandatory source_column for plugin-type; D4 scalar-input consistency rule; D5 PrismQL comparison semantics; D6 INV-ENRICH-TYPED-001. Blast-radius list. Recommended BC-2.19.001 amendments. |
