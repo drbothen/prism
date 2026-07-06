@@ -19,6 +19,7 @@ use std::io::Read;
 use std::path::Path;
 
 use prism_core::InfusionError;
+use prism_core::sanitize_for_log;
 use serde::Deserialize;
 
 use super::{
@@ -426,11 +427,26 @@ impl InfusionLoader {
             }
         }
 
-        // Build InfusionField list — validate each field name at parse time (AC-007).
+        // Build InfusionField list — validate each field at parse time (AC-007).
         let mut fields: Vec<InfusionField> = Vec::with_capacity(raw_fields.len());
         for rf in raw_fields {
             // DRIFT-PIVOT-UDFNAME-VALIDATION-001: validate name before UDF registration.
             Self::validate_field_name(&rf.name, source_path)?;
+
+            // ADR-051 D3 sub-condition 7 (AC-007): output_type must be one of the 6 canonical
+            // values. Checked on every field regardless of infusion type.
+            Self::validate_output_type_recognized(&rf.output_type, &rf.name, source_path)?;
+
+            // ADR-051 D3 sub-condition 8 (AC-006): plugin-type fields MUST declare source_column.
+            if matches!(infusion_type, InfusionType::Plugin) {
+                Self::validate_plugin_type_has_source_column(
+                    &rf.name,
+                    &raw_infusion.infusion_id,
+                    rf.source_column.as_deref(),
+                    source_path,
+                )?;
+            }
+
             fields.push(InfusionField {
                 name: rf.name,
                 input_field: rf.input_field,
@@ -939,6 +955,119 @@ impl InfusionLoader {
         // Fallback: return a fully redacted path indicator (should never be reached
         // since even bare file paths have a file_name component).
         "<redacted-path>".to_string()
+    }
+
+    /// Validate that `output_type` is a recognized value per ADR-051 D1.
+    ///
+    /// E-INFUSE-013 sub-condition 7: `output_type` is not in the canonical set
+    /// `{"string", "integer", "float", "boolean", "json", "datetime"}`.
+    ///
+    /// Called from `parse()` for each `[[infusion.fields]]` entry before the field is
+    /// registered as a DataFusion UDF. An unknown `output_type` at load time prevents a
+    /// runtime panic when `output_arrow_type()` falls through to the `Utf8` fallback.
+    ///
+    /// Error format (error-taxonomy v2.17, CR-002):
+    /// ```text
+    /// E-INFUSE-013: invalid field name 'output_type' in infusion spec '{spec_path}':
+    ///  field entry '{field_name}' declares unknown output_type '{value}'; must be one of:
+    ///  string, integer, float, boolean, json, datetime
+    ///  (datetime maps to Timestamp(µs,UTC) per ADR-051 v1.2 / ADR-052)
+    /// ```
+    ///
+    /// SEC-001 (CWE-117): both `output_type` and `field_name` are stripped of ASCII control
+    /// characters before interpolation to prevent log injection / LLM prompt injection.
+    ///
+    /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (AC-007; ADR-051 D3 sub-condition 7).
+    ///
+    pub fn validate_output_type_recognized(
+        output_type: &str,
+        field_name: &str,
+        spec_path: &str,
+    ) -> Result<(), InfusionError> {
+        // ADR-051 D3 sub-condition 7: valid output types are the 6 canonical values.
+        const VALID: &[&str] = &["string", "integer", "float", "boolean", "json", "datetime"];
+        if VALID.contains(&output_type) {
+            return Ok(());
+        }
+        // SEC-001 (CWE-117): strip control chars from both interpolated values before
+        // constructing the error message (error-taxonomy v2.17 SEC-001 Rendering Note).
+        let clean_value = sanitize_for_log(output_type);
+        let clean_field_name = sanitize_for_log(field_name);
+        Err(InfusionError::InvalidFieldSpec {
+            // AC-007 canonical attribute label: the invalid attribute is `output_type`,
+            // not the name of the field containing it.
+            field: "output_type".to_owned(),
+            spec_path: spec_path.to_owned(),
+            // CR-002 (error-taxonomy v2.17): new canonical body includes the enclosing field
+            // entry's name so the operator can identify which [[infusion.fields]] entry is wrong.
+            message: format!(
+                "field entry '{}' declares unknown output_type '{}'; must be one of: string, \
+                 integer, float, boolean, json, datetime (datetime maps to Timestamp(\u{b5}s,UTC) \
+                 per ADR-051 v1.2 / ADR-052)",
+                clean_field_name, clean_value
+            ),
+        })
+    }
+
+    /// Validate that a `type = "plugin"` infusion field declares `source_column`.
+    ///
+    /// E-INFUSE-013 sub-condition 8: a plugin-type field is missing `source_column`.
+    ///
+    /// Without `source_column`, `project_value()` falls into the passthrough branch and
+    /// serializes the entire plugin response object — the root cause of
+    /// DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 Failure A (doubly-encoded JSON).
+    ///
+    /// Called from `parse()` after the source type is determined and fields are parsed.
+    /// Only fires for fields in infusions with `type = "plugin"`.
+    ///
+    /// Error format:
+    /// ```text
+    /// E-INFUSE-013: invalid field name 'source_column' in infusion spec '{spec_path}':
+    ///  plugin-type field '{field_name}' in infusion '{infusion_id}' must declare 'source_column'
+    ///  to project a specific field from the plugin response object; without source_column
+    ///  the full response object is serialized (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 root cause)
+    /// ```
+    ///
+    /// SEC-001 (CWE-117): `field_name` and `infusion_id` are stripped of ASCII control
+    /// characters before interpolation to prevent log injection / LLM prompt injection.
+    ///
+    /// SEC-003: `pub(crate)` — only called internally from `parse()`; no cross-crate callers.
+    /// (`validate_output_type_recognized` remains `pub` because integration tests call it
+    /// directly from `prism-spec-engine/tests/enrichment_pivot_002_tests.rs`.)
+    ///
+    /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (AC-006; ADR-051 D3 sub-condition 8).
+    ///
+    pub(crate) fn validate_plugin_type_has_source_column(
+        field_name: &str,
+        infusion_id: &str,
+        source_column: Option<&str>,
+        spec_path: &str,
+    ) -> Result<(), InfusionError> {
+        // ADR-051 D3 sub-condition 8: plugin-type fields MUST declare source_column to project
+        // a specific field from the plugin response object.  Without it, project_value() falls
+        // back to serializing the entire JSON response — the root cause of
+        // DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 Failure A (doubly-encoded JSON).
+        if source_column.is_some() {
+            return Ok(());
+        }
+        // SEC-001 (CWE-117): strip control chars from interpolated metadata before message
+        // construction (error-taxonomy v2.17 SEC-001 Rendering Note).
+        let clean_field = sanitize_for_log(field_name);
+        let clean_id = sanitize_for_log(infusion_id);
+        Err(InfusionError::InvalidFieldSpec {
+            // AC-006 canonical attribute label: the invalid attribute is `source_column`
+            // (the missing attribute that caused the validation failure), NOT the enclosing
+            // field name. Mirroring sub-condition 7 (validate_output_type_recognized) which
+            // uses field: "output_type".to_owned() — not the enclosing field name.
+            field: "source_column".to_owned(),
+            spec_path: spec_path.to_owned(),
+            message: format!(
+                "plugin-type field '{}' in infusion '{}' must declare 'source_column' to \
+                 project a specific field from the plugin response object; without source_column \
+                 the full response object is serialized (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 root cause)",
+                clean_field, clean_id
+            ),
+        })
     }
 }
 

@@ -784,7 +784,7 @@ pub(crate) fn make_detection_with_ioc(
         "objective": "Falcon Detection Method",
         // AC-004 (S-DEMO-ENRICHMENT-PIVOT-003): behaviors array with MITRE entry
         // (+ IOC keys in scenario mode). Shape parity: must match detections-detail.json.
-        "behaviors": behaviors
+        "behaviors": behaviors,
     })
 }
 
@@ -1031,6 +1031,104 @@ mod tests {
         assert!(
             b0.get("ioc_value").is_none(),
             "MITRE-only behavior entry must NOT have 'ioc_value' key; got: {b0}"
+        );
+    }
+
+    // ── S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Red Gate Test ─────────────────────
+    // RGT-016 (AC-011): `crowdstrike_detections.behaviors_ioc_value_first` is populated via
+    // JSONPath `source_path = "$.behaviors[0].ioc_value"` (nested, not top-level scalar).
+    // OBS-001 (LOCAL adversary pass-2): removed dead top-level `behaviors_ioc_value_first`
+    // scalar — only the nested path matters for spec-driven adapter column population.
+
+    /// RGT-016 (AC-011): the spec-driven adapter populates `behaviors_ioc_value_first` in
+    /// `crowdstrike_detections` via `source_path = "$.behaviors[0].ioc_value"` (JSONPath
+    /// extraction from the nested `behaviors` array, NOT from a dead top-level scalar).
+    ///
+    /// This test binds the full AC-011 chain:
+    ///   1. TOML spec declares `source_path = "$.behaviors[0].ioc_value"` for the column.
+    ///   2. DTU generator (`make_detection_with_ioc`) emits `behaviors[0].ioc_value = <hash>`
+    ///      (via the real production generator path, not a hand-crafted record).
+    ///   3. The JSONPath `$.behaviors[0].ioc_value` resolves to the expected hash.
+    ///
+    /// OBS-001: the dead top-level `behaviors_ioc_value_first` scalar has been removed from
+    /// `make_detection_with_ioc` — this assertion also verifies it is gone.
+    #[test]
+    fn test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath() {
+        // Step 1: Read source_path from the TOML spec (not hardcoded).
+        let toml_str = include_str!("../../prism-sensors/specs/crowdstrike.sensor.toml");
+        let parsed: toml::Value = toml_str.parse().expect("valid crowdstrike.sensor.toml");
+        let tables = parsed
+            .get("tables")
+            .and_then(|v| v.as_array())
+            .expect("crowdstrike.sensor.toml must have [[tables]] section");
+        let det_table = tables
+            .iter()
+            .find(|t| t.get("table_name").and_then(|v| v.as_str()) == Some("detections"))
+            .expect("crowdstrike.sensor.toml must have a 'detections' table");
+        let columns = det_table
+            .get("columns")
+            .and_then(|v| v.as_array())
+            .expect("detections table must have columns");
+        let biv_col = columns
+            .iter()
+            .find(|c| c.get("name").and_then(|v| v.as_str()) == Some("behaviors_ioc_value_first"))
+            .expect("detections table must have behaviors_ioc_value_first column");
+        let source_path = biv_col
+            .get("source_path")
+            .and_then(|v| v.as_str())
+            .expect("behaviors_ioc_value_first must declare source_path");
+        assert_eq!(
+            source_path, "$.behaviors[0].ioc_value",
+            "AC-011 RGT-016: TOML must declare source_path='$.behaviors[0].ioc_value' \
+             for behaviors_ioc_value_first; got: '{source_path}'"
+        );
+
+        // Step 2: Generate a detection record via the real production generator path.
+        let org = OrgId([
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+            0x0F, 0x10,
+        ]);
+        let seed: u64 = 42;
+        let opts = GenOpts {
+            seed,
+            ..Default::default()
+        };
+        // Canonical test vector: known SHA256-like IOC hash.
+        let ioc_hash = "aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
+
+        let slug = org_slug(&org);
+        let detection_id = format!("det-{slug}-{seed}-0");
+        let device_id = format!("dev-{slug}-{seed}-0");
+
+        let record = make_detection_with_ioc(
+            &detection_id,
+            &device_id,
+            2, // severity_id: Medium
+            0, // det_index: 0
+            &opts,
+            Some(ioc_hash),
+        );
+
+        // Step 3: Apply source_path extraction — $.behaviors[0].ioc_value.
+        // The spec-driven adapter calls extract_at_path(record, source_path) to populate
+        // the behaviors_ioc_value_first column.
+        let extracted = &record["behaviors"][0]["ioc_value"];
+        assert_eq!(
+            extracted.as_str(),
+            Some(ioc_hash),
+            "AC-011 RGT-016: source_path='$.behaviors[0].ioc_value' must resolve to \
+             '{ioc_hash}' from the DTU-generated detection record. \
+             Got: {extracted}"
+        );
+
+        // OBS-001: the dead top-level scalar must NOT be emitted (column is populated via
+        // source_path, not a pre-computed top-level key).
+        assert!(
+            record.get("behaviors_ioc_value_first").is_none(),
+            "OBS-001 RGT-016: dead top-level 'behaviors_ioc_value_first' must NOT be emitted. \
+             The column is populated via source_path='$.behaviors[0].ioc_value', not a \
+             pre-computed scalar. Found: {:?}",
+            record.get("behaviors_ioc_value_first")
         );
     }
 }

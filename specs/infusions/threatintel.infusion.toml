@@ -1,5 +1,12 @@
 # ThreatIntel plugin-type infusion spec — S-DEMO-ENRICHMENT-PIVOT-002.
 #
+# Updated in S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (ADR-051 D3/D4):
+#   - Added source_column to all three plugin-type fields (ADR-051 D3 sub-condition 8).
+#   - Changed input_field for ALL fields (integer, boolean, json) from "iocs_value" (JSON-list)
+#     to "iocs_value_first" (scalar companion — ADR-051 D4 Scalar-Input rule).
+#   - ALL three fields use iocs_value_first: using iocs_value (JSON-list) triggers ENRICH-1
+#     list-dispatch which double-encodes Vec<String> arrays — Failure A (ADV-P11-OBS-001).
+#
 # Grounded against prism-dtu-threatintel route surface (ADR-028/ADR-031, SAP-2):
 #   - GET /v3/ip/:ip (lookup.rs:162)
 #   - GET /v3/domain/:domain (lookup.rs:187)
@@ -8,13 +15,12 @@
 # Auth: ?key=<api_key> query param OR Authorization: Bearer <token> header
 # (NOT X-Admin-Token — that is admin-surface only per lookup.rs lines 20-53).
 #
-# DTU response shape (confirmed 2026-06-12 from prism-dtu-threatintel/src/types.rs):
-#   threat_score: Integer (i64)
+# DTU response shape (SAP-2 verified 2026-07-06 from prism-dtu-threatintel/src/types.rs):
+# struct ThreatIntelResponse — complete field list:
+#   lookup_value: String (the queried IP/domain/hash — input key, not an output column)
+#   threat_score: Integer (u32)
 #   threat_is_known_malicious: Boolean (bool)
-#   threat_sources: JSON ARRAY of source strings (SAP-2: NOT "threat_source" singular)
-#   greynoise_classification: String
-#   abuseipdb_confidence_score: Integer
-#   virustotal_detections: Integer
+#   threat_sources: JSON ARRAY of source strings (Vec<String>; SAP-2: NOT "threat_source" singular)
 #
 # Location: {config_dir}/infusions/ per InfusionLoader loader.rs:45.
 # Table layout matches InfusionSpec deserialization at infusion/mod.rs:295-319.
@@ -57,33 +63,42 @@ env_var    = "PRISM_THREATINTEL_BASE_URL"
 field_name = "api_key"
 env_var    = "PRISM_THREATINTEL_API_KEY"
 
-# DTU-grounded fields (SAP-2 verified 2026-06-12):
-# threat_is_known_malicious: bool in ThreatLookupResponse → Boolean
-# threat_score: i64 in ThreatLookupResponse → Integer
-# threat_sources: Vec<String> (JSON array) in ThreatLookupResponse → Json
+# DTU-grounded fields (SAP-2 verified 2026-07-06):
+# threat_is_known_malicious: bool in ThreatIntelResponse → Boolean
+# threat_score: u32 in ThreatIntelResponse → Integer
+# threat_sources: Vec<String> (JSON array) in ThreatIntelResponse → Json
 #
 # CRITICAL: field name is `threat_sources` (plural array), NOT `threat_source` (singular string).
 # Column in TOML with no DTU equivalent = P1 CRITICAL (SAP-2).
+#
+# ADR-051 D3 (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001): plugin-type fields MUST declare source_column.
+# ADR-051 D4 Scalar-Input rule: ALL enrichment fields (integer, boolean, json) use the
+#   scalar companion column `iocs_value_first` as input_field — not the JSON-list `iocs_value`.
+#   json-typed fields are NOT exempt: iocs_value triggers ENRICH-1 list-dispatch which
+#   double-encodes Vec<String> arrays (Failure A — ADV-P11-OBS-001).
 
 [[infusion.fields]]
 name = "threat_is_known_malicious"
-input_field = "iocs_value"
+input_field = "iocs_value_first"
 input_type = "ioc"
 output_type = "boolean"
+source_column = "threat_is_known_malicious"
 description = "True if the IOC is confirmed malicious by the ThreatIntel backend"
 
 [[infusion.fields]]
 name = "threat_score"
-input_field = "iocs_value"
+input_field = "iocs_value_first"
 input_type = "ioc"
 output_type = "integer"
+source_column = "threat_score"
 description = "Threat intelligence confidence score (0-100)"
 
 [[infusion.fields]]
 name = "threat_sources"
-input_field = "iocs_value"
+input_field = "iocs_value_first"
 input_type = "ioc"
 output_type = "json"
+source_column = "threat_sources"
 description = "JSON array of source names that flagged this IOC (e.g. [\"greynoise\", \"abuseipdb\"])"
 
 [infusion.pipe_stage]

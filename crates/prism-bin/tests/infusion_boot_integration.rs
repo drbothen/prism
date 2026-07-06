@@ -698,12 +698,14 @@ name = "threat_intel_score"
 input_field = "src_ip"
 input_type = "ip"
 output_type = "string"
+source_column = "threat_intel_score"
 
 [[infusion.fields]]
 name = "threat_intel_category"
 input_field = "src_ip"
 input_type = "ip"
 output_type = "string"
+source_column = "threat_intel_category"
 
 [infusion.pipe_stage]
 adds_columns = ["threat_intel_score", "threat_intel_category"]

@@ -979,4 +979,105 @@ mod tests {
             "EC-003: different seed must produce different records"
         );
     }
+
+    // ── MED-001+LOW-001 AC-011 end-to-end chain test ─────────────────────────
+    // Verifies the full chain: TOML source_path reads "$.iocs[0].value" AND the
+    // DTU generator stamps iocs[0].value with the expected hash for CompromisedEndpoint
+    // alert records. This binds the spec-driven adapter materialization path for the
+    // `iocs_value_first` column without needing a running DataFusion session.
+
+    /// AC-011 e2e: cyberint_alerts `iocs_value_first` column — TOML source_path + generator chain.
+    ///
+    /// Closes MED-001 + LOW-001: the prior tests asserted column TYPE only; a regression where
+    /// the source_path was wrong or the generator did not stamp the expected value would silently
+    /// produce all-NULL output while schema-type tests passed.
+    ///
+    /// This test verifies:
+    /// (a) TOML source_path for `iocs_value_first` in the `alerts` table is "$.iocs[0].value"
+    ///     (read from the TOML file, NOT a hardcoded constant).
+    /// (b) `generate_with_scenario_iocs` with CompromisedEndpoint stamps `iocs[0].value` with
+    ///     the known IOC hash on alert-surface records — the JSONPath extraction at runtime will
+    ///     materialize the expected string value into the column.
+    #[test]
+    fn test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath() {
+        // ── Part A: verify TOML source_path ──────────────────────────────────
+        let toml_src = include_str!("../../prism-sensors/specs/cyberint.sensor.toml");
+        let parsed: toml::Value = toml_src.parse().expect("cyberint.sensor.toml must parse");
+
+        let tables = parsed
+            .get("tables")
+            .and_then(|v| v.as_array())
+            .expect("cyberint.sensor.toml must have [[tables]]");
+
+        let alerts_table = tables
+            .iter()
+            .find(|t| t.get("table_name").and_then(|v| v.as_str()) == Some("alerts"))
+            .expect("cyberint.sensor.toml must have a table with table_name='alerts'");
+
+        let columns = alerts_table
+            .get("columns")
+            .and_then(|v| v.as_array())
+            .expect("alerts table must have [[tables.columns]]");
+
+        let iocs_value_first_col = columns
+            .iter()
+            .find(|c| c.get("name").and_then(|v| v.as_str()) == Some("iocs_value_first"))
+            .expect(
+                "alerts table must have a column named 'iocs_value_first' (AC-011, ADR-051 D4)",
+            );
+
+        let source_path = iocs_value_first_col
+            .get("source_path")
+            .and_then(|v| v.as_str())
+            .expect("iocs_value_first column must have source_path");
+
+        assert_eq!(
+            source_path, "$.iocs[0].value",
+            "AC-011 MED-001+LOW-001: cyberint alerts.iocs_value_first source_path must be \
+             '$.iocs[0].value' (JSONPath scalar extraction for typed enrichment UDFs). \
+             Got: '{source_path}'"
+        );
+
+        // ── Part B: verify generator stamps iocs[0].value for CompromisedEndpoint ──
+        let known_hash = "deadbeefcafe0000000000000000000000000000000000000000000000000000";
+        let org = OrgId([0u8; 16]);
+        let opts = prism_dtu_common::GenOpts::default();
+        let fs = generate_with_scenario_iocs(
+            &org,
+            Archetype::CompromisedEndpoint,
+            &opts,
+            &[],
+            &[],
+            &[known_hash.to_string()],
+            &[],
+        );
+
+        let alert_records: Vec<_> = fs
+            .records
+            .iter()
+            .filter(|r| r.get("_surface").and_then(|v| v.as_str()) == Some("alert"))
+            .collect();
+
+        assert!(
+            !alert_records.is_empty(),
+            "AC-011 precondition: CompromisedEndpoint must produce at least one alert record"
+        );
+
+        // Every alert-surface record must have iocs[0].value == known_hash (source_path target).
+        for (i, record) in alert_records.iter().enumerate() {
+            let ioc_value = record
+                .get("iocs")
+                .and_then(|v| v.as_array())
+                .and_then(|arr| arr.first())
+                .and_then(|ioc| ioc.get("value"))
+                .and_then(|v| v.as_str());
+            assert_eq!(
+                ioc_value,
+                Some(known_hash),
+                "AC-011 MED-001+LOW-001: alert-surface record[{i}] iocs[0].value must be \
+                 '{known_hash}'. source_path '$.iocs[0].value' will extract this value at \
+                 spec-driven adapter materialization time. Got: {ioc_value:?}"
+            );
+        }
+    }
 }

@@ -32,9 +32,31 @@ import time
 import select
 import fcntl
 import re
+from pathlib import Path
 
-PRISM_BIN = "/Users/jmagady/Dev/prism/target/release/prism"
-CONFIG_DIR = "/Users/jmagady/.config/prism-demo"
+# PRISM_BIN: resolved in priority order:
+#   1. $PRISM_BIN env var (explicit override)
+#   2. $CARGO_TARGET_DIR/release/prism (respects Cargo target-dir override)
+#   3. <repo-root>/target/release/prism (repo-relative default; script is in scripts/)
+_repo_root = Path(__file__).resolve().parent.parent
+_cargo_target_dir = os.environ.get("CARGO_TARGET_DIR")
+if os.environ.get("PRISM_BIN"):
+    PRISM_BIN = os.environ["PRISM_BIN"]
+elif _cargo_target_dir:
+    PRISM_BIN = str(Path(_cargo_target_dir) / "release" / "prism")
+else:
+    PRISM_BIN = str(_repo_root / "target" / "release" / "prism")
+
+# CONFIG_DIR: resolved in priority order:
+#   1. $PRISM_DEMO_CONFIG_DIR env var (explicit override)
+#   2. $XDG_CONFIG_HOME/prism-demo (XDG base-dir standard)
+#   3. $HOME/.config/prism-demo (POSIX fallback)
+if os.environ.get("PRISM_DEMO_CONFIG_DIR"):
+    CONFIG_DIR = os.environ["PRISM_DEMO_CONFIG_DIR"]
+elif os.environ.get("XDG_CONFIG_HOME"):
+    CONFIG_DIR = str(Path(os.environ["XDG_CONFIG_HOME"]) / "prism-demo")
+else:
+    CONFIG_DIR = str(Path.home() / ".config" / "prism-demo")
 
 # Ports are output by demo-run.sh — set via env vars or pass as args
 THREATINTEL_PORT = os.environ.get("PRISM_THREATINTEL_PORT", "54646")
@@ -407,7 +429,9 @@ def run_audit():
             else:
                 results["[A9] prism_describe org-c: pql_hints field present"] = f"PASS: pql_hints={pql_hints!r}"
 
-        # ── A10: prism_describe org-c: cyberint_alerts has iocs_value column ─
+        # ── A10: prism_describe org-c: cyberint_alerts has iocs_value + iocs_value_first ─
+        # S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (ADR-051 D4): added iocs_value_first as scalar
+        # companion column so typed enrichment UDFs receive a plain string, not a JSON list.
         body_dc, err_dc = tool_call(proc, "prism_describe", {"client_id": "org-c"}, timeout=15.0)
         if err_dc:
             results["[A10] prism_describe org-c: cyberint_alerts has iocs_value"] = f"FAIL: {err_dc}"
@@ -419,12 +443,13 @@ def run_audit():
             else:
                 col_names = [c.get("name", "") for c in cb_table.get("columns", [])]
                 has_iocs_value = "iocs_value" in col_names
+                has_iocs_value_first = "iocs_value_first" in col_names
                 has_iocs_type = "iocs_type" in col_names
                 has_severity = "severity" in col_names
-                if has_iocs_value and has_iocs_type:
-                    results["[A10] prism_describe org-c: cyberint_alerts has iocs_value"] = f"PASS: iocs_value={has_iocs_value}, iocs_type={has_iocs_type}, severity={has_severity}; cols={sorted(col_names)[:8]}"
+                if has_iocs_value and has_iocs_type and has_iocs_value_first:
+                    results["[A10] prism_describe org-c: cyberint_alerts has iocs_value"] = f"PASS: iocs_value={has_iocs_value}, iocs_value_first={has_iocs_value_first}, iocs_type={has_iocs_type}, severity={has_severity}; cols={sorted(col_names)[:8]}"
                 else:
-                    results["[A10] prism_describe org-c: cyberint_alerts has iocs_value"] = f"FAIL: iocs_value={has_iocs_value}, iocs_type={has_iocs_type}; cols={sorted(col_names)}"
+                    results["[A10] prism_describe org-c: cyberint_alerts has iocs_value"] = f"FAIL: iocs_value={has_iocs_value}, iocs_value_first={has_iocs_value_first}, iocs_type={has_iocs_type}; cols={sorted(col_names)}"
 
         # ── A11: prism_describe org-a isolation (no cyberint/claroty tables) ─
         body_oa, err_oa = tool_call(proc, "prism_describe", {"client_id": "org-a"}, timeout=15.0)
@@ -967,43 +992,48 @@ def run_audit():
         # SECTION E: Enrichment Correlation (ThreatIntel + NVD)
         # ═══════════════════════════════════════════════════════════════════════
 
-        # ── E1: | enrich threat_score(iocs_value) on cyberint_alerts ─────────
+        # ── E1: | enrich threat_score(iocs_value_first) on cyberint_alerts ──────
+        # ADR-051 D4 Scalar-Input rule: threat_score is output_type=integer; it must
+        # receive a plain scalar string (iocs_value_first), not a JSON list (iocs_value).
         body, err = query(proc,
-            "FROM cyberint_alerts\n| where iocs_value IS NOT NULL\n| enrich threat_score(iocs_value)\n| limit 5",
+            "FROM cyberint_alerts\n| where iocs_value_first IS NOT NULL\n| enrich threat_score(iocs_value_first)\n| limit 5",
             ["org-c"], timeout=30.0)
         if err:
-            results["[E1] ENRICH: threat_score(iocs_value) on cyberint_alerts"] = f"FAIL: {err}"
+            results["[E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts"] = f"FAIL: {err}"
         elif body.get("error_code"):
-            results["[E1] ENRICH: threat_score(iocs_value) on cyberint_alerts"] = f"FAIL: {body['error_code']}: {body.get('message','')[:100]}"
+            results["[E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts"] = f"FAIL: {body['error_code']}: {body.get('message','')[:100]}"
         else:
             rows = body.get("rows", [])
             if rows:
                 first = rows[0]
                 threat_score = first.get("threat_score", "MISSING")
-                iocs_value = first.get("iocs_value", "?")
+                iocs_value_first = first.get("iocs_value_first", "?")
                 if threat_score == "MISSING":
-                    results["[E1] ENRICH: threat_score(iocs_value) on cyberint_alerts"] = f"FAIL: threat_score column missing from result; cols={list(first.keys())[:8]}"
+                    results["[E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts"] = f"FAIL: threat_score column missing from result; cols={list(first.keys())[:8]}"
+                elif not isinstance(threat_score, (int, float)):
+                    results["[E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts"] = f"FAIL: threat_score must be Int64 (ADR-051 D1); got type={type(threat_score).__name__}, value={str(threat_score)[:40]!r}"
                 else:
-                    results["[E1] ENRICH: threat_score(iocs_value) on cyberint_alerts"] = f"PASS: {len(rows)} rows; threat_score={threat_score}; iocs_value={str(iocs_value)[:40]!r}"
+                    results["[E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts"] = f"PASS: {len(rows)} rows; threat_score={threat_score} (int); iocs_value_first={str(iocs_value_first)[:40]!r}"
             else:
-                results["[E1] ENRICH: threat_score(iocs_value) on cyberint_alerts"] = "WARN: 0 rows returned (iocs_value may be null at this scenario stage — need Stage 3+)"
+                results["[E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts"] = "WARN: 0 rows returned (iocs_value_first may be null at this scenario stage — need Stage 3+)"
 
-        # ── E2: | enrich threat_is_known_malicious(iocs_value) ───────────────
+        # ── E2: | enrich threat_is_known_malicious(iocs_value_first) ────────────
+        # ADR-051 D4 Scalar-Input rule: boolean-typed UDF must receive plain scalar string.
         body, err = query(proc,
-            "FROM cyberint_alerts\n| where iocs_value IS NOT NULL\n| enrich threat_is_known_malicious(iocs_value)\n| limit 3",
+            "FROM cyberint_alerts\n| where iocs_value_first IS NOT NULL\n| enrich threat_is_known_malicious(iocs_value_first)\n| limit 3",
             ["org-c"], timeout=30.0)
         if err:
-            results["[E2] ENRICH: threat_is_known_malicious(iocs_value)"] = f"FAIL: {err}"
+            results["[E2] ENRICH: threat_is_known_malicious(iocs_value_first)"] = f"FAIL: {err}"
         elif body.get("error_code"):
-            results["[E2] ENRICH: threat_is_known_malicious(iocs_value)"] = f"FAIL: {body['error_code']}: {body.get('message','')[:100]}"
+            results["[E2] ENRICH: threat_is_known_malicious(iocs_value_first)"] = f"FAIL: {body['error_code']}: {body.get('message','')[:100]}"
         else:
             rows = body.get("rows", [])
             if rows:
                 first = rows[0]
                 malicious = first.get("threat_is_known_malicious", "MISSING")
-                results["[E2] ENRICH: threat_is_known_malicious(iocs_value)"] = f"PASS: {len(rows)} rows; threat_is_known_malicious={malicious}"
+                results["[E2] ENRICH: threat_is_known_malicious(iocs_value_first)"] = f"PASS: {len(rows)} rows; threat_is_known_malicious={malicious}"
             else:
-                results["[E2] ENRICH: threat_is_known_malicious(iocs_value)"] = "WARN: 0 rows returned"
+                results["[E2] ENRICH: threat_is_known_malicious(iocs_value_first)"] = "WARN: 0 rows returned"
 
         # ── E3: | enrich cvss_base_score(device_cves_first) on armis_devices ─
         body_arm, err_arm = query(proc,
@@ -1043,28 +1073,29 @@ def run_audit():
                 results["[E4] ENRICH: cvss_severity(device_cves_first)"] = "WARN: 0 rows with device_cves_first IS NOT NULL"
 
         # ── E5: Enrichment on CrowdStrike IOC hashes ─────────────────────────
+        # ADR-051 D4 Scalar-Input rule: use behaviors_ioc_value_first (scalar companion)
+        # instead of behaviors_ioc_value (JSON list) for typed integer UDF.
         body, err = query(proc,
-            "FROM crowdstrike_detections\n| where behaviors_ioc_type IS NOT NULL\n| enrich threat_score(behaviors_ioc_value)\n| limit 3",
+            "FROM crowdstrike_detections\n| where behaviors_ioc_value_first IS NOT NULL\n| enrich threat_score(behaviors_ioc_value_first)\n| limit 3",
             ["org-c"], timeout=30.0)
         if err:
-            results["[E5] ENRICH: threat_score(behaviors_ioc_value) on CS detections"] = f"FAIL: {err}"
+            results["[E5] ENRICH: threat_score(behaviors_ioc_value_first) on CS detections"] = f"FAIL: {err}"
         elif body.get("error_code"):
-            results["[E5] ENRICH: threat_score(behaviors_ioc_value) on CS detections"] = f"FAIL: {body['error_code']}: {body.get('message','')[:100]}"
+            results["[E5] ENRICH: threat_score(behaviors_ioc_value_first) on CS detections"] = f"FAIL: {body['error_code']}: {body.get('message','')[:100]}"
         else:
             rows = body.get("rows", [])
             if rows:
                 threat_score = rows[0].get("threat_score", "MISSING")
-                results["[E5] ENRICH: threat_score(behaviors_ioc_value) on CS detections"] = f"PASS: {len(rows)} rows; threat_score={threat_score}"
+                results["[E5] ENRICH: threat_score(behaviors_ioc_value_first) on CS detections"] = f"PASS: {len(rows)} rows; threat_score={threat_score}"
             else:
-                results["[E5] ENRICH: threat_score(behaviors_ioc_value) on CS detections"] = "WARN: 0 rows with behaviors_ioc_type IS NOT NULL"
+                results["[E5] ENRICH: threat_score(behaviors_ioc_value_first) on CS detections"] = "WARN: 0 rows with behaviors_ioc_value_first IS NOT NULL"
 
         # ── E6: Verify ThreatIntel score >= 75 for scenario IOCs ─────────────
-        # NOTE: threat_score enrichment returns the full ThreatIntel JSON response
-        # as a JSON-array string (e.g. '["{\"threat_score\":95,...}"]') because
-        # iocs_value is itself a JSON array. The actual score must be extracted
-        # by parsing the nested JSON. Score 95 confirmed Malicious (>=75).
+        # S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (ADR-051 D1/D4): threat_score now returns
+        # an Int64 directly. The old JSON-array-in-string workaround is obsolete.
+        # Use iocs_value_first (scalar companion) so the UDF receives a plain IOC string.
         body, err = query(proc,
-            "FROM cyberint_alerts\n| where iocs_value IS NOT NULL\n| enrich threat_score(iocs_value)\n| limit 5",
+            "FROM cyberint_alerts\n| where iocs_value_first IS NOT NULL\n| enrich threat_score(iocs_value_first)\n| limit 5",
             ["org-c"], timeout=30.0)
         if err:
             results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = f"FAIL: {err}"
@@ -1073,39 +1104,22 @@ def run_audit():
         else:
             rows = body.get("rows", [])
             if rows:
-                raw_scores = [r.get("threat_score") for r in rows if r.get("threat_score") is not None]
-                extracted_scores = []
-                for raw in raw_scores:
-                    # Try direct int/float first
-                    if isinstance(raw, (int, float)):
-                        extracted_scores.append(float(raw))
-                        continue
-                    # Try parsing JSON array of response objects
-                    # Pattern: '["{\"threat_score\":95,...}"]' or '[{"threat_score":95,...}]'
-                    try:
-                        arr = json.loads(raw) if isinstance(raw, str) else raw
-                        if isinstance(arr, list):
-                            for elem in arr:
-                                obj = json.loads(elem) if isinstance(elem, str) else elem
-                                if isinstance(obj, dict) and "threat_score" in obj:
-                                    extracted_scores.append(float(obj["threat_score"]))
-                    except Exception:
-                        pass
-                high_scores = [s for s in extracted_scores if s >= 75]
-                if high_scores:
-                    results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = (
-                        f"PASS: {len(high_scores)}/{len(extracted_scores)} scores >= 75; "
-                        f"scores={extracted_scores[:5]}; "
-                        f"NOTE: threat_score col returns full JSON response (score embedded in JSON)"
-                    )
-                elif extracted_scores:
-                    results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = f"WARN: extracted_scores={extracted_scores[:5]} (none >= 75)"
-                elif raw_scores:
-                    results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = f"WARN: threat_score present but could not extract integer; raw_sample={str(raw_scores[0])[:100]!r}"
+                scores = [r.get("threat_score") for r in rows if isinstance(r.get("threat_score"), (int, float))]
+                non_int_sample = next((r.get("threat_score") for r in rows if r.get("threat_score") is not None and not isinstance(r.get("threat_score"), (int, float))), None)
+                if non_int_sample is not None:
+                    results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = f"FAIL: threat_score must be Int64 (ADR-051 D1); got type={type(non_int_sample).__name__}, value={str(non_int_sample)[:60]!r}"
+                elif scores:
+                    high_scores = [s for s in scores if s >= 75]
+                    if high_scores:
+                        results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = (
+                            f"PASS: {len(high_scores)}/{len(scores)} scores >= 75; scores={scores[:5]}"
+                        )
+                    else:
+                        results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = f"WARN: scores present but none >= 75; scores={scores[:5]}"
                 else:
-                    results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = f"WARN: {len(rows)} rows but no threat_score values; cols={list(rows[0].keys())[:8]}"
+                    results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = f"WARN: {len(rows)} rows but no numeric threat_score values; cols={list(rows[0].keys())[:8]}"
             else:
-                results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = "WARN: 0 rows returned after iocs_value filter + enrich"
+                results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = "WARN: 0 rows returned after iocs_value_first filter + enrich"
 
         # ═══════════════════════════════════════════════════════════════════════
         # SECTION F: Error Taxonomy — E-QUERY-032/-037/-038/-039
@@ -1259,11 +1273,11 @@ COVERAGE_MATRIX = [
     ("[D3]",  "Scenario",      "CS behaviors_ioc_type at Stage 2+"),
     ("[D4]",  "Scenario",      "Claroty audit_logs at Stage 4"),
     ("[D5]",  "Scenario",      "Cross-sensor entity coherence (CS+Armis)"),
-    ("[E1]",  "Enrichment",    "| enrich threat_score(iocs_value) on cyberint"),
-    ("[E2]",  "Enrichment",    "| enrich threat_is_known_malicious(iocs_value)"),
+    ("[E1]",  "Enrichment",    "| enrich threat_score(iocs_value_first) on cyberint"),
+    ("[E2]",  "Enrichment",    "| enrich threat_is_known_malicious(iocs_value_first)"),
     ("[E3]",  "Enrichment",    "| enrich cvss_base_score(device_cves_first) on armis"),
     ("[E4]",  "Enrichment",    "| enrich cvss_severity(device_cves_first)"),
-    ("[E5]",  "Enrichment",    "| enrich threat_score(behaviors_ioc_value) on CS"),
+    ("[E5]",  "Enrichment",    "| enrich threat_score(behaviors_ioc_value_first) on CS"),
     ("[E6]",  "Enrichment",    "ThreatIntel score >= 75 for scenario IOCs"),
     ("[F1]",  "Error Taxonomy","E-QUERY-032/-037 cyberint for org-a"),
     ("[F2]",  "Error Taxonomy","E-QUERY-032 armis for org-b"),

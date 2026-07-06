@@ -22,9 +22,10 @@
 //! - New `event_type` tracing emissions require a BC-2.16.002 catalog row (SAP-1).
 //! - `invoke_with_args` MUST return `not_impl_err!(...)` to force the async path.
 //!
-//! # Implementation status (S-DEMO-ENRICHMENT-PIVOT-001 — GREEN)
+//! # Implementation status (S-DEMO-ENRICHMENT-PIVOT-001 + S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 — GREEN)
 //! `InfusionAsyncUdf::invoke_async_with_args` is fully implemented: reads input `ColumnarValue`,
-//! calls `descriptor.source.enrich_single` per row, and returns a `StringArray` output.
+//! calls `descriptor.source.enrich_single` per row, and returns typed output consistent with
+//! `descriptor.output_arrow_type` (INV-ENRICH-TYPED-001; ADR-051 D1/D2/D4).
 //! `register_infusion_udfs` registers `InfusionAsyncUdf` instances per descriptor.
 //!
 //! # async_trait requirement
@@ -38,15 +39,17 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DataFusionResult;
 use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::async_udf::{AsyncScalarUDF, AsyncScalarUDFImpl};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
+use prism_core::error::{sanitize_for_log, InfusionError};
 use prism_spec_engine::{
-    InfusionLruCache, InfusionTier3Cache, InfusionUdfDescriptor, QueryScopedInfusionCache,
+    parse_datetime_to_micros, InfusionLruCache, InfusionTier3Cache, InfusionUdfDescriptor,
+    QueryScopedInfusionCache,
 };
 
 // Default per-infusion cache TTL (1 hour). Used when no `cache_ttl_secs` is set in spec.
@@ -85,7 +88,7 @@ pub(crate) const DEFAULT_CACHE_TTL_SECS: u64 = 3600;
 pub struct InfusionAsyncUdf {
     /// The infusion UDF descriptor exported by `prism-spec-engine`.
     descriptor: InfusionUdfDescriptor,
-    /// DataFusion function signature (input: Utf8, output: Utf8 — simplified for stub).
+    /// DataFusion function signature (input: Utf8, output: varies by descriptor.output_arrow_type).
     signature: Signature,
     /// Function name — stored separately so `ScalarUDFImpl::name` can return `&str`.
     name: String,
@@ -196,13 +199,11 @@ impl ScalarUDFImpl for InfusionAsyncUdf {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DataFusionResult<DataType> {
-        // Simplified: always returns Utf8 for the current implementation.
-        // Full typed mapping of `descriptor.output_type` → Arrow DataType is deferred
-        // to S-1.14-REDO (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001); not in PIVOT-001 scope.
-        // ADR-052: sensor datetime columns → Timestamp(Microsecond, Some("UTC")) (ADR-052).
-        // ADR-051 (not yet implemented) will add a per-output_type branch here to bring
-        // enrichment datetime fields to the same type.
-        Ok(DataType::Utf8)
+        // ADR-051 D1: delegate to output_arrow_type() for the canonical output_type → Arrow
+        // DataType mapping.  This MUST be kept in sync with invoke_async_with_args: DataFusion
+        // validates that the array emitted by invoke_async_with_args matches the type declared
+        // here and panics on mismatch.
+        Ok(self.output_arrow_type())
     }
 
     /// Synchronous fallback — MUST return `not_impl_err!` to force the async execution path.
@@ -251,7 +252,9 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
         &self,
         args: ScalarFunctionArgs,
     ) -> DataFusionResult<ColumnarValue> {
-        use datafusion::arrow::array::{Array, StringArray};
+        use datafusion::arrow::array::{
+            Array, BooleanArray, Float64Array, Int64Array, StringArray, TimestampMicrosecondArray,
+        };
         use datafusion::common::ScalarValue;
 
         // Extract the input column — must be the first arg.
@@ -305,6 +308,10 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
         // Ensures 500 rows with 30 unique IPs → 30 source calls, not 500 (AC-2 / INV-INFUSE-002).
         let mut tier1 = QueryScopedInfusionCache::new();
 
+        // Determine output type once — used both to gate ENRICH-1 and to build the typed array.
+        let output_type = self.output_arrow_type();
+        let is_json_output = self.descriptor.output_type.as_str() == "json";
+
         // Enrich each row via three-tier cache + source.
         // NULL input rows short-circuit to NULL output without dispatching to any tier.
         //
@@ -330,12 +337,10 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
             };
 
             // ENRICH-1 (Design Decision 2): JSON-list string multi-value mode.
-            // If the input starts with '[' and parses as Vec<String>, this is a wildcard
-            // column value (e.g., from `$.iocs[*].value` → `["hash1","hash2"]`).
-            // Enrich each element individually and return a JSON-list of results.
-            // Elements that enrich to None are omitted from the output list.
-            // Scalar path (no leading '[' or failed parse) is unchanged — backward compat.
-            if input_str.starts_with('[') {
+            // Retained ONLY for output_type = "json" (ADR-051 D4 Scalar-Input rule).
+            // For typed outputs (integer/float/boolean/datetime), a JSON-list input goes
+            // through the scalar path and coerce_to_typed returns None (E-INFUSE-014 NULL).
+            if is_json_output && input_str.starts_with('[') {
                 if let Ok(elements) = serde_json::from_str::<Vec<String>>(input_str) {
                     let mut list_results: Vec<String> = Vec::with_capacity(elements.len());
                     for elem in &elements {
@@ -362,14 +367,76 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
             enriched.push(result_str);
         }
 
-        // Build the output StringArray (nulls where enrichment returned None).
-        let output = StringArray::from(
-            enriched
-                .iter()
-                .map(|opt| opt.as_deref())
-                .collect::<Vec<_>>(),
-        );
-        Ok(ColumnarValue::Array(Arc::new(output)))
+        // Build the output array with the correct Arrow type (ADR-051 D1).
+        // The type emitted here MUST match what return_type() declared — DataFusion panics
+        // on schema mismatch. Both are driven by output_arrow_type() to keep them in sync.
+        let field_name = &self.descriptor.name;
+        let output: Arc<dyn Array> = match &output_type {
+            DataType::Int64 => {
+                let values: Vec<Option<i64>> = enriched
+                    .iter()
+                    .map(|opt| {
+                        opt.as_deref().and_then(|s| {
+                            match self.coerce_to_typed(s, &output_type, field_name) {
+                                Some(serde_json::Value::Number(n)) => n.as_i64(),
+                                _ => None,
+                            }
+                        })
+                    })
+                    .collect();
+                Arc::new(Int64Array::from(values))
+            }
+            DataType::Float64 => {
+                let values: Vec<Option<f64>> = enriched
+                    .iter()
+                    .map(|opt| {
+                        opt.as_deref().and_then(|s| {
+                            match self.coerce_to_typed(s, &output_type, field_name) {
+                                Some(serde_json::Value::Number(n)) => n.as_f64(),
+                                _ => None,
+                            }
+                        })
+                    })
+                    .collect();
+                Arc::new(Float64Array::from(values))
+            }
+            DataType::Boolean => {
+                let values: Vec<Option<bool>> = enriched
+                    .iter()
+                    .map(|opt| {
+                        opt.as_deref().and_then(|s| {
+                            match self.coerce_to_typed(s, &output_type, field_name) {
+                                Some(serde_json::Value::Bool(b)) => Some(b),
+                                _ => None,
+                            }
+                        })
+                    })
+                    .collect();
+                Arc::new(BooleanArray::from(values))
+            }
+            DataType::Timestamp(TimeUnit::Microsecond, _) => {
+                let values: Vec<Option<i64>> = enriched
+                    .iter()
+                    .map(|opt| {
+                        opt.as_deref().and_then(|s| {
+                            match self.coerce_to_typed(s, &output_type, field_name) {
+                                Some(serde_json::Value::Number(n)) => n.as_i64(),
+                                _ => None,
+                            }
+                        })
+                    })
+                    .collect();
+                Arc::new(TimestampMicrosecondArray::from(values).with_timezone("UTC"))
+            }
+            // Utf8 (string or json): StringArray — nulls where enrichment returned None.
+            _ => Arc::new(StringArray::from(
+                enriched
+                    .iter()
+                    .map(|opt| opt.as_deref())
+                    .collect::<Vec<_>>(),
+            )),
+        };
+        Ok(ColumnarValue::Array(output))
     }
 }
 
@@ -448,6 +515,214 @@ impl InfusionAsyncUdf {
         }
 
         source_result.as_ref().map(|v| self.project_value(v))
+    }
+
+    /// Maps `descriptor.output_type` to the canonical Arrow `DataType` per ADR-051 D1.
+    ///
+    /// Called by `return_type()` (ScalarUDFImpl) and `invoke_async_with_args` to select
+    /// the correct typed array builder. The D1 canonical mapping table is:
+    ///
+    /// | `output_type` | Arrow `DataType`                                |
+    /// |---------------|-------------------------------------------------|
+    /// | `"string"`    | `DataType::Utf8`                                |
+    /// | `"integer"`   | `DataType::Int64`                               |
+    /// | `"float"`     | `DataType::Float64`                             |
+    /// | `"boolean"`   | `DataType::Boolean`                             |
+    /// | `"json"`      | `DataType::Utf8` (JSON as UTF-8 string)         |
+    /// | `"datetime"`  | `DataType::Timestamp(Microsecond, Some("UTC"))` |
+    /// | unknown       | `DataType::Utf8` fallback (E-INFUSE-013 sub-cond 7 |
+    /// |               | prevents unknown types from reaching UDF in prod)|
+    ///
+    /// ADR-051 D1; ADR-052 datetime = Timestamp(µs,UTC). Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001.
+    fn output_arrow_type(&self) -> DataType {
+        // ADR-051 D1 canonical mapping: output_type string → Arrow DataType.
+        // E-INFUSE-013 sub-condition 7 (validated at spec-load by InfusionLoader::parse)
+        // prevents unknown output_type values from reaching this function in production.
+        // The `_` fallback to Utf8 is defence-in-depth only.
+        match self.descriptor.output_type.as_str() {
+            "integer" => DataType::Int64,
+            "float" => DataType::Float64,
+            "boolean" => DataType::Boolean,
+            "datetime" => DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC"))),
+            // "string" | "json" | any unknown fallback → Utf8
+            _ => DataType::Utf8,
+        }
+    }
+
+    /// Emit a structured `infusion.coercion_failed` warning and return `None`.
+    ///
+    /// CR-001 (DRY): extracted from 5 identical warn blocks in `coerce_to_typed`.
+    /// Constructs the canonical E-INFUSE-014 error and emits it via `tracing::warn!`
+    /// with the BC-2.16.002 event_type field (SAP-1 obligation, AC-012).
+    ///
+    /// Called everywhere `coerce_to_typed` detects an uncoercible value; callers propagate
+    /// the `None` (NULL sentinel) back to the DataFusion column builder.
+    fn warn_coercion_failed(&self, field_name: &str, value: &str) {
+        let err = InfusionError::new_type_coercion_failed(
+            field_name,
+            &self.descriptor.infusion_id,
+            &self.descriptor.output_type,
+            value,
+        );
+        // NEW-SEC-001-R (CWE-117, fix-burst-14): sanitize ALL structured tracing fields before
+        // passing them to the `= %...` named field slots. JSON log consumers (e.g., Vector, Loki,
+        // SIEM ingestors) parse named fields directly from the serialized tracing event — a raw
+        // control char in `field_name` or `infusion_id` reaches the JSON field value verbatim,
+        // enabling log injection and LLM prompt injection (AD-017 extension).
+        // `truncated_value` is sanitized AFTER the 50-char truncation (order per spec).
+        // The Display message `"{}", err` is already sanitized via InfusionError (fix-burst-13).
+        let safe_field_name = sanitize_for_log(field_name);
+        let safe_infusion_id = sanitize_for_log(&self.descriptor.infusion_id);
+        let safe_declared_type = sanitize_for_log(&self.descriptor.output_type);
+        let truncated_value: String = value.chars().take(50).collect();
+        let safe_truncated_value = sanitize_for_log(&truncated_value);
+        tracing::warn!(
+            event_type = "infusion.coercion_failed",
+            field_name = %safe_field_name,
+            infusion_id = %safe_infusion_id,
+            declared_type = %safe_declared_type,
+            truncated_value = %safe_truncated_value,
+            "{}", err
+        );
+    }
+
+    /// Coerce a projected string value to the Arrow typed representation declared by `output_type`.
+    ///
+    /// Returns `Some(typed_value)` on successful coercion, or `None` on failure.
+    /// On failure, delegates to `warn_coercion_failed` which emits a `tracing::warn!` with
+    /// `event_type = "infusion.coercion_failed"` and sanitizes all four structured fields
+    /// (`field_name`, `infusion_id`, `declared_type`, `truncated_value`) through
+    /// `prism_core::error::sanitize_for_log` before embedding in the structured log (CWE-117,
+    /// NEW-SEC-001-R). See `warn_coercion_failed` for the exact emission shape.
+    ///
+    /// A BC-2.16.002 Canonical Structured Event Catalog row for `event_type = "infusion.coercion_failed"`
+    /// MUST be added in the same commit as this tracing emission (SAP-1 standing obligation; AC-012).
+    ///
+    /// Coercion branches (ADR-051 D2):
+    /// - `Int64`:    `i64::from_str(s.trim())` OR `serde_json::Number::as_i64()` for Number input
+    /// - `Float64`:  `f64::from_str(s.trim())` OR `serde_json::Number::as_f64()` for Number input
+    /// - `Boolean`:  case-insensitive match `{"true","1","yes"}→true`, `{"false","0","no"}→false`
+    /// - `Timestamp(Microsecond, Some("UTC"))`: `parse_datetime_to_micros` (ADR-052 D2 — MUST reuse
+    ///   the same function as `spec_driven_adapter.rs`; do NOT introduce a second date parser)
+    /// - `Utf8` (`"string"` or `"json"`): passthrough, always `Some`; no coercion needed
+    ///
+    /// JSON-list input detection (leading `[`): for non-json `output_type` → `None` + E-INFUSE-014;
+    /// for `output_type = "json"` → caller retains ENRICH-1 list-dispatch path (ADR-051 D4).
+    ///
+    /// Return type `Option<serde_json::Value>`: `Some(typed_value)` on successful coercion;
+    /// `None` on unrecognized or uncoercible input (E-INFUSE-014 NULL sentinel).
+    ///
+    /// `field_name`: the UDF field name (e.g., `"threat_score"`), used in E-INFUSE-014 message.
+    ///
+    /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Phase G.
+    fn coerce_to_typed(
+        &self,
+        value: &str,
+        output_type: &DataType,
+        field_name: &str,
+    ) -> Option<serde_json::Value> {
+        // ADR-051 D4 Scalar-Input rule: JSON-list input to a non-json typed UDF → None.
+        // For output_type = "json" (DataType::Utf8) the ENRICH-1 list-dispatch path is used
+        // upstream in invoke_async_with_args and never reaches coerce_to_typed.
+        // For any other typed output, a leading '[' indicates a JSON-list column value
+        // (e.g. iocs_value = ["hash1","hash2"]) which cannot be coerced to a scalar — NULL.
+        if value.starts_with('[') && *output_type != DataType::Utf8 {
+            // MED-001 + MED-002 fix: construct canonical E-INFUSE-014 error variant and emit
+            // its Display. declared_type = output_type vocabulary string (not Arrow debug).
+            // CR-001: delegated to warn_coercion_failed (DRY extraction of 5-site pattern).
+            self.warn_coercion_failed(field_name, value);
+            return None;
+        }
+
+        match output_type {
+            DataType::Int64 => {
+                let trimmed = value.trim();
+                // Try direct string → i64 parse first.
+                if let Ok(i) = trimmed.parse::<i64>() {
+                    return Some(serde_json::Value::Number(i.into()));
+                }
+                // Fallback: try parsing as a JSON Number literal.
+                // Handles edge cases where a plugin returns a bare JSON integer encoded as a
+                // Number (e.g., the string "42" is also a valid JSON integer, though
+                // i64::from_str already handles it; this covers other unusual JSON-number forms).
+                // IMPORTANT — float-valued JSON numbers such as "42.0" or "95.7" are backed
+                // as f64 internally by serde_json; n.as_i64() returns None for f64-backed
+                // Numbers, so they correctly yield NULL + E-INFUSE-014 per EC-002.
+                // "42.0" does NOT coerce to 42 — float strings into integer fields produce NULL.
+                if let Ok(serde_json::Value::Number(n)) =
+                    serde_json::from_str::<serde_json::Value>(trimmed)
+                {
+                    if let Some(i) = n.as_i64() {
+                        return Some(serde_json::Value::Number(i.into()));
+                    }
+                }
+                // CR-001: delegated to warn_coercion_failed.
+                self.warn_coercion_failed(field_name, value);
+                None
+            }
+            DataType::Float64 => {
+                let trimmed = value.trim();
+                if let Ok(f) = trimmed.parse::<f64>() {
+                    if let Some(n) = serde_json::Number::from_f64(f) {
+                        return Some(serde_json::Value::Number(n));
+                    }
+                }
+                // Fallback: parse as JSON number.
+                if let Ok(serde_json::Value::Number(n)) =
+                    serde_json::from_str::<serde_json::Value>(trimmed)
+                {
+                    if let Some(f) = n.as_f64() {
+                        if let Some(n2) = serde_json::Number::from_f64(f) {
+                            return Some(serde_json::Value::Number(n2));
+                        }
+                    }
+                }
+                // CR-001: delegated to warn_coercion_failed.
+                self.warn_coercion_failed(field_name, value);
+                None
+            }
+            DataType::Boolean => {
+                // ADR-051 D2: case-insensitive {true,1,yes}→true, {false,0,no}→false, else None.
+                // CR-004: trim() BEFORE to_lowercase() — idiomatic; avoids allocating a
+                // lowercase copy of leading/trailing whitespace that gets thrown away.
+                // SEC-002 / NEW-CR-005 (CWE-770, fix-burst-14): skip O(n) to_lowercase() for
+                // pathologically large values (> 1024 bytes) by computing the normalized candidate
+                // only when len <= 1024. Oversized values produce `None` from the normalize step
+                // and fall through to the `_` failure arm, which calls warn_coercion_failed ONCE
+                // (preserving the 5-site pattern: no separate 6th call site for the size guard).
+                let normalized = if value.len() <= 1024 {
+                    Some(value.trim().to_lowercase())
+                } else {
+                    None
+                };
+                match normalized.as_deref() {
+                    Some("true") | Some("1") | Some("yes") => Some(serde_json::Value::Bool(true)),
+                    Some("false") | Some("0") | Some("no") => Some(serde_json::Value::Bool(false)),
+                    _ => {
+                        // CR-001: delegated to warn_coercion_failed.
+                        // SEC-002: oversized inputs reach here via normalized=None (skips
+                        // to_lowercase), ensuring a single warn_coercion_failed call site for
+                        // the boolean branch (5-site pattern, BC-2.16.002 catalog).
+                        self.warn_coercion_failed(field_name, value);
+                        None
+                    }
+                }
+            }
+            DataType::Timestamp(TimeUnit::Microsecond, _) => {
+                // ADR-052 D2: MUST reuse parse_datetime_to_micros (shared with spec_driven_adapter).
+                // Use field_name as column_name and infusion_id as sensor_id for the error struct.
+                match parse_datetime_to_micros(value, field_name, &self.descriptor.infusion_id) {
+                    Ok(micros) => Some(serde_json::Value::Number(micros.into())),
+                    Err(_) => {
+                        // CR-001: delegated to warn_coercion_failed.
+                        self.warn_coercion_failed(field_name, value);
+                        None
+                    }
+                }
+            }
+            // Utf8 ("string" or "json"): passthrough — always Some, no coercion needed.
+            _ => Some(serde_json::Value::String(value.to_owned())),
+        }
     }
 
     /// Project the declared `source_column` from a JSON object value, or passthrough.
@@ -1623,6 +1898,1273 @@ mod tests {
             distance <= 500,
             "F-TTL-1: expiry distance from now must be <= 500s (consistent with TTL=300, not TTL=3600); \
              distance={distance}s. If this fails, the per-descriptor TTL is not being applied."
+        );
+    }
+
+    // ── S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Red Gate Tests ───────────────────
+    // RGT-001 through RGT-010 (ADR-051 D1/D2/D4; BC-2.19.001 v2.2)
+    // S-DEMO-ENRICHMENT-TYPED-OUTPUT-001: RGT tests GREEN after typed-output implementation.
+
+    /// RGT-001 (ADR-051 D1): output_type string → Arrow DataType mapping via return_type().
+    ///
+    /// BC-2.19.001 v2.2 INV-ENRICH-TYPED-001: every enrichment UDF must produce typed output
+    /// consistent with the declared output_type field in the infusion spec.
+    ///
+    /// RED GATE (pre-fix): `return_type()` returned `DataType::Utf8` for all types.
+    /// Assertions for integer/float/boolean/datetime failed; string/json passed vacuously.
+    /// After `output_arrow_type` was wired into `return_type()`: all 6 cases pass.
+    #[test]
+    fn test_return_type_matches_output_type_for_all_declared_types() {
+        use datafusion::arrow::datatypes::{DataType, TimeUnit};
+        use datafusion::logical_expr::ScalarUDFImpl;
+
+        // ADR-051 D1 canonical mapping: output_type string → Arrow DataType.
+        let cases: &[(&str, DataType)] = &[
+            ("string", DataType::Utf8),
+            ("json", DataType::Utf8),
+            ("integer", DataType::Int64),
+            ("float", DataType::Float64),
+            ("boolean", DataType::Boolean),
+            (
+                "datetime",
+                DataType::Timestamp(TimeUnit::Microsecond, Some("UTC".into())),
+            ),
+        ];
+
+        for (output_type_str, expected) in cases {
+            let (_, src) = CountingSource::new_returning("42");
+            let descriptor = InfusionUdfDescriptor::new(
+                &format!("rgt001_{output_type_str}"),
+                "ip",
+                *output_type_str,
+                "typed_test_infusion",
+                src,
+                None,
+                super::DEFAULT_CACHE_TTL_SECS,
+                "",
+            );
+            let udf = super::InfusionAsyncUdf::new(descriptor);
+            let actual = udf
+                .return_type(&[DataType::Utf8])
+                .expect("return_type must not error");
+            assert_eq!(
+                actual, *expected,
+                "ADR-051 D1 RGT-001: output_type='{}' → expected {:?} but return_type() \
+                 returned {:?}. (pre-fix: return_type() returned Utf8 for all types) \
+                 (INV-ENRICH-TYPED-001 / BC-2.19.001 v2.2)",
+                output_type_str, expected, actual
+            );
+        }
+    }
+
+    /// RGT-003 (ADR-051 D1): DataFusion executes integer-output UDF and emits Int64 column.
+    ///
+    /// RED GATE (pre-fix): `return_type()` returned Utf8 → DataFusion planned a Utf8 output column;
+    /// `assert_eq!(actual_type, DataType::Int64)` failed with Utf8 ≠ Int64.
+    /// After `output_arrow_type` was wired into `return_type()`: output schema field is DataType::Int64.
+    #[tokio::test]
+    async fn test_invoke_async_with_args_returns_int64_array_for_integer_output_type() {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+        let (_, src) = CountingSource::new_returning("42");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score_int",
+            "ip",
+            "integer",
+            "threat_intel_infusion",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        register_infusion_udfs(&ctx, vec![descriptor]).expect("UDF registration must succeed");
+
+        let schema = Arc::new(Schema::new(vec![Field::new("ioc", DataType::Utf8, false)]));
+        let arr = StringArray::from(vec!["8.8.8.8"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("RecordBatch::try_new must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("MemTable::try_new must succeed");
+        ctx.register_table("ioc_events_int", Arc::new(table))
+            .expect("register_table must succeed");
+
+        let df = ctx
+            .sql("SELECT threat_score_int(ioc) AS enriched FROM ioc_events_int")
+            .await
+            .expect("SQL must parse");
+        let batches = df.collect().await.expect("query must execute");
+        assert!(!batches.is_empty(), "must have at least one output batch");
+
+        let actual_type = batches[0].schema().field(0).data_type().clone();
+        assert_eq!(
+            actual_type,
+            DataType::Int64,
+            "ADR-051 D1 RGT-003: output_type='integer' → enriched column must be Int64 \
+             but got {:?}. (pre-fix: return_type() returned Utf8 — INV-ENRICH-TYPED-001)",
+            actual_type
+        );
+        // MED-001+LOW-001: assert the actual row VALUE (not just the schema type).
+        // A regression where coerce_to_typed returned Some(Value::String("42")) instead of
+        // Some(Value::Number(42)) would yield a NULL row here; schema type alone would still pass.
+        // NOTE: Arrow's Int64Array.value(n) returns 0 on null; since 42 ≠ 0 this catches
+        // both the null-row regression AND the wrong-value regression.
+        use datafusion::arrow::array::Int64Array;
+        let col = batches[0].column(0);
+        let int_arr = col
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .expect("output column must downcast to Int64Array");
+        assert_eq!(
+            int_arr.value(0),
+            42_i64,
+            "MED-001+LOW-001 RGT-003: Int64 row[0] value must be 42 (source returns '42'). \
+             A null row or wrong type produces 0, not 42. Got: {}",
+            int_arr.value(0)
+        );
+    }
+
+    /// RGT-004 (ADR-051 D1): DataFusion emits Float64 column for float output_type.
+    ///
+    /// RED GATE (pre-fix): `return_type()` returned Utf8 → Float64 assertion failed.
+    #[tokio::test]
+    async fn test_invoke_async_with_args_returns_float64_array_for_float_output_type() {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+        let (_, src) = CountingSource::new_returning("3.14");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score_float",
+            "ip",
+            "float",
+            "threat_intel_infusion",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        register_infusion_udfs(&ctx, vec![descriptor]).expect("UDF registration must succeed");
+
+        let schema = Arc::new(Schema::new(vec![Field::new("ioc", DataType::Utf8, false)]));
+        let arr = StringArray::from(vec!["8.8.8.8"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("RecordBatch::try_new must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("MemTable::try_new must succeed");
+        ctx.register_table("ioc_events_float", Arc::new(table))
+            .expect("register_table must succeed");
+
+        let df = ctx
+            .sql("SELECT threat_score_float(ioc) AS enriched FROM ioc_events_float")
+            .await
+            .expect("SQL must parse");
+        let batches = df.collect().await.expect("query must execute");
+        assert!(!batches.is_empty(), "must have at least one output batch");
+
+        let actual_type = batches[0].schema().field(0).data_type().clone();
+        assert_eq!(
+            actual_type,
+            DataType::Float64,
+            "ADR-051 D1 RGT-004: output_type='float' → enriched column must be Float64 \
+             but got {:?}. (pre-fix: return_type() returned Utf8 for all types)",
+            actual_type
+        );
+        // MED-001+LOW-001: assert the actual row VALUE.
+        use datafusion::arrow::array::Float64Array;
+        let col = batches[0].column(0);
+        let float_arr = col
+            .as_any()
+            .downcast_ref::<Float64Array>()
+            .expect("output column must downcast to Float64Array");
+        // NOTE: Float64Array.value(n) returns 0.0 on null; 3.14 ≠ 0.0 catches both null and
+        // wrong-type regressions without needing the Array trait in scope.
+        assert!(
+            (float_arr.value(0) - 3.14_f64).abs() < 1e-10,
+            "MED-001+LOW-001 RGT-004: Float64 row[0] value must be ~3.14 (source returns '3.14'). \
+             Got: {}",
+            float_arr.value(0)
+        );
+    }
+
+    /// RGT-005 (ADR-051 D1): DataFusion emits Boolean column for boolean output_type.
+    ///
+    /// RED GATE (pre-fix): `return_type()` returned Utf8 → Boolean assertion failed.
+    #[tokio::test]
+    async fn test_invoke_async_with_args_returns_boolean_array_for_boolean_output_type() {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+        let (_, src) = CountingSource::new_returning("true");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_is_malicious",
+            "ip",
+            "boolean",
+            "threat_intel_infusion",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        register_infusion_udfs(&ctx, vec![descriptor]).expect("UDF registration must succeed");
+
+        let schema = Arc::new(Schema::new(vec![Field::new("ioc", DataType::Utf8, false)]));
+        let arr = StringArray::from(vec!["8.8.8.8"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("RecordBatch::try_new must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("MemTable::try_new must succeed");
+        ctx.register_table("ioc_events_bool", Arc::new(table))
+            .expect("register_table must succeed");
+
+        let df = ctx
+            .sql("SELECT threat_is_malicious(ioc) AS enriched FROM ioc_events_bool")
+            .await
+            .expect("SQL must parse");
+        let batches = df.collect().await.expect("query must execute");
+        assert!(!batches.is_empty(), "must have at least one output batch");
+
+        let actual_type = batches[0].schema().field(0).data_type().clone();
+        assert_eq!(
+            actual_type,
+            DataType::Boolean,
+            "ADR-051 D1 RGT-005: output_type='boolean' → enriched column must be Boolean \
+             but got {:?}. (pre-fix: return_type() returned Utf8 for all types)",
+            actual_type
+        );
+        // MED-001+LOW-001: assert the actual row VALUE.
+        use datafusion::arrow::array::BooleanArray;
+        let col = batches[0].column(0);
+        let bool_arr = col
+            .as_any()
+            .downcast_ref::<BooleanArray>()
+            .expect("output column must downcast to BooleanArray");
+        // NOTE: BooleanArray.value(n) returns false on null; expected is true, so false ≠ true
+        // catches both the null-row and wrong-type regressions without needing Array trait in scope.
+        assert!(
+            bool_arr.value(0),
+            "MED-001+LOW-001 RGT-005: Boolean row[0] value must be true (source returns 'true'). \
+             Got: false"
+        );
+    }
+
+    /// RGT-006 (ADR-051 D1 + ADR-052): DataFusion emits Timestamp(Microsecond, UTC)
+    /// for datetime output_type.
+    ///
+    /// ADR-052: sensor datetime → Timestamp(µs, UTC). ADR-051 D1 extends this to enrichment UDFs.
+    ///
+    /// RED GATE (pre-fix): `return_type()` returned Utf8 → Timestamp assertion failed.
+    #[tokio::test]
+    async fn test_invoke_async_with_args_returns_timestamp_microsecond_array_for_datetime_output_type(
+    ) {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema, TimeUnit};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+        let (_, src) = CountingSource::new_returning("2024-01-01T00:00:00Z");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_last_seen",
+            "ip",
+            "datetime",
+            "threat_intel_infusion",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        register_infusion_udfs(&ctx, vec![descriptor]).expect("UDF registration must succeed");
+
+        let schema = Arc::new(Schema::new(vec![Field::new("ioc", DataType::Utf8, false)]));
+        let arr = StringArray::from(vec!["8.8.8.8"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("RecordBatch::try_new must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("MemTable::try_new must succeed");
+        ctx.register_table("ioc_events_dt", Arc::new(table))
+            .expect("register_table must succeed");
+
+        let df = ctx
+            .sql("SELECT threat_last_seen(ioc) AS enriched FROM ioc_events_dt")
+            .await
+            .expect("SQL must parse");
+        let batches = df.collect().await.expect("query must execute");
+        assert!(!batches.is_empty(), "must have at least one output batch");
+
+        let actual_type = batches[0].schema().field(0).data_type().clone();
+        let expected_type = DataType::Timestamp(TimeUnit::Microsecond, Some("UTC".into()));
+        assert_eq!(
+            actual_type, expected_type,
+            "ADR-051 D1+ADR-052 RGT-006: output_type='datetime' → enriched column must be \
+             Timestamp(Microsecond,UTC) but got {:?}. (pre-fix: return_type() returned Utf8 for all types)",
+            actual_type
+        );
+        // MED-001+LOW-001: assert the actual row VALUE (microseconds since epoch).
+        // 2024-01-01T00:00:00Z = 1704067200 seconds = 1704067200_000_000 µs since epoch.
+        use datafusion::arrow::array::TimestampMicrosecondArray;
+        let col = batches[0].column(0);
+        let ts_arr = col
+            .as_any()
+            .downcast_ref::<TimestampMicrosecondArray>()
+            .expect("output column must downcast to TimestampMicrosecondArray");
+        // NOTE: TimestampMicrosecondArray.value(n) returns 0 on null; EXPECTED_MICROS ≠ 0
+        // catches both the null-row and wrong-value regressions without needing Array trait in scope.
+        const EXPECTED_MICROS: i64 = 1_704_067_200_000_000;
+        assert_eq!(
+            ts_arr.value(0),
+            EXPECTED_MICROS,
+            "MED-001+LOW-001 RGT-006: Timestamp row[0] value must be {EXPECTED_MICROS} µs \
+             (2024-01-01T00:00:00Z). Got: {}",
+            ts_arr.value(0)
+        );
+    }
+
+    /// RGT-007 (ADR-051 D2 / E-INFUSE-014): integer coercion failure returns None (NULL row).
+    ///
+    /// "not-a-number" cannot be parsed by i64::from_str → coerce_to_typed returns None.
+    /// On None: the UDF row produces NULL (AD-017: truncated_value = first 50 chars in warning).
+    #[test]
+    fn test_coerce_to_typed_integer_failure_produces_null_e_infuse_014() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("42");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score",
+            "ip",
+            "integer",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // ADR-051 D2: "not-a-number" → i64::from_str fails → must return None (E-INFUSE-014 NULL).
+        // coerce_to_typed is implemented; assertion verifies E-INFUSE-014 failure returns None.
+        let result = udf.coerce_to_typed("not-a-number", &DataType::Int64, "threat_score");
+        assert!(
+            result.is_none(),
+            "ADR-051 D2 RGT-007 E-INFUSE-014: coerce_to_typed('not-a-number', Int64, \
+             'threat_score') must return None (invalid integer). Got: {:?}",
+            result
+        );
+    }
+
+    /// RGT-008 (ADR-051 D2 / E-INFUSE-014): float coercion failure returns None.
+    #[test]
+    fn test_coerce_to_typed_float_failure_produces_null_e_infuse_014() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("3.14");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_confidence",
+            "ip",
+            "float",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // ADR-051 D2: "not-a-float" → f64::from_str fails → must return None (E-INFUSE-014).
+        // coerce_to_typed is implemented; assertion verifies E-INFUSE-014 failure returns None.
+        let result = udf.coerce_to_typed("not-a-float", &DataType::Float64, "threat_confidence");
+        assert!(
+            result.is_none(),
+            "ADR-051 D2 RGT-008 E-INFUSE-014: coerce_to_typed('not-a-float', Float64, \
+             'threat_confidence') must return None (invalid float). Got: {:?}",
+            result
+        );
+    }
+
+    /// RGT-009 (ADR-051 D2 / E-INFUSE-014): unrecognized boolean string returns None.
+    ///
+    /// ADR-051 D2 boolean branch: case-insensitive {true,1,yes} → true; {false,0,no} → false.
+    /// Any other value (e.g., "xyz") is unrecognized → returns None (E-INFUSE-014).
+    #[test]
+    fn test_coerce_to_typed_boolean_unrecognized_value_produces_null_e_infuse_014() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("xyz");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_is_malicious",
+            "ip",
+            "boolean",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // ADR-051 D2: "xyz" ∉ {true,1,yes,false,0,no} → must return None (E-INFUSE-014).
+        // coerce_to_typed is implemented; assertion verifies E-INFUSE-014 failure returns None.
+        let result = udf.coerce_to_typed("xyz", &DataType::Boolean, "threat_is_malicious");
+        assert!(
+            result.is_none(),
+            "ADR-051 D2 RGT-009 E-INFUSE-014: coerce_to_typed('xyz', Boolean, \
+             'threat_is_malicious') must return None (unrecognized boolean). Got: {:?}",
+            result
+        );
+    }
+
+    // ── MED-001+LOW-001 (LOCAL adversary pass-2): positive-value assertions ──────────────
+    // The following tests assert that coerce_to_typed returns the correct TYPED VALUE
+    // (not just that failures return None). A regression where the Int64 branch returned
+    // Some(Value::String("42")) instead of Some(Value::Number(42)) would silently produce
+    // an ALL-NULL Int64 column and every prior type-only test would still pass.
+
+    /// MED-001+LOW-001: coerce_to_typed("42", Int64) must return Some(Number(42)).
+    ///
+    /// This is the load-bearing positive-value assertion: coerce_to_typed must produce
+    /// `Some(serde_json::Value::Number(42.into()))` — the type-only tests in RGT-002 did
+    /// not catch a regression where Some(Value::String("42")) was returned.
+    #[test]
+    fn test_coerce_to_typed_integer_valid_returns_some_number() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("42");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score",
+            "ip",
+            "integer",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        let result = udf.coerce_to_typed("42", &DataType::Int64, "threat_score");
+        assert_eq!(
+            result,
+            Some(serde_json::Value::Number(42_i64.into())),
+            "MED-001+LOW-001: coerce_to_typed('42', Int64) must return Some(Number(42)). \
+             Got: {:?}",
+            result
+        );
+    }
+
+    /// MED-001+LOW-001: coerce_to_typed("8.1", Float64) must return Some(Number(8.1)).
+    #[test]
+    fn test_coerce_to_typed_float_valid_returns_some_number() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("8.1");
+        let descriptor = InfusionUdfDescriptor::new(
+            "cvss_base_score",
+            "ip",
+            "float",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        let result = udf.coerce_to_typed("8.1", &DataType::Float64, "cvss_base_score");
+        match result {
+            Some(serde_json::Value::Number(n)) => {
+                let f = n.as_f64().expect("must be representable as f64");
+                assert!(
+                    (f - 8.1_f64).abs() < 1e-10,
+                    "MED-001+LOW-001: coerce_to_typed('8.1', Float64) must return ~8.1. Got: {f}"
+                );
+            }
+            other => panic!(
+                "MED-001+LOW-001: coerce_to_typed('8.1', Float64) must return Some(Number(8.1)). \
+                 Got: {other:?}"
+            ),
+        }
+    }
+
+    /// MED-001+LOW-001: coerce_to_typed for boolean — all true-variants and false-variants.
+    ///
+    /// ADR-051 D2: case-insensitive {true,1,yes} → true; {false,0,no} → false.
+    #[test]
+    fn test_coerce_to_typed_boolean_valid_variants_return_some_bool() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("true");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_is_known_malicious",
+            "ip",
+            "boolean",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // true-valued variants.
+        for true_str in &["true", "1", "yes", "TRUE", "YES"] {
+            let result =
+                udf.coerce_to_typed(true_str, &DataType::Boolean, "threat_is_known_malicious");
+            assert_eq!(
+                result,
+                Some(serde_json::Value::Bool(true)),
+                "MED-001+LOW-001: coerce_to_typed('{true_str}', Boolean) must return \
+                 Some(Bool(true)). Got: {result:?}"
+            );
+        }
+        // false-valued variants.
+        for false_str in &["false", "0", "no", "FALSE", "NO"] {
+            let result =
+                udf.coerce_to_typed(false_str, &DataType::Boolean, "threat_is_known_malicious");
+            assert_eq!(
+                result,
+                Some(serde_json::Value::Bool(false)),
+                "MED-001+LOW-001: coerce_to_typed('{false_str}', Boolean) must return \
+                 Some(Bool(false)). Got: {result:?}"
+            );
+        }
+    }
+
+    /// MED-001+LOW-001: coerce_to_typed("2024-01-01T00:00:00Z", Datetime) → Some(Number(micros)).
+    ///
+    /// ADR-052: datetime strings → i64 microseconds since epoch via parse_datetime_to_micros.
+    #[test]
+    fn test_coerce_to_typed_datetime_valid_returns_some_micros() {
+        use datafusion::arrow::datatypes::{DataType, TimeUnit};
+
+        let (_, src) = CountingSource::new_returning("2024-01-01T00:00:00Z");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_last_seen",
+            "ip",
+            "datetime",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        let dt_type = DataType::Timestamp(TimeUnit::Microsecond, Some("UTC".into()));
+        let result = udf.coerce_to_typed("2024-01-01T00:00:00Z", &dt_type, "threat_last_seen");
+
+        // 2024-01-01T00:00:00Z = 1704067200 seconds = 1704067200_000_000 µs since epoch.
+        const EXPECTED_MICROS: i64 = 1_704_067_200_000_000;
+        assert_eq!(
+            result,
+            Some(serde_json::Value::Number(EXPECTED_MICROS.into())),
+            "MED-001+LOW-001: coerce_to_typed('2024-01-01T00:00:00Z', Datetime) must return \
+             Some(Number({EXPECTED_MICROS})). Got: {result:?}"
+        );
+    }
+
+    /// MED-001 (LOCAL adversary pass-1): `InfusionError::TypeCoercionFailed` Display format is canonical E-INFUSE-014.
+    ///
+    /// Verifies two things:
+    ///   1. `coerce_to_typed("not_a_number", &DataType::Int64, "score_field")` returns `None`
+    ///      (non-integer value → NULL row, E-INFUSE-014).
+    ///   2. `InfusionError::new_type_coercion_failed(...)` Display matches the canonical format:
+    ///      `"E-INFUSE-014: enrichment field 'score_field' (infusion 'threat_intel'): …"`.
+    ///
+    /// This is the load-bearing test proving the variant is CONSTRUCTED and its Display is canonical
+    /// (TD-VSDD-059: paper-fix detection — doc-comment or rename alone would NOT pass this).
+    #[test]
+    fn test_med001_type_coercion_failed_variant_display_is_canonical_e_infuse_014() {
+        use datafusion::arrow::datatypes::DataType;
+        use prism_core::error::InfusionError;
+
+        let (_, src) = CountingSource::new_returning("not_a_number");
+        let descriptor = InfusionUdfDescriptor::new(
+            "score_field_udf",
+            "ip",
+            "integer",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // 1. coerce_to_typed returns None for an invalid integer value.
+        let result = udf.coerce_to_typed("not_a_number", &DataType::Int64, "score_field");
+        assert!(
+            result.is_none(),
+            "MED-001: coerce_to_typed must return None (NULL row) for non-integer value. Got: {:?}",
+            result
+        );
+
+        // 2. The canonical error Display matches E-INFUSE-014 format.
+        let err = InfusionError::new_type_coercion_failed(
+            "score_field",
+            "threat_intel",
+            "integer",
+            "not_a_number",
+        );
+        let display = format!("{err}");
+        assert!(
+            display.starts_with("E-INFUSE-014:"),
+            "MED-001: TypeCoercionFailed Display must start with 'E-INFUSE-014:'. Got: {display}"
+        );
+        assert!(
+            display.contains("score_field"),
+            "MED-001: TypeCoercionFailed Display must contain field_name 'score_field'. Got: {display}"
+        );
+        assert!(
+            display.contains("threat_intel"),
+            "MED-001: TypeCoercionFailed Display must contain infusion_id 'threat_intel'. Got: {display}"
+        );
+        assert!(
+            display.contains("integer"),
+            "MED-001: TypeCoercionFailed Display must contain declared_type 'integer'. Got: {display}"
+        );
+        assert!(
+            display.contains("not_a_number"),
+            "MED-001: TypeCoercionFailed Display must contain truncated_value 'not_a_number'. Got: {display}"
+        );
+        assert!(
+            display.contains("row produces NULL"),
+            "MED-001: TypeCoercionFailed Display must contain 'row produces NULL'. Got: {display}"
+        );
+    }
+
+    /// RGT-010 (ADR-051 D4): JSON-list input to non-json typed UDF returns None (E-INFUSE-014).
+    ///
+    /// ADR-051 D4 Scalar-Input rule: if the projected value begins with `[` (JSON array)
+    /// and `output_type != "json"`, coerce_to_typed returns None.
+    /// ENRICH-1 list-dispatch is RETAINED only for `output_type = "json"`.
+    #[test]
+    fn test_json_list_input_to_typed_output_udf_produces_null_e_infuse_014() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("[\"hash1\",\"hash2\"]");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score_list",
+            "ip",
+            "integer",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // ADR-051 D4: "[...]" starts with '[' → JSON-list input to non-json (integer) UDF
+        // → must return None (E-INFUSE-014 NULL; ENRICH-1 list-dispatch disabled for Int64).
+        // coerce_to_typed is implemented; assertion verifies E-INFUSE-014 failure returns None.
+        let result = udf.coerce_to_typed("[\"hash1\",\"hash2\"]", &DataType::Int64, "threat_score");
+        assert!(
+            result.is_none(),
+            "ADR-051 D4 RGT-010 E-INFUSE-014: JSON-list input '[...]' to integer UDF must \
+             return None (Scalar-Input rule). Got: {:?}",
+            result
+        );
+    }
+
+    // ── LOW-001 + OBS-002 (LOCAL adversary pass-3): EC-002 / EC-006 assertions ────────────
+    // These tests are load-bearing: they prevent future maintainers from accidentally
+    // "fixing" the Int64 fallback to convert float strings to integers.
+
+    /// EC-002 (ADR-051 D2): float-valued string into Int64 field yields NULL + E-INFUSE-014.
+    ///
+    /// serde_json parses "95.7" as an f64-backed Number; n.as_i64() returns None for
+    /// f64-backed Numbers, so "95.7" → Int64 correctly produces NULL.
+    ///
+    /// The prior comment in the Int64 branch said "handles '42.0' where the plugin returns
+    /// a floating-point representation of an integer" — this was BACKWARDS. The comment has
+    /// been corrected; this test is the load-bearing assertion that guards against reverting
+    /// the behavior to silently truncate floats into integers (a data corruption regression).
+    #[test]
+    fn test_ec002_float_string_to_integer_yields_null() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("95.7");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score",
+            "ip",
+            "integer",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // EC-002: "95.7" → i64::from_str fails (decimal point present).
+        // serde_json::from_str("95.7") → Number backed as f64.
+        // n.as_i64() returns None for f64-backed serde_json::Number → NULL + E-INFUSE-014.
+        // "95.7" does NOT coerce to 95; float strings into integer fields produce NULL.
+        let result = udf.coerce_to_typed("95.7", &DataType::Int64, "threat_score");
+        assert!(
+            result.is_none(),
+            "EC-002 (ADR-051 D2 LOW-001): coerce_to_typed('95.7', Int64, 'threat_score') must \
+             return None. Float-valued JSON numbers yield NULL + E-INFUSE-014; they do NOT \
+             coerce to the nearest integer (that would be silent data corruption). Got: {:?}",
+            result
+        );
+    }
+
+    /// EC-006 (ADR-051 D2): empty string into any typed field yields NULL + E-INFUSE-014.
+    ///
+    /// An empty "" input means the source returned no value or the upstream column was blank.
+    /// Both i64::from_str("") and serde_json::from_str("") fail → None → NULL.
+    #[test]
+    fn test_ec006_empty_input_yields_null() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score",
+            "ip",
+            "integer",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // EC-006: "" → i64::from_str("") fails → serde_json::from_str("") fails →
+        // None → NULL + E-INFUSE-014. Empty input must never produce a default value.
+        let result = udf.coerce_to_typed("", &DataType::Int64, "threat_score");
+        assert!(
+            result.is_none(),
+            "EC-006 (ADR-051 D2 OBS-002): coerce_to_typed('', Int64, 'threat_score') must \
+             return None. Empty input yields NULL + E-INFUSE-014 (no default substitution). \
+             Got: {:?}",
+            result
+        );
+    }
+
+    // ── RGT-023 (ADV-P11-OBS-001 fix-burst-9): no double-encoding on json output ──────────
+
+    /// RGT-023 (ADV-P11-OBS-001): `threat_sources` with `output_type = "json"`,
+    /// `source_column = "threat_sources"`, and scalar input (`iocs_value_first`) produces
+    /// single-encoded JSON array output, NOT double-encoded.
+    ///
+    /// # Defect context (ADV-P11-OBS-001)
+    ///
+    /// When `input_field = "iocs_value"` (JSON-list column), ENRICH-1 list-dispatch fires:
+    /// (a) UDF receives input `["1.2.3.4"]` (JSON list from the iocs_value column).
+    /// (b) ENRICH-1 fires (starts with `[`), calls `enrich_one_scalar("1.2.3.4")` per element.
+    /// (c) Source returns `{"threat_sources": ["greynoise","abuseipdb"]}` for "1.2.3.4".
+    /// (d) `project_value` extracts the Array via `other.to_string()` → String `["greynoise","abuseipdb"]`.
+    /// (e) `serde_json::to_string(&list_results)` wraps it → `["[\"greynoise\",\"abuseipdb\"]"]`.
+    /// RESULT: outer JSON array wrapping a JSON-encoded array string — double-encoding (Failure A).
+    ///
+    /// # Fix path (this test validates)
+    ///
+    /// With `input_field = "iocs_value_first"` (scalar), the UDF receives `"1.2.3.4"` (NOT `["1.2.3.4"]`):
+    /// (a) ENRICH-1 does NOT fire (input does not start with `[`).
+    /// (b) `enrich_one_scalar("1.2.3.4")` → source returns full response object.
+    /// (c) `project_value("threat_sources")` extracts the Array via `other.to_string()` →
+    ///     String `["greynoise","abuseipdb"]` stored directly as Utf8 cell value.
+    /// RESULT: `["greynoise","abuseipdb"]` — single-encoded JSON array (plain string elements).
+    ///
+    /// # SID-1 rationale
+    ///
+    /// The TOML fix (`input_field = "iocs_value_first"` for threat_sources) is the implementer's
+    /// task. This test validates the UDF correctly handles the fixed scalar path. It is a unit
+    /// test in-process at the dependency boundary — no external service, no DTU clone required.
+    ///
+    /// Traces to: AC-009, BC-2.19.001 v2.2 INV-ENRICH-TYPED-001, ADV-P11-OBS-001.
+    #[tokio::test]
+    async fn test_threat_sources_json_output_no_double_encoding() {
+        use datafusion::arrow::array::{Array, StringArray};
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+
+        // Mock source: returns the full ThreatIntel response object for any input.
+        // Confirmed shape from prism-dtu-threatintel/src/routes/lookup.rs Malicious fixture
+        // (2026-06-17): threat_sources is Vec<String> (JSON array), NOT a plain string.
+        // Direct CountingSource construction — `return_value` holds the JSON object.
+        let src: Arc<dyn InfusionSource> = Arc::new(CountingSource {
+            call_count: Arc::new(AtomicUsize::new(0)),
+            return_value: Some(serde_json::json!({
+                "lookup_value": "1.2.3.4",
+                "threat_score": 95,
+                "threat_is_known_malicious": true,
+                "threat_sources": ["greynoise", "abuseipdb"]
+            })),
+        });
+
+        // Descriptor: output_type = "json", source_column = "threat_sources",
+        // input_field = "iocs_value_first" — the CORRECT threatintel.infusion.toml config
+        // after the ADV-P11-OBS-001 fix.
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_sources", // name — UDF is named after the enrichment field
+            "ip",             // input_type — enriched by IP address lookup
+            "json",           // output_type — Vec<String> array serialized as JSON
+            "threatintel",    // infusion_id
+            src,
+            Some("threat_sources".to_string()), // source_column — project this field from response
+            super::DEFAULT_CACHE_TTL_SECS,      // cache_ttl_secs
+            "iocs_value_first",                 // input_field — scalar companion, NOT iocs_value
+        );
+        register_infusion_udfs(&ctx, vec![descriptor])
+            .expect("RGT-023: UDF registration must succeed");
+
+        // Table: one row with scalar input "1.2.3.4".
+        // This represents the value from the `iocs_value_first` column in the sensor data —
+        // the first extracted IOC scalar (not the JSON list from `iocs_value`).
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "iocs_value_first",
+            DataType::Utf8,
+            false,
+        )]));
+        let arr = StringArray::from(vec!["1.2.3.4"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("RecordBatch construction must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("MemTable construction must succeed");
+        ctx.register_table("enrichment_test", Arc::new(table))
+            .expect("register_table must succeed");
+
+        // Execute the enrichment query: scalar `iocs_value_first` column feeds the UDF.
+        // Simulates: `SELECT threat_sources(iocs_value_first) FROM enrichment_test`
+        // which is the post-fix T13 canonical query pattern (AC-009).
+        let df = ctx
+            .sql("SELECT threat_sources(iocs_value_first) AS ts_enriched FROM enrichment_test")
+            .await
+            .expect("RGT-023: SQL must parse and plan");
+        let batches = df.collect().await.expect("RGT-023: query must execute");
+
+        assert_eq!(
+            batches.len(),
+            1,
+            "RGT-023: must have exactly 1 output batch"
+        );
+        let batch = &batches[0];
+        assert_eq!(
+            batch.num_rows(),
+            1,
+            "RGT-023: must have exactly 1 output row"
+        );
+
+        let output_col = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .expect("RGT-023: threat_sources output must be StringArray (output_type=json → Utf8)");
+
+        assert!(
+            !output_col.is_null(0),
+            "RGT-023: threat_sources enrichment for scalar input '1.2.3.4' must return \
+             a non-NULL value. Got NULL."
+        );
+
+        let cell_value = output_col.value(0);
+
+        // LOAD-BEARING assertion (TD-VSDD-059): exact string content check.
+        // Expected: `["greynoise","abuseipdb"]` — single-encoded JSON array.
+        // Forbidden: `["[\"greynoise\",\"abuseipdb\"]"]` — double-encoded (ENRICH-1 Failure A).
+        // The double-encoded form would arise if ENRICH-1 list-dispatch fired, wrapped the
+        // projected array-string in `serde_json::to_string(&list_results)`.
+        assert_eq!(
+            cell_value, r#"["greynoise","abuseipdb"]"#,
+            "RGT-023 ADV-P11-OBS-001: threat_sources output must be the single-encoded JSON \
+             array '[\"greynoise\",\"abuseipdb\"]' (plain string elements). \
+             Double-encoded form '[\"[\\\"greynoise\\\",\\\"abuseipdb\\\"]\"]' would indicate \
+             ENRICH-1 list-dispatch fired on scalar input (Failure A — prevented by using \
+             iocs_value_first instead of iocs_value). Got: {:?}",
+            cell_value
+        );
+
+        // Verify parsed elements are plain strings, not JSON-encoded strings.
+        // This catches any double-encoding that produces elements like `["greynoise","abuseipdb"]`
+        // as a single string element rather than two separate string elements.
+        let parsed: Vec<String> = serde_json::from_str(cell_value).unwrap_or_else(|e| {
+            panic!(
+                "RGT-023: threat_sources cell value must be valid JSON array of strings. \
+                 Parse error: {e}. Got cell value: {:?}",
+                cell_value
+            )
+        });
+        assert_eq!(
+            parsed,
+            vec!["greynoise", "abuseipdb"],
+            "RGT-023 ADV-P11-OBS-001: parsed threat_sources elements must be plain strings \
+             [\"greynoise\", \"abuseipdb\"], NOT JSON-encoded strings. \
+             Double-encoded elements would look like '[\"greynoise\",\"abuseipdb\"]' as a \
+             single element (Failure A). Got: {:?}",
+            parsed
+        );
+        assert_eq!(
+            parsed.len(),
+            2,
+            "RGT-023: parsed threat_sources must have exactly 2 elements (greynoise, abuseipdb). \
+             Got: {:?}",
+            parsed
+        );
+    }
+
+    // ── SEC-001(b) (PR-216 fix-burst-13): TypeCoercionFailed control-char sanitization ─────
+
+    /// SEC-001 (CWE-117, PR-216) / AC-005 — TypeCoercionFailed metadata fields stripped.
+    ///
+    /// `field_name`, `infusion_id`, and `declared_type` on `TypeCoercionFailed` originate from
+    /// operator-supplied TOML specs and are attacker-influenceable. Control characters (0x00–0x1F,
+    /// 0x7F) in these values must be stripped before `TypeCoercionFailed` is constructed so that
+    /// the rendered `E-INFUSE-014` Display message contains no control chars.
+    ///
+    /// This prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured
+    /// logs (AD-017 extension, error-taxonomy v2.17 SEC-001 Rendering Note).
+    ///
+    /// RED (fix-burst-13): `new_type_coercion_failed` currently passes all three fields through
+    /// verbatim (`field_name.into()`, `infusion_id.into()`, `declared_type.into()`) without any
+    /// control-char stripping. This test FAILS against current code: the rendered Display will
+    /// contain 0x01, 0x02, and 0x03 at the positions where control chars were interpolated.
+    ///
+    /// Implementer action (error-taxonomy v2.17 SEC-001 Rendering Note):
+    /// Add a `sanitize_for_log(s: &str) -> String` helper
+    ///   (`s.chars().filter(|c| !c.is_ascii_control()).collect()`)
+    /// and call it on `field_name`, `infusion_id`, and `declared_type` inside
+    /// `new_type_coercion_failed` before storing them in the struct.
+    #[test]
+    fn test_sec001_type_coercion_failed_ctrl_chars_stripped_from_metadata_fields() {
+        use prism_core::InfusionError;
+
+        // Construct via the public constructor with control chars in all three metadata fields.
+        let err = InfusionError::new_type_coercion_failed(
+            "field\x01name",  // field_name: 0x01 (SOH) — must be stripped
+            "infusion\x02id", // infusion_id: 0x02 (STX) — must be stripped
+            "integer\x03",    // declared_type: 0x03 (ETX) — must be stripped
+            "not_a_number",
+        );
+        let display = format!("{}", err);
+
+        // Assert NO ASCII control chars (0x00–0x1F, 0x7F) in the rendered Display.
+        // RED: current code stores the raw bytes → Display contains 0x01/0x02/0x03.
+        for (i, c) in display.char_indices() {
+            assert!(
+                !c.is_ascii_control(),
+                "SEC-001 E-INFUSE-014 CWE-117: TypeCoercionFailed Display must NOT contain \
+                 ASCII control character U+{:04X} at byte position {} in the rendered message.\n\
+                 Control chars in field_name/infusion_id/declared_type must be stripped before \
+                 TypeCoercionFailed is constructed (new_type_coercion_failed).\n\
+                 Got Display: {:?}",
+                c as u32,
+                i,
+                display
+            );
+        }
+    }
+
+    /// SEC-001 (CWE-117, PR-216) / AC-005 — TypeCoercionFailed truncated_value stripping
+    /// AFTER the 50-char truncation step (not before).
+    ///
+    /// Order semantics: truncation removes content (chars beyond 50); stripping removes control
+    /// chars. The spec requires: truncate first (50-char cap per AD-017), then strip control chars.
+    /// A control char that falls within the 50-char window must be stripped from the stored value.
+    ///
+    /// Test fixture: value = 49 × 'a' + '\x01' (total 50 chars).
+    /// After `chars().take(50)`: truncated_value = "aaa...a\x01" (the \x01 is char 50).
+    /// After sanitization: truncated_value = "aaa...a" (no control chars).
+    /// The rendered Display must NOT contain '\x01'.
+    ///
+    /// RED (fix-burst-13): `new_type_coercion_failed` stores
+    ///   `value.chars().take(50).collect()` WITHOUT stripping — the \x01 survives in
+    ///   `truncated_value`, and the rendered Display contains it.
+    ///
+    /// Implementer action: apply sanitize_for_log to `truncated_value` AFTER the
+    /// `chars().take(50)` truncation.
+    #[test]
+    fn test_sec001_type_coercion_failed_ctrl_chars_stripped_from_truncated_value_after_truncation()
+    {
+        use prism_core::InfusionError;
+
+        // 49 'a' chars + '\x01': the control char is exactly at the 50-char boundary.
+        let value: String = "a".repeat(49) + "\x01";
+        assert_eq!(
+            value.chars().count(),
+            50,
+            "test fixture: value must be exactly 50 chars so \\x01 is the final char after take(50)"
+        );
+
+        let err = InfusionError::new_type_coercion_failed(
+            "threat_score",
+            "threat_intel",
+            "integer",
+            &value,
+        );
+        let display = format!("{}", err);
+
+        // The control char at position 50 (post-truncation) must be stripped.
+        // RED: current code doesn't strip → display contains 0x01.
+        assert!(
+            !display.contains('\x01'),
+            "SEC-001 E-INFUSE-014 CWE-117: truncated_value control char \\x01 must be \
+             stripped AFTER the 50-char truncation. The rendered Display must NOT contain \
+             U+0001. Stripping must happen AFTER truncation (not before — ordering matters \
+             for correct 50-char cap semantics per AD-017). Got: {:?}",
+            display
+        );
+
+        // Belt-and-suspenders: no ASCII control chars at all.
+        for (i, c) in display.char_indices() {
+            assert!(
+                !c.is_ascii_control(),
+                "SEC-001: rendered Display must NOT contain any ASCII control char; \
+                 found U+{:04X} at byte position {}. Got: {:?}",
+                c as u32,
+                i,
+                display
+            );
+        }
+    }
+
+    // ── SEC-002 (PR-216 fix-burst-13): boolean coercion size guard regression ────────────
+
+    /// SEC-002 (CWE-770, PR-216) — REGRESSION GUARD for boolean coercion size guard.
+    ///
+    /// The boolean coercion branch calls `value.to_lowercase()` before the set-membership check.
+    /// `to_lowercase()` is an O(n) heap allocation. For an adversarially large input (> 1024 bytes),
+    /// this allocates unnecessarily. The implementer MUST add:
+    ///   `if s.len() > 1024 { /* emit E-INFUSE-014 */ return None }`
+    /// BEFORE calling `to_lowercase()`, preventing CWE-770 unbounded allocation.
+    ///
+    /// This test is a REGRESSION GUARD: it PASSES against current code (an oversized string does
+    /// not match any of the boolean set members, so `coerce_to_typed` already returns `None`)
+    /// AND against fixed code (the size guard returns `None` for the same reason — the NULL
+    /// outcome is unchanged). The guard exists to ensure the implementer's size gate does NOT
+    /// accidentally change the observable result from `None` to `Some(...)`.
+    ///
+    /// If this test fails, the implementer's size guard has introduced a regression where
+    /// oversized inputs no longer produce NULL.
+    ///
+    /// NOTE: This is intentionally marked as a REGRESSION GUARD (passes pre-fix). It is NOT
+    /// a Red Gate test for SEC-002 itself; the SEC-002 fix is a bounded-cost optimization that
+    /// does NOT change the NULL outcome. The test documents the invariant.
+    #[test]
+    fn test_sec002_boolean_coercion_oversized_input_yields_null_regression_guard() {
+        use datafusion::arrow::datatypes::DataType;
+
+        // > 1024 bytes — triggers the size guard added by the implementer.
+        // Against current code (no size guard): to_lowercase() allocates a huge buffer,
+        // then the trimmed result doesn't match any bool literal → returns None.
+        // Against fixed code (with size guard): returns None immediately.
+        // Either way: None. This is the regression guard.
+        let oversized_value = "a".repeat(1025);
+
+        let (_, src) = CountingSource::new_returning("true"); // source value irrelevant
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_is_malicious",
+            "ip",
+            "boolean",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // REGRESSION GUARD: both current and fixed code must return None for an oversized input.
+        // Fixed code adds an early-return None at > 1024 bytes (before to_lowercase allocation).
+        // This test ensures the NULL outcome is preserved.
+        let result =
+            udf.coerce_to_typed(&oversized_value, &DataType::Boolean, "threat_is_malicious");
+        assert!(
+            result.is_none(),
+            "SEC-002 CWE-770 REGRESSION GUARD: coerce_to_typed(1025-byte input, Boolean, ...) \
+             must return None (NULL). The size guard must preserve the NULL outcome — same \
+             observable result as any unrecognized boolean value. Got: {:?}",
+            result
+        );
+    }
+
+    // ── NEW-SEC-001-R (PR-216 fix-burst-14): structured tracing field control-char sanitization ──
+
+    /// NEW-SEC-001-R (CWE-117, PR-216 fix-burst-14) RED GATE — structured tracing fields in
+    /// `warn_coercion_failed` pass raw values, not sanitized ones.
+    ///
+    /// `warn_coercion_failed` emits `tracing::warn!` with named structured fields:
+    ///
+    /// ```text
+    /// tracing::warn!(
+    ///     event_type = "infusion.coercion_failed",
+    ///     field_name        = %field_name,                              // RAW — no sanitization
+    ///     infusion_id       = %self.descriptor.infusion_id,             // RAW — no sanitization
+    ///     declared_type     = %self.descriptor.output_type,             // RAW — no sanitization
+    ///     truncated_value   = %value.chars().take(50)...,               // RAW — no sanitization
+    ///     "{}", err                                                      // sanitized Display
+    /// )
+    /// ```
+    ///
+    /// Fix-burst-13 (SEC-001) sanitized the `E-INFUSE-014` Display message (via
+    /// `InfusionError::new_type_coercion_failed`), but the STRUCTURED FIELDS still receive raw
+    /// values via `%`. JSON log consumers (e.g., Vector, Loki, SIEM ingestors) parse named fields
+    /// directly from the serialized tracing event — a control char in `field_name` or `infusion_id`
+    /// reaches the JSON field value verbatim, enabling CWE-117 log injection and LLM prompt
+    /// injection into agent-consumed structured logs (AD-017 extension).
+    ///
+    /// **RED GATE (current code):** `%field_name` with value `"threat_score\x01injected"` emits
+    /// U+0001 (SOH) into the captured tracing output. `logs_contain("\x01")` returns `true`.
+    /// The assertion `!logs_contain("\x01")` therefore FAILS against current code.
+    ///
+    /// **After fix:** sanitize `field_name`/`infusion_id`/`declared_type`/`truncated_value` with
+    /// `sanitize_for_log()` (strip chars where `c.is_ascii_control()`) inside `warn_coercion_failed`
+    /// BEFORE passing them as named tracing fields. The U+0001 is removed; `logs_contain("\x01")`
+    /// returns `false`; the assertion PASSES.
+    ///
+    /// Traces to: NEW-SEC-001-R (PR-216 re-review), CWE-117, AD-017, SAP-1.
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_new_sec001_r_warn_coercion_failed_structured_fields_no_raw_control_chars() {
+        use datafusion::arrow::datatypes::DataType;
+
+        // field_name contains SOH (U+0001, ASCII 1) — canonical CWE-117 injection vector.
+        // SOH never appears in normal formatted log output, so its presence is unambiguous.
+        // U+0001 is distinct from the U+0002/U+0003 used in fix-burst-13 SEC-001 tests.
+        let ctrl_field_name = "threat_score\x01injected";
+
+        let (_, src) = CountingSource::new_returning("ignored");
+        let descriptor = InfusionUdfDescriptor::new(
+            "sec001r_udf",
+            "ip",
+            "integer", // output_type = integer; "not-an-integer" → coercion fails → warn fires
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // Drive warn_coercion_failed: "not-an-integer" cannot be coerced to i64.
+        let result = udf.coerce_to_typed("not-an-integer", &DataType::Int64, ctrl_field_name);
+        assert!(
+            result.is_none(),
+            "NEW-SEC-001-R: coerce_to_typed('not-an-integer', Int64, ctrl_field_name) \
+             must return None (prerequisite for the tracing assertion)"
+        );
+
+        // Confirm the coercion_failed event was emitted at all.
+        assert!(
+            logs_contain("infusion.coercion_failed"),
+            "NEW-SEC-001-R: warn_coercion_failed must emit \
+             event_type=infusion.coercion_failed for an uncoercible integer input"
+        );
+
+        // NEW-SEC-001-R LOAD-BEARING ASSERTION: no raw ASCII control char U+0001 in the
+        // captured tracing output.
+        //
+        // Current code:   `field_name = %ctrl_field_name` passes raw bytes →
+        //                 "threat_score\x01injected" IS in the structured field output →
+        //                 logs_contain("\x01") == true → !logs_contain("\x01") == false → FAIL
+        //
+        // After fix:      sanitize_for_log strips U+0001 from field_name before tracing::warn! →
+        //                 "\x01" is absent from the output →
+        //                 logs_contain("\x01") == false → !logs_contain("\x01") == true → PASS
+        assert!(
+            !logs_contain("threat_score\x01injected"),
+            "NEW-SEC-001-R CWE-117 RED GATE (precise): raw value 'threat_score\\x01injected' \
+             found in captured tracing output. The structured field `field_name` in \
+             infusion.coercion_failed emits the raw field_name argument without control-char \
+             sanitization. JSON log consumers receive U+0001 in the field value. \
+             FIX: call sanitize_for_log(field_name) (strip .is_ascii_control() chars) inside \
+             warn_coercion_failed before passing to the `field_name = %...` tracing field."
+        );
+        assert!(
+            !logs_contain("\x01"),
+            "NEW-SEC-001-R CWE-117 RED GATE (general): raw ASCII control char U+0001 found \
+             anywhere in the captured tracing output. This fires because \
+             `field_name = %ctrl_field_name` emits the SOH byte from the raw field name. \
+             After fix (sanitize_for_log in warn_coercion_failed), this assertion must pass."
+        );
+    }
+
+    // ── NEW-CR-005 (PR-216 fix-burst-14): oversized boolean emits infusion.coercion_failed ──
+
+    /// NEW-CR-005 (SAP-1, Standing Rule 3 §2, PR-216 fix-burst-14) — regression guard verifying
+    /// that oversized boolean input emits `infusion.coercion_failed` (E-INFUSE-014 semantics).
+    ///
+    /// The SEC-002 boolean size guard (CWE-770) MUST call `warn_coercion_failed` before returning
+    /// `None` for inputs > 1024 bytes. A bare `return None` without event emission is a silent
+    /// failure per Standing Rule 3 §2 and a SAP-1 violation (BC-2.16.002 catalog must be complete).
+    ///
+    /// **REGRESSION GUARD NOTE:** Fix-burst-13 implementation (4bb0cad5) already added the
+    /// `warn_coercion_failed` call to the boolean size guard branch. This test PASSES against the
+    /// current HEAD (not a red gate, due to TDD ordering: implementation preceded this test).
+    /// It serves as a load-bearing regression guard: if a future change accidentally reverts the
+    /// boolean size guard to a bare `return None` (no event emission), this test will fail,
+    /// surfacing the silent-failure regression immediately.
+    ///
+    /// The existing `test_sec002_boolean_coercion_oversized_input_yields_null_regression_guard`
+    /// asserts the `None` outcome only. This test adds the event emission assertion.
+    ///
+    /// Traces to: NEW-CR-005 (PR-216 re-review), SAP-1, Standing Rule 3 §2, E-INFUSE-014.
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_new_cr005_oversized_boolean_input_emits_coercion_failed_event_and_returns_null() {
+        use datafusion::arrow::datatypes::DataType;
+
+        // > 1024 bytes — triggers the SEC-002 size guard in the boolean coercion branch.
+        let oversized_value = "a".repeat(1025);
+
+        let (_, src) = CountingSource::new_returning("true"); // source value is irrelevant
+        let descriptor = InfusionUdfDescriptor::new(
+            "cr005_udf",
+            "ip",
+            "boolean",
+            "threat_intel_infusion",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        let result =
+            udf.coerce_to_typed(&oversized_value, &DataType::Boolean, "threat_is_malicious");
+
+        // REGRESSION GUARD assertion 1: return value must be None (E-INFUSE-014 NULL sentinel).
+        assert!(
+            result.is_none(),
+            "NEW-CR-005: coerce_to_typed(1025-byte input, Boolean, 'threat_is_malicious') \
+             must return None. The SEC-002 size guard must short-circuit to None."
+        );
+
+        // REGRESSION GUARD assertion 2: infusion.coercion_failed event MUST be emitted.
+        //
+        // Spec (BC-2.16.002 event catalog, E-INFUSE-014): oversized boolean input is a coercion
+        // failure — it must emit infusion.coercion_failed exactly like any other uncoercible value.
+        // A bare `return None` without event emission is a silent failure (Standing Rule 3 §2)
+        // and a SAP-1 violation.
+        //
+        // If this assertion fails, the boolean size guard was changed to skip warn_coercion_failed,
+        // silently swallowing the E-INFUSE-014 event for oversized inputs.
+        assert!(
+            logs_contain("infusion.coercion_failed"),
+            "NEW-CR-005 SAP-1 REGRESSION GUARD: oversized (>1024 byte) boolean input MUST emit \
+             event_type=infusion.coercion_failed. A silent `return None` without event emission \
+             violates Standing Rule 3 §2 and the BC-2.16.002 event catalog. \
+             If this fails, the SEC-002 boolean size guard was changed to a bare `return None`."
+        );
+
+        // Confirm the emitted event references the correct field_name (not a spurious emission).
+        assert!(
+            logs_contain("threat_is_malicious"),
+            "NEW-CR-005: field_name 'threat_is_malicious' must appear in the \
+             infusion.coercion_failed event emitted for the oversized boolean input."
         );
     }
 }
