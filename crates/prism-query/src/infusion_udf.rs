@@ -22,9 +22,10 @@
 //! - New `event_type` tracing emissions require a BC-2.16.002 catalog row (SAP-1).
 //! - `invoke_with_args` MUST return `not_impl_err!(...)` to force the async path.
 //!
-//! # Implementation status (S-DEMO-ENRICHMENT-PIVOT-001 — GREEN)
+//! # Implementation status (S-DEMO-ENRICHMENT-PIVOT-001 + S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 — GREEN)
 //! `InfusionAsyncUdf::invoke_async_with_args` is fully implemented: reads input `ColumnarValue`,
-//! calls `descriptor.source.enrich_single` per row, and returns a `StringArray` output.
+//! calls `descriptor.source.enrich_single` per row, and returns typed output consistent with
+//! `descriptor.output_arrow_type` (INV-ENRICH-TYPED-001; ADR-051 D1/D2/D4).
 //! `register_infusion_udfs` registers `InfusionAsyncUdf` instances per descriptor.
 //!
 //! # async_trait requirement
@@ -87,7 +88,7 @@ pub(crate) const DEFAULT_CACHE_TTL_SECS: u64 = 3600;
 pub struct InfusionAsyncUdf {
     /// The infusion UDF descriptor exported by `prism-spec-engine`.
     descriptor: InfusionUdfDescriptor,
-    /// DataFusion function signature (input: Utf8, output: Utf8 — simplified for stub).
+    /// DataFusion function signature (input: Utf8, output: varies by descriptor.output_arrow_type).
     signature: Signature,
     /// Function name — stored separately so `ScalarUDFImpl::name` can return `&str`.
     name: String,
@@ -575,8 +576,8 @@ impl InfusionAsyncUdf {
     /// JSON-list input detection (leading `[`): for non-json `output_type` → `None` + E-INFUSE-014;
     /// for `output_type = "json"` → caller retains ENRICH-1 list-dispatch path (ADR-051 D4).
     ///
-    /// Return type `Option<serde_json::Value>` is a stub placeholder; the implementer may
-    /// refine to a strongly-typed enum if needed for the array-builder dispatch pattern.
+    /// Return type `Option<serde_json::Value>`: `Some(typed_value)` on successful coercion;
+    /// `None` on unrecognized or uncoercible input (E-INFUSE-014 NULL sentinel).
     ///
     /// `field_name`: the UDF field name (e.g., `"threat_score"`), used in E-INFUSE-014 message.
     ///
@@ -1914,7 +1915,7 @@ mod tests {
 
     // ── S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Red Gate Tests ───────────────────
     // RGT-001 through RGT-010 (ADR-051 D1/D2/D4; BC-2.19.001 v2.2)
-    // BC-5.38.001 Red Gate: all tests FAIL against todo!() stubs before implementation.
+    // S-DEMO-ENRICHMENT-TYPED-OUTPUT-001: RGT tests GREEN after typed-output implementation.
 
     /// RGT-001 (ADR-051 D1): output_type string → Arrow DataType mapping via return_type().
     ///
@@ -2261,7 +2262,7 @@ mod tests {
         let udf = super::InfusionAsyncUdf::new(descriptor);
 
         // ADR-051 D2: "not-a-number" → i64::from_str fails → must return None (E-INFUSE-014 NULL).
-        // RED GATE: coerce_to_typed is todo!() → panics before reaching the assertion.
+        // coerce_to_typed is implemented; assertion verifies E-INFUSE-014 failure returns None.
         let result = udf.coerce_to_typed("not-a-number", &DataType::Int64, "threat_score");
         assert!(
             result.is_none(),
@@ -2290,7 +2291,7 @@ mod tests {
         let udf = super::InfusionAsyncUdf::new(descriptor);
 
         // ADR-051 D2: "not-a-float" → f64::from_str fails → must return None (E-INFUSE-014).
-        // RED GATE: coerce_to_typed is todo!() → panics before reaching the assertion.
+        // coerce_to_typed is implemented; assertion verifies E-INFUSE-014 failure returns None.
         let result = udf.coerce_to_typed("not-a-float", &DataType::Float64, "threat_confidence");
         assert!(
             result.is_none(),
@@ -2322,7 +2323,7 @@ mod tests {
         let udf = super::InfusionAsyncUdf::new(descriptor);
 
         // ADR-051 D2: "xyz" ∉ {true,1,yes,false,0,no} → must return None (E-INFUSE-014).
-        // RED GATE: coerce_to_typed is todo!() → panics before reaching the assertion.
+        // coerce_to_typed is implemented; assertion verifies E-INFUSE-014 failure returns None.
         let result = udf.coerce_to_typed("xyz", &DataType::Boolean, "threat_is_malicious");
         assert!(
             result.is_none(),
@@ -2575,7 +2576,7 @@ mod tests {
 
         // ADR-051 D4: "[...]" starts with '[' → JSON-list input to non-json (integer) UDF
         // → must return None (E-INFUSE-014 NULL; ENRICH-1 list-dispatch disabled for Int64).
-        // RED GATE: coerce_to_typed is todo!() → panics before reaching the assertion.
+        // coerce_to_typed is implemented; assertion verifies E-INFUSE-014 failure returns None.
         let result = udf.coerce_to_typed("[\"hash1\",\"hash2\"]", &DataType::Int64, "threat_score");
         assert!(
             result.is_none(),

@@ -1468,8 +1468,7 @@ fn test_ac_10_vp_049_dedup_source_calls_equal_unique_value_count() {
 // Tests 1, 2, 4, 5 from the story's Red Gate table.
 // Test 3 lives in prism-query/tests/bc_2_19_001_plugin_udf_registration_test.rs.
 //
-// RED GATE: all tests below FAIL before implementation (todo!()/unimplemented!()).
-// GREEN: tests pass after S-DEMO-ENRICHMENT-PIVOT-001 TDD implementation.
+// GREEN: all tests pass after S-DEMO-ENRICHMENT-PIVOT-001 TDD implementation.
 
 use prism_spec_engine::{InfusionLoader, PluginInfusionSource, PluginRuntime};
 

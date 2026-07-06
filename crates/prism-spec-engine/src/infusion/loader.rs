@@ -975,11 +975,6 @@ impl InfusionLoader {
     ///
     /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (AC-007; ADR-051 D3 sub-condition 7).
     ///
-    /// BC-5.38.001 self-check: "If I include this real implementation, will the test for
-    /// this function pass trivially without any implementer work?" YES — `todo!()` panics;
-    /// `test_unknown_output_type_rejected_e_infuse_013_sub_condition_7` calls `parse()`
-    /// which doesn't yet call this function → `parse()` succeeds → assertion fails.
-    /// Red Gate holds.
     pub fn validate_output_type_recognized(
         output_type: &str,
         // LOW-001 fix (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 pass-1): AC-007/error-taxonomy
@@ -1028,11 +1023,6 @@ impl InfusionLoader {
     ///
     /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (AC-006; ADR-051 D3 sub-condition 8).
     ///
-    /// BC-5.38.001 self-check: "If I include this real implementation, will the test for
-    /// this function pass trivially without any implementer work?" YES — `todo!()` panics;
-    /// `test_plugin_type_field_without_source_column_rejected_e_infuse_013` calls `parse()`
-    /// which doesn't yet call this function → `parse()` succeeds → assertion fails.
-    /// Red Gate holds.
     pub fn validate_plugin_type_has_source_column(
         field_name: &str,
         infusion_id: &str,
