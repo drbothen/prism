@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.7"
+version: "1.8"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-05T00:00:00Z"
@@ -45,11 +45,13 @@ depends_on:
   - S-DEMO-ENRICHMENT-PIVOT-003
   # Dependency anchor: PIVOT-003 delivered the threatintel.infusion.toml spec (written by
   # PIVOT-002) as the operational infusion driving the T13 demo pivot queries. This story
-  # rewrites that spec (adding source_column, changing input_field to iocs_value_first) and
-  # adds the _first scalar columns to the DTU fixture generators that PIVOT-003 implemented.
+  # rewrites that spec (adding source_column, changing input_field to iocs_value_first).
   # The IOC-stamping infrastructure from PIVOT-003 is the direct substrate that this story
-  # extends with scalar _first projections. Without PIVOT-003's IOC-stamping code on
-  # develop, the _first companion fields have no parent struct to attach to.
+  # targets: PIVOT-003's nested array structures (iocs[].value for cyberint,
+  # behaviors[].ioc_value for crowdstrike) are the structures that this story's JSONPath
+  # source_path declarations in the sensor TOMLs resolve against. Without PIVOT-003's
+  # IOC-stamping code on develop, the JSONPath source_path columns declared in AC-010/AC-011
+  # would resolve to null at query time.
   #
   # S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 is MERGED on develop (PR #214, commit 11edbd36):
   # the parse_datetime_to_micros helper and Timestamp(Microsecond, Some("UTC")) DataType
@@ -517,8 +519,8 @@ Implementation checklist for the TDD implementer:
 - [ ] Run `just iter prism-spec-engine` — tests 11–14 must FAIL
 
 **Phase C — Red Gate stubs (DTU crate changes)**
-- [ ] Add `iocs_value_first` field emission to `crates/prism-dtu-cyberint/src/` fixture generator — stub
-- [ ] Add `behaviors_ioc_value_first` field emission to `crates/prism-dtu-crowdstrike/src/` fixture generator — stub
+- [ ] Add `generate_with_scenario_iocs` stub to `crates/prism-dtu-cyberint/src/generator.rs` — emits `iocs[]` array with `.value` entries in the nested structure; no top-level `iocs_value_first` scalar field (JSONPath `source_path = "$.iocs[0].value"` at adapter layer provides the column)
+- [ ] Extend `make_detection_with_ioc` stub in `crates/prism-dtu-crowdstrike/src/generator.rs` to emit `behaviors[].ioc_value` nested structure; no top-level `behaviors_ioc_value_first` scalar field added (RGT-016 asserts its absence)
 - [ ] Run `just iter prism-dtu-cyberint` and `just iter prism-dtu-crowdstrike` — tests 15–16 must FAIL
 
 **Phase D — Red Gate density check**
@@ -565,8 +567,8 @@ Confirm all 23 Red Gate tests are failing before starting implementation.
 **Phase L — Sensor TOML additions + DTU fixture generators**
 - [ ] Add `iocs_value_first` column to `specs/sensors/cyberint.sensor.toml`
 - [ ] Add `behaviors_ioc_value_first` column to `specs/sensors/crowdstrike.sensor.toml`
-- [ ] Implement `iocs_value_first` emission in `crates/prism-dtu-cyberint/src/` generator (first element of iocs_value, empty string if empty)
-- [ ] Implement `behaviors_ioc_value_first` emission in `crates/prism-dtu-crowdstrike/src/` generator
+- [ ] Confirm `crates/prism-dtu-cyberint/src/generator.rs` `generate_with_scenario_iocs` emits nested `iocs[].value` array entries; do NOT add a top-level `iocs_value_first` scalar field — spec-driven adapter's `source_path = "$.iocs[0].value"` extracts the column at query time (AC-011)
+- [ ] Confirm `crates/prism-dtu-crowdstrike/src/generator.rs` `make_detection_with_ioc` emits nested `behaviors[].ioc_value` entries; do NOT add a top-level `behaviors_ioc_value_first` scalar field (RGT-016 asserts its absence) — spec-driven adapter's `source_path = "$.behaviors[0].ioc_value"` extracts the column at query time (AC-011)
 - [ ] SAP-2 check: read actual generator code before committing TOML column declarations
 - [ ] Run tests 13–16: all TOML parity and fixture emission tests must PASS
 
@@ -655,14 +657,19 @@ NOTE: Do not pin specific version numbers in this story — always defer to the 
 | `specs/infusions/threatintel.infusion.toml` | Add `source_column` to all three fields; change `input_field` to `iocs_value_first` for threat_score and threat_is_known_malicious | AC-009 |
 | `specs/sensors/cyberint.sensor.toml` | Add `iocs_value_first: String` column to `cyberint_alerts` table | AC-010 |
 | `specs/sensors/crowdstrike.sensor.toml` | Add `behaviors_ioc_value_first: String` column to `crowdstrike_detections` table | AC-010 |
-| `crates/prism-dtu-cyberint/src/` (fixture generator) | Emit `iocs_value_first` field: first element of iocs_value array | AC-011 |
-| `crates/prism-dtu-crowdstrike/src/` (fixture generator) | Emit `behaviors_ioc_value_first` field: first element of behaviors_ioc_value array | AC-011 |
+| `crates/prism-dtu-cyberint/src/generator.rs` | Add `generate_with_scenario_iocs` helper to stamp `iocs[0].value` in the nested `iocs[]` array structure; no top-level `iocs_value_first` scalar field emitted — `source_path = "$.iocs[0].value"` at spec-driven adapter layer populates the column (AC-011) | AC-011 |
+| `crates/prism-dtu-crowdstrike/src/generator.rs` | Extend `make_detection_with_ioc` to emit nested `behaviors[].ioc_value` structure; no top-level `behaviors_ioc_value_first` scalar field emitted (RGT-016 asserts its absence) — `source_path = "$.behaviors[0].ioc_value"` at spec-driven adapter layer populates the column (AC-011) | AC-011 |
 | `.factory/specs/behavioral-contracts/BC-2.16.002-*.md` | Add SAP-1 catalog row for `event_type = "infusion.coercion_failed"` | AC-012 |
 | `crates/prism-spec-engine/tests/enrichment_pivot_002_tests.rs` | Add test vectors for typed output (tests 11–14): unknown output_type rejection, threatintel TOML source_column, sensor TOML _first columns | AC-006, AC-007, AC-009, AC-010 |
 | `crates/prism-dtu-threatintel/tests/` | Update expected column values from JSON-encoded strings to typed (integer/boolean) output | AC-003 (integration side effect) |
 | `crates/prism-mcp/src/resources.rs` | Update enrichment UDF examples in PrismQL reference resource — uses GENERIC `sensor_table` / `src_ip` placeholders per genericization decision (F-PQL2/CRIT-001); no sensor-specific `iocs_value_first` column change applied | Phase M blast radius |
 | `scripts/t13-preflight-audit.py` | Update E6 check for numeric comparison; update E1/E5 to use `_first` columns | Phase M blast radius |
 | `.factory/objectives/T13-capstone-demo-runbook.md` | Steps 3.2 and 6.2: update expected output to show `threat_score = 95` (bare integer); update queries to use `_first` columns | Phase M blast radius |
+| `.github/workflows/ci.yml` | Non-exhaustive gate count annotation — EXPECTED=89 comment updated to confirm that `InfusionError::TypeCoercionFailed` (a variant added to an already-`#[non_exhaustive]` enum) does not increase the gate count | Phase N |
+| `crates/prism-spec-engine/src/datetime.rs` | Extract `parse_datetime_to_micros` into a dedicated module for crate-wide reuse per ADR-052 D2 | AC-014 |
+| `crates/prism-spec-engine/src/lib.rs` | `pub use datetime::parse_datetime_to_micros` re-export so that `prism-bin` and other consumers can call the helper | AC-014 |
+| `crates/prism-bin/src/spec_driven_adapter.rs` | JSONPath `source_path` extraction logic: resolves `$.iocs[0].value` and `$.behaviors[0].ioc_value` from nested DTU array structures to populate the `iocs_value_first` / `behaviors_ioc_value_first` sensor columns | AC-011 |
+| `crates/prism-spec-engine/src/pipeline.rs` | `extract_at_path` helper: array-index–based JSON path extraction enabling `$.iocs[0].value` / `$.behaviors[0].ioc_value` resolution inside the spec-engine pipeline | AC-011 |
 
 **NO NEW FILES** are expected from this story. All changes are modifications to existing files.
 
@@ -768,6 +775,7 @@ risk_mitigations for the full runtime chain. RGT-023 enforces this at the test l
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.8 | 2026-07-06 | story-writer | ADV-P19-MED-002 + ADV-P18-OBS-001 closure (prose-accuracy only; no code/AC/BC changes). **(MED-002) Stale abandoned-approach prose removed**: File Structure Requirements generator rows, Phase C tasks, and Phase L tasks previously described the abandoned top-level-scalar approach (DTU generators emitting pre-computed `iocs_value_first` / `behaviors_ioc_value_first` scalar fields). All three sections rewritten to describe the actual implemented approach: JSONPath `source_path` resolution at the spec-driven adapter layer (`$.iocs[0].value`, `$.behaviors[0].ioc_value`) against nested array structures already emitted by the DTU generators — consistent with AC-011 v1.1, RGT-015, and RGT-016 (which explicitly asserts the top-level scalar is ABSENT). **(OBS-001) File Structure completeness**: five files present in the `d098be6f..d51c508a` diff added to MODIFIED table: `.github/workflows/ci.yml` (non-exhaustive gate note), `crates/prism-spec-engine/src/datetime.rs` (parse_datetime_to_micros extraction per ADR-052 D2), `crates/prism-spec-engine/src/lib.rs` (pub use re-export), `crates/prism-bin/src/spec_driven_adapter.rs` (JSONPath extraction for AC-011), `crates/prism-spec-engine/src/pipeline.rs` (extract_at_path index support for AC-011). **(Belt-and-suspenders)** `depends_on` comment stale "adds the _first scalar columns to the DTU fixture generators" and "scalar _first projections" language replaced with accurate description: PIVOT-003's nested array structures are the JSONPath resolution targets, not a scalar-emission substrate. |
 | 1.7 | 2026-07-06 | story-writer | ADV-P15-LOW-001 closure + comprehensive prose-accuracy audit. (1) **Forbidden Dependencies**: opening clause corrected from "`crates/prism-query` MUST NOT depend on `crates/prism-spec-engine`" to "`crates/prism-spec-engine` MUST NOT depend on `crates/prism-query`" — the original was a self-contradicting inversion of the true invariant; confirmed against Cargo.toml: `prism-query/Cargo.toml` declares `prism-spec-engine` as a dependency (correct direction); `prism-spec-engine/Cargo.toml` carries an explicit "MUST NOT depend on datafusion" comment and no `prism-query` dep. (2) **Phase A Red Gate count**: "all 16 Red Gate tests (those in prism-query)" corrected to "all 17 Red Gate tests (those in prism-query: tests 1–10 and 17–23)" — count 16 was stale from v1.0 origin; actual prism-query subset is tests 1–10, 17–20, 21–22, 23 = 17 tests. (3) **Phase D Red Gate count**: "all 16 Red Gate tests" corrected to "all 23 Red Gate tests" — matches `red_gate_tests: 23` frontmatter. (4) **Test crate placement Note**: "Tests 1–10 and 17–20" corrected to "Tests 1–10 and 17–23" — tests 21–22 (added v1.3) and test 23 (added v1.6) were omitted from the Note when they were added. (5) **AC-006 E-INFUSE-013 sub-condition 8 error message**: `{field_name}` template slot corrected to the literal `source_column` per error-taxonomy v2.16 sub-condition 8 canonical form — `{field}` = the attribute name whose absence triggered the error (`"source_column"`), consistent with sub-condition 7 precedent where `{field}` = the literal string `"output_type"` (v2.16 taxonomy text, v1.6 story MED-002 closure). No ACs added or removed; no BC changes; no code changes. |
 | 1.6 | 2026-07-06 | product-owner | ADV-P11-OBS-001 adjudication: DEFECT verdict. Runtime trace proves double-encoding when `threat_sources` uses `input_field = "iocs_value"` (JSON-list): ENRICH-1 fires, `project_value` returns JSON-serialized array string, `serde_json::to_string` double-wraps to `["[\"greynoise\",\"abuseipdb\"]"]`. Fix: `input_field = "iocs_value_first"` (scalar) so ENRICH-1 does NOT fire and output is `["greynoise","abuseipdb"]`. risk_mitigations "Either approach is valid" entry replaced with DEFECT notice + exact runtime chain. AC-009 `threat_sources` row updated to require `input_field = "iocs_value_first"`. AC-009 T13 canonical query corrected to per-field UDF syntax. RGT-023 `test_threat_sources_json_output_no_double_encoding` added. red_gate_tests 22→23. |
 | 1.5 | 2026-07-06 | story-writer | Comprehensive prose-accuracy audit against code HEAD a3083468 (ADV-P08 closure). (EC-005) `truncated_value` truncation corrected: byte-slice description `&value[..50.min(value.len())]` replaced with char-based implementation `value.chars().take(50).collect::<String>()` (genuinely UTF-8-safe; "exactly 50 chars" → "at most 50 chars"). (AC-004) Point 2 updated: added explicit note that `declared_type` uses the `output_type` spec-vocabulary string (e.g., `"integer"`) — NOT Arrow debug format (`Int64`); truncation implementation cited for completeness. (ADR-051 cite-pin) Body intro and §References updated v1.3→v1.4 (canonical current version; v1.4 = post-pass-1 column_type example PascalCase→lowercase fix; no D1–D6 decision-content change). red_gate_tests UNCHANGED 22. No ACs added or removed; no BC changes; no code changes. |
