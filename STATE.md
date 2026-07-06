@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.149"
+version: "8.150"
 producer: state-manager
-timestamp: 2026-07-05T12:00:00Z
+timestamp: 2026-07-06T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -25,7 +25,7 @@ develop_head: "d098be6f"
 # NOTE: c6d6e4fa is the squash-merge of PR #211 (perf(S-PERF-GATE-007): add nextest wasm-cap + http-cap groups to eliminate WASMtime/wiremock oversubscription; normal squash-merge, no --admin; 2026-07-01). S-PERF-GATE-007 MERGED. Prior origin/develop was 8bc0404e (PR #210 S-PERF-GATE-005). feature/S-PERF-GATE-007 branch + .worktrees/S-PERF-GATE-007 worktree removed.
 # NOTE: 8bc0404e is the squash-merge of PR #210 (perf(S-PERF-GATE-005): DTU clone graceful-shutdown wiring via shared prism-dtu-common::server helper; normal squash-merge, no --admin; CI 43/43 green; 2026-06-30T17:29:50Z). origin/develop is now 8bc0404e. stop() 5.002s→0.019s; scenario 3-test suite 49s→49ms; full nextest ~hours→86.4s. TEST-SPEED INITIATIVE COMPLETE (S-PERF-GATE-001..005). Prior origin/develop was e3148007 (PR #209 S-PERF-GATE-004). feature/S-PERF-GATE-005 branch + .worktrees/S-PERF-GATE-005 worktree removed.
 # NOTE-CORRECTION D-1435: "TEST-SPEED INITIATIVE COMPLETE" + "full nextest ~86.4s" are FALSE IN PRACTICE. Real full-workspace `just check` is ~30+ min: 5 prism-spec-engine WASMtime binaries (plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests) run UNCAPPED in nextest; wasmtime::Engine::new() (LLVM JIT init) costs ~120-143s per binary under full-suite concurrency → ~28 pre-existing TMT failures. S-PERF-GATE-001..005 fixed DTU oversubscription + clone graceful-shutdown only; did NOT touch spec-engine WASMtime binaries. Initiative INCOMPLETE / SUPERSEDED by T-PERF-PROFILE (D-1435).
-bc_index_version: "7.37"
+bc_index_version: "7.38"
 vp_index_version: "1.80"
 story_index_version: "v2.591"
 arch_index_version: "2.172"
@@ -43,7 +43,7 @@ workspace_test_count: 5182  # NOTE: develop@11edbd36 (PR #214 merged 2026-07-05)
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "PR #215 HOUSEKEEPING MERGED + develop_head SYNCED (D-1549 2026-07-05). PR #215 (maintenance/housekeeping-post-pr214): docs(housekeeping) ADR-050 rustls-tls CLAUDE.md note + t13-preflight-audit.py committed; squash-merged develop@d098be6f; docs/script-only; no BCs; no POL-14. develop_head 11edbd36→d098be6f. CLAUDE.md rustls-tls convention + reqwest forbidden-pattern row LANDED (PENDING-HUMAN item 3 RESOLVED). t13-preflight-audit.py COMMITTED (PENDING-HUMAN item 4 RESOLVED). non-exhaustive gate 89/89 GREEN UNCHANGED. NEXT: per-story TDD delivery of S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (depends_on S-DEMO-ENRICHMENT-PIVOT-003) pending human dispatch. STATE v8.148→v8.149 (D-1549)."
+current_step: "SAP-1 CATALOG ROW infusion.coercion_failed LANDED — S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 DELIVERY CHECKPOINT (D-1550 2026-07-06). Implementation GREEN @ feature HEAD fd379ede (all 16 RGTs pass; just check GREEN; non-exhaustive 89/89). SAP-1 compliance (PG-LP11-001): BC-2.16.002 v1.93→v1.94 — new Canonical Structured Event Catalog row `infusion.coercion_failed` WARN (typed enrichment type coercion failure; ADR-051 + BC-2.19.001 §INV-ENRICH-TYPED-001); catalog 89→90; label (v1.57)→(v1.58). BC-INDEX v7.37→v7.38. Known area for adversary scrutiny: `parse_datetime_to_micros` exists in BOTH `prism-bin/spec_driven_adapter.rs` (ADR-052 original) AND `prism-spec-engine/src/datetime.rs` (new) — potential TD-VSDD-060 duplication vs architect reuse directive. NEXT: LOCAL adversary 3-CLEAN cascade on frozen fd379ede. STATE v8.149→v8.150 (D-1550)."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,14 +75,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1549."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1550."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-05 (D-1549 — PR #215 housekeeping merged; develop_head 11edbd36→d098be6f; CLAUDE.md rustls-tls + t13-preflight-audit.py landed; STATE v8.148→v8.149)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-06 (D-1550 — SAP-1 infusion.coercion_failed catalog row landed; BC-2.16.002 v1.93→v1.94; BC-INDEX v7.37→v7.38; STATE v8.149→v8.150)
 
 ## Active Objective (North Star)
 
@@ -248,6 +248,7 @@ _(D-1530..D-1531 archived to burst-log.md this D-1532..D-1534 burst)_
 | D-1352 | state-manager | 2026-06-25 | **PR-LEVEL PASS 6 ON b58a1a49 — SqlPipe-JOIN-SOURCE-PARITY (TD-VSDD-053 single-commit; factory-only; code-only fix). OBS-1 (LOW, TD-VSDD-060 parity) SqlPipe extractor arms did NOT iterate PipeStage::Join sources — CLOSED by implementer (b58a1a49→9eab936b); 4 sites fixed; 2 load-bearing tests added. just check EXIT 0 (4938 tests). FROZEN PR HEAD 9eab936b. 3-CLEAN streak RESET 0/3. STATE v7.980→v7.981.** | wave-5-e-demo-fidelity | 2026-06-25 |
 | D-1351 | state-manager | 2026-06-25 | **PR-LEVEL PASS 5 ON 216e19fa — SqlPipe-GATE-SWEEP + TAIL-EXAMPLE (TD-VSDD-053 single-commit; factory-only; code-only fix). HIGH-1 SqlPipe 11 AST match sites + OBS-1 tail NegativeE040 example ALL CLOSED @b58a1a49. FROZEN PR HEAD b58a1a49. 3-CLEAN streak RESET 0/3. STATE v7.979→v7.980.** | wave-5-e-demo-fidelity | 2026-06-25 |
 | D-1344 | state-manager | 2026-06-25 | **LOCAL PASS 8 ON a0ebd740 + OBS-1 FIX-BURST (TD-VSDD-053 single-commit; factory-only; code-only fix, no STORY-INDEX/BC-INDEX bump). CLEAN(strict)=NO, CLEAN(PR-merge)=YES. 1 LOW OBS-1 (SqlPipe enrich parity) CLOSED f58bb9a0. 3-CLEAN streak RESET 0/3 on f58bb9a0. STATE v7.972→v7.973.** | wave-5-e-demo-fidelity | 2026-06-25 |
+| D-1550 | state-manager | 2026-07-06 | **S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 DELIVERY CHECKPOINT — SAP-1 CATALOG ROW LANDED (D-1550 2026-07-06). Implementation GREEN @ feature HEAD fd379ede (all 16 RGTs pass; just check GREEN; non-exhaustive 89/89). SAP-1 compliance (PG-LP11-001): BC-2.16.002 v1.93→v1.94 — new Canonical Structured Event Catalog row `infusion.coercion_failed` WARN (typed enrichment type coercion failure; ADR-051 + BC-2.19.001 §INV-ENRICH-TYPED-001); catalog 89→90; label (v1.57)→(v1.58). BC-INDEX v7.37→v7.38. Known area for adversary scrutiny: `parse_datetime_to_micros` exists in BOTH `prism-bin/spec_driven_adapter.rs` (ADR-052 original) AND `prism-spec-engine/src/datetime.rs` (new) — potential TD-VSDD-060 duplication vs architect reuse directive. active_contracts 255 / draft_contracts 0 / total_contracts 264 UNCHANGED. develop_head UNCHANGED d098be6f. NEXT: LOCAL adversary 3-CLEAN cascade on frozen fd379ede. STATE v8.149→v8.150.** | wave-5-e-demo-fidelity | 2026-07-06 |
 | D-1549 | state-manager | 2026-07-05 | **PR #215 HOUSEKEEPING MERGED — develop_head SYNCED (D-1549 2026-07-05). PR #215 (maintenance/housekeeping-post-pr214) squash-merged develop@d098be6f (docs(housekeeping): ADR-050 rustls-tls in CLAUDE.md conventions + commit t13-preflight-audit.py; 2026-07-05). docs/script-only; no BCs → no POL-14. develop_head 11edbd36→d098be6f. CLAUDE.md §Conventions: rustls-tls convention sentence + reqwest forbidden-pattern row landed (PENDING-HUMAN item 3 RESOLVED; ADR-050 ratification complete). scripts/t13-preflight-audit.py COMMITTED (PENDING-HUMAN item 4 RESOLVED). non-exhaustive gate 89/89 GREEN UNCHANGED. active_contracts 255 / draft_contracts 0 / STORY-INDEX v2.591 / BC-INDEX v7.37 / ARCH-INDEX v2.172 / error-taxonomy v2.15 ALL UNCHANGED. workspace_test_count 5182 UNCHANGED. NEXT: per-story TDD delivery of S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (depends_on S-DEMO-ENRICHMENT-PIVOT-003) pending human dispatch. STATE v8.148→v8.149.** | wave-5-e-demo-fidelity | 2026-07-05 |
 
 ## Decisions Log
@@ -256,6 +257,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1550 | state-manager | S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 DELIVERY CHECKPOINT — SAP-1 CATALOG ROW LANDED (D-1550 2026-07-06). Implementation GREEN @ feature HEAD fd379ede (all 16 RGTs pass; just check GREEN; non-exhaustive 89/89). SAP-1 compliance (PG-LP11-001): BC-2.16.002 v1.93→v1.94 — new Canonical Structured Event Catalog row `infusion.coercion_failed` WARN (typed enrichment type coercion failure; ADR-051 + BC-2.19.001 §INV-ENRICH-TYPED-001); catalog 89→90; label (v1.57)→(v1.58). BC-INDEX v7.37→v7.38. Known area for adversary scrutiny: `parse_datetime_to_micros` exists in BOTH `prism-bin/spec_driven_adapter.rs` (ADR-052 original) AND `prism-spec-engine/src/datetime.rs` (new) — potential TD-VSDD-060 duplication vs architect reuse directive. active_contracts 255 / draft_contracts 0 / total_contracts 264 UNCHANGED. develop_head UNCHANGED d098be6f. NEXT: LOCAL adversary 3-CLEAN cascade on frozen fd379ede. STATE v8.149→v8.150. | wave-5-e-demo-fidelity | 2026-07-06 |
 | D-1549 | state-manager | PR #215 HOUSEKEEPING MERGED — develop_head SYNCED (D-1549 2026-07-05). PR #215 (maintenance/housekeeping-post-pr214) squash-merged develop@d098be6f (docs(housekeeping): ADR-050 rustls-tls in CLAUDE.md conventions + commit t13-preflight-audit.py; 2026-07-05). docs/script-only; no BCs → no POL-14. develop_head 11edbd36→d098be6f. CLAUDE.md §Conventions: rustls-tls convention sentence + reqwest forbidden-pattern row landed (PENDING-HUMAN item 3 RESOLVED; ADR-050 ratification complete). scripts/t13-preflight-audit.py COMMITTED (PENDING-HUMAN item 4 RESOLVED). non-exhaustive gate 89/89 GREEN UNCHANGED. active_contracts 255 / draft_contracts 0 / STORY-INDEX v2.591 / BC-INDEX v7.37 / ARCH-INDEX v2.172 / error-taxonomy v2.15 ALL UNCHANGED. workspace_test_count 5182 UNCHANGED. NEXT: per-story TDD delivery of S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (depends_on S-DEMO-ENRICHMENT-PIVOT-003) pending human dispatch. STATE v8.148→v8.149. | wave-5-e-demo-fidelity | 2026-07-05 |
 | D-1548 | state-manager | ADR-051 RATIFICATION + S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 DECOMPOSED (D-1548 2026-07-05). ADR-051 v1.2→ACCEPTED v1.3: human-ratified (no decision-content change from v1.2; datetime=Timestamp(µs,UTC) per ADR-052 confirmed). ARCH-INDEX v2.171→v2.172 (ADR-051 row PROPOSED→ACCEPTED v1.3). BC-2.19.001 v2.1→v2.2 (INV-ENRICH-TYPED-001; plugin source_column postcondition; E-INFUSE-013 sub-conditions 7/8; E-INFUSE-014 TypeCoercionFailed; EC-19-008/009; typed test vectors). BC-INDEX v7.36→v7.37. error-taxonomy v2.14→v2.15 (E-INFUSE-014 + E-INFUSE-013 sub-conditions 7/8). S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 draft v1.0 registered: 14 ACs; 16 Red Gate tests; 13 pts; Wave 5; behavioral_contracts [BC-2.19.001 v2.2, BC-2.16.002]; depends_on [S-DEMO-ENRICHMENT-PIVOT-003]; total_stories 227→228. STORY-INDEX v2.590→v2.591. active_contracts 255 / draft_contracts 0 UNCHANGED. develop_head UNCHANGED 11edbd36. NEXT: per-story TDD delivery pending human dispatch. STATE v8.147→v8.148. | wave-5-e-demo-fidelity | 2026-07-05 |
 | D-1547 | state-manager | ADR-051 v1.1→v1.2 AMENDMENT RECORDED (D-1547 2026-07-05). §datetime row reconciled DataType::Utf8→DataType::Timestamp(Microsecond, Some("UTC")) to align with merged ADR-052 (PR #214, develop@11edbd36). Rationale section rewritten; D2/D4/D5/D6 reconciled; blast-radius citations corrected (column.rs inverted-fix withdrawn; spec_driven_adapter.rs / pipe_sql_emitter.rs / high002_plan_pinning_tests.rs citations updated to reflect merged Timestamp reality). related_adrs += ADR-052. Status remains PROPOSED — AWAITING HUMAN RATIFICATION of v1.2 before typed-enrichment story decomposition. ARCH-INDEX v2.170→v2.171. develop_head UNCHANGED 11edbd36. STATE v8.146→v8.147. | wave-5-e-demo-fidelity | 2026-07-05 |
