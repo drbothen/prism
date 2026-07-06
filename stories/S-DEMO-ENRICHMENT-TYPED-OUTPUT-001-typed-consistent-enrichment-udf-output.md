@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.5"
+version: "1.6"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-05T00:00:00Z"
 created: "2026-07-05"
-modified: "2026-07-06T00:00:00Z"
+modified: "2026-07-06T12:00:00Z"
 tdd_mode: strict
 subsystems: [SS-09, SS-10, SS-19]
 # Subsystem anchor justifications:
@@ -83,7 +83,7 @@ risk: HIGH
 #   the implementer commits the emission without the catalog row, the adversary will find a P1.
 #   SAP-2 applies to all sensor TOML changes — adversary must read DTU types.rs/generator.rs
 #   before validating TOML column declarations.
-red_gate_tests: 22
+red_gate_tests: 23
 estimated_passes: "3-5 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -112,13 +112,22 @@ risk_mitigations:
      uses iocs_value_first as the enrichment input (not iocs_value). The old iocs_value
      field does NOT produce a usable typed threat_score. After this story, the T13 queries
      must be verified against the rewritten spec using the demo server."
-  - "ENRICH-1 list-dispatch retention: the json-typed threat_sources field MAY continue to
-     use iocs_value as input_field (list) per ADR-051 §Required Spec Changes recommendation.
-     If the implementer switches threat_sources to iocs_value_first, the ENRICH-1 path in
-     invoke_async_with_args is no longer reached by any production spec — this is acceptable
-     per ADR-051, which says 'eliminates the ENRICH-1 list-dispatch path from production code
-     paths entirely, simplifying the implementation.' Either approach is valid; document the
-     choice in the PR description."
+  - "ENRICH-1 double-encoding defect (ADV-P11-OBS-001 — adjudicated DEFECT 2026-07-06):
+     threat_sources MUST use input_field = 'iocs_value_first' (scalar companion), NOT
+     'iocs_value' (JSON list). Using iocs_value produces double-encoded output:
+       (a) iocs_value = '[\"1.2.3.4\"]' → ENRICH-1 fires (is_json_output && starts_with('['))
+       (b) for element '1.2.3.4': plugin returns {threat_sources: ['greynoise','abuseipdb']}
+       (c) project_value extracts threat_sources Array via other.to_string() → String '[\"greynoise\",\"abuseipdb\"]'
+       (d) list_results = vec!['[\"greynoise\",\"abuseipdb\"]'] (Vec<String> of one element)
+       (e) serde_json::to_string(&list_results) → '[\"[\\\"greynoise\\\",\\\"abuseipdb\\\"]\"]'
+       RESULT: outer array wrapping a JSON-encoded array string — Failure A class double-encoding.
+     With iocs_value_first = '1.2.3.4' (scalar): ENRICH-1 does NOT fire; project_value
+     extracts threat_sources Array via other.to_string() → String '[\"greynoise\",\"abuseipdb\"]'
+     stored directly as Utf8 column value — correct single-encoding.
+     AC-009 updated to require input_field = 'iocs_value_first' for threat_sources.
+     Implementer MUST change input_field = 'iocs_value' → 'iocs_value_first' in
+     specs/infusions/threatintel.infusion.toml. No code change to infusion_udf.rs needed.
+     Test-writer MUST add test: test_threat_sources_json_output_no_double_encoding (see AC-009)."
 traces_to: [DRIFT-PIVOT-UDF-OUTPUT-TYPE-001, ADR-051]
 supersedes: []
 ---
@@ -319,20 +328,34 @@ when the file is inspected,
 then:
 - `threat_score` field: `source_column = "threat_score"`, `input_field = "iocs_value_first"`, `output_type = "integer"`
 - `threat_is_known_malicious` field: `source_column = "threat_is_known_malicious"`, `input_field = "iocs_value_first"`, `output_type = "boolean"`
-- `threat_sources` field: `source_column = "threat_sources"`, `output_type = "json"` (list retention acceptable; see risk_mitigations note on ENRICH-1)
+- `threat_sources` field: `source_column = "threat_sources"`, `input_field = "iocs_value_first"`, `output_type = "json"` (MUST use iocs_value_first — using iocs_value causes double-encoding; see ADV-P11-OBS-001 in risk_mitigations)
 
 No field in the plugin-type infusion has an absent `source_column` (EC-19-009 would reject it at spec-load time).
 
-The post-fix T13 canonical query uses `iocs_value_first` as the enrichment input column:
+The post-fix T13 canonical query uses `iocs_value_first` as the enrichment input column for every field including `threat_sources`:
 ```prismql
 FROM cyberint_alerts
 | where severity = "high"
-| enrich threat_intel(iocs_value_first)
+| enrich threat_score(iocs_value_first)
+| enrich threat_is_known_malicious(iocs_value_first)
+| enrich threat_sources(iocs_value_first)
 | where threat_is_known_malicious = true
 | sort threat_score desc
 ```
 
+Note: PrismQL `| enrich` uses per-field UDF names (registered as `threat_score`, `threat_is_known_malicious`,
+`threat_sources`), NOT the infusion name (`threat_intel`). The `input_field` in the TOML spec documents
+which column the analyst should pass; using `iocs_value_first` (scalar) avoids the ENRICH-1 list-dispatch
+path and prevents the double-encoding defect (ADV-P11-OBS-001).
+
 Red Gate: `test_threatintel_toml_has_source_column_and_iocs_value_first_input_field`
+
+Red Gate: `test_threat_sources_json_output_no_double_encoding` (NEW — ADV-P11-OBS-001)
+Source returns JSON object `{"threat_sources": ["greynoise","abuseipdb"], "threat_score": 95, ...}`.
+Descriptor: `output_type = "json"`, `source_column = "threat_sources"`, `input_field = "iocs_value_first"` (scalar).
+Input to UDF: scalar string `"1.2.3.4"`.
+Expected output: Utf8 column value = `["greynoise","abuseipdb"]`.
+Verify: `serde_json::from_str(output)` parses as JSON array of 2 plain string elements ("greynoise", "abuseipdb") — NOT double-encoded. Crate: prism-query (infusion_udf.rs tests or a dedicated test file).
 
 ### AC-010 — Scalar _first companion columns declared in sensor TOMLs (D4)
 (traces to BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4 — "typed input columns require scalar input"; ADR-051 D4 canonical input pattern / Required Spec Changes table)
@@ -442,6 +465,7 @@ Red Gate: `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_d
 | 20 | `test_coerce_to_typed_datetime_valid_returns_some_micros` | prism-query | BC-2.19.001 v2.2 TV-19-001-typed-datetime; MED-001+LOW-001: `coerce_to_typed("2024-01-01T00:00:00Z", Timestamp(µs,UTC))` returns `Some(Number(micros))` | unit |
 | 21 | `test_ec002_float_string_to_integer_yields_null` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; EC-002: `coerce_to_typed("95.7", Int64)` → None (JSON Number float-to-integer precision mismatch; fix-burst-3) | unit |
 | 22 | `test_ec006_empty_input_yields_null` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; EC-006: `coerce_to_typed("", Int64)` → None (empty `iocs_value` array produces `""` first element; fix-burst-3) | unit |
+| 23 | `test_threat_sources_json_output_no_double_encoding` | prism-query | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001; ADV-P11-OBS-001: source_column + Vec<String> Array field + scalar input_field (`iocs_value_first`) → output `["greynoise","abuseipdb"]` (valid JSON array, elements are plain strings — NOT double-encoded `["[\"greynoise\",\"abuseipdb\"]"]`) | unit |
 
 **Note on test crate placement:**
 - Tests 1–10 and 17–20: live in `crates/prism-query/src/infusion_udf.rs` `#[cfg(test)] mod tests` block
@@ -535,7 +559,7 @@ Confirm all 16 Red Gate tests are failing before starting implementation.
 **Phase K — Rewrite threatintel.infusion.toml**
 - [ ] Add `source_column = "threat_score"` and `input_field = "iocs_value_first"` to threat_score field
 - [ ] Add `source_column = "threat_is_known_malicious"` and `input_field = "iocs_value_first"` to threat_is_known_malicious field
-- [ ] Add `source_column = "threat_sources"` to threat_sources field (decide on ENRICH-1 retention vs scalar)
+- [ ] Add `source_column = "threat_sources"` and `input_field = "iocs_value_first"` to threat_sources field (DEFECT ADV-P11-OBS-001: iocs_value causes double-encoding; iocs_value_first is REQUIRED)
 - [ ] Run test 12: `test_threatintel_toml_has_source_column_and_iocs_value_first_input_field` must PASS
 
 **Phase L — Sensor TOML additions + DTU fixture generators**
@@ -654,7 +678,7 @@ NOTE: Do not pin specific version numbers in this story — always defer to the 
 | EC-004 | Empty string projected into typed field | `i64::from_str("".trim())` fails → NULL + E-INFUSE-014; `f64::from_str("".trim())` fails → NULL | AC-004 |
 | EC-005 | `truncated_value` in E-INFUSE-014 is at most 50 chars (no credential in log) | `truncated_value = value.chars().take(50).collect::<String>()` (char-based, genuinely UTF-8-safe; AD-017 guard) | AC-004 |
 | EC-006 | `iocs_value` array is empty (e.g., cyberint alert with no IOCs) | `iocs_value_first = ""` (empty string); enrichment UDF receives `""` as input; `i64::from_str("".trim())` fails → NULL + E-INFUSE-014 (benign: no IOC to enrich) | AC-011; Red Gate: `test_ec006_empty_input_yields_null` (RGT-022) |
-| EC-007 | json-typed `threat_sources` field with list input via ENRICH-1 path | ENRICH-1 path retained; returns JSON array of source strings in `StringArray` | AC-008 |
+| EC-007 | json-typed `threat_sources` field with scalar `iocs_value_first` input (NOT list input) | ENRICH-1 does NOT fire (scalar input, not `[`-prefixed); `project_value` extracts `threat_sources` Array via `other.to_string()` → JSON string `["greynoise","abuseipdb"]`; stored directly as Utf8 in `StringArray`. Double-encoding is prevented by using scalar input (ADV-P11-OBS-001 DEFECT closure; see RGT-023). | AC-008, AC-009 |
 | EC-008 | Pre-existing `crates/prism-dtu-threatintel/tests/` integration tests assert JSON-encoded output | Tests must be updated in this story to assert bare typed output (integer 95, boolean true) | Phase N tasks |
 
 ---
@@ -700,13 +724,16 @@ typed coercion happens inside the enrichment UDF when it processes the scalar in
 at the sensor schema level. This is consistent with `device_cves_first: String` precedent
 from S-DEMO-ENRICHMENT-PIVOT-003 (NVD pattern).
 
-### ENRICH-1 list-dispatch path decision
+### ENRICH-1 list-dispatch path decision (CLOSED — DEFECT ADV-P11-OBS-001)
 
-ADR-051 §Required Spec Changes recommends switching `threat_sources` to `input_field = "iocs_value_first"`
-and producing a single-element JSON array from a scalar input, "eliminating the ENRICH-1 list-dispatch
-path from the production code paths entirely." This is RECOMMENDED but not REQUIRED. Either approach is
-valid per ADR-051. The implementer must document the choice in the PR description. If ENRICH-1 is
-retained (for backward compat or simplicity), the adversary will accept it per ADR-051 D4.
+ADR-051 §Required Spec Changes recommends switching `threat_sources` to `input_field = "iocs_value_first"`.
+This decision is now REQUIRED, not optional. ADV-P11-OBS-001 (adjudicated 2026-07-06) proved that
+retaining `input_field = "iocs_value"` causes double-encoding: the ENRICH-1 list-dispatch path fires,
+`project_value` returns a JSON-serialized array string, and `serde_json::to_string` wraps it into
+`["[\"greynoise\",\"abuseipdb\"]"]` — a JSON string containing an escaped JSON array, not a proper
+JSON array of strings. The implementer MUST use `input_field = "iocs_value_first"` for `threat_sources`.
+"Either approach is valid" and "adversary will accept ENRICH-1 retention" are INCORRECT. See
+risk_mitigations for the full runtime chain. RGT-023 enforces this at the test level.
 
 ---
 
@@ -741,6 +768,7 @@ retained (for backward compat or simplicity), the adversary will accept it per A
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.6 | 2026-07-06 | product-owner | ADV-P11-OBS-001 adjudication: DEFECT verdict. Runtime trace proves double-encoding when `threat_sources` uses `input_field = "iocs_value"` (JSON-list): ENRICH-1 fires, `project_value` returns JSON-serialized array string, `serde_json::to_string` double-wraps to `["[\"greynoise\",\"abuseipdb\"]"]`. Fix: `input_field = "iocs_value_first"` (scalar) so ENRICH-1 does NOT fire and output is `["greynoise","abuseipdb"]`. risk_mitigations "Either approach is valid" entry replaced with DEFECT notice + exact runtime chain. AC-009 `threat_sources` row updated to require `input_field = "iocs_value_first"`. AC-009 T13 canonical query corrected to per-field UDF syntax. RGT-023 `test_threat_sources_json_output_no_double_encoding` added. red_gate_tests 22→23. |
 | 1.5 | 2026-07-06 | story-writer | Comprehensive prose-accuracy audit against code HEAD a3083468 (ADV-P08 closure). (EC-005) `truncated_value` truncation corrected: byte-slice description `&value[..50.min(value.len())]` replaced with char-based implementation `value.chars().take(50).collect::<String>()` (genuinely UTF-8-safe; "exactly 50 chars" → "at most 50 chars"). (AC-004) Point 2 updated: added explicit note that `declared_type` uses the `output_type` spec-vocabulary string (e.g., `"integer"`) — NOT Arrow debug format (`Int64`); truncation implementation cited for completeness. (ADR-051 cite-pin) Body intro and §References updated v1.3→v1.4 (canonical current version; v1.4 = post-pass-1 column_type example PascalCase→lowercase fix; no D1–D6 decision-content change). red_gate_tests UNCHANGED 22. No ACs added or removed; no BC changes; no code changes. |
 | 1.4 | 2026-07-06 | story-writer | Spec-only fix: ADV-P05-LOW-001 closure (POL-25 sibling-cite propagation). §References error-taxonomy pin v2.15→v2.16 (canonical version; E-INFUSE-013 sub-cond 7/8 + E-INFUSE-014 present in v2.16). v1.0 changelog entry error-taxonomy pin updated to match (sweep complete — 0 remaining v2.15 citations). red_gate_tests UNCHANGED 22. No ACs added or removed; no BC changes; no code changes. |
 | 1.3 | 2026-07-06 | story-writer | Spec reconciliation to code HEAD ce93229a (LOCAL adversary pass-3 OBS-003 closure + test-plan drift). (OBS-003) File Structure resources.rs row corrected: blast-radius task uses GENERIC `sensor_table`/`src_ip` placeholders per genericization decision (F-PQL2/CRIT-001) — no sensor-specific `iocs_value_first` column change; annotation updated accordingly. (fix-burst-3 test additions) RGT-021 added: `test_ec002_float_string_to_integer_yields_null` (`coerce_to_typed("95.7", Int64)` → None, EC-002); RGT-022 added: `test_ec006_empty_input_yields_null` (`coerce_to_typed("", Int64)` → None, EC-006); both in prism-query infusion_udf.rs; red_gate_tests 20→22. (fix-burst-3 test removal) `test_cyberint_dtu_fixture_emits_iocs_value_first_field` removed from code (asserted now-removed speculative top-level scalar field); cyberint AC-011 coverage retained via `test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath` (already RGT-015 since v1.1 — no table removal needed). EC-002 and EC-006 edge-case rows updated to reference their Red Gate tests (RGT-021, RGT-022). No ACs added or removed; no BC changes; no code changes. |
