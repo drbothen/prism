@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-05T00:00:00Z"
 created: "2026-07-05"
-modified: "2026-07-05T00:00:00Z"
+modified: "2026-07-06T00:00:00Z"
 tdd_mode: strict
 subsystems: [SS-09, SS-10, SS-19]
 # Subsystem anchor justifications:
@@ -190,9 +190,14 @@ Red Gate: `test_return_type_matches_output_type_for_all_declared_types` (ADR-051
 Given `InfusionAsyncUdf::return_type()` implementation after this story,
 when the TD-VSDD-060 grep is run:
 ```bash
-rg 'output_type.*Utf8|return_type.*Utf8' crates/prism-query/src/infusion_udf.rs
+rg 'return_type.*Utf8' crates/prism-query/src/infusion_udf.rs
 ```
 then the result is ZERO matches (no hardcoded `DataType::Utf8` in `return_type()`).
+
+NOTE: `output_type.*Utf8` is intentionally excluded from this check — `output_arrow_type()` contains a
+sanctioned `_ => DataType::Utf8` fallback arm for unrecognized `output_type` values, and the implementation
+contains legitimate `*output_type != DataType::Utf8` guard comparisons. These are correct behavior, not
+violations of this invariant. The zero-match check applies only to the `return_type()` function body.
 
 `return_type()` MUST delegate to `output_arrow_type()` rather than hardcoding a type.
 
@@ -334,32 +339,41 @@ Red Gate: `test_threatintel_toml_has_source_column_and_iocs_value_first_input_fi
 
 Given `specs/sensors/cyberint.sensor.toml` after this story,
 when the `cyberint_alerts` `[[tables.columns]]` section is inspected,
-then `iocs_value_first` column is present with `column_type = "String"` and description documenting it as the first IOC value from the `iocs_value` array.
+then `iocs_value_first` column is present with `column_type = "string"` and description documenting it as the first IOC value from the `iocs_value` array.
 
 Given `specs/sensors/crowdstrike.sensor.toml` after this story,
 when the `crowdstrike_detections` `[[tables.columns]]` section is inspected,
-then `behaviors_ioc_value_first` column is present with `column_type = "String"` and description documenting it as the first IOC value from the `behaviors_ioc_value` array.
+then `behaviors_ioc_value_first` column is present with `column_type = "string"` and description documenting it as the first IOC value from the `behaviors_ioc_value` array.
 
 Both additions are NON-BREAKING (additive columns; no existing column renamed or removed).
 
 Red Gate: `test_cyberint_sensor_toml_has_iocs_value_first_column`
 Red Gate: `test_crowdstrike_sensor_toml_has_behaviors_ioc_value_first_column`
 
-### AC-011 — DTU fixture generators emit the _first scalar fields
-(traces to BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4 Blast Radius — cyberint/crowdstrike fixture generators; SAP-2 TOML↔DTU parity)
+### AC-011 — _first scalar columns populated via JSONPath extraction from nested arrays in DTU records
+(traces to BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4 Blast Radius — cyberint/crowdstrike _first companion columns via spec-driven adapter JSONPath source_path extraction; SAP-2 TOML↔DTU parity)
 
-Given `crates/prism-dtu-cyberint/src/` fixture generator after this story,
-when a Cyberint alert record is generated,
-then the record includes `iocs_value_first: String` field containing the first element of `iocs_value` array (empty string if array is empty).
+Given the spec-driven adapter processing a Cyberint alert record after this story,
+when the `cyberint_alerts` table is queried for the `iocs_value_first` column,
+then `iocs_value_first` is populated by JSONPath `source_path = "$.iocs[0].value"` extraction
+from the alert record's nested `iocs` array — NOT from a pre-computed top-level scalar field
+on the alert surface record. The spec-driven adapter performs this JSONPath extraction; the DTU
+fixture generator emits the nested `iocs` array structure from which the path is resolved.
 
-Given `crates/prism-dtu-crowdstrike/src/` fixture generator after this story,
-when a CrowdStrike detection record is generated,
-then the record includes `behaviors_ioc_value_first: String` field containing the first element of `behaviors_ioc_value` array (empty string if array is empty).
+Given the spec-driven adapter processing a CrowdStrike detection record after this story,
+when the `crowdstrike_detections` table is queried for the `behaviors_ioc_value_first` column,
+then `behaviors_ioc_value_first` is populated by JSONPath `source_path = "$.behaviors[0].ioc_value"`
+extraction from the detection's nested `behaviors` array — NOT from a pre-computed top-level scalar
+field on the detection surface record.
 
-SAP-2 compliance: adversary MUST read the DTU generator code (not just TOML) to verify these fields are actually emitted. The TOML columns declared in AC-010 MUST match fields actually emitted by the generators.
+SAP-2 compliance: adversary MUST verify that the JSONPath `source_path` values declared in the
+sensor TOML `[[tables.columns]]` entries resolve against fields actually present in the DTU fixture
+generator's emitted nested record structures (`iocs[].value` for cyberint; `behaviors[].ioc_value`
+for crowdstrike). The TOML columns declared in AC-010 MUST match fields reachable via JSONPath in
+the structures emitted by the generators.
 
-Red Gate: `test_cyberint_dtu_fixture_emits_iocs_value_first_field`
-Red Gate: `test_crowdstrike_dtu_fixture_emits_behaviors_ioc_value_first_field`
+Red Gate: `test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath`
+Red Gate: `test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath`
 
 ### AC-012 — BC-2.16.002 Canonical Structured Event Catalog gains row for infusion.coercion_failed (SAP-1)
 (traces to BC-2.16.002 v1.93 SAP-1 Canonical Structured Event Catalog standing obligation; BC-2.19.001 v2.2 E-INFUSE-014 — "BC-2.16.002 catalog row required for event_type = 'infusion.coercion_failed' (SAP-1)")
@@ -420,14 +434,14 @@ Red Gate: `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_d
 | 12 | `test_threatintel_toml_has_source_column_and_iocs_value_first_input_field` | prism-spec-engine | BC-2.19.001 v2.2 Plugin-type field projection postcondition; ADR-051 D3/D4 | unit/spec-load |
 | 13 | `test_cyberint_sensor_toml_has_iocs_value_first_column` | prism-spec-engine or sensor spec tests | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4; SAP-2 | unit/parity |
 | 14 | `test_crowdstrike_sensor_toml_has_behaviors_ioc_value_first_column` | prism-spec-engine or sensor spec tests | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4; SAP-2 | unit/parity |
-| 15 | `test_cyberint_dtu_fixture_emits_iocs_value_first_field` | prism-dtu-cyberint | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4 Blast Radius; SAP-2 | unit |
-| 16 | `test_crowdstrike_dtu_fixture_emits_behaviors_ioc_value_first_field` | prism-dtu-crowdstrike | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4 Blast Radius; SAP-2 | unit |
+| 15 | `test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath` | prism-dtu-cyberint | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4 Blast Radius; SAP-2 | unit |
+| 16 | `test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath` | prism-dtu-crowdstrike | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4 Blast Radius; SAP-2 | unit |
 
 **Note on test crate placement:**
 - Tests 1–10: live in `crates/prism-query/src/infusion_udf.rs` `#[cfg(test)] mod tests` block
 - Tests 11–12: live in `crates/prism-spec-engine/tests/enrichment_pivot_002_tests.rs` (extend the existing test file per ADR-051 §Blast Radius)
 - Tests 13–14: live in sensor spec tests or `enrichment_pivot_002_tests.rs`
-- Tests 15–16: live in `crates/prism-dtu-cyberint/src/` and `crates/prism-dtu-crowdstrike/src/` `#[cfg(test)] mod tests` blocks respectively
+- Tests 15–16: live in `crates/prism-dtu-cyberint/` and `crates/prism-dtu-crowdstrike/` test modules; exercise JSONPath `source_path` extraction from nested array structures emitted by the respective DTU generators
 
 ---
 
@@ -533,8 +547,8 @@ Confirm all 16 Red Gate tests are failing before starting implementation.
 - [ ] Update `.factory/objectives/T13-capstone-demo-runbook.md` Act 4 expected output
 - [ ] Run TD-VSDD-060 sibling sweep grep commands from ADR-051 §Enforcement:
   ```bash
-  rg 'output_type.*Utf8|return_type.*Utf8' crates/prism-query/src/infusion_udf.rs
-  # Must return ZERO results
+  rg 'return_type.*Utf8' crates/prism-query/src/infusion_udf.rs
+  # Must return ZERO results (output_type.*Utf8 excluded — sanctioned fallback in output_arrow_type() is correct)
   rg 'E-INFUSE-013' crates/ --type rust
   # Must hit the updated validation path covering sub-conditions 7 and 8
   ```
@@ -721,4 +735,5 @@ retained (for backward compat or simplicity), the adversary will accept it per A
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-07-06 | story-writer | Spec reconciliation to code HEAD 89a09782 (LOCAL adversary pass-1 closures). (HIGH-001) AC-011 clarified: iocs_value_first/behaviors_ioc_value_first populated by spec-driven adapter via JSONPath source_path extraction ($.iocs[0].value, $.behaviors[0].ioc_value) from nested DTU array structures — NOT pre-computed top-level scalar fields; RGT-015/016 test names reconciled to test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath / test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath. (LOW-003) AC-002 TD-VSDD-060 grep narrowed from 'output_type.*Utf8\|return_type.*Utf8' to 'return_type.*Utf8' (output_type.*Utf8 excluded — sanctioned _ => DataType::Utf8 fallback in output_arrow_type() and legitimate *output_type != DataType::Utf8 guard comparisons are correct behavior). (process-gap) AC-010 column_type examples corrected PascalCase "String" → lowercase "string" (prism-core/src/column.rs #[serde(rename_all = "snake_case")] canonical form). No ACs added or removed; no BC changes; no code changes. |
 | 1.0 | 2026-07-05 | story-writer | Initial decomposition. ADR-051 ACCEPTED v1.3 (2026-07-05); BC-2.19.001 v2.2 (amended 2026-07-05); error-taxonomy v2.15. 14 ACs; 16 Red Gate tests; 13 pts; Wave 5; E-DEMO; depends_on S-DEMO-ENRICHMENT-PIVOT-003. |
