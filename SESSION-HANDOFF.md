@@ -44,13 +44,58 @@ timestamp: 2026-07-05T00:00:00Z
 >
 > **D-1546 (2026-07-05): SESSION WRAP — §RESUME SNAPSHOT D-1546 authored (supersedes D-1544).** Durable zero-context snapshot. develop@11edbd36 (origin==local). Feature-branch worktree S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 REMOVED post-merge. No cascade in flight. No open PRs. Parked: S-3.09 @43c41389 (local-only, backup/S-3.09-preresume-43c41389), W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit, awaiting human decision). VERY NEXT ACTION = present ADR-051 to human for ratification (PROPOSED; §datetime row Utf8→Timestamp; typed-enrichment A+B+C blocked) → typed-enrichment story → T13 capstone → T14 recording. develop_head 11edbd36. STATE v8.145→v8.146.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1566** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1566 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `ea714d14` (PR #216 S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 squash-merged 2026-07-06T21:42:04Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.166. D-1566 (PR #216 MERGED — S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 DELIVERED; no cascade in flight; NEXT = next demo roadmap item S-PRISMQL-CASE-INSENSITIVE-001).
+> **D-1567 (2026-07-06): SESSION WRAP — §RESUME SNAPSHOT D-1567 authored (supersedes D-1566).** Three pending-human items registered as explicit tracked Drift Items in STATE.md Drift Items table AND SESSION-HANDOFF.md §PENDING-HUMAN: (1) DRIFT-PARKED-S309-001 — S-3.09 parked @43c41389 local-only, backup/S-3.09-preresume-43c41389, awaiting human decision: resume vs keep-parked vs abandon. (2) DRIFT-PARKED-W3FIX-S307-001 — W3-FIX-S307-001 @fcab8717 local-only, 1 unpushed commit + ~1070 lines uncommitted write_dispatch_tests.rs, awaiting human decision: resume/commit-and-continue vs stash vs abandon. (3) DRIFT-EOCSF-GAP-005-023-001 refreshed with owner=human, status=OPEN/awaiting-human. develop@ea714d14 (origin==local). No cascade in flight. No open PRs. NEXT: next demo-roadmap story per §ACTIVE OBJECTIVE. STATE v8.166→v8.167.
+>
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1567** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1567 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `ea714d14` (PR #216 S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 squash-merged 2026-07-06T21:42:04Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.167. D-1567 (SESSION WRAP — three pending-human Drift Items registered; §RESUME SNAPSHOT D-1567 authored; no cascade in flight; NEXT = next demo roadmap story).
 
 ---
 
-## §RESUME SNAPSHOT — D-1566 (2026-07-06 — POST-MERGE BURST; develop origin/develop ea714d14; BC-INDEX v7.42; STORY-INDEX v2.604; ARCH-INDEX v2.173; STATE v8.166; no cascade in flight; no open PRs; VERY NEXT ACTION = next demo roadmap item S-PRISMQL-CASE-INSENSITIVE-001) [SUPERSEDES D-1557]
+## §RESUME SNAPSHOT — D-1567 (2026-07-06 — SESSION WRAP; develop origin/develop ea714d14; BC-INDEX v7.42; STORY-INDEX v2.604; ARCH-INDEX v2.173; STATE v8.167; no cascade in flight; no open PRs; three pending-human Drift Items registered; VERY NEXT ACTION = next demo-roadmap story) [SUPERSEDES D-1566]
+
+### RESUME IN ONE BREATH
+
+Prism Phase-3/Wave-5. S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (ADR-051 D1–D6 typed enrichment UDF output) DELIVERED + MERGED @ develop ea714d14 (PR #216 squash-merged 2026-07-06T21:42:04Z). SESSION WRAP D-1567: three pending-human items registered as explicit Drift Items (DRIFT-PARKED-S309-001, DRIFT-PARKED-W3FIX-S307-001, DRIFT-EOCSF-GAP-005-023-001 refreshed). No cascade in flight. No open PRs. VERY NEXT ACTION = next demo roadmap item — orchestrator reads §ACTIVE OBJECTIVE + DEMO-SCOPE.md + task ledger to identify story, then runs remove-uncertainty + TDD delivery.
+
+> **D-1566 (2026-07-06): POST-MERGE BURST — PR #216 MERGED + S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 DELIVERED.** PR #216 squash-merged develop@ea714d14 (mergedAt 2026-07-06T21:42:04Z; CI GREEN 43/43; LOCAL 3-CLEAN passes 23/24/25 + PR-LEVEL 3-CLEAN passes 3/4/5 CONVERGED). ADR-051 D1–D6 typed enrichment. POL-14 IDEMPOTENT. develop_head d098be6f→ea714d14. workspace_test_count 5220. BC-INDEX v7.42. STORY-INDEX v2.604. STATE v8.165→v8.166.
+>
+> **D-1567 (2026-07-06): SESSION WRAP — §RESUME SNAPSHOT D-1567 authored (supersedes D-1566).** Three pending-human Drift Items registered as explicit tracked entries in STATE.md Drift Items table AND this §PENDING-HUMAN: DRIFT-PARKED-S309-001 (S-3.09 parked @43c41389 local-only), DRIFT-PARKED-W3FIX-S307-001 (W3-FIX-S307-001 @fcab8717 + ~1070 lines uncommitted), DRIFT-EOCSF-GAP-005-023-001 (refreshed). STATE v8.166→v8.167.
+
+**STATE v8.167. develop ea714d14. BC-INDEX v7.42. STORY-INDEX v2.604. ARCH-INDEX v2.173. error-taxonomy v2.17. active_contracts 255. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 228. workspace_test_count 5220 (develop@ea714d14; non-exhaustive 89/89).**
+
+**LAST MERGED:** S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (PR #216 → develop@ea714d14, 2026-07-06; ADR-051 D1–D6 typed enrichment; 27 RGTs; SEC-001 log-injection sanitize; SEC-002 size guard; canonical prism_core::sanitize_for_log). Prior: PR #215 housekeeping develop@d098be6f (2026-07-05).
+
+**HEADLINE NEXT-ACTION:** Orchestrator reads §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md` + task ledger `.factory/objectives/multi-client-soc-demo-tasks.md` to identify the next demo-roadmap story. Run dclaude:remove-uncertainty (D-1110 directive) then TDD delivery per per-story-delivery orchestrator workflow. Autonomy D-989 active.
+
+**HEADS:** develop ea714d14 (PUSHED, origin==local); factory-artifacts = this session-wrap burst commit (PUSHED). Parked worktrees: S-3.09 @43c41389 (local-only, backup/S-3.09-preresume-43c41389) + W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit + ~1070 lines uncommitted write_dispatch_tests.rs — awaiting human decision).
+
+**WORKTREES:** S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 REMOVED (devops cleanup dispatched post-merge). S-3.09 PARKED (DRIFT-PARKED-S309-001; DAY-2/PARKED; backup/S-3.09-preresume-43c41389@43c41389; local-only; awaiting human decision). W3-FIX-S307-001 PARKED (DRIFT-PARKED-W3FIX-S307-001; 1 unpushed commit @fcab8717 + ~1070 lines uncommitted work in `crates/prism-sensors/tests/write_dispatch_tests.rs`; awaiting human decision — do NOT delete without human approval).
+
+**PENDING-HUMAN:**
+1. **S-3.09 decision (DRIFT-PARKED-S309-001):** resume vs keep-parked vs abandon. Branch `feature/S-3.09` @43c41389 local-only (never pushed). Backup: `backup/S-3.09-preresume-43c41389`. Freeze blocker cleared.
+2. **W3-FIX-S307-001 decision (DRIFT-PARKED-W3FIX-S307-001):** resume/commit-and-continue vs stash vs abandon. Branch `feature/W3-FIX-S307-001` @fcab8717 local-only (1 unpushed commit). PLUS ~1070 lines UNCOMMITTED work in `crates/prism-sensors/tests/write_dispatch_tests.rs` (test expansion, unstaged). Topic: deferred TDE write-back sensor-write overrides / E-SENSOR-070. The uncommitted work MUST be explicitly preserved or discarded.
+3. **E-OCSF-005..023 taxonomy gap (DRIFT-EOCSF-GAP-005-023-001):** triage/prioritize. 19 codes (E-OCSF-005 through E-OCSF-023) defined in PrismError enum but absent from `.factory/specs/prd-supplements/error-taxonomy.md`. No production impact; documentation/auditability gap only.
+4. **CLAUDE.md non-exhaustive count 88→89:** TemporalLiteralPosition landed in PR #214 (carry from D-1546).
+5. **Next demo roadmap story authorization:** orchestrator will propose per §ACTIVE OBJECTIVE; human approves.
+
+**PENDING USER-APPROVED WORK:** None in flight.
+
+**DECISION DELTA (since last wrap D-1566):** D-1567 (this session wrap — Drift Items registration + RESUME SNAPSHOT D-1567).
+
+**RESUME PROTOCOL:**
+1. Run vsdd-factory:factory-worktree-health (BLOCKING).
+2. `git log --oneline -1 origin/develop` → expect `ea714d14`.
+3. No cascade in flight. No open PRs. S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 COMPLETE.
+4. Read §ACTIVE OBJECTIVE + DEMO-SCOPE.md + task ledger to identify next demo story.
+5. Run dclaude:remove-uncertainty (D-1110) then TDD delivery per per-story-delivery orchestrator.
+6. Surface PENDING-HUMAN items 1–3 to human before resuming parked worktrees.
+7. Full state: STATE.md Session Resume Checkpoint D-1567.
+8. Autonomy D-989 active.
+
+---
+
+## §RESUME SNAPSHOT — D-1566 (2026-07-06 — POST-MERGE BURST; develop origin/develop ea714d14; BC-INDEX v7.42; STORY-INDEX v2.604; ARCH-INDEX v2.173; STATE v8.166; no cascade in flight; no open PRs; VERY NEXT ACTION = next demo roadmap item S-PRISMQL-CASE-INSENSITIVE-001) [SUPERSEDED by D-1567]
 
 ### RESUME IN ONE BREATH
 
