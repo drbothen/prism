@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.1"
+version: "1.2"
 status: draft
 producer: story-writer
 phase: 3
@@ -13,8 +13,10 @@ points: 10
 tdd_mode: strict
 # tdd_mode rationale: this story modifies production Rust code in prism-query
 # (filter_parser.rs grammar, ast.rs struct fields, pipe_sql_emitter.rs lowering,
-# ast.rs round-trip normalizer) and prism-ocsf / prism-spec-engine (adapter-boundary
-# normalization pipeline). All behavioral changes require Red Gate tests as failing
+# ast.rs round-trip normalizer) and prism-ocsf (adapter-boundary OCSF enum-label
+# normalization — OcsfNormalizer::normalize_with_mappers + OcsfEnumMap in enum_map.rs;
+# the definitive DynamicMessage-construction site; prism-spec-engine has zero
+# DynamicMessage references). All behavioral changes require Red Gate tests as failing
 # todo!() stubs BEFORE production code is modified. Grep-sweep ACs (AC-006, AC-007)
 # and VERIFY-only ACs (AC-026) do not have standalone Red Gate stubs but do not
 # justify facade mode — production code is modified with new behavioral semantics.
@@ -188,8 +190,14 @@ BC-2.11.002 v1.5 amendment: IEQ added to filter-mode supported operator table)
 
 Given a PrismQL filter-mode query string `severity IEQ 'high'`,
 when the Chumsky parser in `filter_parser.rs` parses it,
-then the resulting AST contains `Predicate::Compare { field: "severity", op: CompareOp::Eq,
-value: Value::String("high"), case_insensitive: true }`.
+then the resulting AST contains `Predicate::Compare { lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))), op: CompareOp::Eq, rhs: Box::new(Expr::Literal(Literal::String("high".into()))), case_insensitive: true }`.
+
+CODE-SHAPE NOTE (verified against `ast.rs` `pub enum Predicate`): the actual `Predicate::Compare`
+variant is `{ lhs: Box<Expr>, op: CompareOp, rhs: Box<Expr> }` — NOT `{ field, op, value }`, and
+there is NO `Value` type in the query AST (string literals are `Literal::String`, wrapped in
+`Expr::Literal`). The IEQ parse site sets `lhs = field_path_to_expr(fp)` (→ `Expr::Field` for a
+normal column) and `rhs = Expr::Literal(Literal::String(..))`. The new field `case_insensitive: bool`
+is added to the variant.
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_parses_to_compare_case_insensitive_true`
 
@@ -199,8 +207,12 @@ BC-2.11.002 v1.5 amendment)
 
 Given `status IIN ('open', 'new')`,
 when parsed,
-then the AST contains `Predicate::In { field: "status", values: [Value::String("open"),
-Value::String("new")], negated: false, case_insensitive: true }`.
+then the AST contains `Predicate::In { field: FieldPath::new(["status"]), values: vec![Literal::String("open".into()), Literal::String("new".into())], negated: false, case_insensitive: true }`.
+
+CODE-SHAPE NOTE (verified against `ast.rs`): the actual `Predicate::In` variant is
+`{ field: FieldPath, values: Vec<Literal>, negated: bool }` — `field` is a `FieldPath` (not a
+`String`) and `values` is `Vec<Literal>` (not `Vec<Value>`). The new field `case_insensitive: bool`
+is added to the variant.
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_parses_to_in_case_insensitive_true`
 
@@ -209,8 +221,7 @@ Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_parses_to_in_case_insensitive
 
 Given `severity INE 'informational'`,
 when parsed,
-then the AST contains `Predicate::Compare { field: "severity", op: CompareOp::Ne,
-value: Value::String("informational"), case_insensitive: true }`.
+then the AST contains `Predicate::Compare { lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))), op: CompareOp::Ne, rhs: Box::new(Expr::Literal(Literal::String("informational".into()))), case_insensitive: true }` (same `lhs`/`rhs` shape as AC-001; `op` is `CompareOp::Ne`).
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ine_parses_to_compare_ne_case_insensitive_true`
 
@@ -234,9 +245,16 @@ not swallow IIN as a malformed IN; design map §A §Collision check)
 
 Given `status IIN ('open')` (single-element IIN),
 when parsed,
-then the result is `Predicate::In { case_insensitive: true, values: [Value::String("open")] }`
-— NOT a parse error and NOT `Predicate::In { case_insensitive: false }` (which would indicate
+then the result is `Predicate::In { field: FieldPath::new(["status"]), values: vec![Literal::String("open".into())], negated: false, case_insensitive: true }`
+— NOT a parse error and NOT `Predicate::In { .., case_insensitive: false }` (which would indicate
 `IIN` was partially consumed as `IN` + stray `I`).
+
+COLLISION NOTE (verified against `filter_parser.rs`): the project-local `kw()` helper matches a
+full `[A-Za-z_]+` run via `eq_ignore_ascii_case`, so `kw("IN")` will NOT match the token `IIN`
+(the full run `"IIN"` ≠ `"IN"`). Ordering `IIN` before `IN` in the `choice((...))` chain is still
+the correct, defensive discipline (Context7-confirmed: `choice` tries alternatives in order,
+most-specific-first), but the full-run `kw()` semantics provide a second layer of protection
+against prefix-consumption. AC-005 remains a required guard.
 
 IMPL NOTE: `IIN` must appear BEFORE `IN` in the Chumsky alternative chain. The longest
 keyword must be tried first. Verify by reading the keyword parser section in filter_parser.rs.
@@ -276,10 +294,14 @@ VERIFY-ONLY AC — compilation enforces.
 (traces to BC-2.11.024 v1.0 postcondition "DataFusion SQL lowering" table — IEQ row:
 `lower(severity) = lower('high')`)
 
-Given `Predicate::Compare { field: "severity", op: CompareOp::Eq, value: Value::String("high"),
-case_insensitive: true }`,
+Given `Predicate::Compare { lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))), op: CompareOp::Eq, rhs: Box::new(Expr::Literal(Literal::String("high".into()))), case_insensitive: true }`,
 when `predicate_to_datafusion_sql` in `pipe_sql_emitter.rs` processes it,
 then the emitted string is `lower(severity) = lower('high')`.
+
+EMITTER NOTE (verified against `pipe_sql_emitter.rs`): the `Predicate::Compare` match arm
+currently destructures `{ lhs, op, rhs }` and computes `expr_to_sql(lhs)` / `expr_to_sql(rhs)`.
+The `case_insensitive: true` branch wraps BOTH sides: `lower({expr_to_sql(lhs)}) = lower({expr_to_sql(rhs)})`.
+`expr_to_sql(Expr::Field(["severity"]))` → `severity`; `expr_to_sql(Expr::Literal(Literal::String("high")))` → `'high'`.
 
 The `ILIKE` function is NOT used — it is a pattern operator (ADR-047 §Alternatives Alt-2).
 
@@ -289,7 +311,7 @@ Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_emits_lower_equals_lower`
 (traces to BC-2.11.024 v1.0 postcondition "DataFusion SQL lowering" table — INE row:
 `lower(severity) != lower('low')`)
 
-Given `Predicate::Compare { op: CompareOp::Ne, case_insensitive: true }` for `severity INE 'low'`,
+Given `Predicate::Compare { lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))), op: CompareOp::Ne, rhs: Box::new(Expr::Literal(Literal::String("low".into()))), case_insensitive: true }` for `severity INE 'low'`,
 when `predicate_to_datafusion_sql` processes it,
 then the emitted string is `lower(severity) != lower('low')`.
 
@@ -299,11 +321,14 @@ Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ine_emits_lower_ne_lower`
 (traces to BC-2.11.024 v1.0 postcondition "DataFusion SQL lowering" table — IIN row:
 `lower(severity) IN (lower('high'), lower('critical'))`)
 
-Given `Predicate::In { case_insensitive: true, values: [Value::String("high"), Value::String("critical")] }`,
+Given `Predicate::In { field: FieldPath::new(["severity"]), values: vec![Literal::String("high".into()), Literal::String("critical".into())], negated: false, case_insensitive: true }`,
 when `predicate_to_datafusion_sql` processes it,
 then the emitted string is `lower(severity) IN (lower('high'), lower('critical'))`.
 
-`lower()` is applied to BOTH the field reference AND each literal value in the list.
+`lower()` is applied to BOTH the field reference AND each literal value in the list. EMITTER NOTE:
+the existing `Predicate::In` match arm destructures `{ field, values, negated }` and builds the
+value list via `literal_to_sql`; the `case_insensitive: true` branch wraps `field_path_to_sql(field)`
+in `lower(..)` and each `literal_to_sql(v)` in `lower(..)`.
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_emits_lower_in_lower_list`
 
@@ -637,8 +662,8 @@ failing stubs, otherwise verify the parity gate via `just check` at end of imple
 | Grammar (IEQ/IIN/INE keywords) | prism-query | `src/filter_parser.rs` | Pure |
 | AST extensions (case_insensitive flag) | prism-query | `src/ast.rs` | Pure |
 | DataFusion SQL emitter (lower() lowering) | prism-query | `src/pipe_sql_emitter.rs` | Pure |
-| PQL round-trip normalizer | prism-query | `src/ast.rs` (normalizer section ~lines 1977-2016) | Pure |
-| OCSF enum-label canonical-case normalization | prism-ocsf / prism-spec-engine | `src/enum_map.rs` + adapter normalizer | Pure (lookup-and-rewrite, no I/O) |
+| PQL round-trip normalizer | prism-query | `src/ast.rs` — `PqlNormalizer::normalize_predicate` (the `Predicate::Compare` and `Predicate::In` match arms) | Pure |
+| OCSF enum-label canonical-case normalization | prism-ocsf | `src/enum_map.rs` (`OcsfEnumMap`) + `src/normalizer.rs` (`OcsfNormalizer::normalize_with_mappers`) and/or `src/mappers/spec_driven.rs` | Pure (lookup-and-rewrite, no I/O) |
 | Grammar resource MCP resource | prism-mcp | `src/resources.rs` (or grammar generation code) | Effectful (MCP resource emission) |
 | prism describe pedagogical examples | prism-query / prism-mcp | grammar describe output | Effectful (MCP tool response) |
 
@@ -684,9 +709,9 @@ failing stubs, otherwise verify the parity gate via `just check` at end of imple
 | `crates/prism-query/src/filter_parser.rs` | Add `IEQ`, `IIN`, `INE` keyword alternatives; `IIN` must appear BEFORE `IN` in alternative chain |
 | `crates/prism-query/src/ast.rs` | Add `case_insensitive: bool` to `Predicate::Compare` and `Predicate::In`; extend round-trip normalizer to emit IEQ/IIN/INE |
 | `crates/prism-query/src/pipe_sql_emitter.rs` | Add `case_insensitive: true` branches emitting `lower(field) OP lower('val')` in `predicate_to_datafusion_sql` |
-| `crates/prism-ocsf/src/enum_map.rs` (or equiv.) | Verify canonical caption map covers severity, status, activity, disposition, category; extend if missing entries |
-| `crates/prism-ocsf/src/` (normalizer pipeline) | Add normalization function that looks up `enum_map.rs` and rewrites enum-label fields before DynamicMessage creation |
-| `crates/prism-spec-engine/src/` (adapter pipeline) | IMPL NOTE: if the adapter normalization pipeline is in prism-spec-engine rather than prism-ocsf (verify at implementation time), modify the correct file |
+| `crates/prism-ocsf/src/enum_map.rs` | Verify `OcsfEnumMap` canonical caption map covers severity, status, activity, disposition, category; extend if missing entries. This is the sole casing authority (BC-2.02.010 v1.5). |
+| `crates/prism-ocsf/src/normalizer.rs` and/or `crates/prism-ocsf/src/mappers/spec_driven.rs` | Add the canonical-case rewrite that looks up `OcsfEnumMap` and rewrites enum-label fields BEFORE the `DynamicMessage` field is populated (`OcsfNormalizer::normalize_with_mappers` is the DynamicMessage-creation site). This is the DEFINITIVE location (verified — see Scope Ambiguity 1). |
+| `crates/prism-spec-engine/src/` | NOT modified for OCSF normalization (verified: zero `DynamicMessage` references). Retained in `crates_touched` only as a defensive allowance in case SAP-2 fixture/DTU-parity fallout requires a touch; if no prism-spec-engine change is made, note it and consider removing it from `crates_touched` at PR time (flag for product-owner/state-manager). |
 | `crates/prism-mcp/src/resources.rs` (or equiv.) | Add IEQ/IIN/INE to grammar reference resource operator table; add OCSF casing note to prism describe examples |
 | DTU fixture generators (prism-dtu-*/src/generator.rs or types.rs) | Update any test assertions or fixture values that assert pre-normalization UPPER-case severity/status strings to use canonical Title-case. Per SAP-2, adversary will verify TOML column parity with DTU types.rs |
 
@@ -748,21 +773,28 @@ E (Adapter normalization) is parallel to A-D.
    - The `IN` keyword parser location (find where `IN` is defined to insert `IIN` BEFORE it)
    - The `=` and `!=` comparison operator parsers
 
-6. **Read** `crates/prism-query/src/ast.rs` focusing on:
-   - `Predicate::Compare` variant definition (~lines 1284-1306)
-   - `Predicate::In` variant definition (~lines 1550-1554)
-   - PQL round-trip normalizer section (~lines 1977-2016)
+6. **Read** `crates/prism-query/src/ast.rs` focusing on (cite by anchor, not line number —
+   the prior line numbers in this story were stale; TD-VSDD-091):
+   - `pub enum Predicate` — the `Compare { lhs, op, rhs }` variant and the `In { field, values, negated }` variant (the enum is `#[non_exhaustive]`)
+   - The `Expr` enum (`Expr::Field`, `Expr::Literal`, `Expr::VirtualField`) — the `lhs`/`rhs` payload types
+   - `PqlNormalizer::normalize_predicate` — the round-trip normalizer's `Predicate::Compare` / `Predicate::In` arms (models the existing `StringOp` ICONTAINS→"ICONTAINS" uppercase-canonical emission)
 
 7. **Read** `crates/prism-query/src/pipe_sql_emitter.rs` focusing on:
    - `predicate_to_datafusion_sql` (~line 506)
    - Existing CI lowering for ICONTAINS (~lines 541-564, the model to follow)
    - The op table mapping CompareOp variants to SQL strings (~lines 743-749)
 
-8. **Read** `crates/prism-ocsf/src/` to locate enum_map.rs and the normalization pipeline that
-   produces OcsfEvent from raw sensor records. Also read `crates/prism-spec-engine/src/` to
-   determine which crate owns the adapter boundary (design map says prism-ocsf; STORY-INDEX
-   says prism-spec-engine; the codebase is the source of truth). Fix the implementation
-   location in the correct crate.
+8. **Read** `crates/prism-ocsf/src/` to ground yourself in the normalization pipeline. The
+   crate ownership question is ALREADY RESOLVED (see "Scope Ambiguities Resolved → Ambiguity 1"):
+   **the OCSF enum-label normalization lives in `prism-ocsf`, NOT prism-spec-engine.** Read:
+   - `crates/prism-ocsf/src/enum_map.rs` — `OcsfEnumMap`, the canonical caption authority.
+   - `crates/prism-ocsf/src/normalizer.rs` — `OcsfNormalizer::normalize_with_mappers`, which
+     creates the `DynamicMessage` (BC-2.02.002) and dispatches to a `SensorMapper`.
+   - `crates/prism-ocsf/src/mappers/spec_driven.rs` — the config-driven sensor mapper (the path
+     the CrowdStrike/Cyberint/Claroty/Armis TOML specs flow through).
+   Insert the canonical-case rewrite so it runs BEFORE the OCSF enum-label field is populated on
+   the `DynamicMessage`. Do NOT search prism-spec-engine for the normalizer — it does not create
+   `DynamicMessage` (verified: zero `DynamicMessage` references in that crate).
 
 ### Phase 1 — Write all Red Gate test stubs (FAILING first)
 
@@ -798,19 +830,24 @@ E (Adapter normalization) is parallel to A-D.
 10. **Modify** `crates/prism-query/src/ast.rs` — add `case_insensitive: bool` to `Predicate::Compare`
     and `Predicate::In`:
 
+    VERIFIED ACTUAL SHAPE (from `ast.rs` `pub enum Predicate`, which is `#[non_exhaustive]`):
+    the existing variants use `lhs`/`rhs` (`Box<Expr>`) for `Compare` and `field: FieldPath` +
+    `values: Vec<Literal>` for `In`. Add ONLY the new `case_insensitive: bool` field to each —
+    do NOT rename or restructure the existing fields.
+
     ```rust
-    // In Predicate::Compare variant:
+    // In Predicate::Compare variant (EXISTING fields lhs/op/rhs unchanged; add case_insensitive):
     Predicate::Compare {
-        field: String,
+        lhs: Box<Expr>,
         op: CompareOp,
-        value: Value,
+        rhs: Box<Expr>,
         case_insensitive: bool,  // NEW: default false for existing callers
     }
 
-    // In Predicate::In variant:
+    // In Predicate::In variant (EXISTING fields field/values/negated unchanged; add case_insensitive):
     Predicate::In {
-        field: String,
-        values: Vec<Value>,
+        field: FieldPath,
+        values: Vec<Literal>,
         negated: bool,
         case_insensitive: bool,  // NEW: default false for existing callers
     }
@@ -836,7 +873,8 @@ E (Adapter normalization) is parallel to A-D.
     ```
     Fix all sites across ALL crates that use the `prism-query` AST types.
 
-12. **Add `case_insensitive: bool` to the round-trip normalizer** in `ast.rs` (~lines 1977-2016).
+12. **Add `case_insensitive` handling to the round-trip normalizer** in `ast.rs` —
+    `PqlNormalizer::normalize_predicate`, `Predicate::Compare` and `Predicate::In` arms.
     The normalizer must emit `IEQ`, `IIN`, `INE` when `case_insensitive: true`:
 
     | AST state | Normalized PQL output |
@@ -886,25 +924,39 @@ E (Adapter normalization) is parallel to A-D.
 
     Add branches for `case_insensitive: true` before the existing case-sensitive branches:
 
+    The `Predicate::Compare` arm already destructures `{ lhs, op, rhs }` and computes
+    `lhs_sql = expr_to_sql(lhs)?` and `rhs_sql = expr_to_sql(rhs)?`. The `Predicate::In` arm
+    destructures `{ field, values, negated }` and computes `field_sql = field_path_to_sql(field)`
+    and a value list via `literal_to_sql`. Add `case_insensitive` to each destructure and branch
+    on it — reuse the EXISTING `lhs_sql`/`rhs_sql`/`field_sql` bindings; do NOT invent `field` /
+    `value` / `escape_value` (no such variables/fn on these paths — literal escaping is handled
+    inside `literal_to_sql` / `expr_to_sql`).
+
     ```rust
-    // For Predicate::Compare:
-    if case_insensitive {
+    // For Predicate::Compare { lhs, op, rhs, case_insensitive }:
+    let lhs_sql = expr_to_sql(lhs)?;
+    let rhs_sql = expr_to_sql(rhs)?;
+    if *case_insensitive {
         match op {
-            CompareOp::Eq => format!("lower({}) = lower('{}')", field, escape_value(value)),
-            CompareOp::Ne => format!("lower({}) != lower('{}')", field, escape_value(value)),
-            _ => ... // Other ops (LT, GT, etc.) — design map does not add case_insensitive
-                     // for non-equality ops; fall through to existing path
+            CompareOp::Eq => Ok(format!("lower({lhs_sql}) = lower({rhs_sql})")),
+            CompareOp::Ne => Ok(format!("lower({lhs_sql}) != lower({rhs_sql})")),
+            _ => { /* Other ops (LT, GT, etc.) — case_insensitive not applicable;
+                     grammar only produces IEQ→Eq and INE→Ne, so this arm is unreachable
+                     for parser-produced ASTs. Fall through to the existing op_str path. */ }
         }
     } else {
-        // Existing case-sensitive path (unchanged)
+        // Existing case-sensitive path (unchanged): `{lhs_sql} {op_str} {rhs_sql}`
     }
 
-    // For Predicate::In:
-    if case_insensitive {
+    // For Predicate::In { field, values, negated, case_insensitive }:
+    let field_sql = field_path_to_sql(field);
+    if *case_insensitive {
         let lowered_values: Vec<String> = values.iter()
-            .map(|v| format!("lower('{}')", escape_value(v)))
-            .collect();
-        format!("lower({}) IN ({})", field, lowered_values.join(", "))
+            .map(|v| Ok(format!("lower({})", literal_to_sql(v)?)))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(format!("lower({field_sql}) IN ({})", lowered_values.join(", ")))
+        // NOTE: negated + case_insensitive (IIN has no negated form in the grammar) is not
+        // parser-producible; keep the existing NOT IN handling for negated case-sensitive IN.
     } else {
         // Existing case-sensitive path (unchanged)
     }
@@ -935,8 +987,8 @@ E (Adapter normalization) is parallel to A-D.
 
 ### Phase 7 — Adapter normalization (Track E)
 
-19. **Implement** the OCSF enum-label canonical-case normalization in the prism-ocsf or
-    prism-spec-engine adapter pipeline (determined at Task 8):
+19. **Implement** the OCSF enum-label canonical-case normalization in the **prism-ocsf**
+    normalization pipeline (crate ownership resolved — see Task 8 / Scope Ambiguity 1):
 
     a. **Read** `crates/prism-ocsf/src/enum_map.rs` to understand the existing caption map
        structure (e.g., `severity_id: 4 → "High"`, `5 → "Critical"`).
@@ -951,12 +1003,16 @@ E (Adapter normalization) is parallel to A-D.
     /// Returns:
     ///   - Some(canonical_value) if the value is found in enum_map.rs (case-insensitive lookup)
     ///   - None if the value is not recognized (caller should leave as-received + warn)
-    fn normalize_ocsf_enum_label(field_name: &str, value: &str, enum_map: &EnumMap) -> Option<String> {
+    fn normalize_ocsf_enum_label(field_name: &str, value: &str, enum_map: &OcsfEnumMap) -> Option<String> {
         // Build a case-folded lookup from enum_map captions
         // e.g., "high" → "High", "HIGH" → "High", "CRITICAL" → "Critical"
-        enum_map.lookup_case_insensitive(field_name, value)
+        enum_map.lookup_case_insensitive(field_name, value)  // method name ILLUSTRATIVE
     }
     ```
+    NOTE: the concrete type is `OcsfEnumMap` (`crates/prism-ocsf/src/enum_map.rs`, re-exported from
+    `lib.rs`). `lookup_case_insensitive` is an ILLUSTRATIVE method name — read `enum_map.rs` at
+    Task 19a to use (or add, with a Red Gate test) the real lookup API; do not assume this exact
+    signature exists.
 
     c. **Wire** the normalization function into the pipeline step that sets OCSF string fields,
        BEFORE DynamicMessage creation (BC-2.02.002 v1.5 amendment + BC-2.02.013 invariant).
@@ -1022,7 +1078,7 @@ E (Adapter normalization) is parallel to A-D.
 28. **Run full test suite:**
     ```bash
     just iter prism-query       # all prism-query tests
-    just iter prism-ocsf        # or prism-spec-engine if that is where adapter normalization lives
+    just iter prism-ocsf        # adapter normalization lives in prism-ocsf (resolved at Task 8)
     just check                  # full workspace pre-push gate
     ```
     All 24 Red Gate tests must pass. All existing tests must continue to pass (especially
@@ -1056,9 +1112,10 @@ E (Adapter normalization) is parallel to A-D.
   is the same — the compiler surfaces match arms but NOT construction sites. GREP for
   construction sites explicitly (Task 11).
 
-- **Round-trip normalizer location (~lines 1977-2016 in ast.rs):** The temporal typing story
-  confirmed the normalizer is in `ast.rs` and must emit canonical uppercase operator names.
-  Follow the same uppercase-canonical pattern.
+- **Round-trip normalizer location (`PqlNormalizer::normalize_predicate` in ast.rs):** The
+  temporal typing story confirmed the normalizer is in `ast.rs` and must emit canonical uppercase
+  operator names. Follow the same uppercase-canonical pattern (see how `StringOp` already emits
+  `ICONTAINS`/`ISTARTSWITH`/`IENDSWITH` in uppercase from the `(op, case_insensitive)` match).
 
 - **pipe_sql_emitter.rs ICONTAINS pattern is the model:** The ICONTAINS lowering at ~lines
   541-564 is the exact template for IEQ/IIN/INE lowering. Read that code first before
@@ -1155,14 +1212,27 @@ The following modules/packages must NOT appear as new imports in the files modif
 The following ambiguities were present in the input artifacts and resolved by the story-writer
 per the production-grade default:
 
-**Ambiguity 1: Adapter normalization in prism-ocsf vs prism-spec-engine.**
-The design map (§E) names `crates/prism-ocsf/src/` as the location. The STORY-INDEX stub names
-`crates/prism-spec-engine/` as the adapter-boundary crate. These disagree.
-RESOLUTION: The implementer is directed to read BOTH crates at Task 8 and implement in the
-crate that actually contains the adapter-boundary normalization pipeline (the pipeline that
-converts raw sensor records to OcsfEvent before DynamicMessage creation). The correct crate
-is the source of truth; both are listed in `crates_touched`. The adversary's SAP-2 probe
-will verify the correct modification site regardless of which crate is chosen.
+**Ambiguity 1: Adapter normalization in prism-ocsf vs prism-spec-engine — RESOLVED (remove-uncertainty pass-2, 2026-07-06).**
+The design map (§E) names `crates/prism-ocsf/src/` as the location. The STORY-INDEX stub named
+`crates/prism-spec-engine/` as the adapter-boundary crate.
+DEFINITIVE RESOLUTION: **The OCSF enum-label normalization pipeline lives in `prism-ocsf`.**
+This was verified directly against the codebase (source of truth): `DynamicMessage` creation
+(BC-2.02.002) occurs ONLY in `prism-ocsf` — `crates/prism-ocsf/src/normalizer.rs`
+(`OcsfNormalizer::normalize_with_mappers`, which calls `DynamicMessage::new(descriptor)`),
+`crates/prism-ocsf/src/mappers/spec_driven.rs` (the config-driven sensor mapper for the
+CrowdStrike/Cyberint/Claroty/Armis TOML specs), and `crates/prism-ocsf/src/event.rs`. The
+canonical caption authority `OcsfEnumMap` is at `crates/prism-ocsf/src/enum_map.rs` (re-exported
+from `lib.rs` as `pub use enum_map::OcsfEnumMap`). A workspace scan found ZERO `DynamicMessage`
+references in `prism-spec-engine` — its "normalization" surfaces (`pipeline.rs`, `datetime.rs`,
+`column_mapping.rs`) handle spec parsing, datetime coercion, and column mapping, NOT OCSF
+protobuf message construction. The STORY-INDEX stub was WRONG.
+IMPLEMENTER DIRECTION: implement the canonical-case enum-label rewrite in `prism-ocsf` — insert
+it in the `normalizer.rs` normalize path and/or the `spec_driven.rs` mapper so it runs BEFORE the
+`DynamicMessage` field is populated (BC-2.02.002 v1.5), using `OcsfEnumMap` from `enum_map.rs`.
+`prism-spec-engine` does NOT require modification for the OCSF normalization itself. (`crates_touched`
+still lists `prism-spec-engine` — see the note under "File Structure Requirements"; the only
+possible prism-spec-engine/DTU touch is fixture/assertion updates per SAP-2, not the normalizer.)
+The adversary's SAP-2 probe verifies TOML↔DTU parity regardless.
 
 **Ambiguity 2: Non-exhaustive gate count (87 vs 89).**
 ADR-047 and the design map cite `EXPECTED=87`. CLAUDE.md currently shows `EXPECTED=89`
@@ -1176,3 +1246,13 @@ The design map title mentions "IEQ/IIN/INE" but some sections focus only on IEQ 
 RESOLUTION: INE is explicitly confirmed in ADR-047 §D.2 ("The INE operator is included for
 completeness of the family (additive, no extra cost)") and BC-2.11.024 postconditions. All
 three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, case_insensitive: true}`.
+
+---
+
+## Story Changelog
+
+| Version | Date | Change Summary |
+|---------|------|----------------|
+| v1.0 | 2026-07-06 | Initial story decomposition |
+| v1.1 | 2026-07-06 | remove-uncertainty pass-1: AST shape verified against ast.rs; CODE-SHAPE NOTEs added to AC-001/AC-002/AC-003/AC-008/AC-010; Scope Ambiguity 1 added (prism-ocsf vs prism-spec-engine pending verification); Ambiguity 2/3 added; File Structure Requirements expanded; IIN-before-IN collision note refined |
+| v1.2 | 2026-07-06 | remove-uncertainty pass-2: tdd_mode rationale comment corrected — OCSF adapter-boundary normalization is definitively in prism-ocsf (OcsfNormalizer + OcsfEnumMap), NOT prism-spec-engine (zero DynamicMessage references); Scope Ambiguity 1 closed with DEFINITIVE RESOLUTION; TD-VSDD-091 anchor de-pinning applied (line-number citations removed, replaced with anchor-based references); crates_touched confirmed: prism-query (operators), prism-ocsf (OCSF normalization, primary), prism-spec-engine (defensive allowance, may be removed at PR time if untouched) |
