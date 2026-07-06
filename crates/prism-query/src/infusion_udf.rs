@@ -45,6 +45,7 @@ use datafusion::logical_expr::async_udf::{AsyncScalarUDF, AsyncScalarUDFImpl};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
+use prism_core::error::InfusionError;
 use prism_spec_engine::{
     parse_datetime_to_micros, InfusionLruCache, InfusionTier3Cache, InfusionUdfDescriptor,
     QueryScopedInfusionCache,
@@ -601,14 +602,21 @@ impl InfusionAsyncUdf {
         // For any other typed output, a leading '[' indicates a JSON-list column value
         // (e.g. iocs_value = ["hash1","hash2"]) which cannot be coerced to a scalar — NULL.
         if value.starts_with('[') && *output_type != DataType::Utf8 {
-            let truncated_value: String = value.chars().take(50).collect();
+            // MED-001 + MED-002 fix: construct canonical E-INFUSE-014 error variant and emit
+            // its Display. declared_type = output_type vocabulary string (not Arrow debug).
+            let err = InfusionError::new_type_coercion_failed(
+                field_name,
+                &self.descriptor.infusion_id,
+                &self.descriptor.output_type,
+                value,
+            );
             tracing::warn!(
                 event_type = "infusion.coercion_failed",
                 field_name = %field_name,
                 infusion_id = %self.descriptor.infusion_id,
-                declared_type = %format!("{output_type:?}"),
-                truncated_value = %truncated_value,
-                "E-INFUSE-014: JSON-list input to typed UDF (Scalar-Input rule ADR-051 D4); row produces NULL"
+                declared_type = %self.descriptor.output_type,
+                truncated_value = %value.chars().take(50).collect::<String>(),
+                "{}", err
             );
             return None;
         }
@@ -629,14 +637,19 @@ impl InfusionAsyncUdf {
                         return Some(serde_json::Value::Number(i.into()));
                     }
                 }
-                let truncated_value: String = value.chars().take(50).collect();
+                let err = InfusionError::new_type_coercion_failed(
+                    field_name,
+                    &self.descriptor.infusion_id,
+                    &self.descriptor.output_type,
+                    value,
+                );
                 tracing::warn!(
                     event_type = "infusion.coercion_failed",
                     field_name = %field_name,
                     infusion_id = %self.descriptor.infusion_id,
-                    declared_type = "integer",
-                    truncated_value = %truncated_value,
-                    "E-INFUSE-014: value cannot be coerced to Int64; row produces NULL"
+                    declared_type = %self.descriptor.output_type,
+                    truncated_value = %value.chars().take(50).collect::<String>(),
+                    "{}", err
                 );
                 None
             }
@@ -657,14 +670,19 @@ impl InfusionAsyncUdf {
                         }
                     }
                 }
-                let truncated_value: String = value.chars().take(50).collect();
+                let err = InfusionError::new_type_coercion_failed(
+                    field_name,
+                    &self.descriptor.infusion_id,
+                    &self.descriptor.output_type,
+                    value,
+                );
                 tracing::warn!(
                     event_type = "infusion.coercion_failed",
                     field_name = %field_name,
                     infusion_id = %self.descriptor.infusion_id,
-                    declared_type = "float",
-                    truncated_value = %truncated_value,
-                    "E-INFUSE-014: value cannot be coerced to Float64; row produces NULL"
+                    declared_type = %self.descriptor.output_type,
+                    truncated_value = %value.chars().take(50).collect::<String>(),
+                    "{}", err
                 );
                 None
             }
@@ -674,14 +692,19 @@ impl InfusionAsyncUdf {
                     "true" | "1" | "yes" => Some(serde_json::Value::Bool(true)),
                     "false" | "0" | "no" => Some(serde_json::Value::Bool(false)),
                     _ => {
-                        let truncated_value: String = value.chars().take(50).collect();
+                        let err = InfusionError::new_type_coercion_failed(
+                            field_name,
+                            &self.descriptor.infusion_id,
+                            &self.descriptor.output_type,
+                            value,
+                        );
                         tracing::warn!(
                             event_type = "infusion.coercion_failed",
                             field_name = %field_name,
                             infusion_id = %self.descriptor.infusion_id,
-                            declared_type = "boolean",
-                            truncated_value = %truncated_value,
-                            "E-INFUSE-014: unrecognised boolean value; row produces NULL"
+                            declared_type = %self.descriptor.output_type,
+                            truncated_value = %value.chars().take(50).collect::<String>(),
+                            "{}", err
                         );
                         None
                     }
@@ -693,14 +716,19 @@ impl InfusionAsyncUdf {
                 match parse_datetime_to_micros(value, field_name, &self.descriptor.infusion_id) {
                     Ok(micros) => Some(serde_json::Value::Number(micros.into())),
                     Err(_) => {
-                        let truncated_value: String = value.chars().take(50).collect();
+                        let err = InfusionError::new_type_coercion_failed(
+                            field_name,
+                            &self.descriptor.infusion_id,
+                            &self.descriptor.output_type,
+                            value,
+                        );
                         tracing::warn!(
                             event_type = "infusion.coercion_failed",
                             field_name = %field_name,
                             infusion_id = %self.descriptor.infusion_id,
-                            declared_type = "datetime",
-                            truncated_value = %truncated_value,
-                            "E-INFUSE-014: value is not valid RFC-3339; row produces NULL"
+                            declared_type = %self.descriptor.output_type,
+                            truncated_value = %value.chars().take(50).collect::<String>(),
+                            "{}", err
                         );
                         None
                     }
@@ -2246,6 +2274,76 @@ mod tests {
             "ADR-051 D2 RGT-009 E-INFUSE-014: coerce_to_typed('xyz', Boolean, \
              'threat_is_malicious') must return None (unrecognized boolean). Got: {:?}",
             result
+        );
+    }
+
+    /// MED-001 (LOCAL adversary pass-1): `InfusionError::TypeCoercionFailed` Display format is canonical E-INFUSE-014.
+    ///
+    /// Verifies two things:
+    ///   1. `coerce_to_typed("not_a_number", &DataType::Int64, "score_field")` returns `None`
+    ///      (non-integer value → NULL row, E-INFUSE-014).
+    ///   2. `InfusionError::new_type_coercion_failed(...)` Display matches the canonical format:
+    ///      `"E-INFUSE-014: enrichment field 'score_field' (infusion 'threat_intel'): …"`.
+    ///
+    /// This is the load-bearing test proving the variant is CONSTRUCTED and its Display is canonical
+    /// (TD-VSDD-059: paper-fix detection — doc-comment or rename alone would NOT pass this).
+    #[test]
+    fn test_med001_type_coercion_failed_variant_display_is_canonical_e_infuse_014() {
+        use datafusion::arrow::datatypes::DataType;
+        use prism_core::error::InfusionError;
+
+        let (_, src) = CountingSource::new_returning("not_a_number");
+        let descriptor = InfusionUdfDescriptor::new(
+            "score_field_udf",
+            "ip",
+            "integer",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // 1. coerce_to_typed returns None for an invalid integer value.
+        let result = udf.coerce_to_typed("not_a_number", &DataType::Int64, "score_field");
+        assert!(
+            result.is_none(),
+            "MED-001: coerce_to_typed must return None (NULL row) for non-integer value. Got: {:?}",
+            result
+        );
+
+        // 2. The canonical error Display matches E-INFUSE-014 format.
+        let err = InfusionError::new_type_coercion_failed(
+            "score_field",
+            "threat_intel",
+            "integer",
+            "not_a_number",
+        );
+        let display = format!("{err}");
+        assert!(
+            display.starts_with("E-INFUSE-014:"),
+            "MED-001: TypeCoercionFailed Display must start with 'E-INFUSE-014:'. Got: {display}"
+        );
+        assert!(
+            display.contains("score_field"),
+            "MED-001: TypeCoercionFailed Display must contain field_name 'score_field'. Got: {display}"
+        );
+        assert!(
+            display.contains("threat_intel"),
+            "MED-001: TypeCoercionFailed Display must contain infusion_id 'threat_intel'. Got: {display}"
+        );
+        assert!(
+            display.contains("integer"),
+            "MED-001: TypeCoercionFailed Display must contain declared_type 'integer'. Got: {display}"
+        );
+        assert!(
+            display.contains("not_a_number"),
+            "MED-001: TypeCoercionFailed Display must contain truncated_value 'not_a_number'. Got: {display}"
+        );
+        assert!(
+            display.contains("row produces NULL"),
+            "MED-001: TypeCoercionFailed Display must contain 'row produces NULL'. Got: {display}"
         );
     }
 

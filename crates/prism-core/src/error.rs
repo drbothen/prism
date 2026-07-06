@@ -1892,6 +1892,34 @@ pub enum InfusionError {
     },
 }
 
+impl InfusionError {
+    /// Construct an `E-INFUSE-014: TypeCoercionFailed` error from outside `prism-core`.
+    ///
+    /// Required because `TypeCoercionFailed` is `#[non_exhaustive]`, which prevents struct
+    /// literal construction from outside the defining crate.  Callers in `prism-query`
+    /// (infusion_udf.rs `coerce_to_typed`) use this to emit the canonical E-INFUSE-014
+    /// Display format via `tracing::warn!("{}", err)`.
+    ///
+    /// `value` is truncated to 50 codepoints per AD-017 (CWE-532 guard — enrichment response
+    /// values are external data; truncated as defense-in-depth, consistent with the analogous
+    /// truncation in `parse_datetime_to_micros`).
+    ///
+    /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 LOCAL adversary pass-1 MED-001 fix.
+    pub fn new_type_coercion_failed(
+        field_name: impl Into<String>,
+        infusion_id: impl Into<String>,
+        declared_type: impl Into<String>,
+        value: &str,
+    ) -> Self {
+        Self::TypeCoercionFailed {
+            field_name: field_name.into(),
+            infusion_id: infusion_id.into(),
+            declared_type: declared_type.into(),
+            truncated_value: value.chars().take(50).collect(),
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // E-PLUGIN — WASM Plugin Runtime error types (S-1.15)
 // ---------------------------------------------------------------------------
