@@ -533,11 +533,6 @@ impl InfusionAsyncUdf {
     /// |               | prevents unknown types from reaching UDF in prod)|
     ///
     /// ADR-051 D1; ADR-052 datetime = Timestamp(µs,UTC). Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001.
-    ///
-    /// BC-5.38.001 self-check: "If I include this real implementation, will the test for
-    /// this function pass trivially without any implementer work?" YES — `todo!()` panics
-    /// on any call, including from `test_return_type_matches_output_type_for_all_declared_types`.
-    /// Red Gate holds.
     fn output_arrow_type(&self) -> DataType {
         // ADR-051 D1 canonical mapping: output_type string → Arrow DataType.
         // E-INFUSE-013 sub-condition 7 (validated at spec-load by InfusionLoader::parse)
@@ -586,10 +581,6 @@ impl InfusionAsyncUdf {
     /// `field_name`: the UDF field name (e.g., `"threat_score"`), used in E-INFUSE-014 message.
     ///
     /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Phase G.
-    ///
-    /// BC-5.38.001 self-check: "If I include this real implementation, will the test for
-    /// this function pass trivially without any implementer work?" YES — `todo!()` panics;
-    /// tests expect NULL output + E-INFUSE-014 warning → test fails. Red Gate holds.
     fn coerce_to_typed(
         &self,
         value: &str,
@@ -2250,11 +2241,8 @@ mod tests {
 
     /// RGT-007 (ADR-051 D2 / E-INFUSE-014): integer coercion failure returns None (NULL row).
     ///
-    /// "not-a-number" cannot be parsed by i64::from_str → coerce_to_typed must return None.
+    /// "not-a-number" cannot be parsed by i64::from_str → coerce_to_typed returns None.
     /// On None: the UDF row produces NULL (AD-017: truncated_value = first 50 chars in warning).
-    ///
-    /// RED GATE: `coerce_to_typed()` is `todo!()` (line 528) → panics; test FAILS.
-    /// After Phase G: returns None for invalid integer strings; assertion passes.
     #[test]
     fn test_coerce_to_typed_integer_failure_produces_null_e_infuse_014() {
         use datafusion::arrow::datatypes::DataType;
@@ -2284,8 +2272,6 @@ mod tests {
     }
 
     /// RGT-008 (ADR-051 D2 / E-INFUSE-014): float coercion failure returns None.
-    ///
-    /// RED GATE: `coerce_to_typed()` is `todo!()` → panics; test FAILS.
     #[test]
     fn test_coerce_to_typed_float_failure_produces_null_e_infuse_014() {
         use datafusion::arrow::datatypes::DataType;
@@ -2317,9 +2303,7 @@ mod tests {
     /// RGT-009 (ADR-051 D2 / E-INFUSE-014): unrecognized boolean string returns None.
     ///
     /// ADR-051 D2 boolean branch: case-insensitive {true,1,yes} → true; {false,0,no} → false.
-    /// Any other value (e.g., "xyz") is unrecognized → return None (E-INFUSE-014).
-    ///
-    /// RED GATE: `coerce_to_typed()` is `todo!()` → panics; test FAILS.
+    /// Any other value (e.g., "xyz") is unrecognized → returns None (E-INFUSE-014).
     #[test]
     fn test_coerce_to_typed_boolean_unrecognized_value_produces_null_e_infuse_014() {
         use datafusion::arrow::datatypes::DataType;
@@ -2570,10 +2554,8 @@ mod tests {
     /// RGT-010 (ADR-051 D4): JSON-list input to non-json typed UDF returns None (E-INFUSE-014).
     ///
     /// ADR-051 D4 Scalar-Input rule: if the projected value begins with `[` (JSON array)
-    /// and `output_type != "json"`, coerce_to_typed must return None.
+    /// and `output_type != "json"`, coerce_to_typed returns None.
     /// ENRICH-1 list-dispatch is RETAINED only for `output_type = "json"`.
-    ///
-    /// RED GATE: `coerce_to_typed()` is `todo!()` → panics; test FAILS.
     #[test]
     fn test_json_list_input_to_typed_output_udf_produces_null_e_infuse_014() {
         use datafusion::arrow::datatypes::DataType;
