@@ -2836,6 +2836,58 @@ mod jsonpath_bracket_tests {
             "HIGH-007: depth cap error must mention 'depth' or 'exceeded'; got: {err}"
         );
     }
+
+    /// AC-011 regression guard: numeric-index JSONPath resolves first element end-to-end
+    /// through the production `extract_at_path` resolver.
+    ///
+    /// The AC-011 enrichment generator tests (cyberint + crowdstrike) verify nested structure
+    /// via direct `serde_json` indexing, which does NOT exercise `extract_at_path`. This test
+    /// regression-guards `[N]` index token resolution through the production resolver so that
+    /// a bug in `tokenize_jsonpath` / `PathToken::Index` handling fails here, not silently.
+    ///
+    /// Paths tested mirror the real TOML `source_path` values used in the enrichment pipeline:
+    /// - Cyberint IOC surface: `$.iocs[0].value`
+    /// - CrowdStrike detections: `$.behaviors[0].ioc_value`
+    #[test]
+    fn test_extract_at_path_numeric_index_resolves_first_element() {
+        // Cyberint-style record: iocs array where iocs[0].value = "1.2.3.4"
+        let cyberint_record = json!({
+            "iocs": [
+                {"type": "ip", "value": "1.2.3.4", "severity": "high"},
+                {"type": "domain", "value": "evil.example.com", "severity": "medium"}
+            ]
+        });
+        let result = extract_at_path(&cyberint_record, "$.iocs[0].value");
+        assert!(
+            result.is_ok(),
+            "$.iocs[0].value must succeed on a cyberint-style record; got Err: {:?}",
+            result.err()
+        );
+        assert_eq!(
+            result.unwrap(),
+            json!("1.2.3.4"),
+            "$.iocs[0].value must return the first IOC value string"
+        );
+
+        // CrowdStrike-style record: behaviors array where behaviors[0].ioc_value = "bad.exe"
+        let crowdstrike_record = json!({
+            "behaviors": [
+                {"ioc_type": "hash_md5", "ioc_value": "bad.exe", "tactic": "Execution"},
+                {"ioc_type": "domain", "ioc_value": "c2.attacker.com", "tactic": "C2"}
+            ]
+        });
+        let result = extract_at_path(&crowdstrike_record, "$.behaviors[0].ioc_value");
+        assert!(
+            result.is_ok(),
+            "$.behaviors[0].ioc_value must succeed on a crowdstrike-style record; got Err: {:?}",
+            result.err()
+        );
+        assert_eq!(
+            result.unwrap(),
+            json!("bad.exe"),
+            "$.behaviors[0].ioc_value must return the first behavior's ioc_value string"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
