@@ -3111,16 +3111,31 @@ description = "Plugin-type field missing required source_column (ADR-051 D3)"
 // RGT-011: unknown output_type rejected (E-INFUSE-013 sub-condition 7)
 // ---------------------------------------------------------------------------
 
-/// RGT-011 (ADR-051 D3 sub-condition 7 / E-INFUSE-013): `validate_output_type_recognized`
-/// must reject output types that are not in {string, integer, float, boolean, json, datetime}.
+/// RGT-011 (ADR-051 D3 sub-condition 7 / E-INFUSE-013 / CR-002 fix-burst-13):
+/// `validate_output_type_recognized` must reject output types that are not in
+/// {string, integer, float, boolean, json, datetime}, and the rendered Display message
+/// must contain the NEW canonical body verbatim (CR-002, error-taxonomy v2.17):
+///   - `{field}` header slot = literal "output_type" (unchanged)
+///   - `{message}` body = "field entry '{field_name}' declares unknown output_type '{value}';
+///     must be one of: string, integer, float, boolean, json, datetime
+///     (datetime maps to Timestamp(µs,UTC) per ADR-051 v1.2 / ADR-052)"
 ///
-/// Direct unit test for the validator sub-function (callable as InfusionLoader::validate_output_type_recognized).
+/// where `{field_name}` = the enclosing `[[infusion.fields]]` entry's `name` attribute.
 ///
-/// GREEN: `validate_output_type_recognized` is implemented (AC-007 / ADR-051 D3 §7); returns
-/// Err(InvalidFieldSpec) with message citing "unknown_type_xyz" and E-INFUSE-013 sub-condition 7.
+/// RED (fix-burst-13): current code uses the OLD body
+/// `"output_type '<value>' is not a recognized type; valid values: ..."` and ignores the
+/// `field_name` parameter (`_field_name`). This test FAILS against current code because:
+/// (a) the new body prefix "field entry 'my_field' declares unknown output_type" is absent,
+/// (b) the current body says "is not a recognized type; valid values:" not "must be one of:".
+///
+/// Implementer action: change `_field_name` → `field_name` in the parameter list and update
+/// the `message` string to the new format.
 #[test]
 fn test_unknown_output_type_rejected_e_infuse_013_sub_condition_7() {
-    // validate_output_type_recognized is implemented; assertion verifies E-INFUSE-013 rejection.
+    // validate_output_type_recognized is called with:
+    //   output_type = "unknown_type_xyz"   → {value} slot
+    //   field_name  = "my_field"           → {field_name} slot in the NEW body
+    //   spec_path   = "test.infusion.toml" → {spec_path} slot
     let result = InfusionLoader::validate_output_type_recognized(
         "unknown_type_xyz",
         "my_field",
@@ -3132,14 +3147,38 @@ fn test_unknown_output_type_rejected_e_infuse_013_sub_condition_7() {
          is not in {{string, integer, float, boolean, json, datetime}} and must be rejected. \
          Got: Ok(())"
     );
-    let err_str = format!("{:?}", result.unwrap_err());
+
+    let err_display = format!("{}", result.unwrap_err());
+
+    // Assert the {field} header slot = literal "output_type" (UNCHANGED from previous spec).
     assert!(
-        err_str.contains("unknown_type_xyz")
-            || err_str.contains("output_type")
-            || err_str.contains("E-INFUSE-013")
-            || err_str.contains("InvalidFieldSpec"),
-        "E-INFUSE-013 sub-condition 7 error must reference the unknown output_type. Got: {}",
-        err_str
+        err_display.contains("invalid field name 'output_type'"),
+        "RGT-011 CR-002: {{field}} header slot must be the literal 'output_type'. \
+         Got: '{err_display}'"
+    );
+
+    // Assert the NEW canonical body (CR-002, error-taxonomy v2.17):
+    // "field entry 'my_field' declares unknown output_type 'unknown_type_xyz'; must be one of:
+    //  string, integer, float, boolean, json, datetime
+    //  (datetime maps to Timestamp(µs,UTC) per ADR-051 v1.2 / ADR-052)"
+    //
+    // RED: current code body is "output_type 'unknown_type_xyz' is not a recognized type;
+    // valid values: ..." — different prefix and different phrasing. This assertion fails
+    // against current code and passes only after the implementer updates the message format
+    // AND starts using the field_name parameter.
+    let expected_body = "field entry 'my_field' declares unknown output_type \
+        'unknown_type_xyz'; must be one of: string, integer, float, boolean, json, datetime \
+        (datetime maps to Timestamp(\u{b5}s,UTC) per ADR-051 v1.2 / ADR-052)";
+    assert!(
+        err_display.contains(expected_body),
+        "RGT-011 CR-002 E-INFUSE-013 sub-cond 7: rendered Display must contain the new \
+         canonical body verbatim (error-taxonomy v2.17).\n\
+         EXPECTED body substring: {:?}\n\
+         GOT display:             {:?}\n\
+         Implementer: update validate_output_type_recognized message format and remove \
+         the underscore from `_field_name` so the parameter is used.",
+        expected_body,
+        err_display
     );
 }
 
@@ -3453,4 +3492,64 @@ fn test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpa
         ioc_hash,
         "AC-011: behaviors_ioc_value_first column value must equal behaviors[0].ioc_value."
     );
+}
+
+// ---------------------------------------------------------------------------
+// SEC-001(a): E-INFUSE-013 sub-cond 7 control-char sanitization (fix-burst-13)
+// ---------------------------------------------------------------------------
+
+/// SEC-001 (CWE-117, PR-216) / AC-007 — control-char sanitization in E-INFUSE-013 sub-cond 7.
+///
+/// Given a `[[infusion.fields]]` entry with an `output_type` value containing ASCII control
+/// characters (e.g. `\n` = 0x0A) and a `field_name` containing a control char (e.g. 0x01),
+/// when `validate_output_type_recognized` is called,
+/// then the rendered `InfusionError::InvalidFieldSpec` Display message must contain NO ASCII
+/// control characters (0x00–0x1F, 0x7F) in any position.
+///
+/// This prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured
+/// logs (AD-017 extension) when malicious TOML spec content is loaded.
+///
+/// RED (fix-burst-13): current code calls `format!("output_type '{}' ...", output_type)` without
+/// any sanitization, so the control chars pass through verbatim into the rendered message.
+///
+/// Implementer action (per error-taxonomy v2.17 SEC-001 Rendering Note):
+/// Apply `s.chars().filter(|c| !c.is_ascii_control()).collect::<String>()` to `output_type` value
+/// and `field_name` value before constructing `InvalidFieldSpec { field, spec_path, message }`.
+#[test]
+fn test_sec001_e_infuse_013_sub_cond_7_control_chars_stripped_from_rendered_message() {
+    // A malicious TOML spec might have control chars in the output_type value or field name.
+    let value_with_ctrl = "bad\ntype"; // 0x0A (newline) — CWE-117 log injection candidate
+    let field_name_with_ctrl = "my\x01field"; // 0x01 (SOH) — LLM prompt injection candidate
+
+    let result = InfusionLoader::validate_output_type_recognized(
+        value_with_ctrl,
+        field_name_with_ctrl,
+        "test.infusion.toml",
+    );
+
+    // Prerequisite: this IS an unknown output_type, so it MUST be rejected.
+    assert!(
+        result.is_err(),
+        "SEC-001 prerequisite: control-char-containing output_type value \
+         must be rejected as unknown. Got: Ok(())"
+    );
+
+    let err_display = format!("{}", result.unwrap_err());
+
+    // Assert NO ASCII control chars (0x00–0x1F, 0x7F) anywhere in the rendered Display.
+    // RED: current code passes control chars through — err_display will contain \n at the
+    // position where "bad\ntype" was interpolated.
+    for (i, c) in err_display.char_indices() {
+        assert!(
+            !c.is_ascii_control(),
+            "SEC-001 E-INFUSE-013 CWE-117: rendered error message must NOT contain ASCII \
+             control character U+{:04X} at byte position {} in the Display string.\n\
+             The control char at position {} must be stripped before message construction.\n\
+             Got Display: {:?}",
+            c as u32,
+            i,
+            i,
+            err_display
+        );
+    }
 }

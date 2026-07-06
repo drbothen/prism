@@ -2828,4 +2828,179 @@ mod tests {
             parsed
         );
     }
+
+    // ── SEC-001(b) (PR-216 fix-burst-13): TypeCoercionFailed control-char sanitization ─────
+
+    /// SEC-001 (CWE-117, PR-216) / AC-005 — TypeCoercionFailed metadata fields stripped.
+    ///
+    /// `field_name`, `infusion_id`, and `declared_type` on `TypeCoercionFailed` originate from
+    /// operator-supplied TOML specs and are attacker-influenceable. Control characters (0x00–0x1F,
+    /// 0x7F) in these values must be stripped before `TypeCoercionFailed` is constructed so that
+    /// the rendered `E-INFUSE-014` Display message contains no control chars.
+    ///
+    /// This prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured
+    /// logs (AD-017 extension, error-taxonomy v2.17 SEC-001 Rendering Note).
+    ///
+    /// RED (fix-burst-13): `new_type_coercion_failed` currently passes all three fields through
+    /// verbatim (`field_name.into()`, `infusion_id.into()`, `declared_type.into()`) without any
+    /// control-char stripping. This test FAILS against current code: the rendered Display will
+    /// contain 0x01, 0x02, and 0x03 at the positions where control chars were interpolated.
+    ///
+    /// Implementer action (error-taxonomy v2.17 SEC-001 Rendering Note):
+    /// Add a `sanitize_for_log(s: &str) -> String` helper
+    ///   (`s.chars().filter(|c| !c.is_ascii_control()).collect()`)
+    /// and call it on `field_name`, `infusion_id`, and `declared_type` inside
+    /// `new_type_coercion_failed` before storing them in the struct.
+    #[test]
+    fn test_sec001_type_coercion_failed_ctrl_chars_stripped_from_metadata_fields() {
+        use prism_core::InfusionError;
+
+        // Construct via the public constructor with control chars in all three metadata fields.
+        let err = InfusionError::new_type_coercion_failed(
+            "field\x01name",  // field_name: 0x01 (SOH) — must be stripped
+            "infusion\x02id", // infusion_id: 0x02 (STX) — must be stripped
+            "integer\x03",    // declared_type: 0x03 (ETX) — must be stripped
+            "not_a_number",
+        );
+        let display = format!("{}", err);
+
+        // Assert NO ASCII control chars (0x00–0x1F, 0x7F) in the rendered Display.
+        // RED: current code stores the raw bytes → Display contains 0x01/0x02/0x03.
+        for (i, c) in display.char_indices() {
+            assert!(
+                !c.is_ascii_control(),
+                "SEC-001 E-INFUSE-014 CWE-117: TypeCoercionFailed Display must NOT contain \
+                 ASCII control character U+{:04X} at byte position {} in the rendered message.\n\
+                 Control chars in field_name/infusion_id/declared_type must be stripped before \
+                 TypeCoercionFailed is constructed (new_type_coercion_failed).\n\
+                 Got Display: {:?}",
+                c as u32,
+                i,
+                display
+            );
+        }
+    }
+
+    /// SEC-001 (CWE-117, PR-216) / AC-005 — TypeCoercionFailed truncated_value stripping
+    /// AFTER the 50-char truncation step (not before).
+    ///
+    /// Order semantics: truncation removes content (chars beyond 50); stripping removes control
+    /// chars. The spec requires: truncate first (50-char cap per AD-017), then strip control chars.
+    /// A control char that falls within the 50-char window must be stripped from the stored value.
+    ///
+    /// Test fixture: value = 49 × 'a' + '\x01' (total 50 chars).
+    /// After `chars().take(50)`: truncated_value = "aaa...a\x01" (the \x01 is char 50).
+    /// After sanitization: truncated_value = "aaa...a" (no control chars).
+    /// The rendered Display must NOT contain '\x01'.
+    ///
+    /// RED (fix-burst-13): `new_type_coercion_failed` stores
+    ///   `value.chars().take(50).collect()` WITHOUT stripping — the \x01 survives in
+    ///   `truncated_value`, and the rendered Display contains it.
+    ///
+    /// Implementer action: apply sanitize_for_log to `truncated_value` AFTER the
+    /// `chars().take(50)` truncation.
+    #[test]
+    fn test_sec001_type_coercion_failed_ctrl_chars_stripped_from_truncated_value_after_truncation()
+    {
+        use prism_core::InfusionError;
+
+        // 49 'a' chars + '\x01': the control char is exactly at the 50-char boundary.
+        let value: String = "a".repeat(49) + "\x01";
+        assert_eq!(
+            value.chars().count(),
+            50,
+            "test fixture: value must be exactly 50 chars so \\x01 is the final char after take(50)"
+        );
+
+        let err = InfusionError::new_type_coercion_failed(
+            "threat_score",
+            "threat_intel",
+            "integer",
+            &value,
+        );
+        let display = format!("{}", err);
+
+        // The control char at position 50 (post-truncation) must be stripped.
+        // RED: current code doesn't strip → display contains 0x01.
+        assert!(
+            !display.contains('\x01'),
+            "SEC-001 E-INFUSE-014 CWE-117: truncated_value control char \\x01 must be \
+             stripped AFTER the 50-char truncation. The rendered Display must NOT contain \
+             U+0001. Stripping must happen AFTER truncation (not before — ordering matters \
+             for correct 50-char cap semantics per AD-017). Got: {:?}",
+            display
+        );
+
+        // Belt-and-suspenders: no ASCII control chars at all.
+        for (i, c) in display.char_indices() {
+            assert!(
+                !c.is_ascii_control(),
+                "SEC-001: rendered Display must NOT contain any ASCII control char; \
+                 found U+{:04X} at byte position {}. Got: {:?}",
+                c as u32,
+                i,
+                display
+            );
+        }
+    }
+
+    // ── SEC-002 (PR-216 fix-burst-13): boolean coercion size guard regression ────────────
+
+    /// SEC-002 (CWE-770, PR-216) — REGRESSION GUARD for boolean coercion size guard.
+    ///
+    /// The boolean coercion branch calls `value.to_lowercase()` before the set-membership check.
+    /// `to_lowercase()` is an O(n) heap allocation. For an adversarially large input (> 1024 bytes),
+    /// this allocates unnecessarily. The implementer MUST add:
+    ///   `if s.len() > 1024 { /* emit E-INFUSE-014 */ return None }`
+    /// BEFORE calling `to_lowercase()`, preventing CWE-770 unbounded allocation.
+    ///
+    /// This test is a REGRESSION GUARD: it PASSES against current code (an oversized string does
+    /// not match any of the boolean set members, so `coerce_to_typed` already returns `None`)
+    /// AND against fixed code (the size guard returns `None` for the same reason — the NULL
+    /// outcome is unchanged). The guard exists to ensure the implementer's size gate does NOT
+    /// accidentally change the observable result from `None` to `Some(...)`.
+    ///
+    /// If this test fails, the implementer's size guard has introduced a regression where
+    /// oversized inputs no longer produce NULL.
+    ///
+    /// NOTE: This is intentionally marked as a REGRESSION GUARD (passes pre-fix). It is NOT
+    /// a Red Gate test for SEC-002 itself; the SEC-002 fix is a bounded-cost optimization that
+    /// does NOT change the NULL outcome. The test documents the invariant.
+    #[test]
+    fn test_sec002_boolean_coercion_oversized_input_yields_null_regression_guard() {
+        use datafusion::arrow::datatypes::DataType;
+
+        // > 1024 bytes — triggers the size guard added by the implementer.
+        // Against current code (no size guard): to_lowercase() allocates a huge buffer,
+        // then the trimmed result doesn't match any bool literal → returns None.
+        // Against fixed code (with size guard): returns None immediately.
+        // Either way: None. This is the regression guard.
+        let oversized_value = "a".repeat(1025);
+
+        let (_, src) = CountingSource::new_returning("true"); // source value irrelevant
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_is_malicious",
+            "ip",
+            "boolean",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // REGRESSION GUARD: both current and fixed code must return None for an oversized input.
+        // Fixed code adds an early-return None at > 1024 bytes (before to_lowercase allocation).
+        // This test ensures the NULL outcome is preserved.
+        let result =
+            udf.coerce_to_typed(&oversized_value, &DataType::Boolean, "threat_is_malicious");
+        assert!(
+            result.is_none(),
+            "SEC-002 CWE-770 REGRESSION GUARD: coerce_to_typed(1025-byte input, Boolean, ...) \
+             must return None (NULL). The size guard must preserve the NULL outcome — same \
+             observable result as any unrecognized boolean value. Got: {:?}",
+            result
+        );
+    }
 }
