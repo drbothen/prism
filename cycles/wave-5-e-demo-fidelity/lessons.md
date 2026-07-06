@@ -2346,3 +2346,60 @@ S-1.14-REDO later MERGED (PR #193, develop@5c747549) WITHOUT honoring the anchor
 **Action taken:** DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 re-classified as escaped defect (D-1516). ADR-051 PROPOSED for the typed-enrichment fix (D-1517). Human directed full fix via D-1518 (typed-enrichment story, after D-1519 temporal migration).
 
 **Source:** D-1516 (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 re-classification, state-manager burst, 2026-07-03).
+
+## Process-Gap Lesson 10 — DOC-HYGIENE ASYMPTOTE: Per-Pass Tail Never Clears; Remedy Is One Comprehensive Pre-Gate Sweep [codified] (D-1566, 2026-07-06; S-DEMO-ENRICHMENT-TYPED-OUTPUT-001)
+
+**What happened:**
+
+S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 ran ~22 LOCAL adversary passes before the 3-CLEAN streak started (passes 23/24/25). Passes ~5–22 each surfaced exactly ONE spec-prose/doc-comment/volatile-pin/stale-count nit. Each fix-burst closed that one nit, but the next pass found a fresh one. The "tail" never converged via per-pass incremental fixes.
+
+The effective remedy was a **COMPREHENSIVE sweep** executed in two phases: (a) product-owner BC-2.16.002 exhaustive catalog sweep (pass-22 ADV-P22-LOW-002 volatile SHA fix; swept ALL BC-2.16.002 volatile pins), and (b) story-writer v1.9 full sweep (all stale counts + all version-pin cites + all develop@ SHA prose pins removed). After those two comprehensive sweeps, the next 3 consecutive passes (23/24/25) were all CLEAN(strict) with zero findings.
+
+**Root cause:**
+
+Incremental per-pass doc fixes treat each finding in isolation. Each fix closes the visible nit but does not prevent the next pass from finding a different nit in the same document class. A single fresh-context adversary pass can always find ONE stale reference in a complex spec that a prior incremental fix didn't touch. The asymptote is inherent to the incremental approach.
+
+**Codified rule:**
+
+After code converges (all substantive defects closed) and before starting the 3-CLEAN(strict) streak gate, **mandate one explicit pre-gate comprehensive doc-accuracy sweep** covering:
+1. All count references (red_gate_tests, test counts, BC/VP/story totals) verified against actual values
+2. All volatile SHA pins replaced with durable function/story anchors (TD-VSDD-091)
+3. All version-pin cites (BC/ADR/error-taxonomy) swept against current file versions (POL-23/POL-25)
+4. All BC catalog rows verified: no stale prose, no fabricated field descriptions, all sanitize_for_log/CWE references consistent
+5. All story prose verified against code: error message templates, field names, code path descriptions
+
+This sweep must be executed ONCE comprehensively, NOT incrementally. One comprehensive sweep before the streak is equivalent in effort to 5–10 incremental pass-plus-fix cycles and guarantees the streak gate will converge.
+
+**Flag for follow-up:** This lesson is a candidate for an explicit step in the per-story TDD workflow (after LOCAL code convergence, before 3-CLEAN gate start). Recommend adding as a required orchestrator step in `vsdd-factory:phase-3-tdd-implementation` skill. Flag for human decision.
+
+**Source:** D-1562 (LOCAL 3-CLEAN CONVERGED; process-gap flagged), D-1566 (lessons codification, state-manager burst, 2026-07-06).
+
+## Process-Gap Lesson 11 — FRESH-CONTEXT CATCHES REAL DEFECTS EVEN AFTER "FUNCTIONAL CONVERGENCE" [codified] (D-1566, 2026-07-06; S-DEMO-ENRICHMENT-TYPED-OUTPUT-001)
+
+**What happened:**
+
+S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 was declared "functionally converged" after 9 adversary passes (all 9 passes were "substantive-PASS" with only doc-hygiene findings). Yet fresh-context adversary passes 11 and 17/18/19 caught genuine structural defects:
+
+- **Pass 11 (ADV-P11-OBS-001):** threat_sources `input_field="iocs_value"` in the threatintel.infusion.toml TOML spec causes runtime double-encoding (the iocs_value column holds pre-serialized JSON; using it directly as an input_field produces a doubly-encoded JSON blob in the enriched output). This was adjudicated as a GENUINE DEFECT (Failure A) — not a doc nit. Fix: threat_sources changed to `iocs_value_first` (the pre-extracted first scalar value). Root cause: the "functional convergence" claim was based on positive-value assertions added in passes 1–9, but the double-encoding failure only manifests when the full TOML-source chain runs with the actual DTU fixture data.
+
+- **Passes 17/18/19 (3-pass consensus MED-001):** `validate_plugin_type_has_source_column` set the `InvalidFieldSpec.field` slot to the enclosing `field_name` instead of the literal string `"source_column"` for E-INFUSE-013 sub-cond-8. The `RGT-006` weak OR-assertion masked this divergence. The v1.7 comprehensive prose-audit exposed it by pinning the verbatim AC-006 text, which 16 prior passes had not examined at that granularity. A 3-pass independent consensus (all 3 fresh-context adversaries converging on the same structural error) is strong evidence of a genuine code-vs-spec defect.
+
+**What "functionally converged" actually means:**
+
+"Functionally converged" after N passes means: "No adversary using the available information at the time of those passes found a structural code defect." It does NOT mean there are no structural defects. Fresh context (a pass that has not seen any prior pass output) may examine the spec at a different level of precision — particularly verbatim error message templates, field slot names, TOML source chains — and find defects that schema-level or behavioral-level inspection missed.
+
+**Codified rules:**
+
+1. **"Functionally converged after N passes" is not a convergence gate.** It is an observational status, not a guarantee. The only valid convergence gate is BC-5.39.001: three CONSECUTIVE CLEAN(strict) passes on a FROZEN HEAD.
+
+2. **Fresh-context passes at different levels of spec detail are not redundant.** A pass focused on behavioral correctness may miss a TOML field name defect. A pass focused on verbatim error message templates may catch what a behavioral-level pass missed. Cascade length should be determined by BC-5.39.001, not by "it looks converged."
+
+3. **3-pass consensus on a finding is strong evidence of a genuine defect.** When three independent fresh-context passes independently converge on the same structural error, the finding should be escalated from LOW/OBS to MED and treated as a code-vs-spec defect, not a doc nit.
+
+4. **The strict 3-CLEAN(strict) streak remains the correct gate**, precisely because it guarantees that even subtle defects visible only to fresh-context analysis have been addressed.
+
+**Flag for follow-up:** This lesson validates the strict fresh-context adversarial review approach over "looks done" assessments. No structural process change is recommended — the existing BC-5.39.001 protocol works as designed. Recorded-only.
+
+**Source:** D-1558 (ADV-P11-OBS-001 DEFECT catch), D-1560 (3-pass consensus MED-001 catch), D-1566 (lessons codification, state-manager burst, 2026-07-06).
+
+**Source:** D-1516 (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 re-classification, state-manager burst, 2026-07-03).

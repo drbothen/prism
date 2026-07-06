@@ -44,13 +44,48 @@ timestamp: 2026-07-05T00:00:00Z
 >
 > **D-1546 (2026-07-05): SESSION WRAP — §RESUME SNAPSHOT D-1546 authored (supersedes D-1544).** Durable zero-context snapshot. develop@11edbd36 (origin==local). Feature-branch worktree S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 REMOVED post-merge. No cascade in flight. No open PRs. Parked: S-3.09 @43c41389 (local-only, backup/S-3.09-preresume-43c41389), W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit, awaiting human decision). VERY NEXT ACTION = present ADR-051 to human for ratification (PROPOSED; §datetime row Utf8→Timestamp; typed-enrichment A+B+C blocked) → typed-enrichment story → T13 capstone → T14 recording. develop_head 11edbd36. STATE v8.145→v8.146.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1557** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1557 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `d098be6f` (PR #215 housekeeping squash-merged 2026-07-05: ADR-050 rustls-tls CLAUDE.md + t13-preflight-audit.py). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.157. D-1557 (SESSION WRAP — S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 LOCAL cascade in flight; pass-9 1 OBS; fix-burst-7 @11784b57; LOCAL streak 0/3; NEXT = passes 10/11/12 SEQUENTIAL on frozen 11784b57).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1566** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1566 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `ea714d14` (PR #216 S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 squash-merged 2026-07-06T21:42:04Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.166. D-1566 (PR #216 MERGED — S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 DELIVERED; no cascade in flight; NEXT = next demo roadmap item S-PRISMQL-CASE-INSENSITIVE-001).
 
 ---
 
-## §RESUME SNAPSHOT — D-1557 (2026-07-06 — SESSION WRAP; develop origin/develop d098be6f; BC-INDEX v7.39; STORY-INDEX v2.596; ARCH-INDEX v2.173; STATE v8.157; LOCAL cascade in flight S-DEMO-ENRICHMENT-TYPED-OUTPUT-001; LOCAL streak 0/3; VERY NEXT ACTION = LOCAL passes 10/11/12 SEQUENTIAL on frozen 11784b57) [SUPERSEDES D-1546]
+## §RESUME SNAPSHOT — D-1566 (2026-07-06 — POST-MERGE BURST; develop origin/develop ea714d14; BC-INDEX v7.42; STORY-INDEX v2.604; ARCH-INDEX v2.173; STATE v8.166; no cascade in flight; no open PRs; VERY NEXT ACTION = next demo roadmap item S-PRISMQL-CASE-INSENSITIVE-001) [SUPERSEDES D-1557]
+
+### RESUME IN ONE BREATH
+
+Prism Phase-3/Wave-5. S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (ADR-051 D1–D6 typed enrichment UDF output) DELIVERED + MERGED @ develop ea714d14 (PR #216 squash-merged 2026-07-06T21:42:04Z). LOCAL 3-CLEAN(strict) passes 23/24/25 on frozen 622bd2fa + PR-LEVEL 3-CLEAN(strict) passes 3/4/5 on frozen d7437a06 CONVERGED. No cascade in flight. No open PRs. VERY NEXT ACTION = next demo roadmap item — S-PRISMQL-CASE-INSENSITIVE-001 (DEMO-CRITICAL; needs OD-1..OD-4 + PO BCs per §ACTIVE OBJECTIVE). Parked worktrees S-3.09 + W3-FIX-S307-001 await human decision.
+
+> **D-1566 (2026-07-06): POST-MERGE BURST — PR #216 MERGED + S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 DELIVERED.** PR #216 squash-merged develop@ea714d14 (mergedAt 2026-07-06T21:42:04Z; final feature HEAD d7437a06; CI GREEN 43/43; LOCAL 3-CLEAN + PR-LEVEL 3-CLEAN CONVERGED; code-review APPROVE; security CLEAN; pr-reviewer APPROVE). Typed/consistent enrichment-UDF output (ADR-051 D1–D6). POL-14 IDEMPOTENT (BC-2.19.001 v2.2 + BC-2.16.002 v1.97 already active). POL-13: story draft→merged. Feature branch deleted; worktree cleanup dispatched. develop_head d098be6f→ea714d14. workspace_test_count 5220. BC-INDEX v7.41→v7.42. STORY-INDEX v2.603→v2.604. Lessons 10+11 codified. STATE v8.165→v8.166.
+
+**STATE v8.166. develop ea714d14. BC-INDEX v7.42. STORY-INDEX v2.604. ARCH-INDEX v2.173. error-taxonomy v2.17. active_contracts 255. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 228. workspace_test_count 5220 (develop@ea714d14; non-exhaustive 89/89).**
+
+**LAST MERGED:** S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (PR #216 → develop@ea714d14, 2026-07-06; ADR-051 D1–D6 typed enrichment; 27 RGTs; SEC-001 log-injection sanitize; SEC-002 size guard; canonical prism_core::sanitize_for_log). Prior: PR #215 housekeeping develop@d098be6f (2026-07-05).
+
+**HEADLINE NEXT-ACTION:** Next demo roadmap item per §ACTIVE OBJECTIVE: S-PRISMQL-CASE-INSENSITIVE-001 (DEMO-CRITICAL; requires OD-1..OD-4 prep + PO BCs before TDD delivery). Per DEMO-SCOPE.md + task ledger roadmap ordering.
+
+**HEADS:** develop ea714d14 (PUSHED, origin==local); factory-artifacts = this post-merge burst commit (PUSHED); parked worktrees S-3.09 @43c41389 (local-only, backup/S-3.09-preresume-43c41389) + W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit — awaiting human decision). .worktrees/S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 REMOVED (devops cleanup dispatched).
+
+**WORKTREES:** S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 REMOVED. S-3.09 DAY-2/PARKED (backup/S-3.09-preresume-43c41389@43c41389; local-only). W3-FIX-S307-001 PARKED, 1 unpushed commit @fcab8717, awaiting human decision.
+
+**PENDING-HUMAN:** (1) CLAUDE.md §Conventions non-exhaustive count 88→89 (TemporalLiteralPosition; carry from D-1546). (2) W3-FIX-S307-001 decision (deferred TDE write-back / E-SENSOR-070). (3) E-OCSF-005..023 gap (DRIFT-EOCSF-GAP-005-023-001). (4) S-3.09 resumption decision. (5) Next demo roadmap story authorization (S-PRISMQL-CASE-INSENSITIVE-001).
+
+**PENDING USER-APPROVED WORK:** None (no cascade in flight; all prior autonomy work COMPLETE for this story).
+
+**DECISION DELTA (since last wrap D-1557):** D-1558 (pass-10+11 + fix-bursts 8+9; threat_sources DEFECT fixed), D-1559 (fix-bursts 10+11 + passes 12–16), D-1560 (passes 17+18+19 + fix-burst-12; MED-001 closed), D-1561 (passes 20+21+22 + BC/story sweeps), D-1562 (LOCAL 3-CLEAN passes 23/24/25 CONVERGED), D-1563 (PR-LEVEL review-remediation; fix-bursts 13/14/15), D-1564 (PR-LEVEL pass-1 fix; BC-2.16.002 v1.97), D-1565 (PR-LEVEL pass-2 fix; story v1.14), D-1566 (PR #216 MERGED; this post-merge burst).
+
+**RESUME PROTOCOL:**
+1. Run vsdd-factory:factory-worktree-health (BLOCKING).
+2. `git log --oneline -1 origin/develop` → expect `ea714d14`.
+3. No cascade in flight. No open PRs. S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 COMPLETE.
+4. Read §ACTIVE OBJECTIVE for demo roadmap. Next item = S-PRISMQL-CASE-INSENSITIVE-001.
+5. Parked worktrees S-3.09 + W3-FIX-S307-001: surface decisions to human before resuming either.
+6. Full state: STATE.md Session Resume Checkpoint D-1566.
+7. Autonomy D-989 active.
+
+---
+
+## §RESUME SNAPSHOT — D-1557 (2026-07-06 — SESSION WRAP; develop origin/develop d098be6f; BC-INDEX v7.39; STORY-INDEX v2.596; ARCH-INDEX v2.173; STATE v8.157; LOCAL cascade in flight S-DEMO-ENRICHMENT-TYPED-OUTPUT-001; LOCAL streak 0/3; VERY NEXT ACTION = LOCAL passes 10/11/12 SEQUENTIAL on frozen 11784b57) [SUPERSEDED by D-1566]
 
 ### RESUME IN ONE BREATH
 

@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "7.41"
+version: "7.42"
 status: draft
 producer: state-manager
-timestamp: 2026-07-06T00:00:00Z
+timestamp: 2026-07-06T23:50:00Z
 phase: 3.A
 total_contracts: 264
 active_contracts: 255
@@ -406,6 +406,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 **v7.00 (2026-06-22, D-1286 001-B LOCAL cascade spec-propagation fixes — BC-2.11.017 v1.0→v1.1):** product-owner | BC-2.11.017 inline row: v1.0→v1.1 — F-001B-FRESH-MED-001 closure (S-DEMO-PRISMQL-ONBOARDING-001-B LOCAL cascade spec-compliance pass). §E-QUERY-002 "Current state" updated to reflect shipped `PrismError::QueryTypeMismatch { column, table, actual_type, operator }` variant and its Display `"E-QUERY-002: type mismatch — column '{column}' in table '{table}' has type '{actual_type:?}' which does not support operator '{operator}'"` (CORRECTION-2 adjudication). Stale pre-v1.92 Display `"Type error: field '{field}' is {actual_type}, cannot use {operator}"` replaced. Cross-ref to error-taxonomy.md v1.94 §E-QUERY-002 dual-Display collision row added. §PrismError-variant-impact summary corrected: `QueryTypeMismatch` WAS added (+0 non_exhaustive gate — `PrismError` already gated). modified: 2026-06-22. **No BC lifecycle/status/count changes:** active_contracts 238 / draft_contracts 5 / total_contracts 256 ALL UNCHANGED. develop_head UNCHANGED fc954300. BC-INDEX v6.99→v7.00.
 
 **v7.11 (2026-06-24, D-1319 S-5.04 post-merge POL-14 BC auto-promotions — PR #202 squash-merged develop@903c8fcb):** state-manager | **POL-14 BC auto-promotions (draft→active):** BC-2.08.001 `status: draft` → `active` (anchor story S-5.04 merged PR #202 develop@903c8fcb 2026-06-24; LOCAL 3-CLEAN + PR-LEVEL 3-CLEAN strict on frozen 12c62447; SEC-001+3NITs fix-burst); BC-2.08.002 `status: draft` → `active` (same); BC-2.08.003 `status: draft` → `active` (same); BC-2.08.004 `status: draft` → `active` (same); BC-2.08.007 `status: draft` → `active` (same). **Idempotent (already active):** BC-2.08.005 (status already active — no change); BC-2.16.009 (status already active — no change). **Count changes: active_contracts 241→246, draft_contracts 10→5** (5 BCs promoted; remaining drafts: BC-2.06.011 + BC-2.21.001 + BC-2.11.019 + BC-2.10.015/016/017 + BC-2.11.020/021/022/023). total_contracts 264 UNCHANGED. develop_head 233cfc66→903c8fcb. BC-INDEX v7.10→v7.11. T13 gate 2 CLEARED.
+
+**v7.42 (2026-07-06, D-1566 PR #216 SQUASH-MERGED — S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 POL-14 idempotent check):** state-manager | **POL-14 BC auto-promotions (idempotent):** BC-2.19.001 v2.2 `status: active` — ALREADY ACTIVE (lifecycle_status was already active; legacy draft→active synced at D-1192 PR #189; no count change). BC-2.16.002 v1.97 `status: active` — ALREADY ACTIVE (promoted D-427 per POL-14; lifecycle_status already active; no count change). **No BC lifecycle/status/count changes: active_contracts 255 / draft_contracts 0 / total_contracts 264 ALL UNCHANGED.** develop_head d098be6f→ea714d14 (PR #216 squash-merged 2026-07-06T21:42:04Z). BC-INDEX v7.41→v7.42.
 
 **v7.41 (2026-07-06, D-1564 PR #216 PR-LEVEL pass-1 ADV-PR-P1-LOW-001 fix — BC-2.16.002 v1.96→v1.97):** product-owner + state-manager | **BC-2.16.002 v1.96→v1.97**: ADV-PR-P1-LOW-001 closure (doc-accuracy propagation gap from fix-burst-14 NEW-SEC-001-R): `infusion.coercion_failed` catalog row field descriptions updated — `truncated_value`, `field_name`, `infusion_id`, and `declared_type` fields now document `sanitize_for_log`/CWE-117 sanitization; "raw" removed from `truncated_value` description; 5-site count and schema UNCHANGED; `modified:` date 2026-07-06. PR code HEAD UNCHANGED d7437a06. **No BC lifecycle/status/count changes:** active_contracts 255 / draft_contracts 0 / total_contracts 264 ALL UNCHANGED. develop_head UNCHANGED d098be6f. BC-INDEX v7.40→v7.41.
 

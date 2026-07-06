@@ -5,7 +5,7 @@ title: "Typed & Consistent Enrichment UDF Output — ADR-051 D1–D6 Implementat
 wave: 5
 epic_id: E-DEMO
 priority: P2
-status: draft
+status: merged
 version: "1.14"
 level: "L4"
 producer: story-writer
