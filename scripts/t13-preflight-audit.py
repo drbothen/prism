@@ -32,9 +32,31 @@ import time
 import select
 import fcntl
 import re
+from pathlib import Path
 
-PRISM_BIN = "/Users/jmagady/Dev/prism/target/release/prism"
-CONFIG_DIR = "/Users/jmagady/.config/prism-demo"
+# PRISM_BIN: resolved in priority order:
+#   1. $PRISM_BIN env var (explicit override)
+#   2. $CARGO_TARGET_DIR/release/prism (respects Cargo target-dir override)
+#   3. <repo-root>/target/release/prism (repo-relative default; script is in scripts/)
+_repo_root = Path(__file__).resolve().parent.parent
+_cargo_target_dir = os.environ.get("CARGO_TARGET_DIR")
+if os.environ.get("PRISM_BIN"):
+    PRISM_BIN = os.environ["PRISM_BIN"]
+elif _cargo_target_dir:
+    PRISM_BIN = str(Path(_cargo_target_dir) / "release" / "prism")
+else:
+    PRISM_BIN = str(_repo_root / "target" / "release" / "prism")
+
+# CONFIG_DIR: resolved in priority order:
+#   1. $PRISM_DEMO_CONFIG_DIR env var (explicit override)
+#   2. $XDG_CONFIG_HOME/prism-demo (XDG base-dir standard)
+#   3. $HOME/.config/prism-demo (POSIX fallback)
+if os.environ.get("PRISM_DEMO_CONFIG_DIR"):
+    CONFIG_DIR = os.environ["PRISM_DEMO_CONFIG_DIR"]
+elif os.environ.get("XDG_CONFIG_HOME"):
+    CONFIG_DIR = str(Path(os.environ["XDG_CONFIG_HOME"]) / "prism-demo")
+else:
+    CONFIG_DIR = str(Path.home() / ".config" / "prism-demo")
 
 # Ports are output by demo-run.sh — set via env vars or pass as args
 THREATINTEL_PORT = os.environ.get("PRISM_THREATINTEL_PORT", "54646")
