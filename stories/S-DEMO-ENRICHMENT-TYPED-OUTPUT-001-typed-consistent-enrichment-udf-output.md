@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.9"
+version: "1.12"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-05T00:00:00Z"
 created: "2026-07-05"
-modified: "2026-07-06T14:00:00Z"
+modified: "2026-07-06T22:00:00Z"
 tdd_mode: strict
 subsystems: [SS-09, SS-10, SS-19]
 # Subsystem anchor justifications:
@@ -72,7 +72,7 @@ points: 13
 #   9. BC-2.16.002 SAP-1 catalog row addition (infusion.coercion_failed): 0.5 pt
 #  10. prism-mcp resources.rs example update + t13-preflight-audit.py update: 0.5 pt
 #  11. TD-VSDD-060 sibling sweep across crates_touched: 0.5 pt
-#  12. Red Gate test suite (23 tests across 4 crates): 3.5 pt
+#  12. Red Gate test suite (27 tests across 4 crates): 3.5 pt
 #   Total: 13 pts
 estimated_days: 4
 risk: HIGH
@@ -85,7 +85,7 @@ risk: HIGH
 #   the implementer commits the emission without the catalog row, the adversary will find a P1.
 #   SAP-2 applies to all sensor TOML changes — adversary must read DTU types.rs/generator.rs
 #   before validating TOML column declarations.
-red_gate_tests: 23
+red_gate_tests: 27
 estimated_passes: "3-5 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -249,9 +249,11 @@ then:
 Coercion failure triggers (ADR-051 D2):
 - `i64::from_str(s.trim())` failure for integer
 - `f64::from_str(s.trim())` failure for float
-- value not in `{"true","1","yes","false","0","no"}` (case-insensitive) for boolean
+- value not in `{"true","1","yes","false","0","no"}` (case-insensitive) for boolean; see SEC-002 note below
 - `parse_datetime_to_micros` failure for datetime
 - `Number.as_i64()` returns `None` for JSON Number projected into integer field
+
+**SEC-002 (CWE-770, PR-216 — boolean branch):** The boolean coercion branch calls `s.to_lowercase()` before set-membership check — an O(n) heap allocation. Implementer MUST add a size guard on the boolean path: `if s.len() > 1024 { /* emit E-INFUSE-014 */ return None }` before calling `to_lowercase()`. This prevents unbounded allocation on adversarially large inputs while producing NULL + E-INFUSE-014, which is the same observable outcome as a non-matching value. Determination: E-INFUSE-014 already covers oversized coercion input → NULL; no new taxonomy entry is needed. The 1024-byte threshold is generous enough to hold any plausible boolean string representation (longest valid: `"false"` = 5 chars). See E-INFUSE-014 SEC-002 Assessment in error-taxonomy v2.17.
 
 Red Gate: `test_coerce_to_typed_integer_failure_produces_null_e_infuse_014`
 Red Gate: `test_coerce_to_typed_float_failure_produces_null_e_infuse_014`
@@ -276,7 +278,12 @@ with `#[error("E-INFUSE-014: enrichment field '{field_name}' (infusion '{infusio
 The variant MUST be `#[non_exhaustive]` per CLAUDE.md §Conventions non-exhaustive discipline
 (all public types in prism-core require `#[non_exhaustive]`).
 
+**SEC-001 (CWE-117, PR-216):** All string fields on `TypeCoercionFailed` that originate from TOML specs or enrichment API responses (`field_name`, `infusion_id`, `declared_type`) MUST have ASCII control characters (0x00–0x1F, 0x7F) stripped before the variant is constructed. `truncated_value` is already bounded at 50 chars (AD-017); apply control-char stripping AFTER the 50-char truncation step, not before (truncation removes content, stripping removes control chars — order matters for correct 50-char cap semantics). Implementer: add a `sanitize_for_log(s: &str) -> String` helper (`s.chars().filter(|c| !c.is_ascii_control()).collect()`) and call it on `field_name`, `infusion_id`, `declared_type` at `TypeCoercionFailed` construction sites, and on `truncated_value` after the `chars().take(50)` truncation. This prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured logs (AD-017 extension). See E-INFUSE-014 SEC-001 Rendering Note in error-taxonomy v2.17.
+
 Red Gate: covered by AC-004 Red Gate tests (they assert the Display output matches the E-INFUSE-014 format)
+Red Gate: `test_sec001_type_coercion_failed_ctrl_chars_stripped_from_metadata_fields` (RGT-025 — SEC-001 control-char stripping of field_name/infusion_id/declared_type at variant construction)
+Red Gate: `test_sec001_type_coercion_failed_ctrl_chars_stripped_from_truncated_value_after_truncation` (RGT-026 — SEC-001 control-char stripping of truncated_value applied AFTER the 50-char truncation step)
+Red Gate: `test_new_sec001_r_warn_coercion_failed_structured_fields_no_raw_control_chars` (RGT-027 — SEC-001 NEW-SEC-001-R, fix-burst-14: structured tracing fields of `tracing::warn!(event_type = "infusion.coercion_failed", field_name = ..., infusion_id = ..., declared_type = ..., truncated_value = ...)` must not contain raw ASCII control chars (0x00–0x1F, 0x7F); verifies sanitize_for_log is applied to each structured field at the warn! call site)
 
 ### AC-006 — InfusionLoader::validate rejects plugin-type field without source_column (E-INFUSE-013 sub-condition 8)
 (traces to BC-2.19.001 v2.2 Plugin-type field projection postcondition; E-INFUSE-013 sub-cond 8; EC-19-009; TV-19-001-plugin-no-source-col; ADR-051 D3)
@@ -294,6 +301,10 @@ The spec is REJECTED (not loaded). Other infusion specs continue loading unaffec
 
 Verification: `rg 'E-INFUSE-013' crates/ --type rust` MUST hit the updated validation path.
 
+**CR-002 sibling assessment (sub-condition 8, TD-VSDD-060):** The sub-condition 8 `{message}` body already names the offending `[[infusion.fields]]` entry via `{name}` and the infusion via `{infusion_id}` (e.g., `"plugin-type field 'threat_score' in infusion 'threat_intel' must declare 'source_column'..."`). Sub-condition 8 satisfies the CR-002 field-entry-name-in-body requirement by original design — no message format change needed. The `{field}` header slot = literal `"source_column"` (the attribute whose absence triggered the error), consistent with sub-condition 7 where `{field}` = `"output_type"`.
+
+**SEC-001 (CWE-117, PR-216):** `{name}` (field entry name) and `{infusion_id}` both originate from operator-supplied TOML specs. Implementer MUST strip ASCII control characters (0x00–0x1F, 0x7F) from these values before constructing `InvalidFieldSpec { field, spec_path, message }`. See E-INFUSE-013 SEC-001 Rendering Note in error-taxonomy v2.17.
+
 Red Gate: `test_plugin_type_field_without_source_column_rejected_e_infuse_013` (ADR-051 §Enforcement)
 
 ### AC-007 — InfusionLoader::validate rejects unknown output_type (E-INFUSE-013 sub-condition 7)
@@ -304,11 +315,16 @@ when a `[[infusion.fields]]` entry has an `output_type` value not in the recogni
 then the spec is rejected at parse time with `E-INFUSE-013` sub-condition 7:
 ```
 "E-INFUSE-013: invalid field name 'output_type' in infusion spec '{spec_path}':
- output_type '{value}' is not a recognized type; valid values: string, integer, float,
- boolean, json, datetime (datetime maps to Timestamp(µs,UTC) per ADR-051 v1.2 / ADR-052)"
+ field entry '{field_name}' declares unknown output_type '{value}'; must be one of:
+ string, integer, float, boolean, json, datetime (datetime maps to Timestamp(µs,UTC)
+ per ADR-051 v1.2 / ADR-052)"
 ```
+where `{field_name}` = the enclosing `[[infusion.fields]]` entry's `name` attribute (e.g., `"threat_score"`). The `{field}` header slot = literal `"output_type"` (unchanged per MED-001 fix — the field entry name belongs in the `{message}` body only; do NOT place it in the `{field}` header slot).
 
-Red Gate: `test_unknown_output_type_rejected_e_infuse_013_sub_condition_7`
+**SEC-001 (CWE-117, PR-216):** `output_type` value and `field_name` both originate from operator-supplied TOML specs and are attacker-influenceable. Implementer MUST strip ASCII control characters (0x00–0x1F, 0x7F) from both values before constructing `InvalidFieldSpec { field, spec_path, message }`. See E-INFUSE-013 SEC-001 Rendering Note in error-taxonomy v2.17.
+
+Red Gate: `test_unknown_output_type_rejected_e_infuse_013_sub_condition_7` (RGT-011; fix-burst-13: assertion updated for CR-002 message body)
+Red Gate: `test_sec001_e_infuse_013_sub_cond_7_control_chars_stripped_from_rendered_message` (RGT-024 — SEC-001: control chars stripped from output_type value and field_name before constructing E-INFUSE-013 sub-cond 7 message; enrichment_pivot_002_tests.rs)
 
 ### AC-008 — JSON-list input to typed-output UDF produces NULL + E-INFUSE-014; json-typed ENRICH-1 retained
 (traces to BC-2.19.001 v2.2 EC-19-008 — "JSON-list string input (leading `[`) provided to typed-output UDF produces NULL + E-INFUSE-014"; INV-ENRICH-TYPED-001 clause 4; TV-19-001-json-list-typed-output; ADR-051 D4)
@@ -455,7 +471,7 @@ Red Gate: `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_d
 | 8 | `test_coerce_to_typed_float_failure_produces_null_e_infuse_014` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; INV-ENRICH-TYPED-001 clause 5 | unit |
 | 9 | `test_coerce_to_typed_boolean_unrecognized_value_produces_null_e_infuse_014` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; INV-ENRICH-TYPED-001 clause 5 | unit |
 | 10 | `test_json_list_input_to_typed_output_udf_produces_null_e_infuse_014` | prism-query | BC-2.19.001 v2.2 EC-19-008; INV-ENRICH-TYPED-001 clause 4; TV-19-001-json-list-typed-output | unit |
-| 11 | `test_unknown_output_type_rejected_e_infuse_013_sub_condition_7` | prism-spec-engine | BC-2.19.001 v2.2 E-INFUSE-013 sub-cond 7; TV-19-001-unknown-output-type | unit |
+| 11 | `test_unknown_output_type_rejected_e_infuse_013_sub_condition_7` | prism-spec-engine | BC-2.19.001 v2.2 E-INFUSE-013 sub-cond 7; TV-19-001-unknown-output-type; fix-burst-13: assertion updated for CR-002 message body (not a new test — POL-1) | unit |
 | 12 | `test_threatintel_toml_has_source_column_and_iocs_value_first_input_field` | prism-spec-engine | BC-2.19.001 v2.2 Plugin-type field projection postcondition; ADR-051 D3/D4 | unit/spec-load |
 | 13 | `test_cyberint_sensor_toml_has_iocs_value_first_column` | prism-spec-engine or sensor spec tests | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4; SAP-2 | unit/parity |
 | 14 | `test_crowdstrike_sensor_toml_has_behaviors_ioc_value_first_column` | prism-spec-engine or sensor spec tests | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4; SAP-2 | unit/parity |
@@ -468,10 +484,19 @@ Red Gate: `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_d
 | 21 | `test_ec002_float_string_to_integer_yields_null` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; EC-002: `coerce_to_typed("95.7", Int64)` → None (JSON Number float-to-integer precision mismatch; fix-burst-3) | unit |
 | 22 | `test_ec006_empty_input_yields_null` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; EC-006: `coerce_to_typed("", Int64)` → None (empty `iocs_value` array produces `""` first element; fix-burst-3) | unit |
 | 23 | `test_threat_sources_json_output_no_double_encoding` | prism-query | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001; ADV-P11-OBS-001: source_column + Vec<String> Array field + scalar input_field (`iocs_value_first`) → output `["greynoise","abuseipdb"]` (valid JSON array, elements are plain strings — NOT double-encoded `["[\"greynoise\",\"abuseipdb\"]"]`) | unit |
+| 24 | `test_sec001_e_infuse_013_sub_cond_7_control_chars_stripped_from_rendered_message` | prism-spec-engine | BC-2.19.001 v2.2 E-INFUSE-013 sub-cond 7; AC-007 SEC-001 (CWE-117): control chars (0x00–0x1F, 0x7F) stripped from output_type value and field_name before `InvalidFieldSpec` construction; input with embedded `\x01` yields rendered message with no control chars | unit |
+| 25 | `test_sec001_type_coercion_failed_ctrl_chars_stripped_from_metadata_fields` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; AC-005 SEC-001 (CWE-117): control chars stripped from field_name, infusion_id, declared_type at `TypeCoercionFailed` construction; inputs with embedded control chars yield sanitized Display output | unit |
+| 26 | `test_sec001_type_coercion_failed_ctrl_chars_stripped_from_truncated_value_after_truncation` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; AC-005 SEC-001 (CWE-117): control-char stripping applied to truncated_value AFTER the `chars().take(50)` truncation step (order matters: truncate first, then strip); input with 50+ chars including embedded control chars yields correct post-truncation sanitized string | unit |
+| 27 | `test_new_sec001_r_warn_coercion_failed_structured_fields_no_raw_control_chars` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; AC-005 SEC-001 (CWE-117, fix-burst-14 NEW-SEC-001-R): structured tracing fields of `tracing::warn!(event_type = "infusion.coercion_failed", ...)` are control-char-sanitized; verifies sanitize_for_log is applied to all fields at the warn! call site — distinct from RGT-025/026 which test variant construction; input with embedded 0x01 control chars in field_name/infusion_id/declared_type/truncated_value yields structured warn output with no raw control chars | unit |
+
+**Regression Guard (not counted in red_gate_tests — behavior-preserving; not a Red Gate test):**
+
+| guard | `test_sec002_boolean_coercion_oversized_input_yields_null_regression_guard` | prism-query | AC-004 SEC-002 (CWE-770): boolean coercion path with input `len > 1024` returns NULL + E-INFUSE-014 without calling `to_lowercase()` (size guard fires first); regression guard confirms the 1024-byte cap does not break normal boolean coercion on valid inputs | unit |
+| guard | `test_new_cr005_oversized_boolean_input_emits_coercion_failed_event_and_returns_null` | prism-query | AC-004 SEC-002 (CWE-770, fix-burst-14 CR-005): asserts oversized boolean input (len > 1024) EMITS E-INFUSE-014 `infusion.coercion_failed` event AND returns None; guards the 5-site emission refactor — ensures no emit site was dropped when the emission logic was restructured; NOT a Red Gate test (behavior-preserving regression guard) | unit |
 
 **Note on test crate placement:**
-- Tests 1–10 and 17–23: live in `crates/prism-query/src/infusion_udf.rs` `#[cfg(test)] mod tests` block
-- Tests 11–12: live in `crates/prism-spec-engine/tests/enrichment_pivot_002_tests.rs` (extend the existing test file per ADR-051 §Blast Radius)
+- Tests 1–10, 17–23, 25–27: live in `crates/prism-query/src/infusion_udf.rs` `#[cfg(test)] mod tests` block (+ SEC-002 regression guard + CR-005 regression guard)
+- Tests 11–12, 24: live in `crates/prism-spec-engine/tests/enrichment_pivot_002_tests.rs` (extend the existing test file per ADR-051 §Blast Radius)
 - Tests 13–14: live in sensor spec tests or `enrichment_pivot_002_tests.rs`
 - Tests 15–16: live in `crates/prism-dtu-cyberint/src/generator.rs` and `crates/prism-dtu-crowdstrike/src/generator.rs` respectively; exercise JSONPath `source_path` extraction — test 15 uses `generate_with_scenario_iocs`; test 16 additionally asserts the dead top-level `behaviors_ioc_value_first` scalar has been removed from `make_detection_with_ioc`
 
@@ -511,12 +536,12 @@ Implementation checklist for the TDD implementer:
 - [ ] Modify `return_type()` to call `output_arrow_type()` instead of returning hardcoded `DataType::Utf8` — bodies are `todo!()`
 - [ ] Add `coerce_to_typed()` helper function — body is `todo!()`
 - [ ] Modify `invoke_async_with_args()` to dispatch on `output_arrow_type()` — bodies are `todo!()`
-- [ ] Run `just iter prism-query` — all 17 Red Gate tests (those in prism-query: tests 1–10 and 17–23) must FAIL
+- [ ] Run `just iter prism-query` — all 20 Red Gate tests (those in prism-query: tests 1–10, 17–23, and 25–27) must FAIL
 
 **Phase B — Red Gate stubs (loader.rs changes)**
 - [ ] Add sub-condition 7 check (unknown `output_type`) to `InfusionLoader::validate` — body is `todo!()` / returns Ok for now
 - [ ] Add sub-condition 8 check (plugin-type missing `source_column`) to `InfusionLoader::validate` — body is `todo!()`
-- [ ] Run `just iter prism-spec-engine` — tests 11–14 must FAIL
+- [ ] Run `just iter prism-spec-engine` — tests 11–14 and 24 must FAIL
 
 **Phase C — Red Gate stubs (DTU crate changes)**
 - [ ] Add `generate_with_scenario_iocs` stub to `crates/prism-dtu-cyberint/src/generator.rs` — emits `iocs[]` array with `.value` entries in the nested structure; no top-level `iocs_value_first` scalar field (JSONPath `source_path = "$.iocs[0].value"` at adapter layer provides the column)
@@ -524,7 +549,7 @@ Implementation checklist for the TDD implementer:
 - [ ] Run `just iter prism-dtu-cyberint` and `just iter prism-dtu-crowdstrike` — tests 15–16 must FAIL
 
 **Phase D — Red Gate density check**
-Confirm all 23 Red Gate tests are failing before starting implementation.
+Confirm all 27 Red Gate tests are failing before starting implementation.
 
 **Phase E — Implement InfusionError::TypeCoercionFailed**
 - [ ] Add `TypeCoercionFailed` variant to `InfusionError` in `prism-core/src/error.rs` (or equivalent)
@@ -554,9 +579,9 @@ Confirm all 23 Red Gate tests are failing before starting implementation.
 - [ ] This MUST be in the same commit as the `tracing::warn!(event_type = "infusion.coercion_failed", ...)` emission
 
 **Phase J — Implement InfusionLoader::validate sub-conditions 7 and 8**
-- [ ] Sub-condition 7: reject unknown `output_type` with E-INFUSE-013 message
-- [ ] Sub-condition 8: reject plugin-type field without `source_column` with E-INFUSE-013 message
-- [ ] Run tests 11–12: loader validation must PASS
+- [ ] Sub-condition 7: reject unknown `output_type` with E-INFUSE-013 message; apply SEC-001 sanitization (control chars stripped from output_type value and field_name before constructing the error message)
+- [ ] Sub-condition 8: reject plugin-type field without `source_column` with E-INFUSE-013 message; apply SEC-001 sanitization ({name} and {infusion_id})
+- [ ] Run tests 11–12 and 24: loader validation + SEC-001 message sanitization must PASS
 
 **Phase K — Rewrite threatintel.infusion.toml**
 - [ ] Add `source_column = "threat_score"` and `input_field = "iocs_value_first"` to threat_score field
@@ -660,7 +685,7 @@ NOTE: Do not pin specific version numbers in this story — always defer to the 
 | `crates/prism-dtu-cyberint/src/generator.rs` | Add `generate_with_scenario_iocs` helper to stamp `iocs[0].value` in the nested `iocs[]` array structure; no top-level `iocs_value_first` scalar field emitted — `source_path = "$.iocs[0].value"` at spec-driven adapter layer populates the column (AC-011) | AC-011 |
 | `crates/prism-dtu-crowdstrike/src/generator.rs` | Extend `make_detection_with_ioc` to emit nested `behaviors[].ioc_value` structure; no top-level `behaviors_ioc_value_first` scalar field emitted (RGT-016 asserts its absence) — `source_path = "$.behaviors[0].ioc_value"` at spec-driven adapter layer populates the column (AC-011) | AC-011 |
 | `.factory/specs/behavioral-contracts/BC-2.16.002-*.md` | Add SAP-1 catalog row for `event_type = "infusion.coercion_failed"` | AC-012 |
-| `crates/prism-spec-engine/tests/enrichment_pivot_002_tests.rs` | Add test vectors for typed output (tests 11–14): unknown output_type rejection, threatintel TOML source_column, sensor TOML _first columns | AC-006, AC-007, AC-009, AC-010 |
+| `crates/prism-spec-engine/tests/enrichment_pivot_002_tests.rs` | Add test vectors for typed output (tests 11–14, 24): unknown output_type rejection (RGT-011 updated assertion; RGT-024 SEC-001 sanitization), threatintel TOML source_column, sensor TOML _first columns | AC-006, AC-007, AC-009, AC-010 |
 | `crates/prism-dtu-threatintel/tests/` | Update expected column values from JSON-encoded strings to typed (integer/boolean) output | AC-003 (integration side effect) |
 | `crates/prism-mcp/src/resources.rs` | Update enrichment UDF examples in PrismQL reference resource — uses GENERIC `sensor_table` / `src_ip` placeholders per genericization decision (F-PQL2/CRIT-001); no sensor-specific `iocs_value_first` column change applied | Phase M blast radius |
 | `scripts/t13-preflight-audit.py` | Update E6 check for numeric comparison; update E1/E5 to use `_first` columns | Phase M blast radius |
@@ -762,7 +787,7 @@ risk_mitigations for the full runtime chain. RGT-023 enforces this at the test l
 | ADR-024 | prism_core::column::ColumnType six-type vocabulary; alignment with infusion output_type vocabulary |
 | BC-2.19.001 v2.2 | Primary behavioral contract: INV-ENRICH-TYPED-001, Plugin-type field projection, E-INFUSE-013 sub-conds 7/8, E-INFUSE-014 |
 | BC-2.16.002 v1.96 | SAP-1 catalog row obligation for infusion.coercion_failed |
-| error-taxonomy v2.16 | E-INFUSE-013 sub-conditions 7/8 added; E-INFUSE-014 TypeCoercionFailed allocated |
+| error-taxonomy v2.17 | E-INFUSE-013 sub-conditions 7/8 added; E-INFUSE-014 TypeCoercionFailed allocated; SEC-001 Rendering Note (CWE-117 control-char sanitization) and SEC-002 Assessment (CWE-770 boolean size cap) added in v2.17 |
 | DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 | Root defect this story closes: return_type() hardcoded Utf8; missing source_column on ThreatIntel |
 | T13 audit OBS-1 | Original defect documentation: doubly-encoded JSON + lexicographic CVSS comparison bugs |
 | S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (merged) | parse_datetime_to_micros availability on develop; Timestamp(µs,UTC) as canonical datetime type |
@@ -775,6 +800,9 @@ risk_mitigations for the full runtime chain. RGT-023 enforces this at the test l
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.12 | 2026-07-06 | story-writer | **fix-burst-14 test additions (POL-1 append-only, RGT-027).** **(1 new Red Gate test — RGT-027)** Added `test_new_sec001_r_warn_coercion_failed_structured_fields_no_raw_control_chars` (prism-query, infusion_udf.rs; AC-005 SEC-001 NEW-SEC-001-R, CWE-117, fix-burst-14): asserts structured tracing fields of `tracing::warn!(event_type = "infusion.coercion_failed", ...)` are control-char-sanitized (distinct from RGT-025 metadata-fields and RGT-026 truncated_value, which test variant construction; RGT-027 tests the warn! call site itself). red_gate_tests 26→27. **(1 new regression guard, not counted)** Added `test_new_cr005_oversized_boolean_input_emits_coercion_failed_event_and_returns_null` (prism-query; CR-005): asserts oversized boolean input EMITS E-INFUSE-014 event AND returns None; guards the 5-site emission refactor — NOT counted in red_gate_tests. **(Count/range sweep)** Phase A prism-query subset: "19" → "20", range "25–26" → "25–27"; Phase D total: "all 26" → "all 27"; test placement Note: "25–26" → "25–27" + added CR-005 regression guard to note; points justification item 12: "26 tests" → "27 tests". AC-005 body: RGT-027 Red Gate line appended after RGT-026. |
+| 1.11 | 2026-07-06 | story-writer | **fix-burst-13 test additions + error-taxonomy v2.17 pin (POL-23).** **(3 new Red Gate tests — RGT-024/025/026)** Added SEC-001 control-char sanitization Red Gate tests: RGT-024 `test_sec001_e_infuse_013_sub_cond_7_control_chars_stripped_from_rendered_message` (prism-spec-engine, enrichment_pivot_002_tests.rs; AC-007 SEC-001), RGT-025 `test_sec001_type_coercion_failed_ctrl_chars_stripped_from_metadata_fields` (prism-query; AC-005 SEC-001 metadata fields), RGT-026 `test_sec001_type_coercion_failed_ctrl_chars_stripped_from_truncated_value_after_truncation` (prism-query; AC-005 SEC-001 truncated_value post-truncation). red_gate_tests 23→26. **(RGT-011 annotation)** Existing RGT-011 row annotated with "fix-burst-13: assertion updated for CR-002 message body (not a new test — POL-1)". **(SEC-002 regression guard)** Added `test_sec002_boolean_coercion_oversized_input_yields_null_regression_guard` as a clearly-labeled regression guard row (NOT counted in red_gate_tests). **(POL-23 error-taxonomy pin)** References table updated v2.16→v2.17; description expanded with SEC-001/SEC-002 note. Changelog v1.0/v1.7/v1.10 historical v2.16 entries left intact. **(Count/phase sweep)** Phase A "17" → "19 Red Gate tests (tests 1–10, 17–23, and 25–26)"; Phase B "tests 11–14" → "tests 11–14 and 24"; Phase D "all 23" → "all 26 Red Gate tests"; test crate placement Note updated to "Tests 1–10, 17–23, 25–26" (prism-query) and "Tests 11–12, 24" (prism-spec-engine). Points justification item 12: "23 tests" → "26 tests". AC-005 and AC-007 body Red Gate lines updated with RGT-025/026 and RGT-024 references respectively. |
+| 1.10 | 2026-07-06 | product-owner | **PR #216 spec-side findings CR-002 + SEC-001 + SEC-002.** **(CR-002) AC-007 E-INFUSE-013 sub-cond 7 message format updated (verbatim with error-taxonomy v2.17):** `{message}` body now reads `"field entry '{field_name}' declares unknown output_type '{value}'; must be one of: string, integer, float, boolean, json, datetime (datetime maps to Timestamp(µs,UTC) per ADR-051 v1.2 / ADR-052)"`. The `{field}` header slot remains the literal `"output_type"` (MED-001 constraint unchanged). CR-002 sibling (sub-cond 8) assessed in AC-006: sub-cond 8 already names the field entry via `{name}` — no message format change, but explicit sibling-compliance note added. **(SEC-001) CWE-117 sanitization requirements added to three ACs:** AC-005 (`TypeCoercionFailed` construction — `field_name`, `infusion_id`, `declared_type` + `truncated_value` post-truncation), AC-006 (sub-cond 8 `{name}` + `{infusion_id}`), AC-007 (sub-cond 7 `output_type` value + `field_name`). Implementer must apply control-char stripping before variant construction. **(SEC-002) CWE-770 boolean branch size-cap requirement added to AC-004:** `if s.len() > 1024 { return None }` guard required before `to_lowercase()` on boolean coercion path (NULL + E-INFUSE-014 outcome unchanged; bounded-cost optimization). Determination: E-INFUSE-014 already covers oversized input; no new taxonomy entry. Companion: error-taxonomy v2.16→v2.17. |
 | 1.9 | 2026-07-06 | story-writer | ADV-P22-LOW-001 closure + BC-2.16.002 v1.95→v1.96 pin propagation (POL-23) + final count/pin sweep. **(LOW-001)** Points justification item 12 corrected: "16 tests" → "23 tests" (matches `red_gate_tests: 23` frontmatter and 23-row Red Gate Test Plan table; "across 4 crates" verified accurate: prism-query, prism-spec-engine, prism-dtu-cyberint, prism-dtu-crowdstrike). **(POL-23)** BC-2.16.002 version pin propagated v1.95→v1.96 at all four non-historical sites: frontmatter comment, Behavioral Contracts table, AC-012 trace citation, References table. Changelog v1.2 `v1.93→v1.95` historical entry left intact. **(Sweep — SHA volatile pins)** Five SHA volatile pins removed from non-exempted narrative prose per TD-VSDD-091: `develop@f6739764` (Previous Story Intelligence §PIVOT-003), `develop@11edbd36` (§TEMPORAL-TYPING-001 heading), `develop@11edbd36` (Library table datafusion cell), `develop@11edbd36` (Library NOTE paragraph), `develop@11edbd36` (Implementation Notes §Reuse parse_datetime_to_micros). Frontmatter comment SHA (`commit 11edbd36`) left intact — frontmatter comments are not narrative prose. **(Sweep — counts)** All other counts verified: `red_gate_tests: 23` ✓, Phase A "17 Red Gate tests" ✓, Phase D "23 Red Gate tests" ✓, test crate placement Note "Tests 1–10 and 17–23" ✓. No ACs added or removed; no BC-semantics, code, or test changes. |
 | 1.8 | 2026-07-06 | story-writer | ADV-P19-MED-002 + ADV-P18-OBS-001 closure (prose-accuracy only; no code/AC/BC changes). **(MED-002) Stale abandoned-approach prose removed**: File Structure Requirements generator rows, Phase C tasks, and Phase L tasks previously described the abandoned top-level-scalar approach (DTU generators emitting pre-computed `iocs_value_first` / `behaviors_ioc_value_first` scalar fields). All three sections rewritten to describe the actual implemented approach: JSONPath `source_path` resolution at the spec-driven adapter layer (`$.iocs[0].value`, `$.behaviors[0].ioc_value`) against nested array structures already emitted by the DTU generators — consistent with AC-011 v1.1, RGT-015, and RGT-016 (which explicitly asserts the top-level scalar is ABSENT). **(OBS-001) File Structure completeness**: five files present in the `d098be6f..d51c508a` diff added to MODIFIED table: `.github/workflows/ci.yml` (non-exhaustive gate note), `crates/prism-spec-engine/src/datetime.rs` (parse_datetime_to_micros extraction per ADR-052 D2), `crates/prism-spec-engine/src/lib.rs` (pub use re-export), `crates/prism-bin/src/spec_driven_adapter.rs` (JSONPath extraction for AC-011), `crates/prism-spec-engine/src/pipeline.rs` (extract_at_path index support for AC-011). **(Belt-and-suspenders)** `depends_on` comment stale "adds the _first scalar columns to the DTU fixture generators" and "scalar _first projections" language replaced with accurate description: PIVOT-003's nested array structures are the JSONPath resolution targets, not a scalar-emission substrate. |
 | 1.7 | 2026-07-06 | story-writer | ADV-P15-LOW-001 closure + comprehensive prose-accuracy audit. (1) **Forbidden Dependencies**: opening clause corrected from "`crates/prism-query` MUST NOT depend on `crates/prism-spec-engine`" to "`crates/prism-spec-engine` MUST NOT depend on `crates/prism-query`" — the original was a self-contradicting inversion of the true invariant; confirmed against Cargo.toml: `prism-query/Cargo.toml` declares `prism-spec-engine` as a dependency (correct direction); `prism-spec-engine/Cargo.toml` carries an explicit "MUST NOT depend on datafusion" comment and no `prism-query` dep. (2) **Phase A Red Gate count**: "all 16 Red Gate tests (those in prism-query)" corrected to "all 17 Red Gate tests (those in prism-query: tests 1–10 and 17–23)" — count 16 was stale from v1.0 origin; actual prism-query subset is tests 1–10, 17–20, 21–22, 23 = 17 tests. (3) **Phase D Red Gate count**: "all 16 Red Gate tests" corrected to "all 23 Red Gate tests" — matches `red_gate_tests: 23` frontmatter. (4) **Test crate placement Note**: "Tests 1–10 and 17–20" corrected to "Tests 1–10 and 17–23" — tests 21–22 (added v1.3) and test 23 (added v1.6) were omitted from the Note when they were added. (5) **AC-006 E-INFUSE-013 sub-condition 8 error message**: `{field_name}` template slot corrected to the literal `source_column` per error-taxonomy v2.16 sub-condition 8 canonical form — `{field}` = the attribute name whose absence triggered the error (`"source_column"`), consistent with sub-condition 7 precedent where `{field}` = the literal string `"output_type"` (v2.16 taxonomy text, v1.6 story MED-002 closure). No ACs added or removed; no BC changes; no code changes. |
