@@ -2,10 +2,10 @@
 document_type: adr
 adr_id: "ADR-051"
 title: "Typed & Consistent Enrichment UDF Output — output_type→Arrow DataType Mapping, Mandatory source_column, Scalar-Input Rule, and INV-ENRICH-TYPED-001"
-status: PROPOSED
+status: ACCEPTED
 date: "2026-07-03"
 modified: "2026-07-05"
-version: "1.2"
+version: "1.3"
 producer: architect
 subsystems_affected: [SS-09, SS-10, SS-19]
 supersedes: []
@@ -23,14 +23,8 @@ closes_defect: "DRIFT-PIVOT-UDF-OUTPUT-TYPE-001"
 
 ## Status
 
-PROPOSED v1.2 (2026-07-05). Awaiting human ratification before story decomposition.
-Closes escaped defect DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 (former AI-default deferral in
-`InfusionAsyncUdf::return_type`, Canonical Principle Rule 3 violation).
-v1.2 amends the datetime type mapping from `DataType::Utf8` to
-`DataType::Timestamp(Microsecond, Some("UTC"))` to reflect merged ADR-052 (PR #214,
-develop@11edbd36, 2026-07-05), which migrated all sensor Datetime columns to
-Arrow Timestamp. The blast-radius reconciliation against ADR-052 is documented in the
-v1.2 Changelog entry below.
+ACCEPTED v1.3 (2026-07-05) — human-ratified. Closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001.
+Datetime output = Timestamp(µs,UTC) per ADR-052 reconciliation (v1.2).
 
 ---
 
@@ -585,6 +579,7 @@ produces E-INFUSE-013.
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| 1.3 | 2026-07-05 | architect | Human-ratified. Status PROPOSED → ACCEPTED. No decision-content change from v1.2. |
 | 1.2 | 2026-07-05 | architect | Blast-radius reconciliation against merged ADR-052 (PR #214, develop@11edbd36). **D1 datetime row**: `DataType::Utf8` → `DataType::Timestamp(Microsecond, Some("UTC"))` with ISO-8601/RFC-3339 coercion note via `parse_datetime_to_micros`. **"Datetime = Utf8 rationale" replaced**: v1.1 rationale was inverted post-ADR-052; new section "Datetime = Timestamp(µs,UTC) rationale" explains that the consistency argument now points toward Timestamp (sensor columns are Timestamp; enrichment Utf8 would create the two-representation split v1.1 was trying to avoid). **Corrected v1.1 blast-radius errors**: (a) `column_type_to_arrow` in `spec_driven_adapter.rs` is now `ColumnType::Datetime => Timestamp(Microsecond, Some("UTC"))` — v1.1 citation of `DataType::Utf8` withdrawn; (b) `pipe_sql_emitter.rs` comment now confirms Timestamp — v1.1 citation of Utf8 withdrawn; (c) `high002_plan_pinning_tests.rs` now confirms Timestamp — v1.1 citation of Utf8 withdrawn; (d) `column.rs` Datetime doc-comment is already correct (says Timestamp/UTC) — v1.1 blast-radius item directing implementer to "fix" it FROM Timestamp TO Utf8 explicitly **withdrawn** (was inverted). **D2**: added `Timestamp(µs,UTC)` coercion row. **D4/D6**: extended typed-output scalar-input rule to include `datetime`. **D5**: added datetime comparison semantics row. **Infusion_udf blast-radius row**: updated to include `TimestampMicrosecondArray` branch and `parse_datetime_to_micros` for datetime coercion. **BC-2.19.001 amendments**: INV-ENRICH-TYPED-001 text extended to include `datetime` in the non-Utf8 typed list. `related_adrs` extended: [ADR-024, ADR-040, ADR-044, ADR-052]. |
 | 1.1 | 2026-07-03 | architect | Post-ratification datetime reconciliation. D1 `"datetime"` → `DataType::Utf8` row: replaced stale "deferred" language with the correct consistency rationale (NOW SUPERSEDED BY v1.2 — the Utf8 rationale was valid pre-ADR-052 but inverted after ADR-052 merged). Cross-references to `spec_driven_adapter.rs:886`, `pipe_sql_emitter.rs:817-818`, `high002_plan_pinning_tests.rs:169/191/313` added (all citing Utf8 — those citations are withdrawn by v1.2). `related_adrs` extended: [ADR-024, ADR-040, ADR-044]. |
 | 1.0 | 2026-07-03 | architect | Initial PROPOSED. Closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001. D1 type-mapping table; D2 coercion semantics + E-INFUSE-014; D3 mandatory source_column for plugin-type; D4 scalar-input consistency rule; D5 PrismQL comparison semantics; D6 INV-ENRICH-TYPED-001. Blast-radius list. Recommended BC-2.19.001 amendments. |
