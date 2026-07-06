@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-05T00:00:00Z"
@@ -32,7 +32,7 @@ behavioral_contracts: [BC-2.19.001, BC-2.16.002]
 # E-INFUSE-013 sub-cond 7 (unknown output_type), and E-INFUSE-014 (TypeCoercionFailed).
 # Every AC in this story traces back to a BC-2.19.001 postcondition or invariant.
 #
-# BC-2.16.002 v1.93: SAP-1 standing obligation — a Canonical Structured Event Catalog row
+# BC-2.16.002 v1.95: SAP-1 standing obligation — a Canonical Structured Event Catalog row
 # for event_type = "infusion.coercion_failed" MUST be registered before the implementation
 # PR merges (per ADR-051 D2 and CLAUDE.md §SAP-1). AC-012 anchors this obligation.
 # Both BCs cited by ACs below; bidirectional trace requirement satisfied.
@@ -83,7 +83,7 @@ risk: HIGH
 #   the implementer commits the emission without the catalog row, the adversary will find a P1.
 #   SAP-2 applies to all sensor TOML changes — adversary must read DTU types.rs/generator.rs
 #   before validating TOML column declarations.
-red_gate_tests: 16
+red_gate_tests: 20
 estimated_passes: "3-5 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -160,7 +160,7 @@ faithfully represents production enrichment behavior and numeric filters work co
 | BC | Version | Title | Key Clauses Used |
 |----|---------|-------|-----------------|
 | BC-2.19.001 | v2.2 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | INV-ENRICH-TYPED-001; INV-INFUSE-001 (extended); Typed UDF output postcondition; Plugin-type field projection postcondition; E-INFUSE-013 sub-conditions 7 and 8; E-INFUSE-014; EC-19-008; EC-19-009; TV-19-001-typed-{integer,float,boolean,datetime}; TV-19-001-coerce-fail-{integer,datetime}; TV-19-001-json-list-typed-output; TV-19-001-plugin-no-source-col; TV-19-001-unknown-output-type |
-| BC-2.16.002 | v1.93 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | SAP-1 Canonical Structured Event Catalog: new row for event_type = "infusion.coercion_failed" must be added in same commit as the tracing::warn! emission (per ADR-051 D2 E-INFUSE-014 section) |
+| BC-2.16.002 | v1.95 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | SAP-1 Canonical Structured Event Catalog: new row for event_type = "infusion.coercion_failed" must be added in same commit as the tracing::warn! emission (per ADR-051 D2 E-INFUSE-014 section) |
 
 ---
 
@@ -219,10 +219,10 @@ then the Arrow array type matches `output_arrow_type()`:
 
 For `output_type = "json"` fields, the ENRICH-1 list-dispatch path is RETAINED (do NOT remove it).
 
-Red Gate: `test_invoke_async_with_args_returns_int64_array_for_integer_output_type`
-Red Gate: `test_invoke_async_with_args_returns_float64_array_for_float_output_type`
-Red Gate: `test_invoke_async_with_args_returns_boolean_array_for_boolean_output_type`
-Red Gate: `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_datetime_output_type`
+Red Gate: `test_invoke_async_with_args_returns_int64_array_for_integer_output_type` (fix-burst-2: also asserts `int_arr.value(0) == 42_i64` — catches null-row and wrong-type regressions)
+Red Gate: `test_invoke_async_with_args_returns_float64_array_for_float_output_type` (fix-burst-2: also asserts `float_arr.value(0) ≈ 3.14` — numeric equality within 1e-10)
+Red Gate: `test_invoke_async_with_args_returns_boolean_array_for_boolean_output_type` (fix-burst-2: also asserts `bool_arr.value(0) == true`)
+Red Gate: `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_datetime_output_type` (fix-burst-2: also asserts `ts_arr.value(0) == expected_micros`)
 
 ### AC-004 — coerce_to_typed() coercion failure: NULL output + E-INFUSE-014 tracing::warn!
 (traces to BC-2.19.001 v2.2 E-INFUSE-014 error condition — "output row is NULL, not a panic, not a passthrough string, not an empty string"; INV-ENRICH-TYPED-001 clause 5; TV-19-001-coerce-fail-integer/datetime)
@@ -372,11 +372,11 @@ generator's emitted nested record structures (`iocs[].value` for cyberint; `beha
 for crowdstrike). The TOML columns declared in AC-010 MUST match fields reachable via JSONPath in
 the structures emitted by the generators.
 
-Red Gate: `test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath`
-Red Gate: `test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath`
+Red Gate: `test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath` (prism-dtu-cyberint/src/generator.rs; reads source_path from cyberint.sensor.toml; uses `generate_with_scenario_iocs` to stamp `iocs[0].value`; asserts JSONPath `$.iocs[0].value` resolves to expected IOC)
+Red Gate: `test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath` (prism-dtu-crowdstrike/src/generator.rs; reads source_path from crowdstrike.sensor.toml; asserts `$.behaviors[0].ioc_value` JSONPath value; also asserts top-level `behaviors_ioc_value_first` scalar field is ABSENT from the generated record)
 
 ### AC-012 — BC-2.16.002 Canonical Structured Event Catalog gains row for infusion.coercion_failed (SAP-1)
-(traces to BC-2.16.002 v1.93 SAP-1 Canonical Structured Event Catalog standing obligation; BC-2.19.001 v2.2 E-INFUSE-014 — "BC-2.16.002 catalog row required for event_type = 'infusion.coercion_failed' (SAP-1)")
+(traces to BC-2.16.002 v1.95 SAP-1 Canonical Structured Event Catalog standing obligation; BC-2.19.001 v2.2 E-INFUSE-014 — "BC-2.16.002 catalog row required for event_type = 'infusion.coercion_failed' (SAP-1)")
 
 Given `.factory/specs/behavioral-contracts/BC-2.16.002-*.md` after this story,
 when the Canonical Structured Event Catalog table is inspected,
@@ -401,7 +401,7 @@ then DataFusion resolves `cvss_base_score` as `DataType::Float64` (not `Utf8`), 
 
 NOTE: `cvss_base_score` has `output_type = "float"` in `nvd.infusion.toml` — no TOML change needed. The fix is entirely in `return_type()` / `invoke_async_with_args()`.
 
-Red Gate: covered by `test_invoke_async_with_args_returns_float64_array_for_float_output_type` (exercises the Float64 path with a string projected value "8.1" producing Float64Array)
+Red Gate: covered by `test_invoke_async_with_args_returns_float64_array_for_float_output_type` (exercises the Float64 path with a string projected value "8.1" producing Float64Array; fix-burst-2: also asserts `float_arr.value(0) ≈ 3.14` — numeric row value, not just schema type)
 
 ### AC-014 — datetime-output UDF returns Timestamp(µs,UTC) using parse_datetime_to_micros; no new date parser
 (traces to BC-2.19.001 v2.2 TV-19-001-typed-datetime — "produces TimestampMicrosecondArray consistent with sensor Datetime columns"; ADR-051 D1 datetime row; ADR-052 consistency rationale)
@@ -412,7 +412,7 @@ then the output is a `TimestampMicrosecondArray` with timezone `"UTC"` containin
 
 Implementation MUST reuse `parse_datetime_to_micros` (from the module used by `spec_driven_adapter.rs` `column_type_to_arrow` — ADR-052 D2). No new ISO-8601 / RFC-3339 parser may be introduced. The resulting column type is `DataType::Timestamp(Microsecond, Some("UTC"))` — consistent with sensor `Datetime` columns after ADR-052, enabling cross-column predicates like `| filter sensor_timestamp > enriched_event_time` without DataFusion type errors.
 
-Red Gate: `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_datetime_output_type`
+Red Gate: `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_datetime_output_type` (fix-burst-2: also asserts `ts_arr.value(0) == expected_micros` — verifies the parsed microseconds-since-epoch value, not just that a TimestampMicrosecondArray was produced)
 
 ---
 
@@ -422,10 +422,10 @@ Red Gate: `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_d
 |---|-----------|-------|-----------|------|
 | 1 | `test_return_type_matches_output_type_for_all_declared_types` | prism-query | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 1; ADR-051 §Enforcement | unit |
 | 2 | `test_plugin_type_field_without_source_column_rejected_e_infuse_013` | prism-spec-engine | BC-2.19.001 v2.2 Plugin-type field projection postcondition; EC-19-009; ADR-051 §Enforcement | unit/integration |
-| 3 | `test_invoke_async_with_args_returns_int64_array_for_integer_output_type` | prism-query | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 2; TV-19-001-typed-integer | unit |
-| 4 | `test_invoke_async_with_args_returns_float64_array_for_float_output_type` | prism-query | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 2; TV-19-001-typed-float | unit |
-| 5 | `test_invoke_async_with_args_returns_boolean_array_for_boolean_output_type` | prism-query | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 2; TV-19-001-typed-boolean | unit |
-| 6 | `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_datetime_output_type` | prism-query | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 2; TV-19-001-typed-datetime | unit |
+| 3 | `test_invoke_async_with_args_returns_int64_array_for_integer_output_type` | prism-query | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 2; TV-19-001-typed-integer; fix-burst-2 RGT-002: also asserts `int_arr.value(0) == 42_i64` | unit |
+| 4 | `test_invoke_async_with_args_returns_float64_array_for_float_output_type` | prism-query | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 2; TV-19-001-typed-float; fix-burst-2 RGT-003: also asserts `float_arr.value(0) ≈ 3.14` | unit |
+| 5 | `test_invoke_async_with_args_returns_boolean_array_for_boolean_output_type` | prism-query | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 2; TV-19-001-typed-boolean; fix-burst-2 RGT-004: also asserts `bool_arr.value(0) == true` | unit |
+| 6 | `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_datetime_output_type` | prism-query | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 2; TV-19-001-typed-datetime; fix-burst-2 RGT-005: also asserts `ts_arr.value(0) == expected_micros` | unit |
 | 7 | `test_coerce_to_typed_integer_failure_produces_null_e_infuse_014` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; INV-ENRICH-TYPED-001 clause 5; TV-19-001-coerce-fail-integer | unit |
 | 8 | `test_coerce_to_typed_float_failure_produces_null_e_infuse_014` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; INV-ENRICH-TYPED-001 clause 5 | unit |
 | 9 | `test_coerce_to_typed_boolean_unrecognized_value_produces_null_e_infuse_014` | prism-query | BC-2.19.001 v2.2 E-INFUSE-014; INV-ENRICH-TYPED-001 clause 5 | unit |
@@ -434,14 +434,18 @@ Red Gate: `test_invoke_async_with_args_returns_timestamp_microsecond_array_for_d
 | 12 | `test_threatintel_toml_has_source_column_and_iocs_value_first_input_field` | prism-spec-engine | BC-2.19.001 v2.2 Plugin-type field projection postcondition; ADR-051 D3/D4 | unit/spec-load |
 | 13 | `test_cyberint_sensor_toml_has_iocs_value_first_column` | prism-spec-engine or sensor spec tests | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4; SAP-2 | unit/parity |
 | 14 | `test_crowdstrike_sensor_toml_has_behaviors_ioc_value_first_column` | prism-spec-engine or sensor spec tests | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4; SAP-2 | unit/parity |
-| 15 | `test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath` | prism-dtu-cyberint | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4 Blast Radius; SAP-2 | unit |
-| 16 | `test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath` | prism-dtu-crowdstrike | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4 Blast Radius; SAP-2 | unit |
+| 15 | `test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath` | prism-dtu-cyberint (generator.rs) | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4 Blast Radius; SAP-2; reads source_path from cyberint.sensor.toml; uses `generate_with_scenario_iocs` | unit |
+| 16 | `test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath` | prism-dtu-crowdstrike (generator.rs) | BC-2.19.001 v2.2 INV-ENRICH-TYPED-001 clause 4; ADR-051 D4 Blast Radius; SAP-2; reads source_path from crowdstrike.sensor.toml; asserts `$.behaviors[0].ioc_value`; asserts top-level `behaviors_ioc_value_first` ABSENT | unit |
+| 17 | `test_coerce_to_typed_integer_valid_returns_some_number` | prism-query | BC-2.19.001 v2.2 TV-19-001-typed-integer; MED-001+LOW-001: `coerce_to_typed("42", Int64)` returns `Some(Number(42))` — validates coerce_to_typed positive path | unit |
+| 18 | `test_coerce_to_typed_float_valid_returns_some_number` | prism-query | BC-2.19.001 v2.2 TV-19-001-typed-float; MED-001+LOW-001: `coerce_to_typed("8.1", Float64)` returns `Some(Number(8.1))` within 1e-10 | unit |
+| 19 | `test_coerce_to_typed_boolean_valid_variants_return_some_bool` | prism-query | BC-2.19.001 v2.2 TV-19-001-typed-boolean; MED-001+LOW-001: all true-variants (true/1/yes/TRUE/YES) and false-variants (false/0/no/FALSE/NO) return `Some(Bool(_))` | unit |
+| 20 | `test_coerce_to_typed_datetime_valid_returns_some_micros` | prism-query | BC-2.19.001 v2.2 TV-19-001-typed-datetime; MED-001+LOW-001: `coerce_to_typed("2024-01-01T00:00:00Z", Timestamp(µs,UTC))` returns `Some(Number(micros))` | unit |
 
 **Note on test crate placement:**
-- Tests 1–10: live in `crates/prism-query/src/infusion_udf.rs` `#[cfg(test)] mod tests` block
+- Tests 1–10 and 17–20: live in `crates/prism-query/src/infusion_udf.rs` `#[cfg(test)] mod tests` block
 - Tests 11–12: live in `crates/prism-spec-engine/tests/enrichment_pivot_002_tests.rs` (extend the existing test file per ADR-051 §Blast Radius)
 - Tests 13–14: live in sensor spec tests or `enrichment_pivot_002_tests.rs`
-- Tests 15–16: live in `crates/prism-dtu-cyberint/` and `crates/prism-dtu-crowdstrike/` test modules; exercise JSONPath `source_path` extraction from nested array structures emitted by the respective DTU generators
+- Tests 15–16: live in `crates/prism-dtu-cyberint/src/generator.rs` and `crates/prism-dtu-crowdstrike/src/generator.rs` respectively; exercise JSONPath `source_path` extraction — test 15 uses `generate_with_scenario_iocs`; test 16 additionally asserts the dead top-level `behaviors_ioc_value_first` scalar has been removed from `make_detection_with_ioc`
 
 ---
 
@@ -721,7 +725,7 @@ retained (for backward compat or simplicity), the adversary will accept it per A
 | ADR-040 v2.0 | Dual-path infusion architecture (HttpLookup NVD + WASM ThreatIntel); no changes to the architecture in this story |
 | ADR-024 | prism_core::column::ColumnType six-type vocabulary; alignment with infusion output_type vocabulary |
 | BC-2.19.001 v2.2 | Primary behavioral contract: INV-ENRICH-TYPED-001, Plugin-type field projection, E-INFUSE-013 sub-conds 7/8, E-INFUSE-014 |
-| BC-2.16.002 v1.93 | SAP-1 catalog row obligation for infusion.coercion_failed |
+| BC-2.16.002 v1.95 | SAP-1 catalog row obligation for infusion.coercion_failed |
 | error-taxonomy v2.15 | E-INFUSE-013 sub-conditions 7/8 added; E-INFUSE-014 TypeCoercionFailed allocated |
 | DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 | Root defect this story closes: return_type() hardcoded Utf8; missing source_column on ThreatIntel |
 | T13 audit OBS-1 | Original defect documentation: doubly-encoded JSON + lexicographic CVSS comparison bugs |
@@ -735,5 +739,6 @@ retained (for backward compat or simplicity), the adversary will accept it per A
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-07-06 | story-writer | Spec reconciliation to code HEAD 4699551e (LOCAL adversary pass-2 LOW-002 closure). (LOW-002) All BC-2.16.002 version pins updated v1.93→v1.95 (canonical version on factory-artifacts). (fix-burst-2 test-name reconciliation) RGT-003..006 (invoke_async typed-array tests) now note `.value(0)` value assertions (42, 3.14, true, micros) added in fix-burst-2. (fix-burst-2 test-name reconciliation) RGT-015 (cyberint AC-011 test) updated: lives in prism-dtu-cyberint/src/generator.rs, uses `generate_with_scenario_iocs`. RGT-016 (crowdstrike AC-011 test) updated: lives in prism-dtu-crowdstrike/src/generator.rs, asserts `$.behaviors[0].ioc_value` + asserts top-level `behaviors_ioc_value_first` ABSENT. (fix-burst-2 new tests) 4 new positive-value coerce_to_typed tests added as RGT-017..020: test_coerce_to_typed_integer_valid_returns_some_number, test_coerce_to_typed_float_valid_returns_some_number, test_coerce_to_typed_boolean_valid_variants_return_some_bool, test_coerce_to_typed_datetime_valid_returns_some_micros; red_gate_tests 16→20. No ACs added or removed; no BC changes; no code changes. |
 | 1.1 | 2026-07-06 | story-writer | Spec reconciliation to code HEAD 89a09782 (LOCAL adversary pass-1 closures). (HIGH-001) AC-011 clarified: iocs_value_first/behaviors_ioc_value_first populated by spec-driven adapter via JSONPath source_path extraction ($.iocs[0].value, $.behaviors[0].ioc_value) from nested DTU array structures — NOT pre-computed top-level scalar fields; RGT-015/016 test names reconciled to test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath / test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath. (LOW-003) AC-002 TD-VSDD-060 grep narrowed from 'output_type.*Utf8\|return_type.*Utf8' to 'return_type.*Utf8' (output_type.*Utf8 excluded — sanctioned _ => DataType::Utf8 fallback in output_arrow_type() and legitimate *output_type != DataType::Utf8 guard comparisons are correct behavior). (process-gap) AC-010 column_type examples corrected PascalCase "String" → lowercase "string" (prism-core/src/column.rs #[serde(rename_all = "snake_case")] canonical form). No ACs added or removed; no BC changes; no code changes. |
 | 1.0 | 2026-07-05 | story-writer | Initial decomposition. ADR-051 ACCEPTED v1.3 (2026-07-05); BC-2.19.001 v2.2 (amended 2026-07-05); error-taxonomy v2.15. 14 ACs; 16 Red Gate tests; 13 pts; Wave 5; E-DEMO; depends_on S-DEMO-ENRICHMENT-PIVOT-003. |
