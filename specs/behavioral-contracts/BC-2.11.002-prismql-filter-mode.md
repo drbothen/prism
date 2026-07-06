@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,14 +11,14 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: 2026-07-06
 deprecated: null
 deprecated_by: null
 replacement: null
 retired: null
 removed: null
 removal_reason: null
-inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md", ".factory/specs/architecture/decisions/ADR-047-prismql-case-sensitivity-policy-ieq-iin-and-adapter-boundary-normalization.md"]
 input-hash: "c36ec87"
 traces_to: ["CAP-015"]
 extracted_from: ".factory/specs/prd.md"
@@ -43,6 +43,7 @@ Filter mode is the default query mode: it activates when a query does not start 
 ## Postconditions
 - The Chumsky parser produces a `FilterExpr` AST representing the boolean expression
 - Supported operators: `=`, `!=`, `>`, `>=`, `<`, `<=`, `in`, `contains`, `matches` (regex), `between`, `is null`, `is not null`, `exists`, `cidr` (IP range)
+- **Case-insensitive equality/membership operators (ADR-047 D.2):** `IEQ` (case-insensitive equality), `IIN` (case-insensitive membership), `INE` (case-insensitive inequality) are also supported. These are lowered to `lower(field) OP lower('val')` DataFusion SQL and extend the existing I-prefix family (`ICONTAINS`/`ISTARTSWITH`/`IENDSWITH`). See BC-2.11.024 for full semantics. Default `=`/`!=`/`IN` remain case-sensitive.
 - Boolean combinators: `AND`, `OR`, `NOT` with standard precedence (NOT > AND > OR); parentheses for grouping
 - Value types: string literals (double-quoted), integers, floats, booleans, null, IP addresses, CIDR notation
 - Field names support dot-notation for nested OCSF fields (e.g., `device.ip`, `src_endpoint.port`)
@@ -76,7 +77,9 @@ Filter mode is the default query mode: it activates when a query does not start 
 
 | Input | Expected Output | Category |
 |-------|----------------|----------|
-| `severity = 'critical'` | `FilterExpr{Eq("severity", "critical")}` | happy-path |
+| `severity = 'critical'` | `FilterExpr{Eq("severity", "critical")}` (case-sensitive, unchanged) | happy-path |
+| `severity IEQ 'high'` | `FilterExpr{Eq("severity", "high", case_insensitive: true)}`; DataFusion lowers to `lower(severity) = lower('high')` | happy-path (IEQ) |
+| `status IIN ('open', 'new')` | `FilterExpr{In("status", ["open","new"], case_insensitive: true)}`; DataFusion lowers to `lower(status) IN (lower('open'), lower('new'))` | happy-path (IIN) |
 | `src_endpoint.ip cidr '10.0.0.0/8'` | `FilterExpr{Cidr("src_endpoint.ip", "10.0.0.0/8")}` | happy-path |
 | `""` (empty string) | `Err(E-QUERY-001)` empty query error | error |
 | 65 levels of nested `( ... )` | `Err(E-QUERY-003)` nesting depth exceeded | error |
@@ -110,6 +113,7 @@ Both tests MUST use `QueryEngine::execute`, not just `PrismQlParser::parse`. Par
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | S-PRISMQL-CASE-INSENSITIVE-001-bc-burst | 2026-07-06 | product-owner | **ADR-047 D.2 amendment: IEQ/IIN/INE operators added to filter-mode supported operator list.** §Postconditions: added bullet for case-insensitive equality/membership operators (`IEQ`/`IIN`/`INE`), lowering idiom (`lower(field) OP lower('val')`), reference to BC-2.11.024 for full semantics. §Canonical Test Vectors: added IEQ and IIN happy-path vectors. inputs: ADR-047 added. |
 | 1.4 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.4 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | AMENDMENT: added §Execution Validation Requirements (ADR-046 D4). Filter mode execution was UNVERIFIED — parse-only tests do not satisfy BC-2.11.002 which specifies "Filter mode predicates are applied to the sensor data source." Two mandatory integration tests added: `test_filter_mode_simple_predicate` and `test_filter_mode_with_source`, both using `QueryEngine::execute`. Closes ADR-046 D4 obligation. BC-2.11.023 governs the D7 shared-predicate-grammar invariant as a companion constraint. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

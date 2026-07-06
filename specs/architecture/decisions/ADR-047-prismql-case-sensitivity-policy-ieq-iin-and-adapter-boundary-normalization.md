@@ -2,10 +2,10 @@
 document_type: adr
 adr_id: "ADR-047"
 title: "PrismQL Case-Sensitivity Policy — Case-Sensitive Default, IEQ/IIN Opt-In, and Adapter-Boundary OCSF Enum-Label Normalization"
-status: proposed
+status: accepted
 date: "2026-06-27"
-version: "1.0"
-modified: "2026-06-27"
+version: "1.1"
+modified: "2026-07-06"
 producer: architect
 subsystems_affected: [SS-11, SS-02]
 supersedes: null
@@ -14,24 +14,39 @@ amends: null
 anchor_stories: [S-PRISMQL-CASE-INSENSITIVE-001]
 related_adrs: [ADR-041, ADR-043, ADR-044, ADR-046, ADR-024]
 related_bcs: [BC-2.11.002, BC-2.11.004, BC-2.11.018, BC-2.02.002, BC-2.02.010]
-locked_decisions: []
+locked_decisions: [OD-1, OD-2, OD-3, OD-4]
 wiring_deferred_to: null
-open_decisions:
-  - OD-1: adapter-boundary normalization scope (all OCSF enum-label fields vs demo-critical set)
-  - OD-2: confirm case-sensitive default acceptance
-  - OD-3: confirm IEQ/IIN/INE spelling
-  - OD-4: zero-rows near-miss pedagogical hint — now vs follow-up story
+open_decisions: []
+resolved_decisions:
+  - OD-1: "ALL OCSF enum-label fields (architect recommendation adopted). Demo-minimum guaranteed set: severity + status. Human sign-off D-1398, 2026-06-27."
+  - OD-2: "Case-sensitive default confirmed for =, !=, IN. Human sign-off D-1398, 2026-06-27."
+  - OD-3: "IEQ/IIN/INE spelling confirmed (I-prefix family, collision-free with =~ regex). Human sign-off D-1398, 2026-06-27."
+  - OD-4: "Zero-rows near-miss pedagogical hint DEFERRED to follow-up story. NOT included in S-PRISMQL-CASE-INSENSITIVE-001. Human sign-off D-1398, 2026-06-27."
 ---
 
 # ADR-047: PrismQL Case-Sensitivity Policy — Case-Sensitive Default, IEQ/IIN Opt-In, and Adapter-Boundary OCSF Enum-Label Normalization
 
 ## Status
 
-PROPOSED v1.0 (2026-06-27). Architect decision following research artifact
+ACCEPTED v1.1 (2026-07-06). All four open decisions (OD-1 through OD-4) ratified per human
+sign-off D-1398 (2026-06-27):
+
+| ID | Resolution |
+|----|------------|
+| OD-1 | ALL OCSF enum-label fields normalized at adapter boundary. Demo-minimum guaranteed: severity + status. |
+| OD-2 | Case-sensitive default for `=`/`!=`/`IN` confirmed. |
+| OD-3 | IEQ/IIN/INE operator spelling confirmed. |
+| OD-4 | Zero-rows near-miss pedagogical hint DEFERRED to follow-up story. NOT in S-PRISMQL-CASE-INSENSITIVE-001. |
+
+Product-owner has authored the following artifacts per §Amendment Obligations:
+- BC-2.11.024 (new): PrismQL IEQ/IIN/INE case-insensitive operators
+- BC-2.02.013 (new): Adapter-boundary OCSF enum-label canonical-case normalization
+- BC-2.11.002 v1.5, BC-2.11.004 v1.13, BC-2.11.018 v1.3, BC-2.02.002 v1.5, BC-2.02.010 v1.5 (amended)
+
+Original PROPOSED record: v1.0 (2026-06-27). Architect decision following research artifact
 `prismql-case-sensitivity-2026-06-27.md`. Addresses the demo-critical defect where
 LLM-agent queries like `WHERE severity IN ('HIGH','CRITICAL')` return zero rows
-because prism stores OCSF Title-case labels (`'High'`, `'Critical'`). Human ratification
-required on OD-1 through OD-4 (see §Open Decisions) before status advances to ACCEPTED.
+because prism stores OCSF Title-case labels (`'High'`, `'Critical'`).
 
 ## Context
 
@@ -248,14 +263,16 @@ required; D.3 is the primary fix for data quality, D.2 is the ergonomic safety n
 
 ## Open Decisions
 
-These require human sign-off before this ADR advances from PROPOSED to ACCEPTED:
+All decisions resolved. See §Status for resolution table.
 
-| ID | Decision | Recommendation | Required For |
-|----|----------|----------------|-------------|
-| OD-1 | Adapter-boundary normalization scope: all OCSF enum-label fields vs demo-critical set (severity, status) | All enum-label fields (architect recommendation) | BC-2.02.002 amendment scope |
-| OD-2 | Confirm case-sensitive default for `=`/`IN` | Case-sensitive (architect and research consensus) | BC-2.11.002 amendment |
-| OD-3 | Confirm operator spelling: IEQ/IIN/INE vs alternative | IEQ/IIN/INE (architect recommendation: `I`-prefix collision-free with `=~`) | Grammar implementation |
-| OD-4 | Zero-rows near-miss pedagogical hint: implement in S-PRISMQL-CASE-INSENSITIVE-001 or follow-up story | Follow-up story (non-trivial detection; high value; recommend scoping separately from grammar) | Story scoping |
+~~These require human sign-off before this ADR advances from PROPOSED to ACCEPTED:~~
+
+| ID | Decision | Resolution | Sign-Off |
+|----|----------|------------|----------|
+| OD-1 | Adapter-boundary normalization scope | ALL OCSF enum-label fields; demo-minimum: severity + status | D-1398, 2026-06-27 |
+| OD-2 | Case-sensitive default for `=`/`IN` | Case-sensitive confirmed | D-1398, 2026-06-27 |
+| OD-3 | Operator spelling: IEQ/IIN/INE | IEQ/IIN/INE confirmed | D-1398, 2026-06-27 |
+| OD-4 | Zero-rows near-miss pedagogical hint | DEFERRED to follow-up story | D-1398, 2026-06-27 |
 
 ## Amendment Obligations (for Product Owner)
 
@@ -295,4 +312,5 @@ Additionally, NEW BCs are needed for IEQ/IIN semantics (product-owner authors):
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | S-PRISMQL-CASE-INSENSITIVE-001-bc-burst | 2026-07-06 | product-owner | **PROPOSED → ACCEPTED.** All four ODs resolved per human sign-off D-1398 (2026-06-27). Frontmatter: `status: proposed → accepted`, `version: 1.0 → 1.1`, `modified: 2026-07-06`, `locked_decisions: [OD-1..OD-4]`, `open_decisions: []`, `resolved_decisions` recorded. §Status updated with resolution table and PO artifact delivery record. §Open Decisions table updated to show resolutions. ARCH-INDEX ADR-047 row update (PROPOSED v1.0 → ACCEPTED v1.1) to be applied by state-manager. |
 | 1.0 | S-PRISMQL-CASE-INSENSITIVE-001-design | 2026-06-27 | architect | Initial PROPOSED decision. Two-pronged design: case-sensitive default + IEQ/IIN opt-in + adapter-boundary normalization. Research basis: prismql-case-sensitivity-2026-06-27.md. |

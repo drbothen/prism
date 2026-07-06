@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.12"
+version: "1.13"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,14 +11,14 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: 2026-07-06
 deprecated: null
 deprecated_by: null
 replacement: null
 retired: null
 removed: null
 removal_reason: null
-inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md", ".factory/specs/architecture/decisions/ADR-052-prismql-native-temporal-typing-utf8-to-arrow-timestamp.md"]
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md", ".factory/specs/architecture/decisions/ADR-052-prismql-native-temporal-typing-utf8-to-arrow-timestamp.md", ".factory/specs/architecture/decisions/ADR-047-prismql-case-sensitivity-policy-ieq-iin-and-adapter-boundary-normalization.md"]
 input-hash: "c36ec87"
 traces_to: ["CAP-015"]
 extracted_from: ".factory/specs/prd.md"
@@ -39,7 +39,7 @@ S-3.06 extends pipe mode with write stages: a write stage (sensor-registered ver
 ## Postconditions
 - The Chumsky parser produces a `PipeExpr` AST consisting of an optional source followed by a chain of pipe stages
 - Supported pipe stages:
-  - `where <filter_expr>` -- filter rows using the same filter grammar as filter mode
+  - `where <filter_expr>` -- filter rows using the same filter grammar as filter mode (ADR-046 D7 shared-predicate-grammar invariant, BC-2.11.023). This includes the `IEQ`/`IIN`/`INE` case-insensitive operators added by ADR-047 D.2 (see BC-2.11.024): `| where severity IEQ 'high'` is valid pipe-mode syntax lowered to `lower(severity) = lower('high')` in the DataFusion SQL plan.
   - `sort <field> [asc|desc] [, <field> [asc|desc]]` -- sort results
   - `head <N>` -- take first N rows (equivalent to `LIMIT N`)
   - `tail <N>` -- take last N rows (reverse sort + limit + reverse)
@@ -130,6 +130,8 @@ When `WriteVerbRegistry` is empty (no sensor write endpoints registered), `rejec
 | `FROM crowdstrike_detections \| where report_date = '2026-06-24'` (String/Utf8 column `report_date`) | Valid — `check_temporal_literals` coerces `RawTemporalLiteral` → `Literal::String("2026-06-24")`; processed as string comparison in `\| where` (no E-QUERY-041) | edge-case |
 | `FROM crowdstrike_detections \| stats count by '2026-06-24'` (temporal literal as GROUP BY literal in `stats`) | `Err(E-QUERY-001)` — parse-time rejection (enhanced message per ADR-052 §D4 v1.10 Option (a)): `stats by` expects column references, not literal values. **F-MED-1 fix:** prior v1.11 vector was wrong (showed COERCE). | error |
 | `FROM crowdstrike_detections \| where lower(hostname) = '2026-06-24'` (non-`Field` LHS in `\| where` comparison) | `Err(E-QUERY-042)` NonColumnLhsComparison — `check_temporal_literals` arm (4): non-`Field` LHS → E-QUERY-042 `TemporalLiteralInvalidPosition { position: NonColumnLhsComparison, value_prefix: "2026-06-24" }` | error |
+| `FROM crowdstrike_detections \| where severity IEQ 'high' \| head 10` | Returns rows where `lower(severity)='high'`; `normalized_pql` contains `severity IEQ 'high'` (uppercase canonical form) — IEQ available in `\| where` via shared filter grammar (ADR-046 D7, BC-2.11.023) | happy-path (IEQ) |
+| `FROM crowdstrike_detections \| where status IIN ('open', 'new') \| stats count by _sensor` | Returns aggregate counts for records where `lower(status)` is `'open'` or `'new'` — IIN case-insensitive membership in pipe `\| where` stage | happy-path (IIN) |
 
 ## Verification Properties
 
@@ -148,6 +150,7 @@ When `WriteVerbRegistry` is empty (no sensor write endpoints registered), `rejec
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.13 | S-PRISMQL-CASE-INSENSITIVE-001-bc-burst | 2026-07-06 | product-owner | **ADR-047 D.2 amendment: IEQ/IIN/INE operators available in `\| where` stages via shared filter grammar.** §Postconditions `where <filter_expr>` bullet: expanded to note that shared filter grammar (ADR-046 D7, BC-2.11.023) includes `IEQ`/`IIN`/`INE` case-insensitive operators; inline example `\| where severity IEQ 'high'` added. §Canonical Test Vectors: two IEQ/IIN pipe-mode vectors added. inputs: ADR-047 added. |
 | 1.12 | adr-052-d4-v1.10-seven-arm-f-med-1 | 2026-07-05 | product-owner | **FIX 4 (F-MED-1 + ADR-052 §D4 v1.10 Option (a)): reclassify `stats by` / `sort` positions as parse-time rejections; add non-`Field` LHS E-QUERY-042.** §Postconditions ADR-052 D2 bullet: "four-way dispatch" → "four-arm dispatch" (pipes have no SQL-mode SELECT/GROUP BY/ORDER BY arms); arm (4) changed from `stats by / sort` non-comparison COERCE to non-`Field` LHS in `\| where` → E-QUERY-042 NonColumnLhsComparison; added explicit note that `stats by` and `sort` positions reject AT PARSE TIME with E-QUERY-001 (enhanced message, Option (a)) — walker is never reached. §Error Cases E-QUERY-041: "Does NOT fire" note updated — removed `stats by` / `sort` coerce claim; clarified those are parse-time rejections; added forward-ref to E-QUERY-042 for non-`Field` LHS. E-QUERY-042 row ADDED (NonColumnLhsComparison variant only for pipe mode; verbatim ADR-052 §D4 v1.10 message, POL-24). §Edge Cases: **EC-11-004-004 F-MED-1 RECLASSIFIED** from "Valid — arm (4) COERCE" to "FORBIDDEN — parse-time E-QUERY-001 with enhanced message"; EC-11-004-005 ADDED (`\| where lower(hostname) = '2026-06-24'` → E-QUERY-042 NonColumnLhsComparison). §Canonical Test Vectors: `stats count by '2026-06-24'` vector corrected from "COERCE → success" to "Err(E-QUERY-001) parse-time rejection"; `\| where lower(hostname)` vector ADDED (E-QUERY-042). |
 | 1.11 | adr-052-d4-v1.8-four-way-dispatch | 2026-07-05 | product-owner | **HIGH-1: propagate ADR-052 §D4 v1.8 four-way dispatch (non-comparison coercion arm) to pipe-mode BC.** §Postconditions ADR-052 D2 bullet: `three-way dispatch` → `four-way dispatch`; added arm (4): non-comparison position (pipe stage function argument, `stats` GROUP BY literal, `sort` literal, `fields` literal — no column type in scope) → COERCE to `Literal::String(s)` (SUCCESS). §Error Cases E-QUERY-041: expanded "Does NOT fire" note to include non-comparison position (arm (4) of four-way dispatch). §Edge Cases: EC-11-004-004 ADDED (GROUP BY literal coerce → success in pipe mode). §Canonical Test Vectors: non-comparison-position coerce vector ADDED. |
 | 1.10 | med-1-e-query-002-propagation | 2026-07-04 | product-owner | **MED-1 E-QUERY-001→E-QUERY-002 correction: numeric/bool temporal dispatch arm.** §Postconditions ADR-052 D2 bullet: corrected three-way dispatch arm (3) from "Integer/Float/Bool column → **E-QUERY-001**" to "**E-QUERY-002 (QueryTypeMismatch)**". Aligns to error-taxonomy.md v2.12 (E-QUERY-002 QueryTypeMismatch) and ADR-052 §D4 v1.5. Datetime→E-QUERY-041 and String/Utf8→COERCE arms UNCHANGED. All other §Error Cases E-QUERY-001 entries (unknown pipe stage keyword, invalid aggregation function, head/tail non-integer argument) are for distinct non-temporal conditions and are UNCHANGED. |

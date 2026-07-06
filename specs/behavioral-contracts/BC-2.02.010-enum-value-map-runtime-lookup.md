@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -13,11 +13,12 @@ lifecycle_status: active
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
+  - ".factory/specs/architecture/decisions/ADR-047-prismql-case-sensitivity-policy-ieq-iin-and-adapter-boundary-normalization.md"
 input-hash: "76729b7"
 traces_to: ["CAP-003"]
 extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
-modified: null
+modified: 2026-07-06
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -40,9 +41,11 @@ At build time, `ocsf-proto-gen` generates an `enum-value-map.json` file that map
 - All OCSF enum fields (e.g., `severity_id`, `activity_id`, `status_id`) can be resolved to human-readable captions at runtime
 - The lookup function takes an enum type name and integer value, returning the display caption per OCSF v1.x: `0`→`"Unknown"`, `1`→`"Informational"`, `2`→`"Low"`, `3`→`"Medium"`, `4`→`"High"`, `5`→`"Critical"`, `99`→`"Other"`
 - MCP tool responses include both the integer enum value and the display caption for AI agent consumption
+- **Dual role — adapter-boundary casing authority (ADR-047 §D.3):** The enum-value-map serves a dual role beyond MCP display enrichment. The caption strings in this map are the **canonical casing** for OCSF enum-label string fields at the adapter boundary: when `prism-ocsf` normalizes an incoming sensor record, it rewrites enum-label string values to match these captions (Title-case). The MCP display enrichment role (returning captions for AI agent consumption) and the adapter-boundary normalization role (establishing canonical casing at ingest) use the same source map. See BC-2.02.013 for the full adapter-boundary normalization contract.
 
 ## Invariants
 - Enum value map is consistent with the pinned OCSF schema version
+- **Canonical casing authority:** The caption strings in this map define the canonical casing for OCSF enum-label string fields system-wide — both for MCP display and for adapter-boundary normalization (BC-2.02.013). Any component that stores or compares OCSF enum-label string values MUST treat the enum-map captions as the canonical form. No component may introduce a conflicting casing convention without amending `enum_map.rs` with OCSF-schema justification.
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -82,6 +85,7 @@ At build time, `ocsf-proto-gen` generates an `enum-value-map.json` file that map
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | S-PRISMQL-CASE-INSENSITIVE-001-bc-burst | 2026-07-06 | product-owner | **ADR-047 §D.3 amendment: enum-value-map canonical-casing authority made explicit.** §Postconditions: added "Dual role" bullet — enum-value-map caption strings are canonical casing authority for OCSF enum-label fields at the adapter boundary, not only for MCP display enrichment; references BC-2.02.013 for the adapter-boundary normalization contract. §Invariants: added "Canonical casing authority" invariant — all components MUST treat enum-map captions as canonical form. inputs: ADR-047 added. |
 | 1.4 | S-1.04-red-gate-fix | 2026-04-22 | product-owner | Corrected severity_id→name mapping per OCSF v1.x: TV-001 fixed 4→"High" (was "Critical"); added TV-002 for 5→"Critical"; renumbered TV-003/004/005; updated Description and Postconditions. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

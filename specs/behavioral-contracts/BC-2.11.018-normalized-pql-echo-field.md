@@ -1,12 +1,12 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: active
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
 phase: 1a
-inputs: [".factory/specs/domain-spec/capabilities.md", ".factory/specs/domain-spec/invariants.md", ".factory/specs/architecture/decisions/ADR-041-prismql-llm-auto-onboarding-4-layer-teaching-surface-for-automatic-agent-query-authoring.md"]
+inputs: [".factory/specs/domain-spec/capabilities.md", ".factory/specs/domain-spec/invariants.md", ".factory/specs/architecture/decisions/ADR-041-prismql-llm-auto-onboarding-4-layer-teaching-surface-for-automatic-agent-query-authoring.md", ".factory/specs/architecture/decisions/ADR-047-prismql-case-sensitivity-policy-ieq-iin-and-adapter-boundary-normalization.md"]
 input-hash: "TBD"
 traces_to: ["CAP-015"]
 extracted_from: null
@@ -15,7 +15,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: 2026-06-19
-modified: 2026-06-22
+modified: 2026-07-06
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -98,6 +98,10 @@ The `normalized_pql` value should look like a valid PQL query string — somethi
 
 The response type carrying `normalized_pql` MUST be `#[non_exhaustive]` per CLAUDE.md conventions. If it is not already `#[non_exhaustive]`, it must be marked so before the PR merges. The `ci.yml EXPECTED` non-exhaustive gate count is incremented if this type is newly non-exhaustive.
 
+### IEQ / IIN / INE round-trip in normalized_pql (ADR-047 D.4)
+
+`IEQ`, `IIN`, and `INE` case-insensitive predicate operators (BC-2.11.024) are reflected in `normalized_pql` on successful query responses. The Chumsky normalizer emits operator keywords in uppercase canonical form: a query submitted as `severity ieq 'high'` appears in `normalized_pql` as `severity IEQ 'high'`. The round-trip guarantee applies: the value in `normalized_pql` parses back to the same AST as the original, preserving the `case_insensitive: true` flag on the `Predicate` node.
+
 ### Token cost acceptance
 
 Adding `normalized_pql` costs approximately +50–200 tokens per successful query response (proportional to query complexity). This overhead is explicitly accepted per the human product decision (ADR-041 v1.1 OPD-1 resolution). No token budget optimization is required.
@@ -131,6 +135,7 @@ A model that receives `normalized_pql` in a successful query response has a grou
 | EC-11-054 | Query produces partial results (some sensors errored, some succeeded) | `normalized_pql` is PRESENT — partial sensor failure is surfaced in `sensor_errors`, not as a query-level error |
 | EC-11-055 | Model submits a pipe-mode query: `FROM foo | where severity = 'high' | head 10` | `normalized_pql` contains the normalized pipe-mode string — the canonical pipe form, not SQL-mode translation |
 | EC-11-056 | `normalized_pql` value contains DataFusion plan internals (e.g., `HashJoin` or `TableScan` text) | This is a test failure — the normalization pipeline MUST NOT emit DataFusion plan strings. If this occurs, it is a bug in the normalization implementation. |
+| EC-11-057 | Model submits a query using IEQ/IIN with lowercase keyword: `FROM crowdstrike_detections \| where severity ieq 'high' \| head 10` | `normalized_pql` reflects the operator in uppercase canonical form: `... \| where severity IEQ 'high' \| head 10`. The round-trip guarantee applies: the `normalized_pql` value parses back to the same AST (with `case_insensitive: true` on the predicate). |
 
 ## Canonical Test Vectors
 
@@ -184,6 +189,7 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | S-PRISMQL-CASE-INSENSITIVE-001-bc-burst | 2026-07-06 | product-owner | **ADR-047 D.4 amendment: IEQ/IIN/INE round-trip in `normalized_pql`.** §Postconditions: added "IEQ / IIN / INE round-trip in normalized_pql (ADR-047 D.4)" sub-section — operator keywords uppercased in canonical form; round-trip guarantee applies to `case_insensitive: true` AST flag. §Edge Cases: EC-11-057 added (`severity ieq 'high'` → `normalized_pql` contains `severity IEQ 'high'` uppercase; round-trip parses same AST). inputs: ADR-047 added. |
 | 1.2 | F-001B-SCFRESH-MED-001-story-anchor-fix | 2026-06-22 | product-owner | F-001B-SCFRESH-MED-001 closure (POL-4 story-anchor mis-anchoring): `## Story Anchor` corrected from placeholder `S-5.04 (or dedicated ADR-041 teaching story — to be assigned by story-writer)` to the actual implementing story `S-DEMO-PRISMQL-ONBOARDING-001-B`. Exhaustive BC metadata audit: all other surfaces clean. |
 | 1.1 | F-001B-FRESH2-MED-001-pol20-normalization | 2026-06-22 | product-owner | POL-20 normalization: `introduced: ADR-041-teaching-burst-2026-06-19` → `introduced: 2026-06-19` (opaque burst-ID format prohibited by POL-20 anchored-regex; ISO date extracted). Also set `modified: 2026-06-22` (first amendment; POL-27). No body semantics changed. |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L4/echo `normalized_pql` field on successful query responses (OPD-1 adopted) |

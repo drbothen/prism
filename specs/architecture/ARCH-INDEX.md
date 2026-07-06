@@ -1,10 +1,10 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.173"
+version: "2.174"
 status: draft
 producer: architect
-timestamp: 2026-07-06T00:00:00Z
+timestamp: 2026-07-07T00:00:00Z
 phase: 1b
 inputs: [domain-spec/L2-INDEX.md, prd.md, prd-supplements/interface-definitions.md, prd-supplements/nfr-catalog.md, prd-supplements/error-taxonomy.md]
 traces_to: prd.md
@@ -113,7 +113,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 | ADR-044 | Temporal Grammar — `NOW()` and `INTERVAL`/Relative-Duration Literals in PrismQL | PROPOSED v1.0 | 2026-06-24 | decisions/ADR-044-temporal-grammar-now-and-interval-relative-duration-literals.md |
 | ADR-045 | Auto-Generated PrismQL Reference Resource — Grammar-Registry Parity Gate | ACCEPTED v1.1 | 2026-06-24 | decisions/ADR-045-auto-generated-prismql-reference-resource-grammar-registry-parity-gate.md |
 | ADR-046 | Three-Mode Correctness — Filter / SQL / Pipe Mode-Bridge Error and Execution Validation | ACCEPTED v1.3 | 2026-06-26 | decisions/ADR-046-three-mode-correctness-filter-sql-pipe-mode-bridge-error-and-execution-validation.md |
-| ADR-047 | PrismQL Case-Sensitivity Policy — Case-Sensitive Default, IEQ/IIN Opt-In, and Adapter-Boundary OCSF Enum-Label Normalization | PROPOSED v1.0 | 2026-06-27 | decisions/ADR-047-prismql-case-sensitivity-policy-ieq-iin-and-adapter-boundary-normalization.md |
+| ADR-047 | PrismQL Case-Sensitivity Policy — Case-Sensitive Default, IEQ/IIN Opt-In, and Adapter-Boundary OCSF Enum-Label Normalization | ACCEPTED v1.1 | 2026-07-06 | decisions/ADR-047-prismql-case-sensitivity-policy-ieq-iin-and-adapter-boundary-normalization.md |
 | ADR-048 | PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function Predicate LHS in HAVING | ACCEPTED v1.1 | 2026-06-29 | decisions/ADR-048-prismql-having-predicate-grammar-divergence-aggregate-fn-predicate-lhs.md |
 | ADR-049 | wasmtime Compilation Cache — On-Disk Native-Code Cache for PluginRuntime, Degradable Boot Failure Semantics, and Test-Binary Serialization | ACCEPTED v1.3 | 2026-07-02 | decisions/ADR-049-wasmtime-compilation-cache.md |
 | ADR-050 | Workspace reqwest TLS Backend — rustls-tls Mandatory, native-tls Forbidden | ACCEPTED v1.1 | 2026-07-03 | decisions/ADR-050-workspace-reqwest-tls-backend.md |
@@ -178,6 +178,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.174 | ADR-047-PROPOSED-v1.0→ACCEPTED-v1.1 | 2026-07-06 | state-manager | ADR-047 PROPOSED v1.0→ACCEPTED v1.1: OD-1..OD-4 RESOLVED (D-1398 human sign-off 2026-06-27); PO BC layer authored (BC-2.11.024 + BC-2.02.013 + 5 amendments) at D-1568. ADR row updated: PROPOSED v1.0→ACCEPTED v1.1, date 2026-06-27→2026-07-06. BC-INDEX v7.42→v7.43 (266 contracts, 2 new draft). STORY-INDEX v2.604→v2.605 (stub row stale marker cleared). |
 | 2.173 | ADR-051-v1.3→v1.4-column-type-lowercase | 2026-07-06 | architect + state-manager | ADR-051 v1.3→v1.4: column_type examples corrected PascalCase→lowercase snake_case (String→string, Integer→integer, Float→float, Boolean→boolean, Json→json, Datetime→datetime) — no decision-content change; cosmetic accuracy correction per LOCAL adversary pass-1 process-gap. ADR-051 row updated to ACCEPTED v1.4 in ADR Registry. D-1551. |
 | 2.172 | ADR-051-ACCEPTED-v1.3-ratification | 2026-07-05 | state-manager | ADR-051 v1.2→ACCEPTED v1.3: human-ratified 2026-07-05. No decision-content change from v1.2 (datetime=Timestamp(µs,UTC) per ADR-052 confirmed). ADR-051 row updated to ACCEPTED v1.3. S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 draft v1.0 registered (typed enrichment UDF output implementation). D-1548. |
 | 2.171 | ADR-051-v1.2-datetime-timestamp-reconciliation | 2026-07-05 | state-manager | ADR-051 v1.1→v1.2: §datetime row reconciled DataType::Utf8→DataType::Timestamp(Microsecond, Some("UTC")) to align with merged ADR-052 (PR #214, develop@11edbd36). Rationale section rewritten; D2/D4/D5/D6 reconciled; blast-radius citations corrected (column.rs inverted-fix withdrawn; spec_driven_adapter.rs / pipe_sql_emitter.rs / high002_plan_pinning_tests.rs citations updated to reflect merged Timestamp reality). related_adrs += ADR-052. Status remains PROPOSED — awaiting human ratification before typed-enrichment story decomposition. |
