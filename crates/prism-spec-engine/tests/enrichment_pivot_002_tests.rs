@@ -1419,6 +1419,7 @@ name = "threat_score"
 input_field = "ioc"
 input_type = "ioc"
 output_type = "integer"
+source_column = "threat_score"
 
 [infusion.pipe_stage]
 adds_columns = ["threat_score"]
@@ -1439,6 +1440,7 @@ name = "threat_score"
 input_field = "ioc"
 input_type = "ioc"
 output_type = "integer"
+source_column = "threat_score"
 
 [infusion.pipe_stage]
 adds_columns = ["threat_score"]
@@ -2711,6 +2713,7 @@ name = "test_field"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "string"
+source_column = "test_result"
 "#;
 
     let spec_file = infusions_dir.join("traversal_test.infusion.toml");

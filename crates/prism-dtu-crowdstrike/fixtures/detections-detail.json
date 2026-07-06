@@ -27,7 +27,8 @@
         "technique": "Command and Scripting Interpreter",
         "technique_id": "T1059"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-002",
@@ -57,7 +58,8 @@
         "technique": "Valid Accounts",
         "technique_id": "T1078"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-003",
@@ -87,7 +89,8 @@
         "technique": "Scheduled Task/Job",
         "technique_id": "T1053"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-004",
@@ -117,7 +120,8 @@
         "technique": "Process Injection",
         "technique_id": "T1055"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-005",
@@ -147,7 +151,8 @@
         "technique": "OS Credential Dumping",
         "technique_id": "T1003"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-006",
@@ -177,7 +182,8 @@
         "technique": "Remote Services",
         "technique_id": "T1021"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-007",
@@ -207,7 +213,8 @@
         "technique": "Remote System Discovery",
         "technique_id": "T1018"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-008",
@@ -237,7 +244,8 @@
         "technique": "System Information Discovery",
         "technique_id": "T1082"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-009",
@@ -267,7 +275,8 @@
         "technique": "Account Manipulation",
         "technique_id": "T1098"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-010",
@@ -297,7 +306,8 @@
         "technique": "Application Layer Protocol",
         "technique_id": "T1071"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-011",
@@ -327,7 +337,8 @@
         "technique": "Command and Scripting Interpreter",
         "technique_id": "T1059"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-012",
@@ -357,7 +368,8 @@
         "technique": "Valid Accounts",
         "technique_id": "T1078"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-013",
@@ -387,7 +399,8 @@
         "technique": "Scheduled Task/Job",
         "technique_id": "T1053"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-014",
@@ -417,7 +430,8 @@
         "technique": "Process Injection",
         "technique_id": "T1055"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-015",
@@ -447,7 +461,8 @@
         "technique": "OS Credential Dumping",
         "technique_id": "T1003"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-016",
@@ -477,7 +492,8 @@
         "technique": "Remote Services",
         "technique_id": "T1021"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-017",
@@ -507,7 +523,8 @@
         "technique": "Remote System Discovery",
         "technique_id": "T1018"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-018",
@@ -537,7 +554,8 @@
         "technique": "System Information Discovery",
         "technique_id": "T1082"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-019",
@@ -567,7 +585,8 @@
         "technique": "Account Manipulation",
         "technique_id": "T1098"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-020",
@@ -597,7 +616,8 @@
         "technique": "Application Layer Protocol",
         "technique_id": "T1071"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-021",
@@ -627,7 +647,8 @@
         "technique": "Command and Scripting Interpreter",
         "technique_id": "T1059"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-022",
@@ -657,7 +678,8 @@
         "technique": "Valid Accounts",
         "technique_id": "T1078"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-023",
@@ -687,7 +709,8 @@
         "technique": "Scheduled Task/Job",
         "technique_id": "T1053"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-024",
@@ -717,7 +740,8 @@
         "technique": "Process Injection",
         "technique_id": "T1055"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-025",
@@ -747,7 +771,8 @@
         "technique": "OS Credential Dumping",
         "technique_id": "T1003"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-026",
@@ -777,7 +802,8 @@
         "technique": "Remote Services",
         "technique_id": "T1021"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-027",
@@ -807,7 +833,8 @@
         "technique": "Remote System Discovery",
         "technique_id": "T1018"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-028",
@@ -837,7 +864,8 @@
         "technique": "System Information Discovery",
         "technique_id": "T1082"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-029",
@@ -867,7 +895,8 @@
         "technique": "Account Manipulation",
         "technique_id": "T1098"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-030",
@@ -897,7 +926,8 @@
         "technique": "Application Layer Protocol",
         "technique_id": "T1071"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-031",
@@ -927,7 +957,8 @@
         "technique": "Command and Scripting Interpreter",
         "technique_id": "T1059"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-032",
@@ -957,7 +988,8 @@
         "technique": "Valid Accounts",
         "technique_id": "T1078"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-033",
@@ -987,7 +1019,8 @@
         "technique": "Scheduled Task/Job",
         "technique_id": "T1053"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-034",
@@ -1017,7 +1050,8 @@
         "technique": "Process Injection",
         "technique_id": "T1055"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-035",
@@ -1047,7 +1081,8 @@
         "technique": "OS Credential Dumping",
         "technique_id": "T1003"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-036",
@@ -1077,7 +1112,8 @@
         "technique": "Remote Services",
         "technique_id": "T1021"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-037",
@@ -1107,7 +1143,8 @@
         "technique": "Remote System Discovery",
         "technique_id": "T1018"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-038",
@@ -1137,7 +1174,8 @@
         "technique": "System Information Discovery",
         "technique_id": "T1082"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-039",
@@ -1167,7 +1205,8 @@
         "technique": "Account Manipulation",
         "technique_id": "T1098"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-040",
@@ -1197,7 +1236,8 @@
         "technique": "Application Layer Protocol",
         "technique_id": "T1071"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-041",
@@ -1227,7 +1267,8 @@
         "technique": "Command and Scripting Interpreter",
         "technique_id": "T1059"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-042",
@@ -1257,7 +1298,8 @@
         "technique": "Valid Accounts",
         "technique_id": "T1078"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-043",
@@ -1287,7 +1329,8 @@
         "technique": "Scheduled Task/Job",
         "technique_id": "T1053"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-044",
@@ -1317,7 +1360,8 @@
         "technique": "Process Injection",
         "technique_id": "T1055"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-045",
@@ -1347,7 +1391,8 @@
         "technique": "OS Credential Dumping",
         "technique_id": "T1003"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-046",
@@ -1377,7 +1422,8 @@
         "technique": "Remote Services",
         "technique_id": "T1021"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-047",
@@ -1407,7 +1453,8 @@
         "technique": "Remote System Discovery",
         "technique_id": "T1018"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-048",
@@ -1437,7 +1484,8 @@
         "technique": "System Information Discovery",
         "technique_id": "T1082"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-049",
@@ -1467,7 +1515,8 @@
         "technique": "Account Manipulation",
         "technique_id": "T1098"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   },
   {
     "detection_id": "det-050",
@@ -1497,6 +1546,7 @@
         "technique": "Application Layer Protocol",
         "technique_id": "T1071"
       }
-    ]
+    ],
+    "behaviors_ioc_value_first": ""
   }
 ]

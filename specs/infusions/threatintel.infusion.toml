@@ -1,5 +1,12 @@
 # ThreatIntel plugin-type infusion spec — S-DEMO-ENRICHMENT-PIVOT-002.
 #
+# Updated in S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (ADR-051 D3/D4):
+#   - Added source_column to all three plugin-type fields (ADR-051 D3 sub-condition 8).
+#   - Changed input_field for typed fields (integer, boolean) from "iocs_value" (JSON-list)
+#     to "iocs_value_first" (scalar companion — ADR-051 D4 Scalar-Input rule).
+#   - "threat_sources" retains input_field = "iocs_value" because it is output_type = "json"
+#     and the ENRICH-1 list-dispatch path is intentionally retained for json-typed fields.
+#
 # Grounded against prism-dtu-threatintel route surface (ADR-028/ADR-031, SAP-2):
 #   - GET /v3/ip/:ip (lookup.rs:162)
 #   - GET /v3/domain/:domain (lookup.rs:187)
@@ -64,19 +71,26 @@ env_var    = "PRISM_THREATINTEL_API_KEY"
 #
 # CRITICAL: field name is `threat_sources` (plural array), NOT `threat_source` (singular string).
 # Column in TOML with no DTU equivalent = P1 CRITICAL (SAP-2).
+#
+# ADR-051 D3 (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001): plugin-type fields MUST declare source_column.
+# ADR-051 D4 Scalar-Input rule: typed enrichment fields (integer, boolean) use the scalar
+#   companion column `iocs_value_first` as input_field — not the JSON-list `iocs_value`.
+#   The json-typed "threat_sources" field retains `iocs_value` (ENRICH-1 list-dispatch).
 
 [[infusion.fields]]
 name = "threat_is_known_malicious"
-input_field = "iocs_value"
+input_field = "iocs_value_first"
 input_type = "ioc"
 output_type = "boolean"
+source_column = "threat_is_known_malicious"
 description = "True if the IOC is confirmed malicious by the ThreatIntel backend"
 
 [[infusion.fields]]
 name = "threat_score"
-input_field = "iocs_value"
+input_field = "iocs_value_first"
 input_type = "ioc"
 output_type = "integer"
+source_column = "threat_score"
 description = "Threat intelligence confidence score (0-100)"
 
 [[infusion.fields]]
@@ -84,6 +98,7 @@ name = "threat_sources"
 input_field = "iocs_value"
 input_type = "ioc"
 output_type = "json"
+source_column = "threat_sources"
 description = "JSON array of source names that flagged this IOC (e.g. [\"greynoise\", \"abuseipdb\"])"
 
 [infusion.pipe_stage]

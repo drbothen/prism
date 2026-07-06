@@ -759,6 +759,12 @@ pub(crate) fn make_detection_with_ioc(
         json!([base_behavior])
     };
 
+    // `behaviors_ioc_value_first` is the scalar companion to the JSON-list wildcard
+    // column `behaviors_ioc_value` (source_path = "$.behaviors[*].ioc_value").
+    // It holds `behaviors[0].ioc_value` as a plain string, or "" when no IOC is
+    // present.  ADR-051 D4 Scalar-Input rule; SAP-2 DTU↔TOML schema parity.
+    let behaviors_ioc_value_first = scenario_ioc_hash.unwrap_or("");
+
     json!({
         "_record_type": "detection",
         "detection_id": detection_id,
@@ -784,7 +790,9 @@ pub(crate) fn make_detection_with_ioc(
         "objective": "Falcon Detection Method",
         // AC-004 (S-DEMO-ENRICHMENT-PIVOT-003): behaviors array with MITRE entry
         // (+ IOC keys in scenario mode). Shape parity: must match detections-detail.json.
-        "behaviors": behaviors
+        "behaviors": behaviors,
+        // ADR-051 D4: scalar companion for typed enrichment UDFs.
+        "behaviors_ioc_value_first": behaviors_ioc_value_first
     })
 }
 

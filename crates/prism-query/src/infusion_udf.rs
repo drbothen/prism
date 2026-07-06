@@ -38,7 +38,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DataFusionResult;
 use datafusion::execution::context::SessionContext;
 use datafusion::logical_expr::async_udf::{AsyncScalarUDF, AsyncScalarUDFImpl};
@@ -46,7 +46,8 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use prism_spec_engine::{
-    InfusionLruCache, InfusionTier3Cache, InfusionUdfDescriptor, QueryScopedInfusionCache,
+    parse_datetime_to_micros, InfusionLruCache, InfusionTier3Cache, InfusionUdfDescriptor,
+    QueryScopedInfusionCache,
 };
 
 // Default per-infusion cache TTL (1 hour). Used when no `cache_ttl_secs` is set in spec.
@@ -196,13 +197,11 @@ impl ScalarUDFImpl for InfusionAsyncUdf {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DataFusionResult<DataType> {
-        // Simplified: always returns Utf8 for the current implementation.
-        // Full typed mapping of `descriptor.output_type` → Arrow DataType is deferred
-        // to S-1.14-REDO (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001); not in PIVOT-001 scope.
-        // ADR-052: sensor datetime columns → Timestamp(Microsecond, Some("UTC")) (ADR-052).
-        // ADR-051 (not yet implemented) will add a per-output_type branch here to bring
-        // enrichment datetime fields to the same type.
-        Ok(DataType::Utf8)
+        // ADR-051 D1: delegate to output_arrow_type() for the canonical output_type → Arrow
+        // DataType mapping.  This MUST be kept in sync with invoke_async_with_args: DataFusion
+        // validates that the array emitted by invoke_async_with_args matches the type declared
+        // here and panics on mismatch.
+        Ok(self.output_arrow_type())
     }
 
     /// Synchronous fallback — MUST return `not_impl_err!` to force the async execution path.
@@ -251,7 +250,9 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
         &self,
         args: ScalarFunctionArgs,
     ) -> DataFusionResult<ColumnarValue> {
-        use datafusion::arrow::array::{Array, StringArray};
+        use datafusion::arrow::array::{
+            Array, BooleanArray, Float64Array, Int64Array, StringArray, TimestampMicrosecondArray,
+        };
         use datafusion::common::ScalarValue;
 
         // Extract the input column — must be the first arg.
@@ -305,6 +306,10 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
         // Ensures 500 rows with 30 unique IPs → 30 source calls, not 500 (AC-2 / INV-INFUSE-002).
         let mut tier1 = QueryScopedInfusionCache::new();
 
+        // Determine output type once — used both to gate ENRICH-1 and to build the typed array.
+        let output_type = self.output_arrow_type();
+        let is_json_output = self.descriptor.output_type.as_str() == "json";
+
         // Enrich each row via three-tier cache + source.
         // NULL input rows short-circuit to NULL output without dispatching to any tier.
         //
@@ -330,12 +335,10 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
             };
 
             // ENRICH-1 (Design Decision 2): JSON-list string multi-value mode.
-            // If the input starts with '[' and parses as Vec<String>, this is a wildcard
-            // column value (e.g., from `$.iocs[*].value` → `["hash1","hash2"]`).
-            // Enrich each element individually and return a JSON-list of results.
-            // Elements that enrich to None are omitted from the output list.
-            // Scalar path (no leading '[' or failed parse) is unchanged — backward compat.
-            if input_str.starts_with('[') {
+            // Retained ONLY for output_type = "json" (ADR-051 D4 Scalar-Input rule).
+            // For typed outputs (integer/float/boolean/datetime), a JSON-list input goes
+            // through the scalar path and coerce_to_typed returns None (E-INFUSE-014 NULL).
+            if is_json_output && input_str.starts_with('[') {
                 if let Ok(elements) = serde_json::from_str::<Vec<String>>(input_str) {
                     let mut list_results: Vec<String> = Vec::with_capacity(elements.len());
                     for elem in &elements {
@@ -362,14 +365,76 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
             enriched.push(result_str);
         }
 
-        // Build the output StringArray (nulls where enrichment returned None).
-        let output = StringArray::from(
-            enriched
-                .iter()
-                .map(|opt| opt.as_deref())
-                .collect::<Vec<_>>(),
-        );
-        Ok(ColumnarValue::Array(Arc::new(output)))
+        // Build the output array with the correct Arrow type (ADR-051 D1).
+        // The type emitted here MUST match what return_type() declared — DataFusion panics
+        // on schema mismatch. Both are driven by output_arrow_type() to keep them in sync.
+        let field_name = &self.descriptor.name;
+        let output: Arc<dyn Array> = match &output_type {
+            DataType::Int64 => {
+                let values: Vec<Option<i64>> = enriched
+                    .iter()
+                    .map(|opt| {
+                        opt.as_deref().and_then(|s| {
+                            match self.coerce_to_typed(s, &output_type, field_name) {
+                                Some(serde_json::Value::Number(n)) => n.as_i64(),
+                                _ => None,
+                            }
+                        })
+                    })
+                    .collect();
+                Arc::new(Int64Array::from(values))
+            }
+            DataType::Float64 => {
+                let values: Vec<Option<f64>> = enriched
+                    .iter()
+                    .map(|opt| {
+                        opt.as_deref().and_then(|s| {
+                            match self.coerce_to_typed(s, &output_type, field_name) {
+                                Some(serde_json::Value::Number(n)) => n.as_f64(),
+                                _ => None,
+                            }
+                        })
+                    })
+                    .collect();
+                Arc::new(Float64Array::from(values))
+            }
+            DataType::Boolean => {
+                let values: Vec<Option<bool>> = enriched
+                    .iter()
+                    .map(|opt| {
+                        opt.as_deref().and_then(|s| {
+                            match self.coerce_to_typed(s, &output_type, field_name) {
+                                Some(serde_json::Value::Bool(b)) => Some(b),
+                                _ => None,
+                            }
+                        })
+                    })
+                    .collect();
+                Arc::new(BooleanArray::from(values))
+            }
+            DataType::Timestamp(TimeUnit::Microsecond, _) => {
+                let values: Vec<Option<i64>> = enriched
+                    .iter()
+                    .map(|opt| {
+                        opt.as_deref().and_then(|s| {
+                            match self.coerce_to_typed(s, &output_type, field_name) {
+                                Some(serde_json::Value::Number(n)) => n.as_i64(),
+                                _ => None,
+                            }
+                        })
+                    })
+                    .collect();
+                Arc::new(TimestampMicrosecondArray::from(values).with_timezone("UTC"))
+            }
+            // Utf8 (string or json): StringArray — nulls where enrichment returned None.
+            _ => Arc::new(StringArray::from(
+                enriched
+                    .iter()
+                    .map(|opt| opt.as_deref())
+                    .collect::<Vec<_>>(),
+            )),
+        };
+        Ok(ColumnarValue::Array(output))
     }
 }
 
@@ -472,13 +537,19 @@ impl InfusionAsyncUdf {
     /// this function pass trivially without any implementer work?" YES — `todo!()` panics
     /// on any call, including from `test_return_type_matches_output_type_for_all_declared_types`.
     /// Red Gate holds.
-    #[allow(dead_code)] // Removed when wired into return_type() and invoke_async_with_args (Phase F/H).
     fn output_arrow_type(&self) -> DataType {
-        todo!(
-            "S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Phase F: implement ADR-051 D1 \
-             output_type→Arrow DataType mapping (string→Utf8, integer→Int64, float→Float64, \
-             boolean→Boolean, json→Utf8, datetime→Timestamp(Microsecond, Some(\"UTC\")))"
-        )
+        // ADR-051 D1 canonical mapping: output_type string → Arrow DataType.
+        // E-INFUSE-013 sub-condition 7 (validated at spec-load by InfusionLoader::parse)
+        // prevents unknown output_type values from reaching this function in production.
+        // The `_` fallback to Utf8 is defence-in-depth only.
+        match self.descriptor.output_type.as_str() {
+            "integer" => DataType::Int64,
+            "float" => DataType::Float64,
+            "boolean" => DataType::Boolean,
+            "datetime" => DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC"))),
+            // "string" | "json" | any unknown fallback → Utf8
+            _ => DataType::Utf8,
+        }
     }
 
     /// Coerce a projected string value to the Arrow typed representation declared by `output_type`.
@@ -518,25 +589,126 @@ impl InfusionAsyncUdf {
     /// BC-5.38.001 self-check: "If I include this real implementation, will the test for
     /// this function pass trivially without any implementer work?" YES — `todo!()` panics;
     /// tests expect NULL output + E-INFUSE-014 warning → test fails. Red Gate holds.
-    #[allow(dead_code)] // Removed when wired into invoke_async_with_args (Phase G/H).
     fn coerce_to_typed(
         &self,
         value: &str,
         output_type: &DataType,
         field_name: &str,
     ) -> Option<serde_json::Value> {
-        todo!(
-            "S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Phase G: implement ADR-051 D2 coercion of \
-             value '{}' to output_type {:?} for field '{}' in infusion '{}' \
-             (i64::from_str for Int64, f64::from_str for Float64, case-insensitive bool, \
-             parse_datetime_to_micros for Timestamp, passthrough for Utf8/json); \
-             emit tracing::warn!(event_type = \"infusion.coercion_failed\", ...) on failure; \
-             return None for coercion failures (NULL output, BC-2.19.001 INV-ENRICH-TYPED-001 clause 5)",
-            &value[..50_usize.min(value.len())],
-            output_type,
-            field_name,
-            self.descriptor.infusion_id
-        )
+        // ADR-051 D4 Scalar-Input rule: JSON-list input to a non-json typed UDF → None.
+        // For output_type = "json" (DataType::Utf8) the ENRICH-1 list-dispatch path is used
+        // upstream in invoke_async_with_args and never reaches coerce_to_typed.
+        // For any other typed output, a leading '[' indicates a JSON-list column value
+        // (e.g. iocs_value = ["hash1","hash2"]) which cannot be coerced to a scalar — NULL.
+        if value.starts_with('[') && *output_type != DataType::Utf8 {
+            let truncated_value: String = value.chars().take(50).collect();
+            tracing::warn!(
+                event_type = "infusion.coercion_failed",
+                field_name = %field_name,
+                infusion_id = %self.descriptor.infusion_id,
+                declared_type = %format!("{output_type:?}"),
+                truncated_value = %truncated_value,
+                "E-INFUSE-014: JSON-list input to typed UDF (Scalar-Input rule ADR-051 D4); row produces NULL"
+            );
+            return None;
+        }
+
+        match output_type {
+            DataType::Int64 => {
+                let trimmed = value.trim();
+                // Try direct string → i64 parse first.
+                if let Ok(i) = trimmed.parse::<i64>() {
+                    return Some(serde_json::Value::Number(i.into()));
+                }
+                // Fallback: parse as JSON number (handles "42.0" where the plugin returns
+                // a floating-point representation of an integer).
+                if let Ok(serde_json::Value::Number(n)) =
+                    serde_json::from_str::<serde_json::Value>(trimmed)
+                {
+                    if let Some(i) = n.as_i64() {
+                        return Some(serde_json::Value::Number(i.into()));
+                    }
+                }
+                let truncated_value: String = value.chars().take(50).collect();
+                tracing::warn!(
+                    event_type = "infusion.coercion_failed",
+                    field_name = %field_name,
+                    infusion_id = %self.descriptor.infusion_id,
+                    declared_type = "integer",
+                    truncated_value = %truncated_value,
+                    "E-INFUSE-014: value cannot be coerced to Int64; row produces NULL"
+                );
+                None
+            }
+            DataType::Float64 => {
+                let trimmed = value.trim();
+                if let Ok(f) = trimmed.parse::<f64>() {
+                    if let Some(n) = serde_json::Number::from_f64(f) {
+                        return Some(serde_json::Value::Number(n));
+                    }
+                }
+                // Fallback: parse as JSON number.
+                if let Ok(serde_json::Value::Number(n)) =
+                    serde_json::from_str::<serde_json::Value>(trimmed)
+                {
+                    if let Some(f) = n.as_f64() {
+                        if let Some(n2) = serde_json::Number::from_f64(f) {
+                            return Some(serde_json::Value::Number(n2));
+                        }
+                    }
+                }
+                let truncated_value: String = value.chars().take(50).collect();
+                tracing::warn!(
+                    event_type = "infusion.coercion_failed",
+                    field_name = %field_name,
+                    infusion_id = %self.descriptor.infusion_id,
+                    declared_type = "float",
+                    truncated_value = %truncated_value,
+                    "E-INFUSE-014: value cannot be coerced to Float64; row produces NULL"
+                );
+                None
+            }
+            DataType::Boolean => {
+                // ADR-051 D2: case-insensitive {true,1,yes}→true, {false,0,no}→false, else None.
+                match value.to_lowercase().trim() {
+                    "true" | "1" | "yes" => Some(serde_json::Value::Bool(true)),
+                    "false" | "0" | "no" => Some(serde_json::Value::Bool(false)),
+                    _ => {
+                        let truncated_value: String = value.chars().take(50).collect();
+                        tracing::warn!(
+                            event_type = "infusion.coercion_failed",
+                            field_name = %field_name,
+                            infusion_id = %self.descriptor.infusion_id,
+                            declared_type = "boolean",
+                            truncated_value = %truncated_value,
+                            "E-INFUSE-014: unrecognised boolean value; row produces NULL"
+                        );
+                        None
+                    }
+                }
+            }
+            DataType::Timestamp(TimeUnit::Microsecond, _) => {
+                // ADR-052 D2: MUST reuse parse_datetime_to_micros (shared with spec_driven_adapter).
+                // Use field_name as column_name and infusion_id as sensor_id for the error struct.
+                match parse_datetime_to_micros(value, field_name, &self.descriptor.infusion_id) {
+                    Ok(micros) => Some(serde_json::Value::Number(micros.into())),
+                    Err(_) => {
+                        let truncated_value: String = value.chars().take(50).collect();
+                        tracing::warn!(
+                            event_type = "infusion.coercion_failed",
+                            field_name = %field_name,
+                            infusion_id = %self.descriptor.infusion_id,
+                            declared_type = "datetime",
+                            truncated_value = %truncated_value,
+                            "E-INFUSE-014: value is not valid RFC-3339; row produces NULL"
+                        );
+                        None
+                    }
+                }
+            }
+            // Utf8 ("string" or "json"): passthrough — always Some, no coercion needed.
+            _ => Some(serde_json::Value::String(value.to_owned())),
+        }
     }
 
     /// Project the declared `source_column` from a JSON object value, or passthrough.

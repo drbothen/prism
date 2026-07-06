@@ -426,11 +426,26 @@ impl InfusionLoader {
             }
         }
 
-        // Build InfusionField list — validate each field name at parse time (AC-007).
+        // Build InfusionField list — validate each field at parse time (AC-007).
         let mut fields: Vec<InfusionField> = Vec::with_capacity(raw_fields.len());
         for rf in raw_fields {
             // DRIFT-PIVOT-UDFNAME-VALIDATION-001: validate name before UDF registration.
             Self::validate_field_name(&rf.name, source_path)?;
+
+            // ADR-051 D3 sub-condition 7 (AC-007): output_type must be one of the 6 canonical
+            // values. Checked on every field regardless of infusion type.
+            Self::validate_output_type_recognized(&rf.output_type, &rf.name, source_path)?;
+
+            // ADR-051 D3 sub-condition 8 (AC-006): plugin-type fields MUST declare source_column.
+            if matches!(infusion_type, InfusionType::Plugin) {
+                Self::validate_plugin_type_has_source_column(
+                    &rf.name,
+                    &raw_infusion.infusion_id,
+                    rf.source_column.as_deref(),
+                    source_path,
+                )?;
+            }
+
             fields.push(InfusionField {
                 name: rf.name,
                 input_field: rf.input_field,
@@ -970,14 +985,21 @@ impl InfusionLoader {
         field_name: &str,
         spec_path: &str,
     ) -> Result<(), InfusionError> {
-        todo!(
-            "S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Phase J: implement E-INFUSE-013 sub-condition 7 — \
-             validate output_type '{}' is in {{string, integer, float, boolean, json, datetime}}; \
-             reject with InvalidFieldSpec if not; called for field '{}' in spec '{}'",
-            output_type,
-            field_name,
-            spec_path
-        )
+        // ADR-051 D3 sub-condition 7: valid output types are the 6 canonical values.
+        const VALID: &[&str] = &["string", "integer", "float", "boolean", "json", "datetime"];
+        if VALID.contains(&output_type) {
+            return Ok(());
+        }
+        Err(InfusionError::InvalidFieldSpec {
+            field: field_name.to_owned(),
+            spec_path: spec_path.to_owned(),
+            message: format!(
+                "output_type '{}' is not a recognized type; valid values: string, integer, \
+                 float, boolean, json, datetime (datetime maps to Timestamp(µs,UTC) per ADR-051 \
+                 v1.2 / ADR-052)",
+                output_type
+            ),
+        })
     }
 
     /// Validate that a `type = "plugin"` infusion field declares `source_column`.
@@ -1012,15 +1034,23 @@ impl InfusionLoader {
         source_column: Option<&str>,
         spec_path: &str,
     ) -> Result<(), InfusionError> {
-        todo!(
-            "S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Phase J: implement E-INFUSE-013 sub-condition 8 — \
-             reject plugin-type field '{}' in infusion '{}' spec '{}' when source_column is absent \
-             (current value: {:?}); return InvalidFieldSpec with E-INFUSE-013 sub-condition 8 message",
-            field_name,
-            infusion_id,
-            spec_path,
-            source_column
-        )
+        // ADR-051 D3 sub-condition 8: plugin-type fields MUST declare source_column to project
+        // a specific field from the plugin response object.  Without it, project_value() falls
+        // back to serializing the entire JSON response — the root cause of
+        // DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 Failure A (doubly-encoded JSON).
+        if source_column.is_some() {
+            return Ok(());
+        }
+        Err(InfusionError::InvalidFieldSpec {
+            field: field_name.to_owned(),
+            spec_path: spec_path.to_owned(),
+            message: format!(
+                "plugin-type field '{}' in infusion '{}' must declare 'source_column' to \
+                 project a specific field from the plugin response object; without source_column \
+                 the full response object is serialized (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 root cause)",
+                field_name, infusion_id
+            ),
+        })
     }
 }
 

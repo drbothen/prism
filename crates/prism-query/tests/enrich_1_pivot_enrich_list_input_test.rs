@@ -135,6 +135,10 @@ async fn test_ENRICH_1_pivot_enrich_scalar_input_backward_compat() {
 // ---------------------------------------------------------------------------
 
 /// ENRICH-1: JSON-list string input enriches each element and returns a JSON-list.
+///
+/// ADR-051 D4 (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001): ENRICH-1 list-dispatch is gated
+/// to `output_type = "json"` only. Updated from `"string"` to `"json"` to align with
+/// the Scalar-Input rule (integer/boolean/etc. UDFs receive raw scalar, not list-dispatch).
 #[tokio::test]
 async fn test_ENRICH_1_pivot_enrich_json_list_input_enriches_each_element() {
     let call_count = Arc::new(AtomicUsize::new(0));
@@ -145,7 +149,7 @@ async fn test_ENRICH_1_pivot_enrich_json_list_input_enriches_each_element() {
     let descriptor = InfusionUdfDescriptor::new(
         "pivot_enrich",
         "hash",
-        "string",
+        "json", // ADR-051 D4: ENRICH-1 list-dispatch only for json output_type
         "test_enrich",
         stub_source,
         None,
@@ -241,6 +245,9 @@ async fn test_ENRICH_1_pivot_enrich_json_list_input_enriches_each_element() {
 // ---------------------------------------------------------------------------
 
 /// ENRICH-1: single-element JSON-list `'["hash1"]'` → `'["enriched:hash1"]'`.
+///
+/// ADR-051 D4 (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001): ENRICH-1 list-dispatch is gated
+/// to `output_type = "json"` only. Updated from `"string"` to `"json"`.
 #[tokio::test]
 async fn test_ENRICH_1_pivot_enrich_single_element_json_list() {
     let call_count = Arc::new(AtomicUsize::new(0));
@@ -251,7 +258,7 @@ async fn test_ENRICH_1_pivot_enrich_single_element_json_list() {
     let descriptor = InfusionUdfDescriptor::new(
         "pivot_enrich",
         "hash",
-        "string",
+        "json", // ADR-051 D4: ENRICH-1 list-dispatch only for json output_type
         "test_enrich",
         stub_source,
         None,

@@ -138,6 +138,16 @@ ocsf_class = "detection_finding"
   column_type = "string"
   source_path = "$.behaviors[*].ioc_value"
 
+  # ADR-051 D4 Scalar-Input rule (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001):
+  # Scalar companion to `behaviors_ioc_value`. Extracts the FIRST behavior's IOC value
+  # as a plain string rather than a JSON-list. Typed enrichment UDFs receive this scalar
+  # so coerce_to_typed() gets a plain string, not a "[...]" list.
+  [[tables.columns]]
+  name = "behaviors_ioc_value_first"
+  column_type = "string"
+  source_path = "$.behaviors[0].ioc_value"
+  description = "Scalar companion to behaviors_ioc_value: first behavior IOC value (ADR-051 D4)"
+
   # DTU: behaviors[0].ioc_source — provenance label (e.g., "catalog", "crowdstrike").
   # ENRICH-1: renamed from "behaviors[].ioc_source" → "behaviors_ioc_source" + source_path.
   [[tables.columns]]

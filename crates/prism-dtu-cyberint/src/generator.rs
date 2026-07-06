@@ -539,11 +539,15 @@ fn generate_iocs(
             _ => format!("ioc-value-{}", i),
         };
 
+        // `iocs_value_first` is the scalar companion to the JSON-list wildcard column
+        // `iocs_value` (source_path = "$.iocs[*].value").  Each IOC record holds a
+        // single value, so `iocs_value_first` == `value`.  ADR-051 D4 Scalar-Input rule.
         let record = json!({
             "alert_id": ioc_id,
             "id": ioc_id,
             "type": ioc_type,
-            "value": value,
+            "value": value.clone(),
+            "iocs_value_first": value,
             "_surface": "ioc",
         });
         records.push(record);

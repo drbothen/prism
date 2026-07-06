@@ -1501,12 +1501,14 @@ name = "threat_score"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "float"
+source_column = "threat_score"
 
 [[infusion.fields]]
 name = "is_known_bad"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "boolean"
+source_column = "threat_is_known_malicious"
 "#;
 
     // FAILS RED: InfusionLoader::parse is unimplemented!()
@@ -1631,12 +1633,14 @@ name = "threat_score"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "float"
+source_column = "threat_score"
 
 [[infusion.fields]]
 name = "is_known_bad"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "boolean"
+source_column = "threat_is_known_malicious"
 "#;
 
     let spec_path = infusions_dir.join("threat_intel.infusion.toml");
@@ -1980,6 +1984,7 @@ name = "threat_score"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "float"
+source_column = "threat_score"
 
 [[infusion.credentials]]
 field_name = "api_key"
@@ -2032,6 +2037,7 @@ name = "threat_score"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "float"
+source_column = "threat_score"
 
 [[infusion.credentials]]
 field_name = "api_key"
@@ -2086,12 +2092,14 @@ name = "threat_score"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "float"
+source_column = "threat_score"
 
 [[infusion.fields]]
 name = "is_known_bad"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "boolean"
+source_column = "threat_is_known_malicious"
 
 [infusion.pipe_stage]
 adds_columns = ["threat_score", "is_known_bad"]
@@ -2136,6 +2144,7 @@ name = "threat_score"
 input_field = "device_ip"
 input_type = "ip"
 output_type = "float"
+source_column = "threat_score"
 
 [infusion.pipe_stage]
 adds_columns = ["threat_score", "nonexistent_field"]
