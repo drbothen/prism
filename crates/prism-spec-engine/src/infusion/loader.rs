@@ -965,22 +965,22 @@ impl InfusionLoader {
     /// registered as a DataFusion UDF. An unknown `output_type` at load time prevents a
     /// runtime panic when `output_arrow_type()` falls through to the `Utf8` fallback.
     ///
-    /// Error format:
+    /// Error format (error-taxonomy v2.17, CR-002):
     /// ```text
     /// E-INFUSE-013: invalid field name 'output_type' in infusion spec '{spec_path}':
-    ///  output_type '{value}' is not a recognized type; valid values: string, integer,
-    ///  float, boolean, json, datetime (datetime maps to Timestamp(µs,UTC) per ADR-051
-    ///  v1.2 / ADR-052)
+    ///  field entry '{field_name}' declares unknown output_type '{value}'; must be one of:
+    ///  string, integer, float, boolean, json, datetime
+    ///  (datetime maps to Timestamp(µs,UTC) per ADR-051 v1.2 / ADR-052)
     /// ```
+    ///
+    /// SEC-001 (CWE-117): both `output_type` and `field_name` are stripped of ASCII control
+    /// characters before interpolation to prevent log injection / LLM prompt injection.
     ///
     /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (AC-007; ADR-051 D3 sub-condition 7).
     ///
     pub fn validate_output_type_recognized(
         output_type: &str,
-        // LOW-001 fix (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 pass-1): AC-007/error-taxonomy
-        // canonical form uses `'output_type'` as the attribute label in the `{field}` slot,
-        // NOT the enclosing field name. Parameter retained for call-site traceability.
-        _field_name: &str,
+        field_name: &str,
         spec_path: &str,
     ) -> Result<(), InfusionError> {
         // ADR-051 D3 sub-condition 7: valid output types are the 6 canonical values.
@@ -988,16 +988,22 @@ impl InfusionLoader {
         if VALID.contains(&output_type) {
             return Ok(());
         }
+        // SEC-001 (CWE-117): strip control chars from both interpolated values before
+        // constructing the error message (error-taxonomy v2.17 SEC-001 Rendering Note).
+        let clean_value = sanitize_for_log(output_type);
+        let clean_field_name = sanitize_for_log(field_name);
         Err(InfusionError::InvalidFieldSpec {
             // AC-007 canonical attribute label: the invalid attribute is `output_type`,
             // not the name of the field containing it.
             field: "output_type".to_owned(),
             spec_path: spec_path.to_owned(),
+            // CR-002 (error-taxonomy v2.17): new canonical body includes the enclosing field
+            // entry's name so the operator can identify which [[infusion.fields]] entry is wrong.
             message: format!(
-                "output_type '{}' is not a recognized type; valid values: string, integer, \
-                 float, boolean, json, datetime (datetime maps to Timestamp(µs,UTC) per ADR-051 \
-                 v1.2 / ADR-052)",
-                output_type
+                "field entry '{}' declares unknown output_type '{}'; must be one of: string, \
+                 integer, float, boolean, json, datetime (datetime maps to Timestamp(\u{b5}s,UTC) \
+                 per ADR-051 v1.2 / ADR-052)",
+                clean_field_name, clean_value
             ),
         })
     }
@@ -1021,9 +1027,16 @@ impl InfusionLoader {
     ///  the full response object is serialized (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 root cause)
     /// ```
     ///
+    /// SEC-001 (CWE-117): `field_name` and `infusion_id` are stripped of ASCII control
+    /// characters before interpolation to prevent log injection / LLM prompt injection.
+    ///
+    /// SEC-003: `pub(crate)` — only called internally from `parse()`; no cross-crate callers.
+    /// (`validate_output_type_recognized` remains `pub` because integration tests call it
+    /// directly from `prism-spec-engine/tests/enrichment_pivot_002_tests.rs`.)
+    ///
     /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (AC-006; ADR-051 D3 sub-condition 8).
     ///
-    pub fn validate_plugin_type_has_source_column(
+    pub(crate) fn validate_plugin_type_has_source_column(
         field_name: &str,
         infusion_id: &str,
         source_column: Option<&str>,
@@ -1036,6 +1049,10 @@ impl InfusionLoader {
         if source_column.is_some() {
             return Ok(());
         }
+        // SEC-001 (CWE-117): strip control chars from interpolated metadata before message
+        // construction (error-taxonomy v2.17 SEC-001 Rendering Note).
+        let clean_field = sanitize_for_log(field_name);
+        let clean_id = sanitize_for_log(infusion_id);
         Err(InfusionError::InvalidFieldSpec {
             // AC-006 canonical attribute label: the invalid attribute is `source_column`
             // (the missing attribute that caused the validation failure), NOT the enclosing
@@ -1047,10 +1064,19 @@ impl InfusionLoader {
                 "plugin-type field '{}' in infusion '{}' must declare 'source_column' to \
                  project a specific field from the plugin response object; without source_column \
                  the full response object is serialized (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 root cause)",
-                field_name, infusion_id
+                clean_field, clean_id
             ),
         })
     }
+}
+
+/// Strip ASCII control characters (0x00–0x1F, 0x7F) from `s` before embedding in log messages.
+///
+/// Prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured logs
+/// (AD-017 extension, error-taxonomy v2.17 SEC-001 Rendering Note).
+/// Used by `validate_output_type_recognized` and `validate_plugin_type_has_source_column`.
+fn sanitize_for_log(s: &str) -> String {
+    s.chars().filter(|c| !c.is_ascii_control()).collect()
 }
 
 // ---------------------------------------------------------------------------

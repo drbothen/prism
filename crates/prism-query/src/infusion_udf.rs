@@ -549,6 +549,31 @@ impl InfusionAsyncUdf {
         }
     }
 
+    /// Emit a structured `infusion.coercion_failed` warning and return `None`.
+    ///
+    /// CR-001 (DRY): extracted from 5 identical warn blocks in `coerce_to_typed`.
+    /// Constructs the canonical E-INFUSE-014 error and emits it via `tracing::warn!`
+    /// with the BC-2.16.002 event_type field (SAP-1 obligation, AC-012).
+    ///
+    /// Called everywhere `coerce_to_typed` detects an uncoercible value; callers propagate
+    /// the `None` (NULL sentinel) back to the DataFusion column builder.
+    fn warn_coercion_failed(&self, field_name: &str, value: &str) {
+        let err = InfusionError::new_type_coercion_failed(
+            field_name,
+            &self.descriptor.infusion_id,
+            &self.descriptor.output_type,
+            value,
+        );
+        tracing::warn!(
+            event_type = "infusion.coercion_failed",
+            field_name = %field_name,
+            infusion_id = %self.descriptor.infusion_id,
+            declared_type = %self.descriptor.output_type,
+            truncated_value = %value.chars().take(50).collect::<String>(),
+            "{}", err
+        );
+    }
+
     /// Coerce a projected string value to the Arrow typed representation declared by `output_type`.
     ///
     /// Returns `Some(typed_value)` on successful coercion, or `None` on failure.
@@ -597,20 +622,8 @@ impl InfusionAsyncUdf {
         if value.starts_with('[') && *output_type != DataType::Utf8 {
             // MED-001 + MED-002 fix: construct canonical E-INFUSE-014 error variant and emit
             // its Display. declared_type = output_type vocabulary string (not Arrow debug).
-            let err = InfusionError::new_type_coercion_failed(
-                field_name,
-                &self.descriptor.infusion_id,
-                &self.descriptor.output_type,
-                value,
-            );
-            tracing::warn!(
-                event_type = "infusion.coercion_failed",
-                field_name = %field_name,
-                infusion_id = %self.descriptor.infusion_id,
-                declared_type = %self.descriptor.output_type,
-                truncated_value = %value.chars().take(50).collect::<String>(),
-                "{}", err
-            );
+            // CR-001: delegated to warn_coercion_failed (DRY extraction of 5-site pattern).
+            self.warn_coercion_failed(field_name, value);
             return None;
         }
 
@@ -636,20 +649,8 @@ impl InfusionAsyncUdf {
                         return Some(serde_json::Value::Number(i.into()));
                     }
                 }
-                let err = InfusionError::new_type_coercion_failed(
-                    field_name,
-                    &self.descriptor.infusion_id,
-                    &self.descriptor.output_type,
-                    value,
-                );
-                tracing::warn!(
-                    event_type = "infusion.coercion_failed",
-                    field_name = %field_name,
-                    infusion_id = %self.descriptor.infusion_id,
-                    declared_type = %self.descriptor.output_type,
-                    truncated_value = %value.chars().take(50).collect::<String>(),
-                    "{}", err
-                );
+                // CR-001: delegated to warn_coercion_failed.
+                self.warn_coercion_failed(field_name, value);
                 None
             }
             DataType::Float64 => {
@@ -669,42 +670,26 @@ impl InfusionAsyncUdf {
                         }
                     }
                 }
-                let err = InfusionError::new_type_coercion_failed(
-                    field_name,
-                    &self.descriptor.infusion_id,
-                    &self.descriptor.output_type,
-                    value,
-                );
-                tracing::warn!(
-                    event_type = "infusion.coercion_failed",
-                    field_name = %field_name,
-                    infusion_id = %self.descriptor.infusion_id,
-                    declared_type = %self.descriptor.output_type,
-                    truncated_value = %value.chars().take(50).collect::<String>(),
-                    "{}", err
-                );
+                // CR-001: delegated to warn_coercion_failed.
+                self.warn_coercion_failed(field_name, value);
                 None
             }
             DataType::Boolean => {
+                // SEC-002 (CWE-770): size guard — prevent O(n) to_lowercase() allocation on
+                // pathologically large values (error-taxonomy v2.17 SEC-002 / AC-014).
+                if value.len() > 1024 {
+                    self.warn_coercion_failed(field_name, value);
+                    return None;
+                }
                 // ADR-051 D2: case-insensitive {true,1,yes}→true, {false,0,no}→false, else None.
-                match value.to_lowercase().trim() {
+                // CR-004: trim() BEFORE to_lowercase() — idiomatic; avoids allocating a
+                // lowercase copy of leading/trailing whitespace that gets thrown away.
+                match value.trim().to_lowercase().as_str() {
                     "true" | "1" | "yes" => Some(serde_json::Value::Bool(true)),
                     "false" | "0" | "no" => Some(serde_json::Value::Bool(false)),
                     _ => {
-                        let err = InfusionError::new_type_coercion_failed(
-                            field_name,
-                            &self.descriptor.infusion_id,
-                            &self.descriptor.output_type,
-                            value,
-                        );
-                        tracing::warn!(
-                            event_type = "infusion.coercion_failed",
-                            field_name = %field_name,
-                            infusion_id = %self.descriptor.infusion_id,
-                            declared_type = %self.descriptor.output_type,
-                            truncated_value = %value.chars().take(50).collect::<String>(),
-                            "{}", err
-                        );
+                        // CR-001: delegated to warn_coercion_failed.
+                        self.warn_coercion_failed(field_name, value);
                         None
                     }
                 }
@@ -715,20 +700,8 @@ impl InfusionAsyncUdf {
                 match parse_datetime_to_micros(value, field_name, &self.descriptor.infusion_id) {
                     Ok(micros) => Some(serde_json::Value::Number(micros.into())),
                     Err(_) => {
-                        let err = InfusionError::new_type_coercion_failed(
-                            field_name,
-                            &self.descriptor.infusion_id,
-                            &self.descriptor.output_type,
-                            value,
-                        );
-                        tracing::warn!(
-                            event_type = "infusion.coercion_failed",
-                            field_name = %field_name,
-                            infusion_id = %self.descriptor.infusion_id,
-                            declared_type = %self.descriptor.output_type,
-                            truncated_value = %value.chars().take(50).collect::<String>(),
-                            "{}", err
-                        );
+                        // CR-001: delegated to warn_coercion_failed.
+                        self.warn_coercion_failed(field_name, value);
                         None
                     }
                 }
@@ -1970,7 +1943,7 @@ mod tests {
         }
     }
 
-    /// RGT-002 (ADR-051 D1): DataFusion executes integer-output UDF and emits Int64 column.
+    /// RGT-003 (ADR-051 D1): DataFusion executes integer-output UDF and emits Int64 column.
     ///
     /// RED GATE (pre-fix): `return_type()` returned Utf8 → DataFusion planned a Utf8 output column;
     /// `assert_eq!(actual_type, DataType::Int64)` failed with Utf8 ≠ Int64.
@@ -2016,7 +1989,7 @@ mod tests {
         assert_eq!(
             actual_type,
             DataType::Int64,
-            "ADR-051 D1 RGT-002: output_type='integer' → enriched column must be Int64 \
+            "ADR-051 D1 RGT-003: output_type='integer' → enriched column must be Int64 \
              but got {:?}. (pre-fix: return_type() returned Utf8 — INV-ENRICH-TYPED-001)",
             actual_type
         );
@@ -2034,13 +2007,13 @@ mod tests {
         assert_eq!(
             int_arr.value(0),
             42_i64,
-            "MED-001+LOW-001 RGT-002: Int64 row[0] value must be 42 (source returns '42'). \
+            "MED-001+LOW-001 RGT-003: Int64 row[0] value must be 42 (source returns '42'). \
              A null row or wrong type produces 0, not 42. Got: {}",
             int_arr.value(0)
         );
     }
 
-    /// RGT-003 (ADR-051 D1): DataFusion emits Float64 column for float output_type.
+    /// RGT-004 (ADR-051 D1): DataFusion emits Float64 column for float output_type.
     ///
     /// RED GATE (pre-fix): `return_type()` returned Utf8 → Float64 assertion failed.
     #[tokio::test]
@@ -2084,7 +2057,7 @@ mod tests {
         assert_eq!(
             actual_type,
             DataType::Float64,
-            "ADR-051 D1 RGT-003: output_type='float' → enriched column must be Float64 \
+            "ADR-051 D1 RGT-004: output_type='float' → enriched column must be Float64 \
              but got {:?}. (pre-fix: return_type() returned Utf8 for all types)",
             actual_type
         );
@@ -2099,13 +2072,13 @@ mod tests {
         // wrong-type regressions without needing the Array trait in scope.
         assert!(
             (float_arr.value(0) - 3.14_f64).abs() < 1e-10,
-            "MED-001+LOW-001 RGT-003: Float64 row[0] value must be ~3.14 (source returns '3.14'). \
+            "MED-001+LOW-001 RGT-004: Float64 row[0] value must be ~3.14 (source returns '3.14'). \
              Got: {}",
             float_arr.value(0)
         );
     }
 
-    /// RGT-004 (ADR-051 D1): DataFusion emits Boolean column for boolean output_type.
+    /// RGT-005 (ADR-051 D1): DataFusion emits Boolean column for boolean output_type.
     ///
     /// RED GATE (pre-fix): `return_type()` returned Utf8 → Boolean assertion failed.
     #[tokio::test]
@@ -2149,7 +2122,7 @@ mod tests {
         assert_eq!(
             actual_type,
             DataType::Boolean,
-            "ADR-051 D1 RGT-004: output_type='boolean' → enriched column must be Boolean \
+            "ADR-051 D1 RGT-005: output_type='boolean' → enriched column must be Boolean \
              but got {:?}. (pre-fix: return_type() returned Utf8 for all types)",
             actual_type
         );
@@ -2164,12 +2137,12 @@ mod tests {
         // catches both the null-row and wrong-type regressions without needing Array trait in scope.
         assert!(
             bool_arr.value(0),
-            "MED-001+LOW-001 RGT-004: Boolean row[0] value must be true (source returns 'true'). \
+            "MED-001+LOW-001 RGT-005: Boolean row[0] value must be true (source returns 'true'). \
              Got: false"
         );
     }
 
-    /// RGT-005 (ADR-051 D1 + ADR-052): DataFusion emits Timestamp(Microsecond, UTC)
+    /// RGT-006 (ADR-051 D1 + ADR-052): DataFusion emits Timestamp(Microsecond, UTC)
     /// for datetime output_type.
     ///
     /// ADR-052: sensor datetime → Timestamp(µs, UTC). ADR-051 D1 extends this to enrichment UDFs.
@@ -2217,7 +2190,7 @@ mod tests {
         let expected_type = DataType::Timestamp(TimeUnit::Microsecond, Some("UTC".into()));
         assert_eq!(
             actual_type, expected_type,
-            "ADR-051 D1+ADR-052 RGT-005: output_type='datetime' → enriched column must be \
+            "ADR-051 D1+ADR-052 RGT-006: output_type='datetime' → enriched column must be \
              Timestamp(Microsecond,UTC) but got {:?}. (pre-fix: return_type() returned Utf8 for all types)",
             actual_type
         );
@@ -2235,7 +2208,7 @@ mod tests {
         assert_eq!(
             ts_arr.value(0),
             EXPECTED_MICROS,
-            "MED-001+LOW-001 RGT-005: Timestamp row[0] value must be {EXPECTED_MICROS} µs \
+            "MED-001+LOW-001 RGT-006: Timestamp row[0] value must be {EXPECTED_MICROS} µs \
              (2024-01-01T00:00:00Z). Got: {}",
             ts_arr.value(0)
         );

@@ -1904,6 +1904,12 @@ impl InfusionError {
     /// values are external data; truncated as defense-in-depth, consistent with the analogous
     /// truncation in `parse_datetime_to_micros`).
     ///
+    /// SEC-001 (CWE-117, error-taxonomy v2.17): `field_name`, `infusion_id`, and `declared_type`
+    /// are stripped of ASCII control characters (0x00–0x1F, 0x7F) before storage to prevent
+    /// log injection and LLM prompt injection when rendered via `tracing::warn!("{}", err)`.
+    /// `truncated_value` is stripped AFTER the 50-char truncation (truncation removes excess
+    /// content first; stripping removes any control chars that survived the 50-char window).
+    ///
     /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 LOCAL adversary pass-1 MED-001 fix.
     pub fn new_type_coercion_failed(
         field_name: impl Into<String>,
@@ -1911,13 +1917,25 @@ impl InfusionError {
         declared_type: impl Into<String>,
         value: &str,
     ) -> Self {
+        // SEC-001 (CWE-117): strip control chars from all metadata fields and from
+        // truncated_value (AFTER the 50-char truncation — order matters per spec).
+        let truncated: String = value.chars().take(50).collect();
         Self::TypeCoercionFailed {
-            field_name: field_name.into(),
-            infusion_id: infusion_id.into(),
-            declared_type: declared_type.into(),
-            truncated_value: value.chars().take(50).collect(),
+            field_name: sanitize_for_log(&field_name.into()),
+            infusion_id: sanitize_for_log(&infusion_id.into()),
+            declared_type: sanitize_for_log(&declared_type.into()),
+            truncated_value: sanitize_for_log(&truncated),
         }
     }
+}
+
+/// Strip ASCII control characters (0x00–0x1F, 0x7F) from `s` before embedding in log messages.
+///
+/// Prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured logs
+/// (AD-017 extension, error-taxonomy v2.17 SEC-001 Rendering Note).
+/// Called from `InfusionError::new_type_coercion_failed` for metadata fields and truncated_value.
+fn sanitize_for_log(s: &str) -> String {
+    s.chars().filter(|c| !c.is_ascii_control()).collect()
 }
 
 // ---------------------------------------------------------------------------
