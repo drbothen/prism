@@ -1015,7 +1015,7 @@ impl InfusionLoader {
     ///
     /// Error format:
     /// ```text
-    /// E-INFUSE-013: invalid field name '{field_name}' in infusion spec '{spec_path}':
+    /// E-INFUSE-013: invalid field name 'source_column' in infusion spec '{spec_path}':
     ///  plugin-type field '{field_name}' in infusion '{infusion_id}' must declare 'source_column'
     ///  to project a specific field from the plugin response object; without source_column
     ///  the full response object is serialized (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 root cause)
@@ -1037,7 +1037,11 @@ impl InfusionLoader {
             return Ok(());
         }
         Err(InfusionError::InvalidFieldSpec {
-            field: field_name.to_owned(),
+            // AC-006 canonical attribute label: the invalid attribute is `source_column`
+            // (the missing attribute that caused the validation failure), NOT the enclosing
+            // field name. Mirroring sub-condition 7 (validate_output_type_recognized) which
+            // uses field: "output_type".to_owned() — not the enclosing field name.
+            field: "source_column".to_owned(),
             spec_path: spec_path.to_owned(),
             message: format!(
                 "plugin-type field '{}' in infusion '{}' must declare 'source_column' to \
