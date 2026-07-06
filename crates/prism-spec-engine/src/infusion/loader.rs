@@ -982,7 +982,10 @@ impl InfusionLoader {
     /// Red Gate holds.
     pub fn validate_output_type_recognized(
         output_type: &str,
-        field_name: &str,
+        // LOW-001 fix (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 pass-1): AC-007/error-taxonomy
+        // canonical form uses `'output_type'` as the attribute label in the `{field}` slot,
+        // NOT the enclosing field name. Parameter retained for call-site traceability.
+        _field_name: &str,
         spec_path: &str,
     ) -> Result<(), InfusionError> {
         // ADR-051 D3 sub-condition 7: valid output types are the 6 canonical values.
@@ -991,7 +994,9 @@ impl InfusionLoader {
             return Ok(());
         }
         Err(InfusionError::InvalidFieldSpec {
-            field: field_name.to_owned(),
+            // AC-007 canonical attribute label: the invalid attribute is `output_type`,
+            // not the name of the field containing it.
+            field: "output_type".to_owned(),
             spec_path: spec_path.to_owned(),
             message: format!(
                 "output_type '{}' is not a recognized type; valid values: string, integer, \
