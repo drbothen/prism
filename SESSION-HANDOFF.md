@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.974"
+version: "7.975"
 status: current
 timestamp: 2026-07-05T00:00:00Z
 ---
@@ -40,13 +40,53 @@ timestamp: 2026-07-05T00:00:00Z
 >
 > **D-1544 (2026-07-05): PER-STORY POST-LOCAL-CONVERGENCE + SEC HARDENING + LOCAL 3-CLEAN RE-CONVERGED @ b81e7808. Demo evidence captured (4f7740f3). PR review: pr-reviewer APPROVE; security-reviewer 2 LOW (SEC-001 arrow_cast escape latent gap; SEC-002 log value cap). Human directed fix-both-now. Implementer 4375ba23 (SEC-001 engine-path escape + SEC-002 log cap + NIT-1). Adversary MED-1: SEC-001 sibling-sweep incomplete — pipe_sql_emitter arrow_cast unescaped (TD-VSDD-060). Implementer sweep b81e7808 (all DataFusion timestamp sites). LOCAL 3-CLEAN RE-CONVERGED on frozen b81e7808 (BC-5.39.001). feature HEAD 9346153e→4f7740f3→4375ba23→b81e7808. develop_head UNCHANGED 122228e8. STATE v8.143→v8.144.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1544** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1544 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `122228e8` (S-DEMO-FIDELITY-REMEDIATION-001 PR #208 squash-merged 2026-07-03). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.144. D-1544 (LOCAL 3-CLEAN RE-CONVERGED: SEC-001+SEC-002 hardening + MED-1 escape sweep; feature HEAD b81e7808; non-exhaustive 89/89; VERY NEXT ACTION = pr-reviewer + security-reviewer re-confirmation on b81e7808 → squash-merge).
+> **D-1545 (2026-07-05): PR #214 MERGED — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 DELIVERED.** PR #214 squash-merged to develop@11edbd36 (normal squash-merge; final feature HEAD b81e7808; ADR-052 §D4 v1.10 seven-arm temporal dispatch; PrismQL Datetime→Timestamp(µs,UTC); E-QUERY-041/E-QUERY-042 TemporalLiteralInvalidPosition; non-exhaustive 88→89 TemporalLiteralPosition; SEC-001/SEC-002 hardening). POL-14 BC auto-promotions (BC-2.11.003 legacy draft→active; BC-2.11.021/004/001 idempotent). Story status→merged. Feature-branch worktree cleanup dispatched. develop_head 122228e8→11edbd36. workspace_test_count 5182. BC-INDEX v7.35→v7.36. STORY-INDEX v2.589→v2.590. STATE v8.144→v8.145.
+>
+> **D-1546 (2026-07-05): SESSION WRAP — §RESUME SNAPSHOT D-1546 authored (supersedes D-1544).** Durable zero-context snapshot. develop@11edbd36 (origin==local). Feature-branch worktree S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 REMOVED post-merge. No cascade in flight. No open PRs. Parked: S-3.09 @43c41389 (local-only, backup/S-3.09-preresume-43c41389), W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit, awaiting human decision). VERY NEXT ACTION = present ADR-051 to human for ratification (PROPOSED; §datetime row Utf8→Timestamp; typed-enrichment A+B+C blocked) → typed-enrichment story → T13 capstone → T14 recording. develop_head 11edbd36. STATE v8.145→v8.146.
+>
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1546** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1546 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `11edbd36` (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 PR #214 squash-merged 2026-07-05). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.146. D-1546 (SESSION WRAP; feature worktree removed; no cascade in flight; VERY NEXT ACTION = ADR-051 ratification AWAITING HUMAN DIRECTION).
 
 ---
 
-## §RESUME SNAPSHOT — D-1544 (2026-07-05 — PR #214 LOCAL 3-CLEAN RE-CONVERGED; develop origin/develop 122228e8; BC-INDEX v7.35; STORY-INDEX v2.589; ARCH-INDEX v2.170; STATE v8.144; feature HEAD b81e7808; non-exhaustive 89/89; LOCAL 3-CLEAN streak 3/3; VERY NEXT ACTION = pr-reviewer + security-reviewer re-confirmation on b81e7808 → squash-merge) [SUPERSEDES D-1542]
+## §RESUME SNAPSHOT — D-1546 (2026-07-05 — SESSION WRAP; develop origin/develop 11edbd36; BC-INDEX v7.36; STORY-INDEX v2.590; ARCH-INDEX v2.170; STATE v8.146; no cascade in flight; no open PRs; feature worktree removed; VERY NEXT ACTION = ADR-051 ratification AWAITING HUMAN DIRECTION) [SUPERSEDES D-1544]
+
+### RESUME IN ONE BREATH
+
+Prism Phase-3/Wave-5. S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (PrismQL datetime→Timestamp(µs,UTC), ADR-052 §D4 v1.10 seven-arm temporal dispatch + E-QUERY-042 TemporalLiteralInvalidPosition (GroupBy/OrderBy/NonColumnLhsComparison)) DELIVERED + MERGED @ develop 11edbd36. VERY NEXT ACTION = present ADR-051 for ratification (amend §datetime Utf8→Timestamp(µs,UTC) now that ADR-052 landed) → typed-enrichment story → T13 capstone → T14 recording.
+
+> **D-1545 (2026-07-05): PR #214 MERGED — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 DELIVERED.** PR #214 squash-merged to develop@11edbd36 (normal squash-merge; final feature HEAD b81e7808; ADR-052 §D4 v1.10; E-QUERY-041/E-QUERY-042; SEC-001/SEC-002). POL-14 BC auto-promotions complete. Story status→merged. develop_head 122228e8→11edbd36. workspace_test_count 5182. BC-INDEX v7.35→v7.36. STORY-INDEX v2.589→v2.590. STATE v8.144→v8.145.
+>
+> **D-1546 (2026-07-05): SESSION WRAP — §RESUME SNAPSHOT D-1546 authored (supersedes D-1544).** Durable zero-context snapshot. develop@11edbd36 (origin==local). Feature-branch worktree REMOVED post-merge. No cascade in flight. No open PRs. Parked: S-3.09 @43c41389 (local-only), W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit, awaiting human decision). STATE v8.145→v8.146.
+
+**STATE v8.146. develop 11edbd36. BC-INDEX v7.36. STORY-INDEX v2.590. ARCH-INDEX v2.170. error-taxonomy v2.14. active_contracts 255. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 227. workspace_test_count 5182 (develop@11edbd36; non-exhaustive 89/89).**
+
+**LAST MERGED:** S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (PR #214 → develop@11edbd36, 2026-07-05; ADR-052 §D4 v1.10; E-QUERY-041/E-QUERY-042; SEC-001/SEC-002 hardening). Prior: S-DEMO-FIDELITY-REMEDIATION-001 (PR #208 → develop@122228e8, 2026-07-03).
+
+**HEADLINE NEXT-ACTION:** Present ADR-051 to human for ratification (PROPOSED; §datetime row must be amended from DataType::Utf8 to DataType::Timestamp(Microsecond, Some("UTC")) now that ADR-052 is merged; typed-enrichment fix A+B+C blocked on this ratification) → typed-enrichment story → T13 capstone → T14 recording. AWAITING HUMAN DIRECTION.
+
+**HEADS:** develop 11edbd36 (PUSHED, origin==local); factory-artifacts = this wrap commit (PUSHED); parked worktrees S-3.09 @43c41389 (local-only, backup/S-3.09-preresume-43c41389) + W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit — awaiting human decision on deferred TDE write-back / E-SENSOR-070).
+
+**WORKTREES:** .worktrees/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 REMOVED post-merge (PR #214 merged; feature/S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 branch deleted; worktree cleaned by devops). S-3.09 DAY-2/PARKED (backup/S-3.09-preresume-43c41389@43c41389; local-only). W3-FIX-S307-001 PARKED, 1 unpushed commit @fcab8717, awaiting human decision.
+
+**PENDING-HUMAN:** (1) ADR-051 ratification (PROPOSED; §datetime row Utf8→Timestamp now that ADR-052 merged — BLOCKS typed-enrichment A+B+C). (2) CLAUDE.md §Conventions non-exhaustive count 88→89 (TemporalLiteralPosition landed in PR #214; sentence says 88; update to 89). (3) CLAUDE.md §Conventions rustls-tls (ADR-050) ratification. (4) Commit `scripts/t13-preflight-audit.py`. (5) W3-FIX-S307-001 decision (deferred TDE write-back / E-SENSOR-070). (6) E-OCSF-005..023 gap (DRIFT-EOCSF-GAP-005-023-001).
+
+**PENDING USER-APPROVED WORK:** None in flight (temporal story fully delivered).
+
+**DECISION DELTA (since last wrap D-1512):** D-1543 (LOCAL 3-CLEAN converged @9346153e), D-1544 (LOCAL 3-CLEAN re-converged @b81e7808 post-SEC hardening; SEC-001+SEC-002+MED-1 escape sibling-sweep complete; final merge HEAD), D-1545 (PR #214 merged; POL-14 promotions; story→merged), D-1546 (this session wrap). Non-exhaustive gate now EXPECTED=89 on develop@11edbd36.
+
+**RESUME PROTOCOL:**
+1. Run vsdd-factory:factory-worktree-health (BLOCKING).
+2. `git log --oneline -1 origin/develop` → expect `11edbd36`.
+3. S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 MERGED (PR #214 → develop@11edbd36). Feature worktree removed. No cascade in flight. No open PRs.
+4. Present ADR-051 to human for ratification → on approval, decompose typed-enrichment story → TDD delivery → T13 capstone → T14 recording.
+5. Full state: STATE.md Session Resume Checkpoint D-1546.
+6. Autonomy D-989 active.
+
+---
+
+## §RESUME SNAPSHOT — D-1544 (2026-07-05 — PR #214 LOCAL 3-CLEAN RE-CONVERGED; develop origin/develop 122228e8; BC-INDEX v7.35; STORY-INDEX v2.589; ARCH-INDEX v2.170; STATE v8.144; feature HEAD b81e7808; non-exhaustive 89/89; LOCAL 3-CLEAN streak 3/3; VERY NEXT ACTION = pr-reviewer + security-reviewer re-confirmation on b81e7808 → squash-merge) [SUPERSEDES D-1542] [SUPERSEDED by D-1546]
 
 > **D-1543 (2026-07-05): LOCAL 3-CLEAN INITIAL CONVERGENCE @ 9346153e.** LOCAL adversarial cascade CONVERGED: 3 consecutive CLEAN(strict) passes on frozen feature HEAD 9346153e. ADR-052 §D4 v1.10 seven-arm dispatch; arrow_cast RISK-1 mitigated; 5182 tests; non-exhaustive 89/89. develop_head UNCHANGED 122228e8. STATE v8.142→v8.143.
 >
