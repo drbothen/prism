@@ -44,13 +44,48 @@ timestamp: 2026-07-05T00:00:00Z
 >
 > **D-1546 (2026-07-05): SESSION WRAP — §RESUME SNAPSHOT D-1546 authored (supersedes D-1544).** Durable zero-context snapshot. develop@11edbd36 (origin==local). Feature-branch worktree S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 REMOVED post-merge. No cascade in flight. No open PRs. Parked: S-3.09 @43c41389 (local-only, backup/S-3.09-preresume-43c41389), W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit, awaiting human decision). VERY NEXT ACTION = present ADR-051 to human for ratification (PROPOSED; §datetime row Utf8→Timestamp; typed-enrichment A+B+C blocked) → typed-enrichment story → T13 capstone → T14 recording. develop_head 11edbd36. STATE v8.145→v8.146.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1546** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1546 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `d098be6f` (PR #215 housekeeping squash-merged 2026-07-05: ADR-050 rustls-tls CLAUDE.md + t13-preflight-audit.py). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.149. D-1549 (develop_head sync post PR #215 merge; no cascade in flight; VERY NEXT ACTION = per-story TDD delivery of S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 pending human dispatch).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1557** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1557 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `d098be6f` (PR #215 housekeeping squash-merged 2026-07-05: ADR-050 rustls-tls CLAUDE.md + t13-preflight-audit.py). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.157. D-1557 (SESSION WRAP — S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 LOCAL cascade in flight; pass-9 1 OBS; fix-burst-7 @11784b57; LOCAL streak 0/3; NEXT = passes 10/11/12 SEQUENTIAL on frozen 11784b57).
 
 ---
 
-## §RESUME SNAPSHOT — D-1546 (2026-07-05 — SESSION WRAP; develop origin/develop 11edbd36; BC-INDEX v7.36; STORY-INDEX v2.590; ARCH-INDEX v2.170; STATE v8.146; no cascade in flight; no open PRs; feature worktree removed; VERY NEXT ACTION = ADR-051 ratification AWAITING HUMAN DIRECTION) [SUPERSEDES D-1544]
+## §RESUME SNAPSHOT — D-1557 (2026-07-06 — SESSION WRAP; develop origin/develop d098be6f; BC-INDEX v7.39; STORY-INDEX v2.596; ARCH-INDEX v2.173; STATE v8.157; LOCAL cascade in flight S-DEMO-ENRICHMENT-TYPED-OUTPUT-001; LOCAL streak 0/3; VERY NEXT ACTION = LOCAL passes 10/11/12 SEQUENTIAL on frozen 11784b57) [SUPERSEDES D-1546]
+
+### RESUME IN ONE BREATH
+
+Prism Phase-3/Wave-5. S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 LOCAL cascade in flight. FUNCTIONALLY CONVERGED (all 9 passes substantive-PASS). Pass-9 (frozen d32bc3af): 1 OBS ADV-P09-OBS-001 (stale volatile line-pin + false present-tense in test doc-comment). Fix-burst-7 @11784b57: exhaustive 66-site doc-class sweep (docs/comments-only; NO code-logic; just check GREEN 5213; non-exhaustive 89/89). LOCAL 3-CLEAN(strict) streak 0/3. VERY NEXT ACTION = LOCAL passes 10/11/12 SEQUENTIAL on frozen 11784b57 → demo-recorder per-AC (14 ACs) → push → pr-manager 9-step PR → PR-LEVEL 3-CLEAN → squash-merge.
+
+> **D-1557 (2026-07-06): SESSION WRAP — §RESUME SNAPSHOT D-1557 authored (supersedes D-1546).** S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 LOCAL cascade in flight; FUNCTIONALLY CONVERGED 9 passes substantive-PASS. Pass-9 (frozen d32bc3af): CLEAN(strict)=NO (1 OBS ADV-P09-OBS-001 — stale volatile line-pin + false present-tense in test doc-comment). Fix-burst-7 @11784b57: exhaustive residual doc-class sweep 66 sites (infusion_udf.rs 10 + enrichment_pivot_002_tests.rs 15 + pipeline.rs 41; docs/comments-only NO code-logic; just check GREEN 5213; non-exhaustive 89/89). LOCAL 3-CLEAN(strict) streak 0/3. develop_head UNCHANGED d098be6f. STATE v8.156→v8.157.
+
+**STATE v8.157. develop d098be6f. BC-INDEX v7.39. STORY-INDEX v2.596. ARCH-INDEX v2.173. error-taxonomy v2.16. active_contracts 255. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 228. workspace_test_count 5213 (feature HEAD 11784b57; fix-burst-7 docs-only; non-exhaustive 89/89).**
+
+**LAST MERGED:** PR #215 (maintenance/housekeeping-post-pr214 → develop@d098be6f, 2026-07-05; docs/script-only). Prior: S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (PR #214 → develop@11edbd36, 2026-07-05).
+
+**HEADLINE NEXT-ACTION:** LOCAL passes 10/11/12 SEQUENTIAL on frozen feature HEAD 11784b57 (fix-burst-7 docs-only; pass-9 1 OBS CLOSED). After LOCAL 3-CLEAN(strict) convergence: demo-recorder per-AC (14 ACs) → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN(strict) on frozen PR HEAD → squash-merge → state-manager post-merge burst (POL-14 BC-2.19.001 v2.2 draft→active).
+
+**HEADS:** develop d098be6f (PUSHED, origin==local); factory-artifacts = this wrap commit (PUSHED); feature/S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 @11784b57 (fix-burst-7 docs-only sweep; LOCAL cascade in flight); parked worktrees S-3.09 @43c41389 (local-only, backup/S-3.09-preresume-43c41389) + W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit — awaiting human decision).
+
+**WORKTREES:** .worktrees/S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 active @11784b57 (fix-burst-7). S-3.09 DAY-2/PARKED (backup/S-3.09-preresume-43c41389@43c41389; local-only). W3-FIX-S307-001 PARKED, 1 unpushed commit @fcab8717, awaiting human decision.
+
+**PENDING-HUMAN:** (1) W3-FIX-S307-001 decision (deferred TDE write-back / E-SENSOR-070). (2) E-OCSF-005..023 gap (DRIFT-EOCSF-GAP-005-023-001).
+
+**PENDING USER-APPROVED WORK:** S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 LOCAL cascade (passes 10/11/12 SEQUENTIAL on frozen 11784b57 under wave-5 D-989 autonomy).
+
+**DECISION DELTA (since last wrap D-1546):** D-1547 (ADR-051 v1.1→v1.2 amendment), D-1548 (ADR-051 RATIFIED + story decomposed), D-1549 (PR #215 housekeeping merged, develop_head synced d098be6f), D-1550 (SAP-1 catalog row landed BC-2.16.002 v1.94), D-1551 (pass-1 + fix-burst-1), D-1552 (pass-2 + fix-burst-2), D-1553 (pass-3 + fix-burst-3), D-1554 (passes 4+5+6 + fix-burst-4), D-1555 (pass-7 + fix-burst-5), D-1556 (pass-8 + fix-burst-6), D-1557 (pass-9 + fix-burst-7 + this session wrap).
+
+**RESUME PROTOCOL:**
+1. Run vsdd-factory:factory-worktree-health (BLOCKING).
+2. `git log --oneline -1 origin/develop` → expect `d098be6f`.
+3. S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 LOCAL cascade in flight on feature HEAD 11784b57. LOCAL 3-CLEAN(strict) streak 0/3.
+4. Dispatch LOCAL adversary pass-10 on frozen 11784b57; run passes 10/11/12 SEQUENTIALLY.
+5. After LOCAL 3-CLEAN convergence: demo-recorder → push → pr-manager 9-step PR → PR-LEVEL 3-CLEAN → squash-merge.
+6. Full state: STATE.md Session Resume Checkpoint D-1557.
+7. Autonomy D-989 active.
+
+---
+
+## §RESUME SNAPSHOT — D-1546 (2026-07-05 — SESSION WRAP; develop origin/develop 11edbd36; BC-INDEX v7.36; STORY-INDEX v2.590; ARCH-INDEX v2.170; STATE v8.146; no cascade in flight; no open PRs; feature worktree removed; VERY NEXT ACTION = ADR-051 ratification AWAITING HUMAN DIRECTION) [SUPERSEDED by D-1557]
 
 ### RESUME IN ONE BREATH
 
