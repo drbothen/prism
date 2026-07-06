@@ -989,8 +989,8 @@ mod tests {
     /// AC-011 e2e: cyberint_alerts `iocs_value_first` column — TOML source_path + generator chain.
     ///
     /// Closes MED-001 + LOW-001: the prior tests asserted column TYPE only; a regression where
-    /// coerce_to_typed returned Some(Value::String) instead of Some(Value::Number) would silently
-    /// produce an all-NULL column while all schema-type tests passed.
+    /// the source_path was wrong or the generator did not stamp the expected value would silently
+    /// produce all-NULL output while schema-type tests passed.
     ///
     /// This test verifies:
     /// (a) TOML source_path for `iocs_value_first` in the `alerts` table is "$.iocs[0].value"

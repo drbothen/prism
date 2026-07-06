@@ -1016,7 +1016,7 @@ impl InfusionLoader {
     /// Error format:
     /// ```text
     /// E-INFUSE-013: invalid field name '{field_name}' in infusion spec '{spec_path}':
-    ///  plugin-type field '{name}' in infusion '{infusion_id}' must declare 'source_column'
+    ///  plugin-type field '{field_name}' in infusion '{infusion_id}' must declare 'source_column'
     ///  to project a specific field from the plugin response object; without source_column
     ///  the full response object is serialized (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 root cause)
     /// ```

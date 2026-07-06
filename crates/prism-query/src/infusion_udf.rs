@@ -558,8 +558,9 @@ impl InfusionAsyncUdf {
     ///     event_type = "infusion.coercion_failed",
     ///     field_name = %field_name,
     ///     infusion_id = %self.descriptor.infusion_id,
-    ///     declared_type = %declared_type,
-    ///     truncated_value = %&value[..50.min(value.len())],
+    ///     declared_type = %self.descriptor.output_type,
+    ///     truncated_value = %value.chars().take(50).collect::<String>(),
+    ///     "{}", err
     /// )
     /// ```
     /// A BC-2.16.002 Canonical Structured Event Catalog row for `event_type = "infusion.coercion_failed"`
