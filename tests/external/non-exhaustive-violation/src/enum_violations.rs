@@ -348,6 +348,28 @@ pub fn v79_http_lookup_auth_type_match() {
     }
 }
 
+/// Violation 86: prism_core::TemporalLiteralPosition exhaustive match (E0004).
+///
+/// `TemporalLiteralPosition` is the position enum for E-QUERY-042
+/// (`PrismError::TemporalLiteralInvalidPosition`). `#[non_exhaustive]` ensures new
+/// position variants (e.g., `HavingClause`, `SetAssignment`) can be added in future
+/// ADR-052 revisions without requiring all external match arms to be updated.
+/// External callers MUST include `_ => {}`.
+///
+/// Added: S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 E-QUERY-042 implementation.
+/// ci.yml EXPECTED bumped from 88 to 89.
+#[allow(dead_code)]
+pub fn v86_temporal_literal_position_match() {
+    use prism_core::TemporalLiteralPosition;
+    let pos: TemporalLiteralPosition = TemporalLiteralPosition::GroupBy;
+    match pos {
+        TemporalLiteralPosition::GroupBy => {}
+        TemporalLiteralPosition::OrderBy => {}
+        TemporalLiteralPosition::NonColumnLhsComparison => {}
+        // After S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}
+
 /// Violation 85: prism_mcp::resources::ExampleKind exhaustive match (E0004).
 ///
 /// `ExampleKind` classifies PQL usage examples for the 3-tier CI gate and for

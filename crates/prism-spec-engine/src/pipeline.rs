@@ -1864,7 +1864,10 @@ pub(crate) fn normalize_timestamp_fields(
                             sensor_id: sensor_id.to_string(),
                             column_name: col.name.clone(),
                             attempted_formats: formats,
-                            value: value.to_string(),
+                            // SEC-002 (CWE-532 / AD-017): cap raw sensor value at 50
+                            // codepoints before storing in the error — Display output is
+                            // then naturally capped. Consistent with value_prefix convention.
+                            value: value.to_string().chars().take(50).collect(),
                         });
                     }
                 }

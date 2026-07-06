@@ -1474,6 +1474,11 @@ fn predicate_as_string(expr: &crate::ast::Expr, column_name: &str) -> String {
                     Literal::Bool(b) => b.to_string(),
                     // I-LOCAL-003: render CIDR mask so predicate is not silently truncated.
                     Literal::Cidr(c) => format!("'{}'", c.cidr),
+                    // TD-VSDD-060 / OBS-2 fix: explicit arm surfaces the anomalous AST state
+                    // in explain output rather than silently rendering as `<literal>`.
+                    Literal::RawTemporalLiteral(s) => {
+                        format!("'{s}' (raw temporal — not RFC-3339)")
+                    }
                     #[allow(unreachable_patterns)]
                     _ => "<literal>".to_string(),
                 },

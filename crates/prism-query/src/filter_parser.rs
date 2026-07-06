@@ -1204,49 +1204,94 @@ pub(crate) fn build_string_parser<'a>(
     single_quoted.or(double_quoted)
 }
 
-/// Promote a raw string to `Literal::Timestamp` if it is a valid RFC-3339 value,
-/// or return `Literal::String` otherwise.
+/// Heuristic: does `s` match any of the ADR-052 §D4 v1.4 seven canonical date-like forms?
 ///
-/// Timestamps are recognised by a lightweight heuristic (starts with four ASCII
-/// digits followed by `-`) before the full parse attempt, so that ordinary string
-/// literals never incur the `chrono` overhead.
+/// Returns `true` when `s` looks like a date or offset-less datetime but is NOT a valid
+/// RFC-3339 string (i.e., `chrono::DateTime::parse_from_rfc3339` would reject it).
+/// Used by the lenient parser fallback to produce `Literal::RawTemporalLiteral` instead
+/// of a hard parse error, so that `check_temporal_literals` can perform schema-aware
+/// seven-arm dispatch (ADR-052 §D4 v1.10): Datetime col → E-QUERY-041; String col → COERCE;
+/// Integer/Float/Bool col → E-QUERY-002; non-Field LHS → E-QUERY-042 NonColumnLhsComparison;
+/// SELECT projection → COERCE; GROUP BY → E-QUERY-042 GroupBy; ORDER BY → E-QUERY-042 OrderBy.
 ///
-/// Returns `Err(message)` only when the string looks like a timestamp but is
-/// malformed — callers propagate this as a user-visible `ParseError`.
-fn classify_string_literal(s: &str) -> Result<Literal, String> {
-    // Heuristic: `NNNN-` prefix (ISO date or year-month) triggers timestamp parse.
-    let bytes = s.as_bytes();
-    let looks_like_timestamp = bytes.len() >= 5
-        && bytes[0].is_ascii_digit()
-        && bytes[1].is_ascii_digit()
-        && bytes[2].is_ascii_digit()
-        && bytes[3].is_ascii_digit()
-        && bytes[4] == b'-';
+/// The seven canonical forms (exhaustive — must match exactly, per BC-2.11.021 v1.4):
+///   1. `%Y-%m-%d`              — date-only
+///   2. `%Y-%m-%dT%H:%M:%S`    — T-sep full seconds
+///   3. `%Y-%m-%dT%H:%M:%S%.f` — T-sep fractional seconds
+///   4. `%Y-%m-%dT%H:%M`       — T-sep no seconds
+///   5. `%Y-%m-%d %H:%M:%S`    — space-sep full seconds
+///   6. `%Y-%m-%d %H:%M:%S%.f` — space-sep fractional seconds
+///   7. `%Y-%m-%d %H:%M`       — space-sep no seconds
+///
+/// Over-matched forms (unpadded month/day `'2026-6-24'`, big/signed years) are ACCEPTED
+/// BENIGN per ADR-052 §D4 v1.4 — chrono `%m`/`%d`/`%Y` accept them; no regex guard applied.
+/// (BC-2.11.021 v1.4 EC-11-021-010..014)
+///
+/// Operates on already-parsed UTF-8 `&str` — no raw byte-offset operations;
+/// Unicode safety guaranteed by construction (VP-021 invariant).
+///
+/// (ADR-052 §D4 Step 2; BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 13)
+/// Seven-form acceptance set per ADR-052 §D4 v1.4.
+///
+/// Over-matched forms (unpadded digits, big years) are ACCEPTED BENIGN —
+/// chrono `%m`/`%d`/`%Y` accept them; no regex guard applied.
+pub(crate) fn is_date_like(s: &str) -> bool {
+    use chrono::{NaiveDate, NaiveDateTime};
+    // Form 1: date-only
+    NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok()
+    // Form 2: T-sep full seconds (no offset)
+    || NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S").is_ok()
+    // Form 3: T-sep fractional seconds (no offset)
+    || NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f").is_ok()
+    // Form 4: T-sep no seconds (no offset)
+    || NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M").is_ok()
+    // Form 5: space-sep full seconds (no offset)
+    || NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").is_ok()
+    // Form 6: space-sep fractional seconds (no offset)
+    || NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f").is_ok()
+    // Form 7: space-sep no seconds (no offset)
+    || NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").is_ok()
+}
 
-    if looks_like_timestamp {
-        TimestampLiteral::new(s)
-            .map(Literal::Timestamp)
-            .map_err(|e| e.message)
-    } else {
-        Ok(Literal::String(s.to_string()))
+/// Classify a raw quoted string into the appropriate `Literal` variant.
+///
+/// Three-case lenient dispatch (ADR-052 §D4 Step 2; Option-A):
+///
+///   - RFC-3339 parse succeeds → `Literal::Timestamp` (full ISO-8601 with UTC offset)
+///   - `is_date_like(s)` is true → `Literal::RawTemporalLiteral(s)` (date/offset-less form;
+///     validated at plan time by `check_temporal_literals`)
+///   - Otherwise → `Literal::String(s)` (plain string, no temporal semantics)
+///
+/// Infallible: parse ALWAYS succeeds. Validation of the temporal forms moves to plan time.
+/// (ADR-052 §D4 Step 2; BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 13)
+fn classify_string_literal(s: &str) -> Literal {
+    // Fast path: try RFC-3339 first (full timestamp with UTC offset).
+    if let Ok(ts) = TimestampLiteral::new(s) {
+        return Literal::Timestamp(ts);
     }
+    // Date-like but not full RFC-3339 → intermediate node for plan-time validation.
+    if is_date_like(s) {
+        return Literal::RawTemporalLiteral(s.to_string());
+    }
+    // Non-date plain string.
+    Literal::String(s.to_string())
 }
 
 /// Build the literal value parser.
 pub(crate) fn build_literal_parser<'a>(
 ) -> impl Parser<'a, &'a str, Literal, extra::Err<Rich<'a, char>>> + Clone {
-    // Single-quoted string literal (or timestamp if RFC-3339 heuristic matches).
+    // Single-quoted string literal (infallible: RFC-3339→Timestamp; date-like→RawTemporalLiteral; else→String).
     let single_quoted = none_of('\'')
         .repeated()
         .to_slice()
-        .try_map(|s: &str, span| classify_string_literal(s).map_err(|e| Rich::custom(span, e)))
+        .map(|s: &str| classify_string_literal(s))
         .delimited_by(just('\''), just('\''));
 
-    // Double-quoted string literal (or timestamp if RFC-3339 heuristic matches).
+    // Double-quoted string literal (same three-case lenient dispatch as single-quoted).
     let double_quoted = none_of('"')
         .repeated()
         .to_slice()
-        .try_map(|s: &str, span| classify_string_literal(s).map_err(|e| Rich::custom(span, e)))
+        .map(|s: &str| classify_string_literal(s))
         .delimited_by(just('"'), just('"'));
 
     // NULL literal.

@@ -578,7 +578,10 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
             negated,
         } => {
             let field_sql = field_path_to_sql(field);
-            let vals: Vec<String> = values.iter().map(literal_to_sql).collect();
+            let vals: Vec<String> = values
+                .iter()
+                .map(literal_to_sql)
+                .collect::<Result<Vec<_>, _>>()?;
             let not_kw = if *negated { "NOT IN" } else { "IN" };
             Ok(format!("{field_sql} {not_kw} ({})", vals.join(", ")))
         }
@@ -593,8 +596,8 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
             let not_kw = if *negated { "NOT BETWEEN" } else { "BETWEEN" };
             Ok(format!(
                 "{field_sql} {not_kw} {} AND {}",
-                literal_to_sql(low),
-                literal_to_sql(high)
+                literal_to_sql(low)?,
+                literal_to_sql(high)?
             ))
         }
 
@@ -723,7 +726,7 @@ fn agg_func_to_sql(f: &AggFunc) -> Result<String, PrismError> {
 
 fn expr_to_sql(expr: &Expr) -> Result<String, PrismError> {
     match expr {
-        Expr::Literal(lit) => Ok(literal_to_sql(lit)),
+        Expr::Literal(lit) => literal_to_sql(lit),
         Expr::Field(fp) => Ok(field_path_to_sql(fp)),
         Expr::VirtualField(vf) => {
             use crate::ast::VirtualField;
@@ -759,12 +762,13 @@ fn expr_to_sql(expr: &Expr) -> Result<String, PrismError> {
         // `TimestampArithmetic` is constant-folded. This arm fires only if folding
         // did not complete (defensive code path; should not occur in production).
         //
-        // The base expression emits as `'<iso>'` (plain ISO string, matching the
-        // DataType::Utf8 column type per ADR-044 D4 / F-HIGH-002). Arithmetic on
-        // a Utf8 string is not supported by DataFusion; this arm is an edge-case
-        // fallback for unfold-able expressions. If DataFusion rejects the emitted
-        // SQL, the query surfaces a QueryExecutionFailed error (acceptable — the
-        // spec requires inject_now to fold these before emission).
+        // The base expression emits via expr_to_sql (which for Literal::Timestamp
+        // emits the arrow_cast form per ADR-052 D3). Arithmetic on a Timestamp
+        // via INTERVAL is supported by DataFusion. This arm is a defensive fallback
+        // for unfold-able expressions; inject_now must fold these before emission.
+        // If DataFusion rejects the emitted SQL, the query surfaces a
+        // QueryExecutionFailed error (acceptable — the spec requires inject_now
+        // to fold these before emission).
         // Using seconds as the canonical unit avoids ambiguity between calendar
         // days and SI days. `chrono::Duration::num_seconds()` is exact for all
         // sub-day durations; for whole-day durations it is `n * 86400`.
@@ -792,8 +796,14 @@ fn expr_to_sql(expr: &Expr) -> Result<String, PrismError> {
 // Literal to SQL
 // ---------------------------------------------------------------------------
 
-fn literal_to_sql(lit: &Literal) -> String {
-    match lit {
+/// Convert a `Literal` to its SQL string representation.
+///
+/// Returns `Err` only for `Literal::RawTemporalLiteral` — that intermediate AST node
+/// must be consumed by `check_temporal_literals` at plan time before the emitter
+/// is called (belt-and-suspenders guard; ADR-052 §D4 Step 5; BC-2.11.021 v1.4;
+/// S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 11B).
+fn literal_to_sql(lit: &Literal) -> Result<String, PrismError> {
+    Ok(match lit {
         Literal::String(s) => format!("'{}'", escape_sql_string(s)),
         Literal::Integer(n) => n.to_string(),
         Literal::Float(f) => {
@@ -813,15 +823,54 @@ fn literal_to_sql(lit: &Literal) -> String {
         Literal::Cidr(c) => format!("'{}'", escape_sql_string(&c.cidr)),
         Literal::Regex(r) => format!("'{}'", escape_sql_string(&r.pattern)),
         Literal::IpAddr(ip) => format!("'{}'", ip.0 .0),
-        // BC-2.11.021 / ADR-044 D4: The materialized Arrow column type for OCSF
-        // Datetime fields is DataType::Utf8 (ISO-8601 string) — see spec_driven_adapter
-        // `column_type_to_arrow`: `ColumnType::Datetime => DataType::Utf8`. DataFusion
-        // cannot compare a typed `TIMESTAMP '<iso>'` literal against a Utf8 column.
-        // Emit as plain single-quoted ISO string (matching PqlNormalizer::normalize_literal
-        // and BC-2.11.021/ADR-044 D4). (F-HIGH-002 fix)
-        Literal::Timestamp(ts) => format!("'{}'", ts.iso8601),
+        // ADR-052 D3 / BC-2.11.004 v1.7: The materialized Arrow column type for OCSF
+        // Datetime fields is now DataType::Timestamp(Microsecond, UTC) per ADR-052 D1/D2.
+        // DataFusion 53.1.0's `TIMESTAMP '<iso>'` syntax produces Timestamp(Nanosecond, None),
+        // which mismatches the UTC-tagged Microsecond column type. Use arrow_cast() to produce
+        // the correct Timestamp(Microsecond, Some("UTC")) typed literal.
+        // (Supersedes ADR-044 D4 F-HIGH-002 comment; ADR-044 superseded by ADR-052.)
+        //
+        // SEC-001 (MED-1 sibling sweep): escape single-quotes in iso8601 before interpolating
+        // into the arrow_cast first argument. RFC-3339 validation in TimestampLiteral::new()
+        // prevents embedded `'` via the parser path, but direct in-crate AST construction
+        // is a reachable injection vector. Matches the escape applied in
+        // ast.rs::normalize_literal_for_datafusion (TD-VSDD-060 sibling sweep).
+        // For valid RFC-3339 (no quotes): escape_sql_string is a no-op — byte-identical
+        // to the pre-fix form (RG-003/RG-010 byte-identity preserved).
+        Literal::Timestamp(ts) => format!(
+            "arrow_cast('{}', 'Timestamp(Microsecond, Some(\"UTC\"))')",
+            escape_sql_string(&ts.iso8601)
+        ),
+        // ADR-052 §D4 Step 5 guard (BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001):
+        // Belt-and-suspenders secondary defense: RawTemporalLiteral must NEVER reach SQL
+        // emission. It is an intermediate AST node that check_temporal_literals must
+        // consume at plan time via seven-arm dispatch (ADR-052 §D4 v1.10):
+        //   (1) Datetime col → E-QUERY-041; (2) String col → COERCE; (3) Integer/Float/Bool → E-QUERY-002;
+        //   (4) non-Field LHS → E-QUERY-042 NonColumnLhsComparison; (5) SELECT projection → COERCE;
+        //   (6) GROUP BY → E-QUERY-042 GroupBy; (7) ORDER BY → E-QUERY-042 OrderBy.
+        // When the column type is unresolvable (fail-open in the walker), the walker leaves
+        // the RawTemporalLiteral in the AST; this guard catches it as the secondary gate,
+        // returning E-QUERY-002 (QueryPlanFailed).
+        //
+        // Asymmetry between Pipe/Filter and SQL mode (intentional, ADR-sanctioned):
+        //   Pipe/Filter (this guard): FAIL-CLOSED — returns Err(QueryPlanFailed) E-QUERY-002.
+        //   SQL mode (ast.rs::normalize_literal): FAIL-OPEN — emits a plain quoted string
+        //     (`Self::emit_quoted_string(s)`) so DataFusion acts as the tertiary correctness gate.
+        //   The SQL-mode fail-open is ADR-sanctioned: E-QUERY-041 is a message upgrade;
+        //   DataFusion rejects or correctly handles the quoted string at execution time.
+        //
+        // HIGH-3 fix: use QueryPlanFailed (plan-time invariant violation) not QueryParseFailed
+        // (parse-time failure). This literal was parsed successfully; the gate runs post-parse.
+        Literal::RawTemporalLiteral(s) => {
+            return Err(PrismError::QueryPlanFailed {
+                detail: format!(
+                    "internal error — unvalidated RawTemporalLiteral '{s}' reached SQL \
+                     emission; check_temporal_literals must run before emission"
+                ),
+            });
+        }
         _ => "NULL".to_string(), // non_exhaustive arm
-    }
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -1143,5 +1192,277 @@ mod tests {
         );
         let result = pipe_to_executable_sql(&pipe, &Default::default());
         assert!(result.is_err(), "JOIN should return Err");
+    }
+
+    // -----------------------------------------------------------------------
+    // SEC-001 MED-1 sibling sweep — injection guard for literal_to_sql Timestamp arm
+    // -----------------------------------------------------------------------
+
+    /// SEC-001 (MED-1 sibling sweep): `literal_to_sql(Literal::Timestamp(...))` must
+    /// SQL-double any single-quote embedded in `TimestampLiteral.iso8601` so the
+    /// `arrow_cast` first argument is injection-safe.
+    ///
+    /// This mirrors `test_sec_001_normalize_literal_for_datafusion_escapes_single_quote`
+    /// in `ast.rs` but targets `literal_to_sql` in `pipe_sql_emitter.rs` — the sibling
+    /// DataFusion-executed emission site identified by TD-VSDD-060 (sibling-site sweep).
+    ///
+    /// RFC-3339 validation in `TimestampLiteral::new()` prevents embedded `'` via the
+    /// parser path; this test covers the direct-AST-construction vector (defense-in-depth).
+    ///
+    /// Verifies: single-quote is SQL-doubled (`'` → `''`), NOT passed through raw.
+    #[test]
+    fn test_sec_001_pipe_sql_emitter_timestamp_escapes_single_quote() {
+        use crate::ast::TimestampLiteral;
+        use chrono::Utc;
+        // Adversarially-constructed TimestampLiteral: parser-unreachable but reachable
+        // via direct struct construction inside the crate.
+        let ts_lit = Literal::Timestamp(TimestampLiteral {
+            iso8601: "2026-07-03T00:00:00Z' OR '1'='1".to_string(),
+            instant: Utc::now(),
+        });
+        let emitted = literal_to_sql(&ts_lit)
+            .expect("Literal::Timestamp must not return Err from literal_to_sql");
+        // Must NOT contain the raw injection sequence.
+        assert!(
+            !emitted.contains("Z' OR '1'='1"),
+            "SEC-001 MED-1: raw single-quote injection must be neutralized in literal_to_sql. \
+             Got: {emitted:?}"
+        );
+        // Must contain the SQL-doubled form inside the arrow_cast first argument.
+        assert!(
+            emitted.contains("Z'' OR ''1''=''1"),
+            "SEC-001 MED-1: single-quotes in iso8601 must be SQL-doubled (`'` → `''`) in \
+             literal_to_sql. Got: {emitted:?}"
+        );
+    }
+
+    /// SEC-001 MED-1 byte-identity: for valid RFC-3339 (no single-quotes),
+    /// `escape_sql_string` is a no-op — output is byte-identical to the pre-fix form.
+    ///
+    /// This guards RG-003/RG-010 — those tests assert the EXACT
+    /// `arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(…)')` string. If the escape
+    /// were not a no-op for clean input, it would break those tests.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn test_sec_001_pipe_sql_emitter_timestamp_noop_for_valid_rfc3339() {
+        use crate::ast::TimestampLiteral;
+        use chrono::Utc;
+        let instant = chrono::DateTime::parse_from_rfc3339("2026-07-03T00:00:00Z")
+            .expect("known-good RFC-3339 must parse")
+            .with_timezone(&Utc);
+        let ts_lit = Literal::Timestamp(TimestampLiteral {
+            iso8601: "2026-07-03T00:00:00Z".to_string(),
+            instant,
+        });
+        let emitted = literal_to_sql(&ts_lit)
+            .expect("Literal::Timestamp must not return Err from literal_to_sql");
+        let expected =
+            r#"arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(Microsecond, Some("UTC"))')"#;
+        assert_eq!(
+            emitted, expected,
+            "SEC-001 MED-1 byte-identity: for valid RFC-3339, literal_to_sql \
+             must produce the exact arrow_cast form (guards RG-003/RG-010). \
+             Got: {emitted:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // RG-003 / RG-010 — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Red Gate tests
+    // -----------------------------------------------------------------------
+
+    /// RG-003: `literal_to_sql(Literal::Timestamp(...))` must emit the `arrow_cast(...)` form
+    /// per ADR-052 D3 v1.1, NOT a bare single-quoted ISO string.
+    ///
+    /// # Red Gate pre-implementation failure
+    /// The `Literal::Timestamp` arm currently emits `"'2026-07-03T00:00:00Z'"` (bare string).
+    /// The assertion FAILS with:
+    ///   left:  `"'2026-07-03T00:00:00Z'"`
+    ///   right: `"arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(Microsecond, Some(\"UTC\"))')"`
+    ///
+    /// # Why load-bearing (ADR-052 D3)
+    /// The bare `'...'` form causes DataFusion to see a `Utf8` literal vs a
+    /// `Timestamp(Microsecond, UTC)` column — a type mismatch that produces wrong comparisons
+    /// or a plan error. The `arrow_cast(...)` form produces `Timestamp(Microsecond, UTC)`,
+    /// matching the column type exactly.
+    ///
+    /// # Emitted form (post-implementation)
+    /// `arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(Microsecond, Some("UTC"))')`
+    /// Note: inner double-quote escaping in the type string is REQUIRED to match
+    /// DataFusion's arrow_cast signature expectation.
+    ///
+    /// Traces to: ADR-052 v1.1 D3; BC-2.11.021 v1.2 §Postconditions ("DataFusion sees
+    /// a concrete `WHERE timestamp > arrow_cast(...)` comparison").
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_pipe_sql_emitter_yields_arrow_cast_literal() {
+        use crate::ast::TimestampLiteral;
+        use chrono::Utc;
+
+        // Use a fixed, known RFC-3339 timestamp for deterministic output (TD-VSDD-091).
+        let instant = chrono::DateTime::parse_from_rfc3339("2026-07-03T00:00:00Z")
+            .expect("known-good RFC-3339 must parse")
+            .with_timezone(&Utc);
+
+        let ts_lit = Literal::Timestamp(TimestampLiteral {
+            iso8601: "2026-07-03T00:00:00Z".to_string(),
+            instant,
+        });
+
+        let emitted = literal_to_sql(&ts_lit)
+            .expect("Literal::Timestamp must not return Err from literal_to_sql");
+
+        // The expected form includes escaped double-quotes inside the type string
+        // (DataFusion's arrow_cast type argument uses `Some("UTC")` with quotes).
+        let expected =
+            r#"arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(Microsecond, Some("UTC"))')"#;
+
+        assert_eq!(
+            emitted, expected,
+            "RG-003: literal_to_sql(Literal::Timestamp(...)) must emit the arrow_cast form \
+             per ADR-052 D3. Currently emits bare single-quoted string '{{}}'.  \
+             Expected: {expected:?}. Got: {emitted:?}. \
+             Fix: update the Literal::Timestamp arm in pipe_sql_emitter.rs \
+             (Task 11 of S-PRISMQL-NATIVE-TEMPORAL-TYPING-001)."
+        );
+    }
+
+    /// RG-010: The ACTUAL emitter output must be the `arrow_cast(...)` form AND must
+    /// successfully plan against a `Timestamp(Microsecond, Some("UTC"))` DataFusion column.
+    ///
+    /// # Red Gate pre-implementation failure (TWO-STAGE)
+    ///
+    /// **Stage 1 (string assertion, immediately fails):**
+    /// The emitter currently produces `'2026-07-03T00:00:00Z'` (bare Utf8 literal).
+    /// The assertion `emitted_fragment == expected_arrow_cast_form` FAILS with:
+    ///   left:  `"'2026-07-03T00:00:00Z'"`
+    ///   right: `"arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(Microsecond, Some(\"UTC\"))')"`
+    ///
+    /// **Stage 2 (DataFusion plan, only reached post-implementation):**
+    /// Once the emitter produces the `arrow_cast(...)` form, this test verifies it actually
+    /// plans without error. This is the transitive coverage step — if the format string has
+    /// a quoting or escaping mistake invisible to string comparison, DataFusion will reject
+    /// the malformed type string in `arrow_cast`.
+    ///
+    /// # Why load-bearing (transitive gap between RG-002 and RG-003)
+    /// - RG-002: hand-writes the `arrow_cast(...)` query string (probe, confirming DF supports it).
+    /// - RG-003: tests the emitter's string output in isolation (unit test, confirming form).
+    /// - RG-010: closes the gap — takes ACTUAL emitter output and proves it PLANS correctly
+    ///   against a `Timestamp(Microsecond, UTC)` column. Catches quoting/escaping mistakes
+    ///   that string comparison alone cannot detect.
+    ///
+    /// # Note on DataFusion implicit coercion
+    /// DataFusion 53.1.0 with arrow-cast 58.2.0 WILL implicitly coerce bare string literals
+    /// to Timestamp when compared against a Timestamp column. The `arrow_cast(...)` form
+    /// is still required because: (a) explicit typing is a contract (ADR-052 D3), (b) the
+    /// coercion behavior may change in future DataFusion versions, (c) the `arrow_cast`
+    /// form ensures the EXACT Timestamp type (`Microsecond, UTC`) is used in the comparison,
+    /// not whatever DataFusion's implicit coercion produces.
+    ///
+    /// Traces to: ADR-052 v1.1 D3; BC-2.11.021 v1.2 §Postconditions.
+    #[tokio::test]
+    #[allow(clippy::expect_used, clippy::unwrap_used)]
+    async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_emitter_output_plans_against_timestamp_column(
+    ) {
+        use crate::ast::TimestampLiteral;
+        use crate::materialization::register_mem_table;
+        use crate::memory::build_session_context;
+        use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
+        use chrono::Utc;
+        use std::sync::Arc;
+
+        // Step 1: Get the ACTUAL emitter output for a fixed timestamp literal.
+        let instant = chrono::DateTime::parse_from_rfc3339("2026-07-03T00:00:00Z")
+            .expect("known-good RFC-3339 must parse")
+            .with_timezone(&Utc);
+        let ts_lit = Literal::Timestamp(TimestampLiteral {
+            iso8601: "2026-07-03T00:00:00Z".to_string(),
+            instant,
+        });
+        let emitted_fragment = literal_to_sql(&ts_lit)
+            .expect("Literal::Timestamp must not return Err from literal_to_sql");
+
+        // Step 2: RED GATE ASSERTION — emitter must produce the arrow_cast form.
+        // FAILS before implementation: emitter still produces bare '...' string.
+        // PASSES after Task 11: emitter produces arrow_cast('...', 'Timestamp(...)').
+        let expected_fragment =
+            r#"arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(Microsecond, Some("UTC"))')"#;
+        assert_eq!(
+            emitted_fragment, expected_fragment,
+            "RG-010 stage-1: literal_to_sql(Literal::Timestamp(...)) must emit the arrow_cast \
+             form per ADR-052 D3 before the DataFusion plan step can proceed. \
+             Currently emits bare string. Expected: {expected_fragment:?}. \
+             Got: {emitted_fragment:?}. Fix: Task 11 (update Timestamp arm in literal_to_sql)."
+        );
+
+        // Step 3: DataFusion plan step — verifies the actual emitter output plans correctly.
+        // Only reached post-implementation (step 2 is the Red Gate).
+        // Catches quoting/escaping mistakes invisible to string comparison.
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "ts_col",
+            DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC"))),
+            true,
+        )]));
+        let empty_batch = arrow::record_batch::RecordBatch::new_empty(schema.clone());
+        let ctx = build_session_context(50 * 1024 * 1024)
+            .expect("SessionContext construction must succeed");
+        register_mem_table(&ctx, "t", vec![empty_batch]).expect("table registration must succeed");
+
+        let sql = format!("SELECT * FROM t WHERE ts_col > {emitted_fragment}");
+        let plan_result = ctx.sql(&sql).await;
+        assert!(
+            plan_result.is_ok(),
+            "RG-010 stage-2: arrow_cast emitter output must plan successfully against \
+             Timestamp(Microsecond, UTC) column. Query: {sql:?}. Error: {:?}. \
+             Root cause: quoting or escaping mistake in the arrow_cast type string — \
+             DataFusion rejected the malformed type argument. Fix the format string in \
+             literal_to_sql.",
+            plan_result.err()
+        );
+    }
+
+    // ── RG-024 (stub y): emitter guard reachability test ─────────────────────
+
+    /// RG-024 (stub y): `literal_to_sql(Literal::RawTemporalLiteral(_))` MUST return
+    /// `Err(QueryPlanFailed)` — the emitter guard is a belt-and-suspenders defense ensuring
+    /// that no `RawTemporalLiteral` ever reaches SQL emission without being resolved by
+    /// `check_temporal_literals` first.
+    ///
+    /// HIGH-3 fix: changed from `QueryParseFailed` to `QueryPlanFailed` because the literal
+    /// was parsed successfully — this is a plan-time invariant violation, not a parse failure.
+    ///
+    /// Traces to: BC-2.11.021 v1.4 guard arm (belt-and-suspenders);
+    /// ADR-052 §D4 Step 5 (emitter guard); ADR-052 §D4 Task 11B (return type change).
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_emitter_guard_raw_temporal_literal() {
+        use prism_core::error::PrismError;
+        // Belt-and-suspenders: if a RawTemporalLiteral reaches the emitter without being
+        // consumed by check_temporal_literals, literal_to_sql MUST return
+        // Err(QueryPlanFailed) — never panic and never silently emit a bare string.
+        // HIGH-3 fix: QueryPlanFailed (plan-time invariant), not QueryParseFailed (parse failure).
+        // Traces to: ADR-052 §D4 Step 5 (emitter guard); BC-2.11.021 v1.4 guard arm.
+        let raw = Literal::RawTemporalLiteral("2026-06-24".to_string());
+        let result = literal_to_sql(&raw);
+        assert!(
+            result.is_err(),
+            "RG-024: literal_to_sql(RawTemporalLiteral) must return Err, got Ok({:?})",
+            result.ok()
+        );
+        let err = result.unwrap_err();
+        assert!(
+            matches!(&err, PrismError::QueryPlanFailed { .. }),
+            "RG-024: literal_to_sql(RawTemporalLiteral) must return Err(QueryPlanFailed), got {err:?}"
+        );
+        // OBS-4 fix: assert message content identifies the anomaly (not just the variant).
+        if let PrismError::QueryPlanFailed { detail } = &err {
+            assert!(
+                detail.contains("RawTemporalLiteral"),
+                "RG-024: QueryPlanFailed detail must mention 'RawTemporalLiteral', got: {detail}"
+            );
+            assert!(
+                detail.contains("internal error"),
+                "RG-024: QueryPlanFailed detail must mention 'internal error', got: {detail}"
+            );
+        }
     }
 }

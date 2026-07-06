@@ -981,6 +981,14 @@ pub enum Literal {
     IpAddr(IpAddrLiteral),
     /// ISO-8601 timestamp literal.
     Timestamp(TimestampLiteral),
+    /// A quoted string that resembles a date or datetime but is NOT valid RFC-3339.
+    /// Produced by the lenient parser fallback for date-only (`'2026-06-24'`) and
+    /// offset-less (`'2026-06-24T12:00:00'`) forms per ADR-052 §D4 v1.4.
+    /// Validated at plan time by `check_temporal_literals` (seven-arm dispatch, ADR-052 §D4 v1.10).
+    /// Must never reach SQL emission — `pipe_sql_emitter.rs` guards this with a
+    /// belt-and-suspenders E-QUERY-002 (`QueryPlanFailed`) arm (Pipe/Filter mode).
+    /// (ADR-052 §D4 Step 1; BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001)
+    RawTemporalLiteral(String),
 }
 
 /// Duration literal with explicit unit (prismql-grammar.md §3.3).
@@ -1255,6 +1263,9 @@ impl Literal {
             Literal::Regex(r) => r.pattern.clone(),
             Literal::IpAddr(ip) => ip.0 .0.to_string(),
             Literal::Timestamp(ts) => ts.iso8601.clone(),
+            // ADR-052 §D4 Step 1: RawTemporalLiteral carries the raw literal string.
+            // to_user_string returns it as-is (no surrounding quotes — context supplies them).
+            Literal::RawTemporalLiteral(s) => s.clone(),
         }
     }
 }
@@ -1339,6 +1350,19 @@ pub enum BinaryOp {
 // ---------------------------------------------------------------------------
 // PqlNormalizer — Chumsky AST re-serializer (S-DEMO-PRISMQL-ONBOARDING-001-B)
 // ---------------------------------------------------------------------------
+
+// Thread-local flag used by `PqlNormalizer::normalize_for_datafusion` to switch
+// the literal emitter from PQL round-trip form (`'<iso>'`) to DataFusion form
+// (`arrow_cast('...', 'Timestamp(Microsecond, Some("UTC"))')`).
+//
+// The flag is safe in async contexts because `PqlNormalizer::normalize` contains
+// no `.await` points — the thread-local is set, the synchronous traversal runs,
+// and the drop guard resets the flag before any executor can schedule a
+// concurrent task on the same thread.  (ADR-052 §D4 v1.5 SQL-Mode Addendum)
+thread_local! {
+    static NORMALIZE_FOR_DATAFUSION: std::cell::Cell<bool> =
+        const { std::cell::Cell::new(false) };
+}
 
 /// Canonicalizing PQL re-serializer (BC-2.11.018).
 ///
@@ -1430,6 +1454,77 @@ impl PqlNormalizer {
     /// (MED-1 / OBS-1 fix — fold↔detect exhaustive symmetry sweep).
     pub fn expr_has_unfolded_temporal_pub(expr: &Expr) -> bool {
         Self::expr_has_unfolded_temporal(expr)
+    }
+
+    /// SQL-mode normalizer variant for DataFusion.
+    ///
+    /// Identical to `normalize` (same pre-checks, same AST traversal) EXCEPT that
+    /// `Literal::Timestamp` values are emitted as:
+    ///
+    ///   `arrow_cast('<iso>', 'Timestamp(Microsecond, Some("UTC"))')`
+    ///
+    /// instead of the bare `'<iso>'` that `normalize` emits.  The bare form relies
+    /// on DataFusion's implicit string→timestamp coercion (ADR-052 §RISK-1), which
+    /// is non-deterministic across DataFusion minor versions.  The `arrow_cast` form
+    /// produces an explicit `Timestamp(Microsecond, Some("UTC"))` literal that
+    /// compares directly against `Timestamp(Microsecond, UTC)` columns without
+    /// implicit coercion.
+    ///
+    /// BC-2.11.018 round-trip invariant: `normalize` MUST NOT be changed to emit
+    /// `arrow_cast` — the round-trip form must remain re-parseable by the Chumsky
+    /// grammar (which has no `arrow_cast` production rule).  This method exists
+    /// precisely to keep the two paths separate (ADR-052 §D4 v1.5 SQL-Mode Addendum).
+    ///
+    /// Used by `execute_against_session` for the `Ast::Sql(Select)` DataFusion
+    /// emission path (S-PRISMQL-NATIVE-TEMPORAL-TYPING-001).
+    pub(crate) fn normalize_for_datafusion(ast: &Ast) -> Option<String> {
+        // Drop guard: restore the thread-local to its prior value even if `normalize`
+        // panics.  Save-and-restore (not hard-set false) so that nested calls to
+        // `normalize_for_datafusion` do not destroy an outer caller's mode setting.
+        // (ADR-052 §D4 v1.6 LOW-1.)
+        struct DataFusionModeGuard {
+            prior: bool,
+        }
+        impl Drop for DataFusionModeGuard {
+            fn drop(&mut self) {
+                NORMALIZE_FOR_DATAFUSION.with(|m| m.set(self.prior));
+            }
+        }
+        let prior = NORMALIZE_FOR_DATAFUSION.with(|m| m.get());
+        NORMALIZE_FOR_DATAFUSION.with(|m| m.set(true));
+        let _guard = DataFusionModeGuard { prior };
+        Self::normalize(ast)
+    }
+
+    /// DataFusion-mode literal emitter: emits `arrow_cast(...)` for
+    /// `Literal::Timestamp`, delegates to `normalize_literal` for all other
+    /// literal variants.
+    ///
+    /// This is the per-literal building block for `normalize_for_datafusion`.  It
+    /// is invoked automatically when the `NORMALIZE_FOR_DATAFUSION` thread-local
+    /// flag is `true` — specifically, `normalize_literal_dispatch` (called from
+    /// every `normalize_literal` call site during AST traversal) checks the flag
+    /// and routes to this function.  Callers set the flag by calling
+    /// `normalize_for_datafusion`, which installs a `DataFusionModeGuard` and then
+    /// calls `normalize`.  The `execute_against_session` `Ast::Sql` and `Ast::SqlPipe`
+    /// arms in `materialization.rs` are the production call sites.
+    ///
+    /// Also exposed `pub(crate)` so tests can assert the exact emission format
+    /// independently of the full AST traversal path.
+    ///
+    /// ADR-052 §D4 v1.5 SQL-Mode DataFusion Emission Addendum.
+    pub(crate) fn normalize_literal_for_datafusion(lit: &Literal) -> String {
+        match lit {
+            Literal::Timestamp(ts) => format!(
+                "arrow_cast('{}', 'Timestamp(Microsecond, Some(\"UTC\"))')",
+                // SEC-001 (CWE-20): escape embedded single-quotes via SQL doubling so no
+                // future in-crate direct-AST-construction can inject into the arrow_cast
+                // string. For valid RFC-3339 input (no `'` chars), replace is a no-op —
+                // byte-identical output preserves RG-003/RG-010 assertions.
+                ts.iso8601.replace('\'', "''")
+            ),
+            other => Self::normalize_literal(other),
+        }
     }
 
     /// SEC-001 helper: returns `true` if any string-**literal**-bearing node in `ast`
@@ -2007,7 +2102,11 @@ impl PqlNormalizer {
                 values,
                 negated,
             } => {
-                let vals: Vec<String> = values.iter().map(Self::normalize_literal).collect();
+                // Use dispatch so Timestamp literals emit arrow_cast in DataFusion mode.
+                let vals: Vec<String> = values
+                    .iter()
+                    .map(Self::normalize_literal_dispatch)
+                    .collect();
                 let not_kw = if *negated { "NOT IN" } else { "IN" };
                 format!(
                     "{} {not_kw} ({})",
@@ -2031,11 +2130,12 @@ impl PqlNormalizer {
                 negated,
             } => {
                 let not_kw = if *negated { "NOT BETWEEN" } else { "BETWEEN" };
+                // Use dispatch so Timestamp literals emit arrow_cast in DataFusion mode.
                 format!(
                     "{} {not_kw} {} AND {}",
                     Self::normalize_field_path(field),
-                    Self::normalize_literal(low),
-                    Self::normalize_literal(high)
+                    Self::normalize_literal_dispatch(low),
+                    Self::normalize_literal_dispatch(high)
                 )
             }
             Predicate::Cidr {
@@ -2138,7 +2238,11 @@ impl PqlNormalizer {
             }
             Expr::Not(inner) => format!("NOT {}", Self::normalize_expr(inner)),
             Expr::In { field, values } => {
-                let vals: Vec<String> = values.iter().map(Self::normalize_literal).collect();
+                // Use dispatch so Timestamp literals emit arrow_cast in DataFusion mode.
+                let vals: Vec<String> = values
+                    .iter()
+                    .map(Self::normalize_literal_dispatch)
+                    .collect();
                 format!(
                     "{} IN ({})",
                     Self::normalize_field_path(field),
@@ -2247,7 +2351,22 @@ impl PqlNormalizer {
         }
     }
 
-    fn normalize_literal(lit: &Literal) -> String {
+    /// Mode-dispatching wrapper: returns `normalize_literal_for_datafusion` when the
+    /// NORMALIZE_FOR_DATAFUSION thread-local is set (i.e., the call is made from
+    /// within `normalize_for_datafusion`), otherwise returns `normalize_literal`.
+    ///
+    /// Call sites that can carry `Literal::Timestamp` values (Compare predicates,
+    /// IN/BETWEEN expressions) MUST use this helper instead of calling
+    /// `normalize_literal` directly so that the DataFusion mode is respected.
+    fn normalize_literal_dispatch(lit: &Literal) -> String {
+        if NORMALIZE_FOR_DATAFUSION.with(|m| m.get()) {
+            Self::normalize_literal_for_datafusion(lit)
+        } else {
+            Self::normalize_literal(lit)
+        }
+    }
+
+    pub(crate) fn normalize_literal(lit: &Literal) -> String {
         match lit {
             // BC-2.11.018 round-trip invariant: emit a form the grammar CAN re-parse.
             // All string-wrapping emit sites use `emit_quoted_string` (F-001B-FRESH-HIGH-001
@@ -2277,22 +2396,39 @@ impl PqlNormalizer {
                 };
                 format!("{}{unit_str}", d.value())
             }
-            // Cidr and Timestamp values are produced by validated parsers; they cannot contain
-            // `'` (CIDR strings are dotted-decimal/colon hex + slash prefix; ISO-8601 timestamps
-            // use digits/hyphens/colons/Z/+). Single-quoted form is always safe.
+            // Cidr values are produced by a validated parser (dotted-decimal/colon hex + slash
+            // prefix); they cannot contain `'`. Single-quoted form is always safe.
             Literal::Cidr(c) => format!("'{}'", c.cidr),
             // Regex patterns CAN contain `'` (e.g. `can't`). Use emit_quoted_string.
             // (F-001B-FRESH-HIGH-001 sibling-sweep fix)
             Literal::Regex(r) => Self::emit_quoted_string(&r.pattern),
             Literal::IpAddr(ip) => ip.0 .0.to_string(),
-            Literal::Timestamp(ts) => format!("'{}'", ts.iso8601),
+            // SEC-001 MED-1 (round-trip sweep, TD-VSDD-060): route through emit_quoted_string
+            // to match the String arm convention and provide defense-in-depth against direct
+            // in-crate AST construction with embedded `'`. For valid RFC-3339 (no `'` possible),
+            // emit_quoted_string produces a single-quoted form byte-identical to the pre-fix
+            // `format!("'{}'", ts.iso8601)`. The grammar's single-quoted rule (none_of('\''))
+            // CANNOT represent embedded `'`; emit_quoted_string switches to double-quoted form
+            // for that impossible-in-practice case — preserving re-parseability.
+            Literal::Timestamp(ts) => Self::emit_quoted_string(&ts.iso8601),
+            // TD-VSDD-060 / HIGH-1 + MED-3 fix: explicit arm — must never be reached because
+            // check_temporal_literals consumes RawTemporalLiteral before normalization.
+            // Emit as a properly-quoted string (emit_quoted_string) so DataFusion can at minimum
+            // reject it with a type-mismatch error rather than a tokenization crash caused by
+            // the hyphens in a sentinel like `__raw_temporal_unvalidated_2026-07-03__` which
+            // DataFusion misparses as arithmetic subtraction (MED-3 defense-in-depth fix).
+            Literal::RawTemporalLiteral(s) => Self::emit_quoted_string(s),
             _ => "NULL".to_string(), // non_exhaustive arm
         }
     }
 
-    /// Normalize a literal in expression context (same as `normalize_literal`).
+    /// Normalize a literal in expression context.
+    ///
+    /// Routes through `normalize_literal_dispatch` so that the DataFusion mode
+    /// (set by `normalize_for_datafusion`) is respected: Timestamp literals emit
+    /// `arrow_cast(...)` instead of bare `'<iso>'` when the mode flag is set.
     fn normalize_literal_as_expr(lit: &Literal) -> String {
-        Self::normalize_literal(lit)
+        Self::normalize_literal_dispatch(lit)
     }
 }
 
@@ -3024,6 +3160,204 @@ mod obs_1_sqlpipe_prechek_parity_tests {
             "OBS-1: ast_has_unfolded_temporal_expr must detect Expr::Now in SqlPipe pipe stage \
              and cause normalize to return None; got: {:?}",
             result
+        );
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOW-1: DataFusionModeGuard save-and-restore tests
+//
+// ADR-052 §D4 v1.6: DataFusionModeGuard::drop MUST restore the prior value of
+// NORMALIZE_FOR_DATAFUSION, NOT hard-set it to false.
+//
+// Bug: current Drop implementation calls `m.set(false)` unconditionally.
+// Fix: save the prior bool on construction; Drop restores saved value.
+//
+// The nesting test below constructs a scenario where the thread-local is `true`
+// when normalize_for_datafusion is called, and asserts the guard restores it to
+// `true` on Drop.  With the current hard-set=false implementation the assertion
+// FAILS (RED).  After the fix it PASSES (GREEN).
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
+mod low1_datafusion_guard_tests {
+    use super::*;
+
+    /// LOW-1 nesting test: `DataFusionModeGuard::drop` must RESTORE the prior value
+    /// of `NORMALIZE_FOR_DATAFUSION`, not hard-set it to `false`.
+    ///
+    /// Scenario:
+    ///   1. Thread-local is manually set to `true` (simulating an outer
+    ///      `normalize_for_datafusion` guard already active on the call stack).
+    ///   2. `normalize_for_datafusion` is called (inner call) — it creates its own
+    ///      `DataFusionModeGuard` and then drops it when the function returns.
+    ///   3. After the inner call returns, the thread-local MUST still be `true`
+    ///      because the inner guard must restore the value it found on construction
+    ///      (true), not hard-set false.
+    ///
+    /// RED GATE: with current `impl Drop { m.set(false) }`, the inner guard
+    /// unconditionally sets false → assertion FAILS.
+    ///
+    /// GREEN (after fix): `DataFusionModeGuard` saves `prior = m.get()` on construction
+    /// and restores it in Drop → thread-local remains `true` → assertion PASSES.
+    ///
+    /// Traces to: ADR-052 §D4 v1.6 LOW-1.
+    #[test]
+    fn test_low1_normalize_for_datafusion_guard_save_restore_nesting() {
+        // Step 1: Manually set thread-local to true (outer guard context).
+        NORMALIZE_FOR_DATAFUSION.with(|m| m.set(true));
+
+        // Step 2: Call normalize_for_datafusion (inner call).
+        // A minimal valid SQL AST with a Timestamp literal.
+        let now = chrono::Utc::now();
+        let ts_lit = TimestampLiteral {
+            iso8601: now.to_rfc3339(),
+            instant: now,
+        };
+        let sql = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Star]),
+            FromClause::new(SourceRef::from_raw("test_table")),
+        )
+        .with_where(Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["timestamp"]))),
+            op: CompareOp::Gt,
+            rhs: Box::new(Expr::Literal(Literal::Timestamp(ts_lit))),
+        });
+        let ast = Ast::Sql(SqlStatement::Select(sql));
+
+        // Inner call — the guard must restore NORMALIZE_FOR_DATAFUSION to true (prior),
+        // NOT hard-set it to false.
+        let result = PqlNormalizer::normalize_for_datafusion(&ast);
+        assert!(
+            result.is_some(),
+            "LOW-1 nesting test precondition: normalize_for_datafusion must return Some for \
+             valid SQL AST. Got None."
+        );
+
+        // Verify the inner call emitted arrow_cast (correct operation).
+        let sql_str = result.unwrap();
+        assert!(
+            sql_str.contains("arrow_cast("),
+            "LOW-1 nesting test precondition: inner normalize_for_datafusion must emit \
+             arrow_cast for Literal::Timestamp. Got: {sql_str:?}"
+        );
+
+        // Step 3: Assert the thread-local was restored to true (the prior value).
+        let state_after_inner_call = NORMALIZE_FOR_DATAFUSION.with(|m| m.get());
+        assert!(
+            state_after_inner_call,
+            "LOW-1: DataFusionModeGuard::drop must RESTORE prior value (true) rather than \
+             hard-setting false. After the inner normalize_for_datafusion call returned, \
+             NORMALIZE_FOR_DATAFUSION should be true (the value it had before the inner call). \
+             Got false — the hard-set=false Drop destroyed the outer context's setting. \
+             Fix: save `prior = m.get()` in DataFusionModeGuard, restore in Drop."
+        );
+
+        // Cleanup: reset thread-local to false so we don't leak state into other tests.
+        NORMALIZE_FOR_DATAFUSION.with(|m| m.set(false));
+    }
+
+    /// LOW-1 basic: after a top-level `normalize_for_datafusion` call (thread-local
+    /// starts false), the guard must restore it to false.
+    ///
+    /// This is the normal (non-nested) case — must continue to work after the save-and-restore
+    /// fix.  A regression here would mean the guard accidentally keeps the flag set.
+    #[test]
+    fn test_low1_normalize_for_datafusion_guard_resets_to_false_for_top_level_call() {
+        // Thread-local starts at false (normal initial state for each thread).
+        NORMALIZE_FOR_DATAFUSION.with(|m| m.set(false));
+
+        let now = chrono::Utc::now();
+        let ts_lit = TimestampLiteral {
+            iso8601: now.to_rfc3339(),
+            instant: now,
+        };
+        let sql = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Star]),
+            FromClause::new(SourceRef::from_raw("test_table")),
+        )
+        .with_where(Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["ts"]))),
+            op: CompareOp::Gt,
+            rhs: Box::new(Expr::Literal(Literal::Timestamp(ts_lit))),
+        });
+        let ast = Ast::Sql(SqlStatement::Select(sql));
+
+        let _ = PqlNormalizer::normalize_for_datafusion(&ast);
+
+        // After the top-level call, the thread-local must be false (restored to prior=false).
+        let state_after = NORMALIZE_FOR_DATAFUSION.with(|m| m.get());
+        assert!(
+            !state_after,
+            "LOW-1 basic: after a top-level normalize_for_datafusion call (prior=false), \
+             the guard must restore the thread-local to false. Got true — the guard is \
+             leaking the DataFusion mode flag."
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // SEC-001 regression guards — CWE-20 single-quote neutralization
+    // -----------------------------------------------------------------------
+
+    /// SEC-001: `normalize_literal_for_datafusion` must SQL-double any single-quote
+    /// embedded in `TimestampLiteral.iso8601` so the arrow_cast first argument is
+    /// injection-safe even for hypothetically adversarial direct-AST construction.
+    ///
+    /// RFC-3339 validation in `TimestampLiteral::new()` PREVENTS such values from
+    /// entering via the parser path. This test targets defense-in-depth for future
+    /// in-crate direct struct construction (the only remaining injection vector).
+    ///
+    /// Verifies: single-quote is doubled (`'` → `''`), NOT passed through.
+    #[test]
+    fn test_sec_001_normalize_literal_for_datafusion_escapes_single_quote() {
+        use chrono::Utc;
+        // Simulate an adversarially-constructed TimestampLiteral with an injection
+        // payload in iso8601. This is parser-unreachable (RFC-3339 does not include `'`),
+        // but reachable via direct struct construction inside the crate.
+        let ts_lit = TimestampLiteral {
+            iso8601: "2026-07-03T00:00:00Z' OR '1'='1".to_string(),
+            instant: Utc::now(),
+        };
+        let emitted = PqlNormalizer::normalize_literal_for_datafusion(&Literal::Timestamp(ts_lit));
+        // Must NOT contain the raw injection sequence.
+        assert!(
+            !emitted.contains("Z' OR '1'='1"),
+            "SEC-001: raw single-quote injection must be neutralized. Got: {emitted:?}"
+        );
+        // Must contain the SQL-doubled form.
+        assert!(
+            emitted.contains("Z'' OR ''1''=''1"),
+            "SEC-001: single-quotes in iso8601 must be SQL-doubled (`'` → `''`). \
+             Got: {emitted:?}"
+        );
+    }
+
+    /// SEC-001 byte-identity: for valid RFC-3339 (no single-quotes), `replace` is a
+    /// no-op — output is byte-identical to the pre-fix form.
+    ///
+    /// This guards RG-003/RG-010 — those tests assert the EXACT
+    /// `arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(…)')` string. If the escape
+    /// were not a no-op for clean input, it would break those tests.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn test_sec_001_normalize_literal_for_datafusion_noop_for_valid_rfc3339() {
+        use chrono::Utc;
+        let instant = chrono::DateTime::parse_from_rfc3339("2026-07-03T00:00:00Z")
+            .expect("known-good RFC-3339 must parse")
+            .with_timezone(&Utc);
+        let ts_lit = TimestampLiteral {
+            iso8601: "2026-07-03T00:00:00Z".to_string(),
+            instant,
+        };
+        let emitted = PqlNormalizer::normalize_literal_for_datafusion(&Literal::Timestamp(ts_lit));
+        let expected =
+            r#"arrow_cast('2026-07-03T00:00:00Z', 'Timestamp(Microsecond, Some("UTC"))')"#;
+        assert_eq!(
+            emitted, expected,
+            "SEC-001 byte-identity: for valid RFC-3339, normalize_literal_for_datafusion \
+             must produce the exact arrow_cast form (guards RG-003/RG-010). \
+             Got: {emitted:?}"
         );
     }
 }

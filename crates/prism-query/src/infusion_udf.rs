@@ -199,6 +199,9 @@ impl ScalarUDFImpl for InfusionAsyncUdf {
         // Simplified: always returns Utf8 for the current implementation.
         // Full typed mapping of `descriptor.output_type` → Arrow DataType is deferred
         // to S-1.14-REDO (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001); not in PIVOT-001 scope.
+        // ADR-052: sensor datetime columns → Timestamp(Microsecond, Some("UTC")) (ADR-052).
+        // ADR-051 (not yet implemented) will add a per-output_type branch here to bring
+        // enrichment datetime fields to the same type.
         Ok(DataType::Utf8)
     }
 
