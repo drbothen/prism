@@ -628,8 +628,14 @@ impl InfusionAsyncUdf {
                 if let Ok(i) = trimmed.parse::<i64>() {
                     return Some(serde_json::Value::Number(i.into()));
                 }
-                // Fallback: parse as JSON number (handles "42.0" where the plugin returns
-                // a floating-point representation of an integer).
+                // Fallback: try parsing as a JSON Number literal.
+                // Handles edge cases where a plugin returns a bare JSON integer encoded as a
+                // Number (e.g., the string "42" is also a valid JSON integer, though
+                // i64::from_str already handles it; this covers other unusual JSON-number forms).
+                // IMPORTANT — float-valued JSON numbers such as "42.0" or "95.7" are backed
+                // as f64 internally by serde_json; n.as_i64() returns None for f64-backed
+                // Numbers, so they correctly yield NULL + E-INFUSE-014 per EC-002.
+                // "42.0" does NOT coerce to 42 — float strings into integer fields produce NULL.
                 if let Ok(serde_json::Value::Number(n)) =
                     serde_json::from_str::<serde_json::Value>(trimmed)
                 {
@@ -2593,6 +2599,83 @@ mod tests {
             result.is_none(),
             "ADR-051 D4 RGT-010 E-INFUSE-014: JSON-list input '[...]' to integer UDF must \
              return None (Scalar-Input rule). Got: {:?}",
+            result
+        );
+    }
+
+    // ── LOW-001 + OBS-002 (LOCAL adversary pass-3): EC-002 / EC-006 assertions ────────────
+    // These tests are load-bearing: they prevent future maintainers from accidentally
+    // "fixing" the Int64 fallback to convert float strings to integers.
+
+    /// EC-002 (ADR-051 D2): float-valued string into Int64 field yields NULL + E-INFUSE-014.
+    ///
+    /// serde_json parses "95.7" as an f64-backed Number; n.as_i64() returns None for
+    /// f64-backed Numbers, so "95.7" → Int64 correctly produces NULL.
+    ///
+    /// The prior comment in the Int64 branch said "handles '42.0' where the plugin returns
+    /// a floating-point representation of an integer" — this was BACKWARDS. The comment has
+    /// been corrected; this test is the load-bearing assertion that guards against reverting
+    /// the behavior to silently truncate floats into integers (a data corruption regression).
+    #[test]
+    fn test_ec002_float_string_to_integer_yields_null() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("95.7");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score",
+            "ip",
+            "integer",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // EC-002: "95.7" → i64::from_str fails (decimal point present).
+        // serde_json::from_str("95.7") → Number backed as f64.
+        // n.as_i64() returns None for f64-backed serde_json::Number → NULL + E-INFUSE-014.
+        // "95.7" does NOT coerce to 95; float strings into integer fields produce NULL.
+        let result = udf.coerce_to_typed("95.7", &DataType::Int64, "threat_score");
+        assert!(
+            result.is_none(),
+            "EC-002 (ADR-051 D2 LOW-001): coerce_to_typed('95.7', Int64, 'threat_score') must \
+             return None. Float-valued JSON numbers yield NULL + E-INFUSE-014; they do NOT \
+             coerce to the nearest integer (that would be silent data corruption). Got: {:?}",
+            result
+        );
+    }
+
+    /// EC-006 (ADR-051 D2): empty string into any typed field yields NULL + E-INFUSE-014.
+    ///
+    /// An empty "" input means the source returned no value or the upstream column was blank.
+    /// Both i64::from_str("") and serde_json::from_str("") fail → None → NULL.
+    #[test]
+    fn test_ec006_empty_input_yields_null() {
+        use datafusion::arrow::datatypes::DataType;
+
+        let (_, src) = CountingSource::new_returning("");
+        let descriptor = InfusionUdfDescriptor::new(
+            "threat_score",
+            "ip",
+            "integer",
+            "threat_intel",
+            src,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+            "",
+        );
+        let udf = super::InfusionAsyncUdf::new(descriptor);
+
+        // EC-006: "" → i64::from_str("") fails → serde_json::from_str("") fails →
+        // None → NULL + E-INFUSE-014. Empty input must never produce a default value.
+        let result = udf.coerce_to_typed("", &DataType::Int64, "threat_score");
+        assert!(
+            result.is_none(),
+            "EC-006 (ADR-051 D2 OBS-002): coerce_to_typed('', Int64, 'threat_score') must \
+             return None. Empty input yields NULL + E-INFUSE-014 (no default substitution). \
+             Got: {:?}",
             result
         );
     }
