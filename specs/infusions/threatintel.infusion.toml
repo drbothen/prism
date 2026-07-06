@@ -2,10 +2,10 @@
 #
 # Updated in S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (ADR-051 D3/D4):
 #   - Added source_column to all three plugin-type fields (ADR-051 D3 sub-condition 8).
-#   - Changed input_field for typed fields (integer, boolean) from "iocs_value" (JSON-list)
+#   - Changed input_field for ALL fields (integer, boolean, json) from "iocs_value" (JSON-list)
 #     to "iocs_value_first" (scalar companion — ADR-051 D4 Scalar-Input rule).
-#   - "threat_sources" retains input_field = "iocs_value" because it is output_type = "json"
-#     and the ENRICH-1 list-dispatch path is intentionally retained for json-typed fields.
+#   - ALL three fields use iocs_value_first: using iocs_value (JSON-list) triggers ENRICH-1
+#     list-dispatch which double-encodes Vec<String> arrays — Failure A (ADV-P11-OBS-001).
 #
 # Grounded against prism-dtu-threatintel route surface (ADR-028/ADR-031, SAP-2):
 #   - GET /v3/ip/:ip (lookup.rs:162)
@@ -73,9 +73,10 @@ env_var    = "PRISM_THREATINTEL_API_KEY"
 # Column in TOML with no DTU equivalent = P1 CRITICAL (SAP-2).
 #
 # ADR-051 D3 (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001): plugin-type fields MUST declare source_column.
-# ADR-051 D4 Scalar-Input rule: typed enrichment fields (integer, boolean) use the scalar
-#   companion column `iocs_value_first` as input_field — not the JSON-list `iocs_value`.
-#   The json-typed "threat_sources" field retains `iocs_value` (ENRICH-1 list-dispatch).
+# ADR-051 D4 Scalar-Input rule: ALL enrichment fields (integer, boolean, json) use the
+#   scalar companion column `iocs_value_first` as input_field — not the JSON-list `iocs_value`.
+#   json-typed fields are NOT exempt: iocs_value triggers ENRICH-1 list-dispatch which
+#   double-encodes Vec<String> arrays (Failure A — ADV-P11-OBS-001).
 
 [[infusion.fields]]
 name = "threat_is_known_malicious"
@@ -95,7 +96,7 @@ description = "Threat intelligence confidence score (0-100)"
 
 [[infusion.fields]]
 name = "threat_sources"
-input_field = "iocs_value"
+input_field = "iocs_value_first"
 input_type = "ioc"
 output_type = "json"
 source_column = "threat_sources"
