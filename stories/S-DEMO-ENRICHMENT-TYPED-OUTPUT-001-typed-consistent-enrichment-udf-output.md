@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.12"
+version: "1.13"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-05T00:00:00Z"
 created: "2026-07-05"
-modified: "2026-07-06T22:00:00Z"
+modified: "2026-07-06T23:00:00Z"
 tdd_mode: strict
 subsystems: [SS-09, SS-10, SS-19]
 # Subsystem anchor justifications:
@@ -32,7 +32,7 @@ behavioral_contracts: [BC-2.19.001, BC-2.16.002]
 # E-INFUSE-013 sub-cond 7 (unknown output_type), and E-INFUSE-014 (TypeCoercionFailed).
 # Every AC in this story traces back to a BC-2.19.001 postcondition or invariant.
 #
-# BC-2.16.002 v1.96: SAP-1 standing obligation — a Canonical Structured Event Catalog row
+# BC-2.16.002 v1.97: SAP-1 standing obligation — a Canonical Structured Event Catalog row
 # for event_type = "infusion.coercion_failed" MUST be registered before the implementation
 # PR merges (per ADR-051 D2 and CLAUDE.md §SAP-1). AC-012 anchors this obligation.
 # Both BCs cited by ACs below; bidirectional trace requirement satisfied.
@@ -171,7 +171,7 @@ faithfully represents production enrichment behavior and numeric filters work co
 | BC | Version | Title | Key Clauses Used |
 |----|---------|-------|-----------------|
 | BC-2.19.001 | v2.2 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | INV-ENRICH-TYPED-001; INV-INFUSE-001 (extended); Typed UDF output postcondition; Plugin-type field projection postcondition; E-INFUSE-013 sub-conditions 7 and 8; E-INFUSE-014; EC-19-008; EC-19-009; TV-19-001-typed-{integer,float,boolean,datetime}; TV-19-001-coerce-fail-{integer,datetime}; TV-19-001-json-list-typed-output; TV-19-001-plugin-no-source-col; TV-19-001-unknown-output-type |
-| BC-2.16.002 | v1.96 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | SAP-1 Canonical Structured Event Catalog: new row for event_type = "infusion.coercion_failed" must be added in same commit as the tracing::warn! emission (per ADR-051 D2 E-INFUSE-014 section) |
+| BC-2.16.002 | v1.97 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | SAP-1 Canonical Structured Event Catalog: new row for event_type = "infusion.coercion_failed" must be added in same commit as the tracing::warn! emission (per ADR-051 D2 E-INFUSE-014 section) |
 
 ---
 
@@ -417,7 +417,7 @@ Red Gate: `test_ac011_cyberint_alerts_iocs_value_first_column_via_jsonpath` (pri
 Red Gate: `test_ac011_crowdstrike_detections_behaviors_ioc_value_first_column_via_jsonpath` (prism-dtu-crowdstrike/src/generator.rs; reads source_path from crowdstrike.sensor.toml; asserts `$.behaviors[0].ioc_value` JSONPath value; also asserts top-level `behaviors_ioc_value_first` scalar field is ABSENT from the generated record)
 
 ### AC-012 — BC-2.16.002 Canonical Structured Event Catalog gains row for infusion.coercion_failed (SAP-1)
-(traces to BC-2.16.002 v1.96 SAP-1 Canonical Structured Event Catalog standing obligation; BC-2.19.001 v2.2 E-INFUSE-014 — "BC-2.16.002 catalog row required for event_type = 'infusion.coercion_failed' (SAP-1)")
+(traces to BC-2.16.002 v1.97 SAP-1 Canonical Structured Event Catalog standing obligation; BC-2.19.001 v2.2 E-INFUSE-014 — "BC-2.16.002 catalog row required for event_type = 'infusion.coercion_failed' (SAP-1)")
 
 Given `.factory/specs/behavioral-contracts/BC-2.16.002-*.md` after this story,
 when the Canonical Structured Event Catalog table is inspected,
@@ -786,7 +786,7 @@ risk_mitigations for the full runtime chain. RGT-023 enforces this at the test l
 | ADR-040 v2.0 | Dual-path infusion architecture (HttpLookup NVD + WASM ThreatIntel); no changes to the architecture in this story |
 | ADR-024 | prism_core::column::ColumnType six-type vocabulary; alignment with infusion output_type vocabulary |
 | BC-2.19.001 v2.2 | Primary behavioral contract: INV-ENRICH-TYPED-001, Plugin-type field projection, E-INFUSE-013 sub-conds 7/8, E-INFUSE-014 |
-| BC-2.16.002 v1.96 | SAP-1 catalog row obligation for infusion.coercion_failed |
+| BC-2.16.002 v1.97 | SAP-1 catalog row obligation for infusion.coercion_failed |
 | error-taxonomy v2.17 | E-INFUSE-013 sub-conditions 7/8 added; E-INFUSE-014 TypeCoercionFailed allocated; SEC-001 Rendering Note (CWE-117 control-char sanitization) and SEC-002 Assessment (CWE-770 boolean size cap) added in v2.17 |
 | DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 | Root defect this story closes: return_type() hardcoded Utf8; missing source_column on ThreatIntel |
 | T13 audit OBS-1 | Original defect documentation: doubly-encoded JSON + lexicographic CVSS comparison bugs |
@@ -800,6 +800,7 @@ risk_mitigations for the full runtime chain. RGT-023 enforces this at the test l
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.13 | 2026-07-06 | story-writer | **BC-2.16.002 v1.96→v1.97 pin propagation (POL-23, ADV-PR-P1-LOW-001).** Product-owner bumped BC-2.16.002 v1.96→v1.97 (catalog field descriptions now document `sanitize_for_log`/CWE-117 sanitization). Updated all four non-historical BC-2.16.002 v1.96 pin sites to v1.97: (1) frontmatter comment (`# BC-2.16.002 v1.97:`), (2) Behavioral Contracts table row (`v1.97`), (3) AC-012 trace citation (`traces to BC-2.16.002 v1.97`), (4) References table row (`BC-2.16.002 v1.97`). No AC semantics, BC contract clauses, Red Gate tests, or code changes. |
 | 1.12 | 2026-07-06 | story-writer | **fix-burst-14 test additions (POL-1 append-only, RGT-027).** **(1 new Red Gate test — RGT-027)** Added `test_new_sec001_r_warn_coercion_failed_structured_fields_no_raw_control_chars` (prism-query, infusion_udf.rs; AC-005 SEC-001 NEW-SEC-001-R, CWE-117, fix-burst-14): asserts structured tracing fields of `tracing::warn!(event_type = "infusion.coercion_failed", ...)` are control-char-sanitized (distinct from RGT-025 metadata-fields and RGT-026 truncated_value, which test variant construction; RGT-027 tests the warn! call site itself). red_gate_tests 26→27. **(1 new regression guard, not counted)** Added `test_new_cr005_oversized_boolean_input_emits_coercion_failed_event_and_returns_null` (prism-query; CR-005): asserts oversized boolean input EMITS E-INFUSE-014 event AND returns None; guards the 5-site emission refactor — NOT counted in red_gate_tests. **(Count/range sweep)** Phase A prism-query subset: "19" → "20", range "25–26" → "25–27"; Phase D total: "all 26" → "all 27"; test placement Note: "25–26" → "25–27" + added CR-005 regression guard to note; points justification item 12: "26 tests" → "27 tests". AC-005 body: RGT-027 Red Gate line appended after RGT-026. |
 | 1.11 | 2026-07-06 | story-writer | **fix-burst-13 test additions + error-taxonomy v2.17 pin (POL-23).** **(3 new Red Gate tests — RGT-024/025/026)** Added SEC-001 control-char sanitization Red Gate tests: RGT-024 `test_sec001_e_infuse_013_sub_cond_7_control_chars_stripped_from_rendered_message` (prism-spec-engine, enrichment_pivot_002_tests.rs; AC-007 SEC-001), RGT-025 `test_sec001_type_coercion_failed_ctrl_chars_stripped_from_metadata_fields` (prism-query; AC-005 SEC-001 metadata fields), RGT-026 `test_sec001_type_coercion_failed_ctrl_chars_stripped_from_truncated_value_after_truncation` (prism-query; AC-005 SEC-001 truncated_value post-truncation). red_gate_tests 23→26. **(RGT-011 annotation)** Existing RGT-011 row annotated with "fix-burst-13: assertion updated for CR-002 message body (not a new test — POL-1)". **(SEC-002 regression guard)** Added `test_sec002_boolean_coercion_oversized_input_yields_null_regression_guard` as a clearly-labeled regression guard row (NOT counted in red_gate_tests). **(POL-23 error-taxonomy pin)** References table updated v2.16→v2.17; description expanded with SEC-001/SEC-002 note. Changelog v1.0/v1.7/v1.10 historical v2.16 entries left intact. **(Count/phase sweep)** Phase A "17" → "19 Red Gate tests (tests 1–10, 17–23, and 25–26)"; Phase B "tests 11–14" → "tests 11–14 and 24"; Phase D "all 23" → "all 26 Red Gate tests"; test crate placement Note updated to "Tests 1–10, 17–23, 25–26" (prism-query) and "Tests 11–12, 24" (prism-spec-engine). Points justification item 12: "23 tests" → "26 tests". AC-005 and AC-007 body Red Gate lines updated with RGT-025/026 and RGT-024 references respectively. |
 | 1.10 | 2026-07-06 | product-owner | **PR #216 spec-side findings CR-002 + SEC-001 + SEC-002.** **(CR-002) AC-007 E-INFUSE-013 sub-cond 7 message format updated (verbatim with error-taxonomy v2.17):** `{message}` body now reads `"field entry '{field_name}' declares unknown output_type '{value}'; must be one of: string, integer, float, boolean, json, datetime (datetime maps to Timestamp(µs,UTC) per ADR-051 v1.2 / ADR-052)"`. The `{field}` header slot remains the literal `"output_type"` (MED-001 constraint unchanged). CR-002 sibling (sub-cond 8) assessed in AC-006: sub-cond 8 already names the field entry via `{name}` — no message format change, but explicit sibling-compliance note added. **(SEC-001) CWE-117 sanitization requirements added to three ACs:** AC-005 (`TypeCoercionFailed` construction — `field_name`, `infusion_id`, `declared_type` + `truncated_value` post-truncation), AC-006 (sub-cond 8 `{name}` + `{infusion_id}`), AC-007 (sub-cond 7 `output_type` value + `field_name`). Implementer must apply control-char stripping before variant construction. **(SEC-002) CWE-770 boolean branch size-cap requirement added to AC-004:** `if s.len() > 1024 { return None }` guard required before `to_lowercase()` on boolean coercion path (NULL + E-INFUSE-014 outcome unchanged; bounded-cost optimization). Determination: E-INFUSE-014 already covers oversized input; no new taxonomy entry. Companion: error-taxonomy v2.16→v2.17. |
