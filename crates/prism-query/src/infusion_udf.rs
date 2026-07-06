@@ -450,6 +450,95 @@ impl InfusionAsyncUdf {
         source_result.as_ref().map(|v| self.project_value(v))
     }
 
+    /// Maps `descriptor.output_type` to the canonical Arrow `DataType` per ADR-051 D1.
+    ///
+    /// Called by `return_type()` (ScalarUDFImpl) and `invoke_async_with_args` to select
+    /// the correct typed array builder. The D1 canonical mapping table is:
+    ///
+    /// | `output_type` | Arrow `DataType`                                |
+    /// |---------------|-------------------------------------------------|
+    /// | `"string"`    | `DataType::Utf8`                                |
+    /// | `"integer"`   | `DataType::Int64`                               |
+    /// | `"float"`     | `DataType::Float64`                             |
+    /// | `"boolean"`   | `DataType::Boolean`                             |
+    /// | `"json"`      | `DataType::Utf8` (JSON as UTF-8 string)         |
+    /// | `"datetime"`  | `DataType::Timestamp(Microsecond, Some("UTC"))` |
+    /// | unknown       | `DataType::Utf8` fallback (E-INFUSE-013 sub-cond 7 |
+    /// |               | prevents unknown types from reaching UDF in prod)|
+    ///
+    /// ADR-051 D1; ADR-052 datetime = Timestamp(µs,UTC). Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001.
+    ///
+    /// BC-5.38.001 self-check: "If I include this real implementation, will the test for
+    /// this function pass trivially without any implementer work?" YES — `todo!()` panics
+    /// on any call, including from `test_return_type_matches_output_type_for_all_declared_types`.
+    /// Red Gate holds.
+    #[allow(dead_code)] // Removed when wired into return_type() and invoke_async_with_args (Phase F/H).
+    fn output_arrow_type(&self) -> DataType {
+        todo!(
+            "S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Phase F: implement ADR-051 D1 \
+             output_type→Arrow DataType mapping (string→Utf8, integer→Int64, float→Float64, \
+             boolean→Boolean, json→Utf8, datetime→Timestamp(Microsecond, Some(\"UTC\")))"
+        )
+    }
+
+    /// Coerce a projected string value to the Arrow typed representation declared by `output_type`.
+    ///
+    /// Returns `Some(typed_value)` on successful coercion, or `None` on failure.
+    /// On failure, emits:
+    /// ```text
+    /// tracing::warn!(
+    ///     event_type = "infusion.coercion_failed",
+    ///     field_name = %field_name,
+    ///     infusion_id = %self.descriptor.infusion_id,
+    ///     declared_type = %declared_type,
+    ///     truncated_value = %&value[..50.min(value.len())],
+    /// )
+    /// ```
+    /// A BC-2.16.002 Canonical Structured Event Catalog row for `event_type = "infusion.coercion_failed"`
+    /// MUST be added in the same commit as this tracing emission (SAP-1 standing obligation; AC-012).
+    ///
+    /// Coercion branches (ADR-051 D2):
+    /// - `Int64`:    `i64::from_str(s.trim())` OR `serde_json::Number::as_i64()` for Number input
+    /// - `Float64`:  `f64::from_str(s.trim())` OR `serde_json::Number::as_f64()` for Number input
+    /// - `Boolean`:  case-insensitive match `{"true","1","yes"}→true`, `{"false","0","no"}→false`
+    /// - `Timestamp(Microsecond, Some("UTC"))`: `parse_datetime_to_micros` (ADR-052 D2 — MUST reuse
+    ///   the same function as `spec_driven_adapter.rs`; do NOT introduce a second date parser)
+    /// - `Utf8` (`"string"` or `"json"`): passthrough, always `Some`; no coercion needed
+    ///
+    /// JSON-list input detection (leading `[`): for non-json `output_type` → `None` + E-INFUSE-014;
+    /// for `output_type = "json"` → caller retains ENRICH-1 list-dispatch path (ADR-051 D4).
+    ///
+    /// Return type `Option<serde_json::Value>` is a stub placeholder; the implementer may
+    /// refine to a strongly-typed enum if needed for the array-builder dispatch pattern.
+    ///
+    /// `field_name`: the UDF field name (e.g., `"threat_score"`), used in E-INFUSE-014 message.
+    ///
+    /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Phase G.
+    ///
+    /// BC-5.38.001 self-check: "If I include this real implementation, will the test for
+    /// this function pass trivially without any implementer work?" YES — `todo!()` panics;
+    /// tests expect NULL output + E-INFUSE-014 warning → test fails. Red Gate holds.
+    #[allow(dead_code)] // Removed when wired into invoke_async_with_args (Phase G/H).
+    fn coerce_to_typed(
+        &self,
+        value: &str,
+        output_type: &DataType,
+        field_name: &str,
+    ) -> Option<serde_json::Value> {
+        todo!(
+            "S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Phase G: implement ADR-051 D2 coercion of \
+             value '{}' to output_type {:?} for field '{}' in infusion '{}' \
+             (i64::from_str for Int64, f64::from_str for Float64, case-insensitive bool, \
+             parse_datetime_to_micros for Timestamp, passthrough for Utf8/json); \
+             emit tracing::warn!(event_type = \"infusion.coercion_failed\", ...) on failure; \
+             return None for coercion failures (NULL output, BC-2.19.001 INV-ENRICH-TYPED-001 clause 5)",
+            &value[..50_usize.min(value.len())],
+            output_type,
+            field_name,
+            self.descriptor.infusion_id
+        )
+    }
+
     /// Project the declared `source_column` from a JSON object value, or passthrough.
     ///
     /// HIGH-A fix: if the descriptor declares a `source_column` AND the value is a JSON

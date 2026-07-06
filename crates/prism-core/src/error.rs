@@ -1853,6 +1853,43 @@ pub enum InfusionError {
         /// The configured limit (default `MAX_SOURCE_FILE_BYTES = 104_857_600`).
         limit: u64,
     },
+
+    /// E-INFUSE-014: Runtime coercion failure for a typed enrichment UDF output field.
+    ///
+    /// Emitted as `tracing::warn!` (not a query error) when a projected value cannot be
+    /// coerced to the declared `output_type`. The output row contains NULL.
+    ///
+    /// Defined in ADR-051 D2 and BC-2.19.001 v2.2 §E-INFUSE-014.
+    /// A corresponding BC-2.16.002 Canonical Structured Event Catalog row for
+    /// `event_type = "infusion.coercion_failed"` MUST be added in the same commit as
+    /// the `tracing::warn!` emission in `infusion_udf.rs` (SAP-1 obligation; AC-012).
+    ///
+    /// `truncated_value`: first 50 chars of the projected string value (AD-017 guard —
+    /// enrichment response values are external data, not credentials, but truncated as
+    /// a defense-in-depth precaution).
+    ///
+    /// Variant is `#[non_exhaustive]` per CLAUDE.md §Conventions pub-API discipline.
+    /// Adding new fields (e.g., `row_index: usize`) in a follow-up story will not break
+    /// existing match arms in external crates.
+    ///
+    /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (AC-005).
+    #[non_exhaustive]
+    #[error(
+        "E-INFUSE-014: enrichment field '{field_name}' (infusion '{infusion_id}'): \
+         declared output_type is '{declared_type}', but projected value \
+         '{truncated_value}' (first 50 chars) cannot be coerced; row produces NULL"
+    )]
+    TypeCoercionFailed {
+        /// The UDF / infusion field name (e.g., `"threat_score"`).
+        field_name: String,
+        /// The `infusion_id` from the `InfusionSpec` (e.g., `"threat_intel"`).
+        infusion_id: String,
+        /// The declared `output_type` value (e.g., `"integer"`, `"float"`, `"boolean"`, `"datetime"`).
+        declared_type: String,
+        /// First 50 characters of the projected string value (AD-017: truncated to prevent
+        /// accidental exposure of long external data in structured log lines).
+        truncated_value: String,
+    },
 }
 
 // ---------------------------------------------------------------------------

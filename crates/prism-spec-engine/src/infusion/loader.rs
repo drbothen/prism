@@ -940,6 +940,88 @@ impl InfusionLoader {
         // since even bare file paths have a file_name component).
         "<redacted-path>".to_string()
     }
+
+    /// Validate that `output_type` is a recognized value per ADR-051 D1.
+    ///
+    /// E-INFUSE-013 sub-condition 7: `output_type` is not in the canonical set
+    /// `{"string", "integer", "float", "boolean", "json", "datetime"}`.
+    ///
+    /// Called from `parse()` for each `[[infusion.fields]]` entry before the field is
+    /// registered as a DataFusion UDF. An unknown `output_type` at load time prevents a
+    /// runtime panic when `output_arrow_type()` falls through to the `Utf8` fallback.
+    ///
+    /// Error format:
+    /// ```text
+    /// E-INFUSE-013: invalid field name 'output_type' in infusion spec '{spec_path}':
+    ///  output_type '{value}' is not a recognized type; valid values: string, integer,
+    ///  float, boolean, json, datetime (datetime maps to Timestamp(µs,UTC) per ADR-051
+    ///  v1.2 / ADR-052)
+    /// ```
+    ///
+    /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (AC-007; ADR-051 D3 sub-condition 7).
+    ///
+    /// BC-5.38.001 self-check: "If I include this real implementation, will the test for
+    /// this function pass trivially without any implementer work?" YES — `todo!()` panics;
+    /// `test_unknown_output_type_rejected_e_infuse_013_sub_condition_7` calls `parse()`
+    /// which doesn't yet call this function → `parse()` succeeds → assertion fails.
+    /// Red Gate holds.
+    pub fn validate_output_type_recognized(
+        output_type: &str,
+        field_name: &str,
+        spec_path: &str,
+    ) -> Result<(), InfusionError> {
+        todo!(
+            "S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Phase J: implement E-INFUSE-013 sub-condition 7 — \
+             validate output_type '{}' is in {{string, integer, float, boolean, json, datetime}}; \
+             reject with InvalidFieldSpec if not; called for field '{}' in spec '{}'",
+            output_type,
+            field_name,
+            spec_path
+        )
+    }
+
+    /// Validate that a `type = "plugin"` infusion field declares `source_column`.
+    ///
+    /// E-INFUSE-013 sub-condition 8: a plugin-type field is missing `source_column`.
+    ///
+    /// Without `source_column`, `project_value()` falls into the passthrough branch and
+    /// serializes the entire plugin response object — the root cause of
+    /// DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 Failure A (doubly-encoded JSON).
+    ///
+    /// Called from `parse()` after the source type is determined and fields are parsed.
+    /// Only fires for fields in infusions with `type = "plugin"`.
+    ///
+    /// Error format:
+    /// ```text
+    /// E-INFUSE-013: invalid field name '{field_name}' in infusion spec '{spec_path}':
+    ///  plugin-type field '{name}' in infusion '{infusion_id}' must declare 'source_column'
+    ///  to project a specific field from the plugin response object; without source_column
+    ///  the full response object is serialized (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 root cause)
+    /// ```
+    ///
+    /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (AC-006; ADR-051 D3 sub-condition 8).
+    ///
+    /// BC-5.38.001 self-check: "If I include this real implementation, will the test for
+    /// this function pass trivially without any implementer work?" YES — `todo!()` panics;
+    /// `test_plugin_type_field_without_source_column_rejected_e_infuse_013` calls `parse()`
+    /// which doesn't yet call this function → `parse()` succeeds → assertion fails.
+    /// Red Gate holds.
+    pub fn validate_plugin_type_has_source_column(
+        field_name: &str,
+        infusion_id: &str,
+        source_column: Option<&str>,
+        spec_path: &str,
+    ) -> Result<(), InfusionError> {
+        todo!(
+            "S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 Phase J: implement E-INFUSE-013 sub-condition 8 — \
+             reject plugin-type field '{}' in infusion '{}' spec '{}' when source_column is absent \
+             (current value: {:?}); return InvalidFieldSpec with E-INFUSE-013 sub-condition 8 message",
+            field_name,
+            infusion_id,
+            spec_path,
+            source_column
+        )
+    }
 }
 
 // ---------------------------------------------------------------------------
