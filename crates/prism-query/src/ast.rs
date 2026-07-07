@@ -2074,7 +2074,11 @@ impl PqlNormalizer {
                     let op_kw = match op {
                         CompareOp::Eq => "IEQ",
                         CompareOp::Ne => "INE",
-                        _ => "IEQ", // non_exhaustive defensive fallback
+                        _ => unreachable!(
+                            "case_insensitive=true is only produced by the parser for Eq/Ne; \
+                             got {op:?} — manually-constructed predicate violates \
+                             BC-2.11.024 invariant"
+                        ),
                     };
                     return format!(
                         "{} {op_kw} {}",

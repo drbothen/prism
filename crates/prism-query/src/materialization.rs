@@ -1262,9 +1262,11 @@ pub async fn execute_against_session(
             // DataFusion would produce a generic error (E-QUERY-034) when `lower(severity_id)`
             // is called on an Int64 column at execution time. This pre-flight check fires BEFORE
             // DataFusion execution and emits a structured E-QUERY-002 `QueryTypeMismatch` with
-            // the offending column name and actual type. (BC-2.11.024 AC-022; RG-018)
+            // the offending column name, actual type, and (for OCSF id columns) a suggestion
+            // pointing to the corresponding string-label sibling column. (BC-2.11.024 AC-022; RG-018)
             {
                 use arrow::datatypes::DataType as ArrowDataType;
+                use prism_core::error::SuggestedColumnHint;
 
                 let ci_fields = collect_ci_compare_fields(&filter.predicate);
                 if !ci_fields.is_empty() {
@@ -1275,7 +1277,7 @@ pub async fn execute_against_session(
                         'ci_check: for table_name in &table_names {
                             if let Ok(Some(tp)) = public_schema.table(table_name).await {
                                 let arrow_schema = tp.schema();
-                                for col_name in &ci_fields {
+                                for (col_name, operator) in &ci_fields {
                                     if let Ok(arrow_field) = arrow_schema.field_with_name(col_name)
                                     {
                                         let is_string = matches!(
@@ -1292,7 +1294,10 @@ pub async fn execute_against_session(
                                                 column: col_name.clone(),
                                                 table: table_name.clone(),
                                                 actual_type,
-                                                operator: "IEQ".to_string(),
+                                                operator: operator.clone(),
+                                                suggested_column: SuggestedColumnHint(
+                                                    ocsf_suggested_string_column(col_name),
+                                                ),
                                             });
                                         }
                                     }
@@ -1349,6 +1354,67 @@ pub async fn execute_against_session(
         // by the Fields-exclude projection). The MemTables have already been registered
         // by `run_materialization_pipeline` before this function is called.
         Ast::Pipe(pipe) => {
+            // F-P1-PIPE-TYPECHECK-GAP: pre-flight CI column-type check for pipe mode,
+            // mirroring the Ast::Filter arm above. IEQ/INE/IIN on a non-string column
+            // in a `| where` stage must produce E-QUERY-002 (QueryTypeMismatch), NOT
+            // E-QUERY-034 (generic DataFusion execution error). (BC-2.11.024 AC-022)
+            {
+                use arrow::datatypes::DataType as ArrowDataType;
+                use prism_core::error::SuggestedColumnHint;
+
+                // Collect CI predicates from all `| where` stages in the pipe.
+                let all_ci_fields: Vec<(String, String)> = pipe
+                    .stages
+                    .iter()
+                    .filter_map(|stage| {
+                        if let crate::ast::PipeStage::Where(pred) = stage {
+                            Some(collect_ci_compare_fields(pred))
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+                    .collect();
+
+                if !all_ci_fields.is_empty() {
+                    // Derive the primary source table name (dot→underscore normalization
+                    // matches how MemTables are registered in the DataFusion catalog).
+                    let source_table = datafusion_table_name(&pipe.source.raw);
+                    if let Some(public_schema) = session_ctx
+                        .catalog("datafusion")
+                        .and_then(|cat| cat.schema("public"))
+                    {
+                        if let Ok(Some(tp)) = public_schema.table(&source_table).await {
+                            let arrow_schema = tp.schema();
+                            for (col_name, operator) in &all_ci_fields {
+                                if let Ok(arrow_field) = arrow_schema.field_with_name(col_name) {
+                                    let is_string = matches!(
+                                        arrow_field.data_type(),
+                                        ArrowDataType::Utf8
+                                            | ArrowDataType::LargeUtf8
+                                            | ArrowDataType::Utf8View
+                                    );
+                                    if !is_string {
+                                        let actual_type = arrow_type_to_prism_column_type(
+                                            arrow_field.data_type(),
+                                        );
+                                        return Err(PrismError::QueryTypeMismatch {
+                                            column: col_name.clone(),
+                                            table: source_table.clone(),
+                                            actual_type,
+                                            operator: operator.clone(),
+                                            suggested_column: SuggestedColumnHint(
+                                                ocsf_suggested_string_column(col_name),
+                                            ),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
             let sql = crate::pipe_sql_emitter::pipe_to_executable_sql(pipe, &table_batches)?;
             tracing::debug!(
@@ -2138,28 +2204,44 @@ fn walk_predicate(pred: &crate::ast::Predicate, names: &mut std::collections::Ha
 /// Collect all field names used with case-insensitive operators (`IEQ`, `INE`, `IIN`)
 /// by recursively walking the predicate tree.
 ///
-/// Used by the pre-flight type check in the `Ast::Filter` arm of
+/// Used by the pre-flight type check in the `Ast::Filter` and `Ast::Pipe` arms of
 /// `execute_against_session` to detect IEQ/INE/IIN on non-string columns
 /// before DataFusion execution (BC-2.11.024 AC-022; RG-018).
-fn collect_ci_compare_fields(pred: &crate::ast::Predicate) -> Vec<String> {
+///
+/// Returns `(column_name, operator_str)` pairs where `operator_str` is the PQL
+/// operator keyword (`"IEQ"` / `"INE"` / `"IIN"`) for accurate E-QUERY-002 reporting.
+fn collect_ci_compare_fields(pred: &crate::ast::Predicate) -> Vec<(String, String)> {
     let mut fields = Vec::new();
     collect_ci_fields_inner(pred, &mut fields);
     fields
 }
 
-fn collect_ci_fields_inner(pred: &crate::ast::Predicate, out: &mut Vec<String>) {
-    use crate::ast::{Expr, Predicate};
+fn collect_ci_fields_inner(pred: &crate::ast::Predicate, out: &mut Vec<(String, String)>) {
+    use crate::ast::{CompareOp, Expr, Predicate};
 
     match pred {
         // IEQ / INE: `case_insensitive = true` on a Compare with a Field LHS.
         Predicate::Compare {
             lhs,
+            op,
             case_insensitive: true,
             ..
         } => {
             if let Expr::Field(fp) = lhs.as_ref() {
                 if let Some(last) = fp.segments.last() {
-                    out.push(last.clone());
+                    // Map CompareOp → canonical PQL operator keyword for IEQ/INE.
+                    // `case_insensitive=true` is only produced by the parser for Eq/Ne;
+                    // any other op here would be a manually-constructed predicate that
+                    // violates the invariant — surface it rather than silently eliding.
+                    let operator = match op {
+                        CompareOp::Eq => "IEQ",
+                        CompareOp::Ne => "INE",
+                        _ => unreachable!(
+                            "case_insensitive=true is only valid for Eq/Ne compare ops; \
+                             got {op:?} — manually-constructed predicate violates BC-2.11.024 invariant"
+                        ),
+                    };
+                    out.push((last.clone(), operator.to_string()));
                 }
             }
         }
@@ -2170,7 +2252,7 @@ fn collect_ci_fields_inner(pred: &crate::ast::Predicate, out: &mut Vec<String>) 
             ..
         } => {
             if let Some(last) = field.segments.last() {
-                out.push(last.clone());
+                out.push((last.clone(), "IIN".to_string()));
             }
         }
         // Logical (AND / OR): recurse into children.
@@ -2186,6 +2268,33 @@ fn collect_ci_fields_inner(pred: &crate::ast::Predicate, out: &mut Vec<String>) 
         // All other variants (Compare with case_insensitive=false, StringOp, Regex,
         // Between, Cidr, IsNull, etc.) carry no IEQ/INE/IIN fields.
         _ => {}
+    }
+}
+
+/// Maps an OCSF integer id column name to the corresponding string-label sibling column,
+/// per BC-2.02.013 v1.2 §Postconditions in-scope field table.
+///
+/// Returns `Some("severity")` for `"severity_id"`, etc. Returns `None` for all other columns.
+/// Used to populate `PrismError::QueryTypeMismatch { suggested_column }` with the string
+/// column the analyst should use with IEQ/IIN/INE instead.
+///
+/// # Population map (error-taxonomy v2.18 AC-022)
+///
+/// | id column       | string sibling     | Note                          |
+/// |-----------------|--------------------|-------------------------------|
+/// | `severity_id`   | `severity`         | standard OCSF `{F}_id`→`{F}` |
+/// | `status_id`     | `status`           | standard OCSF `{F}_id`→`{F}` |
+/// | `activity_id`   | `activity_name`    | OCSF exception: sibling is    |
+/// |                 |                    | `activity_name`, not `activity`|
+/// | `disposition_id`| `disposition`      | standard OCSF `{F}_id`→`{F}` |
+/// | all others      | `None`             | non-OCSF or unlisted column   |
+fn ocsf_suggested_string_column(id_column: &str) -> Option<String> {
+    match id_column {
+        "severity_id" => Some("severity".to_string()),
+        "status_id" => Some("status".to_string()),
+        "activity_id" => Some("activity_name".to_string()),
+        "disposition_id" => Some("disposition".to_string()),
+        _ => None,
     }
 }
 
@@ -2587,6 +2696,7 @@ pub(crate) fn check_temporal_literals(
                                 table: dml_table.clone(),
                                 actual_type: ct,
                                 operator: "=".to_string(),
+                                suggested_column: prism_core::error::SuggestedColumnHint(None),
                             });
                         }
                         None | Some(_) => {
@@ -2806,6 +2916,7 @@ fn apply_literal_dispatch(
                 table: table_name,
                 actual_type: ct,
                 operator: operator_label.to_string(),
+                suggested_column: prism_core::error::SuggestedColumnHint(None),
             })
         }
         None | Some(_) => Ok(()), // Unknown column, Json, or other type → fail-open.
@@ -2881,6 +2992,7 @@ fn check_pred_raw_temporal(
                                 table: table_name,
                                 actual_type: ct,
                                 operator: op_str.to_string(),
+                                suggested_column: prism_core::error::SuggestedColumnHint(None),
                             });
                         }
                         None | Some(_) => {
@@ -3146,6 +3258,7 @@ fn check_expr_temporal_pos(
                                 table: table_name,
                                 actual_type: ct,
                                 operator: op_str.to_string(),
+                                suggested_column: prism_core::error::SuggestedColumnHint(None),
                             });
                         }
                         None | Some(_) => {

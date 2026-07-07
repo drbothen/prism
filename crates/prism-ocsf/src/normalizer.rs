@@ -35,10 +35,14 @@ fn enum_map() -> &'static OcsfEnumMap {
 
 /// OCSF enum-label string fields normalized at the adapter boundary.
 ///
-/// These are the in-scope fields from BC-2.02.013 v1.1 §Postconditions in-scope field
-/// enumeration table. Normalization coverage is determined by which `{field}_id` entries
-/// exist in `OcsfEnumMap`; adding new `_id` entries automatically extends coverage.
-const OCSF_ENUM_LABEL_FIELDS: &[&str] = &["severity", "status", "activity", "disposition"];
+/// These are the in-scope fields from BC-2.02.013 v1.2 §Postconditions in-scope field
+/// enumeration table. Normalization coverage is determined by which companion `_id` entries
+/// exist in `OcsfEnumMap`; `normalize_enum_label` handles the `activity_name` → `activity_id`
+/// sibling relationship (the only OCSF exception where `{F}_id`→`{F}` does not hold).
+///
+/// F-P1-ACTIVITY-NOOP: field corrected from `"activity"` to `"activity_name"` — the real
+/// OCSF protobuf field is `activity_name`, not `activity`. BC-2.02.013 v1.2 in-scope table.
+const OCSF_ENUM_LABEL_FIELDS: &[&str] = &["severity", "status", "activity_name", "disposition"];
 
 /// OCSF normalizer — dispatches to per-sensor `SensorMapper` implementations.
 ///

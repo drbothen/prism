@@ -48,6 +48,24 @@ pub struct OcsfEnumMap {
     inner: HashMap<(String, u32), &'static str>,
 }
 
+/// Maps an OCSF string-label field name to its companion `_id` field name for use in
+/// `normalize_enum_label` caption lookups.
+///
+/// Standard OCSF fields follow the `{F}_id`→`{F}` pattern (e.g., `"severity"` → `"severity_id"`).
+/// The sole exception is `"activity_name"`, whose companion is `"activity_id"` (NOT
+/// `"activity_name_id"`) per the OCSF v1.7.0 schema `activity_id.sibling = "activity_name"`
+/// attribute. (BC-2.02.013 v1.2 F-P1-ACTIVITY-NOOP)
+///
+/// All other fields use the default `format!("{string_field}_id")` derivation.
+fn string_field_to_id_field(string_field: &str) -> String {
+    match string_field {
+        // OCSF exception: activity_id.sibling = "activity_name", not "activity_name_id"
+        "activity_name" => "activity_id".to_string(),
+        // All standard fields: {F}_id
+        other => format!("{other}_id"),
+    }
+}
+
 impl OcsfEnumMap {
     /// Builds an `OcsfEnumMap` populated from OCSF v1.x standard values.
     ///
@@ -130,19 +148,22 @@ impl OcsfEnumMap {
 
     /// Normalizes a string label for an OCSF enum-label field to canonical OCSF Title-case.
     ///
-    /// **Keying contract (BC-2.02.013 v1.1 F-HIGH-003):** keys on the OCSF *string label*
+    /// **Keying contract (BC-2.02.013 v1.2 F-HIGH-003):** keys on the OCSF *string label*
     /// field name (e.g., `"severity"`, `"status"`), deriving the caption lookup from the
-    /// corresponding `"{F}_id"` entries. For each `("{F}_id", integer_val) → canonical_caption`
-    /// entry, a case-insensitive reverse lookup `(label, canonical_caption.to_lowercase()) →
-    /// canonical_caption` is performed. Example: from `("severity_id", 4) → "High"`, derives
-    /// `normalize_enum_label("severity", "HIGH") → Some("High")`.
+    /// corresponding `_id` sibling field entries.
+    ///
+    /// For most fields the sibling is `"{F}_id"` (e.g., `"severity"` → `"severity_id"`).
+    /// The sole OCSF exception is `"activity_name"`, whose sibling is `"activity_id"` (NOT
+    /// `"activity_name_id"`) — this is the OCSF v1.7.0 `activity_id.sibling = "activity_name"`
+    /// schema attribute. `string_field_to_id_field` encodes this mapping; all other fields
+    /// use the standard `{F}_id` derivation. (BC-2.02.013 v1.2 F-P1-ACTIVITY-NOOP)
     ///
     /// # Contract
     ///
-    /// - Given a `string_field` name (e.g., `"severity"`) and a `label` string (any case),
-    ///   returns `Some(canonical_caption)` if a case-insensitive match is found in the
-    ///   `{string_field}_id` entries of the map.
-    /// - Returns `None` if no `{string_field}_id` entries exist in the map, or if `label`
+    /// - Given a `string_field` name (e.g., `"severity"`, `"activity_name"`) and a `label`
+    ///   string (any case), returns `Some(canonical_caption)` if a case-insensitive match is
+    ///   found in the companion `_id` entries of the map.
+    /// - Returns `None` if no companion `_id` entries exist in the map, or if `label`
     ///   does not match any caption case-insensitively.
     /// - Never panics.
     ///
@@ -155,12 +176,13 @@ impl OcsfEnumMap {
     /// assert_eq!(map.normalize_enum_label("severity", "high"), Some("High"));
     /// // "NEW" matches the finding-class status_id canonical caption "New"
     /// assert_eq!(map.normalize_enum_label("status", "NEW"), Some("New"));
+    /// // activity_name is the OCSF sibling of activity_id (exception to {F}_id→{F})
+    /// assert_eq!(map.normalize_enum_label("activity_name", "create"), Some("Create"));
     /// ```
     pub fn normalize_enum_label(&self, string_field: &str, label: &str) -> Option<&'static str> {
-        // Construct the `{string_field}_id` companion key (BC-2.02.013 v1.1 F-HIGH-003).
-        // For each `("{string_field}_id", _) → canonical_caption` entry, perform a
-        // case-insensitive caption match against `label`.
-        let id_field = format!("{string_field}_id");
+        // Resolve the companion `_id` field name, handling the OCSF `activity_name` exception
+        // (BC-2.02.013 v1.2 F-HIGH-003 + F-P1-ACTIVITY-NOOP).
+        let id_field = string_field_to_id_field(string_field);
         for ((fname, _), &caption) in &self.inner {
             if *fname == id_field && caption.eq_ignore_ascii_case(label) {
                 return Some(caption);

@@ -397,6 +397,30 @@ impl TemporalLiteralPosition {
     }
 }
 
+/// Display helper for the optional suggestion text in E-QUERY-002 `QueryTypeMismatch` errors.
+///
+/// When the inner `Option<String>` is `Some(col)`, formats as:
+/// `"; for label comparison, use the string column '{col}' with IEQ/IIN/INE instead"`
+///
+/// When `None`, formats as the empty string (no suffix appended to the error message).
+/// Used as the `suggested_column` field in `PrismError::QueryTypeMismatch`
+/// (error-taxonomy v2.18 AC-022; BC-2.11.024 v1.2).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SuggestedColumnHint(pub Option<String>);
+
+impl std::fmt::Display for SuggestedColumnHint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(col) = &self.0 {
+            write!(
+                f,
+                "; for label comparison, use the string column '{col}' with IEQ/IIN/INE instead"
+            )
+        } else {
+            Ok(())
+        }
+    }
+}
+
 /// Canonical error type for the Prism platform.
 ///
 /// Covers all 90+ error codes across every subsystem category. Group variants
@@ -533,7 +557,9 @@ pub enum PrismError {
     CredentialNotFound { name: String },
 
     /// E-CRED-003: Credential access denied (AI-opaque boundary enforced).
-    #[error("E-CRED-003: credential access denied for {name} — credential values never transit AI context")]
+    #[error(
+        "E-CRED-003: credential access denied for {name} — credential values never transit AI context"
+    )]
     CredentialAccessDenied { name: String },
 
     /// E-CRED-004: Backend-level credential store failure (S-1.06).
@@ -854,7 +880,7 @@ pub enum PrismError {
     /// Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.017; error-taxonomy.md E-QUERY-002.
     #[error(
         "E-QUERY-002: type mismatch — column '{column}' in table '{table}' has type \
-         '{actual_type:?}' which does not support operator '{operator}'"
+         '{actual_type:?}' which does not support operator '{operator}'{suggested_column}"
     )]
     QueryTypeMismatch {
         /// The column name used with the incompatible operator.
@@ -865,6 +891,14 @@ pub enum PrismError {
         actual_type: crate::column::ColumnType,
         /// The operator string as it appears in the query (e.g., `">"`).
         operator: String,
+        /// Optional suggestion to use the corresponding OCSF string-label sibling column
+        /// with IEQ/IIN/INE instead (error-taxonomy v2.18 AC-022; BC-2.11.024 v1.2).
+        ///
+        /// Populated when the non-string column has a known OCSF string sibling:
+        /// `severity_id`→`severity`, `status_id`→`status`,
+        /// `activity_id`→`activity_name`, `disposition_id`→`disposition`.
+        /// `None` for all other columns (temporal checks, DML assignments, etc.).
+        suggested_column: SuggestedColumnHint,
     },
 
     /// E-QUERY-003: Query security limit exceeded (security-only variant).
@@ -1733,7 +1767,9 @@ pub enum InfusionError {
     UnknownInfusion { name: String },
 
     /// E-INFUSE-002: Duplicate UDF name across multiple infusion specs.
-    #[error("E-INFUSE-002: Duplicate UDF name '{udf_name}' in '{path2}' — already registered from '{path1}'.")]
+    #[error(
+        "E-INFUSE-002: Duplicate UDF name '{udf_name}' in '{path2}' — already registered from '{path1}'."
+    )]
     DuplicateUdfName {
         udf_name: String,
         path1: String,
@@ -1745,13 +1781,17 @@ pub enum InfusionError {
     MissingRequiredField { field: String, spec_path: String },
 
     /// E-INFUSE-004: Unknown source type in infusion spec.
-    #[error("E-INFUSE-004: Unknown source type '{type_name}'. Valid types: maxmind_mmdb, csv, json_lookup, plugin, http_lookup.")]
+    #[error(
+        "E-INFUSE-004: Unknown source type '{type_name}'. Valid types: maxmind_mmdb, csv, json_lookup, plugin, http_lookup."
+    )]
     UnknownSourceType { type_name: String },
 
     /// E-INFUSE-005: Credential cannot be resolved.
     /// NOTE: The message MUST NOT include the credential value — only the field name,
     /// infusion_id, and env_var_name are safe to log (BC-2.19.005).
-    #[error("E-INFUSE-005: Credential '{field_name}' for infusion '{infusion_id}' could not be resolved. Ensure '{env_var_name}' is set.")]
+    #[error(
+        "E-INFUSE-005: Credential '{field_name}' for infusion '{infusion_id}' could not be resolved. Ensure '{env_var_name}' is set."
+    )]
     CredentialUnresolved {
         field_name: String,
         infusion_id: String,
@@ -1759,7 +1799,9 @@ pub enum InfusionError {
     },
 
     /// E-RULE-012: Detection rule filter references an API-backed infusion UDF.
-    #[error("E-RULE-012: Detection rule filter references API-backed infusion UDF '{udf_name}' (from infusion '{infusion_id}', type 'plugin'). API-backed infusions cannot be used in detection rules — use a local_lookup infusion instead.")]
+    #[error(
+        "E-RULE-012: Detection rule filter references API-backed infusion UDF '{udf_name}' (from infusion '{infusion_id}', type 'plugin'). API-backed infusions cannot be used in detection rules — use a local_lookup infusion instead."
+    )]
     ApiBackedUdfInDetectionRule {
         udf_name: String,
         infusion_id: String,
@@ -1804,7 +1846,9 @@ pub enum InfusionError {
 
     /// E-INFUSE-009: HTTP lookup failed for an http_lookup-type infusion.
     /// `message` MUST NOT contain credential values (AD-017).
-    #[error("E-INFUSE-009: HTTP lookup failed for infusion '{infusion_id}' (spec: '{spec_path}'): {message}")]
+    #[error(
+        "E-INFUSE-009: HTTP lookup failed for infusion '{infusion_id}' (spec: '{spec_path}'): {message}"
+    )]
     HttpLookupFailed {
         infusion_id: String,
         spec_path: String,
@@ -1814,7 +1858,9 @@ pub enum InfusionError {
 
     /// E-INFUSE-010: Credential resolution failed for an http_lookup-type infusion.
     /// The env var name MUST NOT appear in the message (AD-017).
-    #[error("E-INFUSE-010: credential resolution failed for infusion '{infusion_id}' (spec: '{spec_path}'): credential '{credential_ref}' not available at call time")]
+    #[error(
+        "E-INFUSE-010: credential resolution failed for infusion '{infusion_id}' (spec: '{spec_path}'): credential '{credential_ref}' not available at call time"
+    )]
     CredentialResolutionFailed {
         infusion_id: String,
         spec_path: String,
@@ -1823,7 +1869,9 @@ pub enum InfusionError {
 
     /// E-INFUSE-011: SSRF protection rejected the base_url for an http_lookup-type infusion.
     /// The resolved IP address MUST NOT appear in the message (CWE-209).
-    #[error("E-INFUSE-011: SSRF protection rejected infusion '{infusion_id}' (spec: '{spec_path}'): base_url resolves to a private or loopback address; set PRISM_DTU_MODE=true to override for test/demo deployments")]
+    #[error(
+        "E-INFUSE-011: SSRF protection rejected infusion '{infusion_id}' (spec: '{spec_path}'): base_url resolves to a private or loopback address; set PRISM_DTU_MODE=true to override for test/demo deployments"
+    )]
     SsrfRejected {
         infusion_id: String,
         spec_path: String,
