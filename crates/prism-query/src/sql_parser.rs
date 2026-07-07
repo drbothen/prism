@@ -1191,6 +1191,46 @@ pub(crate) fn parse_sql_dml_with_limits(
                     .check_sql_list_sizes_with(sq)
                     .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
             }
+
+            // BC-2.11.024 v1.2 §DML-Mode-Boundary Enforcement: IEQ/INE/IIN are not
+            // supported in DML SQL-mode WHERE clauses or embedded SELECT WHERE/HAVING
+            // clauses. Detect at parse time to return a clean E-QUERY-001 error rather
+            // than a DataFusion planning failure at runtime (LOCAL-pass-7 fix-burst target).
+            //
+            // Two check sites:
+            //   (a) DELETE/UPDATE: `node.filter` holds the WHERE predicate.
+            //   (b) INSERT…SELECT: `node.source_select` holds the embedded SqlQuery;
+            //       use detect_ci_operator_in_sql_query (covers WHERE + HAVING at any
+            //       depth, matching the SELECT-path guard).
+            if let Some(ref pred) = node.filter {
+                if let Some(op) = detect_ci_operator_in_predicate(pred) {
+                    return Err(vec![ParseError::new(
+                        0,
+                        format!(
+                            "E-QUERY-001: parse error near '{op}': case-insensitive operators \
+                             (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+                             (e.g., severity IEQ 'high') or a pipe | where stage \
+                             (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+                             instead."
+                        ),
+                    )]);
+                }
+            }
+            if let Some(ref sq) = node.source_select {
+                if let Some(op) = detect_ci_operator_in_sql_query(sq) {
+                    return Err(vec![ParseError::new(
+                        0,
+                        format!(
+                            "E-QUERY-001: parse error near '{op}': case-insensitive operators \
+                             (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+                             (e.g., severity IEQ 'high') or a pipe | where stage \
+                             (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+                             instead."
+                        ),
+                    )]);
+                }
+            }
+
             Ok(Ast::Sql(SqlStatement::Dml(node)))
         }
         Err(errs) => Err(errs),

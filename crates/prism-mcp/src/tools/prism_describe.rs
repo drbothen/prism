@@ -674,29 +674,37 @@ pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> St
     // `IN ('high', …)`) silently return 0 rows against post-normalization data because
     // BC-2.02.013 v1.3 PRIMARY normalization (build_column_array) canonicalizes severity
     // to OCSF Title-case before DataFusion materialization (AC-025 / ADR-047 §D.4).
+    //
+    // F-MED-1 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-7 BC-2.11.024 v1.2):
+    // Severity-IEQ is the HIGHEST priority variant for severity-vocabulary tables.
+    // The aggregate variant runs only when severity-IEQ does not fire (no severity column
+    // OR sensor not in vocabulary). This prevents the aggregate branch from silently
+    // suppressing the IEQ teaching example for tables that happen to have a numeric column.
+    // AC-025 / ADR-047 §D.4 mandate the IEQ example for all vocabulary-registered tables.
     let has_severity = columns.iter().any(|c| c.name == "severity");
     if has_severity && has_severity_vocabulary(table_name) {
         // AC-025 / ADR-047 §D.4: IEQ operator + OCSF casing note for ALL severity tables.
         // The note teaches analysts the post-normalization storage format and that IEQ
         // matches case-insensitively regardless of what they type.
+        // Highest priority — runs before aggregate so numeric columns do not suppress IEQ.
         query = format!(
             "-- OCSF severity is Title-case post-normalization (e.g., 'High'). \
              Use IEQ for case-insensitive matching.\n\
              FROM {table_name} | WHERE severity IEQ 'high' | limit 50"
         );
-        // If no vocabulary → fall through, keeping count-recent or column-free query.
-    }
-
-    // Aggregate variant when an aggregatable column is present (overrides severity if both).
-    // BC-2.10.012 canonical: SELECT <field>, COUNT(*) FROM <t> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10
-    let agg_col = columns
-        .iter()
-        .find(|c| matches!(c.col_type, ColumnType::Integer | ColumnType::Float));
-    if let Some(col) = agg_col {
-        query = format!(
-            "SELECT {col_name}, COUNT(*) FROM {table_name} GROUP BY {col_name} ORDER BY COUNT(*) DESC LIMIT 10",
-            col_name = col.name
-        );
+    } else {
+        // Aggregate variant when an aggregatable column is present and severity-IEQ did not fire.
+        // BC-2.10.012 canonical: SELECT <field>, COUNT(*) FROM <t> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10
+        // Only runs when: no severity column OR sensor not in vocabulary.
+        let agg_col = columns
+            .iter()
+            .find(|c| matches!(c.col_type, ColumnType::Integer | ColumnType::Float));
+        if let Some(col) = agg_col {
+            query = format!(
+                "SELECT {col_name}, COUNT(*) FROM {table_name} GROUP BY {col_name} ORDER BY COUNT(*) DESC LIMIT 10",
+                col_name = col.name
+            );
+        }
     }
 
     query
@@ -1049,28 +1057,50 @@ mod build_example_query_tests {
         );
     }
 
-    /// F-PHL2-MED-001: cyberint_alerts with severity_id (Integer) must use aggregate
-    /// branch (Integer wins over severity-filter in priority ladder).
+    /// F-PHL2-MED-001 (updated for F-MED-1 LOCAL pass-7): cyberint_alerts with
+    /// severity_id (Integer) must use the IEQ severity branch, NOT aggregate.
     ///
-    /// The cyberint spec has severity_id as a u64 (integer) per DTU generator. When
-    /// the spec exposes severity_id as an Integer column, aggregate fires first.
+    /// cyberint is a severity-vocabulary sensor (prefix "cyberint" in
+    /// SENSOR_SEVERITY_VOCABULARY). When both a String `severity` column AND an
+    /// Integer `severity_id` column are present, the severity-IEQ branch fires
+    /// FIRST (highest priority per F-MED-1 fix) and the aggregate branch is skipped.
     ///
-    /// This test verifies the priority ladder is respected: aggregate > severity.
+    /// Before F-MED-1 (LOCAL pass-7): aggregate > severity-IEQ — Integer won.
+    /// After  F-MED-1 (LOCAL pass-7): severity-IEQ > aggregate for vocabulary tables.
+    ///
+    /// This test was updated to reflect the corrected priority per AC-025 / ADR-047 §D.4:
+    /// IEQ teaching example must NOT be suppressed by the presence of a numeric column.
+    ///
+    /// To verify aggregate STILL works for non-vocabulary tables with Integer columns,
+    /// see `test_obs001_roundtrip_aggregate_branch_parses` (armis_devices + risk_score).
     #[test]
     fn test_f_phl2_med001_cyberint_alerts_integer_col_triggers_aggregate_not_severity() {
         let columns = vec![
             col("created_at", ColumnType::Datetime),
             col("severity", ColumnType::String),
-            col("severity_id", ColumnType::Integer), // Integer → aggregate branch wins
+            col("severity_id", ColumnType::Integer),
         ];
 
         let q = build_example_query("cyberint_alerts", &columns);
 
-        // Integer column present → aggregate branch wins (highest priority).
+        // F-MED-1 (LOCAL pass-7): severity-vocabulary IEQ wins over aggregate.
+        // cyberint is in SENSOR_SEVERITY_VOCABULARY → IEQ fires first.
         assert!(
-            q.contains("GROUP BY") && q.contains("COUNT(*)"),
-            "F-PHL2-MED-001 priority: cyberint_alerts with Integer severity_id must use \
-             aggregate branch (Integer > severity-filter in priority ladder). Got: {q}"
+            q.contains("IEQ"),
+            "F-MED-1 (LOCAL pass-7): cyberint_alerts (severity vocabulary) with Integer \
+             severity_id must use the IEQ severity branch, not aggregate. \
+             Severity-IEQ has HIGHEST priority for vocabulary tables per AC-025 / ADR-047 §D.4. \
+             Got: {q}"
+        );
+        assert!(
+            q.contains("Title-case") || q.contains("title-case"),
+            "F-MED-1 (LOCAL pass-7): IEQ example must include OCSF casing note. Got: {q}"
+        );
+        // Confirm aggregate did NOT win.
+        assert!(
+            !q.contains("GROUP BY"),
+            "F-MED-1 (LOCAL pass-7): aggregate must NOT override IEQ for vocabulary tables. \
+             Got: {q}"
         );
     }
 
@@ -1508,5 +1538,67 @@ mod build_example_query_tests {
                 "crowdstrike_detections must not emit lowercase `'critical'`; got: {q:?}"
             );
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // F-MED-1 (LOCAL pass-7) — severity-vocabulary IEQ priority over aggregate
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-MED-1 (LOCAL pass-7): `build_example_query` for a severity-vocabulary table that
+    /// ALSO has an Integer column must still emit the IEQ example + OCSF casing note.
+    ///
+    /// The aggregate-variant override (fires when ANY Integer/Float column exists)
+    /// previously overwrote the IEQ severity example for severity-vocabulary tables.
+    /// This is a latent AC-025 violation: analysts whose tables happen to have a numeric
+    /// column (e.g., `priority`, `source_id`, `alert_count`) lose the IEQ teaching example
+    /// that shows post-normalization casing and case-insensitive matching.
+    ///
+    /// ## Red Gate (HEAD 976708de)
+    ///
+    /// `build_example_query("crowdstrike_detections", &[severity String, priority Integer])`
+    /// currently returns the aggregate variant:
+    /// `SELECT priority, COUNT(*) FROM crowdstrike_detections GROUP BY priority ORDER BY COUNT(*) DESC LIMIT 10`
+    ///
+    /// The assertion `q.contains("IEQ")` FAILS.
+    ///
+    /// ## Green Gate
+    ///
+    /// PASSES once `build_example_query` gives severity-IEQ HIGHEST priority for
+    /// severity-vocabulary tables — aggregate runs only when severity doesn't fire.
+    ///
+    /// ## Traces
+    ///
+    /// BC-2.11.024 §AC-025; ADR-047 §D.4; S-PRISMQL-CASE-INSENSITIVE-001 LOCAL-pass-7 F-MED-1.
+    #[test]
+    fn test_f_med1_severity_vocabulary_table_ieq_not_suppressed_by_integer_column() {
+        // crowdstrike_detections is in the severity vocabulary (prefix "crowdstrike").
+        // The Integer column `priority` would trigger aggregate in the OLD priority order
+        // (aggregate > severity-IEQ). After the fix, IEQ wins for vocabulary tables.
+        let columns = vec![
+            col("severity", ColumnType::String),
+            col("priority", ColumnType::Integer),
+        ];
+        let q = build_example_query("crowdstrike_detections", &columns);
+
+        // F-MED-1 RED Gate: currently FAILS because aggregate overrides IEQ.
+        assert!(
+            q.contains("IEQ"),
+            "F-MED-1 (LOCAL pass-7): build_example_query for a severity-vocabulary table \
+             (crowdstrike_detections) with BOTH a String severity column AND an Integer column \
+             must emit the IEQ example + OCSF casing note (AC-025 / ADR-047 §D.4). \
+             Aggregate must NOT suppress IEQ for severity-vocabulary tables. \
+             Got: {q:?}"
+        );
+        assert!(
+            q.contains("Title-case") || q.contains("title-case"),
+            "F-MED-1 (LOCAL pass-7): IEQ example must include OCSF casing note \
+             (substring 'Title-case') per AC-025. Got: {q:?}"
+        );
+        // Confirm aggregate did NOT win (it should not, because severity vocabulary fires first).
+        assert!(
+            !q.contains("GROUP BY"),
+            "F-MED-1 (LOCAL pass-7): aggregate branch must NOT override IEQ for severity-vocabulary \
+             tables; GROUP BY must not appear in the output. Got: {q:?}"
+        );
     }
 }
