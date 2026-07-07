@@ -1264,50 +1264,14 @@ pub async fn execute_against_session(
             // DataFusion execution and emits a structured E-QUERY-002 `QueryTypeMismatch` with
             // the offending column name, actual type, and (for OCSF id columns) a suggestion
             // pointing to the corresponding string-label sibling column. (BC-2.11.024 AC-022; RG-018)
+            // Uses the shared `check_ci_column_types` helper (OBS-3).
             {
-                use arrow::datatypes::DataType as ArrowDataType;
-                use prism_core::error::SuggestedColumnHint;
-
                 let ci_fields = collect_ci_compare_fields(&filter.predicate);
-                if !ci_fields.is_empty() {
-                    if let Some(public_schema) = session_ctx
-                        .catalog("datafusion")
-                        .and_then(|cat| cat.schema("public"))
-                    {
-                        'ci_check: for table_name in &table_names {
-                            if let Ok(Some(tp)) = public_schema.table(table_name).await {
-                                let arrow_schema = tp.schema();
-                                for (col_name, operator) in &ci_fields {
-                                    if let Ok(arrow_field) = arrow_schema.field_with_name(col_name)
-                                    {
-                                        let is_string = matches!(
-                                            arrow_field.data_type(),
-                                            ArrowDataType::Utf8
-                                                | ArrowDataType::LargeUtf8
-                                                | ArrowDataType::Utf8View
-                                        );
-                                        if !is_string {
-                                            let actual_type = arrow_type_to_prism_column_type(
-                                                arrow_field.data_type(),
-                                            );
-                                            return Err(PrismError::QueryTypeMismatch {
-                                                column: col_name.clone(),
-                                                table: table_name.clone(),
-                                                actual_type,
-                                                operator: operator.clone(),
-                                                suggested_column: SuggestedColumnHint(
-                                                    ocsf_suggested_string_column(col_name),
-                                                ),
-                                            });
-                                        }
-                                    }
-                                }
-                                // Only need one table match — all registered tables share the
-                                // same logical schema for a given source.
-                                break 'ci_check;
-                            }
-                        }
-                    }
+                // All registered tables for a source share the same logical schema.
+                // Call the helper on each name — it skips tables not yet in the catalog,
+                // returns Err on the first type mismatch found, and Ok if all pass.
+                for table_name in &table_names {
+                    check_ci_column_types(session_ctx, table_name, &ci_fields).await?;
                 }
             }
 
@@ -1358,10 +1322,8 @@ pub async fn execute_against_session(
             // mirroring the Ast::Filter arm above. IEQ/INE/IIN on a non-string column
             // in a `| where` stage must produce E-QUERY-002 (QueryTypeMismatch), NOT
             // E-QUERY-034 (generic DataFusion execution error). (BC-2.11.024 AC-022)
+            // Uses the shared `check_ci_column_types` helper (OBS-3).
             {
-                use arrow::datatypes::DataType as ArrowDataType;
-                use prism_core::error::SuggestedColumnHint;
-
                 // Collect CI predicates from all `| where` stages in the pipe.
                 let all_ci_fields: Vec<(String, String)> = pipe
                     .stages
@@ -1376,43 +1338,10 @@ pub async fn execute_against_session(
                     .flatten()
                     .collect();
 
-                if !all_ci_fields.is_empty() {
-                    // Derive the primary source table name (dot→underscore normalization
-                    // matches how MemTables are registered in the DataFusion catalog).
-                    let source_table = datafusion_table_name(&pipe.source.raw);
-                    if let Some(public_schema) = session_ctx
-                        .catalog("datafusion")
-                        .and_then(|cat| cat.schema("public"))
-                    {
-                        if let Ok(Some(tp)) = public_schema.table(&source_table).await {
-                            let arrow_schema = tp.schema();
-                            for (col_name, operator) in &all_ci_fields {
-                                if let Ok(arrow_field) = arrow_schema.field_with_name(col_name) {
-                                    let is_string = matches!(
-                                        arrow_field.data_type(),
-                                        ArrowDataType::Utf8
-                                            | ArrowDataType::LargeUtf8
-                                            | ArrowDataType::Utf8View
-                                    );
-                                    if !is_string {
-                                        let actual_type = arrow_type_to_prism_column_type(
-                                            arrow_field.data_type(),
-                                        );
-                                        return Err(PrismError::QueryTypeMismatch {
-                                            column: col_name.clone(),
-                                            table: source_table.clone(),
-                                            actual_type,
-                                            operator: operator.clone(),
-                                            suggested_column: SuggestedColumnHint(
-                                                ocsf_suggested_string_column(col_name),
-                                            ),
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                // Derive the primary source table name (dot→underscore normalization
+                // matches how MemTables are registered in the DataFusion catalog).
+                let source_table = datafusion_table_name(&pipe.source.raw);
+                check_ci_column_types(session_ctx, &source_table, &all_ci_fields).await?;
             }
 
             let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
@@ -2230,16 +2159,25 @@ fn collect_ci_fields_inner(pred: &crate::ast::Predicate, out: &mut Vec<(String, 
             if let Expr::Field(fp) = lhs.as_ref() {
                 if let Some(last) = fp.segments.last() {
                     // Map CompareOp → canonical PQL operator keyword for IEQ/INE.
-                    // `case_insensitive=true` is only produced by the parser for Eq/Ne;
-                    // any other op here would be a manually-constructed predicate that
-                    // violates the invariant — surface it rather than silently eliding.
+                    // The parser only produces case_insensitive=true for Eq/Ne. Any other
+                    // op is a manually-constructed predicate that violates BC-2.11.024.
+                    // Panic in debug builds; fall back gracefully in release builds so a
+                    // hand-built predicate does not cause a DoS (OBS-2 invariant hardening).
                     let operator = match op {
                         CompareOp::Eq => "IEQ",
                         CompareOp::Ne => "INE",
-                        _ => unreachable!(
-                            "case_insensitive=true is only valid for Eq/Ne compare ops; \
-                             got {op:?} — manually-constructed predicate violates BC-2.11.024 invariant"
-                        ),
+                        _ => {
+                            debug_assert!(
+                                false,
+                                "case_insensitive=true is only valid for Eq/Ne compare ops; \
+                                 got {op:?} — manually-constructed predicate violates \
+                                 BC-2.11.024 invariant"
+                            );
+                            // Fallback: treat as IEQ for type-check purposes. This lets the
+                            // runtime produce E-QUERY-002 for the offending column rather than
+                            // silently eliding the check.
+                            "IEQ"
+                        }
                     };
                     out.push((last.clone(), operator.to_string()));
                 }
@@ -2271,6 +2209,60 @@ fn collect_ci_fields_inner(pred: &crate::ast::Predicate, out: &mut Vec<(String, 
     }
 }
 
+/// Pre-flight CI column-type check shared by `Ast::Filter` and `Ast::Pipe` arms.
+///
+/// Given a `SessionContext`, a single `table_name`, and the `ci_fields` list produced
+/// by `collect_ci_compare_fields`, verifies that every CI-operated column has a string
+/// type in the Arrow schema registered for `table_name`. Returns `Err` with a structured
+/// `PrismError::QueryTypeMismatch` (E-QUERY-002) on the first non-string column found,
+/// `Ok(())` when all columns are strings or the table/column is not yet registered.
+///
+/// Extracted to eliminate the copy-paste duplication between the Filter arm
+/// (which iterates over multiple `table_names`) and the Pipe arm (single `source_table`).
+/// Callers call this function once per candidate table; the Filter arm uses an early-return
+/// loop, the Pipe arm calls it once.
+/// (OBS-3; BC-2.11.024 AC-022)
+async fn check_ci_column_types(
+    session_ctx: &datafusion::execution::context::SessionContext,
+    table_name: &str,
+    ci_fields: &[(String, String)],
+) -> Result<(), PrismError> {
+    use arrow::datatypes::DataType as ArrowDataType;
+
+    if ci_fields.is_empty() {
+        return Ok(());
+    }
+    if let Some(public_schema) = session_ctx
+        .catalog("datafusion")
+        .and_then(|cat| cat.schema("public"))
+    {
+        if let Ok(Some(tp)) = public_schema.table(table_name).await {
+            let arrow_schema = tp.schema();
+            for (col_name, operator) in ci_fields {
+                if let Ok(arrow_field) = arrow_schema.field_with_name(col_name) {
+                    let is_string = matches!(
+                        arrow_field.data_type(),
+                        ArrowDataType::Utf8 | ArrowDataType::LargeUtf8 | ArrowDataType::Utf8View
+                    );
+                    if !is_string {
+                        let actual_type = arrow_type_to_prism_column_type(arrow_field.data_type());
+                        return Err(PrismError::QueryTypeMismatch {
+                            column: col_name.clone(),
+                            table: table_name.to_string(),
+                            actual_type,
+                            operator: operator.clone(),
+                            suggested_column: format_suggested_column_suffix(
+                                ocsf_suggested_string_column(col_name),
+                            ),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Maps an OCSF integer id column name to the corresponding string-label sibling column,
 /// per BC-2.02.013 v1.2 §Postconditions in-scope field table.
 ///
@@ -2295,6 +2287,27 @@ fn ocsf_suggested_string_column(id_column: &str) -> Option<String> {
         "activity_id" => Some("activity_name".to_string()),
         "disposition_id" => Some("disposition".to_string()),
         _ => None,
+    }
+}
+
+/// Format the optional suggestion suffix for `PrismError::QueryTypeMismatch.suggested_column`.
+///
+/// Returns the pre-formatted suffix string (error-taxonomy v2.19 §E-QUERY-002 AC-022;
+/// BC-2.11.024 v1.2):
+/// - `Some(col)` → `"; for label comparison, use the string column '{col}' with IEQ/IIN/INE instead"`
+/// - `None` → `""` (empty — no suffix appended to the error message)
+///
+/// Used at every `PrismError::QueryTypeMismatch` construction site that does not have a
+/// known OCSF string sibling (`SuggestedColumnHint` was the previous wrapper; this helper
+/// replaces it now that the field is `String` rather than a pub newtype).
+fn format_suggested_column_suffix(suggested: Option<String>) -> String {
+    match suggested {
+        Some(col) => {
+            format!(
+                "; for label comparison, use the string column '{col}' with IEQ/IIN/INE instead"
+            )
+        }
+        None => String::new(),
     }
 }
 
@@ -2696,7 +2709,7 @@ pub(crate) fn check_temporal_literals(
                                 table: dml_table.clone(),
                                 actual_type: ct,
                                 operator: "=".to_string(),
-                                suggested_column: prism_core::error::SuggestedColumnHint(None),
+                                suggested_column: String::new(),
                             });
                         }
                         None | Some(_) => {
@@ -2916,7 +2929,7 @@ fn apply_literal_dispatch(
                 table: table_name,
                 actual_type: ct,
                 operator: operator_label.to_string(),
-                suggested_column: prism_core::error::SuggestedColumnHint(None),
+                suggested_column: String::new(),
             })
         }
         None | Some(_) => Ok(()), // Unknown column, Json, or other type → fail-open.
@@ -2992,7 +3005,7 @@ fn check_pred_raw_temporal(
                                 table: table_name,
                                 actual_type: ct,
                                 operator: op_str.to_string(),
-                                suggested_column: prism_core::error::SuggestedColumnHint(None),
+                                suggested_column: String::new(),
                             });
                         }
                         None | Some(_) => {
@@ -3258,7 +3271,7 @@ fn check_expr_temporal_pos(
                                 table: table_name,
                                 actual_type: ct,
                                 operator: op_str.to_string(),
-                                suggested_column: prism_core::error::SuggestedColumnHint(None),
+                                suggested_column: String::new(),
                             });
                         }
                         None | Some(_) => {

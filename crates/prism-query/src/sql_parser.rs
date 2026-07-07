@@ -83,6 +83,41 @@ const SQL_KEYWORDS: &[&str] = &[
     "PERCENTILE",
 ];
 
+/// Walk a `Predicate` tree and return the name of the first case-insensitive
+/// (IEQ / INE / IIN) operator found, or `None` if none are present.
+///
+/// Used by `parse_sql_with_limits` to produce a parse-time `E-QUERY-001` error when
+/// a SQL-mode WHERE clause contains a CI operator (BC-2.11.024 v1.1 §SQL-Mode Rejection).
+///
+/// Returns the canonical uppercase keyword:
+/// - `"IEQ"` for `Compare { case_insensitive: true, op: Eq, .. }`
+/// - `"INE"` for `Compare { case_insensitive: true, op: Ne, .. }`
+/// - `"IIN"` for `In { case_insensitive: true, .. }`
+fn detect_ci_operator_in_predicate(pred: &Predicate) -> Option<&'static str> {
+    match pred {
+        Predicate::Compare {
+            case_insensitive: true,
+            op,
+            ..
+        } => Some(match op {
+            CompareOp::Eq => "IEQ",
+            CompareOp::Ne => "INE",
+            // Any other op with case_insensitive=true is an AST invariant violation;
+            // surface it as IEQ (the canonical fallback) rather than panicking.
+            _ => "IEQ",
+        }),
+        Predicate::In {
+            case_insensitive: true,
+            ..
+        } => Some("IIN"),
+        Predicate::Logical { predicates, .. } => {
+            predicates.iter().find_map(detect_ci_operator_in_predicate)
+        }
+        Predicate::Not(inner) => detect_ci_operator_in_predicate(inner),
+        _ => None,
+    }
+}
+
 /// Parse a SQL-mode query and return `Ast::Sql(SqlStatement::Select(SqlQuery))`.
 ///
 /// This is the canonical entry point — symmetric with `parse_filter()` (returns
@@ -143,6 +178,23 @@ pub(crate) fn parse_sql_with_limits(
             limits
                 .check_sql_list_sizes_with(&sq)
                 .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+            // BC-2.11.024 v1.1 §SQL-Mode Rejection: IEQ/INE/IIN are not supported
+            // in SQL-mode WHERE clauses. Detect at parse time so callers get a clean
+            // E-QUERY-001 error rather than a DataFusion planning failure at runtime.
+            if let Some(pred) = &sq.where_ {
+                if let Some(op) = detect_ci_operator_in_predicate(pred) {
+                    return Err(vec![ParseError::new(
+                        0,
+                        format!(
+                            "E-QUERY-001: parse error near '{op}': case-insensitive operators \
+                             (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+                             (e.g., severity IEQ 'high') or a pipe | where stage \
+                             (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+                             instead."
+                        ),
+                    )]);
+                }
+            }
             return Ok(Ast::Sql(SqlStatement::Select(sq)));
         }
     }
@@ -161,6 +213,21 @@ pub(crate) fn parse_sql_with_limits(
             if limits.check_sql_query_nesting_depth_with(&sq, 0).is_ok()
                 && limits.check_sql_list_sizes_with(&sq).is_ok()
             {
+                // BC-2.11.024 v1.1: also reject CI operators in the recovery path.
+                if let Some(pred) = &sq.where_ {
+                    if let Some(op) = detect_ci_operator_in_predicate(pred) {
+                        return Err(vec![ParseError::new(
+                            0,
+                            format!(
+                                "E-QUERY-001: parse error near '{op}': case-insensitive \
+                                 operators (IEQ/IIN/INE) are not supported in SQL mode. \
+                                 Use filter mode (e.g., severity IEQ 'high') or a pipe | \
+                                 where stage (e.g., FROM crowdstrike_detections | where \
+                                 severity IEQ 'high') instead."
+                            ),
+                        )]);
+                    }
+                }
                 return Ok(Ast::Sql(SqlStatement::Select(sq)));
             }
         }

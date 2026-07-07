@@ -512,7 +512,7 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
             case_insensitive,
         } => {
             // S-PRISMQL-CASE-INSENSITIVE-001: case-insensitive IEQ/INE operators lower
-            // via `lower(field) OP lower('val')` DataFusion SQL pattern (BC-2.11.019 v1.3).
+            // via `lower(field) OP lower('val')` DataFusion SQL pattern (BC-2.11.024).
             if *case_insensitive {
                 // IEQ/INE RHS must be a string literal — lower() is string-only in DataFusion.
                 // Non-string RHS → QueryPlanFailed (BC-2.11.024 v1.0 error case, RG-016).
@@ -622,7 +622,7 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
             case_insensitive,
         } => {
             // S-PRISMQL-CASE-INSENSITIVE-001: IIN operators lower via
-            // `lower(field) IN (lower('v1'), ...)` DataFusion SQL pattern (BC-2.11.020 v1.3).
+            // `lower(field) IN (lower('v1'), ...)` DataFusion SQL pattern (BC-2.11.024).
             if *case_insensitive {
                 if values.is_empty() {
                     return Err(PrismError::QueryPlanFailed {

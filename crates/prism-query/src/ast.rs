@@ -2074,11 +2074,20 @@ impl PqlNormalizer {
                     let op_kw = match op {
                         CompareOp::Eq => "IEQ",
                         CompareOp::Ne => "INE",
-                        _ => unreachable!(
-                            "case_insensitive=true is only produced by the parser for Eq/Ne; \
-                             got {op:?} — manually-constructed predicate violates \
-                             BC-2.11.024 invariant"
-                        ),
+                        _ => {
+                            // AST invariant: the parser only produces case_insensitive=true for
+                            // Eq/Ne. A hand-built predicate with another op + ci=true violates
+                            // BC-2.11.024. Panic in debug builds to catch it early; fall back
+                            // gracefully in release so a hand-built predicate doesn't cause a DoS.
+                            debug_assert!(
+                                false,
+                                "case_insensitive=true is only valid for Eq/Ne; got {op:?} — \
+                                 manually-constructed predicate violates BC-2.11.024 invariant"
+                            );
+                            // Fallback: emit "IEQ" (canonical placeholder) so the normalized
+                            // string is at least syntactically valid PQL.
+                            "IEQ"
+                        }
                     };
                     return format!(
                         "{} {op_kw} {}",

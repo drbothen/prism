@@ -397,30 +397,6 @@ impl TemporalLiteralPosition {
     }
 }
 
-/// Display helper for the optional suggestion text in E-QUERY-002 `QueryTypeMismatch` errors.
-///
-/// When the inner `Option<String>` is `Some(col)`, formats as:
-/// `"; for label comparison, use the string column '{col}' with IEQ/IIN/INE instead"`
-///
-/// When `None`, formats as the empty string (no suffix appended to the error message).
-/// Used as the `suggested_column` field in `PrismError::QueryTypeMismatch`
-/// (error-taxonomy v2.18 AC-022; BC-2.11.024 v1.2).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SuggestedColumnHint(pub Option<String>);
-
-impl std::fmt::Display for SuggestedColumnHint {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(col) = &self.0 {
-            write!(
-                f,
-                "; for label comparison, use the string column '{col}' with IEQ/IIN/INE instead"
-            )
-        } else {
-            Ok(())
-        }
-    }
-}
-
 /// Canonical error type for the Prism platform.
 ///
 /// Covers all 90+ error codes across every subsystem category. Group variants
@@ -891,14 +867,16 @@ pub enum PrismError {
         actual_type: crate::column::ColumnType,
         /// The operator string as it appears in the query (e.g., `">"`).
         operator: String,
-        /// Optional suggestion to use the corresponding OCSF string-label sibling column
-        /// with IEQ/IIN/INE instead (error-taxonomy v2.18 AC-022; BC-2.11.024 v1.2).
+        /// Optional suggestion suffix appended to the error message.
         ///
-        /// Populated when the non-string column has a known OCSF string sibling:
-        /// `severity_id`→`severity`, `status_id`→`status`,
-        /// `activity_id`→`activity_name`, `disposition_id`→`disposition`.
-        /// `None` for all other columns (temporal checks, DML assignments, etc.).
-        suggested_column: SuggestedColumnHint,
+        /// Non-empty value: full suggestion text, e.g.
+        /// `"; for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"`.
+        /// Empty string: no suffix (temporal checks, DML assignments, and other
+        /// cases without a known OCSF string sibling).
+        ///
+        /// Populated by callers via `format_suggested_column_suffix(Option<String>)` helper.
+        /// (error-taxonomy v2.19 §E-QUERY-002 AC-022; BC-2.11.024 v1.2)
+        suggested_column: String,
     },
 
     /// E-QUERY-003: Query security limit exceeded (security-only variant).

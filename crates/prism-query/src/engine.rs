@@ -2827,7 +2827,7 @@ fn check_operator_type_compatibility(
         table: table_name.to_string(),
         actual_type,
         operator: operator.to_string(),
-        suggested_column: prism_core::error::SuggestedColumnHint(None),
+        suggested_column: String::new(),
     })
 }
 
