@@ -1114,7 +1114,7 @@ fn build_column_array(
                                             event_type = "ocsf.enum_label_unrecognized",
                                             field_name = %col.name,
                                             value = %s.chars().take(50).collect::<String>(),
-                                            sensor_type = %sensor_id,
+                                            sensor_type = %sensor_id.chars().take(50).collect::<String>(),
                                             "build_column_array: OCSF enum-label value not \
                                              recognized; emitting as-received \
                                              (BC-2.02.013 F-CRIT-002)"

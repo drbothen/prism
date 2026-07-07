@@ -160,7 +160,7 @@ impl OcsfNormalizer {
                     event_type = "ocsf.enum_label_unrecognized",
                     field_name = %field,
                     value = %current.chars().take(50).collect::<String>(),
-                    sensor_type = %sensor,
+                    sensor_type = %sensor.chars().take(50).collect::<String>(),
                     "unrecognized OCSF enum label value; leaving as-received"
                 );
             }

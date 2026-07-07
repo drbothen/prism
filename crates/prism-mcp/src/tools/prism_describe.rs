@@ -547,7 +547,7 @@ fn build_enrichment_hint(
 /// ```text
 /// -- OCSF severity is Title-case post-normalization (e.g., 'High').
 ///    Use IEQ for case-insensitive matching.
-/// FROM <table> | WHERE severity IEQ 'high' | limit 50
+/// FROM <table> | where severity IEQ 'high' | limit 50
 /// ```
 ///
 /// # Sensors registered
@@ -690,7 +690,7 @@ pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> St
         query = format!(
             "-- OCSF severity is Title-case post-normalization (e.g., 'High'). \
              Use IEQ for case-insensitive matching.\n\
-             FROM {table_name} | WHERE severity IEQ 'high' | limit 50"
+             FROM {table_name} | where severity IEQ 'high' | limit 50"
         );
     } else {
         // Aggregate variant when an aggregatable column is present and severity-IEQ did not fire.
@@ -1166,7 +1166,7 @@ mod build_example_query_tests {
     ///
     /// Representative table: crowdstrike_detections with severity as secondary column.
     /// After F-P6-HIGH-001, even secondary-severity tables emit the IEQ pipe form:
-    /// `FROM <t> | WHERE severity IEQ 'high' | limit 50`
+    /// `FROM <t> | where severity IEQ 'high' | limit 50`
     ///
     /// Parseability roundtrip intent: the query portion (after stripping comment lines)
     /// must parse through PrismQlParser without error.
