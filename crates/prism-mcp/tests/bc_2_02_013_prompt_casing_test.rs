@@ -29,7 +29,7 @@
 //!
 //! | Test | BC | Finding |
 //! |------|----|---------|
-//! | test_BC_2_02_013_triage_alerts_prompt_no_stale_vendor_casing | BC-2.02.013 v1.0 | F-P9-MED-3 |
+//! | test_BC_2_02_013_triage_alerts_prompt_no_stale_vendor_casing | BC-2.02.013 | F-P9-MED-3 |
 
 use prism_mcp::prompts::{
     render_client_overview, render_cross_client_status, render_investigate_host,
@@ -49,7 +49,7 @@ fn extract_text(result: &rmcp::model::GetPromptResult) -> String {
         .join("\n")
 }
 
-/// F-P9-MED-3 / BC-2.02.013 v1.0
+/// F-P9-MED-3 / BC-2.02.013
 ///
 /// Every `render_*` prompt function must use OCSF Title-case enum literals
 /// (e.g., `severity IN ('High', 'Critical')`) or case-insensitive operators,

@@ -1161,7 +1161,7 @@ mod pushdown_red_gate_tests {
         );
     }
 
-    /// F-P9-LOW-1 / BC-2.11.024 v1.0
+    /// F-P9-LOW-1 / BC-2.11.024
     ///
     /// A `Predicate::Compare { op: Eq, case_insensitive: true, ... }` (IEQ form)
     /// MUST NOT be collected into the equality push-down FilterMap by

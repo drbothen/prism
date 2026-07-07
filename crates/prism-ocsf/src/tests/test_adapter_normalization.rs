@@ -489,6 +489,119 @@ fn test_BC_2_02_013_normalizer_secondary_unrecognized_warn_value_capped_at_50_co
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OBS-1 SECONDARY: BC-2.02.013 — empty-string enum value passes through, no warn
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// OBS-1 (LOCAL pass-12) — parity regression lock for the `!s.is_empty()` guard in
+/// `normalizer.rs:146`.
+///
+/// An empty-string enum value passed through `normalize_with_mappers` MUST:
+///
+///  1. Pass through unchanged (the field remains `""` after normalization).
+///  2. NOT emit an `ocsf.enum_label_unrecognized` warn event.
+///
+/// ## Why this is already GREEN
+///
+/// The guard `ProtoValue::String(s) if !s.is_empty() => s` at normalizer.rs:146 matches
+/// an empty string as `_ => continue`, skipping the entire normalization block.
+/// No warn is emitted; the field value is left as-is.
+///
+/// ## Why this test exists
+///
+/// This is a PARITY REGRESSION LOCK — mirror of the PRIMARY RG-047 (empty-string in
+/// `build_column_array`). If the `!s.is_empty()` guard is accidentally removed in a
+/// future refactor (e.g., while extending the field-type match), both the PRIMARY and
+/// this SECONDARY test will fail immediately, preventing a silent regression where
+/// every empty-string enum field triggers a spurious warn storm.
+///
+/// SID-1 compliance: in-process unit test; no external dependencies; no `#[ignore]`.
+///
+/// Traces to: BC-2.02.013 §Error Cases ("empty string: skip normalization, no warn");
+/// OBS-1 (LOCAL adversary pass-12).
+#[test]
+fn test_BC_2_02_013_normalizer_secondary_empty_string_enum_value_no_warn() {
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+
+    // Track whether ocsf.enum_label_unrecognized was emitted.
+    let warn_fired = Arc::new(AtomicBool::new(false));
+
+    struct WarnDetector {
+        fired: Arc<AtomicBool>,
+    }
+
+    impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnDetector {
+        fn on_event(
+            &self,
+            event: &tracing::Event<'_>,
+            _ctx: tracing_subscriber::layer::Context<'_, S>,
+        ) {
+            if *event.metadata().level() == tracing::Level::WARN {
+                struct EventTypeVisitor(Option<String>);
+                impl tracing::field::Visit for EventTypeVisitor {
+                    fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
+                        if field.name() == "event_type" {
+                            self.0 = Some(val.to_owned());
+                        }
+                    }
+                    fn record_debug(
+                        &mut self,
+                        field: &tracing::field::Field,
+                        value: &dyn std::fmt::Debug,
+                    ) {
+                        if field.name() == "event_type" && self.0.is_none() {
+                            self.0 = Some(format!("{value:?}"));
+                        }
+                    }
+                }
+                let mut v = EventTypeVisitor(None);
+                event.record(&mut v);
+                if v.0.as_deref() == Some("ocsf.enum_label_unrecognized") {
+                    self.fired.store(true, Ordering::SeqCst);
+                }
+            }
+        }
+    }
+
+    let detector = WarnDetector {
+        fired: warn_fired.clone(),
+    };
+    let subscriber = tracing_subscriber::registry().with(detector);
+
+    // An empty-string value for "severity" — the stub mapper sets `severity = ""`.
+    let normalizer = OcsfNormalizer::with_mappers(vec![Box::new(SeverityStatusStubMapper)]);
+    let raw = json!({"severity": ""});
+
+    let (msg, _) = tracing::subscriber::with_default(subscriber, || {
+        normalizer
+            .normalize_with_mappers("crowdstrike", "detection", raw)
+            .expect(
+                "OBS-1: normalize_with_mappers must not return Err for empty-string input \
+                 (OcsfDescriptorNotFound means ocsf-proto-gen is not installed; \
+                  this test requires the OCSF descriptor pool to be populated)",
+            )
+    });
+
+    // Assert 1: no warn was emitted (the !s.is_empty() guard skips empty strings entirely).
+    assert!(
+        !warn_fired.load(Ordering::SeqCst),
+        "OBS-1: normalize_with_mappers MUST NOT emit ocsf.enum_label_unrecognized for an \
+         empty-string enum value. The `!s.is_empty()` guard at normalizer.rs:146 must be \
+         preserved — if this test fails, the guard was removed or bypassed."
+    );
+
+    // Assert 2: the field passes through unchanged (empty string remains empty string).
+    let severity_val = extract_string_field(&msg, "severity");
+    assert_eq!(
+        severity_val, "",
+        "OBS-1: empty-string severity value must pass through unchanged after normalization; \
+         got: {severity_val:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // F-P1-ACTIVITY-NOOP: BC-2.02.013 — activity_name normalization (new)
 // ─────────────────────────────────────────────────────────────────────────────
 

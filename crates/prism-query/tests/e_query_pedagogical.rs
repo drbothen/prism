@@ -29,8 +29,8 @@
 //! | `test_BC_2_11_017_enrichment_helper_how_to_fix_for_security_limit` | AC-003 | how_to_fix_for_security_limit returns actionable strings | load-bearing for helper code |
 //!
 //! # BC references
-//! - BC-2.11.016 v1.0 — E-QUERY-038 Column-Not-Found Plan-Time Gate
-//! - BC-2.11.017 v1.0 — E-QUERY Pedagogical Enrichments
+//! - BC-2.11.016 — E-QUERY-038 Column-Not-Found Plan-Time Gate
+//! - BC-2.11.017 — E-QUERY Pedagogical Enrichments
 
 #[cfg(test)]
 mod tests {

@@ -719,7 +719,7 @@ fn test_bc_2_11_024_ieq_iin_ine_in_reference_content() {
     }
 }
 
-/// F-P9-MED-2 / BC-2.11.024 v1.0
+/// F-P9-MED-2 / BC-2.11.024
 ///
 /// The rendered PQL grammar reference content (`prismql://reference`) must NOT
 /// contain case-sensitive equality examples using all-caps or all-lowercase OCSF

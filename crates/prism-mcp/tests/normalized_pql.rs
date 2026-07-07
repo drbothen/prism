@@ -18,9 +18,9 @@
 //! | `test_BC_2_11_018_ec11054_normalized_pql_present_on_partial_failure` | AC-005 | OBS-2: regression gate for partial-failure path (EC-11-054) |
 //!
 //! # BC references
-//! - BC-2.11.016 v1.0 — E-QUERY-038 Column-Not-Found Plan-Time Gate
-//! - BC-2.11.017 v1.0 — E-QUERY Pedagogical Enrichments
-//! - BC-2.11.018 v1.0 — normalized_pql Field on Successful Query Responses
+//! - BC-2.11.016 — E-QUERY-038 Column-Not-Found Plan-Time Gate
+//! - BC-2.11.017 — E-QUERY Pedagogical Enrichments
+//! - BC-2.11.018 — normalized_pql Field on Successful Query Responses
 
 #[cfg(test)]
 mod tests {

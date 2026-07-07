@@ -66,7 +66,7 @@ fn extract_queries(prompt_name: &str, text: &str) -> Vec<(String, String)> {
 
 // ── F-CRIT-1 / BC-2.11.024 ─────────────────────────────────────────────────
 
-/// F-CRIT-1 / BC-2.11.024 v1.0
+/// F-CRIT-1 / BC-2.11.024
 ///
 /// Every PrismQL query embedded in a rendered MCP prompt MUST parse via
 /// `PrismQlParser::parse` (i.e., `parse` returns `Ok`).
