@@ -1410,6 +1410,14 @@ pub async fn execute_against_session(
 
                 // Derive the source table name from the SqlPipe head's FROM clause.
                 // dot→underscore normalization matches how MemTables are registered.
+                //
+                // SINGLE-SOURCE SCOPE: this pre-flight check only resolves the Arrow schema
+                // for the head source table (spq.head.from.source.raw).  A SqlPipe head
+                // with a JOIN would reference multiple source tables, and CI predicates on
+                // the joined table's columns would resolve against the wrong (head-only) schema.
+                // The current SqlPipe grammar is single-source (no JOIN in the head is
+                // permitted by the parser), so this is correct.  If JOIN support is added,
+                // the check must be extended to collect column schemas from all joined tables.
                 let source_table = datafusion_table_name(&spq.head.from.source.raw);
                 check_ci_column_types(session_ctx, &source_table, &all_ci_fields).await?;
             }
@@ -2230,6 +2238,19 @@ fn collect_ci_fields_inner(pred: &crate::ast::Predicate, out: &mut Vec<(String, 
         // NOT: recurse into inner.
         Predicate::Not(inner) => {
             collect_ci_fields_inner(inner, out);
+        }
+        // InSubquery: recurse into the subquery's WHERE predicate (defense-in-depth).
+        // A `field IN (SELECT … WHERE col IEQ 'val')` sub-select can carry IEQ/INE/IIN
+        // predicates in the inner WHERE clause.  This arm is unreachable from the current
+        // filter/pipe grammar (the parser does not produce InSubquery in filter or pipe
+        // stages — only in SQL SELECT WHERE clauses), but is included for correctness
+        // parity with the sibling `collect_ci_fields_inner` recursion in sql_parser.rs.
+        // If the grammar is later extended to permit subqueries in pipe stages this guard
+        // will catch CI predicates in the inner WHERE without requiring a separate fix.
+        Predicate::InSubquery { subquery, .. } => {
+            if let Some(where_pred) = &subquery.where_ {
+                collect_ci_fields_inner(where_pred, out);
+            }
         }
         // All other variants (Compare with case_insensitive=false, StringOp, Regex,
         // Between, Cidr, IsNull, etc.) carry no IEQ/INE/IIN fields.

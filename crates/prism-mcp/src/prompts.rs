@@ -323,6 +323,19 @@ pub fn build_prompt_router() -> PromptRouter<PrismServer> {
 /// correct and intentional analyst query pattern (forward-compat for real sensor data
 /// where 'High' is a common severity level); the absence of 'High' in the demo dataset
 /// is a DTU generator gap, not a logic error in the prompt.
+///
+/// # Armis post-normalization casing (F-P9-MED-3)
+///
+/// The armis leg uses `severity IN ('High', 'Critical')` (OCSF Title-case) because the
+/// Armis adapter normalizes severity to OCSF canonical form at the ingest boundary.
+/// After normalization the raw ALL-CAPS vendor strings (`HIGH`, `CRITICAL`) become
+/// `'High'`, `'Critical'`.  A case-sensitive equality against `'HIGH'` would silently
+/// produce 0 rows on normalized data.
+///
+/// `status = 'UNHANDLED'` is intentionally kept in ALL-CAPS because `UNHANDLED` is a
+/// vendor-specific Armis status value that does NOT appear in the OCSF `status_id` enum
+/// map; the normalizer returns None for it and the raw value passes through unchanged.
+/// Querying `status = 'UNHANDLED'` against Armis data is therefore correct as-is.
 pub fn render_triage_alerts(client_id: &str) -> Result<GetPromptResult, ErrorData> {
     validate_client_id(client_id)?;
     let body = format!(
@@ -331,7 +344,7 @@ pub fn render_triage_alerts(client_id: &str) -> Result<GetPromptResult, ErrorDat
          Step 2: Query each sensor for open high and critical severity alerts:\n\
            - crowdstrike: SELECT * FROM crowdstrike_detections WHERE severity IN ('High', 'Critical') AND status = 'new'\n\
            - claroty: SELECT * FROM claroty_alerts WHERE status = 'Unresolved' AND alert_type_name IS NOT NULL\n\
-           - armis: SELECT * FROM armis_alerts WHERE severity IN ('HIGH', 'CRITICAL') AND status = 'UNHANDLED'\n\
+           - armis: SELECT * FROM armis_alerts WHERE severity IIN ('High', 'Critical') AND status = 'UNHANDLED'\n\
          Step 3: Group alerts by sensor and present a summary count.\n\
          Step 4: Highlight any alerts requiring immediate attention.{SECURITY_REMINDER}",
     );

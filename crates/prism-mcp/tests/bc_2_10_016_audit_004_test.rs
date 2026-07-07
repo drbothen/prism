@@ -839,12 +839,20 @@ const SENSOR_COLUMN_VOCABULARIES: &[(&str, &str, &[&str])] = &[
     // armis_alerts.status: DTU emits "UNHANDLED" for all alert records.
     // Source: generator.rs build_alert() "status": "UNHANDLED"
     ("armis_alerts", "status", &["UNHANDLED"]),
-    // armis_alerts.severity: UPPER-case from generate_compromised_endpoint() severity assignments.
+    // armis_alerts.severity: DTU generator emits ALL-CAPS ("HIGH", "CRITICAL", "MEDIUM", "LOW").
     // Source: generator.rs build_alert() severity param, assigned as "HIGH", "CRITICAL", "MEDIUM", "LOW"
+    //
+    // The Armis adapter normalizes severity to OCSF Title-case at the ingest boundary
+    // (BC-2.02.013): "HIGH"→"High", "CRITICAL"→"Critical", "MEDIUM"→"Medium", "LOW"→"Low".
+    // The triage prompt uses `IIN` (case-insensitive IN) so it matches both DTU-raw ALL-CAPS
+    // and OCSF-normalized Title-case forms.  The vocabulary includes both so the value-validation
+    // test accepts the Title-case literals from the `IIN` predicate without false-failing.
     (
         "armis_alerts",
         "severity",
-        &["HIGH", "CRITICAL", "MEDIUM", "LOW"],
+        &[
+            "HIGH", "CRITICAL", "MEDIUM", "LOW", "High", "Critical", "Medium", "Low",
+        ],
     ),
     // cyberint_alerts is intentionally absent.
     // No render_* prompt emits a cyberint_alerts SELECT, so any cyberint entry here

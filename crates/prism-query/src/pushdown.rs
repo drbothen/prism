@@ -287,16 +287,29 @@ pub fn predicate_tree_to_filter_map(
 
 /// Recursively collect equality comparison expressions from a predicate tree.
 ///
-/// Only collects `field = 'string_value'` comparisons. `AND` conjunctions are
-/// decomposed; other logical operators are skipped (conservative).
+/// Only collects case-sensitive `field = 'string_value'` comparisons.
+/// `AND` conjunctions are decomposed; other logical operators are skipped (conservative).
+///
+/// Predicates not expressible as simple `field = value` sensor filters are silently
+/// omitted: this includes `!=`, range comparisons, and — critically — case-insensitive
+/// `IEQ` predicates (`case_insensitive: true`). IEQ semantics cannot be expressed as
+/// a case-sensitive equality push-down to a sensor API; the sensor would receive a
+/// case-sensitive filter and silently miss OCSF Title-case values (e.g., `'High'` vs
+/// `'high'`). See BC-2.11.024 F-P9-LOW-1.
 fn collect_equality_exprs(pred: &crate::ast::Predicate, out: &mut Vec<crate::ast::Expr>) {
     use crate::ast::{CompareOp, Expr, Literal, LogicalOp, Predicate};
     match pred {
-        // Only include `field = 'string'` comparisons (not virtual fields or complex exprs).
-        Predicate::Compare { lhs, op, rhs, .. }
-            if *op == CompareOp::Eq
-                && matches!(lhs.as_ref(), Expr::Field(_))
-                && matches!(rhs.as_ref(), Expr::Literal(Literal::String(_))) =>
+        // Only include case-sensitive `field = 'string'` comparisons (not virtual fields or
+        // complex exprs, and NOT IEQ predicates — case_insensitive: true push-down would
+        // apply a case-sensitive filter at the sensor layer, silently missing mismatched casing).
+        Predicate::Compare {
+            lhs,
+            op,
+            rhs,
+            case_insensitive: false,
+        } if *op == CompareOp::Eq
+            && matches!(lhs.as_ref(), Expr::Field(_))
+            && matches!(rhs.as_ref(), Expr::Literal(Literal::String(_))) =>
         {
             out.push(Expr::Compare {
                 lhs: lhs.clone(),
