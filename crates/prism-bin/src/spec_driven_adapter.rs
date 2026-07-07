@@ -1861,4 +1861,321 @@ mod tests {
             other => panic!("expected TimestampParseFailure, got: {other:?}"),
         }
     }
+
+    // ---------------------------------------------------------------------------
+    // BC-2.02.013 v1.3 / F-CRIT-002: OCSF enum-label normalization in
+    // build_column_array (production spec-driven Arrow path)
+    // ---------------------------------------------------------------------------
+    //
+    // F-CRIT-002 insertion point (architect-ratified 2026-07-07):
+    //   `build_column_array` must call `OcsfEnumMap::normalize_enum_label(col_name, raw)`
+    //   for ColumnType::String columns where col.name ∈ {"severity","status",
+    //   "activity_name","disposition"} BEFORE Arrow materialization.
+    //   Unrecognized values pass through as-received + emit
+    //   tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...).
+    //
+    // RED gate (LOCAL-pass-5 F-CRIT-002):
+    //   Tests 1-3 FAIL before implementation (raw passthrough — no normalization).
+    //   Tests 4-5 PASS before AND after (regression guards for column-selection rule).
+    //
+    // SID-1 compliance: all in-process, no external/DTU dep, no #[ignore].
+
+    /// BC-2.02.013 v1.3 / F-CRIT-002 (RED — fails before implementation):
+    ///
+    /// `build_column_array` for a `ColumnType::String` column named `"severity"`
+    /// with raw values `"CRITICAL"`, `"high"`, `"High"` MUST produce a StringArray
+    /// with OCSF canonical Title-case values `["Critical", "High", "High"]`.
+    ///
+    /// FAILS NOW: `build_column_array` does raw passthrough for String columns —
+    /// `"CRITICAL"` remains `"CRITICAL"`, not `"Critical"`. The `assert_eq!` for row 0
+    /// fires with `left="CRITICAL"`, `right="Critical"`.
+    ///
+    /// After implementation: `OcsfEnumMap::normalize_enum_label("severity", raw)` is
+    /// called for every non-null raw string value before Arrow materialization.
+    ///
+    /// Traces to: BC-2.02.013 v1.3 F-CRIT-002; LOCAL-pass-5 adversary finding.
+    #[test]
+    fn test_BC_2_02_013_build_column_array_normalizes_severity_to_title_case() {
+        let records = vec![
+            json!({"severity": "CRITICAL"}),
+            json!({"severity": "high"}),
+            json!({"severity": "High"}),
+        ];
+        let col = ColumnSpec::new("severity", ColumnType::String, None, vec![]);
+
+        let array = build_column_array(&records, &col, "crowdstrike");
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray for ColumnType::String severity column");
+
+        // BC-2.02.013 v1.3: "CRITICAL" → "Critical" via OcsfEnumMap (severity_id[5]).
+        // FAILS NOW: raw passthrough returns "CRITICAL", not "Critical".
+        assert_eq!(
+            string_array.value(0),
+            "Critical",
+            "BC-2.02.013 F-CRIT-002: severity='CRITICAL' must normalize to 'Critical' \
+             via OcsfEnumMap::normalize_enum_label; \
+             got: {:?}. build_column_array is currently doing raw passthrough.",
+            string_array.value(0)
+        );
+        // BC-2.02.013 v1.3: "high" → "High" via OcsfEnumMap (severity_id[4]).
+        // FAILS NOW: raw passthrough returns "high", not "High".
+        assert_eq!(
+            string_array.value(1),
+            "High",
+            "BC-2.02.013 F-CRIT-002: severity='high' must normalize to 'High' \
+             via OcsfEnumMap::normalize_enum_label; \
+             got: {:?}. build_column_array is currently doing raw passthrough.",
+            string_array.value(1)
+        );
+        // Idempotent: already-canonical "High" stays "High".
+        assert_eq!(
+            string_array.value(2),
+            "High",
+            "BC-2.02.013 F-CRIT-002: severity='High' (already OCSF canonical) must \
+             remain 'High' after normalization (idempotent); got: {:?}.",
+            string_array.value(2)
+        );
+    }
+
+    /// BC-2.02.013 v1.3 / F-CRIT-002 (RED — fails before implementation):
+    ///
+    /// `build_column_array` for `ColumnType::String` columns named `"status"` and
+    /// `"disposition"` must normalize raw values to OCSF canonical Title-case:
+    ///   - status `"NEW"` → `"New"` (OcsfEnumMap status_id[1001])
+    ///   - disposition `"blocked"` → `"Blocked"` (OcsfEnumMap disposition_id[2])
+    ///
+    /// FAILS NOW: raw passthrough — "NEW" stays "NEW", "blocked" stays "blocked".
+    ///
+    /// After implementation: `OcsfEnumMap::normalize_enum_label` is called for
+    /// every String column whose name is in the in-scope field set.
+    ///
+    /// Traces to: BC-2.02.013 v1.3 F-CRIT-002 in-scope field table
+    /// (status, disposition guaranteed); LOCAL-pass-5.
+    #[test]
+    fn test_BC_2_02_013_build_column_array_normalizes_status_and_disposition() {
+        // --- status "NEW" → "New" ---
+        let status_records = vec![json!({"status": "NEW"})];
+        let status_col = ColumnSpec::new("status", ColumnType::String, None, vec![]);
+
+        let status_array = build_column_array(&status_records, &status_col, "crowdstrike");
+        let status_str_array = status_array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray for status column");
+
+        // FAILS NOW: raw passthrough returns "NEW", not "New".
+        assert_eq!(
+            status_str_array.value(0),
+            "New",
+            "BC-2.02.013 F-CRIT-002: status='NEW' must normalize to 'New' via \
+             OcsfEnumMap::normalize_enum_label (status_id[1001]=New); \
+             got: {:?}. build_column_array is currently doing raw passthrough.",
+            status_str_array.value(0)
+        );
+
+        // --- disposition "blocked" → "Blocked" ---
+        let disp_records = vec![json!({"disposition": "blocked"})];
+        let disp_col = ColumnSpec::new("disposition", ColumnType::String, None, vec![]);
+
+        let disp_array = build_column_array(&disp_records, &disp_col, "crowdstrike");
+        let disp_str_array = disp_array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray for disposition column");
+
+        // FAILS NOW: raw passthrough returns "blocked", not "Blocked".
+        assert_eq!(
+            disp_str_array.value(0),
+            "Blocked",
+            "BC-2.02.013 F-CRIT-002: disposition='blocked' must normalize to 'Blocked' via \
+             OcsfEnumMap::normalize_enum_label (disposition_id[2]=Blocked); \
+             got: {:?}. build_column_array is currently doing raw passthrough.",
+            disp_str_array.value(0)
+        );
+    }
+
+    /// BC-2.02.013 v1.3 / F-CRIT-002 (RED — fails before implementation):
+    ///
+    /// `build_column_array` for a `ColumnType::String` column named `"severity"` with
+    /// a vendor-specific unrecognized value `"VENDOR_XYZ"` MUST:
+    ///   1. Leave the value as-received (`"VENDOR_XYZ"` unchanged, non-fatal).
+    ///   2. Emit `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)`.
+    ///
+    /// FAILS NOW: no normalization attempt is made, so no `ocsf.enum_label_unrecognized`
+    /// warn is ever emitted. The value passthrough assertion (1) would pass, but the
+    /// warn-capture assertion (2) FAILS because the warn is never fired.
+    ///
+    /// After implementation: `OcsfEnumMap::normalize_enum_label` returns `None` for
+    /// `"VENDOR_XYZ"`, the raw value is kept as-received, and the warn is emitted.
+    ///
+    /// WarnCapture pattern: matches `test_adapter_normalization.rs` RG-021 (prism-ocsf).
+    ///
+    /// Traces to: BC-2.02.013 v1.3 F-CRIT-002 error case;
+    /// BC-2.16.002 Canonical Structured Event Catalog (ocsf.enum_label_unrecognized);
+    /// LOCAL-pass-5 adversary finding.
+    #[test]
+    fn test_BC_2_02_013_build_column_array_unrecognized_left_as_received_with_warn() {
+        use std::sync::Mutex;
+        use tracing_subscriber::layer::SubscriberExt;
+
+        // ── Local WarnCapture types (same pattern as prism-ocsf RG-021) ─────────
+
+        #[derive(Default)]
+        struct WarnFieldVisitor {
+            event_type: Option<String>,
+        }
+
+        impl tracing::field::Visit for WarnFieldVisitor {
+            fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
+                if field.name() == "event_type" {
+                    self.event_type = Some(val.to_owned());
+                }
+            }
+            fn record_debug(
+                &mut self,
+                _field: &tracing::field::Field,
+                _value: &dyn std::fmt::Debug,
+            ) {
+            }
+        }
+
+        struct WarnCapture {
+            events: Arc<Mutex<Vec<String>>>,
+        }
+
+        impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnCapture {
+            fn on_event(
+                &self,
+                event: &tracing::Event<'_>,
+                _ctx: tracing_subscriber::layer::Context<'_, S>,
+            ) {
+                if *event.metadata().level() == tracing::Level::WARN {
+                    let mut visitor = WarnFieldVisitor::default();
+                    event.record(&mut visitor);
+                    if let Some(et) = visitor.event_type {
+                        self.events.lock().unwrap().push(et);
+                    }
+                }
+            }
+        }
+
+        // ── Test body ─────────────────────────────────────────────────────────
+
+        let captured: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let layer = WarnCapture {
+            events: captured.clone(),
+        };
+        let subscriber = tracing_subscriber::registry().with(layer);
+
+        let records = vec![json!({"severity": "VENDOR_XYZ"})];
+        let col = ColumnSpec::new("severity", ColumnType::String, None, vec![]);
+
+        let array = tracing::subscriber::with_default(subscriber, || {
+            build_column_array(&records, &col, "crowdstrike")
+        });
+
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray for severity column");
+
+        // (1) Unrecognized value must be left as-received (non-fatal, no panic).
+        assert_eq!(
+            string_array.value(0),
+            "VENDOR_XYZ",
+            "BC-2.02.013 F-CRIT-002 error case: unrecognized severity='VENDOR_XYZ' \
+             must be left as-received in the Arrow column (non-fatal); \
+             got: {:?}",
+            string_array.value(0)
+        );
+
+        // (2) tracing::warn!(event_type = "ocsf.enum_label_unrecognized") must be emitted.
+        // FAILS NOW: no normalization is attempted, so no warn fires at all.
+        // After implementation: normalize_enum_label returns None → warn is emitted.
+        let warns = captured.lock().unwrap();
+        assert!(
+            warns.iter().any(|et| et == "ocsf.enum_label_unrecognized"),
+            "BC-2.02.013 F-CRIT-002 error case: build_column_array must emit \
+             tracing::warn!(event_type = \"ocsf.enum_label_unrecognized\", ...) \
+             for unrecognized OCSF enum-label values \
+             (BC-2.16.002 Canonical Structured Event Catalog); \
+             captured event_types: {:?}. \
+             FAILS NOW because no normalization is wired — no warn fires.",
+            *warns
+        );
+    }
+
+    /// BC-2.02.013 v1.3 / F-CRIT-002 (GREEN before AND after — regression guard):
+    ///
+    /// `build_column_array` for a `ColumnType::String` column named `"hostname"`
+    /// (NOT in the OCSF enum-label field set {"severity","status","activity_name",
+    /// "disposition"}) with value `"SERVER-01"` MUST pass the value through unchanged.
+    /// No normalization, no warn.
+    ///
+    /// PASSES NOW and MUST continue to PASS after implementation — this guards the
+    /// column-selection rule: only the four designated OCSF enum-label columns are
+    /// normalized; all other String columns are untouched.
+    ///
+    /// Traces to: BC-2.02.013 v1.3 F-CRIT-002 column-selection invariant.
+    #[test]
+    fn test_BC_2_02_013_build_column_array_non_enum_string_column_untouched() {
+        let records = vec![json!({"hostname": "SERVER-01"})];
+        let col = ColumnSpec::new("hostname", ColumnType::String, None, vec![]);
+
+        let array = build_column_array(&records, &col, "crowdstrike");
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray for hostname column");
+
+        // "hostname" is NOT in the enum-label set — raw passthrough required.
+        assert_eq!(
+            string_array.value(0),
+            "SERVER-01",
+            "BC-2.02.013 F-CRIT-002 column-selection guard: non-enum-label String \
+             column 'hostname' with value 'SERVER-01' must NOT be normalized \
+             (column-selection rule: only severity/status/activity_name/disposition); \
+             got: {:?}",
+            string_array.value(0)
+        );
+    }
+
+    /// BC-2.02.013 v1.3 / F-CRIT-002 (GREEN before AND after — regression guard):
+    ///
+    /// `build_column_array` for a `ColumnType::Integer` column named `"severity_id"`
+    /// with integer value `5` MUST produce an Int64Array with value `5` unchanged.
+    /// OCSF enum-label normalization is ONLY applied to `ColumnType::String` columns
+    /// in the designated field set; `ColumnType::Integer` columns are NEVER normalized.
+    ///
+    /// PASSES NOW and MUST continue to PASS after implementation — this guards against
+    /// normalization accidentally touching non-String columns.
+    ///
+    /// Traces to: BC-2.02.013 v1.3 F-CRIT-002 — normalization gated on
+    /// `col.column_type == ColumnType::String` AND `col.name` in enum-label set.
+    #[test]
+    fn test_BC_2_02_013_build_column_array_non_string_column_untouched() {
+        let records = vec![json!({"severity_id": 5})];
+        let col = ColumnSpec::new("severity_id", ColumnType::Integer, None, vec![]);
+
+        let array = build_column_array(&records, &col, "crowdstrike");
+        let int_array = array
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .expect("expected Int64Array for ColumnType::Integer severity_id column");
+
+        // ColumnType::Integer columns are not subject to string normalization.
+        assert!(
+            !int_array.is_null(0),
+            "BC-2.02.013 F-CRIT-002: Integer column severity_id must be non-null"
+        );
+        assert_eq!(
+            int_array.value(0),
+            5,
+            "BC-2.02.013 F-CRIT-002: Integer column severity_id must remain 5 \
+             (OCSF normalization does NOT touch ColumnType::Integer); got: {}",
+            int_array.value(0)
+        );
+    }
 }
