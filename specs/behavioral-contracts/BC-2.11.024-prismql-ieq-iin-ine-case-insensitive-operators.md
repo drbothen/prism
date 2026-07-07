@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-07-06T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: draft
 introduced: 2026-07-06
-modified: null
+modified: "2026-07-07"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -35,7 +35,7 @@ PrismQL extends its existing `I`-prefix case-insensitive operator family (`ICONT
 
 ## Preconditions
 
-- The query string has been auto-detected as filter mode (BC-2.11.002) or contains a `| where` stage in pipe mode (BC-2.11.004). `IEQ`/`IIN`/`INE` are available in both modes because filter predicates use a shared grammar per the ADR-046 D7 invariant (BC-2.11.023).
+- The query string has been auto-detected as filter mode (BC-2.11.002) or contains a `| where` stage in pipe mode (BC-2.11.004). `IEQ`/`IIN`/`INE` are available in both these modes because filter predicates use a shared grammar per the ADR-046 D7 invariant (BC-2.11.023). **These operators are NOT available in raw SQL mode (BC-2.11.003)** — a SQL-mode query containing `IEQ`, `IIN`, or `INE` MUST be rejected at parse time; see the Mode-Boundary Enforcement invariant.
 - The field referenced by `IEQ`/`IIN`/`INE` is a string-type column in the DataFusion execution schema. Applying `lower()` to a non-string column (e.g., `severity_id IEQ 'high'` where `severity_id` is integer) results in `E-QUERY-002 (QueryTypeMismatch)`.
 - The query string has passed the 64KB length check.
 
@@ -82,6 +82,7 @@ The default operators `=`, `!=`, and `IN` are **unchanged** — they retain case
 - The `lower(field) OP lower('val')` lowering sacrifices index sargability (the full column is lowercased before comparison). This is acceptable given Prism's MemTable query size is bounded at 10,000 rows (BC-2.11.006). Analysts using `IEQ` on large-scale cold-query engines outside Prism cannot assume the same performance profile.
 - `IEQ`/`IIN`/`INE` are valid in filter mode and in pipe-mode `| where` stages (shared grammar invariant, BC-2.11.023).
 - `IIN` requires at least one value in the membership list. An empty `IIN ()` list is a parse error (`E-QUERY-001`).
+- **Mode-Boundary Enforcement — scope-closed to filter and pipe modes:** `IEQ`/`IIN`/`INE` are PrismQL-level extensions that have no equivalent in standard SQL. A query in raw SQL mode (BC-2.11.003 — queries beginning with `SELECT`) that contains `IEQ`, `IIN`, or `INE` MUST be rejected at **parse time** before reaching DataFusion plan or execution stages. Without this gate, these operators reach DataFusion as unknown identifiers, producing an opaque internal planning failure (`E-QUERY-034: query execution error: {detail}` with `detail` redacted to `<redacted; see server logs>`) — an analyst-facing trap providing zero corrective guidance. The parse-time rejection emits `E-QUERY-001` with the structured message: `"E-QUERY-001: parse error near '{operator}': case-insensitive operators (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode (e.g., severity IEQ 'high') or a pipe | where stage (e.g., FROM crowdstrike_detections | where severity IEQ 'high') instead."` where `{operator}` is the specific keyword encountered (IEQ, IIN, or INE, normalized to uppercase in the message). This is a **scope-boundary closure** — it eliminates the analyst-facing trap. It is **NOT** an implementation of SQL-mode case-insensitive operators. Full SQL-mode case-insensitive support, if ever desired, is a separate future feature requiring its own ADR and BC.
 - **No `EXPECTED` non-exhaustive gate count change**: `case_insensitive: bool` is a new field added to existing `#[non_exhaustive]` structs (`Predicate::Compare`, `Predicate::In`). The non-exhaustive compile-fail gate counts annotated *types*, not field additions within existing types. Verify at story implementation time per ADR-047 §Consequences.
 
 ## Error Cases
@@ -92,6 +93,7 @@ The default operators `=`, `!=`, and `IN` are **unchanged** — they retain case
 | `E-QUERY-001` | `IIN` with an empty membership list: `severity IIN ()` | Parse error: "IIN requires at least one value in the membership list" |
 | `E-QUERY-002` | `IEQ`/`IIN`/`INE` applied to a non-string column (e.g., `severity_id IEQ 'high'` where `severity_id` is an integer column) | `QueryTypeMismatch`: `lower()` is not applicable to non-string types; error includes field type info and suggests using the corresponding string column |
 | `E-QUERY-001` | Unknown field name used with `IEQ`/`IIN`/`INE` | Error with `similar_fields` suggestions (same behavior as `=`) |
+| `E-QUERY-001` | `IEQ`, `IIN`, or `INE` used in a raw SQL mode query (BC-2.11.003) — the operator keyword appears in a `SELECT … FROM …` query, not in filter mode or a `| where` stage | **Parse-time rejection** (before DataFusion planning): `"E-QUERY-001: parse error near '{operator}': case-insensitive operators (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode (e.g., severity IEQ 'high') or a pipe | where stage (e.g., FROM crowdstrike_detections | where severity IEQ 'high') instead."` MCP mapping: `-32602 INVALID_PARAMS` (caller-resolvable). This error replaces the prior opaque `E-QUERY-034` that the operator produced when reaching DataFusion as an unknown identifier. This is scope-boundary enforcement — no SQL-mode case-insensitive support is added. |
 
 ## Edge Cases
 
@@ -106,6 +108,7 @@ The default operators `=`, `!=`, and `IN` are **unchanged** — they retain case
 | EC-11-024-007 | `IIN` with a single value: `severity IIN ('high')` | Valid — single-element case-insensitive membership check; equivalent to `severity IEQ 'high'` |
 | EC-11-024-008 | `IEQ` on a column whose value is `null` | No match — `lower(null)` evaluates to `null`; null comparisons require `IS NULL`/`IS NOT NULL` |
 | EC-11-024-009 | `severity IEQ ''` (empty string literal) | Valid parse; matches records where `lower(severity) = ''` — typically zero rows for well-formed OCSF data |
+| EC-11-024-010 | `SELECT severity, count(*) FROM crowdstrike_detections WHERE severity IEQ 'high' GROUP BY severity` — raw SQL mode query containing `IEQ` in a SQL `WHERE` clause | **Parse-time `E-QUERY-001` rejection** with message: `"E-QUERY-001: parse error near 'IEQ': case-insensitive operators (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode (e.g., severity IEQ 'high') or a pipe | where stage (e.g., FROM crowdstrike_detections | where severity IEQ 'high') instead."` — NOT an opaque `E-QUERY-034`. The same rejection applies to `IIN` and `INE` appearing in SQL context. |
 
 ## Canonical Test Vectors
 
@@ -122,6 +125,8 @@ The default operators `=`, `!=`, and `IN` are **unchanged** — they retain case
 | `severity_id IEQ 'high'` where `severity_id` is integer column | `Err(E-QUERY-002)` — `lower()` not applicable to integer type | error |
 | `severity ieq 'critical'` (lowercase operator) | Parsed identically to `severity IEQ 'critical'` — `kw()` is case-insensitive | happy-path |
 | `FROM crowdstrike_detections \| where severity IEQ 'high' \| head 10` | Returns rows matching `lower(severity)='high'`; `normalized_pql` contains `severity IEQ 'high'` (uppercase canonical) | pipe-mode + normalized_pql |
+| `SELECT * FROM crowdstrike_detections WHERE severity IEQ 'high'` (SQL mode) | `Err(E-QUERY-001)` — parse-time rejection: `"E-QUERY-001: parse error near 'IEQ': case-insensitive operators (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode (e.g., severity IEQ 'high') or a pipe | where stage (e.g., FROM crowdstrike_detections | where severity IEQ 'high') instead."` MCP: `-32602 INVALID_PARAMS`. NOT an opaque `E-QUERY-034`. | error (mode-boundary) |
+| `SELECT * FROM crowdstrike_detections WHERE status IIN ('open', 'new')` (SQL mode with IIN) | `Err(E-QUERY-001)` — parse-time rejection with `{operator}` = `IIN` in the message (same structured mode-boundary error pattern) | error (mode-boundary) |
 
 ## Verification Properties
 
@@ -169,3 +174,4 @@ VP-021 (existing). VP for IEQ/IIN proptest plan-equality and round-trip verifica
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | S-PRISMQL-CASE-INSENSITIVE-001-bc-burst | 2026-07-06 | product-owner | Initial draft. IEQ/IIN/INE case-insensitive operator family: grammar, AST `case_insensitive` flag, DataFusion `lower()` lowering. Resolves ADR-047 OD-2 (case-sensitive default) + OD-3 (IEQ/IIN/INE spelling) per human sign-off D-1398 2026-06-27. |
+| 1.1 | S-PRISMQL-CASE-INSENSITIVE-001-adversary-pass-3-fix | 2026-07-07 | product-owner | Mode-Boundary Enforcement invariant: IEQ/IIN/INE are scope-closed to filter and pipe `\| where` modes. SQL-mode queries using these operators MUST be rejected at parse time with structured `E-QUERY-001` (not the opaque `E-QUERY-034` DataFusion planning failure). Added: precondition clarification, Mode-Boundary Enforcement invariant with verbatim message template, SQL-mode rejection error case, EC-11-024-010, two mode-boundary test vectors. Scope-boundary enforcement only — no SQL-mode case-insensitive support is added (future feature). |

@@ -3,8 +3,8 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.4"
-updated: "2026-07-06"
+version: "1.5"
+updated: "2026-07-07"
 status: draft
 producer: story-writer
 phase: 3
@@ -49,7 +49,7 @@ behavioral_contracts:
   - BC-2.02.002
   - BC-2.02.010
 # BC array propagation (all 7 BCs cited by ACs in the body below):
-#   BC-2.11.024 v1.0 (draft): new — PrismQL IEQ/IIN/INE case-insensitive operators;
+#   BC-2.11.024 v1.1 (draft): new — PrismQL IEQ/IIN/INE case-insensitive operators;
 #     primary contract for grammar+AST+emitter+round-trip changes. Every parser/emitter AC
 #     traces to a BC-2.11.024 postcondition, invariant, or error case.
 #   BC-2.02.013 v1.2 (draft): new — adapter-boundary OCSF enum-label canonical-case
@@ -106,7 +106,7 @@ risk_mitigations:
      passes through the parsed operator string, it will emit lowercase if the query was
      written lowercase. The normalizer must use canonical uppercase operator names."
 traces_to: [ADR-047]
-red_gate_tests: 22
+red_gate_tests: 27
 estimated_days: "3"
 ---
 
@@ -147,7 +147,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 
 | BC | Version | Title | Key Clauses Used |
 |----|---------|-------|-----------------|
-| BC-2.11.024 | v1.0 | PrismQL Case-Insensitive Equality and Membership Operators (IEQ / IIN / INE) | New operator syntax; DataFusion lower() lowering; case-sensitive operators unchanged; normalized_pql round-trip; IEQ superset invariant; IIN non-empty invariant; E-QUERY-001 (non-string RHS, empty list); E-QUERY-002 (non-string column) |
+| BC-2.11.024 | v1.1 | PrismQL Case-Insensitive Equality and Membership Operators (IEQ / IIN / INE) | New operator syntax; DataFusion lower() lowering; case-sensitive operators unchanged; normalized_pql round-trip; IEQ superset invariant; IIN non-empty invariant; E-QUERY-001 (non-string RHS, empty list); E-QUERY-002 (non-string column); Mode-Boundary Enforcement (SQL-mode IEQ/IIN/INE rejection, E-QUERY-001) |
 | BC-2.02.013 | v1.2 | Adapter-Boundary OCSF Enum-Label Canonical-Case Normalization | Severity + status guaranteed; all OCSF enum-label fields; idempotent; unrecognized values as-received + warning; GROUP BY aggregation consistency; enum_map.rs as sole casing authority |
 | BC-2.11.002 | v1.5 | PrismQL Filter Mode Parsing | Amended: IEQ/IIN/INE added to supported filter-mode operator table |
 | BC-2.11.004 | v1.13 | PrismQL Pipe Mode | Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7) |
@@ -164,7 +164,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | Story spec (this file) | ~18,000 |
 | ADR-047 (full) | ~6,000 |
 | Design map: prismql-case-insensitive-design-map.md | ~4,500 |
-| BC-2.11.024 v1.0 | ~3,000 |
+| BC-2.11.024 v1.1 | ~3,000 |
 | BC-2.02.013 v1.2 | ~2,500 |
 | BC-2.11.002 v1.5 (relevant filter-mode sections) | ~1,500 |
 | BC-2.11.004 v1.13 (relevant pipe-mode sections) | ~1,500 |
@@ -186,7 +186,7 @@ Estimated at ~42% of a 200K context window. Within the per-story limit. No split
 ## Acceptance Criteria
 
 ### AC-001 — IEQ parses to Predicate::Compare { case_insensitive: true }
-(traces to BC-2.11.024 v1.0 postcondition "New operators and their syntax" — IEQ row;
+(traces to BC-2.11.024 v1.1 postcondition "New operators and their syntax" — IEQ row;
 BC-2.11.002 v1.5 amendment: IEQ added to filter-mode supported operator table)
 
 Given a PrismQL filter-mode query string `severity IEQ 'high'`,
@@ -203,7 +203,7 @@ is added to the variant.
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_parses_to_compare_case_insensitive_true`
 
 ### AC-002 — IIN parses to Predicate::In { case_insensitive: true }
-(traces to BC-2.11.024 v1.0 postcondition "New operators and their syntax" — IIN row;
+(traces to BC-2.11.024 v1.1 postcondition "New operators and their syntax" — IIN row;
 BC-2.11.002 v1.5 amendment)
 
 Given `status IIN ('open', 'new')`,
@@ -218,7 +218,7 @@ is added to the variant.
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_parses_to_in_case_insensitive_true`
 
 ### AC-003 — INE parses to Predicate::Compare { op: CompareOp::Ne, case_insensitive: true }
-(traces to BC-2.11.024 v1.0 postcondition "New operators and their syntax" — INE row)
+(traces to BC-2.11.024 v1.1 postcondition "New operators and their syntax" — INE row)
 
 Given `severity INE 'informational'`,
 when parsed,
@@ -227,7 +227,7 @@ then the AST contains `Predicate::Compare { lhs: Box::new(Expr::Field(FieldPath:
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ine_parses_to_compare_ne_case_insensitive_true`
 
 ### AC-004 — Keyword parsing is case-insensitive: `ieq`, `IEQ`, `Ieq` produce identical ASTs
-(traces to BC-2.11.024 v1.0 postcondition "Operators are parsed case-insensitively in the
+(traces to BC-2.11.024 v1.1 postcondition "Operators are parsed case-insensitively in the
 Chumsky grammar via the kw(...) combinator: ieq, IEQ, Ieq all parse identically")
 
 Given three queries `severity ieq 'high'`, `severity IEQ 'high'`, and `severity Ieq 'high'`,
@@ -240,7 +240,7 @@ AC verifies the combinator behavior is preserved.
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_keyword_case_insensitive_parsing`
 
 ### AC-005 — IIN parses before IN — no prefix-match collision
-(traces to BC-2.11.024 v1.0 invariant: "IIN requires at least one value in the membership
+(traces to BC-2.11.024 v1.1 invariant: "IIN requires at least one value in the membership
 list" — implicitly, IIN must parse at all, meaning the grammar combinator ordering must
 not swallow IIN as a malformed IN; design map §A §Collision check)
 
@@ -263,7 +263,7 @@ keyword must be tried first. Verify by reading the keyword parser section in fil
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_before_in_no_collision`
 
 ### AC-006 — Sibling-site sweep: all Predicate::Compare construction sites add case_insensitive: false
-(traces to BC-2.11.024 v1.0 postcondition: "Each operator adds a case_insensitive: bool
+(traces to BC-2.11.024 v1.1 postcondition: "Each operator adds a case_insensitive: bool
 flag (set to true) on the corresponding AST variant" — implies existing sites default to false;
 TD-VSDD-060 sibling-site sweep rule)
 
@@ -280,7 +280,7 @@ VERIFY-ONLY AC — no standalone Red Gate test stub needed; compilation failure 
 once the field is added to the enum variant.
 
 ### AC-007 — Sibling-site sweep: all Predicate::In construction sites add case_insensitive: false
-(traces to BC-2.11.024 v1.0 postcondition: "case_insensitive: bool flag" on Predicate::In;
+(traces to BC-2.11.024 v1.1 postcondition: "case_insensitive: bool flag" on Predicate::In;
 TD-VSDD-060 sibling-site sweep rule)
 
 Same verification as AC-006 for `Predicate::In`:
@@ -292,7 +292,7 @@ Every construction site must explicitly specify `case_insensitive: false` (or `t
 VERIFY-ONLY AC — compilation enforces.
 
 ### AC-008 — IEQ lowers to `lower(field) = lower('val')` in DataFusion SQL
-(traces to BC-2.11.024 v1.0 postcondition "DataFusion SQL lowering" table — IEQ row:
+(traces to BC-2.11.024 v1.1 postcondition "DataFusion SQL lowering" table — IEQ row:
 `lower(severity) = lower('high')`)
 
 Given `Predicate::Compare { lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))), op: CompareOp::Eq, rhs: Box::new(Expr::Literal(Literal::String("high".into()))), case_insensitive: true }`,
@@ -309,7 +309,7 @@ The `ILIKE` function is NOT used — it is a pattern operator (ADR-047 §Alterna
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_emits_lower_equals_lower`
 
 ### AC-009 — INE lowers to `lower(field) != lower('val')`
-(traces to BC-2.11.024 v1.0 postcondition "DataFusion SQL lowering" table — INE row:
+(traces to BC-2.11.024 v1.1 postcondition "DataFusion SQL lowering" table — INE row:
 `lower(severity) != lower('low')`)
 
 Given `Predicate::Compare { lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))), op: CompareOp::Ne, rhs: Box::new(Expr::Literal(Literal::String("low".into()))), case_insensitive: true }` for `severity INE 'low'`,
@@ -319,7 +319,7 @@ then the emitted string is `lower(severity) != lower('low')`.
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ine_emits_lower_ne_lower`
 
 ### AC-010 — IIN lowers to `lower(field) IN (lower('v1'), lower('v2'), ...)`
-(traces to BC-2.11.024 v1.0 postcondition "DataFusion SQL lowering" table — IIN row:
+(traces to BC-2.11.024 v1.1 postcondition "DataFusion SQL lowering" table — IIN row:
 `lower(severity) IN (lower('high'), lower('critical'))`)
 
 Given `Predicate::In { field: FieldPath::new(["severity"]), values: vec![Literal::String("high".into()), Literal::String("critical".into())], negated: false, case_insensitive: true }`,
@@ -334,9 +334,9 @@ in `lower(..)` and each `literal_to_sql(v)` in `lower(..)`.
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_emits_lower_in_lower_list`
 
 ### AC-011 — Case-sensitive `=`, `!=`, `IN` emit unchanged (no lower() wrapping)
-(traces to BC-2.11.024 v1.0 postcondition "Relationship to case-sensitive operators":
+(traces to BC-2.11.024 v1.1 postcondition "Relationship to case-sensitive operators":
 "The default operators =, !=, and IN are unchanged — they retain case-sensitive exact-match
-semantics"; BC-2.11.024 v1.0 invariant: "IEQ is a strict superset of =: for any two values
+semantics"; BC-2.11.024 v1.1 invariant: "IEQ is a strict superset of =: for any two values
 with identical casing, IEQ matches if and only if = would match")
 
 Given `Predicate::Compare { op: CompareOp::Eq, case_insensitive: false }` for `severity = 'High'`,
@@ -351,7 +351,7 @@ flag is respected and the existing paths are NOT modified.
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_case_sensitive_eq_no_lower_wrapping`
 
 ### AC-012 — IEQ execution: matches rows regardless of casing
-(traces to BC-2.11.024 v1.0 canonical test vector #1: `severity IEQ 'high'` against
+(traces to BC-2.11.024 v1.1 canonical test vector #1: `severity IEQ 'high'` against
 `{severity: 'High'}` → Row returned;
 test vector #2: `severity IEQ 'HIGH'` against `{severity: 'High'}` → Row returned;
 BC-2.11.002 v1.5 amendment: IEQ operational in filter mode)
@@ -367,9 +367,9 @@ then the row is also returned (both cases match via `lower()`).
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_execution_case_insensitive_match`
 
 ### AC-013 — Case-sensitive `=` returns 0 rows when casing differs (regression guard)
-(traces to BC-2.11.024 v1.0 canonical test vector #6: "regression-no-change" —
+(traces to BC-2.11.024 v1.1 canonical test vector #6: "regression-no-change" —
 `severity = 'High'` against `{severity: 'HIGH'}` → Row NOT returned;
-BC-2.11.024 v1.0 invariant: "Precision differences appear only when casing differs")
+BC-2.11.024 v1.1 invariant: "Precision differences appear only when casing differs")
 
 Given a MemTable with `{severity: 'High'}`,
 when `severity = 'high'` (case-sensitive) is executed,
@@ -381,7 +381,7 @@ case-sensitive default has been broken — a critical behavioral regression.
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_case_sensitive_eq_returns_zero_on_casing_mismatch`
 
 ### AC-013b — IEQ/IIN available in pipe-mode | where stage
-(traces to BC-2.11.024 v1.0 invariant: "IEQ/IIN/INE are valid in filter mode and in
+(traces to BC-2.11.024 v1.1 invariant: "IEQ/IIN/INE are valid in filter mode and in
 pipe-mode | where stages (shared grammar invariant, BC-2.11.023)";
 BC-2.11.004 v1.13 amendment)
 
@@ -396,7 +396,7 @@ accidentally missing for the pipe path.
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_in_pipe_where_stage`
 
 ### AC-014 — normalized_pql reflects IEQ/IIN/INE in uppercase canonical form
-(traces to BC-2.11.024 v1.0 postcondition "normalized_pql round-trip":
+(traces to BC-2.11.024 v1.1 postcondition "normalized_pql round-trip":
 "IEQ, IIN, and INE predicates are reflected in the normalized_pql field";
 "the Chumsky normalizer emits operator keywords in uppercase canonical form
 (e.g., `severity ieq 'high'` normalizes to `severity IEQ 'high'`)";
@@ -414,7 +414,7 @@ then `normalized_pql` contains `status IIN ('open', 'new')` (IIN uppercase retai
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_reflects_ieq_uppercase`
 
 ### AC-015 — normalized_pql round-trip: parse → normalize → re-parse → same AST
-(traces to BC-2.11.024 v1.0 postcondition "normalized_pql round-trip":
+(traces to BC-2.11.024 v1.1 postcondition "normalized_pql round-trip":
 "The round-trip guarantee from BC-2.11.018 applies: the value in normalized_pql parses
 back to the same AST";
 BC-2.11.018 v1.3 amendment: round-trip invariant extended to cover IEQ/IIN/INE)
@@ -506,7 +506,7 @@ This verifies that adapter-boundary normalization eliminates GROUP BY fragmentat
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_group_by_severity_no_case_fragmentation`
 
 ### AC-020 — E-QUERY-001: IEQ/INE with non-string literal RHS rejected at parse time
-(traces to BC-2.11.024 v1.0 error case: "E-QUERY-001: IEQ/INE with a non-string literal
+(traces to BC-2.11.024 v1.1 error case: "E-QUERY-001: IEQ/INE with a non-string literal
 on the RHS (e.g., severity IEQ 42) — Parse error: 'IEQ/INE require a string literal
 as the right-hand side value'")
 
@@ -517,9 +517,9 @@ then the result is `Err(E-QUERY-001)` with a message indicating IEQ requires a s
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_non_string_rhs_e_query_001`
 
 ### AC-021 — E-QUERY-001: IIN with empty membership list rejected at parse time
-(traces to BC-2.11.024 v1.0 error case: "E-QUERY-001: IIN with an empty membership list:
+(traces to BC-2.11.024 v1.1 error case: "E-QUERY-001: IIN with an empty membership list:
 severity IIN () — Parse error: 'IIN requires at least one value in the membership list'";
-BC-2.11.024 v1.0 invariant: "IIN requires at least one value in the membership list.
+BC-2.11.024 v1.1 invariant: "IIN requires at least one value in the membership list.
 An empty IIN () list is a parse error (E-QUERY-001)")
 
 Given `severity IIN ()`,
@@ -529,12 +529,12 @@ then the result is `Err(E-QUERY-001)` with a message indicating IIN requires at 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_empty_list_e_query_001`
 
 ### AC-022 — E-QUERY-002: IEQ/IIN/INE on non-string column returns QueryTypeMismatch
-(traces to BC-2.11.024 v1.0 error case:
+(traces to BC-2.11.024 v1.1 error case:
 "E-QUERY-002: IEQ/IIN/INE applied to a non-string column (e.g., severity_id IEQ 'high'
 where severity_id is an integer column) — QueryTypeMismatch: not applicable to non-string
 types; error includes field name, actual type, operator, and — when the column is a known
 OCSF integer-id field — suggests the corresponding string label column";
-BC-2.11.024 v1.0 precondition: "The field referenced by IEQ/IIN/INE is a string-type column
+BC-2.11.024 v1.1 precondition: "The field referenced by IEQ/IIN/INE is a string-type column
 in the DataFusion execution schema. Applying lower() to a non-string column results in
 E-QUERY-002 (QueryTypeMismatch)")
 
@@ -545,7 +545,7 @@ then the result is `Err(E-QUERY-002 QueryTypeMismatch)` with a Display message c
 - the suggestion: "for label comparison, use the string column 'severity' with IEQ/IIN/INE
   instead" (because `severity_id` is a known OCSF integer-id field; `PrismError::QueryTypeMismatch`
   carries `suggested_column: Some("severity")` per the OCSF sibling lookup contract in
-  error-taxonomy.md v2.18 §E-QUERY-002)
+  error-taxonomy.md v2.19 §E-QUERY-002)
 
 The full Display for this case must be:
   "E-QUERY-002: type mismatch — column 'severity_id' in table '<table>' has type 'Integer'
@@ -554,8 +554,31 @@ The full Display for this case must be:
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_e_query_002`
 
-### AC-023 — PrismQL grammar reference resource includes IEQ/IIN/INE in operator table
-(traces to BC-2.11.024 v1.0 architecture anchor: ADR-047 §D.4 discoverability;
+### AC-023 — SQL-mode IEQ/IIN/INE rejection — structured E-QUERY-001
+(traces to BC-2.11.024 v1.1 §Mode-Boundary Enforcement invariant)
+
+Given a PrismQL query in raw SQL mode (begins with `SELECT`) that contains an IEQ, IIN, or INE
+operator (e.g., `SELECT * FROM t WHERE severity IEQ 'high'`),
+when the parser processes it,
+then the parser MUST reject it at PARSE TIME with `E-QUERY-001` BEFORE any DataFusion
+planning or execution, with the verbatim message:
+`"E-QUERY-001: parse error near '{operator}': case-insensitive operators (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode (e.g., severity IEQ 'high') or a pipe | where stage (e.g., FROM crowdstrike_detections | where severity IEQ 'high') instead."`
+where `{operator}` is the encountered keyword in uppercase (IEQ, IIN, or INE).
+
+MCP error mapping: -32602 INVALID_PARAMS.
+
+The rejection MUST NOT produce `E-QUERY-034 QueryExecutionFailed` — that would indicate the
+query reached DataFusion execution before rejection. The error code MUST be `E-QUERY-001`.
+
+Regression vector: existing filter-mode AC-001 (`severity IEQ 'high'`) and pipe-mode AC-013b
+(`FROM t | where severity IEQ 'high'`) Red Gate tests confirm no regression from the SQL-mode gate.
+
+Red Gate: `test_BC_2_11_024_sql_mode_ieq_rejected`
+Red Gate: `test_BC_2_11_024_sql_mode_iin_rejected`
+Red Gate: `test_BC_2_11_024_sql_mode_ine_rejected`
+
+### AC-024 — PrismQL grammar reference resource includes IEQ/IIN/INE in operator table
+(traces to BC-2.11.024 v1.1 architecture anchor: ADR-047 §D.4 discoverability;
 BC-2.11.002 v1.5 amendment: IEQ/IIN/INE in the operator table;
 "IEQ/IIN must be reflected in the PrismQL grammar reference resource (governed by
 BC-2.11.022/ADR-045 parity gate)")
@@ -570,7 +593,7 @@ new operators. The ADR-045 parity gate is a CI check — the PR must not break i
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_grammar_resource_includes_ieq_iin_ine`
 
-### AC-024 — prism describe output includes IEQ example with OCSF casing note
+### AC-025 — prism describe output includes IEQ example with OCSF casing note
 (traces to ADR-047 §D.4: "The prism describe / tool-schema pedagogical examples (ADR-041
 L1/L2 teaching surface)" — "Include the OCSF casing note: 'OCSF severity is stored as
 Title-case (High). Use IEQ/IIN to match regardless of the case you type, or = 'High' for
@@ -587,8 +610,8 @@ must decide the appropriate test mechanism for the describe output.
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_describe_output_includes_ieq_example`
 
-### AC-025 — No panic: IEQ/IIN expressions with multiple predicates do not panic (VP-021 regression)
-(traces to BC-2.11.024 v1.0 canonical test vector: "severity IEQ 'high' AND severity IEQ 'high'
+### AC-026 — No panic: IEQ/IIN expressions with multiple predicates do not panic (VP-021 regression)
+(traces to BC-2.11.024 v1.1 canonical test vector: "severity IEQ 'high' AND severity IEQ 'high'
 does not panic (fuzz-seed regression)" — design map T-CASE-009;
 VP-021 invariant: parser never panics on arbitrary input)
 
@@ -601,8 +624,8 @@ target in `fuzz/` covers this class of input; this unit test pins the specific f
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_repeated_ieq_no_panic`
 
-### AC-026 — Non-exhaustive compile-fail gate count UNCHANGED at 89
-(traces to BC-2.11.024 v1.0 invariant:
+### AC-027 — Non-exhaustive compile-fail gate count UNCHANGED at 89
+(traces to BC-2.11.024 v1.1 invariant:
 "No EXPECTED non-exhaustive gate count change: case_insensitive: bool is a new field added
 to existing #[non_exhaustive] structs (Predicate::Compare, Predicate::In). The non-exhaustive
 compile-fail gate counts annotated types, not field additions within existing types";
@@ -627,7 +650,7 @@ the non-exhaustive gate passes.
 ## Red Gate Test Inventory
 
 All tests must be written as FAILING stubs (`todo!()`) BEFORE any production code is modified.
-Verify ALL 22 stubs fail before proceeding to Task 10 (production code implementation).
+Verify ALL 25 core stubs (RG-001 through RG-025) fail before proceeding to Task 10 (production code implementation).
 
 | RG ID | Test Function Name | Location | AC | Assertion |
 |-------|--------------------|----------|----|-----------|
@@ -653,22 +676,25 @@ Verify ALL 22 stubs fail before proceeding to Task 10 (production code implement
 | RG-020 | `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high` | `crates/prism-ocsf/src/tests/` (or prism-spec-engine) | AC-017 | `severity='High'` unchanged; no warning emitted |
 | RG-021 | `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_left_as_received` | `crates/prism-ocsf/src/tests/` (or prism-spec-engine) | AC-018 | `severity='UNHANDLED'` unchanged; warning emitted |
 | RG-022 | `test_S_PRISMQL_CASE_INSENSITIVE_001_group_by_severity_no_case_fragmentation` | `crates/prism-query/src/tests/` | AC-019 | Multi-sensor GROUP BY produces 1 'High' bucket, not 2 fragmented buckets |
+| RG-023 | `test_BC_2_11_024_sql_mode_ieq_rejected` | `crates/prism-query/src/tests/` | AC-023 | SQL-mode `SELECT … WHERE severity IEQ 'high'` → Err(E-QUERY-001); NOT QueryExecutionFailed/E-QUERY-034 |
+| RG-024 | `test_BC_2_11_024_sql_mode_iin_rejected` | `crates/prism-query/src/tests/` | AC-023 | SQL-mode `SELECT … WHERE status IIN ('open', 'new')` → Err(E-QUERY-001) |
+| RG-025 | `test_BC_2_11_024_sql_mode_ine_rejected` | `crates/prism-query/src/tests/` | AC-023 | SQL-mode `SELECT … WHERE severity INE 'low'` → Err(E-QUERY-001) |
 
 **Additional Red Gate stubs (grammar resource + describe output):**
 
 | RG ID | Test Function Name | Location | AC |
 |-------|--------------------|----------|----|
-| RG-023 (grammar resource) | `test_S_PRISMQL_CASE_INSENSITIVE_001_grammar_resource_includes_ieq_iin_ine` | `crates/prism-query/src/tests/` or `crates/prism-mcp/src/tests/` | AC-023 |
-| RG-024 (describe output) | `test_S_PRISMQL_CASE_INSENSITIVE_001_describe_output_includes_ieq_example` | `crates/prism-mcp/src/tests/` or `crates/prism-query/src/tests/` | AC-024 |
+| RG-026 (grammar resource) | `test_S_PRISMQL_CASE_INSENSITIVE_001_grammar_resource_includes_ieq_iin_ine` | `crates/prism-query/src/tests/` or `crates/prism-mcp/src/tests/` | AC-024 |
+| RG-027 (describe output) | `test_S_PRISMQL_CASE_INSENSITIVE_001_describe_output_includes_ieq_example` | `crates/prism-mcp/src/tests/` or `crates/prism-query/src/tests/` | AC-025 |
 
-NOTE: RG-023 and RG-024 are implementation-detail-dependent — the implementer must choose
+NOTE: RG-026 and RG-027 are implementation-detail-dependent — the implementer must choose
 the appropriate test location based on where the grammar resource generation and describe
 output code live.
 
-**Total Red Gate tests: 24 (22 core + 2 discoverability)**
+**Total Red Gate tests: 27 (25 core + 2 discoverability)**
 
-The story frontmatter records `red_gate_tests: 22` (core only). The discoverability tests
-RG-023/RG-024 may be snapshot or integration tests; include them if they can be written as
+The story frontmatter records `red_gate_tests: 27` (total: 25 core + 2 discoverability). The discoverability tests
+RG-026/RG-027 may be snapshot or integration tests; include them if they can be written as
 failing stubs, otherwise verify the parity gate via `just check` at end of implementation.
 
 ---
@@ -816,7 +842,7 @@ E (Adapter normalization) is parallel to A-D.
 
 ### Phase 1 — Write all Red Gate test stubs (FAILING first)
 
-9. **Write Red Gate stubs RG-001 through RG-024** as `todo!()` stubs — all must FAIL before any
+9. **Write Red Gate stubs RG-001 through RG-027** as `todo!()` stubs — all must FAIL before any
    production code is written. Organize into:
 
    a. **Parser/AST tests** (RG-001..005): add to a new test module in `crates/prism-query/src/tests/`
@@ -836,7 +862,10 @@ E (Adapter normalization) is parallel to A-D.
 
    f. **Aggregation test** (RG-022): MemTable with multi-sensor simulated data + GROUP BY.
 
-   g. **Grammar resource / describe stubs** (RG-023..024): placeholder stubs in appropriate test modules.
+   g. **SQL-mode rejection stubs** (RG-023..025): in `crates/prism-query/src/tests/` — three stubs
+      asserting Err(E-QUERY-001) for IEQ/IIN/INE in SELECT-prefixed queries.
+
+   h. **Grammar resource / describe stubs** (RG-026..027): placeholder stubs in appropriate test modules.
 
    **After writing all stubs:** Run `cargo nextest run -p prism-query --no-fail-fast` and
    `cargo nextest run -p prism-ocsf --no-fail-fast` to confirm all new test functions are
@@ -935,6 +964,28 @@ E (Adapter normalization) is parallel to A-D.
 14. **After grammar changes:** Run `cargo nextest run -p prism-query -E 'test(ieq_parses)'`
     (or the RG-001 test name). If RG-001 through RG-005 now pass, grammar changes are correct.
     If any parser tests fail with unexpected parse errors, debug the combinator ordering.
+
+14b. **Implement SQL-mode rejection gate (AC-023 / BC-2.11.024 v1.1 §Mode-Boundary Enforcement):**
+
+    In the prism-query parser entry point (the top-level dispatch that determines whether the
+    input is a filter-mode expression, a pipe query, or a raw SQL SELECT), add a check:
+    if the query begins with `SELECT` AND the query contains any IEQ/IIN/INE keyword, return
+    `E-QUERY-001` at PARSE TIME with the verbatim message from BC-2.11.024 v1.1:
+    ```
+    "E-QUERY-001: parse error near '{operator}': case-insensitive operators (IEQ/IIN/INE)
+    are not supported in SQL mode. Use filter mode (e.g., severity IEQ 'high') or a pipe
+    | where stage (e.g., FROM crowdstrike_detections | where severity IEQ 'high') instead."
+    ```
+    where `{operator}` is the first IEQ/IIN/INE keyword encountered (uppercased).
+
+    The rejection MUST occur before DataFusion planning/execution to guarantee `E-QUERY-001`
+    is returned and NOT `E-QUERY-034 QueryExecutionFailed`.
+
+    After implementation, verify RG-023, RG-024, RG-025 pass and AC-001/AC-013b do NOT regress:
+    ```bash
+    cargo nextest run -p prism-query -E 'test(sql_mode)'
+    cargo nextest run -p prism-query -E 'test(ieq_parses)'
+    ```
 
 ### Phase 4 — Emitter changes (Track C)
 
@@ -1067,7 +1118,7 @@ E (Adapter normalization) is parallel to A-D.
     With note: "OCSF severity is stored as Title-case ('High'). Use IEQ/IIN to match regardless
     of the case you type, or = 'High' for the exact canonical form."
 
-24. **Verify** RG-023, RG-024 (grammar resource and describe tests) pass.
+24. **Verify** RG-026, RG-027 (grammar resource and describe tests) pass.
 
 ### Phase 9 — Final verification
 
@@ -1099,7 +1150,7 @@ E (Adapter normalization) is parallel to A-D.
     just iter prism-ocsf        # adapter normalization lives in prism-ocsf (resolved at Task 8)
     just check                  # full workspace pre-push gate
     ```
-    All 24 Red Gate tests must pass. All existing tests must continue to pass (especially
+    All 27 Red Gate tests must pass. All existing tests must continue to pass (especially
     existing =, != filter tests — regression guard for AC-011/AC-013).
 
 ---
@@ -1276,3 +1327,4 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 | v1.2 | 2026-07-06 | remove-uncertainty pass-2: tdd_mode rationale comment corrected — OCSF adapter-boundary normalization is definitively in prism-ocsf (OcsfNormalizer + OcsfEnumMap), NOT prism-spec-engine (zero DynamicMessage references); Scope Ambiguity 1 closed with DEFINITIVE RESOLUTION; TD-VSDD-091 anchor de-pinning applied (line-number citations removed, replaced with anchor-based references); crates_touched confirmed: prism-query (operators), prism-ocsf (OCSF normalization, primary), prism-spec-engine (defensive allowance, may be removed at PR time if untouched) |
 | v1.3 | 2026-07-06 | LOCAL pass-1 fix-burst: BC-2.02.013 v1.0→v1.1 + BC-2.16.002 pin→v1.98 propagation (BC-2.02.013 now concretely specifies in-scope field set severity/status/activity_name/disposition, keying contract, insertion point, warn event; BC-2.16.002 v1.98 added catalog row 91 ocsf.enum_label_unrecognized — note: BC-2.16.002 has no prior version pin in this story, reference sites unchanged per no-AC-text rule) |
 | v1.4 | 2026-07-06 | LOCAL pass-2 fix-burst: AC-022 reworded (E-QUERY-002 suggested_column enrichment — PrismError::QueryTypeMismatch carries suggested_column: Some("severity"), full Display format specified, error-taxonomy.md v2.18 §E-QUERY-002 pin added); activity→activity_name correction in File Structure Requirements and v1.3 changelog entry; in-scope OCSF fields note added to AC-016 area (severity/status/activity_name/disposition); BC-2.02.013 v1.1→v1.2 at all 7 pin sites (frontmatter comment, Behavioral Contracts table, Token Budget table, AC-016/017/018/019 traces); BC-2.16.002→v1.99 deferred (no version pins present in story body per v1.3 note); error-taxonomy v2.18 pin added in new AC-022 text only |
+| v1.5 | 2026-07-07 | LOCAL pass-3 fix-burst: AC-023 SQL-mode IEQ/IIN/INE rejection (E-QUERY-001) added; old AC-023 (grammar resource) → AC-024; old AC-024 (describe) → AC-025; old AC-025 (no panic) → AC-026; old AC-026 (non-exhaustive) → AC-027; RG-023/024/025 (SQL-mode rejection tests test_BC_2_11_024_sql_mode_*) added to main Red Gate table; old RG-023/024 renumbered to RG-026/027 with AC refs updated to AC-024/025; red_gate_tests 25→27; Behavioral Contracts table BC-2.11.024 v1.0→v1.1 + Mode-Boundary Enforcement added to Key Clauses Used; error-taxonomy v2.18→v2.19 |
