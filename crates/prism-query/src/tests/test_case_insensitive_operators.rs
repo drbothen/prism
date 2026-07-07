@@ -1479,20 +1479,20 @@ fn test_BC_2_11_024_sql_mode_ieq_rejected() {
         .map(|e| e.message.as_str())
         .collect::<Vec<_>>()
         .join(" | ");
-    assert!(
-        all_msgs.contains("E-QUERY-001"),
-        "BC-2.11.024 v1.1: SQL-mode IEQ rejection must carry 'E-QUERY-001'; \
-         got: {all_msgs:?}"
-    );
-    assert!(
-        all_msgs.contains("not supported in SQL mode"),
-        "BC-2.11.024 v1.1: SQL-mode IEQ rejection must contain \
-         'not supported in SQL mode'; got: {all_msgs:?}"
-    );
-    assert!(
-        all_msgs.contains("IEQ"),
-        "BC-2.11.024 v1.1: SQL-mode IEQ rejection must name the operator 'IEQ' \
-         in the error message; got: {all_msgs:?}"
+    // Byte-exact assertion against the verbatim BC-2.11.024 v1.1 template (F-LOW-1 closure).
+    // `parse_select_mode` passes the error through unchanged (no unquoted `|` in this
+    // query, so the mode-bridge rewrite branch is not taken). `all_msgs` is therefore
+    // exactly one `ParseError::message` field — the raw `format!(...)` output from
+    // `parse_sql_with_limits` lines 226-232, with `{op}` = `"IEQ"`.
+    assert_eq!(
+        all_msgs,
+        "E-QUERY-001: parse error near 'IEQ': case-insensitive operators \
+         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+         (e.g., severity IEQ 'high') or a pipe | where stage \
+         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+         instead.",
+        "BC-2.11.024 v1.1: SQL-mode IEQ rejection must match the verbatim \
+         BC-2.11.024 v1.1 template exactly; got: {all_msgs:?}"
     );
 }
 
@@ -1527,20 +1527,19 @@ fn test_BC_2_11_024_sql_mode_iin_rejected() {
         .map(|e| e.message.as_str())
         .collect::<Vec<_>>()
         .join(" | ");
-    assert!(
-        all_msgs.contains("E-QUERY-001"),
-        "BC-2.11.024 v1.1: SQL-mode IIN rejection must carry 'E-QUERY-001'; \
-         got: {all_msgs:?}"
-    );
-    assert!(
-        all_msgs.contains("not supported in SQL mode"),
-        "BC-2.11.024 v1.1: SQL-mode IIN rejection must contain \
-         'not supported in SQL mode'; got: {all_msgs:?}"
-    );
-    assert!(
-        all_msgs.contains("IIN"),
-        "BC-2.11.024 v1.1: SQL-mode IIN rejection must name the operator 'IIN' \
-         in the error message; got: {all_msgs:?}"
+    // Byte-exact assertion against the verbatim BC-2.11.024 v1.1 template (F-LOW-1 closure).
+    // Same wrapping-layer rationale as `test_BC_2_11_024_sql_mode_ieq_rejected`: no
+    // unquoted `|` → `parse_select_mode` error passes through unchanged. `all_msgs` is
+    // exactly the `format!(...)` output from `parse_sql_with_limits`, with `{op}` = `"IIN"`.
+    assert_eq!(
+        all_msgs,
+        "E-QUERY-001: parse error near 'IIN': case-insensitive operators \
+         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+         (e.g., severity IEQ 'high') or a pipe | where stage \
+         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+         instead.",
+        "BC-2.11.024 v1.1: SQL-mode IIN rejection must match the verbatim \
+         BC-2.11.024 v1.1 template exactly; got: {all_msgs:?}"
     );
 }
 
@@ -1574,20 +1573,19 @@ fn test_BC_2_11_024_sql_mode_ine_rejected() {
         .map(|e| e.message.as_str())
         .collect::<Vec<_>>()
         .join(" | ");
-    assert!(
-        all_msgs.contains("E-QUERY-001"),
-        "BC-2.11.024 v1.1: SQL-mode INE rejection must carry 'E-QUERY-001'; \
-         got: {all_msgs:?}"
-    );
-    assert!(
-        all_msgs.contains("not supported in SQL mode"),
-        "BC-2.11.024 v1.1: SQL-mode INE rejection must contain \
-         'not supported in SQL mode'; got: {all_msgs:?}"
-    );
-    assert!(
-        all_msgs.contains("INE"),
-        "BC-2.11.024 v1.1: SQL-mode INE rejection must name the operator 'INE' \
-         in the error message; got: {all_msgs:?}"
+    // Byte-exact assertion against the verbatim BC-2.11.024 v1.1 template (F-LOW-1 closure).
+    // Same wrapping-layer rationale as `test_BC_2_11_024_sql_mode_ieq_rejected`: no
+    // unquoted `|` → `parse_select_mode` error passes through unchanged. `all_msgs` is
+    // exactly the `format!(...)` output from `parse_sql_with_limits`, with `{op}` = `"INE"`.
+    assert_eq!(
+        all_msgs,
+        "E-QUERY-001: parse error near 'INE': case-insensitive operators \
+         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+         (e.g., severity IEQ 'high') or a pipe | where stage \
+         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+         instead.",
+        "BC-2.11.024 v1.1: SQL-mode INE rejection must match the verbatim \
+         BC-2.11.024 v1.1 template exactly; got: {all_msgs:?}"
     );
 }
 
