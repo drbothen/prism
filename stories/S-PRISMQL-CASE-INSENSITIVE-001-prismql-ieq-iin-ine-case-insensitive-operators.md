@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.13"
+version: "1.15"
 updated: "2026-07-07"
 status: draft
 producer: story-writer
@@ -110,7 +110,7 @@ risk_mitigations:
      passes through the parsed operator string, it will emit lowercase if the query was
      written lowercase. The normalizer must use canonical uppercase operator names."
 traces_to: [ADR-047]
-red_gate_tests: 45
+red_gate_tests: 47
 estimated_days: "3"
 ---
 
@@ -500,12 +500,14 @@ then:
 2. `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", field_name = ..., value = ..., sensor_type = ...)` is emitted
 3. The normalization does NOT fail or return an error — it is non-fatal
 4. The `value` field in the warning payload MUST be capped at 50 codepoints: if the raw
-   value exceeds 50 codepoints, it MUST be truncated to the first 50 codepoints and `…` appended
-   (BC-2.02.013 v1.4 / BC-2.16.002 v2.01 catalog entry schema constraint). This applies to
-   BOTH the PRIMARY (`build_column_array`) and SECONDARY (`normalize_with_mappers`) emission sites.
+   value exceeds 50 codepoints, it MUST be truncated to the first 50 codepoints with no
+   ellipsis sentinel appended (BC-2.02.013 v1.4 / BC-2.16.002 v2.01 specify a plain
+   50-codepoint cap — SEC-002; no `…` suffix). This applies to BOTH the PRIMARY
+   (`build_column_array`) and SECONDARY (`normalize_with_mappers`) emission sites.
 
 PRIMARY Red Gate: `test_BC_2_02_013_build_column_array_unrecognized_left_as_received_with_warn`
 SECONDARY Red Gate (`normalize_with_mappers` DynamicMessage path): `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_left_as_received`
+Guard (RG-047 / pass-10): `test_BC_2_02_013_build_column_array_empty_string_enum_value_no_warn` — `crates/prism-bin/src/spec_driven_adapter.rs` (test module) — empty-string enum values bypass normalization AND emit NO warn (PRIMARY↔SECONDARY behavioral parity)
 
 ### AC-019 — GROUP BY severity produces at most 7 buckets after normalization via build_column_array (PRIMARY path)
 (traces to BC-2.02.013 v1.4 canonical test vector:
@@ -620,6 +622,7 @@ Red Gate: `test_BC_2_11_024_sql_mode_ine_rejected`
 Red Gate: `test_BC_2_11_024_dml_delete_where_ieq_rejected`
 Red Gate: `test_BC_2_11_024_dml_update_where_iin_rejected`
 Red Gate: `test_BC_2_11_024_dml_insert_select_where_ine_rejected`
+Red Gate (RG-046 / pass-10): `test_BC_2_11_024_all_prompt_embedded_queries_parse` — `crates/prism-mcp/tests/bc_2_11_024_test.rs` — AC-023 corollary (prompt-content mode-boundary coherence) — every MCP-prompt-embedded PrismQL query parses Ok (pass-10 F-CRIT-1: armis leg IIN-in-raw-SQL regression caught; fixed to `IN ('High','Critical')`)
 
 ### AC-024 — PrismQL grammar reference resource includes IEQ/IIN/INE in operator table
 (traces to BC-2.11.024 v1.2 architecture anchor: ADR-047 §D.4 discoverability;
@@ -782,11 +785,18 @@ commit 26325423).
 | RG-044 | `test_BC_2_02_013_triage_alerts_prompt_no_stale_vendor_casing` | `crates/prism-mcp/tests/bc_2_02_013_prompt_casing_test.rs` | AC-019 | triage prompt armis leg uses IIN ('High','Critical'); `status = 'UNHANDLED'` intentionally retained (vendor value passes through unnormalized per pass-9 adjudication) |
 | RG-045 | `test_BC_2_11_024_ieq_predicate_excluded_from_equality_pushdown` | `crates/prism-query/src/pushdown.rs` (inline test module) | BC-2.11.024 invariant guard | IEQ predicates excluded from case-sensitive equality push-down (pass-9 F-P9-LOW-1) |
 
-RG-028 through RG-045 names are authoritative per verified ground truth.
+**Pass-10 new tests (prompt-parseability + empty-string no-warn):**
 
-**Total Red Gate tests: 45 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9)**
+| RG ID | Test Function Name | Location | AC | Assertion |
+|-------|--------------------|----------|----|-----------|
+| RG-046 | `test_BC_2_11_024_all_prompt_embedded_queries_parse` | `crates/prism-mcp/tests/bc_2_11_024_test.rs` | AC-023 corollary | Every MCP-prompt-embedded PrismQL query parses Ok (pass-10 F-CRIT-1: armis leg IIN-in-raw-SQL regression caught; fixed to `IN ('High','Critical')`) |
+| RG-047 | `test_BC_2_02_013_build_column_array_empty_string_enum_value_no_warn` | `crates/prism-bin/src/spec_driven_adapter.rs` (test module) | AC-018 guard | Empty-string enum values bypass normalization AND emit NO warn (PRIMARY↔SECONDARY behavioral parity; pass-10 OBS-3) |
 
-The story frontmatter records `red_gate_tests: 45`. RG-026/RG-027 discoverability tests may be
+RG-028 through RG-047 names are authoritative per verified ground truth.
+
+**Total Red Gate tests: 47 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10)**
+
+The story frontmatter records `red_gate_tests: 47`. RG-026/RG-027 discoverability tests may be
 snapshot or integration tests; include them if they can be written as failing stubs, otherwise
 verify the parity gate via `just check`. RG-028 is the authoritative describe test. RG-032
 through RG-036 are the PRIMARY build_column_array tests in prism-bin.
@@ -1283,7 +1293,7 @@ E (Adapter normalization) is parallel to A-D.
     just iter prism-mcp         # describe authoritative test (RG-028)
     just check                  # full workspace pre-push gate
     ```
-    All 45 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9).
+    All 47 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10).
     All existing tests must continue to pass (especially existing =, != filter tests — regression
     guard for AC-011/AC-013).
 
@@ -1487,3 +1497,5 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 | v1.11 | 2026-07-07 | pass-8: RG-041/042 SqlPipe E-QUERY-002 rows added (AC-022 Red Gate citations + pass-8 inventory section); red_gate_tests 40→42; count strings updated "40 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7)" → "42 (... + 2 pass-8 SqlPipe)" in inventory summary and Task 28; TD-VSDD-091 unversioned-pin sweep noted in Architecture Compliance Rule 9 (pass-8 F-LOW-1, 182 sites) |
 | v1.12 | 2026-07-07 | pass-9 F-P9-MED-1: prism-core added to crates_touched (error.rs QueryTypeMismatch.suggested_column + SuggestedSuffix helper + RG-029/030 test file); File Structure Requirements rows added — crates/prism-core/src/error.rs (MODIFY) + crates/prism-core/tests/bc_2_11_024_query_type_mismatch_display.rs (CREATE) |
 | v1.13 | 2026-07-07 | pass-9: RG-043/044/045 added (reference-content casing, triage-prompt casing, IEQ pushdown-exclusion); red_gate_tests 42→45; RG-028 through RG-045 authoritative |
+| v1.14 | 2026-07-07 | pass-10 F-HIGH-2: AC-018 ellipsis-sentinel claim removed (BC-2.02.013 v1.4 / BC-2.16.002 v2.01 specify plain 50-codepoint cap — SEC-002; no `…` suffix; spec precedence over story text) |
+| v1.15 | 2026-07-07 | pass-10: RG-046 (prompt-parseability — `test_BC_2_11_024_all_prompt_embedded_queries_parse`, AC-023 corollary) + RG-047 (empty-string no-warn — `test_BC_2_02_013_build_column_array_empty_string_enum_value_no_warn`, AC-018 guard); AC-023 + AC-018 body citations added; red_gate_tests 45→47; "RG-028 through RG-045"→"RG-028 through RG-047"; Total/Task-28 counts updated |
