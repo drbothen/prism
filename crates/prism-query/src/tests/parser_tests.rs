@@ -2125,6 +2125,7 @@ fn test_BC_2_11_002_canonical_tv_not_in() {
             field,
             values,
             negated,
+            ..
         } => {
             assert_eq!(
                 field.segments,
@@ -3342,6 +3343,7 @@ fn build_deep_not_predicate(depth: u32) -> Predicate {
             lhs: Box::new(Expr::Field(FieldPath::new(["x"]))),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::Integer(1))),
+            case_insensitive: false,
         }
     } else {
         Predicate::Not(Box::new(build_deep_not_predicate(depth - 1)))

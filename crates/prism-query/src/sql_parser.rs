@@ -691,6 +691,7 @@ fn build_having_predicate_parser<'a>(
             lhs: Box::new(agg_expr),
             op,
             rhs: Box::new(rhs),
+            case_insensitive: false,
         });
 
     // Try aggregate comparison first; fall through to base predicate if it doesn't match.

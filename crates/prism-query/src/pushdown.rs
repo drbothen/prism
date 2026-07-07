@@ -293,7 +293,7 @@ fn collect_equality_exprs(pred: &crate::ast::Predicate, out: &mut Vec<crate::ast
     use crate::ast::{CompareOp, Expr, Literal, LogicalOp, Predicate};
     match pred {
         // Only include `field = 'string'` comparisons (not virtual fields or complex exprs).
-        Predicate::Compare { lhs, op, rhs }
+        Predicate::Compare { lhs, op, rhs, .. }
             if *op == CompareOp::Eq
                 && matches!(lhs.as_ref(), Expr::Field(_))
                 && matches!(rhs.as_ref(), Expr::Literal(Literal::String(_))) =>
@@ -427,7 +427,7 @@ fn extract_time_bounds_from_predicate(
 ) {
     use crate::ast::{CompareOp, Expr, Literal, LogicalOp, Predicate};
     match predicate {
-        Predicate::Compare { lhs, op, rhs } => {
+        Predicate::Compare { lhs, op, rhs, .. } => {
             // Only handle inequalities (Gt, Ge, Lt, Le).
             let is_range_op = matches!(
                 op,

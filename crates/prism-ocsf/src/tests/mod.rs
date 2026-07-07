@@ -33,3 +33,7 @@ pub mod proptest_normalizer;
 // S-1.05 test modules
 pub mod alias_tests;
 pub mod proptest_extensions;
+
+// S-PRISMQL-CASE-INSENSITIVE-001: Red Gate tests RG-019, RG-020, RG-021 —
+// OcsfEnumMap::normalize_label case-insensitive adapter boundary normalization.
+pub mod test_adapter_normalization;

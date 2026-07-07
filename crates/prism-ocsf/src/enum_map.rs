@@ -74,6 +74,31 @@ impl OcsfEnumMap {
         OcsfEnumMap { inner }
     }
 
+    /// Performs a case-insensitive lookup of a string label in the enum caption table
+    /// for a given `field_name`.
+    ///
+    /// This is the canonical casing authority for IEQ/IIN/INE normalization at the
+    /// adapter boundary per BC-2.02.010 v1.5 (S-PRISMQL-CASE-INSENSITIVE-001).
+    ///
+    /// # Contract
+    ///
+    /// - Given a `field_name` and a `label` string (potentially in any case), returns
+    ///   the canonical-case caption string if a case-insensitive match is found.
+    /// - Returns `None` if no enum entry for the field matches the label
+    ///   case-insensitively.
+    /// - Never panics.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let map = OcsfEnumMap::new();
+    /// assert_eq!(map.normalize_label("severity_id", "HIGH"), Some("High"));
+    /// assert_eq!(map.normalize_label("severity_id", "high"), Some("High"));
+    /// ```
+    pub fn normalize_label(&self, _field_name: &str, _label: &str) -> Option<&'static str> {
+        todo!("S-PRISMQL-CASE-INSENSITIVE-001: scan self.inner for entries keyed to _field_name and perform case-insensitive comparison of caption to _label, returning canonical-case caption (BC-2.02.010 v1.5)")
+    }
+
     /// Returns the display name for an OCSF enum `field` + integer `value`.
     ///
     /// # Contract (BC-2.02.010)

@@ -5231,6 +5231,7 @@ mod enrich_gate_where_clause_unit_tests {
             })),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::String("value".to_string()))),
+            case_insensitive: false,
         };
 
         let mut out = Vec::new();
@@ -5255,11 +5256,13 @@ mod enrich_gate_where_clause_unit_tests {
             })),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::Integer(1))),
+            case_insensitive: false,
         };
         let simple_compare = Predicate::Compare {
             lhs: Box::new(Expr::Field(FieldPath::new(vec!["severity".to_string()]))),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::String("high".to_string()))),
+            case_insensitive: false,
         };
 
         let logical = Predicate::Logical {
@@ -5288,6 +5291,7 @@ mod enrich_gate_where_clause_unit_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(vec!["severity".to_string()]))),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::String("high".to_string()))),
+            case_insensitive: false,
         };
 
         let mut out = Vec::new();
@@ -5310,6 +5314,7 @@ mod enrich_gate_where_clause_unit_tests {
             })),
             op: CompareOp::Ne,
             rhs: Box::new(Expr::Literal(Literal::Integer(0))),
+            case_insensitive: false,
         };
         let not_pred = Predicate::Not(Box::new(inner));
 

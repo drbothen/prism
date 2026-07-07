@@ -505,7 +505,17 @@ fn assemble_clauses(clauses: &[&str]) -> String {
 /// registration and are not supported in pipe-mode for MVP).
 pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, PrismError> {
     match pred {
-        Predicate::Compare { lhs, op, rhs } => {
+        Predicate::Compare {
+            lhs,
+            op,
+            rhs,
+            case_insensitive,
+        } => {
+            // S-PRISMQL-CASE-INSENSITIVE-001: case-insensitive IEQ/INE operators lower
+            // via `lower(field) OP lower('val')` DataFusion SQL pattern (BC-2.11.019 v1.3).
+            if *case_insensitive {
+                todo!("S-PRISMQL-CASE-INSENSITIVE-001: emit lower(lhs) OP lower(rhs) for IEQ/INE case_insensitive=true (BC-2.11.019)")
+            }
             let lhs_sql = expr_to_sql(lhs)?;
             let rhs_sql = expr_to_sql(rhs)?;
             let op_str = match op {
@@ -576,7 +586,13 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
             field,
             values,
             negated,
+            case_insensitive,
         } => {
+            // S-PRISMQL-CASE-INSENSITIVE-001: IIN operators lower via
+            // `lower(field) IN (lower('v1'), ...)` DataFusion SQL pattern (BC-2.11.020 v1.3).
+            if *case_insensitive {
+                todo!("S-PRISMQL-CASE-INSENSITIVE-001: emit lower(field) IN (lower(v1),...) for IIN case_insensitive=true (BC-2.11.020)")
+            }
             let field_sql = field_path_to_sql(field);
             let vals: Vec<String> = values
                 .iter()
@@ -1014,6 +1030,7 @@ mod tests {
                 lhs: Box::new(Expr::Field(FieldPath::new(["status"]))),
                 op: CompareOp::Eq,
                 rhs: Box::new(Expr::Literal(Literal::String("active".to_string()))),
+                case_insensitive: false,
             })],
         );
         let sql = build_sql(&pipe);

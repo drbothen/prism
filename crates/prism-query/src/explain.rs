@@ -821,7 +821,7 @@ fn predicates_from_ast(ast: &Ast) -> Vec<crate::ast::Expr> {
         // Convert predicate tree to a flat list of Compare expressions
         // so classify_predicates can see each column-level constraint.
         match pred {
-            Predicate::Compare { lhs, op, rhs } => {
+            Predicate::Compare { lhs, op, rhs, .. } => {
                 vec![Expr::Compare {
                     lhs: lhs.clone(),
                     op: op.clone(),

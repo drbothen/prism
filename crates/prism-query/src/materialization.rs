@@ -2696,7 +2696,7 @@ fn check_pred_raw_temporal(
         // with the actual comparison operator rather than the hardcoded "=" sentinel.
         // P3-LOW-1 fix: recurse into lhs and (conditionally) rhs after dispatch to catch
         // nested temporal literals in subexpressions; mirrors check_expr_temporal::Compare.
-        Predicate::Compare { lhs, rhs, op } => {
+        Predicate::Compare { lhs, rhs, op, .. } => {
             // Only gate when rhs is RawTemporalLiteral — extract value early.
             let rhs_is_top_level_raw_temporal =
                 matches!(rhs.as_ref(), Expr::Literal(Literal::RawTemporalLiteral(_)));
@@ -4768,6 +4768,7 @@ mod temporal_walker_unit_tests {
             field: fp("timestamp"),
             values: vec![raw_lit("2026-06-24"), raw_lit("2026-06-25")],
             negated: false,
+            case_insensitive: false,
         };
         let result =
             check_pred_raw_temporal(&mut pred, Some("test_events"), Some(registry.as_ref()));
@@ -4784,6 +4785,7 @@ mod temporal_walker_unit_tests {
             field: fp("hostname"),
             values: vec![raw_lit("2026-06-24"), raw_lit("2026-06-25")],
             negated: false,
+            case_insensitive: false,
         };
         check_pred_raw_temporal(&mut pred, Some("test_events"), Some(registry.as_ref()))
             .expect("In+String must not error");
@@ -4810,6 +4812,7 @@ mod temporal_walker_unit_tests {
             lhs: Box::new(Expr::Field(fp("timestamp"))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Literal(raw_lit("2026-06-24"))),
+            case_insensitive: false,
         });
         let mut pred = Predicate::InSubquery {
             field: fp("id"),
@@ -5035,6 +5038,7 @@ mod temporal_walker_unit_tests {
             lhs: Box::new(Expr::Field(fp("timestamp"))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Literal(raw_lit("2026-06-24"))),
+            case_insensitive: false,
         };
         let mut pred = Predicate::Not(Box::new(inner));
         let result =
@@ -5054,11 +5058,13 @@ mod temporal_walker_unit_tests {
             lhs: Box::new(Expr::Field(fp("hostname"))),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::String("ok".to_string()))),
+            case_insensitive: false,
         };
         let temporal_pred = Predicate::Compare {
             lhs: Box::new(Expr::Field(fp("timestamp"))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Literal(raw_lit("2026-06-24"))),
+            case_insensitive: false,
         };
         let mut pred = Predicate::Logical {
             op: LogicalOp::And,
@@ -5262,6 +5268,7 @@ mod temporal_walker_unit_tests {
             lhs: Box::new(ts_field),
             rhs: Box::new(Expr::Literal(raw_lit("2026-06-24"))),
             op: CompareOp::Gt,
+            case_insensitive: false,
         };
 
         let mut ast = Ast::Sql(SqlStatement::Dml(DmlNode {
@@ -5327,6 +5334,7 @@ mod temporal_walker_unit_tests {
             })),
             rhs: Box::new(Expr::Literal(raw_lit("2026-06-24"))),
             op: CompareOp::Gt,
+            case_insensitive: false,
         };
 
         // SELECT count(*) FROM test_events GROUP BY hostname HAVING max(timestamp) > '2026-06-24'
@@ -5395,6 +5403,7 @@ mod temporal_walker_unit_tests {
             })),
             rhs: Box::new(Expr::Literal(raw_lit("2026-06-24"))),
             op: CompareOp::Gt,
+            case_insensitive: false,
         };
 
         let result =

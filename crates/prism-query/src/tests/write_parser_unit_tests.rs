@@ -304,6 +304,7 @@ fn test_BC_2_11_004_check_unbounded_write_delete_with_where_is_safe() {
         lhs: Box::new(Expr::Field(FieldPath::new(["device_id"]))),
         op: CompareOp::Eq,
         rhs: Box::new(Expr::Literal(Literal::String("abc".to_string()))),
+        case_insensitive: false,
     };
     let node = DmlNode {
         operation: DmlOperation::Delete,
@@ -943,7 +944,7 @@ fn test_BC_2_11_004_delete_filter_preserves_actual_predicate() {
             // Must NOT be the Bool(true) sentinel — must be an actual predicate.
             // The parsed predicate for `device_id = '123'` is Predicate::Compare.
             match filter {
-                Predicate::Compare { lhs, op, rhs } => {
+                Predicate::Compare { lhs, op, rhs, .. } => {
                     assert!(
                         matches!(op, CompareOp::Eq),
                         "expected Eq compare op, got: {:?}",

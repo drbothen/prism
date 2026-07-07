@@ -526,10 +526,17 @@ impl EnrichStage {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Predicate {
     /// `field op literal` — basic comparison (=, !=, >, >=, <, <=).
+    ///
+    /// `case_insensitive: true` indicates the IEQ (eq) or INE (ne) case-insensitive
+    /// operator is in use — lowered to `lower(field) OP lower('val')` in DataFusion.
+    /// (BC-2.11.024; S-PRISMQL-CASE-INSENSITIVE-001)
     Compare {
         lhs: Box<Expr>,
         op: CompareOp,
         rhs: Box<Expr>,
+        /// `true` for IEQ / INE (case-insensitive equality / inequality).
+        /// Default `false` for existing `=` / `!=` operators (unchanged semantics).
+        case_insensitive: bool,
     },
     /// String pattern operators (CONTAINS, STARTSWITH, ENDSWITH and their
     /// case-insensitive variants ICONTAINS, ISTARTSWITH, IENDSWITH).
@@ -547,10 +554,17 @@ pub enum Predicate {
         pattern: RegexLiteral,
     },
     /// `field IN (val, …)` / `field NOT IN (val, …)`.
+    ///
+    /// `case_insensitive: true` indicates the IIN case-insensitive membership operator
+    /// is in use — lowered to `lower(field) IN (lower('v1'), …)` in DataFusion.
+    /// (BC-2.11.024; S-PRISMQL-CASE-INSENSITIVE-001)
     In {
         field: FieldPath,
         values: Vec<Literal>,
         negated: bool,
+        /// `true` for IIN (case-insensitive membership).
+        /// Default `false` for existing `IN` / `NOT IN` operators (unchanged semantics).
+        case_insensitive: bool,
     },
     /// `field IN (SELECT …)` / `field NOT IN (SELECT …)` subquery membership.
     InSubquery {
@@ -2048,7 +2062,17 @@ impl PqlNormalizer {
 
     fn normalize_predicate(pred: &Predicate) -> String {
         match pred {
-            Predicate::Compare { lhs, op, rhs } => {
+            Predicate::Compare {
+                lhs,
+                op,
+                rhs,
+                case_insensitive,
+            } => {
+                // S-PRISMQL-CASE-INSENSITIVE-001: case-insensitive IEQ/INE operators emit
+                // uppercase canonical form in normalized_pql (BC-2.11.024, BC-2.11.018 v1.3).
+                if *case_insensitive {
+                    todo!("S-PRISMQL-CASE-INSENSITIVE-001: normalize IEQ/INE case_insensitive=true — emit uppercase canonical IEQ/INE operator name (BC-2.11.024)")
+                }
                 let op_str = match op {
                     CompareOp::Eq => "=",
                     CompareOp::Ne => "!=",
@@ -2101,7 +2125,13 @@ impl PqlNormalizer {
                 field,
                 values,
                 negated,
+                case_insensitive,
             } => {
+                // S-PRISMQL-CASE-INSENSITIVE-001: case-insensitive IIN operator emits
+                // uppercase canonical "IIN" in normalized_pql (BC-2.11.024, BC-2.11.018 v1.3).
+                if *case_insensitive {
+                    todo!("S-PRISMQL-CASE-INSENSITIVE-001: normalize IIN case_insensitive=true — emit uppercase canonical IIN operator name (BC-2.11.024)")
+                }
                 // Use dispatch so Timestamp literals emit arrow_cast in DataFusion mode.
                 let vals: Vec<String> = values
                     .iter()
@@ -2768,6 +2798,7 @@ mod bc_2_11_018_normalizer_roundtrip_tests {
                 rhs: Box::new(Expr::Literal(Literal::String(
                     "it's a \"test\"".to_string(), // contains BOTH ' and "
                 ))),
+                case_insensitive: false,
             },
         };
         let ast = Ast::Filter(filter);
@@ -3063,6 +3094,7 @@ mod obs_1_sqlpipe_prechek_parity_tests {
             rhs: Box::new(Expr::Literal(Literal::String(
                 "it's a \"test\"".to_string(), // contains BOTH ' and "
             ))),
+            case_insensitive: false,
         });
         let ast = Ast::SqlPipe(SqlPipeQuery {
             head,
@@ -3091,6 +3123,7 @@ mod obs_1_sqlpipe_prechek_parity_tests {
             rhs: Box::new(Expr::Literal(Literal::String(
                 "it's a \"stage\"".to_string(), // contains BOTH ' and "
             ))),
+            case_insensitive: false,
         };
         let ast = Ast::SqlPipe(SqlPipeQuery {
             head,
@@ -3123,6 +3156,7 @@ mod obs_1_sqlpipe_prechek_parity_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["timestamp"]))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Now), // unfolded temporal — NOT yet constant-folded
+            case_insensitive: false,
         });
         let ast = Ast::SqlPipe(SqlPipeQuery {
             head,
@@ -3148,6 +3182,7 @@ mod obs_1_sqlpipe_prechek_parity_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["event_time"]))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Now), // unfolded — defense-in-depth target
+            case_insensitive: false,
         };
         let ast = Ast::SqlPipe(SqlPipeQuery {
             head,
@@ -3223,6 +3258,7 @@ mod low1_datafusion_guard_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["timestamp"]))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Literal(Literal::Timestamp(ts_lit))),
+            case_insensitive: false,
         });
         let ast = Ast::Sql(SqlStatement::Select(sql));
 
@@ -3281,6 +3317,7 @@ mod low1_datafusion_guard_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["ts"]))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Literal(Literal::Timestamp(ts_lit))),
+            case_insensitive: false,
         });
         let ast = Ast::Sql(SqlStatement::Select(sql));
 

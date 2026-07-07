@@ -1098,6 +1098,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_date_only
             rhs: Box::new(Expr::Literal(Literal::RawTemporalLiteral(
                 "2026-06-24".to_string(),
             ))),
+            case_insensitive: false,
         };
         let mut ast = Ast::Pipe(PipeQuery::new(
             SourceRef::from_raw("test_events"),
@@ -1188,6 +1189,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_offset_le
             rhs: Box::new(Expr::Literal(Literal::RawTemporalLiteral(
                 "2026-06-24T12:00:00".to_string(),
             ))),
+            case_insensitive: false,
         };
         let mut ast = Ast::Pipe(PipeQuery::new(
             SourceRef::from_raw("test_events"),

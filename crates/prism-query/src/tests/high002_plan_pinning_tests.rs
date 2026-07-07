@@ -986,6 +986,7 @@ mod high002_plan_pinning_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["last_seen"]))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Now),
+            case_insensitive: false,
         });
 
         let insubquery_expr = Expr::InSubquery {
@@ -1250,6 +1251,7 @@ mod high002_plan_pinning_tests {
                 lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
                 op: CompareOp::Eq,
                 rhs: Box::new(Expr::Literal(Literal::String("HIGH".to_string()))),
+                case_insensitive: false,
             })],
         };
 
@@ -1294,6 +1296,7 @@ mod high002_plan_pinning_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["timestamp"]))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Interval(Duration::hours(24))),
+            case_insensitive: false,
         };
 
         // The guard must fire: predicate_has_unfolded_temporal_pub must return true.
@@ -1329,6 +1332,7 @@ mod high002_plan_pinning_tests {
                 iso8601: now.to_rfc3339(),
                 instant: now,
             }))),
+            case_insensitive: false,
         };
 
         // The guard must NOT fire — this is a valid folded predicate.

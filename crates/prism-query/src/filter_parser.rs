@@ -933,6 +933,7 @@ pub(crate) fn build_predicate_parser<'a>(
                 field: fp,
                 values,
                 negated: true,
+                case_insensitive: false,
             });
 
         // --- field IN (val, …) ---
@@ -953,6 +954,7 @@ pub(crate) fn build_predicate_parser<'a>(
                 field: fp,
                 values,
                 negated: false,
+                case_insensitive: false,
             });
 
         // --- field BETWEEN low AND high ---
@@ -1021,6 +1023,7 @@ pub(crate) fn build_predicate_parser<'a>(
                     lhs: Box::new(field_path_to_expr(fp)),
                     op: CompareOp::Like,
                     rhs: Box::new(crate::ast::Expr::Literal(lit)),
+                    case_insensitive: false,
                 }
             });
 
@@ -1076,6 +1079,7 @@ pub(crate) fn build_predicate_parser<'a>(
                     lhs: Box::new(field_path_to_expr(fp)),
                     op,
                     rhs: Box::new(rhs),
+                    case_insensitive: false,
                 })
             });
 

@@ -394,10 +394,16 @@ fn inject_now_predicate(
 ) -> Result<ast::Predicate, error::ParseError> {
     use ast::Predicate;
     match pred {
-        Predicate::Compare { lhs, op, rhs } => Ok(Predicate::Compare {
+        Predicate::Compare {
+            lhs,
+            op,
+            rhs,
+            case_insensitive,
+        } => Ok(Predicate::Compare {
             lhs: Box::new(inject_now_expr(*lhs, now_literal)?),
             op,
             rhs: Box::new(inject_now_expr(*rhs, now_literal)?),
+            case_insensitive,
         }),
         Predicate::Logical { op, predicates } => {
             let mut folded = Vec::with_capacity(predicates.len());
