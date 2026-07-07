@@ -1909,11 +1909,15 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
         sev_eq
     );
 
+    // F-MED-002 (LOCAL pass-15): the OCSF casing note moved from example_query to
+    // example_note (BC-2.10.012 v1.8). Check the note field, not the query string.
+    let sev_note = sev_table["example_note"].as_str().unwrap_or("");
     assert!(
-        sev_eq.contains("Title-case") || sev_eq.contains("title-case"),
-        "BC-2.10.012 AC-002 [severity] F-P6-HIGH-001: example_query must include OCSF casing note \
-         (substring 'Title-case') per AC-025. Got: {:?}.",
-        sev_eq
+        sev_note.contains("Title-case") || sev_note.contains("title-case"),
+        "BC-2.10.012 AC-002 [severity] F-P6-HIGH-001: example_note must include OCSF casing note \
+         (substring 'Title-case') per AC-025 / BC-2.10.012 v1.8 F-MED-002; \
+         example_query is now pure PQL (no `--` comments). Got example_note: {:?}.",
+        sev_note
     );
 
     assert!(

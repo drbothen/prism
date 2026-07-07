@@ -973,7 +973,7 @@ pub(crate) fn build_predicate_parser<'a>(
                 // each element.  Temporal semantics are intentionally NOT applied here —
                 // the `ci` (case-insensitive) emit path emits `lower('2026-06-01')`, not
                 // `arrow_cast(...)`.
-                let values = values
+                let values: Vec<Literal> = values
                     .into_iter()
                     .map(|lit| match lit {
                         Literal::RawTemporalLiteral(s) => Literal::String(s),
@@ -981,6 +981,19 @@ pub(crate) fn build_predicate_parser<'a>(
                         other => other,
                     })
                     .collect();
+                // BC-2.11.024 v1.3 F-MED-001: reject non-string values at parse time.
+                // After temporal normalisation, only `Literal::String` is valid in an IIN
+                // membership list.  Integer, Float, and Boolean literals are rejected here
+                // so the analyst receives a clear, actionable error before SQL generation.
+                if values.iter().any(|lit| !matches!(lit, Literal::String(_))) {
+                    return Err(Rich::custom(
+                        span,
+                        "E-QUERY-001: IIN operator requires quoted string literals in the \
+                         membership list; got a non-string value (integer, float, or boolean). \
+                         Example: status IIN ('new', 'open'). If you need date-like strings, \
+                         wrap them in quotes: created_at IIN ('2026-06-01', '2026-06-02').",
+                    ));
+                }
                 Ok(values)
             });
         let iin_list = field_path
