@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.15"
+version: "1.17"
 updated: "2026-07-07"
 status: draft
 producer: story-writer
@@ -110,7 +110,7 @@ risk_mitigations:
      passes through the parsed operator string, it will emit lowercase if the query was
      written lowercase. The normalizer must use canonical uppercase operator names."
 traces_to: [ADR-047]
-red_gate_tests: 47
+red_gate_tests: 53
 estimated_days: "3"
 ---
 
@@ -535,7 +535,7 @@ GROUP BY fragmentation (ADR-047 §Consequences positive: "GROUP BY severity prod
 aggregation across sensors").
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_group_by_severity_no_case_fragmentation`
-Red Gate (RG-044 / pass-9): `test_BC_2_02_013_triage_alerts_prompt_no_stale_vendor_casing` — `crates/prism-mcp/tests/bc_2_02_013_prompt_casing_test.rs` — triage prompt armis leg uses IIN ('High','Critical'); `status = 'UNHANDLED'` intentionally retained (vendor value not in OCSF status map, passes through unnormalized; adjudicated pass-9)
+Red Gate (RG-044 / pass-9): `test_BC_2_02_013_triage_alerts_prompt_no_stale_vendor_casing` — `crates/prism-mcp/tests/bc_2_02_013_prompt_casing_test.rs` — triage prompt armis leg uses IN ('High','Critical') (case-sensitive IN with Title-case literals per pass-10 F-CRIT-1 correction); `status = 'UNHANDLED'` intentionally retained (vendor value not in OCSF status map, passes through unnormalized; adjudicated pass-9)
 
 ### AC-020 — E-QUERY-001: IEQ/INE with non-string literal RHS rejected at parse time
 (traces to BC-2.11.024 v1.2 error case: "E-QUERY-001: IEQ/INE with a non-string literal
@@ -782,7 +782,7 @@ commit 26325423).
 | RG ID | Test Function Name | Location | AC | Assertion |
 |-------|--------------------|----------|----|-----------|
 | RG-043 | `test_BC_2_11_024_reference_content_no_stale_vendor_cased_enum_examples` | `crates/prism-mcp/tests/reference_content.rs` | AC-024 | prismql://reference content has no vendor-cased enum-equality examples post-normalization (0-row guard; pass-9 F-P9-MED-2) |
-| RG-044 | `test_BC_2_02_013_triage_alerts_prompt_no_stale_vendor_casing` | `crates/prism-mcp/tests/bc_2_02_013_prompt_casing_test.rs` | AC-019 | triage prompt armis leg uses IIN ('High','Critical'); `status = 'UNHANDLED'` intentionally retained (vendor value passes through unnormalized per pass-9 adjudication) |
+| RG-044 | `test_BC_2_02_013_triage_alerts_prompt_no_stale_vendor_casing` | `crates/prism-mcp/tests/bc_2_02_013_prompt_casing_test.rs` | AC-019 | triage prompt armis leg uses IN ('High','Critical') (case-sensitive IN with Title-case literals per pass-10 F-CRIT-1 correction); `status = 'UNHANDLED'` intentionally retained (vendor value passes through unnormalized per pass-9 adjudication) |
 | RG-045 | `test_BC_2_11_024_ieq_predicate_excluded_from_equality_pushdown` | `crates/prism-query/src/pushdown.rs` (inline test module) | BC-2.11.024 invariant guard | IEQ predicates excluded from case-sensitive equality push-down (pass-9 F-P9-LOW-1) |
 
 **Pass-10 new tests (prompt-parseability + empty-string no-warn):**
@@ -792,11 +792,22 @@ commit 26325423).
 | RG-046 | `test_BC_2_11_024_all_prompt_embedded_queries_parse` | `crates/prism-mcp/tests/bc_2_11_024_test.rs` | AC-023 corollary | Every MCP-prompt-embedded PrismQL query parses Ok (pass-10 F-CRIT-1: armis leg IIN-in-raw-SQL regression caught; fixed to `IN ('High','Critical')`) |
 | RG-047 | `test_BC_2_02_013_build_column_array_empty_string_enum_value_no_warn` | `crates/prism-bin/src/spec_driven_adapter.rs` (test module) | AC-018 guard | Empty-string enum values bypass normalization AND emit NO warn (PRIMARY↔SECONDARY behavioral parity; pass-10 OBS-3) |
 
-RG-028 through RG-047 names are authoritative per verified ground truth.
+**Pass-11 new tests (negated-IIN marker, detector real-op, IN-list AST lock, describe parse-lock, index collision guards):**
 
-**Total Red Gate tests: 47 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10)**
+| RG ID | Test Function Name | Location | AC | Assertion |
+|-------|--------------------|----------|----|-----------|
+| RG-048 | `test_low1_negated_iin_emits_invalid_marker_not_plain_positive_iin` | `crates/prism-query/src/ast.rs` (module low1_negated_iin_invalid_marker_tests) | BC-2.11.024 invariant guard | Normalizer emits `<invalid: negated IIN...>` marker, never silent positive IIN (pass-11 F-LOW-1) |
+| RG-049 | `test_low2_detect_ci_operator_gt_mentions_real_op_not_ieq` | `crates/prism-query/src/sql_parser.rs` (inline tests) | BC-2.11.024 invariant guard | Detector reports real op (`I[Gt]`) not hardcoded IEQ (pass-11 F-LOW-2) |
+| RG-050 | `test_BC_2_11_003_sql_in_literal_list_parses_to_predicate_in` | `crates/prism-query/src/tests/parser_tests.rs` | AC-011 regression guard | SQL IN literal-list parses to Predicate::In, not RecoveryError (locks base.or(in_subquery) ordering; pass-11 F-OBS-1) |
+| RG-051 | `test_obs2_all_build_example_query_outputs_parse_ok` | `crates/prism-mcp/src/tools/prism_describe.rs` | AC-025 guard | All describe example outputs parse Ok (pass-11 F-OBS-2) |
+| RG-052 | `test_obs4_ocsf_enum_map_new_no_collisions_in_production_data` | `crates/prism-ocsf/src/tests/bc_2_02_010_enum_map.rs` | BC-2.02.013 guard | normalized_index collision determinism — OcsfEnumMap::new() produces no duplicate normalized keys across production data (pass-11 F-OBS-4) |
+| RG-053 | `test_obs4_collision_detection_panics_on_ambiguous_captions` | `crates/prism-ocsf/src/tests/bc_2_02_010_enum_map.rs` | BC-2.02.013 guard | normalized_index collision detection panics on deliberately ambiguous captions (debug-mode guard; pass-11 F-OBS-4) |
 
-The story frontmatter records `red_gate_tests: 47`. RG-026/RG-027 discoverability tests may be
+RG-028 through RG-053 names are authoritative per verified ground truth.
+
+**Total Red Gate tests: 53 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11)**
+
+The story frontmatter records `red_gate_tests: 53`. RG-026/RG-027 discoverability tests may be
 snapshot or integration tests; include them if they can be written as failing stubs, otherwise
 verify the parity gate via `just check`. RG-028 is the authoritative describe test. RG-032
 through RG-036 are the PRIMARY build_column_array tests in prism-bin.
@@ -821,6 +832,8 @@ through RG-036 are the PRIMARY build_column_array tests in prism-bin.
 - `architecture/decisions/ADR-047` §D.3 (adapter normalization, enum_map.rs authority)
 - `architecture/module-decomposition.md` §SS-11 (Query Execution — prism-query)
 - `architecture/module-decomposition.md` §SS-02 (OCSF Normalization — prism-ocsf)
+
+**Pass-11 single-source constant:** `OCSF_ENUM_LABEL_FIELDS` is now declared as `pub const` in `prism-ocsf` (pass-11 F-OBS-3 drift-proof). `prism-bin/src/spec_driven_adapter.rs` imports it from `prism-ocsf` rather than defining it locally — eliminates enum-label field list divergence between the PRIMARY and SECONDARY normalization sites.
 
 ---
 
@@ -1293,7 +1306,7 @@ E (Adapter normalization) is parallel to A-D.
     just iter prism-mcp         # describe authoritative test (RG-028)
     just check                  # full workspace pre-push gate
     ```
-    All 47 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10).
+    All 53 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11).
     All existing tests must continue to pass (especially existing =, != filter tests — regression
     guard for AC-011/AC-013).
 
@@ -1499,3 +1512,5 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 | v1.13 | 2026-07-07 | pass-9: RG-043/044/045 added (reference-content casing, triage-prompt casing, IEQ pushdown-exclusion); red_gate_tests 42→45; RG-028 through RG-045 authoritative |
 | v1.14 | 2026-07-07 | pass-10 F-HIGH-2: AC-018 ellipsis-sentinel claim removed (BC-2.02.013 v1.4 / BC-2.16.002 v2.01 specify plain 50-codepoint cap — SEC-002; no `…` suffix; spec precedence over story text) |
 | v1.15 | 2026-07-07 | pass-10: RG-046 (prompt-parseability — `test_BC_2_11_024_all_prompt_embedded_queries_parse`, AC-023 corollary) + RG-047 (empty-string no-warn — `test_BC_2_02_013_build_column_array_empty_string_enum_value_no_warn`, AC-018 guard); AC-023 + AC-018 body citations added; red_gate_tests 45→47; "RG-028 through RG-045"→"RG-028 through RG-047"; Total/Task-28 counts updated |
+| v1.16 | 2026-07-07 | pass-11 polish: RG-048..053 added (negated-IIN marker, detector real-op, IN-list AST lock, describe parse-lock, index collision guards x2); OCSF_ENUM_LABEL_FIELDS single-sourced as `pub const` in prism-ocsf imported by prism-bin (F-OBS-3 drift-proof); red_gate_tests 47→53; "RG-028 through RG-047"→"RG-028 through RG-053"; Total/Task-28 counts updated to 53 + 6 pass-11 |
+| v1.17 | 2026-07-07 | pass-12 F-P11-LOW-1: RG-044 description updated IIN→IN ('High','Critical') per pass-10 F-CRIT-1 correction (2 sites: AC-019 body citation + pass-9 RG inventory row) |
