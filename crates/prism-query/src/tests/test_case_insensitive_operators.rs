@@ -1701,3 +1701,323 @@ async fn test_BC_2_11_024_filter_and_pipe_ieq_still_execute() {
          from {{severity: ['High', 'Low']}}; got {pipe_rows} rows"
     );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-4: BC-2.11.024 v1.1 — SQL-mode CI-operator rejection walker
+//               must cover HAVING and IN-subquery WHERE positions.
+//
+// F-HIGH-001 (adversary finding, LOCAL pass-3):
+//   `detect_ci_operator_in_predicate` in sql_parser.rs is invoked only on
+//   `sq.where_` — it is NOT called on `sq.having`, and it has no
+//   `Predicate::InSubquery` arm.  As a result:
+//
+//   a) `HAVING severity IEQ 'high'` bypasses the gate → parse returns Ok →
+//      the query reaches DataFusion and produces an opaque E-QUERY-034.
+//
+//   b) `WHERE col IN (SELECT col FROM t WHERE severity IEQ 'high')` bypasses
+//      the gate → the InSubquery arm hits `_ => None` → the inner subquery's
+//      CI operator is silently ignored → parse returns Ok → DataFusion
+//      receives the malformed plan.
+//
+// Current behaviour at HEAD 1379b572 for every test in this section:
+//   `PrismQlParser::parse(query)` returns `Ok(Ast::Sql(...))` or
+//   `Ok(Ast::SqlPipe(...))`.  `expect_err(...)` panics on the Ok value,
+//   causing the test to FAIL — which is the intended Red Gate.
+//
+// Green Gate for tests 1-5: PASSES once `parse_sql_with_limits` (a) also
+//   invokes `detect_ci_operator_in_predicate` on `sq.having`, and (b)
+//   `detect_ci_operator_in_predicate` gains a `Predicate::InSubquery` arm
+//   that recurses into `subquery.where_` (and `subquery.having`).
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_ieq_in_having_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.1 — SQL-mode HAVING clause with IEQ must be rejected at parse time.
+///
+/// `SELECT severity, count(*) FROM crowdstrike_detections GROUP BY severity
+///  HAVING severity IEQ 'high'` must be rejected with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IEQ"` in the error message
+///
+/// Red Gate (HEAD 1379b572): FAILS.
+///   `parse_sql_with_limits` calls `detect_ci_operator_in_predicate` only on
+///   `sq.where_`.  `sq.having` is never checked.  The query parses to
+///   `Ok(Ast::Sql(...))` and `expect_err` panics on the Ok value.
+///
+/// Green Gate: PASSES once `parse_sql_with_limits` also invokes the walker
+///   on `sq.having` after the existing `sq.where_` check.
+///
+/// Traces to: BC-2.11.024 v1.1 §SQL-Mode Rejection; F-HIGH-001 (LOCAL-pass-3);
+/// LOCAL-pass-4.
+#[test]
+fn test_BC_2_11_024_sql_mode_ieq_in_having_rejected() {
+    let query = "SELECT severity, count(*) FROM crowdstrike_detections \
+                 GROUP BY severity HAVING severity IEQ 'high'";
+    let result = PrismQlParser::parse(query);
+    let err = result.expect_err(
+        "BC-2.11.024 v1.1 F-HIGH-001: PrismQlParser::parse must reject IEQ in a SQL-mode \
+         HAVING clause with E-QUERY-001; currently returns Ok(Ast::Sql(…)) because \
+         parse_sql_with_limits does not invoke detect_ci_operator_in_predicate on sq.having \
+         (LOCAL-pass-4 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024 v1.1: HAVING IEQ rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024 v1.1: HAVING IEQ rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IEQ"),
+        "BC-2.11.024 v1.1: HAVING IEQ rejection must name the operator 'IEQ' \
+         in the error message; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_ieq_in_subquery_where_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.1 — IEQ inside an IN-subquery WHERE must be rejected at parse time.
+///
+/// `SELECT severity FROM crowdstrike_detections
+///  WHERE severity IN (SELECT severity FROM other_table WHERE severity IEQ 'high')`
+/// must be rejected with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IEQ"` in the error message
+///
+/// Red Gate (HEAD 1379b572): FAILS.
+///   The outer WHERE predicate is `Predicate::InSubquery { subquery: SqlQuery { ... } }`.
+///   `detect_ci_operator_in_predicate` has no `InSubquery` arm — it falls through to
+///   `_ => None` and returns `None`.  The inner subquery's CI operator is invisible to
+///   the walker.  The query parses to `Ok(Ast::Sql(...))` and `expect_err` panics.
+///
+/// Green Gate: PASSES once `detect_ci_operator_in_predicate` gains a
+///   `Predicate::InSubquery { subquery, .. }` arm that recurses into
+///   `subquery.where_` (and `subquery.having`).
+///
+/// Traces to: BC-2.11.024 v1.1 §SQL-Mode Rejection; F-HIGH-001 (LOCAL-pass-3);
+/// LOCAL-pass-4.
+#[test]
+fn test_BC_2_11_024_sql_mode_ieq_in_subquery_where_rejected() {
+    let query = "SELECT severity FROM crowdstrike_detections \
+                 WHERE severity IN (SELECT severity FROM other_table WHERE severity IEQ 'high')";
+    let result = PrismQlParser::parse(query);
+    let err = result.expect_err(
+        "BC-2.11.024 v1.1 F-HIGH-001: PrismQlParser::parse must reject IEQ inside an \
+         IN-subquery WHERE clause with E-QUERY-001; currently returns Ok(Ast::Sql(…)) because \
+         detect_ci_operator_in_predicate has no Predicate::InSubquery arm and the inner \
+         subquery's CI operator is invisible to the walker (LOCAL-pass-4 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024 v1.1: IN-subquery IEQ rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024 v1.1: IN-subquery IEQ rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IEQ"),
+        "BC-2.11.024 v1.1: IN-subquery IEQ rejection must name the operator 'IEQ' \
+         in the error message; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_iin_in_having_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.1 — SQL-mode HAVING clause with IIN must be rejected at parse time.
+///
+/// `SELECT severity, count(*) FROM crowdstrike_detections GROUP BY severity
+///  HAVING severity IIN ('high', 'critical')` must be rejected with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IIN"` in the error message
+///
+/// Red Gate (HEAD 1379b572): FAILS.
+///   Same root cause as `test_BC_2_11_024_sql_mode_ieq_in_having_rejected`:
+///   `sq.having` is never checked.  The query parses to `Ok(Ast::Sql(...))`.
+///
+/// Green Gate: PASSES once `parse_sql_with_limits` checks `sq.having`.
+///
+/// Traces to: BC-2.11.024 v1.1 §SQL-Mode Rejection; F-HIGH-001 (LOCAL-pass-3);
+/// LOCAL-pass-4.
+#[test]
+fn test_BC_2_11_024_sql_mode_iin_in_having_rejected() {
+    let query = "SELECT severity, count(*) FROM crowdstrike_detections \
+                 GROUP BY severity HAVING severity IIN ('high', 'critical')";
+    let result = PrismQlParser::parse(query);
+    let err = result.expect_err(
+        "BC-2.11.024 v1.1 F-HIGH-001: PrismQlParser::parse must reject IIN in a SQL-mode \
+         HAVING clause with E-QUERY-001; currently returns Ok(Ast::Sql(…)) because \
+         parse_sql_with_limits does not invoke detect_ci_operator_in_predicate on sq.having \
+         (LOCAL-pass-4 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024 v1.1: HAVING IIN rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024 v1.1: HAVING IIN rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IIN"),
+        "BC-2.11.024 v1.1: HAVING IIN rejection must name the operator 'IIN' \
+         in the error message; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sqlpipe_head_having_ieq_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.1 — SqlPipe head HAVING clause with IEQ must be rejected at parse time.
+///
+/// `SELECT severity, count(*) FROM crowdstrike_detections GROUP BY severity
+///  HAVING severity IEQ 'high' | limit 10`
+/// must be rejected with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IEQ"` in the error message
+///
+/// Reachability: `parse_sqlpipe_internal` (filter_parser.rs) splits on the
+/// unquoted `|` before `limit`, passes the SQL head
+/// `SELECT severity, count(*) FROM crowdstrike_detections GROUP BY severity
+///  HAVING severity IEQ 'high'` through `parse_sql_with_limits`.
+/// The HAVING check added by the F-HIGH-001 fix fires here because
+/// `parse_sql_with_limits` is shared between pure SQL and SqlPipe SQL heads.
+///
+/// Red Gate (HEAD 1379b572): FAILS.
+///   `parse_sql_with_limits` does not check `sq.having`.  The SQL head parses
+///   to `Ok(SqlQuery { having: Some(Predicate::Compare { case_insensitive: true }) })`.
+///   The stages parse to `Ok([PipeStage::Limit(10)])`.  The combined result is
+///   `Ok(Ast::SqlPipe(...))`.  `expect_err` panics on the Ok value.
+///
+/// Green Gate: PASSES once `parse_sql_with_limits` checks `sq.having`.
+///   The same code path that fixes the pure-SQL HAVING case also fixes this.
+///
+/// Traces to: BC-2.11.024 v1.1 §SQL-Mode Rejection; F-HIGH-001 (LOCAL-pass-3);
+/// LOCAL-pass-4.
+#[test]
+fn test_BC_2_11_024_sqlpipe_head_having_ieq_rejected() {
+    // `| limit 10` triggers SqlPipe routing via `is_sqlpipe_mode` (PIPE_STAGE_KEYWORDS
+    // includes "limit").  The SQL head is everything before the `|`.
+    let query = "SELECT severity, count(*) FROM crowdstrike_detections \
+                 GROUP BY severity HAVING severity IEQ 'high' | limit 10";
+    let result = PrismQlParser::parse(query);
+    let err = result.expect_err(
+        "BC-2.11.024 v1.1 F-HIGH-001: PrismQlParser::parse must reject IEQ in a SqlPipe \
+         SQL-head HAVING clause with E-QUERY-001; currently returns Ok(Ast::SqlPipe(…)) because \
+         parse_sql_with_limits does not check sq.having (LOCAL-pass-4 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024 v1.1: SqlPipe HAVING IEQ rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024 v1.1: SqlPipe HAVING IEQ rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IEQ"),
+        "BC-2.11.024 v1.1: SqlPipe HAVING IEQ rejection must name the operator 'IEQ' \
+         in the error message; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_ieq_in_nested_subquery_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.1 — IEQ inside a doubly-nested IN-subquery WHERE must be rejected.
+///
+/// `SELECT col FROM t WHERE col IN
+///   (SELECT col FROM t2 WHERE col IN
+///     (SELECT col FROM t3 WHERE col IEQ 'val'))`
+///
+/// must be rejected with `E-QUERY-001`.
+///
+/// This test locks in that `detect_ci_operator_in_predicate` recurses through
+/// arbitrary `Predicate::InSubquery` nesting depth, not just one level.
+///
+/// Red Gate (HEAD 1379b572): FAILS.
+///   `detect_ci_operator_in_predicate` has no `Predicate::InSubquery` arm.
+///   Both nesting levels are invisible to the walker.  The query parses to
+///   `Ok(Ast::Sql(...))`.
+///
+/// Green Gate: PASSES once `detect_ci_operator_in_predicate` gains an
+///   `InSubquery` arm that recurses through `subquery.where_` and
+///   `subquery.having` — the recursion naturally handles any nesting depth.
+///
+/// Traces to: BC-2.11.024 v1.1 §SQL-Mode Rejection; F-HIGH-001 (LOCAL-pass-3);
+/// LOCAL-pass-4.
+#[test]
+fn test_BC_2_11_024_sql_mode_ieq_in_nested_subquery_rejected() {
+    // Doubly-nested: outermost WHERE → InSubquery → WHERE → InSubquery → WHERE IEQ
+    let query = "SELECT col FROM t \
+                 WHERE col IN (SELECT col FROM t2 \
+                   WHERE col IN (SELECT col FROM t3 WHERE col IEQ 'val'))";
+    let result = PrismQlParser::parse(query);
+    let err = result.expect_err(
+        "BC-2.11.024 v1.1 F-HIGH-001: PrismQlParser::parse must reject IEQ at any \
+         IN-subquery nesting depth with E-QUERY-001; currently returns Ok(Ast::Sql(…)) because \
+         detect_ci_operator_in_predicate has no Predicate::InSubquery arm and the recursive \
+         CI operator is never reached (LOCAL-pass-4 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024 v1.1: nested-subquery IEQ rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024 v1.1: nested-subquery IEQ rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IEQ"),
+        "BC-2.11.024 v1.1: nested-subquery IEQ rejection must name the operator 'IEQ' \
+         in the error message; got: {all_msgs:?}"
+    );
+}
