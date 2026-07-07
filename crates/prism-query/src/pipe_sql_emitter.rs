@@ -522,7 +522,7 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
                     }
                     _ => {
                         return Err(PrismError::QueryPlanFailed {
-                            detail: "E-QUERY-001: IEQ/INE operators require a string literal \
+                            detail: "IEQ/INE operators require a string literal \
                                      on the right-hand side; lower() is not applicable to \
                                      non-string values"
                                 .to_string(),
@@ -530,10 +530,22 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
                     }
                 };
                 let lhs_sql = expr_to_sql(lhs)?;
+                // OBS-1 (S-PRISMQL-CASE-INSENSITIVE-001): IEQ maps to Eq, INE maps to Ne.
+                // Any other CompareOp in a case_insensitive branch is a contract violation —
+                // the parser only produces case_insensitive=true for IEQ/INE operators (BC-2.11.024).
+                // Emit QueryPlanFailed rather than silently defaulting to "=" and producing
+                // a wrong query.
                 let op_str = match op {
                     CompareOp::Eq => "=",
                     CompareOp::Ne => "!=",
-                    _ => "=", // non_exhaustive defensive fallback
+                    other => {
+                        return Err(PrismError::QueryPlanFailed {
+                            detail: format!(
+                                "case_insensitive=true is only valid for IEQ (Eq) and INE (Ne) \
+                                 operators; got {other:?} — this is an AST invariant violation"
+                            ),
+                        });
+                    }
                 };
                 return Ok(format!("lower({lhs_sql}) {op_str} {rhs_sql}"));
             }
@@ -614,8 +626,7 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
             if *case_insensitive {
                 if values.is_empty() {
                     return Err(PrismError::QueryPlanFailed {
-                        detail: "E-QUERY-001: IIN requires at least one value in the \
-                                 membership list"
+                        detail: "IIN requires at least one value in the membership list"
                             .to_string(),
                     });
                 }
@@ -623,12 +634,10 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
                 let vals: Vec<String> = values
                     .iter()
                     .map(|lit| match lit {
-                        Literal::String(s) => {
-                            Ok(format!("lower('{}')", escape_sql_string(s)))
-                        }
+                        Literal::String(s) => Ok(format!("lower('{}')", escape_sql_string(s))),
                         _ => Err(PrismError::QueryPlanFailed {
-                            detail: "E-QUERY-001: IIN requires string literals in the \
-                                     membership list; lower() is not applicable to non-string values"
+                            detail: "IIN requires string literals in the membership list; \
+                                     lower() is not applicable to non-string values"
                                 .to_string(),
                         }),
                     })

@@ -1257,6 +1257,55 @@ pub async fn execute_against_session(
                 vec![datafusion_table_name(&filter.source.raw)]
             };
 
+            // Pre-flight type check: IEQ / INE / IIN operators require string-typed columns.
+            //
+            // DataFusion would produce a generic error (E-QUERY-034) when `lower(severity_id)`
+            // is called on an Int64 column at execution time. This pre-flight check fires BEFORE
+            // DataFusion execution and emits a structured E-QUERY-002 `QueryTypeMismatch` with
+            // the offending column name and actual type. (BC-2.11.024 AC-022; RG-018)
+            {
+                use arrow::datatypes::DataType as ArrowDataType;
+
+                let ci_fields = collect_ci_compare_fields(&filter.predicate);
+                if !ci_fields.is_empty() {
+                    if let Some(public_schema) = session_ctx
+                        .catalog("datafusion")
+                        .and_then(|cat| cat.schema("public"))
+                    {
+                        'ci_check: for table_name in &table_names {
+                            if let Ok(Some(tp)) = public_schema.table(table_name).await {
+                                let arrow_schema = tp.schema();
+                                for col_name in &ci_fields {
+                                    if let Ok(arrow_field) = arrow_schema.field_with_name(col_name)
+                                    {
+                                        let is_string = matches!(
+                                            arrow_field.data_type(),
+                                            ArrowDataType::Utf8
+                                                | ArrowDataType::LargeUtf8
+                                                | ArrowDataType::Utf8View
+                                        );
+                                        if !is_string {
+                                            let actual_type = arrow_type_to_prism_column_type(
+                                                arrow_field.data_type(),
+                                            );
+                                            return Err(PrismError::QueryTypeMismatch {
+                                                column: col_name.clone(),
+                                                table: table_name.clone(),
+                                                actual_type,
+                                                operator: "IEQ".to_string(),
+                                            });
+                                        }
+                                    }
+                                }
+                                // Only need one table match — all registered tables share the
+                                // same logical schema for a given source.
+                                break 'ci_check;
+                            }
+                        }
+                    }
+                }
+            }
+
             // Execute `SELECT * FROM <table> WHERE <predicate>` for each table and union.
             let mut all_batches: Vec<RecordBatch> = Vec::new();
             for table_name in &table_names {
@@ -2083,6 +2132,98 @@ fn walk_predicate(pred: &crate::ast::Predicate, names: &mut std::collections::Ha
         }
         // Other predicate variants have no nested subqueries.
         _ => {}
+    }
+}
+
+/// Collect all field names used with case-insensitive operators (`IEQ`, `INE`, `IIN`)
+/// by recursively walking the predicate tree.
+///
+/// Used by the pre-flight type check in the `Ast::Filter` arm of
+/// `execute_against_session` to detect IEQ/INE/IIN on non-string columns
+/// before DataFusion execution (BC-2.11.024 AC-022; RG-018).
+fn collect_ci_compare_fields(pred: &crate::ast::Predicate) -> Vec<String> {
+    let mut fields = Vec::new();
+    collect_ci_fields_inner(pred, &mut fields);
+    fields
+}
+
+fn collect_ci_fields_inner(pred: &crate::ast::Predicate, out: &mut Vec<String>) {
+    use crate::ast::{Expr, Predicate};
+
+    match pred {
+        // IEQ / INE: `case_insensitive = true` on a Compare with a Field LHS.
+        Predicate::Compare {
+            lhs,
+            case_insensitive: true,
+            ..
+        } => {
+            if let Expr::Field(fp) = lhs.as_ref() {
+                if let Some(last) = fp.segments.last() {
+                    out.push(last.clone());
+                }
+            }
+        }
+        // IIN: `case_insensitive = true` on an In predicate.
+        Predicate::In {
+            field,
+            case_insensitive: true,
+            ..
+        } => {
+            if let Some(last) = field.segments.last() {
+                out.push(last.clone());
+            }
+        }
+        // Logical (AND / OR): recurse into children.
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates {
+                collect_ci_fields_inner(p, out);
+            }
+        }
+        // NOT: recurse into inner.
+        Predicate::Not(inner) => {
+            collect_ci_fields_inner(inner, out);
+        }
+        // All other variants (Compare with case_insensitive=false, StringOp, Regex,
+        // Between, Cidr, IsNull, etc.) carry no IEQ/INE/IIN fields.
+        _ => {}
+    }
+}
+
+/// Map an Arrow `DataType` to the prism-core `ColumnType` canonical enum.
+///
+/// Used to populate `PrismError::QueryTypeMismatch { actual_type }` with a
+/// human-readable type name when an IEQ/INE/IIN operator is used on a
+/// non-string column (BC-2.11.024 AC-022).
+fn arrow_type_to_prism_column_type(
+    dt: &arrow::datatypes::DataType,
+) -> prism_core::column::ColumnType {
+    use arrow::datatypes::DataType as ArrowDataType;
+    use prism_core::column::ColumnType;
+
+    match dt {
+        ArrowDataType::Utf8 | ArrowDataType::LargeUtf8 | ArrowDataType::Utf8View => {
+            ColumnType::String
+        }
+        ArrowDataType::Int8
+        | ArrowDataType::Int16
+        | ArrowDataType::Int32
+        | ArrowDataType::Int64
+        | ArrowDataType::UInt8
+        | ArrowDataType::UInt16
+        | ArrowDataType::UInt32
+        | ArrowDataType::UInt64 => ColumnType::Integer,
+        ArrowDataType::Float32 | ArrowDataType::Float64 | ArrowDataType::Float16 => {
+            ColumnType::Float
+        }
+        ArrowDataType::Boolean => ColumnType::Boolean,
+        ArrowDataType::Timestamp(..)
+        | ArrowDataType::Date32
+        | ArrowDataType::Date64
+        | ArrowDataType::Time32(..)
+        | ArrowDataType::Time64(..) => ColumnType::Datetime,
+        // All other types (Binary, LargeBinary, FixedSizeBinary, List, Map,
+        // Struct, etc.) → Json is the most sensible fallback for display.
+        _ => ColumnType::Json,
     }
 }
 

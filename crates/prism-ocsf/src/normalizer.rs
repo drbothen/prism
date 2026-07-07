@@ -9,11 +9,36 @@
 //!
 //! `normalize()` MUST NOT panic. All errors returned via `Result`.
 
+use std::sync::OnceLock;
+
 use prism_core::PrismError;
-use prost_reflect::{DynamicMessage, MessageDescriptor};
+use prost_reflect::{DynamicMessage, MessageDescriptor, ReflectMessage, Value as ProtoValue};
 use serde_json::Value;
 
-use crate::{class_selector::EventClassSelector, mappers::SensorMapper, pool::OcsfDescriptors};
+use crate::{
+    class_selector::EventClassSelector, enum_map::OcsfEnumMap, mappers::SensorMapper,
+    pool::OcsfDescriptors,
+};
+
+/// Lazily-initialized global `OcsfEnumMap` instance.
+///
+/// Created once at first use and reused across all `normalize_with_mappers` calls.
+/// `OcsfEnumMap::new()` is pure in-memory (no I/O); the `OnceLock` ensures at-most-once
+/// initialization without a `Mutex` on the hot path (BC-2.02.013 §Invariants: pure
+/// in-memory lookup-and-rewrite, no I/O). Thread-safe via `OnceLock`.
+static OCSF_ENUM_MAP: OnceLock<OcsfEnumMap> = OnceLock::new();
+
+/// Returns a reference to the process-wide `OcsfEnumMap`.
+fn enum_map() -> &'static OcsfEnumMap {
+    OCSF_ENUM_MAP.get_or_init(OcsfEnumMap::new)
+}
+
+/// OCSF enum-label string fields normalized at the adapter boundary.
+///
+/// These are the in-scope fields from BC-2.02.013 v1.1 §Postconditions in-scope field
+/// enumeration table. Normalization coverage is determined by which `{field}_id` entries
+/// exist in `OcsfEnumMap`; adding new `_id` entries automatically extends coverage.
+const OCSF_ENUM_LABEL_FIELDS: &[&str] = &["severity", "status", "activity", "disposition"];
 
 /// OCSF normalizer — dispatches to per-sensor `SensorMapper` implementations.
 ///
@@ -91,6 +116,47 @@ impl OcsfNormalizer {
             })?;
 
         let source_id = mapper.map(record_type, &raw, &mut msg, &mut extensions)?;
+
+        // BC-2.02.013 v1.1 F-CRIT-001: post-pass normalization of OCSF enum-label string
+        // fields to canonical OCSF Title-case. Applied after mapper.map() so that the
+        // returned DynamicMessage carries only canonical-cased enum-label values.
+        //
+        // F-HIGH-003 keying contract: normalize_enum_label keys on the string label field
+        // name (e.g., "severity"), deriving captions from the "{F}_id" entries in OcsfEnumMap.
+        //
+        // F-HIGH-002 in-scope fields: severity, status, activity, disposition.
+        let map = enum_map();
+        for &field in OCSF_ENUM_LABEL_FIELDS {
+            // Only normalize if the OCSF protobuf descriptor has this field.
+            if msg.descriptor().get_field_by_name(field).is_none() {
+                continue;
+            }
+            // Extract the current string value (skip if absent, null, or non-string).
+            let current = match msg.get_field_by_name(field) {
+                Some(cow) => match cow.into_owned() {
+                    ProtoValue::String(s) if !s.is_empty() => s,
+                    _ => continue,
+                },
+                None => continue,
+            };
+            // Normalize via OcsfEnumMap (sole canonical casing authority, BC-2.02.010 v1.5).
+            if let Some(canonical) = map.normalize_enum_label(field, &current) {
+                // Idempotent: if already canonical, this is a no-op rewrite (BC-2.02.013 RG-020).
+                msg.set_field_by_name(field, ProtoValue::String(canonical.to_owned()));
+            } else {
+                // BC-2.02.013 §Error Cases: unrecognized vendor value — leave as-received
+                // and emit warn. Non-fatal; record is never dropped.
+                // SAP-1: event_type registered in BC-2.16.002 §Postconditions catalog row 91.
+                tracing::warn!(
+                    event_type = "ocsf.enum_label_unrecognized",
+                    field_name = %field,
+                    value = %current,
+                    sensor_type = %sensor,
+                    "unrecognized OCSF enum label value; leaving as-received"
+                );
+            }
+        }
+
         Ok((msg, source_id))
     }
 

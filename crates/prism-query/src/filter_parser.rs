@@ -943,19 +943,35 @@ pub(crate) fn build_predicate_parser<'a>(
         // consumed by this combinator. The kw() helper uses full-run eq_ignore_ascii_case,
         // so 'IIN' will not match kw("IN") (different length), but ordering is retained
         // as defensive practice per BC-2.11.002 IIN-before-IN discipline.
+        //
+        // Empty list (BC-2.11.024 v1.0 error case "E-QUERY-001: IIN with empty membership list";
+        // AC-021): use `.collect::<Vec<_>>()` (no `.at_least(1)`) so the delimited parser
+        // accepts "()" without a Chumsky-level failure, then apply `try_map` at the
+        // `delimited_by` level so the error span begins at '(' (e.g., position 13).
+        // This ensures the E-QUERY-001 error wins choice() error-merging over the generic
+        // "expected keyword 'MATCHES'" error at position 9 (Chumsky 0.12 selects by span.start).
+        let iin_values = literal
+            .clone()
+            .padded()
+            .separated_by(just(',').padded())
+            .collect::<Vec<_>>()
+            .delimited_by(just('(').padded(), just(')').padded())
+            .try_map(|values, span| {
+                if values.is_empty() {
+                    return Err(Rich::custom(
+                        span,
+                        "E-QUERY-001: IIN operator requires at least one value in the \
+                         membership list; empty () is not valid. \
+                         Use at least one quoted string: e.g. `status IIN ('new', 'open')`.",
+                    ));
+                }
+                Ok(values)
+            });
         let iin_list = field_path
             .clone()
             .padded()
             .then_ignore(kw("IIN").padded())
-            .then(
-                literal
-                    .clone()
-                    .padded()
-                    .separated_by(just(',').padded())
-                    .at_least(1)
-                    .collect::<Vec<_>>()
-                    .delimited_by(just('(').padded(), just(')').padded()),
-            )
+            .then(iin_values)
             .map(|(fp, values)| Predicate::In {
                 field: fp,
                 values,
@@ -1056,12 +1072,28 @@ pub(crate) fn build_predicate_parser<'a>(
 
         // --- field IEQ 'value' — case-insensitive equality (S-PRISMQL-CASE-INSENSITIVE-001) ---
         // IEQ must appear before field_comparison in the atom choice.
-        // RHS is a quoted string literal (AC-010: IEQ/INE RHS must be a string).
+        // RHS must be a string literal (AC-010, BC-2.11.024 v1.0 error case "E-QUERY-001: IEQ/INE
+        // with non-string RHS").
+        //
+        // The try_map is placed at the LITERAL level (not the full-sequence level). This ensures
+        // the emitted error span begins at the position of the literal token itself (e.g., "42"
+        // at position 13), not the start of the whole pattern (position 0). Chumsky 0.12 choice()
+        // error merging uses span.start to select the "furthest" error; a span starting at 13
+        // outcompetes the "expected keyword 'MATCHES'" error that starts at position 9.
+        let ieq_rhs_string = literal.clone().padded().try_map(|lit, span| match lit {
+            Literal::String(s) => Ok(s),
+            _ => Err(Rich::custom(
+                span,
+                "E-QUERY-001: IEQ operator requires a quoted string literal on the \
+                 right-hand side; got a non-string value (integer, float, or boolean). \
+                 Use a quoted string: e.g. `severity IEQ 'high'`.",
+            )),
+        });
         let ieq_compare = field_path
             .clone()
             .padded()
             .then_ignore(kw("IEQ").padded())
-            .then(string_val.clone().padded())
+            .then(ieq_rhs_string)
             .map(|(fp, val)| Predicate::Compare {
                 lhs: Box::new(field_path_to_expr(fp)),
                 op: CompareOp::Eq,
@@ -1070,11 +1102,21 @@ pub(crate) fn build_predicate_parser<'a>(
             });
 
         // --- field INE 'value' — case-insensitive inequality (S-PRISMQL-CASE-INSENSITIVE-001) ---
+        // Same try_map-at-literal-level pattern as ieq_compare.
+        let ine_rhs_string = literal.clone().padded().try_map(|lit, span| match lit {
+            Literal::String(s) => Ok(s),
+            _ => Err(Rich::custom(
+                span,
+                "E-QUERY-001: INE operator requires a quoted string literal on the \
+                 right-hand side; got a non-string value (integer, float, or boolean). \
+                 Use a quoted string: e.g. `severity INE 'high'`.",
+            )),
+        });
         let ine_compare = field_path
             .clone()
             .padded()
             .then_ignore(kw("INE").padded())
-            .then(string_val.clone().padded())
+            .then(ine_rhs_string)
             .map(|(fp, val)| Predicate::Compare {
                 lhs: Box::new(field_path_to_expr(fp)),
                 op: CompareOp::Ne,
