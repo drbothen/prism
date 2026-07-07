@@ -8,7 +8,9 @@
 //!   not_expr     := ('NOT' | '!') not_expr | atom
 //!   atom         := '(' predicate ')' | comparison
 //!   comparison   := has_check | missing_check | regex_match | cidr_match
-//!                 | not_in_list | in_list | string_op_match | field_comparison
+//!                 | not_in_list | iin_list | in_list | between | is_null
+//!                 | string_op_match | cidr_bare | like_match
+//!                 | ieq_compare | ine_compare | field_comparison
 //!
 //! All keywords are case-insensitive.
 //!
@@ -936,6 +938,31 @@ pub(crate) fn build_predicate_parser<'a>(
                 case_insensitive: false,
             });
 
+        // --- field IIN (val, …) — case-insensitive set membership (S-PRISMQL-CASE-INSENSITIVE-001) ---
+        // IIN must appear before IN in the atom choice so that 'iIN' / 'IIN' tokens are
+        // consumed by this combinator. The kw() helper uses full-run eq_ignore_ascii_case,
+        // so 'IIN' will not match kw("IN") (different length), but ordering is retained
+        // as defensive practice per BC-2.11.002 IIN-before-IN discipline.
+        let iin_list = field_path
+            .clone()
+            .padded()
+            .then_ignore(kw("IIN").padded())
+            .then(
+                literal
+                    .clone()
+                    .padded()
+                    .separated_by(just(',').padded())
+                    .at_least(1)
+                    .collect::<Vec<_>>()
+                    .delimited_by(just('(').padded(), just(')').padded()),
+            )
+            .map(|(fp, values)| Predicate::In {
+                field: fp,
+                values,
+                negated: false,
+                case_insensitive: true,
+            });
+
         // --- field IN (val, …) ---
         let in_list = field_path
             .clone()
@@ -1027,6 +1054,34 @@ pub(crate) fn build_predicate_parser<'a>(
                 }
             });
 
+        // --- field IEQ 'value' — case-insensitive equality (S-PRISMQL-CASE-INSENSITIVE-001) ---
+        // IEQ must appear before field_comparison in the atom choice.
+        // RHS is a quoted string literal (AC-010: IEQ/INE RHS must be a string).
+        let ieq_compare = field_path
+            .clone()
+            .padded()
+            .then_ignore(kw("IEQ").padded())
+            .then(string_val.clone().padded())
+            .map(|(fp, val)| Predicate::Compare {
+                lhs: Box::new(field_path_to_expr(fp)),
+                op: CompareOp::Eq,
+                rhs: Box::new(crate::ast::Expr::Literal(Literal::String(val))),
+                case_insensitive: true,
+            });
+
+        // --- field INE 'value' — case-insensitive inequality (S-PRISMQL-CASE-INSENSITIVE-001) ---
+        let ine_compare = field_path
+            .clone()
+            .padded()
+            .then_ignore(kw("INE").padded())
+            .then(string_val.clone().padded())
+            .map(|(fp, val)| Predicate::Compare {
+                lhs: Box::new(field_path_to_expr(fp)),
+                op: CompareOp::Ne,
+                rhs: Box::new(crate::ast::Expr::Literal(Literal::String(val))),
+                case_insensitive: true,
+            });
+
         // RHS value expression: temporal (NOW/INTERVAL) or literal.
         //
         // Temporal parser is tried first (BC-2.11.021 / ADR-044 D7 invariant):
@@ -1103,6 +1158,7 @@ pub(crate) fn build_predicate_parser<'a>(
             });
 
         // Atom: `(predicate)` | one of the above
+        // Ordering discipline: IIN before IN, IEQ/INE before field_comparison.
         let atom = choice((
             predicate
                 .clone()
@@ -1113,12 +1169,15 @@ pub(crate) fn build_predicate_parser<'a>(
             regex_match,
             cidr_match,
             not_in_list,
+            iin_list,
             in_list,
             between,
             is_null,
             string_op_match,
             cidr_bare,
             like_match,
+            ieq_compare,
+            ine_compare,
             field_comparison,
         ));
 

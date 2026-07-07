@@ -91,12 +91,18 @@ impl OcsfEnumMap {
     /// # Example
     ///
     /// ```
+    /// # use prism_ocsf::OcsfEnumMap;
     /// let map = OcsfEnumMap::new();
     /// assert_eq!(map.normalize_label("severity_id", "HIGH"), Some("High"));
     /// assert_eq!(map.normalize_label("severity_id", "high"), Some("High"));
     /// ```
-    pub fn normalize_label(&self, _field_name: &str, _label: &str) -> Option<&'static str> {
-        todo!("S-PRISMQL-CASE-INSENSITIVE-001: scan self.inner for entries keyed to _field_name and perform case-insensitive comparison of caption to _label, returning canonical-case caption (BC-2.02.010 v1.5)")
+    pub fn normalize_label(&self, field_name: &str, label: &str) -> Option<&'static str> {
+        for ((fname, _), &caption) in &self.inner {
+            if fname == field_name && caption.eq_ignore_ascii_case(label) {
+                return Some(caption);
+            }
+        }
+        None
     }
 
     /// Returns the display name for an OCSF enum `field` + integer `value`.

@@ -1341,6 +1341,28 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
         "FROM sensor_table | stats count() by severity",
     ),
     (
+        ExampleKind::Positive,
+        "IEQ — case-insensitive equality (OCSF Title-case: HIGH/high/High all match 'High')",
+        // S-PRISMQL-CASE-INSENSITIVE-001: IEQ operator — case-insensitive equality.
+        // Lowered to `lower(severity) = lower('high')` in DataFusion SQL (BC-2.11.024).
+        // Useful for OCSF severity values that vary by sensor casing (CrowdStrike: 'High', Armis: 'HIGH').
+        "sensor_table | severity IEQ 'high'",
+    ),
+    (
+        ExampleKind::Positive,
+        "INE — case-insensitive inequality (exclude any casing of 'informational')",
+        // S-PRISMQL-CASE-INSENSITIVE-001: INE operator — case-insensitive inequality.
+        // Lowered to `lower(severity) != lower('informational')` in DataFusion SQL (BC-2.11.024).
+        "sensor_table | severity INE 'informational'",
+    ),
+    (
+        ExampleKind::Positive,
+        "IIN — case-insensitive set membership (open/OPEN/Open all match)",
+        // S-PRISMQL-CASE-INSENSITIVE-001: IIN operator — case-insensitive IN.
+        // Lowered to `lower(status) IN (lower('open'), lower('new'))` in DataFusion SQL (BC-2.11.024).
+        "sensor_table | status IIN ('open', 'new')",
+    ),
+    (
         ExampleKind::NegativeE040,
         "E-QUERY-040 FORBID-BOTH — SQL LIMIT + pipe limit",
         // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
@@ -1448,12 +1470,22 @@ pub fn build_reference_content(
          | `BETWEEN` | Range (inclusive) | `score BETWEEN 50 AND 90` |\n\
          | `CONTAINS` | Substring match (case-sensitive) | `hostname CONTAINS 'prod'` |\n\
          | `ICONTAINS` | Substring match (case-insensitive) | `hostname ICONTAINS 'prod'` |\n\
+         | `IEQ` | Case-insensitive equality (OCSF Title-case) | `severity IEQ 'high'` |\n\
+         | `INE` | Case-insensitive inequality | `severity INE 'informational'` |\n\
+         | `IIN` | Case-insensitive set membership | `status IIN ('open', 'new')` |\n\
          | `=~` / `MATCHES` | Regex match | `hostname =~ '^web-'` |\n\
          | `IN CIDR` | CIDR range check | `src_ip IN CIDR '10.0.0.0/8'` |\n\
          | `HAS` | Field exists and is non-null | `HAS extra_data` |\n\
          | `MISSING` | Field is absent or null | `MISSING assigned_to` |\n\
          | `IS NULL` / `IS NOT NULL` | Null check | `resolved_at IS NULL` |\n\
          | `AND`, `OR`, `NOT` | Logical combinators | `severity = 'HIGH' AND NOT MISSING src_ip` |\n\n\
+         **OCSF Title-case and case-insensitive operators:** \
+         OCSF enum labels use Title-case (e.g. `severity_id` → `High`, `Critical`). \
+         Vendor sensors may emit different casing (`HIGH`, `CRITICAL`, `high`). \
+         Use `IEQ`, `INE`, and `IIN` to match regardless of casing — these operators \
+         lower both sides before comparison via `lower()` in DataFusion SQL. \
+         The adapter boundary normalizes to OCSF canonical casing at ingest time, \
+         but IEQ/IIN/INE are available for defensive querying when normalization is uncertain.\n\n\
          **Null semantics for JSON-list fields:** \
          `IS NOT NULL` on a JSON-list field returns `true` if the field is present and non-null \
          (empty list `[]` is NOT null; `null` value is null).\n\n\

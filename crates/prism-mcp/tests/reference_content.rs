@@ -671,3 +671,50 @@ fn test_bc_2_11_022_some_empty_registry_placeholder() {
         }
     }
 }
+
+// ─── S-PRISMQL-CASE-INSENSITIVE-001: IEQ/IIN/INE discoverability gate ─────────
+
+/// AC-023 / BC-2.11.024 v1.0 — `build_reference_content(None)` must include
+/// IEQ, INE, and IIN in the operators table (ADR-047 §D.4 discoverability).
+///
+/// The note in RG-023/024 delegated this assertion to the implementer because
+/// prism-mcp tests cannot import prism-query directly without a circular dep,
+/// so the grammar completeness proxy (RG-023) lives in prism-query; but the
+/// MCP resource content assertion must live here.
+///
+/// Assertions:
+/// 1. `build_reference_content(None)` contains "IEQ", "INE", "IIN".
+/// 2. `build_reference_content(None)` contains the OCSF Title-case note.
+/// 3. `REFERENCE_EXAMPLES` has at least one Positive entry for each of IEQ, INE, IIN.
+#[test]
+fn test_bc_2_11_024_ieq_iin_ine_in_reference_content() {
+    let content = build_reference_content(None);
+
+    // Operator table must include IEQ, INE, IIN (ADR-047 §D.4 discoverability).
+    for op in &["IEQ", "INE", "IIN"] {
+        assert!(
+            content.contains(op),
+            "BC-2.11.024 AC-023: build_reference_content must include operator '{op}' \
+             in the operators table; not found in content"
+        );
+    }
+
+    // OCSF Title-case note must be present (RG-024 / ADR-047 §D.4).
+    assert!(
+        content.contains("OCSF Title-case"),
+        "BC-2.11.024 AC-023: build_reference_content must include OCSF Title-case \
+         note explaining IEQ/IIN/INE rationale; not found in content"
+    );
+
+    // REFERENCE_EXAMPLES must have at least one Positive entry containing each operator.
+    for op in &["IEQ", "INE", "IIN"] {
+        let has_example = REFERENCE_EXAMPLES
+            .iter()
+            .any(|(k, _, snippet)| matches!(k, ExampleKind::Positive) && snippet.contains(op));
+        assert!(
+            has_example,
+            "BC-2.11.024 AC-023: REFERENCE_EXAMPLES must contain at least one Positive \
+             entry demonstrating operator '{op}'; no such entry found"
+        );
+    }
+}

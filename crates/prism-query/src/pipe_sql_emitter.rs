@@ -514,7 +514,28 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
             // S-PRISMQL-CASE-INSENSITIVE-001: case-insensitive IEQ/INE operators lower
             // via `lower(field) OP lower('val')` DataFusion SQL pattern (BC-2.11.019 v1.3).
             if *case_insensitive {
-                todo!("S-PRISMQL-CASE-INSENSITIVE-001: emit lower(lhs) OP lower(rhs) for IEQ/INE case_insensitive=true (BC-2.11.019)")
+                // IEQ/INE RHS must be a string literal — lower() is string-only in DataFusion.
+                // Non-string RHS → QueryPlanFailed (BC-2.11.024 v1.0 error case, RG-016).
+                let rhs_sql = match rhs.as_ref() {
+                    crate::ast::Expr::Literal(Literal::String(s)) => {
+                        format!("lower('{}')", escape_sql_string(s))
+                    }
+                    _ => {
+                        return Err(PrismError::QueryPlanFailed {
+                            detail: "E-QUERY-001: IEQ/INE operators require a string literal \
+                                     on the right-hand side; lower() is not applicable to \
+                                     non-string values"
+                                .to_string(),
+                        });
+                    }
+                };
+                let lhs_sql = expr_to_sql(lhs)?;
+                let op_str = match op {
+                    CompareOp::Eq => "=",
+                    CompareOp::Ne => "!=",
+                    _ => "=", // non_exhaustive defensive fallback
+                };
+                return Ok(format!("lower({lhs_sql}) {op_str} {rhs_sql}"));
             }
             let lhs_sql = expr_to_sql(lhs)?;
             let rhs_sql = expr_to_sql(rhs)?;
@@ -591,7 +612,28 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
             // S-PRISMQL-CASE-INSENSITIVE-001: IIN operators lower via
             // `lower(field) IN (lower('v1'), ...)` DataFusion SQL pattern (BC-2.11.020 v1.3).
             if *case_insensitive {
-                todo!("S-PRISMQL-CASE-INSENSITIVE-001: emit lower(field) IN (lower(v1),...) for IIN case_insensitive=true (BC-2.11.020)")
+                if values.is_empty() {
+                    return Err(PrismError::QueryPlanFailed {
+                        detail: "E-QUERY-001: IIN requires at least one value in the \
+                                 membership list"
+                            .to_string(),
+                    });
+                }
+                let field_sql = field_path_to_sql(field);
+                let vals: Vec<String> = values
+                    .iter()
+                    .map(|lit| match lit {
+                        Literal::String(s) => {
+                            Ok(format!("lower('{}')", escape_sql_string(s)))
+                        }
+                        _ => Err(PrismError::QueryPlanFailed {
+                            detail: "E-QUERY-001: IIN requires string literals in the \
+                                     membership list; lower() is not applicable to non-string values"
+                                .to_string(),
+                        }),
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                return Ok(format!("lower({field_sql}) IN ({})", vals.join(", ")));
             }
             let field_sql = field_path_to_sql(field);
             let vals: Vec<String> = values

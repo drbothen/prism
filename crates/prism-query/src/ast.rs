@@ -2071,7 +2071,16 @@ impl PqlNormalizer {
                 // S-PRISMQL-CASE-INSENSITIVE-001: case-insensitive IEQ/INE operators emit
                 // uppercase canonical form in normalized_pql (BC-2.11.024, BC-2.11.018 v1.3).
                 if *case_insensitive {
-                    todo!("S-PRISMQL-CASE-INSENSITIVE-001: normalize IEQ/INE case_insensitive=true — emit uppercase canonical IEQ/INE operator name (BC-2.11.024)")
+                    let op_kw = match op {
+                        CompareOp::Eq => "IEQ",
+                        CompareOp::Ne => "INE",
+                        _ => "IEQ", // non_exhaustive defensive fallback
+                    };
+                    return format!(
+                        "{} {op_kw} {}",
+                        Self::normalize_expr(lhs),
+                        Self::normalize_expr(rhs)
+                    );
                 }
                 let op_str = match op {
                     CompareOp::Eq => "=",
@@ -2130,7 +2139,15 @@ impl PqlNormalizer {
                 // S-PRISMQL-CASE-INSENSITIVE-001: case-insensitive IIN operator emits
                 // uppercase canonical "IIN" in normalized_pql (BC-2.11.024, BC-2.11.018 v1.3).
                 if *case_insensitive {
-                    todo!("S-PRISMQL-CASE-INSENSITIVE-001: normalize IIN case_insensitive=true — emit uppercase canonical IIN operator name (BC-2.11.024)")
+                    let vals: Vec<String> = values
+                        .iter()
+                        .map(Self::normalize_literal_dispatch)
+                        .collect();
+                    return format!(
+                        "{} IIN ({})",
+                        Self::normalize_field_path(field),
+                        vals.join(", ")
+                    );
                 }
                 // Use dispatch so Timestamp literals emit arrow_cast in DataFusion mode.
                 let vals: Vec<String> = values
