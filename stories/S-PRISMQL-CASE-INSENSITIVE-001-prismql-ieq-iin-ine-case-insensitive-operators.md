@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.10"
+version: "1.11"
 updated: "2026-07-07"
 status: draft
 producer: story-writer
@@ -110,7 +110,7 @@ risk_mitigations:
      passes through the parsed operator string, it will emit lowercase if the query was
      written lowercase. The normalizer must use canonical uppercase operator names."
 traces_to: [ADR-047]
-red_gate_tests: 40
+red_gate_tests: 42
 estimated_days: "3"
 ---
 
@@ -581,6 +581,8 @@ The full Display for this case must be:
    'severity' with IEQ/IIN/INE instead"
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_e_query_002`
+Red Gate (RG-041 / pass-8): `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_sqlpipe_pipe_stage_e_query_002` — SqlPipe pipe-stage `| where severity_id IEQ 'high'` on Int64 column → structured E-QUERY-002 with operator IEQ + suggested_column 'severity' (pass-8 F-MED-1: SqlPipe arm CI pre-flight; Filter/Pipe/SqlPipe all guarded)
+Red Gate (RG-042 / pass-8): `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_integer_column_sqlpipe_pipe_stage_e_query_002` — IIN sibling on the same path
 
 ### AC-023 — SQL-mode IEQ/IIN/INE rejection — structured E-QUERY-001
 (traces to BC-2.11.024 v1.2 §Mode-Boundary Enforcement invariant)
@@ -762,11 +764,18 @@ commit 26325423).
 | RG-039 | `test_BC_2_11_024_dml_insert_select_where_ine_rejected` | `crates/prism-query/src/tests/test_case_insensitive_operators.rs` | AC-023 | INSERT...SELECT WHERE with INE rejected at parse time with verbatim E-QUERY-001 mode-boundary message (operator INE) |
 | RG-040 | `test_f_med1_severity_vocabulary_table_ieq_not_suppressed_by_integer_column` | `crates/prism-mcp/src/tools/prism_describe.rs` (test module) | AC-025 | Severity-vocabulary table with an Integer column still emits the IEQ example + casing note (aggregate variant does not suppress) |
 
-RG-028 through RG-040 names are authoritative per verified ground truth.
+**Pass-8 new tests (SqlPipe pipe-stage E-QUERY-002 CI pre-flight):**
 
-**Total Red Gate tests: 40 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7)**
+| RG ID | Test Function Name | Location | AC | Assertion |
+|-------|--------------------|----------|----|-----------|
+| RG-041 | `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_sqlpipe_pipe_stage_e_query_002` | `crates/prism-query/src/tests/test_case_insensitive_operators.rs` | AC-022 | SqlPipe pipe-stage `\| where severity_id IEQ 'high'` on Int64 column → E-QUERY-002 with operator IEQ + suggested_column 'severity' (Filter/Pipe/SqlPipe all guarded) |
+| RG-042 | `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_integer_column_sqlpipe_pipe_stage_e_query_002` | `crates/prism-query/src/tests/test_case_insensitive_operators.rs` | AC-022 | IIN sibling on the same path — `\| where severity_id IIN ('high', 'critical')` on Int64 column → E-QUERY-002 |
 
-The story frontmatter records `red_gate_tests: 40`. RG-026/RG-027 discoverability tests may be
+RG-028 through RG-042 names are authoritative per verified ground truth.
+
+**Total Red Gate tests: 42 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe)**
+
+The story frontmatter records `red_gate_tests: 42`. RG-026/RG-027 discoverability tests may be
 snapshot or integration tests; include them if they can be written as failing stubs, otherwise
 verify the parity gate via `just check`. RG-028 is the authoritative describe test. RG-032
 through RG-036 are the PRIMARY build_column_array tests in prism-bin.
@@ -1261,7 +1270,7 @@ E (Adapter normalization) is parallel to A-D.
     just iter prism-mcp         # describe authoritative test (RG-028)
     just check                  # full workspace pre-push gate
     ```
-    All 40 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7).
+    All 42 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe).
     All existing tests must continue to pass (especially existing =, != filter tests — regression
     guard for AC-011/AC-013).
 
@@ -1365,6 +1374,15 @@ adversarial review.
    zero rows triggers a hint about `IEQ`). This was deferred per ADR-047 OD-4 and human
    sign-off D-1398. Any implementation of OD-4 features in this story is out of scope.
 
+9. **Code comments cite UNVERSIONED BC IDs (TD-VSDD-091, pass-8 F-LOW-1 sweep).**
+   A pass-8 F-LOW-1 finding swept 182 inline code comment sites across the codebase that
+   previously cited versioned BC IDs (e.g., `// BC-2.11.024 v1.2`). All 182 sites were
+   updated to use unversioned BC IDs (e.g., `// BC-2.11.024`) per TD-VSDD-091 (anti-volatile-pin
+   rule — narrative spec content must cite function names + behavioral anchors, not version
+   numbers that decay on every spec amendment). New code comments added by this story and any
+   future story MUST use unversioned BC IDs in inline comments. Versioned pins are only
+   acceptable in story frontmatter, changelog entries, and AC traceability prose.
+
 ---
 
 ## Forbidden Dependencies
@@ -1453,3 +1471,4 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 | v1.8 | 2026-07-07 | RG-029/030/031 rows corrected to verified test names (were inferred); inferred-name NOTE removed |
 | v1.9 | 2026-07-07 | pass-7 fix-burst: BC-2.11.024 v1.2 DML mode-boundary extension — AC-023 extended to cover DELETE/UPDATE WHERE + INSERT…SELECT; `parse_sql_dml_with_limits` guard requirement + code-comment obligation added to Task 14b; 2 new Red Gate tests RG-037/RG-038 added; AC-018 50-codepoint cap contract language added (BC-2.02.013 v1.4 / BC-2.16.002 v2.01); AC-025 no-suppression clause added (F-MED-1 anchor); all version pins bumped: BC-2.11.024 v1.1→v1.2, BC-2.02.013 v1.3→v1.4, BC-2.16.002 v2.01 introduced at new AC-018 cite; red_gate_tests 36→38 |
 | v1.10 | 2026-07-07 | RG-039 (DML INSERT INE) + RG-040 (F-MED-1 suppression guard) rows added; AC-023 + AC-025 Red Gate citation lists updated; red_gate_tests 38→40 |
+| v1.11 | 2026-07-07 | pass-8: RG-041/042 SqlPipe E-QUERY-002 rows added (AC-022 Red Gate citations + pass-8 inventory section); red_gate_tests 40→42; count strings updated "40 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7)" → "42 (... + 2 pass-8 SqlPipe)" in inventory summary and Task 28; TD-VSDD-091 unversioned-pin sweep noted in Architecture Compliance Rule 9 (pass-8 F-LOW-1, 182 sites) |
