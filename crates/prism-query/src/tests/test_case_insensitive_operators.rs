@@ -1410,3 +1410,294 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_describe_output_includes_ieq_example() {
          discoverability/describe use; got: {normalized:?}"
     );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-3: BC-2.11.024 v1.1 — SQL-mode parse-time rejection of IEQ/IIN/INE
+//
+// BC-2.11.024 v1.1 contract (product-owner, 2026-07-07):
+//   IEQ/IIN/INE are filter+pipe-mode only.  In raw SQL mode (query begins with
+//   SELECT) they MUST be rejected at PARSE TIME with a structured E-QUERY-001
+//   error — NOT the opaque E-QUERY-034/QueryExecutionFailed that DataFusion
+//   currently produces.  Verbatim message:
+//
+//   E-QUERY-001: parse error near '{operator}': case-insensitive operators
+//   (IEQ/IIN/INE) are not supported in SQL mode.  Use filter mode
+//   (e.g., severity IEQ 'high') or a pipe | where stage (e.g., FROM
+//   crowdstrike_detections | where severity IEQ 'high') instead.
+//
+//   ({operator} = the encountered keyword IEQ/IIN/INE, uppercased.)
+//
+// Current behavior at HEAD 41aa21d9:
+//   PrismQlParser::parse("SELECT * FROM t WHERE severity IEQ 'high'") returns
+//   Ok(Ast::Sql(...)) — parse succeeds because `build_predicate_parser` (shared
+//   between filter mode and the SQL WHERE clause parser) now includes IEQ/IIN/INE.
+//   The downstream DataFusion execution then produces E-QUERY-034.
+//
+// Red Gate for tests 1-3: FAILS at `expect_err(...)` because parse returns Ok.
+//   The `expect_err` call panics with the Ast::Sql value, failing the test.
+// Green Gate for tests 1-3: PASSES once parse_select_mode (or parse_sql_internal)
+//   detects CI operators in the WHERE clause and emits the verbatim E-QUERY-001
+//   SQL-mode rejection message before returning.
+//
+// Red Gate for test 4: PASSES NOW — filter and pipe mode IEQ already work
+//   (implemented in pass-1/pass-2).  This is a no-regression lock.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_ieq_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.1 — SQL-mode IEQ parse-time rejection.
+///
+/// `SELECT * FROM crowdstrike_detections WHERE severity IEQ 'high'`
+/// must be rejected at parse time by `PrismQlParser::parse` with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IEQ"` in the error message
+///
+/// Red Gate (HEAD 41aa21d9): FAILS — `PrismQlParser::parse` returns
+/// `Ok(Ast::Sql(...))` because `build_predicate_parser` (shared between
+/// filter and SQL WHERE clause parsers) accepts IEQ without a SQL-mode guard.
+/// `expect_err` panics on the Ok value, failing the test.
+///
+/// Green Gate: PASSES once `parse_select_mode` (or `parse_sql_internal`) emits
+/// the verbatim BC-2.11.024 v1.1 SQL-mode rejection ParseError.
+///
+/// Traces to: BC-2.11.024 v1.1 §SQL-Mode Rejection; LOCAL-pass-3.
+#[test]
+fn test_BC_2_11_024_sql_mode_ieq_rejected() {
+    let result =
+        PrismQlParser::parse("SELECT * FROM crowdstrike_detections WHERE severity IEQ 'high'");
+    let err = result.expect_err(
+        "BC-2.11.024 v1.1: PrismQlParser::parse must reject IEQ in SQL-mode (SELECT …) \
+         at parse time with E-QUERY-001; currently returns Ok(Ast::Sql(…)) — \
+         the SQL-mode CI operator parse-time rejection gate is not yet implemented \
+         (LOCAL-pass-3 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024 v1.1: SQL-mode IEQ rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024 v1.1: SQL-mode IEQ rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IEQ"),
+        "BC-2.11.024 v1.1: SQL-mode IEQ rejection must name the operator 'IEQ' \
+         in the error message; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_iin_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.1 — SQL-mode IIN parse-time rejection.
+///
+/// `SELECT * FROM crowdstrike_detections WHERE severity IIN ('high', 'low')`
+/// must be rejected at parse time with E-QUERY-001 naming the operator `"IIN"`.
+///
+/// Red Gate (HEAD 41aa21d9): FAILS — `PrismQlParser::parse` returns
+/// `Ok(Ast::Sql(...))`.  `expect_err` panics on the Ok value.
+///
+/// Green Gate: PASSES once the SQL-mode CI operator guard is implemented.
+///
+/// Traces to: BC-2.11.024 v1.1 §SQL-Mode Rejection; LOCAL-pass-3.
+#[test]
+fn test_BC_2_11_024_sql_mode_iin_rejected() {
+    let result = PrismQlParser::parse(
+        "SELECT * FROM crowdstrike_detections WHERE severity IIN ('high', 'low')",
+    );
+    let err = result.expect_err(
+        "BC-2.11.024 v1.1: PrismQlParser::parse must reject IIN in SQL-mode (SELECT …) \
+         at parse time with E-QUERY-001; currently returns Ok(Ast::Sql(…)) — \
+         the SQL-mode CI operator parse-time rejection gate is not yet implemented \
+         (LOCAL-pass-3 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024 v1.1: SQL-mode IIN rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024 v1.1: SQL-mode IIN rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IIN"),
+        "BC-2.11.024 v1.1: SQL-mode IIN rejection must name the operator 'IIN' \
+         in the error message; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_ine_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.1 — SQL-mode INE parse-time rejection.
+///
+/// `SELECT * FROM crowdstrike_detections WHERE severity INE 'high'`
+/// must be rejected at parse time with E-QUERY-001 naming the operator `"INE"`.
+///
+/// Red Gate (HEAD 41aa21d9): FAILS — `PrismQlParser::parse` returns
+/// `Ok(Ast::Sql(...))`.  `expect_err` panics on the Ok value.
+///
+/// Green Gate: PASSES once the SQL-mode CI operator guard is implemented.
+///
+/// Traces to: BC-2.11.024 v1.1 §SQL-Mode Rejection; LOCAL-pass-3.
+#[test]
+fn test_BC_2_11_024_sql_mode_ine_rejected() {
+    let result =
+        PrismQlParser::parse("SELECT * FROM crowdstrike_detections WHERE severity INE 'high'");
+    let err = result.expect_err(
+        "BC-2.11.024 v1.1: PrismQlParser::parse must reject INE in SQL-mode (SELECT …) \
+         at parse time with E-QUERY-001; currently returns Ok(Ast::Sql(…)) — \
+         the SQL-mode CI operator parse-time rejection gate is not yet implemented \
+         (LOCAL-pass-3 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024 v1.1: SQL-mode INE rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024 v1.1: SQL-mode INE rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("INE"),
+        "BC-2.11.024 v1.1: SQL-mode INE rejection must name the operator 'INE' \
+         in the error message; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_filter_and_pipe_ieq_still_execute  (regression guard)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.1 — No-regression lock: filter mode and pipe | where IEQ
+/// continue to parse and execute successfully after the SQL-mode rejection gate
+/// is added.
+///
+/// Should PASS NOW (HEAD 41aa21d9): filter-mode and pipe-mode IEQ were fully
+/// implemented in LOCAL-pass-1/pass-2.  This test locks in that behaviour so
+/// that the pass-3 implementation cannot accidentally break the working modes.
+///
+/// Assertions:
+///   1. `parse_filter("severity IEQ 'high'")` returns `Ok(FilterExpr { … })`.
+///   2. Executing `Ast::Filter` against a MemTable {severity: ['High', 'Low']}
+///      returns exactly 1 row.
+///   3. `PrismQlParser::parse("crowdstrike_detections | where severity IEQ 'high'")`
+///      returns `Ok(Ast::Pipe(…))`.
+///   4. Executing `Ast::Pipe` against a MemTable {severity: ['High', 'Low']}
+///      returns exactly 1 row.
+///
+/// Traces to: BC-2.11.024 v1.1 §Filter-mode and Pipe-mode; LOCAL-pass-3
+/// regression guard; BC-2.11.002 v1.5; BC-2.11.004 v1.13.
+#[tokio::test]
+async fn test_BC_2_11_024_filter_and_pipe_ieq_still_execute() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::StringArray;
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // ── 1. Filter mode: severity IEQ 'high' ──────────────────────────────────
+    //
+    // Parse via `parse_filter` (already in grammar from LOCAL-pass-1).
+    let filter_expr = parse_filter("severity IEQ 'high'").expect(
+        "regression guard: filter mode 'severity IEQ \\'high\\'' must parse OK; \
+         IEQ was implemented in LOCAL-pass-1 — unexpected parse failure \
+         indicates a pass-3 regression in the filter grammar",
+    );
+    let filter_ast = Ast::Filter(filter_expr);
+
+    let schema = Arc::new(Schema::new(vec![Field::new(
+        "severity",
+        DataType::Utf8,
+        true,
+    )]));
+    let severity_arr = Arc::new(StringArray::from(vec!["High", "Low"])) as _;
+    let batch = RecordBatch::try_new(schema.clone(), vec![severity_arr]).expect("batch must build");
+
+    let ctx =
+        build_session_context(50 * 1024 * 1024).expect("regression guard: context must build");
+    register_mem_table(&ctx, "detections", vec![batch])
+        .expect("regression guard: filter MemTable must register");
+
+    let filter_result =
+        execute_against_session(&ctx, "severity IEQ 'high'", &filter_ast, HashMap::new())
+            .await
+            .expect(
+                "regression guard: filter mode 'severity IEQ \\'high\\'' must execute \
+         successfully — pass-3 must not break the working filter-mode execution path",
+            );
+
+    let filter_rows: usize = filter_result.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        filter_rows, 1,
+        "regression guard: filter 'severity IEQ \\'high\\'' must match exactly 1 row \
+         from {{severity: ['High', 'Low']}}; got {filter_rows} rows"
+    );
+
+    // ── 2. Pipe mode: crowdstrike_detections | where severity IEQ 'high' ─────
+    //
+    // Parse via `PrismQlParser::parse` (pipe mode IEQ works from LOCAL-pass-1).
+    let pipe_ast = PrismQlParser::parse("crowdstrike_detections | where severity IEQ 'high'")
+        .expect(
+            "regression guard: pipe mode 'crowdstrike_detections | where severity IEQ \\'high\\'' \
+             must parse OK; IEQ in | where was implemented in LOCAL-pass-1 — \
+             unexpected parse failure indicates a pass-3 regression in the pipe grammar",
+        );
+
+    let severity_arr2 = Arc::new(StringArray::from(vec!["High", "Low"])) as _;
+    let batch2 = RecordBatch::try_new(schema, vec![severity_arr2]).expect("batch2 must build");
+
+    let ctx2 =
+        build_session_context(50 * 1024 * 1024).expect("regression guard: context2 must build");
+    register_mem_table(&ctx2, "crowdstrike_detections", vec![batch2])
+        .expect("regression guard: pipe MemTable must register");
+
+    let pipe_result = execute_against_session(
+        &ctx2,
+        "crowdstrike_detections | where severity IEQ 'high'",
+        &pipe_ast,
+        HashMap::new(),
+    )
+    .await
+    .expect(
+        "regression guard: pipe 'crowdstrike_detections | where severity IEQ \\'high\\'' \
+         must execute successfully — pass-3 must not break the working pipe-mode path",
+    );
+
+    let pipe_rows: usize = pipe_result.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        pipe_rows, 1,
+        "regression guard: pipe '| where severity IEQ \\'high\\'' must match exactly 1 row \
+         from {{severity: ['High', 'Low']}}; got {pipe_rows} rows"
+    );
+}

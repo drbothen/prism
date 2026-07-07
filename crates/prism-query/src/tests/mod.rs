@@ -44,6 +44,10 @@ pub mod regression_tests;
 pub mod table_registry_tests;
 pub(crate) mod util;
 pub mod write_parser_unit_tests;
-// S-PRISMQL-CASE-INSENSITIVE-001: Red Gate tests RG-001 through RG-018, RG-022, RG-023, RG-024 —
-// IEQ/IIN/INE case-insensitive operator parsing, normalization, and DataFusion SQL lowering.
+// S-PRISMQL-CASE-INSENSITIVE-001: Red Gate tests RG-001 through RG-018, RG-022, RG-023, RG-024
+// (LOCAL-pass-1/pass-2) + LOCAL-pass-3 SQL-mode rejection tests
+// test_BC_2_11_024_sql_mode_{ieq,iin,ine}_rejected and regression guard
+// test_BC_2_11_024_filter_and_pipe_ieq_still_execute.
+// Covers IEQ/IIN/INE parsing, normalization, DataFusion SQL lowering, and
+// BC-2.11.024 v1.1 SQL-mode parse-time rejection (E-QUERY-001).
 pub mod test_case_insensitive_operators;
