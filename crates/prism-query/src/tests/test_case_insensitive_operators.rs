@@ -2021,3 +2021,80 @@ fn test_BC_2_11_024_sql_mode_ieq_in_nested_subquery_rejected() {
          in the error message; got: {all_msgs:?}"
     );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-5: F-MED-001 — negated + case_insensitive IN silently drops negation
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_negated_case_insensitive_in_returns_query_plan_failed
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-MED-001 (LOCAL pass-5): `predicate_to_datafusion_sql` for
+/// `Predicate::In { negated: true, case_insensitive: true }` must return
+/// `Err(PrismError::QueryPlanFailed)`.
+///
+/// It must NOT silently emit a positive `lower(field) IN (...)` SQL fragment by
+/// dropping the `negated` flag — that would silently invert query semantics.
+///
+/// ## The defect at HEAD b2e3892c
+///
+/// `pipe_sql_emitter.rs` `Predicate::In` arm:
+///
+/// ```rust
+/// if *case_insensitive {
+///     // … validates values …
+///     return Ok(format!("lower({field_sql}) IN ({})", vals.join(", ")));
+/// }
+/// ```
+///
+/// The `if *case_insensitive` branch never inspects `negated`.  A predicate
+/// with `negated: true, case_insensitive: true` silently emits a positive
+/// `lower(severity) IN (lower('high'))` SQL fragment, returning `Ok(_)`.
+///
+/// ## Red Gate reason (HEAD b2e3892c)
+///
+/// `predicate_to_datafusion_sql` returns `Ok("lower(severity) IN (lower('high'))")`.
+/// `assert!(result.is_err(), ...)` panics because the result is `Ok`, not `Err`.
+///
+/// ## Green Gate
+///
+/// PASSES once the `if *case_insensitive` branch checks `negated` and returns
+/// `Err(PrismError::QueryPlanFailed { detail: "..." })` for the combination.
+/// This combination has no grammar-reachable parser production (there is no
+/// `NIIN` / `NOT IIN` operator in PQL); encountering it in the emitter is an
+/// AST invariant violation that warrants a plan-failure error rather than
+/// silent semantic inversion.
+///
+/// ## Traces
+///
+/// BC-2.11.024 §Invariants (IIN cannot be negated via grammar); LOCAL adversary
+/// pass-5 finding F-MED-001.
+#[test]
+fn test_BC_2_11_024_negated_case_insensitive_in_returns_query_plan_failed() {
+    use prism_core::PrismError;
+
+    let pred = Predicate::In {
+        field: FieldPath::new(["severity"]),
+        values: vec![Literal::String("high".to_owned())],
+        negated: true,
+        case_insensitive: true,
+    };
+    let result = predicate_to_datafusion_sql(&pred);
+    assert!(
+        result.is_err(),
+        "F-MED-001: Predicate::In {{ negated: true, case_insensitive: true }} must return \
+         Err(QueryPlanFailed) — the negation flag must not be silently dropped to produce \
+         a positive-IN SQL fragment; currently returns Ok (silently drops negated=true); \
+         got Ok: {:?}",
+        result.as_ref().unwrap()
+    );
+    let err = result.unwrap_err();
+    assert!(
+        matches!(err, PrismError::QueryPlanFailed { .. }),
+        "F-MED-001: error variant must be QueryPlanFailed (AST invariant violation: \
+         negated+case_insensitive IN has no grammar production), not another variant; \
+         got: {:?}",
+        err
+    );
+}

@@ -1144,4 +1144,56 @@ mod build_example_query_tests {
              Query: {q:?}. Error: {result:?}"
         );
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // F-HIGH-001 (LOCAL pass-5) / AC-025 — IEQ example + OCSF casing note
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-HIGH-001 / AC-025 / RG-027: `build_example_query` for a sensor table with
+    /// a `severity` (String) column must produce output that contains BOTH:
+    ///   (a) at least one example using the `IEQ` case-insensitive operator, AND
+    ///   (b) an OCSF casing note indicating that severity values are Title-case.
+    ///
+    /// ## Current behaviour (HEAD b2e3892c) — RED
+    ///
+    /// `build_example_query("crowdstrike_detections", &[col("severity", String), ...])`
+    /// returns:
+    /// ```text
+    /// "SELECT * FROM crowdstrike_detections WHERE severity IN ('High', 'Critical') LIMIT 50"
+    /// ```
+    ///
+    /// - No `"IEQ"` substring → first `assert!(q.contains("IEQ"), ...)` panics.
+    /// - No `"Title-case"` or `"title-case"` substring → second assertion would also panic.
+    ///
+    /// ## Green Gate
+    ///
+    /// PASSES once `build_example_query` (or its callers) emits a severity IEQ example
+    /// AND includes the OCSF casing note per AC-025 / ADR-047 §D.4:
+    /// "OCSF severity is stored as Title-case ('High'). Use IEQ/IIN to match regardless
+    /// of the case you type, or = 'High' for the exact canonical form."
+    ///
+    /// ## Traces
+    ///
+    /// BC-2.11.024 §AC-025; ADR-047 §D.4; S-PRISMQL-CASE-INSENSITIVE-001 RG-027;
+    /// LOCAL adversary pass-5 finding F-HIGH-001.
+    #[test]
+    fn test_BC_2_11_024_describe_output_includes_ieq_example_and_ocsf_casing_note() {
+        let columns = vec![
+            col("severity", ColumnType::String),
+            col("timestamp", ColumnType::Datetime),
+        ];
+        let q = build_example_query("crowdstrike_detections", &columns);
+        assert!(
+            q.contains("IEQ"),
+            "AC-025 (F-HIGH-001): build_example_query for a severity-column table must include \
+             at least one IEQ operator example per ADR-047 \u{00A7}D.4; current output uses \
+             IN not IEQ; got: {q:?}"
+        );
+        assert!(
+            q.contains("Title-case") || q.contains("title-case"),
+            "AC-025 (F-HIGH-001): build_example_query must include the OCSF casing note \
+             (substring 'Title-case') per AC-025 / ADR-047 \u{00A7}D.4: \
+             'OCSF severity is stored as Title-case'; got: {q:?}"
+        );
+    }
 }
