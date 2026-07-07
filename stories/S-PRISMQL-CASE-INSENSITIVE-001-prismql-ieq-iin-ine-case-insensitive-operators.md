@@ -3,7 +3,8 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.2"
+version: "1.3"
+updated: "2026-07-06"
 status: draft
 producer: story-writer
 phase: 3
@@ -51,7 +52,7 @@ behavioral_contracts:
 #   BC-2.11.024 v1.0 (draft): new — PrismQL IEQ/IIN/INE case-insensitive operators;
 #     primary contract for grammar+AST+emitter+round-trip changes. Every parser/emitter AC
 #     traces to a BC-2.11.024 postcondition, invariant, or error case.
-#   BC-2.02.013 v1.0 (draft): new — adapter-boundary OCSF enum-label canonical-case
+#   BC-2.02.013 v1.1 (draft): new — adapter-boundary OCSF enum-label canonical-case
 #     normalization. Every adapter AC traces to a BC-2.02.013 postcondition, invariant,
 #     or error case.
 #   BC-2.11.002 v1.5 (active, amended): filter-mode parsing now includes IEQ/IIN/INE in
@@ -147,7 +148,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | BC | Version | Title | Key Clauses Used |
 |----|---------|-------|-----------------|
 | BC-2.11.024 | v1.0 | PrismQL Case-Insensitive Equality and Membership Operators (IEQ / IIN / INE) | New operator syntax; DataFusion lower() lowering; case-sensitive operators unchanged; normalized_pql round-trip; IEQ superset invariant; IIN non-empty invariant; E-QUERY-001 (non-string RHS, empty list); E-QUERY-002 (non-string column) |
-| BC-2.02.013 | v1.0 | Adapter-Boundary OCSF Enum-Label Canonical-Case Normalization | Severity + status guaranteed; all OCSF enum-label fields; idempotent; unrecognized values as-received + warning; GROUP BY aggregation consistency; enum_map.rs as sole casing authority |
+| BC-2.02.013 | v1.1 | Adapter-Boundary OCSF Enum-Label Canonical-Case Normalization | Severity + status guaranteed; all OCSF enum-label fields; idempotent; unrecognized values as-received + warning; GROUP BY aggregation consistency; enum_map.rs as sole casing authority |
 | BC-2.11.002 | v1.5 | PrismQL Filter Mode Parsing | Amended: IEQ/IIN/INE added to supported filter-mode operator table |
 | BC-2.11.004 | v1.13 | PrismQL Pipe Mode | Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7) |
 | BC-2.11.018 | v1.3 | normalized_pql Echo | Amended: EC-11-057 added — IEQ/IIN/INE predicates reflected in uppercase canonical form in normalized_pql; round-trip invariant extended |
@@ -164,7 +165,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | ADR-047 (full) | ~6,000 |
 | Design map: prismql-case-insensitive-design-map.md | ~4,500 |
 | BC-2.11.024 v1.0 | ~3,000 |
-| BC-2.02.013 v1.0 | ~2,500 |
+| BC-2.02.013 v1.1 | ~2,500 |
 | BC-2.11.002 v1.5 (relevant filter-mode sections) | ~1,500 |
 | BC-2.11.004 v1.13 (relevant pipe-mode sections) | ~1,500 |
 | BC-2.11.018 v1.3 (normalized_pql section) | ~1,000 |
@@ -429,7 +430,7 @@ The `normalized_str` must contain `IEQ` (uppercase) per AC-014.
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_round_trip_ast_equality`
 
 ### AC-016 — OCSF enum-label fields normalized to canonical Title-case at adapter boundary
-(traces to BC-2.02.013 v1.0 postconditions:
+(traces to BC-2.02.013 v1.1 postconditions:
 "Before the DynamicMessage is populated (BC-2.02.002), every OCSF enum-label string field
 in the normalized record is rewritten to its canonical OCSF Title-case casing from enum_map.rs";
 "Severity (guaranteed): 'HIGH' → 'High', 'high' → 'High', 'CRITICAL' → 'Critical'";
@@ -448,7 +449,7 @@ Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_critical_to
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_low_to_title_case`
 
 ### AC-017 — Normalization is idempotent: already-canonical values unchanged
-(traces to BC-2.02.013 v1.0 postcondition:
+(traces to BC-2.02.013 v1.1 postcondition:
 "The normalization function is idempotent: if the field already contains the canonical-case
 value (e.g., 'High'), the value is unchanged. Re-normalizing already-canonical data has no
 effect"; EC-02-020: CrowdStrike adapter emits severity='High' (already canonical Title-case)
@@ -461,7 +462,7 @@ then the `DynamicMessage` has `severity='High'` unchanged, and no warning is emi
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high`
 
 ### AC-018 — Unrecognized vendor values left as-received with warning logged
-(traces to BC-2.02.013 v1.0 error cases:
+(traces to BC-2.02.013 v1.1 error cases:
 "Warning (non-fatal): An OCSF enum-label field value has no matching caption in enum_map.rs";
 EC-02-021: Armis adapter emits severity='UNHANDLED' (vendor-specific value) → value left
 as-received, warning logged)
@@ -477,7 +478,7 @@ then:
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_left_as_received`
 
 ### AC-019 — GROUP BY severity produces at most 7 buckets after normalization (aggregation consistency)
-(traces to BC-2.02.013 v1.0 canonical test vector:
+(traces to BC-2.02.013 v1.1 canonical test vector:
 "PrismQL GROUP BY severity across CrowdStrike + Armis after normalization: 'High' appears
 as one bucket — not split into 'High' + 'HIGH'";
 EC-02-026: Cross-sensor aggregation correct after normalization)
@@ -1256,3 +1257,4 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 | v1.0 | 2026-07-06 | Initial story decomposition |
 | v1.1 | 2026-07-06 | remove-uncertainty pass-1: AST shape verified against ast.rs; CODE-SHAPE NOTEs added to AC-001/AC-002/AC-003/AC-008/AC-010; Scope Ambiguity 1 added (prism-ocsf vs prism-spec-engine pending verification); Ambiguity 2/3 added; File Structure Requirements expanded; IIN-before-IN collision note refined |
 | v1.2 | 2026-07-06 | remove-uncertainty pass-2: tdd_mode rationale comment corrected — OCSF adapter-boundary normalization is definitively in prism-ocsf (OcsfNormalizer + OcsfEnumMap), NOT prism-spec-engine (zero DynamicMessage references); Scope Ambiguity 1 closed with DEFINITIVE RESOLUTION; TD-VSDD-091 anchor de-pinning applied (line-number citations removed, replaced with anchor-based references); crates_touched confirmed: prism-query (operators), prism-ocsf (OCSF normalization, primary), prism-spec-engine (defensive allowance, may be removed at PR time if untouched) |
+| v1.3 | 2026-07-06 | LOCAL pass-1 fix-burst: BC-2.02.013 v1.0→v1.1 + BC-2.16.002 pin→v1.98 propagation (BC-2.02.013 now concretely specifies in-scope field set severity/status/activity/disposition, keying contract, insertion point, warn event; BC-2.16.002 v1.98 added catalog row 91 ocsf.enum_label_unrecognized — note: BC-2.16.002 has no prior version pin in this story, reference sites unchanged per no-AC-text rule) |
