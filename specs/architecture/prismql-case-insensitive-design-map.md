@@ -362,3 +362,126 @@ The pedagogical hint (F partial) requires OD-4 resolution.
 
 Minimum unblocked scope to start after OD-2 + OD-3 human sign-off: A, B, C, D, and the
 demo-critical subset of E (severity + status for the three in-demo sensors).
+
+---
+
+## Architecture Decision Note: Adapter-Boundary Normalization Insertion Point
+
+**Date:** 2026-07-07
+**Raised by:** LOCAL adversary pass-5 F-CRIT-002
+**Adjudicated by:** architect
+
+### Finding
+
+BC-2.02.013 v1.2 §Postconditions (now superseded by v1.3) originally pinned the normalization insertion point at
+`OcsfNormalizer::normalize_with_mappers` in `crates/prism-ocsf/src/normalizer.rs`
+(F-CRIT-001 closure). However, this function has **zero production callers** on the
+spec-driven adapter path.
+
+The actual production path is:
+
+```
+SpecDrivenSensorAdapter::fetch()
+  → PipelineExecutor::execute()        [prism-spec-engine]
+  → PipelineResult (raw serde_json)
+  → pipeline_result_to_record_batch()  [prism-bin]
+  → build_column_array()               [prism-bin]
+  → Arrow StringArray                  (what DataFusion sees)
+```
+
+`normalize_with_mappers` creates a `DynamicMessage` via the protobuf path, which is
+never invoked in this flow. The existing normalization logic in `normalize_with_mappers`
+is correct but unreachable for production queries.
+
+### Candidate Insertion Points
+
+| Option | Description | Verdict |
+|--------|-------------|---------|
+| (a) Route through `normalize_with_mappers` (DynamicMessage roundtrip) | Heavy: adds full protobuf round-trip per record to the Arrow materialization path | REJECTED — wrong architectural path, heavyweight |
+| (b) `build_column_array` in `prism-bin/src/spec_driven_adapter.rs` — String arm | Light: calls `OcsfEnumMap::normalize_enum_label` only for String-typed OCSF enum-label columns | **RATIFIED** (see below) |
+| (c) New `normalize_enum_label_fields` pass in `prism-spec-engine/src/pipeline.rs` sibling to `normalize_timestamp_fields` | Architecturally cleaner choke point; however requires adding `prism-ocsf` (with protobuf binary) as a new production dependency on `prism-spec-engine`, and the `prism-spec-engine` MUST-NOT-depend-on-arrow invariant implies binary-weight constraints | REJECTED — adds heavyweight protobuf dep to a library crate that currently has none |
+
+### Ratified Decision: Option (b)
+
+**Insertion point:** `build_column_array` in `crates/prism-bin/src/spec_driven_adapter.rs`,
+specifically in the `ColumnType::String` branch (add an explicit `ColumnType::String =>` arm
+ahead of the existing `_ =>` catch-all).
+
+**Dependency:** `prism-bin` already depends on `prism-ocsf` (see `prism-bin/Cargo.toml` line 81).
+No new cross-crate dependency is required.
+
+**Secondary insertion point (unchanged):** `OcsfNormalizer::normalize_with_mappers` retains its
+normalization for the DynamicMessage/protobuf-export path (future path). When that path gains
+production callers, normalization will already be correct there. No changes to
+`normalize_with_mappers` are required; it is NOT dead code — it is future-path code.
+
+**Idempotency:** `OcsfEnumMap::normalize_enum_label` is idempotent. If data ever flows through
+both paths, double-normalization is a harmless no-op.
+
+**All other production materialization paths verified:**
+
+| Path | Does it bypass `build_column_array`? |
+|------|--------------------------------------|
+| WASM plugin (crowdstrike-oauth2) provides auth only; still calls `SpecDrivenSensorAdapter::fetch()` → `pipeline_result_to_record_batch()` | No — same path |
+| MCP tool `prism query` → fan_out → `SpecDrivenSensorAdapter::fetch()` | No — same path |
+| DTU demo servers serve raw JSON over HTTP; the spec-driven adapter fetches them via the same pipeline | No — same path |
+| `OcsfNormalizer::normalize_with_mappers` | Zero production callers today; not a query-path materialization route |
+
+**Conclusion:** `build_column_array` is the single choke point through which ALL production
+sensor data flowing into DataFusion passes. Normalization there satisfies the BC intent
+"the data DataFusion materializes carries only canonical-cased enum labels."
+
+### OcsfEnumMap Access Pattern
+
+`OcsfEnumMap` must not be re-instantiated per call (it builds a `HashMap` on construction).
+Use a `OnceLock<OcsfEnumMap>` static in `spec_driven_adapter.rs`:
+
+```rust
+use std::sync::OnceLock;
+use prism_ocsf::OcsfEnumMap;
+
+static SPEC_ADAPTER_ENUM_MAP: OnceLock<OcsfEnumMap> = OnceLock::new();
+fn spec_adapter_enum_map() -> &'static OcsfEnumMap {
+    SPEC_ADAPTER_ENUM_MAP.get_or_init(OcsfEnumMap::new)
+}
+```
+
+This is the same pattern as `OCSF_ENUM_MAP` in `prism-ocsf/src/normalizer.rs`. Two
+`OcsfEnumMap` instances (one per process image) are safe — `OcsfEnumMap::new()` is
+pure in-memory with no external state.
+
+### In-Scope OCSF Enum-Label Field Names
+
+The column selection rule uses the same set as `OCSF_ENUM_LABEL_FIELDS` in
+`prism-ocsf/src/normalizer.rs`:
+
+```rust
+const OCSF_ENUM_LABEL_FIELDS: &[&str] = &["severity", "status", "activity_name", "disposition"];
+```
+
+Only `ColumnType::String` columns whose `col.name` is in this set are normalized.
+`ColumnType::Json` and other variants are not affected.
+
+### Unrecognized-Value Warn
+
+Per BC-2.02.013 §Postconditions §Error Cases, unrecognized values are left as-received and
+`tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)` is emitted. The warn is
+registered in BC-2.16.002 §Postconditions catalog row 91. The implementer MUST emit it from
+`build_column_array` on the `normalize_enum_label` → `None` branch, using the same field
+schema as the existing emission in `normalize_with_mappers`:
+
+```rust
+tracing::warn!(
+    event_type = "ocsf.enum_label_unrecognized",
+    field_name = %col.name,
+    // SEC-002: cap at 50 codepoints (untrusted sensor data; consistent with Datetime warn)
+    value = %s.chars().take(50).collect::<String>(),
+    sensor_type = %sensor_id,
+    "unrecognized OCSF enum label value; leaving as-received"
+);
+```
+
+The `ocsf.enum_label_unrecognized` event_type is ALREADY registered in BC-2.16.002 catalog
+row 91 (by the `normalize_with_mappers` emission). The implementer does not need to add a
+new catalog row — the same row covers both emission sites because the `event_type`, field
+schema, and semantics are identical.

@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.6"
+version: "1.8"
 updated: "2026-07-07"
 status: draft
 producer: story-writer
@@ -14,13 +14,16 @@ points: 10
 tdd_mode: strict
 # tdd_mode rationale: this story modifies production Rust code in prism-query
 # (filter_parser.rs grammar, ast.rs struct fields, pipe_sql_emitter.rs lowering,
-# ast.rs round-trip normalizer) and prism-ocsf (adapter-boundary OCSF enum-label
-# normalization — OcsfNormalizer::normalize_with_mappers + OcsfEnumMap in enum_map.rs;
-# the definitive DynamicMessage-construction site; prism-spec-engine has zero
-# DynamicMessage references). All behavioral changes require Red Gate tests as failing
-# todo!() stubs BEFORE production code is modified. Grep-sweep ACs (AC-006, AC-007)
-# and VERIFY-only ACs (AC-026) do not have standalone Red Gate stubs but do not
-# justify facade mode — production code is modified with new behavioral semantics.
+# ast.rs round-trip normalizer), prism-bin (PRIMARY OCSF enum-label normalization —
+# build_column_array in spec_driven_adapter.rs; architect adjudication F-CRIT-002),
+# and prism-ocsf (SECONDARY OCSF enum-label normalization — OcsfNormalizer::
+# normalize_with_mappers + OcsfEnumMap in enum_map.rs; the DynamicMessage/protobuf
+# path; prism-spec-engine has zero DynamicMessage references — REMOVED from
+# crates_touched per pass-5 adversary OBS). All behavioral changes require Red Gate
+# tests as failing todo!() stubs BEFORE production code is modified. Grep-sweep ACs
+# (AC-006, AC-007) and VERIFY-only ACs (AC-027) do not have standalone Red Gate stubs
+# but do not justify facade mode — production code is modified with new behavioral
+# semantics.
 target_module: prism-query
 subsystems: [SS-11, SS-02]
 # Subsystem anchor justifications:
@@ -31,7 +34,7 @@ subsystems: [SS-11, SS-02]
 #   and the normalization pipeline that populates OCSF enum-label string fields before
 #   DynamicMessage creation. The adapter-boundary fix is the parallel track that ensures
 #   stored data is consistently cased so case-sensitive = works correctly across sensors.
-crates_touched: [prism-query, prism-ocsf, prism-spec-engine, prism-mcp]
+crates_touched: [prism-query, prism-ocsf, prism-mcp, prism-bin]
 depends_on:
   - S-DEMO-FIDELITY-REMEDIATION-001
   # Dependency anchor: S-DEMO-FIDELITY-REMEDIATION-001 is MERGED on develop@ea714d14.
@@ -52,9 +55,10 @@ behavioral_contracts:
 #   BC-2.11.024 v1.1 (draft): new — PrismQL IEQ/IIN/INE case-insensitive operators;
 #     primary contract for grammar+AST+emitter+round-trip changes. Every parser/emitter AC
 #     traces to a BC-2.11.024 postcondition, invariant, or error case.
-#   BC-2.02.013 v1.2 (draft): new — adapter-boundary OCSF enum-label canonical-case
-#     normalization. Every adapter AC traces to a BC-2.02.013 postcondition, invariant,
-#     or error case.
+#   BC-2.02.013 v1.3 (draft): new — adapter-boundary OCSF enum-label canonical-case
+#     normalization; PRIMARY insertion point now `build_column_array` in spec_driven_adapter.rs
+#     (architect adjudication F-CRIT-002). Every adapter AC traces to a BC-2.02.013
+#     postcondition, invariant, or error case.
 #   BC-2.11.002 v1.5 (active, amended): filter-mode parsing now includes IEQ/IIN/INE in
 #     the supported operator table. AC-001/AC-004/AC-012 exercise the filter-mode path.
 #   BC-2.11.004 v1.13 (active, amended): pipe-mode | where stage now supports IEQ/IIN/INE
@@ -106,7 +110,7 @@ risk_mitigations:
      passes through the parsed operator string, it will emit lowercase if the query was
      written lowercase. The normalizer must use canonical uppercase operator names."
 traces_to: [ADR-047]
-red_gate_tests: 27
+red_gate_tests: 36
 estimated_days: "3"
 ---
 
@@ -148,7 +152,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | BC | Version | Title | Key Clauses Used |
 |----|---------|-------|-----------------|
 | BC-2.11.024 | v1.1 | PrismQL Case-Insensitive Equality and Membership Operators (IEQ / IIN / INE) | New operator syntax; DataFusion lower() lowering; case-sensitive operators unchanged; normalized_pql round-trip; IEQ superset invariant; IIN non-empty invariant; E-QUERY-001 (non-string RHS, empty list); E-QUERY-002 (non-string column); Mode-Boundary Enforcement (SQL-mode IEQ/IIN/INE rejection, E-QUERY-001) |
-| BC-2.02.013 | v1.2 | Adapter-Boundary OCSF Enum-Label Canonical-Case Normalization | Severity + status guaranteed; all OCSF enum-label fields; idempotent; unrecognized values as-received + warning; GROUP BY aggregation consistency; enum_map.rs as sole casing authority |
+| BC-2.02.013 | v1.3 | Adapter-Boundary OCSF Enum-Label Canonical-Case Normalization | PRIMARY insertion point: `build_column_array` in `spec_driven_adapter.rs` (architect adjudication F-CRIT-002); SECONDARY: `normalize_with_mappers` (DynamicMessage path); severity + status guaranteed; all OCSF enum-label fields; idempotent; unrecognized values as-received + warning; GROUP BY aggregation consistency; enum_map.rs as sole casing authority |
 | BC-2.11.002 | v1.5 | PrismQL Filter Mode Parsing | Amended: IEQ/IIN/INE added to supported filter-mode operator table |
 | BC-2.11.004 | v1.13 | PrismQL Pipe Mode | Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7) |
 | BC-2.11.018 | v1.3 | normalized_pql Echo | Amended: EC-11-057 added — IEQ/IIN/INE predicates reflected in uppercase canonical form in normalized_pql; round-trip invariant extended |
@@ -165,7 +169,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | ADR-047 (full) | ~6,000 |
 | Design map: prismql-case-insensitive-design-map.md | ~4,500 |
 | BC-2.11.024 v1.1 | ~3,000 |
-| BC-2.02.013 v1.2 | ~2,500 |
+| BC-2.02.013 v1.3 | ~2,500 |
 | BC-2.11.002 v1.5 (relevant filter-mode sections) | ~1,500 |
 | BC-2.11.004 v1.13 (relevant pipe-mode sections) | ~1,500 |
 | BC-2.11.018 v1.3 (normalized_pql section) | ~1,000 |
@@ -173,13 +177,13 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | `crates/prism-query/src/filter_parser.rs` | ~7,000 |
 | `crates/prism-query/src/ast.rs` | ~9,000 |
 | `crates/prism-query/src/pipe_sql_emitter.rs` | ~8,000 |
-| `crates/prism-ocsf/src/enum_map.rs` + normalizer | ~4,000 |
-| `crates/prism-spec-engine/src/` (adapter normalization pipeline) | ~6,000 |
+| `crates/prism-bin/src/spec_driven_adapter.rs` (PRIMARY: `build_column_array`) | ~5,000 |
+| `crates/prism-ocsf/src/enum_map.rs` + normalizer (SECONDARY: `normalize_with_mappers`) | ~4,000 |
 | `crates/prism-mcp/src/` (grammar resource, describe examples) | ~4,000 |
 | Test files to create / modify | ~5,000 |
-| **Total** | **~83,000** |
+| **Total** | **~82,000** |
 
-Estimated at ~42% of a 200K context window. Within the per-story limit. No split required.
+Estimated at ~41% of a 200K context window. Within the per-story limit. No split required.
 
 ---
 
@@ -429,79 +433,99 @@ The `normalized_str` must contain `IEQ` (uppercase) per AC-014.
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_round_trip_ast_equality`
 
-### AC-016 — OCSF enum-label fields normalized to canonical Title-case at adapter boundary
-(traces to BC-2.02.013 v1.2 postconditions:
-"Before the DynamicMessage is populated (BC-2.02.002), every OCSF enum-label string field
-in the normalized record is rewritten to its canonical OCSF Title-case casing from enum_map.rs";
+### AC-016 — OCSF enum-label fields normalized to canonical Title-case via build_column_array (PRIMARY path)
+(traces to BC-2.02.013 v1.3 postconditions:
+"Before the Arrow StringArray cell is materialized in `build_column_array` (`spec_driven_adapter.rs`),
+every OCSF enum-label string column value is rewritten to its canonical OCSF Title-case casing
+from `enum_map.rs`";
 "Severity (guaranteed): 'HIGH' → 'High', 'high' → 'High', 'CRITICAL' → 'Critical'";
 "Status (guaranteed): normalized to OCSF Title-case";
-BC-2.02.002 v1.5 amendment; BC-2.02.010 v1.5 amendment)
+BC-2.02.002 v1.5 amendment; BC-2.02.010 v1.5 amendment; architect adjudication F-CRIT-002)
 
-Given a sensor record with `severity='CRITICAL'` (all-caps) entering the prism-ocsf
-normalization pipeline,
-when the adapter-boundary normalization function processes it before DynamicMessage creation,
-then the `DynamicMessage` produced has `severity='Critical'` (canonical OCSF Title-case).
-
-Same for `severity='low'` → `'Low'`, `severity='MEDIUM'` → `'Medium'`, etc.
+Given a sensor JSON record delivered through `build_column_array` in `spec_driven_adapter.rs`,
+when the column type is `ColumnType::String` and the column name is `severity` or `status`,
+then the materialized Arrow `StringArray` cell contains the canonical OCSF Title-case value
+(e.g., `'HIGH'` → `'High'`, `'CRITICAL'` → `'Critical'`).
 `enum_map.rs` is the sole source for canonical captions (BC-2.02.010 v1.5 invariant).
 
-Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_critical_to_title_case`
-Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_low_to_title_case`
+PRIMARY Red Gate: `test_BC_2_02_013_build_column_array_normalizes_severity_to_title_case`
+SECONDARY Red Gate (`normalize_with_mappers` DynamicMessage path): `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_critical_to_title_case`
+SECONDARY Red Gate (`normalize_with_mappers` DynamicMessage path): `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_low_to_title_case`
 
-OCSF IN-SCOPE FIELDS NOTE (BC-2.02.013 v1.2): The four in-scope enum-label string fields
+OCSF IN-SCOPE FIELDS NOTE (BC-2.02.013 v1.3): The four in-scope enum-label string fields
 guaranteed by this story are: `severity`, `status`, `activity_name`, and `disposition`.
 The OCSF string label for the activity dimension is `activity_name` (NOT `activity` —
-`activity_name` is the OCSF-canonical field name per BC-2.02.013 v1.2). When reading
+`activity_name` is the OCSF-canonical field name per BC-2.02.013 v1.3). When reading
 `enum_map.rs`, sensor TOML specs, or writing test fixtures, always use `activity_name` for
 the activity string label column; `activity` refers to a different field (the raw numeric
 activity_id context field, not the normalized string label).
 
-### AC-017 — Normalization is idempotent: already-canonical values unchanged
-(traces to BC-2.02.013 v1.2 postcondition:
+### AC-017 — Normalization via build_column_array covers activity_name and disposition; idempotent (PRIMARY path)
+(traces to BC-2.02.013 v1.3 postcondition:
 "The normalization function is idempotent: if the field already contains the canonical-case
 value (e.g., 'High'), the value is unchanged. Re-normalizing already-canonical data has no
 effect"; EC-02-020: CrowdStrike adapter emits severity='High' (already canonical Title-case)
 → value unchanged; no warning)
 
-Given CrowdStrike sensor data with `severity='High'` (already OCSF canonical Title-case),
-when the normalization pipeline processes it,
-then the `DynamicMessage` has `severity='High'` unchanged, and no warning is emitted.
+Given a sensor JSON record delivered through `build_column_array` in `spec_driven_adapter.rs`,
+when the column type is `ColumnType::String` and the column name is `activity_name` or `disposition`,
+then the materialized Arrow `StringArray` cell contains the canonical OCSF Title-case value;
+and when the field value is already canonical (e.g., `severity='High'`), it is unchanged with
+no warning emitted. Non-enum String columns (e.g., `hostname`) and non-String columns must NOT
+be touched by normalization.
 
-Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high`
+PRIMARY Red Gate: `test_BC_2_02_013_build_column_array_normalizes_status_and_disposition`
+PRIMARY Guard: `test_BC_2_02_013_build_column_array_non_enum_string_column_untouched`
+PRIMARY Guard: `test_BC_2_02_013_build_column_array_non_string_column_untouched`
+SECONDARY Red Gate (`normalize_with_mappers` DynamicMessage path): `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high`
 
-### AC-018 — Unrecognized vendor values left as-received with warning logged
-(traces to BC-2.02.013 v1.2 error cases:
+### AC-018 — Unrecognized vendor values left as-received with warning logged (PRIMARY path: build_column_array)
+(traces to BC-2.02.013 v1.3 error cases:
 "Warning (non-fatal): An OCSF enum-label field value has no matching caption in enum_map.rs";
 EC-02-021: Armis adapter emits severity='UNHANDLED' (vendor-specific value) → value left
 as-received, warning logged)
 
-Given a sensor record with `severity='UNHANDLED'` (Armis vendor-specific value not in
+When `OcsfEnumMap::normalize_enum_label` returns `None` for a String enum-label column in
+`build_column_array`, the raw value is materialized as-received into the Arrow `StringArray`
+AND `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)` is emitted with the
+schema from BC-2.02.013 v1.3 §Postconditions. This is the PRIMARY site; the SECONDARY site
+in `normalize_with_mappers` must independently satisfy the same contract for the DynamicMessage path.
+
+Given a sensor JSON record with `severity='UNHANDLED'` (Armis vendor-specific value not in
 OCSF severity captions in `enum_map.rs`),
-when the normalization pipeline processes it,
+when `build_column_array` processes it,
 then:
-1. The `DynamicMessage` has `severity='UNHANDLED'` (value unchanged)
-2. A `tracing::warn!` is emitted with field name, value, and sensor type
+1. The Arrow `StringArray` cell has `severity='UNHANDLED'` (value unchanged)
+2. `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", field_name = ..., value = ..., sensor_type = ...)` is emitted
 3. The normalization does NOT fail or return an error — it is non-fatal
 
-Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_left_as_received`
+PRIMARY Red Gate: `test_BC_2_02_013_build_column_array_unrecognized_left_as_received_with_warn`
+SECONDARY Red Gate (`normalize_with_mappers` DynamicMessage path): `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_left_as_received`
 
-### AC-019 — GROUP BY severity produces at most 7 buckets after normalization (aggregation consistency)
-(traces to BC-2.02.013 v1.2 canonical test vector:
+### AC-019 — GROUP BY severity produces at most 7 buckets after normalization via build_column_array (PRIMARY path)
+(traces to BC-2.02.013 v1.3 canonical test vector:
 "PrismQL GROUP BY severity across CrowdStrike + Armis after normalization: 'High' appears
 as one bucket — not split into 'High' + 'HIGH'";
 EC-02-026: Cross-sensor aggregation correct after normalization)
 
+After normalization via `build_column_array` on the spec-driven adapter path, a `GROUP BY severity`
+query across CrowdStrike (emits `'High'`) and Armis (originally emits `'HIGH'`, normalized to
+`'High'` by `build_column_array`) produces at most 7 distinct buckets — no fragmentation between
+`'High'` and `'HIGH'`. This verifies the PRIMARY insertion point satisfies the BC-2.02.013
+cross-sensor consistency postcondition.
+
 Given simulated sensor records:
-- CrowdStrike: `severity='High'` (3 records)
-- Armis-like: `severity='HIGH'` (2 records, pre-normalization value — becomes `'High'` after normalization)
+- CrowdStrike: `severity='High'` (3 records, already canonical)
+- Armis-like: `severity='HIGH'` (2 records, normalized to `'High'` by `build_column_array`)
 - Any sensor: `severity='Critical'` (1 record)
 
 when `GROUP BY severity` is executed after normalization,
 then the `'High'` bucket contains 5 rows and the `'Critical'` bucket contains 1 row —
 NOT two separate `'High'` (3) and `'HIGH'` (2) buckets.
 
-This verifies that adapter-boundary normalization eliminates GROUP BY fragmentation (ADR-047
-§Consequences positive: "GROUP BY severity produces correct aggregation across sensors").
+This verifies that the PRIMARY adapter-boundary normalization in `build_column_array` eliminates
+GROUP BY fragmentation (ADR-047 §Consequences positive: "GROUP BY severity produces correct
+aggregation across sensors").
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_group_by_severity_no_case_fragmentation`
 
@@ -608,7 +632,10 @@ the OCSF casing note (pedagogical hint that severity is Title-case).
 NOTE: This may be a snapshot/golden-file test or a content-inclusion test. The implementer
 must decide the appropriate test mechanism for the describe output.
 
-Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_describe_output_includes_ieq_example`
+Red Gate (authoritative): `test_BC_2_11_024_describe_output_includes_ieq_example_and_ocsf_casing_note`
+(in `prism_describe.rs` test module in prism-mcp — this is the real test from commit 26325423)
+Red Gate (supplementary): `test_S_PRISMQL_CASE_INSENSITIVE_001_describe_output_includes_ieq_example`
+(prism-query substitute test; may remain as supplementary coverage)
 
 ### AC-026 — No panic: IEQ/IIN expressions with multiple predicates do not panic (VP-021 regression)
 (traces to BC-2.11.024 v1.1 canonical test vector: "severity IEQ 'high' AND severity IEQ 'high'
@@ -672,9 +699,9 @@ Verify ALL 25 core stubs (RG-001 through RG-025) fail before proceeding to Task 
 | RG-016 | `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_non_string_rhs_e_query_001` | `crates/prism-query/src/tests/` | AC-020 | `severity IEQ 42` → Err(E-QUERY-001) |
 | RG-017 | `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_empty_list_e_query_001` | `crates/prism-query/src/tests/` | AC-021 | `severity IIN ()` → Err(E-QUERY-001) |
 | RG-018 | `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_e_query_002` | `crates/prism-query/src/tests/` | AC-022 | `severity_id IEQ 'high'` vs integer column → Err(E-QUERY-002) |
-| RG-019 | `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_critical_to_title_case` | `crates/prism-ocsf/src/tests/` (or prism-spec-engine) | AC-016 | `severity='CRITICAL'` → `'Critical'` in DynamicMessage |
-| RG-020 | `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high` | `crates/prism-ocsf/src/tests/` (or prism-spec-engine) | AC-017 | `severity='High'` unchanged; no warning emitted |
-| RG-021 | `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_left_as_received` | `crates/prism-ocsf/src/tests/` (or prism-spec-engine) | AC-018 | `severity='UNHANDLED'` unchanged; warning emitted |
+| RG-019 | `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_critical_to_title_case` | `crates/prism-ocsf/src/tests/` (SECONDARY: DynamicMessage path) | AC-016 | `severity='CRITICAL'` → `'Critical'` in DynamicMessage (`normalize_with_mappers` path) |
+| RG-020 | `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high` | `crates/prism-ocsf/src/tests/` (SECONDARY: DynamicMessage path) | AC-017 | `severity='High'` unchanged; no warning emitted (`normalize_with_mappers` path) |
+| RG-021 | `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_left_as_received` | `crates/prism-ocsf/src/tests/` (SECONDARY: DynamicMessage path) | AC-018 | `severity='UNHANDLED'` unchanged; warning emitted (`normalize_with_mappers` path) |
 | RG-022 | `test_S_PRISMQL_CASE_INSENSITIVE_001_group_by_severity_no_case_fragmentation` | `crates/prism-query/src/tests/` | AC-019 | Multi-sensor GROUP BY produces 1 'High' bucket, not 2 fragmented buckets |
 | RG-023 | `test_BC_2_11_024_sql_mode_ieq_rejected` | `crates/prism-query/src/tests/` | AC-023 | SQL-mode `SELECT … WHERE severity IEQ 'high'` → Err(E-QUERY-001); NOT QueryExecutionFailed/E-QUERY-034 |
 | RG-024 | `test_BC_2_11_024_sql_mode_iin_rejected` | `crates/prism-query/src/tests/` | AC-023 | SQL-mode `SELECT … WHERE status IIN ('open', 'new')` → Err(E-QUERY-001) |
@@ -685,17 +712,35 @@ Verify ALL 25 core stubs (RG-001 through RG-025) fail before proceeding to Task 
 | RG ID | Test Function Name | Location | AC |
 |-------|--------------------|----------|----|
 | RG-026 (grammar resource) | `test_S_PRISMQL_CASE_INSENSITIVE_001_grammar_resource_includes_ieq_iin_ine` | `crates/prism-query/src/tests/` or `crates/prism-mcp/src/tests/` | AC-024 |
-| RG-027 (describe output) | `test_S_PRISMQL_CASE_INSENSITIVE_001_describe_output_includes_ieq_example` | `crates/prism-mcp/src/tests/` or `crates/prism-query/src/tests/` | AC-025 |
+| RG-027 (describe output, supplementary) | `test_S_PRISMQL_CASE_INSENSITIVE_001_describe_output_includes_ieq_example` | `crates/prism-mcp/src/tests/` or `crates/prism-query/src/tests/` | AC-025 (supplementary — authoritative test is RG-028) |
 
-NOTE: RG-026 and RG-027 are implementation-detail-dependent — the implementer must choose
-the appropriate test location based on where the grammar resource generation and describe
-output code live.
+NOTE: RG-026 is implementation-detail-dependent — the implementer must choose the appropriate
+test location based on where the grammar resource generation code lives. RG-027 is now
+supplementary; the authoritative describe test is RG-028 (the real prism-mcp test from
+commit 26325423).
 
-**Total Red Gate tests: 27 (25 core + 2 discoverability)**
+**Pass-5 new tests (from commit 26325423 and architect adjudication F-CRIT-002):**
 
-The story frontmatter records `red_gate_tests: 27` (total: 25 core + 2 discoverability). The discoverability tests
-RG-026/RG-027 may be snapshot or integration tests; include them if they can be written as
-failing stubs, otherwise verify the parity gate via `just check` at end of implementation.
+| RG ID | Test Function Name | Location | AC | Assertion |
+|-------|--------------------|----------|----|-----------|
+| RG-028 | `test_BC_2_11_024_describe_output_includes_ieq_example_and_ocsf_casing_note` | `crates/prism-mcp/src/prism_describe.rs` test module | AC-025 | Authoritative: describe output contains IEQ example + OCSF casing note |
+| RG-029 | `test_BC_2_11_024_query_type_mismatch_display_with_suggestion_exact` | `crates/prism-core/tests/bc_2_11_024_query_type_mismatch_display.rs` | AC-022 | Full-string byte-exact assertion of E-QUERY-002 QueryTypeMismatch Display WITH suggestion (sub-form b1, taxonomy v2.19); POL-24 byte-for-byte; F-CRIT-001 closure |
+| RG-030 | `test_BC_2_11_024_query_type_mismatch_display_without_suggestion_exact` | `crates/prism-core/tests/bc_2_11_024_query_type_mismatch_display.rs` | AC-022 | Byte-exact Display WITHOUT suggestion (sub-form b2, taxonomy v2.19); POL-24 byte-for-byte; F-CRIT-001 closure |
+| RG-031 | `test_BC_2_11_024_negated_case_insensitive_in_returns_query_plan_failed` | `crates/prism-query/src/tests/test_case_insensitive_operators.rs` | BC-2.11.024 invariant guard | Emitter returns Err(QueryPlanFailed) for hand-built Predicate::In { negated: true, case_insensitive: true }; IIN grammar is positive-only (not a parse test) |
+| RG-032 | `test_BC_2_02_013_build_column_array_normalizes_severity_to_title_case` | `crates/prism-bin/src/` (spec_driven_adapter tests) | AC-016 | PRIMARY: Arrow StringArray cell contains canonical Title-case for severity column |
+| RG-033 | `test_BC_2_02_013_build_column_array_normalizes_status_and_disposition` | `crates/prism-bin/src/` (spec_driven_adapter tests) | AC-017 | PRIMARY: status and disposition columns normalized to Title-case via build_column_array |
+| RG-034 | `test_BC_2_02_013_build_column_array_unrecognized_left_as_received_with_warn` | `crates/prism-bin/src/` (spec_driven_adapter tests) | AC-018 | PRIMARY: unrecognized value left as-received + warn!(event_type="ocsf.enum_label_unrecognized") emitted |
+| RG-035 | `test_BC_2_02_013_build_column_array_non_enum_string_column_untouched` | `crates/prism-bin/src/` (spec_driven_adapter tests) | AC-017 guard | Guard: non-enum String column (e.g., hostname) NOT modified by normalization in build_column_array |
+| RG-036 | `test_BC_2_02_013_build_column_array_non_string_column_untouched` | `crates/prism-bin/src/` (spec_driven_adapter tests) | AC-017 guard | Guard: non-String column (e.g., Integer) NOT modified by normalization in build_column_array |
+
+RG-028 through RG-036 names are authoritative per verified ground truth.
+
+**Total Red Gate tests: 36 (25 core + 2 discoverability + 9 pass-5)**
+
+The story frontmatter records `red_gate_tests: 36`. RG-026/RG-027 discoverability tests may be
+snapshot or integration tests; include them if they can be written as failing stubs, otherwise
+verify the parity gate via `just check`. RG-028 is the authoritative describe test. RG-032
+through RG-036 are the PRIMARY build_column_array tests in prism-bin.
 
 ---
 
@@ -707,7 +752,8 @@ failing stubs, otherwise verify the parity gate via `just check` at end of imple
 | AST extensions (case_insensitive flag) | prism-query | `src/ast.rs` | Pure |
 | DataFusion SQL emitter (lower() lowering) | prism-query | `src/pipe_sql_emitter.rs` | Pure |
 | PQL round-trip normalizer | prism-query | `src/ast.rs` — `PqlNormalizer::normalize_predicate` (the `Predicate::Compare` and `Predicate::In` match arms) | Pure |
-| OCSF enum-label canonical-case normalization | prism-ocsf | `src/enum_map.rs` (`OcsfEnumMap`) + `src/normalizer.rs` (`OcsfNormalizer::normalize_with_mappers`) and/or `src/mappers/spec_driven.rs` | Pure (lookup-and-rewrite, no I/O) |
+| OCSF enum-label canonical-case normalization (PRIMARY) | prism-bin | `src/spec_driven_adapter.rs` (`build_column_array`) | Effectful (materialization into Arrow StringArray) |
+| OCSF enum-label canonical-case normalization (SECONDARY) | prism-ocsf | `src/enum_map.rs` (`OcsfEnumMap`) + `src/normalizer.rs` (`OcsfNormalizer::normalize_with_mappers`) and/or `src/mappers/spec_driven.rs` | Pure (lookup-and-rewrite, no I/O) |
 | Grammar resource MCP resource | prism-mcp | `src/resources.rs` (or grammar generation code) | Effectful (MCP resource emission) |
 | prism describe pedagogical examples | prism-query / prism-mcp | grammar describe output | Effectful (MCP tool response) |
 
@@ -754,8 +800,9 @@ failing stubs, otherwise verify the parity gate via `just check` at end of imple
 | `crates/prism-query/src/ast.rs` | Add `case_insensitive: bool` to `Predicate::Compare` and `Predicate::In`; extend round-trip normalizer to emit IEQ/IIN/INE |
 | `crates/prism-query/src/pipe_sql_emitter.rs` | Add `case_insensitive: true` branches emitting `lower(field) OP lower('val')` in `predicate_to_datafusion_sql` |
 | `crates/prism-ocsf/src/enum_map.rs` | Verify `OcsfEnumMap` canonical caption map covers severity, status, activity_name, disposition, category; extend if missing entries. This is the sole casing authority (BC-2.02.010 v1.5). NOTE: the OCSF string label for activity is `activity_name` (not `activity`). |
-| `crates/prism-ocsf/src/normalizer.rs` and/or `crates/prism-ocsf/src/mappers/spec_driven.rs` | Add the canonical-case rewrite that looks up `OcsfEnumMap` and rewrites enum-label fields BEFORE the `DynamicMessage` field is populated (`OcsfNormalizer::normalize_with_mappers` is the DynamicMessage-creation site). This is the DEFINITIVE location (verified — see Scope Ambiguity 1). |
-| `crates/prism-spec-engine/src/` | NOT modified for OCSF normalization (verified: zero `DynamicMessage` references). Retained in `crates_touched` only as a defensive allowance in case SAP-2 fixture/DTU-parity fallout requires a touch; if no prism-spec-engine change is made, note it and consider removing it from `crates_touched` at PR time (flag for product-owner/state-manager). |
+| `crates/prism-bin/src/spec_driven_adapter.rs` | PRIMARY insertion point (architect adjudication F-CRIT-002): add the canonical-case rewrite in `build_column_array` for `ColumnType::String` enum-label columns (severity, status, activity_name, disposition) BEFORE the Arrow `StringArray` cell is materialized. Call `OcsfEnumMap::normalize_enum_label` (or equivalent); emit `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)` for unrecognized values per BC-2.02.013 v1.3 §Postconditions. |
+| `crates/prism-ocsf/src/normalizer.rs` and/or `crates/prism-ocsf/src/mappers/spec_driven.rs` | SECONDARY insertion point: add the canonical-case rewrite for the `OcsfNormalizer::normalize_with_mappers` DynamicMessage path (protobuf/future). Same contract as PRIMARY — both insertion sites must satisfy BC-2.02.013 v1.3 independently. |
+| `crates/prism-spec-engine/src/` | REMOVED from `crates_touched` (pass-5 adversary OBS + story note resolved): zero `DynamicMessage` references confirmed; no spec-engine changes required for OCSF normalization. SAP-2 DTU fixture parity may still require a touch (DTU generator files), but that is in the DTU crates, not prism-spec-engine itself. |
 | `crates/prism-mcp/src/resources.rs` (or equiv.) | Add IEQ/IIN/INE to grammar reference resource operator table; add OCSF casing note to prism describe examples |
 | DTU fixture generators (prism-dtu-*/src/generator.rs or types.rs) | Update any test assertions or fixture values that assert pre-normalization UPPER-case severity/status strings to use canonical Title-case. Per SAP-2, adversary will verify TOML column parity with DTU types.rs |
 
@@ -828,17 +875,21 @@ E (Adapter normalization) is parallel to A-D.
    - Existing CI lowering for ICONTAINS (~lines 541-564, the model to follow)
    - The op table mapping CompareOp variants to SQL strings (~lines 743-749)
 
-8. **Read** `crates/prism-ocsf/src/` to ground yourself in the normalization pipeline. The
-   crate ownership question is ALREADY RESOLVED (see "Scope Ambiguities Resolved → Ambiguity 1"):
-   **the OCSF enum-label normalization lives in `prism-ocsf`, NOT prism-spec-engine.** Read:
-   - `crates/prism-ocsf/src/enum_map.rs` — `OcsfEnumMap`, the canonical caption authority.
+8. **Read** `crates/prism-bin/src/spec_driven_adapter.rs` and `crates/prism-ocsf/src/` to ground
+   yourself in both insertion sites (architect adjudication F-CRIT-002 — see "Scope Ambiguities
+   Resolved → Ambiguity 1"):
+   - `crates/prism-bin/src/spec_driven_adapter.rs` — the PRIMARY insertion point. Read
+     `build_column_array`: this is where sensor JSON records are materialized into Arrow arrays.
+     For `ColumnType::String` columns matching OCSF enum-label field names (severity, status,
+     activity_name, disposition), add the canonical-case lookup BEFORE the `StringArray` cell
+     is materialized. This is the main production path.
+   - `crates/prism-ocsf/src/enum_map.rs` — `OcsfEnumMap`, the canonical caption authority used
+     by BOTH insertion sites.
    - `crates/prism-ocsf/src/normalizer.rs` — `OcsfNormalizer::normalize_with_mappers`, which
-     creates the `DynamicMessage` (BC-2.02.002) and dispatches to a `SensorMapper`.
-   - `crates/prism-ocsf/src/mappers/spec_driven.rs` — the config-driven sensor mapper (the path
-     the CrowdStrike/Cyberint/Claroty/Armis TOML specs flow through).
-   Insert the canonical-case rewrite so it runs BEFORE the OCSF enum-label field is populated on
-   the `DynamicMessage`. Do NOT search prism-spec-engine for the normalizer — it does not create
-   `DynamicMessage` (verified: zero `DynamicMessage` references in that crate).
+     creates the `DynamicMessage` (BC-2.02.002); this is the SECONDARY insertion site.
+   - `crates/prism-ocsf/src/mappers/spec_driven.rs` — the config-driven sensor mapper.
+   Do NOT search prism-spec-engine for the normalizer — it does not create `DynamicMessage`
+   (verified: zero `DynamicMessage` references; removed from `crates_touched`).
 
 ### Phase 1 — Write all Red Gate test stubs (FAILING first)
 
@@ -1056,13 +1107,20 @@ E (Adapter normalization) is parallel to A-D.
 
 ### Phase 7 — Adapter normalization (Track E)
 
-19. **Implement** the OCSF enum-label canonical-case normalization in the **prism-ocsf**
-    normalization pipeline (crate ownership resolved — see Task 8 / Scope Ambiguity 1):
+19. **Implement** the OCSF enum-label canonical-case normalization in BOTH insertion sites
+    (architect adjudication F-CRIT-002 — see Task 8 / Scope Ambiguity 1):
 
-    a. **Read** `crates/prism-ocsf/src/enum_map.rs` to understand the existing caption map
-       structure (e.g., `severity_id: 4 → "High"`, `5 → "Critical"`).
+    **Step 19a — PRIMARY insertion site: `build_column_array` in prism-bin**
 
-    b. **Create or extend** a normalization function:
+    a. **Read** `crates/prism-bin/src/spec_driven_adapter.rs` — locate `build_column_array`.
+       Identify where `ColumnType::String` values are extracted from the JSON sensor record and
+       materialized into the Arrow `StringArray`.
+
+    b. **Read** `crates/prism-ocsf/src/enum_map.rs` to understand the caption map structure
+       (e.g., `severity_id: 4 → "High"`, `5 → "Critical"`). This is used by both sites.
+
+    c. **Implement** the normalization in `build_column_array`: for each String column whose name
+       matches an OCSF enum-label field (severity, status, activity_name, disposition):
 
     ```rust
     /// Normalizes an OCSF enum-label string field value to its canonical Title-case
@@ -1078,18 +1136,25 @@ E (Adapter normalization) is parallel to A-D.
         enum_map.lookup_case_insensitive(field_name, value)  // method name ILLUSTRATIVE
     }
     ```
-    NOTE: the concrete type is `OcsfEnumMap` (`crates/prism-ocsf/src/enum_map.rs`, re-exported from
-    `lib.rs`). `lookup_case_insensitive` is an ILLUSTRATIVE method name — read `enum_map.rs` at
-    Task 19a to use (or add, with a Red Gate test) the real lookup API; do not assume this exact
+    NOTE: `lookup_case_insensitive` is an ILLUSTRATIVE method name — read `enum_map.rs` at
+    Task 19b to use (or add, with a Red Gate test) the real lookup API; do not assume this exact
     signature exists.
 
-    c. **Wire** the normalization function into the pipeline step that sets OCSF string fields,
-       BEFORE DynamicMessage creation (BC-2.02.002 v1.5 amendment + BC-2.02.013 invariant).
-
     d. **Emit** `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", field_name = ...,
-       value = ..., sensor_type = ...)` for unrecognized values (AC-018, BC-2.02.013 error case).
-       Per SAP-1: add a corresponding row to BC-2.16.002 Canonical Structured Event Catalog for
-       this new `event_type` in the SAME commit that adds the tracing emission.
+       value = ..., sensor_type = ...)` when the lookup returns None (AC-018, BC-2.02.013 v1.3
+       error case). Per SAP-1: add a corresponding row to BC-2.16.002 Canonical Structured Event
+       Catalog for this `event_type` in the SAME commit that adds the tracing emission.
+
+    e. **Verify** RG-032, RG-033, RG-034, RG-035, RG-036 (PRIMARY build_column_array tests) pass.
+
+    **Step 19b — SECONDARY insertion site: `normalize_with_mappers` in prism-ocsf**
+
+    f. **Wire** the same normalization function into `crates/prism-ocsf/src/normalizer.rs`
+       (`OcsfNormalizer::normalize_with_mappers`) BEFORE the `DynamicMessage` field is populated
+       (BC-2.02.002 v1.5 amendment + BC-2.02.013 v1.3 invariant). This satisfies the
+       DynamicMessage/protobuf path independently.
+
+    g. **Verify** RG-019, RG-020, RG-021 (SECONDARY DynamicMessage path tests) pass.
 
 20. **Update DTU test vectors** that assert pre-normalization UPPER-case severity/status values.
     Per SAP-2: run `rg 'severity.*HIGH\|status.*OPEN' crates/prism-dtu-*/src/ --type rust`
@@ -1098,7 +1163,8 @@ E (Adapter normalization) is parallel to A-D.
     - `status == "OPEN"` → `status == "Open"` (if status 'OPEN' maps to OCSF canonical 'Open')
     - `severity == "UNHANDLED"` → remains `"UNHANDLED"` (vendor-specific, not normalized)
 
-21. **Verify** RG-019, RG-020, RG-021 (adapter normalization tests) and RG-022 (GROUP BY no fragmentation) pass.
+21. **Verify** RG-022 (GROUP BY no fragmentation) passes — this verifies the PRIMARY insertion
+    point's cross-sensor aggregation consistency (AC-019).
 
 ### Phase 8 — Discoverability (Track F)
 
@@ -1118,7 +1184,9 @@ E (Adapter normalization) is parallel to A-D.
     With note: "OCSF severity is stored as Title-case ('High'). Use IEQ/IIN to match regardless
     of the case you type, or = 'High' for the exact canonical form."
 
-24. **Verify** RG-026, RG-027 (grammar resource and describe tests) pass.
+24. **Verify** RG-026 (grammar resource), RG-027 (describe supplementary), and RG-028
+    (describe authoritative: `test_BC_2_11_024_describe_output_includes_ieq_example_and_ocsf_casing_note`
+    in `prism_describe.rs`) pass.
 
 ### Phase 9 — Final verification
 
@@ -1146,12 +1214,15 @@ E (Adapter normalization) is parallel to A-D.
 
 28. **Run full test suite:**
     ```bash
-    just iter prism-query       # all prism-query tests
-    just iter prism-ocsf        # adapter normalization lives in prism-ocsf (resolved at Task 8)
+    just iter prism-query       # IEQ/IIN/INE grammar, AST, emitter, execution tests
+    just iter prism-ocsf        # SECONDARY adapter normalization (normalize_with_mappers path)
+    just iter prism-bin         # PRIMARY adapter normalization (build_column_array path)
+    just iter prism-mcp         # describe authoritative test (RG-028)
     just check                  # full workspace pre-push gate
     ```
-    All 27 Red Gate tests must pass. All existing tests must continue to pass (especially
-    existing =, != filter tests — regression guard for AC-011/AC-013).
+    All 36 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5). All existing
+    tests must continue to pass (especially existing =, != filter tests — regression guard
+    for AC-011/AC-013).
 
 ---
 
@@ -1169,9 +1240,11 @@ E (Adapter normalization) is parallel to A-D.
   E-QUERY-002 (QueryTypeMismatch) — both already in the error taxonomy. No new E-QUERY codes
   are introduced. Do not invent codes outside the taxonomy.
 
-- **crates_touched declaration:** FIDELITY-REMEDIATION established the pattern of declaring
-  `crates_touched` explicitly. This story touches prism-query, prism-ocsf, prism-spec-engine
-  (verify at Task 8), prism-mcp. Adversary will check for undeclared crate changes.
+- **crates_touched declaration (UPDATED pass-5):** FIDELITY-REMEDIATION established the pattern of
+  declaring `crates_touched` explicitly. This story touches prism-query, prism-ocsf, prism-mcp,
+  and prism-bin (PRIMARY OCSF normalization insertion point). prism-spec-engine was REMOVED from
+  `crates_touched` (pass-5 adversary OBS: zero DynamicMessage references, no changes required).
+  Adversary will check for undeclared crate changes.
 
 ### From S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (MERGED)
 
@@ -1281,27 +1354,33 @@ The following modules/packages must NOT appear as new imports in the files modif
 The following ambiguities were present in the input artifacts and resolved by the story-writer
 per the production-grade default:
 
-**Ambiguity 1: Adapter normalization in prism-ocsf vs prism-spec-engine — RESOLVED (remove-uncertainty pass-2, 2026-07-06).**
-The design map (§E) names `crates/prism-ocsf/src/` as the location. The STORY-INDEX stub named
-`crates/prism-spec-engine/` as the adapter-boundary crate.
-DEFINITIVE RESOLUTION: **The OCSF enum-label normalization pipeline lives in `prism-ocsf`.**
-This was verified directly against the codebase (source of truth): `DynamicMessage` creation
-(BC-2.02.002) occurs ONLY in `prism-ocsf` — `crates/prism-ocsf/src/normalizer.rs`
-(`OcsfNormalizer::normalize_with_mappers`, which calls `DynamicMessage::new(descriptor)`),
-`crates/prism-ocsf/src/mappers/spec_driven.rs` (the config-driven sensor mapper for the
-CrowdStrike/Cyberint/Claroty/Armis TOML specs), and `crates/prism-ocsf/src/event.rs`. The
-canonical caption authority `OcsfEnumMap` is at `crates/prism-ocsf/src/enum_map.rs` (re-exported
-from `lib.rs` as `pub use enum_map::OcsfEnumMap`). A workspace scan found ZERO `DynamicMessage`
-references in `prism-spec-engine` — its "normalization" surfaces (`pipeline.rs`, `datetime.rs`,
-`column_mapping.rs`) handle spec parsing, datetime coercion, and column mapping, NOT OCSF
-protobuf message construction. The STORY-INDEX stub was WRONG.
-IMPLEMENTER DIRECTION: implement the canonical-case enum-label rewrite in `prism-ocsf` — insert
-it in the `normalizer.rs` normalize path and/or the `spec_driven.rs` mapper so it runs BEFORE the
-`DynamicMessage` field is populated (BC-2.02.002 v1.5), using `OcsfEnumMap` from `enum_map.rs`.
-`prism-spec-engine` does NOT require modification for the OCSF normalization itself. (`crates_touched`
-still lists `prism-spec-engine` — see the note under "File Structure Requirements"; the only
-possible prism-spec-engine/DTU touch is fixture/assertion updates per SAP-2, not the normalizer.)
-The adversary's SAP-2 probe verifies TOML↔DTU parity regardless.
+**Ambiguity 1: Adapter normalization PRIMARY site — RESOLVED WITH AMENDMENT (architect adjudication F-CRIT-002, pass-5, 2026-07-07).**
+
+Pass-2 resolution (2026-07-06): confirmed prism-ocsf as the OCSF normalization crate; prism-spec-engine
+has zero DynamicMessage references and was excluded.
+
+Pass-5 architect adjudication F-CRIT-002 (2026-07-07): further refines the insertion point within the
+codebase. `OcsfNormalizer::normalize_with_mappers` is the DynamicMessage-construction site (BC-2.02.002)
+and is the SECONDARY insertion site (for the future protobuf/DynamicMessage path). The PRIMARY
+production insertion point is `build_column_array` in `crates/prism-bin/src/spec_driven_adapter.rs` —
+the spec-driven adapter materialization path where Arrow arrays are built from JSON sensor records.
+This is the path all CrowdStrike/Cyberint/Claroty/Armis TOML-driven sensors flow through at query
+time; normalization here ensures consistent casing before the data enters DataFusion execution.
+
+UPDATED IMPLEMENTER DIRECTION:
+1. PRIMARY: implement the canonical-case enum-label rewrite in `build_column_array`
+   (`crates/prism-bin/src/spec_driven_adapter.rs`). For each column with `ColumnType::String` and
+   a name matching an OCSF enum-label field (severity, status, activity_name, disposition),
+   call `OcsfEnumMap::normalize_enum_label` and materialize the canonical value (or raw + warn for
+   unrecognized). This satisfies BC-2.02.013 v1.3 §Postconditions PRIMARY clause.
+2. SECONDARY: also implement in `prism-ocsf/src/normalizer.rs` (`normalize_with_mappers` path) to
+   satisfy the DynamicMessage/protobuf path independently. BC-2.02.013 v1.3 §Postconditions states
+   both sites must independently satisfy the contract.
+3. prism-spec-engine is REMOVED from `crates_touched` — no changes required there.
+
+`OcsfEnumMap` remains in `prism-ocsf/src/enum_map.rs`; both insertion sites depend on it. The
+canonical caption authority and sole casing reference (BC-2.02.010 v1.5) is unchanged.
+The adversary's SAP-2 probe verifies TOML↔DTU parity regardless of insertion site.
 
 **Ambiguity 2: Non-exhaustive gate count (87 vs 89).**
 ADR-047 and the design map cite `EXPECTED=87`. CLAUDE.md currently shows `EXPECTED=89`
@@ -1329,3 +1408,5 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 | v1.4 | 2026-07-06 | LOCAL pass-2 fix-burst: AC-022 reworded (E-QUERY-002 suggested_column enrichment — PrismError::QueryTypeMismatch carries suggested_column: Some("severity"), full Display format specified, error-taxonomy.md v2.18 §E-QUERY-002 pin added); activity→activity_name correction in File Structure Requirements and v1.3 changelog entry; in-scope OCSF fields note added to AC-016 area (severity/status/activity_name/disposition); BC-2.02.013 v1.1→v1.2 at all 7 pin sites (frontmatter comment, Behavioral Contracts table, Token Budget table, AC-016/017/018/019 traces); BC-2.16.002→v1.99 deferred (no version pins present in story body per v1.3 note); error-taxonomy v2.18 pin added in new AC-022 text only |
 | v1.5 | 2026-07-07 | LOCAL pass-3 fix-burst: AC-023 SQL-mode IEQ/IIN/INE rejection (E-QUERY-001) added; old AC-023 (grammar resource) → AC-024; old AC-024 (describe) → AC-025; old AC-025 (no panic) → AC-026; old AC-026 (non-exhaustive) → AC-027; RG-023/024/025 (SQL-mode rejection tests test_BC_2_11_024_sql_mode_*) added to main Red Gate table; old RG-023/024 renumbered to RG-026/027 with AC refs updated to AC-024/025; red_gate_tests 25→27; Behavioral Contracts table BC-2.11.024 v1.0→v1.1 + Mode-Boundary Enforcement added to Key Clauses Used; error-taxonomy v2.18→v2.19 |
 | v1.6 | 2026-07-07 | pass-4 fix-burst: RG-015 AC back-ref corrected AC-025→AC-026; full bidirectional RG↔AC traceability sweep — also found and corrected two stale "AC-026" prose refs in Task 25 and Architecture Compliance Rule 5 (non-exhaustive gate is AC-027, not AC-026, after v1.5 renumbering) |
+| v1.7 | 2026-07-07 | pass-5 fix-burst: AC-016..019 reframed to PRIMARY `build_column_array` insertion point in prism-bin (BC-2.02.013 v1.2→v1.3, architect adjudication F-CRIT-002); prism-bin added to crates_touched / prism-spec-engine REMOVED (pass-5 adversary OBS resolved); AC-025 authoritative Red Gate updated to `test_BC_2_11_024_describe_output_includes_ieq_example_and_ocsf_casing_note` in prism_describe.rs (RG-027 now supplementary); 9 new Red Gate rows added (RG-028..036): 4 pass-5 tests (describe IEQ, 2 Display byte-exact, negated-IIN) + 5 PRIMARY build_column_array tests; red_gate_tests 27→36; BC-2.02.013 v1.2→v1.3 at all 8 pin sites; BC-2.16.002 v1.99→v2.00 (catalog row 91 now lists both emission sites — no in-body version pins to update); Scope Ambiguity 1 amended with PRIMARY/SECONDARY distinction; Tasks 8 + 19 updated for two-insertion-site workflow; Token Budget updated (prism-spec-engine row→prism-bin row) |
+| v1.8 | 2026-07-07 | RG-029/030/031 rows corrected to verified test names (were inferred); inferred-name NOTE removed |

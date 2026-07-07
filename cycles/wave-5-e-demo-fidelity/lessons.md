@@ -2403,3 +2403,33 @@ S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 was declared "functionally converged" after 9
 **Source:** D-1558 (ADV-P11-OBS-001 DEFECT catch), D-1560 (3-pass consensus MED-001 catch), D-1566 (lessons codification, state-manager burst, 2026-07-06).
 
 **Source:** D-1516 (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 re-classification, state-manager burst, 2026-07-03).
+
+---
+
+## Process-Gap Lesson 12 — Substitute-Test Circular Dependency: RGT for a PRIMARY AC Must Live in a Sibling Crate That Actually Exercises the Production Path (D-1575, 2026-07-07; S-PRISMQL-CASE-INSENSITIVE-001)
+
+**What happened:**
+
+LOCAL adversary pass-5 on S-PRISMQL-CASE-INSENSITIVE-001 (frozen b2e3892c) surfaced F-HIGH-001: AC-025 (describe IEQ example + casing note in `prism_describe.rs`) was unimplemented, but a substitute test in `prism-query` (RG-024) claimed to cover it. The substitute test had a circular-dependency structure — it tested the normalizer output in `prism-query` but AC-025's observable behavior is in `prism-bin`'s describe handler. The substitute RG-024 passed GREEN but did NOT verify AC-025's actual production behavior. This pattern survived 4 prior cascade passes without being caught.
+
+**Root cause:**
+
+SID-1 (Standing Implementer Discipline: no-ignored-test rationalization prohibition) targets the `#[ignore]`'d test class. It did not explicitly address the substitute-test class where: (a) the real test for the AC would require a cross-crate integration test, (b) the implementer supplies a unit test in the "closest" crate instead, and (c) the unit test passes GREEN but verifies a proxy behavior, not the AC's actual observable behavior.
+
+The [process-gap] OBS was raised but not escalated to HIGH because the F-HIGH-002 SENSOR_SEVERITY_VOCABULARY finding (latent 0-row risk) was adjudicated as "flagged for pass-6 scrutiny via IEQ-example approach" — meaning the describe IEQ example (AC-025) was the primary closure mechanism for both. The F-HIGH-001 and F-HIGH-002 findings were structurally linked.
+
+**Codified discipline (extension to SID-1):**
+
+SID-1 §2 states: "the correct response: add a unit test in the production module's `#[cfg(test)] mod tests` block that drives the behavior WITHOUT the external dependency (mock or stub at the dependency boundary)." This extension addresses cases where the production module is in a DIFFERENT crate than the test:
+
+1. **When an AC's observable behavior is in crate B but the unit test is written in crate A, the test is a substitute, not an authoritative RGT.** Substitute tests may be acceptable as additional coverage, but they CANNOT be the sole RGT for the AC.
+
+2. **The authoritative RGT for an AC must exercise the same call site that the AC specifies.** If AC-025 says "describe handler returns IEQ example with Title-case label", the authoritative RGT must call the describe handler (or a function that the describe handler calls), not a lower-level normalizer function in a different crate.
+
+3. **If the authoritative call site requires cross-crate wiring not yet in the story scope, escalate to the orchestrator.** The correct response is NOT to supply a substitute test — it is to either: (a) expand scope to add the cross-crate test, or (b) flag to the orchestrator that the AC requires scope expansion with a specific story/wave anchor.
+
+4. **Adversary standing probe for this pattern:** For every AC that specifies behavior in crate X, verify that at least one RED Gate test exercises code in crate X (or calls through to crate X). A test in crate Y that calls crate X's internal helpers is a substitute. A test in crate Y that calls crate X's public API surface is authoritative only if the AC specifies a public API behavior.
+
+**Action taken:** D-1575 fix-burst — implementer added 5 prism-bin build_column_array tests (3 RED + 2 guards) that directly exercise the PRIMARY production path, closing F-CRIT-002 and F-HIGH-001 together. The substitute RG-024 remains in the suite as additional regression coverage but is no longer the sole RGT for AC-025.
+
+**Source:** D-1575 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-5 [process-gap] OBS, state-manager burst, 2026-07-07).
