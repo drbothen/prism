@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.5"
+version: "1.6"
 updated: "2026-07-07"
 status: draft
 producer: story-writer
@@ -668,7 +668,7 @@ Verify ALL 25 core stubs (RG-001 through RG-025) fail before proceeding to Task 
 | RG-012 | `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_in_pipe_where_stage` | `crates/prism-query/src/tests/` | AC-013b | Pipe-mode `\| where severity IEQ 'high'` executes successfully |
 | RG-013 | `test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_reflects_ieq_uppercase` | `crates/prism-query/src/tests/` | AC-014 | normalized_pql contains `IEQ` uppercase for `severity ieq 'high'` |
 | RG-014 | `test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_round_trip_ast_equality` | `crates/prism-query/src/tests/` | AC-015 | Parse→normalize→reparse produces identical AST |
-| RG-015 | `test_S_PRISMQL_CASE_INSENSITIVE_001_repeated_ieq_no_panic` | `crates/prism-query/src/tests/` | AC-025 | `IEQ x2 AND` does not panic — VP-021 regression guard |
+| RG-015 | `test_S_PRISMQL_CASE_INSENSITIVE_001_repeated_ieq_no_panic` | `crates/prism-query/src/tests/` | AC-026 | `IEQ x2 AND` does not panic — VP-021 regression guard |
 | RG-016 | `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_non_string_rhs_e_query_001` | `crates/prism-query/src/tests/` | AC-020 | `severity IEQ 42` → Err(E-QUERY-001) |
 | RG-017 | `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_empty_list_e_query_001` | `crates/prism-query/src/tests/` | AC-021 | `severity IIN ()` → Err(E-QUERY-001) |
 | RG-018 | `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_e_query_002` | `crates/prism-query/src/tests/` | AC-022 | `severity_id IEQ 'high'` vs integer column → Err(E-QUERY-002) |
@@ -1127,7 +1127,7 @@ E (Adapter normalization) is parallel to A-D.
     grep EXPECTED= scripts/check-non-exhaustive.sh
     ```
     Must show `EXPECTED=89`. If any new `#[non_exhaustive]` type was introduced, update
-    both `scripts/check-non-exhaustive.sh` (or `ci.yml`) AND this AC-026 with the new count.
+    both `scripts/check-non-exhaustive.sh` (or `ci.yml`) AND this AC-027 with the new count.
     Per design map §Non-Exhaustive Gate Impact Assessment: only field additions, not new
     annotated types — count should remain 89.
 
@@ -1232,7 +1232,7 @@ adversarial review.
    Adding `case_insensitive: bool` to existing `#[non_exhaustive]` enum variants is NOT the
    same as adding a new type with `#[non_exhaustive]`. The EXPECTED=89 gate counts annotated
    types, not fields within existing types. If a new PUBLIC TYPE is introduced (not expected),
-   increment EXPECTED to 90 in `scripts/check-non-exhaustive.sh` AND update this AC-026.
+   increment EXPECTED to 90 in `scripts/check-non-exhaustive.sh` AND update this AC-027.
 
 6. **IIN must appear BEFORE IN in the grammar combinator chain (design map §A Collision check).**
    Chumsky combinators try alternatives in order. If `kw("IN")` is tried before `kw("IIN")`,
@@ -1328,3 +1328,4 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 | v1.3 | 2026-07-06 | LOCAL pass-1 fix-burst: BC-2.02.013 v1.0→v1.1 + BC-2.16.002 pin→v1.98 propagation (BC-2.02.013 now concretely specifies in-scope field set severity/status/activity_name/disposition, keying contract, insertion point, warn event; BC-2.16.002 v1.98 added catalog row 91 ocsf.enum_label_unrecognized — note: BC-2.16.002 has no prior version pin in this story, reference sites unchanged per no-AC-text rule) |
 | v1.4 | 2026-07-06 | LOCAL pass-2 fix-burst: AC-022 reworded (E-QUERY-002 suggested_column enrichment — PrismError::QueryTypeMismatch carries suggested_column: Some("severity"), full Display format specified, error-taxonomy.md v2.18 §E-QUERY-002 pin added); activity→activity_name correction in File Structure Requirements and v1.3 changelog entry; in-scope OCSF fields note added to AC-016 area (severity/status/activity_name/disposition); BC-2.02.013 v1.1→v1.2 at all 7 pin sites (frontmatter comment, Behavioral Contracts table, Token Budget table, AC-016/017/018/019 traces); BC-2.16.002→v1.99 deferred (no version pins present in story body per v1.3 note); error-taxonomy v2.18 pin added in new AC-022 text only |
 | v1.5 | 2026-07-07 | LOCAL pass-3 fix-burst: AC-023 SQL-mode IEQ/IIN/INE rejection (E-QUERY-001) added; old AC-023 (grammar resource) → AC-024; old AC-024 (describe) → AC-025; old AC-025 (no panic) → AC-026; old AC-026 (non-exhaustive) → AC-027; RG-023/024/025 (SQL-mode rejection tests test_BC_2_11_024_sql_mode_*) added to main Red Gate table; old RG-023/024 renumbered to RG-026/027 with AC refs updated to AC-024/025; red_gate_tests 25→27; Behavioral Contracts table BC-2.11.024 v1.0→v1.1 + Mode-Boundary Enforcement added to Key Clauses Used; error-taxonomy v2.18→v2.19 |
+| v1.6 | 2026-07-07 | pass-4 fix-burst: RG-015 AC back-ref corrected AC-025→AC-026; full bidirectional RG↔AC traceability sweep — also found and corrected two stale "AC-026" prose refs in Task 25 and Architecture Compliance Rule 5 (non-exhaustive gate is AC-027, not AC-026, after v1.5 renumbering) |
