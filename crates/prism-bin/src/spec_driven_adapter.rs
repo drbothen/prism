@@ -2381,4 +2381,161 @@ mod tests {
             int_array.value(0)
         );
     }
+
+    // ---------------------------------------------------------------------------
+    // OBS-3 — empty-string enum-value must NOT emit ocsf.enum_label_unrecognized
+    // ---------------------------------------------------------------------------
+
+    /// OBS-3 / BC-2.02.013 (RED — fails before implementation):
+    ///
+    /// `build_column_array` for a `ColumnType::String` column named `"severity"` with
+    /// a record containing `"severity": ""` (empty string) MUST:
+    ///   1. Materialize the empty string as-is in the Arrow column (non-null, value `""`).
+    ///   2. NOT emit `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)`.
+    ///
+    /// Empty-string field values are NOT invalid OCSF enum labels — they represent
+    /// missing or unset fields coming from vendor APIs that omit the field entirely.
+    /// Calling `OcsfEnumMap::normalize_enum_label("severity", "")` returns `None`
+    /// (empty string is not a recognized caption), which currently causes a false-positive
+    /// `ocsf.enum_label_unrecognized` warn. This mirrors the SECONDARY path's guard in
+    /// `prism-ocsf/src/normalizer.rs` (line ~141):
+    ///   `ProtoValue::String(s) if !s.is_empty() => s,`
+    /// which skips normalization for empty strings without emitting the warn.
+    ///
+    /// # Red Gate failure (HEAD 18c65590)
+    ///
+    /// The `ColumnType::String` arm in `build_column_array` calls
+    /// `normalize_enum_label(&col.name, &s)` for ALL non-null string values,
+    /// including `s = ""`.  The map returns `None` for `""` →
+    /// `ocsf.enum_label_unrecognized` warn fires → assertion (2) FAILS.
+    ///
+    /// # Fix target
+    ///
+    /// Add `if s.is_empty() { Some(s) }` (or equivalent `!s.is_empty()` guard) before
+    /// calling `normalize_enum_label` in the `ColumnType::String` arm of
+    /// `build_column_array`, mirroring the SECONDARY path in `normalizer.rs`.
+    ///
+    /// OBS-3; BC-2.02.013; BC-2.16.002 catalog row 91.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_02_013_build_column_array_empty_string_enum_value_no_warn() {
+        use std::sync::Mutex;
+        use tracing_subscriber::layer::SubscriberExt;
+
+        // ── Local WarnCapture — captures only event_type-bearing WARN events ──────
+        //
+        // Minimal variant of the WarnCapture in
+        // test_BC_2_02_013_build_column_array_unrecognized_left_as_received_with_warn:
+        // we only need to detect whether ocsf.enum_label_unrecognized fired at all;
+        // we do not need to inspect catalog-schema fields.
+
+        #[derive(Default, Clone, Debug)]
+        struct WarnEvent {
+            event_type: Option<String>,
+        }
+
+        #[derive(Default)]
+        struct WarnFieldVisitor {
+            event: WarnEvent,
+        }
+
+        impl tracing::field::Visit for WarnFieldVisitor {
+            fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
+                if field.name() == "event_type" {
+                    self.event.event_type = Some(val.to_owned());
+                }
+            }
+            fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+                // tracing routes `%`-formatted Display values through record_debug.
+                if field.name() == "event_type" && self.event.event_type.is_none() {
+                    self.event.event_type = Some(format!("{value:?}"));
+                }
+            }
+        }
+
+        struct WarnCapture {
+            events: Arc<Mutex<Vec<WarnEvent>>>,
+        }
+
+        impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnCapture {
+            fn on_event(
+                &self,
+                event: &tracing::Event<'_>,
+                _ctx: tracing_subscriber::layer::Context<'_, S>,
+            ) {
+                if *event.metadata().level() == tracing::Level::WARN {
+                    let mut visitor = WarnFieldVisitor::default();
+                    event.record(&mut visitor);
+                    // Only capture events that carry an event_type field (SAP-1 catalog rows).
+                    if visitor.event.event_type.is_some() {
+                        self.events.lock().unwrap().push(visitor.event);
+                    }
+                }
+            }
+        }
+
+        // ── Test body ──────────────────────────────────────────────────────────────
+
+        let captured: Arc<Mutex<Vec<WarnEvent>>> = Arc::new(Mutex::new(Vec::new()));
+        let layer = WarnCapture {
+            events: captured.clone(),
+        };
+        let subscriber = tracing_subscriber::registry().with(layer);
+
+        let records = vec![json!({"severity": ""})];
+        let col = ColumnSpec::new("severity", ColumnType::String, None, vec![]);
+
+        let array = tracing::subscriber::with_default(subscriber, || {
+            build_column_array(&records, &col, "armis")
+        });
+
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray for ColumnType::String severity column");
+
+        // (1) Empty string materializes as-is — non-null empty string in Arrow.
+        //
+        // The None branch of normalize_enum_label returns Some(s) = Some(""), so
+        // the value is already non-null at HEAD.  This assertion is a regression
+        // guard: the fix MUST NOT accidentally convert empty strings to null.
+        assert!(
+            !string_array.is_null(0),
+            "OBS-3: empty severity string must materialize as a non-null empty string \
+             in the Arrow column (not NULL — it is an unset/missing value, not an absent \
+             field); got null"
+        );
+        assert_eq!(
+            string_array.value(0),
+            "",
+            "OBS-3: empty severity string must round-trip as empty string in Arrow; \
+             got: {:?}",
+            string_array.value(0)
+        );
+
+        let warns = captured.lock().unwrap();
+
+        // (2) No ocsf.enum_label_unrecognized warn must be emitted for empty string.
+        //
+        // FAILS NOW (HEAD 18c65590): the `ColumnType::String` arm calls
+        // `normalize_enum_label("severity", "")` → returns None → warn fires.
+        //
+        // After fix: add `!s.is_empty()` guard before calling normalize_enum_label,
+        // mirroring normalizer.rs SECONDARY path (ProtoValue::String(s) if !s.is_empty()).
+        assert!(
+            !warns
+                .iter()
+                .any(|e| e.event_type.as_deref() == Some("ocsf.enum_label_unrecognized")),
+            "OBS-3 / BC-2.02.013: build_column_array MUST NOT emit \
+             `ocsf.enum_label_unrecognized` for an empty-string severity value. \
+             Empty string is a missing/unset field, NOT an invalid OCSF enum label; \
+             the warn is a false positive that inflates operator noise. \
+             FAILS NOW: normalize_enum_label(\"\") returns None → warn fires. \
+             Fix: add `!s.is_empty()` guard before calling normalize_enum_label in \
+             the ColumnType::String arm of build_column_array (mirrors normalizer.rs \
+             SECONDARY path). \
+             Captured event_type-bearing WARN events: {:?}",
+            *warns
+        );
+    }
 }
