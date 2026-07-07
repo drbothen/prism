@@ -34,13 +34,7 @@
 //! BCs: BC-2.01.013, BC-2.11.005, BC-2.06.014, BC-2.22.001
 //! Story: S-DEMO-001 v1.3; ADV-SDEMO002-P01-CRIT-001 fix
 
-use std::{
-    collections::HashMap,
-    future::Future,
-    pin::Pin,
-    sync::{Arc, OnceLock},
-    time::Duration,
-};
+use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc, time::Duration};
 
 use serde_json::Value as JsonValue;
 
@@ -909,13 +903,12 @@ fn column_type_to_arrow(col_type: &ColumnType) -> DataType {
 // Previously duplicated here as a local `const` — removed by F-OBS-3 (LOCAL-pass-11):
 // prism_ocsf::OCSF_ENUM_LABEL_FIELDS is now re-exported from prism_ocsf::lib and used
 // directly here. Eliminates drift risk from two independent copies (TD-VSDD-060).
-
-/// Process-wide lazy singleton for OCSF enum-label normalization.
-///
-/// `OcsfEnumMap::new()` is expensive (builds the full caption-to-id reverse index).
-/// We initialize it at most once per process and amortize the cost across all
-/// `build_column_array` calls for OCSF-labeled string columns.
-static OCSF_ENUM_MAP: OnceLock<OcsfEnumMap> = OnceLock::new();
+//
+// The process-wide OcsfEnumMap singleton is now accessed via prism_ocsf::shared_enum_map()
+// (F-P16-OBS-001, LOCAL-pass-16). The duplicate OnceLock<OcsfEnumMap> static that
+// previously lived here has been removed; both prism-ocsf and prism-bin now share the same
+// singleton through the pub re-export. TD-VSDD-060 sibling-site sweep: one call site remains
+// below in build_column_array (the single canonical use point in this crate).
 
 /// Build an Arrow array for a single column across all records.
 ///
@@ -1083,7 +1076,7 @@ fn build_column_array(
         ColumnType::String => {
             let is_ocsf_enum_field = OCSF_ENUM_LABEL_FIELDS.contains(&col.name.as_str());
             let ocsf_map: Option<&OcsfEnumMap> = if is_ocsf_enum_field {
-                Some(OCSF_ENUM_MAP.get_or_init(OcsfEnumMap::new))
+                Some(prism_ocsf::shared_enum_map())
             } else {
                 None
             };

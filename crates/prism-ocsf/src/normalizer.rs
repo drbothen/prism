@@ -20,16 +20,24 @@ use crate::{
     pool::OcsfDescriptors,
 };
 
-/// Lazily-initialized global `OcsfEnumMap` instance.
+/// Process-wide lazy singleton for OCSF enum-label normalization.
 ///
-/// Created once at first use and reused across all `normalize_with_mappers` calls.
-/// `OcsfEnumMap::new()` is pure in-memory (no I/O); the `OnceLock` ensures at-most-once
-/// initialization without a `Mutex` on the hot path (BC-2.02.013 §Invariants: pure
-/// in-memory lookup-and-rewrite, no I/O). Thread-safe via `OnceLock`.
+/// Created once at first use and reused across all callers (`OcsfNormalizer` and
+/// `prism-bin::spec_driven_adapter::build_column_array`).  `OcsfEnumMap::new()` is
+/// expensive (builds the full caption-to-id reverse index); the `OnceLock` ensures
+/// at-most-once initialization without a `Mutex` on the hot path (BC-2.02.013
+/// §Invariants: pure in-memory lookup-and-rewrite, no I/O). Thread-safe via `OnceLock`.
+///
+/// Exposed as `pub` so downstream crates can share the same singleton rather than
+/// each holding a duplicate `OnceLock<OcsfEnumMap>` (F-P16-OBS-001, LOCAL-pass-16).
+/// Re-exported from `prism_ocsf` as `prism_ocsf::shared_enum_map`.
 static OCSF_ENUM_MAP: OnceLock<OcsfEnumMap> = OnceLock::new();
 
-/// Returns a reference to the process-wide `OcsfEnumMap`.
-fn enum_map() -> &'static OcsfEnumMap {
+/// Returns a reference to the process-wide `OcsfEnumMap` singleton.
+///
+/// Initializes the map on first call (pure in-memory, no I/O). All subsequent calls
+/// return the same reference.  Callers in different crates share the same instance.
+pub fn shared_enum_map() -> &'static OcsfEnumMap {
     OCSF_ENUM_MAP.get_or_init(OcsfEnumMap::new)
 }
 
@@ -134,7 +142,7 @@ impl OcsfNormalizer {
         // name (e.g., "severity"), deriving captions from the "{F}_id" entries in OcsfEnumMap.
         //
         // F-HIGH-002 in-scope fields: severity, status, activity_name, disposition.
-        let map = enum_map();
+        let map = shared_enum_map();
         for &field in OCSF_ENUM_LABEL_FIELDS {
             // Only normalize if the OCSF protobuf descriptor has this field.
             if msg.descriptor().get_field_by_name(field).is_none() {

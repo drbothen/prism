@@ -2264,12 +2264,24 @@ fn collect_ci_fields_inner(pred: &crate::ast::Predicate, out: &mut Vec<(String, 
 /// by `collect_ci_compare_fields`, verifies that every CI-operated column has a string
 /// type in the Arrow schema registered for `table_name`. Returns `Err` with a structured
 /// `PrismError::QueryTypeMismatch` (E-QUERY-002) on the first non-string column found,
-/// `Ok(())` when all columns are strings or the table/column is not yet registered.
+/// `Ok(())` when all columns are strings or the table is not registered in the catalog.
+///
+/// # Intentional skip for unregistered tables
+///
+/// `register_mem_table` silently skips registration when the batch list is empty
+/// (sensor returned 0 rows). When that happens, the table is not in the DataFusion
+/// catalog. This function returns `Ok(())` in that case: zero rows means no data to
+/// type-check. This is not a bypass — a query against an unregistered table will fail
+/// at DataFusion execution time with a normal "table not found" error.
+///
+/// This behavior is locked by `test_check_ci_column_types_unregistered_table_ok` in
+/// the inline test module below. Any regression to fail-closed on the None path
+/// would break queries against sources that return 0 rows (F-P16-OBS-002).
 ///
 /// Extracted to eliminate the copy-paste duplication between the Filter arm
-/// (which iterates over multiple `table_names`) and the Pipe arm (single `source_table`).
-/// Callers call this function once per candidate table; the Filter arm uses an early-return
-/// loop, the Pipe arm calls it once.
+/// (which iterates over multiple `table_names`) and the Pipe/SqlPipe arms (single
+/// `source_table`). Callers call this function once per candidate table; the Filter
+/// arm uses an early-return loop, the Pipe/SqlPipe arms call it once.
 /// (OBS-3; BC-2.11.024 AC-022)
 async fn check_ci_column_types(
     session_ctx: &datafusion::execution::context::SessionContext,
@@ -2281,10 +2293,16 @@ async fn check_ci_column_types(
     if ci_fields.is_empty() {
         return Ok(());
     }
+    // DataFusion always provides a "datafusion"/"public" catalog/schema pair for a
+    // properly-constructed SessionContext. If somehow missing, skip the type check —
+    // DataFusion execution itself will fail with a catalog error shortly after.
     if let Some(public_schema) = session_ctx
         .catalog("datafusion")
         .and_then(|cat| cat.schema("public"))
     {
+        // Table may be absent from the catalog when `register_mem_table` skipped it
+        // due to an empty batch list (sensor returned 0 rows). That is an intentional
+        // skip — see doc comment above. `Ok(Some(tp))` is the only path that type-checks.
         if let Ok(Some(tp)) = public_schema.table(table_name).await {
             let arrow_schema = tp.schema();
             for (col_name, operator) in ci_fields {
@@ -5722,5 +5740,59 @@ mod temporal_walker_unit_tests {
                 "F-HIGH-1: value_prefix must contain the raw literal substring; got: {value_prefix:?}"
             );
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests — check_ci_column_types guard tests (F-P16-OBS-002)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod check_ci_column_types_guard_tests {
+    //! Guard tests locking the intentional behavior of `check_ci_column_types`:
+    //!
+    //! 1. An unregistered table (sensor returned 0 rows; MemTable skipped) → `Ok(())`
+    //! 2. Empty `ci_fields` slice → `Ok(())` (early-return fast path)
+    //!
+    //! These lock the "skip on unregistered table" design documented in the function's
+    //! doc comment. A regression to fail-closed would break queries against sources
+    //! that return 0 rows. (F-P16-OBS-002, LOCAL-pass-16)
+
+    use crate::memory::build_session_context;
+
+    use super::check_ci_column_types;
+
+    /// F-P16-OBS-002 guard: calling `check_ci_column_types` with CI fields against a
+    /// table that is NOT registered in the DataFusion catalog must return `Ok(())`.
+    ///
+    /// This mirrors the production path when a sensor returns 0 rows and
+    /// `register_mem_table` skips registration for the empty batch list.
+    #[tokio::test]
+    async fn test_check_ci_column_types_unregistered_table_ok() {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+        // "crowdstrike_detections" is NOT registered — this models the 0-rows case.
+        let ci_fields = vec![
+            ("severity".to_string(), "IEQ".to_string()),
+            ("status".to_string(), "IIN".to_string()),
+        ];
+        let result = check_ci_column_types(&ctx, "crowdstrike_detections", &ci_fields).await;
+        assert!(
+            result.is_ok(),
+            "F-P16-OBS-002: unregistered table must return Ok(()); got: {result:?}"
+        );
+    }
+
+    /// F-P16-OBS-002 guard: empty `ci_fields` always returns `Ok(())` regardless of
+    /// whether the table is registered (early-return fast path).
+    #[tokio::test]
+    async fn test_check_ci_column_types_empty_fields_ok() {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+        let result = check_ci_column_types(&ctx, "any_table", &[]).await;
+        assert!(
+            result.is_ok(),
+            "F-P16-OBS-002: empty ci_fields must return Ok(()); got: {result:?}"
+        );
     }
 }
