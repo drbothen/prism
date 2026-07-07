@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.11"
+version: "1.13"
 updated: "2026-07-07"
 status: draft
 producer: story-writer
@@ -34,7 +34,7 @@ subsystems: [SS-11, SS-02]
 #   and the normalization pipeline that populates OCSF enum-label string fields before
 #   DynamicMessage creation. The adapter-boundary fix is the parallel track that ensures
 #   stored data is consistently cased so case-sensitive = works correctly across sensors.
-crates_touched: [prism-query, prism-ocsf, prism-mcp, prism-bin]
+crates_touched: [prism-query, prism-ocsf, prism-mcp, prism-bin, prism-core]
 depends_on:
   - S-DEMO-FIDELITY-REMEDIATION-001
   # Dependency anchor: S-DEMO-FIDELITY-REMEDIATION-001 is MERGED on develop@ea714d14.
@@ -110,7 +110,7 @@ risk_mitigations:
      passes through the parsed operator string, it will emit lowercase if the query was
      written lowercase. The normalizer must use canonical uppercase operator names."
 traces_to: [ADR-047]
-red_gate_tests: 42
+red_gate_tests: 45
 estimated_days: "3"
 ---
 
@@ -311,6 +311,7 @@ The `case_insensitive: true` branch wraps BOTH sides: `lower({expr_to_sql(lhs)})
 The `ILIKE` function is NOT used — it is a pattern operator (ADR-047 §Alternatives Alt-2).
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_emits_lower_equals_lower`
+Red Gate (RG-045 / pass-9): `test_BC_2_11_024_ieq_predicate_excluded_from_equality_pushdown` — `crates/prism-query/src/pushdown.rs` (inline test module) — BC-2.11.024 invariant guard: IEQ predicates excluded from case-sensitive equality push-down (pass-9 F-P9-LOW-1)
 
 ### AC-009 — INE lowers to `lower(field) != lower('val')`
 (traces to BC-2.11.024 v1.2 postcondition "DataFusion SQL lowering" table — INE row:
@@ -532,6 +533,7 @@ GROUP BY fragmentation (ADR-047 §Consequences positive: "GROUP BY severity prod
 aggregation across sensors").
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_group_by_severity_no_case_fragmentation`
+Red Gate (RG-044 / pass-9): `test_BC_2_02_013_triage_alerts_prompt_no_stale_vendor_casing` — `crates/prism-mcp/tests/bc_2_02_013_prompt_casing_test.rs` — triage prompt armis leg uses IIN ('High','Critical'); `status = 'UNHANDLED'` intentionally retained (vendor value not in OCSF status map, passes through unnormalized; adjudicated pass-9)
 
 ### AC-020 — E-QUERY-001: IEQ/INE with non-string literal RHS rejected at parse time
 (traces to BC-2.11.024 v1.2 error case: "E-QUERY-001: IEQ/INE with a non-string literal
@@ -634,6 +636,7 @@ NOTE: The implementer must locate the grammar resource generation code and add t
 new operators. The ADR-045 parity gate is a CI check — the PR must not break it.
 
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_grammar_resource_includes_ieq_iin_ine`
+Red Gate (RG-043 / pass-9): `test_BC_2_11_024_reference_content_no_stale_vendor_cased_enum_examples` — `crates/prism-mcp/tests/reference_content.rs` — no vendor-cased enum-equality examples in prismql://reference (post-normalization 0-row guard; pass-9 F-P9-MED-2)
 
 ### AC-025 — prism describe output includes IEQ example with OCSF casing note
 (traces to ADR-047 §D.4: "The prism describe / tool-schema pedagogical examples (ADR-041
@@ -771,11 +774,19 @@ commit 26325423).
 | RG-041 | `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_sqlpipe_pipe_stage_e_query_002` | `crates/prism-query/src/tests/test_case_insensitive_operators.rs` | AC-022 | SqlPipe pipe-stage `\| where severity_id IEQ 'high'` on Int64 column → E-QUERY-002 with operator IEQ + suggested_column 'severity' (Filter/Pipe/SqlPipe all guarded) |
 | RG-042 | `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_integer_column_sqlpipe_pipe_stage_e_query_002` | `crates/prism-query/src/tests/test_case_insensitive_operators.rs` | AC-022 | IIN sibling on the same path — `\| where severity_id IIN ('high', 'critical')` on Int64 column → E-QUERY-002 |
 
-RG-028 through RG-042 names are authoritative per verified ground truth.
+**Pass-9 new tests (reference-content casing, triage-prompt casing, IEQ pushdown-exclusion):**
 
-**Total Red Gate tests: 42 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe)**
+| RG ID | Test Function Name | Location | AC | Assertion |
+|-------|--------------------|----------|----|-----------|
+| RG-043 | `test_BC_2_11_024_reference_content_no_stale_vendor_cased_enum_examples` | `crates/prism-mcp/tests/reference_content.rs` | AC-024 | prismql://reference content has no vendor-cased enum-equality examples post-normalization (0-row guard; pass-9 F-P9-MED-2) |
+| RG-044 | `test_BC_2_02_013_triage_alerts_prompt_no_stale_vendor_casing` | `crates/prism-mcp/tests/bc_2_02_013_prompt_casing_test.rs` | AC-019 | triage prompt armis leg uses IIN ('High','Critical'); `status = 'UNHANDLED'` intentionally retained (vendor value passes through unnormalized per pass-9 adjudication) |
+| RG-045 | `test_BC_2_11_024_ieq_predicate_excluded_from_equality_pushdown` | `crates/prism-query/src/pushdown.rs` (inline test module) | BC-2.11.024 invariant guard | IEQ predicates excluded from case-sensitive equality push-down (pass-9 F-P9-LOW-1) |
 
-The story frontmatter records `red_gate_tests: 42`. RG-026/RG-027 discoverability tests may be
+RG-028 through RG-045 names are authoritative per verified ground truth.
+
+**Total Red Gate tests: 45 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9)**
+
+The story frontmatter records `red_gate_tests: 45`. RG-026/RG-027 discoverability tests may be
 snapshot or integration tests; include them if they can be written as failing stubs, otherwise
 verify the parity gate via `just check`. RG-028 is the authoritative describe test. RG-032
 through RG-036 are the PRIMARY build_column_array tests in prism-bin.
@@ -842,6 +853,7 @@ through RG-036 are the PRIMARY build_column_array tests in prism-bin.
 | `crates/prism-ocsf/src/normalizer.rs` and/or `crates/prism-ocsf/src/mappers/spec_driven.rs` | SECONDARY insertion point: add the canonical-case rewrite for the `OcsfNormalizer::normalize_with_mappers` DynamicMessage path (protobuf/future). Same contract as PRIMARY — both insertion sites must satisfy BC-2.02.013 v1.4 independently. |
 | `crates/prism-spec-engine/src/` | REMOVED from `crates_touched` (pass-5 adversary OBS + story note resolved): zero `DynamicMessage` references confirmed; no spec-engine changes required for OCSF normalization. SAP-2 DTU fixture parity may still require a touch (DTU generator files), but that is in the DTU crates, not prism-spec-engine itself. |
 | `crates/prism-mcp/src/resources.rs` (or equiv.) | Add IEQ/IIN/INE to grammar reference resource operator table; add OCSF casing note to prism describe examples |
+| `crates/prism-core/src/error.rs` | Add `SuggestedSuffix` helper + `suggested_column: Option<&'static str>` field to `PrismError::QueryTypeMismatch`; update Display impl to emit the "for label comparison, use the string column '...' with IEQ/IIN/INE instead" suffix when `suggested_column` is `Some`. Required by AC-022 E-QUERY-002 contract; RG-029/030 test this file directly. |
 | DTU fixture generators (prism-dtu-*/src/generator.rs or types.rs) | Update any test assertions or fixture values that assert pre-normalization UPPER-case severity/status strings to use canonical Title-case. Per SAP-2, adversary will verify TOML column parity with DTU types.rs |
 
 ### Files to CREATE:
@@ -850,6 +862,7 @@ through RG-036 are the PRIMARY build_column_array tests in prism-bin.
 |------|---------|
 | `crates/prism-query/src/tests/test_case_insensitive_operators.rs` (or equivalent test module) | Red Gate test file for RG-001 through RG-018, RG-023 |
 | `crates/prism-ocsf/src/tests/test_adapter_normalization.rs` (or equivalent) | Red Gate tests RG-019, RG-020, RG-021 for adapter normalization |
+| `crates/prism-core/tests/bc_2_11_024_query_type_mismatch_display.rs` | Red Gate tests RG-029 (`test_BC_2_11_024_query_type_mismatch_display_with_suggestion_exact`) and RG-030 (`test_BC_2_11_024_query_type_mismatch_display_without_suggestion_exact`) — byte-exact POL-24 Display assertions for `PrismError::QueryTypeMismatch` WITH suggested_column (sub-form b1) and WITHOUT (sub-form b2); referenced by AC-022 and cited in the pass-5 RG inventory rows. |
 
 NOTE: The implementer must verify the exact test file locations by reading the existing test
 organization in prism-query and prism-ocsf before creating new files.
@@ -1270,7 +1283,7 @@ E (Adapter normalization) is parallel to A-D.
     just iter prism-mcp         # describe authoritative test (RG-028)
     just check                  # full workspace pre-push gate
     ```
-    All 42 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe).
+    All 45 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9).
     All existing tests must continue to pass (especially existing =, != filter tests — regression
     guard for AC-011/AC-013).
 
@@ -1472,3 +1485,5 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 | v1.9 | 2026-07-07 | pass-7 fix-burst: BC-2.11.024 v1.2 DML mode-boundary extension — AC-023 extended to cover DELETE/UPDATE WHERE + INSERT…SELECT; `parse_sql_dml_with_limits` guard requirement + code-comment obligation added to Task 14b; 2 new Red Gate tests RG-037/RG-038 added; AC-018 50-codepoint cap contract language added (BC-2.02.013 v1.4 / BC-2.16.002 v2.01); AC-025 no-suppression clause added (F-MED-1 anchor); all version pins bumped: BC-2.11.024 v1.1→v1.2, BC-2.02.013 v1.3→v1.4, BC-2.16.002 v2.01 introduced at new AC-018 cite; red_gate_tests 36→38 |
 | v1.10 | 2026-07-07 | RG-039 (DML INSERT INE) + RG-040 (F-MED-1 suppression guard) rows added; AC-023 + AC-025 Red Gate citation lists updated; red_gate_tests 38→40 |
 | v1.11 | 2026-07-07 | pass-8: RG-041/042 SqlPipe E-QUERY-002 rows added (AC-022 Red Gate citations + pass-8 inventory section); red_gate_tests 40→42; count strings updated "40 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7)" → "42 (... + 2 pass-8 SqlPipe)" in inventory summary and Task 28; TD-VSDD-091 unversioned-pin sweep noted in Architecture Compliance Rule 9 (pass-8 F-LOW-1, 182 sites) |
+| v1.12 | 2026-07-07 | pass-9 F-P9-MED-1: prism-core added to crates_touched (error.rs QueryTypeMismatch.suggested_column + SuggestedSuffix helper + RG-029/030 test file); File Structure Requirements rows added — crates/prism-core/src/error.rs (MODIFY) + crates/prism-core/tests/bc_2_11_024_query_type_mismatch_display.rs (CREATE) |
+| v1.13 | 2026-07-07 | pass-9: RG-043/044/045 added (reference-content casing, triage-prompt casing, IEQ pushdown-exclusion); red_gate_tests 42→45; RG-028 through RG-045 authoritative |
