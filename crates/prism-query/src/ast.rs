@@ -2152,6 +2152,13 @@ impl PqlNormalizer {
                 // S-PRISMQL-CASE-INSENSITIVE-001: case-insensitive IIN operator emits
                 // uppercase canonical "IIN" in normalized_pql (BC-2.11.024, BC-2.11.018 v1.3).
                 if *case_insensitive {
+                    // IIN grammar is positive-only; negated+case_insensitive is not parser-
+                    // producible (BC-2.11.024 §AC-023). Guard against direct AST construction.
+                    debug_assert!(
+                        !negated,
+                        "normalize_predicate: negated=true with case_insensitive=true is \
+                         not a parser-producible In combination; IIN grammar is positive-only"
+                    );
                     let vals: Vec<String> = values
                         .iter()
                         .map(Self::normalize_literal_dispatch)

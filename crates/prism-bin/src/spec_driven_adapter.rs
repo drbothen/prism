@@ -34,7 +34,13 @@
 //! BCs: BC-2.01.013, BC-2.11.005, BC-2.06.014, BC-2.22.001
 //! Story: S-DEMO-001 v1.3; ADV-SDEMO002-P01-CRIT-001 fix
 
-use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    future::Future,
+    pin::Pin,
+    sync::{Arc, OnceLock},
+    time::Duration,
+};
 
 use serde_json::Value as JsonValue;
 
@@ -48,7 +54,7 @@ use arrow::{
 };
 use async_trait::async_trait;
 use prism_core::{ColumnType, OrgId, SensorId};
-use prism_ocsf::EventClassSelector;
+use prism_ocsf::{EventClassSelector, OcsfEnumMap};
 use prism_sensors::{
     BearerStaticSensorAuth, SensorAdapter,
     adapter::{QueryParams, SensorError, SensorSpec},
@@ -895,6 +901,28 @@ fn column_type_to_arrow(col_type: &ColumnType) -> DataType {
     }
 }
 
+// ---------------------------------------------------------------------------
+// F-CRIT-002 / BC-2.02.013 v1.3 — OCSF enum-label normalization in build_column_array
+// ---------------------------------------------------------------------------
+
+/// OCSF string-label fields that undergo enum-label normalization at the Arrow
+/// materialization boundary (BC-2.02.013 v1.3 F-CRIT-002 / ADR-047 §D.4).
+///
+/// These four fields have companion `_id` fields in the OCSF schema and their
+/// string values are canonically Title-case in OCSF (e.g., severity → "High").
+/// Sensor APIs may emit any case variant ("HIGH", "high", "High"); normalization
+/// ensures downstream PQL equality predicates (`=`) see the canonical form.
+///
+/// Mirrors `OCSF_ENUM_LABEL_FIELDS` in `prism_ocsf::normalizer` (not re-exported).
+const OCSF_ENUM_LABEL_FIELDS: &[&str] = &["severity", "status", "activity_name", "disposition"];
+
+/// Process-wide lazy singleton for OCSF enum-label normalization.
+///
+/// `OcsfEnumMap::new()` is expensive (builds the full caption-to-id reverse index).
+/// We initialize it at most once per process and amortize the cost across all
+/// `build_column_array` calls for OCSF-labeled string columns.
+static OCSF_ENUM_MAP: OnceLock<OcsfEnumMap> = OnceLock::new();
+
 /// Build an Arrow array for a single column across all records.
 ///
 /// ENRICH-1: dispatches on `col.source_path`:
@@ -1052,9 +1080,74 @@ fn build_column_array(
                 .collect();
             Arc::new(TimestampMicrosecondArray::from(vals).with_timezone("UTC"))
         }
-        // String / Json / future variants → Utf8
+        // String → Utf8 with OCSF enum-label normalization for the four labeled fields.
+        //
+        // F-CRIT-002 / BC-2.02.013 v1.3: columns named in OCSF_ENUM_LABEL_FIELDS have their
+        // string values normalized to OCSF canonical Title-case via OcsfEnumMap before Arrow
+        // materialization. Unrecognized values pass through as-received with a structured warn.
+        // Non-OCSF-labeled String columns pass through unchanged (same as the _ arm below).
+        ColumnType::String => {
+            let is_ocsf_enum_field = OCSF_ENUM_LABEL_FIELDS.contains(&col.name.as_str());
+            let ocsf_map: Option<&OcsfEnumMap> = if is_ocsf_enum_field {
+                Some(OCSF_ENUM_MAP.get_or_init(OcsfEnumMap::new))
+            } else {
+                None
+            };
+
+            let vals: Vec<Option<String>> = records
+                .iter()
+                .map(|r| {
+                    let raw = extract_raw(r, col)?;
+                    match raw {
+                        serde_json::Value::Null => None,
+                        serde_json::Value::String(s) => {
+                            if let Some(map) = ocsf_map {
+                                match map.normalize_enum_label(&col.name, &s) {
+                                    Some(canonical) => Some(canonical.to_string()),
+                                    None => {
+                                        // SEC-002 pattern: cap value at 50 codepoints to bound
+                                        // log volume for adversarially long vendor strings.
+                                        tracing::warn!(
+                                            event_type = "ocsf.enum_label_unrecognized",
+                                            column = %col.name,
+                                            value = %s.chars().take(50).collect::<String>(),
+                                            "build_column_array: OCSF enum-label value not \
+                                             recognized; emitting as-received \
+                                             (BC-2.02.013 v1.3 F-CRIT-002)"
+                                        );
+                                        Some(s)
+                                    }
+                                }
+                            } else {
+                                Some(s)
+                            }
+                        }
+                        serde_json::Value::Array(arr) => {
+                            // Wildcard result: serialize to compact JSON-list string.
+                            // ENRICH-1 Design Decision 2: JSON-list string in string column.
+                            let strings: Vec<String> = arr
+                                .into_iter()
+                                .map(|v| match v {
+                                    serde_json::Value::String(s) => s,
+                                    other => other.to_string(),
+                                })
+                                .collect();
+                            Some(
+                                serde_json::to_string(&strings)
+                                    .unwrap_or_else(|_| "[]".to_string()),
+                            )
+                        }
+                        other => Some(other.to_string()),
+                    }
+                })
+                .collect();
+            Arc::new(StringArray::from(
+                vals.iter().map(|s| s.as_deref()).collect::<Vec<_>>(),
+            ))
+        }
+        // Json / future variants → Utf8 (no OCSF enum-label normalization; Json values
+        // are serialized as their compact string representation).
         // Wildcard source_path (`[*]`) arrays are serialized to a compact JSON-list string.
-        // Json column values are serialized as their compact string representation.
         _ => {
             let vals: Vec<Option<String>> = records
                 .iter()

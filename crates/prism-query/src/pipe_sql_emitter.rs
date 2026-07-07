@@ -624,6 +624,16 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
             // S-PRISMQL-CASE-INSENSITIVE-001: IIN operators lower via
             // `lower(field) IN (lower('v1'), ...)` DataFusion SQL pattern (BC-2.11.024).
             if *case_insensitive {
+                // IIN is a parser-producible positive-only operator (grammar has no NIIN form).
+                // A negated+case_insensitive In predicate cannot be produced by the parser
+                // (BC-2.11.024 §AC-023); guard against direct AST construction.
+                if *negated {
+                    return Err(PrismError::QueryPlanFailed {
+                        detail: "negated + case_insensitive is not a parser-producible IN \
+                                 combination; IIN grammar is positive-only"
+                            .to_string(),
+                    });
+                }
                 if values.is_empty() {
                     return Err(PrismError::QueryPlanFailed {
                         detail: "IIN requires at least one value in the membership list"

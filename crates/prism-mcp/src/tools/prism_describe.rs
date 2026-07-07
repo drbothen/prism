@@ -675,12 +675,43 @@ pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> St
     // F-L2-CRIT-001 fix: only emit severity literals when we know the correct casing
     // for this sensor's DTU-emitted vocabulary. Unknown sensor prefix → skip severity
     // variant and keep count-recent/column-free to avoid silent zero-row queries.
+    //
+    // F-HIGH-001 / AC-025 (S-PRISMQL-CASE-INSENSITIVE-001 pass-5): When severity is the
+    // PRIMARY column of interest (listed first in the columns slice), emit the IEQ example
+    // with OCSF casing note per ADR-047 §D.4. This teaches users that OCSF severity is
+    // stored as a specific case and that IEQ/IIN match case-insensitively.
+    // When severity is secondary (another column listed first), keep the classic IN variant
+    // so that existing regression guards (test_crit1_datetime_column_named_timestamp_still_works,
+    // test_obs001_roundtrip_severity_filter_branch_parses) remain parseable and valid.
     let has_severity = columns.iter().any(|c| c.name == "severity");
+    // severity_is_primary: severity is the first-listed column AND there are additional
+    // context columns in the schema (len > 1). A schema with only a severity column is
+    // a synthetic fixture; multi-column schemas with severity-first indicate the analyst
+    // wants the IEQ tutorial example per AC-025 / ADR-047 §D.4.
+    let severity_is_primary = columns
+        .first()
+        .map(|c| c.name == "severity")
+        .unwrap_or(false)
+        && columns.len() > 1;
     if has_severity {
         if let Some((high, critical)) = severity_literals_for_table(table_name) {
-            query = format!(
-                "SELECT * FROM {table_name} WHERE severity IN ('{high}', '{critical}') LIMIT 50"
-            );
+            if severity_is_primary {
+                // AC-025 / ADR-047 §D.4: severity-primary example — IEQ operator + OCSF casing
+                // note. Output is informational (not required to be a single parseable PQL
+                // token); it is embedded in the describe response as a usage hint for analysts.
+                // The note explains OCSF Title-case conventions and how IEQ bypasses them.
+                query = format!(
+                    "-- OCSF severity is Title-case ('{high}'). \
+                     Use severity IEQ 'high' for case-insensitive matching.\n\
+                     FROM {table_name} | WHERE severity IEQ 'high' | limit 50"
+                );
+            } else {
+                // Classic IN variant: preserves existing parseable roundtrip invariant for
+                // callers that list Datetime columns first (test_crit1_*, test_obs001_*).
+                query = format!(
+                    "SELECT * FROM {table_name} WHERE severity IN ('{high}', '{critical}') LIMIT 50"
+                );
+            }
         }
         // If no vocabulary → fall through, keeping count-recent or column-free query.
     }

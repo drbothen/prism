@@ -883,7 +883,7 @@ pub enum PrismError {
     /// Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.017; error-taxonomy.md E-QUERY-002.
     #[error(
         "E-QUERY-002: type mismatch — column '{column}' in table '{table}' has type \
-         '{actual_type:?}' which does not support operator '{operator}{}",
+         '{actual_type:?}' which does not support operator '{operator}'{}",
         SuggestedSuffix(suggested_column)
     )]
     QueryTypeMismatch {
