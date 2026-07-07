@@ -294,3 +294,195 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_
          captured event_types: {warns:?}"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-P1-ACTIVITY-NOOP: BC-2.02.013 v1.2 — activity_name normalization (new)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Stub mapper for activity_name normalization tests.
+///
+/// Transfers `"activity_name"` from the raw JSON into the DynamicMessage field of
+/// the same name. This simulates a sensor adapter that emits a raw non-canonical
+/// activity label string (e.g., "create" all-lowercase) into the OCSF message
+/// before the normalization step runs.
+struct ActivityNameStubMapper;
+
+impl SensorMapper for ActivityNameStubMapper {
+    fn sensor_id(&self) -> &'static str {
+        "crowdstrike"
+    }
+
+    fn record_types(&self) -> &'static [&'static str] {
+        &["detection"]
+    }
+
+    fn map(
+        &self,
+        _record_type: &str,
+        raw: &Value,
+        msg: &mut DynamicMessage,
+        _extensions: &mut Map<String, Value>,
+    ) -> Result<String, PrismError> {
+        if let Some(s) = raw.get("activity_name").and_then(|v| v.as_str()) {
+            if msg
+                .descriptor()
+                .get_field_by_name("activity_name")
+                .is_some()
+            {
+                msg.set_field_by_name("activity_name", ProtoValue::String(s.to_owned()));
+            }
+        }
+        Ok("stub-source-id".to_owned())
+    }
+}
+
+/// F-P1-ACTIVITY-NOOP: `normalize_with_mappers("crowdstrike", "detection", {"activity_name":"create"})`
+/// must return a DynamicMessage where `activity_name` = `"Create"`.
+///
+/// BC-2.02.013 v1.2 expanded the in-scope fields to include `activity_name` (NOT `activity`).
+/// The current `OCSF_ENUM_LABEL_FIELDS` constant in `normalizer.rs` uses `"activity"` —
+/// a string that `msg.descriptor().get_field_by_name("activity")` returns `None` for,
+/// because the real OCSF proto field is `activity_name`. As a result, the normalization
+/// loop skips activity entirely — `"create"` is never rewritten to `"Create"`.
+///
+/// Additionally, even if the field name were corrected to `"activity_name"`, the enum map
+/// key derivation in `OcsfEnumMap::normalize_enum_label` appends `_id`:
+/// `"activity_name" + "_id" = "activity_name_id"`, but the OCSF map contains entries
+/// keyed on `"activity_id"`, not `"activity_name_id"`. This requires a special mapping.
+///
+/// Red Gate: FAILS for two cascaded reasons at HEAD face9b91:
+///   (1) `OCSF_ENUM_LABEL_FIELDS` uses `"activity"` (wrong field name) →
+///       normalization loop calls `get_field_by_name("activity")` → returns `None` →
+///       entire field skipped → `activity_name` remains `"create"` untouched →
+///       `assert_eq!("Create")` fails.
+///   (2) Even after correcting (1), `normalize_enum_label("activity_name", "create")`
+///       derives key `"activity_name_id"` which has no entries → returns `None` →
+///       no normalization → `assert_eq!("Create")` would still fail.
+///
+/// Green Gate: PASSES once:
+///   - `OCSF_ENUM_LABEL_FIELDS` is corrected to `"activity_name"` (or the loop handles it)
+///   - `normalize_enum_label` (or a special `activity_name` → `activity_id` key mapping)
+///     maps `"create"` to `"Create"` via `activity_id` entries.
+///
+/// SID-1 compliance: in-process unit test; no external dependencies; no `#[ignore]`.
+///
+/// Traces to: BC-2.02.013 v1.2 postconditions "activity_name (guaranteed)";
+/// F-P1-ACTIVITY-NOOP (adversary finding, LOCAL pass-2).
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_activity_name_lowercase_to_title_case()
+{
+    let normalizer = OcsfNormalizer::with_mappers(vec![Box::new(ActivityNameStubMapper)]);
+    let raw = json!({"activity_name": "create"});
+
+    let (msg, _) = normalizer
+        .normalize_with_mappers("crowdstrike", "detection", raw)
+        .expect(
+            "F-P1-ACTIVITY-NOOP: normalize_with_mappers must not return Err \
+             (OcsfDescriptorNotFound means ocsf-proto-gen is not installed; \
+              this test requires the OCSF descriptor pool to be populated)",
+        );
+
+    // BC-2.02.013 v1.2: activity_name must be normalized to canonical OCSF Title-case.
+    //
+    // Currently FAILS: OCSF_ENUM_LABEL_FIELDS has "activity" (wrong), so
+    // `get_field_by_name("activity")` returns None, loop skips the field,
+    // activity_name remains "create" (raw value), not "Create".
+    let activity_name_val = extract_string_field(&msg, "activity_name");
+    assert_eq!(
+        activity_name_val, "Create",
+        "F-P1-ACTIVITY-NOOP: activity_name='create' must normalize to 'Create' via \
+         normalize_with_mappers (BC-2.02.013 v1.2 activity_name in-scope); \
+         OCSF_ENUM_LABEL_FIELDS uses 'activity' (wrong field name — the OCSF proto \
+         field is 'activity_name') and normalize_enum_label key derivation produces \
+         'activity_name_id' rather than 'activity_id'; both must be fixed; got: {activity_name_val:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-P1-ACTIVITY-DISP-TEST-GAP: BC-2.02.013 v1.2 — disposition normalization guard
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Stub mapper for disposition normalization tests.
+///
+/// Transfers `"disposition"` from the raw JSON into the DynamicMessage field of
+/// the same name. This simulates a sensor adapter emitting a raw non-canonical
+/// disposition label (e.g., "blocked" all-lowercase) before normalization runs.
+struct DispositionStubMapper;
+
+impl SensorMapper for DispositionStubMapper {
+    fn sensor_id(&self) -> &'static str {
+        "crowdstrike"
+    }
+
+    fn record_types(&self) -> &'static [&'static str] {
+        &["detection"]
+    }
+
+    fn map(
+        &self,
+        _record_type: &str,
+        raw: &Value,
+        msg: &mut DynamicMessage,
+        _extensions: &mut Map<String, Value>,
+    ) -> Result<String, PrismError> {
+        if let Some(s) = raw.get("disposition").and_then(|v| v.as_str()) {
+            if msg.descriptor().get_field_by_name("disposition").is_some() {
+                msg.set_field_by_name("disposition", ProtoValue::String(s.to_owned()));
+            }
+        }
+        Ok("stub-source-id".to_owned())
+    }
+}
+
+/// F-P1-ACTIVITY-DISP-TEST-GAP: `normalize_with_mappers("crowdstrike", "detection",
+/// {"disposition":"blocked"})` must return a DynamicMessage where `disposition` = `"Blocked"`.
+///
+/// `"disposition"` IS correctly listed in `OCSF_ENUM_LABEL_FIELDS` (unlike `"activity"`).
+/// `normalize_enum_label("disposition", "blocked")` derives key `"disposition_id"`, finds
+/// `("disposition_id", 2) → "Blocked"` and returns `Some("Blocked")`.
+///
+/// Red Gate: FAILS at HEAD face9b91 because `normalize_with_mappers` has ZERO normalization
+/// wired — it calls `mapper.map()` and returns immediately. The stub sets `disposition =
+/// "blocked"` on the DynamicMessage; without normalization it stays `"blocked"`, not `"Blocked"`.
+/// The `assert_eq!("Blocked")` fails.
+///
+/// Green Gate / Regression Guard: PASSES once the general normalization wiring from
+/// F-CRIT-001 (RG-019 green-gate fix) is applied. No additional fix is needed for
+/// disposition specifically — the field name and key derivation are already correct.
+/// This test therefore acts as a regression guard: if `"disposition"` is accidentally
+/// removed from `OCSF_ENUM_LABEL_FIELDS` or the `disposition_id` enum entries are
+/// dropped from `OcsfEnumMap`, this test will fail and catch the regression.
+///
+/// SID-1 compliance: in-process unit test; no external dependencies; no `#[ignore]`.
+///
+/// Traces to: BC-2.02.013 v1.2 postconditions "disposition (guaranteed)";
+/// F-P1-ACTIVITY-DISP-TEST-GAP (adversary finding, LOCAL pass-2).
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_disposition_lowercase_to_title_case() {
+    let normalizer = OcsfNormalizer::with_mappers(vec![Box::new(DispositionStubMapper)]);
+    let raw = json!({"disposition": "blocked"});
+
+    let (msg, _) = normalizer
+        .normalize_with_mappers("crowdstrike", "detection", raw)
+        .expect(
+            "F-P1-ACTIVITY-DISP-TEST-GAP: normalize_with_mappers must not return Err \
+             (OcsfDescriptorNotFound means ocsf-proto-gen is not installed; \
+              this test requires the OCSF descriptor pool to be populated)",
+        );
+
+    // BC-2.02.013 v1.2: disposition must be normalized to canonical OCSF Title-case.
+    //
+    // Currently FAILS: normalize_with_mappers has no normalization wired → disposition
+    // remains "blocked" (raw from stub mapper), not "Blocked".
+    // Passes GREEN once F-CRIT-001 normalization wiring lands (no additional fix needed
+    // for disposition — field name and key derivation are correct).
+    let disposition_val = extract_string_field(&msg, "disposition");
+    assert_eq!(
+        disposition_val, "Blocked",
+        "F-P1-ACTIVITY-DISP-TEST-GAP: disposition='blocked' must normalize to 'Blocked' via \
+         normalize_with_mappers (BC-2.02.013 v1.2 disposition in-scope); \
+         the field is correctly named in OCSF_ENUM_LABEL_FIELDS and OcsfEnumMap has \
+         disposition_id entries — this test fails only because normalize_with_mappers \
+         has no normalization wired yet; got: {disposition_val:?}"
+    );
+}

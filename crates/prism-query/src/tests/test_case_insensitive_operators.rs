@@ -1,11 +1,31 @@
 //! Red Gate tests for S-PRISMQL-CASE-INSENSITIVE-001.
 //!
-//! Covers RG-001 through RG-018, RG-022, RG-023, RG-024 (21 tests in this file).
+//! Covers RG-001 through RG-018, RG-022, RG-023, RG-024 plus LOCAL-pass-2 tests
+//! RG-018b, RG-018c, and F-P1-PIPE-TYPECHECK-GAP (24 tests in this file).
 //!
 //! Red Gate discipline (BC-5.38.001): every test body asserts REAL behavior derived
 //! from behavioral contracts and acceptance criteria. Tests fail before implementation
 //! because the grammar has no IEQ/IIN/INE keywords and `predicate_to_datafusion_sql` +
 //! `PqlNormalizer::normalize_predicate` have `todo!()` stubs for `case_insensitive: true`.
+//!
+//! ## LOCAL-pass-2 findings (tests added / strengthened in this burst)
+//!
+//! The adversary identified three additional gaps in the pass-1 implementation at
+//! HEAD face9b91:
+//!
+//! - **F-P1-OPERATOR-HARDCODE**: `execute_against_session` hardcodes `operator: "IEQ"`
+//!   in the `QueryTypeMismatch` error regardless of whether the actual operator was
+//!   INE or IIN. Tests RG-018 (strengthened) + RG-018b (INE) + RG-018c (IIN).
+//!
+//! - **AC-022 suggestion**: `PrismError::QueryTypeMismatch` has no `suggested_column`
+//!   field, so the Display string does not include the BC-2.11.024 suggestion text.
+//!   error-taxonomy v2.18 requires: `"; for label comparison, use the string column
+//!   '<sibling>' with IEQ/IIN/INE instead"`. All three RG-018 variants assert this.
+//!
+//! - **F-P1-PIPE-TYPECHECK-GAP**: the pre-flight CI type check only exists in
+//!   `execute_against_session::Ast::Filter`. The `Ast::Pipe` arm has no check and
+//!   falls through to DataFusion, producing generic E-QUERY-034 instead of E-QUERY-002.
+//!   Test `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_pipe_mode_e_query_002`.
 //!
 //! Behavioral contracts traced:
 //!   BC-2.11.024 v1.0 — PrismQL IEQ/IIN/INE case-insensitive operators
@@ -850,6 +870,22 @@ async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_e_query_002() {
         "RG-018: E-QUERY-002 must suggest the corresponding string column 'severity'; \
          got: {err_str:?}"
     );
+    // (4) error-taxonomy v2.18 AC-022 suggestion text:
+    // PrismError::QueryTypeMismatch needs `suggested_column: Option<String>` and the
+    // Display (b1 variant, when Some) must append:
+    // "; for label comparison, use the string column '<sibling>' with IEQ/IIN/INE instead"
+    //
+    // Currently FAILS — `QueryTypeMismatch` has no `suggested_column` field and the
+    // Display string ends after `'{operator}'` with no suggestion appended.
+    assert!(
+        err_str.contains(
+            "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+        ),
+        "RG-018: E-QUERY-002 Display must include suggestion per error-taxonomy v2.18: \
+         '...for label comparison, use the string column \\'severity\\' with IEQ/IIN/INE instead'; \
+         PrismError::QueryTypeMismatch is missing suggested_column: Option<String> \
+         and the Display does not append the suggestion; got: {err_str:?}"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -975,6 +1011,292 @@ async fn test_S_PRISMQL_CASE_INSENSITIVE_001_group_by_severity_no_case_fragmenta
         "RG-022: after pipeline normalization, GROUP BY severity must yield exactly 1 bucket \
          (all 5 rows as 'High'); got {total_buckets} bucket(s) \
          — normalize_with_mappers is not canonicalizing severity casing yet"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-018b: AC-022 operator fidelity — INE sibling
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-018b: `severity_id INE 'high'` on an Int64 column → E-QUERY-002 where
+/// `operator` = `"INE"` (NOT the hardcoded `"IEQ"` that pass-1 emits).
+/// Also asserts the suggestion text from error-taxonomy v2.18.
+///
+/// Red Gate: FAILS for two reasons at HEAD face9b91:
+///   (1) `operator` field hardcoded `"IEQ"` → `err_str.contains("INE")` fails.
+///   (2) `suggested_column` not in `QueryTypeMismatch` → suggestion text absent.
+///
+/// Green Gate: PASSES once the type-check gate correctly propagates the actual
+/// operator string and `QueryTypeMismatch.suggested_column` is wired.
+///
+/// Traces to: error-taxonomy v2.18 `suggested_column` + operator fidelity;
+/// BC-2.11.024 v1.0 AC-022; F-P1-OPERATOR-HARDCODE.
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ine_integer_column_e_query_002_ine_operator() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::{Int64Array, StringArray};
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Predicate: severity_id INE 'high' — CompareOp::Ne + case_insensitive: true
+    let pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity_id"]))),
+        op: CompareOp::Ne,
+        rhs: Box::new(Expr::Literal(Literal::String("high".to_owned()))),
+        case_insensitive: true,
+    };
+    let ast = Ast::Filter(FilterExpr {
+        source: SourceRef::from_raw(""),
+        predicate: pred,
+    });
+
+    // Schema has severity_id (Int64) + severity (String) so the type check can
+    // introspect and produce the "severity" string-column suggestion.
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("severity_id", DataType::Int64, true),
+        Field::new("severity", DataType::Utf8, true),
+    ]));
+    let severity_id_arr = Arc::new(Int64Array::from(vec![4i64])) as _;
+    let severity_arr = Arc::new(StringArray::from(vec!["High"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_id_arr, severity_arr])
+        .expect("RG-018b: batch must build");
+
+    let ctx = build_session_context(50 * 1024 * 1024).expect("RG-018b: context must build");
+    register_mem_table(&ctx, "detections", vec![batch]).expect("RG-018b: MemTable must register");
+
+    let result =
+        execute_against_session(&ctx, "severity_id INE 'high'", &ast, HashMap::new()).await;
+
+    let err = result
+        .expect_err("RG-018b: severity_id INE 'high' on Int64 must fail with E-QUERY-002; got Ok");
+    let err_str = err.to_string();
+
+    // (1) Must be E-QUERY-002
+    assert!(
+        err_str.contains("E-QUERY-002"),
+        "RG-018b: must produce E-QUERY-002 (QueryTypeMismatch) for INE on Int64; got: {err_str:?}"
+    );
+    // (2) Must name the offending column
+    assert!(
+        err_str.contains("severity_id"),
+        "RG-018b: E-QUERY-002 must name 'severity_id'; got: {err_str:?}"
+    );
+    // (3) Operator must be INE — not hardcoded IEQ.
+    // Currently FAILS: the type-check gate in execute_against_session::Ast::Filter
+    // hardcodes `operator: "IEQ"` regardless of the actual Compare op. The error
+    // reads `...operator 'IEQ'...` when it should read `...operator 'INE'...`.
+    assert!(
+        err_str.contains("INE"),
+        "RG-018b: E-QUERY-002 operator field must say 'INE' for an INE (Ne+case_insensitive) \
+         predicate, not the hardcoded 'IEQ'; got: {err_str:?}"
+    );
+    // (4) Suggestion text — error-taxonomy v2.18
+    // Currently FAILS: QueryTypeMismatch has no suggested_column field.
+    assert!(
+        err_str.contains(
+            "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+        ),
+        "RG-018b: E-QUERY-002 must include suggestion per error-taxonomy v2.18; got: {err_str:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-018c: AC-022 operator fidelity — IIN sibling
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-018c: `severity_id IIN ('high', 'critical')` on an Int64 column → E-QUERY-002
+/// where `operator` = `"IIN"` (NOT the hardcoded `"IEQ"`).
+/// Also asserts the suggestion text from error-taxonomy v2.18.
+///
+/// Red Gate: FAILS for two reasons at HEAD face9b91:
+///   (1) `operator` field hardcoded `"IEQ"` → `err_str.contains("IIN")` fails.
+///   (2) `suggested_column` not in `QueryTypeMismatch` → suggestion text absent.
+///
+/// Traces to: error-taxonomy v2.18 `suggested_column` + operator fidelity;
+/// BC-2.11.024 v1.0 AC-022; F-P1-OPERATOR-HARDCODE.
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_iin_integer_column_e_query_002_iin_operator() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::{Int64Array, StringArray};
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Predicate: severity_id IIN ('high', 'critical') — Predicate::In + case_insensitive: true
+    let pred = Predicate::In {
+        field: FieldPath::new(["severity_id"]),
+        values: vec![
+            Literal::String("high".to_owned()),
+            Literal::String("critical".to_owned()),
+        ],
+        negated: false,
+        case_insensitive: true,
+    };
+    let ast = Ast::Filter(FilterExpr {
+        source: SourceRef::from_raw(""),
+        predicate: pred,
+    });
+
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("severity_id", DataType::Int64, true),
+        Field::new("severity", DataType::Utf8, true),
+    ]));
+    let severity_id_arr = Arc::new(Int64Array::from(vec![4i64, 5i64])) as _;
+    let severity_arr = Arc::new(StringArray::from(vec!["High", "Critical"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_id_arr, severity_arr])
+        .expect("RG-018c: batch must build");
+
+    let ctx = build_session_context(50 * 1024 * 1024).expect("RG-018c: context must build");
+    register_mem_table(&ctx, "detections", vec![batch]).expect("RG-018c: MemTable must register");
+
+    let result = execute_against_session(
+        &ctx,
+        "severity_id IIN ('high', 'critical')",
+        &ast,
+        HashMap::new(),
+    )
+    .await;
+
+    let err = result.expect_err(
+        "RG-018c: severity_id IIN ('high','critical') on Int64 must fail with E-QUERY-002; got Ok",
+    );
+    let err_str = err.to_string();
+
+    // (1) Must be E-QUERY-002
+    assert!(
+        err_str.contains("E-QUERY-002"),
+        "RG-018c: must produce E-QUERY-002 (QueryTypeMismatch) for IIN on Int64; got: {err_str:?}"
+    );
+    // (2) Must name the offending column
+    assert!(
+        err_str.contains("severity_id"),
+        "RG-018c: E-QUERY-002 must name 'severity_id'; got: {err_str:?}"
+    );
+    // (3) Operator must be IIN — not hardcoded IEQ.
+    // Currently FAILS: hardcoded `operator: "IEQ"` in the QueryTypeMismatch construction.
+    assert!(
+        err_str.contains("IIN"),
+        "RG-018c: E-QUERY-002 operator field must say 'IIN' for an IIN (In+case_insensitive) \
+         predicate, not the hardcoded 'IEQ'; got: {err_str:?}"
+    );
+    // (4) Suggestion text — error-taxonomy v2.18
+    // Currently FAILS: QueryTypeMismatch has no suggested_column field.
+    assert!(
+        err_str.contains(
+            "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+        ),
+        "RG-018c: E-QUERY-002 must include suggestion per error-taxonomy v2.18; got: {err_str:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-P1-PIPE-TYPECHECK-GAP: pipe-mode IEQ on integer column → E-QUERY-002
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-P1-PIPE-TYPECHECK-GAP: `detections | where severity_id IEQ 'high'` against an
+/// Int64 `severity_id` column must return structured E-QUERY-002 (QueryTypeMismatch),
+/// NOT the generic E-QUERY-034 (QueryExecutionFailed).
+///
+/// The pre-flight CI type check exists ONLY in `execute_against_session::Ast::Filter`.
+/// The `Ast::Pipe` arm calls `pipe_to_executable_sql` then runs DataFusion SQL directly.
+/// DataFusion's `lower(severity_id)` on Int64 fails at planning time and gets mapped to
+/// `PrismError::QueryExecutionFailed` (E-QUERY-034), not `QueryTypeMismatch` (E-QUERY-002).
+///
+/// Red Gate: FAILS — the Ast::Pipe arm has no CI column-type pre-flight check.
+/// The error from `execute_against_session` is E-QUERY-034, not E-QUERY-002, so
+/// `err_str.contains("E-QUERY-002")` fails.
+///
+/// Green Gate: PASSES once the same CI type check from the Filter arm is also applied
+/// in the Pipe arm (and SqlPipe arm if applicable) before SQL lowering.
+///
+/// SID-1 compliance: this is an in-process unit test driving the production code path
+/// without any external dependencies. No #[ignore] needed — MemTable is fully in-memory.
+///
+/// Traces to: BC-2.11.024 v1.0 AC-022; BC-2.11.004 v1.13 (pipe | where);
+/// F-P1-PIPE-TYPECHECK-GAP (adversary finding, LOCAL pass-2).
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_pipe_mode_e_query_002() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::{Int64Array, StringArray};
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::ast::{PipeQuery, PipeStage};
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Construct Ast::Pipe directly (grammar does not yet have IEQ, so parser can't be used).
+    // This is the same pattern as RG-018 / RG-010 which construct Ast::Filter directly.
+    // The test exercises the execution-layer type check independently of the parser.
+    let pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity_id"]))),
+        op: CompareOp::Eq,
+        rhs: Box::new(Expr::Literal(Literal::String("high".to_owned()))),
+        case_insensitive: true,
+    };
+    let ast = Ast::Pipe(PipeQuery::new(
+        SourceRef::from_raw("detections"),
+        vec![PipeStage::Where(pred)],
+    ));
+
+    // Schema: severity_id (Int64) + severity (String), same as the filter-mode RG-018 test.
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("severity_id", DataType::Int64, true),
+        Field::new("severity", DataType::Utf8, true),
+    ]));
+    let severity_id_arr = Arc::new(Int64Array::from(vec![4i64, 2i64, 3i64])) as _;
+    let severity_arr = Arc::new(StringArray::from(vec!["High", "Low", "Medium"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_id_arr, severity_arr])
+        .expect("F-P1-PIPE-TYPECHECK-GAP: batch must build");
+
+    let ctx = build_session_context(50 * 1024 * 1024)
+        .expect("F-P1-PIPE-TYPECHECK-GAP: context must build");
+    register_mem_table(&ctx, "detections", vec![batch])
+        .expect("F-P1-PIPE-TYPECHECK-GAP: MemTable must register");
+
+    let result = execute_against_session(
+        &ctx,
+        "detections | where severity_id IEQ 'high'",
+        &ast,
+        HashMap::new(),
+    )
+    .await;
+
+    // Must return Err — a CI operator on Int64 is always invalid.
+    let err = result.expect_err(
+        "F-P1-PIPE-TYPECHECK-GAP: severity_id IEQ 'high' on Int64 in pipe mode must return Err",
+    );
+    let err_str = err.to_string();
+
+    // Must be structured E-QUERY-002 QueryTypeMismatch, NOT generic E-QUERY-034.
+    //
+    // Currently FAILS: the Ast::Pipe arm of execute_against_session has no CI type check.
+    // `pipe_to_executable_sql` emits `SELECT * FROM detections WHERE lower(severity_id) = lower('high')`.
+    // DataFusion rejects lower() on Int64 → PrismError::QueryExecutionFailed → E-QUERY-034.
+    // The assertion `contains("E-QUERY-002")` fails because the error says E-QUERY-034.
+    assert!(
+        err_str.contains("E-QUERY-002"),
+        "F-P1-PIPE-TYPECHECK-GAP: pipe mode must produce E-QUERY-002 (QueryTypeMismatch) \
+         for IEQ on an Int64 column, NOT the generic E-QUERY-034; \
+         the Ast::Pipe arm of execute_against_session is missing the CI column-type \
+         pre-flight check that exists in the Ast::Filter arm; got: {err_str:?}"
+    );
+    // Must name the offending column.
+    assert!(
+        err_str.contains("severity_id"),
+        "F-P1-PIPE-TYPECHECK-GAP: E-QUERY-002 must name the offending column 'severity_id'; \
+         got: {err_str:?}"
     );
 }
 
