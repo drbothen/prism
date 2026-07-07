@@ -944,7 +944,7 @@ pub(crate) fn build_predicate_parser<'a>(
         // so 'IIN' will not match kw("IN") (different length), but ordering is retained
         // as defensive practice per BC-2.11.002 IIN-before-IN discipline.
         //
-        // Empty list (BC-2.11.024 v1.0 error case "E-QUERY-001: IIN with empty membership list";
+        // Empty list (BC-2.11.024 error case "E-QUERY-001: IIN with empty membership list";
         // AC-021): use `.collect::<Vec<_>>()` (no `.at_least(1)`) so the delimited parser
         // accepts "()" without a Chumsky-level failure, then apply `try_map` at the
         // `delimited_by` level so the error span begins at '(' (e.g., position 13).
@@ -1072,7 +1072,7 @@ pub(crate) fn build_predicate_parser<'a>(
 
         // --- field IEQ 'value' — case-insensitive equality (S-PRISMQL-CASE-INSENSITIVE-001) ---
         // IEQ must appear before field_comparison in the atom choice.
-        // RHS must be a string literal (AC-010, BC-2.11.024 v1.0 error case "E-QUERY-001: IEQ/INE
+        // RHS must be a string literal (AC-010, BC-2.11.024 error case "E-QUERY-001: IEQ/INE
         // with non-string RHS").
         //
         // The try_map is placed at the LITERAL level (not the full-sequence level). This ensures

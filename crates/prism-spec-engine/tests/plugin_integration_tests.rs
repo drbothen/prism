@@ -1294,7 +1294,7 @@ fn test_F_PASS3_MED_002_HIGH_001_log_callback_schema_violation_and_unrecognized_
             "warn" => Ok(LogLevel::Warn),
             "error" => Ok(LogLevel::Error),
             _ => {
-                // Plugin log_level_unrecognized event (BC-2.16.002 v1.17 row 32)
+                // Plugin log_level_unrecognized event (BC-2.16.002 row 32)
                 // would be emitted here in production. Default to Info.
                 Ok(LogLevel::Info)
             }

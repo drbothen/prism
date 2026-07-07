@@ -902,7 +902,7 @@ pub enum PrismError {
         /// OCSF string sibling.
         ///
         /// The Display impl appends the suggestion suffix (error-taxonomy v2.19 §E-QUERY-002
-        /// AC-022; BC-2.11.024 v1.2) via the private `SuggestedSuffix` Display helper.
+        /// AC-022; BC-2.11.024) via the private `SuggestedSuffix` Display helper.
         suggested_column: Option<String>,
     },
 

@@ -674,7 +674,7 @@ fn test_bc_2_11_022_some_empty_registry_placeholder() {
 
 // ─── S-PRISMQL-CASE-INSENSITIVE-001: IEQ/IIN/INE discoverability gate ─────────
 
-/// AC-023 / BC-2.11.024 v1.0 — `build_reference_content(None)` must include
+/// AC-023 / BC-2.11.024 — `build_reference_content(None)` must include
 /// IEQ, INE, and IIN in the operators table (ADR-047 §D.4 discoverability).
 ///
 /// The note in RG-023/024 delegated this assertion to the implementer because

@@ -1385,6 +1385,34 @@ pub async fn execute_against_session(
         // mapper — preserving all BC-2.11.006 invariants.
         Ast::SqlPipe(spq) => {
             let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
+            // F-MED-1 (LOCAL pass-8): pre-flight CI column-type check for SqlPipe mode,
+            // mirroring the Ast::Filter and Ast::Pipe arms above. IEQ/INE/IIN on a
+            // non-string column in a SqlPipe `| where` stage must produce E-QUERY-002
+            // (QueryTypeMismatch), NOT E-QUERY-034 (generic DataFusion execution error).
+            // Without this check `sqlpipe_to_executable_sql` emits `lower(<int_col>)`,
+            // which DataFusion rejects at planning time — producing the wrong error code.
+            // (BC-2.11.024 AC-022; TD-VSDD-060 sibling-sweep: Filter/Pipe/SqlPipe guarded)
+            // Uses the shared `check_ci_column_types` helper (OBS-3).
+            {
+                // Collect CI predicates from all `| where` stages in the SqlPipe.
+                let all_ci_fields: Vec<(String, String)> = spq
+                    .stages
+                    .iter()
+                    .filter_map(|stage| {
+                        if let crate::ast::PipeStage::Where(pred) = stage {
+                            Some(collect_ci_compare_fields(pred))
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+                    .collect();
+
+                // Derive the source table name from the SqlPipe head's FROM clause.
+                // dot→underscore normalization matches how MemTables are registered.
+                let source_table = datafusion_table_name(&spq.head.from.source.raw);
+                check_ci_column_types(session_ctx, &source_table, &all_ci_fields).await?;
+            }
             // BC-2.11.021 / ADR-044 D4 / D-1333 Option A (plan-time pinning):
             // Compute the SqlPipe head SQL from the inject_now-ed AST (spq.head has
             // the folded Literal::Timestamp) rather than the raw query_str[..split].
@@ -2262,7 +2290,7 @@ async fn check_ci_column_types(
 }
 
 /// Maps an OCSF integer id column name to the corresponding string-label sibling column,
-/// per BC-2.02.013 v1.2 §Postconditions in-scope field table.
+/// per BC-2.02.013 §Postconditions in-scope field table.
 ///
 /// Returns `Some("severity")` for `"severity_id"`, etc. Returns `None` for all other columns.
 /// Used to populate `PrismError::QueryTypeMismatch { suggested_column }` with the string

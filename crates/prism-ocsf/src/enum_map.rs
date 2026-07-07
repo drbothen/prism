@@ -54,7 +54,7 @@ pub struct OcsfEnumMap {
 /// Standard OCSF fields follow the `{F}_id`→`{F}` pattern (e.g., `"severity"` → `"severity_id"`).
 /// The sole exception is `"activity_name"`, whose companion is `"activity_id"` (NOT
 /// `"activity_name_id"`) per the OCSF v1.7.0 schema `activity_id.sibling = "activity_name"`
-/// attribute. (BC-2.02.013 v1.2 F-P1-ACTIVITY-NOOP)
+/// attribute. (BC-2.02.013 F-P1-ACTIVITY-NOOP)
 ///
 /// All other fields use the default `format!("{string_field}_id")` derivation.
 fn string_field_to_id_field(string_field: &str) -> String {
@@ -112,7 +112,7 @@ impl OcsfEnumMap {
         inner.insert(("status_id".to_owned(), 1006), "Deleted");
 
         // disposition_id — OCSF v1.7.0 schema.json `dictionary_attributes.disposition_id.enum`
-        // 29 values: integers 0–27, 99 (BC-2.02.013 v1.1 §Postconditions in-scope field table)
+        // 29 values: integers 0–27, 99 (BC-2.02.013 §Postconditions in-scope field table)
         inner.insert(("disposition_id".to_owned(), 0), "Unknown");
         inner.insert(("disposition_id".to_owned(), 1), "Allowed");
         inner.insert(("disposition_id".to_owned(), 2), "Blocked");
@@ -148,7 +148,7 @@ impl OcsfEnumMap {
 
     /// Normalizes a string label for an OCSF enum-label field to canonical OCSF Title-case.
     ///
-    /// **Keying contract (BC-2.02.013 v1.2 F-HIGH-003):** keys on the OCSF *string label*
+    /// **Keying contract (BC-2.02.013 F-HIGH-003):** keys on the OCSF *string label*
     /// field name (e.g., `"severity"`, `"status"`), deriving the caption lookup from the
     /// corresponding `_id` sibling field entries.
     ///
@@ -156,7 +156,7 @@ impl OcsfEnumMap {
     /// The sole OCSF exception is `"activity_name"`, whose sibling is `"activity_id"` (NOT
     /// `"activity_name_id"`) — this is the OCSF v1.7.0 `activity_id.sibling = "activity_name"`
     /// schema attribute. `string_field_to_id_field` encodes this mapping; all other fields
-    /// use the standard `{F}_id` derivation. (BC-2.02.013 v1.2 F-P1-ACTIVITY-NOOP)
+    /// use the standard `{F}_id` derivation. (BC-2.02.013 F-P1-ACTIVITY-NOOP)
     ///
     /// # Contract
     ///
@@ -181,7 +181,7 @@ impl OcsfEnumMap {
     /// ```
     pub fn normalize_enum_label(&self, string_field: &str, label: &str) -> Option<&'static str> {
         // Resolve the companion `_id` field name, handling the OCSF `activity_name` exception
-        // (BC-2.02.013 v1.2 F-HIGH-003 + F-P1-ACTIVITY-NOOP).
+        // (BC-2.02.013 F-HIGH-003 + F-P1-ACTIVITY-NOOP).
         let id_field = string_field_to_id_field(string_field);
         for ((fname, _), &caption) in &self.inner {
             if *fname == id_field && caption.eq_ignore_ascii_case(label) {
@@ -195,7 +195,7 @@ impl OcsfEnumMap {
     /// for a given `field_name`.
     ///
     /// **NOTE:** This method keys on the `_id` companion field name (e.g., `"severity_id"`).
-    /// For the adapter-boundary normalization use case (BC-2.02.013 v1.1), use
+    /// For the adapter-boundary normalization use case (BC-2.02.013), use
     /// `normalize_enum_label` which keys on the string label field name (e.g., `"severity"`).
     ///
     /// This method is retained for callers that already have the `_id` field name

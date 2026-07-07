@@ -515,7 +515,7 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
             // via `lower(field) OP lower('val')` DataFusion SQL pattern (BC-2.11.024).
             if *case_insensitive {
                 // IEQ/INE RHS must be a string literal — lower() is string-only in DataFusion.
-                // Non-string RHS → QueryPlanFailed (BC-2.11.024 v1.0 error case, RG-016).
+                // Non-string RHS → QueryPlanFailed (BC-2.11.024 error case, RG-016).
                 let rhs_sql = match rhs.as_ref() {
                     crate::ast::Expr::Literal(Literal::String(s)) => {
                         format!("lower('{}')", escape_sql_string(s))

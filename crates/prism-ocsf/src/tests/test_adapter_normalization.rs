@@ -2,13 +2,13 @@
 //!
 //! Covers RG-019, RG-020, RG-021 — OCSF enum-label canonical-case normalization
 //! exercised through the REAL pipeline insertion point:
-//! `OcsfNormalizer::normalize_with_mappers` (BC-2.02.013 v1.1 F-CRIT-001).
+//! `OcsfNormalizer::normalize_with_mappers` (BC-2.02.013 F-CRIT-001).
 //!
 //! ## Why the previous tests were TD-VSDD-059 paper-fixes
 //!
 //! The old RG-019/020/021 called `OcsfEnumMap::normalize_label` directly — a helper
 //! that was already fully implemented. Tests passed without the production pipeline
-//! being wired. BC-2.02.013 v1.1 F-CRIT-001 mandates normalization happen INSIDE
+//! being wired. BC-2.02.013 F-CRIT-001 mandates normalization happen INSIDE
 //! `normalize_with_mappers`, not at isolated helper level.
 //!
 //! ## What makes these tests RED (all fail before implementation)
@@ -21,7 +21,7 @@
 //!
 //! ## Behavioral contracts traced
 //!
-//! - BC-2.02.013 v1.1 — Adapter-Boundary OCSF Enum-Label Canonical-Case Normalization
+//! - BC-2.02.013 — Adapter-Boundary OCSF Enum-Label Canonical-Case Normalization
 //!   - F-CRIT-001: insertion point = `OcsfNormalizer::normalize_with_mappers`
 //!   - F-HIGH-003: keying contract = string field name (e.g., "severity"), not "_id" companion
 //!   - F-HIGH-002: in-scope fields = severity (confirmed), status (v1.1 addition)
@@ -73,7 +73,7 @@ impl SensorMapper for SeverityStatusStubMapper {
                 msg.set_field_by_name("severity", ProtoValue::String(s.to_owned()));
             }
         }
-        // Transfer status → DynamicMessage (BC-2.02.013 v1.1 F-HIGH-002: status in-scope)
+        // Transfer status → DynamicMessage (BC-2.02.013 F-HIGH-002: status in-scope)
         if let Some(s) = raw.get("status").and_then(|v| v.as_str()) {
             if msg.descriptor().get_field_by_name("status").is_some() {
                 msg.set_field_by_name("status", ProtoValue::String(s.to_owned()));
@@ -103,14 +103,14 @@ fn extract_string_field(msg: &DynamicMessage, field_name: &str) -> String {
 /// RG-019: `normalize_with_mappers("crowdstrike", "detection", {"severity":"CRITICAL","status":"NEW"})`
 /// must return a DynamicMessage where:
 /// - `severity` = `"Critical"` (normalized from "CRITICAL" via OcsfEnumMap)
-/// - `status`   = `"New"` (BC-2.02.013 v1.1 F-HIGH-002: status is in-scope)
+/// - `status`   = `"New"` (BC-2.02.013 F-HIGH-002: status is in-scope)
 ///
 /// Regression guard: PASSES — normalization wired in F-CRIT-001 fix-burst.
 /// `normalize_with_mappers` applies `OcsfEnumMap::normalize_label` to string enum
 /// fields and rewrites them in the DynamicMessage. This test guards against regression
 /// (re-breaking the normalization wiring).
 ///
-/// Traces to: BC-2.02.013 v1.1 postconditions "Severity (guaranteed)", "Status (guaranteed)";
+/// Traces to: BC-2.02.013 postconditions "Severity (guaranteed)", "Status (guaranteed)";
 /// F-CRIT-001 insertion point; AC-016.
 #[test]
 fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_critical_to_title_case() {
@@ -125,20 +125,20 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_critical_to_title_c
               this test requires the OCSF descriptor pool to be populated)",
         );
 
-    // BC-2.02.013 v1.1: severity field normalized to canonical OCSF Title-case
+    // BC-2.02.013: severity field normalized to canonical OCSF Title-case
     let severity_val = extract_string_field(&msg, "severity");
     assert_eq!(
         severity_val, "Critical",
         "RG-019: severity='CRITICAL' must normalize to 'Critical' via normalize_with_mappers \
-         (BC-2.02.013 v1.1 F-CRIT-001); got: {severity_val:?}"
+         (BC-2.02.013 F-CRIT-001); got: {severity_val:?}"
     );
 
-    // BC-2.02.013 v1.1 F-HIGH-002: status is also in-scope and must be normalized
+    // BC-2.02.013 F-HIGH-002: status is also in-scope and must be normalized
     let status_val = extract_string_field(&msg, "status");
     assert_eq!(
         status_val, "New",
         "RG-019: status='NEW' must normalize to 'New' via normalize_with_mappers \
-         (BC-2.02.013 v1.1 F-HIGH-002 status in-scope); \
+         (BC-2.02.013 F-HIGH-002 status in-scope); \
          OcsfEnumMap must also have status_id entries; got: {status_val:?}"
     );
 }
@@ -159,7 +159,7 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_critical_to_title_c
 /// Any future regression in normalization that corrupts already-canonical values will cause
 /// this test to fail.
 ///
-/// Traces to: BC-2.02.013 v1.1 postcondition "idempotent: canonical value unchanged";
+/// Traces to: BC-2.02.013 postcondition "idempotent: canonical value unchanged";
 /// AC-017; EC-02-020 (CrowdStrike emits 'High').
 #[test]
 fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high() {
@@ -178,7 +178,7 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high() {
     assert_eq!(
         severity_val, "High",
         "RG-020: already-canonical severity='High' must be unchanged after normalize_with_mappers \
-         (BC-2.02.013 v1.1 idempotent postcondition); got: {severity_val:?}"
+         (BC-2.02.013 idempotent postcondition); got: {severity_val:?}"
     );
 }
 
@@ -201,7 +201,7 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high() {
 /// Regression guard: PASSES — `normalize_with_mappers` correctly emits all
 /// catalog row 91 fields.
 ///
-/// Traces to: BC-2.02.013 v1.1 error case "Warning (non-fatal): unrecognized value";
+/// Traces to: BC-2.02.013 error case "Warning (non-fatal): unrecognized value";
 /// BC-2.16.002 Canonical Structured Event Catalog (ocsf.enum_label_unrecognized);
 /// AC-018; EC-02-021 (Armis 'UNHANDLED' vendor-specific value).
 #[test]
@@ -313,11 +313,11 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_
     assert_eq!(
         severity_val, "UNHANDLED",
         "RG-021: unrecognized severity='UNHANDLED' must be left as-received in the DynamicMessage \
-         (BC-2.02.013 v1.1 non-fatal error case); got: {severity_val:?}"
+         (BC-2.02.013 non-fatal error case); got: {severity_val:?}"
     );
 
     // (2) event_type = "ocsf.enum_label_unrecognized" must be emitted.
-    // BC-2.02.013 v1.1 warn contract + BC-2.16.002 catalog row 91.
+    // BC-2.02.013 warn contract + BC-2.16.002 catalog row 91.
     let warns = captured.lock().unwrap();
     assert!(
         warns
@@ -325,7 +325,7 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_
             .any(|e| e.event_type.as_deref() == Some("ocsf.enum_label_unrecognized")),
         "RG-021: normalize_with_mappers must emit tracing::warn!(event_type = \
          \"ocsf.enum_label_unrecognized\", ...) for unrecognized OCSF enum values \
-         (BC-2.02.013 v1.1 error case; BC-2.16.002 catalog); \
+         (BC-2.02.013 error case; BC-2.16.002 catalog); \
          captured events: {warns:?}"
     );
 
@@ -489,7 +489,7 @@ fn test_BC_2_02_013_normalizer_secondary_unrecognized_warn_value_capped_at_50_co
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// F-P1-ACTIVITY-NOOP: BC-2.02.013 v1.2 — activity_name normalization (new)
+// F-P1-ACTIVITY-NOOP: BC-2.02.013 — activity_name normalization (new)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Stub mapper for activity_name normalization tests.
@@ -532,7 +532,7 @@ impl SensorMapper for ActivityNameStubMapper {
 /// F-P1-ACTIVITY-NOOP: `normalize_with_mappers("crowdstrike", "detection", {"activity_name":"create"})`
 /// must return a DynamicMessage where `activity_name` = `"Create"`.
 ///
-/// BC-2.02.013 v1.2 expanded the in-scope fields to include `activity_name` (NOT `activity`).
+/// BC-2.02.013 expanded the in-scope fields to include `activity_name` (NOT `activity`).
 /// The current `OCSF_ENUM_LABEL_FIELDS` constant in `normalizer.rs` uses `"activity"` —
 /// a string that `msg.descriptor().get_field_by_name("activity")` returns `None` for,
 /// because the real OCSF proto field is `activity_name`. As a result, the normalization
@@ -546,7 +546,7 @@ impl SensorMapper for ActivityNameStubMapper {
 ///
 /// SID-1 compliance: in-process unit test; no external dependencies; no `#[ignore]`.
 ///
-/// Traces to: BC-2.02.013 v1.2 postconditions "activity_name (guaranteed)";
+/// Traces to: BC-2.02.013 postconditions "activity_name (guaranteed)";
 /// F-P1-ACTIVITY-NOOP (adversary finding, LOCAL pass-2).
 #[test]
 fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_activity_name_lowercase_to_title_case()
@@ -562,20 +562,20 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_activity_name_lower
               this test requires the OCSF descriptor pool to be populated)",
         );
 
-    // BC-2.02.013 v1.2: activity_name must be normalized to canonical OCSF Title-case.
+    // BC-2.02.013: activity_name must be normalized to canonical OCSF Title-case.
     // Regression guard: normalization wired, OCSF_ENUM_LABEL_FIELDS uses "activity_name",
     // and the activity_id key mapping is correct.
     let activity_name_val = extract_string_field(&msg, "activity_name");
     assert_eq!(
         activity_name_val, "Create",
         "F-P1-ACTIVITY-NOOP: activity_name='create' must normalize to 'Create' via \
-         normalize_with_mappers (BC-2.02.013 v1.2 activity_name in-scope); \
+         normalize_with_mappers (BC-2.02.013 activity_name in-scope); \
          got: {activity_name_val:?}"
     );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// F-P1-ACTIVITY-DISP-TEST-GAP: BC-2.02.013 v1.2 — disposition normalization guard
+// F-P1-ACTIVITY-DISP-TEST-GAP: BC-2.02.013 — disposition normalization guard
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Stub mapper for disposition normalization tests.
@@ -625,7 +625,7 @@ impl SensorMapper for DispositionStubMapper {
 ///
 /// SID-1 compliance: in-process unit test; no external dependencies; no `#[ignore]`.
 ///
-/// Traces to: BC-2.02.013 v1.2 postconditions "disposition (guaranteed)";
+/// Traces to: BC-2.02.013 postconditions "disposition (guaranteed)";
 /// F-P1-ACTIVITY-DISP-TEST-GAP (adversary finding, LOCAL pass-2).
 #[test]
 fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_disposition_lowercase_to_title_case() {
@@ -640,13 +640,13 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_disposition_lowerca
               this test requires the OCSF descriptor pool to be populated)",
         );
 
-    // BC-2.02.013 v1.2: disposition must be normalized to canonical OCSF Title-case.
+    // BC-2.02.013: disposition must be normalized to canonical OCSF Title-case.
     // Regression guard: normalization wired by F-CRIT-001; field name and key derivation correct.
     let disposition_val = extract_string_field(&msg, "disposition");
     assert_eq!(
         disposition_val, "Blocked",
         "F-P1-ACTIVITY-DISP-TEST-GAP: disposition='blocked' must normalize to 'Blocked' via \
-         normalize_with_mappers (BC-2.02.013 v1.2 disposition in-scope); \
+         normalize_with_mappers (BC-2.02.013 disposition in-scope); \
          got: {disposition_val:?}"
     );
 }

@@ -1898,7 +1898,7 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
 
     // F-L2-CRIT-001 + F-P6-HIGH-001 (updated — S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-6):
     // Post-normalization, CrowdStrike severity is canonicalized to OCSF Title-case before
-    // DataFusion materialization (BC-2.02.013 v1.3 PRIMARY normalization).  The IN-literal
+    // DataFusion materialization (BC-2.02.013 PRIMARY normalization).  The IN-literal
     // form `IN ('High', 'Critical')` is REMOVED in favour of the IEQ pipe form per AC-025 /
     // ADR-047 §D.4.  Vendor-cased IN literals silently return 0 rows post-normalization.
     assert!(

@@ -89,7 +89,7 @@ const SQL_KEYWORDS: &[&str] = &[
 /// Used by `parse_sql_with_limits` (via `detect_ci_operator_in_sql_query`) to produce
 /// a parse-time `E-QUERY-001` error when a SQL-mode query contains a CI operator in its
 /// WHERE clause, HAVING clause, or any IN-subquery at arbitrary nesting depth
-/// (BC-2.11.024 v1.1 §SQL-Mode Rejection, LOCAL-pass-4 F-HIGH-001).
+/// (BC-2.11.024 §SQL-Mode Rejection, LOCAL-pass-4 F-HIGH-001).
 ///
 /// Returns the canonical uppercase keyword:
 /// - `"IEQ"` for `Compare { case_insensitive: true, op: Eq, .. }`
@@ -126,7 +126,7 @@ fn detect_ci_operator_in_predicate(pred: &Predicate) -> Option<&'static str> {
             predicates.iter().find_map(detect_ci_operator_in_predicate)
         }
         Predicate::Not(inner) => detect_ci_operator_in_predicate(inner),
-        // BC-2.11.024 v1.1 §SQL-Mode Rejection, LOCAL-pass-4 F-HIGH-001:
+        // BC-2.11.024 §SQL-Mode Rejection, LOCAL-pass-4 F-HIGH-001:
         // Recurse into the subquery's WHERE and HAVING to catch CI operators at
         // any IN-subquery nesting depth (doubly-nested, triply-nested, etc.).
         Predicate::InSubquery { subquery, .. } => detect_ci_operator_in_sql_query(subquery),
@@ -216,7 +216,7 @@ pub(crate) fn parse_sql_with_limits(
             limits
                 .check_sql_list_sizes_with(&sq)
                 .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
-            // BC-2.11.024 v1.1 §SQL-Mode Rejection: IEQ/INE/IIN are not supported in
+            // BC-2.11.024 §SQL-Mode Rejection: IEQ/INE/IIN are not supported in
             // SQL-mode WHERE or HAVING clauses (or IN-subquery WHERE/HAVING at any depth).
             // Detect at parse time so callers get a clean E-QUERY-001 error rather than
             // a DataFusion planning failure at runtime (LOCAL-pass-4 F-HIGH-001).
@@ -250,7 +250,7 @@ pub(crate) fn parse_sql_with_limits(
             if limits.check_sql_query_nesting_depth_with(&sq, 0).is_ok()
                 && limits.check_sql_list_sizes_with(&sq).is_ok()
             {
-                // BC-2.11.024 v1.1: also reject CI operators in the recovery path,
+                // BC-2.11.024: also reject CI operators in the recovery path,
                 // including HAVING and IN-subquery WHERE/HAVING (LOCAL-pass-4 F-HIGH-001).
                 if let Some(op) = detect_ci_operator_in_sql_query(&sq) {
                     return Err(vec![ParseError::new(
@@ -1192,7 +1192,7 @@ pub(crate) fn parse_sql_dml_with_limits(
                     .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
             }
 
-            // BC-2.11.024 v1.2 §DML-Mode-Boundary Enforcement: IEQ/INE/IIN are not
+            // BC-2.11.024 §DML-Mode-Boundary Enforcement: IEQ/INE/IIN are not
             // supported in DML SQL-mode WHERE clauses or embedded SELECT WHERE/HAVING
             // clauses. Detect at parse time to return a clean E-QUERY-001 error rather
             // than a DataFusion planning failure at runtime (LOCAL-pass-7 fix-burst target).

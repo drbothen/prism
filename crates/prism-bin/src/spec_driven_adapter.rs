@@ -902,11 +902,11 @@ fn column_type_to_arrow(col_type: &ColumnType) -> DataType {
 }
 
 // ---------------------------------------------------------------------------
-// F-CRIT-002 / BC-2.02.013 v1.3 — OCSF enum-label normalization in build_column_array
+// F-CRIT-002 / BC-2.02.013 — OCSF enum-label normalization in build_column_array
 // ---------------------------------------------------------------------------
 
 /// OCSF string-label fields that undergo enum-label normalization at the Arrow
-/// materialization boundary (BC-2.02.013 v1.3 F-CRIT-002 / ADR-047 §D.4).
+/// materialization boundary (BC-2.02.013 F-CRIT-002 / ADR-047 §D.4).
 ///
 /// These four fields have companion `_id` fields in the OCSF schema and their
 /// string values are canonically Title-case in OCSF (e.g., severity → "High").
@@ -1082,7 +1082,7 @@ fn build_column_array(
         }
         // String → Utf8 with OCSF enum-label normalization for the four labeled fields.
         //
-        // F-CRIT-002 / BC-2.02.013 v1.3: columns named in OCSF_ENUM_LABEL_FIELDS have their
+        // F-CRIT-002 / BC-2.02.013: columns named in OCSF_ENUM_LABEL_FIELDS have their
         // string values normalized to OCSF canonical Title-case via OcsfEnumMap before Arrow
         // materialization. Unrecognized values pass through as-received with a structured warn.
         // Non-OCSF-labeled String columns pass through unchanged (same as the _ arm below).
@@ -1114,7 +1114,7 @@ fn build_column_array(
                                             sensor_type = %sensor_id,
                                             "build_column_array: OCSF enum-label value not \
                                              recognized; emitting as-received \
-                                             (BC-2.02.013 v1.3 F-CRIT-002)"
+                                             (BC-2.02.013 F-CRIT-002)"
                                         );
                                         Some(s)
                                     }
@@ -1957,7 +1957,7 @@ mod tests {
     }
 
     // ---------------------------------------------------------------------------
-    // BC-2.02.013 v1.3 / F-CRIT-002: OCSF enum-label normalization in
+    // BC-2.02.013 / F-CRIT-002: OCSF enum-label normalization in
     // build_column_array (production spec-driven Arrow path)
     // ---------------------------------------------------------------------------
     //
@@ -1974,7 +1974,7 @@ mod tests {
     //
     // SID-1 compliance: all in-process, no external/DTU dep, no #[ignore].
 
-    /// BC-2.02.013 v1.3 / F-CRIT-002 (RED — fails before implementation):
+    /// BC-2.02.013 / F-CRIT-002 (RED — fails before implementation):
     ///
     /// `build_column_array` for a `ColumnType::String` column named `"severity"`
     /// with raw values `"CRITICAL"`, `"high"`, `"High"` MUST produce a StringArray
@@ -1987,7 +1987,7 @@ mod tests {
     /// After implementation: `OcsfEnumMap::normalize_enum_label("severity", raw)` is
     /// called for every non-null raw string value before Arrow materialization.
     ///
-    /// Traces to: BC-2.02.013 v1.3 F-CRIT-002; LOCAL-pass-5 adversary finding.
+    /// Traces to: BC-2.02.013 F-CRIT-002; LOCAL-pass-5 adversary finding.
     #[test]
     fn test_BC_2_02_013_build_column_array_normalizes_severity_to_title_case() {
         let records = vec![
@@ -2003,7 +2003,7 @@ mod tests {
             .downcast_ref::<ArrowStringArray>()
             .expect("expected StringArray for ColumnType::String severity column");
 
-        // BC-2.02.013 v1.3: "CRITICAL" → "Critical" via OcsfEnumMap (severity_id[5]).
+        // BC-2.02.013: "CRITICAL" → "Critical" via OcsfEnumMap (severity_id[5]).
         // FAILS NOW: raw passthrough returns "CRITICAL", not "Critical".
         assert_eq!(
             string_array.value(0),
@@ -2013,7 +2013,7 @@ mod tests {
              got: {:?}. build_column_array is currently doing raw passthrough.",
             string_array.value(0)
         );
-        // BC-2.02.013 v1.3: "high" → "High" via OcsfEnumMap (severity_id[4]).
+        // BC-2.02.013: "high" → "High" via OcsfEnumMap (severity_id[4]).
         // FAILS NOW: raw passthrough returns "high", not "High".
         assert_eq!(
             string_array.value(1),
@@ -2033,7 +2033,7 @@ mod tests {
         );
     }
 
-    /// BC-2.02.013 v1.3 / F-CRIT-002 (RED — fails before implementation):
+    /// BC-2.02.013 / F-CRIT-002 (RED — fails before implementation):
     ///
     /// `build_column_array` for `ColumnType::String` columns named `"status"` and
     /// `"disposition"` must normalize raw values to OCSF canonical Title-case:
@@ -2045,7 +2045,7 @@ mod tests {
     /// After implementation: `OcsfEnumMap::normalize_enum_label` is called for
     /// every String column whose name is in the in-scope field set.
     ///
-    /// Traces to: BC-2.02.013 v1.3 F-CRIT-002 in-scope field table
+    /// Traces to: BC-2.02.013 F-CRIT-002 in-scope field table
     /// (status, disposition guaranteed); LOCAL-pass-5.
     #[test]
     fn test_BC_2_02_013_build_column_array_normalizes_status_and_disposition() {
@@ -2090,7 +2090,7 @@ mod tests {
         );
     }
 
-    /// BC-2.02.013 v1.3 / F-CRIT-002 (RED — fails before implementation):
+    /// BC-2.02.013 / F-CRIT-002 (RED — fails before implementation):
     ///
     /// `build_column_array` for a `ColumnType::String` column named `"severity"` with
     /// a vendor-specific unrecognized value `"VENDOR_XYZ"` MUST:
@@ -2106,7 +2106,7 @@ mod tests {
     ///
     /// WarnCapture pattern: matches `test_adapter_normalization.rs` RG-021 (prism-ocsf).
     ///
-    /// Traces to: BC-2.02.013 v1.3 F-CRIT-002 error case;
+    /// Traces to: BC-2.02.013 F-CRIT-002 error case;
     /// BC-2.16.002 Canonical Structured Event Catalog (ocsf.enum_label_unrecognized);
     /// LOCAL-pass-5 adversary finding; strengthened for LOCAL-pass-6 F-P6-CRIT-001 +
     /// F-P6-HIGH-003 (catalog row 91 schema completeness).
@@ -2310,7 +2310,7 @@ mod tests {
         );
     }
 
-    /// BC-2.02.013 v1.3 / F-CRIT-002 (GREEN before AND after — regression guard):
+    /// BC-2.02.013 / F-CRIT-002 (GREEN before AND after — regression guard):
     ///
     /// `build_column_array` for a `ColumnType::String` column named `"hostname"`
     /// (NOT in the OCSF enum-label field set {"severity","status","activity_name",
@@ -2321,7 +2321,7 @@ mod tests {
     /// column-selection rule: only the four designated OCSF enum-label columns are
     /// normalized; all other String columns are untouched.
     ///
-    /// Traces to: BC-2.02.013 v1.3 F-CRIT-002 column-selection invariant.
+    /// Traces to: BC-2.02.013 F-CRIT-002 column-selection invariant.
     #[test]
     fn test_BC_2_02_013_build_column_array_non_enum_string_column_untouched() {
         let records = vec![json!({"hostname": "SERVER-01"})];
@@ -2345,7 +2345,7 @@ mod tests {
         );
     }
 
-    /// BC-2.02.013 v1.3 / F-CRIT-002 (GREEN before AND after — regression guard):
+    /// BC-2.02.013 / F-CRIT-002 (GREEN before AND after — regression guard):
     ///
     /// `build_column_array` for a `ColumnType::Integer` column named `"severity_id"`
     /// with integer value `5` MUST produce an Int64Array with value `5` unchanged.
@@ -2355,7 +2355,7 @@ mod tests {
     /// PASSES NOW and MUST continue to PASS after implementation — this guards against
     /// normalization accidentally touching non-String columns.
     ///
-    /// Traces to: BC-2.02.013 v1.3 F-CRIT-002 — normalization gated on
+    /// Traces to: BC-2.02.013 F-CRIT-002 — normalization gated on
     /// `col.column_type == ColumnType::String` AND `col.name` in enum-label set.
     #[test]
     fn test_BC_2_02_013_build_column_array_non_string_column_untouched() {

@@ -172,7 +172,7 @@ pub async fn handle_prism_describe(
     }
 
     // BC-2.10.012 §Audit (SAP-1): emit started AFTER validation, so rejected calls
-    // emit only schema_enumeration.rejected, not .started (BC-2.16.002 v1.85 catalog).
+    // emit only schema_enumeration.rejected, not .started (BC-2.16.002 catalog).
     tracing::info!(
         client_id = %org_slug,
         event_type = "schema_enumeration.started",
@@ -532,7 +532,7 @@ fn build_enrichment_hint(
 ///
 /// Raw vendor feeds keep their original casing at the wire level (crowdstrike
 /// Title-case "High"/"Critical", armis UPPER-case "HIGH"/"CRITICAL", cyberint
-/// lowercase "high"/"critical").  The BC-2.02.013 v1.3 PRIMARY normalization
+/// lowercase "high"/"critical").  The BC-2.02.013 PRIMARY normalization
 /// path (`build_column_array` in `spec_driven_adapter.rs`) canonicalizes the
 /// `severity`, `status`, `activity_name`, and `disposition` columns to OCSF
 /// Title-case BEFORE DataFusion materializes the in-memory record batch.  After
@@ -588,7 +588,7 @@ const SENSOR_SEVERITY_VOCABULARY: &[&str] = &["crowdstrike", "armis", "cyberint"
 /// F-L2-CRIT-001: unknown sensor → `false` → severity filter suppressed,
 /// falling back to count-recent or column-free — never a silent zero-row filter.
 /// F-P6-MED-002: no raw casing needed since IEQ is always case-insensitive and
-/// post-normalization all severity values are Title-case (BC-2.02.013 v1.3).
+/// post-normalization all severity values are Title-case (BC-2.02.013).
 fn has_severity_vocabulary(table_name: &str) -> bool {
     // Table names are sensor-prefixed: "crowdstrike_detections", "armis_alerts", etc.
     SENSOR_SEVERITY_VOCABULARY
@@ -637,7 +637,7 @@ fn has_severity_vocabulary(table_name: &str) -> bool {
 /// All registered sensor tables with a severity column emit the IEQ form regardless
 /// of column position (F-P6-HIGH-001/002; S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-6).
 /// Vendor-cased IN literals were removed because post-normalization they silently return
-/// 0 rows (BC-2.02.013 v1.3 PRIMARY normalization canonicalizes to Title-case).
+/// 0 rows (BC-2.02.013 PRIMARY normalization canonicalizes to Title-case).
 ///
 /// BC-2.10.012 / AUDIT-001 / AUDIT-004; S-DEMO-FIDELITY-REMEDIATION-001 CRIT-1 + F-L2-CRIT-001.
 pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> String {
@@ -672,10 +672,10 @@ pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> St
     // ALL tables with a severity column and registered vocabulary emit the IEQ form,
     // regardless of column position. Vendor-cased IN literals (`IN ('HIGH', …)`,
     // `IN ('high', …)`) silently return 0 rows against post-normalization data because
-    // BC-2.02.013 v1.3 PRIMARY normalization (build_column_array) canonicalizes severity
+    // BC-2.02.013 PRIMARY normalization (build_column_array) canonicalizes severity
     // to OCSF Title-case before DataFusion materialization (AC-025 / ADR-047 §D.4).
     //
-    // F-MED-1 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-7 BC-2.11.024 v1.2):
+    // F-MED-1 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-7 BC-2.11.024):
     // Severity-IEQ is the HIGHEST priority variant for severity-vocabulary tables.
     // The aggregate variant runs only when severity-IEQ does not fire (no severity column
     // OR sensor not in vocabulary). This prevents the aggregate branch from silently
@@ -919,7 +919,7 @@ mod build_example_query_tests {
     /// F-L2-CRIT-001 + F-P6-HIGH-001 (updated): armis_alerts severity variant must use
     /// the IEQ case-insensitive operator with OCSF casing note (post-normalization contract).
     ///
-    /// DTU emits UPPER-case "HIGH"/"CRITICAL" on the raw wire, but BC-2.02.013 v1.3 PRIMARY
+    /// DTU emits UPPER-case "HIGH"/"CRITICAL" on the raw wire, but BC-2.02.013 PRIMARY
     /// normalization (build_column_array) canonicalizes severity to OCSF Title-case before
     /// DataFusion materialization.  A query with `IN ('HIGH', 'CRITICAL')` therefore
     /// silently returns 0 rows against post-normalization data.

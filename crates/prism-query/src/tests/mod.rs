@@ -49,5 +49,5 @@ pub mod write_parser_unit_tests;
 // test_BC_2_11_024_sql_mode_{ieq,iin,ine}_rejected and regression guard
 // test_BC_2_11_024_filter_and_pipe_ieq_still_execute.
 // Covers IEQ/IIN/INE parsing, normalization, DataFusion SQL lowering, and
-// BC-2.11.024 v1.1 SQL-mode parse-time rejection (E-QUERY-001).
+// BC-2.11.024 SQL-mode parse-time rejection (E-QUERY-001).
 pub mod test_case_insensitive_operators;
