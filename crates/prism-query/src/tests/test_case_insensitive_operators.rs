@@ -2096,3 +2096,218 @@ fn test_BC_2_11_024_negated_case_insensitive_in_returns_query_plan_failed() {
         err
     );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-7: BC-2.11.024 v1.2 — DML mode-boundary enforcement
+//               (DELETE / UPDATE / INSERT...SELECT WHERE)
+//
+// BC-2.11.024 v1.2 extends SQL-mode parse-time rejection (v1.1) to ALL raw-SQL
+// statements, including DML (DELETE / UPDATE / INSERT...SELECT).
+//
+// Root cause:
+//   `parse_sql_dml_with_limits` in sql_parser.rs routes DELETE, UPDATE, and
+//   INSERT to `build_delete_parser`, `build_update_parser`, and
+//   `build_insert_parser` respectively.  None of these sub-parsers invoke
+//   `detect_ci_operator_in_sql_query` (or the underlying
+//   `detect_ci_operator_in_predicate`) on the parsed predicate / source SELECT.
+//   As a result, CI operators in DML WHERE clauses parse successfully via
+//   `build_predicate_parser()` (which includes IEQ/IIN/INE from LOCAL-pass-1)
+//   and eventually hit DataFusion → opaque E-QUERY-034 instead of the structured
+//   E-QUERY-001.
+//
+// Expected behavior (BC-2.11.024 v1.2):
+//   Same verbatim E-QUERY-001 template as SELECT-mode rejection, with the
+//   operator name substituted.
+//
+// Current behavior at HEAD 7169da41 for all three DML queries:
+//   `PrismQlParser::parse` returns `Ok(Ast::Sql(SqlStatement::Dml(...)))`.
+//   `expect_err(...)` panics on the Ok value — Red Gate confirmed.
+//
+// Green Gate (all three):
+//   PASSES once `parse_sql_dml_with_limits` detects CI operators via
+//   `detect_ci_operator_in_predicate` on `node.filter` (DELETE / UPDATE) and
+//   via `detect_ci_operator_in_sql_query` on `node.source_select`
+//   (INSERT...SELECT), emitting E-QUERY-001 through the same
+//   `ParseError::new(0, format!(...))` path used by `parse_sql_with_limits`.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_dml_delete_where_ieq_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.2 — DELETE WHERE IEQ must be rejected at parse time.
+///
+/// `DELETE FROM crowdstrike_detections WHERE severity IEQ 'high'`
+/// must be rejected by `PrismQlParser::parse` with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IEQ"` in the error message
+///
+/// Byte-exact assertion rationale: `parse_sql_dml_with_limits` produces the
+/// error via `ParseError::new(0, format!(...))` and returns it directly.
+/// `parse_dml_internal` and `parse_with_limits` pass it through unchanged.
+/// `PrismQlParser::parse` returns it unchanged.  There is no mode-bridge
+/// rewrite or recovery-path wrapping — the error renders unwrapped.
+/// This mirrors the rationale documented in `test_BC_2_11_024_sql_mode_ieq_rejected`
+/// (LOCAL-pass-3).
+///
+/// Red Gate (HEAD 7169da41): FAILS.
+///   `build_delete_parser` calls `build_predicate_parser()` for the WHERE clause,
+///   which includes IEQ/IIN/INE from LOCAL-pass-1.  The predicate parses to
+///   `Predicate::Compare { case_insensitive: true }`, but `parse_sql_dml_with_limits`
+///   never calls `detect_ci_operator_in_predicate` on `node.filter`.
+///   Returns `Ok(Ast::Sql(SqlStatement::Dml(...)))`.  `expect_err` panics.
+///
+/// Green Gate: PASSES once `parse_sql_dml_with_limits` checks `node.filter` for
+///   CI operators and emits E-QUERY-001 with `op = "IEQ"`.
+///
+/// Traces to: BC-2.11.024 v1.2 §DML-Mode Rejection; LOCAL-pass-7.
+#[test]
+fn test_BC_2_11_024_dml_delete_where_ieq_rejected() {
+    let result =
+        PrismQlParser::parse("DELETE FROM crowdstrike_detections WHERE severity IEQ 'high'");
+    let err = result.expect_err(
+        "BC-2.11.024 v1.2: PrismQlParser::parse must reject IEQ in a DML DELETE WHERE clause \
+         with E-QUERY-001; currently returns Ok(Ast::Sql(SqlStatement::Dml(…))) because \
+         parse_sql_dml_with_limits does not call detect_ci_operator_in_predicate on node.filter \
+         (LOCAL-pass-7 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    // Byte-exact assertion against the verbatim BC-2.11.024 v1.2 template.
+    // DML error path: `parse_sql_dml_with_limits` → `ParseError::new(0, format!(...))` →
+    // `parse_dml_internal` → `parse_with_limits` → `PrismQlParser::parse` (unchanged).
+    // `all_msgs` is exactly the `format!(...)` output with `{op}` = `"IEQ"`.
+    assert_eq!(
+        all_msgs,
+        "E-QUERY-001: parse error near 'IEQ': case-insensitive operators \
+         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+         (e.g., severity IEQ 'high') or a pipe | where stage \
+         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+         instead.",
+        "BC-2.11.024 v1.2: DML DELETE IEQ rejection must match the verbatim \
+         BC-2.11.024 v1.2 template exactly; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_dml_update_where_iin_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.2 — UPDATE WHERE IIN must be rejected at parse time.
+///
+/// `UPDATE crowdstrike_detections SET category = 'x' WHERE status IIN ('open', 'new')`
+/// must be rejected by `PrismQlParser::parse` with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IIN"` in the error message
+///
+/// Red Gate (HEAD 7169da41): FAILS.
+///   `build_update_parser` calls `build_predicate_parser()` for the WHERE clause.
+///   `status IIN ('open', 'new')` parses to `Predicate::In { case_insensitive: true }`,
+///   but `parse_sql_dml_with_limits` never calls `detect_ci_operator_in_predicate`
+///   on `node.filter`.  Returns `Ok(...)`.  `expect_err` panics.
+///
+/// Green Gate: PASSES once `parse_sql_dml_with_limits` checks `node.filter` for CI
+///   operators and emits E-QUERY-001 with `op = "IIN"`.
+///
+/// Traces to: BC-2.11.024 v1.2 §DML-Mode Rejection; LOCAL-pass-7.
+#[test]
+fn test_BC_2_11_024_dml_update_where_iin_rejected() {
+    let result = PrismQlParser::parse(
+        "UPDATE crowdstrike_detections SET category = 'x' WHERE status IIN ('open', 'new')",
+    );
+    let err = result.expect_err(
+        "BC-2.11.024 v1.2: PrismQlParser::parse must reject IIN in a DML UPDATE WHERE clause \
+         with E-QUERY-001; currently returns Ok(Ast::Sql(SqlStatement::Dml(…))) because \
+         parse_sql_dml_with_limits does not call detect_ci_operator_in_predicate on node.filter \
+         (LOCAL-pass-7 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    // Byte-exact assertion against the verbatim BC-2.11.024 v1.2 template with op = "IIN".
+    assert_eq!(
+        all_msgs,
+        "E-QUERY-001: parse error near 'IIN': case-insensitive operators \
+         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+         (e.g., severity IEQ 'high') or a pipe | where stage \
+         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+         instead.",
+        "BC-2.11.024 v1.2: DML UPDATE IIN rejection must match the verbatim \
+         BC-2.11.024 v1.2 template exactly; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_dml_insert_select_where_ine_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.2 — INSERT...SELECT WHERE INE must be rejected at parse time.
+///
+/// `INSERT INTO some_table SELECT * FROM crowdstrike_detections WHERE severity INE 'high'`
+/// must be rejected by `PrismQlParser::parse` with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"INE"` in the error message
+///
+/// Grammar reachability: `build_insert_parser` calls `build_sql_parser()` for the
+/// embedded SELECT sub-query.  The SELECT's WHERE clause accepts INE via
+/// `build_sql_predicate_parser` → `build_predicate_parser()` (IEQ/INE/IIN added in
+/// LOCAL-pass-1).  The INSERT is not unbounded (WHERE present on the SELECT), so
+/// `check_unbounded_write` passes.  At current HEAD the INSERT parses to:
+///   `Ok(Ast::Sql(SqlStatement::Dml(DmlNode {
+///     source_select: Some(SqlQuery {
+///       where_: Some(Predicate::Compare { case_insensitive: true, op: Ne, .. })
+///     })
+///   })))`
+///
+/// Red Gate (HEAD 7169da41): FAILS.
+///   `parse_sql_dml_with_limits` checks `node.source_select` only for depth and
+///   list-size limits (F-PR130-CR-004).  It never calls
+///   `detect_ci_operator_in_sql_query` on `node.source_select`.
+///   Returns `Ok(...)`.  `expect_err` panics.
+///
+/// Green Gate: PASSES once `parse_sql_dml_with_limits` calls
+///   `detect_ci_operator_in_sql_query(sq)` on `node.source_select` and emits
+///   E-QUERY-001 with `op = "INE"`.
+///
+/// Traces to: BC-2.11.024 v1.2 §DML-Mode Rejection; LOCAL-pass-7.
+#[test]
+fn test_BC_2_11_024_dml_insert_select_where_ine_rejected() {
+    // INSERT INTO...SELECT with WHERE: expressible via build_insert_parser.
+    // build_insert_parser calls build_sql_parser() for the embedded SELECT.
+    // The SELECT's WHERE clause parses INE via build_predicate_parser (includes CI ops
+    // from LOCAL-pass-1).  The INSERT is bounded (WHERE present) so check_unbounded_write
+    // passes.  At current HEAD this returns Ok — Red Gate rationale above.
+    let result = PrismQlParser::parse(
+        "INSERT INTO some_table SELECT * FROM crowdstrike_detections WHERE severity INE 'high'",
+    );
+    let err = result.expect_err(
+        "BC-2.11.024 v1.2: PrismQlParser::parse must reject INE in a DML INSERT...SELECT \
+         WHERE clause with E-QUERY-001; currently returns Ok(Ast::Sql(SqlStatement::Dml(…))) \
+         because parse_sql_dml_with_limits does not call detect_ci_operator_in_sql_query on \
+         node.source_select (LOCAL-pass-7 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    // Byte-exact assertion against the verbatim BC-2.11.024 v1.2 template with op = "INE".
+    assert_eq!(
+        all_msgs,
+        "E-QUERY-001: parse error near 'INE': case-insensitive operators \
+         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+         (e.g., severity IEQ 'high') or a pipe | where stage \
+         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+         instead.",
+        "BC-2.11.024 v1.2: DML INSERT...SELECT INE rejection must match the verbatim \
+         BC-2.11.024 v1.2 template exactly; got: {all_msgs:?}"
+    );
+}
