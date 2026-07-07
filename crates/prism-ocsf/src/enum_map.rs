@@ -46,6 +46,16 @@ fn unknown_str(value: u32) -> &'static str {
 /// See BC-2.02.010 for the full contract.
 pub struct OcsfEnumMap {
     inner: HashMap<(String, u32), &'static str>,
+    /// O(1) case-insensitive caption lookup index for `normalize_enum_label` and
+    /// `normalize_label`.
+    ///
+    /// Key: `(id_field_name, ascii_lowercase_label)` — e.g., `("severity_id", "high")`.
+    /// Value: canonical-case `&'static str` caption (e.g., `"High"`).
+    ///
+    /// Built once at `new()` time by iterating `inner`.  Uses `to_ascii_lowercase()` to
+    /// match `eq_ignore_ascii_case` semantics so lookups are O(1) instead of O(N) linear
+    /// scan.  (OBS-2 / S-PRISMQL-CASE-INSENSITIVE-001)
+    normalized_index: HashMap<(String, String), &'static str>,
 }
 
 /// Maps an OCSF string-label field name to its companion `_id` field name for use in
@@ -143,7 +153,23 @@ impl OcsfEnumMap {
         inner.insert(("disposition_id".to_owned(), 27), "Error");
         inner.insert(("disposition_id".to_owned(), 99), "Other");
 
-        OcsfEnumMap { inner }
+        // OBS-2: Build O(1) normalized_index from `inner`.
+        //
+        // Key: (id_field_name, ascii_lowercase_caption) → canonical caption.
+        // This converts the O(N) linear scan in normalize_enum_label / normalize_label
+        // into an O(1) HashMap lookup for every call.
+        //
+        // Uses `to_ascii_lowercase()` to match `eq_ignore_ascii_case` semantics:
+        // a lookup key of `("severity_id", "high")` resolves to `"High"`.
+        let mut normalized_index: HashMap<(String, String), &'static str> = HashMap::new();
+        for ((id_field, _), &caption) in &inner {
+            normalized_index.insert((id_field.clone(), caption.to_ascii_lowercase()), caption);
+        }
+
+        OcsfEnumMap {
+            inner,
+            normalized_index,
+        }
     }
 
     /// Normalizes a string label for an OCSF enum-label field to canonical OCSF Title-case.
@@ -174,7 +200,14 @@ impl OcsfEnumMap {
     /// let map = OcsfEnumMap::new();
     /// assert_eq!(map.normalize_enum_label("severity", "HIGH"), Some("High"));
     /// assert_eq!(map.normalize_enum_label("severity", "high"), Some("High"));
-    /// // "NEW" matches the finding-class status_id canonical caption "New"
+    /// // OBS-4 (S-PRISMQL-CASE-INSENSITIVE-001): "NEW" matches the finding-class
+    /// // status_id caption "New".  The finding-class values (New, In Progress,
+    /// // Suppressed, Resolved, Archived, Deleted) are stored with synthetic integer
+    /// // keys 1001–1006 in `inner` so they coexist with the generic status_id values
+    /// // (Success, Failure, …) without overwriting those integer-keyed display_name
+    /// // lookups.  normalize_enum_label is keyed on the ascii-lowercase caption, so
+    /// // all captions (generic AND finding-class) are visible in normalized_index.
+    /// // (BC-2.02.013 F-HIGH-003; see `new()` for the synthetic-key insertion.)
     /// assert_eq!(map.normalize_enum_label("status", "NEW"), Some("New"));
     /// // activity_name is the OCSF sibling of activity_id (exception to {F}_id→{F})
     /// assert_eq!(map.normalize_enum_label("activity_name", "create"), Some("Create"));
@@ -183,12 +216,11 @@ impl OcsfEnumMap {
         // Resolve the companion `_id` field name, handling the OCSF `activity_name` exception
         // (BC-2.02.013 F-HIGH-003 + F-P1-ACTIVITY-NOOP).
         let id_field = string_field_to_id_field(string_field);
-        for ((fname, _), &caption) in &self.inner {
-            if *fname == id_field && caption.eq_ignore_ascii_case(label) {
-                return Some(caption);
-            }
-        }
-        None
+        // OBS-2: O(1) lookup via normalized_index; key uses ascii_lowercase to match
+        // eq_ignore_ascii_case semantics.
+        self.normalized_index
+            .get(&(id_field, label.to_ascii_lowercase()))
+            .copied()
     }
 
     /// Performs a case-insensitive lookup of a string label in the enum caption table
@@ -217,12 +249,11 @@ impl OcsfEnumMap {
     /// assert_eq!(map.normalize_label("severity_id", "high"), Some("High"));
     /// ```
     pub fn normalize_label(&self, field_name: &str, label: &str) -> Option<&'static str> {
-        for ((fname, _), &caption) in &self.inner {
-            if fname == field_name && caption.eq_ignore_ascii_case(label) {
-                return Some(caption);
-            }
-        }
-        None
+        // OBS-2: O(1) lookup via normalized_index.  field_name is already the _id
+        // field (e.g., "severity_id"); no string_field_to_id_field derivation needed.
+        self.normalized_index
+            .get(&(field_name.to_owned(), label.to_ascii_lowercase()))
+            .copied()
     }
 
     /// Returns the display name for an OCSF enum `field` + integer `value`.
