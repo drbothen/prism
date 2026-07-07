@@ -1685,21 +1685,294 @@ mod build_example_query_tests {
 
         for (table, columns) in &shapes {
             let q = build_example_query(table, columns);
-            // Strip leading `-- ...` comment lines before parsing (IEQ form includes a comment).
-            let query_part: String = q
-                .lines()
-                .filter(|line| !line.trim_start().starts_with("--"))
-                .collect::<Vec<_>>()
-                .join("\n")
-                .trim()
-                .to_string();
-            let result = PrismQlParser::parse(&query_part);
+            // F-MED-002 (LOCAL-pass-15): parse the RAW output — NO comment stripping.
+            // The `--` stripping that was here previously masked a defect: the IEQ
+            // severity form was embedding a `-- OCSF ...` comment line that PrismQL
+            // does not support.  This test now asserts raw parseability so that
+            // `build_example_query` must emit pure PQL without any `--` comments.
+            //
+            // RED NOW (HEAD 065a1b60): severity shapes emit a leading `-- OCSF ...`
+            // comment line; PrismQlParser rejects it → this test FAILS for
+            // `crowdstrike_detections` and `armis_alerts` shapes.
+            //
+            // GREEN GATE: PASSES once `build_example_query` moves the comment text
+            // into `example_note: Option<String>` (BC-2.10.012 v1.8) and
+            // `example_query` contains only the pipe-form PQL.
+            //
+            // Traces: F-MED-002 (LOCAL adversary pass-15); TD-VSDD-059-adjacent
+            // (stripping filter was masking the defect).
+            let result = PrismQlParser::parse(&q);
             assert!(
                 result.is_ok(),
-                "F-OBS-2: build_example_query output for table '{table}' must parse \
-                 successfully via PrismQlParser (query_part={query_part:?}). \
+                "F-MED-002 (LOCAL-pass-15): build_example_query output for table '{table}' \
+                 must parse successfully via PrismQlParser WITHOUT comment stripping; \
+                 currently FAILS for severity-vocabulary shapes because `build_example_query` \
+                 embeds a `-- OCSF ...` comment line that PrismQL does not support \
+                 (raw output={q:?}). \
                  Error: {result:?}"
             );
         }
     }
+
+    // ── F-MED-002 (LOCAL-pass-15): example_query pure PQL + example_note field ──
+    //
+    // BC-2.10.012 v1.8 requires:
+    //   (a) `example_query` MUST NOT contain `--` comment syntax.
+    //   (b) `TableDescriptor` gains `example_note: Option<String>`.
+    //       - Severity-vocabulary tables → `Some("OCSF severity is Title-case
+    //         post-normalization (e.g., 'High'). Use IEQ for case-insensitive
+    //         matching.")`
+    //       - All other tables → `None`
+    //
+    // Current behaviour at HEAD 065a1b60:
+    //   `build_example_query` for severity tables returns:
+    //   ```
+    //   -- OCSF severity is Title-case post-normalization (e.g., 'High'). Use IEQ
+    //   -- for case-insensitive matching.\nFROM crowdstrike_detections | where ...
+    //   ```
+    //   `example_query.contains("--")` is true → tests (1) and (2) FAIL.
+    //   `TableDescriptor::example_note` does not exist → test (3) does not compile.
+    //
+    // Green Gate:
+    //   `build_example_query` moves the comment text out of `example_query` into
+    //   the returned `example_note: Option<String>` (or a companion function).
+    //   `example_query` for severity tables becomes the bare pipe form:
+    //   `"FROM crowdstrike_detections | where severity IEQ 'high' | limit 50"`
+    //   `TableDescriptor::example_note` carries the OCSF note for severity tables.
+
+    /// F-MED-002 (1/3): `build_example_query` output must contain NO `--` comment lines
+    /// across ALL table shapes (column-free, count-recent, severity-IEQ, aggregate).
+    ///
+    /// ## Current behaviour (HEAD 065a1b60) — RED
+    ///
+    /// Severity-vocabulary tables (e.g., `crowdstrike_detections`, `armis_alerts`)
+    /// produce output like:
+    /// ```
+    /// -- OCSF severity is Title-case post-normalization (e.g., 'High'). Use IEQ ...
+    /// FROM crowdstrike_detections | where severity IEQ 'high' | limit 50
+    /// ```
+    /// `q.contains("--")` is true → assertion panics for those shapes.
+    ///
+    /// ## Green Gate
+    ///
+    /// PASSES once `build_example_query` removes the `-- OCSF ...` comment line
+    /// from the returned string (the comment text moves to `example_note`).
+    ///
+    /// ## Traces
+    ///
+    /// BC-2.10.012 v1.8 §example_query no-comment requirement;
+    /// LOCAL adversary pass-15 finding F-MED-002.
+    #[test]
+    fn test_BC_2_10_012_example_query_contains_no_comment_lines() {
+        // Representative shapes covering all four priority-ladder branches.
+        let shapes: Vec<(&str, Vec<ColumnDescriptor>)> = vec![
+            // Column-free branch
+            (
+                "claroty_devices",
+                vec![
+                    col("uid", ColumnType::String),
+                    col("device_category", ColumnType::String),
+                    col("retired", ColumnType::Boolean),
+                ],
+            ),
+            // Count-recent branch (Datetime, no severity vocabulary)
+            (
+                "cyberint_alerts_no_severity",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("title", ColumnType::String),
+                ],
+            ),
+            // Severity-IEQ branch (crowdstrike — vocabulary registered)
+            (
+                "crowdstrike_detections",
+                vec![
+                    col("created_timestamp", ColumnType::Datetime),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // Severity-IEQ branch (armis — vocabulary registered, no Datetime)
+            (
+                "armis_alerts",
+                vec![
+                    col("alert_id", ColumnType::String),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // Aggregate branch (Integer column, no severity vocabulary)
+            (
+                "unknown_sensor_with_count",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("severity_id", ColumnType::Integer),
+                ],
+            ),
+        ];
+
+        for (table, columns) in &shapes {
+            let q = build_example_query(table, columns);
+            // BC-2.10.012 v1.8: example_query must be pure PQL — no `--` comment syntax.
+            // Currently FAILS for crowdstrike_detections and armis_alerts shapes:
+            // build_example_query embeds `-- OCSF severity is Title-case ...` as the first line.
+            assert!(
+                !q.contains("--"),
+                "F-MED-002: build_example_query output for table '{table}' must NOT contain \
+                 `--` comment syntax; `example_query` must be pure parseable PQL per \
+                 BC-2.10.012 v1.8 (the OCSF casing note moves to `example_note: Option<String>`); \
+                 got: {q:?}"
+            );
+        }
+    }
+
+    /// F-MED-002 (2/3): RAW `build_example_query` output must parse via `PrismQlParser`
+    /// without any comment-stripping preprocessing, for ALL table shapes.
+    ///
+    /// This is a stricter sibling of the updated `test_obs2_all_build_example_query_outputs_parse_ok`.
+    /// That test covers a broad set of shapes; this test is the canonical F-MED-002 trace.
+    ///
+    /// ## Current behaviour (HEAD 065a1b60) — RED
+    ///
+    /// Severity shapes embed a `-- OCSF ...` comment line.  `PrismQlParser::parse`
+    /// does not support `--` comment syntax → returns `Err(...)` for severity shapes.
+    ///
+    /// ## Green Gate
+    ///
+    /// PASSES once `build_example_query` removes the `-- OCSF ...` line so every
+    /// returned string is a parseable PQL expression.
+    ///
+    /// ## Traces
+    ///
+    /// BC-2.10.012 v1.8 §Raw parseability; LOCAL adversary pass-15 F-MED-002.
+    #[test]
+    fn test_BC_2_10_012_example_query_parses_without_stripping() {
+        use prism_query::filter_parser::PrismQlParser;
+
+        // Same representative shapes as test_BC_2_10_012_example_query_contains_no_comment_lines.
+        let shapes: Vec<(&str, Vec<ColumnDescriptor>)> = vec![
+            (
+                "claroty_devices",
+                vec![
+                    col("uid", ColumnType::String),
+                    col("device_category", ColumnType::String),
+                    col("retired", ColumnType::Boolean),
+                ],
+            ),
+            (
+                "cyberint_alerts_no_severity",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("title", ColumnType::String),
+                ],
+            ),
+            (
+                "crowdstrike_detections",
+                vec![
+                    col("created_timestamp", ColumnType::Datetime),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            (
+                "armis_alerts",
+                vec![
+                    col("alert_id", ColumnType::String),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            (
+                "unknown_sensor_with_count",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("severity_id", ColumnType::Integer),
+                ],
+            ),
+        ];
+
+        for (table, columns) in &shapes {
+            let q = build_example_query(table, columns);
+            // No stripping — raw output must parse directly.
+            // Currently FAILS for crowdstrike_detections and armis_alerts:
+            // the `-- OCSF ...` comment line causes PrismQlParser to return Err.
+            let result = PrismQlParser::parse(&q);
+            assert!(
+                result.is_ok(),
+                "F-MED-002: build_example_query output for table '{table}' must parse via \
+                 PrismQlParser WITHOUT comment stripping per BC-2.10.012 v1.8; \
+                 currently FAILS because `build_example_query` embeds a `-- OCSF ...` \
+                 comment line that PrismQL does not support \
+                 (raw output={q:?}). Error: {result:?}"
+            );
+        }
+    }
+
+    // PASS-15: activate with example_note field
+    //
+    // F-MED-002 (3/3): `example_note` field on `TableDescriptor`.
+    //
+    // BC-2.10.012 v1.8 adds `example_note: Option<String>` to `TableDescriptor`.
+    // `build_example_query` (or a companion `build_example_note(table_name, columns)`)
+    // must return:
+    //   - `Some("OCSF severity is Title-case post-normalization (e.g., 'High'). \
+    //            Use IEQ for case-insensitive matching.")` for severity-vocabulary tables
+    //   - `None` for all other tables (column-free, count-recent, aggregate shapes)
+    //
+    // This test cannot compile until:
+    //   (a) `pub example_note: Option<String>` is added to `TableDescriptor`
+    //       (in this file, around line 64-83).
+    //   (b) `build_example_query` is updated to return `(String, Option<String>)`,
+    //       OR a new `build_example_note(table_name: &str, columns: &[ColumnDescriptor])
+    //       -> Option<String>` function is added.
+    //   (c) All callers of `build_example_query` (lines ~331-393) are updated to
+    //       destructure the tuple and populate `TableDescriptor::example_note`.
+    //   (d) `ci.yml EXPECTED` count is updated (new `#[non_exhaustive]` public type
+    //       field on `TableDescriptor` does not require a new entry, but any new
+    //       public struct does).
+    //
+    // Implementer: uncomment and activate this test as part of the pass-15 fix-burst.
+    //
+    // #[test]
+    // fn test_BC_2_10_012_example_note_some_for_severity_tables_none_otherwise() {
+    //     use prism_query::filter_parser::PrismQlParser;
+    //
+    //     const OCSF_NOTE: &str = "OCSF severity is Title-case post-normalization \
+    //         (e.g., 'High'). Use IEQ for case-insensitive matching.";
+    //
+    //     // Severity-vocabulary table: note must be Some(OCSF_NOTE).
+    //     let sev_cols = vec![
+    //         col("created_timestamp", ColumnType::Datetime),
+    //         col("severity", ColumnType::String),
+    //     ];
+    //     let (sev_q, sev_note) = build_example_note("crowdstrike_detections", &sev_cols);
+    //     assert_eq!(
+    //         sev_note,
+    //         Some(OCSF_NOTE.to_string()),
+    //         "F-MED-002: severity-vocabulary table must produce example_note = Some(OCSF_NOTE); \
+    //          got: {sev_note:?}"
+    //     );
+    //     // example_query must still be parseable after the split.
+    //     let result = PrismQlParser::parse(&sev_q);
+    //     assert!(
+    //         result.is_ok(),
+    //         "F-MED-002: example_query for crowdstrike_detections must parse after \
+    //          note is moved to example_note; got: {sev_q:?}, error: {result:?}"
+    //     );
+    //     // example_query must NOT contain '--'.
+    //     assert!(
+    //         !sev_q.contains("--"),
+    //         "F-MED-002: example_query must be comment-free; got: {sev_q:?}"
+    //     );
+    //
+    //     // Non-severity table: note must be None.
+    //     let non_sev_cols = vec![
+    //         col("uid", ColumnType::String),
+    //         col("device_category", ColumnType::String),
+    //         col("retired", ColumnType::Boolean),
+    //     ];
+    //     let (_non_q, non_note) = build_example_note("claroty_devices", &non_sev_cols);
+    //     assert_eq!(
+    //         non_note,
+    //         None,
+    //         "F-MED-002: non-severity table must produce example_note = None; \
+    //          got: {non_note:?}"
+    //     );
+    // }
 }

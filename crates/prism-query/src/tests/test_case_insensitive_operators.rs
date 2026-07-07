@@ -2868,3 +2868,258 @@ fn test_BC_2_11_024_sqlpipe_head_where_ieq_rejected() {
          got: {all_msgs:?}"
     );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-15: F-MED-001 — IIN non-string list elements → parse-time E-QUERY-001
+//
+// BC-2.11.024 v1.3 verbatim template (non-string IIN elements):
+//
+//   E-QUERY-001: IIN operator requires quoted string literals in the membership
+//   list; got a non-string value (integer, float, or boolean). Example: status
+//   IIN ('new', 'open'). If you need date-like strings, wrap them in quotes:
+//   created_at IIN ('2026-06-01', '2026-06-02').
+//
+// Current behaviour at HEAD 065a1b60:
+//   `parse_filter("severity IIN (42, 43)")` returns `Ok(FilterExpr { … })`.
+//   The IIN grammar collects any `Literal` values without validating their
+//   variant.  Non-string values (Integer, Boolean) survive into
+//   `Predicate::In { values }` and are only rejected later when
+//   `predicate_to_datafusion_sql` runs.
+//   `expect_err(...)` panics on the Ok return → tests FAIL (Red Gate).
+//
+// Green Gate:
+//   PASSES once the IIN parser (the `iin_values` combinator or its try_map)
+//   rejects `Literal::Integer`, `Literal::Float`, and `Literal::Boolean` at
+//   parse time with a `ParseError` whose `.message` contains "E-QUERY-001"
+//   and the stable portion of the BC-2.11.024 v1.3 template.
+//
+// GREEN guard — date-like IIN strings:
+//   `status IIN ('2026-06-01', '2026-06-02')` must still parse Ok.
+//   This is already locked by `test_BC_2_11_024_iin_date_like_elements_accepted_as_string`
+//   (LOCAL-pass-14).  Not repeated here.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_iin_integer_elements_rejected_e_query_001
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.3 — IIN list containing integer literals must be rejected at
+/// parse time with E-QUERY-001 and the verbatim non-string template.
+///
+/// `severity IIN (42, 43)` contains two integer literals in the membership
+/// list.  BC-2.11.024 requires the parser to reject this immediately, before
+/// any SQL is generated, so the analyst sees a clear, actionable error message
+/// instead of an opaque DataFusion planning failure.
+///
+/// ## Current behaviour (HEAD 065a1b60) — RED
+///
+/// `parse_filter("severity IIN (42, 43)")` returns `Ok(FilterExpr { … })`.
+/// The IIN grammar accepts any Literal variant in the membership list without
+/// type-checking.  `expect_err(…)` panics on the Ok return.
+///
+/// ## Green Gate
+///
+/// PASSES once the `iin_values` combinator (or its try_map) rejects
+/// `Literal::Integer` at parse time, emitting a `ParseError` whose `.message`
+/// contains:
+///   "E-QUERY-001"  AND
+///   "IIN operator requires quoted string literals in the membership list"
+///
+/// ## Traces
+///
+/// BC-2.11.024 v1.3 §Non-string IIN elements; AC-020 (extended to IIN list);
+/// LOCAL adversary pass-15 finding F-MED-001.
+#[test]
+fn test_BC_2_11_024_iin_integer_elements_rejected_e_query_001() {
+    // BC-2.11.024: parser must reject integer elements in IIN list at parse time.
+    let errors = parse_filter("severity IIN (42, 43)").expect_err(
+        "F-MED-001: 'severity IIN (42, 43)' must fail to parse at parse time — \
+         integer literals are invalid IIN list elements per BC-2.11.024 v1.3; \
+         currently returns Ok (integers survive into Predicate::In and are only \
+         rejected later by predicate_to_datafusion_sql; LOCAL-pass-15 fix target)",
+    );
+    let all_msgs: String = errors
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    // (1) Must carry the structured error code.
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "F-MED-001: parse error for 'severity IIN (42, 43)' must carry 'E-QUERY-001' \
+         per BC-2.11.024 v1.3; got: {all_msgs:?}"
+    );
+    // (2) Must cite the stable portion of the BC-2.11.024 v1.3 verbatim template.
+    // The implementer must emit exactly this phrase so analysts can find the docs.
+    assert!(
+        all_msgs.contains("IIN operator requires quoted string literals in the membership list"),
+        "F-MED-001: parse error must contain the verbatim BC-2.11.024 v1.3 template \
+         phrase 'IIN operator requires quoted string literals in the membership list'; \
+         got: {all_msgs:?}"
+    );
+    // (3) Template must name the disallowed value type so the analyst understands
+    // why their query was rejected.
+    assert!(
+        all_msgs.contains("integer, float, or boolean"),
+        "F-MED-001: parse error must contain 'integer, float, or boolean' \
+         per BC-2.11.024 v1.3 template; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_iin_boolean_elements_rejected_e_query_001
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 v1.3 — IIN list containing boolean literals must be rejected at
+/// parse time with E-QUERY-001 and the verbatim non-string template.
+///
+/// `status IIN (true, false)` contains two boolean literals.  This is a
+/// companion to the integer-elements test above, exercising the `Literal::Boolean`
+/// rejection path separately.
+///
+/// ## Current behaviour (HEAD 065a1b60) — RED
+///
+/// `parse_filter("status IIN (true, false)")` returns `Ok(FilterExpr { … })`.
+/// `expect_err(…)` panics on the Ok return.
+///
+/// ## Green Gate
+///
+/// PASSES once the `iin_values` combinator rejects `Literal::Boolean` at parse
+/// time, emitting a `ParseError` whose `.message` contains:
+///   "E-QUERY-001"  AND
+///   "IIN operator requires quoted string literals in the membership list"
+///
+/// Note: `'true'` and `'false'` (quoted) are valid IIN elements (they are
+/// treated as string labels).  Only the unquoted keyword forms `true`/`false`
+/// (parsed as `Literal::Boolean`) are rejected.
+///
+/// ## Traces
+///
+/// BC-2.11.024 v1.3 §Non-string IIN elements; AC-020 (extended to IIN list);
+/// LOCAL adversary pass-15 finding F-MED-001.
+#[test]
+fn test_BC_2_11_024_iin_boolean_elements_rejected_e_query_001() {
+    // BC-2.11.024: parser must reject boolean elements in IIN list at parse time.
+    let errors = parse_filter("status IIN (true, false)").expect_err(
+        "F-MED-001: 'status IIN (true, false)' must fail to parse at parse time — \
+         boolean literals are invalid IIN list elements per BC-2.11.024 v1.3; \
+         currently returns Ok (booleans survive into Predicate::In and are only \
+         rejected later by predicate_to_datafusion_sql; LOCAL-pass-15 fix target)",
+    );
+    let all_msgs: String = errors
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    // (1) Must carry the structured error code.
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "F-MED-001: parse error for 'status IIN (true, false)' must carry 'E-QUERY-001' \
+         per BC-2.11.024 v1.3; got: {all_msgs:?}"
+    );
+    // (2) Must cite the stable portion of the BC-2.11.024 v1.3 verbatim template.
+    assert!(
+        all_msgs.contains("IIN operator requires quoted string literals in the membership list"),
+        "F-MED-001: parse error must contain the verbatim BC-2.11.024 v1.3 template \
+         phrase 'IIN operator requires quoted string literals in the membership list'; \
+         got: {all_msgs:?}"
+    );
+    // (3) Template must name the disallowed value type.
+    assert!(
+        all_msgs.contains("integer, float, or boolean"),
+        "F-MED-001: parse error must contain 'integer, float, or boolean' \
+         per BC-2.11.024 v1.3 template; got: {all_msgs:?}"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-15: OBS-2 — compound-violation precedence lock (GREEN)
+//
+// AC-023 (story): when a query contains BOTH a CI operator error (wrong RHS
+// type for IEQ) AND a SQL-mode violation, the STRING-LITERAL E-QUERY-001
+// template must fire, NOT the mode-boundary template.
+//
+// Mechanism: the IEQ parser's `ieq_rhs_string` try_map rejects non-string RHS
+// (e.g. integer `42`) at PARSE TIME, emitting E-QUERY-001 with the "quoted
+// string literal" message.  The SQL-mode check (`detect_ci_operator_in_predicate`)
+// only runs on a SUCCESSFULLY-PARSED predicate containing a CI operator.
+// Since `severity IEQ 42` fails to produce a parsed predicate, the SQL-mode
+// check is never reached.
+//
+// Current behaviour at HEAD 065a1b60: GREEN — the IEQ string-literal rejection
+// was implemented in a prior pass (RG-016 green).
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_compound_violation_string_literal_precedence
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 / AC-023 — STRING-LITERAL precedence over SQL-mode-boundary lock.
+///
+/// `SELECT * FROM t WHERE severity IEQ 42` violates two rules simultaneously:
+///   (a) IEQ requires a quoted string literal RHS (string-literal rule).
+///   (b) IEQ is not permitted in SQL mode (SQL-mode-boundary rule).
+///
+/// The string-literal parse-time rejection fires FIRST because:
+///   `ieq_rhs_string` try_map rejects `Literal::Integer(42)` before a
+///   `Predicate::Compare { case_insensitive: true }` is ever constructed.
+///   `detect_ci_operator_in_predicate` (SQL-mode check) is only called on
+///   a successfully-parsed CI predicate — which never exists here.
+///
+/// ## Assertions
+///
+/// - `PrismQlParser::parse(query)` returns `Err(...)`.
+/// - Error message contains "E-QUERY-001".
+/// - Error message contains "quoted string literal" (IEQ non-string RHS template).
+/// - Error message does NOT contain "not supported in SQL mode"
+///   (mode-boundary template must NOT fire).
+///
+/// ## Status: GREEN at HEAD 065a1b60
+///
+/// The IEQ string-literal rejection (RG-016) was implemented in a prior pass.
+/// This test is a regression lock — a future refactor must not accidentally
+/// swap the precedence so that SQL-mode detection fires for a query where
+/// the IEQ itself is malformed.
+///
+/// ## Traces
+///
+/// BC-2.11.024 AC-023; RG-016 (IEQ non-string RHS → E-QUERY-001);
+/// LOCAL-pass-15 OBS-2 compound-violation precedence lock.
+#[test]
+fn test_BC_2_11_024_compound_violation_string_literal_precedence() {
+    let result = PrismQlParser::parse("SELECT * FROM t WHERE severity IEQ 42");
+    let err = result.expect_err(
+        "BC-2.11.024 AC-023: 'SELECT * FROM t WHERE severity IEQ 42' must return Err — \
+         IEQ requires a quoted string literal RHS; integer 42 is rejected at parse time; \
+         unexpected Ok indicates the IEQ string-literal rejection (RG-016) regressed",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    // (1) Must be E-QUERY-001 — both error types share this code.
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024 AC-023: compound-violation must carry 'E-QUERY-001'; got: {all_msgs:?}"
+    );
+    // (2) Must be the STRING-LITERAL template, not the SQL-mode-boundary template.
+    // The IEQ string-literal template contains "quoted string literal".
+    assert!(
+        all_msgs.contains("quoted string literal"),
+        "BC-2.11.024 AC-023: compound-violation error must contain 'quoted string literal' \
+         (IEQ non-string RHS template fires first, per AC-023 precedence rule); \
+         got: {all_msgs:?}"
+    );
+    // (3) The SQL-mode-boundary template must NOT appear.  If it does, the precedence
+    // rule is violated — the SQL-mode check fired on a malformed IEQ predicate.
+    assert!(
+        !all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024 AC-023: compound-violation must NOT contain 'not supported in SQL mode' \
+         (SQL-mode-boundary template must NOT fire when the IEQ RHS is invalid — \
+         string-literal rejection takes precedence per AC-023); got: {all_msgs:?}"
+    );
+}
