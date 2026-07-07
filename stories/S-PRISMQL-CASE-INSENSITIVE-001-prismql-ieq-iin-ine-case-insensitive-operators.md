@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.18"
+version: "1.19"
 updated: "2026-07-07"
 status: draft
 producer: story-writer
@@ -451,7 +451,6 @@ then the materialized Arrow `StringArray` cell contains the canonical OCSF Title
 
 PRIMARY Red Gate: `test_BC_2_02_013_build_column_array_normalizes_severity_to_title_case`
 SECONDARY Red Gate (`normalize_with_mappers` DynamicMessage path): `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_critical_to_title_case`
-SECONDARY Red Gate (`normalize_with_mappers` DynamicMessage path): `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_low_to_title_case`
 
 OCSF IN-SCOPE FIELDS NOTE (BC-2.02.013 v1.4): The four in-scope enum-label string fields
 guaranteed by this story are: `severity`, `status`, `activity_name`, and `disposition`.
@@ -624,6 +623,12 @@ Red Gate: `test_BC_2_11_024_dml_delete_where_ieq_rejected`
 Red Gate: `test_BC_2_11_024_dml_update_where_iin_rejected`
 Red Gate: `test_BC_2_11_024_dml_insert_select_where_ine_rejected`
 Red Gate (RG-046 / pass-10): `test_BC_2_11_024_all_prompt_embedded_queries_parse` — `crates/prism-mcp/tests/bc_2_11_024_test.rs` — AC-023 corollary (prompt-content mode-boundary coherence) — every MCP-prompt-embedded PrismQL query parses Ok (pass-10 F-CRIT-1: armis leg IIN-in-raw-SQL regression caught; fixed to `IN ('High','Critical')`)
+
+**Compound violations precedence:** When a query violates both the string-literal RHS rule and
+the SQL-mode boundary (e.g., `SELECT ... WHERE severity IEQ 42`), the string-literal E-QUERY-001
+template takes precedence — the parse-stage `try_map` fires at the literal span before the
+post-parse mode-boundary walk runs. Both templates carry E-QUERY-001 and MCP -32602; either
+error satisfies the parse-time-rejection requirement of this AC.
 
 ### AC-024 — PrismQL grammar reference resource includes IEQ/IIN/INE in operator table
 (traces to BC-2.11.024 v1.2 architecture anchor: ADR-047 §D.4 discoverability;
@@ -1522,3 +1527,4 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 | v1.16 | 2026-07-07 | pass-11 polish: RG-048..053 added (negated-IIN marker, detector real-op, IN-list AST lock, describe parse-lock, index collision guards x2); OCSF_ENUM_LABEL_FIELDS single-sourced as `pub const` in prism-ocsf imported by prism-bin (F-OBS-3 drift-proof); red_gate_tests 47→53; "RG-028 through RG-047"→"RG-028 through RG-053"; Total/Task-28 counts updated to 53 + 6 pass-11 |
 | v1.17 | 2026-07-07 | pass-12 F-P11-LOW-1: RG-044 description updated IIN→IN ('High','Critical') per pass-10 F-CRIT-1 correction (2 sites: AC-019 body citation + pass-9 RG inventory row) |
 | v1.18 | 2026-07-07 | pass-12: RG-054 SECONDARY empty-string parity mirror; 8 stale v1.0 test-comment pins stripped (code-side); red_gate_tests 53→54 |
+| v1.19 | 2026-07-07 | pass-13: AC-016 stale `low_to_title_case` SECONDARY Red Gate citation removed — test does not exist, `critical_to_title_case` (RG-019) is the correct SECONDARY (F-LOW-1); AC-023 compound-violation precedence note added — string-literal try_map fires before mode-boundary walk when both constraints violated (F-OBS-2) |
