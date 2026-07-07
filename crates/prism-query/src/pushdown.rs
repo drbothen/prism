@@ -1147,4 +1147,87 @@ mod pushdown_red_gate_tests {
             end_time
         );
     }
+
+    /// F-P9-LOW-1 / BC-2.11.024 v1.0
+    ///
+    /// A `Predicate::Compare { op: Eq, case_insensitive: true, ... }` (IEQ form)
+    /// MUST NOT be collected into the equality push-down FilterMap by
+    /// `predicate_tree_to_filter_map`.
+    ///
+    /// Case-insensitive predicates must be evaluated post-fetch by DataFusion, not
+    /// pushed down to the sensor.  Pushing them down causes the sensor to apply a
+    /// case-sensitive equality (e.g., `severity = 'high'`), which returns 0 rows
+    /// against OCSF Title-case normalized values like `'High'`.
+    ///
+    /// # Construction note
+    ///
+    /// IEQ is only supported in filter/pipe syntax, NOT SQL mode.  The test
+    /// constructs the `Predicate::Compare { case_insensitive: true, ... }` directly
+    /// from AST types (valid in-crate because `Predicate` is `#[non_exhaustive]`
+    /// only to external crates; within the defining crate struct-construction is
+    /// permitted).  This directly exercises the `collect_equality_exprs` guard
+    /// without depending on parser mode routing.
+    ///
+    /// # Guard
+    ///
+    /// A case-sensitive `=` sibling (`severity = 'low'`) MUST still be collected
+    /// into the FilterMap — verifying the fix is precise and does not regress
+    /// ordinary equality push-down.
+    ///
+    /// # Red Gate
+    ///
+    /// At HEAD 0b2c0983, `collect_equality_exprs` matches
+    /// `Predicate::Compare { lhs, op, rhs, .. }` with a `..` wildcard that captures
+    /// `case_insensitive: true`.  IEQ predicates are therefore incorrectly collected.
+    ///
+    /// Fails with:
+    ///   FilterMap["severity"] = Some("high") but expected None.
+    ///
+    /// # Fix target
+    ///
+    /// Change `..` to `case_insensitive: false` (or equivalent) in
+    /// `collect_equality_exprs` so only case-sensitive `=` comparisons are
+    /// pushed down.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_BC_2_11_024_ieq_predicate_excluded_from_equality_pushdown() {
+        use crate::ast::{CompareOp, Expr, FieldPath, Literal, Predicate};
+
+        use super::predicate_tree_to_filter_map;
+
+        // --- Subject: IEQ predicate (case_insensitive: true) must NOT be pushed down ---
+        //
+        // Equivalent to parsing `severity IEQ 'high'` in filter mode.
+        // IEQ lowers to `lower(severity) = lower('high')` in DataFusion — it MUST NOT
+        // be pushed down to the sensor as a plain equality filter.
+        let ieq_pred = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::String("high".to_string()))),
+            case_insensitive: true,
+        };
+        let map = predicate_tree_to_filter_map(&ieq_pred);
+        assert!(
+            map.get("severity").is_none(),
+            "BC-2.11.024 F-P9-LOW-1: IEQ predicate `severity IEQ 'high'` \
+             (case_insensitive: true) must NOT be collected into the push-down \
+             FilterMap — the sensor would apply a case-sensitive equality that \
+             misses OCSF Title-case values like 'High'. Got FilterMap: {map:?}"
+        );
+
+        // --- Guard: case-sensitive `=` (case_insensitive: false) MUST still be pushed down ---
+        let eq_pred = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::String("low".to_string()))),
+            case_insensitive: false,
+        };
+        let guard_map = predicate_tree_to_filter_map(&eq_pred);
+        assert!(
+            guard_map.get("severity").is_some(),
+            "BC-2.11.024 F-P9-LOW-1 guard: case-sensitive `severity = 'low'` \
+             (case_insensitive: false) MUST still be collected into the push-down \
+             FilterMap. Got: {guard_map:?}"
+        );
+    }
 }

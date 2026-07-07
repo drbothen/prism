@@ -718,3 +718,72 @@ fn test_bc_2_11_024_ieq_iin_ine_in_reference_content() {
         );
     }
 }
+
+/// F-P9-MED-2 / BC-2.11.024 v1.0
+///
+/// The rendered PQL grammar reference content (`prismql://reference`) must NOT
+/// contain case-sensitive equality examples using all-caps or all-lowercase OCSF
+/// enum literals — e.g., `severity = 'HIGH'`, `= 'CRITICAL'`, `IN ('HIGH'`.
+///
+/// After the OCSF Title-case normalization in BC-2.02.013 landed, sensor adapters
+/// normalize `'HIGH'` → `'High'` and `'CRITICAL'` → `'Critical'` before DataFusion
+/// materialization.  Teaching agents to query `severity = 'HIGH'` or
+/// `IN ('HIGH', 'CRITICAL')` will silently produce 0 rows.
+///
+/// **Allowed** (Title-case or case-insensitive operators):
+///   `severity = 'High'`, `severity = 'Critical'`, `severity IEQ 'high'`,
+///   `severity IIN ('High', 'Critical')`
+///
+/// **Forbidden** (vendor-cased, will not match after normalization):
+///   `= 'HIGH'`, `= 'high'`, `IN ('HIGH'`, `IN ('high'`,
+///   `= 'CRITICAL'`, `= 'critical'`, `= 'UNHANDLED'`, `= 'OPEN'`
+///
+/// # Red Gate
+///
+/// At HEAD 0b2c0983, `REFERENCE_EXAMPLES` contains three Positive entries with
+/// `severity = 'HIGH'`, and the operator table in `build_reference_content`
+/// contains two more occurrences.  This test fails with a list of all forbidden
+/// patterns found.
+///
+/// # Fix target
+///
+/// Replace stale entries in `REFERENCE_EXAMPLES` and the operator table with
+/// Title-case forms (`severity = 'High'`) or IEQ forms (`severity IEQ 'high'`).
+#[test]
+fn test_BC_2_11_024_reference_content_no_stale_vendor_cased_enum_examples() {
+    let content = build_reference_content(None);
+
+    // Patterns that must NOT appear in the rendered reference content.
+    // These teach agents to use case-sensitive equality against ALL-CAPS or
+    // all-lowercase vendor-cased enum literals that will not match OCSF
+    // Title-case normalized values after BC-2.02.013 normalization.
+    //
+    // Title-case equivalents (`= 'High'`, `= 'Critical'`) and case-insensitive
+    // operator forms (`IEQ 'high'`, `IIN ('High', 'Critical')`) remain allowed.
+    let forbidden: &[&str] = &[
+        "= 'HIGH'",
+        "= 'high'",
+        "IN ('HIGH'",
+        "IN ('high'",
+        "= 'CRITICAL'",
+        "= 'critical'",
+        "= 'UNHANDLED'",
+        "= 'OPEN'",
+    ];
+
+    let mut violations: Vec<&str> = Vec::new();
+    for pattern in forbidden {
+        if content.contains(pattern) {
+            violations.push(pattern);
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "BC-2.11.024 F-P9-MED-2: reference content contains stale vendor-cased \
+         enum equality patterns that silently produce 0 rows after OCSF Title-case \
+         normalization (BC-2.02.013). Forbidden patterns found: {violations:?}. \
+         Replace with Title-case forms (`= 'High'`, `= 'Critical'`) or \
+         case-insensitive operators (`IEQ`, `IIN`).",
+    );
+}
