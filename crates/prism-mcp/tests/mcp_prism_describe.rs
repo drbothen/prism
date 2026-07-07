@@ -1896,20 +1896,29 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
         .as_str()
         .expect("BC-2.10.012 AC-002: crowdstrike_svt table must have example_query string");
 
-    // F-L2-CRIT-001 fix: CrowdStrike DTU emits Title-case 'High'/'Critical'.
-    // The old assertion `IN ('high', 'critical')` was a paper-confirmation of the bug;
-    // now corrected to assert the DTU-correct vocabulary.
+    // F-L2-CRIT-001 + F-P6-HIGH-001 (updated — S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-6):
+    // Post-normalization, CrowdStrike severity is canonicalized to OCSF Title-case before
+    // DataFusion materialization (BC-2.02.013 v1.3 PRIMARY normalization).  The IN-literal
+    // form `IN ('High', 'Critical')` is REMOVED in favour of the IEQ pipe form per AC-025 /
+    // ADR-047 §D.4.  Vendor-cased IN literals silently return 0 rows post-normalization.
     assert!(
-        sev_eq.contains("IN ('High', 'Critical')"),
-        "BC-2.10.012 AC-002 [severity] F-L2-CRIT-001: example_query for crowdstrike table MUST \
-         use Title-case severity literals `IN ('High', 'Critical')` to match DTU vocabulary. \
+        sev_eq.contains("IEQ"),
+        "BC-2.10.012 AC-002 [severity] F-P6-HIGH-001: example_query for crowdstrike table MUST \
+         use IEQ operator per AC-025 / ADR-047 §D.4 (post-normalization IN literals return 0 rows). \
          Got: {:?}.",
         sev_eq
     );
 
     assert!(
-        sev_eq.contains("LIMIT 50"),
-        "BC-2.10.012 AC-002 [severity]: example_query MUST have LIMIT 50 (BC-canonical). \
+        sev_eq.contains("Title-case") || sev_eq.contains("title-case"),
+        "BC-2.10.012 AC-002 [severity] F-P6-HIGH-001: example_query must include OCSF casing note \
+         (substring 'Title-case') per AC-025. Got: {:?}.",
+        sev_eq
+    );
+
+    assert!(
+        sev_eq.to_lowercase().contains("limit 50"),
+        "BC-2.10.012 AC-002 [severity]: example_query MUST reference LIMIT 50 (BC-canonical). \
          Got: {:?}.",
         sev_eq
     );

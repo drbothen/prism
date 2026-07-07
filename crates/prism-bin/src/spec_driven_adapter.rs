@@ -1109,8 +1109,9 @@ fn build_column_array(
                                         // log volume for adversarially long vendor strings.
                                         tracing::warn!(
                                             event_type = "ocsf.enum_label_unrecognized",
-                                            column = %col.name,
+                                            field_name = %col.name,
                                             value = %s.chars().take(50).collect::<String>(),
+                                            sensor_type = %sensor_id,
                                             "build_column_array: OCSF enum-label value not \
                                              recognized; emitting as-received \
                                              (BC-2.02.013 v1.3 F-CRIT-002)"

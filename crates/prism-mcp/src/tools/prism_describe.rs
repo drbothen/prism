@@ -525,88 +525,75 @@ fn build_enrichment_hint(
     )
 }
 
-/// Per-sensor severity vocabulary — maps sensor name prefix to the DTU-emitted
-/// severity literal casing.
+/// Per-sensor severity vocabulary — sensor name prefixes whose tables have a
+/// meaningful `severity` String column and should get an IEQ example query.
 ///
-/// # Demo sensor coverage (all 4 sensors)
+/// # Post-normalization contract (S-PRISMQL-CASE-INSENSITIVE-001)
 ///
-/// Only sensors whose exact DTU-emitted severity casing is registered here will have
-/// a severity-filter variant in their example query.  Sensors absent from this list
-/// fall through to the count-recent or column-free query branch.
+/// Raw vendor feeds keep their original casing at the wire level (crowdstrike
+/// Title-case "High"/"Critical", armis UPPER-case "HIGH"/"CRITICAL", cyberint
+/// lowercase "high"/"critical").  The BC-2.02.013 v1.3 PRIMARY normalization
+/// path (`build_column_array` in `spec_driven_adapter.rs`) canonicalizes the
+/// `severity`, `status`, `activity_name`, and `disposition` columns to OCSF
+/// Title-case BEFORE DataFusion materializes the in-memory record batch.  After
+/// normalization every sensor's severity values are stored as Title-case
+/// ('High', 'Critical', 'Medium', 'Low') regardless of the raw feed casing.
 ///
-/// ## Sensors registered in this vocabulary
+/// Describe examples MUST therefore use `IEQ` (case-insensitive equality) rather
+/// than `IN ('HIGH', …)` or `IN ('high', …)` — vendor-cased IN literals silently
+/// return 0 rows against post-normalization data.
 ///
-/// - `crowdstrike`: Title-case — `"High"`, `"Critical"`
-///   Source: `crates/prism-dtu-crowdstrike/src/generator.rs`
-///   `make_detection_with_ioc()` severity_id mapping: 1→"Low", 2→"Medium", 3→"High", _→"Critical"
-///   Example query emits `WHERE severity IN ('High', 'Critical') LIMIT 50`.
+/// The example format for all registered sensors is:
+/// ```text
+/// -- OCSF severity is Title-case post-normalization (e.g., 'High').
+///    Use IEQ for case-insensitive matching.
+/// FROM <table> | WHERE severity IEQ 'high' | limit 50
+/// ```
 ///
-/// - `armis`: UPPER-case — `"HIGH"`, `"CRITICAL"`
-///   Source: `crates/prism-dtu-armis/src/generator.rs` `build_alert()` severity param
-///   assigned as `"HIGH"`, `"CRITICAL"`, `"MEDIUM"`, `"LOW"`
-///   Example query emits `WHERE severity IN ('HIGH', 'CRITICAL') LIMIT 50`.
+/// # Sensors registered
 ///
-/// - `cyberint`: lowercase — `"high"`, `"critical"`
-///   Source: `crates/prism-dtu-cyberint/src/generator.rs`
-///   `let severities = ["low", "medium", "high", "critical"];` (F-PHL2-MED-001 fix)
-///   Example query emits `WHERE severity IN ('high', 'critical') LIMIT 50`.
+/// - `crowdstrike`: has severity String column.
+/// - `armis`: has severity String column.
+/// - `cyberint`: has severity String column (F-PHL2-MED-001).
 ///
-/// ## Sensors intentionally omitted
+/// # Sensors intentionally omitted
 ///
-/// - `claroty`: NO severity column of any kind in its normalized schema
-///   (`has_severity = false`).  The claroty TOML spec declares no `severity` and
-///   no `severity_id` column.  (The Claroty xDome API does emit a `severity_id`
-///   integer field on the wire, but it was intentionally omitted from the declared
-///   column set — see the Gap-CL-005 comment in claroty.sensor.toml for history.)
-///   The `has_severity` check in `build_example_query` tests for a column named
-///   `"severity"` (String), which claroty never declares, so claroty tables never
-///   reach the severity-filter branch at all.  No vocabulary entry is needed or
-///   appropriate.
+/// - `claroty`: NO severity String column in its normalized schema.  The claroty
+///   TOML spec declares no `severity` column (`has_severity = false`).  No
+///   vocabulary entry needed.
 ///
-/// ## Rule: adding a new sensor
+/// # Rule: adding a new sensor
 ///
-/// Before adding an entry to this vocabulary, verify the EXACT casing of the
-/// severity string values emitted by the corresponding DTU clone
-/// (`crates/prism-dtu-<sensor>/src/generator.rs`).  Wrong casing causes the
-/// severity filter to silently return 0 rows against live or DTU data.
+/// Add the sensor prefix when its TOML spec declares a `severity` String column
+/// AND the sensor's raw feed undergoes BC-2.02.013 normalization.  No need to
+/// record the raw casing — IEQ is always case-insensitive at query time.
 ///
 /// F-L2-CRIT-001 fix (S-DEMO-FIDELITY-REMEDIATION-001).
-/// F-PGL2-LOW-001 doc expansion (S-DEMO-FIDELITY-REMEDIATION-001).
 /// F-PHL2-MED-001 cyberint entry (S-DEMO-FIDELITY-REMEDIATION-001 Pass-H).
-/// F-PIL2-LOW-001 doc consolidation (S-DEMO-FIDELITY-REMEDIATION-001 Pass-I).
-const SENSOR_SEVERITY_VOCABULARY: &[(&str, &str, &str)] = &[
-    // (sensor_prefix, high_literal, critical_literal)
-    ("crowdstrike", "High", "Critical"),
-    ("armis", "HIGH", "CRITICAL"),
-    // cyberint emits lowercase severity: "low", "medium", "high", "critical"
-    // Source: crates/prism-dtu-cyberint/src/generator.rs severities array.
-    // F-PHL2-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-H).
-    ("cyberint", "high", "critical"),
-];
+/// F-P6-MED-002 doc rewrite — post-normalization IEQ contract
+///   (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-6).
+const SENSOR_SEVERITY_VOCABULARY: &[&str] = &["crowdstrike", "armis", "cyberint"];
 
-/// Derive the severity literals for a table based on its sensor prefix.
+/// Check whether a table's sensor has a registered severity vocabulary.
 ///
-/// Returns `Some((high_literal, critical_literal))` for sensors registered in
-/// `SENSOR_SEVERITY_VOCABULARY`, `None` for all others.
+/// Returns `true` for sensors registered in `SENSOR_SEVERITY_VOCABULARY`,
+/// `false` for all others.
 ///
 /// For the four demo sensors:
-/// - `crowdstrike_*` → `Some(("High", "Critical"))` (Title-case)
-/// - `armis_*` → `Some(("HIGH", "CRITICAL"))` (UPPER-case)
-/// - `cyberint_*` → `Some(("high", "critical"))` (lowercase; F-PHL2-MED-001 fix)
-/// - `claroty_*` → `None` (no string `severity` column; never reaches this
-///   function from `build_example_query` because `has_severity` is false
-///   for claroty tables)
+/// - `crowdstrike_*` → `true`
+/// - `armis_*` → `true`
+/// - `cyberint_*` → `true` (F-PHL2-MED-001 fix)
+/// - `claroty_*` → `false` (no String `severity` column in normalized schema)
 ///
-/// F-L2-CRIT-001: unknown sensor → `None` → severity filter is suppressed, falling
-/// back to count-recent or column-free — never a silent zero-row filter.
-fn severity_literals_for_table(table_name: &str) -> Option<(&'static str, &'static str)> {
+/// F-L2-CRIT-001: unknown sensor → `false` → severity filter suppressed,
+/// falling back to count-recent or column-free — never a silent zero-row filter.
+/// F-P6-MED-002: no raw casing needed since IEQ is always case-insensitive and
+/// post-normalization all severity values are Title-case (BC-2.02.013 v1.3).
+fn has_severity_vocabulary(table_name: &str) -> bool {
     // Table names are sensor-prefixed: "crowdstrike_detections", "armis_alerts", etc.
-    for (prefix, high, critical) in SENSOR_SEVERITY_VOCABULARY {
-        if table_name.starts_with(prefix) {
-            return Some((high, critical));
-        }
-    }
-    None
+    SENSOR_SEVERITY_VOCABULARY
+        .iter()
+        .any(|prefix| table_name.starts_with(prefix))
 }
 
 /// Build an auto-generated example PQL query for a table.
@@ -638,14 +625,19 @@ fn severity_literals_for_table(table_name: &str) -> Option<(&'static str, &'stat
 /// - For unknown sensor prefixes with a severity column, fall back to count-recent or
 ///   column-free rather than emitting literals that silently return 0 rows.
 ///
-/// # Variant selection (priority: aggregate > severity > count-recent/simple)
+/// # Variant selection (priority: aggregate > severity-IEQ > count-recent/simple)
 ///
-/// | Condition                                          | Query emitted |
-/// |----------------------------------------------------|---------------|
-/// | Integer/Float column present                       | GROUP BY aggregate |
-/// | severity column present + known sensor vocabulary  | WHERE severity IN (...) LIMIT 50 |
-/// | Datetime column found (no above)                   | COUNT(*) WHERE <dt_col> > NOW() - INTERVAL '1h' |
-/// | No datetime column (no above)                      | SELECT * FROM <t> LIMIT 25 |
+/// | Condition                                              | Query emitted |
+/// |--------------------------------------------------------|---------------|
+/// | Integer/Float column present                           | GROUP BY aggregate |
+/// | severity column present + known sensor vocabulary      | IEQ pipe form (AC-025 / ADR-047 §D.4) |
+/// | Datetime column found (no above)                       | COUNT(*) WHERE <dt_col> > NOW() - INTERVAL '1h' |
+/// | No datetime column (no above)                          | SELECT * FROM <t> LIMIT 25 |
+///
+/// All registered sensor tables with a severity column emit the IEQ form regardless
+/// of column position (F-P6-HIGH-001/002; S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-6).
+/// Vendor-cased IN literals were removed because post-normalization they silently return
+/// 0 rows (BC-2.02.013 v1.3 PRIMARY normalization canonicalizes to Title-case).
 ///
 /// BC-2.10.012 / AUDIT-001 / AUDIT-004; S-DEMO-FIDELITY-REMEDIATION-001 CRIT-1 + F-L2-CRIT-001.
 pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> String {
@@ -669,50 +661,29 @@ pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> St
         format!("SELECT * FROM {table_name} LIMIT 25")
     };
 
-    // Severity filter variant when a severity column is present AND the sensor has a
+    // Severity IEQ variant when a severity column is present AND the sensor has a
     // registered vocabulary.
     //
-    // F-L2-CRIT-001 fix: only emit severity literals when we know the correct casing
-    // for this sensor's DTU-emitted vocabulary. Unknown sensor prefix → skip severity
-    // variant and keep count-recent/column-free to avoid silent zero-row queries.
+    // F-L2-CRIT-001 fix: only emit a severity example when we know the sensor actually
+    // has a meaningful severity column. Unknown sensor prefix → skip severity variant
+    // and keep count-recent/column-free to avoid silent zero-row queries.
     //
-    // F-HIGH-001 / AC-025 (S-PRISMQL-CASE-INSENSITIVE-001 pass-5): When severity is the
-    // PRIMARY column of interest (listed first in the columns slice), emit the IEQ example
-    // with OCSF casing note per ADR-047 §D.4. This teaches users that OCSF severity is
-    // stored as a specific case and that IEQ/IIN match case-insensitively.
-    // When severity is secondary (another column listed first), keep the classic IN variant
-    // so that existing regression guards (test_crit1_datetime_column_named_timestamp_still_works,
-    // test_obs001_roundtrip_severity_filter_branch_parses) remain parseable and valid.
+    // F-P6-HIGH-001/002 / AC-025 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-6):
+    // ALL tables with a severity column and registered vocabulary emit the IEQ form,
+    // regardless of column position. Vendor-cased IN literals (`IN ('HIGH', …)`,
+    // `IN ('high', …)`) silently return 0 rows against post-normalization data because
+    // BC-2.02.013 v1.3 PRIMARY normalization (build_column_array) canonicalizes severity
+    // to OCSF Title-case before DataFusion materialization (AC-025 / ADR-047 §D.4).
     let has_severity = columns.iter().any(|c| c.name == "severity");
-    // severity_is_primary: severity is the first-listed column AND there are additional
-    // context columns in the schema (len > 1). A schema with only a severity column is
-    // a synthetic fixture; multi-column schemas with severity-first indicate the analyst
-    // wants the IEQ tutorial example per AC-025 / ADR-047 §D.4.
-    let severity_is_primary = columns
-        .first()
-        .map(|c| c.name == "severity")
-        .unwrap_or(false)
-        && columns.len() > 1;
-    if has_severity {
-        if let Some((high, critical)) = severity_literals_for_table(table_name) {
-            if severity_is_primary {
-                // AC-025 / ADR-047 §D.4: severity-primary example — IEQ operator + OCSF casing
-                // note. Output is informational (not required to be a single parseable PQL
-                // token); it is embedded in the describe response as a usage hint for analysts.
-                // The note explains OCSF Title-case conventions and how IEQ bypasses them.
-                query = format!(
-                    "-- OCSF severity is Title-case ('{high}'). \
-                     Use severity IEQ 'high' for case-insensitive matching.\n\
-                     FROM {table_name} | WHERE severity IEQ 'high' | limit 50"
-                );
-            } else {
-                // Classic IN variant: preserves existing parseable roundtrip invariant for
-                // callers that list Datetime columns first (test_crit1_*, test_obs001_*).
-                query = format!(
-                    "SELECT * FROM {table_name} WHERE severity IN ('{high}', '{critical}') LIMIT 50"
-                );
-            }
-        }
+    if has_severity && has_severity_vocabulary(table_name) {
+        // AC-025 / ADR-047 §D.4: IEQ operator + OCSF casing note for ALL severity tables.
+        // The note teaches analysts the post-normalization storage format and that IEQ
+        // matches case-insensitively regardless of what they type.
+        query = format!(
+            "-- OCSF severity is Title-case post-normalization (e.g., 'High'). \
+             Use IEQ for case-insensitive matching.\n\
+             FROM {table_name} | WHERE severity IEQ 'high' | limit 50"
+        );
         // If no vocabulary → fall through, keeping count-recent or column-free query.
     }
 
@@ -937,12 +908,18 @@ mod build_example_query_tests {
         );
     }
 
-    /// F-L2-CRIT-001: armis_alerts severity variant must use UPPER-case literals.
+    /// F-L2-CRIT-001 + F-P6-HIGH-001 (updated): armis_alerts severity variant must use
+    /// the IEQ case-insensitive operator with OCSF casing note (post-normalization contract).
     ///
-    /// DTU emits: "HIGH", "CRITICAL" — NOT lowercase "high"/"critical".
-    /// A query with lowercase literals returns 0 rows from DTU data silently.
+    /// DTU emits UPPER-case "HIGH"/"CRITICAL" on the raw wire, but BC-2.02.013 v1.3 PRIMARY
+    /// normalization (build_column_array) canonicalizes severity to OCSF Title-case before
+    /// DataFusion materialization.  A query with `IN ('HIGH', 'CRITICAL')` therefore
+    /// silently returns 0 rows against post-normalization data.
     ///
-    /// Load-bearing: reverting to lowercase 'high'/'critical' makes this test fail.
+    /// Updated (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-6 Security Fix Protocol):
+    /// The expected output changed from the old `IN ('HIGH', 'CRITICAL')` IN-literal form
+    /// to the IEQ pipe form per AC-025 / ADR-047 §D.4.  Load-bearing: reverting to the
+    /// old IN form makes this test fail.
     #[test]
     fn test_f_l2_crit001_armis_alerts_severity_uses_upper_case() {
         let columns = vec![
@@ -953,16 +930,22 @@ mod build_example_query_tests {
 
         let q = build_example_query("armis_alerts", &columns);
 
-        // Must use UPPER-case (DTU emits "HIGH"/"CRITICAL", NOT "high"/"critical").
+        // Post-normalization contract: use IEQ (case-insensitive), not IN with vendor casing.
         assert!(
-            q.contains("'HIGH'") && q.contains("'CRITICAL'"),
-            "F-L2-CRIT-001: armis_alerts severity IN must use UPPER-case \
-             'HIGH'/'CRITICAL' to match DTU vocabulary. Got: {q}"
+            q.contains("IEQ"),
+            "F-L2-CRIT-001 + F-P6-HIGH-001: armis_alerts severity describe example must use \
+             IEQ operator; post-normalization IN('HIGH','CRITICAL') returns 0 rows. Got: {q}"
         );
         assert!(
-            !q.contains("'high'") && !q.contains("'critical'"),
-            "F-L2-CRIT-001: armis_alerts must NOT use lowercase 'high'/'critical' \
-             (DTU emits UPPER-case). Got: {q}"
+            q.contains("Title-case") || q.contains("title-case"),
+            "F-L2-CRIT-001 + F-P6-HIGH-001: armis_alerts IEQ example must include OCSF casing \
+             note (substring 'Title-case') per AC-025 / ADR-047 §D.4. Got: {q}"
+        );
+        // Must NOT use IN with vendor-cased literals that silently 0-row post-normalization.
+        assert!(
+            !q.contains("IN ('HIGH'"),
+            "F-L2-CRIT-001 + F-P6-HIGH-001: armis_alerts must NOT use IN('HIGH',...); \
+             post-normalization UPPER-case IN silently returns 0 rows. Got: {q}"
         );
     }
 

@@ -154,7 +154,7 @@ impl OcsfNormalizer {
                 tracing::warn!(
                     event_type = "ocsf.enum_label_unrecognized",
                     field_name = %field,
-                    value = %current,
+                    value = %current.chars().take(50).collect::<String>(),
                     sensor_type = %sensor,
                     "unrecognized OCSF enum label value; leaving as-received"
                 );
