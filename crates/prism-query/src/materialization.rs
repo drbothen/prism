@@ -2251,9 +2251,7 @@ async fn check_ci_column_types(
                             table: table_name.to_string(),
                             actual_type,
                             operator: operator.clone(),
-                            suggested_column: format_suggested_column_suffix(
-                                ocsf_suggested_string_column(col_name),
-                            ),
+                            suggested_column: ocsf_suggested_string_column(col_name),
                         });
                     }
                 }
@@ -2287,27 +2285,6 @@ fn ocsf_suggested_string_column(id_column: &str) -> Option<String> {
         "activity_id" => Some("activity_name".to_string()),
         "disposition_id" => Some("disposition".to_string()),
         _ => None,
-    }
-}
-
-/// Format the optional suggestion suffix for `PrismError::QueryTypeMismatch.suggested_column`.
-///
-/// Returns the pre-formatted suffix string (error-taxonomy v2.19 §E-QUERY-002 AC-022;
-/// BC-2.11.024 v1.2):
-/// - `Some(col)` → `"; for label comparison, use the string column '{col}' with IEQ/IIN/INE instead"`
-/// - `None` → `""` (empty — no suffix appended to the error message)
-///
-/// Used at every `PrismError::QueryTypeMismatch` construction site that does not have a
-/// known OCSF string sibling (`SuggestedColumnHint` was the previous wrapper; this helper
-/// replaces it now that the field is `String` rather than a pub newtype).
-fn format_suggested_column_suffix(suggested: Option<String>) -> String {
-    match suggested {
-        Some(col) => {
-            format!(
-                "; for label comparison, use the string column '{col}' with IEQ/IIN/INE instead"
-            )
-        }
-        None => String::new(),
     }
 }
 
@@ -2709,7 +2686,7 @@ pub(crate) fn check_temporal_literals(
                                 table: dml_table.clone(),
                                 actual_type: ct,
                                 operator: "=".to_string(),
-                                suggested_column: String::new(),
+                                suggested_column: None,
                             });
                         }
                         None | Some(_) => {
@@ -2929,7 +2906,7 @@ fn apply_literal_dispatch(
                 table: table_name,
                 actual_type: ct,
                 operator: operator_label.to_string(),
-                suggested_column: String::new(),
+                suggested_column: None,
             })
         }
         None | Some(_) => Ok(()), // Unknown column, Json, or other type → fail-open.
@@ -3005,7 +2982,7 @@ fn check_pred_raw_temporal(
                                 table: table_name,
                                 actual_type: ct,
                                 operator: op_str.to_string(),
-                                suggested_column: String::new(),
+                                suggested_column: None,
                             });
                         }
                         None | Some(_) => {
@@ -3271,7 +3248,7 @@ fn check_expr_temporal_pos(
                                 table: table_name,
                                 actual_type: ct,
                                 operator: op_str.to_string(),
-                                suggested_column: String::new(),
+                                suggested_column: None,
                             });
                         }
                         None | Some(_) => {

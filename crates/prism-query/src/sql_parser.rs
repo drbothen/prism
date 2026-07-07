@@ -86,8 +86,10 @@ const SQL_KEYWORDS: &[&str] = &[
 /// Walk a `Predicate` tree and return the name of the first case-insensitive
 /// (IEQ / INE / IIN) operator found, or `None` if none are present.
 ///
-/// Used by `parse_sql_with_limits` to produce a parse-time `E-QUERY-001` error when
-/// a SQL-mode WHERE clause contains a CI operator (BC-2.11.024 v1.1 §SQL-Mode Rejection).
+/// Used by `parse_sql_with_limits` (via `detect_ci_operator_in_sql_query`) to produce
+/// a parse-time `E-QUERY-001` error when a SQL-mode query contains a CI operator in its
+/// WHERE clause, HAVING clause, or any IN-subquery at arbitrary nesting depth
+/// (BC-2.11.024 v1.1 §SQL-Mode Rejection, LOCAL-pass-4 F-HIGH-001).
 ///
 /// Returns the canonical uppercase keyword:
 /// - `"IEQ"` for `Compare { case_insensitive: true, op: Eq, .. }`
@@ -102,9 +104,19 @@ fn detect_ci_operator_in_predicate(pred: &Predicate) -> Option<&'static str> {
         } => Some(match op {
             CompareOp::Eq => "IEQ",
             CompareOp::Ne => "INE",
-            // Any other op with case_insensitive=true is an AST invariant violation;
-            // surface it as IEQ (the canonical fallback) rather than panicking.
-            _ => "IEQ",
+            // Any other op with case_insensitive=true is an AST invariant violation.
+            // This branch is structurally unreachable (the parser never emits
+            // case_insensitive=true for Lt/Le/Gt/Ge/Like), but if it somehow fires,
+            // surface "IEQ" as the canonical fallback rather than panicking.
+            _ => {
+                debug_assert!(
+                    false,
+                    "detect_ci_operator_in_predicate: unexpected case_insensitive=true \
+                     on op={op:?}; AST invariant violated — parser should never emit \
+                     case_insensitive=true for non-IEQ/INE ops. Falling back to IEQ."
+                );
+                "IEQ"
+            }
         }),
         Predicate::In {
             case_insensitive: true,
@@ -114,8 +126,34 @@ fn detect_ci_operator_in_predicate(pred: &Predicate) -> Option<&'static str> {
             predicates.iter().find_map(detect_ci_operator_in_predicate)
         }
         Predicate::Not(inner) => detect_ci_operator_in_predicate(inner),
+        // BC-2.11.024 v1.1 §SQL-Mode Rejection, LOCAL-pass-4 F-HIGH-001:
+        // Recurse into the subquery's WHERE and HAVING to catch CI operators at
+        // any IN-subquery nesting depth (doubly-nested, triply-nested, etc.).
+        Predicate::InSubquery { subquery, .. } => detect_ci_operator_in_sql_query(subquery),
         _ => None,
     }
+}
+
+/// Walk a `SqlQuery`'s WHERE and HAVING predicates for CI operators.
+///
+/// Returns the first CI operator name found in `where_` or `having` (in that order),
+/// or `None` if neither clause contains a CI operator.
+///
+/// Called by both `parse_sql_with_limits` (top-level checks) and
+/// `detect_ci_operator_in_predicate` (`InSubquery` recursion), avoiding code
+/// duplication across the two invocation sites.
+fn detect_ci_operator_in_sql_query(sq: &SqlQuery) -> Option<&'static str> {
+    if let Some(pred) = &sq.where_ {
+        if let Some(op) = detect_ci_operator_in_predicate(pred) {
+            return Some(op);
+        }
+    }
+    if let Some(pred) = &sq.having {
+        if let Some(op) = detect_ci_operator_in_predicate(pred) {
+            return Some(op);
+        }
+    }
+    None
 }
 
 /// Parse a SQL-mode query and return `Ast::Sql(SqlStatement::Select(SqlQuery))`.
@@ -178,22 +216,21 @@ pub(crate) fn parse_sql_with_limits(
             limits
                 .check_sql_list_sizes_with(&sq)
                 .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
-            // BC-2.11.024 v1.1 §SQL-Mode Rejection: IEQ/INE/IIN are not supported
-            // in SQL-mode WHERE clauses. Detect at parse time so callers get a clean
-            // E-QUERY-001 error rather than a DataFusion planning failure at runtime.
-            if let Some(pred) = &sq.where_ {
-                if let Some(op) = detect_ci_operator_in_predicate(pred) {
-                    return Err(vec![ParseError::new(
-                        0,
-                        format!(
-                            "E-QUERY-001: parse error near '{op}': case-insensitive operators \
-                             (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
-                             (e.g., severity IEQ 'high') or a pipe | where stage \
-                             (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
-                             instead."
-                        ),
-                    )]);
-                }
+            // BC-2.11.024 v1.1 §SQL-Mode Rejection: IEQ/INE/IIN are not supported in
+            // SQL-mode WHERE or HAVING clauses (or IN-subquery WHERE/HAVING at any depth).
+            // Detect at parse time so callers get a clean E-QUERY-001 error rather than
+            // a DataFusion planning failure at runtime (LOCAL-pass-4 F-HIGH-001).
+            if let Some(op) = detect_ci_operator_in_sql_query(&sq) {
+                return Err(vec![ParseError::new(
+                    0,
+                    format!(
+                        "E-QUERY-001: parse error near '{op}': case-insensitive operators \
+                         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+                         (e.g., severity IEQ 'high') or a pipe | where stage \
+                         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+                         instead."
+                    ),
+                )]);
             }
             return Ok(Ast::Sql(SqlStatement::Select(sq)));
         }
@@ -213,20 +250,19 @@ pub(crate) fn parse_sql_with_limits(
             if limits.check_sql_query_nesting_depth_with(&sq, 0).is_ok()
                 && limits.check_sql_list_sizes_with(&sq).is_ok()
             {
-                // BC-2.11.024 v1.1: also reject CI operators in the recovery path.
-                if let Some(pred) = &sq.where_ {
-                    if let Some(op) = detect_ci_operator_in_predicate(pred) {
-                        return Err(vec![ParseError::new(
-                            0,
-                            format!(
-                                "E-QUERY-001: parse error near '{op}': case-insensitive \
-                                 operators (IEQ/IIN/INE) are not supported in SQL mode. \
-                                 Use filter mode (e.g., severity IEQ 'high') or a pipe | \
-                                 where stage (e.g., FROM crowdstrike_detections | where \
-                                 severity IEQ 'high') instead."
-                            ),
-                        )]);
-                    }
+                // BC-2.11.024 v1.1: also reject CI operators in the recovery path,
+                // including HAVING and IN-subquery WHERE/HAVING (LOCAL-pass-4 F-HIGH-001).
+                if let Some(op) = detect_ci_operator_in_sql_query(&sq) {
+                    return Err(vec![ParseError::new(
+                        0,
+                        format!(
+                            "E-QUERY-001: parse error near '{op}': case-insensitive \
+                             operators (IEQ/IIN/INE) are not supported in SQL mode. \
+                             Use filter mode (e.g., severity IEQ 'high') or a pipe | \
+                             where stage (e.g., FROM crowdstrike_detections | where \
+                             severity IEQ 'high') instead."
+                        ),
+                    )]);
                 }
                 return Ok(Ast::Sql(SqlStatement::Select(sq)));
             }

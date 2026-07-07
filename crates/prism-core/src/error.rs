@@ -8,6 +8,33 @@
 
 use thiserror::Error;
 
+/// Private Display helper for the `suggested_column: Option<String>` field of
+/// `PrismError::QueryTypeMismatch` (error-taxonomy v2.19 §E-QUERY-002 AC-022).
+///
+/// Renders:
+/// - `Some(col)` → `"; for label comparison, use the string column '{col}' with IEQ/IIN/INE instead"`
+/// - `None` → `""` (empty — no suffix appended to the Display message)
+///
+/// Used by the `#[error]` positional arg in `PrismError::QueryTypeMismatch` so the
+/// Display output is byte-for-byte identical to the previous `String`-field approach
+/// while the struct contract now holds a bare `Option<String>` column name.
+///
+/// Not public — callers construct `QueryTypeMismatch` with a bare `Option<String>`.
+struct SuggestedSuffix<'a>(&'a Option<String>);
+
+impl std::fmt::Display for SuggestedSuffix<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(col) = self.0 {
+            write!(
+                f,
+                "; for label comparison, use the string column '{col}' with IEQ/IIN/INE instead"
+            )
+        } else {
+            Ok(())
+        }
+    }
+}
+
 /// Inner fields for `PrismError::EnrichUdfNotFound` (E-QUERY-039).
 ///
 /// Boxed inside the enum variant to keep `PrismError` under the
@@ -856,7 +883,8 @@ pub enum PrismError {
     /// Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.017; error-taxonomy.md E-QUERY-002.
     #[error(
         "E-QUERY-002: type mismatch — column '{column}' in table '{table}' has type \
-         '{actual_type:?}' which does not support operator '{operator}'{suggested_column}"
+         '{actual_type:?}' which does not support operator '{operator}{}",
+        SuggestedSuffix(suggested_column)
     )]
     QueryTypeMismatch {
         /// The column name used with the incompatible operator.
@@ -867,16 +895,15 @@ pub enum PrismError {
         actual_type: crate::column::ColumnType,
         /// The operator string as it appears in the query (e.g., `">"`).
         operator: String,
-        /// Optional suggestion suffix appended to the error message.
+        /// Bare column name of the OCSF string sibling, if known; `None` otherwise.
         ///
-        /// Non-empty value: full suggestion text, e.g.
-        /// `"; for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"`.
-        /// Empty string: no suffix (temporal checks, DML assignments, and other
-        /// cases without a known OCSF string sibling).
+        /// `Some("severity")` for `severity_id`, `Some("status")` for `status_id`, etc.
+        /// `None` for temporal checks, DML assignments, and other cases without a known
+        /// OCSF string sibling.
         ///
-        /// Populated by callers via `format_suggested_column_suffix(Option<String>)` helper.
-        /// (error-taxonomy v2.19 §E-QUERY-002 AC-022; BC-2.11.024 v1.2)
-        suggested_column: String,
+        /// The Display impl appends the suggestion suffix (error-taxonomy v2.19 §E-QUERY-002
+        /// AC-022; BC-2.11.024 v1.2) via the private `SuggestedSuffix` Display helper.
+        suggested_column: Option<String>,
     },
 
     /// E-QUERY-003: Query security limit exceeded (security-only variant).

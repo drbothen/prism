@@ -105,11 +105,10 @@ fn extract_string_field(msg: &DynamicMessage, field_name: &str) -> String {
 /// - `severity` = `"Critical"` (normalized from "CRITICAL" via OcsfEnumMap)
 /// - `status`   = `"New"` (BC-2.02.013 v1.1 F-HIGH-002: status is in-scope)
 ///
-/// Red Gate: FAILS — `normalize_with_mappers` returns the DynamicMessage unchanged
-/// (no normalization wired): `severity = "CRITICAL"`, `status = "NEW"`.
-/// The first `assert_eq!("Critical")` fails.
-/// Green Gate: PASSES once `normalize_with_mappers` calls `OcsfEnumMap::normalize_label`
-/// on string enum fields and rewrites them in the DynamicMessage.
+/// Regression guard: PASSES — normalization wired in F-CRIT-001 fix-burst.
+/// `normalize_with_mappers` applies `OcsfEnumMap::normalize_label` to string enum
+/// fields and rewrites them in the DynamicMessage. This test guards against regression
+/// (re-breaking the normalization wiring).
 ///
 /// Traces to: BC-2.02.013 v1.1 postconditions "Severity (guaranteed)", "Status (guaranteed)";
 /// F-CRIT-001 insertion point; AC-016.
@@ -131,8 +130,7 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_critical_to_title_c
     assert_eq!(
         severity_val, "Critical",
         "RG-019: severity='CRITICAL' must normalize to 'Critical' via normalize_with_mappers \
-         (BC-2.02.013 v1.1 F-CRIT-001); normalize_with_mappers has no normalization wired yet; \
-         got: {severity_val:?}"
+         (BC-2.02.013 v1.1 F-CRIT-001); got: {severity_val:?}"
     );
 
     // BC-2.02.013 v1.1 F-HIGH-002: status is also in-scope and must be normalized
@@ -156,16 +154,10 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_critical_to_title_c
 /// Normalization must be idempotent — the value must pass through unchanged,
 /// and no warn event must be emitted.
 ///
-/// Red Gate: FAILS — `normalize_with_mappers` returns the DynamicMessage unchanged
-/// (no normalization wired). If normalization were partially wired but incorrectly,
-/// it might alter "High" → this test guards against over-normalization. Currently
-/// the failure is that the normalization pipe is entirely absent, but when it is
-/// added, idempotence must hold.
-///
-/// Note: in RED state the test body passes (stub mapper sets "High", no normalization
-/// changes it, assert_eq passes). The test becomes a regression guard once RG-019
-/// goes GREEN — it verifies normalization does NOT corrupt already-canonical values.
-/// Any regression here means the normalization logic is broken.
+/// Regression guard: PASSES — normalization is idempotent for already-canonical values.
+/// The normalization wiring added by F-CRIT-001 does NOT corrupt "High" to something else.
+/// Any future regression in normalization that corrupts already-canonical values will cause
+/// this test to fail.
 ///
 /// Traces to: BC-2.02.013 v1.1 postcondition "idempotent: canonical value unchanged";
 /// AC-017; EC-02-020 (CrowdStrike emits 'High').
@@ -200,13 +192,11 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high() {
 /// 2. Emit `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", field_name = "severity",
 ///    value = "UNHANDLED", sensor_type = "crowdstrike", ...)`
 ///
-/// Red Gate: FAILS for TWO reasons before implementation:
-/// - The DynamicMessage would have `severity = "UNHANDLED"` (PASSES vacuously; stub sets it)
-/// - No `tracing::warn!` with `event_type = "ocsf.enum_label_unrecognized"` is emitted
-///   → the `assert!(warns.contains(...))` FAILS because no such event fires
-///
-/// Green Gate: PASSES once `normalize_with_mappers` applies normalization and emits the
-/// `ocsf.enum_label_unrecognized` warn for values not found in OcsfEnumMap.
+/// Regression guard: PASSES — `normalize_with_mappers` correctly:
+/// - Leaves the DynamicMessage `severity` as `"UNHANDLED"` (non-fatal; unrecognized value
+///   is returned as-received per BC-2.02.013 v1.1 error case)
+/// - Emits `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)` for the
+///   unrecognized value (BC-2.16.002 Canonical Structured Event Catalog)
 ///
 /// Traces to: BC-2.02.013 v1.1 error case "Warning (non-fatal): unrecognized value";
 /// BC-2.16.002 Canonical Structured Event Catalog (ocsf.enum_label_unrecognized);
@@ -345,24 +335,11 @@ impl SensorMapper for ActivityNameStubMapper {
 /// because the real OCSF proto field is `activity_name`. As a result, the normalization
 /// loop skips activity entirely — `"create"` is never rewritten to `"Create"`.
 ///
-/// Additionally, even if the field name were corrected to `"activity_name"`, the enum map
-/// key derivation in `OcsfEnumMap::normalize_enum_label` appends `_id`:
-/// `"activity_name" + "_id" = "activity_name_id"`, but the OCSF map contains entries
-/// keyed on `"activity_id"`, not `"activity_name_id"`. This requires a special mapping.
-///
-/// Red Gate: FAILS for two cascaded reasons at HEAD face9b91:
-///   (1) `OCSF_ENUM_LABEL_FIELDS` uses `"activity"` (wrong field name) →
-///       normalization loop calls `get_field_by_name("activity")` → returns `None` →
-///       entire field skipped → `activity_name` remains `"create"` untouched →
-///       `assert_eq!("Create")` fails.
-///   (2) Even after correcting (1), `normalize_enum_label("activity_name", "create")`
-///       derives key `"activity_name_id"` which has no entries → returns `None` →
-///       no normalization → `assert_eq!("Create")` would still fail.
-///
-/// Green Gate: PASSES once:
-///   - `OCSF_ENUM_LABEL_FIELDS` is corrected to `"activity_name"` (or the loop handles it)
-///   - `normalize_enum_label` (or a special `activity_name` → `activity_id` key mapping)
-///     maps `"create"` to `"Create"` via `activity_id` entries.
+/// Regression guard: PASSES — both root causes were fixed:
+///   (1) `OCSF_ENUM_LABEL_FIELDS` updated to `"activity_name"` (correct OCSF proto field name)
+///   (2) `normalize_enum_label` uses a special `activity_name` → `activity_id` key mapping
+///       so `"create"` maps to `"Create"` via `activity_id` entries in `OcsfEnumMap`.
+/// Any future regression removing either fix will cause this test to fail.
 ///
 /// SID-1 compliance: in-process unit test; no external dependencies; no `#[ignore]`.
 ///
@@ -383,18 +360,14 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_activity_name_lower
         );
 
     // BC-2.02.013 v1.2: activity_name must be normalized to canonical OCSF Title-case.
-    //
-    // Currently FAILS: OCSF_ENUM_LABEL_FIELDS has "activity" (wrong), so
-    // `get_field_by_name("activity")` returns None, loop skips the field,
-    // activity_name remains "create" (raw value), not "Create".
+    // Regression guard: normalization wired, OCSF_ENUM_LABEL_FIELDS uses "activity_name",
+    // and the activity_id key mapping is correct.
     let activity_name_val = extract_string_field(&msg, "activity_name");
     assert_eq!(
         activity_name_val, "Create",
         "F-P1-ACTIVITY-NOOP: activity_name='create' must normalize to 'Create' via \
          normalize_with_mappers (BC-2.02.013 v1.2 activity_name in-scope); \
-         OCSF_ENUM_LABEL_FIELDS uses 'activity' (wrong field name — the OCSF proto \
-         field is 'activity_name') and normalize_enum_label key derivation produces \
-         'activity_name_id' rather than 'activity_id'; both must be fixed; got: {activity_name_val:?}"
+         got: {activity_name_val:?}"
     );
 }
 
@@ -441,17 +414,11 @@ impl SensorMapper for DispositionStubMapper {
 /// `normalize_enum_label("disposition", "blocked")` derives key `"disposition_id"`, finds
 /// `("disposition_id", 2) → "Blocked"` and returns `Some("Blocked")`.
 ///
-/// Red Gate: FAILS at HEAD face9b91 because `normalize_with_mappers` has ZERO normalization
-/// wired — it calls `mapper.map()` and returns immediately. The stub sets `disposition =
-/// "blocked"` on the DynamicMessage; without normalization it stays `"blocked"`, not `"Blocked"`.
-/// The `assert_eq!("Blocked")` fails.
-///
-/// Green Gate / Regression Guard: PASSES once the general normalization wiring from
-/// F-CRIT-001 (RG-019 green-gate fix) is applied. No additional fix is needed for
-/// disposition specifically — the field name and key derivation are already correct.
-/// This test therefore acts as a regression guard: if `"disposition"` is accidentally
-/// removed from `OCSF_ENUM_LABEL_FIELDS` or the `disposition_id` enum entries are
-/// dropped from `OcsfEnumMap`, this test will fail and catch the regression.
+/// Regression guard: PASSES — the F-CRIT-001 normalization wiring correctly handles
+/// disposition. The field name and key derivation were already correct;
+/// the general normalization wiring from RG-019 was sufficient.
+/// If `"disposition"` is accidentally removed from `OCSF_ENUM_LABEL_FIELDS` or the
+/// `disposition_id` enum entries are dropped from `OcsfEnumMap`, this test will fail.
 ///
 /// SID-1 compliance: in-process unit test; no external dependencies; no `#[ignore]`.
 ///
@@ -471,18 +438,12 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_disposition_lowerca
         );
 
     // BC-2.02.013 v1.2: disposition must be normalized to canonical OCSF Title-case.
-    //
-    // Currently FAILS: normalize_with_mappers has no normalization wired → disposition
-    // remains "blocked" (raw from stub mapper), not "Blocked".
-    // Passes GREEN once F-CRIT-001 normalization wiring lands (no additional fix needed
-    // for disposition — field name and key derivation are correct).
+    // Regression guard: normalization wired by F-CRIT-001; field name and key derivation correct.
     let disposition_val = extract_string_field(&msg, "disposition");
     assert_eq!(
         disposition_val, "Blocked",
         "F-P1-ACTIVITY-DISP-TEST-GAP: disposition='blocked' must normalize to 'Blocked' via \
          normalize_with_mappers (BC-2.02.013 v1.2 disposition in-scope); \
-         the field is correctly named in OCSF_ENUM_LABEL_FIELDS and OcsfEnumMap has \
-         disposition_id entries — this test fails only because normalize_with_mappers \
-         has no normalization wired yet; got: {disposition_val:?}"
+         got: {disposition_val:?}"
     );
 }

@@ -128,7 +128,7 @@ impl OcsfNormalizer {
         // F-HIGH-003 keying contract: normalize_enum_label keys on the string label field
         // name (e.g., "severity"), deriving captions from the "{F}_id" entries in OcsfEnumMap.
         //
-        // F-HIGH-002 in-scope fields: severity, status, activity, disposition.
+        // F-HIGH-002 in-scope fields: severity, status, activity_name, disposition.
         let map = enum_map();
         for &field in OCSF_ENUM_LABEL_FIELDS {
             // Only normalize if the OCSF protobuf descriptor has this field.
