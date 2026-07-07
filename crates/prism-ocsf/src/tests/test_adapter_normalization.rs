@@ -27,6 +27,14 @@
 //!   - F-HIGH-002: in-scope fields = severity (confirmed), status (v1.1 addition)
 //! - BC-2.02.002 v1.5 — DynamicMessage Creation
 //! - BC-2.02.010 v1.5 — OcsfEnumMap as sole canonical casing authority
+//!
+//! ## Production caller status (OBS-003)
+//!
+//! `normalize_with_mappers` has zero production callers today — it is defined
+//! in `normalizer.rs` but called only from test code and integration fixtures.
+//! These tests lock the contract for the future protobuf-export path where a
+//! real `SensorMapper` will be wired (per BC-2.02.013).  Until that wiring
+//! lands the tests act as forward-compatibility guardrails.
 
 #![allow(non_snake_case, clippy::expect_used, clippy::unwrap_used)]
 

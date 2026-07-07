@@ -2592,3 +2592,279 @@ fn test_BC_2_11_024_dml_insert_select_where_ine_rejected() {
          BC-2.11.024 template exactly; got: {all_msgs:?}"
     );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-14: F-LOW-001 — IEQ/INE with date-like quoted RHS
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// Bug: `classify_string_literal` (ADR-052 lenient date matching) reclassifies
+// a quoted date-like string (e.g. '2026-06-01') to `Literal::RawTemporalLiteral`
+// or `Literal::Timestamp`.  `ieq_rhs_string`/`ine_rhs_string` try_map only
+// accepts `Literal::String(s)`, so `severity IEQ '2026-06-01'` fails parse with
+// the WRONG error message "integer, float, or boolean".
+//
+// Production-grade fix (Option A per task brief): extend the try_map in
+// `ieq_rhs_string` and `ine_rhs_string` to also accept `RawTemporalLiteral`
+// (extracting the inner String) and `Literal::Timestamp` (extracting ts.iso8601),
+// then wrap the result in `Literal::String` so the emitter sees only String RHS.
+// IIN has the same hazard (values stored as raw Literal), fixed by normalising
+// RawTemporalLiteral/Timestamp → String in the iin_values collected vector.
+//
+// Red Gate (HEAD 5e83627f):
+//   `parse_filter("severity IEQ '2026-06-01'")` → Err (wrong message)
+//   `parse_filter("severity INE '2026-06-01'")` → Err (wrong message)
+//   IIN with date-like elements → parse OK but emitter returns QueryPlanFailed
+//
+// Green Gate: all parse OK; emitter produces lower() SQL without error.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_ieq_date_like_rhs_accepted_as_string
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-LOW-001: `severity IEQ '2026-06-01'` must parse successfully despite
+/// `classify_string_literal` reclassifying the quoted date to `RawTemporalLiteral`.
+///
+/// The user explicitly quoted the value — it is a string literal used for
+/// label comparison, not a temporal comparison.  The IEQ parser must accept it
+/// and store it as `Literal::String("2026-06-01")` so the emitter produces
+/// `lower(severity) = lower('2026-06-01')`.
+///
+/// Red Gate (HEAD 5e83627f): `parse_filter` returns Err with message
+/// "integer, float, or boolean" because `ieq_rhs_string` try_map rejects
+/// `Literal::RawTemporalLiteral`.  The test fails at `expect`.
+///
+/// Green Gate: `ieq_rhs_string` try_map accepts `RawTemporalLiteral` (and
+/// `Timestamp`) by extracting the raw string, producing `Literal::String`.
+///
+/// Traces to: BC-2.11.024; F-LOW-001 (LOCAL-pass-14).
+#[test]
+fn test_BC_2_11_024_ieq_date_like_rhs_accepted_as_string() {
+    let result = parse_filter("severity IEQ '2026-06-01'");
+    let fe = result.expect(
+        "F-LOW-001: 'severity IEQ \\'2026-06-01\\'' must parse successfully; \
+         `classify_string_literal` reclassifies the quoted date to RawTemporalLiteral \
+         and `ieq_rhs_string` try_map must now accept it (LOCAL-pass-14 fix target)",
+    );
+
+    // Verify the AST stores the value as Literal::String, not RawTemporalLiteral.
+    match &fe.predicate {
+        Predicate::Compare {
+            rhs,
+            op,
+            case_insensitive,
+            ..
+        } => {
+            assert_eq!(
+                op,
+                &CompareOp::Eq,
+                "F-LOW-001: IEQ must map to CompareOp::Eq"
+            );
+            assert!(
+                case_insensitive,
+                "F-LOW-001: IEQ must set case_insensitive=true"
+            );
+            match rhs.as_ref() {
+                Expr::Literal(Literal::String(s)) => {
+                    assert_eq!(
+                        s, "2026-06-01",
+                        "F-LOW-001: RHS must be Literal::String(\"2026-06-01\"); \
+                         got a different string value"
+                    );
+                }
+                other => panic!(
+                    "F-LOW-001: RHS must be Expr::Literal(Literal::String(\"2026-06-01\")); \
+                     got {other:?}"
+                ),
+            }
+        }
+        other => panic!("F-LOW-001: predicate must be Compare; got {other:?}"),
+    }
+
+    // Verify the emitter produces lower() SQL without error.
+    let sql =
+        predicate_to_datafusion_sql(&fe.predicate).expect("F-LOW-001: emitter must not error");
+    assert_eq!(
+        sql, "lower(severity) = lower('2026-06-01')",
+        "F-LOW-001: IEQ with date-like RHS must emit lower(field) = lower('val')"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_ine_date_like_rhs_accepted_as_string
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-LOW-001 (INE sibling): `severity INE '2026-06-01'` must parse successfully.
+///
+/// Symmetric with `test_BC_2_11_024_ieq_date_like_rhs_accepted_as_string`.
+///
+/// Red Gate (HEAD 5e83627f): `ine_rhs_string` try_map rejects `RawTemporalLiteral`.
+/// Green Gate: extended try_map accepts it, emitter produces lower() != SQL.
+///
+/// Traces to: BC-2.11.024; F-LOW-001 (LOCAL-pass-14).
+#[test]
+fn test_BC_2_11_024_ine_date_like_rhs_accepted_as_string() {
+    let result = parse_filter("severity INE '2026-06-01'");
+    let fe = result.expect(
+        "F-LOW-001: 'severity INE \\'2026-06-01\\'' must parse successfully; \
+         `ine_rhs_string` try_map must accept RawTemporalLiteral (LOCAL-pass-14 fix target)",
+    );
+
+    match &fe.predicate {
+        Predicate::Compare {
+            rhs,
+            op,
+            case_insensitive,
+            ..
+        } => {
+            assert_eq!(
+                op,
+                &CompareOp::Ne,
+                "F-LOW-001: INE must map to CompareOp::Ne"
+            );
+            assert!(
+                case_insensitive,
+                "F-LOW-001: INE must set case_insensitive=true"
+            );
+            match rhs.as_ref() {
+                Expr::Literal(Literal::String(s)) => {
+                    assert_eq!(
+                        s, "2026-06-01",
+                        "F-LOW-001: INE RHS must be Literal::String(\"2026-06-01\")"
+                    );
+                }
+                other => panic!(
+                    "F-LOW-001: INE RHS must be Expr::Literal(Literal::String); got {other:?}"
+                ),
+            }
+        }
+        other => panic!("F-LOW-001: INE predicate must be Compare; got {other:?}"),
+    }
+
+    let sql =
+        predicate_to_datafusion_sql(&fe.predicate).expect("F-LOW-001: INE emitter must not error");
+    assert_eq!(
+        sql, "lower(severity) != lower('2026-06-01')",
+        "F-LOW-001: INE with date-like RHS must emit lower(field) != lower('val')"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_iin_date_like_elements_accepted_as_string
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-LOW-001 (IIN): `status IIN ('2026-06-01', '2026-07-01')` must parse and emit
+/// without error despite `classify_string_literal` reclassifying both values to
+/// `Literal::RawTemporalLiteral`.
+///
+/// The IIN grammar collects `Literal` values directly.  Without normalisation
+/// `RawTemporalLiteral` values survive into `Predicate::In { values }` and cause
+/// the emitter to return `QueryPlanFailed` ("lower() is not applicable to
+/// non-string values").
+///
+/// Red Gate (HEAD 5e83627f):
+///   `parse_filter` → Ok (parser doesn't type-check IIN list elements).
+///   `predicate_to_datafusion_sql` → Err(QueryPlanFailed) — this is the failing
+///   assertion.
+///
+/// Green Gate: `iin_values` normalises `RawTemporalLiteral`/`Timestamp` to
+///   `Literal::String` so the emitter sees only String values and succeeds.
+///
+/// Traces to: BC-2.11.024; F-LOW-001 (LOCAL-pass-14).
+#[test]
+fn test_BC_2_11_024_iin_date_like_elements_accepted_as_string() {
+    let result = parse_filter("status IIN ('2026-06-01', '2026-07-01')");
+    let fe = result.expect(
+        "F-LOW-001: 'status IIN (\\'2026-06-01\\', \\'2026-07-01\\')' must parse OK; \
+         IIN parser does not type-check list elements at parse time",
+    );
+
+    // After the fix, all values in the IIN list must be Literal::String.
+    match &fe.predicate {
+        Predicate::In {
+            values,
+            case_insensitive,
+            negated,
+            ..
+        } => {
+            assert!(
+                case_insensitive,
+                "F-LOW-001: IIN must set case_insensitive=true"
+            );
+            assert!(!negated, "F-LOW-001: IIN must not be negated");
+            for v in values {
+                assert!(
+                    matches!(v, Literal::String(_)),
+                    "F-LOW-001: IIN list values must be Literal::String after normalisation; \
+                     got {v:?}"
+                );
+            }
+        }
+        other => panic!("F-LOW-001: IIN predicate must be In; got {other:?}"),
+    }
+
+    // Emitter must produce lower() IN (...) without error.
+    let sql = predicate_to_datafusion_sql(&fe.predicate)
+        .expect("F-LOW-001: IIN emitter must not return QueryPlanFailed after normalisation");
+    assert_eq!(
+        sql, "lower(status) IN (lower('2026-06-01'), lower('2026-07-01'))",
+        "F-LOW-001: IIN with date-like elements must emit lower(field) IN (...)"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-14: OBS-001 — SqlPipe head WHERE mode-boundary GREEN lock
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sqlpipe_head_where_ieq_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// OBS-001 (GREEN lock): `SELECT * FROM t WHERE severity IEQ 'high' | limit 5`
+/// must be rejected by `PrismQlParser::parse` with E-QUERY-001 naming the operator
+/// "IEQ" and containing "not supported in SQL mode".
+///
+/// Reachability: `is_sqlpipe_mode` detects the `| limit` suffix and routes to
+/// `parse_sqlpipe_internal`, which calls `parse_sql_with_limits` on the SQL head
+/// `SELECT * FROM t WHERE severity IEQ 'high'`.  The WHERE clause check
+/// (`detect_ci_operator_in_predicate`) fires on the IEQ Compare node and returns
+/// E-QUERY-001 before any pipe stage parsing occurs.
+///
+/// This behavior is already correct via the shared `parse_sql_with_limits` path
+/// (the same code that fixes pure-SQL WHERE reachability also fixes the SqlPipe
+/// SQL head).  This test is a regression GREEN lock, symmetric with the existing
+/// `test_BC_2_11_024_sqlpipe_head_having_ieq_rejected`.
+///
+/// Traces to: BC-2.11.024 §SQL-Mode Rejection; OBS-001 (LOCAL-pass-14).
+#[test]
+fn test_BC_2_11_024_sqlpipe_head_where_ieq_rejected() {
+    // `| limit 5` triggers SqlPipe routing via `is_sqlpipe_mode`
+    // (PIPE_STAGE_KEYWORDS includes "limit").  The SQL head is the SELECT part.
+    let query = "SELECT * FROM t WHERE severity IEQ 'high' | limit 5";
+    let result = PrismQlParser::parse(query);
+    let err = result.expect_err(
+        "BC-2.11.024 OBS-001: PrismQlParser::parse must reject IEQ in a SqlPipe SQL-head \
+         WHERE clause with E-QUERY-001; behavior is correct via shared parse_sql_with_limits — \
+         unexpected Ok indicates a regression in the SQL-mode CI operator rejection gate",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024 OBS-001: SqlPipe WHERE IEQ rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024 OBS-001: SqlPipe WHERE IEQ rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IEQ"),
+        "BC-2.11.024 OBS-001: SqlPipe WHERE IEQ rejection must name the operator 'IEQ'; \
+         got: {all_msgs:?}"
+    );
+}

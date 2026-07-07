@@ -965,6 +965,22 @@ pub(crate) fn build_predicate_parser<'a>(
                          Use at least one quoted string: e.g. `status IIN ('new', 'open')`.",
                     ));
                 }
+                // F-LOW-001: `classify_string_literal` (ADR-052 §D4) may reclassify
+                // quoted date-like values (e.g. '2026-06-01') to `RawTemporalLiteral`
+                // or `Timestamp`.  IIN values are always string/label comparisons; the
+                // user's intent is a quoted string in a set membership test.  Normalise
+                // both forms to `Literal::String` so the emitter can call `lower()` on
+                // each element.  Temporal semantics are intentionally NOT applied here —
+                // the `ci` (case-insensitive) emit path emits `lower('2026-06-01')`, not
+                // `arrow_cast(...)`.
+                let values = values
+                    .into_iter()
+                    .map(|lit| match lit {
+                        Literal::RawTemporalLiteral(s) => Literal::String(s),
+                        Literal::Timestamp(ts) => Literal::String(ts.iso8601),
+                        other => other,
+                    })
+                    .collect();
                 Ok(values)
             });
         let iin_list = field_path
@@ -1082,6 +1098,15 @@ pub(crate) fn build_predicate_parser<'a>(
         // outcompetes the "expected keyword 'MATCHES'" error that starts at position 9.
         let ieq_rhs_string = literal.clone().padded().try_map(|lit, span| match lit {
             Literal::String(s) => Ok(s),
+            // F-LOW-001: `classify_string_literal` (ADR-052 §D4 lenient parse) may
+            // reclassify a quoted date-like value (e.g. '2026-06-01') to
+            // `RawTemporalLiteral` or `Timestamp`.  The user explicitly quoted the
+            // value for a string/label comparison — unwrap it as a plain string so
+            // the emitter can call `lower()` on it.  No temporal semantics apply
+            // on the `ci` (case-insensitive) emit path; the value is emitted as
+            // `lower('2026-06-01')`, not as `arrow_cast(...)`.
+            Literal::RawTemporalLiteral(s) => Ok(s),
+            Literal::Timestamp(ts) => Ok(ts.iso8601),
             _ => Err(Rich::custom(
                 span,
                 "E-QUERY-001: IEQ operator requires a quoted string literal on the \
@@ -1105,6 +1130,10 @@ pub(crate) fn build_predicate_parser<'a>(
         // Same try_map-at-literal-level pattern as ieq_compare.
         let ine_rhs_string = literal.clone().padded().try_map(|lit, span| match lit {
             Literal::String(s) => Ok(s),
+            // F-LOW-001: same RawTemporalLiteral/Timestamp acceptance as ieq_rhs_string.
+            // Quoted date-like values must be treated as plain strings for INE comparison.
+            Literal::RawTemporalLiteral(s) => Ok(s),
+            Literal::Timestamp(ts) => Ok(ts.iso8601),
             _ => Err(Rich::custom(
                 span,
                 "E-QUERY-001: INE operator requires a quoted string literal on the \
