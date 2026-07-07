@@ -100,6 +100,10 @@ secrecy = { version = "0.8", features = ["serde"] }
 # S-PLUGIN-PREREQ-E Task 7d — tracing event field schema capture for AC-9 third-test (BC-2.16.002 row 33).
 # Minor-band pin per prism conservative-pinning convention.
 tracing-test = "0.2"
+# S-PRISMQL-CASE-INSENSITIVE-001 RG-022: DynamicMessage field extraction in the
+# GROUP BY normalization test — requires prost_reflect::Value to read severity
+# back from the normalized DynamicMessage. Matches prism-ocsf production dep version.
+prost-reflect = { version = "0.14.7", features = ["serde"] }
 
 # S-3.01 VP-014/VP-015 — bounded model checking proofs (exact pin; out-of-band nightly
 # toolchain; does not affect workspace MSRV of Rust 1.85).

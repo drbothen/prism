@@ -687,66 +687,78 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_repeated_ieq_no_panic() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RG-016: AC-020 — IEQ with non-string RHS → E-QUERY-001
+// RG-016: AC-020 — IEQ with non-string RHS → parse-time E-QUERY-001
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// RG-016: `predicate_to_datafusion_sql` with `IEQ` and an integer literal RHS
-/// must return an error.
+/// RG-016: parsing `severity IEQ 42` must produce a PARSE-TIME E-QUERY-001 error
+/// carrying the verbatim BC-2.11.024 message about string-literal requirement.
 ///
-/// The `lower()` function in DataFusion only accepts string columns; applying it
-/// to an integer is a type error. The emitter must reject Integer RHS for
-/// `case_insensitive: true` predicates.
+/// The old test called `predicate_to_datafusion_sql` (the SQL emitter) directly —
+/// that function already handles this case (paper-fix). The REAL pipeline gap is at
+/// the parser layer: the parser must emit E-QUERY-001 when it sees a non-string RHS
+/// after IEQ, so operators produce structured errors before any SQL is generated.
 ///
-/// Red Gate: PANICS — `predicate_to_datafusion_sql` hits `todo!()` for
-/// `case_insensitive: true` before it can validate the RHS type.
-/// Green Gate: PASSES — emitter returns Err when RHS is not a string literal.
+/// Red Gate: FAILS — `parse_filter("severity IEQ 42")` returns a generic Chumsky
+/// error ("found '4', expected '\"'") without the E-QUERY-001 code or BC message.
+/// Green Gate: PASSES once the IEQ parser branch emits ParseError containing
+/// "E-QUERY-001" for non-string RHS.
 ///
-/// Traces to: BC-2.11.024 v1.0 error case "E-QUERY-001: IEQ/INE with non-string literal RHS".
+/// Traces to: BC-2.11.024 v1.0 error case "E-QUERY-001: IEQ/INE with non-string RHS";
+/// AC-020.
 #[test]
 fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_non_string_rhs_e_query_001() {
-    let pred = Predicate::Compare {
-        lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
-        op: CompareOp::Eq,
-        rhs: Box::new(Expr::Literal(Literal::Integer(42))),
-        case_insensitive: true,
-    };
-    let result = predicate_to_datafusion_sql(&pred);
+    // BC-2.11.024: the PARSER must reject integer RHS for IEQ with a structured code.
+    let errors = parse_filter("severity IEQ 42").expect_err(
+        "RG-016: 'severity IEQ 42' must fail to parse — non-string RHS is invalid for IEQ",
+    );
+    let all_msgs: String = errors
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
     assert!(
-        result.is_err(),
-        "RG-016: IEQ with integer literal RHS must return Err; got: {:?}",
-        result.ok()
+        all_msgs.contains("E-QUERY-001"),
+        "RG-016: parse error for 'severity IEQ 42' must carry 'E-QUERY-001' \
+         per BC-2.11.024; parser currently emits a generic Chumsky error without \
+         the structured code; got: {all_msgs:?}"
     );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RG-017: AC-021 — IIN with empty list → E-QUERY-001
+// RG-017: AC-021 — IIN with empty list → parse-time E-QUERY-001
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// RG-017: `predicate_to_datafusion_sql` with `IIN` and an empty values list
-/// must return an error.
+/// RG-017: parsing `severity IIN ()` must produce a PARSE-TIME E-QUERY-001 error
+/// carrying the verbatim BC-2.11.024 message about the membership-list requirement.
 ///
-/// Empty `IN (...)` would produce invalid SQL; the emitter must enforce the
-/// "IIN requires at least one value" invariant.
+/// The old test called `predicate_to_datafusion_sql` with an empty `values: vec![]`
+/// AST node directly — that emitter check was already implemented (paper-fix). The
+/// REAL pipeline gap is at the parser layer: the parser must emit E-QUERY-001 when
+/// it sees an empty `()` list after IIN.
 ///
-/// Red Gate: PANICS — `predicate_to_datafusion_sql` hits `todo!()` for
-/// `case_insensitive: true` before the empty-list check.
-/// Green Gate: PASSES — emitter returns Err for empty list.
+/// Red Gate: FAILS — `parse_filter("severity IIN ()")` returns a generic Chumsky
+/// error ("found ')', expected string literal") without the E-QUERY-001 code.
+/// Green Gate: PASSES once the IIN parser branch emits ParseError containing
+/// "E-QUERY-001" for an empty membership list.
 ///
 /// Traces to: BC-2.11.024 v1.0 error case "E-QUERY-001: IIN with empty membership list";
-/// BC-2.11.024 v1.0 invariant "IIN requires at least one value".
+/// AC-021.
 #[test]
 fn test_S_PRISMQL_CASE_INSENSITIVE_001_iin_empty_list_e_query_001() {
-    let pred = Predicate::In {
-        field: FieldPath::new(["severity"]),
-        values: vec![],
-        negated: false,
-        case_insensitive: true,
-    };
-    let result = predicate_to_datafusion_sql(&pred);
+    // BC-2.11.024: the PARSER must reject an empty IIN list with a structured code.
+    let errors = parse_filter("severity IIN ()").expect_err(
+        "RG-017: 'severity IIN ()' must fail to parse — empty membership list is invalid",
+    );
+    let all_msgs: String = errors
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
     assert!(
-        result.is_err(),
-        "RG-017: IIN with empty value list must return Err; got: {:?}",
-        result.ok()
+        all_msgs.contains("E-QUERY-001"),
+        "RG-017: parse error for 'severity IIN ()' must carry 'E-QUERY-001' \
+         per BC-2.11.024; parser currently emits a generic Chumsky error without \
+         the structured code; got: {all_msgs:?}"
     );
 }
 
@@ -754,29 +766,37 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_iin_empty_list_e_query_001() {
 // RG-018: AC-022 — IEQ on integer column → E-QUERY-002 QueryTypeMismatch
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// RG-018: `severity_id IEQ 'high'` against a DataFusion schema where `severity_id`
-/// is an integer column fails with E-QUERY-002 (QueryTypeMismatch), because
-/// `lower()` is not applicable to non-string columns.
+/// RG-018: `severity_id IEQ 'high'` against a schema where `severity_id` is Int64
+/// must produce E-QUERY-002 `QueryTypeMismatch`, carrying the offending column name
+/// AND suggesting the corresponding string column "severity".
 ///
-/// Red Gate: PANICS — `execute_against_session` calls `predicate_to_datafusion_sql`
-/// which hits `todo!()` for `case_insensitive: true`.
-/// Green Gate: DataFusion rejects `lower(severity_id)` applied to an INT column →
-/// `execute_against_session` returns `Err`.
+/// A generic E-QUERY-034 `QueryExecutionFailed` (DataFusion "lower() type error") is
+/// NOT acceptable — BC-2.11.024 requires a structured, schema-aware type-check that
+/// fires BEFORE DataFusion execution and names the string-sibling column.
 ///
-/// Traces to: BC-2.11.024 v1.0 error case "E-QUERY-002: IEQ/IIN/INE on non-string column".
+/// Red Gate: FAILS — current code emits generic E-QUERY-034 (DataFusion error from
+/// `lower(severity_id)` at execution time). The `contains("E-QUERY-002")` assertion
+/// fails because the structured pre-flight check is not yet wired.
+/// Green Gate: PASSES once the IEQ execution path performs a pre-DataFusion type check
+/// and emits `QueryTypeMismatch` with column info and string column suggestion.
+///
+/// Traces to: BC-2.11.024 v1.0 error case "E-QUERY-002: IEQ/IIN/INE on non-string column";
+/// AC-022.
 #[tokio::test]
 async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_e_query_002() {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    use arrow::array::Int64Array;
+    use arrow::array::{Int64Array, StringArray};
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatch;
 
     use crate::materialization::{execute_against_session, register_mem_table};
     use crate::memory::build_session_context;
 
-    // IEQ on severity_id (integer column): lower(severity_id) is invalid in DataFusion
+    // Build the AST for "severity_id IEQ 'high'" directly (IEQ parser produces
+    // Parse error for non-string RHS after RG-016 is implemented; use the AST
+    // path to exercise the execution-layer type check independently).
     let pred = Predicate::Compare {
         lhs: Box::new(Expr::Field(FieldPath::new(["severity_id"]))),
         op: CompareOp::Eq,
@@ -788,15 +808,16 @@ async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_e_query_002() {
         predicate: pred,
     });
 
-    // MemTable: severity_id as Int64 (not a string column)
-    let schema = Arc::new(Schema::new(vec![Field::new(
-        "severity_id",
-        DataType::Int64,
-        true,
-    )]));
+    // Schema has BOTH the integer column ("severity_id") AND the string sibling
+    // ("severity"), so the query engine can introspect and produce a suggestion.
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("severity_id", DataType::Int64, true),
+        Field::new("severity", DataType::Utf8, true),
+    ]));
     let severity_id_arr = Arc::new(Int64Array::from(vec![4i64, 2i64, 3i64])) as _;
-    let batch =
-        RecordBatch::try_new(schema, vec![severity_id_arr]).expect("RG-018: batch must build");
+    let severity_arr = Arc::new(StringArray::from(vec!["High", "Low", "Medium"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_id_arr, severity_arr])
+        .expect("RG-018: batch must build");
 
     let ctx = build_session_context(50 * 1024 * 1024).expect("RG-018: context must build");
     register_mem_table(&ctx, "detections", vec![batch]).expect("RG-018: MemTable must register");
@@ -804,29 +825,54 @@ async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_e_query_002() {
     let result =
         execute_against_session(&ctx, "severity_id IEQ 'high'", &ast, HashMap::new()).await;
 
+    // ALL assertions FAIL before implementation (current error is E-QUERY-034):
+    let err = result.expect_err(
+        "RG-018: severity_id IEQ 'high' on Int64 column must fail with E-QUERY-002; got Ok",
+    );
+    let err_str = err.to_string();
+
+    // (1) Must be structured E-QUERY-002 QueryTypeMismatch, not E-QUERY-034 DataFusion error
     assert!(
-        result.is_err(),
-        "RG-018: IEQ on integer severity_id column must fail (lower() not applicable to INT); \
-         got success with rows: {:?}",
-        result
-            .ok()
-            .map(|v| v.iter().map(|b| b.num_rows()).sum::<usize>())
+        err_str.contains("E-QUERY-002"),
+        "RG-018: must produce E-QUERY-002 (QueryTypeMismatch), \
+         not E-QUERY-034 (generic DataFusion execution error); got: {err_str:?}"
+    );
+    // (2) Must name the offending integer column
+    assert!(
+        err_str.contains("severity_id"),
+        "RG-018: E-QUERY-002 must name the offending column 'severity_id'; got: {err_str:?}",
+    );
+    // (3) BC-2.11.024 string column suggestion: error must reference "severity" as the
+    // corresponding string alternative. The implementer introspects the table schema
+    // to find the sibling string column ("severity" when the integer column is "severity_id").
+    assert!(
+        err_str.contains("severity"),
+        "RG-018: E-QUERY-002 must suggest the corresponding string column 'severity'; \
+         got: {err_str:?}"
     );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RG-022: AC-019 — GROUP BY severity produces at most 7 buckets after normalization
+// RG-022: AC-019 — GROUP BY severity produces 1 bucket after pipeline normalization
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// RG-022: After adapter-boundary normalization, cross-sensor records with
-/// `'High'` (CrowdStrike) and `'HIGH'` (Armis-like pre-norm) both normalize
-/// to `'High'`, so `GROUP BY severity` yields exactly one `'High'` bucket with
-/// 5 rows.
+/// RG-022: Cross-sensor records with `'High'` (CrowdStrike) and `'HIGH'` (Armis-like)
+/// are run through `OcsfNormalizer::normalize_with_mappers` (the BC-2.02.013 v1.1
+/// F-CRIT-001 insertion point). After normalization, both become `'High'`, so
+/// `GROUP BY severity` yields exactly 1 bucket with 5 rows.
 ///
-/// Red Gate: PANICS — `OcsfEnumMap::normalize_label` hits `todo!()`.
-/// Green Gate: PASSES — normalization unifies case variants → 1 bucket.
+/// The old test pre-normalized manually via `OcsfEnumMap::normalize_label` in the
+/// test body (paper-fix). The REAL pipeline gap is in `normalize_with_mappers`:
+/// it currently returns the DynamicMessage unchanged, so `'HIGH'` stays `'HIGH'`
+/// and GROUP BY sees 2 distinct buckets instead of 1.
 ///
-/// Traces to: BC-2.02.013 v1.0 canonical test vector "GROUP BY severity cross-sensor";
+/// Red Gate: FAILS — `normalize_with_mappers` has no normalization wired.
+/// The stub mapper sets `severity = "HIGH"` on the DynamicMessage, which is
+/// returned unchanged. GROUP BY yields 2 buckets → assertion `== 1` fails.
+/// Green Gate: PASSES once `normalize_with_mappers` applies `OcsfEnumMap::normalize_label`
+/// to the severity field, converting `"HIGH"` → `"High"` before returning.
+///
+/// Traces to: BC-2.02.013 v1.1 F-CRIT-001 insertion point; AC-019;
 /// EC-02-026; ADR-047 §Consequences "GROUP BY correct after normalization".
 #[tokio::test]
 async fn test_S_PRISMQL_CASE_INSENSITIVE_001_group_by_severity_no_case_fragmentation() {
@@ -836,32 +882,82 @@ async fn test_S_PRISMQL_CASE_INSENSITIVE_001_group_by_severity_no_case_fragmenta
     use arrow::array::StringArray;
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatch;
-    use prism_ocsf::OcsfEnumMap;
+    use prism_core::PrismError;
+    use prism_ocsf::{OcsfNormalizer, SensorMapper};
+    use prost_reflect::{DynamicMessage, ReflectMessage, Value as ProtoValue};
+    use serde_json::{Map, Value};
 
     use crate::materialization::{execute_against_session, register_mem_table};
     use crate::memory::build_session_context;
 
-    // Simulate cross-sensor raw input: CrowdStrike 'High' x3, Armis-like 'HIGH' x2
-    let raw_severities: Vec<&str> = vec!["High", "High", "High", "HIGH", "HIGH"];
-    let enum_map = OcsfEnumMap::new();
+    // Stub mapper: transfers "severity" from raw JSON into the DynamicMessage.
+    // Simulates what the real CrowdStrike adapter does at the sensor boundary.
+    struct SeverityStubMapper;
+    impl SensorMapper for SeverityStubMapper {
+        fn sensor_id(&self) -> &'static str {
+            "crowdstrike"
+        }
+        fn record_types(&self) -> &'static [&'static str] {
+            &["detection"]
+        }
+        fn map(
+            &self,
+            _record_type: &str,
+            raw: &Value,
+            msg: &mut DynamicMessage,
+            _extensions: &mut Map<String, Value>,
+        ) -> Result<String, PrismError> {
+            if let Some(s) = raw.get("severity").and_then(|v| v.as_str()) {
+                // Guard against panic if descriptor is missing the field (defensive only;
+                // "severity" exists in the real OCSF DetectionFinding descriptor).
+                if msg.descriptor().get_field_by_name("severity").is_some() {
+                    msg.set_field_by_name("severity", ProtoValue::String(s.to_owned()));
+                }
+            }
+            Ok("stub-id".to_owned())
+        }
+    }
 
-    // Apply adapter-boundary normalization: each raw value → OCSF canonical caption
-    let normalized_severities: Vec<&str> = raw_severities
-        .iter()
-        .map(|v| {
-            enum_map
-                .normalize_label("severity_id", v)
-                .expect("RG-022: all severity values must normalize to canonical form")
-        })
-        .collect();
+    let normalizer = OcsfNormalizer::with_mappers(vec![Box::new(SeverityStubMapper)]);
 
-    // Build MemTable with normalized values
+    // Raw cross-sensor input: CrowdStrike 'High' x3, Armis-like 'HIGH' x2.
+    // After pipeline normalization both MUST become 'High' (canonical OCSF caption).
+    let raws = [
+        serde_json::json!({"severity": "High"}),
+        serde_json::json!({"severity": "High"}),
+        serde_json::json!({"severity": "High"}),
+        serde_json::json!({"severity": "HIGH"}),
+        serde_json::json!({"severity": "HIGH"}),
+    ];
+
+    let mut normalized_severities: Vec<String> = Vec::new();
+    for raw in raws {
+        let (msg, _) = normalizer
+            .normalize_with_mappers("crowdstrike", "detection", raw)
+            .expect(
+                "RG-022: normalize_with_mappers must not return Err \
+                 (OcsfDescriptorNotFound means ocsf-proto-gen is not installed; \
+                  this test requires a populated OCSF descriptor pool)",
+            );
+        // Extract the (potentially normalized) severity field from the DynamicMessage
+        let sev = msg
+            .get_field_by_name("severity")
+            .map(|v| match v.into_owned() {
+                ProtoValue::String(s) => s,
+                other => format!("<non-string: {other:?}>"),
+            })
+            .unwrap_or_default();
+        normalized_severities.push(sev);
+    }
+
+    // Build MemTable from the pipeline output (not from manually pre-normalized values)
     let schema = Arc::new(Schema::new(vec![Field::new(
         "severity",
         DataType::Utf8,
         true,
     )]));
-    let severity_arr = Arc::new(StringArray::from(normalized_severities)) as _;
+    let sev_refs: Vec<&str> = normalized_severities.iter().map(|s| s.as_str()).collect();
+    let severity_arr = Arc::new(StringArray::from(sev_refs)) as _;
     let batch = RecordBatch::try_new(schema, vec![severity_arr]).expect("RG-022: batch must build");
 
     let ctx = build_session_context(50 * 1024 * 1024).expect("RG-022: context must build");
@@ -876,8 +972,9 @@ async fn test_S_PRISMQL_CASE_INSENSITIVE_001_group_by_severity_no_case_fragmenta
     let total_buckets: usize = result.iter().map(|b| b.num_rows()).sum();
     assert_eq!(
         total_buckets, 1,
-        "RG-022: after normalization, GROUP BY severity must yield exactly 1 bucket \
-         (all 5 rows as 'High'); got {total_buckets} bucket(s) — case fragmentation detected"
+        "RG-022: after pipeline normalization, GROUP BY severity must yield exactly 1 bucket \
+         (all 5 rows as 'High'); got {total_buckets} bucket(s) \
+         — normalize_with_mappers is not canonicalizing severity casing yet"
     );
 }
 
