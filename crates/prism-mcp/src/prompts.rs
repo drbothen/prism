@@ -344,7 +344,7 @@ pub fn render_triage_alerts(client_id: &str) -> Result<GetPromptResult, ErrorDat
          Step 2: Query each sensor for open high and critical severity alerts:\n\
            - crowdstrike: SELECT * FROM crowdstrike_detections WHERE severity IN ('High', 'Critical') AND status = 'new'\n\
            - claroty: SELECT * FROM claroty_alerts WHERE status = 'Unresolved' AND alert_type_name IS NOT NULL\n\
-           - armis: SELECT * FROM armis_alerts WHERE severity IIN ('High', 'Critical') AND status = 'UNHANDLED'\n\
+           - armis: SELECT * FROM armis_alerts WHERE severity IN ('High', 'Critical') AND status = 'UNHANDLED'\n\
          Step 3: Group alerts by sensor and present a summary count.\n\
          Step 4: Highlight any alerts requiring immediate attention.{SECURITY_REMINDER}",
     );

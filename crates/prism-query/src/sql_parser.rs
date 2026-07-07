@@ -617,8 +617,15 @@ fn build_sql_predicate_parser<'a>(
             }
         });
 
-    // Prefer IN subquery over base (which handles IN list).
-    in_subquery.or(base)
+    // F-P10-FIX (S-PRISMQL-CASE-INSENSITIVE-001): prefer base (which handles
+    // IN literal lists via its in_list arm) over in_subquery.  In Chumsky 0.12
+    // `or` is backtracking — if base fails, the input position resets and
+    // in_subquery is tried.  This ensures that:
+    //   • `field IN ('A', 'B') AND ...` is handled by base's in_list (correct)
+    //   • `field IN (SELECT ...)` backtracks to in_subquery (correct)
+    //   • `field IN (BOGUS xx) AND ...` backtracks to in_subquery whose
+    //     nested_delimiters recovery produces RecoveryError (F-MEDIUM-001)
+    base.or(in_subquery)
 }
 
 // ---------------------------------------------------------------------------
