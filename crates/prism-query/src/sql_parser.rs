@@ -1128,31 +1128,14 @@ fn build_sql_expr_parser<'a>(
 /// This function is `pub(crate)` — never `pub`.
 ///
 /// # Implements BC-2.11.004 — Write Parser Extension
+///
+/// # OBS-1 (S-PRISMQL-CASE-INSENSITIVE-001)
+/// This is a thin wrapper around `parse_sql_dml_with_limits` using default
+/// `ParseLimits::snapshot()`.  The CI-operator guard (IEQ/IIN/INE rejection) and
+/// depth/size checks in the `_with_limits` variant are always applied.
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn parse_sql_dml(input: &str) -> Result<Ast, Vec<ParseError>> {
-    // Dispatch to the correct sub-parser based on the first token.
-    // This avoids Chumsky choice() error priority issues when try_map
-    // fires after consuming the entire input but choice() still picks
-    // the first alternative's error (BC-2.11.004, S-3.06 fix).
-    let first_token = input
-        .trim()
-        .split_ascii_whitespace()
-        .next()
-        .unwrap_or("")
-        .to_ascii_uppercase();
-    let node_result: Result<DmlNode, Vec<ParseError>> = match first_token.as_str() {
-        "DELETE" => run_dml_parser(build_delete_parser(), input, "DELETE"),
-        "UPDATE" => run_dml_parser(build_update_parser(), input, "UPDATE"),
-        "INSERT" => run_dml_parser(build_insert_parser(), input, "INSERT"),
-        _ => Err(vec![ParseError::new(
-            0,
-            format!("E-QUERY-001: unrecognized DML keyword '{first_token}'"),
-        )]),
-    };
-    match node_result {
-        Ok(node) => Ok(Ast::Sql(SqlStatement::Dml(node))),
-        Err(errs) => Err(errs),
-    }
+    parse_sql_dml_with_limits(input, &crate::security::ParseLimits::snapshot())
 }
 
 /// Parse a DML statement with explicit `ParseLimits` — applying post-parse depth
