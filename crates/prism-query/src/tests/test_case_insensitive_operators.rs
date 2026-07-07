@@ -2244,6 +2244,287 @@ fn test_BC_2_11_024_dml_update_where_iin_rejected() {
     );
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-8: F-MED-1 — SqlPipe arm missing CI column-type pre-flight check
+//
+// `execute_against_session` calls `check_ci_column_types` in the `Ast::Filter`
+// and `Ast::Pipe` arms but NOT in the `Ast::SqlPipe` arm.
+//
+// A query like `SELECT * FROM detections | where severity_id IEQ 'high'`
+// (SqlPipe: SQL head + pipe stages) reaches `sqlpipe_to_executable_sql`
+// unchecked.  DataFusion rejects `lower(severity_id)` on an Int64 column at
+// planning time, which is caught and mapped to `PrismError::QueryExecutionFailed`
+// (E-QUERY-034) — NOT the structured `QueryTypeMismatch` (E-QUERY-002) that
+// BC-2.11.024 AC-022 requires.
+//
+// Current behaviour at HEAD 6dfa82c1 for tests 1-2:
+//   `execute_against_session` returns `Err(PrismError::QueryExecutionFailed)`
+//   (E-QUERY-034).  `err_str.contains("E-QUERY-002")` → false → test FAILS.
+//   This is the intended Red Gate.
+//
+// Green Gate (tests 1-2):
+//   PASSES once the `Ast::SqlPipe` arm gains the same `check_ci_column_types`
+//   pre-flight that already exists in the `Ast::Filter` and `Ast::Pipe` arms.
+//   The implementer extracts the source table from `spq.head.from.source.raw`,
+//   collects CI fields from all `PipeStage::Where` stages (same pattern as
+//   the `Ast::Pipe` arm), and calls `check_ci_column_types` before lowering.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_sqlpipe_pipe_stage_e_query_002
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-MED-1 (LOCAL pass-8): `SELECT * FROM detections | where severity_id IEQ 'high'`
+/// (SqlPipe: SQL head + pipe `| where` stage) against a schema where `severity_id`
+/// is Int64 must return E-QUERY-002 `QueryTypeMismatch`, NOT the generic E-QUERY-034
+/// `QueryExecutionFailed` that DataFusion currently produces.
+///
+/// ## Root cause
+///
+/// `execute_against_session` performs a CI column-type pre-flight in the
+/// `Ast::Filter` arm (lines 1260-1276) and the `Ast::Pipe` arm (lines 1321-1344),
+/// but the `Ast::SqlPipe` arm (line 1386) jumps directly to `sqlpipe_to_executable_sql`
+/// with no equivalent check.  DataFusion then rejects `lower(severity_id)` at
+/// planning time → `PrismError::QueryExecutionFailed` (E-QUERY-034).
+///
+/// ## Red Gate reason (HEAD 6dfa82c1)
+///
+/// `execute_against_session` returns `Err(QueryExecutionFailed)` (E-QUERY-034).
+/// `err_str.contains("E-QUERY-002")` is false → the assertion panics → test FAILS.
+/// `err_str.contains("IEQ")` is also false (E-QUERY-034 message does not mention
+/// the operator) → a second assertion would fail if reached.
+///
+/// ## Green Gate
+///
+/// PASSES once the `Ast::SqlPipe` arm gains the same `check_ci_column_types`
+/// pre-flight that already exists in the `Ast::Filter` and `Ast::Pipe` arms.
+///
+/// ## SID-1 compliance
+///
+/// In-process unit test; no `#[ignore]`; MemTable is fully in-memory.
+/// No external dependencies.
+///
+/// Traces to: BC-2.11.024 v1.0 AC-022; BC-2.11.020 (SqlPipe mode);
+/// F-MED-1 (adversary finding, LOCAL pass-8).
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_sqlpipe_pipe_stage_e_query_002() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::{Int64Array, StringArray};
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::ast::{FromClause, PipeStage, SelectClause, SelectItem, SqlPipeQuery, SqlQuery};
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Predicate: severity_id IEQ 'high' — CompareOp::Eq + case_insensitive: true
+    // on an Int64 column.  This is the exact same predicate as RG-018 / RG-018b
+    // but placed in a SqlPipe pipe stage instead of an Ast::Filter / Ast::Pipe.
+    let pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity_id"]))),
+        op: CompareOp::Eq,
+        rhs: Box::new(Expr::Literal(Literal::String("high".to_owned()))),
+        case_insensitive: true,
+    };
+
+    // Build Ast::SqlPipe with head `SELECT * FROM detections` and pipe stage
+    // `| where severity_id IEQ 'high'`.  This mirrors the real parse output of:
+    //   SELECT * FROM detections | where severity_id IEQ 'high'
+    // Constructing the AST directly because the grammar-driven path requires
+    // full IEQ / SQL-mode guard implementation (out of scope here).
+    let head = SqlQuery::new(
+        SelectClause::new(vec![SelectItem::Star]),
+        FromClause::new(SourceRef::from_raw("detections")),
+    );
+    let ast = Ast::SqlPipe(SqlPipeQuery {
+        head,
+        stages: vec![PipeStage::Where(pred)],
+    });
+
+    // Schema: severity_id (Int64) + severity (String).
+    // The string sibling lets check_ci_column_types (once wired) produce the
+    // "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+    // suggestion per BC-2.11.024 AC-022 error-taxonomy v2.18.
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("severity_id", DataType::Int64, true),
+        Field::new("severity", DataType::Utf8, true),
+    ]));
+    let severity_id_arr = Arc::new(Int64Array::from(vec![4i64, 2i64, 3i64])) as _;
+    let severity_arr = Arc::new(StringArray::from(vec!["High", "Low", "Medium"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_id_arr, severity_arr])
+        .expect("F-MED-1-SQLPIPE: batch must build (schema/data mismatch — check column count)");
+
+    let ctx = build_session_context(50 * 1024 * 1024)
+        .expect("F-MED-1-SQLPIPE: session context must build");
+    register_mem_table(&ctx, "detections", vec![batch])
+        .expect("F-MED-1-SQLPIPE: MemTable must register");
+
+    let result = execute_against_session(
+        &ctx,
+        "SELECT * FROM detections | where severity_id IEQ 'high'",
+        &ast,
+        HashMap::new(),
+    )
+    .await;
+
+    // Must return Err — IEQ on an Int64 column is always invalid.
+    let err = result.expect_err(
+        "F-MED-1-SQLPIPE: severity_id IEQ 'high' on Int64 in SqlPipe mode must return Err; \
+         the Ast::SqlPipe arm of execute_against_session has no CI column-type pre-flight check \
+         (unlike the Ast::Filter and Ast::Pipe arms), so this path should fail at DataFusion \
+         planning time with E-QUERY-034 — the test is currently in RED GATE state",
+    );
+    let err_str = err.to_string();
+
+    // (1) Must be structured E-QUERY-002 QueryTypeMismatch, NOT generic E-QUERY-034.
+    //
+    // Currently FAILS at HEAD 6dfa82c1: the Ast::SqlPipe arm calls
+    // `sqlpipe_to_executable_sql` without a prior `check_ci_column_types` call.
+    // `sqlpipe_to_executable_sql` emits SQL containing `lower(severity_id)`;
+    // DataFusion rejects it → `PrismError::QueryExecutionFailed` (E-QUERY-034).
+    // `err_str.contains("E-QUERY-002")` returns false → assertion panics.
+    assert!(
+        err_str.contains("E-QUERY-002"),
+        "F-MED-1-SQLPIPE: SqlPipe pipe-stage IEQ on Int64 must produce E-QUERY-002 \
+         (QueryTypeMismatch), NOT the generic E-QUERY-034 (QueryExecutionFailed from DataFusion); \
+         the Ast::SqlPipe arm of execute_against_session is missing the CI column-type \
+         pre-flight check that exists in the Ast::Filter and Ast::Pipe arms; got: {err_str:?}"
+    );
+    // (2) Must name the offending integer column.
+    assert!(
+        err_str.contains("severity_id"),
+        "F-MED-1-SQLPIPE: E-QUERY-002 must name the offending column 'severity_id'; \
+         got: {err_str:?}"
+    );
+    // (3) Must name the operator IEQ (per error-taxonomy v2.18 operator-fidelity requirement).
+    assert!(
+        err_str.contains("IEQ"),
+        "F-MED-1-SQLPIPE: E-QUERY-002 must name the operator 'IEQ'; got: {err_str:?}"
+    );
+    // (4) BC-2.11.024 AC-022 suggestion text (error-taxonomy v2.18):
+    // "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+    assert!(
+        err_str.contains(
+            "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+        ),
+        "F-MED-1-SQLPIPE: E-QUERY-002 Display must include the BC-2.11.024 AC-022 suggestion \
+         per error-taxonomy v2.18: '...for label comparison, use the string column \\'severity\\' \
+         with IEQ/IIN/INE instead'; got: {err_str:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_S_PRISMQL_CASE_INSENSITIVE_001_iin_integer_column_sqlpipe_pipe_stage_e_query_002
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-MED-1 (LOCAL pass-8) IIN sibling: `SELECT * FROM detections | where severity_id IIN ('high')`
+/// (SqlPipe: SQL head + pipe `| where` stage with IIN) against a schema where `severity_id`
+/// is Int64 must return E-QUERY-002 `QueryTypeMismatch`, NOT the generic E-QUERY-034.
+///
+/// This is the IIN companion to
+/// `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_sqlpipe_pipe_stage_e_query_002`.
+/// It exercises the `Predicate::In { case_insensitive: true }` path (not just `Compare`)
+/// through the same missing SqlPipe pre-flight gap.
+///
+/// ## Red Gate reason (HEAD 6dfa82c1)
+///
+/// Same root cause: `Ast::SqlPipe` arm has no `check_ci_column_types` call.
+/// `sqlpipe_to_executable_sql` emits `lower(severity_id) IN (lower('high'))`;
+/// DataFusion rejects `lower()` on Int64 → E-QUERY-034.
+/// `err_str.contains("E-QUERY-002")` fails → test FAILS (Red Gate).
+///
+/// Traces to: BC-2.11.024 v1.0 AC-022; BC-2.11.020 (SqlPipe mode);
+/// F-MED-1 (adversary finding, LOCAL pass-8).
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_iin_integer_column_sqlpipe_pipe_stage_e_query_002() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::{Int64Array, StringArray};
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::ast::{FromClause, PipeStage, SelectClause, SelectItem, SqlPipeQuery, SqlQuery};
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Predicate: severity_id IIN ('high') — Predicate::In + case_insensitive: true
+    // on an Int64 column.
+    let pred = Predicate::In {
+        field: FieldPath::new(["severity_id"]),
+        values: vec![Literal::String("high".to_owned())],
+        negated: false,
+        case_insensitive: true,
+    };
+
+    // Build Ast::SqlPipe with head `SELECT * FROM detections` and pipe stage
+    // `| where severity_id IIN ('high')`.
+    let head = SqlQuery::new(
+        SelectClause::new(vec![SelectItem::Star]),
+        FromClause::new(SourceRef::from_raw("detections")),
+    );
+    let ast = Ast::SqlPipe(SqlPipeQuery {
+        head,
+        stages: vec![PipeStage::Where(pred)],
+    });
+
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("severity_id", DataType::Int64, true),
+        Field::new("severity", DataType::Utf8, true),
+    ]));
+    let severity_id_arr = Arc::new(Int64Array::from(vec![4i64, 2i64])) as _;
+    let severity_arr = Arc::new(StringArray::from(vec!["High", "Low"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_id_arr, severity_arr])
+        .expect("F-MED-1-SQLPIPE-IIN: batch must build");
+
+    let ctx =
+        build_session_context(50 * 1024 * 1024).expect("F-MED-1-SQLPIPE-IIN: context must build");
+    register_mem_table(&ctx, "detections", vec![batch])
+        .expect("F-MED-1-SQLPIPE-IIN: MemTable must register");
+
+    let result = execute_against_session(
+        &ctx,
+        "SELECT * FROM detections | where severity_id IIN ('high')",
+        &ast,
+        HashMap::new(),
+    )
+    .await;
+
+    let err = result.expect_err(
+        "F-MED-1-SQLPIPE-IIN: severity_id IIN ('high') on Int64 in SqlPipe mode must return Err; \
+         currently reaches DataFusion unchecked → E-QUERY-034 (Red Gate state)",
+    );
+    let err_str = err.to_string();
+
+    // (1) Must be E-QUERY-002, not E-QUERY-034.
+    assert!(
+        err_str.contains("E-QUERY-002"),
+        "F-MED-1-SQLPIPE-IIN: SqlPipe pipe-stage IIN on Int64 must produce E-QUERY-002 \
+         (QueryTypeMismatch), NOT E-QUERY-034; the Ast::SqlPipe arm is missing the CI \
+         column-type pre-flight check; got: {err_str:?}"
+    );
+    // (2) Must name the offending column.
+    assert!(
+        err_str.contains("severity_id"),
+        "F-MED-1-SQLPIPE-IIN: E-QUERY-002 must name 'severity_id'; got: {err_str:?}"
+    );
+    // (3) Must name the operator IIN.
+    assert!(
+        err_str.contains("IIN"),
+        "F-MED-1-SQLPIPE-IIN: E-QUERY-002 must name the operator 'IIN'; got: {err_str:?}"
+    );
+    // (4) Suggestion text per error-taxonomy v2.18.
+    assert!(
+        err_str.contains(
+            "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+        ),
+        "F-MED-1-SQLPIPE-IIN: E-QUERY-002 must include the BC-2.11.024 AC-022 suggestion; \
+         got: {err_str:?}"
+    );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // test_BC_2_11_024_dml_insert_select_where_ine_rejected
 // ─────────────────────────────────────────────────────────────────────────────
