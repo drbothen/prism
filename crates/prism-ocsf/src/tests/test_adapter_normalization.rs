@@ -192,11 +192,14 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high() {
 /// 2. Emit `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", field_name = "severity",
 ///    value = "UNHANDLED", sensor_type = "crowdstrike", ...)`
 ///
-/// Regression guard: PASSES — `normalize_with_mappers` correctly:
-/// - Leaves the DynamicMessage `severity` as `"UNHANDLED"` (non-fatal; unrecognized value
-///   is returned as-received per BC-2.02.013 v1.1 error case)
-/// - Emits `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)` for the
-///   unrecognized value (BC-2.16.002 Canonical Structured Event Catalog)
+/// Strengthened for LOCAL-pass-6 (F-P6-CRIT-001 / F-P6-HIGH-003):
+/// In addition to the event_type check, this test now validates the full
+/// BC-2.16.002 catalog row 91 schema: field_name, value, sensor_type.
+/// The SECONDARY (normalizer.rs) already emits all three fields correctly —
+/// these schema assertions PASS at HEAD (regression guards).
+///
+/// Regression guard: PASSES — `normalize_with_mappers` correctly emits all
+/// catalog row 91 fields.
 ///
 /// Traces to: BC-2.02.013 v1.1 error case "Warning (non-fatal): unrecognized value";
 /// BC-2.16.002 Canonical Structured Event Catalog (ocsf.enum_label_unrecognized);
@@ -205,27 +208,68 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high() {
 fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_left_as_received() {
     use std::sync::{Arc, Mutex};
 
-    // ── Tracing event capture ──────────────────────────────────────────────────
-    // Custom Layer + Visit to capture `event_type` values from WARN events.
-    // Defined inside the test function as local types (valid Rust; orphan rule
-    // applies at crate level, not function level — WarnCapture is a local type).
+    // ── Tracing event capture — catalog-complete field capture ─────────────────
+    // Captures ALL BC-2.16.002 catalog row 91 fields: event_type, field_name,
+    // value, sensor_type.
+
+    #[derive(Default, Clone, Debug)]
+    struct WarnEvent {
+        event_type: Option<String>,
+        field_name: Option<String>,
+        value: Option<String>,
+        sensor_type: Option<String>,
+    }
 
     #[derive(Default)]
     struct WarnFieldVisitor {
-        event_type: Option<String>,
+        event: WarnEvent,
     }
 
     impl tracing::field::Visit for WarnFieldVisitor {
         fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
-            if field.name() == "event_type" {
-                self.event_type = Some(val.to_owned());
+            // Handles string literal fields (e.g. `event_type = "ocsf.enum_label_unrecognized"`).
+            match field.name() {
+                "event_type" => self.event.event_type = Some(val.to_owned()),
+                "field_name" => self.event.field_name = Some(val.to_owned()),
+                "value" => self.event.value = Some(val.to_owned()),
+                "sensor_type" => self.event.sensor_type = Some(val.to_owned()),
+                _ => {}
             }
         }
-        fn record_debug(&mut self, _field: &tracing::field::Field, _value: &dyn std::fmt::Debug) {}
+        fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+            // Handles `%`-formatted fields (e.g. `field_name = %field`, `value = %current`).
+            // tracing routes Display-formatted values through record_debug; the
+            // dyn Debug impl for format_args!("{}", x) delegates to Display, so
+            // `format!("{value:?}")` gives the Display representation without extra quoting.
+            let s = format!("{value:?}");
+            match field.name() {
+                "event_type" => {
+                    if self.event.event_type.is_none() {
+                        self.event.event_type = Some(s);
+                    }
+                }
+                "field_name" => {
+                    if self.event.field_name.is_none() {
+                        self.event.field_name = Some(s);
+                    }
+                }
+                "value" => {
+                    if self.event.value.is_none() {
+                        self.event.value = Some(s);
+                    }
+                }
+                "sensor_type" => {
+                    if self.event.sensor_type.is_none() {
+                        self.event.sensor_type = Some(s);
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     struct WarnCapture {
-        events: Arc<Mutex<Vec<String>>>,
+        events: Arc<Mutex<Vec<WarnEvent>>>,
     }
 
     impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnCapture {
@@ -237,15 +281,15 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_
             if *event.metadata().level() == tracing::Level::WARN {
                 let mut visitor = WarnFieldVisitor::default();
                 event.record(&mut visitor);
-                if let Some(et) = visitor.event_type {
-                    self.events.lock().unwrap().push(et);
+                if visitor.event.event_type.is_some() {
+                    self.events.lock().unwrap().push(visitor.event);
                 }
             }
         }
     }
 
     // ── Test body ─────────────────────────────────────────────────────────────
-    let captured: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let captured: Arc<Mutex<Vec<WarnEvent>>> = Arc::new(Mutex::new(Vec::new()));
     let layer = WarnCapture {
         events: captured.clone(),
     };
@@ -272,16 +316,175 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_
          (BC-2.02.013 v1.1 non-fatal error case); got: {severity_val:?}"
     );
 
-    // (2) tracing::warn! with event_type="ocsf.enum_label_unrecognized" must be emitted
-    // BC-2.02.013 v1.1 warn contract + BC-2.16.002 Canonical Structured Event Catalog.
-    // This assertion FAILS before implementation (no warn fired — no normalization wired).
+    // (2) event_type = "ocsf.enum_label_unrecognized" must be emitted.
+    // BC-2.02.013 v1.1 warn contract + BC-2.16.002 catalog row 91.
     let warns = captured.lock().unwrap();
     assert!(
-        warns.iter().any(|et| et == "ocsf.enum_label_unrecognized"),
+        warns
+            .iter()
+            .any(|e| e.event_type.as_deref() == Some("ocsf.enum_label_unrecognized")),
         "RG-021: normalize_with_mappers must emit tracing::warn!(event_type = \
          \"ocsf.enum_label_unrecognized\", ...) for unrecognized OCSF enum values \
          (BC-2.02.013 v1.1 error case; BC-2.16.002 catalog); \
-         captured event_types: {warns:?}"
+         captured events: {warns:?}"
+    );
+
+    // Locate the event for catalog-schema validation.
+    let evt = warns
+        .iter()
+        .find(|e| e.event_type.as_deref() == Some("ocsf.enum_label_unrecognized"))
+        .expect(
+            "ocsf.enum_label_unrecognized event not found \
+             (assertion 2 should have caught this)",
+        );
+
+    // (3) SECONDARY catalog schema: field_name must be "severity".
+    // PASSES NOW: normalizer.rs already emits `field_name = %field`.
+    // Regression guard: if field is accidentally renamed, this fails.
+    assert_eq!(
+        evt.field_name.as_deref(),
+        Some("severity"),
+        "RG-021 catalog schema: warn must carry field_name='severity' \
+         (BC-2.16.002 catalog row 91); got: {:?}",
+        evt.field_name
+    );
+
+    // (4) SECONDARY catalog schema: sensor_type must be "crowdstrike".
+    // PASSES NOW: normalizer.rs already emits `sensor_type = %sensor`.
+    // Regression guard: if sensor_type is accidentally dropped, this fails.
+    assert_eq!(
+        evt.sensor_type.as_deref(),
+        Some("crowdstrike"),
+        "RG-021 catalog schema: warn must carry sensor_type='crowdstrike' \
+         (BC-2.16.002 catalog row 91); got: {:?}",
+        evt.sensor_type
+    );
+
+    // (5) SECONDARY catalog schema: value must be "UNHANDLED".
+    // PASSES NOW for this short value; see separate 50-cap test for the cap invariant.
+    assert_eq!(
+        evt.value.as_deref(),
+        Some("UNHANDLED"),
+        "RG-021 catalog schema: warn must carry value='UNHANDLED'; got: {:?}",
+        evt.value
+    );
+}
+
+/// F-P6-MED-001 (LOCAL pass-6): SECONDARY `ocsf.enum_label_unrecognized` warn in
+/// `normalize_with_mappers` must cap the `value` field at 50 codepoints to bound log
+/// volume for adversarially long vendor strings (SEC-002 pattern).
+///
+/// PRIMARY (`build_column_array` in `spec_driven_adapter.rs`) already caps at 50 via
+/// `%s.chars().take(50).collect::<String>()`. SECONDARY (`normalizer.rs` line ~157)
+/// emits `value = %current` WITHOUT any cap — the two emission sites must be symmetric.
+///
+/// ## Current behaviour (HEAD 8e4ec972) — RED
+///
+/// `normalize_with_mappers` receives `{"severity": "<60-char string>"}`. The warn fires
+/// with `value = %current` where `current` is the full 60-char string. The assertion
+/// `value.chars().count() <= 50` FAILS.
+///
+/// ## Green Gate
+///
+/// PASSES once `normalizer.rs` caps: `value = %current.chars().take(50).collect::<String>()`.
+///
+/// Traces to: BC-2.16.002 catalog row 91 (value: SEC-002 truncation);
+/// F-P6-MED-001; LOCAL adversary pass-6.
+#[test]
+fn test_BC_2_02_013_normalizer_secondary_unrecognized_warn_value_capped_at_50_codepoints() {
+    use std::sync::{Arc, Mutex};
+
+    // 60 ASCII codepoints — 10 beyond the 50-codepoint cap.
+    let long_value = "VENDOR".repeat(10); // "VENDORVENDOR...VENDOR" × 10 = 60 chars
+    assert_eq!(
+        long_value.chars().count(),
+        60,
+        "test precondition: input must be 60 codepoints"
+    );
+
+    #[derive(Default, Debug)]
+    struct WarnValueVisitor {
+        value: Option<String>,
+        event_type: Option<String>,
+    }
+
+    impl tracing::field::Visit for WarnValueVisitor {
+        fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
+            // Handles string literal fields.
+            match field.name() {
+                "event_type" => self.event_type = Some(val.to_owned()),
+                "value" => self.value = Some(val.to_owned()),
+                _ => {}
+            }
+        }
+        fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+            // Handles `%`-formatted fields (e.g. `value = %current`).
+            let s = format!("{value:?}");
+            match field.name() {
+                "event_type" => {
+                    if self.event_type.is_none() {
+                        self.event_type = Some(s);
+                    }
+                }
+                "value" => {
+                    if self.value.is_none() {
+                        self.value = Some(s);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    struct WarnCapture {
+        captured_value: Arc<Mutex<Option<String>>>,
+    }
+
+    impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnCapture {
+        fn on_event(
+            &self,
+            event: &tracing::Event<'_>,
+            _ctx: tracing_subscriber::layer::Context<'_, S>,
+        ) {
+            if *event.metadata().level() == tracing::Level::WARN {
+                let mut visitor = WarnValueVisitor::default();
+                event.record(&mut visitor);
+                if visitor.event_type.as_deref() == Some("ocsf.enum_label_unrecognized") {
+                    *self.captured_value.lock().unwrap() = visitor.value;
+                }
+            }
+        }
+    }
+
+    let captured_value: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let layer = WarnCapture {
+        captured_value: captured_value.clone(),
+    };
+    let subscriber = tracing_subscriber::registry().with(layer);
+
+    let normalizer = OcsfNormalizer::with_mappers(vec![Box::new(SeverityStatusStubMapper)]);
+    let raw = json!({"severity": long_value.clone()});
+
+    tracing::subscriber::with_default(subscriber, || {
+        let _ = normalizer.normalize_with_mappers("crowdstrike", "detection", raw);
+    });
+
+    let captured = captured_value.lock().unwrap().clone();
+    let captured_value_str = captured.as_deref().unwrap_or("");
+
+    // Assert: warn value must be capped at 50 codepoints (symmetric with PRIMARY).
+    // FAILS NOW: normalizer.rs emits `value = %current` (full 60-char string).
+    // After fix: normalizer.rs caps with `.chars().take(50).collect::<String>()`.
+    assert!(
+        captured_value_str.chars().count() <= 50,
+        "F-P6-MED-001 (LOCAL pass-6): SECONDARY ocsf.enum_label_unrecognized warn must cap \
+         `value` at 50 codepoints (SEC-002 pattern, symmetric with PRIMARY in \
+         build_column_array); \
+         got {} codepoints in captured value {:?}. \
+         Fix: change `value = %%current` to \
+         `value = %%current.chars().take(50).collect::<String>()` in normalizer.rs.",
+        captured_value_str.chars().count(),
+        captured_value_str
     );
 }
 

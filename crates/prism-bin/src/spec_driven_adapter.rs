@@ -2107,35 +2107,95 @@ mod tests {
     ///
     /// Traces to: BC-2.02.013 v1.3 F-CRIT-002 error case;
     /// BC-2.16.002 Canonical Structured Event Catalog (ocsf.enum_label_unrecognized);
-    /// LOCAL-pass-5 adversary finding.
+    /// LOCAL-pass-5 adversary finding; strengthened for LOCAL-pass-6 F-P6-CRIT-001 +
+    /// F-P6-HIGH-003 (catalog row 91 schema completeness).
     #[test]
     fn test_BC_2_02_013_build_column_array_unrecognized_left_as_received_with_warn() {
         use std::sync::Mutex;
         use tracing_subscriber::layer::SubscriberExt;
 
-        // ── Local WarnCapture types (same pattern as prism-ocsf RG-021) ─────────
+        // ── Local WarnCapture types — catalog-complete field capture ───────────
+        //
+        // Captures ALL BC-2.16.002 catalog row 91 fields for ocsf.enum_label_unrecognized:
+        //   field_name, value, sensor_type.
+        // Also captures the legacy `column` field to diagnose F-P6-CRIT-001 (wrong field name).
+        //
+        // F-P6-CRIT-001: PRIMARY emit in build_column_array uses `column = %col.name`
+        //   instead of the catalog-required `field_name = %col.name`.
+        // F-P6-HIGH-003: PRIMARY emit omits `sensor_type` entirely.
+        // Assertions (3) and (4) below enforce both catalog row 91 requirements.
+        // They FAIL at HEAD 8e4ec972: `field_name` is None (only `column` is set),
+        // and `sensor_type` is None (omitted from the warn macro).
+
+        #[derive(Default, Clone, Debug)]
+        struct WarnEvent {
+            event_type: Option<String>,
+            /// BC-2.16.002 catalog row 91 required field (must NOT be `column`).
+            field_name: Option<String>,
+            /// BC-2.16.002 catalog row 91 required field (cap ≤ 50 codepoints at PRIMARY).
+            value: Option<String>,
+            /// BC-2.16.002 catalog row 91 required field (absent in current PRIMARY emit).
+            sensor_type: Option<String>,
+            /// Legacy wrong field name — captured to produce a clear diagnostic on failure.
+            column: Option<String>,
+        }
 
         #[derive(Default)]
         struct WarnFieldVisitor {
-            event_type: Option<String>,
+            event: WarnEvent,
         }
 
         impl tracing::field::Visit for WarnFieldVisitor {
             fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
-                if field.name() == "event_type" {
-                    self.event_type = Some(val.to_owned());
+                // Handles string literal fields (e.g. `event_type = "ocsf.enum_label_unrecognized"`).
+                match field.name() {
+                    "event_type" => self.event.event_type = Some(val.to_owned()),
+                    "field_name" => self.event.field_name = Some(val.to_owned()),
+                    "value" => self.event.value = Some(val.to_owned()),
+                    "sensor_type" => self.event.sensor_type = Some(val.to_owned()),
+                    "column" => self.event.column = Some(val.to_owned()),
+                    _ => {}
                 }
             }
-            fn record_debug(
-                &mut self,
-                _field: &tracing::field::Field,
-                _value: &dyn std::fmt::Debug,
-            ) {
+            fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+                // Handles `%`-formatted fields (e.g. `column = %col.name`, `value = %s`).
+                // tracing routes Display-formatted values through record_debug; the
+                // dyn Debug impl for format_args!("{}", x) delegates to Display, so
+                // `format!("{value:?}")` gives the Display representation without extra quoting.
+                let s = format!("{value:?}");
+                match field.name() {
+                    "event_type" => {
+                        if self.event.event_type.is_none() {
+                            self.event.event_type = Some(s);
+                        }
+                    }
+                    "field_name" => {
+                        if self.event.field_name.is_none() {
+                            self.event.field_name = Some(s);
+                        }
+                    }
+                    "value" => {
+                        if self.event.value.is_none() {
+                            self.event.value = Some(s);
+                        }
+                    }
+                    "sensor_type" => {
+                        if self.event.sensor_type.is_none() {
+                            self.event.sensor_type = Some(s);
+                        }
+                    }
+                    "column" => {
+                        if self.event.column.is_none() {
+                            self.event.column = Some(s);
+                        }
+                    }
+                    _ => {}
+                }
             }
         }
 
         struct WarnCapture {
-            events: Arc<Mutex<Vec<String>>>,
+            events: Arc<Mutex<Vec<WarnEvent>>>,
         }
 
         impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnCapture {
@@ -2147,8 +2207,8 @@ mod tests {
                 if *event.metadata().level() == tracing::Level::WARN {
                     let mut visitor = WarnFieldVisitor::default();
                     event.record(&mut visitor);
-                    if let Some(et) = visitor.event_type {
-                        self.events.lock().unwrap().push(et);
+                    if visitor.event.event_type.is_some() {
+                        self.events.lock().unwrap().push(visitor.event);
                     }
                 }
             }
@@ -2156,7 +2216,7 @@ mod tests {
 
         // ── Test body ─────────────────────────────────────────────────────────
 
-        let captured: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let captured: Arc<Mutex<Vec<WarnEvent>>> = Arc::new(Mutex::new(Vec::new()));
         let layer = WarnCapture {
             events: captured.clone(),
         };
@@ -2175,6 +2235,7 @@ mod tests {
             .expect("expected StringArray for severity column");
 
         // (1) Unrecognized value must be left as-received (non-fatal, no panic).
+        // PASSES NOW: normalization is wired; VENDOR_XYZ not in map → passthrough.
         assert_eq!(
             string_array.value(0),
             "VENDOR_XYZ",
@@ -2184,19 +2245,67 @@ mod tests {
             string_array.value(0)
         );
 
-        // (2) tracing::warn!(event_type = "ocsf.enum_label_unrecognized") must be emitted.
-        // FAILS NOW: no normalization is attempted, so no warn fires at all.
-        // After implementation: normalize_enum_label returns None → warn is emitted.
         let warns = captured.lock().unwrap();
+
+        // (2) event_type = "ocsf.enum_label_unrecognized" must be emitted.
+        // PASSES NOW: normalization wired → warn fires.
         assert!(
-            warns.iter().any(|et| et == "ocsf.enum_label_unrecognized"),
-            "BC-2.02.013 F-CRIT-002 error case: build_column_array must emit \
+            warns
+                .iter()
+                .any(|e| e.event_type.as_deref() == Some("ocsf.enum_label_unrecognized")),
+            "BC-2.02.013 F-CRIT-002: build_column_array must emit \
              tracing::warn!(event_type = \"ocsf.enum_label_unrecognized\", ...) \
-             for unrecognized OCSF enum-label values \
-             (BC-2.16.002 Canonical Structured Event Catalog); \
-             captured event_types: {:?}. \
-             FAILS NOW because no normalization is wired — no warn fires.",
+             for unrecognized OCSF enum-label values (BC-2.16.002 catalog row 91); \
+             captured events: {:?}",
             *warns
+        );
+
+        // Locate the unrecognized event for catalog-schema validation below.
+        let evt = warns
+            .iter()
+            .find(|e| e.event_type.as_deref() == Some("ocsf.enum_label_unrecognized"))
+            .expect(
+                "ocsf.enum_label_unrecognized event not found \
+                 (assertion 2 should have caught this)",
+            );
+
+        // (3) F-P6-CRIT-001: warn MUST use `field_name`, NOT `column`.
+        // BC-2.16.002 catalog row 91 schema requires the field key `field_name`.
+        // FAILS NOW: current PRIMARY emit at line ~1112 uses `column = %col.name`.
+        // After fix: change `column = %col.name` → `field_name = %col.name`.
+        assert_eq!(
+            evt.field_name.as_deref(),
+            Some("severity"),
+            "F-P6-CRIT-001 (LOCAL pass-6): ocsf.enum_label_unrecognized warn must use \
+             field `field_name` (not `column`) per BC-2.16.002 catalog row 91; \
+             current PRIMARY emit uses `column = %%col.name`; \
+             got field_name={:?}, legacy column={:?}",
+            evt.field_name,
+            evt.column
+        );
+
+        // (4) F-P6-HIGH-003: warn MUST include `sensor_type`.
+        // BC-2.16.002 catalog row 91 schema requires `sensor_type`.
+        // FAILS NOW: PRIMARY emit omits `sensor_type` entirely.
+        // After fix: add `sensor_type = %sensor_id` to the warn macro in build_column_array.
+        assert_eq!(
+            evt.sensor_type.as_deref(),
+            Some("crowdstrike"),
+            "F-P6-HIGH-003 (LOCAL pass-6): ocsf.enum_label_unrecognized warn must include \
+             `sensor_type` per BC-2.16.002 catalog row 91; \
+             sensor_type is absent in current PRIMARY emit; \
+             got: {:?}",
+            evt.sensor_type
+        );
+
+        // (5) value must be the (possibly truncated) raw string.
+        // PRIMARY already caps at 50 codepoints (SEC-002 pattern) — regression guard.
+        assert_eq!(
+            evt.value.as_deref(),
+            Some("VENDOR_XYZ"),
+            "warn value must carry the raw string (capped at 50 codepoints at PRIMARY); \
+             got: {:?}",
+            evt.value
         );
     }
 
