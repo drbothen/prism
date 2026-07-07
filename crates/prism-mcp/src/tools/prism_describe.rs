@@ -1601,4 +1601,105 @@ mod build_example_query_tests {
              tables; GROUP BY must not appear in the output. Got: {q:?}"
         );
     }
+
+    // ── F-OBS-2 (LOCAL-pass-11): comprehensive parse-lock sweep ──────────────
+    //
+    // Every `build_example_query` output across ALL table shapes constructed in this
+    // test module must parse Ok via `PrismQlParser::parse` (after stripping comment
+    // lines). This locks the grammar against silent breakage of any example path.
+    //
+    // GREEN now: all shapes already produce valid PrismQL. A future grammar change
+    // that makes any branch non-parseable will surface here immediately.
+    //
+    // Traces: F-OBS-2 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL-pass-11 fix-burst).
+
+    /// F-OBS-2 parse-lock sweep: every `build_example_query` output across representative
+    /// table shapes (covering all 4 priority-ladder branches for multiple sensor prefixes)
+    /// must parse Ok via `PrismQlParser::parse`.
+    ///
+    /// Table shapes covered:
+    /// - No columns (empty_table) → column-free SELECT * LIMIT 25
+    /// - String-only, no Datetime (claroty_devices) → column-free SELECT * LIMIT 25
+    /// - Datetime only, no severity, no Integer (cyberint_alerts) → count-recent
+    /// - Datetime + String, unknown sensor (unknown_sensor_events) → count-recent
+    /// - Severity vocabulary + String severity (crowdstrike_detections) → IEQ pipe form
+    /// - Severity vocabulary + String severity + no Datetime (armis_alerts) → IEQ pipe form
+    /// - Integer column, no severity vocabulary (unknown_sensor_with_count) → aggregate
+    #[test]
+    fn test_obs2_all_build_example_query_outputs_parse_ok() {
+        use prism_query::filter_parser::PrismQlParser;
+
+        let shapes: Vec<(&str, Vec<ColumnDescriptor>)> = vec![
+            // Column-free: no columns at all
+            ("empty_table", vec![]),
+            // Column-free: String/Boolean only, no Datetime
+            (
+                "claroty_devices",
+                vec![
+                    col("uid", ColumnType::String),
+                    col("device_category", ColumnType::String),
+                    col("retired", ColumnType::Boolean),
+                ],
+            ),
+            // Count-recent: Datetime only, no severity, no Integer, non-vocabulary sensor
+            (
+                "cyberint_alerts_no_severity",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("title", ColumnType::String),
+                ],
+            ),
+            // Count-recent: Datetime + severity but unknown sensor (no vocabulary)
+            (
+                "unknown_sensor_events",
+                vec![
+                    col("created_at", ColumnType::Datetime),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // IEQ severity pipe form: crowdstrike with severity String (vocabulary registered)
+            (
+                "crowdstrike_detections",
+                vec![
+                    col("created_timestamp", ColumnType::Datetime),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // IEQ severity pipe form: armis_alerts with severity String, no Datetime
+            (
+                "armis_alerts",
+                vec![
+                    col("alert_id", ColumnType::String),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // Aggregate: Integer column present, unknown sensor (no severity vocabulary)
+            (
+                "unknown_sensor_with_count",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("severity_id", ColumnType::Integer),
+                ],
+            ),
+        ];
+
+        for (table, columns) in &shapes {
+            let q = build_example_query(table, columns);
+            // Strip leading `-- ...` comment lines before parsing (IEQ form includes a comment).
+            let query_part: String = q
+                .lines()
+                .filter(|line| !line.trim_start().starts_with("--"))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .trim()
+                .to_string();
+            let result = PrismQlParser::parse(&query_part);
+            assert!(
+                result.is_ok(),
+                "F-OBS-2: build_example_query output for table '{table}' must parse \
+                 successfully via PrismQlParser (query_part={query_part:?}). \
+                 Error: {result:?}"
+            );
+        }
+    }
 }

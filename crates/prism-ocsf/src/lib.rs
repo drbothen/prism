@@ -34,6 +34,6 @@ pub use class_selector::EventClassSelector;
 pub use enum_map::OcsfEnumMap;
 pub use event::OcsfEvent;
 pub use mappers::{SensorMapper, SpecDrivenMapper};
-pub use normalizer::OcsfNormalizer;
+pub use normalizer::{OcsfNormalizer, OCSF_ENUM_LABEL_FIELDS};
 pub use pool::OcsfDescriptors;
 pub use version::ocsf_version;

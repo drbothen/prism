@@ -4066,3 +4066,59 @@ fn test_f_low_002_prism_ql_parser_parse_still_works_as_entry_point() {
         "F-LOW-002: PrismQlParser::parse must work for pipe mode"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-OBS-1 (LOCAL-pass-11): AST-shape lock for the `base.or(in_subquery)` parser
+// ordering in `build_in_parser`.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-OBS-1 regression lock: `SELECT * FROM t WHERE severity IN ('HIGH', 'CRITICAL')`
+/// must parse to `Predicate::In { case_insensitive: false, negated: false }` with 2 literal
+/// values, NOT `Predicate::RecoveryError`.
+///
+/// This test locks the `base.or(in_subquery)` ordering in `build_in_parser` (filter_parser.rs).
+/// Before the ordering fix the SQL IN parser consumed the `(` and then failed to parse the
+/// literal list as a subquery, producing a `Predicate::RecoveryError`.
+///
+/// GREEN now: the ordered choice `base.or(in_subquery)` first tries the literal-list branch.
+/// Reverts GREEN → FAIL if the ordering is swapped back to `in_subquery.or(base)`.
+///
+/// Traces: BC-2.11.003 §SQL-mode WHERE clause; F-OBS-1 (S-PRISMQL-CASE-INSENSITIVE-001).
+#[test]
+fn test_BC_2_11_003_sql_in_literal_list_parses_to_predicate_in() {
+    let input = "SELECT * FROM t WHERE severity IN ('HIGH', 'CRITICAL')";
+    let ast = parse_sql(input)
+        .expect("F-OBS-1: SQL IN literal list must parse successfully (no RecoveryError)");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("F-OBS-1: expected Ast::Sql(SqlStatement::Select), got other variant");
+    };
+    let where_pred = sq.where_.expect("F-OBS-1: WHERE clause must be present");
+    match where_pred {
+        Predicate::In {
+            case_insensitive,
+            negated,
+            ref values,
+            ..
+        } => {
+            assert!(
+                !case_insensitive,
+                "F-OBS-1: plain SQL IN must have case_insensitive=false"
+            );
+            assert!(!negated, "F-OBS-1: plain SQL IN must have negated=false");
+            assert_eq!(
+                values.len(),
+                2,
+                "F-OBS-1: IN ('HIGH', 'CRITICAL') must have exactly 2 literal values; got {}",
+                values.len()
+            );
+        }
+        Predicate::RecoveryError => {
+            panic!(
+                "F-OBS-1: SQL IN literal list must NOT produce RecoveryError — \
+                 this indicates the `in_subquery.or(base)` ordering bug has been reintroduced. \
+                 Check `build_in_parser` ordering in filter_parser.rs."
+            );
+        }
+        other => panic!("F-OBS-1: expected Predicate::In, got {:?}", other),
+    }
+}

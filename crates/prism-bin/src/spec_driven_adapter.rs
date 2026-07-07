@@ -54,7 +54,7 @@ use arrow::{
 };
 use async_trait::async_trait;
 use prism_core::{ColumnType, OrgId, SensorId};
-use prism_ocsf::{EventClassSelector, OcsfEnumMap};
+use prism_ocsf::{EventClassSelector, OCSF_ENUM_LABEL_FIELDS, OcsfEnumMap};
 use prism_sensors::{
     BearerStaticSensorAuth, SensorAdapter,
     adapter::{QueryParams, SensorError, SensorSpec},
@@ -905,16 +905,10 @@ fn column_type_to_arrow(col_type: &ColumnType) -> DataType {
 // F-CRIT-002 / BC-2.02.013 — OCSF enum-label normalization in build_column_array
 // ---------------------------------------------------------------------------
 
-/// OCSF string-label fields that undergo enum-label normalization at the Arrow
-/// materialization boundary (BC-2.02.013 F-CRIT-002 / ADR-047 §D.4).
-///
-/// These four fields have companion `_id` fields in the OCSF schema and their
-/// string values are canonically Title-case in OCSF (e.g., severity → "High").
-/// Sensor APIs may emit any case variant ("HIGH", "high", "High"); normalization
-/// ensures downstream PQL equality predicates (`=`) see the canonical form.
-///
-/// Mirrors `OCSF_ENUM_LABEL_FIELDS` in `prism_ocsf::normalizer` (not re-exported).
-const OCSF_ENUM_LABEL_FIELDS: &[&str] = &["severity", "status", "activity_name", "disposition"];
+// OCSF_ENUM_LABEL_FIELDS is imported from prism_ocsf (the single canonical definition).
+// Previously duplicated here as a local `const` — removed by F-OBS-3 (LOCAL-pass-11):
+// prism_ocsf::OCSF_ENUM_LABEL_FIELDS is now re-exported from prism_ocsf::lib and used
+// directly here. Eliminates drift risk from two independent copies (TD-VSDD-060).
 
 /// Process-wide lazy singleton for OCSF enum-label normalization.
 ///

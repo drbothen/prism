@@ -161,9 +161,33 @@ impl OcsfEnumMap {
         //
         // Uses `to_ascii_lowercase()` to match `eq_ignore_ascii_case` semantics:
         // a lookup key of `("severity_id", "high")` resolves to `"High"`.
+        //
+        // F-OBS-4 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL-pass-11): collision detection.
+        // If two `(id_field, lowercase_caption)` keys would resolve to DIFFERENT canonical
+        // captions (e.g., hypothetical `"Unknown"` and `"UNKNOWN"` in the same field), the
+        // lookup result would be non-deterministic (HashMap iteration order). Panic at
+        // construction time with a clear message so the defect is caught immediately, rather
+        // than silently using whichever entry iteration visited last.
+        // No collisions exist in OCSF v1.7.0; this is a construction-time invariant guard.
         let mut normalized_index: HashMap<(String, String), &'static str> = HashMap::new();
         for ((id_field, _), &caption) in &inner {
-            normalized_index.insert((id_field.clone(), caption.to_ascii_lowercase()), caption);
+            let key = (id_field.clone(), caption.to_ascii_lowercase());
+            if let Some(&existing) = normalized_index.get(&key) {
+                if existing != caption {
+                    panic!(
+                        "OcsfEnumMap::new(): normalized_index collision — \
+                         (id_field={id_field:?}, lowercase_caption={key_lc:?}) maps to \
+                         BOTH {existing:?} AND {caption:?}. Two OCSF captions that differ \
+                         only in case were registered for the same field. Remove one or \
+                         resolve the ambiguity in the OCSF enum table before adding it here.",
+                        key_lc = key.1
+                    );
+                }
+                // Duplicate key but same canonical caption (same entry encountered twice) —
+                // idempotent, no collision.
+            } else {
+                normalized_index.insert(key, caption);
+            }
         }
 
         OcsfEnumMap {
@@ -279,5 +303,52 @@ impl OcsfEnumMap {
 impl Default for OcsfEnumMap {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ── Test-only helper (F-OBS-4) ────────────────────────────────────────────────
+
+#[cfg(test)]
+impl OcsfEnumMap {
+    /// Test-only: constructs an `OcsfEnumMap` with a deliberately injected collision
+    /// to exercise the panic-path of the collision-detection guard in `new()`.
+    ///
+    /// Inserts two captions that differ only in case (`"Unknown"` and `"UNKNOWN"`) for
+    /// `"severity_id"`, then runs the same normalized_index collision-check loop as `new()`.
+    ///
+    /// # Panics
+    ///
+    /// Always panics with `"normalized_index collision"` — that is the intent of the test.
+    pub(crate) fn new_with_collision_for_test() -> Self {
+        let mut inner: HashMap<(String, u32), &'static str> = HashMap::new();
+        // Two entries whose captions are `"Unknown"` vs `"UNKNOWN"` — same lowercase key
+        // `("severity_id", "unknown")` → different canonical captions → collision.
+        inner.insert(("severity_id".to_owned(), 0), "Unknown");
+        inner.insert(("severity_id".to_owned(), 100), "UNKNOWN");
+
+        // Run the same collision-check loop as new(). Panics because "unknown" == "unknown".
+        let mut normalized_index: HashMap<(String, String), &'static str> = HashMap::new();
+        for ((id_field, _), &caption) in &inner {
+            let key = (id_field.clone(), caption.to_ascii_lowercase());
+            if let Some(&existing) = normalized_index.get(&key) {
+                if existing != caption {
+                    panic!(
+                        "OcsfEnumMap::new(): normalized_index collision — \
+                         (id_field={id_field:?}, lowercase_caption={key_lc:?}) maps to \
+                         BOTH {existing:?} AND {caption:?}. Two OCSF captions that differ \
+                         only in case were registered for the same field. Remove one or \
+                         resolve the ambiguity in the OCSF enum table before adding it here.",
+                        key_lc = key.1
+                    );
+                }
+            } else {
+                normalized_index.insert(key, caption);
+            }
+        }
+
+        OcsfEnumMap {
+            inner,
+            normalized_index,
+        }
     }
 }

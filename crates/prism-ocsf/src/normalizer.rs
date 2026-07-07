@@ -42,7 +42,12 @@ fn enum_map() -> &'static OcsfEnumMap {
 ///
 /// F-P1-ACTIVITY-NOOP: field corrected from `"activity"` to `"activity_name"` — the real
 /// OCSF protobuf field is `activity_name`, not `activity`. BC-2.02.013 in-scope table.
-const OCSF_ENUM_LABEL_FIELDS: &[&str] = &["severity", "status", "activity_name", "disposition"];
+///
+/// **Exported as the single canonical definition** so downstream crates (e.g.,
+/// `prism-bin::spec_driven_adapter`) can reference it directly rather than maintaining
+/// a duplicate that risks drifting out of sync (F-OBS-3, S-PRISMQL-CASE-INSENSITIVE-001
+/// LOCAL-pass-11 fix-burst; TD-VSDD-060 sibling-site sweep).
+pub const OCSF_ENUM_LABEL_FIELDS: &[&str] = &["severity", "status", "activity_name", "disposition"];
 
 /// OCSF normalizer — dispatches to per-sensor `SensorMapper` implementations.
 ///

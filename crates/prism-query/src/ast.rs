@@ -2153,12 +2153,22 @@ impl PqlNormalizer {
                 // uppercase canonical "IIN" in normalized_pql (BC-2.11.024, BC-2.11.018 v1.3).
                 if *case_insensitive {
                     // IIN grammar is positive-only; negated+case_insensitive is not parser-
-                    // producible (BC-2.11.024 §AC-023). Guard against direct AST construction.
-                    debug_assert!(
-                        !negated,
-                        "normalize_predicate: negated=true with case_insensitive=true is \
-                         not a parser-producible In combination; IIN grammar is positive-only"
-                    );
+                    // producible (BC-2.11.024 §AC-023). Guard against direct AST construction:
+                    // emit a canonical invalid marker that cannot silently round-trip as a valid
+                    // positive IIN query (F-LOW-1, LOCAL-pass-11 fix-burst).
+                    // Previously only debug_assert guarded this — release builds fell through to
+                    // the positive IIN form, silently dropping the negation.
+                    if *negated {
+                        return format!(
+                            "<invalid: negated IIN not representable — field: {}, values: {}>",
+                            Self::normalize_field_path(field),
+                            values
+                                .iter()
+                                .map(Self::normalize_literal_dispatch)
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        );
+                    }
                     let vals: Vec<String> = values
                         .iter()
                         .map(Self::normalize_literal_dispatch)
@@ -3432,6 +3442,53 @@ mod low1_datafusion_guard_tests {
             "SEC-001 byte-identity: for valid RFC-3339, normalize_literal_for_datafusion \
              must produce the exact arrow_cast form (guards RG-003/RG-010). \
              Got: {emitted:?}"
+        );
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-LOW-1 fix-burst-11: negated+case_insensitive=true In must NOT silently emit
+// a plain positive IIN.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
+mod low1_negated_iin_invalid_marker_tests {
+    use super::*;
+
+    /// F-LOW-1 RED GATE: `Predicate::In { case_insensitive: true, negated: true }` must NOT
+    /// silently emit a plain positive `IIN (...)` string, which loses the negation and
+    /// produces a semantically incorrect query without any diagnostic.
+    ///
+    /// The production grammar never produces negated+ci=true (IIN grammar is positive-only,
+    /// BC-2.11.024 §AC-023). However, direct AST construction can reach this branch. The
+    /// `debug_assert` guard only fires in debug builds; release builds previously fell through
+    /// to `format!("{} IIN ({})", ...)` — silently dropping negation.
+    ///
+    /// Fix: when `negated=true` AND `case_insensitive=true`, emit a canonical invalid marker
+    /// that cannot round-trip as a valid positive query.
+    ///
+    /// RED: current HEAD emits `"severity IIN ('HIGH')"` — the plain positive form.
+    #[test]
+    fn test_low1_negated_iin_emits_invalid_marker_not_plain_positive_iin() {
+        let pred = Predicate::In {
+            field: FieldPath::new(["severity"]),
+            values: vec![Literal::String("HIGH".to_owned())],
+            negated: true,
+            case_insensitive: true,
+        };
+        let result = PqlNormalizer::normalize_predicate_pub(&pred);
+        // Must NOT silently emit the plain positive IIN form — that loses the negation.
+        assert!(
+            !result.contains(" IIN (") || result.contains("invalid"),
+            "F-LOW-1: negated+case_insensitive=true In must NOT emit a plain positive IIN. \
+             Plain 'severity IIN (...)' loses the negation and is semantically wrong. Got: {result:?}"
+        );
+        // Must contain an explicit invalid marker so callers know this is a bad state.
+        assert!(
+            result.contains("invalid"),
+            "F-LOW-1: negated+case_insensitive=true In must emit an '<invalid: ...>' marker. \
+             Got: {result:?}"
         );
     }
 }

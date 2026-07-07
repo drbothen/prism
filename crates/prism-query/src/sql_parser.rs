@@ -91,37 +91,34 @@ const SQL_KEYWORDS: &[&str] = &[
 /// WHERE clause, HAVING clause, or any IN-subquery at arbitrary nesting depth
 /// (BC-2.11.024 §SQL-Mode Rejection, LOCAL-pass-4 F-HIGH-001).
 ///
-/// Returns the canonical uppercase keyword:
+/// Returns the canonical uppercase keyword as a `String`:
 /// - `"IEQ"` for `Compare { case_insensitive: true, op: Eq, .. }`
 /// - `"INE"` for `Compare { case_insensitive: true, op: Ne, .. }`
 /// - `"IIN"` for `In { case_insensitive: true, .. }`
-fn detect_ci_operator_in_predicate(pred: &Predicate) -> Option<&'static str> {
+/// - `"I[{Op:?}]"` for any other AST-invariant-violation `case_insensitive=true` op
+///   (F-LOW-2, LOCAL-pass-11: includes the actual op name so the E-QUERY-001 diagnostic
+///   reports the operator that was actually present, not the misleading hardcoded "IEQ").
+fn detect_ci_operator_in_predicate(pred: &Predicate) -> Option<String> {
     match pred {
         Predicate::Compare {
             case_insensitive: true,
             op,
             ..
         } => Some(match op {
-            CompareOp::Eq => "IEQ",
-            CompareOp::Ne => "INE",
+            CompareOp::Eq => "IEQ".to_owned(),
+            CompareOp::Ne => "INE".to_owned(),
             // Any other op with case_insensitive=true is an AST invariant violation.
             // This branch is structurally unreachable (the parser never emits
-            // case_insensitive=true for Lt/Le/Gt/Ge/Like), but if it somehow fires,
-            // surface "IEQ" as the canonical fallback rather than panicking.
-            _ => {
-                debug_assert!(
-                    false,
-                    "detect_ci_operator_in_predicate: unexpected case_insensitive=true \
-                     on op={op:?}; AST invariant violated — parser should never emit \
-                     case_insensitive=true for non-IEQ/INE ops. Falling back to IEQ."
-                );
-                "IEQ"
-            }
+            // case_insensitive=true for Lt/Le/Gt/Ge/Like), but if it somehow fires via
+            // direct AST construction, include the ACTUAL op in the diagnostic so the
+            // E-QUERY-001 error message reports the operator that was actually present
+            // rather than the misleading hardcoded "IEQ" (F-LOW-2, LOCAL-pass-11).
+            _ => format!("I[{op:?}]"),
         }),
         Predicate::In {
             case_insensitive: true,
             ..
-        } => Some("IIN"),
+        } => Some("IIN".to_owned()),
         Predicate::Logical { predicates, .. } => {
             predicates.iter().find_map(detect_ci_operator_in_predicate)
         }
@@ -142,7 +139,7 @@ fn detect_ci_operator_in_predicate(pred: &Predicate) -> Option<&'static str> {
 /// Called by both `parse_sql_with_limits` (top-level checks) and
 /// `detect_ci_operator_in_predicate` (`InSubquery` recursion), avoiding code
 /// duplication across the two invocation sites.
-fn detect_ci_operator_in_sql_query(sq: &SqlQuery) -> Option<&'static str> {
+fn detect_ci_operator_in_sql_query(sq: &SqlQuery) -> Option<String> {
     if let Some(pred) = &sq.where_ {
         if let Some(op) = detect_ci_operator_in_predicate(pred) {
             return Some(op);
@@ -1549,5 +1546,61 @@ pub(crate) fn check_unbounded_write(node: &DmlNode, offset: usize) -> Option<Par
                 None
             }
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-LOW-2 fix-burst-11: detect_ci_operator_in_predicate fallback must include
+// the actual operator, not the hardcoded "IEQ" string.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
+mod low2_detect_ci_operator_fallback_tests {
+    use super::*;
+    use crate::ast::{Expr, FieldPath, Literal};
+
+    /// F-LOW-2 RED GATE: the `_ =>` fallback arm in `detect_ci_operator_in_predicate` for
+    /// a `case_insensitive=true` predicate with a non-IEQ/INE operator (e.g., Gt) must
+    /// include the actual operator name in its output, NOT the hardcoded `"IEQ"` string.
+    ///
+    /// Misleading fallback: a `case_insensitive=true, op=Gt` predicate is an AST invariant
+    /// violation (parser-unreachable), but when it arrives via direct AST construction the
+    /// caller gets an E-QUERY-001 message saying "parse error near 'IEQ'" — mentioning a
+    /// completely different operator than the one actually present.
+    ///
+    /// Fix: change return type to `Option<String>` (or `Cow<'static, str>`) and in the `_ =>`
+    /// arm return a formatted string that includes the actual op name (e.g., `"I[Gt]"` or
+    /// `"[ci-op: Gt]"`).
+    ///
+    /// RED: current HEAD returns `Some("IEQ")` for the Gt fallback.
+    #[test]
+    fn test_low2_detect_ci_operator_gt_mentions_real_op_not_ieq() {
+        let pred = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+            op: CompareOp::Gt,
+            rhs: Box::new(Expr::Literal(Literal::String("high".to_owned()))),
+            case_insensitive: true,
+        };
+        let result = detect_ci_operator_in_predicate(&pred);
+        // Must detect it as a CI operator (Some).
+        assert!(
+            result.is_some(),
+            "F-LOW-2: case_insensitive=true Gt must be detected as a CI operator"
+        );
+        let op_str = result.unwrap();
+        // Must NOT be the misleading hardcoded "IEQ" — that reports the wrong operator.
+        assert_ne!(
+            op_str, "IEQ",
+            "F-LOW-2: detect_ci_operator_in_predicate fallback must NOT return hardcoded 'IEQ' \
+             for op=Gt; that reports the wrong operator in the E-QUERY-001 error message. \
+             Got: {op_str:?}"
+        );
+        // Must mention the actual op (Gt) in some form.
+        assert!(
+            op_str.contains("Gt") || op_str.contains("gt") || op_str.contains(">"),
+            "F-LOW-2: detect_ci_operator_in_predicate fallback must include the actual op \
+             (Gt or >) in the returned string. Got: {op_str:?}"
+        );
     }
 }

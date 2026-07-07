@@ -142,3 +142,53 @@ fn test_BC_2_02_010_invariant_display_name_never_panics() {
     // Field with null bytes
     let _ = map.display_name("severity\0id", 1);
 }
+
+// ── F-OBS-4 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL-pass-11) ───────────────────
+//
+// Collision-determinism guard: OcsfEnumMap::new() must panic if two different
+// captions would share the same (id_field, lowercase_caption) key in the
+// normalized_index. This is a construction-time invariant — no collisions exist
+// in OCSF v1.7.0, but the guard locks that assumption explicitly.
+
+/// F-OBS-4 smoke test: OcsfEnumMap::new() succeeds (no collisions in OCSF v1.7.0).
+///
+/// This test locks the collision-free invariant for the production dataset. If any
+/// OCSF v1.x update introduces two captions that differ only in case for the same
+/// field, this test will panic (correctly) because OcsfEnumMap::new() panics on
+/// collision.
+///
+/// GREEN now: OCSF v1.7.0 has no case-collision pairs.
+#[test]
+fn test_obs4_ocsf_enum_map_new_no_collisions_in_production_data() {
+    // Must not panic. If it panics, two captions share the same case-insensitive key.
+    let map = OcsfEnumMap::new();
+    // Spot-check the index still resolves correctly after the collision-check loop.
+    assert_eq!(
+        map.normalize_enum_label("severity", "high"),
+        Some("High"),
+        "F-OBS-4: normalize_enum_label must still work after the collision-check loop. \
+         severity/high → Some(High)"
+    );
+    assert_eq!(
+        map.normalize_enum_label("status", "success"),
+        Some("Success"),
+        "F-OBS-4: normalize_enum_label must still work for status/success → Some(Success)"
+    );
+}
+
+/// F-OBS-4 collision detection fires: a manually-constructed map with two captions that
+/// differ only in case for the same field must panic with a clear message.
+///
+/// Uses the `#[cfg(test)]` helper `OcsfEnumMap::new_with_collision_for_test()` which inserts
+/// `"Unknown"` and `"UNKNOWN"` both under `severity_id` — same lowercase key, different
+/// canonical captions → triggers the collision-detection panic in the normalized_index build.
+///
+/// This verifies the guard has load-bearing effect (not dead code).
+#[test]
+#[should_panic(expected = "normalized_index collision")]
+fn test_obs4_collision_detection_panics_on_ambiguous_captions() {
+    // new_with_collision_for_test() is a #[cfg(test)] pub(crate) method that injects
+    // two colliding captions ("Unknown" / "UNKNOWN") for severity_id, then runs the
+    // same collision-check loop as new(). It always panics with "normalized_index collision".
+    OcsfEnumMap::new_with_collision_for_test();
+}
