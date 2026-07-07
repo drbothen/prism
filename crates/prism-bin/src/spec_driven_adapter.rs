@@ -1102,6 +1102,15 @@ fn build_column_array(
                         serde_json::Value::Null => None,
                         serde_json::Value::String(s) => {
                             if let Some(map) = ocsf_map {
+                                // OBS-3 (S-PRISMQL-CASE-INSENSITIVE-001): empty strings bypass
+                                // enum-label normalization.  An empty value indicates an
+                                // unset/missing sensor field — there is no corresponding OCSF
+                                // canonical label, and emitting ocsf.enum_label_unrecognized would
+                                // be misleading noise.  Mirrors the `!s.is_empty()` guard on the
+                                // SECONDARY normalizer.rs path (ProtoValue::String branch).
+                                if s.is_empty() {
+                                    return Some(s);
+                                }
                                 match map.normalize_enum_label(&col.name, &s) {
                                     Some(canonical) => Some(canonical.to_string()),
                                     None => {
