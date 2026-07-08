@@ -304,6 +304,7 @@ fn test_BC_2_11_004_check_unbounded_write_delete_with_where_is_safe() {
         lhs: Box::new(Expr::Field(FieldPath::new(["device_id"]))),
         op: CompareOp::Eq,
         rhs: Box::new(Expr::Literal(Literal::String("abc".to_string()))),
+        case_insensitive: false,
     };
     let node = DmlNode {
         operation: DmlOperation::Delete,
@@ -577,7 +578,7 @@ fn test_BC_2_11_004_parse_sql_dml_not_dml_input_parse_error() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Additional unit tests for write verb case sensitivity (BC-2.11.004 v1.4)
+// Additional unit tests for write verb case sensitivity (BC-2.11.004)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Write verb case sensitivity: CONTAIN (uppercase) matches registered 'contain'.
@@ -943,7 +944,7 @@ fn test_BC_2_11_004_delete_filter_preserves_actual_predicate() {
             // Must NOT be the Bool(true) sentinel — must be an actual predicate.
             // The parsed predicate for `device_id = '123'` is Predicate::Compare.
             match filter {
-                Predicate::Compare { lhs, op, rhs } => {
+                Predicate::Compare { lhs, op, rhs, .. } => {
                     assert!(
                         matches!(op, CompareOp::Eq),
                         "expected Eq compare op, got: {:?}",
@@ -1014,7 +1015,7 @@ fn test_BC_2_11_004_delete_no_where_filter_is_none() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// F-PR130-P1-HIGH-001: parse_with_registry must enforce SQL denylist (BC-2.11.003 v1.4)
+// F-PR130-P1-HIGH-001: parse_with_registry must enforce SQL denylist (BC-2.11.003)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// `parse_with_registry` must reject MERGE with E-QUERY-002 (denylist parity

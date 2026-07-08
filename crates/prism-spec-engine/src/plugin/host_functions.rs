@@ -55,7 +55,7 @@ pub enum LogLevel {
 /// list blocks ALL outbound HTTP from the plugin (default-deny semantics).
 ///
 /// Emits: `event_type = "plugin_http_request_blocked"` (WARN) on blocked requests per
-/// BC-2.16.002 v1.12 Canonical Structured Event Catalog row (PG-LP11-001).
+/// BC-2.16.002 Canonical Structured Event Catalog row (PG-LP11-001).
 pub fn host_http_request(
     state: &HostState,
     method: &str,
@@ -83,7 +83,7 @@ pub fn host_http_request(
     };
 
     if !url_allowed {
-        // Single structured emission per BC-2.16.002 v1.12 catalog row plugin_http_request_blocked.
+        // Single structured emission per BC-2.16.002 catalog row plugin_http_request_blocked.
         // WARN-level log and audit-channel routing are orthogonal via event_type field.
         warn!(
             event_type = "plugin_http_request_blocked",
@@ -566,7 +566,7 @@ fn register_host_functions_for_namespace(
     // WIT enum log-level (trace|debug|info|warn|error) → Val::Enum(String).
     // F-PASS3-CRIT-002 Violation B: WIT enum → Val::Enum(String) (NOT Val::U8 or Val::U32).
     // F-PASS3-HIGH-001: unrecognized enum string → emit `plugin_log_level_unrecognized`
-    //   (BC-2.16.002 v1.17 row 32) with explicit observability, then safe-default to Info.
+    //   (BC-2.16.002 row 32) with explicit observability, then safe-default to Info.
     // F-PASS3-MED-002: non-Enum level param → trap (schema violation).
     //
     // Delegates to `host_log` — the tracing-level dispatch (AC-8) runs through this call path.
@@ -587,7 +587,7 @@ fn register_host_functions_for_namespace(
                     "warn" => LogLevel::Warn,
                     "error" => LogLevel::Error,
                     unrecognized => {
-                        // Emit observable warning per BC-2.16.002 v1.17 row 32
+                        // Emit observable warning per BC-2.16.002 row 32
                         // (plugin_log_level_unrecognized) then safe-default to Info.
                         // Unrecognized enum name means plugin uses a future log-level variant;
                         // trapping here would break forward-compat; emitting then defaulting

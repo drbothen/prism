@@ -281,7 +281,7 @@ fn test_bc_2_11_022_low002_all_examples_rendered() {
 
 // ─── CRIT-003: registry-parity assertion ──────────────────────────────────────
 
-/// CRIT-003 / BC-2.11.022 v1.1 — `build_reference_content(Some(&registry))` renders
+/// CRIT-003 / BC-2.11.022 — `build_reference_content(Some(&registry))` renders
 /// EXACTLY the per-field UDF callable names from the live registry (EC-11-022-006).
 ///
 /// A registry is constructed with two known infusion specs: `"geoip"` (field: `geoip_country`)
@@ -341,7 +341,7 @@ fn test_bc_2_11_022_registry_parity() {
     let content = build_reference_content(Some(&registry));
 
     // Both registered per-field UDF callable names MUST appear as formatted lines.
-    // BC-2.11.022 v1.1 / EC-11-022-006: the reference lists descriptor.name (per-field
+    // BC-2.11.022 / EC-11-022-006: the reference lists descriptor.name (per-field
     // callable), NOT the infusion_id. For geoip field "geoip_country" the callable is
     // "enrich geoip_country(col)"; for threatintel field "threatintel_score" it is
     // "enrich threatintel_score(col)".
@@ -350,14 +350,14 @@ fn test_bc_2_11_022_registry_parity() {
 
     assert!(
         content.contains(geoip_line),
-        "CRIT-003 BC-2.11.022 v1.1: content must contain '{geoip_line}' for registered \
+        "CRIT-003 BC-2.11.022: content must contain '{geoip_line}' for registered \
          per-field UDF 'geoip_country' (descriptor.name); \
          content snippet: {:?}",
         &content[..content.len().min(600)]
     );
     assert!(
         content.contains(threatintel_line),
-        "CRIT-003 BC-2.11.022 v1.1: content must contain '{threatintel_line}' for registered \
+        "CRIT-003 BC-2.11.022: content must contain '{threatintel_line}' for registered \
          per-field UDF 'threatintel_score' (descriptor.name); \
          content snippet: {:?}",
         &content[..content.len().min(600)]
@@ -670,4 +670,217 @@ fn test_bc_2_11_022_some_empty_registry_placeholder() {
             );
         }
     }
+}
+
+// ─── S-PRISMQL-CASE-INSENSITIVE-001: IEQ/IIN/INE discoverability gate ─────────
+
+/// AC-023 / BC-2.11.024 — `build_reference_content(None)` must include
+/// IEQ, INE, and IIN in the operators table (ADR-047 §D.4 discoverability).
+///
+/// The note in RG-023/024 delegated this assertion to the implementer because
+/// prism-mcp tests cannot import prism-query directly without a circular dep,
+/// so the grammar completeness proxy (RG-023) lives in prism-query; but the
+/// MCP resource content assertion must live here.
+///
+/// Assertions:
+/// 1. `build_reference_content(None)` contains "IEQ", "INE", "IIN".
+/// 2. `build_reference_content(None)` contains the OCSF Title-case note.
+/// 3. `REFERENCE_EXAMPLES` has at least one Positive entry for each of IEQ, INE, IIN.
+#[test]
+fn test_bc_2_11_024_ieq_iin_ine_in_reference_content() {
+    let content = build_reference_content(None);
+
+    // Operator table must include IEQ, INE, IIN (ADR-047 §D.4 discoverability).
+    for op in &["IEQ", "INE", "IIN"] {
+        assert!(
+            content.contains(op),
+            "BC-2.11.024 AC-023: build_reference_content must include operator '{op}' \
+             in the operators table; not found in content"
+        );
+    }
+
+    // OCSF Title-case note must be present (RG-024 / ADR-047 §D.4).
+    assert!(
+        content.contains("OCSF Title-case"),
+        "BC-2.11.024 AC-023: build_reference_content must include OCSF Title-case \
+         note explaining IEQ/IIN/INE rationale; not found in content"
+    );
+
+    // REFERENCE_EXAMPLES must have at least one Positive entry containing each operator.
+    for op in &["IEQ", "INE", "IIN"] {
+        let has_example = REFERENCE_EXAMPLES
+            .iter()
+            .any(|(k, _, snippet)| matches!(k, ExampleKind::Positive) && snippet.contains(op));
+        assert!(
+            has_example,
+            "BC-2.11.024 AC-023: REFERENCE_EXAMPLES must contain at least one Positive \
+             entry demonstrating operator '{op}'; no such entry found"
+        );
+    }
+}
+
+/// Generate all forbidden wrong-casing patterns from the authoritative OCSF v1.7.0
+/// enum caption set (BC-2.02.013 / F-MED-02).
+///
+/// For each Title-case caption C registered in `prism_ocsf::OcsfEnumMap::new()`,
+/// generates four patterns:
+/// - `= '{lower}'`      — all-lowercase equality (wrong casing)
+/// - `= '{UPPER}'`      — all-uppercase equality (wrong casing)
+/// - ` IN ('{lower}'`   — case-sensitive IN, first-position, lowercase
+///                        (leading space guards against `IIN (` false-positive)
+/// - ` IN ('{UPPER}'`   — same, uppercase
+///
+/// Additionally includes specific vendor/non-OCSF patterns:
+/// - `= 'UNHANDLED'`  — vendor Armis value present in old code (not OCSF enum)
+/// - `= 'OPEN'`       — wrong-cased vendor value (not OCSF enum)
+/// - ` IN ('open'`    — case-sensitive IN with 'open' as first element (not OCSF)
+/// - ` IN ('OPEN'`    — same, uppercase
+///
+/// Title-case forms (e.g., `= 'High'`, `= 'New'`) and case-insensitive operators
+/// (`IEQ`, `IIN`, `INE`) remain ALLOWED.
+fn forbidden_ocsf_casing_patterns_for_reference() -> Vec<String> {
+    // Authoritative caption set from prism_ocsf::OcsfEnumMap::new().
+    // Four OCSF enum-label fields: severity, activity_name, status, disposition.
+    // Shared captions ("Unknown", "Other", "Deleted") listed once — duplicates are harmless.
+    const CAPTIONS: &[&str] = &[
+        // severity_id (severity field)
+        "Unknown",
+        "Informational",
+        "Low",
+        "Medium",
+        "High",
+        "Critical",
+        "Other",
+        // activity_id (activity_name field — OCSF exception: sibling is activity_id)
+        "Create",
+        "Read",
+        "Update",
+        "Delete",
+        // status_id — finding-class subset (synthetic keys 1001–1006 in OcsfEnumMap)
+        "New",
+        "In Progress",
+        "Suppressed",
+        "Resolved",
+        "Archived",
+        "Deleted",
+        // status_id — generic subset (Unknown / Other already above)
+        "Success",
+        "Failure",
+        // disposition_id (29 values from OCSF v1.7.0 dictionary_attributes)
+        "Allowed",
+        "Blocked",
+        "Quarantined",
+        "Isolated",
+        "Dropped",
+        "Custom Action",
+        "Approved",
+        "Restored",
+        "Exonerated",
+        "Corrected",
+        "Partially Corrected",
+        "Uncorrected",
+        "Delayed",
+        "Detected",
+        "No Action",
+        "Logged",
+        "Tagged",
+        "Alert",
+        "Count",
+        "Reset",
+        "Captcha",
+        "Challenge",
+        "Access Revoked",
+        "Rejected",
+        "Unauthorized",
+        "Error",
+    ];
+
+    let mut patterns = Vec::new();
+    for &cap in CAPTIONS {
+        let lower = cap.to_lowercase();
+        let upper = cap.to_uppercase();
+        // Equality patterns (case-sensitive = operator with wrong casing)
+        patterns.push(format!("= '{lower}'"));
+        patterns.push(format!("= '{upper}'"));
+        // IN first-position patterns (leading space distinguishes SQL `IN` from `IIN` operator)
+        patterns.push(format!(" IN ('{lower}'"));
+        patterns.push(format!(" IN ('{upper}'"));
+    }
+
+    // Vendor-specific / non-OCSF patterns (previously hardcoded; retained for completeness).
+    // Armis vendor pass-through — must not teach this in reference content:
+    patterns.push("= 'UNHANDLED'".to_string());
+    // Non-OCSF status value; wrong-cased (OCSF: no 'Open' status):
+    patterns.push("= 'OPEN'".to_string());
+    // Case-sensitive IN with 'open' as first element (catches `status IN ('open', ...)`).
+    // Leading space guards against `IIN (` false-positive:
+    patterns.push(" IN ('open'".to_string());
+    patterns.push(" IN ('OPEN'".to_string());
+
+    patterns
+}
+
+/// F-MED-02 / F-P9-MED-2 / BC-2.11.024
+///
+/// The rendered PQL grammar reference content (`prismql://reference`) must NOT
+/// contain case-sensitive equality examples using wrong-cased OCSF enum literals.
+///
+/// **Pass-19 extension (F-MED-02):** forbidden-pattern guards are now derived from
+/// the authoritative OCSF v1.7.0 enum caption set covering ALL FOUR OCSF enum-label
+/// fields: `severity`, `status`, `activity_name`, `disposition`.  The previous
+/// severity-only hardcoded list left `status IN ('open', 'new')` uncaught in the
+/// operators table (line 1470 of resources.rs).
+///
+/// After the OCSF Title-case normalization in BC-2.02.013 landed, sensor adapters
+/// normalize `'HIGH'` → `'High'` and `'new'` → `'New'` before DataFusion
+/// materialization.  Teaching agents `status IN ('open', 'new')` will produce 0 rows
+/// against CrowdStrike (or any sensor) where post-normalization status is `'New'`.
+///
+/// **Allowed** (Title-case or case-insensitive operators):
+///   `severity = 'High'`, `severity = 'Critical'`, `severity IEQ 'high'`,
+///   `status IIN ('open', 'new')` (IIN is case-insensitive — correct)
+///
+/// **Forbidden** (wrong-cased; produced from OCSF caption set):
+///   `= 'HIGH'`, `= 'high'`, `= 'CRITICAL'`, `= 'critical'`,
+///   `= 'new'`, `= 'NEW'`, ` IN ('new'`, ` IN ('NEW'`,
+///   ` IN ('open'`, `= 'UNHANDLED'`, `= 'OPEN'` (+ all OCSF-derived patterns)
+///
+/// # Red Gate (pass-19)
+///
+/// At HEAD e8b25d67, the operators table in `build_reference_content` contains
+/// `status IN ('open', 'new')`.  This test goes RED because ` IN ('open'` is now
+/// in the forbidden list.
+///
+/// # Fix target (pass-19)
+///
+/// Change the case-sensitive IN example from `status IN ('open', 'new')` to
+/// `client_id IN ('acme','globex')` — re-pointing to a NON-enum-label field so the
+/// case-sensitive example cannot teach a casing trap.  Keep the IIN row unchanged as
+/// the enum-label teaching example (`status IIN ('open', 'new')` uses IIN which is
+/// case-insensitive, so lowercase is correct there).
+#[test]
+fn test_BC_2_11_024_reference_content_no_stale_vendor_cased_enum_examples() {
+    let content = build_reference_content(None);
+
+    // Forbidden patterns derived from the full OCSF v1.7.0 enum caption set.
+    // See forbidden_ocsf_casing_patterns_for_reference() doc comment for full list.
+    // Title-case forms and IEQ/IIN/INE operators remain ALLOWED.
+    let forbidden = forbidden_ocsf_casing_patterns_for_reference();
+
+    let mut violations: Vec<String> = Vec::new();
+    for pattern in &forbidden {
+        if content.contains(pattern.as_str()) {
+            violations.push(pattern.clone());
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "BC-2.11.024 F-MED-02/F-P9-MED-2: reference content contains wrong-cased \
+         OCSF enum-label patterns that silently produce 0 rows after BC-2.02.013 \
+         normalization. Forbidden patterns found: {violations:?}.\n\
+         Replace with Title-case forms (`= 'High'`, `= 'New'`) or \
+         case-insensitive operators (`IEQ`, `IIN`, `INE`).\n\
+         Note: `status IIN ('open', 'new')` is ALLOWED (IIN is case-insensitive).",
+    );
 }

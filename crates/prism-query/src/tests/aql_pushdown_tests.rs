@@ -176,6 +176,7 @@ mod tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["device_id"]))),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::String("d-001".to_string()))),
+            case_insensitive: false,
         };
 
         let filter_map = predicate_tree_to_filter_map(&non_aql_predicate);
@@ -206,6 +207,7 @@ mod tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["aql"]))),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::String("in:devices".to_string()))),
+            case_insensitive: false,
         };
 
         let filter_map = predicate_tree_to_filter_map(&predicate);

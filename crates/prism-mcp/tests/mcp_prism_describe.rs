@@ -35,7 +35,7 @@
 //!   `notifier` field. The test passed vacuously on the data structure.
 //! - AC-001: no test for tool annotations in the production catalog.
 //! - AC-002 (round-1): audit outcome checked for non-empty / "schema_enumeration" string,
-//!   but this conflates `operation` with `outcome`. BC-2.10.012 v1.1 requires BOTH
+//!   but this conflates `operation` with `outcome`. BC-2.10.012 requires BOTH
 //!   `operation = "schema_enumeration"` AND `outcome = "success"|"error"` as separate fields.
 //!   The old test `test_BC_2_10_012_prism_describe_audit_operation_is_schema_enumeration`
 //!   was checking `outcome == "schema_enumeration"` which is the operation name — not the
@@ -48,8 +48,8 @@
 //! | test_BC_2_10_012_prism_describe_tool_annotations | AC-001 | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_happy_path_catalog | AC-001 + AC-002 | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_audit_event_emitted | AC-002 (basic) | BC-2.10.012 |
-//! | test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path | AC-002 (hardened) | BC-2.10.012 v1.1 |
-//! | test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_id | AC-002 (hardened) | BC-2.10.012 v1.1 |
+//! | test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path | AC-002 (hardened) | BC-2.10.012 |
+//! | test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_id | AC-002 (hardened) | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_empty_and_unknown_client | AC-003 (hardened) | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_invalid_client_id | AC-003 | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map | AC-004 | BC-2.10.012 DI-008 |
@@ -92,9 +92,9 @@ use ulid::Ulid;
 /// Implements the full `AuditWriter` trait with no-op for write_intent / write_outcome,
 /// and captures `write_tool_call` invocations in a shared vec.
 ///
-/// # BC-2.10.012 v1.1 extended capture (AC-002 hardening)
+/// # BC-2.10.012 extended capture (AC-002 hardening)
 ///
-/// BC-2.10.012 v1.1: `write_tool_call` carries BOTH `operation` (the canonical
+/// BC-2.10.012: `write_tool_call` carries BOTH `operation` (the canonical
 /// operation name, e.g. `"schema_enumeration"`) AND `outcome` (`"success"` or
 /// `"error"`) as SEPARATE parameters — implemented in the production trait.
 ///
@@ -136,7 +136,7 @@ impl AuditWriter for CapturingAuditWriter {
 
     /// Captures `(tool_name, client_id, operation, outcome)`.
     ///
-    /// BC-2.10.012 v1.1: the production trait now carries BOTH `operation`
+    /// BC-2.10.012: the production trait now carries BOTH `operation`
     /// (canonical operation name, e.g. `"schema_enumeration"`) AND `outcome`
     /// (result: `"success"` or `"error"`) as separate parameters.
     async fn write_tool_call(
@@ -579,9 +579,9 @@ async fn test_BC_2_10_012_prism_describe_audit_event_emitted() {
 
 // ─── AC-002 (hardened): audit operation AND outcome as separate fields ────────
 
-/// AC-002 (BC-2.10.012 v1.1 — Audit event: operation AND outcome as separate fields):
+/// AC-002 (BC-2.10.012 — Audit event: operation AND outcome as separate fields):
 ///
-/// BC-2.10.012 v1.1 requires the `write_tool_call` audit record to carry TWO
+/// BC-2.10.012 requires the `write_tool_call` audit record to carry TWO
 /// distinct fields:
 ///   - `operation = "schema_enumeration"` — the canonical operation name
 ///   - `outcome = "success"` — the result on the happy path
@@ -624,7 +624,7 @@ async fn test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path(
         client_id_cap
     );
 
-    // BC-2.10.012 v1.1 §Audit: operation must be "schema_enumeration".
+    // BC-2.10.012 §Audit: operation must be "schema_enumeration".
     // This assertion PASSES because current code passes "schema_enumeration" as its
     // single outcome arg, which CapturingAuditWriter maps to `operation`.
     assert_eq!(
@@ -635,24 +635,24 @@ async fn test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path(
         operation
     );
 
-    // BC-2.10.012 v1.1 §Audit: outcome must be "success" on the happy path.
+    // BC-2.10.012 §Audit: outcome must be "success" on the happy path.
     // Load-bearing: removing the `outcome` parameter from write_tool_call (or passing
     // only one string) causes outcome = "(not_provided)" and this assertion fails.
     assert_eq!(
         outcome.as_str(),
         "success",
         "BC-2.10.012 AC-002: write_tool_call outcome MUST be 'success' on the happy path \
-         (BC-2.10.012 v1.1 §Audit). Got: '{}'",
+         (BC-2.10.012 §Audit). Got: '{}'",
         outcome
     );
 }
 
-/// AC-002 (BC-2.10.012 v1.1 — Audit event: outcome = "error" on E-MCP-001 path):
+/// AC-002 (BC-2.10.012 — Audit event: outcome = "error" on E-MCP-001 path):
 ///
 /// When `prism_describe` is called with an invalid `client_id` (E-MCP-001), the
 /// audit record MUST carry `outcome = "error"`.
 ///
-/// BC-2.10.012 v1.1: "on invalid client_id, the audit emission still occurs
+/// BC-2.10.012: "on invalid client_id, the audit emission still occurs
 /// (fail-open DI-004) with `outcome = 'error'`."
 ///
 /// On validation failure (E-MCP-001), `handle_prism_describe` calls `write_tool_call`
@@ -683,7 +683,7 @@ async fn test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_i
          for invalid client_id format"
     );
 
-    // BC-2.10.012 v1.1 §Audit: write_tool_call MUST be invoked even on validation failure
+    // BC-2.10.012 §Audit: write_tool_call MUST be invoked even on validation failure
     // (audit before return, fail-open DI-004).
     let calls = audit_writer.calls.lock().unwrap();
     assert_eq!(
@@ -708,7 +708,7 @@ async fn test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_i
         outcome.as_str(),
         "error",
         "BC-2.10.012 AC-002: write_tool_call outcome MUST be 'error' on the \
-         E-MCP-001 invalid-client_id path (BC-2.10.012 v1.1 §Audit). \
+         E-MCP-001 invalid-client_id path (BC-2.10.012 §Audit). \
          Got outcome='{}'.",
         outcome
     );
@@ -1896,20 +1896,33 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
         .as_str()
         .expect("BC-2.10.012 AC-002: crowdstrike_svt table must have example_query string");
 
-    // F-L2-CRIT-001 fix: CrowdStrike DTU emits Title-case 'High'/'Critical'.
-    // The old assertion `IN ('high', 'critical')` was a paper-confirmation of the bug;
-    // now corrected to assert the DTU-correct vocabulary.
+    // F-L2-CRIT-001 + F-P6-HIGH-001 (updated — S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-6):
+    // Post-normalization, CrowdStrike severity is canonicalized to OCSF Title-case before
+    // DataFusion materialization (BC-2.02.013 PRIMARY normalization).  The IN-literal
+    // form `IN ('High', 'Critical')` is REMOVED in favour of the IEQ pipe form per AC-025 /
+    // ADR-047 §D.4.  Vendor-cased IN literals silently return 0 rows post-normalization.
     assert!(
-        sev_eq.contains("IN ('High', 'Critical')"),
-        "BC-2.10.012 AC-002 [severity] F-L2-CRIT-001: example_query for crowdstrike table MUST \
-         use Title-case severity literals `IN ('High', 'Critical')` to match DTU vocabulary. \
+        sev_eq.contains("IEQ"),
+        "BC-2.10.012 AC-002 [severity] F-P6-HIGH-001: example_query for crowdstrike table MUST \
+         use IEQ operator per AC-025 / ADR-047 §D.4 (post-normalization IN literals return 0 rows). \
          Got: {:?}.",
         sev_eq
     );
 
+    // F-MED-002 (LOCAL pass-15): the OCSF casing note moved from example_query to
+    // example_note (BC-2.10.012). Check the note field, not the query string.
+    let sev_note = sev_table["example_note"].as_str().unwrap_or("");
     assert!(
-        sev_eq.contains("LIMIT 50"),
-        "BC-2.10.012 AC-002 [severity]: example_query MUST have LIMIT 50 (BC-canonical). \
+        sev_note.contains("Title-case") || sev_note.contains("title-case"),
+        "BC-2.10.012 AC-002 [severity] F-P6-HIGH-001: example_note must include OCSF casing note \
+         (substring 'Title-case') per AC-025 / BC-2.10.012 F-MED-002; \
+         example_query is now pure PQL (no `--` comments). Got example_note: {:?}.",
+        sev_note
+    );
+
+    assert!(
+        sev_eq.to_lowercase().contains("limit 50"),
+        "BC-2.10.012 AC-002 [severity]: example_query MUST reference LIMIT 50 (BC-canonical). \
          Got: {:?}.",
         sev_eq
     );
@@ -2003,24 +2016,25 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
 /// | Skeleton | Required text |
 /// |----------|--------------|
 /// | count-recent | `COUNT(*) ... NOW() - INTERVAL` |
-/// | severity     | `severity IN (<severity_values>) ... LIMIT 50` |
+/// | severity     | `severity IEQ 'high' ... limit 50` |
 /// | aggregate    | `GROUP BY ... ORDER BY COUNT(*) DESC ... LIMIT 10` |
 ///
 /// The `SCHEMA-AGNOSTIC SKELETONS` section in `server.rs` reads:
 ///
 /// ```
-/// SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field>/<severity_values> with real names/values from prism_describe):\n
-///   1. SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL '1h'\n
-///   2. SELECT * FROM <table> WHERE severity IN (<severity_values>) LIMIT 50\n
+/// SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field>/<datetime_col> with real names/values from prism_describe):\n
+///   1. SELECT COUNT(*) FROM <table> WHERE <datetime_col> > NOW() - INTERVAL '1h'\n
+///   2. FROM <table> | where severity IEQ 'high' | limit 50\n
 ///   3. SELECT <field>, COUNT(*) FROM <table> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10\n
 /// ```
 ///
-/// F-PML2-MED-001 fix: skeleton #2 now uses `<severity_values>` placeholder instead of
-/// hardcoded `('high', 'critical')` literals. Severity literal casing is per-sensor
-/// (crowdstrike: Title-case, armis: UPPER-case, cyberint: lowercase); hardcoding any
-/// single casing breaks all other sensors silently (0 rows, no error).
-/// The SEVERITY CASING WARNING added to the description directs agents to use
-/// prism_describe's `example_query` field for correct per-sensor casing.
+/// OBS-1 (LOCAL pass-18): skeleton #2 now uses the IEQ pipe form (`severity IEQ 'high'`)
+/// instead of the old `IN (<severity_values>)` placeholder.  The IEQ form is the correct
+/// pattern to prime in agents because:
+/// - It uses the case-insensitive operator (ADR-047 §D.4)
+/// - It matches the actual output of `build_example_note` for severity tables
+/// - `<severity_values>` was a schema-agnostic placeholder; IEQ with any literal is universally
+///   correct post-normalization (BC-2.02.013 Title-case)
 ///
 /// Load-bearing: reverting to the old skeletons (LIMIT 25, `= 'HIGH'`, no COUNT(*) / ORDER BY)
 /// fails all three assertions.
@@ -2057,26 +2071,30 @@ fn test_BC_2_10_009_query_tool_description_l1_primer_skeleton_shapes() {
         &description[..description.len().min(400)]
     );
 
-    // ── Skeleton 2: severity filter — must use IN clause + LIMIT 50 ─────────────
+    // ── Skeleton 2: severity filter — must use IEQ pipe form (OBS-1 LOCAL pass-18) ─
     //
-    // BC-2.10.009 §L1 primer: severity filter uses multi-value IN predicate and LIMIT 50.
-    // F-PML2-MED-001 fix: severity values are now a placeholder `<severity_values>` —
-    // hardcoding any single casing breaks sensors that use a different casing (0 rows,
-    // no error). Agents must use prism_describe's example_query for correct per-sensor casing.
+    // BC-2.10.009 §L1 primer (updated by OBS-1 LOCAL pass-18): severity skeleton now
+    // uses the IEQ pipe form `FROM <table> | where severity IEQ 'high' | limit 50`
+    // instead of the old `IN (<severity_values>)` placeholder.
+    //
+    // Rationale: IEQ is the correct case-insensitive operator for post-normalization
+    // severity data (BC-2.02.013 Title-case); the concrete `'high'` literal is universally
+    // correct since IEQ matches any casing. The pipe form also primes agents to use
+    // `| where` rather than top-level `WHERE`, matching the `build_example_note` output.
     assert!(
-        description.contains("IN (<severity_values>)"),
+        description.contains("severity IEQ 'high'"),
         "BC-2.10.009 AC-002 [L1 skeleton 2 — severity]: query tool description \
-         MUST contain `IN (<severity_values>)` (F-PML2-MED-001: placeholder, not hardcoded casing). \
-         Got description (first 400 chars): {:?}",
-        &description[..description.len().min(400)]
+         MUST contain `severity IEQ 'high'` (OBS-1 LOCAL pass-18: IEQ pipe form, not IN). \
+         Got description (first 500 chars): {:?}",
+        &description[..description.len().min(500)]
     );
 
     assert!(
-        description.contains("LIMIT 50"),
+        description.contains("limit 50"),
         "BC-2.10.009 AC-002 [L1 skeleton 2 — severity]: query tool description \
-         MUST contain 'LIMIT 50'. \
-         Got description (first 400 chars): {:?}",
-        &description[..description.len().min(400)]
+         MUST contain 'limit 50' (pipe-mode lowercase per convention). \
+         Got description (first 500 chars): {:?}",
+        &description[..description.len().min(500)]
     );
 
     // ── Skeleton 3: aggregate — must use ORDER BY COUNT(*) DESC + LIMIT 10 ──────
@@ -2096,6 +2114,76 @@ fn test_BC_2_10_009_query_tool_description_l1_primer_skeleton_shapes() {
          MUST contain 'LIMIT 10'. \
          Got description (first 400 chars): {:?}",
         &description[..description.len().min(400)]
+    );
+}
+
+// ─── F-HIGH-1 (pass-17): post-normalization casing contract guard ─────────────
+
+/// F-HIGH-1 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-17):
+/// Post-normalization casing contract guard for the `query` tool description.
+///
+/// The description MUST NOT carry vendor-cased teaching patterns that were correct
+/// pre-normalization but now teach the 0-rows trap:
+/// - `SEVERITY CASING WARNING` header
+/// - `'HIGH'` as an Armis severity literal
+/// - `"per-sensor"` casing claims
+///
+/// AND MUST mention `IEQ` for case-insensitive matching discoverability (ADR-047 §D.4).
+///
+/// ## Current behaviour (HEAD f2215872) — RED
+///
+/// Description contains:
+/// ```text
+/// SEVERITY CASING WARNING: severity literal casing is per-sensor (Title-case
+/// 'High'/'Critical' for CrowdStrike, UPPER-case 'HIGH'/'CRITICAL' for Armis, ...)
+/// ```
+///
+/// ## Green Gate
+///
+/// PASSES once the description replaces SEVERITY CASING WARNING with an ENUM CASING
+/// CONTRACT that mentions IEQ/IIN/INE and canonical 'High'/'Critical' literals.
+///
+/// Traces: BC-2.10.009; ADR-047 §D.4; S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-17 F-HIGH-1.
+#[test]
+fn test_BC_2_10_009_query_tool_description_no_vendor_casing_teaches_ieq() {
+    let catalog = PrismServer::production_tool_catalog();
+    let query_tool = catalog.iter().find(|t| t.name.as_ref() == "query").expect(
+        "BC-2.10.009 F-HIGH-1: 'query' tool must be registered in the production tool catalog",
+    );
+    let description = query_tool
+        .description
+        .as_deref()
+        .expect("BC-2.10.009 F-HIGH-1: 'query' tool must have a non-empty description");
+
+    // Guard: SEVERITY CASING WARNING header must be gone.
+    // Post-normalization: all enum values are OCSF Title-case at query time;
+    // vendor-per-sensor casing teaching is false and teaches the 0-rows trap.
+    assert!(
+        !description.contains("SEVERITY CASING WARNING"),
+        "F-HIGH-1 (pass-17): query tool description MUST NOT contain 'SEVERITY CASING WARNING' \
+         (post-normalization contract: all enum values are OCSF Title-case; \
+         vendor-per-sensor casing teaching no longer applies). \
+         Got description (first 600 chars): {:?}",
+        &description[..description.len().min(600)]
+    );
+
+    // Guard: no Armis UPPER-case vendor literal 'HIGH' in description.
+    // Post-normalization, Armis severity is canonicalized to 'High'.
+    assert!(
+        !description.contains("'HIGH'"),
+        "F-HIGH-1 (pass-17): query tool description MUST NOT contain \"'HIGH'\" as a severity \
+         literal (Armis pre-normalization casing; post-normalization all values are Title-case 'High'). \
+         Got description (first 600 chars): {:?}",
+        &description[..description.len().min(600)]
+    );
+
+    // Guard: must teach IEQ for case-insensitive matching discoverability (ADR-047 §D.4 / AC-025).
+    assert!(
+        description.contains("IEQ"),
+        "F-HIGH-1 (pass-17): query tool description MUST mention IEQ operator for \
+         case-insensitive matching discoverability (ADR-047 §D.4 / AC-025). \
+         Got description (first 600 chars): {:?}",
+        &description[..description.len().min(600)]
     );
 }
 

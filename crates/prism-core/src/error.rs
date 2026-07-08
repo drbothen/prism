@@ -8,6 +8,33 @@
 
 use thiserror::Error;
 
+/// Private Display helper for the `suggested_column: Option<String>` field of
+/// `PrismError::QueryTypeMismatch` (error-taxonomy v2.19 §E-QUERY-002 AC-022).
+///
+/// Renders:
+/// - `Some(col)` → `"; for label comparison, use the string column '{col}' with IEQ/IIN/INE instead"`
+/// - `None` → `""` (empty — no suffix appended to the Display message)
+///
+/// Used by the `#[error]` positional arg in `PrismError::QueryTypeMismatch` so the
+/// Display output is byte-for-byte identical to the previous `String`-field approach
+/// while the struct contract now holds a bare `Option<String>` column name.
+///
+/// Not public — callers construct `QueryTypeMismatch` with a bare `Option<String>`.
+struct SuggestedSuffix<'a>(&'a Option<String>);
+
+impl std::fmt::Display for SuggestedSuffix<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(col) = self.0 {
+            write!(
+                f,
+                "; for label comparison, use the string column '{col}' with IEQ/IIN/INE instead"
+            )
+        } else {
+            Ok(())
+        }
+    }
+}
+
 /// Inner fields for `PrismError::EnrichUdfNotFound` (E-QUERY-039).
 ///
 /// Boxed inside the enum variant to keep `PrismError` under the
@@ -533,7 +560,9 @@ pub enum PrismError {
     CredentialNotFound { name: String },
 
     /// E-CRED-003: Credential access denied (AI-opaque boundary enforced).
-    #[error("E-CRED-003: credential access denied for {name} — credential values never transit AI context")]
+    #[error(
+        "E-CRED-003: credential access denied for {name} — credential values never transit AI context"
+    )]
     CredentialAccessDenied { name: String },
 
     /// E-CRED-004: Backend-level credential store failure (S-1.06).
@@ -854,7 +883,8 @@ pub enum PrismError {
     /// Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.017; error-taxonomy.md E-QUERY-002.
     #[error(
         "E-QUERY-002: type mismatch — column '{column}' in table '{table}' has type \
-         '{actual_type:?}' which does not support operator '{operator}'"
+         '{actual_type:?}' which does not support operator '{operator}'{}",
+        SuggestedSuffix(suggested_column)
     )]
     QueryTypeMismatch {
         /// The column name used with the incompatible operator.
@@ -865,6 +895,15 @@ pub enum PrismError {
         actual_type: crate::column::ColumnType,
         /// The operator string as it appears in the query (e.g., `">"`).
         operator: String,
+        /// Bare column name of the OCSF string sibling, if known; `None` otherwise.
+        ///
+        /// `Some("severity")` for `severity_id`, `Some("status")` for `status_id`, etc.
+        /// `None` for temporal checks, DML assignments, and other cases without a known
+        /// OCSF string sibling.
+        ///
+        /// The Display impl appends the suggestion suffix (error-taxonomy v2.19 §E-QUERY-002
+        /// AC-022; BC-2.11.024) via the private `SuggestedSuffix` Display helper.
+        suggested_column: Option<String>,
     },
 
     /// E-QUERY-003: Query security limit exceeded (security-only variant).
@@ -1558,7 +1597,7 @@ pub enum PrismError {
     /// Maps to MCP code -32602 (INVALID_PARAMS) for all three variants — caller-resolvable.
     ///
     /// Reference: ADR-052 §D4 v1.10; error-taxonomy.md §E-QUERY-042 v2.14;
-    ///            BC-2.11.021 v1.7; BC-2.11.003 v1.11; BC-2.11.004 v1.12;
+    ///            BC-2.11.021; BC-2.11.003; BC-2.11.004;
     ///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001.
     #[error("{}", position.as_display_string(value_prefix))]
     TemporalLiteralInvalidPosition {
@@ -1733,7 +1772,9 @@ pub enum InfusionError {
     UnknownInfusion { name: String },
 
     /// E-INFUSE-002: Duplicate UDF name across multiple infusion specs.
-    #[error("E-INFUSE-002: Duplicate UDF name '{udf_name}' in '{path2}' — already registered from '{path1}'.")]
+    #[error(
+        "E-INFUSE-002: Duplicate UDF name '{udf_name}' in '{path2}' — already registered from '{path1}'."
+    )]
     DuplicateUdfName {
         udf_name: String,
         path1: String,
@@ -1745,13 +1786,17 @@ pub enum InfusionError {
     MissingRequiredField { field: String, spec_path: String },
 
     /// E-INFUSE-004: Unknown source type in infusion spec.
-    #[error("E-INFUSE-004: Unknown source type '{type_name}'. Valid types: maxmind_mmdb, csv, json_lookup, plugin, http_lookup.")]
+    #[error(
+        "E-INFUSE-004: Unknown source type '{type_name}'. Valid types: maxmind_mmdb, csv, json_lookup, plugin, http_lookup."
+    )]
     UnknownSourceType { type_name: String },
 
     /// E-INFUSE-005: Credential cannot be resolved.
     /// NOTE: The message MUST NOT include the credential value — only the field name,
     /// infusion_id, and env_var_name are safe to log (BC-2.19.005).
-    #[error("E-INFUSE-005: Credential '{field_name}' for infusion '{infusion_id}' could not be resolved. Ensure '{env_var_name}' is set.")]
+    #[error(
+        "E-INFUSE-005: Credential '{field_name}' for infusion '{infusion_id}' could not be resolved. Ensure '{env_var_name}' is set."
+    )]
     CredentialUnresolved {
         field_name: String,
         infusion_id: String,
@@ -1759,7 +1804,9 @@ pub enum InfusionError {
     },
 
     /// E-RULE-012: Detection rule filter references an API-backed infusion UDF.
-    #[error("E-RULE-012: Detection rule filter references API-backed infusion UDF '{udf_name}' (from infusion '{infusion_id}', type 'plugin'). API-backed infusions cannot be used in detection rules — use a local_lookup infusion instead.")]
+    #[error(
+        "E-RULE-012: Detection rule filter references API-backed infusion UDF '{udf_name}' (from infusion '{infusion_id}', type 'plugin'). API-backed infusions cannot be used in detection rules — use a local_lookup infusion instead."
+    )]
     ApiBackedUdfInDetectionRule {
         udf_name: String,
         infusion_id: String,
@@ -1804,7 +1851,9 @@ pub enum InfusionError {
 
     /// E-INFUSE-009: HTTP lookup failed for an http_lookup-type infusion.
     /// `message` MUST NOT contain credential values (AD-017).
-    #[error("E-INFUSE-009: HTTP lookup failed for infusion '{infusion_id}' (spec: '{spec_path}'): {message}")]
+    #[error(
+        "E-INFUSE-009: HTTP lookup failed for infusion '{infusion_id}' (spec: '{spec_path}'): {message}"
+    )]
     HttpLookupFailed {
         infusion_id: String,
         spec_path: String,
@@ -1814,7 +1863,9 @@ pub enum InfusionError {
 
     /// E-INFUSE-010: Credential resolution failed for an http_lookup-type infusion.
     /// The env var name MUST NOT appear in the message (AD-017).
-    #[error("E-INFUSE-010: credential resolution failed for infusion '{infusion_id}' (spec: '{spec_path}'): credential '{credential_ref}' not available at call time")]
+    #[error(
+        "E-INFUSE-010: credential resolution failed for infusion '{infusion_id}' (spec: '{spec_path}'): credential '{credential_ref}' not available at call time"
+    )]
     CredentialResolutionFailed {
         infusion_id: String,
         spec_path: String,
@@ -1823,7 +1874,9 @@ pub enum InfusionError {
 
     /// E-INFUSE-011: SSRF protection rejected the base_url for an http_lookup-type infusion.
     /// The resolved IP address MUST NOT appear in the message (CWE-209).
-    #[error("E-INFUSE-011: SSRF protection rejected infusion '{infusion_id}' (spec: '{spec_path}'): base_url resolves to a private or loopback address; set PRISM_DTU_MODE=true to override for test/demo deployments")]
+    #[error(
+        "E-INFUSE-011: SSRF protection rejected infusion '{infusion_id}' (spec: '{spec_path}'): base_url resolves to a private or loopback address; set PRISM_DTU_MODE=true to override for test/demo deployments"
+    )]
     SsrfRejected {
         infusion_id: String,
         spec_path: String,
@@ -1859,7 +1912,7 @@ pub enum InfusionError {
     /// Emitted as `tracing::warn!` (not a query error) when a projected value cannot be
     /// coerced to the declared `output_type`. The output row contains NULL.
     ///
-    /// Defined in ADR-051 D2 and BC-2.19.001 v2.2 §E-INFUSE-014.
+    /// Defined in ADR-051 D2 and BC-2.19.001 §E-INFUSE-014.
     /// A corresponding BC-2.16.002 Canonical Structured Event Catalog row for
     /// `event_type = "infusion.coercion_failed"` MUST be added in the same commit as
     /// the `tracing::warn!` emission in `infusion_udf.rs` (SAP-1 obligation; AC-012).
@@ -1905,8 +1958,9 @@ impl InfusionError {
     /// truncation in `parse_datetime_to_micros`).
     ///
     /// SEC-001 (CWE-117, error-taxonomy v2.17): `field_name`, `infusion_id`, and `declared_type`
-    /// are stripped of ASCII control characters (0x00–0x1F, 0x7F) before storage to prevent
-    /// log injection and LLM prompt injection when rendered via `tracing::warn!("{}", err)`.
+    /// are stripped of Unicode Cc (C0 U+0000–U+001F, DEL U+007F, C1 U+0080–U+009F) + U+2028/U+2029
+    /// before storage to prevent log injection and LLM prompt injection when rendered via
+    /// `tracing::warn!("{}", err)`.
     /// `truncated_value` is stripped AFTER the 50-char truncation (truncation removes excess
     /// content first; stripping removes any control chars that survived the 50-char window).
     ///
@@ -1929,19 +1983,30 @@ impl InfusionError {
     }
 }
 
-/// Strip ASCII control characters (0x00–0x1F, 0x7F) from `s` before embedding in log or error
-/// messages.
+/// Strip Unicode control characters and line/paragraph separators from `s` before embedding in
+/// log or error messages.
 ///
 /// **Contract A — canonical log/error-message sanitizer (CWE-117):**
-/// Removes chars where `c.is_ascii_control()` is true; no length cap; no replacement character.
+///
+/// Scope: Unicode Cc (C0 U+0000–U+001F, DEL U+007F, C1 U+0080–U+009F),
+/// U+2028 (LINE SEPARATOR), and U+2029 (PARAGRAPH SEPARATOR).
+/// No length cap; no replacement character.
+/// Parity with `prism-mcp` `connectivity.rs` `sanitize_error` which also strips U+2028/U+2029.
+///
 /// Use this function for log and error message value sanitization across all crates.
-/// Distinct from `prism_spec_engine::overlay::sanitize_for_display` which uses U+FFFD replacement
-/// and a 256-char cap for display-facing overlay error strings.
+/// Distinct from `prism_spec_engine::overlay::sanitize_for_display` which uses U+FFFD
+/// replacement and a 256-char cap for display-facing overlay error strings.
 ///
 /// Prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured logs
 /// (AD-017 extension, error-taxonomy v2.17 SEC-001 Rendering Note).
+///
+/// ADV-PR-P5-OBS-001 fix: widened from `c.is_ascii_control()` (C0+DEL only) to
+/// `c.is_control()` (covers C1 U+0080–U+009F) plus explicit U+2028/U+2029 (category Zl/Zp;
+/// not in Unicode Cc, so not caught by `is_control()` alone).
 pub fn sanitize_for_log(s: &str) -> String {
-    s.chars().filter(|c| !c.is_ascii_control()).collect()
+    s.chars()
+        .filter(|c| !c.is_control() && *c != '\u{2028}' && *c != '\u{2029}')
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -2209,6 +2274,128 @@ mod tests {
             "E-QUERY-036: unknown source table 'crowdstrik': table is not a registered \
              sensor or internal table. Check spelling or register the sensor in prism.toml. \
              Available tables: [crowdstrike]. Did you mean: 'crowdstrike'?"
+        );
+    }
+
+    /// RG-081 / OBS-002 GREEN-lock — `SuggestedSuffix` Display for `Some` and `None`.
+    ///
+    /// Pins the formatting of the private `SuggestedSuffix` Display helper independently
+    /// of the `#[error]` template on `PrismError::QueryTypeMismatch`. Any future refactor
+    /// that changes `SuggestedSuffix`'s output will break this test, preventing silent
+    /// regression of the E-QUERY-002 error message format.
+    ///
+    /// GREEN GATE: passes both before and after the MED-001 fix (unrelated to order-of-ops).
+    /// This test is a regression lock, not a failing Red Gate.
+    ///
+    /// Traces to: OBS-002 (ADV-PR-P1 S-PRISMQL-CASE-INSENSITIVE-001);
+    /// error-taxonomy.md §E-QUERY-002 AC-022; BC-2.11.024.
+    #[test]
+    fn test_rg081_obs002_suggested_suffix_display_some_and_none() {
+        // Some(col) → canonical suffix text (error-taxonomy §E-QUERY-002 AC-022)
+        let suffix_some = format!("{}", SuggestedSuffix(&Some("severity".to_string())));
+        assert_eq!(
+            suffix_some,
+            "; for label comparison, use the string column 'severity' with IEQ/IIN/INE instead",
+            "OBS-002 / RG-081: SuggestedSuffix(Some(\"severity\")) must produce \
+             canonical suffix text (error-taxonomy §E-QUERY-002 AC-022)"
+        );
+
+        // None → empty string (no suffix appended to the Display message)
+        let suffix_none = format!("{}", SuggestedSuffix(&None::<String>));
+        assert_eq!(
+            suffix_none, "",
+            "OBS-002 / RG-081: SuggestedSuffix(None) must produce empty string"
+        );
+
+        // Integration: QueryTypeMismatch Display with Some(suggested_column) ends with suffix.
+        let err_with = PrismError::QueryTypeMismatch {
+            column: "severity_id".to_string(),
+            table: "crowdstrike_alerts".to_string(),
+            actual_type: crate::column::ColumnType::Integer,
+            operator: "=".to_string(),
+            suggested_column: Some("severity".to_string()),
+        };
+        let display_with = format!("{err_with}");
+        assert!(
+            display_with.ends_with(
+                "; for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+            ),
+            "OBS-002 / RG-081: QueryTypeMismatch with Some(suggested_column) must end \
+             with SuggestedSuffix text; got: {:?}",
+            display_with
+        );
+
+        // Integration: QueryTypeMismatch Display with None does NOT contain the suffix.
+        let err_without = PrismError::QueryTypeMismatch {
+            column: "timestamp".to_string(),
+            table: "crowdstrike_alerts".to_string(),
+            actual_type: crate::column::ColumnType::Datetime,
+            operator: ">".to_string(),
+            suggested_column: None,
+        };
+        let display_without = format!("{err_without}");
+        assert!(
+            !display_without.contains("for label comparison"),
+            "OBS-002 / RG-081: QueryTypeMismatch with None suggested_column must NOT \
+             contain suggestion suffix; got: {:?}",
+            display_without
+        );
+    }
+
+    /// ADV-PR-P5-OBS-001 RED GATE: `sanitize_for_log` must strip Unicode Cc characters
+    /// (C1 range U+0080–U+009F: NEL U+0085, CSI U+009B) and Line/Paragraph Separators
+    /// (U+2028, U+2029), while preserving normal Unicode letters.
+    ///
+    /// RED against the old `c.is_ascii_control()` impl which only strips C0+DEL (U+0000–U+001F,
+    /// U+007F). GREEN after widening to `c.is_control() && *c != '\u{2028}' && *c != '\u{2029}'`.
+    ///
+    /// Traces to: ADV-PR-P5-OBS-001 (CWE-117 C1 gap); CWE-117; AD-017.
+    #[test]
+    fn test_sanitize_for_log_strips_unicode_cc_and_line_separators() {
+        // U+0085 NEL (NEXT LINE) — C1 control char; stripped by `c.is_control()`, NOT by
+        // `c.is_ascii_control()`. LLM prompt-injection vector.
+        assert_eq!(
+            sanitize_for_log("\u{0085}"),
+            "",
+            "ADV-PR-P5-OBS-001: sanitize_for_log must strip U+0085 (NEL, C1 control)"
+        );
+
+        // U+009B CSI (CONTROL SEQUENCE INTRODUCER) — C1 control char.
+        assert_eq!(
+            sanitize_for_log("\u{009B}"),
+            "",
+            "ADV-PR-P5-OBS-001: sanitize_for_log must strip U+009B (CSI, C1 control)"
+        );
+
+        // U+2028 LINE SEPARATOR — category Zl; NOT in Unicode Cc, so not caught by
+        // `c.is_control()`. Must be explicitly excluded. LLM prompt-injection vector
+        // (parity with prism-mcp connectivity.rs sanitize_error).
+        assert_eq!(
+            sanitize_for_log("\u{2028}"),
+            "",
+            "ADV-PR-P5-OBS-001: sanitize_for_log must strip U+2028 (LINE SEPARATOR)"
+        );
+
+        // U+2029 PARAGRAPH SEPARATOR — category Zp; same rationale as U+2028.
+        assert_eq!(
+            sanitize_for_log("\u{2029}"),
+            "",
+            "ADV-PR-P5-OBS-001: sanitize_for_log must strip U+2029 (PARAGRAPH SEPARATOR)"
+        );
+
+        // Normal Unicode letters MUST be preserved (must not over-strip).
+        assert_eq!(
+            sanitize_for_log("HÍGH"),
+            "HÍGH",
+            "ADV-PR-P5-OBS-001: sanitize_for_log must preserve normal Unicode letters"
+        );
+
+        // Mixed: C1 and separators stripped; Unicode letters preserved.
+        assert_eq!(
+            sanitize_for_log("H\u{0085}Í\u{2028}G\u{009B}H\u{2029}"),
+            "HÍGH",
+            "ADV-PR-P5-OBS-001: mixed input — all control chars/separators stripped, \
+             Unicode letters preserved"
         );
     }
 

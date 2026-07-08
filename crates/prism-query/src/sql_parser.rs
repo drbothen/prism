@@ -83,6 +83,76 @@ const SQL_KEYWORDS: &[&str] = &[
     "PERCENTILE",
 ];
 
+/// Walk a `Predicate` tree and return the name of the first case-insensitive
+/// (IEQ / INE / IIN) operator found, or `None` if none are present.
+///
+/// Used by `parse_sql_with_limits` (via `detect_ci_operator_in_sql_query`) to produce
+/// a parse-time `E-QUERY-001` error when a SQL-mode query contains a CI operator in its
+/// WHERE clause, HAVING clause, or any IN-subquery at arbitrary nesting depth
+/// (BC-2.11.024 §SQL-Mode Rejection, LOCAL-pass-4 F-HIGH-001).
+///
+/// Returns the canonical uppercase keyword as a `String`:
+/// - `"IEQ"` for `Compare { case_insensitive: true, op: Eq, .. }`
+/// - `"INE"` for `Compare { case_insensitive: true, op: Ne, .. }`
+/// - `"IIN"` for `In { case_insensitive: true, .. }`
+/// - `"I[{Op:?}]"` for any other AST-invariant-violation `case_insensitive=true` op
+///   (F-LOW-2, LOCAL-pass-11: includes the actual op name so the E-QUERY-001 diagnostic
+///   reports the operator that was actually present, not the misleading hardcoded "IEQ").
+fn detect_ci_operator_in_predicate(pred: &Predicate) -> Option<String> {
+    match pred {
+        Predicate::Compare {
+            case_insensitive: true,
+            op,
+            ..
+        } => Some(match op {
+            CompareOp::Eq => "IEQ".to_owned(),
+            CompareOp::Ne => "INE".to_owned(),
+            // Any other op with case_insensitive=true is an AST invariant violation.
+            // This branch is structurally unreachable (the parser never emits
+            // case_insensitive=true for Lt/Le/Gt/Ge/Like), but if it somehow fires via
+            // direct AST construction, include the ACTUAL op in the diagnostic so the
+            // E-QUERY-001 error message reports the operator that was actually present
+            // rather than the misleading hardcoded "IEQ" (F-LOW-2, LOCAL-pass-11).
+            _ => format!("I[{op:?}]"),
+        }),
+        Predicate::In {
+            case_insensitive: true,
+            ..
+        } => Some("IIN".to_owned()),
+        Predicate::Logical { predicates, .. } => {
+            predicates.iter().find_map(detect_ci_operator_in_predicate)
+        }
+        Predicate::Not(inner) => detect_ci_operator_in_predicate(inner),
+        // BC-2.11.024 §SQL-Mode Rejection, LOCAL-pass-4 F-HIGH-001:
+        // Recurse into the subquery's WHERE and HAVING to catch CI operators at
+        // any IN-subquery nesting depth (doubly-nested, triply-nested, etc.).
+        Predicate::InSubquery { subquery, .. } => detect_ci_operator_in_sql_query(subquery),
+        _ => None,
+    }
+}
+
+/// Walk a `SqlQuery`'s WHERE and HAVING predicates for CI operators.
+///
+/// Returns the first CI operator name found in `where_` or `having` (in that order),
+/// or `None` if neither clause contains a CI operator.
+///
+/// Called by both `parse_sql_with_limits` (top-level checks) and
+/// `detect_ci_operator_in_predicate` (`InSubquery` recursion), avoiding code
+/// duplication across the two invocation sites.
+fn detect_ci_operator_in_sql_query(sq: &SqlQuery) -> Option<String> {
+    if let Some(pred) = &sq.where_ {
+        if let Some(op) = detect_ci_operator_in_predicate(pred) {
+            return Some(op);
+        }
+    }
+    if let Some(pred) = &sq.having {
+        if let Some(op) = detect_ci_operator_in_predicate(pred) {
+            return Some(op);
+        }
+    }
+    None
+}
+
 /// Parse a SQL-mode query and return `Ast::Sql(SqlStatement::Select(SqlQuery))`.
 ///
 /// This is the canonical entry point — symmetric with `parse_filter()` (returns
@@ -143,6 +213,22 @@ pub(crate) fn parse_sql_with_limits(
             limits
                 .check_sql_list_sizes_with(&sq)
                 .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+            // BC-2.11.024 §SQL-Mode Rejection: IEQ/INE/IIN are not supported in
+            // SQL-mode WHERE or HAVING clauses (or IN-subquery WHERE/HAVING at any depth).
+            // Detect at parse time so callers get a clean E-QUERY-001 error rather than
+            // a DataFusion planning failure at runtime (LOCAL-pass-4 F-HIGH-001).
+            if let Some(op) = detect_ci_operator_in_sql_query(&sq) {
+                return Err(vec![ParseError::new(
+                    0,
+                    format!(
+                        "E-QUERY-001: parse error near '{op}': case-insensitive operators \
+                         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+                         (e.g., severity IEQ 'high') or a pipe | where stage \
+                         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+                         instead."
+                    ),
+                )]);
+            }
             return Ok(Ast::Sql(SqlStatement::Select(sq)));
         }
     }
@@ -161,6 +247,20 @@ pub(crate) fn parse_sql_with_limits(
             if limits.check_sql_query_nesting_depth_with(&sq, 0).is_ok()
                 && limits.check_sql_list_sizes_with(&sq).is_ok()
             {
+                // BC-2.11.024: also reject CI operators in the recovery path,
+                // including HAVING and IN-subquery WHERE/HAVING (LOCAL-pass-4 F-HIGH-001).
+                if let Some(op) = detect_ci_operator_in_sql_query(&sq) {
+                    return Err(vec![ParseError::new(
+                        0,
+                        format!(
+                            "E-QUERY-001: parse error near '{op}': case-insensitive \
+                             operators (IEQ/IIN/INE) are not supported in SQL mode. \
+                             Use filter mode (e.g., severity IEQ 'high') or a pipe | \
+                             where stage (e.g., FROM crowdstrike_detections | where \
+                             severity IEQ 'high') instead."
+                        ),
+                    )]);
+                }
                 return Ok(Ast::Sql(SqlStatement::Select(sq)));
             }
         }
@@ -514,8 +614,15 @@ fn build_sql_predicate_parser<'a>(
             }
         });
 
-    // Prefer IN subquery over base (which handles IN list).
-    in_subquery.or(base)
+    // F-P10-FIX (S-PRISMQL-CASE-INSENSITIVE-001): prefer base (which handles
+    // IN literal lists via its in_list arm) over in_subquery.  In Chumsky 0.12
+    // `or` is backtracking — if base fails, the input position resets and
+    // in_subquery is tried.  This ensures that:
+    //   • `field IN ('A', 'B') AND ...` is handled by base's in_list (correct)
+    //   • `field IN (SELECT ...)` backtracks to in_subquery (correct)
+    //   • `field IN (BOGUS xx) AND ...` backtracks to in_subquery whose
+    //     nested_delimiters recovery produces RecoveryError (F-MEDIUM-001)
+    base.or(in_subquery)
 }
 
 // ---------------------------------------------------------------------------
@@ -691,6 +798,7 @@ fn build_having_predicate_parser<'a>(
             lhs: Box::new(agg_expr),
             op,
             rhs: Box::new(rhs),
+            case_insensitive: false,
         });
 
     // Try aggregate comparison first; fall through to base predicate if it doesn't match.
@@ -1017,31 +1125,14 @@ fn build_sql_expr_parser<'a>(
 /// This function is `pub(crate)` — never `pub`.
 ///
 /// # Implements BC-2.11.004 — Write Parser Extension
+///
+/// # OBS-1 (S-PRISMQL-CASE-INSENSITIVE-001)
+/// This is a thin wrapper around `parse_sql_dml_with_limits` using default
+/// `ParseLimits::snapshot()`.  The CI-operator guard (IEQ/IIN/INE rejection) and
+/// depth/size checks in the `_with_limits` variant are always applied.
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn parse_sql_dml(input: &str) -> Result<Ast, Vec<ParseError>> {
-    // Dispatch to the correct sub-parser based on the first token.
-    // This avoids Chumsky choice() error priority issues when try_map
-    // fires after consuming the entire input but choice() still picks
-    // the first alternative's error (BC-2.11.004, S-3.06 fix).
-    let first_token = input
-        .trim()
-        .split_ascii_whitespace()
-        .next()
-        .unwrap_or("")
-        .to_ascii_uppercase();
-    let node_result: Result<DmlNode, Vec<ParseError>> = match first_token.as_str() {
-        "DELETE" => run_dml_parser(build_delete_parser(), input, "DELETE"),
-        "UPDATE" => run_dml_parser(build_update_parser(), input, "UPDATE"),
-        "INSERT" => run_dml_parser(build_insert_parser(), input, "INSERT"),
-        _ => Err(vec![ParseError::new(
-            0,
-            format!("E-QUERY-001: unrecognized DML keyword '{first_token}'"),
-        )]),
-    };
-    match node_result {
-        Ok(node) => Ok(Ast::Sql(SqlStatement::Dml(node))),
-        Err(errs) => Err(errs),
-    }
+    parse_sql_dml_with_limits(input, &crate::security::ParseLimits::snapshot())
 }
 
 /// Parse a DML statement with explicit `ParseLimits` — applying post-parse depth
@@ -1087,6 +1178,46 @@ pub(crate) fn parse_sql_dml_with_limits(
                     .check_sql_list_sizes_with(sq)
                     .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
             }
+
+            // BC-2.11.024 §Mode-Boundary Enforcement (DML scope): IEQ/INE/IIN are not
+            // supported in DML SQL-mode WHERE clauses or embedded SELECT WHERE/HAVING
+            // clauses. Detect at parse time to return a clean E-QUERY-001 error rather
+            // than a DataFusion planning failure at runtime (LOCAL-pass-7 fix-burst target).
+            //
+            // Two check sites:
+            //   (a) DELETE/UPDATE: `node.filter` holds the WHERE predicate.
+            //   (b) INSERT…SELECT: `node.source_select` holds the embedded SqlQuery;
+            //       use detect_ci_operator_in_sql_query (covers WHERE + HAVING at any
+            //       depth, matching the SELECT-path guard).
+            if let Some(ref pred) = node.filter {
+                if let Some(op) = detect_ci_operator_in_predicate(pred) {
+                    return Err(vec![ParseError::new(
+                        0,
+                        format!(
+                            "E-QUERY-001: parse error near '{op}': case-insensitive operators \
+                             (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+                             (e.g., severity IEQ 'high') or a pipe | where stage \
+                             (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+                             instead."
+                        ),
+                    )]);
+                }
+            }
+            if let Some(ref sq) = node.source_select {
+                if let Some(op) = detect_ci_operator_in_sql_query(sq) {
+                    return Err(vec![ParseError::new(
+                        0,
+                        format!(
+                            "E-QUERY-001: parse error near '{op}': case-insensitive operators \
+                             (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+                             (e.g., severity IEQ 'high') or a pipe | where stage \
+                             (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+                             instead."
+                        ),
+                    )]);
+                }
+            }
+
             Ok(Ast::Sql(SqlStatement::Dml(node)))
         }
         Err(errs) => Err(errs),
@@ -1415,5 +1546,61 @@ pub(crate) fn check_unbounded_write(node: &DmlNode, offset: usize) -> Option<Par
                 None
             }
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-LOW-2 fix-burst-11: detect_ci_operator_in_predicate fallback must include
+// the actual operator, not the hardcoded "IEQ" string.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
+mod low2_detect_ci_operator_fallback_tests {
+    use super::*;
+    use crate::ast::{Expr, FieldPath, Literal};
+
+    /// F-LOW-2 RED GATE: the `_ =>` fallback arm in `detect_ci_operator_in_predicate` for
+    /// a `case_insensitive=true` predicate with a non-IEQ/INE operator (e.g., Gt) must
+    /// include the actual operator name in its output, NOT the hardcoded `"IEQ"` string.
+    ///
+    /// Misleading fallback: a `case_insensitive=true, op=Gt` predicate is an AST invariant
+    /// violation (parser-unreachable), but when it arrives via direct AST construction the
+    /// caller gets an E-QUERY-001 message saying "parse error near 'IEQ'" — mentioning a
+    /// completely different operator than the one actually present.
+    ///
+    /// Fix: change return type to `Option<String>` (or `Cow<'static, str>`) and in the `_ =>`
+    /// arm return a formatted string that includes the actual op name (e.g., `"I[Gt]"` or
+    /// `"[ci-op: Gt]"`).
+    ///
+    /// RED: current HEAD returns `Some("IEQ")` for the Gt fallback.
+    #[test]
+    fn test_low2_detect_ci_operator_gt_mentions_real_op_not_ieq() {
+        let pred = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+            op: CompareOp::Gt,
+            rhs: Box::new(Expr::Literal(Literal::String("high".to_owned()))),
+            case_insensitive: true,
+        };
+        let result = detect_ci_operator_in_predicate(&pred);
+        // Must detect it as a CI operator (Some).
+        assert!(
+            result.is_some(),
+            "F-LOW-2: case_insensitive=true Gt must be detected as a CI operator"
+        );
+        let op_str = result.unwrap();
+        // Must NOT be the misleading hardcoded "IEQ" — that reports the wrong operator.
+        assert_ne!(
+            op_str, "IEQ",
+            "F-LOW-2: detect_ci_operator_in_predicate fallback must NOT return hardcoded 'IEQ' \
+             for op=Gt; that reports the wrong operator in the E-QUERY-001 error message. \
+             Got: {op_str:?}"
+        );
+        // Must mention the actual op (Gt) in some form.
+        assert!(
+            op_str.contains("Gt") || op_str.contains("gt") || op_str.contains(">"),
+            "F-LOW-2: detect_ci_operator_in_predicate fallback must include the actual op \
+             (Gt or >) in the returned string. Got: {op_str:?}"
+        );
     }
 }

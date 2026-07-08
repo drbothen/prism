@@ -8,7 +8,9 @@
 //!   not_expr     := ('NOT' | '!') not_expr | atom
 //!   atom         := '(' predicate ')' | comparison
 //!   comparison   := has_check | missing_check | regex_match | cidr_match
-//!                 | not_in_list | in_list | string_op_match | field_comparison
+//!                 | not_in_list | iin_list | in_list | between | is_null
+//!                 | string_op_match | cidr_bare | like_match
+//!                 | ieq_compare | ine_compare | field_comparison
 //!
 //! All keywords are case-insensitive.
 //!
@@ -159,7 +161,7 @@ impl PrismQlParser {
         // PrismQlParser::parse_with_registry"). Both must reject denied SQL keywords
         // with E-QUERY-002. Without this check, inputs like "MERGE INTO foo" would
         // fall through to filter mode, producing E-QUERY-001 instead of E-QUERY-002.
-        // (BC-2.11.003 v1.4, Invariant DI-019)
+        // (BC-2.11.003, Invariant DI-019)
         check_denied_keywords(&first_token_upper)?;
 
         // Pipe mode: route through parse_pipe_with_write.
@@ -203,13 +205,13 @@ impl PrismQlParser {
 
         // S-3.06: Route DML statements (INSERT/UPDATE/DELETE) to the DML parser
         // BEFORE the general denylist check. These were previously denied outright
-        // (BC-2.11.003 v1.4 "read-only engine") but S-3.06 extends the engine with
+        // (BC-2.11.003 "read-only engine") but S-3.06 extends the engine with
         // write support. The DML parser enforces its own guards (E-QUERY-010, E-QUERY-022).
         if matches!(first_token_upper.as_str(), "INSERT" | "UPDATE" | "DELETE") {
             return parse_dml_internal(input, limits);
         }
 
-        // Reject denied SQL statements before any parsing (BC-2.11.003 v1.4, Invariant DI-019).
+        // Reject denied SQL statements before any parsing (BC-2.11.003, Invariant DI-019).
         // Shared helper — same list enforced by `parse_with_registry` (F-PR130-P1-HIGH-001).
         check_denied_keywords(&first_token_upper)?;
 
@@ -243,7 +245,7 @@ impl PrismQlParser {
     }
 }
 
-/// Check the first token of a query against the SQL denylist (BC-2.11.003 v1.4, DI-019).
+/// Check the first token of a query against the SQL denylist (BC-2.11.003, DI-019).
 ///
 /// Used by both `parse_with_limits` (internal path) and `parse_with_registry`
 /// (public write-aware entry point) so both public APIs enforce identical denylist
@@ -933,6 +935,77 @@ pub(crate) fn build_predicate_parser<'a>(
                 field: fp,
                 values,
                 negated: true,
+                case_insensitive: false,
+            });
+
+        // --- field IIN (val, …) — case-insensitive set membership (S-PRISMQL-CASE-INSENSITIVE-001) ---
+        // IIN must appear before IN in the atom choice so that 'iIN' / 'IIN' tokens are
+        // consumed by this combinator. The kw() helper uses full-run eq_ignore_ascii_case,
+        // so 'IIN' will not match kw("IN") (different length), but ordering is retained
+        // as defensive practice per BC-2.11.002 IIN-before-IN discipline.
+        //
+        // Empty list (BC-2.11.024 error case "E-QUERY-001: IIN with empty membership list";
+        // AC-021): use `.collect::<Vec<_>>()` (no `.at_least(1)`) so the delimited parser
+        // accepts "()" without a Chumsky-level failure, then apply `try_map` at the
+        // `delimited_by` level so the error span begins at '(' (e.g., position 13).
+        // This ensures the E-QUERY-001 error wins choice() error-merging over the generic
+        // "expected keyword 'MATCHES'" error at position 9 (Chumsky 0.12 selects by span.start).
+        let iin_values = literal
+            .clone()
+            .padded()
+            .separated_by(just(',').padded())
+            .collect::<Vec<_>>()
+            .delimited_by(just('(').padded(), just(')').padded())
+            .try_map(|values, span| {
+                if values.is_empty() {
+                    return Err(Rich::custom(
+                        span,
+                        "E-QUERY-001: IIN operator requires at least one value in the \
+                         membership list; empty () is not valid. \
+                         Use at least one quoted string: e.g. `status IIN ('new', 'open')`.",
+                    ));
+                }
+                // F-LOW-001: `classify_string_literal` (ADR-052 §D4) may reclassify
+                // quoted date-like values (e.g. '2026-06-01') to `RawTemporalLiteral`
+                // or `Timestamp`.  IIN values are always string/label comparisons; the
+                // user's intent is a quoted string in a set membership test.  Normalise
+                // both forms to `Literal::String` so the emitter can call `lower()` on
+                // each element.  Temporal semantics are intentionally NOT applied here —
+                // the `ci` (case-insensitive) emit path emits `lower('2026-06-01')`, not
+                // `arrow_cast(...)`.
+                let values: Vec<Literal> = values
+                    .into_iter()
+                    .map(|lit| match lit {
+                        Literal::RawTemporalLiteral(s) => Literal::String(s),
+                        Literal::Timestamp(ts) => Literal::String(ts.iso8601),
+                        other => other,
+                    })
+                    .collect();
+                // BC-2.11.024 F-MED-001: reject non-string values at parse time.
+                // After temporal normalisation, only `Literal::String` is valid in an IIN
+                // membership list.  Integer, Float, and Boolean literals are rejected here
+                // so the analyst receives a clear, actionable error before SQL generation.
+                if values.iter().any(|lit| !matches!(lit, Literal::String(_))) {
+                    return Err(Rich::custom(
+                        span,
+                        "E-QUERY-001: IIN operator requires quoted string literals in the \
+                         membership list; got a non-string value (integer, float, or boolean). \
+                         Example: status IIN ('new', 'open'). If you need date-like strings, \
+                         wrap them in quotes: created_at IIN ('2026-06-01', '2026-06-02').",
+                    ));
+                }
+                Ok(values)
+            });
+        let iin_list = field_path
+            .clone()
+            .padded()
+            .then_ignore(kw("IIN").padded())
+            .then(iin_values)
+            .map(|(fp, values)| Predicate::In {
+                field: fp,
+                values,
+                negated: false,
+                case_insensitive: true,
             });
 
         // --- field IN (val, …) ---
@@ -953,6 +1026,7 @@ pub(crate) fn build_predicate_parser<'a>(
                 field: fp,
                 values,
                 negated: false,
+                case_insensitive: false,
             });
 
         // --- field BETWEEN low AND high ---
@@ -1021,7 +1095,75 @@ pub(crate) fn build_predicate_parser<'a>(
                     lhs: Box::new(field_path_to_expr(fp)),
                     op: CompareOp::Like,
                     rhs: Box::new(crate::ast::Expr::Literal(lit)),
+                    case_insensitive: false,
                 }
+            });
+
+        // --- field IEQ 'value' — case-insensitive equality (S-PRISMQL-CASE-INSENSITIVE-001) ---
+        // IEQ must appear before field_comparison in the atom choice.
+        // RHS must be a string literal (AC-010, BC-2.11.024 error case "E-QUERY-001: IEQ/INE
+        // with non-string RHS").
+        //
+        // The try_map is placed at the LITERAL level (not the full-sequence level). This ensures
+        // the emitted error span begins at the position of the literal token itself (e.g., "42"
+        // at position 13), not the start of the whole pattern (position 0). Chumsky 0.12 choice()
+        // error merging uses span.start to select the "furthest" error; a span starting at 13
+        // outcompetes the "expected keyword 'MATCHES'" error that starts at position 9.
+        let ieq_rhs_string = literal.clone().padded().try_map(|lit, span| match lit {
+            Literal::String(s) => Ok(s),
+            // F-LOW-001: `classify_string_literal` (ADR-052 §D4 lenient parse) may
+            // reclassify a quoted date-like value (e.g. '2026-06-01') to
+            // `RawTemporalLiteral` or `Timestamp`.  The user explicitly quoted the
+            // value for a string/label comparison — unwrap it as a plain string so
+            // the emitter can call `lower()` on it.  No temporal semantics apply
+            // on the `ci` (case-insensitive) emit path; the value is emitted as
+            // `lower('2026-06-01')`, not as `arrow_cast(...)`.
+            Literal::RawTemporalLiteral(s) => Ok(s),
+            Literal::Timestamp(ts) => Ok(ts.iso8601),
+            _ => Err(Rich::custom(
+                span,
+                "E-QUERY-001: IEQ operator requires a quoted string literal on the \
+                 right-hand side; got a non-string value. \
+                 Use a quoted string: e.g. `severity IEQ 'high'`.",
+            )),
+        });
+        let ieq_compare = field_path
+            .clone()
+            .padded()
+            .then_ignore(kw("IEQ").padded())
+            .then(ieq_rhs_string)
+            .map(|(fp, val)| Predicate::Compare {
+                lhs: Box::new(field_path_to_expr(fp)),
+                op: CompareOp::Eq,
+                rhs: Box::new(crate::ast::Expr::Literal(Literal::String(val))),
+                case_insensitive: true,
+            });
+
+        // --- field INE 'value' — case-insensitive inequality (S-PRISMQL-CASE-INSENSITIVE-001) ---
+        // Same try_map-at-literal-level pattern as ieq_compare.
+        let ine_rhs_string = literal.clone().padded().try_map(|lit, span| match lit {
+            Literal::String(s) => Ok(s),
+            // F-LOW-001: same RawTemporalLiteral/Timestamp acceptance as ieq_rhs_string.
+            // Quoted date-like values must be treated as plain strings for INE comparison.
+            Literal::RawTemporalLiteral(s) => Ok(s),
+            Literal::Timestamp(ts) => Ok(ts.iso8601),
+            _ => Err(Rich::custom(
+                span,
+                "E-QUERY-001: INE operator requires a quoted string literal on the \
+                 right-hand side; got a non-string value. \
+                 Use a quoted string: e.g. `severity INE 'high'`.",
+            )),
+        });
+        let ine_compare = field_path
+            .clone()
+            .padded()
+            .then_ignore(kw("INE").padded())
+            .then(ine_rhs_string)
+            .map(|(fp, val)| Predicate::Compare {
+                lhs: Box::new(field_path_to_expr(fp)),
+                op: CompareOp::Ne,
+                rhs: Box::new(crate::ast::Expr::Literal(Literal::String(val))),
+                case_insensitive: true,
             });
 
         // RHS value expression: temporal (NOW/INTERVAL) or literal.
@@ -1076,6 +1218,7 @@ pub(crate) fn build_predicate_parser<'a>(
                     lhs: Box::new(field_path_to_expr(fp)),
                     op,
                     rhs: Box::new(rhs),
+                    case_insensitive: false,
                 })
             });
 
@@ -1099,6 +1242,7 @@ pub(crate) fn build_predicate_parser<'a>(
             });
 
         // Atom: `(predicate)` | one of the above
+        // Ordering discipline: IIN before IN, IEQ/INE before field_comparison.
         let atom = choice((
             predicate
                 .clone()
@@ -1109,12 +1253,15 @@ pub(crate) fn build_predicate_parser<'a>(
             regex_match,
             cidr_match,
             not_in_list,
+            iin_list,
             in_list,
             between,
             is_null,
             string_op_match,
             cidr_bare,
             like_match,
+            ieq_compare,
+            ine_compare,
             field_comparison,
         ));
 
@@ -1214,7 +1361,7 @@ pub(crate) fn build_string_parser<'a>(
 /// Integer/Float/Bool col → E-QUERY-002; non-Field LHS → E-QUERY-042 NonColumnLhsComparison;
 /// SELECT projection → COERCE; GROUP BY → E-QUERY-042 GroupBy; ORDER BY → E-QUERY-042 OrderBy.
 ///
-/// The seven canonical forms (exhaustive — must match exactly, per BC-2.11.021 v1.4):
+/// The seven canonical forms (exhaustive — must match exactly, per BC-2.11.021):
 ///   1. `%Y-%m-%d`              — date-only
 ///   2. `%Y-%m-%dT%H:%M:%S`    — T-sep full seconds
 ///   3. `%Y-%m-%dT%H:%M:%S%.f` — T-sep fractional seconds
@@ -1225,12 +1372,12 @@ pub(crate) fn build_string_parser<'a>(
 ///
 /// Over-matched forms (unpadded month/day `'2026-6-24'`, big/signed years) are ACCEPTED
 /// BENIGN per ADR-052 §D4 v1.4 — chrono `%m`/`%d`/`%Y` accept them; no regex guard applied.
-/// (BC-2.11.021 v1.4 EC-11-021-010..014)
+/// (BC-2.11.021 EC-11-021-010..014)
 ///
 /// Operates on already-parsed UTF-8 `&str` — no raw byte-offset operations;
 /// Unicode safety guaranteed by construction (VP-021 invariant).
 ///
-/// (ADR-052 §D4 Step 2; BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 13)
+/// (ADR-052 §D4 Step 2; BC-2.11.021; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 13)
 /// Seven-form acceptance set per ADR-052 §D4 v1.4.
 ///
 /// Over-matched forms (unpadded digits, big years) are ACCEPTED BENIGN —
@@ -1263,7 +1410,7 @@ pub(crate) fn is_date_like(s: &str) -> bool {
 ///   - Otherwise → `Literal::String(s)` (plain string, no temporal semantics)
 ///
 /// Infallible: parse ALWAYS succeeds. Validation of the temporal forms moves to plan time.
-/// (ADR-052 §D4 Step 2; BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 13)
+/// (ADR-052 §D4 Step 2; BC-2.11.021; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 13)
 fn classify_string_literal(s: &str) -> Literal {
     // Fast path: try RFC-3339 first (full timestamp with UTC offset).
     if let Ok(ts) = TimestampLiteral::new(s) {

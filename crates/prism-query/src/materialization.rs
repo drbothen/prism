@@ -364,21 +364,21 @@ impl CredentialResolver for NullMaterializationCredentialResolver {
 /// push-down parameters for the fetch: the WHERE-clause equality `FilterMap`
 /// (namespaced `filter.<column>`), the ADR-033 extracted time-window bounds
 /// (`start_time` / `end_time`), and the **effective fetch-limit** (parameter
-/// key `fetch.limit` — BC-2.07.005 v4.4). The original PrismQL query string,
+/// key `fetch.limit` — BC-2.07.005). The original PrismQL query string,
 /// the `force_refresh` flag, and PrismQL post-filters are excluded per
 /// BC-2.07.005 §Hash Input. Two different PrismQL queries that produce
 /// identical push-down parameters therefore share a cache entry
 /// (BC-2.07.003 §Postconditions).
 ///
-/// # Effective fetch-limit (P1-01 / BC-2.07.005 v4.4)
+/// # Effective fetch-limit (P1-01 / BC-2.07.005)
 ///
 /// `fetch_limit` is the exact `u64` pushed into the fan-out target's
-/// `QueryParams.limit` (BC-2.01.013 v1.14 / F-P1-CRIT-004). Because fetched
+/// `QueryParams.limit` (BC-2.01.013 / F-P1-CRIT-004). Because fetched
 /// responses are limit-truncated at the sensor API, an entry fetched under
 /// limit L is valid only for queries fetching under the same L. The
 /// tool-level `limit`'s *post-materialization truncation role* remains
 /// excluded — what is hashed is the fetch-limit actually pushed. `0` is the
-/// no-limit sentinel (EC-08 of BC-2.01.013 v1.14): when 0, the parameter is
+/// no-limit sentinel (EC-08 of BC-2.01.013): when 0, the parameter is
 /// **omitted** from the canonical form per the null/absent-omission rule, so
 /// unlimited fetches share entries with unlimited fetches (EC-07-044).
 ///
@@ -408,7 +408,7 @@ pub(crate) fn derive_response_cache_key(
     if let Some(et) = end_time {
         params.insert("end_time", serde_json::Value::String(et.clone()));
     }
-    // BC-2.07.005 v4.4: hash the effective fetch-limit; omit the 0 / no-limit
+    // BC-2.07.005: hash the effective fetch-limit; omit the 0 / no-limit
     // sentinel per the null/absent-omission rule (EC-07-044).
     if fetch_limit > 0 {
         params.insert("fetch.limit", serde_json::Value::from(fetch_limit));
@@ -734,11 +734,11 @@ pub async fn run_materialization_pipeline(
     // the per-target loop can hold it alongside &mut mat_ctx borrows.
     let response_cache = mat_ctx.response_cache.clone();
 
-    // Effective fetch-limit (BC-2.01.013 v1.14 / F-P1-CRIT-004): the limit
+    // Effective fetch-limit (BC-2.01.013 / F-P1-CRIT-004): the limit
     // pushed into every fan-out target's `QueryParams.limit`. 0 = no-limit
     // sentinel (EC-008).
     //
-    // SINGLE-BINDING COHERENCE (P1-01 / BC-2.07.005 v4.4 §Invariants, architect
+    // SINGLE-BINDING COHERENCE (P1-01 / BC-2.07.005 §Invariants, architect
     // adjudication D1): this binding feeds BOTH the response-cache key
     // derivation AND the fan-out target construction below. Do NOT introduce a
     // second derivation of the pushed limit — the limit hashed into
@@ -855,7 +855,7 @@ pub async fn run_materialization_pipeline(
                 },
                 params: prism_sensors::adapter::QueryParams {
                     cursor: None,
-                    // Single-binding coherence (P1-01 / BC-2.07.005 v4.4): the
+                    // Single-binding coherence (P1-01 / BC-2.07.005): the
                     // SAME `fetch_limit` binding feeds the cache key above.
                     limit: fetch_limit,
                     // ADR-033 T1: populate start_time/end_time from pre-fan-out AST extraction.
@@ -1257,6 +1257,24 @@ pub async fn execute_against_session(
                 vec![datafusion_table_name(&filter.source.raw)]
             };
 
+            // Pre-flight type check: IEQ / INE / IIN operators require string-typed columns.
+            //
+            // DataFusion would produce a generic error (E-QUERY-034) when `lower(severity_id)`
+            // is called on an Int64 column at execution time. This pre-flight check fires BEFORE
+            // DataFusion execution and emits a structured E-QUERY-002 `QueryTypeMismatch` with
+            // the offending column name, actual type, and (for OCSF id columns) a suggestion
+            // pointing to the corresponding string-label sibling column. (BC-2.11.024 AC-022; RG-018)
+            // Uses the shared `check_ci_column_types` helper (OBS-3).
+            {
+                let ci_fields = collect_ci_compare_fields(&filter.predicate);
+                // All registered tables for a source share the same logical schema.
+                // Call the helper on each name — it skips tables not yet in the catalog,
+                // returns Err on the first type mismatch found, and Ok if all pass.
+                for table_name in &table_names {
+                    check_ci_column_types(session_ctx, table_name, &ci_fields).await?;
+                }
+            }
+
             // Execute `SELECT * FROM <table> WHERE <predicate>` for each table and union.
             let mut all_batches: Vec<RecordBatch> = Vec::new();
             for table_name in &table_names {
@@ -1300,6 +1318,32 @@ pub async fn execute_against_session(
         // by the Fields-exclude projection). The MemTables have already been registered
         // by `run_materialization_pipeline` before this function is called.
         Ast::Pipe(pipe) => {
+            // F-P1-PIPE-TYPECHECK-GAP: pre-flight CI column-type check for pipe mode,
+            // mirroring the Ast::Filter arm above. IEQ/INE/IIN on a non-string column
+            // in a `| where` stage must produce E-QUERY-002 (QueryTypeMismatch), NOT
+            // E-QUERY-034 (generic DataFusion execution error). (BC-2.11.024 AC-022)
+            // Uses the shared `check_ci_column_types` helper (OBS-3).
+            {
+                // Collect CI predicates from all `| where` stages in the pipe.
+                let all_ci_fields: Vec<(String, String)> = pipe
+                    .stages
+                    .iter()
+                    .filter_map(|stage| {
+                        if let crate::ast::PipeStage::Where(pred) = stage {
+                            Some(collect_ci_compare_fields(pred))
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+                    .collect();
+
+                // Derive the primary source table name (dot→underscore normalization
+                // matches how MemTables are registered in the DataFusion catalog).
+                let source_table = datafusion_table_name(&pipe.source.raw);
+                check_ci_column_types(session_ctx, &source_table, &all_ci_fields).await?;
+            }
+
             let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
             let sql = crate::pipe_sql_emitter::pipe_to_executable_sql(pipe, &table_batches)?;
             tracing::debug!(
@@ -1341,6 +1385,42 @@ pub async fn execute_against_session(
         // mapper — preserving all BC-2.11.006 invariants.
         Ast::SqlPipe(spq) => {
             let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
+            // F-MED-1 (LOCAL pass-8): pre-flight CI column-type check for SqlPipe mode,
+            // mirroring the Ast::Filter and Ast::Pipe arms above. IEQ/INE/IIN on a
+            // non-string column in a SqlPipe `| where` stage must produce E-QUERY-002
+            // (QueryTypeMismatch), NOT E-QUERY-034 (generic DataFusion execution error).
+            // Without this check `sqlpipe_to_executable_sql` emits `lower(<int_col>)`,
+            // which DataFusion rejects at planning time — producing the wrong error code.
+            // (BC-2.11.024 AC-022; TD-VSDD-060 sibling-sweep: Filter/Pipe/SqlPipe guarded)
+            // Uses the shared `check_ci_column_types` helper (OBS-3).
+            {
+                // Collect CI predicates from all `| where` stages in the SqlPipe.
+                let all_ci_fields: Vec<(String, String)> = spq
+                    .stages
+                    .iter()
+                    .filter_map(|stage| {
+                        if let crate::ast::PipeStage::Where(pred) = stage {
+                            Some(collect_ci_compare_fields(pred))
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+                    .collect();
+
+                // Derive the source table name from the SqlPipe head's FROM clause.
+                // dot→underscore normalization matches how MemTables are registered.
+                //
+                // SINGLE-SOURCE SCOPE: this pre-flight check only resolves the Arrow schema
+                // for the head source table (spq.head.from.source.raw).  A SqlPipe head
+                // with a JOIN would reference multiple source tables, and CI predicates on
+                // the joined table's columns would resolve against the wrong (head-only) schema.
+                // The current SqlPipe grammar is single-source (no JOIN in the head is
+                // permitted by the parser), so this is correct.  If JOIN support is added,
+                // the check must be extended to collect column schemas from all joined tables.
+                let source_table = datafusion_table_name(&spq.head.from.source.raw);
+                check_ci_column_types(session_ctx, &source_table, &all_ci_fields).await?;
+            }
             // BC-2.11.021 / ADR-044 D4 / D-1333 Option A (plan-time pinning):
             // Compute the SqlPipe head SQL from the inject_now-ed AST (spq.head has
             // the folded Literal::Timestamp) rather than the raw query_str[..split].
@@ -1367,7 +1447,7 @@ pub async fn execute_against_session(
                 spq,
                 &table_batches,
             )?;
-            // SAP-1: reuse existing catalog event type `pipe.sql_lowering` (BC-2.16.002 row 178).
+            // SAP-1: reuse existing catalog event type `pipe.sql_lowering` (BC-2.16.002 catalog row for event_type "pipe.sql_lowering").
             // SqlPipe lowering is semantically identical to Pipe lowering — same execution path,
             // same diagnostic information. No new catalog row needed.
             tracing::debug!(
@@ -1376,7 +1456,7 @@ pub async fn execute_against_session(
                 "sqlpipe-to-SQL lowering complete"
             );
             let df = session_ctx.sql(&sql).await.map_err(|e| {
-                // SAP-1: reuse existing catalog event type `pipe.sql_planning_error` (BC-2.16.002 row 179).
+                // SAP-1: reuse existing catalog event type `pipe.sql_planning_error` (BC-2.16.002 catalog row for event_type "pipe.sql_planning_error").
                 tracing::error!(
                     error = %e,
                     pipe_sql = %sql,
@@ -2086,6 +2166,268 @@ fn walk_predicate(pred: &crate::ast::Predicate, names: &mut std::collections::Ha
     }
 }
 
+/// Collect all field names used with case-insensitive operators (`IEQ`, `INE`, `IIN`)
+/// by recursively walking the predicate tree.
+///
+/// Used by the pre-flight type check in the `Ast::Filter` and `Ast::Pipe` arms of
+/// `execute_against_session` to detect IEQ/INE/IIN on non-string columns
+/// before DataFusion execution (BC-2.11.024 AC-022; RG-018).
+///
+/// Returns `(column_name, operator_str)` pairs where `operator_str` is the PQL
+/// operator keyword (`"IEQ"` / `"INE"` / `"IIN"`) for accurate E-QUERY-002 reporting.
+fn collect_ci_compare_fields(pred: &crate::ast::Predicate) -> Vec<(String, String)> {
+    let mut fields = Vec::new();
+    collect_ci_fields_inner(pred, &mut fields);
+    fields
+}
+
+fn collect_ci_fields_inner(pred: &crate::ast::Predicate, out: &mut Vec<(String, String)>) {
+    use crate::ast::{CompareOp, Expr, Predicate};
+
+    match pred {
+        // IEQ / INE: `case_insensitive = true` on a Compare with a Field LHS.
+        Predicate::Compare {
+            lhs,
+            op,
+            case_insensitive: true,
+            ..
+        } => {
+            if let Expr::Field(fp) = lhs.as_ref() {
+                if let Some(last) = fp.segments.last() {
+                    // Map CompareOp → canonical PQL operator keyword for IEQ/INE.
+                    // The parser only produces case_insensitive=true for Eq/Ne. Any other
+                    // op is a manually-constructed predicate that violates BC-2.11.024.
+                    // Panic in debug builds; fall back gracefully in release builds so a
+                    // hand-built predicate does not cause a DoS (OBS-2 invariant hardening).
+                    let operator = match op {
+                        CompareOp::Eq => "IEQ",
+                        CompareOp::Ne => "INE",
+                        _ => {
+                            debug_assert!(
+                                false,
+                                "case_insensitive=true is only valid for Eq/Ne compare ops; \
+                                 got {op:?} — manually-constructed predicate violates \
+                                 BC-2.11.024 invariant"
+                            );
+                            // Fallback: treat as IEQ for type-check purposes. This lets the
+                            // runtime produce E-QUERY-002 for the offending column rather than
+                            // silently eliding the check.
+                            "IEQ"
+                        }
+                    };
+                    out.push((last.clone(), operator.to_string()));
+                }
+            }
+        }
+        // IIN: `case_insensitive = true` on an In predicate.
+        Predicate::In {
+            field,
+            case_insensitive: true,
+            ..
+        } => {
+            if let Some(last) = field.segments.last() {
+                out.push((last.clone(), "IIN".to_string()));
+            }
+        }
+        // Logical (AND / OR): recurse into children.
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates {
+                collect_ci_fields_inner(p, out);
+            }
+        }
+        // NOT: recurse into inner.
+        Predicate::Not(inner) => {
+            collect_ci_fields_inner(inner, out);
+        }
+        // InSubquery: recurse into the subquery's WHERE predicate (defense-in-depth).
+        // A `field IN (SELECT … WHERE col IEQ 'val')` sub-select can carry IEQ/INE/IIN
+        // predicates in the inner WHERE clause.  This arm is unreachable from the current
+        // filter/pipe grammar (the parser does not produce InSubquery in filter or pipe
+        // stages — only in SQL SELECT WHERE clauses), but is included for correctness
+        // parity with the sibling `collect_ci_fields_inner` recursion in sql_parser.rs.
+        // If the grammar is later extended to permit subqueries in pipe stages this guard
+        // will catch CI predicates in the inner WHERE without requiring a separate fix.
+        Predicate::InSubquery { subquery, .. } => {
+            if let Some(where_pred) = &subquery.where_ {
+                collect_ci_fields_inner(where_pred, out);
+            }
+        }
+        // All other variants (Compare with case_insensitive=false, StringOp, Regex,
+        // Between, Cidr, IsNull, etc.) carry no IEQ/INE/IIN fields.
+        _ => {}
+    }
+}
+
+/// Pre-flight CI column-type check shared by `Ast::Filter` and `Ast::Pipe` arms.
+///
+/// Given a `SessionContext`, a single `table_name`, and the `ci_fields` list produced
+/// by `collect_ci_compare_fields`, verifies that every CI-operated column has a string
+/// type in the Arrow schema registered for `table_name`. Returns `Err` with a structured
+/// `PrismError::QueryTypeMismatch` (E-QUERY-002) on the first non-string column found,
+/// `Ok(())` when all columns are strings or the table is not registered in the catalog.
+///
+/// # Intentional skip for unregistered tables
+///
+/// `register_mem_table` silently skips registration when the batch list is empty
+/// (sensor returned 0 rows). When that happens, the table is not in the DataFusion
+/// catalog. This function returns `Ok(())` in that case: zero rows means no data to
+/// type-check. This is not a bypass — a query against an unregistered table will fail
+/// at DataFusion execution time with a normal "table not found" error.
+///
+/// This behavior is locked by `test_check_ci_column_types_unregistered_table_ok` in
+/// the inline test module below. Any regression to fail-closed on the None path
+/// would break queries against sources that return 0 rows (F-P16-OBS-002).
+///
+/// # Three-arm schema lookup outcomes
+///
+/// `SchemaProvider::table()` can return three distinct outcomes (ADV-PR-P5-OBS-002):
+/// - `Ok(Some(tp))` — table found; proceed with column type-checking.
+/// - `Ok(None)` — table not registered (sensor returned 0 rows; intentional skip).
+/// - `Err(e)` — schema catalog lookup failed; propagated as
+///   `PrismError::QueryExecutionFailed` (E-QUERY-034). The DataFusion error detail
+///   is logged server-side and redacted from the client-facing error message.
+///
+/// Extracted to eliminate the copy-paste duplication between the Filter arm
+/// (which iterates over multiple `table_names`) and the Pipe/SqlPipe arms (single
+/// `source_table`). Callers call this function once per candidate table; the Filter
+/// arm uses an early-return loop, the Pipe/SqlPipe arms call it once.
+/// (OBS-3; BC-2.11.024 AC-022)
+async fn check_ci_column_types(
+    session_ctx: &datafusion::execution::context::SessionContext,
+    table_name: &str,
+    ci_fields: &[(String, String)],
+) -> Result<(), PrismError> {
+    use arrow::datatypes::DataType as ArrowDataType;
+
+    if ci_fields.is_empty() {
+        return Ok(());
+    }
+    // DataFusion always provides a "datafusion"/"public" catalog/schema pair for a
+    // properly-constructed SessionContext. If somehow missing, skip the type check —
+    // DataFusion execution itself will fail with a catalog error shortly after.
+    if let Some(public_schema) = session_ctx
+        .catalog("datafusion")
+        .and_then(|cat| cat.schema("public"))
+    {
+        match public_schema.table(table_name).await {
+            Ok(Some(tp)) => {
+                // Table found: verify every CI-operated column is a string type.
+                let arrow_schema = tp.schema();
+                for (col_name, operator) in ci_fields {
+                    if let Ok(arrow_field) = arrow_schema.field_with_name(col_name) {
+                        let is_string = matches!(
+                            arrow_field.data_type(),
+                            ArrowDataType::Utf8
+                                | ArrowDataType::LargeUtf8
+                                | ArrowDataType::Utf8View
+                        );
+                        if !is_string {
+                            let actual_type =
+                                arrow_type_to_prism_column_type(arrow_field.data_type());
+                            return Err(PrismError::QueryTypeMismatch {
+                                column: col_name.clone(),
+                                table: table_name.to_string(),
+                                actual_type,
+                                operator: operator.clone(),
+                                suggested_column: ocsf_suggested_string_column(col_name),
+                            });
+                        }
+                    }
+                }
+            }
+            Ok(None) => {
+                // Intentional skip: table is not in the DataFusion catalog because
+                // `register_mem_table` skipped an empty batch list (sensor returned 0 rows).
+                // A query against this unregistered table will fail at DataFusion execution
+                // time with a "table not found" error. No type-checking needed. (F-P16-OBS-002)
+            }
+            Err(e) => {
+                // Schema catalog lookup failed — propagate as E-QUERY-034.
+                // Log the DataFusion error server-side; redact from client response.
+                tracing::error!(
+                    table_name = %table_name,
+                    error = %e,
+                    "check_ci_column_types: schema provider table lookup failed \
+                     (detail redacted from client response)"
+                );
+                return Err(PrismError::QueryExecutionFailed {
+                    detail: format!(
+                        "schema catalog lookup for table '{}' failed: \
+                         <redacted; see server logs>",
+                        table_name
+                    ),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Maps an OCSF integer id column name to the corresponding string-label sibling column,
+/// per BC-2.02.013 §Postconditions in-scope field table.
+///
+/// Returns `Some("severity")` for `"severity_id"`, etc. Returns `None` for all other columns.
+/// Used to populate `PrismError::QueryTypeMismatch { suggested_column }` with the string
+/// column the analyst should use with IEQ/IIN/INE instead.
+///
+/// # Population map (error-taxonomy v2.18 AC-022)
+///
+/// | id column       | string sibling     | Note                          |
+/// |-----------------|--------------------|-------------------------------|
+/// | `severity_id`   | `severity`         | standard OCSF `{F}_id`→`{F}` |
+/// | `status_id`     | `status`           | standard OCSF `{F}_id`→`{F}` |
+/// | `activity_id`   | `activity_name`    | OCSF exception: sibling is    |
+/// |                 |                    | `activity_name`, not `activity`|
+/// | `disposition_id`| `disposition`      | standard OCSF `{F}_id`→`{F}` |
+/// | all others      | `None`             | non-OCSF or unlisted column   |
+fn ocsf_suggested_string_column(id_column: &str) -> Option<String> {
+    match id_column {
+        "severity_id" => Some("severity".to_string()),
+        "status_id" => Some("status".to_string()),
+        "activity_id" => Some("activity_name".to_string()),
+        "disposition_id" => Some("disposition".to_string()),
+        _ => None,
+    }
+}
+
+/// Map an Arrow `DataType` to the prism-core `ColumnType` canonical enum.
+///
+/// Used to populate `PrismError::QueryTypeMismatch { actual_type }` with a
+/// human-readable type name when an IEQ/INE/IIN operator is used on a
+/// non-string column (BC-2.11.024 AC-022).
+fn arrow_type_to_prism_column_type(
+    dt: &arrow::datatypes::DataType,
+) -> prism_core::column::ColumnType {
+    use arrow::datatypes::DataType as ArrowDataType;
+    use prism_core::column::ColumnType;
+
+    match dt {
+        ArrowDataType::Utf8 | ArrowDataType::LargeUtf8 | ArrowDataType::Utf8View => {
+            ColumnType::String
+        }
+        ArrowDataType::Int8
+        | ArrowDataType::Int16
+        | ArrowDataType::Int32
+        | ArrowDataType::Int64
+        | ArrowDataType::UInt8
+        | ArrowDataType::UInt16
+        | ArrowDataType::UInt32
+        | ArrowDataType::UInt64 => ColumnType::Integer,
+        ArrowDataType::Float32 | ArrowDataType::Float64 | ArrowDataType::Float16 => {
+            ColumnType::Float
+        }
+        ArrowDataType::Boolean => ColumnType::Boolean,
+        ArrowDataType::Timestamp(..)
+        | ArrowDataType::Date32
+        | ArrowDataType::Date64
+        | ArrowDataType::Time32(..)
+        | ArrowDataType::Time64(..) => ColumnType::Datetime,
+        // All other types (Binary, LargeBinary, FixedSizeBinary, List, Map,
+        // Struct, etc.) → Json is the most sensible fallback for display.
+        _ => ColumnType::Json,
+    }
+}
+
 /// Recursively walk an `Expr`, collecting source table names from any subqueries.
 fn walk_expr(expr: &crate::ast::Expr, names: &mut std::collections::HashSet<String>) {
     use crate::ast::{Expr, FuncCall};
@@ -2446,6 +2788,7 @@ pub(crate) fn check_temporal_literals(
                                 table: dml_table.clone(),
                                 actual_type: ct,
                                 operator: "=".to_string(),
+                                suggested_column: None,
                             });
                         }
                         None | Some(_) => {
@@ -2665,6 +3008,7 @@ fn apply_literal_dispatch(
                 table: table_name,
                 actual_type: ct,
                 operator: operator_label.to_string(),
+                suggested_column: None,
             })
         }
         None | Some(_) => Ok(()), // Unknown column, Json, or other type → fail-open.
@@ -2696,7 +3040,7 @@ fn check_pred_raw_temporal(
         // with the actual comparison operator rather than the hardcoded "=" sentinel.
         // P3-LOW-1 fix: recurse into lhs and (conditionally) rhs after dispatch to catch
         // nested temporal literals in subexpressions; mirrors check_expr_temporal::Compare.
-        Predicate::Compare { lhs, rhs, op } => {
+        Predicate::Compare { lhs, rhs, op, .. } => {
             // Only gate when rhs is RawTemporalLiteral — extract value early.
             let rhs_is_top_level_raw_temporal =
                 matches!(rhs.as_ref(), Expr::Literal(Literal::RawTemporalLiteral(_)));
@@ -2740,6 +3084,7 @@ fn check_pred_raw_temporal(
                                 table: table_name,
                                 actual_type: ct,
                                 operator: op_str.to_string(),
+                                suggested_column: None,
                             });
                         }
                         None | Some(_) => {
@@ -3005,6 +3350,7 @@ fn check_expr_temporal_pos(
                                 table: table_name,
                                 actual_type: ct,
                                 operator: op_str.to_string(),
+                                suggested_column: None,
                             });
                         }
                         None | Some(_) => {
@@ -4768,6 +5114,7 @@ mod temporal_walker_unit_tests {
             field: fp("timestamp"),
             values: vec![raw_lit("2026-06-24"), raw_lit("2026-06-25")],
             negated: false,
+            case_insensitive: false,
         };
         let result =
             check_pred_raw_temporal(&mut pred, Some("test_events"), Some(registry.as_ref()));
@@ -4784,6 +5131,7 @@ mod temporal_walker_unit_tests {
             field: fp("hostname"),
             values: vec![raw_lit("2026-06-24"), raw_lit("2026-06-25")],
             negated: false,
+            case_insensitive: false,
         };
         check_pred_raw_temporal(&mut pred, Some("test_events"), Some(registry.as_ref()))
             .expect("In+String must not error");
@@ -4810,6 +5158,7 @@ mod temporal_walker_unit_tests {
             lhs: Box::new(Expr::Field(fp("timestamp"))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Literal(raw_lit("2026-06-24"))),
+            case_insensitive: false,
         });
         let mut pred = Predicate::InSubquery {
             field: fp("id"),
@@ -5035,6 +5384,7 @@ mod temporal_walker_unit_tests {
             lhs: Box::new(Expr::Field(fp("timestamp"))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Literal(raw_lit("2026-06-24"))),
+            case_insensitive: false,
         };
         let mut pred = Predicate::Not(Box::new(inner));
         let result =
@@ -5054,11 +5404,13 @@ mod temporal_walker_unit_tests {
             lhs: Box::new(Expr::Field(fp("hostname"))),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::String("ok".to_string()))),
+            case_insensitive: false,
         };
         let temporal_pred = Predicate::Compare {
             lhs: Box::new(Expr::Field(fp("timestamp"))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Literal(raw_lit("2026-06-24"))),
+            case_insensitive: false,
         };
         let mut pred = Predicate::Logical {
             op: LogicalOp::And,
@@ -5262,6 +5614,7 @@ mod temporal_walker_unit_tests {
             lhs: Box::new(ts_field),
             rhs: Box::new(Expr::Literal(raw_lit("2026-06-24"))),
             op: CompareOp::Gt,
+            case_insensitive: false,
         };
 
         let mut ast = Ast::Sql(SqlStatement::Dml(DmlNode {
@@ -5327,6 +5680,7 @@ mod temporal_walker_unit_tests {
             })),
             rhs: Box::new(Expr::Literal(raw_lit("2026-06-24"))),
             op: CompareOp::Gt,
+            case_insensitive: false,
         };
 
         // SELECT count(*) FROM test_events GROUP BY hostname HAVING max(timestamp) > '2026-06-24'
@@ -5395,6 +5749,7 @@ mod temporal_walker_unit_tests {
             })),
             rhs: Box::new(Expr::Literal(raw_lit("2026-06-24"))),
             op: CompareOp::Gt,
+            case_insensitive: false,
         };
 
         let result =
@@ -5420,5 +5775,144 @@ mod temporal_walker_unit_tests {
                 "F-HIGH-1: value_prefix must contain the raw literal substring; got: {value_prefix:?}"
             );
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests — check_ci_column_types guard tests (F-P16-OBS-002)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod check_ci_column_types_guard_tests {
+    //! Guard tests locking the intentional behavior of `check_ci_column_types`:
+    //!
+    //! 1. An unregistered table (sensor returned 0 rows; MemTable skipped) → `Ok(())`
+    //! 2. Empty `ci_fields` slice → `Ok(())` (early-return fast path)
+    //! 3. Schema provider returns `Err` → propagated as `PrismError::QueryExecutionFailed`
+    //!    (ADV-PR-P5-OBS-002)
+    //!
+    //! These lock the "skip on unregistered table" design documented in the function's
+    //! doc comment. A regression to fail-closed would break queries against sources
+    //! that return 0 rows. (F-P16-OBS-002, LOCAL-pass-16)
+
+    use crate::memory::build_session_context;
+    use prism_core::PrismError;
+
+    use super::check_ci_column_types;
+
+    /// F-P16-OBS-002 guard: calling `check_ci_column_types` with CI fields against a
+    /// table that is NOT registered in the DataFusion catalog must return `Ok(())`.
+    ///
+    /// This mirrors the production path when a sensor returns 0 rows and
+    /// `register_mem_table` skips registration for the empty batch list.
+    #[tokio::test]
+    async fn test_check_ci_column_types_unregistered_table_ok() {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+        // "crowdstrike_detections" is NOT registered — this models the 0-rows case.
+        let ci_fields = vec![
+            ("severity".to_string(), "IEQ".to_string()),
+            ("status".to_string(), "IIN".to_string()),
+        ];
+        let result = check_ci_column_types(&ctx, "crowdstrike_detections", &ci_fields).await;
+        assert!(
+            result.is_ok(),
+            "F-P16-OBS-002: unregistered table must return Ok(()); got: {result:?}"
+        );
+    }
+
+    /// F-P16-OBS-002 guard: empty `ci_fields` always returns `Ok(())` regardless of
+    /// whether the table is registered (early-return fast path).
+    #[tokio::test]
+    async fn test_check_ci_column_types_empty_fields_ok() {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+        let result = check_ci_column_types(&ctx, "any_table", &[]).await;
+        assert!(
+            result.is_ok(),
+            "F-P16-OBS-002: empty ci_fields must return Ok(()); got: {result:?}"
+        );
+    }
+
+    /// ADV-PR-P5-OBS-002 RED GATE: `check_ci_column_types` must propagate `Err` returned
+    /// by `SchemaProvider::table()` as `PrismError::QueryExecutionFailed` (E-QUERY-034).
+    ///
+    /// RED against the old `if let Ok(Some(tp))` pattern which silently swallows the `Err`
+    /// branch and returns `Ok(())`. GREEN after the explicit match adds an `Err(e)` arm
+    /// that propagates as `QueryExecutionFailed`.
+    ///
+    /// Mock wiring: `SessionContext::register_catalog("datafusion", ErrCatalogProvider)`
+    /// overrides the default catalog with one whose "public" schema returns
+    /// `Err(DataFusionError::Plan(...))` from `table()`.
+    ///
+    /// Traces to: ADV-PR-P5-OBS-002; PrismError::QueryExecutionFailed (E-QUERY-034).
+    #[tokio::test]
+    async fn test_check_ci_column_types_schema_provider_err_propagates() {
+        use std::any::Any;
+        use std::sync::Arc;
+
+        use async_trait::async_trait;
+        use datafusion::catalog::{CatalogProvider, SchemaProvider};
+        use datafusion::datasource::TableProvider;
+        use datafusion::error::DataFusionError;
+        use datafusion::execution::context::SessionContext;
+
+        /// Minimal mock SchemaProvider whose `table()` always returns `Err`.
+        #[derive(Debug)]
+        struct ErrSchemaProvider;
+
+        #[async_trait]
+        impl SchemaProvider for ErrSchemaProvider {
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
+            fn table_names(&self) -> Vec<String> {
+                vec![]
+            }
+            async fn table(
+                &self,
+                _name: &str,
+            ) -> datafusion::error::Result<Option<Arc<dyn TableProvider>>> {
+                Err(DataFusionError::Plan(
+                    "mock: schema provider error for ADV-PR-P5-OBS-002 test".to_string(),
+                ))
+            }
+            fn table_exist(&self, _name: &str) -> bool {
+                false
+            }
+        }
+
+        /// Minimal mock CatalogProvider whose "public" schema is `ErrSchemaProvider`.
+        #[derive(Debug)]
+        struct ErrCatalogProvider;
+
+        impl CatalogProvider for ErrCatalogProvider {
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
+            fn schema_names(&self) -> Vec<String> {
+                vec!["public".to_string()]
+            }
+            fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
+                if name == "public" {
+                    Some(Arc::new(ErrSchemaProvider))
+                } else {
+                    None
+                }
+            }
+        }
+
+        // Override the default "datafusion" catalog with our Err-returning mock.
+        let ctx = SessionContext::new();
+        ctx.register_catalog("datafusion", Arc::new(ErrCatalogProvider));
+
+        let ci_fields = vec![("severity".to_string(), "IEQ".to_string())];
+        let result = check_ci_column_types(&ctx, "test_table", &ci_fields).await;
+
+        assert!(
+            matches!(result, Err(PrismError::QueryExecutionFailed { .. })),
+            "ADV-PR-P5-OBS-002: schema provider Err must propagate as \
+             PrismError::QueryExecutionFailed (E-QUERY-034); got: {result:?}"
+        );
     }
 }

@@ -1863,7 +1863,7 @@ mod tests {
         let output_str = String::from_utf8_lossy(&output);
         drop(_guard);
 
-        // LOAD-BEARING assertion (SAP-1 / BC-2.16.002 v1.92 catalog row):
+        // LOAD-BEARING assertion (SAP-1 / BC-2.16.002 catalog row):
         // The WARN emission MUST carry event_type = "plugin.compilation_cache_init_skipped".
         // This assertion fails if:
         //   - apply_wasmtime_cache uses a different event_type value
@@ -1873,7 +1873,7 @@ mod tests {
             output_str.contains("plugin.compilation_cache_init_skipped"),
             "S-PERF-GATE-008 RG-002 / SAP-1: apply_wasmtime_cache Err branch MUST emit \
              event_type='plugin.compilation_cache_init_skipped' UNCONDITIONALLY \
-             (ADR-049 D8, BC-2.16.002 v1.92 catalog row). \
+             (ADR-049 D8, BC-2.16.002 catalog row). \
              Captured output: {output_str}"
         );
     }

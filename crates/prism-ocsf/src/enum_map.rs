@@ -46,6 +46,34 @@ fn unknown_str(value: u32) -> &'static str {
 /// See BC-2.02.010 for the full contract.
 pub struct OcsfEnumMap {
     inner: HashMap<(String, u32), &'static str>,
+    /// O(1) case-insensitive caption lookup index for `normalize_enum_label` and
+    /// `normalize_label`.
+    ///
+    /// Key: `(id_field_name, ascii_lowercase_label)` — e.g., `("severity_id", "high")`.
+    /// Value: canonical-case `&'static str` caption (e.g., `"High"`).
+    ///
+    /// Built once at `new()` time by iterating `inner`.  Uses `to_ascii_lowercase()` to
+    /// match `eq_ignore_ascii_case` semantics so lookups are O(1) instead of O(N) linear
+    /// scan.  (OBS-2 / S-PRISMQL-CASE-INSENSITIVE-001)
+    normalized_index: HashMap<(String, String), &'static str>,
+}
+
+/// Maps an OCSF string-label field name to its companion `_id` field name for use in
+/// `normalize_enum_label` caption lookups.
+///
+/// Standard OCSF fields follow the `{F}_id`→`{F}` pattern (e.g., `"severity"` → `"severity_id"`).
+/// The sole exception is `"activity_name"`, whose companion is `"activity_id"` (NOT
+/// `"activity_name_id"`) per the OCSF v1.7.0 schema `activity_id.sibling = "activity_name"`
+/// attribute. (BC-2.02.013 F-P1-ACTIVITY-NOOP)
+///
+/// All other fields use the default `format!("{string_field}_id")` derivation.
+fn string_field_to_id_field(string_field: &str) -> String {
+    match string_field {
+        // OCSF exception: activity_id.sibling = "activity_name", not "activity_name_id"
+        "activity_name" => "activity_id".to_string(),
+        // All standard fields: {F}_id
+        other => format!("{other}_id"),
+    }
 }
 
 impl OcsfEnumMap {
@@ -65,13 +93,191 @@ impl OcsfEnumMap {
         inner.insert(("severity_id".to_owned(), 5), "Critical");
         inner.insert(("severity_id".to_owned(), 99), "Other");
 
-        // activity_id — story spec task 6 examples
+        // activity_id — OCSF v1.7.0 base (0: Unknown, 1-4: CRUD operations, 99: Other)
+        inner.insert(("activity_id".to_owned(), 0), "Unknown");
         inner.insert(("activity_id".to_owned(), 1), "Create");
         inner.insert(("activity_id".to_owned(), 2), "Read");
         inner.insert(("activity_id".to_owned(), 3), "Update");
         inner.insert(("activity_id".to_owned(), 4), "Delete");
+        inner.insert(("activity_id".to_owned(), 99), "Other");
 
-        OcsfEnumMap { inner }
+        // status_id — generic dictionary_attributes.status_id.enum (OCSF v1.7.0)
+        // {0→Unknown, 1→Success, 2→Failure, 99→Other}
+        inner.insert(("status_id".to_owned(), 0), "Unknown");
+        inner.insert(("status_id".to_owned(), 1), "Success");
+        inner.insert(("status_id".to_owned(), 2), "Failure");
+        inner.insert(("status_id".to_owned(), 99), "Other");
+
+        // status_id — finding-class override (detection_finding, compliance_finding, etc.)
+        // OCSF v1.7.0 class-specific enum: {0→Unknown, 1→New, 2→In Progress, 3→Suppressed,
+        //   4→Resolved, 5→Archived, 6→Deleted, 99→Other}
+        // Stored with synthetic keys (1001–1006) to coexist with the generic entries above
+        // without overwriting integer-keyed display_name lookups for the generic class.
+        // normalize_enum_label iterates all captions, so these are visible to the normalizer.
+        inner.insert(("status_id".to_owned(), 1001), "New");
+        inner.insert(("status_id".to_owned(), 1002), "In Progress");
+        inner.insert(("status_id".to_owned(), 1003), "Suppressed");
+        inner.insert(("status_id".to_owned(), 1004), "Resolved");
+        inner.insert(("status_id".to_owned(), 1005), "Archived");
+        inner.insert(("status_id".to_owned(), 1006), "Deleted");
+
+        // disposition_id — OCSF v1.7.0 schema.json `dictionary_attributes.disposition_id.enum`
+        // 29 values: integers 0–27, 99 (BC-2.02.013 §Postconditions in-scope field table)
+        inner.insert(("disposition_id".to_owned(), 0), "Unknown");
+        inner.insert(("disposition_id".to_owned(), 1), "Allowed");
+        inner.insert(("disposition_id".to_owned(), 2), "Blocked");
+        inner.insert(("disposition_id".to_owned(), 3), "Quarantined");
+        inner.insert(("disposition_id".to_owned(), 4), "Isolated");
+        inner.insert(("disposition_id".to_owned(), 5), "Deleted");
+        inner.insert(("disposition_id".to_owned(), 6), "Dropped");
+        inner.insert(("disposition_id".to_owned(), 7), "Custom Action");
+        inner.insert(("disposition_id".to_owned(), 8), "Approved");
+        inner.insert(("disposition_id".to_owned(), 9), "Restored");
+        inner.insert(("disposition_id".to_owned(), 10), "Exonerated");
+        inner.insert(("disposition_id".to_owned(), 11), "Corrected");
+        inner.insert(("disposition_id".to_owned(), 12), "Partially Corrected");
+        inner.insert(("disposition_id".to_owned(), 13), "Uncorrected");
+        inner.insert(("disposition_id".to_owned(), 14), "Delayed");
+        inner.insert(("disposition_id".to_owned(), 15), "Detected");
+        inner.insert(("disposition_id".to_owned(), 16), "No Action");
+        inner.insert(("disposition_id".to_owned(), 17), "Logged");
+        inner.insert(("disposition_id".to_owned(), 18), "Tagged");
+        inner.insert(("disposition_id".to_owned(), 19), "Alert");
+        inner.insert(("disposition_id".to_owned(), 20), "Count");
+        inner.insert(("disposition_id".to_owned(), 21), "Reset");
+        inner.insert(("disposition_id".to_owned(), 22), "Captcha");
+        inner.insert(("disposition_id".to_owned(), 23), "Challenge");
+        inner.insert(("disposition_id".to_owned(), 24), "Access Revoked");
+        inner.insert(("disposition_id".to_owned(), 25), "Rejected");
+        inner.insert(("disposition_id".to_owned(), 26), "Unauthorized");
+        inner.insert(("disposition_id".to_owned(), 27), "Error");
+        inner.insert(("disposition_id".to_owned(), 99), "Other");
+
+        // OBS-2: Build O(1) normalized_index from `inner`.
+        //
+        // Key: (id_field_name, ascii_lowercase_caption) → canonical caption.
+        // This converts the O(N) linear scan in normalize_enum_label / normalize_label
+        // into an O(1) HashMap lookup for every call.
+        //
+        // Uses `to_ascii_lowercase()` to match `eq_ignore_ascii_case` semantics:
+        // a lookup key of `("severity_id", "high")` resolves to `"High"`.
+        //
+        // F-OBS-4 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL-pass-11): collision detection.
+        // If two `(id_field, lowercase_caption)` keys would resolve to DIFFERENT canonical
+        // captions (e.g., hypothetical `"Unknown"` and `"UNKNOWN"` in the same field), the
+        // lookup result would be non-deterministic (HashMap iteration order). Panic at
+        // construction time with a clear message so the defect is caught immediately, rather
+        // than silently using whichever entry iteration visited last.
+        // No collisions exist in OCSF v1.7.0; this is a construction-time invariant guard.
+        let mut normalized_index: HashMap<(String, String), &'static str> = HashMap::new();
+        for ((id_field, _), &caption) in &inner {
+            let key = (id_field.clone(), caption.to_ascii_lowercase());
+            if let Some(&existing) = normalized_index.get(&key) {
+                if existing != caption {
+                    panic!(
+                        "OcsfEnumMap::new(): normalized_index collision — \
+                         (id_field={id_field:?}, lowercase_caption={key_lc:?}) maps to \
+                         BOTH {existing:?} AND {caption:?}. Two OCSF captions that differ \
+                         only in case were registered for the same field. Remove one or \
+                         resolve the ambiguity in the OCSF enum table before adding it here.",
+                        key_lc = key.1
+                    );
+                }
+                // Duplicate key but same canonical caption (same entry encountered twice) —
+                // idempotent, no collision.
+            } else {
+                normalized_index.insert(key, caption);
+            }
+        }
+
+        OcsfEnumMap {
+            inner,
+            normalized_index,
+        }
+    }
+
+    /// Normalizes a string label for an OCSF enum-label field to canonical OCSF Title-case.
+    ///
+    /// **Keying contract (BC-2.02.013 F-HIGH-003):** keys on the OCSF *string label*
+    /// field name (e.g., `"severity"`, `"status"`), deriving the caption lookup from the
+    /// corresponding `_id` sibling field entries.
+    ///
+    /// For most fields the sibling is `"{F}_id"` (e.g., `"severity"` → `"severity_id"`).
+    /// The sole OCSF exception is `"activity_name"`, whose sibling is `"activity_id"` (NOT
+    /// `"activity_name_id"`) — this is the OCSF v1.7.0 `activity_id.sibling = "activity_name"`
+    /// schema attribute. `string_field_to_id_field` encodes this mapping; all other fields
+    /// use the standard `{F}_id` derivation. (BC-2.02.013 F-P1-ACTIVITY-NOOP)
+    ///
+    /// # Contract
+    ///
+    /// - Given a `string_field` name (e.g., `"severity"`, `"activity_name"`) and a `label`
+    ///   string (any case), returns `Some(canonical_caption)` if a case-insensitive match is
+    ///   found in the companion `_id` entries of the map.
+    /// - Returns `None` if no companion `_id` entries exist in the map, or if `label`
+    ///   does not match any caption case-insensitively.
+    /// - Never panics.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use prism_ocsf::OcsfEnumMap;
+    /// let map = OcsfEnumMap::new();
+    /// assert_eq!(map.normalize_enum_label("severity", "HIGH"), Some("High"));
+    /// assert_eq!(map.normalize_enum_label("severity", "high"), Some("High"));
+    /// // OBS-4 (S-PRISMQL-CASE-INSENSITIVE-001): "NEW" matches the finding-class
+    /// // status_id caption "New".  The finding-class values (New, In Progress,
+    /// // Suppressed, Resolved, Archived, Deleted) are stored with synthetic integer
+    /// // keys 1001–1006 in `inner` so they coexist with the generic status_id values
+    /// // (Success, Failure, …) without overwriting those integer-keyed display_name
+    /// // lookups.  normalize_enum_label is keyed on the ascii-lowercase caption, so
+    /// // all captions (generic AND finding-class) are visible in normalized_index.
+    /// // (BC-2.02.013 F-HIGH-003; see `new()` for the synthetic-key insertion.)
+    /// assert_eq!(map.normalize_enum_label("status", "NEW"), Some("New"));
+    /// // activity_name is the OCSF sibling of activity_id (exception to {F}_id→{F})
+    /// assert_eq!(map.normalize_enum_label("activity_name", "create"), Some("Create"));
+    /// ```
+    pub fn normalize_enum_label(&self, string_field: &str, label: &str) -> Option<&'static str> {
+        // Resolve the companion `_id` field name, handling the OCSF `activity_name` exception
+        // (BC-2.02.013 F-HIGH-003 + F-P1-ACTIVITY-NOOP).
+        let id_field = string_field_to_id_field(string_field);
+        // OBS-2: O(1) lookup via normalized_index; key uses ascii_lowercase to match
+        // eq_ignore_ascii_case semantics.
+        self.normalized_index
+            .get(&(id_field, label.to_ascii_lowercase()))
+            .copied()
+    }
+
+    /// Performs a case-insensitive lookup of a string label in the enum caption table
+    /// for a given `field_name`.
+    ///
+    /// **NOTE:** This method keys on the `_id` companion field name (e.g., `"severity_id"`).
+    /// For the adapter-boundary normalization use case (BC-2.02.013), use
+    /// `normalize_enum_label` which keys on the string label field name (e.g., `"severity"`).
+    ///
+    /// This method is retained for callers that already have the `_id` field name
+    /// (e.g., MCP display enrichment in BC-2.02.010).
+    ///
+    /// # Contract
+    ///
+    /// - Given a `field_name` (e.g., `"severity_id"`) and a `label` string (any case),
+    ///   returns the canonical-case caption string if a case-insensitive match is found.
+    /// - Returns `None` if no enum entry for the field matches the label case-insensitively.
+    /// - Never panics.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use prism_ocsf::OcsfEnumMap;
+    /// let map = OcsfEnumMap::new();
+    /// assert_eq!(map.normalize_label("severity_id", "HIGH"), Some("High"));
+    /// assert_eq!(map.normalize_label("severity_id", "high"), Some("High"));
+    /// ```
+    pub fn normalize_label(&self, field_name: &str, label: &str) -> Option<&'static str> {
+        // OBS-2: O(1) lookup via normalized_index.  field_name is already the _id
+        // field (e.g., "severity_id"); no string_field_to_id_field derivation needed.
+        self.normalized_index
+            .get(&(field_name.to_owned(), label.to_ascii_lowercase()))
+            .copied()
     }
 
     /// Returns the display name for an OCSF enum `field` + integer `value`.
@@ -97,5 +303,52 @@ impl OcsfEnumMap {
 impl Default for OcsfEnumMap {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ── Test-only helper (F-OBS-4) ────────────────────────────────────────────────
+
+#[cfg(test)]
+impl OcsfEnumMap {
+    /// Test-only: constructs an `OcsfEnumMap` with a deliberately injected collision
+    /// to exercise the panic-path of the collision-detection guard in `new()`.
+    ///
+    /// Inserts two captions that differ only in case (`"Unknown"` and `"UNKNOWN"`) for
+    /// `"severity_id"`, then runs the same normalized_index collision-check loop as `new()`.
+    ///
+    /// # Panics
+    ///
+    /// Always panics with `"normalized_index collision"` — that is the intent of the test.
+    pub(crate) fn new_with_collision_for_test() -> Self {
+        let mut inner: HashMap<(String, u32), &'static str> = HashMap::new();
+        // Two entries whose captions are `"Unknown"` vs `"UNKNOWN"` — same lowercase key
+        // `("severity_id", "unknown")` → different canonical captions → collision.
+        inner.insert(("severity_id".to_owned(), 0), "Unknown");
+        inner.insert(("severity_id".to_owned(), 100), "UNKNOWN");
+
+        // Run the same collision-check loop as new(). Panics because "unknown" == "unknown".
+        let mut normalized_index: HashMap<(String, String), &'static str> = HashMap::new();
+        for ((id_field, _), &caption) in &inner {
+            let key = (id_field.clone(), caption.to_ascii_lowercase());
+            if let Some(&existing) = normalized_index.get(&key) {
+                if existing != caption {
+                    panic!(
+                        "OcsfEnumMap::new(): normalized_index collision — \
+                         (id_field={id_field:?}, lowercase_caption={key_lc:?}) maps to \
+                         BOTH {existing:?} AND {caption:?}. Two OCSF captions that differ \
+                         only in case were registered for the same field. Remove one or \
+                         resolve the ambiguity in the OCSF enum table before adding it here.",
+                        key_lc = key.1
+                    );
+                }
+            } else {
+                normalized_index.insert(key, caption);
+            }
+        }
+
+        OcsfEnumMap {
+            inner,
+            normalized_index,
+        }
     }
 }

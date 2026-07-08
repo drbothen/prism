@@ -725,6 +725,7 @@ fn test_parse_limits_snapshot_propagates_to_predicate_depth_guard() {
                 lhs: Box::new(crate::ast::Expr::Literal(Literal::Integer(1))),
                 op: crate::ast::CompareOp::Eq,
                 rhs: Box::new(crate::ast::Expr::Literal(Literal::Integer(1))),
+                case_insensitive: false,
             }
         } else {
             Predicate::Not(Box::new(make_not_chain(depth - 1)))
