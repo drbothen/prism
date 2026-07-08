@@ -1001,7 +1001,7 @@ pub enum Literal {
     /// Validated at plan time by `check_temporal_literals` (seven-arm dispatch, ADR-052 §D4 v1.10).
     /// Must never reach SQL emission — `pipe_sql_emitter.rs` guards this with a
     /// belt-and-suspenders E-QUERY-002 (`QueryPlanFailed`) arm (Pipe/Filter mode).
-    /// (ADR-052 §D4 Step 1; BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001)
+    /// (ADR-052 §D4 Step 1; BC-2.11.021; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001)
     RawTemporalLiteral(String),
 }
 
@@ -2069,7 +2069,7 @@ impl PqlNormalizer {
                 case_insensitive,
             } => {
                 // S-PRISMQL-CASE-INSENSITIVE-001: case-insensitive IEQ/INE operators emit
-                // uppercase canonical form in normalized_pql (BC-2.11.024, BC-2.11.018 v1.3).
+                // uppercase canonical form in normalized_pql (BC-2.11.024, BC-2.11.018).
                 if *case_insensitive {
                     let op_kw = match op {
                         CompareOp::Eq => "IEQ",
@@ -2150,7 +2150,7 @@ impl PqlNormalizer {
                 case_insensitive,
             } => {
                 // S-PRISMQL-CASE-INSENSITIVE-001: case-insensitive IIN operator emits
-                // uppercase canonical "IIN" in normalized_pql (BC-2.11.024, BC-2.11.018 v1.3).
+                // uppercase canonical "IIN" in normalized_pql (BC-2.11.024, BC-2.11.018).
                 if *case_insensitive {
                     // IIN grammar is positive-only; negated+case_insensitive is not parser-
                     // producible (BC-2.11.024 §AC-023). Guard against direct AST construction:

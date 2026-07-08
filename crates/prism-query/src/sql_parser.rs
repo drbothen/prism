@@ -1179,7 +1179,7 @@ pub(crate) fn parse_sql_dml_with_limits(
                     .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
             }
 
-            // BC-2.11.024 §DML-Mode-Boundary Enforcement: IEQ/INE/IIN are not
+            // BC-2.11.024 §Mode-Boundary Enforcement (DML scope): IEQ/INE/IIN are not
             // supported in DML SQL-mode WHERE clauses or embedded SELECT WHERE/HAVING
             // clauses. Detect at parse time to return a clean E-QUERY-001 error rather
             // than a DataFusion planning failure at runtime (LOCAL-pass-7 fix-burst target).

@@ -1087,7 +1087,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     let mut raw_sources = extract_sources_from_ast(&ast);
 
     // Apply sensor scope filter from options.
-    // I-LOCAL-002 (BC-2.11.010 v1.4 Preconditions): the sensors filter applies only to
+    // I-LOCAL-002 (BC-2.11.010 Preconditions): the sensors filter applies only to
     // external sensor sources (SourceRefKind::External). Non-external sources (internal,
     // composite) are sensor-agnostic and are dropped when a sensor scope filter is active —
     // they cannot be validated against any specific sensor type. This is intentional.

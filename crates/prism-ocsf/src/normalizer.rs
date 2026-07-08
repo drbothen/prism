@@ -156,7 +156,7 @@ impl OcsfNormalizer {
                 },
                 None => continue,
             };
-            // Normalize via OcsfEnumMap (sole canonical casing authority, BC-2.02.010 v1.5).
+            // Normalize via OcsfEnumMap (sole canonical casing authority, BC-2.02.010).
             if let Some(canonical) = map.normalize_enum_label(field, &current) {
                 // Idempotent: if already canonical, this is a no-op rewrite (BC-2.02.013 RG-020).
                 msg.set_field_by_name(field, ProtoValue::String(canonical.to_owned()));

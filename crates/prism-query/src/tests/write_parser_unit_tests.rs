@@ -578,7 +578,7 @@ fn test_BC_2_11_004_parse_sql_dml_not_dml_input_parse_error() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Additional unit tests for write verb case sensitivity (BC-2.11.004 v1.4)
+// Additional unit tests for write verb case sensitivity (BC-2.11.004)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Write verb case sensitivity: CONTAIN (uppercase) matches registered 'contain'.
@@ -1015,7 +1015,7 @@ fn test_BC_2_11_004_delete_no_where_filter_is_none() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// F-PR130-P1-HIGH-001: parse_with_registry must enforce SQL denylist (BC-2.11.003 v1.4)
+// F-PR130-P1-HIGH-001: parse_with_registry must enforce SQL denylist (BC-2.11.003)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// `parse_with_registry` must reject MERGE with E-QUERY-002 (denylist parity

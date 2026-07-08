@@ -29,9 +29,9 @@
 //!
 //! Behavioral contracts traced:
 //!   BC-2.11.024 — PrismQL IEQ/IIN/INE case-insensitive operators
-//!   BC-2.11.002 v1.5 — filter-mode parsing (amended)
-//!   BC-2.11.004 v1.13 — pipe-mode | where stage (amended)
-//!   BC-2.11.018 v1.3 — normalized_pql echo (amended EC-11-057)
+//!   BC-2.11.002 — filter-mode parsing (amended)
+//!   BC-2.11.004 — pipe-mode | where stage (amended)
+//!   BC-2.11.018 — normalized_pql echo (amended EC-11-057)
 //!   BC-2.02.013 — adapter-boundary OCSF enum-label normalization (RG-022)
 
 #![allow(
@@ -60,7 +60,7 @@ use crate::pipe_sql_emitter::predicate_to_datafusion_sql;
 /// Green Gate: PASSES once IEQ is added to the Chumsky predicate combinator.
 ///
 /// Traces to: BC-2.11.024 postcondition "New operators" IEQ row;
-/// BC-2.11.002 v1.5 amendment.
+/// BC-2.11.002 amendment.
 #[test]
 fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_parses_to_compare_case_insensitive_true() {
     let result = parse_filter("severity IEQ 'high'");
@@ -558,7 +558,7 @@ async fn test_S_PRISMQL_CASE_INSENSITIVE_001_case_sensitive_eq_returns_zero_on_c
 /// Green Gate: PASSES once IEQ is added to the shared predicate combinator used by
 /// both filter mode and pipe | where stages.
 ///
-/// Traces to: BC-2.11.004 v1.13 amendment (IEQ/IIN/INE in | where via shared grammar);
+/// Traces to: BC-2.11.004 amendment (IEQ/IIN/INE in | where via shared grammar);
 /// BC-2.11.024 invariant "valid in filter mode and pipe-mode | where stages".
 #[test]
 fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_in_pipe_where_stage() {
@@ -602,7 +602,7 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_in_pipe_where_stage() {
 /// Red Gate: FAILS — `parse_filter("severity ieq 'high'")` returns `Err` (grammar missing).
 /// Green Gate: PASSES once grammar + normalizer IEQ branch are implemented.
 ///
-/// Traces to: BC-2.11.018 v1.3 amendment EC-11-057;
+/// Traces to: BC-2.11.018 amendment EC-11-057;
 /// BC-2.11.024 postcondition "normalized_pql round-trip" uppercase invariant.
 #[test]
 fn test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_reflects_ieq_uppercase() {
@@ -635,7 +635,7 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_reflects_ieq_uppercase() {
 /// Green Gate: PASSES once grammar + normalizer are implemented.
 ///
 /// Traces to: BC-2.11.024 postcondition "normalized_pql round-trip" invariant;
-/// BC-2.11.018 v1.3 amendment (round-trip extended to IEQ/IIN/INE).
+/// BC-2.11.018 amendment (round-trip extended to IEQ/IIN/INE).
 #[test]
 fn test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_round_trip_ast_equality() {
     let original = parse_filter("severity IEQ 'high'");
@@ -1221,7 +1221,7 @@ async fn test_S_PRISMQL_CASE_INSENSITIVE_001_iin_integer_column_e_query_002_iin_
 /// SID-1 compliance: this is an in-process unit test driving the production code path
 /// without any external dependencies. No #[ignore] needed — MemTable is fully in-memory.
 ///
-/// Traces to: BC-2.11.024 AC-022; BC-2.11.004 v1.13 (pipe | where);
+/// Traces to: BC-2.11.024 AC-022; BC-2.11.004 (pipe | where);
 /// F-P1-PIPE-TYPECHECK-GAP (adversary finding, LOCAL pass-2).
 #[tokio::test]
 async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_pipe_mode_e_query_002() {
@@ -1317,7 +1317,7 @@ async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_pipe_mode_e_quer
 /// Green Gate: PASSES — all three operators parse successfully.
 ///
 /// Traces to: BC-2.11.024 ADR-047 §D.4 discoverability;
-/// BC-2.11.002 v1.5 amendment (IEQ/IIN/INE in operator table).
+/// BC-2.11.002 amendment (IEQ/IIN/INE in operator table).
 #[test]
 fn test_S_PRISMQL_CASE_INSENSITIVE_001_grammar_resource_includes_ieq_iin_ine() {
     let ieq = parse_filter("severity IEQ 'high'");
@@ -1611,7 +1611,7 @@ fn test_BC_2_11_024_sql_mode_ine_rejected() {
 ///      returns exactly 1 row.
 ///
 /// Traces to: BC-2.11.024 §Filter-mode and Pipe-mode; LOCAL-pass-3
-/// regression guard; BC-2.11.002 v1.5; BC-2.11.004 v1.13.
+/// regression guard; BC-2.11.002; BC-2.11.004.
 #[tokio::test]
 async fn test_BC_2_11_024_filter_and_pipe_ieq_still_execute() {
     use std::collections::HashMap;
@@ -2872,7 +2872,7 @@ fn test_BC_2_11_024_sqlpipe_head_where_ieq_rejected() {
 // ═════════════════════════════════════════════════════════════════════════════
 // LOCAL-pass-15: F-MED-001 — IIN non-string list elements → parse-time E-QUERY-001
 //
-// BC-2.11.024 v1.3 verbatim template (non-string IIN elements):
+// BC-2.11.024 verbatim template (non-string IIN elements):
 //
 //   E-QUERY-001: IIN operator requires quoted string literals in the membership
 //   list; got a non-string value (integer, float, or boolean). Example: status
@@ -2891,7 +2891,7 @@ fn test_BC_2_11_024_sqlpipe_head_where_ieq_rejected() {
 //   PASSES once the IIN parser (the `iin_values` combinator or its try_map)
 //   rejects `Literal::Integer`, `Literal::Float`, and `Literal::Boolean` at
 //   parse time with a `ParseError` whose `.message` contains "E-QUERY-001"
-//   and the stable portion of the BC-2.11.024 v1.3 template.
+//   and the stable portion of the BC-2.11.024 template.
 //
 // GREEN guard — date-like IIN strings:
 //   `status IIN ('2026-06-01', '2026-06-02')` must still parse Ok.
@@ -2903,7 +2903,7 @@ fn test_BC_2_11_024_sqlpipe_head_where_ieq_rejected() {
 // test_BC_2_11_024_iin_integer_elements_rejected_e_query_001
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// BC-2.11.024 v1.3 — IIN list containing integer literals must be rejected at
+/// BC-2.11.024 — IIN list containing integer literals must be rejected at
 /// parse time with E-QUERY-001 and the verbatim non-string template.
 ///
 /// `severity IIN (42, 43)` contains two integer literals in the membership
@@ -2927,14 +2927,14 @@ fn test_BC_2_11_024_sqlpipe_head_where_ieq_rejected() {
 ///
 /// ## Traces
 ///
-/// BC-2.11.024 v1.3 §Non-string IIN elements; AC-020 (extended to IIN list);
+/// BC-2.11.024 §Non-string IIN elements; AC-020 (extended to IIN list);
 /// LOCAL adversary pass-15 finding F-MED-001.
 #[test]
 fn test_BC_2_11_024_iin_integer_elements_rejected_e_query_001() {
     // BC-2.11.024: parser must reject integer elements in IIN list at parse time.
     let errors = parse_filter("severity IIN (42, 43)").expect_err(
         "F-MED-001: 'severity IIN (42, 43)' must fail to parse at parse time — \
-         integer literals are invalid IIN list elements per BC-2.11.024 v1.3; \
+         integer literals are invalid IIN list elements per BC-2.11.024; \
          currently returns Ok (integers survive into Predicate::In and are only \
          rejected later by predicate_to_datafusion_sql; LOCAL-pass-15 fix target)",
     );
@@ -2948,13 +2948,13 @@ fn test_BC_2_11_024_iin_integer_elements_rejected_e_query_001() {
     assert!(
         all_msgs.contains("E-QUERY-001"),
         "F-MED-001: parse error for 'severity IIN (42, 43)' must carry 'E-QUERY-001' \
-         per BC-2.11.024 v1.3; got: {all_msgs:?}"
+         per BC-2.11.024; got: {all_msgs:?}"
     );
-    // (2) Must cite the stable portion of the BC-2.11.024 v1.3 verbatim template.
+    // (2) Must cite the stable portion of the BC-2.11.024 verbatim template.
     // The implementer must emit exactly this phrase so analysts can find the docs.
     assert!(
         all_msgs.contains("IIN operator requires quoted string literals in the membership list"),
-        "F-MED-001: parse error must contain the verbatim BC-2.11.024 v1.3 template \
+        "F-MED-001: parse error must contain the verbatim BC-2.11.024 template \
          phrase 'IIN operator requires quoted string literals in the membership list'; \
          got: {all_msgs:?}"
     );
@@ -2963,7 +2963,7 @@ fn test_BC_2_11_024_iin_integer_elements_rejected_e_query_001() {
     assert!(
         all_msgs.contains("integer, float, or boolean"),
         "F-MED-001: parse error must contain 'integer, float, or boolean' \
-         per BC-2.11.024 v1.3 template; got: {all_msgs:?}"
+         per BC-2.11.024 template; got: {all_msgs:?}"
     );
 }
 
@@ -2971,7 +2971,7 @@ fn test_BC_2_11_024_iin_integer_elements_rejected_e_query_001() {
 // test_BC_2_11_024_iin_boolean_elements_rejected_e_query_001
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// BC-2.11.024 v1.3 — IIN list containing boolean literals must be rejected at
+/// BC-2.11.024 — IIN list containing boolean literals must be rejected at
 /// parse time with E-QUERY-001 and the verbatim non-string template.
 ///
 /// `status IIN (true, false)` contains two boolean literals.  This is a
@@ -2996,14 +2996,14 @@ fn test_BC_2_11_024_iin_integer_elements_rejected_e_query_001() {
 ///
 /// ## Traces
 ///
-/// BC-2.11.024 v1.3 §Non-string IIN elements; AC-020 (extended to IIN list);
+/// BC-2.11.024 §Non-string IIN elements; AC-020 (extended to IIN list);
 /// LOCAL adversary pass-15 finding F-MED-001.
 #[test]
 fn test_BC_2_11_024_iin_boolean_elements_rejected_e_query_001() {
     // BC-2.11.024: parser must reject boolean elements in IIN list at parse time.
     let errors = parse_filter("status IIN (true, false)").expect_err(
         "F-MED-001: 'status IIN (true, false)' must fail to parse at parse time — \
-         boolean literals are invalid IIN list elements per BC-2.11.024 v1.3; \
+         boolean literals are invalid IIN list elements per BC-2.11.024; \
          currently returns Ok (booleans survive into Predicate::In and are only \
          rejected later by predicate_to_datafusion_sql; LOCAL-pass-15 fix target)",
     );
@@ -3017,12 +3017,12 @@ fn test_BC_2_11_024_iin_boolean_elements_rejected_e_query_001() {
     assert!(
         all_msgs.contains("E-QUERY-001"),
         "F-MED-001: parse error for 'status IIN (true, false)' must carry 'E-QUERY-001' \
-         per BC-2.11.024 v1.3; got: {all_msgs:?}"
+         per BC-2.11.024; got: {all_msgs:?}"
     );
-    // (2) Must cite the stable portion of the BC-2.11.024 v1.3 verbatim template.
+    // (2) Must cite the stable portion of the BC-2.11.024 verbatim template.
     assert!(
         all_msgs.contains("IIN operator requires quoted string literals in the membership list"),
-        "F-MED-001: parse error must contain the verbatim BC-2.11.024 v1.3 template \
+        "F-MED-001: parse error must contain the verbatim BC-2.11.024 template \
          phrase 'IIN operator requires quoted string literals in the membership list'; \
          got: {all_msgs:?}"
     );
@@ -3030,7 +3030,7 @@ fn test_BC_2_11_024_iin_boolean_elements_rejected_e_query_001() {
     assert!(
         all_msgs.contains("integer, float, or boolean"),
         "F-MED-001: parse error must contain 'integer, float, or boolean' \
-         per BC-2.11.024 v1.3 template; got: {all_msgs:?}"
+         per BC-2.11.024 template; got: {all_msgs:?}"
     );
 }
 

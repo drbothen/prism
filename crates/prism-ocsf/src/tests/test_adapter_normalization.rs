@@ -25,8 +25,8 @@
 //!   - F-CRIT-001: insertion point = `OcsfNormalizer::normalize_with_mappers`
 //!   - F-HIGH-003: keying contract = string field name (e.g., "severity"), not "_id" companion
 //!   - F-HIGH-002: in-scope fields = severity (confirmed), status (v1.1 addition)
-//! - BC-2.02.002 v1.5 — DynamicMessage Creation
-//! - BC-2.02.010 v1.5 — OcsfEnumMap as sole canonical casing authority
+//! - BC-2.02.002 — DynamicMessage Creation
+//! - BC-2.02.010 — OcsfEnumMap as sole canonical casing authority
 //!
 //! ## Production caller status (OBS-003)
 //!

@@ -35,7 +35,7 @@
 //!   `notifier` field. The test passed vacuously on the data structure.
 //! - AC-001: no test for tool annotations in the production catalog.
 //! - AC-002 (round-1): audit outcome checked for non-empty / "schema_enumeration" string,
-//!   but this conflates `operation` with `outcome`. BC-2.10.012 v1.1 requires BOTH
+//!   but this conflates `operation` with `outcome`. BC-2.10.012 requires BOTH
 //!   `operation = "schema_enumeration"` AND `outcome = "success"|"error"` as separate fields.
 //!   The old test `test_BC_2_10_012_prism_describe_audit_operation_is_schema_enumeration`
 //!   was checking `outcome == "schema_enumeration"` which is the operation name — not the
@@ -48,8 +48,8 @@
 //! | test_BC_2_10_012_prism_describe_tool_annotations | AC-001 | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_happy_path_catalog | AC-001 + AC-002 | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_audit_event_emitted | AC-002 (basic) | BC-2.10.012 |
-//! | test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path | AC-002 (hardened) | BC-2.10.012 v1.1 |
-//! | test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_id | AC-002 (hardened) | BC-2.10.012 v1.1 |
+//! | test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path | AC-002 (hardened) | BC-2.10.012 |
+//! | test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_id | AC-002 (hardened) | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_empty_and_unknown_client | AC-003 (hardened) | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_invalid_client_id | AC-003 | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map | AC-004 | BC-2.10.012 DI-008 |
@@ -92,9 +92,9 @@ use ulid::Ulid;
 /// Implements the full `AuditWriter` trait with no-op for write_intent / write_outcome,
 /// and captures `write_tool_call` invocations in a shared vec.
 ///
-/// # BC-2.10.012 v1.1 extended capture (AC-002 hardening)
+/// # BC-2.10.012 extended capture (AC-002 hardening)
 ///
-/// BC-2.10.012 v1.1: `write_tool_call` carries BOTH `operation` (the canonical
+/// BC-2.10.012: `write_tool_call` carries BOTH `operation` (the canonical
 /// operation name, e.g. `"schema_enumeration"`) AND `outcome` (`"success"` or
 /// `"error"`) as SEPARATE parameters — implemented in the production trait.
 ///
@@ -136,7 +136,7 @@ impl AuditWriter for CapturingAuditWriter {
 
     /// Captures `(tool_name, client_id, operation, outcome)`.
     ///
-    /// BC-2.10.012 v1.1: the production trait now carries BOTH `operation`
+    /// BC-2.10.012: the production trait now carries BOTH `operation`
     /// (canonical operation name, e.g. `"schema_enumeration"`) AND `outcome`
     /// (result: `"success"` or `"error"`) as separate parameters.
     async fn write_tool_call(
@@ -579,9 +579,9 @@ async fn test_BC_2_10_012_prism_describe_audit_event_emitted() {
 
 // ─── AC-002 (hardened): audit operation AND outcome as separate fields ────────
 
-/// AC-002 (BC-2.10.012 v1.1 — Audit event: operation AND outcome as separate fields):
+/// AC-002 (BC-2.10.012 — Audit event: operation AND outcome as separate fields):
 ///
-/// BC-2.10.012 v1.1 requires the `write_tool_call` audit record to carry TWO
+/// BC-2.10.012 requires the `write_tool_call` audit record to carry TWO
 /// distinct fields:
 ///   - `operation = "schema_enumeration"` — the canonical operation name
 ///   - `outcome = "success"` — the result on the happy path
@@ -624,7 +624,7 @@ async fn test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path(
         client_id_cap
     );
 
-    // BC-2.10.012 v1.1 §Audit: operation must be "schema_enumeration".
+    // BC-2.10.012 §Audit: operation must be "schema_enumeration".
     // This assertion PASSES because current code passes "schema_enumeration" as its
     // single outcome arg, which CapturingAuditWriter maps to `operation`.
     assert_eq!(
@@ -635,24 +635,24 @@ async fn test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path(
         operation
     );
 
-    // BC-2.10.012 v1.1 §Audit: outcome must be "success" on the happy path.
+    // BC-2.10.012 §Audit: outcome must be "success" on the happy path.
     // Load-bearing: removing the `outcome` parameter from write_tool_call (or passing
     // only one string) causes outcome = "(not_provided)" and this assertion fails.
     assert_eq!(
         outcome.as_str(),
         "success",
         "BC-2.10.012 AC-002: write_tool_call outcome MUST be 'success' on the happy path \
-         (BC-2.10.012 v1.1 §Audit). Got: '{}'",
+         (BC-2.10.012 §Audit). Got: '{}'",
         outcome
     );
 }
 
-/// AC-002 (BC-2.10.012 v1.1 — Audit event: outcome = "error" on E-MCP-001 path):
+/// AC-002 (BC-2.10.012 — Audit event: outcome = "error" on E-MCP-001 path):
 ///
 /// When `prism_describe` is called with an invalid `client_id` (E-MCP-001), the
 /// audit record MUST carry `outcome = "error"`.
 ///
-/// BC-2.10.012 v1.1: "on invalid client_id, the audit emission still occurs
+/// BC-2.10.012: "on invalid client_id, the audit emission still occurs
 /// (fail-open DI-004) with `outcome = 'error'`."
 ///
 /// On validation failure (E-MCP-001), `handle_prism_describe` calls `write_tool_call`
@@ -683,7 +683,7 @@ async fn test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_i
          for invalid client_id format"
     );
 
-    // BC-2.10.012 v1.1 §Audit: write_tool_call MUST be invoked even on validation failure
+    // BC-2.10.012 §Audit: write_tool_call MUST be invoked even on validation failure
     // (audit before return, fail-open DI-004).
     let calls = audit_writer.calls.lock().unwrap();
     assert_eq!(
@@ -708,7 +708,7 @@ async fn test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_i
         outcome.as_str(),
         "error",
         "BC-2.10.012 AC-002: write_tool_call outcome MUST be 'error' on the \
-         E-MCP-001 invalid-client_id path (BC-2.10.012 v1.1 §Audit). \
+         E-MCP-001 invalid-client_id path (BC-2.10.012 §Audit). \
          Got outcome='{}'.",
         outcome
     );
@@ -1910,12 +1910,12 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
     );
 
     // F-MED-002 (LOCAL pass-15): the OCSF casing note moved from example_query to
-    // example_note (BC-2.10.012 v1.8). Check the note field, not the query string.
+    // example_note (BC-2.10.012). Check the note field, not the query string.
     let sev_note = sev_table["example_note"].as_str().unwrap_or("");
     assert!(
         sev_note.contains("Title-case") || sev_note.contains("title-case"),
         "BC-2.10.012 AC-002 [severity] F-P6-HIGH-001: example_note must include OCSF casing note \
-         (substring 'Title-case') per AC-025 / BC-2.10.012 v1.8 F-MED-002; \
+         (substring 'Title-case') per AC-025 / BC-2.10.012 F-MED-002; \
          example_query is now pure PQL (no `--` comments). Got example_note: {:?}.",
         sev_note
     );

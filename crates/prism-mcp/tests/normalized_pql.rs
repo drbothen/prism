@@ -646,7 +646,7 @@ mod tests {
     ///   Query: `SELECT * FROM <table> WHERE <string_col> > 5`
     ///   Expected: E-QUERY-002 with `valid_operators_for_type: ["=","!=","LIKE","IN","NOT IN","IEQ","IIN","INE"]`
     ///   (STRING-SPECIFIC set — must NOT contain "<", ">", "<=", ">=", "BETWEEN")
-    ///   BC-2.11.024 v1.3: IEQ/IIN/INE added as valid string operators (F-P24-MED-001).
+    ///   BC-2.11.024: IEQ/IIN/INE added as valid string operators (F-P24-MED-001).
     ///
     /// LOAD-BEARING RED GATE test (TD-VSDD-059 paper-fix detection):
     ///
@@ -665,7 +665,7 @@ mod tests {
     ///   4. Asserts `valid_operators_for_type` is EXACTLY the String-specific set
     ///      `["=","!=","LIKE","IN","NOT IN","IEQ","IIN","INE"]` as returned by
     ///      `prism_query::engine::valid_operators_for_type(ColumnType::String)`.
-    ///      (BC-2.11.024 v1.3: IEQ/IIN/INE added as valid string operators — F-P24-MED-001.)
+    ///      (BC-2.11.024: IEQ/IIN/INE added as valid string operators — F-P24-MED-001.)
     ///      The assertion FAILS if the array contains ">" or "<" or "BETWEEN" — i.e., the
     ///      generic superset. Only the type-specific subset is acceptable.
     ///   5. A second case (Boolean column + `>`) asserts the Boolean-specific set `["=","!="]`
@@ -749,7 +749,7 @@ mod tests {
         // LOAD-BEARING ASSERTION: the operators array must be EXACTLY the String-specific set.
         // valid_operators_for_type(ColumnType::String) returns
         // ["=", "!=", "LIKE", "IN", "NOT IN", "IEQ", "IIN", "INE"].
-        // BC-2.11.024 v1.3: IEQ/IIN/INE added by F-P24-MED-001 (S-PRISMQL-CASE-INSENSITIVE-001).
+        // BC-2.11.024: IEQ/IIN/INE added by F-P24-MED-001 (S-PRISMQL-CASE-INSENSITIVE-001).
         // The test derives expected from valid_operators_for_type so it tracks changes automatically.
         // This assertion FAILS if:
         //   - the field is absent (no type-mismatch detection)
@@ -1552,7 +1552,7 @@ mod tests {
     ///
     /// # BC reference
     ///
-    /// BC-2.11.016 v1.1 §"E-QUERY-038 error payload shape": `available_columns` ALWAYS present,
+    /// BC-2.11.016 §"E-QUERY-038 error payload shape": `available_columns` ALWAYS present,
     /// `did_you_mean` present when Levenshtein distance ≤ 3.
     /// BC-2.11.016 §"Canonical Test Vectors" EC-11-039:
     ///   `sevrity` → `did_you_mean: "severity"`, `available_columns` includes "severity".
@@ -1696,7 +1696,7 @@ mod tests {
     ///
     /// # BC reference
     ///
-    /// BC-2.11.016 v1.1 §"Payload fields": `did_you_mean` "is omitted (not null, not empty
+    /// BC-2.11.016 §"Payload fields": `did_you_mean` "is omitted (not null, not empty
     /// string — absent)" when no column is within threshold.
     /// BC-2.11.016 §Canonical Test Vectors EC-11-040: `completely_bogus_field` →
     ///   `available_columns` includes real column names, `did_you_mean` absent.

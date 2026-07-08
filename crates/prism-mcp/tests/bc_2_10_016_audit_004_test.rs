@@ -1,4 +1,4 @@
-//! Red Gate test for S-DEMO-FIDELITY-REMEDIATION-001 AC-AUDIT-004 — BC-2.10.016 v1.2.
+//! Red Gate test for S-DEMO-FIDELITY-REMEDIATION-001 AC-AUDIT-004 — BC-2.10.016.
 //!
 //! Finding AUDIT-004: All five `render_*` prompt functions in `prism-mcp/src/prompts.rs`
 //! contain SQL examples that use dot-notation FROM references (`FROM crowdstrike.alerts`,
@@ -29,7 +29,7 @@
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
-//! | test_bc_2_10_016_audit_004_no_dot_notation_in_prompts | AUDIT-004 | BC-2.10.016 v1.2 |
+//! | test_bc_2_10_016_audit_004_no_dot_notation_in_prompts | AUDIT-004 | BC-2.10.016 |
 
 use prism_mcp::prompts::{
     render_client_overview, render_cross_client_status, render_investigate_host,
@@ -129,7 +129,7 @@ fn registered_tables_from_specs() -> std::collections::HashSet<String> {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// BC-2.10.016 v1.2 AUDIT-004 — Red Gate test.
+/// BC-2.10.016 AUDIT-004 — Red Gate test.
 ///
 /// Every `render_*` prompt function must use underscore-qualified FROM targets
 /// (e.g., `FROM crowdstrike_alerts`) NOT dot-notation (e.g., `FROM crowdstrike.alerts`).
@@ -313,7 +313,7 @@ fn test_bc_2_10_016_audit_004_prompt_from_targets_include_registered_table() {
 
 // ── Column-validation extension (MED-1 process-gap closure) ──────────────────
 //
-// BC-2.10.016 v1.2 §Postconditions: "any analyst copying an embedded prompt
+// BC-2.10.016 §Postconditions: "any analyst copying an embedded prompt
 // example query and executing it MUST get a successful result."
 //
 // The FROM-target tests above prove the TABLE exists. These tests prove every
@@ -588,7 +588,7 @@ fn split_predicates(where_region: &str) -> Vec<String> {
     result
 }
 
-/// MED-1 column-validity guard (BC-2.10.016 v1.2 §Postconditions process-gap closure).
+/// MED-1 column-validity guard (BC-2.10.016 §Postconditions process-gap closure).
 ///
 /// Every column referenced in a SELECT, WHERE predicate, or GROUP BY clause of each
 /// render_* prompt example query must exist in the authoritative column set for the
@@ -679,7 +679,7 @@ fn test_bc_2_10_016_audit_004_column_refs_resolve_to_real_columns() {
 
     assert!(
         failures.is_empty(),
-        "BC-2.10.016 v1.2 MED-1 column-validity: prompt(s) reference invalid columns:\n\n{}\n\n\
+        "BC-2.10.016 MED-1 column-validity: prompt(s) reference invalid columns:\n\n{}\n\n\
          Fix: update render_* functions in prompts.rs to use only columns declared in \
          crates/prism-sensors/specs/*.sensor.toml for the referenced table.",
         failures.join("\n")
@@ -763,7 +763,7 @@ fn test_bc_2_10_016_audit_004_column_sets_loaded_for_all_sensor_tables() {
 
 // ── MED-2 value-validation test (process-gap closure) ─────────────────────────
 //
-// BC-2.10.016 v1.2 §Postconditions: "any analyst copying an embedded prompt
+// BC-2.10.016 §Postconditions: "any analyst copying an embedded prompt
 // example query and executing it MUST get a successful result."
 //
 // The column-validity test proves columns exist. This test proves the WHERE/IN

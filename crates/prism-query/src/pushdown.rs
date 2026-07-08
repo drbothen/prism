@@ -498,7 +498,7 @@ fn extract_time_bounds_from_predicate(
 
 /// Augment a base Armis AQL string with time-window clauses.
 ///
-/// Implements BC-2.01.013 v1.14 Mechanism B AQL-clause augmentation:
+/// Implements BC-2.01.013 Mechanism B AQL-clause augmentation:
 /// - If base AQL already contains `after:`, `before:`, or `timeFrame:` → return verbatim
 ///   (anti-double-filter guard, AC-ARMIS-TW-003).
 /// - If `start_time` is present → append `after:YYYY-MM-DDTHH:MM:SS` (bare, unquoted,
@@ -522,7 +522,7 @@ pub fn augment_armis_aql_with_time_window(
     start_time: Option<&str>,
     end_time: Option<&str>,
 ) -> String {
-    // Anti-double-filter guard (AC-ARMIS-TW-003 / BC-2.01.013 v1.14 Mechanism B):
+    // Anti-double-filter guard (AC-ARMIS-TW-003 / BC-2.01.013 Mechanism B):
     // If the base AQL already contains any of the canonical Armis time keywords,
     // return it verbatim — do NOT append a second time clause.
     if base_aql.contains("after:")
@@ -665,7 +665,7 @@ mod pushdown_red_gate_tests {
     // AC-WIRE-001: extract_time_window_from_ast populates start_time
     // -----------------------------------------------------------------------
 
-    /// AC-WIRE-001 / BC-2.01.013 v1.14 TV-BC-2.01.013-006 / ADR-033 T1
+    /// AC-WIRE-001 / BC-2.01.013 TV-BC-2.01.013-006 / ADR-033 T1
     ///
     /// A PrismQL `WHERE created_timestamp > '2026-01-01T00:00:00Z'` predicate on a
     /// `column_type = "datetime"` with `options = ["INDEX"]` column must yield
@@ -746,7 +746,7 @@ mod pushdown_red_gate_tests {
     // AC-ARMIS-TW-001: AQL augmentation appends after: clause
     // -----------------------------------------------------------------------
 
-    /// AC-ARMIS-TW-001 / BC-2.01.013 v1.14 Mechanism B / BC-2.11.007 v1.8 §Mechanism B
+    /// AC-ARMIS-TW-001 / BC-2.01.013 Mechanism B / BC-2.11.007 §Mechanism B
     ///
     /// `augment_armis_aql_with_time_window("in:devices", Some("2026-01-01T00:00:00Z"), None)`
     /// must return `"in:devices after:2026-01-01T00:00:00"` (bare, unquoted, timezone-naive
@@ -813,7 +813,7 @@ mod pushdown_red_gate_tests {
     // AC-ARMIS-TW-003: Anti-double-filter guard
     // -----------------------------------------------------------------------
 
-    /// AC-ARMIS-TW-003 / BC-2.01.013 v1.14 Mechanism B anti-double-filter guard
+    /// AC-ARMIS-TW-003 / BC-2.01.013 Mechanism B anti-double-filter guard
     ///
     /// If the base AQL already contains `after:`, no second time clause must be appended.
     /// The AQL is returned VERBATIM.

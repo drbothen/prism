@@ -281,7 +281,7 @@ fn test_bc_2_11_022_low002_all_examples_rendered() {
 
 // ─── CRIT-003: registry-parity assertion ──────────────────────────────────────
 
-/// CRIT-003 / BC-2.11.022 v1.1 — `build_reference_content(Some(&registry))` renders
+/// CRIT-003 / BC-2.11.022 — `build_reference_content(Some(&registry))` renders
 /// EXACTLY the per-field UDF callable names from the live registry (EC-11-022-006).
 ///
 /// A registry is constructed with two known infusion specs: `"geoip"` (field: `geoip_country`)
@@ -341,7 +341,7 @@ fn test_bc_2_11_022_registry_parity() {
     let content = build_reference_content(Some(&registry));
 
     // Both registered per-field UDF callable names MUST appear as formatted lines.
-    // BC-2.11.022 v1.1 / EC-11-022-006: the reference lists descriptor.name (per-field
+    // BC-2.11.022 / EC-11-022-006: the reference lists descriptor.name (per-field
     // callable), NOT the infusion_id. For geoip field "geoip_country" the callable is
     // "enrich geoip_country(col)"; for threatintel field "threatintel_score" it is
     // "enrich threatintel_score(col)".
@@ -350,14 +350,14 @@ fn test_bc_2_11_022_registry_parity() {
 
     assert!(
         content.contains(geoip_line),
-        "CRIT-003 BC-2.11.022 v1.1: content must contain '{geoip_line}' for registered \
+        "CRIT-003 BC-2.11.022: content must contain '{geoip_line}' for registered \
          per-field UDF 'geoip_country' (descriptor.name); \
          content snippet: {:?}",
         &content[..content.len().min(600)]
     );
     assert!(
         content.contains(threatintel_line),
-        "CRIT-003 BC-2.11.022 v1.1: content must contain '{threatintel_line}' for registered \
+        "CRIT-003 BC-2.11.022: content must contain '{threatintel_line}' for registered \
          per-field UDF 'threatintel_score' (descriptor.name); \
          content snippet: {:?}",
         &content[..content.len().min(600)]

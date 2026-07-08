@@ -161,7 +161,7 @@ impl PrismQlParser {
         // PrismQlParser::parse_with_registry"). Both must reject denied SQL keywords
         // with E-QUERY-002. Without this check, inputs like "MERGE INTO foo" would
         // fall through to filter mode, producing E-QUERY-001 instead of E-QUERY-002.
-        // (BC-2.11.003 v1.4, Invariant DI-019)
+        // (BC-2.11.003, Invariant DI-019)
         check_denied_keywords(&first_token_upper)?;
 
         // Pipe mode: route through parse_pipe_with_write.
@@ -205,13 +205,13 @@ impl PrismQlParser {
 
         // S-3.06: Route DML statements (INSERT/UPDATE/DELETE) to the DML parser
         // BEFORE the general denylist check. These were previously denied outright
-        // (BC-2.11.003 v1.4 "read-only engine") but S-3.06 extends the engine with
+        // (BC-2.11.003 "read-only engine") but S-3.06 extends the engine with
         // write support. The DML parser enforces its own guards (E-QUERY-010, E-QUERY-022).
         if matches!(first_token_upper.as_str(), "INSERT" | "UPDATE" | "DELETE") {
             return parse_dml_internal(input, limits);
         }
 
-        // Reject denied SQL statements before any parsing (BC-2.11.003 v1.4, Invariant DI-019).
+        // Reject denied SQL statements before any parsing (BC-2.11.003, Invariant DI-019).
         // Shared helper — same list enforced by `parse_with_registry` (F-PR130-P1-HIGH-001).
         check_denied_keywords(&first_token_upper)?;
 
@@ -245,7 +245,7 @@ impl PrismQlParser {
     }
 }
 
-/// Check the first token of a query against the SQL denylist (BC-2.11.003 v1.4, DI-019).
+/// Check the first token of a query against the SQL denylist (BC-2.11.003, DI-019).
 ///
 /// Used by both `parse_with_limits` (internal path) and `parse_with_registry`
 /// (public write-aware entry point) so both public APIs enforce identical denylist
@@ -981,7 +981,7 @@ pub(crate) fn build_predicate_parser<'a>(
                         other => other,
                     })
                     .collect();
-                // BC-2.11.024 v1.3 F-MED-001: reject non-string values at parse time.
+                // BC-2.11.024 F-MED-001: reject non-string values at parse time.
                 // After temporal normalisation, only `Literal::String` is valid in an IIN
                 // membership list.  Integer, Float, and Boolean literals are rejected here
                 // so the analyst receives a clear, actionable error before SQL generation.
@@ -1361,7 +1361,7 @@ pub(crate) fn build_string_parser<'a>(
 /// Integer/Float/Bool col → E-QUERY-002; non-Field LHS → E-QUERY-042 NonColumnLhsComparison;
 /// SELECT projection → COERCE; GROUP BY → E-QUERY-042 GroupBy; ORDER BY → E-QUERY-042 OrderBy.
 ///
-/// The seven canonical forms (exhaustive — must match exactly, per BC-2.11.021 v1.4):
+/// The seven canonical forms (exhaustive — must match exactly, per BC-2.11.021):
 ///   1. `%Y-%m-%d`              — date-only
 ///   2. `%Y-%m-%dT%H:%M:%S`    — T-sep full seconds
 ///   3. `%Y-%m-%dT%H:%M:%S%.f` — T-sep fractional seconds
@@ -1372,12 +1372,12 @@ pub(crate) fn build_string_parser<'a>(
 ///
 /// Over-matched forms (unpadded month/day `'2026-6-24'`, big/signed years) are ACCEPTED
 /// BENIGN per ADR-052 §D4 v1.4 — chrono `%m`/`%d`/`%Y` accept them; no regex guard applied.
-/// (BC-2.11.021 v1.4 EC-11-021-010..014)
+/// (BC-2.11.021 EC-11-021-010..014)
 ///
 /// Operates on already-parsed UTF-8 `&str` — no raw byte-offset operations;
 /// Unicode safety guaranteed by construction (VP-021 invariant).
 ///
-/// (ADR-052 §D4 Step 2; BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 13)
+/// (ADR-052 §D4 Step 2; BC-2.11.021; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 13)
 /// Seven-form acceptance set per ADR-052 §D4 v1.4.
 ///
 /// Over-matched forms (unpadded digits, big years) are ACCEPTED BENIGN —
@@ -1410,7 +1410,7 @@ pub(crate) fn is_date_like(s: &str) -> bool {
 ///   - Otherwise → `Literal::String(s)` (plain string, no temporal semantics)
 ///
 /// Infallible: parse ALWAYS succeeds. Validation of the temporal forms moves to plan time.
-/// (ADR-052 §D4 Step 2; BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 13)
+/// (ADR-052 §D4 Step 2; BC-2.11.021; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 13)
 fn classify_string_literal(s: &str) -> Literal {
     // Fast path: try RFC-3339 first (full timestamp with UTC offset).
     if let Ok(ts) = TimestampLiteral::new(s) {

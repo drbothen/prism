@@ -1597,7 +1597,7 @@ pub enum PrismError {
     /// Maps to MCP code -32602 (INVALID_PARAMS) for all three variants — caller-resolvable.
     ///
     /// Reference: ADR-052 §D4 v1.10; error-taxonomy.md §E-QUERY-042 v2.14;
-    ///            BC-2.11.021 v1.7; BC-2.11.003 v1.11; BC-2.11.004 v1.12;
+    ///            BC-2.11.021; BC-2.11.003; BC-2.11.004;
     ///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001.
     #[error("{}", position.as_display_string(value_prefix))]
     TemporalLiteralInvalidPosition {
@@ -1912,7 +1912,7 @@ pub enum InfusionError {
     /// Emitted as `tracing::warn!` (not a query error) when a projected value cannot be
     /// coerced to the declared `output_type`. The output row contains NULL.
     ///
-    /// Defined in ADR-051 D2 and BC-2.19.001 v2.2 §E-INFUSE-014.
+    /// Defined in ADR-051 D2 and BC-2.19.001 §E-INFUSE-014.
     /// A corresponding BC-2.16.002 Canonical Structured Event Catalog row for
     /// `event_type = "infusion.coercion_failed"` MUST be added in the same commit as
     /// the `tracing::warn!` emission in `infusion_udf.rs` (SAP-1 obligation; AC-012).

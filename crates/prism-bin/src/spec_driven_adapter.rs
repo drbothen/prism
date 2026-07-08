@@ -196,7 +196,7 @@ impl AuthProvider for BearerStaticAuthProvider {
 ///
 /// Resolves the bearer token from `prism_credentials::resolve_credential` at
 /// `acquire_token()` time using the injected `credential_ref_name` (e.g. `"bearer_token"`).
-/// Env-var convention: `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` (ADR-032 / BC-2.06.003 v1.3),
+/// Env-var convention: `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` (ADR-032 / BC-2.06.003),
 /// e.g. `PRISM_CLIENTS_DEMO_ORG_A_SENSORS_ARMIS_BEARER_TOKEN` for org_slug `demo-org-a`.
 ///
 /// On resolution failure it returns `Err(SpecEngineError::AuthAcquisitionFailed)` —
@@ -333,7 +333,7 @@ impl prism_spec_engine::AuthProvider for BearerStaticCredentialAuthProvider {
             {
                 Ok(s) => s,
                 Err(CredentialResolutionError::NotFound { .. }) => {
-                    // BC-2.06.003 v1.3 / ADR-032: per-client env var format.
+                    // BC-2.06.003 / ADR-032: per-client env var format.
                     // {ID} = org_slug uppercased with hyphens → underscores.
                     let id_upper =
                         prism_credentials::resolution::slug_to_screaming_snake(&client_id_str);
@@ -349,7 +349,7 @@ impl prism_spec_engine::AuthProvider for BearerStaticCredentialAuthProvider {
                                 "E-AUTH-005: bearer token not found — no '{credential_ref_name}' \
                                  credential configured for sensor '{sensor_id}', \
                                  client '{client_id_str}'. \
-                                 Set env var {per_client_env} (ADR-032 / BC-2.06.003 v1.3).",
+                                 Set env var {per_client_env} (ADR-032 / BC-2.06.003).",
                             ),
                         },
                     );
@@ -402,7 +402,7 @@ impl prism_spec_engine::AuthProvider for BearerStaticCredentialAuthProvider {
 /// Constructed via `reqwest::Client::builder().timeout(Duration::from_secs(30)).build()`
 /// per CLAUDE.md conventions (TD-S-PLUGIN-PREREQ-B-005).
 ///
-/// ## OCSF normalization (BC-2.01.013 v1.14)
+/// ## OCSF normalization (BC-2.01.013)
 ///
 /// The `PipelineExecutor` does NOT return Arrow `RecordBatch` — it returns `PipelineResult`
 /// (raw JSON records). `SpecDrivenSensorAdapter::fetch()` converts those records to
@@ -577,7 +577,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             })
             .collect();
 
-        // CrowdStrike FQL time-window injection (BC-2.01.013 v1.14 + ADR-033 T1).
+        // CrowdStrike FQL time-window injection (BC-2.01.013 + ADR-033 T1).
         // Seed `_fql` into query_filters for CrowdStrike so the ${query.filter._fql}
         // slot in the Step 1 path_template always resolves (empty string when no filter).
         // When start_time/end_time are populated (by extract_time_window_from_ast in
@@ -590,7 +590,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             query_filters.entry("_fql".to_string()).or_insert(fql);
         }
 
-        // Armis AQL time-window augmentation (BC-2.01.013 v1.14 Mechanism B + ADR-033 T1).
+        // Armis AQL time-window augmentation (BC-2.01.013 Mechanism B + ADR-033 T1).
         // F-P1-CRIT-002: wire augment_armis_aql_with_time_window into the real path.
         //
         // When start_time/end_time are populated by extract_time_window_from_ast (ADR-033 T1)
@@ -599,7 +599,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
         // (bare, unquoted, timezone-naive per research-doc §2.2, AC-ARMIS-TW-001).
         //
         // Anti-double-filter guard: if the AQL already contains `after:`, `before:`, or
-        // `timeFrame:`, augmentation is skipped (AC-ARMIS-TW-003 / BC-2.01.013 v1.14 Mechanism B).
+        // `timeFrame:`, augmentation is skipped (AC-ARMIS-TW-003 / BC-2.01.013 Mechanism B).
         //
         // The augmented AQL overwrites `query_filters["aql"]` and is forwarded via the
         // existing `${query.filter.aql}` path_template interpolation.
@@ -615,7 +615,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             query_filters.insert("aql".to_string(), augmented);
         }
 
-        // CrowdStrike limit push-down (BC-2.01.013 v1.14 / F-P1-CRIT-004).
+        // CrowdStrike limit push-down (BC-2.01.013 / F-P1-CRIT-004).
         // Seed `query.limit` into query_filters so the ${query.limit} slot in the
         // CrowdStrike Step 1 path_template resolves to the LIMIT value.
         // When params.limit == 0 (no LIMIT clause), seed an empty string so
@@ -682,7 +682,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             // Convert PipelineResult.records (raw JSON) → Arrow RecordBatch
             // with OCSF envelope columns (category_uid, class_uid, _sensor) and
             // spec-defined data columns (BC-2.11.005 / AC-010).
-            // BC-2.01.013 v1.14 OCSF Conformance: pass `table` so that:
+            // BC-2.01.013 OCSF Conformance: pass `table` so that:
             //   - spec-declared columns survive into the Arrow schema (item 1)
             //   - class_uid/category_uid are derived from ocsf_class (item 2)
             //   - _sensor is injected as canonical sensor_id (item 3)
@@ -747,7 +747,7 @@ fn map_spec_engine_error_to_sensor_error(
 
 /// Convert `PipelineResult.records` (raw JSON) to an Arrow `RecordBatch`.
 ///
-/// Produces a RecordBatch with (BC-2.01.013 v1.14 OCSF Conformance Clause):
+/// Produces a RecordBatch with (BC-2.01.013 OCSF Conformance Clause):
 ///
 /// **Spec-declared data columns (item 1):**
 /// Every column declared in `table.columns` is included in the schema, extracted
@@ -804,7 +804,7 @@ fn pipeline_result_to_record_batch(
 
     let n = result.records.len();
 
-    // BC-2.01.013 v1.14 item 2: derive class_uid from spec ocsf_class via
+    // BC-2.01.013 item 2: derive class_uid from spec ocsf_class via
     // EventClassSelector::select_by_class_name — looks up by OCSF class-name string,
     // not by (sensor_id, record_type) pair. Falls back to 0 (BASE_EVENT) for unmapped
     // tables per D-925 (intentional unwrap_or fallback, not a production error path).
@@ -858,14 +858,14 @@ fn pipeline_result_to_record_batch(
         col_arrays.push(array);
     }
 
-    // BC-2.01.013 v1.14 item 2: OCSF envelope — class_uid/category_uid derived, not raw-copied.
+    // BC-2.01.013 item 2: OCSF envelope — class_uid/category_uid derived, not raw-copied.
     // All rows in this batch share the same derived class_uid/category_uid (table-level, not row-level).
     let category_uid_vals: Vec<Option<i32>> = vec![Some(derived_category_uid); n];
     let class_uid_vals: Vec<Option<i32>> = vec![Some(derived_class_uid); n];
     col_arrays.push(Arc::new(Int32Array::from(category_uid_vals)) as Arc<dyn Array>);
     col_arrays.push(Arc::new(Int32Array::from(class_uid_vals)) as Arc<dyn Array>);
 
-    // BC-2.01.013 v1.14 item 3: _sensor is ALWAYS the canonical sensor_id from the spec.
+    // BC-2.01.013 item 3: _sensor is ALWAYS the canonical sensor_id from the spec.
     // Never reads from raw record — the raw record's _sensor field is untrusted vendor data.
     let sensor_vals: Vec<Option<&str>> = vec![Some(sensor_id); n];
     col_arrays.push(Arc::new(StringArray::from(sensor_vals)) as Arc<dyn Array>);
@@ -1424,7 +1424,7 @@ pub async fn step9a_populate_adapter_registry(
                 // a real API. BC-2.06.003 resolution chain; AD-017 credential safety.
                 //
                 // credential_ref_name = "bearer_token" (canonical per architect decision, D-939):
-                // env var: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_BEARER_TOKEN (ADR-032 / BC-2.06.003 v1.3).
+                // env var: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_BEARER_TOKEN (ADR-032 / BC-2.06.003).
                 let provider = BearerStaticCredentialAuthProvider::new(
                     resolved_spec.spec.sensor_id.as_str(),
                     "bearer_token",
@@ -1499,12 +1499,12 @@ pub async fn step9a_populate_adapter_registry(
 // BC-2.22.001; F-002-R; S-DEMO-001 v1.5.
 
 // ---------------------------------------------------------------------------
-// CrowdStrike FQL time-window builder (ADR-033 T1 + BC-2.01.013 v1.14)
+// CrowdStrike FQL time-window builder (ADR-033 T1 + BC-2.01.013)
 // ---------------------------------------------------------------------------
 
 /// Build a CrowdStrike FQL filter string from optional time bounds.
 ///
-/// Implements BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — CrowdStrike row:
+/// Implements BC-2.01.013 Pagination/Push-Down Scope Clause — CrowdStrike row:
 /// - `start_time` → `created_timestamp:>'<ISO8601>'`
 /// - `end_time`   → `created_timestamp:<'<ISO8601>'`
 /// - Both present → combined with `+` (CrowdStrike FQL AND operator)
@@ -1860,7 +1860,7 @@ mod tests {
     /// `Some(Arc::new("UTC".into()))` produces `Arc<String>` and is FORBIDDEN
     /// (ADR-052 §D1 canonical form).
     ///
-    /// Traces to: BC-2.11.003 v1.6 §Postconditions; ADR-052 §D1/§D2.
+    /// Traces to: BC-2.11.003 §Postconditions; ADR-052 §D1/§D2.
     #[test]
     #[allow(clippy::expect_used)]
     fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_datetime_column_registers_as_timestamp_micros_utc()
@@ -1895,7 +1895,7 @@ mod tests {
     /// constant. If the epoch representation changes (e.g., leap second handling), the
     /// derivation remains correct.
     ///
-    /// Traces to: ADR-052 §D5; BC-2.11.003 v1.6 §Postconditions D4/D5
+    /// Traces to: ADR-052 §D5; BC-2.11.003 §Postconditions D4/D5
     /// chrono-strictness invariant.
     #[test]
     #[allow(clippy::expect_used, clippy::unwrap_used)]

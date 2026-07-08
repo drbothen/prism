@@ -163,14 +163,14 @@ pub mod tests;
 //   `ThreadLocalGuard` (filter_parser) — `pub(crate)` for unit-test
 //   verification of Drop semantics; not part of the stable API.
 //
-// Write-parser internals (S-3.06, BC-2.11.004 + BC-2.11.006 v1.16 DI-034 layer 4):
+// Write-parser internals (S-3.06, BC-2.11.004 + BC-2.11.006 DI-034 layer 4):
 //   `parse_pipe_with_write`, `build_write_stage_parser`,
 //   `build_write_arg_parser`, `extract_sensor_prefix` (pipe_parser)
 //   `parse_sql_dml`, `parse_sql_dml_with_limits`,
 //   `is_internal_prism_table`, `check_unbounded_write` (sql_parser)
 //   `reject_write_verbs_in_filter` (filter_parser)
 //
-// Alias-system internals (S-3.04, BC-2.11.008 + BC-2.11.006 v1.17 DI-034 layer 5):
+// Alias-system internals (S-3.04, BC-2.11.008 + BC-2.11.006 DI-034 layer 5):
 //   `create_alias` (alias_tools)                          — ungated create; MCP MUST use *_gated (SEC-011)
 //   `create_alias_with_clients` (alias_tools)             — ungated create+clients; MCP MUST use *_gated
 //   `create_alias_with_clients_gated_inner` (alias_tools) — internal token-store split (F-LOCAL-P2-HIGH-005)

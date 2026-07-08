@@ -877,7 +877,7 @@ fn expr_to_sql(expr: &Expr) -> Result<String, PrismError> {
 ///
 /// Returns `Err` only for `Literal::RawTemporalLiteral` — that intermediate AST node
 /// must be consumed by `check_temporal_literals` at plan time before the emitter
-/// is called (belt-and-suspenders guard; ADR-052 §D4 Step 5; BC-2.11.021 v1.4;
+/// is called (belt-and-suspenders guard; ADR-052 §D4 Step 5; BC-2.11.021;
 /// S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 11B).
 fn literal_to_sql(lit: &Literal) -> Result<String, PrismError> {
     Ok(match lit {
@@ -900,7 +900,7 @@ fn literal_to_sql(lit: &Literal) -> Result<String, PrismError> {
         Literal::Cidr(c) => format!("'{}'", escape_sql_string(&c.cidr)),
         Literal::Regex(r) => format!("'{}'", escape_sql_string(&r.pattern)),
         Literal::IpAddr(ip) => format!("'{}'", ip.0 .0),
-        // ADR-052 D3 / BC-2.11.004 v1.7: The materialized Arrow column type for OCSF
+        // ADR-052 D3 / BC-2.11.004: The materialized Arrow column type for OCSF
         // Datetime fields is now DataType::Timestamp(Microsecond, UTC) per ADR-052 D1/D2.
         // DataFusion 53.1.0's `TIMESTAMP '<iso>'` syntax produces Timestamp(Nanosecond, None),
         // which mismatches the UTC-tagged Microsecond column type. Use arrow_cast() to produce
@@ -918,7 +918,7 @@ fn literal_to_sql(lit: &Literal) -> Result<String, PrismError> {
             "arrow_cast('{}', 'Timestamp(Microsecond, Some(\"UTC\"))')",
             escape_sql_string(&ts.iso8601)
         ),
-        // ADR-052 §D4 Step 5 guard (BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001):
+        // ADR-052 §D4 Step 5 guard (BC-2.11.021; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001):
         // Belt-and-suspenders secondary defense: RawTemporalLiteral must NEVER reach SQL
         // emission. It is an intermediate AST node that check_temporal_literals must
         // consume at plan time via seven-arm dispatch (ADR-052 §D4 v1.10):
@@ -1368,7 +1368,7 @@ mod tests {
     /// Note: inner double-quote escaping in the type string is REQUIRED to match
     /// DataFusion's arrow_cast signature expectation.
     ///
-    /// Traces to: ADR-052 v1.1 D3; BC-2.11.021 v1.2 §Postconditions ("DataFusion sees
+    /// Traces to: ADR-052 v1.1 D3; BC-2.11.021 §Postconditions ("DataFusion sees
     /// a concrete `WHERE timestamp > arrow_cast(...)` comparison").
     #[test]
     #[allow(clippy::expect_used)]
@@ -1436,7 +1436,7 @@ mod tests {
     /// form ensures the EXACT Timestamp type (`Microsecond, UTC`) is used in the comparison,
     /// not whatever DataFusion's implicit coercion produces.
     ///
-    /// Traces to: ADR-052 v1.1 D3; BC-2.11.021 v1.2 §Postconditions.
+    /// Traces to: ADR-052 v1.1 D3; BC-2.11.021 §Postconditions.
     #[tokio::test]
     #[allow(clippy::expect_used, clippy::unwrap_used)]
     async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_emitter_output_plans_against_timestamp_column(
@@ -1508,7 +1508,7 @@ mod tests {
     /// HIGH-3 fix: changed from `QueryParseFailed` to `QueryPlanFailed` because the literal
     /// was parsed successfully — this is a plan-time invariant violation, not a parse failure.
     ///
-    /// Traces to: BC-2.11.021 v1.4 guard arm (belt-and-suspenders);
+    /// Traces to: BC-2.11.021 guard arm (belt-and-suspenders);
     /// ADR-052 §D4 Step 5 (emitter guard); ADR-052 §D4 Task 11B (return type change).
     #[test]
     #[allow(clippy::unwrap_used)]
@@ -1518,7 +1518,7 @@ mod tests {
         // consumed by check_temporal_literals, literal_to_sql MUST return
         // Err(QueryPlanFailed) — never panic and never silently emit a bare string.
         // HIGH-3 fix: QueryPlanFailed (plan-time invariant), not QueryParseFailed (parse failure).
-        // Traces to: ADR-052 §D4 Step 5 (emitter guard); BC-2.11.021 v1.4 guard arm.
+        // Traces to: ADR-052 §D4 Step 5 (emitter guard); BC-2.11.021 guard arm.
         let raw = Literal::RawTemporalLiteral("2026-06-24".to_string());
         let result = literal_to_sql(&raw);
         assert!(

@@ -1547,7 +1547,7 @@ pub fn build_reference_content(
             // (e.g., `threat_score`, `cvss_base_score`) — the name an analyst uses in
             // `| enrich threat_score(col)`. The `infusion_id` (e.g., `threat_intel`, `nvd`)
             // is the registry key for the infusion, NOT a callable name.
-            // AC-N1 / BC-2.11.022 v1.1 EC-11-022-006.
+            // AC-N1 / BC-2.11.022 EC-11-022-006.
             let mut seen_names = std::collections::BTreeSet::new();
             let mut infusion_names: Vec<String> = Vec::new();
             for desc in &descriptors {

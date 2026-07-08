@@ -3245,7 +3245,7 @@ fn test_timestamp_literal_plain_string_not_promoted() {
 /// The pre-ADR-052 `classify_string_literal` still applies: `looks_like_timestamp = true` →
 /// `TimestampLiteral::new("2026-06-24")` → FAILS → parse FAILS → test asserting `Ok(...)` FAILS. ✓
 ///
-/// Traces to: ADR-052 §D4 Step 2 (is_date_like heuristic); BC-2.11.003 v1.7 form 1.
+/// Traces to: ADR-052 §D4 Step 2 (is_date_like heuristic); BC-2.11.003 form 1.
 #[test]
 fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_parser_emits_raw_temporal_for_date_only() {
     use crate::ast::Literal;
@@ -3296,7 +3296,7 @@ fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_parser_emits_raw_temporal_for_date_
 /// `Literal::String`. No parse error. The `'2026-06-24extra'` string is preserved as-is.
 ///
 /// Traces to: ADR-052 §D4 v1.4 near-miss guard (chrono strict parsing handles this by design);
-/// BC-2.11.003 v1.7 §Non-date-like forms.
+/// BC-2.11.003 §Non-date-like forms.
 #[test]
 fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_near_miss_trailing_chars_stays_utf8() {
     use crate::ast::Literal;
@@ -3351,10 +3351,10 @@ fn build_deep_not_predicate(depth: u32) -> Predicate {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// A. BC-2.11.003 v1.4 — Denylist expansion tests (E-QUERY-002)
+// A. BC-2.11.003 — Denylist expansion tests (E-QUERY-002)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// BC-2.11.003 v1.4: MERGE INTO rejected with E-QUERY-002 (DML denylist).
+/// BC-2.11.003: MERGE INTO rejected with E-QUERY-002 (DML denylist).
 ///
 /// Traces: BC-2.11.003 §Denied SQL Statement Prefixes, DML category
 #[test]
@@ -3370,7 +3370,7 @@ fn test_BC_2_11_003_denylist_dml_merge_rejected() {
     );
 }
 
-/// BC-2.11.003 v1.4: REPLACE rejected with E-QUERY-002 (DML denylist).
+/// BC-2.11.003: REPLACE rejected with E-QUERY-002 (DML denylist).
 ///
 /// Traces: BC-2.11.003 §Denied SQL Statement Prefixes, DML category
 #[test]
@@ -3384,7 +3384,7 @@ fn test_BC_2_11_003_denylist_dml_replace_rejected() {
     );
 }
 
-/// BC-2.11.003 v1.4: RENAME rejected with E-QUERY-002 (DDL denylist).
+/// BC-2.11.003: RENAME rejected with E-QUERY-002 (DDL denylist).
 ///
 /// Traces: BC-2.11.003 §Denied SQL Statement Prefixes, DDL category
 #[test]
@@ -3398,7 +3398,7 @@ fn test_BC_2_11_003_denylist_ddl_rename_rejected() {
     );
 }
 
-/// BC-2.11.003 v1.4: COMMIT rejected with E-QUERY-002 (TCL denylist).
+/// BC-2.11.003: COMMIT rejected with E-QUERY-002 (TCL denylist).
 ///
 /// Traces: BC-2.11.003 §Denied SQL Statement Prefixes, TCL category
 #[test]
@@ -3412,7 +3412,7 @@ fn test_BC_2_11_003_denylist_tcl_commit_rejected() {
     );
 }
 
-/// BC-2.11.003 v1.4: ROLLBACK rejected with E-QUERY-002 (TCL denylist).
+/// BC-2.11.003: ROLLBACK rejected with E-QUERY-002 (TCL denylist).
 ///
 /// Traces: BC-2.11.003 §Denied SQL Statement Prefixes, TCL category
 #[test]
@@ -3426,7 +3426,7 @@ fn test_BC_2_11_003_denylist_tcl_rollback_rejected() {
     );
 }
 
-/// BC-2.11.003 v1.4: GRANT rejected with E-QUERY-002 (DCL denylist).
+/// BC-2.11.003: GRANT rejected with E-QUERY-002 (DCL denylist).
 ///
 /// Traces: BC-2.11.003 §Denied SQL Statement Prefixes, DCL category
 #[test]
@@ -3440,7 +3440,7 @@ fn test_BC_2_11_003_denylist_dcl_grant_rejected() {
     );
 }
 
-/// BC-2.11.003 v1.4: CALL rejected with E-QUERY-002 (procedural denylist).
+/// BC-2.11.003: CALL rejected with E-QUERY-002 (procedural denylist).
 ///
 /// Traces: BC-2.11.003 §Denied SQL Statement Prefixes, Procedural category
 #[test]
@@ -3454,7 +3454,7 @@ fn test_BC_2_11_003_denylist_proc_call_rejected() {
     );
 }
 
-/// BC-2.11.003 v1.4: VACUUM rejected with E-QUERY-002 (diagnostic/utility denylist).
+/// BC-2.11.003: VACUUM rejected with E-QUERY-002 (diagnostic/utility denylist).
 ///
 /// Traces: BC-2.11.003 §Denied SQL Statement Prefixes, Diagnostic/utility category
 #[test]
@@ -3468,7 +3468,7 @@ fn test_BC_2_11_003_denylist_diag_vacuum_rejected() {
     );
 }
 
-/// BC-2.11.003 v1.4: PRAGMA rejected with E-QUERY-002 (vendor denylist).
+/// BC-2.11.003: PRAGMA rejected with E-QUERY-002 (vendor denylist).
 ///
 /// Traces: BC-2.11.003 §Denied SQL Statement Prefixes, Vendor category
 #[test]
@@ -3482,7 +3482,7 @@ fn test_BC_2_11_003_denylist_vendor_pragma_rejected() {
     );
 }
 
-/// BC-2.11.003 v1.4: full-token match — INSERTED_AT identifier must NOT be rejected.
+/// BC-2.11.003: full-token match — INSERTED_AT identifier must NOT be rejected.
 ///
 /// Semantics: match is on the full first token, not a substring.
 /// `SELECT inserted_at FROM events` must succeed (INSERTED_AT is not the INSERT keyword).
@@ -3498,7 +3498,7 @@ fn test_BC_2_11_003_denylist_full_token_match_inserted_at_identifier_NOT_rejecte
     );
 }
 
-/// BC-2.11.003 v1.4: leading whitespace normalized before denylist match.
+/// BC-2.11.003: leading whitespace normalized before denylist match.
 ///
 /// `   \n  INSERT INTO events VALUES (1)` must be caught despite leading whitespace.
 ///
@@ -3515,11 +3515,11 @@ fn test_BC_2_11_003_denylist_leading_whitespace_normalized() {
     );
 }
 
-/// BC-2.11.003 v1.4 update (S-3.06): INSERT was previously rejected with E-QUERY-002.
+/// BC-2.11.003 update (S-3.06): INSERT was previously rejected with E-QUERY-002.
 /// S-3.06 routes INSERT to the DML parser; INSERT INTO ... VALUES is not a valid
 /// DML form (must be INSERT INTO ... SELECT), so the DML parser returns a parse error.
 ///
-/// Traces: BC-2.11.003 v1.4, S-3.06 DML routing
+/// Traces: BC-2.11.003, S-3.06 DML routing
 #[test]
 fn test_BC_2_11_003_insert_rejected_uses_e_query_002() {
     // INSERT INTO ... VALUES (not SELECT) is not a valid PrismQL DML form.
@@ -3532,11 +3532,11 @@ fn test_BC_2_11_003_insert_rejected_uses_e_query_002() {
     );
 }
 
-/// BC-2.11.003 v1.4 update (S-3.06): UPDATE without WHERE was previously rejected
+/// BC-2.11.003 update (S-3.06): UPDATE without WHERE was previously rejected
 /// with E-QUERY-002. S-3.06 routes UPDATE to the DML parser which now emits
 /// E-QUERY-022 (unbounded write — no WHERE clause).
 ///
-/// Traces: BC-2.11.003 v1.4, S-3.06 DML routing, BC-2.11.004 §INV-UNBOUNDED-WRITE-REJECTED
+/// Traces: BC-2.11.003, S-3.06 DML routing, BC-2.11.004 §INV-UNBOUNDED-WRITE-REJECTED
 #[test]
 fn test_BC_2_11_003_update_rejected_uses_e_query_002() {
     let result = PrismQlParser::parse("UPDATE events SET x = 1");
