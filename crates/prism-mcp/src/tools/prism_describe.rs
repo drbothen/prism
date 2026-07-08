@@ -344,10 +344,10 @@ fn build_tables_for_client(
                         // AI agents build valid `FROM crowdstrike_alerts | ...` queries, NOT
                         // bare `FROM alerts | ...` (which silently routes to E-SENSOR-030).
                         let prefixed_name = format!("{}_{}", sensor_id.as_ref(), table.table_name);
-                        // BC-2.10.012 F-MED-002: use build_example_note to populate
+                        // BC-2.10.012 F-MED-002: use build_example_with_note to populate
                         // both example_query (pure PQL) and example_note (OCSF casing hint).
                         let (example_query, example_note) =
-                            build_example_note(&prefixed_name, &columns);
+                            build_example_with_note(&prefixed_name, &columns);
                         // BC-2.10.012 sensor_type fix: derive from the sensor identity
                         // (sensor_id from the resolved spec), NOT from client_id.
                         TableDescriptor {
@@ -400,9 +400,9 @@ fn build_tables_for_client(
             // BC-2.10.012 AUDIT-001: table name must be sensor-prefixed so that AI agents
             // build valid `FROM crowdstrike_alerts | ...` queries (not bare `FROM alerts`).
             let prefixed_name = format!("{}_{}", sensor_spec.sensor_id, table.table_name);
-            // BC-2.10.012 F-MED-002: use build_example_note to populate both
+            // BC-2.10.012 F-MED-002: use build_example_with_note to populate both
             // example_query (pure PQL) and example_note (OCSF casing hint).
-            let (example_query, example_note) = build_example_note(&prefixed_name, &columns);
+            let (example_query, example_note) = build_example_with_note(&prefixed_name, &columns);
 
             TableDescriptor {
                 name: prefixed_name,
@@ -599,10 +599,10 @@ fn build_enrichment_hint(
 ///
 /// BC-2.10.012 note: returns pure PQL with NO `--` comment lines. The OCSF
 /// casing note (previously embedded as a leading `-- ...` comment) moved to
-/// `build_example_note` (F-MED-002, LOCAL adversary pass-15). Use
-/// `build_example_note` when both the query and the note are needed.
+/// `build_example_with_note` (F-MED-002, LOCAL adversary pass-15). Use
+/// `build_example_with_note` when both the query and the note are needed.
 pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> String {
-    build_example_note(table_name, columns).0
+    build_example_with_note(table_name, columns).0
 }
 
 /// Build an auto-generated example PQL query AND an optional contextual note.
@@ -617,7 +617,7 @@ pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> St
 ///
 /// BC-2.10.012 §example_query + §example_note; F-MED-002 LOCAL adversary pass-15.
 /// OBS-2 (LOCAL pass-18): gate changed from sensor-prefix allowlist to column-presence.
-pub fn build_example_note(
+pub fn build_example_with_note(
     table_name: &str,
     columns: &[ColumnDescriptor],
 ) -> (String, Option<String>) {
@@ -699,7 +699,7 @@ pub fn build_example_note(
 
 #[cfg(test)]
 mod build_example_query_tests {
-    use super::{build_example_note, build_example_query, ColumnDescriptor};
+    use super::{build_example_query, build_example_with_note, ColumnDescriptor};
     use prism_core::column::ColumnType;
 
     fn col(name: &str, col_type: ColumnType) -> ColumnDescriptor {
@@ -806,9 +806,9 @@ mod build_example_query_tests {
             col("severity", ColumnType::String),
         ];
 
-        // F-MED-002 (LOCAL pass-15): use build_example_note to access example_note separately.
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note to access example_note separately.
         // example_query is now pure PQL; OCSF casing note is in example_note (BC-2.10.012).
-        let (q, note) = build_example_note("crowdstrike_detections", &columns);
+        let (q, note) = build_example_with_note("crowdstrike_detections", &columns);
 
         // F-P6-HIGH-001: AC-025 requires IEQ for ANY table with a severity column —
         // secondary position is no longer an exception.
@@ -889,8 +889,8 @@ mod build_example_query_tests {
             col("status", ColumnType::String),
         ];
 
-        // F-MED-002 (LOCAL pass-15): use build_example_note; OCSF note is now in example_note.
-        let (q, note) = build_example_note("crowdstrike_detections", &columns);
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note; OCSF note is now in example_note.
+        let (q, note) = build_example_with_note("crowdstrike_detections", &columns);
 
         // Post-normalization contract: all severity values stored as Title-case.
         // Describe example must use IEQ so the analyst can match case-insensitively.
@@ -931,8 +931,8 @@ mod build_example_query_tests {
             col("status", ColumnType::String),
         ];
 
-        // F-MED-002 (LOCAL pass-15): use build_example_note; OCSF note is now in example_note.
-        let (q, note) = build_example_note("armis_alerts", &columns);
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note; OCSF note is now in example_note.
+        let (q, note) = build_example_with_note("armis_alerts", &columns);
 
         // Post-normalization contract: use IEQ (case-insensitive), not IN with vendor casing.
         assert!(
@@ -975,7 +975,7 @@ mod build_example_query_tests {
             col("severity", ColumnType::String),
         ];
 
-        let (q, note) = build_example_note("unknown_sensor_events", &columns);
+        let (q, note) = build_example_with_note("unknown_sensor_events", &columns);
 
         // OBS-2: column-presence gate fires — IEQ form, not count-recent.
         assert!(
@@ -1042,8 +1042,8 @@ mod build_example_query_tests {
             col("title", ColumnType::String),
         ];
 
-        // F-MED-002 (LOCAL pass-15): use build_example_note; OCSF note is now in example_note.
-        let (q, note) = build_example_note("cyberint_alerts", &columns);
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note; OCSF note is now in example_note.
+        let (q, note) = build_example_with_note("cyberint_alerts", &columns);
 
         // Post-normalization contract: cyberint severity is normalized to Title-case.
         // Describe example must use IEQ to be correct post-normalization.
@@ -1095,8 +1095,8 @@ mod build_example_query_tests {
             col("severity_id", ColumnType::Integer),
         ];
 
-        // F-MED-002 (LOCAL pass-15): use build_example_note; OCSF note is now in example_note.
-        let (q, note) = build_example_note("cyberint_alerts", &columns);
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note; OCSF note is now in example_note.
+        let (q, note) = build_example_with_note("cyberint_alerts", &columns);
 
         // F-MED-1 (LOCAL pass-7): severity-vocabulary IEQ wins over aggregate.
         // cyberint is in SENSOR_SEVERITY_VOCABULARY → IEQ fires first.
@@ -1322,8 +1322,8 @@ mod build_example_query_tests {
             col("severity", ColumnType::String),
             col("timestamp", ColumnType::Datetime),
         ];
-        // F-MED-002 (LOCAL pass-15): use build_example_note; OCSF note is now in example_note.
-        let (q, note) = build_example_note("crowdstrike_detections", &columns);
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note; OCSF note is now in example_note.
+        let (q, note) = build_example_with_note("crowdstrike_detections", &columns);
         assert!(
             q.contains("IEQ"),
             "AC-025 (F-HIGH-001): build_example_query for a severity-column table must include \
@@ -1381,8 +1381,8 @@ mod build_example_query_tests {
                 col("severity", ColumnType::String),
                 col("status", ColumnType::String),
             ];
-            // F-MED-002 (LOCAL pass-15): use build_example_note; note is now in example_note.
-            let (q, note) = build_example_note("armis_alerts", &columns);
+            // F-MED-002 (LOCAL pass-15): use build_example_with_note; note is now in example_note.
+            let (q, note) = build_example_with_note("armis_alerts", &columns);
 
             // FAILS NOW: severity_is_primary = false → `IN ('HIGH', 'CRITICAL')` emitted.
             assert!(
@@ -1409,8 +1409,8 @@ mod build_example_query_tests {
                 col("severity", ColumnType::String),
                 col("title", ColumnType::String),
             ];
-            // F-MED-002 (LOCAL pass-15): use build_example_note; note is now in example_note.
-            let (q, note) = build_example_note("cyberint_alerts", &columns);
+            // F-MED-002 (LOCAL pass-15): use build_example_with_note; note is now in example_note.
+            let (q, note) = build_example_with_note("cyberint_alerts", &columns);
 
             // FAILS NOW: severity_is_primary = false → `IN ('high', 'critical')` emitted.
             assert!(
@@ -1607,8 +1607,8 @@ mod build_example_query_tests {
             col("severity", ColumnType::String),
             col("priority", ColumnType::Integer),
         ];
-        // F-MED-002 (LOCAL pass-15): use build_example_note; OCSF note is now in example_note.
-        let (q, note) = build_example_note("crowdstrike_detections", &columns);
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note; OCSF note is now in example_note.
+        let (q, note) = build_example_with_note("crowdstrike_detections", &columns);
 
         // F-MED-1 RED Gate: currently FAILS because aggregate overrides IEQ.
         assert!(
@@ -1922,14 +1922,14 @@ mod build_example_query_tests {
     // F-MED-002 (3/3): `example_note` field on `TableDescriptor`.
     //
     // BC-2.10.012 adds `example_note: Option<String>` to `TableDescriptor`.
-    // `build_example_query` (or a companion `build_example_note(table_name, columns)`)
+    // `build_example_query` (or a companion `build_example_with_note(table_name, columns)`)
     // must return:
     //   - `Some("OCSF severity is stored as Title-case ('High'). Use IEQ/IIN to match
     //      regardless of the case you type, or = 'High' for the exact canonical form.")`
     //     for severity-vocabulary tables  [BC-2.10.012 canonical, pass-17 F-MED-1]
     //   - `None` for all other tables (column-free, count-recent, aggregate shapes)
     //
-    // PASS-15: activated — build_example_note + example_note field added (F-MED-002).
+    // PASS-15: activated — build_example_with_note + example_note field added (F-MED-002).
     // PASS-17: canonical note text updated to ADR-047-authoritative fuller form (F-MED-1).
     #[test]
     fn test_BC_2_10_012_example_note_some_for_severity_tables_none_otherwise() {
@@ -1944,7 +1944,7 @@ mod build_example_query_tests {
             col("created_timestamp", ColumnType::Datetime),
             col("severity", ColumnType::String),
         ];
-        let (sev_q, sev_note) = build_example_note("crowdstrike_detections", &sev_cols);
+        let (sev_q, sev_note) = build_example_with_note("crowdstrike_detections", &sev_cols);
         assert_eq!(
             sev_note,
             Some(OCSF_NOTE.to_string()),
@@ -1970,7 +1970,7 @@ mod build_example_query_tests {
             col("device_category", ColumnType::String),
             col("retired", ColumnType::Boolean),
         ];
-        let (_non_q, non_note) = build_example_note("claroty_devices", &non_sev_cols);
+        let (_non_q, non_note) = build_example_with_note("claroty_devices", &non_sev_cols);
         assert_eq!(
             non_note, None,
             "F-MED-002: non-severity table must produce example_note = None; \
@@ -1981,30 +1981,30 @@ mod build_example_query_tests {
     // ─── RG-062 (pass-17 F-LOW-2) ─────────────────────────────────────────────
     //
     // Story S-PRISMQL-CASE-INSENSITIVE-001 RG-062 requires a dedicated test that
-    // verifies ALL `build_example_note` query outputs (the `.0` tuple element) parse
+    // verifies ALL `build_example_with_note` query outputs (the `.0` tuple element) parse
     // RAW via PrismQlParser with NO comment-stripping preprocessing.
     //
-    // `build_example_query` delegates to `build_example_note(...).0`, so the two
+    // `build_example_query` delegates to `build_example_with_note(...).0`, so the two
     // functions produce identical query strings.  This test is the canonical RG-062
-    // anchor that explicitly calls `build_example_note` to confirm the split function
+    // anchor that explicitly calls `build_example_with_note` to confirm the split function
     // satisfies BC-2.10.012 pure-PQL invariant for all table shapes.
 
     /// RG-062 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-17 F-LOW-2):
-    /// ALL `build_example_note` query outputs (tuple `.0`) parse RAW via
+    /// ALL `build_example_with_note` query outputs (tuple `.0`) parse RAW via
     /// `PrismQlParser` with NO stripping — confirming pure-PQL invariant
-    /// for the split `build_example_note` function.
+    /// for the split `build_example_with_note` function.
     ///
     /// This is the RG-062 canonical anchor.  The companion test
     /// `test_BC_2_10_012_example_query_parses_without_stripping` covers
     /// `build_example_query` (the thin wrapper); this test covers
-    /// `build_example_note` directly.
+    /// `build_example_with_note` directly.
     ///
     /// ## Traces
     ///
     /// BC-2.10.012 §Raw parseability; S-PRISMQL-CASE-INSENSITIVE-001 RG-062;
     /// LOCAL adversary pass-17 F-LOW-2.
     #[test]
-    fn test_BC_2_10_012_build_example_note_query_parses_without_stripping() {
+    fn test_BC_2_10_012_build_example_with_note_query_parses_without_stripping() {
         use prism_query::filter_parser::PrismQlParser;
 
         // Full representative set covering all four priority-ladder branches.
@@ -2053,19 +2053,19 @@ mod build_example_query_tests {
         ];
 
         for (table, columns) in &shapes {
-            let (q, _note) = build_example_note(table, columns);
+            let (q, _note) = build_example_with_note(table, columns);
             // Raw parse — no stripping. BC-2.10.012: example_query must be pure PQL.
             let result = PrismQlParser::parse(&q);
             assert!(
                 result.is_ok(),
-                "RG-062 F-LOW-2: build_example_note query for table '{table}' must parse \
+                "RG-062 F-LOW-2: build_example_with_note query for table '{table}' must parse \
                  via PrismQlParser WITHOUT stripping (BC-2.10.012 pure-PQL invariant). \
                  Got: {q:?}. Error: {result:?}"
             );
             // Also verify no '--' comment syntax leaks into the query part.
             assert!(
                 !q.contains("--"),
-                "RG-062 F-LOW-2: build_example_note query for table '{table}' MUST NOT \
+                "RG-062 F-LOW-2: build_example_with_note query for table '{table}' MUST NOT \
                  contain '--' comment syntax (pure-PQL invariant). Got: {q:?}"
             );
         }
@@ -2091,7 +2091,7 @@ mod build_example_query_tests {
             col("alert_name", ColumnType::String),
         ];
 
-        let (q, note) = build_example_note("sentinel_alerts", &columns);
+        let (q, note) = build_example_with_note("sentinel_alerts", &columns);
 
         // Column-presence gate: IEQ form fires for any severity-column table.
         assert!(
@@ -2147,7 +2147,7 @@ mod build_example_query_tests {
             col("alert_name", ColumnType::String),
         ];
 
-        let (q, note) = build_example_note("future_sensor_ordinal_severity", &columns);
+        let (q, note) = build_example_with_note("future_sensor_ordinal_severity", &columns);
 
         // Integer `severity` must NOT trigger the IEQ branch.
         // F-P20-LOW-001 RED Gate: name-only gate fires even for Integer severity → note is Some.
@@ -2190,7 +2190,7 @@ mod build_example_query_tests {
             col("retired", ColumnType::Boolean),
         ];
 
-        let (q, note) = build_example_note("claroty_devices", &columns);
+        let (q, note) = build_example_with_note("claroty_devices", &columns);
 
         // No severity column → column-presence gate does not fire → no IEQ example.
         assert!(

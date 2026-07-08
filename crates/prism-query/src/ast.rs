@@ -2075,6 +2075,20 @@ impl PqlNormalizer {
                         CompareOp::Eq => "IEQ",
                         CompareOp::Ne => "INE",
                         _ => {
+                            // CR-003 (code-review pass-1): emit tracing::warn! BEFORE
+                            // debug_assert! so this programming-error diagnostic is
+                            // observable in production (release) logs. Not registered in
+                            // BC-2.16.002 catalog — this is a programming-error diagnostic,
+                            // not a domain event. target avoids polluting the structured
+                            // event catalog (SAP-1 only applies to event_type= emissions).
+                            tracing::warn!(
+                                target: "prism_query::normalizer",
+                                op = ?op,
+                                "normalize_predicate: case_insensitive=true is only valid \
+                                 for Eq/Ne — BC-2.11.024 AST invariant violated by a \
+                                 manually-constructed predicate; falling back to IEQ \
+                                 placeholder in release build"
+                            );
                             // AST invariant: the parser only produces case_insensitive=true for
                             // Eq/Ne. A hand-built predicate with another op + ci=true violates
                             // BC-2.11.024. Panic in debug builds to catch it early; fall back

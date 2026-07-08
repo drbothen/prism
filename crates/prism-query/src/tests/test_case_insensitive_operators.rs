@@ -3149,3 +3149,54 @@ fn test_BC_2_11_024_compound_violation_string_literal_precedence() {
          string-literal rejection takes precedence per AC-023); got: {all_msgs:?}"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CR-003 — normalize_predicate invalid CI op emits tracing::warn! before fallback
+// (code-review pass-1, fix-burst S-PRISMQL-CASE-INSENSITIVE-001)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// CR-003: `PqlNormalizer::normalize_predicate_pub` for a manually-constructed
+/// `Predicate::Compare` with `case_insensitive=true` and a non-Eq/Ne op MUST emit
+/// a `tracing::warn!` citing "BC-2.11.024" before falling through to the "IEQ"
+/// placeholder.
+///
+/// In debug builds `debug_assert!(false)` fires immediately after the warn;
+/// `catch_unwind` absorbs that panic so the log check still runs.
+/// In release builds no panic occurs and the warn is the only observable event.
+///
+/// RED GATE (current HEAD): FAILS — no `tracing::warn!` is emitted before
+/// `debug_assert!`; `logs_contain("BC-2.11.024")` returns false → assertion fails.
+///
+/// GREEN GATE: PASSES after CR-003 adds `tracing::warn!(... "BC-2.11.024 ...")` to
+/// the `_ =>` fallback arm of `normalize_predicate` in `ast.rs`.
+///
+/// Traces to: BC-2.11.024 (AST invariant); CR-003 code-review finding.
+/// Not registered in BC-2.16.002 catalog — this is a programming-error diagnostic,
+/// not a domain event (per CR-003 report).
+#[test]
+#[tracing_test::traced_test]
+fn test_cr003_normalize_predicate_invalid_ci_op_emits_warn() {
+    use std::panic::AssertUnwindSafe;
+    // Manually construct an invalid predicate: case_insensitive=true + non-Eq/Ne op.
+    // The PrismQL parser never produces this combination; only hand-built predicates
+    // can reach the _ fallback arm of normalize_predicate (BC-2.11.024 AST invariant).
+    let pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+        op: CompareOp::Gt, // invalid: only Eq/Ne are valid for case_insensitive=true
+        rhs: Box::new(Expr::Literal(Literal::Integer(42))),
+        case_insensitive: true,
+    };
+    // In debug builds, debug_assert!(false) fires AFTER the warn — absorb the panic.
+    // The warn must fire BEFORE debug_assert! so this pattern always captures it.
+    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        PqlNormalizer::normalize_predicate_pub(&pred)
+    }));
+    assert!(
+        logs_contain("BC-2.11.024"),
+        "CR-003: normalize_predicate with case_insensitive=true + non-Eq/Ne op \
+         must emit tracing::warn! citing 'BC-2.11.024' before the debug_assert! \
+         fallback; no such log found. \
+         Fix: add tracing::warn!(...\"BC-2.11.024...\") before debug_assert!(false) \
+         in the _ arm of normalize_predicate in ast.rs"
+    );
+}

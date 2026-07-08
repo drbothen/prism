@@ -1055,7 +1055,10 @@ fn build_column_array(
                                 // 50 codepoints so unbounded strings from untrusted sensor
                                 // data cannot flood logs. Consistent with E-QUERY-041/042
                                 // value_prefix convention.
-                                value = %s.chars().take(50).collect::<String>(),
+                                // CR-004 / SEC-001 (CWE-117): strip ASCII control chars
+                                // before truncation so newlines / escape sequences from
+                                // adversarial sensor data cannot inject multi-line log entries.
+                                value = %prism_core::sanitize_for_log(&s.chars().take(50).collect::<String>()),
                                 error = %e,
                                 "ADR-052: datetime string not parseable as RFC-3339 UTC; \
                                  cell produced null (sensor data should be RFC-3339)"
@@ -1106,8 +1109,12 @@ fn build_column_array(
                                         tracing::warn!(
                                             event_type = "ocsf.enum_label_unrecognized",
                                             field_name = %col.name,
-                                            value = %s.chars().take(50).collect::<String>(),
-                                            sensor_type = %sensor_id.chars().take(50).collect::<String>(),
+                                            // CR-004 / SEC-001 (CWE-117): sanitize_for_log strips
+                                            // ASCII control chars (0x00–0x1F, 0x7F) before the
+                                            // 50-codepoint cap to prevent log injection from
+                                            // adversarial sensor enum-label values.
+                                            value = %prism_core::sanitize_for_log(&s.chars().take(50).collect::<String>()),
+                                            sensor_type = %prism_core::sanitize_for_log(&sensor_id.chars().take(50).collect::<String>()),
                                             "build_column_array: OCSF enum-label value not \
                                              recognized; emitting as-received \
                                              (BC-2.02.013 F-CRIT-002)"
@@ -2664,6 +2671,101 @@ mod tests {
              SECONDARY path). \
              Captured event_type-bearing WARN events: {:?}",
             *warns
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // CR-004 / SEC-001 — CWE-117 control-char sanitization at PRIMARY emission site
+    // (code-review pass-1, fix-burst S-PRISMQL-CASE-INSENSITIVE-001)
+    // ---------------------------------------------------------------------------
+
+    /// CR-004 / SEC-001 (CWE-117) — PRIMARY `ocsf.enum_label_unrecognized` warn:
+    ///
+    /// When `build_column_array` emits `ocsf.enum_label_unrecognized` for an
+    /// unrecognized enum-label value that contains a newline control character,
+    /// the logged `value` field MUST have the control char stripped before emission.
+    ///
+    /// RED GATE (current HEAD): FAILS — `.chars().take(50).collect::<String>()`
+    /// truncates but does NOT strip control chars; `\n` survives into the log.
+    /// GREEN GATE: PASSES after CR-004 applies `prism_core::sanitize_for_log` (which
+    /// strips ASCII control chars 0x00–0x1F and 0x7F) before the 50-codepoint cap.
+    ///
+    /// Traces to: CR-004/SEC-001 CWE-117; BC-2.16.002 catalog row 91 field-schema
+    /// amendment (control-char sanitization note); BC-2.02.013 F-CRIT-002 error case.
+    #[test]
+    fn test_cr004_build_column_array_enum_label_warn_strips_control_chars() {
+        use std::sync::Mutex;
+        use tracing_subscriber::layer::SubscriberExt;
+
+        // Minimal capture: only the `value` field from ocsf.enum_label_unrecognized.
+        #[derive(Default)]
+        struct ValueOnlyVisitor {
+            value: Option<String>,
+        }
+        impl tracing::field::Visit for ValueOnlyVisitor {
+            fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
+                if field.name() == "value" {
+                    self.value = Some(val.to_owned());
+                }
+            }
+            fn record_debug(&mut self, field: &tracing::field::Field, val: &dyn std::fmt::Debug) {
+                if field.name() == "value" && self.value.is_none() {
+                    self.value = Some(format!("{val:?}"));
+                }
+            }
+        }
+
+        struct WarnValueCapture {
+            captured_value: Arc<Mutex<Option<String>>>,
+        }
+        impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnValueCapture {
+            fn on_event(
+                &self,
+                event: &tracing::Event<'_>,
+                _ctx: tracing_subscriber::layer::Context<'_, S>,
+            ) {
+                if *event.metadata().level() == tracing::Level::WARN {
+                    let mut visitor = ValueOnlyVisitor::default();
+                    event.record(&mut visitor);
+                    if let Some(v) = visitor.value {
+                        *self.captured_value.lock().unwrap() = Some(v);
+                    }
+                }
+            }
+        }
+
+        let captured_value: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+        let layer = WarnValueCapture {
+            captured_value: captured_value.clone(),
+        };
+        let subscriber = tracing_subscriber::registry().with(layer);
+
+        // "VENDOR\nINJECT" — unrecognized label with embedded newline control char.
+        // normalize_enum_label("severity", "VENDOR\nINJECT") returns None → warn fires.
+        let records = vec![json!({"severity": "VENDOR\nINJECT"})];
+        let col = ColumnSpec::new("severity", ColumnType::String, None, vec![]);
+
+        tracing::subscriber::with_default(subscriber, || {
+            let _ = build_column_array(&records, &col, "crowdstrike");
+        });
+
+        let val = captured_value.lock().unwrap().clone().expect(
+            "CR-004: ocsf.enum_label_unrecognized warn must be emitted for \
+                 unrecognized 'VENDOR\\nINJECT'; check that the warn fires",
+        );
+
+        assert!(
+            !val.contains('\n'),
+            "CR-004 / SEC-001 (CWE-117): `value` field in ocsf.enum_label_unrecognized \
+             warn must have control chars stripped (sanitize_for_log applied before \
+             50-codepoint truncation); found '\\n' in captured value: {:?}",
+            val
+        );
+        assert!(
+            !val.contains('\r'),
+            "CR-004 / SEC-001 (CWE-117): `value` field must have \\r stripped; \
+             got: {:?}",
+            val
         );
     }
 }
