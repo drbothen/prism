@@ -1467,7 +1467,7 @@ pub fn build_reference_content(
          | `=` | Equality | `severity = 'High'` |\n\
          | `!=` | Inequality | `status != 'closed'` |\n\
          | `>`, `>=`, `<`, `<=` | Comparison | `risk_score > 50` |\n\
-         | `IN` | Set membership | `status IN ('open', 'new')` |\n\
+         | `IN` | Set membership | `client_id IN ('acme','globex')` |\n\
          | `BETWEEN` | Range (inclusive) | `score BETWEEN 50 AND 90` |\n\
          | `CONTAINS` | Substring match (case-sensitive) | `hostname CONTAINS 'prod'` |\n\
          | `ICONTAINS` | Substring match (case-insensitive) | `hostname ICONTAINS 'prod'` |\n\
