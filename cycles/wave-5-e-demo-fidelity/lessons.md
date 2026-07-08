@@ -2466,3 +2466,23 @@ BC coverage/postcondition columns MUST use stative/directive language, not tempo
 **Note:** This is a justified-deferred codification follow-up per Canonical Principle Rule 3 (S-7.02 checklist). The codification work (TD-VSDD-091 extension or new POL rule) requires session-reviewer adjudication. It does NOT block the S-PRISMQL-CASE-INSENSITIVE-001 LOCAL cascade.
 
 **Source:** D-1595 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-28 OBS-P28-001 codification, state-manager burst, 2026-07-08).
+
+---
+
+## Observation Note — ADV-PR-P5-OBS-003: ASCII-vs-Unicode Casefold Asymmetry in `OcsfEnumMap::normalize_enum_label` (D-1605, 2026-07-08; S-PRISMQL-CASE-INSENSITIVE-001)
+
+**Finding:**
+
+PR-LEVEL adversary pass-5 on S-PRISMQL-CASE-INSENSITIVE-001 (frozen fab7df00) surfaced ADV-PR-P5-OBS-003: `OcsfEnumMap::normalize_enum_label` uses `str::to_ascii_lowercase()` to build the enum map lookup key, while DataFusion's `lower()` SQL function used in IEQ/IIN/INE query lowering applies Unicode-aware case folding. These two operations are identical for all-ASCII input but diverge for non-ASCII characters (e.g., `Σ` U+03A3 GREEK CAPITAL LETTER SIGMA lowercases to `σ` under Unicode but is unchanged by `to_ascii_lowercase()`).
+
+**Why no fix is required now:**
+
+OCSF v1.7.0 contains zero non-ASCII enum label captions. All severity, status, activity, and disposition values in the current OCSF schema are pure ASCII strings (e.g., `"High"`, `"New"`, `"Detected"`). The asymmetry is therefore purely theoretical for the currently supported OCSF version set. Switching `to_ascii_lowercase()` to `to_lowercase()` would be a behavior-neutral change for all current inputs.
+
+**Flag for future review:**
+
+If OCSF introduces non-ASCII caption strings in a future schema version (e.g., locale-specific enum labels or internationalized caption extensions), the `normalize_enum_label` lookup key construction should be audited to determine whether Unicode-aware case folding is required for correct behavior. The fix at that point would be: replace `str::to_ascii_lowercase()` with `str::to_lowercase()` in `normalize_enum_label`'s key-building step, and update any dependent test vectors that rely on the ASCII-only behavior.
+
+**Adjudication:** OBS-only; no code change required; lessons-note only.
+
+**Source:** D-1605 (S-PRISMQL-CASE-INSENSITIVE-001 PR-LEVEL pass-5 ADV-PR-P5-OBS-003 lessons note, state-manager burst, 2026-07-08).

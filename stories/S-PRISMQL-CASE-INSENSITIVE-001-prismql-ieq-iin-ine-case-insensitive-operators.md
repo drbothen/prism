@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.35"
+version: "1.36"
 updated: "2026-07-08"
 status: draft
 producer: story-writer
@@ -124,7 +124,7 @@ risk_mitigations:
      passes through the parsed operator string, it will emit lowercase if the query was
      written lowercase. The normalizer must use canonical uppercase operator names."
 traces_to: [ADR-047]
-red_gate_tests: 81
+red_gate_tests: 83
 estimated_days: "3"
 ---
 
@@ -516,7 +516,7 @@ then:
 3. The normalization does NOT fail or return an error — it is non-fatal
 4. Both the `value` and `sensor_type` fields in the warning payload MUST be capped at 50
    codepoints: if either field exceeds 50 codepoints, it MUST be truncated to the first
-   50 codepoints with no ellipsis sentinel appended (BC-2.02.013 v1.8 / BC-2.16.002 v2.05
+   50 codepoints with no ellipsis sentinel appended (BC-2.02.013 v1.8 / BC-2.16.002 v2.06
    specify a plain 50-codepoint cap on both fields — SEC-002; no `…` suffix). This applies
    to BOTH the PRIMARY (`build_column_array`) and SECONDARY (`normalize_with_mappers`) emission sites.
 
@@ -610,7 +610,7 @@ then the result is `Err(E-QUERY-002 QueryTypeMismatch)` with a Display message c
 - the suggestion: "for label comparison, use the string column 'severity' with IEQ/IIN/INE
   instead" (because `severity_id` is a known OCSF integer-id field; `PrismError::QueryTypeMismatch`
   carries `suggested_column: Some("severity")` per the OCSF sibling lookup contract in
-  error-taxonomy.md v2.19 §E-QUERY-002)
+  error-taxonomy.md v2.20 §E-QUERY-002)
 
 The full Display for this case must be:
   "E-QUERY-002: type mismatch — column 'severity_id' in table '<table>' has type 'Integer'
@@ -957,14 +957,21 @@ Pass-32 fix-burst: F-P32-MED-001 BC-2.16.002 v2.04 (SqlPipe emission arm enumera
 | RG ID | Test Function Name | Location | AC | Assertion |
 |-------|--------------------|-----------|----|-----------|
 | RG-079 | `test_rg079_secondary_sanitize_enum_label_order_spec_wins` | `crates/prism-ocsf/src/normalizer.rs` | AC-018 | sanitize-before-truncate order at SECONDARY site via load-bearing `sanitize_enum_label_for_log` helper — SECONDARY-parity proof (supersedes RG-078's parity role; ADV-PR-P1-MED-002 closure). Commits 56fb83d8+f9be96fa. |
-| RG-080 | `test_rg080_low001_build_column_array_enum_label_warn_order_of_operations` | `crates/prism-bin/src/spec_driven_adapter.rs` | AC-018 | warn-capture order-of-operations at PRIMARY site — extended with `sensor_type` field mirror (WarnFieldVisitor/WarnFieldCapture rename): 65-codepoint ESC "B" control-char vector confirms sanitize fires BEFORE the 50-codepoint truncate cap for BOTH `value` and `sensor_type` fields, with 3 mirrored assertions (BC-2.16.002 v2.05 row 91 symmetry). Closures: ADV-PR-P1-LOW-001 + ADV-PR-P3-OBS-001. Commits 56fb83d8+f9be96fa+fab7df00. |
+| RG-080 | `test_rg080_low001_build_column_array_enum_label_warn_order_of_operations` | `crates/prism-bin/src/spec_driven_adapter.rs` | AC-018 | warn-capture order-of-operations at PRIMARY site — extended with `sensor_type` field mirror (WarnFieldVisitor/WarnFieldCapture rename): 65-codepoint ESC "B" control-char vector confirms sanitize fires BEFORE the 50-codepoint truncate cap for BOTH `value` and `sensor_type` fields, with 3 mirrored assertions (BC-2.16.002 v2.06 row 91 symmetry). Closures: ADV-PR-P1-LOW-001 + ADV-PR-P3-OBS-001. Commits 56fb83d8+f9be96fa+fab7df00. |
 | RG-081 | `test_rg081_obs002_suggested_suffix_display_some_and_none` | `crates/prism-core/src/error.rs` | AC-022 | SuggestedSuffix Display direct lock — asserts both `Some("use column 'X' instead")` and `None` (no-suffix) arms produce the exact expected Display strings (ADV-PR-P1-OBS-002 closure). Commits 56fb83d8+f9be96fa. |
 
-RG-028 through RG-081 names are authoritative per verified ground truth.
+**PR-LEVEL pass-5 fix-burst tests (ADV-PR-P5-OBS-001→MED/OBS-002, commit 36a094d6):**
 
-**Total Red Gate tests: 81 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18 + 2 pass-20 + 1 pass-21 + 1 pass-24 + 4 pre-PR-LEVEL-fix-burst + 3 PR-LEVEL-pass-1-fix-burst)**
+| RG ID | Test Function Name | Location | AC | Assertion |
+|-------|--------------------|-----------|----|-----------|
+| RG-082 | `test_sanitize_for_log_strips_unicode_cc_and_line_separators` | `crates/prism-core/src/error.rs` | AC-018 | Unicode Cc (U+0085 NEL, U+009B CSI) + U+2028/U+2029 stripped; "HÍGH" preserved (CWE-117 scope widening per BC-2.16.002 v2.06) |
+| RG-083 | `test_check_ci_column_types_schema_provider_err_propagates` | `crates/prism-query/src/materialization.rs` (check_ci_column_types_guard_tests) | AC-022 | mock ErrSchemaProvider: schema lookup Err propagates as E-QUERY-034 QueryExecutionFailed instead of silently bypassing the AC-022 pre-flight |
 
-The story frontmatter records `red_gate_tests: 81` (updated from 78 at v1.34 for RG-079..081). RG-026/RG-027 discoverability tests may be
+RG-028 through RG-083 names are authoritative per verified ground truth.
+
+**Total Red Gate tests: 83 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18 + 2 pass-20 + 1 pass-21 + 1 pass-24 + 4 pre-PR-LEVEL-fix-burst + 3 PR-LEVEL-pass-1-fix-burst + 2 PR-LEVEL-pass-5-fix-burst)**
+
+The story frontmatter records `red_gate_tests: 83` (updated from 81 at v1.36 for RG-082..083). RG-026/RG-027 discoverability tests may be
 snapshot or integration tests; include them if they can be written as failing stubs, otherwise
 verify the parity gate via `just check`. RG-028 is the authoritative describe test. RG-032
 through RG-036 are the PRIMARY build_column_array tests in prism-bin.
@@ -1470,7 +1477,7 @@ E (Adapter normalization) is parallel to A-D.
     just iter prism-mcp         # describe authoritative test (RG-028)
     just check                  # full workspace pre-push gate
     ```
-    All 81 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18 + 2 pass-20 + 1 pass-21 + 1 pass-24 + 4 pre-PR-LEVEL-fix-burst + 3 PR-LEVEL-pass-1-fix-burst).
+    All 83 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18 + 2 pass-20 + 1 pass-21 + 1 pass-24 + 4 pre-PR-LEVEL-fix-burst + 3 PR-LEVEL-pass-1-fix-burst + 2 PR-LEVEL-pass-5-fix-burst).
     All existing tests must continue to pass (especially existing =, != filter tests — regression
     guard for AC-011/AC-013).
 
@@ -1665,6 +1672,7 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.36 | 2026-07-08 | PR-LEVEL pass-5 fix-burst @36a094d6 — ADV-PR-P5-OBS-001 security-upgraded to MED (CWE-117 C1 control gap): sanitize_for_log widened to `!is_control() && != U+2028/U+2029` (BC-2.16.002 v2.06 + error-taxonomy v2.20 + 9-site comment sweep); RG-082 (`test_sanitize_for_log_strips_unicode_cc_and_line_separators`, prism-core/src/error.rs). ADV-PR-P5-OBS-002: check_ci_column_types Err-swallow fixed (explicit 3-arm match; Err → QueryExecutionFailed redacted-detail; server-side tracing::error! bare, no event_type); RG-083 (`test_check_ci_column_types_schema_provider_err_propagates`, prism-query/src/materialization.rs). ADV-PR-P5-OBS-003: academic ASCII/Unicode casefold asymmetry → lessons.md note only. RGT 81→83. BC-2.16.002 v2.05→v2.06 pin propagation (2 live sites: AC-018, RG-080 row). error-taxonomy v2.19→v2.20 pin propagation (1 live site: AC-022). |
 | v1.35 | 2026-07-08 | PR-LEVEL pass-3 OBS closure @fab7df00 — OBS-001: RG-080 extended with `sensor_type` order mirror (WarnFieldVisitor/WarnFieldCapture rename; 65-codepoint ESC "B" vector; 3 mirrored assertions; BC-2.16.002 v2.05 row 91 symmetry); OBS-002: evidence report provenance made durable (code-behavior HEAD phrasing). RGT count unchanged at 81. No BC changes. |
 | v1.34 | 2026-07-08 | PR-LEVEL pass-1 fix-burst @56fb83d8+f9be96fa+1172b15a — ADV-PR-P1-MED-001: sanitize-before-truncate order corrected at 5 `ocsf.enum_label_unrecognized` warn sites + 2 comment sites (code brought TO BC-2.16.002 v2.05 spec; `infusion_udf.rs` truncate-first verified INTENTIONAL per its own catalog row — no change there); ADV-PR-P1-MED-002: RG-078 paper-fix superseded by RG-079 (`test_rg079_secondary_sanitize_enum_label_order_spec_wins` — load-bearing `sanitize_enum_label_for_log` helper call at SECONDARY site); ADV-PR-P1-LOW-001: RG-080 (`test_rg080_low001_build_column_array_enum_label_warn_order_of_operations` — PRIMARY site order-of-ops, 65-codepoint control-char vector); ADV-PR-P1-LOW-002: evidence report synced to f9be96fa; ADV-PR-P1-OBS-002: RG-081 (`test_rg081_obs002_suggested_suffix_display_some_and_none` — SuggestedSuffix Display lock Some/None); ADV-PR-P1-OBS-001 informational, no artifact change. RGT 78→81. No BC version changes. |
 | v1.33 | 2026-07-08 | Pre-PR-LEVEL fix-burst @54c89898: CR-002 canonical-label write guard (`normalize_enum_label` returns `Some` when already canonical; RG-075); CR-003 tracing::warn before IEQ placeholder fallback on invalid case_insensitive+non-Eq/Ne combination (RG-076); CR-004/SEC-001 CWE-117 `sanitize_for_log` at PRIMARY `ocsf.enum_label_unrecognized` site in `build_column_array` (RG-077) and SECONDARY `normalize_with_mappers` site (RG-078); CR-005 `build_example_note`→`build_example_with_note` rename (96 refs); CR-001 refuted (segments.last() correct for flat Arrow schemas — no change). RGT 74→78. BC-2.16.002 v2.04→v2.05 at live AC-018 site (1 pin site; catalog row 91 value/sensor_type descriptions updated for CWE-117 stripping). |
