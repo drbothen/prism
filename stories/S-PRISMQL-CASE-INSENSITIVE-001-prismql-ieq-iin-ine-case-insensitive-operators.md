@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.27"
+version: "1.28"
 updated: "2026-07-07"
 status: draft
 producer: story-writer
@@ -124,7 +124,7 @@ risk_mitigations:
      passes through the parsed operator string, it will emit lowercase if the query was
      written lowercase. The normalizer must use canonical uppercase operator names."
 traces_to: [ADR-047]
-red_gate_tests: 73
+red_gate_tests: 74
 estimated_days: "3"
 ---
 
@@ -925,11 +925,21 @@ strengthened in place. (D-1589 carry-forward)
 |-------|--------------------|----------|----|-----------|
 | RG-073 | `test_BC_2_11_024_f_p21_obs001_explain_ieq_iin_not_classified_pushdownable` | `crates/prism-query/src/explain.rs` (mod `predicate_explain_classification_tests`) | BC-2.11.024 invariant guard | `predicates_from_ast::predicate_to_exprs` short-circuits `case_insensitive: true` Compare/In predicates (emits no push-down-classifiable Expr), mirroring runtime `collect_equality_exprs` exclusion semantics so EXPLAIN can never report IEQ/IIN as push-downable when ColumnSpec is later wired into classification. Closes F-P21-OBS-001. Commit 2de85b18. Traces to BC-2.11.024 v1.3 (IEQ/IIN/INE never push down; DataFusion-local evaluation only). |
 
-RG-028 through RG-073 names are authoritative per verified ground truth.
+**Pass-24 new tests (valid_operators_for_type IEQ/IIN/INE coverage lock):**
 
-**Total Red Gate tests: 73 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18 + 2 pass-20 + 1 pass-21)**
+| RG ID | Test Function Name | Location | AC | Assertion |
+|-------|--------------------|----------|----|-----------|
+| RG-074 | `test_BC_2_11_024_f_p24_med001_valid_operators_string_includes_ci_operators` | `crates/prism-query/src/engine.rs` (`#[cfg(test)] mod tests`) | BC-2.11.024 v1.3 | `valid_operators_for_type(ColumnType::String)` returns the full 8-operator set (=, !=, LIKE, IN, NOT IN, IEQ, IIN, INE); range operators excluded; negated IIN intentionally absent (not grammatically representable per ast.rs marker). Commit 633c5fab. RED→GREEN evidence: old 5-operator array. Sibling updates: `crates/prism-query/tests/e_query_pedagogical.rs` (required_string 5→8) and `crates/prism-mcp/tests/normalized_pql.rs` (comments); `error_mapping.rs` auto-tracks (derives dynamically). |
 
-The story frontmatter records `red_gate_tests: 73` (updated from 72 at v1.27 for RG-073). RG-026/RG-027 discoverability tests may be
+**Pass-24 fix-burst narrative (F-P24-LOW-001, no new RGT):**
+
+F-P24-LOW-001: `crates/prism-query/tests/bc_2_10_016_audit_004_test.rs` — dead ALL-CAPS vocabulary entries (`'HIGH'`, `'CRITICAL'`, `'OPEN'`, etc.) removed from the armis_alerts.severity vocabulary table (dead data written before adapter normalization landed); stale `// prompt uses IIN` comment corrected to describe the current case-sensitive `IN ('High','Critical')` Title-case state. No new Red Gate test added — this is a test-file cleanup (dead data removal + comment correction).
+
+RG-028 through RG-074 names are authoritative per verified ground truth.
+
+**Total Red Gate tests: 74 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18 + 2 pass-20 + 1 pass-21 + 1 pass-24)**
+
+The story frontmatter records `red_gate_tests: 74` (updated from 73 at v1.28 for RG-074). RG-026/RG-027 discoverability tests may be
 snapshot or integration tests; include them if they can be written as failing stubs, otherwise
 verify the parity gate via `just check`. RG-028 is the authoritative describe test. RG-032
 through RG-036 are the PRIMARY build_column_array tests in prism-bin.
@@ -1435,7 +1445,7 @@ E (Adapter normalization) is parallel to A-D.
     just iter prism-mcp         # describe authoritative test (RG-028)
     just check                  # full workspace pre-push gate
     ```
-    All 73 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18 + 2 pass-20 + 1 pass-21).
+    All 74 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18 + 2 pass-20 + 1 pass-21 + 1 pass-24).
     All existing tests must continue to pass (especially existing =, != filter tests — regression
     guard for AC-011/AC-013).
 
@@ -1630,6 +1640,7 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.28 | 2026-07-07 | LOCAL pass-22 CLEAN(strict) — streak 1/3 (frozen 2de85b18). Pass-23 CLEAN(strict) — streak 2/3 (frozen 2de85b18). Pass-24 NOT CLEAN — F-P24-MED-001 (`engine.rs` `valid_operators_for_type(ColumnType::String)` omitted IEQ/IIN/INE from machine-readable E-QUERY-002 `valid_operators_for_type` contract, contradicting BC-2.11.024 v1.3 and the Display-prose SuggestedSuffix) + F-P24-LOW-001 (stale "prompt uses IIN" comment + dead ALL-CAPS vocabulary entries in `bc_2_10_016_audit_004_test.rs`). Both findings closed fix-in-scope; commit 633c5fab. RG-074 added (`test_BC_2_11_024_f_p24_med001_valid_operators_string_includes_ci_operators`, `engine.rs` `#[cfg(test)] mod tests`, 8-operator set: =, !=, LIKE, IN, NOT IN, IEQ, IIN, INE); sibling updates in `e_query_pedagogical.rs` (required_string 5→8) and `normalized_pql.rs` (comments); `error_mapping.rs` auto-tracks (derives dynamically). F-P24-LOW-001: dead ALL-CAPS entries removed, comment corrected to Title-case state (no new RGT). `red_gate_tests` 73→74; authoritative range "RG-028 through RG-073"→"RG-028 through RG-074"; Total/Task-28 counts updated 73→74 + 1 pass-24. Streak reset 0/3; next pass-25 on frozen 633c5fab. |
 | v1.27 | 2026-07-07 | LOCAL pass-21: 1 OBS finding F-P21-OBS-001 (`explain.rs` `predicate_to_exprs` dropped `case_insensitive` flag — latent EXPLAIN push-down misreport once ColumnSpec is wired) closed fix-in-scope per production-grade default; RG-073 added (`test_BC_2_11_024_f_p21_obs001_explain_ieq_iin_not_classified_pushdownable`, `crates/prism-query/src/explain.rs`, mod `predicate_explain_classification_tests`); `red_gate_tests` 72→73; "RG-028 through RG-072"→"RG-028 through RG-073"; Total/Task-28 counts updated to 73 + 1 pass-21. Commit 2de85b18. CLEAN(PR-merge)=yes on pass-21. |
 | v1.26 | 2026-07-07 | LOCAL pass-20 findings F-P20-HIGH-001/MEDIUM-001/MEDIUM-002/LOW-001/LOW-002 closed. (1) F-P20-MEDIUM-001 — subsystems [SS-11, SS-02]→[SS-11, SS-02, SS-22]; SS-22 anchor justification added (prism-bin::build_column_array is PRIMARY normalization insertion point per BC-2.02.013 v1.7 F-CRIT-002 adjudication). (2) F-P20-MEDIUM-002 — prism-spec-engine re-added to crates_touched (comment-only TD-VSDD-091 anti-volatile-pin sweep, pass-8 fix-burst 0b2c0983; zero code changes; File Structure Requirements row updated from REMOVED→RE-ADDED with comment-only scope; tdd_mode rationale comment updated). (3) BC-2.02.013 pin v1.6→v1.7 at all 16 live sites (additive subsystems_multi: ["SS-22", "SS-02"] frontmatter field; no semantic contract change). (4) F-P20-HIGH-001: RG-071 (`test_BC_2_02_013_build_column_array_group_by_severity_cross_sensor_no_fragmentation`, prism-bin; commit 345d4154) + F-P20-LOW-001: RG-072 (`test_f_p20_low001_severity_integer_type_does_not_get_ieq`, prism-mcp; commit 257074af); red_gate_tests 70→72; "RG-028 through RG-070"→"RG-028 through RG-072"; Total/Task-28 counts updated to 72 + 2 pass-20. (5) F-P20-LOW-002 / Pass-19 note (D-1589 carry-forward, commit eb7256b7): RG-043/044 strengthened in-place — caption sets derived from all four OCSF enum-label caption sets; 3 flagship prompts corrected to status='New'; crowdstrike SENSOR_COLUMN_VOCABULARIES 'new'→'New'; reference IN example re-pointed to client_id IN ('acme','globex'); no new RGT names. Changelog table reordered monotonic descending per POL-32. |
 | v1.25 | 2026-07-07 | pass-18 OBS closures: RG-068 PIPE MODE IEQ skeleton guard (`test_RG_067_query_tool_pipe_mode_example_uses_ieq_not_equals`, server.rs adr_042_tests, OBS-1); RG-069/070 severity-column-presence gate replaces SENSOR_SEVERITY_VOCABULARY allowlist (`test_obs2_sentinel_alerts_with_severity_gets_ieq_example` + `test_obs2_claroty_devices_no_severity_column_still_no_ieq_note`, prism_describe.rs, OBS-2); SENSOR_SEVERITY_VOCABULARY const REMOVED (gate now has_severity column presence — universally correct post-normalization); `test_f_l2_crit001_unknown_sensor_with_severity_falls_back_to_count_recent` renamed to `..._gets_ieq`; red_gate_tests 67→70; "RG-028 through RG-067"→"RG-028 through RG-070"; Total/Task-28 counts updated to 70 + 3 pass-18 |
