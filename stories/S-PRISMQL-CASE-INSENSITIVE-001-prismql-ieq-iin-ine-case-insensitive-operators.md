@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.32"
+version: "1.33"
 updated: "2026-07-08"
 status: draft
 producer: story-writer
@@ -124,7 +124,7 @@ risk_mitigations:
      passes through the parsed operator string, it will emit lowercase if the query was
      written lowercase. The normalizer must use canonical uppercase operator names."
 traces_to: [ADR-047]
-red_gate_tests: 74
+red_gate_tests: 78
 estimated_days: "3"
 ---
 
@@ -516,7 +516,7 @@ then:
 3. The normalization does NOT fail or return an error — it is non-fatal
 4. Both the `value` and `sensor_type` fields in the warning payload MUST be capped at 50
    codepoints: if either field exceeds 50 codepoints, it MUST be truncated to the first
-   50 codepoints with no ellipsis sentinel appended (BC-2.02.013 v1.8 / BC-2.16.002 v2.04
+   50 codepoints with no ellipsis sentinel appended (BC-2.02.013 v1.8 / BC-2.16.002 v2.05
    specify a plain 50-codepoint cap on both fields — SEC-002; no `…` suffix). This applies
    to BOTH the PRIMARY (`build_column_array`) and SECONDARY (`normalize_with_mappers`) emission sites.
 
@@ -931,6 +931,15 @@ strengthened in place. (D-1589 carry-forward)
 |-------|--------------------|----------|----|-----------|
 | RG-074 | `test_BC_2_11_024_f_p24_med001_valid_operators_string_includes_ci_operators` | `crates/prism-query/src/engine.rs` (`#[cfg(test)] mod tests`) | BC-2.11.024 v1.3 | `valid_operators_for_type(ColumnType::String)` returns the full 8-operator set (=, !=, LIKE, IN, NOT IN, IEQ, IIN, INE); range operators excluded; negated IIN intentionally absent (not grammatically representable per ast.rs marker). Commit 633c5fab. RED→GREEN evidence: old 5-operator array. Sibling updates: `crates/prism-query/tests/e_query_pedagogical.rs` (required_string 5→8) and `crates/prism-mcp/tests/normalized_pql.rs` (comments); `error_mapping.rs` auto-tracks (derives dynamically). |
 
+**Pre-PR-LEVEL fix-burst new tests (CR-002/CR-003/CR-004/SEC-001, commit 54c89898):**
+
+| RG ID | Test Function Name | Location | AC | Assertion |
+|-------|--------------------|----------|----|-----------|
+| RG-075 | `test_cr002_normalize_enum_label_already_canonical_returns_some` | `crates/prism-ocsf/src/normalizer.rs` | AC-017 | CR-002 no-op write guard: `normalize_enum_label` returns `Some(value)` unchanged when the label already matches canonical casing — prevents unnecessary writes and double-normalization drift (idempotence BC-2.02.013 invariant). Commit 54c89898. |
+| RG-076 | `test_cr003_normalize_predicate_invalid_ci_op_emits_warn` | `crates/prism-query/src/tests/test_case_insensitive_operators.rs` | AC-008 | CR-003 tracing::warn emitted before IEQ placeholder fallback on invalid `case_insensitive: true` + non-Eq/Ne operator combination — warn is observable and precedes the fallback path. Commit 54c89898. |
+| RG-077 | `test_cr004_build_column_array_enum_label_warn_strips_control_chars` | `crates/prism-bin/src/spec_driven_adapter.rs` | AC-018 | CR-004/SEC-001 CWE-117 PRIMARY site: `sanitize_for_log` strips control characters (including `\n`, `\r`, `\t`, `\x00`) from the `value` field in the `ocsf.enum_label_unrecognized` warn payload before logging — prevents log injection. Commit 54c89898. |
+| RG-078 | `test_cr004_sanitize_for_log_strips_control_chars_for_secondary_site` | `crates/prism-ocsf/src/normalizer.rs` | AC-018 | CR-004/SEC-001 CWE-117 SECONDARY site: same `sanitize_for_log` strip applied at `normalize_with_mappers` warn emission — PRIMARY↔SECONDARY parity for log injection defense (mirrors RG-077). Commit 54c89898. |
+
 **Pass-24 fix-burst narrative (F-P24-LOW-001, no new RGT):**
 
 F-P24-LOW-001: `crates/prism-mcp/tests/bc_2_10_016_audit_004_test.rs` — dead ALL-CAPS vocabulary entries (`'HIGH'`, `'CRITICAL'`, `'MEDIUM'`, `'LOW'`) removed from the armis_alerts.severity vocabulary table (dead data written before adapter normalization landed); stale `// prompt uses IIN` comment corrected to describe the current case-sensitive `IN ('High','Critical')` Title-case state. No new Red Gate test added — this is a test-file cleanup (dead data removal + comment correction).
@@ -943,11 +952,11 @@ F-P28-MED-002: 217 versioned BC pins stripped from code comments across 25 delta
 
 Pass-32 fix-burst: F-P32-MED-001 BC-2.16.002 v2.04 (SqlPipe emission arm enumerated in pipe.sql_lowering/pipe.sql_planning_error rows); F-P32-OBS-001 numeric catalog-row comment pins → event-type-name citations (materialization.rs ×2, @de89b557); F-P32-OBS-002 IEQ/INE non-string RHS message enumeration dropped (not spec-pinned; IIN pinned message untouched). 1407/1407 prism-query.
 
-RG-028 through RG-074 names are authoritative per verified ground truth.
+RG-028 through RG-078 names are authoritative per verified ground truth.
 
-**Total Red Gate tests: 74 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18 + 2 pass-20 + 1 pass-21 + 1 pass-24)**
+**Total Red Gate tests: 78 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18 + 2 pass-20 + 1 pass-21 + 1 pass-24 + 4 pre-PR-LEVEL-fix-burst)**
 
-The story frontmatter records `red_gate_tests: 74` (updated from 73 at v1.28 for RG-074). RG-026/RG-027 discoverability tests may be
+The story frontmatter records `red_gate_tests: 78` (updated from 74 at v1.33 for RG-075..078). RG-026/RG-027 discoverability tests may be
 snapshot or integration tests; include them if they can be written as failing stubs, otherwise
 verify the parity gate via `just check`. RG-028 is the authoritative describe test. RG-032
 through RG-036 are the PRIMARY build_column_array tests in prism-bin.
@@ -1453,7 +1462,7 @@ E (Adapter normalization) is parallel to A-D.
     just iter prism-mcp         # describe authoritative test (RG-028)
     just check                  # full workspace pre-push gate
     ```
-    All 74 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18 + 2 pass-20 + 1 pass-21 + 1 pass-24).
+    All 78 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18 + 2 pass-20 + 1 pass-21 + 1 pass-24 + 4 pre-PR-LEVEL-fix-burst).
     All existing tests must continue to pass (especially existing =, != filter tests — regression
     guard for AC-011/AC-013).
 
@@ -1648,6 +1657,7 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.33 | 2026-07-08 | Pre-PR-LEVEL fix-burst @54c89898: CR-002 canonical-label write guard (`normalize_enum_label` returns `Some` when already canonical; RG-075); CR-003 tracing::warn before IEQ placeholder fallback on invalid case_insensitive+non-Eq/Ne combination (RG-076); CR-004/SEC-001 CWE-117 `sanitize_for_log` at PRIMARY `ocsf.enum_label_unrecognized` site in `build_column_array` (RG-077) and SECONDARY `normalize_with_mappers` site (RG-078); CR-005 `build_example_note`→`build_example_with_note` rename (96 refs); CR-001 refuted (segments.last() correct for flat Arrow schemas — no change). RGT 74→78. BC-2.16.002 v2.04→v2.05 at live AC-018 site (1 pin site; catalog row 91 value/sensor_type descriptions updated for CWE-117 stripping). |
 | v1.32 | 2026-07-08 | Pass-32 closures: F-P32-MED-001 BC-2.16.002 v2.03→v2.04 pin update (live AC-018 site: pipe.sql_lowering/pipe.sql_planning_error rows now enumerate BOTH emission arms — Ast::Pipe and Ast::SqlPipe, @de89b557); F-P32-OBS-001 numeric catalog-row comment pins → event-type-name citations (materialization.rs ×2, @de89b557); F-P32-OBS-002 IEQ/INE non-string RHS message enumeration dropped (not spec-pinned; IIN pinned message untouched). No RGT changes (74 unchanged). |
 | v1.31 | 2026-07-08 | Pass-28 closures: F-P28-MED-001 BC-2.02.013 v1.7→v1.8 pin sweep (18 live sites: 17 body + 1 BC-table row); F-P28-MED-002 TD-VSDD-091 code-comment pin strip @669080f5 (217 sites, 25 files, incl. 47 stale BC-2.10.012 pins in prism_describe.rs); F-P28-LOW-001 sql_parser.rs §DML-Mode-Boundary citation corrected to §Mode-Boundary Enforcement (DML scope). No RGT changes (74 unchanged). |
 | v1.30 | 2026-07-08 | F-P27-HIGH-001 (pass-27): AC-025 assertion (1) + Task 23 illustrative `example_query` corrected SQL-mode SELECT→pipe-mode canonical form (`FROM <table> | where severity IEQ 'high' | limit 50`) per BC-2.11.024 v1.3 §Mode-Boundary Enforcement + BC-2.10.012 v1.9; POL-25 sweep: 8 `SELECT.*IEQ/IIN/INE` sites audited — 2 fixed (AC-025 body + Task 23 code block), 6 left unchanged (AC-023 intentional rejection inputs + RG-023/024/025/039/064 rejection-test descriptions). No code change; no RGT change. |
