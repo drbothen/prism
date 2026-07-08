@@ -2,8 +2,8 @@
 document_type: demo-scope
 level: ops
 producer: state-manager
-version: "1.6"
-timestamp: 2026-06-24T00:00:00Z
+version: "1.7"
+timestamp: 2026-07-08T00:00:00Z
 project: prism
 ---
 
@@ -132,6 +132,34 @@ Per-client DTU instance binding, graceful-shutdown lifecycle handle (`MultiInsta
 - Non-exhaustive gate 52→60 (`ci.yml EXPECTED=60`)
 
 BC-2.06.017 v1.10 is **ACTIVE** (POL-14 at merge D-1158). Story v1.14. LOCAL 11-pass 3-CLEAN strict + PR-LEVEL 10-pass 3-CLEAN strict CONVERGED (BC-5.39.001). CI 43/43 green.
+
+---
+
+## MERGED — PrismQL Case-Insensitive Operators (PR #217, S-PRISMQL-CASE-INSENSITIVE-001)
+
+> **MERGED develop@f935edb6 (2026-07-08; D-1607). BC-2.11.024 v1.4 + BC-2.02.013 v1.9 ACTIVE (POL-14).**
+
+### Case-Insensitive PrismQL Operator Surface (IEQ / IIN / INE)
+
+PrismQL ships three opt-in case-insensitive operators that complete the `I`-prefix family (`ICONTAINS`/`ISTARTSWITH`/`IENDSWITH`). ADR-047 ACCEPTED; design basis in `architecture/decisions/ADR-047`.
+
+| Operator | Syntax | Example |
+|----------|--------|---------|
+| `IEQ` | `field IEQ 'value'` | `severity IEQ 'high'` matches stored `'High'` |
+| `IIN` | `field IIN ('v1', 'v2')` | `severity IIN ('high', 'critical')` matches `'High'` or `'Critical'` |
+| `INE` | `field INE 'value'` | `severity INE 'informational'` excludes rows where `lower(severity) = 'informational'` |
+
+Available in **filter mode** and **pipe-mode `| where` stages**. Raw SQL mode intentionally rejects `IEQ`/`IIN`/`INE` at parse time (`E-QUERY-001`) with a structured message pointing to the correct filter/pipe syntax — this is a pedagogical error-UX beat the demo can demonstrate once. The default `=`, `!=`, `IN` remain case-sensitive and unchanged (backward-compatible additive change).
+
+### Adapter-Boundary OCSF Enum-Label Canonical-Case Normalization
+
+All OCSF enum-label string fields (`severity`, `status`, `activity_name`, `disposition`) are normalized to canonical OCSF Title-case at the spec-driven adapter boundary (`build_column_array` in `spec_driven_adapter.rs`) before DataFusion receives the data. Vendor-specific casings — CrowdStrike already emits Title-case; Armis emitted `'UNHANDLED'` as-received (left as-received with warn when unrecognized); Claroty emitted as-received — are handled at ingest, not at query time.
+
+**Cross-sensor `GROUP BY` fix:** `GROUP BY severity` now produces at most 7 distinct buckets (`Unknown`/`Informational`/`Low`/`Medium`/`High`/`Critical`/`Other`) regardless of which sensor contributed the row — no more `'HIGH'` vs `'High'` fragmentation across sensors.
+
+**Typed guidance (E-QUERY-002):** Applying `IEQ` to an integer `_id` companion column (e.g., `severity_id IEQ 'high'` where `severity_id` is an integer column) returns `E-QUERY-002 (QueryTypeMismatch)` with a suggestion to use the string sibling column (`severity`). This steers analysts who target the integer companion toward the correct string field.
+
+BCs: **BC-2.11.024 v1.4** (IEQ/IIN/INE operators) + **BC-2.02.013 v1.9** (adapter-boundary normalization) — both **ACTIVE** (POL-14 at merge D-1607). 27 ACs, 81 Red Gate tests, 5317/5317 workspace tests GREEN.
 
 ---
 
