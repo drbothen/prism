@@ -2379,6 +2379,138 @@ mod tests {
     }
 
     // ---------------------------------------------------------------------------
+    // BC-2.02.013 PRIMARY path — GROUP BY de-fragmentation (F-P20-HIGH-001)
+    // ---------------------------------------------------------------------------
+
+    /// BC-2.02.013 PRIMARY path — GROUP BY de-fragmentation over mixed-vendor
+    /// severity casing (F-P20-HIGH-001 closure):
+    ///
+    /// `build_column_array` for a `ColumnType::String` column named `"severity"` with
+    /// mixed raw-sensor casing (CrowdStrike `'High'` × 3 + Armis `'HIGH'` × 2) MUST
+    /// produce a normalized Arrow `StringArray` where ALL 5 values are `'High'`
+    /// (OCSF canonical Title-case per `enum_map.rs` severity_id[4]).  A DataFusion
+    /// GROUP BY over this normalized column MUST yield exactly ONE bucket
+    /// (`'High'`, count = 5) — no fragmentation into separate `'High'` + `'HIGH'`
+    /// buckets.
+    ///
+    /// **Why this test is necessary (F-P20-HIGH-001):** the existing single-value tests
+    /// (`test_BC_2_02_013_build_column_array_normalizes_severity_to_title_case`) verify
+    /// per-row normalization in isolation.  They do NOT verify that the Arrow
+    /// materialization path produces deduplicating GROUP BY output — the combination
+    /// "multi-row + DataFusion GROUP BY + assert one bucket" is what AC-019 requires.
+    /// Adversarial pass-20 correctly identified this gap.
+    ///
+    /// **PRIMARY vs SECONDARY path disambiguation:**
+    /// - PRIMARY (this test): `build_column_array` in `spec_driven_adapter.rs` —
+    ///   the production path through which DataFusion receives and queries sensor data.
+    /// - SECONDARY (RG-022 in `test_case_insensitive_operators.rs`): exercises
+    ///   `OcsfNormalizer::normalize_with_mappers` + DynamicMessage, which has
+    ///   ZERO production callers on the query path per BC-2.02.013 §Postconditions.
+    ///
+    /// **Expected result:** PASSES at current HEAD because `build_column_array` already
+    /// calls `OcsfEnumMap::normalize_enum_label` for OCSF enum-label fields.  This test
+    /// is a load-bearing regression guard (TD-VSDD-059) ensuring the behavior cannot
+    /// be silently removed.
+    ///
+    /// Traces to: BC-2.02.013 §Postconditions PRIMARY insertion point; AC-019; EC-02-026;
+    /// F-P20-HIGH-001; ADR-047 §Consequences "GROUP BY correct after normalization".
+    #[tokio::test]
+    #[allow(non_snake_case)]
+    async fn test_BC_2_02_013_build_column_array_group_by_severity_cross_sensor_no_fragmentation() {
+        use arrow::datatypes::{DataType, Field, Schema};
+        use arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+        use datafusion::execution::context::SessionContext;
+
+        // BC-2.02.013 EC-02-026 test vectors:
+        //   CrowdStrike emits Title-case 'High' (already canonical — idempotent path).
+        //   Armis emits all-caps 'HIGH' (must normalize to 'High' via OcsfEnumMap).
+        // After PRIMARY path normalization both vendor strings must yield 'High'.
+        let records = vec![
+            json!({"severity": "High"}), // CrowdStrike: canonical Title-case (idempotent)
+            json!({"severity": "High"}), // CrowdStrike: canonical Title-case (idempotent)
+            json!({"severity": "High"}), // CrowdStrike: canonical Title-case (idempotent)
+            json!({"severity": "HIGH"}), // Armis: all-caps → OcsfEnumMap → 'High'
+            json!({"severity": "HIGH"}), // Armis: all-caps → OcsfEnumMap → 'High'
+        ];
+        let col = ColumnSpec::new("severity", ColumnType::String, None, vec![]);
+
+        // PRIMARY path: `build_column_array` is called by `pipeline_result_to_record_batch`
+        // in the production spec-driven adapter fetch cycle.  OcsfEnumMap is accessed via
+        // `prism_ocsf::shared_enum_map()` — initialized once at process start as a
+        // &'static OcsfEnumMap; no I/O, no external dependency, deterministic in tests.
+        // OcsfEnumMap::normalize_enum_label("severity", "HIGH") → Some("High").
+        // OcsfEnumMap::normalize_enum_label("severity", "High") → Some("High") (idempotent).
+        let normalized_array = build_column_array(&records, &col, "cross-sensor");
+
+        // Build Arrow RecordBatch from the normalized column produced by the PRIMARY path.
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "severity",
+            DataType::Utf8,
+            true,
+        )]));
+        let batch = RecordBatch::try_new(schema.clone(), vec![normalized_array])
+            .expect("BC-2.02.013 PRIMARY: RecordBatch must build from normalized severity array");
+
+        // Register as DataFusion MemTable and execute GROUP BY — mirrors what the PrismQL
+        // execution engine does after `pipeline_result_to_record_batch` returns.
+        let ctx = SessionContext::new();
+        let mem_table = MemTable::try_new(schema, vec![vec![batch]])
+            .expect("BC-2.02.013 PRIMARY: MemTable must build");
+        ctx.register_table("detections", Arc::new(mem_table))
+            .expect("BC-2.02.013 PRIMARY: MemTable must register");
+
+        let result = ctx
+            .sql("SELECT severity, count(*) AS cnt FROM detections GROUP BY severity")
+            .await
+            .expect("BC-2.02.013 PRIMARY: GROUP BY query must plan without error")
+            .collect()
+            .await
+            .expect("BC-2.02.013 PRIMARY: GROUP BY query must execute without error");
+
+        let total_buckets: usize = result.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_buckets, 1,
+            "BC-2.02.013 PRIMARY path (F-P20-HIGH-001 / AC-019): GROUP BY severity \
+             after build_column_array normalization MUST yield exactly 1 bucket \
+             (CrowdStrike 'High' × 3 + Armis 'HIGH' × 2 → all canonical 'High'); \
+             got {total_buckets} bucket(s). \
+             If 2 buckets: build_column_array is not applying OcsfEnumMap normalization \
+             to the 'severity' column. \
+             PRIMARY path: EC-02-026; ADR-047 §Consequences."
+        );
+
+        // Verify the single bucket is OCSF canonical 'High' with count = 5.
+        // result[0] is the first (and only) RecordBatch; column 0 = severity, column 1 = cnt.
+        let severity_col = result[0]
+            .column(0)
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("BC-2.02.013 PRIMARY: severity GROUP BY column must be StringArray");
+        let count_col = result[0]
+            .column(1)
+            .as_any()
+            .downcast_ref::<arrow::array::Int64Array>()
+            .expect("BC-2.02.013 PRIMARY: count column must be Int64Array");
+
+        assert_eq!(
+            severity_col.value(0),
+            "High",
+            "BC-2.02.013 PRIMARY path: single GROUP BY bucket must be OCSF canonical \
+             'High' (Title-case, enum_map.rs severity_id[4]); got {:?}",
+            severity_col.value(0)
+        );
+        assert_eq!(
+            count_col.value(0),
+            5,
+            "BC-2.02.013 PRIMARY path: all 5 records (3 × CrowdStrike 'High' + \
+             2 × Armis 'HIGH') must consolidate into a single 'High' bucket \
+             after OcsfEnumMap normalization; count is {}",
+            count_col.value(0)
+        );
+    }
+
+    // ---------------------------------------------------------------------------
     // OBS-3 — empty-string enum-value must NOT emit ocsf.enum_label_unrecognized
     // ---------------------------------------------------------------------------
 
