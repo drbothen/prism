@@ -2265,6 +2265,71 @@ mod tests {
         );
     }
 
+    /// RG-081 / OBS-002 GREEN-lock — `SuggestedSuffix` Display for `Some` and `None`.
+    ///
+    /// Pins the formatting of the private `SuggestedSuffix` Display helper independently
+    /// of the `#[error]` template on `PrismError::QueryTypeMismatch`. Any future refactor
+    /// that changes `SuggestedSuffix`'s output will break this test, preventing silent
+    /// regression of the E-QUERY-002 error message format.
+    ///
+    /// GREEN GATE: passes both before and after the MED-001 fix (unrelated to order-of-ops).
+    /// This test is a regression lock, not a failing Red Gate.
+    ///
+    /// Traces to: OBS-002 (ADV-PR-P1 S-PRISMQL-CASE-INSENSITIVE-001);
+    /// error-taxonomy.md §E-QUERY-002 AC-022; BC-2.11.024.
+    #[test]
+    fn test_rg081_obs002_suggested_suffix_display_some_and_none() {
+        // Some(col) → canonical suffix text (error-taxonomy §E-QUERY-002 AC-022)
+        let suffix_some = format!("{}", SuggestedSuffix(&Some("severity".to_string())));
+        assert_eq!(
+            suffix_some,
+            "; for label comparison, use the string column 'severity' with IEQ/IIN/INE instead",
+            "OBS-002 / RG-081: SuggestedSuffix(Some(\"severity\")) must produce \
+             canonical suffix text (error-taxonomy §E-QUERY-002 AC-022)"
+        );
+
+        // None → empty string (no suffix appended to the Display message)
+        let suffix_none = format!("{}", SuggestedSuffix(&None::<String>));
+        assert_eq!(
+            suffix_none, "",
+            "OBS-002 / RG-081: SuggestedSuffix(None) must produce empty string"
+        );
+
+        // Integration: QueryTypeMismatch Display with Some(suggested_column) ends with suffix.
+        let err_with = PrismError::QueryTypeMismatch {
+            column: "severity_id".to_string(),
+            table: "crowdstrike_alerts".to_string(),
+            actual_type: crate::column::ColumnType::Integer,
+            operator: "=".to_string(),
+            suggested_column: Some("severity".to_string()),
+        };
+        let display_with = format!("{err_with}");
+        assert!(
+            display_with.ends_with(
+                "; for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+            ),
+            "OBS-002 / RG-081: QueryTypeMismatch with Some(suggested_column) must end \
+             with SuggestedSuffix text; got: {:?}",
+            display_with
+        );
+
+        // Integration: QueryTypeMismatch Display with None does NOT contain the suffix.
+        let err_without = PrismError::QueryTypeMismatch {
+            column: "timestamp".to_string(),
+            table: "crowdstrike_alerts".to_string(),
+            actual_type: crate::column::ColumnType::Datetime,
+            operator: ">".to_string(),
+            suggested_column: None,
+        };
+        let display_without = format!("{err_without}");
+        assert!(
+            !display_without.contains("for label comparison"),
+            "OBS-002 / RG-081: QueryTypeMismatch with None suggested_column must NOT \
+             contain suggestion suffix; got: {:?}",
+            display_without
+        );
+    }
+
     /// POL-24 / TD-VSDD-059: `PrismError::TemporalLiteralUnparseable` Display must match
     /// error-taxonomy.md §E-QUERY-041 message template byte-for-byte.
     ///

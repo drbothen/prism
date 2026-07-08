@@ -334,6 +334,30 @@ fn ocsf_class_uid_to_message_name(class_uid: u32) -> Option<&'static str> {
     }
 }
 
+/// Sanitize a string value for use in the `ocsf.enum_label_unrecognized` warn log field.
+///
+/// Encapsulates the sanitize+truncate expression for the SECONDARY emission site
+/// inside `normalize_with_mappers` (the `value` and `sensor_type` fields of the
+/// `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)` block).
+///
+/// **Spec order (BC-2.16.002 catalog row 91):** `sanitize_for_log` BEFORE the
+/// 50-codepoint cap.  When a value begins with control characters followed by
+/// ≥50 printable codepoints, sanitize-first ensures the final logged string
+/// reflects 50 printable codepoints — not a shorter string truncated at the
+/// control-char boundary.
+///
+/// **Stub body (WRONG ORDER — current code):** truncates first, then sanitizes.
+/// Implementer must correct to:
+/// `prism_core::sanitize_for_log(s).chars().take(50).collect()`
+///
+/// See MED-001 (ADV-PR-P1 S-PRISMQL-CASE-INSENSITIVE-001) and RG-079.
+#[allow(dead_code)] // Production refactor wires the SECONDARY warn site to call this helper.
+fn sanitize_enum_label_for_log(s: &str) -> String {
+    // WRONG ORDER: truncate first, then sanitize.
+    // Spec order (BC-2.16.002 catalog row 91): sanitize_for_log BEFORE .chars().take(50)
+    prism_core::sanitize_for_log(&s.chars().take(50).collect::<String>())
+}
+
 #[cfg(test)]
 mod thread_safety_tests {
     use super::*;
@@ -354,7 +378,7 @@ mod cr002_cr004_guard_tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
     use std::sync::{Arc, Mutex};
 
-    use super::shared_enum_map;
+    use super::{sanitize_enum_label_for_log, shared_enum_map};
 
     /// CR-002: `normalize_enum_label` returns `Some(canonical)` even when the input
     /// is already in canonical form.
@@ -452,6 +476,55 @@ mod cr002_cr004_guard_tests {
             "CR-004 SECONDARY: emit value after truncate+sanitize must have no '\\n'; \
              got: {:?}",
             val
+        );
+    }
+
+    /// RG-079 (MED-001 / MED-002) — SECONDARY `sanitize_enum_label_for_log` helper:
+    /// order-of-operations proof vector.
+    ///
+    /// Load-bearing replacement/supplement for
+    /// `test_cr004_sanitize_for_log_strips_control_chars_for_secondary_site`,
+    /// which does not exercise the ORDER of sanitize vs. truncate.
+    ///
+    /// Input: ESC sequence at head (`\u{1b}[31m`, 5 codepoints) followed by 60 legit
+    /// ASCII 'A' chars.  Total: 65 codepoints.  The ESC char (U+001B, 0x1B) is an ASCII
+    /// control char stripped by `sanitize_for_log`.
+    ///
+    /// Spec order (sanitize→truncate, BC-2.16.002 catalog row 91):
+    ///   `sanitize_for_log` strips ESC → `"[31m"` + 60 As = 64 codepoints
+    ///   `.chars().take(50)` → `"[31m"` + 46 As = **50 codepoints**
+    ///
+    /// Current wrong order (truncate→sanitize, current stub body):
+    ///   `.chars().take(50)` → ESC + `"[31m"` + 45 As = 50 codepoints
+    ///   `sanitize_for_log` strips ESC → `"[31m"` + 45 As = **49 codepoints**
+    ///
+    /// RED GATE: FAILS with current wrong-order helper body (yields 49 chars, not 50).
+    /// GREEN GATE: PASSES after implementer corrects helper body to
+    ///   `prism_core::sanitize_for_log(s).chars().take(50).collect()`.
+    ///
+    /// Traces to: MED-001/MED-002 (ADV-PR-P1 S-PRISMQL-CASE-INSENSITIVE-001);
+    /// BC-2.16.002 catalog row 91 (ocsf.enum_label_unrecognized spec order).
+    #[test]
+    fn test_rg079_secondary_sanitize_enum_label_order_spec_wins() {
+        // ESC + "[31m" (5 codepoints) + 60 As = 65 codepoints total.
+        let input = "\u{1b}[31m".to_string() + &"A".repeat(60);
+
+        // Spec order result: sanitize first strips ESC → "[31m" + 60 As (64 codepoints),
+        // then take(50) → "[31m" + 46 As = 50 codepoints total.
+        let spec_order_result = "[31m".to_string() + &"A".repeat(46); // len = 50
+
+        let actual = sanitize_enum_label_for_log(&input);
+
+        assert_eq!(
+            actual,
+            spec_order_result,
+            "RG-079 (MED-001): sanitize_enum_label_for_log must apply sanitize_for_log BEFORE \
+             50-codepoint truncation (BC-2.16.002 catalog row 91 spec order); \
+             spec order yields {:?} (len={}), current wrong-order body yields {:?} (len={})",
+            spec_order_result,
+            spec_order_result.len(),
+            actual,
+            actual.len()
         );
     }
 }

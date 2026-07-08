@@ -2768,4 +2768,127 @@ mod tests {
             val
         );
     }
+
+    // ---------------------------------------------------------------------------
+    // LOW-001 (MED-001 order-of-operations) — PRIMARY emission site
+    // (ADV-PR-P1 S-PRISMQL-CASE-INSENSITIVE-001)
+    // ---------------------------------------------------------------------------
+
+    /// RG-080 / LOW-001 (MED-001 vector) — PRIMARY `ocsf.enum_label_unrecognized` warn:
+    /// order-of-operations proof vector.
+    ///
+    /// The existing `test_cr004_build_column_array_enum_label_warn_strips_control_chars`
+    /// uses a short input (`"VENDOR\nINJECT"`, 13 chars) where both orders produce the
+    /// same length — it proves the control char is stripped but does NOT prove ORDER.
+    ///
+    /// This test uses a vector where the ORDER matters:
+    /// - Input: ESC sequence at head (`\u{1b}[31m`, 5 codepoints) + 60 legit 'A' chars
+    ///   = 65 codepoints total.
+    /// - `normalize_enum_label("severity", input)` returns `None` → warn fires.
+    ///
+    /// Spec order (sanitize→truncate, BC-2.16.002 catalog row 91):
+    ///   `sanitize_for_log` strips ESC → `"[31m"` + 60 As = 64 codepoints
+    ///   `.chars().take(50)` → `"[31m"` + 46 As = **50 codepoints (length = 50)**
+    ///
+    /// Wrong order (truncate→sanitize, current code at line 1061 / 1116):
+    ///   `.chars().take(50)` → ESC + `"[31m"` + 45 As = 50 codepoints
+    ///   `sanitize_for_log` strips ESC → `"[31m"` + 45 As = **49 codepoints (length = 49)**
+    ///
+    /// RED GATE: FAILS with current code — `val.len() == 49`, assertion requires `50`.
+    /// GREEN GATE: PASSES after MED-001 fix applies sanitize-first order at line 1061/1116.
+    ///
+    /// Traces to: MED-001 (ADV-PR-P1); LOW-001 (S-PRISMQL-CASE-INSENSITIVE-001);
+    /// BC-2.16.002 catalog row 91 spec order; CWE-117 (SEC-001).
+    #[test]
+    fn test_rg080_low001_build_column_array_enum_label_warn_order_of_operations() {
+        use std::sync::Mutex;
+        use tracing_subscriber::layer::SubscriberExt;
+
+        #[derive(Default)]
+        struct ValueOnlyVisitor {
+            value: Option<String>,
+        }
+        impl tracing::field::Visit for ValueOnlyVisitor {
+            fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
+                if field.name() == "value" {
+                    self.value = Some(val.to_owned());
+                }
+            }
+            fn record_debug(&mut self, field: &tracing::field::Field, val: &dyn std::fmt::Debug) {
+                if field.name() == "value" && self.value.is_none() {
+                    self.value = Some(format!("{val:?}"));
+                }
+            }
+        }
+
+        struct WarnValueCapture {
+            captured_value: Arc<Mutex<Option<String>>>,
+        }
+        impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnValueCapture {
+            fn on_event(
+                &self,
+                event: &tracing::Event<'_>,
+                _ctx: tracing_subscriber::layer::Context<'_, S>,
+            ) {
+                if *event.metadata().level() == tracing::Level::WARN {
+                    let mut visitor = ValueOnlyVisitor::default();
+                    event.record(&mut visitor);
+                    if let Some(v) = visitor.value {
+                        *self.captured_value.lock().unwrap() = Some(v);
+                    }
+                }
+            }
+        }
+
+        let captured_value: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+        let layer = WarnValueCapture {
+            captured_value: captured_value.clone(),
+        };
+        let subscriber = tracing_subscriber::registry().with(layer);
+
+        // LOW-001 vector: ESC + "[31m" (5 codepoints) + 60 As = 65 codepoints total.
+        // normalize_enum_label("severity", this_input) returns None → warn fires.
+        let input_value = "\u{1b}[31m".to_string() + &"A".repeat(60);
+        let records = vec![json!({"severity": input_value.clone()})];
+        let col = ColumnSpec::new("severity", ColumnType::String, None, vec![]);
+
+        tracing::subscriber::with_default(subscriber, || {
+            let _ = build_column_array(&records, &col, "crowdstrike");
+        });
+
+        let val = captured_value.lock().unwrap().clone().expect(
+            "RG-080: ocsf.enum_label_unrecognized warn must be emitted for \
+                 unrecognized severity value '\x1b[31mAAA...'; check the warn path fires",
+        );
+
+        // Primary assertion: spec order (sanitize→truncate) yields length 50.
+        // Wrong order (truncate→sanitize, current code) yields length 49.
+        assert_eq!(
+            val.chars().count(),
+            50,
+            "RG-080 (MED-001 / LOW-001): `value` field in ocsf.enum_label_unrecognized warn \
+             must have 50 codepoints (sanitize_for_log applied BEFORE 50-codepoint \
+             truncation, BC-2.16.002 catalog row 91 spec order); \
+             got len={} value={:?}",
+            val.chars().count(),
+            val
+        );
+
+        // Secondary assertion: ESC control char must be stripped regardless of order.
+        assert!(
+            !val.contains('\x1b'),
+            "RG-080: `value` field must have ESC (\\x1b) stripped by sanitize_for_log; \
+             got: {:?}",
+            val
+        );
+
+        // Tertiary: exact content check — spec order yields "[31m" + 46 As.
+        let expected_val = "[31m".to_string() + &"A".repeat(46);
+        assert_eq!(
+            val, expected_val,
+            "RG-080 (MED-001): spec order (sanitize→truncate) must yield {:?}; \
+             current wrong order (truncate→sanitize) yields {:?}",
+            expected_val, val
+        );
+    }
 }
