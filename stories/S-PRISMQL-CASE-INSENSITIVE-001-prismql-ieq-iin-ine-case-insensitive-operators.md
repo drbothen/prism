@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.22"
+version: "1.23"
 updated: "2026-07-07"
 status: draft
 producer: story-writer
@@ -115,7 +115,7 @@ risk_mitigations:
      passes through the parsed operator string, it will emit lowercase if the query was
      written lowercase. The normalizer must use canonical uppercase operator names."
 traces_to: [ADR-047]
-red_gate_tests: 64
+red_gate_tests: 66
 estimated_days: "3"
 ---
 
@@ -874,11 +874,18 @@ commit 26325423).
 | RG-063 | `test_BC_2_10_012_example_note_some_for_severity_tables_none_otherwise` | `crates/prism-mcp/src/tools/prism_describe.rs` (test module) | AC-025 | example_note is `Some("OCSF severity is stored as Title-case...")` for tables with a severity column; `None` for tables without a severity column — example_note field contract (BC-2.10.012 v1.8) |
 | RG-064 | `test_BC_2_11_024_compound_violation_string_literal_precedence` | `crates/prism-query/src/tests/test_case_insensitive_operators.rs` | AC-023 | `SELECT * FROM t WHERE severity IEQ 42` — compound violation (non-string RHS + SQL-mode); string-literal `try_map` fires at literal span before mode-boundary walk; E-QUERY-001 string-literal template returned, not mode-boundary template (precedence lock per pass-13 OBS-2) |
 
-RG-028 through RG-064 names are authoritative per verified ground truth.
+**Pass-16 new tests (CI pre-flight guard tests — zero-row unregistered-table skip + empty CI-field list):**
 
-**Total Red Gate tests: 64 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15)**
+| RG ID | Test Function Name | Location | AC | Assertion |
+|-------|--------------------|----------|----|-----------|
+| RG-065 | `test_check_ci_column_types_unregistered_table_ok` | `crates/prism-query/src/materialization.rs` (mod `check_ci_column_types_guard_tests`) | AC-022 guard | CI pre-flight returns Ok(()) for unregistered tables — zero-row fetches legitimately skip MemTable registration; documented skip, not fail-closed (pass-16 F-P16-OBS-002 adjudication) |
+| RG-066 | `test_check_ci_column_types_empty_fields_ok` | `crates/prism-query/src/materialization.rs` (mod `check_ci_column_types_guard_tests`) | AC-022 guard | CI pre-flight returns Ok(()) for empty CI-field list |
 
-The story frontmatter records `red_gate_tests: 64`. RG-026/RG-027 discoverability tests may be
+RG-028 through RG-066 names are authoritative per verified ground truth.
+
+**Total Red Gate tests: 66 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16)**
+
+The story frontmatter records `red_gate_tests: 66`. RG-026/RG-027 discoverability tests may be
 snapshot or integration tests; include them if they can be written as failing stubs, otherwise
 verify the parity gate via `just check`. RG-028 is the authoritative describe test. RG-032
 through RG-036 are the PRIMARY build_column_array tests in prism-bin.
@@ -905,6 +912,8 @@ through RG-036 are the PRIMARY build_column_array tests in prism-bin.
 - `architecture/module-decomposition.md` §SS-02 (OCSF Normalization — prism-ocsf)
 
 **Pass-11 single-source constant:** `OCSF_ENUM_LABEL_FIELDS` is now declared as `pub const` in `prism-ocsf` (pass-11 F-OBS-3 drift-proof). `prism-bin/src/spec_driven_adapter.rs` imports it from `prism-ocsf` rather than defining it locally — eliminates enum-label field list divergence between the PRIMARY and SECONDARY normalization sites.
+
+**Pass-16 single-access-point:** `shared_enum_map()` is now the single `OcsfEnumMap` access point (`pub fn` in `prism-ocsf`, used by `prism-bin`; duplicate statics removed — pass-16 F-P16-OBS-001).
 
 ---
 
@@ -1382,7 +1391,7 @@ E (Adapter normalization) is parallel to A-D.
     just iter prism-mcp         # describe authoritative test (RG-028)
     just check                  # full workspace pre-push gate
     ```
-    All 64 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15).
+    All 66 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16).
     All existing tests must continue to pass (especially existing =, != filter tests — regression
     guard for AC-011/AC-013).
 
@@ -1595,3 +1604,4 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 | v1.20 | 2026-07-07 | pass-14: RG-055..058 (date-like RHS string acceptance ×3 + SqlPipe head WHERE IEQ lock); BC-2.02.013 pin v1.4→v1.5 (dual-subsystem traceability); red_gate_tests 54→58; AC-020 refined — quoted date-like RHS always accepted as Literal::String on CI operators regardless of date-like shape (ADR-052 reclassification does not affect quoted strings) |
 | v1.21 | 2026-07-07 | pass-15: RG-059..064 (IIN non-string parse-time ×2, example_query purity ×2, example_note contract, precedence lock); BC-2.11.024 pin v1.2→v1.3; BC-2.10.012 v1.8 interaction noted at AC-025 (example_note field governs OCSF casing note, example_query is pure PQL); AC-021 template updated (richer empty-IIN message + EC-11-024-012 extension note for non-string elements); AC-025 example_note reframing (pure-PQL invariant, example_note field); Task 23 updated; red_gate_tests 58→64 |
 | v1.22 | 2026-07-07 | pass-16: BC-2.10.012 v1.8 added to behavioral_contracts frontmatter array and body Behavioral Contracts table (F-P16-MED-001; AC-025/RG-061..063 material dependency on pure-PQL invariant + example_note field contract); BC-2.02.013 pin v1.5→v1.6 at all 9 live sites (frontmatter comment, Behavioral Contracts table, Token Budget, AC-016 ×2, AC-017, AC-018, AC-019, File Structure Requirements, Task 19d, Scope Ambiguities — empty-string bypass EC-02-028 + sensor_type cap documented in v1.6); BC-2.16.002 pin v2.01→v2.03 in AC-018 cap language; AC-018 extended to note both `value` and `sensor_type` fields are 50-codepoint-capped per BC-2.02.013 v1.6; Token Budget BC count 7→8 + total ~82k→~83k |
+| v1.23 | 2026-07-07 | pass-16: RG-065/066 CI pre-flight guard tests added (zero-row unregistered-table skip adjudicated F-P16-OBS-002; empty CI-field list Ok); shared_enum_map() single-access-point note added to Architecture Mapping (F-P16-OBS-001; duplicate statics removed); red_gate_tests 64→66; "RG-028 through RG-064"→"RG-028 through RG-066"; Total/Task-28 counts updated to 66 + 2 pass-16 |
