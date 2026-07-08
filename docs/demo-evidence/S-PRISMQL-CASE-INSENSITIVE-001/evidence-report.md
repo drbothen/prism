@@ -2,9 +2,9 @@
 
 Story: PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)
 Branch: feature/S-PRISMQL-CASE-INSENSITIVE-001
-HEAD SHA: de89b557
+HEAD SHA: f9be96fa
 Captured: 2026-07-08
-LOCAL 3-CLEAN convergence: passes 33/34/35 (CLEAN strict on all three; BC-5.39.001 satisfied)
+Provenance: LOCAL 3-CLEAN converged at de89b557 (passes 33/34/35, CLEAN strict; BC-5.39.001 satisfied); pre-PR-LEVEL fix-burst 54c89898 (CR-002/CR-003/CR-004/SEC-001; RG-075..078); PR-LEVEL pass-1 fix-burst 56fb83d8+f9be96fa (ADV-PR-P1-MED-001/MED-002/LOW-001/OBS-002; RG-079..081)
 
 ## Workspace Gate
 
@@ -13,7 +13,7 @@ just check
   cargo fmt --check           PASS
   cargo clippy -D warnings    PASS (0 warnings)
   cargo nextest run --workspace --all-features --profile prepush
-    5310 tests run: 5310 passed, 60 skipped, 0 failures
+    5317 tests run: 5317 passed, 60 skipped, 0 failures
   cargo test (doctests)       PASS
   check-non-exhaustive.sh     PASS: 89 types correctly reject external construction (expected: 89)
 ```
@@ -38,7 +38,7 @@ Evidence method key:
 | AC-005 | IIN parses before IN — no prefix-match collision | RGT (prism-query) | RG-005 `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_before_in_no_collision` | PASS |
 | AC-006 | Sibling-site sweep: Predicate::Compare construction sites add case_insensitive:false | compile-enforced + grep | See grep evidence below | PASS |
 | AC-007 | Sibling-site sweep: Predicate::In construction sites add case_insensitive:false | compile-enforced + grep | See grep evidence below | PASS |
-| AC-008 | IEQ lowers to lower(field) = lower('val') | RGT (prism-query) | RG-006 `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_emits_lower_equals_lower` | PASS |
+| AC-008 | IEQ lowers to lower(field) = lower('val') | RGT (prism-query) | RG-006 `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_emits_lower_equals_lower`; RG-076 `test_cr003_normalize_predicate_invalid_ci_op_emits_warn` (warn before IEQ placeholder fallback on invalid case_insensitive+non-Eq/Ne combination; CR-003) | PASS |
 | AC-009 | INE lowers to lower(field) != lower('val') | RGT (prism-query) | RG-007 `test_S_PRISMQL_CASE_INSENSITIVE_001_ine_emits_lower_ne_lower` | PASS |
 | AC-010 | IIN lowers to lower(field) IN (lower('v1'), lower('v2')) | RGT (prism-query) | RG-008 `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_emits_lower_in_lower_list` | PASS |
 | AC-011 | Case-sensitive =, !=, IN emit unchanged (no lower() wrapping) | RGT (prism-query) | RG-009 `test_S_PRISMQL_CASE_INSENSITIVE_001_case_sensitive_eq_no_lower_wrapping` | PASS |
@@ -48,12 +48,12 @@ Evidence method key:
 | AC-014 | normalized_pql reflects IEQ/IIN/INE in uppercase canonical form | RGT (prism-query) | RG-013 `test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_reflects_ieq_uppercase` | PASS |
 | AC-015 | normalized_pql round-trip: parse -> normalize -> re-parse -> same AST | RGT (prism-query) | RG-014 `test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_round_trip_ast_equality` | PASS |
 | AC-016 | OCSF enum-label fields normalized to Title-case via build_column_array (PRIMARY path) | RGT (prism-bin + prism-ocsf) | RG-032 `test_BC_2_02_013_build_column_array_normalizes_severity_to_title_case` (PRIMARY); RG-019 `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_critical_to_title_case` (SECONDARY) | PASS |
-| AC-017 | Normalization covers activity_name and disposition; idempotent (PRIMARY + guards) | RGT (prism-bin) | RG-033 `test_BC_2_02_013_build_column_array_normalizes_status_and_disposition`; RG-035 `test_BC_2_02_013_build_column_array_non_enum_string_column_untouched`; RG-036 `test_BC_2_02_013_build_column_array_non_string_column_untouched`; RG-020 `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high` (SECONDARY) | PASS |
-| AC-018 | Unrecognized vendor values left as-received with warning logged | RGT (prism-bin + prism-ocsf) | RG-034 `test_BC_2_02_013_build_column_array_unrecognized_left_as_received_with_warn` (PRIMARY); RG-047 `test_BC_2_02_013_build_column_array_empty_string_enum_value_no_warn`; RG-021 `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_left_as_received` (SECONDARY); RG-054 `test_BC_2_02_013_normalizer_secondary_empty_string_enum_value_no_warn` | PASS |
+| AC-017 | Normalization covers activity_name and disposition; idempotent (PRIMARY + guards) | RGT (prism-bin + prism-ocsf) | RG-033 `test_BC_2_02_013_build_column_array_normalizes_status_and_disposition`; RG-035 `test_BC_2_02_013_build_column_array_non_enum_string_column_untouched`; RG-036 `test_BC_2_02_013_build_column_array_non_string_column_untouched`; RG-020 `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high` (SECONDARY); RG-075 `test_cr002_normalize_enum_label_already_canonical_returns_some` (canonical-label no-op write guard: normalize_enum_label returns Some(value) unchanged when already canonical; idempotence BC-2.02.013 invariant; CR-002) | PASS |
+| AC-018 | Unrecognized vendor values left as-received with warning logged | RGT (prism-bin + prism-ocsf) | RG-034 `test_BC_2_02_013_build_column_array_unrecognized_left_as_received_with_warn` (PRIMARY); RG-047 `test_BC_2_02_013_build_column_array_empty_string_enum_value_no_warn`; RG-021 `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_left_as_received` (SECONDARY); RG-054 `test_BC_2_02_013_normalizer_secondary_empty_string_enum_value_no_warn`; RG-077 `test_cr004_build_column_array_enum_label_warn_strips_control_chars` (CWE-117 PRIMARY: sanitize_for_log strips control chars from value before logging; CR-004/SEC-001); RG-078 `test_cr004_sanitize_for_log_strips_control_chars_for_secondary_site` (CWE-117 SECONDARY: same strip at normalize_with_mappers; CR-004/SEC-001); RG-079 `test_rg079_secondary_sanitize_enum_label_order_spec_wins` (sanitize-BEFORE-truncate order at SECONDARY site; ADV-PR-P1-MED-001); RG-080 `test_rg080_low001_build_column_array_enum_label_warn_order_of_operations` (order-of-operations at PRIMARY site, warn-capture; ADV-PR-P1-MED-001/LOW-001) | PASS |
 | AC-019 | GROUP BY severity produces at most 7 buckets after normalization | RGT (prism-query + prism-bin) | RG-022 `test_S_PRISMQL_CASE_INSENSITIVE_001_group_by_severity_no_case_fragmentation`; RG-044 `test_BC_2_02_013_triage_alerts_prompt_no_stale_vendor_casing`; RG-071 `test_BC_2_02_013_build_column_array_group_by_severity_cross_sensor_no_fragmentation` | PASS |
 | AC-020 | E-QUERY-001: IEQ/INE with non-string literal RHS rejected at parse time | RGT (prism-query) | RG-016 `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_non_string_rhs_e_query_001`; RG-055/056/057 date-like RHS accepted as string | PASS |
 | AC-021 | E-QUERY-001: IIN with empty membership list rejected at parse time | RGT (prism-query) | RG-017 `test_S_PRISMQL_CASE_INSENSITIVE_001_iin_empty_list_e_query_001`; RG-059 `test_BC_2_11_024_iin_integer_elements_rejected_e_query_001`; RG-060 `test_BC_2_11_024_iin_boolean_elements_rejected_e_query_001` | PASS |
-| AC-022 | E-QUERY-002: IEQ/IIN/INE on non-string column returns QueryTypeMismatch with suggested_column | RGT (prism-query + prism-core) | RG-018 `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_e_query_002`; RG-029 `test_BC_2_11_024_query_type_mismatch_display_with_suggestion_exact`; RG-030 `test_BC_2_11_024_query_type_mismatch_display_without_suggestion_exact`; RG-041/042 SqlPipe pipe-stage E-QUERY-002 | PASS |
+| AC-022 | E-QUERY-002: IEQ/IIN/INE on non-string column returns QueryTypeMismatch with suggested_column | RGT (prism-query + prism-core) | RG-018 `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_e_query_002`; RG-029 `test_BC_2_11_024_query_type_mismatch_display_with_suggestion_exact`; RG-030 `test_BC_2_11_024_query_type_mismatch_display_without_suggestion_exact`; RG-041/042 SqlPipe pipe-stage E-QUERY-002; RG-081 `test_rg081_obs002_suggested_suffix_display_some_and_none` (SuggestedSuffix Display lock — Some/None variants produce correct output; ADV-PR-P1-OBS-002) | PASS |
 | AC-023 | SQL-mode IEQ/IIN/INE rejection — structured E-QUERY-001 | RGT (prism-query + prism-mcp) | RG-023/024/025 SQL-mode SELECT; RG-037/038/039 DML DELETE/UPDATE/INSERT; RG-046 all prompt-embedded queries parse Ok; RG-058 SqlPipe head WHERE IEQ rejected | PASS |
 | AC-024 | PrismQL grammar reference resource includes IEQ/IIN/INE in operator table | RGT (prism-query + prism-mcp) | RG-026 `test_S_PRISMQL_CASE_INSENSITIVE_001_grammar_resource_includes_ieq_iin_ine` (prism-query); RG-043 `test_BC_2_11_024_reference_content_no_stale_vendor_cased_enum_examples` (prism-mcp) | PASS |
 | AC-025 | prism describe output includes IEQ example with OCSF casing note in example_note field | RGT (prism-mcp + prism-query) | RG-028 `test_BC_2_11_024_describe_output_includes_ieq_example_and_ocsf_casing_note`; RG-027 `test_S_PRISMQL_CASE_INSENSITIVE_001_describe_output_includes_ieq_example` (supplementary, prism-query); RG-040 suppression guard; RG-051 all describe outputs parse Ok; RG-061/062/063 example_query purity + example_note contract; RG-067/068/069/070 query-tool description + pipe-mode skeleton; RG-072 severity-Integer-type gate | PASS |
@@ -112,7 +112,7 @@ No new `#[non_exhaustive]`-annotated public types were introduced by this story 
 
 ## Red Gate Test Inventory — Full Coverage
 
-All 74 RGTs verified GREEN via targeted `cargo nextest run` invocations and the `just check` workspace gate.
+All 81 RGTs verified GREEN via targeted `cargo nextest run` invocations and the `just check` workspace gate.
 
 ### Cluster A: Parser acceptance (AC-001 to AC-005, AC-026)
 All tests in `crates/prism-query/src/tests/test_case_insensitive_operators.rs`:
@@ -229,15 +229,27 @@ RG-070  test_obs2_claroty_devices_no_severity_column_still_no_ieq_note          
 RG-072  test_f_p20_low001_severity_integer_type_does_not_get_ieq                          PASS (prism-mcp)
 ```
 
+### Cluster J: Pre-PR-LEVEL and PR-LEVEL pass-1 fix-burst additions (RG-075..081)
+Adapter normalization guards, emitter safety, and error display (commits 54c89898, 56fb83d8, f9be96fa):
+```
+RG-075  test_cr002_normalize_enum_label_already_canonical_returns_some           PASS (prism-ocsf/src/normalizer.rs; CR-002 idempotence no-op write guard → AC-017)
+RG-076  test_cr003_normalize_predicate_invalid_ci_op_emits_warn                  PASS (prism-query/src/tests/test_case_insensitive_operators.rs; CR-003 warn before IEQ fallback → AC-008)
+RG-077  test_cr004_build_column_array_enum_label_warn_strips_control_chars       PASS (prism-bin/src/spec_driven_adapter.rs; CR-004/SEC-001 CWE-117 PRIMARY → AC-018)
+RG-078  test_cr004_sanitize_for_log_strips_control_chars_for_secondary_site      PASS (prism-ocsf/src/normalizer.rs; CR-004/SEC-001 CWE-117 SECONDARY → AC-018)
+RG-079  test_rg079_secondary_sanitize_enum_label_order_spec_wins                 PASS (prism-ocsf/src/normalizer.rs; ADV-PR-P1-MED-001 sanitize-before-truncate SECONDARY → AC-018)
+RG-080  test_rg080_low001_build_column_array_enum_label_warn_order_of_operations  PASS (prism-bin/src/spec_driven_adapter.rs; ADV-PR-P1-MED-001/LOW-001 order-of-ops PRIMARY → AC-018)
+RG-081  test_rg081_obs002_suggested_suffix_display_some_and_none                 PASS (prism-core/src/error.rs; ADV-PR-P1-OBS-002 SuggestedSuffix Display lock → AC-022)
+```
+
 ---
 
 ## Summary
 
 - **All 27 ACs: PASS**
-- **All 74 Red Gate tests: PASS** (RG-001 through RG-074)
-- **just check workspace gate: 5310/5310 tests PASS, 0 failures**
+- **All 81 Red Gate tests: PASS** (RG-001 through RG-081)
+- **just check workspace gate: 5317/5317 tests PASS, 0 failures**
 - **Non-exhaustive gate: 89/89 PASS, count unchanged**
 - **Evidence method**: test-transcript captures (cargo nextest run targeted invocations) per prior-story precedent (PLUGIN-MIGRATION-001-A); no live DTU/sensor session required — all ACs demonstrable via in-process unit tests and integration tests
 - **AC-006 and AC-007**: compile-enforced (struct field exhaustiveness) + verified via grep sweep
 - **AC-027**: verified via grep of `scripts/check-non-exhaustive.sh` + just check gate
-- **LOCAL 3-CLEAN convergence**: passes 33, 34, and 35 all CLEAN (strict) on HEAD de89b557; BC-5.39.001 3-CLEAN protocol satisfied
+- **Convergence provenance**: LOCAL 3-CLEAN converged at de89b557 (passes 33/34/35, CLEAN strict; BC-5.39.001 satisfied); pre-PR-LEVEL fix-burst 54c89898 (CR-002/CR-003/CR-004/SEC-001; RG-075..078); PR-LEVEL pass-1 fix-burst 56fb83d8+f9be96fa (ADV-PR-P1-MED-001/MED-002/LOW-001/OBS-002; RG-079..081). PR-LEVEL pass-1 streak reset to 0/3 per DRIFT-ORCH-PRLEVEL-PUSH-001; cascade re-gates on frozen HEAD f9be96fa
