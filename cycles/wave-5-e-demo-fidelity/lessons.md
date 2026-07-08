@@ -2433,3 +2433,36 @@ SID-1 §2 states: "the correct response: add a unit test in the production modul
 **Action taken:** D-1575 fix-burst — implementer added 5 prism-bin build_column_array tests (3 RED + 2 guards) that directly exercise the PRIMARY production path, closing F-CRIT-002 and F-HIGH-001 together. The substitute RG-024 remains in the suite as additional regression coverage but is no longer the sole RGT for AC-025.
 
 **Source:** D-1575 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-5 [process-gap] OBS, state-manager burst, 2026-07-07).
+
+---
+
+## Process-Gap Lesson 13 — BC Temporal-Indexical State Language ("Status today", "currently Absent") Rots When Implementation Advances (D-1595, 2026-07-08; S-PRISMQL-CASE-INSENSITIVE-001)
+
+**What happened:**
+
+LOCAL adversary pass-28 on S-PRISMQL-CASE-INSENSITIVE-001 (frozen b341cdd7) surfaced F-P28-MED-001: BC-2.02.013 v1.7 coverage column used temporal-indexical language ("Status today: Absent", "currently Absent", "activity_name: Partial") that was accurate at BC authoring time but had decayed silently as the implementation bursts landed all three missing vocabulary dimensions (status_id 10, activity_id 6, disposition_id 29). A literal implementer following v1.7 would attempt to add entries that already exist in `enum_map.rs`, triggering the `OcsfEnumMap::new()` collision panic.
+
+**Root cause:**
+
+BCs that describe implementation state with present-tense temporal-indexical framing ("Status today", "currently X", "as of this writing") are accurate at the moment of writing but decay as implementation progresses. The decay is silent — no existing process rule required the product-owner or story-writer to revisit the temporal framing on each implementation burst. The defect survived 8 prior passes without detection because prior passes focused on behavioral contract semantics and test coverage rather than scanning for present-tense state claims in coverage/postcondition columns.
+
+**Correct phrasing (codified rule):**
+
+BC coverage/postcondition columns MUST use stative/directive language, not temporal-indexical present-tense state claims:
+
+| Anti-pattern (temporal-indexical) | Correct replacement (stative/directive) |
+|---|---|
+| "Status today: Absent" | "MUST include entries for status_id 10 vocabulary" |
+| "currently Absent (not yet implemented)" | "vocabulary dimension: status — REQUIRED; see §Postconditions EC-02-NNN" |
+| "activity_name: Partial — severity/disposition implemented; activity pending" | "activity_name / activity_id: MUST be normalized (activity_id 6)" |
+| "as of this writing, only severity is wired" | "§Invariants: ALL three dimensions (severity, status, activity) MUST be present" |
+
+**Codification direction (for future session-reviewer / VSDD process improvement):**
+
+- This pattern should become a standing product-owner discipline: after any BC coverage column is written, check that it contains no present-tense "Status today" / "currently X" / "as of this writing" language. If the coverage column describes what is implemented vs. not-yet-implemented, restructure it as a directive ("MUST include X") rather than a state observation ("X is currently missing").
+- Adversary SAP probe extension: after any fix-burst that advances implementation, adversary MUST grep BC coverage columns for temporal-indexical markers: `today`, `currently`, `as of this writing`, `not yet`, `pending`, `partial (`, `absent`. Any such match warrants a fresh-eyes check that the language still accurately reflects the post-burst implementation state.
+- Consider extending TD-VSDD-091 ("anti-volatile-pin; cite behavioral anchors, not file:NNN line numbers") to cover temporal-indexical state claims in BC prose as a co-rule, or creating a new POL entry: "BC prose MUST NOT use present-tense state claims about implementation status; use directive language."
+
+**Note:** This is a justified-deferred codification follow-up per Canonical Principle Rule 3 (S-7.02 checklist). The codification work (TD-VSDD-091 extension or new POL rule) requires session-reviewer adjudication. It does NOT block the S-PRISMQL-CASE-INSENSITIVE-001 LOCAL cascade.
+
+**Source:** D-1595 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-28 OBS-P28-001 codification, state-manager burst, 2026-07-08).
