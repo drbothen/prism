@@ -568,10 +568,10 @@ fn build_enrichment_hint(
 ///
 /// The example format for all registered sensors is:
 /// ```text
-/// -- OCSF severity is Title-case post-normalization (e.g., 'High').
-///    Use IEQ for case-insensitive matching.
 /// FROM <table> | where severity IEQ 'high' | limit 50
 /// ```
+/// (example_note carries: "OCSF severity is stored as Title-case ('High'). Use IEQ/IIN to
+/// match regardless of the case you type, or = 'High' for the exact canonical form.")
 ///
 /// # Sensors registered
 ///
@@ -735,8 +735,9 @@ pub fn build_example_note(
         // PrismQL does NOT support `--` comment syntax; embedding the note as a comment
         // caused PrismQlParser to reject the query (BC-2.10.012 v1.8).
         query = format!("FROM {table_name} | where severity IEQ 'high' | limit 50");
-        let note = "OCSF severity is Title-case post-normalization (e.g., 'High'). \
-                    Use IEQ for case-insensitive matching."
+        let note = "OCSF severity is stored as Title-case ('High'). \
+                    Use IEQ/IIN to match regardless of the case you type, \
+                    or = 'High' for the exact canonical form."
             .to_string();
         return (query, Some(note));
     }
@@ -1800,44 +1801,28 @@ mod build_example_query_tests {
     // BC-2.10.012 v1.8 requires:
     //   (a) `example_query` MUST NOT contain `--` comment syntax.
     //   (b) `TableDescriptor` gains `example_note: Option<String>`.
-    //       - Severity-vocabulary tables → `Some("OCSF severity is Title-case
-    //         post-normalization (e.g., 'High'). Use IEQ for case-insensitive
-    //         matching.")`
+    //       - Severity-vocabulary tables → `Some("OCSF severity is stored as Title-case
+    //         ('High'). Use IEQ/IIN to match regardless of the case you type,
+    //         or = 'High' for the exact canonical form.")`  [BC-2.10.012 v1.9 canonical]
     //       - All other tables → `None`
     //
-    // Current behaviour at HEAD 065a1b60:
-    //   `build_example_query` for severity tables returns:
-    //   ```
-    //   -- OCSF severity is Title-case post-normalization (e.g., 'High'). Use IEQ
-    //   -- for case-insensitive matching.\nFROM crowdstrike_detections | where ...
-    //   ```
-    //   `example_query.contains("--")` is true → tests (1) and (2) FAIL.
-    //   `TableDescriptor::example_note` does not exist → test (3) does not compile.
-    //
-    // Green Gate:
-    //   `build_example_query` moves the comment text out of `example_query` into
-    //   the returned `example_note: Option<String>` (or a companion function).
-    //   `example_query` for severity tables becomes the bare pipe form:
+    // Current behaviour at HEAD (post-pass-17 fix):
+    //   `build_example_query` for severity tables returns the bare pipe form:
     //   `"FROM crowdstrike_detections | where severity IEQ 'high' | limit 50"`
     //   `TableDescriptor::example_note` carries the OCSF note for severity tables.
+    //   `example_query` contains no `--` comment syntax.
 
     /// F-MED-002 (1/3): `build_example_query` output must contain NO `--` comment lines
     /// across ALL table shapes (column-free, count-recent, severity-IEQ, aggregate).
     ///
-    /// ## Current behaviour (HEAD 065a1b60) — RED
+    /// ## Behaviour (post-pass-17 — GREEN)
     ///
     /// Severity-vocabulary tables (e.g., `crowdstrike_detections`, `armis_alerts`)
-    /// produce output like:
-    /// ```
-    /// -- OCSF severity is Title-case post-normalization (e.g., 'High'). Use IEQ ...
+    /// now produce the bare pipe form with no comment lines:
+    /// ```text
     /// FROM crowdstrike_detections | where severity IEQ 'high' | limit 50
     /// ```
-    /// `q.contains("--")` is true → assertion panics for those shapes.
-    ///
-    /// ## Green Gate
-    ///
-    /// PASSES once `build_example_query` removes the `-- OCSF ...` comment line
-    /// from the returned string (the comment text moves to `example_note`).
+    /// `q.contains("--")` is false → assertion passes for all shapes.
     ///
     /// ## Traces
     ///
@@ -1911,15 +1896,11 @@ mod build_example_query_tests {
     /// This is a stricter sibling of the updated `test_obs2_all_build_example_query_outputs_parse_ok`.
     /// That test covers a broad set of shapes; this test is the canonical F-MED-002 trace.
     ///
-    /// ## Current behaviour (HEAD 065a1b60) — RED
+    /// ## Behaviour (post-pass-17 — GREEN)
     ///
-    /// Severity shapes embed a `-- OCSF ...` comment line.  `PrismQlParser::parse`
-    /// does not support `--` comment syntax → returns `Err(...)` for severity shapes.
-    ///
-    /// ## Green Gate
-    ///
-    /// PASSES once `build_example_query` removes the `-- OCSF ...` line so every
-    /// returned string is a parseable PQL expression.
+    /// Severity shapes are now bare pipe-form PQL with no `--` comment lines.
+    /// `PrismQlParser::parse` succeeds for all shapes. The OCSF casing note is
+    /// in `example_note`, not embedded in `example_query`.
     ///
     /// ## Traces
     ///
@@ -1992,30 +1973,20 @@ mod build_example_query_tests {
     // BC-2.10.012 v1.8 adds `example_note: Option<String>` to `TableDescriptor`.
     // `build_example_query` (or a companion `build_example_note(table_name, columns)`)
     // must return:
-    //   - `Some("OCSF severity is Title-case post-normalization (e.g., 'High'). \
-    //            Use IEQ for case-insensitive matching.")` for severity-vocabulary tables
+    //   - `Some("OCSF severity is stored as Title-case ('High'). Use IEQ/IIN to match
+    //      regardless of the case you type, or = 'High' for the exact canonical form.")`
+    //     for severity-vocabulary tables  [BC-2.10.012 v1.9 canonical, pass-17 F-MED-1]
     //   - `None` for all other tables (column-free, count-recent, aggregate shapes)
     //
-    // This test cannot compile until:
-    //   (a) `pub example_note: Option<String>` is added to `TableDescriptor`
-    //       (in this file, around line 64-83).
-    //   (b) `build_example_query` is updated to return `(String, Option<String>)`,
-    //       OR a new `build_example_note(table_name: &str, columns: &[ColumnDescriptor])
-    //       -> Option<String>` function is added.
-    //   (c) All callers of `build_example_query` (lines ~331-393) are updated to
-    //       destructure the tuple and populate `TableDescriptor::example_note`.
-    //   (d) `ci.yml EXPECTED` count is updated (new `#[non_exhaustive]` public type
-    //       field on `TableDescriptor` does not require a new entry, but any new
-    //       public struct does).
-    //
-    // Implementer: uncomment and activate this test as part of the pass-15 fix-burst.
     // PASS-15: activated — build_example_note + example_note field added (F-MED-002).
+    // PASS-17: canonical note text updated to ADR-047-authoritative fuller form (F-MED-1).
     #[test]
     fn test_BC_2_10_012_example_note_some_for_severity_tables_none_otherwise() {
         use prism_query::filter_parser::PrismQlParser;
 
-        const OCSF_NOTE: &str = "OCSF severity is Title-case post-normalization \
-            (e.g., 'High'). Use IEQ for case-insensitive matching.";
+        const OCSF_NOTE: &str = "OCSF severity is stored as Title-case ('High'). \
+            Use IEQ/IIN to match regardless of the case you type, \
+            or = 'High' for the exact canonical form.";
 
         // Severity-vocabulary table: note must be Some(OCSF_NOTE).
         let sev_cols = vec![
@@ -2054,5 +2025,98 @@ mod build_example_query_tests {
             "F-MED-002: non-severity table must produce example_note = None; \
              got: {non_note:?}"
         );
+    }
+
+    // ─── RG-062 (pass-17 F-LOW-2) ─────────────────────────────────────────────
+    //
+    // Story S-PRISMQL-CASE-INSENSITIVE-001 RG-062 requires a dedicated test that
+    // verifies ALL `build_example_note` query outputs (the `.0` tuple element) parse
+    // RAW via PrismQlParser with NO comment-stripping preprocessing.
+    //
+    // `build_example_query` delegates to `build_example_note(...).0`, so the two
+    // functions produce identical query strings.  This test is the canonical RG-062
+    // anchor that explicitly calls `build_example_note` to confirm the split function
+    // satisfies BC-2.10.012 v1.8 pure-PQL invariant for all table shapes.
+
+    /// RG-062 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-17 F-LOW-2):
+    /// ALL `build_example_note` query outputs (tuple `.0`) parse RAW via
+    /// `PrismQlParser` with NO stripping — confirming pure-PQL invariant
+    /// for the split `build_example_note` function.
+    ///
+    /// This is the RG-062 canonical anchor.  The companion test
+    /// `test_BC_2_10_012_example_query_parses_without_stripping` covers
+    /// `build_example_query` (the thin wrapper); this test covers
+    /// `build_example_note` directly.
+    ///
+    /// ## Traces
+    ///
+    /// BC-2.10.012 v1.8 §Raw parseability; S-PRISMQL-CASE-INSENSITIVE-001 RG-062;
+    /// LOCAL adversary pass-17 F-LOW-2.
+    #[test]
+    fn test_BC_2_10_012_build_example_note_query_parses_without_stripping() {
+        use prism_query::filter_parser::PrismQlParser;
+
+        // Full representative set covering all four priority-ladder branches.
+        let shapes: Vec<(&str, Vec<ColumnDescriptor>)> = vec![
+            // Column-free branch
+            (
+                "claroty_devices",
+                vec![
+                    col("uid", ColumnType::String),
+                    col("device_category", ColumnType::String),
+                    col("retired", ColumnType::Boolean),
+                ],
+            ),
+            // Count-recent branch (Datetime, no severity vocabulary)
+            (
+                "cyberint_alerts_no_severity",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("title", ColumnType::String),
+                ],
+            ),
+            // Severity-IEQ branch (crowdstrike — vocabulary registered)
+            (
+                "crowdstrike_detections",
+                vec![
+                    col("created_timestamp", ColumnType::Datetime),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // Severity-IEQ branch (armis — vocabulary registered, no Datetime)
+            (
+                "armis_alerts",
+                vec![
+                    col("alert_id", ColumnType::String),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // Aggregate branch (Integer column, no severity vocabulary)
+            (
+                "unknown_sensor_with_count",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("severity_id", ColumnType::Integer),
+                ],
+            ),
+        ];
+
+        for (table, columns) in &shapes {
+            let (q, _note) = build_example_note(table, columns);
+            // Raw parse — no stripping. BC-2.10.012 v1.8: example_query must be pure PQL.
+            let result = PrismQlParser::parse(&q);
+            assert!(
+                result.is_ok(),
+                "RG-062 F-LOW-2: build_example_note query for table '{table}' must parse \
+                 via PrismQlParser WITHOUT stripping (BC-2.10.012 v1.8 pure-PQL invariant). \
+                 Got: {q:?}. Error: {result:?}"
+            );
+            // Also verify no '--' comment syntax leaks into the query part.
+            assert!(
+                !q.contains("--"),
+                "RG-062 F-LOW-2: build_example_note query for table '{table}' MUST NOT \
+                 contain '--' comment syntax (pure-PQL invariant). Got: {q:?}"
+            );
+        }
     }
 }

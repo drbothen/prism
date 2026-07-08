@@ -1345,7 +1345,8 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
         "IEQ — case-insensitive equality (OCSF Title-case: HIGH/high/High all match 'High')",
         // S-PRISMQL-CASE-INSENSITIVE-001: IEQ operator — case-insensitive equality.
         // Lowered to `lower(severity) = lower('high')` in DataFusion SQL (BC-2.11.024).
-        // Useful for OCSF severity values that vary by sensor casing (CrowdStrike: 'High', Armis: 'HIGH').
+        // Post-normalization: all OCSF enum values (severity, status, etc.) are Title-case at query time.
+        // IEQ is case-insensitive so any input casing ('high', 'HIGH', 'High') matches 'High'.
         "sensor_table | severity IEQ 'high'",
     ),
     (

@@ -2075,7 +2075,10 @@ fn test_BC_2_10_009_query_tool_description_l1_primer_skeleton_shapes() {
     // BC-2.10.009 §L1 primer: severity filter uses multi-value IN predicate and LIMIT 50.
     // F-PML2-MED-001 fix: severity values are now a placeholder `<severity_values>` —
     // hardcoding any single casing breaks sensors that use a different casing (0 rows,
-    // no error). Agents must use prism_describe's example_query for correct per-sensor casing.
+    // no error). Post-normalization all enum values are OCSF Title-case; use IEQ/IIN/INE
+    // for case-insensitive matching, or = 'High' / IN ('High','Critical') for exact canonical
+    // matching. prism_describe example_query shows an IEQ example; example_note explains
+    // the casing rule (ADR-047 §D.4).
     assert!(
         description.contains("IN (<severity_values>)"),
         "BC-2.10.009 AC-002 [L1 skeleton 2 — severity]: query tool description \
@@ -2109,6 +2112,76 @@ fn test_BC_2_10_009_query_tool_description_l1_primer_skeleton_shapes() {
          MUST contain 'LIMIT 10'. \
          Got description (first 400 chars): {:?}",
         &description[..description.len().min(400)]
+    );
+}
+
+// ─── F-HIGH-1 (pass-17): post-normalization casing contract guard ─────────────
+
+/// F-HIGH-1 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-17):
+/// Post-normalization casing contract guard for the `query` tool description.
+///
+/// The description MUST NOT carry vendor-cased teaching patterns that were correct
+/// pre-normalization but now teach the 0-rows trap:
+/// - `SEVERITY CASING WARNING` header
+/// - `'HIGH'` as an Armis severity literal
+/// - `"per-sensor"` casing claims
+///
+/// AND MUST mention `IEQ` for case-insensitive matching discoverability (ADR-047 §D.4).
+///
+/// ## Current behaviour (HEAD f2215872) — RED
+///
+/// Description contains:
+/// ```text
+/// SEVERITY CASING WARNING: severity literal casing is per-sensor (Title-case
+/// 'High'/'Critical' for CrowdStrike, UPPER-case 'HIGH'/'CRITICAL' for Armis, ...)
+/// ```
+///
+/// ## Green Gate
+///
+/// PASSES once the description replaces SEVERITY CASING WARNING with an ENUM CASING
+/// CONTRACT that mentions IEQ/IIN/INE and canonical 'High'/'Critical' literals.
+///
+/// Traces: BC-2.10.009; ADR-047 §D.4; S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-17 F-HIGH-1.
+#[test]
+fn test_BC_2_10_009_query_tool_description_no_vendor_casing_teaches_ieq() {
+    let catalog = PrismServer::production_tool_catalog();
+    let query_tool = catalog.iter().find(|t| t.name.as_ref() == "query").expect(
+        "BC-2.10.009 F-HIGH-1: 'query' tool must be registered in the production tool catalog",
+    );
+    let description = query_tool
+        .description
+        .as_deref()
+        .expect("BC-2.10.009 F-HIGH-1: 'query' tool must have a non-empty description");
+
+    // Guard: SEVERITY CASING WARNING header must be gone.
+    // Post-normalization: all enum values are OCSF Title-case at query time;
+    // vendor-per-sensor casing teaching is false and teaches the 0-rows trap.
+    assert!(
+        !description.contains("SEVERITY CASING WARNING"),
+        "F-HIGH-1 (pass-17): query tool description MUST NOT contain 'SEVERITY CASING WARNING' \
+         (post-normalization contract: all enum values are OCSF Title-case; \
+         vendor-per-sensor casing teaching no longer applies). \
+         Got description (first 600 chars): {:?}",
+        &description[..description.len().min(600)]
+    );
+
+    // Guard: no Armis UPPER-case vendor literal 'HIGH' in description.
+    // Post-normalization, Armis severity is canonicalized to 'High'.
+    assert!(
+        !description.contains("'HIGH'"),
+        "F-HIGH-1 (pass-17): query tool description MUST NOT contain \"'HIGH'\" as a severity \
+         literal (Armis pre-normalization casing; post-normalization all values are Title-case 'High'). \
+         Got description (first 600 chars): {:?}",
+        &description[..description.len().min(600)]
+    );
+
+    // Guard: must teach IEQ for case-insensitive matching discoverability (ADR-047 §D.4 / AC-025).
+    assert!(
+        description.contains("IEQ"),
+        "F-HIGH-1 (pass-17): query tool description MUST mention IEQ operator for \
+         case-insensitive matching discoverability (ADR-047 §D.4 / AC-025). \
+         Got description (first 600 chars): {:?}",
+        &description[..description.len().min(600)]
     );
 }
 
