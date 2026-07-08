@@ -1,0 +1,3202 @@
+//! Red Gate tests for S-PRISMQL-CASE-INSENSITIVE-001.
+//!
+//! Covers tests added across multiple adversary passes — see the Red Gate Inventory
+//! in `.factory/stories/S-PRISMQL-CASE-INSENSITIVE-001.md` for the authoritative
+//! RG↔test mapping.  Areas (non-exhaustive summary):
+//!
+//! - **Grammar parse** — IEQ/IIN/INE parse to correct AST nodes; keyword
+//!   case-insensitive; IIN-before-IN prefix ordering (RG-001..RG-005).
+//! - **SQL emitter lowering** — `lower()` wrapping in `predicate_to_datafusion_sql`
+//!   for CI predicates; case-sensitive predicates unchanged (RG-006..RG-009).
+//! - **Execution correctness** — CI match/miss against DataFusion MemTable;
+//!   GROUP-BY no-fragmentation after OCSF normalization (RG-010, RG-011, RG-022).
+//! - **Pipe-mode | where stage** — IEQ available in pipe `| where`; pipe-mode
+//!   integer-column type-check (F-P1-PIPE-TYPECHECK-GAP); SqlPipe pipe-stage
+//!   type-mismatch (RG-012 + later SqlPipe guards).
+//! - **Normalized PQL echo** — lowercase keyword round-trips to canonical uppercase;
+//!   parse → normalize → reparse yields identical AST (RG-013, RG-014).
+//! - **No-panic / stress** — repeated IEQ in AND compound (RG-015, VP-021 guard).
+//! - **Type-validation errors** — non-string/empty-list RHS → E-QUERY-001;
+//!   integer-column operand → E-QUERY-002 with correct operator field;
+//!   IIN non-string/boolean elements rejected (RG-016..RG-018, RG-018b, RG-018c).
+//! - **Grammar resource + DESCRIBE** — resource includes IEQ/IIN/INE tokens;
+//!   DESCRIBE output includes IEQ example (RG-023, RG-024).
+//! - **SQL-mode / DML mode-boundary rejection** — IEQ/IIN/INE in SELECT, INSERT,
+//!   UPDATE, DELETE, HAVING, subquery, and SqlPipe-head WHERE/HAVING contexts
+//!   return E-QUERY-001 / QueryPlanFailed; only filter-mode and pipe-mode execute.
+//! - **Date-like RHS acceptance** — date-shaped strings (`'2024-01-01'`) are
+//!   accepted as `Literal::String`, not rejected at parse time.
+//! - **Compound-violation precedence** — non-string RHS error takes precedence
+//!   over mode-boundary error when both are present.
+//!
+//! Red Gate discipline (BC-5.38.001): every test body asserts REAL behavior derived
+//! from behavioral contracts and acceptance criteria. Tests fail before implementation
+//! because the grammar has no IEQ/IIN/INE keywords and `predicate_to_datafusion_sql` +
+//! `PqlNormalizer::normalize_predicate` have `todo!()` stubs for `case_insensitive: true`.
+//!
+//! ## LOCAL-pass-2 findings (tests added / strengthened in this burst)
+//!
+//! The adversary identified three additional gaps in the pass-1 implementation at
+//! HEAD face9b91:
+//!
+//! - **F-P1-OPERATOR-HARDCODE**: `execute_against_session` hardcodes `operator: "IEQ"`
+//!   in the `QueryTypeMismatch` error regardless of whether the actual operator was
+//!   INE or IIN. Tests RG-018 (strengthened) + RG-018b (INE) + RG-018c (IIN).
+//!
+//! - **AC-022 suggestion**: `PrismError::QueryTypeMismatch` has no `suggested_column`
+//!   field, so the Display string does not include the BC-2.11.024 suggestion text.
+//!   error-taxonomy v2.18 requires: `"; for label comparison, use the string column
+//!   '<sibling>' with IEQ/IIN/INE instead"`. All three RG-018 variants assert this.
+//!
+//! - **F-P1-PIPE-TYPECHECK-GAP**: the pre-flight CI type check only exists in
+//!   `execute_against_session::Ast::Filter`. The `Ast::Pipe` arm has no check and
+//!   falls through to DataFusion, producing generic E-QUERY-034 instead of E-QUERY-002.
+//!   Test `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_pipe_mode_e_query_002`.
+//!
+//! Behavioral contracts traced:
+//!   BC-2.11.024 — PrismQL IEQ/IIN/INE case-insensitive operators
+//!   BC-2.11.002 — filter-mode parsing (amended)
+//!   BC-2.11.004 — pipe-mode | where stage (amended)
+//!   BC-2.11.018 — normalized_pql echo (amended EC-11-057)
+//!   BC-2.02.013 — adapter-boundary OCSF enum-label normalization (RG-022)
+
+#![allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    // parse_filter and parse_pipe are disallowed-methods in production code; unit tests
+    // are the sanctioned direct callers (same pattern as parser_tests.rs).
+    clippy::disallowed_methods,
+    clippy::panic,
+    non_snake_case,
+)]
+
+use crate::ast::{
+    Ast, CompareOp, Expr, FieldPath, FilterExpr, Literal, PqlNormalizer, Predicate, SourceRef,
+};
+use crate::filter_parser::{parse_filter, PrismQlParser};
+use crate::pipe_sql_emitter::predicate_to_datafusion_sql;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-001: AC-001 — IEQ parses to Predicate::Compare { case_insensitive: true }
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-001: `severity IEQ 'high'` parses to `Predicate::Compare { op: Eq, case_insensitive: true }`.
+///
+/// Red Gate: FAILS — `parse_filter` returns `Err` because the grammar has no IEQ keyword.
+/// Green Gate: PASSES once IEQ is added to the Chumsky predicate combinator.
+///
+/// Traces to: BC-2.11.024 postcondition "New operators" IEQ row;
+/// BC-2.11.002 amendment.
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_parses_to_compare_case_insensitive_true() {
+    let result = parse_filter("severity IEQ 'high'");
+    assert!(
+        result.is_ok(),
+        "RG-001: 'severity IEQ \\'high\\'' must parse successfully; got: {:?}",
+        result.err()
+    );
+    let filter = result.unwrap();
+    match filter.predicate {
+        Predicate::Compare {
+            op,
+            case_insensitive,
+            ref rhs,
+            ..
+        } => {
+            assert_eq!(op, CompareOp::Eq, "RG-001: IEQ must map to CompareOp::Eq");
+            assert!(
+                case_insensitive,
+                "RG-001: IEQ must set case_insensitive=true"
+            );
+            assert_eq!(
+                **rhs,
+                Expr::Literal(Literal::String("high".to_owned())),
+                "RG-001: RHS must be Literal::String(\"high\")"
+            );
+        }
+        other => panic!("RG-001: expected Predicate::Compare, got {:?}", other),
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-002: AC-002 — IIN parses to Predicate::In { case_insensitive: true }
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-002: `status IIN ('open', 'new')` parses to `Predicate::In { case_insensitive: true }`.
+///
+/// Red Gate: FAILS — grammar has no IIN keyword.
+/// Green Gate: PASSES once IIN is added.
+///
+/// Traces to: BC-2.11.024 postcondition "New operators" IIN row.
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_iin_parses_to_in_case_insensitive_true() {
+    let result = parse_filter("status IIN ('open', 'new')");
+    assert!(
+        result.is_ok(),
+        "RG-002: 'status IIN (\\'open\\', \\'new\\')' must parse; got: {:?}",
+        result.err()
+    );
+    let filter = result.unwrap();
+    match filter.predicate {
+        Predicate::In {
+            negated,
+            case_insensitive,
+            ref values,
+            ..
+        } => {
+            assert!(!negated, "RG-002: IIN must not be negated");
+            assert!(
+                case_insensitive,
+                "RG-002: IIN must set case_insensitive=true"
+            );
+            assert_eq!(values.len(), 2, "RG-002: IIN list must have 2 values");
+            assert_eq!(
+                values[0],
+                Literal::String("open".to_owned()),
+                "RG-002: first value must be 'open'"
+            );
+            assert_eq!(
+                values[1],
+                Literal::String("new".to_owned()),
+                "RG-002: second value must be 'new'"
+            );
+        }
+        other => panic!("RG-002: expected Predicate::In, got {:?}", other),
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-003: AC-003 — INE parses to Predicate::Compare { op: Ne, case_insensitive: true }
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-003: `severity INE 'informational'` parses to `Predicate::Compare { op: Ne, case_insensitive: true }`.
+///
+/// Red Gate: FAILS — grammar has no INE keyword.
+///
+/// Traces to: BC-2.11.024 postcondition "New operators" INE row.
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_ine_parses_to_compare_ne_case_insensitive_true() {
+    let result = parse_filter("severity INE 'informational'");
+    assert!(
+        result.is_ok(),
+        "RG-003: 'severity INE \\'informational\\'' must parse; got: {:?}",
+        result.err()
+    );
+    let filter = result.unwrap();
+    match filter.predicate {
+        Predicate::Compare {
+            op,
+            case_insensitive,
+            ..
+        } => {
+            assert_eq!(op, CompareOp::Ne, "RG-003: INE must map to CompareOp::Ne");
+            assert!(
+                case_insensitive,
+                "RG-003: INE must set case_insensitive=true"
+            );
+        }
+        other => panic!("RG-003: expected Predicate::Compare, got {:?}", other),
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-004: AC-004 — IEQ keyword parsed case-insensitively (ieq/IEQ/Ieq identical)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-004: `severity ieq 'high'`, `severity IEQ 'high'`, `severity Ieq 'high'` produce
+/// structurally identical ASTs with `case_insensitive: true`.
+///
+/// Red Gate: FAILS — none of the three forms parse (grammar missing IEQ keyword).
+/// Green Gate: all three parse to the same `Predicate::Compare { case_insensitive: true }`.
+///
+/// Traces to: BC-2.11.024 postcondition "Operators parsed case-insensitively via kw()".
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_keyword_case_insensitive_parsing() {
+    let lower = parse_filter("severity ieq 'high'");
+    let upper = parse_filter("severity IEQ 'high'");
+    let mixed = parse_filter("severity Ieq 'high'");
+
+    assert!(
+        lower.is_ok(),
+        "RG-004: lowercase 'ieq' must parse; got: {:?}",
+        lower.err()
+    );
+    assert!(
+        upper.is_ok(),
+        "RG-004: uppercase 'IEQ' must parse; got: {:?}",
+        upper.err()
+    );
+    assert!(
+        mixed.is_ok(),
+        "RG-004: mixed 'Ieq' must parse; got: {:?}",
+        mixed.err()
+    );
+
+    let lower_pred = lower.unwrap().predicate;
+    let upper_pred = upper.unwrap().predicate;
+    let mixed_pred = mixed.unwrap().predicate;
+
+    assert_eq!(
+        lower_pred, upper_pred,
+        "RG-004: ieq and IEQ must produce identical predicates"
+    );
+    assert_eq!(
+        upper_pred, mixed_pred,
+        "RG-004: IEQ and Ieq must produce identical predicates"
+    );
+
+    // All three must have case_insensitive: true
+    match lower_pred {
+        Predicate::Compare {
+            case_insensitive, ..
+        } => {
+            assert!(
+                case_insensitive,
+                "RG-004: all IEQ variants must set case_insensitive=true"
+            );
+        }
+        other => panic!("RG-004: expected Compare, got {:?}", other),
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-005: AC-005 — IIN parses before IN — no prefix-match collision
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-005: `status IIN ('open')` parses with `case_insensitive: true` — NOT
+/// `case_insensitive: false`, which would indicate IIN was consumed as bare IN.
+///
+/// Red Gate: FAILS — grammar has no IIN keyword.
+/// Green Gate: PASSES once IIN is added before IN in the combinator ordering.
+///
+/// Traces to: BC-2.11.024 invariant "IIN requires at least one value";
+/// risk_mitigation: IIN-before-IN combinator ordering.
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_iin_before_in_no_collision() {
+    let result = parse_filter("status IIN ('open')");
+    assert!(
+        result.is_ok(),
+        "RG-005: 'status IIN (\\'open\\')' must parse without error; got: {:?}",
+        result.err()
+    );
+    let filter = result.unwrap();
+    match filter.predicate {
+        Predicate::In {
+            case_insensitive: true,
+            negated: false,
+            ref values,
+            ..
+        } => {
+            assert_eq!(
+                values.len(),
+                1,
+                "RG-005: single-element IIN list must have 1 value"
+            );
+            assert_eq!(
+                values[0],
+                Literal::String("open".to_owned()),
+                "RG-005: value must be 'open'"
+            );
+        }
+        Predicate::In {
+            case_insensitive: false,
+            ..
+        } => panic!(
+            "RG-005: IIN was parsed as case-sensitive IN — IIN-before-IN combinator ordering violated"
+        ),
+        other => panic!(
+            "RG-005: expected Predicate::In {{ case_insensitive: true }}, got {:?}",
+            other
+        ),
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-006: AC-008 — IEQ emits lower(field) = lower('val')
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-006: `predicate_to_datafusion_sql` for `Predicate::Compare { op: Eq, case_insensitive: true }`
+/// emits `lower(severity) = lower('high')`.
+///
+/// Red Gate: PANICS — `predicate_to_datafusion_sql` hits `todo!()` for `case_insensitive: true`.
+/// Green Gate: PASSES once the emitter lowers IEQ to `lower()` pattern.
+///
+/// Traces to: BC-2.11.024 postcondition "DataFusion SQL lowering" IEQ row.
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_emits_lower_equals_lower() {
+    let pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+        op: CompareOp::Eq,
+        rhs: Box::new(Expr::Literal(Literal::String("high".to_owned()))),
+        case_insensitive: true,
+    };
+    let sql = predicate_to_datafusion_sql(&pred).expect("RG-006: IEQ emitter must not return Err");
+    assert_eq!(
+        sql, "lower(severity) = lower('high')",
+        "RG-006: IEQ must emit lower(field) = lower('val') pattern"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-007: AC-009 — INE emits lower(field) != lower('val')
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-007: `predicate_to_datafusion_sql` for `Predicate::Compare { op: Ne, case_insensitive: true }`
+/// emits `lower(severity) != lower('low')`.
+///
+/// Red Gate: PANICS — hits `todo!()` for `case_insensitive: true`.
+///
+/// Traces to: BC-2.11.024 postcondition "DataFusion SQL lowering" INE row.
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_ine_emits_lower_ne_lower() {
+    let pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+        op: CompareOp::Ne,
+        rhs: Box::new(Expr::Literal(Literal::String("low".to_owned()))),
+        case_insensitive: true,
+    };
+    let sql = predicate_to_datafusion_sql(&pred).expect("RG-007: INE emitter must not return Err");
+    assert_eq!(
+        sql, "lower(severity) != lower('low')",
+        "RG-007: INE must emit lower(field) != lower('val') pattern"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-008: AC-010 — IIN emits lower(field) IN (lower('v1'), lower('v2'), ...)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-008: `predicate_to_datafusion_sql` for `Predicate::In { case_insensitive: true, values: ["high", "critical"] }`
+/// emits `lower(severity) IN (lower('high'), lower('critical'))`.
+///
+/// Red Gate: PANICS — hits `todo!()` for `case_insensitive: true` in the `In` arm.
+///
+/// Traces to: BC-2.11.024 postcondition "DataFusion SQL lowering" IIN row.
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_iin_emits_lower_in_lower_list() {
+    let pred = Predicate::In {
+        field: FieldPath::new(["severity"]),
+        values: vec![
+            Literal::String("high".to_owned()),
+            Literal::String("critical".to_owned()),
+        ],
+        negated: false,
+        case_insensitive: true,
+    };
+    let sql = predicate_to_datafusion_sql(&pred).expect("RG-008: IIN emitter must not return Err");
+    assert_eq!(
+        sql, "lower(severity) IN (lower('high'), lower('critical'))",
+        "RG-008: IIN must emit lower(field) IN (lower('v1'), lower('v2')) pattern"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-009: AC-011 — case-sensitive = emits unchanged (no lower() wrapping)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-009: `predicate_to_datafusion_sql` for `Predicate::Compare { op: Eq, case_insensitive: false }`
+/// emits `severity = 'High'` with NO `lower()` wrapping.
+///
+/// Red Gate: PASSES — the `case_insensitive: false` branch has no `todo!()`.
+/// This is a regression guard: if the `false` branch is accidentally broken, this fails.
+///
+/// Traces to: BC-2.11.024 postcondition "Case-sensitive operators unchanged".
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_case_sensitive_eq_no_lower_wrapping() {
+    let pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+        op: CompareOp::Eq,
+        rhs: Box::new(Expr::Literal(Literal::String("High".to_owned()))),
+        case_insensitive: false,
+    };
+    let sql = predicate_to_datafusion_sql(&pred)
+        .expect("RG-009: case-sensitive = must emit SQL without error");
+    assert_eq!(
+        sql, "severity = 'High'",
+        "RG-009: case-sensitive = must NOT wrap with lower()"
+    );
+    assert!(
+        !sql.contains("lower"),
+        "RG-009: case-sensitive = output must not contain lower(); got: {sql:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-010: AC-012 — IEQ execution matches rows regardless of casing
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-010: DataFusion MemTable with `{severity: 'High', 'Low', 'Medium'}`;
+/// `severity IEQ 'high'` matches the 'High' row (returns 1 row), and
+/// `severity IEQ 'HIGH'` also matches the 'High' row.
+///
+/// Red Gate: PANICS — `execute_against_session` calls `predicate_to_datafusion_sql`
+/// which hits `todo!()` for the IEQ `case_insensitive: true` predicate.
+/// Green Gate: both IEQ queries return exactly 1 row.
+///
+/// Traces to: BC-2.11.024 canonical test vectors #1 and #2.
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_execution_case_insensitive_match() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::StringArray;
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Build the IEQ predicate AST directly: severity IEQ 'high'
+    let ieq_pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+        op: CompareOp::Eq,
+        rhs: Box::new(Expr::Literal(Literal::String("high".to_owned()))),
+        case_insensitive: true,
+    };
+    let ast_ieq_lower = Ast::Filter(FilterExpr {
+        source: SourceRef::from_raw(""),
+        predicate: ieq_pred,
+    });
+
+    // Also test IEQ 'HIGH' (all-caps query, Title-case data)
+    let ieq_pred_upper = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+        op: CompareOp::Eq,
+        rhs: Box::new(Expr::Literal(Literal::String("HIGH".to_owned()))),
+        case_insensitive: true,
+    };
+    let ast_ieq_upper = Ast::Filter(FilterExpr {
+        source: SourceRef::from_raw(""),
+        predicate: ieq_pred_upper,
+    });
+
+    // MemTable: 3 rows with severity values 'High', 'Low', 'Medium'
+    let schema = Arc::new(Schema::new(vec![Field::new(
+        "severity",
+        DataType::Utf8,
+        true,
+    )]));
+    let severity_arr = Arc::new(StringArray::from(vec!["High", "Low", "Medium"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_arr]).expect("RG-010: batch must build");
+
+    let ctx = build_session_context(50 * 1024 * 1024).expect("RG-010: context must build");
+    register_mem_table(&ctx, "detections", vec![batch.clone()])
+        .expect("RG-010: MemTable must register");
+
+    // IEQ 'high' must match 'High' row
+    let result_lower =
+        execute_against_session(&ctx, "severity IEQ 'high'", &ast_ieq_lower, HashMap::new())
+            .await
+            .expect("RG-010: IEQ 'high' execution must not error");
+
+    let rows_lower: usize = result_lower.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        rows_lower, 1,
+        "RG-010: severity IEQ 'high' must match the 'High' row; got {rows_lower} rows"
+    );
+
+    // Re-register (context is consumed per execution in filter fan-out).
+    // Build a new context for the second assertion.
+    let ctx2 = build_session_context(50 * 1024 * 1024).expect("RG-010: context2 must build");
+    register_mem_table(&ctx2, "detections", vec![batch])
+        .expect("RG-010: MemTable must register for ctx2");
+
+    // IEQ 'HIGH' must also match 'High' row
+    let result_upper =
+        execute_against_session(&ctx2, "severity IEQ 'HIGH'", &ast_ieq_upper, HashMap::new())
+            .await
+            .expect("RG-010: IEQ 'HIGH' execution must not error");
+
+    let rows_upper: usize = result_upper.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        rows_upper, 1,
+        "RG-010: severity IEQ 'HIGH' must also match the 'High' row; got {rows_upper} rows"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-011: AC-013 — case-sensitive = returns 0 rows when casing differs
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-011: DataFusion MemTable with `{severity: 'High'}`;
+/// `severity = 'high'` (case-sensitive) returns 0 rows.
+///
+/// Red Gate: PASSES — `case_insensitive: false` has no `todo!()`. This is a
+/// regression guard: the existing `=` operator must remain case-sensitive.
+///
+/// Traces to: BC-2.11.024 canonical test vector #6 "regression-no-change".
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_case_sensitive_eq_returns_zero_on_casing_mismatch() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::StringArray;
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Case-sensitive = predicate: severity = 'high' (queries for lowercase, data is Title-case)
+    let cs_pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+        op: CompareOp::Eq,
+        rhs: Box::new(Expr::Literal(Literal::String("high".to_owned()))),
+        case_insensitive: false,
+    };
+    let ast = Ast::Filter(FilterExpr {
+        source: SourceRef::from_raw(""),
+        predicate: cs_pred,
+    });
+
+    // MemTable: severity = 'High' (Title-case, OCSF canonical)
+    let schema = Arc::new(Schema::new(vec![Field::new(
+        "severity",
+        DataType::Utf8,
+        true,
+    )]));
+    let severity_arr = Arc::new(StringArray::from(vec!["High"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_arr]).expect("RG-011: batch must build");
+
+    let ctx = build_session_context(50 * 1024 * 1024).expect("RG-011: context must build");
+    register_mem_table(&ctx, "detections", vec![batch]).expect("RG-011: MemTable must register");
+
+    let result = execute_against_session(&ctx, "severity = 'high'", &ast, HashMap::new())
+        .await
+        .expect("RG-011: case-sensitive = execution must not error");
+
+    let total: usize = result.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        total, 0,
+        "RG-011: case-sensitive severity = 'high' must return 0 rows when data is 'High'; \
+         got {total} rows (indicates = became case-insensitive — regression)"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-012: AC-013b — IEQ available in pipe-mode | where stage
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-012: Pipe-mode `crowdstrike_detections | where severity IEQ 'high' | head 5`
+/// parses successfully.
+///
+/// Red Gate: FAILS — `PrismQlParser::parse` returns `Err` because IEQ is not in grammar.
+/// Green Gate: PASSES once IEQ is added to the shared predicate combinator used by
+/// both filter mode and pipe | where stages.
+///
+/// Traces to: BC-2.11.004 amendment (IEQ/IIN/INE in | where via shared grammar);
+/// BC-2.11.024 invariant "valid in filter mode and pipe-mode | where stages".
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_in_pipe_where_stage() {
+    let query = "crowdstrike_detections | where severity IEQ 'high' | head 5";
+    let result = PrismQlParser::parse(query);
+    assert!(
+        result.is_ok(),
+        "RG-012: pipe-mode 'where severity IEQ \\'high\\'' must parse; got: {:?}",
+        result.err()
+    );
+
+    // Verify the parsed AST is pipe mode with a Where stage containing IEQ
+    match result.unwrap() {
+        Ast::Pipe(ref pq) => {
+            let has_ieq_where = pq.stages.iter().any(|stage| {
+                use crate::ast::PipeStage;
+                matches!(
+                    stage,
+                    PipeStage::Where(Predicate::Compare {
+                        case_insensitive: true,
+                        ..
+                    })
+                )
+            });
+            assert!(
+                has_ieq_where,
+                "RG-012: pipe AST must contain a Where stage with case_insensitive=true predicate"
+            );
+        }
+        other => panic!("RG-012: expected Ast::Pipe, got {:?}", other),
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-013: AC-014 — normalized_pql reflects IEQ in uppercase canonical form
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-013: `severity ieq 'high'` (lowercase keyword) normalizes to a form containing
+/// `IEQ` (uppercase canonical) in `normalized_pql`.
+///
+/// Red Gate: FAILS — `parse_filter("severity ieq 'high'")` returns `Err` (grammar missing).
+/// Green Gate: PASSES once grammar + normalizer IEQ branch are implemented.
+///
+/// Traces to: BC-2.11.018 amendment EC-11-057;
+/// BC-2.11.024 postcondition "normalized_pql round-trip" uppercase invariant.
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_reflects_ieq_uppercase() {
+    let result = parse_filter("severity ieq 'high'");
+    assert!(
+        result.is_ok(),
+        "RG-013: lowercase 'severity ieq \\'high\\'' must parse; got: {:?}",
+        result.err()
+    );
+    let pred = result.unwrap().predicate;
+    let normalized = PqlNormalizer::normalize_predicate_pub(&pred);
+
+    assert!(
+        normalized.contains("IEQ"),
+        "RG-013: normalized form must contain uppercase 'IEQ'; got: {normalized:?}"
+    );
+    assert!(
+        !normalized.contains("ieq"),
+        "RG-013: normalized form must NOT contain lowercase 'ieq'; got: {normalized:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-014: AC-015 — normalized_pql round-trip: parse → normalize → reparse → same AST
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-014: `severity IEQ 'high'` → parse → normalize → reparse → AST equals original.
+///
+/// Red Gate: FAILS — parse step returns Err.
+/// Green Gate: PASSES once grammar + normalizer are implemented.
+///
+/// Traces to: BC-2.11.024 postcondition "normalized_pql round-trip" invariant;
+/// BC-2.11.018 amendment (round-trip extended to IEQ/IIN/INE).
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_round_trip_ast_equality() {
+    let original = parse_filter("severity IEQ 'high'");
+    assert!(
+        original.is_ok(),
+        "RG-014: 'severity IEQ \\'high\\'' must parse; got: {:?}",
+        original.err()
+    );
+    let pred_original = original.unwrap().predicate;
+
+    let normalized = PqlNormalizer::normalize_predicate_pub(&pred_original);
+    assert!(
+        !normalized.is_empty(),
+        "RG-014: normalized form must not be empty"
+    );
+
+    let reparsed = parse_filter(&normalized);
+    assert!(
+        reparsed.is_ok(),
+        "RG-014: normalized form must reparse without error; form={normalized:?}, err={:?}",
+        reparsed.err()
+    );
+    let pred_reparsed = reparsed.unwrap().predicate;
+
+    assert_eq!(
+        pred_original, pred_reparsed,
+        "RG-014: parse → normalize → reparse must yield identical predicate ASTs"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-015: AC-025 — No panic: repeated IEQ does not panic (VP-021 regression guard)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-015: `severity IEQ 'high' AND severity IEQ 'high'` parses without panic.
+///
+/// Red Gate: FAILS — parse_filter returns Err (IEQ not in grammar).
+/// Green Gate: PASSES — parser handles repeated IEQ, returns Ok with a Logical::And predicate.
+///
+/// Traces to: BC-2.11.024 canonical test vector "fuzz-seed regression";
+/// VP-021 (parser never panics).
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_repeated_ieq_no_panic() {
+    let result = parse_filter("severity IEQ 'high' AND severity IEQ 'high'");
+    assert!(
+        result.is_ok(),
+        "RG-015: repeated IEQ in AND must parse without error or panic; got: {:?}",
+        result.err()
+    );
+    // Both halves must have case_insensitive: true
+    match result.unwrap().predicate {
+        Predicate::Logical { ref predicates, .. } => {
+            for p in predicates {
+                match p {
+                    Predicate::Compare {
+                        case_insensitive, ..
+                    } => {
+                        assert!(
+                            case_insensitive,
+                            "RG-015: every IEQ in AND must have case_insensitive=true"
+                        );
+                    }
+                    other => panic!("RG-015: expected Compare in AND children, got {:?}", other),
+                }
+            }
+        }
+        other => panic!("RG-015: expected Logical::And at root, got {:?}", other),
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-016: AC-020 — IEQ with non-string RHS → parse-time E-QUERY-001
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-016: parsing `severity IEQ 42` must produce a PARSE-TIME E-QUERY-001 error
+/// carrying the verbatim BC-2.11.024 message about string-literal requirement.
+///
+/// The old test called `predicate_to_datafusion_sql` (the SQL emitter) directly —
+/// that function already handles this case (paper-fix). The REAL pipeline gap is at
+/// the parser layer: the parser must emit E-QUERY-001 when it sees a non-string RHS
+/// after IEQ, so operators produce structured errors before any SQL is generated.
+///
+/// Red Gate: FAILS — `parse_filter("severity IEQ 42")` returns a generic Chumsky
+/// error ("found '4', expected '\"'") without the E-QUERY-001 code or BC message.
+/// Green Gate: PASSES once the IEQ parser branch emits ParseError containing
+/// "E-QUERY-001" for non-string RHS.
+///
+/// Traces to: BC-2.11.024 error case "E-QUERY-001: IEQ/INE with non-string RHS";
+/// AC-020.
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_non_string_rhs_e_query_001() {
+    // BC-2.11.024: the PARSER must reject integer RHS for IEQ with a structured code.
+    let errors = parse_filter("severity IEQ 42").expect_err(
+        "RG-016: 'severity IEQ 42' must fail to parse — non-string RHS is invalid for IEQ",
+    );
+    let all_msgs: String = errors
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "RG-016: parse error for 'severity IEQ 42' must carry 'E-QUERY-001' \
+         per BC-2.11.024; parser currently emits a generic Chumsky error without \
+         the structured code; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-017: AC-021 — IIN with empty list → parse-time E-QUERY-001
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-017: parsing `severity IIN ()` must produce a PARSE-TIME E-QUERY-001 error
+/// carrying the verbatim BC-2.11.024 message about the membership-list requirement.
+///
+/// The old test called `predicate_to_datafusion_sql` with an empty `values: vec![]`
+/// AST node directly — that emitter check was already implemented (paper-fix). The
+/// REAL pipeline gap is at the parser layer: the parser must emit E-QUERY-001 when
+/// it sees an empty `()` list after IIN.
+///
+/// Red Gate: FAILS — `parse_filter("severity IIN ()")` returns a generic Chumsky
+/// error ("found ')', expected string literal") without the E-QUERY-001 code.
+/// Green Gate: PASSES once the IIN parser branch emits ParseError containing
+/// "E-QUERY-001" for an empty membership list.
+///
+/// Traces to: BC-2.11.024 error case "E-QUERY-001: IIN with empty membership list";
+/// AC-021.
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_iin_empty_list_e_query_001() {
+    // BC-2.11.024: the PARSER must reject an empty IIN list with a structured code.
+    let errors = parse_filter("severity IIN ()").expect_err(
+        "RG-017: 'severity IIN ()' must fail to parse — empty membership list is invalid",
+    );
+    let all_msgs: String = errors
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "RG-017: parse error for 'severity IIN ()' must carry 'E-QUERY-001' \
+         per BC-2.11.024; parser currently emits a generic Chumsky error without \
+         the structured code; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-018: AC-022 — IEQ on integer column → E-QUERY-002 QueryTypeMismatch
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-018: `severity_id IEQ 'high'` against a schema where `severity_id` is Int64
+/// must produce E-QUERY-002 `QueryTypeMismatch`, carrying the offending column name
+/// AND suggesting the corresponding string column "severity".
+///
+/// A generic E-QUERY-034 `QueryExecutionFailed` (DataFusion "lower() type error") is
+/// NOT acceptable — BC-2.11.024 requires a structured, schema-aware type-check that
+/// fires BEFORE DataFusion execution and names the string-sibling column.
+///
+/// Red Gate: FAILS — current code emits generic E-QUERY-034 (DataFusion error from
+/// `lower(severity_id)` at execution time). The `contains("E-QUERY-002")` assertion
+/// fails because the structured pre-flight check is not yet wired.
+/// Green Gate: PASSES once the IEQ execution path performs a pre-DataFusion type check
+/// and emits `QueryTypeMismatch` with column info and string column suggestion.
+///
+/// Traces to: BC-2.11.024 error case "E-QUERY-002: IEQ/IIN/INE on non-string column";
+/// AC-022.
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_e_query_002() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::{Int64Array, StringArray};
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Build the AST for "severity_id IEQ 'high'" directly (IEQ parser produces
+    // Parse error for non-string RHS after RG-016 is implemented; use the AST
+    // path to exercise the execution-layer type check independently).
+    let pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity_id"]))),
+        op: CompareOp::Eq,
+        rhs: Box::new(Expr::Literal(Literal::String("high".to_owned()))),
+        case_insensitive: true,
+    };
+    let ast = Ast::Filter(FilterExpr {
+        source: SourceRef::from_raw(""),
+        predicate: pred,
+    });
+
+    // Schema has BOTH the integer column ("severity_id") AND the string sibling
+    // ("severity"), so the query engine can introspect and produce a suggestion.
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("severity_id", DataType::Int64, true),
+        Field::new("severity", DataType::Utf8, true),
+    ]));
+    let severity_id_arr = Arc::new(Int64Array::from(vec![4i64, 2i64, 3i64])) as _;
+    let severity_arr = Arc::new(StringArray::from(vec!["High", "Low", "Medium"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_id_arr, severity_arr])
+        .expect("RG-018: batch must build");
+
+    let ctx = build_session_context(50 * 1024 * 1024).expect("RG-018: context must build");
+    register_mem_table(&ctx, "detections", vec![batch]).expect("RG-018: MemTable must register");
+
+    let result =
+        execute_against_session(&ctx, "severity_id IEQ 'high'", &ast, HashMap::new()).await;
+
+    // ALL assertions FAIL before implementation (current error is E-QUERY-034):
+    let err = result.expect_err(
+        "RG-018: severity_id IEQ 'high' on Int64 column must fail with E-QUERY-002; got Ok",
+    );
+    let err_str = err.to_string();
+
+    // (1) Must be structured E-QUERY-002 QueryTypeMismatch, not E-QUERY-034 DataFusion error
+    assert!(
+        err_str.contains("E-QUERY-002"),
+        "RG-018: must produce E-QUERY-002 (QueryTypeMismatch), \
+         not E-QUERY-034 (generic DataFusion execution error); got: {err_str:?}"
+    );
+    // (2) Must name the offending integer column
+    assert!(
+        err_str.contains("severity_id"),
+        "RG-018: E-QUERY-002 must name the offending column 'severity_id'; got: {err_str:?}",
+    );
+    // (3) BC-2.11.024 string column suggestion: error must reference "severity" as the
+    // corresponding string alternative. The implementer introspects the table schema
+    // to find the sibling string column ("severity" when the integer column is "severity_id").
+    assert!(
+        err_str.contains("severity"),
+        "RG-018: E-QUERY-002 must suggest the corresponding string column 'severity'; \
+         got: {err_str:?}"
+    );
+    // (4) error-taxonomy v2.18 AC-022 suggestion text:
+    // PrismError::QueryTypeMismatch needs `suggested_column: Option<String>` and the
+    // Display (b1 variant, when Some) must append:
+    // "; for label comparison, use the string column '<sibling>' with IEQ/IIN/INE instead"
+    //
+    // Currently FAILS — `QueryTypeMismatch` has no `suggested_column` field and the
+    // Display string ends after `'{operator}'` with no suggestion appended.
+    assert!(
+        err_str.contains(
+            "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+        ),
+        "RG-018: E-QUERY-002 Display must include suggestion per error-taxonomy v2.18: \
+         '...for label comparison, use the string column \\'severity\\' with IEQ/IIN/INE instead'; \
+         PrismError::QueryTypeMismatch is missing suggested_column: Option<String> \
+         and the Display does not append the suggestion; got: {err_str:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-022: AC-019 — GROUP BY severity produces 1 bucket after pipeline normalization
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-022: Cross-sensor records with `'High'` (CrowdStrike) and `'HIGH'` (Armis-like)
+/// are run through `OcsfNormalizer::normalize_with_mappers` (the BC-2.02.013
+/// F-CRIT-001 insertion point). After normalization, both become `'High'`, so
+/// `GROUP BY severity` yields exactly 1 bucket with 5 rows.
+///
+/// The old test pre-normalized manually via `OcsfEnumMap::normalize_label` in the
+/// test body (paper-fix). The REAL pipeline gap is in `normalize_with_mappers`:
+/// it currently returns the DynamicMessage unchanged, so `'HIGH'` stays `'HIGH'`
+/// and GROUP BY sees 2 distinct buckets instead of 1.
+///
+/// Red Gate: FAILS — `normalize_with_mappers` has no normalization wired.
+/// The stub mapper sets `severity = "HIGH"` on the DynamicMessage, which is
+/// returned unchanged. GROUP BY yields 2 buckets → assertion `== 1` fails.
+/// Green Gate: PASSES once `normalize_with_mappers` applies `OcsfEnumMap::normalize_label`
+/// to the severity field, converting `"HIGH"` → `"High"` before returning.
+///
+/// Traces to: BC-2.02.013 F-CRIT-001 insertion point; AC-019;
+/// EC-02-026; ADR-047 §Consequences "GROUP BY correct after normalization".
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_group_by_severity_no_case_fragmentation() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::StringArray;
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+    use prism_core::PrismError;
+    use prism_ocsf::{OcsfNormalizer, SensorMapper};
+    use prost_reflect::{DynamicMessage, ReflectMessage, Value as ProtoValue};
+    use serde_json::{Map, Value};
+
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Stub mapper: transfers "severity" from raw JSON into the DynamicMessage.
+    // Simulates what the real CrowdStrike adapter does at the sensor boundary.
+    struct SeverityStubMapper;
+    impl SensorMapper for SeverityStubMapper {
+        fn sensor_id(&self) -> &'static str {
+            "crowdstrike"
+        }
+        fn record_types(&self) -> &'static [&'static str] {
+            &["detection"]
+        }
+        fn map(
+            &self,
+            _record_type: &str,
+            raw: &Value,
+            msg: &mut DynamicMessage,
+            _extensions: &mut Map<String, Value>,
+        ) -> Result<String, PrismError> {
+            if let Some(s) = raw.get("severity").and_then(|v| v.as_str()) {
+                // Guard against panic if descriptor is missing the field (defensive only;
+                // "severity" exists in the real OCSF DetectionFinding descriptor).
+                if msg.descriptor().get_field_by_name("severity").is_some() {
+                    msg.set_field_by_name("severity", ProtoValue::String(s.to_owned()));
+                }
+            }
+            Ok("stub-id".to_owned())
+        }
+    }
+
+    let normalizer = OcsfNormalizer::with_mappers(vec![Box::new(SeverityStubMapper)]);
+
+    // Raw cross-sensor input: CrowdStrike 'High' x3, Armis-like 'HIGH' x2.
+    // After pipeline normalization both MUST become 'High' (canonical OCSF caption).
+    let raws = [
+        serde_json::json!({"severity": "High"}),
+        serde_json::json!({"severity": "High"}),
+        serde_json::json!({"severity": "High"}),
+        serde_json::json!({"severity": "HIGH"}),
+        serde_json::json!({"severity": "HIGH"}),
+    ];
+
+    let mut normalized_severities: Vec<String> = Vec::new();
+    for raw in raws {
+        let (msg, _) = normalizer
+            .normalize_with_mappers("crowdstrike", "detection", raw)
+            .expect(
+                "RG-022: normalize_with_mappers must not return Err \
+                 (OcsfDescriptorNotFound means ocsf-proto-gen is not installed; \
+                  this test requires a populated OCSF descriptor pool)",
+            );
+        // Extract the (potentially normalized) severity field from the DynamicMessage
+        let sev = msg
+            .get_field_by_name("severity")
+            .map(|v| match v.into_owned() {
+                ProtoValue::String(s) => s,
+                other => format!("<non-string: {other:?}>"),
+            })
+            .unwrap_or_default();
+        normalized_severities.push(sev);
+    }
+
+    // Build MemTable from the pipeline output (not from manually pre-normalized values)
+    let schema = Arc::new(Schema::new(vec![Field::new(
+        "severity",
+        DataType::Utf8,
+        true,
+    )]));
+    let sev_refs: Vec<&str> = normalized_severities.iter().map(|s| s.as_str()).collect();
+    let severity_arr = Arc::new(StringArray::from(sev_refs)) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_arr]).expect("RG-022: batch must build");
+
+    let ctx = build_session_context(50 * 1024 * 1024).expect("RG-022: context must build");
+    register_mem_table(&ctx, "detections", vec![batch]).expect("RG-022: MemTable must register");
+
+    let sql = "SELECT severity, count(*) AS cnt FROM detections GROUP BY severity";
+    let sql_ast = PrismQlParser::parse(sql).expect("RG-022: GROUP BY query must parse");
+    let result = execute_against_session(&ctx, sql, &sql_ast, HashMap::new())
+        .await
+        .expect("RG-022: GROUP BY must execute");
+
+    let total_buckets: usize = result.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        total_buckets, 1,
+        "RG-022: after pipeline normalization, GROUP BY severity must yield exactly 1 bucket \
+         (all 5 rows as 'High'); got {total_buckets} bucket(s) \
+         — normalize_with_mappers is not canonicalizing severity casing yet"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-018b: AC-022 operator fidelity — INE sibling
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-018b: `severity_id INE 'high'` on an Int64 column → E-QUERY-002 where
+/// `operator` = `"INE"` (NOT the hardcoded `"IEQ"` that pass-1 emits).
+/// Also asserts the suggestion text from error-taxonomy v2.18.
+///
+/// Red Gate: FAILS for two reasons at HEAD face9b91:
+///   (1) `operator` field hardcoded `"IEQ"` → `err_str.contains("INE")` fails.
+///   (2) `suggested_column` not in `QueryTypeMismatch` → suggestion text absent.
+///
+/// Green Gate: PASSES once the type-check gate correctly propagates the actual
+/// operator string and `QueryTypeMismatch.suggested_column` is wired.
+///
+/// Traces to: error-taxonomy v2.18 `suggested_column` + operator fidelity;
+/// BC-2.11.024 AC-022; F-P1-OPERATOR-HARDCODE.
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ine_integer_column_e_query_002_ine_operator() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::{Int64Array, StringArray};
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Predicate: severity_id INE 'high' — CompareOp::Ne + case_insensitive: true
+    let pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity_id"]))),
+        op: CompareOp::Ne,
+        rhs: Box::new(Expr::Literal(Literal::String("high".to_owned()))),
+        case_insensitive: true,
+    };
+    let ast = Ast::Filter(FilterExpr {
+        source: SourceRef::from_raw(""),
+        predicate: pred,
+    });
+
+    // Schema has severity_id (Int64) + severity (String) so the type check can
+    // introspect and produce the "severity" string-column suggestion.
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("severity_id", DataType::Int64, true),
+        Field::new("severity", DataType::Utf8, true),
+    ]));
+    let severity_id_arr = Arc::new(Int64Array::from(vec![4i64])) as _;
+    let severity_arr = Arc::new(StringArray::from(vec!["High"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_id_arr, severity_arr])
+        .expect("RG-018b: batch must build");
+
+    let ctx = build_session_context(50 * 1024 * 1024).expect("RG-018b: context must build");
+    register_mem_table(&ctx, "detections", vec![batch]).expect("RG-018b: MemTable must register");
+
+    let result =
+        execute_against_session(&ctx, "severity_id INE 'high'", &ast, HashMap::new()).await;
+
+    let err = result
+        .expect_err("RG-018b: severity_id INE 'high' on Int64 must fail with E-QUERY-002; got Ok");
+    let err_str = err.to_string();
+
+    // (1) Must be E-QUERY-002
+    assert!(
+        err_str.contains("E-QUERY-002"),
+        "RG-018b: must produce E-QUERY-002 (QueryTypeMismatch) for INE on Int64; got: {err_str:?}"
+    );
+    // (2) Must name the offending column
+    assert!(
+        err_str.contains("severity_id"),
+        "RG-018b: E-QUERY-002 must name 'severity_id'; got: {err_str:?}"
+    );
+    // (3) Operator must be INE — not hardcoded IEQ.
+    // Currently FAILS: the type-check gate in execute_against_session::Ast::Filter
+    // hardcodes `operator: "IEQ"` regardless of the actual Compare op. The error
+    // reads `...operator 'IEQ'...` when it should read `...operator 'INE'...`.
+    assert!(
+        err_str.contains("INE"),
+        "RG-018b: E-QUERY-002 operator field must say 'INE' for an INE (Ne+case_insensitive) \
+         predicate, not the hardcoded 'IEQ'; got: {err_str:?}"
+    );
+    // (4) Suggestion text — error-taxonomy v2.18
+    // Currently FAILS: QueryTypeMismatch has no suggested_column field.
+    assert!(
+        err_str.contains(
+            "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+        ),
+        "RG-018b: E-QUERY-002 must include suggestion per error-taxonomy v2.18; got: {err_str:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-018c: AC-022 operator fidelity — IIN sibling
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-018c: `severity_id IIN ('high', 'critical')` on an Int64 column → E-QUERY-002
+/// where `operator` = `"IIN"` (NOT the hardcoded `"IEQ"`).
+/// Also asserts the suggestion text from error-taxonomy v2.18.
+///
+/// Red Gate: FAILS for two reasons at HEAD face9b91:
+///   (1) `operator` field hardcoded `"IEQ"` → `err_str.contains("IIN")` fails.
+///   (2) `suggested_column` not in `QueryTypeMismatch` → suggestion text absent.
+///
+/// Traces to: error-taxonomy v2.18 `suggested_column` + operator fidelity;
+/// BC-2.11.024 AC-022; F-P1-OPERATOR-HARDCODE.
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_iin_integer_column_e_query_002_iin_operator() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::{Int64Array, StringArray};
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Predicate: severity_id IIN ('high', 'critical') — Predicate::In + case_insensitive: true
+    let pred = Predicate::In {
+        field: FieldPath::new(["severity_id"]),
+        values: vec![
+            Literal::String("high".to_owned()),
+            Literal::String("critical".to_owned()),
+        ],
+        negated: false,
+        case_insensitive: true,
+    };
+    let ast = Ast::Filter(FilterExpr {
+        source: SourceRef::from_raw(""),
+        predicate: pred,
+    });
+
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("severity_id", DataType::Int64, true),
+        Field::new("severity", DataType::Utf8, true),
+    ]));
+    let severity_id_arr = Arc::new(Int64Array::from(vec![4i64, 5i64])) as _;
+    let severity_arr = Arc::new(StringArray::from(vec!["High", "Critical"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_id_arr, severity_arr])
+        .expect("RG-018c: batch must build");
+
+    let ctx = build_session_context(50 * 1024 * 1024).expect("RG-018c: context must build");
+    register_mem_table(&ctx, "detections", vec![batch]).expect("RG-018c: MemTable must register");
+
+    let result = execute_against_session(
+        &ctx,
+        "severity_id IIN ('high', 'critical')",
+        &ast,
+        HashMap::new(),
+    )
+    .await;
+
+    let err = result.expect_err(
+        "RG-018c: severity_id IIN ('high','critical') on Int64 must fail with E-QUERY-002; got Ok",
+    );
+    let err_str = err.to_string();
+
+    // (1) Must be E-QUERY-002
+    assert!(
+        err_str.contains("E-QUERY-002"),
+        "RG-018c: must produce E-QUERY-002 (QueryTypeMismatch) for IIN on Int64; got: {err_str:?}"
+    );
+    // (2) Must name the offending column
+    assert!(
+        err_str.contains("severity_id"),
+        "RG-018c: E-QUERY-002 must name 'severity_id'; got: {err_str:?}"
+    );
+    // (3) Operator must be IIN — not hardcoded IEQ.
+    // Currently FAILS: hardcoded `operator: "IEQ"` in the QueryTypeMismatch construction.
+    assert!(
+        err_str.contains("IIN"),
+        "RG-018c: E-QUERY-002 operator field must say 'IIN' for an IIN (In+case_insensitive) \
+         predicate, not the hardcoded 'IEQ'; got: {err_str:?}"
+    );
+    // (4) Suggestion text — error-taxonomy v2.18
+    // Currently FAILS: QueryTypeMismatch has no suggested_column field.
+    assert!(
+        err_str.contains(
+            "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+        ),
+        "RG-018c: E-QUERY-002 must include suggestion per error-taxonomy v2.18; got: {err_str:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-P1-PIPE-TYPECHECK-GAP: pipe-mode IEQ on integer column → E-QUERY-002
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-P1-PIPE-TYPECHECK-GAP: `detections | where severity_id IEQ 'high'` against an
+/// Int64 `severity_id` column must return structured E-QUERY-002 (QueryTypeMismatch),
+/// NOT the generic E-QUERY-034 (QueryExecutionFailed).
+///
+/// The pre-flight CI type check exists ONLY in `execute_against_session::Ast::Filter`.
+/// The `Ast::Pipe` arm calls `pipe_to_executable_sql` then runs DataFusion SQL directly.
+/// DataFusion's `lower(severity_id)` on Int64 fails at planning time and gets mapped to
+/// `PrismError::QueryExecutionFailed` (E-QUERY-034), not `QueryTypeMismatch` (E-QUERY-002).
+///
+/// Red Gate: FAILS — the Ast::Pipe arm has no CI column-type pre-flight check.
+/// The error from `execute_against_session` is E-QUERY-034, not E-QUERY-002, so
+/// `err_str.contains("E-QUERY-002")` fails.
+///
+/// Green Gate: PASSES once the same CI type check from the Filter arm is also applied
+/// in the Pipe arm (and SqlPipe arm if applicable) before SQL lowering.
+///
+/// SID-1 compliance: this is an in-process unit test driving the production code path
+/// without any external dependencies. No #[ignore] needed — MemTable is fully in-memory.
+///
+/// Traces to: BC-2.11.024 AC-022; BC-2.11.004 (pipe | where);
+/// F-P1-PIPE-TYPECHECK-GAP (adversary finding, LOCAL pass-2).
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_pipe_mode_e_query_002() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::{Int64Array, StringArray};
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::ast::{PipeQuery, PipeStage};
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Construct Ast::Pipe directly (grammar does not yet have IEQ, so parser can't be used).
+    // This is the same pattern as RG-018 / RG-010 which construct Ast::Filter directly.
+    // The test exercises the execution-layer type check independently of the parser.
+    let pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity_id"]))),
+        op: CompareOp::Eq,
+        rhs: Box::new(Expr::Literal(Literal::String("high".to_owned()))),
+        case_insensitive: true,
+    };
+    let ast = Ast::Pipe(PipeQuery::new(
+        SourceRef::from_raw("detections"),
+        vec![PipeStage::Where(pred)],
+    ));
+
+    // Schema: severity_id (Int64) + severity (String), same as the filter-mode RG-018 test.
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("severity_id", DataType::Int64, true),
+        Field::new("severity", DataType::Utf8, true),
+    ]));
+    let severity_id_arr = Arc::new(Int64Array::from(vec![4i64, 2i64, 3i64])) as _;
+    let severity_arr = Arc::new(StringArray::from(vec!["High", "Low", "Medium"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_id_arr, severity_arr])
+        .expect("F-P1-PIPE-TYPECHECK-GAP: batch must build");
+
+    let ctx = build_session_context(50 * 1024 * 1024)
+        .expect("F-P1-PIPE-TYPECHECK-GAP: context must build");
+    register_mem_table(&ctx, "detections", vec![batch])
+        .expect("F-P1-PIPE-TYPECHECK-GAP: MemTable must register");
+
+    let result = execute_against_session(
+        &ctx,
+        "detections | where severity_id IEQ 'high'",
+        &ast,
+        HashMap::new(),
+    )
+    .await;
+
+    // Must return Err — a CI operator on Int64 is always invalid.
+    let err = result.expect_err(
+        "F-P1-PIPE-TYPECHECK-GAP: severity_id IEQ 'high' on Int64 in pipe mode must return Err",
+    );
+    let err_str = err.to_string();
+
+    // Must be structured E-QUERY-002 QueryTypeMismatch, NOT generic E-QUERY-034.
+    //
+    // Currently FAILS: the Ast::Pipe arm of execute_against_session has no CI type check.
+    // `pipe_to_executable_sql` emits `SELECT * FROM detections WHERE lower(severity_id) = lower('high')`.
+    // DataFusion rejects lower() on Int64 → PrismError::QueryExecutionFailed → E-QUERY-034.
+    // The assertion `contains("E-QUERY-002")` fails because the error says E-QUERY-034.
+    assert!(
+        err_str.contains("E-QUERY-002"),
+        "F-P1-PIPE-TYPECHECK-GAP: pipe mode must produce E-QUERY-002 (QueryTypeMismatch) \
+         for IEQ on an Int64 column, NOT the generic E-QUERY-034; \
+         the Ast::Pipe arm of execute_against_session is missing the CI column-type \
+         pre-flight check that exists in the Ast::Filter arm; got: {err_str:?}"
+    );
+    // Must name the offending column.
+    assert!(
+        err_str.contains("severity_id"),
+        "F-P1-PIPE-TYPECHECK-GAP: E-QUERY-002 must name the offending column 'severity_id'; \
+         got: {err_str:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-023: AC-023 — Grammar completeness proxy (IEQ/IIN/INE parseable)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-023: `IEQ`, `IIN`, and `INE` are parseable keywords (grammar completeness proxy).
+///
+/// NOTE: The authoritative test for the MCP `REFERENCE_EXAMPLES` table is in
+/// `crates/prism-mcp/tests/reference_content.rs` — direct access from prism-query
+/// tests is blocked by the circular dependency (prism-mcp → prism-query). The
+/// implementer must add IEQ/IIN/INE entries to `REFERENCE_EXAMPLES` in
+/// `crates/prism-mcp/src/resources.rs` AND extend
+/// `crates/prism-mcp/tests/reference_content.rs` to assert their presence.
+///
+/// Red Gate: FAILS — parse_filter returns Err for all three operators (not in grammar).
+/// Green Gate: PASSES — all three operators parse successfully.
+///
+/// Traces to: BC-2.11.024 ADR-047 §D.4 discoverability;
+/// BC-2.11.002 amendment (IEQ/IIN/INE in operator table).
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_grammar_resource_includes_ieq_iin_ine() {
+    let ieq = parse_filter("severity IEQ 'high'");
+    let iin = parse_filter("status IIN ('open', 'new')");
+    let ine = parse_filter("severity INE 'informational'");
+
+    assert!(
+        ieq.is_ok(),
+        "RG-023: IEQ must be a parseable keyword; got: {:?}",
+        ieq.err()
+    );
+    assert!(
+        iin.is_ok(),
+        "RG-023: IIN must be a parseable keyword; got: {:?}",
+        iin.err()
+    );
+    assert!(
+        ine.is_ok(),
+        "RG-023: INE must be a parseable keyword; got: {:?}",
+        ine.err()
+    );
+
+    // All three must produce case_insensitive: true predicates
+    match ieq.unwrap().predicate {
+        Predicate::Compare {
+            case_insensitive, ..
+        } => {
+            assert!(
+                case_insensitive,
+                "RG-023: IEQ must have case_insensitive=true"
+            );
+        }
+        other => panic!("RG-023: IEQ expected Compare, got {:?}", other),
+    }
+    match iin.unwrap().predicate {
+        Predicate::In {
+            case_insensitive, ..
+        } => {
+            assert!(
+                case_insensitive,
+                "RG-023: IIN must have case_insensitive=true"
+            );
+        }
+        other => panic!("RG-023: IIN expected In, got {:?}", other),
+    }
+    match ine.unwrap().predicate {
+        Predicate::Compare {
+            case_insensitive, ..
+        } => {
+            assert!(
+                case_insensitive,
+                "RG-023: INE must have case_insensitive=true"
+            );
+        }
+        other => panic!("RG-023: INE expected Compare, got {:?}", other),
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RG-024: AC-024 — Normalized IEQ form is discoverability-quality (describe proxy)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-024: `PqlNormalizer::normalize_predicate_pub` on an IEQ predicate emits
+/// the uppercase canonical `IEQ` form, confirming it is documentation-quality for
+/// use in `prism describe` output.
+///
+/// NOTE: The authoritative test for the `prism describe` output and the OCSF casing
+/// note lives in `crates/prism-mcp/tests/` — direct access from prism-query tests
+/// is blocked by the circular dependency (prism-mcp → prism-query). The implementer
+/// must ensure `build_reference_content` and the describe handler include at least
+/// one IEQ example and the OCSF Title-case note per ADR-047 §D.4.
+///
+/// Red Gate: PANICS — `PqlNormalizer::normalize_predicate_pub` hits `todo!()` for
+/// `case_insensitive: true`.
+/// Green Gate: PASSES — emits form containing uppercase "IEQ".
+///
+/// Traces to: ADR-047 §D.4; BC-2.11.024 "discoverability examples".
+#[test]
+fn test_S_PRISMQL_CASE_INSENSITIVE_001_describe_output_includes_ieq_example() {
+    let pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+        op: CompareOp::Eq,
+        rhs: Box::new(Expr::Literal(Literal::String("High".to_owned()))),
+        case_insensitive: true,
+    };
+    let normalized = PqlNormalizer::normalize_predicate_pub(&pred);
+    assert!(
+        normalized.contains("IEQ"),
+        "RG-024: normalized IEQ predicate must contain uppercase 'IEQ' for \
+         discoverability/describe use; got: {normalized:?}"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-3: BC-2.11.024 — SQL-mode parse-time rejection of IEQ/IIN/INE
+//
+// BC-2.11.024 contract (product-owner, 2026-07-07):
+//   IEQ/IIN/INE are filter+pipe-mode only.  In raw SQL mode (query begins with
+//   SELECT) they MUST be rejected at PARSE TIME with a structured E-QUERY-001
+//   error — NOT the opaque E-QUERY-034/QueryExecutionFailed that DataFusion
+//   currently produces.  Verbatim message:
+//
+//   E-QUERY-001: parse error near '{operator}': case-insensitive operators
+//   (IEQ/IIN/INE) are not supported in SQL mode.  Use filter mode
+//   (e.g., severity IEQ 'high') or a pipe | where stage (e.g., FROM
+//   crowdstrike_detections | where severity IEQ 'high') instead.
+//
+//   ({operator} = the encountered keyword IEQ/IIN/INE, uppercased.)
+//
+// Current behavior at HEAD 41aa21d9:
+//   PrismQlParser::parse("SELECT * FROM t WHERE severity IEQ 'high'") returns
+//   Ok(Ast::Sql(...)) — parse succeeds because `build_predicate_parser` (shared
+//   between filter mode and the SQL WHERE clause parser) now includes IEQ/IIN/INE.
+//   The downstream DataFusion execution then produces E-QUERY-034.
+//
+// Red Gate for tests 1-3: FAILS at `expect_err(...)` because parse returns Ok.
+//   The `expect_err` call panics with the Ast::Sql value, failing the test.
+// Green Gate for tests 1-3: PASSES once parse_select_mode (or parse_sql_internal)
+//   detects CI operators in the WHERE clause and emits the verbatim E-QUERY-001
+//   SQL-mode rejection message before returning.
+//
+// Red Gate for test 4: PASSES NOW — filter and pipe mode IEQ already work
+//   (implemented in pass-1/pass-2).  This is a no-regression lock.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_ieq_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — SQL-mode IEQ parse-time rejection.
+///
+/// `SELECT * FROM crowdstrike_detections WHERE severity IEQ 'high'`
+/// must be rejected at parse time by `PrismQlParser::parse` with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IEQ"` in the error message
+///
+/// Red Gate (HEAD 41aa21d9): FAILS — `PrismQlParser::parse` returns
+/// `Ok(Ast::Sql(...))` because `build_predicate_parser` (shared between
+/// filter and SQL WHERE clause parsers) accepts IEQ without a SQL-mode guard.
+/// `expect_err` panics on the Ok value, failing the test.
+///
+/// Green Gate: PASSES once `parse_select_mode` (or `parse_sql_internal`) emits
+/// the verbatim BC-2.11.024 SQL-mode rejection ParseError.
+///
+/// Traces to: BC-2.11.024 §SQL-Mode Rejection; LOCAL-pass-3.
+#[test]
+fn test_BC_2_11_024_sql_mode_ieq_rejected() {
+    let result =
+        PrismQlParser::parse("SELECT * FROM crowdstrike_detections WHERE severity IEQ 'high'");
+    let err = result.expect_err(
+        "BC-2.11.024: PrismQlParser::parse must reject IEQ in SQL-mode (SELECT …) \
+         at parse time with E-QUERY-001; currently returns Ok(Ast::Sql(…)) — \
+         the SQL-mode CI operator parse-time rejection gate is not yet implemented \
+         (LOCAL-pass-3 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    // Byte-exact assertion against the verbatim BC-2.11.024 template (F-LOW-1 closure).
+    // `parse_select_mode` passes the error through unchanged (no unquoted `|` in this
+    // query, so the mode-bridge rewrite branch is not taken). `all_msgs` is therefore
+    // exactly one `ParseError::message` field — the raw `format!(...)` output from
+    // `parse_sql_with_limits` lines 226-232, with `{op}` = `"IEQ"`.
+    assert_eq!(
+        all_msgs,
+        "E-QUERY-001: parse error near 'IEQ': case-insensitive operators \
+         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+         (e.g., severity IEQ 'high') or a pipe | where stage \
+         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+         instead.",
+        "BC-2.11.024: SQL-mode IEQ rejection must match the verbatim \
+         BC-2.11.024 template exactly; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_iin_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — SQL-mode IIN parse-time rejection.
+///
+/// `SELECT * FROM crowdstrike_detections WHERE severity IIN ('high', 'low')`
+/// must be rejected at parse time with E-QUERY-001 naming the operator `"IIN"`.
+///
+/// Red Gate (HEAD 41aa21d9): FAILS — `PrismQlParser::parse` returns
+/// `Ok(Ast::Sql(...))`.  `expect_err` panics on the Ok value.
+///
+/// Green Gate: PASSES once the SQL-mode CI operator guard is implemented.
+///
+/// Traces to: BC-2.11.024 §SQL-Mode Rejection; LOCAL-pass-3.
+#[test]
+fn test_BC_2_11_024_sql_mode_iin_rejected() {
+    let result = PrismQlParser::parse(
+        "SELECT * FROM crowdstrike_detections WHERE severity IIN ('high', 'low')",
+    );
+    let err = result.expect_err(
+        "BC-2.11.024: PrismQlParser::parse must reject IIN in SQL-mode (SELECT …) \
+         at parse time with E-QUERY-001; currently returns Ok(Ast::Sql(…)) — \
+         the SQL-mode CI operator parse-time rejection gate is not yet implemented \
+         (LOCAL-pass-3 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    // Byte-exact assertion against the verbatim BC-2.11.024 template (F-LOW-1 closure).
+    // Same wrapping-layer rationale as `test_BC_2_11_024_sql_mode_ieq_rejected`: no
+    // unquoted `|` → `parse_select_mode` error passes through unchanged. `all_msgs` is
+    // exactly the `format!(...)` output from `parse_sql_with_limits`, with `{op}` = `"IIN"`.
+    assert_eq!(
+        all_msgs,
+        "E-QUERY-001: parse error near 'IIN': case-insensitive operators \
+         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+         (e.g., severity IEQ 'high') or a pipe | where stage \
+         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+         instead.",
+        "BC-2.11.024: SQL-mode IIN rejection must match the verbatim \
+         BC-2.11.024 template exactly; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_ine_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — SQL-mode INE parse-time rejection.
+///
+/// `SELECT * FROM crowdstrike_detections WHERE severity INE 'high'`
+/// must be rejected at parse time with E-QUERY-001 naming the operator `"INE"`.
+///
+/// Red Gate (HEAD 41aa21d9): FAILS — `PrismQlParser::parse` returns
+/// `Ok(Ast::Sql(...))`.  `expect_err` panics on the Ok value.
+///
+/// Green Gate: PASSES once the SQL-mode CI operator guard is implemented.
+///
+/// Traces to: BC-2.11.024 §SQL-Mode Rejection; LOCAL-pass-3.
+#[test]
+fn test_BC_2_11_024_sql_mode_ine_rejected() {
+    let result =
+        PrismQlParser::parse("SELECT * FROM crowdstrike_detections WHERE severity INE 'high'");
+    let err = result.expect_err(
+        "BC-2.11.024: PrismQlParser::parse must reject INE in SQL-mode (SELECT …) \
+         at parse time with E-QUERY-001; currently returns Ok(Ast::Sql(…)) — \
+         the SQL-mode CI operator parse-time rejection gate is not yet implemented \
+         (LOCAL-pass-3 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    // Byte-exact assertion against the verbatim BC-2.11.024 template (F-LOW-1 closure).
+    // Same wrapping-layer rationale as `test_BC_2_11_024_sql_mode_ieq_rejected`: no
+    // unquoted `|` → `parse_select_mode` error passes through unchanged. `all_msgs` is
+    // exactly the `format!(...)` output from `parse_sql_with_limits`, with `{op}` = `"INE"`.
+    assert_eq!(
+        all_msgs,
+        "E-QUERY-001: parse error near 'INE': case-insensitive operators \
+         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+         (e.g., severity IEQ 'high') or a pipe | where stage \
+         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+         instead.",
+        "BC-2.11.024: SQL-mode INE rejection must match the verbatim \
+         BC-2.11.024 template exactly; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_filter_and_pipe_ieq_still_execute  (regression guard)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — No-regression lock: filter mode and pipe | where IEQ
+/// continue to parse and execute successfully after the SQL-mode rejection gate
+/// is added.
+///
+/// Should PASS NOW (HEAD 41aa21d9): filter-mode and pipe-mode IEQ were fully
+/// implemented in LOCAL-pass-1/pass-2.  This test locks in that behaviour so
+/// that the pass-3 implementation cannot accidentally break the working modes.
+///
+/// Assertions:
+///   1. `parse_filter("severity IEQ 'high'")` returns `Ok(FilterExpr { … })`.
+///   2. Executing `Ast::Filter` against a MemTable {severity: ['High', 'Low']}
+///      returns exactly 1 row.
+///   3. `PrismQlParser::parse("crowdstrike_detections | where severity IEQ 'high'")`
+///      returns `Ok(Ast::Pipe(…))`.
+///   4. Executing `Ast::Pipe` against a MemTable {severity: ['High', 'Low']}
+///      returns exactly 1 row.
+///
+/// Traces to: BC-2.11.024 §Filter-mode and Pipe-mode; LOCAL-pass-3
+/// regression guard; BC-2.11.002; BC-2.11.004.
+#[tokio::test]
+async fn test_BC_2_11_024_filter_and_pipe_ieq_still_execute() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::StringArray;
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // ── 1. Filter mode: severity IEQ 'high' ──────────────────────────────────
+    //
+    // Parse via `parse_filter` (already in grammar from LOCAL-pass-1).
+    let filter_expr = parse_filter("severity IEQ 'high'").expect(
+        "regression guard: filter mode 'severity IEQ \\'high\\'' must parse OK; \
+         IEQ was implemented in LOCAL-pass-1 — unexpected parse failure \
+         indicates a pass-3 regression in the filter grammar",
+    );
+    let filter_ast = Ast::Filter(filter_expr);
+
+    let schema = Arc::new(Schema::new(vec![Field::new(
+        "severity",
+        DataType::Utf8,
+        true,
+    )]));
+    let severity_arr = Arc::new(StringArray::from(vec!["High", "Low"])) as _;
+    let batch = RecordBatch::try_new(schema.clone(), vec![severity_arr]).expect("batch must build");
+
+    let ctx =
+        build_session_context(50 * 1024 * 1024).expect("regression guard: context must build");
+    register_mem_table(&ctx, "detections", vec![batch])
+        .expect("regression guard: filter MemTable must register");
+
+    let filter_result =
+        execute_against_session(&ctx, "severity IEQ 'high'", &filter_ast, HashMap::new())
+            .await
+            .expect(
+                "regression guard: filter mode 'severity IEQ \\'high\\'' must execute \
+         successfully — pass-3 must not break the working filter-mode execution path",
+            );
+
+    let filter_rows: usize = filter_result.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        filter_rows, 1,
+        "regression guard: filter 'severity IEQ \\'high\\'' must match exactly 1 row \
+         from {{severity: ['High', 'Low']}}; got {filter_rows} rows"
+    );
+
+    // ── 2. Pipe mode: crowdstrike_detections | where severity IEQ 'high' ─────
+    //
+    // Parse via `PrismQlParser::parse` (pipe mode IEQ works from LOCAL-pass-1).
+    let pipe_ast = PrismQlParser::parse("crowdstrike_detections | where severity IEQ 'high'")
+        .expect(
+            "regression guard: pipe mode 'crowdstrike_detections | where severity IEQ \\'high\\'' \
+             must parse OK; IEQ in | where was implemented in LOCAL-pass-1 — \
+             unexpected parse failure indicates a pass-3 regression in the pipe grammar",
+        );
+
+    let severity_arr2 = Arc::new(StringArray::from(vec!["High", "Low"])) as _;
+    let batch2 = RecordBatch::try_new(schema, vec![severity_arr2]).expect("batch2 must build");
+
+    let ctx2 =
+        build_session_context(50 * 1024 * 1024).expect("regression guard: context2 must build");
+    register_mem_table(&ctx2, "crowdstrike_detections", vec![batch2])
+        .expect("regression guard: pipe MemTable must register");
+
+    let pipe_result = execute_against_session(
+        &ctx2,
+        "crowdstrike_detections | where severity IEQ 'high'",
+        &pipe_ast,
+        HashMap::new(),
+    )
+    .await
+    .expect(
+        "regression guard: pipe 'crowdstrike_detections | where severity IEQ \\'high\\'' \
+         must execute successfully — pass-3 must not break the working pipe-mode path",
+    );
+
+    let pipe_rows: usize = pipe_result.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        pipe_rows, 1,
+        "regression guard: pipe '| where severity IEQ \\'high\\'' must match exactly 1 row \
+         from {{severity: ['High', 'Low']}}; got {pipe_rows} rows"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-4: BC-2.11.024 — SQL-mode CI-operator rejection walker
+//               must cover HAVING and IN-subquery WHERE positions.
+//
+// F-HIGH-001 (adversary finding, LOCAL pass-3):
+//   `detect_ci_operator_in_predicate` in sql_parser.rs is invoked only on
+//   `sq.where_` — it is NOT called on `sq.having`, and it has no
+//   `Predicate::InSubquery` arm.  As a result:
+//
+//   a) `HAVING severity IEQ 'high'` bypasses the gate → parse returns Ok →
+//      the query reaches DataFusion and produces an opaque E-QUERY-034.
+//
+//   b) `WHERE col IN (SELECT col FROM t WHERE severity IEQ 'high')` bypasses
+//      the gate → the InSubquery arm hits `_ => None` → the inner subquery's
+//      CI operator is silently ignored → parse returns Ok → DataFusion
+//      receives the malformed plan.
+//
+// Current behaviour at HEAD 1379b572 for every test in this section:
+//   `PrismQlParser::parse(query)` returns `Ok(Ast::Sql(...))` or
+//   `Ok(Ast::SqlPipe(...))`.  `expect_err(...)` panics on the Ok value,
+//   causing the test to FAIL — which is the intended Red Gate.
+//
+// Green Gate for tests 1-5: PASSES once `parse_sql_with_limits` (a) also
+//   invokes `detect_ci_operator_in_predicate` on `sq.having`, and (b)
+//   `detect_ci_operator_in_predicate` gains a `Predicate::InSubquery` arm
+//   that recurses into `subquery.where_` (and `subquery.having`).
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_ieq_in_having_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — SQL-mode HAVING clause with IEQ must be rejected at parse time.
+///
+/// `SELECT severity, count(*) FROM crowdstrike_detections GROUP BY severity
+///  HAVING severity IEQ 'high'` must be rejected with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IEQ"` in the error message
+///
+/// Red Gate (HEAD 1379b572): FAILS.
+///   `parse_sql_with_limits` calls `detect_ci_operator_in_predicate` only on
+///   `sq.where_`.  `sq.having` is never checked.  The query parses to
+///   `Ok(Ast::Sql(...))` and `expect_err` panics on the Ok value.
+///
+/// Green Gate: PASSES once `parse_sql_with_limits` also invokes the walker
+///   on `sq.having` after the existing `sq.where_` check.
+///
+/// Traces to: BC-2.11.024 §SQL-Mode Rejection; F-HIGH-001 (LOCAL-pass-3);
+/// LOCAL-pass-4.
+#[test]
+fn test_BC_2_11_024_sql_mode_ieq_in_having_rejected() {
+    let query = "SELECT severity, count(*) FROM crowdstrike_detections \
+                 GROUP BY severity HAVING severity IEQ 'high'";
+    let result = PrismQlParser::parse(query);
+    let err = result.expect_err(
+        "BC-2.11.024 F-HIGH-001: PrismQlParser::parse must reject IEQ in a SQL-mode \
+         HAVING clause with E-QUERY-001; currently returns Ok(Ast::Sql(…)) because \
+         parse_sql_with_limits does not invoke detect_ci_operator_in_predicate on sq.having \
+         (LOCAL-pass-4 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024: HAVING IEQ rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024: HAVING IEQ rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IEQ"),
+        "BC-2.11.024: HAVING IEQ rejection must name the operator 'IEQ' \
+         in the error message; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_ieq_in_subquery_where_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — IEQ inside an IN-subquery WHERE must be rejected at parse time.
+///
+/// `SELECT severity FROM crowdstrike_detections
+///  WHERE severity IN (SELECT severity FROM other_table WHERE severity IEQ 'high')`
+/// must be rejected with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IEQ"` in the error message
+///
+/// Red Gate (HEAD 1379b572): FAILS.
+///   The outer WHERE predicate is `Predicate::InSubquery { subquery: SqlQuery { ... } }`.
+///   `detect_ci_operator_in_predicate` has no `InSubquery` arm — it falls through to
+///   `_ => None` and returns `None`.  The inner subquery's CI operator is invisible to
+///   the walker.  The query parses to `Ok(Ast::Sql(...))` and `expect_err` panics.
+///
+/// Green Gate: PASSES once `detect_ci_operator_in_predicate` gains a
+///   `Predicate::InSubquery { subquery, .. }` arm that recurses into
+///   `subquery.where_` (and `subquery.having`).
+///
+/// Traces to: BC-2.11.024 §SQL-Mode Rejection; F-HIGH-001 (LOCAL-pass-3);
+/// LOCAL-pass-4.
+#[test]
+fn test_BC_2_11_024_sql_mode_ieq_in_subquery_where_rejected() {
+    let query = "SELECT severity FROM crowdstrike_detections \
+                 WHERE severity IN (SELECT severity FROM other_table WHERE severity IEQ 'high')";
+    let result = PrismQlParser::parse(query);
+    let err = result.expect_err(
+        "BC-2.11.024 F-HIGH-001: PrismQlParser::parse must reject IEQ inside an \
+         IN-subquery WHERE clause with E-QUERY-001; currently returns Ok(Ast::Sql(…)) because \
+         detect_ci_operator_in_predicate has no Predicate::InSubquery arm and the inner \
+         subquery's CI operator is invisible to the walker (LOCAL-pass-4 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024: IN-subquery IEQ rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024: IN-subquery IEQ rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IEQ"),
+        "BC-2.11.024: IN-subquery IEQ rejection must name the operator 'IEQ' \
+         in the error message; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_iin_in_having_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — SQL-mode HAVING clause with IIN must be rejected at parse time.
+///
+/// `SELECT severity, count(*) FROM crowdstrike_detections GROUP BY severity
+///  HAVING severity IIN ('high', 'critical')` must be rejected with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IIN"` in the error message
+///
+/// Red Gate (HEAD 1379b572): FAILS.
+///   Same root cause as `test_BC_2_11_024_sql_mode_ieq_in_having_rejected`:
+///   `sq.having` is never checked.  The query parses to `Ok(Ast::Sql(...))`.
+///
+/// Green Gate: PASSES once `parse_sql_with_limits` checks `sq.having`.
+///
+/// Traces to: BC-2.11.024 §SQL-Mode Rejection; F-HIGH-001 (LOCAL-pass-3);
+/// LOCAL-pass-4.
+#[test]
+fn test_BC_2_11_024_sql_mode_iin_in_having_rejected() {
+    let query = "SELECT severity, count(*) FROM crowdstrike_detections \
+                 GROUP BY severity HAVING severity IIN ('high', 'critical')";
+    let result = PrismQlParser::parse(query);
+    let err = result.expect_err(
+        "BC-2.11.024 F-HIGH-001: PrismQlParser::parse must reject IIN in a SQL-mode \
+         HAVING clause with E-QUERY-001; currently returns Ok(Ast::Sql(…)) because \
+         parse_sql_with_limits does not invoke detect_ci_operator_in_predicate on sq.having \
+         (LOCAL-pass-4 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024: HAVING IIN rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024: HAVING IIN rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IIN"),
+        "BC-2.11.024: HAVING IIN rejection must name the operator 'IIN' \
+         in the error message; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sqlpipe_head_having_ieq_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — SqlPipe head HAVING clause with IEQ must be rejected at parse time.
+///
+/// `SELECT severity, count(*) FROM crowdstrike_detections GROUP BY severity
+///  HAVING severity IEQ 'high' | limit 10`
+/// must be rejected with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IEQ"` in the error message
+///
+/// Reachability: `parse_sqlpipe_internal` (filter_parser.rs) splits on the
+/// unquoted `|` before `limit`, passes the SQL head
+/// `SELECT severity, count(*) FROM crowdstrike_detections GROUP BY severity
+///  HAVING severity IEQ 'high'` through `parse_sql_with_limits`.
+/// The HAVING check added by the F-HIGH-001 fix fires here because
+/// `parse_sql_with_limits` is shared between pure SQL and SqlPipe SQL heads.
+///
+/// Red Gate (HEAD 1379b572): FAILS.
+///   `parse_sql_with_limits` does not check `sq.having`.  The SQL head parses
+///   to `Ok(SqlQuery { having: Some(Predicate::Compare { case_insensitive: true }) })`.
+///   The stages parse to `Ok([PipeStage::Limit(10)])`.  The combined result is
+///   `Ok(Ast::SqlPipe(...))`.  `expect_err` panics on the Ok value.
+///
+/// Green Gate: PASSES once `parse_sql_with_limits` checks `sq.having`.
+///   The same code path that fixes the pure-SQL HAVING case also fixes this.
+///
+/// Traces to: BC-2.11.024 §SQL-Mode Rejection; F-HIGH-001 (LOCAL-pass-3);
+/// LOCAL-pass-4.
+#[test]
+fn test_BC_2_11_024_sqlpipe_head_having_ieq_rejected() {
+    // `| limit 10` triggers SqlPipe routing via `is_sqlpipe_mode` (PIPE_STAGE_KEYWORDS
+    // includes "limit").  The SQL head is everything before the `|`.
+    let query = "SELECT severity, count(*) FROM crowdstrike_detections \
+                 GROUP BY severity HAVING severity IEQ 'high' | limit 10";
+    let result = PrismQlParser::parse(query);
+    let err = result.expect_err(
+        "BC-2.11.024 F-HIGH-001: PrismQlParser::parse must reject IEQ in a SqlPipe \
+         SQL-head HAVING clause with E-QUERY-001; currently returns Ok(Ast::SqlPipe(…)) because \
+         parse_sql_with_limits does not check sq.having (LOCAL-pass-4 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024: SqlPipe HAVING IEQ rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024: SqlPipe HAVING IEQ rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IEQ"),
+        "BC-2.11.024: SqlPipe HAVING IEQ rejection must name the operator 'IEQ' \
+         in the error message; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sql_mode_ieq_in_nested_subquery_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — IEQ inside a doubly-nested IN-subquery WHERE must be rejected.
+///
+/// `SELECT col FROM t WHERE col IN
+///   (SELECT col FROM t2 WHERE col IN
+///     (SELECT col FROM t3 WHERE col IEQ 'val'))`
+///
+/// must be rejected with `E-QUERY-001`.
+///
+/// This test locks in that `detect_ci_operator_in_predicate` recurses through
+/// arbitrary `Predicate::InSubquery` nesting depth, not just one level.
+///
+/// Red Gate (HEAD 1379b572): FAILS.
+///   `detect_ci_operator_in_predicate` has no `Predicate::InSubquery` arm.
+///   Both nesting levels are invisible to the walker.  The query parses to
+///   `Ok(Ast::Sql(...))`.
+///
+/// Green Gate: PASSES once `detect_ci_operator_in_predicate` gains an
+///   `InSubquery` arm that recurses through `subquery.where_` and
+///   `subquery.having` — the recursion naturally handles any nesting depth.
+///
+/// Traces to: BC-2.11.024 §SQL-Mode Rejection; F-HIGH-001 (LOCAL-pass-3);
+/// LOCAL-pass-4.
+#[test]
+fn test_BC_2_11_024_sql_mode_ieq_in_nested_subquery_rejected() {
+    // Doubly-nested: outermost WHERE → InSubquery → WHERE → InSubquery → WHERE IEQ
+    let query = "SELECT col FROM t \
+                 WHERE col IN (SELECT col FROM t2 \
+                   WHERE col IN (SELECT col FROM t3 WHERE col IEQ 'val'))";
+    let result = PrismQlParser::parse(query);
+    let err = result.expect_err(
+        "BC-2.11.024 F-HIGH-001: PrismQlParser::parse must reject IEQ at any \
+         IN-subquery nesting depth with E-QUERY-001; currently returns Ok(Ast::Sql(…)) because \
+         detect_ci_operator_in_predicate has no Predicate::InSubquery arm and the recursive \
+         CI operator is never reached (LOCAL-pass-4 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024: nested-subquery IEQ rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024: nested-subquery IEQ rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IEQ"),
+        "BC-2.11.024: nested-subquery IEQ rejection must name the operator 'IEQ' \
+         in the error message; got: {all_msgs:?}"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-5: F-MED-001 — negated + case_insensitive IN silently drops negation
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_negated_case_insensitive_in_returns_query_plan_failed
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-MED-001 (LOCAL pass-5): `predicate_to_datafusion_sql` for
+/// `Predicate::In { negated: true, case_insensitive: true }` must return
+/// `Err(PrismError::QueryPlanFailed)`.
+///
+/// It must NOT silently emit a positive `lower(field) IN (...)` SQL fragment by
+/// dropping the `negated` flag — that would silently invert query semantics.
+///
+/// ## The defect at HEAD b2e3892c
+///
+/// `pipe_sql_emitter.rs` `Predicate::In` arm:
+///
+/// ```rust
+/// if *case_insensitive {
+///     // … validates values …
+///     return Ok(format!("lower({field_sql}) IN ({})", vals.join(", ")));
+/// }
+/// ```
+///
+/// The `if *case_insensitive` branch never inspects `negated`.  A predicate
+/// with `negated: true, case_insensitive: true` silently emits a positive
+/// `lower(severity) IN (lower('high'))` SQL fragment, returning `Ok(_)`.
+///
+/// ## Red Gate reason (HEAD b2e3892c)
+///
+/// `predicate_to_datafusion_sql` returns `Ok("lower(severity) IN (lower('high'))")`.
+/// `assert!(result.is_err(), ...)` panics because the result is `Ok`, not `Err`.
+///
+/// ## Green Gate
+///
+/// PASSES once the `if *case_insensitive` branch checks `negated` and returns
+/// `Err(PrismError::QueryPlanFailed { detail: "..." })` for the combination.
+/// This combination has no grammar-reachable parser production (there is no
+/// `NIIN` / `NOT IIN` operator in PQL); encountering it in the emitter is an
+/// AST invariant violation that warrants a plan-failure error rather than
+/// silent semantic inversion.
+///
+/// ## Traces
+///
+/// BC-2.11.024 §Invariants (IIN cannot be negated via grammar); LOCAL adversary
+/// pass-5 finding F-MED-001.
+#[test]
+fn test_BC_2_11_024_negated_case_insensitive_in_returns_query_plan_failed() {
+    use prism_core::PrismError;
+
+    let pred = Predicate::In {
+        field: FieldPath::new(["severity"]),
+        values: vec![Literal::String("high".to_owned())],
+        negated: true,
+        case_insensitive: true,
+    };
+    let result = predicate_to_datafusion_sql(&pred);
+    assert!(
+        result.is_err(),
+        "F-MED-001: Predicate::In {{ negated: true, case_insensitive: true }} must return \
+         Err(QueryPlanFailed) — the negation flag must not be silently dropped to produce \
+         a positive-IN SQL fragment; currently returns Ok (silently drops negated=true); \
+         got Ok: {:?}",
+        result.as_ref().unwrap()
+    );
+    let err = result.unwrap_err();
+    assert!(
+        matches!(err, PrismError::QueryPlanFailed { .. }),
+        "F-MED-001: error variant must be QueryPlanFailed (AST invariant violation: \
+         negated+case_insensitive IN has no grammar production), not another variant; \
+         got: {:?}",
+        err
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-7: BC-2.11.024 — DML mode-boundary enforcement
+//               (DELETE / UPDATE / INSERT...SELECT WHERE)
+//
+// BC-2.11.024 extends SQL-mode parse-time rejection (v1.1) to ALL raw-SQL
+// statements, including DML (DELETE / UPDATE / INSERT...SELECT).
+//
+// Root cause:
+//   `parse_sql_dml_with_limits` in sql_parser.rs routes DELETE, UPDATE, and
+//   INSERT to `build_delete_parser`, `build_update_parser`, and
+//   `build_insert_parser` respectively.  None of these sub-parsers invoke
+//   `detect_ci_operator_in_sql_query` (or the underlying
+//   `detect_ci_operator_in_predicate`) on the parsed predicate / source SELECT.
+//   As a result, CI operators in DML WHERE clauses parse successfully via
+//   `build_predicate_parser()` (which includes IEQ/IIN/INE from LOCAL-pass-1)
+//   and eventually hit DataFusion → opaque E-QUERY-034 instead of the structured
+//   E-QUERY-001.
+//
+// Expected behavior (BC-2.11.024):
+//   Same verbatim E-QUERY-001 template as SELECT-mode rejection, with the
+//   operator name substituted.
+//
+// Current behavior at HEAD 7169da41 for all three DML queries:
+//   `PrismQlParser::parse` returns `Ok(Ast::Sql(SqlStatement::Dml(...)))`.
+//   `expect_err(...)` panics on the Ok value — Red Gate confirmed.
+//
+// Green Gate (all three):
+//   PASSES once `parse_sql_dml_with_limits` detects CI operators via
+//   `detect_ci_operator_in_predicate` on `node.filter` (DELETE / UPDATE) and
+//   via `detect_ci_operator_in_sql_query` on `node.source_select`
+//   (INSERT...SELECT), emitting E-QUERY-001 through the same
+//   `ParseError::new(0, format!(...))` path used by `parse_sql_with_limits`.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_dml_delete_where_ieq_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — DELETE WHERE IEQ must be rejected at parse time.
+///
+/// `DELETE FROM crowdstrike_detections WHERE severity IEQ 'high'`
+/// must be rejected by `PrismQlParser::parse` with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IEQ"` in the error message
+///
+/// Byte-exact assertion rationale: `parse_sql_dml_with_limits` produces the
+/// error via `ParseError::new(0, format!(...))` and returns it directly.
+/// `parse_dml_internal` and `parse_with_limits` pass it through unchanged.
+/// `PrismQlParser::parse` returns it unchanged.  There is no mode-bridge
+/// rewrite or recovery-path wrapping — the error renders unwrapped.
+/// This mirrors the rationale documented in `test_BC_2_11_024_sql_mode_ieq_rejected`
+/// (LOCAL-pass-3).
+///
+/// Red Gate (HEAD 7169da41): FAILS.
+///   `build_delete_parser` calls `build_predicate_parser()` for the WHERE clause,
+///   which includes IEQ/IIN/INE from LOCAL-pass-1.  The predicate parses to
+///   `Predicate::Compare { case_insensitive: true }`, but `parse_sql_dml_with_limits`
+///   never calls `detect_ci_operator_in_predicate` on `node.filter`.
+///   Returns `Ok(Ast::Sql(SqlStatement::Dml(...)))`.  `expect_err` panics.
+///
+/// Green Gate: PASSES once `parse_sql_dml_with_limits` checks `node.filter` for
+///   CI operators and emits E-QUERY-001 with `op = "IEQ"`.
+///
+/// Traces to: BC-2.11.024 §DML-Mode Rejection; LOCAL-pass-7.
+#[test]
+fn test_BC_2_11_024_dml_delete_where_ieq_rejected() {
+    let result =
+        PrismQlParser::parse("DELETE FROM crowdstrike_detections WHERE severity IEQ 'high'");
+    let err = result.expect_err(
+        "BC-2.11.024: PrismQlParser::parse must reject IEQ in a DML DELETE WHERE clause \
+         with E-QUERY-001; currently returns Ok(Ast::Sql(SqlStatement::Dml(…))) because \
+         parse_sql_dml_with_limits does not call detect_ci_operator_in_predicate on node.filter \
+         (LOCAL-pass-7 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    // Byte-exact assertion against the verbatim BC-2.11.024 template.
+    // DML error path: `parse_sql_dml_with_limits` → `ParseError::new(0, format!(...))` →
+    // `parse_dml_internal` → `parse_with_limits` → `PrismQlParser::parse` (unchanged).
+    // `all_msgs` is exactly the `format!(...)` output with `{op}` = `"IEQ"`.
+    assert_eq!(
+        all_msgs,
+        "E-QUERY-001: parse error near 'IEQ': case-insensitive operators \
+         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+         (e.g., severity IEQ 'high') or a pipe | where stage \
+         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+         instead.",
+        "BC-2.11.024: DML DELETE IEQ rejection must match the verbatim \
+         BC-2.11.024 template exactly; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_dml_update_where_iin_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — UPDATE WHERE IIN must be rejected at parse time.
+///
+/// `UPDATE crowdstrike_detections SET category = 'x' WHERE status IIN ('open', 'new')`
+/// must be rejected by `PrismQlParser::parse` with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"IIN"` in the error message
+///
+/// Red Gate (HEAD 7169da41): FAILS.
+///   `build_update_parser` calls `build_predicate_parser()` for the WHERE clause.
+///   `status IIN ('open', 'new')` parses to `Predicate::In { case_insensitive: true }`,
+///   but `parse_sql_dml_with_limits` never calls `detect_ci_operator_in_predicate`
+///   on `node.filter`.  Returns `Ok(...)`.  `expect_err` panics.
+///
+/// Green Gate: PASSES once `parse_sql_dml_with_limits` checks `node.filter` for CI
+///   operators and emits E-QUERY-001 with `op = "IIN"`.
+///
+/// Traces to: BC-2.11.024 §DML-Mode Rejection; LOCAL-pass-7.
+#[test]
+fn test_BC_2_11_024_dml_update_where_iin_rejected() {
+    let result = PrismQlParser::parse(
+        "UPDATE crowdstrike_detections SET category = 'x' WHERE status IIN ('open', 'new')",
+    );
+    let err = result.expect_err(
+        "BC-2.11.024: PrismQlParser::parse must reject IIN in a DML UPDATE WHERE clause \
+         with E-QUERY-001; currently returns Ok(Ast::Sql(SqlStatement::Dml(…))) because \
+         parse_sql_dml_with_limits does not call detect_ci_operator_in_predicate on node.filter \
+         (LOCAL-pass-7 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    // Byte-exact assertion against the verbatim BC-2.11.024 template with op = "IIN".
+    assert_eq!(
+        all_msgs,
+        "E-QUERY-001: parse error near 'IIN': case-insensitive operators \
+         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+         (e.g., severity IEQ 'high') or a pipe | where stage \
+         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+         instead.",
+        "BC-2.11.024: DML UPDATE IIN rejection must match the verbatim \
+         BC-2.11.024 template exactly; got: {all_msgs:?}"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-8: F-MED-1 — SqlPipe arm missing CI column-type pre-flight check
+//
+// `execute_against_session` calls `check_ci_column_types` in the `Ast::Filter`
+// and `Ast::Pipe` arms but NOT in the `Ast::SqlPipe` arm.
+//
+// A query like `SELECT * FROM detections | where severity_id IEQ 'high'`
+// (SqlPipe: SQL head + pipe stages) reaches `sqlpipe_to_executable_sql`
+// unchecked.  DataFusion rejects `lower(severity_id)` on an Int64 column at
+// planning time, which is caught and mapped to `PrismError::QueryExecutionFailed`
+// (E-QUERY-034) — NOT the structured `QueryTypeMismatch` (E-QUERY-002) that
+// BC-2.11.024 AC-022 requires.
+//
+// Current behaviour at HEAD 6dfa82c1 for tests 1-2:
+//   `execute_against_session` returns `Err(PrismError::QueryExecutionFailed)`
+//   (E-QUERY-034).  `err_str.contains("E-QUERY-002")` → false → test FAILS.
+//   This is the intended Red Gate.
+//
+// Green Gate (tests 1-2):
+//   PASSES once the `Ast::SqlPipe` arm gains the same `check_ci_column_types`
+//   pre-flight that already exists in the `Ast::Filter` and `Ast::Pipe` arms.
+//   The implementer extracts the source table from `spq.head.from.source.raw`,
+//   collects CI fields from all `PipeStage::Where` stages (same pattern as
+//   the `Ast::Pipe` arm), and calls `check_ci_column_types` before lowering.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_sqlpipe_pipe_stage_e_query_002
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-MED-1 (LOCAL pass-8): `SELECT * FROM detections | where severity_id IEQ 'high'`
+/// (SqlPipe: SQL head + pipe `| where` stage) against a schema where `severity_id`
+/// is Int64 must return E-QUERY-002 `QueryTypeMismatch`, NOT the generic E-QUERY-034
+/// `QueryExecutionFailed` that DataFusion currently produces.
+///
+/// ## Root cause
+///
+/// `execute_against_session` performs a CI column-type pre-flight in the
+/// `Ast::Filter` arm (lines 1260-1276) and the `Ast::Pipe` arm (lines 1321-1344),
+/// but the `Ast::SqlPipe` arm (line 1386) jumps directly to `sqlpipe_to_executable_sql`
+/// with no equivalent check.  DataFusion then rejects `lower(severity_id)` at
+/// planning time → `PrismError::QueryExecutionFailed` (E-QUERY-034).
+///
+/// ## Red Gate reason (HEAD 6dfa82c1)
+///
+/// `execute_against_session` returns `Err(QueryExecutionFailed)` (E-QUERY-034).
+/// `err_str.contains("E-QUERY-002")` is false → the assertion panics → test FAILS.
+/// `err_str.contains("IEQ")` is also false (E-QUERY-034 message does not mention
+/// the operator) → a second assertion would fail if reached.
+///
+/// ## Green Gate
+///
+/// PASSES once the `Ast::SqlPipe` arm gains the same `check_ci_column_types`
+/// pre-flight that already exists in the `Ast::Filter` and `Ast::Pipe` arms.
+///
+/// ## SID-1 compliance
+///
+/// In-process unit test; no `#[ignore]`; MemTable is fully in-memory.
+/// No external dependencies.
+///
+/// Traces to: BC-2.11.024 AC-022; BC-2.11.020 (SqlPipe mode);
+/// F-MED-1 (adversary finding, LOCAL pass-8).
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_sqlpipe_pipe_stage_e_query_002() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::{Int64Array, StringArray};
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::ast::{FromClause, PipeStage, SelectClause, SelectItem, SqlPipeQuery, SqlQuery};
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Predicate: severity_id IEQ 'high' — CompareOp::Eq + case_insensitive: true
+    // on an Int64 column.  This is the exact same predicate as RG-018 / RG-018b
+    // but placed in a SqlPipe pipe stage instead of an Ast::Filter / Ast::Pipe.
+    let pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity_id"]))),
+        op: CompareOp::Eq,
+        rhs: Box::new(Expr::Literal(Literal::String("high".to_owned()))),
+        case_insensitive: true,
+    };
+
+    // Build Ast::SqlPipe with head `SELECT * FROM detections` and pipe stage
+    // `| where severity_id IEQ 'high'`.  This mirrors the real parse output of:
+    //   SELECT * FROM detections | where severity_id IEQ 'high'
+    // Constructing the AST directly because the grammar-driven path requires
+    // full IEQ / SQL-mode guard implementation (out of scope here).
+    let head = SqlQuery::new(
+        SelectClause::new(vec![SelectItem::Star]),
+        FromClause::new(SourceRef::from_raw("detections")),
+    );
+    let ast = Ast::SqlPipe(SqlPipeQuery {
+        head,
+        stages: vec![PipeStage::Where(pred)],
+    });
+
+    // Schema: severity_id (Int64) + severity (String).
+    // The string sibling lets check_ci_column_types (once wired) produce the
+    // "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+    // suggestion per BC-2.11.024 AC-022 error-taxonomy v2.18.
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("severity_id", DataType::Int64, true),
+        Field::new("severity", DataType::Utf8, true),
+    ]));
+    let severity_id_arr = Arc::new(Int64Array::from(vec![4i64, 2i64, 3i64])) as _;
+    let severity_arr = Arc::new(StringArray::from(vec!["High", "Low", "Medium"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_id_arr, severity_arr])
+        .expect("F-MED-1-SQLPIPE: batch must build (schema/data mismatch — check column count)");
+
+    let ctx = build_session_context(50 * 1024 * 1024)
+        .expect("F-MED-1-SQLPIPE: session context must build");
+    register_mem_table(&ctx, "detections", vec![batch])
+        .expect("F-MED-1-SQLPIPE: MemTable must register");
+
+    let result = execute_against_session(
+        &ctx,
+        "SELECT * FROM detections | where severity_id IEQ 'high'",
+        &ast,
+        HashMap::new(),
+    )
+    .await;
+
+    // Must return Err — IEQ on an Int64 column is always invalid.
+    let err = result.expect_err(
+        "F-MED-1-SQLPIPE: severity_id IEQ 'high' on Int64 in SqlPipe mode must return Err; \
+         the Ast::SqlPipe arm of execute_against_session has no CI column-type pre-flight check \
+         (unlike the Ast::Filter and Ast::Pipe arms), so this path should fail at DataFusion \
+         planning time with E-QUERY-034 — the test is currently in RED GATE state",
+    );
+    let err_str = err.to_string();
+
+    // (1) Must be structured E-QUERY-002 QueryTypeMismatch, NOT generic E-QUERY-034.
+    //
+    // Currently FAILS at HEAD 6dfa82c1: the Ast::SqlPipe arm calls
+    // `sqlpipe_to_executable_sql` without a prior `check_ci_column_types` call.
+    // `sqlpipe_to_executable_sql` emits SQL containing `lower(severity_id)`;
+    // DataFusion rejects it → `PrismError::QueryExecutionFailed` (E-QUERY-034).
+    // `err_str.contains("E-QUERY-002")` returns false → assertion panics.
+    assert!(
+        err_str.contains("E-QUERY-002"),
+        "F-MED-1-SQLPIPE: SqlPipe pipe-stage IEQ on Int64 must produce E-QUERY-002 \
+         (QueryTypeMismatch), NOT the generic E-QUERY-034 (QueryExecutionFailed from DataFusion); \
+         the Ast::SqlPipe arm of execute_against_session is missing the CI column-type \
+         pre-flight check that exists in the Ast::Filter and Ast::Pipe arms; got: {err_str:?}"
+    );
+    // (2) Must name the offending integer column.
+    assert!(
+        err_str.contains("severity_id"),
+        "F-MED-1-SQLPIPE: E-QUERY-002 must name the offending column 'severity_id'; \
+         got: {err_str:?}"
+    );
+    // (3) Must name the operator IEQ (per error-taxonomy v2.18 operator-fidelity requirement).
+    assert!(
+        err_str.contains("IEQ"),
+        "F-MED-1-SQLPIPE: E-QUERY-002 must name the operator 'IEQ'; got: {err_str:?}"
+    );
+    // (4) BC-2.11.024 AC-022 suggestion text (error-taxonomy v2.18):
+    // "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+    assert!(
+        err_str.contains(
+            "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+        ),
+        "F-MED-1-SQLPIPE: E-QUERY-002 Display must include the BC-2.11.024 AC-022 suggestion \
+         per error-taxonomy v2.18: '...for label comparison, use the string column \\'severity\\' \
+         with IEQ/IIN/INE instead'; got: {err_str:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_S_PRISMQL_CASE_INSENSITIVE_001_iin_integer_column_sqlpipe_pipe_stage_e_query_002
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-MED-1 (LOCAL pass-8) IIN sibling: `SELECT * FROM detections | where severity_id IIN ('high')`
+/// (SqlPipe: SQL head + pipe `| where` stage with IIN) against a schema where `severity_id`
+/// is Int64 must return E-QUERY-002 `QueryTypeMismatch`, NOT the generic E-QUERY-034.
+///
+/// This is the IIN companion to
+/// `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_integer_column_sqlpipe_pipe_stage_e_query_002`.
+/// It exercises the `Predicate::In { case_insensitive: true }` path (not just `Compare`)
+/// through the same missing SqlPipe pre-flight gap.
+///
+/// ## Red Gate reason (HEAD 6dfa82c1)
+///
+/// Same root cause: `Ast::SqlPipe` arm has no `check_ci_column_types` call.
+/// `sqlpipe_to_executable_sql` emits `lower(severity_id) IN (lower('high'))`;
+/// DataFusion rejects `lower()` on Int64 → E-QUERY-034.
+/// `err_str.contains("E-QUERY-002")` fails → test FAILS (Red Gate).
+///
+/// Traces to: BC-2.11.024 AC-022; BC-2.11.020 (SqlPipe mode);
+/// F-MED-1 (adversary finding, LOCAL pass-8).
+#[tokio::test]
+async fn test_S_PRISMQL_CASE_INSENSITIVE_001_iin_integer_column_sqlpipe_pipe_stage_e_query_002() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arrow::array::{Int64Array, StringArray};
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+
+    use crate::ast::{FromClause, PipeStage, SelectClause, SelectItem, SqlPipeQuery, SqlQuery};
+    use crate::materialization::{execute_against_session, register_mem_table};
+    use crate::memory::build_session_context;
+
+    // Predicate: severity_id IIN ('high') — Predicate::In + case_insensitive: true
+    // on an Int64 column.
+    let pred = Predicate::In {
+        field: FieldPath::new(["severity_id"]),
+        values: vec![Literal::String("high".to_owned())],
+        negated: false,
+        case_insensitive: true,
+    };
+
+    // Build Ast::SqlPipe with head `SELECT * FROM detections` and pipe stage
+    // `| where severity_id IIN ('high')`.
+    let head = SqlQuery::new(
+        SelectClause::new(vec![SelectItem::Star]),
+        FromClause::new(SourceRef::from_raw("detections")),
+    );
+    let ast = Ast::SqlPipe(SqlPipeQuery {
+        head,
+        stages: vec![PipeStage::Where(pred)],
+    });
+
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("severity_id", DataType::Int64, true),
+        Field::new("severity", DataType::Utf8, true),
+    ]));
+    let severity_id_arr = Arc::new(Int64Array::from(vec![4i64, 2i64])) as _;
+    let severity_arr = Arc::new(StringArray::from(vec!["High", "Low"])) as _;
+    let batch = RecordBatch::try_new(schema, vec![severity_id_arr, severity_arr])
+        .expect("F-MED-1-SQLPIPE-IIN: batch must build");
+
+    let ctx =
+        build_session_context(50 * 1024 * 1024).expect("F-MED-1-SQLPIPE-IIN: context must build");
+    register_mem_table(&ctx, "detections", vec![batch])
+        .expect("F-MED-1-SQLPIPE-IIN: MemTable must register");
+
+    let result = execute_against_session(
+        &ctx,
+        "SELECT * FROM detections | where severity_id IIN ('high')",
+        &ast,
+        HashMap::new(),
+    )
+    .await;
+
+    let err = result.expect_err(
+        "F-MED-1-SQLPIPE-IIN: severity_id IIN ('high') on Int64 in SqlPipe mode must return Err; \
+         currently reaches DataFusion unchecked → E-QUERY-034 (Red Gate state)",
+    );
+    let err_str = err.to_string();
+
+    // (1) Must be E-QUERY-002, not E-QUERY-034.
+    assert!(
+        err_str.contains("E-QUERY-002"),
+        "F-MED-1-SQLPIPE-IIN: SqlPipe pipe-stage IIN on Int64 must produce E-QUERY-002 \
+         (QueryTypeMismatch), NOT E-QUERY-034; the Ast::SqlPipe arm is missing the CI \
+         column-type pre-flight check; got: {err_str:?}"
+    );
+    // (2) Must name the offending column.
+    assert!(
+        err_str.contains("severity_id"),
+        "F-MED-1-SQLPIPE-IIN: E-QUERY-002 must name 'severity_id'; got: {err_str:?}"
+    );
+    // (3) Must name the operator IIN.
+    assert!(
+        err_str.contains("IIN"),
+        "F-MED-1-SQLPIPE-IIN: E-QUERY-002 must name the operator 'IIN'; got: {err_str:?}"
+    );
+    // (4) Suggestion text per error-taxonomy v2.18.
+    assert!(
+        err_str.contains(
+            "for label comparison, use the string column 'severity' with IEQ/IIN/INE instead"
+        ),
+        "F-MED-1-SQLPIPE-IIN: E-QUERY-002 must include the BC-2.11.024 AC-022 suggestion; \
+         got: {err_str:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_dml_insert_select_where_ine_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — INSERT...SELECT WHERE INE must be rejected at parse time.
+///
+/// `INSERT INTO some_table SELECT * FROM crowdstrike_detections WHERE severity INE 'high'`
+/// must be rejected by `PrismQlParser::parse` with:
+///   - error code `E-QUERY-001`
+///   - guidance substring `"not supported in SQL mode"`
+///   - operator name `"INE"` in the error message
+///
+/// Grammar reachability: `build_insert_parser` calls `build_sql_parser()` for the
+/// embedded SELECT sub-query.  The SELECT's WHERE clause accepts INE via
+/// `build_sql_predicate_parser` → `build_predicate_parser()` (IEQ/INE/IIN added in
+/// LOCAL-pass-1).  The INSERT is not unbounded (WHERE present on the SELECT), so
+/// `check_unbounded_write` passes.  At current HEAD the INSERT parses to:
+///   `Ok(Ast::Sql(SqlStatement::Dml(DmlNode {
+///     source_select: Some(SqlQuery {
+///       where_: Some(Predicate::Compare { case_insensitive: true, op: Ne, .. })
+///     })
+///   })))`
+///
+/// Red Gate (HEAD 7169da41): FAILS.
+///   `parse_sql_dml_with_limits` checks `node.source_select` only for depth and
+///   list-size limits (F-PR130-CR-004).  It never calls
+///   `detect_ci_operator_in_sql_query` on `node.source_select`.
+///   Returns `Ok(...)`.  `expect_err` panics.
+///
+/// Green Gate: PASSES once `parse_sql_dml_with_limits` calls
+///   `detect_ci_operator_in_sql_query(sq)` on `node.source_select` and emits
+///   E-QUERY-001 with `op = "INE"`.
+///
+/// Traces to: BC-2.11.024 §DML-Mode Rejection; LOCAL-pass-7.
+#[test]
+fn test_BC_2_11_024_dml_insert_select_where_ine_rejected() {
+    // INSERT INTO...SELECT with WHERE: expressible via build_insert_parser.
+    // build_insert_parser calls build_sql_parser() for the embedded SELECT.
+    // The SELECT's WHERE clause parses INE via build_predicate_parser (includes CI ops
+    // from LOCAL-pass-1).  The INSERT is bounded (WHERE present) so check_unbounded_write
+    // passes.  At current HEAD this returns Ok — Red Gate rationale above.
+    let result = PrismQlParser::parse(
+        "INSERT INTO some_table SELECT * FROM crowdstrike_detections WHERE severity INE 'high'",
+    );
+    let err = result.expect_err(
+        "BC-2.11.024: PrismQlParser::parse must reject INE in a DML INSERT...SELECT \
+         WHERE clause with E-QUERY-001; currently returns Ok(Ast::Sql(SqlStatement::Dml(…))) \
+         because parse_sql_dml_with_limits does not call detect_ci_operator_in_sql_query on \
+         node.source_select (LOCAL-pass-7 fix-burst target)",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    // Byte-exact assertion against the verbatim BC-2.11.024 template with op = "INE".
+    assert_eq!(
+        all_msgs,
+        "E-QUERY-001: parse error near 'INE': case-insensitive operators \
+         (IEQ/IIN/INE) are not supported in SQL mode. Use filter mode \
+         (e.g., severity IEQ 'high') or a pipe | where stage \
+         (e.g., FROM crowdstrike_detections | where severity IEQ 'high') \
+         instead.",
+        "BC-2.11.024: DML INSERT...SELECT INE rejection must match the verbatim \
+         BC-2.11.024 template exactly; got: {all_msgs:?}"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-14: F-LOW-001 — IEQ/INE with date-like quoted RHS
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// Bug: `classify_string_literal` (ADR-052 lenient date matching) reclassifies
+// a quoted date-like string (e.g. '2026-06-01') to `Literal::RawTemporalLiteral`
+// or `Literal::Timestamp`.  `ieq_rhs_string`/`ine_rhs_string` try_map only
+// accepts `Literal::String(s)`, so `severity IEQ '2026-06-01'` fails parse with
+// the WRONG error message "integer, float, or boolean".
+//
+// Production-grade fix (Option A per task brief): extend the try_map in
+// `ieq_rhs_string` and `ine_rhs_string` to also accept `RawTemporalLiteral`
+// (extracting the inner String) and `Literal::Timestamp` (extracting ts.iso8601),
+// then wrap the result in `Literal::String` so the emitter sees only String RHS.
+// IIN has the same hazard (values stored as raw Literal), fixed by normalising
+// RawTemporalLiteral/Timestamp → String in the iin_values collected vector.
+//
+// Red Gate (HEAD 5e83627f):
+//   `parse_filter("severity IEQ '2026-06-01'")` → Err (wrong message)
+//   `parse_filter("severity INE '2026-06-01'")` → Err (wrong message)
+//   IIN with date-like elements → parse OK but emitter returns QueryPlanFailed
+//
+// Green Gate: all parse OK; emitter produces lower() SQL without error.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_ieq_date_like_rhs_accepted_as_string
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-LOW-001: `severity IEQ '2026-06-01'` must parse successfully despite
+/// `classify_string_literal` reclassifying the quoted date to `RawTemporalLiteral`.
+///
+/// The user explicitly quoted the value — it is a string literal used for
+/// label comparison, not a temporal comparison.  The IEQ parser must accept it
+/// and store it as `Literal::String("2026-06-01")` so the emitter produces
+/// `lower(severity) = lower('2026-06-01')`.
+///
+/// Red Gate (HEAD 5e83627f): `parse_filter` returns Err with message
+/// "integer, float, or boolean" because `ieq_rhs_string` try_map rejects
+/// `Literal::RawTemporalLiteral`.  The test fails at `expect`.
+///
+/// Green Gate: `ieq_rhs_string` try_map accepts `RawTemporalLiteral` (and
+/// `Timestamp`) by extracting the raw string, producing `Literal::String`.
+///
+/// Traces to: BC-2.11.024; F-LOW-001 (LOCAL-pass-14).
+#[test]
+fn test_BC_2_11_024_ieq_date_like_rhs_accepted_as_string() {
+    let result = parse_filter("severity IEQ '2026-06-01'");
+    let fe = result.expect(
+        "F-LOW-001: 'severity IEQ \\'2026-06-01\\'' must parse successfully; \
+         `classify_string_literal` reclassifies the quoted date to RawTemporalLiteral \
+         and `ieq_rhs_string` try_map must now accept it (LOCAL-pass-14 fix target)",
+    );
+
+    // Verify the AST stores the value as Literal::String, not RawTemporalLiteral.
+    match &fe.predicate {
+        Predicate::Compare {
+            rhs,
+            op,
+            case_insensitive,
+            ..
+        } => {
+            assert_eq!(
+                op,
+                &CompareOp::Eq,
+                "F-LOW-001: IEQ must map to CompareOp::Eq"
+            );
+            assert!(
+                case_insensitive,
+                "F-LOW-001: IEQ must set case_insensitive=true"
+            );
+            match rhs.as_ref() {
+                Expr::Literal(Literal::String(s)) => {
+                    assert_eq!(
+                        s, "2026-06-01",
+                        "F-LOW-001: RHS must be Literal::String(\"2026-06-01\"); \
+                         got a different string value"
+                    );
+                }
+                other => panic!(
+                    "F-LOW-001: RHS must be Expr::Literal(Literal::String(\"2026-06-01\")); \
+                     got {other:?}"
+                ),
+            }
+        }
+        other => panic!("F-LOW-001: predicate must be Compare; got {other:?}"),
+    }
+
+    // Verify the emitter produces lower() SQL without error.
+    let sql =
+        predicate_to_datafusion_sql(&fe.predicate).expect("F-LOW-001: emitter must not error");
+    assert_eq!(
+        sql, "lower(severity) = lower('2026-06-01')",
+        "F-LOW-001: IEQ with date-like RHS must emit lower(field) = lower('val')"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_ine_date_like_rhs_accepted_as_string
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-LOW-001 (INE sibling): `severity INE '2026-06-01'` must parse successfully.
+///
+/// Symmetric with `test_BC_2_11_024_ieq_date_like_rhs_accepted_as_string`.
+///
+/// Red Gate (HEAD 5e83627f): `ine_rhs_string` try_map rejects `RawTemporalLiteral`.
+/// Green Gate: extended try_map accepts it, emitter produces lower() != SQL.
+///
+/// Traces to: BC-2.11.024; F-LOW-001 (LOCAL-pass-14).
+#[test]
+fn test_BC_2_11_024_ine_date_like_rhs_accepted_as_string() {
+    let result = parse_filter("severity INE '2026-06-01'");
+    let fe = result.expect(
+        "F-LOW-001: 'severity INE \\'2026-06-01\\'' must parse successfully; \
+         `ine_rhs_string` try_map must accept RawTemporalLiteral (LOCAL-pass-14 fix target)",
+    );
+
+    match &fe.predicate {
+        Predicate::Compare {
+            rhs,
+            op,
+            case_insensitive,
+            ..
+        } => {
+            assert_eq!(
+                op,
+                &CompareOp::Ne,
+                "F-LOW-001: INE must map to CompareOp::Ne"
+            );
+            assert!(
+                case_insensitive,
+                "F-LOW-001: INE must set case_insensitive=true"
+            );
+            match rhs.as_ref() {
+                Expr::Literal(Literal::String(s)) => {
+                    assert_eq!(
+                        s, "2026-06-01",
+                        "F-LOW-001: INE RHS must be Literal::String(\"2026-06-01\")"
+                    );
+                }
+                other => panic!(
+                    "F-LOW-001: INE RHS must be Expr::Literal(Literal::String); got {other:?}"
+                ),
+            }
+        }
+        other => panic!("F-LOW-001: INE predicate must be Compare; got {other:?}"),
+    }
+
+    let sql =
+        predicate_to_datafusion_sql(&fe.predicate).expect("F-LOW-001: INE emitter must not error");
+    assert_eq!(
+        sql, "lower(severity) != lower('2026-06-01')",
+        "F-LOW-001: INE with date-like RHS must emit lower(field) != lower('val')"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_iin_date_like_elements_accepted_as_string
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-LOW-001 (IIN): `status IIN ('2026-06-01', '2026-07-01')` must parse and emit
+/// without error despite `classify_string_literal` reclassifying both values to
+/// `Literal::RawTemporalLiteral`.
+///
+/// The IIN grammar collects `Literal` values directly.  Without normalisation
+/// `RawTemporalLiteral` values survive into `Predicate::In { values }` and cause
+/// the emitter to return `QueryPlanFailed` ("lower() is not applicable to
+/// non-string values").
+///
+/// Red Gate (HEAD 5e83627f):
+///   `parse_filter` → Ok (parser doesn't type-check IIN list elements).
+///   `predicate_to_datafusion_sql` → Err(QueryPlanFailed) — this is the failing
+///   assertion.
+///
+/// Green Gate: `iin_values` normalises `RawTemporalLiteral`/`Timestamp` to
+///   `Literal::String` so the emitter sees only String values and succeeds.
+///
+/// Traces to: BC-2.11.024; F-LOW-001 (LOCAL-pass-14).
+#[test]
+fn test_BC_2_11_024_iin_date_like_elements_accepted_as_string() {
+    let result = parse_filter("status IIN ('2026-06-01', '2026-07-01')");
+    let fe = result.expect(
+        "F-LOW-001: 'status IIN (\\'2026-06-01\\', \\'2026-07-01\\')' must parse OK; \
+         IIN parser does not type-check list elements at parse time",
+    );
+
+    // After the fix, all values in the IIN list must be Literal::String.
+    match &fe.predicate {
+        Predicate::In {
+            values,
+            case_insensitive,
+            negated,
+            ..
+        } => {
+            assert!(
+                case_insensitive,
+                "F-LOW-001: IIN must set case_insensitive=true"
+            );
+            assert!(!negated, "F-LOW-001: IIN must not be negated");
+            for v in values {
+                assert!(
+                    matches!(v, Literal::String(_)),
+                    "F-LOW-001: IIN list values must be Literal::String after normalisation; \
+                     got {v:?}"
+                );
+            }
+        }
+        other => panic!("F-LOW-001: IIN predicate must be In; got {other:?}"),
+    }
+
+    // Emitter must produce lower() IN (...) without error.
+    let sql = predicate_to_datafusion_sql(&fe.predicate)
+        .expect("F-LOW-001: IIN emitter must not return QueryPlanFailed after normalisation");
+    assert_eq!(
+        sql, "lower(status) IN (lower('2026-06-01'), lower('2026-07-01'))",
+        "F-LOW-001: IIN with date-like elements must emit lower(field) IN (...)"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-14: OBS-001 — SqlPipe head WHERE mode-boundary GREEN lock
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_sqlpipe_head_where_ieq_rejected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// OBS-001 (GREEN lock): `SELECT * FROM t WHERE severity IEQ 'high' | limit 5`
+/// must be rejected by `PrismQlParser::parse` with E-QUERY-001 naming the operator
+/// "IEQ" and containing "not supported in SQL mode".
+///
+/// Reachability: `is_sqlpipe_mode` detects the `| limit` suffix and routes to
+/// `parse_sqlpipe_internal`, which calls `parse_sql_with_limits` on the SQL head
+/// `SELECT * FROM t WHERE severity IEQ 'high'`.  The WHERE clause check
+/// (`detect_ci_operator_in_predicate`) fires on the IEQ Compare node and returns
+/// E-QUERY-001 before any pipe stage parsing occurs.
+///
+/// This behavior is already correct via the shared `parse_sql_with_limits` path
+/// (the same code that fixes pure-SQL WHERE reachability also fixes the SqlPipe
+/// SQL head).  This test is a regression GREEN lock, symmetric with the existing
+/// `test_BC_2_11_024_sqlpipe_head_having_ieq_rejected`.
+///
+/// Traces to: BC-2.11.024 §SQL-Mode Rejection; OBS-001 (LOCAL-pass-14).
+#[test]
+fn test_BC_2_11_024_sqlpipe_head_where_ieq_rejected() {
+    // `| limit 5` triggers SqlPipe routing via `is_sqlpipe_mode`
+    // (PIPE_STAGE_KEYWORDS includes "limit").  The SQL head is the SELECT part.
+    let query = "SELECT * FROM t WHERE severity IEQ 'high' | limit 5";
+    let result = PrismQlParser::parse(query);
+    let err = result.expect_err(
+        "BC-2.11.024 OBS-001: PrismQlParser::parse must reject IEQ in a SqlPipe SQL-head \
+         WHERE clause with E-QUERY-001; behavior is correct via shared parse_sql_with_limits — \
+         unexpected Ok indicates a regression in the SQL-mode CI operator rejection gate",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024 OBS-001: SqlPipe WHERE IEQ rejection must carry 'E-QUERY-001'; \
+         got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024 OBS-001: SqlPipe WHERE IEQ rejection must contain \
+         'not supported in SQL mode'; got: {all_msgs:?}"
+    );
+    assert!(
+        all_msgs.contains("IEQ"),
+        "BC-2.11.024 OBS-001: SqlPipe WHERE IEQ rejection must name the operator 'IEQ'; \
+         got: {all_msgs:?}"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-15: F-MED-001 — IIN non-string list elements → parse-time E-QUERY-001
+//
+// BC-2.11.024 verbatim template (non-string IIN elements):
+//
+//   E-QUERY-001: IIN operator requires quoted string literals in the membership
+//   list; got a non-string value (integer, float, or boolean). Example: status
+//   IIN ('new', 'open'). If you need date-like strings, wrap them in quotes:
+//   created_at IIN ('2026-06-01', '2026-06-02').
+//
+// Current behaviour at HEAD 065a1b60:
+//   `parse_filter("severity IIN (42, 43)")` returns `Ok(FilterExpr { … })`.
+//   The IIN grammar collects any `Literal` values without validating their
+//   variant.  Non-string values (Integer, Boolean) survive into
+//   `Predicate::In { values }` and are only rejected later when
+//   `predicate_to_datafusion_sql` runs.
+//   `expect_err(...)` panics on the Ok return → tests FAIL (Red Gate).
+//
+// Green Gate:
+//   PASSES once the IIN parser (the `iin_values` combinator or its try_map)
+//   rejects `Literal::Integer`, `Literal::Float`, and `Literal::Boolean` at
+//   parse time with a `ParseError` whose `.message` contains "E-QUERY-001"
+//   and the stable portion of the BC-2.11.024 template.
+//
+// GREEN guard — date-like IIN strings:
+//   `status IIN ('2026-06-01', '2026-06-02')` must still parse Ok.
+//   This is already locked by `test_BC_2_11_024_iin_date_like_elements_accepted_as_string`
+//   (LOCAL-pass-14).  Not repeated here.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_iin_integer_elements_rejected_e_query_001
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — IIN list containing integer literals must be rejected at
+/// parse time with E-QUERY-001 and the verbatim non-string template.
+///
+/// `severity IIN (42, 43)` contains two integer literals in the membership
+/// list.  BC-2.11.024 requires the parser to reject this immediately, before
+/// any SQL is generated, so the analyst sees a clear, actionable error message
+/// instead of an opaque DataFusion planning failure.
+///
+/// ## Current behaviour (HEAD 065a1b60) — RED
+///
+/// `parse_filter("severity IIN (42, 43)")` returns `Ok(FilterExpr { … })`.
+/// The IIN grammar accepts any Literal variant in the membership list without
+/// type-checking.  `expect_err(…)` panics on the Ok return.
+///
+/// ## Green Gate
+///
+/// PASSES once the `iin_values` combinator (or its try_map) rejects
+/// `Literal::Integer` at parse time, emitting a `ParseError` whose `.message`
+/// contains:
+///   "E-QUERY-001"  AND
+///   "IIN operator requires quoted string literals in the membership list"
+///
+/// ## Traces
+///
+/// BC-2.11.024 §Non-string IIN elements; AC-020 (extended to IIN list);
+/// LOCAL adversary pass-15 finding F-MED-001.
+#[test]
+fn test_BC_2_11_024_iin_integer_elements_rejected_e_query_001() {
+    // BC-2.11.024: parser must reject integer elements in IIN list at parse time.
+    let errors = parse_filter("severity IIN (42, 43)").expect_err(
+        "F-MED-001: 'severity IIN (42, 43)' must fail to parse at parse time — \
+         integer literals are invalid IIN list elements per BC-2.11.024; \
+         currently returns Ok (integers survive into Predicate::In and are only \
+         rejected later by predicate_to_datafusion_sql; LOCAL-pass-15 fix target)",
+    );
+    let all_msgs: String = errors
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    // (1) Must carry the structured error code.
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "F-MED-001: parse error for 'severity IIN (42, 43)' must carry 'E-QUERY-001' \
+         per BC-2.11.024; got: {all_msgs:?}"
+    );
+    // (2) Must cite the stable portion of the BC-2.11.024 verbatim template.
+    // The implementer must emit exactly this phrase so analysts can find the docs.
+    assert!(
+        all_msgs.contains("IIN operator requires quoted string literals in the membership list"),
+        "F-MED-001: parse error must contain the verbatim BC-2.11.024 template \
+         phrase 'IIN operator requires quoted string literals in the membership list'; \
+         got: {all_msgs:?}"
+    );
+    // (3) Template must name the disallowed value type so the analyst understands
+    // why their query was rejected.
+    assert!(
+        all_msgs.contains("integer, float, or boolean"),
+        "F-MED-001: parse error must contain 'integer, float, or boolean' \
+         per BC-2.11.024 template; got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_iin_boolean_elements_rejected_e_query_001
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 — IIN list containing boolean literals must be rejected at
+/// parse time with E-QUERY-001 and the verbatim non-string template.
+///
+/// `status IIN (true, false)` contains two boolean literals.  This is a
+/// companion to the integer-elements test above, exercising the `Literal::Boolean`
+/// rejection path separately.
+///
+/// ## Current behaviour (HEAD 065a1b60) — RED
+///
+/// `parse_filter("status IIN (true, false)")` returns `Ok(FilterExpr { … })`.
+/// `expect_err(…)` panics on the Ok return.
+///
+/// ## Green Gate
+///
+/// PASSES once the `iin_values` combinator rejects `Literal::Boolean` at parse
+/// time, emitting a `ParseError` whose `.message` contains:
+///   "E-QUERY-001"  AND
+///   "IIN operator requires quoted string literals in the membership list"
+///
+/// Note: `'true'` and `'false'` (quoted) are valid IIN elements (they are
+/// treated as string labels).  Only the unquoted keyword forms `true`/`false`
+/// (parsed as `Literal::Boolean`) are rejected.
+///
+/// ## Traces
+///
+/// BC-2.11.024 §Non-string IIN elements; AC-020 (extended to IIN list);
+/// LOCAL adversary pass-15 finding F-MED-001.
+#[test]
+fn test_BC_2_11_024_iin_boolean_elements_rejected_e_query_001() {
+    // BC-2.11.024: parser must reject boolean elements in IIN list at parse time.
+    let errors = parse_filter("status IIN (true, false)").expect_err(
+        "F-MED-001: 'status IIN (true, false)' must fail to parse at parse time — \
+         boolean literals are invalid IIN list elements per BC-2.11.024; \
+         currently returns Ok (booleans survive into Predicate::In and are only \
+         rejected later by predicate_to_datafusion_sql; LOCAL-pass-15 fix target)",
+    );
+    let all_msgs: String = errors
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    // (1) Must carry the structured error code.
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "F-MED-001: parse error for 'status IIN (true, false)' must carry 'E-QUERY-001' \
+         per BC-2.11.024; got: {all_msgs:?}"
+    );
+    // (2) Must cite the stable portion of the BC-2.11.024 verbatim template.
+    assert!(
+        all_msgs.contains("IIN operator requires quoted string literals in the membership list"),
+        "F-MED-001: parse error must contain the verbatim BC-2.11.024 template \
+         phrase 'IIN operator requires quoted string literals in the membership list'; \
+         got: {all_msgs:?}"
+    );
+    // (3) Template must name the disallowed value type.
+    assert!(
+        all_msgs.contains("integer, float, or boolean"),
+        "F-MED-001: parse error must contain 'integer, float, or boolean' \
+         per BC-2.11.024 template; got: {all_msgs:?}"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOCAL-pass-15: OBS-2 — compound-violation precedence lock (GREEN)
+//
+// AC-023 (story): when a query contains BOTH a CI operator error (wrong RHS
+// type for IEQ) AND a SQL-mode violation, the STRING-LITERAL E-QUERY-001
+// template must fire, NOT the mode-boundary template.
+//
+// Mechanism: the IEQ parser's `ieq_rhs_string` try_map rejects non-string RHS
+// (e.g. integer `42`) at PARSE TIME, emitting E-QUERY-001 with the "quoted
+// string literal" message.  The SQL-mode check (`detect_ci_operator_in_predicate`)
+// only runs on a SUCCESSFULLY-PARSED predicate containing a CI operator.
+// Since `severity IEQ 42` fails to produce a parsed predicate, the SQL-mode
+// check is never reached.
+//
+// Current behaviour at HEAD 065a1b60: GREEN — the IEQ string-literal rejection
+// was implemented in a prior pass (RG-016 green).
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// test_BC_2_11_024_compound_violation_string_literal_precedence
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.024 / AC-023 — STRING-LITERAL precedence over SQL-mode-boundary lock.
+///
+/// `SELECT * FROM t WHERE severity IEQ 42` violates two rules simultaneously:
+///   (a) IEQ requires a quoted string literal RHS (string-literal rule).
+///   (b) IEQ is not permitted in SQL mode (SQL-mode-boundary rule).
+///
+/// The string-literal parse-time rejection fires FIRST because:
+///   `ieq_rhs_string` try_map rejects `Literal::Integer(42)` before a
+///   `Predicate::Compare { case_insensitive: true }` is ever constructed.
+///   `detect_ci_operator_in_predicate` (SQL-mode check) is only called on
+///   a successfully-parsed CI predicate — which never exists here.
+///
+/// ## Assertions
+///
+/// - `PrismQlParser::parse(query)` returns `Err(...)`.
+/// - Error message contains "E-QUERY-001".
+/// - Error message contains "quoted string literal" (IEQ non-string RHS template).
+/// - Error message does NOT contain "not supported in SQL mode"
+///   (mode-boundary template must NOT fire).
+///
+/// ## Status: GREEN at HEAD 065a1b60
+///
+/// The IEQ string-literal rejection (RG-016) was implemented in a prior pass.
+/// This test is a regression lock — a future refactor must not accidentally
+/// swap the precedence so that SQL-mode detection fires for a query where
+/// the IEQ itself is malformed.
+///
+/// ## Traces
+///
+/// BC-2.11.024 AC-023; RG-016 (IEQ non-string RHS → E-QUERY-001);
+/// LOCAL-pass-15 OBS-2 compound-violation precedence lock.
+#[test]
+fn test_BC_2_11_024_compound_violation_string_literal_precedence() {
+    let result = PrismQlParser::parse("SELECT * FROM t WHERE severity IEQ 42");
+    let err = result.expect_err(
+        "BC-2.11.024 AC-023: 'SELECT * FROM t WHERE severity IEQ 42' must return Err — \
+         IEQ requires a quoted string literal RHS; integer 42 is rejected at parse time; \
+         unexpected Ok indicates the IEQ string-literal rejection (RG-016) regressed",
+    );
+    let all_msgs: String = err
+        .iter()
+        .map(|e| e.message.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    // (1) Must be E-QUERY-001 — both error types share this code.
+    assert!(
+        all_msgs.contains("E-QUERY-001"),
+        "BC-2.11.024 AC-023: compound-violation must carry 'E-QUERY-001'; got: {all_msgs:?}"
+    );
+    // (2) Must be the STRING-LITERAL template, not the SQL-mode-boundary template.
+    // The IEQ string-literal template contains "quoted string literal".
+    assert!(
+        all_msgs.contains("quoted string literal"),
+        "BC-2.11.024 AC-023: compound-violation error must contain 'quoted string literal' \
+         (IEQ non-string RHS template fires first, per AC-023 precedence rule); \
+         got: {all_msgs:?}"
+    );
+    // (3) The SQL-mode-boundary template must NOT appear.  If it does, the precedence
+    // rule is violated — the SQL-mode check fired on a malformed IEQ predicate.
+    assert!(
+        !all_msgs.contains("not supported in SQL mode"),
+        "BC-2.11.024 AC-023: compound-violation must NOT contain 'not supported in SQL mode' \
+         (SQL-mode-boundary template must NOT fire when the IEQ RHS is invalid — \
+         string-literal rejection takes precedence per AC-023); got: {all_msgs:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CR-003 — normalize_predicate invalid CI op emits tracing::warn! before fallback
+// (code-review pass-1, fix-burst S-PRISMQL-CASE-INSENSITIVE-001)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// CR-003: `PqlNormalizer::normalize_predicate_pub` for a manually-constructed
+/// `Predicate::Compare` with `case_insensitive=true` and a non-Eq/Ne op MUST emit
+/// a `tracing::warn!` citing "BC-2.11.024" before falling through to the "IEQ"
+/// placeholder.
+///
+/// In debug builds `debug_assert!(false)` fires immediately after the warn;
+/// `catch_unwind` absorbs that panic so the log check still runs.
+/// In release builds no panic occurs and the warn is the only observable event.
+///
+/// RED GATE (current HEAD): FAILS — no `tracing::warn!` is emitted before
+/// `debug_assert!`; `logs_contain("BC-2.11.024")` returns false → assertion fails.
+///
+/// GREEN GATE: PASSES after CR-003 adds `tracing::warn!(... "BC-2.11.024 ...")` to
+/// the `_ =>` fallback arm of `normalize_predicate` in `ast.rs`.
+///
+/// Traces to: BC-2.11.024 (AST invariant); CR-003 code-review finding.
+/// Not registered in BC-2.16.002 catalog — this is a programming-error diagnostic,
+/// not a domain event (per CR-003 report).
+#[test]
+#[tracing_test::traced_test]
+fn test_cr003_normalize_predicate_invalid_ci_op_emits_warn() {
+    use std::panic::AssertUnwindSafe;
+    // Manually construct an invalid predicate: case_insensitive=true + non-Eq/Ne op.
+    // The PrismQL parser never produces this combination; only hand-built predicates
+    // can reach the _ fallback arm of normalize_predicate (BC-2.11.024 AST invariant).
+    let pred = Predicate::Compare {
+        lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+        op: CompareOp::Gt, // invalid: only Eq/Ne are valid for case_insensitive=true
+        rhs: Box::new(Expr::Literal(Literal::Integer(42))),
+        case_insensitive: true,
+    };
+    // In debug builds, debug_assert!(false) fires AFTER the warn — absorb the panic.
+    // The warn must fire BEFORE debug_assert! so this pattern always captures it.
+    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        PqlNormalizer::normalize_predicate_pub(&pred)
+    }));
+    assert!(
+        logs_contain("BC-2.11.024"),
+        "CR-003: normalize_predicate with case_insensitive=true + non-Eq/Ne op \
+         must emit tracing::warn! citing 'BC-2.11.024' before the debug_assert! \
+         fallback; no such log found. \
+         Fix: add tracing::warn!(...\"BC-2.11.024...\") before debug_assert!(false) \
+         in the _ arm of normalize_predicate in ast.rs"
+    );
+}

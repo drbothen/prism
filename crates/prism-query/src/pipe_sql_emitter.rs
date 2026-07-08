@@ -505,7 +505,50 @@ fn assemble_clauses(clauses: &[&str]) -> String {
 /// registration and are not supported in pipe-mode for MVP).
 pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, PrismError> {
     match pred {
-        Predicate::Compare { lhs, op, rhs } => {
+        Predicate::Compare {
+            lhs,
+            op,
+            rhs,
+            case_insensitive,
+        } => {
+            // S-PRISMQL-CASE-INSENSITIVE-001: case-insensitive IEQ/INE operators lower
+            // via `lower(field) OP lower('val')` DataFusion SQL pattern (BC-2.11.024).
+            if *case_insensitive {
+                // IEQ/INE RHS must be a string literal — lower() is string-only in DataFusion.
+                // Non-string RHS → QueryPlanFailed (BC-2.11.024 error case, RG-016).
+                let rhs_sql = match rhs.as_ref() {
+                    crate::ast::Expr::Literal(Literal::String(s)) => {
+                        format!("lower('{}')", escape_sql_string(s))
+                    }
+                    _ => {
+                        return Err(PrismError::QueryPlanFailed {
+                            detail: "IEQ/INE operators require a string literal \
+                                     on the right-hand side; lower() is not applicable to \
+                                     non-string values"
+                                .to_string(),
+                        });
+                    }
+                };
+                let lhs_sql = expr_to_sql(lhs)?;
+                // OBS-1 (S-PRISMQL-CASE-INSENSITIVE-001): IEQ maps to Eq, INE maps to Ne.
+                // Any other CompareOp in a case_insensitive branch is a contract violation —
+                // the parser only produces case_insensitive=true for IEQ/INE operators (BC-2.11.024).
+                // Emit QueryPlanFailed rather than silently defaulting to "=" and producing
+                // a wrong query.
+                let op_str = match op {
+                    CompareOp::Eq => "=",
+                    CompareOp::Ne => "!=",
+                    other => {
+                        return Err(PrismError::QueryPlanFailed {
+                            detail: format!(
+                                "case_insensitive=true is only valid for IEQ (Eq) and INE (Ne) \
+                                 operators; got {other:?} — this is an AST invariant violation"
+                            ),
+                        });
+                    }
+                };
+                return Ok(format!("lower({lhs_sql}) {op_str} {rhs_sql}"));
+            }
             let lhs_sql = expr_to_sql(lhs)?;
             let rhs_sql = expr_to_sql(rhs)?;
             let op_str = match op {
@@ -576,7 +619,41 @@ pub(crate) fn predicate_to_datafusion_sql(pred: &Predicate) -> Result<String, Pr
             field,
             values,
             negated,
+            case_insensitive,
         } => {
+            // S-PRISMQL-CASE-INSENSITIVE-001: IIN operators lower via
+            // `lower(field) IN (lower('v1'), ...)` DataFusion SQL pattern (BC-2.11.024).
+            if *case_insensitive {
+                // IIN is a parser-producible positive-only operator (grammar has no NIIN form).
+                // A negated+case_insensitive In predicate cannot be produced by the parser
+                // (BC-2.11.024 §AC-023); guard against direct AST construction.
+                if *negated {
+                    return Err(PrismError::QueryPlanFailed {
+                        detail: "negated + case_insensitive is not a parser-producible IN \
+                                 combination; IIN grammar is positive-only"
+                            .to_string(),
+                    });
+                }
+                if values.is_empty() {
+                    return Err(PrismError::QueryPlanFailed {
+                        detail: "IIN requires at least one value in the membership list"
+                            .to_string(),
+                    });
+                }
+                let field_sql = field_path_to_sql(field);
+                let vals: Vec<String> = values
+                    .iter()
+                    .map(|lit| match lit {
+                        Literal::String(s) => Ok(format!("lower('{}')", escape_sql_string(s))),
+                        _ => Err(PrismError::QueryPlanFailed {
+                            detail: "IIN requires string literals in the membership list; \
+                                     lower() is not applicable to non-string values"
+                                .to_string(),
+                        }),
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                return Ok(format!("lower({field_sql}) IN ({})", vals.join(", ")));
+            }
             let field_sql = field_path_to_sql(field);
             let vals: Vec<String> = values
                 .iter()
@@ -800,7 +877,7 @@ fn expr_to_sql(expr: &Expr) -> Result<String, PrismError> {
 ///
 /// Returns `Err` only for `Literal::RawTemporalLiteral` — that intermediate AST node
 /// must be consumed by `check_temporal_literals` at plan time before the emitter
-/// is called (belt-and-suspenders guard; ADR-052 §D4 Step 5; BC-2.11.021 v1.4;
+/// is called (belt-and-suspenders guard; ADR-052 §D4 Step 5; BC-2.11.021;
 /// S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 Task 11B).
 fn literal_to_sql(lit: &Literal) -> Result<String, PrismError> {
     Ok(match lit {
@@ -823,7 +900,7 @@ fn literal_to_sql(lit: &Literal) -> Result<String, PrismError> {
         Literal::Cidr(c) => format!("'{}'", escape_sql_string(&c.cidr)),
         Literal::Regex(r) => format!("'{}'", escape_sql_string(&r.pattern)),
         Literal::IpAddr(ip) => format!("'{}'", ip.0 .0),
-        // ADR-052 D3 / BC-2.11.004 v1.7: The materialized Arrow column type for OCSF
+        // ADR-052 D3 / BC-2.11.004: The materialized Arrow column type for OCSF
         // Datetime fields is now DataType::Timestamp(Microsecond, UTC) per ADR-052 D1/D2.
         // DataFusion 53.1.0's `TIMESTAMP '<iso>'` syntax produces Timestamp(Nanosecond, None),
         // which mismatches the UTC-tagged Microsecond column type. Use arrow_cast() to produce
@@ -841,7 +918,7 @@ fn literal_to_sql(lit: &Literal) -> Result<String, PrismError> {
             "arrow_cast('{}', 'Timestamp(Microsecond, Some(\"UTC\"))')",
             escape_sql_string(&ts.iso8601)
         ),
-        // ADR-052 §D4 Step 5 guard (BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001):
+        // ADR-052 §D4 Step 5 guard (BC-2.11.021; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001):
         // Belt-and-suspenders secondary defense: RawTemporalLiteral must NEVER reach SQL
         // emission. It is an intermediate AST node that check_temporal_literals must
         // consume at plan time via seven-arm dispatch (ADR-052 §D4 v1.10):
@@ -1014,6 +1091,7 @@ mod tests {
                 lhs: Box::new(Expr::Field(FieldPath::new(["status"]))),
                 op: CompareOp::Eq,
                 rhs: Box::new(Expr::Literal(Literal::String("active".to_string()))),
+                case_insensitive: false,
             })],
         );
         let sql = build_sql(&pipe);
@@ -1290,7 +1368,7 @@ mod tests {
     /// Note: inner double-quote escaping in the type string is REQUIRED to match
     /// DataFusion's arrow_cast signature expectation.
     ///
-    /// Traces to: ADR-052 v1.1 D3; BC-2.11.021 v1.2 §Postconditions ("DataFusion sees
+    /// Traces to: ADR-052 v1.1 D3; BC-2.11.021 §Postconditions ("DataFusion sees
     /// a concrete `WHERE timestamp > arrow_cast(...)` comparison").
     #[test]
     #[allow(clippy::expect_used)]
@@ -1358,7 +1436,7 @@ mod tests {
     /// form ensures the EXACT Timestamp type (`Microsecond, UTC`) is used in the comparison,
     /// not whatever DataFusion's implicit coercion produces.
     ///
-    /// Traces to: ADR-052 v1.1 D3; BC-2.11.021 v1.2 §Postconditions.
+    /// Traces to: ADR-052 v1.1 D3; BC-2.11.021 §Postconditions.
     #[tokio::test]
     #[allow(clippy::expect_used, clippy::unwrap_used)]
     async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_emitter_output_plans_against_timestamp_column(
@@ -1430,7 +1508,7 @@ mod tests {
     /// HIGH-3 fix: changed from `QueryParseFailed` to `QueryPlanFailed` because the literal
     /// was parsed successfully — this is a plan-time invariant violation, not a parse failure.
     ///
-    /// Traces to: BC-2.11.021 v1.4 guard arm (belt-and-suspenders);
+    /// Traces to: BC-2.11.021 guard arm (belt-and-suspenders);
     /// ADR-052 §D4 Step 5 (emitter guard); ADR-052 §D4 Task 11B (return type change).
     #[test]
     #[allow(clippy::unwrap_used)]
@@ -1440,7 +1518,7 @@ mod tests {
         // consumed by check_temporal_literals, literal_to_sql MUST return
         // Err(QueryPlanFailed) — never panic and never silently emit a bare string.
         // HIGH-3 fix: QueryPlanFailed (plan-time invariant), not QueryParseFailed (parse failure).
-        // Traces to: ADR-052 §D4 Step 5 (emitter guard); BC-2.11.021 v1.4 guard arm.
+        // Traces to: ADR-052 §D4 Step 5 (emitter guard); BC-2.11.021 guard arm.
         let raw = Literal::RawTemporalLiteral("2026-06-24".to_string());
         let result = literal_to_sql(&raw);
         assert!(

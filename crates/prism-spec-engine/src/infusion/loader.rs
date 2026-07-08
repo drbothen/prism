@@ -974,8 +974,9 @@ impl InfusionLoader {
     ///  (datetime maps to Timestamp(µs,UTC) per ADR-051 v1.2 / ADR-052)
     /// ```
     ///
-    /// SEC-001 (CWE-117): both `output_type` and `field_name` are stripped of ASCII control
-    /// characters before interpolation to prevent log injection / LLM prompt injection.
+    /// SEC-001 (CWE-117): both `output_type` and `field_name` are stripped of Unicode Cc
+    /// (C0 U+0000–U+001F, DEL U+007F, C1 U+0080–U+009F) + U+2028/U+2029 before interpolation
+    /// to prevent log injection / LLM prompt injection.
     ///
     /// Story: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (AC-007; ADR-051 D3 sub-condition 7).
     ///
@@ -1028,8 +1029,9 @@ impl InfusionLoader {
     ///  the full response object is serialized (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001 root cause)
     /// ```
     ///
-    /// SEC-001 (CWE-117): `field_name` and `infusion_id` are stripped of ASCII control
-    /// characters before interpolation to prevent log injection / LLM prompt injection.
+    /// SEC-001 (CWE-117): `field_name` and `infusion_id` are stripped of Unicode Cc
+    /// (C0 U+0000–U+001F, DEL U+007F, C1 U+0080–U+009F) + U+2028/U+2029 before
+    /// interpolation to prevent log injection / LLM prompt injection.
     ///
     /// SEC-003: `pub(crate)` — only called internally from `parse()`; no cross-crate callers.
     /// (`validate_output_type_recognized` remains `pub` because integration tests call it

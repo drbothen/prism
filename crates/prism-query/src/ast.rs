@@ -526,10 +526,17 @@ impl EnrichStage {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Predicate {
     /// `field op literal` — basic comparison (=, !=, >, >=, <, <=).
+    ///
+    /// `case_insensitive: true` indicates the IEQ (eq) or INE (ne) case-insensitive
+    /// operator is in use — lowered to `lower(field) OP lower('val')` in DataFusion.
+    /// (BC-2.11.024; S-PRISMQL-CASE-INSENSITIVE-001)
     Compare {
         lhs: Box<Expr>,
         op: CompareOp,
         rhs: Box<Expr>,
+        /// `true` for IEQ / INE (case-insensitive equality / inequality).
+        /// Default `false` for existing `=` / `!=` operators (unchanged semantics).
+        case_insensitive: bool,
     },
     /// String pattern operators (CONTAINS, STARTSWITH, ENDSWITH and their
     /// case-insensitive variants ICONTAINS, ISTARTSWITH, IENDSWITH).
@@ -547,10 +554,17 @@ pub enum Predicate {
         pattern: RegexLiteral,
     },
     /// `field IN (val, …)` / `field NOT IN (val, …)`.
+    ///
+    /// `case_insensitive: true` indicates the IIN case-insensitive membership operator
+    /// is in use — lowered to `lower(field) IN (lower('v1'), …)` in DataFusion.
+    /// (BC-2.11.024; S-PRISMQL-CASE-INSENSITIVE-001)
     In {
         field: FieldPath,
         values: Vec<Literal>,
         negated: bool,
+        /// `true` for IIN (case-insensitive membership).
+        /// Default `false` for existing `IN` / `NOT IN` operators (unchanged semantics).
+        case_insensitive: bool,
     },
     /// `field IN (SELECT …)` / `field NOT IN (SELECT …)` subquery membership.
     InSubquery {
@@ -987,7 +1001,7 @@ pub enum Literal {
     /// Validated at plan time by `check_temporal_literals` (seven-arm dispatch, ADR-052 §D4 v1.10).
     /// Must never reach SQL emission — `pipe_sql_emitter.rs` guards this with a
     /// belt-and-suspenders E-QUERY-002 (`QueryPlanFailed`) arm (Pipe/Filter mode).
-    /// (ADR-052 §D4 Step 1; BC-2.11.021 v1.4; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001)
+    /// (ADR-052 §D4 Step 1; BC-2.11.021; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001)
     RawTemporalLiteral(String),
 }
 
@@ -2048,7 +2062,53 @@ impl PqlNormalizer {
 
     fn normalize_predicate(pred: &Predicate) -> String {
         match pred {
-            Predicate::Compare { lhs, op, rhs } => {
+            Predicate::Compare {
+                lhs,
+                op,
+                rhs,
+                case_insensitive,
+            } => {
+                // S-PRISMQL-CASE-INSENSITIVE-001: case-insensitive IEQ/INE operators emit
+                // uppercase canonical form in normalized_pql (BC-2.11.024, BC-2.11.018).
+                if *case_insensitive {
+                    let op_kw = match op {
+                        CompareOp::Eq => "IEQ",
+                        CompareOp::Ne => "INE",
+                        _ => {
+                            // CR-003 (code-review pass-1): emit tracing::warn! BEFORE
+                            // debug_assert! so this programming-error diagnostic is
+                            // observable in production (release) logs. Not registered in
+                            // BC-2.16.002 catalog — this is a programming-error diagnostic,
+                            // not a domain event. target avoids polluting the structured
+                            // event catalog (SAP-1 only applies to event_type= emissions).
+                            tracing::warn!(
+                                target: "prism_query::normalizer",
+                                op = ?op,
+                                "normalize_predicate: case_insensitive=true is only valid \
+                                 for Eq/Ne — BC-2.11.024 AST invariant violated by a \
+                                 manually-constructed predicate; falling back to IEQ \
+                                 placeholder in release build"
+                            );
+                            // AST invariant: the parser only produces case_insensitive=true for
+                            // Eq/Ne. A hand-built predicate with another op + ci=true violates
+                            // BC-2.11.024. Panic in debug builds to catch it early; fall back
+                            // gracefully in release so a hand-built predicate doesn't cause a DoS.
+                            debug_assert!(
+                                false,
+                                "case_insensitive=true is only valid for Eq/Ne; got {op:?} — \
+                                 manually-constructed predicate violates BC-2.11.024 invariant"
+                            );
+                            // Fallback: emit "IEQ" (canonical placeholder) so the normalized
+                            // string is at least syntactically valid PQL.
+                            "IEQ"
+                        }
+                    };
+                    return format!(
+                        "{} {op_kw} {}",
+                        Self::normalize_expr(lhs),
+                        Self::normalize_expr(rhs)
+                    );
+                }
                 let op_str = match op {
                     CompareOp::Eq => "=",
                     CompareOp::Ne => "!=",
@@ -2101,7 +2161,38 @@ impl PqlNormalizer {
                 field,
                 values,
                 negated,
+                case_insensitive,
             } => {
+                // S-PRISMQL-CASE-INSENSITIVE-001: case-insensitive IIN operator emits
+                // uppercase canonical "IIN" in normalized_pql (BC-2.11.024, BC-2.11.018).
+                if *case_insensitive {
+                    // IIN grammar is positive-only; negated+case_insensitive is not parser-
+                    // producible (BC-2.11.024 §AC-023). Guard against direct AST construction:
+                    // emit a canonical invalid marker that cannot silently round-trip as a valid
+                    // positive IIN query (F-LOW-1, LOCAL-pass-11 fix-burst).
+                    // Previously only debug_assert guarded this — release builds fell through to
+                    // the positive IIN form, silently dropping the negation.
+                    if *negated {
+                        return format!(
+                            "<invalid: negated IIN not representable — field: {}, values: {}>",
+                            Self::normalize_field_path(field),
+                            values
+                                .iter()
+                                .map(Self::normalize_literal_dispatch)
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        );
+                    }
+                    let vals: Vec<String> = values
+                        .iter()
+                        .map(Self::normalize_literal_dispatch)
+                        .collect();
+                    return format!(
+                        "{} IIN ({})",
+                        Self::normalize_field_path(field),
+                        vals.join(", ")
+                    );
+                }
                 // Use dispatch so Timestamp literals emit arrow_cast in DataFusion mode.
                 let vals: Vec<String> = values
                     .iter()
@@ -2768,6 +2859,7 @@ mod bc_2_11_018_normalizer_roundtrip_tests {
                 rhs: Box::new(Expr::Literal(Literal::String(
                     "it's a \"test\"".to_string(), // contains BOTH ' and "
                 ))),
+                case_insensitive: false,
             },
         };
         let ast = Ast::Filter(filter);
@@ -3063,6 +3155,7 @@ mod obs_1_sqlpipe_prechek_parity_tests {
             rhs: Box::new(Expr::Literal(Literal::String(
                 "it's a \"test\"".to_string(), // contains BOTH ' and "
             ))),
+            case_insensitive: false,
         });
         let ast = Ast::SqlPipe(SqlPipeQuery {
             head,
@@ -3091,6 +3184,7 @@ mod obs_1_sqlpipe_prechek_parity_tests {
             rhs: Box::new(Expr::Literal(Literal::String(
                 "it's a \"stage\"".to_string(), // contains BOTH ' and "
             ))),
+            case_insensitive: false,
         };
         let ast = Ast::SqlPipe(SqlPipeQuery {
             head,
@@ -3123,6 +3217,7 @@ mod obs_1_sqlpipe_prechek_parity_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["timestamp"]))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Now), // unfolded temporal — NOT yet constant-folded
+            case_insensitive: false,
         });
         let ast = Ast::SqlPipe(SqlPipeQuery {
             head,
@@ -3148,6 +3243,7 @@ mod obs_1_sqlpipe_prechek_parity_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["event_time"]))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Now), // unfolded — defense-in-depth target
+            case_insensitive: false,
         };
         let ast = Ast::SqlPipe(SqlPipeQuery {
             head,
@@ -3223,6 +3319,7 @@ mod low1_datafusion_guard_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["timestamp"]))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Literal(Literal::Timestamp(ts_lit))),
+            case_insensitive: false,
         });
         let ast = Ast::Sql(SqlStatement::Select(sql));
 
@@ -3281,6 +3378,7 @@ mod low1_datafusion_guard_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["ts"]))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Literal(Literal::Timestamp(ts_lit))),
+            case_insensitive: false,
         });
         let ast = Ast::Sql(SqlStatement::Select(sql));
 
@@ -3358,6 +3456,53 @@ mod low1_datafusion_guard_tests {
             "SEC-001 byte-identity: for valid RFC-3339, normalize_literal_for_datafusion \
              must produce the exact arrow_cast form (guards RG-003/RG-010). \
              Got: {emitted:?}"
+        );
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-LOW-1 fix-burst-11: negated+case_insensitive=true In must NOT silently emit
+// a plain positive IIN.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
+mod low1_negated_iin_invalid_marker_tests {
+    use super::*;
+
+    /// F-LOW-1 RED GATE: `Predicate::In { case_insensitive: true, negated: true }` must NOT
+    /// silently emit a plain positive `IIN (...)` string, which loses the negation and
+    /// produces a semantically incorrect query without any diagnostic.
+    ///
+    /// The production grammar never produces negated+ci=true (IIN grammar is positive-only,
+    /// BC-2.11.024 §AC-023). However, direct AST construction can reach this branch. The
+    /// `debug_assert` guard only fires in debug builds; release builds previously fell through
+    /// to `format!("{} IIN ({})", ...)` — silently dropping negation.
+    ///
+    /// Fix: when `negated=true` AND `case_insensitive=true`, emit a canonical invalid marker
+    /// that cannot round-trip as a valid positive query.
+    ///
+    /// RED: current HEAD emits `"severity IIN ('HIGH')"` — the plain positive form.
+    #[test]
+    fn test_low1_negated_iin_emits_invalid_marker_not_plain_positive_iin() {
+        let pred = Predicate::In {
+            field: FieldPath::new(["severity"]),
+            values: vec![Literal::String("HIGH".to_owned())],
+            negated: true,
+            case_insensitive: true,
+        };
+        let result = PqlNormalizer::normalize_predicate_pub(&pred);
+        // Must NOT silently emit the plain positive IIN form — that loses the negation.
+        assert!(
+            !result.contains(" IIN (") || result.contains("invalid"),
+            "F-LOW-1: negated+case_insensitive=true In must NOT emit a plain positive IIN. \
+             Plain 'severity IIN (...)' loses the negation and is semantically wrong. Got: {result:?}"
+        );
+        // Must contain an explicit invalid marker so callers know this is a bad state.
+        assert!(
+            result.contains("invalid"),
+            "F-LOW-1: negated+case_insensitive=true In must emit an '<invalid: ...>' marker. \
+             Got: {result:?}"
         );
     }
 }

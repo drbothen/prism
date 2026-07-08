@@ -1,4 +1,4 @@
-//! Red Gate test for S-DEMO-FIDELITY-REMEDIATION-001 AC-AUDIT-004 — BC-2.10.016 v1.2.
+//! Red Gate test for S-DEMO-FIDELITY-REMEDIATION-001 AC-AUDIT-004 — BC-2.10.016.
 //!
 //! Finding AUDIT-004: All five `render_*` prompt functions in `prism-mcp/src/prompts.rs`
 //! contain SQL examples that use dot-notation FROM references (`FROM crowdstrike.alerts`,
@@ -29,7 +29,7 @@
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
-//! | test_bc_2_10_016_audit_004_no_dot_notation_in_prompts | AUDIT-004 | BC-2.10.016 v1.2 |
+//! | test_bc_2_10_016_audit_004_no_dot_notation_in_prompts | AUDIT-004 | BC-2.10.016 |
 
 use prism_mcp::prompts::{
     render_client_overview, render_cross_client_status, render_investigate_host,
@@ -129,7 +129,7 @@ fn registered_tables_from_specs() -> std::collections::HashSet<String> {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// BC-2.10.016 v1.2 AUDIT-004 — Red Gate test.
+/// BC-2.10.016 AUDIT-004 — Red Gate test.
 ///
 /// Every `render_*` prompt function must use underscore-qualified FROM targets
 /// (e.g., `FROM crowdstrike_alerts`) NOT dot-notation (e.g., `FROM crowdstrike.alerts`).
@@ -313,7 +313,7 @@ fn test_bc_2_10_016_audit_004_prompt_from_targets_include_registered_table() {
 
 // ── Column-validation extension (MED-1 process-gap closure) ──────────────────
 //
-// BC-2.10.016 v1.2 §Postconditions: "any analyst copying an embedded prompt
+// BC-2.10.016 §Postconditions: "any analyst copying an embedded prompt
 // example query and executing it MUST get a successful result."
 //
 // The FROM-target tests above prove the TABLE exists. These tests prove every
@@ -588,7 +588,7 @@ fn split_predicates(where_region: &str) -> Vec<String> {
     result
 }
 
-/// MED-1 column-validity guard (BC-2.10.016 v1.2 §Postconditions process-gap closure).
+/// MED-1 column-validity guard (BC-2.10.016 §Postconditions process-gap closure).
 ///
 /// Every column referenced in a SELECT, WHERE predicate, or GROUP BY clause of each
 /// render_* prompt example query must exist in the authoritative column set for the
@@ -679,7 +679,7 @@ fn test_bc_2_10_016_audit_004_column_refs_resolve_to_real_columns() {
 
     assert!(
         failures.is_empty(),
-        "BC-2.10.016 v1.2 MED-1 column-validity: prompt(s) reference invalid columns:\n\n{}\n\n\
+        "BC-2.10.016 MED-1 column-validity: prompt(s) reference invalid columns:\n\n{}\n\n\
          Fix: update render_* functions in prompts.rs to use only columns declared in \
          crates/prism-sensors/specs/*.sensor.toml for the referenced table.",
         failures.join("\n")
@@ -763,7 +763,7 @@ fn test_bc_2_10_016_audit_004_column_sets_loaded_for_all_sensor_tables() {
 
 // ── MED-2 value-validation test (process-gap closure) ─────────────────────────
 //
-// BC-2.10.016 v1.2 §Postconditions: "any analyst copying an embedded prompt
+// BC-2.10.016 §Postconditions: "any analyst copying an embedded prompt
 // example query and executing it MUST get a successful result."
 //
 // The column-validity test proves columns exist. This test proves the WHERE/IN
@@ -812,17 +812,21 @@ fn test_bc_2_10_016_audit_004_column_sets_loaded_for_all_sensor_tables() {
 /// A WHERE/IN literal in a prompt example query must be a member of the
 /// corresponding valid_values slice.
 const SENSOR_COLUMN_VOCABULARIES: &[(&str, &str, &[&str])] = &[
-    // crowdstrike_detections.status: DTU emits "new" ONLY for live detection records.
+    // crowdstrike_detections.status: DTU emits raw "new" (lowercase vendor value).
     // Source: generator.rs make_detection_with_ioc() "status": "new" (line ~766).
+    //
+    // OCSF normalization (BC-2.02.013): the spec_driven_adapter calls
+    // normalize_enum_label("status", "new") → Some("New") at the adapter boundary.
+    // Post-normalization canonical form is Title-case "New".  Prompts must use
+    // status = 'New' (not 'new') to match materialized DataFusion data.
+    // Fixed in S-PRISMQL-CASE-INSENSITIVE-001 pass-19 (F-MED-02 / F-HIGH-01).
+    //
     // NOTE: "deleted" is a DEVICE-tombstone status (make_tombstone() "status": "deleted"),
     //       NOT a detection status. Tombstone records are device surface records and are
-    //       never returned by the detections route. Removed to prevent over-broad vocabulary
-    //       that would allow a prompt using status='deleted' on crowdstrike_detections to
-    //       pass the MED-2 guard while returning 0 rows against live DTU data.
-    // NOTE: "contained" is also a DEVICE status (gen_compromised_endpoint sets
-    //       dev["status"] = json!("contained")), never a detection status.
+    //       never returned by the detections route. Excluded to prevent over-broad vocabulary.
+    // NOTE: "contained" is also a DEVICE status (gen_compromised_endpoint), never a detection status.
     // F-PJL2-LOW-001 fix (S-DEMO-FIDELITY-REMEDIATION-001 Pass-J LOCAL cascade).
-    ("crowdstrike_detections", "status", &["new"]),
+    ("crowdstrike_detections", "status", &["New"]),
     // crowdstrike_detections.severity: Title-case from severity_id mapping.
     // Source: generator.rs make_detection_with_ioc() 1=>"Low", 2=>"Medium", 3=>"High", _=>"Critical"
     (
@@ -839,12 +843,22 @@ const SENSOR_COLUMN_VOCABULARIES: &[(&str, &str, &[&str])] = &[
     // armis_alerts.status: DTU emits "UNHANDLED" for all alert records.
     // Source: generator.rs build_alert() "status": "UNHANDLED"
     ("armis_alerts", "status", &["UNHANDLED"]),
-    // armis_alerts.severity: UPPER-case from generate_compromised_endpoint() severity assignments.
+    // armis_alerts.severity: DTU generator emits ALL-CAPS ("HIGH", "CRITICAL", "MEDIUM", "LOW").
     // Source: generator.rs build_alert() severity param, assigned as "HIGH", "CRITICAL", "MEDIUM", "LOW"
+    //
+    // The Armis adapter normalizes severity to OCSF Title-case at the ingest boundary
+    // (BC-2.02.013): "HIGH"→"High", "CRITICAL"→"Critical", "MEDIUM"→"Medium", "LOW"→"Low".
+    //
+    // The triage prompt uses case-sensitive `IN ('High', 'Critical')` (OCSF Title-case),
+    // NOT IIN (corrected in pass-10 / F-P9-MED-3; confirmed in prompts.rs render_triage_alerts).
+    // The vocabulary therefore contains only the post-normalization Title-case forms.
+    // ALL-CAPS entries are NOT included — they are raw DTU values before normalization and
+    // do not appear as literals in any prompt; including them would be dead data.
+    // F-P24-LOW-001 (LOCAL pass-24, S-PRISMQL-CASE-INSENSITIVE-001).
     (
         "armis_alerts",
         "severity",
-        &["HIGH", "CRITICAL", "MEDIUM", "LOW"],
+        &["High", "Critical", "Medium", "Low"],
     ),
     // cyberint_alerts is intentionally absent.
     // No render_* prompt emits a cyberint_alerts SELECT, so any cyberint entry here

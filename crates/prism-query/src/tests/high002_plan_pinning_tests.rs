@@ -986,6 +986,7 @@ mod high002_plan_pinning_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["last_seen"]))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Now),
+            case_insensitive: false,
         });
 
         let insubquery_expr = Expr::InSubquery {
@@ -1250,6 +1251,7 @@ mod high002_plan_pinning_tests {
                 lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
                 op: CompareOp::Eq,
                 rhs: Box::new(Expr::Literal(Literal::String("HIGH".to_string()))),
+                case_insensitive: false,
             })],
         };
 
@@ -1294,6 +1296,7 @@ mod high002_plan_pinning_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(["timestamp"]))),
             op: CompareOp::Gt,
             rhs: Box::new(Expr::Interval(Duration::hours(24))),
+            case_insensitive: false,
         };
 
         // The guard must fire: predicate_has_unfolded_temporal_pub must return true.
@@ -1329,6 +1332,7 @@ mod high002_plan_pinning_tests {
                 iso8601: now.to_rfc3339(),
                 instant: now,
             }))),
+            case_insensitive: false,
         };
 
         // The guard must NOT fire — this is a valid folded predicate.
@@ -1365,7 +1369,7 @@ mod high002_plan_pinning_tests {
     /// 5. Inspect the plan's literal expression: assert the cast type is
     ///    `Timestamp(Microsecond, Some("UTC"))`, NOT `Timestamp(Nanosecond, None)`.
     ///
-    /// Traces to: ADR-052 §RISK-1; BC-2.11.021 v1.2 §Postconditions.
+    /// Traces to: ADR-052 §RISK-1; BC-2.11.021 §Postconditions.
     #[tokio::test]
     #[allow(clippy::expect_used)]
     async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_risk1_datafusion_arrow_cast_probe() {
@@ -1489,7 +1493,7 @@ mod high002_plan_pinning_tests {
     /// `Some(Arc::from("UTC"))` — correct (`Arc<str>`).
     /// `Some(Arc::new("UTC".into()))` — FORBIDDEN (`Arc<String>`).
     ///
-    /// Traces to: ADR-052 §D2; BC-2.11.021 v1.2 §Postconditions; BC-2.11.003 v1.6.
+    /// Traces to: ADR-052 §D2; BC-2.11.021 §Postconditions; BC-2.11.003.
     #[test]
     #[allow(clippy::expect_used)]
     fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_high002_datetime_column_type_is_timestamp() {

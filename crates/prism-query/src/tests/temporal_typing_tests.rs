@@ -1098,6 +1098,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_date_only
             rhs: Box::new(Expr::Literal(Literal::RawTemporalLiteral(
                 "2026-06-24".to_string(),
             ))),
+            case_insensitive: false,
         };
         let mut ast = Ast::Pipe(PipeQuery::new(
             SourceRef::from_raw("test_events"),
@@ -1188,6 +1189,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_string_col_coercion_offset_le
             rhs: Box::new(Expr::Literal(Literal::RawTemporalLiteral(
                 "2026-06-24T12:00:00".to_string(),
             ))),
+            case_insensitive: false,
         };
         let mut ast = Ast::Pipe(PipeQuery::new(
             SourceRef::from_raw("test_events"),
@@ -1276,7 +1278,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_integer_col_date_like_e_query
     );
 
     // Must be QueryTypeMismatch (E-QUERY-002) — the structured type-mismatch variant.
-    // ADR-052 §D4 v1.5 + BC-2.11.021 v1.5 + error-taxonomy v2.12 all specify E-QUERY-002
+    // ADR-052 §D4 v1.5 + BC-2.11.021 + error-taxonomy v2.12 all specify E-QUERY-002
     // for numeric/bool type-mismatch (distinguishes from E-QUERY-001 QueryParseFailed).
     assert!(
         matches!(&err, PrismError::QueryTypeMismatch { .. }),
@@ -1716,7 +1718,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_projection_position_coerces_t
 /// matches the canonical message template from error-taxonomy.md §E-QUERY-041 exactly.
 ///
 /// Traces to: error-taxonomy.md §E-QUERY-041 (POL-24 byte-for-byte message contract);
-/// BC-2.11.001 v1.15 (MCP contract); ADR-052 §D4.
+/// BC-2.11.001 (MCP contract); ADR-052 §D4.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_message_format_byte_identical() {
     let engine = make_test_engine();
@@ -2706,7 +2708,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_having_agg_date_only_raises_e
 /// Parse error message includes "field name" or "literal value" per the enhanced
 /// `rewrite_temporal_literal_in_pipe_key_position` rewriter.
 ///
-/// Traces to: ADR-052 §D4 v1.10 option (a); BC-2.11.004 v1.12 §Error Cases;
+/// Traces to: ADR-052 §D4 v1.10 option (a); BC-2.11.004 §Error Cases;
 ///            error-taxonomy.md §E-QUERY-042 v2.14 pipe-mode note;
 ///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 pipe-parse enhancement.
 #[tokio::test]
@@ -2750,7 +2752,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_pipe_stats_by_date_like_e_que
 /// Parse error message includes "field name" or "literal value" per the enhanced
 /// `rewrite_temporal_literal_in_pipe_key_position` rewriter.
 ///
-/// Traces to: ADR-052 §D4 v1.10 option (a); BC-2.11.004 v1.12 §Error Cases;
+/// Traces to: ADR-052 §D4 v1.10 option (a); BC-2.11.004 §Error Cases;
 ///            S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 pipe-parse enhancement.
 #[tokio::test]
 async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_pipe_sort_date_like_e_query_001() {

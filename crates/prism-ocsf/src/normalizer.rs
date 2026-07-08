@@ -9,11 +9,53 @@
 //!
 //! `normalize()` MUST NOT panic. All errors returned via `Result`.
 
+use std::sync::OnceLock;
+
 use prism_core::PrismError;
-use prost_reflect::{DynamicMessage, MessageDescriptor};
+use prost_reflect::{DynamicMessage, MessageDescriptor, ReflectMessage, Value as ProtoValue};
 use serde_json::Value;
 
-use crate::{class_selector::EventClassSelector, mappers::SensorMapper, pool::OcsfDescriptors};
+use crate::{
+    class_selector::EventClassSelector, enum_map::OcsfEnumMap, mappers::SensorMapper,
+    pool::OcsfDescriptors,
+};
+
+/// Process-wide lazy singleton for OCSF enum-label normalization.
+///
+/// Created once at first use and reused across all callers (`OcsfNormalizer` and
+/// `prism-bin::spec_driven_adapter::build_column_array`).  `OcsfEnumMap::new()` is
+/// expensive (builds the full caption-to-id reverse index); the `OnceLock` ensures
+/// at-most-once initialization without a `Mutex` on the hot path (BC-2.02.013
+/// §Invariants: pure in-memory lookup-and-rewrite, no I/O). Thread-safe via `OnceLock`.
+///
+/// Exposed as `pub` so downstream crates can share the same singleton rather than
+/// each holding a duplicate `OnceLock<OcsfEnumMap>` (F-P16-OBS-001, LOCAL-pass-16).
+/// Re-exported from `prism_ocsf` as `prism_ocsf::shared_enum_map`.
+static OCSF_ENUM_MAP: OnceLock<OcsfEnumMap> = OnceLock::new();
+
+/// Returns a reference to the process-wide `OcsfEnumMap` singleton.
+///
+/// Initializes the map on first call (pure in-memory, no I/O). All subsequent calls
+/// return the same reference.  Callers in different crates share the same instance.
+pub fn shared_enum_map() -> &'static OcsfEnumMap {
+    OCSF_ENUM_MAP.get_or_init(OcsfEnumMap::new)
+}
+
+/// OCSF enum-label string fields normalized at the adapter boundary.
+///
+/// These are the in-scope fields from BC-2.02.013 §Postconditions in-scope field
+/// enumeration table. Normalization coverage is determined by which companion `_id` entries
+/// exist in `OcsfEnumMap`; `normalize_enum_label` handles the `activity_name` → `activity_id`
+/// sibling relationship (the only OCSF exception where `{F}_id`→`{F}` does not hold).
+///
+/// F-P1-ACTIVITY-NOOP: field corrected from `"activity"` to `"activity_name"` — the real
+/// OCSF protobuf field is `activity_name`, not `activity`. BC-2.02.013 in-scope table.
+///
+/// **Exported as the single canonical definition** so downstream crates (e.g.,
+/// `prism-bin::spec_driven_adapter`) can reference it directly rather than maintaining
+/// a duplicate that risks drifting out of sync (F-OBS-3, S-PRISMQL-CASE-INSENSITIVE-001
+/// LOCAL-pass-11 fix-burst; TD-VSDD-060 sibling-site sweep).
+pub const OCSF_ENUM_LABEL_FIELDS: &[&str] = &["severity", "status", "activity_name", "disposition"];
 
 /// OCSF normalizer — dispatches to per-sensor `SensorMapper` implementations.
 ///
@@ -91,6 +133,57 @@ impl OcsfNormalizer {
             })?;
 
         let source_id = mapper.map(record_type, &raw, &mut msg, &mut extensions)?;
+
+        // BC-2.02.013 F-CRIT-001: post-pass normalization of OCSF enum-label string
+        // fields to canonical OCSF Title-case. Applied after mapper.map() so that the
+        // returned DynamicMessage carries only canonical-cased enum-label values.
+        //
+        // F-HIGH-003 keying contract: normalize_enum_label keys on the string label field
+        // name (e.g., "severity"), deriving captions from the "{F}_id" entries in OcsfEnumMap.
+        //
+        // F-HIGH-002 in-scope fields: severity, status, activity_name, disposition.
+        let map = shared_enum_map();
+        for &field in OCSF_ENUM_LABEL_FIELDS {
+            // Only normalize if the OCSF protobuf descriptor has this field.
+            if msg.descriptor().get_field_by_name(field).is_none() {
+                continue;
+            }
+            // Extract the current string value (skip if absent, null, or non-string).
+            let current = match msg.get_field_by_name(field) {
+                Some(cow) => match cow.into_owned() {
+                    ProtoValue::String(s) if !s.is_empty() => s,
+                    _ => continue,
+                },
+                None => continue,
+            };
+            // Normalize via OcsfEnumMap (sole canonical casing authority, BC-2.02.010).
+            if let Some(canonical) = map.normalize_enum_label(field, &current) {
+                // CR-002 (code-review pass-1): skip the set_field_by_name + to_owned()
+                // allocation when the value is already in canonical form. Both canonical
+                // ("High") and non-canonical ("HIGH") inputs return Some("High"), so we
+                // guard on equality to elide the unnecessary rewrite on high-volume paths.
+                // BC-2.02.013 RG-020: behavioral idempotency is preserved; allocation elided.
+                if canonical != current.as_str() {
+                    msg.set_field_by_name(field, ProtoValue::String(canonical.to_owned()));
+                }
+            } else {
+                // BC-2.02.013 §Error Cases: unrecognized vendor value — leave as-received
+                // and emit warn. Non-fatal; record is never dropped.
+                // SAP-1: event_type registered in BC-2.16.002 §Postconditions catalog row 91.
+                // CR-004 / SEC-001 (CWE-117): sanitize_enum_label_for_log strips Unicode Cc
+                // (C0 U+0000–U+001F, DEL U+007F, C1 U+0080–U+009F) + U+2028/U+2029 BEFORE
+                // the 50-codepoint cap to prevent log injection.
+                // Order: sanitize_for_log first, then .chars().take(50) (BC-2.16.002 row 91).
+                tracing::warn!(
+                    event_type = "ocsf.enum_label_unrecognized",
+                    field_name = %field,
+                    value = %sanitize_enum_label_for_log(&current),
+                    sensor_type = %sanitize_enum_label_for_log(sensor),
+                    "unrecognized OCSF enum label value; leaving as-received"
+                );
+            }
+        }
+
         Ok((msg, source_id))
     }
 
@@ -243,6 +336,30 @@ fn ocsf_class_uid_to_message_name(class_uid: u32) -> Option<&'static str> {
     }
 }
 
+/// Sanitize a string value for use in the `ocsf.enum_label_unrecognized` warn log field.
+///
+/// Encapsulates the sanitize+truncate expression for the SECONDARY emission site
+/// inside `normalize_with_mappers` (the `value` and `sensor_type` fields of the
+/// `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)` block).
+///
+/// **Spec order (BC-2.16.002 catalog row 91):** `sanitize_for_log` BEFORE the
+/// 50-codepoint cap.  When a value begins with control characters followed by
+/// ≥50 printable codepoints, sanitize-first ensures the final logged string
+/// reflects 50 printable codepoints — not a shorter string truncated at the
+/// control-char boundary.
+///
+/// Sanitizes and truncates an enum-label value for structured log emission.
+///
+/// Applies `sanitize_for_log` BEFORE the 50-codepoint cap per BC-2.16.002 catalog row 91
+/// (ocsf.enum_label_unrecognized field schema, SEC-001/CWE-117 order requirement).
+/// Sanitize-first ensures the 50-codepoint window counts only printable characters;
+/// truncate-first would waste cap budget on control chars that are stripped anyway.
+///
+/// See MED-001 (ADV-PR-P1 S-PRISMQL-CASE-INSENSITIVE-001) and RG-079.
+fn sanitize_enum_label_for_log(s: &str) -> String {
+    prism_core::sanitize_for_log(s).chars().take(50).collect()
+}
+
 #[cfg(test)]
 mod thread_safety_tests {
     use super::*;
@@ -255,5 +372,141 @@ mod thread_safety_tests {
     fn test_ocsf_normalizer_is_send_sync_without_unsafe() {
         fn assert_send_sync<T: Send + Sync>() {}
         assert_send_sync::<OcsfNormalizer>();
+    }
+}
+
+#[cfg(test)]
+mod cr002_cr004_guard_tests {
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
+
+    use super::{sanitize_enum_label_for_log, shared_enum_map};
+
+    /// CR-002: `normalize_enum_label` returns `Some(canonical)` even when the input
+    /// is already in canonical form.
+    ///
+    /// This documents the precondition that the CR-002 guard in `normalize_with_mappers`
+    /// relies on: both a non-canonical input ("HIGH") and an already-canonical input
+    /// ("High") return `Some("High")`. The guard `if canonical != current.as_str()`
+    /// skips the `set_field_by_name` call when the value is already canonical, avoiding
+    /// an unnecessary `String` allocation and protobuf field rewrite.
+    ///
+    /// This is a behavioral regression guard — it passes both before and after the fix.
+    #[test]
+    fn test_cr002_normalize_enum_label_already_canonical_returns_some() {
+        let map = shared_enum_map();
+        // Already-canonical input returns Some(same) — precondition for CR-002 guard.
+        assert_eq!(
+            map.normalize_enum_label("severity", "High"),
+            Some("High"),
+            "CR-002: already-canonical 'High' must return Some('High'); \
+             guard must check canonical != current to skip unnecessary set_field_by_name"
+        );
+        // Non-canonical input still returns Some(canonical) — guard must NOT fire.
+        assert_eq!(
+            map.normalize_enum_label("severity", "HIGH"),
+            Some("High"),
+            "CR-002: non-canonical 'HIGH' must return Some('High') for normalization"
+        );
+        // Unrecognized value returns None — no guard needed (no rewrite).
+        assert_eq!(
+            map.normalize_enum_label("severity", "VENDOR_CUSTOM"),
+            None,
+            "CR-002: unrecognized 'VENDOR_CUSTOM' must return None (no canonical form)"
+        );
+    }
+
+    /// CR-004 / SEC-001 (CWE-117) — SECONDARY `ocsf.enum_label_unrecognized` warn:
+    ///
+    /// When `normalize_with_mappers` emits `ocsf.enum_label_unrecognized` for an
+    /// unrecognized enum-label value containing a newline control character, the
+    /// logged `value` field MUST have control chars stripped before emission.
+    ///
+    /// GREEN GATE: passes on current code (CR-004 already applied; production path
+    /// routes through `sanitize_enum_label_for_log` which calls `sanitize_for_log`
+    /// BEFORE the 50-codepoint cap per BC-2.16.002 catalog row 91).
+    ///
+    /// Re-pointed to the production helper after MED-001 fix (RG-079): this test
+    /// now directly exercises `sanitize_enum_label_for_log` to assert basic
+    /// control-char stripping.  RG-079 asserts the ORDER; this test asserts the
+    /// STRIPPING invariant with a short input where order is irrelevant.
+    #[test]
+    fn test_cr004_sanitize_for_log_strips_control_chars_for_secondary_site() {
+        // Verify the production helper used at the SECONDARY emission site strips control chars.
+        let newline_input = "VENDOR\nINJECT";
+        let sanitized = sanitize_enum_label_for_log(newline_input);
+        assert!(
+            !sanitized.contains('\n'),
+            "CR-004 SECONDARY: sanitize_enum_label_for_log must strip '\\n'; got: {:?}",
+            sanitized
+        );
+        assert_eq!(
+            sanitized, "VENDORINJECT",
+            "CR-004 SECONDARY: sanitize_enum_label_for_log must remove '\\n' entirely; \
+             got: {:?}",
+            sanitized
+        );
+
+        let escape_input = "\x1b[31mred\x1b[0m";
+        let sanitized_esc = sanitize_enum_label_for_log(escape_input);
+        assert!(
+            !sanitized_esc.contains('\x1b'),
+            "CR-004 SECONDARY: sanitize_enum_label_for_log must strip ANSI ESC char; got: {:?}",
+            sanitized_esc
+        );
+        // Verify 50-codepoint cap is applied: "[31mred[0m" = 9 codepoints, all within cap.
+        assert!(
+            sanitized_esc.chars().count() <= 50,
+            "CR-004 SECONDARY: sanitize_enum_label_for_log must cap at 50 codepoints; got: {}",
+            sanitized_esc.chars().count()
+        );
+    }
+
+    /// RG-079 (MED-001 / MED-002) — SECONDARY `sanitize_enum_label_for_log` helper:
+    /// order-of-operations proof vector.
+    ///
+    /// Load-bearing replacement/supplement for
+    /// `test_cr004_sanitize_for_log_strips_control_chars_for_secondary_site`,
+    /// which does not exercise the ORDER of sanitize vs. truncate.
+    ///
+    /// Input: ESC sequence at head (`\u{1b}[31m`, 5 codepoints) followed by 60 legit
+    /// ASCII 'A' chars.  Total: 65 codepoints.  The ESC char (U+001B, 0x1B) is an ASCII
+    /// control char stripped by `sanitize_for_log`.
+    ///
+    /// Spec order (sanitize→truncate, BC-2.16.002 catalog row 91):
+    ///   `sanitize_for_log` strips ESC → `"[31m"` + 60 As = 64 codepoints
+    ///   `.chars().take(50)` → `"[31m"` + 46 As = **50 codepoints**
+    ///
+    /// Wrong-order alternative (truncate→sanitize; regression guard):
+    ///   `.chars().take(50)` → ESC + `"[31m"` + 45 As = 50 codepoints
+    ///   `sanitize_for_log` strips ESC → `"[31m"` + 45 As = **49 codepoints**
+    ///
+    /// RED GATE: fails if helper reverts to truncate-first order (would yield 49 chars, not 50).
+    /// GREEN GATE: passes with correct sanitize-first body:
+    ///   `prism_core::sanitize_for_log(s).chars().take(50).collect()`.
+    ///
+    /// Traces to: MED-001/MED-002 (ADV-PR-P1 S-PRISMQL-CASE-INSENSITIVE-001);
+    /// BC-2.16.002 catalog row 91 (ocsf.enum_label_unrecognized spec order).
+    #[test]
+    fn test_rg079_secondary_sanitize_enum_label_order_spec_wins() {
+        // ESC + "[31m" (5 codepoints) + 60 As = 65 codepoints total.
+        let input = "\u{1b}[31m".to_string() + &"A".repeat(60);
+
+        // Spec order result: sanitize first strips ESC → "[31m" + 60 As (64 codepoints),
+        // then take(50) → "[31m" + 46 As = 50 codepoints total.
+        let spec_order_result = "[31m".to_string() + &"A".repeat(46); // len = 50
+
+        let actual = sanitize_enum_label_for_log(&input);
+
+        assert_eq!(
+            actual,
+            spec_order_result,
+            "RG-079 (MED-001): sanitize_enum_label_for_log must apply sanitize_for_log BEFORE \
+             50-codepoint truncation (BC-2.16.002 catalog row 91 spec order); \
+             spec order yields {:?} (len={}), wrong-order body would yield {:?} (len={})",
+            spec_order_result,
+            spec_order_result.len(),
+            actual,
+            actual.len()
+        );
     }
 }

@@ -287,16 +287,29 @@ pub fn predicate_tree_to_filter_map(
 
 /// Recursively collect equality comparison expressions from a predicate tree.
 ///
-/// Only collects `field = 'string_value'` comparisons. `AND` conjunctions are
-/// decomposed; other logical operators are skipped (conservative).
+/// Only collects case-sensitive `field = 'string_value'` comparisons.
+/// `AND` conjunctions are decomposed; other logical operators are skipped (conservative).
+///
+/// Predicates not expressible as simple `field = value` sensor filters are silently
+/// omitted: this includes `!=`, range comparisons, and — critically — case-insensitive
+/// `IEQ` predicates (`case_insensitive: true`). IEQ semantics cannot be expressed as
+/// a case-sensitive equality push-down to a sensor API; the sensor would receive a
+/// case-sensitive filter and silently miss OCSF Title-case values (e.g., `'High'` vs
+/// `'high'`). See BC-2.11.024 F-P9-LOW-1.
 fn collect_equality_exprs(pred: &crate::ast::Predicate, out: &mut Vec<crate::ast::Expr>) {
     use crate::ast::{CompareOp, Expr, Literal, LogicalOp, Predicate};
     match pred {
-        // Only include `field = 'string'` comparisons (not virtual fields or complex exprs).
-        Predicate::Compare { lhs, op, rhs }
-            if *op == CompareOp::Eq
-                && matches!(lhs.as_ref(), Expr::Field(_))
-                && matches!(rhs.as_ref(), Expr::Literal(Literal::String(_))) =>
+        // Only include case-sensitive `field = 'string'` comparisons (not virtual fields or
+        // complex exprs, and NOT IEQ predicates — case_insensitive: true push-down would
+        // apply a case-sensitive filter at the sensor layer, silently missing mismatched casing).
+        Predicate::Compare {
+            lhs,
+            op,
+            rhs,
+            case_insensitive: false,
+        } if *op == CompareOp::Eq
+            && matches!(lhs.as_ref(), Expr::Field(_))
+            && matches!(rhs.as_ref(), Expr::Literal(Literal::String(_))) =>
         {
             out.push(Expr::Compare {
                 lhs: lhs.clone(),
@@ -427,7 +440,7 @@ fn extract_time_bounds_from_predicate(
 ) {
     use crate::ast::{CompareOp, Expr, Literal, LogicalOp, Predicate};
     match predicate {
-        Predicate::Compare { lhs, op, rhs } => {
+        Predicate::Compare { lhs, op, rhs, .. } => {
             // Only handle inequalities (Gt, Ge, Lt, Le).
             let is_range_op = matches!(
                 op,
@@ -485,7 +498,7 @@ fn extract_time_bounds_from_predicate(
 
 /// Augment a base Armis AQL string with time-window clauses.
 ///
-/// Implements BC-2.01.013 v1.14 Mechanism B AQL-clause augmentation:
+/// Implements BC-2.01.013 Mechanism B AQL-clause augmentation:
 /// - If base AQL already contains `after:`, `before:`, or `timeFrame:` → return verbatim
 ///   (anti-double-filter guard, AC-ARMIS-TW-003).
 /// - If `start_time` is present → append `after:YYYY-MM-DDTHH:MM:SS` (bare, unquoted,
@@ -509,7 +522,7 @@ pub fn augment_armis_aql_with_time_window(
     start_time: Option<&str>,
     end_time: Option<&str>,
 ) -> String {
-    // Anti-double-filter guard (AC-ARMIS-TW-003 / BC-2.01.013 v1.14 Mechanism B):
+    // Anti-double-filter guard (AC-ARMIS-TW-003 / BC-2.01.013 Mechanism B):
     // If the base AQL already contains any of the canonical Armis time keywords,
     // return it verbatim — do NOT append a second time clause.
     if base_aql.contains("after:")
@@ -652,7 +665,7 @@ mod pushdown_red_gate_tests {
     // AC-WIRE-001: extract_time_window_from_ast populates start_time
     // -----------------------------------------------------------------------
 
-    /// AC-WIRE-001 / BC-2.01.013 v1.14 TV-BC-2.01.013-006 / ADR-033 T1
+    /// AC-WIRE-001 / BC-2.01.013 TV-BC-2.01.013-006 / ADR-033 T1
     ///
     /// A PrismQL `WHERE created_timestamp > '2026-01-01T00:00:00Z'` predicate on a
     /// `column_type = "datetime"` with `options = ["INDEX"]` column must yield
@@ -733,7 +746,7 @@ mod pushdown_red_gate_tests {
     // AC-ARMIS-TW-001: AQL augmentation appends after: clause
     // -----------------------------------------------------------------------
 
-    /// AC-ARMIS-TW-001 / BC-2.01.013 v1.14 Mechanism B / BC-2.11.007 v1.8 §Mechanism B
+    /// AC-ARMIS-TW-001 / BC-2.01.013 Mechanism B / BC-2.11.007 §Mechanism B
     ///
     /// `augment_armis_aql_with_time_window("in:devices", Some("2026-01-01T00:00:00Z"), None)`
     /// must return `"in:devices after:2026-01-01T00:00:00"` (bare, unquoted, timezone-naive
@@ -800,7 +813,7 @@ mod pushdown_red_gate_tests {
     // AC-ARMIS-TW-003: Anti-double-filter guard
     // -----------------------------------------------------------------------
 
-    /// AC-ARMIS-TW-003 / BC-2.01.013 v1.14 Mechanism B anti-double-filter guard
+    /// AC-ARMIS-TW-003 / BC-2.01.013 Mechanism B anti-double-filter guard
     ///
     /// If the base AQL already contains `after:`, no second time clause must be appended.
     /// The AQL is returned VERBATIM.
@@ -1145,6 +1158,89 @@ mod pushdown_red_gate_tests {
             end_time.is_none(),
             "F-P1-HIGH-002 EC-004: non-INDEX datetime column must not contribute to end_time; got: {:?}",
             end_time
+        );
+    }
+
+    /// F-P9-LOW-1 / BC-2.11.024
+    ///
+    /// A `Predicate::Compare { op: Eq, case_insensitive: true, ... }` (IEQ form)
+    /// MUST NOT be collected into the equality push-down FilterMap by
+    /// `predicate_tree_to_filter_map`.
+    ///
+    /// Case-insensitive predicates must be evaluated post-fetch by DataFusion, not
+    /// pushed down to the sensor.  Pushing them down causes the sensor to apply a
+    /// case-sensitive equality (e.g., `severity = 'high'`), which returns 0 rows
+    /// against OCSF Title-case normalized values like `'High'`.
+    ///
+    /// # Construction note
+    ///
+    /// IEQ is only supported in filter/pipe syntax, NOT SQL mode.  The test
+    /// constructs the `Predicate::Compare { case_insensitive: true, ... }` directly
+    /// from AST types (valid in-crate because `Predicate` is `#[non_exhaustive]`
+    /// only to external crates; within the defining crate struct-construction is
+    /// permitted).  This directly exercises the `collect_equality_exprs` guard
+    /// without depending on parser mode routing.
+    ///
+    /// # Guard
+    ///
+    /// A case-sensitive `=` sibling (`severity = 'low'`) MUST still be collected
+    /// into the FilterMap — verifying the fix is precise and does not regress
+    /// ordinary equality push-down.
+    ///
+    /// # Red Gate
+    ///
+    /// At HEAD 0b2c0983, `collect_equality_exprs` matches
+    /// `Predicate::Compare { lhs, op, rhs, .. }` with a `..` wildcard that captures
+    /// `case_insensitive: true`.  IEQ predicates are therefore incorrectly collected.
+    ///
+    /// Fails with:
+    ///   FilterMap["severity"] = Some("high") but expected None.
+    ///
+    /// # Fix target
+    ///
+    /// Change `..` to `case_insensitive: false` (or equivalent) in
+    /// `collect_equality_exprs` so only case-sensitive `=` comparisons are
+    /// pushed down.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_BC_2_11_024_ieq_predicate_excluded_from_equality_pushdown() {
+        use crate::ast::{CompareOp, Expr, FieldPath, Literal, Predicate};
+
+        use super::predicate_tree_to_filter_map;
+
+        // --- Subject: IEQ predicate (case_insensitive: true) must NOT be pushed down ---
+        //
+        // Equivalent to parsing `severity IEQ 'high'` in filter mode.
+        // IEQ lowers to `lower(severity) = lower('high')` in DataFusion — it MUST NOT
+        // be pushed down to the sensor as a plain equality filter.
+        let ieq_pred = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::String("high".to_string()))),
+            case_insensitive: true,
+        };
+        let map = predicate_tree_to_filter_map(&ieq_pred);
+        assert!(
+            map.get("severity").is_none(),
+            "BC-2.11.024 F-P9-LOW-1: IEQ predicate `severity IEQ 'high'` \
+             (case_insensitive: true) must NOT be collected into the push-down \
+             FilterMap — the sensor would apply a case-sensitive equality that \
+             misses OCSF Title-case values like 'High'. Got FilterMap: {map:?}"
+        );
+
+        // --- Guard: case-sensitive `=` (case_insensitive: false) MUST still be pushed down ---
+        let eq_pred = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::String("low".to_string()))),
+            case_insensitive: false,
+        };
+        let guard_map = predicate_tree_to_filter_map(&eq_pred);
+        assert!(
+            guard_map.get("severity").is_some(),
+            "BC-2.11.024 F-P9-LOW-1 guard: case-sensitive `severity = 'low'` \
+             (case_insensitive: false) MUST still be collected into the push-down \
+             FilterMap. Got: {guard_map:?}"
         );
     }
 }

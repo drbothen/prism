@@ -1473,10 +1473,10 @@ fn check_table_availability(
 ///
 /// # BC-2.11.019 §F-PJL1-HIGH-001 amendment — extended "or equivalent" rationale
 ///
-/// BC-2.11.019 v1.5 stated: "fire E-QUERY-039 ONLY for a name that is neither a
+/// BC-2.11.019 stated: "fire E-QUERY-039 ONLY for a name that is neither a
 /// DataFusion built-in scalar NOR a registered enrichment UDF."
 ///
-/// BC-2.11.019 v1.6 (F1, S-DEMO-FIDELITY-REMEDIATION-001 Pass-N1b) amends this to:
+/// BC-2.11.019 (F1, S-DEMO-FIDELITY-REMEDIATION-001 Pass-N1b) amends this to:
 /// "fire E-QUERY-039 ONLY for a `ScalarFunc::Unknown(name)` in SQL mode when name is
 /// (a) not a PQL typed scalar variant, (b) NOT in ANY of scalar_functions() +
 /// aggregate_functions() + window_functions(), AND (c) not in InfusionRegistry."
@@ -2271,7 +2271,7 @@ fn check_column_availability(
 /// - HAVING clause (FieldPath refs and agg-fn column args via `extract_predicate_columns`;
 ///   HAVING also accepts `agg_fn(col) op literal` predicate form via `build_having_predicate_parser`
 ///   (ADR-048 / F-PXL3-MED-002) — a deliberate grammar divergence from WHERE (which remains
-///   `field op literal` only). BC-2.11.016 v1.5 / F-PWL1-LOW-001 / F-PXL3-MED-002)
+///   `field op literal` only). BC-2.11.016 / F-PWL1-LOW-001 / F-PXL3-MED-002)
 ///
 /// Gate skip conditions:
 /// - BOTH `resolved_spec_map` AND `table_registry` are `None`: skip (no schema source wired).
@@ -2452,7 +2452,7 @@ fn check_query_column_availability(
 
     // ── Position 6: HAVING clause — reuse the WHERE predicate extractor ────────
     //
-    // BC-2.11.016 v1.5 / F-PWL1-LOW-001: HAVING is `Option<Predicate>` (identical
+    // BC-2.11.016 / F-PWL1-LOW-001: HAVING is `Option<Predicate>` (identical
     // in type to WHERE), so we reuse `extract_predicate_columns` — the same helper
     // used by Position 2 (WHERE). This closes the pedagogical asymmetry where
     // E-QUERY-039 (enrich gate) and E-QUERY-037 (source-walk) already covered
@@ -2827,6 +2827,7 @@ fn check_operator_type_compatibility(
         table: table_name.to_string(),
         actual_type,
         operator: operator.to_string(),
+        suggested_column: None,
     })
 }
 
@@ -2886,12 +2887,16 @@ pub fn extract_near_text(input: &str, offset: usize) -> String {
 /// Returns a compile-time static slice of operator strings. Callers convert to
 /// `Vec<String>` for the JSON payload:
 ///
-/// String → `["=", "!=", "LIKE", "IN", "NOT IN"]`
+/// String → `["=", "!=", "LIKE", "IN", "NOT IN", "IEQ", "IIN", "INE"]`
 /// Integer → `["=", "!=", "<", ">", "<=", ">=", "BETWEEN", "IN", "NOT IN"]`
 /// Float → `["=", "!=", "<", ">", "<=", ">=", "BETWEEN"]`
 /// Boolean → `["=", "!="]`
 /// Datetime → `["=", "!=", "<", ">", "<=", ">=", "BETWEEN"]`
 /// Json → `["=", "!="]`
+///
+/// Note: "NOT IIN" is intentionally absent. Negated IIN is not representable in the
+/// PrismQL AST (ast.rs: "<invalid: negated IIN not representable>") — it is never a
+/// legal operator. BC-2.11.024; F-P24-MED-001 (S-PRISMQL-CASE-INSENSITIVE-001).
 ///
 /// Reference: BC-2.11.017 postconditions; S-DEMO-PRISMQL-ONBOARDING-001-B AC-003.
 pub fn valid_operators_for_type(
@@ -2899,7 +2904,10 @@ pub fn valid_operators_for_type(
 ) -> &'static [&'static str] {
     use prism_core::column::ColumnType;
     match column_type {
-        ColumnType::String => &["=", "!=", "LIKE", "IN", "NOT IN"],
+        // BC-2.11.024: IEQ/IIN/INE are valid string-column case-insensitive operators.
+        // "NOT IIN" is NOT included — negated IIN is not representable in the PrismQL AST.
+        // F-P24-MED-001 (LOCAL pass-24, S-PRISMQL-CASE-INSENSITIVE-001).
+        ColumnType::String => &["=", "!=", "LIKE", "IN", "NOT IN", "IEQ", "IIN", "INE"],
         ColumnType::Integer => &["=", "!=", "<", ">", "<=", ">=", "BETWEEN", "IN", "NOT IN"],
         ColumnType::Float => &["=", "!=", "<", ">", "<=", ">=", "BETWEEN"],
         ColumnType::Boolean => &["=", "!="],
@@ -4916,7 +4924,7 @@ mod sqlpipe_gate_sweep_tests {
         // did_you_mean=None. "severit" (missing trailing 'y') is the correct test typo.
         //
         // IMPORTANT: Uses underscore form "crowdstrike_detections" (NOT dot form
-        // "crowdstrike.detections"). BC-2.11.001 v1.15 / EC-11-067: dot-notation in FROM
+        // "crowdstrike.detections"). BC-2.11.001 / EC-11-067: dot-notation in FROM
         // targets is rejected with E-QUERY-037 for ALL modes including SqlPipe.
         // The underscore form must pass the availability gate so the column gate fires.
         let result = engine
@@ -5231,6 +5239,7 @@ mod enrich_gate_where_clause_unit_tests {
             })),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::String("value".to_string()))),
+            case_insensitive: false,
         };
 
         let mut out = Vec::new();
@@ -5255,11 +5264,13 @@ mod enrich_gate_where_clause_unit_tests {
             })),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::Integer(1))),
+            case_insensitive: false,
         };
         let simple_compare = Predicate::Compare {
             lhs: Box::new(Expr::Field(FieldPath::new(vec!["severity".to_string()]))),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::String("high".to_string()))),
+            case_insensitive: false,
         };
 
         let logical = Predicate::Logical {
@@ -5288,6 +5299,7 @@ mod enrich_gate_where_clause_unit_tests {
             lhs: Box::new(Expr::Field(FieldPath::new(vec!["severity".to_string()]))),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::String("high".to_string()))),
+            case_insensitive: false,
         };
 
         let mut out = Vec::new();
@@ -5310,6 +5322,7 @@ mod enrich_gate_where_clause_unit_tests {
             })),
             op: CompareOp::Ne,
             rhs: Box::new(Expr::Literal(Literal::Integer(0))),
+            case_insensitive: false,
         };
         let not_pred = Predicate::Not(Box::new(inner));
 
@@ -6973,7 +6986,7 @@ mod pipe_mode_builtin_enrich_gate_tests {
 // → `typo_col` → E-QUERY-038. WHERE does NOT accept this form (deliberate ADR-048
 // grammar divergence: aggregate predicates in WHERE are semantically invalid SQL).
 //
-// BC-2.11.016 v1.5 / F-PWL1-LOW-001 / F-PXL3-MED-002.
+// BC-2.11.016 / F-PWL1-LOW-001 / F-PXL3-MED-002.
 //
 // Tests assert:
 //   1. (red-gate) HAVING with typo'd bare column fires E-QUERY-038.
@@ -7140,7 +7153,7 @@ mod f_pwl1_low001_having_column_gate_tests {
     /// Form (2) is covered by `test_BC_2_11_016_having_agg_fn_predicate_typo_fires_e_query_038`
     /// in the `f_pxl3_med002_having_agg_predicate_col_gate_tests` module (F-PXL3-MED-002).
     ///
-    /// BC-2.11.016 v1.5 / F-PWL1-LOW-001.
+    /// BC-2.11.016 / F-PWL1-LOW-001.
     ///
     /// Load-bearing (F-PWL1-LOW-001): removing the Position 6 HAVING walk from
     /// `check_query_column_availability` causes this test to return Ok or a
@@ -7199,7 +7212,7 @@ mod f_pwl1_low001_having_column_gate_tests {
     /// The gate must pass Position 6 without error; the query may fail later (no real
     /// adapter wired) but must NOT fail with E-QUERY-038.
     ///
-    /// BC-2.11.016 v1.5 / F-PWL1-LOW-001.
+    /// BC-2.11.016 / F-PWL1-LOW-001.
     #[tokio::test]
     async fn test_BC_2_11_016_having_column_gate_valid_col_no_e_query_038() {
         let (engine, org) = make_crowdstrike_engine();
@@ -7390,7 +7403,7 @@ mod f_pxl3_med002_having_agg_predicate_col_gate_tests {
     /// The column extractor walks the FuncCall args and extracts `typo_col`
     /// → E-QUERY-038.
     ///
-    /// ADR-048; BC-2.11.016 v1.5.
+    /// ADR-048; BC-2.11.016.
     ///
     /// Load-bearing (F-PXL3-MED-002): without the grammar + extractor fix,
     /// this test panics with "expected ColumnNotFound, got different error"
@@ -7443,7 +7456,7 @@ mod f_pxl3_med002_having_agg_predicate_col_gate_tests {
     /// The column gate must pass; the query may fail later (no real adapter wired)
     /// but must NOT produce PrismError::ColumnNotFound.
     ///
-    /// ADR-048; BC-2.11.016 v1.5.
+    /// ADR-048; BC-2.11.016.
     #[tokio::test]
     async fn test_BC_2_11_016_having_agg_fn_predicate_valid_col_no_e_query_038() {
         let (engine, org) = make_crowdstrike_engine();
@@ -7487,7 +7500,7 @@ mod f_pxl3_med002_having_agg_predicate_col_gate_tests {
     /// This test is a regression guard ensuring WHERE did NOT silently gain the
     /// aggregate-predicate grammar form from the HAVING extension.
     ///
-    /// ADR-048 §Constraint; BC-2.11.016 v1.5.
+    /// ADR-048 §Constraint; BC-2.11.016.
     #[tokio::test]
     async fn test_BC_2_11_016_where_agg_fn_predicate_stays_e_query_001() {
         let (engine, org) = make_crowdstrike_engine();
@@ -7533,6 +7546,52 @@ mod f_pxl3_med002_having_agg_predicate_col_gate_tests {
                 "ADR-048 divergence guard: expected PrismError::QueryParseFailed for \
                  WHERE count(severity) > 5, got: {other:?}"
             ),
+        }
+    }
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod f_p24_med001_valid_operators_ci_tests {
+    use super::valid_operators_for_type;
+    use prism_core::column::ColumnType;
+
+    /// RED GATE: valid_operators_for_type(ColumnType::String) must include IEQ, IIN, INE.
+    ///
+    /// BC-2.11.024: IEQ/IIN/INE are valid string-column operators. The prior
+    /// implementation omitted them, causing a gap between the Display prose (which suggests
+    /// IEQ) and the machine-readable array (which denied IEQ/IIN/INE existed).
+    ///
+    /// "NOT IIN" is NOT added because negated IIN is not representable in the PrismQL AST
+    /// (ast.rs: "<invalid: negated IIN not representable>") — it is never a legal operator.
+    ///
+    /// Fix: F-P24-MED-001 (LOCAL pass-24, S-PRISMQL-CASE-INSENSITIVE-001).
+    #[test]
+    fn test_BC_2_11_024_f_p24_med001_valid_operators_string_includes_ci_operators() {
+        let ops = valid_operators_for_type(ColumnType::String);
+
+        // BC-2.11.024 case-insensitive operators must be present.
+        for ci_op in &["IEQ", "IIN", "INE"] {
+            assert!(
+                ops.contains(ci_op),
+                "F-P24-MED-001: valid_operators_for_type(String) must contain '{}' \
+                 (BC-2.11.024 case-insensitive operators). \
+                 Agents parsing this array would never learn {} is valid. Got: {:?}",
+                ci_op,
+                ci_op,
+                ops
+            );
+        }
+
+        // Numeric/datetime ordering operators must NOT appear for String columns.
+        for disallowed in &["<", ">", "<=", ">=", "BETWEEN"] {
+            assert!(
+                !ops.contains(disallowed),
+                "F-P24-MED-001: '{}' must NOT appear in valid_operators_for_type(String) \
+                 (numeric/datetime operator not valid for String). Got: {:?}",
+                disallowed,
+                ops
+            );
         }
     }
 }

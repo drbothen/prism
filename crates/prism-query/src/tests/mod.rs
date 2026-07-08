@@ -19,9 +19,9 @@ pub mod bc_2_11_019_n1b_test;
 // E-QUERY-041 temporal literal pre-validator (check_temporal_literals defined in
 // materialization.rs; invoked as an early gate in engine.rs before check_table_availability).
 // Tests verify that date-only string literals trigger E-QUERY-041, and valid RFC-3339
-// strings pass the gate (BC-2.11.021 v1.2, BC-2.11.003 v1.6, BC-2.11.004 v1.7; ADR-052 D4).
+// strings pass the gate (BC-2.11.021, BC-2.11.003, BC-2.11.004; ADR-052 D4).
 pub mod temporal_typing_tests;
-// S-DEMO-FIDELITY-REMEDIATION-001: Red Gate tests for AC-N2 — BC-2.11.001 v1.15 EC-11-067
+// S-DEMO-FIDELITY-REMEDIATION-001: Red Gate tests for AC-N2 — BC-2.11.001 EC-11-067
 // dot-notation FROM target must return E-QUERY-037 (TableNotAvailable) with did_you_mean,
 // not route to fan-out silently. Includes BC-2.11.023/ADR-046 filter-mode regression guard.
 pub mod bc_2_11_001_n2_test;
@@ -44,3 +44,10 @@ pub mod regression_tests;
 pub mod table_registry_tests;
 pub(crate) mod util;
 pub mod write_parser_unit_tests;
+// S-PRISMQL-CASE-INSENSITIVE-001: Red Gate tests RG-001 through RG-018, RG-022, RG-023, RG-024
+// (LOCAL-pass-1/pass-2) + LOCAL-pass-3 SQL-mode rejection tests
+// test_BC_2_11_024_sql_mode_{ieq,iin,ine}_rejected and regression guard
+// test_BC_2_11_024_filter_and_pipe_ieq_still_execute.
+// Covers IEQ/IIN/INE parsing, normalization, DataFusion SQL lowering, and
+// BC-2.11.024 SQL-mode parse-time rejection (E-QUERY-001).
+pub mod test_case_insensitive_operators;

@@ -48,7 +48,7 @@ use arrow::{
 };
 use async_trait::async_trait;
 use prism_core::{ColumnType, OrgId, SensorId};
-use prism_ocsf::EventClassSelector;
+use prism_ocsf::{EventClassSelector, OCSF_ENUM_LABEL_FIELDS, OcsfEnumMap};
 use prism_sensors::{
     BearerStaticSensorAuth, SensorAdapter,
     adapter::{QueryParams, SensorError, SensorSpec},
@@ -196,7 +196,7 @@ impl AuthProvider for BearerStaticAuthProvider {
 ///
 /// Resolves the bearer token from `prism_credentials::resolve_credential` at
 /// `acquire_token()` time using the injected `credential_ref_name` (e.g. `"bearer_token"`).
-/// Env-var convention: `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` (ADR-032 / BC-2.06.003 v1.3),
+/// Env-var convention: `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` (ADR-032 / BC-2.06.003),
 /// e.g. `PRISM_CLIENTS_DEMO_ORG_A_SENSORS_ARMIS_BEARER_TOKEN` for org_slug `demo-org-a`.
 ///
 /// On resolution failure it returns `Err(SpecEngineError::AuthAcquisitionFailed)` —
@@ -333,7 +333,7 @@ impl prism_spec_engine::AuthProvider for BearerStaticCredentialAuthProvider {
             {
                 Ok(s) => s,
                 Err(CredentialResolutionError::NotFound { .. }) => {
-                    // BC-2.06.003 v1.3 / ADR-032: per-client env var format.
+                    // BC-2.06.003 / ADR-032: per-client env var format.
                     // {ID} = org_slug uppercased with hyphens → underscores.
                     let id_upper =
                         prism_credentials::resolution::slug_to_screaming_snake(&client_id_str);
@@ -349,7 +349,7 @@ impl prism_spec_engine::AuthProvider for BearerStaticCredentialAuthProvider {
                                 "E-AUTH-005: bearer token not found — no '{credential_ref_name}' \
                                  credential configured for sensor '{sensor_id}', \
                                  client '{client_id_str}'. \
-                                 Set env var {per_client_env} (ADR-032 / BC-2.06.003 v1.3).",
+                                 Set env var {per_client_env} (ADR-032 / BC-2.06.003).",
                             ),
                         },
                     );
@@ -402,7 +402,7 @@ impl prism_spec_engine::AuthProvider for BearerStaticCredentialAuthProvider {
 /// Constructed via `reqwest::Client::builder().timeout(Duration::from_secs(30)).build()`
 /// per CLAUDE.md conventions (TD-S-PLUGIN-PREREQ-B-005).
 ///
-/// ## OCSF normalization (BC-2.01.013 v1.14)
+/// ## OCSF normalization (BC-2.01.013)
 ///
 /// The `PipelineExecutor` does NOT return Arrow `RecordBatch` — it returns `PipelineResult`
 /// (raw JSON records). `SpecDrivenSensorAdapter::fetch()` converts those records to
@@ -577,7 +577,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             })
             .collect();
 
-        // CrowdStrike FQL time-window injection (BC-2.01.013 v1.14 + ADR-033 T1).
+        // CrowdStrike FQL time-window injection (BC-2.01.013 + ADR-033 T1).
         // Seed `_fql` into query_filters for CrowdStrike so the ${query.filter._fql}
         // slot in the Step 1 path_template always resolves (empty string when no filter).
         // When start_time/end_time are populated (by extract_time_window_from_ast in
@@ -590,7 +590,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             query_filters.entry("_fql".to_string()).or_insert(fql);
         }
 
-        // Armis AQL time-window augmentation (BC-2.01.013 v1.14 Mechanism B + ADR-033 T1).
+        // Armis AQL time-window augmentation (BC-2.01.013 Mechanism B + ADR-033 T1).
         // F-P1-CRIT-002: wire augment_armis_aql_with_time_window into the real path.
         //
         // When start_time/end_time are populated by extract_time_window_from_ast (ADR-033 T1)
@@ -599,7 +599,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
         // (bare, unquoted, timezone-naive per research-doc §2.2, AC-ARMIS-TW-001).
         //
         // Anti-double-filter guard: if the AQL already contains `after:`, `before:`, or
-        // `timeFrame:`, augmentation is skipped (AC-ARMIS-TW-003 / BC-2.01.013 v1.14 Mechanism B).
+        // `timeFrame:`, augmentation is skipped (AC-ARMIS-TW-003 / BC-2.01.013 Mechanism B).
         //
         // The augmented AQL overwrites `query_filters["aql"]` and is forwarded via the
         // existing `${query.filter.aql}` path_template interpolation.
@@ -615,7 +615,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             query_filters.insert("aql".to_string(), augmented);
         }
 
-        // CrowdStrike limit push-down (BC-2.01.013 v1.14 / F-P1-CRIT-004).
+        // CrowdStrike limit push-down (BC-2.01.013 / F-P1-CRIT-004).
         // Seed `query.limit` into query_filters so the ${query.limit} slot in the
         // CrowdStrike Step 1 path_template resolves to the LIMIT value.
         // When params.limit == 0 (no LIMIT clause), seed an empty string so
@@ -682,7 +682,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             // Convert PipelineResult.records (raw JSON) → Arrow RecordBatch
             // with OCSF envelope columns (category_uid, class_uid, _sensor) and
             // spec-defined data columns (BC-2.11.005 / AC-010).
-            // BC-2.01.013 v1.14 OCSF Conformance: pass `table` so that:
+            // BC-2.01.013 OCSF Conformance: pass `table` so that:
             //   - spec-declared columns survive into the Arrow schema (item 1)
             //   - class_uid/category_uid are derived from ocsf_class (item 2)
             //   - _sensor is injected as canonical sensor_id (item 3)
@@ -747,7 +747,7 @@ fn map_spec_engine_error_to_sensor_error(
 
 /// Convert `PipelineResult.records` (raw JSON) to an Arrow `RecordBatch`.
 ///
-/// Produces a RecordBatch with (BC-2.01.013 v1.14 OCSF Conformance Clause):
+/// Produces a RecordBatch with (BC-2.01.013 OCSF Conformance Clause):
 ///
 /// **Spec-declared data columns (item 1):**
 /// Every column declared in `table.columns` is included in the schema, extracted
@@ -804,7 +804,7 @@ fn pipeline_result_to_record_batch(
 
     let n = result.records.len();
 
-    // BC-2.01.013 v1.14 item 2: derive class_uid from spec ocsf_class via
+    // BC-2.01.013 item 2: derive class_uid from spec ocsf_class via
     // EventClassSelector::select_by_class_name — looks up by OCSF class-name string,
     // not by (sensor_id, record_type) pair. Falls back to 0 (BASE_EVENT) for unmapped
     // tables per D-925 (intentional unwrap_or fallback, not a production error path).
@@ -858,14 +858,14 @@ fn pipeline_result_to_record_batch(
         col_arrays.push(array);
     }
 
-    // BC-2.01.013 v1.14 item 2: OCSF envelope — class_uid/category_uid derived, not raw-copied.
+    // BC-2.01.013 item 2: OCSF envelope — class_uid/category_uid derived, not raw-copied.
     // All rows in this batch share the same derived class_uid/category_uid (table-level, not row-level).
     let category_uid_vals: Vec<Option<i32>> = vec![Some(derived_category_uid); n];
     let class_uid_vals: Vec<Option<i32>> = vec![Some(derived_class_uid); n];
     col_arrays.push(Arc::new(Int32Array::from(category_uid_vals)) as Arc<dyn Array>);
     col_arrays.push(Arc::new(Int32Array::from(class_uid_vals)) as Arc<dyn Array>);
 
-    // BC-2.01.013 v1.14 item 3: _sensor is ALWAYS the canonical sensor_id from the spec.
+    // BC-2.01.013 item 3: _sensor is ALWAYS the canonical sensor_id from the spec.
     // Never reads from raw record — the raw record's _sensor field is untrusted vendor data.
     let sensor_vals: Vec<Option<&str>> = vec![Some(sensor_id); n];
     col_arrays.push(Arc::new(StringArray::from(sensor_vals)) as Arc<dyn Array>);
@@ -894,6 +894,21 @@ fn column_type_to_arrow(col_type: &ColumnType) -> DataType {
         _ => DataType::Utf8,
     }
 }
+
+// ---------------------------------------------------------------------------
+// F-CRIT-002 / BC-2.02.013 — OCSF enum-label normalization in build_column_array
+// ---------------------------------------------------------------------------
+
+// OCSF_ENUM_LABEL_FIELDS is imported from prism_ocsf (the single canonical definition).
+// Previously duplicated here as a local `const` — removed by F-OBS-3 (LOCAL-pass-11):
+// prism_ocsf::OCSF_ENUM_LABEL_FIELDS is now re-exported from prism_ocsf::lib and used
+// directly here. Eliminates drift risk from two independent copies (TD-VSDD-060).
+//
+// The process-wide OcsfEnumMap singleton is now accessed via prism_ocsf::shared_enum_map()
+// (F-P16-OBS-001, LOCAL-pass-16). The duplicate OnceLock<OcsfEnumMap> static that
+// previously lived here has been removed; both prism-ocsf and prism-bin now share the same
+// singleton through the pub re-export. TD-VSDD-060 sibling-site sweep: one call site remains
+// below in build_column_array (the single canonical use point in this crate).
 
 /// Build an Arrow array for a single column across all records.
 ///
@@ -1040,7 +1055,11 @@ fn build_column_array(
                                 // 50 codepoints so unbounded strings from untrusted sensor
                                 // data cannot flood logs. Consistent with E-QUERY-041/042
                                 // value_prefix convention.
-                                value = %s.chars().take(50).collect::<String>(),
+                                // CR-004 / SEC-001 (CWE-117): sanitize_for_log strips Unicode Cc
+                                // (C0 U+0000–U+001F, DEL U+007F, C1 U+0080–U+009F) + U+2028/U+2029
+                                // BEFORE the 50-codepoint cap (BC-2.16.002 catalog row 91 spec
+                                // order: sanitize → truncate).
+                                value = %prism_core::sanitize_for_log(&s).chars().take(50).collect::<String>(),
                                 error = %e,
                                 "ADR-052: datetime string not parseable as RFC-3339 UTC; \
                                  cell produced null (sensor data should be RFC-3339)"
@@ -1052,9 +1071,90 @@ fn build_column_array(
                 .collect();
             Arc::new(TimestampMicrosecondArray::from(vals).with_timezone("UTC"))
         }
-        // String / Json / future variants → Utf8
+        // String → Utf8 with OCSF enum-label normalization for the four labeled fields.
+        //
+        // F-CRIT-002 / BC-2.02.013: columns named in OCSF_ENUM_LABEL_FIELDS have their
+        // string values normalized to OCSF canonical Title-case via OcsfEnumMap before Arrow
+        // materialization. Unrecognized values pass through as-received with a structured warn.
+        // Non-OCSF-labeled String columns pass through unchanged (same as the _ arm below).
+        ColumnType::String => {
+            let is_ocsf_enum_field = OCSF_ENUM_LABEL_FIELDS.contains(&col.name.as_str());
+            let ocsf_map: Option<&OcsfEnumMap> = if is_ocsf_enum_field {
+                Some(prism_ocsf::shared_enum_map())
+            } else {
+                None
+            };
+
+            let vals: Vec<Option<String>> = records
+                .iter()
+                .map(|r| {
+                    let raw = extract_raw(r, col)?;
+                    match raw {
+                        serde_json::Value::Null => None,
+                        serde_json::Value::String(s) => {
+                            if let Some(map) = ocsf_map {
+                                // OBS-3 (S-PRISMQL-CASE-INSENSITIVE-001): empty strings bypass
+                                // enum-label normalization.  An empty value indicates an
+                                // unset/missing sensor field — there is no corresponding OCSF
+                                // canonical label, and emitting ocsf.enum_label_unrecognized would
+                                // be misleading noise.  Mirrors the `!s.is_empty()` guard on the
+                                // SECONDARY normalizer.rs path (ProtoValue::String branch).
+                                if s.is_empty() {
+                                    return Some(s);
+                                }
+                                match map.normalize_enum_label(&col.name, &s) {
+                                    Some(canonical) => Some(canonical.to_string()),
+                                    None => {
+                                        // SEC-002 pattern: cap value at 50 codepoints to bound
+                                        // log volume for adversarially long vendor strings.
+                                        tracing::warn!(
+                                            event_type = "ocsf.enum_label_unrecognized",
+                                            field_name = %col.name,
+                                            // CR-004 / SEC-001 (CWE-117): sanitize_for_log strips
+                                            // Unicode Cc (C0 U+0000–U+001F, DEL U+007F, C1
+                                            // U+0080–U+009F) + U+2028/U+2029 BEFORE the
+                                            // 50-codepoint cap (BC-2.16.002 catalog row 91 spec
+                                            // order: sanitize → truncate) to prevent log injection
+                                            // from adversarial sensor enum-label values.
+                                            value = %prism_core::sanitize_for_log(&s).chars().take(50).collect::<String>(),
+                                            sensor_type = %prism_core::sanitize_for_log(sensor_id).chars().take(50).collect::<String>(),
+                                            "build_column_array: OCSF enum-label value not \
+                                             recognized; emitting as-received \
+                                             (BC-2.02.013 F-CRIT-002)"
+                                        );
+                                        Some(s)
+                                    }
+                                }
+                            } else {
+                                Some(s)
+                            }
+                        }
+                        serde_json::Value::Array(arr) => {
+                            // Wildcard result: serialize to compact JSON-list string.
+                            // ENRICH-1 Design Decision 2: JSON-list string in string column.
+                            let strings: Vec<String> = arr
+                                .into_iter()
+                                .map(|v| match v {
+                                    serde_json::Value::String(s) => s,
+                                    other => other.to_string(),
+                                })
+                                .collect();
+                            Some(
+                                serde_json::to_string(&strings)
+                                    .unwrap_or_else(|_| "[]".to_string()),
+                            )
+                        }
+                        other => Some(other.to_string()),
+                    }
+                })
+                .collect();
+            Arc::new(StringArray::from(
+                vals.iter().map(|s| s.as_deref()).collect::<Vec<_>>(),
+            ))
+        }
+        // Json / future variants → Utf8 (no OCSF enum-label normalization; Json values
+        // are serialized as their compact string representation).
         // Wildcard source_path (`[*]`) arrays are serialized to a compact JSON-list string.
-        // Json column values are serialized as their compact string representation.
         _ => {
             let vals: Vec<Option<String>> = records
                 .iter()
@@ -1334,7 +1434,7 @@ pub async fn step9a_populate_adapter_registry(
                 // a real API. BC-2.06.003 resolution chain; AD-017 credential safety.
                 //
                 // credential_ref_name = "bearer_token" (canonical per architect decision, D-939):
-                // env var: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_BEARER_TOKEN (ADR-032 / BC-2.06.003 v1.3).
+                // env var: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_BEARER_TOKEN (ADR-032 / BC-2.06.003).
                 let provider = BearerStaticCredentialAuthProvider::new(
                     resolved_spec.spec.sensor_id.as_str(),
                     "bearer_token",
@@ -1409,12 +1509,12 @@ pub async fn step9a_populate_adapter_registry(
 // BC-2.22.001; F-002-R; S-DEMO-001 v1.5.
 
 // ---------------------------------------------------------------------------
-// CrowdStrike FQL time-window builder (ADR-033 T1 + BC-2.01.013 v1.14)
+// CrowdStrike FQL time-window builder (ADR-033 T1 + BC-2.01.013)
 // ---------------------------------------------------------------------------
 
 /// Build a CrowdStrike FQL filter string from optional time bounds.
 ///
-/// Implements BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — CrowdStrike row:
+/// Implements BC-2.01.013 Pagination/Push-Down Scope Clause — CrowdStrike row:
 /// - `start_time` → `created_timestamp:>'<ISO8601>'`
 /// - `end_time`   → `created_timestamp:<'<ISO8601>'`
 /// - Both present → combined with `+` (CrowdStrike FQL AND operator)
@@ -1770,7 +1870,7 @@ mod tests {
     /// `Some(Arc::new("UTC".into()))` produces `Arc<String>` and is FORBIDDEN
     /// (ADR-052 §D1 canonical form).
     ///
-    /// Traces to: BC-2.11.003 v1.6 §Postconditions; ADR-052 §D1/§D2.
+    /// Traces to: BC-2.11.003 §Postconditions; ADR-052 §D1/§D2.
     #[test]
     #[allow(clippy::expect_used)]
     fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_datetime_column_registers_as_timestamp_micros_utc()
@@ -1805,7 +1905,7 @@ mod tests {
     /// constant. If the epoch representation changes (e.g., leap second handling), the
     /// derivation remains correct.
     ///
-    /// Traces to: ADR-052 §D5; BC-2.11.003 v1.6 §Postconditions D4/D5
+    /// Traces to: ADR-052 §D5; BC-2.11.003 §Postconditions D4/D5
     /// chrono-strictness invariant.
     #[test]
     #[allow(clippy::expect_used, clippy::unwrap_used)]
@@ -1860,5 +1960,1002 @@ mod tests {
             }
             other => panic!("expected TimestampParseFailure, got: {other:?}"),
         }
+    }
+
+    // ---------------------------------------------------------------------------
+    // BC-2.02.013 / F-CRIT-002: OCSF enum-label normalization in
+    // build_column_array (production spec-driven Arrow path)
+    // ---------------------------------------------------------------------------
+    //
+    // F-CRIT-002 insertion point (architect-ratified 2026-07-07):
+    //   `build_column_array` must call `OcsfEnumMap::normalize_enum_label(col_name, raw)`
+    //   for ColumnType::String columns where col.name ∈ {"severity","status",
+    //   "activity_name","disposition"} BEFORE Arrow materialization.
+    //   Unrecognized values pass through as-received + emit
+    //   tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...).
+    //
+    // RED gate (LOCAL-pass-5 F-CRIT-002):
+    //   Tests 1-3 FAIL before implementation (raw passthrough — no normalization).
+    //   Tests 4-5 PASS before AND after (regression guards for column-selection rule).
+    //
+    // SID-1 compliance: all in-process, no external/DTU dep, no #[ignore].
+
+    /// BC-2.02.013 / F-CRIT-002 (RED — fails before implementation):
+    ///
+    /// `build_column_array` for a `ColumnType::String` column named `"severity"`
+    /// with raw values `"CRITICAL"`, `"high"`, `"High"` MUST produce a StringArray
+    /// with OCSF canonical Title-case values `["Critical", "High", "High"]`.
+    ///
+    /// FAILS NOW: `build_column_array` does raw passthrough for String columns —
+    /// `"CRITICAL"` remains `"CRITICAL"`, not `"Critical"`. The `assert_eq!` for row 0
+    /// fires with `left="CRITICAL"`, `right="Critical"`.
+    ///
+    /// After implementation: `OcsfEnumMap::normalize_enum_label("severity", raw)` is
+    /// called for every non-null raw string value before Arrow materialization.
+    ///
+    /// Traces to: BC-2.02.013 F-CRIT-002; LOCAL-pass-5 adversary finding.
+    #[test]
+    fn test_BC_2_02_013_build_column_array_normalizes_severity_to_title_case() {
+        let records = vec![
+            json!({"severity": "CRITICAL"}),
+            json!({"severity": "high"}),
+            json!({"severity": "High"}),
+        ];
+        let col = ColumnSpec::new("severity", ColumnType::String, None, vec![]);
+
+        let array = build_column_array(&records, &col, "crowdstrike");
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray for ColumnType::String severity column");
+
+        // BC-2.02.013: "CRITICAL" → "Critical" via OcsfEnumMap (severity_id[5]).
+        // FAILS NOW: raw passthrough returns "CRITICAL", not "Critical".
+        assert_eq!(
+            string_array.value(0),
+            "Critical",
+            "BC-2.02.013 F-CRIT-002: severity='CRITICAL' must normalize to 'Critical' \
+             via OcsfEnumMap::normalize_enum_label; \
+             got: {:?}. build_column_array is currently doing raw passthrough.",
+            string_array.value(0)
+        );
+        // BC-2.02.013: "high" → "High" via OcsfEnumMap (severity_id[4]).
+        // FAILS NOW: raw passthrough returns "high", not "High".
+        assert_eq!(
+            string_array.value(1),
+            "High",
+            "BC-2.02.013 F-CRIT-002: severity='high' must normalize to 'High' \
+             via OcsfEnumMap::normalize_enum_label; \
+             got: {:?}. build_column_array is currently doing raw passthrough.",
+            string_array.value(1)
+        );
+        // Idempotent: already-canonical "High" stays "High".
+        assert_eq!(
+            string_array.value(2),
+            "High",
+            "BC-2.02.013 F-CRIT-002: severity='High' (already OCSF canonical) must \
+             remain 'High' after normalization (idempotent); got: {:?}.",
+            string_array.value(2)
+        );
+    }
+
+    /// BC-2.02.013 / F-CRIT-002 (RED — fails before implementation):
+    ///
+    /// `build_column_array` for `ColumnType::String` columns named `"status"` and
+    /// `"disposition"` must normalize raw values to OCSF canonical Title-case:
+    ///   - status `"NEW"` → `"New"` (OcsfEnumMap status_id[1001])
+    ///   - disposition `"blocked"` → `"Blocked"` (OcsfEnumMap disposition_id[2])
+    ///
+    /// FAILS NOW: raw passthrough — "NEW" stays "NEW", "blocked" stays "blocked".
+    ///
+    /// After implementation: `OcsfEnumMap::normalize_enum_label` is called for
+    /// every String column whose name is in the in-scope field set.
+    ///
+    /// Traces to: BC-2.02.013 F-CRIT-002 in-scope field table
+    /// (status, disposition guaranteed); LOCAL-pass-5.
+    #[test]
+    fn test_BC_2_02_013_build_column_array_normalizes_status_and_disposition() {
+        // --- status "NEW" → "New" ---
+        let status_records = vec![json!({"status": "NEW"})];
+        let status_col = ColumnSpec::new("status", ColumnType::String, None, vec![]);
+
+        let status_array = build_column_array(&status_records, &status_col, "crowdstrike");
+        let status_str_array = status_array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray for status column");
+
+        // FAILS NOW: raw passthrough returns "NEW", not "New".
+        assert_eq!(
+            status_str_array.value(0),
+            "New",
+            "BC-2.02.013 F-CRIT-002: status='NEW' must normalize to 'New' via \
+             OcsfEnumMap::normalize_enum_label (status_id[1001]=New); \
+             got: {:?}. build_column_array is currently doing raw passthrough.",
+            status_str_array.value(0)
+        );
+
+        // --- disposition "blocked" → "Blocked" ---
+        let disp_records = vec![json!({"disposition": "blocked"})];
+        let disp_col = ColumnSpec::new("disposition", ColumnType::String, None, vec![]);
+
+        let disp_array = build_column_array(&disp_records, &disp_col, "crowdstrike");
+        let disp_str_array = disp_array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray for disposition column");
+
+        // FAILS NOW: raw passthrough returns "blocked", not "Blocked".
+        assert_eq!(
+            disp_str_array.value(0),
+            "Blocked",
+            "BC-2.02.013 F-CRIT-002: disposition='blocked' must normalize to 'Blocked' via \
+             OcsfEnumMap::normalize_enum_label (disposition_id[2]=Blocked); \
+             got: {:?}. build_column_array is currently doing raw passthrough.",
+            disp_str_array.value(0)
+        );
+    }
+
+    /// BC-2.02.013 / F-CRIT-002 (RED — fails before implementation):
+    ///
+    /// `build_column_array` for a `ColumnType::String` column named `"severity"` with
+    /// a vendor-specific unrecognized value `"VENDOR_XYZ"` MUST:
+    ///   1. Leave the value as-received (`"VENDOR_XYZ"` unchanged, non-fatal).
+    ///   2. Emit `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)`.
+    ///
+    /// FAILS NOW: no normalization attempt is made, so no `ocsf.enum_label_unrecognized`
+    /// warn is ever emitted. The value passthrough assertion (1) would pass, but the
+    /// warn-capture assertion (2) FAILS because the warn is never fired.
+    ///
+    /// After implementation: `OcsfEnumMap::normalize_enum_label` returns `None` for
+    /// `"VENDOR_XYZ"`, the raw value is kept as-received, and the warn is emitted.
+    ///
+    /// WarnCapture pattern: matches `test_adapter_normalization.rs` RG-021 (prism-ocsf).
+    ///
+    /// Traces to: BC-2.02.013 F-CRIT-002 error case;
+    /// BC-2.16.002 Canonical Structured Event Catalog (ocsf.enum_label_unrecognized);
+    /// LOCAL-pass-5 adversary finding; strengthened for LOCAL-pass-6 F-P6-CRIT-001 +
+    /// F-P6-HIGH-003 (catalog row 91 schema completeness).
+    #[test]
+    fn test_BC_2_02_013_build_column_array_unrecognized_left_as_received_with_warn() {
+        use std::sync::Mutex;
+        use tracing_subscriber::layer::SubscriberExt;
+
+        // ── Local WarnCapture types — catalog-complete field capture ───────────
+        //
+        // Captures ALL BC-2.16.002 catalog row 91 fields for ocsf.enum_label_unrecognized:
+        //   field_name, value, sensor_type.
+        // Also captures the legacy `column` field to diagnose F-P6-CRIT-001 (wrong field name).
+        //
+        // F-P6-CRIT-001: PRIMARY emit in build_column_array uses `column = %col.name`
+        //   instead of the catalog-required `field_name = %col.name`.
+        // F-P6-HIGH-003: PRIMARY emit omits `sensor_type` entirely.
+        // Assertions (3) and (4) below enforce both catalog row 91 requirements.
+        // They FAIL at HEAD 8e4ec972: `field_name` is None (only `column` is set),
+        // and `sensor_type` is None (omitted from the warn macro).
+
+        #[derive(Default, Clone, Debug)]
+        struct WarnEvent {
+            event_type: Option<String>,
+            /// BC-2.16.002 catalog row 91 required field (must NOT be `column`).
+            field_name: Option<String>,
+            /// BC-2.16.002 catalog row 91 required field (cap ≤ 50 codepoints at PRIMARY).
+            value: Option<String>,
+            /// BC-2.16.002 catalog row 91 required field (absent in current PRIMARY emit).
+            sensor_type: Option<String>,
+            /// Legacy wrong field name — captured to produce a clear diagnostic on failure.
+            column: Option<String>,
+        }
+
+        #[derive(Default)]
+        struct WarnFieldVisitor {
+            event: WarnEvent,
+        }
+
+        impl tracing::field::Visit for WarnFieldVisitor {
+            fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
+                // Handles string literal fields (e.g. `event_type = "ocsf.enum_label_unrecognized"`).
+                match field.name() {
+                    "event_type" => self.event.event_type = Some(val.to_owned()),
+                    "field_name" => self.event.field_name = Some(val.to_owned()),
+                    "value" => self.event.value = Some(val.to_owned()),
+                    "sensor_type" => self.event.sensor_type = Some(val.to_owned()),
+                    "column" => self.event.column = Some(val.to_owned()),
+                    _ => {}
+                }
+            }
+            fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+                // Handles `%`-formatted fields (e.g. `column = %col.name`, `value = %s`).
+                // tracing routes Display-formatted values through record_debug; the
+                // dyn Debug impl for format_args!("{}", x) delegates to Display, so
+                // `format!("{value:?}")` gives the Display representation without extra quoting.
+                let s = format!("{value:?}");
+                match field.name() {
+                    "event_type" => {
+                        if self.event.event_type.is_none() {
+                            self.event.event_type = Some(s);
+                        }
+                    }
+                    "field_name" => {
+                        if self.event.field_name.is_none() {
+                            self.event.field_name = Some(s);
+                        }
+                    }
+                    "value" => {
+                        if self.event.value.is_none() {
+                            self.event.value = Some(s);
+                        }
+                    }
+                    "sensor_type" => {
+                        if self.event.sensor_type.is_none() {
+                            self.event.sensor_type = Some(s);
+                        }
+                    }
+                    "column" => {
+                        if self.event.column.is_none() {
+                            self.event.column = Some(s);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        struct WarnCapture {
+            events: Arc<Mutex<Vec<WarnEvent>>>,
+        }
+
+        impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnCapture {
+            fn on_event(
+                &self,
+                event: &tracing::Event<'_>,
+                _ctx: tracing_subscriber::layer::Context<'_, S>,
+            ) {
+                if *event.metadata().level() == tracing::Level::WARN {
+                    let mut visitor = WarnFieldVisitor::default();
+                    event.record(&mut visitor);
+                    if visitor.event.event_type.is_some() {
+                        self.events.lock().unwrap().push(visitor.event);
+                    }
+                }
+            }
+        }
+
+        // ── Test body ─────────────────────────────────────────────────────────
+
+        let captured: Arc<Mutex<Vec<WarnEvent>>> = Arc::new(Mutex::new(Vec::new()));
+        let layer = WarnCapture {
+            events: captured.clone(),
+        };
+        let subscriber = tracing_subscriber::registry().with(layer);
+
+        let records = vec![json!({"severity": "VENDOR_XYZ"})];
+        let col = ColumnSpec::new("severity", ColumnType::String, None, vec![]);
+
+        let array = tracing::subscriber::with_default(subscriber, || {
+            build_column_array(&records, &col, "crowdstrike")
+        });
+
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray for severity column");
+
+        // (1) Unrecognized value must be left as-received (non-fatal, no panic).
+        // PASSES NOW: normalization is wired; VENDOR_XYZ not in map → passthrough.
+        assert_eq!(
+            string_array.value(0),
+            "VENDOR_XYZ",
+            "BC-2.02.013 F-CRIT-002 error case: unrecognized severity='VENDOR_XYZ' \
+             must be left as-received in the Arrow column (non-fatal); \
+             got: {:?}",
+            string_array.value(0)
+        );
+
+        let warns = captured.lock().unwrap();
+
+        // (2) event_type = "ocsf.enum_label_unrecognized" must be emitted.
+        // PASSES NOW: normalization wired → warn fires.
+        assert!(
+            warns
+                .iter()
+                .any(|e| e.event_type.as_deref() == Some("ocsf.enum_label_unrecognized")),
+            "BC-2.02.013 F-CRIT-002: build_column_array must emit \
+             tracing::warn!(event_type = \"ocsf.enum_label_unrecognized\", ...) \
+             for unrecognized OCSF enum-label values (BC-2.16.002 catalog row 91); \
+             captured events: {:?}",
+            *warns
+        );
+
+        // Locate the unrecognized event for catalog-schema validation below.
+        let evt = warns
+            .iter()
+            .find(|e| e.event_type.as_deref() == Some("ocsf.enum_label_unrecognized"))
+            .expect(
+                "ocsf.enum_label_unrecognized event not found \
+                 (assertion 2 should have caught this)",
+            );
+
+        // (3) F-P6-CRIT-001: warn MUST use `field_name`, NOT `column`.
+        // BC-2.16.002 catalog row 91 schema requires the field key `field_name`.
+        // FAILS NOW: current PRIMARY emit at line ~1112 uses `column = %col.name`.
+        // After fix: change `column = %col.name` → `field_name = %col.name`.
+        assert_eq!(
+            evt.field_name.as_deref(),
+            Some("severity"),
+            "F-P6-CRIT-001 (LOCAL pass-6): ocsf.enum_label_unrecognized warn must use \
+             field `field_name` (not `column`) per BC-2.16.002 catalog row 91; \
+             current PRIMARY emit uses `column = %%col.name`; \
+             got field_name={:?}, legacy column={:?}",
+            evt.field_name,
+            evt.column
+        );
+
+        // (4) F-P6-HIGH-003: warn MUST include `sensor_type`.
+        // BC-2.16.002 catalog row 91 schema requires `sensor_type`.
+        // FAILS NOW: PRIMARY emit omits `sensor_type` entirely.
+        // After fix: add `sensor_type = %sensor_id` to the warn macro in build_column_array.
+        assert_eq!(
+            evt.sensor_type.as_deref(),
+            Some("crowdstrike"),
+            "F-P6-HIGH-003 (LOCAL pass-6): ocsf.enum_label_unrecognized warn must include \
+             `sensor_type` per BC-2.16.002 catalog row 91; \
+             sensor_type is absent in current PRIMARY emit; \
+             got: {:?}",
+            evt.sensor_type
+        );
+
+        // (5) value must be the (possibly truncated) raw string.
+        // PRIMARY already caps at 50 codepoints (SEC-002 pattern) — regression guard.
+        assert_eq!(
+            evt.value.as_deref(),
+            Some("VENDOR_XYZ"),
+            "warn value must carry the raw string (capped at 50 codepoints at PRIMARY); \
+             got: {:?}",
+            evt.value
+        );
+    }
+
+    /// BC-2.02.013 / F-CRIT-002 (GREEN before AND after — regression guard):
+    ///
+    /// `build_column_array` for a `ColumnType::String` column named `"hostname"`
+    /// (NOT in the OCSF enum-label field set {"severity","status","activity_name",
+    /// "disposition"}) with value `"SERVER-01"` MUST pass the value through unchanged.
+    /// No normalization, no warn.
+    ///
+    /// PASSES NOW and MUST continue to PASS after implementation — this guards the
+    /// column-selection rule: only the four designated OCSF enum-label columns are
+    /// normalized; all other String columns are untouched.
+    ///
+    /// Traces to: BC-2.02.013 F-CRIT-002 column-selection invariant.
+    #[test]
+    fn test_BC_2_02_013_build_column_array_non_enum_string_column_untouched() {
+        let records = vec![json!({"hostname": "SERVER-01"})];
+        let col = ColumnSpec::new("hostname", ColumnType::String, None, vec![]);
+
+        let array = build_column_array(&records, &col, "crowdstrike");
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray for hostname column");
+
+        // "hostname" is NOT in the enum-label set — raw passthrough required.
+        assert_eq!(
+            string_array.value(0),
+            "SERVER-01",
+            "BC-2.02.013 F-CRIT-002 column-selection guard: non-enum-label String \
+             column 'hostname' with value 'SERVER-01' must NOT be normalized \
+             (column-selection rule: only severity/status/activity_name/disposition); \
+             got: {:?}",
+            string_array.value(0)
+        );
+    }
+
+    /// BC-2.02.013 / F-CRIT-002 (GREEN before AND after — regression guard):
+    ///
+    /// `build_column_array` for a `ColumnType::Integer` column named `"severity_id"`
+    /// with integer value `5` MUST produce an Int64Array with value `5` unchanged.
+    /// OCSF enum-label normalization is ONLY applied to `ColumnType::String` columns
+    /// in the designated field set; `ColumnType::Integer` columns are NEVER normalized.
+    ///
+    /// PASSES NOW and MUST continue to PASS after implementation — this guards against
+    /// normalization accidentally touching non-String columns.
+    ///
+    /// Traces to: BC-2.02.013 F-CRIT-002 — normalization gated on
+    /// `col.column_type == ColumnType::String` AND `col.name` in enum-label set.
+    #[test]
+    fn test_BC_2_02_013_build_column_array_non_string_column_untouched() {
+        let records = vec![json!({"severity_id": 5})];
+        let col = ColumnSpec::new("severity_id", ColumnType::Integer, None, vec![]);
+
+        let array = build_column_array(&records, &col, "crowdstrike");
+        let int_array = array
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .expect("expected Int64Array for ColumnType::Integer severity_id column");
+
+        // ColumnType::Integer columns are not subject to string normalization.
+        assert!(
+            !int_array.is_null(0),
+            "BC-2.02.013 F-CRIT-002: Integer column severity_id must be non-null"
+        );
+        assert_eq!(
+            int_array.value(0),
+            5,
+            "BC-2.02.013 F-CRIT-002: Integer column severity_id must remain 5 \
+             (OCSF normalization does NOT touch ColumnType::Integer); got: {}",
+            int_array.value(0)
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // BC-2.02.013 PRIMARY path — GROUP BY de-fragmentation (F-P20-HIGH-001)
+    // ---------------------------------------------------------------------------
+
+    /// BC-2.02.013 PRIMARY path — GROUP BY de-fragmentation over mixed-vendor
+    /// severity casing (F-P20-HIGH-001 closure):
+    ///
+    /// `build_column_array` for a `ColumnType::String` column named `"severity"` with
+    /// mixed raw-sensor casing (CrowdStrike `'High'` × 3 + Armis `'HIGH'` × 2) MUST
+    /// produce a normalized Arrow `StringArray` where ALL 5 values are `'High'`
+    /// (OCSF canonical Title-case per `enum_map.rs` severity_id[4]).  A DataFusion
+    /// GROUP BY over this normalized column MUST yield exactly ONE bucket
+    /// (`'High'`, count = 5) — no fragmentation into separate `'High'` + `'HIGH'`
+    /// buckets.
+    ///
+    /// **Why this test is necessary (F-P20-HIGH-001):** the existing single-value tests
+    /// (`test_BC_2_02_013_build_column_array_normalizes_severity_to_title_case`) verify
+    /// per-row normalization in isolation.  They do NOT verify that the Arrow
+    /// materialization path produces deduplicating GROUP BY output — the combination
+    /// "multi-row + DataFusion GROUP BY + assert one bucket" is what AC-019 requires.
+    /// Adversarial pass-20 correctly identified this gap.
+    ///
+    /// **PRIMARY vs SECONDARY path disambiguation:**
+    /// - PRIMARY (this test): `build_column_array` in `spec_driven_adapter.rs` —
+    ///   the production path through which DataFusion receives and queries sensor data.
+    /// - SECONDARY (RG-022 in `test_case_insensitive_operators.rs`): exercises
+    ///   `OcsfNormalizer::normalize_with_mappers` + DynamicMessage, which has
+    ///   ZERO production callers on the query path per BC-2.02.013 §Postconditions.
+    ///
+    /// **Expected result:** PASSES at current HEAD because `build_column_array` already
+    /// calls `OcsfEnumMap::normalize_enum_label` for OCSF enum-label fields.  This test
+    /// is a load-bearing regression guard (TD-VSDD-059) ensuring the behavior cannot
+    /// be silently removed.
+    ///
+    /// Traces to: BC-2.02.013 §Postconditions PRIMARY insertion point; AC-019; EC-02-026;
+    /// F-P20-HIGH-001; ADR-047 §Consequences "GROUP BY correct after normalization".
+    #[tokio::test]
+    #[allow(non_snake_case)]
+    async fn test_BC_2_02_013_build_column_array_group_by_severity_cross_sensor_no_fragmentation() {
+        use arrow::datatypes::{DataType, Field, Schema};
+        use arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+        use datafusion::execution::context::SessionContext;
+
+        // BC-2.02.013 EC-02-026 test vectors:
+        //   CrowdStrike emits Title-case 'High' (already canonical — idempotent path).
+        //   Armis emits all-caps 'HIGH' (must normalize to 'High' via OcsfEnumMap).
+        // After PRIMARY path normalization both vendor strings must yield 'High'.
+        let records = vec![
+            json!({"severity": "High"}), // CrowdStrike: canonical Title-case (idempotent)
+            json!({"severity": "High"}), // CrowdStrike: canonical Title-case (idempotent)
+            json!({"severity": "High"}), // CrowdStrike: canonical Title-case (idempotent)
+            json!({"severity": "HIGH"}), // Armis: all-caps → OcsfEnumMap → 'High'
+            json!({"severity": "HIGH"}), // Armis: all-caps → OcsfEnumMap → 'High'
+        ];
+        let col = ColumnSpec::new("severity", ColumnType::String, None, vec![]);
+
+        // PRIMARY path: `build_column_array` is called by `pipeline_result_to_record_batch`
+        // in the production spec-driven adapter fetch cycle.  OcsfEnumMap is accessed via
+        // `prism_ocsf::shared_enum_map()` — initialized once at process start as a
+        // &'static OcsfEnumMap; no I/O, no external dependency, deterministic in tests.
+        // OcsfEnumMap::normalize_enum_label("severity", "HIGH") → Some("High").
+        // OcsfEnumMap::normalize_enum_label("severity", "High") → Some("High") (idempotent).
+        let normalized_array = build_column_array(&records, &col, "cross-sensor");
+
+        // Build Arrow RecordBatch from the normalized column produced by the PRIMARY path.
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "severity",
+            DataType::Utf8,
+            true,
+        )]));
+        let batch = RecordBatch::try_new(schema.clone(), vec![normalized_array])
+            .expect("BC-2.02.013 PRIMARY: RecordBatch must build from normalized severity array");
+
+        // Register as DataFusion MemTable and execute GROUP BY — mirrors what the PrismQL
+        // execution engine does after `pipeline_result_to_record_batch` returns.
+        let ctx = SessionContext::new();
+        let mem_table = MemTable::try_new(schema, vec![vec![batch]])
+            .expect("BC-2.02.013 PRIMARY: MemTable must build");
+        ctx.register_table("detections", Arc::new(mem_table))
+            .expect("BC-2.02.013 PRIMARY: MemTable must register");
+
+        let result = ctx
+            .sql("SELECT severity, count(*) AS cnt FROM detections GROUP BY severity")
+            .await
+            .expect("BC-2.02.013 PRIMARY: GROUP BY query must plan without error")
+            .collect()
+            .await
+            .expect("BC-2.02.013 PRIMARY: GROUP BY query must execute without error");
+
+        let total_buckets: usize = result.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_buckets, 1,
+            "BC-2.02.013 PRIMARY path (F-P20-HIGH-001 / AC-019): GROUP BY severity \
+             after build_column_array normalization MUST yield exactly 1 bucket \
+             (CrowdStrike 'High' × 3 + Armis 'HIGH' × 2 → all canonical 'High'); \
+             got {total_buckets} bucket(s). \
+             If 2 buckets: build_column_array is not applying OcsfEnumMap normalization \
+             to the 'severity' column. \
+             PRIMARY path: EC-02-026; ADR-047 §Consequences."
+        );
+
+        // Verify the single bucket is OCSF canonical 'High' with count = 5.
+        // result[0] is the first (and only) RecordBatch; column 0 = severity, column 1 = cnt.
+        let severity_col = result[0]
+            .column(0)
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("BC-2.02.013 PRIMARY: severity GROUP BY column must be StringArray");
+        let count_col = result[0]
+            .column(1)
+            .as_any()
+            .downcast_ref::<arrow::array::Int64Array>()
+            .expect("BC-2.02.013 PRIMARY: count column must be Int64Array");
+
+        assert_eq!(
+            severity_col.value(0),
+            "High",
+            "BC-2.02.013 PRIMARY path: single GROUP BY bucket must be OCSF canonical \
+             'High' (Title-case, enum_map.rs severity_id[4]); got {:?}",
+            severity_col.value(0)
+        );
+        assert_eq!(
+            count_col.value(0),
+            5,
+            "BC-2.02.013 PRIMARY path: all 5 records (3 × CrowdStrike 'High' + \
+             2 × Armis 'HIGH') must consolidate into a single 'High' bucket \
+             after OcsfEnumMap normalization; count is {}",
+            count_col.value(0)
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // OBS-3 — empty-string enum-value must NOT emit ocsf.enum_label_unrecognized
+    // ---------------------------------------------------------------------------
+
+    /// OBS-3 / BC-2.02.013 (RED — fails before implementation):
+    ///
+    /// `build_column_array` for a `ColumnType::String` column named `"severity"` with
+    /// a record containing `"severity": ""` (empty string) MUST:
+    ///   1. Materialize the empty string as-is in the Arrow column (non-null, value `""`).
+    ///   2. NOT emit `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)`.
+    ///
+    /// Empty-string field values are NOT invalid OCSF enum labels — they represent
+    /// missing or unset fields coming from vendor APIs that omit the field entirely.
+    /// Calling `OcsfEnumMap::normalize_enum_label("severity", "")` returns `None`
+    /// (empty string is not a recognized caption), which currently causes a false-positive
+    /// `ocsf.enum_label_unrecognized` warn. This mirrors the SECONDARY path's guard in
+    /// `prism-ocsf/src/normalizer.rs` (line ~141):
+    ///   `ProtoValue::String(s) if !s.is_empty() => s,`
+    /// which skips normalization for empty strings without emitting the warn.
+    ///
+    /// # Red Gate failure (HEAD 18c65590)
+    ///
+    /// The `ColumnType::String` arm in `build_column_array` calls
+    /// `normalize_enum_label(&col.name, &s)` for ALL non-null string values,
+    /// including `s = ""`.  The map returns `None` for `""` →
+    /// `ocsf.enum_label_unrecognized` warn fires → assertion (2) FAILS.
+    ///
+    /// # Fix target
+    ///
+    /// Add `if s.is_empty() { Some(s) }` (or equivalent `!s.is_empty()` guard) before
+    /// calling `normalize_enum_label` in the `ColumnType::String` arm of
+    /// `build_column_array`, mirroring the SECONDARY path in `normalizer.rs`.
+    ///
+    /// OBS-3; BC-2.02.013; BC-2.16.002 catalog row 91.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_02_013_build_column_array_empty_string_enum_value_no_warn() {
+        use std::sync::Mutex;
+        use tracing_subscriber::layer::SubscriberExt;
+
+        // ── Local WarnCapture — captures only event_type-bearing WARN events ──────
+        //
+        // Minimal variant of the WarnCapture in
+        // test_BC_2_02_013_build_column_array_unrecognized_left_as_received_with_warn:
+        // we only need to detect whether ocsf.enum_label_unrecognized fired at all;
+        // we do not need to inspect catalog-schema fields.
+
+        #[derive(Default, Clone, Debug)]
+        struct WarnEvent {
+            event_type: Option<String>,
+        }
+
+        #[derive(Default)]
+        struct WarnFieldVisitor {
+            event: WarnEvent,
+        }
+
+        impl tracing::field::Visit for WarnFieldVisitor {
+            fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
+                if field.name() == "event_type" {
+                    self.event.event_type = Some(val.to_owned());
+                }
+            }
+            fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+                // tracing routes `%`-formatted Display values through record_debug.
+                if field.name() == "event_type" && self.event.event_type.is_none() {
+                    self.event.event_type = Some(format!("{value:?}"));
+                }
+            }
+        }
+
+        struct WarnCapture {
+            events: Arc<Mutex<Vec<WarnEvent>>>,
+        }
+
+        impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnCapture {
+            fn on_event(
+                &self,
+                event: &tracing::Event<'_>,
+                _ctx: tracing_subscriber::layer::Context<'_, S>,
+            ) {
+                if *event.metadata().level() == tracing::Level::WARN {
+                    let mut visitor = WarnFieldVisitor::default();
+                    event.record(&mut visitor);
+                    // Only capture events that carry an event_type field (SAP-1 catalog rows).
+                    if visitor.event.event_type.is_some() {
+                        self.events.lock().unwrap().push(visitor.event);
+                    }
+                }
+            }
+        }
+
+        // ── Test body ──────────────────────────────────────────────────────────────
+
+        let captured: Arc<Mutex<Vec<WarnEvent>>> = Arc::new(Mutex::new(Vec::new()));
+        let layer = WarnCapture {
+            events: captured.clone(),
+        };
+        let subscriber = tracing_subscriber::registry().with(layer);
+
+        let records = vec![json!({"severity": ""})];
+        let col = ColumnSpec::new("severity", ColumnType::String, None, vec![]);
+
+        let array = tracing::subscriber::with_default(subscriber, || {
+            build_column_array(&records, &col, "armis")
+        });
+
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray for ColumnType::String severity column");
+
+        // (1) Empty string materializes as-is — non-null empty string in Arrow.
+        //
+        // The None branch of normalize_enum_label returns Some(s) = Some(""), so
+        // the value is already non-null at HEAD.  This assertion is a regression
+        // guard: the fix MUST NOT accidentally convert empty strings to null.
+        assert!(
+            !string_array.is_null(0),
+            "OBS-3: empty severity string must materialize as a non-null empty string \
+             in the Arrow column (not NULL — it is an unset/missing value, not an absent \
+             field); got null"
+        );
+        assert_eq!(
+            string_array.value(0),
+            "",
+            "OBS-3: empty severity string must round-trip as empty string in Arrow; \
+             got: {:?}",
+            string_array.value(0)
+        );
+
+        let warns = captured.lock().unwrap();
+
+        // (2) No ocsf.enum_label_unrecognized warn must be emitted for empty string.
+        //
+        // FAILS NOW (HEAD 18c65590): the `ColumnType::String` arm calls
+        // `normalize_enum_label("severity", "")` → returns None → warn fires.
+        //
+        // After fix: add `!s.is_empty()` guard before calling normalize_enum_label,
+        // mirroring normalizer.rs SECONDARY path (ProtoValue::String(s) if !s.is_empty()).
+        assert!(
+            !warns
+                .iter()
+                .any(|e| e.event_type.as_deref() == Some("ocsf.enum_label_unrecognized")),
+            "OBS-3 / BC-2.02.013: build_column_array MUST NOT emit \
+             `ocsf.enum_label_unrecognized` for an empty-string severity value. \
+             Empty string is a missing/unset field, NOT an invalid OCSF enum label; \
+             the warn is a false positive that inflates operator noise. \
+             FAILS NOW: normalize_enum_label(\"\") returns None → warn fires. \
+             Fix: add `!s.is_empty()` guard before calling normalize_enum_label in \
+             the ColumnType::String arm of build_column_array (mirrors normalizer.rs \
+             SECONDARY path). \
+             Captured event_type-bearing WARN events: {:?}",
+            *warns
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // CR-004 / SEC-001 — CWE-117 control-char sanitization at PRIMARY emission site
+    // (code-review pass-1, fix-burst S-PRISMQL-CASE-INSENSITIVE-001)
+    // ---------------------------------------------------------------------------
+
+    /// CR-004 / SEC-001 (CWE-117) — PRIMARY `ocsf.enum_label_unrecognized` warn:
+    ///
+    /// When `build_column_array` emits `ocsf.enum_label_unrecognized` for an
+    /// unrecognized enum-label value that contains a newline control character,
+    /// the logged `value` field MUST have the control char stripped before emission.
+    ///
+    /// RED GATE (current HEAD): FAILS — `.chars().take(50).collect::<String>()`
+    /// truncates but does NOT strip control chars; `\n` survives into the log.
+    /// GREEN GATE: PASSES after CR-004 applies `prism_core::sanitize_for_log` (which strips
+    /// Unicode Cc (C0 U+0000–U+001F, DEL U+007F, C1 U+0080–U+009F) + U+2028/U+2029)
+    /// before the 50-codepoint cap.
+    ///
+    /// Traces to: CR-004/SEC-001 CWE-117; BC-2.16.002 catalog row 91 field-schema
+    /// amendment (control-char sanitization note); BC-2.02.013 F-CRIT-002 error case.
+    #[test]
+    fn test_cr004_build_column_array_enum_label_warn_strips_control_chars() {
+        use std::sync::Mutex;
+        use tracing_subscriber::layer::SubscriberExt;
+
+        // Minimal capture: only the `value` field from ocsf.enum_label_unrecognized.
+        #[derive(Default)]
+        struct ValueOnlyVisitor {
+            value: Option<String>,
+        }
+        impl tracing::field::Visit for ValueOnlyVisitor {
+            fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
+                if field.name() == "value" {
+                    self.value = Some(val.to_owned());
+                }
+            }
+            fn record_debug(&mut self, field: &tracing::field::Field, val: &dyn std::fmt::Debug) {
+                if field.name() == "value" && self.value.is_none() {
+                    self.value = Some(format!("{val:?}"));
+                }
+            }
+        }
+
+        struct WarnValueCapture {
+            captured_value: Arc<Mutex<Option<String>>>,
+        }
+        impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnValueCapture {
+            fn on_event(
+                &self,
+                event: &tracing::Event<'_>,
+                _ctx: tracing_subscriber::layer::Context<'_, S>,
+            ) {
+                if *event.metadata().level() == tracing::Level::WARN {
+                    let mut visitor = ValueOnlyVisitor::default();
+                    event.record(&mut visitor);
+                    if let Some(v) = visitor.value {
+                        *self.captured_value.lock().unwrap() = Some(v);
+                    }
+                }
+            }
+        }
+
+        let captured_value: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+        let layer = WarnValueCapture {
+            captured_value: captured_value.clone(),
+        };
+        let subscriber = tracing_subscriber::registry().with(layer);
+
+        // "VENDOR\nINJECT" — unrecognized label with embedded newline control char.
+        // normalize_enum_label("severity", "VENDOR\nINJECT") returns None → warn fires.
+        let records = vec![json!({"severity": "VENDOR\nINJECT"})];
+        let col = ColumnSpec::new("severity", ColumnType::String, None, vec![]);
+
+        tracing::subscriber::with_default(subscriber, || {
+            let _ = build_column_array(&records, &col, "crowdstrike");
+        });
+
+        let val = captured_value.lock().unwrap().clone().expect(
+            "CR-004: ocsf.enum_label_unrecognized warn must be emitted for \
+                 unrecognized 'VENDOR\\nINJECT'; check that the warn fires",
+        );
+
+        assert!(
+            !val.contains('\n'),
+            "CR-004 / SEC-001 (CWE-117): `value` field in ocsf.enum_label_unrecognized \
+             warn must have control chars stripped (sanitize_for_log applied before \
+             50-codepoint truncation); found '\\n' in captured value: {:?}",
+            val
+        );
+        assert!(
+            !val.contains('\r'),
+            "CR-004 / SEC-001 (CWE-117): `value` field must have \\r stripped; \
+             got: {:?}",
+            val
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // LOW-001 (MED-001 order-of-operations) — PRIMARY emission site
+    // (ADV-PR-P1 S-PRISMQL-CASE-INSENSITIVE-001)
+    // ---------------------------------------------------------------------------
+
+    /// RG-080 / LOW-001 (MED-001 vector) — PRIMARY `ocsf.enum_label_unrecognized` warn:
+    /// order-of-operations proof vector for BOTH `value` and `sensor_type` fields.
+    ///
+    /// The existing `test_cr004_build_column_array_enum_label_warn_strips_control_chars`
+    /// uses a short input (`"VENDOR\nINJECT"`, 13 chars) where both orders produce the
+    /// same length — it proves the control char is stripped but does NOT prove ORDER.
+    ///
+    /// This test uses a vector where the ORDER matters, applied to BOTH logged fields:
+    ///
+    /// **`value` field** (from enum-label input):
+    /// - Input: ESC sequence at head (`\u{1b}[31m`, 5 codepoints) + 60 legit 'A' chars
+    ///   = 65 codepoints total.
+    /// - `normalize_enum_label("severity", input)` returns `None` → warn fires.
+    ///
+    /// **`sensor_type` field** (from sensor_id parameter):
+    /// - Input: ESC sequence at head (`\u{1b}[31m`, 5 codepoints) + 60 legit 'B' chars
+    ///   = 65 codepoints total.
+    ///
+    /// Spec order (sanitize→truncate, BC-2.16.002 catalog row 91) for EACH field:
+    ///   `sanitize_for_log` strips ESC → `"[31m"` + 60 chars = 64 codepoints
+    ///   `.chars().take(50)` → `"[31m"` + 46 chars = **50 codepoints (length = 50)**
+    ///
+    /// Wrong order (truncate→sanitize) for EACH field:
+    ///   `.chars().take(50)` → ESC + `"[31m"` + 45 chars = 50 codepoints
+    ///   `sanitize_for_log` strips ESC → `"[31m"` + 45 chars = **49 codepoints (length = 49)**
+    ///
+    /// RED GATE (original MED-001): FAILS with wrong-order code — `val.len() == 49`, requires `50`.
+    /// GREEN GATE: PASSES after sanitize-first order applied to BOTH `value` and `sensor_type`.
+    ///
+    /// Traces to: MED-001 (ADV-PR-P1); LOW-001 (S-PRISMQL-CASE-INSENSITIVE-001);
+    /// OBS-001 (ADV-PR-P3; sensor_type order-symmetry guard); BC-2.16.002 catalog row 91
+    /// spec order; CWE-117 (SEC-001).
+    #[test]
+    fn test_rg080_low001_build_column_array_enum_label_warn_order_of_operations() {
+        use std::sync::Mutex;
+        use tracing_subscriber::layer::SubscriberExt;
+
+        #[derive(Default)]
+        struct WarnFieldVisitor {
+            value: Option<String>,
+            sensor_type: Option<String>,
+        }
+        impl tracing::field::Visit for WarnFieldVisitor {
+            fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
+                match field.name() {
+                    "value" => self.value = Some(val.to_owned()),
+                    "sensor_type" => self.sensor_type = Some(val.to_owned()),
+                    _ => {}
+                }
+            }
+            fn record_debug(&mut self, field: &tracing::field::Field, val: &dyn std::fmt::Debug) {
+                match field.name() {
+                    "value" if self.value.is_none() => {
+                        self.value = Some(format!("{val:?}"));
+                    }
+                    "sensor_type" if self.sensor_type.is_none() => {
+                        self.sensor_type = Some(format!("{val:?}"));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        struct WarnFieldCapture {
+            captured_value: Arc<Mutex<Option<String>>>,
+            captured_sensor_type: Arc<Mutex<Option<String>>>,
+        }
+        impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnFieldCapture {
+            fn on_event(
+                &self,
+                event: &tracing::Event<'_>,
+                _ctx: tracing_subscriber::layer::Context<'_, S>,
+            ) {
+                if *event.metadata().level() == tracing::Level::WARN {
+                    let mut visitor = WarnFieldVisitor::default();
+                    event.record(&mut visitor);
+                    if let Some(v) = visitor.value {
+                        *self.captured_value.lock().unwrap() = Some(v);
+                    }
+                    if let Some(st) = visitor.sensor_type {
+                        *self.captured_sensor_type.lock().unwrap() = Some(st);
+                    }
+                }
+            }
+        }
+
+        let captured_value: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+        let captured_sensor_type: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+        let layer = WarnFieldCapture {
+            captured_value: captured_value.clone(),
+            captured_sensor_type: captured_sensor_type.clone(),
+        };
+        let subscriber = tracing_subscriber::registry().with(layer);
+
+        // LOW-001 / OBS-001 vectors:
+        // value input:       ESC + "[31m" (5 codepoints) + 60 As = 65 codepoints total.
+        // sensor_type input: ESC + "[31m" (5 codepoints) + 60 Bs = 65 codepoints total.
+        // normalize_enum_label("severity", value_input) returns None → warn fires.
+        let input_value = "\u{1b}[31m".to_string() + &"A".repeat(60);
+        let input_sensor_id = "\u{1b}[31m".to_string() + &"B".repeat(60);
+        let records = vec![json!({"severity": input_value.clone()})];
+        let col = ColumnSpec::new("severity", ColumnType::String, None, vec![]);
+
+        tracing::subscriber::with_default(subscriber, || {
+            let _ = build_column_array(&records, &col, &input_sensor_id);
+        });
+
+        let val = captured_value.lock().unwrap().clone().expect(
+            "RG-080: ocsf.enum_label_unrecognized warn must be emitted for \
+                 unrecognized severity value '\x1b[31mAAA...'; check the warn path fires",
+        );
+
+        // --- `value` field assertions (sanitize→truncate order) ---
+
+        // Primary assertion: spec order (sanitize→truncate) yields length 50.
+        // Wrong order (truncate→sanitize) yields length 49.
+        assert_eq!(
+            val.chars().count(),
+            50,
+            "RG-080 (MED-001 / LOW-001): `value` field in ocsf.enum_label_unrecognized warn \
+             must have 50 codepoints (sanitize_for_log applied BEFORE 50-codepoint \
+             truncation, BC-2.16.002 catalog row 91 spec order); \
+             got len={} value={:?}",
+            val.chars().count(),
+            val
+        );
+
+        // Secondary assertion: ESC control char must be stripped regardless of order.
+        assert!(
+            !val.contains('\x1b'),
+            "RG-080: `value` field must have ESC (\\x1b) stripped by sanitize_for_log; \
+             got: {:?}",
+            val
+        );
+
+        // Tertiary: exact content check — spec order yields "[31m" + 46 As.
+        let expected_val = "[31m".to_string() + &"A".repeat(46);
+        assert_eq!(
+            val, expected_val,
+            "RG-080 (MED-001): spec order (sanitize→truncate) must yield {:?}; \
+             wrong order (truncate→sanitize) yields {:?}",
+            expected_val, val
+        );
+
+        // --- `sensor_type` field assertions (OBS-001: same spec order required) ---
+
+        let st = captured_sensor_type.lock().unwrap().clone().expect(
+            "RG-080 (OBS-001): ocsf.enum_label_unrecognized warn must include `sensor_type` \
+             field (BC-2.16.002 catalog row 91); field absent from captured warn event",
+        );
+
+        // Primary: spec order (sanitize→truncate) yields length 50.
+        assert_eq!(
+            st.chars().count(),
+            50,
+            "RG-080 (OBS-001): `sensor_type` field must have 50 codepoints \
+             (sanitize_for_log applied BEFORE 50-codepoint truncation, \
+             BC-2.16.002 catalog row 91 spec order); \
+             got len={} sensor_type={:?}",
+            st.chars().count(),
+            st
+        );
+
+        // Secondary: ESC control char must be stripped.
+        assert!(
+            !st.contains('\x1b'),
+            "RG-080 (OBS-001): `sensor_type` field must have ESC (\\x1b) stripped by \
+             sanitize_for_log; got: {:?}",
+            st
+        );
+
+        // Tertiary: exact content check — spec order yields "[31m" + 46 Bs.
+        let expected_st = "[31m".to_string() + &"B".repeat(46);
+        assert_eq!(
+            st, expected_st,
+            "RG-080 (OBS-001): spec order (sanitize→truncate) for sensor_type must yield {:?}; \
+             got {:?}",
+            expected_st, st
+        );
     }
 }

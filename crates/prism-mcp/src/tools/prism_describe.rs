@@ -79,7 +79,23 @@ pub struct TableDescriptor {
     /// Uses the real table name. Count-recent fallback always provided; severity-filter
     /// variant included when a `severity` column is present; aggregate variant when an
     /// aggregatable column is present (BC-2.10.012 §Auto-generated example queries).
+    ///
+    /// BC-2.10.012: this field contains ONLY parseable PQL — no `--` comment lines.
+    /// The OCSF casing note (previously embedded as a `-- ...` comment) moved to
+    /// `example_note` (F-MED-002, LOCAL adversary pass-15).
     pub example_query: String,
+    /// Optional contextual note accompanying the example query (BC-2.10.012).
+    ///
+    /// `Some(...)` for severity-vocabulary tables: explains that OCSF normalises
+    /// severity to Title-case and that IEQ is the correct case-insensitive operator.
+    /// `None` for all other tables (column-free, count-recent, aggregate shapes).
+    ///
+    /// F-MED-002 (LOCAL adversary pass-15): the OCSF casing note was previously
+    /// embedded as a `-- ...` comment in `example_query`.  PrismQL does not support
+    /// `--` comment syntax, so the note was moved here and `example_query` now carries
+    /// only the bare parseable PQL.
+    #[serde(default)]
+    pub example_note: Option<String>,
 }
 
 /// Describes a single column within a `TableDescriptor`.
@@ -147,7 +163,7 @@ pub async fn handle_prism_describe(
             event_type = "schema_enumeration.rejected",
             "prism_describe: invalid client_id format (E-MCP-001)"
         );
-        // BC-2.10.012 v1.1 §Audit: emit audit BEFORE returning error (fail-open DI-004).
+        // BC-2.10.012 §Audit: emit audit BEFORE returning error (fail-open DI-004).
         // Even on validation failure, the audit trail must record the attempt with outcome="error".
         if let Some(aw) = audit_writer {
             if let Err(e) = aw
@@ -172,7 +188,7 @@ pub async fn handle_prism_describe(
     }
 
     // BC-2.10.012 §Audit (SAP-1): emit started AFTER validation, so rejected calls
-    // emit only schema_enumeration.rejected, not .started (BC-2.16.002 v1.85 catalog).
+    // emit only schema_enumeration.rejected, not .started (BC-2.16.002 catalog).
     tracing::info!(
         client_id = %org_slug,
         event_type = "schema_enumeration.started",
@@ -214,7 +230,7 @@ pub async fn handle_prism_describe(
     let org_registry: Option<std::sync::Arc<prism_core::OrgRegistry>> =
         query_engine.and_then(|qe| qe.org_registry());
 
-    // BC-2.10.012 v1.7 §pql_hints AC-CAT2: resolve infusion_registry for Category-2 hint.
+    // BC-2.10.012 §pql_hints AC-CAT2: resolve infusion_registry for Category-2 hint.
     // `query_engine.infusion_registry()` returns `Option<Arc<InfusionRegistry>>`.
     // Pass `as_deref()` to get `Option<&InfusionRegistry>` for the pure hint builder.
     let infusion_registry: Option<std::sync::Arc<prism_spec_engine::InfusionRegistry>> =
@@ -328,7 +344,10 @@ fn build_tables_for_client(
                         // AI agents build valid `FROM crowdstrike_alerts | ...` queries, NOT
                         // bare `FROM alerts | ...` (which silently routes to E-SENSOR-030).
                         let prefixed_name = format!("{}_{}", sensor_id.as_ref(), table.table_name);
-                        let example_query = build_example_query(&prefixed_name, &columns);
+                        // BC-2.10.012 F-MED-002: use build_example_with_note to populate
+                        // both example_query (pure PQL) and example_note (OCSF casing hint).
+                        let (example_query, example_note) =
+                            build_example_with_note(&prefixed_name, &columns);
                         // BC-2.10.012 sensor_type fix: derive from the sensor identity
                         // (sensor_id from the resolved spec), NOT from client_id.
                         TableDescriptor {
@@ -337,6 +356,7 @@ fn build_tables_for_client(
                             description: table.ocsf_class.clone(),
                             columns,
                             example_query,
+                            example_note,
                         }
                     })
                 })
@@ -380,7 +400,9 @@ fn build_tables_for_client(
             // BC-2.10.012 AUDIT-001: table name must be sensor-prefixed so that AI agents
             // build valid `FROM crowdstrike_alerts | ...` queries (not bare `FROM alerts`).
             let prefixed_name = format!("{}_{}", sensor_spec.sensor_id, table.table_name);
-            let example_query = build_example_query(&prefixed_name, &columns);
+            // BC-2.10.012 F-MED-002: use build_example_with_note to populate both
+            // example_query (pure PQL) and example_note (OCSF casing hint).
+            let (example_query, example_note) = build_example_with_note(&prefixed_name, &columns);
 
             TableDescriptor {
                 name: prefixed_name,
@@ -391,6 +413,7 @@ fn build_tables_for_client(
                 description: table.ocsf_class.clone(),
                 columns,
                 example_query,
+                example_note,
             }
         })
         .collect()
@@ -410,7 +433,7 @@ fn build_tables_for_client(
 /// When `org_registry` is None (single-tenant / config_manager-only path), uses the
 /// registered-but-empty hint by default (no registry available to distinguish).
 ///
-/// # Category-2 enrichment-discovery hint (BC-2.10.012 v1.7 §pql_hints, AC-CAT2)
+/// # Category-2 enrichment-discovery hint (BC-2.10.012 §pql_hints, AC-CAT2)
 ///
 /// When `tables` is non-empty, a third hint is appended:
 ///
@@ -470,7 +493,7 @@ fn build_pql_hints(
         "Consult prismql://reference for full PQL grammar and operator reference.".to_string(),
     ];
 
-    // Category-2: enrichment-discovery hint (BC-2.10.012 v1.7 §pql_hints AC-CAT2).
+    // Category-2: enrichment-discovery hint (BC-2.10.012 §pql_hints AC-CAT2).
     // Only emitted when N ≥ 1 tables (suppressed for zero-table case above).
     let cat2_hint = build_enrichment_hint(infusion_registry);
     hints.push(cat2_hint);
@@ -478,7 +501,7 @@ fn build_pql_hints(
     hints
 }
 
-/// Build the Category-2 enrichment-discovery hint (BC-2.10.012 v1.7 §pql_hints AC-CAT2).
+/// Build the Category-2 enrichment-discovery hint (BC-2.10.012 §pql_hints AC-CAT2).
 ///
 /// - Non-empty registry: sort UDFs alphabetically by name; build comma-joined list of
 ///   `"name(input_field)"` entries; use first sorted entry as the example call.
@@ -489,7 +512,7 @@ fn build_pql_hints(
 ///   client — enrichment is not available."`
 ///
 /// SAP-1 note: this is pure string assembly — NO `event_type` tracing emission is added
-/// (PO-confirmed: BC-2.10.012 v1.7 / AC-CAT2 does not require a new catalog row).
+/// (PO-confirmed: BC-2.10.012 / AC-CAT2 does not require a new catalog row).
 fn build_enrichment_hint(
     infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
 ) -> String {
@@ -525,90 +548,6 @@ fn build_enrichment_hint(
     )
 }
 
-/// Per-sensor severity vocabulary — maps sensor name prefix to the DTU-emitted
-/// severity literal casing.
-///
-/// # Demo sensor coverage (all 4 sensors)
-///
-/// Only sensors whose exact DTU-emitted severity casing is registered here will have
-/// a severity-filter variant in their example query.  Sensors absent from this list
-/// fall through to the count-recent or column-free query branch.
-///
-/// ## Sensors registered in this vocabulary
-///
-/// - `crowdstrike`: Title-case — `"High"`, `"Critical"`
-///   Source: `crates/prism-dtu-crowdstrike/src/generator.rs`
-///   `make_detection_with_ioc()` severity_id mapping: 1→"Low", 2→"Medium", 3→"High", _→"Critical"
-///   Example query emits `WHERE severity IN ('High', 'Critical') LIMIT 50`.
-///
-/// - `armis`: UPPER-case — `"HIGH"`, `"CRITICAL"`
-///   Source: `crates/prism-dtu-armis/src/generator.rs` `build_alert()` severity param
-///   assigned as `"HIGH"`, `"CRITICAL"`, `"MEDIUM"`, `"LOW"`
-///   Example query emits `WHERE severity IN ('HIGH', 'CRITICAL') LIMIT 50`.
-///
-/// - `cyberint`: lowercase — `"high"`, `"critical"`
-///   Source: `crates/prism-dtu-cyberint/src/generator.rs`
-///   `let severities = ["low", "medium", "high", "critical"];` (F-PHL2-MED-001 fix)
-///   Example query emits `WHERE severity IN ('high', 'critical') LIMIT 50`.
-///
-/// ## Sensors intentionally omitted
-///
-/// - `claroty`: NO severity column of any kind in its normalized schema
-///   (`has_severity = false`).  The claroty TOML spec declares no `severity` and
-///   no `severity_id` column.  (The Claroty xDome API does emit a `severity_id`
-///   integer field on the wire, but it was intentionally omitted from the declared
-///   column set — see the Gap-CL-005 comment in claroty.sensor.toml for history.)
-///   The `has_severity` check in `build_example_query` tests for a column named
-///   `"severity"` (String), which claroty never declares, so claroty tables never
-///   reach the severity-filter branch at all.  No vocabulary entry is needed or
-///   appropriate.
-///
-/// ## Rule: adding a new sensor
-///
-/// Before adding an entry to this vocabulary, verify the EXACT casing of the
-/// severity string values emitted by the corresponding DTU clone
-/// (`crates/prism-dtu-<sensor>/src/generator.rs`).  Wrong casing causes the
-/// severity filter to silently return 0 rows against live or DTU data.
-///
-/// F-L2-CRIT-001 fix (S-DEMO-FIDELITY-REMEDIATION-001).
-/// F-PGL2-LOW-001 doc expansion (S-DEMO-FIDELITY-REMEDIATION-001).
-/// F-PHL2-MED-001 cyberint entry (S-DEMO-FIDELITY-REMEDIATION-001 Pass-H).
-/// F-PIL2-LOW-001 doc consolidation (S-DEMO-FIDELITY-REMEDIATION-001 Pass-I).
-const SENSOR_SEVERITY_VOCABULARY: &[(&str, &str, &str)] = &[
-    // (sensor_prefix, high_literal, critical_literal)
-    ("crowdstrike", "High", "Critical"),
-    ("armis", "HIGH", "CRITICAL"),
-    // cyberint emits lowercase severity: "low", "medium", "high", "critical"
-    // Source: crates/prism-dtu-cyberint/src/generator.rs severities array.
-    // F-PHL2-MED-001 (S-DEMO-FIDELITY-REMEDIATION-001 Pass-H).
-    ("cyberint", "high", "critical"),
-];
-
-/// Derive the severity literals for a table based on its sensor prefix.
-///
-/// Returns `Some((high_literal, critical_literal))` for sensors registered in
-/// `SENSOR_SEVERITY_VOCABULARY`, `None` for all others.
-///
-/// For the four demo sensors:
-/// - `crowdstrike_*` → `Some(("High", "Critical"))` (Title-case)
-/// - `armis_*` → `Some(("HIGH", "CRITICAL"))` (UPPER-case)
-/// - `cyberint_*` → `Some(("high", "critical"))` (lowercase; F-PHL2-MED-001 fix)
-/// - `claroty_*` → `None` (no string `severity` column; never reaches this
-///   function from `build_example_query` because `has_severity` is false
-///   for claroty tables)
-///
-/// F-L2-CRIT-001: unknown sensor → `None` → severity filter is suppressed, falling
-/// back to count-recent or column-free — never a silent zero-row filter.
-fn severity_literals_for_table(table_name: &str) -> Option<(&'static str, &'static str)> {
-    // Table names are sensor-prefixed: "crowdstrike_detections", "armis_alerts", etc.
-    for (prefix, high, critical) in SENSOR_SEVERITY_VOCABULARY {
-        if table_name.starts_with(prefix) {
-            return Some((high, critical));
-        }
-    }
-    None
-}
-
 /// Build an auto-generated example PQL query for a table.
 ///
 /// Produces an executable example query that references ONLY columns that actually exist
@@ -626,29 +565,62 @@ fn severity_literals_for_table(table_name: &str) -> Option<(&'static str, &'stat
 /// - Derive the time column from the table's actual `Datetime`-typed columns (first one).
 /// - If no datetime column exists, emit a column-free form: `SELECT * FROM <t> LIMIT 25`.
 ///
-/// # F-L2-CRIT-001 fix (S-DEMO-FIDELITY-REMEDIATION-001)
+/// # F-L2-CRIT-001 fix (S-DEMO-FIDELITY-REMEDIATION-001) + OBS-2 (LOCAL pass-18)
 ///
 /// The previous implementation hardcoded lowercase `'high'`/`'critical'` in the
 /// severity filter variant. CrowdStrike DTU emits Title-case (`High`/`Critical`) and
 /// Armis DTU emits UPPER-case (`HIGH`/`CRITICAL`). Lowercase literals match no rows.
 ///
-/// The fix:
-/// - Derive severity literals from `SENSOR_SEVERITY_VOCABULARY` keyed on sensor prefix.
-/// - Only emit a severity filter when the sensor prefix is in the registered vocabulary.
-/// - For unknown sensor prefixes with a severity column, fall back to count-recent or
-///   column-free rather than emitting literals that silently return 0 rows.
+/// Initial fix: derive severity literals from a sensor prefix allowlist
+/// (`SENSOR_SEVERITY_VOCABULARY`).  OBS-2 (LOCAL adversary pass-18) identified that
+/// this allowlist gate would silently omit IEQ examples for future sensors not yet
+/// registered.  Since BC-2.02.013 PRIMARY normalization canonicalizes ALL sensors'
+/// severity to OCSF Title-case before DataFusion materialization, IEQ is correct for
+/// every table that exposes a `severity` String column — no per-sensor allowlist needed.
 ///
-/// # Variant selection (priority: aggregate > severity > count-recent/simple)
+/// Final fix: column-presence gate — if the column list contains a String `severity`
+/// column, the IEQ example fires unconditionally.
 ///
-/// | Condition                                          | Query emitted |
-/// |----------------------------------------------------|---------------|
-/// | Integer/Float column present                       | GROUP BY aggregate |
-/// | severity column present + known sensor vocabulary  | WHERE severity IN (...) LIMIT 50 |
-/// | Datetime column found (no above)                   | COUNT(*) WHERE <dt_col> > NOW() - INTERVAL '1h' |
-/// | No datetime column (no above)                      | SELECT * FROM <t> LIMIT 25 |
+/// # Variant selection (priority: severity-IEQ > aggregate > count-recent/simple)
+///
+/// | Condition                                              | Query emitted |
+/// |--------------------------------------------------------|---------------|
+/// | severity String column present                         | IEQ pipe form (AC-025 / ADR-047 §D.4) |
+/// | Integer/Float column present (no severity column)      | GROUP BY aggregate |
+/// | Datetime column found (no above)                       | COUNT(*) WHERE <dt_col> > NOW() - INTERVAL '1h' |
+/// | No datetime column (no above)                          | SELECT * FROM <t> LIMIT 25 |
+///
+/// All tables with a severity String column emit the IEQ form regardless of sensor
+/// prefix or column position (AC-025 / ADR-047 §D.4 / OBS-2 LOCAL pass-18).
+/// Vendor-cased IN literals were removed because post-normalization they silently return
+/// 0 rows (BC-2.02.013 PRIMARY normalization canonicalizes to Title-case).
 ///
 /// BC-2.10.012 / AUDIT-001 / AUDIT-004; S-DEMO-FIDELITY-REMEDIATION-001 CRIT-1 + F-L2-CRIT-001.
+///
+/// BC-2.10.012 note: returns pure PQL with NO `--` comment lines. The OCSF
+/// casing note (previously embedded as a leading `-- ...` comment) moved to
+/// `build_example_with_note` (F-MED-002, LOCAL adversary pass-15). Use
+/// `build_example_with_note` when both the query and the note are needed.
 pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> String {
+    build_example_with_note(table_name, columns).0
+}
+
+/// Build an auto-generated example PQL query AND an optional contextual note.
+///
+/// Returns `(example_query, example_note)` where:
+/// - `example_query` is always a parseable PQL string with NO `--` comment lines.
+/// - `example_note` is `Some(...)` for any table with a `severity` String column
+///   (contains the OCSF Title-case casing hint) and `None` for all other tables.
+///
+/// This is the authoritative implementation; `build_example_query` is a thin wrapper
+/// that discards the note.
+///
+/// BC-2.10.012 §example_query + §example_note; F-MED-002 LOCAL adversary pass-15.
+/// OBS-2 (LOCAL pass-18): gate changed from sensor-prefix allowlist to column-presence.
+pub fn build_example_with_note(
+    table_name: &str,
+    columns: &[ColumnDescriptor],
+) -> (String, Option<String>) {
     use prism_core::column::ColumnType;
 
     // CRIT-1 fix: derive time column from actual Datetime-typed columns.
@@ -669,24 +641,49 @@ pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> St
         format!("SELECT * FROM {table_name} LIMIT 25")
     };
 
-    // Severity filter variant when a severity column is present AND the sensor has a
-    // registered vocabulary.
+    // Severity IEQ variant fires for ANY table whose column list includes a String
+    // `severity` column (column-presence gate, OBS-2 LOCAL pass-18).
     //
-    // F-L2-CRIT-001 fix: only emit severity literals when we know the correct casing
-    // for this sensor's DTU-emitted vocabulary. Unknown sensor prefix → skip severity
-    // variant and keep count-recent/column-free to avoid silent zero-row queries.
-    let has_severity = columns.iter().any(|c| c.name == "severity");
+    // F-L2-CRIT-001 / F-P6-HIGH-001/002 / AC-025 (S-PRISMQL-CASE-INSENSITIVE-001):
+    // ALL tables with a severity column emit the IEQ form regardless of column position
+    // or sensor prefix. Vendor-cased IN literals (`IN ('HIGH', …)`, `IN ('high', …)`)
+    // silently return 0 rows against post-normalization data because BC-2.02.013 PRIMARY
+    // normalization (build_column_array) canonicalizes severity to OCSF Title-case before
+    // DataFusion materialization (AC-025 / ADR-047 §D.4).
+    //
+    // OBS-2 (LOCAL pass-18): removed the SENSOR_SEVERITY_VOCABULARY allowlist gate.
+    // BC-2.02.013 normalizes ALL sensors' severity to OCSF Title-case, so IEQ is correct
+    // for every table with a severity column — no per-sensor registration needed.
+    //
+    // F-MED-1 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-7 BC-2.11.024):
+    // Severity-IEQ is the HIGHEST priority variant. The aggregate variant runs only when
+    // severity-IEQ does not fire (no severity column). This prevents the aggregate branch
+    // from silently suppressing the IEQ teaching example when a numeric column is present.
+    // AC-025 / ADR-047 §D.4 mandate the IEQ example for all severity-column tables.
+    // F-P20-LOW-001 (LOCAL pass-20): gate checks BOTH name AND type.  A column named
+    // `severity` with ColumnType::Integer (ordinal severity) must NOT receive the IEQ
+    // example — applying `IEQ 'high'` to an Integer column fails E-QUERY-002 type check.
+    // Only ColumnType::String severity columns get the IEQ teaching example.
+    let has_severity = columns
+        .iter()
+        .any(|c| c.name == "severity" && matches!(c.col_type, ColumnType::String));
     if has_severity {
-        if let Some((high, critical)) = severity_literals_for_table(table_name) {
-            query = format!(
-                "SELECT * FROM {table_name} WHERE severity IN ('{high}', '{critical}') LIMIT 50"
-            );
-        }
-        // If no vocabulary → fall through, keeping count-recent or column-free query.
+        // AC-025 / ADR-047 §D.4: IEQ operator for ANY table with a severity String column.
+        // F-MED-002 (LOCAL pass-15): the OCSF casing note moves out of `example_query`
+        // into `example_note` so that `example_query` remains pure parseable PQL.
+        // PrismQL does NOT support `--` comment syntax; embedding the note as a comment
+        // caused PrismQlParser to reject the query (BC-2.10.012).
+        query = format!("FROM {table_name} | where severity IEQ 'high' | limit 50");
+        let note = "OCSF severity is stored as Title-case ('High'). \
+                    Use IEQ/IIN to match regardless of the case you type, \
+                    or = 'High' for the exact canonical form."
+            .to_string();
+        return (query, Some(note));
     }
 
-    // Aggregate variant when an aggregatable column is present (overrides severity if both).
+    // Aggregate variant when an aggregatable column is present and severity-IEQ did not fire.
     // BC-2.10.012 canonical: SELECT <field>, COUNT(*) FROM <t> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10
+    // Only runs when: no severity column.
     let agg_col = columns
         .iter()
         .find(|c| matches!(c.col_type, ColumnType::Integer | ColumnType::Float));
@@ -697,12 +694,12 @@ pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> St
         );
     }
 
-    query
+    (query, None)
 }
 
 #[cfg(test)]
 mod build_example_query_tests {
-    use super::{build_example_query, ColumnDescriptor};
+    use super::{build_example_query, build_example_with_note, ColumnDescriptor};
     use prism_core::column::ColumnType;
 
     fn col(name: &str, col_type: ColumnType) -> ColumnDescriptor {
@@ -782,14 +779,26 @@ mod build_example_query_tests {
     }
 
     /// CRIT-1 + F-L2-CRIT-001: table with `timestamp` datetime column and severity column
-    /// uses severity variant with correct per-sensor casing (regression guard).
+    /// uses the IEQ case-insensitive example with OCSF casing note.
     ///
-    /// `crowdstrike_detections` has `created_timestamp` (Datetime) and `severity` (String).
-    /// The severity variant takes priority over count-recent. The literals must be Title-case
-    /// (`'High'`, `'Critical'`) to match CrowdStrike DTU vocabulary.
+    /// `crowdstrike_detections` with severity as a secondary column (timestamp listed first)
+    /// must now emit the IEQ variant — AC-025 requires the IEQ example + OCSF casing note
+    /// for ANY table with a severity column, regardless of column ordering.
     ///
-    /// F-L2-CRIT-001 fix (TD-VSDD-059): the prior assertion `('high', 'critical')` was a
-    /// paper-confirmation of the bug. Corrected to assert `('High', 'Critical')`.
+    /// ## Current behaviour (HEAD 8e4ec972) — RED
+    ///
+    /// severity_is_primary = false (timestamp is first) → classic IN variant emitted:
+    /// `SELECT * FROM crowdstrike_detections WHERE severity IN ('High', 'Critical') LIMIT 50`
+    ///
+    /// The assertion `q.contains("IEQ")` FAILS.
+    ///
+    /// ## Green Gate
+    ///
+    /// PASSES once `build_example_query` always emits IEQ for any table with a severity
+    /// column (F-P6-HIGH-001: remove the severity_is_primary exception).
+    ///
+    /// F-P6-HIGH-001 (LOCAL pass-6): severity secondary tables must also get IEQ + casing note.
+    /// AC-025; ADR-047 §D.4.
     #[test]
     fn test_crit1_datetime_column_named_timestamp_still_works() {
         let columns = vec![
@@ -797,15 +806,27 @@ mod build_example_query_tests {
             col("severity", ColumnType::String),
         ];
 
-        let q = build_example_query("crowdstrike_detections", &columns);
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note to access example_note separately.
+        // example_query is now pure PQL; OCSF casing note is in example_note (BC-2.10.012).
+        let (q, note) = build_example_with_note("crowdstrike_detections", &columns);
 
-        // severity variant takes priority over count-recent.
-        // F-L2-CRIT-001: CrowdStrike DTU emits Title-case — 'High'/'Critical', NOT 'high'/'critical'.
-        assert_eq!(
-            q,
-            "SELECT * FROM crowdstrike_detections WHERE severity IN ('High', 'Critical') LIMIT 50",
-            "CRIT-1 + F-L2-CRIT-001: severity variant must be selected with Title-case CrowdStrike \
-             vocabulary. Got: {q}"
+        // F-P6-HIGH-001: AC-025 requires IEQ for ANY table with a severity column —
+        // secondary position is no longer an exception.
+        // FAILS NOW: current code emits IN variant for severity-secondary tables.
+        assert!(
+            q.contains("IEQ"),
+            "F-P6-HIGH-001 (LOCAL pass-6): build_example_query must emit IEQ operator \
+             for ANY table with a severity column (AC-025 / ADR-047 §D.4), including \
+             when severity is not the first column; \
+             current output still uses IN variant for secondary severity; got: {q:?}"
+        );
+        // F-MED-002 (LOCAL pass-15): casing note moved to example_note (BC-2.10.012).
+        let note_str = note.as_deref().unwrap_or("");
+        assert!(
+            note_str.contains("Title-case") || note_str.contains("title-case"),
+            "F-P6-HIGH-001 (LOCAL pass-6): example_note must include OCSF casing note \
+             (substring 'Title-case') per AC-025 / ADR-047 §D.4 / BC-2.10.012 F-MED-002; \
+             got note: {note_str:?}"
         );
     }
 
@@ -841,12 +862,25 @@ mod build_example_query_tests {
     // These tests FAIL RED against the old code and PASS GREEN after the fix.
     // Load-bearing (TD-VSDD-059): if the casing regresses, these tests catch it.
 
-    /// F-L2-CRIT-001: crowdstrike_detections severity variant must use Title-case literals.
+    /// F-L2-CRIT-001 + F-P6-HIGH-001: crowdstrike_detections severity variant must use
+    /// the IEQ case-insensitive operator with OCSF casing note (post-normalization contract).
     ///
-    /// DTU emits: "High", "Critical" — NOT lowercase "high"/"critical".
-    /// A query with lowercase literals returns 0 rows from DTU data silently.
+    /// After OCSF normalization (S-PRISMQL-CASE-INSENSITIVE-001), all severity values are
+    /// stored as Title-case 'High'/'Critical'. The describe example should use IEQ so that
+    /// analysts can match regardless of what casing they type.
     ///
-    /// Load-bearing: reverting to lowercase 'high'/'critical' makes this test fail.
+    /// ## Current behaviour (HEAD 8e4ec972) — RED
+    ///
+    /// severity_is_primary = false (created_timestamp is first) → IN variant emitted:
+    /// `SELECT * FROM crowdstrike_detections WHERE severity IN ('High', 'Critical') LIMIT 50`
+    ///
+    /// The assertion `q.contains("IEQ")` FAILS.
+    ///
+    /// The `!q.contains("'high'")` assertion would also FAIL post-fix (IEQ form includes
+    /// `severity IEQ 'high'`), which is the correct behaviour (IEQ is case-insensitive).
+    ///
+    /// F-P6-HIGH-001 (LOCAL pass-6): secondary-severity tables must also use IEQ.
+    /// AC-025; ADR-047 §D.4; BC-2.11.024.
     #[test]
     fn test_f_l2_crit001_crowdstrike_detections_severity_uses_title_case() {
         let columns = vec![
@@ -855,27 +889,40 @@ mod build_example_query_tests {
             col("status", ColumnType::String),
         ];
 
-        let q = build_example_query("crowdstrike_detections", &columns);
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note; OCSF note is now in example_note.
+        let (q, note) = build_example_with_note("crowdstrike_detections", &columns);
 
-        // Must use Title-case (DTU emits "High"/"Critical", NOT "high"/"critical").
+        // Post-normalization contract: all severity values stored as Title-case.
+        // Describe example must use IEQ so the analyst can match case-insensitively.
+        // FAILS NOW: current code emits IN variant for secondary-severity tables.
         assert!(
-            q.contains("'High'") && q.contains("'Critical'"),
-            "F-L2-CRIT-001: crowdstrike_detections severity IN must use Title-case \
-             'High'/'Critical' to match DTU vocabulary. Got: {q}"
+            q.contains("IEQ"),
+            "F-P6-HIGH-001 (LOCAL pass-6): crowdstrike_detections describe example must use \
+             IEQ operator per AC-025 / ADR-047 §D.4 (any severity table, any column position); \
+             got: {q:?}"
         );
+        // F-MED-002 (LOCAL pass-15): OCSF casing note moved to example_note (BC-2.10.012).
+        let note_str = note.as_deref().unwrap_or("");
         assert!(
-            !q.contains("'high'") && !q.contains("'critical'"),
-            "F-L2-CRIT-001: crowdstrike_detections must NOT use lowercase 'high'/'critical' \
-             (DTU emits Title-case). Got: {q}"
+            note_str.contains("Title-case") || note_str.contains("title-case"),
+            "F-P6-HIGH-001 (LOCAL pass-6): example_note must include OCSF casing note \
+             (substring 'Title-case') per AC-025 / BC-2.10.012 F-MED-002; \
+             got note: {note_str:?}"
         );
     }
 
-    /// F-L2-CRIT-001: armis_alerts severity variant must use UPPER-case literals.
+    /// F-L2-CRIT-001 + F-P6-HIGH-001 (updated): armis_alerts severity variant must use
+    /// the IEQ case-insensitive operator with OCSF casing note (post-normalization contract).
     ///
-    /// DTU emits: "HIGH", "CRITICAL" — NOT lowercase "high"/"critical".
-    /// A query with lowercase literals returns 0 rows from DTU data silently.
+    /// DTU emits UPPER-case "HIGH"/"CRITICAL" on the raw wire, but BC-2.02.013 PRIMARY
+    /// normalization (build_column_array) canonicalizes severity to OCSF Title-case before
+    /// DataFusion materialization.  A query with `IN ('HIGH', 'CRITICAL')` therefore
+    /// silently returns 0 rows against post-normalization data.
     ///
-    /// Load-bearing: reverting to lowercase 'high'/'critical' makes this test fail.
+    /// Updated (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-6 Security Fix Protocol):
+    /// The expected output changed from the old `IN ('HIGH', 'CRITICAL')` IN-literal form
+    /// to the IEQ pipe form per AC-025 / ADR-047 §D.4.  Load-bearing: reverting to the
+    /// old IN form makes this test fail.
     #[test]
     fn test_f_l2_crit001_armis_alerts_severity_uses_upper_case() {
         let columns = vec![
@@ -884,46 +931,68 @@ mod build_example_query_tests {
             col("status", ColumnType::String),
         ];
 
-        let q = build_example_query("armis_alerts", &columns);
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note; OCSF note is now in example_note.
+        let (q, note) = build_example_with_note("armis_alerts", &columns);
 
-        // Must use UPPER-case (DTU emits "HIGH"/"CRITICAL", NOT "high"/"critical").
+        // Post-normalization contract: use IEQ (case-insensitive), not IN with vendor casing.
         assert!(
-            q.contains("'HIGH'") && q.contains("'CRITICAL'"),
-            "F-L2-CRIT-001: armis_alerts severity IN must use UPPER-case \
-             'HIGH'/'CRITICAL' to match DTU vocabulary. Got: {q}"
+            q.contains("IEQ"),
+            "F-L2-CRIT-001 + F-P6-HIGH-001: armis_alerts severity describe example must use \
+             IEQ operator; post-normalization IN('HIGH','CRITICAL') returns 0 rows. Got: {q}"
         );
+        // F-MED-002 (LOCAL pass-15): OCSF casing note moved to example_note (BC-2.10.012).
+        let note_str = note.as_deref().unwrap_or("");
         assert!(
-            !q.contains("'high'") && !q.contains("'critical'"),
-            "F-L2-CRIT-001: armis_alerts must NOT use lowercase 'high'/'critical' \
-             (DTU emits UPPER-case). Got: {q}"
+            note_str.contains("Title-case") || note_str.contains("title-case"),
+            "F-L2-CRIT-001 + F-P6-HIGH-001: example_note must include OCSF casing note \
+             (substring 'Title-case') per AC-025 / ADR-047 §D.4 / BC-2.10.012 F-MED-002. \
+             Got note: {note_str}"
+        );
+        // Must NOT use IN with vendor-cased literals that silently 0-row post-normalization.
+        assert!(
+            !q.contains("IN ('HIGH'"),
+            "F-L2-CRIT-001 + F-P6-HIGH-001: armis_alerts must NOT use IN('HIGH',...); \
+             post-normalization UPPER-case IN silently returns 0 rows. Got: {q}"
         );
     }
 
-    /// F-L2-CRIT-001: unknown sensor falls back to count-recent or column-free, NOT a
-    /// severity filter with potentially wrong casing.
+    /// OBS-2 (LOCAL pass-18): unknown sensor with a severity String column now emits
+    /// the IEQ form — column-presence gate, not sensor-prefix allowlist.
     ///
-    /// If a table from an unknown sensor has a severity column but no registered
-    /// vocabulary, build_example_query must NOT emit a hardcoded severity literal
-    /// that could return 0 rows. It falls back to count-recent (if datetime present)
-    /// or column-free (if no datetime).
+    /// Before OBS-2 (F-L2-CRIT-001 approach): unknown sensors fell back to count-recent
+    /// because they were absent from the `SENSOR_SEVERITY_VOCABULARY` allowlist.
+    ///
+    /// After OBS-2: the allowlist gate is removed.  BC-2.02.013 normalizes ALL sensors'
+    /// severity to OCSF Title-case, so IEQ is universally correct for any table whose
+    /// column list includes a String `severity` column.
+    ///
+    /// Load-bearing (TD-VSDD-059): reverting the gate to an allowlist check makes this
+    /// test fail, catching the regression.
     #[test]
-    fn test_f_l2_crit001_unknown_sensor_with_severity_falls_back_to_count_recent() {
+    fn test_f_l2_crit001_unknown_sensor_with_severity_gets_ieq() {
         let columns = vec![
             col("created_at", ColumnType::Datetime),
             col("severity", ColumnType::String),
         ];
 
-        let q = build_example_query("unknown_sensor_events", &columns);
+        let (q, note) = build_example_with_note("unknown_sensor_events", &columns);
 
-        // Unknown sensor: no vocabulary → no severity filter. Must use count-recent.
+        // OBS-2: column-presence gate fires — IEQ form, not count-recent.
         assert!(
-            q.contains("COUNT(*)") && q.contains("created_at"),
-            "F-L2-CRIT-001: unknown sensor with severity column must fall back to \
-             count-recent (no severity vocabulary registered for it). Got: {q}"
+            q.contains("IEQ"),
+            "OBS-2 (LOCAL pass-18): unknown sensor with severity column must emit IEQ \
+             form (column-presence gate removes allowlist dependency). Got: {q}"
         );
+        let note_str = note.as_deref().unwrap_or("");
         assert!(
-            !q.contains("'high'") && !q.contains("'critical'"),
-            "F-L2-CRIT-001: unknown sensor must NOT emit lowercase severity literals. Got: {q}"
+            note_str.contains("Title-case") || note_str.contains("title-case"),
+            "OBS-2 (LOCAL pass-18): example_note must contain the OCSF casing hint \
+             for any severity-column table; got note: {note_str}"
+        );
+        // Confirm the result is pure parseable PQL (BC-2.10.012 pure-PQL invariant).
+        assert!(
+            !q.contains("--"),
+            "OBS-2 (LOCAL pass-18): IEQ form must be pure PQL without '--' comments. Got: {q}"
         );
     }
 
@@ -946,14 +1015,25 @@ mod build_example_query_tests {
     // Load-bearing (TD-VSDD-059): these tests fail before the vocabulary entry is added
     // and pass after.
 
-    /// F-PHL2-MED-001: cyberint_alerts severity variant must use lowercase literals.
+    /// F-PHL2-MED-001 + F-P6-HIGH-002: cyberint_alerts severity describe example must use
+    /// the IEQ case-insensitive operator with OCSF casing note (post-normalization contract).
     ///
-    /// DTU emits: "high", "critical" — lowercase (NOT Title-case or UPPER-case).
-    /// After adding cyberint to SENSOR_SEVERITY_VOCABULARY, severity branch must fire
-    /// when severity String column is present and emit lowercase 'high'/'critical'.
+    /// After OCSF normalization (S-PRISMQL-CASE-INSENSITIVE-001), cyberint's lowercase
+    /// 'high'/'critical' values are normalized to Title-case 'High'/'Critical'. An example
+    /// with `IN ('high', 'critical')` would return 0 rows against post-normalization data.
+    /// The describe example must use IEQ (case-insensitive) to remain correct post-normalization.
     ///
-    /// Load-bearing (TD-VSDD-059): before vocabulary entry, severity branch is suppressed
-    /// and count-recent fires instead → this assert on `q.contains("'high'")` fails.
+    /// ## Current behaviour (HEAD 8e4ec972) — RED
+    ///
+    /// severity_is_primary = false (created_at is first) → IN variant emitted:
+    /// `SELECT * FROM cyberint_alerts WHERE severity IN ('high', 'critical') LIMIT 50`
+    ///
+    /// The assertion `q.contains("IEQ")` FAILS.
+    /// The `q.contains("WHERE severity IN")` assertion also fails post-fix.
+    ///
+    /// F-P6-HIGH-002 (LOCAL pass-6): cyberint secondary-severity table must use IEQ +
+    /// OCSF casing note. `IN ('high', 'critical')` silently 0-rows post-normalization.
+    /// AC-025; ADR-047 §D.4; BC-2.11.024.
     #[test]
     fn test_f_phl2_med001_cyberint_alerts_severity_uses_lower_case() {
         let columns = vec![
@@ -962,50 +1042,83 @@ mod build_example_query_tests {
             col("title", ColumnType::String),
         ];
 
-        let q = build_example_query("cyberint_alerts", &columns);
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note; OCSF note is now in example_note.
+        let (q, note) = build_example_with_note("cyberint_alerts", &columns);
 
-        // Must use lowercase (DTU emits "high"/"critical", NOT Title-case or UPPER-case).
+        // Post-normalization contract: cyberint severity is normalized to Title-case.
+        // Describe example must use IEQ to be correct post-normalization.
+        // FAILS NOW: current code emits `IN ('high', 'critical')` which 0-rows post-norm.
         assert!(
-            q.contains("'high'") && q.contains("'critical'"),
-            "F-PHL2-MED-001: cyberint_alerts severity IN must use lowercase 'high'/'critical' \
-             to match DTU vocabulary. Got: {q}. \
-             Before fix: cyberint had no vocabulary entry → count-recent branch fired."
+            q.contains("IEQ"),
+            "F-P6-HIGH-002 (LOCAL pass-6): cyberint_alerts describe example must use \
+             IEQ operator per AC-025 / ADR-047 §D.4 (post-normalization, lowercase IN \
+             silently returns 0 rows); got: {q:?}"
         );
-        // Must NOT use Title-case or UPPER-case (wrong casing returns 0 rows against DTU).
+        // F-MED-002 (LOCAL pass-15): OCSF casing note moved to example_note (BC-2.10.012).
+        let note_str = note.as_deref().unwrap_or("");
         assert!(
-            !q.contains("'High'") && !q.contains("'CRITICAL'"),
-            "F-PHL2-MED-001: cyberint_alerts must NOT use Title-case or UPPER-case. Got: {q}"
+            note_str.contains("Title-case") || note_str.contains("title-case"),
+            "F-P6-HIGH-002 (LOCAL pass-6): example_note must include OCSF casing note \
+             (substring 'Title-case') per AC-025 / BC-2.10.012 F-MED-002; \
+             got note: {note_str:?}"
         );
-        // Severity branch fires (not count-recent which uses COUNT(*)).
+        // Severity branch must have fired (not count-recent).
+        // IEQ form does not use WHERE severity IN — check for severity reference instead.
         assert!(
-            q.contains("WHERE severity IN"),
-            "F-PHL2-MED-001: cyberint_alerts with severity column must use severity-filter \
-             branch, not count-recent. Got: {q}"
+            q.contains("severity"),
+            "F-PHL2-MED-001: cyberint_alerts describe example must reference the severity \
+             column; got: {q:?}"
         );
     }
 
-    /// F-PHL2-MED-001: cyberint_alerts with severity_id (Integer) must use aggregate
-    /// branch (Integer wins over severity-filter in priority ladder).
+    /// F-PHL2-MED-001 (updated for F-MED-1 LOCAL pass-7): cyberint_alerts with
+    /// severity_id (Integer) must use the IEQ severity branch, NOT aggregate.
     ///
-    /// The cyberint spec has severity_id as a u64 (integer) per DTU generator. When
-    /// the spec exposes severity_id as an Integer column, aggregate fires first.
+    /// cyberint is a severity-vocabulary sensor (prefix "cyberint" in
+    /// SENSOR_SEVERITY_VOCABULARY). When both a String `severity` column AND an
+    /// Integer `severity_id` column are present, the severity-IEQ branch fires
+    /// FIRST (highest priority per F-MED-1 fix) and the aggregate branch is skipped.
     ///
-    /// This test verifies the priority ladder is respected: aggregate > severity.
+    /// Before F-MED-1 (LOCAL pass-7): aggregate > severity-IEQ — Integer won.
+    /// After  F-MED-1 (LOCAL pass-7): severity-IEQ > aggregate for vocabulary tables.
+    ///
+    /// This test was updated to reflect the corrected priority per AC-025 / ADR-047 §D.4:
+    /// IEQ teaching example must NOT be suppressed by the presence of a numeric column.
+    ///
+    /// To verify aggregate STILL works for non-vocabulary tables with Integer columns,
+    /// see `test_obs001_roundtrip_aggregate_branch_parses` (armis_devices + risk_score).
     #[test]
     fn test_f_phl2_med001_cyberint_alerts_integer_col_triggers_aggregate_not_severity() {
         let columns = vec![
             col("created_at", ColumnType::Datetime),
             col("severity", ColumnType::String),
-            col("severity_id", ColumnType::Integer), // Integer → aggregate branch wins
+            col("severity_id", ColumnType::Integer),
         ];
 
-        let q = build_example_query("cyberint_alerts", &columns);
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note; OCSF note is now in example_note.
+        let (q, note) = build_example_with_note("cyberint_alerts", &columns);
 
-        // Integer column present → aggregate branch wins (highest priority).
+        // F-MED-1 (LOCAL pass-7): severity-vocabulary IEQ wins over aggregate.
+        // cyberint is in SENSOR_SEVERITY_VOCABULARY → IEQ fires first.
         assert!(
-            q.contains("GROUP BY") && q.contains("COUNT(*)"),
-            "F-PHL2-MED-001 priority: cyberint_alerts with Integer severity_id must use \
-             aggregate branch (Integer > severity-filter in priority ladder). Got: {q}"
+            q.contains("IEQ"),
+            "F-MED-1 (LOCAL pass-7): cyberint_alerts (severity vocabulary) with Integer \
+             severity_id must use the IEQ severity branch, not aggregate. \
+             Severity-IEQ has HIGHEST priority for vocabulary tables per AC-025 / ADR-047 §D.4. \
+             Got: {q}"
+        );
+        // F-MED-002 (LOCAL pass-15): OCSF casing note moved to example_note (BC-2.10.012).
+        let note_str = note.as_deref().unwrap_or("");
+        assert!(
+            note_str.contains("Title-case") || note_str.contains("title-case"),
+            "F-MED-1 (LOCAL pass-7): example_note must include OCSF casing note \
+             per BC-2.10.012 F-MED-002. Got note: {note_str}"
+        );
+        // Confirm aggregate did NOT win.
+        assert!(
+            !q.contains("GROUP BY"),
+            "F-MED-1 (LOCAL pass-7): aggregate must NOT override IEQ for vocabulary tables. \
+             Got: {q}"
         );
     }
 
@@ -1067,11 +1180,22 @@ mod build_example_query_tests {
         );
     }
 
-    /// F-P1L2-OBS-001: severity-filter branch (`SELECT * FROM <t> WHERE severity IN
-    /// ('<High>', '<Critical>') LIMIT 50`) parses through PrismQlParser.
+    /// F-P1L2-OBS-001: severity-filter branch (IEQ pipe form) parses through PrismQlParser.
     ///
-    /// Representative table: crowdstrike_detections (known vocabulary: 'High'/'Critical').
-    /// Severity takes priority over count-recent when vocabulary is known.
+    /// Representative table: crowdstrike_detections with severity as secondary column.
+    /// After F-P6-HIGH-001, even secondary-severity tables emit the IEQ pipe form:
+    /// `FROM <t> | where severity IEQ 'high' | limit 50`
+    ///
+    /// Parseability roundtrip intent: the query portion (after stripping comment lines)
+    /// must parse through PrismQlParser without error.
+    ///
+    /// ## Current behaviour (HEAD 8e4ec972) — RED
+    ///
+    /// severity_is_primary = false → IN variant emitted. The assertion `q.contains("IEQ")`
+    /// FAILS (current output has `WHERE severity IN`, not `IEQ`).
+    ///
+    /// F-P6-HIGH-001 (LOCAL pass-6): secondary severity → IEQ form (remove exception).
+    /// AC-025; ADR-047 §D.4; BC-2.11.024.
     #[test]
     fn test_obs001_roundtrip_severity_filter_branch_parses() {
         use prism_query::filter_parser::PrismQlParser;
@@ -1080,16 +1204,32 @@ mod build_example_query_tests {
             col("severity", ColumnType::String),
         ];
         let q = build_example_query("crowdstrike_detections", &columns);
-        // Verify the severity-filter branch was chosen.
+
+        // Post-fix: IEQ form must be chosen (no more IN for secondary severity).
+        // FAILS NOW: severity_is_primary = false → IN form emitted.
         assert!(
-            q.contains("WHERE severity IN"),
-            "OBS-001 setup: expected severity-filter branch for crowdstrike_detections; got: {q}"
+            q.contains("IEQ"),
+            "F-P6-HIGH-001 (LOCAL pass-6): crowdstrike_detections severity example must use \
+             IEQ operator (AC-025: any severity table, any column position); \
+             current output uses IN form for secondary severity; got: {q:?}"
         );
-        let result = PrismQlParser::parse(&q);
+
+        // Parseability roundtrip: strip leading comment line(s) before parsing.
+        // The IEQ form may include a `-- ...` comment line; strip it to get the parseable part.
+        let query_part: String = q
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("--"))
+            .collect::<Vec<_>>()
+            .join("\n")
+            .trim()
+            .to_string();
+
+        let result = PrismQlParser::parse(&query_part);
         assert!(
             result.is_ok(),
-            "F-P1L2-OBS-001: severity-filter branch output must parse successfully. \
-             Query: {q:?}. Error: {result:?}"
+            "F-P1L2-OBS-001: severity IEQ pipe-form output must parse successfully \
+             (keep parseability roundtrip intent intact). \
+             Query part (comment stripped): {query_part:?}. Error: {result:?}"
         );
     }
 
@@ -1142,6 +1282,927 @@ mod build_example_query_tests {
             result.is_ok(),
             "F-P1L2-OBS-001: column-free fallback output must parse successfully. \
              Query: {q:?}. Error: {result:?}"
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // F-HIGH-001 (LOCAL pass-5) / AC-025 — IEQ example + OCSF casing note
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-HIGH-001 / AC-025 / RG-027: `build_example_query` for a sensor table with
+    /// a `severity` (String) column must produce output that contains BOTH:
+    ///   (a) at least one example using the `IEQ` case-insensitive operator, AND
+    ///   (b) an OCSF casing note indicating that severity values are Title-case.
+    ///
+    /// ## Current behaviour (HEAD b2e3892c) — RED
+    ///
+    /// `build_example_query("crowdstrike_detections", &[col("severity", String), ...])`
+    /// returns:
+    /// ```text
+    /// "SELECT * FROM crowdstrike_detections WHERE severity IN ('High', 'Critical') LIMIT 50"
+    /// ```
+    ///
+    /// - No `"IEQ"` substring → first `assert!(q.contains("IEQ"), ...)` panics.
+    /// - No `"Title-case"` or `"title-case"` substring → second assertion would also panic.
+    ///
+    /// ## Green Gate
+    ///
+    /// PASSES once `build_example_query` (or its callers) emits a severity IEQ example
+    /// AND includes the OCSF casing note per AC-025 / ADR-047 §D.4:
+    /// "OCSF severity is stored as Title-case ('High'). Use IEQ/IIN to match regardless
+    /// of the case you type, or = 'High' for the exact canonical form."
+    ///
+    /// ## Traces
+    ///
+    /// BC-2.11.024 §AC-025; ADR-047 §D.4; S-PRISMQL-CASE-INSENSITIVE-001 RG-027;
+    /// LOCAL adversary pass-5 finding F-HIGH-001.
+    #[test]
+    fn test_BC_2_11_024_describe_output_includes_ieq_example_and_ocsf_casing_note() {
+        let columns = vec![
+            col("severity", ColumnType::String),
+            col("timestamp", ColumnType::Datetime),
+        ];
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note; OCSF note is now in example_note.
+        let (q, note) = build_example_with_note("crowdstrike_detections", &columns);
+        assert!(
+            q.contains("IEQ"),
+            "AC-025 (F-HIGH-001): build_example_query for a severity-column table must include \
+             at least one IEQ operator example per ADR-047 \u{00A7}D.4; current output uses \
+             IN not IEQ; got: {q:?}"
+        );
+        // F-MED-002 (LOCAL pass-15): OCSF casing note moved to example_note (BC-2.10.012).
+        let note_str = note.as_deref().unwrap_or("");
+        assert!(
+            note_str.contains("Title-case") || note_str.contains("title-case"),
+            "AC-025 (F-HIGH-001): example_note must include the OCSF casing note \
+             (substring 'Title-case') per AC-025 / ADR-047 \u{00A7}D.4 / BC-2.10.012 F-MED-002: \
+             'OCSF severity is stored as Title-case'; got note: {note_str:?}"
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // F-P6-HIGH-001/002 (LOCAL pass-6) — secondary-severity IEQ coverage
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-P6-HIGH-001/002 / BC-2.11.024 §AC-025: `build_example_query` for tables where
+    /// severity is NOT the first column (secondary position) must still emit the IEQ
+    /// example + OCSF casing note per AC-025 ("any sensor table with a severity column").
+    ///
+    /// ## Tables tested
+    ///
+    /// - `armis_alerts` with `[alert_id String, severity String]` — severity is second.
+    ///   Pre-fix output: `WHERE severity IN ('HIGH', 'CRITICAL') LIMIT 50`
+    ///   Post-normalization: 'HIGH' → 'High'; IN('HIGH') returns 0 rows.
+    ///
+    /// - `cyberint_alerts` with `[created_at Datetime, severity String, title String]` —
+    ///   severity is second.
+    ///   Pre-fix output: `WHERE severity IN ('high', 'critical') LIMIT 50`
+    ///   Post-normalization: 'high' → 'High'; IN('high') returns 0 rows.
+    ///
+    /// ## Current behaviour (HEAD 8e4ec972) — RED
+    ///
+    /// `severity_is_primary = false` (another column is listed first) → IN variant emitted
+    /// for both tables. The assertion `q.contains("IEQ")` FAILS for both.
+    ///
+    /// ## Green Gate
+    ///
+    /// PASSES once `build_example_query` always emits IEQ for any table with a severity
+    /// column, removing the `severity_is_primary` guard that gated IEQ behind first-position
+    /// semantics (F-P6-HIGH-001/002: remove the secondary-severity exception).
+    ///
+    /// Traces to: BC-2.11.024 §AC-025; ADR-047 §D.4; F-P6-HIGH-001 (armis);
+    /// F-P6-HIGH-002 (cyberint); LOCAL adversary pass-6.
+    #[test]
+    fn test_BC_2_11_024_describe_ieq_example_for_secondary_severity_tables() {
+        // ── armis_alerts: severity is secondary (alert_id is first) ───────────────
+        {
+            let columns = vec![
+                col("alert_id", ColumnType::String),
+                col("severity", ColumnType::String),
+                col("status", ColumnType::String),
+            ];
+            // F-MED-002 (LOCAL pass-15): use build_example_with_note; note is now in example_note.
+            let (q, note) = build_example_with_note("armis_alerts", &columns);
+
+            // FAILS NOW: severity_is_primary = false → `IN ('HIGH', 'CRITICAL')` emitted.
+            assert!(
+                q.contains("IEQ"),
+                "F-P6-HIGH-001 (LOCAL pass-6): armis_alerts with severity as secondary column \
+                 must emit IEQ example per AC-025 / ADR-047 §D.4; \
+                 post-normalization IN('HIGH','CRITICAL') returns 0 rows; \
+                 got: {q:?}"
+            );
+            // F-MED-002 (LOCAL pass-15): OCSF note moved to example_note (BC-2.10.012).
+            let note_str = note.as_deref().unwrap_or("");
+            assert!(
+                note_str.contains("Title-case") || note_str.contains("title-case"),
+                "F-P6-HIGH-001 (LOCAL pass-6): example_note must include OCSF casing note \
+                 (substring 'Title-case') per AC-025 / BC-2.10.012 F-MED-002; \
+                 got note: {note_str:?}"
+            );
+        }
+
+        // ── cyberint_alerts: severity is secondary (created_at is first) ──────────
+        {
+            let columns = vec![
+                col("created_at", ColumnType::Datetime),
+                col("severity", ColumnType::String),
+                col("title", ColumnType::String),
+            ];
+            // F-MED-002 (LOCAL pass-15): use build_example_with_note; note is now in example_note.
+            let (q, note) = build_example_with_note("cyberint_alerts", &columns);
+
+            // FAILS NOW: severity_is_primary = false → `IN ('high', 'critical')` emitted.
+            assert!(
+                q.contains("IEQ"),
+                "F-P6-HIGH-002 (LOCAL pass-6): cyberint_alerts with severity as secondary column \
+                 must emit IEQ example per AC-025 / ADR-047 §D.4; \
+                 post-normalization IN('high','critical') returns 0 rows; \
+                 got: {q:?}"
+            );
+            // F-MED-002 (LOCAL pass-15): OCSF note moved to example_note (BC-2.10.012).
+            let note_str = note.as_deref().unwrap_or("");
+            assert!(
+                note_str.contains("Title-case") || note_str.contains("title-case"),
+                "F-P6-HIGH-002 (LOCAL pass-6): example_note must include OCSF casing note \
+                 (substring 'Title-case') per AC-025 / BC-2.10.012 F-MED-002; \
+                 got note: {note_str:?}"
+            );
+        }
+
+        // ── cyberint_incidents: severity is secondary ─────────────────────────────
+        {
+            let columns = vec![
+                col("created_at", ColumnType::Datetime),
+                col("severity", ColumnType::String),
+                col("title", ColumnType::String),
+            ];
+            let q = build_example_query("cyberint_incidents", &columns);
+
+            // cyberint_incidents also uses the cyberint vocabulary prefix.
+            // FAILS NOW: secondary severity → IN form.
+            assert!(
+                q.contains("IEQ"),
+                "F-P6-HIGH-002 (LOCAL pass-6): cyberint_incidents with severity as secondary column \
+                 must emit IEQ example per AC-025 / ADR-047 §D.4; got: {q:?}"
+            );
+        }
+    }
+
+    /// F-P6-HIGH-001/002 / BC-2.11.024 §AC-025: no `build_example_query` output for any
+    /// registered sensor+table combination may contain vendor-cased severity IN literals
+    /// (`IN ('HIGH'`, `IN ('high'`, `'CRITICAL'`, `'critical'`) that silently return 0 rows
+    /// against post-normalization OCSF data.
+    ///
+    /// After OCSF normalization, ALL sensors' severity values are stored as Title-case
+    /// ('High', 'Critical'). Vendor-specific UPPER-case ('HIGH'/'CRITICAL' — armis) and
+    /// lowercase ('high'/'critical' — cyberint) IN filters produce 0 rows against
+    /// normalized data.
+    ///
+    /// ## What is checked
+    ///
+    /// For each sensor+table combination that has a severity column and registered vocabulary,
+    /// invoke `build_example_query` with severity as a secondary column (not first) and verify
+    /// the output does NOT contain any of:
+    ///   - `IN ('HIGH'`     (armis UPPER-case IN)
+    ///   - `IN ('high'`     (cyberint lowercase IN)
+    ///   - `'CRITICAL'`     (armis UPPER-case literal anywhere)
+    ///   - `'critical'`     (cyberint lowercase literal anywhere)
+    ///
+    /// ## Current behaviour (HEAD 8e4ec972) — RED
+    ///
+    /// armis_alerts secondary severity → `WHERE severity IN ('HIGH', 'CRITICAL') LIMIT 50`
+    /// cyberint_alerts secondary severity → `WHERE severity IN ('high', 'critical') LIMIT 50`
+    ///
+    /// Both contain forbidden patterns. The assertions FAIL.
+    ///
+    /// ## Green Gate
+    ///
+    /// PASSES once secondary-severity tables emit IEQ (no IN with vendor-cased literals).
+    ///
+    /// Traces to: BC-2.11.024 §AC-025; F-P6-HIGH-001 (armis); F-P6-HIGH-002 (cyberint);
+    /// LOCAL adversary pass-6.
+    #[test]
+    fn test_BC_2_11_024_describe_no_stale_vendor_casing_examples() {
+        // Helper: secondary-severity column set (another column listed before severity).
+        let with_secondary_severity = |datetime_col: &str, extra: &str| {
+            vec![
+                col(datetime_col, ColumnType::Datetime),
+                col("severity", ColumnType::String),
+                col(extra, ColumnType::String),
+            ]
+        };
+
+        // ── armis_alerts — UPPER-case vocabulary (HIGH/CRITICAL) ──────────────────
+        {
+            let q = build_example_query(
+                "armis_alerts",
+                &[
+                    col("alert_id", ColumnType::String),
+                    col("severity", ColumnType::String),
+                ],
+            );
+            // FAILS NOW: `IN ('HIGH', 'CRITICAL')` is the current output.
+            assert!(
+                !q.contains("IN ('HIGH'"),
+                "F-P6-HIGH-001: armis_alerts example must NOT contain `IN ('HIGH'` — \
+                 post-normalization UPPER-case IN returns 0 rows; got: {q:?}"
+            );
+            assert!(
+                !q.contains("'CRITICAL'"),
+                "F-P6-HIGH-001: armis_alerts example must NOT contain `'CRITICAL'` literal — \
+                 post-normalization UPPER-case literal returns 0 rows; got: {q:?}"
+            );
+        }
+
+        // ── cyberint_alerts — lowercase vocabulary (high/critical) ────────────────
+        {
+            let cols = with_secondary_severity("created_at", "title");
+            let q = build_example_query("cyberint_alerts", &cols);
+            // FAILS NOW: `IN ('high', 'critical')` is the current output.
+            assert!(
+                !q.contains("IN ('high'"),
+                "F-P6-HIGH-002: cyberint_alerts example must NOT contain `IN ('high'` — \
+                 post-normalization lowercase IN returns 0 rows; got: {q:?}"
+            );
+            assert!(
+                !q.contains("'critical'"),
+                "F-P6-HIGH-002: cyberint_alerts example must NOT contain `'critical'` literal — \
+                 post-normalization lowercase literal returns 0 rows; got: {q:?}"
+            );
+        }
+
+        // ── cyberint_incidents — lowercase vocabulary (same prefix) ──────────────
+        {
+            let cols = with_secondary_severity("created_at", "title");
+            let q = build_example_query("cyberint_incidents", &cols);
+            assert!(
+                !q.contains("IN ('high'"),
+                "F-P6-HIGH-002: cyberint_incidents example must NOT contain `IN ('high'`; \
+                 got: {q:?}"
+            );
+            assert!(
+                !q.contains("'critical'"),
+                "F-P6-HIGH-002: cyberint_incidents example must NOT contain `'critical'`; \
+                 got: {q:?}"
+            );
+        }
+
+        // ── crowdstrike (Title-case) — should already be free of stale patterns ───
+        {
+            let cols = with_secondary_severity("created_timestamp", "status");
+            let q = build_example_query("crowdstrike_detections", &cols);
+            // crowdstrike uses 'High'/'Critical' (Title-case) — NOT in the forbidden set.
+            // These should already pass; here as a sanity check.
+            assert!(
+                !q.contains("IN ('HIGH'"),
+                "crowdstrike_detections must not emit `IN ('HIGH'`; got: {q:?}"
+            );
+            assert!(
+                !q.contains("IN ('high'"),
+                "crowdstrike_detections must not emit `IN ('high'`; got: {q:?}"
+            );
+            assert!(
+                !q.contains("'critical'"),
+                "crowdstrike_detections must not emit lowercase `'critical'`; got: {q:?}"
+            );
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // F-MED-1 (LOCAL pass-7) — severity-vocabulary IEQ priority over aggregate
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-MED-1 (LOCAL pass-7): `build_example_query` for a severity-vocabulary table that
+    /// ALSO has an Integer column must still emit the IEQ example + OCSF casing note.
+    ///
+    /// The aggregate-variant override (fires when ANY Integer/Float column exists)
+    /// previously overwrote the IEQ severity example for severity-vocabulary tables.
+    /// This is a latent AC-025 violation: analysts whose tables happen to have a numeric
+    /// column (e.g., `priority`, `source_id`, `alert_count`) lose the IEQ teaching example
+    /// that shows post-normalization casing and case-insensitive matching.
+    ///
+    /// ## Red Gate (HEAD 976708de)
+    ///
+    /// `build_example_query("crowdstrike_detections", &[severity String, priority Integer])`
+    /// currently returns the aggregate variant:
+    /// `SELECT priority, COUNT(*) FROM crowdstrike_detections GROUP BY priority ORDER BY COUNT(*) DESC LIMIT 10`
+    ///
+    /// The assertion `q.contains("IEQ")` FAILS.
+    ///
+    /// ## Green Gate
+    ///
+    /// PASSES once `build_example_query` gives severity-IEQ HIGHEST priority for
+    /// severity-vocabulary tables — aggregate runs only when severity doesn't fire.
+    ///
+    /// ## Traces
+    ///
+    /// BC-2.11.024 §AC-025; ADR-047 §D.4; S-PRISMQL-CASE-INSENSITIVE-001 LOCAL-pass-7 F-MED-1.
+    #[test]
+    fn test_f_med1_severity_vocabulary_table_ieq_not_suppressed_by_integer_column() {
+        // crowdstrike_detections is in the severity vocabulary (prefix "crowdstrike").
+        // The Integer column `priority` would trigger aggregate in the OLD priority order
+        // (aggregate > severity-IEQ). After the fix, IEQ wins for vocabulary tables.
+        let columns = vec![
+            col("severity", ColumnType::String),
+            col("priority", ColumnType::Integer),
+        ];
+        // F-MED-002 (LOCAL pass-15): use build_example_with_note; OCSF note is now in example_note.
+        let (q, note) = build_example_with_note("crowdstrike_detections", &columns);
+
+        // F-MED-1 RED Gate: currently FAILS because aggregate overrides IEQ.
+        assert!(
+            q.contains("IEQ"),
+            "F-MED-1 (LOCAL pass-7): build_example_query for a severity-vocabulary table \
+             (crowdstrike_detections) with BOTH a String severity column AND an Integer column \
+             must emit the IEQ example + OCSF casing note (AC-025 / ADR-047 §D.4). \
+             Aggregate must NOT suppress IEQ for severity-vocabulary tables. \
+             Got: {q:?}"
+        );
+        // F-MED-002 (LOCAL pass-15): OCSF casing note moved to example_note (BC-2.10.012).
+        let note_str = note.as_deref().unwrap_or("");
+        assert!(
+            note_str.contains("Title-case") || note_str.contains("title-case"),
+            "F-MED-1 (LOCAL pass-7): example_note must include OCSF casing note \
+             (substring 'Title-case') per AC-025 / BC-2.10.012 F-MED-002. \
+             Got note: {note_str:?}"
+        );
+        // Confirm aggregate did NOT win (it should not, because severity vocabulary fires first).
+        assert!(
+            !q.contains("GROUP BY"),
+            "F-MED-1 (LOCAL pass-7): aggregate branch must NOT override IEQ for severity-vocabulary \
+             tables; GROUP BY must not appear in the output. Got: {q:?}"
+        );
+    }
+
+    // ── F-OBS-2 (LOCAL-pass-11): comprehensive parse-lock sweep ──────────────
+    //
+    // Every `build_example_query` output across ALL table shapes constructed in this
+    // test module must parse Ok via `PrismQlParser::parse` (after stripping comment
+    // lines). This locks the grammar against silent breakage of any example path.
+    //
+    // GREEN now: all shapes already produce valid PrismQL. A future grammar change
+    // that makes any branch non-parseable will surface here immediately.
+    //
+    // Traces: F-OBS-2 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL-pass-11 fix-burst).
+
+    /// F-OBS-2 parse-lock sweep: every `build_example_query` output across representative
+    /// table shapes (covering all 4 priority-ladder branches for multiple sensor prefixes)
+    /// must parse Ok via `PrismQlParser::parse`.
+    ///
+    /// Table shapes covered:
+    /// - No columns (empty_table) → column-free SELECT * LIMIT 25
+    /// - String-only, no Datetime (claroty_devices) → column-free SELECT * LIMIT 25
+    /// - Datetime only, no severity, no Integer (cyberint_alerts) → count-recent
+    /// - Datetime + String, unknown sensor (unknown_sensor_events) → count-recent
+    /// - Severity vocabulary + String severity (crowdstrike_detections) → IEQ pipe form
+    /// - Severity vocabulary + String severity + no Datetime (armis_alerts) → IEQ pipe form
+    /// - Integer column, no severity vocabulary (unknown_sensor_with_count) → aggregate
+    #[test]
+    fn test_obs2_all_build_example_query_outputs_parse_ok() {
+        use prism_query::filter_parser::PrismQlParser;
+
+        let shapes: Vec<(&str, Vec<ColumnDescriptor>)> = vec![
+            // Column-free: no columns at all
+            ("empty_table", vec![]),
+            // Column-free: String/Boolean only, no Datetime
+            (
+                "claroty_devices",
+                vec![
+                    col("uid", ColumnType::String),
+                    col("device_category", ColumnType::String),
+                    col("retired", ColumnType::Boolean),
+                ],
+            ),
+            // Count-recent: Datetime only, no severity, no Integer, non-vocabulary sensor
+            (
+                "cyberint_alerts_no_severity",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("title", ColumnType::String),
+                ],
+            ),
+            // Count-recent: Datetime + severity but unknown sensor (no vocabulary)
+            (
+                "unknown_sensor_events",
+                vec![
+                    col("created_at", ColumnType::Datetime),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // IEQ severity pipe form: crowdstrike with severity String (vocabulary registered)
+            (
+                "crowdstrike_detections",
+                vec![
+                    col("created_timestamp", ColumnType::Datetime),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // IEQ severity pipe form: armis_alerts with severity String, no Datetime
+            (
+                "armis_alerts",
+                vec![
+                    col("alert_id", ColumnType::String),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // Aggregate: Integer column present, unknown sensor (no severity vocabulary)
+            (
+                "unknown_sensor_with_count",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("severity_id", ColumnType::Integer),
+                ],
+            ),
+        ];
+
+        for (table, columns) in &shapes {
+            let q = build_example_query(table, columns);
+            // F-MED-002 (LOCAL-pass-15): parse the RAW output — NO comment stripping.
+            // The `--` stripping that was here previously masked a defect: the IEQ
+            // severity form was embedding a `-- OCSF ...` comment line that PrismQL
+            // does not support.  This test now asserts raw parseability so that
+            // `build_example_query` must emit pure PQL without any `--` comments.
+            //
+            // RED NOW (HEAD 065a1b60): severity shapes emit a leading `-- OCSF ...`
+            // comment line; PrismQlParser rejects it → this test FAILS for
+            // `crowdstrike_detections` and `armis_alerts` shapes.
+            //
+            // GREEN GATE: PASSES once `build_example_query` moves the comment text
+            // into `example_note: Option<String>` (BC-2.10.012) and
+            // `example_query` contains only the pipe-form PQL.
+            //
+            // Traces: F-MED-002 (LOCAL adversary pass-15); TD-VSDD-059-adjacent
+            // (stripping filter was masking the defect).
+            let result = PrismQlParser::parse(&q);
+            assert!(
+                result.is_ok(),
+                "F-MED-002 (LOCAL-pass-15): build_example_query output for table '{table}' \
+                 must parse successfully via PrismQlParser WITHOUT comment stripping; \
+                 currently FAILS for severity-vocabulary shapes because `build_example_query` \
+                 embeds a `-- OCSF ...` comment line that PrismQL does not support \
+                 (raw output={q:?}). \
+                 Error: {result:?}"
+            );
+        }
+    }
+
+    // ── F-MED-002 (LOCAL-pass-15): example_query pure PQL + example_note field ──
+    //
+    // BC-2.10.012 requires:
+    //   (a) `example_query` MUST NOT contain `--` comment syntax.
+    //   (b) `TableDescriptor` gains `example_note: Option<String>`.
+    //       - Severity-vocabulary tables → `Some("OCSF severity is stored as Title-case
+    //         ('High'). Use IEQ/IIN to match regardless of the case you type,
+    //         or = 'High' for the exact canonical form.")`  [BC-2.10.012 canonical]
+    //       - All other tables → `None`
+    //
+    // Current behaviour at HEAD (post-pass-17 fix):
+    //   `build_example_query` for severity tables returns the bare pipe form:
+    //   `"FROM crowdstrike_detections | where severity IEQ 'high' | limit 50"`
+    //   `TableDescriptor::example_note` carries the OCSF note for severity tables.
+    //   `example_query` contains no `--` comment syntax.
+
+    /// F-MED-002 (1/3): `build_example_query` output must contain NO `--` comment lines
+    /// across ALL table shapes (column-free, count-recent, severity-IEQ, aggregate).
+    ///
+    /// ## Behaviour (post-pass-17 — GREEN)
+    ///
+    /// Severity-vocabulary tables (e.g., `crowdstrike_detections`, `armis_alerts`)
+    /// now produce the bare pipe form with no comment lines:
+    /// ```text
+    /// FROM crowdstrike_detections | where severity IEQ 'high' | limit 50
+    /// ```
+    /// `q.contains("--")` is false → assertion passes for all shapes.
+    ///
+    /// ## Traces
+    ///
+    /// BC-2.10.012 §example_query no-comment requirement;
+    /// LOCAL adversary pass-15 finding F-MED-002.
+    #[test]
+    fn test_BC_2_10_012_example_query_contains_no_comment_lines() {
+        // Representative shapes covering all four priority-ladder branches.
+        let shapes: Vec<(&str, Vec<ColumnDescriptor>)> = vec![
+            // Column-free branch
+            (
+                "claroty_devices",
+                vec![
+                    col("uid", ColumnType::String),
+                    col("device_category", ColumnType::String),
+                    col("retired", ColumnType::Boolean),
+                ],
+            ),
+            // Count-recent branch (Datetime, no severity vocabulary)
+            (
+                "cyberint_alerts_no_severity",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("title", ColumnType::String),
+                ],
+            ),
+            // Severity-IEQ branch (crowdstrike — vocabulary registered)
+            (
+                "crowdstrike_detections",
+                vec![
+                    col("created_timestamp", ColumnType::Datetime),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // Severity-IEQ branch (armis — vocabulary registered, no Datetime)
+            (
+                "armis_alerts",
+                vec![
+                    col("alert_id", ColumnType::String),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // Aggregate branch (Integer column, no severity vocabulary)
+            (
+                "unknown_sensor_with_count",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("severity_id", ColumnType::Integer),
+                ],
+            ),
+        ];
+
+        for (table, columns) in &shapes {
+            let q = build_example_query(table, columns);
+            // BC-2.10.012: example_query must be pure PQL — no `--` comment syntax.
+            // Currently FAILS for crowdstrike_detections and armis_alerts shapes:
+            // build_example_query embeds `-- OCSF severity is Title-case ...` as the first line.
+            assert!(
+                !q.contains("--"),
+                "F-MED-002: build_example_query output for table '{table}' must NOT contain \
+                 `--` comment syntax; `example_query` must be pure parseable PQL per \
+                 BC-2.10.012 (the OCSF casing note moves to `example_note: Option<String>`); \
+                 got: {q:?}"
+            );
+        }
+    }
+
+    /// F-MED-002 (2/3): RAW `build_example_query` output must parse via `PrismQlParser`
+    /// without any comment-stripping preprocessing, for ALL table shapes.
+    ///
+    /// This is a stricter sibling of the updated `test_obs2_all_build_example_query_outputs_parse_ok`.
+    /// That test covers a broad set of shapes; this test is the canonical F-MED-002 trace.
+    ///
+    /// ## Behaviour (post-pass-17 — GREEN)
+    ///
+    /// Severity shapes are now bare pipe-form PQL with no `--` comment lines.
+    /// `PrismQlParser::parse` succeeds for all shapes. The OCSF casing note is
+    /// in `example_note`, not embedded in `example_query`.
+    ///
+    /// ## Traces
+    ///
+    /// BC-2.10.012 §Raw parseability; LOCAL adversary pass-15 F-MED-002.
+    #[test]
+    fn test_BC_2_10_012_example_query_parses_without_stripping() {
+        use prism_query::filter_parser::PrismQlParser;
+
+        // Same representative shapes as test_BC_2_10_012_example_query_contains_no_comment_lines.
+        let shapes: Vec<(&str, Vec<ColumnDescriptor>)> = vec![
+            (
+                "claroty_devices",
+                vec![
+                    col("uid", ColumnType::String),
+                    col("device_category", ColumnType::String),
+                    col("retired", ColumnType::Boolean),
+                ],
+            ),
+            (
+                "cyberint_alerts_no_severity",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("title", ColumnType::String),
+                ],
+            ),
+            (
+                "crowdstrike_detections",
+                vec![
+                    col("created_timestamp", ColumnType::Datetime),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            (
+                "armis_alerts",
+                vec![
+                    col("alert_id", ColumnType::String),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            (
+                "unknown_sensor_with_count",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("severity_id", ColumnType::Integer),
+                ],
+            ),
+        ];
+
+        for (table, columns) in &shapes {
+            let q = build_example_query(table, columns);
+            // No stripping — raw output must parse directly.
+            // Currently FAILS for crowdstrike_detections and armis_alerts:
+            // the `-- OCSF ...` comment line causes PrismQlParser to return Err.
+            let result = PrismQlParser::parse(&q);
+            assert!(
+                result.is_ok(),
+                "F-MED-002: build_example_query output for table '{table}' must parse via \
+                 PrismQlParser WITHOUT comment stripping per BC-2.10.012; \
+                 currently FAILS because `build_example_query` embeds a `-- OCSF ...` \
+                 comment line that PrismQL does not support \
+                 (raw output={q:?}). Error: {result:?}"
+            );
+        }
+    }
+
+    // PASS-15: activate with example_note field
+    //
+    // F-MED-002 (3/3): `example_note` field on `TableDescriptor`.
+    //
+    // BC-2.10.012 adds `example_note: Option<String>` to `TableDescriptor`.
+    // `build_example_query` (or a companion `build_example_with_note(table_name, columns)`)
+    // must return:
+    //   - `Some("OCSF severity is stored as Title-case ('High'). Use IEQ/IIN to match
+    //      regardless of the case you type, or = 'High' for the exact canonical form.")`
+    //     for severity-vocabulary tables  [BC-2.10.012 canonical, pass-17 F-MED-1]
+    //   - `None` for all other tables (column-free, count-recent, aggregate shapes)
+    //
+    // PASS-15: activated — build_example_with_note + example_note field added (F-MED-002).
+    // PASS-17: canonical note text updated to ADR-047-authoritative fuller form (F-MED-1).
+    #[test]
+    fn test_BC_2_10_012_example_note_some_for_severity_tables_none_otherwise() {
+        use prism_query::filter_parser::PrismQlParser;
+
+        const OCSF_NOTE: &str = "OCSF severity is stored as Title-case ('High'). \
+            Use IEQ/IIN to match regardless of the case you type, \
+            or = 'High' for the exact canonical form.";
+
+        // Severity-vocabulary table: note must be Some(OCSF_NOTE).
+        let sev_cols = vec![
+            col("created_timestamp", ColumnType::Datetime),
+            col("severity", ColumnType::String),
+        ];
+        let (sev_q, sev_note) = build_example_with_note("crowdstrike_detections", &sev_cols);
+        assert_eq!(
+            sev_note,
+            Some(OCSF_NOTE.to_string()),
+            "F-MED-002: severity-vocabulary table must produce example_note = Some(OCSF_NOTE); \
+             got: {sev_note:?}"
+        );
+        // example_query must still be parseable after the split.
+        let result = PrismQlParser::parse(&sev_q);
+        assert!(
+            result.is_ok(),
+            "F-MED-002: example_query for crowdstrike_detections must parse after \
+             note is moved to example_note; got: {sev_q:?}, error: {result:?}"
+        );
+        // example_query must NOT contain '--'.
+        assert!(
+            !sev_q.contains("--"),
+            "F-MED-002: example_query must be comment-free; got: {sev_q:?}"
+        );
+
+        // Non-severity table: note must be None.
+        let non_sev_cols = vec![
+            col("uid", ColumnType::String),
+            col("device_category", ColumnType::String),
+            col("retired", ColumnType::Boolean),
+        ];
+        let (_non_q, non_note) = build_example_with_note("claroty_devices", &non_sev_cols);
+        assert_eq!(
+            non_note, None,
+            "F-MED-002: non-severity table must produce example_note = None; \
+             got: {non_note:?}"
+        );
+    }
+
+    // ─── RG-062 (pass-17 F-LOW-2) ─────────────────────────────────────────────
+    //
+    // Story S-PRISMQL-CASE-INSENSITIVE-001 RG-062 requires a dedicated test that
+    // verifies ALL `build_example_with_note` query outputs (the `.0` tuple element) parse
+    // RAW via PrismQlParser with NO comment-stripping preprocessing.
+    //
+    // `build_example_query` delegates to `build_example_with_note(...).0`, so the two
+    // functions produce identical query strings.  This test is the canonical RG-062
+    // anchor that explicitly calls `build_example_with_note` to confirm the split function
+    // satisfies BC-2.10.012 pure-PQL invariant for all table shapes.
+
+    /// RG-062 (S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-17 F-LOW-2):
+    /// ALL `build_example_with_note` query outputs (tuple `.0`) parse RAW via
+    /// `PrismQlParser` with NO stripping — confirming pure-PQL invariant
+    /// for the split `build_example_with_note` function.
+    ///
+    /// This is the RG-062 canonical anchor.  The companion test
+    /// `test_BC_2_10_012_example_query_parses_without_stripping` covers
+    /// `build_example_query` (the thin wrapper); this test covers
+    /// `build_example_with_note` directly.
+    ///
+    /// ## Traces
+    ///
+    /// BC-2.10.012 §Raw parseability; S-PRISMQL-CASE-INSENSITIVE-001 RG-062;
+    /// LOCAL adversary pass-17 F-LOW-2.
+    #[test]
+    fn test_BC_2_10_012_build_example_with_note_query_parses_without_stripping() {
+        use prism_query::filter_parser::PrismQlParser;
+
+        // Full representative set covering all four priority-ladder branches.
+        let shapes: Vec<(&str, Vec<ColumnDescriptor>)> = vec![
+            // Column-free branch
+            (
+                "claroty_devices",
+                vec![
+                    col("uid", ColumnType::String),
+                    col("device_category", ColumnType::String),
+                    col("retired", ColumnType::Boolean),
+                ],
+            ),
+            // Count-recent branch (Datetime, no severity vocabulary)
+            (
+                "cyberint_alerts_no_severity",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("title", ColumnType::String),
+                ],
+            ),
+            // Severity-IEQ branch (crowdstrike — vocabulary registered)
+            (
+                "crowdstrike_detections",
+                vec![
+                    col("created_timestamp", ColumnType::Datetime),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // Severity-IEQ branch (armis — vocabulary registered, no Datetime)
+            (
+                "armis_alerts",
+                vec![
+                    col("alert_id", ColumnType::String),
+                    col("severity", ColumnType::String),
+                ],
+            ),
+            // Aggregate branch (Integer column, no severity vocabulary)
+            (
+                "unknown_sensor_with_count",
+                vec![
+                    col("event_time", ColumnType::Datetime),
+                    col("severity_id", ColumnType::Integer),
+                ],
+            ),
+        ];
+
+        for (table, columns) in &shapes {
+            let (q, _note) = build_example_with_note(table, columns);
+            // Raw parse — no stripping. BC-2.10.012: example_query must be pure PQL.
+            let result = PrismQlParser::parse(&q);
+            assert!(
+                result.is_ok(),
+                "RG-062 F-LOW-2: build_example_with_note query for table '{table}' must parse \
+                 via PrismQlParser WITHOUT stripping (BC-2.10.012 pure-PQL invariant). \
+                 Got: {q:?}. Error: {result:?}"
+            );
+            // Also verify no '--' comment syntax leaks into the query part.
+            assert!(
+                !q.contains("--"),
+                "RG-062 F-LOW-2: build_example_with_note query for table '{table}' MUST NOT \
+                 contain '--' comment syntax (pure-PQL invariant). Got: {q:?}"
+            );
+        }
+    }
+
+    // ── OBS-2 (LOCAL pass-18): column-presence gate lock tests ───────────────
+
+    /// OBS-2 (LOCAL pass-18): a synthetic table under an UNKNOWN sensor prefix with a
+    /// severity String column must receive the IEQ example + OCSF casing note.
+    ///
+    /// This test locks AC-025's broadened rule: ANY sensor table with a `severity`
+    /// String column gets the IEQ example regardless of sensor prefix.  Before OBS-2 a
+    /// new sensor like "sentinel" would silently miss the IEQ example until its prefix
+    /// was manually added to SENSOR_SEVERITY_VOCABULARY.
+    ///
+    /// Load-bearing (TD-VSDD-059): reverting to an allowlist gate makes this test fail,
+    /// catching the regression before it reaches demo recording.
+    #[test]
+    fn test_obs2_sentinel_alerts_with_severity_gets_ieq_example() {
+        let columns = vec![
+            col("event_time", ColumnType::Datetime),
+            col("severity", ColumnType::String),
+            col("alert_name", ColumnType::String),
+        ];
+
+        let (q, note) = build_example_with_note("sentinel_alerts", &columns);
+
+        // Column-presence gate: IEQ form fires for any severity-column table.
+        assert!(
+            q.contains("IEQ"),
+            "OBS-2 (LOCAL pass-18): sentinel_alerts (unknown sensor prefix) with a \
+             severity String column must emit the IEQ form per AC-025 column-presence gate. \
+             Got: {q}"
+        );
+        let note_str = note.as_deref().unwrap_or("");
+        assert!(
+            note_str.contains("Title-case") || note_str.contains("title-case"),
+            "OBS-2 (LOCAL pass-18): example_note must contain the OCSF casing hint for \
+             sentinel_alerts severity column; got note: {note_str}"
+        );
+        // Pure-PQL invariant: no '--' comment lines in the query.
+        assert!(
+            !q.contains("--"),
+            "OBS-2 (LOCAL pass-18): IEQ form for sentinel_alerts must be pure PQL. Got: {q}"
+        );
+    }
+
+    /// F-P20-LOW-001 (LOCAL pass-20): a sensor whose `severity` column has type
+    /// `ColumnType::Integer` (ordinal severity, not a string label) must NOT receive
+    /// the IEQ severity example or OCSF casing note.
+    ///
+    /// ## Problem
+    ///
+    /// The `has_severity` gate (line ~663) previously checked column NAME only:
+    /// `columns.iter().any(|c| c.name == "severity")`.  A future sensor TOML that
+    /// declares `severity` as `ColumnType::Integer` (ordinal) would incorrectly fire
+    /// the IEQ branch and emit:
+    ///   `FROM <table> | where severity IEQ 'high' | limit 50`
+    /// — a type-mismatch query that would fail the `check_ci_column_types` pre-flight
+    /// with E-QUERY-002 (string literal compared to Integer column).
+    ///
+    /// ## Red Gate
+    ///
+    /// With the name-only gate, the Integer-severity table triggers the IEQ branch and
+    /// `note.is_some()` → assertion FAILS.
+    ///
+    /// ## Green Gate
+    ///
+    /// PASSES once the gate is tightened to:
+    /// `columns.iter().any(|c| c.name == "severity" && matches!(c.col_type, ColumnType::String))`
+    ///
+    /// Traces: S-PRISMQL-CASE-INSENSITIVE-001 F-P20-LOW-001; LOCAL adversary pass-20.
+    #[test]
+    fn test_f_p20_low001_severity_integer_type_does_not_get_ieq() {
+        // Sensor whose `severity` column is ordinal (Integer), NOT a String label.
+        let columns = vec![
+            col("event_time", ColumnType::Datetime),
+            col("severity", ColumnType::Integer),
+            col("alert_name", ColumnType::String),
+        ];
+
+        let (q, note) = build_example_with_note("future_sensor_ordinal_severity", &columns);
+
+        // Integer `severity` must NOT trigger the IEQ branch.
+        // F-P20-LOW-001 RED Gate: name-only gate fires even for Integer severity → note is Some.
+        assert!(
+            note.is_none(),
+            "F-P20-LOW-001: a column named 'severity' with ColumnType::Integer must NOT \
+             trigger the IEQ example — the gate must check both name AND type. \
+             An IEQ example against an Integer column would fail E-QUERY-002 type check. \
+             Got example_note: {note:?}"
+        );
+        // The query must NOT contain IEQ (an invalid operator for Integer columns).
+        assert!(
+            !q.contains("IEQ"),
+            "F-P20-LOW-001: IEQ operator must NOT appear in the example query for a \
+             severity Integer column (type mismatch); got: {q:?}"
+        );
+        // With a non-String severity column (Integer), the IEQ branch skips. The Integer
+        // column triggers the aggregate branch instead (name-only gate no longer fires).
+        // Verify the aggregate form is chosen (SELECT <col>, COUNT(*) ... GROUP BY ...).
+        assert!(
+            q.contains("GROUP BY") && q.contains("COUNT(*)"),
+            "F-P20-LOW-001: Integer-severity table must fall back to the aggregate branch \
+             (GROUP BY / COUNT(*)) since the IEQ branch requires String type; got: {q:?}"
+        );
+    }
+
+    /// OBS-2 (LOCAL pass-18) — claroty tables have NO severity column; no IEQ example
+    /// should be emitted (column-presence gate does not fire when there is no severity
+    /// column, regardless of how broadly the rule is stated).
+    ///
+    /// This confirms that the broadened gate (`has_severity` alone) is not wider than
+    /// intended: claroty_devices has only String and Boolean columns and must still fall
+    /// through to the column-free fallback.
+    #[test]
+    fn test_obs2_claroty_devices_no_severity_column_still_no_ieq_note() {
+        let columns = vec![
+            col("uid", ColumnType::String),
+            col("asset_id", ColumnType::String),
+            col("device_category", ColumnType::String),
+            col("retired", ColumnType::Boolean),
+        ];
+
+        let (q, note) = build_example_with_note("claroty_devices", &columns);
+
+        // No severity column → column-presence gate does not fire → no IEQ example.
+        assert!(
+            note.is_none(),
+            "OBS-2 (LOCAL pass-18): claroty_devices has no severity column, so \
+             example_note must be None; got: {note:?}"
+        );
+        // Without severity column, falls through to column-free fallback.
+        assert_eq!(
+            q, "SELECT * FROM claroty_devices LIMIT 25",
+            "OBS-2 (LOCAL pass-18): claroty_devices (no severity, no datetime) must \
+             use column-free fallback; got: {q}"
         );
     }
 }

@@ -18,9 +18,9 @@
 //! | `test_BC_2_11_018_ec11054_normalized_pql_present_on_partial_failure` | AC-005 | OBS-2: regression gate for partial-failure path (EC-11-054) |
 //!
 //! # BC references
-//! - BC-2.11.016 v1.0 — E-QUERY-038 Column-Not-Found Plan-Time Gate
-//! - BC-2.11.017 v1.0 — E-QUERY Pedagogical Enrichments
-//! - BC-2.11.018 v1.0 — normalized_pql Field on Successful Query Responses
+//! - BC-2.11.016 — E-QUERY-038 Column-Not-Found Plan-Time Gate
+//! - BC-2.11.017 — E-QUERY Pedagogical Enrichments
+//! - BC-2.11.018 — normalized_pql Field on Successful Query Responses
 
 #[cfg(test)]
 mod tests {
@@ -644,8 +644,9 @@ mod tests {
     ///
     /// BC-2.11.017 canonical test vector:
     ///   Query: `SELECT * FROM <table> WHERE <string_col> > 5`
-    ///   Expected: E-QUERY-002 with `valid_operators_for_type: ["=","!=","LIKE","IN","NOT IN"]`
+    ///   Expected: E-QUERY-002 with `valid_operators_for_type: ["=","!=","LIKE","IN","NOT IN","IEQ","IIN","INE"]`
     ///   (STRING-SPECIFIC set — must NOT contain "<", ">", "<=", ">=", "BETWEEN")
+    ///   BC-2.11.024: IEQ/IIN/INE added as valid string operators (F-P24-MED-001).
     ///
     /// LOAD-BEARING RED GATE test (TD-VSDD-059 paper-fix detection):
     ///
@@ -662,8 +663,9 @@ mod tests {
     ///      plan-time path (`PrismServer::query`) — NOT a synthetic QueryPlanFailed.
     ///   3. Asserts `is_error == Some(true)` — the engine MUST reject this query.
     ///   4. Asserts `valid_operators_for_type` is EXACTLY the String-specific set
-    ///      `["=","!=","LIKE","IN","NOT IN"]` as returned by
+    ///      `["=","!=","LIKE","IN","NOT IN","IEQ","IIN","INE"]` as returned by
     ///      `prism_query::engine::valid_operators_for_type(ColumnType::String)`.
+    ///      (BC-2.11.024: IEQ/IIN/INE added as valid string operators — F-P24-MED-001.)
     ///      The assertion FAILS if the array contains ">" or "<" or "BETWEEN" — i.e., the
     ///      generic superset. Only the type-specific subset is acceptable.
     ///   5. A second case (Boolean column + `>`) asserts the Boolean-specific set `["=","!="]`
@@ -745,7 +747,10 @@ mod tests {
             .expect("BC-2.11.017 AC-003 (String+>): sc['error'] must be present");
 
         // LOAD-BEARING ASSERTION: the operators array must be EXACTLY the String-specific set.
-        // valid_operators_for_type(ColumnType::String) returns ["=", "!=", "LIKE", "IN", "NOT IN"].
+        // valid_operators_for_type(ColumnType::String) returns
+        // ["=", "!=", "LIKE", "IN", "NOT IN", "IEQ", "IIN", "INE"].
+        // BC-2.11.024: IEQ/IIN/INE added by F-P24-MED-001 (S-PRISMQL-CASE-INSENSITIVE-001).
+        // The test derives expected from valid_operators_for_type so it tracks changes automatically.
         // This assertion FAILS if:
         //   - the field is absent (no type-mismatch detection)
         //   - the field is the generic superset (">", "<", "BETWEEN" present)
@@ -1547,7 +1552,7 @@ mod tests {
     ///
     /// # BC reference
     ///
-    /// BC-2.11.016 v1.1 §"E-QUERY-038 error payload shape": `available_columns` ALWAYS present,
+    /// BC-2.11.016 §"E-QUERY-038 error payload shape": `available_columns` ALWAYS present,
     /// `did_you_mean` present when Levenshtein distance ≤ 3.
     /// BC-2.11.016 §"Canonical Test Vectors" EC-11-039:
     ///   `sevrity` → `did_you_mean: "severity"`, `available_columns` includes "severity".
@@ -1691,7 +1696,7 @@ mod tests {
     ///
     /// # BC reference
     ///
-    /// BC-2.11.016 v1.1 §"Payload fields": `did_you_mean` "is omitted (not null, not empty
+    /// BC-2.11.016 §"Payload fields": `did_you_mean` "is omitted (not null, not empty
     /// string — absent)" when no column is within threshold.
     /// BC-2.11.016 §Canonical Test Vectors EC-11-040: `completely_bogus_field` →
     ///   `available_columns` includes real column names, `did_you_mean` absent.

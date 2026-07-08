@@ -99,6 +99,7 @@ mod kani_proofs {
             })),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::Integer(0))),
+            case_insensitive: false,
         };
         let mut pred = leaf;
         let mut i = 0u32;
@@ -207,6 +208,7 @@ mod dynamic_tests {
             })),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::Integer(0))),
+            case_insensitive: false,
         };
         let mut pred = leaf;
         for _ in 0..depth {

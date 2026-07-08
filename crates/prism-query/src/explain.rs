@@ -821,7 +821,19 @@ fn predicates_from_ast(ast: &Ast) -> Vec<crate::ast::Expr> {
         // Convert predicate tree to a flat list of Compare expressions
         // so classify_predicates can see each column-level constraint.
         match pred {
-            Predicate::Compare { lhs, op, rhs } => {
+            // BC-2.11.024 F-P21-OBS-001: IEQ/INE predicates (case_insensitive=true) must NOT
+            // produce a push-down-classifiable Expr. They are evaluated locally in DataFusion
+            // via `lower(field) OP lower(val)` and cannot be expressed as case-sensitive sensor
+            // filters. Emitting an Expr here would cause EXPLAIN to report these predicates as
+            // sensor-push-downable while `collect_equality_exprs` (pushdown.rs::collect_equality_exprs) correctly
+            // excludes them, creating a EXPLAIN-vs-runtime lie when ColumnSpec is wired.
+            Predicate::Compare {
+                case_insensitive: true,
+                ..
+            } => {
+                vec![]
+            }
+            Predicate::Compare { lhs, op, rhs, .. } => {
                 vec![Expr::Compare {
                     lhs: lhs.clone(),
                     op: op.clone(),
@@ -860,6 +872,15 @@ fn predicates_from_ast(ast: &Ast) -> Vec<crate::ast::Expr> {
             },
             Predicate::StringOp { field, .. } => vec![Expr::Field(field.clone())],
             Predicate::Regex { field, .. } => vec![Expr::Field(field.clone())],
+            // BC-2.11.024 F-P21-OBS-001: IIN predicates (case_insensitive=true) must NOT
+            // produce a push-down-classifiable Expr. Mirrors the IEQ guard above — IIN
+            // is evaluated locally in DataFusion via `lower(field) IN (lower(v), …)`.
+            Predicate::In {
+                case_insensitive: true,
+                ..
+            } => {
+                vec![]
+            }
             Predicate::In { field, .. } => {
                 vec![Expr::Field(field.clone())]
             }
@@ -1066,7 +1087,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     let mut raw_sources = extract_sources_from_ast(&ast);
 
     // Apply sensor scope filter from options.
-    // I-LOCAL-002 (BC-2.11.010 v1.4 Preconditions): the sensors filter applies only to
+    // I-LOCAL-002 (BC-2.11.010 Preconditions): the sensors filter applies only to
     // external sensor sources (SourceRefKind::External). Non-external sources (internal,
     // composite) are sensor-agnostic and are dropped when a sensor scope filter is active —
     // they cannot be validated against any specific sensor type. This is intentional.
@@ -1620,6 +1641,121 @@ mod walker_coverage_tests {
             sources.iter().any(|s| s.raw == "prism_audit"),
             "F-LP6-LOW-1: extract_sources_from_ast must discover `prism_audit` \
              in DML source_select (INSERT INTO ... SELECT FROM prism_audit); got sources: {sources:?}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-P21-OBS-001 — predicates_from_ast must not classify IEQ/IIN as push-downable
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod predicate_explain_classification_tests {
+    //! Tests for `predicates_from_ast` — verifies that case-insensitive predicates
+    //! (IEQ via `Predicate::Compare { case_insensitive: true }` and IIN via
+    //! `Predicate::In { case_insensitive: true }`) are NOT emitted as push-down-
+    //! classifiable `Expr` nodes.
+    //!
+    //! Rationale: BC-2.11.024 specifies IEQ/IIN/INE never push down to the sensor
+    //! API — they are evaluated locally in DataFusion via `lower(field) OP lower(val)`.
+    //! If `predicates_from_ast` emits an `Expr` for these predicates, a future story
+    //! wiring ColumnSpec into EXPLAIN classification would cause EXPLAIN to report
+    //! IEQ/IIN predicates as "pushed to sensor" while the actual runtime
+    //! (`collect_equality_exprs` in pushdown.rs::collect_equality_exprs) correctly excludes them.
+    //! Finding: F-P21-OBS-001 (pass-21 adversarial review, S-PRISMQL-CASE-INSENSITIVE-001).
+
+    use super::predicates_from_ast;
+    use crate::ast::{Ast, CompareOp, Expr, FieldPath, FilterExpr, Literal, Predicate, SourceRef};
+
+    /// BC-2.11.024 F-P21-OBS-001: IEQ (`Compare { case_insensitive: true }`) and IIN
+    /// (`In { case_insensitive: true }`) must produce NO push-down-classifiable `Expr`
+    /// from `predicates_from_ast`, while their case-sensitive twins still do.
+    ///
+    /// RED GATE: before the fix, the IEQ arm emits `Expr::Compare` (dropping the flag)
+    /// and the IIN arm emits `Expr::Field`, both of which would become push-down
+    /// candidates in `classify_predicates` when ColumnSpec is wired. After the fix,
+    /// both return an empty slice.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_BC_2_11_024_f_p21_obs001_explain_ieq_iin_not_classified_pushdownable() {
+        // --- IEQ: Compare { case_insensitive: true } must produce NO Expr ---
+        //
+        // Represents `severity IEQ 'high'` — DataFusion-local lower() evaluation;
+        // must NOT be reported as push-downable by EXPLAIN (BC-2.11.024, F-P21-OBS-001).
+        let ieq_ast = Ast::Filter(FilterExpr {
+            source: SourceRef::from_raw("crowdstrike.detections"),
+            predicate: Predicate::Compare {
+                lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+                op: CompareOp::Eq,
+                rhs: Box::new(Expr::Literal(Literal::String("high".to_string()))),
+                case_insensitive: true,
+            },
+        });
+        let ieq_exprs = predicates_from_ast(&ieq_ast);
+        assert!(
+            ieq_exprs.is_empty(),
+            "BC-2.11.024 F-P21-OBS-001: IEQ predicate (Compare {{ case_insensitive: true }}) must \
+             NOT emit any Expr for push-down classification — EXPLAIN would report sensor-side \
+             filtering while runtime (collect_equality_exprs pushdown.rs::collect_equality_exprs) correctly excludes IEQ. \
+             Got: {ieq_exprs:?}"
+        );
+
+        // Guard: case-sensitive Eq (case_insensitive=false) MUST still emit Expr::Compare.
+        let eq_ast = Ast::Filter(FilterExpr {
+            source: SourceRef::from_raw("crowdstrike.detections"),
+            predicate: Predicate::Compare {
+                lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+                op: CompareOp::Eq,
+                rhs: Box::new(Expr::Literal(Literal::String("low".to_string()))),
+                case_insensitive: false,
+            },
+        });
+        let eq_exprs = predicates_from_ast(&eq_ast);
+        assert!(
+            !eq_exprs.is_empty(),
+            "BC-2.11.024 F-P21-OBS-001 guard: case-sensitive Eq predicate (case_insensitive=false) \
+             MUST emit an Expr for push-down classification. Got: {eq_exprs:?}"
+        );
+
+        // --- IIN: In { case_insensitive: true } must produce NO Expr ---
+        //
+        // Represents `severity IIN ('high', 'critical')` — DataFusion-local lower() evaluation;
+        // must NOT be reported as push-downable by EXPLAIN (BC-2.11.024, F-P21-OBS-001).
+        let iin_ast = Ast::Filter(FilterExpr {
+            source: SourceRef::from_raw("crowdstrike.detections"),
+            predicate: Predicate::In {
+                field: FieldPath::new(["severity"]),
+                values: vec![
+                    Literal::String("high".to_string()),
+                    Literal::String("critical".to_string()),
+                ],
+                negated: false,
+                case_insensitive: true,
+            },
+        });
+        let iin_exprs = predicates_from_ast(&iin_ast);
+        assert!(
+            iin_exprs.is_empty(),
+            "BC-2.11.024 F-P21-OBS-001: IIN predicate (In {{ case_insensitive: true }}) must NOT \
+             emit any Expr for push-down classification — EXPLAIN would report sensor-side \
+             filtering while runtime correctly excludes IIN. Got: {iin_exprs:?}"
+        );
+
+        // Guard: case-sensitive IN (case_insensitive=false) MUST still emit Expr::Field.
+        let in_ast = Ast::Filter(FilterExpr {
+            source: SourceRef::from_raw("crowdstrike.detections"),
+            predicate: Predicate::In {
+                field: FieldPath::new(["severity"]),
+                values: vec![Literal::String("low".to_string())],
+                negated: false,
+                case_insensitive: false,
+            },
+        });
+        let in_exprs = predicates_from_ast(&in_ast);
+        assert!(
+            !in_exprs.is_empty(),
+            "BC-2.11.024 F-P21-OBS-001 guard: case-sensitive IN predicate (case_insensitive=false) \
+             MUST emit an Expr for push-down classification. Got: {in_exprs:?}"
         );
     }
 }
