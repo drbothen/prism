@@ -660,7 +660,13 @@ pub fn build_example_note(
     // severity-IEQ does not fire (no severity column). This prevents the aggregate branch
     // from silently suppressing the IEQ teaching example when a numeric column is present.
     // AC-025 / ADR-047 §D.4 mandate the IEQ example for all severity-column tables.
-    let has_severity = columns.iter().any(|c| c.name == "severity");
+    // F-P20-LOW-001 (LOCAL pass-20): gate checks BOTH name AND type.  A column named
+    // `severity` with ColumnType::Integer (ordinal severity) must NOT receive the IEQ
+    // example — applying `IEQ 'high'` to an Integer column fails E-QUERY-002 type check.
+    // Only ColumnType::String severity columns get the IEQ teaching example.
+    let has_severity = columns
+        .iter()
+        .any(|c| c.name == "severity" && matches!(c.col_type, ColumnType::String));
     if has_severity {
         // AC-025 / ADR-047 §D.4: IEQ operator for ANY table with a severity String column.
         // F-MED-002 (LOCAL pass-15): the OCSF casing note moves out of `example_query`
@@ -2104,6 +2110,67 @@ mod build_example_query_tests {
         assert!(
             !q.contains("--"),
             "OBS-2 (LOCAL pass-18): IEQ form for sentinel_alerts must be pure PQL. Got: {q}"
+        );
+    }
+
+    /// F-P20-LOW-001 (LOCAL pass-20): a sensor whose `severity` column has type
+    /// `ColumnType::Integer` (ordinal severity, not a string label) must NOT receive
+    /// the IEQ severity example or OCSF casing note.
+    ///
+    /// ## Problem
+    ///
+    /// The `has_severity` gate (line ~663) previously checked column NAME only:
+    /// `columns.iter().any(|c| c.name == "severity")`.  A future sensor TOML that
+    /// declares `severity` as `ColumnType::Integer` (ordinal) would incorrectly fire
+    /// the IEQ branch and emit:
+    ///   `FROM <table> | where severity IEQ 'high' | limit 50`
+    /// — a type-mismatch query that would fail the `check_ci_column_types` pre-flight
+    /// with E-QUERY-002 (string literal compared to Integer column).
+    ///
+    /// ## Red Gate
+    ///
+    /// With the name-only gate, the Integer-severity table triggers the IEQ branch and
+    /// `note.is_some()` → assertion FAILS.
+    ///
+    /// ## Green Gate
+    ///
+    /// PASSES once the gate is tightened to:
+    /// `columns.iter().any(|c| c.name == "severity" && matches!(c.col_type, ColumnType::String))`
+    ///
+    /// Traces: S-PRISMQL-CASE-INSENSITIVE-001 F-P20-LOW-001; LOCAL adversary pass-20.
+    #[test]
+    fn test_f_p20_low001_severity_integer_type_does_not_get_ieq() {
+        // Sensor whose `severity` column is ordinal (Integer), NOT a String label.
+        let columns = vec![
+            col("event_time", ColumnType::Datetime),
+            col("severity", ColumnType::Integer),
+            col("alert_name", ColumnType::String),
+        ];
+
+        let (q, note) = build_example_note("future_sensor_ordinal_severity", &columns);
+
+        // Integer `severity` must NOT trigger the IEQ branch.
+        // F-P20-LOW-001 RED Gate: name-only gate fires even for Integer severity → note is Some.
+        assert!(
+            note.is_none(),
+            "F-P20-LOW-001: a column named 'severity' with ColumnType::Integer must NOT \
+             trigger the IEQ example — the gate must check both name AND type. \
+             An IEQ example against an Integer column would fail E-QUERY-002 type check. \
+             Got example_note: {note:?}"
+        );
+        // The query must NOT contain IEQ (an invalid operator for Integer columns).
+        assert!(
+            !q.contains("IEQ"),
+            "F-P20-LOW-001: IEQ operator must NOT appear in the example query for a \
+             severity Integer column (type mismatch); got: {q:?}"
+        );
+        // With a non-String severity column (Integer), the IEQ branch skips. The Integer
+        // column triggers the aggregate branch instead (name-only gate no longer fires).
+        // Verify the aggregate form is chosen (SELECT <col>, COUNT(*) ... GROUP BY ...).
+        assert!(
+            q.contains("GROUP BY") && q.contains("COUNT(*)"),
+            "F-P20-LOW-001: Integer-severity table must fall back to the aggregate branch \
+             (GROUP BY / COUNT(*)) since the IEQ branch requires String type; got: {q:?}"
         );
     }
 
