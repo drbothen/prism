@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.975"
+version: "7.976"
 status: current
-timestamp: 2026-07-05T00:00:00Z
+timestamp: 2026-07-07T01:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -48,13 +48,58 @@ timestamp: 2026-07-05T00:00:00Z
 >
 > **D-1568 (2026-07-07): BC LAYER BURST — S-PRISMQL-CASE-INSENSITIVE-001 BC layer registered.** ADR-047 PROMOTED PROPOSED v1.0 → ACCEPTED v1.1 (OD-1..OD-4 RESOLVED D-1398 human sign-off 2026-06-27). NEW: BC-2.11.024 v1.0 (IEQ/IIN/INE case-insensitive operators, draft) + BC-2.02.013 v1.0 (adapter-boundary OCSF enum-label canonical-case normalization, draft). AMENDED: BC-2.11.002 v1.5, BC-2.11.004 v1.13, BC-2.11.018 v1.3, BC-2.02.002 v1.5, BC-2.02.010 v1.5 (ADR-047 interaction clauses). BC-INDEX v7.43 (266 total, 255 active, 2 draft). ARCH-INDEX v2.174. STORY-INDEX v2.605 (stale OD-PENDING row fixed). develop@ea714d14 UNCHANGED. STATE v8.167→v8.168.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1568** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1568 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `ea714d14` (PR #216 S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 squash-merged 2026-07-06T21:42:04Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.168. D-1568 (BC layer burst — S-PRISMQL-CASE-INSENSITIVE-001 BC layer registered; ADR-047 ACCEPTED v1.1; BC-INDEX v7.43 (266); STORY-INDEX v2.605; VERY NEXT ACTION = story-writer materializes S-PRISMQL-CASE-INSENSITIVE-001).
+> **D-1589 (2026-07-07): SESSION WRAP — §RESUME SNAPSHOT D-1589 authored (supersedes D-1568).** S-PRISMQL-CASE-INSENSITIVE-001 LOCAL cascade 19 passes done; streak 0/3. Pass-19 (frozen e8b25d67): NOT CLEAN — 1 HIGH (3 flagship prompts status='new' vs 'New'; 0-rows) + 2 MED (reference status IN example; process-gap RG-043/044 severity-only guard). Fix-burst (implementer, commit eb7256b7): RG-043/044 guards DERIVED from all four OCSF enum-label caption sets; 3 prompts corrected; crowdstrike vocab 'new'→'New'; just check GREEN; non-exhaustive 89/89. Feature HEAD e8b25d67→eb7256b7 (LOCAL-ONLY beyond origin de062cf1 — ~35 commits local-only). LOCAL 3-CLEAN(strict) streak RESET 0/3. develop_head UNCHANGED ea714d14. workspace_test_count 5306+ (re-verify on resume). STATE v8.188→v8.189.
+>
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1589** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1589 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `ea714d14` (PR #216 S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 squash-merged 2026-07-06T21:42:04Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.189. D-1589 (SESSION WRAP — S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-19 fix-burst eb7256b7; 19 passes done; streak 0/3; VERY NEXT ACTION = LOCAL adversary pass-20 on frozen eb7256b7).
 
 ---
 
-## §RESUME SNAPSHOT — D-1568 (2026-07-07 — BC LAYER BURST; develop origin/develop ea714d14; BC-INDEX v7.43; STORY-INDEX v2.605; ARCH-INDEX v2.174; STATE v8.168; no cascade in flight; no open PRs; ADR-047 ACCEPTED v1.1; BC-2.11.024 + BC-2.02.013 authored; VERY NEXT ACTION = story-writer materializes S-PRISMQL-CASE-INSENSITIVE-001) [SUPERSEDES D-1567]
+## §RESUME SNAPSHOT — D-1589 (2026-07-07 — SESSION WRAP; develop origin/develop ea714d14; BC-INDEX v7.51; STORY-INDEX v2.624; ARCH-INDEX v2.174; STATE v8.189; LOCAL cascade in flight S-PRISMQL-CASE-INSENSITIVE-001; feature HEAD eb7256b7; streak 0/3; 19 passes done; VERY NEXT ACTION = LOCAL adversary pass-20 on frozen eb7256b7) [SUPERSEDES D-1568]
+
+### RESUME IN ONE BREATH
+
+Prism Phase-3/Wave-5. S-PRISMQL-CASE-INSENSITIVE-001 mid-LOCAL adversarial cascade (BC-5.39.001), 19 passes done, streak 0/3, feature HEAD eb7256b7 (worktree .worktrees/S-PRISMQL-CASE-INSENSITIVE-001, local-only beyond de062cf1 — ~35 commits local-only; push option for backup available). VERY NEXT ACTION = dispatch LOCAL adversary pass-20 on frozen eb7256b7 (fresh context, policy rubric loaded from .factory/policies.yaml, SAP-1/2 + SID-1 probes, both CLEAN criteria explicit); if CLEAN(strict) → passes 21/22 on the SAME frozen HEAD to complete 3-CLEAN; then per-story-delivery Step 5+ (demo-recorder per-AC → push → pr-manager 9-step PR → PR-LEVEL 3-CLEAN on frozen PR HEAD → squash-merge → post-merge burst incl. POL-14 draft→active for BC-2.11.024/BC-2.02.013).
+
+> **D-1588 (2026-07-07): S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-18 ZERO-defect + polish burst.** Pass-18 (frozen 84fe40aa): CLEAN(PR-merge)=YES, CLEAN(strict)=no — 2 OBS only (content ordering; allowlist maintainability). ZERO defect findings — first ZERO-defect pass in cascade. Polish burst: implementer e8b25d67 (PIPE MODE skeletons fixed to lowercase IEQ-first; SENSOR_SEVERITY_VOCABULARY allowlist REMOVED; IEQ example gate = severity-column presence; 3 locking tests). story-writer v1.24→v1.25 (RG-068/069/070; red_gate_tests 67→70). Feature HEAD 84fe40aa→e8b25d67. LOCAL 3-CLEAN streak RESET 0/3. workspace_test_count 5303→5306. STORY-INDEX v2.623→v2.624. STATE v8.187→v8.188.
+>
+> **D-1589 (2026-07-07): SESSION WRAP — §RESUME SNAPSHOT D-1589 authored (supersedes D-1568).** Pass-19 (frozen e8b25d67): NOT CLEAN — 1 HIGH (3 flagship prompts status='new' vs 'New'; 0-rows) + 2 MED (reference status IN example; process-gap RG-043/044 severity-only guard). Fix-burst (implementer, commit eb7256b7): RG-043/044 guards DERIVED from all four OCSF enum-label caption sets (severity/status/activity_name/disposition; = and IN wrong-casing; IIN-safe via leading-space); 3 prompts corrected to status = 'New' (normalizes; claroty 'Unresolved' + armis 'UNHANDLED' verified vendor pass-through, correct as-is); reference IN re-pointed to client_id IN ('acme','globex'); crowdstrike SENSOR_COLUMN_VOCABULARIES 'new'→'New'; RED→GREEN; just check GREEN; non-exhaustive 89/89. Feature HEAD e8b25d67→eb7256b7. LOCAL 3-CLEAN(strict) streak RESET 0/3. develop_head UNCHANGED ea714d14. workspace_test_count 5306+ (re-verify on resume). STATE v8.188→v8.189.
+
+**STATE v8.189. develop ea714d14. BC-INDEX v7.51. STORY-INDEX v2.624. ARCH-INDEX v2.174. error-taxonomy v2.19. active_contracts 255. draft_contracts 2. non-exhaustive EXPECTED=89. total_stories 228. workspace_test_count 5306+ (feature@eb7256b7; re-verify on resume with just check). bc_count_corrected 266.**
+
+**LAST MERGED:** S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (PR #216 → develop@ea714d14, 2026-07-06; ADR-051 D1–D6 typed enrichment; 27 RGTs; LOCAL 3-CLEAN passes 23/24/25 + PR-LEVEL 3-CLEAN passes 3/4/5 CONVERGED). Prior: PR #215 housekeeping develop@d098be6f (2026-07-05).
+
+**HEADLINE NEXT-ACTION:** LOCAL adversary pass-20 on frozen feature HEAD eb7256b7 (fresh context; .factory/policies.yaml policy rubric loaded; SAP-1 tracing catalog completeness probe; SAP-2 DTU↔TOML schema parity probe (N/A — no TOML changes this session); SID-1 ignored-test probe; BC-5.39.001 3-CLEAN protocol; both CLEAN(strict) and CLEAN(PR-merge) reported explicitly). Adversary reviews full delta vs develop@ea714d14 in .worktrees/S-PRISMQL-CASE-INSENSITIVE-001. Spec versions: story v1.25, BC-2.11.024 v1.3, BC-2.02.013 v1.6, BC-2.16.002 v2.03, BC-2.10.012 v1.9, ADR-047 v1.1, error-taxonomy v2.19; 70 RGTs; non-exhaustive EXPECTED=89. Autonomy D-989 active.
+
+**HEADS:** develop ea714d14 (PUSHED, origin==local); factory-artifacts = this session-wrap burst commit (PUSHED); feature/S-PRISMQL-CASE-INSENSITIVE-001 @ eb7256b7 (LOCAL-ONLY beyond origin/feature de062cf1 — ~35 commits local-only; normal push happens after demo step, but early push for backup is acceptable). Parked worktrees: S-3.09 @43c41389 (local-only, backup/S-3.09-preresume-43c41389) + W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit + ~1070 lines uncommitted write_dispatch_tests.rs — awaiting human decision).
+
+**WORKTREES:** S-PRISMQL-CASE-INSENSITIVE-001 ACTIVE (.worktrees/S-PRISMQL-CASE-INSENSITIVE-001 on feature/S-PRISMQL-CASE-INSENSITIVE-001 @ eb7256b7; story v1.25; 70 RGTs; LOCAL pass-19 fix-burst COMPLETE; streak 0/3; awaiting LOCAL pass-20). S-3.09 PARKED (DRIFT-PARKED-S309-001; backup/S-3.09-preresume-43c41389@43c41389; local-only; awaiting human decision). W3-FIX-S307-001 PARKED (DRIFT-PARKED-W3FIX-S307-001; 1 unpushed commit @fcab8717 + ~1070 lines uncommitted work in `crates/prism-sensors/tests/write_dispatch_tests.rs`; awaiting human decision — do NOT delete without human approval).
+
+**PENDING-HUMAN:**
+1. **S-3.09 decision (DRIFT-PARKED-S309-001):** resume vs keep-parked vs abandon. Branch `feature/S-3.09` @43c41389 local-only (never pushed). Backup: `backup/S-3.09-preresume-43c41389`. Freeze blocker cleared.
+2. **W3-FIX-S307-001 decision (DRIFT-PARKED-W3FIX-S307-001):** resume/commit-and-continue vs stash vs abandon. Branch `feature/W3-FIX-S307-001` @fcab8717 local-only (1 unpushed commit). PLUS ~1070 lines UNCOMMITTED work in `crates/prism-sensors/tests/write_dispatch_tests.rs` (test expansion, unstaged). Topic: deferred TDE write-back sensor-write overrides / E-SENSOR-070. The uncommitted work MUST be explicitly preserved or discarded.
+3. **E-OCSF-005..023 taxonomy gap (DRIFT-EOCSF-GAP-005-023-001):** triage/prioritize. 19 codes (E-OCSF-005 through E-OCSF-023) defined in PrismError enum but absent from `.factory/specs/prd-supplements/error-taxonomy.md`. No production impact; documentation/auditability gap only.
+4. **OPTIONAL — push feature/S-PRISMQL-CASE-INSENSITIVE-001 for remote backup:** ~35 local-only commits beyond origin de062cf1. Streak is 0/3 so no streak cost. Normal per-story-delivery push happens after demo step; early backup push is acceptable.
+
+**PENDING USER-APPROVED WORK:** S-PRISMQL-CASE-INSENSITIVE-001 LOCAL cascade passes 20/21/22 (passes 20/21/22 sequential on frozen eb7256b7 under wave-5 D-989 autonomy). No other work in flight.
+
+**DECISION DELTA (since last wrap D-1568):** D-1569..D-1589 this session (story materialized v1.0→v1.25; BC layer evolved BC-2.11.024→v1.3, BC-2.02.013→v1.6, BC-2.16.002→v2.03, BC-2.10.012→v1.9, error-taxonomy→v2.19; 19 LOCAL passes; workspace_test_count 5220→5306+).
+
+**RESUME PROTOCOL:**
+1. Run vsdd-factory:factory-worktree-health (BLOCKING).
+2. `git log --oneline -1 origin/develop` → expect `ea714d14`.
+3. S-PRISMQL-CASE-INSENSITIVE-001 LOCAL cascade in flight; feature HEAD eb7256b7 (worktree .worktrees/S-PRISMQL-CASE-INSENSITIVE-001); LOCAL 3-CLEAN(strict) streak 0/3; 19 passes done; story v1.25; 70 RGTs; 8 BCs.
+4. VERY NEXT ACTION: dispatch LOCAL adversary pass-20 on frozen eb7256b7 (fresh context; load .factory/policies.yaml; SAP-1/2 + SID-1; both CLEAN criteria explicit). If CLEAN(strict) → passes 21/22 on SAME frozen HEAD to complete 3-CLEAN.
+5. After 3-CLEAN: per-story-delivery Step 5+ (demo-recorder per-AC → push → pr-manager 9-step PR → PR-LEVEL 3-CLEAN on frozen PR HEAD → squash-merge → post-merge burst incl. POL-14 BC-2.11.024/BC-2.02.013 draft→active).
+6. NOTE: story v1.25 pending v1.26 note (pass-19 guard-derivation + prompt fixes; no new RGT names; RG-043/044 strengthened in place) — fold into next story-writer dispatch.
+7. Surface PENDING-HUMAN items 1–3 to human before resuming parked worktrees.
+8. Full state: STATE.md Session Resume Checkpoint D-1589.
+9. Autonomy D-989 active.
+
+---
+
+## §RESUME SNAPSHOT — D-1568 (2026-07-07 — BC LAYER BURST; develop origin/develop ea714d14; BC-INDEX v7.43; STORY-INDEX v2.605; ARCH-INDEX v2.174; STATE v8.168; no cascade in flight; no open PRs; ADR-047 ACCEPTED v1.1; BC-2.11.024 + BC-2.02.013 authored; VERY NEXT ACTION = story-writer materializes S-PRISMQL-CASE-INSENSITIVE-001) [SUPERSEDES D-1567] [SUPERSEDED by D-1589]
 
 ### RESUME IN ONE BREATH
 

@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.188"
+version: "8.189"
 producer: state-manager
-timestamp: 2026-07-07T00:00:00Z
+timestamp: 2026-07-07T01:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -44,7 +44,7 @@ workspace_test_count: 5306  # NOTE: S-PRISMQL-CASE-INSENSITIVE-001 feature HEAD 
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1588 (2026-07-07). S-PRISMQL-CASE-INSENSITIVE-001 LOCAL adversary pass-18 ZERO-defect + polish burst COMPLETE. LOCAL adversary pass-18 (frozen 84fe40aa): CLEAN(PR-merge)=YES. CLEAN(strict)=no — 2 low-confidence OBS only (content ordering; allowlist maintainability; novelty LOW). ZERO defect findings (CRIT/HIGH/MED/LOW) — first ZERO-defect pass in cascade. Full verification: grammar, mode-boundaries, emitters, normalization, teaching surfaces, story↔code (67/67 RGTs, 8 BCs), SAP-1/2/SID-1, TD-VSDD-060 30+ sites sampled. Polish burst (production-grade default — cheaper to close than defer): implementer e8b25d67 (PIPE MODE skeletons → | where severity IEQ 'high' | limit 50 lowercase IEQ-first teaching + RG_067-companion guard test; SENSOR_SEVERITY_VOCABULARY allowlist REMOVED — IEQ example gate = severity-column presence (AC-025-aligned, universally correct post-normalization) + 2 locking tests (unknown-sensor gets IEQ; no-severity unaffected)). story-writer v1.24→v1.25 (RG-068/069/070; red_gate_tests 67→70). Feature HEAD 84fe40aa→e8b25d67. LOCAL 3-CLEAN(strict) streak 0/3 (RESET by polish push per DRIFT-ORCH-PRLEVEL-PUSH-001). develop_head UNCHANGED ea714d14. workspace_test_count 5303→5306. STORY-INDEX v2.623→v2.624. BC-INDEX UNCHANGED v7.51. active_contracts UNCHANGED 255. draft_contracts UNCHANGED 2. VERY NEXT ACTION: LOCAL adversary pass-19 on frozen e8b25d67 (dispatched in parallel; finding pool dry — first strong CLEAN(strict) candidate; if CLEAN, passes 20/21 follow on SAME frozen HEAD to complete 3-CLEAN). Autonomy D-989 active. STATE v8.187→v8.188."
+current_step: "D-1589 (2026-07-07). SESSION WRAP — RESUME SNAPSHOT D-1589 authored. S-PRISMQL-CASE-INSENSITIVE-001 LOCAL cascade 19 passes done; streak 0/3. Pass-19 (frozen e8b25d67): NOT CLEAN — 1 HIGH + 2 MED. F-HIGH-01: 3 flagship prompts embedded status = 'new' vs post-normalization 'New' (0-rows; survived 18 passes — RG-043/044 covered severity-casing only; status-casing class gap = F-MED-02 [process-gap] root cause). F-MED-01: reference status IN ('open','new') example. Fix-burst (implementer, commit eb7256b7): RG-043/044 guards now DERIVED from all four OCSF enum-label caption sets (severity/status/activity_name/disposition; = and IN wrong-casing patterns; IIN-safe via leading-space); 3 prompts fixed to status = 'New' (normalizes; claroty 'Unresolved' + armis 'UNHANDLED' verified vendor pass-through, correct as-is); reference IN example re-pointed to client_id IN ('acme','globex'); SENSOR_COLUMN_VOCABULARIES crowdstrike status 'new'→'New'; RED→GREEN; just check GREEN; non-exhaustive 89/89. Feature HEAD e8b25d67→eb7256b7 (worktree .worktrees/S-PRISMQL-CASE-INSENSITIVE-001; LOCAL-ONLY beyond origin/feature de062cf1 — ~35 commits local-only). LOCAL 3-CLEAN(strict) streak RESET 0/3 by fix-burst push. develop_head UNCHANGED ea714d14. workspace_test_count 5306 (eb7256b7; re-verify on resume with just check). STORY-INDEX UNCHANGED v2.624. BC-INDEX UNCHANGED v7.51. active_contracts UNCHANGED 255. draft_contracts UNCHANGED 2. NOTE for next session: story remains v1.25 — pending v1.26 note (pass-19 guard-derivation + prompt fixes; no new RGT names; RG-043/044 strengthened in place) to be folded into next story-writer dispatch. VERY NEXT ACTION: LOCAL adversary pass-20 on frozen eb7256b7 (fresh context; load .factory/policies.yaml policy rubric; SAP-1/2 + SID-1 probes; both CLEAN criteria explicit); if CLEAN(strict) → passes 21/22 on SAME frozen HEAD → 3-CLEAN; then per-story-delivery Step 5+ (demo-recorder per-AC → push → pr-manager 9-step PR → PR-LEVEL 3-CLEAN on frozen PR HEAD → squash-merge → post-merge burst incl. POL-14 BC-2.11.024/BC-2.02.013 draft→active). Autonomy D-989 active. STATE v8.188→v8.189."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -83,7 +83,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-07 (D-1588 — S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-18 ZERO-defect + polish e8b25d67 5306/5306; non-exhaustive 89/89; RG-001..070 GREEN; LOCAL 3-CLEAN streak 0/3; STORY-INDEX v2.624; BC-INDEX v7.51; STATE v8.187→v8.188)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-07 (D-1589 — SESSION WRAP; S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-19 fix-burst eb7256b7; 5306+ tests; non-exhaustive 89/89; RG-001..070 GREEN; LOCAL 3-CLEAN streak 0/3; STORY-INDEX v2.624; BC-INDEX v7.51; STATE v8.188→v8.189)
 
 ## Active Objective (North Star)
 
@@ -427,23 +427,25 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1586 -- 2026-07-07; STATE v8.186)
+## Session Resume Checkpoint (D-1589 -- 2026-07-07; STATE v8.189)
 
-**D-1586 S-PRISMQL-CASE-INSENSITIVE-001 LOCAL adversary pass-16 (frozen 30a2485d): NOT CLEAN — 2 MED + 1 LOW + 2 OBS (all spec-side/doc drift; no functional code defects; SAP-1/SAP-2/SID-1 PASS; all 64 RGTs verified) + fix-burst COMPLETE. Feature HEAD 30a2485d→f2215872; just check 5301/5301; non-exhaustive 89/89; RG-001..066 GREEN. F-P16-MED-001: BC-2.10.012 materially depended-on by AC-025/RG-061..063 but absent from story behavioral_contracts frontmatter — FIXED: story v1.22→v1.23 adds BC-2.10.012 v1.8. F-P16-MED-002: empty-string bypass (locked by RG-047/054) undocumented in BC-2.02.013 — FIXED: BC-2.02.013 v1.5→v1.6 EC-02-028 + null/empty-string passthrough bullet. F-P16-LOW-001: sensor_type 50-cap undocumented — FIXED: BC-2.02.013 v1.6 warn-event field schema note + BC-2.16.002 v2.03 row 91 cap note. OBS-001: duplicate OcsfEnumMap statics — FIXED: shared_enum_map() single-access-point (f2215872). OBS-002: check_ci_column_types silent-Ok path — ADJUDICATED: zero-row fetches legitimately hit None (register_mem_table skip); documented + 2 guard tests. story v1.21→v1.22→v1.23 (8 BCs; 66 RGTs; RG-065/066 added). LOCAL 3-CLEAN(strict) streak 0/3 (RESET by fix-burst push per DRIFT-ORCH-PRLEVEL-PUSH-001). develop@ea714d14 (PUSHED, origin==local). No open PRs. VERY NEXT ACTION: LOCAL adversary pass-17 on frozen HEAD f2215872.**
+**D-1589 SESSION WRAP — S-PRISMQL-CASE-INSENSITIVE-001 LOCAL cascade 19 passes done; streak 0/3. Pass-19 (frozen e8b25d67): NOT CLEAN — 1 HIGH + 2 MED. F-HIGH-01: 3 flagship prompts embedded status = 'new' vs post-normalization 'New' (0-rows; survived 18 passes — RG-043/044 covered severity-casing only; F-MED-02 [process-gap] root cause). F-MED-01: reference status IN ('open','new') example. Fix-burst (implementer, commit eb7256b7): RG-043/044 guards DERIVED from all four OCSF enum-label caption sets (severity/status/activity_name/disposition; = and IN wrong-casing; IIN-safe via leading-space); 3 prompts fixed to status = 'New' (claroty 'Unresolved' + armis 'UNHANDLED' verified vendor pass-through, correct as-is); reference IN re-pointed to client_id IN ('acme','globex'); SENSOR_COLUMN_VOCABULARIES crowdstrike status 'new'→'New'; RED→GREEN; just check GREEN; non-exhaustive 89/89. Feature HEAD eb7256b7 (LOCAL-ONLY beyond origin de062cf1 — ~35 commits local-only; push option for backup available). develop@ea714d14 (PUSHED, origin==local). No open PRs.**
 
-**STATE v8.186. develop ea714d14. BC-INDEX v7.51. STORY-INDEX v2.622. ARCH-INDEX v2.174. error-taxonomy v2.19. active_contracts 255. draft_contracts 2. non-exhaustive EXPECTED=89. total_stories 228. workspace_test_count 5301 (feature@f2215872; non-exhaustive 89/89; RG-001..066 GREEN). bc_count_corrected 266.**
+**STATE v8.189. develop ea714d14. BC-INDEX v7.51. STORY-INDEX v2.624. ARCH-INDEX v2.174. error-taxonomy v2.19. active_contracts 255. draft_contracts 2. non-exhaustive EXPECTED=89. total_stories 228. workspace_test_count 5306+ (feature@eb7256b7; re-verify on resume with just check). bc_count_corrected 266.**
 
 **LAST MERGED:** S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (PR #216 → develop@ea714d14, 2026-07-06; ADR-051 D1–D6 typed enrichment; LOCAL 3-CLEAN passes 23/24/25 + PR-LEVEL 3-CLEAN passes 3/4/5 CONVERGED; CI 43/43; 27 RGTs). Prior: PR #215 housekeeping develop@d098be6f (2026-07-05).
 
-**WORKTREES:** S-PRISMQL-CASE-INSENSITIVE-001 ACTIVE (.worktrees/S-PRISMQL-CASE-INSENSITIVE-001 on feature/S-PRISMQL-CASE-INSENSITIVE-001 @ f2215872; story v1.23; 66 RGTs; LOCAL pass-16 fix-burst COMPLETE; awaiting LOCAL pass-17). S-3.09 PARKED (DRIFT-PARKED-S309-001; backup/S-3.09-preresume-43c41389@43c41389; local-only; awaiting human decision). W3-FIX-S307-001 PARKED (DRIFT-PARKED-W3FIX-S307-001; 1 unpushed commit @fcab8717 + ~1070 lines uncommitted work in crates/prism-sensors/tests/write_dispatch_tests.rs; awaiting human decision).
+**WORKTREES:** S-PRISMQL-CASE-INSENSITIVE-001 ACTIVE (.worktrees/S-PRISMQL-CASE-INSENSITIVE-001 on feature/S-PRISMQL-CASE-INSENSITIVE-001 @ eb7256b7; story v1.25; 70 RGTs; LOCAL pass-19 fix-burst COMPLETE; streak 0/3; awaiting LOCAL pass-20). S-3.09 PARKED (DRIFT-PARKED-S309-001; backup/S-3.09-preresume-43c41389@43c41389; local-only; awaiting human decision). W3-FIX-S307-001 PARKED (DRIFT-PARKED-W3FIX-S307-001; 1 unpushed commit @fcab8717 + ~1070 lines uncommitted work in crates/prism-sensors/tests/write_dispatch_tests.rs; awaiting human decision).
 
-**PENDING-HUMAN:** (1) S-3.09 decision: resume vs keep-parked vs abandon (DRIFT-PARKED-S309-001). (2) W3-FIX-S307-001 decision: resume/commit-and-continue vs stash vs abandon — ~1070 lines uncommitted work in write_dispatch_tests.rs must be explicitly preserved or discarded (DRIFT-PARKED-W3FIX-S307-001). (3) E-OCSF-005..023 gap triage/prioritization (DRIFT-EOCSF-GAP-005-023-001). (4) F-P1-STATUSID-DISPLAY-LATENT (OBS D-1572): status_id has no companion sibling-string field in prism-ocsf — display hazard documented in BC-2.02.013 v1.6; latent (no production caller); follow-up story not needed unless display_name wired for status_id.
+**PENDING-HUMAN:** (1) S-3.09 decision: resume vs keep-parked vs abandon (DRIFT-PARKED-S309-001). (2) W3-FIX-S307-001 decision: resume/commit-and-continue vs stash vs abandon — ~1070 lines uncommitted work in write_dispatch_tests.rs must be explicitly preserved or discarded (DRIFT-PARKED-W3FIX-S307-001). (3) E-OCSF-005..023 gap triage/prioritization (DRIFT-EOCSF-GAP-005-023-001). (4) OPTIONAL: push feature/S-PRISMQL-CASE-INSENSITIVE-001 for remote backup (~35 local-only commits; streak 0/3 so no streak cost).
 
 **RESUME PROTOCOL:**
 1. Run vsdd-factory:factory-worktree-health (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `ea714d14`.
-3. No cascade in flight. No open PRs. S-PRISMQL-CASE-INSENSITIVE-001 LOCAL pass-16 fix-burst COMPLETE.
-4. S-PRISMQL-CASE-INSENSITIVE-001 story v1.23; feature HEAD f2215872; LOCAL 3-CLEAN(strict) streak 0/3. VERY NEXT ACTION: dispatch LOCAL adversary pass-17 on frozen f2215872.
-5. Parked worktrees DRIFT-PARKED-S309-001 + DRIFT-PARKED-W3FIX-S307-001: surface decisions to human before resuming.
-6. Full state: STATE.md Session Resume Checkpoint D-1586.
-7. Autonomy D-989 active.
+3. S-PRISMQL-CASE-INSENSITIVE-001 LOCAL cascade in flight; feature HEAD eb7256b7; LOCAL 3-CLEAN(strict) streak 0/3; 19 passes done.
+4. VERY NEXT ACTION: LOCAL adversary pass-20 on frozen eb7256b7 (fresh context; load .factory/policies.yaml policy rubric; SAP-1/2 + SID-1 probes; report CLEAN(strict) and CLEAN(PR-merge) explicitly). If CLEAN(strict) → passes 21/22 on SAME frozen HEAD → 3-CLEAN streak complete.
+5. After 3-CLEAN: per-story-delivery Step 5+ (demo-recorder per-AC → push → pr-manager 9-step PR → PR-LEVEL 3-CLEAN on frozen PR HEAD → squash-merge → post-merge burst incl. POL-14 BC-2.11.024/BC-2.02.013 draft→active).
+6. NOTE: story v1.25 pending v1.26 note (pass-19 guard-derivation + prompt fixes; no new RGT names; RG-043/044 strengthened in place) — fold into next story-writer dispatch.
+7. Parked worktrees DRIFT-PARKED-S309-001 + DRIFT-PARKED-W3FIX-S307-001: surface decisions to human before resuming.
+8. Full state: STATE.md Session Resume Checkpoint D-1589.
+9. Autonomy D-989 active.
