@@ -347,7 +347,6 @@ fn ocsf_class_uid_to_message_name(class_uid: u32) -> Option<&'static str> {
 /// reflects 50 printable codepoints — not a shorter string truncated at the
 /// control-char boundary.
 ///
-/// **Stub body (WRONG ORDER — current code):** truncates first, then sanitizes.
 /// Sanitizes and truncates an enum-label value for structured log emission.
 ///
 /// Applies `sanitize_for_log` BEFORE the 50-codepoint cap per BC-2.16.002 catalog row 91
@@ -476,12 +475,12 @@ mod cr002_cr004_guard_tests {
     ///   `sanitize_for_log` strips ESC → `"[31m"` + 60 As = 64 codepoints
     ///   `.chars().take(50)` → `"[31m"` + 46 As = **50 codepoints**
     ///
-    /// Current wrong order (truncate→sanitize, current stub body):
+    /// Wrong-order alternative (truncate→sanitize; regression guard):
     ///   `.chars().take(50)` → ESC + `"[31m"` + 45 As = 50 codepoints
     ///   `sanitize_for_log` strips ESC → `"[31m"` + 45 As = **49 codepoints**
     ///
-    /// RED GATE: FAILS with current wrong-order helper body (yields 49 chars, not 50).
-    /// GREEN GATE: PASSES after implementer corrects helper body to
+    /// RED GATE: fails if helper reverts to truncate-first order (would yield 49 chars, not 50).
+    /// GREEN GATE: passes with correct sanitize-first body:
     ///   `prism_core::sanitize_for_log(s).chars().take(50).collect()`.
     ///
     /// Traces to: MED-001/MED-002 (ADV-PR-P1 S-PRISMQL-CASE-INSENSITIVE-001);
@@ -502,7 +501,7 @@ mod cr002_cr004_guard_tests {
             spec_order_result,
             "RG-079 (MED-001): sanitize_enum_label_for_log must apply sanitize_for_log BEFORE \
              50-codepoint truncation (BC-2.16.002 catalog row 91 spec order); \
-             spec order yields {:?} (len={}), current wrong-order body yields {:?} (len={})",
+             spec order yields {:?} (len={}), wrong-order body would yield {:?} (len={})",
             spec_order_result,
             spec_order_result.len(),
             actual,
