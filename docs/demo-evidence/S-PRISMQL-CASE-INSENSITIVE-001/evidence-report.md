@@ -2,9 +2,9 @@
 
 Story: PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)
 Branch: feature/S-PRISMQL-CASE-INSENSITIVE-001
-HEAD SHA: f9be96fa
+Code-behavior HEAD: f9be96fa (last commit that changed runtime behavior; subsequent commits on this branch are non-behavioral)
 Captured: 2026-07-08
-Provenance: LOCAL 3-CLEAN converged at de89b557 (passes 33/34/35, CLEAN strict; BC-5.39.001 satisfied); pre-PR-LEVEL fix-burst 54c89898 (CR-002/CR-003/CR-004/SEC-001; RG-075..078); PR-LEVEL pass-1 fix-burst 56fb83d8+f9be96fa (ADV-PR-P1-MED-001/MED-002/LOW-001/OBS-002; RG-079..081)
+Provenance: LOCAL 3-CLEAN converged at de89b557 (passes 33/34/35, CLEAN strict; BC-5.39.001 satisfied); pre-PR-LEVEL fix-burst 54c89898 (CR-002/CR-003/CR-004/SEC-001; RG-075..078); PR-LEVEL pass-1 fix-burst 56fb83d8+f9be96fa (ADV-PR-P1-MED-001/MED-002/LOW-001/OBS-002; RG-079..081). Evidence captured against code state of f9be96fa; subsequent commits on this branch are non-behavioral (docs/test-guard only): dcb37099 (docstring scrub), this commit (RG-080 sensor_type mirror + this metadata sync). Runtime behavior unchanged since f9be96fa.
 
 ## Workspace Gate
 
@@ -237,7 +237,7 @@ RG-076  test_cr003_normalize_predicate_invalid_ci_op_emits_warn                 
 RG-077  test_cr004_build_column_array_enum_label_warn_strips_control_chars       PASS (prism-bin/src/spec_driven_adapter.rs; CR-004/SEC-001 CWE-117 PRIMARY → AC-018)
 RG-078  test_cr004_sanitize_for_log_strips_control_chars_for_secondary_site      PASS (prism-ocsf/src/normalizer.rs; CR-004/SEC-001 CWE-117 SECONDARY → AC-018)
 RG-079  test_rg079_secondary_sanitize_enum_label_order_spec_wins                 PASS (prism-ocsf/src/normalizer.rs; ADV-PR-P1-MED-001 sanitize-before-truncate SECONDARY → AC-018)
-RG-080  test_rg080_low001_build_column_array_enum_label_warn_order_of_operations  PASS (prism-bin/src/spec_driven_adapter.rs; ADV-PR-P1-MED-001/LOW-001 order-of-ops PRIMARY → AC-018)
+RG-080  test_rg080_low001_build_column_array_enum_label_warn_order_of_operations  PASS (prism-bin/src/spec_driven_adapter.rs; ADV-PR-P1-MED-001/LOW-001/ADV-PR-P3-OBS-001 order-of-ops PRIMARY for value + sensor_type fields → AC-018)
 RG-081  test_rg081_obs002_suggested_suffix_display_some_and_none                 PASS (prism-core/src/error.rs; ADV-PR-P1-OBS-002 SuggestedSuffix Display lock → AC-022)
 ```
 
