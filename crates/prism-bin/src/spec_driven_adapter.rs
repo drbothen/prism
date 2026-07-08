@@ -1055,10 +1055,10 @@ fn build_column_array(
                                 // 50 codepoints so unbounded strings from untrusted sensor
                                 // data cannot flood logs. Consistent with E-QUERY-041/042
                                 // value_prefix convention.
-                                // CR-004 / SEC-001 (CWE-117): strip ASCII control chars
-                                // before truncation so newlines / escape sequences from
-                                // adversarial sensor data cannot inject multi-line log entries.
-                                value = %prism_core::sanitize_for_log(&s.chars().take(50).collect::<String>()),
+                                // CR-004 / SEC-001 (CWE-117): sanitize_for_log strips ASCII
+                                // control chars (0x00–0x1F, 0x7F) BEFORE the 50-codepoint cap
+                                // (BC-2.16.002 catalog row 91 spec order: sanitize → truncate).
+                                value = %prism_core::sanitize_for_log(&s).chars().take(50).collect::<String>(),
                                 error = %e,
                                 "ADR-052: datetime string not parseable as RFC-3339 UTC; \
                                  cell produced null (sensor data should be RFC-3339)"
@@ -1110,11 +1110,12 @@ fn build_column_array(
                                             event_type = "ocsf.enum_label_unrecognized",
                                             field_name = %col.name,
                                             // CR-004 / SEC-001 (CWE-117): sanitize_for_log strips
-                                            // ASCII control chars (0x00–0x1F, 0x7F) before the
-                                            // 50-codepoint cap to prevent log injection from
-                                            // adversarial sensor enum-label values.
-                                            value = %prism_core::sanitize_for_log(&s.chars().take(50).collect::<String>()),
-                                            sensor_type = %prism_core::sanitize_for_log(&sensor_id.chars().take(50).collect::<String>()),
+                                            // ASCII control chars (0x00–0x1F, 0x7F) BEFORE the
+                                            // 50-codepoint cap (BC-2.16.002 catalog row 91 spec
+                                            // order: sanitize → truncate) to prevent log injection
+                                            // from adversarial sensor enum-label values.
+                                            value = %prism_core::sanitize_for_log(&s).chars().take(50).collect::<String>(),
+                                            sensor_type = %prism_core::sanitize_for_log(sensor_id).chars().take(50).collect::<String>(),
                                             "build_column_array: OCSF enum-label value not \
                                              recognized; emitting as-received \
                                              (BC-2.02.013 F-CRIT-002)"

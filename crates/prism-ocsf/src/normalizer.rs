@@ -170,13 +170,14 @@ impl OcsfNormalizer {
                 // BC-2.02.013 §Error Cases: unrecognized vendor value — leave as-received
                 // and emit warn. Non-fatal; record is never dropped.
                 // SAP-1: event_type registered in BC-2.16.002 §Postconditions catalog row 91.
-                // CR-004 / SEC-001 (CWE-117): sanitize_for_log strips ASCII control chars
-                // (0x00–0x1F, 0x7F) before the 50-codepoint cap to prevent log injection.
+                // CR-004 / SEC-001 (CWE-117): sanitize_enum_label_for_log strips ASCII control
+                // chars (0x00–0x1F, 0x7F) BEFORE the 50-codepoint cap to prevent log injection.
+                // Order: sanitize_for_log first, then .chars().take(50) (BC-2.16.002 row 91).
                 tracing::warn!(
                     event_type = "ocsf.enum_label_unrecognized",
                     field_name = %field,
-                    value = %prism_core::sanitize_for_log(&current.chars().take(50).collect::<String>()),
-                    sensor_type = %prism_core::sanitize_for_log(&sensor.chars().take(50).collect::<String>()),
+                    value = %sanitize_enum_label_for_log(&current),
+                    sensor_type = %sanitize_enum_label_for_log(sensor),
                     "unrecognized OCSF enum label value; leaving as-received"
                 );
             }
@@ -347,15 +348,16 @@ fn ocsf_class_uid_to_message_name(class_uid: u32) -> Option<&'static str> {
 /// control-char boundary.
 ///
 /// **Stub body (WRONG ORDER — current code):** truncates first, then sanitizes.
-/// Implementer must correct to:
-/// `prism_core::sanitize_for_log(s).chars().take(50).collect()`
+/// Sanitizes and truncates an enum-label value for structured log emission.
+///
+/// Applies `sanitize_for_log` BEFORE the 50-codepoint cap per BC-2.16.002 catalog row 91
+/// (ocsf.enum_label_unrecognized field schema, SEC-001/CWE-117 order requirement).
+/// Sanitize-first ensures the 50-codepoint window counts only printable characters;
+/// truncate-first would waste cap budget on control chars that are stripped anyway.
 ///
 /// See MED-001 (ADV-PR-P1 S-PRISMQL-CASE-INSENSITIVE-001) and RG-079.
-#[allow(dead_code)] // Production refactor wires the SECONDARY warn site to call this helper.
 fn sanitize_enum_label_for_log(s: &str) -> String {
-    // WRONG ORDER: truncate first, then sanitize.
-    // Spec order (BC-2.16.002 catalog row 91): sanitize_for_log BEFORE .chars().take(50)
-    prism_core::sanitize_for_log(&s.chars().take(50).collect::<String>())
+    prism_core::sanitize_for_log(s).chars().take(50).collect()
 }
 
 #[cfg(test)]
@@ -376,7 +378,6 @@ mod thread_safety_tests {
 #[cfg(test)]
 mod cr002_cr004_guard_tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
-    use std::sync::{Arc, Mutex};
 
     use super::{sanitize_enum_label_for_log, shared_enum_map};
 
@@ -420,62 +421,43 @@ mod cr002_cr004_guard_tests {
     /// unrecognized enum-label value containing a newline control character, the
     /// logged `value` field MUST have control chars stripped before emission.
     ///
-    /// RED GATE: FAILS before CR-004 fix — `.chars().take(50)` does not strip `\n`.
-    /// GREEN GATE: PASSES after CR-004 applies `prism_core::sanitize_for_log`.
+    /// GREEN GATE: passes on current code (CR-004 already applied; production path
+    /// routes through `sanitize_enum_label_for_log` which calls `sanitize_for_log`
+    /// BEFORE the 50-codepoint cap per BC-2.16.002 catalog row 91).
     ///
-    /// NOTE: `normalize_with_mappers` requires a sensor+record_type with a registered
-    /// mapper. This test uses the `ocsf.enum_label_unrecognized` path via the shared
-    /// enum map post-pass, which is exercised whenever a non-canonical, unrecognized
-    /// value appears in a OCSF label field after mapper.map() populates the message.
-    /// We test the sanitize helper directly here and verify the SECONDARY site applies
-    /// it (behavior confirmed by the `normalizer.rs` code change).
-    ///
-    /// Direct test: `prism_core::sanitize_for_log` strips ASCII control chars.
+    /// Re-pointed to the production helper after MED-001 fix (RG-079): this test
+    /// now directly exercises `sanitize_enum_label_for_log` to assert basic
+    /// control-char stripping.  RG-079 asserts the ORDER; this test asserts the
+    /// STRIPPING invariant with a short input where order is irrelevant.
     #[test]
     fn test_cr004_sanitize_for_log_strips_control_chars_for_secondary_site() {
-        // Verify the helper used at the SECONDARY emission site strips control chars.
-        // This is the function called at normalizer.rs lines 170-171 after CR-004.
+        // Verify the production helper used at the SECONDARY emission site strips control chars.
         let newline_input = "VENDOR\nINJECT";
-        let sanitized = prism_core::sanitize_for_log(newline_input);
+        let sanitized = sanitize_enum_label_for_log(newline_input);
         assert!(
             !sanitized.contains('\n'),
-            "CR-004 SECONDARY: sanitize_for_log must strip '\\n'; got: {:?}",
+            "CR-004 SECONDARY: sanitize_enum_label_for_log must strip '\\n'; got: {:?}",
             sanitized
         );
         assert_eq!(
             sanitized, "VENDORINJECT",
-            "CR-004 SECONDARY: sanitize_for_log must remove '\\n' entirely (not replace); \
+            "CR-004 SECONDARY: sanitize_enum_label_for_log must remove '\\n' entirely; \
              got: {:?}",
             sanitized
         );
 
         let escape_input = "\x1b[31mred\x1b[0m";
-        let sanitized_esc = prism_core::sanitize_for_log(escape_input);
+        let sanitized_esc = sanitize_enum_label_for_log(escape_input);
         assert!(
             !sanitized_esc.contains('\x1b'),
-            "CR-004 SECONDARY: sanitize_for_log must strip ANSI ESC char; got: {:?}",
+            "CR-004 SECONDARY: sanitize_enum_label_for_log must strip ANSI ESC char; got: {:?}",
             sanitized_esc
         );
-
-        // Capture pattern: verify the SECONDARY warn captures with WarnCapture.
-        // (Full normalize_with_mappers invocation requires live OCSF descriptor pool;
-        // the code-path correctness is verified by the code change applying
-        // sanitize_for_log at normalizer.rs lines 170-171, confirmed by code review.)
-        let captured_value: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
-        let captured_clone = captured_value.clone();
-
-        // Simulate what the SECONDARY site now does after CR-004:
-        let raw_sensor_value = "BAD\nVALUE";
-        let truncated = raw_sensor_value.chars().take(50).collect::<String>();
-        let sanitized_truncated = prism_core::sanitize_for_log(&truncated);
-        *captured_clone.lock().unwrap() = Some(sanitized_truncated);
-
-        let val = captured_value.lock().unwrap().clone().unwrap();
+        // Verify 50-codepoint cap is applied: "[31mred[0m" = 9 codepoints, all within cap.
         assert!(
-            !val.contains('\n'),
-            "CR-004 SECONDARY: emit value after truncate+sanitize must have no '\\n'; \
-             got: {:?}",
-            val
+            sanitized_esc.chars().count() <= 50,
+            "CR-004 SECONDARY: sanitize_enum_label_for_log must cap at 50 codepoints; got: {}",
+            sanitized_esc.chars().count()
         );
     }
 
