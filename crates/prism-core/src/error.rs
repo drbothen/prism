@@ -1958,8 +1958,9 @@ impl InfusionError {
     /// truncation in `parse_datetime_to_micros`).
     ///
     /// SEC-001 (CWE-117, error-taxonomy v2.17): `field_name`, `infusion_id`, and `declared_type`
-    /// are stripped of ASCII control characters (0x00–0x1F, 0x7F) before storage to prevent
-    /// log injection and LLM prompt injection when rendered via `tracing::warn!("{}", err)`.
+    /// are stripped of Unicode Cc (C0 U+0000–U+001F, DEL U+007F, C1 U+0080–U+009F) + U+2028/U+2029
+    /// before storage to prevent log injection and LLM prompt injection when rendered via
+    /// `tracing::warn!("{}", err)`.
     /// `truncated_value` is stripped AFTER the 50-char truncation (truncation removes excess
     /// content first; stripping removes any control chars that survived the 50-char window).
     ///
@@ -1982,19 +1983,30 @@ impl InfusionError {
     }
 }
 
-/// Strip ASCII control characters (0x00–0x1F, 0x7F) from `s` before embedding in log or error
-/// messages.
+/// Strip Unicode control characters and line/paragraph separators from `s` before embedding in
+/// log or error messages.
 ///
 /// **Contract A — canonical log/error-message sanitizer (CWE-117):**
-/// Removes chars where `c.is_ascii_control()` is true; no length cap; no replacement character.
+///
+/// Scope: Unicode Cc (C0 U+0000–U+001F, DEL U+007F, C1 U+0080–U+009F),
+/// U+2028 (LINE SEPARATOR), and U+2029 (PARAGRAPH SEPARATOR).
+/// No length cap; no replacement character.
+/// Parity with `prism-mcp` `connectivity.rs` `sanitize_error` which also strips U+2028/U+2029.
+///
 /// Use this function for log and error message value sanitization across all crates.
-/// Distinct from `prism_spec_engine::overlay::sanitize_for_display` which uses U+FFFD replacement
-/// and a 256-char cap for display-facing overlay error strings.
+/// Distinct from `prism_spec_engine::overlay::sanitize_for_display` which uses U+FFFD
+/// replacement and a 256-char cap for display-facing overlay error strings.
 ///
 /// Prevents CWE-117 log injection and LLM prompt injection into agent-consumed structured logs
 /// (AD-017 extension, error-taxonomy v2.17 SEC-001 Rendering Note).
+///
+/// ADV-PR-P5-OBS-001 fix: widened from `c.is_ascii_control()` (C0+DEL only) to
+/// `c.is_control()` (covers C1 U+0080–U+009F) plus explicit U+2028/U+2029 (category Zl/Zp;
+/// not in Unicode Cc, so not caught by `is_control()` alone).
 pub fn sanitize_for_log(s: &str) -> String {
-    s.chars().filter(|c| !c.is_ascii_control()).collect()
+    s.chars()
+        .filter(|c| !c.is_control() && *c != '\u{2028}' && *c != '\u{2029}')
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -2327,6 +2339,63 @@ mod tests {
             "OBS-002 / RG-081: QueryTypeMismatch with None suggested_column must NOT \
              contain suggestion suffix; got: {:?}",
             display_without
+        );
+    }
+
+    /// ADV-PR-P5-OBS-001 RED GATE: `sanitize_for_log` must strip Unicode Cc characters
+    /// (C1 range U+0080–U+009F: NEL U+0085, CSI U+009B) and Line/Paragraph Separators
+    /// (U+2028, U+2029), while preserving normal Unicode letters.
+    ///
+    /// RED against the old `c.is_ascii_control()` impl which only strips C0+DEL (U+0000–U+001F,
+    /// U+007F). GREEN after widening to `c.is_control() && *c != '\u{2028}' && *c != '\u{2029}'`.
+    ///
+    /// Traces to: ADV-PR-P5-OBS-001 (CWE-117 C1 gap); CWE-117; AD-017.
+    #[test]
+    fn test_sanitize_for_log_strips_unicode_cc_and_line_separators() {
+        // U+0085 NEL (NEXT LINE) — C1 control char; stripped by `c.is_control()`, NOT by
+        // `c.is_ascii_control()`. LLM prompt-injection vector.
+        assert_eq!(
+            sanitize_for_log("\u{0085}"),
+            "",
+            "ADV-PR-P5-OBS-001: sanitize_for_log must strip U+0085 (NEL, C1 control)"
+        );
+
+        // U+009B CSI (CONTROL SEQUENCE INTRODUCER) — C1 control char.
+        assert_eq!(
+            sanitize_for_log("\u{009B}"),
+            "",
+            "ADV-PR-P5-OBS-001: sanitize_for_log must strip U+009B (CSI, C1 control)"
+        );
+
+        // U+2028 LINE SEPARATOR — category Zl; NOT in Unicode Cc, so not caught by
+        // `c.is_control()`. Must be explicitly excluded. LLM prompt-injection vector
+        // (parity with prism-mcp connectivity.rs sanitize_error).
+        assert_eq!(
+            sanitize_for_log("\u{2028}"),
+            "",
+            "ADV-PR-P5-OBS-001: sanitize_for_log must strip U+2028 (LINE SEPARATOR)"
+        );
+
+        // U+2029 PARAGRAPH SEPARATOR — category Zp; same rationale as U+2028.
+        assert_eq!(
+            sanitize_for_log("\u{2029}"),
+            "",
+            "ADV-PR-P5-OBS-001: sanitize_for_log must strip U+2029 (PARAGRAPH SEPARATOR)"
+        );
+
+        // Normal Unicode letters MUST be preserved (must not over-strip).
+        assert_eq!(
+            sanitize_for_log("HÍGH"),
+            "HÍGH",
+            "ADV-PR-P5-OBS-001: sanitize_for_log must preserve normal Unicode letters"
+        );
+
+        // Mixed: C1 and separators stripped; Unicode letters preserved.
+        assert_eq!(
+            sanitize_for_log("H\u{0085}Í\u{2028}G\u{009B}H\u{2029}"),
+            "HÍGH",
+            "ADV-PR-P5-OBS-001: mixed input — all control chars/separators stripped, \
+             Unicode letters preserved"
         );
     }
 

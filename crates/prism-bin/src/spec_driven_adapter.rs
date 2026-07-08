@@ -1055,9 +1055,10 @@ fn build_column_array(
                                 // 50 codepoints so unbounded strings from untrusted sensor
                                 // data cannot flood logs. Consistent with E-QUERY-041/042
                                 // value_prefix convention.
-                                // CR-004 / SEC-001 (CWE-117): sanitize_for_log strips ASCII
-                                // control chars (0x00–0x1F, 0x7F) BEFORE the 50-codepoint cap
-                                // (BC-2.16.002 catalog row 91 spec order: sanitize → truncate).
+                                // CR-004 / SEC-001 (CWE-117): sanitize_for_log strips Unicode Cc
+                                // (C0 U+0000–U+001F, DEL U+007F, C1 U+0080–U+009F) + U+2028/U+2029
+                                // BEFORE the 50-codepoint cap (BC-2.16.002 catalog row 91 spec
+                                // order: sanitize → truncate).
                                 value = %prism_core::sanitize_for_log(&s).chars().take(50).collect::<String>(),
                                 error = %e,
                                 "ADR-052: datetime string not parseable as RFC-3339 UTC; \
@@ -1110,7 +1111,8 @@ fn build_column_array(
                                             event_type = "ocsf.enum_label_unrecognized",
                                             field_name = %col.name,
                                             // CR-004 / SEC-001 (CWE-117): sanitize_for_log strips
-                                            // ASCII control chars (0x00–0x1F, 0x7F) BEFORE the
+                                            // Unicode Cc (C0 U+0000–U+001F, DEL U+007F, C1
+                                            // U+0080–U+009F) + U+2028/U+2029 BEFORE the
                                             // 50-codepoint cap (BC-2.16.002 catalog row 91 spec
                                             // order: sanitize → truncate) to prevent log injection
                                             // from adversarial sensor enum-label values.
@@ -2688,8 +2690,9 @@ mod tests {
     ///
     /// RED GATE (current HEAD): FAILS — `.chars().take(50).collect::<String>()`
     /// truncates but does NOT strip control chars; `\n` survives into the log.
-    /// GREEN GATE: PASSES after CR-004 applies `prism_core::sanitize_for_log` (which
-    /// strips ASCII control chars 0x00–0x1F and 0x7F) before the 50-codepoint cap.
+    /// GREEN GATE: PASSES after CR-004 applies `prism_core::sanitize_for_log` (which strips
+    /// Unicode Cc (C0 U+0000–U+001F, DEL U+007F, C1 U+0080–U+009F) + U+2028/U+2029)
+    /// before the 50-codepoint cap.
     ///
     /// Traces to: CR-004/SEC-001 CWE-117; BC-2.16.002 catalog row 91 field-schema
     /// amendment (control-char sanitization note); BC-2.02.013 F-CRIT-002 error case.

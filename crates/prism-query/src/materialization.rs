@@ -2278,6 +2278,15 @@ fn collect_ci_fields_inner(pred: &crate::ast::Predicate, out: &mut Vec<(String, 
 /// the inline test module below. Any regression to fail-closed on the None path
 /// would break queries against sources that return 0 rows (F-P16-OBS-002).
 ///
+/// # Three-arm schema lookup outcomes
+///
+/// `SchemaProvider::table()` can return three distinct outcomes (ADV-PR-P5-OBS-002):
+/// - `Ok(Some(tp))` — table found; proceed with column type-checking.
+/// - `Ok(None)` — table not registered (sensor returned 0 rows; intentional skip).
+/// - `Err(e)` — schema catalog lookup failed; propagated as
+///   `PrismError::QueryExecutionFailed` (E-QUERY-034). The DataFusion error detail
+///   is logged server-side and redacted from the client-facing error message.
+///
 /// Extracted to eliminate the copy-paste duplication between the Filter arm
 /// (which iterates over multiple `table_names`) and the Pipe/SqlPipe arms (single
 /// `source_table`). Callers call this function once per candidate table; the Filter
@@ -2300,28 +2309,54 @@ async fn check_ci_column_types(
         .catalog("datafusion")
         .and_then(|cat| cat.schema("public"))
     {
-        // Table may be absent from the catalog when `register_mem_table` skipped it
-        // due to an empty batch list (sensor returned 0 rows). That is an intentional
-        // skip — see doc comment above. `Ok(Some(tp))` is the only path that type-checks.
-        if let Ok(Some(tp)) = public_schema.table(table_name).await {
-            let arrow_schema = tp.schema();
-            for (col_name, operator) in ci_fields {
-                if let Ok(arrow_field) = arrow_schema.field_with_name(col_name) {
-                    let is_string = matches!(
-                        arrow_field.data_type(),
-                        ArrowDataType::Utf8 | ArrowDataType::LargeUtf8 | ArrowDataType::Utf8View
-                    );
-                    if !is_string {
-                        let actual_type = arrow_type_to_prism_column_type(arrow_field.data_type());
-                        return Err(PrismError::QueryTypeMismatch {
-                            column: col_name.clone(),
-                            table: table_name.to_string(),
-                            actual_type,
-                            operator: operator.clone(),
-                            suggested_column: ocsf_suggested_string_column(col_name),
-                        });
+        match public_schema.table(table_name).await {
+            Ok(Some(tp)) => {
+                // Table found: verify every CI-operated column is a string type.
+                let arrow_schema = tp.schema();
+                for (col_name, operator) in ci_fields {
+                    if let Ok(arrow_field) = arrow_schema.field_with_name(col_name) {
+                        let is_string = matches!(
+                            arrow_field.data_type(),
+                            ArrowDataType::Utf8
+                                | ArrowDataType::LargeUtf8
+                                | ArrowDataType::Utf8View
+                        );
+                        if !is_string {
+                            let actual_type =
+                                arrow_type_to_prism_column_type(arrow_field.data_type());
+                            return Err(PrismError::QueryTypeMismatch {
+                                column: col_name.clone(),
+                                table: table_name.to_string(),
+                                actual_type,
+                                operator: operator.clone(),
+                                suggested_column: ocsf_suggested_string_column(col_name),
+                            });
+                        }
                     }
                 }
+            }
+            Ok(None) => {
+                // Intentional skip: table is not in the DataFusion catalog because
+                // `register_mem_table` skipped an empty batch list (sensor returned 0 rows).
+                // A query against this unregistered table will fail at DataFusion execution
+                // time with a "table not found" error. No type-checking needed. (F-P16-OBS-002)
+            }
+            Err(e) => {
+                // Schema catalog lookup failed — propagate as E-QUERY-034.
+                // Log the DataFusion error server-side; redact from client response.
+                tracing::error!(
+                    table_name = %table_name,
+                    error = %e,
+                    "check_ci_column_types: schema provider table lookup failed \
+                     (detail redacted from client response)"
+                );
+                return Err(PrismError::QueryExecutionFailed {
+                    detail: format!(
+                        "schema catalog lookup for table '{}' failed: \
+                         <redacted; see server logs>",
+                        table_name
+                    ),
+                });
             }
         }
     }
@@ -5753,12 +5788,15 @@ mod check_ci_column_types_guard_tests {
     //!
     //! 1. An unregistered table (sensor returned 0 rows; MemTable skipped) → `Ok(())`
     //! 2. Empty `ci_fields` slice → `Ok(())` (early-return fast path)
+    //! 3. Schema provider returns `Err` → propagated as `PrismError::QueryExecutionFailed`
+    //!    (ADV-PR-P5-OBS-002)
     //!
     //! These lock the "skip on unregistered table" design documented in the function's
     //! doc comment. A regression to fail-closed would break queries against sources
     //! that return 0 rows. (F-P16-OBS-002, LOCAL-pass-16)
 
     use crate::memory::build_session_context;
+    use prism_core::PrismError;
 
     use super::check_ci_column_types;
 
@@ -5793,6 +5831,88 @@ mod check_ci_column_types_guard_tests {
         assert!(
             result.is_ok(),
             "F-P16-OBS-002: empty ci_fields must return Ok(()); got: {result:?}"
+        );
+    }
+
+    /// ADV-PR-P5-OBS-002 RED GATE: `check_ci_column_types` must propagate `Err` returned
+    /// by `SchemaProvider::table()` as `PrismError::QueryExecutionFailed` (E-QUERY-034).
+    ///
+    /// RED against the old `if let Ok(Some(tp))` pattern which silently swallows the `Err`
+    /// branch and returns `Ok(())`. GREEN after the explicit match adds an `Err(e)` arm
+    /// that propagates as `QueryExecutionFailed`.
+    ///
+    /// Mock wiring: `SessionContext::register_catalog("datafusion", ErrCatalogProvider)`
+    /// overrides the default catalog with one whose "public" schema returns
+    /// `Err(DataFusionError::Plan(...))` from `table()`.
+    ///
+    /// Traces to: ADV-PR-P5-OBS-002; PrismError::QueryExecutionFailed (E-QUERY-034).
+    #[tokio::test]
+    async fn test_check_ci_column_types_schema_provider_err_propagates() {
+        use std::any::Any;
+        use std::sync::Arc;
+
+        use async_trait::async_trait;
+        use datafusion::catalog::{CatalogProvider, SchemaProvider};
+        use datafusion::datasource::TableProvider;
+        use datafusion::error::DataFusionError;
+        use datafusion::execution::context::SessionContext;
+
+        /// Minimal mock SchemaProvider whose `table()` always returns `Err`.
+        #[derive(Debug)]
+        struct ErrSchemaProvider;
+
+        #[async_trait]
+        impl SchemaProvider for ErrSchemaProvider {
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
+            fn table_names(&self) -> Vec<String> {
+                vec![]
+            }
+            async fn table(
+                &self,
+                _name: &str,
+            ) -> datafusion::error::Result<Option<Arc<dyn TableProvider>>> {
+                Err(DataFusionError::Plan(
+                    "mock: schema provider error for ADV-PR-P5-OBS-002 test".to_string(),
+                ))
+            }
+            fn table_exist(&self, _name: &str) -> bool {
+                false
+            }
+        }
+
+        /// Minimal mock CatalogProvider whose "public" schema is `ErrSchemaProvider`.
+        #[derive(Debug)]
+        struct ErrCatalogProvider;
+
+        impl CatalogProvider for ErrCatalogProvider {
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
+            fn schema_names(&self) -> Vec<String> {
+                vec!["public".to_string()]
+            }
+            fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
+                if name == "public" {
+                    Some(Arc::new(ErrSchemaProvider))
+                } else {
+                    None
+                }
+            }
+        }
+
+        // Override the default "datafusion" catalog with our Err-returning mock.
+        let ctx = SessionContext::new();
+        ctx.register_catalog("datafusion", Arc::new(ErrCatalogProvider));
+
+        let ci_fields = vec![("severity".to_string(), "IEQ".to_string())];
+        let result = check_ci_column_types(&ctx, "test_table", &ci_fields).await;
+
+        assert!(
+            matches!(result, Err(PrismError::QueryExecutionFailed { .. })),
+            "ADV-PR-P5-OBS-002: schema provider Err must propagate as \
+             PrismError::QueryExecutionFailed (E-QUERY-034); got: {result:?}"
         );
     }
 }

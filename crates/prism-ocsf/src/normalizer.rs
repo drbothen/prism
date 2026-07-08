@@ -170,8 +170,9 @@ impl OcsfNormalizer {
                 // BC-2.02.013 §Error Cases: unrecognized vendor value — leave as-received
                 // and emit warn. Non-fatal; record is never dropped.
                 // SAP-1: event_type registered in BC-2.16.002 §Postconditions catalog row 91.
-                // CR-004 / SEC-001 (CWE-117): sanitize_enum_label_for_log strips ASCII control
-                // chars (0x00–0x1F, 0x7F) BEFORE the 50-codepoint cap to prevent log injection.
+                // CR-004 / SEC-001 (CWE-117): sanitize_enum_label_for_log strips Unicode Cc
+                // (C0 U+0000–U+001F, DEL U+007F, C1 U+0080–U+009F) + U+2028/U+2029 BEFORE
+                // the 50-codepoint cap to prevent log injection.
                 // Order: sanitize_for_log first, then .chars().take(50) (BC-2.16.002 row 91).
                 tracing::warn!(
                     event_type = "ocsf.enum_label_unrecognized",

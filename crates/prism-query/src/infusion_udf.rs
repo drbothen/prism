@@ -3021,7 +3021,7 @@ mod tests {
     /// The assertion `!logs_contain("\x01")` therefore FAILS against current code.
     ///
     /// **After fix:** sanitize `field_name`/`infusion_id`/`declared_type`/`truncated_value` with
-    /// `sanitize_for_log()` (strip chars where `c.is_ascii_control()`) inside `warn_coercion_failed`
+    /// `sanitize_for_log()` (strip Unicode Cc + U+2028/U+2029) inside `warn_coercion_failed`
     /// BEFORE passing them as named tracing fields. The U+0001 is removed; `logs_contain("\x01")`
     /// returns `false`; the assertion PASSES.
     ///
@@ -3080,7 +3080,7 @@ mod tests {
              found in captured tracing output. The structured field `field_name` in \
              infusion.coercion_failed emits the raw field_name argument without control-char \
              sanitization. JSON log consumers receive U+0001 in the field value. \
-             FIX: call sanitize_for_log(field_name) (strip .is_ascii_control() chars) inside \
+             FIX: call sanitize_for_log(field_name) (strip Unicode Cc + U+2028/U+2029) inside \
              warn_coercion_failed before passing to the `field_name = %...` tracing field."
         );
         assert!(
