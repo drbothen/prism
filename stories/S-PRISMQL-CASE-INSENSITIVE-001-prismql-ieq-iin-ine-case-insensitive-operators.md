@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.24"
+version: "1.25"
 updated: "2026-07-07"
 status: draft
 producer: story-writer
@@ -115,7 +115,7 @@ risk_mitigations:
      passes through the parsed operator string, it will emit lowercase if the query was
      written lowercase. The normalizer must use canonical uppercase operator names."
 traces_to: [ADR-047]
-red_gate_tests: 67
+red_gate_tests: 70
 estimated_days: "3"
 ---
 
@@ -887,11 +887,19 @@ commit 26325423).
 |-------|--------------------|----------|----|-----------|
 | RG-067 | `test_BC_2_10_009_query_tool_description_no_vendor_casing_teaches_ieq` | `crates/prism-mcp/tests/mcp_prism_describe.rs` | AC-025 | Query tool description contains no vendor-casing teaching patterns and mentions IEQ — post-normalization ENUM CASING CONTRACT (pass-17 F-HIGH-1) |
 
-RG-028 through RG-067 names are authoritative per verified ground truth.
+**Pass-18 new tests (PIPE MODE IEQ skeleton guard + severity-column-presence gate replaces allowlist):**
 
-**Total Red Gate tests: 67 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17)**
+| RG ID | Test Function Name | Location | AC | Assertion |
+|-------|--------------------|----------|----|-----------|
+| RG-068 | `test_RG_067_query_tool_pipe_mode_example_uses_ieq_not_equals` | `crates/prism-mcp/src/server.rs` (adr_042_tests module) | AC-025/description guard | PIPE MODE skeleton uses IEQ not case-sensitive `=` (pass-18 OBS-1) |
+| RG-069 | `test_obs2_sentinel_alerts_with_severity_gets_ieq_example` | `crates/prism-mcp/src/tools/prism_describe.rs` | AC-025 | UNKNOWN sensor prefix with severity String column gets IEQ example + note (allowlist gate replaced by column-presence rule; pass-18 OBS-2) |
+| RG-070 | `test_obs2_claroty_devices_no_severity_column_still_no_ieq_note` | `crates/prism-mcp/src/tools/prism_describe.rs` | AC-025 guard | No-severity tables unaffected — IEQ example and casing note not emitted when no severity column present (pass-18 OBS-2) |
 
-The story frontmatter records `red_gate_tests: 67`. RG-026/RG-027 discoverability tests may be
+RG-028 through RG-070 names are authoritative per verified ground truth.
+
+**Total Red Gate tests: 70 (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18)**
+
+The story frontmatter records `red_gate_tests: 70`. RG-026/RG-027 discoverability tests may be
 snapshot or integration tests; include them if they can be written as failing stubs, otherwise
 verify the parity gate via `just check`. RG-028 is the authoritative describe test. RG-032
 through RG-036 are the PRIMARY build_column_array tests in prism-bin.
@@ -1397,7 +1405,7 @@ E (Adapter normalization) is parallel to A-D.
     just iter prism-mcp         # describe authoritative test (RG-028)
     just check                  # full workspace pre-push gate
     ```
-    All 67 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17).
+    All 70 Red Gate tests must pass (25 core + 2 discoverability + 9 pass-5 + 4 pass-7 + 2 pass-8 SqlPipe + 3 pass-9 + 2 pass-10 + 6 pass-11 + 1 pass-12 + 4 pass-14 + 6 pass-15 + 2 pass-16 + 1 pass-17 + 3 pass-18).
     All existing tests must continue to pass (especially existing =, != filter tests — regression
     guard for AC-011/AC-013).
 
@@ -1612,3 +1620,4 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 | v1.22 | 2026-07-07 | pass-16: BC-2.10.012 v1.8 added to behavioral_contracts frontmatter array and body Behavioral Contracts table (F-P16-MED-001; AC-025/RG-061..063 material dependency on pure-PQL invariant + example_note field contract); BC-2.02.013 pin v1.5→v1.6 at all 9 live sites (frontmatter comment, Behavioral Contracts table, Token Budget, AC-016 ×2, AC-017, AC-018, AC-019, File Structure Requirements, Task 19d, Scope Ambiguities — empty-string bypass EC-02-028 + sensor_type cap documented in v1.6); BC-2.16.002 pin v2.01→v2.03 in AC-018 cap language; AC-018 extended to note both `value` and `sensor_type` fields are 50-codepoint-capped per BC-2.02.013 v1.6; Token Budget BC count 7→8 + total ~82k→~83k |
 | v1.23 | 2026-07-07 | pass-16: RG-065/066 CI pre-flight guard tests added (zero-row unregistered-table skip adjudicated F-P16-OBS-002; empty CI-field list Ok); shared_enum_map() single-access-point note added to Architecture Mapping (F-P16-OBS-001; duplicate statics removed); red_gate_tests 64→66; "RG-028 through RG-064"→"RG-028 through RG-066"; Total/Task-28 counts updated to 66 + 2 pass-16 |
 | v1.24 | 2026-07-07 | pass-17: F-HIGH-1 query-tool description post-normalization rewrite (RG-067 guard — `test_BC_2_10_009_query_tool_description_no_vendor_casing_teaches_ieq` in `crates/prism-mcp/tests/mcp_prism_describe.rs`); RG-062 re-anchored to `test_BC_2_10_012_build_example_note_query_parses_without_stripping` (build_example_query_tests module, verified in worktree); BC-2.10.012 pin v1.8→v1.9 at all live sites (frontmatter comment, BC table, Token Budget, AC-025 interaction note ×3, AC-025 body, RG-061/062/063 rows, Task-23 ×2) per ADR-047 §D.4 precedence; red_gate_tests 66→67; "RG-028 through RG-066"→"RG-028 through RG-067"; Total/Task-28 counts updated to 67 + 1 pass-17 |
+| v1.25 | 2026-07-07 | pass-18 OBS closures: RG-068 PIPE MODE IEQ skeleton guard (`test_RG_067_query_tool_pipe_mode_example_uses_ieq_not_equals`, server.rs adr_042_tests, OBS-1); RG-069/070 severity-column-presence gate replaces SENSOR_SEVERITY_VOCABULARY allowlist (`test_obs2_sentinel_alerts_with_severity_gets_ieq_example` + `test_obs2_claroty_devices_no_severity_column_still_no_ieq_note`, prism_describe.rs, OBS-2); SENSOR_SEVERITY_VOCABULARY const REMOVED (gate now has_severity column presence — universally correct post-normalization); `test_f_l2_crit001_unknown_sensor_with_severity_falls_back_to_count_recent` renamed to `..._gets_ieq`; red_gate_tests 67→70; "RG-028 through RG-067"→"RG-028 through RG-070"; Total/Task-28 counts updated to 70 + 3 pass-18 |
