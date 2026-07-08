@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.29"
+version: "1.30"
 updated: "2026-07-08"
 status: draft
 producer: story-writer
@@ -700,7 +700,7 @@ column,
 when the output is inspected,
 then:
 1. The `example_query` field contains a pure parseable PQL query using `IEQ` with a
-   severity value — e.g., `SELECT * FROM <table> WHERE severity IEQ 'high'` — with NO
+   severity value — e.g., `FROM <table> | where severity IEQ 'high' | limit 50` — with NO
    embedded SQL comment lines (BC-2.10.012 v1.9 pure-PQL invariant).
 2. The `example_note` field is `Some("OCSF severity is stored as Title-case ('High').
    Use IEQ/IIN to match regardless of the case you type, or = 'High' for the exact
@@ -1401,7 +1401,7 @@ E (Adapter normalization) is parallel to A-D.
     `example_note` field (`Option<String>`). The correct output structure is:
 
     ```
-    example_query: "SELECT * FROM crowdstrike_detections WHERE severity IEQ 'high'"
+    example_query: "FROM crowdstrike_detections | where severity IEQ 'high' | limit 50"
     example_note:  "OCSF severity is stored as Title-case ('High'). Use IEQ/IIN to match
                     regardless of the case you type, or = 'High' for the exact canonical form."
     ```
@@ -1640,6 +1640,7 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.30 | 2026-07-08 | F-P27-HIGH-001 (pass-27): AC-025 assertion (1) + Task 23 illustrative `example_query` corrected SQL-mode SELECT→pipe-mode canonical form (`FROM <table> | where severity IEQ 'high' | limit 50`) per BC-2.11.024 v1.3 §Mode-Boundary Enforcement + BC-2.10.012 v1.9; POL-25 sweep: 8 `SELECT.*IEQ/IIN/INE` sites audited — 2 fixed (AC-025 body + Task 23 code block), 6 left unchanged (AC-023 intentional rejection inputs + RG-023/024/025/039/064 rejection-test descriptions). No code change; no RGT change. |
 | v1.29 | 2026-07-08 | F-P25-MED-001 (pass-25): corrected F-P24-LOW-001 file citation prism-query→prism-mcp (`crates/prism-mcp/tests/bc_2_10_016_audit_004_test.rs`); vocabulary-entry list corrected from (`'HIGH'`, `'CRITICAL'`, `'OPEN'`, etc.) to (`'HIGH'`, `'CRITICAL'`, `'MEDIUM'`, `'LOW'`). Story-side fix only; no code changes, no new RGT. |
 | v1.28 | 2026-07-07 | LOCAL pass-22 CLEAN(strict) — streak 1/3 (frozen 2de85b18). Pass-23 CLEAN(strict) — streak 2/3 (frozen 2de85b18). Pass-24 NOT CLEAN — F-P24-MED-001 (`engine.rs` `valid_operators_for_type(ColumnType::String)` omitted IEQ/IIN/INE from machine-readable E-QUERY-002 `valid_operators_for_type` contract, contradicting BC-2.11.024 v1.3 and the Display-prose SuggestedSuffix) + F-P24-LOW-001 (stale "prompt uses IIN" comment + dead ALL-CAPS vocabulary entries in `bc_2_10_016_audit_004_test.rs`). Both findings closed fix-in-scope; commit 633c5fab. RG-074 added (`test_BC_2_11_024_f_p24_med001_valid_operators_string_includes_ci_operators`, `engine.rs` `#[cfg(test)] mod tests`, 8-operator set: =, !=, LIKE, IN, NOT IN, IEQ, IIN, INE); sibling updates in `e_query_pedagogical.rs` (required_string 5→8) and `normalized_pql.rs` (comments); `error_mapping.rs` auto-tracks (derives dynamically). F-P24-LOW-001: dead ALL-CAPS entries removed, comment corrected to Title-case state (no new RGT). `red_gate_tests` 73→74; authoritative range "RG-028 through RG-073"→"RG-028 through RG-074"; Total/Task-28 counts updated 73→74 + 1 pass-24. Streak reset 0/3; next pass-25 on frozen 633c5fab. |
 | v1.27 | 2026-07-07 | LOCAL pass-21: 1 OBS finding F-P21-OBS-001 (`explain.rs` `predicate_to_exprs` dropped `case_insensitive` flag — latent EXPLAIN push-down misreport once ColumnSpec is wired) closed fix-in-scope per production-grade default; RG-073 added (`test_BC_2_11_024_f_p21_obs001_explain_ieq_iin_not_classified_pushdownable`, `crates/prism-query/src/explain.rs`, mod `predicate_explain_classification_tests`); `red_gate_tests` 72→73; "RG-028 through RG-072"→"RG-028 through RG-073"; Total/Task-28 counts updated to 73 + 1 pass-21. Commit 2de85b18. CLEAN(PR-merge)=yes on pass-21. |
