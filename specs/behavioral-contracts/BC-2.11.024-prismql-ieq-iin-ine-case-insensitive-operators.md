@@ -1,17 +1,17 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
-status: draft
+version: "1.4"
+status: active
 producer: product-owner
 timestamp: 2026-07-06T00:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-11"
 capability: "CAP-015"
-lifecycle_status: draft
+lifecycle_status: active
 introduced: 2026-07-06
-modified: "2026-07-07"
+modified: "2026-07-08"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -179,6 +179,7 @@ VP-021 (existing). VP for IEQ/IIN proptest plan-equality and round-trip verifica
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | post-merge-burst-D-1607 | 2026-07-08 | state-manager | POL-14 auto-promotion: `status: draft` → `status: active`, `lifecycle_status: draft` → `lifecycle_status: active`. PR #217 squash-merged to develop@f935edb6 (2026-07-08T21:18:56Z); story S-PRISMQL-CASE-INSENSITIVE-001 merged; BC-5.39.001 LOCAL 35-pass + PR-LEVEL 8-pass 3-CLEAN CONVERGED. modified 2026-07-07→2026-07-08 (POL-27). |
 | 1.0 | S-PRISMQL-CASE-INSENSITIVE-001-bc-burst | 2026-07-06 | product-owner | Initial draft. IEQ/IIN/INE case-insensitive operator family: grammar, AST `case_insensitive` flag, DataFusion `lower()` lowering. Resolves ADR-047 OD-2 (case-sensitive default) + OD-3 (IEQ/IIN/INE spelling) per human sign-off D-1398 2026-06-27. |
 | 1.3 | S-PRISMQL-CASE-INSENSITIVE-001-adversary-pass-15-spec-layer | 2026-07-07 | product-owner | **LOCAL adversary pass-15 F-MED-001 + F-LOW-001 closure.** (1) F-MED-001 — IIN non-string list elements: `severity IIN (42, 43)` currently parses then fails at PLAN time with opaque `QueryPlanFailed`, asymmetric with IEQ/INE which reject at PARSE time. Added: new Error Cases row "IIN with one or more non-string list elements" — parse-time `E-QUERY-001` with verbatim template `"E-QUERY-001: IIN operator requires quoted string literals in the membership list; got a non-string value (integer, float, or boolean). Example: status IIN ('new', 'open'). If you need date-like strings, wrap them in quotes: created_at IIN ('2026-06-01', '2026-06-02')."` (mirrors IEQ/INE style; notes quoted date-like strings are ACCEPTED per ADR-052 §D4 pass-14 refinement). Added EC-11-024-012. Added two test vectors (integer rejection + quoted date-like acceptance). Updated IIN invariant to state the non-string parse-time rejection obligation. Implementer directive: extend `iin_values` `try_map` to check each element type in addition to the existing empty-list check — reject when any `Literal` variant is not `String`, `RawTemporalLiteral`, or `Timestamp`. Test-writer directive: add RED Gate tests `severity IIN (42, 43)` and `status IIN (true, false)` → `E-QUERY-001` (parse-time, not plan-time); add GREEN test for `status IIN ('2026-06-01', '2026-06-02')` → parses OK. (2) F-LOW-001 — empty-IIN message sync: code emits richer message than spec. Updated empty-IIN Error Cases row to adopt code's verbatim template: `"E-QUERY-001: IIN operator requires at least one value in the membership list; empty () is not valid. Use at least one quoted string: e.g. \`status IIN ('new', 'open')\`."` Updated corresponding test vector verbatim message. |
 | 1.2 | S-PRISMQL-CASE-INSENSITIVE-001-adversary-pass-7-dml-scope-extension | 2026-07-07 | product-owner | **LOCAL adversary pass-7 F-LOW-2 closure: DML scope adjudication — EXTEND to ALL raw-SQL statements.** v1.1 Mode-Boundary Enforcement scoped the CI-operator rejection to "queries beginning with SELECT". F-LOW-2 found that `build_predicate_parser` is shared by DML sub-parsers (`build_delete_parser`, `build_update_parser`, `build_insert_parser`), so `DELETE FROM foo WHERE severity IEQ 'high'` also produces the opaque E-QUERY-034 trap via `parse_sql_dml_with_limits`. Adjudication: EXTEND — the trap applies equally to DML; extension is trivially cheap; production-grade default requires closure. Changes: (1) Mode-Boundary Enforcement invariant: scope changed from "queries beginning with `SELECT`" to "ALL raw-SQL mode statements (SELECT, DELETE, UPDATE, INSERT...SELECT)"; added implementation obligation that `parse_sql_dml_with_limits` MUST invoke the same CI-operator detector before dispatching to DML sub-parsers; added code-comment requirement near `parse_sql_dml_with_limits`. (2) Error Cases table: "SELECT … FROM …" example broadened to "any raw-SQL mode statement" with all four SQL forms listed. (3) EC-11-024-011 added: DML mode-boundary edge case (DELETE containing IEQ). (4) Test vector added: DML DELETE with IEQ → E-QUERY-001 (mode-boundary DML category). Implementer directive: extend `detect_ci_operator_in_sql_query` (to be written) to also cover the DML parse path via `parse_sql_dml_with_limits`; add code comment near `parse_sql_dml_with_limits` acknowledging the CI-operator guard. Test-writer directive: add DML RED Gate tests (DELETE/UPDATE containing IEQ → E-QUERY-001 with mode-boundary message; NOT E-QUERY-034). |

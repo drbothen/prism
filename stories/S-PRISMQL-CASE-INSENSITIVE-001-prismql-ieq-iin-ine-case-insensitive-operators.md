@@ -5,7 +5,7 @@ title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF
 epic_id: EPIC-DEMO
 version: "1.36"
 updated: "2026-07-08"
-status: draft
+status: merged
 producer: story-writer
 phase: 3
 wave: wave-5

@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.8"
-status: draft
+version: "1.9"
+status: active
 producer: product-owner
 timestamp: 2026-07-06T00:00:00Z
 phase: 1a
@@ -10,7 +10,7 @@ origin: greenfield
 subsystem: "SS-02"
 subsystems_multi: ["SS-22", "SS-02"]  # PRIMARY SS-22 per v1.5 F-CRIT-002 adjudication; ID family remains 2.02
 capability: "CAP-003"
-lifecycle_status: draft
+lifecycle_status: active
 introduced: 2026-07-06
 modified: 2026-07-08
 deprecated: null
@@ -176,6 +176,7 @@ VP-016 (existing), VP-022 (existing). VP for cross-sensor aggregation cardinalit
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | post-merge-burst-D-1607 | 2026-07-08 | state-manager | POL-14 auto-promotion: `status: draft` → `status: active`, `lifecycle_status: draft` → `lifecycle_status: active`. PR #217 squash-merged to develop@f935edb6 (2026-07-08T21:18:56Z); story S-PRISMQL-CASE-INSENSITIVE-001 merged; BC-5.39.001 LOCAL 35-pass + PR-LEVEL 8-pass 3-CLEAN CONVERGED. |
 | 1.8 | S-PRISMQL-CASE-INSENSITIVE-001-adversary-pass-28-f-p28-med-001 | 2026-07-08 | product-owner | **F-P28-MED-001 (pass-28): §Postconditions in-scope table coverage column updated Absent/Partial→Present per implemented enum_map.rs (status_id 10 entries: generic 0/1/2/99 + finding-class synthetic keys 1001-1006; activity_id 6 entries: 0,1,2,3,4,99; disposition_id 29 entries: 0-27, 99); temporal-indexical "today" column header removed (OBS-P28-001); design note conditional "When...are added (currently Absent)" framing replaced with stative "The entries in...include".** |
 | 1.7 | S-PRISMQL-CASE-INSENSITIVE-001-adversary-pass-20-f-p20-low-002 | 2026-07-07 | product-owner | **LOCAL adversary pass-20 closure: F-P20-LOW-002 (subsystem frontmatter reflects pre-F-CRIT-002 SECONDARY-only ownership).** Added `subsystems_multi: ["SS-22", "SS-02"]` additive frontmatter field to expose dual-subsystem ownership to downstream tooling. `subsystem: "SS-02"` retained as the ID-family anchor (BC-2.02.NNN namespace; append_only_numbering policy forbids renumbering). Corpus survey of all BC files confirmed all use scalar `subsystem:` — no array precedent in BC files; `subsystems_multi` is a new additive companion field following the recommended minimal-schema-impact path from the finding. Existing §Traceability Architecture Module body row (PRIMARY SS-22 / SECONDARY SS-02) unchanged. State-manager must update BC-INDEX row (version 1.6 → 1.7). Story-writer must propagate v1.6 → v1.7 references in story body (see sibling sweep list). |
 | 1.6 | S-PRISMQL-CASE-INSENSITIVE-001-adversary-pass-16 | 2026-07-07 | product-owner | **LOCAL adversary pass-16 closures: F-P16-MED-002 (empty-string bypass) + F-P16-LOW-001 (`sensor_type` 50-codepoint cap).** (1) **F-P16-MED-002 (MED):** Spec did not account for empty-string enum field values. Code behavior (correct, locked by RG-047 PRIMARY + RG-054 SECONDARY): empty-string values bypass normalization entirely — pass through unchanged with NO `ocsf.enum_label_unrecognized` warn. Empty string represents an unset/missing sensor field, not a vendor enum value. Prior §Postconditions "values NOT found → left as-received + warn" reading ambiguously covered empty strings. Changes: (a) new §Postconditions bullet "Null and empty-string passthrough (silent, no warn)" explicitly distinguishing null/empty-string passthrough (silent, no warn) from non-empty unrecognized-value passthrough (with warn); (b) EC-02-028 (empty-string bypass edge case row); (c) empty-string test vector added to §Canonical Test Vectors. (2) **F-P16-LOW-001 (LOW):** `sensor_type` field in `ocsf.enum_label_unrecognized` warn-event schema lacked the 50-codepoint cap note (SEC-002 defense applies symmetrically to both `value` and `sensor_type` fields). Change: `sensor_type: %display` description extended to state "capped at 50 codepoints before emission (SEC-002 defense; symmetric with `value` field)". Companion: BC-2.16.002 v2.02 → v2.03 (catalog row 91 `sensor_type` field description + empty-string bypass trigger-condition clarification). Frontmatter v1.5 → v1.6. |
