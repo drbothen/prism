@@ -2887,12 +2887,16 @@ pub fn extract_near_text(input: &str, offset: usize) -> String {
 /// Returns a compile-time static slice of operator strings. Callers convert to
 /// `Vec<String>` for the JSON payload:
 ///
-/// String → `["=", "!=", "LIKE", "IN", "NOT IN"]`
+/// String → `["=", "!=", "LIKE", "IN", "NOT IN", "IEQ", "IIN", "INE"]`
 /// Integer → `["=", "!=", "<", ">", "<=", ">=", "BETWEEN", "IN", "NOT IN"]`
 /// Float → `["=", "!=", "<", ">", "<=", ">=", "BETWEEN"]`
 /// Boolean → `["=", "!="]`
 /// Datetime → `["=", "!=", "<", ">", "<=", ">=", "BETWEEN"]`
 /// Json → `["=", "!="]`
+///
+/// Note: "NOT IIN" is intentionally absent. Negated IIN is not representable in the
+/// PrismQL AST (ast.rs: "<invalid: negated IIN not representable>") — it is never a
+/// legal operator. BC-2.11.024 v1.3; F-P24-MED-001 (S-PRISMQL-CASE-INSENSITIVE-001).
 ///
 /// Reference: BC-2.11.017 postconditions; S-DEMO-PRISMQL-ONBOARDING-001-B AC-003.
 pub fn valid_operators_for_type(
@@ -2900,7 +2904,10 @@ pub fn valid_operators_for_type(
 ) -> &'static [&'static str] {
     use prism_core::column::ColumnType;
     match column_type {
-        ColumnType::String => &["=", "!=", "LIKE", "IN", "NOT IN"],
+        // BC-2.11.024 v1.3: IEQ/IIN/INE are valid string-column case-insensitive operators.
+        // "NOT IIN" is NOT included — negated IIN is not representable in the PrismQL AST.
+        // F-P24-MED-001 (LOCAL pass-24, S-PRISMQL-CASE-INSENSITIVE-001).
+        ColumnType::String => &["=", "!=", "LIKE", "IN", "NOT IN", "IEQ", "IIN", "INE"],
         ColumnType::Integer => &["=", "!=", "<", ">", "<=", ">=", "BETWEEN", "IN", "NOT IN"],
         ColumnType::Float => &["=", "!=", "<", ">", "<=", ">=", "BETWEEN"],
         ColumnType::Boolean => &["=", "!="],
@@ -7539,6 +7546,52 @@ mod f_pxl3_med002_having_agg_predicate_col_gate_tests {
                 "ADR-048 divergence guard: expected PrismError::QueryParseFailed for \
                  WHERE count(severity) > 5, got: {other:?}"
             ),
+        }
+    }
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod f_p24_med001_valid_operators_ci_tests {
+    use super::valid_operators_for_type;
+    use prism_core::column::ColumnType;
+
+    /// RED GATE: valid_operators_for_type(ColumnType::String) must include IEQ, IIN, INE.
+    ///
+    /// BC-2.11.024 v1.3: IEQ/IIN/INE are valid string-column operators. The prior
+    /// implementation omitted them, causing a gap between the Display prose (which suggests
+    /// IEQ) and the machine-readable array (which denied IEQ/IIN/INE existed).
+    ///
+    /// "NOT IIN" is NOT added because negated IIN is not representable in the PrismQL AST
+    /// (ast.rs: "<invalid: negated IIN not representable>") — it is never a legal operator.
+    ///
+    /// Fix: F-P24-MED-001 (LOCAL pass-24, S-PRISMQL-CASE-INSENSITIVE-001).
+    #[test]
+    fn test_BC_2_11_024_f_p24_med001_valid_operators_string_includes_ci_operators() {
+        let ops = valid_operators_for_type(ColumnType::String);
+
+        // BC-2.11.024 v1.3 case-insensitive operators must be present.
+        for ci_op in &["IEQ", "IIN", "INE"] {
+            assert!(
+                ops.contains(ci_op),
+                "F-P24-MED-001: valid_operators_for_type(String) must contain '{}' \
+                 (BC-2.11.024 v1.3 case-insensitive operators). \
+                 Agents parsing this array would never learn {} is valid. Got: {:?}",
+                ci_op,
+                ci_op,
+                ops
+            );
+        }
+
+        // Numeric/datetime ordering operators must NOT appear for String columns.
+        for disallowed in &["<", ">", "<=", ">=", "BETWEEN"] {
+            assert!(
+                !ops.contains(disallowed),
+                "F-P24-MED-001: '{}' must NOT appear in valid_operators_for_type(String) \
+                 (numeric/datetime operator not valid for String). Got: {:?}",
+                disallowed,
+                ops
+            );
         }
     }
 }

@@ -848,15 +848,17 @@ const SENSOR_COLUMN_VOCABULARIES: &[(&str, &str, &[&str])] = &[
     //
     // The Armis adapter normalizes severity to OCSF Title-case at the ingest boundary
     // (BC-2.02.013): "HIGH"→"High", "CRITICAL"→"Critical", "MEDIUM"→"Medium", "LOW"→"Low".
-    // The triage prompt uses `IIN` (case-insensitive IN) so it matches both DTU-raw ALL-CAPS
-    // and OCSF-normalized Title-case forms.  The vocabulary includes both so the value-validation
-    // test accepts the Title-case literals from the `IIN` predicate without false-failing.
+    //
+    // The triage prompt uses case-sensitive `IN ('High', 'Critical')` (OCSF Title-case),
+    // NOT IIN (corrected in pass-10 / F-P9-MED-3; confirmed in prompts.rs render_triage_alerts).
+    // The vocabulary therefore contains only the post-normalization Title-case forms.
+    // ALL-CAPS entries are NOT included — they are raw DTU values before normalization and
+    // do not appear as literals in any prompt; including them would be dead data.
+    // F-P24-LOW-001 (LOCAL pass-24, S-PRISMQL-CASE-INSENSITIVE-001).
     (
         "armis_alerts",
         "severity",
-        &[
-            "HIGH", "CRITICAL", "MEDIUM", "LOW", "High", "Critical", "Medium", "Low",
-        ],
+        &["High", "Critical", "Medium", "Low"],
     ),
     // cyberint_alerts is intentionally absent.
     // No render_* prompt emits a cyberint_alerts SELECT, so any cyberint entry here

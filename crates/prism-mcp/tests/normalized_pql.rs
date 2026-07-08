@@ -644,8 +644,9 @@ mod tests {
     ///
     /// BC-2.11.017 canonical test vector:
     ///   Query: `SELECT * FROM <table> WHERE <string_col> > 5`
-    ///   Expected: E-QUERY-002 with `valid_operators_for_type: ["=","!=","LIKE","IN","NOT IN"]`
+    ///   Expected: E-QUERY-002 with `valid_operators_for_type: ["=","!=","LIKE","IN","NOT IN","IEQ","IIN","INE"]`
     ///   (STRING-SPECIFIC set — must NOT contain "<", ">", "<=", ">=", "BETWEEN")
+    ///   BC-2.11.024 v1.3: IEQ/IIN/INE added as valid string operators (F-P24-MED-001).
     ///
     /// LOAD-BEARING RED GATE test (TD-VSDD-059 paper-fix detection):
     ///
@@ -662,8 +663,9 @@ mod tests {
     ///      plan-time path (`PrismServer::query`) — NOT a synthetic QueryPlanFailed.
     ///   3. Asserts `is_error == Some(true)` — the engine MUST reject this query.
     ///   4. Asserts `valid_operators_for_type` is EXACTLY the String-specific set
-    ///      `["=","!=","LIKE","IN","NOT IN"]` as returned by
+    ///      `["=","!=","LIKE","IN","NOT IN","IEQ","IIN","INE"]` as returned by
     ///      `prism_query::engine::valid_operators_for_type(ColumnType::String)`.
+    ///      (BC-2.11.024 v1.3: IEQ/IIN/INE added as valid string operators — F-P24-MED-001.)
     ///      The assertion FAILS if the array contains ">" or "<" or "BETWEEN" — i.e., the
     ///      generic superset. Only the type-specific subset is acceptable.
     ///   5. A second case (Boolean column + `>`) asserts the Boolean-specific set `["=","!="]`
@@ -745,7 +747,10 @@ mod tests {
             .expect("BC-2.11.017 AC-003 (String+>): sc['error'] must be present");
 
         // LOAD-BEARING ASSERTION: the operators array must be EXACTLY the String-specific set.
-        // valid_operators_for_type(ColumnType::String) returns ["=", "!=", "LIKE", "IN", "NOT IN"].
+        // valid_operators_for_type(ColumnType::String) returns
+        // ["=", "!=", "LIKE", "IN", "NOT IN", "IEQ", "IIN", "INE"].
+        // BC-2.11.024 v1.3: IEQ/IIN/INE added by F-P24-MED-001 (S-PRISMQL-CASE-INSENSITIVE-001).
+        // The test derives expected from valid_operators_for_type so it tracks changes automatically.
         // This assertion FAILS if:
         //   - the field is absent (no type-mismatch detection)
         //   - the field is the generic superset (">", "<", "BETWEEN" present)

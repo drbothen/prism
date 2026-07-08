@@ -854,9 +854,11 @@ mod tests {
         use prism_core::column::ColumnType;
         use prism_query::engine::valid_operators_for_type;
 
-        // String: exactly 5 operators
+        // String: exactly 8 operators (5 case-sensitive + 3 case-insensitive IEQ/IIN/INE).
+        // BC-2.11.024 v1.3: IEQ/IIN/INE added by F-P24-MED-001 (S-PRISMQL-CASE-INSENSITIVE-001).
+        // "NOT IIN" absent — negated IIN is not representable in the PrismQL AST.
         let string_ops = valid_operators_for_type(ColumnType::String);
-        let required_string = ["=", "!=", "LIKE", "IN", "NOT IN"];
+        let required_string = ["=", "!=", "LIKE", "IN", "NOT IN", "IEQ", "IIN", "INE"];
         for op in &required_string {
             assert!(
                 string_ops.contains(op),
@@ -865,8 +867,8 @@ mod tests {
         }
         assert_eq!(
             string_ops.len(),
-            5,
-            "AC-003: String must have exactly 5 operators; got: {string_ops:?}"
+            8,
+            "AC-003: String must have exactly 8 operators (= != LIKE IN NOT_IN IEQ IIN INE); got: {string_ops:?}"
         );
 
         // Integer: exactly 9 operators (includes BETWEEN)
