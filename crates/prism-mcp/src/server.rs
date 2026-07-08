@@ -1870,10 +1870,10 @@ impl PrismServer {
         description = "Execute a PrismQL query against configured sensor data sources.\n\
         PrismQL (PQL) is a custom DSL for querying Prism security sensor data.\n\
         CLAUSE VOCABULARY: SELECT <cols> FROM <table> WHERE <filter> GROUP BY <col> ORDER BY <col> LIMIT <n>\n\
-        PIPE MODE: chain clauses with | for multi-step transformations, e.g.: SELECT * FROM <table> | WHERE severity = <severity_value> | LIMIT 10\n\
-        SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field>/<datetime_col>/<severity_values> with real names/values from prism_describe; datetime column name is sensor-specific — use the column name returned by prism_describe for that table):\n\
+        PIPE MODE: chain clauses with | for multi-step transformations, e.g.: FROM <table> | where severity IEQ 'high' | limit 50\n\
+        SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field>/<datetime_col> with real names/values from prism_describe; datetime column name is sensor-specific — use the column name returned by prism_describe for that table):\n\
           1. SELECT COUNT(*) FROM <table> WHERE <datetime_col> > NOW() - INTERVAL '1h'\n\
-          2. SELECT * FROM <table> WHERE severity IN (<severity_values>) LIMIT 50\n\
+          2. FROM <table> | where severity IEQ 'high' | limit 50\n\
           3. SELECT <field>, COUNT(*) FROM <table> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10\n\
         ENUM CASING CONTRACT (post-normalization): All enum label columns (severity, status, activity_name, disposition) are stored as OCSF Title-case after normalization (e.g. 'High', 'Critical', 'Allowed', 'Detected'). Use IEQ/IIN/INE for case-insensitive matching (any input casing matches — e.g. severity IEQ 'high' matches 'High'), or = 'High' / IN ('High','Critical') for exact canonical matching. prism_describe example_query shows an IEQ example per table; example_note explains the casing rule (ADR-047 §D.4).\n\
         DISCOVERY: Call `prism_describe` with the client_id before writing queries to discover which tables and columns are available. Read prismql://reference for full grammar reference.\n\
@@ -11317,5 +11317,62 @@ mod adr_042_tests {
             .filter_map(|c| c.as_text().map(|t| t.text.as_str().to_owned()))
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    // ── RG-067: query tool description PIPE MODE casing-contract guard ────────
+
+    /// RG-067 (LOCAL pass-18 OBS-1): query tool description PIPE MODE example must
+    /// use the IEQ operator, not case-sensitive `=`.
+    ///
+    /// An AI agent reading the tool description top-down encounters the PIPE MODE
+    /// example before the ENUM CASING CONTRACT paragraph.  If that example reads
+    /// `severity = <value>`, the agent is primed for case-sensitive matching and may
+    /// write queries that silently return 0 rows against post-normalization Title-case
+    /// severity data (BC-2.02.013).
+    ///
+    /// This test locks the PIPE MODE example to the IEQ form, which is the correct
+    /// operator for case-insensitive severity matching (ADR-047 §D.4, AC-025).
+    ///
+    /// Load-bearing (TD-VSDD-059): reverting the PIPE MODE skeleton to `severity =`
+    /// makes this test fail immediately.
+    #[test]
+    fn test_RG_067_query_tool_pipe_mode_example_uses_ieq_not_equals() {
+        let catalog = PrismServer::production_tool_catalog();
+        let query_tool = catalog
+            .iter()
+            .find(|t| t.name == "query")
+            .expect("query tool must be present in production catalog");
+        let desc = query_tool
+            .description
+            .as_deref()
+            .expect("query tool must have a non-empty description");
+
+        // The description must contain IEQ (locked by the PIPE MODE change).
+        assert!(
+            desc.contains("IEQ"),
+            "RG-067 (LOCAL pass-18 OBS-1): query tool description must contain the IEQ \
+             operator so agents see case-insensitive matching in the PIPE MODE example \
+             before the ENUM CASING CONTRACT paragraph (ADR-047 \u{00A7}D.4, AC-025). \
+             Got description (first 500 chars): {:?}",
+            &desc[..desc.len().min(500)]
+        );
+
+        // Specifically: the PIPE MODE line must not use `severity =` (case-sensitive priming).
+        let pipe_mode_line = desc.lines().find(|l| l.contains("PIPE MODE")).unwrap_or("");
+        assert!(
+            !pipe_mode_line.contains("severity ="),
+            "RG-067 (LOCAL pass-18 OBS-1): PIPE MODE example must NOT contain \
+             case-sensitive `severity =`; use `severity IEQ 'high'` instead \
+             (AD-047 \u{00A7}D.4). PIPE MODE line: {:?}",
+            pipe_mode_line
+        );
+
+        // The PIPE MODE line must contain the IEQ form.
+        assert!(
+            pipe_mode_line.contains("IEQ"),
+            "RG-067 (LOCAL pass-18 OBS-1): PIPE MODE line must contain the IEQ operator \
+             as the severity example. PIPE MODE line: {:?}",
+            pipe_mode_line
+        );
     }
 }

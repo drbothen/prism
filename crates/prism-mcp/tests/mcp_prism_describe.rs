@@ -2016,24 +2016,25 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
 /// | Skeleton | Required text |
 /// |----------|--------------|
 /// | count-recent | `COUNT(*) ... NOW() - INTERVAL` |
-/// | severity     | `severity IN (<severity_values>) ... LIMIT 50` |
+/// | severity     | `severity IEQ 'high' ... limit 50` |
 /// | aggregate    | `GROUP BY ... ORDER BY COUNT(*) DESC ... LIMIT 10` |
 ///
 /// The `SCHEMA-AGNOSTIC SKELETONS` section in `server.rs` reads:
 ///
 /// ```
-/// SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field>/<severity_values> with real names/values from prism_describe):\n
-///   1. SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL '1h'\n
-///   2. SELECT * FROM <table> WHERE severity IN (<severity_values>) LIMIT 50\n
+/// SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field>/<datetime_col> with real names/values from prism_describe):\n
+///   1. SELECT COUNT(*) FROM <table> WHERE <datetime_col> > NOW() - INTERVAL '1h'\n
+///   2. FROM <table> | where severity IEQ 'high' | limit 50\n
 ///   3. SELECT <field>, COUNT(*) FROM <table> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10\n
 /// ```
 ///
-/// F-PML2-MED-001 fix: skeleton #2 now uses `<severity_values>` placeholder instead of
-/// hardcoded `('high', 'critical')` literals. Severity literal casing is per-sensor
-/// (crowdstrike: Title-case, armis: UPPER-case, cyberint: lowercase); hardcoding any
-/// single casing breaks all other sensors silently (0 rows, no error).
-/// The SEVERITY CASING WARNING added to the description directs agents to use
-/// prism_describe's `example_query` field for correct per-sensor casing.
+/// OBS-1 (LOCAL pass-18): skeleton #2 now uses the IEQ pipe form (`severity IEQ 'high'`)
+/// instead of the old `IN (<severity_values>)` placeholder.  The IEQ form is the correct
+/// pattern to prime in agents because:
+/// - It uses the case-insensitive operator (ADR-047 §D.4)
+/// - It matches the actual output of `build_example_note` for severity tables
+/// - `<severity_values>` was a schema-agnostic placeholder; IEQ with any literal is universally
+///   correct post-normalization (BC-2.02.013 Title-case)
 ///
 /// Load-bearing: reverting to the old skeletons (LIMIT 25, `= 'HIGH'`, no COUNT(*) / ORDER BY)
 /// fails all three assertions.
@@ -2070,29 +2071,30 @@ fn test_BC_2_10_009_query_tool_description_l1_primer_skeleton_shapes() {
         &description[..description.len().min(400)]
     );
 
-    // ── Skeleton 2: severity filter — must use IN clause + LIMIT 50 ─────────────
+    // ── Skeleton 2: severity filter — must use IEQ pipe form (OBS-1 LOCAL pass-18) ─
     //
-    // BC-2.10.009 §L1 primer: severity filter uses multi-value IN predicate and LIMIT 50.
-    // F-PML2-MED-001 fix: severity values are now a placeholder `<severity_values>` —
-    // hardcoding any single casing breaks sensors that use a different casing (0 rows,
-    // no error). Post-normalization all enum values are OCSF Title-case; use IEQ/IIN/INE
-    // for case-insensitive matching, or = 'High' / IN ('High','Critical') for exact canonical
-    // matching. prism_describe example_query shows an IEQ example; example_note explains
-    // the casing rule (ADR-047 §D.4).
+    // BC-2.10.009 §L1 primer (updated by OBS-1 LOCAL pass-18): severity skeleton now
+    // uses the IEQ pipe form `FROM <table> | where severity IEQ 'high' | limit 50`
+    // instead of the old `IN (<severity_values>)` placeholder.
+    //
+    // Rationale: IEQ is the correct case-insensitive operator for post-normalization
+    // severity data (BC-2.02.013 Title-case); the concrete `'high'` literal is universally
+    // correct since IEQ matches any casing. The pipe form also primes agents to use
+    // `| where` rather than top-level `WHERE`, matching the `build_example_note` output.
     assert!(
-        description.contains("IN (<severity_values>)"),
+        description.contains("severity IEQ 'high'"),
         "BC-2.10.009 AC-002 [L1 skeleton 2 — severity]: query tool description \
-         MUST contain `IN (<severity_values>)` (F-PML2-MED-001: placeholder, not hardcoded casing). \
-         Got description (first 400 chars): {:?}",
-        &description[..description.len().min(400)]
+         MUST contain `severity IEQ 'high'` (OBS-1 LOCAL pass-18: IEQ pipe form, not IN). \
+         Got description (first 500 chars): {:?}",
+        &description[..description.len().min(500)]
     );
 
     assert!(
-        description.contains("LIMIT 50"),
+        description.contains("limit 50"),
         "BC-2.10.009 AC-002 [L1 skeleton 2 — severity]: query tool description \
-         MUST contain 'LIMIT 50'. \
-         Got description (first 400 chars): {:?}",
-        &description[..description.len().min(400)]
+         MUST contain 'limit 50' (pipe-mode lowercase per convention). \
+         Got description (first 500 chars): {:?}",
+        &description[..description.len().min(500)]
     );
 
     // ── Skeleton 3: aggregate — must use ORDER BY COUNT(*) DESC + LIMIT 10 ──────
