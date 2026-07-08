@@ -7984,6 +7984,481 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             _ => {}
         }
     }
+
+    // ── Fixture: severity_id registered as Integer (MED-001 ordering tests) ──────
+
+    /// Build a `crowdstrike_alerts` engine where `severity_id` IS a registered column
+    /// (as Integer), in addition to `severity` (String) and `timestamp` (Datetime).
+    ///
+    /// Used ONLY for MED-001 ordering lock tests. Do NOT use for positions 7/8/9–12
+    /// RED gate tests, which require `severity_id` to be ABSENT from the schema.
+    fn make_crowdstrike_engine_with_severity_id_int() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+        let sensor_id = "crowdstrike";
+        let table_suffix = "alerts";
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("severity_id", ColumnType::Integer, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            sensor_id,
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("register crowdstrike must not fail");
+
+        let overlay_toml = format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@acme\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("DRIFT-IEQ-INT fixture: SensorInstanceOverlay TOML must parse");
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org.clone());
+        let key: ResolvedSpecKey = (org.clone(), SensorId::new(sensor_id));
+        let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_table_registry(registry);
+
+        (engine, org)
+    }
+
+    // ── Test 5 (RED GATE): SqlPipe | where stage with nonexistent column ─────────
+
+    /// BC-2.11.016 v1.6 position 9 — SqlPipe `| where` stage predicates.
+    ///
+    /// EC-11-049: `SELECT * FROM crowdstrike_alerts | where severity_id IEQ 'high'`
+    /// where `severity_id` is NOT registered → E-QUERY-038 with
+    /// `column: "severity_id"`, `table: "crowdstrike_alerts"`.
+    ///
+    /// RED GATE: the `Ast::SqlPipe` arm in `check_query_column_availability` currently
+    /// processes only the HEAD SQL (`&spq.head`) for positions 1–6. The `| where` stages
+    /// in `spq.stages` are not yet walked — `severity_id` in the stage predicate bypasses
+    /// the gate, reaching DataFusion with no structured error. The fix must extend the
+    /// SqlPipe arm to iterate `spq.stages`, walking `PipeStage::Where` predicates
+    /// identically to the `Ast::Pipe` arm (position 8).
+    ///
+    /// Note: `SELECT *` in the head means no non-wildcard column refs in the SELECT
+    /// clause, so position-1 gate does not fire. The only gate trigger is position-9
+    /// (stage | where).
+    ///
+    /// HIGH-002 finding from BC-2.11.016 v1.6 changelog.
+    #[tokio::test]
+    async fn test_DRIFT_IEQ_sqlpipe_stage_nonexistent_col_yields_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // SqlPipe: head is `SELECT * FROM crowdstrike_alerts` — SELECT * skips position 1.
+        // Stage is `| where severity_id IEQ 'high'` — `severity_id` is NOT registered.
+        let query = "SELECT * FROM crowdstrike_alerts | where severity_id IEQ 'high'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "severity_id",
+                    "DRIFT-IEQ-001 sqlpipe-stage pos-9: column in E-QUERY-038 must be \
+                     'severity_id', got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "DRIFT-IEQ-001 sqlpipe-stage pos-9: table in E-QUERY-038 must be \
+                     'crowdstrike_alerts', got: {:?}",
+                    details.table
+                );
+                // did_you_mean: "severity_id" → "severity" is Levenshtein distance 3
+                // (delete '_', 'i', 'd'). Within ≤3 threshold; suggestion expected.
+            }
+            Ok(_) => panic!(
+                "DRIFT-IEQ-001 sqlpipe-stage pos-9: engine.execute must NOT succeed — \
+                 E-QUERY-038 must fire for non-existent column 'severity_id' in SqlPipe \
+                 | where stage. Before the fix, the SqlPipe arm does not walk stage \
+                 predicates (only the head SQL), so the gate is bypassed entirely."
+            ),
+            Err(other) => panic!(
+                "DRIFT-IEQ-001 sqlpipe-stage pos-9: expected PrismError::ColumnNotFound \
+                 (E-QUERY-038), got different error: {other:?}. Before the fix this would \
+                 be QueryExecutionFailed (DataFusion column resolution error for 'severity_id')."
+            ),
+        }
+    }
+
+    // ── Test 6 (RED GATE): Pipe | sort with typo column ──────────────────────────
+
+    /// BC-2.11.016 v1.6 position 10 — pipe `| sort` field key references.
+    ///
+    /// EC-11-050: `crowdstrike_alerts | sort sevrity desc` where `sevrity` is a typo
+    /// of `severity` (Levenshtein distance 1 — one insertion of 'e') and is NOT a
+    /// registered column → E-QUERY-038 with `column: "sevrity"`,
+    /// `table: "crowdstrike_alerts"`, `did_you_mean: "severity"`.
+    ///
+    /// RED GATE: the `Ast::Pipe` arm currently only walks `PipeStage::Where` predicates.
+    /// `PipeStage::Sort` sort-key field references are not yet extracted or checked
+    /// against the schema. The fix must extend the Pipe arm to iterate `PipeStage::Sort`
+    /// keys and call `check_column_availability` on each field reference.
+    #[tokio::test]
+    async fn test_DRIFT_pipe_sort_nonexistent_col_yields_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `sevrity` is a typo of `severity` (distance 1: missing 'e' between 'v' and 'r').
+        // `sevrity` is NOT in the schema; `severity` and `timestamp` are.
+        let query = "crowdstrike_alerts | sort sevrity desc";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "sevrity",
+                    "DRIFT-IEQ-001 pipe-sort pos-10: column in E-QUERY-038 must be \
+                     'sevrity', got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "DRIFT-IEQ-001 pipe-sort pos-10: table in E-QUERY-038 must be \
+                     'crowdstrike_alerts', got: {:?}",
+                    details.table
+                );
+                assert!(
+                    details.did_you_mean.as_deref() == Some("severity"),
+                    "DRIFT-IEQ-001 pipe-sort pos-10: did_you_mean must be 'severity' \
+                     (distance 1 from 'sevrity'); got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "DRIFT-IEQ-001 pipe-sort pos-10: engine.execute must NOT succeed — \
+                 E-QUERY-038 must fire for non-existent sort key 'sevrity'. Before the \
+                 fix, PipeStage::Sort field keys are not walked in \
+                 check_query_column_availability."
+            ),
+            Err(other) => panic!(
+                "DRIFT-IEQ-001 pipe-sort pos-10: expected PrismError::ColumnNotFound \
+                 (E-QUERY-038), got different error: {other:?}."
+            ),
+        }
+    }
+
+    // ── Test 7 (RED GATE): Pipe | stats by with typo column ──────────────────────
+
+    /// BC-2.11.016 v1.6 position 11 — pipe `| stats ... by` grouping field references.
+    ///
+    /// EC-11-051: `crowdstrike_alerts | stats count() by sevrity` where `sevrity` is NOT
+    /// a registered column → E-QUERY-038 with `column: "sevrity"`,
+    /// `table: "crowdstrike_alerts"`, `did_you_mean: "severity"`.
+    ///
+    /// Grammar: `stats agg_fn [by field, ...]` — a bare `count()` aggregation is required;
+    /// `sevrity` appears in the `by` (grouping) fields list.
+    ///
+    /// RED GATE: the `Ast::Pipe` arm currently only walks `PipeStage::Where` predicates.
+    /// `PipeStage::Stats { by_fields }` grouping references are not yet checked.
+    /// The fix must iterate `by_fields` and call `check_column_availability` on each.
+    #[tokio::test]
+    async fn test_DRIFT_pipe_stats_by_nonexistent_col_yields_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `stats count() by sevrity` — `count()` is the required aggregation;
+        // `sevrity` (distance 1 from "severity") is the grouping field, NOT in schema.
+        let query = "crowdstrike_alerts | stats count() by sevrity";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "sevrity",
+                    "DRIFT-IEQ-001 pipe-stats pos-11: column in E-QUERY-038 must be \
+                     'sevrity', got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "DRIFT-IEQ-001 pipe-stats pos-11: table in E-QUERY-038 must be \
+                     'crowdstrike_alerts', got: {:?}",
+                    details.table
+                );
+                assert!(
+                    details.did_you_mean.as_deref() == Some("severity"),
+                    "DRIFT-IEQ-001 pipe-stats pos-11: did_you_mean must be 'severity'; \
+                     got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "DRIFT-IEQ-001 pipe-stats pos-11: engine.execute must NOT succeed — \
+                 E-QUERY-038 must fire for non-existent stats grouping field 'sevrity'. \
+                 Before the fix, PipeStage::Stats by_fields are not walked in \
+                 check_query_column_availability."
+            ),
+            Err(other) => panic!(
+                "DRIFT-IEQ-001 pipe-stats pos-11: expected PrismError::ColumnNotFound \
+                 (E-QUERY-038), got different error: {other:?}."
+            ),
+        }
+    }
+
+    // ── Test 8 (RED GATE): Pipe | fields with typo column ────────────────────────
+
+    /// BC-2.11.016 v1.6 position 12 — pipe `| project` column refs.
+    ///
+    /// GRAMMAR DISCREPANCY REPORT: BC-2.11.016 v1.6 EC-11-052 and the position-12
+    /// description use the keyword `| project`. The actual PrismQL grammar in
+    /// pipe_parser.rs uses `| fields` (keyword `kw_ci("fields")` → `PipeStage::Fields`).
+    /// There is no `| project` keyword in the grammar. This test uses `| fields` (the
+    /// real grammar keyword). PO follow-up required: BC-2.11.016 v1.7 should update
+    /// EC-11-052 and the position-12 prose from `| project` to `| fields`.
+    ///
+    /// EC-11-052 (adapted): `crowdstrike_alerts | fields sevrity, timestamp` where
+    /// `sevrity` is NOT a registered column → E-QUERY-038 with
+    /// `column: "sevrity"`, `table: "crowdstrike_alerts"`, `did_you_mean: "severity"`.
+    ///
+    /// RED GATE: the `Ast::Pipe` arm currently only walks `PipeStage::Where` predicates.
+    /// `PipeStage::Fields` inclusion/exclusion column references are not yet checked.
+    /// The fix must iterate the `fields` list and call `check_column_availability` on each.
+    #[tokio::test]
+    async fn test_DRIFT_pipe_project_nonexistent_col_yields_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // Grammar keyword is `fields` (not `project`) — see GRAMMAR DISCREPANCY note above.
+        // `sevrity` (distance 1 from "severity") is NOT in the schema.
+        // `timestamp` IS in the schema and must not trigger E-QUERY-038.
+        let query = "crowdstrike_alerts | fields sevrity, timestamp";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "sevrity",
+                    "DRIFT-IEQ-001 pipe-fields pos-12: column in E-QUERY-038 must be \
+                     'sevrity', got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "DRIFT-IEQ-001 pipe-fields pos-12: table in E-QUERY-038 must be \
+                     'crowdstrike_alerts', got: {:?}",
+                    details.table
+                );
+                assert!(
+                    details.did_you_mean.as_deref() == Some("severity"),
+                    "DRIFT-IEQ-001 pipe-fields pos-12: did_you_mean must be 'severity'; \
+                     got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "DRIFT-IEQ-001 pipe-fields pos-12: engine.execute must NOT succeed — \
+                 E-QUERY-038 must fire for non-existent fields column 'sevrity'. Before \
+                 the fix, PipeStage::Fields is not walked in check_query_column_availability."
+            ),
+            Err(other) => panic!(
+                "DRIFT-IEQ-001 pipe-fields pos-12: expected PrismError::ColumnNotFound \
+                 (E-QUERY-038), got different error: {other:?}."
+            ),
+        }
+    }
+
+    // ── Tests 9-10 (MED-001 ordering locks): existing Integer column + IEQ ───────
+
+    /// DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 MED-001 ordering lock — filter mode.
+    ///
+    /// When `severity_id` EXISTS as Integer in the `crowdstrike_alerts` schema, the
+    /// filter predicate `severity_id IEQ 'high'` must produce E-QUERY-002
+    /// (QueryTypeMismatch — IEQ is not in the valid operator set for Integer), NOT
+    /// E-QUERY-038 (ColumnNotFound, which would fire only for an absent column).
+    ///
+    /// Gate ordering: E-QUERY-038 (column existence) fires only when the column is ABSENT.
+    /// When the column exists, the E-QUERY-038 gate passes; E-QUERY-002 (type compat)
+    /// is responsible for the rejection (operator not valid for column type).
+    ///
+    /// Note: E-QUERY-002 type-compatibility checking for `Ast::Filter` predicate
+    /// columns is not yet implemented in `check_query_column_availability` — only the
+    /// SQL SELECT WHERE path calls `check_operator_type_compatibility`. This test is
+    /// therefore RED until E-QUERY-002 type-compat is extended to Filter predicates.
+    #[tokio::test]
+    async fn test_DRIFT_IEQ_filter_mode_existing_int_col_yields_e_query_002() {
+        let (engine, org) = make_crowdstrike_engine_with_severity_id_int();
+
+        // `severity_id` IS in the schema (Integer). IEQ is not valid for Integer.
+        // Must NOT produce ColumnNotFound (E-QUERY-038); MUST produce QueryTypeMismatch
+        // (E-QUERY-002).
+        let query = "crowdstrike_alerts | severity_id IEQ 'high'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::QueryTypeMismatch {
+                ref column,
+                ref table,
+                ..
+            }) => {
+                assert_eq!(
+                    column.as_str(),
+                    "severity_id",
+                    "DRIFT-IEQ-001 MED-001 filter: column in E-QUERY-002 must be \
+                     'severity_id', got: {:?}",
+                    column
+                );
+                assert_eq!(
+                    table.as_str(),
+                    "crowdstrike_alerts",
+                    "DRIFT-IEQ-001 MED-001 filter: table in E-QUERY-002 must be \
+                     'crowdstrike_alerts', got: {:?}",
+                    table
+                );
+            }
+            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+                "DRIFT-IEQ-001 MED-001 filter: E-QUERY-038 (ColumnNotFound) fired for \
+                 EXISTING column 'severity_id' — gate ordering violated. E-QUERY-038 must \
+                 NOT fire for an existing column; E-QUERY-002 must fire instead. \
+                 Got: column='{}', table='{}'",
+                d.column, d.table
+            ),
+            Ok(_) => panic!(
+                "DRIFT-IEQ-001 MED-001 filter: engine.execute must NOT succeed — \
+                 IEQ is not valid for Integer column 'severity_id'; E-QUERY-002 must fire."
+            ),
+            Err(other) => panic!(
+                "DRIFT-IEQ-001 MED-001 filter: expected PrismError::QueryTypeMismatch \
+                 (E-QUERY-002), got different error: {other:?}. E-QUERY-002 type-compat \
+                 checking is not yet implemented for Ast::Filter predicates — RED gate."
+            ),
+        }
+    }
+
+    /// DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 MED-001 ordering lock — pipe mode.
+    ///
+    /// When `severity_id` EXISTS as Integer in the `crowdstrike_alerts` schema, a pipe
+    /// `| where severity_id IEQ 'high'` must produce E-QUERY-002, NOT E-QUERY-038.
+    ///
+    /// Same reasoning as the filter-mode ordering lock above. E-QUERY-002 type-compat
+    /// checking for `Ast::Pipe` `| where` stage predicates is not yet implemented
+    /// (only `check_column_availability` / E-QUERY-038 is called in the Pipe arm,
+    /// not `check_operator_type_compatibility` / E-QUERY-002). This test is RED until
+    /// the fix extends E-QUERY-002 to the Pipe predicate path.
+    #[tokio::test]
+    async fn test_DRIFT_IEQ_pipe_mode_existing_int_col_yields_e_query_002() {
+        let (engine, org) = make_crowdstrike_engine_with_severity_id_int();
+
+        // `severity_id` IS in the schema (Integer). IEQ is not valid for Integer.
+        // Must NOT produce ColumnNotFound (E-QUERY-038); MUST produce QueryTypeMismatch
+        // (E-QUERY-002).
+        let query = "crowdstrike_alerts | where severity_id IEQ 'high'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::QueryTypeMismatch {
+                ref column,
+                ref table,
+                ..
+            }) => {
+                assert_eq!(
+                    column.as_str(),
+                    "severity_id",
+                    "DRIFT-IEQ-001 MED-001 pipe: column in E-QUERY-002 must be \
+                     'severity_id', got: {:?}",
+                    column
+                );
+                assert_eq!(
+                    table.as_str(),
+                    "crowdstrike_alerts",
+                    "DRIFT-IEQ-001 MED-001 pipe: table in E-QUERY-002 must be \
+                     'crowdstrike_alerts', got: {:?}",
+                    table
+                );
+            }
+            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+                "DRIFT-IEQ-001 MED-001 pipe: E-QUERY-038 (ColumnNotFound) fired for \
+                 EXISTING column 'severity_id' — gate ordering violated. E-QUERY-038 must \
+                 NOT fire for an existing column. Got: column='{}', table='{}'",
+                d.column, d.table
+            ),
+            Ok(_) => panic!(
+                "DRIFT-IEQ-001 MED-001 pipe: engine.execute must NOT succeed — \
+                 IEQ is not valid for Integer column 'severity_id'; E-QUERY-002 must fire."
+            ),
+            Err(other) => panic!(
+                "DRIFT-IEQ-001 MED-001 pipe: expected PrismError::QueryTypeMismatch \
+                 (E-QUERY-002), got different error: {other:?}. E-QUERY-002 type-compat \
+                 checking is not yet implemented for Ast::Pipe | where predicates — RED gate."
+            ),
+        }
+    }
 }
 
 #[cfg(test)]
