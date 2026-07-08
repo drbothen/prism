@@ -1,7 +1,33 @@
 //! Red Gate tests for S-PRISMQL-CASE-INSENSITIVE-001.
 //!
-//! Covers RG-001 through RG-018, RG-022, RG-023, RG-024 plus LOCAL-pass-2 tests
-//! RG-018b, RG-018c, and F-P1-PIPE-TYPECHECK-GAP (24 tests in this file).
+//! Covers tests added across multiple adversary passes — see the Red Gate Inventory
+//! in `.factory/stories/S-PRISMQL-CASE-INSENSITIVE-001.md` for the authoritative
+//! RG↔test mapping.  Areas (non-exhaustive summary):
+//!
+//! - **Grammar parse** — IEQ/IIN/INE parse to correct AST nodes; keyword
+//!   case-insensitive; IIN-before-IN prefix ordering (RG-001..RG-005).
+//! - **SQL emitter lowering** — `lower()` wrapping in `predicate_to_datafusion_sql`
+//!   for CI predicates; case-sensitive predicates unchanged (RG-006..RG-009).
+//! - **Execution correctness** — CI match/miss against DataFusion MemTable;
+//!   GROUP-BY no-fragmentation after OCSF normalization (RG-010, RG-011, RG-022).
+//! - **Pipe-mode | where stage** — IEQ available in pipe `| where`; pipe-mode
+//!   integer-column type-check (F-P1-PIPE-TYPECHECK-GAP); SqlPipe pipe-stage
+//!   type-mismatch (RG-012 + later SqlPipe guards).
+//! - **Normalized PQL echo** — lowercase keyword round-trips to canonical uppercase;
+//!   parse → normalize → reparse yields identical AST (RG-013, RG-014).
+//! - **No-panic / stress** — repeated IEQ in AND compound (RG-015, VP-021 guard).
+//! - **Type-validation errors** — non-string/empty-list RHS → E-QUERY-001;
+//!   integer-column operand → E-QUERY-002 with correct operator field;
+//!   IIN non-string/boolean elements rejected (RG-016..RG-018, RG-018b, RG-018c).
+//! - **Grammar resource + DESCRIBE** — resource includes IEQ/IIN/INE tokens;
+//!   DESCRIBE output includes IEQ example (RG-023, RG-024).
+//! - **SQL-mode / DML mode-boundary rejection** — IEQ/IIN/INE in SELECT, INSERT,
+//!   UPDATE, DELETE, HAVING, subquery, and SqlPipe-head WHERE/HAVING contexts
+//!   return E-QUERY-001 / QueryPlanFailed; only filter-mode and pipe-mode execute.
+//! - **Date-like RHS acceptance** — date-shaped strings (`'2024-01-01'`) are
+//!   accepted as `Literal::String`, not rejected at parse time.
+//! - **Compound-violation precedence** — non-string RHS error takes precedence
+//!   over mode-boundary error when both are present.
 //!
 //! Red Gate discipline (BC-5.38.001): every test body asserts REAL behavior derived
 //! from behavioral contracts and acceptance criteria. Tests fail before implementation

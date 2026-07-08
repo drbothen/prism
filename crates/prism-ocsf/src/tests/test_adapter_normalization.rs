@@ -1,8 +1,17 @@
 //! Red Gate tests for S-PRISMQL-CASE-INSENSITIVE-001 — adapter-boundary normalization.
 //!
-//! Covers RG-019, RG-020, RG-021 — OCSF enum-label canonical-case normalization
-//! exercised through the REAL pipeline insertion point:
-//! `OcsfNormalizer::normalize_with_mappers` (BC-2.02.013 F-CRIT-001).
+//! Covers OCSF enum-label canonical-case normalization through the production
+//! insertion point `OcsfNormalizer::normalize_with_mappers` (BC-2.02.013 F-CRIT-001).
+//! See `.factory/stories/S-PRISMQL-CASE-INSENSITIVE-001.md` Red Gate Inventory for
+//! the authoritative RG↔test mapping.  Areas (non-exhaustive):
+//!
+//! - Core normalization: raw-case → Title-case for `severity` / `status` fields,
+//!   idempotency for already-canonical values, unrecognized-value pass-through
+//!   with warn-log (RG-019..RG-021).
+//! - Warn-log codepoint cap: unrecognized values truncated to 50 codepoints in log.
+//! - Empty-string enum value: no warn emitted, value left as-received.
+//! - `activity_name` and `disposition` field normalization (F-P1-ACTIVITY-NOOP,
+//!   F-P1-ACTIVITY-DISP-TEST-GAP).
 //!
 //! ## Why the previous tests were TD-VSDD-059 paper-fixes
 //!
