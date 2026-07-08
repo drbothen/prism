@@ -3,8 +3,8 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.28"
-updated: "2026-07-07"
+version: "1.29"
+updated: "2026-07-08"
 status: draft
 producer: story-writer
 phase: 3
@@ -933,7 +933,7 @@ strengthened in place. (D-1589 carry-forward)
 
 **Pass-24 fix-burst narrative (F-P24-LOW-001, no new RGT):**
 
-F-P24-LOW-001: `crates/prism-query/tests/bc_2_10_016_audit_004_test.rs` — dead ALL-CAPS vocabulary entries (`'HIGH'`, `'CRITICAL'`, `'OPEN'`, etc.) removed from the armis_alerts.severity vocabulary table (dead data written before adapter normalization landed); stale `// prompt uses IIN` comment corrected to describe the current case-sensitive `IN ('High','Critical')` Title-case state. No new Red Gate test added — this is a test-file cleanup (dead data removal + comment correction).
+F-P24-LOW-001: `crates/prism-mcp/tests/bc_2_10_016_audit_004_test.rs` — dead ALL-CAPS vocabulary entries (`'HIGH'`, `'CRITICAL'`, `'MEDIUM'`, `'LOW'`) removed from the armis_alerts.severity vocabulary table (dead data written before adapter normalization landed); stale `// prompt uses IIN` comment corrected to describe the current case-sensitive `IN ('High','Critical')` Title-case state. No new Red Gate test added — this is a test-file cleanup (dead data removal + comment correction).
 
 RG-028 through RG-074 names are authoritative per verified ground truth.
 
@@ -1640,6 +1640,7 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.29 | 2026-07-08 | F-P25-MED-001 (pass-25): corrected F-P24-LOW-001 file citation prism-query→prism-mcp (`crates/prism-mcp/tests/bc_2_10_016_audit_004_test.rs`); vocabulary-entry list corrected from (`'HIGH'`, `'CRITICAL'`, `'OPEN'`, etc.) to (`'HIGH'`, `'CRITICAL'`, `'MEDIUM'`, `'LOW'`). Story-side fix only; no code changes, no new RGT. |
 | v1.28 | 2026-07-07 | LOCAL pass-22 CLEAN(strict) — streak 1/3 (frozen 2de85b18). Pass-23 CLEAN(strict) — streak 2/3 (frozen 2de85b18). Pass-24 NOT CLEAN — F-P24-MED-001 (`engine.rs` `valid_operators_for_type(ColumnType::String)` omitted IEQ/IIN/INE from machine-readable E-QUERY-002 `valid_operators_for_type` contract, contradicting BC-2.11.024 v1.3 and the Display-prose SuggestedSuffix) + F-P24-LOW-001 (stale "prompt uses IIN" comment + dead ALL-CAPS vocabulary entries in `bc_2_10_016_audit_004_test.rs`). Both findings closed fix-in-scope; commit 633c5fab. RG-074 added (`test_BC_2_11_024_f_p24_med001_valid_operators_string_includes_ci_operators`, `engine.rs` `#[cfg(test)] mod tests`, 8-operator set: =, !=, LIKE, IN, NOT IN, IEQ, IIN, INE); sibling updates in `e_query_pedagogical.rs` (required_string 5→8) and `normalized_pql.rs` (comments); `error_mapping.rs` auto-tracks (derives dynamically). F-P24-LOW-001: dead ALL-CAPS entries removed, comment corrected to Title-case state (no new RGT). `red_gate_tests` 73→74; authoritative range "RG-028 through RG-073"→"RG-028 through RG-074"; Total/Task-28 counts updated 73→74 + 1 pass-24. Streak reset 0/3; next pass-25 on frozen 633c5fab. |
 | v1.27 | 2026-07-07 | LOCAL pass-21: 1 OBS finding F-P21-OBS-001 (`explain.rs` `predicate_to_exprs` dropped `case_insensitive` flag — latent EXPLAIN push-down misreport once ColumnSpec is wired) closed fix-in-scope per production-grade default; RG-073 added (`test_BC_2_11_024_f_p21_obs001_explain_ieq_iin_not_classified_pushdownable`, `crates/prism-query/src/explain.rs`, mod `predicate_explain_classification_tests`); `red_gate_tests` 72→73; "RG-028 through RG-072"→"RG-028 through RG-073"; Total/Task-28 counts updated to 73 + 1 pass-21. Commit 2de85b18. CLEAN(PR-merge)=yes on pass-21. |
 | v1.26 | 2026-07-07 | LOCAL pass-20 findings F-P20-HIGH-001/MEDIUM-001/MEDIUM-002/LOW-001/LOW-002 closed. (1) F-P20-MEDIUM-001 — subsystems [SS-11, SS-02]→[SS-11, SS-02, SS-22]; SS-22 anchor justification added (prism-bin::build_column_array is PRIMARY normalization insertion point per BC-2.02.013 v1.7 F-CRIT-002 adjudication). (2) F-P20-MEDIUM-002 — prism-spec-engine re-added to crates_touched (comment-only TD-VSDD-091 anti-volatile-pin sweep, pass-8 fix-burst 0b2c0983; zero code changes; File Structure Requirements row updated from REMOVED→RE-ADDED with comment-only scope; tdd_mode rationale comment updated). (3) BC-2.02.013 pin v1.6→v1.7 at all 16 live sites (additive subsystems_multi: ["SS-22", "SS-02"] frontmatter field; no semantic contract change). (4) F-P20-HIGH-001: RG-071 (`test_BC_2_02_013_build_column_array_group_by_severity_cross_sensor_no_fragmentation`, prism-bin; commit 345d4154) + F-P20-LOW-001: RG-072 (`test_f_p20_low001_severity_integer_type_does_not_get_ieq`, prism-mcp; commit 257074af); red_gate_tests 70→72; "RG-028 through RG-070"→"RG-028 through RG-072"; Total/Task-28 counts updated to 72 + 2 pass-20. (5) F-P20-LOW-002 / Pass-19 note (D-1589 carry-forward, commit eb7256b7): RG-043/044 strengthened in-place — caption sets derived from all four OCSF enum-label caption sets; 3 flagship prompts corrected to status='New'; crowdstrike SENSOR_COLUMN_VOCABULARIES 'new'→'New'; reference IN example re-pointed to client_id IN ('acme','globex'); no new RGT names. Changelog table reordered monotonic descending per POL-32. |

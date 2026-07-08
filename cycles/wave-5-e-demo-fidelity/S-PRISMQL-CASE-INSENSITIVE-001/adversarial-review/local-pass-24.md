@@ -53,7 +53,7 @@ The sibling functions in `e_query_pedagogical.rs` showed the same gap: the `requ
 
 ### F-P24-LOW-001 (LOW) — stale "prompt uses IIN" comment + dead ALL-CAPS vocabulary entries in bc_2_10_016_audit_004_test.rs
 
-**Finding:** In `crates/prism-query/tests/bc_2_10_016_audit_004_test.rs`, two categories of dead/stale content existed:
+**Finding:** In `crates/prism-mcp/tests/bc_2_10_016_audit_004_test.rs` (path corrected pass-25 F-P25-MED-001), two categories of dead/stale content existed:
 
 1. A code comment described the test prompt as using `IIN` to query severity. The `SENSOR_SEVERITY_VOCABULARY` allowlist was removed in pass-18 fix-burst (implementer e8b25d67). As part of that pass-10 fix, the armis triage prompt was corrected from `IIN ('HIGH','CRITICAL')` to `IN ('High','Critical')` (BC-2.11.024 mode-boundary contract: IIN not valid in raw SQL). However, the comment in `bc_2_10_016_audit_004_test.rs` was not swept at that time — it still said "prompt uses IIN" when the production code now uses case-sensitive `IN ('High','Critical')`.
 
