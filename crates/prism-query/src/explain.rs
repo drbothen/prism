@@ -825,7 +825,7 @@ fn predicates_from_ast(ast: &Ast) -> Vec<crate::ast::Expr> {
             // produce a push-down-classifiable Expr. They are evaluated locally in DataFusion
             // via `lower(field) OP lower(val)` and cannot be expressed as case-sensitive sensor
             // filters. Emitting an Expr here would cause EXPLAIN to report these predicates as
-            // sensor-push-downable while `collect_equality_exprs` (pushdown.rs:299) correctly
+            // sensor-push-downable while `collect_equality_exprs` (pushdown.rs::collect_equality_exprs) correctly
             // excludes them, creating a EXPLAIN-vs-runtime lie when ColumnSpec is wired.
             Predicate::Compare {
                 case_insensitive: true,
@@ -1661,7 +1661,7 @@ mod predicate_explain_classification_tests {
     //! If `predicates_from_ast` emits an `Expr` for these predicates, a future story
     //! wiring ColumnSpec into EXPLAIN classification would cause EXPLAIN to report
     //! IEQ/IIN predicates as "pushed to sensor" while the actual runtime
-    //! (`collect_equality_exprs` in pushdown.rs:299) correctly excludes them.
+    //! (`collect_equality_exprs` in pushdown.rs::collect_equality_exprs) correctly excludes them.
     //! Finding: F-P21-OBS-001 (pass-21 adversarial review, S-PRISMQL-CASE-INSENSITIVE-001).
 
     use super::predicates_from_ast;
@@ -1696,7 +1696,7 @@ mod predicate_explain_classification_tests {
             ieq_exprs.is_empty(),
             "BC-2.11.024 F-P21-OBS-001: IEQ predicate (Compare {{ case_insensitive: true }}) must \
              NOT emit any Expr for push-down classification — EXPLAIN would report sensor-side \
-             filtering while runtime (collect_equality_exprs pushdown.rs:299) correctly excludes IEQ. \
+             filtering while runtime (collect_equality_exprs pushdown.rs::collect_equality_exprs) correctly excludes IEQ. \
              Got: {ieq_exprs:?}"
         );
 

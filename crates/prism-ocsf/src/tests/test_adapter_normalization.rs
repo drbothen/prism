@@ -501,7 +501,7 @@ fn test_BC_2_02_013_normalizer_secondary_unrecognized_warn_value_capped_at_50_co
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// OBS-1 (LOCAL pass-12) — parity regression lock for the `!s.is_empty()` guard in
-/// `normalizer.rs:146`.
+/// `normalizer.rs::normalize_with_mappers`.
 ///
 /// An empty-string enum value passed through `normalize_with_mappers` MUST:
 ///
@@ -510,7 +510,7 @@ fn test_BC_2_02_013_normalizer_secondary_unrecognized_warn_value_capped_at_50_co
 ///
 /// ## Why this is already GREEN
 ///
-/// The guard `ProtoValue::String(s) if !s.is_empty() => s` at normalizer.rs:146 matches
+/// The guard `ProtoValue::String(s) if !s.is_empty() => s` in `normalizer.rs::normalize_with_mappers` matches
 /// an empty string as `_ => continue`, skipping the entire normalization block.
 /// No warn is emitted; the field value is left as-is.
 ///
@@ -596,7 +596,7 @@ fn test_BC_2_02_013_normalizer_secondary_empty_string_enum_value_no_warn() {
     assert!(
         !warn_fired.load(Ordering::SeqCst),
         "OBS-1: normalize_with_mappers MUST NOT emit ocsf.enum_label_unrecognized for an \
-         empty-string enum value. The `!s.is_empty()` guard at normalizer.rs:146 must be \
+         empty-string enum value. The `!s.is_empty()` guard in `normalizer.rs::normalize_with_mappers` must be \
          preserved — if this test fails, the guard was removed or bypassed."
     );
 
