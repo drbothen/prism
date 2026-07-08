@@ -1123,7 +1123,7 @@ pub(crate) fn build_predicate_parser<'a>(
             _ => Err(Rich::custom(
                 span,
                 "E-QUERY-001: IEQ operator requires a quoted string literal on the \
-                 right-hand side; got a non-string value (integer, float, or boolean). \
+                 right-hand side; got a non-string value. \
                  Use a quoted string: e.g. `severity IEQ 'high'`.",
             )),
         });
@@ -1150,7 +1150,7 @@ pub(crate) fn build_predicate_parser<'a>(
             _ => Err(Rich::custom(
                 span,
                 "E-QUERY-001: INE operator requires a quoted string literal on the \
-                 right-hand side; got a non-string value (integer, float, or boolean). \
+                 right-hand side; got a non-string value. \
                  Use a quoted string: e.g. `severity INE 'high'`.",
             )),
         });

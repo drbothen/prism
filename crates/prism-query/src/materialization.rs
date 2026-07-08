@@ -1447,7 +1447,7 @@ pub async fn execute_against_session(
                 spq,
                 &table_batches,
             )?;
-            // SAP-1: reuse existing catalog event type `pipe.sql_lowering` (BC-2.16.002 row 178).
+            // SAP-1: reuse existing catalog event type `pipe.sql_lowering` (BC-2.16.002 catalog row for event_type "pipe.sql_lowering").
             // SqlPipe lowering is semantically identical to Pipe lowering — same execution path,
             // same diagnostic information. No new catalog row needed.
             tracing::debug!(
@@ -1456,7 +1456,7 @@ pub async fn execute_against_session(
                 "sqlpipe-to-SQL lowering complete"
             );
             let df = session_ctx.sql(&sql).await.map_err(|e| {
-                // SAP-1: reuse existing catalog event type `pipe.sql_planning_error` (BC-2.16.002 row 179).
+                // SAP-1: reuse existing catalog event type `pipe.sql_planning_error` (BC-2.16.002 catalog row for event_type "pipe.sql_planning_error").
                 tracing::error!(
                     error = %e,
                     pipe_sql = %sql,
