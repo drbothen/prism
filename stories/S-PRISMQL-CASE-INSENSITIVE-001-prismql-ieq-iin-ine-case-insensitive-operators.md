@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.31"
+version: "1.32"
 updated: "2026-07-08"
 status: draft
 producer: story-writer
@@ -516,7 +516,7 @@ then:
 3. The normalization does NOT fail or return an error — it is non-fatal
 4. Both the `value` and `sensor_type` fields in the warning payload MUST be capped at 50
    codepoints: if either field exceeds 50 codepoints, it MUST be truncated to the first
-   50 codepoints with no ellipsis sentinel appended (BC-2.02.013 v1.8 / BC-2.16.002 v2.03
+   50 codepoints with no ellipsis sentinel appended (BC-2.02.013 v1.8 / BC-2.16.002 v2.04
    specify a plain 50-codepoint cap on both fields — SEC-002; no `…` suffix). This applies
    to BOTH the PRIMARY (`build_column_array`) and SECONDARY (`normalize_with_mappers`) emission sites.
 
@@ -938,6 +938,10 @@ F-P24-LOW-001: `crates/prism-mcp/tests/bc_2_10_016_audit_004_test.rs` — dead A
 **Pass-28 fix-burst narrative (669080f5, F-P28-MED-002 + F-P28-LOW-001, no new RGT):**
 
 F-P28-MED-002: 217 versioned BC pins stripped from code comments across 25 delta files per TD-VSDD-091 / Architecture Compliance Rule 9 (including 47 stale BC-2.10.012 pins in `prism_describe.rs`); no behavioral changes. F-P28-LOW-001: `sql_parser.rs` §DML-Mode-Boundary citation corrected to §Mode-Boundary Enforcement (DML scope). Comment-only changes; 1407/1407 prism-query + 447/447 prism-mcp tests pass. No Red Gate test added or removed.
+
+**Pass-32 fix-burst narrative (de89b557, F-P32-MED-001 + F-P32-OBS-001 + F-P32-OBS-002, no new RGT):**
+
+Pass-32 fix-burst: F-P32-MED-001 BC-2.16.002 v2.04 (SqlPipe emission arm enumerated in pipe.sql_lowering/pipe.sql_planning_error rows); F-P32-OBS-001 numeric catalog-row comment pins → event-type-name citations (materialization.rs ×2, @de89b557); F-P32-OBS-002 IEQ/INE non-string RHS message enumeration dropped (not spec-pinned; IIN pinned message untouched). 1407/1407 prism-query.
 
 RG-028 through RG-074 names are authoritative per verified ground truth.
 
@@ -1644,6 +1648,7 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.32 | 2026-07-08 | Pass-32 closures: F-P32-MED-001 BC-2.16.002 v2.03→v2.04 pin update (live AC-018 site: pipe.sql_lowering/pipe.sql_planning_error rows now enumerate BOTH emission arms — Ast::Pipe and Ast::SqlPipe, @de89b557); F-P32-OBS-001 numeric catalog-row comment pins → event-type-name citations (materialization.rs ×2, @de89b557); F-P32-OBS-002 IEQ/INE non-string RHS message enumeration dropped (not spec-pinned; IIN pinned message untouched). No RGT changes (74 unchanged). |
 | v1.31 | 2026-07-08 | Pass-28 closures: F-P28-MED-001 BC-2.02.013 v1.7→v1.8 pin sweep (18 live sites: 17 body + 1 BC-table row); F-P28-MED-002 TD-VSDD-091 code-comment pin strip @669080f5 (217 sites, 25 files, incl. 47 stale BC-2.10.012 pins in prism_describe.rs); F-P28-LOW-001 sql_parser.rs §DML-Mode-Boundary citation corrected to §Mode-Boundary Enforcement (DML scope). No RGT changes (74 unchanged). |
 | v1.30 | 2026-07-08 | F-P27-HIGH-001 (pass-27): AC-025 assertion (1) + Task 23 illustrative `example_query` corrected SQL-mode SELECT→pipe-mode canonical form (`FROM <table> | where severity IEQ 'high' | limit 50`) per BC-2.11.024 v1.3 §Mode-Boundary Enforcement + BC-2.10.012 v1.9; POL-25 sweep: 8 `SELECT.*IEQ/IIN/INE` sites audited — 2 fixed (AC-025 body + Task 23 code block), 6 left unchanged (AC-023 intentional rejection inputs + RG-023/024/025/039/064 rejection-test descriptions). No code change; no RGT change. |
 | v1.29 | 2026-07-08 | F-P25-MED-001 (pass-25): corrected F-P24-LOW-001 file citation prism-query→prism-mcp (`crates/prism-mcp/tests/bc_2_10_016_audit_004_test.rs`); vocabulary-entry list corrected from (`'HIGH'`, `'CRITICAL'`, `'OPEN'`, etc.) to (`'HIGH'`, `'CRITICAL'`, `'MEDIUM'`, `'LOW'`). Story-side fix only; no code changes, no new RGT. |
