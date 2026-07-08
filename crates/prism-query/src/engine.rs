@@ -2319,14 +2319,98 @@ fn check_query_column_availability(
 
     // Handle SQL SELECT mode and SqlPipe head — both carry an explicit column
     // projection in the SELECT clause and an optional WHERE that references columns.
-    // Filter and Pipe mode have no explicit column projection so they remain fail-open.
     // BC-2.11.020 / HIGH-1 sibling sweep: without the SqlPipe arm, a SqlPipe query
     // whose head projects a typo'd column (e.g. `SELECT sev FROM …`) would bypass
     // the E-QUERY-038 pedagogical gate, getting a confusing DataFusion error at
     // execution time instead of the clean "column not found" diagnostic. (TD-VSDD-060)
+    //
+    // Filter and Pipe modes have no explicit column projection (they are effectively
+    // `SELECT *`), but they DO carry predicate columns that must be checked.
+    // DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001: before this fix, `Ast::Filter` and
+    // `Ast::Pipe` fell through to `_ => return Ok(())`, bypassing the E-QUERY-038 gate
+    // entirely for predicate columns. Non-existent columns referenced by IEQ/IIN/INE
+    // (or any other operator) in Filter/Pipe predicates now fire E-QUERY-038 at plan
+    // time, consistent with the six-position gate applied to SQL queries.
     let sql_query = match &ast {
         Ast::Sql(SqlStatement::Select(q)) => q,
         Ast::SqlPipe(spq) => &spq.head,
+
+        // ── Filter mode: check columns in the root predicate ─────────────────
+        //
+        // Filter queries are `source | predicate` — the predicate may reference
+        // any column. Extract all FieldPath column refs from the predicate and
+        // check each against the spec map / table registry.
+        //
+        // Table name: Custom refs already carry the underscore form
+        // (`crowdstrike_alerts`); External refs are converted to
+        // `{sensor}_{table}` — consistent with the SQL SELECT table-name path.
+        //
+        // No SELECT alias exists in filter mode → `from_alias = None`.
+        Ast::Filter(fe) => {
+            use crate::ast::SourceRefKind;
+            let table_name = match &fe.source.kind {
+                SourceRefKind::Custom => fe.source.raw.clone(),
+                SourceRefKind::External { sensor, table } => format!("{sensor}_{table}"),
+                // Composite / Internal sources: no column schema — fail-open.
+                _ => return Ok(()),
+            };
+            if table_name.starts_with("prism_") {
+                return Ok(());
+            }
+            // No FieldPath aliases in filter mode.
+            let pred_cols = extract_predicate_columns(&fe.predicate, &table_name, None);
+            for col in &pred_cols {
+                check_column_availability(
+                    col,
+                    &table_name,
+                    client_id,
+                    org_scope,
+                    resolved_spec_map,
+                    table_registry,
+                )?;
+            }
+            return Ok(());
+        }
+
+        // ── Pipe mode: check columns in all `| where` stage predicates ────────
+        //
+        // Pipe queries are `source | stage | stage …` — `| where` stages carry
+        // predicates that may reference columns. Other stage types (| limit, | sort,
+        // | stats, etc.) may reference columns in their expressions, but those are
+        // not yet walked here (consistent with the original filter/pipe fail-open
+        // comment for non-predicate positions).
+        //
+        // Only `| where` stage predicates are walked in this gate — the same
+        // conservative policy applied to the SQL WHERE/HAVING positions.
+        Ast::Pipe(pq) => {
+            use crate::ast::{PipeStage, SourceRefKind};
+            let table_name = match &pq.source.kind {
+                SourceRefKind::Custom => pq.source.raw.clone(),
+                SourceRefKind::External { sensor, table } => format!("{sensor}_{table}"),
+                _ => return Ok(()),
+            };
+            if table_name.starts_with("prism_") {
+                return Ok(());
+            }
+            for stage in &pq.stages {
+                if let PipeStage::Where(pred) = stage {
+                    let pred_cols = extract_predicate_columns(pred, &table_name, None);
+                    for col in &pred_cols {
+                        check_column_availability(
+                            col,
+                            &table_name,
+                            client_id,
+                            org_scope,
+                            resolved_spec_map,
+                            table_registry,
+                        )?;
+                    }
+                }
+            }
+            return Ok(());
+        }
+
+        // All other AST variants (Dml, composite sources, etc.) — fail-open.
         _ => return Ok(()),
     };
 
@@ -7546,6 +7630,358 @@ mod f_pxl3_med002_having_agg_predicate_col_gate_tests {
                 "ADR-048 divergence guard: expected PrismError::QueryParseFailed for \
                  WHERE count(severity) > 5, got: {other:?}"
             ),
+        }
+    }
+}
+
+// DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001
+//
+// Root cause: `check_query_column_availability` returns `Ok(())` early for `Ast::Filter`
+// and `Ast::Pipe` (the `_ => return Ok(())` arm in the AST match). This means columns
+// referenced by IEQ/IIN/INE predicates in Filter/Pipe mode bypass the E-QUERY-038
+// plan-time gate entirely. When execution proceeds to DataFusion with a non-existent
+// column (e.g. `lower(severity_id) = lower('high')` for a table that has no
+// `severity_id` column), DataFusion fails with a generic "column not found" error at
+// planning time, which is mapped to `PrismError::QueryExecutionFailed` (opaque
+// "Internal error" to the MCP client).
+//
+// Fix: extend `check_query_column_availability` to walk predicate columns in
+// `Ast::Filter` (the root predicate) and `Ast::Pipe` (all `| where` stages) using
+// the same `extract_predicate_columns` + `check_column_availability` helpers that
+// already serve the SQL SELECT/WHERE path (Positions 2 and 6).
+//
+// RED GATE: the two "nonexistent_col" tests MUST FAIL on the unfixed codebase,
+// returning `PrismError::QueryExecutionFailed` instead of `PrismError::ColumnNotFound`.
+// They turn GREEN after the fix lands.
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod drift_ieq_nonexistent_col_errpath_001_tests {
+    use std::{collections::HashMap, sync::Arc};
+
+    use prism_core::{OrgSlug, SensorId};
+    use prism_sensors::AdapterRegistry;
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+        ResolvedSensorSpec, ResolvedSpecKey,
+    };
+
+    use super::*;
+    use crate::{scoping::ClientRegistry, table_registry::TableRegistry};
+
+    use prism_core::column::ColumnType;
+
+    // ── Helper ─────────────────────────────────────────────────────────────────
+
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a `crowdstrike_alerts` engine (sensor="crowdstrike", table="alerts")
+    /// under org "acme". Valid columns: `severity` (String), `timestamp` (Datetime).
+    ///
+    /// Mirrors `m2_column_gate_funccall_and_join_tests::make_crowdstrike_engine_with_columns`
+    /// and `f_pwl1_low001_having_column_gate_tests::make_crowdstrike_engine`.
+    fn make_crowdstrike_engine() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+        let sensor_id = "crowdstrike";
+        let table_suffix = "alerts";
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            sensor_id,
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("register crowdstrike must not fail");
+
+        let overlay_toml = format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@acme\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("DRIFT-IEQ fixture: SensorInstanceOverlay TOML must parse");
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org.clone());
+        let key: ResolvedSpecKey = (org.clone(), SensorId::new(sensor_id));
+        let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_table_registry(registry);
+
+        (engine, org)
+    }
+
+    // ── Test 1 (RED GATE): Filter mode, IEQ, non-existent column → E-QUERY-038 ─
+
+    /// DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 — filter mode.
+    ///
+    /// `crowdstrike.alerts | severity_id IEQ 'high'` references `severity_id`, which
+    /// is NOT in the `crowdstrike_alerts` schema (only `severity` and `timestamp` are
+    /// valid). Before the fix, `check_query_column_availability` returned `Ok(())`
+    /// immediately for `Ast::Filter` (the `_ => return Ok(())` arm), so execution
+    /// fell through to DataFusion which produced an opaque `QueryExecutionFailed`
+    /// (E-QUERY-034) — "Internal error" to the MCP client.
+    ///
+    /// After fix: the filter predicate columns are walked by
+    /// `check_query_column_availability`, and `severity_id` fails the schema check,
+    /// yielding `PrismError::ColumnNotFound` (E-QUERY-038) with
+    /// `column="severity_id"`, `table="crowdstrike_alerts"`.
+    ///
+    /// BC-2.11.016 six-position gate must apply to Filter predicate columns.
+    /// Red Gate: removing predicate-column extraction for `Ast::Filter` from
+    /// `check_query_column_availability` causes this test to return a non-ColumnNotFound
+    /// error (QueryExecutionFailed) instead of ColumnNotFound.
+    #[tokio::test]
+    async fn test_DRIFT_IEQ_filter_mode_nonexistent_col_yields_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `severity_id` is NOT in the schema; only `severity` (String) and
+        // `timestamp` (Datetime) are registered columns.
+        // Use underscore notation (Custom source ref) — dot notation is rejected by
+        // E-QUERY-037 before the column gate, so this test must use the canonical
+        // registered form "crowdstrike_alerts".
+        let query = "crowdstrike_alerts | severity_id IEQ 'high'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "severity_id",
+                    "DRIFT-IEQ-001 filter: column in E-QUERY-038 must be 'severity_id', \
+                     got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "DRIFT-IEQ-001 filter: table in E-QUERY-038 must be 'crowdstrike_alerts', \
+                     got: {:?}",
+                    details.table
+                );
+                // did_you_mean should be Some("severity") — Levenshtein distance 3
+                // ("severity_id" → "severity" is 3 ops: remove "_", "i", "d").
+                // We do not assert the exact did_you_mean value since the threshold
+                // and suggestion logic may vary; the key invariant is the error code.
+            }
+            Ok(_) => panic!(
+                "DRIFT-IEQ-001 filter: engine.execute must NOT succeed — E-QUERY-038 must fire \
+                 for non-existent column 'severity_id' in filter IEQ predicate. Before the fix, \
+                 Ast::Filter bypassed check_query_column_availability entirely."
+            ),
+            Err(other) => panic!(
+                "DRIFT-IEQ-001 filter: expected PrismError::ColumnNotFound (E-QUERY-038), \
+                 got different error: {other:?}. Before the fix this would be \
+                 QueryExecutionFailed (DataFusion generic error)."
+            ),
+        }
+    }
+
+    // ── Test 2 (RED GATE): Pipe mode, IEQ, non-existent column → E-QUERY-038 ───
+
+    /// DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 — pipe mode.
+    ///
+    /// `crowdstrike.alerts | where severity_id IEQ 'high'` references `severity_id` in
+    /// a `| where` stage — not in the schema. Before the fix, `Ast::Pipe` fell through
+    /// the `_ => return Ok(())` arm in `check_query_column_availability`, so DataFusion
+    /// produced a generic error at planning time.
+    ///
+    /// After fix: `| where` stage predicates are walked and `severity_id` fails
+    /// the schema check → E-QUERY-038.
+    ///
+    /// Red Gate: removing predicate-column extraction for `Ast::Pipe` from
+    /// `check_query_column_availability` causes this test to return QueryExecutionFailed
+    /// instead of ColumnNotFound.
+    #[tokio::test]
+    async fn test_DRIFT_IEQ_pipe_mode_nonexistent_col_yields_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // Pipe mode: `source | where predicate` syntax.
+        // Use underscore notation for the same reason as the filter test.
+        // `severity_id` is NOT a registered column in `crowdstrike_alerts`.
+        let query = "crowdstrike_alerts | where severity_id IEQ 'high'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "severity_id",
+                    "DRIFT-IEQ-001 pipe: column in E-QUERY-038 must be 'severity_id', \
+                     got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "DRIFT-IEQ-001 pipe: table in E-QUERY-038 must be 'crowdstrike_alerts', \
+                     got: {:?}",
+                    details.table
+                );
+            }
+            Ok(_) => panic!(
+                "DRIFT-IEQ-001 pipe: engine.execute must NOT succeed — E-QUERY-038 must fire \
+                 for non-existent column 'severity_id' in pipe | where IEQ predicate. Before \
+                 the fix, Ast::Pipe bypassed check_query_column_availability entirely."
+            ),
+            Err(other) => panic!(
+                "DRIFT-IEQ-001 pipe: expected PrismError::ColumnNotFound (E-QUERY-038), \
+                 got different error: {other:?}."
+            ),
+        }
+    }
+
+    // ── Test 3 (no-regression): Filter mode, IEQ, EXISTING column → no E-QUERY-038
+
+    /// DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 no-regression — filter mode, valid column.
+    ///
+    /// `crowdstrike.alerts | severity IEQ 'high'` uses `severity` which IS in the schema.
+    /// The E-QUERY-038 gate must NOT fire for existing columns.
+    ///
+    /// The query will fail for other reasons (no adapter wired, no data), but it must
+    /// NOT produce `PrismError::ColumnNotFound`.
+    #[tokio::test]
+    async fn test_DRIFT_IEQ_filter_mode_existing_col_no_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        let query = "crowdstrike_alerts | severity IEQ 'high'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+                "DRIFT-IEQ-001 no-regression filter: E-QUERY-038 fired unexpectedly for \
+                 existing column 'severity'. Got: column='{}', table='{}'",
+                d.column, d.table
+            ),
+            // Ok or any other error variant is acceptable — the invariant is that
+            // E-QUERY-038 does NOT fire for a valid column.
+            _ => {}
+        }
+    }
+
+    // ── Test 4 (no-regression): Pipe mode, IEQ, EXISTING column → no E-QUERY-038 ──
+
+    /// DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 no-regression — pipe mode, valid column.
+    ///
+    /// `crowdstrike.alerts | where severity IEQ 'high'` uses the existing `severity`
+    /// column. E-QUERY-038 must NOT fire.
+    #[tokio::test]
+    async fn test_DRIFT_IEQ_pipe_mode_existing_col_no_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        let query = "crowdstrike_alerts | where severity IEQ 'high'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+                "DRIFT-IEQ-001 no-regression pipe: E-QUERY-038 fired unexpectedly for \
+                 existing column 'severity'. Got: column='{}', table='{}'",
+                d.column, d.table
+            ),
+            _ => {}
         }
     }
 }
