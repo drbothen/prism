@@ -12982,6 +12982,576 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             _ => {}
         }
     }
+
+    // ── Tests 55–66: EC-11-074/075 HEAD-JOIN SUSPENSION RULE (ADV-FIX-P15-MED-001) ──
+    //
+    // BC-2.11.016 v1.20 §Preconditions.2 HEAD-JOIN SUSPENSION RULE:
+    //   When the head SQL query's JOIN list is non-empty AND a bare unqualified column
+    //   reference at positions 1–6 is absent from `schema_columns(table, OrgId)`, the
+    //   E-QUERY-038 gate MUST NOT fire (fail-open).  DataFusion resolves unqualified
+    //   column references across all join sources at execution time; a false positive
+    //   here is a FP-001 violation.  Joinless queries and columns PRESENT in the FROM
+    //   schema are UNCHANGED.
+    //
+    // Fixture: `make_engine_with_join_tables()` — registers:
+    //   crowdstrike_alerts (severity: String, timestamp: Datetime)  ← FROM table
+    //   some_other_table   (col: String, id: String)               ← JOIN target
+    // Org: "acme".  `col` is absent from crowdstrike_alerts schema (fail-open target).
+    //
+    // Grammar note on position 2 (WHERE IEQ): BC-2.11.024 §SQL-Mode Rejection forbids
+    //   IEQ/IIN/INE in SQL-mode WHERE — the parser returns a parse error.  The test for
+    //   the "IEQ drift shape" therefore uses `WHERE col = 'high'` (plain equality) as the
+    //   closest parseable case-insensitive/plain predicate.  Dropped shape noted below.
+
+    // ── Test 55 (RED GATE): EC-11-074 position 1 — SELECT col, Ast::Sql ─────────────
+
+    /// BC-2.11.016 v1.20 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 1 (SELECT),
+    /// `Ast::Sql` form (ADV-FIX-P15-MED-001).
+    ///
+    /// `SELECT col FROM crowdstrike_alerts
+    ///  JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id`
+    ///
+    /// `col` is in `some_other_table` but absent from `crowdstrike_alerts` raw schema.
+    /// HEAD-JOIN SUSPENSION RULE: head JOIN list is non-empty → E-QUERY-038 MUST NOT fire
+    /// for absent bare unqualified refs (fail-open per FP-001).
+    ///
+    /// Current behavior (RED — FP-001 violation):
+    ///   `check_query_column_availability` collects `select_cols = ["col"]`; JOIN list is
+    ///   non-empty but the SUSPENSION RULE is not yet implemented; `check_column_availability`
+    ///   is called for `col` → absent from crowdstrike_alerts schema → E-QUERY-038(col).
+    ///
+    /// Expected after fix (GREEN):
+    ///   When `sql_query.joins` is non-empty, absent bare unqualified refs are skipped
+    ///   (fail-open); no E-QUERY-038 fires on `col`.
+    ///
+    /// JOIN ON analysis: `crowdstrike_alerts.severity` → qualifier matches FROM → "severity"
+    ///   extracted → in schema → OK; `some_other_table.id` → qualifier mismatch → None → skip.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11074_head_join_suspension_select_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-074 position 1: bare `col` in SELECT; col absent from crowdstrike_alerts schema.
+        // Ast::Sql (no pipe stages).
+        let query = "SELECT col FROM crowdstrike_alerts \
+                     JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
+                "BC-2.11.016 v1.20 EC-11-074 RED GATE (position 1 SELECT): FALSE E-QUERY-038 \
+                 on 'col'. HEAD-JOIN SUSPENSION RULE: when the SQL head JOIN list is non-empty, \
+                 bare unqualified refs ABSENT from `schema_columns(table, OrgId)` MUST NOT fire \
+                 E-QUERY-038 (fail-open per FP-001). DataFusion resolves `col` through \
+                 `some_other_table` at execution — this is a false positive (FP-001 violation \
+                 class: head-join). Fix: in `check_query_column_availability`, when \
+                 `sql_query.joins` is non-empty, skip `check_column_availability` for columns \
+                 absent from the FROM schema (fail-open). column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            // Ok or any other error (no adapter wired, DataFusion error) is acceptable.
+            // Invariant: E-QUERY-038 MUST NOT fire on 'col' when head JOIN list is non-empty.
+            _ => {}
+        }
+    }
+
+    // ── Test 56 (RED GATE): EC-11-074 position 2 — WHERE col, Ast::Sql ──────────────
+
+    /// BC-2.11.016 v1.20 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 2 (WHERE),
+    /// `Ast::Sql` form (ADV-FIX-P15-MED-001).
+    ///
+    /// EC-11-074 describes the "IEQ drift shape" (`WHERE col IEQ 'high'`) as the
+    /// canonical position-2 vector.  IEQ is rejected in SQL-mode WHERE by
+    /// BC-2.11.024 §SQL-Mode Rejection (parser returns E-QUERY-001 parse error for
+    /// SQL-mode IEQ/IIN/INE).  The closest parseable substitute is plain equality:
+    ///   `WHERE col = 'high'`
+    /// This is noted here; the dropped IEQ shape is intentional, not a test gap.
+    ///
+    /// HEAD-JOIN SUSPENSION RULE: head JOIN list is non-empty; bare `col` absent from
+    /// `crowdstrike_alerts` schema → E-QUERY-038 MUST NOT fire.
+    ///
+    /// Current behavior (RED — FP-001 violation):
+    ///   `where_cols = ["col"]`; no suspension implemented; E-QUERY-038(col) fires.
+    ///   `severity` in SELECT is checked first (in schema → OK); then `col` in WHERE.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11074_head_join_suspension_where_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-074 position 2: bare `col` in WHERE (IEQ not valid in SQL mode; using =).
+        // See test doc for dropped-shape rationale.
+        let query = "SELECT severity FROM crowdstrike_alerts \
+                     JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id \
+                     WHERE col = 'high'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
+                "BC-2.11.016 v1.20 EC-11-074 RED GATE (position 2 WHERE): FALSE E-QUERY-038 \
+                 on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty head JOIN list → absent bare \
+                 unqualified `col` MUST NOT fire E-QUERY-038 (fail-open per FP-001). `col` \
+                 is valid in `some_other_table` at execution; DataFusion resolves it via the \
+                 JOIN source. Fix: detect non-empty `sql_query.joins` and skip absent-col \
+                 checks in the positions-1-6 gate loop. Note: IEQ form dropped (SQL-mode \
+                 rejects IEQ per BC-2.11.024); plain `= 'high'` is equivalent for this gate. \
+                 column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            _ => {}
+        }
+    }
+
+    // ── Test 57 (RED GATE): EC-11-074 position 3 — GROUP BY col, Ast::Sql ───────────
+
+    /// BC-2.11.016 v1.20 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 3 (GROUP BY),
+    /// `Ast::Sql` form (ADV-FIX-P15-MED-001).
+    ///
+    /// `SELECT severity FROM crowdstrike_alerts
+    ///  JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id
+    ///  GROUP BY col`
+    ///
+    /// `col` absent from `crowdstrike_alerts` schema; GROUP BY is position 3.
+    /// HEAD-JOIN SUSPENSION RULE applies: non-empty JOIN → skip absent bare unqualified
+    /// refs → no E-QUERY-038.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11074_head_join_suspension_groupby_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-074 position 3: bare `col` in GROUP BY; col absent from crowdstrike_alerts schema.
+        let query = "SELECT severity FROM crowdstrike_alerts \
+                     JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id \
+                     GROUP BY col";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
+                "BC-2.11.016 v1.20 EC-11-074 RED GATE (position 3 GROUP BY): FALSE E-QUERY-038 \
+                 on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty head JOIN list → absent bare \
+                 unqualified `col` in GROUP BY MUST NOT fire E-QUERY-038 (fail-open per FP-001). \
+                 `col` is a valid column in `some_other_table` at execution. \
+                 column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            _ => {}
+        }
+    }
+
+    // ── Test 58 (RED GATE): EC-11-074 position 4 — ORDER BY col, Ast::Sql ───────────
+
+    /// BC-2.11.016 v1.20 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 4 (ORDER BY),
+    /// `Ast::Sql` form (ADV-FIX-P15-MED-001).
+    ///
+    /// `SELECT severity FROM crowdstrike_alerts
+    ///  JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id
+    ///  ORDER BY col`
+    ///
+    /// `col` absent from `crowdstrike_alerts` schema; ORDER BY is position 4.
+    /// HEAD-JOIN SUSPENSION RULE applies: non-empty JOIN → skip absent bare unqualified
+    /// refs → no E-QUERY-038.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11074_head_join_suspension_orderby_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-074 position 4: bare `col` in ORDER BY; col absent from crowdstrike_alerts schema.
+        let query = "SELECT severity FROM crowdstrike_alerts \
+                     JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id \
+                     ORDER BY col";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
+                "BC-2.11.016 v1.20 EC-11-074 RED GATE (position 4 ORDER BY): FALSE E-QUERY-038 \
+                 on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty head JOIN list → absent bare \
+                 unqualified `col` in ORDER BY MUST NOT fire E-QUERY-038 (fail-open per FP-001). \
+                 `col` is a valid column in `some_other_table` at execution. \
+                 column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            _ => {}
+        }
+    }
+
+    // ── Test 59 (RED GATE): EC-11-074 position 6 — HAVING count(col), Ast::Sql ──────
+
+    /// BC-2.11.016 v1.20 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 6 (HAVING),
+    /// `Ast::Sql` form (ADV-FIX-P15-MED-001).
+    ///
+    /// `SELECT severity, count(*) FROM crowdstrike_alerts
+    ///  JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id
+    ///  GROUP BY severity HAVING count(col) > 0`
+    ///
+    /// HAVING position 6: `count(col)` — the base-column ref inside the aggregate is
+    /// extracted via `extract_predicate_columns` (same path as EC-11-046).
+    /// `col` absent from `crowdstrike_alerts` schema; JOIN present → SUSPENSION RULE.
+    ///
+    /// `severity` in SELECT and GROUP BY is in FROM schema → checked normally (no change).
+    /// `col` inside HAVING aggregate → absent → must NOT fire E-QUERY-038 (HEAD-JOIN rule).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11074_head_join_suspension_having_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-074 position 6: bare `col` inside HAVING aggregate; col absent from FROM schema.
+        let query = "SELECT severity, count(*) FROM crowdstrike_alerts \
+                     JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id \
+                     GROUP BY severity HAVING count(col) > 0";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
+                "BC-2.11.016 v1.20 EC-11-074 RED GATE (position 6 HAVING): FALSE E-QUERY-038 \
+                 on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty head JOIN list → absent bare \
+                 unqualified `col` inside HAVING aggregate MUST NOT fire E-QUERY-038 \
+                 (fail-open per FP-001). Extraction path: `extract_predicate_columns` over \
+                 HAVING extracts base-column refs from aggregate function args (same as \
+                 EC-11-046 pattern). `col` is valid in `some_other_table` at execution. \
+                 column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            _ => {}
+        }
+    }
+
+    // ── Tests 60–64 (RED GATE): EC-11-075 — Ast::SqlPipe head form ───────────────────
+    //
+    // BC-2.11.016 v1.20 EC-11-075: HEAD-JOIN SUSPENSION RULE applies to `Ast::SqlPipe`
+    // head SQL positions 1–6 identically to `Ast::Sql`.  Appending `| limit 10` makes
+    // the query parse as `Ast::SqlPipe` (no SQL-level LIMIT — FORBID-BOTH does not fire).
+    // The pipe-stage walk for `| limit 10` contains no column refs → no E-QUERY-038 from
+    // the stage walk.  The failures are identical to EC-11-074 (RED at same position).
+
+    // ── Test 60 (RED GATE): EC-11-075 position 1 — SELECT col, Ast::SqlPipe ─────────
+
+    /// BC-2.11.016 v1.20 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 1 (SELECT),
+    /// `Ast::SqlPipe` form (ADV-FIX-P15-MED-001).
+    ///
+    /// `SELECT col FROM crowdstrike_alerts
+    ///  JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id
+    ///  | limit 10`
+    ///
+    /// The `| limit 10` suffix makes this `Ast::SqlPipe`.  Head SQL is checked via
+    /// `spq.head` — identical to EC-11-074 position 1.  `| limit 10` carries no column
+    /// refs (PipeStage::Limit has no field references); the pipe-stage walk does not
+    /// fire E-QUERY-038.  The RED trigger is the same head-SQL position-1 path.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11075_sqlpipe_head_join_suspension_select_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-075 position 1: SqlPipe form; | limit 10 triggers Ast::SqlPipe.
+        let query = "SELECT col FROM crowdstrike_alerts \
+                     JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id \
+                     | limit 10";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
+                "BC-2.11.016 v1.20 EC-11-075 RED GATE (Ast::SqlPipe position 1 SELECT): FALSE \
+                 E-QUERY-038 on 'col'. HEAD-JOIN SUSPENSION RULE applies to Ast::SqlPipe head \
+                 SQL positions 1-6 identically to Ast::Sql (code path: `sql_query = &spq.head`). \
+                 Head JOIN list non-empty → absent bare unqualified `col` MUST NOT fire \
+                 E-QUERY-038 (fail-open per FP-001). The `| limit 10` pipe stage has no column \
+                 refs — it is the head-SQL position-1 check that fires. \
+                 column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            _ => {}
+        }
+    }
+
+    // ── Test 61 (RED GATE): EC-11-075 position 2 — WHERE col, Ast::SqlPipe ──────────
+
+    /// BC-2.11.016 v1.20 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 2 (WHERE),
+    /// `Ast::SqlPipe` form (ADV-FIX-P15-MED-001).
+    ///
+    /// IEQ dropped (SQL-mode rejection per BC-2.11.024); uses plain `= 'high'`.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11075_sqlpipe_head_join_suspension_where_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-075 position 2 (WHERE): IEQ not valid in SQL mode; using plain = predicate.
+        let query = "SELECT severity FROM crowdstrike_alerts \
+                     JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id \
+                     WHERE col = 'high' \
+                     | limit 10";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
+                "BC-2.11.016 v1.20 EC-11-075 RED GATE (Ast::SqlPipe position 2 WHERE): FALSE \
+                 E-QUERY-038 on 'col'. HEAD-JOIN SUSPENSION RULE: SqlPipe head SQL WHERE clause \
+                 with non-empty JOIN list → absent bare `col` MUST NOT fire E-QUERY-038. \
+                 column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            _ => {}
+        }
+    }
+
+    // ── Test 62 (RED GATE): EC-11-075 position 3 — GROUP BY col, Ast::SqlPipe ───────
+
+    /// BC-2.11.016 v1.20 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 3 (GROUP BY),
+    /// `Ast::SqlPipe` form (ADV-FIX-P15-MED-001).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11075_sqlpipe_head_join_suspension_groupby_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        let query = "SELECT severity FROM crowdstrike_alerts \
+                     JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id \
+                     GROUP BY col \
+                     | limit 10";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
+                "BC-2.11.016 v1.20 EC-11-075 RED GATE (Ast::SqlPipe position 3 GROUP BY): \
+                 FALSE E-QUERY-038 on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty JOIN list \
+                 → absent bare `col` in GROUP BY MUST NOT fire (fail-open per FP-001). \
+                 column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            _ => {}
+        }
+    }
+
+    // ── Test 63 (RED GATE): EC-11-075 position 4 — ORDER BY col, Ast::SqlPipe ───────
+
+    /// BC-2.11.016 v1.20 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 4 (ORDER BY),
+    /// `Ast::SqlPipe` form (ADV-FIX-P15-MED-001).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11075_sqlpipe_head_join_suspension_orderby_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        let query = "SELECT severity FROM crowdstrike_alerts \
+                     JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id \
+                     ORDER BY col \
+                     | limit 10";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
+                "BC-2.11.016 v1.20 EC-11-075 RED GATE (Ast::SqlPipe position 4 ORDER BY): \
+                 FALSE E-QUERY-038 on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty JOIN list \
+                 → absent bare `col` in ORDER BY MUST NOT fire (fail-open per FP-001). \
+                 column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            _ => {}
+        }
+    }
+
+    // ── Test 64 (RED GATE): EC-11-075 position 6 — HAVING count(col), Ast::SqlPipe ──
+
+    /// BC-2.11.016 v1.20 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 6 (HAVING),
+    /// `Ast::SqlPipe` form (ADV-FIX-P15-MED-001).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11075_sqlpipe_head_join_suspension_having_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        let query = "SELECT severity, count(*) FROM crowdstrike_alerts \
+                     JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id \
+                     GROUP BY severity HAVING count(col) > 0 \
+                     | limit 10";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
+                "BC-2.11.016 v1.20 EC-11-075 RED GATE (Ast::SqlPipe position 6 HAVING): \
+                 FALSE E-QUERY-038 on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty JOIN list \
+                 → absent bare `col` inside HAVING aggregate MUST NOT fire E-QUERY-038 \
+                 (fail-open per FP-001). column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            _ => {}
+        }
+    }
+
+    // ── Tests 65–66: Negative controls (GREEN at current HEAD, stay GREEN after fix) ──
+
+    // ── Test 65 (GREEN): Joinless query — E-QUERY-038 MUST fire on absent col ────────
+
+    /// BC-2.11.016 v1.20 EC-11-074 negative control — joinless query fires E-QUERY-038.
+    ///
+    /// HEAD-JOIN SUSPENSION RULE applies ONLY when the head JOIN list is non-empty.
+    /// A joinless query referencing a non-existent column MUST still fire E-QUERY-038 —
+    /// the suspension rule MUST NOT be applied unconditionally.
+    ///
+    /// `SELECT col FROM crowdstrike_alerts` — no JOIN → E-QUERY-038 on `col`.
+    ///
+    /// GREEN lock at current HEAD (suspension rule not yet implemented → gate fires as
+    /// expected).  GREEN after fix (no JOIN → suspension does not engage → gate fires).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11074_negative_joinless_col_fires_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // Joinless: crowdstrike_alerts has no `col` column → E-QUERY-038 MUST fire.
+        let query = "SELECT col FROM crowdstrike_alerts";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        // Negative control: this error MUST fire for the rule to be meaningful.
+        // If it does not fire, the suspension rule has been over-applied (incorrectly
+        // suspending joinless queries), which is a regression.
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => {
+                // Correct — joinless query correctly fires E-QUERY-038 on absent `col`.
+            }
+            other => panic!(
+                "BC-2.11.016 v1.20 EC-11-074 NEGATIVE CONTROL REGRESSION: expected \
+                 E-QUERY-038(col) for joinless `SELECT col FROM crowdstrike_alerts`, \
+                 but got: {:?}. The HEAD-JOIN SUSPENSION RULE MUST NOT apply to joinless \
+                 queries — `col` is genuinely absent from `crowdstrike_alerts` schema \
+                 (severity, timestamp only) and there is no JOIN source to resolve it from. \
+                 Check that the fix gates on `sql_query.joins.is_empty()` correctly.",
+                other
+            ),
+        }
+    }
+
+    // ── Test 66 (GREEN): FROM-schema col with JOIN — E-QUERY-038 MUST NOT fire ──────
+
+    /// BC-2.11.016 v1.20 EC-11-074 negative control — present column with JOIN not affected.
+    ///
+    /// HEAD-JOIN SUSPENSION RULE: "Columns PRESENT in the FROM schema are still checked
+    /// normally — only absent col refs with a non-empty JOIN list trigger the suspension."
+    ///
+    /// `SELECT severity FROM crowdstrike_alerts
+    ///  JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id`
+    ///
+    /// `severity` IS in `crowdstrike_alerts` schema → `check_column_availability` passes
+    /// → no E-QUERY-038.  GREEN at current HEAD (column present, check passes regardless of
+    /// suspension).  GREEN after fix (present columns continue to be checked, pass normally).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11074_negative_from_schema_col_with_join_no_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // severity IS in crowdstrike_alerts schema — must pass even with JOIN present.
+        let query = "SELECT severity FROM crowdstrike_alerts \
+                     JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        // `severity` is present in FROM schema → no E-QUERY-038 regardless of suspension.
+        // If E-QUERY-038 fires for 'severity', the fix has incorrectly applied the
+        // suspension to PRESENT columns (BC invariant: "Columns PRESENT in the FROM schema
+        // are still checked normally").
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "severity" => panic!(
+                "BC-2.11.016 v1.20 EC-11-074 NEGATIVE CONTROL REGRESSION: FALSE E-QUERY-038 \
+                 on 'severity' (a column PRESENT in `crowdstrike_alerts` schema). The HEAD-JOIN \
+                 SUSPENSION RULE MUST NOT apply to columns that ARE in the FROM schema — only \
+                 ABSENT columns trigger fail-open. The fix incorrectly suspended the gate for \
+                 present columns. BC invariant: present-column checks are unchanged whether or \
+                 not JOINs are present. column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            // Ok or any other error (no adapter wired, DataFusion error) is acceptable.
+            // Invariant: E-QUERY-038 MUST NOT fire on 'severity' (present in FROM schema).
+            _ => {}
+        }
+    }
 }
 
 #[cfg(test)]
