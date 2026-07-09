@@ -12631,6 +12631,159 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             _ => {}
         }
     }
+
+    // ── Test 51 (RED GATE): EC-11-070 — SELECT j.* with JOIN → star-with-join suspension ─
+
+    /// BC-2.11.016 v1.18 EC-11-070 — STAR-WITH-JOIN SUSPENSION RULE (ADV-FIX-P12-OBS-002).
+    ///
+    /// `SELECT j.* FROM crowdstrike_alerts
+    ///  JOIN some_other_table j ON crowdstrike_alerts.severity = j.id
+    ///  | where other_only_col = 'x'`
+    ///
+    /// `j.*` is a `TableStar` SELECT item — `has_star = true`, `has_explicit = false`
+    /// → branch (a) of `compute_sqlpipe_head_binding` returns `None`.
+    ///
+    /// Current behavior (RED — FP-001 violation):
+    ///   `initial_binding_override = None` → `check_pipe_stage_columns` falls back to
+    ///   `get_initial_available_columns("crowdstrike_alerts")` = `{severity, timestamp}`;
+    ///   `suspended = false`; `| where other_only_col = 'x'` finds `other_only_col` absent
+    ///   → E-QUERY-038 fires with `column: "other_only_col"`, `table: "crowdstrike_alerts"`.
+    ///   This is a false positive: `j.*` star-expansion spans `some_other_table` at execution;
+    ///   `other_only_col` is a valid join-source column that the gate has no schema for (FP-001).
+    ///
+    /// Expected behavior after STAR-WITH-JOIN SUSPENSION fix (GREEN):
+    ///   Branch (a) detects `j.*` (TableStar) + non-empty JOIN list → `suspended := true`
+    ///   overrides partial `available` seeding; `| where other_only_col = 'x'` is skipped
+    ///   (suspended); no E-QUERY-038 fires (fail-open per FP-001).
+    ///
+    /// JOIN ON analysis (position 5, unaffected by fix):
+    ///   `crowdstrike_alerts.severity` → qualifier matches FROM table → "severity" extracted
+    ///   → in schema → OK. `j.id` → qualifier `j` unknown → None → skip.
+    ///
+    /// RED GATE trigger: currently `ColumnNotFound { column: "other_only_col" }` fires
+    ///   because branch (a) seeds FROM schema only and `other_only_col` is absent.
+    ///
+    /// Fixture: `make_engine_with_join_tables()` — both `crowdstrike_alerts` (severity,
+    ///   timestamp) and `some_other_table` (col, id) registered so E-QUERY-037 passes.
+    ///   `other_only_col` is absent from the FROM table's registered columns (mirroring
+    ///   a join-source-only column per BC-2.11.016 v1.18 EC-11-070 fail-open rationale).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11070_tablestar_with_join_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-070 canonical vector (BC-2.11.016 v1.18).
+        // SELECT j.* → TableStar; JOIN present → STAR-WITH-JOIN SUSPENSION RULE must fire.
+        // JOIN ON: crowdstrike_alerts.severity (in schema) = j.id (qualifier j unknown → skip).
+        // | where other_only_col = 'x': other_only_col absent from crowdstrike_alerts schema.
+        let query = "SELECT j.* FROM crowdstrike_alerts \
+                     JOIN some_other_table j ON crowdstrike_alerts.severity = j.id \
+                     | where other_only_col = 'x'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "other_only_col" => {
+                panic!(
+                    "BC-2.11.016 v1.18 EC-11-070 RED GATE: FALSE E-QUERY-038 on 'other_only_col'. \
+                     `SELECT j.*` (TableStar, branch (a)) with non-empty JOIN list MUST trigger \
+                     STAR-WITH-JOIN SUSPENSION RULE: suspended := true; `| where other_only_col` \
+                     must be skipped (fail-open per FP-001). \
+                     Before fix: compute_sqlpipe_head_binding branch (a) returns None → \
+                     check_pipe_stage_columns seeds available from crowdstrike_alerts raw schema \
+                     {{severity, timestamp}} with suspended=false → other_only_col absent → \
+                     E-QUERY-038 fires (false positive; star expansion spans join sources). \
+                     column='{}', table='{}', available={:?}",
+                    details.column, details.table, details.available_columns
+                )
+            }
+            // Ok or any other error (no adapter wired, DataFusion error) is acceptable.
+            // Invariant: E-QUERY-038 MUST NOT fire on 'other_only_col' for a star-with-join head.
+            _ => {}
+        }
+    }
+
+    // ── Test 52 (RED GATE): EC-11-071 — SELECT * with JOIN → star-with-join suspension ──
+
+    /// BC-2.11.016 v1.18 EC-11-071 — STAR-WITH-JOIN SUSPENSION RULE (ADV-FIX-P12-OBS-002).
+    ///
+    /// `SELECT * FROM crowdstrike_alerts
+    ///  JOIN some_other_table j ON crowdstrike_alerts.severity = j.id
+    ///  | where other_only_col = 'x'`
+    ///
+    /// `*` is a bare `Star` SELECT item — `has_star = true`, `has_explicit = false`
+    /// → branch (a) of `compute_sqlpipe_head_binding` returns `None`.
+    ///
+    /// Current behavior (RED — FP-001 violation):
+    ///   `initial_binding_override = None` → `check_pipe_stage_columns` falls back to
+    ///   `get_initial_available_columns("crowdstrike_alerts")` = `{severity, timestamp}`;
+    ///   `suspended = false`; `| where other_only_col = 'x'` finds `other_only_col` absent
+    ///   → E-QUERY-038 fires with `column: "other_only_col"`, `table: "crowdstrike_alerts"`.
+    ///   Same FP-001 violation class as EC-11-070: bare `*` star-expansion spans all JOIN
+    ///   sources at execution; the gate has no schema for `some_other_table`.
+    ///
+    /// Expected behavior after STAR-WITH-JOIN SUSPENSION fix (GREEN):
+    ///   Branch (a) detects `*` (Star) + non-empty JOIN list → `suspended := true`
+    ///   overrides partial `available` seeding; `| where other_only_col = 'x'` is skipped
+    ///   (suspended); no E-QUERY-038 fires (fail-open per FP-001).
+    ///
+    /// JOIN ON analysis (position 5, unaffected by fix):
+    ///   Identical to EC-11-070 — `crowdstrike_alerts.severity` found; `j.id` skipped.
+    ///
+    /// RED GATE trigger: currently `ColumnNotFound { column: "other_only_col" }` fires
+    ///   for the same reason as EC-11-070 — branch (a) seeds FROM schema only.
+    ///
+    /// Fixture: `make_engine_with_join_tables()` — same as EC-11-070.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11071_star_with_join_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-071 canonical vector (BC-2.11.016 v1.18).
+        // SELECT * → bare Star; JOIN present → STAR-WITH-JOIN SUSPENSION RULE must fire.
+        // JOIN ON: crowdstrike_alerts.severity (in schema) = j.id (qualifier j unknown → skip).
+        // | where other_only_col = 'x': other_only_col absent from crowdstrike_alerts schema.
+        let query = "SELECT * FROM crowdstrike_alerts \
+                     JOIN some_other_table j ON crowdstrike_alerts.severity = j.id \
+                     | where other_only_col = 'x'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "other_only_col" => {
+                panic!(
+                    "BC-2.11.016 v1.18 EC-11-071 RED GATE: FALSE E-QUERY-038 on 'other_only_col'. \
+                     `SELECT *` (bare Star, branch (a)) with non-empty JOIN list MUST trigger \
+                     STAR-WITH-JOIN SUSPENSION RULE: suspended := true; `| where other_only_col` \
+                     must be skipped (fail-open per FP-001). \
+                     Before fix: compute_sqlpipe_head_binding branch (a) returns None → \
+                     check_pipe_stage_columns seeds available from crowdstrike_alerts raw schema \
+                     {{severity, timestamp}} with suspended=false → other_only_col absent → \
+                     E-QUERY-038 fires (false positive; SELECT * with JOIN expands across all \
+                     join-source schemas at execution). \
+                     column='{}', table='{}', available={:?}",
+                    details.column, details.table, details.available_columns
+                )
+            }
+            // Ok or any other error (no adapter wired, DataFusion error) is acceptable.
+            // Invariant: E-QUERY-038 MUST NOT fire on 'other_only_col' for a star-with-join head.
+            _ => {}
+        }
+    }
 }
 
 #[cfg(test)]
