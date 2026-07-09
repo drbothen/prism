@@ -2427,6 +2427,7 @@ fn check_query_column_availability(
                 resolved_spec_map,
                 table_registry,
                 infusion_registry,
+                None, // Ast::Pipe: raw schema as initial binding (no head projection)
             )?;
             return Ok(());
         }
@@ -2623,14 +2624,22 @@ fn check_query_column_availability(
         }
     }
 
-    // ── Positions 9–12: SqlPipe stage columns ─────────────────────────────────
+    // ── Positions 9–14: SqlPipe stage columns ─────────────────────────────────
     //
     // The SQL head (positions 1–6) was processed above via `sql_query` extracted
     // from `Ast::SqlPipe(spq) => &spq.head`. Now walk the pipe stages that follow
     // the SQL head: `| where` (pos 9), `| sort` (pos 10), `| stats by` (pos 11),
     // `| fields` (pos 12), `| enrich` (pos 13), `| dedup` (pos 14).
-    // Identical gate logic as `Ast::Pipe` (BC-2.11.016; HIGH-002 closure).
+    //
+    // BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION BINDING RULE: for explicit SELECT
+    // heads, seed the stage-walk initial `available` from the head projection output
+    // instead of the raw schema. `compute_sqlpipe_head_binding` returns:
+    //   - `None` (SELECT * → fall back to raw schema, same as Ast::Pipe)
+    //   - `Some((cols, suspended))` (explicit SELECT → head projection output)
+    // Head SQL clause checking (positions 1–6) above is unaffected — it always uses
+    // the raw schema.
     if let crate::ast::Ast::SqlPipe(spq) = &ast {
+        let head_binding = compute_sqlpipe_head_binding(sql_query, &table_name, from_alias);
         check_pipe_stage_columns(
             &spq.stages,
             &table_name,
@@ -2639,6 +2648,7 @@ fn check_query_column_availability(
             resolved_spec_map,
             table_registry,
             infusion_registry,
+            head_binding, // BC-2.11.016 v1.13: head-projection seeding for SqlPipe stage walk
         )?;
     }
 
@@ -2755,6 +2765,103 @@ fn check_column_against_available_set(
     )))
 }
 
+/// Compute the initial binding context for the SqlPipe stage walk from the HEAD SQL projection.
+///
+/// BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION BINDING RULE:
+/// - `SELECT *` or `SELECT table.*` head → returns `None` (caller falls back to
+///   `get_initial_available_columns`, preserving the current `SELECT *` behavior).
+/// - Explicit SELECT head → returns `Some((available_cols, suspended))` where:
+///   - `available_cols` is `{explicit AS aliases} ∪ {bare-Field un-aliased SELECT item names} ∪
+///     {bare GROUP BY field names}`, sorted and deduped.
+///   - `suspended` is `true` when any SELECT item is a non-`Field` expression WITHOUT an
+///     explicit `AS <alias>` (anonymous aggregate/computed column; output name unpredictable at
+///     plan time; FP-001 fail-open; mirrors the Stats anonymous-aggregate rule).
+///
+/// Head SQL clause checking (positions 1–6) runs against raw schema unchanged; this function
+/// only affects the stage walk initial state.
+fn compute_sqlpipe_head_binding(
+    head: &crate::ast::SqlQuery,
+    table_name: &str,
+    from_alias: Option<&str>,
+) -> Option<(Vec<String>, bool)> {
+    use crate::ast::{Expr, SelectItem};
+
+    // If the SELECT contains any star-wildcard, fall back to raw schema (Ast::Pipe semantics).
+    let has_star = head
+        .select
+        .items
+        .iter()
+        .any(|item| matches!(item, SelectItem::Star | SelectItem::TableStar(_)));
+    if has_star {
+        return None;
+    }
+
+    let mut available: Vec<String> = Vec::new();
+    let mut suspended = false;
+
+    for item in &head.select.items {
+        match item {
+            // Wildcard items — already handled by has_star check above; unreachable here.
+            SelectItem::Star | SelectItem::TableStar(_) => {}
+
+            // Explicit AS alias — the alias is the output name regardless of the expression.
+            SelectItem::Expr {
+                alias: Some(alias), ..
+            } => {
+                available.push(alias.clone());
+            }
+
+            // Un-aliased bare Field — the output name is the column name itself.
+            SelectItem::Expr {
+                expr: Expr::Field(fp),
+                alias: None,
+            } => {
+                if let Some(col) = extract_column_name_from_field_path(fp, table_name, from_alias) {
+                    available.push(col);
+                }
+                // If the field path has an unrecognised qualifier, extraction returns None.
+                // Skip silently — fail-open (the head-position-1 check already validated it
+                // against the raw schema; we just can't determine the output name).
+            }
+
+            // Un-aliased VirtualField (_sensor, _client) — always-valid sentinels; not schema
+            // columns; skip without suspending.
+            SelectItem::Expr {
+                expr: Expr::VirtualField(_),
+                alias: None,
+            } => {}
+
+            // Un-aliased non-Field expression (e.g., `count(*)`, `sum(amount)`, `1 + 1`).
+            // Output name is auto-generated by DataFusion and unpredictable at plan time.
+            // → suspended := true for the stage walk (FP-001 fail-open; mirrors Stats rule).
+            SelectItem::Expr { alias: None, .. } => {
+                suspended = true;
+            }
+
+            // #[non_exhaustive] catch-all for future SelectItem variants.
+            #[allow(unreachable_patterns)]
+            _ => {}
+        }
+    }
+
+    // GROUP BY bare-field names are visible in the stage walk output
+    // (they are grouping keys, always present in the aggregate result).
+    for expr in &head.group_by {
+        if let Expr::Field(fp) = expr {
+            if let Some(col) = extract_column_name_from_field_path(fp, table_name, from_alias) {
+                available.push(col);
+            }
+        }
+        // Non-bare-field GROUP BY expressions: skip without suspending. The GROUP BY key
+        // will appear under a DataFusion-generated name; but this case is exotic and the
+        // head-position-3 gate already validated these against the raw schema.
+    }
+
+    available.sort();
+    available.dedup();
+    Some((available, suspended))
+}
+
 /// Walk all column-bearing pipe stage types and check column availability + type-compat.
 ///
 /// Called from both the `Ast::Pipe` arm (all stages) and the `Ast::SqlPipe` arm
@@ -2772,8 +2879,11 @@ fn check_column_against_available_set(
 /// Maintains a running `{ available: Vec<String>, suspended: bool }` context while
 /// walking stages in order.
 ///
-/// - **Initial state:** `available = schema_columns(table)` (from spec_map or registry);
-///   if no schema source, `suspended = true` from the start (fail-open for unregistered tables).
+/// - **Initial state:** for `Ast::Pipe` (pass `initial_binding_override = None`):
+///   `available = schema_columns(table)` from spec_map or registry; if no schema source,
+///   fail-open immediately. For `Ast::SqlPipe` (BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION
+///   BINDING RULE, pass `initial_binding_override = Some((cols, suspended))`): uses the
+///   head projection output — not the raw schema — as the starting binding context.
 /// - **Enrich stage:** position-13 input column is checked against `available` BEFORE
 ///   updating the context. When `infusion_registry` is wired and the UDF descriptor
 ///   resolves, output columns are UNIONed into `available` (downstream stages can reference
@@ -2788,6 +2898,7 @@ fn check_column_against_available_set(
 /// # Ordering
 /// E-QUERY-038 (existence) fires before E-QUERY-002 (type-compat) for each stage,
 /// consistent with BC-2.11.016 gate ordering (table → column → type).
+#[allow(clippy::too_many_arguments)]
 fn check_pipe_stage_columns(
     stages: &[crate::ast::PipeStage],
     table_name: &str,
@@ -2801,23 +2912,38 @@ fn check_pipe_stage_columns(
     >,
     table_registry: Option<&crate::table_registry::TableRegistry>,
     infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
+    // BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION BINDING RULE: when Some((cols, suspended)),
+    // use these as the initial binding context instead of get_initial_available_columns().
+    // Callers pass Some(...) for Ast::SqlPipe (head-projection seeding), None for Ast::Pipe
+    // (raw schema seeding; existing behavior preserved).
+    initial_binding_override: Option<(Vec<String>, bool)>,
 ) -> Result<(), PrismError> {
     use crate::ast::{AggFunc, PipeStage};
 
     // BC-2.11.016 DERIVED-COLUMN BINDING RULE: build initial available set.
-    // If no schema source is available, start suspended (fail-open for unregistered tables;
-    // preserves existing RG-065 fail-open behavior).
-    let initial_available =
-        get_initial_available_columns(table_name, org_scope, resolved_spec_map, table_registry);
-    let mut current_available: Vec<String> = match initial_available {
-        Some(cols) => cols,
+    //
+    // For Ast::SqlPipe with an explicit SELECT head, initial_binding_override carries the
+    // head projection output (BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION BINDING RULE).
+    // For Ast::Pipe (or SqlPipe with SELECT *), fall back to raw schema via
+    // get_initial_available_columns(). If no schema source is available, fail-open immediately.
+    let (mut current_available, mut suspended) = match initial_binding_override {
+        Some((cols, susp)) => (cols, susp),
         None => {
-            // No schema source — all checks would fail-open anyway. Start suspended
-            // so every stage is skipped cleanly (equivalent to old behavior).
-            return Ok(());
+            match get_initial_available_columns(
+                table_name,
+                org_scope,
+                resolved_spec_map,
+                table_registry,
+            ) {
+                Some(cols) => (cols, false),
+                None => {
+                    // No schema source — all checks would fail-open anyway. Return early
+                    // (equivalent to old behavior; preserves existing RG-065 fail-open).
+                    return Ok(());
+                }
+            }
         }
     };
-    let mut suspended = false;
 
     for stage in stages {
         if suspended {
