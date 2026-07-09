@@ -10199,6 +10199,327 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
+    // ── Tests 27-31 (RED GATE + GREEN lock): SQLPIPE HEAD-PROJECTION BINDING RULE ──
+    //    BC-2.11.016 v1.13 EC-11-059 / EC-11-059b / EC-11-060 / EC-11-061 (FP-001)
+    //
+    //    Root cause: `check_pipe_stage_columns` seeds the initial `available` set for
+    //    `Ast::SqlPipe` stage walk from raw schema_columns(table, OrgId), IGNORING the
+    //    head SQL projection output. This causes:
+    //      (a) false-positive E-QUERY-038 on SELECT aliases (e.g., `cnt` from `count(*) AS cnt`,
+    //          `sev` from `severity AS sev`) — those names are valid at execution time but absent
+    //          from the raw schema, so the gate incorrectly rejects them (FP-001 violation).
+    //      (b) less-precise error for post-head typos: did_you_mean and available_columns reflect
+    //          the raw schema rather than the head output set (e.g., EC-11-060: `sevv` against
+    //          {severity,timestamp} gives no suggestion; against head output {sev} gives
+    //          did_you_mean:"sev" — a precision win).
+    //      (c) false-positive E-QUERY-038 on `SELECT count(*) FROM t GROUP BY g | sort xyz` —
+    //          anonymous aggregate without alias must set suspended=true for the stage walk per
+    //          FP-001 fail-open; instead the gate fires on `xyz` using raw schema today.
+    //
+    //    Fix (BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION BINDING RULE):
+    //      For `Ast::SqlPipe`, initial `available` for stage walk is seeded from head projection
+    //      output — not raw schema:
+    //        (a) `SELECT *` → full raw schema (unchanged; current behavior preserved)
+    //        (b) explicit SELECT → `{explicit AS aliases} ∪ {bare Field SELECT names} ∪
+    //            {bare GROUP BY field names}`
+    //        (c) any non-Field SELECT item without AS alias → suspended := true (fail-open;
+    //            mirrors Stats anonymous-aggregate rule; FP-001)
+    //      Head SQL clause checking (positions 1–6) still runs against raw schema unchanged.
+
+    /// BC-2.11.016 v1.13 EC-11-059 — SqlPipe sort after aliased aggregate: no false-positive.
+    ///
+    /// `SELECT count(*) AS cnt FROM crowdstrike_alerts GROUP BY severity | sort cnt`
+    ///
+    /// SQLPIPE HEAD-PROJECTION BINDING RULE: head output = {cnt (alias from count(*) AS cnt),
+    /// severity (bare field in GROUP BY)}. The stage walk initial `available = {cnt, severity}`.
+    /// `| sort cnt` finds `cnt` in the binding set → NO E-QUERY-038. EC-11-059.
+    ///
+    /// EXPECTED RED — current code seeds `available` from raw schema {severity, timestamp}.
+    /// `cnt` is NOT in the raw schema → E-QUERY-038 fires on `cnt` (false positive, FP-001
+    /// violation). The test panics on the ColumnNotFound arm for `cnt`, confirming RED gate.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11059_sqlpipe_head_alias_no_false_positive() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // EC-11-059 canonical vector (BC-2.11.016 v1.13).
+        // Head: SELECT count(*) AS cnt FROM crowdstrike_alerts GROUP BY severity
+        // Stage: | sort cnt
+        // After fix: available = {cnt, severity} → cnt found → no E-QUERY-038.
+        // Before fix: available = {severity, timestamp} → cnt absent → FALSE-POSITIVE E-QUERY-038.
+        let query = "SELECT count(*) AS cnt FROM crowdstrike_alerts GROUP BY severity | sort cnt";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "cnt" => panic!(
+                "BC-2.11.016 v1.13 EC-11-059: FALSE-POSITIVE E-QUERY-038 fired on SqlPipe head \
+                 alias 'cnt' in downstream | sort stage. SQLPIPE HEAD-PROJECTION BINDING RULE \
+                 requires: after explicit SELECT head, available = {{explicit aliases ∪ GROUP BY \
+                 fields}} = {{cnt, severity}}; 'cnt' must be found in the binding set. Current \
+                 code seeds available from raw schema {{severity, timestamp}} — 'cnt' absent → \
+                 incorrect rejection. FP-001 invariant violated. \
+                 column='{}', table='{}', available={:?}, did_you_mean={:?}",
+                details.column, details.table, details.available_columns, details.did_you_mean
+            ),
+            // Any other result (Ok, execution error, unrelated ColumnNotFound) is acceptable.
+            // The only invariant is that the SELECT alias 'cnt' must NOT produce a false-positive
+            // E-QUERY-038 in the downstream | sort stage.
+            _ => {}
+        }
+    }
+
+    /// BC-2.11.016 v1.13 EC-11-059b — SqlPipe where after plain alias: no false-positive.
+    ///
+    /// `SELECT severity AS sev FROM crowdstrike_alerts | where sev = 'High'`
+    ///
+    /// SQLPIPE HEAD-PROJECTION BINDING RULE: head output = {sev (alias from severity AS sev)}.
+    /// Stage walk initial `available = {sev}`. `| where sev = 'High'` finds `sev` in the
+    /// binding set → NO E-QUERY-038.
+    ///
+    /// EXPECTED RED — current code seeds `available` from raw schema {severity, timestamp}.
+    /// `sev` is NOT in the raw schema (the alias is not in the schema; only `severity` is) →
+    /// E-QUERY-038 fires on `sev` (false positive, FP-001 violation). The test panics on the
+    /// ColumnNotFound arm for `sev`, confirming RED gate.
+    ///
+    /// Note on head SQL check (positions 1–6): `severity` (bare Field) is checked against raw
+    /// schema → found → OK. The FP-001 violation occurs only in the stage walk (position 9).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11059b_sqlpipe_plain_alias_no_false_positive() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // Head: SELECT severity AS sev FROM crowdstrike_alerts (head SQL check: severity ok)
+        // Stage: | where sev = 'High'
+        // After fix: available = {sev} → sev found → no E-QUERY-038.
+        // Before fix: available = {severity, timestamp} → sev absent → FALSE-POSITIVE E-QUERY-038.
+        let query = "SELECT severity AS sev FROM crowdstrike_alerts | where sev = 'High'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "sev" => panic!(
+                "BC-2.11.016 v1.13 EC-11-059b: FALSE-POSITIVE E-QUERY-038 fired on SqlPipe head \
+                 plain alias 'sev' in downstream | where stage. SQLPIPE HEAD-PROJECTION BINDING \
+                 RULE requires: after `SELECT severity AS sev`, available = {{sev}}; 'sev' must be \
+                 found in the binding set. Current code seeds available from raw schema \
+                 {{severity, timestamp}} — 'sev' is the alias NOT in the raw schema → incorrect \
+                 rejection. FP-001 invariant violated. \
+                 column='{}', table='{}', available={:?}, did_you_mean={:?}",
+                details.column, details.table, details.available_columns, details.did_you_mean
+            ),
+            _ => {}
+        }
+    }
+
+    /// BC-2.11.016 v1.13 EC-11-060 — SqlPipe post-head typo yields E-QUERY-038 (precision win).
+    ///
+    /// `SELECT severity AS sev FROM crowdstrike_alerts | where sevv = 'High'`
+    ///
+    /// SQLPIPE HEAD-PROJECTION BINDING RULE: head output = {sev}. The post-head typo `sevv`
+    /// is NOT in {sev} → E-QUERY-038 fires with `did_you_mean: "sev"` (lev("sevv","sev")=1)
+    /// and `available_columns: ["sev"]`. This is the precision win: the error message shows
+    /// the head-output set rather than the raw schema, giving a directly actionable suggestion.
+    ///
+    /// EXPECTED RED — current code seeds `available` from raw schema {severity, timestamp}.
+    /// E-QUERY-038 DOES fire on `sevv` today (sevv not in raw schema either), but:
+    ///   (a) did_you_mean is ABSENT today: lev("sevv","severity")=5 > 3, lev("sevv","timestamp")>>3
+    ///       — no raw-schema column is within distance ≤ 3 from "sevv". After fix: lev("sevv","sev")=1
+    ///       → did_you_mean = Some("sev").
+    ///   (b) available_columns today = ["severity", "timestamp"] (raw schema). After fix: ["sev"].
+    ///
+    /// The test asserts the v1.13 semantics: did_you_mean = Some("sev") and available_columns
+    /// contains "sev" but NOT "severity". These assertions FAIL today → RED gate.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11060_sqlpipe_post_head_typo_yields_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // EC-11-060 canonical vector (BC-2.11.016 v1.13).
+        // Head: SELECT severity AS sev FROM crowdstrike_alerts → head output = {sev}
+        // Stage: | where sevv = 'High' — `sevv` is a typo of `sev` (Levenshtein distance 1)
+        // After fix: available = {sev}; sevv not in {sev} → E-QUERY-038 with
+        //   did_you_mean: Some("sev"), available_columns: ["sev"].
+        // Before fix: available = {severity, timestamp}; sevv not found →
+        //   E-QUERY-038 with did_you_mean: None (lev("sevv","severity")=5 > 3),
+        //   available_columns: ["severity", "timestamp"].
+        let query = "SELECT severity AS sev FROM crowdstrike_alerts | where sevv = 'High'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "sevv",
+                    "BC-2.11.016 v1.13 EC-11-060: E-QUERY-038 must be on column 'sevv'; \
+                     got: '{}'",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "BC-2.11.016 v1.13 EC-11-060: table must be 'crowdstrike_alerts'"
+                );
+                // Distinguishing assertion (a): did_you_mean reflects head-output set {sev}.
+                // Today: None (lev("sevv","severity")=5 > threshold; no raw-schema match).
+                // After fix: Some("sev") (lev("sevv","sev")=1 ≤ threshold).
+                assert_eq!(
+                    details.did_you_mean.as_deref(),
+                    Some("sev"),
+                    "BC-2.11.016 v1.13 EC-11-060: did_you_mean must be 'sev' (lev=1 against \
+                     head-output {{sev}}). Current code uses raw schema {{severity, timestamp}}: \
+                     lev('sevv','severity')=5 > 3 → did_you_mean absent. After fix: head output \
+                     {{sev}}, lev('sevv','sev')=1 → did_you_mean=Some('sev'). RED gate. \
+                     Got: {:?}",
+                    details.did_you_mean
+                );
+                // Distinguishing assertion (b): available_columns reflects head output, not raw schema.
+                // Today: ["severity", "timestamp"]. After fix: ["sev"].
+                assert!(
+                    details.available_columns.iter().any(|c| c == "sev"),
+                    "BC-2.11.016 v1.13 EC-11-060: available_columns must contain 'sev' (head \
+                     projection output). Current code returns raw schema columns \
+                     ['severity','timestamp']; after fix available = ['sev']. \
+                     Got: {:?}",
+                    details.available_columns
+                );
+                assert!(
+                    !details.available_columns.iter().any(|c| c == "severity"),
+                    "BC-2.11.016 v1.13 EC-11-060: available_columns must NOT contain 'severity' \
+                     after SQLPIPE HEAD-PROJECTION BINDING RULE — head output is {{sev}}, not the \
+                     raw schema. After fix the error reflects only the head-output set. \
+                     Got: {:?}",
+                    details.available_columns
+                );
+            }
+            Ok(_) => panic!(
+                "BC-2.11.016 v1.13 EC-11-060: engine.execute must NOT succeed — 'sevv' is a \
+                 post-head typo not in head output {{sev}} and must trigger E-QUERY-038."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 v1.13 EC-11-060: expected PrismError::ColumnNotFound (E-QUERY-038) \
+                 for post-head typo 'sevv', got: {other:?}"
+            ),
+        }
+    }
+
+    /// BC-2.11.016 v1.13 EC-11-061 — anonymous head aggregate suspends stage walk: no false-positive.
+    ///
+    /// `SELECT count(*) FROM crowdstrike_alerts GROUP BY severity | sort xyz`
+    ///
+    /// SQLPIPE HEAD-PROJECTION BINDING RULE: `count(*)` is a non-Field SELECT item without an
+    /// explicit AS alias → its output name is unpredictable at plan time → `suspended := true`
+    /// for the stage walk (FP-001 fail-open; mirrors Stats anonymous-aggregate rule). All
+    /// subsequent stage positions are skipped → NO E-QUERY-038 on `xyz`.
+    ///
+    /// EXPECTED RED — current code seeds `available` from raw schema {severity, timestamp}.
+    /// `xyz` is NOT in the raw schema → E-QUERY-038 fires on `xyz` (false positive, FP-001
+    /// violation: the anonymous aggregate means we cannot know what names are valid downstream;
+    /// rejecting `xyz` is forbidden). The test panics on the ColumnNotFound arm for `xyz`,
+    /// confirming RED gate.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11061_sqlpipe_anon_head_agg_suspends() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // EC-11-061 canonical vector (BC-2.11.016 v1.13).
+        // Head: SELECT count(*) FROM crowdstrike_alerts GROUP BY severity
+        //   — count(*) has no alias → anonymous aggregate → suspended := true
+        // Stage: | sort xyz  — xyz is any arbitrary name
+        // After fix: suspended = true → stage walk skipped → no E-QUERY-038 on xyz.
+        // Before fix: available = {severity, timestamp}; xyz not found →
+        //   FALSE-POSITIVE E-QUERY-038 on xyz (FP-001 violation).
+        let query = "SELECT count(*) FROM crowdstrike_alerts GROUP BY severity | sort xyz";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "xyz" => panic!(
+                "BC-2.11.016 v1.13 EC-11-061: FALSE-POSITIVE E-QUERY-038 fired on 'xyz' in \
+                 SqlPipe stage walk after anonymous head aggregate. SQLPIPE HEAD-PROJECTION \
+                 BINDING RULE: `SELECT count(*)` has no AS alias → output name unpredictable \
+                 at plan time → suspended := true for the stage walk (FP-001 fail-open). \
+                 Current code seeds available from raw schema {{severity, timestamp}} and checks \
+                 'xyz' — not found → incorrect rejection. \
+                 column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            // Any other result (Ok, execution error, unrelated ColumnNotFound) is acceptable.
+            // The invariant is that anonymous head aggregates must activate suspension so
+            // downstream stage refs do NOT produce false-positive E-QUERY-038.
+            _ => {}
+        }
+    }
+
+    /// BC-2.11.016 v1.13 GREEN lock — SELECT * SqlPipe sort with valid schema column.
+    ///
+    /// `SELECT * FROM crowdstrike_alerts | sort severity`
+    ///
+    /// SQLPIPE HEAD-PROJECTION BINDING RULE: `SELECT *` → available = schema_columns(table, OrgId)
+    /// = {severity, timestamp} (full raw schema; same as Ast::Pipe initial state; current behavior
+    /// preserved). `| sort severity` finds `severity` in the binding set → NO E-QUERY-038.
+    ///
+    /// EXPECTED GREEN today and after fix — `SELECT *` path is unchanged by the rule. This
+    /// lock verifies the `SELECT *` branch is not regressed by the v1.13 fix.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11059_star_head_sort_valid_col_green_lock() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // SELECT * → full raw schema in available; `severity` is in the schema → no E-QUERY-038.
+        // Both today (before fix) and after fix, this must pass.
+        let query = "SELECT * FROM crowdstrike_alerts | sort severity";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "severity" => panic!(
+                "BC-2.11.016 v1.13 GREEN lock: E-QUERY-038 fired on 'severity' in SELECT * \
+                 SqlPipe sort — SELECT * must preserve full raw schema in available set \
+                 (SQLPIPE HEAD-PROJECTION BINDING RULE §(a): SELECT * → schema_columns). \
+                 This is a regression in the star-head path. \
+                 column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            // Any other result (Ok, execution error, unrelated ColumnNotFound) is acceptable.
+            _ => {}
+        }
+    }
+
     // ── Test 26 (GREEN lock): Stats aggregate argument — valid column passes gate ──
 
     /// EC-11-058 GREEN lock — stats aggregate argument with the REAL column name.
