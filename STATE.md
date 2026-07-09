@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.221"
+version: "8.222"
 producer: state-manager
-timestamp: 2026-07-09T12:00:00Z
+timestamp: 2026-07-09T14:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -46,7 +46,7 @@ workspace_test_count: 5369  # NOTE: FIX-IEQ-ERRPATH-001 fix-branch HEAD e5170899
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1621 (2026-07-09). FIX-IEQ-ERRPATH-001 pass-10 NOT CLEAN(strict) 1 LOW (zero CRIT/HIGH/MED; novelty LOW); CLOSED same-burst (BC v1.17 + 4 spec siblings; 4 story rounds; RED 37435264 + GREEN e5170899; 5369/5369; 89/89); pass-10 report authored; streak 0/3; decay 6→3→3→2→1→1. ADV-FIX-P10-OBS-001: join-qualified un-aliased bare-Field head SELECT items (`SELECT j.col FROM t JOIN other j ON ...`) extracted to None in compute_sqlpipe_head_binding branches (b)/(c) — col never seeded → false E-QUERY-038 with available:[] (FP-001). Orchestrator confirmed JOIN grammar support statically (sql_parser.rs join_clause per BC-2.11.003); test-writer confirmed empirically (RED @37435264, both shapes fired ColumnNotFound with empty available); PO amended BC v1.17 LAST-SEGMENT OUTPUT-NAME RULE; implementer GREEN @e5170899 (last-segment fallback seeding with DERIVED provenance in both branches; head-seeding only, pipe-stage handling unchanged; 50/50 module; just check 5369/5369; 89/89; no signature changes). CLOSED. VERY NEXT ACTION: freeze e5170899 → LOCAL adversary pass 11 (fresh context, strict; no commits between passes per DRIFT-ORCH-PRLEVEL-PUSH-001); if CLEAN(strict), passes 12+13 complete BC-5.39.001 3-CLEAN → push → open fix-PR. PENDING-HUMAN items 1-3 UNCHANGED. Autonomy D-989 active."
+current_step: "D-1622 (2026-07-09). LOCAL pass-11 CLEAN(strict)=YES CLEAN(PR-merge)=YES on frozen e5170899 — STREAK 1/3 (BC-5.39.001). ZERO findings of any severity (0 CRIT/HIGH/MED/LOW/OBS/PROCESS-GAP). All 14 positions vs BC-2.11.016 v1.17 PASS; EC-11-039..069 full catalog PASS; DERIVED provenance state machine (stats REPLACE / enrich UNION / fields TRANSITION) PASS; SIBLING-GATE CONSISTENCY skip PASS; FROM-ALIAS threading both callers PASS; EC-11-041 is_registered disambiguation PASS; aggregate-arg position 11 PASS; SAP-1 PASS (3 column_not_found.rejected sites vs BC-2.16.002 catalog); POL-24 byte-verbatim PASS; TD-VSDD-060 PASS (no new signatures); TD-VSDD-091 PASS; production discipline PASS (no unwrap/println/#[non_exhaustive] drift; story pins current v1.46/v2.35/v2.12/v1.21); gate ordering E-QUERY-037→038→039 PASS both execute paths; DML fail-open legitimately out of scope. FP-001 probes 1–6 all PASS statically. Trajectory: 6→3→3→2→1→1→0. VERY NEXT ACTION: LOCAL adversary pass 12 on UNCHANGED HEAD e5170899 (fresh context, strict; NO commits to fix branch — frozen-HEAD streak rule DRIFT-ORCH-PRLEVEL-PUSH-001); if CLEAN(strict), pass 13 completes BC-5.39.001 3-CLEAN → push branch → open fix-PR via pr-manager. PENDING-HUMAN items 1-3 UNCHANGED. Autonomy D-989 active."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
