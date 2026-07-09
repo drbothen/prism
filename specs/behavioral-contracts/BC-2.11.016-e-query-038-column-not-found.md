@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.7"
 status: active
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -15,7 +15,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: 2026-06-19
-modified: 2026-06-28
+modified: 2026-07-08
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -33,7 +33,25 @@ When a PrismQL query references a column name that does not exist in the `TableR
 ## Preconditions
 
 1. A PQL query has been parsed successfully by Chumsky (no E-QUERY-001 parse error).
-2. The query references a column name in a position where column resolution is possible: `SELECT <column>`, `WHERE <column> = ...`, `GROUP BY <column>`, `ORDER BY <column>`, `JOIN ON <column>`, or `HAVING <column>` / `HAVING <agg>(<column>)`. The gate covers all six clause positions; HAVING base-column refs (including refs nested inside aggregate function calls such as `count(col)`) are validated on parity with WHERE and GROUP BY.
+2. The query references a column name in a position where column resolution is possible. The gate covers twelve clause positions across all three AST modes — **this is an exhaustive closed list**:
+
+   **SQL-mode positions (positions 1–6, `Ast::Sql` and `Ast::SqlPipe` head):**
+   - Position 1: `SELECT <column>` projection
+   - Position 2: `WHERE <column> = ...` predicate
+   - Position 3: `GROUP BY <column>`
+   - Position 4: `ORDER BY <column>`
+   - Position 5: `JOIN ON <column>`
+   - Position 6: `HAVING <column>` / `HAVING <agg>(<column>)` — base-column refs including refs nested inside aggregate function calls such as `count(col)`, validated on parity with WHERE and GROUP BY
+
+   **Filter-mode position (position 7, `Ast::Filter`):**
+   - Position 7: Filter-mode root predicate — all columns in the predicate tree, walking `And`/`Or`/`Not` recursively
+
+   **Pipe-mode stage positions (positions 8–12, `Ast::Pipe` and `Ast::SqlPipe` stages):**
+   - Position 8: Pipe-mode `| where` stage predicates — every `PipeStage::Where` in the stages vec, walking the embedded `FilterExpr` tree recursively
+   - Position 9: SqlPipe `| where` stage predicates — `Ast::SqlPipe` head SQL clauses covered by positions 1–6; `| where` stages walked identically to position 8
+   - Position 10: Pipe `| sort by` field key references — every field reference in `PipeStage::Sort` sort-key list
+   - Position 11: Pipe `| stats ... by` grouping field references — every field reference in `PipeStage::Stats { by: Vec<Expr> }` grouping list
+   - Position 12: Pipe `| fields` column references — every field reference in `PipeStage::Fields` inclusion/exclusion list
 3. The table referenced in the query has been validated to exist in the `TableRegistry` (E-QUERY-037 passed — no point checking column availability for a non-existent table).
 4. The `TableRegistry` has been initialized with the per-client schema for the requesting org.
 
@@ -87,14 +105,20 @@ The column-not-found gate is colocated with the E-QUERY-037 table-availability g
 
 **Gate positions — `check_query_column_availability`:**
 
-| Position | Clause | Extraction mechanism |
-|----------|--------|---------------------|
-| 1 | SELECT projection | `extract_field_paths_from_expr` per `SelectItem::Expr` |
-| 2 | WHERE predicate | `extract_predicate_columns` over `sql_query.where_` |
-| 3 | GROUP BY | `extract_field_paths_from_expr` per group-by `Expr` |
-| 4 | ORDER BY | `extract_field_paths_from_expr` per `OrderBy::expr` |
-| 5 | JOIN ON | `extract_field_paths_from_expr` over `join.on` |
-| 6 | HAVING predicate | `extract_predicate_columns` over `sql_query.having` (same `Option<Predicate>` type as WHERE; same extraction path) |
+| Position | AST mode | Clause | Extraction mechanism |
+|----------|----------|--------|---------------------|
+| 1 | SQL (`Ast::Sql`, `Ast::SqlPipe` head) | SELECT projection | `extract_field_paths_from_expr` per `SelectItem::Expr` |
+| 2 | SQL | WHERE predicate | `extract_predicate_columns` over `sql_query.where_` |
+| 3 | SQL | GROUP BY | `extract_field_paths_from_expr` per group-by `Expr` |
+| 4 | SQL | ORDER BY | `extract_field_paths_from_expr` per `OrderBy::expr` |
+| 5 | SQL | JOIN ON | `extract_field_paths_from_expr` over `join.on` |
+| 6 | SQL | HAVING predicate | `extract_predicate_columns` over `sql_query.having` (same `Option<Predicate>` type as WHERE; same extraction path) |
+| 7 | Filter (`Ast::Filter`) | Root predicate | `extract_predicate_columns` recursively over the root `FilterExpr` tree (`And`/`Or`/`Not` recursive walk) |
+| 8 | Pipe (`Ast::Pipe`) | `| where` stage predicates | `extract_predicate_columns` over each `PipeStage::Where(FilterExpr)` in `stages` vec |
+| 9 | SqlPipe (`Ast::SqlPipe`) | `| where` stage predicates | Head SQL covered by positions 1–6; `| where` stages in `sq.stages` walked identically to position 8 |
+| 10 | Pipe (`Ast::Pipe`, `Ast::SqlPipe`) | `| sort by` field keys | `extract_field_paths_from_expr` per each field reference in `PipeStage::Sort` sort-key list |
+| 11 | Pipe (`Ast::Pipe`, `Ast::SqlPipe`) | `| stats ... by` grouping refs | `extract_field_paths_from_expr` per each field reference in `PipeStage::Stats { by: Vec<Expr> }` grouping list |
+| 12 | Pipe (`Ast::Pipe`, `Ast::SqlPipe`) | `| fields` column refs | `extract_field_paths_from_expr` per each field reference in `PipeStage::Fields` inclusion/exclusion list |
 
 HAVING was added at v1.5 to close a pedagogical coverage asymmetry: the sibling gates E-QUERY-037 and E-QUERY-039 both walk HAVING; omitting it from E-QUERY-038 caused a `HAVING count(typo_col)` typo to bypass the clean "column not found" diagnostic and surface a less-actionable DataFusion error instead.
 
@@ -116,6 +140,7 @@ DataFusion itself would produce a column resolution error if the query reached e
 - DI-004: The query rejection event is included in the `AuditEntry` for the `query` tool call (outcome: `"rejected"`, reason: `"column_not_found"`).
 - DI-002: `available_columns` contains no credential values (operator TOML schema → `TableRegistry`; no sensor API data).
 - DI-008: `available_columns` is org-scoped — columns for this client's schema only; not columns from another client's sensor overlay.
+- **AST-completeness (OBS-002):** For every `Ast::*` variant carrying a `Predicate` sub-tree or schema-bound column references, the column-availability gate MUST walk all embedded column positions. New `Ast` variants introduced in future development require a corresponding gate arm in `check_query_column_availability`. The `_ => Ok(())` fallback is deliberate fail-open ONLY for variants that carry no schema-bound column references (e.g., a hypothetical non-schema-referencing utility node). Any `Ast::*` variant that introduces new schema-bound column positions MUST extend the gate enumeration — omission is a HIGH-severity finding in adversarial review.
 
 ## Error Cases
 
@@ -141,6 +166,12 @@ DataFusion itself would produce a column resolution error if the query reached e
 | EC-11-044 | Multiple columns are invalid in the same query | Behavior at implementer discretion: the gate MAY report the FIRST invalid column encountered (fail-fast) or ALL invalid columns (collect-all). Either is acceptable. The BC requires at minimum one E-QUERY-038 error is returned (not a silent pass). |
 | EC-11-045 | `did_you_mean` is present but the suggested column is itself the only available column (table has one column and the model typed it wrong) | `did_you_mean` present with that single column's name; `available_columns` contains `[that_column_name]` |
 | EC-11-046 | Column typo in HAVING predicate: `SELECT severity, count(*) FROM crowdstrike_alerts GROUP BY severity HAVING count(typo_col) > 5` | `E-QUERY-038` with `column: "typo_col"`, `table: "crowdstrike_alerts"`. The base-column ref inside the `count(…)` aggregate function is extracted and validated against the `TableRegistry` schema; the query does NOT reach DataFusion. |
+| EC-11-047 | Filter-mode query `severity_id = 'high'` against `crowdstrike_alerts` where `severity_id` is not registered but `severity` is | `E-QUERY-038` with `column: "severity_id"`, `table: "crowdstrike_alerts"`, `did_you_mean: "severity"` (position 7 — filter-mode root predicate) |
+| EC-11-048 | Pipe-mode `FROM crowdstrike_alerts \| where severity_id IEQ 'high'` where `severity_id` is not registered | `E-QUERY-038` with `column: "severity_id"`, `table: "crowdstrike_alerts"`, `did_you_mean: "severity"` (position 8 — pipe `\| where` stage) |
+| EC-11-049 | SqlPipe `SELECT * FROM crowdstrike_alerts \| where severity_id IEQ 'high'` where `severity_id` is not registered | `E-QUERY-038` with `column: "severity_id"`, `table: "crowdstrike_alerts"`, `did_you_mean: "severity"` (position 9 — sqlpipe `\| where` stage; head SQL columns covered by positions 1–6) |
+| EC-11-050 | Pipe `FROM crowdstrike_alerts \| sort sevrity desc` where `sevrity` is not registered | `E-QUERY-038` with `column: "sevrity"`, `table: "crowdstrike_alerts"`, `did_you_mean: "severity"` (position 10 — pipe `\| sort by` key) |
+| EC-11-051 | Pipe `FROM crowdstrike_alerts \| stats count by sevrity` where `sevrity` is not registered | `E-QUERY-038` with `column: "sevrity"`, `table: "crowdstrike_alerts"`, `did_you_mean: "severity"` (position 11 — pipe `\| stats ... by` grouping ref) |
+| EC-11-052 | Pipe `FROM crowdstrike_alerts \| fields sevrity, timestamp` where `sevrity` is not registered | `E-QUERY-038` with `column: "sevrity"`, `table: "crowdstrike_alerts"`, `did_you_mean: "severity"` (position 12 — pipe `\| fields` column ref) |
 
 ## Canonical Test Vectors
 
@@ -152,6 +183,12 @@ DataFusion itself would produce a column resolution error if the query reached e
 | `query("SELECT sevrity FROM crowdstrike_alerts", clients=["acme"])` in multi-tenant deployment; "globex" has claroty_alerts with `severity` column | `available_columns` for `crowdstrike_alerts` contains ONLY acme's crowdstrike_alerts columns — contoso/globex column names absent | org-isolation |
 | MCP error code for E-QUERY-038 | Surfaces as `-32602 INVALID_PARAMS` (not `-32000`) | mcp-mapping |
 | `query("SELECT severity, count(*) FROM crowdstrike_alerts GROUP BY severity HAVING count(typo_col) > 5", clients=["acme"])` | `E-QUERY-038` with `column: "typo_col"`, `table: "crowdstrike_alerts"`, `client_id: "acme"`, `available_columns` includes registered columns, `did_you_mean` present if a close match exists | having-position |
+| `query("severity_id = 'high'", clients=["acme"])` in filter mode against `crowdstrike_alerts` where `severity_id` not registered but `severity` is | `E-QUERY-038` with `column: "severity_id"`, `table: "crowdstrike_alerts"`, `client_id: "acme"`, `available_columns` includes `"severity"`, `did_you_mean: "severity"` | filter-mode (position 7) |
+| `query("FROM crowdstrike_alerts \| where severity_id IEQ 'high'", clients=["acme"])` where `severity_id` not registered | `E-QUERY-038` with `column: "severity_id"`, `table: "crowdstrike_alerts"`, `client_id: "acme"`, `did_you_mean: "severity"` | pipe-where (position 8) |
+| `query("SELECT * FROM crowdstrike_alerts \| where severity_id IEQ 'high'", clients=["acme"])` where `severity_id` not registered | `E-QUERY-038` with `column: "severity_id"`, `table: "crowdstrike_alerts"`, `client_id: "acme"`, `did_you_mean: "severity"` | sqlpipe-where (position 9) |
+| `query("FROM crowdstrike_alerts \| sort sevrity desc", clients=["acme"])` where `sevrity` not registered | `E-QUERY-038` with `column: "sevrity"`, `table: "crowdstrike_alerts"`, `client_id: "acme"`, `did_you_mean: "severity"` | pipe-sort (position 10) |
+| `query("FROM crowdstrike_alerts \| stats count by sevrity", clients=["acme"])` where `sevrity` not registered | `E-QUERY-038` with `column: "sevrity"`, `table: "crowdstrike_alerts"`, `client_id: "acme"`, `did_you_mean: "severity"` | pipe-stats-by (position 11) |
+| `query("FROM crowdstrike_alerts \| fields sevrity, timestamp", clients=["acme"])` where `sevrity` not registered | `E-QUERY-038` with `column: "sevrity"`, `table: "crowdstrike_alerts"`, `client_id: "acme"`, `did_you_mean: "severity"` | pipe-fields (position 12) |
 
 ## Verification Properties
 
@@ -196,6 +233,8 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | FIX-IEQ-ERRPATH-001-grammar-keyword-correction | 2026-07-08 | product-owner | **Grammar keyword correction: `\| project` → `\| fields` (position 12).** Test-writer grammar verification (fix-PR FIX-IEQ-ERRPATH-001) confirmed the PrismQL pipe parser has no `\| project` keyword; the projection stage keyword is `\| fields` (`PipeStage::Fields`). Fixed: §Preconditions.2 position-12 prose (`Pipe \`| project\` (\`fields\` stage)` → `Pipe \`| fields\``); §Implementation location Gate-positions table row 12 clause label; EC-11-052 vector query string (`\| project sevrity, host_name` → `\| fields sevrity, timestamp`, mirroring the verified test form); Canonical Test Vectors last row (same query string fix + category label `pipe-project` → `pipe-fields`). |
+| 1.6 | ADV-FIX-P1-HIGH-001-HIGH-002-OBS-002-DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 | 2026-07-08 | product-owner | **ADV-FIX-P1-HIGH-001 + ADV-FIX-P1-HIGH-002 + ADV-FIX-P1-OBS-002 closure (DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 fix-PR).** §Preconditions.2: expanded exhaustive position enumeration from 6 to 12 positions covering all three AST modes. Added: (7) Filter-mode root predicate (`Ast::Filter` — `And`/`Or`/`Not` recursive walk), (8) Pipe-mode `\| where` stage predicates (`Ast::Pipe`, every `PipeStage::Where`), (9) SqlPipe `\| where` stage predicates (`Ast::SqlPipe` head covered by positions 1–6; stages walked like position 8), (10) Pipe `\| sort by` field keys (`PipeStage::Sort`), (11) Pipe `\| stats ... by` grouping refs (`PipeStage::Stats { by }`), (12) Pipe `\| project` column refs (`PipeStage::Fields`). **MED-002 adjudication — positions 10/11/12 IN-SCOPE:** SQL GROUP BY (position 3) and ORDER BY (position 4) are already gated; `\| stats by` and `\| sort by` are their pipe analogues — asymmetry is not justifiable pedagogically; `\| project` is the pipe analogue of SELECT projection (position 1, already gated). Demo narrative "the error is the tutorial" and production-grade default both require complete coverage. Blast radius is moderate (reuses same helpers); no genuine product tradeoff justifies deferral. §Implementation location Gate-positions table: added `AST mode` column and rows 7–12 with extraction mechanisms. §Invariants: added AST-completeness invariant (OBS-002) — every `Ast::*` variant carrying schema-bound column refs requires a gate arm; `_ => Ok(())` is deliberate fail-open only for schema-free variants. New edge cases EC-11-047 through EC-11-052 (filter-mode, pipe-where, sqlpipe-where, pipe-sort, pipe-stats-by, pipe-project). New canonical test vectors for positions 7–12. `modified: 2026-07-08`. |
 | 1.5 | F-PWL1-LOW-001-having-gate-mandate | 2026-06-28 | product-owner | MANDATE verdict on F-PWL1-LOW-001 (E-QUERY-038 HAVING coverage asymmetry). Added HAVING (Position 6) to the column gate scope. Precondition 2 expanded from illustrative "e.g." list to exhaustive six-position enumeration. §Implementation location: added gate-positions table documenting all 6 positions and their extraction mechanisms; added rationale note for HAVING addition. New edge case EC-11-046 (HAVING `count(typo_col)` pattern). New canonical test vector for `having-position`. HAVING uses same `Option<Predicate>` type as WHERE and same `extract_predicate_columns` extraction path — zero new machinery. |
 | 1.4 | F-001B-SCFRESH-MED-001-story-anchor-fix | 2026-06-22 | product-owner | F-001B-SCFRESH-MED-001 closure (POL-4 story-anchor mis-anchoring): `## Story Anchor` corrected from placeholder `S-5.04 (or dedicated ADR-041 teaching story — to be assigned by story-writer)` to the actual implementing story `S-DEMO-PRISMQL-ONBOARDING-001-B`. Exhaustive BC metadata audit: all other surfaces (frontmatter fields, lifecycle_status, subsystem, capability, H1/BC-INDEX title match, DI citations, changelog schema, Related BCs existence) verified clean. `modified:` quote-normalization (YAML scalar, no quotes needed). |
 | 1.3 | F-001B-FRESH2-MED-001-pol20-normalization | 2026-06-22 | product-owner | POL-20 normalization: `introduced: ADR-041-teaching-burst-2026-06-19` → `introduced: 2026-06-19` (opaque burst-ID format prohibited by POL-20 anchored-regex; ISO date extracted). No body semantics changed. |

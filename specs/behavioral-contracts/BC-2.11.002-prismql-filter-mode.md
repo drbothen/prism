@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-07-06
+modified: 2026-07-08
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -63,6 +63,7 @@ Filter mode is the default query mode: it activates when a query does not start 
 | `E-QUERY-001` | Unknown field name | Error with `similar_fields` suggestions based on OCSF field name similarity |
 | `E-QUERY-002` | Type mismatch (e.g., `severity >= 42` when severity is string) | Error with field type info and correct usage example |
 | `E-QUERY-003` | Nesting depth exceeds 64 | Structured error identifying the limit exceeded |
+| `E-QUERY-038` | Column referenced in the filter-mode predicate (position 7 of `check_query_column_availability` — `Ast::Filter` root predicate, `And`/`Or`/`Not` recursive walk) is not found in the `TableRegistry` schema for the table and client | `E-QUERY-038` with `column`, `available_columns` (always present, org-scoped), `did_you_mean` (present when Levenshtein distance ≤ 3); MCP `-32602 INVALID_PARAMS`. Full spec: BC-2.11.016. |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -113,6 +114,7 @@ Both tests MUST use `QueryEngine::execute`, not just `PrismQlParser::parse`. Par
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | ADV-FIX-P1-HIGH-001-DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 | 2026-07-08 | product-owner | **POL-25 multi-cite propagation (ADV-FIX-P1-HIGH-001 / HIGH-002 closure).** §Error Cases: added `E-QUERY-038` row — filter-mode column refs (position 7 of `check_query_column_availability`, `Ast::Filter` root predicate) are now explicitly documented as a gate position. Cross-reference to BC-2.11.016 v1.6 (full postcondition spec). `modified: 2026-07-08`. |
 | 1.5 | S-PRISMQL-CASE-INSENSITIVE-001-bc-burst | 2026-07-06 | product-owner | **ADR-047 D.2 amendment: IEQ/IIN/INE operators added to filter-mode supported operator list.** §Postconditions: added bullet for case-insensitive equality/membership operators (`IEQ`/`IIN`/`INE`), lowering idiom (`lower(field) OP lower('val')`), reference to BC-2.11.024 for full semantics. §Canonical Test Vectors: added IEQ and IIN happy-path vectors. inputs: ADR-047 added. |
 | 1.4 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.4 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | AMENDMENT: added §Execution Validation Requirements (ADR-046 D4). Filter mode execution was UNVERIFIED — parse-only tests do not satisfy BC-2.11.002 which specifies "Filter mode predicates are applied to the sensor data source." Two mandatory integration tests added: `test_filter_mode_simple_predicate` and `test_filter_mode_with_source`, both using `QueryEngine::execute`. Closes ADR-046 D4 obligation. BC-2.11.023 governs the D7 shared-predicate-grammar invariant as a companion constraint. |

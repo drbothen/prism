@@ -2,7 +2,7 @@
 document_type: demo-runbook
 objective: T13-capstone
 level: ops
-version: "1.6"
+version: "1.7"
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
 project: prism
@@ -484,15 +484,16 @@ ENRICH-1 `source_path = "$.iocs[*].value"` extraction may not be working (check 
 
 ```sql
 FROM crowdstrike_detections
-| where severity IEQ 'high'
+| where severity IEQ 'critical'
 | limit 50
 client_id = "org-c"
 ```
 
-Expected: Returns CrowdStrike detection rows where OCSF `severity` is `'High'`
-(the canonical Title-case form stored after adapter-boundary normalization). The
-query matches whether the analyst types `'high'`, `'HIGH'`, or `'High'` —
-`lower(severity) = lower('high')` is the DataFusion lowering.
+Expected: Returns CrowdStrike detection rows where OCSF `severity` is `'Critical'`
+(the canonical Title-case form stored after adapter-boundary normalization; the
+CompromisedEndpoint scenario seeds Critical and Medium severity for CrowdStrike
+detections). The query matches whether the analyst types `'critical'`, `'CRITICAL'`,
+or `'Critical'` — `lower(severity) = lower('critical')` is the DataFusion lowering.
 
 To match multiple severity levels in a single predicate:
 
@@ -511,22 +512,40 @@ To filter on alert status with the same casing-proof approach:
 
 ```sql
 FROM cyberint_alerts
-| where status IIN ('new', 'in progress')
+| where status IIN ('open', 'closed')
 | limit 20
 client_id = "org-c"
 ```
 
-Expected: Returns alerts with OCSF finding-class status `'New'` or `'In Progress'`
-(canonical forms per `enum_map.rs` finding-class synthetic keys). The analyst types
-lowercase; IIN matches the Title-case stored form.
+Expected: Returns Cyberint alerts where `status` is `'open'` or `'closed'`.
+Cyberint status values (`'open'`, `'acknowledged'`, `'closed'`) are vendor-native
+lifecycle identifiers — they do not case-insensitively match any OCSF status caption
+(New, In Progress, Suppressed, Resolved, Archived, Deleted), so they pass through
+the adapter boundary as-is per BC-2.02.013 RG-021 (same class as Claroty
+`'Unresolved'` and Armis `'UNHANDLED'`; DRIFT-AUDIT-RUNBOOK-LITERALS-001
+adjudication 2026-07-08). IIN remains casing-proof against the actual stored
+values: `lower('open')` matches `lower('open')`. If a future Cyberint adapter
+version aligns to OCSF and normalizes these values, the analyst query would need
+updating — but for the current data the vendor-native values are the correct
+literals to use.
 
-**Teaching note:** OCSF enum labels — `severity`, `status`, `activity_name`,
-`disposition` — are normalized to canonical OCSF Title-case at ingestion by
+**Teaching note:** OCSF enum-label fields (`severity`, `status`, `activity_name`,
+`disposition`) are normalized to canonical OCSF Title-case at ingestion by
 `build_column_array` in the spec-driven adapter (`enum_map.rs` is the casing
-authority). `IEQ`/`IIN`/`INE` make analyst queries casing-proof: the analyst types
-`'high'` and the query returns `'High'` rows. The default `=` remains case-sensitive
-for precision filtering (e.g., process names, file paths, registry keys where exact
-case is security-meaningful).
+authority) — **when the vendor value case-insensitively matches an OCSF caption**.
+Example: `severity='HIGH'` → stored as `'High'` because `'High'` is an OCSF
+`severity_id` caption. `IEQ`/`IIN`/`INE` provide a safety net for values that were
+not normalized (vendor-native pass-throughs) and for free-form non-enum fields.
+
+For Cyberint `status`, the vendor values are `'open'`, `'acknowledged'`, and
+`'closed'` — none of these match any OCSF status caption, so they pass through
+as-is. `status IIN ('open', 'closed')` works correctly because IIN lowercases both
+sides: the stored `'open'` matches `lower('open')` = `'open'`. The casing-proof
+guarantee holds whether the field is OCSF-normalized (e.g., `severity`) or vendor
+pass-through (e.g., Cyberint `status`).
+
+The default `=` remains case-sensitive for precision filtering (e.g., process names,
+file paths, registry keys where exact case is security-meaningful).
 
 **Note on typed column guidance:** `severity_id IEQ 'high'` where `severity_id` is
 an integer column returns `E-QUERY-002 (QueryTypeMismatch)` — `lower()` is not
@@ -883,7 +902,7 @@ PrismQL spec directly from the server, not from its training data (which may be 
 | Cross-sensor correlation | Same device ID in CrowdStrike and Armis for org-c | "One endpoint, two sensor perspectives, one PrismQL query" |
 | IOC enrichment | `| enrich threat_score(iocs_value)` returns `threat_score >= 75` Malicious (registered UDF from `threatintel.infusion.toml`) | "Enrichment is in-query, not post-processing" |
 | CVE enrichment | `| enrich cvss_base_score(device_cves_first)` returns CVSS 8.1 HIGH (registered UDF from `nvd.infusion.toml`) | "CVE context in the same query that found the alert" |
-| Case-insensitive filtering | `severity IEQ 'high'` matches rows stored as `'High'`; `severity IIN ('high', 'critical')` matches `'High'` and `'Critical'`; `GROUP BY severity` produces at most 7 buckets — no casing fragmentation across sensors | "OCSF enum labels are Title-case at ingestion; IEQ/IIN absorb analyst casing so the analyst never needs to know the stored form" |
+| Case-insensitive filtering | `severity IEQ 'critical'` matches rows stored as `'Critical'` (CompromisedEndpoint scenario); `severity IIN ('high', 'critical')` matches `'High'` and `'Critical'`; `status IIN ('open', 'closed')` matches Cyberint vendor-native pass-through values; `GROUP BY severity` produces at most 7 buckets — no casing fragmentation across sensors | "OCSF enum labels normalize to Title-case at ingestion; vendor-native values that don't match OCSF captions pass through as-is; IEQ/IIN absorb analyst casing in both cases" |
 | Sensor health | `check_sensor_health` returns `probe_level: "live"` | "Verify data quality before drawing conclusions" |
 | Full blast radius | Stage 4 shows all IOC types + lateral devices | "Ten minutes into the incident, the full picture is clear" |
 
@@ -977,9 +996,10 @@ error naming the invalid column and listing alternatives.
 
 ### 5.9 Case-Insensitive Operators (IEQ / IIN / INE)
 
-- [ ] `FROM crowdstrike_detections | where severity IEQ 'high' | limit 50 client_id="org-c"`
-      returns rows (OCSF canonical stored form is `'High'`; IEQ matches regardless of typed casing;
-      `lower(severity) = lower('high')` is the DataFusion lowering)
+- [ ] `FROM crowdstrike_detections | where severity IEQ 'critical' | limit 50 client_id="org-c"`
+      returns rows (OCSF canonical stored form is `'Critical'`; CompromisedEndpoint scenario seeds
+      Critical/Medium for CrowdStrike; IEQ matches regardless of typed casing;
+      `lower(severity) = lower('critical')` is the DataFusion lowering)
 - [ ] `FROM cyberint_alerts | where severity IIN ('high', 'critical') | limit 20 client_id="org-c"`
       returns rows at Stage 3+ (matches canonical `'High'` and `'Critical'`)
 - [ ] `SELECT severity, count(*) FROM cyberint_alerts WHERE severity IEQ 'high' GROUP BY severity`
@@ -1074,7 +1094,7 @@ Suggested presentation order for T14 demo-recorder:
 1. Open Claude Code with prism MCP server connected. Show the tool list.
 2. Block 1: `list_capabilities(org-c)` → `prism_describe(org-c)` → `prism_describe(org-a)` [schema diff]
 3. Block 2: CrowdStrike query org-c → Armis correlation → org-a isolation proof
-4. Block 3: Cyberint IOC query at Stage 3 (`| where iocs_value IS NOT NULL`) → Step 3.1a IEQ/IIN severity filter beat (`severity IEQ 'high'`, `severity IIN ('high', 'critical')`, `status IIN ('new', 'in progress')`) → `| enrich threat_score(iocs_value)` → `| enrich cvss_base_score(device_cves_first)`
+4. Block 3: Cyberint IOC query at Stage 3 (`| where iocs_value IS NOT NULL`) → Step 3.1a IEQ/IIN filter beat (`severity IEQ 'critical'`, `severity IIN ('high', 'critical')`, `status IIN ('open', 'closed')`) → `| enrich threat_score(iocs_value)` → `| enrich cvss_base_score(device_cves_first)`
 5. Block 4: E-QUERY-037 table-not-available for org-a → E-QUERY-038 column gate (001-B) → Step 4.3 SQL-mode IEQ rejection E-QUERY-001 (mode-boundary pedagogical beat) → Claude self-corrects across all three error types
 6. Block 5 (PENDING S-5.04): `check_sensor_health(org-c)` → live probe confirmation
 7. Block 6: Stage 4 full blast radius query → Claroty audit log
@@ -1092,6 +1112,7 @@ context between queries but does not hand-hold Claude on syntax.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.7 | 2026-07-08 | **DRIFT-AUDIT-RUNBOOK-LITERALS-001 — runbook literal corrections from pre-flight audit 2026-07-08.** (1) Step 3.1a first IEQ beat: `severity IEQ 'high'` → `severity IEQ 'critical'` (CompromisedEndpoint scenario seeds Critical/Medium for CrowdStrike; 'High' absent from scenario data; audit WARN-1). Expected output updated: `'High'` → `'Critical'`; DataFusion lowering note updated accordingly. (2) Step 3.1a status IIN beat: `status IIN ('new', 'in progress')` → `status IIN ('open', 'closed')` (Cyberint status values are vendor-native `{'open', 'acknowledged', 'closed'}` — not OCSF captions — so adapter pass-through is correct per BC-2.02.013 RG-021; audit WARN-2 adjudicated PASS-THROUGH-CORRECT 2026-07-08; IIN is case-insensitive and works correctly against the lowercase stored values; robustness note added to teaching note). Teaching note expanded to distinguish OCSF-normalized fields (severity: vendor value matches OCSF caption → normalized to Title-case) from vendor pass-through fields (Cyberint status: no OCSF caption match → stored as-received; IIN still absorbs analyst casing). (3) §4 Expected Outputs: case-insensitive filtering row updated to cite `severity IEQ 'critical'` and `status IIN ('open', 'closed')` with updated talking point. (4) §5.9 Dry-Run Checklist item 1: `severity IEQ 'high'` → `severity IEQ 'critical'`; expected result updated. (5) §7 Recording Sequence Block 3: `severity IEQ 'high'` → `severity IEQ 'critical'`; `status IIN ('new', 'in progress')` → `status IIN ('open', 'closed')`. Frontmatter version 1.6 → 1.7. |
 | 1.6 | 2026-07-08 | **IEQ/IIN/INE case-insensitive operator surface (S-PRISMQL-CASE-INSENSITIVE-001, PR #217, develop@f935edb6; ADR-047 ACCEPTED).** Step 3.1a added: three example queries demonstrating `severity IEQ 'high'` against `crowdstrike_detections`, `severity IIN ('high', 'critical')` against `cyberint_alerts`, and `status IIN ('new', 'in progress')` against `cyberint_alerts`; teaching note on OCSF Title-case normalization at the adapter boundary and E-QUERY-002 typed-column guidance; VERIFY note for column confirmation via `prism_describe`. Step 4.3 added: SQL-mode IEQ rejection (E-QUERY-001 mode-boundary) as a pedagogical error-UX beat in Query Block 4. §4 Expected Outputs: IEQ/IIN case-insensitive filtering row added. §5.9 Dry-Run Checklist section: three IEQ/IIN/SQL-mode checks. §7 Recording Sequence: Block 3 reference includes Step 3.1a IEQ/IIN beat; Block 4 reference includes Step 4.3 SQL-mode E-QUERY-001 beat. Frontmatter version 1.5→1.6. |
 | 1.5 | 2026-06-26 | **Demo-fidelity remediation (S-DEMO-FIDELITY-REMEDIATION-001):** Three factual errors corrected against live audit evidence (demo-pre-flight-audit-2026-06-26.md). N3: §5.8 checklist corrected E-QUERY-037 → E-QUERY-032 for sensor-not-registered-for-org checks (`FROM cyberint_alerts client_id="org-a"`, `FROM armis_devices client_id="org-b"`). These orgs are missing the sensor registration entirely; the correct error is E-QUERY-032 (authorization gate "sensor X not registered for org Y"), NOT E-QUERY-037 (plan-time table-not-in-TableRegistry). The distinction matters: E-QUERY-037 fires when the org has the sensor registered but the queried table is wrong; E-QUERY-032 fires when the org has NO such sensor at all. N4: Step 3.5 corrected `client_id="org-b"` → `client_id="org-c"` for the Armis CVE enrichment query. Org-b does NOT have Armis (org-b = Claroty + Cyberint only, per §1.2 org topology); the query would return E-QUERY-032 for org-b. Org-c (all four sensors) is the correct target. Updated talking point accordingly. N5: §6.3 corrected `FROM claroty_audit_log` → `FROM claroty_audit_logs` (plural, per Claroty sensor TOML `table_name = "audit_logs"` → FROM-ready name `claroty_audit_logs`); corrected example column comment `log_id` → `id` (real column per Claroty DTU `AuditLogEntry.id: String`). |
 | 1.4 | 2026-06-24 | AC-020/BLOCKER-002 (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001): corrected pipe-mode query syntax in Steps 3.2, 3.4, 3.5, and 6.2. These queries mixed SQL-style `WHERE`/`LIMIT` (without `\|` prefix) with `\| enrich` pipe stages — invalid PrismQL. Corrected to valid pipe mode: `WHERE` → `\| where`, `LIMIT` → `\| limit` throughout all four steps. Updated §7 Block 3 reference (`WHERE` → `\| where`). Concurrent-execution clarification (Task 3): §1.1 framing updated to make explicit that prism is a SINGLE process with a multi-threaded tokio runtime; a query fans out to multiple sensors IN PARALLEL (bounded by MAX_FANOUT_CONCURRENCY=10, nested under HTTP_SEMAPHORE_PERMITS=200); concurrent queries are NOT serialized by any lock (`PrismServer::query` takes `&self`; ArcSwap lock-free config reads). The only sequential aspect is stdin message framing in the stdio transport — a transport/client characteristic, not engine serialization. Talking points updated to reflect "async fan-out" framing. |

@@ -318,6 +318,36 @@ The extended script was also updated to reflect develop@f935edb6 in the header/d
 
 ---
 
+## Adjudication: WARN-1 cyberint status (DRIFT-AUDIT-RUNBOOK-LITERALS-001)
+
+**Date:** 2026-07-08
+**Question:** Does Cyberint's `status` field lowercase pass-through (`{'open', 'acknowledged', 'closed'}`) represent (a) a normalization gap — values should normalize to OCSF Title-case but the adapter bypasses normalization for `status`, or (b) correct vendor pass-through — the values are not OCSF status captions, so pass-through is the defined behavior?
+
+**Evidence examined:**
+- `crates/prism-ocsf/src/enum_map.rs` — full `status_id` caption table
+- `BC-2.02.013` v1.9 §Postconditions RG-021, EC-02-021, EC-02-022
+
+**OCSF `status_id` caption set in `enum_map.rs`:**
+
+| Caption | Key type |
+|---------|----------|
+| Unknown, Success, Failure, Other | generic `dictionary_attributes.status_id.enum` (OCSF v1.7.0) keys 0/1/2/99 |
+| New, In Progress, Suppressed, Resolved, Archived, Deleted | finding-class synthetic keys 1001–1006 |
+
+**Cyberint status values observed:** `'open'`, `'acknowledged'`, `'closed'`
+
+**Caption-set check:** `normalize_enum_label("status", "open")` performs a case-insensitive lookup against the full caption set. None of `'open'`, `'acknowledged'`, `'closed'` case-insensitively match any of the 10 registered captions (Unknown, Success, Failure, Other, New, In Progress, Suppressed, Resolved, Archived, Deleted). The lookup returns `None` for all three.
+
+**Applicable BC rule:** BC-2.02.013 §Postconditions RG-021 — "Values NOT found in the case-insensitive caption set for the field are left as-received in the DynamicMessage." This is the same rule applied to Claroty `'Unresolved'` (EC-02-022) and Armis `'UNHANDLED'` (EC-02-021); both are documented pass-through precedents for this exact scenario class.
+
+**Verdict: PASS-THROUGH-CORRECT — no code change required.**
+
+Cyberint's `status` field carries vendor-native lifecycle identifiers that have no counterpart in the OCSF status caption set. The adapter-boundary normalizer correctly emits `ocsf.enum_label_unrecognized` warnings and passes the values through as-is. This is NOT a normalization gap — it is intended behavior. The runbook literal `status IIN ('new', 'in progress')` was incorrect because 'New' and 'In Progress' ARE OCSF captions (they would normalize and store as 'New'/'In Progress' if a sensor emitted them), but Cyberint simply does not use those values. The correct runbook literal is `status IIN ('open', 'closed')` — vendor-native, lowercase, IIN-matched correctly. IIN's case-insensitivity provides robustness: if a future OCSF-aligned version of the Cyberint adapter ever normalizes status values, the analyst query `status IIN ('open', 'closed')` will continue to work only if the normalized forms are still 'open'/'closed' — which they would not be (they'd become Title-case 'Open'/'Closed' only if those were OCSF captions, which they currently are not). Pass-through is therefore both currently correct and stable.
+
+**Routing consequence:** No implementer dispatch. Runbook literal fix (TASK 2) routes to product-owner only.
+
+---
+
 ## 9. Repeatability
 
 ```bash

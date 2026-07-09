@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.3"
 status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: demo-readiness-2026-06-24
-modified: 2026-06-25
+modified: 2026-07-08
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -61,6 +61,7 @@ When a PrismQL query begins with `SELECT … FROM <table>` and contains at least
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
+| `E-QUERY-038` | Column referenced in the `Ast::SqlPipe` query (position 9: `\| where` stage predicates — same walking as position 8; and positions 10–12: `\| sort by` keys, `\| stats ... by` grouping refs, `\| fields` column refs for the pipe stage tail; positions 1–6 for the SQL head) not found in `TableRegistry` schema for the table and client | `E-QUERY-038` with `column`, `available_columns` (org-scoped), `did_you_mean`; MCP `-32602 INVALID_PARAMS`. Gate fires at plan time — no sensor API call made. Full spec: BC-2.11.016 v1.6 (complete twelve-position enumeration). |
 | `E-QUERY-040` | SQL head `LIMIT N` AND a row-capping `| limit M` or `| tail M` pipe stage both present (e.g. `SELECT … LIMIT N … FROM t | limit M` or `SELECT … LIMIT N … FROM t | tail M`) | Plan-time pedagogical error: "E-QUERY-040: redundant row limit. This query caps rows in two places: a SQL `LIMIT {sql_limit}` in the head and a row-capping `| limit`/`| tail` pipe stage (cap: {pipe_limit}). PrismQL requires exactly one row cap. Remove the SQL `LIMIT {sql_limit}` and place a single `| limit` at the end of the pipeline (recommended for composed queries), or use `LIMIT` only in pure SQL-mode queries." MCP mapping: `-32602 INVALID_PARAMS` (caller-resolvable). `{pipe_limit}` is the integer M from the `| limit M` or `| tail M` pipe stage (whichever is present). |
 | `E-QUERY-001` | SQL head has a syntax error (standard SQL parse error) | Delegates to BC-2.11.003 SQL mode parse error handling |
 | `E-QUERY-001` | Unknown pipe stage keyword after `|` | Delegates to BC-2.11.004 pipe mode error handling |
@@ -136,6 +137,8 @@ VP-021 (fuzz), VP-014 (size limit)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | FIX-IEQ-ERRPATH-001-grammar-keyword-correction | 2026-07-08 | product-owner | **Grammar keyword correction: `\| project` → `\| fields` in §Error Cases E-QUERY-038 row (position 12).** Test-writer grammar verification (fix-PR FIX-IEQ-ERRPATH-001) confirmed no `\| project` keyword exists in the PrismQL pipe parser; the projection stage keyword is `\| fields` (`PipeStage::Fields`). Fixed position 12 label in the E-QUERY-038 covered-positions list for `Ast::SqlPipe` pipe stage tail. |
+| 1.2 | ADV-FIX-P1-HIGH-001-HIGH-002-DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 | 2026-07-08 | product-owner | **POL-25 multi-cite propagation (ADV-FIX-P1-HIGH-001 / HIGH-002 closure).** §Error Cases: added `E-QUERY-038` row — SqlPipe queries (`Ast::SqlPipe`) are now explicitly documented as subject to the twelve-position column-availability gate (BC-2.11.016 v1.6): SQL head positions 1–6 + `\| where` stage position 9 + pipe stage positions 10–12. Cross-reference to BC-2.11.016 v1.6 for full postcondition spec. `modified: 2026-07-08`. |
 | 1.1 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.1 | F-P2-HIGH-001-bc-sweep | 2026-06-25 | product-owner | **F-P2-HIGH-001 closure (POL-25 multi-cite propagation gap).** FORBID-BOTH rule extended from `\| limit M`-only to the full row-capping pipe-stage family (`\| limit M` OR `\| tail M`), matching error-taxonomy.md v2.00 E-QUERY-040 row (updated by S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 HIGH-1 fix-burst). Changes: (1) §Description updated to reference row-capping pipe stage family; (2) §Postconditions FORBID-BOTH bullet updated — condition now reads `PipeStage::Limit(_) \| PipeStage::Tail(_)`, neutral wording "a row-capping pipe stage (`\| limit M` OR `\| tail M`)"; (3) §Error Cases E-QUERY-040 row updated — condition covers both forms; message format updated to verbatim error-taxonomy v2.00 neutral wording "a row-capping `\| limit`/`\| tail` pipe stage (cap: {pipe_limit})"; `{pipe_limit}` field definition clarified; (4) EC-11-020-008 + EC-11-020-009 added (`\| tail` FORBID-BOTH and valid-`\| tail` edge cases); (5) `\| tail` E-QUERY-040 error test vector added to Canonical Test Vectors. Frontmatter: version 1.0→1.1, modified: 2026-06-25. |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-043 v1.1 (FORBID-BOTH ratified). Closes GRAMMAR-001, GRAMMAR-009. Allocates E-QUERY-040 plan-time dual-limit rejection (error-taxonomy row authored in same burst). |

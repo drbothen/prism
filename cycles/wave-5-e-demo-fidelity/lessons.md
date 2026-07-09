@@ -2486,3 +2486,79 @@ If OCSF introduces non-ASCII caption strings in a future schema version (e.g., l
 **Adjudication:** OBS-only; no code change required; lessons-note only.
 
 **Source:** D-1605 (S-PRISMQL-CASE-INSENSITIVE-001 PR-LEVEL pass-5 ADV-PR-P5-OBS-003 lessons note, state-manager burst, 2026-07-08).
+
+---
+
+## Process-Gap Lesson 14 — POL-14 Promotion Bursts Must Include Story-Pin Propagation for All Affected BCs (D-1610, 2026-07-08; FIX-IEQ-ERRPATH-001)
+
+**Tags:** [process-gap] [pol-14] [story-pin] [propagation-sweep]
+
+**What happened:**
+
+The POL-14 promotion burst for S-PRISMQL-CASE-INSENSITIVE-001 (D-1607) bumped BC-2.11.024 v1.3→v1.4 and BC-2.02.013 v1.8→v1.9 from draft→active. The burst correctly updated the BC frontmatter lifecycle fields. However, it did not sweep the downstream story files that cite those BCs for version pins. Approximately 40 sites in BC-2.11.024 and 18 sites in BC-2.02.013 across four story files held stale version pins post-promotion. The stale pins were discovered during the FIX-IEQ-ERRPATH-001 fix-burst story-writer propagation pass.
+
+**Convention adjudicated (D-1610 story-writer dispatch):**
+
+Live-pin propagation post-merge is the established norm. The story-writer is responsible for sweeping all story files that cite a promoted BC and advancing the version pins to match the new active version. This is not a POL-14 extension — it is a clarification that the POL-14 burst scope already implied propagation. The convention: when a BC version advances (draft→active or active→active-vN), all story files citing that BC must be updated to the current version within the same logical burst.
+
+**Correct protocol (codified rule):**
+
+When the state-manager executes a POL-14 promotion burst, the burst MUST include:
+1. BC frontmatter lifecycle field update (draft→active)
+2. Story-writer sweep of all story files citing the promoted BC (version pins advanced to new version)
+3. BC-INDEX version bump
+
+If the story-writer sweep is dispatched separately (parallel dispatch), the state-manager commit for the POL-14 burst MUST be held until the story-writer propagation is confirmed complete. No interim commit with stale story pins should land on factory-artifacts.
+
+**Source:** D-1610 (FIX-IEQ-ERRPATH-001 fix-burst story-pin propagation, state-manager burst, 2026-07-08).
+
+---
+
+## Process-Gap Lesson 15 — PO Amendments Citing Concrete Grammar Keywords Must Verify Against Parser Source Before Locking (D-1610, 2026-07-08; FIX-IEQ-ERRPATH-001)
+
+**Tags:** [process-gap] [grammar-verification] [po-amendment] [keyword-drift]
+
+**What happened:**
+
+BC-2.11.016 v1.6 was authored by the product-owner with a pipe-stage list that included `|project` as the keyword for the column-selection stage. The actual PQL grammar uses `|fields` (not `|project`). The error was caught by the test-writer when the RED Gate tests for the `|fields` stage failed to compile against the `|project` keyword. A v1.7 amendment round-trip was required to correct the keyword, and all downstream sibling spec bumps (BC-2.11.002, BC-2.11.004, BC-2.11.020, error-taxonomy, BC-INDEX, four story files) had to be re-bumped to reflect the v1.7 correction.
+
+**Root cause:**
+
+The product-owner authored the v1.6 amendment from memory of the PQL grammar rather than verifying the keyword against the parser source (`crates/prism-query/src/sql_parser.rs` grammar definition) before locking. `|project` is a common SQL-like projection alias from other query languages; `|fields` is the canonical PQL keyword established in the grammar and codified in the story acceptance criteria.
+
+**Correct protocol (codified rule):**
+
+Any BC amendment that names a concrete PQL grammar keyword (pipe-stage name, operator name, delimiter, expression syntax) MUST be verified against the parser source before locking. Minimum verification:
+- `grep -r '\|fields\|project\|sort\|stats\|where\|limit' crates/prism-query/src/ --include='*.rs'` to confirm actual keyword tokens used in the grammar/parser.
+- OR read the relevant PQL grammar sections in the story file (AC-NNN blocks that enumerate concrete keywords are the most reliable source — they were written against the test suite).
+
+If the product-owner cannot access the parser source directly, the dispatch must include an explicit grammar-verification task for the test-writer or implementer before BC locking is declared complete.
+
+**Source:** D-1610 (FIX-IEQ-ERRPATH-001 fix-burst v1.6→v1.7 round-trip, state-manager burst, 2026-07-08).
+
+---
+
+## Process-Gap Lesson 16 — Split-Cell BC-Version Table Format Evades Inline-Pin Greps; Sweep Procedures Must Cover Both Formats (D-1610, 2026-07-08; FIX-IEQ-ERRPATH-001)
+
+**Tags:** [process-gap] [version-pin] [grep-coverage] [table-format]
+
+**What happened:**
+
+During the FIX-IEQ-ERRPATH-001 story-pin propagation sweep, some BC-version citations in story files used a split-cell table format (`| BC-2.11.016 | v1.6 |`) rather than the inline format (`BC-2.11.016 v1.6` in prose). Standard inline-pin greps targeting `BC-2.11.016 v1.6` match the prose form but silently miss the split-cell table form. The split-cell format places the version in a separate table cell, so the BC identifier and version string never appear as adjacent tokens in the same line.
+
+**Root cause:**
+
+Story files contain both prose references and structured tables to BC pins. The sweep procedures (TD-VSDD-060 and the story-pin advance discipline) historically targeted inline prose form (`BC-X.YY.ZZZ vN.N` adjacent). The split-cell table form is a legitimate layout choice for summary tables that was not included in the canonical grep patterns.
+
+**Correct protocol (codified rule):**
+
+Story-pin sweep procedures MUST cover both formats:
+
+1. **Inline form:** `grep 'BC-2.11.016 v1\.' story-file.md` — catches prose citations.
+2. **Split-cell form:** `grep -A2 'BC-2.11.016' story-file.md | grep 'v1\.'` — catches table rows where the BC ID and version are in adjacent cells.
+
+Alternatively: after any version advance, run a comprehensive two-pass grep covering the BC identifier on its own line AND the version on its own line within a 3-line context window. Any BC identifier row followed within 3 lines by a version cell that does not match the new version is a stale pin.
+
+**Impact:** Stale split-cell pins do not cause runtime failures but create divergence between the story spec summary tables and the implemented BC version, which adversary passes treat as a MED finding (spec-code drift class).
+
+**Source:** D-1610 (FIX-IEQ-ERRPATH-001 fix-burst story-pin propagation — split-cell format discovered, state-manager burst, 2026-07-08).
