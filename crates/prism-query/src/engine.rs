@@ -2818,6 +2818,14 @@ fn check_column_against_available_set(
 /// explicit `AS <alias>` (anonymous aggregate/computed column; output name unpredictable at
 /// plan time; FP-001 fail-open; mirrors the Stats anonymous-aggregate rule).
 ///
+/// **LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016 v1.17):** In branches (b) and (c), an
+/// un-aliased bare-`Field` SELECT item whose qualifier matches NEITHER the FROM table name
+/// NOR the declared FROM alias (e.g., `j.col` where `j` is a JOIN alias) has its last
+/// path segment (`col`) seeded as the output column name with **DERIVED** provenance.
+/// SQL output-naming semantics: `SELECT j.col` produces output column `col`. The column's
+/// type is not statically known from the FROM table schema (FP-001 fail-open for both
+/// E-QUERY-038 existence and E-QUERY-002 type-compat via SIBLING-GATE CONSISTENCY).
+///
 /// Head SQL clause checking (positions 1–6) runs against raw schema unchanged; this function
 /// only affects the stage walk initial state.
 fn compute_sqlpipe_head_binding(
@@ -2880,6 +2888,11 @@ fn compute_sqlpipe_head_binding(
                 // Un-aliased bare Field — the output name is the column name itself.
                 // (The column is already reachable via the star component, but add it
                 // explicitly so sorting/dedup logic is consistent.)
+                // Qualifier matches FROM source (table name or declared alias) → RAW provenance.
+                // Qualifier unknown (e.g., JOIN alias `j` in `SELECT j.col`) →
+                // LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016 v1.17): SQL output-naming
+                // semantics produce output column = last path segment; seed with DERIVED
+                // provenance (type not statically known from the FROM table schema; FP-001).
                 SelectItem::Expr {
                     expr: Expr::Field(fp),
                     alias: None,
@@ -2888,7 +2901,14 @@ fn compute_sqlpipe_head_binding(
                         extract_column_name_from_field_path(fp, table_name, from_alias)
                     {
                         available.push(col);
-                        // RAW: un-aliased bare field; its name IS the schema column name.
+                        // RAW: qualifier matches FROM source; name IS the schema column name.
+                    } else if fp.segments.len() > 1 {
+                        // LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016 v1.17): unknown qualifier
+                        // (e.g., JOIN alias) → seed last segment as DERIVED.
+                        if let Some(last) = fp.segments.last() {
+                            available.push(last.clone());
+                            derived.insert(last.clone()); // DERIVED: unknown qualifier; type not from FROM schema
+                        }
                     }
                 }
 
@@ -2946,18 +2966,29 @@ fn compute_sqlpipe_head_binding(
             }
 
             // Un-aliased bare Field — the output name is the column name itself.
-            // RAW: its name and type match the original schema column.
+            // Qualifier matches FROM source (table name or declared alias) → RAW provenance;
+            // its name and type match the original schema column.
+            // Qualifier unknown (e.g., JOIN alias `j` in `SELECT j.col`) →
+            // LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016 v1.17): SQL output-naming
+            // semantics produce output column = last path segment; seed with DERIVED
+            // provenance (type not statically known from the FROM table schema; FP-001).
             SelectItem::Expr {
                 expr: Expr::Field(fp),
                 alias: None,
             } => {
                 if let Some(col) = extract_column_name_from_field_path(fp, table_name, from_alias) {
                     available.push(col);
-                    // RAW: not added to `derived`.
+                    // RAW: qualifier matches FROM source; name IS the schema column name.
+                } else if fp.segments.len() > 1 {
+                    // LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016 v1.17): unknown qualifier
+                    // (e.g., JOIN alias) → seed last segment as DERIVED.
+                    if let Some(last) = fp.segments.last() {
+                        available.push(last.clone());
+                        derived.insert(last.clone()); // DERIVED: unknown qualifier; type not from FROM schema
+                    }
                 }
-                // If the field path has an unrecognised qualifier, extraction returns None.
-                // Skip silently — fail-open (the head-position-1 check already validated it
-                // against the raw schema; we just can't determine the output name).
+                // Zero-segment paths: extract_column_name_from_field_path returns None and
+                // len is not > 1; skip silently (malformed path, not a valid column ref).
             }
 
             // Un-aliased VirtualField (_sensor, _client) — always-valid sentinels; not schema
