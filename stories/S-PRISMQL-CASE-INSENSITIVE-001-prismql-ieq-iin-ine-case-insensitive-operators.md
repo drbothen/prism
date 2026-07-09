@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.40"
+version: "1.41"
 updated: "2026-07-08"
 status: merged
 producer: story-writer
@@ -516,7 +516,7 @@ then:
 3. The normalization does NOT fail or return an error — it is non-fatal
 4. Both the `value` and `sensor_type` fields in the warning payload MUST be capped at 50
    codepoints: if either field exceeds 50 codepoints, it MUST be truncated to the first
-   50 codepoints with no ellipsis sentinel appended (BC-2.02.013 v1.9 / BC-2.16.002 v2.06
+   50 codepoints with no ellipsis sentinel appended (BC-2.02.013 v1.9 / BC-2.16.002 v2.07
    specify a plain 50-codepoint cap on both fields — SEC-002; no `…` suffix). This applies
    to BOTH the PRIMARY (`build_column_array`) and SECONDARY (`normalize_with_mappers`) emission sites.
 
@@ -610,7 +610,7 @@ then the result is `Err(E-QUERY-002 QueryTypeMismatch)` with a Display message c
 - the suggestion: "for label comparison, use the string column 'severity' with IEQ/IIN/INE
   instead" (because `severity_id` is a known OCSF integer-id field; `PrismError::QueryTypeMismatch`
   carries `suggested_column: Some("severity")` per the OCSF sibling lookup contract in
-  error-taxonomy.md v2.20 §E-QUERY-002)
+  error-taxonomy.md v2.25 §E-QUERY-002)
 
 The full Display for this case must be:
   "E-QUERY-002: type mismatch — column 'severity_id' in table '<table>' has type 'Integer'
@@ -1672,6 +1672,7 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.41 | 2026-07-08 | **Reconciling pin round (pass-3 closures): BC-2.16.002 v2.06→v2.07 (1 live site: AC-018 body) + error-taxonomy.md v2.20→v2.25 (1 live site: AC-022 body). Historical changelog rows and Red Gate table BC-2.16.002 v2.06 citations left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.40→1.41; updated 2026-07-08 (POL-23).** |
 | v1.40 | 2026-07-08 | **BC-2.11.004 v1.16→v1.17 version-pin propagation (sort-grammar fix round, POL-29/POL-23).** PO bumped BC-2.11.004 v1.16→v1.17 (sort-grammar micro-fix). Four live version-pin cites updated: (a) frontmatter BC status comment; (b) §Behavioral Contracts body table version cell; (c) §Token Budget row; (d) AC-013b trace. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.39→1.40; updated 2026-07-08 (POL-23). |
 | v1.39 | 2026-07-08 | **BC-2.11.004 v1.15→v1.16 version-pin propagation (pass-2 CRIT closure burst, POL-29/POL-23).** PO bumped BC-2.11.004 v1.15→v1.16 (14-position gate + derived-column binding rule). Four live cites updated: (a) frontmatter BC status comment; (b) §Behavioral Contracts body table version cell; (c) §Token Budget row; (d) AC-013b trace. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.38→1.39; updated 2026-07-08 (POL-23). |
 | v1.38 | 2026-07-08 | **BC-2.11.004 v1.14→v1.15 + BC-2.11.024 v1.3→v1.4 + BC-2.02.013 v1.8→v1.9 version-pin propagation (POL-29/POL-23).** (1) **BC-2.11.004 v1.14→v1.15 (`\| project`→`\| fields` keyword sweep):** Four live cites updated — (a) frontmatter BC status comment; (b) §Behavioral Contracts body table version cell; (c) §Token Budget row; (d) AC-013b trace. (2) **BC-2.11.024 v1.3→v1.4 (POL-14 draft→active promotion at merge, D-1607 changelog-row-only bump):** All live body cites updated via replace_all (~40 sites: frontmatter comment, §Behavioral Contracts body table version cell, §Token Budget row, all AC-trace/edge-case/Red-Gate-table/Tasks-section inline cites). Historical changelog rows (v1.30 "per BC-2.11.024 v1.3 §Mode-Boundary", v1.28 "contradicting BC-2.11.024 v1.3") left unchanged per POL-29. (3) **BC-2.02.013 v1.8→v1.9 (POL-14 draft→active promotion at merge, D-1607 changelog-row-only bump):** All live body cites updated via replace_all (~18 sites: frontmatter comments ×2, §Behavioral Contracts body table version cell, §Token Budget row, all AC-trace/Tasks-section inline cites). Historical changelog row (v1.31 "BC-2.02.013 v1.7→v1.8 pin sweep") not affected (→v1.8 not matched by pattern). Convention established: live-pin propagation applies even post-merge, including POL-14 lifecycle-only version bumps — evidenced by S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (merged, BC-2.16.002 v1.96→v1.97 propagated post-merge) and S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (merged, BC-2.11.020 v1.1→v1.2 propagated post-merge). AC semantics UNCHANGED. Frontmatter version 1.37→1.38; updated 2026-07-08 (POL-23). |

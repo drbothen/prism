@@ -2647,3 +2647,27 @@ These do not require DTU — they require a mock/stub binding context in the uni
 **Wave-gate consideration:** When the next wave-gate is run for FIX-IEQ-ERRPATH-001, the wave-gate evaluator should consider whether a non-DTU canonical-pivot smoke test (using committed fixture data) can be added to gate coverage. This is a P3 improvement, not a blocker.
 
 **Source:** D-1611 (FIX-IEQ-ERRPATH-001 LOCAL pass-2 adversary; CRIT-001/002 found despite CI GREEN; module-level regression tests added in pass-2 fix-burst now lock the binding-context patterns, 2026-07-08).
+
+## Process-Note Lesson 20 — Single-Hop Pin Sweeps Miss Multi-Hop Stale Pins; RECONCILING Mode Required Periodically (D-1613, 2026-07-08; FIX-IEQ-ERRPATH-001)
+
+**Tags:** [process-note] [pin-propagation] [story-writer] [reconciling-mode] [taxonomy]
+
+**What happened:**
+
+After the LOCAL pass-3 fix-burst, the story-writer ran a RECONCILING pin sweep (not single-hop). RECONCILING mode greps for ALL vN.NN pins per artifact and reconciles live sites to the current version, rather than only checking the immediately-superseded version. The sweep found 9 multi-hop stale live sites in 2 stories OUTSIDE this cascade's active perimeter: S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 had 4 sites still pinned to taxonomy v2.14 (current at v2.25; 11 versions stale). S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 had 5 sites still pinned to taxonomy v2.17 (current at v2.25; 8 versions stale). Both stories are already merged (PRs #214 and #216 respectively); these were stale pins from before their respective merges that accumulated across multiple taxonomy version bumps without being detected.
+
+**Root cause:**
+
+Single-hop pin sweeps (grep only the immediately-superseded version, e.g., search for `v2.24` in a v2.24→v2.25 bump) systematically miss pins that were stale BEFORE the prior bump. If story S pins taxonomy at v2.14 and the current version is v2.25, a single-hop sweep that searches for `v2.24` finds nothing — `v2.14` does not match a search for `v2.24`.
+
+**Implication (codified rule):**
+
+Pin propagation MUST periodically run in RECONCILING mode: grep ALL vN.NN pins per artifact for the artifact type being bumped (e.g., all `error-taxonomy v*` pins when taxonomy is bumped), then reconcile ALL live sites to the current version, regardless of how many version hops are needed. RECONCILING mode should run:
+1. At every cascade close (before declaring LOCAL convergence)
+2. Any time a document accumulates 3 or more version bumps since the last full sweep
+
+Single-hop mode (grep only the immediately-superseded version) is only safe as an intra-burst sweep when the document has been fully RECONCILING-swept within the same cascade.
+
+**Evidence:** 9 multi-hop stale sites found 2026-07-08, including pins up to 11 taxonomy versions stale, in stories whose pin state had passed prior single-hop sweeps without detection.
+
+**Source:** D-1613 (FIX-IEQ-ERRPATH-001 LOCAL pass-3 fix-burst story-writer RECONCILING sweep; 2026-07-08).
