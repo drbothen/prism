@@ -115,3 +115,25 @@ _Archived to session-checkpoints.md by D-1634 burst (state-manager keep-last-1 d
 4. VERY NEXT ACTION: PR-LEVEL adversary pass 2 on frozen 39c8b134 (BC-5.39.001; streak candidate 1/3).
 5. On merge: state-manager post-merge burst (STATE v8.233→v8.234+).
 6. Surface PENDING-HUMAN items 1-3.
+
+---
+
+## Session Resume Checkpoint (D-1637 -- 2026-07-09; STATE v8.237)
+
+_Archived to session-checkpoints.md by D-1638 burst (state-manager keep-last-1 discipline)._
+
+**FIX-IEQ-ERRPATH-001 PR-LEVEL pass-5 NOT-CLEAN(3 MED prose-citation) on frozen 8610ecd0 + same-burst spec/story-only closure. PR #219 OPEN @8610ecd0 (base develop). PR HEAD UNCHANGED — no code push. PR-LEVEL streak stays 0/3. ADV-PR-P5-MED-001/002 (BC-2.11.016 §Preconditions.2 position-8 prose + position-11 prose wrong 3 ways) CLOSED PO BC-2.11.016 v1.25. ADV-PR-P5-MED-003 (story AC-M2 recursion claim — bare-Field arm calls extract_column_name_from_field_path directly) CLOSED story-writer. Class-closure sweep: position-4 table (OrderBy::expr→OrderExpr::expr) + 4 BC-2.11.004 §Error Cases fixes folded into v1.30. BC-2.11.017 v1.13 / BC-2.11.020 v1.18 (pin-only). Story pin round v2.44 / v2.20 / v1.29 / v1.54. BC-INDEX v7.76→v7.77; STORY-INDEX v2.648→v2.649. workspace_test_count 5397 UNCHANGED; just check 5397/5397 GREEN; non-exhaustive 89/89.**
+
+**STATE v8.237. develop f935edb6 (PUSHED, origin==local; UNCHANGED until PR #219 merges). BC-INDEX v7.77. STORY-INDEX v2.649. ARCH-INDEX v2.174. error-taxonomy v2.35. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 228. workspace_test_count 5397 (fix-branch 8610ecd0 PUSHED; develop baseline 5319 @f935edb6). bc_count_corrected 266. [Updated D-1637: PR-LEVEL pass-5 NOT-CLEAN(3 MED) + same-burst spec/story-only closure; PR HEAD 8610ecd0 UNCHANGED; streak stays 0/3]**
+
+**LAST MERGED:** S-PRISMQL-CASE-INSENSITIVE-001 (PR #217 → develop@f935edb6, 2026-07-08).
+
+**OPEN PRs:** PR #219 FIX-IEQ-ERRPATH-001 (https://github.com/drbothen/prism/pull/219; base develop; HEAD 8610ecd0; PR-LEVEL streak 0/3 on frozen 8610ecd0).
+
+**OPEN FIX-CASCADE:** FIX-IEQ-ERRPATH-001 — LOCAL strict-3-CLEAN CONVERGED @35117a38 (passes 17/18/19). Pass-1 through pass-5 all done; pass-5 NOT-CLEAN(3 MED); PR HEAD UNCHANGED @8610ecd0; streak stays 0/3.
+
+**RESUME PROTOCOL:**
+1. Run vsdd-factory:factory-worktree-health (BLOCKING).
+2. `git log --oneline -1 origin/develop` → expect `f935edb6`.
+3. `git -C .worktrees/FIX-IEQ-ERRPATH-001 log --oneline -1` → expect `8610ecd0` (fix-branch pushed; PR-LEVEL streak 0/3; streak candidate 1/3 starts at pass 6).
+4. VERY NEXT ACTION: PR-LEVEL adversary pass 6 on frozen 8610ecd0 (streak candidate 1/3).
