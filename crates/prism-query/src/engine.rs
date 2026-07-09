@@ -12807,6 +12807,170 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             _ => {}
         }
     }
+
+    // ── Test 53 (RED GATE): EC-11-072 — stage-level JOIN → STAGE-JOIN SUSPENSION RULE ──
+
+    /// BC-2.11.016 v1.19 EC-11-072 — STAGE-JOIN SUSPENSION RULE (ADV-FIX-P14-OBS-001).
+    ///
+    /// `FROM crowdstrike_alerts | join some_other_table on severity == id | where col = 'x'`
+    ///
+    /// Pipe grammar: `'join' [join_kind] source 'ON' field ['==' field]` — no alias support
+    /// (pipe_parser.rs join_stage; JoinStage has no alias field).
+    /// `col` is registered in `some_other_table` but absent from `crowdstrike_alerts` schema
+    /// — it is a valid join-source column that `| where col = 'x'` references after the join.
+    ///
+    /// Current behavior (RED — FP-001 violation):
+    ///   Stage walk: `PipeStage::Join` falls into `_ => {}` catch-all in
+    ///   `check_pipe_stage_columns` — `suspended` remains `false`, `current_available`
+    ///   unchanged as `{severity, timestamp}` (FROM table schema only). Next stage:
+    ///   `PipeStage::Where(col = 'x')` checks `col` against `{severity, timestamp}` →
+    ///   absent → E-QUERY-038 fires with `column: "col"`. `col` is a valid column of
+    ///   `some_other_table` at execution — this is a false positive (FP-001 violation
+    ///   class: stage-join; symmetric with STAR-WITH-JOIN SUSPENSION RULE at head level).
+    ///
+    /// Expected behavior after STAGE-JOIN SUSPENSION RULE fix (GREEN):
+    ///   Stage walk encounters `PipeStage::Join` → `suspended := true`; subsequent
+    ///   `PipeStage::Where(col = 'x')` is skipped — NO E-QUERY-038 (fail-open per FP-001).
+    ///
+    /// JOIN ON analysis (pipe position, not SQL position 5 — falls into `_ => {}`):
+    ///   `severity` is the left field (in `crowdstrike_alerts` schema); `id` is the right
+    ///   field (in `some_other_table`). The ON fields are NOT checked in the current code
+    ///   (PipeStage::Join → `_ => {}`), so no E-QUERY-038 fires on the ON fields regardless.
+    ///
+    /// RED GATE trigger: currently `ColumnNotFound { column: "col" }` fires because
+    ///   `PipeStage::Join` does NOT set `suspended := true` in the `_ => {}` catch-all.
+    ///
+    /// Fixture: `make_engine_with_join_tables()` — `crowdstrike_alerts` (severity, timestamp)
+    ///   and `some_other_table` (col, id) both registered; `col` is in `some_other_table`
+    ///   but absent from `crowdstrike_alerts` raw schema (the FROM-only `available` set).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11072_stage_join_suspension_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-072 canonical vector (BC-2.11.016 v1.19).
+        // Pipe grammar: 'join' [kind] source 'ON' field ['==' field] — no alias.
+        // Source: some_other_table; ON condition: severity (FROM col) == id (join col).
+        // | where col = 'x': `col` is in some_other_table but absent from crowdstrike_alerts.
+        // With STAGE-JOIN SUSPENSION RULE: PipeStage::Join → suspended := true →
+        //   | where col is skipped → NO E-QUERY-038.
+        // Without fix (current): PipeStage::Join → _ => {} → suspended=false →
+        //   | where col = 'x' → col absent from {severity, timestamp} → E-QUERY-038 fires.
+        let query = "FROM crowdstrike_alerts \
+                     | join some_other_table on severity == id \
+                     | where col = 'x'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
+                "BC-2.11.016 v1.19 EC-11-072 RED GATE: FALSE E-QUERY-038 on 'col'. \
+                 `PipeStage::Join` MUST set `suspended := true` (STAGE-JOIN SUSPENSION RULE); \
+                 `| where col = 'x'` must be skipped (fail-open per FP-001). \
+                 `col` is a valid column of `some_other_table` at execution — checking it \
+                 against the FROM-only `available` set {{severity, timestamp}} fires a false \
+                 positive (FP-001 violation class: stage-join; symmetric with \
+                 STAR-WITH-JOIN SUSPENSION RULE at head level). \
+                 Before fix: `PipeStage::Join` falls into `_ => {{}}` catch-all in \
+                 `check_pipe_stage_columns` — `suspended` remains false → \
+                 `current_available = {{severity, timestamp}}` → `col` absent → E-QUERY-038. \
+                 column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            // Ok or any other error (no adapter wired, DataFusion error) is acceptable.
+            // Invariant: E-QUERY-038 MUST NOT fire on 'col' after a PipeStage::Join stage.
+            _ => {}
+        }
+    }
+
+    // ── Test 54 (GREEN lock): EC-11-073 — MIXED-STAR branch (c) with head JOIN ──────
+
+    /// BC-2.11.016 v1.19 EC-11-073 — STAR-WITH-JOIN SUSPENSION RULE, MIXED-STAR branch (c),
+    /// spec-anchored lock (ADV-FIX-P14-OBS-003).
+    ///
+    /// `SELECT *, upper(severity) AS sev_up FROM crowdstrike_alerts
+    ///  JOIN some_other_table j ON crowdstrike_alerts.severity = j.id
+    ///  | where u_col = 'x'`
+    ///
+    /// MIXED-STAR branch (c) triggered: `*` (Star item, has_star = true) AND
+    /// `upper(severity) AS sev_up` (explicit non-star item with AS alias, has_explicit = true).
+    /// `head.joins` is non-empty (SqlPipe SQL head JOIN present).
+    ///
+    /// STAR-WITH-JOIN SUSPENSION RULE (BC-2.11.016 v1.18 branch (c) application,
+    /// `compute_sqlpipe_head_binding` lines 2953–2963):
+    ///   After branch (c) builds partial `available = {severity, timestamp, sev_up}`,
+    ///   `if !head.joins.is_empty() { suspended = true; }` overrides and sets
+    ///   `suspended := true` for the initial pipe-stage binding context. The Star/TableStar
+    ///   component brings ALL join-source columns into scope at execution; the partial schema
+    ///   seed is incomplete for join-source columns — checking against it fires false positives.
+    ///
+    /// Expected behavior (GREEN — already implemented at v1.18):
+    ///   `check_pipe_stage_columns` receives `initial_binding_override` with `suspended=true`;
+    ///   the loop body's `if suspended { continue; }` skips `PipeStage::Where(u_col = 'x')`;
+    ///   NO E-QUERY-038 fires (fail-open per FP-001).
+    ///
+    /// Spec-anchored lock (closes OBS-3): confirms STAR-WITH-JOIN SUSPENSION RULE applies
+    ///   to MIXED-STAR branch (c) symmetrically with pure-star branch (a) (EC-11-071) —
+    ///   the suspension override takes precedence over the partial `available` union.
+    ///
+    /// JOIN ON analysis (position 5, SQL head — unaffected by suspension):
+    ///   `crowdstrike_alerts.severity = j.id`: qualifier `crowdstrike_alerts` matches FROM
+    ///   table → `severity` extracted → in schema → OK; `j.id` → qualifier `j` unknown →
+    ///   None → skipped (fail-open for cross-table refs per position-5 policy).
+    ///
+    /// Fixture: `make_engine_with_join_tables()` — same as EC-11-070/071.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11073_mixed_star_head_join_suspension_green_lock() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-073 canonical vector (BC-2.11.016 v1.19).
+        // MIXED-STAR head: `*` (Star) + `upper(severity) AS sev_up` (explicit alias).
+        // head.joins non-empty → STAR-WITH-JOIN SUSPENSION RULE branch (c):
+        //   suspended := true overriding partial available = {severity, timestamp, sev_up}.
+        // | where u_col = 'x': u_col absent from crowdstrike_alerts AND some_other_table;
+        //   suspended := true → skipped → NO E-QUERY-038 (fail-open per FP-001).
+        let query = "SELECT *, upper(severity) AS sev_up FROM crowdstrike_alerts \
+                     JOIN some_other_table j ON crowdstrike_alerts.severity = j.id \
+                     | where u_col = 'x'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "u_col" => panic!(
+                "BC-2.11.016 v1.19 EC-11-073 GREEN LOCK REGRESSION: FALSE E-QUERY-038 on \
+                 'u_col'. MIXED-STAR branch (c) with non-empty head JOIN list MUST trigger \
+                 STAR-WITH-JOIN SUSPENSION RULE: `if !head.joins.is_empty() {{ suspended = true; }}` \
+                 overrides partial MIXED-STAR `available` seeding; `| where u_col = 'x'` must \
+                 be skipped — NO E-QUERY-038 (FP-001). \
+                 Regression: v1.18 STAR-WITH-JOIN SUSPENSION RULE branch (c) application \
+                 (`compute_sqlpipe_head_binding` lines 2953–2963) may have been removed or \
+                 broken. Star/TableStar component brings all join-source columns into scope \
+                 at execution; the partial schema seed is incomplete — checking against it \
+                 fires false positives on join-source-only columns (FP-001 class: \
+                 star-with-join, branch (c)). \
+                 column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            // Ok or any other error (no adapter wired, DataFusion error) is acceptable.
+            // Invariant: E-QUERY-038 MUST NOT fire on 'u_col' for MIXED-STAR + head-join query.
+            _ => {}
+        }
+    }
 }
 
 #[cfg(test)]
