@@ -2333,7 +2333,8 @@ fn check_query_column_availability(
     // `Ast::Pipe` fell through to `_ => return Ok(())`, bypassing the E-QUERY-038 gate
     // entirely for predicate columns. Non-existent columns referenced by IEQ/IIN/INE
     // (or any other operator) in Filter/Pipe predicates now fire E-QUERY-038 at plan
-    // time, consistent with the six-position gate applied to SQL queries.
+    // time, consistent with the BC-2.11.016 column availability gate (fourteen
+    // positions across SQL, pipe, and filter modes).
     let sql_query = match &ast {
         Ast::Sql(SqlStatement::Select(q)) => q,
         Ast::SqlPipe(spq) => &spq.head,
@@ -2397,16 +2398,17 @@ fn check_query_column_availability(
         // ── Pipe mode: check columns in all pipe stage positions ───────────────
         //
         // Pipe queries are `source | stage | stage …`. Column availability is
-        // checked at positions 8 (| where predicates), 10 (| sort field keys),
-        // 11 (| stats ... by grouping refs), and 12 (| fields column refs) per
-        // BC-2.11.016 v1.6 exhaustive position enumeration.
+        // checked at positions 8/9 (| where predicates), 10 (| sort field keys),
+        // 11 (| stats ... by grouping refs), 12 (| fields column refs),
+        // 13 (| enrich input column), and 14 (| dedup field keys) per
+        // BC-2.11.016 exhaustive position enumeration.
         //
-        // Position 8 also runs the E-QUERY-002 type-compat gate after the
+        // Position 8/9 also runs the E-QUERY-002 type-compat gate after the
         // E-QUERY-038 existence gate — same ordering as the SQL WHERE path.
         //
-        // Stage types without schema-bound column refs (Limit, Tail, Dedup, Join,
-        // Enrich) are fail-open via the `_ => {}` catch-all in
-        // `check_pipe_stage_columns`.
+        // Stage types without schema-bound column refs (Limit, Tail, Join) are
+        // fail-open via the `_ => {}` catch-all in `check_pipe_stage_columns`.
+        // Enrich (pos 13) and Dedup (pos 14) have explicit arms.
         Ast::Pipe(pq) => {
             use crate::ast::SourceRefKind;
             let table_name = match &pq.source.kind {
@@ -2626,8 +2628,8 @@ fn check_query_column_availability(
     // The SQL head (positions 1–6) was processed above via `sql_query` extracted
     // from `Ast::SqlPipe(spq) => &spq.head`. Now walk the pipe stages that follow
     // the SQL head: `| where` (pos 9), `| sort` (pos 10), `| stats by` (pos 11),
-    // `| fields` (pos 12). Identical gate logic as `Ast::Pipe` (BC-2.11.016 v1.6
-    // table rows 9–12; HIGH-002 closure).
+    // `| fields` (pos 12), `| enrich` (pos 13), `| dedup` (pos 14).
+    // Identical gate logic as `Ast::Pipe` (BC-2.11.016; HIGH-002 closure).
     if let crate::ast::Ast::SqlPipe(spq) = &ast {
         check_pipe_stage_columns(
             &spq.stages,
@@ -2648,7 +2650,7 @@ fn check_query_column_availability(
 /// Returns `Some(sorted_deduped_columns)` when a schema source provides columns for
 /// this table, or `None` when no schema is available (fail-open sentinel).
 ///
-/// Used by `check_pipe_stage_columns` to seed the BC-2.11.016 v1.8 DERIVED-COLUMN
+/// Used by `check_pipe_stage_columns` to seed the BC-2.11.016 DERIVED-COLUMN
 /// BINDING RULE initial state before walking pipe stages.
 fn get_initial_available_columns(
     table_name: &str,
@@ -2758,7 +2760,7 @@ fn check_column_against_available_set(
 /// Called from both the `Ast::Pipe` arm (all stages) and the `Ast::SqlPipe` arm
 /// (stages after the SQL head is processed for positions 1–6).
 ///
-/// # Position coverage (BC-2.11.016 v1.8)
+/// # Position coverage (BC-2.11.016)
 /// - Position 8/9: `PipeStage::Where` — predicates (E-QUERY-038 existence + E-QUERY-002 type-compat)
 /// - Position 10: `PipeStage::Sort` — sort field keys (E-QUERY-038 existence only; no operator)
 /// - Position 11: `PipeStage::Stats` — `by_fields` grouping refs; REPLACE binding after
@@ -2766,16 +2768,17 @@ fn check_column_against_available_set(
 /// - Position 13: `PipeStage::Enrich` — input column (E-QUERY-038 existence); suspend after
 /// - Position 14: `PipeStage::Dedup` — dedup field keys (E-QUERY-038 existence only)
 ///
-/// # DERIVED-COLUMN BINDING RULE (BC-2.11.016 v1.8)
+/// # DERIVED-COLUMN BINDING RULE (BC-2.11.016)
 /// Maintains a running `{ available: Vec<String>, suspended: bool }` context while
 /// walking stages in order.
 ///
 /// - **Initial state:** `available = schema_columns(table)` (from spec_map or registry);
 ///   if no schema source, `suspended = true` from the start (fail-open for unregistered tables).
 /// - **Enrich stage:** position-13 input column is checked against `available` BEFORE
-///   updating the context. After the check: infusion output schema is not resolved at this
-///   layer (no InfusionRegistry plumbed into this function) → `suspended := true` (fail-open
-///   per FP-001 invariant; avoids false positives on correct infusion output references).
+///   updating the context. When `infusion_registry` is wired and the UDF descriptor
+///   resolves, output columns are UNIONed into `available` (downstream stages can reference
+///   enriched columns). When the registry is absent or the descriptor lookup fails
+///   defensively → `suspended := true` (fail-open per FP-001; EC-11-054/EC-11-055).
 /// - **Stats stage:** `by_fields` are checked against `available` BEFORE updating.
 ///   After those checks: `available` is REPLACED with `{explicit_aliases} ∪ {by_field_names}`.
 ///   Anonymous aggregates (no `AS alias`) produce unpredictable DataFusion names → `suspended := true`.
@@ -2801,7 +2804,7 @@ fn check_pipe_stage_columns(
 ) -> Result<(), PrismError> {
     use crate::ast::PipeStage;
 
-    // BC-2.11.016 v1.8 DERIVED-COLUMN BINDING RULE: build initial available set.
+    // BC-2.11.016 DERIVED-COLUMN BINDING RULE: build initial available set.
     // If no schema source is available, start suspended (fail-open for unregistered tables;
     // preserves existing RG-065 fail-open behavior).
     let initial_available =
@@ -2869,7 +2872,7 @@ fn check_pipe_stage_columns(
             }
             // Position 11: `| stats ... by` grouping field refs — E-QUERY-038 existence only.
             // Checked against current `available` BEFORE updating. After checks: `available`
-            // is REPLACED with {explicit_aliases ∪ by_field_names} per BC-2.11.016 v1.8
+            // is REPLACED with {explicit_aliases ∪ by_field_names} per BC-2.11.016
             // DERIVED-COLUMN BINDING RULE. Anonymous aggregates (no alias) → suspended.
             PipeStage::Stats(stats) => {
                 // Check by_fields against current available BEFORE replacing.
@@ -2930,7 +2933,7 @@ fn check_pipe_stage_columns(
             }
             // Position 13: `| enrich f(input_col)` input column — E-QUERY-038 existence only.
             // The input column is checked against `available` BEFORE this stage updates the
-            // binding context (BC-2.11.016 v1.8 position 13).
+            // binding context (BC-2.11.016 position 13).
             //
             // BC-2.11.016 v1.9 union path: when InfusionRegistry is wired (registry = Some),
             // resolve the infusion output schema and UNION output_columns into current_available
@@ -8282,7 +8285,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     /// yielding `PrismError::ColumnNotFound` (E-QUERY-038) with
     /// `column="severity_id"`, `table="crowdstrike_alerts"`.
     ///
-    /// BC-2.11.016 six-position gate must apply to Filter predicate columns.
+    /// BC-2.11.016 fourteen-position gate must apply to Filter predicate columns.
     /// Red Gate: removing predicate-column extraction for `Ast::Filter` from
     /// `check_query_column_availability` causes this test to return a non-ColumnNotFound
     /// error (QueryExecutionFailed) instead of ColumnNotFound.
