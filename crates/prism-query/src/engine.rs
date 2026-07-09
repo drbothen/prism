@@ -10018,6 +10018,206 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             _ => {}
         }
     }
+
+    // ── Fixture: crowdstrike_alerts with host_name column (EC-11-058) ─────────────
+
+    /// Build a `crowdstrike_alerts` engine with `severity` (String), `host_name` (Integer),
+    /// and `timestamp` (Datetime) under org "acme".
+    ///
+    /// Used ONLY for EC-11-058 — stats aggregate argument field path tests.
+    /// `host_name` is Integer: semantically correct for `sum()` at execution time.
+    /// `host_nme` is the typo used in the RED test (Levenshtein distance 1 from "host_name").
+    ///
+    /// Grammar note: `sum(field)` accepts any FieldPath at parse time — no type-check
+    /// during Chumsky parsing. Type-compatibility is DataFusion's concern; it is never
+    /// reached because the plan-time E-QUERY-038 gate fires first (after the fix).
+    fn make_crowdstrike_engine_with_host_name() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+        let sensor_id = "crowdstrike";
+        let table_suffix = "alerts";
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("host_name", ColumnType::Integer, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            sensor_id,
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("register crowdstrike with host_name must not fail");
+
+        let overlay_toml = format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@acme\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("EC-11-058 fixture: SensorInstanceOverlay TOML must parse");
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org.clone());
+        let key: ResolvedSpecKey = (org.clone(), SensorId::new(sensor_id));
+        let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_table_registry(registry);
+
+        (engine, org)
+    }
+
+    // ── Test 25 (RED GATE): Stats aggregate argument typo → E-QUERY-038 ──────────
+
+    /// BC-2.11.016 v1.12 position 11 — stats aggregate function argument field path.
+    ///
+    /// EC-11-058: `crowdstrike_alerts | stats sum(host_nme) by severity` where
+    /// `host_name` is a registered column (Integer) but `host_nme` is NOT.
+    /// Levenshtein("host_nme", "host_name") = 1 (insert 'a' after 'n').
+    ///
+    /// Expected: `PrismError::ColumnNotFound` (E-QUERY-038) with
+    ///   column = "host_nme",
+    ///   table  = "crowdstrike_alerts",
+    ///   did_you_mean = Some("host_name").
+    ///
+    /// ADV-FIX-P4-OBS-001 adjudicated IN-SCOPE (BC-2.11.016 v1.12).
+    ///
+    /// RED GATE rationale: the current `PipeStage::Stats` arm (engine.rs ~2877-2918)
+    /// checks `by_fields` against the available set but does NOT iterate aggregate
+    /// function argument field paths (CountField/Sum/Avg/Min/Max/DistinctCount/
+    /// Percentile). `host_nme` inside `sum(host_nme)` therefore bypasses the gate
+    /// entirely — no E-QUERY-038 is raised — and the query falls through to DataFusion
+    /// which produces an opaque execution error. The fix must extend the Stats arm to
+    /// extract field paths from each AggFunc variant (reusing the same
+    /// `extract_field_paths_from_expr` helper as HAVING position 6) and call
+    /// `check_column_against_available_set` on each, BEFORE the Stats stage replaces
+    /// the binding context (pre-REPLACE invariant from BC-2.11.016 DERIVED-COLUMN
+    /// BINDING RULE).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11058_stats_agg_arg_typo_yields_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine_with_host_name();
+
+        // EC-11-058 canonical vector (BC-2.11.016 v1.12):
+        // `host_nme` is a typo of the registered column `host_name` (distance 1).
+        // `severity` IS in the schema — the by-field check passes.
+        // Only the aggregate argument field path (`host_nme`) must trigger E-QUERY-038.
+        let query = "crowdstrike_alerts | stats sum(host_nme) by severity";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "host_nme",
+                    "EC-11-058 stats-agg-arg pos-11: column in E-QUERY-038 must be \
+                     'host_nme', got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "EC-11-058 stats-agg-arg pos-11: table in E-QUERY-038 must be \
+                     'crowdstrike_alerts', got: {:?}",
+                    details.table
+                );
+                assert!(
+                    details.did_you_mean.as_deref() == Some("host_name"),
+                    "EC-11-058 stats-agg-arg pos-11: did_you_mean must be 'host_name' \
+                     (Levenshtein distance 1 from 'host_nme'); got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "EC-11-058 stats-agg-arg pos-11: engine.execute must NOT succeed — \
+                 E-QUERY-038 must fire for non-existent aggregate argument column \
+                 'host_nme'. Before the fix, PipeStage::Stats only checks by_fields; \
+                 aggregate function argument field paths are not walked in \
+                 check_query_column_availability, so 'host_nme' bypasses the gate entirely."
+            ),
+            Err(other) => panic!(
+                "EC-11-058 stats-agg-arg pos-11: expected PrismError::ColumnNotFound \
+                 (E-QUERY-038) for typo column 'host_nme' in sum() aggregate argument, \
+                 got different error: {other:?}. Before the fix this would be an \
+                 execution error (DataFusion or adapter error) because the plan-time \
+                 column gate does not walk AggFunc FieldPath arguments."
+            ),
+        }
+    }
+
+    // ── Test 26 (GREEN lock): Stats aggregate argument — valid column passes gate ──
+
+    /// EC-11-058 GREEN lock — stats aggregate argument with the REAL column name.
+    ///
+    /// `crowdstrike_alerts | stats sum(host_name) by severity` uses the registered
+    /// column `host_name` (Integer) in the sum() aggregate argument and the registered
+    /// column `severity` (String) in the by-field list.
+    ///
+    /// E-QUERY-038 must NOT fire: `host_name` exists in the available set BEFORE the
+    /// Stats stage replaces the binding context. Any other error (adapter not wired,
+    /// execution failure) is acceptable; only `PrismError::ColumnNotFound` is forbidden.
+    ///
+    /// This lock confirms the agg-arg check is applied BEFORE the REPLACE step and
+    /// checks against the INCOMING available set — not the post-REPLACE context —
+    /// so the real schema column is always found.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11058_stats_agg_arg_valid_col_no_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine_with_host_name();
+
+        // Real column name in the sum() arg: E-QUERY-038 must NOT fire.
+        let query = "crowdstrike_alerts | stats sum(host_name) by severity";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref d))
+                if d.column == "host_name" || d.column == "severity" =>
+            {
+                panic!(
+                    "EC-11-058 GREEN lock: E-QUERY-038 fired unexpectedly for registered \
+                     column '{}' in crowdstrike_alerts stats agg arg. \
+                     The gate must NOT fire for columns that exist in the available set \
+                     before the Stats REPLACE step.",
+                    d.column
+                )
+            }
+            // Ok or any other error (no adapter, execution failure) is acceptable.
+            // The only invariant is: E-QUERY-038 does NOT fire for host_name or severity.
+            _ => {}
+        }
+    }
 }
 
 #[cfg(test)]
