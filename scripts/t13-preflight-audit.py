@@ -366,22 +366,92 @@ def run_audit():
                 results["[A5] MAJOR-001: list_capabilities client_registered=true"] = f"FAIL: client_registered={client_registered!r}"
 
         # ── A6: list_capabilities: tri-state model fields (D-1162 BC-2.10.011) ─
+        # BC-2.10.011 v1.5 single-client mode requires:
+        #   capabilities: Map<String, {status: tri-state, resolution_chain: [...]}>
+        #   not_registered_tools: [...] (renamed from not_implemented)
+        # "enabled_count" is a cross-client summary field (null client_id mode) — it
+        # does NOT appear in single-client mode entries and is irrelevant here.
         body, err = tool_call(proc, "list_capabilities", {"client_id": "org-c"})
         if err:
             results["[A6] list_capabilities tri-state model fields"] = f"FAIL: {err}"
         elif body.get("error_code"):
             results["[A6] list_capabilities tri-state model fields"] = f"FAIL: {body['error_code']}"
         else:
-            # Expect client_registered, and some capabilities with tri-state counts
-            caps = body.get("capabilities", {})
-            has_enabled_count = any(
-                "enabled_count" in str(v) or isinstance(v, dict) and "enabled_count" in v
-                for v in caps.values()
-            ) if isinstance(caps, dict) else False
-            keys = list(body.keys())
-            results["[A6] list_capabilities tri-state model fields"] = (
-                f"PASS: keys={keys}; capabilities={len(caps) if isinstance(caps, (dict,list)) else type(caps).__name__}"
-            )
+            VALID_STATUSES = {"enabled", "runtime_disabled", "compile_time_disabled"}
+            caps = body.get("capabilities", "MISSING")
+            not_reg = body.get("not_registered_tools", "MISSING")
+            has_old_field = "not_implemented" in body  # renamed in BC-2.10.011 v1.5
+
+            if caps == "MISSING":
+                results["[A6] list_capabilities tri-state model fields"] = (
+                    f"FAIL: capabilities field absent from response; keys={list(body.keys())}"
+                )
+            elif not isinstance(caps, dict):
+                results["[A6] list_capabilities tri-state model fields"] = (
+                    f"FAIL: capabilities is not a dict; type={type(caps).__name__}, "
+                    f"value={str(caps)[:80]!r}"
+                )
+            elif not_reg == "MISSING":
+                results["[A6] list_capabilities tri-state model fields"] = (
+                    f"FAIL: not_registered_tools absent (BC-2.10.011 v1.5 rename from "
+                    f"not_implemented); keys={list(body.keys())}"
+                )
+            elif has_old_field:
+                results["[A6] list_capabilities tri-state model fields"] = (
+                    f"FAIL: old not_implemented field still present — must be renamed to "
+                    f"not_registered_tools (BC-2.10.011 v1.5)"
+                )
+            elif caps:
+                # Non-empty capabilities — every entry must have status + resolution_chain
+                bad_entries = []
+                for cap_path, entry in caps.items():
+                    if not isinstance(entry, dict):
+                        bad_entries.append(f"{cap_path}: not a dict ({type(entry).__name__})")
+                        continue
+                    if "status" not in entry:
+                        bad_entries.append(f"{cap_path}: missing status")
+                        continue
+                    if entry["status"] not in VALID_STATUSES:
+                        bad_entries.append(
+                            f"{cap_path}: invalid status {entry['status']!r} "
+                            f"(must be one of {sorted(VALID_STATUSES)})"
+                        )
+                        continue
+                    if "resolution_chain" not in entry or not isinstance(
+                        entry["resolution_chain"], list
+                    ):
+                        bad_entries.append(f"{cap_path}: missing or non-list resolution_chain")
+                if bad_entries:
+                    results["[A6] list_capabilities tri-state model fields"] = (
+                        f"FAIL: {len(bad_entries)} capability entries violate tri-state contract: "
+                        f"{bad_entries[:3]}; BC-2.10.011 requires "
+                        f"status+resolution_chain per entry"
+                    )
+                else:
+                    statuses = sorted(
+                        {v["status"] for v in caps.values()
+                         if isinstance(v, dict) and "status" in v}
+                    )
+                    results["[A6] list_capabilities tri-state model fields"] = (
+                        f"PASS: {len(caps)} capabilities; all have status+resolution_chain; "
+                        f"statuses={statuses!r}; not_registered_tools count="
+                        f"{len(not_reg) if isinstance(not_reg, list) else '?'} "
+                        f"(BC-2.10.011 tri-state model confirmed)"
+                    )
+            else:
+                # Empty capabilities (no write endpoints in demo — compile-gate absent)
+                if not isinstance(not_reg, list):
+                    results["[A6] list_capabilities tri-state model fields"] = (
+                        f"FAIL: not_registered_tools is not a list; "
+                        f"type={type(not_reg).__name__}"
+                    )
+                else:
+                    results["[A6] list_capabilities tri-state model fields"] = (
+                        f"PASS: capabilities empty (no write endpoints in demo — "
+                        f"compile_time_disabled for all write paths); "
+                        f"not_registered_tools={list(not_reg)[:3]!r}; "
+                        f"tri-state fields present (BC-2.10.011 single-client mode)"
+                    )
 
         # ── A7: AUDIT-001: prism_describe sensor-prefixed table names ────────
         body, err = tool_call(proc, "prism_describe", {"client_id": "org-c"}, timeout=15.0)
@@ -885,18 +955,20 @@ def run_audit():
             rows = body.get("rows", [])
             results["[C7] Pipe mode: | sort"] = f"PASS: {len(rows)} rows"
 
-        # ── C8: NOW() temporal function ───────────────────────────────────────
-        # Test NOW() in a WHERE clause context
+        # ── C8: SQL mode baseline ─────────────────────────────────────────────
+        # Verify SQL query path executes without error (prerequisite for temporal
+        # queries). This check does NOT call NOW() — actual RFC-3339 datetime
+        # typing and NOW() regression are covered by G7 (ADR-052 §D4).
         body, err = query(proc,
             "SELECT device_id FROM crowdstrike_detections WHERE device_id IS NOT NULL LIMIT 3",
             ["org-c"])
         if err:
-            results["[C8] Temporal: NOW() accessible (baseline check)"] = f"FAIL: {err}"
+            results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"FAIL: {err}"
         elif body.get("error_code"):
-            results["[C8] Temporal: NOW() accessible (baseline check)"] = f"PARTIAL: {body['error_code']}"
+            results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"PARTIAL: {body['error_code']}"
         else:
             rows = body.get("rows", [])
-            results["[C8] Temporal: NOW() accessible (baseline check)"] = f"PASS: {len(rows)} rows (SQL path works for temporal context)"
+            results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"PASS: {len(rows)} rows (SQL path confirmed; see G7 for RFC-3339 regression)"
 
         # ═══════════════════════════════════════════════════════════════════════
         # SECTION D: Scenario Stage Verification (Stage 4 required)
@@ -1641,7 +1713,7 @@ COVERAGE_MATRIX = [
     ("[C5]",  "Query Modes",   "DataFusion GROUP BY aggregate"),
     ("[C6]",  "Query Modes",   "DataFusion MAX/MIN aggregate"),
     ("[C7]",  "Query Modes",   "Pipe | sort operator"),
-    ("[C8]",  "Query Modes",   "SQL path (temporal baseline)"),
+    ("[C8]",  "Query Modes",   "SQL mode executes (ADR-052 §D4 baseline path; RFC-3339 regression in G7)"),
     ("[D1]",  "Scenario",      "Stage 4 armis_devices visible"),
     ("[D2]",  "Scenario",      "Cyberint iocs_value at Stage 4"),
     ("[D3]",  "Scenario",      "CS behaviors_ioc_type at Stage 2+"),
