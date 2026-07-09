@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.977"
+version: "7.978"
 status: current
-timestamp: 2026-07-08T06:00:00Z
+timestamp: 2026-07-09T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -52,13 +52,78 @@ timestamp: 2026-07-08T06:00:00Z
 >
 > **D-1600 (2026-07-08): SESSION WRAP — §RESUME SNAPSHOT D-1600 authored (supersedes D-1589).** S-PRISMQL-CASE-INSENSITIVE-001 LOCAL 3-CLEAN CONVERGED (D-1599; 35 passes; 33/34/35 CLEAN(strict)=YES on frozen de89b557). Demo evidence 27/27 ACs captured (docs/demo-evidence/S-PRISMQL-CASE-INSENSITIVE-001/evidence-report.md @a71b8912). Feature pushed. PR #217 OPEN @ frozen a71b8912 (https://github.com/drbothen/prism/pull/217; base develop). CI: audit FAIL + deny FAIL = RUSTSEC-2026-0204 crossbeam-epoch 0.9.18 (pre-existing on develop; separate maintenance PR; PR #201 precedent). Security: 0 CRIT / 0 IMPORTANT / 2 SUGGESTIONS (CWE-117 control-char stripping + table_name charset gap). Code review CR-001..CR-010 (adversarially unverified; pending fix-burst). story v1.32. 74 RGTs. 8 BCs. just check 5310/5310 GREEN. develop_head UNCHANGED ea714d14. feature HEAD a71b8912 (PUSHED, origin==local). STATE v8.199→v8.200.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1607 POST-MERGE BURST** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1607 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1600 below is historical (pre-merge). `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `f935edb6` (PR #217 S-PRISMQL-CASE-INSENSITIVE-001 squash-merged 2026-07-08T21:18:56Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.207. D-1607 (PR #217 MERGED; POL-14 BC-2.11.024 v1.4 + BC-2.02.013 v1.9 active; VERY NEXT ACTION: devops worktree cleanup → next demo-roadmap story per §ACTIVE OBJECTIVE).
+> **D-1615 (2026-07-09): SESSION WRAP — §RESUME SNAPSHOT D-1615 authored (supersedes D-1600). FIX-IEQ-ERRPATH-001 LOCAL cascade 5 passes done, streak 0/3, frozen b4b88f93 (LOCAL-ONLY, ~16 commits; 4 RED tests await implementer). Pass-5 verdict CONTRADICTION confirmed FP-001 VIOLATION. Spec layer committed: BC-2.11.016 v1.13 (SqlPipe head-projection seeding rule + EC-11-059/060/061) + BC-2.11.004 v1.19 + BC-2.11.020 v1.7 + error-taxonomy v2.27 (frontmatter-lag repair) + BC-INDEX v7.65. L21 appended (adversary verdict arithmetic invariant + FP-001 empirical verification). STORY pins FROZEN. STATE v8.214→v8.215. VERY NEXT ACTION: implementer GREEN for EC-11-059..061 → story-writer pin round → state burst D-1616 → freeze b4b88f93 → LOCAL pass 6.**
+>
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1615 SESSION WRAP** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1615 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1615 below is the durable resume snapshot. §RESUME SNAPSHOT D-1600 below that is historical. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `f935edb6` (PR #217 S-PRISMQL-CASE-INSENSITIVE-001 squash-merged 2026-07-08T21:18:56Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.215. D-1615 (SESSION WRAP — FIX-IEQ-ERRPATH-001 LOCAL cascade in flight, 5 passes done, streak 0/3; implementer EC-11-059..061 NEXT; STORY pins FROZEN; BC-2.11.016 v1.13).
 
 ---
 
-## §RESUME SNAPSHOT — D-1600 (2026-07-08 — SESSION WRAP; develop origin/develop ea714d14; BC-INDEX v7.54; STORY-INDEX v2.631; ARCH-INDEX v2.174; STATE v8.200; feature HEAD a71b8912 PUSHED; PR #217 OPEN; LOCAL 3-CLEAN CONVERGED 35 passes; VERY NEXT ACTION = pre-PR-LEVEL fix-burst CR-001..CR-010 + RUSTSEC maintenance PR) [SUPERSEDES D-1589]
+## §RESUME SNAPSHOT — D-1615 (2026-07-09 — SESSION WRAP; develop origin/develop f935edb6; BC-INDEX v7.65; STORY-INDEX v2.636; ARCH-INDEX v2.174; STATE v8.215; fix-branch b4b88f93 LOCAL-ONLY; FIX-IEQ-ERRPATH-001 cascade 5 passes streak 0/3; VERY NEXT ACTION = implementer GREEN for EC-11-059..061 → story-writer pin round → LOCAL pass 6) [SUPERSEDES D-1600]
+
+### RESUME IN ONE BREATH
+
+Prism Phase-3/Wave-5. PR #217 merged; demo audit DEMO-READY 68/70; WARN-2 spawned fix-PR FIX-IEQ-ERRPATH-001 (14-position E-QUERY-038 plan-time gate) — LOCAL cascade in flight, 5 passes, streak 0/3, frozen-in-progress @ b4b88f93 (LOCAL-ONLY, 4 RED tests awaiting implementer). VERY NEXT ACTION = story-writer STORY pins round (BC-2.11.016 v1.13 / BC-2.11.004 v1.19 / BC-2.11.020 v1.7 / error-taxonomy v2.27) → implementer GREEN for EC-11-059..061 (SqlPipe head-projection seeding per BC-2.11.016 v1.13) → state burst D-1616 → freeze b4b88f93 → LOCAL pass 6.
+
+> **D-1607 (2026-07-08): PR #217 S-PRISMQL-CASE-INSENSITIVE-001 SQUASH-MERGED to develop@f935edb6 (2026-07-08T21:18:56Z); CI 43/43 GREEN; D-989 autonomy.** POL-14: BC-2.11.024 v1.3→v1.4 draft→active + BC-2.02.013 v1.8→v1.9 draft→active. Story status→merged (POL-13). active_contracts 255→257; draft_contracts 2→0. STORY-INDEX v2.635→v2.636. BC-INDEX v7.56→v7.57. develop_head ea714d14→f935edb6. STATE v8.206→v8.207.
+>
+> **D-1608 (2026-07-08): Demo-doc case-insensitive update COMPLETE.** DEMO-SCOPE.md v1.7 + T13-capstone-demo-runbook.md v1.6. STATE v8.207→v8.208.
+>
+> **D-1610 (2026-07-08): FIX-IEQ-ERRPATH-001 LOCAL pass-1 + fix-burst COMPLETE.** Pass-1 NOT CLEAN — 2 HIGH + 2 MED + 2 OBS. Fix @c2ece301 (12-position gate). STATE v8.209→v8.210.
+>
+> **D-1611 (2026-07-08): FIX-IEQ-ERRPATH-001 LOCAL pass-2 + fix-burst COMPLETE.** Pass-2 NOT CLEAN — 2 CRIT + 3 HIGH + 2 OBS. Fix @21f20cb6 (derived-column binding context). BC-2.11.016 v1.9. STATE v8.210→v8.211.
+>
+> **D-1612 (2026-07-08): FIX-IEQ-ERRPATH-001 union-path closure COMPLETE.** Human decision: plumb registry now. Fix @ee72660d. BC-2.11.016 v1.10. STATE v8.211→v8.212.
+>
+> **D-1613 (2026-07-08): FIX-IEQ-ERRPATH-001 LOCAL pass-3 + fix-burst COMPLETE.** Pass-3 NOT CLEAN — 1 MED + 2 LOW. Fix @2206f90a (IIN plan-time; SAP-1 BC-2.16.002 catalog). BC-2.11.016 v1.11. STATE v8.212→v8.213.
+>
+> **D-1614 (2026-07-08): FIX-IEQ-ERRPATH-001 LOCAL pass-4 + fix-burst COMPLETE.** Pass-4 NOT CLEAN(strict) — 2 MED + 1 OBS. Fix @ffcdc5fe (agg-arg walk positions 11+). BC-2.11.016 v1.12. STATE v8.213→v8.214.
+>
+> **D-1615 (2026-07-09): SESSION WRAP — §RESUME SNAPSHOT D-1615 authored (supersedes D-1600).** Pass-5 verdict CONTRADICTION confirmed FP-001 VIOLATION. Spec layer: BC-2.11.016 v1.13 (head-projection rule + EC-11-059..061) + BC-2.11.004 v1.19 + BC-2.11.020 v1.7 + taxonomy v2.27 + BC-INDEX v7.65. L21 appended. STORY pins FROZEN. STATE v8.214→v8.215.
+
+**STATE v8.215. develop f935edb6 (PUSHED, origin==local). BC-INDEX v7.65. STORY-INDEX v2.636. ARCH-INDEX v2.174. error-taxonomy v2.27. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 228. workspace_test_count 5345 (fix-branch b4b88f93 LOCAL-ONLY, 4 RED tests; develop baseline 5319 @f935edb6). bc_count_corrected 266.**
+
+**LAST MERGED:** S-PRISMQL-CASE-INSENSITIVE-001 (PR #217 → develop@f935edb6, 2026-07-08; ADR-047 case-insensitive IEQ/IIN/INE operators; 83 RGTs; CWE-117 Unicode Cc hardening; 27/27 ACs; LOCAL 35-pass + PR-LEVEL 8-pass 3-CLEAN CONVERGED).
+
+**MERGED BEFORE THAT:** S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (PR #216 → develop@ea714d14, 2026-07-06). PR #218 maintenance/rustsec-crossbeam-epoch → develop@7b1f6c51 (2026-07-08; RUSTSEC-2026-0204 resolved).
+
+**OPEN PRs:** NONE (FIX-IEQ-ERRPATH-001 pre-PR; will open after 3-CLEAN LOCAL convergence).
+
+**HEADS:** develop f935edb6 (PUSHED, origin==local); factory-artifacts = this session-wrap burst commit (PUSHED); fix/IEQ-nonexistent-column-errpath @ b4b88f93 (LOCAL-ONLY, ~16 commits; 4 RED tests; cannot push until RED resolved). Parked: S-3.09 @43c41389 (local-only, backup/S-3.09-preresume-43c41389) + W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit + ~1070 lines uncommitted write_dispatch_tests.rs — do NOT touch).
+
+**OPEN FIX-CASCADE:** FIX-IEQ-ERRPATH-001 — fix-branch b4b88f93 (LOCAL-ONLY). CLOSES: DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 + audit-script 62→70 extension (DRIFT-AUDIT-SCRIPT-UNCOMMITTED-001 at merge). 5 passes done. 31 tests in module (27 GREEN + 4 RED). RESUME NEXT-ACTION: story-writer STORY pins round → implementer GREEN for EC-11-059..061 → state burst D-1616 → freeze b4b88f93 → LOCAL adversary pass 6. Pass files: .factory/cycles/wave-5-e-demo-fidelity/FIX-IEQ-ERRPATH-001/adversarial-review/.
+
+**WORKTREES:**
+- `.worktrees/FIX-IEQ-ERRPATH-001` ACTIVE on `fix/IEQ-nonexistent-column-errpath` @ b4b88f93 (LOCAL-ONLY; do NOT push until RED resolved)
+- `.worktrees/S-3.09` PARKED on `feature/S-3.09` @ 43c41389 (local-only; backup `backup/S-3.09-preresume-43c41389`; DRIFT-PARKED-S309-001; awaiting human decision)
+- `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ fcab8717 (local-only; 1 unpushed commit + ~1070 lines uncommitted `write_dispatch_tests.rs`; DRIFT-PARKED-W3FIX-S307-001; do NOT touch without human approval)
+
+**PENDING-HUMAN:**
+1. **S-3.09 decision (DRIFT-PARKED-S309-001):** resume vs keep-parked vs abandon. Branch `feature/S-3.09` @43c41389 local-only.
+2. **W3-FIX-S307-001 decision (DRIFT-PARKED-W3FIX-S307-001):** resume/commit-and-continue vs stash vs abandon. ~1070 lines uncommitted write_dispatch_tests.rs.
+3. **E-OCSF-005..023 taxonomy gap (DRIFT-EOCSF-GAP-005-023-001):** triage/prioritize. 19 codes absent from error-taxonomy.md.
+
+**PENDING USER-APPROVED WORK:** FIX-IEQ-ERRPATH-001 delivery under D-989 autonomy (wave-5 fix-PR). STORY pins round first. No other work authorized.
+
+**DEMO STATUS:** Demo audit DEMO-READY 68/70 (artifact: .factory/research/demo-comprehensive-preflight-audit-2026-07-08.md). WARN-1 FIXED (runbook literals + cyberint status adjudication). WARN-2 → FIX-IEQ-ERRPATH-001 (fix-in-cascade; unblocks at merge). T13 capstone blocked until cascade merges.
+
+**DECISION DELTA (since last wrap D-1600):** D-1607..D-1615 this session: PR #217 merged; RUSTSEC fixed; demo audit rerun; FIX-IEQ-ERRPATH-001 LOCAL cascade 5 passes; BC-2.11.016 v1.12→v1.13 (head-projection rule); L21 codified.
+
+**RESUME PROTOCOL:**
+1. Run vsdd-factory:factory-worktree-health (BLOCKING).
+2. `git log --oneline -1 origin/develop` → expect `f935edb6`.
+3. STORY pins FROZEN round: story-writer pins BC-2.11.016 v1.13 / BC-2.11.004 v1.19 / BC-2.11.020 v1.7 / error-taxonomy v2.27 across cascade carrier stories (S-PRISMQL-CASE-INSENSITIVE-001, S-DEMO-FIDELITY-REMEDIATION-001, S-DEMO-PRISMQL-ONBOARDING-001-B, S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001).
+4. Implementer: GREEN for EC-11-059..061 (SqlPipe head-projection seeding in `check_pipe_stage_columns` — seed head output cols {aliases ∪ bare selected ∪ GROUP BY refs} into initial_available before the stage walk loop; anonymous unaliased non-Field items remain suspended).
+5. State burst D-1616 (record implementer pass).
+6. Freeze b4b88f93 → LOCAL adversary pass 6 (fresh context; strict 0/3 streak; no commits to branch between passes per DRIFT-ORCH-PRLEVEL-PUSH-001).
+7. Surface PENDING-HUMAN items 1-3 to human before resuming parked worktrees.
+8. Full state: STATE.md Session Resume Checkpoint D-1615.
+9. Autonomy D-989 active.
+
+---
+
+## §RESUME SNAPSHOT — D-1600 (2026-07-08 — SESSION WRAP; develop origin/develop ea714d14; BC-INDEX v7.54; STORY-INDEX v2.631; ARCH-INDEX v2.174; STATE v8.200; feature HEAD a71b8912 PUSHED; PR #217 OPEN; LOCAL 3-CLEAN CONVERGED 35 passes; VERY NEXT ACTION = pre-PR-LEVEL fix-burst CR-001..CR-010 + RUSTSEC maintenance PR) [SUPERSEDES D-1589] [SUPERSEDED by D-1615]
 
 ### RESUME IN ONE BREATH
 

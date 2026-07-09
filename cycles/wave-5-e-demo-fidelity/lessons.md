@@ -2675,3 +2675,37 @@ Single-hop mode (grep only the immediately-superseded version) is only safe as a
 **Addendum (D-1614, FULL-CORPUS evidence, 2026-07-08):** The LOCAL pass-4 state burst ran a FULL-CORPUS RECONCILING sweep (not just cascade-perimeter stories). The sweep found pins up to ~50 versions stale in 6 stories that had not been touched by any recent cascade: S-PLUGIN-PREREQ-E had taxonomy pinned at v1.38 (current v2.26; ~50 versions stale); S-WATCHDOG-WIRING-001 at v1.70; S-DEMO-DTU-LIVE-SCENARIO-001-B at v1.78; S-5.02 at v1.84; S-DEMO-ENRICHMENT-PIVOT-002 at v1.88; S-DEMO-PRISMQL-ONBOARDING-001 (superseded) at BC-2.11.016 v1.0 (~12 versions stale). All corrected in D-1614 FULL-CORPUS reconciling pin round (12 stories total, 6 cascade carriers + 6 corpus-wide multi-hop). This evidence strengthens the RECONCILING mode codification: single-hop sweeps cannot detect N-hop stale pins in stories outside the active cascade perimeter, and the lag can reach ~50 versions over multiple cascade cycles.
 
 **Recommendation (wave-gate addition):** Wave-gate protocol should include a periodic CORPUS-WIDE pin-reconciliation check — at minimum once per fix-PR cascade completion, before pushing to the PR. Specifically: after LOCAL 3-CLEAN convergence, before the push step, run a RECONCILING grep for all versioned pins (error-taxonomy, BC version numbers) across ALL story files in `.factory/stories/`. Any story with a pin more than 3 versions stale should be reconciled before push. This converts the current ad-hoc practice into a gating discipline.
+
+---
+
+## Process-Gap Lesson 21 — Adversary Verdict Must Be Arithmetically Consistent With Its Own Findings List; FP-001-Class OBS Items Require Empirical Verification Before Severity Acceptance (D-1615, 2026-07-09; FIX-IEQ-ERRPATH-001)
+
+**Tags:** [process-gap] [adversary-discipline] [verdict-consistency] [fp-001] [empirical-verification] [clean-strict-definition]
+
+**What happened:**
+
+FIX-IEQ-ERRPATH-001 LOCAL pass-5 adversary emitted a report with the verdict line `CLEAN(strict)=yes` while the body of the same report listed 2 OBS-severity findings. Simultaneously, OBS-1 of those findings was classified as an FP-001 violation candidate with "LOW confidence" — a hedged assessment that, if taken at face value, would have either (a) blocked cascade progress or (b) been incorrectly waived as a false positive. The orchestrator ran empirical verification: constructed the query shapes in question (`SELECT count(*) AS cnt ... GROUP BY severity | sort cnt` and `SELECT severity AS sev FROM t | where sev='High'`) against both the fix-branch and develop baseline. On the fix-branch, these queries triggered false E-QUERY-038 errors. On develop, they did not. This confirmed OBS-1 was an FP-001 VIOLATION (the gate firing on valid columns that appear in SqlPipe head projections), not a false positive accusation. Cascade result: NOT CLEAN(strict) despite the adversary's CLEAN(strict)=yes verdict — fix-burst required.
+
+**Root cause (two distinct failure modes):**
+
+1. **Verdict/findings arithmetic inconsistency:** CLEAN(strict)=yes by definition means zero findings of ANY severity. A report that lists any findings while asserting CLEAN(strict)=yes is self-contradictory. The verdict line must be computed from the findings list, not written independently of it.
+
+2. **Hedged FP-001 classification under-commits:** When the adversary hedges an FP-001-class finding as "LOW confidence — possibly false positive," the orchestrator must empirically verify the classification before accepting it. A hedged verdict is not an actionable signal. In this case the adversary lacked the ability to execute queries against the running fix-branch; empirical verification was necessarily orchestrator-driven.
+
+**Codified rules:**
+
+1. **Adversary verdict arithmetic invariant:** The CLEAN(strict) verdict MUST be derived from the findings list. If the report body lists any finding of any severity (CRIT / HIGH / MED / LOW / OBS / PROCESS-GAP), the verdict MUST be `CLEAN(strict)=no`. Writing `CLEAN(strict)=yes` while listing findings is a verdict inconsistency defect — treat it as a process-gap finding in the next pass.
+
+2. **FP-001-class findings require empirical verification:** When the adversary classifies a finding as "possibly FP-001" or "LOW-confidence FP-001 violation," the orchestrator MUST run empirical verification (construct the query shape; execute against fix-branch; compare to develop baseline) before accepting the classification. The adversary's static analysis cannot substitute for runtime verification of FP-001 candidates. If verification confirms the finding, it is NOT an FP — dispatch a fix-burst.
+
+3. **Recommended adversary report format:** Verdict lines must appear AFTER the findings list and be computed from it:
+   ```
+   FINDINGS COUNT: N
+   CLEAN(strict): yes / no  [must equal: N==0]
+   CLEAN(PR-merge): yes / no  [must equal: no CRIT/HIGH/MED findings]
+   ```
+   Any hedged FP-001 candidate should be listed as a finding at OBS or LOW severity with a note "REQUIRES ORCHESTRATOR EMPIRICAL VERIFICATION" — not silently absorbed into a CLEAN(strict)=yes verdict.
+
+**Evidence:** FIX-IEQ-ERRPATH-001 LOCAL pass-5 adversary report (frozen b4b88f93); orchestrator empirical query construction 2026-07-09 confirming FP-001 violation on fix-branch; `SELECT count(*) AS cnt ... GROUP BY severity | sort cnt` and `SELECT severity AS sev FROM t | where sev='High'` both produce false E-QUERY-038 on fix-branch, clean on develop.
+
+**Source:** D-1615 (FIX-IEQ-ERRPATH-001 session wrap; orchestrator pass-5 verdict investigation; 2026-07-09).
