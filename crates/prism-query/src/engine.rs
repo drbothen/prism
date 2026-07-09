@@ -3095,12 +3095,16 @@ fn check_operator_type_compatibility(
     }
 
     // Operator is NOT in the valid set for this column type → E-QUERY-002 type mismatch.
+    // Populate suggested_column via the OCSF sibling mapping (b1 form, error-taxonomy v2.22):
+    // severity_id→severity, status_id→status, activity_id→activity_name,
+    // disposition_id→disposition. This matches the materialization-layer gate
+    // (check_ci_column_types) which is kept as defense-in-depth but fires second.
     Err(PrismError::QueryTypeMismatch {
         column: column_name.to_string(),
         table: table_name.to_string(),
         actual_type,
         operator: operator.to_string(),
-        suggested_column: None,
+        suggested_column: crate::materialization::ocsf_suggested_string_column(column_name),
     })
 }
 
@@ -8545,6 +8549,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             Err(PrismError::QueryTypeMismatch {
                 ref column,
                 ref table,
+                ref suggested_column,
                 ..
             }) => {
                 assert_eq!(
@@ -8560,6 +8565,14 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                     "DRIFT-IEQ-001 MED-001 filter: table in E-QUERY-002 must be \
                      'crowdstrike_alerts', got: {:?}",
                     table
+                );
+                assert_eq!(
+                    suggested_column.as_deref(),
+                    Some("severity"),
+                    "DRIFT-IEQ-001 MED-001 filter: suggested_column in E-QUERY-002 must be \
+                     Some(\"severity\") for 'severity_id' (b1 form with OCSF sibling), \
+                     got: {:?}",
+                    suggested_column
                 );
             }
             Err(PrismError::ColumnNotFound(ref d)) => panic!(
@@ -8614,6 +8627,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             Err(PrismError::QueryTypeMismatch {
                 ref column,
                 ref table,
+                ref suggested_column,
                 ..
             }) => {
                 assert_eq!(
@@ -8629,6 +8643,14 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                     "DRIFT-IEQ-001 MED-001 pipe: table in E-QUERY-002 must be \
                      'crowdstrike_alerts', got: {:?}",
                     table
+                );
+                assert_eq!(
+                    suggested_column.as_deref(),
+                    Some("severity"),
+                    "DRIFT-IEQ-001 MED-001 pipe: suggested_column in E-QUERY-002 must be \
+                     Some(\"severity\") for 'severity_id' (b1 form with OCSF sibling), \
+                     got: {:?}",
+                    suggested_column
                 );
             }
             Err(PrismError::ColumnNotFound(ref d)) => panic!(

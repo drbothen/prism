@@ -2380,7 +2380,7 @@ async fn check_ci_column_types(
 /// |                 |                    | `activity_name`, not `activity`|
 /// | `disposition_id`| `disposition`      | standard OCSF `{F}_id`→`{F}` |
 /// | all others      | `None`             | non-OCSF or unlisted column   |
-fn ocsf_suggested_string_column(id_column: &str) -> Option<String> {
+pub(crate) fn ocsf_suggested_string_column(id_column: &str) -> Option<String> {
     match id_column {
         "severity_id" => Some("severity".to_string()),
         "status_id" => Some("status".to_string()),
