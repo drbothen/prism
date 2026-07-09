@@ -2046,39 +2046,41 @@ fn extract_field_paths_from_expr(
 }
 
 // ---------------------------------------------------------------------------
-// BC-2.11.016 v1.20 HEAD-JOIN SUSPENSION RULE helpers (ADV-FIX-P15-MED-001)
+// BC-2.11.016 v1.21 HEAD-JOIN PER-REFERENCE SCOPING helpers (ADV-FIX-P16-MED-001)
 // ---------------------------------------------------------------------------
 
-/// Collect bare (single-segment, unqualified) FieldPath column names from an `Expr` tree.
+/// Recursively extract `(col_name, is_bare)` pairs from an `Expr` tree.
 ///
-/// Mirrors `extract_field_paths_from_expr` but restricts to column refs where the
-/// original FieldPath has exactly one segment (no qualifier). Used by the
-/// HEAD-JOIN SUSPENSION RULE (`bare_head_cols` set) to distinguish bare unqualified
-/// refs (suspension-eligible when absent) from FROM-alias-qualified refs (which retain
-/// standard E-QUERY-038 behavior even when the head JOIN list is non-empty).
+/// Identical traversal to `extract_field_paths_from_expr`; each produced pair carries
+/// `is_bare = true` iff the source `FieldPath` had exactly one segment (bare unqualified
+/// ref), `false` for multi-segment FROM-alias- or table-name-qualified refs.
 ///
-/// `Expr::Field(fp)` with `fp.segments.len() == 1` → collected.
-/// `Expr::Field(fp)` with `fp.segments.len() >= 2` → qualified ref, skipped.
-/// All other arms recurse identically to `extract_field_paths_from_expr`.
+/// Used by `check_query_column_availability` to implement BC-2.11.016 v1.21
+/// PER-REFERENCE SCOPING: the HEAD-JOIN suspension fires only when `is_bare = true`
+/// for the *specific reference* being checked. Qualified refs (`alias.col`, `table.col`)
+/// carry `is_bare = false` and are never suspension-eligible, regardless of whether a
+/// co-resident bare ref with the same extracted column name exists at another position.
 ///
-/// BC-2.11.016 v1.20 §Preconditions.2 HEAD-JOIN SUSPENSION RULE.
-fn collect_bare_field_names_from_expr(
+/// BC-2.11.016 v1.21 §Preconditions.2 HEAD-JOIN PER-REFERENCE SCOPING
+/// (ADV-FIX-P16-MED-001).
+fn extract_field_paths_with_bareness(
     expr: &crate::ast::Expr,
-    out: &mut std::collections::HashSet<String>,
+    table_name: &str,
+    table_alias: Option<&str>,
+    out: &mut Vec<(String, bool)>,
 ) {
     use crate::ast::{Expr, FuncCall};
     match expr {
-        Expr::Field(fp) if fp.segments.len() == 1 => {
-            if let Some(name) = fp.segments.first() {
-                out.insert(name.clone());
+        Expr::Field(fp) => {
+            if let Some(col) = extract_column_name_from_field_path(fp, table_name, table_alias) {
+                let is_bare = fp.segments.len() == 1;
+                out.push((col, is_bare));
             }
         }
-        // Qualified field (2+ segments) — not bare, skip.
-        Expr::Field(_) => {}
         Expr::FuncCall(fc) => match fc {
             FuncCall::Aggregate { args, .. } | FuncCall::Scalar { args, .. } => {
                 for arg in args {
-                    collect_bare_field_names_from_expr(arg, out);
+                    extract_field_paths_with_bareness(arg, table_name, table_alias, out);
                 }
             }
             FuncCall::Window { .. } => {}
@@ -2086,104 +2088,115 @@ fn collect_bare_field_names_from_expr(
             _ => {}
         },
         Expr::Compare { lhs, rhs, .. } => {
-            collect_bare_field_names_from_expr(lhs, out);
-            collect_bare_field_names_from_expr(rhs, out);
+            extract_field_paths_with_bareness(lhs, table_name, table_alias, out);
+            extract_field_paths_with_bareness(rhs, table_name, table_alias, out);
         }
         Expr::Logical { lhs, rhs, .. } => {
-            collect_bare_field_names_from_expr(lhs, out);
-            collect_bare_field_names_from_expr(rhs, out);
+            extract_field_paths_with_bareness(lhs, table_name, table_alias, out);
+            extract_field_paths_with_bareness(rhs, table_name, table_alias, out);
         }
         Expr::Not(inner) => {
-            collect_bare_field_names_from_expr(inner, out);
+            extract_field_paths_with_bareness(inner, table_name, table_alias, out);
         }
-        Expr::In { field, .. } if field.segments.len() == 1 => {
-            if let Some(name) = field.segments.first() {
-                out.insert(name.clone());
+        Expr::In { field, .. } => {
+            if let Some(col) = extract_column_name_from_field_path(field, table_name, table_alias) {
+                let is_bare = field.segments.len() == 1;
+                out.push((col, is_bare));
             }
         }
-        Expr::InSubquery { field, .. } if field.segments.len() == 1 => {
-            if let Some(name) = field.segments.first() {
-                out.insert(name.clone());
+        Expr::InSubquery { field, .. } => {
+            if let Some(col) = extract_column_name_from_field_path(field, table_name, table_alias) {
+                let is_bare = field.segments.len() == 1;
+                out.push((col, is_bare));
             }
         }
         Expr::TimestampArithmetic { base, .. } => {
-            collect_bare_field_names_from_expr(base, out);
+            extract_field_paths_with_bareness(base, table_name, table_alias, out);
         }
         _ => {}
     }
 }
 
-/// Collect bare (single-segment, unqualified) FieldPath column names from a `Predicate` tree.
+/// Extract `(col_name, is_bare)` pairs from a `Predicate` tree.
 ///
-/// Mirrors `collect_predicate_columns` but restricts to bare refs only.
-/// Used for WHERE (position 2) and HAVING (position 6) clauses of the HEAD-JOIN
-/// SUSPENSION RULE. Recurses into logical predicates (And/Or/Not).
-/// For `Predicate::Compare` with `Expr::FuncCall` lhs (e.g. HAVING aggregate),
-/// delegates to `collect_bare_field_names_from_expr` so bare refs inside aggregate
-/// args (e.g. `count(col)` → `col`) are captured.
+/// Mirrors `extract_predicate_columns` / `collect_predicate_columns` but emits
+/// `(col_name, is_bare)` pairs for BC-2.11.016 v1.21 PER-REFERENCE SCOPING.
+/// Used by `check_query_column_availability` for WHERE (position 2) and HAVING
+/// (position 6) clauses so the gate loop can apply HEAD-JOIN suspension per-reference.
 ///
-/// BC-2.11.016 v1.20 §Preconditions.2 HEAD-JOIN SUSPENSION RULE.
-fn collect_bare_pred_field_names(
+/// BC-2.11.016 v1.21 §Preconditions.2 HEAD-JOIN PER-REFERENCE SCOPING
+/// (ADV-FIX-P16-MED-001).
+fn extract_predicate_columns_with_bareness(
     pred: &crate::ast::Predicate,
-    out: &mut std::collections::HashSet<String>,
+    table_name: &str,
+    table_alias: Option<&str>,
+) -> Vec<(String, bool)> {
+    let mut cols = Vec::new();
+    collect_predicate_columns_with_bareness(pred, table_name, table_alias, &mut cols);
+    cols
+}
+
+fn collect_predicate_columns_with_bareness(
+    pred: &crate::ast::Predicate,
+    table_name: &str,
+    table_alias: Option<&str>,
+    out: &mut Vec<(String, bool)>,
 ) {
     use crate::ast::{Expr, Predicate};
     match pred {
         Predicate::Compare { lhs, .. } => match lhs.as_ref() {
-            Expr::Field(fp) if fp.segments.len() == 1 => {
-                if let Some(name) = fp.segments.first() {
-                    out.insert(name.clone());
+            Expr::Field(fp) => {
+                if let Some(name) = extract_column_name_from_field_path(fp, table_name, table_alias)
+                {
+                    let is_bare = fp.segments.len() == 1;
+                    out.push((name, is_bare));
                 }
             }
             Expr::FuncCall(_) => {
-                // HAVING aggregate (e.g. `HAVING count(col) > 0`): recurse into FuncCall.
-                collect_bare_field_names_from_expr(lhs.as_ref(), out);
+                // HAVING aggregate (e.g. `HAVING count(col) > 0`): recurse into FuncCall args,
+                // preserving per-reference bareness for each arg field ref.
+                extract_field_paths_with_bareness(lhs.as_ref(), table_name, table_alias, out);
             }
             _ => {}
         },
-        Predicate::StringOp { field, .. } | Predicate::Regex { field, .. }
-            if field.segments.len() == 1 =>
-        {
-            if let Some(name) = field.segments.first() {
-                out.insert(name.clone());
+        Predicate::StringOp { field, .. } | Predicate::Regex { field, .. } => {
+            if let Some(name) = extract_column_name_from_field_path(field, table_name, table_alias)
+            {
+                let is_bare = field.segments.len() == 1;
+                out.push((name, is_bare));
             }
         }
-        Predicate::StringOp { .. } | Predicate::Regex { .. } => {}
         Predicate::In { field, .. }
         | Predicate::InSubquery { field, .. }
         | Predicate::Between { field, .. }
         | Predicate::Cidr { field, .. }
-        | Predicate::Wildcard { field, .. }
-            if field.segments.len() == 1 =>
-        {
-            if let Some(name) = field.segments.first() {
-                out.insert(name.clone());
+        | Predicate::Wildcard { field, .. } => {
+            if let Some(name) = extract_column_name_from_field_path(field, table_name, table_alias)
+            {
+                let is_bare = field.segments.len() == 1;
+                out.push((name, is_bare));
             }
         }
-        Predicate::In { .. }
-        | Predicate::InSubquery { .. }
-        | Predicate::Between { .. }
-        | Predicate::Cidr { .. }
-        | Predicate::Wildcard { .. } => {}
-        Predicate::Has(fp) | Predicate::Missing(fp) if fp.segments.len() == 1 => {
-            if let Some(name) = fp.segments.first() {
-                out.insert(name.clone());
+        Predicate::Has(fp) | Predicate::Missing(fp) => {
+            if let Some(name) = extract_column_name_from_field_path(fp, table_name, table_alias) {
+                let is_bare = fp.segments.len() == 1;
+                out.push((name, is_bare));
             }
         }
-        Predicate::Has(_) | Predicate::Missing(_) => {}
-        Predicate::IsNull { field, .. } if field.segments.len() == 1 => {
-            if let Some(name) = field.segments.first() {
-                out.insert(name.clone());
+        Predicate::IsNull { field, .. } => {
+            if let Some(name) = extract_column_name_from_field_path(field, table_name, table_alias)
+            {
+                let is_bare = field.segments.len() == 1;
+                out.push((name, is_bare));
             }
         }
-        Predicate::IsNull { .. } => {}
         Predicate::Logical { predicates, .. } => {
             for child in predicates {
-                collect_bare_pred_field_names(child, out);
+                collect_predicate_columns_with_bareness(child, table_name, table_alias, out);
             }
         }
         Predicate::Not(inner) => {
-            collect_bare_pred_field_names(inner, out);
+            collect_predicate_columns_with_bareness(inner, table_name, table_alias, out);
         }
         Predicate::RecoveryError => {}
         #[allow(unreachable_patterns)]
@@ -2628,7 +2641,10 @@ fn check_query_column_availability(
     // This makes AC-M2's claim that `extract_field_paths_from_expr` is the SINGLE
     // extraction point for ALL 5 positions (SELECT, WHERE, GROUP BY, ORDER BY,
     // JOIN ON) true for Position 1 as well.
-    let mut select_cols: Vec<String> = Vec::new();
+    //
+    // BC-2.11.016 v1.21 PER-REFERENCE SCOPING: use `extract_field_paths_with_bareness`
+    // so each extracted reference carries its `is_bare` flag for the HEAD-JOIN gate.
+    let mut select_cols: Vec<(String, bool)> = Vec::new();
     for item in &sql_query.select.items {
         match item {
             SelectItem::Star => {}         // SELECT * — skip (no column to validate)
@@ -2640,7 +2656,7 @@ fn check_query_column_availability(
                     // All other Expr variants (Field, FuncCall, Compare, etc.) — use
                     // the recursive walker so FuncCall args are validated.
                     _ => {
-                        extract_field_paths_from_expr(
+                        extract_field_paths_with_bareness(
                             expr,
                             &table_name,
                             from_alias,
@@ -2667,44 +2683,44 @@ fn check_query_column_availability(
     // and literal operands are ignored — only explicit column name references are checked.
     // F-001B-DC-HIGH-001: pass table_name + from_alias to the predicate extractor so
     // qualified WHERE refs are handled correctly.
-    let where_cols: Vec<String> = sql_query
+    let where_cols: Vec<(String, bool)> = sql_query
         .where_
         .as_ref()
-        .map(|pred| extract_predicate_columns(pred, &table_name, from_alias))
+        .map(|pred| extract_predicate_columns_with_bareness(pred, &table_name, from_alias))
         .unwrap_or_default();
 
     // ── Position 3: GROUP BY clause — recurse into FuncCall args (M2 fix) ────
     //
     // F-001B-DC-HIGH-001: use extract_column_name_from_field_path instead of .first().
-    // M2 fix (S-DEMO-FIDELITY-REMEDIATION-001): use `extract_field_paths_from_expr`
+    // M2 fix (S-DEMO-FIDELITY-REMEDIATION-001): use `extract_field_paths_with_bareness`
     // instead of direct `Expr::Field` match so that column refs wrapped in function
     // calls (e.g. `GROUP BY lower(col_typo)`) are also validated against the schema.
-    let mut group_by_cols: Vec<String> = Vec::new();
+    let mut group_by_cols: Vec<(String, bool)> = Vec::new();
     for expr in &sql_query.group_by {
-        extract_field_paths_from_expr(expr, &table_name, from_alias, &mut group_by_cols);
+        extract_field_paths_with_bareness(expr, &table_name, from_alias, &mut group_by_cols);
     }
 
     // ── Position 4: ORDER BY clause — recurse into FuncCall args (M2 fix) ────
     //
     // F-001B-DC-HIGH-001: use extract_column_name_from_field_path instead of .first().
     // M2 fix: same FuncCall-arg recursion as GROUP BY — handles `ORDER BY lower(col_typo)`.
-    let mut order_by_cols: Vec<String> = Vec::new();
+    let mut order_by_cols: Vec<(String, bool)> = Vec::new();
     for oe in &sql_query.order_by {
-        extract_field_paths_from_expr(&oe.expr, &table_name, from_alias, &mut order_by_cols);
+        extract_field_paths_with_bareness(&oe.expr, &table_name, from_alias, &mut order_by_cols);
     }
 
     // ── Position 5: JOIN ON clause — recurse into JOIN ON expressions (M2 fix) ──
     //
     // M2 fix (S-DEMO-FIDELITY-REMEDIATION-001): validate column refs in JOIN ON
     // expressions for the FROM table. JOIN ON is typed as `Expr` (not `Predicate`),
-    // so we call `extract_field_paths_from_expr` directly.
+    // so we call `extract_field_paths_with_bareness` directly.
     //
     // Fail-open for cross-table refs (unknown qualifier → `extract_column_name_from_field_path`
     // returns None). Only same-table column typos (unqualified or FROM-table-qualified refs)
     // are caught here — this is the same conservative policy as all other positions.
-    let mut join_on_cols: Vec<String> = Vec::new();
+    let mut join_on_cols: Vec<(String, bool)> = Vec::new();
     for join in &sql_query.joins {
-        extract_field_paths_from_expr(&join.on, &table_name, from_alias, &mut join_on_cols);
+        extract_field_paths_with_bareness(&join.on, &table_name, from_alias, &mut join_on_cols);
     }
 
     // ── Position 6: HAVING clause — reuse the WHERE predicate extractor ────────
@@ -2718,71 +2734,33 @@ fn check_query_column_availability(
     // Column refs directly in HAVING predicates (e.g. `HAVING typo_col > 5`) and
     // column refs inside `IN` / `BETWEEN` / etc. HAVING predicates are all extracted
     // by `collect_predicate_columns` via the existing match arms.
-    let having_cols: Vec<String> = sql_query
+    let having_cols: Vec<(String, bool)> = sql_query
         .having
         .as_ref()
-        .map(|pred| extract_predicate_columns(pred, &table_name, from_alias))
+        .map(|pred| extract_predicate_columns_with_bareness(pred, &table_name, from_alias))
         .unwrap_or_default();
 
     // ── Gate: check all positions in order ────────────────────────────────────
     //
-    // BC-2.11.016 v1.20 HEAD-JOIN SUSPENSION RULE (ADV-FIX-P15-MED-001):
-    // When the head SQL query's JOIN list is non-empty AND a column at positions 1–6
-    // was a BARE UNQUALIFIED reference (single-segment FieldPath; no table qualifier)
-    // AND it is absent from `schema_columns(table, OrgId)`, the E-QUERY-038 gate MUST
-    // NOT fire (fail-open per FP-001). Rationale: DataFusion resolves unqualified
-    // column references across ALL join sources at execution time; a bare unqualified
-    // ref absent from the FROM schema may validly exist in a JOIN-partner table.
+    // BC-2.11.016 v1.21 HEAD-JOIN PER-REFERENCE SCOPING (ADV-FIX-P16-MED-001):
+    // When the head SQL query's JOIN list is non-empty AND the *specific reference*
+    // being checked was a BARE UNQUALIFIED ref (single-segment FieldPath; `is_bare = true`)
+    // AND it is absent from the FROM schema, the E-QUERY-038 gate MUST NOT fire
+    // (fail-open per FP-001). Rationale: DataFusion resolves bare unqualified refs across
+    // ALL join sources at execution time; a bare ref absent from the FROM schema may
+    // validly exist in a JOIN-partner table.
     //
-    // Qualified references retain existing behavior — a FROM-alias-qualified ref like
-    // `a.typo_col` (where `a` is the FROM alias) IS bound to the FROM table; if absent,
-    // E-QUERY-038 MUST still fire ("qualified references at positions 1–6 retain existing
-    // behavior", BC-2.11.016 v1.20 HEAD-JOIN SUSPENSION RULE).
+    // Per-reference scoping (BC-2.11.016 v1.21 — fixes v1.20 FN-001 defect): qualified
+    // references (`alias.col`, `table.col`) carry `is_bare = false` and ALWAYS retain
+    // full E-QUERY-038 checking, regardless of whether a co-resident bare ref with the
+    // same extracted column name exists at another position. The v1.20 `bare_head_cols`
+    // (name-keyed HashSet) wrongly suspended qualified refs when a bare ref with the
+    // same name was present — the per-reference `is_bare` flag eliminates that conflation.
     //
-    // `bare_head_cols` is the subset of extracted column names that came from single-
-    // segment FieldPaths (bare unqualified refs). At the gate loop, a ColumnNotFound
-    // result for a name in `bare_head_cols` is suppressed when `head_has_joins = true`.
-    // FROM-alias-qualified refs have 2-segment FieldPaths → NOT in `bare_head_cols` →
-    // retain standard E-QUERY-038 behavior.
-    // Joinless queries: `head_has_joins = false` → `bare_head_cols` is empty →
-    // standard gate for all columns (unchanged).
+    // Joinless queries: `head_has_joins = false` → standard gate for all refs (unchanged).
     let head_has_joins = !sql_query.joins.is_empty();
-    let bare_head_cols: std::collections::HashSet<String> = if head_has_joins {
-        let mut set = std::collections::HashSet::new();
-        // Position 1: SELECT clause bare refs
-        for item in &sql_query.select.items {
-            if let SelectItem::Expr { expr, .. } = item {
-                if !matches!(expr, Expr::VirtualField(_)) {
-                    collect_bare_field_names_from_expr(expr, &mut set);
-                }
-            }
-        }
-        // Position 2: WHERE clause bare refs
-        if let Some(pred) = &sql_query.where_ {
-            collect_bare_pred_field_names(pred, &mut set);
-        }
-        // Position 3: GROUP BY clause bare refs
-        for expr in &sql_query.group_by {
-            collect_bare_field_names_from_expr(expr, &mut set);
-        }
-        // Position 4: ORDER BY clause bare refs
-        for oe in &sql_query.order_by {
-            collect_bare_field_names_from_expr(&oe.expr, &mut set);
-        }
-        // Position 5: JOIN ON bare refs (bare unqualified refs in ON expressions only)
-        for join in &sql_query.joins {
-            collect_bare_field_names_from_expr(&join.on, &mut set);
-        }
-        // Position 6: HAVING clause bare refs
-        if let Some(pred) = &sql_query.having {
-            collect_bare_pred_field_names(pred, &mut set);
-        }
-        set
-    } else {
-        std::collections::HashSet::new()
-    };
 
-    for col in select_cols
+    for (col, is_bare_ref) in select_cols
         .iter()
         .chain(where_cols.iter())
         .chain(group_by_cols.iter())
@@ -2790,12 +2768,11 @@ fn check_query_column_availability(
         .chain(join_on_cols.iter())
         .chain(having_cols.iter())
     {
-        if head_has_joins && bare_head_cols.contains(col.as_str()) {
-            // HEAD-JOIN SUSPENSION RULE: bare unqualified ref with non-empty JOIN list.
-            // Run check_column_availability; if the column is absent (ColumnNotFound),
-            // fail-open (the column may exist in a JOIN-partner table at execution time).
-            // If the column is present in the FROM schema, the check passes normally.
-            // All non-ColumnNotFound errors propagate unchanged.
+        if head_has_joins && *is_bare_ref {
+            // HEAD-JOIN SUSPENSION: this specific reference was a bare unqualified ref
+            // (single-segment FieldPath). Fail-open on ColumnNotFound — the column may
+            // exist in a JOIN-partner table at execution time. All non-ColumnNotFound
+            // errors propagate unchanged. Qualified refs never enter this branch.
             match check_column_availability(
                 col,
                 &table_name,
