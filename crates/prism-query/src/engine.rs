@@ -3254,9 +3254,39 @@ fn collect_predicate_type_pairs_inner(
         Predicate::Not(inner) => {
             collect_predicate_type_pairs_inner(inner, table_name, table_alias, out);
         }
-        // All other predicate variants (StringOp, Regex, In, Between, Cidr, Has,
-        // Missing, IsNull, Wildcard, RecoveryError, future variants): no Compare
-        // operator to check — skip.
+        // IIN: case-insensitive set membership — ADV-FIX-P3-LOW-001.
+        //
+        // `Predicate::In { case_insensitive: true, .. }` is the IIN operator.  It
+        // must emit "IIN" so that `check_operator_type_compatibility` fires the
+        // E-QUERY-002 plan-time gate for non-String columns (e.g., Integer).
+        //
+        // Operator string "IIN" matches the byte-form used by
+        // `collect_ci_compare_fields` in materialization.rs and by
+        // `valid_operators_for_type(ColumnType::String)` — both of which include
+        // "IIN".  `valid_operators_for_type(Integer/Float/Boolean/Datetime)` does
+        // NOT include "IIN", so the gate fires correctly.
+        //
+        // Negated+CI handling (TD-VSDD-060 defensive posture): the PrismQL parser
+        // rejects `NOT IIN` as non-representable in the AST (filter_parser.rs —
+        // "<invalid: negated IIN not representable>"), so `negated: true,
+        // case_insensitive: true` can only arrive via hand-constructed ASTs.
+        // We emit "IIN" for ALL `case_insensitive: true` In predicates regardless
+        // of `negated`, because "IIN" is the correct type-check label and the
+        // valid_operators table excludes it for non-String types either way.
+        Predicate::In {
+            field,
+            case_insensitive: true,
+            ..
+        } => {
+            if let Some(col_name) =
+                extract_column_name_from_field_path(field, table_name, table_alias)
+            {
+                out.push((col_name, "IIN".to_string()));
+            }
+        }
+        // All other predicate variants (StringOp, Regex, plain In, Between, Cidr,
+        // Has, Missing, IsNull, Wildcard, RecoveryError, future variants): no
+        // Compare operator to check — skip.
         #[allow(unreachable_patterns)]
         _ => {}
     }
