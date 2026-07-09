@@ -54,13 +54,83 @@ timestamp: 2026-07-09T00:00:00Z
 >
 > **D-1615 (2026-07-09): SESSION WRAP — §RESUME SNAPSHOT D-1615 authored (supersedes D-1600). FIX-IEQ-ERRPATH-001 LOCAL cascade 5 passes done, streak 0/3, frozen b4b88f93 (LOCAL-ONLY, ~16 commits; 4 RED tests await implementer). Pass-5 verdict CONTRADICTION confirmed FP-001 VIOLATION. Spec layer committed: BC-2.11.016 v1.13 (SqlPipe head-projection seeding rule + EC-11-059/060/061) + BC-2.11.004 v1.19 + BC-2.11.020 v1.7 + error-taxonomy v2.27 (frontmatter-lag repair) + BC-INDEX v7.65. L21 appended (adversary verdict arithmetic invariant + FP-001 empirical verification). STORY pins FROZEN. STATE v8.214→v8.215. VERY NEXT ACTION: implementer GREEN for EC-11-059..061 → story-writer pin round → state burst D-1616 → freeze b4b88f93 → LOCAL pass 6.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1625 LOCAL pass-14 NOT CLEAN(strict) — streak RESET 0/3; fix-branch 3f2eddd1** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1625 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1615 below is the durable resume snapshot (latest SESSION WRAP; still valid). §RESUME SNAPSHOT D-1600 below that is historical. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `f935edb6` (PR #217 S-PRISMQL-CASE-INSENSITIVE-001 squash-merged 2026-07-08T21:18:56Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.225. D-1625 (LOCAL pass-14 NOT CLEAN(strict) 4 LOW/OBS; streak RESET 0/3; fix-branch 3f2eddd1; VERY NEXT ACTION: freeze 3f2eddd1 → LOCAL adversary pass 15 on FROZEN HEAD 3f2eddd1).
+> **D-1626 (2026-07-09): SESSION WRAP — §RESUME SNAPSHOT D-1626 authored (supersedes D-1615).** FIX-IEQ-ERRPATH-001 LOCAL cascade 14 passes done, streak 0/3, frozen 3f2eddd1 (LOCAL-ONLY, ~33 commits; 5373/5373 GREEN; BC-2.11.016 v1.19 STAGE-JOIN SUSPENSION RULE; BC-INDEX v7.71; STORY-INDEX v2.643; error-taxonomy v2.32). develop@f935edb6 (UNCHANGED). L22 codified (pin-sync adjacent-cell semantic currency). Pass reports local-pass-5..14 in .factory/cycles/wave-5-e-demo-fidelity/FIX-IEQ-ERRPATH-001/adversarial-review/. STATE v8.225→v8.226.
+>
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1626 SESSION WRAP — streak 0/3; fix-branch 3f2eddd1 LOCAL-ONLY; VERY NEXT ACTION = LOCAL adversary pass 15 on frozen 3f2eddd1** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1626 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1626 below is the durable resume snapshot (latest SESSION WRAP). §RESUME SNAPSHOT D-1615 below that is historical. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `f935edb6` (PR #217 S-PRISMQL-CASE-INSENSITIVE-001 squash-merged 2026-07-08T21:18:56Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.226. D-1626 (SESSION WRAP; FIX-IEQ-ERRPATH-001 14 passes streak 0/3; fix-branch 3f2eddd1 LOCAL-ONLY; VERY NEXT ACTION: LOCAL adversary pass 15 on frozen 3f2eddd1).
 
 ---
 
-## §RESUME SNAPSHOT — D-1615 (2026-07-09 — SESSION WRAP; develop origin/develop f935edb6; BC-INDEX v7.65; STORY-INDEX v2.636; ARCH-INDEX v2.174; STATE v8.215; fix-branch b4b88f93 LOCAL-ONLY; FIX-IEQ-ERRPATH-001 cascade 5 passes streak 0/3; VERY NEXT ACTION = implementer GREEN for EC-11-059..061 → story-writer pin round → LOCAL pass 6) [SUPERSEDES D-1600]
+## §RESUME SNAPSHOT — D-1626 (2026-07-09 — SESSION WRAP; develop origin/develop f935edb6; BC-INDEX v7.71; STORY-INDEX v2.643; ARCH-INDEX v2.174; STATE v8.226; fix-branch 3f2eddd1 LOCAL-ONLY; FIX-IEQ-ERRPATH-001 cascade 14 passes streak 0/3; VERY NEXT ACTION = LOCAL adversary pass 15 on frozen 3f2eddd1) [SUPERSEDES D-1615]
+
+### RESUME IN ONE BREATH
+
+Prism Phase-3/Wave-5. FIX-IEQ-ERRPATH-001 LOCAL cascade: 14 passes done, all findings CLOSED, streak 0/3 on frozen fix-branch HEAD 3f2eddd1 (LOCAL-ONLY, clean, 5373/5373, 89/89, BC-2.11.016 v1.19). VERY NEXT ACTION = LOCAL adversary pass 15 on frozen 3f2eddd1 (fresh context, strict, policy rubric + SAP-1 + verdict-arithmetic discipline; no commits to branch between passes) → passes 16/17 to complete BC-5.39.001 3-CLEAN → push branch → pr-manager 9-step fix-PR cycle (closes demo-audit WARN-2 DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 + audit-script 62→70 extension at merge; unblocks T13 capstone).
+
+> **D-1616 (2026-07-09): FIX-IEQ-ERRPATH-001 story pin round COMPLETE + implementer GREEN EC-11-059..061 @fdfa78f2.** 4 carrier stories pinned (BC-2.11.016 v1.13 / BC-2.11.004 v1.19 / BC-2.11.020 v1.7 / error-taxonomy v2.27); implementer compute_sqlpipe_head_binding() helper; 31/31 module GREEN; 5350/5350. STATE v8.215→v8.216.
+>
+> **D-1617 (2026-07-09): FIX-IEQ-ERRPATH-001 pass-6 fix-burst closure.** Pass-6 NOT CLEAN(strict) — 2 MED+1 OBS; all CLOSED same-burst: MIXED-STAR branch (c) EC-11-062..064 BC-2.11.016 v1.14 + FP-001 MIXED-STAR 3 RED @29155063 → GREEN @d983613b + L22 codified (OBS-1 process-gap). SAP-1 PASS. BC-INDEX v7.66. 5353/5353. STATE v8.216→v8.217.
+>
+> **D-1618 (2026-07-09): FIX-IEQ-ERRPATH-001 pass-7 fix-burst closure.** Pass-7 NOT CLEAN(strict) CLEAN(PR-merge)=YES — 1 MED+2 OBS; all CLOSED: SIBLING-GATE CONSISTENCY per-name RAW/DERIVED provenance + FROM-ALIAS threading + FIELDS TRANSITION rule; BC-2.11.016 v1.15 + BC-2.11.017 v1.4 + EC-11-065..068; RED @7f558b59 (7 tests) → GREEN @eafe10c2. SAP-1 PASS (BC-2.16.002 v2.07 3 sites). BC-INDEX v7.67. 5360/5360. STATE v8.217→v8.218.
+>
+> **D-1619 (2026-07-09): FIX-IEQ-ERRPATH-001 pass-8 fix-burst closure.** Pass-8 NOT CLEAN(strict) CLEAN(PR-merge)=YES — 2 OBS (zero CRIT/HIGH/MED; first PR-merge-CLEAN pass): alias-qualified regression locks positions 10-14 @7a2a0f73 (5 locks GREEN first-run) + BC-2.11.016 v1.16 narrative-only (Enrich-bullet gate-ordering note fix). BC-INDEX v7.68. 5365/5365. STATE v8.218→v8.219.
+>
+> **D-1620 (2026-07-09): FIX-IEQ-ERRPATH-001 pass-9 fix-burst closure.** Pass-9 NOT CLEAN(strict) CLEAN(PR-merge)=YES — 1 LOW (novelty LOW; "genuine convergence point"). EC-11-041 single-tenant zero-column gate asymmetry: RED @a1b03ecb (single-tenant fail-open) → GREEN @656bc7a0 is_registered() disambiguation both gate sites. 5367/5367. STATE v8.219→v8.220.
+>
+> **D-1621 (2026-07-09): FIX-IEQ-ERRPATH-001 pass-10 fix-burst closure.** Pass-10 NOT CLEAN(strict) CLEAN(PR-merge)=YES — 1 LOW. Join-qualified un-aliased bare-Field head seeding gap (FP-001 violation). BC-2.11.016 v1.17 LAST-SEGMENT OUTPUT-NAME RULE + EC-11-069. RED @37435264 → GREEN @e5170899 last-segment fallback seeding DERIVED provenance. 4-story pin round. error-taxonomy v2.30. BC-INDEX v7.69. 5369/5369. STATE v8.220→v8.221.
+>
+> **D-1622 (2026-07-09): FIX-IEQ-ERRPATH-001 LOCAL pass-11 CLEAN(strict)=YES CLEAN(PR-merge)=YES — STREAK 1/3 (BC-5.39.001).** ZERO findings all severity. All 14 positions vs BC-2.11.016 v1.17 PASS. SAP-1 PASS. FP-001 probes 1–6 PASS. Trajectory: 6→3→3→2→1→1→0. STATE v8.221→v8.222.
+>
+> **D-1623 (2026-07-09): FIX-IEQ-ERRPATH-001 pass-12 fix-burst closure — STREAK RESET 1/3→0/3.** Pass-12 NOT CLEAN(strict) — 2 LOW. STAR-WITH-JOIN SUSPENSION RULE: branches (a)+(c) set suspended:=true when JOIN non-empty + ≥1 Star/TableStar. BC-2.11.016 v1.18 + EC-11-070/071. RED @bd62d12e → GREEN @09ea9979. BC-INDEX v7.70. 5371/5371. STATE v8.222→v8.223.
+>
+> **D-1624 (2026-07-09): FIX-IEQ-ERRPATH-001 LOCAL pass-13 CLEAN(strict)=YES CLEAN(PR-merge)=YES — STREAK 1/3.** ZERO findings all severity. All BC-2.11.016 v1.18 clauses PASS. Novelty LOW; adversary could not construct any FP-001 trigger. Trajectory: …→0→2(low)→0. STATE v8.223→v8.224.
+>
+> **D-1625 (2026-07-09): FIX-IEQ-ERRPATH-001 pass-14 fix-burst closure — STREAK RESET 1/3→0/3.** Pass-14 NOT CLEAN(strict) — 1 LOW+3 OBS. PipeStage::Join catch-all gap (FP-001 stage-join). BC-2.11.016 v1.19 STAGE-JOIN SUSPENSION RULE + EC-11-072/073. RED @dc81d8b9 → GREEN @3f2eddd1. BC-INDEX v7.71. STORY-INDEX v2.643. error-taxonomy v2.32. 5373/5373. Finding decay 6→3→3→2→1→[0]→2→[0]→4(low/obs). STATE v8.224→v8.225.
+>
+> **D-1626 (2026-07-09): SESSION WRAP — §RESUME SNAPSHOT D-1626 authored (supersedes D-1615).** FIX-IEQ-ERRPATH-001 14 passes done, streak 0/3, frozen 3f2eddd1. STATE v8.225→v8.226.
+
+**STATE v8.226. develop f935edb6 (PUSHED, origin==local). BC-INDEX v7.71. STORY-INDEX v2.643. ARCH-INDEX v2.174. error-taxonomy v2.32. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 228. workspace_test_count 5373 (fix-branch 3f2eddd1 LOCAL-ONLY; develop baseline 5319 @f935edb6). bc_count_corrected 266. [Updated D-1626: SESSION WRAP; FIX-IEQ-ERRPATH-001 14 passes; streak 0/3; fix-branch 3f2eddd1 LOCAL-ONLY]**
+
+**LAST MERGED:** S-PRISMQL-CASE-INSENSITIVE-001 (PR #217 → develop@f935edb6, 2026-07-08; ADR-047 case-insensitive IEQ/IIN/INE operators; 83 RGTs; CWE-117 Unicode Cc hardening; 27/27 ACs; LOCAL 35-pass + PR-LEVEL 8-pass 3-CLEAN CONVERGED).
+
+**MERGED BEFORE THAT:** S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (PR #216 → develop@ea714d14, 2026-07-06). PR #218 maintenance/rustsec-crossbeam-epoch → develop@7b1f6c51 (2026-07-08; RUSTSEC-2026-0204 resolved).
+
+**OPEN PRs:** NONE (FIX-IEQ-ERRPATH-001 pre-PR; will open after 3-CLEAN LOCAL convergence).
+
+**HEADS:** develop f935edb6 (PUSHED, origin==local); factory-artifacts = this session-wrap burst commit (PUSHED); fix/IEQ-nonexistent-column-errpath @ 3f2eddd1 (LOCAL-ONLY, ~33 commits; 5373/5373 GREEN; BC-2.11.016 v1.19; cannot push until LOCAL 3-CLEAN converged). Parked: S-3.09 @43c41389 (local-only, backup/S-3.09-preresume-43c41389) + W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit + ~1070 lines uncommitted write_dispatch_tests.rs — do NOT touch).
+
+**OPEN FIX-CASCADE:** FIX-IEQ-ERRPATH-001 — fix-branch 3f2eddd1 (LOCAL-ONLY). CLOSES: DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 + audit-script 62→70 extension (DRIFT-AUDIT-SCRIPT-UNCOMMITTED-001 at merge). 14 passes done; streak 0/3 (pass-14 NOT CLEAN(strict) 4 LOW/OBS on frozen 09ea9979; fix-burst @3f2eddd1 closed all 4). Pass files: .factory/cycles/wave-5-e-demo-fidelity/FIX-IEQ-ERRPATH-001/adversarial-review/. BC-2.11.016 v1.19. RESUME NEXT-ACTION: freeze 3f2eddd1 → LOCAL adversary pass 15 on FROZEN HEAD 3f2eddd1 (fresh context, strict; NO commits to fix branch per DRIFT-ORCH-PRLEVEL-PUSH-001); 3 consecutive CLEAN(strict) passes required (15/16/17) → push branch → open fix-PR via pr-manager.
+
+**WORKTREES:**
+- `.worktrees/FIX-IEQ-ERRPATH-001` ACTIVE on `fix/IEQ-nonexistent-column-errpath` @ 3f2eddd1 (LOCAL-ONLY; do NOT push until LOCAL 3-CLEAN converged)
+- `.worktrees/S-3.09` PARKED on `feature/S-3.09` @ 43c41389 (local-only; backup `backup/S-3.09-preresume-43c41389`; DRIFT-PARKED-S309-001; awaiting human decision)
+- `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ fcab8717 (local-only; 1 unpushed commit + ~1070 lines uncommitted `write_dispatch_tests.rs`; DRIFT-PARKED-W3FIX-S307-001; do NOT touch without human approval)
+
+**PENDING-HUMAN:**
+1. **S-3.09 decision (DRIFT-PARKED-S309-001):** resume vs keep-parked vs abandon. Branch `feature/S-3.09` @43c41389 local-only.
+2. **W3-FIX-S307-001 decision (DRIFT-PARKED-W3FIX-S307-001):** resume/commit-and-continue vs stash vs abandon. ~1070 lines uncommitted write_dispatch_tests.rs.
+3. **E-OCSF-005..023 taxonomy gap (DRIFT-EOCSF-GAP-005-023-001):** triage/prioritize. 19 codes absent from error-taxonomy.md.
+
+**PENDING USER-APPROVED WORK:** FIX-IEQ-ERRPATH-001 delivery under D-989 autonomy (wave-5 fix-PR). No other work authorized.
+
+**DEMO STATUS:** Demo audit DEMO-READY 68/70 (artifact: .factory/research/demo-comprehensive-preflight-audit-2026-07-08.md). WARN-1 FIXED (runbook literals + cyberint status adjudication). WARN-2 → FIX-IEQ-ERRPATH-001 (fix-in-cascade; unblocks at merge). T13 capstone blocked until cascade merges.
+
+**DECISION DELTA (since last wrap D-1615):** D-1616..D-1626 this session — passes 6-14 executed; BC-2.11.016 v1.13→v1.19 (MIXED-STAR branch(c) + SIBLING-GATE CONSISTENCY provenance + FROM-ALIAS + FIELDS TRANSITION + LAST-SEGMENT OUTPUT-NAME RULE + STAR-WITH-JOIN SUSPENSION RULE + STAGE-JOIN SUSPENSION RULE); BC-2.11.017 v1.4→v1.7; BC-2.11.020 v1.7→v1.12; BC-2.11.004 v1.19→v1.24; error-taxonomy v2.27→v2.32; BC-INDEX v7.65→v7.71; STORY-INDEX v2.636→v2.643. L22 codified (pin-sync adjacent-cell semantic currency). workspace_test_count 5350→5373 (EC-11-059..073 gate expansion + suspension rules).
+
+**RESUME PROTOCOL:**
+1. Run vsdd-factory:factory-worktree-health (BLOCKING).
+2. `git log --oneline -1 origin/develop` → expect `f935edb6`.
+3. `git -C .worktrees/FIX-IEQ-ERRPATH-001 log --oneline -1` → expect `3f2eddd1` (FROZEN, do NOT commit).
+4. Dispatch LOCAL adversary pass 15 on frozen 3f2eddd1 (fresh context, strict, policy rubric loaded from .factory/policies.yaml + SAP-1 + verdict-arithmetic discipline; read pass files in .factory/cycles/wave-5-e-demo-fidelity/FIX-IEQ-ERRPATH-001/adversarial-review/; BC-2.11.016 v1.19 authoritative).
+5. If CLEAN(strict) → passes 16/17 on SAME frozen HEAD to complete BC-5.39.001 3-CLEAN; any finding → route per feedback table, fix-burst (implementer in worktree), re-freeze HEAD, RESET streak.
+6. On 3-CLEAN: push fix/IEQ-nonexistent-column-errpath branch to origin → dispatch pr-manager full 9-step PR cycle targeting develop (closes DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 + DRIFT-AUDIT-SCRIPT-UNCOMMITTED-001; audit-script 62→70 extension at merge; unblocks T13 capstone).
+7. Surface PENDING-HUMAN items 1-3 before touching parked worktrees.
+8. Autonomy D-989 active.
+
+---
+
+## §RESUME SNAPSHOT — D-1615 (2026-07-09 — SESSION WRAP; develop origin/develop f935edb6; BC-INDEX v7.65; STORY-INDEX v2.636; ARCH-INDEX v2.174; STATE v8.215; fix-branch b4b88f93 LOCAL-ONLY; FIX-IEQ-ERRPATH-001 cascade 5 passes streak 0/3; VERY NEXT ACTION = implementer GREEN for EC-11-059..061 → story-writer pin round → LOCAL pass 6) [SUPERSEDES D-1600] [SUPERSEDED by D-1626]
 
 ### RESUME IN ONE BREATH
 
