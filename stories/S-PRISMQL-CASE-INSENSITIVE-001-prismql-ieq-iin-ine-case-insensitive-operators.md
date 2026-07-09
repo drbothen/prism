@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.46"
+version: "1.47"
 updated: "2026-07-09"
 status: merged
 producer: story-writer
@@ -71,7 +71,7 @@ behavioral_contracts:
 #     postcondition, invariant, or error case.
 #   BC-2.11.002 v1.6 (active, amended): filter-mode parsing now includes IEQ/IIN/INE in
 #     the supported operator table. AC-001/AC-004/AC-012 exercise the filter-mode path.
-#   BC-2.11.004 v1.22 (active, amended): pipe-mode | where stage now supports IEQ/IIN/INE
+#   BC-2.11.004 v1.23 (active, amended): pipe-mode | where stage now supports IEQ/IIN/INE
 #     via shared filter grammar per ADR-046 D7. AC-013 exercises the pipe-mode path.
 #   BC-2.11.018 v1.3 (active, amended): normalized_pql echo now reflects IEQ/IIN/INE
 #     predicates in uppercase canonical form (EC-11-057 added). AC-014/AC-015 exercise this.
@@ -168,7 +168,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | BC-2.11.024 | v1.4 | PrismQL Case-Insensitive Equality and Membership Operators (IEQ / IIN / INE) | New operator syntax; DataFusion lower() lowering; case-sensitive operators unchanged; normalized_pql round-trip; IEQ superset invariant; IIN non-empty invariant; E-QUERY-001 (non-string RHS, empty list, SQL-mode rejection); E-QUERY-002 (non-string column); Mode-Boundary Enforcement (SQL-mode IEQ/IIN/INE rejection for ALL raw-SQL incl. DML WHERE + INSERT...SELECT) |
 | BC-2.02.013 | v1.9 | Adapter-Boundary OCSF Enum-Label Canonical-Case Normalization | PRIMARY insertion point: `build_column_array` in `spec_driven_adapter.rs` (architect adjudication F-CRIT-002); SECONDARY: `normalize_with_mappers` (DynamicMessage path); severity + status guaranteed; all OCSF enum-label fields; idempotent; 50-codepoint value+sensor_type cap with warn; empty-string bypass EC-02-028; unrecognized values as-received + warning; GROUP BY aggregation consistency; enum_map.rs as sole casing authority |
 | BC-2.11.002 | v1.6 | PrismQL Filter Mode Parsing | Amended: IEQ/IIN/INE added to supported filter-mode operator table |
-| BC-2.11.004 | v1.22 | PrismQL Pipe Mode | Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7) |
+| BC-2.11.004 | v1.23 | PrismQL Pipe Mode | Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7) |
 | BC-2.11.018 | v1.3 | normalized_pql Echo | Amended: EC-11-057 added — IEQ/IIN/INE predicates reflected in uppercase canonical form in normalized_pql; round-trip invariant extended |
 | BC-2.02.002 | v1.5 | DynamicMessage Creation | Amended: normalization applied BEFORE DynamicMessage creation; postconditions updated to state this explicitly |
 | BC-2.02.010 | v1.5 | OCSF Enum Value Map | Amended: enum_map.rs authority extends to adapter-boundary normalization, not only MCP display enrichment |
@@ -186,7 +186,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | BC-2.11.024 v1.4 | ~3,000 |
 | BC-2.02.013 v1.9 | ~2,500 |
 | BC-2.11.002 v1.6 (relevant filter-mode sections) | ~1,500 |
-| BC-2.11.004 v1.22 (relevant pipe-mode sections) | ~1,500 |
+| BC-2.11.004 v1.23 (relevant pipe-mode sections) | ~1,500 |
 | BC-2.11.018 v1.3 (normalized_pql section) | ~1,000 |
 | BC-2.02.002 v1.5, BC-2.02.010 v1.5 (amended sections) | ~2,000 |
 | BC-2.10.012 v1.9 (example_query + example_note contract) | ~1,000 |
@@ -404,7 +404,7 @@ Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_case_sensitive_eq_returns_zero_on
 ### AC-013b — IEQ/IIN available in pipe-mode | where stage
 (traces to BC-2.11.024 v1.4 invariant: "IEQ/IIN/INE are valid in filter mode and in
 pipe-mode | where stages (shared grammar invariant, BC-2.11.023)";
-BC-2.11.004 v1.22 amendment)
+BC-2.11.004 v1.23 amendment)
 
 Given `FROM crowdstrike_detections | where severity IEQ 'high' | head 5`,
 when parsed and executed,
@@ -610,7 +610,7 @@ then the result is `Err(E-QUERY-002 QueryTypeMismatch)` with a Display message c
 - the suggestion: "for label comparison, use the string column 'severity' with IEQ/IIN/INE
   instead" (because `severity_id` is a known OCSF integer-id field; `PrismError::QueryTypeMismatch`
   carries `suggested_column: Some("severity")` per the OCSF sibling lookup contract in
-  error-taxonomy.md v2.30 §E-QUERY-002)
+  error-taxonomy.md v2.31 §E-QUERY-002)
 
 The full Display for this case must be:
   "E-QUERY-002: type mismatch — column 'severity_id' in table '<table>' has type 'Integer'
@@ -1672,6 +1672,7 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.47 | 2026-07-09 | **pin-sync BC-2.11.016 v1.18 / BC-2.11.017 v1.6 / BC-2.11.020 v1.11 / BC-2.11.004 v1.23 / error-taxonomy v2.31 (STAR-WITH-JOIN SUSPENSION RULE, ADV-FIX-P12-OBS-002) + semantic-cell currency (FIX-IEQ-ERRPATH-001 pass-12 story pin round). BC-2.11.004 v1.22→v1.23: four live sites updated — (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row; (4) AC-013b trace. error-taxonomy v2.30→v2.31: one live site (AC-022 body). Semantic-cell currency: BC-2.11.004 Key Clauses cell ("Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7)") verified CURRENT — STAR-WITH-JOIN SUSPENSION RULE is a BC-2.11.016 head-projection binding rule, not a pipe-mode IEQ amendment; no Key Clauses extension needed. BC-2.11.016, BC-2.11.017, and BC-2.11.020 not cited in this story. AC semantics UNCHANGED. Frontmatter version 1.46→1.47; updated 2026-07-09 (POL-23).** |
 | v1.46 | 2026-07-09 | **pin-sync BC-2.11.016 v1.17 / BC-2.11.017 v1.5 / BC-2.11.020 v1.10 / BC-2.11.004 v1.22 / error-taxonomy v2.30 (LAST-SEGMENT rule, ADV-FIX-P10-OBS-001) + semantic-cell currency (FIX-IEQ-ERRPATH-001 pass-10 story pin round). BC-2.11.004 v1.21→v1.22: four live sites updated — (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row; (4) AC-013b trace. error-taxonomy v2.29→v2.30: one live site (AC-022 body). Semantic-cell currency: BC-2.11.004 Key Clauses cell ("Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7)") verified CURRENT — LAST-SEGMENT OUTPUT-NAME RULE is a BC-2.11.016 binding rule, not a pipe-mode IEQ amendment; no Key Clauses extension needed. BC-2.11.016, BC-2.11.017, and BC-2.11.020 not cited in this story. AC semantics UNCHANGED. Frontmatter version 1.45→1.46; updated 2026-07-09 (POL-23).** |
 | v1.45 | 2026-07-09 | **pin-sync to BC-2.11.016 v1.15 / BC-2.11.017 v1.4 / BC-2.11.020 v1.9 / BC-2.11.004 v1.21 / error-taxonomy v2.29 + semantic-cell currency (FIX-IEQ-ERRPATH-001 pass-7 fix round). BC-2.11.004 v1.20→v1.21: four live sites updated — (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row; (4) AC-013b trace. error-taxonomy v2.28→v2.29: one live site (AC-022 body). BC-2.11.004 Key Clauses cell ("Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7)") verified CURRENT (v1.21 is pin-only companion to BC-2.11.016 v1.15; no behavioral change). BC-2.11.016, BC-2.11.017, and BC-2.11.020 not cited in this story. AC semantics UNCHANGED. Frontmatter version 1.44→1.45; updated 2026-07-09 (POL-23).** |
 | v1.44 | 2026-07-09 | **pin-sync to BC-2.11.016 v1.14 / BC-2.11.004 v1.20 / BC-2.11.020 v1.8 / error-taxonomy v2.28 + Key Clauses semantic refresh (closes ADV-FIX-P6-MED-001/OBS-001). BC-2.11.004 v1.19→v1.20: four live sites updated — (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row; (4) AC-013b trace. error-taxonomy v2.27→v2.28: one live site (AC-022 body). BC-2.11.004 Key Clauses cell ("Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7)") verified CURRENT (v1.20 was a pin-only update; no behavioral change). BC-2.11.016 and BC-2.11.020 not cited in this story. AC semantics UNCHANGED. Frontmatter version 1.43→1.44; updated 2026-07-09 (POL-23).** |
