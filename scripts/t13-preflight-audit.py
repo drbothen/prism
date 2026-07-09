@@ -1280,8 +1280,12 @@ def run_audit():
                     f"PASS: {len(rows)} rows; distinct severities={distinct_sev!r}"
                 )
             else:
+                # NB-2: FAIL (not WARN) — the demo environment contract guarantees
+                # cyberint_alerts has High/Critical severity rows at Stage 4. 0 rows
+                # means the IIN operator failed to match existing data.
                 results["[G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)"] = (
-                    "WARN: 0 rows — cyberint may not have 'High'/'Critical' alerts at current scenario stage"
+                    "FAIL: 0 rows — demo environment guarantees cyberint High/Critical data at "
+                    "Stage 4; IIN operator likely not working or data absent"
                 )
 
         # ── G3: IIN on status lowercase: status IIN ('new', 'in progress') ─────
@@ -1304,8 +1308,12 @@ def run_audit():
                     f"PASS: {len(rows)} rows; distinct statuses={distinct_status!r}"
                 )
             else:
+                # NB-2: FAIL (not WARN) — the demo environment contract guarantees
+                # cyberint_alerts has 'New'/'In Progress' status rows at Stage 4.
+                # 0 rows means IIN failed to match existing data.
                 results["[G3] IIN: status IIN ('new','in progress') (cyberint_alerts, org-c)"] = (
-                    "WARN: 0 rows — no 'New'/'In Progress' status alerts at current scenario stage"
+                    "FAIL: 0 rows — demo environment guarantees cyberint New/In-Progress status "
+                    "data at Stage 4; IIN operator likely not working or data absent"
                 )
 
         # ── G4: SQL-mode IEQ rejection -> E-QUERY-001 (not opaque E-QUERY-034) ─
@@ -1323,14 +1331,23 @@ def run_audit():
             msg = body.get("message", "")
             if ec == "E-QUERY-001":
                 mentions_operator = any(op in msg.upper() for op in ("IEQ", "IIN", "INE"))
-                mentions_mode = any(kw in msg.lower() for kw in ("filter", "pipe", "|", "sql mode", "sql-mode", "sql"))
+                # NB-3 fix: use the canonical message anchor from error-taxonomy v2.34 /
+                # sql_parser.rs: "(IEQ/IIN/INE) are not supported in SQL mode. Use filter mode"
+                # The old heuristic used '"|" in msg.lower()' which could spuriously match
+                # any unrelated pipe character in the error text. Replaced with a byte-precise
+                # anchor: "not supported in sql mode" is deterministically present in every
+                # E-QUERY-001 IEQ SQL-mode rejection (sql_parser.rs lines 225, 257, 1198, 1212).
+                mentions_mode = "not supported in sql mode" in msg.lower()
                 if mentions_operator and mentions_mode:
                     results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = (
-                        f"PASS: E-QUERY-001; message names IEQ/IIN/INE and references filter/pipe mode: {msg[:120]!r}"
+                        f"PASS: E-QUERY-001; message names IEQ/IIN/INE and canonical anchor "
+                        f"'not supported in sql mode' confirmed: {msg[:120]!r}"
                     )
                 else:
                     results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = (
-                        f"PASS (partial): E-QUERY-001 returned; message pedagogical quality unconfirmed: {msg[:120]!r}"
+                        f"FAIL (partial): E-QUERY-001 returned but canonical message anchor "
+                        f"missing (operator_named={mentions_operator}, "
+                        f"mode_anchor_found={mentions_mode}): {msg[:120]!r}"
                     )
             elif ec == "E-QUERY-034":
                 results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = (
@@ -1365,10 +1382,15 @@ def run_audit():
                     f"PASS: E-QUERY-002; string-sibling suggestion={'YES' if has_suggestion else 'NO (check message)'}: {msg[:120]!r}"
                 )
             elif ec == "E-QUERY-038":
-                # Column not present — note and skip, not a FAIL of the IEQ feature itself
+                # NB-2 justified WARN: severity_id is not a guaranteed column in
+                # cyberint_alerts. The OCSF integer ordinal severity_id is sensor-schema
+                # optional; cyberint exposes 'severity' (string label) not 'severity_id'
+                # (integer ordinal). If absent, the E-QUERY-002 typed-guidance path is
+                # not exercisable via this column — WARN is honest here.
                 results["[G5] E-QUERY-002: IEQ on integer column -> typed guidance"] = (
-                    f"WARN: E-QUERY-038 — severity_id column absent from cyberint_alerts; "
-                    f"E-QUERY-002 path not exercisable via this column: {msg[:80]!r}"
+                    f"WARN: E-QUERY-038 — severity_id column absent from cyberint_alerts "
+                    f"(OCSF integer ordinal; optional for this sensor); E-QUERY-002 typed "
+                    f"guidance path not exercisable via this sensor: {msg[:80]!r}"
                 )
             elif ec:
                 results["[G5] E-QUERY-002: IEQ on integer column -> typed guidance"] = (
@@ -1417,8 +1439,13 @@ def run_audit():
                         f"PASS: {len(rows)} distinct buckets; all canonical Title-case: {sorted(severities)!r}"
                     )
             else:
+                # NB-2: FAIL (not WARN) — the demo environment guarantees CS detections
+                # exist at Stage 1+; 0 rows from GROUP BY severity means either no data
+                # (schema/DTU failure) or all severity values are NULL.
                 results["[G6] GROUP BY severity no-fragmentation (canonical Title-case)"] = (
-                    "WARN: 0 rows from GROUP BY severity — no data to validate casing"
+                    "FAIL: 0 rows from GROUP BY severity — demo environment guarantees "
+                    "crowdstrike_detections data at Stage 1+; indicates schema/DTU failure "
+                    "or all severity values NULL"
                 )
 
         # ── G7: Temporal typing spot-check — no regression (ADR-052 §D4, PR #214) ─
@@ -1442,24 +1469,65 @@ def run_audit():
                     "FROM crowdstrike_detections\n| where created_timestamp > '2020-01-01T00:00:00Z'\n| limit 3",
                     ["org-c"])
                 if err2 or body2.get("error_code"):
+                    # NB-2: FAIL (not WARN) — both claroty_audit_logs.timestamp and
+                    # crowdstrike_detections.created_timestamp are guaranteed Datetime
+                    # columns in the demo schema; both absent means a schema/DTU failure.
+                    err2_msg = (err2 or f"{body2.get('error_code')}: {body2.get('message','')[:60]}")
                     results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
-                        f"WARN: timestamp column absent in both attempts; ADR-052 §D4 regression cannot be confirmed"
+                        f"FAIL: timestamp column absent in both claroty_audit_logs and "
+                        f"crowdstrike_detections — demo schema must have at least one Datetime "
+                        f"column; ADR-052 §D4 regression cannot be confirmed (err={err2_msg!r})"
                     )
                 else:
                     rows2 = body2.get("rows", [])
-                    results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
-                        f"PASS: claroty_audit_logs.timestamp absent; fallback crowdstrike_detections.created_timestamp "
-                        f"> '2020-01-01T00:00:00Z' returned {len(rows2)} rows — ADR-052 §D4 RFC-3339 coercion active"
-                    )
+                    # NB-2 G7 filter verification: confirm the datetime filter actually
+                    # restricts results by running a far-future date that must return 0 rows.
+                    body_future, err_future = query(proc,
+                        "FROM crowdstrike_detections\n| where created_timestamp > '9999-12-31T23:59:59Z'\n| limit 3",
+                        ["org-c"])
+                    future_rows = body_future.get("rows", []) if not err_future and not body_future.get("error_code") else None
+                    filter_verified = future_rows is not None and len(future_rows) == 0
+                    if not filter_verified:
+                        future_note = (f"err={err_future}" if err_future
+                                       else f"ec={body_future.get('error_code')}" if body_future.get("error_code")
+                                       else f"returned {len(future_rows)} rows (expected 0)")
+                        results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                            f"FAIL: filter verification failed — future-date '9999-12-31T23:59:59Z' "
+                            f"did not return 0 rows ({future_note}); datetime filter may not be working"
+                        )
+                    else:
+                        results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                            f"PASS: claroty_audit_logs.timestamp absent; fallback "
+                            f"crowdstrike_detections.created_timestamp > '2020-01-01T00:00:00Z' returned "
+                            f"{len(rows2)} rows; filter verified (future-date '9999-12-31T23:59:59Z' → 0 rows) "
+                            f"— ADR-052 §D4 RFC-3339 coercion active"
+                        )
             else:
                 results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
                     f"FAIL: {ec}: {msg[:100]!r}"
                 )
         else:
             rows = body.get("rows", [])
-            results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
-                f"PASS: {len(rows)} rows — RFC-3339 datetime literal accepted (ADR-052 §D4 lenient-parse active; no regression)"
-            )
+            # NB-2 G7 filter verification: confirm the datetime filter actually restricts
+            # results by asserting a far-future date returns 0 rows.
+            body_future2, err_future2 = query(proc,
+                "FROM claroty_audit_logs\n| where timestamp > '9999-12-31T23:59:59Z'\n| limit 3",
+                ["org-c"])
+            future_rows2 = body_future2.get("rows", []) if not err_future2 and not body_future2.get("error_code") else None
+            filter_verified2 = future_rows2 is not None and len(future_rows2) == 0
+            if not filter_verified2:
+                future_note2 = (f"err={err_future2}" if err_future2
+                                else f"ec={body_future2.get('error_code')}" if body_future2.get("error_code")
+                                else f"returned {len(future_rows2)} rows (expected 0)")
+                results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                    f"FAIL: filter verification failed — future-date '9999-12-31T23:59:59Z' "
+                    f"did not return 0 rows ({future_note2}); datetime filter may not be working"
+                )
+            else:
+                results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                    f"PASS: {len(rows)} rows for past-date filter; future-date '9999-12-31T23:59:59Z' "
+                    f"→ 0 rows (filter verified) — RFC-3339 literal accepted (ADR-052 §D4; no regression)"
+                )
 
         # ── G8: Typed enrichment output — threat_score is Int64 (ADR-051, PR #216) ─
         # Regression check: before PR #216 (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001), the
@@ -1504,8 +1572,14 @@ def run_audit():
                             f"FAIL: threat_score has unexpected type={type(ts).__name__}, value={ts_str[:80]!r}"
                         )
             else:
+                # NB-2: FAIL (not WARN) — the demo environment contract guarantees
+                # cyberint_alerts has iocs_value_first data at Stage 3+ (Stage 4 is
+                # the demo baseline). 0 rows means the DTU data is missing or the
+                # filter eliminated all rows unexpectedly.
                 results["[G8] ADR-051 regression: threat_score output is Int64 not JSON-string"] = (
-                    "WARN: 0 rows returned — iocs_value_first null at current scenario stage (need Stage 3+)"
+                    "FAIL: 0 rows returned after iocs_value_first IS NOT NULL filter — "
+                    "demo environment guarantees Stage 3+ data at demo baseline (Stage 4); "
+                    "check DTU data availability"
                 )
 
     finally:

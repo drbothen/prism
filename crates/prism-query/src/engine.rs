@@ -30,6 +30,7 @@
 
 use std::sync::{Arc, Mutex};
 
+use prism_core::error::sanitize_for_log;
 use prism_core::{OrgSlug, PrismError, SensorId};
 use prism_credentials::CredentialStore;
 use prism_ocsf::OcsfNormalizer;
@@ -2282,8 +2283,9 @@ fn check_column_availability(
             return Ok(());
         }
         // did_you_mean: same ≤3 Levenshtein threshold as multi-tenant path.
-        // F-PHL1-MED-001: cap `column_name` at 128 bytes (SEC-002 / CWE-407)
-        // before the O(m×n) Levenshtein computation.
+        // F-PHL1-MED-001: cap `column_name` at 128 bytes for Levenshtein input only (CWE-407
+        // Algorithmic Complexity DoS guard). This cap bounds the did_you_mean computation
+        // only; it does NOT cap the column_name in the error response or log field.
         let column_name_capped = crate::table_registry::cap_name_for_levenshtein(column_name);
         let did_you_mean = available_columns
             .iter()
@@ -2291,9 +2293,13 @@ fn check_column_availability(
             .filter(|(_, dist)| *dist <= 3)
             .min_by_key(|(name, dist)| (*dist, name.clone()))
             .map(|(c, _)| c);
+        // SEC-FIND-001 (CWE-117): sanitize user-supplied column_name before structured log
+        // emission — strip Unicode Cc + U+2028/U+2029 (same pattern as infusion_udf.rs
+        // `warn_coercion_failed` per TD-VSDD-060 sibling-sweep).
+        let safe_column_name = sanitize_for_log(column_name);
         tracing::warn!(
             event_type = "column_not_found.rejected",
-            column = %column_name,
+            column = %safe_column_name,
             table = %table_name,
             client_id = %client_id,
             available_count = available_columns.len(),
@@ -2385,8 +2391,9 @@ fn check_column_availability(
     // BC-2.11.016 AC-001 — multi-client queries iterate HashMap in non-deterministic order.)
     // After sort+dedup above, `available_columns` is already in stable lex order, so the
     // tie-break by name in `min_by_key` is now redundant but retained for clarity.
-    // F-PHL1-MED-001: cap `column_name` at 128 bytes (SEC-002 / CWE-407)
-    // before the O(m×n) Levenshtein computation — multi-tenant path.
+    // F-PHL1-MED-001: cap `column_name` at 128 bytes for Levenshtein input only (CWE-407
+    // Algorithmic Complexity DoS guard) — multi-tenant path. Does NOT cap the column_name
+    // in the error response or log field.
     let column_name_capped_mt = crate::table_registry::cap_name_for_levenshtein(column_name);
     let did_you_mean = available_columns
         .iter()
@@ -2395,10 +2402,13 @@ fn check_column_availability(
         .min_by_key(|(name, dist)| (*dist, name.clone()))
         .map(|(c, _)| c);
 
+    // SEC-FIND-001 (CWE-117): sanitize user-supplied column_name before structured log
+    // emission — strip Unicode Cc + U+2028/U+2029 (TD-VSDD-060 sibling-sweep).
     // Emit audit tracing event per SAP-1 / PG-LP11-001.
+    let safe_column_name_mt = sanitize_for_log(column_name);
     tracing::warn!(
         event_type = "column_not_found.rejected",
-        column = %column_name,
+        column = %safe_column_name_mt,
         table = %table_name,
         client_id = %client_id,
         available_count = available_columns.len(),
@@ -2976,9 +2986,12 @@ fn check_column_against_available_set(
         .filter(|(_, dist)| *dist <= 3)
         .min_by_key(|(name, dist)| (*dist, name.clone()))
         .map(|(c, _)| c);
+    // SEC-FIND-001 (CWE-117): sanitize user-supplied column_name before structured log
+    // emission — strip Unicode Cc + U+2028/U+2029 (TD-VSDD-060 sibling-sweep).
+    let safe_column_name_bc = sanitize_for_log(column_name);
     tracing::warn!(
         event_type = "column_not_found.rejected",
-        column = %column_name,
+        column = %safe_column_name_bc,
         table = %table_name,
         client_id = %client_id,
         available_count = available_columns.len(),
@@ -14177,5 +14190,85 @@ mod f_p24_med001_valid_operators_ci_tests {
                 ops
             );
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SEC-FIND-001 / CWE-117 — column_not_found.rejected log sanitization
+//
+// Verifies that control characters in user-supplied column names are stripped
+// before they reach the `column_not_found.rejected` tracing::warn! structured
+// log field. Uses `sanitize_for_log` (same function as infusion_udf.rs
+// `warn_coercion_failed`, closing the sibling-site gap per TD-VSDD-060).
+// ─────────────────────────────────────────────────────────────────────────────
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
+    use prism_core::error::sanitize_for_log;
+
+    /// SEC-FIND-001 (CWE-117) RED GATE — `sanitize_for_log` strips Unicode Cc characters
+    /// and line-separator codepoints from column names before they reach structured log
+    /// fields in all three `column_not_found.rejected` emission sites.
+    ///
+    /// Injection vectors validated:
+    /// - SOH (U+0001): canonical ASCII control character log-injection vector
+    /// - LF  (U+000A): newline — classic log-splitting vector
+    /// - CR  (U+000D): carriage return
+    /// - NEL (U+0085): C1 control — Unicode newline equivalent
+    /// - U+2028: LINE SEPARATOR — JSON-embedded newline in some consumers
+    /// - U+2029: PARAGRAPH SEPARATOR
+    ///
+    /// Verifies the function used at all three sites before `tracing::warn!`:
+    /// - `sanitize_for_log(column_name)` → single-tenant path
+    /// - `sanitize_for_log(column_name)` → multi-tenant path
+    /// - `sanitize_for_log(column_name)` → binding-context path
+    ///
+    /// Traces to: SEC-FIND-001 (PR #219 review), CWE-117, TD-VSDD-060.
+    #[test]
+    fn test_sec_find_001_cwe117_sanitize_for_log_strips_control_chars_from_column_name() {
+        // ASCII control characters — canonical CWE-117 injection vectors.
+        assert_eq!(
+            sanitize_for_log("my_col\x01injected"),
+            "my_colinjected",
+            "SEC-FIND-001: SOH (U+0001) must be stripped from column_name before log emission"
+        );
+        assert_eq!(
+            sanitize_for_log("my_col\njected"),
+            "my_coljected",
+            "SEC-FIND-001: LF (U+000A) must be stripped from column_name before log emission"
+        );
+        assert_eq!(
+            sanitize_for_log("my_col\rjected"),
+            "my_coljected",
+            "SEC-FIND-001: CR (U+000D) must be stripped from column_name before log emission"
+        );
+        // C1 controls (U+0085 NEL) — strip per ADV-PR-P5-OBS-001.
+        assert_eq!(
+            sanitize_for_log("col\u{0085}name"),
+            "colname",
+            "SEC-FIND-001: NEL (U+0085) must be stripped from column_name before log emission"
+        );
+        // Unicode line/paragraph separators — strip per ADV-PR-P5-OBS-001.
+        assert_eq!(
+            sanitize_for_log("col\u{2028}name"),
+            "colname",
+            "SEC-FIND-001: U+2028 LINE SEPARATOR must be stripped from column_name"
+        );
+        assert_eq!(
+            sanitize_for_log("col\u{2029}name"),
+            "colname",
+            "SEC-FIND-001: U+2029 PARAGRAPH SEPARATOR must be stripped from column_name"
+        );
+        // Normal identifiers must pass through unchanged.
+        assert_eq!(
+            sanitize_for_log("device_id"),
+            "device_id",
+            "SEC-FIND-001: plain ASCII column name must not be modified"
+        );
+        assert_eq!(
+            sanitize_for_log("severity_CRÍTICO"),
+            "severity_CRÍTICO",
+            "SEC-FIND-001: valid Unicode letters must not be stripped"
+        );
     }
 }
