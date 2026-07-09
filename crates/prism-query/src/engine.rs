@@ -2422,6 +2422,7 @@ fn check_query_column_availability(
             check_pipe_stage_columns(
                 &pq.stages,
                 &table_name,
+                None, // Ast::Pipe: no FROM-alias (pure pipe source, no SQL head)
                 client_id,
                 org_scope,
                 resolved_spec_map,
@@ -2657,6 +2658,7 @@ fn check_query_column_availability(
         check_pipe_stage_columns(
             &spq.stages,
             &table_name,
+            from_alias, // BC-2.11.016 v1.15 FROM-ALIAS RESOLUTION: thread declared alias to stage walk
             client_id,
             org_scope,
             resolved_spec_map,
@@ -2811,7 +2813,7 @@ fn compute_sqlpipe_head_binding(
     // Raw schema columns for this table/org — used by MIXED-STAR branch (c) to seed the
     // union base. May be None when no schema source is available (→ fail-open via None return).
     schema_cols: Option<&[String]>,
-) -> Option<(Vec<String>, bool)> {
+) -> Option<(Vec<String>, std::collections::HashSet<String>, bool)> {
     use crate::ast::{Expr, SelectItem};
 
     let has_star = head
@@ -2841,6 +2843,10 @@ fn compute_sqlpipe_head_binding(
             }
         };
         let mut available: Vec<String> = base;
+        // SIBLING-GATE CONSISTENCY (BC-2.11.016 v1.15): track which names are DERIVED
+        // (explicit AS aliases). Schema-columns (star component), bare fields, and GROUP BY
+        // keys are RAW. Only explicit aliases are DERIVED.
+        let mut derived: std::collections::HashSet<String> = std::collections::HashSet::new();
         let mut suspended = false;
 
         for item in &head.select.items {
@@ -2849,10 +2855,12 @@ fn compute_sqlpipe_head_binding(
                 SelectItem::Star | SelectItem::TableStar(_) => {}
 
                 // Explicit AS alias — the alias is the output name regardless of the expression.
+                // The alias is DERIVED: its type is not the raw schema type for that name.
                 SelectItem::Expr {
                     alias: Some(alias), ..
                 } => {
                     available.push(alias.clone());
+                    derived.insert(alias.clone()); // DERIVED: SqlPipe head alias
                 }
 
                 // Un-aliased bare Field — the output name is the column name itself.
@@ -2866,6 +2874,7 @@ fn compute_sqlpipe_head_binding(
                         extract_column_name_from_field_path(fp, table_name, from_alias)
                     {
                         available.push(col);
+                        // RAW: un-aliased bare field; its name IS the schema column name.
                     }
                 }
 
@@ -2887,6 +2896,7 @@ fn compute_sqlpipe_head_binding(
         }
 
         // GROUP BY bare-field names (grouping keys always present in aggregate result).
+        // RAW: GROUP BY keys are schema column names.
         for expr in &head.group_by {
             if let Expr::Field(fp) = expr {
                 if let Some(col) = extract_column_name_from_field_path(fp, table_name, from_alias) {
@@ -2897,11 +2907,14 @@ fn compute_sqlpipe_head_binding(
 
         available.sort();
         available.dedup();
-        return Some((available, suspended));
+        return Some((available, derived, suspended));
     }
 
     // Branch (b): fully-explicit SELECT (no Star/TableStar items).
     let mut available: Vec<String> = Vec::new();
+    // SIBLING-GATE CONSISTENCY (BC-2.11.016 v1.15): explicit AS aliases are DERIVED.
+    // Un-aliased bare fields and GROUP BY keys are RAW.
+    let mut derived: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut suspended = false;
 
     for item in &head.select.items {
@@ -2910,19 +2923,23 @@ fn compute_sqlpipe_head_binding(
             SelectItem::Star | SelectItem::TableStar(_) => {}
 
             // Explicit AS alias — the alias is the output name regardless of the expression.
+            // The alias is DERIVED: its type at execution may differ from the raw schema type.
             SelectItem::Expr {
                 alias: Some(alias), ..
             } => {
                 available.push(alias.clone());
+                derived.insert(alias.clone()); // DERIVED: SqlPipe head alias
             }
 
             // Un-aliased bare Field — the output name is the column name itself.
+            // RAW: its name and type match the original schema column.
             SelectItem::Expr {
                 expr: Expr::Field(fp),
                 alias: None,
             } => {
                 if let Some(col) = extract_column_name_from_field_path(fp, table_name, from_alias) {
                     available.push(col);
+                    // RAW: not added to `derived`.
                 }
                 // If the field path has an unrecognised qualifier, extraction returns None.
                 // Skip silently — fail-open (the head-position-1 check already validated it
@@ -2951,10 +2968,12 @@ fn compute_sqlpipe_head_binding(
 
     // GROUP BY bare-field names are visible in the stage walk output
     // (they are grouping keys, always present in the aggregate result).
+    // RAW: GROUP BY keys are schema column names.
     for expr in &head.group_by {
         if let Expr::Field(fp) = expr {
             if let Some(col) = extract_column_name_from_field_path(fp, table_name, from_alias) {
                 available.push(col);
+                // RAW: not added to `derived`.
             }
         }
         // Non-bare-field GROUP BY expressions: skip without suspending. The GROUP BY key
@@ -2964,7 +2983,7 @@ fn compute_sqlpipe_head_binding(
 
     available.sort();
     available.dedup();
-    Some((available, suspended))
+    Some((available, derived, suspended))
 }
 
 /// Walk all column-bearing pipe stage types and check column availability + type-compat.
@@ -2997,7 +3016,14 @@ fn compute_sqlpipe_head_binding(
 /// - **Stats stage:** `by_fields` are checked against `available` BEFORE updating.
 ///   After those checks: `available` is REPLACED with `{explicit_aliases} ∪ {by_field_names}`.
 ///   Anonymous aggregates (no `AS alias`) produce unpredictable DataFusion names → `suspended := true`.
-/// - **All other stages** (Where, Sort, Fields, Dedup): `available` and `suspended` are unchanged.
+/// - **All other stages** (Where, Sort, Dedup): `available` and `suspended` are unchanged.
+/// - **Fields stage:** FIELDS TRANSITION RULE (BC-2.11.016 v1.15 OBS-002):
+///   include-list → `available := {listed}` (REPLACE; provenance preserved for surviving names);
+///   exclude-list → `available := available ∖ {listed}` (SUBTRACT; provenance preserved).
+///   Suspension state carries forward unchanged.
+/// - **SIBLING-GATE CONSISTENCY (BC-2.11.016 v1.15 MED-001):** names in `available` carry
+///   per-name provenance (RAW vs DERIVED). E-QUERY-002 type-compat gate MUST skip DERIVED names
+///   (fail-open per FP-001). RAW names retain full type-compat checking.
 /// - **Suspension propagation:** once `suspended = true`, all subsequent stages skip E-QUERY-038.
 ///
 /// # Ordering
@@ -3007,6 +3033,11 @@ fn compute_sqlpipe_head_binding(
 fn check_pipe_stage_columns(
     stages: &[crate::ast::PipeStage],
     table_name: &str,
+    // BC-2.11.016 v1.15 FROM-ALIAS RESOLUTION (OBS-001): declared FROM-alias for SqlPipe
+    // pipe-stage positions 9–14. When Some("t"), qualifier "t" in field paths like `t.col`
+    // is stripped to bare "col" before checking against the binding context. Pass None for
+    // Ast::Pipe (no FROM-alias) and for SqlPipe with no declared alias.
+    table_alias: Option<&str>,
     client_id: &str,
     org_scope: Option<&[prism_core::OrgSlug]>,
     resolved_spec_map: Option<
@@ -3017,11 +3048,12 @@ fn check_pipe_stage_columns(
     >,
     table_registry: Option<&crate::table_registry::TableRegistry>,
     infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
-    // BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION BINDING RULE: when Some((cols, suspended)),
+    // BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION BINDING RULE: when Some((cols, derived, suspended)),
     // use these as the initial binding context instead of get_initial_available_columns().
+    // `derived` is the SIBLING-GATE CONSISTENCY set of DERIVED name provenance (v1.15 MED-001).
     // Callers pass Some(...) for Ast::SqlPipe (head-projection seeding), None for Ast::Pipe
     // (raw schema seeding; existing behavior preserved).
-    initial_binding_override: Option<(Vec<String>, bool)>,
+    initial_binding_override: Option<(Vec<String>, std::collections::HashSet<String>, bool)>,
 ) -> Result<(), PrismError> {
     use crate::ast::{AggFunc, PipeStage};
 
@@ -3031,8 +3063,12 @@ fn check_pipe_stage_columns(
     // head projection output (BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION BINDING RULE).
     // For Ast::Pipe (or SqlPipe with SELECT *), fall back to raw schema via
     // get_initial_available_columns(). If no schema source is available, fail-open immediately.
-    let (mut current_available, mut suspended) = match initial_binding_override {
-        Some((cols, susp)) => (cols, susp),
+    //
+    // BC-2.11.016 v1.15 SIBLING-GATE CONSISTENCY (MED-001): `derived_names` tracks which
+    // names in `current_available` are DERIVED (SqlPipe head alias, stats alias, enrich output)
+    // vs RAW (original schema column). E-QUERY-002 gate MUST skip DERIVED names (FP-001).
+    let (mut current_available, mut derived_names, mut suspended) = match initial_binding_override {
+        Some((cols, derived, susp)) => (cols, derived, susp),
         None => {
             match get_initial_available_columns(
                 table_name,
@@ -3040,7 +3076,7 @@ fn check_pipe_stage_columns(
                 resolved_spec_map,
                 table_registry,
             ) {
-                Some(cols) => (cols, false),
+                Some(cols) => (cols, std::collections::HashSet::new(), false),
                 None => {
                     // No schema source — all checks would fail-open anyway. Return early
                     // (equivalent to old behavior; preserves existing RG-065 fail-open).
@@ -3059,8 +3095,18 @@ fn check_pipe_stage_columns(
             // Position 8/9: `| where` stage predicates — E-QUERY-038 + E-QUERY-002.
             // Checked against the CURRENT binding context (not raw schema), so post-stats
             // references to aggregate aliases are found correctly (CRIT-002).
+            //
+            // BC-2.11.016 v1.15 FROM-ALIAS RESOLUTION (OBS-001): pass `table_alias` so
+            // alias-qualified refs like `t.col` (where `t` is the declared FROM-alias) are
+            // stripped to bare `col` before the existence check. Without this threading,
+            // all alias-qualified refs silently bypass the gate.
+            //
+            // BC-2.11.016 v1.15 SIBLING-GATE CONSISTENCY (MED-001): skip E-QUERY-002 for
+            // DERIVED names (stats alias, enrich output, SqlPipe head alias). DERIVED names
+            // have an unknown type at plan time; applying raw-schema operator restrictions
+            // would produce false E-QUERY-002 errors (FP-001 violation).
             PipeStage::Where(pred) => {
-                let pred_cols = extract_predicate_columns(pred, table_name, None);
+                let pred_cols = extract_predicate_columns(pred, table_name, table_alias);
                 for col in &pred_cols {
                     check_column_against_available_set(
                         col,
@@ -3072,8 +3118,14 @@ fn check_pipe_stage_columns(
                 // E-QUERY-002 type-compat: after existence gate, check operator compat.
                 // Uses collect_predicate_type_pairs which emits "IEQ"/"INE" for
                 // case_insensitive=true predicates (BC-2.11.016 v1.6 MED-001).
-                let type_pairs = collect_predicate_type_pairs(pred, table_name, None);
+                let type_pairs = collect_predicate_type_pairs(pred, table_name, table_alias);
                 for (col_name, op_str) in &type_pairs {
+                    // SIBLING-GATE CONSISTENCY (BC-2.11.016 v1.15 MED-001): skip E-QUERY-002
+                    // for DERIVED names — their type is not statically known at plan time;
+                    // applying raw-schema type restrictions would produce false positives (FP-001).
+                    if derived_names.contains(col_name) {
+                        continue;
+                    }
                     check_operator_type_compatibility(
                         col_name,
                         op_str,
@@ -3090,7 +3142,7 @@ fn check_pipe_stage_columns(
             PipeStage::Sort(exprs) => {
                 for se in exprs {
                     if let Some(col) =
-                        extract_column_name_from_field_path(&se.field, table_name, None)
+                        extract_column_name_from_field_path(&se.field, table_name, table_alias)
                     {
                         check_column_against_available_set(
                             &col,
@@ -3105,10 +3157,16 @@ fn check_pipe_stage_columns(
             // Checked against current `available` BEFORE updating. After checks: `available`
             // is REPLACED with {explicit_aliases ∪ by_field_names} per BC-2.11.016
             // DERIVED-COLUMN BINDING RULE. Anonymous aggregates (no alias) → suspended.
+            //
+            // BC-2.11.016 v1.15 SIBLING-GATE CONSISTENCY (MED-001): after the REPLACE,
+            // update `derived_names` — explicit aliases are DERIVED; by-fields preserve
+            // their prior provenance (DERIVED if they were DERIVED before, RAW otherwise).
             PipeStage::Stats(stats) => {
                 // Check by_fields against current available BEFORE replacing.
                 for fp in &stats.by_fields {
-                    if let Some(col) = extract_column_name_from_field_path(fp, table_name, None) {
+                    if let Some(col) =
+                        extract_column_name_from_field_path(fp, table_name, table_alias)
+                    {
                         check_column_against_available_set(
                             &col,
                             table_name,
@@ -3136,7 +3194,8 @@ fn check_pipe_stage_columns(
                         _ => None,
                     };
                     if let Some(fp) = fp {
-                        if let Some(col) = extract_column_name_from_field_path(fp, table_name, None)
+                        if let Some(col) =
+                            extract_column_name_from_field_path(fp, table_name, table_alias)
                         {
                             check_column_against_available_set(
                                 &col,
@@ -3148,11 +3207,17 @@ fn check_pipe_stage_columns(
                     }
                 }
                 // Compute replacement set: explicit aliases ∪ by-field column names.
+                // Also compute new derived_names for SIBLING-GATE CONSISTENCY (MED-001):
+                //   - Explicit aliases → DERIVED (stats output aliases have unknown types at plan time)
+                //   - By-fields → preserve prior provenance from current `derived_names`
                 let mut replacement: Vec<String> = Vec::new();
+                let mut new_derived: std::collections::HashSet<String> =
+                    std::collections::HashSet::new();
                 let mut has_anonymous = false;
                 for agg in &stats.aggregates {
                     if let Some(alias) = &agg.alias {
                         replacement.push(alias.clone());
+                        new_derived.insert(alias.clone()); // DERIVED: stats output alias
                     } else {
                         // Anonymous aggregate — DataFusion auto-name is not predictable at
                         // plan time. Set suspended to avoid false positives (FP-001).
@@ -3160,7 +3225,14 @@ fn check_pipe_stage_columns(
                     }
                 }
                 for fp in &stats.by_fields {
-                    if let Some(col) = extract_column_name_from_field_path(fp, table_name, None) {
+                    if let Some(col) =
+                        extract_column_name_from_field_path(fp, table_name, table_alias)
+                    {
+                        // Preserve prior provenance: by-field is DERIVED only if it was
+                        // DERIVED before the Stats stage (e.g., it was a prior stats alias).
+                        if derived_names.contains(&col) {
+                            new_derived.insert(col.clone());
+                        }
                         replacement.push(col);
                     } else {
                         // Non-static by-expression — unpredictable downstream name → suspend.
@@ -3172,6 +3244,7 @@ fn check_pipe_stage_columns(
                     // fail-open for all subsequent stages (FP-001).
                     suspended = true;
                 } else {
+                    derived_names = new_derived;
                     replacement.sort();
                     replacement.dedup();
                     current_available = replacement;
@@ -3180,16 +3253,51 @@ fn check_pipe_stage_columns(
             // Position 12: `| fields` column refs — E-QUERY-038 existence only.
             // Grammar keyword is `fields` (PipeStage::Fields); BC-2.11.016 v1.7+ corrected
             // the earlier v1.6 EC-11-052 `| project` wording to `| fields`.
+            //
+            // BC-2.11.016 v1.15 FIELDS TRANSITION RULE (OBS-002):
+            // Include (`fstage.include = true`): validate listed cols, then
+            //   `available := {listed}` (REPLACE — analogous to Stats stage REPLACE);
+            //   provenance of surviving names preserved from prior binding.
+            // Exclude (`fstage.include = false`): validate listed cols, then
+            //   `available := available ∖ {listed}` (SUBTRACT);
+            //   provenance of surviving names preserved.
+            // Suspension state carries forward unchanged.
+            // Rationale: SQL emitter's `apply_fields` genuinely restricts the projection;
+            // downstream refs to removed columns fail at DataFusion (false-negative class
+            // before this rule).
             PipeStage::Fields(fstage) => {
+                let mut listed: Vec<String> = Vec::new();
                 for fp in &fstage.fields {
-                    if let Some(col) = extract_column_name_from_field_path(fp, table_name, None) {
+                    if let Some(col) =
+                        extract_column_name_from_field_path(fp, table_name, table_alias)
+                    {
                         check_column_against_available_set(
                             &col,
                             table_name,
                             client_id,
                             &current_available,
                         )?;
+                        listed.push(col);
                     }
+                }
+                if fstage.include {
+                    // Include-list → REPLACE: downstream sees only the listed columns.
+                    // Preserve provenance for names that were already in `derived_names`.
+                    let new_derived: std::collections::HashSet<String> = listed
+                        .iter()
+                        .filter(|n| derived_names.contains(*n))
+                        .cloned()
+                        .collect();
+                    derived_names = new_derived;
+                    listed.sort();
+                    listed.dedup();
+                    current_available = listed;
+                } else {
+                    // Exclude-list → SUBTRACT: remove listed columns from available.
+                    let excluded: std::collections::HashSet<&str> =
+                        listed.iter().map(|s| s.as_str()).collect();
+                    current_available.retain(|n| !excluded.contains(n.as_str()));
+                    derived_names.retain(|n| !excluded.contains(n.as_str()));
                 }
             }
             // Position 13: `| enrich f(input_col)` input column — E-QUERY-038 existence only.
@@ -3201,8 +3309,13 @@ fn check_pipe_stage_columns(
             // so downstream stages can check references to enrich output columns (EC-11-054
             // green-lock + EC-11-056 new test). When registry is absent, fall back to suspend
             // (existing fail-open behavior — keeps EC-11-054/EC-11-055 no-registry tests GREEN).
+            //
+            // BC-2.11.016 v1.15 SIBLING-GATE CONSISTENCY (MED-001): enrich output columns
+            // are DERIVED — their types come from the infusion schema, not the raw TableRegistry.
+            // Add them to `derived_names` so E-QUERY-002 skips them (FP-001).
             PipeStage::Enrich(es) => {
-                if let Some(col) = extract_column_name_from_field_path(&es.field, table_name, None)
+                if let Some(col) =
+                    extract_column_name_from_field_path(&es.field, table_name, table_alias)
                 {
                     check_column_against_available_set(
                         &col,
@@ -3228,6 +3341,9 @@ fn check_pipe_stage_columns(
                             if !current_available.contains(col) {
                                 current_available.push(col.clone());
                             }
+                            // Enrich output columns are DERIVED (their type is defined by the
+                            // infusion schema, not the raw TableRegistry) — mark for MED-001.
+                            derived_names.insert(col.clone());
                         }
                         current_available.sort();
                         current_available.dedup();
@@ -3246,7 +3362,9 @@ fn check_pipe_stage_columns(
             // checked against current binding context.
             PipeStage::Dedup(fields) => {
                 for fp in fields {
-                    if let Some(col) = extract_column_name_from_field_path(fp, table_name, None) {
+                    if let Some(col) =
+                        extract_column_name_from_field_path(fp, table_name, table_alias)
+                    {
                         check_column_against_available_set(
                             &col,
                             table_name,
