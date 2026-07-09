@@ -2802,7 +2802,7 @@ fn check_pipe_stage_columns(
     table_registry: Option<&crate::table_registry::TableRegistry>,
     infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
 ) -> Result<(), PrismError> {
-    use crate::ast::PipeStage;
+    use crate::ast::{AggFunc, PipeStage};
 
     // BC-2.11.016 DERIVED-COLUMN BINDING RULE: build initial available set.
     // If no schema source is available, start suspended (fail-open for unregistered tables;
@@ -2884,6 +2884,36 @@ fn check_pipe_stage_columns(
                             client_id,
                             &current_available,
                         )?;
+                    }
+                }
+                // Position 11 (agg-arg): check aggregate function argument field paths
+                // against current available BEFORE replacing the binding context
+                // (BC-2.11.016 v1.12 DERIVED-COLUMN BINDING RULE, EC-11-058).
+                // FP-001 fail-open: future #[non_exhaustive] variants matched by `_`
+                // carry no extractable field path — the check is skipped for them.
+                for agg in &stats.aggregates {
+                    let fp = match &agg.func {
+                        AggFunc::CountField(fp)
+                        | AggFunc::Sum(fp)
+                        | AggFunc::Avg(fp)
+                        | AggFunc::Min(fp)
+                        | AggFunc::Max(fp)
+                        | AggFunc::DistinctCount(fp) => Some(fp),
+                        AggFunc::Percentile { field, .. } => Some(field),
+                        // AggFunc::Count has no argument field.
+                        // `_` covers future #[non_exhaustive] variants — fail-open (FP-001).
+                        _ => None,
+                    };
+                    if let Some(fp) = fp {
+                        if let Some(col) = extract_column_name_from_field_path(fp, table_name, None)
+                        {
+                            check_column_against_available_set(
+                                &col,
+                                table_name,
+                                client_id,
+                                &current_available,
+                            )?;
+                        }
                     }
                 }
                 // Compute replacement set: explicit aliases ∪ by-field column names.
