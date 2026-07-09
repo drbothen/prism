@@ -107,7 +107,12 @@ pub struct TableRegistry {
     /// By retaining column names here, the gate can fire in single-tenant mode by
     /// looking up columns from the registry rather than the resolved_spec_map.
     /// Only populated when `register_sensor` is called with a spec that has columns
-    /// defined in its `[[tables]]` entries; empty = fail-open (gate skips that table).
+    /// defined in its `[[tables]]` entries.
+    ///
+    /// When `columns_for_table` returns `[]`, callers MUST distinguish "not registered"
+    /// (fail-open) from "registered with zero columns" (E-QUERY-038 fires with
+    /// `available_columns: []`) by calling `is_registered` — see ADV-FIX-P9-OBS-001
+    /// and BC-2.11.016 EC-11-041.
     columns_by_table: Arc<RwLock<HashMap<String, Vec<String>>>>,
     /// Table name → (column name → `ColumnType`) map, used by the schema-aware
     /// E-QUERY-041 temporal pre-validator (`check_temporal_literals`).
@@ -364,10 +369,15 @@ impl TableRegistry {
     /// mode when `resolved_spec_map` is `None`. Returns column names populated via
     /// `register_sensor` from the sensor spec's `[[tables]][*].columns` entries.
     ///
-    /// Returns an empty `Vec` (fail-open) when:
-    /// - `table_name` is not registered
-    /// - `table_name` was registered with an empty column list (no columns in spec)
-    /// - The `columns_by_table` lock is poisoned
+    /// Returns an empty `Vec` in two distinct cases:
+    /// - `table_name` is not registered (not in `registered` set) — callers should fail-open
+    /// - `table_name` was registered with an empty column list (zero columns in spec) —
+    ///   callers should fire E-QUERY-038 with `available_columns: []` (BC-2.11.016 EC-11-041)
+    /// - The `columns_by_table` lock is poisoned — callers should fail-open
+    ///
+    /// **Callers must use `is_registered` to distinguish the first two cases** (see
+    /// `get_initial_available_columns` and `check_column_availability` in `engine.rs`,
+    /// ADV-FIX-P9-OBS-001).
     ///
     /// M1 fix: S-DEMO-FIDELITY-REMEDIATION-001.
     pub fn columns_for_table(&self, table_name: &str) -> Vec<String> {

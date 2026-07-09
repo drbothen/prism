@@ -2110,8 +2110,12 @@ fn check_column_availability(
         let mut available_columns = registry.columns_for_table(table_name);
         available_columns.sort();
         available_columns.dedup();
-        // Fail-open: if no columns registered for this table, skip gate.
-        if available_columns.is_empty() {
+        // EC-11-041 (ADV-FIX-P9-OBS-001): `columns_for_table` returns [] for BOTH
+        // "table not in registry" AND "table IS registered but has zero columns".
+        // Fail-open ONLY when the table is NOT registered (E-QUERY-037 domain).
+        // When the table IS registered but has zero columns, fall through so
+        // E-QUERY-038 fires with `available_columns: []` per BC-2.11.016 EC-11-041.
+        if available_columns.is_empty() && !registry.is_registered(table_name) {
             return Ok(());
         }
         // Column is in the available set — gate passes.
@@ -2731,7 +2735,17 @@ fn get_initial_available_columns(
         cols.sort();
         cols.dedup();
         if cols.is_empty() {
-            None // No columns registered for this table — fail-open.
+            // EC-11-041 (ADV-FIX-P9-OBS-001): `columns_for_table` returns [] for BOTH
+            // "table not in registry" (fail-open → None) AND "table IS registered but
+            // has zero columns" (gate fires → Some([])). The prior code returned None
+            // unconditionally, so check_pipe_stage_columns failed-open for zero-column
+            // registered tables (opaque E-QUERY-034 instead of structured E-QUERY-038).
+            // Use `is_registered` to resolve the ambiguity.
+            if registry.is_registered(table_name) {
+                Some(vec![]) // Registered with zero columns — gate fires (EC-11-041).
+            } else {
+                None // Not in registry — fail-open (E-QUERY-037 domain).
+            }
         } else {
             Some(cols)
         }
@@ -7201,16 +7215,24 @@ mod m1_single_tenant_column_gate_tests {
         }
     }
 
-    /// M1 negative — gate fails-open for a table with no columns registered.
+    /// EC-11-041 (BC-2.11.016 v1.16) — SQL-mode zero-column gate fires E-QUERY-038.
     ///
-    /// Registering a sensor without explicit columns means `columns_for_table`
-    /// returns an empty Vec. In that case, the gate must fail-open (return Ok)
-    /// to preserve backward compatibility for specs without column lists.
+    /// Previously (M1 backward-compat behavior): registered table with zero columns
+    /// caused the single-tenant gate to fail-open, letting the query reach DataFusion
+    /// and producing an opaque E-QUERY-034 error.
+    ///
+    /// BC-2.11.016 v1.16 EC-11-041 supersedes that fail-open behavior:
+    /// "Table has zero registered columns → E-QUERY-038 with available_columns: [],
+    /// did_you_mean absent." (ADV-FIX-P9-OBS-001)
+    ///
+    /// This test verifies that the SQL-mode path (`check_column_availability`) fires
+    /// E-QUERY-038 with `available_columns: []` for a registered zero-column table,
+    /// consistent with the pipe-mode test in `drift_ieq_nonexistent_col_errpath_001_tests`.
     #[tokio::test]
-    async fn test_m1_single_tenant_no_columns_registered_fails_open() {
+    async fn test_m1_single_tenant_no_columns_registered_fires_e_query_038() {
         use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
 
-        // Register WITHOUT columns (empty column list).
+        // Register WITHOUT columns (empty column list) — EC-11-041 fixture.
         let spec = SensorSpec::new(
             "armis",
             "Armis sensor",
@@ -7219,7 +7241,7 @@ mod m1_single_tenant_column_gate_tests {
             vec![TableSpec::new_point_in_time(
                 "devices",
                 "security_finding",
-                vec![], // No columns
+                vec![], // No columns — zero-column registered table (EC-11-041).
                 vec![],
             )],
             None,
@@ -7242,20 +7264,37 @@ mod m1_single_tenant_column_gate_tests {
         )
         .with_table_registry(registry);
 
-        // Even with a typo'd column, gate must fail-open (no columns to validate against).
+        // SQL-mode query referencing a non-existent column on a zero-column table.
         let query = "SELECT completely_bogus_col FROM armis_devices LIMIT 5";
 
         let result = engine.execute(query, QueryOptions::default()).await;
 
-        // We expect either Ok (execute past gate → DataFusion error on actual execution)
-        // or an Err that is NOT ColumnNotFound (DataFusion error is acceptable here).
+        // EC-11-041: E-QUERY-038 must fire with available_columns: [] (not fail-open).
         match result {
-            Ok(_) => {} // Gate correctly failed open — no column schema to validate.
-            Err(PrismError::ColumnNotFound(_)) => panic!(
-                "M1 negative: gate must NOT fire E-QUERY-038 when no columns are registered \
-                 for the table. Fail-open is required for backward compat."
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert!(
+                    details.available_columns.is_empty(),
+                    "EC-11-041 SQL-mode: available_columns must be [] for a zero-column table. \
+                     Got: {:?}",
+                    details.available_columns
+                );
+                assert!(
+                    details.did_you_mean.is_none(),
+                    "EC-11-041 SQL-mode: did_you_mean must be absent for a zero-column table. \
+                     Got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "EC-11-041 SQL-mode: engine.execute must NOT succeed. E-QUERY-038 must fire \
+                 with available_columns=[] for a registered zero-column table (ADV-FIX-P9-OBS-001). \
+                 Fail-open is FORBIDDEN per BC-2.11.016 v1.16 EC-11-041."
             ),
-            Err(_other) => {} // DataFusion or other error downstream — acceptable (gate passed).
+            Err(other) => panic!(
+                "EC-11-041 SQL-mode: expected PrismError::ColumnNotFound (E-QUERY-038) with \
+                 available_columns=[], got: {other:?}. BC-2.11.016 v1.16 EC-11-041 requires \
+                 E-QUERY-038 for registered zero-column tables, not a DataFusion error."
+            ),
         }
     }
 }
