@@ -11,6 +11,16 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 
 ---
 
+## Archived: D-1632 — 2026-07-09; STATE v8.232
+
+**FIX-IEQ-ERRPATH-001 PR #219 OPEN @dacb60fa (base develop). LOCAL cascade CONVERGED (19 passes; streak 3/3 CLEAN(strict) on frozen 35117a38). Reviews completed on 35117a38: pr-reviewer APPROVE (0 blocking; NB-1/NB-2/NB-3 non-blocking); security-reviewer CLEAR (0 CRIT/HIGH/MED; SEC-FIND-001 CWE-117 CONFIRMED GENUINE — CLOSED in fix-burst 51f071ff; SEC-FIND-002 CWE-200 — CLOSED in 51f071ff). CI-FAIL-001 clippy (pre-existing on develop, toolchain drift) — CLOSED in dacb60fa. Fix-burst 51f071ff: sanitize_for_log @3 column_not_found.rejected sites + CWE-117 unit test; SEC-002 comment corrected; audit-script G2/G3/G6/G7/G8 WARN→FAIL; G4 heuristic→canonical anchor. Clippy dacb60fa: 3 match→? infusion/mod.rs. Branch PUSHED @dacb60fa (51f071ff + dacb60fa); just check 5392/5392 GREEN; non-exhaustive 89/89. PR-LEVEL cascade 0/3 on frozen dacb60fa (BC-5.39.001; DRIFT-ORCH-PRLEVEL-PUSH-001 — push reset streak). NB-1 PR-body fix via gh pr edit (no code push).**
+
+**STATE v8.232. develop f935edb6 (PUSHED, origin==local; UNCHANGED until PR #219 merges). BC-INDEX v7.73. STORY-INDEX v2.645. ARCH-INDEX v2.174. error-taxonomy v2.34. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 228. workspace_test_count 5392 (fix-branch dacb60fa PUSHED; develop baseline 5319 @f935edb6). bc_count_corrected 266.**
+
+**NOTE: Superseded by D-1633 — PR-LEVEL pass-1 NOT-CLEAN(2 MED+1 OBS) + same-burst closure; PR #219 HEAD @39c8b134; PR-LEVEL streak 0/3 on 39c8b134; workspace_test_count 5392→5397.**
+
+---
+
 ## Archived: D-1433 — 2026-06-30; STATE v8.061
 
 **STATE v8.061. SESSION WRAP D-1433. TEST-SPEED INITIATIVE COMPLETE (at time of writing; corrected by D-1435): S-PERF-GATE-004 (PR #209 @e3148007) + S-PERF-GATE-005 (PR #210 @8bc0404e) MERGED. Full nextest ~hours->86.4s. stop() 5.002s->0.019s. develop_head 8bc0404e. BC-INDEX v7.26. STORY-INDEX v2.533. ARCH-INDEX v2.150. error-taxonomy v2.03. active_contracts 254. draft_contracts 0. non-exhaustive EXPECTED=88. total_stories 222.**
