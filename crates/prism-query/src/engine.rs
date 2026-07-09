@@ -12019,6 +12019,300 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             _ => {}
         }
     }
+
+    // ── Helpers: zero-column table fixtures (EC-11-041) ──────────────────────────
+
+    /// Build a `crowdstrike_alerts` engine in single-tenant mode with ZERO registered
+    /// columns.
+    ///
+    /// Unlike `make_crowdstrike_engine`, this fixture does NOT set `resolved_spec_map`
+    /// (single-tenant mode) and registers `crowdstrike_alerts` with an EMPTY column
+    /// list.
+    ///
+    /// Gate-ordering proof for this state:
+    ///  - `TableRegistry::is_registered("crowdstrike_alerts")` → true
+    ///    (the table IS in `registered`; `register_sensor` always inserts there).
+    ///  - `TableRegistry::columns_for_table("crowdstrike_alerts")` → []
+    ///    (`register_sensor` only populates `columns_by_table` when `!table.columns.is_empty()`;
+    ///    zero-column tables are absent from `columns_by_table` — same result as unregistered).
+    ///
+    /// Consequence:
+    ///  - E-QUERY-037 does NOT fire (table IS registered).
+    ///  - E-QUERY-038 single-tenant path: `if available_columns.is_empty() { return Ok(()) }`
+    ///    → FAILS OPEN (ADV-FIX-P9-OBS-001).
+    fn make_zero_column_engine_single_tenant() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+        let sensor_id = "crowdstrike";
+        let table_suffix = "alerts";
+
+        // Zero columns — the key fixture ingredient for EC-11-041.
+        let columns: Vec<ColumnSpec> = vec![];
+
+        let spec = SensorSpec::new(
+            sensor_id,
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("EC-11-041 fixture: register_sensor must not fail for zero-column table");
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        // Single-tenant: do NOT set resolved_spec_map — this is the critical distinction.
+        engine = engine.with_table_registry(registry);
+        (engine, org)
+    }
+
+    /// Build a `crowdstrike_alerts` engine in multi-tenant mode with ZERO registered
+    /// columns.
+    ///
+    /// Both the `TableRegistry` AND the `resolved_spec_map` are populated with a
+    /// zero-column `crowdstrike_alerts` table, mirroring what the production boot
+    /// path would build for a sensor spec with no `[[tables]][*].columns` entries.
+    ///
+    /// Multi-tenant path in `get_initial_available_columns`:
+    ///  - `table_in_schema = true` (table IS in spec_map).
+    ///  - `cols = vec![]` (spec has zero columns).
+    ///  - Returns `Some(vec![])` — NOT `None`.
+    ///  - `check_pipe_stage_columns` initializes `current_available = vec![]` and
+    ///    `suspended = false` → any column reference hits `check_column_against_available_set`
+    ///    with an empty available set → E-QUERY-038 fires with `available_columns: []`.
+    ///
+    /// This correctly honors BC-2.11.016 EC-11-041.
+    fn make_zero_column_engine_multi_tenant() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+        let sensor_id = "crowdstrike";
+        let table_suffix = "alerts";
+
+        // Zero columns — same as single-tenant fixture.
+        let columns: Vec<ColumnSpec> = vec![];
+
+        let spec = SensorSpec::new(
+            sensor_id,
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("EC-11-041 multi-tenant fixture: register_sensor must not fail");
+
+        let overlay_toml = format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@acme\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("EC-11-041 fixture: SensorInstanceOverlay TOML must parse");
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org.clone());
+        let key: ResolvedSpecKey = (org.clone(), SensorId::new(sensor_id));
+        let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        // Multi-tenant: set resolved_spec_map so the multi-tenant path in
+        // get_initial_available_columns is exercised.
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_table_registry(registry);
+        (engine, org)
+    }
+
+    // ── Test: EC-11-041 single-tenant RED (ADV-FIX-P9-OBS-001) ─────────────────
+
+    /// BC-2.11.016 EC-11-041 — single-tenant zero-column table gate (ADV-FIX-P9-OBS-001).
+    ///
+    /// `crowdstrike_alerts` is registered with ZERO columns. The table IS in the
+    /// `registered` set, so E-QUERY-037 passes. The single-tenant path then calls
+    /// `columns_for_table("crowdstrike_alerts")` → `[]` (the zero-column table is
+    /// absent from `columns_by_table` — `register_sensor` only inserts there when
+    /// `!table.columns.is_empty()`).
+    ///
+    /// Current single-tenant code:
+    ///
+    ///   // get_initial_available_columns single-tenant branch:
+    ///   if cols.is_empty() { return None; }  // → fail-open
+    ///
+    ///   // check_column_availability single-tenant branch:
+    ///   if available_columns.is_empty() { return Ok(()); }  // → fail-open
+    ///
+    /// Result: the pedagogical gate is skipped; the query reaches DataFusion and hits
+    /// an opaque `QueryExecutionFailed` (E-QUERY-034) instead of the structured
+    /// E-QUERY-038 response with `available_columns: []`.
+    ///
+    /// BC-2.11.016 EC-11-041 mandates:
+    ///   table with zero registered columns → E-QUERY-038 with `available_columns: []`,
+    ///   `did_you_mean: absent`.
+    ///
+    /// RED GATE: currently FAILS (wrong error or Ok) until the production code is fixed
+    /// to distinguish "table not in registry" (fail-open) from "table IS registered but
+    /// has zero columns" (E-QUERY-038 with available_columns: []).
+    ///
+    /// Fix hint: `register_sensor` must track zero-column tables in a separate sentinel
+    /// OR `check_column_availability`/`get_initial_available_columns` must check
+    /// `is_registered` before treating an empty `columns_for_table` result as fail-open.
+    #[tokio::test]
+    async fn test_BC_2_11_016_EC_11_041_single_tenant_zero_column_gate_fires() {
+        let (engine, org) = make_zero_column_engine_single_tenant();
+
+        // EC-11-041 canonical query vector (BC-2.11.016):
+        // pipe-mode | where stage (position 8) against a zero-column table.
+        // `any_col` is not in the schema (there are NO columns), so E-QUERY-038 must fire
+        // with available_columns=[] and did_you_mean absent.
+        let query = "crowdstrike_alerts | where any_col = 'x'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                // EC-11-041: available_columns MUST be empty [] (zero-column table).
+                assert!(
+                    details.available_columns.is_empty(),
+                    "BC-2.11.016 EC-11-041 single-tenant: available_columns must be [] \
+                     for a zero-column table. Got: {:?}",
+                    details.available_columns
+                );
+                // EC-11-041: did_you_mean MUST be absent (no columns to suggest).
+                assert!(
+                    details.did_you_mean.is_none(),
+                    "BC-2.11.016 EC-11-041 single-tenant: did_you_mean must be absent \
+                     (no columns to compute Levenshtein against). Got: {:?}",
+                    details.did_you_mean
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "BC-2.11.016 EC-11-041 single-tenant: table must be 'crowdstrike_alerts', \
+                     got: {:?}",
+                    details.table
+                );
+            }
+            Ok(_) => panic!(
+                "BC-2.11.016 EC-11-041 single-tenant RED GATE: engine.execute must NOT succeed. \
+                 E-QUERY-038 must fire with available_columns=[] for a zero-column table. \
+                 ADV-FIX-P9-OBS-001: the single-tenant path in get_initial_available_columns \
+                 returns None when columns_for_table returns [] (can't distinguish 'not registered' \
+                 from 'registered with zero columns'), so check_pipe_stage_columns returns Ok(()) \
+                 immediately (fail-open) instead of firing E-QUERY-038."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 EC-11-041 single-tenant RED GATE: expected \
+                 PrismError::ColumnNotFound (E-QUERY-038) with available_columns=[], \
+                 got: {other:?}. ADV-FIX-P9-OBS-001: single-tenant gate must fire E-QUERY-038 \
+                 with empty available_columns, not fail-open into an opaque DataFusion error."
+            ),
+        }
+    }
+
+    // ── Test: EC-11-041 multi-tenant GREEN-LOCK ─────────────────────────────────
+
+    /// BC-2.11.016 EC-11-041 — multi-tenant zero-column gate GREEN-LOCK.
+    ///
+    /// Confirms that the MULTI-TENANT path correctly fires E-QUERY-038 with
+    /// `available_columns: []` for a table registered with zero columns, per EC-11-041.
+    ///
+    /// Multi-tenant path: `get_initial_available_columns` finds the table in spec_map
+    /// (`table_in_schema = true`), collects zero columns, and returns `Some(vec![])`.
+    /// `check_pipe_stage_columns` initializes `current_available = vec[]`, `suspended = false`.
+    /// `any_col` is not in `[]` → `check_column_against_available_set` fires E-QUERY-038
+    /// with `available_columns: []`, `did_you_mean: None`.
+    ///
+    /// This test must remain GREEN before and after the single-tenant fix — it documents
+    /// the correct behavior as a regression anchor.
+    #[tokio::test]
+    async fn test_BC_2_11_016_EC_11_041_multi_tenant_zero_column_gate_fires_green_lock() {
+        let (engine, org) = make_zero_column_engine_multi_tenant();
+
+        // EC-11-041 canonical query vector — same as single-tenant test.
+        let query = "crowdstrike_alerts | where any_col = 'x'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                // GREEN-LOCK: multi-tenant honors EC-11-041 — available_columns must be [].
+                assert!(
+                    details.available_columns.is_empty(),
+                    "BC-2.11.016 EC-11-041 multi-tenant GREEN-LOCK: available_columns must be [] \
+                     for a zero-column table. REGRESSION: multi-tenant path must return \
+                     Some([]) from get_initial_available_columns. Got: {:?}",
+                    details.available_columns
+                );
+                // GREEN-LOCK: did_you_mean must be absent (no candidates).
+                assert!(
+                    details.did_you_mean.is_none(),
+                    "BC-2.11.016 EC-11-041 multi-tenant GREEN-LOCK: did_you_mean must be absent. \
+                     Got: {:?}",
+                    details.did_you_mean
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "BC-2.11.016 EC-11-041 multi-tenant GREEN-LOCK: table must be \
+                     'crowdstrike_alerts'. Got: {:?}",
+                    details.table
+                );
+            }
+            Ok(_) => panic!(
+                "BC-2.11.016 EC-11-041 multi-tenant GREEN-LOCK REGRESSION: engine.execute must \
+                 NOT succeed. E-QUERY-038 must fire for a zero-column table on the multi-tenant \
+                 path. get_initial_available_columns must return Some([]) — not None — when the \
+                 table IS in spec_map but has zero columns (table_in_schema=true, cols=[])."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 EC-11-041 multi-tenant GREEN-LOCK REGRESSION: expected \
+                 PrismError::ColumnNotFound (E-QUERY-038) with available_columns=[], \
+                 got: {other:?}. Multi-tenant get_initial_available_columns must return \
+                 Some([]) for a zero-column table in spec_map."
+            ),
+        }
+    }
 }
 
 #[cfg(test)]
