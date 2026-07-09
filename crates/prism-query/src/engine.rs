@@ -3442,9 +3442,20 @@ fn check_pipe_stage_columns(
                     }
                 }
             }
+            // BC-2.11.016 v1.19 STAGE-JOIN SUSPENSION RULE: when the stage walk
+            // encounters a PipeStage::Join stage, set suspended := true for the
+            // remainder of the walk. Join-source schemas are not statically seeded
+            // into the binding context (only the FROM table's schema is populated in
+            // `available`); downstream column references that resolve through the join
+            // source would falsely fire E-QUERY-038 if checked against the FROM-only
+            // `available` set (FP-001 violation class: stage-join). Symmetry with
+            // STAR-WITH-JOIN SUSPENSION RULE (head-level). Once suspended, all
+            // subsequent stages skip E-QUERY-038 (suspension propagation clause).
+            PipeStage::Join(_) => {
+                suspended = true;
+            }
             // Other stage types — fail-open:
             // - Limit(u64) / Tail(u64): carry no column refs.
-            // - Join(JoinStage): cross-table refs; fail-open per existing policy.
             // - Future variants: fail-open per AST-completeness invariant (OBS-002);
             //   new column-bearing variants require a corresponding arm.
             #[allow(unreachable_patterns)]
