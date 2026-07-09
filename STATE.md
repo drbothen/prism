@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.223"
+version: "8.224"
 producer: state-manager
-timestamp: 2026-07-09T15:00:00Z
+timestamp: 2026-07-09T20:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -46,7 +46,7 @@ workspace_test_count: 5371  # NOTE: FIX-IEQ-ERRPATH-001 fix-branch HEAD 09ea9979
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1623 (2026-07-09). pass-12 NOT CLEAN(strict) — 2 LOW/OBS (zero CRIT/HIGH/MED); STREAK RESET to 0/3. Both findings CLOSED same-burst (BC-2.11.016 v1.18 STAR-WITH-JOIN SUSPENSION RULE + 4 siblings; 4 story rounds; RED @bd62d12e + GREEN @09ea9979; 5371/5371; 89/89; fix-branch LOCAL-ONLY). pass-12 report authored. Finding decay 6→3→3→2→1→1→0→2(low). ADV-FIX-P12-OBS-001 (LOW — columns_for_table doc-comment said 'two distinct cases' but listed three bullets; CLOSED 'two'→'three' @09ea9979). ADV-FIX-P12-OBS-002 (LOW/MED-confidence — star/TableStar with JOIN-alias qualifier seeds only FROM schema; SELECT j.* FROM t JOIN u j ... | where u_col and SELECT * FROM t JOIN ... | where u_col falsely fire E-QUERY-038 on join-source-only columns; adversary proposed DEFER; orchestrator REJECTED per production-grade Rule 3; fixed in-scope via BC-2.11.016 v1.18 STAR-WITH-JOIN SUSPENSION RULE fail-open; CLOSED). SAP-1 PASS (5 emission sites incl. reload.* rows); POL-24 PASS; sibling sweeps complete; tests load-bearing; production discipline PASS. Novelty MEDIUM. VERY NEXT ACTION: freeze 09ea9979 → LOCAL adversary pass 13 (fresh context, strict; no commits between passes per DRIFT-ORCH-PRLEVEL-PUSH-001); 3 consecutive CLEAN(strict) passes on unchanged HEAD required. PENDING-HUMAN items 1-3 UNCHANGED. Autonomy D-989 active."
+current_step: "D-1624 (2026-07-09). LOCAL pass-13 CLEAN(strict)=YES CLEAN(PR-merge)=YES on frozen 09ea9979 — STREAK 1/3 (BC-5.39.001). ZERO findings (0 CRIT/HIGH/MED/LOW/OBS/PROCESS-GAP). All BC-2.11.016 v1.18 clauses PASS (14 positions; branches (a)/(b)/(c) incl. LAST-SEGMENT OUTPUT-NAME RULE + STAR-WITH-JOIN SUSPENSION RULE verified); branch (a) Some((vec![],{},true)) on joins; branch (c) additive suspended:=true alongside DERIVED seeding; branch (b) unchanged (EC-11-069); DERIVED provenance state machine (stats REPLACE / enrich UNION / FIELDS TRANSITION) PASS; SIBLING-GATE CONSISTENCY skip PASS; FROM-ALIAS threading both callers PASS; EC-11-041 is_registered disambiguation both sites PASS; anonymous-agg suspension PASS; SAP-1 PASS (3 column_not_found.rejected sites cataloged); POL-24 PASS; story pins current (v1.47/v2.36/v2.13/v1.22); sibling BCs propagated (v1.6/v1.11/v1.23/taxonomy v2.31); #[non_exhaustive] 89/89; no unwrap/println. Three nits documented as NON-defects (fail-open assertions EC-11-070/071 correctly scoped; conservative TableStar-of-FROM without JOIN ratified by BC; cosmetic COVERAGE_MATRIX description strings). Novelty LOW. Finding trajectory: 6→3→3→2→1→1→0→2(low)→0. pass-13 report authored. VERY NEXT ACTION: LOCAL adversary pass 14 on UNCHANGED HEAD 09ea9979 (fresh context, strict; NO commits to fix branch per DRIFT-ORCH-PRLEVEL-PUSH-001); if CLEAN, pass 15 completes 3-CLEAN → push branch → open fix-PR via pr-manager. PENDING-HUMAN items 1-3 UNCHANGED. Autonomy D-989 active."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -85,7 +85,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-09 (D-1617 — pass-6 fix-burst closure: BC-2.11.016 v1.14 MIXED-STAR branch (c) + ADV-FIX-P6-MED-001/002 CLOSED + pass-5/6 backfill + L22 appended; STATE v8.216→v8.217)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-09 (D-1624 — LOCAL pass-13 CLEAN(strict)=YES streak 1/3 on frozen 09ea9979; pass-13 report authored; STATE v8.223→v8.224)
 
 ## Active Objective (North Star)
 
