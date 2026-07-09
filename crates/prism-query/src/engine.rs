@@ -11011,6 +11011,506 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             _ => {}
         }
     }
+
+    // ── Tests 35-36 (RED GATE): ADV-FIX-P7-MED-001 SIBLING-GATE CONSISTENCY ─────
+    //    BC-2.11.016 v1.15 — DERIVED-name provenance prevents false E-QUERY-002.
+    //
+    //    Root cause (MED-001): `check_operator_type_compatibility` in
+    //    `check_pipe_stage_columns` looks up the RAW schema type for every name in
+    //    `available`, regardless of provenance.  When a DERIVED name (stats alias,
+    //    SqlPipe head alias) shadows a raw-schema column with a different declared type,
+    //    the raw-type check incorrectly fires E-QUERY-002 for the DERIVED alias.
+    //
+    //    Fix: names in `available` carry per-name RAW vs DERIVED provenance.
+    //    E-QUERY-002 MUST skip DERIVED names (fail-open per FP-001 and SIBLING-GATE
+    //    CONSISTENCY).  RAW names retain full type-compat checking unchanged.
+    //
+    //    Test 35: RED gate — false E-QUERY-002 on SqlPipe head alias `severity`
+    //      (`count(*) AS severity` shadows raw String `severity`; alias is Int64 at run).
+    //    Test 36: RED gate — false E-QUERY-002 on stats output alias `severity`
+    //      (`count() as severity by timestamp`; alias is Int64 at run).
+    //    Test 37: GREEN-LOCK — RAW String `severity` with `>` STILL fires E-QUERY-002
+    //      after fix (guards against over-broad fail-open skipping RAW names).
+
+    /// BC-2.11.016 v1.15 MED-001 SIBLING-GATE CONSISTENCY — SqlPipe head alias shadow.
+    ///
+    /// `SELECT count(*) AS severity FROM crowdstrike_alerts | where severity > 5`
+    ///
+    /// `severity` is a SqlPipe head alias (`count(*) AS severity`) — provenance DERIVED.
+    /// At execution its type is Int64.  The raw schema column `severity` has type String.
+    /// E-QUERY-002 MUST NOT apply String's operator restrictions to this DERIVED alias.
+    ///
+    /// SQLPIPE HEAD-PROJECTION BINDING RULE (BC-2.11.016 v1.13, currently implemented):
+    /// explicit SELECT head → `available = {severity (alias)}` for the stage walk.
+    ///
+    /// Current behavior (RED): `check_operator_type_compatibility` looks up the raw
+    /// schema type for `severity` (String), finds `>` absent from
+    /// `valid_operators_for_type(String)` → fires false E-QUERY-002 (FP-001 violation,
+    /// MED-001).
+    ///
+    /// After fix (GREEN): alias `severity` carries DERIVED provenance → E-QUERY-002
+    /// gate skips it (SIBLING-GATE CONSISTENCY) → no false E-QUERY-002.
+    ///
+    /// RED GATE: currently fires `PrismError::QueryTypeMismatch { column: "severity" }`.
+    #[tokio::test]
+    async fn test_BC_2_11_016_v1_15_med001_sqlpipe_head_derived_alias_no_false_e_query_002() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `count(*) AS severity` — alias shadows raw String `severity`.
+        // At execution the alias is Int64 (count output); `>` is valid for Int64.
+        // The E-QUERY-002 gate MUST NOT apply raw String operator restrictions to this alias.
+        let query = "SELECT count(*) AS severity FROM crowdstrike_alerts | where severity > 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::QueryTypeMismatch { ref column, .. })
+                if column.as_str() == "severity" =>
+            {
+                panic!(
+                    "BC-2.11.016 v1.15 MED-001 SqlPipe-head: FALSE E-QUERY-002 fired on \
+                     DERIVED alias 'severity'. `count(*) AS severity` in the head is DERIVED \
+                     (Int64 at execution); E-QUERY-002 must NOT apply raw-schema String type's \
+                     operator restrictions to it per SIBLING-GATE CONSISTENCY (FP-001). \
+                     Current code: check_operator_type_compatibility looks up raw schema type \
+                     (String) → '>' not in valid_operators_for_type(String) → false E-QUERY-002. \
+                     Fix: track RAW vs DERIVED provenance; skip E-QUERY-002 for DERIVED names."
+                )
+            }
+            Err(PrismError::ColumnNotFound(ref d)) if d.column == "severity" => panic!(
+                "BC-2.11.016 v1.15 MED-001 SqlPipe-head: E-QUERY-038 fired on DERIVED alias \
+                 'severity' — alias must be in available (SQLPIPE HEAD-PROJECTION BINDING RULE \
+                 explicit head: available = {{severity}} as alias). \
+                 column='{}', table='{}'",
+                d.column, d.table
+            ),
+            // Ok or any other non-QueryTypeMismatch-on-severity result is acceptable.
+            // The invariant: E-QUERY-002 must NOT fire for a DERIVED name.
+            _ => {}
+        }
+    }
+
+    /// BC-2.11.016 v1.15 MED-001 SIBLING-GATE CONSISTENCY — stats output alias shadow.
+    ///
+    /// `crowdstrike_alerts | stats count() as severity by timestamp | where severity > 5`
+    ///
+    /// `severity` is a stats output alias (`count() as severity`) — provenance DERIVED.
+    /// After the Stats stage REPLACE, `available = {severity (alias), timestamp (by-field)}`.
+    /// E-QUERY-002 MUST NOT apply raw String operator restrictions to DERIVED `severity`.
+    ///
+    /// Current behavior (RED): same root cause as the SqlPipe head variant.  Stats alias
+    /// `severity` shadows raw String `severity`; `check_operator_type_compatibility` looks
+    /// up the raw type (String), finds `>` absent → false E-QUERY-002.
+    ///
+    /// After fix (GREEN): stats output alias `severity` carries DERIVED provenance →
+    /// E-QUERY-002 gate skips it → no false E-QUERY-002.
+    ///
+    /// RED GATE: currently fires `PrismError::QueryTypeMismatch { column: "severity" }`.
+    #[tokio::test]
+    async fn test_BC_2_11_016_v1_15_med001_stats_derived_alias_no_false_e_query_002() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `stats count() as severity by timestamp` — alias shadows raw String `severity`.
+        // STATS REPLACE: available = {severity (alias), timestamp (by-field)}.
+        // `| where severity > 5` — `severity` is DERIVED → E-QUERY-002 MUST NOT fire.
+        let query =
+            "crowdstrike_alerts | stats count() as severity by timestamp | where severity > 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::QueryTypeMismatch { ref column, .. })
+                if column.as_str() == "severity" =>
+            {
+                panic!(
+                    "BC-2.11.016 v1.15 MED-001 stats-shadow: FALSE E-QUERY-002 fired on \
+                     DERIVED stats alias 'severity'. `count() as severity` is DERIVED (Int64 \
+                     at execution); E-QUERY-002 must NOT apply raw-schema String type's \
+                     operator restrictions per SIBLING-GATE CONSISTENCY (FP-001). \
+                     Current code: check_operator_type_compatibility looks up raw String type \
+                     → '>' not in valid_operators_for_type(String) → false E-QUERY-002. \
+                     Fix: track RAW vs DERIVED provenance; skip E-QUERY-002 for DERIVED names."
+                )
+            }
+            Err(PrismError::ColumnNotFound(ref d)) if d.column == "severity" => panic!(
+                "BC-2.11.016 v1.15 MED-001 stats-shadow: E-QUERY-038 fired on DERIVED stats \
+                 alias 'severity' — after Stats REPLACE, available = {{severity, timestamp}}; \
+                 'severity' must be found. column='{}', table='{}'",
+                d.column, d.table
+            ),
+            // Ok or any other non-QueryTypeMismatch-on-severity result is acceptable.
+            _ => {}
+        }
+    }
+
+    // ── Test 37 (GREEN-LOCK): RAW-provenance type-compat retained ─────────────────
+
+    /// BC-2.11.016 v1.15 MED-001 GREEN-LOCK — RAW provenance: E-QUERY-002 retained.
+    ///
+    /// `crowdstrike_alerts | where severity > 5`
+    ///
+    /// `severity` is a RAW String column (original schema, no aliasing). `>` is NOT in
+    /// `valid_operators_for_type(String)` → E-QUERY-002 MUST fire.
+    ///
+    /// This is a regression lock: the SIBLING-GATE CONSISTENCY fix must NOT disable
+    /// E-QUERY-002 for RAW names (only DERIVED names are skipped).  If the fix
+    /// over-broadly skips E-QUERY-002 for all names, this test catches it.
+    ///
+    /// EXPECTED GREEN both before and after fix:
+    ///  - Before: E-QUERY-002 fires for ALL names (DERIVED and RAW alike).
+    ///  - After: E-QUERY-002 fires for RAW names only — still fires for RAW `severity`.
+    #[tokio::test]
+    async fn test_BC_2_11_016_v1_15_raw_provenance_type_compat_retained_e_query_002() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `severity` (String) is RAW — original schema type; not shadowed by any alias.
+        // `>` is NOT valid for String per valid_operators_for_type(String).
+        // E-QUERY-002 must fire both before and after the SIBLING-GATE CONSISTENCY fix.
+        let query = "crowdstrike_alerts | where severity > 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::QueryTypeMismatch {
+                ref column,
+                ref table,
+                ..
+            }) => {
+                assert_eq!(
+                    column.as_str(),
+                    "severity",
+                    "BC-2.11.016 v1.15 RAW-lock: E-QUERY-002 must fire for RAW column \
+                     'severity' (String); got: {:?}",
+                    column
+                );
+                assert_eq!(
+                    table.as_str(),
+                    "crowdstrike_alerts",
+                    "BC-2.11.016 v1.15 RAW-lock: table must be 'crowdstrike_alerts'"
+                );
+                // E-QUERY-002 fired for RAW String `severity` — correct, retained after fix.
+            }
+            Ok(_) => panic!(
+                "BC-2.11.016 v1.15 RAW-lock: engine.execute returned Ok — E-QUERY-002 must \
+                 fire for RAW String 'severity' with '>' operator. The SIBLING-GATE CONSISTENCY \
+                 fix must NOT disable E-QUERY-002 for RAW names (only DERIVED names are skipped). \
+                 '>' is NOT in valid_operators_for_type(String)."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 v1.15 RAW-lock: expected PrismError::QueryTypeMismatch \
+                 (E-QUERY-002) for RAW String 'severity' with '>' operator, got: {other:?}. \
+                 E-QUERY-002 must still fire for RAW names after the SIBLING-GATE CONSISTENCY fix."
+            ),
+        }
+    }
+
+    // ── Test 38 (RED GATE): ADV-FIX-P7-OBS-001 FROM-ALIAS RESOLUTION ─────────────
+    //    BC-2.11.016 v1.15 EC-11-065 — alias-qualified typo bypasses gate.
+    //
+    //    Root cause (OBS-001): `check_pipe_stage_columns` passes `table_alias = None` to
+    //    `extract_column_name_from_field_path` for all SqlPipe pipe-stage calls.  When the
+    //    head SQL declares `FROM crowdstrike_alerts t`, references like `t.sevrity` in pipe
+    //    stages have qualifier "t".  Without the FROM-alias threaded through, the function
+    //    sees an unknown qualifier ("t" matches neither the table name nor None) → returns
+    //    None → gate SKIPS the reference → typo `sevrity` bypasses E-QUERY-038 and reaches
+    //    DataFusion as an opaque column-resolution error.
+    //
+    //    Fix: `check_pipe_stage_columns` resolves the declared FROM-alias from the head SQL
+    //    and passes it as `from_alias`.  Qualifier matching the alias → stripped to bare name
+    //    → checked against available → E-QUERY-038 fires on the typo.
+
+    /// BC-2.11.016 v1.15 EC-11-065 FROM-ALIAS RESOLUTION — alias-qualified typo.
+    ///
+    /// `SELECT * FROM crowdstrike_alerts t | where t.sevrity IEQ 'x'`
+    ///
+    /// `sevrity` is a typo of `severity` (Levenshtein distance 1).  The FROM-alias `t`
+    /// qualifies the reference: `t.sevrity`.
+    ///
+    /// After fix: qualifier "t" matches FROM-alias → stripped to bare `sevrity` → checked
+    /// against available (SELECT * → full raw schema = {severity, timestamp}) → NOT found
+    /// → E-QUERY-038 with `column: "sevrity"`, `did_you_mean: "severity"`.
+    ///
+    /// RED GATE: currently `table_alias = None` is passed → qualifier "t" is unknown →
+    /// `extract_column_name_from_field_path` returns None → gate skips `t.sevrity` →
+    /// no E-QUERY-038 → DataFusion column resolution failure (opaque error).
+    #[tokio::test]
+    async fn test_BC_2_11_016_v1_15_ec11065_from_alias_typo_yields_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // EC-11-065 canonical vector (BC-2.11.016 v1.15).
+        // Head: SELECT * FROM crowdstrike_alerts t  → FROM-alias = "t"
+        //   available (SELECT *) = {severity, timestamp} (full raw schema).
+        // Stage: | where t.sevrity IEQ 'x'  → qualifier "t" matches FROM-alias
+        //   After fix: bare "sevrity" checked → NOT in {severity, timestamp}
+        //     → E-QUERY-038; did_you_mean = "severity" (Levenshtein distance 1).
+        //   Before fix: table_alias=None → "t" unknown → None → gate skips → no E-QUERY-038.
+        let query = "SELECT * FROM crowdstrike_alerts t | where t.sevrity IEQ 'x'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "sevrity",
+                    "BC-2.11.016 v1.15 EC-11-065 FROM-ALIAS: column in E-QUERY-038 must be \
+                     'sevrity' (alias-qualified typo stripped to bare name); got: '{}'",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "BC-2.11.016 v1.15 EC-11-065 FROM-ALIAS: table must be 'crowdstrike_alerts'"
+                );
+                assert_eq!(
+                    details.did_you_mean.as_deref(),
+                    Some("severity"),
+                    "BC-2.11.016 v1.15 EC-11-065 FROM-ALIAS: did_you_mean must be 'severity' \
+                     (Levenshtein distance 1 from 'sevrity'; available = {{severity, timestamp}}); \
+                     got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "BC-2.11.016 v1.15 EC-11-065 FROM-ALIAS: engine.execute must NOT succeed — \
+                 E-QUERY-038 must fire for alias-qualified typo 't.sevrity'. Before fix: \
+                 table_alias=None → qualifier 't' unknown → None → gate skips → typo bypasses \
+                 plan-time validation and reaches DataFusion as an opaque error."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 v1.15 EC-11-065 FROM-ALIAS: expected PrismError::ColumnNotFound \
+                 (E-QUERY-038) for alias-qualified typo 't.sevrity', got: {other:?}. \
+                 Before fix: DataFusion column resolution failure because 'sevrity' is not a \
+                 real column in crowdstrike_alerts (opaque error). Fix: thread FROM-alias 't' \
+                 through extract_column_name_from_field_path so 't.sevrity' → bare 'sevrity' \
+                 → gate fires E-QUERY-038 with did_you_mean='severity'."
+            ),
+        }
+    }
+
+    // ── Tests 39-41 (RED GATE + GREEN-LOCK): ADV-FIX-P7-OBS-002 FIELDS TRANSITION ─
+    //    BC-2.11.016 v1.15 EC-11-066/067/068 — include/exclude fields transitions.
+    //
+    //    Root cause (OBS-002): `PipeStage::Fields` was in the "all other stages — unchanged"
+    //    group in `check_pipe_stage_columns`.  The SQL emitter's `apply_fields` genuinely
+    //    restricts the projection — downstream references to removed columns fail at DataFusion
+    //    (false-negative class).  Without the FIELDS TRANSITION RULE, the gate passed queries
+    //    that DataFusion would later reject.
+    //
+    //    Fix (FIELDS TRANSITION RULE):
+    //      `| fields a, b`   (include-list, no leading `-`) → `available := {listed names}` (REPLACE)
+    //      `| fields - a, b` (exclude-list, leading `-`)    → `available := available ∖ {listed}` (subtract)
+    //    Provenance and suspension carry forward unchanged.
+
+    /// BC-2.11.016 v1.15 EC-11-066 FIELDS TRANSITION — include-then-stale-ref.
+    ///
+    /// `crowdstrike_alerts | fields severity | where timestamp > 0`
+    ///
+    /// Both `severity` and `timestamp` are registered columns.  After `| fields severity`
+    /// (include-list), available is REPLACED with `{severity}`.  The subsequent
+    /// `| where timestamp > 0` references `timestamp`, which is NOT in the include-set →
+    /// E-QUERY-038 fires on `timestamp`.
+    ///
+    /// `>` is valid for Datetime per valid_operators_for_type (["=","!=","<",">","<=",">=",
+    /// "BETWEEN"]) → E-QUERY-002 does NOT fire for `timestamp`; the error is E-QUERY-038.
+    ///
+    /// RED GATE: currently `PipeStage::Fields` does not update `available` — `timestamp`
+    /// stays in the original schema available set → no E-QUERY-038 → query passes plan-time
+    /// → execution fails (no adapter) → non-ColumnNotFound error.
+    #[tokio::test]
+    async fn test_BC_2_11_016_v1_15_ec11066_fields_include_stale_ref_yields_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // EC-11-066 canonical vector (BC-2.11.016 v1.15).
+        // | fields severity  →  available := {severity}  (REPLACE; timestamp removed)
+        // | where timestamp > 0  →  timestamp NOT in {severity}  →  E-QUERY-038.
+        // Before fix: available unchanged {severity, timestamp}; timestamp found → no E-QUERY-038.
+        let query = "crowdstrike_alerts | fields severity | where timestamp > 0";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "timestamp",
+                    "BC-2.11.016 v1.15 EC-11-066 FIELDS-INCLUDE: E-QUERY-038 must fire on \
+                     'timestamp' (removed from available by | fields severity include REPLACE); \
+                     got: '{}'",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "BC-2.11.016 v1.15 EC-11-066 FIELDS-INCLUDE: table must be \
+                     'crowdstrike_alerts'"
+                );
+                // did_you_mean: lev("timestamp", "severity") >> 3 → absent (not asserted).
+            }
+            Ok(_) => panic!(
+                "BC-2.11.016 v1.15 EC-11-066 FIELDS-INCLUDE: engine.execute must NOT succeed — \
+                 E-QUERY-038 must fire for 'timestamp' after `| fields severity` include REPLACE. \
+                 Before fix: PipeStage::Fields does not update available → timestamp stays in \
+                 {{severity, timestamp}} → plan-time gate passes → execution fails (no adapter)."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 v1.15 EC-11-066 FIELDS-INCLUDE: expected PrismError::ColumnNotFound \
+                 (E-QUERY-038) for 'timestamp' after fields include REPLACE, got: {other:?}. \
+                 Before fix: execution error instead of plan-time E-QUERY-038. \
+                 Fix: | fields include-list → available := {{listed}}; downstream 'timestamp' \
+                 NOT found → E-QUERY-038."
+            ),
+        }
+    }
+
+    /// BC-2.11.016 v1.15 EC-11-067 FIELDS TRANSITION — exclude-then-reference.
+    ///
+    /// `crowdstrike_alerts | fields - timestamp | sort timestamp`
+    ///
+    /// `timestamp` is a registered column.  After `| fields - timestamp` (exclude-list),
+    /// available is reduced: `{severity, timestamp} ∖ {timestamp}` = `{severity}`.
+    /// The subsequent `| sort timestamp` references `timestamp`, which is NOT in the
+    /// reduced available set → E-QUERY-038 fires on `timestamp`.
+    ///
+    /// RED GATE: currently `PipeStage::Fields` does not update available — `timestamp`
+    /// stays in the available set → no E-QUERY-038 → query passes plan-time → execution
+    /// fails (no adapter) → non-ColumnNotFound error.
+    #[tokio::test]
+    async fn test_BC_2_11_016_v1_15_ec11067_fields_exclude_yields_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // EC-11-067 canonical vector (BC-2.11.016 v1.15).
+        // | fields - timestamp  →  available := {severity, timestamp} ∖ {timestamp} = {severity}
+        // | sort timestamp  →  timestamp NOT in {severity}  →  E-QUERY-038.
+        // Before fix: available unchanged {severity, timestamp}; timestamp found → no E-QUERY-038.
+        let query = "crowdstrike_alerts | fields - timestamp | sort timestamp";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "timestamp",
+                    "BC-2.11.016 v1.15 EC-11-067 FIELDS-EXCLUDE: E-QUERY-038 must fire on \
+                     'timestamp' (subtracted from available by | fields - timestamp); \
+                     got: '{}'",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "BC-2.11.016 v1.15 EC-11-067 FIELDS-EXCLUDE: table must be \
+                     'crowdstrike_alerts'"
+                );
+            }
+            Ok(_) => panic!(
+                "BC-2.11.016 v1.15 EC-11-067 FIELDS-EXCLUDE: engine.execute must NOT succeed — \
+                 E-QUERY-038 must fire for 'timestamp' after `| fields - timestamp` exclude \
+                 subtraction. Before fix: PipeStage::Fields does not update available → \
+                 timestamp stays in {{severity, timestamp}} → sort passes plan-time check."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 v1.15 EC-11-067 FIELDS-EXCLUDE: expected PrismError::ColumnNotFound \
+                 (E-QUERY-038) for 'timestamp' after fields exclude subtraction, got: {other:?}. \
+                 Before fix: execution error instead of plan-time E-QUERY-038. \
+                 Fix: | fields - list → available := available ∖ {{listed}}; sort 'timestamp' \
+                 NOT found → E-QUERY-038."
+            ),
+        }
+    }
+
+    /// BC-2.11.016 v1.15 EC-11-068 FIELDS TRANSITION — include-then-valid-ref (GREEN-LOCK).
+    ///
+    /// `crowdstrike_alerts | fields severity | where severity IEQ 'High'`
+    ///
+    /// `severity` IS in the include-list.  After `| fields severity` (REPLACE), available =
+    /// `{severity}`.  The subsequent `| where severity IEQ 'High'` finds `severity` in
+    /// available → NO E-QUERY-038.  IEQ is valid for String (S-PRISMQL-CASE-INSENSITIVE-001).
+    ///
+    /// EXPECTED GREEN both before and after fix:
+    ///  - Before fix: `timestamp` is still in available (no transition) → `severity` is ALSO
+    ///    in available (original schema) → no false E-QUERY-038 on `severity`.
+    ///  - After fix: available = `{severity}` (REPLACE) → `severity` is in available → no
+    ///    E-QUERY-038.  Either path: `severity IEQ 'High'` passes E-QUERY-038 and E-QUERY-002.
+    #[tokio::test]
+    async fn test_BC_2_11_016_v1_15_ec11068_fields_include_valid_ref_no_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // EC-11-068 canonical vector (BC-2.11.016 v1.15).
+        // | fields severity  →  available := {severity}  (REPLACE after fix)
+        // | where severity IEQ 'High'  →  severity in {severity}  →  NO E-QUERY-038.
+        // Both before and after fix: severity is in available → no false positive.
+        let query = "crowdstrike_alerts | fields severity | where severity IEQ 'High'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "severity" => {
+                panic!(
+                    "BC-2.11.016 v1.15 EC-11-068 GREEN-LOCK: FALSE-POSITIVE E-QUERY-038 fired \
+                     on 'severity'. After `| fields severity` include REPLACE, available = \
+                     {{severity}}; 'severity' IS in the available set — E-QUERY-038 must NOT \
+                     fire. FP-001 invariant violated. \
+                     column='{}', table='{}', available={:?}",
+                    details.column, details.table, details.available_columns
+                )
+            }
+            // Ok, execution error, or ColumnNotFound on a column other than 'severity'
+            // is acceptable.  The only invariant: E-QUERY-038 must NOT fire on 'severity'.
+            _ => {}
+        }
+    }
 }
 
 #[cfg(test)]
