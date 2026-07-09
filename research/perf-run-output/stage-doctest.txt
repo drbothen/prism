@@ -1,0 +1,147 @@
+    Blocking waiting for file lock on artifact directory
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 19s
+   Doc-tests crowdstrike_oauth2_plugin
+
+running 1 test
+test crates/prism-spec-engine/plugins/crowdstrike-oauth2/src/lib.rs - auth_type_name (line 406) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+all doctests ran in 13.09s; merged doctests compilation took 13.07s
+   Doc-tests ocsf_proto_gen
+
+running 1 test
+test crates/ocsf-proto-gen/src/lib.rs - (line 19) - compile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.11s
+
+   Doc-tests prism_audit
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_bin
+
+running 1 test
+test crates/prism-bin/src/signals.rs - signals::create_sigterm_future (line 126) ... ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 9.81s; merged doctests compilation took 9.81s
+   Doc-tests prism_core
+
+running 6 tests
+test crates/prism-core/src/sensor_id.rs - sensor_id::SensorId (line 37) ... ignored
+test crates/prism-core/src/sensor_id.rs - sensor_id::SensorId::try_from_str (line 304) ... ignored
+test crates/prism-core/src/error.rs - error::UnknownSourceTableDetails (line 193) ... ok
+test crates/prism-core/src/lib.rs - SensorIdValidationError (line 128) ... ok
+test crates/prism-core/src/error.rs - error::TableNotAvailableDetails (line 103) ... ok
+test crates/prism-core/src/error.rs - error::ColumnNotFoundDetails (line 18) ... ok
+
+test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 6.67s
+
+   Doc-tests prism_credentials
+
+running 1 test
+test crates/prism-credentials/src/in_memory_store.rs - in_memory_store::InMemoryCredentialStore::with_get_error (line 105) ... ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_armis
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_claroty
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_common
+
+running 1 test
+test crates/prism-dtu-common/src/scenario/mod.rs - scenario::org_slug_from_org_id (line 321) ... ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_crowdstrike
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_cyberint
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_demo_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_harness
+
+running 5 tests
+test crates/prism-dtu-harness/src/builder.rs - builder::HarnessBuilder (line 110) ... ignored
+test crates/prism-dtu-harness/src/builder.rs - builder::HarnessBuilder::with_customer_overrides (line 208) ... ignored
+test crates/prism-dtu-harness/src/builder.rs - builder::HarnessBuilder::with_failure (line 262) ... ignored
+test crates/prism-dtu-harness/src/harness.rs - harness::Harness::builder (line 117) ... ignored
+test crates/prism-dtu-harness/src/multi_instance.rs - multi_instance::MultiInstanceHarness::start (line 159) ... ignored
+
+test result: ok. 0 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_jira
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_nvd
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_pagerduty
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_slack
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_threatintel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_mcp
+
+running 2 tests
+test crates/prism-mcp/src/error_mapping.rs - error_mapping::prism_error_to_structured_call_result (line 915) ... ignored
+test crates/prism-mcp/src/error_mapping.rs - error_mapping::StructuredErrorFields (line 479) ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.31s
+
+   Doc-tests prism_ocsf
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_query
+
+running 3 tests
+test crates/prism-query/src/security.rs - security::ParseLimits (line 117) ... ignored
+test crates/prism-query/src/visit.rs - visit (line 8) ... ignored

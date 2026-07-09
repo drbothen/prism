@@ -1,0 +1,3 @@
+Verifying #[non_exhaustive] forward-compat enforcement (expected: 87 violations)...
+PASS: 87 types correctly reject external construction (expected: 87)
+scripts/check-non-exhaustive.sh 2>&1  2.53s user 1.13s system 127% cpu 2.871 total

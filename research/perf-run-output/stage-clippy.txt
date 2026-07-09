@@ -1,0 +1,28 @@
+    Checking prism-dtu-common v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-dtu-common)
+    Checking wasmtime-environ v44.0.1
+    Checking wasmtime-internal-jit-icache-coherence v44.0.1
+   Compiling prism-ocsf v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-ocsf)
+    Checking crowdstrike-oauth2-plugin v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-spec-engine/plugins/crowdstrike-oauth2)
+    Checking prism-dtu-cyberint v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-dtu-cyberint)
+    Checking prism-dtu-claroty v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-dtu-claroty)
+    Checking prism-dtu-nvd v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-dtu-nvd)
+    Checking prism-dtu-crowdstrike v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-dtu-crowdstrike)
+    Checking prism-dtu-armis v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-dtu-armis)
+    Checking prism-dtu-threatintel v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-dtu-threatintel)
+    Checking prism-dtu-harness v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-dtu-harness)
+    Checking prism-dtu-slack v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-dtu-slack)
+    Checking prism-dtu-jira v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-dtu-jira)
+    Checking prism-dtu-pagerduty v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-dtu-pagerduty)
+    Checking prism-dtu-demo-server v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-dtu-demo-server)
+    Checking wasmtime-internal-unwinder v44.0.1
+    Checking wasmtime-internal-fiber v44.0.1
+    Checking wasmtime-internal-cache v44.0.1
+    Checking wasmtime-internal-cranelift v44.0.1
+    Checking wasmtime v44.0.1
+    Checking prism-spec-engine v0.9.0 (/Users/jmagady/Dev/prism/crates/prism-spec-engine)
+    Checking prism-sensors v0.2.0 (/Users/jmagady/Dev/prism/crates/prism-sensors)
+    Checking prism-query v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-query)
+    Checking prism-mcp v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-mcp)
+    Checking prism-bin v0.1.0 (/Users/jmagady/Dev/prism/crates/prism-bin)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 43.74s
+cargo clippy --all-features -- -D warnings 2>&1  42.06s user 13.33s system 126% cpu 43.854 total
