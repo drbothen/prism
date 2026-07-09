@@ -11439,6 +11439,23 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     // ── Tests 39-41 (RED GATE + GREEN-LOCK): ADV-FIX-P7-OBS-002 FIELDS TRANSITION ─
     //    BC-2.11.016 v1.15 EC-11-066/067/068 — include/exclude fields transitions.
     //
+    // ── Regression locks: ADV-FIX-P8-OBS-001 — FROM-ALIAS RESOLUTION positions 10-14 ──
+    //
+    //    BC-2.11.016 v1.15 FROM-ALIAS RESOLUTION is implemented across ALL PipeStage arms in
+    //    `check_pipe_stage_columns` (table_alias threaded to every
+    //    `extract_column_name_from_field_path` call).  Position 9 (`| where t.sevrity`) is
+    //    already locked by EC-11-065 (test 38).  These five locks cover positions 10-14 —
+    //    sort, stats by-key, fields, enrich input, and dedup — so that a future refactor
+    //    reverting any one arm's `table_alias` to `None` would produce an immediate RED here.
+    //
+    //    All five tests use `make_crowdstrike_engine()` + alias `t` declared in the FROM clause.
+    //    `t.sevrity` (Levenshtein distance 1 from "severity") is the alias-qualified typo.
+    //    Expected result for each: E-QUERY-038 with column="sevrity",
+    //    table="crowdstrike_alerts", did_you_mean=Some("severity").
+    //
+    //    EXPECTED COLOR: GREEN immediately (alias threading already implemented).
+    //    If any test is RED → that arm has a threading gap → finding severity upgrades.
+    //
     //    Root cause (OBS-002): `PipeStage::Fields` was in the "all other stages — unchanged"
     //    group in `check_pipe_stage_columns`.  The SQL emitter's `apply_fields` genuinely
     //    restricts the projection — downstream references to removed columns fail at DataFusion
@@ -11576,6 +11593,379 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                  Before fix: execution error instead of plan-time E-QUERY-038. \
                  Fix: | fields - list → available := available ∖ {{listed}}; sort 'timestamp' \
                  NOT found → E-QUERY-038."
+            ),
+        }
+    }
+
+    // ── ADV-FIX-P8-OBS-001 regression lock: position 10 (sort) ─────────────────────
+
+    /// ADV-FIX-P8-OBS-001 regression lock — FROM-ALIAS RESOLUTION position 10: `| sort`.
+    ///
+    /// `SELECT * FROM crowdstrike_alerts t | sort t.sevrity desc`
+    ///
+    /// `sevrity` is an alias-qualified typo of `severity` (Levenshtein distance 1).
+    /// FROM-alias `t` is declared in the head SQL.  After alias resolution (position 10),
+    /// `t.sevrity` is stripped to bare `sevrity`, checked against available
+    /// `{severity, timestamp}` (SELECT *), and found absent → E-QUERY-038 fires with
+    /// `column: "sevrity"`, `table: "crowdstrike_alerts"`, `did_you_mean: "severity"`.
+    ///
+    /// REGRESSION LOCK: if a future refactor reverts the `PipeStage::Sort` arm's
+    /// `table_alias` parameter to `None`, the qualifier "t" becomes unknown →
+    /// `extract_column_name_from_field_path` returns None → gate silently skips
+    /// `t.sevrity` → no E-QUERY-038 → this test goes RED.
+    ///
+    /// EXPECTED GREEN immediately (alias threading already implemented in pos-10 arm).
+    #[tokio::test]
+    async fn test_ADV_FIX_P8_OBS_001_pos10_sort_alias_qualified_typo_regression_lock() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // SqlPipe: head declares FROM-alias "t"; stage uses alias-qualified typo "t.sevrity".
+        // Available (SELECT *) = {severity, timestamp}.
+        // Alias resolution: "t" matches FROM-alias → bare "sevrity" → NOT in available → E-QUERY-038.
+        let query = "SELECT * FROM crowdstrike_alerts t | sort t.sevrity desc";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "sevrity",
+                    "ADV-FIX-P8-OBS-001 pos-10 sort: column in E-QUERY-038 must be 'sevrity' \
+                     (alias-qualified typo stripped to bare name); got: '{}'",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "ADV-FIX-P8-OBS-001 pos-10 sort: table must be 'crowdstrike_alerts'"
+                );
+                assert_eq!(
+                    details.did_you_mean.as_deref(),
+                    Some("severity"),
+                    "ADV-FIX-P8-OBS-001 pos-10 sort: did_you_mean must be 'severity' \
+                     (Levenshtein distance 1 from 'sevrity'); got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "ADV-FIX-P8-OBS-001 pos-10 sort: engine.execute must NOT succeed — E-QUERY-038 \
+                 must fire for alias-qualified sort key typo 't.sevrity'. REGRESSION: \
+                 PipeStage::Sort arm may have lost table_alias threading → qualifier 't' unknown \
+                 → gate skips → typo reaches DataFusion."
+            ),
+            Err(other) => panic!(
+                "ADV-FIX-P8-OBS-001 pos-10 sort: expected PrismError::ColumnNotFound (E-QUERY-038) \
+                 for alias-qualified typo 't.sevrity' in sort key, got: {other:?}. \
+                 REGRESSION: table_alias not threaded to extract_column_name_from_field_path \
+                 in the PipeStage::Sort arm."
+            ),
+        }
+    }
+
+    // ── ADV-FIX-P8-OBS-001 regression lock: position 11 (stats by-key) ──────────────
+
+    /// ADV-FIX-P8-OBS-001 regression lock — table-name-qualified resolution position 11:
+    /// `| stats by`.
+    ///
+    /// `crowdstrike_alerts | stats count() by crowdstrike_alerts.sevrity`
+    ///
+    /// Grammar note: `| stats` is only available in the Pipe-form parser
+    /// (`build_pipe_parser`) — it is intentionally absent from the SqlPipe pipe-stages
+    /// parser (`build_pipe_stages_parser`), so `SELECT * FROM crowdstrike_alerts t | stats …`
+    /// is a parse error.  The stats-arm regression lock therefore uses Pipe form, where the
+    /// table name itself acts as the qualifier instead of a FROM-alias.
+    ///
+    /// `sevrity` is a table-name-qualified typo of `severity` (Levenshtein distance 1).
+    /// `crowdstrike_alerts.sevrity` is a FieldPath with segments `["crowdstrike_alerts", "sevrity"]`.
+    /// `extract_column_name_from_field_path` matches the qualifier against the table name
+    /// ("crowdstrike_alerts") → strips the qualifier → bare `sevrity` → checked against
+    /// available `{severity, timestamp}` → NOT found → E-QUERY-038 fires with
+    /// `column: "sevrity"`, `table: "crowdstrike_alerts"`, `did_you_mean: "severity"`.
+    ///
+    /// REGRESSION LOCK: if a future refactor breaks `extract_column_name_from_field_path`
+    /// calls in the `PipeStage::Stats` by-fields arm (wrong table_name, wrong return, or
+    /// skipped call), the qualifier would go unrecognised → gate skips `sevrity` → no
+    /// E-QUERY-038 → this test goes RED.
+    ///
+    /// EXPECTED GREEN immediately (table-name-qualified path extraction already
+    /// implemented in the pos-11 stats by-fields arm).
+    #[tokio::test]
+    async fn test_ADV_FIX_P8_OBS_001_pos11_stats_by_tablename_qualified_typo_regression_lock() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // Pipe form: table-name-qualified by-key typo "crowdstrike_alerts.sevrity".
+        // Available = {severity, timestamp}.
+        // Qualifier "crowdstrike_alerts" matches table name → bare "sevrity" → NOT in
+        // available → E-QUERY-038; did_you_mean = "severity" (Levenshtein distance 1).
+        let query = "crowdstrike_alerts | stats count() by crowdstrike_alerts.sevrity";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "sevrity",
+                    "ADV-FIX-P8-OBS-001 pos-11 stats-by: column in E-QUERY-038 must be 'sevrity' \
+                     (table-name-qualified by-key typo stripped to bare name); got: '{}'",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "ADV-FIX-P8-OBS-001 pos-11 stats-by: table must be 'crowdstrike_alerts'"
+                );
+                assert_eq!(
+                    details.did_you_mean.as_deref(),
+                    Some("severity"),
+                    "ADV-FIX-P8-OBS-001 pos-11 stats-by: did_you_mean must be 'severity' \
+                     (Levenshtein distance 1 from 'sevrity'); got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "ADV-FIX-P8-OBS-001 pos-11 stats-by: engine.execute must NOT succeed — E-QUERY-038 \
+                 must fire for table-name-qualified stats by-key typo 'crowdstrike_alerts.sevrity'. \
+                 REGRESSION: PipeStage::Stats by-fields arm may have broken field-path extraction → \
+                 qualifier unrecognised → gate skips → typo reaches DataFusion."
+            ),
+            Err(other) => panic!(
+                "ADV-FIX-P8-OBS-001 pos-11 stats-by: expected PrismError::ColumnNotFound \
+                 (E-QUERY-038) for table-name-qualified by-key typo 'crowdstrike_alerts.sevrity', \
+                 got: {other:?}. REGRESSION: extract_column_name_from_field_path not called \
+                 correctly in the PipeStage::Stats by-fields arm."
+            ),
+        }
+    }
+
+    // ── ADV-FIX-P8-OBS-001 regression lock: position 12 (fields) ────────────────────
+
+    /// ADV-FIX-P8-OBS-001 regression lock — FROM-ALIAS RESOLUTION position 12: `| fields`.
+    ///
+    /// `SELECT * FROM crowdstrike_alerts t | fields t.sevrity`
+    ///
+    /// `sevrity` is an alias-qualified typo of `severity` (Levenshtein distance 1).
+    /// FROM-alias `t` is declared in the head SQL.  After alias resolution (position 12
+    /// fields column check), `t.sevrity` is stripped to bare `sevrity`, checked against
+    /// available `{severity, timestamp}` (SELECT *), and found absent → E-QUERY-038 fires
+    /// with `column: "sevrity"`, `table: "crowdstrike_alerts"`, `did_you_mean: "severity"`.
+    ///
+    /// REGRESSION LOCK: if a future refactor reverts the `PipeStage::Fields` arm's
+    /// `table_alias` parameter to `None`, the qualifier "t" becomes unknown → gate silently
+    /// skips `t.sevrity` → no E-QUERY-038 → this test goes RED.
+    ///
+    /// EXPECTED GREEN immediately (alias threading already implemented in pos-12 arm).
+    #[tokio::test]
+    async fn test_ADV_FIX_P8_OBS_001_pos12_fields_alias_qualified_typo_regression_lock() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // SqlPipe: head declares FROM-alias "t"; fields list uses alias-qualified typo "t.sevrity".
+        // Available (SELECT *) = {severity, timestamp}.
+        // Alias resolution: "t" → bare "sevrity" → NOT in available → E-QUERY-038.
+        let query = "SELECT * FROM crowdstrike_alerts t | fields t.sevrity";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "sevrity",
+                    "ADV-FIX-P8-OBS-001 pos-12 fields: column in E-QUERY-038 must be 'sevrity' \
+                     (alias-qualified fields column typo stripped to bare name); got: '{}'",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "ADV-FIX-P8-OBS-001 pos-12 fields: table must be 'crowdstrike_alerts'"
+                );
+                assert_eq!(
+                    details.did_you_mean.as_deref(),
+                    Some("severity"),
+                    "ADV-FIX-P8-OBS-001 pos-12 fields: did_you_mean must be 'severity' \
+                     (Levenshtein distance 1 from 'sevrity'); got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "ADV-FIX-P8-OBS-001 pos-12 fields: engine.execute must NOT succeed — E-QUERY-038 \
+                 must fire for alias-qualified fields column typo 't.sevrity'. REGRESSION: \
+                 PipeStage::Fields arm may have lost table_alias threading → qualifier 't' unknown \
+                 → gate skips → typo reaches DataFusion."
+            ),
+            Err(other) => panic!(
+                "ADV-FIX-P8-OBS-001 pos-12 fields: expected PrismError::ColumnNotFound \
+                 (E-QUERY-038) for alias-qualified fields column typo 't.sevrity', got: {other:?}. \
+                 REGRESSION: table_alias not threaded to extract_column_name_from_field_path \
+                 in the PipeStage::Fields arm."
+            ),
+        }
+    }
+
+    // ── ADV-FIX-P8-OBS-001 regression lock: position 13 (enrich input) ──────────────
+
+    /// ADV-FIX-P8-OBS-001 regression lock — FROM-ALIAS RESOLUTION position 13: `| enrich` input.
+    ///
+    /// `SELECT * FROM crowdstrike_alerts t | enrich cvss_base_score(t.sevrity)`
+    ///
+    /// `sevrity` is an alias-qualified typo of `severity` (Levenshtein distance 1).
+    /// FROM-alias `t` is declared in the head SQL.  The enrich INPUT column check fires at
+    /// position 13 (BEFORE the Enrich stage updates the binding context).  After alias
+    /// resolution, `t.sevrity` is stripped to bare `sevrity`, checked against available
+    /// `{severity, timestamp}` (SELECT *), and found absent → E-QUERY-038 fires with
+    /// `column: "sevrity"`, `table: "crowdstrike_alerts"`, `did_you_mean: "severity"`.
+    ///
+    /// No InfusionRegistry is wired in `make_crowdstrike_engine()`, so
+    /// `check_enrich_udf_availability` is a no-op (returns Ok immediately) — E-QUERY-039
+    /// does NOT fire; the input-column check at position 13 is reached unconditionally.
+    ///
+    /// REGRESSION LOCK: if a future refactor reverts the `PipeStage::Enrich` input arm's
+    /// `table_alias` parameter to `None`, the qualifier "t" becomes unknown → gate silently
+    /// skips `t.sevrity` → no E-QUERY-038 → this test goes RED.
+    ///
+    /// EXPECTED GREEN immediately (alias threading already implemented in pos-13 arm).
+    #[tokio::test]
+    async fn test_ADV_FIX_P8_OBS_001_pos13_enrich_input_alias_qualified_typo_regression_lock() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // SqlPipe: head declares FROM-alias "t"; enrich input uses alias-qualified typo "t.sevrity".
+        // No InfusionRegistry wired → E-QUERY-039 check is no-op; position-13 input check runs.
+        // Available (SELECT *) = {severity, timestamp}.
+        // Alias resolution: "t" → bare "sevrity" → NOT in available → E-QUERY-038.
+        let query = "SELECT * FROM crowdstrike_alerts t | enrich cvss_base_score(t.sevrity)";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "sevrity",
+                    "ADV-FIX-P8-OBS-001 pos-13 enrich-input: column in E-QUERY-038 must be \
+                     'sevrity' (alias-qualified enrich input typo stripped to bare name); got: '{}'",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "ADV-FIX-P8-OBS-001 pos-13 enrich-input: table must be 'crowdstrike_alerts'"
+                );
+                assert_eq!(
+                    details.did_you_mean.as_deref(),
+                    Some("severity"),
+                    "ADV-FIX-P8-OBS-001 pos-13 enrich-input: did_you_mean must be 'severity' \
+                     (Levenshtein distance 1 from 'sevrity'); got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "ADV-FIX-P8-OBS-001 pos-13 enrich-input: engine.execute must NOT succeed — \
+                 E-QUERY-038 must fire for alias-qualified enrich input typo 't.sevrity'. \
+                 REGRESSION: PipeStage::Enrich input arm may have lost table_alias threading → \
+                 qualifier 't' unknown → gate skips → typo reaches DataFusion."
+            ),
+            Err(other) => panic!(
+                "ADV-FIX-P8-OBS-001 pos-13 enrich-input: expected PrismError::ColumnNotFound \
+                 (E-QUERY-038) for alias-qualified enrich input typo 't.sevrity', got: {other:?}. \
+                 REGRESSION: table_alias not threaded to extract_column_name_from_field_path \
+                 in the PipeStage::Enrich input arm."
+            ),
+        }
+    }
+
+    // ── ADV-FIX-P8-OBS-001 regression lock: position 14 (dedup) ────────────────────
+
+    /// ADV-FIX-P8-OBS-001 regression lock — FROM-ALIAS RESOLUTION position 14: `| dedup`.
+    ///
+    /// `SELECT * FROM crowdstrike_alerts t | dedup t.sevrity`
+    ///
+    /// `sevrity` is an alias-qualified typo of `severity` (Levenshtein distance 1).
+    /// FROM-alias `t` is declared in the head SQL.  After alias resolution (position 14
+    /// dedup field check), `t.sevrity` is stripped to bare `sevrity`, checked against
+    /// available `{severity, timestamp}` (SELECT *), and found absent → E-QUERY-038 fires
+    /// with `column: "sevrity"`, `table: "crowdstrike_alerts"`, `did_you_mean: "severity"`.
+    ///
+    /// REGRESSION LOCK: if a future refactor reverts the `PipeStage::Dedup` arm's
+    /// `table_alias` parameter to `None`, the qualifier "t" becomes unknown → gate silently
+    /// skips `t.sevrity` → no E-QUERY-038 → this test goes RED.
+    ///
+    /// EXPECTED GREEN immediately (alias threading already implemented in pos-14 arm).
+    #[tokio::test]
+    async fn test_ADV_FIX_P8_OBS_001_pos14_dedup_alias_qualified_typo_regression_lock() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // SqlPipe: head declares FROM-alias "t"; dedup key uses alias-qualified typo "t.sevrity".
+        // Available (SELECT *) = {severity, timestamp}.
+        // Alias resolution: "t" → bare "sevrity" → NOT in available → E-QUERY-038.
+        let query = "SELECT * FROM crowdstrike_alerts t | dedup t.sevrity";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "sevrity",
+                    "ADV-FIX-P8-OBS-001 pos-14 dedup: column in E-QUERY-038 must be 'sevrity' \
+                     (alias-qualified dedup key typo stripped to bare name); got: '{}'",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "ADV-FIX-P8-OBS-001 pos-14 dedup: table must be 'crowdstrike_alerts'"
+                );
+                assert_eq!(
+                    details.did_you_mean.as_deref(),
+                    Some("severity"),
+                    "ADV-FIX-P8-OBS-001 pos-14 dedup: did_you_mean must be 'severity' \
+                     (Levenshtein distance 1 from 'sevrity'); got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "ADV-FIX-P8-OBS-001 pos-14 dedup: engine.execute must NOT succeed — E-QUERY-038 \
+                 must fire for alias-qualified dedup key typo 't.sevrity'. REGRESSION: \
+                 PipeStage::Dedup arm may have lost table_alias threading → qualifier 't' unknown \
+                 → gate skips → typo reaches DataFusion."
+            ),
+            Err(other) => panic!(
+                "ADV-FIX-P8-OBS-001 pos-14 dedup: expected PrismError::ColumnNotFound (E-QUERY-038) \
+                 for alias-qualified dedup key typo 't.sevrity', got: {other:?}. \
+                 REGRESSION: table_alias not threaded to extract_column_name_from_field_path \
+                 in the PipeStage::Dedup arm."
             ),
         }
     }
