@@ -2562,3 +2562,88 @@ Alternatively: after any version advance, run a comprehensive two-pass grep cove
 **Impact:** Stale split-cell pins do not cause runtime failures but create divergence between the story spec summary tables and the implemented BC version, which adversary passes treat as a MED finding (spec-code drift class).
 
 **Source:** D-1610 (FIX-IEQ-ERRPATH-001 fix-burst story-pin propagation — split-cell format discovered, state-manager burst, 2026-07-08).
+
+---
+
+## Process-Gap Lesson 17 — Lesson 15 RECURRED Same-Cascade: PO Grammar-Keyword Verification Must Be a Mandatory Pre-Lock Checklist Step (D-1611, 2026-07-08; FIX-IEQ-ERRPATH-001)
+
+**Tags:** [process-gap] [grammar-verification] [po-amendment] [keyword-drift] [recurrence]
+
+**What happened:**
+
+Lesson 15 (D-1610) was recorded after BC-2.11.016 v1.6 was authored with `|project` instead of the canonical PQL keyword `|fields`, requiring a v1.7 grammar-correction round-trip. In the same cascade (FIX-IEQ-ERRPATH-001), the PO's v1.8 amendment introduced `| sort by` for the sort-stage keyword in the canonical test vectors. The actual PQL grammar uses `| sort` (without `by`). A v1.9 grammar-correction round-trip was again required, along with cascading v1.17/v1.5/v2.24 micro-bumps to BC-2.11.004, BC-2.11.020, error-taxonomy, and four story files. This is the second grammar-keyword miss in the same FIX-IEQ-ERRPATH-001 cascade.
+
+**Root cause:**
+
+The PO authored BC amendments using remembered grammar syntax rather than verifying the keyword against the parser source or the story acceptance criteria before locking. Lesson 15 codified a rule against this practice, but the rule was not enforced as a mandatory BLOCKING checklist step — it was a documented lesson that required active recall. The recurrence shows that ad-hoc recall is insufficient; the verification must be a gating step in the amendment workflow.
+
+**Correct protocol (codified rule — MANDATORY PRE-LOCK STEP):**
+
+Every BC amendment that cites a concrete PQL grammar keyword (pipe-stage name, operator token, delimiter) MUST include a verification step BEFORE the BC version is locked:
+
+1. For every quoted query vector or keyword cited in the BC amendment, grep the parser source: `grep -r 'keyword' crates/prism-query/src/ --include='*.rs'`
+2. Alternatively, read the relevant story AC blocks — these were written against the test suite and are the most reliable keyword source.
+3. Record the verification result in the BC amendment commit message: "Grammar keyword `| sort` verified against parser source (not `| sort by`)."
+4. If the PO cannot access the parser source directly, the amendment dispatch must include an explicit grammar-verification step for the test-writer or implementer as a BLOCKING pre-merge gate.
+
+**Impact of non-compliance:** Each grammar miss triggers a full cascade micro-bump round: the BC amendment, all sibling BC propagations, error-taxonomy, BC-INDEX, and all story pins — 4+ files, 2 state-manager bursts, and a streak reset.
+
+**Source:** D-1611 (FIX-IEQ-ERRPATH-001 LOCAL pass-2 + fix-burst, state-manager burst, 2026-07-08; recurrence of Lesson 15 from D-1610).
+
+---
+
+## Process-Gap Lesson 18 — Sibling-BC Micro-Bumps Mid-Cascade Caused 4 Story-Pin Propagation Rounds; Batch Spec Amendments Before Dispatching Pin Propagation (D-1611, 2026-07-08; FIX-IEQ-ERRPATH-001)
+
+**Tags:** [process-gap] [spec-amendment] [story-pin] [cascade-batching] [sibling-bc]
+
+**What happened:**
+
+During the FIX-IEQ-ERRPATH-001 pass-2 fix-burst, the PO authored two BC-2.11.016 amendment rounds (v1.8 for the DERIVED-COLUMN BINDING RULE, then v1.9 for the sort-grammar correction). Each BC-2.11.016 amendment triggered sibling propagation bumps to BC-2.11.004 and BC-2.11.020, and each sibling bump triggered story-pin propagation across four story files. The result: 4 story-pin propagation dispatches (v1.8 round: story-writer dispatched to advance pins from v1.38→v1.39, v2.25→v2.26, v2.2→v2.3, v1.14→v1.15; v1.9 round: story-writer re-dispatched to advance pins again from v1.39→v1.40, v2.26→v2.27, v2.3→v2.4, v1.15→v1.16). Two full story-writer dispatches for what could have been one.
+
+**Root cause:**
+
+The PO dispatched the v1.8 amendment (DERIVED-COLUMN BINDING RULE) and then discovered the v1.9 correction (sort-grammar fix) as a separate issue found during test-writer red-gate verification. The two amendments were logically independent but were dispatched sequentially rather than batched. Each triggered its own propagation cascade.
+
+**Correct protocol (codified rule — BATCH BEFORE PROPAGATING):**
+
+Before dispatching story-pin propagation for a BC amendment:
+
+1. **Hold propagation until all known spec amendments for this fix-burst are complete.** If a BC is known to need multiple corrections in the same fix-burst, author ALL corrections to the BC first (resolving to the final version), THEN dispatch story-writer for a single propagation pass.
+2. **If the second amendment is discovered after propagation has already started:** cancel or hold the in-progress propagation, author the remaining BC correction, then dispatch propagation once against the final settled version.
+3. **Cascade pin-propagation once per cascade, not once per BC micro-bump.** The story-writer dispatches are expensive (full story-file reads + multi-format sweep). Batching reduces 4 dispatches to 1.
+
+**Boundary:** This rule applies when multiple BC corrections in the same fix-burst are dispatched sequentially. It does NOT apply when corrections are discovered in different cascade passes (different adversary rounds) — those are necessarily sequential.
+
+**Source:** D-1611 (FIX-IEQ-ERRPATH-001 LOCAL pass-2 + fix-burst, state-manager burst, 2026-07-08; 4 story-pin propagation rounds traced to 2 sequential BC amendment dispatches).
+
+---
+
+## Process-Note Lesson 19 — Plan-Time Gate Changes Need Integration Coverage; Module-Level Regression Tests Lock the Pattern but CI Cannot Exercise DTU-Backed Canonical Pivots (D-1611, 2026-07-08; FIX-IEQ-ERRPATH-001)
+
+**Tags:** [process-note] [integration-coverage] [ci] [dtu] [canonical-pivot] [plan-time-gate]
+
+**What happened:**
+
+The FIX-IEQ-ERRPATH-001 pass-1 fix-burst added a 12-position E-QUERY-038 gate with 10 module-level tests (drift module; in-process; GREEN in CI). Despite CI staying GREEN through both pass-2 CRIT regressions (CRIT-001 and CRIT-002), the CRIT regressions were real: canonical BC-2.06.019 NVD/ThreatIntel pivot queries would have returned false E-QUERY-038 errors in production. CI did not catch this because the canonical-pivot integration tests (bc_2_06_019_canonical_pivot_queries.rs) require a running DTU infrastructure (real DTU clone + network) and are `#[ignore]`'d in CI.
+
+**Root cause:**
+
+Plan-time gate changes affect the entire query-execution surface including enrichment queries that cannot be meaningfully tested without a live enrich data source. The CI test suite (unit + integration-without-DTU) cannot exercise `| enrich | where derived_column > N` patterns end-to-end. The module-level tests added in pass-1 were correct-as-far-as-they-went but did not include enrich-output availability scenarios because the test-writer worked from the gate specification (position list) without simulating the enrich context.
+
+**Implication (codified note):**
+
+For plan-time gate changes that touch any of the following positions:
+- Position 13 (enrich INPUT)
+- Any position downstream of an enrich stage (positions 8, 10 when enrich is upstream)
+- Any position downstream of a stats stage (positions 8, 10 when stats is upstream)
+
+The test-writer MUST include binding-context scenario tests that:
+1. Simulate the pre-stage column set (source table schema)
+2. Apply the stage (enrich/stats) and verify the binding context update
+3. Verify that downstream column references to derived columns are NOT false-positived
+
+These do not require DTU — they require a mock/stub binding context in the unit test. The canonical-pivot integration tests provide a higher-confidence end-to-end gate but are not CI-executable.
+
+**Wave-gate consideration:** When the next wave-gate is run for FIX-IEQ-ERRPATH-001, the wave-gate evaluator should consider whether a non-DTU canonical-pivot smoke test (using committed fixture data) can be added to gate coverage. This is a P3 improvement, not a blocker.
+
+**Source:** D-1611 (FIX-IEQ-ERRPATH-001 LOCAL pass-2 adversary; CRIT-001/002 found despite CI GREEN; module-level regression tests added in pass-2 fix-burst now lock the binding-context patterns, 2026-07-08).

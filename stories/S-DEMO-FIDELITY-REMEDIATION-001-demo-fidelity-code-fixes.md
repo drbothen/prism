@@ -89,10 +89,10 @@ points: 11
 level: "L4"
 status: merged
 # BC status: 7 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.7,
-#   BC-2.11.016 v1.7, BC-2.11.007 v1.9) + BC-2.11.019 v1.6 draft→active at merge per POL-14. Canonical versions
+#   BC-2.11.016 v1.9, BC-2.11.007 v1.9) + BC-2.11.019 v1.6 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.25"
+version: "2.27"
 updated: "2026-07-08"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -179,7 +179,7 @@ red_gate_tests: 54
 # --- F-PQL2-OBS-001 skeleton-placeholder guards (BC-2.10.016 v1.2; origin F-PQL2-OBS-001) ---
 #   test_f_pql2_obs001_query_skeleton_no_bare_timestamp (f_pql2_obs001_skeleton_placeholder_guard_test.rs)
 #   test_f_pql2_obs001_datetime_arithmetic_uses_placeholder (f_pql2_obs001_skeleton_placeholder_guard_test.rs)
-# --- AC-M2 HAVING column gate (BC-2.11.016 v1.7 — Position 6; inline in engine.rs,
+# --- AC-M2 HAVING column gate (BC-2.11.016 v1.9 — Position 6; inline in engine.rs,
 #     module f_pwl1_low001_having_column_gate_tests) ---
 #   test_BC_2_11_016_having_column_gate_typo_fires_e_query_038 (engine.rs inline)
 #   test_BC_2_11_016_having_column_gate_valid_col_no_e_query_038 (engine.rs inline)
@@ -389,7 +389,7 @@ all subquery positions (HAVING, GROUP BY, ORDER BY, JOIN ON).
 | BC-2.11.019 | v1.6 | BC-2.11.019: E-QUERY-039 Enrich-UDF-Not-Found Plan-Time Gate |
 | BC-2.10.016 | v1.2 | BC-2.10.016: MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
 | BC-2.10.012 | v1.7 | BC-2.10.012: `prism_describe` Schema Discovery Tool (L2) |
-| BC-2.11.016 | v1.7 | BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
+| BC-2.11.016 | v1.9 | BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
 | BC-2.11.007 | v1.9 | BC-2.11.007: Sensor Filter Push-Down |
 
 ---
@@ -832,7 +832,7 @@ paths.
 
 ### Area G — Gate Coverage: E-QUERY-038 Column Gate in Single-Tenant Mode (M1)
 
-**AC-M1** (traces to BC-2.11.016 v1.7 postcondition — E-QUERY-038 fires for unknown columns): The
+**AC-M1** (traces to BC-2.11.016 v1.9 postcondition — E-QUERY-038 fires for unknown columns): The
 `check_query_column_availability` function (E-QUERY-038 column gate) MUST fire in single-tenant
 mode where `resolved_spec_map` is `None`. Previously it returned `Ok(())` immediately in this
 case, silently bypassing E-QUERY-038 for all single-tenant queries. The fix: `TableRegistry`
@@ -853,14 +853,14 @@ column metadata.
 
 ### Area H — Gate Coverage: E-QUERY-038 Column Gate Validates GROUP BY / ORDER BY / JOIN ON (M2)
 
-**AC-M2** (traces to BC-2.11.016 v1.7 postcondition — E-QUERY-038 fires for unknown columns at
+**AC-M2** (traces to BC-2.11.016 v1.9 postcondition — E-QUERY-038 fires for unknown columns at
 all relevant positions): `check_query_column_availability` validates GROUP BY expressions,
 ORDER BY expressions, JOIN ON column refs, and HAVING predicate column refs in addition to
 SELECT projections and WHERE predicates. Previously GROUP BY, ORDER BY, JOIN ON, and HAVING
 column references were not checked, creating bypass paths where an invalid column in
 `GROUP BY invalid_col` or `HAVING count(typo_col)` would not fire E-QUERY-038 at plan time.
 
-For the HAVING position specifically (BC-2.11.016 v1.7 §Implementation location gate-positions
+For the HAVING position specifically (BC-2.11.016 v1.9 §Implementation location gate-positions
 table, Position 6):
 
 Position 6 (HAVING): uses `extract_predicate_columns` (same helper as WHERE/Position 2), which
@@ -1544,6 +1544,8 @@ and the TLS-REMEDIATION fold-in (commit cf66151f):
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.27 | BC-2.11.016-v1.9-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.016 v1.8→v1.9 version-pin propagation (sort-grammar fix round, POL-29/POL-23).** PO bumped BC-2.11.016 v1.8→v1.9 (sort-grammar micro-fix). Six live version-pin cites updated: (1) frontmatter BC status comment; (2) frontmatter red-gate test inventory comment (AC-M2 HAVING label); (3) §Behavioral Contracts body table BC-2.11.016 version cell; (4) AC-M1 trace; (5) AC-M2 trace; (6) AC-M2 §HAVING body prose. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 2.26→2.27; updated 2026-07-08 (POL-23). |
+| 2.26 | BC-2.11.016-v1.8-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.016 v1.7→v1.8 version-pin propagation (pass-2 CRIT closure burst, POL-29/POL-23).** PO bumped BC-2.11.016 v1.7→v1.8 (14-position gate + derived-column binding rule). Six live version-pin cites updated: (1) frontmatter `# BC status:` comment v1.7→v1.8; (2) frontmatter red-gate test inventory comment (AC-M2 HAVING label) v1.7→v1.8; (3) §Behavioral Contracts body table BC-2.11.016 version cell v1.7→v1.8; (4) AC-M1 trace v1.7→v1.8; (5) AC-M2 trace v1.7→v1.8; (6) AC-M2 §HAVING body prose v1.7→v1.8. Historical-narrative sites left unchanged per POL-29: blockquote `BC-2.11.016 v1.5 HAVING addition`; lines 1123/1125 `BC-2.11.016 v1.5's claim`; §Changelog rows 2.25 and earlier. AC semantics UNCHANGED. Frontmatter version 2.25→2.26; updated 2026-07-08 (POL-23). |
 | 2.25 | BC-2.11.016-v1.7-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.016 v1.6→v1.7 version-pin propagation (POL-29/POL-23).** Product-owner keyword sweep bumped BC-2.11.016 v1.6→v1.7 (`\| project`→`\| fields` keyword). Six live version-pin cites updated: (1) frontmatter `# BC status:` comment v1.6→v1.7; (2) frontmatter red-gate test inventory comment (AC-M2 HAVING label) v1.6→v1.7; (3) §Behavioral Contracts body table BC-2.11.016 version cell v1.6→v1.7; (4) AC-M1 trace v1.6→v1.7; (5) AC-M2 trace v1.6→v1.7; (6) AC-M2 §HAVING body prose v1.6→v1.7. Historical-narrative sites left unchanged per POL-29: blockquote `BC-2.11.016 v1.5 HAVING addition`; lines 1123/1125 `BC-2.11.016 v1.5's claim`; §Changelog rows 2.24 and earlier. AC semantics UNCHANGED. Frontmatter version 2.24→2.25; updated 2026-07-08 (POL-23). |
 | 2.24 | ADV-FIX-P1-HIGH-001-BC-2.11.016-v1.6-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.016 v1.5→v1.6 version-pin propagation (ADV-FIX-P1-HIGH-001, POL-29/POL-23).** Product-owner amended BC-2.11.016 v1.5→v1.6 expanding E-QUERY-038 gate from six SQL positions to twelve positions (Filter/Pipe/SqlPipe predicate + sort/stats/project positions). Six live version-pin cites updated: (1) frontmatter `# BC status:` comment v1.5→v1.6; (2) frontmatter red-gate test inventory comment (AC-M2 HAVING label) v1.5→v1.6; (3) §Behavioral Contracts body table BC-2.11.016 version cell v1.5→v1.6; (4) AC-M1 trace `traces to BC-2.11.016 v1.5 postcondition` → v1.6; (5) AC-M2 trace `traces to BC-2.11.016 v1.5 postcondition` → v1.6; (6) AC-M2 §HAVING body prose `BC-2.11.016 v1.5 §Implementation location` → v1.6. Historical-narrative sites left unchanged per POL-29 rule: (a) blockquote `BC-2.11.016 v1.5 HAVING addition (F-PWL1-LOW-001): HAVING is the 6th column-gate position, added at v1.5...` — this documents the historical v1.5 amendment and changing it to v1.6 would be factually wrong; (b) lines 1123/1125 `BC-2.11.016 v1.5's claim that... BC-2.11.016 stays at v1.5` — historical narrative accurate at time of authorship; (c) §Changelog rows 2.22/2.9/2.8 — immutable changelog rows. AC semantics UNCHANGED. Frontmatter version 2.23→2.24; updated 2026-07-08 (POL-23). |
 | 2.23 | exhaustive-count-annotation-reconciliation-2026-07-03 | 2026-07-03 | story-writer | **Exhaustive count/annotation reconciliation sweep — zeroes stale-count defect class.** Ran complete grep sweep across all count claims (red_gate_tests, acceptance_criteria_count, points, estimated_days, per-test-file counts, test-file totals, Token Budget rows). Built a 17-row reconciliation table; found 3 stale live-current count claims. Fixes applied: (1) **R-02 (PRIMARY DEFECT — STALE LEAD-IN)** `red_gate_tests:` comment lead-in at line ~125: `# 49 Red Gate tests (v2.12 fold-in — adds three armis discriminator wiring-seam tests / # from F-LENS4-MED-001 fix in materialization.rs; see arithmetic below):` → `# 54 Red Gate tests total (42 base + fold-ins through v2.17; see arithmetic block at end):`. The two-line v2.12-framed comment implied 49 as current; the field value is 54. The arithmetic block at end of the comment (42→46→49→52→54) is CORRECT and UNCHANGED. (2) **R-15 (Token Budget self-ref)** `This story spec (v2.22)` → `(v2.23)` (version bump). (3) **R-17 (Token Budget test-file count)** `54 Red Gate tests across 9 new test files` → `8 new test files` — source-verified: File Structure CREATED rows = 8 (test_enrich_udf_not_found_display.rs, bc_2_11_022_n1_test.rs, bc_2_11_019_n1b_mcp_test.rs, bc_2_10_012_audit_001_test.rs, bc_2_10_016_audit_004_test.rs, f_pql2_obs001_skeleton_placeholder_guard_test.rs, bc_2_11_001_n2_test.rs, bc_2_11_019_n1b_test.rs); worktree-verified by directory listing. All other 14 count rows verified CORRECT: acceptance_criteria_count 17 ✓, points 11 ✓, estimated_days 2.5 ✓, 5-test display file ✓, 22-test N1B file ✓, 4-test N2 file ✓, 4-test armis discriminator module ✓, 7 BCs ✓, arithmetic 42→46→49→52→54 ✓, all dated-historical annotations correctly dated. ADR-050 citation verified present. No code, BC, or STORY-INDEX change. |

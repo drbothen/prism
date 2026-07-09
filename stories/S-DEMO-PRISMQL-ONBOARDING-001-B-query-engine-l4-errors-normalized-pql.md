@@ -67,7 +67,7 @@ status: draft
 # BC status: behavioral_contracts is non-empty (3 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
 document_type: story
-version: "2.2"
+version: "2.4"
 updated: "2026-07-08"
 producer: story-writer
 timestamp: "2026-06-28T00:00:00Z"
@@ -166,7 +166,7 @@ and build grounded query templates for the current session.
 
 | BC ID | Title | Key Clauses |
 |-------|-------|-------------|
-| BC-2.11.016 v1.7 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) | Gate at plan time after E-QUERY-037; available_columns always present; did_you_mean present when Levenshtein ≤ 3; DI-008 org-scoped available_columns; -32602 MCP error code; gate expanded to twelve positions (Filter/Pipe/SqlPipe predicate + sort/stats/project positions) incl. HAVING (6th position, parity with WHERE/GROUP BY) |
+| BC-2.11.016 v1.9 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) | Gate at plan time after E-QUERY-037; available_columns always present; did_you_mean present when Levenshtein ≤ 3; DI-008 org-scoped available_columns; -32602 MCP error code; gate expanded to twelve positions (Filter/Pipe/SqlPipe predicate + sort/stats/project positions) incl. HAVING (6th position, parity with WHERE/GROUP BY) |
 | BC-2.11.017 v1.3 | E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037) | E-QUERY-001: near_text ≤50 chars + reference_pointer; E-QUERY-002: valid_operators_for_type list; E-QUERY-003: how_to_fix string; E-QUERY-037: suggestion contains prism_describe reference |
 | BC-2.11.018 v1.2 | `normalized_pql` Field on Successful Query Responses (L4 Echo / OPD-1) | Present (non-empty) on every successful execution incl. zero-row; absent (not null, not present) on all errors; Chumsky-normalized form; excludes DataFusion plan internals |
 
@@ -177,7 +177,7 @@ and build grounded query templates for the current session.
 | Artifact | Estimated Tokens |
 |----------|-----------------|
 | This story spec | ~3,500 |
-| BC-2.11.016 v1.7 | ~1,200 |
+| BC-2.11.016 v1.9 | ~1,200 |
 | BC-2.11.017 v1.3 | ~1,000 |
 | BC-2.11.018 v1.2 | ~800 |
 | ADR-041 v1.1 §L4 (pedagogical errors + normalized_pql sections) | ~3,000 |
@@ -687,6 +687,8 @@ Implementer: `rg 'event_type\s*=' crates/ --type rust` before declaring done (SA
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.4 | BC-2.11.016-v1.9-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.016 v1.8→v1.9 version-pin propagation (sort-grammar fix round, POL-29/POL-23).** PO bumped BC-2.11.016 v1.8→v1.9 (sort-grammar micro-fix). Two live version-pin cites updated: (1) §Behavioral Contracts table BC-2.11.016 row v1.8→v1.9; (2) §Token Budget table BC-2.11.016 row v1.8→v1.9. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 2.3→2.4; updated 2026-07-08 (POL-23). |
+| 2.3 | BC-2.11.016-v1.8-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.016 v1.7→v1.8 version-pin propagation (pass-2 CRIT closure burst, POL-29/POL-23).** PO bumped BC-2.11.016 v1.7→v1.8 (14-position gate + derived-column binding rule). Two live version-pin cites updated: (1) §Behavioral Contracts table BC-2.11.016 row version cell v1.7→v1.8; (2) §Token Budget table BC-2.11.016 row v1.7→v1.8. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 2.2→2.3; updated 2026-07-08 (POL-23). |
 | 2.2 | BC-2.11.016-v1.7-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.016 v1.6→v1.7 version-pin propagation (POL-29/POL-23).** Product-owner keyword sweep bumped BC-2.11.016 v1.6→v1.7 (`\| project`→`\| fields` keyword). Two live version-pin cites updated: (1) §Behavioral Contracts table BC-2.11.016 row version cell v1.6→v1.7; (2) §Token Budget table BC-2.11.016 row v1.6→v1.7. Historical changelog row (2.1 v1.5→v1.6 propagation) left unchanged per POL-29. AC semantics UNCHANGED — AC-001 and AC-002 assert SELECT-position typo and org-scoped available_columns; neither asserts a specific clause-position count. Frontmatter version 2.1→2.2; updated 2026-07-08 (POL-23). |
 | 2.1 | ADV-FIX-P1-HIGH-001-BC-2.11.016-v1.6-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.016 v1.5→v1.6 version-pin propagation (ADV-FIX-P1-HIGH-001, POL-29/POL-23).** Product-owner amended BC-2.11.016 v1.5→v1.6 expanding E-QUERY-038 gate from six SQL positions to twelve positions (Filter/Pipe/SqlPipe predicate + sort/stats/project positions). Two live version-pin cites updated: (1) §Behavioral Contracts table BC-2.11.016 row version cell v1.5→v1.6; Key Clauses updated to note 12-position expansion. (2) §Token Budget table BC-2.11.016 row v1.5→v1.6. AC semantics UNCHANGED — AC-001 and AC-002 assert SELECT-position typo and org-scoped available_columns; neither asserts a specific clause-position count. Frontmatter version 2.0→2.1; updated 2026-07-08 (POL-23). |
 | 2.0 | POL29-BC-2.11.016-V1.5-PROPAGATION-2026-06-28 | 2026-06-28 | story-writer | BC-2.11.016 v1.4→v1.5 POL-29 propagation (HAVING column-gate position added; F-PWL1-LOW-001). PO bumped BC-2.11.016 v1.4→v1.5 adding HAVING as the 6th column-gate position (same `Option<Predicate>` extraction path as WHERE). Two live cites updated: (1) §Behavioral Contracts body table version cell v1.4→v1.5 (Key Clauses extended to note HAVING 6th position); (2) §Token Budget table BC-2.11.016 version cell v1.4→v1.5. POL-7 title cell verified verbatim: `E-QUERY-038 Column-Not-Found Plan-Time Gate (L4)` — no change needed (prefix-stripped per prism convention). AC impact assessment: AC-001 and AC-002 assert SELECT-position typo and org-scoped available_columns respectively; neither asserts a specific clause-position count or set. The v1.5 HAVING addition does NOT materially affect AC assertions — version-pin bump only. No AC/BC-array/scope changes. |

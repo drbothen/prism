@@ -48,7 +48,7 @@ points: 13
 level: "L4"
 status: merged
 # BC status: all 8 BCs promoted draft→active per POL-14 at D-1367 (PR #203 squash-merged develop@7e60df03 2026-06-26).
-version: "1.14"
+version: "1.16"
 updated: "2026-07-08"
 # v1.13: BC-2.11.020 v1.1→v1.2 version-pin propagation (ADV-FIX-P1-HIGH-001, POL-29/POL-23).
 # v1.12: POL-14 post-merge promotion (D-1367 2026-06-26) — status draft→merged; all 8 BCs draft→active.
@@ -172,7 +172,7 @@ works end-to-end, temporal queries parse, and MCP tools/prompts respond within t
 
 | BC ID | Version | Title |
 |-------|---------|-------|
-| BC-2.11.020 | v1.3 | SQL→Pipe Composition — `SqlPipe` AST Variant and FORBID-BOTH Dual-Limit Rule |
+| BC-2.11.020 | v1.5 | SQL→Pipe Composition — `SqlPipe` AST Variant and FORBID-BOTH Dual-Limit Rule |
 | BC-2.11.021 | v1.0 | Temporal Grammar — `NOW()` and `INTERVAL` Planning-Time Constant Injection |
 | BC-2.11.022 | v1.0 | Auto-Generated `prismql://reference` Content Contract and CI Parity Gate |
 | BC-2.11.023 | v1.2 | Three-Mode Correctness — Mode-Bridge Error, `normalized_pql`, and D7 Graduation Invariant |
@@ -656,7 +656,7 @@ fan-out, DataFusion planning). All MCP handler changes are Effectful.
 |----|-------------|-------------------|
 | EC-001 | `SELECT * FROM t | unknown_stage` — mode-bridge fires | E-QUERY-001 with mode-bridge message; `normalized_pql` may be set |
 | EC-002 | `SELECT * FROM t LIMIT 5 | limit 3` — FORBID-BOTH with `| limit` pipe stage | E-QUERY-040 with sql_limit=5, pipe_limit=3 |
-| EC-002b | `SELECT * FROM t LIMIT 5 | enrich fn(x) | tail 3` — FORBID-BOTH with `| tail` pipe stage (BC-2.11.020 v1.3 EC-11-020-008) | E-QUERY-040 with sql_limit=5, pipe_limit=3; `| tail M` is a row-capping stage in the same FAMILY as `| limit M` |
+| EC-002b | `SELECT * FROM t LIMIT 5 | enrich fn(x) | tail 3` — FORBID-BOTH with `| tail` pipe stage (BC-2.11.020 v1.5 EC-11-020-008) | E-QUERY-040 with sql_limit=5, pipe_limit=3; `| tail M` is a row-capping stage in the same FAMILY as `| limit M` |
 | EC-003 | `SELECT * FROM t LIMIT 10 | enrich fn(x)` — SQL LIMIT, no pipe `| limit` or `| tail` | Valid Ast::SqlPipe; SQL LIMIT 10 applies |
 | EC-004 | `NOW() - INTERVAL '0s'` | Valid; lowers to current timestamp |
 | EC-005 | `NOW() + INTERVAL '1h'` | E-QUERY-001: subtraction-only in v1 |
@@ -724,7 +724,7 @@ must both fail (Red Gate requirement BC-5.38.001).
 2. Extend mode detection in `filter_parser.rs` to tristate: `SqlPipeMode::Sql`, `SqlPipeMode::Pipe`, `SqlPipeMode::SqlPipe`. Dispatch to `parse_sql_pipe` when `SqlPipeMode::SqlPipe` detected.
 3. Implement `parse_sql_pipe` Chumsky combinator: parse SQL preamble as `SqlQuery`, then parse `| <stage>*` as `Vec<PipeStage>`.
 4. Add `Ast::SqlPipe` arm to `QueryEngine::execute`: execute head as SQL → pass Arrow batch through pipe stages.
-5. Add FORBID-BOTH plan-time check: if `sq.head.limit.is_some()` AND any stage matches `PipeStage::Limit(_) | PipeStage::Tail(_)` (i.e., any row-capping pipe stage per BC-2.11.020 v1.3 FAMILY rule), return `Err(PrismError::RedundantRowLimit { sql_limit, pipe_limit })`.
+5. Add FORBID-BOTH plan-time check: if `sq.head.limit.is_some()` AND any stage matches `PipeStage::Limit(_) | PipeStage::Tail(_)` (i.e., any row-capping pipe stage per BC-2.11.020 v1.5 FAMILY rule), return `Err(PrismError::RedundantRowLimit { sql_limit, pipe_limit })`.
 6. Add `PrismError::RedundantRowLimit { sql_limit: u64, pipe_limit: u64 }` to `prism-core/src/error.rs`. Add explicit `-32602 INVALID_PARAMS` arm in `map_prism_error`.
 7. Run `just iter prism-query` — AC-001/AC-002/AC-003 tests must turn GREEN.
 
@@ -911,6 +911,8 @@ From CLAUDE.md conventions:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.16 | BC-2.11.020-v1.5-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.020 v1.4→v1.5 version-pin propagation (sort-grammar fix round, POL-29/POL-23).** PO bumped BC-2.11.020 v1.4→v1.5 (sort-grammar micro-fix). Three live version-pin cites updated: (1) §Behavioral Contracts body table BC-2.11.020 version cell; (2) §Edge Cases table EC-002b cite; (3) §Tasks Phase 2 step 5 cite. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. No BC-array/AC-trace/scope change. Frontmatter version 1.15→1.16; updated 2026-07-08 (POL-23). |
+| 1.15 | BC-2.11.020-v1.4-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.020 v1.3→v1.4 version-pin propagation (pass-2 CRIT closure burst, POL-29/POL-23).** PO bumped BC-2.11.020 v1.3→v1.4 (14-position gate + derived-column binding rule). Three live version-pin cites updated: (1) §Behavioral Contracts body table BC-2.11.020 version cell v1.3→v1.4; (2) §Edge Cases table EC-002b cite `BC-2.11.020 v1.3 EC-11-020-008` → v1.4; (3) §Tasks Phase 2 step 5 cite `BC-2.11.020 v1.3 FAMILY rule` → v1.4. Historical changelog rows (1.14 v1.2→v1.3 propagation) left unchanged per POL-29. AC semantics UNCHANGED. No BC-array/AC-trace/scope change. Frontmatter version 1.14→1.15; updated 2026-07-08 (POL-23). |
 | 1.14 | BC-2.11.020-v1.3-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.020 v1.2→v1.3 version-pin propagation (POL-29/POL-23).** Product-owner keyword sweep bumped BC-2.11.020 v1.2→v1.3 (`\| project`→`\| fields` keyword). Three live version-pin cites updated: (1) §Behavioral Contracts body table BC-2.11.020 version cell v1.2→v1.3; (2) §Edge Cases table EC-002b cite `BC-2.11.020 v1.2 EC-11-020-008` → v1.3; (3) §Tasks Phase 2 step 5 cite `BC-2.11.020 v1.2 FAMILY rule` → v1.3. Historical changelog rows (1.13 v1.1→v1.2 propagation) left unchanged per POL-29. AC semantics UNCHANGED. No BC-array/AC-trace/scope change. Frontmatter version 1.13→1.14; updated 2026-07-08 (POL-23). |
 | 1.13 | ADV-FIX-P1-HIGH-001-BC-2.11.020-v1.2-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.020 v1.1→v1.2 version-pin propagation (ADV-FIX-P1-HIGH-001, POL-29/POL-23).** Product-owner amended BC-2.11.020 v1.1→v1.2 (sibling BC bumped in the same burst as BC-2.11.016 v1.6). Three live version-pin cites updated: (1) §Behavioral Contracts body table BC-2.11.020 version cell v1.1→v1.2; (2) §Edge Cases table EC-002b cite `BC-2.11.020 v1.1 EC-11-020-008` → v1.2; (3) §Tasks Phase 2 step 5 cite `BC-2.11.020 v1.1 FAMILY rule` → v1.2. Historical changelog rows (1.12 POL-14 promotion, 1.9 v1.0→v1.1 propagation) left unchanged per POL-29. AC semantics UNCHANGED. No BC-array/AC-trace/scope change. Frontmatter version 1.12→1.13; updated 2026-07-08 (POL-23). |
 | 1.12 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **PR #203 MERGED (POL-13 status flip + POL-14 BC auto-promotion).** Squash-merged to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL cascade; 3-CLEAN(strict) on frozen HEAD 356e0573; security CLEAN). `status: draft → merged`. All 8 BCs promoted draft→active: BC-2.11.020 v1.1, BC-2.11.021 v1.0, BC-2.11.022 v1.0, BC-2.11.023 v1.2, BC-2.11.002 v1.4, BC-2.10.015 v1.2, BC-2.10.016 v1.1, BC-2.10.017 v1.1. develop_head 903c8fcb→7e60df03. non-exhaustive 87 (ExampleKind, SqlPipeQuery, UnknownSourceTableDetails added in this PR). |

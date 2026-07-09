@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.38"
+version: "1.40"
 updated: "2026-07-08"
 status: merged
 producer: story-writer
@@ -71,7 +71,7 @@ behavioral_contracts:
 #     postcondition, invariant, or error case.
 #   BC-2.11.002 v1.6 (active, amended): filter-mode parsing now includes IEQ/IIN/INE in
 #     the supported operator table. AC-001/AC-004/AC-012 exercise the filter-mode path.
-#   BC-2.11.004 v1.15 (active, amended): pipe-mode | where stage now supports IEQ/IIN/INE
+#   BC-2.11.004 v1.17 (active, amended): pipe-mode | where stage now supports IEQ/IIN/INE
 #     via shared filter grammar per ADR-046 D7. AC-013 exercises the pipe-mode path.
 #   BC-2.11.018 v1.3 (active, amended): normalized_pql echo now reflects IEQ/IIN/INE
 #     predicates in uppercase canonical form (EC-11-057 added). AC-014/AC-015 exercise this.
@@ -168,7 +168,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | BC-2.11.024 | v1.4 | PrismQL Case-Insensitive Equality and Membership Operators (IEQ / IIN / INE) | New operator syntax; DataFusion lower() lowering; case-sensitive operators unchanged; normalized_pql round-trip; IEQ superset invariant; IIN non-empty invariant; E-QUERY-001 (non-string RHS, empty list, SQL-mode rejection); E-QUERY-002 (non-string column); Mode-Boundary Enforcement (SQL-mode IEQ/IIN/INE rejection for ALL raw-SQL incl. DML WHERE + INSERT...SELECT) |
 | BC-2.02.013 | v1.9 | Adapter-Boundary OCSF Enum-Label Canonical-Case Normalization | PRIMARY insertion point: `build_column_array` in `spec_driven_adapter.rs` (architect adjudication F-CRIT-002); SECONDARY: `normalize_with_mappers` (DynamicMessage path); severity + status guaranteed; all OCSF enum-label fields; idempotent; 50-codepoint value+sensor_type cap with warn; empty-string bypass EC-02-028; unrecognized values as-received + warning; GROUP BY aggregation consistency; enum_map.rs as sole casing authority |
 | BC-2.11.002 | v1.6 | PrismQL Filter Mode Parsing | Amended: IEQ/IIN/INE added to supported filter-mode operator table |
-| BC-2.11.004 | v1.15 | PrismQL Pipe Mode | Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7) |
+| BC-2.11.004 | v1.17 | PrismQL Pipe Mode | Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7) |
 | BC-2.11.018 | v1.3 | normalized_pql Echo | Amended: EC-11-057 added — IEQ/IIN/INE predicates reflected in uppercase canonical form in normalized_pql; round-trip invariant extended |
 | BC-2.02.002 | v1.5 | DynamicMessage Creation | Amended: normalization applied BEFORE DynamicMessage creation; postconditions updated to state this explicitly |
 | BC-2.02.010 | v1.5 | OCSF Enum Value Map | Amended: enum_map.rs authority extends to adapter-boundary normalization, not only MCP display enrichment |
@@ -186,7 +186,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | BC-2.11.024 v1.4 | ~3,000 |
 | BC-2.02.013 v1.9 | ~2,500 |
 | BC-2.11.002 v1.6 (relevant filter-mode sections) | ~1,500 |
-| BC-2.11.004 v1.15 (relevant pipe-mode sections) | ~1,500 |
+| BC-2.11.004 v1.17 (relevant pipe-mode sections) | ~1,500 |
 | BC-2.11.018 v1.3 (normalized_pql section) | ~1,000 |
 | BC-2.02.002 v1.5, BC-2.02.010 v1.5 (amended sections) | ~2,000 |
 | BC-2.10.012 v1.9 (example_query + example_note contract) | ~1,000 |
@@ -404,7 +404,7 @@ Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_case_sensitive_eq_returns_zero_on
 ### AC-013b — IEQ/IIN available in pipe-mode | where stage
 (traces to BC-2.11.024 v1.4 invariant: "IEQ/IIN/INE are valid in filter mode and in
 pipe-mode | where stages (shared grammar invariant, BC-2.11.023)";
-BC-2.11.004 v1.15 amendment)
+BC-2.11.004 v1.17 amendment)
 
 Given `FROM crowdstrike_detections | where severity IEQ 'high' | head 5`,
 when parsed and executed,
@@ -1672,6 +1672,8 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.40 | 2026-07-08 | **BC-2.11.004 v1.16→v1.17 version-pin propagation (sort-grammar fix round, POL-29/POL-23).** PO bumped BC-2.11.004 v1.16→v1.17 (sort-grammar micro-fix). Four live version-pin cites updated: (a) frontmatter BC status comment; (b) §Behavioral Contracts body table version cell; (c) §Token Budget row; (d) AC-013b trace. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.39→1.40; updated 2026-07-08 (POL-23). |
+| v1.39 | 2026-07-08 | **BC-2.11.004 v1.15→v1.16 version-pin propagation (pass-2 CRIT closure burst, POL-29/POL-23).** PO bumped BC-2.11.004 v1.15→v1.16 (14-position gate + derived-column binding rule). Four live cites updated: (a) frontmatter BC status comment; (b) §Behavioral Contracts body table version cell; (c) §Token Budget row; (d) AC-013b trace. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.38→1.39; updated 2026-07-08 (POL-23). |
 | v1.38 | 2026-07-08 | **BC-2.11.004 v1.14→v1.15 + BC-2.11.024 v1.3→v1.4 + BC-2.02.013 v1.8→v1.9 version-pin propagation (POL-29/POL-23).** (1) **BC-2.11.004 v1.14→v1.15 (`\| project`→`\| fields` keyword sweep):** Four live cites updated — (a) frontmatter BC status comment; (b) §Behavioral Contracts body table version cell; (c) §Token Budget row; (d) AC-013b trace. (2) **BC-2.11.024 v1.3→v1.4 (POL-14 draft→active promotion at merge, D-1607 changelog-row-only bump):** All live body cites updated via replace_all (~40 sites: frontmatter comment, §Behavioral Contracts body table version cell, §Token Budget row, all AC-trace/edge-case/Red-Gate-table/Tasks-section inline cites). Historical changelog rows (v1.30 "per BC-2.11.024 v1.3 §Mode-Boundary", v1.28 "contradicting BC-2.11.024 v1.3") left unchanged per POL-29. (3) **BC-2.02.013 v1.8→v1.9 (POL-14 draft→active promotion at merge, D-1607 changelog-row-only bump):** All live body cites updated via replace_all (~18 sites: frontmatter comments ×2, §Behavioral Contracts body table version cell, §Token Budget row, all AC-trace/Tasks-section inline cites). Historical changelog row (v1.31 "BC-2.02.013 v1.7→v1.8 pin sweep") not affected (→v1.8 not matched by pattern). Convention established: live-pin propagation applies even post-merge, including POL-14 lifecycle-only version bumps — evidenced by S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (merged, BC-2.16.002 v1.96→v1.97 propagated post-merge) and S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (merged, BC-2.11.020 v1.1→v1.2 propagated post-merge). AC semantics UNCHANGED. Frontmatter version 1.37→1.38; updated 2026-07-08 (POL-23). |
 | v1.37 | 2026-07-08 | **BC-2.11.002 v1.5→v1.6 + BC-2.11.004 v1.13→v1.14 version-pin propagation (ADV-FIX-P1-HIGH-001, POL-29/POL-23).** Product-owner amended BC-2.11.002 v1.5→v1.6 and BC-2.11.004 v1.13→v1.14 (sibling BCs bumped in the same burst as BC-2.11.016 v1.6). Live version-pin cites updated: BC-2.11.002: (1) frontmatter BC status comment; (2) §Behavioral Contracts body table row version cell; (3) §Token Budget row; (4) AC-001 trace; (5) AC-002 trace; (6) AC-012 trace; (7) AC-024 trace — 7 sites. BC-2.11.004: (1) frontmatter BC status comment; (2) §Behavioral Contracts body table row version cell; (3) §Token Budget row; (4) AC-013b trace — 4 sites. AC semantics UNCHANGED — IEQ/IIN/INE amendment content is preserved; only the version number cited is updated to the canonical current version. Frontmatter version 1.36→1.37; updated unchanged at 2026-07-08 (POL-23). |
 | v1.36 | 2026-07-08 | PR-LEVEL pass-5 fix-burst @36a094d6 — ADV-PR-P5-OBS-001 security-upgraded to MED (CWE-117 C1 control gap): sanitize_for_log widened to `!is_control() && != U+2028/U+2029` (BC-2.16.002 v2.06 + error-taxonomy v2.20 + 9-site comment sweep); RG-082 (`test_sanitize_for_log_strips_unicode_cc_and_line_separators`, prism-core/src/error.rs). ADV-PR-P5-OBS-002: check_ci_column_types Err-swallow fixed (explicit 3-arm match; Err → QueryExecutionFailed redacted-detail; server-side tracing::error! bare, no event_type); RG-083 (`test_check_ci_column_types_schema_provider_err_propagates`, prism-query/src/materialization.rs). ADV-PR-P5-OBS-003: academic ASCII/Unicode casefold asymmetry → lessons.md note only. RGT 81→83. BC-2.16.002 v2.05→v2.06 pin propagation (2 live sites: AC-018, RG-080 row). error-taxonomy v2.19→v2.20 pin propagation (1 live site: AC-022). |
