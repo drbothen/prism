@@ -12352,6 +12352,254 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             ),
         }
     }
+
+    // ── Fixture: dual-table with JOIN target (EC-11-069) ─────────────────────────
+
+    /// Build an engine with two registered tables for EC-11-069 JOIN alias tests.
+    ///
+    /// Tables:
+    ///   - `crowdstrike_alerts` (FROM table): severity (String), timestamp (Datetime)
+    ///   - `some_other_table`  (JOIN target): col (String), id (String)
+    ///     sensor_id "some_other" + table_name "table" → registered as "some_other_table".
+    ///
+    /// Both tables are registered in the `TableRegistry` so E-QUERY-037 passes for
+    /// JOIN-target sources (`extract_sources_from_ast_for_gate` collects JOIN table refs
+    /// in `spq.head.joins` for SqlPipe — omitting the JOIN table causes E-QUERY-037 to
+    /// fire on `some_other_table` before the column gate runs).
+    /// Only `crowdstrike_alerts` is wired into `resolved_spec_map` — the binding-context
+    /// walk for the SqlPipe stage is seeded from the FROM table schema; the JOIN table
+    /// schema is not consulted for head-projection binding.
+    fn make_engine_with_join_tables() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+
+        // ── Primary sensor: crowdstrike (FROM table) ──────────────────────────
+        let cs_sensor_id = "crowdstrike";
+        let cs_table_suffix = "alerts";
+        let cs_columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+        let cs_spec = SensorSpec::new(
+            cs_sensor_id,
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                cs_table_suffix,
+                "security_finding",
+                cs_columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        // ── JOIN-target sensor: some_other (→ some_other_table) ──────────────
+        let jo_sensor_id = "some_other";
+        let jo_table_suffix = "table";
+        let jo_columns = vec![
+            ColumnSpec::new("col", ColumnType::String, None, vec![]),
+            ColumnSpec::new("id", ColumnType::String, None, vec![]),
+        ];
+        let jo_spec = SensorSpec::new(
+            jo_sensor_id,
+            "Some Other sensor",
+            AuthType::ApiKey,
+            "https://api.example.com",
+            vec![TableSpec::new_point_in_time(
+                jo_table_suffix,
+                "some_category",
+                jo_columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&cs_spec)
+            .expect("EC-11-069 fixture: register crowdstrike must not fail");
+        registry
+            .register_sensor(&jo_spec)
+            .expect("EC-11-069 fixture: register some_other must not fail");
+
+        // Multi-tenant resolved_spec_map for crowdstrike only (FROM table binding context).
+        let overlay_toml =
+            format!("extends = \"{cs_sensor_id}\"\ninstance_id = \"{cs_sensor_id}@acme\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("EC-11-069 fixture: SensorInstanceOverlay TOML must parse");
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(&cs_spec, &overlay, org.clone());
+        let key: ResolvedSpecKey = (org.clone(), SensorId::new(cs_sensor_id));
+        let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_table_registry(registry);
+
+        (engine, org)
+    }
+
+    // ── Test 49 (RED GATE): EC-11-069 — JOIN-aliased last segment not seeded → false E-QUERY-038 ─
+
+    /// BC-2.11.016 v1.17 EC-11-069 — LAST-SEGMENT OUTPUT-NAME RULE (ADV-FIX-P10-OBS-001).
+    ///
+    /// `SELECT j.col FROM crowdstrike_alerts JOIN some_other_table j
+    ///  ON crowdstrike_alerts.severity = j.id | where col = 'x'`
+    ///
+    /// The SELECT item `j.col` is an un-aliased bare-Field with qualifier `j`.  `j` is a
+    /// JOIN alias declared by `JOIN some_other_table j` — NOT the FROM source
+    /// `crowdstrike_alerts` and NOT a declared FROM alias (None here).  In
+    /// `compute_sqlpipe_head_binding` branch (b) (fully-explicit SELECT, no Star/TableStar),
+    /// `extract_column_name_from_field_path(fp, "crowdstrike_alerts", None)` returns `None`
+    /// (qualifier `j` unknown) → `col` is never pushed to `available`.
+    ///
+    /// Current behavior (RED — FP-001 violation):
+    ///   `available = []`; `| where col = 'x'` finds `col` absent → E-QUERY-038 fires with
+    ///   `column: "col"`, `available_columns: []`.  SQL output-naming: `SELECT j.col` produces
+    ///   output column `col`; the query WOULD succeed at execution → false positive.
+    ///
+    /// Expected behavior after LAST-SEGMENT fix (GREEN):
+    ///   qualifier `j` ≠ FROM table/alias → seed last segment `col` as DERIVED;
+    ///   `| where col = 'x'` finds `col` in `available` → NO E-QUERY-038.
+    ///
+    /// JOIN ON analysis (position 5, unaffected by fix):
+    ///   `crowdstrike_alerts.severity` → qualifier matches FROM table → "severity" extracted
+    ///   → in schema → OK.  `j.id` → qualifier `j` unknown → None → skip.
+    ///
+    /// RED GATE trigger: currently `ColumnNotFound { column: "col" }` fires.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11069_join_qualified_last_segment_no_false_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-069 canonical vector (BC-2.11.016 v1.17).
+        // JOIN ON uses crowdstrike_alerts.severity (in schema) = j.id (skip via None).
+        let query = "SELECT j.col FROM crowdstrike_alerts \
+                     JOIN some_other_table j ON crowdstrike_alerts.severity = j.id \
+                     | where col = 'x'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
+                "BC-2.11.016 v1.17 EC-11-069 RED GATE: FALSE E-QUERY-038 on 'col'. \
+                 `SELECT j.col` (JOIN-aliased bare-Field, qualifier 'j' ≠ FROM source) MUST \
+                 seed 'col' as DERIVED via LAST-SEGMENT OUTPUT-NAME RULE; `| where col = 'x'` \
+                 must find 'col' in available — NO E-QUERY-038 (FP-001). \
+                 Before fix: compute_sqlpipe_head_binding branch (b) calls \
+                 extract_column_name_from_field_path → qualifier 'j' unknown → None → \
+                 'col' not seeded → available=[] → E-QUERY-038 with available_columns=[]. \
+                 column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            // Ok or any other error (no adapter wired, DataFusion error) is acceptable.
+            // The invariant: E-QUERY-038 must NOT fire on 'col' for a JOIN-aliased SELECT
+            // item whose last path segment IS the SQL output column name.
+            _ => {}
+        }
+    }
+
+    // ── Test 50 (RED GATE): EC-11-069 sibling-gate companion — DERIVED provenance,
+    //                        SIBLING-GATE CONSISTENCY (E-QUERY-002 must not fire) ─────
+
+    /// BC-2.11.016 v1.17 EC-11-069 companion — SIBLING-GATE CONSISTENCY (ADV-FIX-P10-OBS-001).
+    ///
+    /// `SELECT j.severity FROM crowdstrike_alerts JOIN some_other_table j
+    ///  ON crowdstrike_alerts.severity = j.id | where severity > 5`
+    ///
+    /// `j.severity` has qualifier `j` (JOIN alias, not FROM source `crowdstrike_alerts`).
+    /// After the LAST-SEGMENT fix: last segment `severity` seeded as DERIVED (type not
+    /// statically known from the FROM schema).  Raw `severity` in `crowdstrike_alerts` is
+    /// String; `>` is NOT in `valid_operators_for_type(String)`.  If E-QUERY-002 applied
+    /// the raw String type to DERIVED `severity`, it would fire a false E-QUERY-002
+    /// (FP-001 violation).  SIBLING-GATE CONSISTENCY (BC-2.11.016 v1.15) requires E-QUERY-002
+    /// to skip DERIVED names.
+    ///
+    /// Current behavior (RED — two FP-001 violations possible):
+    ///   `j.severity` → None (qualifier `j` unknown) → `severity` NOT seeded →
+    ///   `| where severity > 5` finds `severity` absent → E-QUERY-038 fires (wrong error;
+    ///   E-QUERY-002 never reached because E-QUERY-038 fires first via `?`).
+    ///
+    /// Expected behavior after fix (GREEN):
+    ///   `j.severity` → last segment `severity` seeded as DERIVED →
+    ///   E-QUERY-038: `severity` found → gate passes; E-QUERY-002: DERIVED → skipped;
+    ///   neither gate fires.
+    ///
+    /// RED GATE trigger: currently `ColumnNotFound { column: "severity" }` fires
+    ///   (before the fix seeds `severity` as DERIVED).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11069_sibling_gate_join_qualified_no_false_e_query_002() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-069 sibling-gate companion vector (BC-2.11.016 v1.17).
+        // Raw `severity` in crowdstrike_alerts is String; `>` invalid for String.
+        // After fix: `severity` seeded as DERIVED → E-QUERY-002 skipped (SIBLING-GATE CONSISTENCY).
+        let query = "SELECT j.severity FROM crowdstrike_alerts \
+                     JOIN some_other_table j ON crowdstrike_alerts.severity = j.id \
+                     | where severity > 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            // False E-QUERY-002: fires if fix seeds 'severity' with RAW provenance instead of
+            // DERIVED. Raw String type → '>' invalid → false E-QUERY-002 (FP-001 violation;
+            // SIBLING-GATE CONSISTENCY requires DERIVED names to skip E-QUERY-002).
+            Err(PrismError::QueryTypeMismatch { ref column, .. })
+                if column.as_str() == "severity" =>
+            {
+                panic!(
+                    "BC-2.11.016 v1.17 EC-11-069 sibling-gate: FALSE E-QUERY-002 on DERIVED \
+                     'severity'. `j.severity` is JOIN-aliased (qualifier 'j' ≠ FROM source); \
+                     LAST-SEGMENT seeds 'severity' as DERIVED — E-QUERY-002 MUST skip DERIVED \
+                     names per SIBLING-GATE CONSISTENCY (FP-001). Likely fix defect: seeded \
+                     with RAW instead of DERIVED provenance → raw String operator set applied. \
+                     column='{}'",
+                    column
+                )
+            }
+            // Currently fires (RED): j.severity → None → severity not seeded → available=[] →
+            // E-QUERY-038 fires. After fix: severity seeded as DERIVED → both gates pass.
+            Err(PrismError::ColumnNotFound(ref d)) if d.column == "severity" => panic!(
+                "BC-2.11.016 v1.17 EC-11-069 sibling-gate RED GATE: E-QUERY-038 on 'severity'. \
+                 Before fix: j.severity → qualifier 'j' unknown → None → severity not seeded \
+                 → available=[] → E-QUERY-038 (FP-001 violation; SQL output 'severity' is valid). \
+                 After fix: severity seeded as DERIVED via LAST-SEGMENT OUTPUT-NAME RULE → \
+                 E-QUERY-038 gate passes; E-QUERY-002 skipped via SIBLING-GATE CONSISTENCY. \
+                 column='{}', table='{}', available={:?}",
+                d.column, d.table, d.available_columns
+            ),
+            // Ok or any other error (no adapter wired, DataFusion error) is acceptable.
+            // Invariants: no false E-QUERY-002 on DERIVED 'severity';
+            //             no false E-QUERY-038 on DERIVED 'severity'.
+            _ => {}
+        }
+    }
 }
 
 #[cfg(test)]
