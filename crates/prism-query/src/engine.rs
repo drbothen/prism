@@ -2046,6 +2046,152 @@ fn extract_field_paths_from_expr(
 }
 
 // ---------------------------------------------------------------------------
+// BC-2.11.016 v1.20 HEAD-JOIN SUSPENSION RULE helpers (ADV-FIX-P15-MED-001)
+// ---------------------------------------------------------------------------
+
+/// Collect bare (single-segment, unqualified) FieldPath column names from an `Expr` tree.
+///
+/// Mirrors `extract_field_paths_from_expr` but restricts to column refs where the
+/// original FieldPath has exactly one segment (no qualifier). Used by the
+/// HEAD-JOIN SUSPENSION RULE (`bare_head_cols` set) to distinguish bare unqualified
+/// refs (suspension-eligible when absent) from FROM-alias-qualified refs (which retain
+/// standard E-QUERY-038 behavior even when the head JOIN list is non-empty).
+///
+/// `Expr::Field(fp)` with `fp.segments.len() == 1` → collected.
+/// `Expr::Field(fp)` with `fp.segments.len() >= 2` → qualified ref, skipped.
+/// All other arms recurse identically to `extract_field_paths_from_expr`.
+///
+/// BC-2.11.016 v1.20 §Preconditions.2 HEAD-JOIN SUSPENSION RULE.
+fn collect_bare_field_names_from_expr(
+    expr: &crate::ast::Expr,
+    out: &mut std::collections::HashSet<String>,
+) {
+    use crate::ast::{Expr, FuncCall};
+    match expr {
+        Expr::Field(fp) if fp.segments.len() == 1 => {
+            if let Some(name) = fp.segments.first() {
+                out.insert(name.clone());
+            }
+        }
+        // Qualified field (2+ segments) — not bare, skip.
+        Expr::Field(_) => {}
+        Expr::FuncCall(fc) => match fc {
+            FuncCall::Aggregate { args, .. } | FuncCall::Scalar { args, .. } => {
+                for arg in args {
+                    collect_bare_field_names_from_expr(arg, out);
+                }
+            }
+            FuncCall::Window { .. } => {}
+            #[allow(unreachable_patterns)]
+            _ => {}
+        },
+        Expr::Compare { lhs, rhs, .. } => {
+            collect_bare_field_names_from_expr(lhs, out);
+            collect_bare_field_names_from_expr(rhs, out);
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            collect_bare_field_names_from_expr(lhs, out);
+            collect_bare_field_names_from_expr(rhs, out);
+        }
+        Expr::Not(inner) => {
+            collect_bare_field_names_from_expr(inner, out);
+        }
+        Expr::In { field, .. } if field.segments.len() == 1 => {
+            if let Some(name) = field.segments.first() {
+                out.insert(name.clone());
+            }
+        }
+        Expr::InSubquery { field, .. } if field.segments.len() == 1 => {
+            if let Some(name) = field.segments.first() {
+                out.insert(name.clone());
+            }
+        }
+        Expr::TimestampArithmetic { base, .. } => {
+            collect_bare_field_names_from_expr(base, out);
+        }
+        _ => {}
+    }
+}
+
+/// Collect bare (single-segment, unqualified) FieldPath column names from a `Predicate` tree.
+///
+/// Mirrors `collect_predicate_columns` but restricts to bare refs only.
+/// Used for WHERE (position 2) and HAVING (position 6) clauses of the HEAD-JOIN
+/// SUSPENSION RULE. Recurses into logical predicates (And/Or/Not).
+/// For `Predicate::Compare` with `Expr::FuncCall` lhs (e.g. HAVING aggregate),
+/// delegates to `collect_bare_field_names_from_expr` so bare refs inside aggregate
+/// args (e.g. `count(col)` → `col`) are captured.
+///
+/// BC-2.11.016 v1.20 §Preconditions.2 HEAD-JOIN SUSPENSION RULE.
+fn collect_bare_pred_field_names(
+    pred: &crate::ast::Predicate,
+    out: &mut std::collections::HashSet<String>,
+) {
+    use crate::ast::{Expr, Predicate};
+    match pred {
+        Predicate::Compare { lhs, .. } => match lhs.as_ref() {
+            Expr::Field(fp) if fp.segments.len() == 1 => {
+                if let Some(name) = fp.segments.first() {
+                    out.insert(name.clone());
+                }
+            }
+            Expr::FuncCall(_) => {
+                // HAVING aggregate (e.g. `HAVING count(col) > 0`): recurse into FuncCall.
+                collect_bare_field_names_from_expr(lhs.as_ref(), out);
+            }
+            _ => {}
+        },
+        Predicate::StringOp { field, .. } | Predicate::Regex { field, .. }
+            if field.segments.len() == 1 =>
+        {
+            if let Some(name) = field.segments.first() {
+                out.insert(name.clone());
+            }
+        }
+        Predicate::StringOp { .. } | Predicate::Regex { .. } => {}
+        Predicate::In { field, .. }
+        | Predicate::InSubquery { field, .. }
+        | Predicate::Between { field, .. }
+        | Predicate::Cidr { field, .. }
+        | Predicate::Wildcard { field, .. }
+            if field.segments.len() == 1 =>
+        {
+            if let Some(name) = field.segments.first() {
+                out.insert(name.clone());
+            }
+        }
+        Predicate::In { .. }
+        | Predicate::InSubquery { .. }
+        | Predicate::Between { .. }
+        | Predicate::Cidr { .. }
+        | Predicate::Wildcard { .. } => {}
+        Predicate::Has(fp) | Predicate::Missing(fp) if fp.segments.len() == 1 => {
+            if let Some(name) = fp.segments.first() {
+                out.insert(name.clone());
+            }
+        }
+        Predicate::Has(_) | Predicate::Missing(_) => {}
+        Predicate::IsNull { field, .. } if field.segments.len() == 1 => {
+            if let Some(name) = field.segments.first() {
+                out.insert(name.clone());
+            }
+        }
+        Predicate::IsNull { .. } => {}
+        Predicate::Logical { predicates, .. } => {
+            for child in predicates {
+                collect_bare_pred_field_names(child, out);
+            }
+        }
+        Predicate::Not(inner) => {
+            collect_bare_pred_field_names(inner, out);
+        }
+        Predicate::RecoveryError => {}
+        #[allow(unreachable_patterns)]
+        _ => {}
+    }
+}
+
+// ---------------------------------------------------------------------------
 // E-QUERY-038 plan-time column gate (S-DEMO-PRISMQL-ONBOARDING-001-B)
 // ---------------------------------------------------------------------------
 
@@ -2579,6 +2725,63 @@ fn check_query_column_availability(
         .unwrap_or_default();
 
     // ── Gate: check all positions in order ────────────────────────────────────
+    //
+    // BC-2.11.016 v1.20 HEAD-JOIN SUSPENSION RULE (ADV-FIX-P15-MED-001):
+    // When the head SQL query's JOIN list is non-empty AND a column at positions 1–6
+    // was a BARE UNQUALIFIED reference (single-segment FieldPath; no table qualifier)
+    // AND it is absent from `schema_columns(table, OrgId)`, the E-QUERY-038 gate MUST
+    // NOT fire (fail-open per FP-001). Rationale: DataFusion resolves unqualified
+    // column references across ALL join sources at execution time; a bare unqualified
+    // ref absent from the FROM schema may validly exist in a JOIN-partner table.
+    //
+    // Qualified references retain existing behavior — a FROM-alias-qualified ref like
+    // `a.typo_col` (where `a` is the FROM alias) IS bound to the FROM table; if absent,
+    // E-QUERY-038 MUST still fire ("qualified references at positions 1–6 retain existing
+    // behavior", BC-2.11.016 v1.20 HEAD-JOIN SUSPENSION RULE).
+    //
+    // `bare_head_cols` is the subset of extracted column names that came from single-
+    // segment FieldPaths (bare unqualified refs). At the gate loop, a ColumnNotFound
+    // result for a name in `bare_head_cols` is suppressed when `head_has_joins = true`.
+    // FROM-alias-qualified refs have 2-segment FieldPaths → NOT in `bare_head_cols` →
+    // retain standard E-QUERY-038 behavior.
+    // Joinless queries: `head_has_joins = false` → `bare_head_cols` is empty →
+    // standard gate for all columns (unchanged).
+    let head_has_joins = !sql_query.joins.is_empty();
+    let bare_head_cols: std::collections::HashSet<String> = if head_has_joins {
+        let mut set = std::collections::HashSet::new();
+        // Position 1: SELECT clause bare refs
+        for item in &sql_query.select.items {
+            if let SelectItem::Expr { expr, .. } = item {
+                if !matches!(expr, Expr::VirtualField(_)) {
+                    collect_bare_field_names_from_expr(expr, &mut set);
+                }
+            }
+        }
+        // Position 2: WHERE clause bare refs
+        if let Some(pred) = &sql_query.where_ {
+            collect_bare_pred_field_names(pred, &mut set);
+        }
+        // Position 3: GROUP BY clause bare refs
+        for expr in &sql_query.group_by {
+            collect_bare_field_names_from_expr(expr, &mut set);
+        }
+        // Position 4: ORDER BY clause bare refs
+        for oe in &sql_query.order_by {
+            collect_bare_field_names_from_expr(&oe.expr, &mut set);
+        }
+        // Position 5: JOIN ON bare refs (bare unqualified refs in ON expressions only)
+        for join in &sql_query.joins {
+            collect_bare_field_names_from_expr(&join.on, &mut set);
+        }
+        // Position 6: HAVING clause bare refs
+        if let Some(pred) = &sql_query.having {
+            collect_bare_pred_field_names(pred, &mut set);
+        }
+        set
+    } else {
+        std::collections::HashSet::new()
+    };
+
     for col in select_cols
         .iter()
         .chain(where_cols.iter())
@@ -2587,14 +2790,34 @@ fn check_query_column_availability(
         .chain(join_on_cols.iter())
         .chain(having_cols.iter())
     {
-        check_column_availability(
-            col,
-            &table_name,
-            client_id,
-            org_scope,
-            resolved_spec_map,
-            table_registry,
-        )?;
+        if head_has_joins && bare_head_cols.contains(col.as_str()) {
+            // HEAD-JOIN SUSPENSION RULE: bare unqualified ref with non-empty JOIN list.
+            // Run check_column_availability; if the column is absent (ColumnNotFound),
+            // fail-open (the column may exist in a JOIN-partner table at execution time).
+            // If the column is present in the FROM schema, the check passes normally.
+            // All non-ColumnNotFound errors propagate unchanged.
+            match check_column_availability(
+                col,
+                &table_name,
+                client_id,
+                org_scope,
+                resolved_spec_map,
+                table_registry,
+            ) {
+                Ok(()) => {}
+                Err(PrismError::ColumnNotFound(_)) => {} // Absent bare ref → fail-open
+                Err(e) => return Err(e),
+            }
+        } else {
+            check_column_availability(
+                col,
+                &table_name,
+                client_id,
+                org_scope,
+                resolved_spec_map,
+                table_registry,
+            )?;
+        }
     }
 
     // ── E-QUERY-002 type-compatibility gate — AFTER column-existence gate ─────
