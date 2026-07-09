@@ -9580,6 +9580,276 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             _ => {}
         }
     }
+
+    // ── Tests 21-23 (v1.9): Enrich output UNION path — BC-2.11.016 v1.9 ─────────────────
+
+    // ── Fixture: armis_devices engine WITH InfusionRegistry (tests 21-22) ──────────────────
+
+    /// Build an `armis_devices` engine identical to `make_armis_engine()` but with an
+    /// `InfusionRegistry` wired containing the `"nvd_cvss"` infusion.
+    ///
+    /// Infusion spec:
+    ///   infusion_id = "nvd_cvss"
+    ///   fields = [{ name: "threat_score", input_field: "device_cves_first", ... }]
+    ///   pipe_stage = None  (so enrich_descriptor falls back to field names)
+    ///
+    /// Registry state after load_spec:
+    ///   udf_to_infusion = { "threat_score" => "nvd_cvss" }
+    ///   entries = { "nvd_cvss" => (spec, [InfusionUdfDescriptor { name: "threat_score", ... }]) }
+    ///
+    /// Implications for the binding context gate (after v1.9 fix):
+    ///   check_enrich_udf_availability: "threat_score" IS in registered_names → no E-QUERY-039.
+    ///   check_pipe_stage_columns PipeStage::Enrich arm (after fix):
+    ///     - Look up "threat_score" in udf_to_infusion → infusion_id = "nvd_cvss"
+    ///     - enrich_descriptor("nvd_cvss") → output_columns = ["threat_score"]
+    ///     - UNION: current_available = {device_cves_first, device_id} ∪ {threat_score}
+    ///     - NO suspension
+    ///
+    /// For ec11054/ec11055 implications: those tests use make_armis_engine() (no registry),
+    /// so this fixture does not affect them. The registry=None fallback path tested by
+    /// ec11054/ec11055 is unchanged by the v1.9 plumbing.
+    fn make_armis_engine_with_threat_score_registry() -> (QueryEngine, OrgSlug) {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        let (engine, org) = make_armis_engine();
+
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "nvd_cvss",
+            "NVD CVSS enrichment (test fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "threat_score",
+                "device_cves_first",
+                "string",
+                "float64",
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("nvd_cvss spec must load for test fixture");
+        let engine = engine.with_infusion_registry(Arc::new(registry));
+
+        (engine, org)
+    }
+
+    // ── Test 21 (GREEN-lock): correct output ref must NOT fire E-QUERY-038 ───────────────
+
+    /// BC-2.11.016 v1.9 GREEN-LOCK — resolvable enrich output: correct downstream ref is OK.
+    ///
+    /// `armis_devices | enrich threat_score(device_cves_first) | where threat_score > 5 | sort threat_score`
+    ///
+    /// "threat_score" IS a declared output column of the "nvd_cvss" infusion (InfusionRegistry
+    /// wired). This reference must NEVER fire E-QUERY-038.
+    ///
+    /// ## Status under both code paths
+    /// - **Before fix (always-suspend):** `suspended=true` after PipeStage::Enrich → WHERE and
+    ///   SORT stages SKIPPED → no E-QUERY-038. Vacuously GREEN — suspension prevents false positive.
+    /// - **After fix (union):** output_columns=["threat_score"] UNIONed into available set →
+    ///   "threat_score" IS in available → WHERE and SORT gates pass → still no E-QUERY-038.
+    ///
+    /// This is a GREEN-lock (not a RED gate) that locks the invariant: a correct reference to a
+    /// declared enrich output MUST NEVER cause a false-positive E-QUERY-038 under either path.
+    /// In combination with test 22, it guards against a regression where the union fix accidentally
+    /// emits E-QUERY-038 for correct output refs.
+    ///
+    /// EXPECTED GREEN under both old (suspension) and new (union) code.
+    #[tokio::test]
+    async fn test_BC_2_11_016_enrich_union_resolvable_output_downstream_ref_ok() {
+        let (engine, org) = make_armis_engine_with_threat_score_registry();
+
+        // "threat_score" IS the declared output of "nvd_cvss" infusion.
+        // Must NOT fire E-QUERY-038 under any implementation path.
+        let query = "armis_devices | enrich threat_score(device_cves_first) | where threat_score > 5 | sort threat_score";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "threat_score" => {
+                panic!(
+                    "BC-2.11.016 v1.9 GREEN-LOCK: FALSE-POSITIVE E-QUERY-038 fired on declared \
+                     enrich output column 'threat_score'. Whether via union (after fix) or \
+                     suspension (before fix), a correct output column reference MUST NOT fire \
+                     E-QUERY-038. FP-001 invariant violated. column='{}', table='{}'",
+                    details.column, details.table
+                )
+            }
+            // Any other result (Ok, execution error, unrelated ColumnNotFound) is acceptable.
+            _ => {}
+        }
+    }
+
+    // ── Test 22 (RED GATE): post-enrich typo must yield E-QUERY-038 after union ──────────
+
+    /// BC-2.11.016 v1.9 RED GATE — resolvable enrich output: post-enrich typo must fire E-QUERY-038.
+    ///
+    /// `armis_devices | enrich threat_score(device_cves_first) | where threat_scor > 5`
+    /// — "threat_scor" is a typo of declared output "threat_score" (Levenshtein distance 1:
+    /// missing trailing 'e').
+    ///
+    /// ## Expected behavior after v1.9 fix (GREEN path)
+    /// `check_pipe_stage_columns` (with registry) looks up "threat_score" UDF →
+    ///   infusion_id "nvd_cvss" → enrich_descriptor("nvd_cvss") → output_columns=["threat_score"]
+    /// UNION: current_available = {device_cves_first, device_id, threat_score}
+    /// WHERE "threat_scor" checked against available → NOT found →
+    ///   E-QUERY-038: column="threat_scor", did_you_mean="threat_score" (distance 1).
+    ///
+    /// ## Current behavior before fix (RED — why this test fails now)
+    /// `check_pipe_stage_columns` has no registry param → `PipeStage::Enrich` arm always sets
+    /// `suspended = true` → WHERE stage SKIPPED → "threat_scor" not checked →
+    /// no E-QUERY-038 → query proceeds to execution → fails with non-ColumnNotFound error
+    /// (no armis adapter wired) → test PANICS on the `Err(other)` arm below.
+    ///
+    /// The analyst who types `threat_scor` instead of `threat_score` receives no plan-time
+    /// error; the query fails opaquely at execution time. After the fix, they receive a clear
+    /// E-QUERY-038 with did_you_mean:"threat_score".
+    ///
+    /// ## did_you_mean calculation
+    /// Available after union: {device_cves_first, device_id, threat_score}.
+    /// Levenshtein("threat_scor", "threat_score") = 1 (add 'e').
+    /// Levenshtein("threat_scor", "device_cves_first") >> 3 → excluded.
+    /// Levenshtein("threat_scor", "device_id") >> 3 → excluded.
+    /// Result: did_you_mean = "threat_score". ✓
+    ///
+    /// EXPECTED RED — current always-suspend swallows post-enrich column typos.
+    #[tokio::test]
+    async fn test_BC_2_11_016_enrich_union_resolvable_post_enrich_typo_yields_e_query_038() {
+        let (engine, org) = make_armis_engine_with_threat_score_registry();
+
+        // "threat_scor" (Levenshtein distance 1 from "threat_score") is NOT in any schema.
+        // After fix: union places "threat_score" in available → typo caught → E-QUERY-038.
+        let query =
+            "armis_devices | enrich threat_score(device_cves_first) | where threat_scor > 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "threat_scor" => {
+                // After fix: GREEN — E-QUERY-038 fired on the typo.
+                assert_eq!(
+                    details.column, "threat_scor",
+                    "BC-2.11.016 v1.9: column in E-QUERY-038 must be 'threat_scor' (enrich \
+                     output typo); got: '{}'",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "armis_devices",
+                    "BC-2.11.016 v1.9: table must be 'armis_devices'"
+                );
+                assert_eq!(
+                    details.did_you_mean.as_deref(),
+                    Some("threat_score"),
+                    "BC-2.11.016 v1.9: did_you_mean must be 'threat_score' \
+                     (Levenshtein distance 1 from 'threat_scor'; available after union = \
+                     {{device_cves_first, device_id, threat_score}}); got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "BC-2.11.016 v1.9 RED-GATE: engine.execute returned Ok — E-QUERY-038 must fire \
+                 for post-enrich typo 'threat_scor'. Current always-suspend swallows post-enrich \
+                 column checks when InfusionRegistry is wired; after v1.9 registry plumbing, \
+                 the union path must populate available={{device_cves_first,device_id,threat_score}} \
+                 and reject this typo."
+            ),
+            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+                "BC-2.11.016 v1.9: E-QUERY-038 fired but for wrong column '{}'; \
+                 expected 'threat_scor'. Full details: {:?}",
+                d.column, d
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 v1.9 RED-GATE: expected E-QUERY-038 (ColumnNotFound) for \
+                 post-enrich typo 'threat_scor', got different error: {other:?}. \
+                 Current always-suspend skips post-enrich column checks when registry is wired; \
+                 after fix, the union path must catch the typo."
+            ),
+        }
+    }
+
+    // ── Test 23 (GREEN, regression lock): no-registry suspension preserved ──────────────
+
+    /// BC-2.11.016 v1.9 regression lock — no-InfusionRegistry path: suspension preserved.
+    ///
+    /// When NO InfusionRegistry is wired (registry = None), the post-enrich suspension
+    /// (fail-open, FP-001) must still activate correctly after the v1.9 plumbing change.
+    ///
+    /// ## Analysis: is the suspend branch dead code after v1.9?
+    ///
+    /// For the wired-registry path (Some):
+    /// - `check_enrich_udf_availability` (runs BEFORE the binding context gate) rejects any
+    ///   UDF name NOT registered with E-QUERY-039. Only registered UDF names reach
+    ///   `check_pipe_stage_columns`.
+    /// - A registered UDF name has a corresponding entry in `udf_to_infusion` + `entries`,
+    ///   so `enrich_descriptor(infusion_id)` ALWAYS succeeds for registered UDFs.
+    /// - **Conclusion: when registry is wired, the suspend fallback inside PipeStage::Enrich
+    ///   is dead code.** Every valid enrich stage (that passes E-QUERY-039) has a resolvable
+    ///   output schema. The BC v1.9 "suspend-when-unresolvable" fallback clause is vestigial
+    ///   for the wired-registry execution path.
+    /// - PO note: the BC fallback clause is mechanically unreachable in the wired-registry
+    ///   path but is kept live by the no-registry path tested here; no spec amendment needed.
+    ///
+    /// For the no-registry path (None):
+    /// - `check_enrich_udf_availability` is a no-op (returns Ok immediately).
+    /// - `check_pipe_stage_columns` receives `infusion_registry = None` → must still set
+    ///   `suspended = true` (same as current behavior) for all post-enrich stages.
+    /// - This regression lock verifies that behavior is preserved after the v1.9 plumbing.
+    ///
+    /// Query: `armis_devices | enrich cvss_base_score(device_cves_first) | where off_schema_col > 5`
+    /// — "off_schema_col" is NOT in the original schema {device_cves_first, device_id} and NOT
+    /// a typo of any output column (arbitrary name). With registry=None, suspension must prevent
+    /// E-QUERY-038 (fail-open per FP-001).
+    ///
+    /// GREEN under both old and new code (regression lock, not a RED gate).
+    #[tokio::test]
+    async fn test_BC_2_11_016_enrich_no_registry_suspension_preserved_regression_lock() {
+        let (engine, org) = make_armis_engine(); // deliberately NO InfusionRegistry
+
+        // "off_schema_col" is completely absent from the schema and unrelated to any
+        // enrichment output. With no registry, suspension must prevent E-QUERY-038.
+        let query =
+            "armis_devices | enrich cvss_base_score(device_cves_first) | where off_schema_col > 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "off_schema_col" => {
+                panic!(
+                    "BC-2.11.016 v1.9 regression: E-QUERY-038 fired on 'off_schema_col' after \
+                     enrich with no registry — suspension path broken by v1.9 plumbing. \
+                     FP-001 invariant: when registry=None, all post-enrich column checks must \
+                     be skipped (fail-open). column='{}', table='{}'",
+                    details.column, details.table
+                )
+            }
+            // Any other result (Ok, execution error, unrelated ColumnNotFound) is acceptable.
+            _ => {}
+        }
+    }
 }
 
 #[cfg(test)]
