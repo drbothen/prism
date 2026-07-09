@@ -2357,6 +2357,7 @@ fn check_query_column_availability(
             if table_name.starts_with("prism_") {
                 return Ok(());
             }
+            // Position 7: Filter root predicate — E-QUERY-038 column existence gate.
             // No FieldPath aliases in filter mode.
             let pred_cols = extract_predicate_columns(&fe.predicate, &table_name, None);
             for col in &pred_cols {
@@ -2369,21 +2370,41 @@ fn check_query_column_availability(
                     table_registry,
                 )?;
             }
+            // E-QUERY-002 type-compat gate — AFTER column-existence gate (BC-2.11.016 v1.6
+            // MED-001 ordering lock; BC-2.11.017 AC-003).
+            // Mirrors the SQL WHERE path. Walks Predicate::Compare nodes and returns
+            // QueryTypeMismatch when the operator is not valid for the column's ColumnType.
+            // Uses collect_predicate_type_pairs which emits "IEQ"/"INE" for
+            // case_insensitive=true predicates — correctly flagging IEQ/INE on Integer/Float/
+            // Boolean/Datetime columns as type mismatches (S-PRISMQL-CASE-INSENSITIVE-001).
+            let type_pairs = collect_predicate_type_pairs(&fe.predicate, &table_name, None);
+            for (col_name, op_str) in &type_pairs {
+                check_operator_type_compatibility(
+                    col_name,
+                    op_str,
+                    &table_name,
+                    org_scope,
+                    resolved_spec_map,
+                )?;
+            }
             return Ok(());
         }
 
-        // ── Pipe mode: check columns in all `| where` stage predicates ────────
+        // ── Pipe mode: check columns in all pipe stage positions ───────────────
         //
-        // Pipe queries are `source | stage | stage …` — `| where` stages carry
-        // predicates that may reference columns. Other stage types (| limit, | sort,
-        // | stats, etc.) may reference columns in their expressions, but those are
-        // not yet walked here (consistent with the original filter/pipe fail-open
-        // comment for non-predicate positions).
+        // Pipe queries are `source | stage | stage …`. Column availability is
+        // checked at positions 8 (| where predicates), 10 (| sort field keys),
+        // 11 (| stats ... by grouping refs), and 12 (| fields column refs) per
+        // BC-2.11.016 v1.6 exhaustive position enumeration.
         //
-        // Only `| where` stage predicates are walked in this gate — the same
-        // conservative policy applied to the SQL WHERE/HAVING positions.
+        // Position 8 also runs the E-QUERY-002 type-compat gate after the
+        // E-QUERY-038 existence gate — same ordering as the SQL WHERE path.
+        //
+        // Stage types without schema-bound column refs (Limit, Tail, Dedup, Join,
+        // Enrich) are fail-open via the `_ => {}` catch-all in
+        // `check_pipe_stage_columns`.
         Ast::Pipe(pq) => {
-            use crate::ast::{PipeStage, SourceRefKind};
+            use crate::ast::SourceRefKind;
             let table_name = match &pq.source.kind {
                 SourceRefKind::Custom => pq.source.raw.clone(),
                 SourceRefKind::External { sensor, table } => format!("{sensor}_{table}"),
@@ -2392,21 +2413,14 @@ fn check_query_column_availability(
             if table_name.starts_with("prism_") {
                 return Ok(());
             }
-            for stage in &pq.stages {
-                if let PipeStage::Where(pred) = stage {
-                    let pred_cols = extract_predicate_columns(pred, &table_name, None);
-                    for col in &pred_cols {
-                        check_column_availability(
-                            col,
-                            &table_name,
-                            client_id,
-                            org_scope,
-                            resolved_spec_map,
-                            table_registry,
-                        )?;
-                    }
-                }
-            }
+            check_pipe_stage_columns(
+                &pq.stages,
+                &table_name,
+                client_id,
+                org_scope,
+                resolved_spec_map,
+                table_registry,
+            )?;
             return Ok(());
         }
 
@@ -2601,6 +2615,155 @@ fn check_query_column_availability(
         }
     }
 
+    // ── Positions 9–12: SqlPipe stage columns ─────────────────────────────────
+    //
+    // The SQL head (positions 1–6) was processed above via `sql_query` extracted
+    // from `Ast::SqlPipe(spq) => &spq.head`. Now walk the pipe stages that follow
+    // the SQL head: `| where` (pos 9), `| sort` (pos 10), `| stats by` (pos 11),
+    // `| fields` (pos 12). Identical gate logic as `Ast::Pipe` (BC-2.11.016 v1.6
+    // table rows 9–12; HIGH-002 closure).
+    if let crate::ast::Ast::SqlPipe(spq) = &ast {
+        check_pipe_stage_columns(
+            &spq.stages,
+            &table_name,
+            client_id,
+            org_scope,
+            resolved_spec_map,
+            table_registry,
+        )?;
+    }
+
+    Ok(())
+}
+
+/// Walk all column-bearing pipe stage types and check column availability + type-compat.
+///
+/// Called from both the `Ast::Pipe` arm (all stages) and the `Ast::SqlPipe` arm
+/// (stages after the SQL head is processed for positions 1–6).
+///
+/// # Position coverage (BC-2.11.016 v1.6)
+/// - Position 8/9: `PipeStage::Where` — predicates (E-QUERY-038 existence + E-QUERY-002 type-compat)
+/// - Position 10: `PipeStage::Sort` — sort field keys (E-QUERY-038 existence only; no operator)
+/// - Position 11: `PipeStage::Stats` — `by_fields` grouping refs (E-QUERY-038 existence only)
+/// - Position 12: `PipeStage::Fields` — inclusion/exclusion column refs (E-QUERY-038 existence only)
+///
+/// Other stage types (Limit, Tail, Dedup, Join, Enrich) carry no schema-bound column
+/// refs at this plan-time validation level — fail-open via the `_ => {}` catch-all.
+/// New column-bearing stage types require a corresponding arm (AST-completeness invariant,
+/// BC-2.11.016 v1.6 §Invariants OBS-002).
+///
+/// # Ordering
+/// E-QUERY-038 (existence) fires before E-QUERY-002 (type-compat) for each stage,
+/// consistent with BC-2.11.016 gate ordering (table → column → type).
+fn check_pipe_stage_columns(
+    stages: &[crate::ast::PipeStage],
+    table_name: &str,
+    client_id: &str,
+    org_scope: Option<&[prism_core::OrgSlug]>,
+    resolved_spec_map: Option<
+        &std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+    table_registry: Option<&crate::table_registry::TableRegistry>,
+) -> Result<(), PrismError> {
+    use crate::ast::PipeStage;
+    for stage in stages {
+        match stage {
+            // Position 8/9: `| where` stage predicates — E-QUERY-038 + E-QUERY-002.
+            // No FieldPath aliases in pipe stages (table_alias = None).
+            PipeStage::Where(pred) => {
+                let pred_cols = extract_predicate_columns(pred, table_name, None);
+                for col in &pred_cols {
+                    check_column_availability(
+                        col,
+                        table_name,
+                        client_id,
+                        org_scope,
+                        resolved_spec_map,
+                        table_registry,
+                    )?;
+                }
+                // E-QUERY-002 type-compat: after existence gate, check operator compat.
+                // Uses collect_predicate_type_pairs which emits "IEQ"/"INE" for
+                // case_insensitive=true predicates (BC-2.11.016 v1.6 MED-001).
+                let type_pairs = collect_predicate_type_pairs(pred, table_name, None);
+                for (col_name, op_str) in &type_pairs {
+                    check_operator_type_compatibility(
+                        col_name,
+                        op_str,
+                        table_name,
+                        org_scope,
+                        resolved_spec_map,
+                    )?;
+                }
+            }
+            // Position 10: `| sort by` field keys — E-QUERY-038 existence only.
+            // Sort keys reference columns by name; no operator → no type-compat gate.
+            PipeStage::Sort(exprs) => {
+                for se in exprs {
+                    if let Some(col) =
+                        extract_column_name_from_field_path(&se.field, table_name, None)
+                    {
+                        check_column_availability(
+                            &col,
+                            table_name,
+                            client_id,
+                            org_scope,
+                            resolved_spec_map,
+                            table_registry,
+                        )?;
+                    }
+                }
+            }
+            // Position 11: `| stats ... by` grouping field refs — E-QUERY-038 existence only.
+            // `by_fields` are FieldPaths; aggregate function args are not checked here
+            // (BC-2.11.016 v1.6 EC-11-051 scope: grouping refs only per the BC gate table).
+            PipeStage::Stats(stats) => {
+                for fp in &stats.by_fields {
+                    if let Some(col) = extract_column_name_from_field_path(fp, table_name, None) {
+                        check_column_availability(
+                            &col,
+                            table_name,
+                            client_id,
+                            org_scope,
+                            resolved_spec_map,
+                            table_registry,
+                        )?;
+                    }
+                }
+            }
+            // Position 12: `| fields` column refs — E-QUERY-038 existence only.
+            // Grammar keyword is `fields` (PipeStage::Fields); BC-2.11.016 v1.6 EC-11-052
+            // uses `| project` (BC wording discrepancy — PO fixing in BC v1.7). This arm
+            // implements against the real PipeStage::Fields grammar variant.
+            PipeStage::Fields(fstage) => {
+                for fp in &fstage.fields {
+                    if let Some(col) = extract_column_name_from_field_path(fp, table_name, None) {
+                        check_column_availability(
+                            &col,
+                            table_name,
+                            client_id,
+                            org_scope,
+                            resolved_spec_map,
+                            table_registry,
+                        )?;
+                    }
+                }
+            }
+            // Other stage types — fail-open:
+            // - Limit(u64) / Tail(u64): carry no column refs.
+            // - Dedup(Vec<FieldPath>): dedup semantics don't require plan-time column
+            //   validation at this level (handled at execution; no type gate needed).
+            // - Join(JoinStage): cross-table refs; fail-open per existing policy.
+            // - Enrich(EnrichStage): infusion-specific gate in a separate check.
+            // - Future variants: fail-open per AST-completeness invariant (OBS-002);
+            //   new column-bearing variants require a corresponding arm.
+            #[allow(unreachable_patterns)]
+            _ => {}
+        }
+    }
     Ok(())
 }
 
@@ -2806,12 +2969,38 @@ fn collect_predicate_type_pairs_inner(
         // is already validated by the grammar. Type-checking the column inside the agg
         // arg is the job of the E-QUERY-038 column-gate (collect_predicate_columns),
         // not this function.
-        Predicate::Compare { lhs, op, .. } => {
+        //
+        // BC-2.11.016 v1.6 MED-001 / BC-2.11.024 / S-PRISMQL-CASE-INSENSITIVE-001:
+        // When `case_insensitive = true`, the effective operator is "IEQ" (for Eq) or
+        // "INE" (for Ne) — NOT plain "=" / "!=". This distinction is load-bearing:
+        // "IEQ"/"INE" are NOT in valid_operators_for_type(Integer/Float/Boolean/Datetime),
+        // so check_operator_type_compatibility correctly flags them as type mismatches.
+        // Without this translation, compare_op_to_str(Eq) → "=" passes Integer columns
+        // silently, bypassing the E-QUERY-002 gate for IEQ-on-Integer predicates.
+        Predicate::Compare {
+            lhs,
+            op,
+            case_insensitive,
+            ..
+        } => {
             if let Expr::Field(fp) = lhs.as_ref() {
                 if let Some(col_name) =
                     extract_column_name_from_field_path(fp, table_name, table_alias)
                 {
-                    if let Some(op_str) = compare_op_to_str(op) {
+                    // Emit the canonical operator name, accounting for case-insensitive variants.
+                    use crate::ast::CompareOp;
+                    let effective_op_str: Option<&'static str> = if *case_insensitive {
+                        match op {
+                            CompareOp::Eq => Some("IEQ"),
+                            CompareOp::Ne => Some("INE"),
+                            // Other ops with case_insensitive=true are not representable in the
+                            // PrismQL AST; fall through to compare_op_to_str for forward-compat.
+                            _ => compare_op_to_str(op),
+                        }
+                    } else {
+                        compare_op_to_str(op)
+                    };
+                    if let Some(op_str) = effective_op_str {
                         out.push((col_name, op_str.to_string()));
                     }
                 }
