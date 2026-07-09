@@ -89,10 +89,10 @@ points: 11
 level: "L4"
 status: merged
 # BC status: 7 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.7,
-#   BC-2.11.016 v1.19, BC-2.11.007 v1.9) + BC-2.11.019 v1.6 draft→active at merge per POL-14. Canonical versions
+#   BC-2.11.016 v1.20, BC-2.11.007 v1.9) + BC-2.11.019 v1.6 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.37"
+version: "2.38"
 updated: "2026-07-09"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -179,7 +179,7 @@ red_gate_tests: 54
 # --- F-PQL2-OBS-001 skeleton-placeholder guards (BC-2.10.016 v1.2; origin F-PQL2-OBS-001) ---
 #   test_f_pql2_obs001_query_skeleton_no_bare_timestamp (f_pql2_obs001_skeleton_placeholder_guard_test.rs)
 #   test_f_pql2_obs001_datetime_arithmetic_uses_placeholder (f_pql2_obs001_skeleton_placeholder_guard_test.rs)
-# --- AC-M2 HAVING column gate (BC-2.11.016 v1.19 — Position 6; inline in engine.rs,
+# --- AC-M2 HAVING column gate (BC-2.11.016 v1.20 — Position 6; inline in engine.rs,
 #     module f_pwl1_low001_having_column_gate_tests) ---
 #   test_BC_2_11_016_having_column_gate_typo_fires_e_query_038 (engine.rs inline)
 #   test_BC_2_11_016_having_column_gate_valid_col_no_e_query_038 (engine.rs inline)
@@ -389,7 +389,7 @@ all subquery positions (HAVING, GROUP BY, ORDER BY, JOIN ON).
 | BC-2.11.019 | v1.6 | BC-2.11.019: E-QUERY-039 Enrich-UDF-Not-Found Plan-Time Gate |
 | BC-2.10.016 | v1.2 | BC-2.10.016: MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
 | BC-2.10.012 | v1.7 | BC-2.10.012: `prism_describe` Schema Discovery Tool (L2) |
-| BC-2.11.016 | v1.19 | BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
+| BC-2.11.016 | v1.20 | BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
 | BC-2.11.007 | v1.9 | BC-2.11.007: Sensor Filter Push-Down |
 
 ---
@@ -832,7 +832,7 @@ paths.
 
 ### Area G — Gate Coverage: E-QUERY-038 Column Gate in Single-Tenant Mode (M1)
 
-**AC-M1** (traces to BC-2.11.016 v1.19 postcondition — E-QUERY-038 fires for unknown columns): The
+**AC-M1** (traces to BC-2.11.016 v1.20 postcondition — E-QUERY-038 fires for unknown columns): The
 `check_query_column_availability` function (E-QUERY-038 column gate) MUST fire in single-tenant
 mode where `resolved_spec_map` is `None`. Previously it returned `Ok(())` immediately in this
 case, silently bypassing E-QUERY-038 for all single-tenant queries. The fix: `TableRegistry`
@@ -853,14 +853,14 @@ column metadata.
 
 ### Area H — Gate Coverage: E-QUERY-038 Column Gate Validates GROUP BY / ORDER BY / JOIN ON (M2)
 
-**AC-M2** (traces to BC-2.11.016 v1.19 postcondition — E-QUERY-038 fires for unknown columns at
+**AC-M2** (traces to BC-2.11.016 v1.20 postcondition — E-QUERY-038 fires for unknown columns at
 all relevant positions): `check_query_column_availability` validates GROUP BY expressions,
 ORDER BY expressions, JOIN ON column refs, and HAVING predicate column refs in addition to
 SELECT projections and WHERE predicates. Previously GROUP BY, ORDER BY, JOIN ON, and HAVING
 column references were not checked, creating bypass paths where an invalid column in
 `GROUP BY invalid_col` or `HAVING count(typo_col)` would not fire E-QUERY-038 at plan time.
 
-For the HAVING position specifically (BC-2.11.016 v1.19 §Implementation location gate-positions
+For the HAVING position specifically (BC-2.11.016 v1.20 §Implementation location gate-positions
 table, Position 6):
 
 Position 6 (HAVING): uses `extract_predicate_columns` (same helper as WHERE/Position 2), which
@@ -1544,6 +1544,7 @@ and the TLS-REMEDIATION fold-in (commit cf66151f):
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.38 | ADV-FIX-P15-MED-001-pin-sync-2026-07-09 | 2026-07-09 | story-writer | **pin-sync BC-2.11.016 v1.19→v1.20 (HEAD-JOIN SUSPENSION RULE, ADV-FIX-P15-MED-001) + semantic-cell currency (FIX-IEQ-ERRPATH-001 pass-15 story pin round). BC-2.11.016 v1.19→v1.20: six live sites updated — (1) frontmatter `# BC status:` comment; (2) frontmatter red-gate test inventory comment (AC-M2 HAVING label); (3) §Behavioral Contracts body table BC-2.11.016 version cell; (4) AC-M1 trace; (5) AC-M2 trace; (6) AC-M2 §HAVING body prose. Semantic-cell currency: FIDELITY BC table has no Key Clauses column (only BC ID / Version / Title) — HEAD-JOIN SUSPENSION RULE is a new SQL-head positions-1–6 rule (when head query JOIN list non-empty AND bare unqualified column ref absent → E-QUERY-038 MUST NOT fire); HAVING position-6 behavior in joinless queries unchanged; AC-M2 tests do not use JOIN-containing queries, so test semantics UNCHANGED. Historical changelog rows + narrative blockquote `BC-2.11.016 v1.5 HAVING addition` + prose `BC-2.11.016 v1.5's claim` left unchanged per POL-29. BC-2.11.004, BC-2.11.017, BC-2.11.020, and error-taxonomy not cited in this story. AC semantics UNCHANGED. Frontmatter version 2.37→2.38; updated 2026-07-09 (POL-23).** |
 | 2.37 | FIX-IEQ-ERRPATH-001-pass-14-pin-sync-2026-07-09 | 2026-07-09 | story-writer | **pin-sync BC-2.11.016 v1.19 / BC-2.11.017 v1.7 / BC-2.11.020 v1.12 / BC-2.11.004 v1.24 / error-taxonomy v2.32 (STAGE-JOIN SUSPENSION RULE, ADV-FIX-P14-OBS-001) + semantic-cell currency (FIX-IEQ-ERRPATH-001 pass-14 story pin round). BC-2.11.016 v1.18→v1.19: six live sites updated — (1) frontmatter `# BC status:` comment; (2) frontmatter red-gate test inventory comment (AC-M2 HAVING label); (3) §Behavioral Contracts body table BC-2.11.016 version cell; (4) AC-M1 trace; (5) AC-M2 trace; (6) AC-M2 §HAVING body prose. Semantic-cell currency: FIDELITY BC table has no Key Clauses column (only BC ID / Version / Title) — STAGE-JOIN SUSPENSION RULE is a new stage-walk binding clause (PipeStage::Join → suspended:=true for remainder of walk); HAVING position-6 behavior unchanged; no semantic-cell extension needed. Historical changelog rows left unchanged per POL-29. BC-2.11.004, BC-2.11.017, BC-2.11.020, and error-taxonomy not cited in this story. AC semantics UNCHANGED. Frontmatter version 2.36→2.37; updated 2026-07-09 (POL-23).** |
 | 2.36 | FIX-IEQ-ERRPATH-001-pass-12-pin-sync-2026-07-09 | 2026-07-09 | story-writer | **pin-sync BC-2.11.016 v1.18 / BC-2.11.017 v1.6 / BC-2.11.020 v1.11 / BC-2.11.004 v1.23 / error-taxonomy v2.31 (STAR-WITH-JOIN SUSPENSION RULE, ADV-FIX-P12-OBS-002) + semantic-cell currency (FIX-IEQ-ERRPATH-001 pass-12 story pin round). BC-2.11.016 v1.17→v1.18: six live sites updated — (1) frontmatter `# BC status:` comment; (2) frontmatter red-gate test inventory comment (AC-M2 HAVING label); (3) §Behavioral Contracts body table BC-2.11.016 version cell; (4) AC-M1 trace; (5) AC-M2 trace; (6) AC-M2 §HAVING body prose. Semantic-cell currency: FIDELITY BC table has no Key Clauses column (only BC ID / Version / Title) — STAR-WITH-JOIN SUSPENSION RULE is a new SqlPipe head-projection binding clause; HAVING position-6 behavior unchanged; no semantic-cell extension needed. Historical changelog rows left unchanged per POL-29. BC-2.11.004, BC-2.11.017, BC-2.11.020, and error-taxonomy not cited in this story. AC semantics UNCHANGED. Frontmatter version 2.35→2.36; updated 2026-07-09 (POL-23).** |
 | 2.35 | FIX-IEQ-ERRPATH-001-pass-10-pin-sync-2026-07-09 | 2026-07-09 | story-writer | **pin-sync BC-2.11.016 v1.17 / BC-2.11.017 v1.5 / BC-2.11.020 v1.10 / BC-2.11.004 v1.22 / error-taxonomy v2.30 (LAST-SEGMENT rule, ADV-FIX-P10-OBS-001) + semantic-cell currency (FIX-IEQ-ERRPATH-001 pass-10 story pin round). BC-2.11.016 v1.16→v1.17: six live sites updated — (1) frontmatter `# BC status:` comment; (2) frontmatter red-gate test inventory comment (AC-M2 HAVING label); (3) §Behavioral Contracts body table BC-2.11.016 version cell; (4) AC-M1 trace; (5) AC-M2 trace; (6) AC-M2 §HAVING body prose. Semantic-cell currency: FIDELITY BC table has no Key Clauses column (only BC ID / Version / Title) — LAST-SEGMENT OUTPUT-NAME RULE does not affect HAVING position-6 behavior; no semantic-cell extension needed. Historical changelog rows left unchanged per POL-29. BC-2.11.004, BC-2.11.017, BC-2.11.020, and error-taxonomy not cited in this story. AC semantics UNCHANGED. Frontmatter version 2.34→2.35; updated 2026-07-09 (POL-23).** |
