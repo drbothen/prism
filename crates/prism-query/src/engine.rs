@@ -8929,6 +8929,107 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
+    // ── Test 11 (RED GATE): IIN on Integer column — ADV-FIX-P3-LOW-001 ──────────
+
+    /// ADV-FIX-P3-LOW-001 — plan-time E-QUERY-002 for `IIN` on an Integer column.
+    ///
+    /// `collect_predicate_type_pairs_inner` emits "IEQ"/"INE" for
+    /// `Predicate::Compare { case_insensitive: true, op: Eq/Ne }` (lines 3210-3246).
+    /// The IIN sibling — `Predicate::In { case_insensitive: true, .. }` — falls through
+    /// the `_ => {}` catch-all, so "IIN" is never emitted to the type-compat gate.
+    /// `check_operator_type_compatibility` is therefore never called for IIN predicates,
+    /// leaving `severity_id IIN ('high', 'critical')` on an Integer column to proceed
+    /// past plan time.
+    ///
+    /// Both the `Ast::Filter` arm (line 2383) and the `Ast::Pipe` arm (line 2841) call
+    /// the same `collect_predicate_type_pairs` helper. The bug is in the shared inner
+    /// function `collect_predicate_type_pairs_inner`. One filter-mode test suffices;
+    /// the pipe-mode path is fixed by the same change to the shared function.
+    ///
+    /// Operator string: "IIN" — matching `collect_ci_compare_fields` in
+    /// materialization.rs (line 2229: `out.push((last.clone(), "IIN".to_string()))`),
+    /// so the plan-time and materialization-layer gate use the same byte-form.
+    ///
+    /// Fix: extend `collect_predicate_type_pairs_inner` to match
+    /// `Predicate::In { case_insensitive: true, negated: false, .. }` and emit
+    /// `(column_name, "IIN")`, then call `check_operator_type_compatibility` with
+    /// "IIN". Since "IIN" is absent from `valid_operators_for_type(Integer)`, the gate
+    /// returns `Err(QueryTypeMismatch)` at plan time.
+    ///
+    /// RED GATE: currently returns some non-QueryTypeMismatch result because IIN falls
+    /// through `_ => {}` in `collect_predicate_type_pairs_inner`.
+    #[tokio::test]
+    async fn test_BC_2_11_016_low001_iin_integer_column_plan_time_e_query_002() {
+        let (engine, org) = make_crowdstrike_engine_with_severity_id_int();
+
+        // `severity_id` IS in the schema (Integer). IIN is not valid for Integer.
+        // Must NOT produce ColumnNotFound (E-QUERY-038 — column exists).
+        // MUST produce QueryTypeMismatch (E-QUERY-002 — IIN not valid for Integer).
+        // Filter mode: `crowdstrike_alerts | severity_id IIN ('high', 'critical')`.
+        let query = "crowdstrike_alerts | severity_id IIN ('high', 'critical')";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::QueryTypeMismatch {
+                ref column,
+                ref table,
+                ref suggested_column,
+                ..
+            }) => {
+                assert_eq!(
+                    column.as_str(),
+                    "severity_id",
+                    "ADV-FIX-P3-LOW-001: column in E-QUERY-002 must be 'severity_id', \
+                     got: {:?}",
+                    column
+                );
+                assert_eq!(
+                    table.as_str(),
+                    "crowdstrike_alerts",
+                    "ADV-FIX-P3-LOW-001: table in E-QUERY-002 must be 'crowdstrike_alerts', \
+                     got: {:?}",
+                    table
+                );
+                assert_eq!(
+                    suggested_column.as_deref(),
+                    Some("severity"),
+                    "ADV-FIX-P3-LOW-001: suggested_column must be Some(\"severity\") \
+                     (OCSF sibling: severity_id → severity); got: {:?}",
+                    suggested_column
+                );
+            }
+            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+                "ADV-FIX-P3-LOW-001: E-QUERY-038 (ColumnNotFound) fired for EXISTING column \
+                 'severity_id' — gate ordering violated. E-QUERY-038 must NOT fire for an \
+                 existing column; E-QUERY-002 must fire instead. \
+                 Got: column='{}', table='{}'",
+                d.column, d.table
+            ),
+            Ok(_) => panic!(
+                "ADV-FIX-P3-LOW-001: engine.execute returned Ok — IIN is not valid for \
+                 Integer column 'severity_id'; E-QUERY-002 must fire at plan time. \
+                 Currently Predicate::In {{ case_insensitive: true }} falls through \
+                 the _ => {{}} catch-all in collect_predicate_type_pairs_inner, so \
+                 the IIN operator is never emitted to check_operator_type_compatibility."
+            ),
+            Err(other) => panic!(
+                "ADV-FIX-P3-LOW-001: expected PrismError::QueryTypeMismatch (E-QUERY-002), \
+                 got different error: {other:?}. Fix: add Predicate::In \
+                 {{ case_insensitive: true }} arm to collect_predicate_type_pairs_inner \
+                 emitting (column, \"IIN\") so the E-QUERY-002 plan-time gate fires."
+            ),
+        }
+    }
+
     // ── Fixture: armis_devices engine (EC-11-054, EC-11-056) ──────────────────
 
     /// Build an `armis_devices` engine (sensor="armis", table="devices") under org "acme".
