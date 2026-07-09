@@ -10695,6 +10695,217 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             _ => {}
         }
     }
+
+    // ── Tests 32-34 (RED GATE): ADV-FIX-P6-MED-002 — MIXED-STAR head-projection ──
+    //
+    //    BC-2.11.016 v1.14 EC-11-062 / EC-11-063 / EC-11-064 (FP-001)
+    //
+    //    Root cause: `compute_sqlpipe_head_binding` short-circuits on ANY Star or TableStar
+    //    item in the SELECT list:
+    //        let has_star = head.select.items.iter()
+    //            .any(|item| matches!(item, SelectItem::Star | SelectItem::TableStar(_)));
+    //        if has_star { return None; }   // ← wrong: ignores explicit aliases in MIXED lists
+    //
+    //    When the head SELECT contains BOTH a wildcard (Star/TableStar) AND explicit non-star
+    //    items with AS aliases — a MIXED-STAR head — the function incorrectly returns `None`,
+    //    causing `check_pipe_stage_columns` to seed `available` from the raw schema alone.
+    //    The explicit aliases (e.g., `sev_up`, `cnt`, `lo`) are absent from the raw schema
+    //    → E-QUERY-038 fires on downstream stage references to those aliases (FP-001 violation).
+    //
+    //    Fix (BC-2.11.016 v1.14 MIXED-STAR branch (c)):
+    //    When head SELECT contains at least one Star/TableStar AND at least one explicit
+    //    non-star item:
+    //      available = schema_columns(table, OrgId)                     ← from Star/TableStar
+    //                ∪ {AS aliases from explicit items}                 ← computed aliases
+    //                ∪ {bare Field names of un-aliased explicit bare-Field items}
+    //                ∪ {bare field names in the GROUP BY clause}
+    //    If any explicit non-Field item lacks an AS alias → suspended := true (FP-001 fail-open).
+    //    Branches (a) (pure SELECT *) and (b) (fully-explicit SELECT) are unchanged.
+
+    /// BC-2.11.016 v1.14 EC-11-062 — MIXED-STAR head with aliased function expression:
+    /// no false-positive E-QUERY-038 on alias in downstream | where stage.
+    ///
+    /// `SELECT *, upper(severity) AS sev_up FROM crowdstrike_alerts | where sev_up = 'HIGH'`
+    ///
+    /// MIXED-STAR branch (c): head has `*` (Star) AND `upper(severity) AS sev_up`
+    /// (explicit non-star item WITH an alias). Initial `available` after fix:
+    ///   schema_columns ∪ {sev_up} = {severity, timestamp, sev_up}
+    /// `upper(severity) AS sev_up` carries an explicit AS alias → no anonymous-item suspension.
+    /// `| where sev_up = 'HIGH'` finds `sev_up` in the binding context → NO E-QUERY-038.
+    ///
+    /// EXPECTED RED — current code: `has_star = true` → `compute_sqlpipe_head_binding` returns
+    /// `None` → `check_pipe_stage_columns` seeds `available` from raw schema {severity, timestamp}.
+    /// `sev_up` is NOT in the raw schema → E-QUERY-038 fires on `sev_up` (FP-001 violation;
+    /// ADV-FIX-P6-MED-002). The test panics on the ColumnNotFound arm confirming RED gate.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11062_mixed_star_alias_no_false_positive() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // EC-11-062 canonical vector (BC-2.11.016 v1.14).
+        // Head: SELECT *, upper(severity) AS sev_up FROM crowdstrike_alerts
+        //   — Star AND upper(severity) AS sev_up (aliased scalar function).
+        // Stage: | where sev_up = 'HIGH'
+        // After fix (MIXED-STAR branch (c)):
+        //   available = {severity, timestamp} ∪ {sev_up} = {severity, sev_up, timestamp}
+        //   → sev_up found → no E-QUERY-038.
+        // Before fix (current): has_star → None → available = {severity, timestamp}
+        //   → sev_up absent → FALSE-POSITIVE E-QUERY-038 on sev_up (FP-001 violation).
+        let query =
+            "SELECT *, upper(severity) AS sev_up FROM crowdstrike_alerts | where sev_up = 'HIGH'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "sev_up" => panic!(
+                "BC-2.11.016 v1.14 EC-11-062: FALSE-POSITIVE E-QUERY-038 fired on MIXED-STAR \
+                 head alias 'sev_up' in downstream | where stage. MIXED-STAR branch (c) requires \
+                 initial available = schema_columns ∪ {{sev_up}} = {{severity, timestamp, sev_up}}; \
+                 'sev_up' must be found in the binding context. Current code short-circuits on any \
+                 Star/TableStar (has_star check) → compute_sqlpipe_head_binding returns None → \
+                 available = raw schema {{severity, timestamp}} → 'sev_up' absent → incorrect \
+                 rejection (FP-001 violation; ADV-FIX-P6-MED-002). \
+                 column='{}', table='{}', available={:?}, did_you_mean={:?}",
+                details.column, details.table, details.available_columns, details.did_you_mean
+            ),
+            // Any other result (Ok, execution error, unrelated ColumnNotFound) is acceptable.
+            // The only invariant: MIXED-STAR alias 'sev_up' must NOT produce false-positive
+            // E-QUERY-038 in the downstream | where stage.
+            _ => {}
+        }
+    }
+
+    /// BC-2.11.016 v1.14 EC-11-063 — MIXED-STAR head with aliased aggregate and GROUP BY:
+    /// no false-positive E-QUERY-038 on alias in downstream | sort stage.
+    ///
+    /// `SELECT *, count(severity) AS cnt FROM crowdstrike_alerts GROUP BY severity | sort cnt`
+    ///
+    /// MIXED-STAR branch (c): head has `*` (Star) AND `count(severity) AS cnt`
+    /// (non-Field item WITH an alias). GROUP BY `severity` also contributes. Initial
+    /// `available` after fix:
+    ///   schema_columns ∪ {cnt} ∪ {severity (GROUP BY, already in schema)}
+    ///   = {severity, timestamp, cnt}
+    /// `count(severity) AS cnt` carries an explicit AS alias → no anonymous-item suspension.
+    /// `| sort cnt` finds `cnt` in the binding context → NO E-QUERY-038.
+    ///
+    /// EXPECTED RED — current code: `has_star = true` → returns `None` → raw schema
+    /// {severity, timestamp}. `cnt` is NOT in the raw schema → E-QUERY-038 fires on `cnt`
+    /// (FP-001 violation; ADV-FIX-P6-MED-002). The test panics on the ColumnNotFound arm
+    /// for `cnt`, confirming RED gate.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11063_mixed_star_agg_alias_no_false_positive() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // EC-11-063 canonical vector (BC-2.11.016 v1.14).
+        // Head: SELECT *, count(severity) AS cnt FROM crowdstrike_alerts GROUP BY severity
+        //   — Star AND count(severity) AS cnt (aliased aggregate; explicit alias).
+        // Stage: | sort cnt
+        // After fix (MIXED-STAR branch (c)):
+        //   available = {severity, timestamp} ∪ {cnt} ∪ {severity (GROUP BY)}
+        //             = {severity, timestamp, cnt}
+        //   → cnt found → no E-QUERY-038.
+        // Before fix (current): has_star → None → available = {severity, timestamp}
+        //   → cnt absent → FALSE-POSITIVE E-QUERY-038 on cnt (FP-001 violation).
+        let query =
+            "SELECT *, count(severity) AS cnt FROM crowdstrike_alerts GROUP BY severity | sort cnt";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "cnt" => panic!(
+                "BC-2.11.016 v1.14 EC-11-063: FALSE-POSITIVE E-QUERY-038 fired on MIXED-STAR \
+                 head aggregate alias 'cnt' in downstream | sort stage. MIXED-STAR branch (c) \
+                 requires initial available = schema_columns ∪ {{cnt}} ∪ {{severity (GROUP BY)}} \
+                 = {{severity, timestamp, cnt}}; 'cnt' must be found. Current code short-circuits \
+                 on any Star (has_star) → compute_sqlpipe_head_binding returns None → \
+                 available = raw schema {{severity, timestamp}} → 'cnt' absent → incorrect \
+                 rejection (FP-001 violation; ADV-FIX-P6-MED-002). \
+                 column='{}', table='{}', available={:?}, did_you_mean={:?}",
+                details.column, details.table, details.available_columns, details.did_you_mean
+            ),
+            // Any other result (Ok, execution error, unrelated ColumnNotFound) is acceptable.
+            // The only invariant: MIXED-STAR aggregate alias 'cnt' must NOT produce false-positive
+            // E-QUERY-038 in the downstream | sort stage.
+            _ => {}
+        }
+    }
+
+    /// BC-2.11.016 v1.14 EC-11-064 — MIXED-STAR head with TableStar variant and explicit alias:
+    /// no false-positive E-QUERY-038 on alias in downstream | fields stage.
+    ///
+    /// `SELECT t.*, lower(severity) AS lo FROM crowdstrike_alerts t | fields lo, severity`
+    ///
+    /// MIXED-STAR branch (c) triggered by `t.*` (TableStar): head has TableStar AND
+    /// `lower(severity) AS lo` (explicit item WITH an alias). Initial `available` after fix:
+    ///   schema_columns(table, OrgId) ∪ {lo} = {severity, timestamp, lo}
+    /// (`severity` is already in schema_columns via the TableStar path.)
+    /// `lower(severity) AS lo` carries an explicit AS alias → no anonymous-item suspension.
+    /// `| fields lo, severity` finds both `lo` and `severity` → NO E-QUERY-038.
+    ///
+    /// EXPECTED RED — current code: TableStar triggers `has_star = true` → returns `None`
+    /// → raw schema {severity, timestamp}. `lo` is NOT in the raw schema → E-QUERY-038 fires
+    /// on `lo` (FP-001 violation; ADV-FIX-P6-MED-002). The test panics on the ColumnNotFound
+    /// arm for `lo`, confirming RED gate.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11064_mixed_star_tablestar_no_false_positive() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // EC-11-064 canonical vector (BC-2.11.016 v1.14).
+        // Head: SELECT t.*, lower(severity) AS lo FROM crowdstrike_alerts t
+        //   — t.* (TableStar) AND lower(severity) AS lo (aliased scalar function).
+        //   Table alias `t` used in `t.*` (TableStar qualifier).
+        // Stage: | fields lo, severity
+        // After fix (MIXED-STAR branch (c) via TableStar):
+        //   available = {severity, timestamp} ∪ {lo} = {lo, severity, timestamp}
+        //   → lo found; severity found → no E-QUERY-038.
+        // Before fix (current): has_star (TableStar) → None → available = {severity, timestamp}
+        //   → lo absent → FALSE-POSITIVE E-QUERY-038 on lo (FP-001 violation).
+        let query =
+            "SELECT t.*, lower(severity) AS lo FROM crowdstrike_alerts t | fields lo, severity";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "lo" => panic!(
+                "BC-2.11.016 v1.14 EC-11-064: FALSE-POSITIVE E-QUERY-038 fired on MIXED-STAR \
+                 head alias 'lo' (TableStar variant) in downstream | fields stage. MIXED-STAR \
+                 branch (c) triggered by `t.*` requires initial available = schema_columns ∪ {{lo}} \
+                 = {{severity, timestamp, lo}}; 'lo' must be found. Current code short-circuits on \
+                 any TableStar (has_star) → compute_sqlpipe_head_binding returns None → \
+                 available = raw schema {{severity, timestamp}} → 'lo' absent → incorrect \
+                 rejection (FP-001 violation; ADV-FIX-P6-MED-002). \
+                 column='{}', table='{}', available={:?}, did_you_mean={:?}",
+                details.column, details.table, details.available_columns, details.did_you_mean
+            ),
+            // Any other result (Ok, execution error, unrelated ColumnNotFound) is acceptable.
+            // The invariant: TableStar MIXED-STAR alias 'lo' must NOT produce false-positive
+            // E-QUERY-038 in the downstream | fields stage.
+            _ => {}
+        }
+    }
 }
 
 #[cfg(test)]
