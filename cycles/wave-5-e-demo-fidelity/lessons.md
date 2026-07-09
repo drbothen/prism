@@ -2709,3 +2709,19 @@ FIX-IEQ-ERRPATH-001 LOCAL pass-5 adversary emitted a report with the verdict lin
 **Evidence:** FIX-IEQ-ERRPATH-001 LOCAL pass-5 adversary report (frozen b4b88f93); orchestrator empirical query construction 2026-07-09 confirming FP-001 violation on fix-branch; `SELECT count(*) AS cnt ... GROUP BY severity | sort cnt` and `SELECT severity AS sev FROM t | where sev='High'` both produce false E-QUERY-038 on fix-branch, clean on develop.
 
 **Source:** D-1615 (FIX-IEQ-ERRPATH-001 session wrap; orchestrator pass-5 verdict investigation; 2026-07-09).
+
+---
+
+### L22 — [process-gap] POL-23 pin-sync rounds update BC-version cells only, not adjacent semantic cells (Key Clauses / Description drift)
+
+**Summary:** S-DEMO-PRISMQL-ONBOARDING-001-B carried v1.6-era "twelve positions" prose in its §Behavioral Contracts table Key Clauses cell through 7 consecutive BC-2.11.016 pin-sync bursts (v1.6 → v1.7 → v1.8 → v1.9 → v1.10 → v1.11 → v1.12 → v1.13) undetected. This produced ADV-FIX-P6-MED-001 in the pass-6 fresh-context review: the Key Clauses cell described a 12-position gate without the DERIVED-COLUMN BINDING RULE or HEAD-PROJECTION BINDING RULE — both of which were introduced between v1.8 and v1.13. A literal re-implementer following the stale Key Clauses cell would build an incomplete gate that produces false E-QUERY-038 on derived-column and head-projection query shapes.
+
+**Root cause:** Story-writer pin-sync rounds execute a mechanical version-cell bump (e.g., `v1.12→v1.13` in the BC-version column) without requiring a semantic-cell currency check on the same row. The BC-version cell is easy to update programmatically; the Key Clauses cell requires reasoning about what changed between BC versions, which makes it harder to catch in fast pin rounds.
+
+**Scope of sweep (D-1617):** All 4 cascade carrier stories were swept for same-row adjacent-cell drift in the same pass-6 fix-burst. Only S-DEMO-PRISMQL-ONBOARDING-001-B had a gap; S-DEMO-FIDELITY-REMEDIATION-001, S-PRISMQL-CASE-INSENSITIVE-001, and S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 Key Clauses / Description cells were verified current.
+
+**Remedy applied in-scope (D-1617):** Semantic-cell sweep across all 4 carrier stories; S-DEMO-PRISMQL-ONBOARDING-001-B Key Clauses cell rewritten to v1.14 fourteen-position + binding-rules semantics (story v2.9).
+
+**Codification pending (cycle-close checklist S-7.02):** Extend POL-23 / POL-29 verification steps (or story-writer pin-round procedure) to require same-row adjacent-cell semantic currency check on every BC version bump. The check should confirm that the Key Clauses / Description cell still accurately describes the CURRENT BC semantics, not the version cited when the cell was last written. This is a low-false-positive check: the BC version number in the cell serves as a semantic-currency marker; any BC version increment should trigger a re-read of the corresponding BC section and a confirmation that the cell prose still matches.
+
+**Source:** D-1617 (FIX-IEQ-ERRPATH-001 pass-6 fix-burst; ADV-FIX-P6-MED-001/OBS-001; 2026-07-09).
