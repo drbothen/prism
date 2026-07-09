@@ -1336,7 +1336,9 @@ def run_audit():
                 # The old heuristic used '"|" in msg.lower()' which could spuriously match
                 # any unrelated pipe character in the error text. Replaced with a byte-precise
                 # anchor: "not supported in sql mode" is deterministically present in every
-                # E-QUERY-001 IEQ SQL-mode rejection (sql_parser.rs lines 225, 257, 1198, 1212).
+                # E-QUERY-001 IEQ SQL-mode rejection (sql_parser.rs — the four E-QUERY-001
+                # IEQ/IIN/INE SQL-mode rejection sites that emit the canonical
+                # "not supported in SQL mode" phrase).
                 mentions_mode = "not supported in sql mode" in msg.lower()
                 if mentions_operator and mentions_mode:
                     results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = (

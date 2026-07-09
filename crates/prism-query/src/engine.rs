@@ -2237,6 +2237,14 @@ fn collect_predicate_columns_with_bareness(
 /// are registered for the table). `did_you_mean` uses `strsim::levenshtein` with the
 /// same ≤3 threshold as the E-QUERY-037 gate (D-1163).
 ///
+/// # `compute_did_you_mean` (ADV-PR-P3-OBS-001)
+/// When `false`, the Levenshtein suggestion loops are skipped entirely and the error
+/// carries `did_you_mean: None`. Pass `false` only from call sites whose
+/// `ColumnNotFound` result will be discarded — specifically the BC-2.11.016 FP-001
+/// HEAD-JOIN suspension arm, where bare unqualified refs fail-open and the Levenshtein
+/// computation is pure waste (~hundreds of ms on adversarial queries with ~500 bare
+/// unknown refs and a JOIN). All other call sites pass `true`.
+///
 /// # BC-2.11.016 / S-DEMO-PRISMQL-ONBOARDING-001-B AC-001, AC-002
 fn check_column_availability(
     column_name: &str,
@@ -2250,6 +2258,7 @@ fn check_column_availability(
         >,
     >,
     table_registry: Option<&crate::table_registry::TableRegistry>,
+    compute_did_you_mean: bool,
 ) -> Result<(), PrismError> {
     use prism_core::error::{ColumnNotFoundDetails, PrismError};
 
@@ -2286,13 +2295,20 @@ fn check_column_availability(
         // F-PHL1-MED-001: cap `column_name` at 128 bytes for Levenshtein input only (CWE-407
         // Algorithmic Complexity DoS guard). This cap bounds the did_you_mean computation
         // only; it does NOT cap the column_name in the error response or log field.
-        let column_name_capped = crate::table_registry::cap_name_for_levenshtein(column_name);
-        let did_you_mean = available_columns
-            .iter()
-            .map(|c| (c.clone(), strsim::levenshtein(column_name_capped, c)))
-            .filter(|(_, dist)| *dist <= 3)
-            .min_by_key(|(name, dist)| (*dist, name.clone()))
-            .map(|(c, _)| c);
+        // ADV-PR-P3-OBS-001: skip Levenshtein when compute_did_you_mean is false — the
+        // BC-2.11.016 FP-001 HEAD-JOIN suspension arm discards ColumnNotFound errors, so
+        // the suggestion computation is pure waste on the suspended call path.
+        let did_you_mean: Option<String> = if compute_did_you_mean {
+            let column_name_capped = crate::table_registry::cap_name_for_levenshtein(column_name);
+            available_columns
+                .iter()
+                .map(|c| (c.clone(), strsim::levenshtein(column_name_capped, c)))
+                .filter(|(_, dist)| *dist <= 3)
+                .min_by_key(|(name, dist)| (*dist, name.clone()))
+                .map(|(c, _)| c)
+        } else {
+            None
+        };
         // SEC-FIND-001 (CWE-117): sanitize user-supplied column_name before structured log
         // emission — strip Unicode Cc + U+2028/U+2029 (same pattern as infusion_udf.rs
         // `warn_coercion_failed` per TD-VSDD-060 sibling-sweep).
@@ -2394,13 +2410,20 @@ fn check_column_availability(
     // F-PHL1-MED-001: cap `column_name` at 128 bytes for Levenshtein input only (CWE-407
     // Algorithmic Complexity DoS guard) — multi-tenant path. Does NOT cap the column_name
     // in the error response or log field.
-    let column_name_capped_mt = crate::table_registry::cap_name_for_levenshtein(column_name);
-    let did_you_mean = available_columns
-        .iter()
-        .map(|c| (c.clone(), strsim::levenshtein(column_name_capped_mt, c)))
-        .filter(|(_, dist)| *dist <= 3)
-        .min_by_key(|(name, dist)| (*dist, name.clone()))
-        .map(|(c, _)| c);
+    // ADV-PR-P3-OBS-001: skip Levenshtein when compute_did_you_mean is false — the
+    // BC-2.11.016 FP-001 HEAD-JOIN suspension arm discards ColumnNotFound errors, so
+    // the suggestion computation is pure waste on the suspended call path.
+    let did_you_mean: Option<String> = if compute_did_you_mean {
+        let column_name_capped_mt = crate::table_registry::cap_name_for_levenshtein(column_name);
+        available_columns
+            .iter()
+            .map(|c| (c.clone(), strsim::levenshtein(column_name_capped_mt, c)))
+            .filter(|(_, dist)| *dist <= 3)
+            .min_by_key(|(name, dist)| (*dist, name.clone()))
+            .map(|(c, _)| c)
+    } else {
+        None
+    };
 
     // SEC-FIND-001 (CWE-117): sanitize user-supplied column_name before structured log
     // emission — strip Unicode Cc + U+2028/U+2029 (TD-VSDD-060 sibling-sweep).
@@ -2545,6 +2568,7 @@ fn check_query_column_availability(
                     org_scope,
                     resolved_spec_map,
                     table_registry,
+                    true, // compute_did_you_mean: error propagates to caller (ADV-PR-P3-OBS-001)
                 )?;
             }
             // E-QUERY-002 type-compat gate — AFTER column-existence gate (BC-2.11.016 v1.6
@@ -2783,6 +2807,10 @@ fn check_query_column_availability(
             // (single-segment FieldPath). Fail-open on ColumnNotFound — the column may
             // exist in a JOIN-partner table at execution time. All non-ColumnNotFound
             // errors propagate unchanged. Qualified refs never enter this branch.
+            //
+            // ADV-PR-P3-OBS-001: pass compute_did_you_mean=false — the ColumnNotFound
+            // error is discarded immediately below (BC-2.11.016 FP-001 suspension
+            // semantics), so computing the Levenshtein suggestion is pure waste.
             match check_column_availability(
                 col,
                 &table_name,
@@ -2790,6 +2818,7 @@ fn check_query_column_availability(
                 org_scope,
                 resolved_spec_map,
                 table_registry,
+                false, // compute_did_you_mean: ColumnNotFound discarded by suspension (ADV-PR-P3-OBS-001)
             ) {
                 Ok(()) => {}
                 Err(PrismError::ColumnNotFound(_)) => {} // Absent bare ref → fail-open
@@ -2803,6 +2832,7 @@ fn check_query_column_availability(
                 org_scope,
                 resolved_spec_map,
                 table_registry,
+                true, // compute_did_you_mean: error propagates to caller (ADV-PR-P3-OBS-001)
             )?;
         }
     }
@@ -5668,6 +5698,7 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
             Some(&org_scope),
             Some(&spec_map),
             None, // table_registry not needed; resolved_spec_map is wired
+            true, // compute_did_you_mean: test exercises the suggestion path
         );
 
         let err = result
@@ -5740,6 +5771,7 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
             Some(&org_scope),
             Some(&spec_map),
             None, // table_registry not needed; resolved_spec_map is wired
+            true, // compute_did_you_mean: test exercises the suggestion path
         );
 
         let err = result
@@ -5860,6 +5892,7 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
             Some(&org_scope),
             Some(&spec_map),
             None, // table_registry not needed; resolved_spec_map is wired
+            true, // compute_did_you_mean: test exercises the suggestion path
         );
 
         let err = result.expect_err(
@@ -14353,6 +14386,7 @@ mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
             None,
             None,
             Some(&registry),
+            true, // compute_did_you_mean: test exercises the normal error-propagation path
         );
         assert!(
             result.is_err(),
@@ -14429,6 +14463,7 @@ mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
             None,
             Some(&spec_map),
             None,
+            true, // compute_did_you_mean: test exercises the normal error-propagation path
         );
         assert!(
             result.is_err(),
@@ -14590,6 +14625,7 @@ mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
             None,
             None,
             Some(&registry),
+            true, // compute_did_you_mean: test exercises the normal error-propagation path
         )
         .expect_err("OBS-001: E-QUERY-038 must fire for unknown column");
 
