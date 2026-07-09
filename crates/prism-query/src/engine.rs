@@ -2385,6 +2385,7 @@ fn check_query_column_availability(
                     &table_name,
                     org_scope,
                     resolved_spec_map,
+                    table_registry,
                 )?;
             }
             return Ok(());
@@ -2611,6 +2612,7 @@ fn check_query_column_availability(
                 &table_name,
                 org_scope,
                 resolved_spec_map,
+                table_registry,
             )?;
         }
     }
@@ -2636,21 +2638,144 @@ fn check_query_column_availability(
     Ok(())
 }
 
+/// Compute the initial available column set for a table from schema sources.
+///
+/// Returns `Some(sorted_deduped_columns)` when a schema source provides columns for
+/// this table, or `None` when no schema is available (fail-open sentinel).
+///
+/// Used by `check_pipe_stage_columns` to seed the BC-2.11.016 v1.8 DERIVED-COLUMN
+/// BINDING RULE initial state before walking pipe stages.
+fn get_initial_available_columns(
+    table_name: &str,
+    org_scope: Option<&[prism_core::OrgSlug]>,
+    resolved_spec_map: Option<
+        &std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+    table_registry: Option<&crate::table_registry::TableRegistry>,
+) -> Option<Vec<String>> {
+    if let Some(spec_map) = resolved_spec_map {
+        // Multi-tenant path: collect columns from org-visible spec entries.
+        let org_visible: Vec<&prism_spec_engine::ResolvedSensorSpec> = spec_map
+            .values()
+            .filter(|spec| {
+                if let Some(scopes) = org_scope {
+                    scopes.iter().any(|s| s.as_str() == spec.org_slug.as_str())
+                } else {
+                    true
+                }
+            })
+            .collect();
+        let table_in_schema = org_visible.iter().any(|spec| {
+            let sid = &spec.spec.sensor_id;
+            spec.spec
+                .tables
+                .iter()
+                .any(|tbl| format!("{sid}_{}", tbl.table_name) == table_name)
+        });
+        if !table_in_schema {
+            return None; // Table not in schema — fail-open.
+        }
+        let mut cols: Vec<String> = org_visible
+            .iter()
+            .flat_map(|spec| {
+                let sid = spec.spec.sensor_id.clone();
+                spec.spec
+                    .tables
+                    .iter()
+                    .filter(move |tbl| format!("{sid}_{}", tbl.table_name) == table_name)
+                    .flat_map(|tbl| tbl.columns.iter().map(|c| c.name.clone()))
+            })
+            .collect();
+        cols.sort();
+        cols.dedup();
+        Some(cols)
+    } else if let Some(registry) = table_registry {
+        // Single-tenant M1 path: use table_registry.columns_for_table().
+        let mut cols = registry.columns_for_table(table_name);
+        cols.sort();
+        cols.dedup();
+        if cols.is_empty() {
+            None // No columns registered for this table — fail-open.
+        } else {
+            Some(cols)
+        }
+    } else {
+        None // No schema source at all — fail-open.
+    }
+}
+
+/// Fire E-QUERY-038 against an explicit available-column set (binding-context path).
+///
+/// Used by `check_pipe_stage_columns` when the current binding context `available`
+/// differs from the raw schema (e.g., after a `| stats` REPLACE or mid-pipe).
+/// Constructs `ColumnNotFoundDetails` with `did_you_mean` via Levenshtein ≤ 3, same
+/// as `check_column_availability`.
+fn check_column_against_available_set(
+    column_name: &str,
+    table_name: &str,
+    client_id: &str,
+    available_columns: &[String],
+) -> Result<(), PrismError> {
+    if available_columns.contains(&column_name.to_string()) {
+        return Ok(());
+    }
+    let column_name_capped = crate::table_registry::cap_name_for_levenshtein(column_name);
+    let did_you_mean = available_columns
+        .iter()
+        .map(|c| (c.clone(), strsim::levenshtein(column_name_capped, c)))
+        .filter(|(_, dist)| *dist <= 3)
+        .min_by_key(|(name, dist)| (*dist, name.clone()))
+        .map(|(c, _)| c);
+    tracing::warn!(
+        event_type = "column_not_found.rejected",
+        column = %column_name,
+        table = %table_name,
+        client_id = %client_id,
+        available_count = available_columns.len(),
+        "E-QUERY-038: column not found at plan time (binding-context path)"
+    );
+    Err(PrismError::ColumnNotFound(Box::new(
+        prism_core::error::ColumnNotFoundDetails::new(
+            column_name,
+            table_name,
+            client_id,
+            available_columns.to_vec(),
+            did_you_mean,
+        ),
+    )))
+}
+
 /// Walk all column-bearing pipe stage types and check column availability + type-compat.
 ///
 /// Called from both the `Ast::Pipe` arm (all stages) and the `Ast::SqlPipe` arm
 /// (stages after the SQL head is processed for positions 1–6).
 ///
-/// # Position coverage (BC-2.11.016 v1.6)
+/// # Position coverage (BC-2.11.016 v1.8)
 /// - Position 8/9: `PipeStage::Where` — predicates (E-QUERY-038 existence + E-QUERY-002 type-compat)
 /// - Position 10: `PipeStage::Sort` — sort field keys (E-QUERY-038 existence only; no operator)
-/// - Position 11: `PipeStage::Stats` — `by_fields` grouping refs (E-QUERY-038 existence only)
+/// - Position 11: `PipeStage::Stats` — `by_fields` grouping refs; REPLACE binding after
 /// - Position 12: `PipeStage::Fields` — inclusion/exclusion column refs (E-QUERY-038 existence only)
+/// - Position 13: `PipeStage::Enrich` — input column (E-QUERY-038 existence); suspend after
+/// - Position 14: `PipeStage::Dedup` — dedup field keys (E-QUERY-038 existence only)
 ///
-/// Other stage types (Limit, Tail, Dedup, Join, Enrich) carry no schema-bound column
-/// refs at this plan-time validation level — fail-open via the `_ => {}` catch-all.
-/// New column-bearing stage types require a corresponding arm (AST-completeness invariant,
-/// BC-2.11.016 v1.6 §Invariants OBS-002).
+/// # DERIVED-COLUMN BINDING RULE (BC-2.11.016 v1.8)
+/// Maintains a running `{ available: Vec<String>, suspended: bool }` context while
+/// walking stages in order.
+///
+/// - **Initial state:** `available = schema_columns(table)` (from spec_map or registry);
+///   if no schema source, `suspended = true` from the start (fail-open for unregistered tables).
+/// - **Enrich stage:** position-13 input column is checked against `available` BEFORE
+///   updating the context. After the check: infusion output schema is not resolved at this
+///   layer (no InfusionRegistry plumbed into this function) → `suspended := true` (fail-open
+///   per FP-001 invariant; avoids false positives on correct infusion output references).
+/// - **Stats stage:** `by_fields` are checked against `available` BEFORE updating.
+///   After those checks: `available` is REPLACED with `{explicit_aliases} ∪ {by_field_names}`.
+///   Anonymous aggregates (no `AS alias`) produce unpredictable DataFusion names → `suspended := true`.
+/// - **All other stages** (Where, Sort, Fields, Dedup): `available` and `suspended` are unchanged.
+/// - **Suspension propagation:** once `suspended = true`, all subsequent stages skip E-QUERY-038.
 ///
 /// # Ordering
 /// E-QUERY-038 (existence) fires before E-QUERY-002 (type-compat) for each stage,
@@ -2669,20 +2794,39 @@ fn check_pipe_stage_columns(
     table_registry: Option<&crate::table_registry::TableRegistry>,
 ) -> Result<(), PrismError> {
     use crate::ast::PipeStage;
+
+    // BC-2.11.016 v1.8 DERIVED-COLUMN BINDING RULE: build initial available set.
+    // If no schema source is available, start suspended (fail-open for unregistered tables;
+    // preserves existing RG-065 fail-open behavior).
+    let initial_available =
+        get_initial_available_columns(table_name, org_scope, resolved_spec_map, table_registry);
+    let mut current_available: Vec<String> = match initial_available {
+        Some(cols) => cols,
+        None => {
+            // No schema source — all checks would fail-open anyway. Start suspended
+            // so every stage is skipped cleanly (equivalent to old behavior).
+            return Ok(());
+        }
+    };
+    let mut suspended = false;
+
     for stage in stages {
+        if suspended {
+            // Once suspended, ALL subsequent E-QUERY-038 checks are skipped (FP-001).
+            continue;
+        }
         match stage {
             // Position 8/9: `| where` stage predicates — E-QUERY-038 + E-QUERY-002.
-            // No FieldPath aliases in pipe stages (table_alias = None).
+            // Checked against the CURRENT binding context (not raw schema), so post-stats
+            // references to aggregate aliases are found correctly (CRIT-002).
             PipeStage::Where(pred) => {
                 let pred_cols = extract_predicate_columns(pred, table_name, None);
                 for col in &pred_cols {
-                    check_column_availability(
+                    check_column_against_available_set(
                         col,
                         table_name,
                         client_id,
-                        org_scope,
-                        resolved_spec_map,
-                        table_registry,
+                        &current_available,
                     )?;
                 }
                 // E-QUERY-002 type-compat: after existence gate, check operator compat.
@@ -2696,68 +2840,127 @@ fn check_pipe_stage_columns(
                         table_name,
                         org_scope,
                         resolved_spec_map,
+                        table_registry,
                     )?;
                 }
             }
             // Position 10: `| sort by` field keys — E-QUERY-038 existence only.
             // Sort keys reference columns by name; no operator → no type-compat gate.
+            // Checked against current binding context (post-stats REPLACE if applicable).
             PipeStage::Sort(exprs) => {
                 for se in exprs {
                     if let Some(col) =
                         extract_column_name_from_field_path(&se.field, table_name, None)
                     {
-                        check_column_availability(
+                        check_column_against_available_set(
                             &col,
                             table_name,
                             client_id,
-                            org_scope,
-                            resolved_spec_map,
-                            table_registry,
+                            &current_available,
                         )?;
                     }
                 }
             }
             // Position 11: `| stats ... by` grouping field refs — E-QUERY-038 existence only.
-            // `by_fields` are FieldPaths; aggregate function args are not checked here
-            // (BC-2.11.016 v1.6 EC-11-051 scope: grouping refs only per the BC gate table).
+            // Checked against current `available` BEFORE updating. After checks: `available`
+            // is REPLACED with {explicit_aliases ∪ by_field_names} per BC-2.11.016 v1.8
+            // DERIVED-COLUMN BINDING RULE. Anonymous aggregates (no alias) → suspended.
             PipeStage::Stats(stats) => {
+                // Check by_fields against current available BEFORE replacing.
                 for fp in &stats.by_fields {
                     if let Some(col) = extract_column_name_from_field_path(fp, table_name, None) {
-                        check_column_availability(
+                        check_column_against_available_set(
                             &col,
                             table_name,
                             client_id,
-                            org_scope,
-                            resolved_spec_map,
-                            table_registry,
+                            &current_available,
+                        )?;
+                    }
+                }
+                // Compute replacement set: explicit aliases ∪ by-field column names.
+                let mut replacement: Vec<String> = Vec::new();
+                let mut has_anonymous = false;
+                for agg in &stats.aggregates {
+                    if let Some(alias) = &agg.alias {
+                        replacement.push(alias.clone());
+                    } else {
+                        // Anonymous aggregate — DataFusion auto-name is not predictable at
+                        // plan time. Set suspended to avoid false positives (FP-001).
+                        has_anonymous = true;
+                    }
+                }
+                for fp in &stats.by_fields {
+                    if let Some(col) = extract_column_name_from_field_path(fp, table_name, None) {
+                        replacement.push(col);
+                    } else {
+                        // Non-static by-expression — unpredictable downstream name → suspend.
+                        has_anonymous = true;
+                    }
+                }
+                if has_anonymous {
+                    // Anonymous aggregates present → downstream names are unpredictable →
+                    // fail-open for all subsequent stages (FP-001).
+                    suspended = true;
+                } else {
+                    replacement.sort();
+                    replacement.dedup();
+                    current_available = replacement;
+                }
+            }
+            // Position 12: `| fields` column refs — E-QUERY-038 existence only.
+            // Grammar keyword is `fields` (PipeStage::Fields); BC-2.11.016 v1.7+ corrected
+            // the earlier v1.6 EC-11-052 `| project` wording to `| fields`.
+            PipeStage::Fields(fstage) => {
+                for fp in &fstage.fields {
+                    if let Some(col) = extract_column_name_from_field_path(fp, table_name, None) {
+                        check_column_against_available_set(
+                            &col,
+                            table_name,
+                            client_id,
+                            &current_available,
                         )?;
                     }
                 }
             }
-            // Position 12: `| fields` column refs — E-QUERY-038 existence only.
-            // Grammar keyword is `fields` (PipeStage::Fields); BC-2.11.016 v1.6 EC-11-052
-            // uses `| project` (BC wording discrepancy — PO fixing in BC v1.7). This arm
-            // implements against the real PipeStage::Fields grammar variant.
-            PipeStage::Fields(fstage) => {
-                for fp in &fstage.fields {
+            // Position 13: `| enrich f(input_col)` input column — E-QUERY-038 existence only.
+            // The input column is checked against `available` BEFORE this stage updates the
+            // binding context (BC-2.11.016 v1.8 position 13). After the check: infusion output
+            // schema is NOT resolved at this layer (InfusionRegistry is not plumbed into
+            // check_pipe_stage_columns); set suspended = true so downstream stages do not
+            // fire false-positive E-QUERY-038 on infusion output columns (FP-001 / EC-11-054).
+            PipeStage::Enrich(es) => {
+                if let Some(col) = extract_column_name_from_field_path(&es.field, table_name, None)
+                {
+                    check_column_against_available_set(
+                        &col,
+                        table_name,
+                        client_id,
+                        &current_available,
+                    )?;
+                }
+                // Infusion output schema unresolvable at this layer → suspend all downstream
+                // column checks (fail-open per BC-2.11.016 v1.8 §DERIVED-COLUMN BINDING RULE
+                // ¶Enrich, and FP-001 invariant).
+                suspended = true;
+            }
+            // Position 14: `| dedup` field keys — E-QUERY-038 existence only.
+            // Dedup field paths are plain column refs (same as sort keys position 10);
+            // checked against current binding context.
+            PipeStage::Dedup(fields) => {
+                for fp in fields {
                     if let Some(col) = extract_column_name_from_field_path(fp, table_name, None) {
-                        check_column_availability(
+                        check_column_against_available_set(
                             &col,
                             table_name,
                             client_id,
-                            org_scope,
-                            resolved_spec_map,
-                            table_registry,
+                            &current_available,
                         )?;
                     }
                 }
             }
             // Other stage types — fail-open:
             // - Limit(u64) / Tail(u64): carry no column refs.
-            // - Dedup(Vec<FieldPath>): dedup semantics don't require plan-time column
-            //   validation at this level (handled at execution; no type gate needed).
             // - Join(JoinStage): cross-table refs; fail-open per existing policy.
-            // - Enrich(EnrichStage): infusion-specific gate in a separate check.
             // - Future variants: fail-open per AST-completeness invariant (OBS-002);
             //   new column-bearing variants require a corresponding arm.
             #[allow(unreachable_patterns)]
@@ -3051,8 +3254,32 @@ fn check_operator_type_compatibility(
             prism_spec_engine::ResolvedSensorSpec,
         >,
     >,
+    table_registry: Option<&crate::table_registry::TableRegistry>,
 ) -> Result<(), PrismError> {
+    // HIGH-001 (BC-2.11.016 v1.8): when resolved_spec_map is None (single-tenant mode),
+    // fall back to table_registry.column_type_for() — mirrors the M1 pattern used by
+    // check_column_availability (S-DEMO-FIDELITY-REMEDIATION-001).
+    if resolved_spec_map.is_none() {
+        let Some(registry) = table_registry else {
+            return Ok(()); // No schema source — fail-open.
+        };
+        let Some(actual_type) = registry.column_type_for(table_name, column_name) else {
+            return Ok(()); // Column type unknown — fail-open; existence gate handles it.
+        };
+        let valid_ops = valid_operators_for_type(actual_type.clone());
+        if valid_ops.contains(&operator) {
+            return Ok(());
+        }
+        return Err(PrismError::QueryTypeMismatch {
+            column: column_name.to_string(),
+            table: table_name.to_string(),
+            actual_type,
+            operator: operator.to_string(),
+            suggested_column: crate::materialization::ocsf_suggested_string_column(column_name),
+        });
+    }
     let Some(spec_map) = resolved_spec_map else {
+        // Unreachable: guarded by is_none() check above.
         return Ok(());
     };
 
@@ -8441,14 +8668,11 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 8 (RED GATE): Pipe | fields with typo column ────────────────────────
 
-    /// BC-2.11.016 v1.6 position 12 — pipe `| project` column refs.
+    /// BC-2.11.016 v1.7+ position 12 — pipe `| fields` column refs.
     ///
-    /// GRAMMAR DISCREPANCY REPORT: BC-2.11.016 v1.6 EC-11-052 and the position-12
-    /// description use the keyword `| project`. The actual PrismQL grammar in
-    /// pipe_parser.rs uses `| fields` (keyword `kw_ci("fields")` → `PipeStage::Fields`).
-    /// There is no `| project` keyword in the grammar. This test uses `| fields` (the
-    /// real grammar keyword). PO follow-up required: BC-2.11.016 v1.7 should update
-    /// EC-11-052 and the position-12 prose from `| project` to `| fields`.
+    /// BC-2.11.016 v1.7 corrected the grammar keyword for position 12 from `| project`
+    /// (v1.6 wording) to `| fields` (the real PrismQL grammar keyword in pipe_parser.rs:
+    /// `kw_ci("fields")` → `PipeStage::Fields`). This test uses `| fields`.
     ///
     /// EC-11-052 (adapted): `crowdstrike_alerts | fields sevrity, timestamp` where
     /// `sevrity` is NOT a registered column → E-QUERY-038 with
