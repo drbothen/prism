@@ -2851,6 +2851,17 @@ fn compute_sqlpipe_head_binding(
 
     // Branch (a): pure SELECT * / SELECT t.* — fall back to raw schema.
     if has_star && !has_explicit {
+        // BC-2.11.016 v1.18 STAR-WITH-JOIN SUSPENSION RULE: when the head's JOIN list is
+        // non-empty and at least one Star/TableStar item is present (branches (a) and (c)),
+        // the initial binding context for the pipe-stage walk MUST be suspended := true.
+        // Star expansion spans ALL join-source schemas at execution; the FROM table's raw
+        // schema is an incomplete picture — checking downstream pipe-stage column refs
+        // against the FROM schema alone fires false E-QUERY-038/E-QUERY-002 on columns
+        // that validly exist only in the joined table (FP-001 violation class: star-with-join).
+        // Joinless star heads are unchanged — they fall through to raw-schema seeding (None).
+        if !head.joins.is_empty() {
+            return Some((vec![], std::collections::HashSet::new(), true));
+        }
         return None;
     }
 
@@ -2937,6 +2948,18 @@ fn compute_sqlpipe_head_binding(
                     available.push(col);
                 }
             }
+        }
+
+        // BC-2.11.016 v1.18 STAR-WITH-JOIN SUSPENSION RULE (branch (c) application):
+        // when the head's JOIN list is non-empty, force suspended := true regardless of
+        // whether an anonymous aggregate already triggered suspension above. The Star/TableStar
+        // component brings all join-source columns into scope at execution; the partial schema
+        // seed (FROM table columns + explicit items) is incomplete for join-source columns.
+        // Checking downstream pipe-stage refs against an incomplete set fires false positives
+        // (FP-001). This override is additive — if suspended was already true from an
+        // anonymous aggregate, it remains true.
+        if !head.joins.is_empty() {
+            suspended = true;
         }
 
         available.sort();

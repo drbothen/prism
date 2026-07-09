@@ -369,7 +369,7 @@ impl TableRegistry {
     /// mode when `resolved_spec_map` is `None`. Returns column names populated via
     /// `register_sensor` from the sensor spec's `[[tables]][*].columns` entries.
     ///
-    /// Returns an empty `Vec` in two distinct cases:
+    /// Returns an empty `Vec` in three distinct cases:
     /// - `table_name` is not registered (not in `registered` set) — callers should fail-open
     /// - `table_name` was registered with an empty column list (zero columns in spec) —
     ///   callers should fire E-QUERY-038 with `available_columns: []` (BC-2.11.016 EC-11-041)
