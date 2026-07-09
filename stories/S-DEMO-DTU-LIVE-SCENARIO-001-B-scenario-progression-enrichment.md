@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "2.16"
+version: "2.17"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
@@ -623,7 +623,7 @@ is the direct predecessor — merged PR #181 develop@c287b00d (D-1089 2026-06-10
 | `new_with_scenario` for ThreatIntel/NVD must NOT import `prism-spec-engine`, `prism-sensors`, or `prism-query` | BC-2.06.020 INV-PERIMETER-COMPLIANCE-001 + ADR-036 v2.3 §2.5 | Structural Cargo enforcement: forbidden crates absent from `prism-dtu-threatintel`/`prism-dtu-nvd` `Cargo.toml`; any forbidden `use` is a standard E0432 compile error. The `tests/external/perimeter-violation/` gate covers `prism-query` perimeter only (BC-2.11.006). |
 | CVSS path: `CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_score: f64` (field `cvss_metric_v31` is `Option<Vec<CvssMetricV31>>` — unwrap the Option) and `.base_severity: String` — implementer MUST read `crates/prism-dtu-nvd/src/types.rs` | ADR-036 v2.3 §1.3 + §2.3 | Adversary: read types.rs before review; check test assertions |
 | `stage_duration_secs` config array has exactly 4 entries for the 5-stage timeline (stages 1-4 thresholds; stage 0 always 0) | ADR-036 v2.3 §2.2 + BC-2.06.019 PC-2 | Tests 3, 10 |
-| E-DEMO-002, E-DEMO-006, E-DEMO-003, and E-DEMO-004 all detected BEFORE any clone constructor is called in `build_clone_pairs`; canonical guard order: E-DEMO-002 (seed mismatch) → E-DEMO-006 (org_id mismatch) → E-DEMO-003 (bad archetype / archetype×fixture_set contradiction) → E-DEMO-004 (missing org_id) | ADR-036 v2.3 §2.4 + BC-2.06.019 PRE-5 / PRE-6 + error-taxonomy v1.78 | Tests 9, 10, 18, 19 |
+| E-DEMO-002, E-DEMO-006, E-DEMO-003, and E-DEMO-004 all detected BEFORE any clone constructor is called in `build_clone_pairs`; canonical guard order: E-DEMO-002 (seed mismatch) → E-DEMO-006 (org_id mismatch) → E-DEMO-003 (bad archetype / archetype×fixture_set contradiction) → E-DEMO-004 (missing org_id) | ADR-036 v2.3 §2.4 + BC-2.06.019 PRE-5 / PRE-6 + error-taxonomy v2.26 | Tests 9, 10, 18, 19 |
 | All 4 `ScenarioConfig` fields (`enabled`, `archetype`, `scenario_start_secs`, `stage_duration_secs`) must be consumed in `build_clone_pairs`; zero dead-code warnings | NIT-2 (from Story A) | Adversary: clippy dead-code sweep |
 | Guard order: seed-mismatch (E-DEMO-002) → org_id-mismatch (E-DEMO-006) → bad-archetype (E-DEMO-003) → missing-org_id (E-DEMO-004) — all before any constructor | NIT-1 reconciliation + BC-2.06.019 PRE-6 | Tests 9, 10, 18, 19 + adversary guard-order probe |
 | `await_holding_lock = "deny"` (ADR-002 §H1): no `.await` inside a Mutex lock guard in route handlers | ADR-002 | clippy deny list |
@@ -763,6 +763,7 @@ If NO new `event_type` emissions are added in this story, state explicitly in th
 
 | Version | Date | Change |
 |---------|------|--------|
+| v2.17 | 2026-07-08 | **Reconciling pin round (pass-4 closures): error-taxonomy v1.78→v2.26. One live version-pin cite updated: §Architecture Compliance Rules table middle column guard-order row. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 2.16→2.17; updated 2026-07-08 (POL-23).** |
 | v2.16 | 2026-06-13 | BPRL-P24-01: AC-016 perimeter-enforcement prose corrected (structural Cargo/E0432, not the prism-query perimeter-violation gate); BC-2.06.020 v1.5→v1.6 pin-sync. Invariant requirement unchanged; counts unchanged (19 ACs / 23 RGT). |
 | v2.15 | 2026-06-13 | Consistency-validator DRIFT-2/3: CyberintClone::new_with_scenario 5-arg→6-arg (+`catalog: &ScenarioEntityCatalog`) in three sites: (1) Phase-2 Cyberint constructor task — signature updated to 6-arg with note that `catalog` is threaded to `generate_with_catalog` for PC-8 CVE correlation (AC-019/VP-020-K pivot chain); (2) Phase-4 `build_clone_pairs` Cyberint call — `new_with_scenario(…, &catalog)` 6-arg with explicit note; (3) FSR table row for `crates/prism-dtu-cyberint/src/clone.rs` — description updated to 6-arg with `catalog: &ScenarioEntityCatalog` and PC-8 annotation. Aligns task/FSR with AC-019, BC-2.06.020 PC-8, STORY-INDEX D-1117 entry, and shipped code (`crates/prism-dtu-cyberint/src/clone.rs` new_with_scenario 6-arg). Other 4 operational clones (Armis/CrowdStrike/Claroty/ThreatIntel/NVD) 5-arg descriptions unchanged. No behavior/count change (19 ACs / 23 RGT). |
 | v2.14 | 2026-06-13 | BC-2.06.020 v1.4→v1.5 pin-sync (BPRL-P22-01: VP Anchors prose A-H→A-L / 8→12 VPs; no behavior change). Two live pin sites updated: §Behavioral Contracts BC table row and §Token Budget BC-2.06.020 context row. Story spec self-reference v2.12→v2.14. counts unchanged (19 ACs / 23 RGT). |

@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.41"
+version: "1.42"
 updated: "2026-07-08"
 status: merged
 producer: story-writer
@@ -71,7 +71,7 @@ behavioral_contracts:
 #     postcondition, invariant, or error case.
 #   BC-2.11.002 v1.6 (active, amended): filter-mode parsing now includes IEQ/IIN/INE in
 #     the supported operator table. AC-001/AC-004/AC-012 exercise the filter-mode path.
-#   BC-2.11.004 v1.17 (active, amended): pipe-mode | where stage now supports IEQ/IIN/INE
+#   BC-2.11.004 v1.18 (active, amended): pipe-mode | where stage now supports IEQ/IIN/INE
 #     via shared filter grammar per ADR-046 D7. AC-013 exercises the pipe-mode path.
 #   BC-2.11.018 v1.3 (active, amended): normalized_pql echo now reflects IEQ/IIN/INE
 #     predicates in uppercase canonical form (EC-11-057 added). AC-014/AC-015 exercise this.
@@ -186,7 +186,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | BC-2.11.024 v1.4 | ~3,000 |
 | BC-2.02.013 v1.9 | ~2,500 |
 | BC-2.11.002 v1.6 (relevant filter-mode sections) | ~1,500 |
-| BC-2.11.004 v1.17 (relevant pipe-mode sections) | ~1,500 |
+| BC-2.11.004 v1.18 (relevant pipe-mode sections) | ~1,500 |
 | BC-2.11.018 v1.3 (normalized_pql section) | ~1,000 |
 | BC-2.02.002 v1.5, BC-2.02.010 v1.5 (amended sections) | ~2,000 |
 | BC-2.10.012 v1.9 (example_query + example_note contract) | ~1,000 |
@@ -404,7 +404,7 @@ Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_case_sensitive_eq_returns_zero_on
 ### AC-013b — IEQ/IIN available in pipe-mode | where stage
 (traces to BC-2.11.024 v1.4 invariant: "IEQ/IIN/INE are valid in filter mode and in
 pipe-mode | where stages (shared grammar invariant, BC-2.11.023)";
-BC-2.11.004 v1.17 amendment)
+BC-2.11.004 v1.18 amendment)
 
 Given `FROM crowdstrike_detections | where severity IEQ 'high' | head 5`,
 when parsed and executed,
@@ -610,7 +610,7 @@ then the result is `Err(E-QUERY-002 QueryTypeMismatch)` with a Display message c
 - the suggestion: "for label comparison, use the string column 'severity' with IEQ/IIN/INE
   instead" (because `severity_id` is a known OCSF integer-id field; `PrismError::QueryTypeMismatch`
   carries `suggested_column: Some("severity")` per the OCSF sibling lookup contract in
-  error-taxonomy.md v2.25 §E-QUERY-002)
+  error-taxonomy.md v2.26 §E-QUERY-002)
 
 The full Display for this case must be:
   "E-QUERY-002: type mismatch — column 'severity_id' in table '<table>' has type 'Integer'
@@ -1672,6 +1672,7 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.42 | 2026-07-08 | **Reconciling pin round (pass-4 closures): BC-2.11.004 v1.17→v1.18 (3 live sites: frontmatter BC status comment; §Behavioral Contracts body table version cell; §Token Budget row; AC-013b trace) + error-taxonomy.md v2.25→v2.26 (1 live site: AC-022 body). Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.41→1.42; updated 2026-07-08 (POL-23).** |
 | v1.41 | 2026-07-08 | **Reconciling pin round (pass-3 closures): BC-2.16.002 v2.06→v2.07 (1 live site: AC-018 body) + error-taxonomy.md v2.20→v2.25 (1 live site: AC-022 body). Historical changelog rows and Red Gate table BC-2.16.002 v2.06 citations left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.40→1.41; updated 2026-07-08 (POL-23).** |
 | v1.40 | 2026-07-08 | **BC-2.11.004 v1.16→v1.17 version-pin propagation (sort-grammar fix round, POL-29/POL-23).** PO bumped BC-2.11.004 v1.16→v1.17 (sort-grammar micro-fix). Four live version-pin cites updated: (a) frontmatter BC status comment; (b) §Behavioral Contracts body table version cell; (c) §Token Budget row; (d) AC-013b trace. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.39→1.40; updated 2026-07-08 (POL-23). |
 | v1.39 | 2026-07-08 | **BC-2.11.004 v1.15→v1.16 version-pin propagation (pass-2 CRIT closure burst, POL-29/POL-23).** PO bumped BC-2.11.004 v1.15→v1.16 (14-position gate + derived-column binding rule). Four live cites updated: (a) frontmatter BC status comment; (b) §Behavioral Contracts body table version cell; (c) §Token Budget row; (d) AC-013b trace. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.38→1.39; updated 2026-07-08 (POL-23). |

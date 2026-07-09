@@ -33,7 +33,7 @@ points: 13
 level: "L4"
 # status: superseded (set at top of frontmatter per D-1244 decomposition; original was draft)
 document_type: story
-version: "1.1"
+version: "1.2"
 # v1.1: decomposed into 001-A + 001-B per D-1244 (2026-06-19). Status: superseded.
 producer: story-writer
 timestamp: "2026-06-19T00:00:00Z"
@@ -143,7 +143,7 @@ Implement the 4-layer LLM onboarding mechanism specified in ADR-041 v1.1:
 | BC-2.10.012 v1.0 | `prism_describe` Schema Discovery Tool (L2) |
 | BC-2.10.013 v1.0 | `prismql://schema/{client_id}` Resource Template (L2) |
 | BC-2.10.014 v1.0 | `prismql://reference` Static PQL Grammar Reference Resource (L3) |
-| BC-2.11.016 v1.0 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
+| BC-2.11.016 v1.12 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
 | BC-2.11.017 v1.0 | E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037) |
 | BC-2.11.018 v1.0 | `normalized_pql` Field on Successful Query Responses (L4 Echo / OPD-1) |
 
@@ -808,4 +808,5 @@ BC-2.11.001 would be a stale contract that doesn't enumerate all error cases of 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | story-writer | Initial story creation — 7 BC traces, 16 ACs, 16 Red Gate tests, full 6-section context engineering, coherence note for BC-2.11.001 PO micro-edit. |
+| 1.2 | BC-2.11.016-v1.12-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **Reconciling pin round (pass-4 closures): BC-2.11.016 v1.0→v1.12. One live version-pin cite updated: §Behavioral Contracts table BC-2.11.016 row (inline `BC-2.11.016 v1.0` format). Story is SUPERSEDED (retained for traceability only). Historical changelog rows left unchanged per POL-29. Frontmatter version 1.1→1.2; updated 2026-07-08 (POL-23).** |
 | 1.1 | D-1244-decomposition-2026-06-19 | 2026-06-19 | story-writer | DECOMPOSED into S-DEMO-PRISMQL-ONBOARDING-001-A (L1+L2+L3 MCP surface; 7 pts; BC-2.10.009/012/013/014) and S-DEMO-PRISMQL-ONBOARDING-001-B (L4 query engine; 6 pts; BC-2.11.016/017/018) per D-1244 §Parallel Execution Plan. Status changed to superseded. Parent story retained for traceability. |

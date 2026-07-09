@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-NATIVE-TEMPORAL-TYPING-001
 title: "PrismQL Native Temporal Typing — migrate ColumnType::Datetime from Arrow Utf8 to Timestamp(Microsecond, UTC) (ADR-052)"
 epic_id: EPIC-DEMO
-version: "1.11"
+version: "1.12"
 status: merged
 producer: story-writer
 phase: 3
@@ -30,7 +30,7 @@ blocks: []
 # When the ADR-051 story is registered, add its ID to blocks: [].
 behavioral_contracts: [BC-2.11.021, BC-2.11.003, BC-2.11.004, BC-2.11.001]
 # BC behavioral anchors at authoring time (v1.6 story update for ADR-052 §D4 non-comparison coerce):
-#   BC-2.11.021 (active) — amended per ADR-052 §D4 v1.10 / error-taxonomy v2.25:
+#   BC-2.11.021 (active) — amended per ADR-052 §D4 v1.10 / error-taxonomy v2.26:
 #     SELECT projection → COERCE to Literal::String (success);
 #     GROUP BY / ORDER BY bare literal (SQL) → E-QUERY-042 (TemporalLiteralInvalidPosition::GroupBy/OrderBy, INVALID_PARAMS);
 #     non-column-LHS comparison (function/expr LHS, date-like RHS) → E-QUERY-042 (NonColumnLhsComparison, INVALID_PARAMS);
@@ -207,7 +207,7 @@ No `E-QUERY-001` is emitted at parse time for this class of input.
 
 After AST production and schema resolution, `check_temporal_literals` walks the full
 `Expr` tree applying a refined dispatch on each `Literal::RawTemporalLiteral` node
-(ADR-052 §D4 v1.10 / error-taxonomy v2.25):
+(ADR-052 §D4 v1.10 / error-taxonomy v2.26):
 
 | `RawTemporalLiteral` position | Schema check | Result |
 |-------------------------------|--------------|--------|
@@ -236,7 +236,7 @@ pre-ADR-052 behavior. `WHERE string_col = '2026-06-24'` succeeds with no error
 (partition keys, report-date labels, ISO-date-formatted external IDs are legitimate).
 E-QUERY-041 fires ONLY when the comparison target resolves to `DataType::Timestamp(Microsecond, UTC)`.
 
-**E-QUERY-042 — `TemporalLiteralInvalidPosition` (ADR-052 §D4 v1.10, error-taxonomy v2.25):**
+**E-QUERY-042 — `TemporalLiteralInvalidPosition` (ADR-052 §D4 v1.10, error-taxonomy v2.26):**
 
 Three additional positions where a `RawTemporalLiteral` must be REJECTED rather than coerced. Add
 a companion error variant and enum to `crates/prism-core/src/error.rs`:
@@ -569,7 +569,7 @@ Estimated at ~61% of a 200K context window. Within the per-story limit. No split
    truncated at UTF-8 codepoint boundary per error-taxonomy.md §E-QUERY-041 convention).
 
    Also add **`PrismError::TemporalLiteralInvalidPosition`** variant and companion
-   **`TemporalLiteralPosition`** enum (E-QUERY-042, error-taxonomy v2.25):
+   **`TemporalLiteralPosition`** enum (E-QUERY-042, error-taxonomy v2.26):
    ```rust
    /// E-QUERY-042: A date-like temporal literal appeared in a structurally invalid position.
    TemporalLiteralInvalidPosition {
@@ -2401,6 +2401,7 @@ revised to 3 days due to Option-A redesign and deep Red Gate mandate.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.12 | error-taxonomy-v2.26-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **Reconciling pin round (pass-4 closures): error-taxonomy v2.25→v2.26. Four live version-pin cites updated: (1) frontmatter `# BC-2.11.021` comment; (2) §D4 dispatch narrative body text; (3) E-QUERY-042 heading; (4) TemporalLiteralPosition enum Task-6 cite. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.11→1.12; updated 2026-07-08 (POL-23).** |
 | 1.11 | error-taxonomy-v2.25-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **Reconciling pin round (pass-3 closures): error-taxonomy v2.14→v2.25. Four live sites updated: (1) frontmatter `# BC-2.11.021` comment; (2) §D4 dispatch narrative body text; (3) E-QUERY-042 heading; (4) TemporalLiteralPosition enum Task-6 cite. Historical changelog rows (v1.8 "error-taxonomy v2.14 (E-QUERY-042)") left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.10→1.11; updated 2026-07-08 (POL-23).** |
 | 1.10 | S-PRISMQL-NATIVE-TEMPORAL-TYPING-001-LOW-1-behavior-accurate-rg-names | 2026-07-05 | story-writer | **LOW-1: behavior-accurate RG/AC test-name reconciliation.** Updated 9 stale test function names throughout Task 5 stubs, AC verification commands, and Red Gate headings to match canonical shipped behavior: (1) RG-015/016/017 numeric-col arms: `_e_query_001` suffix → `_e_query_002` (Integer/Float/Bool → E-QUERY-002, not E-QUERY-001); (2) RG-023 SELECT projection: `_projection_position_e_query_001` → `_projection_position_coerces_to_string` (COERCE success, not error); (3) RG-035 GROUP BY: `_projection_group_by_date_like_coerces` → `_group_by_date_like_rejects_e_query_042` (REJECT E-QUERY-042, not coerce); (4) RG-036 ORDER BY: `_order_by_date_like_coerces` → `_order_by_date_like_rejects_e_query_042` (REJECT E-QUERY-042, not coerce). RG-037/038/039 names already correct (unmodified). Stale "(Test function name retains `_e_query_001` suffix — not renamed per append-only naming policy)" notes removed from stubs p, q, r, x. Stale "(Test function name unchanged per append-only naming policy — "coerces" is a historical artifact)" notes removed from stubs aj, ak and RG-035/036 Note blocks. RG-023 stale prose "(behavior reversed from pre-v1.8 spec; test function name unchanged per append-only naming policy)" updated to current-behavior anchor. RG NUMBERS immutable (POL-1) — only descriptive suffixes corrected. |
 | 1.9 | S-PRISMQL-NATIVE-TEMPORAL-TYPING-001-F-LOW-1-enum-rename | 2026-07-05 | story-writer | **F-LOW-1: reconcile story enum name TemporalInvalidPosition→TemporalLiteralPosition (match shipped code + ADR-052 §D4 + error-taxonomy §E-QUERY-042).** All 22 occurrences of the wrong name `TemporalInvalidPosition` replaced with the correct shipped name `TemporalLiteralPosition` across Task 6 code blocks, Task 14 dispatch logic, AC traces (AC-030/031/034), Red Gate vectors (RG-035/036/039), File Structure table, Architecture Mapping table, and edge-case prose. The error VARIANT `PrismError::TemporalLiteralInvalidPosition` (which carries a `position: TemporalLiteralPosition` field) is correctly preserved throughout — enum-name fix does not touch the variant name. |

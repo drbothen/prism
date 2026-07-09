@@ -67,7 +67,7 @@ status: draft
 # BC status: behavioral_contracts is non-empty (3 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
 document_type: story
-version: "2.6"
+version: "2.7"
 updated: "2026-07-08"
 producer: story-writer
 timestamp: "2026-06-28T00:00:00Z"
@@ -166,7 +166,7 @@ and build grounded query templates for the current session.
 
 | BC ID | Title | Key Clauses |
 |-------|-------|-------------|
-| BC-2.11.016 v1.11 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) | Gate at plan time after E-QUERY-037; available_columns always present; did_you_mean present when Levenshtein ≤ 3; DI-008 org-scoped available_columns; -32602 MCP error code; gate expanded to twelve positions (Filter/Pipe/SqlPipe predicate + sort/stats/project positions) incl. HAVING (6th position, parity with WHERE/GROUP BY) |
+| BC-2.11.016 v1.12 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) | Gate at plan time after E-QUERY-037; available_columns always present; did_you_mean present when Levenshtein ≤ 3; DI-008 org-scoped available_columns; -32602 MCP error code; gate expanded to twelve positions (Filter/Pipe/SqlPipe predicate + sort/stats/project positions) incl. HAVING (6th position, parity with WHERE/GROUP BY) |
 | BC-2.11.017 v1.3 | E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037) | E-QUERY-001: near_text ≤50 chars + reference_pointer; E-QUERY-002: valid_operators_for_type list; E-QUERY-003: how_to_fix string; E-QUERY-037: suggestion contains prism_describe reference |
 | BC-2.11.018 v1.2 | `normalized_pql` Field on Successful Query Responses (L4 Echo / OPD-1) | Present (non-empty) on every successful execution incl. zero-row; absent (not null, not present) on all errors; Chumsky-normalized form; excludes DataFusion plan internals |
 
@@ -177,7 +177,7 @@ and build grounded query templates for the current session.
 | Artifact | Estimated Tokens |
 |----------|-----------------|
 | This story spec | ~3,500 |
-| BC-2.11.016 v1.11 | ~1,200 |
+| BC-2.11.016 v1.12 | ~1,200 |
 | BC-2.11.017 v1.3 | ~1,000 |
 | BC-2.11.018 v1.2 | ~800 |
 | ADR-041 v1.1 §L4 (pedagogical errors + normalized_pql sections) | ~3,000 |
@@ -687,6 +687,7 @@ Implementer: `rg 'event_type\s*=' crates/ --type rust` before declaring done (SA
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.7 | BC-2.11.016-v1.12-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **Reconciling pin round (pass-4 closures): BC-2.11.016 v1.11→v1.12. Two live version-pin cites updated: (1) §Behavioral Contracts table BC-2.11.016 row v1.11→v1.12; (2) §Token Budget table BC-2.11.016 row v1.11→v1.12. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 2.6→2.7; updated 2026-07-08 (POL-23).** |
 | 2.6 | BC-2.11.016-v1.11-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **Reconciling pin round (pass-3 closures): BC-2.11.016 v1.10→v1.11. Two live version-pin cites updated: (1) §Behavioral Contracts table BC-2.11.016 row v1.10→v1.11; (2) §Token Budget table BC-2.11.016 row v1.10→v1.11. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 2.5→2.6; updated 2026-07-08 (POL-23).** |
 | 2.5 | BC-2.11.016-v1.10-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.016 v1.9→v1.10 version-pin propagation (suspend-clause clarification micro-amendment, POL-29/POL-23).** PO bumped BC-2.11.016 v1.9→v1.10 (suspend-clause clarification). Two live version-pin cites updated: (1) §Behavioral Contracts table BC-2.11.016 row v1.9→v1.10; (2) §Token Budget table BC-2.11.016 row v1.9→v1.10. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 2.4→2.5; updated 2026-07-08 (POL-23). |
 | 2.4 | BC-2.11.016-v1.9-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **BC-2.11.016 v1.8→v1.9 version-pin propagation (sort-grammar fix round, POL-29/POL-23).** PO bumped BC-2.11.016 v1.8→v1.9 (sort-grammar micro-fix). Two live version-pin cites updated: (1) §Behavioral Contracts table BC-2.11.016 row v1.8→v1.9; (2) §Token Budget table BC-2.11.016 row v1.8→v1.9. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 2.3→2.4; updated 2026-07-08 (POL-23). |
