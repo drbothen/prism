@@ -2725,3 +2725,11 @@ FIX-IEQ-ERRPATH-001 LOCAL pass-5 adversary emitted a report with the verdict lin
 **Codification pending (cycle-close checklist S-7.02):** Extend POL-23 / POL-29 verification steps (or story-writer pin-round procedure) to require same-row adjacent-cell semantic currency check on every BC version bump. The check should confirm that the Key Clauses / Description cell still accurately describes the CURRENT BC semantics, not the version cited when the cell was last written. This is a low-false-positive check: the BC version number in the cell serves as a semantic-currency marker; any BC version increment should trigger a re-read of the corresponding BC section and a confirmation that the cell prose still matches.
 
 **Source:** D-1617 (FIX-IEQ-ERRPATH-001 pass-6 fix-burst; ADV-FIX-P6-MED-001/OBS-001; 2026-07-09).
+
+---
+
+### L23 — [process-gap] POL-22 Phase-C citation audits must sweep ALL parallel narrative surfaces as a JOINT pair
+
+**Summary:** POL-22 Phase-C citation audits must sweep ALL parallel narrative surfaces of the same content as a JOINT pair (impl-location table + §Preconditions prose + sibling-BC restatement tables) per position — single-surface fixes leave the parallel surface stale; recurred passes 3/4/5 of the FIX-IEQ-ERRPATH-001 PR-LEVEL cascade (LOW-001, MED-001, P5-MED-001/002 + 4 BC-2.11.004 instances).
+
+**Source:** D-1637 (FIX-IEQ-ERRPATH-001 PR-LEVEL pass-5 same-burst closure; ADV-PR-P5-MED-001/002/003 + class-closure sweep; 2026-07-09). Candidate enforcement: POL-22 verification_steps amendment at cycle close.

@@ -89,10 +89,10 @@ points: 11
 level: "L4"
 status: merged
 # BC status: 7 active (BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.7,
-#   BC-2.11.016 v1.24, BC-2.11.007 v1.9) + BC-2.11.019 v1.6 draft→active at merge per POL-14. Canonical versions
+#   BC-2.11.016 v1.25, BC-2.11.007 v1.9) + BC-2.11.019 v1.6 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.43"
+version: "2.44"
 updated: "2026-07-09"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -179,7 +179,7 @@ red_gate_tests: 54
 # --- F-PQL2-OBS-001 skeleton-placeholder guards (BC-2.10.016 v1.2; origin F-PQL2-OBS-001) ---
 #   test_f_pql2_obs001_query_skeleton_no_bare_timestamp (f_pql2_obs001_skeleton_placeholder_guard_test.rs)
 #   test_f_pql2_obs001_datetime_arithmetic_uses_placeholder (f_pql2_obs001_skeleton_placeholder_guard_test.rs)
-# --- AC-M2 HAVING column gate (BC-2.11.016 v1.24 — Position 6; inline in engine.rs,
+# --- AC-M2 HAVING column gate (BC-2.11.016 v1.25 — Position 6; inline in engine.rs,
 #     module f_pwl1_low001_having_column_gate_tests) ---
 #   test_BC_2_11_016_having_column_gate_typo_fires_e_query_038 (engine.rs inline)
 #   test_BC_2_11_016_having_column_gate_valid_col_no_e_query_038 (engine.rs inline)
@@ -390,7 +390,7 @@ all subquery positions (HAVING, GROUP BY, ORDER BY, JOIN ON).
 | BC-2.11.019 | v1.6 | BC-2.11.019: E-QUERY-039 Enrich-UDF-Not-Found Plan-Time Gate |
 | BC-2.10.016 | v1.2 | BC-2.10.016: MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
 | BC-2.10.012 | v1.7 | BC-2.10.012: `prism_describe` Schema Discovery Tool (L2) |
-| BC-2.11.016 | v1.24 | BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
+| BC-2.11.016 | v1.25 | BC-2.11.016: E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) |
 | BC-2.11.007 | v1.9 | BC-2.11.007: Sensor Filter Push-Down |
 
 ---
@@ -833,7 +833,7 @@ paths.
 
 ### Area G — Gate Coverage: E-QUERY-038 Column Gate in Single-Tenant Mode (M1)
 
-**AC-M1** (traces to BC-2.11.016 v1.24 postcondition — E-QUERY-038 fires for unknown columns): The
+**AC-M1** (traces to BC-2.11.016 v1.25 postcondition — E-QUERY-038 fires for unknown columns): The
 `check_query_column_availability` function (E-QUERY-038 column gate) MUST fire in single-tenant
 mode where `resolved_spec_map` is `None`. Previously it returned `Ok(())` immediately in this
 case, silently bypassing E-QUERY-038 for all single-tenant queries. The fix: `TableRegistry`
@@ -854,21 +854,23 @@ column metadata.
 
 ### Area H — Gate Coverage: E-QUERY-038 Column Gate Validates GROUP BY / ORDER BY / JOIN ON (M2)
 
-**AC-M2** (traces to BC-2.11.016 v1.24 postcondition — E-QUERY-038 fires for unknown columns at
+**AC-M2** (traces to BC-2.11.016 v1.25 postcondition — E-QUERY-038 fires for unknown columns at
 all relevant positions): `check_query_column_availability` validates GROUP BY expressions,
 ORDER BY expressions, JOIN ON column refs, and HAVING predicate column refs in addition to
 SELECT projections and WHERE predicates. Previously GROUP BY, ORDER BY, JOIN ON, and HAVING
 column references were not checked, creating bypass paths where an invalid column in
 `GROUP BY invalid_col` or `HAVING count(typo_col)` would not fire E-QUERY-038 at plan time.
 
-For the HAVING position specifically (BC-2.11.016 v1.24 §Implementation location gate-positions
+For the HAVING position specifically (BC-2.11.016 v1.25 §Implementation location gate-positions
 table, Position 6):
 
 Position 6 (HAVING): uses `extract_predicate_columns_with_bareness` (same helper as WHERE/Position 2), which
 calls `collect_predicate_columns_with_bareness`. The `Predicate::Compare` arm in `collect_predicate_columns_with_bareness`
-now handles both bare `Expr::Field` LHS (bare-column HAVING predicates) and `Expr::FuncCall`
-LHS (aggregate-function HAVING predicates, ADR-048), in both cases recursing via
-`extract_field_paths_with_bareness` to collect all `(name, is_bare)` column reference pairs. The WHERE
+handles two sub-arms: bare `Expr::Field(fp)` LHS (bare-column HAVING predicates) calls
+`extract_column_name_from_field_path(fp, table_name, table_alias)` directly (single-shot),
+emitting `(name, fp.segments.len() == 1)` as the `(name, is_bare)` pair; `Expr::FuncCall` LHS
+(aggregate-function HAVING predicates, ADR-048) recurses via `extract_field_paths_with_bareness`
+to collect all `(name, is_bare)` column reference pairs. The WHERE
 predicate grammar deliberately does NOT accept aggregate-function predicate LHS (ADR-048);
 `WHERE count(col) > 5` remains an E-QUERY-001 parse error. (The non-bareness
 `collect_predicate_columns`, which recurses via `extract_field_paths_from_expr`, remains the
@@ -1547,6 +1549,7 @@ and the TLS-REMEDIATION fold-in (commit cf66151f):
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.44 | ADV-PR-P5-MED-003-closure-pin-sync-2026-07-09 | 2026-07-09 | story-writer | **ADV-PR-P5-MED-003 closure (AC-M2 bare-Field sub-arm fix) + BC-2.11.016 v1.24→v1.25 pin-sync (§Preconditions.2 type-name fixes + OrderExpr::expr table fix). Task 1 — AC-M2 prose fix: "now handles both bare `Expr::Field` LHS...and `Expr::FuncCall` LHS...in both cases recursing via `extract_field_paths_with_bareness`" → "handles two sub-arms: bare `Expr::Field(fp)` LHS calls `extract_column_name_from_field_path(fp, table_name, table_alias)` directly (single-shot), emitting `(name, fp.segments.len() == 1)` as the `(name, is_bare)` pair; `Expr::FuncCall` LHS recurses via `extract_field_paths_with_bareness`". Two historical blockquotes (BC-2.11.016 v1.5 HAVING addition, ADR-048 HAVING agg-fn grammar extension) preserved per POL-29. positions-7–8 clarifying sentence preserved. Task 2 — BC-2.11.016 v1.24→v1.25 (§Preconditions.2 type-name fixes + OrderExpr::expr table fix): six live sites updated — (1) frontmatter `# BC status:` comment; (2) frontmatter red-gate test inventory comment (AC-M2 HAVING label); (3) §Behavioral Contracts body table BC-2.11.016 version cell; (4) AC-M1 trace; (5) AC-M2 trace; (6) AC-M2 §HAVING body prose. L22 adjacent-cell check: grep for old shapes (FilterExpr/PipeStage::Stats { by }/PipeStage::Enrich { input_col }/PipeStage::Dedup { fields }/OrderBy::expr/OrderExpr::expr) across four carrier stories: zero hits in Key Clauses or task cells; no adjacent-cell fixes needed. BC-2.11.004, BC-2.11.017, BC-2.11.020 not cited in this story. AC semantics UNCHANGED. Frontmatter version 2.43→2.44; updated 2026-07-09 (POL-23).** |
 | 2.43 | ADV-PR-P4-MED-001-closure-pin-sync-2026-07-09 | 2026-07-09 | story-writer | **ADV-PR-P4-MED-001 closure (mixed-chain fix in AC-M2 prose) + BC-2.11.016 v1.23→v1.24 pin-sync (type-name corrections, ADV-PR-P4-MED-001). Task 1 — AC-M2 prose fix: "calls `collect_predicate_columns`" → "calls `collect_predicate_columns_with_bareness`"; "`Predicate::Compare` arm in `collect_predicate_columns`" → "`Predicate::Compare` arm in `collect_predicate_columns_with_bareness`"; clarifying sentence added: non-bareness `collect_predicate_columns` (recurses via `extract_field_paths_from_expr`) remains walker for Filter/Pipe positions 7–8. Two historical blockquotes (BC-2.11.016 v1.5 HAVING addition, ADR-048 HAVING agg-fn grammar extension) preserved per POL-29. Task 2 — BC-2.11.016 v1.23→v1.24 (type-name corrections): six live sites updated — (1) frontmatter `# BC status:` comment; (2) frontmatter red-gate test inventory comment (AC-M2 HAVING label); (3) §Behavioral Contracts body table BC-2.11.016 version cell; (4) AC-M1 trace; (5) AC-M2 trace; (6) AC-M2 §HAVING body prose. Semantic-cell currency: L22 AST type name check — grep for Where(FilterExpr)/Predicate::And/Predicate::Or/SortEntry.field across story: zero hits; no adjacent-cell fixes needed. BC-2.11.004, BC-2.11.017, BC-2.11.020, and error-taxonomy not cited in this story. AC semantics UNCHANGED. Frontmatter version 2.42→2.43; updated 2026-07-09 (POL-23).** |
 | 2.42 | ADV-PR-P3-LOW-001-semantic-currency-2026-07-09 | 2026-07-09 | story-writer | **semantic-currency completion for BC-2.11.016 v1.23 _with_bareness extractor rename (ADV-PR-P3-LOW-001). Two live present-tense mechanism description sites updated — (1) frontmatter implementation comment (~line 344): "extract_field_paths_from_expr helper (the SINGLE extraction point for all 5 positions)" → "extract_field_paths_with_bareness (positions 1/3/4/5) and extract_predicate_columns_with_bareness (positions 2/6; per-reference (name, is_bare) pairs for HEAD-JOIN SUSPENSION gate)"; (2) AC-M2 §HAVING body prose (~lines 866–876): "Position 6 (HAVING): uses `extract_predicate_columns`...recursing via `extract_field_paths_from_expr`..." → "uses `extract_predicate_columns_with_bareness`...recursing via `extract_field_paths_with_bareness` to collect all `(name, is_bare)` column reference pairs"; "For the other positions (1–5), `extract_field_paths_from_expr` is the single extraction helper..." → "For positions 1/3/4/5, `extract_field_paths_with_bareness` is the extraction helper...enabling the HEAD-JOIN SUSPENSION gate to distinguish bare from qualified column references". Two historical blockquotes preserved per POL-29: "BC-2.11.016 v1.5 HAVING addition (F-PWL1-LOW-001)" and "ADR-048 HAVING agg-fn grammar extension (F-PXL3-MED-002)" — origin notes describing mechanism at introduction time, not live currency prose. Post-edit grep confirms zero remaining present-tense extract_field_paths_from_expr/extract_predicate_columns claims about positions 1–6 outside historical blockquotes. ADR-048 WHERE-vs-HAVING grammar point UNCHANGED (WHERE count(col) > 5 remains E-QUERY-001 parse error). BC-2.11.004, BC-2.11.017, BC-2.11.020, and error-taxonomy not cited in this story. AC semantics UNCHANGED. Frontmatter version 2.41→2.42; updated 2026-07-09 (POL-23).** |
 | 2.41 | ADV-PR-P3-LOW-001-pin-sync-2026-07-09 | 2026-07-09 | story-writer | **pin-sync BC-2.11.016 v1.22→v1.23 (_with_bareness extractor rename, ADV-PR-P3-LOW-001) + semantic-cell currency (FIX-IEQ-ERRPATH-001 PR-LEVEL pass-3 story pin round). BC-2.11.016 v1.22→v1.23: six live sites updated — (1) frontmatter `# BC status:` comment; (2) frontmatter red-gate test inventory comment (AC-M2 HAVING label); (3) §Behavioral Contracts body table BC-2.11.016 version cell; (4) AC-M1 trace; (5) AC-M2 trace; (6) AC-M2 §HAVING body prose. Semantic-cell currency: FIDELITY BC table has no Key Clauses column — v1.23 renames internal extractors for positions 1–6 to _with_bareness variants and positions 10–14 to extract_column_name_from_field_path; HAVING position-6 behavior unchanged; AC-M2 §HAVING prose mentions extract_predicate_columns and extract_field_paths_from_expr as implementation context — these are in AC body prose, not a Key Clauses or task cell; L22 scope excludes AC prose per task instructions; prose preserved as-is. BC-2.11.004, BC-2.11.017, BC-2.11.020, and error-taxonomy not cited in this story. AC semantics UNCHANGED. Frontmatter version 2.40→2.41; updated 2026-07-09 (POL-23).** |

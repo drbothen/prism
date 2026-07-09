@@ -48,7 +48,7 @@ points: 13
 level: "L4"
 status: merged
 # BC status: all 8 BCs promoted draft→active per POL-14 at D-1367 (PR #203 squash-merged develop@7e60df03 2026-06-26).
-version: "1.28"
+version: "1.29"
 updated: "2026-07-09"
 # v1.13: BC-2.11.020 v1.1→v1.2 version-pin propagation (ADV-FIX-P1-HIGH-001, POL-29/POL-23).
 # v1.12: POL-14 post-merge promotion (D-1367 2026-06-26) — status draft→merged; all 8 BCs draft→active.
@@ -172,7 +172,7 @@ works end-to-end, temporal queries parse, and MCP tools/prompts respond within t
 
 | BC ID | Version | Title |
 |-------|---------|-------|
-| BC-2.11.020 | v1.17 | SQL→Pipe Composition — `SqlPipe` AST Variant and FORBID-BOTH Dual-Limit Rule |
+| BC-2.11.020 | v1.18 | SQL→Pipe Composition — `SqlPipe` AST Variant and FORBID-BOTH Dual-Limit Rule |
 | BC-2.11.021 | v1.0 | Temporal Grammar — `NOW()` and `INTERVAL` Planning-Time Constant Injection |
 | BC-2.11.022 | v1.0 | Auto-Generated `prismql://reference` Content Contract and CI Parity Gate |
 | BC-2.11.023 | v1.2 | Three-Mode Correctness — Mode-Bridge Error, `normalized_pql`, and D7 Graduation Invariant |
@@ -656,7 +656,7 @@ fan-out, DataFusion planning). All MCP handler changes are Effectful.
 |----|-------------|-------------------|
 | EC-001 | `SELECT * FROM t | unknown_stage` — mode-bridge fires | E-QUERY-001 with mode-bridge message; `normalized_pql` may be set |
 | EC-002 | `SELECT * FROM t LIMIT 5 | limit 3` — FORBID-BOTH with `| limit` pipe stage | E-QUERY-040 with sql_limit=5, pipe_limit=3 |
-| EC-002b | `SELECT * FROM t LIMIT 5 | enrich fn(x) | tail 3` — FORBID-BOTH with `| tail` pipe stage (BC-2.11.020 v1.17 EC-11-020-008) | E-QUERY-040 with sql_limit=5, pipe_limit=3; `| tail M` is a row-capping stage in the same FAMILY as `| limit M` |
+| EC-002b | `SELECT * FROM t LIMIT 5 | enrich fn(x) | tail 3` — FORBID-BOTH with `| tail` pipe stage (BC-2.11.020 v1.18 EC-11-020-008) | E-QUERY-040 with sql_limit=5, pipe_limit=3; `| tail M` is a row-capping stage in the same FAMILY as `| limit M` |
 | EC-003 | `SELECT * FROM t LIMIT 10 | enrich fn(x)` — SQL LIMIT, no pipe `| limit` or `| tail` | Valid Ast::SqlPipe; SQL LIMIT 10 applies |
 | EC-004 | `NOW() - INTERVAL '0s'` | Valid; lowers to current timestamp |
 | EC-005 | `NOW() + INTERVAL '1h'` | E-QUERY-001: subtraction-only in v1 |
@@ -724,7 +724,7 @@ must both fail (Red Gate requirement BC-5.38.001).
 2. Extend mode detection in `filter_parser.rs` to tristate: `SqlPipeMode::Sql`, `SqlPipeMode::Pipe`, `SqlPipeMode::SqlPipe`. Dispatch to `parse_sql_pipe` when `SqlPipeMode::SqlPipe` detected.
 3. Implement `parse_sql_pipe` Chumsky combinator: parse SQL preamble as `SqlQuery`, then parse `| <stage>*` as `Vec<PipeStage>`.
 4. Add `Ast::SqlPipe` arm to `QueryEngine::execute`: execute head as SQL → pass Arrow batch through pipe stages.
-5. Add FORBID-BOTH plan-time check: if `sq.head.limit.is_some()` AND any stage matches `PipeStage::Limit(_) | PipeStage::Tail(_)` (i.e., any row-capping pipe stage per BC-2.11.020 v1.17 FAMILY rule), return `Err(PrismError::RedundantRowLimit { sql_limit, pipe_limit })`.
+5. Add FORBID-BOTH plan-time check: if `sq.head.limit.is_some()` AND any stage matches `PipeStage::Limit(_) | PipeStage::Tail(_)` (i.e., any row-capping pipe stage per BC-2.11.020 v1.18 FAMILY rule), return `Err(PrismError::RedundantRowLimit { sql_limit, pipe_limit })`.
 6. Add `PrismError::RedundantRowLimit { sql_limit: u64, pipe_limit: u64 }` to `prism-core/src/error.rs`. Add explicit `-32602 INVALID_PARAMS` arm in `map_prism_error`.
 7. Run `just iter prism-query` — AC-001/AC-002/AC-003 tests must turn GREEN.
 
@@ -911,6 +911,7 @@ From CLAUDE.md conventions:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.29 | ADV-PR-P5-MED-003-closure-pin-sync-2026-07-09 | 2026-07-09 | story-writer | **ADV-PR-P5-MED-003 closure + BC-2.11.020 v1.17→v1.18 pin-sync (pass-5 PO micro-amendment). BC-2.11.020 v1.17→v1.18 (pin-only): three live sites updated — (1) §Behavioral Contracts body table BC-2.11.020 version cell; (2) §Edge Cases table EC-002b cite; (3) §Tasks Phase 2 step 5 cite. Semantic-cell currency: EC-002b (FORBID-BOTH with \| tail) and Task step 5 FAMILY rule (PipeStage::Limit \| PipeStage::Tail) verified CURRENT — v1.18 is companion pin; FORBID-BOTH content in BC-2.11.020 unchanged. L22 adjacent-cell check: grep for old shapes (FilterExpr/PipeStage::Stats { by }/PipeStage::Enrich { input_col }/PipeStage::Dedup { fields }/OrderBy::expr/OrderExpr::expr) across Key Clauses and task cells: zero hits; no adjacent-cell extension needed. BC-2.11.016, BC-2.11.017, BC-2.11.004 not cited in this story. AC semantics UNCHANGED. Frontmatter version 1.28→1.29; updated 2026-07-09 (POL-23).** |
 | 1.28 | ADV-PR-P4-MED-001-closure-pin-sync-2026-07-09 | 2026-07-09 | story-writer | **ADV-PR-P4-MED-001 closure + BC-2.11.020 v1.16→v1.17 pin-sync (type-name corrections companion, ADV-PR-P4-MED-001). BC-2.11.020 v1.16→v1.17: three live sites updated — (1) §Behavioral Contracts body table BC-2.11.020 version cell; (2) §Edge Cases table EC-002b cite; (3) §Tasks Phase 2 step 5 cite. Semantic-cell currency: EC-002b (FORBID-BOTH with \| tail) and Task step 5 FAMILY rule (PipeStage::Limit \| PipeStage::Tail) verified CURRENT — v1.17 is companion pin to BC-2.11.016 v1.24 type-name corrections; FORBID-BOTH content in BC-2.11.020 unchanged. L22 AST type name grep across story: zero hits; no adjacent-cell fixes needed. BC-2.11.016, BC-2.11.017, BC-2.11.004, and error-taxonomy not cited in this story. AC semantics UNCHANGED. No BC-array/AC-trace/scope change. Frontmatter version 1.27→1.28; updated 2026-07-09 (POL-23).** |
 | 1.27 | ADV-PR-P3-LOW-001-pin-sync-2026-07-09 | 2026-07-09 | story-writer | **pin-sync BC-2.11.020 v1.15→v1.16 (_with_bareness extractor companion pin, ADV-PR-P3-LOW-001) + semantic-cell currency (FIX-IEQ-ERRPATH-001 PR-LEVEL pass-3 story pin round). BC-2.11.020 v1.15→v1.16: three live sites updated — (1) §Behavioral Contracts body table BC-2.11.020 version cell; (2) §Edge Cases table EC-002b cite; (3) §Tasks Phase 2 step 5 cite. Semantic-cell currency: EC-002b (FORBID-BOTH with \| tail) and Task step 5 FAMILY rule (PipeStage::Limit \| PipeStage::Tail) verified CURRENT — v1.16 is companion pin to BC-2.11.016 v1.23 _with_bareness extractor rename; FORBID-BOTH content in BC-2.11.020 unchanged. Origin anchor on line 53 (`# v1.13: BC-2.11.020 v1.1→v1.2`) preserved per POL-29. Historical changelog rows left unchanged per POL-29. BC-2.11.016, BC-2.11.017, BC-2.11.004, and error-taxonomy not cited in this story. AC semantics UNCHANGED. No BC-array/AC-trace/scope change. Frontmatter version 1.26→1.27; updated 2026-07-09 (POL-23).** |
 | 1.26 | ADV-PR-P1-MED-001-OBS-001-pin-sync-2026-07-09 | 2026-07-09 | story-writer | **pin-sync BC-2.11.020 v1.14→v1.15 (Injection-safety companion pin, ADV-PR-P1-MED-001/OBS-001) + semantic-cell currency (FIX-IEQ-ERRPATH-001 PR-LEVEL pass-1 story pin round). BC-2.11.020 v1.14→v1.15: three live sites updated — (1) §Behavioral Contracts body table BC-2.11.020 version cell; (2) §Edge Cases table EC-002b cite; (3) §Tasks Phase 2 step 5 cite. Semantic-cell currency: EC-002b (FORBID-BOTH with \| tail) and Task step 5 FAMILY rule (PipeStage::Limit \| PipeStage::Tail) verified CURRENT — v1.15 is injection-safety companion pin (CWE-116 sanitization of `column` MCP payload in sibling BC-2.11.016 v1.22); FORBID-BOTH content in BC-2.11.020 unchanged. Origin anchor on line 53 (`# v1.13: BC-2.11.020 v1.1→v1.2`) preserved per POL-29. Historical changelog rows left unchanged per POL-29. BC-2.11.016, BC-2.11.017, BC-2.11.004, and error-taxonomy not cited in this story. AC semantics UNCHANGED. No BC-array/AC-trace/scope change. Frontmatter version 1.25→1.26; updated 2026-07-09 (POL-23).** |
