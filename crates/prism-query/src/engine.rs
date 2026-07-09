@@ -14194,21 +14194,43 @@ mod f_p24_med001_valid_operators_ci_tests {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SEC-FIND-001 / CWE-117 — column_not_found.rejected log sanitization
+// SEC-FIND-001 / CWE-117 — column_not_found.rejected log + payload sanitization
 //
-// Verifies that control characters in user-supplied column names are stripped
-// before they reach the `column_not_found.rejected` tracing::warn! structured
-// log field. Uses `sanitize_for_log` (same function as infusion_udf.rs
-// `warn_coercion_failed`, closing the sibling-site gap per TD-VSDD-060).
+// MED-002 (ADV-PR-P1-MED-002): three emission-path load-bearing lock tests
+//   (expected GREEN at dacb60fa — sanitize_for_log already called at log sites).
+// OBS-001 (ADV-PR-P1-OBS-001): two payload sanitization RED gate tests
+//   (expected FAIL at dacb60fa — column_name passed raw to ColumnNotFoundDetails).
 // ─────────────────────────────────────────────────────────────────────────────
 #[cfg(test)]
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::expect_used)]
 mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
-    use prism_core::error::sanitize_for_log;
+    use std::collections::HashMap;
 
-    /// SEC-FIND-001 (CWE-117) RED GATE — `sanitize_for_log` strips Unicode Cc characters
-    /// and line-separator codepoints from column names before they reach structured log
-    /// fields in all three `column_not_found.rejected` emission sites.
+    use super::{check_column_against_available_set, check_column_availability};
+    use crate::table_registry::TableRegistry;
+    use prism_core::error::{sanitize_for_log, PrismError};
+    use prism_core::{column::ColumnType, OrgSlug, SensorId};
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+        ResolvedSpecKey,
+    };
+
+    // ── Helper ────────────────────────────────────────────────────────────────
+
+    /// Returns `true` if `s` contains any Unicode Cc character (control code)
+    /// or the Unicode line/paragraph separator codepoints U+2028 / U+2029.
+    ///
+    /// Used by OBS-001 tests to assert payload fields carry none of these chars.
+    fn has_ctrl_or_sep(s: &str) -> bool {
+        s.chars()
+            .any(|c| c.is_control() || c == '\u{2028}' || c == '\u{2029}')
+    }
+
+    // ── Helper-level unit lock (SEC-FIND-001 original) ────────────────────────
+
+    /// SEC-FIND-001 (CWE-117) helper-level regression lock — `sanitize_for_log` strips
+    /// Unicode Cc characters and line-separator codepoints from column names.
     ///
     /// Injection vectors validated:
     /// - SOH (U+0001): canonical ASCII control character log-injection vector
@@ -14218,10 +14240,11 @@ mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
     /// - U+2028: LINE SEPARATOR — JSON-embedded newline in some consumers
     /// - U+2029: PARAGRAPH SEPARATOR
     ///
-    /// Verifies the function used at all three sites before `tracing::warn!`:
-    /// - `sanitize_for_log(column_name)` → single-tenant path
-    /// - `sanitize_for_log(column_name)` → multi-tenant path
-    /// - `sanitize_for_log(column_name)` → binding-context path
+    /// Unit-level regression lock: verifies the `sanitize_for_log` helper in isolation.
+    /// NOTE: this test does NOT verify that the emission sites in
+    /// `check_column_availability` or `check_column_against_available_set` actually
+    /// invoke `sanitize_for_log` — emission-path coverage is provided by the
+    /// `test_BC_2_11_016_med002_*` tests below (ADV-PR-P1-MED-002 closure).
     ///
     /// Traces to: SEC-FIND-001 (PR #219 review), CWE-117, TD-VSDD-060.
     #[test]
@@ -14270,5 +14293,323 @@ mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
             "severity_CRÍTICO",
             "SEC-FIND-001: valid Unicode letters must not be stripped"
         );
+    }
+
+    // ── MED-002: emission-path load-bearing tests (expected GREEN at dacb60fa) ──────────────
+    //
+    // Drive the PRODUCTION emission path; confirm (a) the tracing::warn! event fired and
+    // (b) the raw control char U+0001 did NOT appear in the captured log output.
+    //
+    // LOAD-BEARING PROOF — removing either the emission call or the sanitize_for_log call
+    // breaks the test:
+    //
+    // (a) If `tracing::warn!(event_type = "column_not_found.rejected", ...)` were removed,
+    //     `logs_contain("column_not_found.rejected")` returns false → assertion FAILS.
+    // (b) If `sanitize_for_log(column_name)` were removed (raw column_name used directly),
+    //     `logs_contain("\x01")` returns true → `!logs_contain("\x01")` is false → FAILS.
+
+    /// ADV-PR-P1-MED-002 closure — single-tenant `check_column_availability` emission site.
+    ///
+    /// Registers "crowdstrike_alerts" in a `TableRegistry` with columns ["severity",
+    /// "timestamp"], then queries the missing column "sev\x01rity" on the single-tenant
+    /// path (resolved_spec_map = None). Asserts the `column_not_found.rejected` event is
+    /// emitted and does NOT carry the raw U+0001 byte in any structured field.
+    ///
+    /// GREEN at dacb60fa: `sanitize_for_log` is already called before the single-tenant
+    /// `tracing::warn!` in `check_column_availability`.
+    ///
+    /// Traces to: ADV-PR-P1-MED-002, CWE-117, BC-2.11.016 single-tenant path.
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_BC_2_11_016_med002_single_tenant_emission_site_no_ctrl_chars_in_log() {
+        let registry = TableRegistry::new();
+        let spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike test sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![
+                    ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+                    ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+                ],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        registry
+            .register_sensor(&spec)
+            .expect("MED-002 fixture: register_sensor must not fail");
+
+        // "sev\x01rity" is NOT in ["severity", "timestamp"] → single-tenant E-QUERY-038 fires.
+        let result = check_column_availability(
+            "sev\x01rity",
+            "crowdstrike_alerts",
+            "test_client",
+            None,
+            None,
+            Some(&registry),
+        );
+        assert!(
+            result.is_err(),
+            "MED-002 single-tenant: E-QUERY-038 must fire for unknown column"
+        );
+
+        // (a) LOAD-BEARING: emission site was reached.
+        assert!(
+            logs_contain("column_not_found.rejected"),
+            "MED-002 single-tenant: event_type=column_not_found.rejected must be emitted. \
+             Failure here means the tracing::warn! call was not reached — the test is no \
+             longer exercising the single-tenant emission site in check_column_availability."
+        );
+        // (b) LOAD-BEARING: control char stripped before emission.
+        // Without sanitize_for_log, `column = %column_name` would emit "sev\x01rity" verbatim
+        // and logs_contain("\x01") would return true, failing this assertion.
+        assert!(
+            !logs_contain("\x01"),
+            "MED-002 single-tenant CWE-117 regression lock: raw U+0001 found in captured \
+             tracing output. The `column = %safe_column_name` field must emit the sanitized \
+             form. FIX: ensure sanitize_for_log(column_name) precedes the tracing::warn! call \
+             in the single-tenant branch of check_column_availability."
+        );
+    }
+
+    /// ADV-PR-P1-MED-002 closure — multi-tenant `check_column_availability` emission site.
+    ///
+    /// Builds a `ResolvedSensorSpec` map with crowdstrike@acme having column ["severity"],
+    /// then queries the missing column "sev\x01rity" on the multi-tenant path
+    /// (resolved_spec_map = Some). Asserts the event is emitted without raw U+0001.
+    ///
+    /// GREEN at dacb60fa: `sanitize_for_log` is already called before the multi-tenant
+    /// `tracing::warn!` in `check_column_availability`.
+    ///
+    /// Traces to: ADV-PR-P1-MED-002, CWE-117, BC-2.11.016 multi-tenant path.
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_BC_2_11_016_med002_multi_tenant_emission_site_no_ctrl_chars_in_log() {
+        let spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike test sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![ColumnSpec::new(
+                    "severity",
+                    ColumnType::String,
+                    None,
+                    vec![],
+                )],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        let overlay_toml = "extends = \"crowdstrike\"\ninstance_id = \"crowdstrike@acme\"";
+        let overlay: SensorInstanceOverlay = toml::from_str(overlay_toml)
+            .expect("MED-002 fixture: SensorInstanceOverlay TOML must parse");
+        let org_slug = OrgSlug::new("acme");
+        let resolved =
+            OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+        let key: ResolvedSpecKey = (org_slug, SensorId::new("crowdstrike"));
+        let mut spec_map = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        // "sev\x01rity" NOT in ["severity"] → multi-tenant E-QUERY-038 fires.
+        let result = check_column_availability(
+            "sev\x01rity",
+            "crowdstrike_alerts",
+            "test_client",
+            None,
+            Some(&spec_map),
+            None,
+        );
+        assert!(
+            result.is_err(),
+            "MED-002 multi-tenant: E-QUERY-038 must fire for unknown column"
+        );
+
+        // (a) LOAD-BEARING: emission site was reached.
+        assert!(
+            logs_contain("column_not_found.rejected"),
+            "MED-002 multi-tenant: event_type=column_not_found.rejected must be emitted. \
+             Failure here means the tracing::warn! call was not reached in the multi-tenant \
+             branch of check_column_availability."
+        );
+        // (b) LOAD-BEARING: control char stripped before emission.
+        assert!(
+            !logs_contain("\x01"),
+            "MED-002 multi-tenant CWE-117 regression lock: raw U+0001 found in captured \
+             tracing output. FIX: ensure sanitize_for_log precedes the multi-tenant \
+             tracing::warn! call in check_column_availability."
+        );
+    }
+
+    /// ADV-PR-P1-MED-002 closure — `check_column_against_available_set` binding-context site.
+    ///
+    /// Calls `check_column_against_available_set` directly with available columns
+    /// ["severity", "timestamp"] and the missing column "sev\x01rity". Asserts the
+    /// `column_not_found.rejected` event is emitted without raw U+0001.
+    ///
+    /// GREEN at dacb60fa: `sanitize_for_log` is already called before the binding-context
+    /// `tracing::warn!` in `check_column_against_available_set`.
+    ///
+    /// Traces to: ADV-PR-P1-MED-002, CWE-117, BC-2.11.016 binding-context path.
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_BC_2_11_016_med002_binding_ctx_emission_site_no_ctrl_chars_in_log() {
+        let available = vec!["severity".to_string(), "timestamp".to_string()];
+
+        // "sev\x01rity" NOT in ["severity", "timestamp"] → binding-context E-QUERY-038 fires.
+        let result = check_column_against_available_set(
+            "sev\x01rity",
+            "test_table",
+            "test_client",
+            &available,
+        );
+        assert!(
+            result.is_err(),
+            "MED-002 binding-ctx: E-QUERY-038 must fire for unknown column"
+        );
+
+        // (a) LOAD-BEARING: emission site was reached.
+        assert!(
+            logs_contain("column_not_found.rejected"),
+            "MED-002 binding-ctx: event_type=column_not_found.rejected must be emitted. \
+             Failure here means the tracing::warn! call was not reached in \
+             check_column_against_available_set."
+        );
+        // (b) LOAD-BEARING: control char stripped before emission.
+        assert!(
+            !logs_contain("\x01"),
+            "MED-002 binding-ctx CWE-117 regression lock: raw U+0001 found in captured \
+             tracing output. FIX: ensure sanitize_for_log precedes the binding-context \
+             tracing::warn! call in check_column_against_available_set."
+        );
+    }
+
+    // ── OBS-001: payload sanitization RED gates (expected FAIL at dacb60fa) ─────────────────
+    //
+    // BC-2.11.016 v1.22 §Postconditions: the `ColumnNotFoundDetails.column` field AND its
+    // Display rendering MUST carry the sanitized form (Unicode Cc + U+2028/U+2029 stripped).
+    //
+    // At dacb60fa: `column_name` is passed RAW to `ColumnNotFoundDetails::new(column_name, ...)`
+    // at all three emission sites. Consequently:
+    //   - `details.column == "sev\x01rity"` (raw U+0001 present)
+    //   - `format!("{}", details)` == "E-QUERY-038: column 'sev\x01rity' ..." (raw U+0001)
+    //
+    // Both assertions below call `has_ctrl_or_sep` which returns true for the raw column_name,
+    // making the `!has_ctrl_or_sep(...)` assertion false → test FAILS (RED gate confirmed).
+
+    /// ADV-PR-P1-OBS-001 RED GATE — `ColumnNotFoundDetails.column` field must be sanitized.
+    ///
+    /// Drives `check_column_against_available_set` (binding-context path) with "sev\x01rity".
+    /// Asserts that the returned error's `.column` field contains no Unicode Cc or U+2028/U+2029.
+    ///
+    /// RED at dacb60fa: `column_name` is passed raw to `ColumnNotFoundDetails::new` →
+    /// `details.column == "sev\x01rity"` → `has_ctrl_or_sep` returns true → assertion FAILS.
+    ///
+    /// Traces to: ADV-PR-P1-OBS-001, BC-2.11.016 v1.22 §Postconditions.
+    #[test]
+    fn test_BC_2_11_016_obs001_payload_column_field_stripped_of_ctrl_chars() {
+        let available = vec!["severity".to_string(), "timestamp".to_string()];
+        let err = check_column_against_available_set(
+            "sev\x01rity",
+            "test_table",
+            "test_client",
+            &available,
+        )
+        .expect_err("OBS-001: E-QUERY-038 must fire for unknown column");
+
+        match err {
+            PrismError::ColumnNotFound(ref details) => {
+                assert!(
+                    !has_ctrl_or_sep(&details.column),
+                    "OBS-001 RED GATE (BC-2.11.016 v1.22 §Postconditions): \
+                     ColumnNotFoundDetails.column must not contain raw Unicode Cc or \
+                     U+2028/U+2029. Got column = {:?}. \
+                     FIX: sanitize column_name before passing to ColumnNotFoundDetails::new \
+                     in check_column_against_available_set.",
+                    details.column
+                );
+            }
+            other => panic!(
+                "OBS-001: expected PrismError::ColumnNotFound, got: {:?}",
+                other
+            ),
+        }
+    }
+
+    /// ADV-PR-P1-OBS-001 RED GATE — `ColumnNotFoundDetails` Display rendering must be sanitized.
+    ///
+    /// Drives `check_column_availability` (single-tenant path) with "sev\x01rity".
+    /// Asserts that `format!("{}", details)` contains no Unicode Cc or U+2028/U+2029.
+    ///
+    /// RED at dacb60fa: `ColumnNotFoundDetails.column` is raw, and `Display` formats it
+    /// verbatim → `format!()` output contains U+0001 → `has_ctrl_or_sep` returns true →
+    /// assertion FAILS.
+    ///
+    /// Traces to: ADV-PR-P1-OBS-001, BC-2.11.016 v1.22 §Postconditions.
+    #[test]
+    fn test_BC_2_11_016_obs001_payload_display_rendering_stripped_of_ctrl_chars() {
+        let registry = TableRegistry::new();
+        let spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike test sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![ColumnSpec::new(
+                    "severity",
+                    ColumnType::String,
+                    None,
+                    vec![],
+                )],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        registry
+            .register_sensor(&spec)
+            .expect("OBS-001 fixture: register_sensor must not fail");
+
+        let err = check_column_availability(
+            "sev\x01rity",
+            "crowdstrike_alerts",
+            "test_client",
+            None,
+            None,
+            Some(&registry),
+        )
+        .expect_err("OBS-001: E-QUERY-038 must fire for unknown column");
+
+        match err {
+            PrismError::ColumnNotFound(ref details) => {
+                let display = format!("{}", details);
+                assert!(
+                    !has_ctrl_or_sep(&display),
+                    "OBS-001 RED GATE (BC-2.11.016 v1.22 §Postconditions): \
+                     Display rendering of ColumnNotFoundDetails must not contain raw Unicode \
+                     Cc or U+2028/U+2029. Got: {:?}. \
+                     FIX: sanitize column_name before ColumnNotFoundDetails::new in \
+                     check_column_availability (single-tenant path).",
+                    display
+                );
+            }
+            other => panic!(
+                "OBS-001: expected PrismError::ColumnNotFound, got: {:?}",
+                other
+            ),
+        }
     }
 }
