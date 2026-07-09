@@ -87,3 +87,31 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 **S-PERF-GATE-007 STATUS:** IMPLEMENTED + VERIFIED + READY. 3-CLEAN LOCAL in progress (1/3 on 2d11f540). **3-CLEAN streak 1/3 on 2d11f540** (pass-8 CLEAN per BC-5.39.001 frozen-HEAD rule). Passes 9+10 must stay on unchanged 2d11f540. Story v1.6.
 
 **PENDING USER-APPROVED WORK:** Human directive = continue strict 3-CLEAN on both. S-PERF-GATE-006 pass-17 on cfae9375 + story v2.1. S-PERF-GATE-007 pass-9 on 2d11f540 + story v1.6. S-PERF-GATE-008 (gated on architect/research consult).
+
+---
+
+## Session Resume Checkpoint (D-1633 -- 2026-07-09; STATE v8.233)
+
+_Archived to session-checkpoints.md by D-1634 burst (state-manager keep-last-1 discipline)._
+
+**FIX-IEQ-ERRPATH-001 PR-LEVEL pass-1 CLOSED (NOT-CLEAN 2 MED+1 OBS; all findings CLOSED same-burst). PR #219 OPEN @39c8b134 (7e23a2c2 + 39c8b134 on top of dacb60fa; just check 5397/5397 GREEN; non-exhaustive 89/89).**
+
+**STATE v8.233. develop f935edb6 (UNCHANGED). BC-INDEX v7.74. STORY-INDEX v2.646. ARCH-INDEX v2.174. error-taxonomy v2.35. active_contracts 257. [Updated D-1633: PR-LEVEL pass-1 NOT-CLEAN + same-burst closure; PR #219 @39c8b134; PR-LEVEL streak 0/3]**
+
+**LAST MERGED:** S-PRISMQL-CASE-INSENSITIVE-001 (PR #217 → develop@f935edb6, 2026-07-08).
+
+**OPEN PRs:** PR #219 FIX-IEQ-ERRPATH-001 (https://github.com/drbothen/prism/pull/219; base develop; HEAD 39c8b134; pr-reviewer APPROVE (was on 35117a38 — re-review needed on 39c8b134); PR-LEVEL cascade 0/3 on frozen 39c8b134).
+
+**OPEN FIX-CASCADE:** FIX-IEQ-ERRPATH-001 — LOCAL strict-3-CLEAN CONVERGED @35117a38 (passes 17/18/19). Pass-1 PR-LEVEL CLOSED (2 MED+1 OBS) @39c8b134; PR-LEVEL streak 0/3 (DRIFT-ORCH-PRLEVEL-PUSH-001 reset on push). At merge: closes DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 + DRIFT-AUDIT-SCRIPT-UNCOMMITTED-001 (audit-script 62→70).
+
+**WORKTREES:** FIX-IEQ-ERRPATH-001 at .worktrees/FIX-IEQ-ERRPATH-001 (ACTIVE; fix-branch 39c8b134 PUSHED; PR #219 OPEN; PR-LEVEL streak 0/3).
+
+**PENDING-HUMAN:** (1) S-3.09 decision: resume vs keep-parked vs abandon (DRIFT-PARKED-S309-001). (2) W3-FIX-S307-001 decision: resume/commit-and-continue vs stash vs abandon (DRIFT-PARKED-W3FIX-S307-001). (3) E-OCSF-005..023 gap triage/prioritization (DRIFT-EOCSF-GAP-005-023-001).
+
+**RESUME PROTOCOL:**
+1. Run vsdd-factory:factory-worktree-health (BLOCKING).
+2. `git log --oneline -1 origin/develop` → expect `f935edb6`.
+3. `git -C .worktrees/FIX-IEQ-ERRPATH-001 log --oneline -1` → expect `39c8b134` (fix-branch pushed, PR-LEVEL pass-1 same-burst closure complete).
+4. VERY NEXT ACTION: PR-LEVEL adversary pass 2 on frozen 39c8b134 (BC-5.39.001; streak candidate 1/3).
+5. On merge: state-manager post-merge burst (STATE v8.233→v8.234+).
+6. Surface PENDING-HUMAN items 1-3.
