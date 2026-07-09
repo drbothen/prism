@@ -13775,6 +13775,386 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             _ => {}
         }
     }
+
+    // ── Tests 67–72: EC-11-076 PER-REFERENCE SCOPING (ADV-FIX-P16-MED-001) ─────
+    //
+    // BC-2.11.016 v1.21 EC-11-076 PER-REFERENCE SCOPING RULE:
+    //   The HEAD-JOIN SUSPENSION RULE (EC-11-074/075) suspends E-QUERY-038 ONLY for
+    //   BARE UNQUALIFIED column references. When the SAME column name appears BOTH as
+    //   a bare unqualified ref (e.g. bare `col` in WHERE) AND as a FROM-alias-qualified
+    //   ref (e.g. `alias.col` in SELECT), `bare_head_cols` (name-keyed HashSet<String>)
+    //   wrongly suspends the QUALIFIED reference too (ADV-FIX-P16-MED-001).
+    //
+    //   Qualified FROM-alias refs (`alias.col`, `crowdstrike_alerts.col`) are
+    //   unambiguously bound to the FROM table. If `col` is absent from the FROM table
+    //   schema, E-QUERY-038 MUST fire regardless of any co-resident bare ref.
+    //
+    // Fixture: `make_engine_with_join_tables()` (same as EC-11-074/075):
+    //   crowdstrike_alerts (severity: String, timestamp: Datetime)  ← FROM table
+    //   some_other_table   (col: String, id: String)                ← JOIN target
+    //   available_columns for crowdstrike_alerts = [severity, timestamp]
+    //
+    // Bug at 3212070c: bare `col` in WHERE puts "col" into `bare_head_cols`;
+    //   qualified `alias.col` in SELECT is extracted as "col" in select_cols;
+    //   gate loop: `bare_head_cols.contains("col")` → true → suspension applied →
+    //   ColumnNotFound swallowed → E-QUERY-038 DOES NOT fire (false negative / FN-001).
+
+    // ── Test 67 (RED GATE): EC-11-076 alias-qualified SELECT + bare WHERE, Ast::Sql ──
+
+    /// BC-2.11.016 v1.21 EC-11-076 — PER-REFERENCE SCOPING, alias-qualified SELECT ref,
+    /// `Ast::Sql` form (ADV-FIX-P16-MED-001).
+    ///
+    /// `SELECT alias.col FROM crowdstrike_alerts AS alias
+    ///  JOIN some_other_table ON alias.severity = some_other_table.id
+    ///  WHERE col = 'x'`
+    ///
+    /// `alias.col` — FROM-alias-qualified ref: unambiguously bound to `crowdstrike_alerts`.
+    /// `col` is absent from `crowdstrike_alerts` schema (severity, timestamp only).
+    /// E-QUERY-038 MUST fire for the qualified SELECT ref (not suspended by HEAD-JOIN rule).
+    ///
+    /// Co-resident bare `col` in WHERE is suspension-eligible per EC-11-074, but the
+    /// qualified SELECT ref `alias.col` retains full E-QUERY-038 checking independently.
+    ///
+    /// Bug at 3212070c:
+    ///   `bare_head_cols` is name-keyed (`HashSet<String>`). Bare WHERE `col` (1-segment)
+    ///   inserts "col" into `bare_head_cols`. `extract_field_paths_from_expr` for the
+    ///   SELECT item `alias.col` calls `extract_column_name_from_field_path(["alias","col"],
+    ///   "crowdstrike_alerts", Some("alias"))` → qualifier "alias" matches `from_alias` →
+    ///   returns "col" → `select_cols = ["col"]`. Gate loop: `bare_head_cols.contains("col")`
+    ///   → true → suspension applied → ColumnNotFound for "col" swallowed (fail-open) →
+    ///   E-QUERY-038 does NOT fire.
+    ///
+    /// Expected after fix (GREEN):
+    ///   Per-reference scoping: the gate loop must distinguish the QUALIFIED reference
+    ///   (`alias.col` in SELECT) from the BARE reference (`col` in WHERE). Only the bare
+    ///   ref is suspension-eligible; the qualified ref must retain full E-QUERY-038
+    ///   checking → ColumnNotFound fires for "col".
+    ///
+    /// RED GATE trigger: E-QUERY-038(col) is NOT returned at 3212070c (swallowed by bug).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11076_alias_qualified_select_fires_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-076 shape 1: alias-qualified SELECT ref + co-resident bare WHERE ref.
+        // `alias.col` bound to crowdstrike_alerts (from_alias="alias"); `col` absent.
+        let query = "SELECT alias.col FROM crowdstrike_alerts AS alias \
+                     JOIN some_other_table ON alias.severity = some_other_table.id \
+                     WHERE col = 'x'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => {
+                // CORRECT: E-QUERY-038 fires for qualified `alias.col` reference.
+                // `alias.col` is bound to crowdstrike_alerts; `col` absent from its schema
+                // → E-QUERY-038 MUST fire. Per-reference scoping: qualified FROM-alias refs
+                // are NEVER suspension-eligible even when a co-resident bare ref exists.
+            }
+            other => panic!(
+                "BC-2.11.016 v1.21 EC-11-076 RED GATE (alias-qualified SELECT, Ast::Sql): \
+                 E-QUERY-038(col) MUST fire for qualified `alias.col` reference \
+                 (bound to crowdstrike_alerts; available=[severity, timestamp]). \
+                 Per-reference scoping: qualified FROM-alias refs retain full E-QUERY-038 \
+                 checking even when a co-resident bare `col` in WHERE sets bare_head_cols. \
+                 Bug: bare_head_cols is name-keyed — bare WHERE `col` inserts \"col\" which \
+                 wrongly suspends the qualified SELECT ref alias.col (FN-001 violation). \
+                 Got: {:?}",
+                other
+            ),
+        }
+    }
+
+    // ── Test 68 (RED GATE): EC-11-076 table-name-qualified SELECT + bare WHERE ───
+
+    /// BC-2.11.016 v1.21 EC-11-076 — PER-REFERENCE SCOPING, table-name-qualified SELECT
+    /// ref (no AS alias), `Ast::Sql` form (ADV-FIX-P16-MED-001).
+    ///
+    /// `SELECT crowdstrike_alerts.col FROM crowdstrike_alerts
+    ///  JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id
+    ///  WHERE col = 'x'`
+    ///
+    /// Variant of EC-11-076 shape 1 using the table name as qualifier directly (no AS alias;
+    /// `from_alias = None`). `crowdstrike_alerts.col` is unambiguously bound to the FROM
+    /// table; `col` absent from its schema → E-QUERY-038 MUST fire.
+    ///
+    /// Same bug path: `extract_column_name_from_field_path(["crowdstrike_alerts","col"],
+    /// "crowdstrike_alerts", None)` → qualifier "crowdstrike_alerts" == table_name →
+    /// returns "col" → `select_cols = ["col"]`. Bare WHERE `col` → `bare_head_cols = {"col"}`.
+    /// Gate wrongly suspends the table-name-qualified ref.
+    ///
+    /// RED GATE trigger: E-QUERY-038(col) is NOT returned at 3212070c.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11076_table_qualified_select_fires_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-076 shape 2: table-name-qualified SELECT ref + co-resident bare WHERE ref.
+        // No AS alias; `from_alias = None`. Qualifier "crowdstrike_alerts" == table_name.
+        let query = "SELECT crowdstrike_alerts.col FROM crowdstrike_alerts \
+                     JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id \
+                     WHERE col = 'x'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => {
+                // CORRECT: E-QUERY-038 fires for qualified `crowdstrike_alerts.col` reference.
+            }
+            other => panic!(
+                "BC-2.11.016 v1.21 EC-11-076 RED GATE (table-name-qualified SELECT, Ast::Sql): \
+                 E-QUERY-038(col) MUST fire for qualified `crowdstrike_alerts.col` reference \
+                 (bound to crowdstrike_alerts; available=[severity, timestamp]). \
+                 Per-reference scoping: table-name-qualified refs are NEVER suspension-eligible. \
+                 Bug: bare_head_cols name-keyed; bare WHERE `col` wrongly suspends the \
+                 table-name-qualified SELECT ref crowdstrike_alerts.col (FN-001 violation). \
+                 Got: {:?}",
+                other
+            ),
+        }
+    }
+
+    // ── Test 69 (RED GATE): EC-11-076 qualified aggregate arg + bare WHERE ───────
+
+    /// BC-2.11.016 v1.21 EC-11-076 — PER-REFERENCE SCOPING, qualified aggregate arg
+    /// (position 1 SELECT inside FuncCall), `Ast::Sql` form (ADV-FIX-P16-MED-001).
+    ///
+    /// `SELECT sum(alias.typo) FROM crowdstrike_alerts AS alias
+    ///  JOIN some_other_table ON alias.severity = some_other_table.id
+    ///  WHERE typo = 'x'`
+    ///
+    /// `alias.typo` inside `sum()` — FROM-alias-qualified ref bound to crowdstrike_alerts.
+    /// `typo` is absent from crowdstrike_alerts schema → E-QUERY-038 MUST fire.
+    ///
+    /// Grammar note: `sum(field)` accepts any FieldPath at parse time (no type-check at
+    /// parse time per BC-2.11.016 / F-PBL1-MED-001). The column-existence gate
+    /// (`check_query_column_availability`) fires before DataFusion planning;
+    /// `extract_field_paths_from_expr` recurses into aggregate args, extracting
+    /// `alias.typo` → "typo" in select_cols. Bare WHERE `typo` → `bare_head_cols = {"typo"}`.
+    ///
+    /// Same bug path as shapes 1–2: name-keyed `bare_head_cols` wrongly suspends the
+    /// qualified aggregate-arg ref.
+    ///
+    /// RED GATE trigger: E-QUERY-038(typo) is NOT returned at 3212070c.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11076_qualified_agg_arg_fires_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-076 shape 3: qualified agg-arg in SELECT (position 1 inside FuncCall) +
+        // co-resident bare WHERE ref. `alias.typo` bound to crowdstrike_alerts; `typo` absent.
+        let query = "SELECT sum(alias.typo) FROM crowdstrike_alerts AS alias \
+                     JOIN some_other_table ON alias.severity = some_other_table.id \
+                     WHERE typo = 'x'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "typo" => {
+                // CORRECT: E-QUERY-038 fires for qualified `alias.typo` inside sum() aggregate.
+                // `extract_field_paths_from_expr` recurses into aggregate args — qualified
+                // agg-arg refs are NOT suspension-eligible even when bare WHERE `typo` exists.
+            }
+            other => panic!(
+                "BC-2.11.016 v1.21 EC-11-076 RED GATE (qualified aggregate arg, Ast::Sql): \
+                 E-QUERY-038(typo) MUST fire for qualified `alias.typo` inside sum() \
+                 (bound to crowdstrike_alerts; available=[severity, timestamp]). \
+                 `extract_field_paths_from_expr` recurses into FuncCall::Aggregate args — \
+                 qualified refs inside aggregate args must retain full E-QUERY-038 checking. \
+                 Bug: bare_head_cols name-keyed; bare WHERE `typo` wrongly suspends the \
+                 qualified agg-arg ref alias.typo (FN-001 violation). \
+                 Got: {:?}",
+                other
+            ),
+        }
+    }
+
+    // ── Test 70 (RED GATE): EC-11-076 Ast::SqlPipe head form of shape 1 ─────────
+
+    /// BC-2.11.016 v1.21 EC-11-076 — PER-REFERENCE SCOPING, alias-qualified SELECT ref,
+    /// `Ast::SqlPipe` form (ADV-FIX-P16-MED-001).
+    ///
+    /// Shape 1 (test 67) with `| limit 10` suffix → `Ast::SqlPipe`.
+    ///
+    /// `SELECT alias.col FROM crowdstrike_alerts AS alias
+    ///  JOIN some_other_table ON alias.severity = some_other_table.id
+    ///  WHERE col = 'x'
+    ///  | limit 10`
+    ///
+    /// The `| limit 10` stage carries no column refs (PipeStage::Limit has no field
+    /// references); the pipe-stage walk does not fire E-QUERY-038. The RED trigger is
+    /// the same head-SQL position-1 path as test 67 (Ast::SqlPipe: `sql_query = &spq.head`).
+    ///
+    /// RED GATE trigger: E-QUERY-038(col) is NOT returned at 3212070c.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11076_sqlpipe_alias_qualified_select_fires_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-076 shape 4 (SqlPipe form): `| limit 10` triggers Ast::SqlPipe.
+        // Head SQL is identical to shape 1 (test 67); per-reference scoping applies
+        // identically to Ast::SqlPipe head (sql_query = &spq.head).
+        let query = "SELECT alias.col FROM crowdstrike_alerts AS alias \
+                     JOIN some_other_table ON alias.severity = some_other_table.id \
+                     WHERE col = 'x' \
+                     | limit 10";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => {
+                // CORRECT: E-QUERY-038 fires for qualified alias.col in SqlPipe head SQL.
+                // The `| limit 10` pipe stage has no column refs; the failure is in the
+                // head-SQL position-1 path (same code path as Ast::Sql via `sql_query = &spq.head`).
+            }
+            other => panic!(
+                "BC-2.11.016 v1.21 EC-11-076 RED GATE (Ast::SqlPipe alias-qualified SELECT): \
+                 E-QUERY-038(col) MUST fire for qualified `alias.col` in SqlPipe head SQL \
+                 (bound to crowdstrike_alerts; available=[severity, timestamp]). \
+                 Per-reference scoping applies to Ast::SqlPipe head identically to Ast::Sql \
+                 (code path: `sql_query = &spq.head`). The `| limit 10` stage has no column \
+                 refs — the failure is head-SQL position-1 (same as test 67). \
+                 Bug: bare_head_cols name-keyed; bare WHERE `col` wrongly suspends \
+                 qualified head-SQL SELECT ref alias.col. Got: {:?}",
+                other
+            ),
+        }
+    }
+
+    // ── Tests 71–72: Negative controls (GREEN at 3212070c, must stay GREEN after fix) ──
+
+    // ── Test 71 (GREEN): bare-only WHERE col — HEAD-JOIN suspension preserved ────
+
+    /// BC-2.11.016 v1.21 EC-11-076 negative control — bare-only WHERE ref stays suspended.
+    ///
+    /// `SELECT severity FROM crowdstrike_alerts AS alias
+    ///  JOIN some_other_table ON alias.severity = some_other_table.id
+    ///  WHERE col = 'x'`
+    ///
+    /// `severity` is PRESENT in the FROM schema (passes check_column_availability normally).
+    /// Bare `col` in WHERE has NO co-resident qualified ref — it is purely a bare ref
+    /// and MUST remain suspended per EC-11-074 HEAD-JOIN SUSPENSION RULE (position 2 WHERE).
+    ///
+    /// GREEN at current HEAD (bare `col` correctly suspension-eligible; `severity` in schema
+    /// → check passes regardless of suspension path).
+    /// GREEN after fix (the per-reference fix must NOT change suspension behavior for
+    /// purely bare refs — only qualified refs lose their undeserved suspension exemption).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11076_bare_only_where_col_suspension_preserved() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-076 negative control 1: bare `col` in WHERE only (no qualified co-resident ref).
+        // `severity` is in FROM schema; bare `col` must remain suspension-eligible.
+        let query = "SELECT severity FROM crowdstrike_alerts AS alias \
+                     JOIN some_other_table ON alias.severity = some_other_table.id \
+                     WHERE col = 'x'";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        // Negative control: E-QUERY-038 MUST NOT fire on bare `col` (suspension-eligible).
+        // `col` is a valid column in `some_other_table` at execution — false positive class
+        // FP-001 applies if E-QUERY-038 fires here.
+        // If this panics, the EC-11-076 fix has incorrectly removed suspension for bare refs.
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
+                "BC-2.11.016 v1.21 EC-11-076 NEGATIVE CONTROL REGRESSION: E-QUERY-038(col) \
+                 fired for purely BARE `col` in WHERE — but the HEAD-JOIN SUSPENSION RULE \
+                 (EC-11-074 position 2) MUST suppress this. No qualified co-resident ref \
+                 for `col` exists here; the per-reference fix (EC-11-076) must NOT change \
+                 suspension behavior for purely bare refs. `col` is valid in `some_other_table` \
+                 at execution. column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            _ => {}
+        }
+    }
+
+    // ── Test 72 (GREEN): qualified present-col — E-QUERY-038 must NOT fire ───────
+
+    /// BC-2.11.016 v1.21 EC-11-076 negative control — qualified ref to PRESENT column.
+    ///
+    /// `SELECT alias.severity FROM crowdstrike_alerts AS alias
+    ///  JOIN some_other_table ON alias.severity = some_other_table.id`
+    ///
+    /// `alias.severity` is a qualified ref to `crowdstrike_alerts.severity` — a column
+    /// PRESENT in the FROM schema. `check_column_availability("severity", ...)` returns
+    /// Ok() → E-QUERY-038 MUST NOT fire.
+    ///
+    /// GREEN at current HEAD (present-column check passes normally).
+    /// GREEN after fix (qualified present-col path unchanged — E-QUERY-038 must not fire
+    /// because the column IS in the FROM schema, regardless of per-reference scoping).
+    #[tokio::test]
+    async fn test_BC_2_11_016_ec11076_qualified_present_col_no_e_query_038() {
+        let (engine, org) = make_engine_with_join_tables();
+
+        // EC-11-076 negative control 2: qualified ref to a PRESENT column — no error.
+        // `alias.severity` resolves to crowdstrike_alerts.severity (present in schema).
+        let query = "SELECT alias.severity FROM crowdstrike_alerts AS alias \
+                     JOIN some_other_table ON alias.severity = some_other_table.id";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        // Negative control: E-QUERY-038 MUST NOT fire for 'severity' (present in FROM schema).
+        // If this panics, the fix incorrectly fires E-QUERY-038 for qualified PRESENT columns.
+        // BC invariant: present-column checks pass normally whether or not JOINs are present
+        // and whether or not the ref is qualified.
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "severity" => panic!(
+                "BC-2.11.016 v1.21 EC-11-076 NEGATIVE CONTROL REGRESSION: FALSE E-QUERY-038 \
+                 on 'severity' — a column PRESENT in `crowdstrike_alerts` schema \
+                 (available=[severity, timestamp]). Qualified `alias.severity` correctly \
+                 resolves to `crowdstrike_alerts.severity`; `check_column_availability` must \
+                 return Ok(). The EC-11-076 fix must NOT disrupt E-QUERY-038 behavior for \
+                 qualified refs to PRESENT columns. column='{}', table='{}', available={:?}",
+                details.column, details.table, details.available_columns
+            ),
+            _ => {}
+        }
+    }
 }
 
 #[cfg(test)]
