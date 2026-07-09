@@ -2631,15 +2631,29 @@ fn check_query_column_availability(
     // the SQL head: `| where` (pos 9), `| sort` (pos 10), `| stats by` (pos 11),
     // `| fields` (pos 12), `| enrich` (pos 13), `| dedup` (pos 14).
     //
-    // BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION BINDING RULE: for explicit SELECT
-    // heads, seed the stage-walk initial `available` from the head projection output
-    // instead of the raw schema. `compute_sqlpipe_head_binding` returns:
-    //   - `None` (SELECT * → fall back to raw schema, same as Ast::Pipe)
-    //   - `Some((cols, suspended))` (explicit SELECT → head projection output)
+    // BC-2.11.016 v1.14 SQLPIPE HEAD-PROJECTION BINDING RULE: seed the stage-walk
+    // initial `available` from the head projection output. Three branches:
+    //   (a) Pure SELECT * / SELECT t.* → None (fall back to raw schema, same as Ast::Pipe)
+    //   (b) Fully-explicit SELECT (no Star/TableStar) → Some(explicit-item union)
+    //   (c) MIXED-STAR (Star/TableStar AND explicit items) → Some(schema_cols ∪ explicit-item union)
     // Head SQL clause checking (positions 1–6) above is unaffected — it always uses
     // the raw schema.
     if let crate::ast::Ast::SqlPipe(spq) = &ast {
-        let head_binding = compute_sqlpipe_head_binding(sql_query, &table_name, from_alias);
+        // Pre-compute raw schema columns so compute_sqlpipe_head_binding can use them
+        // for the MIXED-STAR branch (c) — schema_cols ∪ explicit-item contributions.
+        // (For branches (a) and (b), this value is either ignored or unused.)
+        let schema_cols = get_initial_available_columns(
+            &table_name,
+            org_scope,
+            resolved_spec_map,
+            table_registry,
+        );
+        let head_binding = compute_sqlpipe_head_binding(
+            sql_query,
+            &table_name,
+            from_alias,
+            schema_cols.as_deref(),
+        );
         check_pipe_stage_columns(
             &spq.stages,
             &table_name,
@@ -2648,7 +2662,7 @@ fn check_query_column_availability(
             resolved_spec_map,
             table_registry,
             infusion_registry,
-            head_binding, // BC-2.11.016 v1.13: head-projection seeding for SqlPipe stage walk
+            head_binding, // BC-2.11.016 v1.14: head-projection seeding for SqlPipe stage walk
         )?;
     }
 
@@ -2767,15 +2781,26 @@ fn check_column_against_available_set(
 
 /// Compute the initial binding context for the SqlPipe stage walk from the HEAD SQL projection.
 ///
-/// BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION BINDING RULE:
-/// - `SELECT *` or `SELECT table.*` head → returns `None` (caller falls back to
-///   `get_initial_available_columns`, preserving the current `SELECT *` behavior).
-/// - Explicit SELECT head → returns `Some((available_cols, suspended))` where:
-///   - `available_cols` is `{explicit AS aliases} ∪ {bare-Field un-aliased SELECT item names} ∪
-///     {bare GROUP BY field names}`, sorted and deduped.
-///   - `suspended` is `true` when any SELECT item is a non-`Field` expression WITHOUT an
-///     explicit `AS <alias>` (anonymous aggregate/computed column; output name unpredictable at
-///     plan time; FP-001 fail-open; mirrors the Stats anonymous-aggregate rule).
+/// BC-2.11.016 v1.14 SQLPIPE HEAD-PROJECTION BINDING RULE — three branches:
+///
+/// **(a) Pure-star:** all SELECT items are `Star`/`TableStar` (e.g., `SELECT *`,
+///   `SELECT t.*`) → returns `None`. Caller falls back to `get_initial_available_columns`
+///   (full raw schema), preserving existing `SELECT *` behavior.
+///
+/// **(b) Fully-explicit:** no `Star`/`TableStar` items → returns
+///   `Some(({explicit AS aliases} ∪ {bare-Field un-aliased names} ∪ {bare GROUP BY field names},
+///   suspended))`.
+///
+/// **(c) MIXED-STAR:** at least one `Star`/`TableStar` item AND at least one explicit
+///   non-star item (e.g., `SELECT *, upper(severity) AS sev_up …`) → returns
+///   `Some((schema_cols ∪ explicit-item-union, suspended))`.
+///   The `schema_cols` parameter (pre-computed raw schema for this table/org) is required for
+///   this branch; if `schema_cols` is `None` (schema unavailable) the function returns `None`
+///   (fail-open, same as branch (a)).
+///
+/// In all branches, `suspended = true` when any explicit non-`Field` SELECT item lacks an
+/// explicit `AS <alias>` (anonymous aggregate/computed column; output name unpredictable at
+/// plan time; FP-001 fail-open; mirrors the Stats anonymous-aggregate rule).
 ///
 /// Head SQL clause checking (positions 1–6) runs against raw schema unchanged; this function
 /// only affects the stage walk initial state.
@@ -2783,25 +2808,105 @@ fn compute_sqlpipe_head_binding(
     head: &crate::ast::SqlQuery,
     table_name: &str,
     from_alias: Option<&str>,
+    // Raw schema columns for this table/org — used by MIXED-STAR branch (c) to seed the
+    // union base. May be None when no schema source is available (→ fail-open via None return).
+    schema_cols: Option<&[String]>,
 ) -> Option<(Vec<String>, bool)> {
     use crate::ast::{Expr, SelectItem};
 
-    // If the SELECT contains any star-wildcard, fall back to raw schema (Ast::Pipe semantics).
     let has_star = head
         .select
         .items
         .iter()
         .any(|item| matches!(item, SelectItem::Star | SelectItem::TableStar(_)));
-    if has_star {
+    let has_explicit = head
+        .select
+        .items
+        .iter()
+        .any(|item| !matches!(item, SelectItem::Star | SelectItem::TableStar(_)));
+
+    // Branch (a): pure SELECT * / SELECT t.* — fall back to raw schema.
+    if has_star && !has_explicit {
         return None;
     }
 
+    // Branch (c): MIXED-STAR — seed the available set with raw schema columns, then add
+    // explicit-item contributions (aliases, bare fields, GROUP BY keys).
+    if has_star && has_explicit {
+        let base = match schema_cols {
+            Some(cols) => cols.to_vec(),
+            None => {
+                // No schema available for the star component — fail-open.
+                return None;
+            }
+        };
+        let mut available: Vec<String> = base;
+        let mut suspended = false;
+
+        for item in &head.select.items {
+            match item {
+                // Wildcard items contribute the full schema (already in `available` via `base`).
+                SelectItem::Star | SelectItem::TableStar(_) => {}
+
+                // Explicit AS alias — the alias is the output name regardless of the expression.
+                SelectItem::Expr {
+                    alias: Some(alias), ..
+                } => {
+                    available.push(alias.clone());
+                }
+
+                // Un-aliased bare Field — the output name is the column name itself.
+                // (The column is already reachable via the star component, but add it
+                // explicitly so sorting/dedup logic is consistent.)
+                SelectItem::Expr {
+                    expr: Expr::Field(fp),
+                    alias: None,
+                } => {
+                    if let Some(col) =
+                        extract_column_name_from_field_path(fp, table_name, from_alias)
+                    {
+                        available.push(col);
+                    }
+                }
+
+                // Un-aliased VirtualField — skip without suspending.
+                SelectItem::Expr {
+                    expr: Expr::VirtualField(_),
+                    alias: None,
+                } => {}
+
+                // Un-aliased non-Field expression (e.g., `count(*)`, `sum(amount)`).
+                // Output name is unpredictable at plan time → suspended := true (FP-001).
+                SelectItem::Expr { alias: None, .. } => {
+                    suspended = true;
+                }
+
+                #[allow(unreachable_patterns)]
+                _ => {}
+            }
+        }
+
+        // GROUP BY bare-field names (grouping keys always present in aggregate result).
+        for expr in &head.group_by {
+            if let Expr::Field(fp) = expr {
+                if let Some(col) = extract_column_name_from_field_path(fp, table_name, from_alias) {
+                    available.push(col);
+                }
+            }
+        }
+
+        available.sort();
+        available.dedup();
+        return Some((available, suspended));
+    }
+
+    // Branch (b): fully-explicit SELECT (no Star/TableStar items).
     let mut available: Vec<String> = Vec::new();
     let mut suspended = false;
 
     for item in &head.select.items {
         match item {
-            // Wildcard items — already handled by has_star check above; unreachable here.
+            // No wildcards in this branch — unreachable, but keep match exhaustive.
             SelectItem::Star | SelectItem::TableStar(_) => {}
 
             // Explicit AS alias — the alias is the output name regardless of the expression.
