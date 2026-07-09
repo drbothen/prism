@@ -758,7 +758,7 @@ pub async fn run_materialization_pipeline(
             "{}:{:?}:{}:{}",
             target.client_id.as_str(),
             target.sensor_id,
-            &target.source_table,
+            target.source_table,
             serde_json::to_string(&where_filters).unwrap_or_default()
         );
 

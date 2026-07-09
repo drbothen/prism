@@ -162,6 +162,13 @@ impl ColumnNotFoundDetails {
     ///
     /// Required because `#[non_exhaustive]` prevents struct literal construction
     /// from outside `prism-core`. (CLAUDE.md `#[non_exhaustive]` discipline)
+    ///
+    /// **Injection-safety (BC-2.11.016 v1.22 §Postconditions):** the `column` field
+    /// is sanitized via [`sanitize_for_log`] at construction — Unicode Cc characters
+    /// and U+2028/U+2029 line/paragraph separators are stripped before storage.
+    /// This guarantees that `ColumnNotFoundDetails.column` and its `Display`
+    /// rendering are free of log-injection vectors regardless of call site.
+    /// `available_columns` and `did_you_mean` are server-controlled and untouched.
     pub fn new(
         column: impl Into<String>,
         table: impl Into<String>,
@@ -170,7 +177,7 @@ impl ColumnNotFoundDetails {
         did_you_mean: Option<String>,
     ) -> Self {
         Self {
-            column: column.into(),
+            column: sanitize_for_log(&column.into()),
             table: table.into(),
             client_id: client_id.into(),
             available_columns,
