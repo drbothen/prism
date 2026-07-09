@@ -8670,6 +8670,692 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             ),
         }
     }
+
+    // ── Fixture: armis_devices engine (EC-11-054, EC-11-056) ──────────────────
+
+    /// Build an `armis_devices` engine (sensor="armis", table="devices") under org "acme".
+    /// Valid columns: `device_cves_first` (String), `device_id` (String).
+    ///
+    /// No InfusionRegistry wired — E-QUERY-039 check is skipped; enrichment output
+    /// schema is therefore unresolvable at plan time → suspension path activates after
+    /// fix. This is the correct path for EC-11-054 (CRIT-001) and EC-11-055.
+    ///
+    /// For EC-11-056 (position 13 input typo), only the input column check fires;
+    /// the lack of InfusionRegistry is irrelevant to that check.
+    fn make_armis_engine() -> (QueryEngine, OrgSlug) {
+        let org = OrgSlug::new("acme");
+        let sensor_id = "armis";
+        let table_suffix = "devices";
+
+        let columns = vec![
+            ColumnSpec::new("device_cves_first", ColumnType::String, None, vec![]),
+            ColumnSpec::new("device_id", ColumnType::String, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            sensor_id,
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://api.armis.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "inventory_device",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("register armis must not fail");
+
+        let overlay_toml = format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@acme\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("DRIFT-IEQ armis fixture: SensorInstanceOverlay TOML must parse");
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org.clone());
+        let key: ResolvedSpecKey = (org.clone(), SensorId::new(sensor_id));
+        let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![org.clone()])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_table_registry(registry);
+
+        (engine, org)
+    }
+
+    // ── Fixture: single-tenant crowdstrike engine with severity_id:Integer (HIGH-001) ──
+
+    /// Build a `crowdstrike_alerts` engine WITHOUT `resolved_spec_map` (single-tenant mode).
+    /// Valid columns: `severity` (String), `severity_id` (Integer), `timestamp` (Datetime).
+    ///
+    /// The engine uses only `table_registry` for column availability; `resolved_spec_map`
+    /// is intentionally left as `None`. This reproduces the single-tenant deployment path
+    /// where `check_column_availability` uses the M1-era `table_registry.columns_for_table()`
+    /// fallback but `check_operator_type_compatibility` currently returns `Ok(())` immediately
+    /// because it gates on `resolved_spec_map.is_some()` — the HIGH-001 bug.
+    fn make_crowdstrike_engine_no_spec_map_with_severity_id_int() -> QueryEngine {
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("severity_id", ColumnType::Integer, None, vec![]),
+            ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+        ];
+
+        let spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&spec)
+            .expect("register crowdstrike must not fail");
+
+        // Build engine WITHOUT resolved_spec_map (single-tenant mode — M1-era path).
+        // resolved_spec_map defaults to None in new_with_cache_config.
+        QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(registry)
+        // resolved_spec_map is NOT wired — single-tenant mode.
+    }
+
+    // ── Tests 11-13 (RED GATE): CRIT-002 — stats alias downstream (EC-11-053) ─
+
+    /// BC-2.11.016 v1.8 EC-11-053 / CRIT-002 regression lock — sort after stats with alias.
+    ///
+    /// `crowdstrike_alerts | stats count() as cnt by severity | sort cnt`
+    /// — `cnt` is the explicit alias from the stats aggregate output. After the Stats
+    /// stage, the binding context replaces `available` with `{cnt, severity}` per the
+    /// DERIVED-COLUMN BINDING RULE (BC-2.11.016 v1.8 §Preconditions.2). The downstream
+    /// `| sort cnt` must NOT fire E-QUERY-038 because `cnt` is in the new available set.
+    ///
+    /// Grammar note: the BC's EC-11-053 writes `\| sort by cnt` but the PrismQL sort
+    /// stage grammar has no `by` keyword — `by` is only used inside `stats`. Using
+    /// `sort cnt` (bare field, ascending) which is the correct syntax per pipe_parser.rs.
+    ///
+    /// RED GATE: current code has no binding context for Stats — it checks `cnt` against
+    /// the ORIGINAL schema `{severity, timestamp}` where `cnt` is absent → false-positive
+    /// E-QUERY-038. The fix must implement Stats REPLACE semantics so downstream sort
+    /// sees `{cnt, severity}` instead of the original schema.
+    #[tokio::test]
+    async fn test_BC_2_11_016_crit002_stats_alias_downstream_sort_no_false_positive() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // EC-11-053: stats alias `cnt` must be visible to downstream `| sort cnt`.
+        // Grammar: `stats count() as cnt by severity` → alias "cnt"; `| sort cnt` → sort key.
+        let query = "crowdstrike_alerts | stats count() as cnt by severity | sort cnt";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "cnt" => {
+                panic!(
+                    "BC-2.11.016 CRIT-002 sort: FALSE-POSITIVE E-QUERY-038 fired on stats \
+                     aggregate alias 'cnt' in downstream | sort stage. The Stats stage REPLACE \
+                     semantics must update the binding context to {{cnt, severity}} so that \
+                     downstream stages see 'cnt' as valid. Current code checks 'cnt' against \
+                     the ORIGINAL schema {{severity, timestamp}} — 'cnt' is absent → \
+                     incorrect rejection. EC-11-053 regression lock. column='{}', table='{}'",
+                    details.column, details.table
+                )
+            }
+            // Any non-ColumnNotFound result is acceptable — the invariant is that the
+            // Stats alias 'cnt' must NOT produce a false-positive E-QUERY-038 in sort.
+            _ => {}
+        }
+    }
+
+    /// BC-2.11.016 v1.8 EC-11-053 / CRIT-002 regression lock — where after stats with alias.
+    ///
+    /// `crowdstrike_alerts | stats count() as cnt by severity | where cnt > 5`
+    /// — after Stats, `cnt` is in the replacement binding set `{cnt, severity}`.
+    /// The downstream `| where cnt > 5` must NOT fire E-QUERY-038 on `cnt`.
+    ///
+    /// RED GATE: same as the sort variant — current code checks `cnt` against the
+    /// original schema where it is absent, producing a false-positive E-QUERY-038.
+    #[tokio::test]
+    async fn test_BC_2_11_016_crit002_stats_alias_downstream_where_no_false_positive() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // EC-11-053: stats alias `cnt` must be visible to downstream `| where cnt > 5`.
+        let query = "crowdstrike_alerts | stats count() as cnt by severity | where cnt > 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "cnt" => {
+                panic!(
+                    "BC-2.11.016 CRIT-002 where: FALSE-POSITIVE E-QUERY-038 fired on stats \
+                     aggregate alias 'cnt' in downstream | where stage. Stats REPLACE binding \
+                     must make 'cnt' visible downstream. EC-11-053 regression lock. \
+                     column='{}', table='{}'",
+                    details.column, details.table
+                )
+            }
+            _ => {}
+        }
+    }
+
+    /// BC-2.11.016 v1.8 EC-11-053 / CRIT-002 regression lock — fields after stats with alias.
+    ///
+    /// `crowdstrike_alerts | stats count() as cnt by severity | fields cnt, severity`
+    /// — after Stats, `{cnt, severity}` is the replacement binding set. The downstream
+    /// `| fields cnt, severity` must NOT fire E-QUERY-038 on `cnt`.
+    ///
+    /// RED GATE: current code checks `cnt` against original schema → false-positive E-QUERY-038.
+    #[tokio::test]
+    async fn test_BC_2_11_016_crit002_stats_alias_downstream_fields_no_false_positive() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // EC-11-053: stats alias `cnt` must be visible to downstream `| fields cnt, severity`.
+        let query = "crowdstrike_alerts | stats count() as cnt by severity | fields cnt, severity";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "cnt" => {
+                panic!(
+                    "BC-2.11.016 CRIT-002 fields: FALSE-POSITIVE E-QUERY-038 fired on stats \
+                     aggregate alias 'cnt' in downstream | fields stage. Stats REPLACE binding \
+                     must make 'cnt' visible downstream. EC-11-053 regression lock. \
+                     column='{}', table='{}'",
+                    details.column, details.table
+                )
+            }
+            _ => {}
+        }
+    }
+
+    // ── Test 14 (RED GATE): Stats REPLACE semantics — original column removed ──
+
+    /// BC-2.11.016 v1.8 — Stats REPLACE semantics precision win.
+    ///
+    /// After a `| stats count() as cnt by severity` stage, the binding context `available`
+    /// is REPLACED with `{cnt, severity}` (explicit aliases ∪ by-field names). The original
+    /// schema column `timestamp` is NOT in the replacement set and must trigger E-QUERY-038
+    /// when referenced in a downstream `| sort timestamp`.
+    ///
+    /// This is the precision win of REPLACE vs UNION: UNION would still allow `timestamp`
+    /// (it remains in the union), but REPLACE correctly rejects it because after a stats
+    /// aggregation, only the aggregate outputs and GROUP BY keys remain in the result.
+    /// Referencing `timestamp` after stats is a logical error that the gate should catch.
+    ///
+    /// RED GATE: current code has no binding context — it checks `timestamp` against the
+    /// ORIGINAL schema `{severity, timestamp}` where it IS present → no E-QUERY-038. The
+    /// fix must replace `available` with `{cnt, severity}` so that `timestamp` is absent
+    /// from the downstream sort check.
+    #[tokio::test]
+    async fn test_BC_2_11_016_stats_replace_removes_original_schema_col_yields_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `timestamp` is in the original schema but NOT in the Stats replacement set {cnt, severity}.
+        // After fix: E-QUERY-038 fires on `timestamp` in the downstream | sort stage.
+        // Before fix: `timestamp` is in the original schema → no E-QUERY-038 (WRONG — false negative).
+        let query = "crowdstrike_alerts | stats count() as cnt by severity | sort timestamp";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "timestamp",
+                    "BC-2.11.016 REPLACE: Stats binding REPLACE must gate on 'timestamp' \
+                     (not in {{cnt, severity}} replacement set); got column='{}', table='{}'",
+                    details.column, details.table
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "BC-2.11.016 REPLACE: table must be 'crowdstrike_alerts'"
+                );
+                // 'timestamp' is distance >3 from 'cnt' and 'severity' — did_you_mean absent.
+                // No assertion on did_you_mean (implementation detail).
+            }
+            Ok(_) => panic!(
+                "BC-2.11.016 REPLACE: engine.execute must NOT succeed — 'timestamp' is NOT in \
+                 the Stats replacement binding set {{cnt, severity}} and must trigger E-QUERY-038. \
+                 Before the fix, current code checks 'timestamp' against the ORIGINAL schema \
+                 {{severity, timestamp}} where it IS present → no error (false negative). \
+                 The Stats REPLACE semantics are not yet implemented."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 REPLACE: expected PrismError::ColumnNotFound (E-QUERY-038) for \
+                 'timestamp' after Stats REPLACE, got: {other:?}"
+            ),
+        }
+    }
+
+    // ── Tests 15-16 (RED GATE): CRIT-001 — enrich output (EC-11-054/055) ────────
+
+    /// BC-2.11.016 v1.8 EC-11-054 / CRIT-001 regression lock — enrich output downstream.
+    ///
+    /// `armis_devices | enrich cvss_base_score(device_cves_first) | where cvss_base_score >= 7.0`
+    /// — after the Enrich stage, `cvss_base_score` is either added to `available` (if the
+    /// infusion output is statically resolvable) OR `suspended = true` (if it is not). Either
+    /// way, the downstream `| where cvss_base_score >= 7.0` must NOT fire E-QUERY-038.
+    ///
+    /// Fixture approach (per task: "stub at the lowest real boundary"):
+    /// This fixture uses NO InfusionRegistry (`infusion_registry = None`) so E-QUERY-039 is
+    /// skipped and the infusion output is unresolvable at plan time. The fix must activate
+    /// `suspended = true` after the Enrich stage in this configuration, preventing downstream
+    /// column checks. This exercises BC-2.11.016 v1.8 §DERIVED-COLUMN BINDING RULE ¶Enrich
+    /// unresolvable path (equivalent to the fail-open semantics of FP-001).
+    ///
+    /// RED GATE: current code falls through to `_ => {}` for `PipeStage::Enrich` in
+    /// `check_pipe_stage_columns`, then the WHERE stage fires E-QUERY-038 on `cvss_base_score`
+    /// (not in original schema `{device_cves_first, device_id}`) — FALSE-POSITIVE.
+    #[tokio::test]
+    async fn test_BC_2_11_016_crit001_ec11054_enrich_output_downstream_no_false_positive() {
+        let (engine, org) = make_armis_engine();
+
+        // EC-11-054: `cvss_base_score` is the infusion output, not in the original schema.
+        // It must NOT trigger E-QUERY-038 — either union (resolvable) or suspension (unresolvable).
+        // This fixture exercises the unresolvable path (no InfusionRegistry → suspension).
+        let query =
+            "armis_devices | enrich cvss_base_score(device_cves_first) | where cvss_base_score >= 7.0";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "cvss_base_score" => {
+                panic!(
+                    "BC-2.11.016 CRIT-001 EC-11-054: FALSE-POSITIVE E-QUERY-038 fired on \
+                     enrich output column 'cvss_base_score' in downstream | where stage. \
+                     After Enrich, either 'cvss_base_score' must be in the available set \
+                     (resolvable) or suspended=true (unresolvable) — neither path should fire \
+                     E-QUERY-038 on this column. FP-001 invariant violated. \
+                     column='{}', table='{}'",
+                    details.column, details.table
+                )
+            }
+            // Any other result (execution error, Ok) is acceptable — the invariant is
+            // that the ENRICH output column must NOT produce a false-positive E-QUERY-038.
+            _ => {}
+        }
+    }
+
+    /// BC-2.11.016 v1.8 EC-11-055 / CRIT-001 regression lock — post-enrich typo, fail-open.
+    ///
+    /// `armis_devices | enrich cvss_base_score(device_cves_first) | where cvvs_base_score >= 7.0`
+    /// — `cvvs_base_score` is a TYPO of `cvss_base_score` (Levenshtein distance 2: swap 'vs'/'cv').
+    /// When the infusion output is unresolvable, `suspended = true` activates after Enrich,
+    /// and ALL subsequent column checks are skipped. The downstream WHERE stage must NOT fire
+    /// E-QUERY-038 on `cvvs_base_score` — this is the fail-open tolerated outcome (EC-11-055).
+    ///
+    /// Per BC v1.8 FP-001 invariant: false negatives (missing a typo in infusion output) are
+    /// acceptable; false positives on correct queries are BLOCKING defects. When the output
+    /// schema is unresolvable, the gate must fail-open for ALL downstream columns.
+    ///
+    /// RED GATE: same as EC-11-054 — current code fires E-QUERY-038 on `cvvs_base_score`
+    /// (not in schema) because there is no suspension logic.
+    #[tokio::test]
+    async fn test_BC_2_11_016_crit001_ec11055_post_enrich_typo_fail_open_no_e_query_038() {
+        let (engine, org) = make_armis_engine();
+
+        // EC-11-055: `cvvs_base_score` is a typo — after suspension, it must NOT trigger
+        // E-QUERY-038 (false negative accepted; false positive is FP-001 violation).
+        let query =
+            "armis_devices | enrich cvss_base_score(device_cves_first) | where cvvs_base_score >= 7.0";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "cvvs_base_score" => {
+                panic!(
+                    "BC-2.11.016 CRIT-001 EC-11-055: FALSE-POSITIVE E-QUERY-038 fired on \
+                     post-enrich column reference 'cvvs_base_score'. When the infusion output \
+                     is unresolvable (suspended=true), ALL downstream column checks must be \
+                     skipped per FP-001 fail-open rule. column='{}', table='{}'",
+                    details.column, details.table
+                )
+            }
+            _ => {}
+        }
+    }
+
+    // ── Test 17 (RED GATE): Position 13 — enrich input column typo (EC-11-056) ─
+
+    /// BC-2.11.016 v1.8 position 13 / EC-11-056 — enrich INPUT column typo → E-QUERY-038.
+    ///
+    /// `armis_devices | enrich cvss_base_score(device_cves_firsst) | head 5`
+    /// — `device_cves_firsst` is a typo of `device_cves_first` (Levenshtein distance 1:
+    /// extra 's'). The ENRICH INPUT column is checked against `available` BEFORE the
+    /// Enrich stage updates the binding context (position 13 in the BC gate table).
+    /// `device_cves_firsst` is NOT in the original schema → E-QUERY-038 fires with
+    /// `column: "device_cves_firsst"` and `did_you_mean: "device_cves_first"`.
+    ///
+    /// RED GATE: current `check_pipe_stage_columns` has `PipeStage::Enrich` in the
+    /// `_ => {}` catch-all (position 13 gate does not exist yet). The fix must add a
+    /// `PipeStage::Enrich(es)` arm that checks `es.field` against the current binding set
+    /// BEFORE updating the context.
+    ///
+    /// Note: `head 5` maps to `PipeStage::Limit(5)` which carries no column refs.
+    /// E-QUERY-039 does NOT fire (no InfusionRegistry wired → `check_enrich_udf_availability`
+    /// returns Ok immediately).
+    #[tokio::test]
+    async fn test_BC_2_11_016_pos13_ec11056_enrich_input_typo_yields_e_query_038() {
+        let (engine, org) = make_armis_engine();
+
+        // `device_cves_firsst` (extra 's') is NOT in schema; `device_cves_first` is.
+        // Levenshtein distance 1 → did_you_mean: "device_cves_first".
+        let query = "armis_devices | enrich cvss_base_score(device_cves_firsst) | head 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "device_cves_firsst",
+                    "BC-2.11.016 pos-13 EC-11-056: column in E-QUERY-038 must be \
+                     'device_cves_firsst' (enrich input typo); got: '{}'",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "armis_devices",
+                    "BC-2.11.016 pos-13 EC-11-056: table must be 'armis_devices'"
+                );
+                assert_eq!(
+                    details.did_you_mean.as_deref(),
+                    Some("device_cves_first"),
+                    "BC-2.11.016 pos-13 EC-11-056: did_you_mean must be 'device_cves_first' \
+                     (Levenshtein distance 1 from 'device_cves_firsst'); got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "BC-2.11.016 pos-13 EC-11-056: engine.execute must NOT succeed — E-QUERY-038 \
+                 must fire for enrich input typo 'device_cves_firsst'. Before the fix, \
+                 PipeStage::Enrich falls through check_pipe_stage_columns `_ => {{}}` catch-all \
+                 — position 13 gate does not exist."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 pos-13 EC-11-056: expected PrismError::ColumnNotFound \
+                 (E-QUERY-038) for enrich input typo, got: {other:?}"
+            ),
+        }
+    }
+
+    // ── Test 18 (RED GATE): Position 14 — dedup field typo → E-QUERY-038 ────────
+
+    /// BC-2.11.016 v1.8 position 14 / EC-11-057 (adapted for crowdstrike) — dedup typo.
+    ///
+    /// `crowdstrike_alerts | dedup sevrity | head 5`
+    /// — `sevrity` is a typo of `severity` (Levenshtein distance 1: missing 'e' between
+    /// 'v' and 'r'). The `dedup` field keys are validated against the current binding set
+    /// at position 14. `sevrity` is NOT in the schema → E-QUERY-038 with
+    /// `column: "sevrity"`, `table: "crowdstrike_alerts"`, `did_you_mean: "severity"`.
+    ///
+    /// RED GATE: current `check_pipe_stage_columns` treats `PipeStage::Dedup` as
+    /// `_ => {}` (position 14 gate does not exist). The fix must add a `PipeStage::Dedup`
+    /// arm that iterates the `Vec<FieldPath>` dedup keys and calls `check_column_availability`
+    /// on each, consistent with the `PipeStage::Sort` arm (position 10).
+    ///
+    /// Note: `head 5` → `PipeStage::Limit(5)` — no column refs; does not interfere.
+    #[tokio::test]
+    async fn test_BC_2_11_016_pos14_dedup_typo_yields_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `sevrity` (distance 1 from "severity") is NOT in the schema.
+        let query = "crowdstrike_alerts | dedup sevrity | head 5";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "sevrity",
+                    "BC-2.11.016 pos-14: column in E-QUERY-038 must be 'sevrity' \
+                     (dedup key typo); got: '{}'",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "BC-2.11.016 pos-14: table must be 'crowdstrike_alerts'"
+                );
+                assert_eq!(
+                    details.did_you_mean.as_deref(),
+                    Some("severity"),
+                    "BC-2.11.016 pos-14: did_you_mean must be 'severity' \
+                     (distance 1 from 'sevrity'); got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "BC-2.11.016 pos-14: engine.execute must NOT succeed — E-QUERY-038 must fire \
+                 for dedup key typo 'sevrity'. Before the fix, PipeStage::Dedup falls through \
+                 check_pipe_stage_columns `_ => {{}}` catch-all — position 14 gate does not exist."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 pos-14: expected PrismError::ColumnNotFound (E-QUERY-038) for \
+                 dedup typo, got: {other:?}"
+            ),
+        }
+    }
+
+    // ── Test 19 (RED GATE): HIGH-001 — single-tenant E-QUERY-002 ─────────────────
+
+    /// BC-2.11.016 v1.8 HIGH-001 — single-tenant path must fire E-QUERY-002.
+    ///
+    /// In single-tenant mode (`resolved_spec_map = None`), the E-QUERY-038 column-existence
+    /// gate fires via the `table_registry.columns_for_table()` fallback (M1 fix). However,
+    /// the E-QUERY-002 type-compatibility gate (`check_operator_type_compatibility`) currently
+    /// returns `Ok(())` immediately when `resolved_spec_map` is `None` (line 3055-3057 in
+    /// engine.rs). This means `severity_id IEQ 'high'` — where `severity_id` is registered
+    /// as Integer — does NOT fire E-QUERY-002 in single-tenant mode; instead the query
+    /// proceeds to execution (and fails opaquely with a DataFusion error).
+    ///
+    /// After fix: `check_operator_type_compatibility` falls back to `table_registry` for
+    /// column type lookup (same M1 pattern as `check_column_availability`), finds
+    /// `severity_id: Integer`, determines `IEQ` is not valid for Integer, and returns
+    /// `PrismError::QueryTypeMismatch` with `suggested_column: Some("severity")` (OCSF sibling).
+    ///
+    /// Fixture: `make_crowdstrike_engine_no_spec_map_with_severity_id_int()` — table_registry
+    /// only, no `resolved_spec_map`, severity_id:Integer in schema.
+    ///
+    /// RED GATE: current `check_operator_type_compatibility` returns Ok when spec_map is None
+    /// → no E-QUERY-002 fires → test panics on Ok or wrong-error branch.
+    #[tokio::test]
+    async fn test_BC_2_11_016_high001_single_tenant_int_col_ieq_yields_e_query_002() {
+        let engine = make_crowdstrike_engine_no_spec_map_with_severity_id_int();
+
+        // `severity_id` IS in schema (Integer). IEQ is not valid for Integer.
+        // Must NOT produce ColumnNotFound (E-QUERY-038 — column exists).
+        // MUST produce QueryTypeMismatch (E-QUERY-002 — operator invalid for type).
+        // Filter mode: `crowdstrike_alerts | severity_id IEQ 'high'` (Ast::Filter).
+        let query = "crowdstrike_alerts | severity_id IEQ 'high'";
+
+        let result = engine.execute(query, QueryOptions::default()).await;
+
+        match result {
+            Err(PrismError::QueryTypeMismatch {
+                ref column,
+                ref table,
+                ref suggested_column,
+                ..
+            }) => {
+                assert_eq!(
+                    column.as_str(),
+                    "severity_id",
+                    "BC-2.11.016 HIGH-001: column in E-QUERY-002 must be 'severity_id'; \
+                     got: {column:?}"
+                );
+                assert_eq!(
+                    table.as_str(),
+                    "crowdstrike_alerts",
+                    "BC-2.11.016 HIGH-001: table in E-QUERY-002 must be 'crowdstrike_alerts'"
+                );
+                assert_eq!(
+                    suggested_column.as_deref(),
+                    Some("severity"),
+                    "BC-2.11.016 HIGH-001: suggested_column must be Some(\"severity\") \
+                     (OCSF sibling: severity_id → severity); got: {suggested_column:?}"
+                );
+            }
+            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+                "BC-2.11.016 HIGH-001: E-QUERY-038 (ColumnNotFound) fired for EXISTING column \
+                 'severity_id' — gate ordering violated. E-QUERY-038 must NOT fire for an \
+                 existing column. Got: column='{}', table='{}'",
+                d.column, d.table
+            ),
+            Ok(_) => panic!(
+                "BC-2.11.016 HIGH-001: engine.execute returned Ok — IEQ is not valid for \
+                 Integer column 'severity_id'; E-QUERY-002 must fire. Current code returns Ok \
+                 in single-tenant mode because check_operator_type_compatibility returns Ok(()) \
+                 immediately when resolved_spec_map is None (RED gate)."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 HIGH-001: expected PrismError::QueryTypeMismatch (E-QUERY-002), \
+                 got different error: {other:?}. check_operator_type_compatibility must extend \
+                 to use table_registry fallback (same M1 pattern as check_column_availability)."
+            ),
+        }
+    }
+
+    // ── Test 20 (RED GATE): Anonymous aggregate suspension ───────────────────────
+
+    /// BC-2.11.016 v1.8 — anonymous aggregate suspension → no E-QUERY-038 downstream.
+    ///
+    /// `crowdstrike_alerts | stats count() by severity | sort count`
+    /// — `count()` has NO explicit `AS alias`. The Stats stage replacement set is
+    /// `{} ∪ {severity}` = `{severity}` (anonymous aggregates do not contribute per
+    /// BC v1.8 §DERIVED-COLUMN BINDING RULE). Because the auto-generated DataFusion name
+    /// for anonymous aggregates is not predictable at plan time, the gate MUST fail-open
+    /// for downstream references to those names.
+    ///
+    /// Per BC v1.8: "Anonymous aggregations (no explicit `as alias`) do not contribute to
+    /// the replacement set — their DataFusion-generated names are not predictable at plan
+    /// time; fail-open for those references in subsequent stages." This means the gate
+    /// must set `suspended = true` (or equivalent) when anonymous aggregates are present,
+    /// so that downstream `| sort count` does NOT trigger E-QUERY-038 on `count`.
+    ///
+    /// RED GATE: current code has no Stats binding context at all — it checks `count`
+    /// against the original schema `{severity, timestamp}` where `count` is absent →
+    /// false-positive E-QUERY-038. The fix must activate suspension (or equivalent
+    /// fail-open) when anonymous aggregates are present after a Stats stage.
+    #[tokio::test]
+    async fn test_BC_2_11_016_anonymous_agg_suspension_no_false_positive_e_query_038() {
+        let (engine, org) = make_crowdstrike_engine();
+
+        // `stats count() by severity` — no alias on count(); `| sort count` references
+        // the anonymous aggregate auto-name. Must NOT fire E-QUERY-038.
+        let query = "crowdstrike_alerts | stats count() by severity | sort count";
+
+        let result = engine
+            .execute(
+                query,
+                QueryOptions {
+                    clients: Some(vec![org]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) if details.column == "count" => {
+                panic!(
+                    "BC-2.11.016 anonymous-agg: FALSE-POSITIVE E-QUERY-038 fired on anonymous \
+                     aggregate reference 'count' in downstream | sort stage. When stats has \
+                     anonymous aggregates, the gate must fail-open (suspended=true or equivalent) \
+                     for downstream column refs — DataFusion auto-names are not predictable at \
+                     plan time. FP-001 invariant violated. column='{}', table='{}'",
+                    details.column, details.table
+                )
+            }
+            // Any other result is acceptable — invariant is no false-positive on anonymous agg name.
+            _ => {}
+        }
+    }
 }
 
 #[cfg(test)]
