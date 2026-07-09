@@ -881,6 +881,7 @@ impl QueryEngine {
             options.clients.as_deref(),
             resolved_spec_snapshot.as_deref(),
             self.table_registry.as_deref(),
+            self.infusion_registry.as_deref(),
         )?;
 
         // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: Plan-time enrichment UDF gate (E-QUERY-039).
@@ -1212,6 +1213,7 @@ impl QueryEngine {
             clients.as_deref(),
             resolved_spec_snapshot_scheduled.as_deref(),
             self.table_registry.as_deref(),
+            self.infusion_registry.as_deref(),
         )?;
 
         // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: E-QUERY-039 enrichment UDF gate for
@@ -2299,6 +2301,7 @@ fn check_query_column_availability(
         >,
     >,
     table_registry: Option<&crate::table_registry::TableRegistry>,
+    infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
 ) -> Result<(), PrismError> {
     use crate::ast::{Ast, Expr, SelectItem, SqlStatement};
     use crate::filter_parser::PrismQlParser;
@@ -2421,6 +2424,7 @@ fn check_query_column_availability(
                 org_scope,
                 resolved_spec_map,
                 table_registry,
+                infusion_registry,
             )?;
             return Ok(());
         }
@@ -2632,6 +2636,7 @@ fn check_query_column_availability(
             org_scope,
             resolved_spec_map,
             table_registry,
+            infusion_registry,
         )?;
     }
 
@@ -2792,6 +2797,7 @@ fn check_pipe_stage_columns(
         >,
     >,
     table_registry: Option<&crate::table_registry::TableRegistry>,
+    infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
 ) -> Result<(), PrismError> {
     use crate::ast::PipeStage;
 
@@ -2924,10 +2930,13 @@ fn check_pipe_stage_columns(
             }
             // Position 13: `| enrich f(input_col)` input column — E-QUERY-038 existence only.
             // The input column is checked against `available` BEFORE this stage updates the
-            // binding context (BC-2.11.016 v1.8 position 13). After the check: infusion output
-            // schema is NOT resolved at this layer (InfusionRegistry is not plumbed into
-            // check_pipe_stage_columns); set suspended = true so downstream stages do not
-            // fire false-positive E-QUERY-038 on infusion output columns (FP-001 / EC-11-054).
+            // binding context (BC-2.11.016 v1.8 position 13).
+            //
+            // BC-2.11.016 v1.9 union path: when InfusionRegistry is wired (registry = Some),
+            // resolve the infusion output schema and UNION output_columns into current_available
+            // so downstream stages can check references to enrich output columns (EC-11-054
+            // green-lock + EC-11-056 new test). When registry is absent, fall back to suspend
+            // (existing fail-open behavior — keeps EC-11-054/EC-11-055 no-registry tests GREEN).
             PipeStage::Enrich(es) => {
                 if let Some(col) = extract_column_name_from_field_path(&es.field, table_name, None)
                 {
@@ -2938,10 +2947,35 @@ fn check_pipe_stage_columns(
                         &current_available,
                     )?;
                 }
-                // Infusion output schema unresolvable at this layer → suspend all downstream
-                // column checks (fail-open per BC-2.11.016 v1.8 §DERIVED-COLUMN BINDING RULE
-                // ¶Enrich, and FP-001 invariant).
-                suspended = true;
+                if let Some(registry) = infusion_registry {
+                    // Registry wired: resolve the infusion_id for this UDF name, then fetch the
+                    // output column list via enrich_descriptor. UNION output_columns into
+                    // current_available so post-enrich stages see the enriched binding context.
+                    //
+                    // Defensive: if the descriptor lookup fails (shouldn't happen post-E-QUERY-039
+                    // validation, but code defensively), fall back to suspend (fail-open / FP-001).
+                    let resolved_descriptor = registry
+                        .udf_descriptors()
+                        .into_iter()
+                        .find(|d| d.name == es.infusion)
+                        .and_then(|d| registry.enrich_descriptor(&d.infusion_id).ok());
+                    if let Some(descriptor) = resolved_descriptor {
+                        for col in &descriptor.output_columns {
+                            if !current_available.contains(col) {
+                                current_available.push(col.clone());
+                            }
+                        }
+                        current_available.sort();
+                        current_available.dedup();
+                        // Do NOT suspend — downstream stages have the enriched binding context.
+                    } else {
+                        // Descriptor lookup failed (defensive path) → fail-open.
+                        suspended = true;
+                    }
+                } else {
+                    // No registry wired → suspend all downstream checks (FP-001 / EC-11-054).
+                    suspended = true;
+                }
             }
             // Position 14: `| dedup` field keys — E-QUERY-038 existence only.
             // Dedup field paths are plain column refs (same as sort keys position 10);
