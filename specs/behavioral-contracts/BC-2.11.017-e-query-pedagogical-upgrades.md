@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: active
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -15,7 +15,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: 2026-06-19
-modified: 2026-06-22
+modified: 2026-07-09
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -145,6 +145,7 @@ No new E-QUERY codes are allocated. The error taxonomy rows for 001, 002, 003, a
 - DI-019: The security limits themselves (E-QUERY-003) are not relaxed by this enrichment. The `how_to_fix` field is guidance for the model, not a new limit or exception path.
 - DI-006: `near_text` (E-QUERY-001) is a substring of the model's own PQL input — not sensor data. Truncated to ≤ 50 characters. No sensor API response data flows into any of these enrichment fields.
 - DI-002: None of these enrichment fields (`near_text`, `valid_operators_for_type`, `how_to_fix`, updated `suggestion`) contain credential values or internal API URLs.
+- **SIBLING-GATE CONSISTENCY cross-reference (BC-2.11.016 v1.15):** The E-QUERY-002 type-compat gate (`check_operator_type_compatibility`) runs as a sibling gate inside the same `check_pipe_stage_columns` binding-context walk as E-QUERY-038. When a column name is bound with DERIVED provenance in the running binding context (i.e., it is a stats output alias, enrich output column, SqlPipe head alias, or any name that shadows a raw-schema column under a derived context — per BC-2.11.016 §Preconditions DERIVED-COLUMN BINDING RULE SIBLING-GATE CONSISTENCY clause), the E-QUERY-002 gate MUST fail open for that name (skip type-compat checking). Applying the raw-schema type to a DERIVED name produces a false E-QUERY-002 on a query that would succeed at execution (FP-001 violation). This constraint is co-defined in BC-2.11.016 v1.15 SIBLING-GATE CONSISTENCY clause and cannot be tested in isolation against this BC — it is a cross-gate constraint enforced by the shared binding-context walk.
 
 ## Error Cases
 
@@ -214,6 +215,7 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | FIX-IEQ-ERRPATH-001-ADV-FIX-P7-MED-001-OBS-001-OBS-002 | 2026-07-09 | product-owner | **ADV-FIX-P7-MED-001 POL-25 cross-reference: SIBLING-GATE CONSISTENCY invariant added.** BC-2.11.016 v1.15 introduces the SIBLING-GATE CONSISTENCY clause establishing that the E-QUERY-002 type-compat gate MUST honor the same per-name provenance (RAW vs DERIVED) as the E-QUERY-038 existence gate in `check_pipe_stage_columns`. This BC owns E-QUERY-002 (§E-QUERY-002 postconditions). **New invariant:** SIBLING-GATE CONSISTENCY cross-reference — E-QUERY-002 gate MUST fail open for names with DERIVED provenance (stats alias, enrich output, SqlPipe head alias, shadow of raw column); applying raw-schema type to a DERIVED name fires a false E-QUERY-002 (FP-001 violation per BC-2.11.016). Cross-reference to BC-2.11.016 v1.15 §Preconditions DERIVED-COLUMN BINDING RULE SIBLING-GATE CONSISTENCY clause. No postcondition content changed (the `valid_operators_for_type` field requirement for RAW-bound columns is unaffected). Frontmatter v1.3→v1.4; modified: 2026-07-09. |
 | 1.3 | F-001B-SCFRESH-MED-001-story-anchor-fix | 2026-06-22 | product-owner | F-001B-SCFRESH-MED-001 closure (POL-4 story-anchor mis-anchoring): `## Story Anchor` corrected from placeholder `S-5.04 (or dedicated ADR-041 teaching story — to be assigned by story-writer)` to the actual implementing story `S-DEMO-PRISMQL-ONBOARDING-001-B`. Exhaustive BC metadata audit: all other surfaces clean. |
 | 1.2 | F-001B-FRESH2-MED-001-pol20-normalization | 2026-06-22 | product-owner | POL-20 normalization: `introduced: ADR-041-teaching-burst-2026-06-19` → `introduced: 2026-06-19` (opaque burst-ID format prohibited by POL-20 anchored-regex; ISO date extracted). No body semantics changed. |
 | 1.1 | S-DEMO-PRISMQL-ONBOARDING-001-B | 2026-06-22 | product-owner | **F-001B-FRESH-MED-001 closure** — propagate shipped implementation reality to BC body. (1) §E-QUERY-002 "Current state": replaced stale Display `"Type error: field '{field}' is {actual_type}, cannot use {operator}"` (never a live format) with the ratified `PrismError::QueryTypeMismatch` variant and its shipped Display `"E-QUERY-002: type mismatch — column '{column}' in table '{table}' has type '{actual_type:?}' which does not support operator '{operator}'"`. Added cross-reference to error-taxonomy.md v1.94 §E-QUERY-002 dual-Display collision row. (2) §"No new PrismError variants required": corrected — `QueryTypeMismatch { column, table, actual_type, operator }` WAS added (CORRECTION-2 adjudication; +0 non_exhaustive gate). The `valid_operators_for_type` additive field requirement is unchanged. H1 title and all other postconditions/ACs are preserved verbatim. |
