@@ -2,7 +2,7 @@
 document_type: demo-runbook
 objective: T13-capstone
 level: ops
-version: "1.7"
+version: "1.8"
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
 project: prism
@@ -571,16 +571,16 @@ is absent from a table's schema, omit that table from this beat.
 
 ```sql
 FROM cyberint_alerts
-| where iocs_value IS NOT NULL
-| enrich threat_score(iocs_value)
+| where iocs_value_first IS NOT NULL
+| enrich threat_score(iocs_value_first)
 | limit 10
 client_id = "org-c"
 ```
 
 Expected: Each row gains a `threat_score` column (value >= 75, Malicious). The ThreatIntel
 DTU clone resolves every scenario IOC as Malicious. To additionally get the known-malicious
-boolean, add `| enrich threat_is_known_malicious(iocs_value)`. To get source names, add
-`| enrich threat_sources(iocs_value)`. Each field is a separate registered UDF
+boolean, add `| enrich threat_is_known_malicious(iocs_value_first)`. To get source names, add
+`| enrich threat_sources(iocs_value_first)`. Each field is a separate registered UDF
 (per `threatintel.infusion.toml` `[[infusion.fields]]` entries: `threat_score`,
 `threat_is_known_malicious`, `threat_sources`).
 
@@ -633,7 +633,7 @@ different sensor perspectives."
 ```sql
 FROM crowdstrike_detections
 | where behaviors_ioc_type = 'hash_sha256'
-| enrich threat_score(behaviors_ioc_value)
+| enrich threat_score(behaviors_ioc_value_first)
 | limit 5
 client_id = "org-c"
 ```
@@ -834,8 +834,8 @@ introduced lateral devices; they remain visible at Stage 4). All device fields v
 
 ```sql
 FROM cyberint_alerts
-| where iocs_type IS NOT NULL
-| enrich threat_score(iocs_value)
+| where iocs_value_first IS NOT NULL
+| enrich threat_score(iocs_value_first)
 client_id = "org-c"
 ```
 
@@ -934,15 +934,15 @@ must pass before recording begins.
 
 ### 5.3 Per-Client Data Distinctness
 
-- [ ] `FROM crowdstrike_detections LIMIT 5 client_id="org-a"` returns non-empty data
+- [ ] `FROM crowdstrike_detections | limit 5 client_id="org-a"` returns non-empty data
       with device IDs containing org-a's UUID hex prefix
-- [ ] `FROM crowdstrike_detections LIMIT 5 client_id="org-c"` returns non-empty data
+- [ ] `FROM crowdstrike_detections | limit 5 client_id="org-c"` returns non-empty data
       with DIFFERENT device IDs than org-a
 - [ ] The device IDs from org-a and org-c have ZERO overlap
 
 ### 5.4 Scenario Clock Progression
 
-- [ ] At elapsed < 60s: `FROM armis_devices LIMIT 20 client_id="org-c"` returns baseline
+- [ ] At elapsed < 60s: `FROM armis_devices | limit 20 client_id="org-c"` returns baseline
       devices only (no `dev-<hex>-200-0` primary compromised device)
 - [ ] At elapsed >= 60s: `dev-<hex>-200-0` device appears in Armis results for org-c
 - [ ] At elapsed >= 180s: lateral devices appear in Armis/CrowdStrike for org-c
@@ -1112,6 +1112,7 @@ context between queries but does not hand-hold Claude on syntax.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.8 | 2026-07-09 | **AUDIT-COVERAGE-001 — ADR-051 D4 scalar-input + parse-error literal corrections.** (1) Steps 3.2 and 6.2: `iocs_value` → `iocs_value_first` in query blocks and follow-on prose UDF examples (`threat_is_known_malicious`, `threat_sources`). Step 3.2 filter: `\| where iocs_value IS NOT NULL` → `\| where iocs_value_first IS NOT NULL`. Step 6.2 filter: `\| where iocs_type IS NOT NULL` → `\| where iocs_value_first IS NOT NULL`. (2) Step 3.4: `\| enrich threat_score(behaviors_ioc_value)` → `\| enrich threat_score(behaviors_ioc_value_first)`. All three changes enforce ADR-051 D4 scalar-input rule: enrichment UDFs require `*_first` scalar companions, not JSON-list columns. (3) §5.3 per-client data distinctness checklist: `FROM crowdstrike_detections LIMIT 5` → `FROM crowdstrike_detections \| limit 5` (two lines). (4) §5.4 scenario clock progression: `FROM armis_devices LIMIT 20` → `FROM armis_devices \| limit 20`. Bare SQL `LIMIT N` without `\|` prefix is a PrismQL parse error; valid pipe form is `\| limit N`. Source: t13-audit-coverage-gap-analysis-2026-07-10.md §5 findings a + b. Frontmatter version 1.7 → 1.8. |
 | 1.7 | 2026-07-08 | **DRIFT-AUDIT-RUNBOOK-LITERALS-001 — runbook literal corrections from pre-flight audit 2026-07-08.** (1) Step 3.1a first IEQ beat: `severity IEQ 'high'` → `severity IEQ 'critical'` (CompromisedEndpoint scenario seeds Critical/Medium for CrowdStrike; 'High' absent from scenario data; audit WARN-1). Expected output updated: `'High'` → `'Critical'`; DataFusion lowering note updated accordingly. (2) Step 3.1a status IIN beat: `status IIN ('new', 'in progress')` → `status IIN ('open', 'closed')` (Cyberint status values are vendor-native `{'open', 'acknowledged', 'closed'}` — not OCSF captions — so adapter pass-through is correct per BC-2.02.013 RG-021; audit WARN-2 adjudicated PASS-THROUGH-CORRECT 2026-07-08; IIN is case-insensitive and works correctly against the lowercase stored values; robustness note added to teaching note). Teaching note expanded to distinguish OCSF-normalized fields (severity: vendor value matches OCSF caption → normalized to Title-case) from vendor pass-through fields (Cyberint status: no OCSF caption match → stored as-received; IIN still absorbs analyst casing). (3) §4 Expected Outputs: case-insensitive filtering row updated to cite `severity IEQ 'critical'` and `status IIN ('open', 'closed')` with updated talking point. (4) §5.9 Dry-Run Checklist item 1: `severity IEQ 'high'` → `severity IEQ 'critical'`; expected result updated. (5) §7 Recording Sequence Block 3: `severity IEQ 'high'` → `severity IEQ 'critical'`; `status IIN ('new', 'in progress')` → `status IIN ('open', 'closed')`. Frontmatter version 1.6 → 1.7. |
 | 1.6 | 2026-07-08 | **IEQ/IIN/INE case-insensitive operator surface (S-PRISMQL-CASE-INSENSITIVE-001, PR #217, develop@f935edb6; ADR-047 ACCEPTED).** Step 3.1a added: three example queries demonstrating `severity IEQ 'high'` against `crowdstrike_detections`, `severity IIN ('high', 'critical')` against `cyberint_alerts`, and `status IIN ('new', 'in progress')` against `cyberint_alerts`; teaching note on OCSF Title-case normalization at the adapter boundary and E-QUERY-002 typed-column guidance; VERIFY note for column confirmation via `prism_describe`. Step 4.3 added: SQL-mode IEQ rejection (E-QUERY-001 mode-boundary) as a pedagogical error-UX beat in Query Block 4. §4 Expected Outputs: IEQ/IIN case-insensitive filtering row added. §5.9 Dry-Run Checklist section: three IEQ/IIN/SQL-mode checks. §7 Recording Sequence: Block 3 reference includes Step 3.1a IEQ/IIN beat; Block 4 reference includes Step 4.3 SQL-mode E-QUERY-001 beat. Frontmatter version 1.5→1.6. |
 | 1.5 | 2026-06-26 | **Demo-fidelity remediation (S-DEMO-FIDELITY-REMEDIATION-001):** Three factual errors corrected against live audit evidence (demo-pre-flight-audit-2026-06-26.md). N3: §5.8 checklist corrected E-QUERY-037 → E-QUERY-032 for sensor-not-registered-for-org checks (`FROM cyberint_alerts client_id="org-a"`, `FROM armis_devices client_id="org-b"`). These orgs are missing the sensor registration entirely; the correct error is E-QUERY-032 (authorization gate "sensor X not registered for org Y"), NOT E-QUERY-037 (plan-time table-not-in-TableRegistry). The distinction matters: E-QUERY-037 fires when the org has the sensor registered but the queried table is wrong; E-QUERY-032 fires when the org has NO such sensor at all. N4: Step 3.5 corrected `client_id="org-b"` → `client_id="org-c"` for the Armis CVE enrichment query. Org-b does NOT have Armis (org-b = Claroty + Cyberint only, per §1.2 org topology); the query would return E-QUERY-032 for org-b. Org-c (all four sensors) is the correct target. Updated talking point accordingly. N5: §6.3 corrected `FROM claroty_audit_log` → `FROM claroty_audit_logs` (plural, per Claroty sensor TOML `table_name = "audit_logs"` → FROM-ready name `claroty_audit_logs`); corrected example column comment `log_id` → `id` (real column per Claroty DTU `AuditLogEntry.id: String`). |
