@@ -4,13 +4,15 @@ scope: LOCAL
 defect: DEFECT-CSDEVICES-EMPTY-PIPELINE-001
 fix_branch: fix/csdevices-empty-pipeline
 date_pass4: 2026-07-10
-total_passes_to_date: 8
+total_passes_to_date: 9
 date_pass5: 2026-07-10
 streak_at_pass5: 0
 date_pass6: 2026-07-10
 streak_at_pass6: 0
 date_pass7: 2026-07-10
 streak_at_pass7: 0
+date_pass9: 2026-07-10
+streak_at_pass9: 0
 convergence: IN_PROGRESS
 authored_by: state-manager
 ---
@@ -34,7 +36,7 @@ authored_by: state-manager
 
 ---
 
-## Cascade Table (7 passes to date)
+## Cascade Table (9 passes to date)
 
 | Pass | Frozen HEAD | CLEAN(strict) | CLEAN(PR-merge) | Findings | Fix-burst HEAD | Streak |
 |------|-------------|---------------|-----------------|----------|----------------|--------|
@@ -51,7 +53,10 @@ authored_by: state-manager
 | 8 | frozen @38b05bbc | NO | NO | 1 MED F-CSD-P8-001 (E-QUERY-043 gate placed below `!any_external_table_registered` early-return in pipeline Step 1d session path; all-zero-batch pipeline path returned Ok(empty) instead of E-QUERY-043; data-dependent error surface) + 1 LOW F-CSD-P8-002 (DML `filter`/`assignments` interiors unwalked; fourth walker-dimension gap in E-QUERY-043 gate family) + 2 OBS (P8-003 dead `variables_produced` TOML entries; P8-004 over-broad gate docstring). Strong invariant confirmations: recursion bounded by PRISM_MAX_NESTING_DEPTH; walker parity verified; POL-24 byte-clean; SAP-1/2 clean. | — | 0/3 |
 | — (fix-burst) | — | — | — | — | test-writer RED @0198c88e (T25 pipeline-path bypass RED + T26 populated-path lock GREEN + T27 DML-interior constructed-AST RED); implementer @8b284d67 — DUAL gate placement (pipeline Step 1d after `check_temporal_literals`, data-independent + retained session-entry call); DML arm three-way (`source_select` + `filter` via `check_predicate` + `assignments` via `descend_subquery_expr`); docstring corrected; TOML `variables_produced` dead entries → `[]` with fallback-behavior comments (validator-consumer check clean); 27/27 defect; 96/96 temporal; 1529/1529 prism-query; 765/765 prism-spec-engine; just check GREEN; non-exhaustive 89/89 | 0/3 |
 
-Streak reset at pass 3 and pass 4. Streak 0/3 after pass-8 fix-burst. Structural-fix class closure: P5 (FuncCall-args recursion gap), P6 (DML source_select defense-in-depth), P7 (WHERE/HAVING/JOIN-ON check_sql_query non-recursive), P8-MED (gate placement below early-return; DUAL placement fix), P8-LOW (DML filter/assignments interiors) — all four closed, E-QUERY-043 gate family now covers all walker dimensions + correct pipeline placement. LOCAL pass 9 IN FLIGHT on frozen HEAD `8b284d67`.
+| 9 | frozen @8b284d67 | NO | NO | 1 HIGH F-CSD-P9-001 (`prism-dtu-harness` CrowdStrike clone GET-only on POST `/devices/entities/devices/v2` in BOTH `build_router()` + `build_standalone_router()` builders; INV-HARNESS-ROUTE-PARITY violation; latent 405→silent-0-row in harness-driven scenarios) + 2 OBS (informational, no action) | test-writer @d4a4cb37 + implementer @544acd70 + PO BC-2.16.013 v1.27 | 0/3 |
+| — (fix-burst) | — | — | — | — | test-writer RED @d4a4cb37 (4 harness tests targeting `build_router()` + `build_standalone_router()` CrowdStrike POST `/devices/entities/devices/v2`); implementer @544acd70 — `post_host_details` + `host_details_inner` shared-helper refactor in `prism-dtu-harness` CrowdStrike clone; both routers registered; TD-VSDD-060 full CrowdStrike verb-surface sweep = parity everywhere (`/dtu/filter-log` standalone-only by design, confirmed correct); PO BC-2.16.013 v1.26→v1.27 (INV-HARNESS-ROUTE-PARITY block + CrowdStrike example added to §INV-HARNESS-ROUTE-PARITY); harness 140/140; workspace 5451/5451; just check GREEN; non-exhaustive 89/89 | 0/3 |
+
+Streak reset at pass 3 and pass 4. Streak 0/3 after pass-9 fix-burst. Structural-fix class closure: P5 (FuncCall-args recursion gap), P6 (DML source_select defense-in-depth), P7 (WHERE/HAVING/JOIN-ON check_sql_query non-recursive), P8-MED (gate placement below early-return; DUAL placement fix), P8-LOW (DML filter/assignments interiors), P9-HIGH (harness-clone POST verb surface gap) — all closed, E-QUERY-043 gate family + harness parity complete. LOCAL pass 10 DISPATCHED on frozen HEAD `544acd70`.
 
 ---
 
@@ -131,6 +136,29 @@ CLEAN(strict): NO. CLEAN(PR-merge): NO. Streak stays 0/3. LOCAL pass 8 NEXT on f
 | P8-004 | OBS | Over-broad gate docstring implied broader rejection than implemented | docstring corrected @8b284d67 |
 
 CLEAN(strict): NO. CLEAN(PR-merge): NO. Streak stays 0/3. LOCAL pass 9 NEXT on frozen `8b284d67`.
+
+### Pass 9
+
+| ID | Severity | Description | Resolution |
+|----|----------|-------------|------------|
+| F-CSD-P9-001 | HIGH | `prism-dtu-harness` CrowdStrike clone registered GET-only handler for `/devices/entities/devices/v2` in both `build_router()` and `build_standalone_router()`; INV-HARNESS-ROUTE-PARITY violated — real CrowdStrike API uses POST; harness-driven scenarios would receive 405 Method Not Allowed, causing silent-0-row materialization in harness test runs | test-writer @d4a4cb37: 4 RED gates (both builders); implementer @544acd70: `post_host_details` + `host_details_inner` shared-helper refactor; both routers now register POST; T28–T31 RED→GREEN |
+| P9-OBS-001 | OBS | (informational — no action required) | no-action |
+| P9-OBS-002 | OBS | (informational — no action required) | no-action |
+
+CLEAN(strict): NO. CLEAN(PR-merge): NO. Streak stays 0/3. LOCAL pass 10 NEXT on frozen `544acd70`.
+
+## Evidence at Pass 9 Fix HEAD (544acd70)
+
+- harness: **140/140** tests GREEN
+- Full workspace `just check`: **5451/5451** GREEN
+- Non-exhaustive gate: 89/89
+
+## Spec Layer Modified (pass-9 closure)
+
+| Artifact | Version Bump | Change |
+|----------|-------------|--------|
+| BC-2.16.013 | v1.26→v1.27 | F-CSD-P9-001: INV-HARNESS-ROUTE-PARITY block added for CrowdStrike POST `/devices/entities/devices/v2` in both router builders; CrowdStrike example added to §INV-HARNESS-ROUTE-PARITY explanatory text |
+| BC-INDEX | v7.82→v7.83 | BC-2.16.013 inline row updated (D-1661) |
 
 ---
 
@@ -214,4 +242,4 @@ Source: `.factory/research/defect-csdevices-empty-pipeline-rootcause-2026-07-10.
 
 _Pending: LOCAL cascade not yet converged. PR not yet created._
 
-**Status: IN PROGRESS — LOCAL pass 9 IN FLIGHT on frozen `8b284d67` (streak 0/3). Pass-8 fix-burst COMPLETE (D-1660): DUAL gate placement + DML interior walk @8b284d67 (code-only + TOML dead-entry cleanup; no spec changes). Walker-gap + gate-placement lineage P5/P6/P7/P8 CLOSED. Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS → 1MED+1LOW+2OBS (decaying toward convergence).**
+**Status: IN PROGRESS — LOCAL pass 10 IN FLIGHT on frozen `544acd70` (streak 0/3). Pass-9 fix-burst COMPLETE (D-1661): harness POST parity @544acd70 — `post_host_details` + `host_details_inner` shared-helper; both router builders registered; BC-2.16.013 v1.27; harness 140/140; workspace 5451/5451; just check GREEN. Walker-gap + gate-placement lineage P5/P6/P7/P8 CLOSED; harness parity gap P9 CLOSED. Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS → 1MED+1LOW+2OBS → 1HIGH+2OBS (decaying toward convergence).**

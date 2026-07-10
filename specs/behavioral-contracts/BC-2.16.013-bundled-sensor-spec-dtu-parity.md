@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.26"
+version: "1.27"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-07-10"  # v1.26: DEFECT-CSDEVICES-EMPTY-PIPELINE-001 PO burst — CrowdStrike devices step-2 method corrected from GET to POST per architect ratification
+modified: "2026-07-10"  # v1.27: F-CSD-P9-001 closure — INV-HARNESS-ROUTE-PARITY CrowdStrike POST /devices/entities/devices/v2 harness-clone parity note added (v1.26 documented standalone only)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -157,6 +157,13 @@ authentication enforcement behavior, which reflects the real third-party API's a
     both GET `get_host_details` (existing; preserved for backward compat) and POST
     `post_host_details` (new handler per DEFECT-CSDEVICES-EMPTY-PIPELINE-001; endpoint count
     8→9: 5 read, 4 write); the spec-driven `fetch_devices` pipeline path is POST).
+    **Harness parity (INV-HARNESS-ROUTE-PARITY):** Both `prism-dtu-harness` CrowdStrike router
+    builders (in-process and network-mode) MUST register GET `get_host_details` AND POST
+    `post_host_details` on `/devices/entities/devices/v2`, mirroring the standalone's shared
+    route composition: session-registry filter → org-id guard → containment merge → auth; POST
+    handler enforces the same empty-ids 400 guard as the standalone. This parity obligation
+    closes F-CSD-P9-001 (v1.26 documented the standalone 9-endpoint surface but omitted the
+    corresponding harness-clone update required by this invariant).
   - `incidents` — **See §Known Gaps: DTU-EXT-001.** No DTU route registered for incidents.
     This table entry is deferred until the DTU clone is extended (ADR-028 §D5).
   Each table's columns match the Arrow schema produced by the prior Rust adapter (BC-2.01.005
@@ -363,6 +370,12 @@ adapter path for all test cases:
   The in-process clone modules in `prism-dtu-harness` (under `src/clones/`) MUST expose
   the same HTTP route surface as their corresponding standalone `prism-dtu-*` crates.
   Specifically:
+  - `prism-dtu-harness` CrowdStrike clone (both in-process and network-mode router builders)
+    MUST register GET `get_host_details` AND POST `post_host_details` on
+    `/devices/entities/devices/v2`, mirroring the standalone's 9-endpoint surface (5 read,
+    4 write) as updated by DEFECT-CSDEVICES-EMPTY-PIPELINE-001. The POST handler must enforce
+    the same empty-ids 400 guard as the standalone (closes F-CSD-P9-001).
+    Example: `router.route("/devices/entities/devices/v2", get(get_host_details).post(post_host_details))`.
   - `prism-dtu-harness::clones::armis::router()` MUST include `GET /api/v1/search`
     after S-DEMO-ARMIS-AQL-001 merges to develop (closes F-P6-DEFER-001).
   - `prism-dtu-harness::clones::claroty::router()` MUST include
@@ -375,7 +388,8 @@ adapter path for all test cases:
     Claroty audit_log: `{"audit_log": [...], "total": N}`.
   - Route parity is verified by multi-tenant harness tests (BC-3.5.001/BC-3.5.002 consumers).
   This invariant is governed by ADR-031 (DTU=true-DTU) and is implemented by story
-  S-DEMO-HARNESS-CLONE-PARITY-001 (closes F-P6-DEFER-001, F-P10-LOW-001).
+  S-DEMO-HARNESS-CLONE-PARITY-001 (closes F-P6-DEFER-001, F-P10-LOW-001) and by the
+  DEFECT-CSDEVICES-EMPTY-PIPELINE-001 fix lane for CrowdStrike (closes F-CSD-P9-001).
 
 - **DI-030 (partial-failure isolation):** A parity failure for one `(sensor_id, table)` pair
   does NOT block other sensor tables from loading. Each parity test is isolated.
@@ -483,6 +497,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.27 | F-CSD-P9-001-closure-PO-burst | 2026-07-10 | product-owner | F-CSD-P9-001 (HIGH) closure — INV-HARNESS-ROUTE-PARITY CrowdStrike parity gap: v1.26 documented the standalone `prism-dtu-crowdstrike` gaining POST `/devices/entities/devices/v2` (`post_host_details`, endpoint count 8→9) but omitted the corresponding harness-clone obligation. §Postconditions §1 CrowdStrike `devices` row: added **Harness parity (INV-HARNESS-ROUTE-PARITY)** note — both `prism-dtu-harness` CrowdStrike router builders (in-process and network-mode) MUST register GET `get_host_details` AND POST `post_host_details` on `/devices/entities/devices/v2`, mirroring the standalone's shared route composition (session-registry filter, org-id guard, containment merge, auth, empty-ids 400 on POST). §Invariants INV-HARNESS-ROUTE-PARITY: added CrowdStrike bullet alongside existing Armis and Claroty bullets; implementation story reference updated to include DEFECT-CSDEVICES-EMPTY-PIPELINE-001 fix lane as the CrowdStrike closure vehicle. No other sections changed. POL-27/POL-32. BC v1.26 → v1.27. |
 | 1.26 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001-PO-burst | 2026-07-10 | product-owner | CrowdStrike `devices` table step-2 corrected from GET to POST per architect ratification of DEFECT-CSDEVICES-EMPTY-PIPELINE-001 (research/defect-csdevices-empty-pipeline-rootcause-2026-07-10.md §Architect Ratification, D-1650). `fetch_devices` step 2 is now POST `/devices/entities/devices/v2` with body `{"ids": [...]}` — matching real CrowdStrike `PostDeviceDetailsV2` (FalconPy v1.2.0+; same body structure as existing `fetch_detections` POST step; supports up to 5000 IDs vs GET's 100). §Postconditions §1 CrowdStrike `devices` row: `(GET \`/devices/entities/devices/v2\`)` → `(POST \`/devices/entities/devices/v2\` with body \`{"ids": [...]}\`)`. URL grounding updated: `/devices/entities/devices/v2` now registers both `get_host_details` (GET; preserved) and `post_host_details` (POST; new); spec-driven path is POST; DTU endpoint count 8→9 (5 read, 4 write). Parity tests for `crowdstrike.devices` must exercise the POST path. BC v1.25 → v1.26. |
 | 1.25 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | Gate 4 (S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 / F-P2-DEFER-001 closure): §Postconditions §1 Claroty `audit_logs` clause corrected from stale "GET /api/v1/audit_logs via offset pagination. No DTU route registered." to "POST /api/v1/audit_log/get; DTU route registered by S-DEMO-CLAROTY-AUDIT-DTU-001 (Gap-CL-006 CLOSED)". Combined with Gate 2 + Gate 3 in same burst. BC v1.24 → v1.25. |
 | 1.24 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | Gate 3 (S-DEMO-HARNESS-CLONE-PARITY-001 / closes F-P6-DEFER-001 + F-P10-LOW-001): Added INV-HARNESS-ROUTE-PARITY invariant specifying that `prism-dtu-harness::clones::armis::router()` must include `GET /api/v1/search` and `prism-dtu-harness::clones::claroty::router()` must include `POST /api/v1/audit_log/get` to mirror standalone DTU route surfaces per ADR-031. Rationale for amendment to BC-2.16.013 (not BC-3.5.001/BC-3.5.002): BC-3.5.001/002 describe harness isolation mechanics (port allocation, data segregation) — they do NOT specify which routes the in-process clones must register. BC-2.16.013 is the DTU-parity contract and is the correct home for route-surface coverage obligations. BC v1.23 → v1.24. |
