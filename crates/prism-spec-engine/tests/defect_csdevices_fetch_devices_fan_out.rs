@@ -171,6 +171,83 @@ fn test_BC_DEFECT_CSDEVICES_001_fetch_devices_step_has_post_method_and_body_temp
 //   2. DTU gains post_host_details handler (Contract Part 2)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Test 3: Structural assertion — fetch_incidents step must use POST + body_template
+//
+// F-CSD-P1-005: mirrors the fetch_devices shape lock for the incidents table.
+// RED (before TOML fix): `method == "GET"`, `body_template == None`
+// GREEN (after TOML fix): `method == "POST"`, body_template contains `${`
+// ---------------------------------------------------------------------------
+
+/// BC-DEFECT-CSDEVICES-001: The `fetch_incidents` step in `crowdstrike.sensor.toml`
+/// must use `method = "POST"` and declare a `body_template` containing a
+/// `${query_incident_ids.resources}` variable reference.
+///
+/// Without both of these, `find_fan_out_array()` returns `None` and the engine
+/// issues a bare GET/POST with no IDs body, delivering 0 rows (same root cause
+/// as the `fetch_devices` defect, applied to the incidents two-step pipeline).
+///
+/// RED: `method == "GET"`, `body_template == None` — assertions fail.
+/// GREEN after the TOML `fetch_incidents` step is converted to POST + body_template
+/// per DEFECT-CSDEVICES-EMPTY-PIPELINE-001 ratification (F-CSD-P1-005).
+#[test]
+fn test_BC_DEFECT_CSDEVICES_001_fetch_incidents_step_has_post_method_and_body_template() {
+    let spec = load_crowdstrike_spec();
+
+    // Locate the `incidents` table.
+    let incidents_table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "incidents")
+        .expect("crowdstrike.sensor.toml must declare an 'incidents' table");
+
+    // Locate the `fetch_incidents` step (Step 2 of the two-step pipeline).
+    let fetch_incidents_step = incidents_table
+        .steps
+        .iter()
+        .find(|s| s.name == "fetch_incidents")
+        .expect(
+            "incidents table must have a step named 'fetch_incidents' \
+             (Step 2: POST /incidents/entities/incidents/GET/v1)",
+        );
+
+    // (a) Method must be POST (not GET).
+    assert_eq!(
+        fetch_incidents_step.method.to_uppercase(),
+        "POST",
+        "F-CSD-P1-005: fetch_incidents step method must be POST; got: {}. \
+         Without POST, find_fan_out_array returns None → 0 incident rows.",
+        fetch_incidents_step.method
+    );
+
+    // (b) body_template must be Some.
+    assert!(
+        fetch_incidents_step.body_template.is_some(),
+        "F-CSD-P1-005: fetch_incidents step must have a body_template; \
+         currently None — find_fan_out_array returns None when no body_template present."
+    );
+
+    // (c) body_template must contain a ${...} variable reference so
+    //     find_fan_out_array() can locate the fan-out anchor.
+    //
+    // The ratified body_template is: '{"ids": ${query_incident_ids.resources}}'
+    let bt = fetch_incidents_step.body_template.as_deref().unwrap_or("");
+    assert!(
+        bt.contains("${"),
+        "F-CSD-P1-005: body_template must contain a '${{...}}' variable reference \
+         (fan-out anchor for find_fan_out_array); got: {bt:?}. \
+         Expected form: '{{\"ids\": ${{query_incident_ids.resources}}}}'."
+    );
+
+    // (d) The variable reference must point to query_incident_ids step results
+    //     (backward ref to step 1 of the incidents pipeline).
+    assert!(
+        bt.contains("query_incident_ids"),
+        "F-CSD-P1-005: body_template must reference 'query_incident_ids' (step 1 results); \
+         got: {bt:?}. The fan-out requires a backward ref to the IDs collected in step 1."
+    );
+}
+
 /// BC-DEFECT-CSDEVICES-001: `PipelineExecutor::execute` for the `devices` table
 /// must issue a POST to `/devices/entities/devices/v2` (not GET) in step 2,
 /// forwarding IDs from step 1, and return the device records.

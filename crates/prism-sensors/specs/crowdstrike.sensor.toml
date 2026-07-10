@@ -308,11 +308,16 @@ ocsf_class = "incident_finding"
   response_path = "$.resources"
   variables_produced = ["incident_ids"]
 
-  # Step 2: GetEntities — GET full incident records
+  # Step 2: GetEntities — POST full incident records
+  # (CrowdStrike Incidents API requires POST with JSON body containing ids array)
+  # Method = POST per DEFECT-CSDEVICES-EMPTY-PIPELINE-001 ratification.
+  # DTU-EXT-001: incidents routes not yet in prism-dtu-crowdstrike; this TOML fix
+  # is for the production pipeline only. DTU incidents route stays anchored to DTU-EXT-001.
   [[tables.steps]]
   name = "fetch_incidents"
-  method = "GET"
+  method = "POST"
   path_template = "/incidents/entities/incidents/GET/v1"
+  body_template = '{"ids": ${query_incident_ids.resources}}'
   response_path = "$.resources"
   variables_produced = []
   fan_out_batch_size = 100
