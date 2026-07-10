@@ -3047,6 +3047,10 @@ async fn pre_register_empty_tables(
                     })
                     .collect();
                 let schema = Arc::new(Schema::new(fields));
+                // F-CSD-P14-001: append virtual fields so LEFT JOIN on an empty
+                // sensor table can plan `SELECT dev._sensor …` without error.
+                // nullable=true enables NULL propagation on the empty side.
+                let schema = crate::virtual_fields::append_virtual_fields_to_schema(schema);
                 do_register_empty_mem_table(session_ctx, table_name, schema)?;
                 tracing::debug!(
                     table_name = %table_name,
@@ -3069,7 +3073,12 @@ async fn pre_register_empty_tables(
         {
             let bundled = BUNDLED_SPEC_SCHEMAS.get_or_init(build_bundled_spec_schemas);
             if let Some(schema) = bundled.get(table_name) {
-                do_register_empty_mem_table(session_ctx, table_name, Arc::clone(schema))?;
+                // F-CSD-P14-001: augment the cached bundled schema with virtual
+                // fields. The cached Arc<Schema> is NOT modified in-place;
+                // append_virtual_fields_to_schema returns a new Arc.
+                let schema_vf =
+                    crate::virtual_fields::append_virtual_fields_to_schema(Arc::clone(schema));
+                do_register_empty_mem_table(session_ctx, table_name, schema_vf)?;
                 tracing::debug!(
                     table_name = %table_name,
                     "pre_register_empty_tables: registered spec-column schema \
@@ -3121,6 +3130,8 @@ async fn pre_register_empty_tables(
 
         // Build the schema (may be empty for solo-SELECT of unknown non-bundled table).
         let schema = Arc::new(Schema::new(inferred_fields));
+        // F-CSD-P14-001: append virtual fields (covers inferred AND empty-schema cases).
+        let schema = crate::virtual_fields::append_virtual_fields_to_schema(schema);
         do_register_empty_mem_table(session_ctx, table_name, schema)?;
         tracing::debug!(
             table_name = %table_name,

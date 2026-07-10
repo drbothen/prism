@@ -153,6 +153,68 @@ pub(crate) fn remove_spoofed_virtual_columns(
 }
 
 // ---------------------------------------------------------------------------
+// append_virtual_fields_to_schema
+// ---------------------------------------------------------------------------
+
+/// Append the three virtual field columns to an Arrow [`Schema`].
+///
+/// Called by `pre_register_empty_tables` to ensure that schema-only placeholder
+/// `MemTable`s include the virtual columns, matching the schema that
+/// [`inject_virtual_fields`] produces on populated batches. This closes the
+/// empty-path / populated-path schema parity gap (BC-2.11.012, F-CSD-P14-001).
+///
+/// # Nullability
+///
+/// Virtual fields are appended as `nullable = true` so that LEFT JOIN NULL
+/// propagation works correctly: the column exists in the schema so DataFusion
+/// can plan the query, and the NULL value is valid when the empty table
+/// contributes no rows to the join. Contrast with [`inject_virtual_fields`],
+/// which uses `nullable = false` because actual string values are always present
+/// on populated batches.
+///
+/// # Collision guard
+///
+/// If the schema already contains any of the three virtual field names (e.g., a
+/// sensor spec that erroneously declared `_sensor` as a column), those columns
+/// are removed before appending the canonical fields. This mirrors the
+/// [`remove_spoofed_virtual_columns`] behaviour in the populated-batch path
+/// (BC-2.11.012 spoofing prevention).
+///
+/// # Field order
+///
+/// The three fields are appended in fixed order:
+/// `_sensor`, `_client`, `_source_table` — matching the order produced by
+/// [`inject_virtual_fields`]. Callers must not rely on index position; use
+/// field names instead.
+///
+/// # BC-2.11.012
+/// Virtual fields must be available in ALL PrismQL modes regardless of row count.
+pub(crate) fn append_virtual_fields_to_schema(schema: Arc<Schema>) -> Arc<Schema> {
+    let reserved: &[&str] = &[
+        VIRTUAL_FIELD_SENSOR,
+        VIRTUAL_FIELD_CLIENT,
+        VIRTUAL_FIELD_SOURCE_TABLE,
+    ];
+
+    // Remove any spoofed virtual columns (defensive dedup mirroring
+    // remove_spoofed_virtual_columns for the batch path).
+    let mut fields: Vec<Field> = schema
+        .fields()
+        .iter()
+        .filter(|f| !reserved.contains(&f.name().as_str()))
+        .map(|f| f.as_ref().clone())
+        .collect();
+
+    // Append canonical virtual fields; nullable=true for empty-table LEFT JOIN
+    // NULL propagation (inject_virtual_fields uses nullable=false on populated path).
+    fields.push(Field::new(VIRTUAL_FIELD_SENSOR, DataType::Utf8, true));
+    fields.push(Field::new(VIRTUAL_FIELD_CLIENT, DataType::Utf8, true));
+    fields.push(Field::new(VIRTUAL_FIELD_SOURCE_TABLE, DataType::Utf8, true));
+
+    Arc::new(Schema::new(fields))
+}
+
+// ---------------------------------------------------------------------------
 // sensor_id_to_str
 // ---------------------------------------------------------------------------
 
