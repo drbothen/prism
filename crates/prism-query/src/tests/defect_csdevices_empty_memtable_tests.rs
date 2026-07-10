@@ -4268,4 +4268,194 @@ mod tests {
             );
         }
     }
+
+    // =========================================================================
+    // T35 — F-CSD-P19-002 (LOCAL adversary pass 19): Compare-position InSubquery
+    //       gate scope hole in `check_predicate` Compare arm
+    //
+    // Finding: `check_predicate(Predicate::Compare { lhs, rhs, .. })` dispatches
+    // `descend_subquery_expr(lhs)` / `descend_subquery_expr(rhs)`. For an
+    // `Expr::InSubquery` operand, `descend_subquery_expr` calls `check_sql_query`
+    // on the SUBQUERY BODY (checking its projection positions) but does NOT reject
+    // the outer `Expr::InSubquery` node itself.  When the inner subquery is clean,
+    // the gate returns `Ok(())`, passing the malformed shape to DataFusion.
+    // DataFusion cannot execute InSubquery as a scalar comparand → opaque
+    // `QueryExecutionFailed` (-32000) instead of actionable E-QUERY-043 (-32602).
+    //
+    // Grammar reach: NOT grammar-reachable.
+    //   `build_sql_predicate_parser` = `build_predicate_parser().or(in_subquery)`.
+    //   - `build_predicate_parser()` field_comparison arm:
+    //       `field_path op literal | field_path op field_path`
+    //       → `Predicate::Compare { lhs: Expr::Field/VirtualField, .. }`.
+    //       lhs is always `field_path_to_expr(field_path)` — never `Expr::InSubquery`.
+    //   - `in_subquery` arm: produces `Predicate::InSubquery`, not `Predicate::Compare`.
+    //   - HAVING `agg_comparison`: `agg_fn(col) op literal` → `lhs: Expr::FuncCall`.
+    //   No SQL parser arm can produce `Predicate::Compare { lhs: Expr::InSubquery }`.
+    //
+    // Constructed-AST defense-in-depth (T27 pattern, BC-5.38.001).
+    //
+    // RED: gate Ok(()) → normalize emits
+    //      `device_id IN (SELECT device_id FROM crowdstrike_devices) = TRUE`
+    //      → DataFusion EXECUTES this as `(IN subquery result) = TRUE` and returns
+    //        Ok([RecordBatch { row_count: 1 }]) — 1 matching row, no error.
+    //      Test assertion Err(ExprInSubqueryProjectionNotSupported) FAILS → RED ✓.
+    //
+    // GREEN (post-fix): check_predicate Compare arm uses contains_insubquery(lhs/rhs)
+    //      (returns true on first Expr::InSubquery directly) instead of
+    //      descend_subquery_expr → gate fires E-QUERY-043 → GREEN ✓.
+    // =========================================================================
+
+    /// F-CSD-P19-002-T35 / BC-2.11.003: `Predicate::Compare` with `Expr::InSubquery` as LHS
+    /// must fire E-QUERY-043 (`ExprInSubqueryProjectionNotSupported`), not an opaque
+    /// `QueryExecutionFailed` from DataFusion.
+    ///
+    /// # Grammar reach: NOT grammar-reachable
+    ///
+    /// `build_sql_predicate_parser` = `build_predicate_parser().or(in_subquery)`.
+    /// The `field_comparison` arm produces `Predicate::Compare { lhs: Expr::Field, .. }`
+    /// (lhs = `field_path_to_expr(field_path)`, never `Expr::InSubquery`).
+    /// The `in_subquery` arm produces `Predicate::InSubquery`, not `Predicate::Compare`.
+    /// The HAVING `agg_comparison` handles `agg_fn(col) op literal` (FuncCall lhs) only.
+    /// No SQL parser path reaches `Predicate::Compare { lhs: Expr::InSubquery }`.
+    /// Constructed directly following the T27 defense-in-depth precedent.
+    ///
+    /// # Defect (F-CSD-P19-002)
+    ///
+    /// `check_predicate` for `Predicate::Compare { lhs, rhs, .. }` calls
+    /// `descend_subquery_expr(lhs)` / `descend_subquery_expr(rhs)`.
+    /// For `Expr::InSubquery`, `descend_subquery_expr` calls `check_sql_query(subquery)`,
+    /// which checks the INNER subquery's projection positions.  Since
+    /// `SELECT device_id FROM crowdstrike_devices` has no `Expr::InSubquery` in its
+    /// projections, `check_sql_query` returns `false` → gate passes `Ok(())`.
+    /// The outer `Expr::InSubquery` node in compare-position LHS is NOT rejected.
+    ///
+    /// `normalize_predicate` then emits:
+    /// `"device_id IN (SELECT device_id FROM crowdstrike_devices) = TRUE"`
+    /// DataFusion executes this as `(IN subquery result) = TRUE` — treating the IN predicate
+    /// as a boolean expression and comparing it to TRUE — and returns `Ok([RecordBatch { row_count: 1 }])`.
+    /// A nonsense predicate silently produces a result instead of being rejected.
+    ///
+    /// # Fix path
+    ///
+    /// `check_predicate`'s Compare arm should call `contains_insubquery(lhs)` and
+    /// `contains_insubquery(rhs)` (not `descend_subquery_expr`) for compare-position
+    /// operands.  `contains_insubquery` returns `true` immediately for any
+    /// `Expr::InSubquery` node — rejecting it in-gate rather than descending into the
+    /// subquery body.
+    #[allow(non_snake_case)]
+    #[tokio::test]
+    async fn test_BC_2_11_005_F_CSD_P19_002_T35_compare_lhs_insubquery_gate_scope_hole_e_query_043()
+    {
+        use crate::ast::{
+            Ast, CompareOp, Expr, FieldPath, FromClause, Literal, Predicate, SelectClause,
+            SelectItem, SourceRef, SqlQuery, SqlStatement,
+        };
+        use prism_core::error::PrismError;
+
+        let ctx = build_session_context(50 * 1024 * 1024)
+            .expect("build_session_context must succeed for T35");
+
+        // Register the outer FROM table so DataFusion can plan the query if the gate
+        // incorrectly passes it through (i.e., register to make the RED reason purely
+        // an assertion mismatch, not a table-not-found error).
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002"],
+            "device_id",
+            &["dev-A", "dev-B"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // Register the IN-subquery FROM table for the same reason.
+        let dev_batch = make_batch("device_id", &["dev-A"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // Inner subquery: `SELECT device_id FROM crowdstrike_devices`
+        //
+        // Clean projection — no Expr::InSubquery in select.items.
+        // This is exactly what descend_subquery_expr inspects and finds clean at HEAD,
+        // causing the gate to return Ok(()) for the outer Compare predicate.
+        let inner_subquery = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Expr {
+                expr: Expr::Field(FieldPath::new(["device_id"])),
+                alias: None,
+            }]),
+            FromClause::new(SourceRef::from_raw("crowdstrike_devices")),
+        );
+
+        // WHERE predicate: (device_id IN (SELECT device_id FROM crowdstrike_devices)) = TRUE
+        //
+        // AST shape NOT grammar-reachable — constructed directly (see doc comment above).
+        //
+        // Gate walk at HEAD:
+        //   check_predicate(Predicate::Compare { lhs: Expr::InSubquery { .. }, .. })
+        //     → descend_subquery_expr(Expr::InSubquery { subquery: inner_subquery })
+        //       → check_sql_query(inner_subquery)
+        //         → check_predicate: inner has no WHERE → false
+        //         → inner SelectItems: Expr::Field — not Expr::InSubquery → false
+        //       → returns false
+        //     → descend_subquery_expr(Expr::Literal(Bool(true))) → false
+        //   → gate returns Ok(())  ← scope hole F-CSD-P19-002
+        let outer_pred = Predicate::Compare {
+            lhs: Box::new(Expr::InSubquery {
+                field: FieldPath::new(["device_id"]),
+                subquery: Box::new(inner_subquery),
+            }),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::Bool(true))),
+            case_insensitive: false,
+        };
+        let outer_query = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Star]),
+            FromClause::new(SourceRef::from_raw("crowdstrike_detections")),
+        )
+        .with_where(outer_pred);
+        let ast = Ast::Sql(SqlStatement::Select(outer_query));
+
+        // Synthetic SQL label — execute_against_session calls normalize_for_datafusion(ast)
+        // to re-emit SQL, not the label string.  Same pattern as T27.
+        let result = execute_against_session(
+            &ctx,
+            "synthetic-t35-compare-pos-insubquery",
+            &ast,
+            std::collections::HashMap::new(),
+        )
+        .await;
+
+        // DESIRED (post-fix): E-QUERY-043 fired by gate detecting Expr::InSubquery in
+        // Predicate::Compare LHS position via contains_insubquery(lhs).
+        //
+        // RED at HEAD:
+        //   check_predicate Compare arm → descend_subquery_expr(Expr::InSubquery) →
+        //   check_sql_query(inner: clean) → false → gate Ok(()) →
+        //   normalize_predicate emits:
+        //     "device_id IN (SELECT device_id FROM crowdstrike_devices) = TRUE"
+        //   DataFusion executes this as `(IN subquery result) = TRUE`, interpreting
+        //   the IN predicate as a boolean expression — returns Ok([RecordBatch { row_count: 1 }]).
+        //   A nonsense predicate silently produces a result instead of being rejected.
+        //   This assertion FAILS → RED ✓.
+        //
+        // Fix: check_predicate Compare arm must call `contains_insubquery(lhs)` and
+        // `contains_insubquery(rhs)` (returns true immediately for any Expr::InSubquery)
+        // instead of `descend_subquery_expr(lhs) || descend_subquery_expr(rhs)`.
+        assert!(
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P19-002-T35 / BC-2.11.003: Predicate::Compare with Expr::InSubquery as \
+             LHS must return E-QUERY-043 (ExprInSubqueryProjectionNotSupported). \
+             Grammar reach: NOT grammar-reachable — AST constructed directly (T27 precedent). \
+             RED at HEAD: check_predicate Compare arm calls descend_subquery_expr(lhs), which \
+             descends into the inner subquery body (clean projections) and returns false — does \
+             NOT reject the outer Expr::InSubquery in compare-position LHS. Gate Ok(()) → \
+             normalize emits `device_id IN (SELECT device_id FROM crowdstrike_devices) = TRUE` → \
+             DataFusion executes `(IN subquery) = TRUE` as a valid boolean comparison, silently \
+             returning Ok([row_count: 1]) instead of the required E-QUERY-043. \
+             Fix: use contains_insubquery on Compare lhs/rhs instead of descend_subquery_expr. \
+             got: {result:?}"
+        );
+    }
 }
