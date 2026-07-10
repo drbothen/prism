@@ -455,6 +455,23 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             (codes::INVALID_PARAMS, format!("{err}"))
         }
 
+        // E-QUERY-043: IN subquery in SELECT projection, GROUP BY, or ORDER BY → -32602 INVALID_PARAMS.
+        //
+        // DataFusion 53.1.0 cannot execute `Expr::InSubquery` in scalar expression positions.
+        // The plan-time gate `check_expr_insubquery_projection` fires before DataFusion
+        // planning and returns this structured error (F-CSD-P4-001 Option A adjudication).
+        //
+        // Caller-resolvable: rewrite as `WHERE field IN (SELECT ...)`. The hint field carries
+        // the actionable guidance.
+        //
+        // MUST be explicit: without this arm the variant falls through to catch-all
+        // `-32000 INTERNAL_ERROR`, losing the caller-actionable rewrite guidance.
+        //
+        // Reference: F-CSD-P4-001 adjudication 2026-07-10; error-taxonomy.md §E-QUERY-043.
+        PrismError::ExprInSubqueryProjectionNotSupported { .. } => {
+            (codes::INVALID_PARAMS, format!("{err}"))
+        }
+
         // E-INT-001: Internal invariant violated → -32000 Internal
         // Detail is suppressed — audit log has it.
         PrismError::Internal { .. } => (
@@ -1998,6 +2015,35 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
 
         // ── Catch-all: unknown variants → "upstream_error" (legal BC category) ──
         // "upstream_error" is the safest legal fallback for variants that don't fit
+        // E-QUERY-043: IN subquery in SELECT projection, GROUP BY, or ORDER BY position.
+        //
+        // category: "validation" — the mispositioned IN-subquery IS the caller-resolvable
+        // bad input; the analyst must rewrite the query to use WHERE clause form.
+        // original_params_valid: false — projection-position IN-subquery violates
+        // the DataFusion 53.1.0 execution constraint; the caller must correct the query.
+        // ec_code_override: None — Display starts with "E-QUERY-043:" so the inference
+        // path derives "E-QUERY-043" correctly.
+        //
+        // Reference: F-CSD-P4-001 adjudication 2026-07-10; error-taxonomy.md §E-QUERY-043.
+        PrismError::ExprInSubqueryProjectionNotSupported { .. } => VariantMeta {
+            category: "validation",
+            suggestion: "Rewrite as a WHERE clause subquery: `WHERE field IN (SELECT ...)`.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
         // the specific categories above (non_exhaustive catch-all).
         _ => VariantMeta {
             category: "upstream_error",

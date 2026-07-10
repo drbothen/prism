@@ -842,39 +842,45 @@ mod tests {
     // -----------------------------------------------------------------------
     // Test 9 (F-CSD-P3-001-T2): Expression-position IN-subquery (SELECT projection)
     //
-    // Grammar-reach note: PrismQlParser parses projection-position IN-subquery of
-    // the form `SELECT (col IN (SELECT col FROM t)) AS alias FROM outer_t`.
-    // Confirmed by `test_med1_expr_insubquery_select_projection_temporal_folded`
-    // (high002_plan_pinning_tests.rs:907) which parses:
-    //   `SELECT (host_id IN (SELECT host_id FROM armis_alerts WHERE ...)) AS flagged
-    //    FROM crowdstrike_detections`
-    // Grammar reach: CONFIRMED — test uses the same (col IN (SELECT ...)) AS alias form.
+    // UPDATED per F-CSD-P4-001 Option A architect adjudication 2026-07-10.
+    // The original COUNT-rewrite approach was rejected due to NULL semantics divergence.
+    //
+    // Grammar reach: CONFIRMED — `(col IN (SELECT col FROM t)) AS alias` is a legal
+    // PrismQL projection expression (verified by high002_plan_pinning_tests.rs).
     //
     // SQL: SELECT (det.device_id IN (SELECT device_id FROM crowdstrike_devices)) AS is_known
     //      FROM crowdstrike_detections det
     //
-    // crowdstrike_devices appears ONLY in the SELECT projection Expr::InSubquery.
-    // Same gap: pre_register_empty_tables does not process Expr nodes
-    // in the SELECT projection list.
-    //
-    // DESIRED (post-fix): Ok with 3 rows; is_known column all false (empty IN-set).
-    // RED: Err(QueryExecutionFailed) — "table not found: crowdstrike_devices".
+    // DESIRED (post Option A fix): Err(ExprInSubqueryProjectionNotSupported { .. }).
+    // E-QUERY-043 plan-time gate fires before DataFusion planning; returns structured error
+    // with rewrite directive ("Use WHERE field IN (SELECT ...)").
     // -----------------------------------------------------------------------
 
-    /// F-CSD-P3-001-T2 / BC-2.11.005 / BC-2.01.010: Expression-position IN-subquery
-    /// in SELECT projection referencing a 0-batch table must return Ok (all-false
-    /// column), not a DataFusion plan error.
+    /// F-CSD-P3-001-T2 / BC-2.11.005: Expression-position IN-subquery in SELECT projection
+    /// must return `E-QUERY-043 ExprInSubqueryProjectionNotSupported`, NOT a silent
+    /// `QueryExecutionFailed` ("Internal error").
+    ///
+    /// # Architect adjudication (F-CSD-P4-001 Option A, 2026-07-10)
+    ///
+    /// The original COUNT-rewrite approach (normalize_expr Expr::InSubquery → scalar COUNT
+    /// subquery) was REJECTED by the architect due to NULL semantics divergence: OCSF columns
+    /// are nullable=true; the COUNT rewrite always returns TRUE/FALSE, collapsing the NULL
+    /// case to FALSE. Standard SQL three-valued logic requires NULL when `x IS NULL` or when
+    /// the IN-set contains NULL. LLM analysts relying on standard SQL semantics would receive
+    /// wrong answers on nullable OCSF fields (agent-harness design goal).
+    ///
+    /// Option A (plan-time structured rejection) is strictly better than the original silent
+    /// "Internal error" / `QueryExecutionFailed` — it explains what is unsupported and how
+    /// to fix the query (`WHERE field IN (SELECT ...)`).
     ///
     /// Grammar reach: CONFIRMED by `test_med1_expr_insubquery_select_projection_temporal_folded`
-    /// (high002_plan_pinning_tests.rs:907). The `(col IN (SELECT col FROM t)) AS alias`
-    /// form is a legal PrismQL projection expression.
-    ///
-    /// RED: `Err(QueryExecutionFailed)` — `crowdstrike_devices` not in catalog because
-    ///      `pre_register_empty_tables` does not walk `Expr::InSubquery`
-    ///      nodes in the SELECT projection list.
+    /// (high002_plan_pinning_tests.rs). The `(col IN (SELECT col FROM t)) AS alias` form is a
+    /// legal PrismQL projection expression.
     #[tokio::test]
-    async fn test_BC_2_11_005_F_CSD_P3_001_T2_expr_insubquery_projection_empty_table_returns_false_col_not_error(
+    async fn test_BC_2_11_005_F_CSD_P3_001_T2_expr_insubquery_projection_returns_e_query_043_not_internal_error(
     ) {
+        use prism_core::error::PrismError;
+
         let ctx =
             build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
 
@@ -903,25 +909,22 @@ mod tests {
         let result =
             execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
 
-        // DESIRED (post-fix): Ok with 3 rows; is_known all false (empty IN-set).
-        // RED: Err(QueryExecutionFailed) — DataFusion: "table not found: crowdstrike_devices"
-        //      because pre_register_empty_tables does not walk Expr::InSubquery
-        //      nodes in the SELECT projection list.
+        // DESIRED (post Option A fix): Err(ExprInSubqueryProjectionNotSupported).
+        // The plan-time gate check_expr_insubquery_projection fires before DataFusion
+        // planning and returns E-QUERY-043, giving the analyst a clear rewrite directive.
+        //
+        // The COUNT-rewrite approach was REJECTED (NULL semantics divergence — see doc comment).
+        // The original error was Err(QueryExecutionFailed) — "Internal error" via catch-all.
         assert!(
-            result.is_ok(),
-            "F-CSD-P3-001-T2 / BC-2.11.005: Projection-position IN-subquery (SELECT clause) \
-             with 0-batch table must return Ok (all-false is_known column), not plan error. \
-             RED: Err — crowdstrike_devices not pre-registered; Expr::InSubquery in SELECT \
-             not walked by pre_register_empty_tables. \
-             got: {result:?}"
-        );
-
-        let batches = result.unwrap();
-        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
-        assert_eq!(
-            total_rows, 3,
-            "F-CSD-P3-001-T2: all 3 detection rows must appear (outer table populated); \
-             is_known column all-false since crowdstrike_devices is empty; got {total_rows}"
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P3-001-T2 / BC-2.11.005: Projection-position IN-subquery must return \
+             E-QUERY-043 (ExprInSubqueryProjectionNotSupported), not an internal plan error. \
+             The COUNT-rewrite was REJECTED by architect adjudication 2026-07-10 due to NULL \
+             semantics divergence (nullable OCSF fields, agent-harness SQL semantics goal). \
+             Use WHERE clause subquery form for equivalent filtering. got: {result:?}"
         );
     }
 

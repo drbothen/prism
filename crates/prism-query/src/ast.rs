@@ -2341,33 +2341,8 @@ impl PqlNormalizer {
                 )
             }
             Expr::InSubquery { field, subquery } => {
-                // DataFusion 53.1.0 physical planner cannot execute `Expr::InSubquery` in
-                // scalar expression positions (SELECT projection, JOIN ON, GROUP BY, ORDER BY).
-                // `Predicate::InSubquery` (WHERE/HAVING filter position) is handled separately
-                // by DataFusion's `decorrelate_predicate_subquery` optimizer rule and works
-                // correctly without rewriting.
-                //
-                // For scalar positions, rewrite to a correlated scalar COUNT subquery:
-                //   `col IN (SQ)` → `(SELECT COUNT(*) FROM (SQ) AS __prism_sq__ WHERE __prism_sq__.join_col = col) > 0`
-                //
-                // DataFusion's `scalar_subquery_to_join` optimizer converts the scalar subquery
-                // to a hash join during planning, making physical execution possible.
-                //
-                // Reference: DataFusion 53.1.0 `create_physical_expr` catch-all arm:
-                //   `other => not_impl_err!("Physical plan does not support logical expression {other:?}")`
-                //   Confirmed via prism debug test (debug_walk_t2 module, session 2026-07-10).
-                let field_str = Self::normalize_field_path(field);
-                let inner_sql = Self::normalize_sql_query(subquery);
-                let col_name = Self::extract_insubquery_first_col(subquery);
-                if col_name.is_empty() {
-                    // Unexpected subquery shape (no selectable column found): fall back to
-                    // the original form and let DataFusion error with a clear message.
-                    format!("{field_str} IN ({inner_sql})")
-                } else {
-                    format!(
-                        "(SELECT COUNT(*) FROM ({inner_sql}) AS __prism_sq__ WHERE __prism_sq__.{col_name} = {field_str}) > 0"
-                    )
-                }
+                let sub = Self::normalize_sql_query(subquery);
+                format!("{} IN ({sub})", Self::normalize_field_path(field))
             }
             Expr::FuncCall(fc) => Self::normalize_func_call(fc),
             Expr::Star => "*".to_string(),
@@ -2432,38 +2407,6 @@ impl PqlNormalizer {
 
     fn normalize_field_path(fp: &FieldPath) -> String {
         fp.segments.join(".")
-    }
-
-    /// Extract the column name produced by the first SELECT item of an IN-subquery.
-    ///
-    /// Used by the `Expr::InSubquery` → scalar-COUNT rewrite in `normalize_expr` to build
-    /// the correlation `WHERE __prism_sq__.<col> = <outer_field>`.
-    ///
-    /// # Column name resolution
-    /// 1. If the first SELECT item has an explicit alias, return the alias.
-    /// 2. If the first SELECT item is an unaliased `Expr::Field`, return the last path segment
-    ///    (e.g. `device_id` from `FieldPath(["cs", "device_id"])`).
-    /// 3. Otherwise return `""` — the caller falls back to the original `col IN (SQ)` form.
-    ///
-    /// # Rationale
-    /// `col IN (SELECT expr FROM t)` requires exactly one column in the subquery SELECT.
-    /// PrismQL's grammar enforces this for `Expr::InSubquery` nodes produced by the parser.
-    /// The fallback to `""` handles unexpected AST shapes defensively.
-    fn extract_insubquery_first_col(sq: &SqlQuery) -> &str {
-        match sq.select.items.first() {
-            Some(SelectItem::Expr { expr, alias }) => {
-                if let Some(a) = alias {
-                    return a.as_str();
-                }
-                if let Expr::Field(fp) = expr {
-                    if let Some(last) = fp.segments.last() {
-                        return last.as_str();
-                    }
-                }
-                ""
-            }
-            _ => "",
-        }
     }
 
     /// Emit a quoted string that the PrismQL grammar can re-parse to the SAME literal value.

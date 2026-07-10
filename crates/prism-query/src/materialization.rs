@@ -644,6 +644,20 @@ pub async fn run_materialization_pipeline(
     // the table is confirmed to exist and the projection check is appropriate).
     check_temporal_literals(&mut ast, mat_ctx.table_registry.as_deref(), false)?;
 
+    // Step 1d: E-QUERY-043 plan-time projection gate fires here — AFTER temporal checks
+    // (E-QUERY-042 wins when both violations are present). The actual gate function lives
+    // in `execute_against_session_with_registry` so it also fires on the direct test-path
+    // invocation. No second call needed here: temporal checks ran before the execute call.
+    //
+    // Gate ordering contract (F-EQ42-P2-001 preserved):
+    //   E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-041 → E-QUERY-042
+    //     → fan-out → execute_against_session_with_registry → E-QUERY-043
+    //
+    // F-EQ42-P2-001 tests (temporal IN-subquery GROUP BY): `check_temporal_literals` fires
+    // E-QUERY-042 at the `?` above, before execute_against_session_with_registry is called.
+    // The E-QUERY-043 gate in execute_against_session_with_registry is therefore never
+    // reached for those queries. Ordering is preserved.
+
     let source_names = extract_source_names(&ast);
 
     // Build a flat FilterMap of equality predicates from the WHERE clause (BC-2.11.007).
@@ -1144,6 +1158,23 @@ pub(crate) async fn execute_against_session_with_registry(
     table_registry: Option<&crate::table_registry::TableRegistry>,
 ) -> Result<Vec<RecordBatch>, PrismError> {
     use crate::ast::{Ast, SqlStatement};
+
+    // E-QUERY-043 plan-time gate (F-CSD-P4-001 Option A, 2026-07-10):
+    // Reject `Expr::InSubquery` in SELECT projection, GROUP BY, or ORDER BY positions
+    // before DataFusion planning. Without this gate the error surfaces as a catch-all
+    // `QueryExecutionFailed` (`-32000 Internal error`) — opaque to the MCP caller.
+    //
+    // Gate is placed here (before the AST match / pre_register_empty_tables / DataFusion
+    // execution) so it applies to both the production path (via run_materialization_pipeline
+    // which calls this function AFTER check_temporal_literals) and the direct test path
+    // (which calls execute_against_session without temporal checks).
+    //
+    // Ordering in production path:
+    //   check_temporal_literals (E-QUERY-042) → fan-out → execute_against_session_with_registry
+    //     → check_expr_insubquery_projection (E-QUERY-043) → DataFusion
+    // F-EQ42-P2-001 tests are preserved: temporal checker fires E-QUERY-042 BEFORE this
+    // function is called, so the projection gate is never reached for those queries.
+    check_expr_insubquery_projection(ast)?;
 
     match ast {
         Ast::Sql(SqlStatement::Select(sql_query)) => {
@@ -2937,6 +2968,15 @@ async fn pre_register_empty_tables(
     };
 
     for table_name in &all_table_names {
+        // F-CSD-P4-006: skip internal prism_* tables — they are registered permanently
+        // at session context creation (or by the AuditRead/write infrastructure) and
+        // must not be shadowed with empty placeholder MemTables. Registering an empty
+        // placeholder over a live prism_audit / prism_write table would corrupt the
+        // session catalog for the duration of the query.
+        if table_name.starts_with("prism_") {
+            continue;
+        }
+
         // Check whether the table is already in the DataFusion catalog.
         match public_schema.table(table_name).await {
             Ok(Some(_)) => continue, // Already registered.
@@ -3083,6 +3123,104 @@ pub(crate) async fn collect_record_batch_stream(
     datafusion::physical_plan::common::collect(stream)
         .await
         .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))
+}
+
+// ---------------------------------------------------------------------------
+// check_expr_insubquery_projection — E-QUERY-043 plan-time gate (F-CSD-P4-001)
+// ---------------------------------------------------------------------------
+
+/// Plan-time gate for `Expr::InSubquery` in SELECT projection, GROUP BY, or ORDER BY
+/// positions (E-QUERY-043).
+///
+/// DataFusion 53.1.0 physical planner raises `not_impl_err!` for `InSubquery` in scalar
+/// expression positions. Without this gate, the error surfaces as a catch-all
+/// `QueryExecutionFailed` (`-32000 Internal error`) — opaque to the MCP caller.
+///
+/// This gate fires AFTER `check_temporal_literals` (see Step 1d in
+/// `run_materialization_pipeline`) so that temporal violations (E-QUERY-042) take
+/// precedence when both are present.
+///
+/// # Scope
+///
+/// Checks the following AST positions for `Expr::InSubquery`:
+/// - `SqlQuery.select.items` — each `SelectItem::Expr { expr, .. }`
+/// - `SqlQuery.group_by` — each `Expr`
+/// - `SqlQuery.order_by` — each `OrderExpr.expr`
+///
+/// Does NOT check `Predicate::InSubquery` (WHERE/HAVING). Those are supported and
+/// executed via DataFusion's `decorrelate_predicate_subquery` optimizer rule with
+/// standard SQL three-valued semantics.
+///
+/// Does NOT check JOIN ON positions: JOIN ON `Expr::InSubquery` is not in scope of
+/// the E-QUERY-043 gate. `pre_register_empty_tables` continues to walk JOIN ON
+/// expressions for empty-table pre-registration (serves security and pre-registration
+/// goals that remain valid regardless of this gate).
+///
+/// # Returns
+///
+/// - `Ok(())` if no `Expr::InSubquery` is found in the gated positions.
+/// - `Err(PrismError::ExprInSubqueryProjectionNotSupported { hint })` on first match.
+///
+/// Reference: F-CSD-P4-001 adjudication 2026-07-10; error-taxonomy.md §E-QUERY-043.
+fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismError> {
+    use crate::ast::{Ast, Expr, SelectItem, SqlStatement};
+
+    /// Recursively check a single `Expr` for any `Expr::InSubquery` node.
+    fn contains_insubquery(expr: &Expr) -> bool {
+        match expr {
+            Expr::InSubquery { .. } => true,
+            Expr::Compare { lhs, rhs, .. } => contains_insubquery(lhs) || contains_insubquery(rhs),
+            Expr::Logical { lhs, rhs, .. } => contains_insubquery(lhs) || contains_insubquery(rhs),
+            Expr::Not(inner) => contains_insubquery(inner),
+            _ => false,
+        }
+    }
+
+    /// Check one `SqlQuery`'s SELECT, GROUP BY, and ORDER BY for projection-position
+    /// `Expr::InSubquery` nodes. Returns the hint string on the first match.
+    fn check_sql_query(q: &crate::ast::SqlQuery) -> bool {
+        // SELECT items.
+        for item in &q.select.items {
+            if let SelectItem::Expr { expr, .. } = item {
+                if contains_insubquery(expr) {
+                    return true;
+                }
+            }
+        }
+        // GROUP BY.
+        for expr in &q.group_by {
+            if contains_insubquery(expr) {
+                return true;
+            }
+        }
+        // ORDER BY.
+        for order_item in &q.order_by {
+            if contains_insubquery(&order_item.expr) {
+                return true;
+            }
+        }
+        false
+    }
+
+    let hint = "IN subquery in SELECT projection position is not currently supported. \
+                Use a WHERE clause subquery instead: \
+                `WHERE field IN (SELECT ...)`.";
+
+    let found = match ast {
+        Ast::Sql(SqlStatement::Select(q)) => check_sql_query(q),
+        Ast::SqlPipe(spq) => check_sql_query(&spq.head),
+        // Filter, Pipe, and DML variants have no SELECT projection expressions in the
+        // same sense as SQL SELECT; no E-QUERY-043 cases possible.
+        #[allow(unreachable_patterns)]
+        _ => false,
+    };
+
+    if found {
+        return Err(PrismError::ExprInSubqueryProjectionNotSupported {
+            hint: hint.to_string(),
+        });
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
