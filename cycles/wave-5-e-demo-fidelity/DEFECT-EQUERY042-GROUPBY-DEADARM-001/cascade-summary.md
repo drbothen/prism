@@ -81,7 +81,33 @@ Zero findings across all three passes. BC-5.39.001 3-CLEAN CONVERGED.
 | BC-2.11.003 | v1.11→v1.12 | POL-25 sweep catch; EC-11-003-008/009 + test vectors |
 | story (DEFECT-EQUERY042-GROUPBY-DEADARM-001) | v1.12→v1.13 | Pin round: 34× ADR-052 §D4 v1.10→v1.11 + 4× error-taxonomy |
 
-## Next Step
+## PR-LEVEL Cascade (frozen 7db0b1ba)
 
-Push `fix/equery042-groupby-deadarm` @7db0b1ba → pr-manager 9-step fix-PR cycle →
-PR-LEVEL cascade (BC-5.39.001 requires CLEAN(strict) ×3 at PR-LEVEL as well).
+| Pass | Frozen HEAD | CLEAN(strict) | CLEAN(PR-merge) | Findings | Streak |
+|------|-------------|---------------|-----------------|----------|--------|
+| PRL-1 | 7db0b1ba | YES | YES | 0 | 1/3 |
+| PRL-2 | 7db0b1ba | YES | YES | 0 | 2/3 |
+| PRL-3 | 7db0b1ba | YES | YES | 0 | **3/3 CONVERGED** |
+
+BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED on frozen 7db0b1ba. Zero findings across all three PR-LEVEL passes.
+
+---
+
+## Merge Record
+
+| Event | Details |
+|-------|---------|
+| PR | #220 |
+| Merge type | squash-merge (normal, no --admin) |
+| Merged by | Human-authorized |
+| Merge SHA | b9cf3f9be6d655170815ff2578d7728f1b1659c0 |
+| Develop before | 8ea29823 |
+| Develop after | b9cf3f9b |
+| Merged at | 2026-07-10 |
+| Remote branch | fix/equery042-groupby-deadarm DELETED post-merge |
+| CI at merge | Crate Layout PASS; main CI + E2E Red Gate in_progress (no failures) |
+| Security | CLEAR |
+| pr-reviewer | APPROVE (cycle 1) |
+| POL-14 BC promotions | NONE (fix-PR; no new draft BCs; all BCs already active) |
+
+**DEFECT-EQUERY042-GROUPBY-DEADARM-001 CLOSED.** develop@b9cf3f9b (D-1655 2026-07-10).
