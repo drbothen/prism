@@ -1060,7 +1060,7 @@ pub async fn run_materialization_pipeline(
         });
     }
 
-    // F-CSD-P1-001: pass the live TableRegistry so `pre_register_empty_tables_for_joins`
+    // F-CSD-P1-001: pass the live TableRegistry so `pre_register_empty_tables`
     // builds spec-declared schemas (Priority 1) for empty-side MemTables instead of
     // falling back to bundled statics or inference only.
     let collected = execute_against_session_with_registry(
@@ -1096,7 +1096,7 @@ pub async fn run_materialization_pipeline(
 ///
 /// # Empty MemTable schema fallback for direct callers
 ///
-/// When called directly (without a `TableRegistry`), `pre_register_empty_tables_for_joins`
+/// When called directly (without a `TableRegistry`), `pre_register_empty_tables`
 /// uses the bundled static schemas (`BUNDLED_SPEC_SCHEMAS`) as a fallback for the 4 known
 /// sensors, then falls back to JOIN-equality inference for other tables. This ensures
 /// unit tests that call this function directly still receive spec-declared schemas
@@ -1112,7 +1112,7 @@ pub async fn execute_against_session(
     table_batches: std::collections::HashMap<String, Vec<RecordBatch>>,
 ) -> Result<Vec<RecordBatch>, PrismError> {
     // Delegate to the registry-aware implementation with None (no live registry).
-    // pre_register_empty_tables_for_joins will fall back to bundled spec schemas
+    // pre_register_empty_tables will fall back to bundled spec schemas
     // (Priority 2) then inference (Priority 3) for unregistered tables.
     execute_against_session_with_registry(session_ctx, _query_str, ast, table_batches, None).await
 }
@@ -1131,7 +1131,7 @@ pub async fn execute_against_session(
 ///
 /// The only behavioral difference from `execute_against_session` is in the
 /// `Ast::Sql(Select)` arm: the registry is passed to
-/// `pre_register_empty_tables_for_joins` as Priority-1 schema source so empty-side
+/// `pre_register_empty_tables` as Priority-1 schema source so empty-side
 /// MemTables receive the full spec-declared schema (including non-JOIN columns
 /// and correct Arrow types like Timestamp for datetime fields).
 ///
@@ -1152,7 +1152,7 @@ pub(crate) async fn execute_against_session_with_registry(
             // Pre-register schema-only empty MemTables using spec-declared columns
             // (Priority 1: live TableRegistry; Priority 2: bundled TOML fallback;
             // Priority 3: JOIN-equality peer inference).
-            pre_register_empty_tables_for_joins(session_ctx, sql_query, table_registry).await?;
+            pre_register_empty_tables(session_ctx, sql_query, table_registry).await?;
             // P5-04: read the executing session's ACTUAL pool capacity so
             // budget-exceeded errors report the configured limit (engine
             // config `memory_pool_bytes`), not the 200MB default constant.
@@ -2401,13 +2401,13 @@ async fn check_ci_column_types(
                 // unregistered table — there are no column types to check.
                 //
                 // What happens next depends on the query mode:
-                // - SQL mode: `pre_register_empty_tables_for_joins` runs BEFORE
+                // - SQL mode: `pre_register_empty_tables` runs BEFORE
                 //   `check_ci_column_types` and registers a spec-column empty MemTable,
                 //   so the table WILL be in the catalog by the time DataFusion plans the
                 //   query. The `Ok(None)` path here is therefore unreachable for tables
                 //   covered by spec-column registration (crowdstrike, armis, claroty,
                 //   cyberint). Non-bundled tables fall back to inference or Schema::empty().
-                // - Filter/Pipe mode: `pre_register_empty_tables_for_joins` does NOT run
+                // - Filter/Pipe mode: `pre_register_empty_tables` does NOT run
                 //   (it is SQL-mode only). A query against an unregistered table will
                 //   fail at DataFusion execution time with a "table not found" error —
                 //   which is the correct behavior (BC-2.01.010 / F-P16-OBS-002).
@@ -2507,7 +2507,7 @@ fn arrow_type_to_prism_column_type(
 /// not importable from prism-query). Kept in sync manually — any change to the prism-bin
 /// function must be reflected here.
 ///
-/// Used by `pre_register_empty_tables_for_joins` to build spec-declared schemas for
+/// Used by `pre_register_empty_tables` to build spec-declared schemas for
 /// empty-side MemTables (BC-2.11.005 DEC-022 / F-CSD-P1-001).
 ///
 /// # Type mapping (ADR-052)
@@ -2660,7 +2660,7 @@ pub fn register_mem_table(
 }
 
 // ---------------------------------------------------------------------------
-// pre_register_empty_tables_for_joins (DEFECT-CSDEVICES-EMPTY-PIPELINE-001)
+// pre_register_empty_tables (DEFECT-CSDEVICES-EMPTY-PIPELINE-001)
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -2669,7 +2669,7 @@ pub fn register_mem_table(
 
 /// Bundled sensor spec TOML content (included at compile time from prism-sensors/specs/).
 ///
-/// These serve as the fallback schema source in `pre_register_empty_tables_for_joins`
+/// These serve as the fallback schema source in `pre_register_empty_tables`
 /// when no live `TableRegistry` is available — specifically for unit tests that call
 /// `execute_against_session` directly without a registry (BC-2.11.005 DEC-022).
 ///
@@ -2688,7 +2688,7 @@ const CYBERINT_SPEC_TOML: &str = include_str!("../../prism-sensors/specs/cyberin
 /// Thread-safe: `OnceLock` guarantees at-most-once initialization. Subsequent accesses
 /// return the cached map without re-parsing.
 ///
-/// Used as the Priority-2 fallback in `pre_register_empty_tables_for_joins` when no
+/// Used as the Priority-2 fallback in `pre_register_empty_tables` when no
 /// live `TableRegistry` is provided (F-CSD-P1-001 spec-column contract).
 static BUNDLED_SPEC_SCHEMAS: std::sync::OnceLock<
     std::collections::HashMap<String, Arc<arrow::datatypes::Schema>>,
@@ -2749,7 +2749,7 @@ fn build_bundled_spec_schemas() -> std::collections::HashMap<String, Arc<arrow::
 /// (`vec![vec![]]`), then registers it in the DataFusion default catalog.
 ///
 /// Extracted from the repeated `MemTable::try_new` + `register_table` + error-map
-/// pattern previously duplicated between `pre_register_empty_tables_for_joins` paths
+/// pattern previously duplicated between `pre_register_empty_tables` paths
 /// (F-CSD-P1-OBS-001 dedup; BC-2.11.005 DEC-022).
 ///
 /// # Errors
@@ -2806,7 +2806,7 @@ fn do_register_empty_mem_table(
 /// Only `Expr::Compare { op: CompareOp::Eq, .. }` with `Expr::Field` on both sides
 /// with at least 2 path segments are emitted (alias + column name).
 ///
-/// Used by `pre_register_empty_tables_for_joins` to infer the schema of unregistered
+/// Used by `pre_register_empty_tables` to infer the schema of unregistered
 /// tables from JOIN peer columns (BC-2.11.005 DEC-022).
 fn extract_join_equalities(joins: &[crate::ast::Join]) -> Vec<(String, String, String, String)> {
     fn recurse(expr: &crate::ast::Expr, out: &mut Vec<(String, String, String, String)>) {
@@ -2872,7 +2872,7 @@ fn extract_join_equalities(joins: &[crate::ast::Join]) -> Vec<(String, String, S
 /// - BC-2.11.005 DEC-022: "All sensor API calls return empty" →
 ///   "Empty RecordBatch registered; query returns empty result set"
 /// - BC-2.01.010: empty result ≠ error (partial-failure handling)
-async fn pre_register_empty_tables_for_joins(
+async fn pre_register_empty_tables(
     session_ctx: &SessionContext,
     sql_query: &crate::ast::SqlQuery,
     table_registry: Option<&crate::table_registry::TableRegistry>,
@@ -2898,20 +2898,28 @@ async fn pre_register_empty_tables_for_joins(
         alias_to_table.insert(join_alias, join_table.clone());
     }
 
-    // Collect ALL table names referenced in the query, deduplicated (F-CSD-P1-003).
-    // A self-join (`FROM t AS a JOIN t AS b ON ...`) references the same underlying
-    // table twice — deduplicate to avoid a double-registration attempt that DataFusion
-    // would reject with "table already registered".
+    // Collect ALL table names referenced anywhere in the query — FROM, JOINs,
+    // WHERE predicates (Predicate::InSubquery), SELECT projections
+    // (Expr::InSubquery), GROUP BY, HAVING, ORDER BY, and any nested subquery
+    // at arbitrary depth (F-CSD-P3-001 / BC-2.11.005 DEC-022 / BC-2.01.010).
+    //
+    // The previous FROM+JOINs-only scan missed tables referenced solely inside
+    // IN-subquery positions, causing DataFusion "table not found" plan errors
+    // for 0-batch tables. `walk_sql_query` provides the full recursive walk
+    // already used by `extract_source_names_recursive`.
+    //
+    // Deduplication via `seen_tables` HashSet prevents double-registration that
+    // DataFusion would reject with "table already registered" (F-CSD-P1-003).
+    // `walk_sql_query` inserts raw source names; normalize each via
+    // `datafusion_table_name` to replace dots with underscores before lookup.
+    let mut raw_names = std::collections::HashSet::new();
+    walk_sql_query(sql_query, &mut raw_names);
     let mut seen_tables = std::collections::HashSet::new();
     let mut all_table_names: Vec<String> = Vec::new();
-    let from_t = datafusion_table_name(&sql_query.from.source.raw);
-    if seen_tables.insert(from_t.clone()) {
-        all_table_names.push(from_t);
-    }
-    for join in &sql_query.joins {
-        let join_t = datafusion_table_name(&join.source.raw);
-        if seen_tables.insert(join_t.clone()) {
-            all_table_names.push(join_t);
+    for raw in raw_names {
+        let normalized = datafusion_table_name(&raw);
+        if seen_tables.insert(normalized.clone()) {
+            all_table_names.push(normalized);
         }
     }
 
@@ -2964,7 +2972,7 @@ async fn pre_register_empty_tables_for_joins(
                 do_register_empty_mem_table(session_ctx, table_name, schema)?;
                 tracing::debug!(
                     table_name = %table_name,
-                    "pre_register_empty_tables_for_joins: registered spec-column schema \
+                    "pre_register_empty_tables: registered spec-column schema \
                      from live TableRegistry (BC-2.11.005 DEC-022 / F-CSD-P1-001)"
                 );
                 continue;
@@ -2986,7 +2994,7 @@ async fn pre_register_empty_tables_for_joins(
                 do_register_empty_mem_table(session_ctx, table_name, Arc::clone(schema))?;
                 tracing::debug!(
                     table_name = %table_name,
-                    "pre_register_empty_tables_for_joins: registered spec-column schema \
+                    "pre_register_empty_tables: registered spec-column schema \
                      from bundled TOML fallback (BC-2.11.005 DEC-022 / F-CSD-P1-001)"
                 );
                 continue;
@@ -3038,7 +3046,7 @@ async fn pre_register_empty_tables_for_joins(
         do_register_empty_mem_table(session_ctx, table_name, schema)?;
         tracing::debug!(
             table_name = %table_name,
-            "pre_register_empty_tables_for_joins: registered inference-based schema \
+            "pre_register_empty_tables: registered inference-based schema \
              (BC-2.11.005 DEC-022 / BC-2.01.010 empty-is-not-error)"
         );
     }

@@ -65,7 +65,7 @@
 //!
 //! Tests 4-7 encode the FULL contract from D-1650 §Track B: the schema-only empty
 //! MemTable must be built from the SENSOR SPEC's declared columns, not inferred
-//! from JOIN-equality peer columns only. The current implementation (`pre_register_empty_tables_for_joins`
+//! from JOIN-equality peer columns only. The current implementation (`pre_register_empty_tables`
 //! v1) passes Tests 1-3 but fails Tests 4-7 because it infers at most the JOIN key
 //! column and cannot satisfy queries on non-JOIN-equality or datetime-typed columns.
 //!
@@ -95,7 +95,7 @@
 //!
 //! `test_BC_2_11_005_DEFECT_CSD_P1_002_T3_two_zero_batch_tables_joined_returns_empty`
 //!
-//! Both sides of the JOIN have 0 batches. Current `pre_register_empty_tables_for_joins`:
+//! Both sides of the JOIN have 0 batches. Current `pre_register_empty_tables`:
 //! processes the FROM-table first (devices), looks up the JOIN peer (detections) — also
 //! not yet registered — gets no schema hint → Schema::empty(). Second pass for detections:
 //! peer (devices) is now registered with Schema::empty() — `field_with_name("device_id")`
@@ -118,7 +118,7 @@
 //!
 //! # Red Gate (BC-5.38.001)
 //!
-//! Tests 1-3: PASS after the inference-based fix (`pre_register_empty_tables_for_joins` v1).
+//! Tests 1-3: PASS after the inference-based fix (`pre_register_empty_tables` v1).
 //! Tests 4-7: FAIL against inference-based fix; PASS after spec-column fix (D-1650 §Track B).
 //! Failure mode for 4-7: QueryExecutionFailed (DataFusion cannot resolve non-JOIN columns)
 //! or assertion on schema field names/types fails.
@@ -395,7 +395,7 @@ mod tests {
     // -----------------------------------------------------------------------
     // F-CSD-P1-002 Tests 4-7 (RED against inference-based fix; GREEN after spec-column fix)
     //
-    // The inference-based `pre_register_empty_tables_for_joins` passes Tests 1-3 but
+    // The inference-based `pre_register_empty_tables` passes Tests 1-3 but
     // fails Tests 4-7: it infers at most the JOIN-equality column (`device_id: Utf8`)
     // and cannot satisfy queries on non-JOIN columns or datetime-typed columns.
     //
@@ -438,7 +438,7 @@ mod tests {
             .expect("crowdstrike_detections registration must succeed");
 
         // crowdstrike_devices — 0 batches (simulates empty two-step pipeline result).
-        // pre_register_empty_tables_for_joins infers `{device_id: Utf8}` from the JOIN ON
+        // pre_register_empty_tables infers `{device_id: Utf8}` from the JOIN ON
         // clause — but `hostname` is not in that inferred schema.
         register_mem_table(&ctx, "crowdstrike_devices", vec![])
             .expect("register_mem_table with empty batches must not error");
@@ -454,7 +454,7 @@ mod tests {
 
         // DESIRED (post-fix): Ok with 3 rows; hostname column all NULL.
         // RED: Err(QueryExecutionFailed) — `No field named dev.hostname` because
-        //      pre_register_empty_tables_for_joins inferred only `{device_id: Utf8}`.
+        //      pre_register_empty_tables inferred only `{device_id: Utf8}`.
         assert!(
             result.is_ok(),
             "F-CSD-P1-002-T1 / BC-2.11.005: SELECT on non-JOIN column from 0-batch \
@@ -727,11 +727,11 @@ mod tests {
     // -----------------------------------------------------------------------
     // F-CSD-P3-001 Tests 8-11 (RED at HEAD 4a19a22d — LOCAL adversary pass-3)
     //
-    // Finding: `pre_register_empty_tables_for_joins` (materialization.rs) builds
+    // Finding: `pre_register_empty_tables` (materialization.rs) builds
     // `all_table_names` from ONLY `sql_query.from` + `sql_query.joins` (lines
     // 2905-2916). It does NOT recurse into subqueries. `walk_sql_query` (the
     // `collect_external_table_names` helper) DOES recurse, but
-    // `pre_register_empty_tables_for_joins` is independent and does not call it.
+    // `pre_register_empty_tables` is independent and does not call it.
     //
     // Consequence: any 0-batch table referenced EXCLUSIVELY inside an IN-subquery
     // (at any position: WHERE, SELECT projection, nested depth ≥ 2, or subquery
@@ -744,7 +744,7 @@ mod tests {
     // these 4 tests lock the IN-subquery positions.
     //
     // All 4 tests FAIL at HEAD for the documented reason; ALL must pass after the
-    // implementer extends `pre_register_empty_tables_for_joins` with recursive
+    // implementer extends `pre_register_empty_tables` with recursive
     // subquery walking.
     // -----------------------------------------------------------------------
 
@@ -755,7 +755,7 @@ mod tests {
     //      WHERE det.device_id IN (SELECT device_id FROM crowdstrike_devices)
     //
     // crowdstrike_devices appears ONLY in the WHERE IN-subquery. The outer query
-    // has no JOINs referencing it. `pre_register_empty_tables_for_joins` processes
+    // has no JOINs referencing it. `pre_register_empty_tables` processes
     // only `crowdstrike_detections` (from FROM) → `crowdstrike_devices` never added
     // to `all_table_names` → not pre-registered → DataFusion plan error.
     //
@@ -767,13 +767,13 @@ mod tests {
     /// a 0-batch table must return Ok (0 rows), not a DataFusion plan error.
     ///
     /// Primary exploit from LOCAL adversary pass-3 finding F-CSD-P3-001 (HIGH):
-    /// `pre_register_empty_tables_for_joins` scans only FROM + JOIN positions in
+    /// `pre_register_empty_tables` scans only FROM + JOIN positions in
     /// the outer query; a table referenced exclusively inside a WHERE IN-subquery
     /// is invisible to it and never pre-registered.
     ///
     /// RED: `Err(QueryExecutionFailed)` — DataFusion cannot find `crowdstrike_devices`
     ///      because it was only referenced inside the IN-subquery, not in the outer
-    ///      FROM/JOIN list that `pre_register_empty_tables_for_joins` processes.
+    ///      FROM/JOIN list that `pre_register_empty_tables` processes.
     #[tokio::test]
     async fn test_BC_2_11_005_F_CSD_P3_001_T1_predicate_insubquery_empty_table_returns_empty_not_error(
     ) {
@@ -806,7 +806,7 @@ mod tests {
         );
 
         // crowdstrike_devices is referenced ONLY in the IN-subquery.
-        // pre_register_empty_tables_for_joins builds all_table_names from
+        // pre_register_empty_tables builds all_table_names from
         // `sql_query.from` (crowdstrike_detections) + `sql_query.joins` (none).
         // crowdstrike_devices is never added to all_table_names → not pre-registered.
         let sql = "SELECT det.detection_id \
@@ -819,13 +819,13 @@ mod tests {
 
         // DESIRED (post-fix): Ok with 0 rows — empty IN-set yields 0 matching detections.
         // RED: Err(QueryExecutionFailed) — DataFusion: "table not found: crowdstrike_devices"
-        //      because pre_register_empty_tables_for_joins did not recurse into
+        //      because pre_register_empty_tables did not recurse into
         //      the IN-subquery to discover and pre-register crowdstrike_devices.
         assert!(
             result.is_ok(),
             "F-CSD-P3-001-T1 / BC-2.11.005 / BC-2.01.010: WHERE IN-subquery referencing \
              a 0-batch table must return Ok (0 rows), not a DataFusion plan error. \
-             RED: Err — crowdstrike_devices invisible to pre_register_empty_tables_for_joins \
+             RED: Err — crowdstrike_devices invisible to pre_register_empty_tables \
              (only outer FROM/JOIN positions are scanned; IN-subquery positions are skipped). \
              got: {result:?}"
         );
@@ -854,7 +854,7 @@ mod tests {
     //      FROM crowdstrike_detections det
     //
     // crowdstrike_devices appears ONLY in the SELECT projection Expr::InSubquery.
-    // Same gap: pre_register_empty_tables_for_joins does not process Expr nodes
+    // Same gap: pre_register_empty_tables does not process Expr nodes
     // in the SELECT projection list.
     //
     // DESIRED (post-fix): Ok with 3 rows; is_known column all false (empty IN-set).
@@ -870,7 +870,7 @@ mod tests {
     /// form is a legal PrismQL projection expression.
     ///
     /// RED: `Err(QueryExecutionFailed)` — `crowdstrike_devices` not in catalog because
-    ///      `pre_register_empty_tables_for_joins` does not walk `Expr::InSubquery`
+    ///      `pre_register_empty_tables` does not walk `Expr::InSubquery`
     ///      nodes in the SELECT projection list.
     #[tokio::test]
     async fn test_BC_2_11_005_F_CSD_P3_001_T2_expr_insubquery_projection_empty_table_returns_false_col_not_error(
@@ -905,14 +905,14 @@ mod tests {
 
         // DESIRED (post-fix): Ok with 3 rows; is_known all false (empty IN-set).
         // RED: Err(QueryExecutionFailed) — DataFusion: "table not found: crowdstrike_devices"
-        //      because pre_register_empty_tables_for_joins does not walk Expr::InSubquery
+        //      because pre_register_empty_tables does not walk Expr::InSubquery
         //      nodes in the SELECT projection list.
         assert!(
             result.is_ok(),
             "F-CSD-P3-001-T2 / BC-2.11.005: Projection-position IN-subquery (SELECT clause) \
              with 0-batch table must return Ok (all-false is_known column), not plan error. \
              RED: Err — crowdstrike_devices not pre-registered; Expr::InSubquery in SELECT \
-             not walked by pre_register_empty_tables_for_joins. \
+             not walked by pre_register_empty_tables. \
              got: {result:?}"
         );
 
@@ -997,7 +997,7 @@ mod tests {
 
         // DESIRED (post-recursive-fix): Ok with 0 rows.
         // RED at HEAD: Err(QueryExecutionFailed) — crowdstrike_devices (depth-1) not
-        //     in catalog; pre_register_empty_tables_for_joins found neither table.
+        //     in catalog; pre_register_empty_tables found neither table.
         // RED post-depth-1-only-fix: Err(QueryExecutionFailed) — armis_devices (depth-2)
         //     still not in catalog; shallow fix covered only the outer IN-subquery FROM.
         assert!(
