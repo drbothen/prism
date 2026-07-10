@@ -2096,4 +2096,592 @@ mod tests {
              got: {result:?}"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // F-CSD-P7-001 Tests 21-24 (RED — LOCAL adversary pass-7)
+    //
+    // Finding: `check_expr_insubquery_projection`'s inner `check_sql_query`
+    // (materialization.rs ~3211) walks only the TOP-LEVEL select.items, group_by,
+    // and order_by. It does NOT recurse into subqueries reached via:
+    //   - q.where_  Predicate::InSubquery.subquery
+    //   - q.having  Predicate::InSubquery.subquery
+    //   - q.joins[].on Expr::InSubquery.subquery
+    //   - the .subquery of any Expr::InSubquery node it finds
+    //
+    // Consequence: a projection-position Expr::InSubquery NESTED inside a supported
+    // WHERE/HAVING Predicate::InSubquery slips the gate entirely.
+    // DataFusion receives the unsupported shape → not_impl_err → QueryExecutionFailed
+    // (-32000 "Internal error" to the MCP caller).
+    //
+    // Sibling walkers (walk_sql_query, check_temporal_literals) DO recurse into
+    // WHERE/HAVING predicates. check_sql_query is the lagging walker.
+    //
+    // Test 21 (F-CSD-P7-001-T1): Primary exploit shape — WHERE IN-subquery whose
+    //   inner SELECT projection has Expr::InSubquery. Gate must fire E-QUERY-043.
+    // Test 22 (F-CSD-P7-001-T2): Depth variant — WHERE IN-subquery whose inner
+    //   GROUP BY has Expr::InSubquery. Locks that the fix uses full check_sql_query
+    //   (all positions), not just a minimal "check inner select.items" patch.
+    // Test 23 (F-CSD-P7-001-T3): HAVING-path variant — HAVING IN-subquery whose
+    //   inner SELECT projection has Expr::InSubquery. Exercises the HAVING recursion
+    //   path (q.having), orthogonal to the WHERE path of T21/T22.
+    // Test 24 (F-CSD-P7-001-T4): Negative control — nested WHERE-in-WHERE with
+    //   NO projection-position InSubquery anywhere, populated tables. Must execute
+    //   fine. Locks that the recursive fix does not over-reject supported query shapes.
+    //
+    // Tests 21-23: RED at HEAD (Err(QueryExecutionFailed) instead of E-QUERY-043).
+    // Test 24:     GREEN at HEAD and GREEN post-fix (negative control).
+    //
+    // All 4 pass after the implementer extends check_sql_query to call itself
+    // recursively on WHERE/HAVING Predicate::InSubquery.subquery.
+    // -----------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------
+    // Test 21 (F-CSD-P7-001-T1): Primary exploit — WHERE IN-subquery with
+    // SELECT projection InSubquery inside slips the gate.
+    //
+    // SQL: SELECT det.detection_id FROM crowdstrike_detections det
+    //      WHERE det.device_id IN (
+    //          SELECT (dev.device_id IN (SELECT device_id FROM armis_devices)) AS is_known
+    //          FROM crowdstrike_devices dev
+    //      )
+    //
+    // Gate walk on outer query:
+    //   select.items = [detection_id] → no InSubquery
+    //   group_by = [] → ok
+    //   order_by = [] → ok
+    //   where_ = Predicate::InSubquery { subquery: inner_q } → NOT walked
+    //
+    // inner_q.select.items has Expr::InSubquery → gate never called on inner_q.
+    // DataFusion receives query → not_impl_err for InSubquery in scalar projection
+    // → QueryExecutionFailed (opaque -32000 to MCP).
+    //
+    // DESIRED (post-fix): Err(ExprInSubqueryProjectionNotSupported).
+    // RED: Err(QueryExecutionFailed).
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P7-001-T1 / BC-2.11.003: `Expr::InSubquery` in the SELECT projection of a
+    /// subquery nested inside a WHERE `Predicate::InSubquery` must return E-QUERY-043
+    /// (`ExprInSubqueryProjectionNotSupported`), NOT a silent `QueryExecutionFailed`.
+    ///
+    /// # Defect (F-CSD-P7-001, LOCAL adversary pass-7, MED)
+    ///
+    /// `check_sql_query` in `check_expr_insubquery_projection` (materialization.rs ~3211)
+    /// walks only the TOP-LEVEL query's `select.items`, `group_by`, and `order_by`.
+    /// It does NOT recurse into subqueries reached via `q.where_`
+    /// `Predicate::InSubquery.subquery`. A projection-position `Expr::InSubquery` nested
+    /// inside a WHERE IN-subquery's SELECT clause therefore slips the gate undetected.
+    ///
+    /// # Grammar reach
+    ///
+    /// CONFIRMED: T9 (F-CSD-P3-001-T2) verified `(field IN (SELECT …)) AS alias` is a valid
+    /// PrismQL SELECT projection. T8 / T14 confirmed `WHERE field IN (SELECT …)` parses as
+    /// `Predicate::InSubquery`. Combining them (outer WHERE IN → inner SELECT projection IN)
+    /// is grammatically valid and confirmed by the `PrismQlParser::parse` call below.
+    ///
+    /// # RED state
+    ///
+    /// Currently returns `Err(QueryExecutionFailed)` because the gate returns `false`
+    /// (check_sql_query only walks the outer query and WHERE is not walked).
+    /// DataFusion receives the inner `SELECT (col IN (SELECT …)) AS flag FROM …`
+    /// and emits `not_impl_err!("InSubquery")` in scalar projection context.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P7_001_T1_where_insubquery_projection_insubquery_returns_e_query_043(
+    ) {
+        use prism_core::error::PrismError;
+
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — outer FROM table with data.
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002", "det-003"],
+            "device_id",
+            &["dev-A", "dev-B", "dev-C"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — referenced in the outer WHERE IN-subquery FROM clause.
+        let dev_batch = make_batch("device_id", &["dev-A", "dev-B"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // armis_devices — referenced in the innermost IN-subquery (projection position).
+        let armis_batch = make_batch("device_id", &["dev-A"]);
+        register_mem_table(&ctx, "armis_devices", vec![armis_batch])
+            .expect("armis_devices registration must succeed");
+
+        // Exploit shape from F-CSD-P7-001 finding description (2026-07-10):
+        //   Outer WHERE: Predicate::InSubquery { field: det.device_id, subquery: inner_q }
+        //   inner_q SELECT projection: SelectItem::Expr { expr: Expr::InSubquery { ... } }
+        //
+        // Gate walk on outer check_sql_query(outer_q):
+        //   select.items = [detection_id Field] → contains_insubquery → false
+        //   group_by = [] → ok
+        //   order_by = [] → ok
+        //   where_ = Predicate::InSubquery { subquery: inner_q } → NOT walked
+        //
+        // inner_q.select.items = [(dev.device_id IN (SELECT device_id FROM armis_devices)) AS is_known]
+        // → Expr::InSubquery → gate WOULD fire if check_sql_query(inner_q) were called.
+        // It is NOT called → gate returns false → DataFusion receives full query.
+        let sql = "SELECT det.detection_id \
+                   FROM crowdstrike_detections det \
+                   WHERE det.device_id IN (\
+                       SELECT (dev.device_id IN (SELECT device_id FROM armis_devices)) AS is_known \
+                       FROM crowdstrike_devices dev\
+                   )";
+        // Grammar reach: outer WHERE Predicate::InSubquery confirmed by T8/T14;
+        // inner SELECT projection Expr::InSubquery confirmed by T9.
+        let ast = PrismQlParser::parse(sql).expect(
+            "F-CSD-P7-001-T1: combined WHERE IN + inner SELECT projection IN must parse — \
+             outer Predicate::InSubquery and inner Expr::InSubquery in SELECT are both \
+             established PrismQL grammar forms (T8 + T9 grammar-reach verification)",
+        );
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Err(ExprInSubqueryProjectionNotSupported { .. }).
+        // check_sql_query must recurse into WHERE Predicate::InSubquery.subquery and
+        // call check_sql_query(inner_q), where inner_q.select.items contains Expr::InSubquery.
+        //
+        // RED: currently Err(QueryExecutionFailed) — check_sql_query only walks the
+        //      outer query's top-level positions; the WHERE predicate is not walked.
+        //      DataFusion receives the query → not_impl_err for InSubquery in scalar
+        //      projection context → PrismError::QueryExecutionFailed (opaque -32000 to MCP).
+        //
+        // This finding is the primary exploit described in F-CSD-P7-001 (LOCAL pass-7, MED).
+        assert!(
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P7-001-T1 / BC-2.11.003: Projection-position InSubquery nested inside \
+             a WHERE IN-subquery must return E-QUERY-043 \
+             (ExprInSubqueryProjectionNotSupported), not a silent QueryExecutionFailed. \
+             RED: check_sql_query does not recurse into WHERE Predicate::InSubquery.subquery \
+             — inner SELECT projection Expr::InSubquery slips the gate → DataFusion receives \
+             the unsupported shape → Err(QueryExecutionFailed) (opaque -32000 to MCP). \
+             Fix: check_sql_query must also call itself recursively on the subquery found \
+             in q.where_ when q.where_ is (or contains) Predicate::InSubquery.subquery. \
+             Sibling walkers walk_sql_query and check_temporal_literals already recurse here. \
+             got: {result:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 22 (F-CSD-P7-001-T2): Depth variant — WHERE IN-subquery whose inner
+    // GROUP BY has Expr::InSubquery.
+    //
+    // SQL: SELECT det.detection_id FROM crowdstrike_detections det
+    //      WHERE det.device_id IN (
+    //          SELECT count(*) FROM crowdstrike_devices
+    //          GROUP BY (device_id IN (SELECT device_id FROM armis_devices))
+    //      )
+    //
+    // Gate walk on outer query:
+    //   select.items = [detection_id] → no InSubquery
+    //   group_by = [] → empty
+    //   order_by = [] → empty
+    //   where_ = Predicate::InSubquery { subquery: inner_q } → NOT walked
+    //
+    // inner_q.group_by = [Expr::InSubquery { field: device_id, subquery: armis_q }]
+    // → gate WOULD fire if check_sql_query(inner_q) were called.
+    // It is NOT called → gate returns false.
+    //
+    // Implementer note: a minimal patch that only checks inner_q.select.items
+    // (without calling full check_sql_query which also checks group_by) passes T21
+    // but fails this test. The fix must call the FULL check_sql_query on subqueries
+    // reached via WHERE, not just check their select.items inline.
+    //
+    // DESIRED (post-fix): Err(ExprInSubqueryProjectionNotSupported).
+    // RED: Err(QueryExecutionFailed).
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P7-001-T2 / BC-2.11.003: `Expr::InSubquery` in the GROUP BY clause of a
+    /// subquery nested inside a WHERE `Predicate::InSubquery` must return E-QUERY-043.
+    ///
+    /// # Purpose: lock the full recursive walk, not a single-position patch
+    ///
+    /// A minimal fix that only checks `inner_q.select.items` (without calling
+    /// `check_sql_query(inner_q)` which also walks `group_by` and `order_by`) would
+    /// pass T21 (SELECT projection) but fail this test (GROUP BY). The fix must invoke
+    /// the full `check_sql_query` on all subqueries reached via WHERE predicates —
+    /// not a per-position selective check.
+    ///
+    /// # Grammar reach
+    ///
+    /// CONFIRMED: T12 (F-CSD-P4-001-T1) verified `GROUP BY device_id IN (SELECT …)` parses
+    /// as `group_by: [Expr::InSubquery { … }]`. The outer `WHERE field IN (SELECT …)` is
+    /// an established PrismQL pattern (T8/T14). Combining them is grammatically valid.
+    ///
+    /// # RED state
+    ///
+    /// `check_sql_query` never called on inner_q → inner GROUP BY InSubquery undetected
+    /// → gate returns false → DataFusion receives inner `SELECT count(*) FROM … GROUP BY
+    /// (device_id IN (SELECT …))` → DataFusion cannot plan correlated subquery in GROUP BY
+    /// → `Err(QueryExecutionFailed)`.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P7_001_T2_where_insubquery_group_by_insubquery_returns_e_query_043(
+    ) {
+        use prism_core::error::PrismError;
+
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002"],
+            "device_id",
+            &["dev-A", "dev-B"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        let dev_batch = make_batch("device_id", &["dev-A", "dev-B"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        let armis_batch = make_batch("device_id", &["dev-A"]);
+        register_mem_table(&ctx, "armis_devices", vec![armis_batch])
+            .expect("armis_devices registration must succeed");
+
+        // Depth variant: inner subquery has GROUP BY InSubquery (not SELECT projection InSubquery).
+        //
+        // Gate walk on outer check_sql_query(outer_q):
+        //   outer_q.select.items = [detection_id Field] → no InSubquery
+        //   outer_q.group_by = [] → empty (outer query has no GROUP BY)
+        //   outer_q.order_by = [] → empty
+        //   outer_q.where_ = Predicate::InSubquery { subquery: inner_q } → NOT walked
+        //
+        // inner_q.group_by = [Expr::InSubquery { field: device_id, subquery: armis_q }]
+        //   → check_sql_query(inner_q) WOULD fire E-QUERY-043 (T12 confirmed this for outer GROUP BY).
+        //   → check_sql_query(inner_q) is NOT called → gate misses.
+        //
+        // Grammar reach: T12 confirmed GROUP BY InSubquery; T14 confirmed WHERE InSubquery.
+        // `count(*)` is used in inner SELECT to avoid SELECT/GROUP BY column mismatch
+        // at the DataFusion semantic level (pure syntax test; DataFusion may or may not
+        // validate this, but E-QUERY-043 fires before DataFusion planning post-fix).
+        let sql = "SELECT det.detection_id \
+                   FROM crowdstrike_detections det \
+                   WHERE det.device_id IN (\
+                       SELECT count(*) FROM crowdstrike_devices \
+                       GROUP BY (device_id IN (SELECT device_id FROM armis_devices))\
+                   )";
+        // Grammar reach: outer WHERE Predicate::InSubquery (T8/T14);
+        // inner GROUP BY Expr::InSubquery (T12).
+        let ast = PrismQlParser::parse(sql).expect(
+            "F-CSD-P7-001-T2: WHERE IN + inner GROUP BY IN must parse — \
+             outer Predicate::InSubquery (T8/T14) and inner Expr::InSubquery in GROUP BY \
+             (T12) are both established PrismQL grammar forms",
+        );
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Err(ExprInSubqueryProjectionNotSupported).
+        // Fix must call full check_sql_query(inner_q) — not just check inner_q.select.items.
+        // check_sql_query walks group_by → finds Expr::InSubquery → fires E-QUERY-043.
+        //
+        // RED: Err(QueryExecutionFailed) — inner GROUP BY InSubquery slips the gate.
+        //
+        // Implementer note (lock): a fix that only checks inner_q.select.items
+        // without calling full check_sql_query passes T21 (SELECT projection) but fails here.
+        // Correct fix: call check_sql_query(inner_q) recursively for any Predicate::InSubquery
+        // found in q.where_, so ALL positions (select.items, group_by, order_by) are checked.
+        assert!(
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P7-001-T2 / BC-2.11.003: GROUP BY InSubquery inside a WHERE IN-subquery \
+             must return E-QUERY-043 (ExprInSubqueryProjectionNotSupported). \
+             RED: check_sql_query is not called on inner_q — inner group_by Expr::InSubquery \
+             slips the gate → DataFusion receives unsupported GROUP BY InSubquery shape → \
+             Err(QueryExecutionFailed). \
+             DEPTH LOCK: a minimal patch that only checks inner_q.select.items (not full \
+             check_sql_query) passes T21 but fails here. Fix must call full check_sql_query \
+             on subqueries reached via WHERE Predicate::InSubquery.subquery. got: {result:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 23 (F-CSD-P7-001-T3): HAVING-path variant — HAVING IN-subquery whose
+    // inner SELECT projection has Expr::InSubquery.
+    //
+    // SQL: SELECT device_id FROM crowdstrike_detections
+    //      HAVING device_id IN (
+    //          SELECT (dev.device_id IN (SELECT device_id FROM armis_devices)) AS is_known
+    //          FROM crowdstrike_devices dev
+    //      )
+    //
+    // Grammar reach verification: HAVING uses `build_having_predicate_parser` which
+    // wraps the base predicate grammar (sql_parser.rs line ~555). The base predicate
+    // grammar includes Predicate::InSubquery (`field IN (SELECT …)`). HAVING
+    // Predicate::InSubquery is confirmed reachable.
+    //
+    // Gate walk on outer query:
+    //   select.items = [device_id Field] → no InSubquery
+    //   group_by = [] → ok
+    //   order_by = [] → ok
+    //   having = Predicate::InSubquery { subquery: inner_q } → NOT walked
+    //
+    // inner_q.select.items = [(dev.device_id IN (…)) AS is_known] → Expr::InSubquery
+    // → gate WOULD fire if check_sql_query(inner_q) were called.
+    //
+    // DESIRED (post-fix): Err(ExprInSubqueryProjectionNotSupported).
+    // RED: Err(QueryExecutionFailed).
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P7-001-T3 / BC-2.11.003: `Expr::InSubquery` in the SELECT projection of a
+    /// subquery nested inside a HAVING `Predicate::InSubquery` must return E-QUERY-043.
+    ///
+    /// # Grammar reach
+    ///
+    /// CONFIRMED: `build_having_predicate_parser` (sql_parser.rs ~line 629) wraps the base
+    /// predicate grammar (line ~555). The base predicate grammar includes `Predicate::InSubquery`
+    /// (`field IN (SELECT …)`, from the `in_subquery_predicate` combinator). HAVING therefore
+    /// supports `HAVING field IN (SELECT …)` — the same InSubquery predicate form as WHERE.
+    ///
+    /// The inner subquery SELECT projection InSubquery form is confirmed by T9 (F-CSD-P3-001-T2).
+    ///
+    /// # HAVING path (orthogonal to WHERE path of T21/T22)
+    ///
+    /// `check_sql_query` does not walk `q.having` (only `select.items`, `group_by`, `order_by`).
+    /// This test exercises the `q.having` path — orthogonal to the `q.where_` path tested by
+    /// T21 and T22. The fix must recurse into BOTH `q.where_` AND `q.having` predicates.
+    ///
+    /// # RED state
+    ///
+    /// `check_sql_query` never called on inner_q (HAVING not walked) → inner SELECT projection
+    /// InSubquery undetected → gate returns false → DataFusion receives the query →
+    /// not_impl_err for InSubquery in scalar projection context →
+    /// `Err(QueryExecutionFailed)`.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P7_001_T3_having_insubquery_projection_insubquery_returns_e_query_043(
+    ) {
+        use prism_core::error::PrismError;
+
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — outer FROM table with data.
+        let det_batch = make_batch("device_id", &["dev-A", "dev-B", "dev-C"]);
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — HAVING IN-subquery FROM table.
+        let dev_batch = make_batch("device_id", &["dev-A", "dev-B"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // armis_devices — innermost subquery FROM table.
+        let armis_batch = make_batch("device_id", &["dev-A"]);
+        register_mem_table(&ctx, "armis_devices", vec![armis_batch])
+            .expect("armis_devices registration must succeed");
+
+        // HAVING-path exploit shape:
+        //   outer HAVING: Predicate::InSubquery { field: device_id, subquery: inner_q }
+        //   inner_q SELECT projection: Expr::InSubquery { field: dev.device_id, subquery: armis_q }
+        //
+        // Gate walk on outer check_sql_query(outer_q):
+        //   select.items = [device_id Field] → no InSubquery
+        //   group_by = [] → empty
+        //   order_by = [] → empty
+        //   having = Predicate::InSubquery { subquery: inner_q } → NOT walked
+        //
+        // inner_q.select.items has Expr::InSubquery → gate never called on inner_q.
+        //
+        // Grammar reach: HAVING Predicate::InSubquery uses the base predicate grammar
+        // (build_having_predicate_parser wraps build_sql_predicate_parser). The `in_subquery`
+        // predicate form is part of the base grammar → HAVING field IN (SELECT …) parses.
+        // Inner SELECT projection Expr::InSubquery confirmed by T9.
+        let sql = "SELECT device_id \
+                   FROM crowdstrike_detections \
+                   HAVING device_id IN (\
+                       SELECT (dev.device_id IN (SELECT device_id FROM armis_devices)) AS is_known \
+                       FROM crowdstrike_devices dev\
+                   )";
+        // Grammar reach verification: if this expect() panics, HAVING InSubquery is not
+        // reachable — revise test shape and document grammar gap instead of forcing.
+        let ast = PrismQlParser::parse(sql).expect(
+            "F-CSD-P7-001-T3: HAVING IN + inner SELECT projection IN must parse — \
+             HAVING uses base predicate grammar which includes Predicate::InSubquery; \
+             inner Expr::InSubquery in SELECT confirmed by T9",
+        );
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Err(ExprInSubqueryProjectionNotSupported).
+        // check_sql_query must also recurse into q.having Predicate::InSubquery.subquery
+        // (same pattern as q.where_ recursion from T21/T22 fix, applied to HAVING).
+        //
+        // RED: currently Err(QueryExecutionFailed) — check_sql_query does not walk q.having;
+        //      inner SELECT projection InSubquery slips the gate → DataFusion receives the
+        //      unsupported shape → not_impl_err → PrismError::QueryExecutionFailed.
+        //
+        // Note: WHERE and HAVING are both Option<Predicate> fields in SqlQuery. The fix
+        // for T21/T22 (recurse into q.where_ Predicate::InSubquery.subquery) must also
+        // apply to q.having for this test to pass.
+        assert!(
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P7-001-T3 / BC-2.11.003: Projection-position InSubquery nested inside \
+             a HAVING IN-subquery must return E-QUERY-043 \
+             (ExprInSubqueryProjectionNotSupported), not a silent QueryExecutionFailed. \
+             RED: check_sql_query does not recurse into q.having Predicate::InSubquery.subquery \
+             — HAVING path is orthogonal to WHERE path (T21/T22); both q.where_ and q.having \
+             must be covered by the fix. got: {result:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 24 (F-CSD-P7-001-T4): Negative control — nested WHERE-in-WHERE with
+    // Predicate::InSubquery chains and NO projection-position InSubquery anywhere.
+    //
+    // SQL: SELECT det.detection_id FROM crowdstrike_detections det
+    //      WHERE det.device_id IN (
+    //          SELECT device_id FROM crowdstrike_devices
+    //          WHERE device_id IN (SELECT device_id FROM armis_devices)
+    //      )
+    //
+    // DESIRED: Ok with 1 row (populated tables; DataFusion executes natively).
+    // Purpose: lock that the recursive fix does NOT over-reject supported query shapes.
+    // Predicate::InSubquery chains are DataFusion-native (decorrelate_predicate_subquery).
+    //
+    // GREEN at HEAD and GREEN post-fix (negative control).
+    //
+    // Setup:
+    //   crowdstrike_detections: [det-001/dev-A, det-002/dev-B, det-003/dev-C]
+    //   crowdstrike_devices: [dev-A, dev-B]
+    //   armis_devices: [dev-A]
+    //
+    // Step 1 (innermost): SELECT device_id FROM armis_devices → {dev-A}
+    // Step 2 (middle):    SELECT device_id FROM crowdstrike_devices
+    //                     WHERE device_id IN {dev-A} → {dev-A}
+    // Step 3 (outer):     WHERE det.device_id IN {dev-A} → {det-001}
+    // Result: 1 row.
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P7-001-T4 / BC-2.11.003 negative control: nested `Predicate::InSubquery`
+    /// chains (WHERE-in-WHERE) with NO projection-position `Expr::InSubquery` anywhere
+    /// and populated tables must execute successfully — NOT trigger E-QUERY-043.
+    ///
+    /// # Purpose
+    ///
+    /// Locks that the F-CSD-P7-001 fix (check_sql_query recursion into WHERE/HAVING
+    /// Predicate::InSubquery.subquery) does NOT over-reject queries where the subquery
+    /// contains only Predicate::InSubquery (predicate position — DataFusion-native) and
+    /// no Expr::InSubquery in any SELECT projection, GROUP BY, or ORDER BY.
+    ///
+    /// # Gate boundary
+    ///
+    /// `Predicate::InSubquery` is DataFusion-native (handled by `decorrelate_predicate_subquery`
+    /// optimizer). `Expr::InSubquery` in SELECT/GROUP BY/ORDER BY (expression position) is
+    /// NOT supported. E-QUERY-043 only gates the latter. The fix MUST NOT conflate the two:
+    /// recursing into WHERE.subquery to check for Expr::InSubquery positions (correct) is
+    /// different from rejecting the WHERE Predicate::InSubquery itself (wrong).
+    ///
+    /// # GREEN at HEAD, GREEN post-fix
+    ///
+    /// - At HEAD: gate doesn't fire (no projection InSubquery even in outer query); DataFusion
+    ///   executes the nested WHERE IN-subquery chain natively → Ok with 1 row.
+    /// - Post-fix: gate recurses into WHERE subqueries to check for Expr::InSubquery in
+    ///   select.items/group_by/order_by; finds none → gate still doesn't fire → Ok with 1 row.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P7_001_T4_nested_where_insubquery_no_projection_insubquery_executes_ok(
+    ) {
+        use prism_core::error::PrismError;
+
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — 3 rows; device_id values: dev-A, dev-B, dev-C
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002", "det-003"],
+            "device_id",
+            &["dev-A", "dev-B", "dev-C"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — 2 rows: dev-A and dev-B
+        let dev_batch = make_batch("device_id", &["dev-A", "dev-B"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // armis_devices — 1 row: dev-A only (filters the middle subquery to {dev-A})
+        let armis_batch = make_batch("device_id", &["dev-A"]);
+        register_mem_table(&ctx, "armis_devices", vec![armis_batch])
+            .expect("armis_devices registration must succeed");
+
+        // Negative control shape: nested Predicate::InSubquery chain.
+        // NO Expr::InSubquery in SELECT projection, GROUP BY, or ORDER BY anywhere.
+        //   outer WHERE: Predicate::InSubquery { field: det.device_id, subquery: middle_q }
+        //   middle_q WHERE: Predicate::InSubquery { field: device_id, subquery: armis_q }
+        //   armis_q: plain SELECT device_id FROM armis_devices
+        //
+        // check_sql_query(outer_q): no InSubquery in outer select.items/group_by/order_by.
+        // Post-fix: check_sql_query recurses into outer WHERE subquery (middle_q).
+        //   middle_q: no InSubquery in select.items/group_by/order_by → ok.
+        //   Post-fix recurse into middle_q WHERE subquery (armis_q).
+        //   armis_q: no InSubquery anywhere → ok.
+        // Gate returns false (correct) → no E-QUERY-043 → DataFusion executes.
+        //
+        // Confirm grammar reach: WHERE Predicate::InSubquery is established (T8/T14);
+        // nested depth-2 pattern confirmed by T10 (empty tables variant).
+        let sql = "SELECT det.detection_id \
+                   FROM crowdstrike_detections det \
+                   WHERE det.device_id IN (\
+                       SELECT device_id FROM crowdstrike_devices \
+                       WHERE device_id IN (SELECT device_id FROM armis_devices)\
+                   )";
+        let ast = PrismQlParser::parse(sql)
+            .expect("F-CSD-P7-001-T4: nested WHERE IN-subquery must parse (T10 confirmed)");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // Negative control assertion: E-QUERY-043 must NOT fire.
+        // The fix recurses into WHERE subqueries but only checks for Expr::InSubquery
+        // in expression positions — NOT for Predicate::InSubquery itself (predicate position).
+        assert!(
+            !matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P7-001-T4 negative control: nested WHERE Predicate::InSubquery chain \
+             must NOT trigger E-QUERY-043 — Predicate::InSubquery is predicate-position and \
+             DataFusion-native; the gate only fires for Expr::InSubquery in projection/group_by/order_by. \
+             If this fires E-QUERY-043, the recursive fix over-rejects supported WHERE IN patterns. \
+             got: {result:?}"
+        );
+
+        // Primary assertion: query must execute successfully with correct row count.
+        assert!(
+            result.is_ok(),
+            "F-CSD-P7-001-T4 negative control: nested WHERE IN-subquery chain with populated \
+             tables must return Ok (DataFusion decorrelate_predicate_subquery handles this \
+             natively). got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+
+        // Step 1: armis_devices → {dev-A}
+        // Step 2: crowdstrike_devices WHERE device_id IN {dev-A} → {dev-A}
+        // Step 3: crowdstrike_detections WHERE device_id IN {dev-A} → {det-001/dev-A} only
+        // Expected: exactly 1 row.
+        assert_eq!(
+            total_rows, 1,
+            "F-CSD-P7-001-T4: nested WHERE IN-subquery chain must return exactly 1 row \
+             (det-001/dev-A matches; dev-B and dev-C filtered by the inner WHERE chain). \
+             got {total_rows}"
+        );
+    }
 }
