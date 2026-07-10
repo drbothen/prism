@@ -1522,6 +1522,20 @@ pub(crate) async fn execute_against_session_with_registry(
                 let source_table = datafusion_table_name(&spq.head.from.source.raw);
                 check_ci_column_types(session_ctx, &source_table, &all_ci_fields).await?;
             }
+            // F-CSD-P12-001 (BC-2.11.005 DEC-022, BC-2.01.010 empty-is-not-error):
+            // Pre-register schema-only empty MemTables for the SqlPipe head — mirroring
+            // the Ast::Sql(Select) arm at ~line 1198.  Without this call, tables
+            // referenced only in the head's WHERE IN-subquery (or the head's FROM itself
+            // when 0-batch) are absent from the DataFusion catalog, causing
+            // `sqlpipe_to_executable_sql` / DataFusion planning to fail with
+            // QueryExecutionFailed ("table not found").
+            //
+            // `spq.head` is an `ast::SqlQuery` — the same type that `Ast::Sql(Select)`
+            // passes. `pre_register_empty_tables` scans the full SqlQuery (FROM, JOINs,
+            // WHERE subqueries) and registers spec-column empty MemTables for each
+            // unregistered table it finds (Priority 1: live TableRegistry; Priority 2:
+            // bundled TOML fallback; Priority 3: JOIN-equality peer inference).
+            pre_register_empty_tables(session_ctx, &spq.head, table_registry).await?;
             // BC-2.11.021 / ADR-044 D4 / D-1333 Option A (plan-time pinning):
             // Compute the SqlPipe head SQL from the inject_now-ed AST (spq.head has
             // the folded Literal::Timestamp) rather than the raw query_str[..split].
@@ -2444,16 +2458,28 @@ async fn check_ci_column_types(
                 // unregistered table — there are no column types to check.
                 //
                 // What happens next depends on the query mode:
-                // - SQL mode: `pre_register_empty_tables` runs BEFORE
-                //   `check_ci_column_types` and registers a spec-column empty MemTable,
-                //   so the table WILL be in the catalog by the time DataFusion plans the
-                //   query. The `Ok(None)` path here is therefore unreachable for tables
-                //   covered by spec-column registration (crowdstrike, armis, claroty,
-                //   cyberint). Non-bundled tables fall back to inference or Schema::empty().
-                // - Filter/Pipe mode: `pre_register_empty_tables` does NOT run
-                //   (it is SQL-mode only). A query against an unregistered table will
-                //   fail at DataFusion execution time with a "table not found" error —
-                //   which is the correct behavior (BC-2.01.010 / F-P16-OBS-002).
+                // - SQL SELECT mode (`Ast::Sql(Select)`): `pre_register_empty_tables`
+                //   runs BEFORE `check_ci_column_types` and registers a spec-column
+                //   empty MemTable, so the table WILL be in the catalog by the time
+                //   DataFusion plans the query. The `Ok(None)` path here is therefore
+                //   unreachable for tables covered by spec-column registration
+                //   (crowdstrike, armis, claroty, cyberint). Non-bundled tables fall back
+                //   to inference or Schema::empty().
+                // - SqlPipe head mode (`Ast::SqlPipe`): `pre_register_empty_tables`
+                //   ALSO runs on `spq.head` (F-CSD-P12-001, added ~line 1525). Tables
+                //   referenced in the head FROM, JOIN, or WHERE IN-subquery positions
+                //   are pre-registered before `sqlpipe_to_executable_sql` emits the CTE.
+                //   Same coverage as SQL SELECT mode for the head query.
+                // - Filter mode (`Ast::Filter`) and Pipe mode (`Ast::Pipe`):
+                //   `pre_register_empty_tables` does NOT run. The filter_parser and
+                //   pipe_parser do not produce subquery atoms — their grammars contain
+                //   no `IN (SELECT ...)` production (survey: filter_parser.rs §Predicate,
+                //   pipe_parser.rs §PipeStage::Where). An unregistered table in these
+                //   modes causes a structural parse error before reaching DataFusion, so
+                //   no pre-registration gap exists. A query against a structurally valid
+                //   but unregistered table will fail at DataFusion execution time with
+                //   "table not found" — which is the correct behavior
+                //   (BC-2.01.010 / F-P16-OBS-002).
                 //
                 // BC-2.01.010: empty result ≠ error; F-P16-OBS-002 guard.
             }
