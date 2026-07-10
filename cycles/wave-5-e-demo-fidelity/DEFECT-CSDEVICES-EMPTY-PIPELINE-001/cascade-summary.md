@@ -15,7 +15,11 @@ date_pass9: 2026-07-10
 streak_at_pass9: 0
 date_pass10: 2026-07-10
 streak_at_pass10: 0
-total_passes_to_date: 10
+date_pass11: 2026-07-10
+streak_at_pass11: 1
+date_pass12: 2026-07-10
+streak_at_pass12: 0
+total_passes_to_date: 12
 convergence: IN_PROGRESS
 authored_by: state-manager
 ---
@@ -61,7 +65,11 @@ authored_by: state-manager
 | 10 | frozen @544acd70 | NO | **YES** (FIRST) | 1 LOW F-CSD-P10-001 (JOIN-ON × FuncCall-wrapped InSubquery matrix cell unverified — DataFusion execution behavior unknown at pass time) + 1 pre-existing OBS-1 (harness `host_detail()` missing `first_seen`) | CLOSED via empirical determination + in-scope fix: test-writer ran empirical DETERMINATION — DataFusion EXECUTES JOIN-ON FuncCall-wrapped InSubquery shape (2-row result → F-CSD-P10-001 closed as documented DataFusion capability); walker asymmetry confirmed correct by design (no production change needed); OBS-1 fixed in-scope by implementer @5a58046f (`first_seen` added to harness `host_detail()`, RFC-3339 deterministic, 6/6 TOML columns covered; harness 141/141) | 0/3 |
 | — (closure) | — | — | — | — | EMPIRICAL DETERMINATION: test-writer ran JOIN-ON × FuncCall-wrapped InSubquery shape — DataFusion executes successfully (2-row result); T28/T29 GREEN locks; walker asymmetry (check_predicate JOIN-ON arm fires Expr::InSubquery scan) confirmed correct by design — the gate correctly rejects plain `col IN (SELECT ...)` in JOIN-ON but allows `func(col) IN (SELECT ...)` because DataFusion evaluates it as a FuncCall return value, not a correlated subquery. F-CSD-P10-001 CLOSED as documented DataFusion capability. OBS-1: implementer @5a58046f added `first_seen` to `host_detail()` in `prism-dtu-harness` CrowdStrike clone (RFC-3339, deterministic seed, 6/6 TOML-declared columns now covered; harness 141/141). 29-test prism-query defect suite GREEN; workspace just check GREEN; non-exhaustive 89/89. No production code changes. Streak 0/3. LOCAL pass 11 DISPATCHED on frozen HEAD `5a58046f`. | 0/3 |
 
-Streak reset at pass 3 and pass 4. Streak 0/3 after pass-10 closure. Pass 10 is the FIRST CLEAN(PR-merge) of the cascade. Structural-fix class closure: P5 (FuncCall-args recursion gap), P6 (DML source_select defense-in-depth), P7 (WHERE/HAVING/JOIN-ON check_sql_query non-recursive), P8-MED (gate placement below early-return; DUAL placement fix), P8-LOW (DML filter/assignments interiors), P9-HIGH (harness-clone POST verb surface gap) — all closed, E-QUERY-043 gate family + harness parity complete. Pass-10 closure pattern: empirical DataFusion behavior determination (F-CSD-P10-001 LOW closed as verified capability) + in-scope harness OBS-1 fix (first_seen). LOCAL pass 11 DISPATCHED on frozen HEAD `5a58046f`.
+| 11 | frozen @5a58046f | YES | YES | 0 | — | 1/3 |
+| 12 | frozen @5a58046f | NO | YES | 1 LOW F-CSD-P12-001 (Ast::SqlPipe arm lacked pre_register_empty_tables call; SqlPipe head WHERE IN-subquery on 0-batch table → table-not-found → -32000; violates BC-2.11.005 v1.9 position-invariant DEC-022 in SqlPipe mode) | — | 0/3 |
+| — (fix-burst) | — | — | — | — | test-writer @eaefee94 (T30/T31 RED + Filter/Pipe structural survey: no subquery atoms in filter_parser.rs/pipe_parser.rs — modes structurally exempt); implementer @421ce222 (one-line pre_register_empty_tables call in SqlPipe arm before plan_pinned_head_sql; design comment enumerates all 4 modes accurately); 31/31 defect suite; 96/96 temporal; 1533/1533 prism-query; just check 5456/5456 GREEN; non-exhaustive 89/89 | 0/3 |
+
+Streak reset at pass 3 and pass 4. Streak 0/3 after pass-10 closure. Pass 10 is the FIRST CLEAN(PR-merge) of the cascade. Pass 11 is the FIRST CLEAN(strict) of the cascade (streak 1/3), but pass 12 found a new LOW (F-CSD-P12-001 SqlPipe mode gap), resetting streak 1/3→0/3. Mode-dimension survey complete: SQL+SqlPipe subquery atoms present and pre_register_empty_tables wired; Filter/Pipe parsers have no subquery atoms — structurally exempt. Structural-fix class closure: P5 (FuncCall-args recursion gap), P6 (DML source_select defense-in-depth), P7 (WHERE/HAVING/JOIN-ON check_sql_query non-recursive), P8-MED (gate placement below early-return; DUAL placement fix), P8-LOW (DML filter/assignments interiors), P9-HIGH (harness-clone POST verb surface gap), P10 (empirical DataFusion capability + harness first_seen OBS), P12 (SqlPipe pre_register_empty_tables) — all closed. LOCAL pass 13 DISPATCHED on frozen HEAD `421ce222`.
 
 ---
 
@@ -160,6 +168,32 @@ CLEAN(strict): NO. CLEAN(PR-merge): NO. Streak stays 0/3. LOCAL pass 10 NEXT on 
 | OBS-1 | OBS | `host_detail()` in `prism-dtu-harness` CrowdStrike clone was missing `first_seen` field; 5/6 TOML-declared columns populated (pre-existing gap from prior harness work) | FIXED in-scope: implementer @5a58046f added `first_seen` RFC-3339 deterministic value; 6/6 TOML columns now covered; harness 141/141 |
 
 CLEAN(strict): NO (1 LOW + 1 OBS). CLEAN(PR-merge): **YES** — FIRST CLEAN(PR-merge) of the cascade. Streak stays 0/3. LOCAL pass 11 DISPATCHED on frozen `5a58046f`.
+
+### Pass 11
+
+Zero findings. CLEAN(strict)=YES. CLEAN(PR-merge)=YES. Streak advances: 0/3→**1/3** — FIRST CLEAN(strict) of the cascade. LOCAL pass 12 DISPATCHED on frozen `5a58046f`.
+
+### Pass 12
+
+| ID | Severity | Description | Resolution |
+|----|----------|-------------|------------|
+| F-CSD-P12-001 | LOW | `Ast::SqlPipe` arm in `plan_pipeline` lacked `pre_register_empty_tables` call before `plan_pinned_head_sql`; SqlPipe head containing a WHERE IN-subquery on a 0-batch table returned table-not-found → -32000 instead of E-QUERY-043; violates BC-2.11.005 v1.9 position-invariant DEC-022 in SqlPipe mode | test-writer @eaefee94: T30 RED (SqlPipe head WHERE IN-subquery 0-batch path) + T31 RED (SqlPipe-specific lock); Filter/Pipe structural survey: no `Expr::InSubquery` / `Predicate::InSubquery` atoms reachable through filter_parser.rs / pipe_parser.rs — both modes structurally exempt; implementer @421ce222: one-line `pre_register_empty_tables(session, &spec)` call in SqlPipe arm before `plan_pinned_head_sql`; design comment updated to enumerate all 4 modes (SQL: pre_register_empty_tables present; SqlPipe: now present; Filter: structurally exempt; Pipe: structurally exempt); T30/T31 RED→GREEN; 31/31 defect suite GREEN |
+
+CLEAN(strict): NO (1 LOW). CLEAN(PR-merge): YES. Streak RESET 1/3→0/3. LOCAL pass 13 DISPATCHED on frozen `421ce222`.
+
+## Evidence at Pass 12 Fix HEAD (421ce222)
+
+- prism-query defect suite: **31/31** GREEN
+- temporal tests: **96/96** GREEN
+- full prism-query suite: **1533/1533** GREEN
+- Full workspace `just check`: **5456/5456** GREEN
+- Non-exhaustive gate: 89/89
+
+## Spec Layer Modified (pass-12 closure)
+
+No spec changes — code-only fix. One-line `pre_register_empty_tables` call added to SqlPipe arm in `plan_pipeline`; design comment updated to document all 4 mode exemptions. No BC or error-taxonomy version bumps (F-CSD-P12-001 closed entirely within existing BC-2.11.005 v1.9 DEC-022 contract).
+
+---
 
 ## Evidence at Pass 10 Fix HEAD (5a58046f)
 
@@ -269,4 +303,4 @@ Source: `.factory/research/defect-csdevices-empty-pipeline-rootcause-2026-07-10.
 
 _Pending: LOCAL cascade not yet converged. PR not yet created._
 
-**Status: IN PROGRESS — LOCAL pass 11 IN FLIGHT on frozen `5a58046f` (streak 0/3). Pass-10 closure COMPLETE (D-1662): FIRST CLEAN(PR-merge) of cascade. F-CSD-P10-001 LOW CLOSED via empirical determination — DataFusion executes JOIN-ON FuncCall-wrapped InSubquery shape (T28/T29 GREEN); walker asymmetry confirmed correct by design. OBS-1 fixed in-scope: harness `first_seen` @5a58046f; harness 141/141; workspace just check GREEN; non-exhaustive 89/89. Walker-gap + gate-placement lineage P5/P6/P7/P8 CLOSED; harness parity gap P9 CLOSED; empirical DataFusion capability P10 CLOSED. Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS → 1MED+1LOW+2OBS → 1HIGH+2OBS → 1LOW+1OBS [CLEAN(PR-merge)] (decaying toward convergence).**
+**Status: IN PROGRESS — LOCAL pass 13 IN FLIGHT on frozen `421ce222` (streak 0/3). Pass-11 on frozen `5a58046f`: CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; streak 1/3 (FIRST CLEAN(strict) of cascade). Pass-12 on frozen `5a58046f`: NOT CLEAN(strict) — 1 LOW F-CSD-P12-001 (Ast::SqlPipe arm lacked pre_register_empty_tables call; SqlPipe head WHERE IN-subquery on 0-batch table → table-not-found → -32000); CLEAN(PR-merge)=YES. Streak RESET 1/3→0/3. Fix-burst: test-writer @eaefee94 (T30/T31 RED; Filter/Pipe structurally exempt by survey); implementer @421ce222 (one-line SqlPipe pre_register_empty_tables + 4-mode design comment); 31/31 defect; 96/96 temporal; 1533/1533 prism-query; just check 5456/5456 GREEN; non-exhaustive 89/89. Mode-dimension survey COMPLETE: SQL+SqlPipe subquery atoms present and pre_register_empty_tables wired; Filter/Pipe have no subquery atoms in their parsers — structurally exempt. Walker-gap + gate-placement lineage P5/P6/P7/P8 CLOSED; harness parity gap P9 CLOSED; empirical DataFusion capability P10 CLOSED; SqlPipe mode gap P12 CLOSED. Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS → 1MED+1LOW+2OBS → 1HIGH+2OBS → 1LOW+1OBS [CLEAN(PR-merge)] → 0 [CLEAN(strict)/streak-1] → 1LOW [streak RESET] (converging toward 3-CLEAN).**
