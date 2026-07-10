@@ -106,6 +106,14 @@ name = "harness_clone_parity_test"
 path = "tests/harness_clone_parity_test.rs"
 required-features = ["dtu"]
 
+# F-CSD-P9-001 (HIGH) Red Gate: harness CrowdStrike clone POST /devices/entities/devices/v2
+# (BC-2.16.013 INV-HARNESS-ROUTE-PARITY — both build_crowdstrike_router and
+#  build_crowdstrike_network_router must register POST on that path)
+[[test]]
+name = "f_csd_p9_001_harness_post_host_details"
+path = "tests/f_csd_p9_001_harness_post_host_details.rs"
+required-features = ["dtu"]
+
 # BC-3.6.001 — ops-clone full failure-mode coverage (D-1096 / PO work-order 2026-06-11)
 [[test]]
 name = "bc_3_6_001_ops_clone_failure_modes"
