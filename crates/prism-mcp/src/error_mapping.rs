@@ -2013,8 +2013,6 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             normalized_pql: None,
         },
 
-        // ── Catch-all: unknown variants → "upstream_error" (legal BC category) ──
-        // "upstream_error" is the safest legal fallback for variants that don't fit
         // E-QUERY-043: IN subquery in SELECT projection, GROUP BY, or ORDER BY position.
         //
         // category: "validation" — the mispositioned IN-subquery IS the caller-resolvable
@@ -2044,6 +2042,8 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             normalized_pql: None,
         },
 
+        // ── Catch-all: unknown variants → "upstream_error" (legal BC category) ──
+        // "upstream_error" is the safest legal fallback for variants that don't fit
         // the specific categories above (non_exhaustive catch-all).
         _ => VariantMeta {
             category: "upstream_error",
@@ -2055,13 +2055,13 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: None,
-        near_text: None,
-        reference_pointer: None,
-        valid_operators_for_type: None,
-        how_to_fix: None,
-        available_columns: None,
-        did_you_mean: None,
-        normalized_pql: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
         },
     };
 
