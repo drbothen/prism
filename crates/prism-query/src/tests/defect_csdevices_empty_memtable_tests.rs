@@ -3721,4 +3721,439 @@ mod tests {
              got {total_rows}"
         );
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // F-CSD-P14-001 (MED) Tests 32-34 (RED — LOCAL adversary pass-14)
+    //
+    // Finding: `pre_register_empty_tables` builds the empty MemTable schema from
+    // spec-declared columns only (all 3 priority paths). The 3 virtual field
+    // columns (`_sensor`, `_client`, `_source_table`) appended by
+    // `crate::virtual_fields::inject_virtual_fields` at step 5 are NOT included.
+    //
+    // Consequence: Any PrismQL query that selects a virtual field from the empty
+    // side of a LEFT JOIN fails at DataFusion plan time with `QueryExecutionFailed`
+    // (E-QUERY internal error → -32000 to the MCP caller), while the identical
+    // query with ≥1 device row succeeds. This is data-dependent divergence:
+    // the same analyst query can succeed or fail depending on whether the sensor
+    // happened to return results for the current time window.
+    //
+    // Example symptom (live demo):
+    //   SELECT det.detection_id, dev._sensor
+    //   FROM crowdstrike_detections det
+    //   LEFT JOIN crowdstrike_devices dev ON det.device_id = dev.device_id
+    // → Err(QueryExecutionFailed) when crowdstrike_devices returns 0 batches.
+    // → Ok with real _sensor values when crowdstrike_devices returns ≥1 batch.
+    //
+    // BC anchors:
+    //   - BC-2.11.012 — `_sensor`, `_client`, `_source_table` are available in
+    //     ALL PrismQL modes. A query `SELECT _sensor FROM t` must plan and execute
+    //     regardless of whether `t` has 0 or N rows.
+    //   - BC-2.11.005 DEC-022 — empty sensor result ≠ error; the empty MemTable
+    //     schema must be compatible with any query that would succeed on the
+    //     populated path.
+    //   - BC-2.01.010 — partial-failure; empty ≠ error.
+    //
+    // Root cause: `pre_register_empty_tables` constructs the Arrow Schema from
+    // spec-declared columns only. `inject_virtual_fields` appends
+    //   [_sensor: Utf8(false), _client: Utf8(false), _source_table: Utf8(false)]
+    // to each populated batch before `register_mem_table`, so those column names
+    // appear in the registered schema on the populated path but NOT on the empty
+    // path.
+    //
+    // Fix: after constructing the spec-column schema, append the 3 virtual field
+    // columns (nullable=true for the empty path, so LEFT JOIN NULL propagation
+    // works correctly):
+    //   spec_fields + [_sensor: Utf8(nullable), _client: Utf8(nullable),
+    //                  _source_table: Utf8(nullable)]
+    //
+    // T32 RED: SELECT dev._sensor/_client/_source_table from empty LEFT JOIN side
+    //          → Err(QueryExecutionFailed); virtual fields absent from spec schema.
+    // T33 RED: SELECT * schema parity — virtual fields absent from empty side schema
+    //          (schema assertion fails, not the query itself).
+    // T34 GREEN lock: same T32 query with devices populated via inject_virtual_fields
+    //          → succeeds with real _sensor values (fix must not break this).
+    //
+    // F-CSD-P14-003 survey (reach-verify): No test needed.
+    //   `| join <table> ON field` (PipeStage::Join): references a SourceRef that
+    //   CAN name a sensor table, but pipe_sql_emitter.rs immediately returns
+    //   `Err(QueryExecutionFailed { detail: "JOIN in pipe mode is not yet supported
+    //   (ENRICH-4-C)" })` — the stage errors before pre_register_empty_tables or
+    //   DataFusion are reached. The 0-batch case is structurally moot until
+    //   ENRICH-4-C is implemented. The implementer must update the design comment
+    //   in pipe_sql_emitter.rs PipeStage::Join arm to note this.
+    //   `| enrich <infusion>(<field>)` (PipeStage::Enrich): takes a UDF function
+    //   identifier and a FieldPath — no table reference is possible.
+    //   All other stages (where, sort, head, tail, limit, stats, dedup, fields)
+    //   take field paths, aggregates, or predicates — no table references.
+    //   Conclusion: no F-CSD-P14-003 test; survey evidence is this comment block.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Test 32 (F-CSD-P14-001-T1): LEFT JOIN selecting _sensor/_client/_source_table
+    // from the 0-batch right side → must return left rows with NULL virtual columns,
+    // NOT a DataFusion plan error.
+    //
+    // Setup:
+    //   crowdstrike_detections: 3 rows (left side, populated)
+    //   crowdstrike_devices:    0 batches (right side, empty)
+    //
+    // SQL:
+    //   SELECT det.detection_id, dev._sensor, dev._client, dev._source_table
+    //   FROM crowdstrike_detections det
+    //   LEFT JOIN crowdstrike_devices dev ON det.device_id = dev.device_id
+    //
+    // RED (at HEAD): pre_register_empty_tables registers crowdstrike_devices with
+    //   spec-only schema {device_id, hostname, platform_name, status, first_seen,
+    //   last_seen}. DataFusion plan fails: "No field named dev._sensor" →
+    //   PrismError::QueryExecutionFailed → -32000 to MCP caller.
+    //
+    // GREEN (post-fix): spec schema + virtual fields registered (nullable=true) →
+    //   Ok with 3 rows; _sensor/_client/_source_table all NULL (empty right side).
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-CSD-P14-001-T1 / BC-2.11.012 / BC-2.11.005: LEFT JOIN selecting the 3
+    /// virtual fields (`_sensor`, `_client`, `_source_table`) from the 0-batch
+    /// right side must return left rows with NULL virtual columns — NOT an error.
+    ///
+    /// BC-2.11.012 requires virtual fields in ALL PrismQL modes regardless of row
+    /// count. The empty-side schema must include the 3 virtual fields so DataFusion
+    /// can plan the query, matching what succeeds on the populated path.
+    ///
+    /// RED: `Err(QueryExecutionFailed { detail: "No field named dev._sensor …" })`
+    ///      because `pre_register_empty_tables` omits virtual fields from the empty
+    ///      MemTable schema (spec columns only).
+    ///
+    /// GREEN (post-fix): Ok with 3 rows; all 3 virtual columns are NULL on the
+    ///      right side (empty MemTable contributes no data).
+    #[tokio::test]
+    async fn test_BC_2_11_012_F_CSD_P14_001_T32_left_join_empty_side_virtual_fields_return_null_not_error(
+    ) {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — left side, 3 rows.
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002", "det-003"],
+            "device_id",
+            &["dev-A", "dev-B", "dev-A"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — 0 batches (right side, empty).
+        // register_mem_table silently skips; pre_register_empty_tables will register
+        // with spec-column schema only (no virtual fields) — this is the defect site.
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        // SELECT all 3 virtual fields from the empty right side.
+        // Any one of these fields is absent from the spec-only schema; DataFusion
+        // fails at plan time on the first missing field encountered.
+        let sql = "SELECT det.detection_id, dev._sensor, dev._client, dev._source_table \
+                   FROM crowdstrike_detections det \
+                   LEFT JOIN crowdstrike_devices dev ON det.device_id = dev.device_id";
+        let ast = PrismQlParser::parse(sql).expect("SQL must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Ok with 3 rows; all 3 virtual columns are NULL
+        // (empty MemTable contributes no data for _sensor/_client/_source_table).
+        //
+        // RED (at HEAD): Err(QueryExecutionFailed) — `pre_register_empty_tables`
+        //   builds crowdstrike_devices schema from spec columns only:
+        //   {device_id, hostname, platform_name, status, first_seen, last_seen}.
+        //   `_sensor` (and `_client`, `_source_table`) are NOT spec-declared.
+        //   DataFusion plan error: "No field named dev._sensor" →
+        //   `PrismError::QueryExecutionFailed` → -32000 to MCP caller.
+        //
+        // Data-dependent divergence: the same query with ≥1 device row succeeds
+        // (T34 GREEN lock) because inject_virtual_fields appends those columns to
+        // the registered batch schema. The empty path must match this behavior.
+        assert!(
+            result.is_ok(),
+            "F-CSD-P14-001-T1 / BC-2.11.012 / BC-2.11.005: LEFT JOIN selecting virtual \
+             fields (_sensor, _client, _source_table) from the 0-batch right side must \
+             return Ok (left rows + NULL virtual columns), not a DataFusion plan error. \
+             RED: Err — `pre_register_empty_tables` registers crowdstrike_devices with \
+             spec-only schema {{device_id, hostname, …}}; virtual fields absent. \
+             DataFusion plan error: \"No field named dev._sensor\". \
+             Fix: append virtual field columns (nullable=true) to spec schema in \
+             pre_register_empty_tables so LEFT JOIN NULL propagation works. \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 3,
+            "F-CSD-P14-001-T1: LEFT JOIN with empty right side must return 3 rows \
+             (all detection rows; virtual columns NULL on empty right side); got {total_rows}"
+        );
+
+        // All 3 virtual columns must be NULL (empty side contributes no data).
+        let non_empty: Vec<_> = batches.iter().filter(|b| b.num_rows() > 0).collect();
+        assert!(
+            !non_empty.is_empty(),
+            "F-CSD-P14-001-T1: at least one non-empty batch expected after fix"
+        );
+        let batch = non_empty[0];
+        for vf in &[
+            crate::virtual_fields::VIRTUAL_FIELD_SENSOR,
+            crate::virtual_fields::VIRTUAL_FIELD_CLIENT,
+            crate::virtual_fields::VIRTUAL_FIELD_SOURCE_TABLE,
+        ] {
+            let col = batch.column_by_name(vf).unwrap_or_else(|| {
+                panic!("F-CSD-P14-001-T1: virtual field `{vf}` must be in result schema after fix")
+            });
+            assert_eq!(
+                col.null_count(),
+                col.len(),
+                "F-CSD-P14-001-T1: all `{vf}` values must be NULL (empty right side); \
+                 got {}/{} nulls",
+                col.null_count(),
+                col.len()
+            );
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Test 33 (F-CSD-P14-001-T2): SELECT * schema parity — empty side schema
+    // must include the 3 virtual fields.
+    //
+    // The SELECT * query itself succeeds at HEAD (T5 locks spec-column parity).
+    // The RED assertion is the schema width check: `schema.index_of("_sensor")`
+    // fails because virtual fields are absent from the spec-only empty schema.
+    //
+    // Schema parity contract (BC-2.11.012): the empty-path schema must include
+    // the same column names as inject_virtual_fields produces on the populated
+    // path. The fix closes the gap between:
+    //   - populated path: spec columns + [_sensor, _client, _source_table]
+    //   - empty path (pre-fix): spec columns only
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-CSD-P14-001-T2 / BC-2.11.012 / BC-2.11.005: SELECT * result schema from
+    /// the empty side of a LEFT JOIN must include the 3 virtual field columns —
+    /// matching the schema that `inject_virtual_fields` produces on the populated path.
+    ///
+    /// # Schema parity rationale (BC-2.11.012)
+    ///
+    /// On the populated path, `inject_virtual_fields` appends these columns to every
+    /// registered batch before `register_mem_table`:
+    ///   `_sensor: Utf8`, `_client: Utf8`, `_source_table: Utf8`
+    ///
+    /// The empty path must include the same column names so that:
+    ///   - `SELECT dev._sensor … LEFT JOIN <empty_table> dev` plans without error
+    ///     (T32 locks this behavior).
+    ///   - A `SELECT *` query that succeeds on a non-empty day also succeeds on a
+    ///     quiet day when the sensor returns 0 rows.
+    ///
+    /// # RED
+    ///
+    /// At HEAD, `pre_register_empty_tables` builds schema from spec columns only.
+    /// The SELECT * query executes without error, but the result schema does NOT
+    /// include `_sensor`, `_client`, `_source_table`.
+    /// The assertion `schema.index_of("_sensor").is_ok()` FAILS (RED).
+    ///
+    /// # GREEN (post-fix)
+    ///
+    /// Virtual fields appended to spec schema → SELECT * result schema includes all 3.
+    #[tokio::test]
+    async fn test_BC_2_11_012_F_CSD_P14_001_T33_select_star_empty_side_schema_includes_virtual_fields_parity(
+    ) {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — left side (2 rows, populated).
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002"],
+            "device_id",
+            &["dev-A", "dev-B"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — 0 batches (right side, empty).
+        // pre_register_empty_tables registers with spec-only schema at HEAD.
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        // Canonical virtual field names from virtual_fields.rs constants.
+        // These match what inject_virtual_fields appends to every populated batch.
+        let expected_virtual_fields = [
+            crate::virtual_fields::VIRTUAL_FIELD_SENSOR,
+            crate::virtual_fields::VIRTUAL_FIELD_CLIENT,
+            crate::virtual_fields::VIRTUAL_FIELD_SOURCE_TABLE,
+        ];
+
+        // SELECT * — must include all spec-declared columns AND the 3 virtual fields
+        // in the result schema. T5 (F-CSD-P1-002-T2) already locks spec-column parity
+        // (hostname, platform_name, etc.); this test locks virtual-field parity.
+        let sql = "SELECT * FROM crowdstrike_detections det \
+                   LEFT JOIN crowdstrike_devices dev ON det.device_id = dev.device_id";
+        let ast = PrismQlParser::parse(sql).expect("SQL must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // The SELECT * query must execute without error (spec-column schema is correct).
+        // If this fails, a regression in spec-column registration has occurred — not
+        // a P14-001 issue. Triage separately.
+        assert!(
+            result.is_ok(),
+            "F-CSD-P14-001-T2 / BC-2.11.012: SELECT * LEFT JOIN with 0-batch right side \
+             must execute without error (spec-column schema is correct at HEAD — T5 locks this). \
+             If this fails, a regression in spec-column registration has occurred. \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        assert!(
+            !batches.is_empty(),
+            "F-CSD-P14-001-T2: at least one batch expected (even 0-row) to inspect schema"
+        );
+        let schema = batches[0].schema();
+
+        // RED assertions: virtual fields absent from spec-only schema at HEAD.
+        // PASSES after fix: all 3 virtual fields appended to spec schema.
+        //
+        // Schema parity contract (BC-2.11.012): the empty-path schema must include
+        // the same column names as inject_virtual_fields produces on the populated path.
+        // The 3 constants below are the canonical names from virtual_fields.rs.
+        for vf in &expected_virtual_fields {
+            assert!(
+                schema.index_of(vf).is_ok(),
+                "F-CSD-P14-001-T2 / BC-2.11.012: result schema must include virtual field \
+                 `{vf}` for the empty MemTable path — matching the schema that \
+                 inject_virtual_fields produces on the populated path. \
+                 RED: `{vf}` absent from pre_register_empty_tables spec-only schema. \
+                 Fix: append [_sensor, _client, _source_table] (nullable=true) to spec \
+                 schema in pre_register_empty_tables. \
+                 actual schema fields: {:?}",
+                schema.fields().iter().map(|f| f.name()).collect::<Vec<_>>()
+            );
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Test 34 (F-CSD-P14-001-T3): GREEN consistency lock — same LEFT JOIN as T32
+    // with devices populated via inject_virtual_fields.
+    //
+    // This test locks the baseline: the populated-sensor path already works today.
+    // The T32/T33 fix must make empty-sensor queries match this behavior WITHOUT
+    // breaking the populated path.
+    //
+    // Simulation of production step 5:
+    //   inject_virtual_fields(raw_batch, sensor_id, org_slug, table_name)
+    //   → register_mem_table(ctx, table_name, vec![injected_batch])
+    // produces a DataFusion table schema with spec columns + 3 virtual fields.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-CSD-P14-001-T3 / BC-2.11.012 (GREEN consistency lock): same LEFT JOIN as
+    /// T32 with the right side POPULATED via `inject_virtual_fields` — must succeed
+    /// with non-NULL `_sensor` values equal to the sensor ID used in the inject call.
+    ///
+    /// # What this locks
+    ///
+    /// The T32/T33 fix must NOT change the populated-sensor path. This test
+    /// independently verifies the populated path works today and will detect any
+    /// regression introduced by the fix.
+    ///
+    /// # Populated-path simulation
+    ///
+    /// `inject_virtual_fields` is called explicitly on the device batch (replicating
+    /// production step 5), then `register_mem_table` is called with the result.
+    /// The DataFusion catalog therefore has the canonical
+    /// {spec_cols…, _sensor, _client, _source_table} schema for crowdstrike_devices.
+    ///
+    /// # Expected result
+    ///
+    /// Ok with 2 rows (det-001↔dev-A, det-002↔dev-B via INNER semantics on the
+    /// matching LEFT JOIN); `_sensor` values = "crowdstrike".
+    #[tokio::test]
+    async fn test_BC_2_11_012_F_CSD_P14_001_T34_left_join_populated_side_virtual_fields_green_lock()
+    {
+        use crate::virtual_fields::inject_virtual_fields;
+
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — left side (2 rows: det-001/dev-A, det-002/dev-B).
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002"],
+            "device_id",
+            &["dev-A", "dev-B"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — RIGHT SIDE POPULATED. Simulate production step 5:
+        // inject_virtual_fields before register_mem_table.
+        let dev_raw = make_batch("device_id", &["dev-A", "dev-B"]);
+        let sensor_id = prism_core::SensorId::new("crowdstrike");
+        let org_slug = prism_core::OrgSlug::new("test-client");
+        let dev_with_virtual =
+            inject_virtual_fields(dev_raw, &sensor_id, &org_slug, "crowdstrike_devices")
+                .expect("inject_virtual_fields must succeed on populated batch");
+
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_with_virtual])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // Same SQL as T32 — all 3 virtual fields selected from the populated right side.
+        let sql = "SELECT det.detection_id, dev._sensor, dev._client, dev._source_table \
+                   FROM crowdstrike_detections det \
+                   LEFT JOIN crowdstrike_devices dev ON det.device_id = dev.device_id";
+        let ast = PrismQlParser::parse(sql).expect("SQL must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // GREEN lock: populated path must succeed. If this regresses after the T32/T33
+        // fix, the fix changed the populated-path schema incompatibly.
+        assert!(
+            result.is_ok(),
+            "F-CSD-P14-001-T3 (GREEN lock) / BC-2.11.012: LEFT JOIN selecting virtual \
+             fields from the POPULATED right side must return Ok. \
+             If this fails after the T32/T33 fix, the fix broke the populated-sensor path. \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        // Both detection rows match device rows (det-001↔dev-A, det-002↔dev-B): 2 rows.
+        assert_eq!(
+            total_rows, 2,
+            "F-CSD-P14-001-T3 (GREEN lock): LEFT JOIN on matching device_id must return \
+             2 rows (det-001↔dev-A, det-002↔dev-B); got {total_rows}"
+        );
+
+        // _sensor values must be "crowdstrike" (from inject_virtual_fields sensor argument).
+        let non_empty: Vec<_> = batches.iter().filter(|b| b.num_rows() > 0).collect();
+        assert!(
+            !non_empty.is_empty(),
+            "F-CSD-P14-001-T3: at least one non-empty batch expected (2 rows)"
+        );
+        let batch = non_empty[0];
+        let sensor_col = batch
+            .column_by_name(crate::virtual_fields::VIRTUAL_FIELD_SENSOR)
+            .expect("_sensor column must be present in result schema (populated path)");
+        let sensor_values = sensor_col
+            .as_any()
+            .downcast_ref::<arrow::array::StringArray>()
+            .expect("_sensor column must be a StringArray");
+
+        for i in 0..sensor_values.len() {
+            assert_eq!(
+                sensor_values.value(i),
+                "crowdstrike",
+                "F-CSD-P14-001-T3 (GREEN lock): `_sensor` value at row {i} must be \
+                 \"crowdstrike\" (from inject_virtual_fields sensor_id argument); \
+                 got {:?}",
+                sensor_values.value(i)
+            );
+        }
+    }
 }
