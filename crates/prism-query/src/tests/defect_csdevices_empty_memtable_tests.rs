@@ -4458,4 +4458,260 @@ mod tests {
              got: {result:?}"
         );
     }
+
+    // =========================================================================
+    // T36 — F-CSD-P19-003 (BC-2.11.012 v1.7): _source_type injection in
+    //       populated path (fourth canonical virtual field)
+    //
+    // BC-2.11.012 v1.7 mandates FOUR canonical virtual fields:
+    //   _sensor, _client, _source_table, _source_type.
+    // _safety_flags is EXCLUDED (response-envelope concern per BC-2.09.004).
+    //
+    // At HEAD: inject_virtual_fields injects THREE fields only.
+    //   _source_type is absent from the registered batch schema.
+    //   SELECT _source_type → DataFusion "No field named _source_type" →
+    //   Err(QueryExecutionFailed) — not the expected Ok result.
+    //
+    // Post-fix: inject_virtual_fields injects FOUR fields including _source_type.
+    //   SELECT _source_type → Ok([row_count: 2]) with _source_type = "live"
+    //   (PointInTime / cold-start EventStream → AC-10).
+    // =========================================================================
+
+    /// F-CSD-P19-003-T36 / BC-2.11.012 v1.7: SELECT `_source_type` from a populated
+    /// registered table must succeed and carry `"live"` (PointInTime / cold-start case,
+    /// AC-10).
+    ///
+    /// # Defect (F-CSD-P19-003, at HEAD)
+    ///
+    /// `inject_virtual_fields` only injects `_sensor`, `_client`, `_source_table`
+    /// (three fields).  `_source_type` is absent from the registered batch schema.
+    /// `SELECT _source_type FROM crowdstrike_devices` → DataFusion plan error →
+    /// `Err(QueryExecutionFailed)`.
+    ///
+    /// # Fix path
+    ///
+    /// Wire `_source_type` injection into `inject_virtual_fields` (or a new wrapper)
+    /// so that every registered Arrow batch includes the fourth virtual field.
+    /// PointInTime / cold-start EventStream → `"live"` (BC-2.11.012 v1.7 AC-10).
+    /// EventStream rows from buffer → `"buffered"` (AC-9).
+    /// `append_virtual_fields_to_schema` must also include `_source_type` nullable=true
+    /// for the empty-path LEFT JOIN parity (T37 locks this).
+    #[tokio::test]
+    async fn test_BC_2_11_012_F_CSD_P19_003_T36_source_type_populated_column_value_live() {
+        let ctx = build_session_context(50 * 1024 * 1024)
+            .expect("build_session_context must succeed for T36");
+
+        // Build a raw batch and inject virtual fields via the production function.
+        // At HEAD: inject_virtual_fields produces schema = {device_id, _sensor, _client,
+        // _source_table} — no _source_type column.
+        let raw_batch = make_batch("device_id", &["dev-A", "dev-B"]);
+        let sensor_id = prism_core::SensorId::new("crowdstrike");
+        let org_slug = prism_core::OrgSlug::new("test-org");
+        let injected_batch = crate::virtual_fields::inject_virtual_fields(
+            raw_batch,
+            &sensor_id,
+            &org_slug,
+            "crowdstrike_devices",
+        )
+        .expect("inject_virtual_fields must succeed for T36");
+
+        register_mem_table(&ctx, "crowdstrike_devices", vec![injected_batch])
+            .expect("crowdstrike_devices registration must succeed for T36");
+
+        // SELECT _source_type: at HEAD _source_type is absent from the schema →
+        // DataFusion plan error → Err(QueryExecutionFailed) → result.is_ok() FAILS → RED.
+        let sql = "SELECT _source_type FROM crowdstrike_devices";
+        let ast = PrismQlParser::parse(sql).expect("SELECT _source_type must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // PRIMARY assertion — RED at HEAD.
+        assert!(
+            result.is_ok(),
+            "F-CSD-P19-003-T36 / BC-2.11.012 v1.7: SELECT `_source_type` from a populated \
+             registered table must return Ok (fourth canonical virtual field). \
+             RED: inject_virtual_fields only injects three fields at HEAD \
+             (_sensor, _client, _source_table); `_source_type` absent → DataFusion plan \
+             error → Err(QueryExecutionFailed). \
+             Fix: wire _source_type injection into inject_virtual_fields so every Arrow \
+             batch includes the fourth virtual field; PointInTime/cold-start → 'live', \
+             EventStream-buffered → 'buffered' (BC-2.11.012 v1.7 AC-9/AC-10). \
+             got: {result:?}"
+        );
+
+        // SECONDARY assertions — only exercised post-fix.
+        // Verify row count and _source_type value = "live" (PointInTime / cold-start AC-10).
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 2,
+            "F-CSD-P19-003-T36: SELECT _source_type must return 2 rows \
+             (matching 2 registered device rows); got {total_rows}"
+        );
+
+        let non_empty: Vec<_> = batches.iter().filter(|b| b.num_rows() > 0).collect();
+        assert!(
+            !non_empty.is_empty(),
+            "F-CSD-P19-003-T36: at least one non-empty batch expected post-fix"
+        );
+        let batch = non_empty[0];
+
+        let st_col = batch
+            .column_by_name("_source_type")
+            .expect("_source_type column must be present post-fix");
+        let st_arr = st_col
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .expect("_source_type must be StringArray");
+
+        for i in 0..st_arr.len() {
+            let val = st_arr.value(i);
+            assert_eq!(
+                val, "live",
+                "F-CSD-P19-003-T36 / BC-2.11.012 v1.7 AC-10: _source_type for \
+                 PointInTime / cold-start EventStream must be \"live\"; \
+                 got '{val}' at row {i}"
+            );
+        }
+    }
+
+    // =========================================================================
+    // T37 — F-CSD-P19-003 (BC-2.11.012 v1.7): empty-path parity —
+    //       append_virtual_fields_to_schema must include _source_type nullable=true
+    //
+    // Mirrors T33b (which locks the three-field nullable contract).
+    // BC-2.11.012 v1.7 adds _source_type as the fourth canonical virtual field.
+    // append_virtual_fields_to_schema must append all FOUR fields with nullable=true.
+    //
+    // At HEAD: only THREE fields appended; field_with_name("_source_type") fails → RED.
+    // =========================================================================
+
+    /// F-CSD-P19-003-T37 / BC-2.11.012 v1.7: `append_virtual_fields_to_schema` (empty-path
+    /// helper) must include `_source_type` with `nullable=true`, alongside the three
+    /// existing virtual fields.
+    ///
+    /// # Schema parity contract
+    ///
+    /// On the populated path (post-fix), `inject_virtual_fields` injects four fields.
+    /// On the empty path, `append_virtual_fields_to_schema` must also produce four fields
+    /// with `nullable=true` so that `LEFT JOIN dev ON … WHERE dev._source_type = 'live'`
+    /// can be planned even when the device table returned 0 rows.
+    ///
+    /// # RED
+    ///
+    /// At HEAD, `append_virtual_fields_to_schema` only appends three fields.
+    /// `schema.field_with_name("_source_type")` returns `Err` → panic → RED.
+    #[test]
+    fn test_BC_2_11_012_F_CSD_P19_003_T37_append_virtual_fields_includes_source_type_nullable() {
+        // Empty-path: append_virtual_fields_to_schema builds a schema-only MemTable schema.
+        let base_schema = Arc::new(Schema::new(vec![Field::new(
+            "device_id",
+            DataType::Utf8,
+            true,
+        )]));
+        let schema = crate::virtual_fields::append_virtual_fields_to_schema(base_schema);
+
+        // _source_type must be present with nullable=true.
+        // RED at HEAD: field_with_name("_source_type") returns Err → panic.
+        let field = schema.field_with_name("_source_type").unwrap_or_else(|_| {
+            panic!(
+                "F-CSD-P19-003-T37 / BC-2.11.012 v1.7: \
+                     `append_virtual_fields_to_schema` must include `_source_type` as the \
+                     fourth canonical virtual field (alongside _sensor, _client, \
+                     _source_table). At HEAD only three fields are appended. \
+                     Fix: add _source_type nullable=true to the append list."
+            )
+        });
+
+        assert!(
+            field.is_nullable(),
+            "F-CSD-P19-003-T37 / BC-2.11.012 v1.7: `_source_type` in the empty-path schema \
+             must have nullable=true (LEFT JOIN NULL propagation — column must accept NULL \
+             when the empty table contributes no rows to the join); got nullable=false"
+        );
+    }
+
+    // =========================================================================
+    // T38 — F-CSD-P19-003 (BC-2.11.012 v1.7): _safety_flags exclusion —
+    //       query referencing _safety_flags must return E-QUERY-038 ColumnNotFound,
+    //       NOT an opaque DataFusion plan error (QueryExecutionFailed).
+    //
+    // _safety_flags is a response-envelope concern (BC-2.09.004), NOT a virtual
+    // query field. It must be excluded from the canonical four-field set.
+    //
+    // At HEAD: _safety_flags parses as Expr::VirtualField(VirtualField::SafetyFlags)
+    //   → normalize_virtual_field emits "_safety_flags" string →
+    //   DataFusion "No field named _safety_flags" → Err(QueryExecutionFailed) — opaque.
+    //
+    // Post-fix: _safety_flags must produce Err(PrismError::ColumnNotFound) — E-QUERY-038 —
+    //   via a plan-time gate, NOT via DataFusion planning. The gate must fire before
+    //   normalize_for_datafusion so the MCP caller receives an actionable error.
+    // =========================================================================
+
+    /// F-CSD-P19-003-T38 / BC-2.11.012 v1.7: A query referencing `_safety_flags` must
+    /// return `Err(PrismError::ColumnNotFound)` (E-QUERY-038), not an opaque
+    /// `Err(QueryExecutionFailed)` from DataFusion's plan phase.
+    ///
+    /// # Defect (F-CSD-P19-003, at HEAD)
+    ///
+    /// `field_path_to_expr("_safety_flags")` returns `Expr::VirtualField(SafetyFlags)`.
+    /// `normalize_virtual_field` emits `"_safety_flags"`.  DataFusion receives a SQL string
+    /// with `_safety_flags` as a column name, can't find it in the registered schema, and
+    /// returns a plan error → `Err(PrismError::QueryExecutionFailed)` — opaque -32000.
+    ///
+    /// # Fix path
+    ///
+    /// Add a plan-time gate in `execute_against_session_with_registry` (analogous to
+    /// `check_expr_insubquery_projection`) that detects `Expr::VirtualField(SafetyFlags)`
+    /// in the AST and returns `Err(PrismError::ColumnNotFound(...))` before DataFusion
+    /// planning.  The actionable E-QUERY-038 error replaces the opaque -32000.
+    ///
+    /// Alternatively: retire `VirtualField::SafetyFlags` from the enum so `_safety_flags`
+    /// parses as `Expr::Field` and the existing plan-time column gate fires.
+    #[tokio::test]
+    async fn test_BC_2_11_012_F_CSD_P19_003_T38_safety_flags_returns_e_query_038_not_datafusion_plan_error(
+    ) {
+        use prism_core::error::PrismError;
+
+        let ctx = build_session_context(50 * 1024 * 1024)
+            .expect("build_session_context must succeed for T38");
+
+        // Register a populated table so that any table-not-found path is eliminated;
+        // the only error source should be the _safety_flags column reference.
+        let dev_batch = make_batch("device_id", &["dev-A"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed for T38");
+
+        // SELECT _safety_flags: at HEAD this parses as VirtualField::SafetyFlags →
+        // normalize emits "_safety_flags" string → DataFusion plan error →
+        // Err(QueryExecutionFailed) — opaque -32000.
+        // Post-fix: a gate must intercept SafetyFlags before DataFusion and return
+        // Err(ColumnNotFound) — actionable E-QUERY-038.
+        let sql = "SELECT _safety_flags FROM crowdstrike_devices";
+        let ast = PrismQlParser::parse(sql).expect("SELECT _safety_flags must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): E-QUERY-038 — actionable column-not-found.
+        //
+        // RED at HEAD: _safety_flags → VirtualField::SafetyFlags → normalize_virtual_field
+        //   emits "_safety_flags" → DataFusion "No field named _safety_flags" →
+        //   Err(QueryExecutionFailed { .. }) — opaque -32000.
+        //   Assertion Err(ColumnNotFound(_)) FAILS → RED ✓.
+        assert!(
+            matches!(&result, Err(PrismError::ColumnNotFound(_))),
+            "F-CSD-P19-003-T38 / BC-2.11.012 v1.7: `_safety_flags` is a response-envelope \
+             concern (BC-2.09.004) and must NOT be a virtual query field. A query referencing \
+             `_safety_flags` must return E-QUERY-038 `Err(ColumnNotFound)`, not an opaque \
+             `Err(QueryExecutionFailed)` from DataFusion. \
+             RED: _safety_flags parses as VirtualField::SafetyFlags → normalize emits the \
+             string → DataFusion plan error → Err(QueryExecutionFailed). \
+             Fix: add a plan-time gate that intercepts Expr::VirtualField(SafetyFlags) and \
+             returns Err(ColumnNotFound(...)) before DataFusion planning \
+             (analogous to check_expr_insubquery_projection). \
+             got: {result:?}"
+        );
+    }
 }
