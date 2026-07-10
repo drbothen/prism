@@ -3309,10 +3309,23 @@ fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismEr
             Predicate::InSubquery { subquery, .. } => check_sql_query(subquery),
             Predicate::Logical { predicates, .. } => predicates.iter().any(check_predicate),
             Predicate::Not(inner) => check_predicate(inner),
-            // Compare lhs/rhs are Exprs — use descend_subquery_expr to recurse into
-            // any InSubquery interiors without rejecting them in comparison position.
+            // Compare lhs/rhs are Exprs — use contains_insubquery to REJECT any
+            // Expr::InSubquery appearing directly in compare-position LHS/RHS
+            // (F-CSD-P19-002). `contains_insubquery` returns true immediately for
+            // any Expr::InSubquery node, firing E-QUERY-043 before DataFusion planning.
+            //
+            // NOTE: descend_subquery_expr was wrong here because it descended into the
+            // *inner* subquery body (checking whether the subquery's projections are
+            // clean) instead of detecting the Expr::InSubquery node itself as the
+            // compare-position operand. A clean inner subquery caused the gate to
+            // return Ok(()) — silently accepting an invalid Compare shape.
+            //
+            // Predicate::Compare is NOT an Expr-position; Expr::InSubquery is only
+            // valid as a standalone WHERE/HAVING predicate (Predicate::InSubquery).
+            // compare-position Expr::InSubquery is NOT grammar-reachable from any
+            // PrismQL parser path (T35 defence-in-depth per T27 precedent).
             Predicate::Compare { lhs, rhs, .. } => {
-                descend_subquery_expr(lhs) || descend_subquery_expr(rhs)
+                contains_insubquery(lhs) || contains_insubquery(rhs)
             }
             // StringOp, Regex, In, Between, Cidr, Has, Missing, IsNull, Wildcard,
             // RecoveryError — no SqlQuery children.
