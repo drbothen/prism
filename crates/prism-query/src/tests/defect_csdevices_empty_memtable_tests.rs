@@ -59,13 +59,69 @@
 //!
 //! RED: DataFusion plan error because the table was not registered.
 //!
+//! ---
+//!
+//! ## F-CSD-P1-002 (HIGH) — spec-column empty MemTable contract
+//!
+//! Tests 4-7 encode the FULL contract from D-1650 §Track B: the schema-only empty
+//! MemTable must be built from the SENSOR SPEC's declared columns, not inferred
+//! from JOIN-equality peer columns only. The current implementation (`pre_register_empty_tables_for_joins`
+//! v1) passes Tests 1-3 but fails Tests 4-7 because it infers at most the JOIN key
+//! column and cannot satisfy queries on non-JOIN-equality or datetime-typed columns.
+//!
+//! ## Test 4 — non-JOIN column from empty side: SELECT hostname must return NULL, not error
+//!
+//! `test_BC_2_11_005_DEFECT_CSD_P1_002_T1_non_join_col_from_empty_side_returns_null`
+//!
+//! Live demo symptom: `SELECT det.detection_id, dev.hostname ... LEFT JOIN crowdstrike_devices dev ...`
+//! with devices=0 batches. `hostname` is NOT in the inferred schema (only `device_id`
+//! from JOIN equality). DataFusion planning fails on `dev.hostname` → QueryExecutionFailed.
+//!
+//! RED: `result.is_ok()` fails — DataFusion cannot find `hostname`.
+//! PASSES after spec-column fix: all 6 declared columns available; hostname=NULL per row.
+//!
+//! ## Test 5 — SELECT * schema width: full 6-column spec schema, not just join-key
+//!
+//! `test_BC_2_11_005_DEFECT_CSD_P1_002_T2_select_star_empty_side_returns_full_spec_schema`
+//!
+//! SELECT * LEFT JOIN with 0-batch right side: the result schema must include all 6
+//! spec-declared devices columns (device_id, hostname, platform_name, status, first_seen,
+//! last_seen), not just the JOIN-equality column (device_id).
+//!
+//! RED: result is Ok (SELECT * with {device_id} schema runs), but `schema.index_of("hostname")`
+//! fails — hostname absent from the inference-only schema.
+//!
+//! ## Test 6 — two 0-batch tables joined: must plan and return empty, not error
+//!
+//! `test_BC_2_11_005_DEFECT_CSD_P1_002_T3_two_zero_batch_tables_joined_returns_empty`
+//!
+//! Both sides of the JOIN have 0 batches. Current `pre_register_empty_tables_for_joins`:
+//! processes the FROM-table first (devices), looks up the JOIN peer (detections) — also
+//! not yet registered — gets no schema hint → Schema::empty(). Second pass for detections:
+//! peer (devices) is now registered with Schema::empty() — `field_with_name("device_id")`
+//! fails — still no hint. Both tables get Schema::empty(). JOIN ON device_id fails.
+//!
+//! RED: `result.is_ok()` fails — neither empty schema has the join key column.
+//! PASSES after spec-column fix: both tables get their full spec schemas.
+//!
+//! ## Test 7 — type fidelity: spec datetime columns must be Timestamp, not inferred String
+//!
+//! `test_BC_2_11_005_DEFECT_CSD_P1_002_T4_empty_side_datetime_cols_have_timestamp_type`
+//!
+//! The `crowdstrike_devices` spec declares `first_seen` and `last_seen` as
+//! `column_type = "datetime"` → Arrow `Timestamp(Microsecond, UTC)`.
+//! With inference-only approach, these columns are absent from the schema entirely
+//! (not JOIN-equality columns) → query on them fails → QueryExecutionFailed.
+//!
+//! RED: `result.is_ok()` fails — `first_seen` not in inferred schema.
+//! PASSES after spec-column fix AND type mapping: Timestamp type asserted post-fix.
+//!
 //! # Red Gate (BC-5.38.001)
 //!
-//! ALL three tests FAIL before the empty-MemTable fix lands in
-//! `register_mem_table` / `run_materialization_pipeline`.
-//! Failure mode: `result.expect_err()` in the test helper receives `Ok(0 rows)`
-//! would PASS, but the assertion `result.is_ok()` fails with
-//! `Err(QueryExecutionFailed { detail: "...crowdstrike_devices..." })`.
+//! Tests 1-3: PASS after the inference-based fix (`pre_register_empty_tables_for_joins` v1).
+//! Tests 4-7: FAIL against inference-based fix; PASS after spec-column fix (D-1650 §Track B).
+//! Failure mode for 4-7: QueryExecutionFailed (DataFusion cannot resolve non-JOIN columns)
+//! or assertion on schema field names/types fails.
 
 #![allow(non_snake_case, clippy::expect_used, clippy::unwrap_used)]
 
@@ -74,7 +130,7 @@ mod tests {
     use std::sync::Arc;
 
     use arrow::{
-        array::StringArray,
+        array::{Array, StringArray},
         datatypes::{DataType, Field, Schema},
         record_batch::RecordBatch,
     };
@@ -333,6 +389,338 @@ mod tests {
         assert_eq!(
             total_rows, 0,
             "BC-2.11.005 DEC-022: empty-sensor query must return 0 rows; got {total_rows}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // F-CSD-P1-002 Tests 4-7 (RED against inference-based fix; GREEN after spec-column fix)
+    //
+    // The inference-based `pre_register_empty_tables_for_joins` passes Tests 1-3 but
+    // fails Tests 4-7: it infers at most the JOIN-equality column (`device_id: Utf8`)
+    // and cannot satisfy queries on non-JOIN columns or datetime-typed columns.
+    //
+    // D-1650 §Track B: the correct fix uses the sensor spec's declared columns to
+    // build the empty MemTable schema (all 6 crowdstrike_devices columns with correct
+    // Arrow types). Tests 4-7 encode this contract.
+    // -----------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------
+    // Test 4 (F-CSD-P1-002-T1): Non-JOIN column from empty side must return NULL,
+    // not QueryExecutionFailed.
+    //
+    // Live demo symptom: SELECT det.detection_id, dev.hostname with devices=0 batches.
+    //
+    // Current inference: crowdstrike_devices gets schema `{device_id: Utf8}`.
+    // DataFusion plan fails: `dev.hostname` not in `{device_id: Utf8}` →
+    //   QueryExecutionFailed.
+    //
+    // DESIRED (post-fix): Ok with 3 rows; hostname column all NULL.
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P1-002-T1 / BC-2.11.005: LEFT JOIN selecting a non-JOIN-equality column
+    /// from the 0-batch right side must return left rows with NULL — not error.
+    ///
+    /// RED: `Err(QueryExecutionFailed)` — `hostname` absent from inferred `{device_id}` schema.
+    /// GREEN (post-fix): 3 rows returned with all hostname values NULL.
+    #[tokio::test]
+    async fn test_BC_2_11_005_DEFECT_CSD_P1_002_T1_non_join_col_from_empty_side_returns_null() {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — 3 rows with detection_id + device_id (left side, populated).
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002", "det-003"],
+            "device_id",
+            &["dev-A", "dev-B", "dev-A"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — 0 batches (simulates empty two-step pipeline result).
+        // pre_register_empty_tables_for_joins infers `{device_id: Utf8}` from the JOIN ON
+        // clause — but `hostname` is not in that inferred schema.
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        // SELECT `dev.hostname` — a non-JOIN-equality column absent from the inferred schema.
+        let sql = "SELECT det.detection_id, dev.hostname \
+                   FROM crowdstrike_detections det \
+                   LEFT JOIN crowdstrike_devices dev ON det.device_id = dev.device_id";
+        let ast = PrismQlParser::parse(sql).expect("SQL must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Ok with 3 rows; hostname column all NULL.
+        // RED: Err(QueryExecutionFailed) — `No field named dev.hostname` because
+        //      pre_register_empty_tables_for_joins inferred only `{device_id: Utf8}`.
+        assert!(
+            result.is_ok(),
+            "F-CSD-P1-002-T1 / BC-2.11.005: SELECT on non-JOIN column from 0-batch \
+             left-joined table must return Ok (left rows + NULL right columns), not error. \
+             RED: currently Err — `hostname` absent from inference-only schema `{{device_id: Utf8}}`. \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 3,
+            "F-CSD-P1-002-T1: LEFT JOIN with 0-batch right side must return 3 rows \
+             (one per detection); got {total_rows}"
+        );
+
+        // All hostname values must be NULL (empty side contributes no data).
+        let non_empty: Vec<_> = batches.iter().filter(|b| b.num_rows() > 0).collect();
+        assert!(
+            !non_empty.is_empty(),
+            "F-CSD-P1-002-T1: at least one non-empty batch expected after fix"
+        );
+        let hostname_col = non_empty[0]
+            .column_by_name("hostname")
+            .expect("hostname column must be present in result schema after fix");
+        assert_eq!(
+            hostname_col.null_count(),
+            hostname_col.len(),
+            "F-CSD-P1-002-T1: all hostname values must be NULL (right side is empty); \
+             got {}/{} nulls",
+            hostname_col.null_count(),
+            hostname_col.len()
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 5 (F-CSD-P1-002-T2): SELECT * schema width — all 6 spec columns required.
+    //
+    // SELECT * LEFT JOIN with 0-batch right side.
+    // Current inference: crowdstrike_devices gets `{device_id: Utf8}`.
+    // Result schema: only `device_id` from the devices side (plus detections columns).
+    // `schema.index_of("hostname")` FAILS → RED.
+    //
+    // DESIRED (post-fix): full 6-column spec schema in result
+    //   (device_id, hostname, platform_name, status, first_seen, last_seen).
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P1-002-T2 / BC-2.11.005: SELECT * across a LEFT JOIN with 0-batch right side
+    /// must include ALL spec-declared columns of the empty table — not just the JOIN-key.
+    ///
+    /// RED: result is Ok (SELECT * with `{device_id}` schema executes), but
+    ///      `schema.index_of("hostname")` fails — inference-only schema has only `device_id`.
+    /// GREEN (post-fix): schema includes all 6 spec-declared devices columns.
+    #[tokio::test]
+    async fn test_BC_2_11_005_DEFECT_CSD_P1_002_T2_select_star_empty_side_returns_full_spec_schema()
+    {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — 2 rows (left side, populated).
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002"],
+            "device_id",
+            &["dev-A", "dev-B"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — 0 batches (right side, empty).
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        // SELECT * — must include ALL 6 spec-declared devices columns in result schema.
+        let sql = "SELECT * FROM crowdstrike_detections det \
+                   LEFT JOIN crowdstrike_devices dev ON det.device_id = dev.device_id";
+        let ast = PrismQlParser::parse(sql).expect("SQL must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // With inference-based fix, result is Ok (SELECT * + {device_id} schema plans fine).
+        // The RED failure is the schema width assertion below, not result.is_ok().
+        assert!(
+            result.is_ok(),
+            "F-CSD-P1-002-T2 / BC-2.11.005: SELECT * LEFT JOIN with 0-batch right side \
+             must execute without error. got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        assert!(
+            !batches.is_empty(),
+            "F-CSD-P1-002-T2: at least one batch expected (even if 0 rows)"
+        );
+        let schema = batches[0].schema();
+
+        // RED assertion: `hostname` absent from inference-only schema `{device_id: Utf8}`.
+        // PASSES after spec-column fix: schema has hostname (plus 4 other spec columns).
+        assert!(
+            schema.index_of("hostname").is_ok(),
+            "F-CSD-P1-002-T2: result schema must include `hostname` (spec-declared column \
+             from crowdstrike_devices) — inference-only schema has only `device_id`. \
+             RED: hostname absent from result schema. \
+             actual schema fields: {:?}",
+            schema.fields().iter().map(|f| f.name()).collect::<Vec<_>>()
+        );
+
+        // Post-fix lock: ALL 6 spec-declared devices columns must be present.
+        // (crowdstrike.sensor.toml declares: device_id, hostname, platform_name,
+        //  status, first_seen, last_seen)
+        for col in &[
+            "hostname",
+            "platform_name",
+            "status",
+            "first_seen",
+            "last_seen",
+        ] {
+            assert!(
+                schema.index_of(col).is_ok(),
+                "F-CSD-P1-002-T2: result schema must include spec-declared column `{col}`"
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 6 (F-CSD-P1-002-T3): Two 0-batch tables joined — must plan and
+    // return empty result, not error.
+    //
+    // Both crowdstrike_devices AND crowdstrike_detections have 0 batches.
+    // Inference: both get Schema::empty() (no registered peer to infer from).
+    // JOIN ON device_id fails: device_id absent from Schema::empty().
+    //
+    // DESIRED (post-fix): Ok with 0 rows.
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P1-002-T3 / BC-2.11.005: INNER JOIN of two 0-batch tables must plan
+    /// and return an empty result — not a DataFusion plan error.
+    ///
+    /// RED: `Err(QueryExecutionFailed)` — both tables get `Schema::empty()` because no
+    ///      registered peer can supply a schema hint; JOIN ON device_id fails.
+    /// GREEN (post-fix): spec columns available for both → plan succeeds, 0 rows returned.
+    #[tokio::test]
+    async fn test_BC_2_11_005_DEFECT_CSD_P1_002_T3_two_zero_batch_tables_joined_returns_empty() {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // Both tables have 0 batches — register_mem_table skips both.
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+        register_mem_table(&ctx, "crowdstrike_detections", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        // INNER JOIN across two empty tables: must plan and return 0 rows.
+        // With both tables unregistered (or registered with Schema::empty()), DataFusion
+        // cannot resolve `dev.device_id` in the JOIN ON clause → plan fails.
+        let sql = "SELECT dev.device_id, det.detection_id \
+                   FROM crowdstrike_devices dev \
+                   INNER JOIN crowdstrike_detections det ON dev.device_id = det.device_id";
+        let ast = PrismQlParser::parse(sql).expect("SQL must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Ok with 0 rows.
+        // RED: Err(QueryExecutionFailed) — inference gives both tables Schema::empty(),
+        //      JOIN ON device_id fails (field not found in either schema).
+        assert!(
+            result.is_ok(),
+            "F-CSD-P1-002-T3 / BC-2.11.005: INNER JOIN of two 0-batch tables must return \
+             Ok (0 rows), not DataFusion plan error. \
+             RED: currently Err — inference yields Schema::empty() for both tables; \
+             JOIN ON device_id cannot be resolved. \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 0,
+            "F-CSD-P1-002-T3: INNER JOIN of two empty tables must return 0 rows; \
+             got {total_rows}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 7 (F-CSD-P1-002-T4): Spec-declared datetime columns must be
+    // Timestamp-typed in the empty-side schema — not absent or inferred as String.
+    //
+    // crowdstrike_devices spec: first_seen, last_seen → `column_type = "datetime"`.
+    // With inference-only: these columns absent from `{device_id: Utf8}`.
+    // DataFusion plan fails on `dev.first_seen` → QueryExecutionFailed.
+    //
+    // DESIRED (post-fix): Arrow DataType::Timestamp(_, _) for both columns.
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P1-002-T4 / BC-2.11.005: Spec-declared `datetime` columns on the 0-batch
+    /// side must be present in the result schema as Arrow Timestamp type — not absent.
+    ///
+    /// RED: `Err(QueryExecutionFailed)` — `first_seen`/`last_seen` absent from the
+    ///      inference-only schema `{device_id: Utf8}`.
+    /// GREEN (post-fix): columns present with `DataType::Timestamp(_, _)` type.
+    #[tokio::test]
+    async fn test_BC_2_11_005_DEFECT_CSD_P1_002_T4_empty_side_datetime_cols_have_timestamp_type() {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — 1 row (left side, drives the LEFT JOIN).
+        let det_batch = make_two_col_batch("detection_id", &["det-001"], "device_id", &["dev-A"]);
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — 0 batches (right side, empty).
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        // SELECT the spec-declared datetime columns from the 0-batch side.
+        // crowdstrike.sensor.toml: first_seen = "datetime", last_seen = "datetime".
+        let sql = "SELECT dev.first_seen, dev.last_seen \
+                   FROM crowdstrike_detections det \
+                   LEFT JOIN crowdstrike_devices dev ON det.device_id = dev.device_id";
+        let ast = PrismQlParser::parse(sql).expect("SQL must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Ok with 1 row; first_seen/last_seen are NULL Timestamp columns.
+        // RED: Err(QueryExecutionFailed) — `first_seen`/`last_seen` absent from the
+        //      inference-only schema (only `device_id` was inferred from the JOIN ON clause).
+        assert!(
+            result.is_ok(),
+            "F-CSD-P1-002-T4 / BC-2.11.005: SELECT on spec-declared datetime columns from \
+             0-batch table must return Ok (NULL Timestamp columns), not error. \
+             RED: currently Err — `first_seen`/`last_seen` absent from inference-only schema \
+             `{{device_id: Utf8}}`; DataFusion cannot plan the query. \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        // At least one batch must exist (even if rows = 0) to inspect the schema.
+        assert!(
+            !batches.is_empty(),
+            "F-CSD-P1-002-T4: at least one batch expected to verify schema types"
+        );
+        let schema = batches[0].schema();
+
+        // Type fidelity: spec `datetime` → Arrow `Timestamp(_, _)`.
+        let first_seen_type = schema
+            .field_with_name("first_seen")
+            .expect("first_seen must be present in result schema after spec-column fix")
+            .data_type()
+            .clone();
+        assert!(
+            matches!(first_seen_type, DataType::Timestamp(_, _)),
+            "F-CSD-P1-002-T4: `first_seen` must have Arrow Timestamp type \
+             (spec declares `column_type = \"datetime\"`); got {first_seen_type:?}"
+        );
+
+        let last_seen_type = schema
+            .field_with_name("last_seen")
+            .expect("last_seen must be present in result schema after spec-column fix")
+            .data_type()
+            .clone();
+        assert!(
+            matches!(last_seen_type, DataType::Timestamp(_, _)),
+            "F-CSD-P1-002-T4: `last_seen` must have Arrow Timestamp type \
+             (spec declares `column_type = \"datetime\"`); got {last_seen_type:?}"
         );
     }
 }

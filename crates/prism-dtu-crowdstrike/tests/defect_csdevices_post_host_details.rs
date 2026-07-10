@@ -25,11 +25,18 @@
 //! - BC-2.06.018 / ADR-028 §D1, §D5 (DTU route must precede TOML spec change)
 //! - Mirrors `get_detection_summaries` POST contract in `detections.rs`
 //!
-//! # Red Gate (BC-5.38.001)
+//! # Red Gate (BC-5.38.001) — Tests 1-4
 //!
-//! ALL tests in this file must FAIL before `post_host_details` is wired into
-//! `mod.rs`. Failure mode: assertion `status == expected` fails because actual
-//! status is 405 Method Not Allowed.
+//! Tests 1-4 were RED gates before `post_host_details` was wired into `mod.rs`.
+//! They are now GREEN because `post_host_details` is implemented in this branch
+//! and delegates to `host_details_inner`.
+//!
+//! # GREEN lock — Test 5 (F-CSD-P1-OBS-002)
+//!
+//! `test_BC_DEFECT_CSDEVICES_001_post_host_details_session_filter_identical_to_get`
+//! verifies that POST path `X-DTU-Session-Id` filtering behaves identically to the
+//! GET path: both share `host_details_inner`, so session-registry intersection
+//! is applied by the same code. This test locks the contract and is expected GREEN.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, non_snake_case)]
 #![cfg(feature = "dtu")]
@@ -271,7 +278,10 @@ async fn test_BC_DEFECT_CSDEVICES_001_post_host_details_rejects_missing_auth_wit
          RED: currently 405 — Axum method-not-allowed fires before handler auth check."
     );
 
-    clone.stop().await.expect("clone.stop must succeed");
+    clone
+        .stop()
+        .await
+        .expect("clone.stop must succeed for test 3");
 }
 
 // ---------------------------------------------------------------------------
@@ -316,5 +326,128 @@ async fn test_BC_DEFECT_CSDEVICES_001_post_host_details_enforces_org_id_guard() 
          RED: currently 405 — no POST handler to enforce validate_org_id."
     );
 
-    clone.stop().await.expect("clone.stop must succeed");
+    clone
+        .stop()
+        .await
+        .expect("clone.stop must succeed for test 4");
+}
+
+// ---------------------------------------------------------------------------
+// Test 5 (GREEN lock — F-CSD-P1-OBS-002): POST path session-registry filter
+// behaves identically to GET path through shared host_details_inner.
+//
+// Flow:
+//   Step 1: GET /devices/queries/devices/v1 with X-DTU-Session-Id "obs-002-session"
+//           → registers fixture IDs in session registry
+//   Step 2: POST /devices/entities/devices/v2 with same session_id and body
+//           {"ids": [<registered_id>, "EXTRA-9999"]}
+//           → session filter intersection: registered_id in, EXTRA-9999 out
+//
+// GREEN: post_host_details is already wired in this branch and delegates to
+//        host_details_inner. This test locks the session-filter parity contract.
+// ---------------------------------------------------------------------------
+
+/// F-CSD-P1-OBS-002 / BC-DEFECT-CSDEVICES-001: POST path X-DTU-Session-Id filtering
+/// must be identical to GET path — both delegate to `host_details_inner` which
+/// applies session-registry intersection (requested_ids ∩ session_registered_ids).
+///
+/// GREEN lock: post_host_details is fully implemented in this branch.
+/// This test verifies session-filter parity between GET and POST paths.
+#[tokio::test]
+async fn test_BC_DEFECT_CSDEVICES_001_post_host_details_session_filter_identical_to_get() {
+    let mut clone = CrowdstrikeClone::new();
+    clone
+        .start()
+        .await
+        .expect("CrowdstrikeClone::start must succeed");
+    let base_url = clone.base_url();
+    let client = http_client();
+
+    let session_id = "obs-002-session";
+
+    // Step 1: GET /devices/queries/devices/v1 with X-DTU-Session-Id.
+    // This registers the returned fixture IDs in the session registry under session_id.
+    let queries_resp = client
+        .get(format!("{base_url}/devices/queries/devices/v1"))
+        .header("Authorization", "Bearer dtu-fake-cs-token")
+        .header("X-DTU-Session-Id", session_id)
+        .send()
+        .await
+        .expect("GET /devices/queries/devices/v1 must reach server");
+
+    assert_eq!(
+        queries_resp.status().as_u16(),
+        200,
+        "F-CSD-P1-OBS-002: step 1 GET /queries must return 200"
+    );
+    let queries_body: serde_json::Value = queries_resp
+        .json()
+        .await
+        .expect("GET /queries response must be valid JSON");
+    let session_registered_ids: Vec<String> = queries_body["resources"]
+        .as_array()
+        .expect("GET /queries must return resources array")
+        .iter()
+        .filter_map(|v| v.as_str().map(str::to_owned))
+        .collect();
+    assert!(
+        !session_registered_ids.is_empty(),
+        "F-CSD-P1-OBS-002: step 1 must register at least one fixture ID in the session; \
+         fixture has FIXTURE_IDS = {FIXTURE_IDS:?}"
+    );
+
+    // Pick the first registered ID (guaranteed to be in the session).
+    // Supply a second ID that was NOT returned by the queries endpoint.
+    let registered_id = session_registered_ids[0].clone();
+    let unregistered_id = "EXTRA-9999";
+
+    // Step 2: POST /devices/entities/devices/v2 with same session_id.
+    // Body contains both a session-registered ID and a synthetic ID not in the session.
+    let body = serde_json::json!({ "ids": [registered_id, unregistered_id] });
+    let details_resp = client
+        .post(format!("{base_url}/devices/entities/devices/v2"))
+        .header("Authorization", "Bearer dtu-fake-cs-token")
+        .header("X-DTU-Session-Id", session_id)
+        .json(&body)
+        .send()
+        .await
+        .expect("POST /devices/entities/devices/v2 must reach server");
+
+    let status = details_resp.status().as_u16();
+    assert_eq!(
+        status, 200,
+        "F-CSD-P1-OBS-002: POST with session_id + mixed ids must return 200; got {status}"
+    );
+
+    let details_body: serde_json::Value = details_resp
+        .json()
+        .await
+        .expect("POST /devices/entities/devices/v2 response must be valid JSON");
+    let resources = details_body["resources"]
+        .as_array()
+        .expect("F-CSD-P1-OBS-002: response must contain resources array");
+
+    let returned_ids: Vec<String> = resources
+        .iter()
+        .filter_map(|r| r.get("device_id")?.as_str().map(str::to_owned))
+        .collect();
+
+    // Session-registered ID must appear: it was in session ∩ POST body.
+    assert!(
+        returned_ids.iter().any(|id| id == &registered_id),
+        "F-CSD-P1-OBS-002: session-registered id `{registered_id}` must appear in POST \
+         response (it was in session ∩ body); got: {returned_ids:?}"
+    );
+
+    // EXTRA-9999 must NOT appear: not in session registry.
+    assert!(
+        !returned_ids.iter().any(|id| id == unregistered_id),
+        "F-CSD-P1-OBS-002: `{unregistered_id}` must be filtered out \
+         (not registered in step-1 session); got: {returned_ids:?}"
+    );
+
+    clone
+        .stop()
+        .await
+        .expect("clone.stop must succeed for test 5");
 }
