@@ -409,6 +409,20 @@ struct DetectionSummariesBody {
     pub ids: Vec<String>,
 }
 
+/// Request body for `POST /devices/entities/devices/v2`.
+///
+/// Mirrors `DetectionSummariesBody` — same pattern, same empty-ids validation rule.
+///
+/// Not a pub TOML-deserialized type (only used as a JSON request body in the DTU
+/// handler), so `#[non_exhaustive]` is NOT required — the compile-fail gate at
+/// `tests/external/non-exhaustive-violation/` targets TOML-deserialized and
+/// pub-API surface types, not internal DTU request body structs.
+/// (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 D-1650 ratification §Contract Part 2)
+#[derive(Debug, Deserialize)]
+struct PostHostDetailsBody {
+    pub ids: Vec<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct PatchDetectionsBody {
     pub ids: Vec<String>,
@@ -771,7 +785,22 @@ async fn get_host_details(
     }
 
     let requested_ids = parse_ids_from_query(raw_query.as_deref());
+    host_details_inner(state, headers, requested_ids).await
+}
 
+/// Shared host-detail resolution logic — called by both `get_host_details` and
+/// `post_host_details` after auth checks and ID extraction.
+///
+/// Performs session-registry filtering and containment merge for the given
+/// `requested_ids`, returning the `{"resources": [...]}` JSON response.
+///
+/// Extracted to satisfy D-1650 §Contract Part 2: "extract a SHARED helper so GET and
+/// POST paths do not duplicate logic (wiring, not copy-paste)."
+async fn host_details_inner(
+    state: Arc<CrowdStrikeHarnessState>,
+    headers: HeaderMap,
+    requested_ids: Vec<String>,
+) -> Response {
     #[allow(clippy::expect_used)]
     let containment = state
         .containment_store
@@ -821,6 +850,54 @@ async fn get_host_details(
         .collect();
 
     (StatusCode::OK, Json(json!({ "resources": resources }))).into_response()
+}
+
+/// `POST /devices/entities/devices/v2`
+///
+/// Batch host detail fetch by POST body. Body: `{"ids": ["h-001", "h-002", ...]}`.
+/// Returns HTTP 400 when `ids` is empty (mirrors detections `get_detection_summaries`).
+///
+/// All other behavior (auth, failure injection, session registry, containment merge)
+/// is identical to `get_host_details` — both delegate to `host_details_inner`.
+///
+/// # DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / F-CSD-P9-001 (BC-2.16.013 INV-HARNESS-ROUTE-PARITY)
+///
+/// The standalone DTU registers both GET and POST on this path; the harness clone
+/// must mirror that verb surface on both `build_crowdstrike_router` and
+/// `build_crowdstrike_network_router`.
+async fn post_host_details(
+    State(state): State<Arc<CrowdStrikeHarnessState>>,
+    headers: HeaderMap,
+    Json(body): Json<PostHostDetailsBody>,
+) -> Response {
+    let count = state.increment_request();
+    let mode = state.current_failure_mode();
+
+    if let FailureMode::NetworkTimeout { after_ms } = &mode {
+        if *after_ms > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(*after_ms + 1)).await;
+        }
+    }
+
+    if let Some(resp) = apply_failure_mode(&mode, count) {
+        return resp;
+    }
+
+    if let Some(resp) = check_bearer_auth(&headers) {
+        return resp;
+    }
+
+    if body.ids.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "errors": [{"code": 400, "message": "ids array must not be empty"}]
+            })),
+        )
+            .into_response();
+    }
+
+    host_details_inner(state, headers, body.ids).await
 }
 
 /// `POST /devices/entities/devices-actions/v2`
@@ -1155,7 +1232,10 @@ pub fn build_crowdstrike_router(state: Arc<CrowdStrikeHarnessState>) -> Router {
         )
         // Host read endpoints.
         .route("/devices/queries/devices/v1", get(list_host_ids))
-        .route("/devices/entities/devices/v2", get(get_host_details))
+        .route(
+            "/devices/entities/devices/v2",
+            get(get_host_details).post(post_host_details),
+        )
         // Write endpoints.
         .route("/devices/entities/devices-actions/v2", post(device_actions))
         .route("/detects/entities/detects/v2", patch(patch_detections))
@@ -1382,7 +1462,10 @@ pub fn build_crowdstrike_network_router(state: Arc<CrowdStrikeHarnessState>) -> 
         )
         // Host read endpoints — bearer-guarded for network mode.
         .route("/devices/queries/devices/v1", get(host_list_guarded))
-        .route("/devices/entities/devices/v2", get(get_host_details))
+        .route(
+            "/devices/entities/devices/v2",
+            get(get_host_details).post(post_host_details),
+        )
         // Write endpoints.
         .route("/devices/entities/devices-actions/v2", post(device_actions))
         .route("/detects/entities/detects/v2", patch(patch_detections))
