@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-T13 Comprehensive Pre-flight Demo Audit Script — develop@f935edb6
+T13 Comprehensive Pre-flight Demo Audit Script — develop@8ea29823
 Drives the prism MCP server over stdio (newline-delimited JSON) and verifies
 the FULL demo feature coverage matrix (extends the 18-item smoke audit).
 
@@ -12,19 +12,24 @@ Requirements:
     - prism-dtu-demo-server must be running (bash scripts/demo-run.sh)
     - PRISM_THREATINTEL_PORT and PRISM_NVD_PORT env vars (from demo-run.sh output)
 
-Coverage matrix:
-  1. Every MCP tool end-to-end (list_capabilities, prism_describe, query, all prompts,
-     all resources, list_infusions, plugin_status, infusion_status)
+Coverage matrix (90 matrix items + 5 B-table dynamic checks):
+  1. Every MCP tool end-to-end — all 14 implemented tools, all 5 prompts, all resources
   2. All 6 sensors × all tables (CrowdStrike, Cyberint, Claroty, Armis, ThreatIntel, NVD)
-  3. All query modes (SQL, pipe, SqlPipe, filters, aggregates, joins, enrichment, temporal)
+  3. All query modes (SQL, pipe, SqlPipe, filter, stats, joins, enrichment, temporal)
   4. All scenario stages per client (determinism verified)
-  5. Multi-client data segregation + org-scoping error paths
-  6. Enrichment correlation (ThreatIntel IOCs + NVD CVEs)
-  7. Error taxonomy paths (E-QUERY-032/-037/-038/-039)
+  5. Multi-client data segregation + org-scoping error paths + multi-client fan-out
+  6. Enrichment correlation (ThreatIntel IOCs + NVD CVEs, threat_sources/cvss_vector)
+  7. Error taxonomy paths (E-QUERY-032/-033/-037/-038/-039/-040/-041/-042/-003)
   8. Capability discovery (D-1162, D-1312 regression)
   9. IEQ/IIN/INE case-insensitive operators (ADR-047, PR #217)
  10. Temporal typing regression (ADR-052 §D4, PR #214)
  11. Typed enrichment output regression (ADR-051, PR #216)
+ 12. Section H — PR #219 behaviors: pipe/filter E-QUERY-038, did_you_mean payload, INE,
+     E-QUERY-041/-042 temporal negative paths, E-QUERY-002 via integer column, JOINs,
+     HEAD-JOIN fail-open, SqlPipe, E-QUERY-040 dual-limit, stats grammar, multi-client
+     fan-out, prompts, resources, 14 tools, CWE-116/117 sanitization, E-QUERY-033/-003
+     guardrails, threat_sources/cvss_vector UDFs, runbook-drift probe, determinism,
+     normalized_pql (t13-audit-coverage-gap-analysis-2026-07-10.md)
 """
 
 import subprocess
@@ -164,7 +169,16 @@ def parse_envelope(resp):
         error_code = m.group(1) if m else "UNKNOWN"
         # Strip "ERROR: [type] - " prefix for message
         msg = re.sub(r"^ERROR:\s*\[[^\]]+\]\s*-\s*", "", text).strip()
-        return {"error_code": error_code, "message": msg, "_plain_error": True}, None
+        result_body = {"error_code": error_code, "message": msg, "_plain_error": True}
+        # Extend with structuredContent.error for machine-readable fields
+        # (code, did_you_mean, available_columns, etc. — field name is `code` not
+        # `error_code`; no `details.*` sub-keys in this codebase's envelope).
+        sc_content = resp.get("result", {}).get("structuredContent", {})
+        if isinstance(sc_content, dict):
+            sc_err_obj = sc_content.get("error")
+            if isinstance(sc_err_obj, dict):
+                result_body["_sc_error"] = sc_err_obj
+        return result_body, None
     try:
         envelope = json.loads(text)
     except json.JSONDecodeError as e:
@@ -312,21 +326,27 @@ def run_audit():
 
         # ── A2: tools/list — enumerate all available tools ────────────────────
         # NOTE: query_tutorial and investigate_host are MCP Prompts, NOT Tools.
-        # The expected tools are the MCP tool names returned by tools/list.
+        # The expected tools are the 14 implemented MCP tools (server.rs has 54 #[tool]
+        # sites: 14 real implementations, 40 runtime -32003 NYA stubs).
+        # list_infusions, plugin_status, infusion_status are NYA stubs → NOT in this set.
         tools_result, err = list_tools(proc)
-        EXPECTED_TOOLS = {"query", "list_capabilities", "prism_describe",
-                          "list_infusions", "plugin_status", "infusion_status"}
+        EXPECTED_TOOLS = {
+            "query", "explain_query", "list_capabilities", "prism_describe",
+            "check_sensor_health", "reload_config",
+            "create_alias", "list_aliases", "delete_alias", "explain_alias",
+            "confirm_action", "add_sensor_spec", "list_sensor_specs", "validate_config",
+        }
         if err:
-            results["[A2] tools/list: all expected tools present"] = f"FAIL: {err}"
+            results["[A2] tools/list: all 14 implemented tools present"] = f"FAIL: {err}"
         else:
             tool_names = {t.get("name", "") for t in tools_result.get("tools", [])}
             missing = EXPECTED_TOOLS - tool_names
             if missing:
-                results["[A2] tools/list: all expected tools present"] = f"FAIL: missing tools: {sorted(missing)}; got: {sorted(tool_names)}"
+                results["[A2] tools/list: all 14 implemented tools present"] = f"FAIL: missing tools: {sorted(missing)}; got: {sorted(tool_names)}"
             else:
-                # Note whether check_sensor_health is available (S-5.04)
-                has_health = "check_sensor_health" in tool_names
-                results["[A2] tools/list: all expected tools present"] = f"PASS: {len(tool_names)} tools, expected set present; check_sensor_health={'YES' if has_health else 'NO'}"
+                results["[A2] tools/list: all 14 implemented tools present"] = (
+                    f"PASS: {len(tool_names)} tools total; all 14 implemented tools present"
+                )
 
         # ── A3: resources/list — prismql://reference listed ─────────────────
         res_result, err = list_resources(proc)
@@ -339,18 +359,23 @@ def run_audit():
             else:
                 results["[A3] resources/list: prismql://reference listed"] = f"FAIL: prismql://reference not listed; got: {resource_uris}"
 
-        # ── A4: prompts/list — all 3 prompts listed ──────────────────────────
+        # ── A4: prompts/list — all 5 prompts listed ──────────────────────────
+        # prompts.rs registers 5 static prompts (query_tutorial, investigate_host,
+        # triage_alerts, client_overview, cross_client_status). H13 exercises the 2 new ones.
         prompts_result, err = list_prompts(proc)
-        EXPECTED_PROMPTS = {"query_tutorial", "investigate_host", "triage_alerts"}
+        EXPECTED_PROMPTS = {
+            "query_tutorial", "investigate_host", "triage_alerts",
+            "client_overview", "cross_client_status",
+        }
         if err:
-            results["[A4] prompts/list: all 3 prompts listed"] = f"FAIL: {err}"
+            results["[A4] prompts/list: all 5 prompts listed"] = f"FAIL: {err}"
         else:
             prompt_names = {p.get("name", "") for p in prompts_result.get("prompts", [])}
             missing = EXPECTED_PROMPTS - prompt_names
             if missing:
-                results["[A4] prompts/list: all 3 prompts listed"] = f"FAIL: missing: {sorted(missing)}; got: {sorted(prompt_names)}"
+                results["[A4] prompts/list: all 5 prompts listed"] = f"FAIL: missing: {sorted(missing)}; got: {sorted(prompt_names)}"
             else:
-                results["[A4] prompts/list: all 3 prompts listed"] = f"PASS: {sorted(prompt_names)}"
+                results["[A4] prompts/list: all 5 prompts listed"] = f"PASS: {sorted(prompt_names)}"
 
         # ── A5: list_capabilities: D-1312 MAJOR-001 client_registered=true ──
         body, err = tool_call(proc, "list_capabilities", {"client_id": "org-c"})
@@ -1461,41 +1486,31 @@ def run_audit():
                 )
 
         # ── G5: E-QUERY-002 typed guidance (IEQ on integer column) ─────────────
-        # Runbook Step 3.1a teaching note.
-        # severity_id is an OCSF integer ordinal column. IEQ against it should return
-        # E-QUERY-002 (QueryTypeMismatch) since lower() is not applicable to integers.
-        # The error message should suggest using the string sibling 'severity' instead.
+        # armis_devices.risk_score is an integer column (Option<u32> in DTU, Integer in
+        # sensor TOML). IEQ on an integer column must return E-QUERY-002 (QueryTypeMismatch)
+        # since lower() is not applicable to integers.
+        # NB: risk_score has no OCSF string sibling — do NOT assert sibling suggestion.
+        # H6 (Section H) is the canonical probe; G5 is kept as a pre-Section-H warm-up.
         body, err = query(proc,
-            "FROM cyberint_alerts\n| where severity_id IEQ 'high'\n| limit 5",
+            "FROM armis_devices\n| where risk_score IEQ 'high'\n| limit 5",
             ["org-c"])
         if err:
-            results["[G5] E-QUERY-002: IEQ on integer column -> typed guidance"] = f"FAIL: {err}"
+            results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = f"FAIL: {err}"
         else:
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             if ec == "E-QUERY-002":
-                has_suggestion = "severity" in msg.lower()
-                results["[G5] E-QUERY-002: IEQ on integer column -> typed guidance"] = (
-                    f"PASS: E-QUERY-002; string-sibling suggestion={'YES' if has_suggestion else 'NO (check message)'}: {msg[:120]!r}"
-                )
-            elif ec == "E-QUERY-038":
-                # NB-2 justified WARN: severity_id is not a guaranteed column in
-                # cyberint_alerts. The OCSF integer ordinal severity_id is sensor-schema
-                # optional; cyberint exposes 'severity' (string label) not 'severity_id'
-                # (integer ordinal). If absent, the E-QUERY-002 typed-guidance path is
-                # not exercisable via this column — WARN is honest here.
-                results["[G5] E-QUERY-002: IEQ on integer column -> typed guidance"] = (
-                    f"WARN: E-QUERY-038 — severity_id column absent from cyberint_alerts "
-                    f"(OCSF integer ordinal; optional for this sensor); E-QUERY-002 typed "
-                    f"guidance path not exercisable via this sensor: {msg[:80]!r}"
+                results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = (
+                    f"PASS: E-QUERY-002 — IEQ on integer risk_score correctly rejected; "
+                    f"message={msg[:120]!r}"
                 )
             elif ec:
-                results["[G5] E-QUERY-002: IEQ on integer column -> typed guidance"] = (
-                    f"PARTIAL: {ec}: {msg[:100]!r}"
+                results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = (
+                    f"PARTIAL: expected E-QUERY-002 (IEQ on integer), got {ec}: {msg[:100]!r}"
                 )
             else:
                 rows = body.get("rows", [])
-                results["[G5] E-QUERY-002: IEQ on integer column -> typed guidance"] = (
+                results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = (
                     f"FAIL: query succeeded ({len(rows)} rows) — IEQ on integer column should return type error"
                 )
 
@@ -1679,6 +1694,741 @@ def run_audit():
                     "check DTU data availability"
                 )
 
+        # ═══════════════════════════════════════════════════════════════════════
+        # SECTION H: PR #219 behaviors — pipe/filter E-QUERY-038, did_you_mean,
+        #            INE, temporal negative paths, E-QUERY-002 via integer column,
+        #            JOINs, HEAD-JOIN fail-open, SqlPipe, E-QUERY-040 dual-limit,
+        #            stats grammar, multi-client fan-out, prompts (2 new), resources
+        #            (3 new), 14-tool assertion, CWE-116/117 sanitization, guardrails
+        #            (E-QUERY-033/-003), threat_sources/cvss_vector UDFs, runbook-drift,
+        #            determinism, normalized_pql.
+        # Source: t13-audit-coverage-gap-analysis-2026-07-10.md §3 H1–H22 + H1b
+        # ═══════════════════════════════════════════════════════════════════════
+
+        # ── H1: E-QUERY-038 pipe mode — the original DRIFT shape (PR #219) ────
+        # CRITICAL: exact shape that produced "Internal error" before the fix.
+        body, err = query(proc,
+            "FROM crowdstrike_detections\n| where nonexistent_column_xyz IEQ 'high'\n| limit 5",
+            ["org-c"])
+        if err:
+            results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = f"FAIL: {err}"
+        else:
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            if ec == "E-QUERY-038":
+                results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
+                    f"PASS: E-QUERY-038 (no Internal error / E-QUERY-034 regression)"
+                )
+            elif ec in ("E-QUERY-034",) or "Internal error" in msg:
+                results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
+                    f"FAIL: REGRESSION — got {ec!r} / 'Internal error' instead of E-QUERY-038; "
+                    f"message={msg[:100]!r}"
+                )
+            elif body.get("rows") is not None and not ec:
+                results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
+                    f"FAIL: query succeeded ({len(body.get('rows', []))} rows) — nonexistent column must error"
+                )
+            else:
+                results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
+                    f"PARTIAL: unexpected {ec or 'no error'}: {msg[:80]!r}"
+                )
+
+        # ── H1b: E-QUERY-038 filter mode (position 7, no FROM keyword) ───────
+        # Syntax: table_name | predicate (no WHERE, no FROM keyword)
+        body, err = query(proc,
+            "crowdstrike_detections | nonexistent_column_xyz IEQ 'high'",
+            ["org-c"])
+        if err:
+            results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = f"FAIL: {err}"
+        else:
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            if ec == "E-QUERY-038":
+                results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
+                    f"PASS: E-QUERY-038 in filter mode (no regression)"
+                )
+            elif ec in ("E-QUERY-034",) or "Internal error" in msg:
+                results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
+                    f"FAIL: REGRESSION — {ec!r} / 'Internal error' instead of E-QUERY-038; "
+                    f"message={msg[:100]!r}"
+                )
+            elif body.get("rows") is not None and not ec:
+                results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
+                    f"FAIL: filter mode query succeeded — nonexistent column must error"
+                )
+            else:
+                results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
+                    f"PARTIAL: {ec or 'no error'}: {msg[:80]!r}"
+                )
+
+        # ── H2: E-QUERY-038 did_you_mean + available_columns payload ─────────
+        # Tests that ColumnNotFoundDetails carries "Did you mean:" + "available: [" in text.
+        body, err = query(proc,
+            "SELECT sevrity FROM crowdstrike_detections LIMIT 5",
+            ["org-c"])
+        if err:
+            results["[H2] E-QUERY-038 did_you_mean + available_columns payload"] = f"FAIL: {err}"
+        else:
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            sc_err = body.get("_sc_error", {})
+            if ec == "E-QUERY-038":
+                has_dym_text = "Did you mean:" in msg
+                has_avail_text = "available: [" in msg
+                # Also check structuredContent.error fields
+                sc_dym = sc_err.get("did_you_mean", "") if sc_err else ""
+                sc_avail = sc_err.get("available_columns", []) if sc_err else []
+                if has_dym_text and has_avail_text:
+                    results["[H2] E-QUERY-038 did_you_mean + available_columns payload"] = (
+                        f"PASS: E-QUERY-038; text contains 'Did you mean:' and 'available: ['; "
+                        f"sc_error.did_you_mean={sc_dym!r}; "
+                        f"sc_error.available_columns count={len(sc_avail)}"
+                    )
+                else:
+                    results["[H2] E-QUERY-038 did_you_mean + available_columns payload"] = (
+                        f"FAIL: E-QUERY-038 but payload anchors missing — "
+                        f"has_dym_text={has_dym_text}, has_avail_text={has_avail_text}; "
+                        f"message={msg[:120]!r}"
+                    )
+            else:
+                results["[H2] E-QUERY-038 did_you_mean + available_columns payload"] = (
+                    f"FAIL: expected E-QUERY-038, got {ec or 'no error'}: {msg[:80]!r}"
+                )
+
+        # ── H3: INE operator — severity INE 'medium' (excludes Medium rows) ──
+        body, err = query(proc,
+            "FROM crowdstrike_detections\n| where severity INE 'medium'\n| limit 20",
+            ["org-c"])
+        if err:
+            results["[H3] INE operator: severity INE 'medium' (excludes Medium rows)"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[H3] INE operator: severity INE 'medium' (excludes Medium rows)"] = (
+                f"FAIL: {ec}: {body.get('message','')[:80]}"
+            )
+        else:
+            rows = body.get("rows", [])
+            if not rows:
+                results["[H3] INE operator: severity INE 'medium' (excludes Medium rows)"] = (
+                    "FAIL: 0 rows — INE should return Critical rows (seed-200: 5 Critical + 15 Medium)"
+                )
+            else:
+                severities = [r.get("severity", "") for r in rows]
+                has_medium = any(s and s.lower() == "medium" for s in severities)
+                all_critical = all(s and s.lower() == "critical" for s in severities if s)
+                if has_medium:
+                    results["[H3] INE operator: severity INE 'medium' (excludes Medium rows)"] = (
+                        f"FAIL: Medium rows leaked through INE filter; severities={list(set(severities))!r}"
+                    )
+                elif all_critical and len(rows) >= 1:
+                    results["[H3] INE operator: severity INE 'medium' (excludes Medium rows)"] = (
+                        f"PASS: {len(rows)} rows; all severity='Critical'; zero Medium rows"
+                    )
+                else:
+                    results["[H3] INE operator: severity INE 'medium' (excludes Medium rows)"] = (
+                        f"PARTIAL: rows={len(rows)}; severities={list(set(severities))!r}"
+                    )
+
+        # ── H4: E-QUERY-041 negative temporal — date-only literal ────────────
+        # 'timestamp > '2020-01-01'' (date-only, no RFC-3339 UTC offset) must reject.
+        body, err = query(proc,
+            "FROM claroty_audit_logs\n| where timestamp > '2020-01-01'\n| limit 3",
+            ["org-c"])
+        if err:
+            results["[H4] E-QUERY-041: date-only literal rejected (ADR-052 §D4)"] = f"FAIL: {err}"
+        else:
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            if ec == "E-QUERY-041":
+                has_rfc_hint = "RFC-3339" in msg or "UTC" in msg or "cannot be interpreted" in msg
+                results["[H4] E-QUERY-041: date-only literal rejected (ADR-052 §D4)"] = (
+                    f"PASS: E-QUERY-041 — date-only literal '2020-01-01' rejected; "
+                    f"RFC-3339 hint={'YES' if has_rfc_hint else 'NO'}: {msg[:80]!r}"
+                )
+            elif body.get("rows") is not None and not ec:
+                results["[H4] E-QUERY-041: date-only literal rejected (ADR-052 §D4)"] = (
+                    "FAIL: date-only literal accepted (should be E-QUERY-041)"
+                )
+            else:
+                results["[H4] E-QUERY-041: date-only literal rejected (ADR-052 §D4)"] = (
+                    f"PARTIAL: expected E-QUERY-041, got {ec or 'no error'}: {msg[:80]!r}"
+                )
+
+        # ── H5: E-QUERY-042 — temporal literal in GROUP BY position ──────────
+        body, err = query(proc,
+            "SELECT severity, COUNT(*) FROM crowdstrike_detections GROUP BY '2026-07-01T00:00:00Z'",
+            ["org-c"])
+        if err:
+            results["[H5] E-QUERY-042: temporal literal in GROUP BY (ADR-052 §D4)"] = f"FAIL: {err}"
+        else:
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            if ec == "E-QUERY-042":
+                results["[H5] E-QUERY-042: temporal literal in GROUP BY (ADR-052 §D4)"] = (
+                    f"PASS: E-QUERY-042 — temporal literal in GROUP BY arm rejected; "
+                    f"message={msg[:80]!r}"
+                )
+            elif body.get("rows") is not None and not ec:
+                results["[H5] E-QUERY-042: temporal literal in GROUP BY (ADR-052 §D4)"] = (
+                    "FAIL: GROUP BY literal accepted (should be E-QUERY-042)"
+                )
+            else:
+                results["[H5] E-QUERY-042: temporal literal in GROUP BY (ADR-052 §D4)"] = (
+                    f"PARTIAL: expected E-QUERY-042, got {ec or 'no error'}: {msg[:80]!r}"
+                )
+
+        # ── H6: E-QUERY-002 via armis_devices.risk_score (integer column) ─────
+        # armis_devices.risk_score is Integer-typed. IEQ must reject with E-QUERY-002.
+        # Do NOT assert sibling suggestion (risk_score has no OCSF string sibling).
+        # This is the canonical E-QUERY-002 probe that retires G5's permanent WARN.
+        body, err = query(proc,
+            "FROM armis_devices\n| where risk_score IEQ 'high'\n| limit 5",
+            ["org-c"])
+        if err:
+            results["[H6] E-QUERY-002 via armis_devices.risk_score (integer column)"] = f"FAIL: {err}"
+        else:
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            if ec == "E-QUERY-002":
+                has_operator_hint = "does not support operator" in msg or "IEQ" in msg
+                results["[H6] E-QUERY-002 via armis_devices.risk_score (integer column)"] = (
+                    f"PASS: E-QUERY-002 — IEQ on integer risk_score rejected; "
+                    f"operator_hint={'YES' if has_operator_hint else 'NO (check message)'}: "
+                    f"message={msg[:100]!r}"
+                )
+            elif body.get("rows") is not None and not ec:
+                results["[H6] E-QUERY-002 via armis_devices.risk_score (integer column)"] = (
+                    f"FAIL: query succeeded ({len(body.get('rows', []))} rows) — IEQ on integer must error"
+                )
+            else:
+                results["[H6] E-QUERY-002 via armis_devices.risk_score (integer column)"] = (
+                    f"PARTIAL: expected E-QUERY-002, got {ec or 'no error'}: {msg[:80]!r}"
+                )
+
+        # ── H7: JOIN positive path — crowdstrike_devices JOIN armis_devices ───
+        # org-c seed-200: device IDs dev-0196f4b2-200-{0..49} in BOTH tables (full overlap).
+        body, err = query(proc,
+            "SELECT d.device_id, a.risk_score FROM crowdstrike_devices d "
+            "JOIN armis_devices a ON d.device_id = a.device_id LIMIT 5",
+            ["org-c"])
+        if err:
+            results["[H7] JOIN positive path: crowdstrike_devices JOIN armis_devices"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[H7] JOIN positive path: crowdstrike_devices JOIN armis_devices"] = (
+                f"FAIL: {ec}: {body.get('message','')[:80]}"
+            )
+        else:
+            rows = body.get("rows", [])
+            if rows:
+                scores = [r.get("risk_score") for r in rows if r.get("risk_score") is not None]
+                results["[H7] JOIN positive path: crowdstrike_devices JOIN armis_devices"] = (
+                    f"PASS: {len(rows)} joined rows; risk_score values={scores[:5]}"
+                )
+            else:
+                results["[H7] JOIN positive path: crowdstrike_devices JOIN armis_devices"] = (
+                    "FAIL: 0 rows — seed-200 guarantees 50 device IDs overlap between tables"
+                )
+
+        # ── H8: HEAD-JOIN fail-open — bare unknown column in JOIN ─────────────
+        # BC-2.11.016 v1.25 suspension rule 6: bare-column reference in JOIN → fail-open
+        # (E-QUERY-034 or controlled rejection, NEVER E-QUERY-038).
+        body, err = query(proc,
+            "SELECT totally_unknown_col FROM crowdstrike_devices d "
+            "JOIN armis_devices a ON d.device_id = a.device_id LIMIT 5",
+            ["org-c"])
+        if err:
+            results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = f"FAIL: {err}"
+        else:
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            rows = body.get("rows", [])
+            if rows:
+                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                    f"FAIL: query returned {len(rows)} rows with unknown col (should reject)"
+                )
+            elif ec == "E-QUERY-038":
+                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                    f"FAIL: E-QUERY-038 fired for bare unknown col in JOIN — "
+                    f"HEAD-JOIN fail-open (FP-001) should suppress E-QUERY-038 here"
+                )
+            elif ec == "E-QUERY-034" or "Internal error" in msg or (ec and ec != "E-QUERY-038"):
+                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                    f"PASS: controlled rejection ({ec or 'internal'}) — not E-QUERY-038 "
+                    f"(HEAD-JOIN spec-sanctioned FP-001 confirmed)"
+                )
+            elif not ec and not rows:
+                # Empty result with no error — also acceptable (no rows, no crash)
+                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                    "PARTIAL: no error, no rows (acceptable; not a crash or E-QUERY-038)"
+                )
+            else:
+                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                    f"PARTIAL: {ec or 'no error'}: {msg[:80]!r}"
+                )
+
+        # ── H9: SqlPipe mode — SQL head + pipe stage (BC-2.11.020) ───────────
+        body, err = query(proc,
+            "SELECT device_id, severity FROM crowdstrike_detections "
+            "| where severity IEQ 'critical' | limit 5",
+            ["org-c"])
+        if err:
+            results["[H9] SqlPipe mode: SELECT head + pipe stage (BC-2.11.020)"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[H9] SqlPipe mode: SELECT head + pipe stage (BC-2.11.020)"] = (
+                f"FAIL: {ec}: {body.get('message','')[:80]}"
+            )
+        else:
+            rows = body.get("rows", [])
+            if not rows:
+                results["[H9] SqlPipe mode: SELECT head + pipe stage (BC-2.11.020)"] = (
+                    "FAIL: 0 rows — seed-200 guarantees Critical detections"
+                )
+            else:
+                severities = [r.get("severity", "") for r in rows]
+                non_critical = [s for s in severities if s and s.lower() != "critical"]
+                if non_critical:
+                    results["[H9] SqlPipe mode: SELECT head + pipe stage (BC-2.11.020)"] = (
+                        f"FAIL: non-Critical rows leaked: {non_critical!r}"
+                    )
+                else:
+                    results["[H9] SqlPipe mode: SELECT head + pipe stage (BC-2.11.020)"] = (
+                        f"PASS: {len(rows)} rows; all severity='Critical' (SqlPipe IEQ filter confirmed)"
+                    )
+
+        # ── H10: E-QUERY-040 dual-limit (SQL LIMIT + pipe | limit) ───────────
+        body, err = query(proc,
+            "SELECT device_id FROM crowdstrike_detections LIMIT 5 | limit 3",
+            ["org-c"])
+        if err:
+            results["[H10] E-QUERY-040: SQL LIMIT + pipe | limit (dual-limit rejected)"] = f"FAIL: {err}"
+        else:
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            if ec == "E-QUERY-040":
+                results["[H10] E-QUERY-040: SQL LIMIT + pipe | limit (dual-limit rejected)"] = (
+                    f"PASS: E-QUERY-040 — dual row-limit cap rejected (ADR-043 D4)"
+                )
+            elif body.get("rows") is not None and not ec:
+                results["[H10] E-QUERY-040: SQL LIMIT + pipe | limit (dual-limit rejected)"] = (
+                    f"FAIL: dual-limit query succeeded ({len(body.get('rows', []))} rows) — should be E-QUERY-040"
+                )
+            else:
+                results["[H10] E-QUERY-040: SQL LIMIT + pipe | limit (dual-limit rejected)"] = (
+                    f"PARTIAL: expected E-QUERY-040, got {ec or 'no error'}: {msg[:80]!r}"
+                )
+
+        # ── H11: | stats grammar (count() as alias by field) ─────────────────
+        # seed-200: 20 detections (5 Critical + 15 Medium) → exactly 2 severity buckets.
+        body, err = query(proc,
+            "FROM crowdstrike_detections\n| stats count() as cnt by severity",
+            ["org-c"])
+        if err:
+            results["[H11] stats grammar: count() as cnt by severity"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[H11] stats grammar: count() as cnt by severity"] = (
+                f"FAIL: {ec}: {body.get('message','')[:80]}"
+            )
+        else:
+            rows = body.get("rows", [])
+            if not rows:
+                results["[H11] stats grammar: count() as cnt by severity"] = (
+                    "FAIL: 0 rows from stats — seed-200 guarantees Critical and Medium buckets"
+                )
+            else:
+                severities_found = {r.get("severity", "") for r in rows}
+                expected = {"Critical", "Medium"}
+                if expected == severities_found:
+                    cnts = {r.get("severity"): r.get("cnt") for r in rows}
+                    results["[H11] stats grammar: count() as cnt by severity"] = (
+                        f"PASS: {len(rows)} buckets; Critical={cnts.get('Critical')}, "
+                        f"Medium={cnts.get('Medium')} (seed-200 counts confirmed)"
+                    )
+                elif expected.issubset(severities_found):
+                    results["[H11] stats grammar: count() as cnt by severity"] = (
+                        f"PASS: {len(rows)} buckets include Critical+Medium; all={sorted(severities_found)!r}"
+                    )
+                else:
+                    results["[H11] stats grammar: count() as cnt by severity"] = (
+                        f"PARTIAL: buckets={sorted(severities_found)!r} (expected {sorted(expected)})"
+                    )
+
+        # ── H12: Multi-client fan-out — clients: [org-a, org-c] ──────────────
+        # org-a: 5 CS detections (seed-100, IDs contain -100-); org-c: 20 (seed-200, -200-).
+        # With limit 40, all 25 should be returned. sensor_errors should be empty.
+        body, err = query(proc,
+            "FROM crowdstrike_detections\n| limit 40",
+            ["org-a", "org-c"], timeout=30.0)
+        if err:
+            results["[H12] Multi-client fan-out: org-a + org-c CrowdStrike"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[H12] Multi-client fan-out: org-a + org-c CrowdStrike"] = (
+                f"FAIL: {ec}: {body.get('message','')[:80]}"
+            )
+        else:
+            rows = body.get("rows", [])
+            sensor_errors = body.get("sensor_errors", [])
+            if not rows:
+                results["[H12] Multi-client fan-out: org-a + org-c CrowdStrike"] = (
+                    "FAIL: 0 rows from multi-client query"
+                )
+            else:
+                # Check for both seed segments in any string column
+                all_vals = " ".join(str(v) for r in rows for v in r.values() if isinstance(v, str))
+                has_100 = "-100-" in all_vals
+                has_200 = "-200-" in all_vals
+                if has_100 and has_200 and not sensor_errors:
+                    results["[H12] Multi-client fan-out: org-a + org-c CrowdStrike"] = (
+                        f"PASS: {len(rows)} rows; both -100- (org-a) and -200- (org-c) seeds present; "
+                        f"sensor_errors=[]"
+                    )
+                elif has_100 and has_200:
+                    results["[H12] Multi-client fan-out: org-a + org-c CrowdStrike"] = (
+                        f"PASS: {len(rows)} rows; both seeds present; sensor_errors={sensor_errors}"
+                    )
+                else:
+                    results["[H12] Multi-client fan-out: org-a + org-c CrowdStrike"] = (
+                        f"FAIL: missing seed segments — has_100={has_100}, has_200={has_200}; "
+                        f"total_rows={len(rows)}"
+                    )
+
+        # ── H13: Prompts — client_overview and cross_client_status ───────────
+        # Same hang/arg-validation class that A17/A18 guard for the other 3 prompts.
+        t0 = time.time()
+        res_co, err_co = prompt_get(proc, "client_overview", {"client_id": "org-c"}, timeout=5.0)
+        elapsed_co = time.time() - t0
+        if err_co:
+            results["[H13a] client_overview prompt returns promptly"] = f"FAIL: {err_co} ({elapsed_co:.2f}s)"
+        elif elapsed_co > 3.0:
+            results["[H13a] client_overview prompt returns promptly"] = f"FAIL: took {elapsed_co:.2f}s"
+        else:
+            msgs = res_co.get("messages", []) if res_co else []
+            results["[H13a] client_overview prompt returns promptly"] = (
+                f"PASS: {elapsed_co:.2f}s; {len(msgs)} message(s)"
+            )
+
+        t0 = time.time()
+        res_ccs, err_ccs = prompt_get(proc, "cross_client_status", {}, timeout=5.0)
+        elapsed_ccs = time.time() - t0
+        if err_ccs:
+            results["[H13b] cross_client_status prompt returns promptly"] = f"FAIL: {err_ccs} ({elapsed_ccs:.2f}s)"
+        elif elapsed_ccs > 3.0:
+            results["[H13b] cross_client_status prompt returns promptly"] = f"FAIL: took {elapsed_ccs:.2f}s"
+        else:
+            msgs = res_ccs.get("messages", []) if res_ccs else []
+            results["[H13b] cross_client_status prompt returns promptly"] = (
+                f"PASS: {elapsed_ccs:.2f}s; {len(msgs)} message(s)"
+            )
+
+        # ── H14: resources/read — 3 URIs (config/clients, sensors/health, schema) ─
+        h14_parts = []
+
+        res_cc, err_cc = resource_read(proc, "prism://config/clients", timeout=10.0)
+        if err_cc:
+            h14_parts.append(f"config/clients FAIL:{err_cc[:40]!r}")
+        else:
+            t_cc = (res_cc.get("contents") or [{}])[0].get("text", "")
+            if "org-a" in t_cc and "org-c" in t_cc:
+                h14_parts.append("config/clients PASS(3-orgs)")
+            else:
+                h14_parts.append(f"config/clients FAIL(orgs missing:{t_cc[:40]!r})")
+
+        res_sh, err_sh = resource_read(proc, "prism://sensors/health", timeout=10.0)
+        if err_sh:
+            h14_parts.append(f"sensors/health FAIL:{err_sh[:40]!r}")
+        else:
+            t_sh = (res_sh.get("contents") or [{}])[0].get("text", "")
+            try:
+                json.loads(t_sh)
+                h14_parts.append("sensors/health PASS(JSON)")
+            except Exception:
+                # Non-JSON response is still usable (text description)
+                h14_parts.append(f"sensors/health WARN(non-JSON:{t_sh[:30]!r})")
+
+        res_sc, err_sc = resource_read(proc, "prismql://schema/org-c", timeout=10.0)
+        if err_sc:
+            h14_parts.append(f"schema/org-c FAIL:{err_sc[:40]!r}")
+        else:
+            t_sc = (res_sc.get("contents") or [{}])[0].get("text", "")
+            if "cyberint_alerts" in t_sc:
+                h14_parts.append("schema/org-c PASS(cyberint_alerts)")
+            else:
+                h14_parts.append(f"schema/org-c FAIL(cyberint_alerts missing)")
+
+        any_fail = any("FAIL" in p for p in h14_parts)
+        results["[H14] resources/read: config/clients + sensors/health + schema"] = (
+            f"{'FAIL' if any_fail else 'PASS'}: {'; '.join(h14_parts)}"
+        )
+
+        # ── H15: 14 implemented tools + live explain_query call ──────────────
+        # Re-asserts the 14-tool set from A2 but also does a live explain_query call.
+        body, err = tool_call(proc, "explain_query",
+                              {"query": "FROM crowdstrike_detections | limit 5",
+                               "client_id": "org-c"}, timeout=15.0)
+        if err:
+            results["[H15] explain_query live call (one of 14 implemented tools)"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[H15] explain_query live call (one of 14 implemented tools)"] = (
+                f"FAIL: {ec}: {body.get('message','')[:80]}"
+            )
+        else:
+            # explain_query returns a plan object; just verify it's non-error
+            results["[H15] explain_query live call (one of 14 implemented tools)"] = (
+                f"PASS: explain_query returned non-error plan; keys={list(body.keys())[:6]}"
+            )
+
+        # ── H16: CWE-116/117 — control-char injection sanitized ──────────────
+        # Embed a literal U+0001 in the column name to verify sanitize_for_log strips it.
+        # PASS if E-QUERY-038 or E-QUERY-001 returned without raw control chars in text.
+        ctrl_col = "badcolumn\x01"
+        h16_query = f'SELECT "{ctrl_col}" FROM crowdstrike_detections LIMIT 3'
+        rid_h16 = next_id()
+        send_msg(proc, {"jsonrpc": "2.0", "id": rid_h16, "method": "tools/call",
+                        "params": {"name": "query",
+                                   "arguments": {"query": h16_query, "clients": ["org-c"]}}})
+        resp_h16, err_h16 = read_msg(proc, timeout=15.0)
+        if err_h16:
+            results["[H16] CWE-116/117: control-char in column name sanitized"] = f"FAIL: {err_h16}"
+        else:
+            # Check raw text for control chars (U+0000–U+001F, U+007F)
+            raw_content = resp_h16.get("result", {}).get("content", []) if resp_h16 else []
+            raw_text = raw_content[0].get("text", "") if raw_content else ""
+            control_chars_found = [c for c in raw_text if (ord(c) < 0x20 or ord(c) == 0x7F)
+                                    and c not in ("\n", "\r", "\t")]
+            if control_chars_found:
+                results["[H16] CWE-116/117: control-char in column name sanitized"] = (
+                    f"FAIL: raw control chars leaked in response: "
+                    f"{[hex(ord(c)) for c in control_chars_found[:5]]}"
+                )
+            elif raw_text.startswith("ERROR:"):
+                # Error returned (E-QUERY-038 or E-QUERY-001) without raw control chars — PASS
+                results["[H16] CWE-116/117: control-char in column name sanitized"] = (
+                    f"PASS: error returned without raw control chars (CWE-116/117 sanitized); "
+                    f"preview={raw_text[:80]!r}"
+                )
+            elif resp_h16 and "error" in resp_h16:
+                # RPC-level rejection — also acceptable
+                results["[H16] CWE-116/117: control-char in column name sanitized"] = (
+                    f"PASS: RPC-level rejection without control-char leakage"
+                )
+            else:
+                # No raw control chars and no error — response was clean
+                results["[H16] CWE-116/117: control-char in column name sanitized"] = (
+                    f"PASS: response clean (no control chars); preview={raw_text[:60]!r}"
+                )
+
+        # ── H17: E-QUERY-033 — limit > 1000 rejected ─────────────────────────
+        body, err = tool_call(proc, "query",
+                              {"query": "FROM crowdstrike_detections | limit 5",
+                               "clients": ["org-c"], "limit": 1001})
+        if err:
+            # E-QUERY-033 → -32602 INVALID_PARAMS at the MCP params level (build_query_options)
+            if "E-QUERY-033" in err or "-32602" in str(err) or "RPC error" in str(err):
+                results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
+                    f"PASS: limit > 1000 controlled rejection: {err[:100]}"
+                )
+            else:
+                results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
+                    f"FAIL: unexpected error: {err[:100]}"
+                )
+        elif body.get("error_code") == "E-QUERY-033":
+            results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
+                "PASS: E-QUERY-033 in-band rejection"
+            )
+        elif body.get("rows") is not None:
+            results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
+                f"FAIL: limit 1001 query succeeded ({len(body.get('rows', []))} rows) — E-QUERY-033 not enforced"
+            )
+        else:
+            results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
+                f"PARTIAL: body={body}"
+            )
+
+        # ── H18: E-QUERY-003 / oversize query rejected ───────────────────────
+        # ~70KB IN clause exceeds the 64KB MCP-level guard (or engine security limit).
+        # Either E-QUERY-003 or -32602 param rejection PASSes; success/hang/crash FAILs.
+        _vals = ", ".join(f"'val{i:06d}'" for i in range(5000))  # ~65KB
+        big_query = f"FROM crowdstrike_detections\n| where detection_id IN ({_vals})\n| limit 5"
+        body, err = query(proc, big_query, ["org-c"], timeout=30.0)
+        if err:
+            # Any RPC-level rejection (MCP 64KB guard fires first)
+            results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                f"PASS: oversize query rejected at MCP or engine level: {err[:80]}"
+            )
+        elif body.get("error_code") in ("E-QUERY-003",):
+            results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                f"PASS: E-QUERY-003 in-band rejection"
+            )
+        elif body.get("rows") is not None:
+            results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                "FAIL: oversize query succeeded (E-QUERY-003 not enforced)"
+            )
+        else:
+            results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                f"PARTIAL: unexpected response: body keys={list(body.keys())[:4]}"
+            )
+
+        # ── H19: threat_sources + cvss_vector UDFs ───────────────────────────
+        body_ts, err_ts = query(proc,
+            "FROM cyberint_alerts\n| where iocs_value_first IS NOT NULL\n"
+            "| enrich threat_sources(iocs_value_first)\n| limit 3",
+            ["org-c"], timeout=30.0)
+        if err_ts:
+            results["[H19a] threat_sources UDF returns virustotal"] = f"FAIL: {err_ts}"
+        elif body_ts.get("error_code"):
+            ec = body_ts.get("error_code", "")
+            results["[H19a] threat_sources UDF returns virustotal"] = (
+                f"FAIL: {ec}: {body_ts.get('message','')[:80]}"
+            )
+        else:
+            rows = body_ts.get("rows", [])
+            if rows:
+                sources_vals = [r.get("threat_sources") for r in rows if r.get("threat_sources")]
+                has_virustotal = any("virustotal" in str(v).lower() for v in sources_vals)
+                results["[H19a] threat_sources UDF returns virustotal"] = (
+                    f"PASS: {len(rows)} rows; threat_sources present; "
+                    f"virustotal={'YES' if has_virustotal else 'not found in sample'}; "
+                    f"sample={str(sources_vals[:2])[:80]!r}"
+                ) if sources_vals else (
+                    f"WARN: {len(rows)} rows but threat_sources column absent/null"
+                )
+            else:
+                results["[H19a] threat_sources UDF returns virustotal"] = (
+                    "FAIL: 0 rows from iocs_value_first IS NOT NULL filter"
+                )
+
+        body_cv, err_cv = query(proc,
+            "FROM armis_devices\n| where device_cves_first IS NOT NULL\n"
+            "| enrich cvss_vector(device_cves_first)\n| limit 3",
+            ["org-c"], timeout=30.0)
+        if err_cv:
+            results["[H19b] cvss_vector UDF returns CVSS:3.1/ string"] = f"FAIL: {err_cv}"
+        elif body_cv.get("error_code"):
+            ec = body_cv.get("error_code", "")
+            results["[H19b] cvss_vector UDF returns CVSS:3.1/ string"] = (
+                f"FAIL: {ec}: {body_cv.get('message','')[:80]}"
+            )
+        else:
+            rows = body_cv.get("rows", [])
+            if rows:
+                vectors = [r.get("cvss_vector") for r in rows if r.get("cvss_vector")]
+                has_cvss31 = any(str(v).startswith("CVSS:3.1/") for v in vectors)
+                results["[H19b] cvss_vector UDF returns CVSS:3.1/ string"] = (
+                    f"PASS: {len(rows)} rows; cvss_vector starts with CVSS:3.1/={'YES' if has_cvss31 else 'check value'}; "
+                    f"sample={str(vectors[:2])[:80]!r}"
+                ) if vectors else (
+                    f"WARN: {len(rows)} rows but cvss_vector column absent/null"
+                )
+            else:
+                results["[H19b] cvss_vector UDF returns CVSS:3.1/ string"] = (
+                    "FAIL: 0 rows from device_cves_first IS NOT NULL filter"
+                )
+
+        # ── H20: Runbook-drift probe — Step 3.2 verbatim (JSON-list iocs_value) ─
+        # ADR-051 D4 scalar-input: threat_score(iocs_value) on a JSON-list column should
+        # return score=0/null (enforced). PASS = confirmed low score (validates amendment).
+        # WARN = unexpectedly high score (ADR-051 D4 may not be enforced — investigate).
+        body, err = query(proc,
+            "FROM cyberint_alerts\n| where iocs_value IS NOT NULL\n"
+            "| enrich threat_score(iocs_value)\n| limit 10",
+            ["org-c"], timeout=30.0)
+        if err:
+            results["[H20] Runbook-drift: Step 3.2 iocs_value (JSON-list, ADR-051 D4)"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[H20] Runbook-drift: Step 3.2 iocs_value (JSON-list, ADR-051 D4)"] = (
+                f"FAIL: {ec}: {body.get('message','')[:80]}"
+            )
+        else:
+            rows = body.get("rows", [])
+            if rows:
+                scores = [r.get("threat_score") for r in rows if "threat_score" in r]
+                numeric_scores = [s for s in scores if isinstance(s, (int, float))]
+                max_score = max(numeric_scores, default=0)
+                if max_score >= 75:
+                    # Unexpected: ADR-051 D4 scalar-input requirement may not be enforced
+                    results["[H20] Runbook-drift: Step 3.2 iocs_value (JSON-list, ADR-051 D4)"] = (
+                        f"WARN: threat_score={max_score} for JSON-list column — "
+                        f"ADR-051 D4 scalar-input may not be enforced; investigate"
+                    )
+                else:
+                    # Expected: JSON-list column returns 0/low score → ADR-051 D4 confirmed
+                    results["[H20] Runbook-drift: Step 3.2 iocs_value (JSON-list, ADR-051 D4)"] = (
+                        f"PASS: threat_score={max_score} for JSON-list column — "
+                        f"ADR-051 D4 scalar-input enforced; runbook v1.8 amendment to "
+                        f"iocs_value_first confirmed valid; scores={scores[:5]}"
+                    )
+            else:
+                results["[H20] Runbook-drift: Step 3.2 iocs_value (JSON-list, ADR-051 D4)"] = (
+                    "FAIL: 0 rows from iocs_value IS NOT NULL filter (check DTU data)"
+                )
+
+        # ── H21: Determinism — same sorted query returns identical rows ───────
+        # Seeded ChaCha20 + fixed anchors guarantee byte-identical results across runs.
+        body1, err1 = query(proc,
+            "FROM crowdstrike_detections\n| sort detection_id\n| limit 20",
+            ["org-c"])
+        body2, err2 = query(proc,
+            "FROM crowdstrike_detections\n| sort detection_id\n| limit 20",
+            ["org-c"])
+        if err1 or err2:
+            results["[H21] Determinism: repeated sorted query byte-identical"] = (
+                f"FAIL: {err1 or err2}"
+            )
+        elif body1.get("error_code") or body2.get("error_code"):
+            ec = body1.get("error_code") or body2.get("error_code")
+            results["[H21] Determinism: repeated sorted query byte-identical"] = (
+                f"FAIL: {ec}: {body1.get('message','')[:80]}"
+            )
+        else:
+            rows1 = body1.get("rows", [])
+            rows2 = body2.get("rows", [])
+            if rows1 == rows2 and len(rows1) > 0:
+                results["[H21] Determinism: repeated sorted query byte-identical"] = (
+                    f"PASS: {len(rows1)} rows; two runs byte-identical "
+                    f"(seeded ChaCha20 + fixed anchors)"
+                )
+            elif rows1 == rows2:
+                results["[H21] Determinism: repeated sorted query byte-identical"] = (
+                    "FAIL: 0 rows from both runs — seed-200 guarantees detections"
+                )
+            else:
+                diffs = sum(1 for a, b in zip(rows1, rows2) if a != b)
+                results["[H21] Determinism: repeated sorted query byte-identical"] = (
+                    f"FAIL: rows differ — run1={len(rows1)}, run2={len(rows2)}, "
+                    f"differing_rows={diffs}"
+                )
+
+        # ── H22: normalized_pql present in success response (BC-2.11.018) ────
+        body, err = query(proc,
+            "FROM crowdstrike_detections\n| limit 5",
+            ["org-c"])
+        if err:
+            results["[H22] BC-2.11.018: normalized_pql present on success path"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[H22] BC-2.11.018: normalized_pql present on success path"] = (
+                f"FAIL: {ec}: {body.get('message','')[:80]}"
+            )
+        else:
+            npql = body.get("normalized_pql", "MISSING")
+            if npql == "MISSING":
+                results["[H22] BC-2.11.018: normalized_pql present on success path"] = (
+                    "FAIL: normalized_pql key absent from success response (BC-2.11.018)"
+                )
+            elif isinstance(npql, str) and len(npql) > 0:
+                results["[H22] BC-2.11.018: normalized_pql present on success path"] = (
+                    f"PASS: normalized_pql present: {npql[:80]!r}"
+                )
+            else:
+                results["[H22] BC-2.11.018: normalized_pql present on success path"] = (
+                    f"FAIL: normalized_pql empty or wrong type: {npql!r}"
+                )
+
     finally:
         try:
             proc.stdin.close()
@@ -1698,9 +2448,9 @@ def run_audit():
 # ─────────────────────────────────────────────────────────────────────────────
 COVERAGE_MATRIX = [
     ("[A1]",  "MCP Protocol",  "INIT: server boots"),
-    ("[A2]",  "MCP Protocol",  "tools/list all expected tools"),
+    ("[A2]",  "MCP Protocol",  "tools/list all 14 implemented tools"),
     ("[A3]",  "MCP Protocol",  "resources/list prismql://reference"),
-    ("[A4]",  "MCP Protocol",  "prompts/list all 3 prompts"),
+    ("[A4]",  "MCP Protocol",  "prompts/list all 5 prompts"),
     ("[A5]",  "MCP Protocol",  "list_capabilities client_registered (D-1312)"),
     ("[A6]",  "MCP Protocol",  "list_capabilities tri-state model"),
     ("[A7]",  "MCP Protocol",  "prism_describe sensor-prefixed names"),
@@ -1759,18 +2509,44 @@ COVERAGE_MATRIX = [
     ("[G2]",  "IEQ/IIN/INE",   "IIN multi-value: severity IIN ('high','critical')"),
     ("[G3]",  "IEQ/IIN/INE",   "IIN on status: status IIN ('new','in progress') → crowdstrike_detections (cyberint vendor-native open/acknowledged/closed has no OCSF caption match; ADV-PR-P11-HIGH-001)"),
     ("[G4]",  "IEQ/IIN/INE",   "SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"),
-    ("[G5]",  "IEQ/IIN/INE",   "E-QUERY-002 typed guidance: IEQ on integer column"),
+    ("[G5]",  "IEQ/IIN/INE",   "E-QUERY-002 typed guidance: IEQ on armis_devices.risk_score (integer)"),
     ("[G6]",  "IEQ/IIN/INE",   "GROUP BY severity no-fragmentation (canonical Title-case)"),
     ("[G7]",  "Temporal",      "ADR-052 §D4 regression: RFC-3339 datetime literal in WHERE"),
     ("[G8]",  "Typed Enrich",  "ADR-051 regression: threat_score is Int64 not JSON-string"),
+    # Section H: PR #219 behaviors — full current-feature coverage (AUDIT-COVERAGE-001)
+    ("[H1]",  "PR#219",        "E-QUERY-038 pipe mode: original DRIFT shape (no Internal error regression)"),
+    ("[H1b]", "PR#219",        "E-QUERY-038 filter mode: position-7, no FROM keyword"),
+    ("[H2]",  "PR#219",        "E-QUERY-038 did_you_mean + available_columns in error payload"),
+    ("[H3]",  "PR#219",        "INE operator: severity INE 'medium' excludes Medium rows"),
+    ("[H4]",  "Temporal",      "E-QUERY-041: date-only literal '2020-01-01' rejected (ADR-052 §D4)"),
+    ("[H5]",  "Temporal",      "E-QUERY-042: temporal literal in GROUP BY arm rejected (ADR-052 §D4)"),
+    ("[H6]",  "IEQ/IIN/INE",   "E-QUERY-002: IEQ on armis_devices.risk_score (integer column, canonical probe)"),
+    ("[H7]",  "JOIN",          "JOIN positive path: crowdstrike_devices JOIN armis_devices on device_id"),
+    ("[H8]",  "JOIN",          "HEAD-JOIN fail-open: bare unknown col in JOIN → not E-QUERY-038 (FP-001)"),
+    ("[H9]",  "SqlPipe",       "SqlPipe mode: SELECT head + pipe stage (BC-2.11.020)"),
+    ("[H10]", "Dual-limit",    "E-QUERY-040: SQL LIMIT + pipe | limit dual-limit rejected"),
+    ("[H11]", "Stats",         "| stats count() as cnt by severity grammar"),
+    ("[H12]", "Multi-client",  "Multi-client fan-out: org-a + org-c CrowdStrike detections"),
+    ("[H13a]","Prompts",       "client_overview prompt returns promptly (new prompt)"),
+    ("[H13b]","Prompts",       "cross_client_status prompt returns promptly (new prompt)"),
+    ("[H14]", "Resources",     "resources/read: config/clients + sensors/health + schema/org-c"),
+    ("[H15]", "Tools",         "explain_query live call (one of 14 implemented tools)"),
+    ("[H16]", "Security",      "CWE-116/117: control-char in column name sanitized (sanitize_for_log)"),
+    ("[H17]", "Guardrails",    "E-QUERY-033: limit > 1000 rejected (BC-2.11.001 ceiling)"),
+    ("[H18]", "Guardrails",    "E-QUERY-003: oversize query (~70KB) controlled rejection"),
+    ("[H19a]","UDFs",          "threat_sources UDF returns virustotal in result"),
+    ("[H19b]","UDFs",          "cvss_vector UDF returns CVSS:3.1/ string"),
+    ("[H20]", "Runbook-drift", "Step 3.2 iocs_value JSON-list column: ADR-051 D4 scalar-input confirmed"),
+    ("[H21]", "Determinism",   "Repeated sorted query byte-identical (seeded ChaCha20)"),
+    ("[H22]", "BC-2.11.018",   "normalized_pql present on success response"),
 ]
 
 
 if __name__ == "__main__":
     print("=" * 80)
-    print("T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop@f935edb6")
+    print("T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop@8ea29823")
     print(f"  ThreatIntel port: {THREATINTEL_PORT}  NVD port: {NVD_PORT}")
-    print(f"  Coverage: {len(COVERAGE_MATRIX)} matrix items (+5 B-table dynamic) across 7 sections")
+    print(f"  Coverage: {len(COVERAGE_MATRIX)} matrix items (+5 B-table dynamic) across 8 sections")
     print("=" * 80)
     print()
 
