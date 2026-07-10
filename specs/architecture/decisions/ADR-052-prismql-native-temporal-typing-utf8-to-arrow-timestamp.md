@@ -4,7 +4,7 @@ adr_id: "ADR-052"
 title: "PrismQL Native Temporal Typing — Datetime Columns and Literals from Arrow Utf8 to Timestamp(Microsecond, UTC)"
 status: accepted
 date: "2026-07-03"
-version: "1.10"
+version: "1.11"
 producer: architect
 subsystems_affected: [SS-09, SS-10, SS-11, SS-17]
 supersedes: "ADR-044 §D4"
@@ -21,7 +21,7 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.10 (2026-07-05). Human ratification of core decisions recorded 2026-07-03
+ACCEPTED v1.11 (2026-07-10). Human ratification of core decisions recorded 2026-07-03
 (D-1520). **§D4 v1.3 ACCEPTED (human-ratified 2026-07-04, Option A + String-column
 coercion modification). v1.4 (pre-TDD, remove-uncertainty): `is_date_like` acceptance
 set expanded from 2 to 7 format strings (date-only + T-sep/space-sep × full-seconds/
@@ -55,6 +55,8 @@ stated: NO DataFusion-executed query, in any mode, may emit a bare Utf8 timestam
 a Timestamp column. Three-row emission-path table added to Addendum. Blast-radius row 21 updated
 (SqlPipe arm added). BC-2.11.021 unchanged. Blast radius rows 21-22 updated (count remains 22).
 ARCH-INDEX v2.165→v2.166.
+
+**v1.11 (§D4 GROUP BY/ORDER BY dead-arm fix: `Literal::Timestamp` co-trigger, 2026-07-10):** LOCAL adversary finding F-EQ42-P1-001 (HIGH) closing DEFECT-EQUERY042-GROUPBY-DEADARM-001. §D4 dispatch table arms (6) GROUP BY and (7) ORDER BY amended: `Literal::Timestamp` (RFC-3339 fast-path constant, e.g. `'2026-07-01T00:00:00Z'`) added as co-trigger alongside `Literal::RawTemporalLiteral` — a pre-parsed RFC-3339 constant in GROUP BY/ORDER BY is equally degenerate (constant grouping/ordering key); the `RawTemporalLiteral`-only wording in v1.10 was the dead-arm defect. Arm (5) NonColumnLhsComparison remains `RawTemporalLiteral`-only (code scope matches). Behavior Reference Table: two rows added for RFC-3339 form → `Literal::Timestamp` → E-QUERY-042 (GroupBy/OrderBy). Clarifying sentence added: `Literal::Timestamp` in SELECT projection / JOIN ON / function args passes through `check_temporal_literals` without coercion (already-validated RFC-3339 form; only the degenerate-position gates intercept it). Rejection arm narratives, BC Amendments detection semantics, Blast Radius row 21, Tasks-to-ADD, and Red Gate test table updated for co-trigger.
 
 **v1.10 (§D4 GROUP BY/ORDER BY REJECT + non-column-LHS REJECT + pipe-mode mechanism, 2026-07-05):** Human-ratified refinement of the §D4 v1.8 non-comparison-position dispatch. The flat "no column type context → COERCE" arm (4 in v1.8 numbering) is split into four distinct arms: (4a) SELECT projection bare literal → COERCE to `Literal::String(s)` (OBS-2 preserved); (4b) GROUP BY position → REJECT with E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy); (4c) ORDER BY position → REJECT with E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy). A new arm (5) is added for non-column-LHS comparisons (LHS is a function/compound expression, date-like RHS): the walker cannot resolve the LHS type at plan time; silent coercion would reintroduce RISK-1 for datetime-valued expressions — REJECT with E-QUERY-042 `TemporalLiteralInvalidPosition` (NonColumnLhsComparison). This closes the current bug where `WHERE lower(hostname) = '2026-06-24'` produces `QueryPlanFailed → -32000 INTERNAL_ERROR` instead of an analyst-readable `-32602 INVALID_PARAMS`. New error code E-QUERY-042 (`TemporalLiteralInvalidPosition`) specified with three position-specific messages (GroupBy, OrderBy, NonColumnLhsComparison); emitted by `PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition, value_prefix: String }`; maps to MCP `-32602 INVALID_PARAMS`. Pipe-mode mechanism for `stats … by` / `sort` specified as **option (a)**: improved parse-time error message (lower complexity than grammar extension; these positions already reject at parse time; `check_temporal_literals` walker changes are SQL-mode only for GROUP/ORDER positions). BC-2.11.004 EC-11-004-004 guidance corrected: pipe stats-by literal must REJECT at parse time, not coerce. Arms 1/2/3 (Datetime-col→E-QUERY-041, String-col→COERCE, Integer/Float/Bool→E-QUERY-002) and emitter guard (Step 5, belt-and-suspenders E-QUERY-002 `QueryPlanFailed`) UNCHANGED. ARCH-INDEX v2.169→v2.170.
 
@@ -431,8 +433,8 @@ the full `Expr` tree:
 | Comparison where LHS is a function/compound expression (non-`Field`), date-like RHS | LHS type unresolvable at plan time | E-QUERY-042 `TemporalLiteralInvalidPosition` (NonColumnLhsComparison) — REJECT with analyst-facing INVALID_PARAMS; silent coercion would reintroduce RISK-1 for datetime-valued LHS expressions (v1.10 NEW) |
 | Non-comparison position where surrounding type context resolves to String/Utf8 | `column_type == DataType::Utf8` | COERCE: rewrite to `Literal::String(s)` (SUCCESS) |
 | Non-comparison: SELECT projection (bare literal in SELECT list, no column type context) | no column type context | COERCE: rewrite `RawTemporalLiteral(s)` → `Literal::String(s)` (SUCCESS — standard SQL `SELECT '2026-06-24'` returns the string constant; OBS-2 preserved) |
-| Non-comparison: GROUP BY position (bare literal in GROUP BY, no column type context) | no column type context | E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy) — REJECT: grouping by a literal constant is a degenerate no-op, almost always an analyst mistake (v1.10 NEW) |
-| Non-comparison: ORDER BY position (bare literal in ORDER BY, no column type context) | no column type context | E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy) — REJECT: ordering by a literal constant is a degenerate no-op, almost always an analyst mistake (v1.10 NEW) |
+| Non-comparison: GROUP BY position — `Literal::RawTemporalLiteral` **or** `Literal::Timestamp` (bare literal in GROUP BY, no column type context) | no column type context | E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy) — REJECT: grouping by a literal constant (RFC-3339 fast-path constant or offset-less date form) is a degenerate no-op, almost always an analyst mistake (v1.10; `Literal::Timestamp` co-trigger added v1.11, DEFECT-EQUERY042-GROUPBY-DEADARM-001) |
+| Non-comparison: ORDER BY position — `Literal::RawTemporalLiteral` **or** `Literal::Timestamp` (bare literal in ORDER BY, no column type context) | no column type context | E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy) — REJECT: ordering by a literal constant (RFC-3339 fast-path constant or offset-less date form) is a degenerate no-op, almost always an analyst mistake (v1.10; `Literal::Timestamp` co-trigger added v1.11, DEFECT-EQUERY042-GROUPBY-DEADARM-001) |
 
 The schema-resolved column type is determined by the same path that resolves
 `ColumnType::Datetime → DataType::Timestamp(...)` (D2). This path correctly handles:
@@ -479,24 +481,32 @@ carries the original string bytes, and `pipe_sql_emitter.rs` emits `Literal::Str
 as a plain `'{escaped}'` SQL string literal — the same emission path used for all other
 string constants. (OBS-2 from v1.8 preserved unchanged in v1.10.)
 
-**Rejection arm — GROUP BY position (v1.10 NEW):**
+**Rejection arm — GROUP BY position (v1.10; `Literal::Timestamp` co-trigger v1.11):**
 
-When `check_temporal_literals` encounters a `Literal::RawTemporalLiteral(s)` in a
-GROUP BY expression, it REJECTS with E-QUERY-042 `TemporalLiteralInvalidPosition`
-(position: `GroupBy`). Grouping by a bare literal constant (`GROUP BY '2026-06-24'`)
-is a degenerate no-op: every row maps to the same group keyed on the constant, which
-almost always indicates an analyst mistake (e.g., intended to GROUP BY a column name
-but accidentally quoted it). The error carries an analyst-facing INVALID_PARAMS message
-directing the analyst to reference a column or add a WHERE filter instead.
+When `check_temporal_literals` encounters a `Literal::RawTemporalLiteral(s)` **or a
+`Literal::Timestamp`** in a GROUP BY expression, it REJECTS with E-QUERY-042
+`TemporalLiteralInvalidPosition` (position: `GroupBy`). Grouping by a bare literal
+constant (`GROUP BY '2026-06-24'` or `GROUP BY '2026-07-01T00:00:00Z'`) is a degenerate
+no-op: every row maps to the same group keyed on the constant, which almost always
+indicates an analyst mistake (e.g., intended to GROUP BY a column name but accidentally
+quoted it). The `Literal::Timestamp` co-trigger closes the dead-arm defect
+(DEFECT-EQUERY042-GROUPBY-DEADARM-001): an RFC-3339 fast-path constant (`Literal::Timestamp`
+produced by the parser) in GROUP BY position is equally degenerate — the v1.10 wording
+that named only `Literal::RawTemporalLiteral` was incorrect. The error carries an
+analyst-facing INVALID_PARAMS message directing the analyst to reference a column or add
+a WHERE filter instead.
 
-**Rejection arm — ORDER BY position (v1.10 NEW):**
+**Rejection arm — ORDER BY position (v1.10; `Literal::Timestamp` co-trigger v1.11):**
 
-When `check_temporal_literals` encounters a `Literal::RawTemporalLiteral(s)` in an
-ORDER BY expression, it REJECTS with E-QUERY-042 `TemporalLiteralInvalidPosition`
-(position: `OrderBy`). Ordering by a bare literal constant (`ORDER BY '2026-06-24'`)
-is a degenerate no-op: sort order on a constant is undefined, almost always an analyst
-mistake. The error carries an analyst-facing INVALID_PARAMS message directing the
-analyst to reference a column name instead.
+When `check_temporal_literals` encounters a `Literal::RawTemporalLiteral(s)` **or a
+`Literal::Timestamp`** in an ORDER BY expression, it REJECTS with E-QUERY-042
+`TemporalLiteralInvalidPosition` (position: `OrderBy`). Ordering by a bare literal
+constant (`ORDER BY '2026-06-24'` or `ORDER BY '2026-07-01T00:00:00Z'`) is a degenerate
+no-op: sort order on a constant is undefined, almost always an analyst mistake. The
+`Literal::Timestamp` co-trigger closes the same dead-arm defect as the GROUP BY arm
+(DEFECT-EQUERY042-GROUPBY-DEADARM-001): an RFC-3339 fast-path constant in ORDER BY
+position is equally degenerate. The error carries an analyst-facing INVALID_PARAMS message
+directing the analyst to reference a column name instead.
 
 **Rejection arm — non-column-LHS comparison (v1.10 NEW):**
 
@@ -512,6 +522,22 @@ datetime column comparisons, a non-date-shaped string for string column comparis
 or an explicit CAST. This arm closes the current bug where
 `WHERE lower(hostname) = '2026-06-24'` produces `QueryPlanFailed → -32000
 INTERNAL_ERROR` rather than an analyst-readable `-32602 INVALID_PARAMS`.
+
+**`Literal::Timestamp` in non-GROUP-BY/ORDER-BY positions (v1.11 clarification):**
+
+`check_temporal_literals` intercepts `Literal::Timestamp` nodes ONLY in GROUP BY and
+ORDER BY positions (the two degenerate-constant gates added by v1.11). In all other
+positions — SELECT projection, JOIN ON predicates, function arguments, and column
+comparisons (any column type) — a `Literal::Timestamp` node passes through
+`check_temporal_literals` without coercion or rejection. This is correct by design:
+`Literal::Timestamp` is the ALREADY-RESOLVED form produced when the parser successfully
+parses a valid RFC-3339 string via `chrono::parse_from_rfc3339`. It carries a concrete
+`DateTime<Utc>` and has been fully validated at parse time — no further type-level
+intervention is needed outside the degenerate-position gates. Only
+`Literal::RawTemporalLiteral` (the offset-less / date-only form that requires plan-time
+column-type dispatch) triggers coercion in String-column comparisons and SELECT projection.
+The emitter-guard in `pipe_sql_emitter.rs` (Step 5) is `RawTemporalLiteral`-only for the
+same reason — `Literal::Timestamp` already has its own §D3 `arrow_cast` emitter path.
 
 The two coercion arms (String-column comparison coerce, SELECT projection coerce) and
 five rejection arms (Datetime-col E-QUERY-041, Integer/Float/Bool E-QUERY-002, GROUP BY
@@ -540,8 +566,8 @@ emission via two coercion paths and five rejection paths:
 - SELECT projection (no column type context) → COERCE to `Literal::String(s)` (no error, OBS-2)
 - Timestamp/Datetime column comparison (bare Field LHS) → E-QUERY-041 (error exit)
 - Integer/Float/Bool column comparison (bare Field LHS) → E-QUERY-002 `QueryTypeMismatch` (error exit)
-- GROUP BY position → E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy) (error exit, v1.10)
-- ORDER BY position → E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy) (error exit, v1.10)
+- GROUP BY position (`RawTemporalLiteral` or `Literal::Timestamp`) → E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy) (error exit, v1.10; `Literal::Timestamp` co-trigger v1.11)
+- ORDER BY position (`RawTemporalLiteral` or `Literal::Timestamp`) → E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy) (error exit, v1.10; `Literal::Timestamp` co-trigger v1.11)
 - Non-column-LHS comparison → E-QUERY-042 `TemporalLiteralInvalidPosition` (NonColumnLhsComparison) (error exit, v1.10)
 
 In every branch the `RawTemporalLiteral` node is consumed — no `RawTemporalLiteral`
@@ -701,6 +727,8 @@ three DataFusion-executed emission paths.
 | `'2026-06-24'` in SELECT projection (`SELECT '2026-06-24' FROM t`) | `Literal::RawTemporalLiteral` | COERCE → `Literal::String("2026-06-24")`; returns the string constant (SUCCESS — standard SQL, OBS-2 preserved) |
 | `'2026-06-24'` in GROUP BY position (`GROUP BY '2026-06-24'`) | `Literal::RawTemporalLiteral` | E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy) — grouping by a literal constant is a degenerate no-op (v1.10) |
 | `'2026-06-24'` in ORDER BY position (`ORDER BY '2026-06-24'`) | `Literal::RawTemporalLiteral` | E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy) — ordering by a literal constant is a degenerate no-op (v1.10) |
+| `'2026-07-01T00:00:00Z'` in GROUP BY position (`GROUP BY '2026-07-01T00:00:00Z'`) | `Literal::Timestamp` | E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy) — RFC-3339 fast-path constant in GROUP BY is a degenerate no-op; `Literal::Timestamp` co-trigger (v1.11, DEFECT-EQUERY042-GROUPBY-DEADARM-001) |
+| `'2026-07-01T00:00:00Z'` in ORDER BY position (`ORDER BY '2026-07-01T00:00:00Z'`) | `Literal::Timestamp` | E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy) — RFC-3339 fast-path constant in ORDER BY is a degenerate no-op; `Literal::Timestamp` co-trigger (v1.11, DEFECT-EQUERY042-GROUPBY-DEADARM-001) |
 | `WHERE lower(hostname) = '2026-06-24'` (non-column LHS, date-like RHS) | `Literal::RawTemporalLiteral` (RHS) | E-QUERY-042 `TemporalLiteralInvalidPosition` (NonColumnLhsComparison) — LHS type unresolvable at plan time; prior behavior: `QueryPlanFailed → -32000 INTERNAL_ERROR` (v1.10 closes) |
 | `'not-a-date'` anywhere | `Literal::String` | No temporal error (other type errors apply) |
 
@@ -1090,11 +1118,15 @@ lenient-parse-then-AST-walk mechanism** with the FULL 7-form acceptance set:
 > expressions); (5) for `RawTemporalLiteral` nodes in SELECT projection position (bare
 > literal in SELECT list, no column type context), the node is coerced to
 > `Literal::String(s)` (SUCCESS — standard SQL `SELECT '2026-06-24'` returns the string
-> constant; OBS-2 preserved); (6) for `RawTemporalLiteral` nodes in GROUP BY position,
-> E-QUERY-042 is raised (`TemporalLiteralInvalidPosition`, GroupBy — grouping by a literal
-> constant is a degenerate no-op); (7) for `RawTemporalLiteral` nodes in ORDER BY
-> position, E-QUERY-042 is raised (`TemporalLiteralInvalidPosition`, OrderBy — ordering by
-> a literal constant is a degenerate no-op)."
+> constant; OBS-2 preserved); (6) for `RawTemporalLiteral` **or `Literal::Timestamp`**
+> nodes in GROUP BY position, E-QUERY-042 is raised (`TemporalLiteralInvalidPosition`,
+> GroupBy — grouping by a literal constant, whether offset-less or RFC-3339 fast-path,
+> is a degenerate no-op; v1.11 adds `Literal::Timestamp` as co-trigger per
+> DEFECT-EQUERY042-GROUPBY-DEADARM-001); (7) for `RawTemporalLiteral` **or
+> `Literal::Timestamp`** nodes in ORDER BY position, E-QUERY-042 is raised
+> (`TemporalLiteralInvalidPosition`, OrderBy — ordering by a literal constant,
+> whether offset-less or RFC-3339 fast-path, is a degenerate no-op; v1.11 adds
+> `Literal::Timestamp` as co-trigger)."
 
 Do NOT describe E-QUERY-041 as: a parse-time error, a DataFusion cast error, a text-
 scanner result, or a raw-query-string scan. These descriptions applied to the retired
@@ -1192,7 +1224,7 @@ code modifications; items marked [VERIFY] require review to confirm no change is
 | 18 | `crates/prism-query/src/tests/` — Utf8 datetime assertions | [CHANGE] | Grep for `DataType::Utf8` assertions on Datetime columns; update to `DataType::Timestamp(Microsecond, UTC)` |
 | 19 | `crates/prism-sensors/` (normalization paths) | [CHANGE] | Add ISO-8601 string → microseconds-since-epoch parsing at OCSF normalization boundary for Datetime fields |
 | 20 | `crates/prism-query/src/` — remaining Utf8 datetime refs | [VERIFY] | `grep -r 'DataType::Utf8' crates/prism-query/src/` to catch any residual hardcoded Utf8 for datetime columns |
-| 21 | `crates/prism-query/src/materialization.rs` | [CHANGE] | ADD `check_temporal_literals` function DEFINITION — plan-time AST walker with seven-arm dispatch (§D4 Step 3, v1.10): (1) Timestamp/Datetime col comparison (bare `Field` LHS) → E-QUERY-041; (2) String/Utf8 col comparison (bare `Field` LHS) → COERCE to `Literal::String(s)` (SUCCESS); (3) Integer/Float/Bool col comparison (bare `Field` LHS) → E-QUERY-002 `QueryTypeMismatch`; (4) comparison with non-`Field` LHS → E-QUERY-042 `TemporalLiteralInvalidPosition` (NonColumnLhsComparison); (5) SELECT projection (no column type context) → COERCE to `Literal::String(s)` (SUCCESS, OBS-2); (6) GROUP BY position → E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy); (7) ORDER BY position → E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy). Walker MUST track AST position context (SELECT projection / GROUP BY / ORDER BY / comparison with bare-`Field` LHS / comparison with non-`Field` LHS). Early-gate INVOCATION remains in `engine.rs` (row 15). `execute_against_session` `Ast::Sql` and `Ast::SqlPipe` arms continue to call `PqlNormalizer::normalize_for_datafusion` (v1.6 / unchanged). |
+| 21 | `crates/prism-query/src/materialization.rs` | [CHANGE] | ADD `check_temporal_literals` function DEFINITION — plan-time AST walker with seven-arm dispatch (§D4 Step 3, v1.10 + v1.11 co-trigger): (1) `RawTemporalLiteral` + Timestamp/Datetime col comparison (bare `Field` LHS) → E-QUERY-041; (2) `RawTemporalLiteral` + String/Utf8 col comparison (bare `Field` LHS) → COERCE to `Literal::String(s)` (SUCCESS); (3) `RawTemporalLiteral` + Integer/Float/Bool col comparison (bare `Field` LHS) → E-QUERY-002 `QueryTypeMismatch`; (4) `RawTemporalLiteral` in comparison with non-`Field` LHS → E-QUERY-042 `TemporalLiteralInvalidPosition` (NonColumnLhsComparison); (5) `RawTemporalLiteral` in SELECT projection (no column type context) → COERCE to `Literal::String(s)` (SUCCESS, OBS-2); (6) GROUP BY position — `RawTemporalLiteral` **or `Literal::Timestamp`** → E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy); (7) ORDER BY position — `RawTemporalLiteral` **or `Literal::Timestamp`** → E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy). `Literal::Timestamp` nodes in all other positions pass through without coercion (already-resolved RFC-3339 form). Walker MUST track AST position context (SELECT projection / GROUP BY / ORDER BY / comparison with bare-`Field` LHS / comparison with non-`Field` LHS). Early-gate INVOCATION remains in `engine.rs` (row 15). `execute_against_session` `Ast::Sql` and `Ast::SqlPipe` arms continue to call `PqlNormalizer::normalize_for_datafusion` (v1.6 / unchanged). |
 | 23 | pipe-stage parser combinator for `stats` and `sort` key lists | [CHANGE] | Improve parse error messages per §D4 Pipe-mode Consistency (v1.10 option (a)): when `FieldPath` combinator fails on a single-quoted date-like string at `stats … by` key position, produce analyst-facing message "pipe 'stats by' expects column references (field names), not literal values"; same flavor for `sort` key position. Maps to E-QUERY-001 (`QueryParseFailed`, MCP `-32602 INVALID_PARAMS`). No grammar extension. (Exact crate/file: `crates/prism-query/src/pipe_parser.rs` or equivalent stats/sort stage parser.) |
 | 22 | `crates/prism-query/src/ast.rs` | [CHANGE] | ADD `NORMALIZE_FOR_DATAFUSION: Cell<bool>` thread-local; ADD `PqlNormalizer::normalize_for_datafusion(ast)` method with save-and-restore drop-guard; ADD `normalize_literal_dispatch` (flag-sensitive literal dispatch: `Literal::Timestamp` → `normalize_literal_for_datafusion` when flag set, else `normalize_literal`); ADD `normalize_literal_for_datafusion` (`arrow_cast` emitter for `Literal::Timestamp`). `PqlNormalizer::normalize_literal` (BC-2.11.018 round-trip) is NOT modified — continues to emit `'{iso8601}'`. |
 
@@ -1219,7 +1251,7 @@ zero tests for them):
 |---------|------|-------------|
 | Add `Literal::RawTemporalLiteral(String)` | `ast.rs` | New variant with doc comment per §D4 |
 | Modify timestamp literal parser combinator | `sql_parser.rs` (+ `filter_parser.rs` if separate) | Lenient `is_date_like` fallback; emit `RawTemporalLiteral` instead of parse error for date-only + offset-less |
-| Implement `check_temporal_literals` | `materialization.rs` (DEFINITION); early-gate INVOCATION in `engine.rs` | AST walker with seven-arm dispatch (v1.10): (1) `RawTemporalLiteral` + Timestamp/Datetime col (bare `Field` LHS) → E-QUERY-041; (2) `RawTemporalLiteral` + String/Utf8 col (bare `Field` LHS) → COERCE in-place to `Literal::String(s)` (SUCCESS); (3) `RawTemporalLiteral` + Integer/Float/Bool col (bare `Field` LHS) → E-QUERY-002 `QueryTypeMismatch`; (4) `RawTemporalLiteral` in comparison where LHS is non-`Field` (function/compound expression) → E-QUERY-042 `TemporalLiteralInvalidPosition` (NonColumnLhsComparison); (5) `RawTemporalLiteral` in SELECT projection (bare literal in SELECT list, no column type context) → COERCE in-place to `Literal::String(s)` (SUCCESS, OBS-2); (6) `RawTemporalLiteral` in GROUP BY → E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy); (7) `RawTemporalLiteral` in ORDER BY → E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy). Walker MUST track AST position context (SELECT projection / GROUP BY / ORDER BY / comparison with bare-`Field` LHS / comparison with non-`Field` LHS) to dispatch correctly. |
+| Implement `check_temporal_literals` | `materialization.rs` (DEFINITION); early-gate INVOCATION in `engine.rs` | AST walker with seven-arm dispatch (v1.10 + v1.11 co-trigger): (1) `RawTemporalLiteral` + Timestamp/Datetime col (bare `Field` LHS) → E-QUERY-041; (2) `RawTemporalLiteral` + String/Utf8 col (bare `Field` LHS) → COERCE in-place to `Literal::String(s)` (SUCCESS); (3) `RawTemporalLiteral` + Integer/Float/Bool col (bare `Field` LHS) → E-QUERY-002 `QueryTypeMismatch`; (4) `RawTemporalLiteral` in comparison where LHS is non-`Field` (function/compound expression) → E-QUERY-042 `TemporalLiteralInvalidPosition` (NonColumnLhsComparison); (5) `RawTemporalLiteral` in SELECT projection (bare literal in SELECT list, no column type context) → COERCE in-place to `Literal::String(s)` (SUCCESS, OBS-2); (6) GROUP BY position — `RawTemporalLiteral` **or `Literal::Timestamp`** → E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy); (7) ORDER BY position — `RawTemporalLiteral` **or `Literal::Timestamp`** → E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy). `Literal::Timestamp` in all other positions passes through without coercion (already-resolved RFC-3339 form). Walker MUST track AST position context (SELECT projection / GROUP BY / ORDER BY / comparison with bare-`Field` LHS / comparison with non-`Field` LHS) to dispatch correctly. |
 | Improve pipe `stats by` and `sort` parse error messages | pipe-stage parser combinator for `stats` and `sort` key lists | When `FieldPath` combinator fails on a single-quoted string at `stats … by` key position, produce: "pipe 'stats by' expects column references (field names), not literal values — '<value>' looks like a date-shaped literal, not a column name. Grouping by a literal constant has no effect." When `FieldPath` fails on single-quoted string at `sort` key position, produce: "pipe 'sort' expects column references (field names), not literal values — ordering by a literal constant has no effect." Both map to E-QUERY-001 (`QueryParseFailed`, MCP `-32602 INVALID_PARAMS`). No grammar extension — parser already rejects; this improves message quality only. |
 | Implement `PqlNormalizer::normalize_for_datafusion` and `normalize_literal_dispatch` | `ast.rs` | Thread-local scoped-context DataFusion emission mechanism. ADD `NORMALIZE_FOR_DATAFUSION: Cell<bool>` thread-local; `normalize_for_datafusion(ast)` saves-and-restores flag via drop-guard (re-entrant-safe), sets flag to `true`, calls `normalize(ast)` (unchanged); `normalize_literal_dispatch` routes `Literal::Timestamp` to `normalize_literal_for_datafusion` (arrow_cast emitter) when flag set, else delegates to `normalize_literal` (unchanged, BC-2.11.018). Call sites: `execute_against_session` `Ast::Sql` arm AND `Ast::SqlPipe` head-SQL arm (both in `materialization.rs`). `PqlNormalizer::normalize_literal` is NOT modified. |
 | Add `Literal::RawTemporalLiteral` guard arm | `pipe_sql_emitter.rs` | Must never reach emission — E-QUERY-002 (`QueryPlanFailed`) internal error guard |
@@ -1244,6 +1276,8 @@ zero tests for them):
 | (new, v1.8) | "`SELECT '2026-06-24T12:00:00' FROM t` (datetime-like literal in projection) → COERCE → `Literal::String("2026-06-24T12:00:00")` (SUCCESS)" |
 | (new, v1.10) | "`SELECT hostname FROM t GROUP BY '2026-06-24'` (GROUP BY bare date literal) → E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy) — NOT coerce, NOT E-QUERY-002" |
 | (new, v1.10) | "`SELECT hostname FROM t ORDER BY '2026-06-24'` (ORDER BY bare date literal) → E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy) — NOT coerce, NOT E-QUERY-002" |
+| (new, v1.11) | "`SELECT hostname FROM t GROUP BY '2026-07-01T00:00:00Z'` (GROUP BY RFC-3339 constant, `Literal::Timestamp`) → E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy) — `Literal::Timestamp` co-trigger; DEFECT-EQUERY042-GROUPBY-DEADARM-001" |
+| (new, v1.11) | "`SELECT hostname FROM t ORDER BY '2026-07-01T00:00:00Z'` (ORDER BY RFC-3339 constant, `Literal::Timestamp`) → E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy) — `Literal::Timestamp` co-trigger; DEFECT-EQUERY042-GROUPBY-DEADARM-001" |
 | (new, v1.10) | "`WHERE lower(hostname) = '2026-06-24'` (non-column LHS function call, date-like RHS) → E-QUERY-042 `TemporalLiteralInvalidPosition` (NonColumnLhsComparison), MCP `-32602 INVALID_PARAMS` — NOT `-32000 QueryPlanFailed`" |
 | (new, v1.10) | "`SELECT '2026-06-24' FROM t` (SELECT projection, OBS-2 regression guard) → COERCE SUCCESS — E-QUERY-042 must NOT be raised for projection position" |
 | (new, v1.10) | "`\| stats count by '2026-06-24'` (pipe stats-by position) → E-QUERY-001 parse error with message containing 'pipe stats by expects column references, not literal values'" |
@@ -1298,6 +1332,7 @@ implementation story.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.11 | 2026-07-10 | architect | **LOCAL adversary finding F-EQ42-P1-001 (HIGH) closing DEFECT-EQUERY042-GROUPBY-DEADARM-001: `Literal::Timestamp` co-trigger for GROUP BY/ORDER BY rejection.** §D4 Step-3 dispatch table arms (6) GROUP BY and (7) ORDER BY: `Literal::Timestamp` (RFC-3339 fast-path constant, e.g. `'2026-07-01T00:00:00Z'`) added as co-trigger alongside `Literal::RawTemporalLiteral` — a pre-parsed RFC-3339 constant in GROUP BY/ORDER BY is equally degenerate (constant grouping/ordering key); the `RawTemporalLiteral`-only wording in v1.10 was the dead-arm defect. Arm (5) NonColumnLhsComparison remains `RawTemporalLiteral`-only (code scope). Behavior Reference Table: two rows added covering RFC-3339 form → `Literal::Timestamp` → E-QUERY-042 (GroupBy/OrderBy). Clarifying sentence added: `Literal::Timestamp` in SELECT projection / JOIN ON / function args passes through `check_temporal_literals` without coercion (already-validated RFC-3339 form); only the degenerate-position gates (GROUP BY/ORDER BY) intercept it. GROUP BY/ORDER BY rejection arm narratives updated; BC Amendments detection semantics arms (6)/(7) updated; Blast Radius row 21 arms (6)/(7) updated; Tasks-to-ADD `check_temporal_literals` row arms (6)/(7) updated; Red Gate test table: two new rows added (RFC-3339 GROUP BY and ORDER BY). |
 | 1.10 | 2026-07-05 | architect | **Human-ratified §D4 refinement: GROUP BY/ORDER BY REJECT + non-column-LHS REJECT + pipe-mode mechanism.** The v1.8 flat "non-comparison-position → COERCE" arm is split: (4a) SELECT projection → COERCE `Literal::String(s)` (OBS-2 preserved); (4b) GROUP BY → E-QUERY-042 `TemporalLiteralInvalidPosition` (GroupBy); (4c) ORDER BY → E-QUERY-042 `TemporalLiteralInvalidPosition` (OrderBy). New arm (5): comparison with non-`Field` LHS (function/expression) and date-like RHS → E-QUERY-042 `TemporalLiteralInvalidPosition` (NonColumnLhsComparison) — closes current bug where `WHERE lower(hostname) = '2026-06-24'` produces `QueryPlanFailed → -32000 INTERNAL_ERROR`. New error code E-QUERY-042 (`TemporalLiteralInvalidPosition`) specified with three position-specific messages (GroupBy, OrderBy, NonColumnLhsComparison); emitted by `PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition, value_prefix: String }`; maps to MCP `-32602 INVALID_PARAMS`. Pipe-mode mechanism: option (a) chosen (improved parse error message; lower complexity; `stats by` / `sort` already fail at parse; `check_temporal_literals` is SQL-mode only for GROUP/ORDER). BC-2.11.004 EC-11-004-004 correction guidance added: pipe stats-by literal must REJECT at parse time (E-QUERY-001), not coerce. Step 3 dispatch table: 5 rows → 8 rows. Coercion arm narrative split into projection-coerce + 3 rejection subsections. Step 5 guard updated: 4 paths → 7 paths. E-QUERY boundary table: 1 non-comparison coerce row → 4 rows. `§D4 Pipe-mode Consistency` subsection added. BC Amendments detection semantics block: four-way → seven-arm. E-QUERY-042 error specification added to Error Taxonomy section. Tasks-to-ADD: `check_temporal_literals` row updated (four-way→seven-arm + context tracking), pipe parser message task added. Red Gate tests: 6 new rows (GROUP BY REJECT, ORDER BY REJECT, non-column-LHS REJECT, projection OBS-2 regression guard, pipe stats-by parse reject, pipe sort parse reject). Blast radius: row 21 updated (four-way→seven-arm + context tracking), row 23 added (pipe parser message improvement). Arms 1/2/3 (Datetime-col→E-QUERY-041, String-col→COERCE, Int/Float/Bool→E-QUERY-002) and emitter guard (Step 5, belt-and-suspenders E-QUERY-002 `QueryPlanFailed`) UNCHANGED. ARCH-INDEX v2.169→v2.170. |
 | 1.9 | 2026-07-05 | architect | **MED-1: correct §D4 dispatch label three-way→four-way (OBS-2 arm added in v1.8 but BC Amendments guidance block label was not updated).** Single live instance corrected: Recommended BC Amendments §E-QUERY-041 detection semantics guidance block for BC-2.11.003/BC-2.11.004 — "walks the resolved AST with a **three-way** column-type dispatch" changed to "**four-way** column-type dispatch". The block itself already enumerated all four arms (Timestamp-col→E-QUERY-041; String/Utf8-col→COERCE; Integer/Float/Bool-col→E-QUERY-002; non-comparison-position→COERCE); only the label was stale. Root cause: v1.8 updated the Tasks-to-ADD row and blast-radius row 21 from three-way→four-way but did not propagate the label correction to the BC Amendments guidance block. Confirmation: zero residual live `Literal::Utf8` in non-changelog sections; zero mis-coded `E-QUERY-001` in live behavioral specification (all remaining E-QUERY-001 references are historical context, section headers, or explicit "not E-QUERY-001" test assertions). ARCH-INDEX v2.168→v2.169. |
 | 1.8 | 2026-07-04 | architect | **(OBS-2 human-ratified + F-LOW-1 + OBS-1): three §D4 corrections.** **(CHANGE 1 / OBS-2)** Non-comparison-position `RawTemporalLiteral` COERCES to `Literal::String(s)` (SUCCESS) instead of E-QUERY-002 (`QueryPlanFailed`). Human-ratified: a date-like literal in projection/GROUP BY/ORDER BY/unconstrained position has no column type to constrain it and is therefore a plain string constant; standard SQL `SELECT '2026-06-24'` returns the string; consistent with RISK-5 String-column coercion philosophy. Rejecting it was over-strict. Updated: Step-3 dispatch table last row (error→coerce), E-QUERY boundary table (new non-comparison coercion row), coercion-arm narrative (new non-comparison subsection added after String-column arm), Step-5 guard prose (guard now explicitly unreachable — all non-error paths coerce before emission, with enumerated four-branch summary), BC Amendments §D4 (3)/(4) clause (fourth arm: non-comparison → coerce, not error), Tasks-to-ADD `check_temporal_literals` row (three-way→four-way), blast-radius row 21 (three-way→four-way). Datetime-col→E-QUERY-041, String-col→coerce, Integer/Float/Bool-comparison→E-QUERY-002 arms UNCHANGED. **(CHANGE 2 / F-LOW-1)** SQL-mode DataFusion emission addendum self-contradiction fixed. v1.6 claimed `normalize()` "delegates to `normalize_literal` (not `normalize_literal_dispatch`)"; shipped code routes through `normalize_literal_dispatch` (via `normalize_literal_as_expr`). Isolation is by-flag (`NORMALIZE_FOR_DATAFUSION` unset for round-trip callers), not by-separate-method. Corrected paragraph: normalize() routes all literal emission through `normalize_literal_dispatch`, which checks the thread-local; when flag is unset (round-trip callers never set it), dispatch delegates to `normalize_literal` (bare string). **(CHANGE 3 / OBS-1)** Four `Literal::Utf8` references in §D4 replaced with `Literal::String`: (1) Step-2 parser code block `else` arm; (2) `is_date_like` description prose; (3) non-match forms section header; (4) E-QUERY boundary table `'not-a-date'` row. No `Literal::Utf8` variant exists; actual variant is `Literal::String`. ARCH-INDEX v2.167→v2.168. |

@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-NATIVE-TEMPORAL-TYPING-001
 title: "PrismQL Native Temporal Typing — migrate ColumnType::Datetime from Arrow Utf8 to Timestamp(Microsecond, UTC) (ADR-052)"
 epic_id: EPIC-DEMO
-version: "1.12"
+version: "1.13"
 status: merged
 producer: story-writer
 phase: 3
@@ -30,7 +30,7 @@ blocks: []
 # When the ADR-051 story is registered, add its ID to blocks: [].
 behavioral_contracts: [BC-2.11.021, BC-2.11.003, BC-2.11.004, BC-2.11.001]
 # BC behavioral anchors at authoring time (v1.6 story update for ADR-052 §D4 non-comparison coerce):
-#   BC-2.11.021 (active) — amended per ADR-052 §D4 v1.10 / error-taxonomy v2.26:
+#   BC-2.11.021 (active) — amended per ADR-052 §D4 v1.11 / error-taxonomy v2.37:
 #     SELECT projection → COERCE to Literal::String (success);
 #     GROUP BY / ORDER BY bare literal (SQL) → E-QUERY-042 (TemporalLiteralInvalidPosition::GroupBy/OrderBy, INVALID_PARAMS);
 #     non-column-LHS comparison (function/expr LHS, date-like RHS) → E-QUERY-042 (NonColumnLhsComparison, INVALID_PARAMS);
@@ -207,7 +207,7 @@ No `E-QUERY-001` is emitted at parse time for this class of input.
 
 After AST production and schema resolution, `check_temporal_literals` walks the full
 `Expr` tree applying a refined dispatch on each `Literal::RawTemporalLiteral` node
-(ADR-052 §D4 v1.10 / error-taxonomy v2.26):
+(ADR-052 §D4 v1.11 / error-taxonomy v2.37):
 
 | `RawTemporalLiteral` position | Schema check | Result |
 |-------------------------------|--------------|--------|
@@ -215,7 +215,7 @@ After AST production and schema resolution, `check_temporal_literals` walks the 
 | Comparison against String/Utf8 column (column LHS) | `column_type == DataType::Utf8` | COERCE: rewrite to `Literal::String(s)` in-place → compare as ordinary string literal (SUCCESS — no error; byte-identical to pre-ADR-052 behavior) |
 | Comparison against Integer / Float / Bool column (column LHS) | numeric/boolean type | E-QUERY-002 (type mismatch — `QueryTypeMismatch { column, table, actual_type, operator }`) |
 | Comparison — non-column LHS (function/expr LHS, date-like RHS) | LHS is not a plain column reference | E-QUERY-042 (`TemporalLiteralInvalidPosition::NonColumnLhsComparison`, INVALID_PARAMS) — NOT `-32000` |
-| SELECT projection / function arg (non-comparison, not GROUP BY/ORDER BY) | no column-comparison schema context | COERCE: rewrite to `Literal::String(s)` in-place → SUCCESS (returns string constant; ADR-052 §D4 v1.10) |
+| SELECT projection / function arg (non-comparison, not GROUP BY/ORDER BY) | no column-comparison schema context | COERCE: rewrite to `Literal::String(s)` in-place → SUCCESS (returns string constant; ADR-052 §D4 v1.11) |
 | GROUP BY bare literal (SQL mode) | non-comparison group-by position | E-QUERY-042 (`TemporalLiteralInvalidPosition::GroupBy`, INVALID_PARAMS) |
 | ORDER BY bare literal (SQL mode) | non-comparison order-by position | E-QUERY-042 (`TemporalLiteralInvalidPosition::OrderBy`, INVALID_PARAMS) |
 | Pipe `stats … by` bare literal | parse-time (before AST walker) | parse-time E-QUERY-001 (enhanced message; `stats by` only accepts field paths — rejected by `filter_parser.rs` before `check_temporal_literals` runs) |
@@ -236,7 +236,7 @@ pre-ADR-052 behavior. `WHERE string_col = '2026-06-24'` succeeds with no error
 (partition keys, report-date labels, ISO-date-formatted external IDs are legitimate).
 E-QUERY-041 fires ONLY when the comparison target resolves to `DataType::Timestamp(Microsecond, UTC)`.
 
-**E-QUERY-042 — `TemporalLiteralInvalidPosition` (ADR-052 §D4 v1.10, error-taxonomy v2.26):**
+**E-QUERY-042 — `TemporalLiteralInvalidPosition` (ADR-052 §D4 v1.11, error-taxonomy v2.37):**
 
 Three additional positions where a `RawTemporalLiteral` must be REJECTED rather than coerced. Add
 a companion error variant and enum to `crates/prism-core/src/error.rs`:
@@ -304,7 +304,7 @@ nodes before the emitter is called. The guard arm makes this invariant explicit 
 | `'2026-06-24 12:00:00'` (form 5) vs String/Utf8 col | `Literal::RawTemporalLiteral` | COERCE → `Literal::String("2026-06-24 12:00:00")` (SUCCESS) |
 | `'2026-6-24'` (unpadded) vs String/Utf8 col | `Literal::RawTemporalLiteral` | COERCE → `Literal::String("2026-6-24")` (SUCCESS) |
 | `'2026-06-24'` vs Integer / Float / Bool col | `Literal::RawTemporalLiteral` | E-QUERY-002 (QueryTypeMismatch) |
-| `'2026-06-24'` in SELECT projection or function arg | `Literal::RawTemporalLiteral` | COERCE → `Literal::String("2026-06-24")` (SUCCESS — string constant; ADR-052 §D4 v1.10) |
+| `'2026-06-24'` in SELECT projection or function arg | `Literal::RawTemporalLiteral` | COERCE → `Literal::String("2026-06-24")` (SUCCESS — string constant; ADR-052 §D4 v1.11) |
 | `SELECT count(*) FROM t GROUP BY '2026-06-24'` (SQL GROUP BY) | `Literal::RawTemporalLiteral` | E-QUERY-042 (TemporalLiteralInvalidPosition::GroupBy, INVALID_PARAMS) |
 | `SELECT * FROM t ORDER BY '2026-06-24'` (SQL ORDER BY) | `Literal::RawTemporalLiteral` | E-QUERY-042 (TemporalLiteralInvalidPosition::OrderBy, INVALID_PARAMS) |
 | `FROM t \| stats count by '2026-06-24'` (pipe `stats by`) | parse-time | parse-time E-QUERY-001 (enhanced message; `stats by` only accepts field paths) |
@@ -569,7 +569,7 @@ Estimated at ~61% of a 200K context window. Within the per-story limit. No split
    truncated at UTF-8 codepoint boundary per error-taxonomy.md §E-QUERY-041 convention).
 
    Also add **`PrismError::TemporalLiteralInvalidPosition`** variant and companion
-   **`TemporalLiteralPosition`** enum (E-QUERY-042, error-taxonomy v2.26):
+   **`TemporalLiteralPosition`** enum (E-QUERY-042, error-taxonomy v2.37):
    ```rust
    /// E-QUERY-042: A date-like temporal literal appeared in a structurally invalid position.
    TemporalLiteralInvalidPosition {
@@ -726,7 +726,7 @@ Estimated at ~61% of a 200K context window. Within the per-story limit. No split
     tokenizer). There are NO raw byte-offset operations. Unicode safety is guaranteed by
     construction (the String is valid UTF-8 from the parser tokenizer).
 
-    **Pipe-mode `stats by` and `sort` parse-time rejection (ADR-052 §D4 v1.10):**
+    **Pipe-mode `stats by` and `sort` parse-time rejection (ADR-052 §D4 v1.11):**
 
     In `filter_parser.rs`, the grammar rules for `stats … by` and `sort` clauses must REJECT
     bare literal values (quoted strings, including any value that would match `is_date_like`)
@@ -768,7 +768,7 @@ Estimated at ~61% of a 200K context window. Within the per-story limit. No split
     **Implementation logic — four-way dispatch on `Literal::RawTemporalLiteral`:**
 
     Walk the full `Expr` tree recursively. For each `Expr::Literal(Literal::RawTemporalLiteral(s))`
-    (ADR-052 §D4 v1.10 refined dispatch):
+    (ADR-052 §D4 v1.11 refined dispatch):
 
     1. Determine position context:
        a. If position is a **comparison** (`>`, `<`, `>=`, `<=`, `=`, `!=`):
@@ -780,7 +780,7 @@ Estimated at ~61% of a 200K context window. Within the per-story limit. No split
        c. If position is **ORDER BY** (SQL mode):
           → `Err(PrismError::TemporalLiteralInvalidPosition { position: TemporalLiteralPosition::OrderBy, value_prefix: first_50_chars(s) })` (E-QUERY-042)
        d. If position is **SELECT projection** or **function arg** (non-comparison, not GROUP BY/ORDER BY):
-          COERCE — rewrite node: `*literal = Literal::String(s.clone())` → Ok(()) (ADR-052 §D4 v1.10)
+          COERCE — rewrite node: `*literal = Literal::String(s.clone())` → Ok(()) (ADR-052 §D4 v1.11)
     2. Resolve the column type from `schema` for the comparison operand (step 1a plain-column path only):
        - If `DataType::Timestamp(Microsecond, Some("UTC"))` → `Err(PrismError::TemporalLiteralUnparseable { value_prefix: first_50_chars(s) })` (E-QUERY-041)
        - If `DataType::Utf8` → rewrite node: `*literal = Literal::String(s.clone())` → Ok(()) (coerce)
@@ -943,7 +943,7 @@ Derived from ADR-052 and `.factory/specs/architecture/` section files:
 | **Error taxonomy discipline** | E-QUERY-041 Display MUST match error-taxonomy.md §E-QUERY-041 POL-24 template byte-for-byte. `value_prefix` is 50 chars max, UTF-8 boundary safe. |
 | **E-QUERY-042 GROUP BY / ORDER BY / non-column-LHS must REJECT** | `check_temporal_literals` MUST return `Err(PrismError::TemporalLiteralInvalidPosition)` for GROUP BY and ORDER BY positions and for non-column-LHS comparisons. NEVER COERCE these positions — they are semantic errors, not benign type ambiguities. Maps to `codes::INVALID_PARAMS`, NOT `-32000`. |
 | **Pipe stats-by / sort must REJECT at parse time** | `filter_parser.rs` must reject bare literals in `stats by` and `sort` positions with enhanced E-QUERY-001. These must NOT produce `RawTemporalLiteral` AST nodes. |
-| **SELECT projection coerce is PRESERVED** | `RawTemporalLiteral` in SELECT projection or function arg COERCES to `Literal::String` (ADR-052 §D4 v1.10). This is unchanged from v1.7. The SELECT projection arm and the GROUP BY/ORDER BY reject arms are DIFFERENT code paths. |
+| **SELECT projection coerce is PRESERVED** | `RawTemporalLiteral` in SELECT projection or function arg COERCES to `Literal::String` (ADR-052 §D4 v1.11). This is unchanged from v1.7. The SELECT projection arm and the GROUP BY/ORDER BY reject arms are DIFFERENT code paths. |
 | **Forbidden dependencies** | No new crate dependencies added to `prism-query` or `prism-core`. `chrono` is already a dependency; `Arc::from` is in `std::sync`. |
 | **ADR-051 sequencing gate (D8)** | `infusion_udf.rs` `return_type` returns `DataType::Utf8` UNCONDITIONALLY after this story — ADR-051 will INTRODUCE the datetime→Timestamp mapping. Do not change `infusion_udf.rs` in this story. |
 
@@ -1571,7 +1571,7 @@ Expected: the `is_date_like` function uses `parse_from_str` (not `find` or `star
 
 Traces to: ADR-052 §D4 `is_date_like` function (7 `parse_from_str` calls, each requiring full string consumption); ADR-052 §`is_date_like` Acceptance Set "Forms that stay `Literal::String` — NOT matched" table (`'2026-06-24Z'` entry demonstrates same full-consumption property).
 
-### AC-029 — SELECT projection `RawTemporalLiteral` coerces to `Literal::String` → query SUCCESS (ADR-052 §D4 v1.10 projection-coerce-preserved; BC-2.11.021 §Postconditions)
+### AC-029 — SELECT projection `RawTemporalLiteral` coerces to `Literal::String` → query SUCCESS (ADR-052 §D4 v1.11 projection-coerce-preserved; BC-2.11.021 §Postconditions)
 
 ```bash
 cargo nextest run -p prism-query \
@@ -1587,7 +1587,7 @@ This test (RG-023) verifies:
 - Rewrites in-place to `Literal::String("2026-06-24")` → Ok(()) — query SUCCEEDS
 - Emitted SQL projection is `'2026-06-24'` (string constant) — NOT E-QUERY-002, NOT E-QUERY-042
 
-Regression guard: the projection coerce arm is PRESERVED by ADR-052 §D4 v1.10.
+Regression guard: the projection coerce arm is PRESERVED by ADR-052 §D4 v1.11.
 The Datetime-comparison arm (E-QUERY-041), numeric-comparison arm (E-QUERY-002), and
 GROUP BY/ORDER BY reject arms (E-QUERY-042) are DISTINCT code paths.
 
@@ -1600,9 +1600,9 @@ grep -n 'non.comparison\|projection\|SELECT' crates/prism-query/src/engine.rs \
 
 Expected: at least one match confirming the SELECT projection coerce arm.
 
-Traces to: BC-2.11.021 §Postconditions (non-comparison SELECT projection coerce arm); ADR-052 §D4 v1.10.
+Traces to: BC-2.11.021 §Postconditions (non-comparison SELECT projection coerce arm); ADR-052 §D4 v1.11.
 
-### AC-030 — SQL `GROUP BY` date-like literal → E-QUERY-042 (TemporalLiteralInvalidPosition::GroupBy, INVALID_PARAMS) (ADR-052 §D4 v1.10, error-taxonomy §E-QUERY-042)
+### AC-030 — SQL `GROUP BY` date-like literal → E-QUERY-042 (TemporalLiteralInvalidPosition::GroupBy, INVALID_PARAMS) (ADR-052 §D4 v1.11, error-taxonomy §E-QUERY-042)
 
 ```bash
 cargo nextest run -p prism-query \
@@ -1627,9 +1627,9 @@ grep -n 'TemporalLiteralInvalidPosition\|GroupBy' crates/prism-query/src/engine.
 
 Expected: at least one match for `TemporalLiteralInvalidPosition` in the `check_temporal_literals` body.
 
-Traces to: BC-2.11.021 §Postconditions (GROUP BY position → E-QUERY-042); error-taxonomy §E-QUERY-042; ADR-052 §D4 v1.10.
+Traces to: BC-2.11.021 §Postconditions (GROUP BY position → E-QUERY-042); error-taxonomy §E-QUERY-042; ADR-052 §D4 v1.11.
 
-### AC-031 — SQL `ORDER BY` date-like literal → E-QUERY-042 (TemporalLiteralInvalidPosition::OrderBy, INVALID_PARAMS) (ADR-052 §D4 v1.10, error-taxonomy §E-QUERY-042)
+### AC-031 — SQL `ORDER BY` date-like literal → E-QUERY-042 (TemporalLiteralInvalidPosition::OrderBy, INVALID_PARAMS) (ADR-052 §D4 v1.11, error-taxonomy §E-QUERY-042)
 
 ```bash
 cargo nextest run -p prism-query \
@@ -1652,9 +1652,9 @@ grep -c 'TemporalLiteralInvalidPosition' crates/prism-core/src/error.rs
 
 Expected: at least `2` (variant definition + Display arm).
 
-Traces to: BC-2.11.021 §Postconditions (ORDER BY position → E-QUERY-042); error-taxonomy §E-QUERY-042; ADR-052 §D4 v1.10.
+Traces to: BC-2.11.021 §Postconditions (ORDER BY position → E-QUERY-042); error-taxonomy §E-QUERY-042; ADR-052 §D4 v1.11.
 
-### AC-032 — Pipe `stats by` date-like literal → parse-time E-QUERY-001 (enhanced message; `stats by` only accepts field paths) (ADR-052 §D4 v1.10)
+### AC-032 — Pipe `stats by` date-like literal → parse-time E-QUERY-001 (enhanced message; `stats by` only accepts field paths) (ADR-052 §D4 v1.11)
 
 ```bash
 cargo nextest run -p prism-query \
@@ -1671,9 +1671,9 @@ This test verifies:
 - Error code is E-QUERY-001 (parse/syntax), NOT E-QUERY-042 (plan/semantic)
 - `check_temporal_literals` is NEVER reached — the query is rejected before AST production
 
-Traces to: BC-2.11.004 §Postconditions (pipe stats-by parse rejection); ADR-052 §D4 v1.10.
+Traces to: BC-2.11.004 §Postconditions (pipe stats-by parse rejection); ADR-052 §D4 v1.11.
 
-### AC-033 — Pipe `sort` date-like literal → parse-time E-QUERY-001 (enhanced message; `sort` only accepts field paths) (ADR-052 §D4 v1.10)
+### AC-033 — Pipe `sort` date-like literal → parse-time E-QUERY-001 (enhanced message; `sort` only accepts field paths) (ADR-052 §D4 v1.11)
 
 ```bash
 cargo nextest run -p prism-query \
@@ -1689,9 +1689,9 @@ This test verifies:
 - Error code is E-QUERY-001, NOT E-QUERY-042
 - `check_temporal_literals` never reached
 
-Traces to: BC-2.11.004 §Postconditions (pipe sort parse rejection); ADR-052 §D4 v1.10.
+Traces to: BC-2.11.004 §Postconditions (pipe sort parse rejection); ADR-052 §D4 v1.11.
 
-### AC-034 — Non-column-LHS comparison (function/expr LHS, date-like RHS) → E-QUERY-042 (NonColumnLhsComparison, INVALID_PARAMS) (ADR-052 §D4 v1.10, error-taxonomy §E-QUERY-042)
+### AC-034 — Non-column-LHS comparison (function/expr LHS, date-like RHS) → E-QUERY-042 (NonColumnLhsComparison, INVALID_PARAMS) (ADR-052 §D4 v1.11, error-taxonomy §E-QUERY-042)
 
 ```bash
 cargo nextest run -p prism-query \
@@ -1712,7 +1712,7 @@ This is distinct from the plain-column-LHS path:
 - `WHERE ts_col = '2026-06-24'` (plain column LHS) → E-QUERY-041 via column-type resolution
 - `WHERE lower(hostname) = '2026-06-24'` (non-column LHS) → E-QUERY-042 NonColumnLhsComparison
 
-Traces to: BC-2.11.021 §Postconditions (non-column-LHS comparison → E-QUERY-042); error-taxonomy §E-QUERY-042; ADR-052 §D4 v1.10.
+Traces to: BC-2.11.021 §Postconditions (non-column-LHS comparison → E-QUERY-042); error-taxonomy §E-QUERY-042; ADR-052 §D4 v1.11.
 
 ## Red Gate
 
@@ -2028,7 +2028,7 @@ The test asserts: error IS `TemporalLiteralUnparseable`; error is NOT from parse
 - `check_temporal_literals` finds `Literal::RawTemporalLiteral("2026-06-24")` in non-comparison position
 - COERCE: rewrites in-place to `Literal::String("2026-06-24")` → Ok(()) — query SUCCEEDS
 - Emitted SQL projection is `'2026-06-24'` (string constant)
-- NOT E-QUERY-002 (behavior ratified per ADR-052 §D4 v1.10 — SELECT projection coerces to string constant)
+- NOT E-QUERY-002 (behavior ratified per ADR-052 §D4 v1.11 — SELECT projection coerces to string constant)
 - NOT E-QUERY-041 (that requires a Datetime column comparison)
 
 (Regression guards: the Datetime-comparison arm in RG-004/005 still produces E-QUERY-041 — unchanged.
@@ -2211,7 +2211,7 @@ and that the coerced literal is safely emitted as a string constant without trig
 
 **Pre-implementation state (v1.8):** compile error — `Literal::RawTemporalLiteral` and `PrismError::TemporalLiteralInvalidPosition` variants do not exist.
 
-**Post-implementation state (ADR-052 §D4 v1.10 — GROUP BY reject; error-taxonomy §E-QUERY-042):**
+**Post-implementation state (ADR-052 §D4 v1.11 — GROUP BY reject; error-taxonomy §E-QUERY-042):**
 - Query: `SELECT count(*) FROM t GROUP BY '2026-06-24'` (date-like literal in SQL GROUP BY)
 - Parser emits `Literal::RawTemporalLiteral("2026-06-24")` in the GROUP BY clause
 - `check_temporal_literals` finds the literal in GROUP BY position → REJECT:
@@ -2219,7 +2219,7 @@ and that the coerced literal is safely emitted as a string constant without trig
 - `map_prism_error` → `codes::INVALID_PARAMS` (-32602)
 - Query FAILS with E-QUERY-042 — NOT success, NOT -32000
 
-**Why load-bearing:** GROUP BY with date-like literals is a structurally invalid position per ADR-052 §D4 v1.10. Coercing it would silently produce semantically incorrect queries (grouping by a string constant is almost always an analyst mistake). The reject anchors the semantic boundary between "safe coerce" (SELECT projection) and "structural error" (GROUP BY/ORDER BY).
+**Why load-bearing:** GROUP BY with date-like literals is a structurally invalid position per ADR-052 §D4 v1.11. Coercing it would silently produce semantically incorrect queries (grouping by a string constant is almost always an analyst mistake). The reject anchors the semantic boundary between "safe coerce" (SELECT projection) and "structural error" (GROUP BY/ORDER BY).
 
 **SID-1 compliance:** in-process, deterministic — no `#[ignore]`.
 
@@ -2229,7 +2229,7 @@ and that the coerced literal is safely emitted as a string constant without trig
 
 **Pre-implementation state (v1.8):** compile error — `Literal::RawTemporalLiteral` and `PrismError::TemporalLiteralInvalidPosition` variants do not exist.
 
-**Post-implementation state (ADR-052 §D4 v1.10 — ORDER BY reject; error-taxonomy §E-QUERY-042):**
+**Post-implementation state (ADR-052 §D4 v1.11 — ORDER BY reject; error-taxonomy §E-QUERY-042):**
 - Query: `SELECT * FROM t ORDER BY '2026-06-24'` (date-like literal in SQL ORDER BY)
 - Parser emits `Literal::RawTemporalLiteral("2026-06-24")` in the ORDER BY clause
 - `check_temporal_literals` finds the literal in ORDER BY position → REJECT:
@@ -2247,7 +2247,7 @@ and that the coerced literal is safely emitted as a string constant without trig
 
 **Pre-implementation state:** `todo!()` panic — `filter_parser.rs` does not yet reject literals in `stats by` position.
 
-**Post-implementation state (ADR-052 §D4 v1.10 — pipe parse-time rejection):**
+**Post-implementation state (ADR-052 §D4 v1.11 — pipe parse-time rejection):**
 - Query: `FROM t | stats count by '2026-06-24'` (pipe-mode `stats by` with bare date-like literal)
 - `filter_parser.rs` rejects the literal AT PARSE TIME with enhanced E-QUERY-001:
   message includes "`stats by` only accepts field paths, not literal values"
@@ -2265,7 +2265,7 @@ and that the coerced literal is safely emitted as a string constant without trig
 
 **Pre-implementation state:** `todo!()` panic — `filter_parser.rs` does not yet reject literals in `sort` position.
 
-**Post-implementation state (ADR-052 §D4 v1.10 — pipe parse-time rejection):**
+**Post-implementation state (ADR-052 §D4 v1.11 — pipe parse-time rejection):**
 - Query: `FROM t | sort '2026-06-24'` (pipe-mode `sort` with bare date-like literal)
 - `filter_parser.rs` rejects AT PARSE TIME with enhanced E-QUERY-001:
   message includes "`sort` only accepts field paths, not literal values"
@@ -2282,7 +2282,7 @@ and that the coerced literal is safely emitted as a string constant without trig
 
 **Pre-implementation state:** compile error — `PrismError::TemporalLiteralInvalidPosition` and `Literal::RawTemporalLiteral` variants do not exist.
 
-**Post-implementation state (ADR-052 §D4 v1.10 — non-column-LHS → E-QUERY-042; error-taxonomy §E-QUERY-042):**
+**Post-implementation state (ADR-052 §D4 v1.11 — non-column-LHS → E-QUERY-042; error-taxonomy §E-QUERY-042):**
 - Query: `SELECT * FROM t WHERE lower(hostname) = '2026-06-24'` (function call LHS, date-like RHS)
 - Parser produces `Literal::RawTemporalLiteral("2026-06-24")` on the RHS
 - `check_temporal_literals` detects the literal in a comparison where the LHS is a non-column
@@ -2307,7 +2307,7 @@ broke server-side rather than telling them their query is malformed.
 
 | BC | Title | Role in this story |
 |----|-------|--------------------|
-| BC-2.11.021 | Temporal Grammar — `NOW()` and `INTERVAL` Planning-Time Constant Injection | Amended §Postconditions per ADR-052 §D4 v1.10: emitter uses `arrow_cast(...)` form; E-QUERY-041 via Option-A `check_temporal_literals` AST walker + refined dispatch; 7-form is_date_like acceptance set; EC-11-021-010..014 added; SELECT projection COERCEs to Literal::String; GROUP BY/ORDER BY (SQL) → E-QUERY-042; non-column-LHS comparison → E-QUERY-042; pipe stats-by/sort → parse-time E-QUERY-001. AC-003, AC-004, AC-005, AC-025, AC-026, AC-027, AC-028, AC-029, AC-030, AC-031, AC-032, AC-033, AC-034 trace here. |
+| BC-2.11.021 | Temporal Grammar — `NOW()` and `INTERVAL` Planning-Time Constant Injection | Amended §Postconditions per ADR-052 §D4 v1.11: emitter uses `arrow_cast(...)` form; E-QUERY-041 via Option-A `check_temporal_literals` AST walker + refined dispatch; 7-form is_date_like acceptance set; EC-11-021-010..014 added; SELECT projection COERCEs to Literal::String; GROUP BY/ORDER BY (SQL) → E-QUERY-042; non-column-LHS comparison → E-QUERY-042; pipe stats-by/sort → parse-time E-QUERY-001. AC-003, AC-004, AC-005, AC-025, AC-026, AC-027, AC-028, AC-029, AC-030, AC-031, AC-032, AC-033, AC-034 trace here. |
 | BC-2.11.003 | PrismQL SQL Mode Parsing | Amended: ADR-052 D2 assertion — `Timestamp(Microsecond, Some("UTC"))`; Option-A E-QUERY-041 mechanism; coercion arm for String/Utf8 columns. AC-001, AC-005, AC-007, AC-019 trace here. |
 | BC-2.11.004 | PrismQL Pipe Mode Parsing | Same D2 assertion for pipe `| where` stages; Option-A in pipe mode. AC-001, AC-005, AC-007, AC-019 trace here. |
 | BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | Governs the query pipeline; E-QUERY-041 gate ordering; `map_prism_error` -32602 constraint. AC-006 traces here. |
@@ -2368,10 +2368,10 @@ Per `architecture/ARCH-INDEX.md` Subsystem Registry:
 | EC-022 | `WHERE string_col = '2026-6-24'` (unpadded, over-match, String/Utf8 col) | COERCE → SUCCESS; byte-identical to pre-ADR-052; unpadded date labels in String cols are legitimate | ADR-052 §D4 coercion arm + over-match disposition |
 | EC-023 | `'2026-06-24extra'` (trailing chars, near-miss) in any query position | `is_date_like` returns `false` (chrono `parse_from_str` requires full consumption — leftover `extra` causes `Err`); parser emits `Literal::String`; no temporal error | ADR-052 §D4 `is_date_like` negative boundary (full-consumption property) |
 | EC-024 | `SELECT '2026-06-24' FROM t` (date-like literal in projection position, no column comparison) | `check_temporal_literals` finds `RawTemporalLiteral` in non-comparison context → COERCE to `Literal::String("2026-06-24")` → query SUCCEEDS; emitted as `'2026-06-24'` string constant | ADR-052 §D4 (human-ratified 2026-07-05); BC-2.11.021 §Postconditions non-comparison coerce arm |
-| EC-025 | `SELECT count(*) FROM t GROUP BY '2026-06-24'` (date-like literal in SQL GROUP BY) | `check_temporal_literals` → `Err(PrismError::TemporalLiteralInvalidPosition { position: GroupBy })` (E-QUERY-042); `map_prism_error` → INVALID_PARAMS — NOT -32000 | ADR-052 §D4 v1.10; BC-2.11.021 §Postconditions GROUP BY reject arm; error-taxonomy §E-QUERY-042 |
-| EC-025b | `SELECT * FROM t ORDER BY '2026-06-24'` (date-like literal in SQL ORDER BY) | `check_temporal_literals` → `Err(PrismError::TemporalLiteralInvalidPosition { position: OrderBy })` (E-QUERY-042); INVALID_PARAMS | ADR-052 §D4 v1.10; error-taxonomy §E-QUERY-042 |
-| EC-026 | `FROM t \| stats count by '2026-06-24'` or `FROM t \| sort '2026-06-24'` (pipe bare literal in stats-by/sort clause) | `filter_parser.rs` rejects AT PARSE TIME with enhanced E-QUERY-001 ("`stats by` / `sort` only accepts field paths"); `check_temporal_literals` never reached | ADR-052 §D4 v1.10; BC-2.11.004 §Postconditions |
-| EC-027 | `WHERE lower(hostname) = '2026-06-24'` (non-column-LHS comparison: function expression LHS, date-like literal RHS) | `check_temporal_literals` → `Err(PrismError::TemporalLiteralInvalidPosition { position: NonColumnLhsComparison })` (E-QUERY-042); INVALID_PARAMS — NOT -32000; NOT E-QUERY-041 (that requires plain-column LHS resolving to Datetime) | ADR-052 §D4 v1.10; error-taxonomy §E-QUERY-042 |
+| EC-025 | `SELECT count(*) FROM t GROUP BY '2026-06-24'` (date-like literal in SQL GROUP BY) | `check_temporal_literals` → `Err(PrismError::TemporalLiteralInvalidPosition { position: GroupBy })` (E-QUERY-042); `map_prism_error` → INVALID_PARAMS — NOT -32000 | ADR-052 §D4 v1.11; BC-2.11.021 §Postconditions GROUP BY reject arm; error-taxonomy §E-QUERY-042 |
+| EC-025b | `SELECT * FROM t ORDER BY '2026-06-24'` (date-like literal in SQL ORDER BY) | `check_temporal_literals` → `Err(PrismError::TemporalLiteralInvalidPosition { position: OrderBy })` (E-QUERY-042); INVALID_PARAMS | ADR-052 §D4 v1.11; error-taxonomy §E-QUERY-042 |
+| EC-026 | `FROM t \| stats count by '2026-06-24'` or `FROM t \| sort '2026-06-24'` (pipe bare literal in stats-by/sort clause) | `filter_parser.rs` rejects AT PARSE TIME with enhanced E-QUERY-001 ("`stats by` / `sort` only accepts field paths"); `check_temporal_literals` never reached | ADR-052 §D4 v1.11; BC-2.11.004 §Postconditions |
+| EC-027 | `WHERE lower(hostname) = '2026-06-24'` (non-column-LHS comparison: function expression LHS, date-like literal RHS) | `check_temporal_literals` → `Err(PrismError::TemporalLiteralInvalidPosition { position: NonColumnLhsComparison })` (E-QUERY-042); INVALID_PARAMS — NOT -32000; NOT E-QUERY-041 (that requires plain-column LHS resolving to Datetime) | ADR-052 §D4 v1.11; error-taxonomy §E-QUERY-042 |
 
 ## Known Limitations
 
@@ -2401,6 +2401,7 @@ revised to 3 days due to Option-A redesign and deep Red Gate mandate.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.13 | EQUERY042-groupby-spec-amendment-pin-round | 2026-07-10 | story-writer | **POL-25 version-pin round: DEFECT-EQUERY042-GROUPBY-DEADARM-001 spec amendment propagation. ADR-052 §D4 v1.10→v1.11 (34 live-narrative sites updated; historical v1.8 changelog row preserved per POL-29); error-taxonomy v2.26→v2.37 (4 live-narrative sites: frontmatter BC comment, §D4 dispatch narrative, E-QUERY-042 heading, TemporalLiteralPosition Task-6 cite). Story semantics UNCHANGED. Frontmatter version 1.12→1.13; updated 2026-07-10 (POL-23).** |
 | 1.12 | error-taxonomy-v2.26-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **Reconciling pin round (pass-4 closures): error-taxonomy v2.25→v2.26. Four live version-pin cites updated: (1) frontmatter `# BC-2.11.021` comment; (2) §D4 dispatch narrative body text; (3) E-QUERY-042 heading; (4) TemporalLiteralPosition enum Task-6 cite. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.11→1.12; updated 2026-07-08 (POL-23).** |
 | 1.11 | error-taxonomy-v2.25-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **Reconciling pin round (pass-3 closures): error-taxonomy v2.14→v2.25. Four live sites updated: (1) frontmatter `# BC-2.11.021` comment; (2) §D4 dispatch narrative body text; (3) E-QUERY-042 heading; (4) TemporalLiteralPosition enum Task-6 cite. Historical changelog rows (v1.8 "error-taxonomy v2.14 (E-QUERY-042)") left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.10→1.11; updated 2026-07-08 (POL-23).** |
 | 1.10 | S-PRISMQL-NATIVE-TEMPORAL-TYPING-001-LOW-1-behavior-accurate-rg-names | 2026-07-05 | story-writer | **LOW-1: behavior-accurate RG/AC test-name reconciliation.** Updated 9 stale test function names throughout Task 5 stubs, AC verification commands, and Red Gate headings to match canonical shipped behavior: (1) RG-015/016/017 numeric-col arms: `_e_query_001` suffix → `_e_query_002` (Integer/Float/Bool → E-QUERY-002, not E-QUERY-001); (2) RG-023 SELECT projection: `_projection_position_e_query_001` → `_projection_position_coerces_to_string` (COERCE success, not error); (3) RG-035 GROUP BY: `_projection_group_by_date_like_coerces` → `_group_by_date_like_rejects_e_query_042` (REJECT E-QUERY-042, not coerce); (4) RG-036 ORDER BY: `_order_by_date_like_coerces` → `_order_by_date_like_rejects_e_query_042` (REJECT E-QUERY-042, not coerce). RG-037/038/039 names already correct (unmodified). Stale "(Test function name retains `_e_query_001` suffix — not renamed per append-only naming policy)" notes removed from stubs p, q, r, x. Stale "(Test function name unchanged per append-only naming policy — "coerces" is a historical artifact)" notes removed from stubs aj, ak and RG-035/036 Note blocks. RG-023 stale prose "(behavior reversed from pre-v1.8 spec; test function name unchanged per append-only naming policy)" updated to current-behavior anchor. RG NUMBERS immutable (POL-1) — only descriptive suffixes corrected. |
