@@ -19,7 +19,11 @@ date_pass11: 2026-07-10
 streak_at_pass11: 1
 date_pass12: 2026-07-10
 streak_at_pass12: 0
-total_passes_to_date: 12
+date_pass13: 2026-07-10
+streak_at_pass13: 1
+date_pass14: 2026-07-10
+streak_at_pass14: 0
+total_passes_to_date: 14
 convergence: IN_PROGRESS
 authored_by: state-manager
 ---
@@ -68,8 +72,11 @@ authored_by: state-manager
 | 11 | frozen @5a58046f | YES | YES | 0 | — | 1/3 |
 | 12 | frozen @5a58046f | NO | YES | 1 LOW F-CSD-P12-001 (Ast::SqlPipe arm lacked pre_register_empty_tables call; SqlPipe head WHERE IN-subquery on 0-batch table → table-not-found → -32000; violates BC-2.11.005 v1.9 position-invariant DEC-022 in SqlPipe mode) | — | 0/3 |
 | — (fix-burst) | — | — | — | — | test-writer @eaefee94 (T30/T31 RED + Filter/Pipe structural survey: no subquery atoms in filter_parser.rs/pipe_parser.rs — modes structurally exempt); implementer @421ce222 (one-line pre_register_empty_tables call in SqlPipe arm before plan_pinned_head_sql; design comment enumerates all 4 modes accurately); 31/31 defect suite; 96/96 temporal; 1533/1533 prism-query; just check 5456/5456 GREEN; non-exhaustive 89/89 | 0/3 |
+| 13 | frozen @421ce222 | YES | YES | 0 | — | 1/3 |
+| 14 | frozen @421ce222 | NO | YES | 1 MED F-CSD-P14-001 (empty MemTable virtual-field columns missing: `_sensor`/`_client`/`_source_table` not appended to schema before DataFusion registration; SELECT of virtual field from 0-batch side of JOIN → data-dependent -32000; violates BC-2.11.005 v1.9 DEC-022 in all 4 pre_register_empty_tables call sites) + 9 LOW/OBS (P14-002 umbrella-term note; P14-003 PipeStage::Join structurally moot; P14-004 T5 doc; P14-005 0-batch cache TTL no-action; P14-006 DTU-EXT-001 anchor no-action; P14-007 PostHostDetailsBody pub→pub(crate); P14-008 per-table debug lines no-action; P14-009 gate-precedence note; P14-010 SAP-2 §4-class TOML projection surface PENDING-HUMAN) | — | 0/3 |
+| — (fix-burst) | — | — | — | — | test-writer @7f6db987 (T32/T33 RED: virtual-field SELECT from 0-batch side + T34 GREEN lock: populated side unaffected); implementer @87e8ff10 — `virtual_fields::append_virtual_fields_to_schema` single-definition helper with spoofed-column guard applied to all 4 `pre_register_empty_tables` call sites; taxonomy v2.38→v2.39 (P14-002/009 spec-closed); P14-007 pub→pub(crate) harness; 34/34 defect suite; 96/96 temporal; 1536/1536 prism-query; just check 5459/5459 GREEN; non-exhaustive 89/89 | 0/3 |
 
-Streak reset at pass 3 and pass 4. Streak 0/3 after pass-10 closure. Pass 10 is the FIRST CLEAN(PR-merge) of the cascade. Pass 11 is the FIRST CLEAN(strict) of the cascade (streak 1/3), but pass 12 found a new LOW (F-CSD-P12-001 SqlPipe mode gap), resetting streak 1/3→0/3. Mode-dimension survey complete: SQL+SqlPipe subquery atoms present and pre_register_empty_tables wired; Filter/Pipe parsers have no subquery atoms — structurally exempt. Structural-fix class closure: P5 (FuncCall-args recursion gap), P6 (DML source_select defense-in-depth), P7 (WHERE/HAVING/JOIN-ON check_sql_query non-recursive), P8-MED (gate placement below early-return; DUAL placement fix), P8-LOW (DML filter/assignments interiors), P9-HIGH (harness-clone POST verb surface gap), P10 (empirical DataFusion capability + harness first_seen OBS), P12 (SqlPipe pre_register_empty_tables) — all closed. LOCAL pass 13 DISPATCHED on frozen HEAD `421ce222`.
+Streak reset at pass 3, 4, 12, and 14. Pass 10 is the FIRST CLEAN(PR-merge) of the cascade. Pass 11 is the FIRST CLEAN(strict) of the cascade (streak 1/3); pass 12 LOW F-CSD-P12-001 reset to 0/3. Pass 13 (frozen @421ce222): CLEAN(strict)=YES — streak 1/3 (SECOND CLEAN(strict) of the cascade). Pass 14 (frozen @421ce222): MED F-CSD-P14-001 virtual-field schema parity gap — streak RESET 1/3→0/3. Mode-dimension survey complete: SQL+SqlPipe subquery atoms present and pre_register_empty_tables wired (both virtual-field and registration); Filter/Pipe parsers have no subquery atoms — structurally exempt. Structural-fix class closure: P5 (FuncCall-args recursion gap), P6 (DML source_select defense-in-depth), P7 (WHERE/HAVING/JOIN-ON check_sql_query non-recursive), P8-MED (gate placement below early-return; DUAL placement fix), P8-LOW (DML filter/assignments interiors), P9-HIGH (harness-clone POST verb surface gap), P10 (empirical DataFusion capability + harness first_seen OBS), P12 (SqlPipe pre_register_empty_tables), P14-001 (empty-MemTable virtual-field schema) — all closed. PENDING-HUMAN: DRIFT-SAP2-DEVICES-TOML-SURFACE-001 (P14-010 SAP-2 §4-class). LOCAL pass 15 DISPATCHED on frozen HEAD `87e8ff10`.
 
 ---
 
@@ -299,8 +306,47 @@ Source: `.factory/research/defect-csdevices-empty-pipeline-rootcause-2026-07-10.
 
 ---
 
+### Pass 13
+
+Zero findings. CLEAN(strict)=YES. CLEAN(PR-merge)=YES. Streak advances: 0/3→**1/3** — SECOND CLEAN(strict) of the cascade; FIRST CLEAN(strict) on frozen `421ce222`. LOCAL pass 14 DISPATCHED on frozen `421ce222`.
+
+### Pass 14
+
+| ID | Severity | Description | Resolution |
+|----|----------|-------------|------------|
+| F-CSD-P14-001 | MED | Empty MemTable registrations lacked virtual-field columns `_sensor`/`_client`/`_source_table`; schema-only MemTable registered with base spec columns only; SELECT of a virtual field from 0-batch side of a JOIN → column not found in DataFusion → data-dependent -32000; violates BC-2.11.005 v1.9 DEC-022 position-invariant guarantee in all 4 `pre_register_empty_tables` call sites | test-writer @7f6db987: T32 RED (virtual-field SELECT on 0-batch side) + T33 RED (multi-table 0-batch path) + T34 GREEN lock (populated side unaffected); implementer @87e8ff10: `virtual_fields::append_virtual_fields_to_schema` single-definition helper with spoofed-column guard; applied to all 4 call sites; 34/34 defect suite GREEN |
+| F-CSD-P14-002 | LOW | E-QUERY-043 description missing umbrella-term note clarifying "projection position" covers SELECT/GROUP BY/ORDER BY | CLOSED at spec: taxonomy v2.38→v2.39 — umbrella-term note appended to Gate scope clause |
+| F-CSD-P14-003 | LOW | PipeStage::Join path in `plan_pipeline` lacks `pre_register_empty_tables` call | Structurally moot: PipeStage::Join errors pre-registration until ENRICH-4-C (ADR-044 §D3); design comment added at call site by implementer |
+| F-CSD-P14-004 | LOW | T5 doc-comment claimed "SELECT * FROM sensors.devices" but actual test uses a specific column list | Doc corrected in-scope by implementer |
+| F-CSD-P14-005 | OBS | 0-batch cache TTL policy lacks explicit WARN-level log | No-action adjudicated: pre-existing TTL policy; fix improved observability in-scope; no BC change required |
+| F-CSD-P14-006 | OBS | DTU-EXT-001 anchor missing from incidents SAP-2 note | No-action: DTU-EXT-001 anchor already present in cascade-summary; pre-existing anchor adequate |
+| F-CSD-P14-007 | LOW | `PostHostDetailsBody` and its handler pub visibility unnecessarily broad in harness | Fixed in-scope: `PostHostDetailsBody` + handler `pub` → `pub(crate)` in harness (harness-twin already `pub(crate)`) |
+| F-CSD-P14-008 | OBS | Per-table debug log lines in `pre_register_empty_tables` are voluminous under high batch counts | No-action adjudicated: per-table debug lines are intentional diagnosability; log level correct (debug, not info) |
+| F-CSD-P14-009 | OBS | E-QUERY-043 description missing gate-precedence note (E-QUERY-042 fires before E-QUERY-043) | CLOSED at spec: taxonomy v2.38→v2.39 — precedence sentence appended to Gate ordering clause |
+| F-CSD-P14-010 | OBS | SAP-2 §4-class: DTU `PostHostDetailsBody` fields without matching TOML sensor-spec column (pre-existing develop gap; not a pass-14 regression) | PENDING-HUMAN: registered as DRIFT-SAP2-DEVICES-TOML-SURFACE-001 in STATE.md Drift Items; product-owner adjudicates whether to expand devices TOML projection surface |
+
+CLEAN(strict): NO (1 MED). CLEAN(PR-merge): YES (9 LOW/OBS only below MED threshold is incorrect — F-CSD-P14-001 is MED). Actually: NOT CLEAN(PR-merge) either since F-CSD-P14-001 is MED. Streak RESET 1/3→0/3. LOCAL pass 15 DISPATCHED on frozen `87e8ff10`.
+
+## Evidence at Pass 14 Fix HEAD (87e8ff10)
+
+- prism-query defect suite: **34/34** GREEN
+- temporal tests: **96/96** GREEN
+- full prism-query suite: **1536/1536** GREEN
+- Full workspace `just check`: **5459/5459** GREEN
+- Non-exhaustive gate: 89/89
+
+## Spec Layer Modified (pass-14 closure)
+
+| Artifact | Version Bump | Change |
+|----------|-------------|--------|
+| error-taxonomy.md | v2.38→v2.39 | F-CSD-P14-002: umbrella-term note appended to E-QUERY-043 Gate scope clause; F-CSD-P14-009: gate-precedence sentence appended to Gate ordering clause; Message Format byte-lock UNCHANGED |
+
+No BC version bumps. Code-only fix for F-CSD-P14-001 (virtual_fields::append_virtual_fields_to_schema helper + 4 call-site applications). Harness pub-visibility fix for F-CSD-P14-007.
+
+---
+
 ## Merge Record
 
 _Pending: LOCAL cascade not yet converged. PR not yet created._
 
-**Status: IN PROGRESS — LOCAL pass 13 IN FLIGHT on frozen `421ce222` (streak 0/3). Pass-11 on frozen `5a58046f`: CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; streak 1/3 (FIRST CLEAN(strict) of cascade). Pass-12 on frozen `5a58046f`: NOT CLEAN(strict) — 1 LOW F-CSD-P12-001 (Ast::SqlPipe arm lacked pre_register_empty_tables call; SqlPipe head WHERE IN-subquery on 0-batch table → table-not-found → -32000); CLEAN(PR-merge)=YES. Streak RESET 1/3→0/3. Fix-burst: test-writer @eaefee94 (T30/T31 RED; Filter/Pipe structurally exempt by survey); implementer @421ce222 (one-line SqlPipe pre_register_empty_tables + 4-mode design comment); 31/31 defect; 96/96 temporal; 1533/1533 prism-query; just check 5456/5456 GREEN; non-exhaustive 89/89. Mode-dimension survey COMPLETE: SQL+SqlPipe subquery atoms present and pre_register_empty_tables wired; Filter/Pipe have no subquery atoms in their parsers — structurally exempt. Walker-gap + gate-placement lineage P5/P6/P7/P8 CLOSED; harness parity gap P9 CLOSED; empirical DataFusion capability P10 CLOSED; SqlPipe mode gap P12 CLOSED. Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS → 1MED+1LOW+2OBS → 1HIGH+2OBS → 1LOW+1OBS [CLEAN(PR-merge)] → 0 [CLEAN(strict)/streak-1] → 1LOW [streak RESET] (converging toward 3-CLEAN).**
+**Status: IN PROGRESS — LOCAL pass 15 IN FLIGHT on frozen `87e8ff10` (streak 0/3). Pass-13 on frozen `421ce222`: CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; streak 1/3 (SECOND CLEAN(strict) of cascade; FIRST on 421ce222). Pass-14 on frozen `421ce222`: NOT CLEAN — 1 MED F-CSD-P14-001 (empty MemTable lacked virtual-field columns; data-dependent -32000 on SELECT of virtual field from 0-batch JOIN side). Fix-burst: test-writer @7f6db987 T32/T33 RED + T34 GREEN; implementer @87e8ff10 virtual_fields::append_virtual_fields_to_schema helper (4 call sites); taxonomy v2.38→v2.39 (P14-002/009); P14-007 pub→pub(crate); 34/34 defect; 96/96 temporal; 1536/1536 prism-query; just check 5459/5459 GREEN; non-exhaustive 89/89. Streak RESET 1/3→0/3. PENDING-HUMAN: DRIFT-SAP2-DEVICES-TOML-SURFACE-001 (P14-010). Walker-gap + gate-placement lineage P5/P6/P7/P8 CLOSED; harness parity gap P9 CLOSED; empirical DataFusion capability P10 CLOSED; SqlPipe mode gap P12 CLOSED; virtual-field schema gap P14-001 CLOSED. Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS → 1MED+1LOW+2OBS → 1HIGH+2OBS → 1LOW+1OBS [CLEAN(PR-merge)] → 0 [CLEAN(strict)/streak-1] → 1LOW [streak RESET] → 0 [CLEAN(strict)/streak-1] → 1MED+9LOW/OBS [streak RESET] (converging toward 3-CLEAN).**
