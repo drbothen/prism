@@ -1094,7 +1094,18 @@ pub async fn execute_against_session(
     use crate::ast::{Ast, SqlStatement};
 
     match ast {
-        Ast::Sql(SqlStatement::Select(_)) => {
+        Ast::Sql(SqlStatement::Select(sql_query)) => {
+            // DEFECT-CSDEVICES-EMPTY-PIPELINE-001 Sub-defect 2 (BC-2.11.005 DEC-022,
+            // BC-2.01.010 empty-is-not-error):
+            // Pre-register schema-only empty MemTables for any tables referenced in the
+            // SQL query that were NOT registered by step 5 (because their sensor returned
+            // 0 batches and `register_mem_table` silently skips empty batch lists).
+            // Without this pre-registration DataFusion returns "table not found" plan
+            // errors when a JOIN involves an empty-result sensor. The fix registers a
+            // schema-only MemTable (inferred from JOIN equality conditions against
+            // already-registered tables) so DataFusion can plan the query, returning
+            // 0 rows gracefully.
+            pre_register_empty_tables_for_joins(session_ctx, sql_query).await?;
             // P5-04: read the executing session's ACTUAL pool capacity so
             // budget-exceeded errors report the configured limit (engine
             // config `memory_pool_bytes`), not the 200MB default constant.
@@ -2548,6 +2559,216 @@ pub fn register_mem_table(
             }
         })?;
 
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// pre_register_empty_tables_for_joins (DEFECT-CSDEVICES-EMPTY-PIPELINE-001)
+// ---------------------------------------------------------------------------
+
+/// Extract `(left_alias, left_col, right_alias, right_col)` tuples from all JOIN ON
+/// equality conditions in the given join list.
+///
+/// Recurses into `Expr::Logical` (AND/OR) so compound ON clauses like
+/// `ON a.id = b.id AND a.org = b.org` are fully traversed.
+/// Only `Expr::Compare { op: CompareOp::Eq, .. }` with `Expr::Field` on both sides
+/// with at least 2 path segments are emitted (alias + column name).
+///
+/// Used by `pre_register_empty_tables_for_joins` to infer the schema of unregistered
+/// tables from JOIN peer columns (BC-2.11.005 DEC-022).
+fn extract_join_equalities(joins: &[crate::ast::Join]) -> Vec<(String, String, String, String)> {
+    fn recurse(expr: &crate::ast::Expr, out: &mut Vec<(String, String, String, String)>) {
+        use crate::ast::{CompareOp, Expr};
+        match expr {
+            Expr::Compare {
+                lhs,
+                op: CompareOp::Eq,
+                rhs,
+            } => {
+                if let (Expr::Field(lp), Expr::Field(rp)) = (lhs.as_ref(), rhs.as_ref()) {
+                    if lp.segments.len() >= 2 && rp.segments.len() >= 2 {
+                        out.push((
+                            lp.segments[0].clone(),
+                            lp.segments[1].clone(),
+                            rp.segments[0].clone(),
+                            rp.segments[1].clone(),
+                        ));
+                    }
+                }
+            }
+            Expr::Logical { lhs, rhs, .. } => {
+                recurse(lhs, out);
+                recurse(rhs, out);
+            }
+            _ => {}
+        }
+    }
+
+    let mut result = Vec::new();
+    for join in joins {
+        recurse(&join.on, &mut result);
+    }
+    result
+}
+
+/// Pre-register schema-only empty `MemTable`s for SQL query tables not yet in the
+/// DataFusion session catalog.
+///
+/// # Purpose (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 Sub-defect 2)
+///
+/// `register_mem_table` skips registration when a sensor returns 0 batches.
+/// When a SQL query JOINs against such a sensor, DataFusion planning fails with
+/// `"table not found"` (mapped to `PrismError::QueryExecutionFailed`).
+///
+/// This function registers a schema-only empty `MemTable` for each missing table so
+/// DataFusion can plan the query, producing 0 rows gracefully instead of erroring.
+///
+/// # Schema inference
+///
+/// For each missing table `T` with alias `a_T`:
+///
+/// 1. Walk JOIN ON equality conditions for `Expr::Compare { op: Eq, .. }` where one
+///    side's alias maps to `T` and the other side maps to an ALREADY-registered table.
+/// 2. Look up the peer column's DataType from the registered table's Arrow schema.
+/// 3. Add `Field::new(t_column, peer_type, true)` to the inferred schema.
+/// 4. If no JOIN equalities help (e.g., solo `FROM crowdstrike_devices` with no JOINs),
+///    fall back to `Schema::empty()` (0 columns). A `SELECT *` on an empty-schema
+///    table returns 0 rows with 0 columns — correct per BC-2.01.010.
+///
+/// # BC anchors
+///
+/// - BC-2.11.005 DEC-022: "All sensor API calls return empty" →
+///   "Empty RecordBatch registered; query returns empty result set"
+/// - BC-2.01.010: empty result ≠ error (partial-failure handling)
+async fn pre_register_empty_tables_for_joins(
+    session_ctx: &SessionContext,
+    sql_query: &crate::ast::SqlQuery,
+) -> Result<(), PrismError> {
+    use arrow::datatypes::{Field, Schema};
+    use datafusion::datasource::MemTable;
+
+    // Build alias → normalized_table_name map from FROM + JOINs.
+    let mut alias_to_table: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+
+    let from_table = datafusion_table_name(&sql_query.from.source.raw);
+    let from_alias = sql_query
+        .from
+        .alias
+        .as_deref()
+        .unwrap_or(&from_table)
+        .to_owned();
+    alias_to_table.insert(from_alias, from_table.clone());
+
+    for join in &sql_query.joins {
+        let join_table = datafusion_table_name(&join.source.raw);
+        let join_alias = join.alias.as_deref().unwrap_or(&join_table).to_owned();
+        alias_to_table.insert(join_alias, join_table.clone());
+    }
+
+    // Collect ALL table names referenced in the query.
+    let mut all_table_names: Vec<String> = vec![from_table];
+    for join in &sql_query.joins {
+        all_table_names.push(datafusion_table_name(&join.source.raw));
+    }
+
+    // Extract JOIN equalities for schema inference: (la, lc, ra, rc).
+    let equalities = extract_join_equalities(&sql_query.joins);
+
+    // Obtain the DataFusion "public" schema provider (always present in a properly
+    // constructed SessionContext from `build_session_context`).
+    let public_schema = match session_ctx
+        .catalog("datafusion")
+        .and_then(|cat| cat.schema("public"))
+    {
+        Some(s) => s,
+        None => return Ok(()), // No catalog — let DataFusion handle it.
+    };
+
+    for table_name in &all_table_names {
+        // Check whether the table is already in the DataFusion catalog.
+        match public_schema.table(table_name).await {
+            Ok(Some(_)) => continue, // Already registered.
+            Ok(None) => {}           // Missing — register empty placeholder.
+            Err(_) => continue,      // Catalog error — let DataFusion surface it.
+        }
+
+        // Reverse-lookup: which alias maps to this missing table?
+        let table_alias: Option<String> = alias_to_table
+            .iter()
+            .find(|(_, t)| *t == table_name)
+            .map(|(a, _)| a.clone());
+
+        // Infer schema columns from JOIN equality conditions.
+        let mut inferred_fields: Vec<Field> = Vec::new();
+        if let Some(ref missing_alias) = table_alias {
+            for (la, lc, ra, rc) in &equalities {
+                let (missing_col, peer_alias, peer_col) = if la == missing_alias {
+                    (lc, ra, rc)
+                } else if ra == missing_alias {
+                    (rc, la, lc)
+                } else {
+                    continue;
+                };
+
+                // Look up the peer column's type from the registered peer table.
+                if let Some(peer_table) = alias_to_table.get(peer_alias) {
+                    if let Ok(Some(tp)) = public_schema.table(peer_table).await {
+                        if let Ok(field) = tp.schema().field_with_name(peer_col) {
+                            inferred_fields.push(Field::new(
+                                missing_col.as_str(),
+                                field.data_type().clone(),
+                                true, // nullable
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Build the schema (may be empty for solo-SELECT with no JOIN hints).
+        let schema = std::sync::Arc::new(Schema::new(inferred_fields));
+
+        // MemTable with one empty partition and the inferred schema.
+        let mem_table =
+            MemTable::try_new(std::sync::Arc::clone(&schema), vec![vec![]]).map_err(|e| {
+                tracing::error!(
+                    table_name = %table_name,
+                    error = %e,
+                    "pre_register_empty_tables_for_joins: failed to create empty MemTable \
+                     (detail redacted from client response)"
+                );
+                PrismError::QueryExecutionFailed {
+                    detail: format!(
+                        "failed to create empty placeholder MemTable for '{table_name}': \
+                         <redacted; see server logs>"
+                    ),
+                }
+            })?;
+
+        session_ctx
+            .register_table(table_name, std::sync::Arc::new(mem_table))
+            .map_err(|e| {
+                tracing::error!(
+                    table_name = %table_name,
+                    error = %e,
+                    "pre_register_empty_tables_for_joins: failed to register empty MemTable \
+                     (detail redacted from client response)"
+                );
+                PrismError::QueryExecutionFailed {
+                    detail: format!(
+                        "failed to register empty placeholder MemTable for '{table_name}': \
+                         <redacted; see server logs>"
+                    ),
+                }
+            })?;
+
+        tracing::debug!(
+            table_name = %table_name,
+            "pre_register_empty_tables_for_joins: registered schema-only empty MemTable \
+             (BC-2.11.005 DEC-022 / BC-2.01.010 empty-is-not-error)"
+        );
+    }
     Ok(())
 }
 

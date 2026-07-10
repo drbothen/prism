@@ -27,6 +27,7 @@ use prism_dtu_crowdstrike::CrowdstrikeClone;
 ///   - POST /detects/entities/summaries/GET/v1
 ///   - GET  /devices/queries/devices/v1
 ///   - GET  /devices/entities/devices/v2
+///   - POST /devices/entities/devices/v2
 ///   - POST /devices/entities/devices-actions/v2?action_name=contain
 ///   - POST /devices/entities/devices-actions/v2?action_name=lift_containment
 ///   - PATCH /detects/entities/detects/v2

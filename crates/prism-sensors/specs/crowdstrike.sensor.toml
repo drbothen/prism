@@ -250,12 +250,18 @@ ocsf_class = "device"
   response_path = "$.resources"
   variables_produced = ["device_ids"]
 
-  # Step 2: GetEntities — GET full device records by ID
-  # DTU route: GET /devices/entities/devices/v2 (mod.rs line ~198 — v2, not v1)
+  # Step 2: PostDeviceDetailsV2 — POST IDs to get full device records
+  # DTU route: POST /devices/entities/devices/v2 (added per DEFECT-CSDEVICES-EMPTY-PIPELINE-001 ratification)
+  # Real-API canonical: CrowdStrike PostDeviceDetailsV2 (official; introduced FalconPy v1.2.0;
+  #   POST body {"ids": [...]} supports up to 5000 IDs vs GET's 100; body format identical to
+  #   POST /detects/entities/summaries/GET/v1 detections pipeline).
+  # fan_out_batch_size = 100 per CROWDSTRIKE_BATCH_SIZE (conservative; POST API supports up to 5000;
+  #   raising is a separate tuning story, not in scope here).
   [[tables.steps]]
   name = "fetch_devices"
-  method = "GET"
+  method = "POST"
   path_template = "/devices/entities/devices/v2"
+  body_template = '{"ids": ${query_device_ids.resources}}'
   response_path = "$.resources"
   variables_produced = []
   fan_out_batch_size = 100
