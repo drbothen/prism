@@ -749,14 +749,11 @@ impl InfusionRegistry {
                 }
             })?;
             let client = crate::pipeline::build_http_client_with_timeout();
-            match sources::http_lookup::HttpLookupSource::new(
+            Arc::new(sources::http_lookup::HttpLookupSource::new(
                 client,
                 http_config,
                 spec.infusion_id.clone(),
-            ) {
-                Ok(s) => Arc::new(s),
-                Err(err) => return Err(err),
-            }
+            )?)
         } else if spec.infusion_type == InfusionType::LocalLookup {
             if let Some(ref source_config) = spec.source {
                 match sources::load_source(source_config) {
@@ -913,14 +910,11 @@ impl InfusionRegistry {
                 }
             })?;
             let client = crate::pipeline::build_http_client_with_timeout();
-            match sources::http_lookup::HttpLookupSource::new(
+            Arc::new(sources::http_lookup::HttpLookupSource::new(
                 client,
                 http_config,
                 spec.infusion_id.clone(),
-            ) {
-                Ok(s) => Arc::new(s),
-                Err(err) => return Err(err),
-            }
+            )?)
         } else if let Some(ref source_config) = spec.source {
             match sources::load_source(source_config) {
                 Ok(s) => s,
@@ -1118,14 +1112,11 @@ impl InfusionRegistry {
                     }
                 })?;
                 let client = crate::pipeline::build_http_client_with_timeout();
-                match sources::http_lookup::HttpLookupSource::new(
+                Arc::new(sources::http_lookup::HttpLookupSource::new(
                     client,
                     http_config,
                     updated_spec.infusion_id.clone(),
-                ) {
-                    Ok(s) => Arc::new(s),
-                    Err(err) => return Err(err),
-                }
+                )?)
             } else if updated_spec.infusion_type == InfusionType::LocalLookup {
                 if let Some(ref source_config) = updated_spec.source {
                     match sources::load_source(source_config) {

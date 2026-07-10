@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-T13 Comprehensive Pre-flight Demo Audit Script — develop@122228e8
+T13 Comprehensive Pre-flight Demo Audit Script — develop@f935edb6
 Drives the prism MCP server over stdio (newline-delimited JSON) and verifies
 the FULL demo feature coverage matrix (extends the 18-item smoke audit).
 
 Usage:
     python3 scripts/t13-preflight-audit.py
-    PRISM_THREATINTEL_PORT=56229 PRISM_NVD_PORT=56230 python3 scripts/t13-preflight-audit.py
+    PRISM_THREATINTEL_PORT=65343 PRISM_NVD_PORT=65344 python3 scripts/t13-preflight-audit.py
 
 Requirements:
     - prism-dtu-demo-server must be running (bash scripts/demo-run.sh)
@@ -22,6 +22,9 @@ Coverage matrix:
   6. Enrichment correlation (ThreatIntel IOCs + NVD CVEs)
   7. Error taxonomy paths (E-QUERY-032/-037/-038/-039)
   8. Capability discovery (D-1162, D-1312 regression)
+  9. IEQ/IIN/INE case-insensitive operators (ADR-047, PR #217)
+ 10. Temporal typing regression (ADR-052 §D4, PR #214)
+ 11. Typed enrichment output regression (ADR-051, PR #216)
 """
 
 import subprocess
@@ -363,22 +366,92 @@ def run_audit():
                 results["[A5] MAJOR-001: list_capabilities client_registered=true"] = f"FAIL: client_registered={client_registered!r}"
 
         # ── A6: list_capabilities: tri-state model fields (D-1162 BC-2.10.011) ─
+        # BC-2.10.011 v1.5 single-client mode requires:
+        #   capabilities: Map<String, {status: tri-state, resolution_chain: [...]}>
+        #   not_registered_tools: [...] (renamed from not_implemented)
+        # "enabled_count" is a cross-client summary field (null client_id mode) — it
+        # does NOT appear in single-client mode entries and is irrelevant here.
         body, err = tool_call(proc, "list_capabilities", {"client_id": "org-c"})
         if err:
             results["[A6] list_capabilities tri-state model fields"] = f"FAIL: {err}"
         elif body.get("error_code"):
             results["[A6] list_capabilities tri-state model fields"] = f"FAIL: {body['error_code']}"
         else:
-            # Expect client_registered, and some capabilities with tri-state counts
-            caps = body.get("capabilities", {})
-            has_enabled_count = any(
-                "enabled_count" in str(v) or isinstance(v, dict) and "enabled_count" in v
-                for v in caps.values()
-            ) if isinstance(caps, dict) else False
-            keys = list(body.keys())
-            results["[A6] list_capabilities tri-state model fields"] = (
-                f"PASS: keys={keys}; capabilities={len(caps) if isinstance(caps, (dict,list)) else type(caps).__name__}"
-            )
+            VALID_STATUSES = {"enabled", "runtime_disabled", "compile_time_disabled"}
+            caps = body.get("capabilities", "MISSING")
+            not_reg = body.get("not_registered_tools", "MISSING")
+            has_old_field = "not_implemented" in body  # renamed in BC-2.10.011 v1.5
+
+            if caps == "MISSING":
+                results["[A6] list_capabilities tri-state model fields"] = (
+                    f"FAIL: capabilities field absent from response; keys={list(body.keys())}"
+                )
+            elif not isinstance(caps, dict):
+                results["[A6] list_capabilities tri-state model fields"] = (
+                    f"FAIL: capabilities is not a dict; type={type(caps).__name__}, "
+                    f"value={str(caps)[:80]!r}"
+                )
+            elif not_reg == "MISSING":
+                results["[A6] list_capabilities tri-state model fields"] = (
+                    f"FAIL: not_registered_tools absent (BC-2.10.011 v1.5 rename from "
+                    f"not_implemented); keys={list(body.keys())}"
+                )
+            elif has_old_field:
+                results["[A6] list_capabilities tri-state model fields"] = (
+                    f"FAIL: old not_implemented field still present — must be renamed to "
+                    f"not_registered_tools (BC-2.10.011 v1.5)"
+                )
+            elif caps:
+                # Non-empty capabilities — every entry must have status + resolution_chain
+                bad_entries = []
+                for cap_path, entry in caps.items():
+                    if not isinstance(entry, dict):
+                        bad_entries.append(f"{cap_path}: not a dict ({type(entry).__name__})")
+                        continue
+                    if "status" not in entry:
+                        bad_entries.append(f"{cap_path}: missing status")
+                        continue
+                    if entry["status"] not in VALID_STATUSES:
+                        bad_entries.append(
+                            f"{cap_path}: invalid status {entry['status']!r} "
+                            f"(must be one of {sorted(VALID_STATUSES)})"
+                        )
+                        continue
+                    if "resolution_chain" not in entry or not isinstance(
+                        entry["resolution_chain"], list
+                    ):
+                        bad_entries.append(f"{cap_path}: missing or non-list resolution_chain")
+                if bad_entries:
+                    results["[A6] list_capabilities tri-state model fields"] = (
+                        f"FAIL: {len(bad_entries)} capability entries violate tri-state contract: "
+                        f"{bad_entries[:3]}; BC-2.10.011 requires "
+                        f"status+resolution_chain per entry"
+                    )
+                else:
+                    statuses = sorted(
+                        {v["status"] for v in caps.values()
+                         if isinstance(v, dict) and "status" in v}
+                    )
+                    results["[A6] list_capabilities tri-state model fields"] = (
+                        f"PASS: {len(caps)} capabilities; all have status+resolution_chain; "
+                        f"statuses={statuses!r}; not_registered_tools count="
+                        f"{len(not_reg) if isinstance(not_reg, list) else '?'} "
+                        f"(BC-2.10.011 tri-state model confirmed)"
+                    )
+            else:
+                # Empty capabilities (no write endpoints in demo — compile-gate absent)
+                if not isinstance(not_reg, list):
+                    results["[A6] list_capabilities tri-state model fields"] = (
+                        f"FAIL: not_registered_tools is not a list; "
+                        f"type={type(not_reg).__name__}"
+                    )
+                else:
+                    results["[A6] list_capabilities tri-state model fields"] = (
+                        f"PASS: capabilities empty (no write endpoints in demo — "
+                        f"compile_time_disabled for all write paths); "
+                        f"not_registered_tools={list(not_reg)[:3]!r}; "
+                        f"tri-state fields present (BC-2.10.011 single-client mode)"
+                    )
 
         # ── A7: AUDIT-001: prism_describe sensor-prefixed table names ────────
         body, err = tool_call(proc, "prism_describe", {"client_id": "org-c"}, timeout=15.0)
@@ -882,18 +955,20 @@ def run_audit():
             rows = body.get("rows", [])
             results["[C7] Pipe mode: | sort"] = f"PASS: {len(rows)} rows"
 
-        # ── C8: NOW() temporal function ───────────────────────────────────────
-        # Test NOW() in a WHERE clause context
+        # ── C8: SQL mode baseline ─────────────────────────────────────────────
+        # Verify SQL query path executes without error (prerequisite for temporal
+        # queries). This check does NOT call NOW() — actual RFC-3339 datetime
+        # typing and NOW() regression are covered by G7 (ADR-052 §D4).
         body, err = query(proc,
             "SELECT device_id FROM crowdstrike_detections WHERE device_id IS NOT NULL LIMIT 3",
             ["org-c"])
         if err:
-            results["[C8] Temporal: NOW() accessible (baseline check)"] = f"FAIL: {err}"
+            results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"FAIL: {err}"
         elif body.get("error_code"):
-            results["[C8] Temporal: NOW() accessible (baseline check)"] = f"PARTIAL: {body['error_code']}"
+            results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"PARTIAL: {body['error_code']}"
         else:
             rows = body.get("rows", [])
-            results["[C8] Temporal: NOW() accessible (baseline check)"] = f"PASS: {len(rows)} rows (SQL path works for temporal context)"
+            results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"PASS: {len(rows)} rows (SQL path confirmed; see G7 for RFC-3339 regression)"
 
         # ═══════════════════════════════════════════════════════════════════════
         # SECTION D: Scenario Stage Verification (Stage 4 required)
@@ -1210,6 +1285,400 @@ def run_audit():
                 rows = body.get("rows", [])
                 results["[F6] N1-B F1: SQL builtin COUNT NOT E-QUERY-039"] = f"PASS: COUNT executed OK, {len(rows)} rows"
 
+        # ═══════════════════════════════════════════════════════════════════════
+        # SECTION G: New Merged Surfaces (PRs #214/#216/#217 — develop@f935edb6)
+        # G1: IEQ filter happy path (S-PRISMQL-CASE-INSENSITIVE-001, ADR-047)
+        # G2: IIN multi-value severity filter (ADR-047)
+        # G3: IIN on status lowercase (ADR-047)
+        # G4: SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary (ADR-047)
+        # G5: E-QUERY-002 typed guidance (IEQ on integer column -> suggest string sibling)
+        # G6: GROUP BY severity no-fragmentation (canonical Title-case only)
+        # G7: Temporal typing spot-check — no regression (ADR-052 §D4, PR #214)
+        # G8: Typed enrichment output — threat_score is Int64 not String (ADR-051, PR #216)
+        # ═══════════════════════════════════════════════════════════════════════
+
+        # ── G1: IEQ happy path: severity IEQ 'critical' matches canonical 'Critical' ──
+        # Runbook Step 3.1a / §5.9 checklist item 1.
+        # IEQ lowers both sides: lower(severity) = lower('critical').
+        # Stored form is 'Critical' (OCSF Title-case at adapter boundary per enum_map.rs).
+        # NOTE: the runbook demo query uses 'high' but crowdstrike_detections scenario
+        # data has 'Critical'/'Medium' (not 'High'). We test 'critical' to confirm the
+        # IEQ feature; a separate audit note flags the runbook Step 3.1a mismatch.
+        body, err = query(proc,
+            "FROM crowdstrike_detections\n| where severity IEQ 'critical'\n| limit 50",
+            ["org-c"])
+        if err:
+            results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = f"FAIL: {ec}: {body.get('message','')[:100]}"
+        else:
+            rows = body.get("rows", [])
+            if rows:
+                severities = [r.get("severity", "") for r in rows if r.get("severity")]
+                # Verify stored severity values are canonical Title-case ('Critical', not 'CRITICAL'/'critical')
+                bad_case = [s for s in severities if s and s.lower() == "critical" and s != "Critical"]
+                if bad_case:
+                    results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = (
+                        f"FAIL: non-Title-case severity values returned: {list(set(bad_case))[:3]}"
+                    )
+                else:
+                    sample_sev = sorted(set(severities))
+                    results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = (
+                        f"PASS: {len(rows)} rows; severity values={sample_sev!r} (canonical Title-case confirmed; "
+                        f"NOTE: runbook Step 3.1a uses 'high' but CS scenario data is 'Critical'/'Medium')"
+                    )
+            else:
+                results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = (
+                    "FAIL: 0 rows returned by IEQ 'critical' — expected rows when severity='Critical' exists at Stage 1+"
+                )
+
+        # ── G2: IIN multi-value: severity IIN ('high', 'critical') ─────────────
+        # Runbook Step 3.1a / §5.9 checklist item 2.
+        # IIN lowers every value in the membership list. Stored forms are 'High', 'Critical'.
+        body, err = query(proc,
+            "FROM cyberint_alerts\n| where severity IIN ('high', 'critical')\n| limit 20",
+            ["org-c"])
+        if err:
+            results["[G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)"] = f"FAIL: {ec}: {body.get('message','')[:100]}"
+        else:
+            rows = body.get("rows", [])
+            if rows:
+                distinct_sev = sorted({r.get("severity", "") for r in rows if r.get("severity")})
+                results["[G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)"] = (
+                    f"PASS: {len(rows)} rows; distinct severities={distinct_sev!r}"
+                )
+            else:
+                # NB-2: FAIL (not WARN) — the demo environment contract guarantees
+                # cyberint_alerts has High/Critical severity rows at Stage 4. 0 rows
+                # means the IIN operator failed to match existing data.
+                results["[G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)"] = (
+                    "FAIL: 0 rows — demo environment guarantees cyberint High/Critical data at "
+                    "Stage 4; IIN operator likely not working or data absent"
+                )
+
+        # ── G3: IIN on status lowercase → crowdstrike_detections ─────────────────
+        # Runbook Step 3.1a / §5.9 checklist item 3 (implied).
+        # Redirected from cyberint_alerts (ADV-PR-P11-HIGH-001): cyberint DTU emits
+        # vendor-native status values "open"/"acknowledged"/"closed" (prism-dtu-cyberint
+        # generator.rs statuses array).  None of these lexically match an OCSF caption in
+        # status_id (captions: Unknown, Success, Failure, New, In Progress, Suppressed,
+        # Resolved, Archived, Deleted, Other) — normalize_enum_label returns None and
+        # passes them through unchanged.  No enum_map is declared for status in
+        # cyberint.sensor.toml.  IIN('new','in progress') can never match those values.
+        #
+        # crowdstrike_detections is the correct table: CS DTU emits status "new" for
+        # all detection records (prism-dtu-crowdstrike generator.rs
+        # make_detection_with_ioc).  normalize_enum_label("status", "new") → "New"
+        # (OcsfEnumMap status_id[1001]).  IIN lowers both sides: lower("New") = "new"
+        # ∈ {"new", "in progress"} → matches.  The returned Title-case "New" values
+        # prove the normalization + IIN case-folding chain is working end-to-end.
+        body, err = query(proc,
+            "FROM crowdstrike_detections\n| where status IIN ('new', 'in progress')\n| limit 20",
+            ["org-c"])
+        if err:
+            results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = f"FAIL: {ec}: {body.get('message','')[:100]}"
+        else:
+            rows = body.get("rows", [])
+            if rows:
+                distinct_status = sorted({r.get("status", "") for r in rows if r.get("status")})
+                # Verify stored status values are OCSF canonical Title-case ("New", not
+                # "new"/"NEW"), proving normalize_enum_label ran before the IIN match.
+                known_ocsf_status = {"new", "in progress", "suppressed", "resolved",
+                                     "archived", "deleted", "unknown", "success", "failure", "other"}
+                non_title = [s for s in distinct_status
+                             if s and s.lower() in known_ocsf_status and s != s.title()]
+                if non_title:
+                    results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
+                        f"FAIL: non-Title-case status values returned (OCSF normalization not applied): "
+                        f"{non_title!r}; all returned={distinct_status!r}"
+                    )
+                else:
+                    results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
+                        f"PASS: {len(rows)} rows; distinct statuses={distinct_status!r} "
+                        f"(Title-case confirmed; lowercase IIN input matched OCSF-normalized values)"
+                    )
+            else:
+                results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
+                    "FAIL: 0 rows — crowdstrike_detections at Stage 1+ must have status='new' "
+                    "detection records; CS DTU emits status 'new' → OcsfEnumMap normalizes to 'New' "
+                    "(status_id[1001]); IIN operator may not be matching or CS data absent"
+                )
+
+        # ── G4: SQL-mode IEQ rejection -> E-QUERY-001 (not opaque E-QUERY-034) ─
+        # Runbook Step 4.3 / §5.9 checklist item 3.
+        # IEQ is a PrismQL pipe/filter-mode operator. Using it in a SQL WHERE clause
+        # must return E-QUERY-001 at parse time with a pedagogical mode-boundary message
+        # that names IEQ/IIN/INE and points to filter or pipe | where syntax.
+        body, err = query(proc,
+            "SELECT severity, count(*) FROM cyberint_alerts WHERE severity IEQ 'high' GROUP BY severity",
+            ["org-c"])
+        if err:
+            results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = f"FAIL: {err}"
+        else:
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            if ec == "E-QUERY-001":
+                mentions_operator = any(op in msg.upper() for op in ("IEQ", "IIN", "INE"))
+                # NB-3 fix: use the canonical message anchor from error-taxonomy v2.34 /
+                # sql_parser.rs: "(IEQ/IIN/INE) are not supported in SQL mode. Use filter mode"
+                # The old heuristic used '"|" in msg.lower()' which could spuriously match
+                # any unrelated pipe character in the error text. Replaced with a byte-precise
+                # anchor: "not supported in sql mode" is deterministically present in every
+                # E-QUERY-001 IEQ SQL-mode rejection (sql_parser.rs — the four E-QUERY-001
+                # IEQ/IIN/INE SQL-mode rejection sites that emit the canonical
+                # "not supported in SQL mode" phrase).
+                mentions_mode = "not supported in sql mode" in msg.lower()
+                if mentions_operator and mentions_mode:
+                    results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = (
+                        f"PASS: E-QUERY-001; message names IEQ/IIN/INE and canonical anchor "
+                        f"'not supported in sql mode' confirmed: {msg[:120]!r}"
+                    )
+                else:
+                    results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = (
+                        f"FAIL (partial): E-QUERY-001 returned but canonical message anchor "
+                        f"missing (operator_named={mentions_operator}, "
+                        f"mode_anchor_found={mentions_mode}): {msg[:120]!r}"
+                    )
+            elif ec == "E-QUERY-034":
+                results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = (
+                    f"FAIL: got opaque E-QUERY-034 instead of pedagogical E-QUERY-001; message={msg[:80]!r}"
+                )
+            elif ec:
+                results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = (
+                    f"PARTIAL: {ec}: {msg[:100]!r}"
+                )
+            else:
+                rows = body.get("rows", [])
+                results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = (
+                    f"FAIL: query succeeded ({len(rows)} rows) — IEQ must be rejected in SQL WHERE clause"
+                )
+
+        # ── G5: E-QUERY-002 typed guidance (IEQ on integer column) ─────────────
+        # Runbook Step 3.1a teaching note.
+        # severity_id is an OCSF integer ordinal column. IEQ against it should return
+        # E-QUERY-002 (QueryTypeMismatch) since lower() is not applicable to integers.
+        # The error message should suggest using the string sibling 'severity' instead.
+        body, err = query(proc,
+            "FROM cyberint_alerts\n| where severity_id IEQ 'high'\n| limit 5",
+            ["org-c"])
+        if err:
+            results["[G5] E-QUERY-002: IEQ on integer column -> typed guidance"] = f"FAIL: {err}"
+        else:
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            if ec == "E-QUERY-002":
+                has_suggestion = "severity" in msg.lower()
+                results["[G5] E-QUERY-002: IEQ on integer column -> typed guidance"] = (
+                    f"PASS: E-QUERY-002; string-sibling suggestion={'YES' if has_suggestion else 'NO (check message)'}: {msg[:120]!r}"
+                )
+            elif ec == "E-QUERY-038":
+                # NB-2 justified WARN: severity_id is not a guaranteed column in
+                # cyberint_alerts. The OCSF integer ordinal severity_id is sensor-schema
+                # optional; cyberint exposes 'severity' (string label) not 'severity_id'
+                # (integer ordinal). If absent, the E-QUERY-002 typed-guidance path is
+                # not exercisable via this column — WARN is honest here.
+                results["[G5] E-QUERY-002: IEQ on integer column -> typed guidance"] = (
+                    f"WARN: E-QUERY-038 — severity_id column absent from cyberint_alerts "
+                    f"(OCSF integer ordinal; optional for this sensor); E-QUERY-002 typed "
+                    f"guidance path not exercisable via this sensor: {msg[:80]!r}"
+                )
+            elif ec:
+                results["[G5] E-QUERY-002: IEQ on integer column -> typed guidance"] = (
+                    f"PARTIAL: {ec}: {msg[:100]!r}"
+                )
+            else:
+                rows = body.get("rows", [])
+                results["[G5] E-QUERY-002: IEQ on integer column -> typed guidance"] = (
+                    f"FAIL: query succeeded ({len(rows)} rows) — IEQ on integer column should return type error"
+                )
+
+        # ── G6: GROUP BY severity no-fragmentation (canonical Title-case only) ──
+        # After OCSF enum normalization at adapter boundary, GROUP BY severity must
+        # produce at most one bucket per OCSF severity level.
+        # No 'HIGH' + 'High' + 'high' duplicate buckets allowed.
+        body, err = query(proc,
+            "SELECT severity, COUNT(*) as cnt FROM crowdstrike_detections GROUP BY severity",
+            ["org-c"])
+        if err:
+            results["[G6] GROUP BY severity no-fragmentation (canonical Title-case)"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[G6] GROUP BY severity no-fragmentation (canonical Title-case)"] = (
+                f"PARTIAL: {ec}: {body.get('message','')[:80]}"
+            )
+        else:
+            rows = body.get("rows", [])
+            if rows:
+                severities = [r.get("severity", "") for r in rows if r.get("severity") is not None]
+                # Check for casing fragmentation: same value in different cases
+                sev_lower_list = [s.lower() for s in severities if s]
+                has_dup_lower = len(sev_lower_list) != len(set(sev_lower_list))
+                # All non-null values should be Title-case (OCSF canonical form)
+                known_ocsf = {"high", "medium", "low", "critical", "informational", "unknown", "fatal"}
+                non_title = [s for s in severities if s and s.lower() in known_ocsf and s != s.title()]
+                if has_dup_lower:
+                    results["[G6] GROUP BY severity no-fragmentation (canonical Title-case)"] = (
+                        f"FAIL: casing fragmentation — duplicate severity buckets: {severities}"
+                    )
+                elif non_title:
+                    results["[G6] GROUP BY severity no-fragmentation (canonical Title-case)"] = (
+                        f"FAIL: non-Title-case buckets present: {list(set(non_title))}; all buckets={severities}"
+                    )
+                else:
+                    results["[G6] GROUP BY severity no-fragmentation (canonical Title-case)"] = (
+                        f"PASS: {len(rows)} distinct buckets; all canonical Title-case: {sorted(severities)!r}"
+                    )
+            else:
+                # NB-2: FAIL (not WARN) — the demo environment guarantees CS detections
+                # exist at Stage 1+; 0 rows from GROUP BY severity means either no data
+                # (schema/DTU failure) or all severity values are NULL.
+                results["[G6] GROUP BY severity no-fragmentation (canonical Title-case)"] = (
+                    "FAIL: 0 rows from GROUP BY severity — demo environment guarantees "
+                    "crowdstrike_detections data at Stage 1+; indicates schema/DTU failure "
+                    "or all severity values NULL"
+                )
+
+        # ── G7: Temporal typing spot-check — no regression (ADR-052 §D4, PR #214) ─
+        # ADR-052 §D4 Option A: lenient-parse + AST-walk coerces RFC-3339 string literals
+        # to Timestamp when compared against Datetime-typed columns. Tests that PR #216
+        # and PR #217 did NOT break the temporal typing introduced by PR #214.
+        # Uses claroty_audit_logs.timestamp (Datetime column per OCSF normalization).
+        # RFC-3339 format required: '2020-01-01T00:00:00Z' (bare ISO date '2020-01-01'
+        # returns E-QUERY-041 "Expected RFC-3339 form" — that is correct behavior, not a bug).
+        body, err = query(proc,
+            "FROM claroty_audit_logs\n| where timestamp > '2020-01-01T00:00:00Z'\n| limit 3",
+            ["org-c"])
+        if err:
+            results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            if ec == "E-QUERY-038":
+                # timestamp column not present — try alternate with claroty_audit_logs timestamp
+                body2, err2 = query(proc,
+                    "FROM crowdstrike_detections\n| where created_timestamp > '2020-01-01T00:00:00Z'\n| limit 3",
+                    ["org-c"])
+                if err2 or body2.get("error_code"):
+                    # NB-2: FAIL (not WARN) — both claroty_audit_logs.timestamp and
+                    # crowdstrike_detections.created_timestamp are guaranteed Datetime
+                    # columns in the demo schema; both absent means a schema/DTU failure.
+                    err2_msg = (err2 or f"{body2.get('error_code')}: {body2.get('message','')[:60]}")
+                    results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                        f"FAIL: timestamp column absent in both claroty_audit_logs and "
+                        f"crowdstrike_detections — demo schema must have at least one Datetime "
+                        f"column; ADR-052 §D4 regression cannot be confirmed (err={err2_msg!r})"
+                    )
+                else:
+                    rows2 = body2.get("rows", [])
+                    # NB-2 G7 filter verification: confirm the datetime filter actually
+                    # restricts results by running a far-future date that must return 0 rows.
+                    body_future, err_future = query(proc,
+                        "FROM crowdstrike_detections\n| where created_timestamp > '9999-12-31T23:59:59Z'\n| limit 3",
+                        ["org-c"])
+                    future_rows = body_future.get("rows", []) if not err_future and not body_future.get("error_code") else None
+                    filter_verified = future_rows is not None and len(future_rows) == 0
+                    if not filter_verified:
+                        future_note = (f"err={err_future}" if err_future
+                                       else f"ec={body_future.get('error_code')}" if body_future.get("error_code")
+                                       else f"returned {len(future_rows)} rows (expected 0)")
+                        results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                            f"FAIL: filter verification failed — future-date '9999-12-31T23:59:59Z' "
+                            f"did not return 0 rows ({future_note}); datetime filter may not be working"
+                        )
+                    else:
+                        results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                            f"PASS: claroty_audit_logs.timestamp absent; fallback "
+                            f"crowdstrike_detections.created_timestamp > '2020-01-01T00:00:00Z' returned "
+                            f"{len(rows2)} rows; filter verified (future-date '9999-12-31T23:59:59Z' → 0 rows) "
+                            f"— ADR-052 §D4 RFC-3339 coercion active"
+                        )
+            else:
+                results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                    f"FAIL: {ec}: {msg[:100]!r}"
+                )
+        else:
+            rows = body.get("rows", [])
+            # NB-2 G7 filter verification: confirm the datetime filter actually restricts
+            # results by asserting a far-future date returns 0 rows.
+            body_future2, err_future2 = query(proc,
+                "FROM claroty_audit_logs\n| where timestamp > '9999-12-31T23:59:59Z'\n| limit 3",
+                ["org-c"])
+            future_rows2 = body_future2.get("rows", []) if not err_future2 and not body_future2.get("error_code") else None
+            filter_verified2 = future_rows2 is not None and len(future_rows2) == 0
+            if not filter_verified2:
+                future_note2 = (f"err={err_future2}" if err_future2
+                                else f"ec={body_future2.get('error_code')}" if body_future2.get("error_code")
+                                else f"returned {len(future_rows2)} rows (expected 0)")
+                results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                    f"FAIL: filter verification failed — future-date '9999-12-31T23:59:59Z' "
+                    f"did not return 0 rows ({future_note2}); datetime filter may not be working"
+                )
+            else:
+                results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                    f"PASS: {len(rows)} rows for past-date filter; future-date '9999-12-31T23:59:59Z' "
+                    f"→ 0 rows (filter verified) — RFC-3339 literal accepted (ADR-052 §D4; no regression)"
+                )
+
+        # ── G8: Typed enrichment output — threat_score is Int64 (ADR-051, PR #216) ─
+        # Regression check: before PR #216 (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001), the
+        # | enrich threat_score(iocs_value_first) pipe returned a JSON-encoded string
+        # (OBS-1 in the Jul-03 pre-flight audit, develop@122228e8). After PR #216,
+        # output_type=integer coercion must produce a Python int in the JSON result.
+        # This is an explicit named regression probe distinct from E1/E6.
+        body, err = query(proc,
+            "FROM cyberint_alerts\n| where iocs_value_first IS NOT NULL\n| enrich threat_score(iocs_value_first)\n| limit 3",
+            ["org-c"], timeout=30.0)
+        if err:
+            results["[G8] ADR-051 regression: threat_score output is Int64 not JSON-string"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[G8] ADR-051 regression: threat_score output is Int64 not JSON-string"] = (
+                f"FAIL: {ec}: {body.get('message','')[:100]}"
+            )
+        else:
+            rows = body.get("rows", [])
+            if rows:
+                first = rows[0]
+                ts = first.get("threat_score", "MISSING")
+                if ts == "MISSING":
+                    results["[G8] ADR-051 regression: threat_score output is Int64 not JSON-string"] = (
+                        f"FAIL: threat_score column absent; cols={list(first.keys())[:8]}"
+                    )
+                elif isinstance(ts, (int, float)):
+                    results["[G8] ADR-051 regression: threat_score output is Int64 not JSON-string"] = (
+                        f"PASS: threat_score={ts} (type={type(ts).__name__}) — OBS-1 regression confirmed closed; "
+                        f"output is typed numeric, NOT JSON-encoded string"
+                    )
+                else:
+                    ts_str = str(ts)
+                    looks_like_json = ts_str.startswith("[") or ts_str.startswith("{") or ts_str.startswith('"[')
+                    if looks_like_json:
+                        results["[G8] ADR-051 regression: threat_score output is Int64 not JSON-string"] = (
+                            f"FAIL: OBS-1 REGRESSION — threat_score is still a JSON-encoded string: "
+                            f"type={type(ts).__name__}, value={ts_str[:100]!r}"
+                        )
+                    else:
+                        results["[G8] ADR-051 regression: threat_score output is Int64 not JSON-string"] = (
+                            f"FAIL: threat_score has unexpected type={type(ts).__name__}, value={ts_str[:80]!r}"
+                        )
+            else:
+                # NB-2: FAIL (not WARN) — the demo environment contract guarantees
+                # cyberint_alerts has iocs_value_first data at Stage 3+ (Stage 4 is
+                # the demo baseline). 0 rows means the DTU data is missing or the
+                # filter eliminated all rows unexpectedly.
+                results["[G8] ADR-051 regression: threat_score output is Int64 not JSON-string"] = (
+                    "FAIL: 0 rows returned after iocs_value_first IS NOT NULL filter — "
+                    "demo environment guarantees Stage 3+ data at demo baseline (Stage 4); "
+                    "check DTU data availability"
+                )
+
     finally:
         try:
             proc.stdin.close()
@@ -1267,7 +1736,7 @@ COVERAGE_MATRIX = [
     ("[C5]",  "Query Modes",   "DataFusion GROUP BY aggregate"),
     ("[C6]",  "Query Modes",   "DataFusion MAX/MIN aggregate"),
     ("[C7]",  "Query Modes",   "Pipe | sort operator"),
-    ("[C8]",  "Query Modes",   "SQL path (temporal baseline)"),
+    ("[C8]",  "Query Modes",   "SQL mode executes (ADR-052 §D4 baseline path; RFC-3339 regression in G7)"),
     ("[D1]",  "Scenario",      "Stage 4 armis_devices visible"),
     ("[D2]",  "Scenario",      "Cyberint iocs_value at Stage 4"),
     ("[D3]",  "Scenario",      "CS behaviors_ioc_type at Stage 2+"),
@@ -1285,14 +1754,23 @@ COVERAGE_MATRIX = [
     ("[F4]",  "Error Taxonomy","E-QUERY-039 unknown enrich UDF"),
     ("[F5]",  "Error Taxonomy","E-QUERY-038 unknown column"),
     ("[F6]",  "Error Taxonomy","E-QUERY-039 false-positive: SQL builtins safe"),
+    # Section G: New merged surfaces — PRs #214/#216/#217 (develop@f935edb6)
+    ("[G1]",  "IEQ/IIN/INE",   "IEQ happy path: severity IEQ 'critical' matches canonical 'Critical'"),
+    ("[G2]",  "IEQ/IIN/INE",   "IIN multi-value: severity IIN ('high','critical')"),
+    ("[G3]",  "IEQ/IIN/INE",   "IIN on status: status IIN ('new','in progress') → crowdstrike_detections (cyberint vendor-native open/acknowledged/closed has no OCSF caption match; ADV-PR-P11-HIGH-001)"),
+    ("[G4]",  "IEQ/IIN/INE",   "SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"),
+    ("[G5]",  "IEQ/IIN/INE",   "E-QUERY-002 typed guidance: IEQ on integer column"),
+    ("[G6]",  "IEQ/IIN/INE",   "GROUP BY severity no-fragmentation (canonical Title-case)"),
+    ("[G7]",  "Temporal",      "ADR-052 §D4 regression: RFC-3339 datetime literal in WHERE"),
+    ("[G8]",  "Typed Enrich",  "ADR-051 regression: threat_score is Int64 not JSON-string"),
 ]
 
 
 if __name__ == "__main__":
     print("=" * 80)
-    print("T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop@122228e8")
+    print("T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop@f935edb6")
     print(f"  ThreatIntel port: {THREATINTEL_PORT}  NVD port: {NVD_PORT}")
-    print(f"  Coverage: {len(COVERAGE_MATRIX)} items across 6 sections")
+    print(f"  Coverage: {len(COVERAGE_MATRIX)} matrix items (+5 B-table dynamic) across 7 sections")
     print("=" * 80)
     print()
 
