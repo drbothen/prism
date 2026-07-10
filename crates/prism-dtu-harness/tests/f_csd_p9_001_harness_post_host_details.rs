@@ -396,3 +396,156 @@ async fn test_BC_2_16_013_F_CSD_P9_001_harness_network_post_host_details_reachab
          Harness returns a record for every requested ID (direct-lookup path)."
     );
 }
+
+// ============================================================================
+// Test 5: OBS-1 — harness host_detail() missing first_seen field (RED lock)
+//
+// OBS-1 (LOCAL adversary pass-10): The harness `host_detail()` helper
+// (~line 264, crates/prism-dtu-harness/src/clones/crowdstrike.rs) generates
+// device records without a `first_seen` field:
+//
+//   fn host_detail(device_id: &str, containment_status: &str) -> Value {
+//       json!({
+//           "device_id": device_id,
+//           "hostname": format!("{device_id}.example.com"),
+//           "platform_name": "Linux",
+//           "os_version": "Ubuntu 22.04",
+//           "status": "normal",
+//           "containment_status": containment_status,
+//           "last_seen": "2026-01-02T09:00:00Z",      ← present
+//           "external_ip": "203.0.113.1",
+//           "local_ip": "10.0.0.1",
+//           "agent_version": "7.04.17706.0"
+//       })                                              ← first_seen ABSENT
+//   }
+//
+// The crowdstrike.sensor.toml declares `first_seen` as a `datetime` column:
+//   [[tables.columns]]
+//   name = "first_seen"
+//   column_type = "datetime"
+//   ocsf_field = "device.first_seen_time"
+//
+// The standalone DTU (prism-dtu-crowdstrike) emits `first_seen` in its device
+// records (SAP-2 parity). The harness sibling omits it, breaking DTU↔harness
+// parity and causing the spec-engine to emit NULL for `first_seen` when the
+// harness is used in demo/test scenarios — including the fix/csdevices-empty-pipeline
+// branch where datetime-type correctness (Tests 7, T4 spec-column datetime) was
+// specifically validated.
+//
+// BC anchor: BC-2.16.013 INV-HARNESS-ROUTE-PARITY (extended to schema field parity).
+//
+// Red Gate: POST /devices/entities/devices/v2 with valid IDs returns a resource
+//           record WITHOUT `first_seen`. Assertion below fails because
+//           `resources[0].get("first_seen")` returns None.
+//
+// Fix: Add `"first_seen": "2026-01-01T00:00:00Z"` to host_detail() in
+//      crates/prism-dtu-harness/src/clones/crowdstrike.rs (~line 264).
+// ============================================================================
+
+/// OBS-1 / BC-2.16.013: harness CrowdStrike clone POST
+/// /devices/entities/devices/v2 device records must include a non-null
+/// `first_seen` field matching the TOML spec declaration.
+///
+/// # TOML spec source of truth
+///
+/// `crowdstrike.sensor.toml` (crowdstrike_devices table):
+/// ```toml
+/// [[tables.columns]]
+/// name = "first_seen"
+/// column_type = "datetime"
+/// ocsf_field = "device.first_seen_time"
+/// ```
+///
+/// # Defect
+///
+/// `host_detail()` in `crates/prism-dtu-harness/src/clones/crowdstrike.rs`
+/// (~line 264) generates device fixture records that include `last_seen` but omit
+/// `first_seen`. The standalone DTU (`prism-dtu-crowdstrike`) emits `first_seen`;
+/// the harness sibling does not — breaking field parity (SAP-2).
+///
+/// When the harness is used in demo or pipeline scenarios, the spec-engine
+/// normalizes the device rows with NULL for `first_seen`, silently corrupting
+/// datetime-typed query results.
+///
+/// # Red Gate (BC-5.38.001)
+///
+/// At HEAD: `resources[0].get("first_seen")` is None → assertion fails.
+/// Post-fix: `host_detail()` includes `"first_seen": "2026-01-01T00:00:00Z"` →
+///   assertion passes.
+#[tokio::test]
+async fn test_BC_2_16_013_OBS_1_harness_post_host_details_first_seen_field_present() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::CrowdStrike];
+        })
+        .build()
+        .await
+        .expect("harness build must succeed");
+
+    let addr = get_addr(&harness, "acme-corp", DtuType::CrowdStrike);
+    let client = test_client();
+
+    // CrowdStrike harness auth: any non-empty Bearer token is accepted.
+    let body = serde_json::json!({ "ids": ["test-device-001"] });
+
+    let resp = client
+        .post(format!("http://{addr}/devices/entities/devices/v2"))
+        .header("Authorization", "Bearer test-token")
+        .json(&body)
+        .send()
+        .await
+        .expect("POST /devices/entities/devices/v2 must reach server");
+
+    // Pre-condition: route must be reachable (locked by Tests 1-4).
+    // If this fails with 405, the harness POST handler hasn't been implemented yet.
+    let status = resp.status().as_u16();
+    assert_eq!(
+        status, 200,
+        "OBS-1 pre-condition: POST /devices/entities/devices/v2 must return 200 \
+         (route reachability locked by Tests 1-4). got {status}"
+    );
+
+    let body_json: serde_json::Value = resp
+        .json()
+        .await
+        .expect("POST response body must be valid JSON");
+
+    let resources = body_json["resources"]
+        .as_array()
+        .expect("OBS-1: response must have a 'resources' array");
+
+    assert!(
+        !resources.is_empty(),
+        "OBS-1: resources array must be non-empty for a known device ID"
+    );
+
+    let first = &resources[0];
+
+    // PRIMARY RED GATE ASSERTION: first_seen must be present in the device record.
+    // At HEAD: host_detail() omits first_seen → assertion fails.
+    // Post-fix: host_detail() includes first_seen → assertion passes.
+    assert!(
+        first.get("first_seen").is_some(),
+        "OBS-1 / BC-2.16.013: harness CrowdStrike device records must include a \
+         `first_seen` field. \
+         TOML spec: crowdstrike.sensor.toml declares `first_seen` as column_type = \"datetime\" \
+         (ocsf_field = \"device.first_seen_time\"). The standalone DTU emits first_seen; \
+         the harness host_detail() (~line 264, clones/crowdstrike.rs) omits it — \
+         breaking field parity (SAP-2). \
+         RED: `resources[0].get(\"first_seen\")` is None — field absent from host_detail() fixture. \
+         Fix: add `\"first_seen\": \"2026-01-01T00:00:00Z\"` to host_detail() in \
+         crates/prism-dtu-harness/src/clones/crowdstrike.rs. \
+         got record: {first}"
+    );
+
+    // SECONDARY ASSERTION: first_seen must not be JSON null (the field must carry a value).
+    // Guards against a fix that adds the key but sets it to null.
+    assert!(
+        !first["first_seen"].is_null(),
+        "OBS-1 / BC-2.16.013: `first_seen` field must not be JSON null — \
+         it must carry a valid ISO 8601 datetime string (e.g. '2026-01-01T00:00:00Z'). \
+         Fix: set a non-null datetime value in host_detail() for first_seen. \
+         got record: {first}"
+    );
+}

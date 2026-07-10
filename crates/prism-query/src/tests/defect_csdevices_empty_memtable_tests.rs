@@ -3105,4 +3105,292 @@ mod tests {
              got: {result:?}"
         );
     }
+
+    // =========================================================================
+    // T28 — LOCAL pass-10 finding F-CSD-P10-001 (LOW):
+    // JOIN ON × FuncCall-wrapped InSubquery — EMPIRICAL DETERMINATION
+    //
+    // Background: `descend_subquery_expr`'s FuncCall arm recurses with itself
+    // (not `contains_insubquery`), so the shape
+    //   `INNER JOIN t2 ON coalesce(field IN (SELECT ...))`
+    // is NOT rejected by the E-QUERY-043 gate. The gate correctly rejects the
+    // bare projection-position InSubquery (T9/T18) and the bare JOIN ON InSubquery
+    // was verified DataFusion-plannable (T5 GREEN lock). But the FuncCall-wrapped
+    // JOIN ON variant's DataFusion behavior was unverified at pass-10 time.
+    //
+    // This test runs the query empirically to determine the outcome. The assertion
+    // below records the verified result. See the doc comment on the test fn for
+    // the outcome rationale.
+    //
+    // Grammar reach: CONFIRMED (extends T5 + T18 precedents).
+    //   - T5 confirmed: `JOIN t2 ON field IN (SELECT ...)` parses via join_clause
+    //     using expr.clone() for ON condition.
+    //   - T18 confirmed: `coalesce(field IN (SELECT ...))` parses as
+    //     FuncCall::Scalar { func: Unknown("coalesce"), args: [InSubquery { ... }] }
+    //     because scalar_call uses expr.clone() for args and in_subquery is part of expr.
+    //   - Combined: `JOIN t2 ON coalesce(field IN (SELECT ...))` is grammar-valid.
+    // =========================================================================
+
+    /// F-CSD-P10-001 / BC-2.11.003: JOIN ON `coalesce(field IN (SELECT ...))` —
+    /// EMPIRICAL DETERMINATION — GREEN LOCK (DataFusion executes successfully).
+    ///
+    /// # Finding summary (F-CSD-P10-001 LOW)
+    ///
+    /// `descend_subquery_expr`'s FuncCall arm calls `args.iter().any(descend_subquery_expr)`.
+    /// When an arg is `Expr::InSubquery { subquery }`, `descend_subquery_expr` calls
+    /// `check_sql_query(subquery)` — which checks the INNER subquery's projection positions
+    /// (not the FuncCall-wrapping context). Since `SELECT device_id FROM armis_devices`
+    /// has no InSubquery in its projections, `check_sql_query` returns false and the gate
+    /// does NOT fire E-QUERY-043. The query reaches DataFusion.
+    ///
+    /// # Empirical determination (run 2026-07-10) — DOCUMENTED DATAFUSION CAPABILITY
+    ///
+    /// DataFusion EXECUTES SUCCESSFULLY. `coalesce(x IN (SELECT ...))` in JOIN ON position
+    /// is plannable: DataFusion's optimizer decorrelates the IN-subquery even when wrapped
+    /// in a `coalesce()` scalar function call. The query returns correct results:
+    /// only detections where device_id matches the armis subquery set × all dev rows.
+    ///
+    /// # Conclusion: walker asymmetry is CORRECT BY DESIGN
+    ///
+    /// The `descend_subquery_expr` FuncCall arm recursing with itself (not `contains_insubquery`)
+    /// is the CORRECT behavior for the JOIN ON position:
+    ///   - `contains_insubquery` would reject the FuncCall-wrapped InSubquery as a
+    ///     projection-position violation (E-QUERY-043), which would be WRONG — the shape
+    ///     is DataFusion-plannable.
+    ///   - `descend_subquery_expr` correctly recurses into the inner SqlQuery to check
+    ///     whether the INNER subquery's SELECT projection contains InSubquery (which would
+    ///     be a genuine violation). It does NOT reject the FuncCall wrapper itself.
+    ///
+    /// F-CSD-P10-001 is CLOSED as "documented DataFusion capability — no fix required".
+    /// The walker asymmetry between `descend_subquery_expr` and `contains_insubquery`
+    /// is load-bearing correctness, not a bug.
+    ///
+    /// # GREEN LOCK (BC-5.38.001)
+    ///
+    /// This test permanently locks the verified capability. Any future change to
+    /// `descend_subquery_expr`'s FuncCall arm that causes this test to fail has
+    /// OVER-REJECTED a DataFusion-plannable query shape. Regressing this test
+    /// means the gate rejects valid JOIN ON expressions — a false positive.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P10_001_T28_join_on_funccall_wrapped_insubquery_datafusion_empirical(
+    ) {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — outer FROM table with data.
+        // 3 rows: det-001/dev-A, det-002/dev-B, det-003/dev-C.
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002", "det-003"],
+            "device_id",
+            &["dev-A", "dev-B", "dev-C"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — INNER JOIN target with data.
+        // 2 rows: dev-A, dev-B.
+        let dev_batch = make_batch("device_id", &["dev-A", "dev-B"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // armis_devices — subquery table with data (populated).
+        // 1 row: dev-A only.
+        // Only det-001 (device_id = dev-A) matches the IN-subquery condition.
+        let armis_batch = make_batch("device_id", &["dev-A"]);
+        register_mem_table(&ctx, "armis_devices", vec![armis_batch])
+            .expect("armis_devices registration must succeed");
+
+        // FuncCall-wrapped InSubquery in JOIN ON position.
+        // Grammar reach: CONFIRMED (extends T5 + T18 precedents).
+        //   - T5 confirmed: join_clause uses expr.clone() for ON condition.
+        //   - T18 confirmed: scalar_call uses expr.clone() for args; in_subquery is part of expr.
+        //   - coalesce(single arg) is the same grammar shape as T18's SELECT projection test.
+        //
+        // descend_subquery_expr walk path for the JOIN ON FuncCall:
+        //   descend_subquery_expr(FuncCall::Scalar { func: "coalesce", args: [InSubquery { ... }] })
+        //     → args.iter().any(descend_subquery_expr)
+        //     → descend_subquery_expr(InSubquery { subquery: SELECT device_id FROM armis_devices })
+        //       → check_sql_query(subquery): no InSubquery in select.items/group_by/order_by
+        //       → returns false
+        //   → gate does NOT fire E-QUERY-043 → query reaches DataFusion.
+        //
+        // DataFusion EMPIRICALLY VERIFIED (2026-07-10): executes successfully.
+        // coalesce(x IN (SELECT ...)) is plannable in JOIN ON position — the optimizer
+        // decorrelates the IN-subquery even when wrapped in a scalar function.
+        let sql = "SELECT det.detection_id \
+                   FROM crowdstrike_detections det \
+                   INNER JOIN crowdstrike_devices dev \
+                   ON coalesce(det.device_id IN (SELECT device_id FROM armis_devices))";
+
+        let ast = PrismQlParser::parse(sql).expect(
+            "F-CSD-P10-001 T28: JOIN ON coalesce(field IN (SELECT ...)) must parse \
+             (grammar reach confirmed by T5 and T18 precedents: join_clause + scalar_call \
+             both use expr.clone(); in_subquery is part of expr atom)",
+        );
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // GREEN LOCK: DataFusion EXECUTES SUCCESSFULLY.
+        // Empirically verified 2026-07-10: coalesce(x IN (SELECT ...)) in JOIN ON
+        // is DataFusion-plannable. The query returns correct results.
+        //
+        // If this test FAILS after a code change, the change has OVER-REJECTED a
+        // DataFusion-plannable JOIN ON shape. Do NOT silence by adjusting the assertion —
+        // investigate whether descend_subquery_expr's FuncCall arm was incorrectly tightened
+        // to route through contains_insubquery (which would falsely reject this valid shape).
+        assert!(
+            result.is_ok(),
+            "F-CSD-P10-001 T28 GREEN LOCK / BC-2.11.003: JOIN ON coalesce(field IN (SELECT ...)) \
+             must EXECUTE SUCCESSFULLY. DataFusion empirically verified (2026-07-10) to plan \
+             and execute this shape via optimizer subquery decorrelation. \
+             The walker asymmetry (descend_subquery_expr recurses with itself for FuncCall args, \
+             not with contains_insubquery) is CORRECT BY DESIGN — it checks the inner subquery's \
+             projection positions without rejecting the FuncCall wrapper. \
+             If this regresses after a code change, descend_subquery_expr's FuncCall arm was \
+             incorrectly tightened — revert the change to that arm. \
+             got: {result:?}"
+        );
+
+        // Row-count sanity: armis_devices has dev-A only. INNER JOIN condition is
+        // coalesce(det.device_id IN {dev-A}) → TRUE only when det.device_id = dev-A.
+        // det-001 (dev-A) × crowdstrike_devices (dev-A, dev-B) = 2 combinations.
+        // det-002 (dev-B), det-003 (dev-C) → condition FALSE → excluded.
+        // Expected total rows: 2 (det-001 appears once per dev row that passes the INNER JOIN).
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 2,
+            "F-CSD-P10-001 T28: INNER JOIN ON coalesce(IN subquery) must return 2 rows \
+             (det-001 paired with dev-A and dev-B, as the ON condition is TRUE for all \
+             dev rows when det.device_id = dev-A matches the armis subquery set). \
+             det-002 and det-003 are excluded (condition = FALSE). \
+             got {total_rows}"
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // T29 — F-CSD-P10-001 empty-table variant consistency lock
+    //
+    // T28 established the GREEN lock: DataFusion executes
+    // `JOIN ON coalesce(field IN (SELECT ...))` successfully when all tables are
+    // populated. T29 verifies the EMPTY-TABLE variant of the same shape behaves
+    // consistently: with armis_devices having 0 batches and pre-registration
+    // covering it, the query must still plan successfully and return 0 rows
+    // (not an error due to armis_devices being absent from the DataFusion catalog).
+    //
+    // Pre-registration (BC-2.11.005 DEC-022 / F-CSD-P3-001 fix) must register
+    // armis_devices from the IN-subquery position with a schema-only MemTable.
+    // Without this pre-registration, DataFusion would fail with "table not found:
+    // armis_devices" — but that is a pre-registration failure, not a gate/FuncCall
+    // issue. This test specifically verifies the combined behavior.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-CSD-P10-001 T29 / BC-2.11.003 + BC-2.11.005 empty-table consistency lock:
+    /// JOIN ON `coalesce(field IN (SELECT ...))` with the subquery table having 0 batches
+    /// must execute successfully (Ok with 0 rows) — consistent with the T28 GREEN lock.
+    ///
+    /// # Combined behavior
+    ///
+    /// Two subsystems interact here:
+    ///   1. **E-QUERY-043 gate** (T28 established): does NOT fire for FuncCall-wrapped
+    ///      InSubquery in JOIN ON position — walker asymmetry is correct by design.
+    ///   2. **Pre-registration** (F-CSD-P3-001 fix): armis_devices in the IN-subquery
+    ///      FROM position must be pre-registered with a schema-only MemTable when
+    ///      it has 0 batches, so DataFusion can plan the subquery.
+    ///
+    /// The empty-table variant tests that these two subsystems compose correctly:
+    /// the gate passes (as in T28) AND pre-registration covers the subquery table
+    /// (so DataFusion can plan) → the query returns 0 rows (empty IN-set, INNER JOIN
+    /// produces 0 matches).
+    ///
+    /// # Expected result
+    ///
+    /// `Ok` with 0 rows: armis_devices has 0 rows → IN-subquery set is empty →
+    /// `coalesce(x IN {}) = coalesce(FALSE) = FALSE` for all detections →
+    /// INNER JOIN ON FALSE → 0 result rows.
+    ///
+    /// # Relationship to existing tests
+    ///
+    /// This test is DISTINCT from T8-T11 (F-CSD-P3-001 series): those tests have bare
+    /// `WHERE det.device_id IN (SELECT device_id FROM crowdstrike_devices)` WHERE
+    /// predicates. This test has a FuncCall-wrapped InSubquery in JOIN ON position —
+    /// a different AST path through pre_register_empty_tables.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P10_001_T29_join_on_funccall_wrapped_insubquery_empty_table_consistent(
+    ) {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — outer FROM table with data.
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002"],
+            "device_id",
+            &["dev-A", "dev-B"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — INNER JOIN target with data.
+        let dev_batch = make_batch("device_id", &["dev-A", "dev-B"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // armis_devices — 0 batches.
+        // register_mem_table skips registration (pre-fix behavior).
+        // pre_register_empty_tables must register armis_devices from the IN-subquery
+        // FROM position (F-CSD-P3-001 fix coverage) with a schema-only MemTable so
+        // DataFusion can plan the subquery.
+        register_mem_table(&ctx, "armis_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        // Identical SQL shape to T28 — only armis_devices batch count differs.
+        let sql = "SELECT det.detection_id \
+                   FROM crowdstrike_detections det \
+                   INNER JOIN crowdstrike_devices dev \
+                   ON coalesce(det.device_id IN (SELECT device_id FROM armis_devices))";
+
+        let ast = PrismQlParser::parse(sql)
+            .expect("F-CSD-P10-001 T29: same SQL as T28 — grammar reach confirmed by T28 parse.");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // CONSISTENCY LOCK: empty-table variant must execute successfully with 0 rows.
+        //
+        // Gate behavior (from T28): does NOT fire E-QUERY-043 for FuncCall-wrapped
+        // InSubquery in JOIN ON — walker asymmetry is correct by design.
+        //
+        // Pre-registration behavior: armis_devices in the IN-subquery FROM position
+        // must be covered by pre_register_empty_tables (F-CSD-P3-001 fix).
+        // If this fails with QueryExecutionFailed citing armis_devices, the pre-registration
+        // fix does NOT recurse into FuncCall-wrapped IN-subquery FROM positions —
+        // report as a gap in F-CSD-P3-001 coverage.
+        assert!(
+            result.is_ok(),
+            "F-CSD-P10-001 T29 (consistency lock) / BC-2.11.003 + BC-2.11.005: \
+             JOIN ON coalesce(field IN (SELECT ...)) with 0-batch subquery table must \
+             execute successfully (Ok with 0 rows). \
+             Gate does NOT fire for this shape (T28 GREEN lock). \
+             Pre-registration (F-CSD-P3-001) must cover armis_devices in the FuncCall-wrapped \
+             IN-subquery FROM position. \
+             If this fails with QueryExecutionFailed citing armis_devices, report as \
+             F-CSD-P3-001 coverage gap: pre_register_empty_tables does not recurse into \
+             FuncCall-wrapped IN-subquery FROM positions. \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        // armis_devices is empty → IN-subquery set {} → coalesce(FALSE) = FALSE for all
+        // detections → INNER JOIN ON FALSE → 0 result rows.
+        assert_eq!(
+            total_rows, 0,
+            "F-CSD-P10-001 T29: INNER JOIN ON coalesce(IN empty subquery) must return \
+             0 rows (empty IN-set → condition always FALSE → no INNER JOIN matches). \
+             got {total_rows}"
+        );
+    }
 }
