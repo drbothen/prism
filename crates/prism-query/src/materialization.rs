@@ -1524,7 +1524,7 @@ pub(crate) async fn execute_against_session_with_registry(
             }
             // F-CSD-P12-001 (BC-2.11.005 DEC-022, BC-2.01.010 empty-is-not-error):
             // Pre-register schema-only empty MemTables for the SqlPipe head — mirroring
-            // the Ast::Sql(Select) arm at ~line 1198.  Without this call, tables
+            // the `Ast::Sql(SqlStatement::Select)` arm of `execute_against_session_with_registry`.  Without this call, tables
             // referenced only in the head's WHERE IN-subquery (or the head's FROM itself
             // when 0-batch) are absent from the DataFusion catalog, causing
             // `sqlpipe_to_executable_sql` / DataFusion planning to fail with
@@ -2466,7 +2466,7 @@ async fn check_ci_column_types(
                 //   (crowdstrike, armis, claroty, cyberint). Non-bundled tables fall back
                 //   to inference or Schema::empty().
                 // - SqlPipe head mode (`Ast::SqlPipe`): `pre_register_empty_tables`
-                //   ALSO runs on `spq.head` (F-CSD-P12-001, added ~line 1525). Tables
+                //   ALSO runs on `spq.head` (F-CSD-P12-001; see the `Ast::SqlPipe` arm of `execute_against_session_with_registry`). Tables
                 //   referenced in the head FROM, JOIN, or WHERE IN-subquery positions
                 //   are pre-registered before `sqlpipe_to_executable_sql` emits the CTE.
                 //   Same coverage as SQL SELECT mode for the head query.
@@ -3225,7 +3225,7 @@ pub(crate) async fn collect_record_batch_stream(
 /// `build_sql_predicate_parser()` adds it, so this shape can only be produced by
 /// constructing the AST directly (T27 verifies via constructed AST). Covered as
 /// defense-in-depth consistent with `check_temporal_literals`'s `dml.filter` walk
-/// (F-P4-LOW-1, ~line 3415–3505).
+/// (F-P4-LOW-1; see the `Ast::Sql(SqlStatement::Dml(dml))` arm of `check_temporal_literals`).
 ///
 /// DML SET assignments (UPDATE SET col = expr) are walked via `descend_subquery_expr`
 /// on each `Assignment.value` as defense-in-depth (mirrors F-P4-LOW-1 coverage parity).
@@ -3406,7 +3406,7 @@ fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismEr
         //     in a non-projection position. Walk via descend_subquery_expr (defense-in-depth,
         //     mirrors F-P4-LOW-1 coverage parity).
         //
-        // Mirrors check_temporal_literals DML walk (~3415-3505).
+        // Mirrors the `Ast::Sql(SqlStatement::Dml(dml))` arm of `check_temporal_literals`.
         Ast::Sql(SqlStatement::Dml(dml)) => {
             dml.source_select.as_ref().is_some_and(check_sql_query)
                 || dml.filter.as_ref().is_some_and(check_predicate)

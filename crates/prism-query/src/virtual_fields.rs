@@ -18,9 +18,6 @@
 //!
 //! Story: S-3.02
 
-// S-3.02 stub functions: dead_code suppressed pending implementation (stub-phase convention).
-#![allow(dead_code)]
-
 use std::sync::Arc;
 
 use arrow::{
