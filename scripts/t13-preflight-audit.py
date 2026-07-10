@@ -1360,32 +1360,55 @@ def run_audit():
                     "Stage 4; IIN operator likely not working or data absent"
                 )
 
-        # ── G3: IIN on status lowercase: status IIN ('new', 'in progress') ─────
+        # ── G3: IIN on status lowercase → crowdstrike_detections ─────────────────
         # Runbook Step 3.1a / §5.9 checklist item 3 (implied).
-        # OCSF finding-class status enum labels are Title-cased at adapter boundary:
-        # 'New', 'In Progress'. IIN with lowercase input must match them.
+        # Redirected from cyberint_alerts (ADV-PR-P11-HIGH-001): cyberint DTU emits
+        # vendor-native status values "open"/"acknowledged"/"closed" (prism-dtu-cyberint
+        # generator.rs statuses array).  None of these lexically match an OCSF caption in
+        # status_id (captions: Unknown, Success, Failure, New, In Progress, Suppressed,
+        # Resolved, Archived, Deleted, Other) — normalize_enum_label returns None and
+        # passes them through unchanged.  No enum_map is declared for status in
+        # cyberint.sensor.toml.  IIN('new','in progress') can never match those values.
+        #
+        # crowdstrike_detections is the correct table: CS DTU emits status "new" for
+        # all detection records (prism-dtu-crowdstrike generator.rs
+        # make_detection_with_ioc).  normalize_enum_label("status", "new") → "New"
+        # (OcsfEnumMap status_id[1001]).  IIN lowers both sides: lower("New") = "new"
+        # ∈ {"new", "in progress"} → matches.  The returned Title-case "New" values
+        # prove the normalization + IIN case-folding chain is working end-to-end.
         body, err = query(proc,
-            "FROM cyberint_alerts\n| where status IIN ('new', 'in progress')\n| limit 20",
+            "FROM crowdstrike_detections\n| where status IIN ('new', 'in progress')\n| limit 20",
             ["org-c"])
         if err:
-            results["[G3] IIN: status IIN ('new','in progress') (cyberint_alerts, org-c)"] = f"FAIL: {err}"
+            results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = f"FAIL: {err}"
         elif body.get("error_code"):
             ec = body.get("error_code", "")
-            results["[G3] IIN: status IIN ('new','in progress') (cyberint_alerts, org-c)"] = f"FAIL: {ec}: {body.get('message','')[:100]}"
+            results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = f"FAIL: {ec}: {body.get('message','')[:100]}"
         else:
             rows = body.get("rows", [])
             if rows:
                 distinct_status = sorted({r.get("status", "") for r in rows if r.get("status")})
-                results["[G3] IIN: status IIN ('new','in progress') (cyberint_alerts, org-c)"] = (
-                    f"PASS: {len(rows)} rows; distinct statuses={distinct_status!r}"
-                )
+                # Verify stored status values are OCSF canonical Title-case ("New", not
+                # "new"/"NEW"), proving normalize_enum_label ran before the IIN match.
+                known_ocsf_status = {"new", "in progress", "suppressed", "resolved",
+                                     "archived", "deleted", "unknown", "success", "failure", "other"}
+                non_title = [s for s in distinct_status
+                             if s and s.lower() in known_ocsf_status and s != s.title()]
+                if non_title:
+                    results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
+                        f"FAIL: non-Title-case status values returned (OCSF normalization not applied): "
+                        f"{non_title!r}; all returned={distinct_status!r}"
+                    )
+                else:
+                    results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
+                        f"PASS: {len(rows)} rows; distinct statuses={distinct_status!r} "
+                        f"(Title-case confirmed; lowercase IIN input matched OCSF-normalized values)"
+                    )
             else:
-                # NB-2: FAIL (not WARN) — the demo environment contract guarantees
-                # cyberint_alerts has 'New'/'In Progress' status rows at Stage 4.
-                # 0 rows means IIN failed to match existing data.
-                results["[G3] IIN: status IIN ('new','in progress') (cyberint_alerts, org-c)"] = (
-                    "FAIL: 0 rows — demo environment guarantees cyberint New/In-Progress status "
-                    "data at Stage 4; IIN operator likely not working or data absent"
+                results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
+                    "FAIL: 0 rows — crowdstrike_detections at Stage 1+ must have status='new' "
+                    "detection records; CS DTU emits status 'new' → OcsfEnumMap normalizes to 'New' "
+                    "(status_id[1001]); IIN operator may not be matching or CS data absent"
                 )
 
         # ── G4: SQL-mode IEQ rejection -> E-QUERY-001 (not opaque E-QUERY-034) ─
@@ -1734,7 +1757,7 @@ COVERAGE_MATRIX = [
     # Section G: New merged surfaces — PRs #214/#216/#217 (develop@f935edb6)
     ("[G1]",  "IEQ/IIN/INE",   "IEQ happy path: severity IEQ 'critical' matches canonical 'Critical'"),
     ("[G2]",  "IEQ/IIN/INE",   "IIN multi-value: severity IIN ('high','critical')"),
-    ("[G3]",  "IEQ/IIN/INE",   "IIN on status: status IIN ('new','in progress')"),
+    ("[G3]",  "IEQ/IIN/INE",   "IIN on status: status IIN ('new','in progress') → crowdstrike_detections (cyberint vendor-native open/acknowledged/closed has no OCSF caption match; ADV-PR-P11-HIGH-001)"),
     ("[G4]",  "IEQ/IIN/INE",   "SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"),
     ("[G5]",  "IEQ/IIN/INE",   "E-QUERY-002 typed guidance: IEQ on integer column"),
     ("[G6]",  "IEQ/IIN/INE",   "GROUP BY severity no-fragmentation (canonical Title-case)"),
