@@ -268,6 +268,11 @@ impl PipeQueryBuilder {
             PipeStage::Fields(fs) => self.apply_fields(fs)?,
             PipeStage::Dedup(dedup_fields) => self.apply_dedup(dedup_fields),
             PipeStage::Join(_) => {
+                // F-CSD-P14-003 survey: the 0-batch empty-table case is structurally
+                // moot here. This arm returns Err *before* `pre_register_empty_tables`
+                // or DataFusion planning are reached — so the empty-side schema gap
+                // fixed by F-CSD-P14-001 does not apply until ENRICH-4-C is
+                // implemented and this arm is replaced with real JOIN emission.
                 return Err(PrismError::QueryExecutionFailed {
                     detail: "JOIN in pipe mode is not yet supported (ENRICH-4-C). \
                              Remove the JOIN stage or rewrite as SQL."

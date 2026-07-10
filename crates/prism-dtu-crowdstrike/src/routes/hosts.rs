@@ -384,8 +384,11 @@ pub async fn get_host_details(
 /// the compile-fail gate at `tests/external/non-exhaustive-violation/` targets
 /// TOML-deserialized and pub-API surface types, not internal DTU request body structs.
 /// (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 D-1650 ratification §Contract Part 2)
+///
+/// `pub(crate)` — axum handler and JSON deserializer are in the same crate; no
+/// external consumers. Tightened from `pub` (OBS-007 / F-CSD-P14-007).
 #[derive(Debug, serde::Deserialize)]
-pub struct PostHostDetailsBody {
+pub(crate) struct PostHostDetailsBody {
     /// Device IDs to retrieve details for.
     pub ids: Vec<String>,
 }
@@ -405,7 +408,7 @@ pub struct PostHostDetailsBody {
 /// `POST /devices/entities/devices/v2` (PostDeviceDetailsV2, FalconPy v1.2.0+).
 /// This handler is the DTU implementation, providing the POST route required by
 /// the updated `crowdstrike.sensor.toml` `fetch_devices` step.
-pub async fn post_host_details(
+pub(crate) async fn post_host_details(
     State(state): State<Arc<CrowdstrikeState>>,
     headers: HeaderMap,
     Json(body): Json<PostHostDetailsBody>,

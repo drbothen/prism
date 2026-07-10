@@ -1551,7 +1551,9 @@ mod tests {
     ///   - `q.select.items` ✓ (gated)
     ///   - `q.group_by` ✓ (gated)
     ///   - `q.order_by` ✓ (gated)
-    ///   - `q.joins` — NOT checked (predicate position, DataFusion-plannable)
+    ///   - `q.joins` (top-level JOIN-ON `Expr::InSubquery`) — NOT checked
+    ///     (predicate position, DataFusion-plannable); subquery scopes nested
+    ///     *inside* JOIN ON ARE walked via `descend_subquery_expr`
     ///
     /// This test locks the deliberate scope boundary: the gate does NOT fire for JOIN ON.
     /// DataFusion's `decorrelate_predicate_subquery` optimizer handles JOIN ON IN-subquery
