@@ -459,7 +459,6 @@ fn virtual_field_name(vf: &VirtualField) -> &'static str {
         VirtualField::Client => "_client",
         VirtualField::SourceTable => "_source_table",
         VirtualField::SourceType => "_source_type",
-        VirtualField::SafetyFlags => "_safety_flags",
         _ => "_unknown",
     }
 }
@@ -1553,7 +1552,8 @@ fn ocsf_path_for_virtual_field(name: &str) -> String {
         "_client" => "metadata.org_id".to_string(),
         "_source_table" => "metadata.source_table".to_string(),
         "_source_type" => "metadata.source_type".to_string(),
-        "_safety_flags" => "metadata.safety_flags".to_string(),
+        // "_safety_flags" is a response-envelope field (BC-2.09.004), not a
+        // virtual query field — falls through to the default metadata path.
         _ => format!("metadata.{name}"),
     }
 }

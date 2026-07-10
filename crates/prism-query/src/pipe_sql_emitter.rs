@@ -817,7 +817,6 @@ fn expr_to_sql(expr: &Expr) -> Result<String, PrismError> {
                 VirtualField::Client => "_client".to_string(),
                 VirtualField::SourceTable => "_source_table".to_string(),
                 VirtualField::SourceType => "_source_type".to_string(),
-                VirtualField::SafetyFlags => "_safety_flags".to_string(),
                 _ => "_unknown_virtual_field".to_string(), // non_exhaustive arm
             })
         }

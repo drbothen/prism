@@ -40,6 +40,7 @@ use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
 use datafusion::execution::context::SessionContext;
+use prism_core::error::sanitize_for_log;
 use prism_core::{OrgId, OrgSlug, PrismError, SensorId, UnknownSourceTableDetails};
 use prism_ocsf::OcsfNormalizer;
 use prism_sensors::{AdapterRegistry, CredentialResolver, SensorSpec};
@@ -1239,6 +1240,49 @@ pub(crate) async fn execute_against_session_with_registry(
                 })?;
             // Execute the plan-pinned SQL string via DataFusion.
             let df = session_ctx.sql(&plan_pinned_sql).await.map_err(|e| {
+                // F-CSD-P19-003 (BC-2.11.012 v1.7 T38): after VirtualField::SafetyFlags
+                // retirement, `_safety_flags` (and any other non-existent field) reaches
+                // DataFusion as Expr::Field and causes FieldNotFound.  Convert that to
+                // ColumnNotFound (E-QUERY-038) so callers receive a structured error instead
+                // of an opaque QueryExecutionFailed.  The engine.rs path handles FieldNotFound
+                // via check_query_column_availability; this clause mirrors that behaviour for
+                // the execute_against_session code path (used directly in tests and by
+                // test helpers that bypass engine.rs::execute_inner).
+                // DataFusion 53.1 wraps SchemaError::FieldNotFound inside a
+                // Diagnostic wrapper (DataFusionError::Diagnostic(_, inner)) via
+                // `err.with_diagnostic()` in the SQL planner.  Use `find_root()` to
+                // unwrap any Context / Diagnostic / External chain before matching.
+                use datafusion::common::{DataFusionError as DFError, SchemaError};
+                let maybe_column_not_found = match e.find_root() {
+                    DFError::SchemaError(schema_err, _) => {
+                        if let SchemaError::FieldNotFound {
+                            field,
+                            valid_fields,
+                        } = schema_err.as_ref()
+                        {
+                            let col = field.name.clone();
+                            let avail = valid_fields
+                                .iter()
+                                .map(|c| c.name.clone())
+                                .collect::<Vec<_>>();
+                            Some((col, avail))
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                };
+                if let Some((col, avail)) = maybe_column_not_found {
+                    return PrismError::ColumnNotFound(Box::new(
+                        prism_core::error::ColumnNotFoundDetails::new(
+                            col,
+                            sql_query.from.source.raw.clone(),
+                            "",
+                            avail,
+                            None,
+                        ),
+                    ));
+                }
                 tracing::error!(error = %e, "DataFusion SQL planning error");
                 PrismError::QueryExecutionFailed {
                     detail: "SQL planning error: <redacted; see server logs>".to_string(),
@@ -2833,8 +2877,10 @@ fn do_register_empty_mem_table(
     use datafusion::datasource::MemTable;
 
     let mem_table = MemTable::try_new(Arc::clone(&schema), vec![vec![]]).map_err(|e| {
+        // CWE-117: sanitize table_name before structured log emission (F-CSD-P19-004).
+        let safe_table_name = sanitize_for_log(table_name);
         tracing::error!(
-            table_name = %table_name,
+            table_name = %safe_table_name,
             error = %e,
             "do_register_empty_mem_table: failed to create empty MemTable \
              (detail redacted from client response)"
@@ -2850,8 +2896,10 @@ fn do_register_empty_mem_table(
     session_ctx
         .register_table(table_name, Arc::new(mem_table))
         .map_err(|e| {
+            // CWE-117: sanitize table_name before structured log emission (F-CSD-P19-004).
+            let safe_table_name = sanitize_for_log(table_name);
             tracing::error!(
-                table_name = %table_name,
+                table_name = %safe_table_name,
                 error = %e,
                 "do_register_empty_mem_table: failed to register empty MemTable \
                  (detail redacted from client response)"
@@ -3052,8 +3100,9 @@ async fn pre_register_empty_tables(
                 // nullable=true enables NULL propagation on the empty side.
                 let schema = crate::virtual_fields::append_virtual_fields_to_schema(schema);
                 do_register_empty_mem_table(session_ctx, table_name, schema)?;
+                // CWE-117: sanitize table_name before structured log emission (F-CSD-P19-004).
                 tracing::debug!(
-                    table_name = %table_name,
+                    table_name = %sanitize_for_log(table_name),
                     "pre_register_empty_tables: registered spec-column schema \
                      from live TableRegistry (BC-2.11.005 DEC-022 / F-CSD-P1-001)"
                 );
@@ -3079,8 +3128,9 @@ async fn pre_register_empty_tables(
                 let schema_vf =
                     crate::virtual_fields::append_virtual_fields_to_schema(Arc::clone(schema));
                 do_register_empty_mem_table(session_ctx, table_name, schema_vf)?;
+                // CWE-117: sanitize table_name before structured log emission (F-CSD-P19-004).
                 tracing::debug!(
-                    table_name = %table_name,
+                    table_name = %sanitize_for_log(table_name),
                     "pre_register_empty_tables: registered spec-column schema \
                      from bundled TOML fallback (BC-2.11.005 DEC-022 / F-CSD-P1-001)"
                 );
@@ -3133,8 +3183,9 @@ async fn pre_register_empty_tables(
         // F-CSD-P14-001: append virtual fields (covers inferred AND empty-schema cases).
         let schema = crate::virtual_fields::append_virtual_fields_to_schema(schema);
         do_register_empty_mem_table(session_ctx, table_name, schema)?;
+        // CWE-117: sanitize table_name before structured log emission (F-CSD-P19-004).
         tracing::debug!(
-            table_name = %table_name,
+            table_name = %sanitize_for_log(table_name),
             "pre_register_empty_tables: registered inference-based schema \
              (BC-2.11.005 DEC-022 / BC-2.01.010 empty-is-not-error)"
         );

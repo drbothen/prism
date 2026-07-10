@@ -1540,26 +1540,33 @@ fn test_BC_2_11_012_virtual_field_source_type_emits_virtual_field_variant() {
     }
 }
 
-/// BC-2.11.012: `_safety_flags` in a pipe where stage emits `Expr::VirtualField(SafetyFlags)`.
+/// BC-2.11.012 v1.7: `_safety_flags` is excluded from the canonical four-field virtual
+/// set (BC-2.09.004 response-envelope concern).  A pipe where stage referencing
+/// `_safety_flags` must parse as `Expr::Field` (ordinary field), NOT as
+/// `Expr::VirtualField(SafetyFlags)`.  The E-QUERY-038 plan-time column-existence gate
+/// then returns an actionable `ColumnNotFound` error rather than an opaque DataFusion
+/// plan error.
 ///
-/// The parser MUST emit the typed `Expr::VirtualField` variant for the five canonical
-/// underscore-prefixed names. Pipe where clauses go through the same predicate parser
-/// as filter mode, so the same promotion logic applies.
-///
-/// Traces: BC-2.11.012 (virtual fields — typed variant, _safety_flags)
+/// Traces: BC-2.11.012 v1.7 (SafetyFlags exclusion), BC-2.09.004 (response-envelope),
+///         F-CSD-P19-003-T38
 #[test]
-fn test_BC_2_11_012_virtual_field_safety_flags_emits_virtual_field_variant() {
-    use crate::ast::VirtualField;
+fn test_BC_2_11_012_safety_flags_parses_as_ordinary_field_not_virtual() {
+    use crate::ast::FieldPath;
     let input = "FROM crowdstrike.detections | where _safety_flags = 0";
     let pq = parse_pipe(input).expect("BC-2.11.012: _safety_flags pipe filter must parse");
     match &pq.stages[0] {
         PipeStage::Where(pred) => match pred {
             Predicate::Compare { lhs, .. } => match lhs.as_ref() {
-                Expr::VirtualField(VirtualField::SafetyFlags) => {
-                    // Correct: parser emitted typed VirtualField::SafetyFlags, not Expr::Field.
+                Expr::Field(fp) if fp.segments.as_slice() == ["_safety_flags"] => {
+                    // Correct: _safety_flags parses as Expr::Field, not VirtualField.
+                    // BC-2.11.012 v1.7 exclusion: _safety_flags is a response-envelope
+                    // concern (BC-2.09.004); E-QUERY-038 column gate handles it.
+                    // Note: compare only segments, not span — parsed FieldPath has
+                    // non-zero span while FieldPath::new() produces Span::ZERO.
                 }
                 other => panic!(
-                    "BC-2.11.012: expected Expr::VirtualField(SafetyFlags), got {:?}",
+                    "BC-2.11.012 v1.7: expected Expr::Field(_safety_flags), got {:?} — \
+                     _safety_flags must NOT be promoted to VirtualField (BC-2.09.004 exclusion)",
                     other
                 ),
             },
@@ -3040,14 +3047,15 @@ fn test_BC_2_11_012_non_canonical_underscore_field_stays_field() {
     }
 }
 
-/// BC-2.11.012: all 5 virtual fields are recognised in pipe mode WHERE stage.
+/// BC-2.11.012 v1.7: all four canonical virtual fields are recognised in pipe mode WHERE stage.
 ///
-/// Tests `_sensor`, `_client`, `_source_table` — `_source_type` and `_safety_flags`
-/// are covered by the existing tests above.
+/// Tests all four VirtualField variants (`_sensor`, `_client`, `_source_table`,
+/// `_source_type`).  `_safety_flags` is excluded (BC-2.09.004 response-envelope concern)
+/// and is covered by `test_BC_2_11_012_safety_flags_parses_as_ordinary_field_not_virtual`.
 ///
-/// Traces: BC-2.11.012 (virtual fields in pipe mode)
+/// Traces: BC-2.11.012 v1.7 (virtual fields in pipe mode, canonical four-field set)
 #[test]
-fn test_BC_2_11_012_virtual_fields_all_five_in_pipe_mode() {
+fn test_BC_2_11_012_virtual_fields_all_four_in_pipe_mode() {
     use crate::ast::VirtualField;
     let cases: &[(&str, VirtualField)] = &[
         (
@@ -3062,10 +3070,6 @@ fn test_BC_2_11_012_virtual_fields_all_five_in_pipe_mode() {
         (
             "FROM x | where _source_type = 'live'",
             VirtualField::SourceType,
-        ),
-        (
-            "FROM x | where _safety_flags = 0",
-            VirtualField::SafetyFlags,
         ),
     ];
     for (input, expected_variant) in cases {

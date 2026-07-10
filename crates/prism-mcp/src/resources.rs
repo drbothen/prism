@@ -1494,7 +1494,7 @@ pub fn build_reference_content(
          `count()`, `sum(field)`, `avg(field)`, `min(field)`, `max(field)`, \
          `percentile(field, p)`, `distinct_count(field)`.\n\n\
          **Virtual fields** injected into every result:\n\
-         `_sensor`, `_client`, `_source_table`, `_safety_flags`.\n\n\
+         `_sensor`, `_client`, `_source_table`, `_source_type`.\n\n\
          Column names come verbatim from `prism_describe` — do not construct dot-path names.\n\n",
     );
 

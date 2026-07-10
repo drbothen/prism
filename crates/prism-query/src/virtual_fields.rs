@@ -1,19 +1,23 @@
 //! `virtual_fields` — virtual field injection into Arrow RecordBatches.
 //!
-//! Injects three Prism-specific provenance columns into every materialized
+//! Injects four Prism-specific provenance columns into every materialized
 //! RecordBatch. These columns are not part of the OCSF schema — they are
 //! Prism metadata distinguishable by their underscore prefix.
 //!
 //! The engine MUST overwrite any sensor-emitted columns with these names to
 //! prevent spoofing. (BC-2.11.012, EC-005)
 //!
-//! # Virtual Fields
+//! # Virtual Fields (BC-2.11.012 v1.7 canonical four-field set)
 //! - `_sensor`       — sensor type string (e.g. `"crowdstrike"`)
 //! - `_client`       — OrgSlug for the client that owns the sensor instance
 //! - `_source_table` — source table name (e.g. `"crowdstrike.detections"`)
+//! - `_source_type`  — data source type (`"live"` or `"buffered"`)
+//!
+//! `_safety_flags` is a response-envelope concern (BC-2.09.004) and is NOT
+//! included in the virtual query field set.
 //!
 //! # BC References
-//! - BC-2.11.012 — Virtual Fields in Queries
+//! - BC-2.11.012 — Virtual Fields in Queries (canonical four-field set v1.7)
 //! - BC-2.11.005 — injected during materialization pipeline Step 5
 //!
 //! Story: S-3.02
@@ -38,20 +42,45 @@ use prism_core::{OrgSlug, SensorId};
 pub const VIRTUAL_FIELD_SENSOR: &str = "_sensor";
 pub const VIRTUAL_FIELD_CLIENT: &str = "_client";
 pub const VIRTUAL_FIELD_SOURCE_TABLE: &str = "_source_table";
+/// Fourth canonical virtual field (BC-2.11.012 v1.7 AC-9/AC-10).
+pub const VIRTUAL_FIELD_SOURCE_TYPE: &str = "_source_type";
 
 // ---------------------------------------------------------------------------
 // inject_virtual_fields
 // ---------------------------------------------------------------------------
 
-/// Inject `_sensor`, `_client`, and `_source_table` columns into a RecordBatch.
+/// Inject the four canonical virtual fields into a RecordBatch.
+///
+/// The four fields (BC-2.11.012 v1.7):
+/// - `_sensor`       — sensor type string
+/// - `_client`       — OrgSlug for the client
+/// - `_source_table` — source table name
+/// - `_source_type`  — data source type
 ///
 /// If the batch already contains any of these column names (sensor spoofing
 /// attempt), the existing column is overwritten with the canonical value.
 /// (BC-2.11.012, EC-005)
 ///
-/// All three virtual fields are `Utf8` (string) typed Arrow columns.
+/// All four virtual fields are `Utf8` (string) typed Arrow columns.
 /// Numeric comparisons on virtual fields are type errors at the query layer.
 /// (BC-2.11.012)
+///
+/// # `_source_type` value (BC-2.11.012 v1.7 AC-9/AC-10)
+///
+/// This function always injects `"live"` as the `_source_type` value.  This
+/// covers two cases:
+/// - PointInTime table rows (AC-10): always `"live"`.
+/// - EventStream cold-start / live-fallback rows (AC-10): `"live"`.
+///
+/// EventStream buffered rows (`"buffered"`, AC-9) are injected at the JSON
+/// layer by `inject_source_type` (materialization.rs) before Arrow
+/// conversion.  When `inject_source_type` has stamped a row `"buffered"`,
+/// `remove_spoofed_virtual_columns` will remove the field and this function
+/// re-injects `"live"` — but that path is moot because buffered rows reach
+/// `inject_virtual_fields` only after the buffer routing is fully wired
+/// (tracked under TD-S302-005 / S-2.08 §Architecture Compliance Rule 5).
+/// Until then, the Arrow materialization path is exclusively PointInTime /
+/// cold-start: `"live"` is always correct here.
 ///
 /// # BC-2.11.012
 /// Virtual fields are available in all PrismQL modes:
@@ -69,15 +98,18 @@ pub fn inject_virtual_fields(
     // Step 1: Remove any spoofed virtual columns.
     let batch = remove_spoofed_virtual_columns(batch)?;
 
-    // Step 2: Build the three virtual field arrays.
+    // Step 2: Build the four virtual field arrays.
     let sensor_val = sensor_id_to_str(sensor);
     let client_val = client_id.as_str();
 
     let sensor_array = Arc::new(StringArray::from(vec![sensor_val; num_rows])) as _;
     let client_array = Arc::new(StringArray::from(vec![client_val; num_rows])) as _;
     let table_array = Arc::new(StringArray::from(vec![source_table; num_rows])) as _;
+    // BC-2.11.012 v1.7 AC-10: PointInTime / cold-start EventStream → "live".
+    // EventStream buffered rows use inject_source_type at the JSON layer (TD-S302-005).
+    let source_type_array = Arc::new(StringArray::from(vec!["live"; num_rows])) as _;
 
-    // Step 3: Build new schema by appending the three virtual fields.
+    // Step 3: Build new schema by appending the four virtual fields.
     let existing_schema = batch.schema();
     let mut new_fields: Vec<Field> = existing_schema
         .fields()
@@ -91,6 +123,7 @@ pub fn inject_virtual_fields(
         DataType::Utf8,
         false,
     ));
+    new_fields.push(Field::new(VIRTUAL_FIELD_SOURCE_TYPE, DataType::Utf8, false));
 
     let new_schema = Arc::new(Schema::new(new_fields));
 
@@ -101,6 +134,7 @@ pub fn inject_virtual_fields(
     new_columns.push(sensor_array);
     new_columns.push(client_array);
     new_columns.push(table_array);
+    new_columns.push(source_type_array);
 
     RecordBatch::try_new(new_schema, new_columns)
 }
@@ -120,6 +154,7 @@ pub(crate) fn remove_spoofed_virtual_columns(
         VIRTUAL_FIELD_SENSOR,
         VIRTUAL_FIELD_CLIENT,
         VIRTUAL_FIELD_SOURCE_TABLE,
+        VIRTUAL_FIELD_SOURCE_TYPE,
     ];
 
     // Build list of column indices to keep.
@@ -153,7 +188,7 @@ pub(crate) fn remove_spoofed_virtual_columns(
 // append_virtual_fields_to_schema
 // ---------------------------------------------------------------------------
 
-/// Append the three virtual field columns to an Arrow [`Schema`].
+/// Append the four canonical virtual field columns to an Arrow [`Schema`].
 ///
 /// Called by `pre_register_empty_tables` to ensure that schema-only placeholder
 /// `MemTable`s include the virtual columns, matching the schema that
@@ -171,7 +206,7 @@ pub(crate) fn remove_spoofed_virtual_columns(
 ///
 /// # Collision guard
 ///
-/// If the schema already contains any of the three virtual field names (e.g., a
+/// If the schema already contains any of the four virtual field names (e.g., a
 /// sensor spec that erroneously declared `_sensor` as a column), those columns
 /// are removed before appending the canonical fields. This mirrors the
 /// [`remove_spoofed_virtual_columns`] behaviour in the populated-batch path
@@ -179,18 +214,22 @@ pub(crate) fn remove_spoofed_virtual_columns(
 ///
 /// # Field order
 ///
-/// The three fields are appended in fixed order:
-/// `_sensor`, `_client`, `_source_table` — matching the order produced by
-/// [`inject_virtual_fields`]. Callers must not rely on index position; use
-/// field names instead.
+/// The four fields are appended in fixed order:
+/// `_sensor`, `_client`, `_source_table`, `_source_type` — matching the order
+/// produced by [`inject_virtual_fields`]. Callers must not rely on index
+/// position; use field names instead.
 ///
-/// # BC-2.11.012
+/// # BC-2.11.012 v1.7
 /// Virtual fields must be available in ALL PrismQL modes regardless of row count.
+/// The canonical four-field set is `_sensor`, `_client`, `_source_table`,
+/// `_source_type`. `_safety_flags` is a response-envelope concern (BC-2.09.004)
+/// and is NOT included.
 pub(crate) fn append_virtual_fields_to_schema(schema: Arc<Schema>) -> Arc<Schema> {
     let reserved: &[&str] = &[
         VIRTUAL_FIELD_SENSOR,
         VIRTUAL_FIELD_CLIENT,
         VIRTUAL_FIELD_SOURCE_TABLE,
+        VIRTUAL_FIELD_SOURCE_TYPE,
     ];
 
     // Remove any spoofed virtual columns (defensive dedup mirroring
@@ -207,6 +246,9 @@ pub(crate) fn append_virtual_fields_to_schema(schema: Arc<Schema>) -> Arc<Schema
     fields.push(Field::new(VIRTUAL_FIELD_SENSOR, DataType::Utf8, true));
     fields.push(Field::new(VIRTUAL_FIELD_CLIENT, DataType::Utf8, true));
     fields.push(Field::new(VIRTUAL_FIELD_SOURCE_TABLE, DataType::Utf8, true));
+    // Fourth canonical virtual field (BC-2.11.012 v1.7 AC-9/AC-10).
+    // nullable=true: LEFT JOIN on empty table produces NULL for _source_type.
+    fields.push(Field::new(VIRTUAL_FIELD_SOURCE_TYPE, DataType::Utf8, true));
 
     Arc::new(Schema::new(fields))
 }

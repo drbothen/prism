@@ -1154,8 +1154,8 @@ mod tests {
     // Test 12 (F-CSD-P4-001-T1): GROUP BY-position IN-subquery → E-QUERY-043
     //
     // Grammar reach: CONFIRMED.
-    // `group_by_clause` parser uses `expr.clone()` (sql_parser.rs build_sql_query_parser,
-    // line ~454). The `in_subquery` atom (`field_path IN (sql_query)`) is included in
+    // `group_by_clause` parser uses `expr.clone()` (sql_parser.rs `build_sql_query_parser`,
+    // `group_by_clause` arm). The `in_subquery` atom (`field_path IN (sql_query)`) is included in
     // `expr` via the `atom = choice(( ..., in_subquery, ... ))` combinator.
     //
     // Query: `SELECT count(*) FROM crowdstrike_detections
@@ -1178,8 +1178,8 @@ mod tests {
     ///
     /// # Gate contract
     ///
-    /// `check_expr_insubquery_projection` walks `SqlQuery.group_by` (materialization.rs
-    /// lines ~3190-3195) and fires E-QUERY-043 on the first `Expr::InSubquery` found.
+    /// `check_expr_insubquery_projection` walks `SqlQuery.group_by` (the `group_by` walk
+    /// loop in `check_sql_query`) and fires E-QUERY-043 on the first `Expr::InSubquery` found.
     /// Gate fires before DataFusion planning, AFTER temporal checks in the production
     /// path (preserves F-EQ42-P2-001 ordering).
     ///
@@ -1253,8 +1253,8 @@ mod tests {
     ///
     /// # Gate contract
     ///
-    /// `check_expr_insubquery_projection` walks `SqlQuery.order_by` (materialization.rs
-    /// lines ~3197-3201: `for order_item in &q.order_by { if contains_insubquery(&order_item.expr) }`)
+    /// `check_expr_insubquery_projection` walks `SqlQuery.order_by` (the `order_by` walk
+    /// loop in `check_sql_query`: `for order_item in &q.order_by { if contains_insubquery(&order_item.expr) }`)
     /// and fires E-QUERY-043 on the first match.
     #[tokio::test]
     async fn test_BC_2_11_003_F_CSD_P4_001_T2_order_by_insubquery_returns_e_query_043() {
@@ -1522,8 +1522,8 @@ mod tests {
     // Test 16 (F-CSD-P4-001-T5): JOIN ON-position scope boundary — NOT gated by E-QUERY-043
     //
     // Grammar reach: CONFIRMED.
-    // `join_clause` parser uses `.then(expr.clone())` for the ON condition (sql_parser.rs
-    // line ~434). The `in_subquery` atom is part of `expr`, so `field IN (SELECT ...)` is
+    // `join_clause` parser uses `.then(expr.clone())` for the ON condition (`build_sql_parser`,
+    // `let join_clause`, `.then(expr.clone())` ON arm). The `in_subquery` atom is part of `expr`, so `field IN (SELECT ...)` is
     // syntactically valid in JOIN ON position.
     //
     // Architect adjudication (F-CSD-P4-001 Option A, 2026-07-10):
@@ -1639,7 +1639,7 @@ mod tests {
     //    Alternatively, a JOIN achieves the same result: \
     //    `SELECT * FROM t JOIN (SELECT col FROM src) s ON t.field = s.col`."
     //
-    // Current `hint` in materialization.rs (~3205):
+    // Current `hint` in `check_expr_insubquery_projection` (`let hint` binding):
     //   "IN subquery in SELECT projection position is not currently supported. \
     //    Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`."
     //
@@ -1763,7 +1763,7 @@ mod tests {
     // F-CSD-P5-001 Tests 18-19 (RED — LOCAL adversary pass-5)
     //
     // Finding: `contains_insubquery` in `check_expr_insubquery_projection`
-    // (materialization.rs ~3169) recurses only into Compare/Logical/Not.
+    // (`contains_insubquery` inner fn of `check_expr_insubquery_projection`) recurses only into Compare/Logical/Not.
     // It does NOT recurse into `Expr::FuncCall` args or `Expr::TimestampArithmetic` base.
     //
     // Consequence: a query with `(Expr::InSubquery)` nested INSIDE a FuncCall argument
@@ -1773,7 +1773,7 @@ mod tests {
     // expression position → `PrismError::QueryExecutionFailed` (opaque -32000 to MCP).
     //
     // Grammar reach (CONFIRMED by sql_parser.rs analysis):
-    //   `scalar_call` uses `expr.clone()` for each arg (sql_parser.rs lines ~1011-1019).
+    //   `scalar_call` uses `expr.clone()` for each arg (`build_sql_expr_parser`, `let scalar_call` combinator).
     //   `in_subquery` is an atom within `expr` via `atom = choice((..., in_subquery, ...))`.
     //   Therefore `ident(field IN (SELECT ...))` parses as
     //   `FuncCall::Scalar { func: Unknown("ident"), args: [Expr::InSubquery { ... }] }`.
@@ -1811,7 +1811,7 @@ mod tests {
     /// # Grammar reach
     ///
     /// CONFIRMED: `scalar_call` in the PrismQL expr parser uses `expr.clone()` for each
-    /// argument (sql_parser.rs `build_expr_parser`, lines ~1011-1019). The `in_subquery`
+    /// argument (`build_sql_expr_parser`, `let scalar_call` combinator). The `in_subquery`
     /// atom (`field IN (SELECT ...)`) is part of `expr` via the `atom = choice(...)` list.
     /// Any `ident(field IN (SELECT ...))` parses as
     /// `FuncCall::Scalar { func: Unknown("ident"), args: [Expr::InSubquery { ... }] }`.
@@ -1819,7 +1819,7 @@ mod tests {
     /// # Defect
     ///
     /// `contains_insubquery` in `check_expr_insubquery_projection` (materialization.rs
-    /// ~3169-3176) handles three cases explicitly — `InSubquery` (direct), `Compare`,
+    /// `contains_insubquery` inner fn) handles three cases explicitly — `InSubquery` (direct), `Compare`,
     /// `Logical`, `Not` — and falls through to `_ => false` for all other variants,
     /// including `Expr::FuncCall`. It does NOT recurse into `FuncCall.args`. An
     /// `Expr::InSubquery` node inside a FuncCall arg is invisible to the gate.
@@ -1882,7 +1882,7 @@ mod tests {
             "F-CSD-P5-001-T1 / BC-2.11.003: FuncCall-wrapped InSubquery in SELECT projection \
              must return E-QUERY-043 (ExprInSubqueryProjectionNotSupported). \
              RED: contains_insubquery does not recurse into Expr::FuncCall args \
-             (`_ => false` arm in materialization.rs ~3175) — gate misses InSubquery nested \
+             (`contains_insubquery` `_ => false` catchall arm) — gate misses InSubquery nested \
              inside FuncCall::Scalar args → DataFusion receives query → \
              Err(QueryExecutionFailed) (opaque -32000 to MCP caller). \
              Fix: add FuncCall::Scalar {{ args, .. }} and FuncCall::Aggregate {{ args, .. }} \
@@ -1981,7 +1981,7 @@ mod tests {
             "F-CSD-P5-001-T2 / BC-2.11.003: FuncCall-wrapped InSubquery in GROUP BY \
              must return E-QUERY-043 (ExprInSubqueryProjectionNotSupported). \
              RED: contains_insubquery does not recurse into Expr::FuncCall args \
-             (`_ => false` arm in materialization.rs ~3175) — GROUP BY FuncCall(InSubquery) \
+             (`contains_insubquery` `_ => false` catchall arm) — GROUP BY FuncCall(InSubquery) \
              evades the gate → DataFusion receives the query → Err(QueryExecutionFailed). \
              Contrast: T12 (bare InSubquery in GROUP BY) is GREEN; wrapping in FuncCall \
              is the bypass. Fix: add FuncCall::Scalar {{ args, .. }} and \
@@ -2004,7 +2004,7 @@ mod tests {
     // and the gate does not fire.
     //
     // Precedent: sibling walker `check_temporal_literals` already walks DML
-    // source_select as defense-in-depth (F-P4-LOW-1, materialization.rs ~3415-3505).
+    // source_select as defense-in-depth (F-P4-LOW-1, `check_temporal_literals` DML arm).
     //
     // RED: result is `Ok(vec![])` — `_ => false` arm bypasses gate for all DML.
     //      DML execution path returns Ok(Vec::new()) pending S-3.06 wiring.
@@ -2029,7 +2029,7 @@ mod tests {
     ///
     /// DML reaches `execute_against_session_with_registry` → `check_expr_insubquery_projection`
     /// at line 1177. Currently: `_ => false` → `found = false` → gate returns `Ok(())`.
-    /// DML then falls into `_ => { Ok(Vec::new()) }` at ~1590 → `Ok(vec![])`.
+    /// DML then falls into `execute_against_session_with_registry` `_ => Ok(Vec::new())` DML stub arm → `Ok(vec![])`.
     ///
     /// # RED observation
     ///
@@ -2060,8 +2060,8 @@ mod tests {
         //
         // OBS-004 (gate-before-target-validation ordering): `armis_tags` is intentionally
         // NOT registered in this test's session context. The E-QUERY-043 gate fires in
-        // `check_expr_insubquery_projection` (Step 1d of `run_materialization_pipeline`,
-        // line ~1177) BEFORE table-availability validation (E-QUERY-037, Step 1c). Because
+        // `check_expr_insubquery_projection` (Step 1d, called at the top of
+        // `execute_against_session_with_registry`) BEFORE table-availability validation (E-QUERY-037, Step 1c). Because
         // the gate fires first, the test receives `ExprInSubqueryProjectionNotSupported`
         // regardless of whether the DML target exists. This is correct gate-ordering
         // behaviour (E-QUERY-043 rewrite directive supersedes table-not-found). Switching to
@@ -2091,7 +2091,7 @@ mod tests {
         //      The comment "no E-QUERY-043 cases possible" is falsified by this INSERT shape.
         //
         // F-P4-LOW-1 precedent: sibling walker check_temporal_literals already walks
-        // DML source_select (~3415-3505) as defense-in-depth. This closes the equivalent
+        // DML source_select (`check_temporal_literals` DML arm) as defense-in-depth. This closes the equivalent
         // gap in check_expr_insubquery_projection.
         assert!(
             matches!(
@@ -2113,7 +2113,7 @@ mod tests {
     // F-CSD-P7-001 Tests 21-24 (RED — LOCAL adversary pass-7)
     //
     // Finding: `check_expr_insubquery_projection`'s inner `check_sql_query`
-    // (materialization.rs ~3211) walks only the TOP-LEVEL select.items, group_by,
+    // (`check_sql_query` inner fn of `check_expr_insubquery_projection`) walks only the TOP-LEVEL select.items, group_by,
     // and order_by. It does NOT recurse into subqueries reached via:
     //   - q.where_  Predicate::InSubquery.subquery
     //   - q.having  Predicate::InSubquery.subquery
@@ -2177,7 +2177,7 @@ mod tests {
     ///
     /// # Defect (F-CSD-P7-001, LOCAL adversary pass-7, MED)
     ///
-    /// `check_sql_query` in `check_expr_insubquery_projection` (materialization.rs ~3211)
+    /// `check_sql_query` inner fn in `check_expr_insubquery_projection`
     /// walks only the TOP-LEVEL query's `select.items`, `group_by`, and `order_by`.
     /// It does NOT recurse into subqueries reached via `q.where_`
     /// `Predicate::InSubquery.subquery`. A projection-position `Expr::InSubquery` nested
@@ -2429,7 +2429,7 @@ mod tests {
     //      )
     //
     // Grammar reach verification: HAVING uses `build_having_predicate_parser` which
-    // wraps the base predicate grammar (sql_parser.rs line ~555). The base predicate
+    // wraps the base predicate grammar (`build_sql_predicate_parser`). The base predicate
     // grammar includes Predicate::InSubquery (`field IN (SELECT …)`). HAVING
     // Predicate::InSubquery is confirmed reachable.
     //
@@ -2451,8 +2451,8 @@ mod tests {
     ///
     /// # Grammar reach
     ///
-    /// CONFIRMED: `build_having_predicate_parser` (sql_parser.rs ~line 629) wraps the base
-    /// predicate grammar (line ~555). The base predicate grammar includes `Predicate::InSubquery`
+    /// CONFIRMED: `build_having_predicate_parser` wraps the base
+    /// predicate grammar (`build_sql_predicate_parser`). The base predicate grammar includes `Predicate::InSubquery`
     /// (`field IN (SELECT …)`, from the `in_subquery_predicate` combinator). HAVING therefore
     /// supports `HAVING field IN (SELECT …)` — the same InSubquery predicate form as WHERE.
     ///
@@ -2970,7 +2970,7 @@ mod tests {
     // (same strategy as T20 uses for INSERT-SELECT via parser reach).
     //
     // Sibling walker `check_temporal_literals` covers dml.filter as defense-in-depth
-    // (F-P4-LOW-1, materialization.rs ~3415-3505). This test closes the equivalent
+    // (F-P4-LOW-1, `check_temporal_literals` DML arm). This test closes the equivalent
     // gap in `check_expr_insubquery_projection`.
     //
     // RED: `source_select = None` → `is_some_and` = false → gate Ok(()) →
@@ -3090,7 +3090,7 @@ mod tests {
         // `Expr::InSubquery` but is NEVER inspected by the gate at HEAD.
         //
         // Sibling precedent (F-P4-LOW-1): `check_temporal_literals` already walks dml.filter
-        // (materialization.rs ~3415-3505) as defense-in-depth. This closes the equivalent
+        // (`check_temporal_literals` DML arm) as defense-in-depth. This closes the equivalent
         // gap in `check_expr_insubquery_projection`.
         assert!(
             matches!(
@@ -3276,8 +3276,8 @@ mod tests {
     // F-CSD-P12-001 (LOW) Tests 30-31 (RED — LOCAL adversary pass-12)
     //
     // Finding: `pre_register_empty_tables` is called only from the `Ast::Sql(Select)` arm
-    // of `execute_against_session_with_registry` (~line 1198). The `Ast::SqlPipe` arm
-    // (~line 1487) lacks the call.
+    // of `execute_against_session_with_registry`. The `Ast::SqlPipe` arm
+    // lacks the call.
     //
     // Consequence: a SqlPipe query whose head SQL has
     //   `WHERE field IN (SELECT ... FROM <0-batch table>)`
@@ -3296,9 +3296,9 @@ mod tests {
     //
     // Fix: add `pre_register_empty_tables(session_ctx, &spq.head, table_registry).await?;`
     // at the start of the `Ast::SqlPipe` arm (before `sqlpipe_to_executable_sql`),
-    // mirroring the call in the `Ast::Sql(Select)` arm at ~line 1198.
+    // mirroring the call in the `Ast::Sql(Select)` arm of `execute_against_session_with_registry`.
     //
-    // Design comment update required: materialization.rs ~line 2453 currently reads
+    // Design comment update required: mode-dispatch design comment in `run_materialization_pipeline` currently reads
     //   "Filter/Pipe mode: `pre_register_empty_tables` does NOT run (it is SQL-mode only)."
     // After the fix, SqlPipe mode must be added to the "runs" category:
     //   "SqlPipe mode: `pre_register_empty_tables` runs on `spq.head` (same as SQL mode)."
@@ -3314,7 +3314,7 @@ mod tests {
     //   Pipe grammar (pipe_parser.rs): `| where predicate` stages use the same filter/pipe
     //     predicate parser, NOT the sql_parser. There is no `in_subquery` reference in
     //     pipe_parser.rs. Neither can a Pipe query reference a second table via a subquery.
-    //   Conclusion: no Filter or Pipe tests needed. The design comment at ~line 2453
+    //   Conclusion: no Filter or Pipe tests needed. The mode-dispatch design comment in `run_materialization_pipeline`
     //   ("Filter/Pipe mode: does NOT run — correct behavior") remains accurate for those modes.
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -3356,8 +3356,8 @@ mod tests {
     /// # Defect
     ///
     /// `pre_register_empty_tables` is called in the `Ast::Sql(Select)` arm of
-    /// `execute_against_session_with_registry` (~line 1198) but NOT in the
-    /// `Ast::SqlPipe` arm (~line 1487). When the SqlPipe head SQL references a
+    /// `execute_against_session_with_registry` (`Ast::Sql(Select)` arm) but NOT in the
+    /// `Ast::SqlPipe` arm. When the SqlPipe head SQL references a
     /// 0-batch table in a WHERE IN-subquery, that table is absent from the DataFusion
     /// catalog → CTE head SQL planning fails → `PrismError::QueryExecutionFailed`.
     ///
@@ -3453,8 +3453,8 @@ mod tests {
             "F-CSD-P12-001-T1 / BC-2.11.005 / BC-2.01.010: SqlPipe head WHERE IN-subquery \
              referencing a 0-batch table must return Ok (0 rows), not a DataFusion plan error. \
              RED: Err — crowdstrike_devices is absent from the DataFusion catalog because the \
-             Ast::SqlPipe arm (~line 1487) does not call pre_register_empty_tables \
-             (only the Ast::Sql(Select) arm at ~line 1198 does). \
+             Ast::SqlPipe arm of `execute_against_session_with_registry` does not call pre_register_empty_tables \
+             (only the Ast::Sql(Select) arm does). \
              Fix: add pre_register_empty_tables(session_ctx, &spq.head, table_registry).await? \
              at the start of the Ast::SqlPipe arm, before sqlpipe_to_executable_sql. \
              got: {result:?}"
@@ -3587,7 +3587,7 @@ mod tests {
              empty MemTable before DataFusion planning. \
              Fix: add pre_register_empty_tables(session_ctx, &spq.head, table_registry).await? \
              at the start of the Ast::SqlPipe arm. \
-             Also update design comment at materialization.rs ~line 2453 to reflect that \
+             Also update mode-dispatch design comment in `run_materialization_pipeline` to reflect that \
              SqlPipe mode also calls pre_register_empty_tables (on spq.head). \
              got: {result:?}"
         );
