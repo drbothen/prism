@@ -4,8 +4,9 @@ scope: LOCAL
 defect: DEFECT-CSDEVICES-EMPTY-PIPELINE-001
 fix_branch: fix/csdevices-empty-pipeline
 date_pass4: 2026-07-10
-total_passes_to_date: 4
-streak_at_pass4: 0
+total_passes_to_date: 5
+date_pass5: 2026-07-10
+streak_at_pass5: 0
 convergence: IN_PROGRESS
 authored_by: state-manager
 ---
@@ -37,8 +38,10 @@ authored_by: state-manager
 | 2 | (post-pass-1 fix HEAD) | YES | YES | 0 | — | 1/3 |
 | 3 | (post-pass-2 HEAD) | NO | NO | 1 HIGH F-CSD-P3-001 (subquery walk — Expr::InSubquery projection-position execution) | architect adjudication + fix-burst | 0/3 |
 | 4 | (frozen @22f429d0 + spec layer) | NO | NO | 1 HIGH F-CSD-P4-001 (unauthorized COUNT rewrite) + 2 MED (F-CSD-P4-002/003) + 1 LOW (F-CSD-P4-004) + 2 OBS incl. F-CSD-P4-005 [process-gap] | spec layer + S-HARDEN-PLAN-PINNING-001 draft | 0/3 |
+| 5 | frozen @22f429d0 | NO | NO | 1 HIGH F-CSD-P5-001 (contains_insubquery FuncCall-args recursion gap) + 3 MED (F-CSD-P5-002 POL-24 hint drift / F-CSD-P5-003 stale test-vector row / F-CSD-P5-004 stale position-invariant claim) | — | 0/3 |
+| — (fix-burst) | — | — | — | — | test-writer RED @283bbc4b T18/T19+T17-tightened; implementer GREEN @30217403 FuncCall Scalar/Aggregate recursion arms + Window explicit false + byte-exact hint; PO BC-2.11.005 v1.8→v1.9; 1521/1521 prism-query; just check GREEN | 0/3 |
 
-Streak reset at pass 3 and pass 4. LOCAL pass 5 pending on frozen HEAD `22f429d0`.
+Streak reset at pass 3 and pass 4. Streak 0/3 after pass-5 fix-burst. LOCAL pass 6 NEXT on frozen HEAD `30217403`.
 
 ---
 
@@ -77,6 +80,17 @@ Streak reset 1/3→0/3.
 
 Streak stays 0/3. LOCAL pass 5 NEXT on frozen `22f429d0`.
 
+### Pass 5
+
+| ID | Severity | Description | Resolution |
+|----|----------|-------------|------------|
+| F-CSD-P5-001 | HIGH | `contains_insubquery` helper does not recurse into `Expr::ScalarFunction` / `Expr::AggregateFunction` args — FuncCall-args recursion gap; `Expr::WindowFunction` explicit-false missing | test-writer RED @283bbc4b T18/T19+T17-tightened; implementer GREEN @30217403 FuncCall Scalar/Aggregate recursion arms + Window explicit false |
+| F-CSD-P5-002 | MED | POL-24 hint message for E-QUERY-043 does not match byte-exact spec — drift from BC-2.11.003 v1.13 hint wording | implementer GREEN @30217403 byte-exact hint string aligned |
+| F-CSD-P5-003 | MED | Stale test-vector row in BC-2.11.005 cited wrong test name; E-QUERY-043 postcondition reference missing | BC-2.11.005 v1.8→v1.9 (PO fix-burst; D-1657) |
+| F-CSD-P5-004 | MED | §Postconditions + §DEC-022 incorrectly listed "SELECT Expr::InSubquery" as a position covered by pre-registration claims | BC-2.11.005 v1.8→v1.9 (PO fix-burst; D-1657) |
+
+Streak stays 0/3. LOCAL pass 6 NEXT on frozen `30217403`.
+
 ---
 
 ## Evidence at Pass 4 Fix HEAD (22f429d0)
@@ -94,6 +108,19 @@ Streak stays 0/3. LOCAL pass 5 NEXT on frozen `22f429d0`.
 | BC-2.11.005 | v1.7→v1.8 | DEC-022 position-invariant expansion + 11 test vectors |
 | S-HARDEN-PLAN-PINNING-001 | NEW draft v0.1 | F-CSD-P4-005 [process-gap] closure story |
 
+## Evidence at Pass 5 Fix HEAD (30217403)
+
+- prism-query: **1521/1521** tests GREEN (defect suite 19/19 after T18+T19+T17-tightened)
+- Full workspace `just check`: GREEN
+- Non-exhaustive gate: 89/89
+
+## Spec Layer Modified (pass-5 closure)
+
+| Artifact | Version Bump | Change |
+|----------|-------------|--------|
+| BC-2.11.005 | v1.8→v1.9 | F-CSD-P5-003: stale test-vector row corrected + E-QUERY-043 postcondition reference; F-CSD-P5-004: "SELECT Expr::InSubquery" removed from position-invariant pre-registration claims in §Postconditions + §DEC-022 |
+| BC-INDEX | v7.81→v7.82 | BC-2.11.005 inline row updated (D-1657) |
+
 ## Architect Adjudication Record (F-CSD-P4-001 / F-CSD-P3-001)
 
 **Option A selected (2026-07-10):** Revert COUNT(*) rewrite. Add E-QUERY-043 plan-time
@@ -109,4 +136,4 @@ Source: `.factory/research/defect-csdevices-empty-pipeline-rootcause-2026-07-10.
 
 _Pending: LOCAL cascade not yet converged. PR not yet created._
 
-**Status: IN PROGRESS — LOCAL pass 5 NEXT on frozen `22f429d0` (streak 0/3).**
+**Status: IN PROGRESS — LOCAL pass 6 NEXT on frozen `30217403` (streak 0/3). Pass-5 fix-burst COMPLETE (D-1657): FuncCall recursion arms + Window false + byte-exact hint @30217403 + BC-2.11.005 v1.9.**
