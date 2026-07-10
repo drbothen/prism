@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.978"
+version: "7.980"
 status: current
-timestamp: 2026-07-09T00:00:00Z
+timestamp: 2026-07-10T02:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -56,13 +56,87 @@ timestamp: 2026-07-09T00:00:00Z
 >
 > **D-1626 (2026-07-09): SESSION WRAP — §RESUME SNAPSHOT D-1626 authored (supersedes D-1615).** FIX-IEQ-ERRPATH-001 LOCAL cascade 14 passes done, streak 0/3, frozen 3f2eddd1 (LOCAL-ONLY, ~33 commits; 5373/5373 GREEN; BC-2.11.016 v1.19 STAGE-JOIN SUSPENSION RULE; BC-INDEX v7.71; STORY-INDEX v2.643; error-taxonomy v2.32). develop@f935edb6 (UNCHANGED). L22 codified (pin-sync adjacent-cell semantic currency). Pass reports local-pass-5..14 in .factory/cycles/wave-5-e-demo-fidelity/FIX-IEQ-ERRPATH-001/adversarial-review/. STATE v8.225→v8.226.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1626 SESSION WRAP — streak 0/3; fix-branch 3f2eddd1 LOCAL-ONLY; VERY NEXT ACTION = LOCAL adversary pass 15 on frozen 3f2eddd1** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1626 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1626 below is the durable resume snapshot (latest SESSION WRAP). §RESUME SNAPSHOT D-1615 below that is historical. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `f935edb6` (PR #217 S-PRISMQL-CASE-INSENSITIVE-001 squash-merged 2026-07-08T21:18:56Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.226. D-1626 (SESSION WRAP; FIX-IEQ-ERRPATH-001 14 passes streak 0/3; fix-branch 3f2eddd1 LOCAL-ONLY; VERY NEXT ACTION: LOCAL adversary pass 15 on frozen 3f2eddd1).
+> **D-1647 (2026-07-10): PR #219 FIX-IEQ-ERRPATH-001 SQUASH-MERGED — develop@8ea29823.** pr-reviewer re-confirmation APPROVE + security-reviewer RE-CONFIRMED CLEAR on final HEAD 13db1a54 (0 new findings; CWE-117/CWE-200 verified mitigated). CI 22/22 GREEN. HUMAN AUTHORIZED MERGE. PR #219 squash-merged → develop@8ea29823 (2026-07-10T01:54:58Z; standard merge, no --admin; remote branch deleted). Post-merge cleanup (devops): develop fast-forwarded to 8ea29823; scripts/t13-preflight-audit.py strict predecessor discarded — DRIFT-AUDIT-SCRIPT-UNCOMMITTED-001 CLOSED; worktree FIX-IEQ-ERRPATH-001 REMOVED + local branch deleted; parked S-3.09 + W3-FIX-S307-001 UNTOUCHED. DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 CLOSED at merge. T13 capstone UNBLOCKED. Cascade: 33 adversarial passes (LOCAL 19 + PR-LEVEL 14); BC-2.11.016 v1.12→v1.25; workspace tests 5319→5397. develop_head f935edb6→8ea29823. STATE v8.246→v8.247.
+>
+> **D-1648 (2026-07-10): SESSION WRAP — §RESUME SNAPSHOT D-1648 authored (supersedes D-1626).** PR #219 FIX-IEQ-ERRPATH-001 MERGED develop@8ea29823. DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 + DRIFT-AUDIT-SCRIPT-UNCOMMITTED-001 CLOSED. T13 capstone UNBLOCKED (audit 70/70 checks on develop@8ea29823). workspace_test_count 5397 on develop. FIX-IEQ-ERRPATH-001 cascade CLOSED (33 passes: LOCAL 19 + PR-LEVEL 14). NO cascade in flight. NO open PRs. L22/L23/L24 VERIFIED in lessons.md. Parked S-3.09/W3-FIX-S307-001 UNTOUCHED. VERY NEXT ACTION = T13 capstone demo run. STATE v8.247→v8.248.
+>
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1648 SESSION WRAP — PR #219 MERGED develop@8ea29823; FIX-IEQ-ERRPATH-001 CASCADE CLOSED (33 passes); T13 capstone UNBLOCKED; VERY NEXT ACTION = T13 capstone demo run** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1648 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1648 below is the durable resume snapshot (latest SESSION WRAP). §RESUME SNAPSHOT D-1626 below that is historical. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `8ea29823` (PR #219 FIX-IEQ-ERRPATH-001 squash-merged 2026-07-10T01:54:58Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.248. D-1648 (SESSION WRAP; PR #219 MERGED develop@8ea29823; FIX-IEQ-ERRPATH-001 CASCADE CLOSED; T13 UNBLOCKED; VERY NEXT ACTION: T13 capstone demo run).
 
 ---
 
-## §RESUME SNAPSHOT — D-1626 (2026-07-09 — SESSION WRAP; develop origin/develop f935edb6; BC-INDEX v7.71; STORY-INDEX v2.643; ARCH-INDEX v2.174; STATE v8.226; fix-branch 3f2eddd1 LOCAL-ONLY; FIX-IEQ-ERRPATH-001 cascade 14 passes streak 0/3; VERY NEXT ACTION = LOCAL adversary pass 15 on frozen 3f2eddd1) [SUPERSEDES D-1615]
+## §RESUME SNAPSHOT — D-1648 (2026-07-10 — SESSION WRAP; develop origin/develop 8ea29823; BC-INDEX v7.77; STORY-INDEX v2.650; ARCH-INDEX v2.174; STATE v8.248; PR #219 FIX-IEQ-ERRPATH-001 MERGED; CASCADE CLOSED (33 passes); T13 UNBLOCKED; VERY NEXT ACTION = T13 capstone demo run) [SUPERSEDES D-1626]
+
+### RESUME IN ONE BREATH
+
+Prism Phase-3/Wave-5. FIX-IEQ-ERRPATH-001 CASCADE CLOSED. PR #219 squash-merged to develop@8ea29823 (2026-07-10T01:54:58Z; CI 22/22 GREEN; 33 adversarial passes total: LOCAL 19 on frozen 35117a38 + PR-LEVEL 14 on frozen 13db1a54; BC-2.11.016 v1.12→v1.25; workspace tests 5319→5397 on develop). DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 CLOSED at merge. DRIFT-AUDIT-SCRIPT-UNCOMMITTED-001 CLOSED (strict predecessor discarded). T13 capstone UNBLOCKED (audit 70/70 checks on develop@8ea29823; DEMO-READY). NO cascade in flight. NO open PRs. VERY NEXT ACTION = T13 capstone demo run on develop@8ea29823 OR next demo-roadmap item per §ACTIVE OBJECTIVE.
+
+> **D-1627 (2026-07-09): FIX-IEQ-ERRPATH-001 pass-15 fix-burst.** EC-11-074/075 head-join suspension (HEAD-JOIN ambiguity in branches (b)/(c); RED @399eba90 → GREEN @3212070c). 5385/5385. STATE v8.226→v8.227.
+>
+> **D-1628 (2026-07-09): FIX-IEQ-ERRPATH-001 pass-16 fix-burst.** EC-11-076 per-reference HEAD-JOIN scoping (RED @5ef1a1a8 → GREEN @35117a38). 5391/5391. STATE v8.227→v8.228.
+>
+> **D-1629 (2026-07-09): FIX-IEQ-ERRPATH-001 LOCAL pass-17 CLEAN(strict)=YES — streak 1/3.** ZERO findings on frozen 35117a38. STATE v8.228→v8.229.
+>
+> **D-1630 (2026-07-09): FIX-IEQ-ERRPATH-001 LOCAL pass-18 CLEAN(strict)=YES — streak 2/3.** ZERO findings on frozen 35117a38. STATE v8.229→v8.230.
+>
+> **D-1631 (2026-07-09): FIX-IEQ-ERRPATH-001 LOCAL pass-19 CLEAN(strict)=YES — LOCAL 3-CLEAN CONVERGED @35117a38 (BC-5.39.001; passes 17/18/19 CLEAN(strict)).** story v2.1 pinned. Feature branch pushed. BC-INDEX v7.72→v7.73. STORY-INDEX v2.643→v2.644. STATE v8.230→v8.231.
+>
+> **D-1632 (2026-07-09): PR #219 OPEN @dacb60fa — FIX-IEQ-ERRPATH-001.** pr-manager 9-step fix-PR cycle started. code-reviewer CR-001..010. security-reviewer SEC-FIND-001 (CWE-117 sanitize_for_log) + SEC-FIND-002 (CWE-200 comment). STATE v8.231→v8.232.
+>
+> **D-1633 (2026-07-09): PR-LEVEL pass-1 fix-burst COMPLETE.** test-writer @7e23a2c2 +5 tests (emission-path tracing locks + MCP payload-injection guards). Implementer @39c8b134: sanitize_for_log at ColumnNotFoundDetails::new chokepoint + CI-FAIL-002 useless_borrows_in_formatting. 5397/5397 GREEN. PR #219 @39c8b134. STATE v8.232→v8.233.
+>
+> **D-1634..D-1643 (2026-07-09): PR-LEVEL passes 2–11 on frozen @39c8b134 → dacb60fa → ... → 13db1a54.** Multiple fix-bursts: BC-2.11.016 v1.19→v1.25 (EC-11-077..N; test-coverage/edge-case expansions); code-reviewer CR-001..010 all CLOSED; security re-confirmations; BC-INDEX v7.73→v7.77; STORY-INDEX v2.644→v2.650; error-taxonomy v2.32→v2.36; feature HEAD dacb60fa→...→13db1a54. Streak repeatedly reset; PR-LEVEL decay: 3→0→3→1→3→0→1→1→0→0→1(high)→0. STATE v8.233→v8.243.
+>
+> **D-1644 (2026-07-09): PR-LEVEL pass-12 CLEAN(strict)=YES CLEAN(PR-merge)=YES on frozen 13db1a54 — streak 0/3→1/3.** ZERO findings all severity. SAP-1 PASS. STATE v8.243→v8.244.
+>
+> **D-1645 (2026-07-09): PR-LEVEL pass-13 CLEAN(strict)=YES CLEAN(PR-merge)=YES on frozen 13db1a54 — streak 1/3→2/3.** ZERO findings all severity. SAP-1 PASS. STATE v8.244→v8.245.
+>
+> **D-1646 (2026-07-09): PR-LEVEL pass-14 CORRECTED-CLEAN — PR-LEVEL CASCADE CONVERGED @13db1a54 (BC-5.39.001; passes 12/13/14 CLEAN(strict); DRIFT-ORCH-PRLEVEL-PUSH-001 honored).** ADV-PR-P14-MED-001 RETRACTED (adversary mis-read main-checkout vs worktree path; re-ran against worktree; all clean). Total: LOCAL 19 + PR-LEVEL 14 = 33 adversarial passes. STATE v8.245→v8.246.
+>
+> **D-1647 (2026-07-10): PR #219 FIX-IEQ-ERRPATH-001 SQUASH-MERGED — develop@8ea29823.** pr-reviewer re-confirmation APPROVE + security-reviewer RE-CONFIRMED CLEAR on final HEAD 13db1a54. CI 22/22 GREEN. HUMAN AUTHORIZED MERGE (2026-07-10T01:54:58Z; standard merge, no --admin). Post-merge cleanup: develop fast-forwarded; t13-preflight-audit.py strict predecessor discarded — DRIFT-AUDIT-SCRIPT-UNCOMMITTED-001 CLOSED; worktree FIX-IEQ-ERRPATH-001 REMOVED + local branch deleted; parked S-3.09 + W3-FIX-S307-001 UNTOUCHED; DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 CLOSED. T13 UNBLOCKED. develop_head f935edb6→8ea29823. STATE v8.246→v8.247.
+>
+> **D-1648 (2026-07-10): SESSION WRAP — §RESUME SNAPSHOT D-1648 authored (supersedes D-1626).** workspace_test_count 5397 on develop. L22/L23/L24 VERIFIED in lessons.md. VERY NEXT ACTION = T13 capstone. STATE v8.247→v8.248.
+
+**STATE v8.248. develop 8ea29823 (PUSHED, origin==local). BC-INDEX v7.77. STORY-INDEX v2.650. ARCH-INDEX v2.174. error-taxonomy v2.36. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 228. workspace_test_count 5397 (on develop@8ea29823). bc_count_corrected 266. [Updated D-1648: SESSION WRAP; FIX-IEQ-ERRPATH-001 CASCADE CLOSED; T13 UNBLOCKED; VERY NEXT ACTION = T13 capstone]**
+
+**LAST MERGED:** FIX-IEQ-ERRPATH-001 (PR #219 → develop@8ea29823, 2026-07-10T01:54:58Z; E-QUERY-038 plan-time column-existence gate at all 14 positions incl. IEQ/IIN/INE + SqlPipe + pipe-stages; BC-2.11.016 v1.12→v1.25; 33-pass cascade; CWE-117/CWE-200 hardening; workspace tests 5319→5397).
+
+**MERGED BEFORE THAT:** S-PRISMQL-CASE-INSENSITIVE-001 (PR #217 → develop@f935edb6, 2026-07-08; ADR-047 case-insensitive IEQ/IIN/INE operators; 83 RGTs; CWE-117 Unicode Cc hardening; 27/27 ACs; LOCAL 35-pass + PR-LEVEL 8-pass 3-CLEAN CONVERGED).
+
+**OPEN PRs:** NONE.
+
+**HEADS:** develop 8ea29823 (PUSHED, origin==local); factory-artifacts = this session-wrap burst commit (PUSHED). Parked: S-3.09 @43c41389 (local-only, backup/S-3.09-preresume-43c41389) + W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit + ~1070 lines uncommitted write_dispatch_tests.rs — do NOT touch).
+
+**OPEN FIX-CASCADE:** NONE. FIX-IEQ-ERRPATH-001 CLOSED (33 passes: LOCAL 19 @35117a38 + PR-LEVEL 14 @13db1a54; PR #219 merged 2026-07-10T01:54:58Z → develop@8ea29823).
+
+**WORKTREES:**
+- `.worktrees/FIX-IEQ-ERRPATH-001` REMOVED (post-merge cleanup, D-1647)
+- `.worktrees/S-3.09` PARKED on `feature/S-3.09` @ 43c41389 (local-only; backup `backup/S-3.09-preresume-43c41389`; DRIFT-PARKED-S309-001; awaiting human decision)
+- `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ fcab8717 (local-only; 1 unpushed commit + ~1070 lines uncommitted `write_dispatch_tests.rs`; DRIFT-PARKED-W3FIX-S307-001; do NOT touch without human approval)
+
+**PENDING-HUMAN:**
+1. **S-3.09 decision (DRIFT-PARKED-S309-001):** resume vs keep-parked vs abandon. Branch `feature/S-3.09` @43c41389 local-only.
+2. **W3-FIX-S307-001 decision (DRIFT-PARKED-W3FIX-S307-001):** resume/commit-and-continue vs stash vs abandon. ~1070 lines uncommitted write_dispatch_tests.rs.
+3. **E-OCSF-005..023 taxonomy gap (DRIFT-EOCSF-GAP-005-023-001):** triage/prioritize. 19 codes absent from error-taxonomy.md.
+
+**PENDING USER-APPROVED WORK:** FIX-IEQ-ERRPATH-001 DELIVERED. Next work: T13 capstone demo run OR next demo-roadmap story per §ACTIVE OBJECTIVE. Autonomy D-989 active.
+
+**DEMO STATUS:** DEMO-READY. T13 capstone UNBLOCKED (audit 70/70 checks on develop@8ea29823; WARN-1 FIXED + WARN-2 FIXED).
+
+**DECISION DELTA (since last wrap D-1626):** D-1627..D-1648 this session — FIX-IEQ-ERRPATH-001 LOCAL cascade passes 15-19 + PR-LEVEL cascade passes 1-14 → CLOSED (33 total); BC-2.11.016 v1.19→v1.25 (EC-11-074..N; HEAD-JOIN suspension rules + additional coverage); BC-2.11.017/020/004 updated; BC-INDEX v7.71→v7.77; STORY-INDEX v2.643→v2.650; error-taxonomy v2.32→v2.36; CWE-117/CWE-200 hardening; workspace tests 5373→5397 (fix-branch pre-merge) → 5319→5397 net on develop. L22/L23/L24 codified.
+
+**RESUME PROTOCOL:**
+1. `git log --oneline -1 origin/develop` → expect `8ea29823`.
+2. `git -C .factory log -1 --format='%h %s'` → factory-artifacts HEAD (do not hard-code).
+3. `git status` in `/Users/jmagady/Dev/prism` → expect clean.
+4. Read §ACTIVE OBJECTIVE (North Star) and `.factory/objectives/DEMO-SCOPE.md` for demo scope.
+5. VERY NEXT ACTION: T13 capstone demo run (DEMO-READY; audit 70 checks on develop@8ea29823) OR next demo-roadmap item per §ACTIVE OBJECTIVE.
+6. Surface PENDING-HUMAN items 1-3 before touching parked worktrees.
+
+---
+
+## §RESUME SNAPSHOT — D-1626 (2026-07-09 — SESSION WRAP; develop origin/develop f935edb6; BC-INDEX v7.71; STORY-INDEX v2.643; ARCH-INDEX v2.174; STATE v8.226; fix-branch 3f2eddd1 LOCAL-ONLY; FIX-IEQ-ERRPATH-001 cascade 14 passes streak 0/3; VERY NEXT ACTION = LOCAL adversary pass 15 on frozen 3f2eddd1) [SUPERSEDES D-1615] [SUPERSEDED by D-1648]
 
 ### RESUME IN ONE BREATH
 
