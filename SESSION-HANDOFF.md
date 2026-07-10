@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.980"
+version: "7.981"
 status: current
-timestamp: 2026-07-10T02:00:00Z
+timestamp: 2026-07-10T08:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -62,13 +62,70 @@ timestamp: 2026-07-10T02:00:00Z
 >
 > **D-1649 (2026-07-10): AUDIT-COVERAGE-001 live gate 93/95 — Section H extension + runbook v1.8; TWO product defects exposed; branch parked @317b6e25; routing pending-human.** Live T13 audit re-run on develop@8ea29823: 69 PASS / 0 FAIL / 1 WARN / 70 — DEMO-READY:YES (WARN = design-annotated G5 severity_id). Coverage gap analysis: t13-audit-coverage-gap-analysis-2026-07-10.md (155 lines, D-1649). AUDIT-COVERAGE-001 implemented on fix/T13-audit-coverage (commits 40c6a0c1→317b6e25, LOCAL-ONLY): Section H 25 checks, A2 6→14 tools, A4 3→5 prompts, G5 re-targeted, COVERAGE_MATRIX 90 entries/8 sections, runbook v1.8. LIVE verification 93 PASS / 1 FAIL / 1 WARN / 95 total exposed TWO PRODUCT DEFECTS: DEFECT-EQUERY042-GROUPBY-DEADARM-001 (H5 WARN: E-QUERY-042 GroupBy arm dead — check_expr_temporal_pos only matches RawTemporalLiteral; ADR-052 §D4 surface) + DEFECT-CSDEVICES-EMPTY-PIPELINE-001 (H7 FAIL: crowdstrike_devices 0 rows live; empty-left JOIN "Internal error"). Branch PARKED @317b6e25. Implementer out-of-band commit 8f97ace8 (runbook v1.8) reconciled: soft-reset + folded into D-1649 burst (TD-VSDD-053). VERY NEXT ACTION = human routing decision on the two product defects. STATE v8.248→v8.249.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1649 AUDIT-COVERAGE-001 live gate 93/95; TWO product defects OPEN; branch parked @317b6e25; VERY NEXT ACTION = human routing on DEFECT-EQUERY042-GROUPBY-DEADARM-001 + DEFECT-CSDEVICES-EMPTY-PIPELINE-001** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1649 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1648 below is the durable resume snapshot (latest SESSION WRAP). §RESUME SNAPSHOT D-1626 below that is historical. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `8ea29823` (PR #219 FIX-IEQ-ERRPATH-001 squash-merged 2026-07-10T01:54:58Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.249. D-1649 (AUDIT-COVERAGE-001 live gate 93/95; two product defects OPEN; branch parked @317b6e25; routing pending-human).
+> **D-1650 (2026-07-10): DEFECT-CSDEVICES-EMPTY-PIPELINE-001 ROOT-CAUSED + DEFECT-EQUERY042-GROUPBY-DEADARM-001 RED-COMPLETE.** CSDEVICES: sub-defect 1 SENSOR TOML SPEC DEFECT (crowdstrike.sensor.toml fetch_devices no interpolation ref → find_fan_out_array() None → GET /devices/entities/devices/v2 0 ids → empty DTU response; working contrast: detections POST body_template ${query_detection_ids.resources}; engine UrlPath encodes arrays as percent-encoded blob — naive fix NOT viable; Option 1 RECOMMENDED = POST conversion + DTU hosts.rs route addition + TOML method/body_template; matches real CrowdStrike POST variant; ARCHITECT RATIFICATION PENDING). Sub-defect 2 PRODUCT-CODE DEFECT independent (materialization.rs skips 0-batch MemTable → DataFusion Plan("table not found") on mixed JOIN → -32000 Internal error; fix: schema-only empty MemTable from spec columns; BC-2.01.010/BC-2.11.005; owner: implementer TDD cascade). Research artifact defect-csdevices-empty-pipeline-rootcause-2026-07-10.md registered; RESEARCH-INDEX updated. EQUERY042 RED-COMPLETE @49e07a29: .worktrees/FIX-EQUERY042-GROUPBY on fix/equery042-groupby-deadarm (LOCAL-ONLY); 4 tests temporal_typing_tests.rs (2 RED GROUP BY+ORDER BY Literal::Timestamp must fire E-QUERY-042 ADR-052 §D4 arms 6/7; 2 GREEN negative controls); implementer handoff: add Literal::Timestamp to GroupBy+OrderBy arms of check_expr_temporal_pos. STATE v8.249→v8.250.
+>
+> **D-1651 (2026-07-10): SESSION WRAP — §RESUME SNAPSHOT D-1651 authored (supersedes D-1648).** D-1650 defect diagnosis + RED gates folded into this burst (TD-VSDD-053 single-commit). develop@8ea29823 (PUSHED, origin==local). NO open PRs. NO active cascade. FIX-EQUERY042-GROUPBY @49e07a29 RED-COMPLETE (implementer GREEN pending). CSDEVICES architect ratification pending (Option 1). AUDIT-COVERAGE-001 branch parked @317b6e25. VERY NEXT ACTION = architect ratification for CSDEVICES Option 1 IN PARALLEL WITH implementer GREEN for EQUERY042 @49e07a29. STATE v8.250→v8.251.
+>
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1651 SESSION WRAP; VERY NEXT ACTION = architect ratification for CSDEVICES Option 1 IN PARALLEL WITH implementer GREEN for EQUERY042 @49e07a29** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1651 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1651 below is the durable resume snapshot (latest SESSION WRAP). §RESUME SNAPSHOT D-1648 below that is historical. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `8ea29823` (PR #219 FIX-IEQ-ERRPATH-001 squash-merged 2026-07-10T01:54:58Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.251. D-1651 (SESSION WRAP; CSDEVICES ROOT-CAUSED; EQUERY042 RED-COMPLETE @49e07a29; architect ratification pending).
 
 ---
 
-## §RESUME SNAPSHOT — D-1648 (2026-07-10 — SESSION WRAP; develop origin/develop 8ea29823; BC-INDEX v7.77; STORY-INDEX v2.650; ARCH-INDEX v2.174; STATE v8.248; PR #219 FIX-IEQ-ERRPATH-001 MERGED; CASCADE CLOSED (33 passes); T13 UNBLOCKED; VERY NEXT ACTION = T13 capstone demo run) [SUPERSEDES D-1626]
+## §RESUME SNAPSHOT — D-1651 (2026-07-10 — SESSION WRAP; develop origin/develop 8ea29823; BC-INDEX v7.77; STORY-INDEX v2.650; ARCH-INDEX v2.174; STATE v8.251; CSDEVICES ROOT-CAUSED (2 sub-defects; architect ratification pending); EQUERY042 RED-COMPLETE @49e07a29; VERY NEXT ACTION = architect ratification + implementer GREEN in parallel) [SUPERSEDES D-1648]
+
+### RESUME IN ONE BREATH
+
+Prism Phase-3/Wave-5. PR #219 FIX-IEQ-ERRPATH-001 MERGED (develop@8ea29823). Two live-path product defects root-caused with work in flight. DEFECT-CSDEVICES-EMPTY-PIPELINE-001: proven 2-sub-defect decomposition — (1) SENSOR TOML SPEC DEFECT: crowdstrike.sensor.toml fetch_devices has no interpolation ref → find_fan_out_array() None → 0 ids GET → empty DTU; Option 1 RECOMMENDED = POST conversion + DTU hosts.rs route addition (architect ratification PENDING); (2) PRODUCT-CODE DEFECT (independent): materialization.rs skips 0-batch MemTable → DataFusion Plan error on mixed JOIN → Internal error; fix: schema-only empty MemTable per BC-2.01.010/BC-2.11.005. DEFECT-EQUERY042-GROUPBY-DEADARM-001: RED-COMPLETE @49e07a29 on fix/equery042-groupby-deadarm (.worktrees/FIX-EQUERY042-GROUPBY; LOCAL-ONLY); 4 tests: 2 RED (GROUP BY + ORDER BY Literal::Timestamp must fire E-QUERY-042 ADR-052 §D4) + 2 GREEN negative controls; implementer handoff: add Literal::Timestamp to GroupBy+OrderBy arms of check_expr_temporal_pos. Research artifact registered. VERY NEXT ACTION = dispatch architect for CSDEVICES Option 1 ratification IN PARALLEL WITH implementer GREEN for EQUERY042 RED gates @49e07a29 (parallel-safe).
+
+> **D-1650 (2026-07-10): DEFECT-CSDEVICES-EMPTY-PIPELINE-001 ROOT-CAUSED + DEFECT-EQUERY042-GROUPBY-DEADARM-001 RED-COMPLETE.** CSDEVICES sub-defect 1 TOML spec defect (no interpolation ref → 0 ids GET → empty DTU; Option 1 RECOMMENDED = POST conversion; ARCHITECT RATIFICATION PENDING). Sub-defect 2 product-code defect (0-batch MemTable skipped → DataFusion Plan error → Internal error; fix: empty MemTable from spec columns; BC-2.01.010/BC-2.11.005). Research artifact registered. EQUERY042 RED @49e07a29 (4 tests; 2 RED GROUP BY+ORDER BY Literal::Timestamp; 2 GREEN negative controls). STATE v8.249→v8.250.
+>
+> **D-1651 (2026-07-10): SESSION WRAP — §RESUME SNAPSHOT D-1651 authored (supersedes D-1648).** D-1650 folded into single burst (TD-VSDD-053). develop@8ea29823 UNCHANGED. STATE v8.250→v8.251.
+
+**STATE v8.251. develop 8ea29823 (PUSHED, origin==local). BC-INDEX v7.77. STORY-INDEX v2.650. ARCH-INDEX v2.174. error-taxonomy v2.36. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 228. workspace_test_count 5397 (on develop@8ea29823). bc_count_corrected 266. [D-1651: SESSION WRAP; CSDEVICES ROOT-CAUSED; EQUERY042 RED-COMPLETE @49e07a29]**
+
+**LAST MERGED:** FIX-IEQ-ERRPATH-001 (PR #219 → develop@8ea29823, 2026-07-10T01:54:58Z; E-QUERY-038 plan-time column-existence gate at all 14 positions incl. IEQ/IIN/INE + SqlPipe + pipe-stages; BC-2.11.016 v1.12→v1.25; 33-pass cascade; CWE-117/CWE-200 hardening; workspace tests 5319→5397).
+
+**MERGED BEFORE THAT:** S-PRISMQL-CASE-INSENSITIVE-001 (PR #217 → develop@f935edb6, 2026-07-08; ADR-047 IEQ/IIN/INE case-insensitive operators; 83 RGTs; CWE-117 Unicode Cc hardening; LOCAL 35-pass + PR-LEVEL 8-pass 3-CLEAN CONVERGED).
+
+**OPEN PRs:** NONE.
+
+**HEADS:** develop 8ea29823 (PUSHED, origin==local); factory-artifacts = this session-wrap burst commit (PUSHED). Parked: S-3.09 @43c41389 (local-only, backup/S-3.09-preresume-43c41389) + W3-FIX-S307-001 @fcab8717 (local-only, 1 unpushed commit + ~1070 lines uncommitted write_dispatch_tests.rs — do NOT touch).
+
+**OPEN FIX-CASCADES:**
+- DEFECT-EQUERY042-GROUPBY-DEADARM-001: `.worktrees/FIX-EQUERY042-GROUPBY` @ 49e07a29 on `fix/equery042-groupby-deadarm` (LOCAL-ONLY; RED-COMPLETE; 0/3; implementer GREEN pending).
+- DEFECT-CSDEVICES-EMPTY-PIPELINE-001: ROOT-CAUSED. Architect ratification for Option 1 (POST conversion) PENDING before Symptom 1 fix. Symptom 2 (empty-MemTable) can proceed in parallel.
+- AUDIT-COVERAGE-001: `fix/T13-audit-coverage` @ 317b6e25 (LOCAL-ONLY; PARKED — un-park after both defect PRs merge + B-hardening task added).
+
+**WORKTREES:**
+- `.worktrees/FIX-EQUERY042-GROUPBY` on `fix/equery042-groupby-deadarm` @ 49e07a29 (LOCAL-ONLY; RED-COMPLETE)
+- `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ 317b6e25 (LOCAL-ONLY; PARKED)
+- `.worktrees/S-3.09` PARKED on `feature/S-3.09` @ 43c41389 (local-only; backup `backup/S-3.09-preresume-43c41389`; DRIFT-PARKED-S309-001; awaiting human decision)
+- `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ fcab8717 (local-only; 1 unpushed commit + ~1070 lines uncommitted `write_dispatch_tests.rs`; DRIFT-PARKED-W3FIX-S307-001; do NOT touch without human approval)
+
+**PENDING-HUMAN:**
+1. **S-3.09 decision (DRIFT-PARKED-S309-001):** resume vs keep-parked vs abandon.
+2. **W3-FIX-S307-001 decision (DRIFT-PARKED-W3FIX-S307-001):** resume/commit-and-continue vs stash vs abandon.
+3. **E-OCSF-005..023 taxonomy gap (DRIFT-EOCSF-GAP-005-023-001):** triage/prioritize.
+
+**PENDING USER-APPROVED WORK:** "Fix both now" authorization for the two defects granted this session. Autonomy D-989 active (wave-5 scope; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit).
+
+**DEMO STATUS:** DEMO-READY on 70-check audit (develop@8ea29823). 93-check AUDIT-COVERAGE-001 gate BLOCKED — two product defects must be fixed before audit PR can merge.
+
+**DECISION DELTA (since last wrap D-1648):** D-1649 (AUDIT-COVERAGE-001 live gate 93/95; Section H 25 checks + runbook v1.8; two product defects exposed; branch parked @317b6e25; research artifact t13-audit-coverage-gap-analysis-2026-07-10.md). D-1650 (CSDEVICES ROOT-CAUSED: TOML spec defect + product-code defect independently; research artifact defect-csdevices-empty-pipeline-rootcause-2026-07-10.md registered; EQUERY042 RED-COMPLETE @49e07a29). D-1651 (this session wrap).
+
+**RESUME PROTOCOL:**
+1. `git log --oneline -1 origin/develop` → expect `8ea29823`.
+2. `git -C .factory log -1 --format="%h %s"` → factory-artifacts HEAD (do not hard-code).
+3. `git status` in `/Users/jmagady/Dev/prism` → expect clean.
+4. VERY NEXT ACTION = dispatch architect for CSDEVICES Option 1 ratification IN PARALLEL WITH implementer GREEN for EQUERY042 RED gates @49e07a29.
+5. Per-workstream next actions: (a) EQUERY042: implementer GREEN in .worktrees/FIX-EQUERY042-GROUPBY → LOCAL 3-CLEAN → fix-PR; (b) CSDEVICES: architect ratifies → PO/implementer TOML+DTU fix (sub-defect 1) + implementer empty-MemTable TDD (sub-defect 2) → LOCAL 3-CLEAN → fix-PR; (c) AUDIT-COVERAGE-001: AFTER both defect PRs merge → un-park 317b6e25 → rebase → B-hardening → full 95-check live audit → PR; (d) T13 capstone demo: DEMO-READY NOW at 69/70 on develop@8ea29823 (runbook v1.8).
+6. Surface PENDING-HUMAN items 1-3 before touching parked worktrees.
+
+
+---
+
+## §RESUME SNAPSHOT — D-1648 (2026-07-10 — SESSION WRAP; develop origin/develop 8ea29823; BC-INDEX v7.77; STORY-INDEX v2.650; ARCH-INDEX v2.174; STATE v8.248; PR #219 FIX-IEQ-ERRPATH-001 MERGED; CASCADE CLOSED (33 passes); T13 UNBLOCKED; VERY NEXT ACTION = T13 capstone demo run) [SUPERSEDES D-1626] [SUPERSEDED by D-1651]
 
 ### RESUME IN ONE BREATH
 
