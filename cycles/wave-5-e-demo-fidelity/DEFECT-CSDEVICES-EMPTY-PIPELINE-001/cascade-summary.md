@@ -13,6 +13,9 @@ date_pass7: 2026-07-10
 streak_at_pass7: 0
 date_pass9: 2026-07-10
 streak_at_pass9: 0
+date_pass10: 2026-07-10
+streak_at_pass10: 0
+total_passes_to_date: 10
 convergence: IN_PROGRESS
 authored_by: state-manager
 ---
@@ -36,7 +39,7 @@ authored_by: state-manager
 
 ---
 
-## Cascade Table (9 passes to date)
+## Cascade Table (10 passes to date)
 
 | Pass | Frozen HEAD | CLEAN(strict) | CLEAN(PR-merge) | Findings | Fix-burst HEAD | Streak |
 |------|-------------|---------------|-----------------|----------|----------------|--------|
@@ -55,8 +58,10 @@ authored_by: state-manager
 
 | 9 | frozen @8b284d67 | NO | NO | 1 HIGH F-CSD-P9-001 (`prism-dtu-harness` CrowdStrike clone GET-only on POST `/devices/entities/devices/v2` in BOTH `build_router()` + `build_standalone_router()` builders; INV-HARNESS-ROUTE-PARITY violation; latent 405→silent-0-row in harness-driven scenarios) + 2 OBS (informational, no action) | test-writer @d4a4cb37 + implementer @544acd70 + PO BC-2.16.013 v1.27 | 0/3 |
 | — (fix-burst) | — | — | — | — | test-writer RED @d4a4cb37 (4 harness tests targeting `build_router()` + `build_standalone_router()` CrowdStrike POST `/devices/entities/devices/v2`); implementer @544acd70 — `post_host_details` + `host_details_inner` shared-helper refactor in `prism-dtu-harness` CrowdStrike clone; both routers registered; TD-VSDD-060 full CrowdStrike verb-surface sweep = parity everywhere (`/dtu/filter-log` standalone-only by design, confirmed correct); PO BC-2.16.013 v1.26→v1.27 (INV-HARNESS-ROUTE-PARITY block + CrowdStrike example added to §INV-HARNESS-ROUTE-PARITY); harness 140/140; workspace 5451/5451; just check GREEN; non-exhaustive 89/89 | 0/3 |
+| 10 | frozen @544acd70 | NO | **YES** (FIRST) | 1 LOW F-CSD-P10-001 (JOIN-ON × FuncCall-wrapped InSubquery matrix cell unverified — DataFusion execution behavior unknown at pass time) + 1 pre-existing OBS-1 (harness `host_detail()` missing `first_seen`) | CLOSED via empirical determination + in-scope fix: test-writer ran empirical DETERMINATION — DataFusion EXECUTES JOIN-ON FuncCall-wrapped InSubquery shape (2-row result → F-CSD-P10-001 closed as documented DataFusion capability); walker asymmetry confirmed correct by design (no production change needed); OBS-1 fixed in-scope by implementer @5a58046f (`first_seen` added to harness `host_detail()`, RFC-3339 deterministic, 6/6 TOML columns covered; harness 141/141) | 0/3 |
+| — (closure) | — | — | — | — | EMPIRICAL DETERMINATION: test-writer ran JOIN-ON × FuncCall-wrapped InSubquery shape — DataFusion executes successfully (2-row result); T28/T29 GREEN locks; walker asymmetry (check_predicate JOIN-ON arm fires Expr::InSubquery scan) confirmed correct by design — the gate correctly rejects plain `col IN (SELECT ...)` in JOIN-ON but allows `func(col) IN (SELECT ...)` because DataFusion evaluates it as a FuncCall return value, not a correlated subquery. F-CSD-P10-001 CLOSED as documented DataFusion capability. OBS-1: implementer @5a58046f added `first_seen` to `host_detail()` in `prism-dtu-harness` CrowdStrike clone (RFC-3339, deterministic seed, 6/6 TOML-declared columns now covered; harness 141/141). 29-test prism-query defect suite GREEN; workspace just check GREEN; non-exhaustive 89/89. No production code changes. Streak 0/3. LOCAL pass 11 DISPATCHED on frozen HEAD `5a58046f`. | 0/3 |
 
-Streak reset at pass 3 and pass 4. Streak 0/3 after pass-9 fix-burst. Structural-fix class closure: P5 (FuncCall-args recursion gap), P6 (DML source_select defense-in-depth), P7 (WHERE/HAVING/JOIN-ON check_sql_query non-recursive), P8-MED (gate placement below early-return; DUAL placement fix), P8-LOW (DML filter/assignments interiors), P9-HIGH (harness-clone POST verb surface gap) — all closed, E-QUERY-043 gate family + harness parity complete. LOCAL pass 10 DISPATCHED on frozen HEAD `544acd70`.
+Streak reset at pass 3 and pass 4. Streak 0/3 after pass-10 closure. Pass 10 is the FIRST CLEAN(PR-merge) of the cascade. Structural-fix class closure: P5 (FuncCall-args recursion gap), P6 (DML source_select defense-in-depth), P7 (WHERE/HAVING/JOIN-ON check_sql_query non-recursive), P8-MED (gate placement below early-return; DUAL placement fix), P8-LOW (DML filter/assignments interiors), P9-HIGH (harness-clone POST verb surface gap) — all closed, E-QUERY-043 gate family + harness parity complete. Pass-10 closure pattern: empirical DataFusion behavior determination (F-CSD-P10-001 LOW closed as verified capability) + in-scope harness OBS-1 fix (first_seen). LOCAL pass 11 DISPATCHED on frozen HEAD `5a58046f`.
 
 ---
 
@@ -146,6 +151,28 @@ CLEAN(strict): NO. CLEAN(PR-merge): NO. Streak stays 0/3. LOCAL pass 9 NEXT on f
 | P9-OBS-002 | OBS | (informational — no action required) | no-action |
 
 CLEAN(strict): NO. CLEAN(PR-merge): NO. Streak stays 0/3. LOCAL pass 10 NEXT on frozen `544acd70`.
+
+### Pass 10
+
+| ID | Severity | Description | Resolution |
+|----|----------|-------------|------------|
+| F-CSD-P10-001 | LOW | JOIN-ON × FuncCall-wrapped `Expr::InSubquery` matrix cell — walker asymmetry (`check_predicate` JOIN-ON arm fires `Expr::InSubquery` scan, which should fire E-QUERY-043, but DataFusion execution behavior unverified at pass time); unknown whether the shape executes or errors at runtime | CLOSED via empirical determination: test-writer ran the shape; DataFusion EXECUTES it (2-row result, T28/T29 GREEN locks); walker asymmetry confirmed correct by design — FuncCall-wrapped InSubquery in JOIN-ON is treated as a FuncCall return value by DataFusion (not a correlated subquery), so execution is appropriate; NO production code change needed |
+| OBS-1 | OBS | `host_detail()` in `prism-dtu-harness` CrowdStrike clone was missing `first_seen` field; 5/6 TOML-declared columns populated (pre-existing gap from prior harness work) | FIXED in-scope: implementer @5a58046f added `first_seen` RFC-3339 deterministic value; 6/6 TOML columns now covered; harness 141/141 |
+
+CLEAN(strict): NO (1 LOW + 1 OBS). CLEAN(PR-merge): **YES** — FIRST CLEAN(PR-merge) of the cascade. Streak stays 0/3. LOCAL pass 11 DISPATCHED on frozen `5a58046f`.
+
+## Evidence at Pass 10 Fix HEAD (5a58046f)
+
+- prism-query defect suite: **29/29** GREEN
+- harness: **141/141** tests GREEN
+- Full workspace `just check`: GREEN
+- Non-exhaustive gate: 89/89
+
+## Spec Layer Modified (pass-10 closure)
+
+No spec changes — harness-only fix (OBS-1 `first_seen` field). No BC or error-taxonomy version bumps. F-CSD-P10-001 closed as documented DataFusion capability (empirical determination), no code change.
+
+---
 
 ## Evidence at Pass 9 Fix HEAD (544acd70)
 
@@ -242,4 +269,4 @@ Source: `.factory/research/defect-csdevices-empty-pipeline-rootcause-2026-07-10.
 
 _Pending: LOCAL cascade not yet converged. PR not yet created._
 
-**Status: IN PROGRESS — LOCAL pass 10 IN FLIGHT on frozen `544acd70` (streak 0/3). Pass-9 fix-burst COMPLETE (D-1661): harness POST parity @544acd70 — `post_host_details` + `host_details_inner` shared-helper; both router builders registered; BC-2.16.013 v1.27; harness 140/140; workspace 5451/5451; just check GREEN. Walker-gap + gate-placement lineage P5/P6/P7/P8 CLOSED; harness parity gap P9 CLOSED. Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS → 1MED+1LOW+2OBS → 1HIGH+2OBS (decaying toward convergence).**
+**Status: IN PROGRESS — LOCAL pass 11 IN FLIGHT on frozen `5a58046f` (streak 0/3). Pass-10 closure COMPLETE (D-1662): FIRST CLEAN(PR-merge) of cascade. F-CSD-P10-001 LOW CLOSED via empirical determination — DataFusion executes JOIN-ON FuncCall-wrapped InSubquery shape (T28/T29 GREEN); walker asymmetry confirmed correct by design. OBS-1 fixed in-scope: harness `first_seen` @5a58046f; harness 141/141; workspace just check GREEN; non-exhaustive 89/89. Walker-gap + gate-placement lineage P5/P6/P7/P8 CLOSED; harness parity gap P9 CLOSED; empirical DataFusion capability P10 CLOSED. Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS → 1MED+1LOW+2OBS → 1HIGH+2OBS → 1LOW+1OBS [CLEAN(PR-merge)] (decaying toward convergence).**
