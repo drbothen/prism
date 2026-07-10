@@ -269,6 +269,7 @@ fn host_detail(device_id: &str, containment_status: &str) -> Value {
         "os_version": "Ubuntu 22.04",
         "status": "normal",
         "containment_status": containment_status,
+        "first_seen": "2026-01-01T00:00:00Z",
         "last_seen": "2026-01-02T09:00:00Z",
         "external_ip": "203.0.113.1",
         "local_ip": "10.0.0.1",
