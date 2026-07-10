@@ -1616,46 +1616,74 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // Test 17 (F-CSD-P4-001-T6): Error-content POL-24 byte-consistency lock
+    // Test 17 (F-CSD-P4-001-T6 / F-CSD-P5-002): Error-content POL-24 byte-strict lock
     //
-    // Asserts the E-QUERY-043 Display message contains:
-    //   1. Fixed prefix (byte-consistent with error-taxonomy v2.38 template + #[error] macro):
-    //      "E-QUERY-043: IN subquery in projection position is not supported."
-    //   2. Actionable rewrite directive from the hint:
-    //      "WHERE field IN (SELECT ...)" — analyst-visible, must be present
-    //   3. WHERE clause guidance:
-    //      "WHERE clause" — orients the analyst to the supported alternative
+    // UPDATED by F-CSD-P5-002 (MED) — LOCAL adversary pass-5.
     //
-    // Error-taxonomy v2.38 §E-QUERY-043 full message template:
-    //   "E-QUERY-043: IN subquery in projection position is not supported.
-    //    Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`. ..."
+    // Previously asserted three substrings; now asserts FULL-STRING equality against the
+    // exact error-taxonomy v2.38 §E-QUERY-043 template (single preamble + both sentences).
+    //
+    // Error-taxonomy v2.38 §E-QUERY-043 full message (source of truth):
+    //   "E-QUERY-043: IN subquery in projection position is not supported. Use a WHERE
+    //    clause subquery instead: `WHERE field IN (SELECT ...)`. Alternatively, a JOIN
+    //    achieves the same result: `SELECT * FROM t JOIN (SELECT col FROM src) s ON
+    //    t.field = s.col`."
     //
     // #[error(...)] template in prism_core::error::PrismError:
     //   "E-QUERY-043: IN subquery in projection position is not supported. {hint}"
-    //   where {hint} = actionable guidance from check_expr_insubquery_projection.
     //
-    // POL-24: the fixed-text prefix is byte-consistent between the error variant and
-    //   the taxonomy template → lock both present.
+    // For Display to match the taxonomy, `hint` must be EXACTLY:
+    //   "Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`. \
+    //    Alternatively, a JOIN achieves the same result: \
+    //    `SELECT * FROM t JOIN (SELECT col FROM src) s ON t.field = s.col`."
+    //
+    // Current `hint` in materialization.rs (~3205):
+    //   "IN subquery in SELECT projection position is not currently supported. \
+    //    Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`."
+    //
+    // Current Display (BUGGY — differs in two ways):
+    //   "E-QUERY-043: IN subquery in projection position is not supported. IN subquery \
+    //    in SELECT projection position is not currently supported. Use a WHERE clause \
+    //    subquery instead: `WHERE field IN (SELECT ...)`."
+    //
+    // RED: assert_eq! FAILS because:
+    //   (a) hint has a doubled preamble ("IN subquery in SELECT projection position is
+    //       not currently supported.") after the fixed prefix already says "not supported"
+    //   (b) hint omits the JOIN alternative sentence
+    //
+    // GREEN (post-fix): implementer must update `hint` in check_expr_insubquery_projection
+    //   (materialization.rs) to exactly:
+    //   "Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`. \
+    //    Alternatively, a JOIN achieves the same result: \
+    //    `SELECT * FROM t JOIN (SELECT col FROM src) s ON t.field = s.col`."
     // -----------------------------------------------------------------------
 
-    /// F-CSD-P4-001-T6 / BC-2.11.003 error-content lock (POL-24): E-QUERY-043 Display
-    /// message must contain the fixed prefix from error-taxonomy v2.38 and the actionable
-    /// rewrite directive from the hint.
+    /// F-CSD-P4-001-T6 / F-CSD-P5-002 / BC-2.11.003 error-content byte-strict lock:
+    /// E-QUERY-043 Display message must match the FULL template from error-taxonomy v2.38
+    /// §E-QUERY-043 byte-for-byte.
     ///
-    /// # Error-taxonomy v2.38 §E-QUERY-043 message template
+    /// # Taxonomy template (authoritative)
     ///
-    /// Fixed prefix (from `#[error]` macro, byte-consistent with taxonomy):
-    ///   `"E-QUERY-043: IN subquery in projection position is not supported."`
+    /// ```text
+    /// E-QUERY-043: IN subquery in projection position is not supported. Use a WHERE
+    /// clause subquery instead: `WHERE field IN (SELECT ...)`. Alternatively, a JOIN
+    /// achieves the same result: `SELECT * FROM t JOIN (SELECT col FROM src) s ON
+    /// t.field = s.col`.
+    /// ```
     ///
-    /// Actionable hint (from `check_expr_insubquery_projection` hint variable):
-    ///   Contains `"WHERE field IN (SELECT ...)"` and `"WHERE clause"`
+    /// # RED state (current Display — two bugs)
+    ///
+    /// 1. **Doubled preamble**: The `#[error]` macro already emits "not supported.", then
+    ///    the current `hint` starts with "IN subquery in SELECT projection position is not
+    ///    currently supported." — a near-duplicate of the fixed prefix.
+    /// 2. **Missing JOIN alternative**: The hint ends after the WHERE form, omitting
+    ///    "Alternatively, a JOIN achieves the same result: `SELECT * FROM t JOIN ...`."
     ///
     /// # POL-24 constraint
     ///
-    /// The fixed-text prefix is byte-pinned to the `#[error(...)]` template in
-    /// `prism_core::error::PrismError::ExprInSubqueryProjectionNotSupported`.
-    /// Any change to this prefix that diverges from the error-taxonomy template
-    /// would break this test.
+    /// The full Display string is byte-pinned to the error-taxonomy v2.38 template.
+    /// Any future change to `check_expr_insubquery_projection`'s `hint` value must keep
+    /// the combined `#[error(...)] + {hint}` output byte-identical to the taxonomy.
     #[tokio::test]
     async fn test_BC_2_11_003_F_CSD_P4_001_T6_e_query_043_display_contains_actionable_hint() {
         use prism_core::error::PrismError;
@@ -1681,7 +1709,7 @@ mod tests {
         let result =
             execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
 
-        // Must be E-QUERY-043.
+        // Must be E-QUERY-043 (gate is already implemented; this part stays GREEN).
         assert!(
             matches!(
                 &result,
@@ -1693,31 +1721,269 @@ mod tests {
         let err = result.unwrap_err();
         let display = format!("{err}");
 
-        // POL-24 byte-consistency: fixed prefix from #[error(...)] macro and error-taxonomy v2.38.
-        // Byte-pinned to: `"E-QUERY-043: IN subquery in projection position is not supported."`
-        assert!(
-            display.contains("E-QUERY-043: IN subquery in projection position is not supported."),
-            "F-CSD-P4-001-T6 POL-24: Display must contain the fixed E-QUERY-043 prefix \
-             (byte-consistent with error-taxonomy v2.38 template and #[error(...)] macro). \
-             Any change to this prefix must be coordinated with the taxonomy. \
-             got: {display:?}"
+        // F-CSD-P5-002 byte-strict lock: full-string equality against error-taxonomy v2.38 template.
+        //
+        // Source: error-taxonomy.md v2.38 §E-QUERY-043 Message Format column (single preamble,
+        //   both sentences: WHERE-clause form + JOIN alternative).
+        //
+        // RED: assert_eq! FAILS because the current Display is:
+        //   "E-QUERY-043: IN subquery in projection position is not supported. IN subquery
+        //    in SELECT projection position is not currently supported. Use a WHERE clause
+        //    subquery instead: `WHERE field IN (SELECT ...)`."
+        // Expected (post-fix):
+        //   "E-QUERY-043: IN subquery in projection position is not supported. Use a WHERE
+        //    clause subquery instead: `WHERE field IN (SELECT ...)`. Alternatively, a JOIN
+        //    achieves the same result: `SELECT * FROM t JOIN (SELECT col FROM src) s ON
+        //    t.field = s.col`."
+        let expected = concat!(
+            "E-QUERY-043: IN subquery in projection position is not supported. ",
+            "Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`. ",
+            "Alternatively, a JOIN achieves the same result: ",
+            "`SELECT * FROM t JOIN (SELECT col FROM src) s ON t.field = s.col`."
+        );
+        assert_eq!(
+            display, expected,
+            "F-CSD-P5-002 / F-CSD-P4-001-T6 byte-strict (POL-24): E-QUERY-043 Display \
+             must match error-taxonomy.md v2.38 §E-QUERY-043 template byte-for-byte. \
+             RED (a): current hint has doubled preamble — 'IN subquery in SELECT projection \
+             position is not currently supported.' duplicates the fixed #[error] prefix. \
+             RED (b): current hint omits the JOIN alternative sentence. \
+             Fix: update `hint` in check_expr_insubquery_projection (materialization.rs) to \
+             'Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`. \
+             Alternatively, a JOIN achieves the same result: \
+             `SELECT * FROM t JOIN (SELECT col FROM src) s ON t.field = s.col`.' \
+             expected: {expected:?} \
+             actual:   {display:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // F-CSD-P5-001 Tests 18-19 (RED — LOCAL adversary pass-5)
+    //
+    // Finding: `contains_insubquery` in `check_expr_insubquery_projection`
+    // (materialization.rs ~3169) recurses only into Compare/Logical/Not.
+    // It does NOT recurse into `Expr::FuncCall` args or `Expr::TimestampArithmetic` base.
+    //
+    // Consequence: a query with `(Expr::InSubquery)` nested INSIDE a FuncCall argument
+    // in a gated position (SELECT projection or GROUP BY) evades the E-QUERY-043 gate.
+    // `contains_insubquery` returns `false` for the FuncCall wrapper → gate does NOT
+    // fire → DataFusion receives the query → DataFusion cannot plan InSubquery in scalar
+    // expression position → `PrismError::QueryExecutionFailed` (opaque -32000 to MCP).
+    //
+    // Grammar reach (CONFIRMED by sql_parser.rs analysis):
+    //   `scalar_call` uses `expr.clone()` for each arg (sql_parser.rs lines ~1011-1019).
+    //   `in_subquery` is an atom within `expr` via `atom = choice((..., in_subquery, ...))`.
+    //   Therefore `ident(field IN (SELECT ...))` parses as
+    //   `FuncCall::Scalar { func: Unknown("ident"), args: [Expr::InSubquery { ... }] }`.
+    //
+    // TimestampArithmetic base: NOT reachable via the sql_parser. The `TimestampArithmetic`
+    //   variant is only constructed in filter_parser.rs (not sql_parser.rs) and always with
+    //   `base: Expr::Now`. No path from any SQL grammar production yields a
+    //   `TimestampArithmetic` with an `InSubquery` base. Not tested.
+    //
+    // Both tests FAIL at HEAD for the documented reason; both must PASS after the
+    // implementer adds `Expr::FuncCall(FuncCall::Scalar { args, .. }) => args.iter().any(contains_insubquery)`,
+    // and the equivalent arm for `FuncCall::Aggregate`, to `contains_insubquery`.
+    // -----------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------
+    // Test 18 (F-CSD-P5-001-T1): FuncCall-wrapped InSubquery in SELECT projection
+    //
+    // SQL: SELECT coalesce(device_id IN (SELECT device_id FROM crowdstrike_devices))
+    //      FROM crowdstrike_detections
+    //
+    // SELECT item: Expr::FuncCall(FuncCall::Scalar { func: Unknown("coalesce"),
+    //              args: [Expr::InSubquery { field: device_id, subquery: ... }] })
+    //
+    // contains_insubquery(Expr::FuncCall(...)) → `_ => false` → gate returns false.
+    // Gate does NOT fire E-QUERY-043 → DataFusion receives query → QueryExecutionFailed.
+    //
+    // RED: matches!(result, Err(ExprInSubqueryProjectionNotSupported { .. })) FAILS.
+    // GREEN (post-fix): contains_insubquery recurses into FuncCall.args → gate fires.
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P5-001-T1 / BC-2.11.003: `Expr::InSubquery` nested as a `FuncCall::Scalar`
+    /// arg in SELECT projection must return E-QUERY-043
+    /// (`ExprInSubqueryProjectionNotSupported`) — not an opaque DataFusion internal error.
+    ///
+    /// # Grammar reach
+    ///
+    /// CONFIRMED: `scalar_call` in the PrismQL expr parser uses `expr.clone()` for each
+    /// argument (sql_parser.rs `build_expr_parser`, lines ~1011-1019). The `in_subquery`
+    /// atom (`field IN (SELECT ...)`) is part of `expr` via the `atom = choice(...)` list.
+    /// Any `ident(field IN (SELECT ...))` parses as
+    /// `FuncCall::Scalar { func: Unknown("ident"), args: [Expr::InSubquery { ... }] }`.
+    ///
+    /// # Defect
+    ///
+    /// `contains_insubquery` in `check_expr_insubquery_projection` (materialization.rs
+    /// ~3169-3176) handles three cases explicitly — `InSubquery` (direct), `Compare`,
+    /// `Logical`, `Not` — and falls through to `_ => false` for all other variants,
+    /// including `Expr::FuncCall`. It does NOT recurse into `FuncCall.args`. An
+    /// `Expr::InSubquery` node inside a FuncCall arg is invisible to the gate.
+    ///
+    /// # RED reason
+    ///
+    /// The gate returns `false` for the FuncCall wrapper → E-QUERY-043 does NOT fire →
+    /// DataFusion receives the normalized SQL (e.g., `coalesce(device_id IN (SELECT ...))`)
+    /// → DataFusion cannot plan `InSubquery` in scalar expression position
+    /// (`not_impl_err!`) → maps to `Err(QueryExecutionFailed)`.
+    /// The assertion `matches!(result, Err(ExprInSubqueryProjectionNotSupported { .. }))` FAILS.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P5_001_T1_funcall_arg_insubquery_projection_misses_gate() {
+        use prism_core::error::PrismError;
+
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // Register both tables with data — E-QUERY-043 should fire before DataFusion planning;
+        // table contents are irrelevant if the gate works, but populated tables make the
+        // DataFusion error more deterministic when the gate is absent.
+        let det_batch = make_batch("detection_id", &["det-001"]);
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+        let dev_batch = make_batch("device_id", &["dev-A"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // Grammar-reach confirmed: scalar_call uses expr.clone() for args; in_subquery is
+        // an atom within expr. `coalesce` becomes ScalarFunc::Unknown("coalesce").
+        // Result AST: FuncCall::Scalar { func: Unknown("coalesce"),
+        //             args: [Expr::InSubquery { field: device_id,
+        //                    subquery: SELECT device_id FROM crowdstrike_devices }] }
+        //
+        // If this expect() panics, grammar reach is NOT confirmed — revise the SQL shape.
+        let sql = "SELECT coalesce(device_id IN (SELECT device_id FROM crowdstrike_devices)) \
+                   FROM crowdstrike_detections";
+        let ast = PrismQlParser::parse(sql).expect(
+            "F-CSD-P5-001-T1: scalar_call with InSubquery arg must parse \
+             (scalar_call uses expr.clone() for args; in_subquery is part of atom within expr)",
         );
 
-        // Actionable rewrite directive: analyst-visible WHERE clause form.
-        // From check_expr_insubquery_projection hint variable.
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Err(ExprInSubqueryProjectionNotSupported { .. }).
+        // contains_insubquery must recurse into FuncCall::Scalar args → gate fires E-QUERY-043
+        // before DataFusion planning.
+        //
+        // RED: contains_insubquery hits `_ => false` for Expr::FuncCall → misses the InSubquery
+        //      node inside args → gate does NOT fire → DataFusion receives the normalized SQL
+        //      (`coalesce(device_id IN (SELECT ...))`) → DataFusion fails with
+        //      Err(QueryExecutionFailed) (not_impl_err for InSubquery in scalar position).
+        //      The assertion FAILS because result is NOT ExprInSubqueryProjectionNotSupported.
         assert!(
-            display.contains("WHERE field IN (SELECT ...)"),
-            "F-CSD-P4-001-T6: Display must contain actionable rewrite directive \
-             `WHERE field IN (SELECT ...)` (error-taxonomy v2.38 hint). \
-             got: {display:?}"
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P5-001-T1 / BC-2.11.003: FuncCall-wrapped InSubquery in SELECT projection \
+             must return E-QUERY-043 (ExprInSubqueryProjectionNotSupported). \
+             RED: contains_insubquery does not recurse into Expr::FuncCall args \
+             (`_ => false` arm in materialization.rs ~3175) — gate misses InSubquery nested \
+             inside FuncCall::Scalar args → DataFusion receives query → \
+             Err(QueryExecutionFailed) (opaque -32000 to MCP caller). \
+             Fix: add FuncCall::Scalar {{ args, .. }} and FuncCall::Aggregate {{ args, .. }} \
+             arms to contains_insubquery that call args.iter().any(contains_insubquery). \
+             got: {result:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 19 (F-CSD-P5-001-T2): FuncCall-wrapped InSubquery in GROUP BY — gate miss
+    //
+    // Second nesting shape: GROUP BY position.
+    //
+    // SQL: SELECT count(*) FROM crowdstrike_detections
+    //      GROUP BY coalesce(device_id IN (SELECT device_id FROM crowdstrike_devices))
+    //
+    // GROUP BY item: Expr::FuncCall(FuncCall::Scalar { func: Unknown("coalesce"),
+    //                args: [Expr::InSubquery { ... }] })
+    //
+    // `check_sql_query` walks q.group_by and calls contains_insubquery on each expr.
+    // But contains_insubquery(Expr::FuncCall(...)) → `_ => false` → gate misses.
+    //
+    // Comparison with Test 12 (F-CSD-P4-001-T1): bare `Expr::InSubquery` in GROUP BY
+    // DOES fire the gate (T12 is GREEN). Wrapping it in FuncCall EVADES the gate (T19 RED).
+    //
+    // RED: matches!(result, Err(ExprInSubqueryProjectionNotSupported { .. })) FAILS.
+    // GREEN (post-fix): same FuncCall arms added to contains_insubquery fix both T18/T19.
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P5-001-T2 / BC-2.11.003: `Expr::InSubquery` nested inside `FuncCall::Scalar`
+    /// in GROUP BY position must return E-QUERY-043 — not an opaque DataFusion internal error.
+    ///
+    /// # Grammar reach
+    ///
+    /// CONFIRMED (extends T18 proof): `group_by_clause` in `build_sql_query_parser` uses
+    /// `expr.clone()` for each GROUP BY key. `scalar_call` is part of `atom` within `expr`,
+    /// and `scalar_call` args use `expr.clone()` which includes `in_subquery`. Therefore
+    /// `GROUP BY coalesce(field IN (SELECT ...))` is syntactically valid and produces
+    /// `group_by: [Expr::FuncCall(FuncCall::Scalar { args: [Expr::InSubquery { ... }] })]`.
+    ///
+    /// # Contrast with Test 12 (F-CSD-P4-001-T1)
+    ///
+    /// T12 asserts that a BARE `Expr::InSubquery` in GROUP BY fires E-QUERY-043 (GREEN).
+    /// This test asserts that the SAME node WRAPPED in `FuncCall::Scalar` also fires E-QUERY-043.
+    /// Currently it does NOT — `contains_insubquery` returns `false` for `Expr::FuncCall`,
+    /// exposing a one-level-of-wrapping bypass. The fix is identical to T18.
+    ///
+    /// # RED reason
+    ///
+    /// `contains_insubquery(Expr::FuncCall(...))` → `_ => false` → GROUP BY gate does not
+    /// detect the nested InSubquery → DataFusion receives the query → `QueryExecutionFailed`.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P5_001_T2_funcall_arg_insubquery_group_by_misses_gate() {
+        use prism_core::error::PrismError;
+
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // Register both tables with data.
+        let det_batch = make_batch("device_id", &["dev-A", "dev-B"]);
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+        let dev_batch = make_batch("device_id", &["dev-A"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // Grammar-confirmed (extends T18): group_by_clause uses expr.clone() for keys;
+        // scalar_call is part of atom within expr; scalar_call args include in_subquery.
+        //
+        // If this expect() panics, grammar reach is NOT confirmed — revise the SQL shape.
+        let sql = "SELECT count(*) FROM crowdstrike_detections \
+                   GROUP BY coalesce(device_id IN (SELECT device_id FROM crowdstrike_devices))";
+        let ast = PrismQlParser::parse(sql).expect(
+            "F-CSD-P5-001-T2: scalar_call with InSubquery arg in GROUP BY must parse \
+             (group_by_clause uses expr.clone(); scalar_call+in_subquery are both atoms in expr)",
         );
 
-        // WHERE clause guidance: orients the analyst to the supported alternative.
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Err(ExprInSubqueryProjectionNotSupported { .. }).
+        // contains_insubquery must recurse into FuncCall args → fires for GROUP BY item.
+        //
+        // RED: contains_insubquery hits `_ => false` for Expr::FuncCall on the GROUP BY expr
+        //      → misses InSubquery inside args → gate does NOT fire → DataFusion receives
+        //      the query → Err(QueryExecutionFailed) (DataFusion not_impl_err for InSubquery
+        //      in scalar position). Assertion FAILS: result is NOT ExprInSubqueryProjectionNotSupported.
+        //
+        // Note: T12 (F-CSD-P4-001-T1) is GREEN for bare InSubquery in GROUP BY.
+        // This test locks that wrapping in FuncCall is NOT a bypass.
         assert!(
-            display.contains("WHERE clause"),
-            "F-CSD-P4-001-T6: Display must mention `WHERE clause` as the supported \
-             alternative (analyst-readable actionable hint per error-taxonomy v2.38). \
-             got: {display:?}"
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P5-001-T2 / BC-2.11.003: FuncCall-wrapped InSubquery in GROUP BY \
+             must return E-QUERY-043 (ExprInSubqueryProjectionNotSupported). \
+             RED: contains_insubquery does not recurse into Expr::FuncCall args \
+             (`_ => false` arm in materialization.rs ~3175) — GROUP BY FuncCall(InSubquery) \
+             evades the gate → DataFusion receives the query → Err(QueryExecutionFailed). \
+             Contrast: T12 (bare InSubquery in GROUP BY) is GREEN; wrapping in FuncCall \
+             is the bypass. Fix: add FuncCall::Scalar {{ args, .. }} and \
+             FuncCall::Aggregate {{ args, .. }} arms to contains_insubquery. got: {result:?}"
         );
     }
 }
