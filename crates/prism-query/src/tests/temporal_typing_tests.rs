@@ -2812,7 +2812,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_pipe_sort_date_like_e_query_0
 /// `'2026-07-01T00:00:00Z'` is a date-shaped literal. The spec prose says "date-like
 /// literal" without restricting to `RawTemporalLiteral`; the arm (6) table entry says
 /// "GROUP BY position bare literal → E-QUERY-042 (GroupBy)".
-/// ADR-052 §D4 v1.10 arm (6); BC-2.11.021 §Error Cases; BC-2.11.003 §Error Cases.
+/// ADR-052 §D4 (v1.11) arm (6); BC-2.11.021 §Error Cases; BC-2.11.003 §Error Cases.
 ///
 /// # Implementation state (RED)
 /// `Literal::Timestamp` bypasses the GroupBy arm. The test asserts
@@ -2822,7 +2822,7 @@ async fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_pipe_sort_date_like_e_query_0
 /// After the fix: `check_expr_temporal_pos` must handle `Literal::Timestamp` in
 /// GroupBy/OrderBy positions with the same REJECT semantics as `RawTemporalLiteral`.
 ///
-/// Traces to: error-taxonomy.md §E-QUERY-042 v2.14; ADR-052 §D4 v1.10 arm (6);
+/// Traces to: error-taxonomy.md §E-QUERY-042 v2.14; ADR-052 §D4 (v1.11) arm (6);
 ///            BC-2.11.021 §Error Cases; DEFECT-EQUERY042-GROUPBY-DEADARM-001.
 #[tokio::test]
 async fn test_DEFECT_EQUERY042_GROUPBY_DEADARM_001_group_by_rfc3339_timestamp_must_fire_e_query_042(
@@ -2862,7 +2862,7 @@ async fn test_DEFECT_EQUERY042_GROUPBY_DEADARM_001_group_by_rfc3339_timestamp_mu
         ),
         "DEFECT-001: GROUP BY '2026-07-01T00:00:00Z' must return \
          E-QUERY-042 (TemporalLiteralInvalidPosition::GroupBy). \
-         ADR-052 §D4 v1.10 arm (6); error-taxonomy.md v2.14 E-QUERY-042 (GroupBy). \
+         ADR-052 §D4 (v1.11) arm (6); error-taxonomy.md v2.14 E-QUERY-042 (GroupBy). \
          Current defect: Literal::Timestamp bypasses check_expr_temporal_pos GroupBy arm \
          (arm matches only RawTemporalLiteral). Got: {result:?}"
     );
@@ -2910,13 +2910,13 @@ async fn test_DEFECT_EQUERY042_GROUPBY_DEADARM_001_group_by_rfc3339_timestamp_mu
 ///    ordering by a bare literal constant is a degenerate no-op (sort order on a
 ///    constant is undefined), almost always an analyst mistake."
 /// `'2026-07-01T00:00:00Z'` is a date-shaped literal that meets this criterion.
-/// ADR-052 §D4 v1.10 arm (7); BC-2.11.021 §Error Cases; BC-2.11.003 §Error Cases.
+/// ADR-052 §D4 (v1.11) arm (7); BC-2.11.021 §Error Cases; BC-2.11.003 §Error Cases.
 ///
 /// # Implementation state (RED)
 /// `Literal::Timestamp` bypasses the OrderBy arm. Test asserts
 /// `Err(TemporalLiteralInvalidPosition { OrderBy })` — FAILS (RED gate). ✓
 ///
-/// Traces to: error-taxonomy.md §E-QUERY-042 v2.14; ADR-052 §D4 v1.10 arm (7);
+/// Traces to: error-taxonomy.md §E-QUERY-042 v2.14; ADR-052 §D4 (v1.11) arm (7);
 ///            BC-2.11.021 §Error Cases; DEFECT-EQUERY042-GROUPBY-DEADARM-001.
 #[tokio::test]
 async fn test_DEFECT_EQUERY042_GROUPBY_DEADARM_001_order_by_rfc3339_timestamp_must_fire_e_query_042(
@@ -2956,7 +2956,7 @@ async fn test_DEFECT_EQUERY042_GROUPBY_DEADARM_001_order_by_rfc3339_timestamp_mu
         ),
         "DEFECT-001: ORDER BY '2026-07-01T00:00:00Z' must return \
          E-QUERY-042 (TemporalLiteralInvalidPosition::OrderBy). \
-         ADR-052 §D4 v1.10 arm (7); error-taxonomy.md v2.14 E-QUERY-042 (OrderBy). \
+         ADR-052 §D4 (v1.11) arm (7); error-taxonomy.md v2.14 E-QUERY-042 (OrderBy). \
          Current defect: Literal::Timestamp bypasses check_expr_temporal_pos OrderBy arm \
          (arm matches only RawTemporalLiteral). Got: {result:?}"
     );
@@ -3116,7 +3116,7 @@ async fn test_DEFECT_EQUERY042_GROUPBY_DEADARM_001_group_by_plain_string_no_fals
 /// `check_expr_temporal_pos(expr, ..., TemporalCheckPos::GroupBy)` →
 /// `Expr::Literal(Literal::Timestamp)` + GroupBy → `Err(TemporalLiteralInvalidPosition::GroupBy)`.
 ///
-/// Traces to: F-EQ42-P1-002; ADR-052 §D4 v1.10 arm (6); error-taxonomy.md §E-QUERY-042.
+/// Traces to: F-EQ42-P1-002; ADR-052 §D4 (v1.11) arm (6); error-taxonomy.md §E-QUERY-042.
 #[tokio::test]
 async fn test_F_EQ42_P1_002_sqlpipe_head_group_by_timestamp_fires_e_query_042() {
     use prism_core::error::TemporalLiteralPosition;
@@ -3141,7 +3141,7 @@ async fn test_F_EQ42_P1_002_sqlpipe_head_group_by_timestamp_fires_e_query_042() 
         ),
         "F-EQ42-P1-002: SqlPipe head GROUP BY '2026-07-01T00:00:00Z' must return \
          E-QUERY-042 (TemporalLiteralInvalidPosition::GroupBy). \
-         ADR-052 §D4 v1.10 arm (6); check_temporal_literals Ast::SqlPipe GROUP BY walker. \
+         ADR-052 §D4 (v1.11) arm (6); check_temporal_literals Ast::SqlPipe GROUP BY walker. \
          Got: {result:?}"
     );
 
@@ -3168,7 +3168,7 @@ async fn test_F_EQ42_P1_002_sqlpipe_head_group_by_timestamp_fires_e_query_042() 
 /// SqlPipe head ORDER BY is covered by `check_temporal_literals` (materialization.rs)
 /// Ast::SqlPipe arm, lines ~2732-2739. Sibling of the GROUP BY call site above.
 ///
-/// Traces to: F-EQ42-P1-002; ADR-052 §D4 v1.10 arm (7); error-taxonomy.md §E-QUERY-042.
+/// Traces to: F-EQ42-P1-002; ADR-052 §D4 (v1.11) arm (7); error-taxonomy.md §E-QUERY-042.
 #[tokio::test]
 async fn test_F_EQ42_P1_002_sqlpipe_head_order_by_timestamp_fires_e_query_042() {
     use prism_core::error::TemporalLiteralPosition;
@@ -3192,7 +3192,7 @@ async fn test_F_EQ42_P1_002_sqlpipe_head_order_by_timestamp_fires_e_query_042() 
         ),
         "F-EQ42-P1-002: SqlPipe head ORDER BY '2026-07-01T00:00:00Z' must return \
          E-QUERY-042 (TemporalLiteralInvalidPosition::OrderBy). \
-         ADR-052 §D4 v1.10 arm (7); check_temporal_literals Ast::SqlPipe ORDER BY walker. \
+         ADR-052 §D4 (v1.11) arm (7); check_temporal_literals Ast::SqlPipe ORDER BY walker. \
          Got: {result:?}"
     );
 
@@ -3225,7 +3225,7 @@ async fn test_F_EQ42_P1_002_sqlpipe_head_order_by_timestamp_fires_e_query_042() 
 /// (the outer IN field) is checked; the subquery body is fail-open. This means
 /// `check_temporal_literals` fires from the early gate in engine.rs (before E-QUERY-037).
 ///
-/// Traces to: F-EQ42-P1-002; ADR-052 §D4 v1.10 arm (6); error-taxonomy.md §E-QUERY-042.
+/// Traces to: F-EQ42-P1-002; ADR-052 §D4 (v1.11) arm (6); error-taxonomy.md §E-QUERY-042.
 #[tokio::test]
 async fn test_F_EQ42_P1_002_subquery_in_where_group_by_timestamp_fires_e_query_042() {
     use prism_core::error::TemporalLiteralPosition;
@@ -3275,7 +3275,7 @@ async fn test_F_EQ42_P1_002_subquery_in_where_group_by_timestamp_fires_e_query_0
 /// Sibling of the GROUP BY subquery test above; exercises the ORDER BY walker in the
 /// `check_pred_raw_temporal` Predicate::InSubquery arm (materialization.rs ~line 3175).
 ///
-/// Traces to: F-EQ42-P1-002; ADR-052 §D4 v1.10 arm (7); error-taxonomy.md §E-QUERY-042.
+/// Traces to: F-EQ42-P1-002; ADR-052 §D4 (v1.11) arm (7); error-taxonomy.md §E-QUERY-042.
 #[tokio::test]
 async fn test_F_EQ42_P1_002_subquery_in_where_order_by_timestamp_fires_e_query_042() {
     use prism_core::error::TemporalLiteralPosition;
@@ -3340,7 +3340,7 @@ async fn test_F_EQ42_P1_002_subquery_in_where_order_by_timestamp_fires_e_query_0
 /// engine.rs ~line 2633: `_ => return Ok(())`). Therefore `check_temporal_literals` is
 /// the first gate that fires E-QUERY-042 — no column gate interference.
 ///
-/// Traces to: F-EQ42-P1-002; ADR-052 §D4 v1.10 arm (6); F-P4-LOW-1; error-taxonomy.md §E-QUERY-042.
+/// Traces to: F-EQ42-P1-002; ADR-052 §D4 (v1.11) arm (6); F-P4-LOW-1; error-taxonomy.md §E-QUERY-042.
 #[tokio::test]
 async fn test_F_EQ42_P1_002_dml_source_select_group_by_timestamp_fires_e_query_042() {
     use prism_core::error::TemporalLiteralPosition;
@@ -3390,7 +3390,7 @@ async fn test_F_EQ42_P1_002_dml_source_select_group_by_timestamp_fires_e_query_0
 /// Sibling of the DML GROUP BY test above; exercises the ORDER BY walker in the
 /// DML source_select arm (materialization.rs ~line 2838).
 ///
-/// Traces to: F-EQ42-P1-002; ADR-052 §D4 v1.10 arm (7); F-P4-LOW-1; error-taxonomy.md §E-QUERY-042.
+/// Traces to: F-EQ42-P1-002; ADR-052 §D4 (v1.11) arm (7); F-P4-LOW-1; error-taxonomy.md §E-QUERY-042.
 #[tokio::test]
 async fn test_F_EQ42_P1_002_dml_source_select_order_by_timestamp_fires_e_query_042() {
     use prism_core::error::TemporalLiteralPosition;

@@ -3319,7 +3319,7 @@ fn check_expr_temporal_pos(
         // the same E-QUERY-042 semantics as RawTemporalLiteral. Previously fell to
         // `_ => Ok(())`, silently accepting a degenerate constant-key GROUP BY / ORDER BY.
         //
-        // ADR-052 §D4 v1.10 arms (6) and (7).
+        // ADR-052 §D4 (v1.11) arms (6) and (7).
         Expr::Literal(Literal::Timestamp(ts)) => match pos {
             TemporalCheckPos::GroupBy => {
                 let value_prefix: String = ts.iso8601.chars().take(50).collect();
