@@ -1122,4 +1122,602 @@ mod tests {
              empty IN-set → 0 detection rows returned; got {total_rows}"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // F-CSD-P4-001 Tests 12-17 (GREEN locks — E-QUERY-043 position gate, F-CSD-P4-001 closure)
+    //
+    // These tests lock the E-QUERY-043 plan-time gate for ALL positions where
+    // `Expr::InSubquery` can appear in a PrismQL SELECT query (F-CSD-P4-001 Option A
+    // adjudication 2026-07-10, D-1650).
+    //
+    // Background: Test 9 (F-CSD-P3-001-T2) above already locks the SELECT-projection
+    // position. These tests add locks for:
+    //   - GROUP BY position (F-CSD-P4-001-T1)
+    //   - ORDER BY position (F-CSD-P4-001-T2)
+    //   - WHERE-position negative control with populated tables (F-CSD-P4-001-T3)
+    //   - Gate-ordering: temporal preempts E-QUERY-043 (F-CSD-P4-001-T4)
+    //   - JOIN ON-position scope boundary: NOT gated by E-QUERY-043 (F-CSD-P4-001-T5)
+    //   - Error-content POL-24 byte-consistency lock (F-CSD-P4-001-T6)
+    //
+    // Grammar reach (all positions confirmed by sql_parser.rs inspection):
+    //   GROUP BY: group_by_clause uses expr.clone() which includes in_subquery atom.
+    //   ORDER BY: order_expr uses expr.clone() → OrderExpr { expr: Expr::InSubquery }
+    //   JOIN ON:  join_clause uses .then(expr.clone()) → Join { on: Expr::InSubquery }
+    //   SELECT projection: covered by T2 above.
+    //
+    // All 6 tests expect GREEN (gate is implemented at HEAD 842b029e).
+    // If any position unexpectedly returns a non-E-QUERY-043 error, the test is
+    // left RED and reported as an implementer handoff.
+    // -----------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------
+    // Test 12 (F-CSD-P4-001-T1): GROUP BY-position IN-subquery → E-QUERY-043
+    //
+    // Grammar reach: CONFIRMED.
+    // `group_by_clause` parser uses `expr.clone()` (sql_parser.rs build_sql_query_parser,
+    // line ~454). The `in_subquery` atom (`field_path IN (sql_query)`) is included in
+    // `expr` via the `atom = choice(( ..., in_subquery, ... ))` combinator.
+    //
+    // Query: `SELECT count(*) FROM crowdstrike_detections
+    //         GROUP BY device_id IN (SELECT device_id FROM crowdstrike_devices)`
+    // Parsed group_by: [Expr::InSubquery { field: device_id, subquery: SELECT ... }]
+    //
+    // DESIRED: Err(ExprInSubqueryProjectionNotSupported) — check_expr_insubquery_projection
+    //   walks SqlQuery.group_by and fires E-QUERY-043 before DataFusion planning.
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P4-001-T1 / BC-2.11.003: GROUP BY-position `Expr::InSubquery` must return
+    /// E-QUERY-043 (ExprInSubqueryProjectionNotSupported), NOT a DataFusion plan error.
+    ///
+    /// # Grammar reach
+    ///
+    /// CONFIRMED: `group_by_clause` in `build_sql_query_parser` (sql_parser.rs) uses
+    /// `expr.clone()` for each GROUP BY key. The `in_subquery` atom is part of `expr`
+    /// (via `atom = choice((..., in_subquery, ...))`), so `field IN (SELECT ...)` is
+    /// valid as a GROUP BY expression.
+    ///
+    /// # Gate contract
+    ///
+    /// `check_expr_insubquery_projection` walks `SqlQuery.group_by` (materialization.rs
+    /// lines ~3190-3195) and fires E-QUERY-043 on the first `Expr::InSubquery` found.
+    /// Gate fires before DataFusion planning, AFTER temporal checks in the production
+    /// path (preserves F-EQ42-P2-001 ordering).
+    ///
+    /// This test exercises the gate via `execute_against_session` (no temporal check wrapper).
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P4_001_T1_group_by_insubquery_returns_e_query_043() {
+        use prism_core::error::PrismError;
+
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // Register both tables with data — E-QUERY-043 fires before DataFusion planning,
+        // so table contents do not affect the gate result.
+        let det_batch = make_batch("detection_id", &["det-001", "det-002"]);
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+        let dev_batch = make_batch("device_id", &["dev-A", "dev-B"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // Grammar-confirmed: `GROUP BY device_id IN (SELECT ...)` parses as
+        // `group_by: [Expr::InSubquery { field: device_id, subquery: ... }]`
+        let sql = "SELECT count(*) FROM crowdstrike_detections \
+                   GROUP BY device_id IN (SELECT device_id FROM crowdstrike_devices)";
+        let ast = PrismQlParser::parse(sql).expect(
+            "GROUP BY IN-subquery must parse (grammar reach confirmed: \
+             group_by_clause uses expr.clone() which includes in_subquery atom)",
+        );
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (GREEN): E-QUERY-043 fires via check_expr_insubquery_projection
+        // walking SqlQuery.group_by before DataFusion planning.
+        assert!(
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P4-001-T1 / BC-2.11.003: GROUP BY IN-subquery must return E-QUERY-043 \
+             (ExprInSubqueryProjectionNotSupported). \
+             check_expr_insubquery_projection walks group_by and gates Expr::InSubquery. \
+             If this fails with another error type, the gate has a gap at GROUP BY position \
+             → implementer handoff required. got: {result:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 13 (F-CSD-P4-001-T2): ORDER BY-position IN-subquery → E-QUERY-043
+    //
+    // Grammar reach: CONFIRMED.
+    // `order_by_clause` parser: `order_expr` = `expr.clone().then(order_direction)`.
+    // The `in_subquery` atom is part of `expr`, so `field IN (SELECT ...)` is valid
+    // as an ORDER BY expression.
+    //
+    // Query: `SELECT device_id FROM crowdstrike_detections
+    //         ORDER BY device_id IN (SELECT device_id FROM crowdstrike_devices)`
+    // Parsed order_by: [OrderExpr { expr: Expr::InSubquery { ... }, direction: Asc }]
+    //
+    // DESIRED: Err(ExprInSubqueryProjectionNotSupported).
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P4-001-T2 / BC-2.11.003: ORDER BY-position `Expr::InSubquery` must return
+    /// E-QUERY-043 (ExprInSubqueryProjectionNotSupported), NOT a DataFusion plan error.
+    ///
+    /// # Grammar reach
+    ///
+    /// CONFIRMED: `order_by_clause` builds `order_expr = expr.clone().then(order_direction)`.
+    /// The `in_subquery` atom is part of `expr`, so `field IN (SELECT ...)` is syntactically
+    /// valid in ORDER BY position.
+    ///
+    /// # Gate contract
+    ///
+    /// `check_expr_insubquery_projection` walks `SqlQuery.order_by` (materialization.rs
+    /// lines ~3197-3201: `for order_item in &q.order_by { if contains_insubquery(&order_item.expr) }`)
+    /// and fires E-QUERY-043 on the first match.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P4_001_T2_order_by_insubquery_returns_e_query_043() {
+        use prism_core::error::PrismError;
+
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        let det_batch = make_batch("device_id", &["dev-A", "dev-B"]);
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+        let dev_batch = make_batch("device_id", &["dev-A"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // Grammar-confirmed: `ORDER BY device_id IN (SELECT ...)` parses as
+        // `order_by: [OrderExpr { expr: Expr::InSubquery { field: device_id, ... }, direction: Asc }]`
+        let sql = "SELECT device_id FROM crowdstrike_detections \
+                   ORDER BY device_id IN (SELECT device_id FROM crowdstrike_devices)";
+        let ast = PrismQlParser::parse(sql).expect(
+            "ORDER BY IN-subquery must parse (grammar reach confirmed: \
+             order_expr = expr.clone().then(order_direction), in_subquery is part of expr)",
+        );
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (GREEN): E-QUERY-043 fires via check_expr_insubquery_projection
+        // walking SqlQuery.order_by before DataFusion planning.
+        assert!(
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P4-001-T2 / BC-2.11.003: ORDER BY IN-subquery must return E-QUERY-043 \
+             (ExprInSubqueryProjectionNotSupported). \
+             check_expr_insubquery_projection walks order_by and gates Expr::InSubquery. \
+             If this fails with another error type, the gate has a gap at ORDER BY position \
+             → implementer handoff required. got: {result:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 14 (F-CSD-P4-001-T3): Negative control — WHERE-position IN-subquery
+    // with POPULATED tables → Ok with correct three-valued filtering.
+    //
+    // WHERE/HAVING use `Predicate::InSubquery` (not `Expr::InSubquery`).
+    // The E-QUERY-043 gate only checks `select.items`, `group_by`, and `order_by`.
+    // WHERE `Predicate::InSubquery` is DataFusion-native — decorrelate_predicate_subquery
+    // handles it with standard three-valued SQL semantics.
+    //
+    // Setup: crowdstrike_detections has 3 rows (device_ids: dev-A, dev-B, dev-C).
+    //        crowdstrike_devices has 2 rows (device_ids: dev-A, dev-B only).
+    // SQL: WHERE det.device_id IN (SELECT device_id FROM crowdstrike_devices)
+    // DESIRED: Ok with 2 rows — det-001/dev-A and det-002/dev-B match; det-003/dev-C does not.
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P4-001-T3 / BC-2.11.003 negative control: WHERE-position `Predicate::InSubquery`
+    /// with POPULATED tables must execute successfully with correct three-valued filtering.
+    ///
+    /// This locks two invariants simultaneously:
+    ///   (a) E-QUERY-043 does NOT fire for WHERE-position IN-subquery
+    ///       (only SELECT/GROUP BY/ORDER BY positions are gated by check_expr_insubquery_projection)
+    ///   (b) WHERE `Predicate::InSubquery` executes via DataFusion's
+    ///       `decorrelate_predicate_subquery` optimizer with correct three-valued semantics:
+    ///       - TRUE: det.device_id ∈ crowdstrike_devices.device_id set → row included
+    ///       - FALSE: det.device_id ∉ set (AND set has no NULLs) → row excluded
+    ///
+    /// The T8 test (F-CSD-P3-001-T1) covers the EMPTY-tables WHERE case (0 rows);
+    /// this test covers the POPULATED-tables path (2 of 3 rows match).
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P4_001_T3_where_insubquery_populated_executes_ok() {
+        use prism_core::error::PrismError;
+
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — 3 rows; device_id values: dev-A, dev-B, dev-C
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002", "det-003"],
+            "device_id",
+            &["dev-A", "dev-B", "dev-C"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — 2 rows: dev-A and dev-B only (dev-C absent)
+        let dev_batch = make_batch("device_id", &["dev-A", "dev-B"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        let sql = "SELECT det.detection_id \
+                   FROM crowdstrike_detections det \
+                   WHERE det.device_id IN (SELECT device_id FROM crowdstrike_devices)";
+        let ast = PrismQlParser::parse(sql).expect("WHERE IN-subquery must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // Negative control assertion (a): E-QUERY-043 must NOT fire for WHERE position.
+        assert!(
+            !matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P4-001-T3 / BC-2.11.003: WHERE-position IN-subquery must NOT return \
+             E-QUERY-043 — only SELECT/GROUP BY/ORDER BY positions are gated by \
+             check_expr_insubquery_projection (it does NOT walk SqlQuery.where_). got: {result:?}"
+        );
+
+        // Assertion (b): WHERE IN-subquery with populated tables must execute successfully.
+        assert!(
+            result.is_ok(),
+            "F-CSD-P4-001-T3: WHERE IN-subquery with populated tables must return Ok \
+             (DataFusion three-valued semantics via decorrelate_predicate_subquery). \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        // det-001 (dev-A) and det-002 (dev-B) are in crowdstrike_devices;
+        // det-003 (dev-C) is NOT → 2 rows returned.
+        assert_eq!(
+            total_rows, 2,
+            "F-CSD-P4-001-T3: WHERE IN-subquery must return exactly 2 rows \
+             (det-001/dev-A and det-002/dev-B match; det-003/dev-C does not). \
+             got {total_rows}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 15 (F-CSD-P4-001-T4): Gate-ordering lock — temporal (E-QUERY-042) preempts
+    // E-QUERY-043 when both violations are present.
+    //
+    // Gate ordering contract (error-taxonomy v2.38 §E-QUERY-043):
+    //   E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → check_temporal_literals (E-QUERY-041/042)
+    //     → fan-out → execute_against_session_with_registry → check_expr_insubquery_projection (E-QUERY-043)
+    //
+    // Query shape: outer SELECT has Expr::InSubquery → E-QUERY-043 if reached.
+    //              inner subquery GROUP BY has RFC-3339 literal → E-QUERY-042 via temporal walker.
+    //
+    // In the production path (run_materialization_pipeline), check_temporal_literals fires
+    // at step 1c BEFORE execute_against_session_with_registry (which has E-QUERY-043).
+    // check_expr_temporal_pos recurses into Expr::InSubquery subqueries (MED-1 / F-P4-MED-2 fix):
+    //   check_select_items_raw_temporal → check_expr_temporal(Expr::InSubquery) →
+    //   check_expr_temporal_pos on subquery.group_by → TemporalCheckPos::GroupBy →
+    //   Literal::Timestamp in GroupBy → E-QUERY-042.
+    //
+    // Proven by two-step test:
+    //   Step 1: check_temporal_literals(ast) → E-QUERY-042 (GroupBy) [production ordering]
+    //   Step 2: execute_against_session(ast) → E-QUERY-043 [skips temporal check, hits 043 gate]
+    //   Combined conclusion: E-QUERY-042 fires BEFORE E-QUERY-043 in production path.
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P4-001-T4 / BC-2.11.003 gate-ordering lock: when a query violates BOTH
+    /// E-QUERY-042 (temporal literal in subquery GROUP BY) AND E-QUERY-043 (SELECT
+    /// projection IN-subquery), the temporal check (E-QUERY-042) fires FIRST in the
+    /// production pipeline, preempting E-QUERY-043.
+    ///
+    /// # Gate ordering contract
+    ///
+    /// In `run_materialization_pipeline` (step 1c):
+    ///   `check_temporal_literals` fires E-QUERY-042 via GROUP BY temporal walk
+    ///   → returns Err BEFORE `execute_against_session_with_registry` is called
+    ///   → `check_expr_insubquery_projection` (E-QUERY-043) is never reached.
+    ///
+    /// # Two-step verification
+    ///
+    /// Step 1: calls `check_temporal_literals` directly (pub(crate)) — simulates the
+    ///   production gate order. Asserts E-QUERY-042 (GroupBy) fires on the subquery's
+    ///   GROUP BY temporal literal.
+    ///
+    /// Step 2: calls `execute_against_session` (no temporal check wrapper) — asserts
+    ///   E-QUERY-043 fires for the outer SELECT projection's IN-subquery.
+    ///
+    /// Combined: E-QUERY-042 < E-QUERY-043 in production gate order.
+    ///
+    /// Traces to: F-CSD-P4-001 adjudication 2026-07-10; error-taxonomy v2.38 §E-QUERY-043
+    /// gate-ordering contract; F-EQ42-P2-001 (temporal ordering pin).
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P4_001_T4_gate_ordering_temporal_preempts_e_query_043() {
+        use prism_core::error::{PrismError, TemporalLiteralPosition};
+
+        // Query with BOTH violations simultaneously:
+        //   Outer SELECT projection: (device_id IN (SELECT ...)) AS flag → Expr::InSubquery
+        //   Inner subquery GROUP BY: '2026-07-01T00:00:00Z' → Literal::Timestamp (RFC-3339)
+        //     parsed as RawTemporalLiteral or Literal::Timestamp → E-QUERY-042 (GroupBy)
+        //
+        // Grammar reach:
+        //   Outer SELECT InSubquery: confirmed by T2 test above and high002 MED-1 tests.
+        //   GROUP BY RFC-3339 literal: confirmed by test_F_EQ42_P1_002_subquery_in_where_group_by_timestamp.
+        let sql = concat!(
+            "SELECT (device_id IN (SELECT device_id FROM crowdstrike_devices ",
+            "GROUP BY '2026-07-01T00:00:00Z')) AS flag ",
+            "FROM crowdstrike_detections"
+        );
+
+        // --- Step 1: production gate ordering ---
+        // check_temporal_literals (pub(crate)) simulates what run_materialization_pipeline
+        // calls at step 1c. With no registry, temporal checks fail-open on column type
+        // (Unknown → skip), but the GROUP BY bare literal triggers E-QUERY-042 regardless
+        // of registry state (arm 6: TemporalCheckPos::GroupBy → E-QUERY-042).
+        //
+        // Recursion path:
+        //   Ast::Sql(Select) → check_select_items_raw_temporal (skip_projection=false)
+        //     → check_expr_temporal(Expr::InSubquery { subquery }) [item is SELECT projection]
+        //       → check_expr_temporal_pos(Expr::InSubquery, Other)
+        //         → for subquery.group_by: check_expr_temporal_pos(GroupBy)
+        //           → Literal::Timestamp in GroupBy → E-QUERY-042 (GroupBy)
+        let mut ast_for_temporal = PrismQlParser::parse(sql)
+            .expect("both-violation query must parse for gate-ordering step 1");
+
+        let temporal_result =
+            crate::materialization::check_temporal_literals(&mut ast_for_temporal, None, false);
+
+        assert!(
+            matches!(
+                &temporal_result,
+                Err(PrismError::TemporalLiteralInvalidPosition {
+                    position: TemporalLiteralPosition::GroupBy,
+                    ..
+                })
+            ),
+            "F-CSD-P4-001-T4 step 1 (gate ordering): check_temporal_literals must fire \
+             E-QUERY-042 (TemporalLiteralInvalidPosition::GroupBy) for the RFC-3339 \
+             temporal literal inside the IN-subquery GROUP BY clause. \
+             This confirms check_temporal_literals recurses into Expr::InSubquery subqueries \
+             (MED-1 / F-P4-MED-2 fix) and that E-QUERY-042 fires before E-QUERY-043 \
+             in the production pipeline. got: {temporal_result:?}"
+        );
+
+        // --- Step 2: execute_against_session companion verification ---
+        // execute_against_session calls execute_against_session_with_registry directly,
+        // which has check_expr_insubquery_projection (E-QUERY-043) but NOT
+        // check_temporal_literals. So E-QUERY-043 fires here for the outer SELECT
+        // projection's Expr::InSubquery — proving E-QUERY-043 WOULD have been reached
+        // if temporal check were bypassed.
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+        // Fresh parse: ast_for_temporal may have been partially mutated by step 1
+        // (check_temporal_literals mutates in-place for coercion arms; the GroupBy arm
+        // returns Err before mutation, but defensive fresh parse is safer).
+        let ast_for_043 = PrismQlParser::parse(sql)
+            .expect("both-violation query must parse for gate-ordering step 2");
+
+        let result_043 =
+            execute_against_session(&ctx, sql, &ast_for_043, std::collections::HashMap::new())
+                .await;
+
+        assert!(
+            matches!(
+                &result_043,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P4-001-T4 step 2 (companion): execute_against_session (no temporal check) \
+             must fire E-QUERY-043 for the outer SELECT projection IN-subquery. \
+             Combined with step 1: in run_materialization_pipeline, check_temporal_literals \
+             fires E-QUERY-042 BEFORE execute_against_session_with_registry is called, \
+             so E-QUERY-043 is preempted. got: {result_043:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 16 (F-CSD-P4-001-T5): JOIN ON-position scope boundary — NOT gated by E-QUERY-043
+    //
+    // Grammar reach: CONFIRMED.
+    // `join_clause` parser uses `.then(expr.clone())` for the ON condition (sql_parser.rs
+    // line ~434). The `in_subquery` atom is part of `expr`, so `field IN (SELECT ...)` is
+    // syntactically valid in JOIN ON position.
+    //
+    // Architect adjudication (F-CSD-P4-001 Option A, 2026-07-10):
+    //   JOIN ON Expr::InSubquery is deliberately NOT gated by E-QUERY-043.
+    //   check_expr_insubquery_projection walks only select.items, group_by, order_by.
+    //   It does NOT walk `q.joins`. JOIN ON is a predicate position (consistent with WHERE
+    //   semantics); DataFusion's decorrelate_predicate_subquery handles it natively.
+    //
+    // DESIRED: NOT Err(ExprInSubqueryProjectionNotSupported); Ok with correct rows.
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P4-001-T5 / BC-2.11.003 JOIN ON scope boundary: JOIN ON-position
+    /// `Expr::InSubquery` must NOT return E-QUERY-043.
+    ///
+    /// # Grammar reach
+    ///
+    /// CONFIRMED: `join_clause` parser uses `.then(expr.clone().padded())` for the ON
+    /// condition (sql_parser.rs `join_clause` definition). The `in_subquery` atom
+    /// (`field_path IN (sql_query)`) is part of `expr`, so:
+    ///   `INNER JOIN t2 ON field IN (SELECT col FROM t3)` is grammar-valid.
+    ///
+    /// # Gate scope boundary
+    ///
+    /// `check_sql_query` in `check_expr_insubquery_projection` checks:
+    ///   - `q.select.items` ✓ (gated)
+    ///   - `q.group_by` ✓ (gated)
+    ///   - `q.order_by` ✓ (gated)
+    ///   - `q.joins` — NOT checked (predicate position, DataFusion-plannable)
+    ///
+    /// This test locks the deliberate scope boundary: the gate does NOT fire for JOIN ON.
+    /// DataFusion's `decorrelate_predicate_subquery` optimizer handles JOIN ON IN-subquery
+    /// natively (same optimizer path as WHERE IN-subquery).
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P4_001_T5_join_on_insubquery_not_gated_by_e_query_043() {
+        use prism_core::error::PrismError;
+
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // Register both tables with data so DataFusion can plan and execute the query.
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002"],
+            "device_id",
+            &["dev-A", "dev-B"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+        let dev_batch = make_batch("device_id", &["dev-A", "dev-B", "dev-C"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // Grammar-confirmed: `JOIN t2 ON field IN (SELECT ...)` is parseable.
+        // join_clause uses expr.clone() for ON; in_subquery is part of expr.
+        let sql = "SELECT det.detection_id \
+                   FROM crowdstrike_detections det \
+                   INNER JOIN crowdstrike_devices dev \
+                   ON det.device_id IN (SELECT device_id FROM crowdstrike_devices)";
+        let ast = PrismQlParser::parse(sql).expect(
+            "JOIN ON IN-subquery must parse (grammar reach confirmed: \
+             join_clause uses expr.clone() for ON condition, in_subquery is part of expr)",
+        );
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // Core assertion: E-QUERY-043 must NOT fire for JOIN ON position.
+        // check_expr_insubquery_projection explicitly excludes q.joins.
+        assert!(
+            !matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P4-001-T5 / BC-2.11.003: JOIN ON-position IN-subquery must NOT return \
+             E-QUERY-043 — check_expr_insubquery_projection does not walk q.joins \
+             (deliberate scope boundary: JOIN ON is a predicate position). got: {result:?}"
+        );
+
+        // DataFusion must be able to plan and execute the JOIN ON IN-subquery.
+        // DataFusion's decorrelate_predicate_subquery optimizer handles this natively
+        // (same path as WHERE field IN (SELECT ...)).
+        assert!(
+            result.is_ok(),
+            "F-CSD-P4-001-T5: JOIN ON IN-subquery must execute successfully via DataFusion \
+             (predicate position handled by decorrelate_predicate_subquery). \
+             If this fails with a non-E-QUERY-043 error, report as implementer handoff: \
+             DataFusion may not support IN-subquery in JOIN ON position (gate gap check). \
+             got: {result:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 17 (F-CSD-P4-001-T6): Error-content POL-24 byte-consistency lock
+    //
+    // Asserts the E-QUERY-043 Display message contains:
+    //   1. Fixed prefix (byte-consistent with error-taxonomy v2.38 template + #[error] macro):
+    //      "E-QUERY-043: IN subquery in projection position is not supported."
+    //   2. Actionable rewrite directive from the hint:
+    //      "WHERE field IN (SELECT ...)" — analyst-visible, must be present
+    //   3. WHERE clause guidance:
+    //      "WHERE clause" — orients the analyst to the supported alternative
+    //
+    // Error-taxonomy v2.38 §E-QUERY-043 full message template:
+    //   "E-QUERY-043: IN subquery in projection position is not supported.
+    //    Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`. ..."
+    //
+    // #[error(...)] template in prism_core::error::PrismError:
+    //   "E-QUERY-043: IN subquery in projection position is not supported. {hint}"
+    //   where {hint} = actionable guidance from check_expr_insubquery_projection.
+    //
+    // POL-24: the fixed-text prefix is byte-consistent between the error variant and
+    //   the taxonomy template → lock both present.
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P4-001-T6 / BC-2.11.003 error-content lock (POL-24): E-QUERY-043 Display
+    /// message must contain the fixed prefix from error-taxonomy v2.38 and the actionable
+    /// rewrite directive from the hint.
+    ///
+    /// # Error-taxonomy v2.38 §E-QUERY-043 message template
+    ///
+    /// Fixed prefix (from `#[error]` macro, byte-consistent with taxonomy):
+    ///   `"E-QUERY-043: IN subquery in projection position is not supported."`
+    ///
+    /// Actionable hint (from `check_expr_insubquery_projection` hint variable):
+    ///   Contains `"WHERE field IN (SELECT ...)"` and `"WHERE clause"`
+    ///
+    /// # POL-24 constraint
+    ///
+    /// The fixed-text prefix is byte-pinned to the `#[error(...)]` template in
+    /// `prism_core::error::PrismError::ExprInSubqueryProjectionNotSupported`.
+    /// Any change to this prefix that diverges from the error-taxonomy template
+    /// would break this test.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P4_001_T6_e_query_043_display_contains_actionable_hint() {
+        use prism_core::error::PrismError;
+
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // Minimal setup — just enough to reach the gate (1 row, tables registered).
+        let det_batch = make_batch("detection_id", &["det-001"]);
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+        // crowdstrike_devices can be empty — E-QUERY-043 fires before DataFusion planning.
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("empty registration must not error");
+
+        // SELECT projection IN-subquery — the canonical position for E-QUERY-043.
+        let sql = "SELECT (device_id IN (SELECT device_id FROM crowdstrike_devices)) AS is_known \
+                   FROM crowdstrike_detections";
+        let ast = PrismQlParser::parse(sql).expect(
+            "SELECT projection IN-subquery must parse (grammar reach confirmed by T2 above)",
+        );
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // Must be E-QUERY-043.
+        assert!(
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P4-001-T6: projection IN-subquery must produce E-QUERY-043. got: {result:?}"
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        // POL-24 byte-consistency: fixed prefix from #[error(...)] macro and error-taxonomy v2.38.
+        // Byte-pinned to: `"E-QUERY-043: IN subquery in projection position is not supported."`
+        assert!(
+            display.contains("E-QUERY-043: IN subquery in projection position is not supported."),
+            "F-CSD-P4-001-T6 POL-24: Display must contain the fixed E-QUERY-043 prefix \
+             (byte-consistent with error-taxonomy v2.38 template and #[error(...)] macro). \
+             Any change to this prefix must be coordinated with the taxonomy. \
+             got: {display:?}"
+        );
+
+        // Actionable rewrite directive: analyst-visible WHERE clause form.
+        // From check_expr_insubquery_projection hint variable.
+        assert!(
+            display.contains("WHERE field IN (SELECT ...)"),
+            "F-CSD-P4-001-T6: Display must contain actionable rewrite directive \
+             `WHERE field IN (SELECT ...)` (error-taxonomy v2.38 hint). \
+             got: {display:?}"
+        );
+
+        // WHERE clause guidance: orients the analyst to the supported alternative.
+        assert!(
+            display.contains("WHERE clause"),
+            "F-CSD-P4-001-T6: Display must mention `WHERE clause` as the supported \
+             alternative (analyst-readable actionable hint per error-taxonomy v2.38). \
+             got: {display:?}"
+        );
+    }
 }
