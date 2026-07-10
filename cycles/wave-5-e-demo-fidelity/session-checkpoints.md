@@ -137,3 +137,25 @@ _Archived to session-checkpoints.md by D-1638 burst (state-manager keep-last-1 d
 2. `git log --oneline -1 origin/develop` → expect `f935edb6`.
 3. `git -C .worktrees/FIX-IEQ-ERRPATH-001 log --oneline -1` → expect `8610ecd0` (fix-branch pushed; PR-LEVEL streak 0/3; streak candidate 1/3 starts at pass 6).
 4. VERY NEXT ACTION: PR-LEVEL adversary pass 6 on frozen 8610ecd0 (streak candidate 1/3).
+
+---
+
+## Session Resume Checkpoint (D-1658 -- 2026-07-10; STATE v8.258)
+
+_Archived to session-checkpoints.md by D-1659 burst (state-manager keep-last-1 discipline)._
+
+**EQUERY042 DEFECT CLOSED.** PR #220 squash-merged develop@b9cf3f9b 2026-07-10. Fix: E-QUERY-042 Literal::Timestamp arm in GROUP BY/ORDER BY (ADR-052 §D4 v1.11 arms 6+7); 15 new tests. Full cascade: LOCAL 5-pass (3-CLEAN @7db0b1ba; D-1654) + PR-LEVEL 3-pass ALL CLEAN(strict) on frozen 7db0b1ba. CI PASS; security CLEAR; pr-reviewer APPROVE cycle 1. develop_head 8ea29823→b9cf3f9b.
+
+**CSDEVICES LOCAL cascade in progress.** Pass-6 fix-burst COMPLETE (D-1658). Pass-6 (frozen @30217403): NOT CLEAN(strict) CLEAN(PR-merge) — 1 LOW F-CSD-P6-001 (check_expr_insubquery_projection lacked DML source_select defense-in-depth arm; zero current exploitability, S-3.06 forward risk). All other probes CLEAR (HAVING grammar-unreachable for Expr::InSubquery; BUNDLED_SPEC_SCHEMAS compile-time fresh; DTU body handling in-scope-clear; CWE-209 consistent; version chain intact). Fix-burst: implementer @3d48b6a9 T20 RED→GREEN (DML source_select arm; comment corrected); 20/20 defect tests; 15/15 temporal; 1522/1522 prism-query; just check GREEN; non-exhaustive 89/89. No spec changes (code-only). Streak 0/3. LOCAL pass 7 IN FLIGHT on frozen `3d48b6a9`. `.worktrees/FIX-CSDEVICES-EMPTY-PIPELINE` active on `fix/csdevices-empty-pipeline`.
+
+**STATE v8.258. develop b9cf3f9b (PUSHED, origin==local). BC-INDEX v7.82. STORY-INDEX v2.653. ARCH-INDEX v2.175. error-taxonomy v2.38. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 229. workspace_test_count 5397 ON develop@8ea29823 (+15 new tests from PR #220 unverified on develop@b9cf3f9b). bc_count_corrected 266.**
+
+**LAST MERGED:** DEFECT-EQUERY042-GROUPBY-DEADARM-001 (PR #220 → develop@b9cf3f9b, 2026-07-10).
+
+**OPEN PRs:** NONE (AUDIT-COVERAGE-001 PR not yet opened; CSDEVICES fix-cascade in progress).
+
+**RESUME PROTOCOL:**
+1. Run vsdd-factory:factory-worktree-health (BLOCKING).
+2. `git log --oneline -1 origin/develop` → expect `b9cf3f9b`.
+3. `git -C .factory log -1 --format="%h %s"` → factory-artifacts HEAD (do not hard-code).
+4. VERY NEXT ACTION = LOCAL pass 7 result on frozen `3d48b6a9` (`fix/csdevices-empty-pipeline`; streak 0/3).

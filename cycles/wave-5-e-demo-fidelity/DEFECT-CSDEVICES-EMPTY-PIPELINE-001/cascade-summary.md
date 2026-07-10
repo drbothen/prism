@@ -4,11 +4,13 @@ scope: LOCAL
 defect: DEFECT-CSDEVICES-EMPTY-PIPELINE-001
 fix_branch: fix/csdevices-empty-pipeline
 date_pass4: 2026-07-10
-total_passes_to_date: 6
+total_passes_to_date: 7
 date_pass5: 2026-07-10
 streak_at_pass5: 0
 date_pass6: 2026-07-10
 streak_at_pass6: 0
+date_pass7: 2026-07-10
+streak_at_pass7: 0
 convergence: IN_PROGRESS
 authored_by: state-manager
 ---
@@ -32,7 +34,7 @@ authored_by: state-manager
 
 ---
 
-## Cascade Table (6 passes to date)
+## Cascade Table (7 passes to date)
 
 | Pass | Frozen HEAD | CLEAN(strict) | CLEAN(PR-merge) | Findings | Fix-burst HEAD | Streak |
 |------|-------------|---------------|-----------------|----------|----------------|--------|
@@ -44,8 +46,10 @@ authored_by: state-manager
 | — (fix-burst) | — | — | — | — | test-writer RED @283bbc4b T18/T19+T17-tightened; implementer GREEN @30217403 FuncCall Scalar/Aggregate recursion arms + Window explicit false + byte-exact hint; PO BC-2.11.005 v1.8→v1.9; 1521/1521 prism-query; just check GREEN | 0/3 |
 | 6 | frozen @30217403 | NO | YES | 1 LOW F-CSD-P6-001 (`check_expr_insubquery_projection` lacked DML `source_select` defense-in-depth arm; zero current exploitability, S-3.06 forward risk) | implementer fix-burst @3d48b6a9 | 0/3 |
 | — (fix-burst) | — | — | — | — | implementer @3d48b6a9 — T20 RED→GREEN (INSERT INTO...SELECT col IN (SELECT...) now fires E-QUERY-043 via new `Ast::Sql(SqlStatement::Dml(dml)) => dml.source_select...check_sql_query` arm; comment corrected); 20/20 defect tests; 15/15 temporal; 1522/1522 prism-query; just check GREEN; non-exhaustive 89/89 | 0/3 |
+| 7 | frozen @3d48b6a9 | NO | NO | 1 MED F-CSD-P7-001 (`check_expr_insubquery_projection` `check_sql_query` non-recursive: projection `Expr::InSubquery` nested inside WHERE/HAVING `Predicate::InSubquery` subqueries slipped to -32000; third walker-dimension gap in gate family; NOTE: HAVING `Predicate::InSubquery` IS grammar-reachable — corrects pass-6 contrary determination) + 3 OBS (OBS-001 endpoint-count method ambiguity doc-closed; OBS-002 stale fidelity future-note doc-closed; OBS-004 T20 ordering coupling doc-closed) + OBS-003 no-action (incidents SAP-2 gap correctly anchored to DTU-EXT-001) | — | 0/3 |
+| — (fix-burst) | — | — | — | — | test-writer RED @dd51459c (T21-T23 + T24 over-rejection control); implementer STRUCTURAL @38b05bbc — `descend_subquery_expr` + `check_predicate` + extended `check_sql_query` covering WHERE/HAVING/JOIN-ON interiors recursively (mirrors `walk_sql_query` pattern; closes P5/P6/P7 walker-gap lineage structurally); T5 JOIN-ON boundary + T24 predicate-support preserved; OBS-001/002/004 doc closures; 24/24 defect tests; 15/15 temporal; just check 5444/5444 GREEN; non-exhaustive 89/89 | 0/3 |
 
-Streak reset at pass 3 and pass 4. Streak 0/3 after pass-6 fix-burst. LOCAL pass 7 IN FLIGHT on frozen HEAD `3d48b6a9`.
+Streak reset at pass 3 and pass 4. Streak 0/3 after pass-7 fix-burst. Structural-fix class closure: P5 (FuncCall-args recursion gap), P6 (DML source_select defense-in-depth), P7 (WHERE/HAVING/JOIN-ON check_sql_query non-recursive) form a single walker-gap lineage — all three closed by the same architectural pattern (recursive walk of all SQL interior positions). LOCAL pass 8 IN FLIGHT on frozen HEAD `38b05bbc`.
 
 ---
 
@@ -103,6 +107,18 @@ Streak stays 0/3. LOCAL pass 6 NEXT on frozen `30217403`.
 
 CLEAN(strict): NO. CLEAN(PR-merge): YES. Streak stays 0/3. LOCAL pass 7 NEXT on frozen `3d48b6a9`.
 
+### Pass 7
+
+| ID | Severity | Description | Resolution |
+|----|----------|-------------|------------|
+| F-CSD-P7-001 | MED | `check_expr_insubquery_projection` calls `check_sql_query` on the subquery body but `check_sql_query` does not recurse into WHERE/HAVING `Predicate::InSubquery` sub-subqueries; projection `Expr::InSubquery` nested one level deeper slipped to -32000. Third walker-dimension gap in the E-QUERY-043 gate family (P5=FuncCall-args, P6=DML source_select, P7=WHERE/HAVING/JOIN-ON interior). NOTE: HAVING `Predicate::InSubquery` IS grammar-reachable (corrects pass-6 determination that it was not). | implementer STRUCTURAL @38b05bbc: `descend_subquery_expr` + `check_predicate` + extended `check_sql_query` (recursive walk of WHERE/HAVING/JOIN-ON interiors); T21-T23 RED→GREEN; T24 over-rejection control |
+| OBS-001 | OBS | Endpoint-count comment method ambiguity | doc-closed @38b05bbc |
+| OBS-002 | OBS | Stale fidelity future-note in comment | doc-closed @38b05bbc |
+| OBS-003 | OBS | Incidents SAP-2 gap anchored to DTU-EXT-001 | no-action (correctly anchored) |
+| OBS-004 | OBS | T20 ordering coupling in test | doc-closed @38b05bbc |
+
+CLEAN(strict): NO. CLEAN(PR-merge): NO. Streak stays 0/3. LOCAL pass 8 NEXT on frozen `38b05bbc`.
+
 ---
 
 ## Evidence at Pass 4 Fix HEAD (22f429d0)
@@ -119,6 +135,18 @@ CLEAN(strict): NO. CLEAN(PR-merge): YES. Streak stays 0/3. LOCAL pass 7 NEXT on 
 | BC-2.11.003 | v1.12→v1.13 | Stale subquery invariant replaced; E-QUERY-001 subquery row superseded; E-QUERY-043 row + vectors |
 | BC-2.11.005 | v1.7→v1.8 | DEC-022 position-invariant expansion + 11 test vectors |
 | S-HARDEN-PLAN-PINNING-001 | NEW draft v0.1 | F-CSD-P4-005 [process-gap] closure story |
+
+## Evidence at Pass 7 Fix HEAD (38b05bbc)
+
+- prism-query: **24/24** defect tests GREEN; **15/15** temporal tests GREEN
+- Full workspace `just check`: **5444/5444** GREEN
+- Non-exhaustive gate: 89/89
+
+## Spec Layer Modified (pass-7 closure)
+
+No spec changes — code-only fix. Structural walker fix in `check_expr_insubquery_projection` (`descend_subquery_expr` + `check_predicate` + extended `check_sql_query`). No BC or error-taxonomy version bumps.
+
+---
 
 ## Evidence at Pass 6 Fix HEAD (3d48b6a9)
 
@@ -160,4 +188,4 @@ Source: `.factory/research/defect-csdevices-empty-pipeline-rootcause-2026-07-10.
 
 _Pending: LOCAL cascade not yet converged. PR not yet created._
 
-**Status: IN PROGRESS — LOCAL pass 7 IN FLIGHT on frozen `3d48b6a9` (streak 0/3). Pass-6 fix-burst COMPLETE (D-1658): DML source_select defense-in-depth arm @3d48b6a9 (code-only; no spec changes). Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW (decaying toward convergence).**
+**Status: IN PROGRESS — LOCAL pass 8 IN FLIGHT on frozen `38b05bbc` (streak 0/3). Pass-7 fix-burst COMPLETE (D-1659): structural recursive gate walker @38b05bbc (code-only; no spec changes). Walker-gap lineage P5/P6/P7 CLOSED (structural-fix class: descend_subquery_expr + check_predicate + extended check_sql_query covers WHERE/HAVING/JOIN-ON recursion). Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS (decaying toward convergence).**
