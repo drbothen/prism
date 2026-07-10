@@ -4,9 +4,11 @@ scope: LOCAL
 defect: DEFECT-CSDEVICES-EMPTY-PIPELINE-001
 fix_branch: fix/csdevices-empty-pipeline
 date_pass4: 2026-07-10
-total_passes_to_date: 5
+total_passes_to_date: 6
 date_pass5: 2026-07-10
 streak_at_pass5: 0
+date_pass6: 2026-07-10
+streak_at_pass6: 0
 convergence: IN_PROGRESS
 authored_by: state-manager
 ---
@@ -30,7 +32,7 @@ authored_by: state-manager
 
 ---
 
-## 4-Pass Cascade Table
+## Cascade Table (6 passes to date)
 
 | Pass | Frozen HEAD | CLEAN(strict) | CLEAN(PR-merge) | Findings | Fix-burst HEAD | Streak |
 |------|-------------|---------------|-----------------|----------|----------------|--------|
@@ -40,8 +42,10 @@ authored_by: state-manager
 | 4 | (frozen @22f429d0 + spec layer) | NO | NO | 1 HIGH F-CSD-P4-001 (unauthorized COUNT rewrite) + 2 MED (F-CSD-P4-002/003) + 1 LOW (F-CSD-P4-004) + 2 OBS incl. F-CSD-P4-005 [process-gap] | spec layer + S-HARDEN-PLAN-PINNING-001 draft | 0/3 |
 | 5 | frozen @22f429d0 | NO | NO | 1 HIGH F-CSD-P5-001 (contains_insubquery FuncCall-args recursion gap) + 3 MED (F-CSD-P5-002 POL-24 hint drift / F-CSD-P5-003 stale test-vector row / F-CSD-P5-004 stale position-invariant claim) | — | 0/3 |
 | — (fix-burst) | — | — | — | — | test-writer RED @283bbc4b T18/T19+T17-tightened; implementer GREEN @30217403 FuncCall Scalar/Aggregate recursion arms + Window explicit false + byte-exact hint; PO BC-2.11.005 v1.8→v1.9; 1521/1521 prism-query; just check GREEN | 0/3 |
+| 6 | frozen @30217403 | NO | YES | 1 LOW F-CSD-P6-001 (`check_expr_insubquery_projection` lacked DML `source_select` defense-in-depth arm; zero current exploitability, S-3.06 forward risk) | implementer fix-burst @3d48b6a9 | 0/3 |
+| — (fix-burst) | — | — | — | — | implementer @3d48b6a9 — T20 RED→GREEN (INSERT INTO...SELECT col IN (SELECT...) now fires E-QUERY-043 via new `Ast::Sql(SqlStatement::Dml(dml)) => dml.source_select...check_sql_query` arm; comment corrected); 20/20 defect tests; 15/15 temporal; 1522/1522 prism-query; just check GREEN; non-exhaustive 89/89 | 0/3 |
 
-Streak reset at pass 3 and pass 4. Streak 0/3 after pass-5 fix-burst. LOCAL pass 6 NEXT on frozen HEAD `30217403`.
+Streak reset at pass 3 and pass 4. Streak 0/3 after pass-6 fix-burst. LOCAL pass 7 IN FLIGHT on frozen HEAD `3d48b6a9`.
 
 ---
 
@@ -91,6 +95,14 @@ Streak stays 0/3. LOCAL pass 5 NEXT on frozen `22f429d0`.
 
 Streak stays 0/3. LOCAL pass 6 NEXT on frozen `30217403`.
 
+### Pass 6
+
+| ID | Severity | Description | Resolution |
+|----|----------|-------------|------------|
+| F-CSD-P6-001 | LOW | `check_expr_insubquery_projection` lacked DML `source_select` defense-in-depth arm vs sibling `check_temporal_literals` F-P4-LOW-1 precedent; zero current exploitability (DML INSERT INTO…SELECT path not reachable via current grammar), S-3.06 forward risk | implementer @3d48b6a9: new `Ast::Sql(SqlStatement::Dml(dml)) => dml.source_select.as_ref().map(|s| check_sql_query(s))` arm; T20 RED→GREEN |
+
+CLEAN(strict): NO. CLEAN(PR-merge): YES. Streak stays 0/3. LOCAL pass 7 NEXT on frozen `3d48b6a9`.
+
 ---
 
 ## Evidence at Pass 4 Fix HEAD (22f429d0)
@@ -107,6 +119,18 @@ Streak stays 0/3. LOCAL pass 6 NEXT on frozen `30217403`.
 | BC-2.11.003 | v1.12→v1.13 | Stale subquery invariant replaced; E-QUERY-001 subquery row superseded; E-QUERY-043 row + vectors |
 | BC-2.11.005 | v1.7→v1.8 | DEC-022 position-invariant expansion + 11 test vectors |
 | S-HARDEN-PLAN-PINNING-001 | NEW draft v0.1 | F-CSD-P4-005 [process-gap] closure story |
+
+## Evidence at Pass 6 Fix HEAD (3d48b6a9)
+
+- prism-query: **1522/1522** tests GREEN (defect suite 20/20; T20 RED→GREEN for DML source_select arm)
+- Full workspace `just check`: GREEN
+- Non-exhaustive gate: 89/89
+
+## Spec Layer Modified (pass-6 closure)
+
+No spec changes — code-only fix. DML `source_select` defense-in-depth arm added to `check_expr_insubquery_projection` in `fix/csdevices-empty-pipeline`. No BC or error-taxonomy version bumps.
+
+---
 
 ## Evidence at Pass 5 Fix HEAD (30217403)
 
@@ -136,4 +160,4 @@ Source: `.factory/research/defect-csdevices-empty-pipeline-rootcause-2026-07-10.
 
 _Pending: LOCAL cascade not yet converged. PR not yet created._
 
-**Status: IN PROGRESS — LOCAL pass 6 NEXT on frozen `30217403` (streak 0/3). Pass-5 fix-burst COMPLETE (D-1657): FuncCall recursion arms + Window false + byte-exact hint @30217403 + BC-2.11.005 v1.9.**
+**Status: IN PROGRESS — LOCAL pass 7 IN FLIGHT on frozen `3d48b6a9` (streak 0/3). Pass-6 fix-burst COMPLETE (D-1658): DML source_select defense-in-depth arm @3d48b6a9 (code-only; no spec changes). Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW (decaying toward convergence).**
