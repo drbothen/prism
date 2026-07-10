@@ -2733,3 +2733,23 @@ FIX-IEQ-ERRPATH-001 LOCAL pass-5 adversary emitted a report with the verdict lin
 **Summary:** POL-22 Phase-C citation audits must sweep ALL parallel narrative surfaces of the same content as a JOINT pair (impl-location table + §Preconditions prose + sibling-BC restatement tables) per position — single-surface fixes leave the parallel surface stale; recurred passes 3/4/5 of the FIX-IEQ-ERRPATH-001 PR-LEVEL cascade (LOW-001, MED-001, P5-MED-001/002 + 4 BC-2.11.004 instances).
 
 **Source:** D-1637 (FIX-IEQ-ERRPATH-001 PR-LEVEL pass-5 same-burst closure; ADV-PR-P5-MED-001/002/003 + class-closure sweep; 2026-07-09). Candidate enforcement: POL-22 verification_steps amendment at cycle close.
+
+---
+
+### L24 — [codified-candidate] Adversary worktree-identity discipline: feature-code reads MUST use worktree-rooted paths
+
+**Summary:** During PR-LEVEL adversary pass 14 on FIX-IEQ-ERRPATH-001, the adversary raised ADV-PR-P14-MED-001 (A6 inert assertion in `scripts/t13-preflight-audit.py`) by reading `scripts/t13-preflight-audit.py` from the **main checkout** (`/Users/jmagady/Dev/prism/scripts/`) rather than from the feature worktree (`/Users/jmagady/Dev/prism/.worktrees/FIX-IEQ-ERRPATH-001/scripts/`). The main-checkout copy is the stale DRIFT-AUDIT-SCRIPT-UNCOMMITTED-001 uncommitted file; the worktree copy at 13db1a54 contains the correct load-bearing tri-state assertion from the pass-7 fix. The finding was entirely false — the inert `has_enabled_count` pattern exists ONLY in the stale main-checkout sibling.
+
+**Orchestrator adjudication pattern:** The orchestrator verified objectively (inspecting the worktree path) and returned the evidence to the SAME adversary for retraction/sustain — never orchestrator-overriding the verdict unilaterally. The adversary self-acknowledged the preflight violation, re-ran all script-dependent probes (A6/G2/G3/G4/C8/COVERAGE_MATRIX) against the worktree, confirmed all clean, and retracted the finding. Corrected verdict: CLEAN(strict)=YES, CLEAN(PR-merge)=YES, 0 findings. Streak 2/3→3/3, PR-LEVEL cascade CONVERGED.
+
+**Codified rules:**
+
+1. **Worktree-identity preflight (adversary):** For any PR-LEVEL adversary pass, ALL file reads of feature code — including `scripts/`, `crates/`, `.prism/`, and any other path — MUST use the worktree-rooted path (e.g., `.worktrees/<story-id>/scripts/file.py`), not the main-checkout path (e.g., `scripts/file.py`). The main checkout may contain stale uncommitted copies that predate the PR branch. Reading the main-checkout copy is a worktree-identity preflight violation.
+
+2. **Dirty main-checkout files are not authoritative during PR-LEVEL review:** When a story's fix branch includes changes to a script or file that also exists as an uncommitted modification in the main checkout (a known drift item — see DRIFT-AUDIT-SCRIPT-UNCOMMITTED-001), the authoritative version for adversary review is the worktree/branch copy. The main-checkout dirty copy is noise.
+
+3. **Orchestrator adjudication pattern (retraction/sustain):** When the orchestrator detects that an adversary finding is based on a wrong-file read, the correct response is to (a) verify objectively with the correct file path, (b) return the evidence to the SAME adversary for re-verification, and (c) accept the adversary's retraction or sustain as authoritative. The orchestrator does NOT override the verdict directly — it corrects the adversary's information and lets the adversary re-adjudicate.
+
+**Evidence:** FIX-IEQ-ERRPATH-001 PR-LEVEL pass-14 (D-1646 2026-07-09); ADV-PR-P14-MED-001 retracted; 33-pass cascade converged @13db1a54.
+
+**Source:** D-1646 (FIX-IEQ-ERRPATH-001 PR-LEVEL pass-14 corrected-CLEAN; orchestrator adjudication + adversary retraction; 2026-07-09).
