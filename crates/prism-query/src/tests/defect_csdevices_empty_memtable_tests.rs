@@ -2056,6 +2056,16 @@ mod tests {
         // is a valid SELECT projection item (in_subquery atom within Expr grammar).
         // `LIMIT 10` satisfies check_unbounded_write (INSERT SELECT must have WHERE or LIMIT).
         //
+        // OBS-004 (gate-before-target-validation ordering): `armis_tags` is intentionally
+        // NOT registered in this test's session context. The E-QUERY-043 gate fires in
+        // `check_expr_insubquery_projection` (Step 1d of `run_materialization_pipeline`,
+        // line ~1177) BEFORE table-availability validation (E-QUERY-037, Step 1c). Because
+        // the gate fires first, the test receives `ExprInSubqueryProjectionNotSupported`
+        // regardless of whether the DML target exists. This is correct gate-ordering
+        // behaviour (E-QUERY-043 rewrite directive supersedes table-not-found). Switching to
+        // a registered target would also work but would mask the ordering dependency —
+        // the unregistered target makes the ordering invariant explicit.
+        //
         // If this expect() panics, grammar reach is NOT confirmed — revise the SQL shape.
         let sql = "INSERT INTO armis_tags \
                    SELECT device_id IN (SELECT device_id FROM crowdstrike_devices) \

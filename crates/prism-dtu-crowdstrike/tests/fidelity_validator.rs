@@ -32,8 +32,12 @@ use prism_dtu_crowdstrike::CrowdstrikeClone;
 ///   - POST /devices/entities/devices-actions/v2?action_name=lift_containment
 ///   - PATCH /detects/entities/detects/v2
 ///
-/// When TD-WV1-01 is resolved (FidelityCheck gains a `headers` field), expand
-/// to all 8 auth-required endpoints with bearer tokens and update count to 11.
+/// When TD-WV1-01 is resolved (FidelityValidator gains OAuth2-chained bearer-token
+/// support), expand to all 8 auth-required endpoints listed above with bearer tokens
+/// and update the assertion counts to 11 (3 currently tested + 8 auth-required = 11
+/// total). Note: `FidelityCheck.headers` already exists (used by DTU reset above);
+/// the TD-WV1-01 blocker is chaining the OAuth2 token response into subsequent checks,
+/// not the headers field itself.
 // Scope: unauthenticated / DTU-internal endpoints only. Auth-required shapes
 // are covered by per-AC integration tests. See ADR-003 for rationale.
 #[tokio::test]

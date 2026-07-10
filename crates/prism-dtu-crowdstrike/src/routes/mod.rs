@@ -186,6 +186,14 @@ async fn failure_injection_middleware(
 /// Build the full axum router for the CrowdStrike DTU.
 ///
 /// Wires all 9 in-scope endpoints (5 read, 4 write) plus the OAuth token endpoint.
+///
+/// Counting method for write endpoints: writes are counted as SEMANTIC OPERATIONS
+/// (4 total), not routes (2 total). Two write routes dispatch to two operations each:
+///   - `POST /devices/entities/devices-actions/v2` → `contain` + `lift_containment` (2 ops)
+///   - `PATCH /detects/entities/detects/v2` → `assign` + `update_status` (2 ops)
+///
+/// Total: 4 semantic write operations, 2 write routes.
+///
 /// Wraps with `LatencyLayer` (from prism-dtu-common) and a custom axum middleware
 /// for `FailureMode` injection that uses the shared counter in `CrowdstrikeState`.
 ///

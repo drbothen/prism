@@ -3130,7 +3130,7 @@ pub(crate) async fn collect_record_batch_stream(
 // ---------------------------------------------------------------------------
 
 /// Plan-time gate for `Expr::InSubquery` in SELECT projection, GROUP BY, or ORDER BY
-/// positions (E-QUERY-043).
+/// positions across ALL reachable `SqlQuery` scopes (E-QUERY-043).
 ///
 /// DataFusion 53.1.0 physical planner raises `not_impl_err!` for `InSubquery` in scalar
 /// expression positions. Without this gate, the error surfaces as a catch-all
@@ -3140,29 +3140,34 @@ pub(crate) async fn collect_record_batch_stream(
 /// `run_materialization_pipeline`) so that temporal violations (E-QUERY-042) take
 /// precedence when both are present.
 ///
-/// # Scope
+/// # Scope — all reachable SqlQuery scopes, recursively
 ///
-/// Checks the following AST positions for `Expr::InSubquery`:
+/// The gate walks every `SqlQuery` reachable from the AST entry point, including
+/// subqueries nested inside WHERE/HAVING predicates and JOIN ON expressions.
+/// Walker-parity with `walk_sql_query` / `walk_predicate` / `walk_expr` (the sibling
+/// empty-table pre-registration walkers). F-CSD-P5-001/P6-001/P7-001 fix lineage.
+///
+/// Checked positions within each reachable `SqlQuery`:
 /// - `SqlQuery.select.items` — each `SelectItem::Expr { expr, .. }`
 /// - `SqlQuery.group_by` — each `Expr`
 /// - `SqlQuery.order_by` — each `OrderExpr.expr`
-/// - `DmlNode.source_select` (INSERT INTO … SELECT) — same three positions via
-///   `check_sql_query` (defense-in-depth; F-CSD-P6-001 + F-P4-LOW-1 precedent)
+/// - `SqlQuery.joins` JOIN ON interiors — `Expr::InSubquery` directly in JOIN ON is
+///   NOT rejected (T5 scope boundary), but its inner `SqlQuery` is checked recursively
+/// - `SqlQuery.where_` — recurse via `check_predicate` into `Predicate::InSubquery.subquery`
+///   (F-CSD-P7-001; sibling walker `walk_sql_query` already recurses here)
+/// - `SqlQuery.having` — same recursion, orthogonal HAVING path (F-CSD-P7-001-T3)
+/// - `DmlNode.source_select` (INSERT INTO … SELECT) — via `check_sql_query` (F-CSD-P6-001)
 ///
-/// Within each checked position, `contains_insubquery` recurses into
+/// Within each projection position, `contains_insubquery` recurses into
 /// `FuncCall::Scalar` and `FuncCall::Aggregate` argument lists (F-CSD-P5-001).
-/// A FuncCall wrapping an InSubquery — e.g. `count(id IN (SELECT …))` — is
-/// therefore caught even when the InSubquery is not at the top level of the
-/// projection expression. Mirrors the FuncCall walk in `walk_expr` (F-LP4-MED-1).
 ///
-/// Does NOT check `Predicate::InSubquery` (WHERE/HAVING). Those are supported and
-/// executed via DataFusion's `decorrelate_predicate_subquery` optimizer rule with
-/// standard SQL three-valued semantics.
+/// Does NOT reject `Predicate::InSubquery` (WHERE/HAVING IN-subqueries). Those are
+/// supported and executed via DataFusion's `decorrelate_predicate_subquery` optimizer
+/// rule (T24/T3/T10 lock). Only projection-position `Expr::InSubquery` inside any
+/// reachable `SqlQuery` is rejected.
 ///
-/// Does NOT check JOIN ON positions: JOIN ON `Expr::InSubquery` is not in scope of
-/// the E-QUERY-043 gate. `pre_register_empty_tables` continues to walk JOIN ON
-/// expressions for empty-table pre-registration (serves security and pre-registration
-/// goals that remain valid regardless of this gate).
+/// Does NOT reject JOIN ON `Expr::InSubquery` directly (T5 scope boundary). The
+/// INTERIOR of the subquery is still checked via `descend_subquery_expr`.
 ///
 /// Does NOT check DML filter predicates (UPDATE/DELETE WHERE): those contain
 /// `Predicate::InSubquery`, not `Expr::InSubquery` in projection position.
@@ -3172,13 +3177,14 @@ pub(crate) async fn collect_record_batch_stream(
 /// - `Ok(())` if no `Expr::InSubquery` is found in the gated positions.
 /// - `Err(PrismError::ExprInSubqueryProjectionNotSupported { hint })` on first match.
 ///
-/// Reference: F-CSD-P4-001 adjudication 2026-07-10; F-CSD-P6-001 2026-07-10;
+/// Reference: F-CSD-P4-001 2026-07-10; F-CSD-P5-001; F-CSD-P6-001; F-CSD-P7-001;
 /// error-taxonomy.md §E-QUERY-043.
 fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismError> {
-    use crate::ast::{Ast, Expr, SelectItem, SqlStatement};
+    use crate::ast::{Ast, Expr, Predicate, SelectItem, SqlStatement};
 
-    /// Recursively check a single `Expr` for any `Expr::InSubquery` node.
+    /// Check a single `Expr` for any `Expr::InSubquery` node in PROJECTION position.
     ///
+    /// Returns `true` if ANY `Expr::InSubquery` is present (rejectable).
     /// Recurses into `FuncCall::Scalar` / `FuncCall::Aggregate` args (F-CSD-P5-001).
     /// Mirrors `walk_expr`'s FuncCall arm (F-LP4-MED-1).
     fn contains_insubquery(expr: &Expr) -> bool {
@@ -3206,9 +3212,65 @@ fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismEr
         }
     }
 
-    /// Check one `SqlQuery`'s SELECT, GROUP BY, and ORDER BY for projection-position
-    /// `Expr::InSubquery` nodes. Returns the hint string on the first match.
+    /// Walk a non-projection `Expr` (e.g. JOIN ON), recursing into the interior
+    /// of any `Expr::InSubquery` found via `check_sql_query`. Does NOT reject the
+    /// `Expr::InSubquery` itself — JOIN ON `Expr::InSubquery` is NOT gated (T5 scope
+    /// boundary). Only the inner `SqlQuery`'s projections are checked.
+    ///
+    /// Walker-parity with `walk_expr` (F-CSD-P7-001 lineage).
+    fn descend_subquery_expr(expr: &Expr) -> bool {
+        use crate::ast::FuncCall;
+        match expr {
+            // Non-projection InSubquery: check its inner SqlQuery but do NOT reject here.
+            Expr::InSubquery { subquery, .. } => check_sql_query(subquery),
+            Expr::Compare { lhs, rhs, .. } => {
+                descend_subquery_expr(lhs) || descend_subquery_expr(rhs)
+            }
+            Expr::Logical { lhs, rhs, .. } => {
+                descend_subquery_expr(lhs) || descend_subquery_expr(rhs)
+            }
+            Expr::Not(inner) => descend_subquery_expr(inner),
+            Expr::FuncCall(func_call) => match func_call {
+                FuncCall::Scalar { args, .. } | FuncCall::Aggregate { args, .. } => {
+                    args.iter().any(descend_subquery_expr)
+                }
+                FuncCall::Window { .. } => false,
+            },
+            _ => false,
+        }
+    }
+
+    /// Walk a WHERE or HAVING `Predicate`, recursing into `Predicate::InSubquery.subquery`
+    /// via `check_sql_query`. The `Predicate::InSubquery` itself is NOT rejected —
+    /// it is DataFusion-native (T24/T3/T10 lock). Only its inner `SqlQuery`'s
+    /// projection/group_by/order_by may contain a rejectable `Expr::InSubquery`.
+    ///
+    /// Walker-parity with `walk_predicate` (F-CSD-P7-001 lineage).
+    fn check_predicate(pred: &Predicate) -> bool {
+        match pred {
+            Predicate::InSubquery { subquery, .. } => check_sql_query(subquery),
+            Predicate::Logical { predicates, .. } => predicates.iter().any(check_predicate),
+            Predicate::Not(inner) => check_predicate(inner),
+            // Compare lhs/rhs are Exprs — use descend_subquery_expr to recurse into
+            // any InSubquery interiors without rejecting them in comparison position.
+            Predicate::Compare { lhs, rhs, .. } => {
+                descend_subquery_expr(lhs) || descend_subquery_expr(rhs)
+            }
+            // StringOp, Regex, In, Between, Cidr, Has, Missing, IsNull, Wildcard,
+            // RecoveryError — no SqlQuery children.
+            _ => false,
+        }
+    }
+
+    /// Check one `SqlQuery` and all reachable nested `SqlQuery` scopes for
+    /// projection-position `Expr::InSubquery` nodes. Returns `true` on first match.
+    ///
+    /// Scope: select.items, group_by, order_by (projection positions, via
+    /// `contains_insubquery`); JOIN ON interiors (via `descend_subquery_expr`);
+    /// WHERE and HAVING predicates (via `check_predicate` → `check_sql_query`
+    /// recursion). Walker-parity with `walk_sql_query` / `walk_predicate` / `walk_expr`.
     fn check_sql_query(q: &crate::ast::SqlQuery) -> bool {
+        // ── Projection positions ────────────────────────────────────────────────
         // SELECT items.
         for item in &q.select.items {
             if let SelectItem::Expr { expr, .. } = item {
@@ -3229,6 +3291,32 @@ fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismEr
                 return true;
             }
         }
+
+        // ── Non-projection positions — recurse into reachable subqueries ────────
+        // JOIN ON: Expr::InSubquery directly in JOIN ON is NOT rejected (T5 scope
+        // boundary); the interior of its subquery is checked via descend_subquery_expr.
+        // Walker-parity with walk_sql_query walk_expr(&join.on) arm.
+        for join in &q.joins {
+            if descend_subquery_expr(&join.on) {
+                return true;
+            }
+        }
+        // WHERE predicate — recurse into Predicate::InSubquery.subquery (F-CSD-P7-001).
+        // Predicate::InSubquery itself is DataFusion-native and NOT rejected (T24/T3/T10).
+        // Walker-parity with walk_sql_query's `if let Some(ref pred) = sql.where_` arm.
+        if let Some(ref pred) = q.where_ {
+            if check_predicate(pred) {
+                return true;
+            }
+        }
+        // HAVING predicate — orthogonal path to WHERE (F-CSD-P7-001-T3).
+        // Walker-parity with walk_sql_query's `if let Some(ref pred) = sql.having` arm.
+        if let Some(ref pred) = q.having {
+            if check_predicate(pred) {
+                return true;
+            }
+        }
+
         false
     }
 
