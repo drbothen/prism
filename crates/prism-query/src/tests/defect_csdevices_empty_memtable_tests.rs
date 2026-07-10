@@ -1986,4 +1986,114 @@ mod tests {
              FuncCall::Aggregate {{ args, .. }} arms to contains_insubquery. got: {result:?}"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Test 20 (F-CSD-P6-001-T1): DML source_select InSubquery in projection
+    // bypasses E-QUERY-043 gate
+    //
+    // Finding F-CSD-P6-001 (LOW): `check_expr_insubquery_projection` routes
+    // `Ast::Sql(SqlStatement::Dml(_))` to `_ => false`, claiming
+    // "no E-QUERY-043 cases possible" — falsifiable:
+    //   `INSERT INTO armis_tags
+    //    SELECT device_id IN (SELECT device_id FROM crowdstrike_devices)
+    //    FROM crowdstrike_detections LIMIT 10`
+    // The source_select.select.items holds `Expr::InSubquery`. Without the
+    // explicit DML arm, `check_sql_query` is never called on source_select
+    // and the gate does not fire.
+    //
+    // Precedent: sibling walker `check_temporal_literals` already walks DML
+    // source_select as defense-in-depth (F-P4-LOW-1, materialization.rs ~3415-3505).
+    //
+    // RED: result is `Ok(vec![])` — `_ => false` arm bypasses gate for all DML.
+    //      DML execution path returns Ok(Vec::new()) pending S-3.06 wiring.
+    // GREEN (post-fix): DML arm `dml.source_select.as_ref().is_some_and(|sq|
+    //      check_sql_query(sq))` fires → `found = true` → E-QUERY-043.
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P6-001-T1 / BC-2.11.003: `INSERT INTO … SELECT (field IN (SELECT …)) FROM …`
+    /// where the source SELECT's projection contains `Expr::InSubquery` must return
+    /// `E-QUERY-043` (`ExprInSubqueryProjectionNotSupported`), not `Ok(vec![])`.
+    ///
+    /// # Grammar reach
+    ///
+    /// CONFIRMED: `in_subquery` is part of the `atom` choice in the Expr grammar
+    /// (sql_parser.rs, the `choice((…, in_subquery, …))` block). `select_item` uses
+    /// `expr [AS alias]`, so `device_id IN (SELECT device_id FROM crowdstrike_devices)`
+    /// is a valid SELECT projection item that parses to
+    /// `SelectItem::Expr { expr: Expr::InSubquery { field: device_id, subquery: … } }`.
+    /// `LIMIT 10` satisfies `check_unbounded_write` (INSERT SELECT must have WHERE or LIMIT).
+    ///
+    /// # Execution path
+    ///
+    /// DML reaches `execute_against_session_with_registry` → `check_expr_insubquery_projection`
+    /// at line 1177. Currently: `_ => false` → `found = false` → gate returns `Ok(())`.
+    /// DML then falls into `_ => { Ok(Vec::new()) }` at ~1590 → `Ok(vec![])`.
+    ///
+    /// # RED observation
+    ///
+    /// `execute_against_session` returns `Ok(vec![])`. The analyst gets an empty success
+    /// response instead of an actionable `E-QUERY-043` rewrite directive.
+    ///
+    /// Source: F-CSD-P6-001 (LOW), LOCAL pass-6, 2026-07-10.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P6_001_T1_dml_source_select_insubquery_projection_bypasses_e_query_043_gate(
+    ) {
+        use prism_core::error::PrismError;
+
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // Register tables — E-QUERY-043 fires before DataFusion planning when the gate works;
+        // populated tables make the fallback DataFusion error more deterministic in RED state.
+        let det_batch = make_batch("device_id", &["dev-A", "dev-B"]);
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+        let dev_batch = make_batch("device_id", &["dev-A"]);
+        register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // Grammar-reach confirmed: `device_id IN (SELECT device_id FROM crowdstrike_devices)`
+        // is a valid SELECT projection item (in_subquery atom within Expr grammar).
+        // `LIMIT 10` satisfies check_unbounded_write (INSERT SELECT must have WHERE or LIMIT).
+        //
+        // If this expect() panics, grammar reach is NOT confirmed — revise the SQL shape.
+        let sql = "INSERT INTO armis_tags \
+                   SELECT device_id IN (SELECT device_id FROM crowdstrike_devices) \
+                   FROM crowdstrike_detections LIMIT 10";
+        let ast = PrismQlParser::parse(sql).expect(
+            "F-CSD-P6-001-T1: INSERT SELECT with InSubquery in projection must parse \
+             (in_subquery is an atom in the Expr grammar; select_item uses expr [AS alias]; \
+             LIMIT 10 satisfies check_unbounded_write)",
+        );
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Err(ExprInSubqueryProjectionNotSupported { .. }).
+        // DML arm must walk source_select via check_sql_query → gate fires E-QUERY-043
+        // before DataFusion planning, giving the analyst an actionable rewrite directive.
+        //
+        // RED: `_ => false` arm in check_expr_insubquery_projection bypasses the gate for
+        //      all DML variants → `found = false` → gate returns Ok(()) → DML execution
+        //      falls into `_ => { Ok(Vec::new()) }` → result is Ok(vec![]).
+        //      The comment "no E-QUERY-043 cases possible" is falsified by this INSERT shape.
+        //
+        // F-P4-LOW-1 precedent: sibling walker check_temporal_literals already walks
+        // DML source_select (~3415-3505) as defense-in-depth. This closes the equivalent
+        // gap in check_expr_insubquery_projection.
+        assert!(
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P6-001-T1 / BC-2.11.003: DML source_select with InSubquery in projection \
+             must return E-QUERY-043 (ExprInSubqueryProjectionNotSupported), not Ok(vec[]). \
+             RED: check_expr_insubquery_projection `_ => false` arm bypasses gate for DML — \
+             source_select is not walked, gate never fires, result is Ok(vec[]). \
+             Fix: add arm `Ast::Sql(SqlStatement::Dml(dml)) => \
+             dml.source_select.as_ref().is_some_and(|sq| check_sql_query(sq))`. \
+             (F-CSD-P6-001 LOW, mirrors F-P4-LOW-1 check_temporal_literals precedent). \
+             got: {result:?}"
+        );
+    }
 }

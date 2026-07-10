@@ -3146,6 +3146,8 @@ pub(crate) async fn collect_record_batch_stream(
 /// - `SqlQuery.select.items` — each `SelectItem::Expr { expr, .. }`
 /// - `SqlQuery.group_by` — each `Expr`
 /// - `SqlQuery.order_by` — each `OrderExpr.expr`
+/// - `DmlNode.source_select` (INSERT INTO … SELECT) — same three positions via
+///   `check_sql_query` (defense-in-depth; F-CSD-P6-001 + F-P4-LOW-1 precedent)
 ///
 /// Within each checked position, `contains_insubquery` recurses into
 /// `FuncCall::Scalar` and `FuncCall::Aggregate` argument lists (F-CSD-P5-001).
@@ -3162,12 +3164,16 @@ pub(crate) async fn collect_record_batch_stream(
 /// expressions for empty-table pre-registration (serves security and pre-registration
 /// goals that remain valid regardless of this gate).
 ///
+/// Does NOT check DML filter predicates (UPDATE/DELETE WHERE): those contain
+/// `Predicate::InSubquery`, not `Expr::InSubquery` in projection position.
+///
 /// # Returns
 ///
 /// - `Ok(())` if no `Expr::InSubquery` is found in the gated positions.
 /// - `Err(PrismError::ExprInSubqueryProjectionNotSupported { hint })` on first match.
 ///
-/// Reference: F-CSD-P4-001 adjudication 2026-07-10; error-taxonomy.md §E-QUERY-043.
+/// Reference: F-CSD-P4-001 adjudication 2026-07-10; F-CSD-P6-001 2026-07-10;
+/// error-taxonomy.md §E-QUERY-043.
 fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismError> {
     use crate::ast::{Ast, Expr, SelectItem, SqlStatement};
 
@@ -3237,7 +3243,16 @@ fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismEr
     let found = match ast {
         Ast::Sql(SqlStatement::Select(q)) => check_sql_query(q),
         Ast::SqlPipe(spq) => check_sql_query(&spq.head),
-        // Filter, Pipe, and DML variants have no SELECT projection expressions in the
+        // DML source_select defense-in-depth (F-CSD-P6-001 + F-P4-LOW-1 precedent):
+        // INSERT INTO … SELECT carries `source_select: Option<SqlQuery>` whose
+        // select.items / group_by / order_by can hold `Expr::InSubquery`.
+        // Walk source_select via check_sql_query so that future S-3.06 DML execution
+        // wiring cannot silently pass an unvalidated InSubquery shape to DataFusion.
+        // DML filter predicates (UPDATE/DELETE WHERE) contain Predicate::InSubquery,
+        // not Expr::InSubquery in projection position; they are not in E-QUERY-043 scope.
+        // Mirrors check_temporal_literals DML source_select walk (~3415-3505).
+        Ast::Sql(SqlStatement::Dml(dml)) => dml.source_select.as_ref().is_some_and(check_sql_query),
+        // Filter and Pipe variants have no SELECT projection expressions in the
         // same sense as SQL SELECT; no E-QUERY-043 cases possible.
         #[allow(unreachable_patterns)]
         _ => false,
