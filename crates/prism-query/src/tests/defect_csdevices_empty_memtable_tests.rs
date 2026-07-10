@@ -3271,6 +3271,334 @@ mod tests {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // F-CSD-P12-001 (LOW) Tests 30-31 (RED — LOCAL adversary pass-12)
+    //
+    // Finding: `pre_register_empty_tables` is called only from the `Ast::Sql(Select)` arm
+    // of `execute_against_session_with_registry` (~line 1198). The `Ast::SqlPipe` arm
+    // (~line 1487) lacks the call.
+    //
+    // Consequence: a SqlPipe query whose head SQL has
+    //   `WHERE field IN (SELECT ... FROM <0-batch table>)`
+    // references the subquery table in the emitted CTE SQL without pre-registration.
+    // DataFusion "table not found" → `PrismError::QueryExecutionFailed` (-32000 to MCP).
+    //
+    // BC-2.11.005 v1.9 DEC-022 is position-invariant: "All sensor API calls return empty"
+    // → "Empty RecordBatch registered; query returns empty result set." The invariant
+    // applies to ALL query modes, including SqlPipe.
+    //
+    // Grammar reach: CONFIRMED.
+    //   SqlPipe head is a `SqlQuery` parsed by `build_sql_query_parser`, which includes
+    //   `Predicate::InSubquery` in the WHERE clause (same parser as `Ast::Sql(Select)`).
+    //   `| fields field_name` (include mode, no `-` prefix) requires no schema from
+    //   `table_batches` — `apply_fields` with `include=true` only sets `select_items`.
+    //
+    // Fix: add `pre_register_empty_tables(session_ctx, &spq.head, table_registry).await?;`
+    // at the start of the `Ast::SqlPipe` arm (before `sqlpipe_to_executable_sql`),
+    // mirroring the call in the `Ast::Sql(Select)` arm at ~line 1198.
+    //
+    // Design comment update required: materialization.rs ~line 2453 currently reads
+    //   "Filter/Pipe mode: `pre_register_empty_tables` does NOT run (it is SQL-mode only)."
+    // After the fix, SqlPipe mode must be added to the "runs" category:
+    //   "SqlPipe mode: `pre_register_empty_tables` runs on `spq.head` (same as SQL mode)."
+    //
+    // Both tests FAIL at HEAD for the documented reason;
+    // both must PASS after the fix.
+    //
+    // Survey — Filter and Pipe mode subquery reachability:
+    //   Filter grammar (filter_parser.rs): NO `in_subquery`, `InSubquery`, or `subquery`
+    //     references — the filter predicate grammar does not include the `in_subquery` atom
+    //     (which is defined in sql_parser.rs and not imported by filter_parser.rs). A Filter
+    //     query cannot reference a second table via a subquery at all.
+    //   Pipe grammar (pipe_parser.rs): `| where predicate` stages use the same filter/pipe
+    //     predicate parser, NOT the sql_parser. There is no `in_subquery` reference in
+    //     pipe_parser.rs. Neither can a Pipe query reference a second table via a subquery.
+    //   Conclusion: no Filter or Pipe tests needed. The design comment at ~line 2453
+    //   ("Filter/Pipe mode: does NOT run — correct behavior") remains accurate for those modes.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Test 30 (F-CSD-P12-001-T1): SqlPipe head WHERE IN-subquery with 0-batch
+    // subquery table → must return 0 rows, NOT QueryExecutionFailed.
+    //
+    // Setup:
+    //   crowdstrike_detections: 3 rows (populated; head FROM table)
+    //   crowdstrike_devices:    0 batches (register_mem_table skips; NOT registered)
+    //
+    // SqlPipe query:
+    //   SELECT detection_id FROM crowdstrike_detections
+    //   WHERE device_id IN (SELECT device_id FROM crowdstrike_devices)
+    //   | fields detection_id
+    //
+    // AST after parse:
+    //   Ast::SqlPipe {
+    //     head:   SELECT detection_id FROM crowdstrike_detections
+    //             WHERE device_id IN (SELECT device_id FROM crowdstrike_devices)
+    //     stages: [PipeStage::Fields(include=true, fields=[detection_id])]
+    //   }
+    //
+    // DataFusion CTE SQL (emitted by sqlpipe_to_executable_sql):
+    //   WITH _sqlpipe_head AS (
+    //     SELECT detection_id FROM crowdstrike_detections
+    //     WHERE device_id IN (SELECT device_id FROM crowdstrike_devices)
+    //   )
+    //   SELECT detection_id FROM _sqlpipe_head
+    //
+    // RED: DataFusion cannot find crowdstrike_devices → QueryExecutionFailed.
+    // DESIRED (post-fix): 0 rows — empty IN-set → WHERE IN() always FALSE.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-CSD-P12-001-T1 / BC-2.11.005 / BC-2.01.010: SqlPipe head SQL
+    /// `WHERE field IN (SELECT ... FROM <0-batch table>)` must return Ok (0 rows) —
+    /// not a DataFusion plan error.
+    ///
+    /// # Defect
+    ///
+    /// `pre_register_empty_tables` is called in the `Ast::Sql(Select)` arm of
+    /// `execute_against_session_with_registry` (~line 1198) but NOT in the
+    /// `Ast::SqlPipe` arm (~line 1487). When the SqlPipe head SQL references a
+    /// 0-batch table in a WHERE IN-subquery, that table is absent from the DataFusion
+    /// catalog → CTE head SQL planning fails → `PrismError::QueryExecutionFailed`.
+    ///
+    /// BC-2.11.005 v1.9 DEC-022 is position-invariant: empty ≠ error applies to
+    /// all query modes including SqlPipe.
+    ///
+    /// # Grammar reach
+    ///
+    /// CONFIRMED: SqlPipe head is a `SqlQuery` parsed by `build_sql_query_parser`
+    /// (sql_parser.rs), which includes `Predicate::InSubquery` in the WHERE clause.
+    /// The `| fields detection_id` pipe stage (include mode) needs no schema from
+    /// `table_batches` — `apply_fields(include=true)` only sets `select_items`.
+    ///
+    /// # RED reason
+    ///
+    /// `crowdstrike_devices` is referenced ONLY in the SqlPipe head's WHERE IN-subquery.
+    /// `register_mem_table` skipped it (0 batches). The SqlPipe arm does not call
+    /// `pre_register_empty_tables`, so it is never added to the DataFusion catalog.
+    /// DataFusion receives the CTE SQL and cannot find `crowdstrike_devices` →
+    /// `Err(QueryExecutionFailed)`.
+    #[tokio::test]
+    async fn test_BC_2_11_005_F_CSD_P12_001_T30_sqlpipe_head_insubquery_empty_table_returns_empty_not_error(
+    ) {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — head FROM table with data (3 rows).
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002", "det-003"],
+            "device_id",
+            &["dev-A", "dev-B", "dev-A"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — 0 batches; ONLY referenced in the SqlPipe head's
+        // WHERE IN-subquery. register_mem_table silently skips registration.
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        // Confirm pre-fix state: crowdstrike_devices is NOT in the DataFusion catalog.
+        let cs_registered = ctx
+            .table_exist("crowdstrike_devices")
+            .expect("table_exist must not error");
+        assert!(
+            !cs_registered,
+            "test setup: crowdstrike_devices must NOT be registered before fix \
+             (register_mem_table skips empty batches — confirmed)"
+        );
+
+        // SqlPipe query: head SQL has WHERE IN-subquery referencing crowdstrike_devices.
+        // crowdstrike_devices is NOT in the outer FROM/JOIN positions — only in the
+        // WHERE IN-subquery. The SqlPipe arm does not call pre_register_empty_tables
+        // and therefore never discovers crowdstrike_devices for pre-registration.
+        //
+        // `| fields detection_id` — include mode; no schema needed from table_batches.
+        let sql = "SELECT detection_id \
+                   FROM crowdstrike_detections \
+                   WHERE device_id IN (SELECT device_id FROM crowdstrike_devices) \
+                   | fields detection_id";
+        let ast = PrismQlParser::parse(sql)
+            .expect("SqlPipe head with WHERE IN-subquery must parse as Ast::SqlPipe");
+
+        // Grammar-reach confirmation: must dispatch as Ast::SqlPipe.
+        assert!(
+            matches!(ast, crate::ast::Ast::SqlPipe(_)),
+            "test setup: query must parse as Ast::SqlPipe (head SQL + | pipe stage). \
+             If this assertion fires, the parser did not recognise the | separator \
+             as a SqlPipe delimiter — revise the SQL shape."
+        );
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Ok with 0 rows.
+        //   pre_register_empty_tables(session_ctx, &spq.head, table_registry) in the
+        //   SqlPipe arm registers crowdstrike_devices with a spec-column empty MemTable.
+        //   DataFusion plans the CTE successfully. Empty IN-set → WHERE IN() always FALSE
+        //   → 0 detection rows returned.
+        //
+        // RED: Err(QueryExecutionFailed) — DataFusion cannot find `crowdstrike_devices`
+        //   when planning the CTE head SQL:
+        //     WITH _sqlpipe_head AS (
+        //       SELECT detection_id FROM crowdstrike_detections
+        //       WHERE device_id IN (SELECT device_id FROM crowdstrike_devices)
+        //     )
+        //     SELECT detection_id FROM _sqlpipe_head
+        //   crowdstrike_devices is absent → "table not found: crowdstrike_devices"
+        //   → PrismError::QueryExecutionFailed → -32000 to MCP caller.
+        assert!(
+            result.is_ok(),
+            "F-CSD-P12-001-T1 / BC-2.11.005 / BC-2.01.010: SqlPipe head WHERE IN-subquery \
+             referencing a 0-batch table must return Ok (0 rows), not a DataFusion plan error. \
+             RED: Err — crowdstrike_devices is absent from the DataFusion catalog because the \
+             Ast::SqlPipe arm (~line 1487) does not call pre_register_empty_tables \
+             (only the Ast::Sql(Select) arm at ~line 1198 does). \
+             Fix: add pre_register_empty_tables(session_ctx, &spq.head, table_registry).await? \
+             at the start of the Ast::SqlPipe arm, before sqlpipe_to_executable_sql. \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 0,
+            "F-CSD-P12-001-T1: empty IN-set (crowdstrike_devices = 0 rows) → \
+             WHERE IN() always FALSE → 0 detection rows returned; got {total_rows}"
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Test 31 (F-CSD-P12-001-T2): SqlPipe all-tables 0-batch → graceful empty
+    //
+    // Consistency lock: BOTH head FROM table AND IN-subquery table have 0 batches.
+    // Neither is registered. The test path (execute_against_session →
+    // execute_against_session_with_registry) has NO all-empty early-return; that
+    // check lives in run_materialization_pipeline, not in execute_against_session.
+    //
+    // Without pre_register_empty_tables in the SqlPipe arm, crowdstrike_detections
+    // (the head FROM table itself) is not registered → the CTE head SQL fails first.
+    //
+    // DESIRED (post-fix): Ok with 0 rows.
+    //   pre_register_empty_tables registers BOTH tables with spec-column empty MemTables
+    //   → CTE plans successfully → 0 rows gracefully.
+    //
+    // RED: Err(QueryExecutionFailed) — crowdstrike_detections (head CTE table) is
+    //      not registered; DataFusion fails before it even reaches crowdstrike_devices.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-CSD-P12-001-T2 / BC-2.11.005 / BC-2.01.010: SqlPipe with ALL tables having
+    /// 0 batches (head FROM table + IN-subquery table) must return Ok (0 rows) gracefully.
+    ///
+    /// # Consistency context
+    ///
+    /// The test path (`execute_against_session` → `execute_against_session_with_registry`)
+    /// does NOT apply the all-empty early-return that `run_materialization_pipeline`
+    /// applies in production (step 5: `!any_external_table_registered` → early-return
+    /// empty without entering `execute_against_session_with_registry`). In the test path
+    /// both tables must be pre-registered via `pre_register_empty_tables` on `spq.head`
+    /// for the SqlPipe CTE to plan correctly.
+    ///
+    /// BC-2.11.005 v1.9 DEC-022 position-invariant: "All sensor API calls return empty"
+    /// → "Empty RecordBatch registered; query returns empty result set." Both paths
+    /// (production via early-return, test path via pre-registration) must be conformant.
+    ///
+    /// # RED reason
+    ///
+    /// `crowdstrike_detections` (the head CTE FROM table) has 0 batches → not registered.
+    /// The SqlPipe arm does not call `pre_register_empty_tables` → DataFusion cannot find
+    /// `crowdstrike_detections` in the CTE head SQL → `Err(QueryExecutionFailed)`.
+    /// `crowdstrike_devices` (subquery table) would also fail if `crowdstrike_detections`
+    /// were somehow resolved first, but DataFusion reports the first missing table.
+    #[tokio::test]
+    async fn test_BC_2_11_005_F_CSD_P12_001_T31_sqlpipe_all_empty_tables_returns_graceful_empty() {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — head FROM table, 0 batches. NOT registered.
+        register_mem_table(&ctx, "crowdstrike_detections", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        // crowdstrike_devices — IN-subquery table, 0 batches. NOT registered.
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        // Confirm pre-fix state: neither table is in the DataFusion catalog.
+        let det_registered = ctx
+            .table_exist("crowdstrike_detections")
+            .expect("table_exist must not error");
+        let cs_registered = ctx
+            .table_exist("crowdstrike_devices")
+            .expect("table_exist must not error");
+        assert!(
+            !det_registered,
+            "test setup: crowdstrike_detections must NOT be registered (0 batches)"
+        );
+        assert!(
+            !cs_registered,
+            "test setup: crowdstrike_devices must NOT be registered (0 batches)"
+        );
+
+        // Same SqlPipe shape as T30 — both tables now have 0 batches.
+        let sql = "SELECT detection_id \
+                   FROM crowdstrike_detections \
+                   WHERE device_id IN (SELECT device_id FROM crowdstrike_devices) \
+                   | fields detection_id";
+        let ast = PrismQlParser::parse(sql)
+            .expect("SqlPipe head with WHERE IN-subquery must parse as Ast::SqlPipe");
+
+        // Grammar-reach confirmation.
+        assert!(
+            matches!(ast, crate::ast::Ast::SqlPipe(_)),
+            "test setup: query must parse as Ast::SqlPipe."
+        );
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Ok with 0 rows.
+        //   pre_register_empty_tables(session_ctx, &spq.head, table_registry) in the
+        //   SqlPipe arm registers BOTH crowdstrike_detections (head FROM) and
+        //   crowdstrike_devices (subquery FROM) with spec-column empty MemTables.
+        //   DataFusion plans the CTE against two empty tables → 0 rows gracefully.
+        //
+        // RED: Err(QueryExecutionFailed) — crowdstrike_detections (head CTE table) is
+        //   itself not registered; DataFusion fails on the CTE head SQL before reaching
+        //   the WHERE IN-subquery:
+        //     WITH _sqlpipe_head AS (
+        //       SELECT detection_id FROM crowdstrike_detections   ← "table not found"
+        //       WHERE device_id IN (SELECT device_id FROM crowdstrike_devices)
+        //     )
+        //     SELECT detection_id FROM _sqlpipe_head
+        //
+        // NOTE on all-empty early-return: production path (run_materialization_pipeline)
+        //   early-returns before calling execute_against_session_with_registry when
+        //   !any_external_table_registered. The test path does NOT trigger this.
+        //   Both paths must be BC-2.11.005-conformant: production via early-return (no
+        //   error, empty result), test path via pre-registration (no error, 0 rows).
+        assert!(
+            result.is_ok(),
+            "F-CSD-P12-001-T2 / BC-2.11.005 / BC-2.01.010: SqlPipe with all-empty tables \
+             must return Ok (0 rows), not a DataFusion plan error. \
+             RED: Err — crowdstrike_detections (head CTE table) and crowdstrike_devices \
+             (subquery table) are BOTH absent from the DataFusion catalog. The Ast::SqlPipe \
+             arm does not call pre_register_empty_tables, so neither table gets a spec-column \
+             empty MemTable before DataFusion planning. \
+             Fix: add pre_register_empty_tables(session_ctx, &spq.head, table_registry).await? \
+             at the start of the Ast::SqlPipe arm. \
+             Also update design comment at materialization.rs ~line 2453 to reflect that \
+             SqlPipe mode also calls pre_register_empty_tables (on spq.head). \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 0,
+            "F-CSD-P12-001-T2: all-empty tables → 0 rows gracefully; got {total_rows}"
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // T29 — F-CSD-P10-001 empty-table variant consistency lock
     //
     // T28 established the GREEN lock: DataFusion executes
