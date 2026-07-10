@@ -3253,6 +3253,11 @@ fn check_expr_temporal(
 /// - `TemporalCheckPos::Other` → COERCE to `Literal::String` (OBS-2 preserved for
 ///   SELECT projection, JOIN ON, FuncCall args, DML SET unknown-column, etc.)
 ///
+/// For `Expr::Literal(Literal::Timestamp)` (RFC-3339 form, bare, non-comparison):
+/// - `TemporalCheckPos::GroupBy` → E-QUERY-042 (GroupBy)   (DEFECT-EQUERY042-GROUPBY-DEADARM-001)
+/// - `TemporalCheckPos::OrderBy` → E-QUERY-042 (OrderBy)   (DEFECT-EQUERY042-GROUPBY-DEADARM-001)
+/// - `TemporalCheckPos::Other` → Ok(()) (pre-parsed timestamp in projection/join is valid)
+///
 /// For `Expr::Compare { lhs: Field(fp), rhs: Literal(RawTemporalLiteral) }`:
 /// - `ColumnType::Datetime` → E-QUERY-041 (TemporalLiteralUnparseable)
 /// - `ColumnType::String` → COERCE to `Literal::String`
@@ -3308,6 +3313,35 @@ fn check_expr_temporal_pos(
                 }
             }
         }
+        // DEFECT-EQUERY042-GROUPBY-DEADARM-001 fix: Literal::Timestamp (produced by the
+        // classify_string_literal RFC-3339 fast path for full UTC timestamps like
+        // '2026-07-01T00:00:00Z') must be rejected in GROUP BY / ORDER BY positions with
+        // the same E-QUERY-042 semantics as RawTemporalLiteral. Previously fell to
+        // `_ => Ok(())`, silently accepting a degenerate constant-key GROUP BY / ORDER BY.
+        //
+        // ADR-052 §D4 v1.10 arms (6) and (7).
+        Expr::Literal(Literal::Timestamp(ts)) => match pos {
+            TemporalCheckPos::GroupBy => {
+                let value_prefix: String = ts.iso8601.chars().take(50).collect();
+                Err(PrismError::TemporalLiteralInvalidPosition {
+                    position: TemporalLiteralPosition::GroupBy,
+                    value_prefix,
+                })
+            }
+            TemporalCheckPos::OrderBy => {
+                let value_prefix: String = ts.iso8601.chars().take(50).collect();
+                Err(PrismError::TemporalLiteralInvalidPosition {
+                    position: TemporalLiteralPosition::OrderBy,
+                    value_prefix,
+                })
+            }
+            TemporalCheckPos::Other => {
+                // Pre-parsed Literal::Timestamp in a non-group-by/order-by position
+                // (SELECT projection, JOIN ON, FuncCall arg, WHERE compare RHS) is
+                // already the correct resolved form — no coercion required.
+                Ok(())
+            }
+        },
         // P3-MED-1 fix: capture `op` to populate QueryTypeMismatch { operator } with the actual
         // operator from the query (previously hardcoded "=" regardless of actual op used).
         Expr::Compare { lhs, rhs, op } => {
