@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.54"
+version: "1.55"
 updated: "2026-07-09"
 status: merged
 producer: story-writer
@@ -610,7 +610,7 @@ then the result is `Err(E-QUERY-002 QueryTypeMismatch)` with a Display message c
 - the suggestion: "for label comparison, use the string column 'severity' with IEQ/IIN/INE
   instead" (because `severity_id` is a known OCSF integer-id field; `PrismError::QueryTypeMismatch`
   carries `suggested_column: Some("severity")` per the OCSF sibling lookup contract in
-  error-taxonomy.md v2.35 §E-QUERY-002)
+  error-taxonomy.md v2.36 §E-QUERY-002)
 
 The full Display for this case must be:
   "E-QUERY-002: type mismatch — column 'severity_id' in table '<table>' has type 'Integer'
@@ -1672,6 +1672,7 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.55 | 2026-07-09 | **ADV-PR-P8-LOW-001 pin-sync: error-taxonomy.md v2.35→v2.36 (E-QUERY-038 row BC-anchor pins + origin-pin convention note). One live site updated: AC-022 body prose (`error-taxonomy.md v2.35 §E-QUERY-002` → `error-taxonomy.md v2.36 §E-QUERY-002`). Grep variants checked: `error-taxonomy\.md v2\.35` / `error-taxonomy v2\.35` / backtick-delimited / pipe-sep-table-cell — one hit, one fix. No other carrier stories contain v2.35 live pins (checked S-DEMO-FIDELITY-REMEDIATION-001, S-DEMO-PRISMQL-ONBOARDING-001-B, S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001). BC regression check: BC-2.11.016 v1.25 (8 live), BC-2.11.017 v1.13 (2 live), BC-2.11.020 v1.18 (3 live), BC-2.11.004 v1.30 (4 live); stale v1.24/v1.12/v1.17/v1.29 = 0. AC semantics UNCHANGED. Frontmatter version 1.54→1.55; updated 2026-07-09 (POL-23).** |
 | v1.54 | 2026-07-09 | **ADV-PR-P5-MED-003 closure + BC-2.11.004 v1.29→v1.30 pin-sync (pass-5 PO micro-amendment — 4 §Error Cases AST-shape corrections). BC-2.11.004 v1.29→v1.30 (pin-only): four live sites updated — (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row; (4) AC-013b trace. Semantic-cell currency: BC-2.11.004 Key Clauses cell ("Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7)") verified CURRENT — v1.30 §Error Cases AST-shape corrections do not affect pipe-mode IEQ availability; no Key Clauses extension needed. L22 adjacent-cell check: grep for old shapes (FilterExpr/PipeStage::Stats { by }/PipeStage::Enrich { input_col }/PipeStage::Dedup { fields }/OrderBy::expr/OrderExpr::expr) across Key Clauses and task cells: zero hits; no adjacent-cell extension needed. BC-2.11.016, BC-2.11.017, and BC-2.11.020 not cited in this story. AC semantics UNCHANGED. Frontmatter version 1.53→1.54; updated 2026-07-09 (POL-23).** |
 | v1.53 | 2026-07-09 | **ADV-PR-P4-MED-001 closure + BC-2.11.004 v1.28→v1.29 pin-sync (type-name corrections companion, ADV-PR-P4-MED-001). BC-2.11.004 v1.28→v1.29 (pin-only): four live sites updated — (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row; (4) AC-013b trace. Semantic-cell currency: BC-2.11.004 Key Clauses cell ("Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7)") verified CURRENT — v1.29 is companion pin to BC-2.11.016 v1.24 type-name corrections, not a pipe-mode IEQ amendment; no Key Clauses extension needed. L22 AST type name grep across story: zero hits; no adjacent-cell fixes needed. BC-2.11.016, BC-2.11.017, and BC-2.11.020 not cited in this story. AC semantics UNCHANGED. Frontmatter version 1.52→1.53; updated 2026-07-09 (POL-23).** |
 | v1.52 | 2026-07-09 | **pin-sync BC-2.11.004 v1.27→v1.28 (_with_bareness extractor companion pin, ADV-PR-P3-LOW-001) + semantic-cell currency (FIX-IEQ-ERRPATH-001 PR-LEVEL pass-3 story pin round). BC-2.11.004 v1.27→v1.28 (pin-only): four live sites updated — (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row; (4) AC-013b trace. Semantic-cell currency: BC-2.11.004 Key Clauses cell ("Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7)") verified CURRENT — v1.28 is companion pin to BC-2.11.016 v1.23 _with_bareness extractor rename, not a pipe-mode IEQ amendment; no Key Clauses extension needed. BC-2.11.016, BC-2.11.017, and BC-2.11.020 not cited in this story. AC semantics UNCHANGED. Frontmatter version 1.51→1.52; updated 2026-07-09 (POL-23).** |
