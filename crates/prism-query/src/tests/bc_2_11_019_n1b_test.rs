@@ -84,8 +84,18 @@ impl prism_credentials::CredentialStore for NoopCs {
 }
 
 /// Build a `TableRegistry` with `cyberint_alerts` registered.
+///
+/// EC-11-041 (ADV-FIX-P9-OBS-001, BC-2.11.016 v1.16): the column gate now fires
+/// E-QUERY-038 with `available_columns: []` for registered tables with zero columns.
+/// The BC-2.11.019 tests use queries that reference valid columns (`iocs_value`,
+/// `some_col`, `severity`) and expect E-QUERY-039 (unknown UDF). For E-QUERY-039 to
+/// fire, E-QUERY-038 must pass — which requires these column names to be registered.
+/// Previously, the zero-column fixture relied on the old fail-open behavior (E-QUERY-038
+/// silently skipped for empty column sets). With EC-11-041, the fixture must declare
+/// the columns that the test queries reference as valid inputs to the enrich UDF gate.
 fn make_cyberint_table_registry() -> Arc<TableRegistry> {
-    use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+    use prism_core::column::ColumnType;
+    use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec};
 
     let registry = Arc::new(TableRegistry::new());
     let spec = SensorSpec::new(
@@ -96,7 +106,16 @@ fn make_cyberint_table_registry() -> Arc<TableRegistry> {
         vec![TableSpec::new_point_in_time(
             "alerts",
             "security_finding",
-            vec![],
+            // EC-11-041: must declare columns referenced by BC-2.11.019 test queries
+            // so E-QUERY-038 passes (columns exist) and E-QUERY-039 fires (UDF unknown).
+            // Columns: iocs_value (enrich input / SQL arg), some_col (enrich arg),
+            // severity (GROUP BY / ORDER BY / SELECT), severity_score (numeric agg arg).
+            vec![
+                ColumnSpec::new("iocs_value", ColumnType::String, None, vec![]),
+                ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+                ColumnSpec::new("severity_score", ColumnType::Float, None, vec![]),
+                ColumnSpec::new("some_col", ColumnType::String, None, vec![]),
+            ],
             vec![],
         )],
         None,
