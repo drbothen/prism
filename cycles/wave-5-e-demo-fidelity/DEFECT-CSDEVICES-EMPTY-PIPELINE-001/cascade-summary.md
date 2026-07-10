@@ -4,7 +4,7 @@ scope: LOCAL
 defect: DEFECT-CSDEVICES-EMPTY-PIPELINE-001
 fix_branch: fix/csdevices-empty-pipeline
 date_pass4: 2026-07-10
-total_passes_to_date: 7
+total_passes_to_date: 8
 date_pass5: 2026-07-10
 streak_at_pass5: 0
 date_pass6: 2026-07-10
@@ -48,8 +48,10 @@ authored_by: state-manager
 | — (fix-burst) | — | — | — | — | implementer @3d48b6a9 — T20 RED→GREEN (INSERT INTO...SELECT col IN (SELECT...) now fires E-QUERY-043 via new `Ast::Sql(SqlStatement::Dml(dml)) => dml.source_select...check_sql_query` arm; comment corrected); 20/20 defect tests; 15/15 temporal; 1522/1522 prism-query; just check GREEN; non-exhaustive 89/89 | 0/3 |
 | 7 | frozen @3d48b6a9 | NO | NO | 1 MED F-CSD-P7-001 (`check_expr_insubquery_projection` `check_sql_query` non-recursive: projection `Expr::InSubquery` nested inside WHERE/HAVING `Predicate::InSubquery` subqueries slipped to -32000; third walker-dimension gap in gate family; NOTE: HAVING `Predicate::InSubquery` IS grammar-reachable — corrects pass-6 contrary determination) + 3 OBS (OBS-001 endpoint-count method ambiguity doc-closed; OBS-002 stale fidelity future-note doc-closed; OBS-004 T20 ordering coupling doc-closed) + OBS-003 no-action (incidents SAP-2 gap correctly anchored to DTU-EXT-001) | — | 0/3 |
 | — (fix-burst) | — | — | — | — | test-writer RED @dd51459c (T21-T23 + T24 over-rejection control); implementer STRUCTURAL @38b05bbc — `descend_subquery_expr` + `check_predicate` + extended `check_sql_query` covering WHERE/HAVING/JOIN-ON interiors recursively (mirrors `walk_sql_query` pattern; closes P5/P6/P7 walker-gap lineage structurally); T5 JOIN-ON boundary + T24 predicate-support preserved; OBS-001/002/004 doc closures; 24/24 defect tests; 15/15 temporal; just check 5444/5444 GREEN; non-exhaustive 89/89 | 0/3 |
+| 8 | frozen @38b05bbc | NO | NO | 1 MED F-CSD-P8-001 (E-QUERY-043 gate placed below `!any_external_table_registered` early-return in pipeline Step 1d session path; all-zero-batch pipeline path returned Ok(empty) instead of E-QUERY-043; data-dependent error surface) + 1 LOW F-CSD-P8-002 (DML `filter`/`assignments` interiors unwalked; fourth walker-dimension gap in E-QUERY-043 gate family) + 2 OBS (P8-003 dead `variables_produced` TOML entries; P8-004 over-broad gate docstring). Strong invariant confirmations: recursion bounded by PRISM_MAX_NESTING_DEPTH; walker parity verified; POL-24 byte-clean; SAP-1/2 clean. | — | 0/3 |
+| — (fix-burst) | — | — | — | — | test-writer RED @0198c88e (T25 pipeline-path bypass RED + T26 populated-path lock GREEN + T27 DML-interior constructed-AST RED); implementer @8b284d67 — DUAL gate placement (pipeline Step 1d after `check_temporal_literals`, data-independent + retained session-entry call); DML arm three-way (`source_select` + `filter` via `check_predicate` + `assignments` via `descend_subquery_expr`); docstring corrected; TOML `variables_produced` dead entries → `[]` with fallback-behavior comments (validator-consumer check clean); 27/27 defect; 96/96 temporal; 1529/1529 prism-query; 765/765 prism-spec-engine; just check GREEN; non-exhaustive 89/89 | 0/3 |
 
-Streak reset at pass 3 and pass 4. Streak 0/3 after pass-7 fix-burst. Structural-fix class closure: P5 (FuncCall-args recursion gap), P6 (DML source_select defense-in-depth), P7 (WHERE/HAVING/JOIN-ON check_sql_query non-recursive) form a single walker-gap lineage — all three closed by the same architectural pattern (recursive walk of all SQL interior positions). LOCAL pass 8 IN FLIGHT on frozen HEAD `38b05bbc`.
+Streak reset at pass 3 and pass 4. Streak 0/3 after pass-8 fix-burst. Structural-fix class closure: P5 (FuncCall-args recursion gap), P6 (DML source_select defense-in-depth), P7 (WHERE/HAVING/JOIN-ON check_sql_query non-recursive), P8-MED (gate placement below early-return; DUAL placement fix), P8-LOW (DML filter/assignments interiors) — all four closed, E-QUERY-043 gate family now covers all walker dimensions + correct pipeline placement. LOCAL pass 9 IN FLIGHT on frozen HEAD `8b284d67`.
 
 ---
 
@@ -119,6 +121,17 @@ CLEAN(strict): NO. CLEAN(PR-merge): YES. Streak stays 0/3. LOCAL pass 7 NEXT on 
 
 CLEAN(strict): NO. CLEAN(PR-merge): NO. Streak stays 0/3. LOCAL pass 8 NEXT on frozen `38b05bbc`.
 
+### Pass 8
+
+| ID | Severity | Description | Resolution |
+|----|----------|-------------|------------|
+| F-CSD-P8-001 | MED | E-QUERY-043 gate placed below `!any_external_table_registered` early-return in pipeline Step 1d session path; all-zero-batch pipeline path (no registered tables yet) returned Ok(empty) instead of E-QUERY-043; data-dependent error surface — reachable with real empty-batch input | implementer @8b284d67: DUAL gate placement — move gate to pipeline Step 1d after `check_temporal_literals`, data-independent; retain session-entry call at original site; T25 RED→GREEN |
+| F-CSD-P8-002 | LOW | DML `filter` and `assignments` interiors not walked by `check_expr_insubquery_projection`; fourth walker-dimension gap in E-QUERY-043 gate family (P5=FuncCall-args, P6=DML source_select, P7=WHERE/HAVING/JOIN-ON, P8=DML filter/assignments) | implementer @8b284d67: DML arm extended to three-way: `source_select` + `filter` via `check_predicate` + `assignments` via `descend_subquery_expr`; T27 RED→GREEN |
+| P8-003 | OBS | Dead `variables_produced` TOML entries in crowdstrike.sensor.toml (values declared but no consumer; spec lists them to match raw API response shape) | TOML entries → `[]` with fallback-behavior inline comments; validator-consumer check confirmed clean |
+| P8-004 | OBS | Over-broad gate docstring implied broader rejection than implemented | docstring corrected @8b284d67 |
+
+CLEAN(strict): NO. CLEAN(PR-merge): NO. Streak stays 0/3. LOCAL pass 9 NEXT on frozen `8b284d67`.
+
 ---
 
 ## Evidence at Pass 4 Fix HEAD (22f429d0)
@@ -135,6 +148,19 @@ CLEAN(strict): NO. CLEAN(PR-merge): NO. Streak stays 0/3. LOCAL pass 8 NEXT on f
 | BC-2.11.003 | v1.12→v1.13 | Stale subquery invariant replaced; E-QUERY-001 subquery row superseded; E-QUERY-043 row + vectors |
 | BC-2.11.005 | v1.7→v1.8 | DEC-022 position-invariant expansion + 11 test vectors |
 | S-HARDEN-PLAN-PINNING-001 | NEW draft v0.1 | F-CSD-P4-005 [process-gap] closure story |
+
+## Evidence at Pass 8 Fix HEAD (8b284d67)
+
+- prism-query: **27/27** defect tests GREEN; **96/96** temporal tests GREEN; **1529/1529** full prism-query suite GREEN
+- prism-spec-engine: **765/765** tests GREEN
+- Full workspace `just check`: GREEN
+- Non-exhaustive gate: 89/89
+
+## Spec Layer Modified (pass-8 closure)
+
+No spec changes — code-only fix. DUAL gate placement in pipeline Step 1d (`check_temporal_literals` → `check_expr_insubquery_projection`) + DML `filter`/`assignments` walk extension + TOML `variables_produced` dead entries → `[]` with comments. No BC or error-taxonomy version bumps.
+
+---
 
 ## Evidence at Pass 7 Fix HEAD (38b05bbc)
 
@@ -188,4 +214,4 @@ Source: `.factory/research/defect-csdevices-empty-pipeline-rootcause-2026-07-10.
 
 _Pending: LOCAL cascade not yet converged. PR not yet created._
 
-**Status: IN PROGRESS — LOCAL pass 8 IN FLIGHT on frozen `38b05bbc` (streak 0/3). Pass-7 fix-burst COMPLETE (D-1659): structural recursive gate walker @38b05bbc (code-only; no spec changes). Walker-gap lineage P5/P6/P7 CLOSED (structural-fix class: descend_subquery_expr + check_predicate + extended check_sql_query covers WHERE/HAVING/JOIN-ON recursion). Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS (decaying toward convergence).**
+**Status: IN PROGRESS — LOCAL pass 9 IN FLIGHT on frozen `8b284d67` (streak 0/3). Pass-8 fix-burst COMPLETE (D-1660): DUAL gate placement + DML interior walk @8b284d67 (code-only + TOML dead-entry cleanup; no spec changes). Walker-gap + gate-placement lineage P5/P6/P7/P8 CLOSED. Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS → 1MED+1LOW+2OBS (decaying toward convergence).**
