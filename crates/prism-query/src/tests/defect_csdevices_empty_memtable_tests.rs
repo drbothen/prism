@@ -2694,4 +2694,415 @@ mod tests {
              got {total_rows}"
         );
     }
+
+    // =========================================================================
+    // T25 / T26 / T27 — LOCAL pass-8 findings F-CSD-P8-001 (MED) and F-CSD-P8-002 (LOW)
+    //
+    // These tests drive paths that the existing 24 tests do NOT cover:
+    //   T25/T26: the full `run_materialization_pipeline` path
+    //            (existing tests all call `execute_against_session` directly)
+    //   T27:     DML with `filter: Some(Predicate::InSubquery { subquery })` where the
+    //            subquery's SELECT projection contains Expr::InSubquery
+    //            (DML grammar cannot parse this shape; AST is constructed directly)
+    // =========================================================================
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Pipeline-path adapter stubs for T25 / T26 (SID-1 compliant: in-process,
+    // no DTU, no network). Pattern mirrors `RecordingAdapter` /
+    // `StubCredentialResolver` in `armis_discriminator_wiring_seam_tests`
+    // inside materialization.rs.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Zero-batch adapter: every `fetch` returns `Ok(vec![])`.
+    ///
+    /// Triggers `any_external_table_registered = false` in the pipeline's step-5
+    /// loop → early-return at line 1068, bypassing `check_expr_insubquery_projection`.
+    struct PipelineZeroAdapter {
+        sensor_id: prism_core::SensorId,
+    }
+
+    #[async_trait::async_trait]
+    impl prism_sensors::SensorAdapter for PipelineZeroAdapter {
+        fn sensor_type(&self) -> prism_core::SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "t25-pipeline-zero-adapter"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &prism_sensors::adapter::SensorSpec,
+            _params: &prism_sensors::adapter::QueryParams,
+            _auth: &dyn prism_sensors::SensorAuth,
+        ) -> Result<Vec<arrow::record_batch::RecordBatch>, prism_sensors::SensorError> {
+            Ok(vec![])
+        }
+    }
+
+    /// One-row adapter: every `fetch` returns a single-row batch.
+    ///
+    /// Triggers `any_external_table_registered = true` → pipeline proceeds past
+    /// the early-return and calls `execute_against_session_with_registry` where
+    /// `check_expr_insubquery_projection` fires.
+    struct PipelineOneRowAdapter {
+        sensor_id: prism_core::SensorId,
+    }
+
+    #[async_trait::async_trait]
+    impl prism_sensors::SensorAdapter for PipelineOneRowAdapter {
+        fn sensor_type(&self) -> prism_core::SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "t26-pipeline-one-row-adapter"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &prism_sensors::adapter::SensorSpec,
+            _params: &prism_sensors::adapter::QueryParams,
+            _auth: &dyn prism_sensors::SensorAuth,
+        ) -> Result<Vec<arrow::record_batch::RecordBatch>, prism_sensors::SensorError> {
+            Ok(vec![make_batch("device_id", &["stub-dev-001"])])
+        }
+    }
+
+    /// Stub credential resolver: returns a test bearer token so `fan_out()` reaches
+    /// the adapter's `fetch()` without a credential error.
+    struct PipelineStubCreds;
+
+    impl prism_sensors::CredentialResolver for PipelineStubCreds {
+        fn resolve(
+            &self,
+            _client_id: &str,
+            _sensor_id: prism_core::SensorId,
+        ) -> Result<Box<dyn prism_sensors::SensorAuth>, prism_sensors::SensorError> {
+            Ok(Box::new(prism_sensors::BearerStaticSensorAuth::new(
+                "t25-t26-pipeline-test-token",
+            )))
+        }
+    }
+
+    /// Build a `MaterializationContext` wired with `adapter` for the `crowdstrike`
+    /// sensor and a `PipelineStubCreds` credential resolver.
+    fn make_crowdstrike_pipeline_context(
+        adapter: Arc<dyn prism_sensors::SensorAdapter>,
+    ) -> crate::materialization::MaterializationContext {
+        let org_id = prism_core::OrgId::new();
+        let mut registry = prism_sensors::AdapterRegistry::new();
+        registry.register(org_id, adapter);
+        crate::materialization::MaterializationContext::new_with_resolver(
+            Arc::new(registry),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            10_000,
+            Arc::new(PipelineStubCreds),
+            None, // no OrgRegistry — test mode synthetic slug fallback
+            None, // no resolved_spec_map — test mode
+        )
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Test 25 — F-CSD-P8-001 (MED) — RED
+    //
+    // `check_expr_insubquery_projection` is inside `execute_against_session_with_registry`,
+    // which is only reached when `any_external_table_registered = true`. When ALL sensor
+    // tables return 0 batches, step-5 never sets that flag, and the pipeline early-returns
+    // at line 1068 WITHOUT running the gate — a plan-time error becomes data-dependent.
+    //
+    // RED: pipeline returns Ok(MaterializationOutput { batches: vec![] }).
+    // GREEN (post-fix): gate is hoisted before the early-return (or invoked on the parsed
+    // AST before step 4 fan-out) so it fires regardless of batch counts.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-CSD-P8-001-T25 / BC-2.11.003: `run_materialization_pipeline` with a
+    /// projection-position `Expr::InSubquery` query where ALL sensor tables return
+    /// 0 batches must fire E-QUERY-043 (`ExprInSubqueryProjectionNotSupported`).
+    ///
+    /// Currently the gate is bypassed: the pipeline early-returns `Ok(empty)` at
+    /// line 1068 because `PipelineZeroAdapter` causes `any_external_table_registered = false`.
+    ///
+    /// # Red→Green proof
+    ///
+    /// At HEAD: step-5 loop `if !batches.is_empty()` is never true → flag stays false
+    /// → early-return fires → `execute_against_session_with_registry` is never called
+    /// → `check_expr_insubquery_projection` at line 1177 is never reached → Ok(empty).
+    ///
+    /// Post-fix: gate runs before step-4 fan-out (or before the early-return check) →
+    /// E-QUERY-043 fires regardless of batch counts → test turns GREEN.
+    #[allow(non_snake_case)]
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P8_001_T25_pipeline_zero_batch_all_tables_bypasses_e_query_043_gate(
+    ) {
+        use prism_core::error::PrismError;
+
+        let mut mat_ctx = make_crowdstrike_pipeline_context(Arc::new(PipelineZeroAdapter {
+            sensor_id: prism_core::SensorId::new("crowdstrike"),
+        }));
+        let session_ctx = build_session_context(50 * 1024 * 1024)
+            .expect("build_session_context must succeed for T25");
+
+        // Projection-position InSubquery: both crowdstrike_detections and crowdstrike_devices
+        // map to sensor_id "crowdstrike" via sensor_id_from_table_name (split on `_` prefix).
+        // PipelineZeroAdapter returns Ok(vec![]) for every fetch call.
+        let query = "SELECT device_id IN (SELECT device_id FROM crowdstrike_devices) \
+                     AS is_known FROM crowdstrike_detections";
+        let options = crate::engine::QueryOptions::default();
+
+        let result = crate::materialization::run_materialization_pipeline(
+            query,
+            &options,
+            &mut mat_ctx,
+            &session_ctx,
+        )
+        .await;
+
+        // DESIRED (post-fix): E-QUERY-043 fires regardless of whether sensors return data.
+        // Plan-time errors must be data-independent.
+        //
+        // RED observation (at HEAD):
+        //   step-5: `any_external_table_registered` stays false (all batches empty)
+        //   line 1068: `if !any_external_table_registered { return Ok(MaterializationOutput { batches: vec![], ... }) }`
+        //   `execute_against_session_with_registry` never called
+        //   `check_expr_insubquery_projection` never reached
+        //   result = Ok(MaterializationOutput { batches: vec![] })
+        //
+        // F-CSD-P8-001 (MED): data-dependence in gate placement creates a silent bypass
+        // for InSubquery-in-projection queries when sensors are empty at query time.
+        assert!(
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P8-001-T25 / BC-2.11.003: run_materialization_pipeline with \
+             projection-position InSubquery and ALL-zero-batch sensors must return \
+             E-QUERY-043 (ExprInSubqueryProjectionNotSupported). \
+             RED: pipeline early-returns Ok(MaterializationOutput {{ batches: vec![] }}) at \
+             line 1068 — step-5 never sets `any_external_table_registered = true` because \
+             PipelineZeroAdapter returns Ok(vec![]) for all fetches. \
+             `execute_against_session_with_registry` is never called and \
+             `check_expr_insubquery_projection` (line 1177) never fires. \
+             Fix: hoist gate before the `!any_external_table_registered` early-return. \
+             got: {result:?}"
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Test 26 — F-CSD-P8-001 (GREEN consistency lock)
+    //
+    // Same query, same pipeline path, but with a populated adapter. Proves that
+    // the gate IS reachable and fires correctly today when sensors return data.
+    // The fix must not change this GREEN behavior for the populated-sensor path.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-CSD-P8-001-T26 / BC-2.11.003 (GREEN lock): `run_materialization_pipeline`
+    /// with a projection-position `Expr::InSubquery` query where at least ONE sensor
+    /// table returns a non-empty batch must fire E-QUERY-043.
+    ///
+    /// This test proves the gate IS reachable today via the populated-sensor path,
+    /// establishing the "surface is already data-INdependent when data exists"
+    /// invariant. The fix must turn T25 GREEN without regressing this T26 GREEN lock.
+    ///
+    /// # Green proof
+    ///
+    /// `PipelineOneRowAdapter::fetch` returns `Ok(vec![make_batch(...)])`.
+    /// step-5: `any_external_table_registered = true` → no early-return →
+    /// `execute_against_session_with_registry` called → line 1177:
+    /// `check_expr_insubquery_projection` fires before DataFusion planning → E-QUERY-043.
+    #[allow(non_snake_case)]
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P8_001_T26_pipeline_populated_batch_fires_e_query_043_gate_green_lock(
+    ) {
+        use prism_core::error::PrismError;
+
+        let mut mat_ctx = make_crowdstrike_pipeline_context(Arc::new(PipelineOneRowAdapter {
+            sensor_id: prism_core::SensorId::new("crowdstrike"),
+        }));
+        let session_ctx = build_session_context(50 * 1024 * 1024)
+            .expect("build_session_context must succeed for T26");
+
+        // Identical query to T25 — only the adapter behavior changes.
+        let query = "SELECT device_id IN (SELECT device_id FROM crowdstrike_devices) \
+                     AS is_known FROM crowdstrike_detections";
+        let options = crate::engine::QueryOptions::default();
+
+        let result = crate::materialization::run_materialization_pipeline(
+            query,
+            &options,
+            &mut mat_ctx,
+            &session_ctx,
+        )
+        .await;
+
+        // GREEN lock: gate must fire on the populated-sensor path (this already works today).
+        // If this regresses after the fix, the fix broke the populated path.
+        assert!(
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P8-001-T26 (GREEN lock) / BC-2.11.003: run_materialization_pipeline \
+             with projection-position InSubquery and populated sensor batches must return \
+             E-QUERY-043 — gate is reachable via execute_against_session_with_registry \
+             line 1177 when any_external_table_registered = true. \
+             If this fails, the T25 fix regressed the populated-sensor path. \
+             got: {result:?}"
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Test 27 — F-CSD-P8-002 (LOW) — RED
+    //
+    // `check_expr_insubquery_projection`'s DML arm only walks `source_select`:
+    //   `Ast::Sql(SqlStatement::Dml(dml)) => dml.source_select.as_ref().is_some_and(check_sql_query)`
+    //
+    // `dml.filter` is not walked. A DELETE/UPDATE WHERE clause containing
+    // `Predicate::InSubquery { subquery }` whose `subquery.select.items` holds
+    // `Expr::InSubquery` evades the gate entirely.
+    //
+    // The DML grammar (UPDATE/DELETE) uses `build_predicate_parser()` which does not
+    // include `Predicate::InSubquery` (only `build_sql_predicate_parser()` adds it),
+    // so this AST shape cannot be produced by parsing — it is constructed directly
+    // (same strategy as T20 uses for INSERT-SELECT via parser reach).
+    //
+    // Sibling walker `check_temporal_literals` covers dml.filter as defense-in-depth
+    // (F-P4-LOW-1, materialization.rs ~3415-3505). This test closes the equivalent
+    // gap in `check_expr_insubquery_projection`.
+    //
+    // RED: `source_select = None` → `is_some_and` = false → gate Ok(()) →
+    //      DML stub → Ok(vec![]).
+    // GREEN (post-fix): gate walks dml.filter when it is
+    //      Some(Predicate::InSubquery { subquery }) → check_sql_query(subquery) →
+    //      finds Expr::InSubquery in subquery.select.items → E-QUERY-043.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-CSD-P8-002-T27 / BC-2.11.003: DML `filter: Some(Predicate::InSubquery { subquery })`
+    /// where `subquery`'s SELECT projection holds `Expr::InSubquery` must fire E-QUERY-043.
+    ///
+    /// # AST shape (constructed directly — not parseable via DELETE grammar)
+    ///
+    /// ```text
+    /// DELETE FROM crowdstrike_detections
+    /// WHERE device_id IN (
+    ///   SELECT (device_id IN (SELECT device_id FROM crowdstrike_devices)) AS flag
+    ///   FROM crowdstrike_detections
+    /// )
+    /// ```
+    ///
+    /// The `device_id IN (SELECT device_id FROM crowdstrike_devices)` inside the
+    /// WHERE-subquery's SELECT projection is `Expr::InSubquery`. The gate must
+    /// walk `dml.filter → subquery.select.items` to detect it.
+    ///
+    /// # Red→Green proof
+    ///
+    /// At HEAD: `dml.source_select = None` → DML arm `is_some_and(check_sql_query)` = false
+    /// → gate returns `Ok(())` without inspecting `dml.filter` → DML stub returns `Ok(vec![])`.
+    ///
+    /// Post-fix: gate's DML arm also checks `dml.filter`:
+    /// `if let Some(Predicate::InSubquery { subquery, .. }) = &dml.filter { check_sql_query(subquery) }`
+    /// → `check_sql_query` finds `Expr::InSubquery` in `subquery.select.items` → returns true
+    /// → gate fires E-QUERY-043.
+    #[allow(non_snake_case)]
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P8_002_T27_dml_filter_insubquery_subquery_projection_evades_e_query_043_gate(
+    ) {
+        use crate::ast::{
+            Ast, Expr, FieldPath, FromClause, Predicate, SelectClause, SelectItem, SourceRef,
+            SqlQuery, SqlStatement,
+        };
+        use crate::write_ast::{DmlNode, DmlOperation};
+        use prism_core::error::PrismError;
+
+        let ctx = build_session_context(50 * 1024 * 1024)
+            .expect("build_session_context must succeed for T27");
+
+        // Innermost subquery: `SELECT device_id FROM crowdstrike_devices`
+        let innermost_q = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Expr {
+                expr: Expr::Field(FieldPath::new(["device_id"])),
+                alias: None,
+            }]),
+            FromClause::new(SourceRef::from_raw("crowdstrike_devices")),
+        );
+
+        // WHERE-subquery: `SELECT (device_id IN (SELECT device_id FROM crowdstrike_devices)) AS flag
+        //                  FROM crowdstrike_detections`
+        //
+        // `Expr::InSubquery` is in `select.items` of this subquery — the shape the gate must
+        // detect via `dml.filter` traversal.
+        let where_subquery = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Expr {
+                expr: Expr::InSubquery {
+                    field: FieldPath::new(["device_id"]),
+                    subquery: Box::new(innermost_q),
+                },
+                alias: Some("flag".to_string()),
+            }]),
+            FromClause::new(SourceRef::from_raw("crowdstrike_detections")),
+        );
+
+        // DML node: `DELETE FROM crowdstrike_detections WHERE device_id IN (<where_subquery>)`
+        //
+        // `source_select = None` (DELETE, not INSERT-SELECT). The current DML arm:
+        //   `dml.source_select.as_ref().is_some_and(check_sql_query)`
+        // evaluates to `false` for None → gate never inspects `dml.filter`.
+        //
+        // This DmlNode is constructed directly because `build_delete_parser` uses
+        // `build_predicate_parser()` (filter grammar) which does NOT include
+        // `Predicate::InSubquery` — this shape cannot be produced by parsing.
+        // `#[non_exhaustive]` on DmlNode does not restrict construction inside
+        // the same crate (prism-query).
+        let dml_node = DmlNode {
+            operation: DmlOperation::Delete,
+            target_table: "crowdstrike_detections".to_string(),
+            columns: None,
+            assignments: vec![],
+            filter: Some(Predicate::InSubquery {
+                field: FieldPath::new(["device_id"]),
+                subquery: Box::new(where_subquery),
+                negated: false,
+            }),
+            source_select: None,
+        };
+        let ast = Ast::Sql(SqlStatement::Dml(dml_node));
+
+        let result = execute_against_session(
+            &ctx,
+            "synthetic-dml-t27-filter-interior",
+            &ast,
+            std::collections::HashMap::new(),
+        )
+        .await;
+
+        // DESIRED (post-fix): E-QUERY-043 from gate traversal of dml.filter subquery projection.
+        //
+        // RED observation (at HEAD):
+        //   `check_expr_insubquery_projection` DML arm:
+        //     `Ast::Sql(SqlStatement::Dml(dml)) => dml.source_select.as_ref().is_some_and(check_sql_query)`
+        //   `source_select = None` → `is_some_and` returns false → gate returns Ok(())
+        //   DML execution stub: `_ => Ok(Vec::new())` → result = Ok(vec![])
+        //
+        // `dml.filter`'s `Predicate::InSubquery.subquery.select.items` contains
+        // `Expr::InSubquery` but is NEVER inspected by the gate at HEAD.
+        //
+        // Sibling precedent (F-P4-LOW-1): `check_temporal_literals` already walks dml.filter
+        // (materialization.rs ~3415-3505) as defense-in-depth. This closes the equivalent
+        // gap in `check_expr_insubquery_projection`.
+        assert!(
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P8-002-T27 / BC-2.11.003: DML with filter Predicate::InSubquery \
+             whose subquery projection holds Expr::InSubquery must return E-QUERY-043. \
+             RED: gate DML arm only walks source_select (= None for DELETE) — dml.filter \
+             is not traversed → Expr::InSubquery in filter subquery projection is undetected \
+             → result is Ok(vec![]) instead of E-QUERY-043. \
+             Fix: extend DML arm to walk dml.filter when it is \
+             Some(Predicate::InSubquery {{ subquery, .. }}) and call check_sql_query(subquery). \
+             got: {result:?}"
+        );
+    }
 }
