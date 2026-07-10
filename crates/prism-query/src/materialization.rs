@@ -644,19 +644,31 @@ pub async fn run_materialization_pipeline(
     // the table is confirmed to exist and the projection check is appropriate).
     check_temporal_literals(&mut ast, mat_ctx.table_registry.as_deref(), false)?;
 
-    // Step 1d: E-QUERY-043 plan-time projection gate fires here — AFTER temporal checks
-    // (E-QUERY-042 wins when both violations are present). The actual gate function lives
-    // in `execute_against_session_with_registry` so it also fires on the direct test-path
-    // invocation. No second call needed here: temporal checks ran before the execute call.
+    // Step 1d: E-QUERY-043 plan-time projection gate — dual placement (F-CSD-P8-001).
     //
-    // Gate ordering contract (F-EQ42-P2-001 preserved):
-    //   E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-041 → E-QUERY-042
-    //     → fan-out → execute_against_session_with_registry → E-QUERY-043
+    // PLACEMENT DECISION (F-CSD-P8-001 2026-07-10): the gate runs BOTH here (pipeline
+    // path, before fan-out and the `!any_external_table_registered` early-return at
+    // Step 6) AND inside `execute_against_session_with_registry` (direct test-path
+    // invocation). Dual placement is idempotent — the second call is a no-op when the
+    // first already fires — and is cheaper than restructuring the early-return logic.
+    // Keeping the call in `execute_against_session_with_registry` preserves coverage for
+    // callers that invoke it directly without going through `run_materialization_pipeline`.
+    //
+    // Gate fires AFTER `check_temporal_literals` so E-QUERY-042 wins when both violations
+    // are present (F-EQ42-P2-001 ordering preserved):
+    //   E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-041 → E-QUERY-042 [Step 1c]
+    //     → E-QUERY-043 [Step 1d, here] → fan-out
+    //     → execute_against_session_with_registry → E-QUERY-043 [idempotent: only reached
+    //       when any_external_table_registered=true; re-fires, returns same error]
     //
     // F-EQ42-P2-001 tests (temporal IN-subquery GROUP BY): `check_temporal_literals` fires
-    // E-QUERY-042 at the `?` above, before execute_against_session_with_registry is called.
-    // The E-QUERY-043 gate in execute_against_session_with_registry is therefore never
-    // reached for those queries. Ordering is preserved.
+    // E-QUERY-042 at the `?` above, before this call. The `?` propagates the error and
+    // this line is not reached for those queries. Ordering is preserved.
+    //
+    // Without this hoisted call (pre-fix state): all-zero-batch queries bypassed the gate
+    // because `execute_against_session_with_registry` was never called — the Step-6
+    // early-return (`if !any_external_table_registered`) fired first.
+    check_expr_insubquery_projection(&ast)?;
 
     let source_names = extract_source_names(&ast);
 
