@@ -27,7 +27,11 @@ date_pass15: 2026-07-10
 streak_at_pass15: 1
 date_pass16: 2026-07-10
 streak_at_pass16: 0
-total_passes_to_date: 16
+date_pass17: 2026-07-10
+streak_at_pass17: 1
+date_pass18: 2026-07-10
+streak_at_pass18: 0
+total_passes_to_date: 18
 convergence: IN_PROGRESS
 authored_by: state-manager
 ---
@@ -51,7 +55,7 @@ authored_by: state-manager
 
 ---
 
-## Cascade Table (10 passes to date)
+## Cascade Table (18 passes to date)
 
 | Pass | Frozen HEAD | CLEAN(strict) | CLEAN(PR-merge) | Findings | Fix-burst HEAD | Streak |
 |------|-------------|---------------|-----------------|----------|----------------|--------|
@@ -83,7 +87,11 @@ authored_by: state-manager
 | 16 | frozen @87e8ff10 | NO | YES | 1 MED F-CSD-P16-001 (virtual-field behavior in BC-2.11.005 DEC-022 + BC-2.11.012 lacked test-specific spec anchors; tests T32/T33/T34 named against BC-2.11.012 but no spec invariant confirmed `_sensor`/`_client`/`_source_table` must appear in empty MemTable schema before registration — data-dependent contract gap) + 1 OBS F-CSD-P16-002 (fragmented comment block around VariantMeta insertion in `error_mapping.rs`; rustfmt long-match threshold anomaly documented) | — | 0/3 |
 | — (fix-burst) | — | — | — | — | PO BC-2.11.005 v1.9→v1.10 (virtual-field append documented in DEC-022 §Postconditions; 3 test-vector rows cross-referenced to BC-2.11.012 v1.5; F-CSD-P16-001 spec-layer closure); BC-2.11.012 v1.4→v1.5 (Empty MemTable schema parity invariant added; 3 test-vector rows; POL-27 modified fix annotation; cross-referenced BC-2.11.005 v1.10 bidirectionally); implementer @819beeda — comment block re-flowed around VariantMeta insertion in `error_mapping.rs` + rustfmt long-match threshold anomaly corrected; prism-mcp 447/447; just check GREEN; non-exhaustive 89/89 | 0/3 |
 
-Streak reset at passes 3, 4, 12, 14, and 16. Pass 10 is the FIRST CLEAN(PR-merge) of the cascade. Pass 11 is the FIRST CLEAN(strict) of the cascade (streak 1/3); pass 12 LOW F-CSD-P12-001 reset to 0/3. Pass 13 (frozen @421ce222): CLEAN(strict)=YES — streak 1/3 (SECOND CLEAN(strict) of the cascade). Pass 14 (frozen @421ce222): MED F-CSD-P14-001 virtual-field schema parity gap — streak RESET 1/3→0/3. Pass 15 (frozen @87e8ff10): CLEAN(strict)=YES — streak 1/3 (THIRD CLEAN(strict) of the cascade). Pass 16 (frozen @87e8ff10): MED F-CSD-P16-001 virtual-field spec-anchor gap (BC-2.11.005 DEC-022 + BC-2.11.012 missing test-specific invariant) + OBS F-CSD-P16-002 comment fragmentation — streak RESET 1/3→0/3. Mode-dimension survey complete: SQL+SqlPipe subquery atoms present and pre_register_empty_tables wired (both virtual-field and registration); Filter/Pipe parsers have no subquery atoms — structurally exempt. Structural-fix class closure: P5 (FuncCall-args recursion gap), P6 (DML source_select defense-in-depth), P7 (WHERE/HAVING/JOIN-ON check_sql_query non-recursive), P8-MED (gate placement below early-return; DUAL placement fix), P8-LOW (DML filter/assignments interiors), P9-HIGH (harness-clone POST verb surface gap), P10 (empirical DataFusion capability + harness first_seen OBS), P12 (SqlPipe pre_register_empty_tables), P14-001 (empty-MemTable virtual-field schema), P16-001 (virtual-field spec-anchor gap — spec layer closed via BC-2.11.005 v1.10 + BC-2.11.012 v1.5), P16-002 (comment block re-flowed) — all closed. PENDING-HUMAN: DRIFT-SAP2-DEVICES-TOML-SURFACE-001 (P14-010 SAP-2 §4-class). LOCAL pass 17 DISPATCHED on frozen HEAD `819beeda`.
+| 17 | frozen @819beeda | YES | YES | 0 | — | 1/3 |
+| 18 | frozen @819beeda | NO | YES | 7 OBS (F-CSD-P18-001..007; NOTE: adversary transcript labeled F-CSD-P17-NNN — canonical IDs are F-CSD-P18-001..007; pass 17 was CLEAN/zero-findings so no collision) | test-writer @b7a1fd93 + implementer @962f2ffb + BC-2.11.012 v1.5→v1.6 (PO, in dirty tree) + DTU-EXT-001 tech-debt-register amendment (state-manager) | 0/3 |
+| — (fix-burst) | — | — | — | — | test-writer RED @b7a1fd93 (F-CSD-P18-001: T33b 6 nullable parity assertions; F-CSD-P18-006: devices T1 query_device_ids backward-ref assertion; F-CSD-P18-007: Test 3 wiremock POST body_partial_json pin); implementer @962f2ffb (F-CSD-P18-002: ALL FOUR branch-introduced volatile line-pins in materialization.rs swept to symbolic anchors TD-VSDD-091+TD-VSDD-060; F-CSD-P18-003: stale `#![allow(dead_code)]` on virtual_fields.rs removed); BC-2.11.012 v1.5→v1.6 PO adjudication (F-CSD-P18-005: status draft→active; changelog row; no semantic contract change); DTU-EXT-001 tech-debt-register amendment (F-CSD-P18-004: POST-method constraint added — DTU-EXT-001 future incidents route MUST land as POST; anchor: F-CSD-P18-004 + crowdstrike.sensor.toml [[tables]] incidents fetch_incidents method=POST body_template query_incident_ids); prism-query 1537/1537; just check FULL WORKSPACE 5460/5460 GREEN; non-exhaustive 89/89 | 0/3 |
+
+Streak reset at passes 3, 4, 12, 14, 16, and 18. Pass 10 is the FIRST CLEAN(PR-merge) of the cascade. Pass 11 is the FIRST CLEAN(strict) of the cascade (streak 1/3); pass 12 LOW F-CSD-P12-001 reset to 0/3. Pass 13 (frozen @421ce222): CLEAN(strict)=YES — streak 1/3 (SECOND CLEAN(strict) of the cascade). Pass 14 (frozen @421ce222): MED F-CSD-P14-001 virtual-field schema parity gap — streak RESET 1/3→0/3. Pass 15 (frozen @87e8ff10): CLEAN(strict)=YES — streak 1/3 (THIRD CLEAN(strict) of the cascade). Pass 16 (frozen @87e8ff10): MED F-CSD-P16-001 virtual-field spec-anchor gap (BC-2.11.005 DEC-022 + BC-2.11.012 missing test-specific invariant) + OBS F-CSD-P16-002 comment fragmentation — streak RESET 1/3→0/3. Pass 17 (frozen @819beeda): CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings. Streak 1/3 (per D-1666). Pass 18 (frozen @819beeda): NOT CLEAN(strict) CLEAN(PR-merge) — 7 OBS findings F-CSD-P18-001..007. Streak RESET 1/3→0/3. Mode-dimension survey complete: SQL+SqlPipe subquery atoms present and pre_register_empty_tables wired (both virtual-field and registration); Filter/Pipe parsers have no subquery atoms — structurally exempt. Structural-fix class closure: P5 (FuncCall-args recursion gap), P6 (DML source_select defense-in-depth), P7 (WHERE/HAVING/JOIN-ON check_sql_query non-recursive), P8-MED (gate placement below early-return; DUAL placement fix), P8-LOW (DML filter/assignments interiors), P9-HIGH (harness-clone POST verb surface gap), P10 (empirical DataFusion capability + harness first_seen OBS), P12 (SqlPipe pre_register_empty_tables), P14-001 (empty-MemTable virtual-field schema), P16-001 (virtual-field spec-anchor gap — spec layer closed via BC-2.11.005 v1.10 + BC-2.11.012 v1.5), P16-002 (comment block re-flowed), P18-001..007 (nullable parity T33b; volatile pins sweep; stale allow(dead_code); DTU-EXT-001 POST constraint; BC-2.11.012 lifecycle promote; T1 backward-ref; T3 body matcher) — all closed. PENDING-HUMAN: DRIFT-SAP2-DEVICES-TOML-SURFACE-001 (P14-010 SAP-2 §4-class). LOCAL pass 19 NEXT on frozen HEAD `962f2ffb`.
 
 ---
 
@@ -194,6 +202,44 @@ Zero findings. CLEAN(strict)=YES. CLEAN(PR-merge)=YES. Streak advances: 0/3→**
 | F-CSD-P12-001 | LOW | `Ast::SqlPipe` arm in `plan_pipeline` lacked `pre_register_empty_tables` call before `plan_pinned_head_sql`; SqlPipe head containing a WHERE IN-subquery on a 0-batch table returned table-not-found → -32000 instead of E-QUERY-043; violates BC-2.11.005 v1.9 position-invariant DEC-022 in SqlPipe mode | test-writer @eaefee94: T30 RED (SqlPipe head WHERE IN-subquery 0-batch path) + T31 RED (SqlPipe-specific lock); Filter/Pipe structural survey: no `Expr::InSubquery` / `Predicate::InSubquery` atoms reachable through filter_parser.rs / pipe_parser.rs — both modes structurally exempt; implementer @421ce222: one-line `pre_register_empty_tables(session, &spec)` call in SqlPipe arm before `plan_pinned_head_sql`; design comment updated to enumerate all 4 modes (SQL: pre_register_empty_tables present; SqlPipe: now present; Filter: structurally exempt; Pipe: structurally exempt); T30/T31 RED→GREEN; 31/31 defect suite GREEN |
 
 CLEAN(strict): NO (1 LOW). CLEAN(PR-merge): YES. Streak RESET 1/3→0/3. LOCAL pass 13 DISPATCHED on frozen `421ce222`.
+
+### Pass 17
+
+Zero findings. CLEAN(strict)=YES. CLEAN(PR-merge)=YES. Streak advances: 0/3→**1/3** (FOURTH CLEAN(strict) of the cascade; FIRST on frozen `819beeda`). LOCAL pass 18 DISPATCHED on frozen `819beeda`.
+
+### Pass 18
+
+NOTE: adversary transcript labeled findings F-CSD-P17-NNN. Canonical IDs are F-CSD-P18-001..007 (pass 17 was CLEAN/zero-findings so no collision; this alias note is the authoritative record).
+
+| ID | Severity | Description | Resolution |
+|----|----------|-------------|------------|
+| F-CSD-P18-001 | OBS | T33 lacked nullable=true/false per-path parity assertions claimed by BC-2.11.005 v1.10 + BC-2.11.012 T33 vector — test verified schema parity but did not assert per-field nullable values | test-writer @b7a1fd93: added sibling test `test_BC_2_11_012_F_CSD_P14_001_T33b_virtual_field_nullable_parity_per_path` (6 assertions: empty path nullable=true ×3 via append_virtual_fields_to_schema; populated path nullable=false ×3 via inject_virtual_fields) |
+| F-CSD-P18-002 | OBS | Volatile `~line NNNN` pins in `check_expr_insubquery_projection` comments in `materialization.rs` — all four branch-introduced line pins violated TD-VSDD-091 (volatile-pin prohibition) | implementer @962f2ffb: swept ALL FOUR branch-introduced line pins to symbolic anchors; TD-VSDD-060 complete-set sweep via `git diff develop..HEAD` confirmed no residual pins |
+| F-CSD-P18-003 | OBS | Stale module-wide `#![allow(dead_code)]` on `virtual_fields.rs` — all items have production callers; allow was from initial file creation and was never removed | implementer @962f2ffb: removed the module-level allow entirely; no per-item allows needed |
+| F-CSD-P18-004 | OBS | `crowdstrike.sensor.toml` `fetch_incidents` now POST — DTU-EXT-001 forward constraint needed: future DTU incidents route MUST land as POST or the silent-empty defect class recurs | state-manager: amended tech-debt-register DTU-EXT-001 entry (formalization of pre-existing human-ratified notation) adding POST-method constraint with anchor "F-CSD-P18-004, crowdstrike.sensor.toml [[tables]] incidents fetch_incidents method=POST body_template query_incident_ids" |
+| F-CSD-P18-005 | OBS | BC-2.11.012 `status: draft` contradicted `lifecycle_status: active` + sibling BC-2.11.005 `status: active` — draft misrepresents a contract whose implementation is on develop today | product-owner adjudicated PROMOTE: BC-2.11.012 v1.5→v1.6 (status draft→active; changelog row added; no semantic contract change); state-manager synced BC-INDEX row + v7.84→v7.85 |
+| F-CSD-P18-006 | OBS | Devices Test 1 missing `query_device_ids` backward-ref assertion — asymmetric vs incidents Test 2 which asserts the request body backward-ref; incidents but not devices side of the test verified the request body shape | test-writer @b7a1fd93: added `query_device_ids` backward-ref assertion to Test 1 |
+| F-CSD-P18-007 | OBS | Test 3 wiremock POST mock lacked body matcher — could not detect the exact sub-defect-1 regression class (TD-VSDD-059 paper-fix guard); a POST with a wrong or empty body would silently pass the test | test-writer @b7a1fd93: added `body_partial_json` ids pin to Test 3 POST mock |
+
+CLEAN(strict): NO (7 OBS). CLEAN(PR-merge): YES. Streak RESET 1/3→0/3. New frozen HEAD for pass 19: `962f2ffb` (fix branch remains LOCAL-ONLY; no push). LOCAL pass 19 NEXT on frozen `962f2ffb`.
+
+---
+
+## Evidence at pass 18 Fix HEAD (962f2ffb)
+
+- prism-query defect suite: **1537/1537** GREEN
+- Full workspace `just check`: **5460/5460** GREEN
+- Non-exhaustive gate: 89/89
+
+## Spec Layer Modified (pass-18 closure)
+
+| Artifact | Version Bump | Change |
+|----------|-------------|--------|
+| BC-2.11.012 | v1.5→v1.6 | F-CSD-P18-005: `status: draft → active`; changelog row added; no semantic contract change; production-grade default requires removing the false-draft label (inject_virtual_fields already on develop) |
+| tech-debt-register.md | v2.23→v2.24 (amendment) | F-CSD-P18-004: DTU-EXT-001 formalized as a tech-debt row; POST-method constraint added — DTU-EXT-001 future CrowdStrike incidents route MUST land as POST handler for `/incidents/entities/incidents/GET/v1`; silent GET would reproduce the empty-pipeline defect class; anchor: crowdstrike.sensor.toml [[tables]] incidents fetch_incidents method=POST body_template query_incident_ids |
+| BC-INDEX | v7.84→v7.85 | BC-2.11.012 inline row: version v1.5→v1.6, status draft→active; changelog entry D-1667 |
+
+---
 
 ## Evidence at Pass 12 Fix HEAD (421ce222)
 
@@ -356,4 +402,4 @@ No BC version bumps. Code-only fix for F-CSD-P14-001 (virtual_fields::append_vir
 
 _Pending: LOCAL cascade not yet converged. PR not yet created._
 
-**Status: IN PROGRESS — LOCAL pass 15 IN FLIGHT on frozen `87e8ff10` (streak 0/3). Pass-13 on frozen `421ce222`: CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; streak 1/3 (SECOND CLEAN(strict) of cascade; FIRST on 421ce222). Pass-14 on frozen `421ce222`: NOT CLEAN — 1 MED F-CSD-P14-001 (empty MemTable lacked virtual-field columns; data-dependent -32000 on SELECT of virtual field from 0-batch JOIN side). Fix-burst: test-writer @7f6db987 T32/T33 RED + T34 GREEN; implementer @87e8ff10 virtual_fields::append_virtual_fields_to_schema helper (4 call sites); taxonomy v2.38→v2.39 (P14-002/009); P14-007 pub→pub(crate); 34/34 defect; 96/96 temporal; 1536/1536 prism-query; just check 5459/5459 GREEN; non-exhaustive 89/89. Streak RESET 1/3→0/3. PENDING-HUMAN: DRIFT-SAP2-DEVICES-TOML-SURFACE-001 (P14-010). Walker-gap + gate-placement lineage P5/P6/P7/P8 CLOSED; harness parity gap P9 CLOSED; empirical DataFusion capability P10 CLOSED; SqlPipe mode gap P12 CLOSED; virtual-field schema gap P14-001 CLOSED. Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS → 1MED+1LOW+2OBS → 1HIGH+2OBS → 1LOW+1OBS [CLEAN(PR-merge)] → 0 [CLEAN(strict)/streak-1] → 1LOW [streak RESET] → 0 [CLEAN(strict)/streak-1] → 1MED+9LOW/OBS [streak RESET] (converging toward 3-CLEAN).**
+**Status: IN PROGRESS — LOCAL pass 19 NEXT on frozen `962f2ffb` (streak 0/3). Pass-17 on frozen `819beeda`: CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; streak 1/3 (FOURTH CLEAN(strict) of cascade; FIRST on 819beeda). Pass-18 on frozen `819beeda`: NOT CLEAN(strict) CLEAN(PR-merge) — 7 OBS F-CSD-P18-001..007. Fix-burst: test-writer @b7a1fd93 (T33b nullable parity ×6; T1 backward-ref; T3 body matcher); implementer @962f2ffb (4 volatile line-pins swept to symbolic anchors; stale allow(dead_code) removed); BC-2.11.012 v1.5→v1.6 (status draft→active); DTU-EXT-001 tech-debt-register formalization; prism-query 1537/1537; just check 5460/5460 GREEN; non-exhaustive 89/89. Streak RESET 1/3→0/3. New frozen HEAD for pass 19: 962f2ffb. Walker-gap + gate-placement lineage P5/P6/P7/P8 CLOSED; harness parity gap P9 CLOSED; empirical DataFusion capability P10 CLOSED; SqlPipe mode gap P12 CLOSED; virtual-field schema gap P14-001 CLOSED; virtual-field spec-anchor gap P16-001 CLOSED; nullable parity + volatile-pins + lifecycle + DTU-constraint + backward-refs + body-matcher P18 CLOSED. Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS → 1MED+1LOW+2OBS → 1HIGH+2OBS → 1LOW+1OBS [CLEAN(PR-merge)] → 0 [streak-1] → 1LOW [reset] → 0 [streak-1] → 1MED+9LOW/OBS [reset] → 0 [streak-1] → 1MED+1OBS [reset] → 0 [streak-1] → 7OBS [reset] (converging toward 3-CLEAN).**

@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
-status: draft
+version: "1.6"
+status: active
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
 phase: 1a
@@ -98,6 +98,7 @@ Three virtual fields — `_sensor`, `_client`, and `_source_table` — are injec
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / F-CSD-P18-005 lifecycle adjudication | 2026-07-10 | product-owner | **Promotes `status: draft → active`.** F-CSD-P18-005 (OBS) finding: `inject_virtual_fields` is already on develop; the contract is load-bearing in production-reachable code today; `lifecycle_status: active` was already set but contradicted by `status: draft`. Per production-grade default and POL-14 auto-promotion-at-merge, `draft` misrepresents a contract that is fully implemented. Patch-bump only — no semantic change to contract body. |
 | 1.5 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / F-CSD-P16-001 virtual-field spec anchor | 2026-07-10 | product-owner | **Closes F-CSD-P16-001 (MED) — empty-MemTable virtual-field behavior has no spec anchor.** (1) **§Invariants:** added "Empty MemTable schema parity" invariant: every registered table schema (populated or empty) includes `_sensor`, `_client`, `_source_table`; empty path uses nullable=true for LEFT JOIN NULL propagation; spoofed-column dedup guard applies on both paths; cites F-CSD-P14-001 + F-CSD-P16-001; cross-references BC-2.11.005 §DEC-022. (2) **§Canonical Test Vectors:** added T32 (left-join empty-side virtual fields return NULL), T33 (schema parity between empty and populated paths), T34 (populated-path green-lock). (3) **§Traceability:** added L2 Invariants row (DI-008); expanded Related BCs to explicitly reference BC-2.11.005 §DEC-022. (4) **Frontmatter:** fixed `modified: null` → `modified: "2026-07-10"` (POL-27). No change to Preconditions, Postconditions, Error Cases, Verification Properties. |
 | 1.4 | pass-15-remediation | 2026-04-27 | product-owner | `_client` virtual field description updated TenantId → OrgSlug (ADR-006). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
