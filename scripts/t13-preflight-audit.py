@@ -2167,7 +2167,7 @@ def run_audit():
         # Re-asserts the 14-tool set from A2 but also does a live explain_query call.
         body, err = tool_call(proc, "explain_query",
                               {"query": "FROM crowdstrike_detections | limit 5",
-                               "client_id": "org-c"}, timeout=15.0)
+                               "clients": ["org-c"]}, timeout=15.0)
         if err:
             results["[H15] explain_query live call (one of 14 implemented tools)"] = f"FAIL: {err}"
         elif body.get("error_code"):
