@@ -3181,8 +3181,17 @@ pub(crate) async fn collect_record_batch_stream(
 /// Does NOT reject JOIN ON `Expr::InSubquery` directly (T5 scope boundary). The
 /// INTERIOR of the subquery is still checked via `descend_subquery_expr`.
 ///
-/// Does NOT check DML filter predicates (UPDATE/DELETE WHERE): those contain
-/// `Predicate::InSubquery`, not `Expr::InSubquery` in projection position.
+/// DML filter predicates (UPDATE/DELETE WHERE) are walked via `check_predicate`
+/// (F-CSD-P8-002): `Predicate::InSubquery.subquery` projections may contain
+/// `Expr::InSubquery`. Grammar-unreachable today — `build_predicate_parser()` (used
+/// by UPDATE/DELETE WHERE) does not include `Predicate::InSubquery`; only
+/// `build_sql_predicate_parser()` adds it, so this shape can only be produced by
+/// constructing the AST directly (T27 verifies via constructed AST). Covered as
+/// defense-in-depth consistent with `check_temporal_literals`'s `dml.filter` walk
+/// (F-P4-LOW-1, ~line 3415–3505).
+///
+/// DML SET assignments (UPDATE SET col = expr) are walked via `descend_subquery_expr`
+/// on each `Assignment.value` as defense-in-depth (mirrors F-P4-LOW-1 coverage parity).
 ///
 /// # Returns
 ///
@@ -3343,15 +3352,32 @@ fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismEr
     let found = match ast {
         Ast::Sql(SqlStatement::Select(q)) => check_sql_query(q),
         Ast::SqlPipe(spq) => check_sql_query(&spq.head),
-        // DML source_select defense-in-depth (F-CSD-P6-001 + F-P4-LOW-1 precedent):
-        // INSERT INTO … SELECT carries `source_select: Option<SqlQuery>` whose
-        // select.items / group_by / order_by can hold `Expr::InSubquery`.
-        // Walk source_select via check_sql_query so that future S-3.06 DML execution
-        // wiring cannot silently pass an unvalidated InSubquery shape to DataFusion.
-        // DML filter predicates (UPDATE/DELETE WHERE) contain Predicate::InSubquery,
-        // not Expr::InSubquery in projection position; they are not in E-QUERY-043 scope.
-        // Mirrors check_temporal_literals DML source_select walk (~3415-3505).
-        Ast::Sql(SqlStatement::Dml(dml)) => dml.source_select.as_ref().is_some_and(check_sql_query),
+        // DML defense-in-depth (F-CSD-P6-001 + F-CSD-P8-002 + F-P4-LOW-1 precedent):
+        //
+        // (a) source_select: INSERT INTO … SELECT carries `source_select: Option<SqlQuery>`
+        //     whose select.items / group_by / order_by can hold `Expr::InSubquery`.
+        //     Walk via check_sql_query (F-CSD-P6-001).
+        //
+        // (b) filter: UPDATE/DELETE WHERE may carry `Predicate::InSubquery { subquery }` whose
+        //     `subquery.select.items` holds `Expr::InSubquery` (F-CSD-P8-002).
+        //     Grammar-unreachable today (build_predicate_parser() excludes Predicate::InSubquery;
+        //     only build_sql_predicate_parser() adds it — T27 verifies via constructed AST),
+        //     but covered as defense-in-depth. Walk via check_predicate which recurses into
+        //     Predicate::InSubquery.subquery.
+        //
+        // (c) assignments: UPDATE SET col = <expr> — value Expr may hold Expr::InSubquery
+        //     in a non-projection position. Walk via descend_subquery_expr (defense-in-depth,
+        //     mirrors F-P4-LOW-1 coverage parity).
+        //
+        // Mirrors check_temporal_literals DML walk (~3415-3505).
+        Ast::Sql(SqlStatement::Dml(dml)) => {
+            dml.source_select.as_ref().is_some_and(check_sql_query)
+                || dml.filter.as_ref().is_some_and(check_predicate)
+                || dml
+                    .assignments
+                    .iter()
+                    .any(|a| descend_subquery_expr(&a.value))
+        }
         // Filter and Pipe variants have no SELECT projection expressions in the
         // same sense as SQL SELECT; no E-QUERY-043 cases possible.
         #[allow(unreachable_patterns)]
