@@ -149,6 +149,20 @@ fn test_BC_DEFECT_CSDEVICES_001_fetch_devices_step_has_post_method_and_body_temp
          (fan-out anchor for find_fan_out_array); got: {bt:?}. \
          Expected form: '{{\"ids\": ${{query_device_ids.resources}}}}'."
     );
+
+    // (d) body_template must reference `query_device_ids` step specifically — not just any
+    //     variable, but the backward reference to the IDs collected in step 1.
+    //
+    // Without this specific reference, find_fan_out_array() would resolve to a different
+    // step's array output (or fail to find the correct fan-out anchor), delivering wrong
+    // IDs to the POST body.
+    assert!(
+        bt.contains("query_device_ids"),
+        "BC-DEFECT-CSDEVICES-001: body_template must reference 'query_device_ids' (step 1 \
+         results); got: {bt:?}. \
+         The fan-out requires a backward ref to the IDs collected in step 1 \
+         (query_device_ids.resources), not merely any '${{...}}' reference."
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -264,7 +278,7 @@ fn test_BC_DEFECT_CSDEVICES_001_fetch_incidents_step_has_post_method_and_body_te
 async fn test_BC_DEFECT_CSDEVICES_001_devices_pipeline_returns_records_via_post() {
     use wiremock::{
         Mock, MockServer, ResponseTemplate,
-        matchers::{method, path},
+        matchers::{body_partial_json, method, path},
     };
 
     let mock_server = MockServer::start().await;
@@ -283,8 +297,17 @@ async fn test_BC_DEFECT_CSDEVICES_001_devices_pipeline_returns_records_via_post(
     // `expect(1)` ensures this mock is called exactly once.
     // If the engine issues GET instead of POST, this expectation is unmet →
     // MockServer panics at drop — causing the test to fail.
+    //
+    // body_partial_json pins the interpolated POST body: the crowdstrike.sensor.toml
+    // body_template `'{"ids": ${query_device_ids.resources}}'` must interpolate to
+    // `{"ids": ["id-001","id-002","id-003"]}` using the IDs returned by Step 1.
+    // Without this matcher, a POST with an empty/wrong body (regression of sub-defect 1)
+    // would incorrectly match method+path alone and the test would pass on a broken impl.
     Mock::given(method("POST"))
         .and(path("/devices/entities/devices/v2"))
+        .and(body_partial_json(serde_json::json!({
+            "ids": ["id-001", "id-002", "id-003"]
+        })))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "resources": [
                 {"device_id": "id-001", "hostname": "host-001.example.com"},

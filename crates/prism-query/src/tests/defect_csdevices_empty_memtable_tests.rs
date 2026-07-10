@@ -4040,6 +4040,116 @@ mod tests {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Test 33b (F-CSD-P14-001-T33b): Nullable parity — direct helper-function assertion.
+    //
+    // Strengthens T33 by verifying the *nullable attribute* (not just presence) of each
+    // virtual field on each injection path independently, without going through DataFusion.
+    //
+    // Contract (BC-2.11.012 v1.5 T33):
+    //   - Empty path: append_virtual_fields_to_schema → nullable=true
+    //     (LEFT JOIN NULL propagation — the column must accept NULL when the empty table
+    //     contributes no rows)
+    //   - Populated path: inject_virtual_fields → nullable=false
+    //     (actual string values are always present on populated batches; nullable=false
+    //     prevents NULL from appearing on a non-empty result row)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// F-CSD-P14-001-T33b / BC-2.11.012 v1.5 T33: Both virtual-field injection helpers
+    /// must produce fields with the correct nullable attribute for their respective paths.
+    ///
+    /// - `append_virtual_fields_to_schema` (empty path) → nullable=true
+    ///   Rationale: LEFT JOIN NULL propagation requires nullable=true so DataFusion can
+    ///   plan a nullable column for the empty-table side of the join.
+    ///
+    /// - `inject_virtual_fields` (populated path) → nullable=false
+    ///   Rationale: actual string values are ALWAYS present on populated batches; a
+    ///   nullable=true declaration on a column that never contains NULL would be
+    ///   misleading and could cause downstream consumers to add unnecessary null checks.
+    ///
+    /// This test exercises the two helper functions directly (no DataFusion query execution)
+    /// to lock the nullable contract independently from the JOIN-planner integration.
+    /// If either assertion fails, the implementation has drifted from the BC-2.11.012
+    /// schema-parity contract and the empty-vs-populated nullable gap would be re-opened.
+    #[test]
+    fn test_BC_2_11_012_F_CSD_P14_001_T33b_virtual_field_nullable_parity_per_path() {
+        let virtual_fields = [
+            crate::virtual_fields::VIRTUAL_FIELD_SENSOR,
+            crate::virtual_fields::VIRTUAL_FIELD_CLIENT,
+            crate::virtual_fields::VIRTUAL_FIELD_SOURCE_TABLE,
+        ];
+
+        // ── Empty path: append_virtual_fields_to_schema → nullable=true ──────────
+        //
+        // This function is called by `pre_register_empty_tables` to build the
+        // schema-only MemTable for 0-batch sensor results.
+        let base_schema = Arc::new(Schema::new(vec![Field::new(
+            "device_id",
+            DataType::Utf8,
+            true,
+        )]));
+        let empty_path_schema = crate::virtual_fields::append_virtual_fields_to_schema(base_schema);
+
+        for vf in &virtual_fields {
+            let field = empty_path_schema.field_with_name(vf).unwrap_or_else(|_| {
+                panic!(
+                    "empty-path schema must include virtual field `{vf}` \
+                     (append_virtual_fields_to_schema must append all 3 virtual fields)"
+                )
+            });
+            assert!(
+                field.is_nullable(),
+                "BC-2.11.012 T33b: empty-path virtual field `{vf}` must have nullable=true \
+                 (append_virtual_fields_to_schema uses nullable=true for LEFT JOIN NULL \
+                 propagation — a column marked nullable=false in the empty-table schema \
+                 would break DataFusion's ability to plan NULLs on the empty side); \
+                 got nullable=false"
+            );
+        }
+
+        // ── Populated path: inject_virtual_fields → nullable=false ───────────────
+        //
+        // This function is called at materialization Step 5 for sensor batches that
+        // actually contain rows. Virtual values (_sensor, _client, _source_table) are
+        // always concrete strings — never NULL.
+        let row_schema = Arc::new(Schema::new(vec![Field::new(
+            "device_id",
+            DataType::Utf8,
+            false,
+        )]));
+        let col = Arc::new(StringArray::from(vec!["dev-001"])) as _;
+        let batch =
+            RecordBatch::try_new(row_schema, vec![col]).expect("single-row test batch must build");
+
+        let sensor_id = prism_core::SensorId::new("crowdstrike");
+        let org_slug = prism_core::OrgSlug::new("test-org");
+        let populated_batch = crate::virtual_fields::inject_virtual_fields(
+            batch,
+            &sensor_id,
+            &org_slug,
+            "crowdstrike.devices",
+        )
+        .expect("inject_virtual_fields must succeed on a valid 1-row batch");
+        let populated_schema = populated_batch.schema();
+
+        for vf in &virtual_fields {
+            let field = populated_schema.field_with_name(vf).unwrap_or_else(|_| {
+                panic!(
+                    "populated-path schema must include virtual field `{vf}` \
+                     (inject_virtual_fields must append all 3 virtual fields)"
+                )
+            });
+            assert!(
+                !field.is_nullable(),
+                "BC-2.11.012 T33b: populated-path virtual field `{vf}` must have nullable=false \
+                 (inject_virtual_fields uses nullable=false because actual string values are \
+                 always present on populated batches — nullable=true would imply a column that \
+                 may contain NULL, which is incorrect for this path); \
+                 got nullable=true"
+            );
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Test 34 (F-CSD-P14-001-T3): GREEN consistency lock — same LEFT JOIN as T32
     // with devices populated via inject_virtual_fields.
     //
