@@ -347,3 +347,111 @@ Tracks A (TOML+DTU) and B (empty-MemTable) MAY be combined into a single PR at t
 | `crates/prism-dtu-crowdstrike/tests/fidelity_validator.rs` | Comment update (excluded route list) |
 
 No new ADR warranted. No existing ADR is amended. The fix is entirely within the operational envelope of ADR-028 §D1/D5 + ADR-003.
+
+---
+
+### Sibling Determination — fetch_incidents (F-CSD-P1-005) — 2026-07-10
+
+**Finding:** F-CSD-P1-005 (MED, pending-intent) — `fetch_incidents` step has `method = "GET"`, no `body_template`, no `${...}` fan-out anchor. Same defect class as `fetch_devices`.
+
+**Determiner:** architect | **Anchor:** D-1650 (sibling to fetch_devices ratification)
+
+---
+
+#### 1. Real-API Check
+
+**Verdict: CONFIRMED. High confidence.**
+
+The path `/incidents/entities/incidents/GET/v1` follows CrowdStrike's established naming convention for batch POST entity-retrieval endpoints — the "GET" embedded in the URL path is a CrowdStrike API convention, not the HTTP method. The real operation is:
+
+```
+POST /incidents/entities/incidents/GET/v1
+Body: {"ids": ["inc-001", "inc-002", ...]}
+```
+
+This is `GetIncidents` / `PostEntitiesIncidentsGetV1` in the FalconPy SDK. It is structurally identical to the already-ratified `POST /detects/entities/summaries/GET/v1` (detections pipeline):
+
+| Endpoint | HTTP Method | URL contains "GET"? | Body |
+|----------|-------------|---------------------|------|
+| `POST /detects/entities/summaries/GET/v1` | POST | yes | `{"ids": [...]}` |
+| `POST /incidents/entities/incidents/GET/v1` | POST | yes | `{"ids": [...]}` |
+| `POST /devices/entities/devices/v2` | POST | no | `{"ids": [...]}` |
+
+The prior fetch_devices ratification (above) confirmed: "CrowdStrike Falcon API entity-retrieval-by-ids pattern (POST /incidents/entities/incidents/GET/v1 with {ids: [...]} body, i.e., GetIncidents/PostEntitiesIncidentsGetV1)" as a recognized general class. No new external research is required — the path segment pattern is self-documenting and consistent across three confirmed CrowdStrike endpoints.
+
+**Confidence: HIGH.** The path naming convention is unambiguous.
+
+---
+
+#### 2. Verdict: (a) — Fix TOML Shape Now
+
+**The TOML shape fix (method POST + body_template) is testable via the existing spec-shape parse validation without a DTU incidents route and must land in this fix lane.**
+
+Rationale:
+
+**Testability confirmed.** `SpecLoader::parse` calls `validate_variable_references` (validation.rs lines 247–254) on every `body_template` at parse time. This validator checks that `${query_incident_ids.resources}` refers to a step named `query_incident_ids` that precedes `fetch_incidents` in the pipeline — a pure structural check that requires no DTU route. The existing `test_BC_2_16_009_validates_all_4_bundled_specs` exercises `SpecLoader::parse` on all four bundled TOML specs including `crowdstrike.sensor.toml`. After the fix, that test will validate the interpolation anchor is correct.
+
+**DTU-EXT-001 gap is unchanged.** The incidents table already carries a documented DTU-EXT-001 gap (TOML lines 265–269). Fixing the HTTP method and adding the `body_template` does not add new DTU requirements — the incidents route was always going to be POST (the path embedding "GET" already implied POST semantics). If anything, the current `method = "GET"` is wrong with respect to what DTU-EXT-001 will need to implement — correcting it now ensures DTU-EXT-001's implementer builds the right POST handler, not a GET handler.
+
+**ADR-028 §D5 constraint is not escalated.** The incidents table's spec is already "ahead of DTU" under the acknowledged DTU-EXT-001 exception. Correcting the method within an already-acknowledged-gap spec does not increase the degree of spec-ahead-of-DTU violation.
+
+**Production-grade default applies.** The defect class is confirmed, the fix is scoped and testable without external DTU dependencies, and deferring would leave a known-wrong `method = "GET"` in the spec that will mislead DTU-EXT-001's implementer.
+
+**Deferral to DTU-EXT-001 (option b) is REJECTED** because: (1) the TOML fix is independently testable at parse time, (2) the spec already has the DTU-EXT-001 gap comment so the route-work anchor is already in place, and (3) deferring the method change adds no value and risks the DTU implementer writing a GET route instead of a POST route.
+
+---
+
+#### 3. Implementation Contract
+
+**Target:** `crates/prism-sensors/specs/crowdstrike.sensor.toml`, incidents table `fetch_incidents` step.
+
+**Current state (lines 305–312):**
+
+```toml
+  # Step 2: GetEntities — GET full incident records
+  [[tables.steps]]
+  name = "fetch_incidents"
+  method = "GET"
+  path_template = "/incidents/entities/incidents/GET/v1"
+  response_path = "$.resources"
+  variables_produced = []
+  fan_out_batch_size = 100
+```
+
+**Replace with:**
+
+```toml
+  # Step 2: PostEntitiesIncidentsGetV1 — POST IDs to get full incident records
+  # Real-API canonical: CrowdStrike `POST /incidents/entities/incidents/GET/v1`
+  #   (GetIncidents / PostEntitiesIncidentsGetV1 in FalconPy). URL path embeds "GET"
+  #   per CrowdStrike's naming convention for batch POST entity retrieval — HTTP method
+  #   is POST. Body: {"ids": [...]}. Same pattern as detections pipeline
+  #   (POST /detects/entities/summaries/GET/v1). Confirmed class per F-CSD-P1-005
+  #   sibling determination 2026-07-10.
+  # DTU-EXT-001 gap: no incidents route in prism-dtu-crowdstrike yet. When DTU-EXT-001
+  #   ships, the implementer MUST add POST /incidents/entities/incidents/GET/v1 (not GET).
+  # fan_out_batch_size = 100: conservative default matching detections pipeline.
+  [[tables.steps]]
+  name = "fetch_incidents"
+  method = "POST"
+  path_template = "/incidents/entities/incidents/GET/v1"
+  body_template = '{"ids": ${query_incident_ids.resources}}'
+  response_path = "$.resources"
+  variables_produced = []
+  fan_out_batch_size = 100
+```
+
+**Variable reference justification:**
+- Step 1 (`query_incident_ids`) declares `response_path = "$.resources"` and `variables_produced = ["incident_ids"]`
+- The fan-out anchor key is `query_incident_ids.resources` — step name + final path segment of `response_path` — which matches the detections pattern (`query_detection_ids.resources` in `fetch_detections`)
+- `validate_variable_references` confirms this is a valid backward reference at `SpecLoader::parse` time
+
+**Scope boundary:**
+- The TOML change is the ENTIRE scope of this fix in the DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / FIX-CSDEVICES-EMPTY-PIPELINE lane
+- DTU incidents route work (`POST /incidents/entities/incidents/GET/v1` handler) remains anchored to DTU-EXT-001; it is NOT in scope for this fix lane
+- No new BC update required — the incidents table's existing DTU-EXT-001 gap comment adequately documents the situation; the method correction is a spec-correctness fix, not a behavioral contract change
+
+**Testability after fix:**
+- `test_BC_2_16_009_validates_all_4_bundled_specs` (runs unconditionally in CI) — validates `SpecLoader::parse` succeeds and variable reference `${query_incident_ids.resources}` resolves correctly
+- No DTU route is needed to pass this test
+- The parity test (`test_BC_2_16_013_dtu_parity_crowdstrike`) is already `#[ignore]`'d under DTU-EXT-001 tracking — no change to its ignore status
