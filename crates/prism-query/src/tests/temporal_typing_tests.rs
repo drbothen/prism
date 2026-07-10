@@ -3086,20 +3086,24 @@ async fn test_DEFECT_EQUERY042_GROUPBY_DEADARM_001_group_by_plain_string_no_fals
 // cover the top-level `Ast::Sql(SqlStatement::Select)` call sites (SQL-mode SELECT GROUP BY /
 // ORDER BY). `check_expr_temporal_pos` has 10 GROUP BY/ORDER BY call sites across 5 AST-path
 // classes. The four classes below were uncovered: SqlPipe head, Predicate::InSubquery,
-// Expr::InSubquery, and DML source_select.
+// Expr::InSubquery, and DML source_select. (Expr::InSubquery coverage is provided by the
+// F-EQ42-P2-001 tests after this block; the 6 tests here cover the other three classes.)
 //
 // These tests are GREEN LOCKS — the Literal::Timestamp arm added in the DEADARM fix already
 // covers all these paths. The tests exist to LOCK that coverage so a future refactor cannot
 // accidentally introduce a regression.
 //
-// All 6 tests use `make_test_engine()` (test_events registered, no adapters).
+// All 6 tests in this block use `make_test_engine()` (test_events registered, no adapters).
 //
 // Gate ordering: E-QUERY-037 (table gate) → E-QUERY-038 (col gate, fail-open for DML) →
 // E-QUERY-039 (enrich gate, skipped) → check_temporal_literals (E-QUERY-042).
 // For SqlPipe/DML: check_temporal_literals fires from the EARLY gate in engine.rs (line ~831,
 // skip_projection=true, but SqlPipe GROUP BY / ORDER BY fire from the IN-PIPELINE pass;
 // DML source_select GROUP BY / ORDER BY fire unconditionally in both passes since the DML arm
-// has no skip_projection guard). For subquery: fires via check_pred_raw_temporal (WHERE walk).
+// has no skip_projection guard). For Predicate::InSubquery (WHERE clause): fires via
+// check_pred_raw_temporal in the early gate (before E-QUERY-037). For Expr::InSubquery
+// (SELECT projection): fires via check_select_items_raw_temporal in the in-pipeline pass
+// (skip_projection=false, after E-QUERY-037/038) — see F-EQ42-P2-001 block below.
 
 /// F-EQ42-P1-002 (GREEN lock): RFC-3339 timestamp literal in a SqlPipe HEAD GROUP BY clause
 /// fires E-QUERY-042 (TemporalLiteralPosition::GroupBy).
@@ -3216,7 +3220,7 @@ async fn test_F_EQ42_P1_002_sqlpipe_head_order_by_timestamp_fires_e_query_042() 
 /// # Call-site path
 /// `check_temporal_literals` Ast::Sql(Select) arm walks the outer WHERE predicate via
 /// `check_pred_raw_temporal`. The predicate is `Predicate::InSubquery { subquery, .. }`;
-/// `check_pred_raw_temporal` Ast::InSubquery arm (materialization.rs ~line 3167) walks
+/// `check_pred_raw_temporal` Predicate::InSubquery arm (materialization.rs ~line 3167) walks
 /// `subquery.group_by` → `check_expr_temporal_pos(..., TemporalCheckPos::GroupBy)` →
 /// `Literal::Timestamp` + GroupBy → E-QUERY-042.
 ///
@@ -3429,6 +3433,165 @@ async fn test_F_EQ42_P1_002_dml_source_select_order_by_timestamp_fires_e_query_0
     assert!(
         !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
         "F-EQ42-P1-002: DML ORDER BY timestamp must NOT return QueryPlanFailed. \
+         Got: {result:?}"
+    );
+}
+
+// ── F-EQ42-P2-001: Expr::InSubquery walker coverage ──────────────────────────────────────────
+//
+// LOCAL adversary pass-2 finding F-EQ42-P2-001 (LOW): the F-EQ42-P1-002 doc block enumerates
+// "Expr::InSubquery" as one of the four covered classes, but no test exercises the
+// `Expr::InSubquery` arm in `check_expr_temporal_pos` (materialization.rs ~3439-3478).
+// The `subquery_in_where_*` tests above parse to `Predicate::InSubquery` (WHERE clause,
+// check_pred_raw_temporal path), NOT `Expr::InSubquery` (expression context,
+// check_expr_temporal_pos path).
+//
+// `Expr::InSubquery` is produced by `build_sql_expr_parser` (sql_parser.rs ~line 852)
+// when `field IN (SELECT ...)` appears in an expression-context position: SELECT projection,
+// JOIN ON, GROUP BY, or ORDER BY. The SELECT projection surface is the most natural:
+//   `SELECT hostname IN (SELECT hostname FROM test_events GROUP BY '<rfc3339>') FROM test_events`
+//
+// Call-site path (SELECT projection → Expr::InSubquery walker):
+//   Early gate (skip_projection=true): SELECT items SKIPPED — Expr::InSubquery NOT reached.
+//   E-QUERY-037: test_events registered → PASS.
+//   E-QUERY-038: outer `hostname` field checked (Expr::InSubquery.field); subquery body
+//     is fail-open (engine.rs ~line 1975, OBS-001) → PASS.
+//   In-pipeline check_temporal_literals (skip_projection=false):
+//     check_select_items_raw_temporal
+//     → check_expr_temporal(Expr::InSubquery { field: hostname, subquery: ... })
+//     → check_expr_temporal_pos(Expr::InSubquery{...}, TemporalCheckPos::Other)
+//     → Expr::InSubquery arm (~3439): check_expr_temporal_pos(subquery.group_by[i], GroupBy)
+//     → Literal::Timestamp + GroupBy → Err(TemporalLiteralInvalidPosition::GroupBy).
+//
+// These are GREEN LOCKS — the arm was present but unexercised. Adding these tests closes
+// the coverage gap so a future refactor that accidentally removes the group_by/order_by
+// walker from the Expr::InSubquery arm is caught immediately.
+
+/// F-EQ42-P2-001 (GREEN lock): RFC-3339 timestamp literal in the GROUP BY of a subquery
+/// appearing as a SELECT projection expression fires E-QUERY-042 (GroupBy).
+///
+/// `SELECT hostname IN (SELECT hostname FROM test_events GROUP BY '2026-07-01T00:00:00Z') FROM test_events`
+///
+/// # Why this is Expr::InSubquery, not Predicate::InSubquery
+/// `build_sql_expr_parser` (sql_parser.rs ~852) produces `Expr::InSubquery` when
+/// `field IN (SELECT ...)` appears in an EXPRESSION position (SELECT item, JOIN ON, etc.).
+/// `build_sql_predicate_parser` (sql_parser.rs ~609) produces `Predicate::InSubquery`
+/// when the same construct appears in a PREDICATE position (WHERE, HAVING).
+/// The existing `subquery_in_where_*` tests exercise `Predicate::InSubquery`; this test
+/// exercises the distinct `Expr::InSubquery` arm in `check_expr_temporal_pos`.
+///
+/// # Call-site path
+/// Parser: `hostname IN (SELECT hostname FROM test_events GROUP BY '2026-07-01T00:00:00Z')`
+/// as a SELECT projection → `SelectItem::Expr { expr: Expr::InSubquery { field: hostname,
+/// subquery: SELECT hostname FROM test_events GROUP BY Literal::Timestamp(..) }, .. }`.
+/// In-pipeline check_temporal_literals (skip_projection=false):
+///   `check_select_items_raw_temporal` → `check_expr_temporal(Expr::InSubquery{...})`
+///   → `check_expr_temporal_pos(Expr::InSubquery{...}, TemporalCheckPos::Other)`
+///   → `Expr::InSubquery` arm (materialization.rs ~3461): `check_expr_temporal_pos(expr,
+///   sub_primary, registry, TemporalCheckPos::GroupBy)` for each `subquery.group_by` expr
+///   → `Literal::Timestamp` + GroupBy → `Err(TemporalLiteralInvalidPosition::GroupBy)`.
+///
+/// Traces to: F-EQ42-P2-001; ADR-052 §D4 (v1.11) arm (6); error-taxonomy.md §E-QUERY-042.
+#[tokio::test]
+async fn test_F_EQ42_P2_001_expr_insubquery_group_by_timestamp_fires_e_query_042() {
+    use prism_core::error::TemporalLiteralPosition;
+
+    let engine = make_test_engine();
+
+    let result = engine
+        .execute(
+            "SELECT hostname IN \
+               (SELECT hostname FROM test_events GROUP BY '2026-07-01T00:00:00Z') \
+             FROM test_events",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Primary assertion: must be E-QUERY-042 with GroupBy position.
+    assert!(
+        matches!(
+            &result,
+            Err(PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::GroupBy,
+                ..
+            })
+        ),
+        "F-EQ42-P2-001: Expr::InSubquery GROUP BY '2026-07-01T00:00:00Z' must return \
+         E-QUERY-042 (TemporalLiteralInvalidPosition::GroupBy). \
+         check_expr_temporal_pos Expr::InSubquery arm (~3461) walks subquery.group_by \
+         via check_expr_temporal_pos(GroupBy). ADR-052 §D4 (v1.11) arm (6). \
+         Got: {result:?}"
+    );
+
+    // Negative: must NOT be E-QUERY-041.
+    assert!(
+        !matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
+        "F-EQ42-P2-001: Expr::InSubquery GROUP BY timestamp must NOT return E-QUERY-041. \
+         Got: {result:?}"
+    );
+
+    // Negative: must NOT be QueryPlanFailed (pre-fix analyst-hostile internal error).
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "F-EQ42-P2-001: Expr::InSubquery GROUP BY timestamp must NOT return QueryPlanFailed. \
+         Got: {result:?}"
+    );
+}
+
+/// F-EQ42-P2-001 (GREEN lock): RFC-3339 timestamp literal in the ORDER BY of a subquery
+/// appearing as a SELECT projection expression fires E-QUERY-042 (OrderBy).
+///
+/// `SELECT hostname IN (SELECT hostname FROM test_events ORDER BY '2026-07-01T00:00:00Z') FROM test_events`
+///
+/// Sibling of the GROUP BY test above; exercises the ORDER BY walker in the
+/// `Expr::InSubquery` arm (materialization.rs ~3469-3476).
+///
+/// # Call-site path
+/// Same as the GROUP BY test except the subquery has `ORDER BY Literal::Timestamp(..)`.
+/// `check_expr_temporal_pos(Expr::InSubquery{...}, Other)` → Expr::InSubquery arm:
+///   `check_expr_temporal_pos(&mut order_expr.expr, ..., TemporalCheckPos::OrderBy)` →
+///   `Literal::Timestamp` + OrderBy → `Err(TemporalLiteralInvalidPosition::OrderBy)`.
+///
+/// Traces to: F-EQ42-P2-001; ADR-052 §D4 (v1.11) arm (7); error-taxonomy.md §E-QUERY-042.
+#[tokio::test]
+async fn test_F_EQ42_P2_001_expr_insubquery_order_by_timestamp_fires_e_query_042() {
+    use prism_core::error::TemporalLiteralPosition;
+
+    let engine = make_test_engine();
+
+    let result = engine
+        .execute(
+            "SELECT hostname IN \
+               (SELECT hostname FROM test_events ORDER BY '2026-07-01T00:00:00Z') \
+             FROM test_events",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(
+            &result,
+            Err(PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::OrderBy,
+                ..
+            })
+        ),
+        "F-EQ42-P2-001: Expr::InSubquery ORDER BY '2026-07-01T00:00:00Z' must return \
+         E-QUERY-042 (TemporalLiteralInvalidPosition::OrderBy). \
+         check_expr_temporal_pos Expr::InSubquery arm (~3469) walks subquery.order_by \
+         via check_expr_temporal_pos(OrderBy). ADR-052 §D4 (v1.11) arm (7). \
+         Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::TemporalLiteralUnparseable { .. })),
+        "F-EQ42-P2-001: Expr::InSubquery ORDER BY timestamp must NOT return E-QUERY-041. \
+         Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "F-EQ42-P2-001: Expr::InSubquery ORDER BY timestamp must NOT return QueryPlanFailed. \
          Got: {result:?}"
     );
 }
