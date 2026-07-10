@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.25"
+version: "1.26"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-06-03"  # v1.25: Wave-5 Phase-A PO burst — trailing-slash parity clause, harness clone route-parity invariant, Claroty audit_log prose correction (F-P2-DEFER-001 closure)
+modified: "2026-07-10"  # v1.26: DEFECT-CSDEVICES-EMPTY-PIPELINE-001 PO burst — CrowdStrike devices step-2 method corrected from GET to POST per architect ratification
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -147,10 +147,16 @@ authentication enforcement behavior, which reflects the real third-party API's a
     URL grounded: `crates/prism-dtu-crowdstrike/src/routes/mod.rs` route registrations
     (lines 189, 193 per pass-4 adversarial ground truth; exact anchor:
     `"/detects/queries/detects/v1"` and `"/detects/entities/summaries/GET/v1"`).
-  - `devices` — QueryV2 step (GET `/devices/queries/devices/v1`) → PostEntities step
-    (GET `/devices/entities/devices/v2`).
-    URL grounded: `crates/prism-dtu-crowdstrike/src/routes/mod.rs` (lines 197-198:
-    `"/devices/queries/devices/v1"` and `"/devices/entities/devices/v2"`).
+  - `devices` — QueryV2 step (GET `/devices/queries/devices/v1`) → PostDeviceDetailsV2 step
+    (POST `/devices/entities/devices/v2` with body `{"ids": [...]}` per DEFECT-CSDEVICES-EMPTY-PIPELINE-001
+    architect ratification 2026-07-10; matches real CrowdStrike `PostDeviceDetailsV2` operation,
+    FalconPy v1.2.0+, body `{"ids": ["AID1", "AID2", ...]}` — identical structure to the
+    detections PostEntities step; supports up to 5000 IDs vs GET variant's 100).
+    URL grounded: `crates/prism-dtu-crowdstrike/src/routes/mod.rs` route registrations
+    (`"/devices/queries/devices/v1"` and `"/devices/entities/devices/v2"` — the latter registers
+    both GET `get_host_details` (existing; preserved for backward compat) and POST
+    `post_host_details` (new handler per DEFECT-CSDEVICES-EMPTY-PIPELINE-001; endpoint count
+    8→9: 5 read, 4 write); the spec-driven `fetch_devices` pipeline path is POST).
   - `incidents` — **See §Known Gaps: DTU-EXT-001.** No DTU route registered for incidents.
     This table entry is deferred until the DTU clone is extended (ADR-028 §D5).
   Each table's columns match the Arrow schema produced by the prior Rust adapter (BC-2.01.005
@@ -477,6 +483,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.26 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001-PO-burst | 2026-07-10 | product-owner | CrowdStrike `devices` table step-2 corrected from GET to POST per architect ratification of DEFECT-CSDEVICES-EMPTY-PIPELINE-001 (research/defect-csdevices-empty-pipeline-rootcause-2026-07-10.md §Architect Ratification, D-1650). `fetch_devices` step 2 is now POST `/devices/entities/devices/v2` with body `{"ids": [...]}` — matching real CrowdStrike `PostDeviceDetailsV2` (FalconPy v1.2.0+; same body structure as existing `fetch_detections` POST step; supports up to 5000 IDs vs GET's 100). §Postconditions §1 CrowdStrike `devices` row: `(GET \`/devices/entities/devices/v2\`)` → `(POST \`/devices/entities/devices/v2\` with body \`{"ids": [...]}\`)`. URL grounding updated: `/devices/entities/devices/v2` now registers both `get_host_details` (GET; preserved) and `post_host_details` (POST; new); spec-driven path is POST; DTU endpoint count 8→9 (5 read, 4 write). Parity tests for `crowdstrike.devices` must exercise the POST path. BC v1.25 → v1.26. |
 | 1.25 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | Gate 4 (S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 / F-P2-DEFER-001 closure): §Postconditions §1 Claroty `audit_logs` clause corrected from stale "GET /api/v1/audit_logs via offset pagination. No DTU route registered." to "POST /api/v1/audit_log/get; DTU route registered by S-DEMO-CLAROTY-AUDIT-DTU-001 (Gap-CL-006 CLOSED)". Combined with Gate 2 + Gate 3 in same burst. BC v1.24 → v1.25. |
 | 1.24 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | Gate 3 (S-DEMO-HARNESS-CLONE-PARITY-001 / closes F-P6-DEFER-001 + F-P10-LOW-001): Added INV-HARNESS-ROUTE-PARITY invariant specifying that `prism-dtu-harness::clones::armis::router()` must include `GET /api/v1/search` and `prism-dtu-harness::clones::claroty::router()` must include `POST /api/v1/audit_log/get` to mirror standalone DTU route surfaces per ADR-031. Rationale for amendment to BC-2.16.013 (not BC-3.5.001/BC-3.5.002): BC-3.5.001/002 describe harness isolation mechanics (port allocation, data segregation) — they do NOT specify which routes the in-process clones must register. BC-2.16.013 is the DTU-parity contract and is the correct home for route-surface coverage obligations. BC v1.23 → v1.24. |
 | 1.23 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | Gate 2 (S-DEMO-CLAROTY-TRAILING-SLASH-001 / ADR-031 §D8-b): Added trailing-slash parity clause to Claroty `alerts`, `devices`, and `audit_logs` postconditions — `path_template` values use trailing-slash form (`/api/v1/alerts/`, `/api/v1/devices/`, `/api/v1/audit_log/get/`); `prism-dtu-claroty` router includes `normalize_path` middleware so both slash-variant forms return 200. Added `devices` table entry (was missing from Claroty spec body; existed in TOML as DTU-grounded route). BC v1.22 → v1.23. |

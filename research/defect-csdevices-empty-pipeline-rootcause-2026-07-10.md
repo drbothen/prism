@@ -156,3 +156,194 @@ The T13 audit script `section-B` check for `crowdstrike_devices` currently repor
 - **D-1650**: Root-cause investigation confirmed. Two sub-defects (TOML spec + product-code). Architect ratification pending for Option 1. Track B (empty-MemTable) can proceed autonomously.
 - **DEFECT-CSDEVICES-EMPTY-PIPELINE-001** status: ROOT-CAUSED (in STATE.md Drift Items).
 - **DEFECT-EQUERY042-GROUPBY-DEADARM-001** status: RED-COMPLETE @49e07a29 (independent fix, `.worktrees/FIX-EQUERY042-GROUPBY` on `fix/equery042-groupby-deadarm`). See also worktree notes in STATE.md.
+
+---
+
+## Architect Ratification — 2026-07-10
+
+**Decision:** RATIFY Option 1 (POST conversion) — with one scoped amendment documented below.
+
+**Ratifier:** architect | **Anchor:** D-1650 | **ADR preconditions verified:** ADR-028 §D1, §D5
+
+---
+
+### Evidence Base
+
+| Evidence | Finding |
+|----------|---------|
+| CrowdStrike Falcon API official docs ([developer.crowdstrike.com/api-reference/collections/hosts/](https://developer.crowdstrike.com/api-reference/collections/hosts/)) | `POST /devices/entities/devices/v2` IS a real, documented API operation (`PostDeviceDetailsV2`) — confirmed via Perplexity web-grounded research 2026-07-10 |
+| FalconPy SDK changelog (github.com/CrowdStrike/falconpy/discussions/804) | `PostDeviceDetailsV2` introduced in FalconPy v1.2.0; moves IDs into request body; POST variant supports up to **5000 IDs** vs GET's 100-ID limit |
+| Request body shape | `{"ids": ["AID1", "AID2", ...]}` — identical key/value structure to `POST /detects/entities/summaries/GET/v1` |
+| `crates/prism-dtu-crowdstrike/src/routes/hosts.rs` | Current GET handler `get_host_details` reads IDs from query params via `parse_ids_from_query()`. No POST handler exists. ADR-028 §D5 requires DTU extension before TOML spec cites the route — **DTU extension is therefore a required precondition of the TOML fix**. |
+| `crates/prism-dtu-crowdstrike/src/routes/detections.rs` | `get_detection_summaries` is the established POST-fan-out pattern: deserializes `{"ids": [...]}` body, applies session-registry filter, looks up fixture records. The new `post_host_details` handler mirrors this exactly. |
+| TOML `fetch_devices` step (lines 253–261) | `method = "GET"`, `path_template = "/devices/entities/devices/v2"`, **no `body_template`, no `${...}` interpolation reference** → `find_fan_out_array()` returns `None` → 0 IDs passed → empty DTU response. This is the confirmed bug. |
+| ADR-028 §D1 | TOML spec URLs ground against DTU clone routes (real-API canonical). POST variant is real-API canonical — ratified. |
+| ADR-028 §D5 | DTU clone MUST be extended before spec cites route. Order of operations: DTU route addition → TOML change. |
+| No new ADR needed | This is a sensor-TOML shape fix within existing architectural rules. No cross-cutting rule is changing. ADR-028's core principle (DTU-first grounding) is being honored, not amended. |
+
+---
+
+### Ratification Verdict
+
+**RATIFY Option 1.** The POST conversion is architecturally sound, real-API canonical, and follows the established detections pipeline pattern exactly. No engine changes are required.
+
+Option 2 (engine UrlPath repeated-param extension) is rejected: larger blast radius, defers the fix behind an engine feature story with no benefit over the POST path that the real API natively supports.
+
+Option 3 (DTU blob tolerance) is rejected: violates ADR-003 fidelity contract — DTU routes must model real-API behavior, not paper over encoding mismatches.
+
+---
+
+### Amendment A — fan_out_batch_size Retention at 100 (Conservative Default)
+
+The POST variant of `/devices/entities/devices/v2` supports up to **5000 IDs** per call (vs GET's 100). The TOML `fan_out_batch_size = 100` may therefore be raised in a future story without any DTU or engine changes. However:
+
+- The existing `fetch_detections` step also uses `fan_out_batch_size = 100` with the POST variant (real detections API also supports larger batches).
+- Prism's current per-sensor rate-limit hint is `requests_per_second = 10.0`.
+- Raising the batch size is a tuning decision, not a defect fix.
+
+**Decision:** Keep `fan_out_batch_size = 100` for this fix. The TOML comment must note the POST API limit for future tuners. Batch size tuning is a follow-up concern, not in scope for DEFECT-CSDEVICES-EMPTY-PIPELINE-001.
+
+---
+
+### Implementation Contract (for fix-lane product-owner + implementer)
+
+#### Contract Part 1 — TOML change (`crates/prism-sensors/specs/crowdstrike.sensor.toml`)
+
+**Locate:** the `fetch_devices` step under `[[tables]]` where `table_name = "devices"` (currently lines ~252–261).
+
+**Replace** the entire step block with:
+
+```toml
+  # Step 2: PostDeviceDetailsV2 — POST IDs to get full device records
+  # DTU route: POST /devices/entities/devices/v2 (added per DEFECT-CSDEVICES-EMPTY-PIPELINE-001 ratification)
+  # Real-API canonical: CrowdStrike PostDeviceDetailsV2 (official; introduced FalconPy v1.2.0;
+  #   POST body {"ids": [...]} supports up to 5000 IDs vs GET's 100; body format identical to
+  #   POST /detects/entities/summaries/GET/v1 detections pipeline).
+  # fan_out_batch_size = 100 per CROWDSTRIKE_BATCH_SIZE (conservative; POST API supports up to 5000;
+  #   raising is a separate tuning story, not in scope here).
+  [[tables.steps]]
+  name = "fetch_devices"
+  method = "POST"
+  path_template = "/devices/entities/devices/v2"
+  body_template = '{"ids": ${query_device_ids.resources}}'
+  response_path = "$.resources"
+  variables_produced = []
+  fan_out_batch_size = 100
+```
+
+The variable reference `${query_device_ids.resources}` is correct — Step 1 is named `query_device_ids` with `response_path = "$.resources"`, which makes the array accessible as `${query_device_ids.resources}`. This gives `find_fan_out_array()` the anchor it needs.
+
+#### Contract Part 2 — DTU route addition (`crates/prism-dtu-crowdstrike/src/routes/hosts.rs`)
+
+**Add** a `PostHostDetailsBody` struct and `post_host_details` handler. The handler MUST mirror `get_host_details` logic exactly — same auth check, same org-id guard, same three-way composition (scenario/seeded/static), same session-registry filter, same containment merge, same response shape. The only difference: IDs come from `body.ids` instead of `parse_ids_from_query(raw_query)`.
+
+Minimum contract:
+
+```rust
+/// Body for batch host detail fetch via POST (CrowdStrike PostDeviceDetailsV2).
+#[derive(Debug, Deserialize)]
+pub struct PostHostDetailsBody {
+    pub ids: Vec<String>,
+}
+
+/// `POST /devices/entities/devices/v2`
+///
+/// Batch host detail fetch via POST body (CrowdStrike `PostDeviceDetailsV2`,
+/// introduced FalconPy v1.2.0). Body: `{"ids": ["h-001", ...]}` — supports up to
+/// 5000 IDs vs the GET variant's 100-ID query-param limit.
+///
+/// Behavior is identical to `get_host_details` (GET) except that IDs are read
+/// from the JSON body rather than query params. Session registry, fixture
+/// composition, org-id guard, and containment merge are unchanged.
+///
+/// Returns HTTP 400 if `ids` is empty (mirrors detections.rs `get_detection_summaries`).
+pub async fn post_host_details(
+    State(state): State<Arc<CrowdstrikeState>>,
+    headers: HeaderMap,
+    Json(body): Json<PostHostDetailsBody>,
+) -> impl IntoResponse {
+    // Implementation: delegate to the same internal logic as get_host_details,
+    // substituting `body.ids` for the query-param IDs.
+    // The implementer MUST NOT duplicate the composition/fixture logic — extract
+    // a shared `lookup_host_details(state, headers, ids_to_lookup)` helper called
+    // by both handlers, OR inline the same logic with clear `// mirrors get_host_details` comments.
+    // Either approach is acceptable; the DRY helper is preferred.
+    if body.ids.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "errors": [{"code": 400, "message": "ids array must not be empty"}]
+            })),
+        ).into_response();
+    }
+    // ... session registry, fixture composition, containment merge, return {"resources": [...]}
+    // identical to get_host_details
+    todo!()
+}
+```
+
+#### Contract Part 3 — DTU router registration (`crates/prism-dtu-crowdstrike/src/routes/mod.rs`)
+
+**Change** the `/devices/entities/devices/v2` route to register both GET and POST:
+
+```rust
+// Before:
+.route("/devices/entities/devices/v2", get(hosts::get_host_details))
+
+// After:
+.route(
+    "/devices/entities/devices/v2",
+    get(hosts::get_host_details).post(hosts::post_host_details),
+)
+```
+
+**Also update** the `build_router` doc comment: change "8 in-scope endpoints (4 read, 4 write)" → "9 in-scope endpoints (5 read, 4 write)" — adding `POST /devices/entities/devices/v2` to the read count.
+
+#### Contract Part 4 — BC-2.16.013 version bump
+
+BC-2.16.013 (`bundled-sensor-spec-dtu-parity.md`) has multiple references to "GET `/devices/entities/devices/v2`" and "GET `/devices/entities/devices/v2`" in its postconditions and route tables. The product-owner must:
+
+1. Add a changelog version row noting: "CrowdStrike `fetch_devices` step converted from GET to POST; DTU `hosts.rs` gains `post_host_details` handler at `POST /devices/entities/devices/v2` per DEFECT-CSDEVICES-EMPTY-PIPELINE-001 architect ratification."
+2. Update the route table references from `GET /devices/entities/devices/v2` → `POST /devices/entities/devices/v2` (the GET handler remains but is no longer the spec-driven path for the two-step pipeline; note both verbs exist on the route).
+3. Remove/update any test vector or parity test clause that asserts the step uses HTTP GET. The parity test for the devices table must exercise the POST path.
+
+#### Contract Part 5 — fidelity_validator.rs comment update
+
+The excluded routes comment in `crates/prism-dtu-crowdstrike/tests/fidelity_validator.rs` (line ~29) lists:
+```
+///   - GET  /devices/entities/devices/v2
+```
+After the DTU route addition, this should become:
+```
+///   - GET  /devices/entities/devices/v2
+///   - POST /devices/entities/devices/v2
+```
+(Both routes exist on the same path; both are auth-required; both are excluded from the unauthenticated fidelity checks per ADR-003 §Conflict-2 Option C.)
+
+---
+
+### TDD Protocol for Fix Lane
+
+The fix spans two specialists per agent routing table:
+
+1. **Product-owner** owns the TOML change (Contract Part 1) and BC-2.16.013 version bump (Contract Part 4). TOML is a spec artifact.
+2. **Implementer** owns the DTU Rust additions (Parts 2, 3, 5). TDD discipline:
+   - RED gate test: a test that calls `POST /devices/entities/devices/v2` with a body containing known device IDs and asserts the response `resources` array is non-empty. This test must FAIL before the implementation is added (since the route currently returns 405 Method Not Allowed).
+   - GREEN: add the `PostHostDetailsBody` struct and `post_host_details` handler; register the route; confirm test passes.
+   - Adversary: SAP-2 (DTU↔TOML parity) applies — verify all `devices` table columns in TOML have counterparts in the DTU fixture/generated-devices records.
+
+Tracks A (TOML+DTU) and B (empty-MemTable) MAY be combined into a single PR at the orchestrator's discretion, since both fix DEFECT-CSDEVICES-EMPTY-PIPELINE-001 and neither creates regressions in the other. Decision is orchestrator's.
+
+---
+
+### Specs Requiring Version Bumps
+
+| Artifact | Change Required |
+|----------|----------------|
+| `crates/prism-sensors/specs/crowdstrike.sensor.toml` | `fetch_devices` step: `method`, add `body_template` |
+| `crates/prism-dtu-crowdstrike/src/routes/hosts.rs` | Add `PostHostDetailsBody`, `post_host_details` |
+| `crates/prism-dtu-crowdstrike/src/routes/mod.rs` | Add POST to route registration; update doc comment count |
+| `.factory/specs/behavioral-contracts/BC-2.16.013-bundled-sensor-spec-dtu-parity.md` | Changelog row + route table update |
+| `crates/prism-dtu-crowdstrike/tests/fidelity_validator.rs` | Comment update (excluded route list) |
+
+No new ADR warranted. No existing ADR is amended. The fix is entirely within the operational envelope of ADR-028 §D1/D5 + ADR-003.
