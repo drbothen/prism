@@ -2753,3 +2753,48 @@ FIX-IEQ-ERRPATH-001 LOCAL pass-5 adversary emitted a report with the verdict lin
 **Evidence:** FIX-IEQ-ERRPATH-001 PR-LEVEL pass-14 (D-1646 2026-07-09); ADV-PR-P14-MED-001 retracted; 33-pass cascade converged @13db1a54.
 
 **Source:** D-1646 (FIX-IEQ-ERRPATH-001 PR-LEVEL pass-14 corrected-CLEAN; orchestrator adjudication + adversary retraction; 2026-07-09).
+
+---
+
+### L25 — [codified] Plan-pinning tests must assert structural SQL shape, not substring absence
+
+**Date recorded:** 2026-07-10
+**D-NNN anchor:** D-1656 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-4 fix-burst closure)
+**Story:** S-HARDEN-PLAN-PINNING-001 (registered as closure story)
+**Tags:** [codified] [process-gap] [test-discipline] [plan-pinning] [S-7.02]
+**Classification:** PROCESS-GAP — F-CSD-P4-005 from DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-4.
+
+**Description:**
+
+`crates/prism-query/src/tests/high002_plan_pinning_tests.rs` tests that exercise the
+`normalize_expr` / `normalize_predicate` surface currently assert only substring
+absence/presence of the form:
+
+```rust
+assert!(!normalized.to_uppercase().contains("NOW()"), ...);
+assert!(!normalized.to_uppercase().contains("INTERVAL"), ...);
+assert!(normalized.contains('\''), ...);
+```
+
+These guards are insufficient for two reasons:
+
+1. **Behavioral regression blind-spot:** A future implementer could rewrite the normalization
+   output to a semantically different SQL shape (e.g., a COUNT subquery instead of a direct
+   literal) and the substring checks would pass while the behavioral contract was violated.
+   This is exactly the F-CSD-P3-001 / F-CSD-P4-001 regression pattern — a COUNT(*) rewrite
+   that passed the substring guard but violated the plan-time semantics.
+
+2. **No structural anchor:** Substring checks do not validate the SQL AST shape, operator
+   precedence, parenthesization, or output type — only that certain strings are absent or
+   present.
+
+**Codification (S-7.02):** Plan-pinning tests in `high002_plan_pinning_tests.rs` (and any
+future plan-pinning suite) MUST use structural SQL-shape assertions:
+
+- Assert the EXACT normalized SQL form (e.g., `arrow_cast('2026-01-01T00:00:00Z', 'Timestamp(Microsecond, Some("UTC"))')`) not a substring.
+- Assert the absence of the entire original expression class, not just a keyword token.
+- For each BC-anchored invariant (BC-2.11.003 EC-11-003-* / BC-2.11.021 EC-11-021-*), include at least one structural assertion that would catch a semantic-preserving-but-spec-violating rewrite.
+
+**Evidence:** DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-4 — F-CSD-P4-005 finding; F-CSD-P4-001 / F-CSD-P3-001 regression trace (COUNT(*) rewrite passed substring guards, violated E-QUERY-043 invariant); S-HARDEN-PLAN-PINNING-001 draft v0.1 registered D-1656 as closure story.
+
+**Source:** D-1656 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-4 spec-layer closure + S-HARDEN-PLAN-PINNING-001 registration; 2026-07-10).

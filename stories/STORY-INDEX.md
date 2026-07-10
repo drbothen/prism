@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.652"
+version: "v2.653"
 status: draft
 producer: state-manager
 timestamp: 2026-07-10T12:00:00Z
 phase: 3
-total_stories: 228
+total_stories: 229
 total_active_bcs: 222
 # 230 total registered (222 active + 6 removed + 2 retired) — stories cover active BCs only
 total_vps_assigned: 145
@@ -19,6 +19,8 @@ total_vps_assigned: 145
 Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
+
+- **D-1656 CSDEVICES pass-4 fix-burst closure — STORY-INDEX v2.652→v2.653 (2026-07-10):** (state-manager D-1656) S-HARDEN-PLAN-PINNING-001 **draft v0.1** registered — Plan-pinning test snapshot anchors; origin: F-CSD-P4-005 [process-gap] from DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-4; 4 ACs; 4 Red Gate tests; 5 pts; P2; tdd_mode strict; Platform Engineering; depends_on []; behavioral_contracts: [BC-2.11.021, BC-2.11.003]. BC-2.11.003 v1.12→v1.13 (F-CSD-P4-001 E-QUERY-043 adjudication); BC-2.11.005 v1.7→v1.8 (F-CSD-P4-003 DEC-022 position-invariant expansion + 11 test vectors). BC-INDEX v7.80→v7.81. error_taxonomy v2.37→v2.38 (E-QUERY-043 row). total_stories 228→229. STATE v8.255→v8.256.
 
 - **D-1636 FIX-IEQ-ERRPATH-001 PR-LEVEL pass-4 same-burst closure story pin round (4 carrier stories) — STORY-INDEX v2.647→v2.648 (2026-07-09):** (state-manager D-1636) ADV-PR-P4-MED-001 finding closure (POL-4/POL-22: AC-M2 chain attribution fix in S-DEMO-FIDELITY-REMEDIATION-001 — collect_predicate_columns_with_bareness named correctly as inner helper; non-bareness variant positions-7–8 walker clarified; ADR-048 blockquote coherent) + proactive BC-2.11.016 v1.24 (3 AST type-name corrections: position-7 Predicate::Logical/Predicate::Not; position-8 PipeStage::Where(Predicate); position-10 SortExpr.field; verified ast.rs; L22 grep zero hits) + sibling pins BC-2.11.017 v1.12 / BC-2.11.020 v1.17 / BC-2.11.004 v1.29. S-DEMO-FIDELITY-REMEDIATION-001 **v2.43** (AC-M2 fix + BC-2.11.016→v1.24; was v2.42); S-DEMO-PRISMQL-ONBOARDING-001-B **v2.19** (BC-2.11.016→v1.24 + BC-2.11.017→v1.12; was v2.18); S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 **v1.28** (BC-2.11.020→v1.17 at 3 sites; was v1.27); S-PRISMQL-CASE-INSENSITIVE-001 **v1.53** (BC-2.11.004→v1.29 at 4 sites; was v1.52). PR HEAD 8610ecd0 UNCHANGED (spec/story only). STORY-INDEX v2.647→v2.648.
 
@@ -776,6 +778,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-DEMO-CLAROTY-TIME-001 | prism-dtu-claroty + prism-sensors: Claroty native time-window push-down — `detected_after`/`detected_before` params after DTU extension [Wave 5 or 6; E-DTU-FIDELITY; P2; **draft stub v1.0** (2026-06-05: registered as named deferral from S-DEMO-QUERY-PUSHDOWN-001 v2.0 out-of-scope table — Claroty time-window push-down requires DTU extension first; no native time-window param in current Claroty DTU route structs; BCs pending PO authorship per S-7.01 gate; depends_on Claroty DTU time-filter capability TBD; crates_touched: prism-sensors + prism-dtu-claroty TBD); 0 BCs (pending PO per S-7.01); file: stub — NOT YET AUTHORED] | prism-sensors,prism-dtu-claroty | 0 (BC pending PO) | -- | TBD | S-DEMO-CLAROTY-PAGINATION-001 |
 | S-DEMO-CI-E2E-001 | ci: Scheduled E2E Red Gate CI Workflow — DTU Demo Server + Release Binary + Ignored Suite [Wave 5; E-DEMO; P1; **SUPERSEDED v1.1** (D-979 2026-06-03: SUPERSEDED by S-DEMO-002 v2.0 — e2e CI job delivered in-scope via devops commit 6a8becfb (.github/workflows/e2e.yml) as part of ADV-SDEMO002-PR-P02-HIGH-001 closure; replaced_by: S-DEMO-002; all depends_on blocks cleared. Original: D-960 2026-06-02 REGISTERED as OBS-2 follow-up from S-DEMO-002 LOCAL re-pass-1; story-writer authored at .factory/stories/S-DEMO-CI-E2E-001-e2e-red-gate-ci-workflow.md); file: S-DEMO-CI-E2E-001-e2e-red-gate-ci-workflow.md] | .github,prism-bin,prism-dtu-demo-server | 0 (superseded) | -- | 5 | SUPERSEDED |
 | S-MAINT-REQWEST-RUSTLS-GATE-001 | Justfile + ci.yml: CI gate — enforce ADR-050 reqwest rustls-tls-only workspace rule via `cargo metadata \| jq` multi-line TOML-aware check [**draft v0.1** (D-1497 state-manager 2026-07-02, ADR-050 CI enforcement gate fast-follow; current workspace already fully compliant per S-DEMO-FIDELITY-REMEDIATION-001 cf66151f; gate prevents future regressions; 4 ACs; 2 Red Gate tests; 3 pts; P2; tdd_mode strict; track: Platform Engineering; depends_on []; triggered_by: ADR-050 ACCEPTED; file: S-MAINT-REQWEST-RUSTLS-GATE-001-ci-reqwest-rustls-tls-enforcement.md)] | devops | 0 | -- | 1 | -- |
+| S-HARDEN-PLAN-PINNING-001 | prism-query: Plan-pinning test snapshot anchors — convert high002_plan_pinning_tests.rs substring guards to structural SQL-shape assertions (closes F-CSD-P4-005 [process-gap] from CSDEVICES pass-4) [**draft v0.1** (D-1656 state-manager 2026-07-10: REGISTERED; origin_finding: F-CSD-P4-005 [process-gap]; origin_cascade: DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-4; 4 ACs; 4 Red Gate tests; 5 pts; P2; tdd_mode strict; track: Platform Engineering; depends_on []; behavioral_contracts: [BC-2.11.021, BC-2.11.003]; subsystems: [SS-11]; crates_touched: [prism-query]; file: S-HARDEN-PLAN-PINNING-001-plan-pinning-test-snapshot-anchors.md)] | prism-query | 2 (BC-2.11.021, BC-2.11.003) | -- | 5 | -- |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
 
@@ -1319,6 +1322,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.653 | 2026-07-10 | state-manager D-1656: CSDEVICES pass-4 closure — S-HARDEN-PLAN-PINNING-001 **draft v0.1** registered (F-CSD-P4-005 [process-gap]; origin: DEFECT-CSDEVICES-EMPTY-PIPELINE-001 pass-4); BC-2.11.003 v1.12→v1.13; BC-2.11.005 v1.7→v1.8; error_taxonomy v2.37→v2.38; total_stories 228→229. BC-INDEX v7.80→v7.81. active_contracts UNCHANGED 257. develop_head UNCHANGED b9cf3f9b. STATE v8.255→v8.256. |
 | v2.652 | 2026-07-10 | state-manager D-1653: EQUERY042 F-EQ42-P1-001 spec-propagation pin round — S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 **v1.12→v1.13** (34× ADR-052 §D4 v1.10→v1.11 + 4× error-taxonomy v2.26→v2.37 live-narrative sites; POL-25). BC-INDEX v7.78→v7.79. ARCH-INDEX v2.174→v2.175. active_contracts UNCHANGED 257. develop_head UNCHANGED 8ea29823. STATE v8.252→v8.253. |
 | v2.651 | 2026-07-10 | state-manager D-1652: CSDEVICES Option 1 ratification spec propagation — S-DEMO-ENRICHMENT-PIVOT-003 **v2.4→v2.5** (Route Coverage Table row 4 GET→POST; BC-2.06.019 v1.15→v1.16 pin). BC-2.16.013 v1.25→v1.26; BC-2.06.019 v1.15→v1.16. BC-INDEX v7.77→v7.78. ARCH-INDEX UNCHANGED v2.174. active_contracts UNCHANGED 257. develop_head UNCHANGED 8ea29823. STATE v8.251→v8.252. |
 | v2.650 | 2026-07-09 | state-manager D-1640: FIX-IEQ-ERRPATH-001 PR-LEVEL pass-8 NOT-CLEAN(1 LOW ADV-PR-P8-LOW-001 stale-taxonomy-pins) + same-burst spec-only closure — error-taxonomy v2.35→v2.36 (3 live BC-2.11.016 pins in E-QUERY-038 row bumped v1.21→v1.25; origin-pin convention note added; POL-25 sweep-perimeter gap resolved); S-PRISMQL-CASE-INSENSITIVE-001 v1.55 (AC-022 error-taxonomy pin v2.35→v2.36; only live site). @ddf852bc UNCHANGED (spec-only burst; no Rust code change). A6 rewrite + C8 rename (pass-7) re-verified CORRECT. SAP-1 PASS (91-event catalog). BC-INDEX UNCHANGED v7.77. STATE v8.239→v8.240. PR-LEVEL streak 0/3. |

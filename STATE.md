@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.255"
+version: "8.256"
 producer: state-manager
-timestamp: 2026-07-10T12:00:00Z
+timestamp: 2026-07-10T14:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -30,12 +30,12 @@ develop_head: "b9cf3f9b"
 # NOTE: c6d6e4fa is the squash-merge of PR #211 (perf(S-PERF-GATE-007): add nextest wasm-cap + http-cap groups to eliminate WASMtime/wiremock oversubscription; normal squash-merge, no --admin; 2026-07-01). S-PERF-GATE-007 MERGED. Prior origin/develop was 8bc0404e (PR #210 S-PERF-GATE-005). feature/S-PERF-GATE-007 branch + .worktrees/S-PERF-GATE-007 worktree removed.
 # NOTE: 8bc0404e is the squash-merge of PR #210 (perf(S-PERF-GATE-005): DTU clone graceful-shutdown wiring via shared prism-dtu-common::server helper; normal squash-merge, no --admin; CI 43/43 green; 2026-06-30T17:29:50Z). origin/develop is now 8bc0404e. stop() 5.002s→0.019s; scenario 3-test suite 49s→49ms; full nextest ~hours→86.4s. TEST-SPEED INITIATIVE COMPLETE (S-PERF-GATE-001..005). Prior origin/develop was e3148007 (PR #209 S-PERF-GATE-004). feature/S-PERF-GATE-005 branch + .worktrees/S-PERF-GATE-005 worktree removed.
 # NOTE-CORRECTION D-1435: "TEST-SPEED INITIATIVE COMPLETE" + "full nextest ~86.4s" are FALSE IN PRACTICE. Real full-workspace `just check` is ~30+ min: 5 prism-spec-engine WASMtime binaries (plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests) run UNCAPPED in nextest; wasmtime::Engine::new() (LLVM JIT init) costs ~120-143s per binary under full-suite concurrency → ~28 pre-existing TMT failures. S-PERF-GATE-001..005 fixed DTU oversubscription + clone graceful-shutdown only; did NOT touch spec-engine WASMtime binaries. Initiative INCOMPLETE / SUPERSEDED by T-PERF-PROFILE (D-1435).
-bc_index_version: "7.80"
+bc_index_version: "7.81"
 vp_index_version: "1.80"
-story_index_version: "v2.652"
+story_index_version: "v2.653"
 arch_index_version: "2.175"
-error_taxonomy_version: "2.37"
-total_stories: 228
+error_taxonomy_version: "2.38"
+total_stories: 229
 active_contracts: 257
 draft_contracts: 0
 retired_contracts: 6
@@ -48,7 +48,7 @@ workspace_test_count: 5397  # NOTE: D-1655 — PR #220 EQUERY042 squash-merged d
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1655 (2026-07-10). PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 SQUASH-MERGED develop@b9cf3f9b (2026-07-10). Fix: E-QUERY-042 Literal::Timestamp arm in GROUP BY/ORDER BY (ADR-052 §D4 v1.11 arms 6+7); 15 new tests; prism-query 1502/1502. Full cascade CONVERGED: LOCAL 5-pass (3-CLEAN @7db0b1ba; D-1654) + PR-LEVEL 3-pass ALL CLEAN(strict) on frozen 7db0b1ba (F-EQ42-PRL1/2/3 zero findings); CI PASS; security CLEAR; pr-reviewer APPROVE. No POL-14 promotions. develop_head 8ea29823→b9cf3f9b. EQUERY042 CLOSED. CSDEVICES lane: implementer GREEN for F-CSD-P3-001 subquery walk in progress, streak 0/3. FIX-EQUERY042-GROUPBY cleanup in flight (devops). PENDING-HUMAN: (1) S-3.09 DRIFT-PARKED-S309-001; (2) W3-FIX-S307-001 DRIFT-PARKED-W3FIX-S307-001; (3) E-OCSF-005..023 taxonomy gap DRIFT-EOCSF-GAP-005-023-001. Autonomy D-989 active. STATE v8.254→v8.255."
+current_step: "D-1656 (2026-07-10). CSDEVICES pass-4 fix-burst SPEC LAYER COMPLETE. Architect Option A adjudication: revert COUNT(*) rewrite; E-QUERY-043 plan-time rejection for Expr::InSubquery in non-WHERE projection position; WHERE-position preserved. E-QUERY-043 allocated (error-taxonomy v2.37→v2.38). Code @22f429d0: revert + gate + 6 position locks; prism-query 5431+6=1519; defect suite 17/17. Spec layer: BC-2.11.003 v1.12→v1.13; BC-2.11.005 v1.7→v1.8; S-HARDEN-PLAN-PINNING-001 draft v0.1 registered (F-CSD-P4-005 [process-gap]); cascade-summary.md created; L25 codified in lessons.md. Streak 0/3. LOCAL pass 5 NEXT on frozen 22f429d0. PENDING-HUMAN: (1) S-3.09 DRIFT-PARKED-S309-001; (2) W3-FIX-S307-001 DRIFT-PARKED-W3FIX-S307-001; (3) E-OCSF-005..023 taxonomy gap DRIFT-EOCSF-GAP-005-023-001. Autonomy D-989 active. STATE v8.255→v8.256."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -155,6 +155,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1656 | state-manager | **CSDEVICES pass-4 fix-burst SPEC LAYER COMPLETE (D-1656 2026-07-10). Architect Option A adjudication (F-CSD-P4-001 / F-CSD-P3-001): revert COUNT(*) rewrite; E-QUERY-043 plan-time rejection for `Expr::InSubquery` in non-WHERE projection position; WHERE-position preserved. E-QUERY-043 allocated (error-taxonomy v2.37→v2.38; E-QUERY-043 row). Code @22f429d0: revert + gate + 6 position locks; prism-query 5431+6=1519; defect suite 17/17 GREEN. Spec layer: BC-2.11.003 v1.12→v1.13 (stale subquery invariant replaced; E-QUERY-001 subquery row superseded; E-QUERY-043 row + vectors); BC-2.11.005 v1.7→v1.8 (DEC-022 position-invariant expansion + 11 test vectors; F-CSD-P4-003); S-HARDEN-PLAN-PINNING-001 draft v0.1 REGISTERED (F-CSD-P4-005 [process-gap] closure story; BC-2.11.021 + BC-2.11.003; total_stories 228→229). cascade-summary.md created at cycles/wave-5-e-demo-fidelity/DEFECT-CSDEVICES-EMPTY-PIPELINE-001/cascade-summary.md. L25 [codified] appended to cycles/wave-5-e-demo-fidelity/lessons.md. bc_index_version 7.80→7.81. story_index_version v2.652→v2.653. error_taxonomy_version 2.37→2.38. Streak 0/3. LOCAL pass 5 NEXT on frozen 22f429d0.** | wave-5-e-demo-fidelity | 2026-07-10 |
 | D-1655 | state-manager | PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 SQUASH-MERGED (D-1655 2026-07-10). develop_head 8ea29823→b9cf3f9b; merge SHA b9cf3f9be6d655170815ff2578d7728f1b1659c0. Normal squash-merge; human-authorized; remote branch fix/equery042-groupby-deadarm deleted. Fix content: E-QUERY-042 gate for Literal::Timestamp in GROUP BY/ORDER BY position (ADR-052 §D4 v1.11 arms 6+7); 15 new tests; prism-query 1502/1502 at convergence HEAD 7db0b1ba. Full cascade: LOCAL 5 passes (3-CLEAN strict passes 3/4/5 on frozen 7db0b1ba; D-1654) + PR-LEVEL 3 passes ALL CLEAN(strict) on frozen 7db0b1ba (F-EQ42-PRL1/2/3 — zero findings each). CI PASS at merge snapshot; security CLEAR; pr-reviewer APPROVE cycle 1. No POL-14 BC promotions (fix-PR; no new draft BCs; all BCs already active). workspace_test_count +15 new tests (unverified total on develop@b9cf3f9b). EQUERY042 DEFECT CLOSED. CSDEVICES lane: implementer GREEN for F-CSD-P3-001 in progress, streak 0/3. FIX-EQUERY042-GROUPBY cleanup in flight (devops). STATE v8.254→v8.255. | wave-5-e-demo-fidelity | 2026-07-10 |
 | D-1654 | state-manager | DEFECT-EQUERY042-GROUPBY-DEADARM-001 LOCAL 3-CLEAN CONVERGED @7db0b1ba (D-1654 2026-07-10). BC-5.39.001 passes 3/4/5 all CLEAN(strict) on frozen HEAD 7db0b1ba (15 lock tests total; prism-query 1502/1502; full workspace just check GREEN; non-exhaustive 89/89). Cascade totals: 5 LOCAL passes — pass 1: 1 HIGH (F-EQ42-P1-001 spec-propagation ADR-052 §D4 arms 6/7 Literal::Timestamp co-trigger) + 2 MED + 1 LOW; pass 2: 1 LOW + 1 OBS; passes 3/4/5: CLEAN(strict) ×3 @7db0b1ba. All findings closed structurally: spec layer ADR-052 v1.11 + error-taxonomy v2.37 + BC-2.11.021 v1.8 + BC-2.11.003 v1.12 + story v1.13 pin round; code layer 9 lock tests @f0fe1f9f + doc-citation sweep tests @7db0b1ba. Cascade summary: cycles/wave-5-e-demo-fidelity/DEFECT-EQUERY042-GROUPBY-DEADARM-001/cascade-summary.md. CSDEVICES lane: LOCAL pass 1 NOT-CLEAN (2 HIGH F-CSD-P1-001 contract-fidelity + F-CSD-P1-002 + 3 MED + LOWs); BC-2.06.019 v1.16→v1.17 (F-CSD-P1-006 merge-brittle wording already on disk uncommitted @170956a0); architect sibling determination for fetch_incidents appended to research artifact (F-CSD-P1-005); implementer GREEN burst in flight. BC-INDEX v7.79→v7.80. STATE v8.253→v8.254. | wave-5-e-demo-fidelity | 2026-07-10 |
 | D-1653 | state-manager | EQUERY042 LOCAL pass-1 NOT-CLEAN(strict) — 1 HIGH (F-EQ42-P1-001 spec-propagation: ADR-052 §D4 arms 6/7 `Literal::Timestamp` co-trigger undocumented in GroupBy/OrderBy position) + 2 MED + 1 LOW. Fix-burst COMPLETE: spec layer (ADR-052 v1.10→v1.11 arms 6/7 Literal::Timestamp co-trigger + pass-through clarification subsection + Behavior Reference Table + Red Gate rows; error-taxonomy v2.36→v2.37 dual-trigger description for GroupBy/OrderBy arms + NonColumnLhsComparison RawTemporalLiteral-only clarification; BC-2.11.021 v1.7→v1.8 EC-11-021-019/020 + test vectors; BC-2.11.003 v1.11→v1.12 POL-25 sweep catch + EC-11-003-008/009 + test vectors; story v1.12→v1.13 pin round 34× ADR-052 §D4 v1.10→v1.11 + 4× error-taxonomy v2.26→v2.37 live-narrative sites). Code layer: 9 lock tests @f0fe1f9f: 6 sibling call-site GREEN locks + 3 inject_now/grammar locks proving NOW() = FuncCall::Scalar unreachable-interaction. BC-INDEX v7.78→v7.79. ARCH-INDEX v2.174→v2.175. STORY-INDEX v2.651→v2.652. error_taxonomy v2.36→v2.37. STATE v8.252→v8.253. Streak 0/3. Pass 2 pending on new frozen HEAD. | wave-5-e-demo-fidelity | 2026-07-10 |
@@ -473,13 +474,13 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1655 -- 2026-07-10; STATE v8.255)
+## Session Resume Checkpoint (D-1656 -- 2026-07-10; STATE v8.256)
 
-**EQUERY042 DEFECT CLOSED.** PR #220 squash-merged develop@b9cf3f9b 2026-07-10. Fix: E-QUERY-042 Literal::Timestamp arm in GROUP BY/ORDER BY (ADR-052 §D4 v1.11 arms 6+7); 15 new tests. Full cascade: LOCAL 5-pass (3-CLEAN @7db0b1ba; D-1654) + PR-LEVEL 3-pass ALL CLEAN(strict) on frozen 7db0b1ba (F-EQ42-PRL1/2/3 zero findings). CI PASS; security CLEAR; pr-reviewer APPROVE cycle 1. No POL-14 promotions. Remote branch deleted. develop_head 8ea29823→b9cf3f9b.
+**EQUERY042 DEFECT CLOSED.** PR #220 squash-merged develop@b9cf3f9b 2026-07-10. Fix: E-QUERY-042 Literal::Timestamp arm in GROUP BY/ORDER BY (ADR-052 §D4 v1.11 arms 6+7); 15 new tests. Full cascade: LOCAL 5-pass (3-CLEAN @7db0b1ba; D-1654) + PR-LEVEL 3-pass ALL CLEAN(strict) on frozen 7db0b1ba. CI PASS; security CLEAR; pr-reviewer APPROVE cycle 1. develop_head 8ea29823→b9cf3f9b.
 
-**CSDEVICES LOCAL cascade in progress.** Implementer GREEN burst for F-CSD-P3-001 subquery walk in progress; streak 0/3. BC-2.06.019 v1.17 on disk. `.worktrees/FIX-CSDEVICES-EMPTY-PIPELINE` active on `fix/csdevices-empty-pipeline`.
+**CSDEVICES LOCAL cascade in progress.** Pass-4 spec layer COMPLETE (D-1656). Architect Option A: revert COUNT(*) rewrite; E-QUERY-043 plan-time rejection for Expr::InSubquery in non-WHERE position; code @22f429d0 (revert + gate + 6 position locks; prism-query 5431+6=1519; defect suite 17/17). Spec: BC-2.11.003 v1.13; BC-2.11.005 v1.8; error-taxonomy v2.38; S-HARDEN-PLAN-PINNING-001 draft v0.1 registered (F-CSD-P4-005); cascade-summary.md created; L25 codified. Streak 0/3. LOCAL pass 5 NEXT on frozen `22f429d0`. `.worktrees/FIX-CSDEVICES-EMPTY-PIPELINE` active on `fix/csdevices-empty-pipeline`.
 
-**STATE v8.255. develop b9cf3f9b (PUSHED, origin==local). BC-INDEX v7.80. STORY-INDEX v2.652. ARCH-INDEX v2.175. error-taxonomy v2.37. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 228. workspace_test_count 5397 ON develop@8ea29823 (+15 new tests from PR #220 unverified on develop@b9cf3f9b). bc_count_corrected 266.**
+**STATE v8.256. develop b9cf3f9b (PUSHED, origin==local). BC-INDEX v7.81. STORY-INDEX v2.653. ARCH-INDEX v2.175. error-taxonomy v2.38. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 229. workspace_test_count 5397 ON develop@8ea29823 (+15 new tests from PR #220 unverified on develop@b9cf3f9b). bc_count_corrected 266.**
 
 **LAST MERGED:** DEFECT-EQUERY042-GROUPBY-DEADARM-001 (PR #220 → develop@b9cf3f9b, 2026-07-10; E-QUERY-042 Literal::Timestamp GroupBy/OrderBy arms; ADR-052 §D4 v1.11; 15 new tests; LOCAL 5-pass + PR-LEVEL 3-pass 3-CLEAN).
 

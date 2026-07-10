@@ -455,3 +455,224 @@ Rationale:
 - `test_BC_2_16_009_validates_all_4_bundled_specs` (runs unconditionally in CI) — validates `SpecLoader::parse` succeeds and variable reference `${query_incident_ids.resources}` resolves correctly
 - No DTU route is needed to pass this test
 - The parity test (`test_BC_2_16_013_dtu_parity_crowdstrike`) is already `#[ignore]`'d under DTU-EXT-001 tracking — no change to its ignore status
+
+---
+
+### Adjudication — Expr::InSubquery projection-position execution (F-CSD-P4-001) — 2026-07-10
+
+**Adjudicator:** architect | **Anchor:** D-1650 | **Finding:** F-CSD-P4-001 (HIGH) raised by LOCAL adversary pass-4
+
+---
+
+#### Background
+
+The implementer, while fixing DEFECT-CSDEVICES-EMPTY-PIPELINE-001 (empty-MemTable pre-registration for Track B), also wrote RED-gate test T2 asserting that a SELECT projection-position `Expr::InSubquery` against a 0-batch table returns `Ok(3 rows, all-false is_known column)`. To make T2 green, they rewrote `PqlNormalizer::normalize_expr` `Expr::InSubquery` arm (ast.rs ~2343–2371) to emit a correlated COUNT subquery:
+
+```
+col IN (SQ)  →  (SELECT COUNT(*) FROM (SQ) AS __prism_sq__ WHERE __prism_sq__.<col> = <field>) > 0
+```
+
+along with a helper `extract_insubquery_first_col`. The adversary flagged this as an unauthorized semantic rewrite with three issues: (1) NULL semantics divergence, (2) no spec authorization, (3) multi-column arity (F-CSD-P4-002).
+
+---
+
+#### Factual Findings
+
+**1. WHERE-position `Predicate::InSubquery` is unaffected by the rewrite.**
+
+`normalize_predicate` (ast.rs ~2208–2215) handles `Predicate::InSubquery` via a separate arm that passes through unchanged: `format!("{} {not_kw} ({sub})", ...)`. DataFusion's `decorrelate_predicate_subquery` optimizer handles WHERE/HAVING IN-subqueries natively with correct three-valued SQL semantics. The adversary's NULL concern applies exclusively to the `normalize_expr` `Expr::InSubquery` arm (the COUNT rewrite).
+
+**2. NULL semantics divergence is real and analyst-observable.**
+
+Standard SQL three-valued logic for `x IN (S)`:
+- Returns `NULL` when `x IS NULL`
+- Returns `NULL` when `x ∉ S` AND `S` contains at least one `NULL`
+- Returns `TRUE` when `x ∈ S`
+- Returns `FALSE` when `x ∉ S` AND `S` contains no `NULL`
+
+The COUNT rewrite always returns `TRUE` or `FALSE`, collapsing the NULL case to `FALSE`. OCSF spec columns are nullable=true (all sensor columns). Queries like `WHERE (hostname IN (SELECT hostname FROM cs_devices)) IS NULL` or `SELECT COUNT(flag_col) FROM t WHERE flag_col IN (SELECT ...)` would produce wrong answers. The agent-harness design goal (project memory `project_agent_harness_design.md`) requires standard SQL semantics for LLM analyst consumption. Option C (documented divergence) fails this goal.
+
+**3. The rewrite was scope expansion beyond DEFECT scope.**
+
+DEFECT-CSDEVICES-EMPTY-PIPELINE-001 Track B required empty-MemTable pre-registration to prevent silent "Internal error" crashes in JOIN positions. The projection-position `Expr::InSubquery` execution capability was not in the root-cause analysis (see §Symptom 2 and §Fix Work Plan Track B above). T2's "DESIRED: Ok(3 rows, all-false)" was written by the implementer to encode the COUNT-rewrite behavior, not derived from a BC requirement.
+
+**4. The F-EQ42-P2-001 tests on develop (PR #220) are preserved under Option A.**
+
+These tests assert `E-QUERY-042` for `SELECT hostname IN (SELECT hostname FROM test_events GROUP BY '<rfc3339>') FROM test_events`. The temporal walker's `check_select_items_raw_temporal` → `check_expr_temporal_pos Expr::InSubquery` arm fires E-QUERY-042 for the subquery's RFC-3339 timestamp in GROUP BY. The temporal walker runs BEFORE normalization and BEFORE any plan-time rejection gate. Because the temporal violation returns `Err(E-QUERY-042)` immediately, the projection-position gate (which runs after temporal checks) is never reached. These tests continue to pass unchanged under Option A.
+
+**5. E-QUERY-043 is the next available code.**
+
+Error taxonomy (`.factory/specs/prd-supplements/error-taxonomy.md`) contains codes through E-QUERY-042. E-QUERY-043 is unallocated.
+
+**6. BC-2.11.003 §Invariants contains a stale claim.**
+
+Line 58: "Subqueries are not supported in v1; nested `SELECT` in `WHERE` or `FROM` returns a parse error with explanation." This is incorrect as of develop@b9cf3f9b (PR #220): `Predicate::InSubquery` (WHERE IN-subquery) parses and EXECUTES successfully via DataFusion. The Error Cases table (line 86) also has a stale `E-QUERY-001 | Subquery detected` row. Both must be reconciled.
+
+---
+
+#### Ruling: Option A — Plan-Time Structured Rejection (E-QUERY-043)
+
+**Decision:** ADOPT Option A. The COUNT rewrite is REJECTED. Projection-position `Expr::InSubquery` returns a new structured E-QUERY-043 error with a clear message directing analysts to the WHERE-clause alternative.
+
+**Justification:**
+
+- The production-grade default (CLAUDE.md) applies: NULL semantics divergence is a correctness defect, not a style preference. LLM analysts relying on standard SQL semantics will get wrong answers on nullable OCSF fields.
+- Option B (NULL-semantics-preserving rewrite) requires story-level design: identifying a DataFusion-plannable construct that preserves three-valued logic for `x IN (subquery)` with nullable fields. That is new feature work, not a defect fix. Feature order is the acceptable speed lever.
+- Option C (documented divergence) fails the agent-harness design goal.
+- A clear E-QUERY-043 error is strictly better than the original silent "Internal error" / `QueryExecutionFailed` — it explains what is unsupported and how to fix the query. The DEFECT goal ("stop crashing silently") is satisfied.
+- F-CSD-P4-002 (multi-column arity) is resolved by this ruling: no projection-position IN-subquery execution means the arity concern is moot. No separate fix needed.
+- F-EQ42-P2-001 tests are unaffected (temporal check fires before projection gate).
+- No new ADR is required: this is a structured-rejection addition within the existing query-gate architecture, not a new cross-cutting semantic decision.
+
+---
+
+#### Implementation Contract
+
+The following contract is binding for the implementer executing this ruling in the `fix/csdevices-empty-pipeline` worktree.
+
+**Contract Item 1 — Revert `normalize_expr` `Expr::InSubquery` arm** (`crates/prism-query/src/ast.rs`)
+
+Revert to develop form (ast.rs ~2343):
+
+```rust
+Expr::InSubquery { field, subquery } => {
+    let sub = Self::normalize_sql_query(subquery);
+    format!("{} IN ({sub})", Self::normalize_field_path(field))
+}
+```
+
+Remove the entire COUNT-rewrite block (current lines ~2344–2370) including the comment block.
+
+**Contract Item 2 — Delete `extract_insubquery_first_col`** (`crates/prism-query/src/ast.rs`)
+
+Delete the function `extract_insubquery_first_col` (~lines 2452–2467) and its doc comment (~lines 2437–2451). It is no longer needed.
+
+**Contract Item 3 — Add plan-time projection gate** (location: `crates/prism-query/src/materialization.rs` or the engine module that runs temporal checks, **after** `check_temporal_literals` returns `Ok`)
+
+Add a function `check_expr_insubquery_projection(query: &PqlQuery) -> Result<(), PrismError>` that:
+1. Walks `query.select.items` — for each `SelectItem::Expr { expr, .. }`, checks whether `expr` contains (directly or recursively) an `Expr::InSubquery { .. }`.
+2. If found, returns:
+   ```rust
+   Err(PrismError::ExprInSubqueryProjectionNotSupported {
+       hint: "IN subquery in SELECT projection position is not currently supported. \
+              Use a WHERE clause subquery instead: \
+              `WHERE field IN (SELECT ...)`.".to_string()
+   })
+   ```
+3. Also walks GROUP BY and ORDER BY expressions for `Expr::InSubquery` and returns the same error (those positions are also unsupported for the same DataFusion reason).
+4. Does NOT walk `Predicate::InSubquery` — WHERE/HAVING IN-subqueries are supported.
+5. The gate must be called AFTER `check_temporal_literals` (and any other plan-time validation) returns `Ok`, so that temporal errors take precedence (preserves F-EQ42-P2-001 tests).
+
+**Contract Item 4 — Add `ExprInSubqueryProjectionNotSupported` to `PrismError`** (`crates/prism-core/src/error.rs`)
+
+Add the variant to the `PrismError` enum:
+
+```rust
+/// E-QUERY-043: `field IN (SELECT ...)` in SELECT projection, GROUP BY, or ORDER BY
+/// position. DataFusion 53.1.0 physical planner cannot execute `InSubquery` in
+/// scalar expression positions. Use `WHERE field IN (SELECT ...)` instead.
+ExprInSubqueryProjectionNotSupported {
+    hint: String,
+},
+```
+
+In the `Display` impl for `PrismError`, add:
+
+```rust
+PrismError::ExprInSubqueryProjectionNotSupported { hint } => {
+    write!(f, "E-QUERY-043: IN subquery in projection position is not supported. {hint}")
+}
+```
+
+In the MCP error-mapping function (wherever `map_prism_error` or equivalent is defined), map `ExprInSubqueryProjectionNotSupported` to MCP code `-32602` (INVALID_PARAMS, caller-resolvable) — consistent with the E-QUERY-041/042 mapping pattern.
+
+**Contract Item 5 — Update test T2** (`crates/prism-query/src/tests/defect_csdevices_empty_memtable_tests.rs`)
+
+Test `test_BC_2_11_005_F_CSD_P3_001_T2_expr_insubquery_projection_empty_table_returns_false_col_not_error`:
+
+1. Rename to `test_BC_2_11_005_F_CSD_P3_001_T2_expr_insubquery_projection_returns_e_query_043_not_internal_error`.
+2. Change the assertion from:
+   ```rust
+   assert!(result.is_ok(), "F-CSD-P3-001-T2 / BC-2.11.005: ...")
+   ```
+   to:
+   ```rust
+   assert!(
+       matches!(
+           &result,
+           Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+       ),
+       "F-CSD-P3-001-T2 / BC-2.11.005: Projection-position IN-subquery must return \
+        E-QUERY-043 (ExprInSubqueryProjectionNotSupported), not an internal plan error. \
+        The COUNT-rewrite was REJECTED by architect adjudication 2026-07-10 due to NULL \
+        semantics divergence (nullable OCSF fields, agent-harness SQL semantics goal). \
+        Use WHERE clause subquery form for equivalent filtering. got: {result:?}"
+   );
+   ```
+3. Remove the `total_rows` assertion (since the result is now `Err`, no batches to inspect).
+4. Update the test doc comment to reflect the Option A ruling.
+
+**Contract Item 6 — Track B `pre_register_empty_tables` scope clarification**
+
+The Track B fix (extending `pre_register_empty_tables` to recurse into `Predicate::InSubquery` FROM positions) covers:
+- WHERE/HAVING `Predicate::InSubquery`: walk the subquery's `from` and nested `Predicate::InSubquery` predicates recursively (fixes T1, T3, T4).
+- `Expr::InSubquery` in SELECT items: **NOT required** under Option A. The projection gate returns E-QUERY-043 before DataFusion plans the query, so the table does not need to be pre-registered for projection-position cases. Do NOT add `Expr::InSubquery` SELECT item walking to `pre_register_empty_tables` — it is dead code under Option A and would confuse future maintainers.
+
+---
+
+#### Spec Amendment Contract (Product-Owner work, not implementer)
+
+**BC-2.11.003 `prismql-sql-mode.md` amendments required** (deliver as a single version bump after implementer closes the code):
+
+1. **§Invariants — replace stale subquery claim** (line 58):
+
+   Remove: `"Subqueries are not supported in v1; nested SELECT in WHERE or FROM returns a parse error with explanation"`
+
+   Replace with:
+   ```
+   - `Predicate::InSubquery` (WHERE/HAVING IN-subquery, e.g. `WHERE field IN (SELECT ...)`) is
+     supported — DataFusion's `decorrelate_predicate_subquery` optimizer handles these natively
+     with standard SQL three-valued semantics.
+   - `Expr::InSubquery` (SELECT projection/GROUP BY/ORDER BY IN-subquery, e.g.
+     `SELECT (field IN (SELECT ...)) AS alias FROM t`) is not currently supported —
+     returns E-QUERY-043 with a message directing the analyst to the WHERE-clause form.
+   - The parser accepts both forms (parse succeeds); rejection is plan-time only.
+   ```
+
+2. **§Error Cases — update stale `E-QUERY-001 | Subquery detected` row** (line 86):
+
+   Remove the row: `E-QUERY-001 | Subquery detected | Error: "Subqueries are not supported. Use pipe mode for multi-stage operations."`
+
+   Add new row for E-QUERY-043:
+   ```
+   | `E-QUERY-043` | `field IN (SELECT ...)` appears in SELECT projection, GROUP BY, or ORDER BY
+     position (DataFusion 53.1.0 physical planner cannot execute `InSubquery` in scalar expression
+     positions). WHERE/HAVING IN-subqueries are unaffected. |
+     `"E-QUERY-043: IN subquery in projection position is not supported.
+       Use a WHERE clause subquery instead: WHERE field IN (SELECT ...)."` |
+   ```
+
+3. **Frontmatter**: bump `version` to `"1.13"`, update `modified` to `2026-07-10`.
+
+**error-taxonomy.md amendment required:**
+
+Add E-QUERY-043 row to the error taxonomy. Pattern: `E-QUERY-043 | plan-time | query | "E-QUERY-043: IN subquery in projection position is not supported. {hint}" | Yes (caller-resolvable: rewrite as WHERE clause subquery) | ...`.
+
+---
+
+#### Resolution of F-CSD-P4-002 (MED — multi-column arity)
+
+F-CSD-P4-002 identified that `extract_insubquery_first_col` silently uses the first column for `IN (SELECT a, b ...)`. Under Option A, `extract_insubquery_first_col` is deleted and the COUNT rewrite is removed. No projection-position IN-subquery executes. F-CSD-P4-002 is **resolved by ruling** — no separate fix required. Document closure in the adversary cascade record.
+
+---
+
+#### Future Story Authorization
+
+A future story titled "Projection-Position IN-Subquery Execution with Correct Three-Valued SQL NULL Semantics" may implement full execution support when:
+
+1. A DataFusion-plannable equivalent to `x IN (subquery)` with three-valued logic for nullable `x` and subquery containing NULLs is identified and verified against DataFusion 53.x API.
+2. An ADR is authored covering the chosen rewrite strategy, NULL semantics preservation proof, and any divergence-from-standard-SQL that is intentionally accepted.
+3. BC-2.11.003 is amended to describe the supported form.
+4. E-QUERY-043 is removed from the error taxonomy (or scoped to cases that remain unsupported).
+
+Until that story is delivered and merged, E-QUERY-043 is the correct and final behavior for projection-position `Expr::InSubquery`.
