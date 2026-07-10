@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-07-10"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -51,6 +51,7 @@ Three virtual fields — `_sensor`, `_client`, and `_source_table` — are injec
 ## Invariants
 - Virtual fields are not part of the OCSF schema; they are Prism-specific metadata fields
 - Virtual field names cannot collide with OCSF field names (verified at build time against the OCSF proto schema)
+- **Empty MemTable schema parity (F-CSD-P14-001 / F-CSD-P16-001):** Every registered table schema — whether produced by the populated RecordBatch path (`inject_virtual_fields`, nullable=false) or the empty-table pre-registration path (`virtual_fields::append_virtual_fields_to_schema` called from `pre_register_empty_tables`, nullable=true) — MUST include all three virtual-field columns (`_sensor` Utf8, `_client` Utf8, `_source_table` Utf8). The nullable=true divergence on the empty path is intentional and required: when the empty table occupies the right side of a LEFT JOIN, DataFusion propagates NULL for those columns rather than producing a schema mismatch error. The spoofed-column dedup guard (`remove_spoofed_virtual_columns` on the populated path; strip-and-append logic inside `append_virtual_fields_to_schema` on the empty path) applies on both paths, preventing duplicate virtual columns if a sensor response already includes a field of the same name. Cross-reference: BC-2.11.005 §Postconditions DEC-022 bullet and §Edge Cases DEC-022 row.
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -75,6 +76,9 @@ Three virtual fields — `_sensor`, `_client`, and `_source_table` — are injec
 | `_sensor = 'crowdstrike' AND severity = 'critical'` | Events from CrowdStrike with critical severity only | happy-path |
 | `_sensor > 'armis'` | `Err(E-QUERY-002)` numeric comparison on string virtual field | error |
 | `_sensor = 'unknown_sensor'` | Empty result set; not an error | edge-case |
+| LEFT JOIN with empty right table; SELECT `_sensor` from right side | Right-side `_sensor` column present in schema; value is NULL (not absent); no schema-mismatch error; empty-path nullable=true enables NULL propagation | edge-case (F-CSD-P14-001) — `test_BC_2_11_012_F_CSD_P14_001_T32_left_join_empty_side_virtual_fields_return_null_not_error` |
+| SELECT * with populated-left / zero-batch-right; compare schema of both sides | Both sides include all three virtual columns; empty path nullable=true, populated path nullable=false; schemas are parity-compatible for DataFusion planning | edge-case (F-CSD-P14-001) — `test_BC_2_11_012_F_CSD_P14_001_T33_select_star_empty_side_schema_includes_virtual_fields_parity` |
+| LEFT JOIN populated-left / populated-right; SELECT `_sensor`, `_client`, `_source_table` from both sides | Virtual fields present and non-null on both sides (nullable=false); actual string values returned; green-lock confirming populated path unaffected by empty-path changes | green-lock (F-CSD-P14-001) — `test_BC_2_11_012_F_CSD_P14_001_T34_left_join_populated_side_virtual_fields_green_lock` |
 
 ## Verification Properties
 
@@ -86,13 +90,15 @@ Three virtual fields — `_sensor`, `_client`, and `_source_table` — are injec
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-015 |
-| Related BCs | BC-2.11.005 (virtual fields injected during materialization), BC-2.11.011 (scope intersection) |
+| L2 Invariants | DI-008 (client data separation — `_client` virtual field carries OrgSlug provenance) |
+| Related BCs | BC-2.11.005 (virtual fields injected during materialization; §DEC-022 empty-path `append_virtual_fields_to_schema` — cross-reference for empty MemTable schema parity invariant), BC-2.11.011 (scope intersection) |
 | Priority | P0 |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / F-CSD-P16-001 virtual-field spec anchor | 2026-07-10 | product-owner | **Closes F-CSD-P16-001 (MED) — empty-MemTable virtual-field behavior has no spec anchor.** (1) **§Invariants:** added "Empty MemTable schema parity" invariant: every registered table schema (populated or empty) includes `_sensor`, `_client`, `_source_table`; empty path uses nullable=true for LEFT JOIN NULL propagation; spoofed-column dedup guard applies on both paths; cites F-CSD-P14-001 + F-CSD-P16-001; cross-references BC-2.11.005 §DEC-022. (2) **§Canonical Test Vectors:** added T32 (left-join empty-side virtual fields return NULL), T33 (schema parity between empty and populated paths), T34 (populated-path green-lock). (3) **§Traceability:** added L2 Invariants row (DI-008); expanded Related BCs to explicitly reference BC-2.11.005 §DEC-022. (4) **Frontmatter:** fixed `modified: null` → `modified: "2026-07-10"` (POL-27). No change to Preconditions, Postconditions, Error Cases, Verification Properties. |
 | 1.4 | pass-15-remediation | 2026-04-27 | product-owner | `_client` virtual field description updated TenantId → OrgSlug (ADR-006). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
