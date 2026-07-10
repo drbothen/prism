@@ -3147,6 +3147,12 @@ pub(crate) async fn collect_record_batch_stream(
 /// - `SqlQuery.group_by` — each `Expr`
 /// - `SqlQuery.order_by` — each `OrderExpr.expr`
 ///
+/// Within each checked position, `contains_insubquery` recurses into
+/// `FuncCall::Scalar` and `FuncCall::Aggregate` argument lists (F-CSD-P5-001).
+/// A FuncCall wrapping an InSubquery — e.g. `count(id IN (SELECT …))` — is
+/// therefore caught even when the InSubquery is not at the top level of the
+/// projection expression. Mirrors the FuncCall walk in `walk_expr` (F-LP4-MED-1).
+///
 /// Does NOT check `Predicate::InSubquery` (WHERE/HAVING). Those are supported and
 /// executed via DataFusion's `decorrelate_predicate_subquery` optimizer rule with
 /// standard SQL three-valued semantics.
@@ -3166,12 +3172,30 @@ fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismEr
     use crate::ast::{Ast, Expr, SelectItem, SqlStatement};
 
     /// Recursively check a single `Expr` for any `Expr::InSubquery` node.
+    ///
+    /// Recurses into `FuncCall::Scalar` / `FuncCall::Aggregate` args (F-CSD-P5-001).
+    /// Mirrors `walk_expr`'s FuncCall arm (F-LP4-MED-1).
     fn contains_insubquery(expr: &Expr) -> bool {
+        use crate::ast::FuncCall;
         match expr {
             Expr::InSubquery { .. } => true,
             Expr::Compare { lhs, rhs, .. } => contains_insubquery(lhs) || contains_insubquery(rhs),
             Expr::Logical { lhs, rhs, .. } => contains_insubquery(lhs) || contains_insubquery(rhs),
             Expr::Not(inner) => contains_insubquery(inner),
+            // F-CSD-P5-001: FuncCall args may wrap InSubquery
+            // (e.g. `count(id IN (SELECT …))`). Walk both arg-bearing variants.
+            // FuncCall::Window is a S-3.06 placeholder stub with no Expr children.
+            Expr::FuncCall(func_call) => match func_call {
+                FuncCall::Scalar { args, .. } | FuncCall::Aggregate { args, .. } => {
+                    args.iter().any(contains_insubquery)
+                }
+                FuncCall::Window { .. } => false,
+            },
+            // TimestampArithmetic.base is always Expr::Now at gate-check time —
+            // grammar enforces a Now base; a non-Now base is unreachable (test-writer
+            // verified). Consistent with sibling walker `walk_expr` which also omits
+            // this arm. Other leaf variants (Literal, Field, VirtualField, In, Star,
+            // Now, Interval) carry no Expr children.
             _ => false,
         }
     }
@@ -3202,9 +3226,13 @@ fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismEr
         false
     }
 
-    let hint = "IN subquery in SELECT projection position is not currently supported. \
-                Use a WHERE clause subquery instead: \
-                `WHERE field IN (SELECT ...)`.";
+    // POL-24 byte-strict lock: hint must combine with the #[error] prefix
+    // "E-QUERY-043: IN subquery in projection position is not supported. {hint}"
+    // to produce the exact error-taxonomy v2.38 §E-QUERY-043 template.
+    // F-CSD-P5-002 (MED): removed doubled preamble; added JOIN alternative sentence.
+    let hint = "Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`. \
+                Alternatively, a JOIN achieves the same result: \
+                `SELECT * FROM t JOIN (SELECT col FROM src) s ON t.field = s.col`.";
 
     let found = match ast {
         Ast::Sql(SqlStatement::Select(q)) => check_sql_query(q),
