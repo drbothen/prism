@@ -723,4 +723,400 @@ mod tests {
              (spec declares `column_type = \"datetime\"`); got {last_seen_type:?}"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // F-CSD-P3-001 Tests 8-11 (RED at HEAD 4a19a22d — LOCAL adversary pass-3)
+    //
+    // Finding: `pre_register_empty_tables_for_joins` (materialization.rs) builds
+    // `all_table_names` from ONLY `sql_query.from` + `sql_query.joins` (lines
+    // 2905-2916). It does NOT recurse into subqueries. `walk_sql_query` (the
+    // `collect_external_table_names` helper) DOES recurse, but
+    // `pre_register_empty_tables_for_joins` is independent and does not call it.
+    //
+    // Consequence: any 0-batch table referenced EXCLUSIVELY inside an IN-subquery
+    // (at any position: WHERE, SELECT projection, nested depth ≥ 2, or subquery
+    // WHERE referencing non-key columns) is never added to `all_table_names`, never
+    // pre-registered, and DataFusion plan fails with "table not found" →
+    // `PrismError::QueryExecutionFailed` (E-QUERY internal error to the MCP caller).
+    //
+    // Defect class: BC-2.11.005 DEC-022 / BC-2.01.010 (empty ≠ error),
+    // position-invariant. The existing fix (Tests 1-7) closed FROM/JOIN positions;
+    // these 4 tests lock the IN-subquery positions.
+    //
+    // All 4 tests FAIL at HEAD for the documented reason; ALL must pass after the
+    // implementer extends `pre_register_empty_tables_for_joins` with recursive
+    // subquery walking.
+    // -----------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------
+    // Test 8 (F-CSD-P3-001-T1): Predicate-position WHERE IN-subquery — primary exploit
+    //
+    // SQL: SELECT det.detection_id FROM crowdstrike_detections det
+    //      WHERE det.device_id IN (SELECT device_id FROM crowdstrike_devices)
+    //
+    // crowdstrike_devices appears ONLY in the WHERE IN-subquery. The outer query
+    // has no JOINs referencing it. `pre_register_empty_tables_for_joins` processes
+    // only `crowdstrike_detections` (from FROM) → `crowdstrike_devices` never added
+    // to `all_table_names` → not pre-registered → DataFusion plan error.
+    //
+    // DESIRED (post-fix): Ok with 0 rows — empty IN-set → no detection rows match.
+    // RED: Err(QueryExecutionFailed) — "table not found: crowdstrike_devices".
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P3-001-T1 / BC-2.11.005 / BC-2.01.010: WHERE IN-subquery referencing
+    /// a 0-batch table must return Ok (0 rows), not a DataFusion plan error.
+    ///
+    /// Primary exploit from LOCAL adversary pass-3 finding F-CSD-P3-001 (HIGH):
+    /// `pre_register_empty_tables_for_joins` scans only FROM + JOIN positions in
+    /// the outer query; a table referenced exclusively inside a WHERE IN-subquery
+    /// is invisible to it and never pre-registered.
+    ///
+    /// RED: `Err(QueryExecutionFailed)` — DataFusion cannot find `crowdstrike_devices`
+    ///      because it was only referenced inside the IN-subquery, not in the outer
+    ///      FROM/JOIN list that `pre_register_empty_tables_for_joins` processes.
+    #[tokio::test]
+    async fn test_BC_2_11_005_F_CSD_P3_001_T1_predicate_insubquery_empty_table_returns_empty_not_error(
+    ) {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — outer FROM table with data (left side of the query).
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002", "det-003"],
+            "device_id",
+            &["dev-A", "dev-B", "dev-A"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — 0 batches; register_mem_table silently skips it.
+        // ONLY referenced inside the IN-subquery, NOT in outer FROM/JOIN.
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        // Confirm pre-fix state: crowdstrike_devices absent from the DataFusion catalog.
+        let cs_registered = ctx
+            .table_exist("crowdstrike_devices")
+            .expect("table_exist must not error");
+        assert!(
+            !cs_registered,
+            "test setup: crowdstrike_devices must NOT be registered before fix \
+             (register_mem_table skips empty batches — confirmed)"
+        );
+
+        // crowdstrike_devices is referenced ONLY in the IN-subquery.
+        // pre_register_empty_tables_for_joins builds all_table_names from
+        // `sql_query.from` (crowdstrike_detections) + `sql_query.joins` (none).
+        // crowdstrike_devices is never added to all_table_names → not pre-registered.
+        let sql = "SELECT det.detection_id \
+                   FROM crowdstrike_detections det \
+                   WHERE det.device_id IN (SELECT device_id FROM crowdstrike_devices)";
+        let ast = PrismQlParser::parse(sql).expect("predicate IN-subquery SQL must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Ok with 0 rows — empty IN-set yields 0 matching detections.
+        // RED: Err(QueryExecutionFailed) — DataFusion: "table not found: crowdstrike_devices"
+        //      because pre_register_empty_tables_for_joins did not recurse into
+        //      the IN-subquery to discover and pre-register crowdstrike_devices.
+        assert!(
+            result.is_ok(),
+            "F-CSD-P3-001-T1 / BC-2.11.005 / BC-2.01.010: WHERE IN-subquery referencing \
+             a 0-batch table must return Ok (0 rows), not a DataFusion plan error. \
+             RED: Err — crowdstrike_devices invisible to pre_register_empty_tables_for_joins \
+             (only outer FROM/JOIN positions are scanned; IN-subquery positions are skipped). \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 0,
+            "F-CSD-P3-001-T1: empty IN-set (crowdstrike_devices has 0 rows) → \
+             0 matching detection rows; got {total_rows}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 9 (F-CSD-P3-001-T2): Expression-position IN-subquery (SELECT projection)
+    //
+    // Grammar-reach note: PrismQlParser parses projection-position IN-subquery of
+    // the form `SELECT (col IN (SELECT col FROM t)) AS alias FROM outer_t`.
+    // Confirmed by `test_med1_expr_insubquery_select_projection_temporal_folded`
+    // (high002_plan_pinning_tests.rs:907) which parses:
+    //   `SELECT (host_id IN (SELECT host_id FROM armis_alerts WHERE ...)) AS flagged
+    //    FROM crowdstrike_detections`
+    // Grammar reach: CONFIRMED — test uses the same (col IN (SELECT ...)) AS alias form.
+    //
+    // SQL: SELECT (det.device_id IN (SELECT device_id FROM crowdstrike_devices)) AS is_known
+    //      FROM crowdstrike_detections det
+    //
+    // crowdstrike_devices appears ONLY in the SELECT projection Expr::InSubquery.
+    // Same gap: pre_register_empty_tables_for_joins does not process Expr nodes
+    // in the SELECT projection list.
+    //
+    // DESIRED (post-fix): Ok with 3 rows; is_known column all false (empty IN-set).
+    // RED: Err(QueryExecutionFailed) — "table not found: crowdstrike_devices".
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P3-001-T2 / BC-2.11.005 / BC-2.01.010: Expression-position IN-subquery
+    /// in SELECT projection referencing a 0-batch table must return Ok (all-false
+    /// column), not a DataFusion plan error.
+    ///
+    /// Grammar reach: CONFIRMED by `test_med1_expr_insubquery_select_projection_temporal_folded`
+    /// (high002_plan_pinning_tests.rs:907). The `(col IN (SELECT col FROM t)) AS alias`
+    /// form is a legal PrismQL projection expression.
+    ///
+    /// RED: `Err(QueryExecutionFailed)` — `crowdstrike_devices` not in catalog because
+    ///      `pre_register_empty_tables_for_joins` does not walk `Expr::InSubquery`
+    ///      nodes in the SELECT projection list.
+    #[tokio::test]
+    async fn test_BC_2_11_005_F_CSD_P3_001_T2_expr_insubquery_projection_empty_table_returns_false_col_not_error(
+    ) {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — outer FROM table with data.
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002", "det-003"],
+            "device_id",
+            &["dev-A", "dev-B", "dev-A"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — 0 batches; ONLY referenced in the SELECT projection subquery.
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        // Grammar-reach verified (see doc comment): (col IN (SELECT col FROM t)) AS alias
+        // is a legal PrismQL projection expression.
+        let sql =
+            "SELECT (det.device_id IN (SELECT device_id FROM crowdstrike_devices)) AS is_known \
+                   FROM crowdstrike_detections det";
+        let ast = PrismQlParser::parse(sql)
+            .expect("projection-position IN-subquery SQL must parse (grammar reach confirmed)");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Ok with 3 rows; is_known all false (empty IN-set).
+        // RED: Err(QueryExecutionFailed) — DataFusion: "table not found: crowdstrike_devices"
+        //      because pre_register_empty_tables_for_joins does not walk Expr::InSubquery
+        //      nodes in the SELECT projection list.
+        assert!(
+            result.is_ok(),
+            "F-CSD-P3-001-T2 / BC-2.11.005: Projection-position IN-subquery (SELECT clause) \
+             with 0-batch table must return Ok (all-false is_known column), not plan error. \
+             RED: Err — crowdstrike_devices not pre-registered; Expr::InSubquery in SELECT \
+             not walked by pre_register_empty_tables_for_joins. \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 3,
+            "F-CSD-P3-001-T2: all 3 detection rows must appear (outer table populated); \
+             is_known column all-false since crowdstrike_devices is empty; got {total_rows}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 10 (F-CSD-P3-001-T3): Nested IN-subquery depth 2 — locks recursion
+    //
+    // SQL: SELECT det.detection_id FROM crowdstrike_detections det
+    //      WHERE det.device_id IN (
+    //          SELECT device_id FROM crowdstrike_devices dev
+    //          WHERE dev.device_id IN (SELECT device_id FROM armis_devices)
+    //      )
+    //
+    // Depth-0 (outer FROM): crowdstrike_detections (has data)
+    // Depth-1 subquery FROM: crowdstrike_devices (0 batches)
+    // Depth-2 nested subquery FROM: armis_devices (0 batches)
+    //
+    // Locking recursion: a depth-1-only fix registers crowdstrike_devices from the
+    // outer WHERE IN-subquery, but armis_devices at depth-2 remains missing.
+    // DataFusion then fails on armis_devices instead. Only a fully recursive walk
+    // (recurse into the subquery's own WHERE predicate) passes this test.
+    //
+    // RED at HEAD: Err(QueryExecutionFailed) on crowdstrike_devices (depth-1 missing).
+    // RED post-depth-1-only-fix: Err(QueryExecutionFailed) on armis_devices (depth-2).
+    // GREEN post-recursive-fix: Ok with 0 rows.
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P3-001-T3 / BC-2.11.005 / BC-2.01.010: Nested IN-subquery (depth 2) with
+    /// 0-batch tables at both levels must return Ok (0 rows) — not a plan error.
+    ///
+    /// This test locks that the fix must be FULLY RECURSIVE. A shallow single-level
+    /// patch that only walks depth-1 IN-subquery FROM positions still fails because
+    /// `armis_devices` at depth 2 is not discovered.
+    ///
+    /// RED at HEAD: `Err(QueryExecutionFailed)` — `crowdstrike_devices` (depth-1) and
+    ///              `armis_devices` (depth-2) both absent from catalog.
+    #[tokio::test]
+    async fn test_BC_2_11_005_F_CSD_P3_001_T3_nested_insubquery_depth2_both_empty_returns_empty_not_error(
+    ) {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — outer FROM table with data (depth-0).
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002"],
+            "device_id",
+            &["dev-A", "dev-B"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — 0 batches; depth-1 subquery FROM table.
+        // A depth-1-only fix would register this table but still miss armis_devices.
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        // armis_devices — 0 batches; depth-2 nested subquery FROM table.
+        // This table is the recursion-lock: only reachable by recursing into the
+        // depth-1 subquery's own WHERE predicate (Predicate::InSubquery at depth-1).
+        register_mem_table(&ctx, "armis_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        let sql = "SELECT det.detection_id \
+                   FROM crowdstrike_detections det \
+                   WHERE det.device_id IN (\
+                       SELECT device_id FROM crowdstrike_devices dev \
+                       WHERE dev.device_id IN (SELECT device_id FROM armis_devices)\
+                   )";
+        let ast = PrismQlParser::parse(sql).expect("depth-2 nested IN-subquery SQL must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-recursive-fix): Ok with 0 rows.
+        // RED at HEAD: Err(QueryExecutionFailed) — crowdstrike_devices (depth-1) not
+        //     in catalog; pre_register_empty_tables_for_joins found neither table.
+        // RED post-depth-1-only-fix: Err(QueryExecutionFailed) — armis_devices (depth-2)
+        //     still not in catalog; shallow fix covered only the outer IN-subquery FROM.
+        assert!(
+            result.is_ok(),
+            "F-CSD-P3-001-T3 / BC-2.11.005: Nested IN-subquery (depth 2) with 0-batch \
+             tables at both levels must return Ok (0 rows), not a DataFusion plan error. \
+             RED at HEAD: crowdstrike_devices (depth-1) not pre-registered. \
+             RED post-depth-1-fix: armis_devices (depth-2) not pre-registered. \
+             Fix must recurse into subquery WHERE predicates to discover all levels. \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 0,
+            "F-CSD-P3-001-T3: nested IN-subquery with both empty tables → \
+             0 rows returned; got {total_rows}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 11 (F-CSD-P3-001-T4): Subquery WHERE references non-key column of empty table
+    //
+    // SQL: SELECT det.detection_id FROM crowdstrike_detections det
+    //      WHERE det.device_id IN (
+    //          SELECT device_id FROM crowdstrike_devices WHERE hostname = 'x'
+    //      )
+    //
+    // The subquery WHERE references `hostname` — a spec-declared column of
+    // crowdstrike_devices that is NOT inferrable from the outer query (no JOIN
+    // predicates exist). This test locks two requirements in one:
+    //   (a) subquery FROM tables must be discovered by pre_register (as in T1)
+    //   (b) pre-registration must use spec-declared schema (Priority-2 bundled TOML),
+    //       not just inference — `hostname` must be present for the subquery to plan
+    //
+    // Failure modes covered by the RED assertion `result.is_ok()`:
+    //   Mode A: crowdstrike_devices not pre-registered at all →
+    //           DataFusion: "table not found: crowdstrike_devices"
+    //   Mode B: crowdstrike_devices pre-registered with inference-only schema
+    //           (no `hostname`) → DataFusion: "No field named hostname"
+    //
+    // DESIRED (post-fix): Ok with 0 rows — subquery returns 0 matching device_ids
+    //     (hostname='x' matches nothing in empty table → empty IN-set → 0 detections).
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P3-001-T4 / BC-2.11.005 / BC-2.01.010: IN-subquery WHERE references a
+    /// non-key column (`hostname`) of a 0-batch table. Pre-registration must use the
+    /// full spec-declared schema — not just inference from surrounding context (no JOINs
+    /// exist here to infer from) — so the subquery planner can resolve `hostname`.
+    ///
+    /// Analogous to F-CSD-P1-002-T1 (which locked spec-schema fidelity for the JOIN-side
+    /// case), but at the IN-subquery level.
+    ///
+    /// RED: `Err(QueryExecutionFailed)` — either (a) `crowdstrike_devices` not in catalog,
+    ///      or (b) pre-registered with inference schema that lacks `hostname`.
+    ///      Both modes are bugs that the fix must close.
+    #[tokio::test]
+    async fn test_BC_2_11_005_F_CSD_P3_001_T4_insubquery_nonkey_col_where_empty_table_returns_empty_not_error(
+    ) {
+        let ctx =
+            build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+
+        // crowdstrike_detections — outer FROM table with data.
+        let det_batch = make_two_col_batch(
+            "detection_id",
+            &["det-001", "det-002", "det-003"],
+            "device_id",
+            &["dev-A", "dev-B", "dev-C"],
+        );
+        register_mem_table(&ctx, "crowdstrike_detections", vec![det_batch])
+            .expect("crowdstrike_detections registration must succeed");
+
+        // crowdstrike_devices — 0 batches; ONLY in the IN-subquery.
+        // The subquery WHERE references `hostname` — a spec-declared column
+        // (crowdstrike.sensor.toml: device_id, hostname, platform_name, status,
+        //  first_seen, last_seen) that is NOT inferrable from the outer query
+        // because there are no JOIN predicates to derive column types from.
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("register_mem_table with empty batches must not error");
+
+        let sql = "SELECT det.detection_id \
+                   FROM crowdstrike_detections det \
+                   WHERE det.device_id IN (\
+                       SELECT device_id FROM crowdstrike_devices \
+                       WHERE hostname = 'x'\
+                   )";
+        let ast = PrismQlParser::parse(sql)
+            .expect("IN-subquery with non-key WHERE column SQL must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // DESIRED (post-fix): Ok with 0 rows — hostname='x' matches nothing in the
+        //     empty crowdstrike_devices table → empty IN-set → 0 detection rows.
+        // RED failure modes:
+        //   (a) current HEAD: crowdstrike_devices not pre-registered →
+        //       QueryExecutionFailed "table not found: crowdstrike_devices"
+        //   (b) post-fix-without-spec-schema: crowdstrike_devices pre-registered with
+        //       inference-only schema (column count = 0, no hostname) →
+        //       QueryExecutionFailed "No field named hostname"
+        // Both (a) and (b) must be closed. Spec-schema pre-registration (Priority-2
+        // bundled TOML) includes all 6 declared columns and correct Arrow types.
+        assert!(
+            result.is_ok(),
+            "F-CSD-P3-001-T4 / BC-2.11.005: IN-subquery WHERE referencing non-key column \
+             `hostname` of 0-batch table must return Ok (0 rows), not a plan error. \
+             RED (a): crowdstrike_devices not pre-registered → table not found. \
+             RED (b): pre-registered with inference schema (no hostname) → field not found. \
+             Fix requires spec-schema pre-registration for subquery tables. \
+             got: {result:?}"
+        );
+
+        let batches = result.unwrap();
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 0,
+            "F-CSD-P3-001-T4: hostname='x' matches 0 rows in empty crowdstrike_devices → \
+             empty IN-set → 0 detection rows returned; got {total_rows}"
+        );
+    }
 }
