@@ -68,13 +68,77 @@ timestamp: 2026-07-10T08:00:00Z
 >
 > **D-1655 (2026-07-10): PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 SQUASH-MERGED — develop@b9cf3f9b.** Fix: E-QUERY-042 Literal::Timestamp arm in GROUP BY/ORDER BY (ADR-052 §D4 v1.11 arms 6+7); 15 new tests; prism-query 1502/1502. Full cascade: LOCAL 5-pass (3-CLEAN @7db0b1ba; D-1654) + PR-LEVEL 3-pass ALL CLEAN(strict) on frozen 7db0b1ba (zero findings each). CI PASS; security CLEAR; pr-reviewer APPROVE cycle 1; human-authorized; normal squash-merge; remote branch deleted. No POL-14 BC promotions. develop_head 8ea29823→b9cf3f9b. EQUERY042 DEFECT CLOSED. CSDEVICES lane: implementer GREEN in progress, streak 0/3. FIX-EQUERY042-GROUPBY cleanup in flight (devops). STATE v8.254→v8.255.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1655 PR #220 EQUERY042 MERGED develop@b9cf3f9b; CSDEVICES implementer GREEN in progress; streak 0/3** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1655 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1651 below is the most recent durable SESSION WRAP snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `b9cf3f9b` (PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 squash-merged 2026-07-10). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.255. D-1655 (PR #220 EQUERY042 MERGED; CSDEVICES in flight; EQUERY042 CLOSED).
+> **D-1666 (2026-07-10): SESSION WRAP — §RESUME SNAPSHOT D-1666 authored (supersedes D-1651).** EQUERY042 DEFECT CLOSED (PR #220 develop@b9cf3f9b; LOCAL 5-pass + PR-LEVEL 3-pass 3-CLEAN(strict)). CSDEVICES LOCAL cascade 17 passes; pass 17 CLEAN(strict) streak 1/3 on FROZEN HEAD 819beeda (DO NOT push or commit to branch before passes 18/19 — frozen-HEAD rule). D-1666 human decisions: (1) S-3.09 KEEP-PARKED (DRIFT-PARKED-S309-001 resolved); (2) W3-FIX-S307-001 APPLICABILITY-AUDIT-QUEUED (do NOT touch); (3) E-OCSF-005..023 DRAFT-STORY+QUEUE-AFTER-DEMO; (4) DRIFT-SAP2-DEVICES-TOML-SURFACE-001 EXPAND-NOW queued after CSDEVICES merge. NEW DRIFT-HARNESS-ADMIN-TOKEN-CT-001. VERY NEXT = LOCAL pass 18 on frozen 819beeda. STATE v8.265→v8.266.
+>
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1666 SESSION WRAP; CSDEVICES streak 1/3 on frozen 819beeda; VERY NEXT = LOCAL pass 18** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1666 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1666 below is the most recent durable SESSION WRAP snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `b9cf3f9b` (PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 squash-merged 2026-07-10). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.266. D-1666 (SESSION WRAP; CSDEVICES streak 1/3 on frozen 819beeda; EQUERY042 CLOSED).
 
 ---
 
-## §RESUME SNAPSHOT — D-1651 (2026-07-10 — SESSION WRAP; develop origin/develop 8ea29823; BC-INDEX v7.77; STORY-INDEX v2.650; ARCH-INDEX v2.174; STATE v8.251; CSDEVICES ROOT-CAUSED (2 sub-defects; architect ratification pending); EQUERY042 RED-COMPLETE @49e07a29; VERY NEXT ACTION = architect ratification + implementer GREEN in parallel) [SUPERSEDES D-1648]
+## §RESUME SNAPSHOT — D-1666 (2026-07-10 — SESSION WRAP; develop origin/develop b9cf3f9b; BC-INDEX v7.84; STORY-INDEX v2.653; ARCH-INDEX v2.175; STATE v8.266; EQUERY042 CLOSED (PR #220); CSDEVICES streak 1/3 on frozen 819beeda; 4 human decisions recorded; VERY NEXT ACTION = LOCAL adversary pass 18 on frozen 819beeda) [SUPERSEDES D-1651]
+
+### RESUME IN ONE BREATH
+
+Prism Phase-3/Wave-5. EQUERY042 defect CLOSED (PR #220 merged, develop@b9cf3f9b, LOCAL 5-pass + PR-LEVEL 3-pass 3-CLEAN). CSDEVICES defect: 17-pass LOCAL cascade in flight on `.worktrees/FIX-CSDEVICES-EMPTY-PIPELINE`, streak 1/3 CLEAN(strict) on FROZEN HEAD 819beeda (pass 17 CLEAN; do NOT push or commit to the branch before passes 18/19 — frozen-HEAD rule per DRIFT-ORCH-PRLEVEL-PUSH-001). VERY NEXT ACTION = dispatch LOCAL adversary pass 18 on frozen 819beeda (then pass 19; 3/3 → push branch → pr-manager fix-PR → PR-LEVEL 3-CLEAN cascade → HUMAN merge approval required by safety classifier).
+
+HEADS: develop b9cf3f9b (PUSHED, origin==local). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). fix/csdevices-empty-pipeline @819beeda (LOCAL-ONLY — not backed up remotely; flag for priority push after 3-CLEAN).
+
+> **D-1655 (2026-07-10): PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 SQUASH-MERGED — develop@b9cf3f9b.** E-QUERY-042 Literal::Timestamp arm in GROUP BY/ORDER BY; 15 new tests; LOCAL 5-pass + PR-LEVEL 3-pass 3-CLEAN. EQUERY042 DEFECT CLOSED. STATE v8.254→v8.255.
+>
+> **D-1656..D-1665 (2026-07-10): CSDEVICES 17-pass LOCAL cascade.** Passes 1-17 on fix/csdevices-empty-pipeline: fix-burst D-1656 (E-QUERY-043 spec layer); D-1657..D-1665 (FuncCall recursion, DML arm, walker structural fix, harness POST parity, virtual-field schema parity, SqlPipe pre_register_empty_tables, virtual-field empty MemTable invariant). BC-INDEX v7.80→v7.84. error_taxonomy v2.37→v2.39. spec: BC-2.11.003/005/012/BC-2.16.013. total_stories 228→229 (S-HARDEN-PLAN-PINNING-001). workspace ~5459 tests.
+>
+> **D-1666 (2026-07-10): SESSION WRAP — §RESUME SNAPSHOT D-1666 authored (supersedes D-1651).** Four human decisions registered. STATE v8.265→v8.266.
+
+**STATE v8.266. develop b9cf3f9b (PUSHED, origin==local). BC-INDEX v7.84. STORY-INDEX v2.653. ARCH-INDEX v2.175. error-taxonomy v2.39. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=89. total_stories 229. workspace_test_count ~5459 ON fix/csdevices@819beeda (develop@b9cf3f9b: 5397 + 15 EQUERY042 = ~5412 verified; fix/csdevices adds ~47 more). bc_count_corrected 266. [D-1666: SESSION WRAP; EQUERY042 CLOSED; CSDEVICES streak 1/3 frozen 819beeda]**
+
+**LAST MERGED:** DEFECT-EQUERY042-GROUPBY-DEADARM-001 (PR #220 → develop@b9cf3f9b, 2026-07-10; E-QUERY-042 Literal::Timestamp GroupBy/OrderBy; ADR-052 §D4 v1.11 arms 6+7; 15 new tests; LOCAL 5-pass + PR-LEVEL 3-pass 3-CLEAN(strict)).
+
+**MERGED BEFORE THAT:** FIX-IEQ-ERRPATH-001 (PR #219 → develop@8ea29823, 2026-07-10; E-QUERY-038 14-position gate; BC-2.11.016 v1.12→v1.25; 33-pass cascade; workspace tests 5319→5397).
+
+**OPEN PRs:** NONE.
+
+**PER-WORKSTREAM:**
+1. **CSDEVICES (DEFECT-CSDEVICES-EMPTY-PIPELINE-001):** 17 LOCAL passes; streak 1/3 on frozen 819beeda. workspace just check GREEN (5459+ tests). 34-test defect suite + 6 harness tests. All spec anchors current (BC-2.11.003 v1.13, BC-2.11.005 v1.10, BC-2.11.012 v1.5, BC-2.16.013 v1.27, BC-2.06.019 v1.17, error-taxonomy v2.39). Cascade record at `cycles/wave-5-e-demo-fidelity/DEFECT-CSDEVICES-EMPTY-PIPELINE-001/cascade-summary.md` (16 passes recorded; pass 17 CLEAN to be appended at next burst). RESUME NEXT-ACTION: dispatch fresh-context LOCAL adversary pass 18 on frozen 819beeda with diff-scoped perimeter (pass-15/16/17 prompt pattern), full policy rubric injected.
+2. **AUDIT-COVERAGE-001:** PARKED @317b6e25 on `fix/T13-audit-coverage` (LOCAL-ONLY). Un-park AFTER CSDEVICES PR merges → rebase → B-hardening → 95-check live audit → PR.
+3. **T13 capstone demo:** DEMO-READY on 70-check (develop@b9cf3f9b). Runs after AUDIT-COVERAGE-001 gate passes.
+
+**OPEN FIX-CASCADES:**
+- DEFECT-CSDEVICES-EMPTY-PIPELINE-001: `.worktrees/FIX-CSDEVICES-EMPTY-PIPELINE` on `fix/csdevices-empty-pipeline` @819beeda (LOCAL-ONLY; streak 1/3 FROZEN; DO NOT push before passes 18/19).
+- AUDIT-COVERAGE-001: `.worktrees/AUDIT-COVERAGE-001` @ 317b6e25 (LOCAL-ONLY; PARKED).
+
+**WORKTREES:**
+- `.worktrees/FIX-CSDEVICES-EMPTY-PIPELINE` on `fix/csdevices-empty-pipeline` @819beeda (LOCAL-ONLY; 17-pass cascade; streak 1/3; FROZEN)
+- `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ 317b6e25 (LOCAL-ONLY; PARKED)
+- `.worktrees/S-3.09` KEEP-PARKED on `feature/S-3.09` @ 43c41389 (local-only; backup `backup/S-3.09-preresume-43c41389`; DRIFT-PARKED-S309-001 resolved-keep-parked per D-1666)
+- `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ fcab8717 (local-only; 1 unpushed commit + ~1070 lines uncommitted; DRIFT-PARKED-W3FIX-S307-001 APPLICABILITY-AUDIT-QUEUED; do NOT touch until audit runs)
+
+**PENDING USER-APPROVED WORK (D-1666 queue — four human decisions given interactively at wrap):**
+1. **DRIFT-SAP2-DEVICES-TOML-SURFACE-001 EXPAND-NOW:** story queued immediately after CSDEVICES PR merges — add missing devices columns (os_version, agent_version, external_ip, local_ip, containment_status) to crowdstrike.sensor.toml + OCSF mapping + parity tests. Update Drift Items row status accordingly.
+2. **W3-FIX-S307-001 APPLICABILITY AUDIT (DRIFT-PARKED-W3FIX-S307-001):** orchestrator to audit whether develop has since superseded the branch's purpose (S-3.07 write-dispatch fix + ~1070 uncommitted test lines); recommend resume/salvage-tests/abandon. Do NOT touch worktree until audit runs.
+3. **E-OCSF-005..023 (DRIFT-EOCSF-GAP-005-023-001) DRAFT-STORY+QUEUE-AFTER-DEMO:** story-writer to draft taxonomy-completion story (status: draft), scheduled post-demo.
+4. **DRIFT-HARNESS-ADMIN-TOKEN-CT-001:** prism-dtu-harness CrowdStrike `dtu_configure` non-constant-time admin-token comparison vs standalone's `subtle::ConstantTimeEq` (SEC-P3-003 pattern); pre-existing; small-fix candidate to fold into the devices-TOML-surface story or next harness story.
+
+**S-3.09 KEEP-PARKED (D-1666 human decision 2026-07-10):** DRIFT-PARKED-S309-001 resolved-keep-parked. Worktree retained at @43c41389 indefinitely.
+
+**DEMO STATUS:** DEMO-READY at develop@b9cf3f9b (70-check). 95-check AUDIT-COVERAGE-001 gate BLOCKED only on CSDEVICES merge (EQUERY042 already merged).
+
+**DECISION DELTA (since last wrap D-1651):** D-1652..D-1665 (CSDEVICES architect ratification + TOML spec fix + E-QUERY-043 allocation, EQUERY042 5-pass LOCAL + 3-pass PR-LEVEL convergence, PR #220 EQUERY042 MERGED, 17-pass CSDEVICES cascade with multiple fix-bursts including FuncCall recursion/harness-POST-parity/virtual-field-schema/SqlPipe-mode/MemTable-schema-parity/comment-hygiene, S-HARDEN-PLAN-PINNING-001 draft story created, error-taxonomy v2.37→v2.39, BC-2.11.003 v1.12→v1.13, BC-2.11.005 v1.7→v1.10, BC-2.11.012 v1.4→v1.5, BC-2.16.013 v1.26→v1.27, BC-INDEX v7.79→v7.84, ARCH-INDEX v2.174→v2.175). D-1666 (this session wrap + four human decisions).
+
+**RESUME PROTOCOL:**
+1. Run `vsdd-factory:factory-worktree-health` (BLOCKING).
+2. `git log --oneline -1 origin/develop` → expect `b9cf3f9b`.
+3. `git -C .factory log -1 --format='%h %s'` → factory-artifacts HEAD (do not hard-code; must match this burst).
+4. `git -C .worktrees/FIX-CSDEVICES-EMPTY-PIPELINE log --oneline -1` → expect `819beeda` (FROZEN; do NOT commit or push).
+5. VERY NEXT ACTION = dispatch LOCAL adversary pass 18 on frozen HEAD 819beeda (fresh context, strict, policy rubric + SAP-1 + SAP-2; diff-scoped perimeter vs pass-15/16/17 prompt pattern; read cascade-summary.md + pass-15/16/17 reports).
+6. If CLEAN(strict) → streak 2/3 → pass 19 on SAME frozen 819beeda → if CLEAN(strict) 3/3 → push `fix/csdevices-empty-pipeline` to origin → pr-manager 9-step fix-PR cycle → PR-LEVEL 3-CLEAN cascade → HUMAN merge approval (safety classifier requires explicit human authorization).
+7. Any finding in passes 18/19 → fix-burst → new frozen HEAD → RESET streak to 0/3 → passes 18/19/20 on new HEAD.
+8. After CSDEVICES merges: (a) un-park AUDIT-COVERAGE-001 @317b6e25 → rebase → B-hardening → full 95-check live audit → PR; (b) devices TOML surface story (DRIFT-SAP2-DEVICES-TOML-SURFACE-001 EXPAND-NOW); (c) T13 capstone demo.
+9. Autonomy D-989 active (wave-5; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit).
+
+---
+
+## §RESUME SNAPSHOT — D-1651 (2026-07-10 — SESSION WRAP; develop origin/develop 8ea29823; BC-INDEX v7.77; STORY-INDEX v2.650; ARCH-INDEX v2.174; STATE v8.251; CSDEVICES ROOT-CAUSED (2 sub-defects; architect ratification pending); EQUERY042 RED-COMPLETE @49e07a29; VERY NEXT ACTION = architect ratification + implementer GREEN in parallel) [SUPERSEDES D-1648] [SUPERSEDED by D-1666]
 
 ### RESUME IN ONE BREATH
 
