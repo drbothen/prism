@@ -248,15 +248,55 @@ fn shuffle_by_seed(ids: &[String], seed: u64) -> Vec<String> {
 }
 
 /// Generate a detection detail record for the given ID.
+///
+/// Emits all columns declared in `crowdstrike.sensor.toml` `detections` table so the
+/// spec-engine can normalize non-NULL values in demo and pipeline test scenarios.
+///
+/// # F-CSD-P29-006 — full TOML column coverage
+///
+/// Previous shape emitted only `detection_id`, `status`, `severity`, nested `device{}`.
+/// This caused the spec-engine to normalize NULL for `created_timestamp`, `tactic`,
+/// `technique`, `device_id` (root), and all four IOC columns — the same class of
+/// defect previously closed for `host_detail()` (OBS-1 devices-table coverage fix).
+///
+/// Field inventory aligned to `crowdstrike.sensor.toml`:
+/// - `detection_id`           — string, REQUIRED
+/// - `status`                 — string
+/// - `severity`               — integer (real API returns score 1-100)
+/// - `created_timestamp`      — datetime, INDEX; needed for FQL time-window push-down
+/// - `tactic`                 — string, ocsf_field = "attack.tactic.name"
+/// - `technique`              — string, ocsf_field = "attack.technique.name"
+/// - `device_id`              — string at ROOT (no source_path → reads $.device_id)
+/// - `device{}`               — nested object kept for backward compat
+/// - `behaviors[*].ioc_type`       — string, source_path "$.behaviors[*].ioc_type"
+/// - `behaviors[*].ioc_value`      — string|null; null is valid (no associated hash)
+/// - `behaviors[*].ioc_source`     — string, source_path "$.behaviors[*].ioc_source"
+/// - `behaviors[*].ioc_description`— string, source_path "$.behaviors[*].ioc_description"
 fn detection_detail(detection_id: &str) -> Value {
     json!({
         "detection_id": detection_id,
         "status": "new",
         "severity": 50,
+        // F-CSD-P29-006: full TOML column coverage (harness shape parity, per devices precedent)
+        "created_timestamp": "2026-01-01T00:00:00Z",
+        "tactic": "Initial Access",
+        "technique": "Phishing",
+        // device_id at top-level (TOML column name = "device_id", no source_path → $.device_id)
+        "device_id": "placeholder",
+        // Keep nested device object for backward compat with harness HTTP-layer tests
         "device": {
             "device_id": "placeholder",
             "hostname": "example-host"
-        }
+        },
+        // behaviors array: satisfies $.behaviors[*].ioc_{type,value,source,description}
+        // ioc_value is null: valid (detection with no associated IOC hash) — explicit null,
+        // not absent key (absent → silent empty; null → correct Arrow null).
+        "behaviors": [{
+            "ioc_type": "hash_sha256",
+            "ioc_value": null,
+            "ioc_source": "catalog",
+            "ioc_description": "scenario IOC"
+        }]
     })
 }
 
