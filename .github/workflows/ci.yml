@@ -668,8 +668,8 @@ jobs:
       - name: Assert non-exhaustive-violation fails to compile (per-symbol gate)
         # Single source of truth: scripts/check-non-exhaustive.sh (with
         # scripts/check-non-exhaustive-per-symbol.py for Layer 2 per-symbol check).
-        # Two-layer gate: Layer 1 = total count >= 90; Layer 2 = per-symbol assertion
-        # (net-zero regression detection). F-CSD-P29-OBS-001 hardening.
+        # Two-layer gate: Layer 1 = total count >= EXPECTED (owned by scripts/check-non-exhaustive.sh);
+        # Layer 2 = per-symbol assertion (net-zero regression detection). F-CSD-P29-OBS-001 hardening.
         run: bash scripts/check-non-exhaustive.sh
 
   no-hardcoded-sensors-compile-fail:

@@ -27,7 +27,7 @@ import re
 import sys
 
 # ---------------------------------------------------------------------------
-# Expected symbol list — 90 entries, one per violation function.
+# Expected symbol list — 91 entries, one per violation function.
 # E0639 names: as they appear in the struct literal expression in
 #   struct_violations.rs (may be a local alias, e.g. TypesSensorTableDescriptor).
 # E0004 names: last path segment from `note: \`path::TypeName\` defined here`
@@ -177,10 +177,11 @@ def extract_e0004_symbol(msg: dict) -> list[str]:
     Returns a list of forms:
       - The last segment (TypeName) for backward-compatible single-segment expected entries.
       - The last-2-segment form ("module::TypeName") for disambiguating types that share
-        a last-segment name across crates (e.g., prism_core::virtual_fields::VirtualField
-        vs prism_query::ast::VirtualField both produce "VirtualField" as last segment;
-        the 2-segment forms "virtual_fields::VirtualField" and "ast::VirtualField"
-        are distinct and allow per-symbol verification to tell them apart).
+        a last-segment name across crates (e.g., prism_core::VirtualField (rustc emits the
+        2-part path for the re-export) vs prism_query::ast::VirtualField (rustc emits the
+        3-part path) both produce "VirtualField" as last segment; the 2-segment forms
+        "prism_core::VirtualField" and "ast::VirtualField" are distinct and allow
+        per-symbol verification to tell them apart).
 
     Empty list if no matching note is found.
     """
@@ -242,10 +243,21 @@ def main() -> int:
 
     print()
     if failures:
+        # Canary diff: print all actually-extracted symbols so rustc diagnostic-path
+        # drift produces an actionable message rather than a bare "not found" failure.
+        # (F-CSD-P32-OBS-001 — drift produces actionable diff, not a bare fail)
+        print("\nActually extracted E0639/E0004 symbols (canary diff):", file=sys.stderr)
+        for sym in sorted(found):
+            print(f"  extracted: {sym!r}", file=sys.stderr)
+        print(
+            f"\nExpected {len(EXPECTED_UNIQUE)} unique symbols; extracted {len(found)}.",
+            file=sys.stderr,
+        )
         for sym in failures:
             print(
                 f"::error::Symbol {sym!r} did not appear in E0639/E0004 error output — "
-                f"#[non_exhaustive] may have been removed from this type. "
+                f"#[non_exhaustive] may have been removed from this type, or the rustc "
+                f"diagnostic path changed (see canary diff above). "
                 f"Regression detected (F-CSD-P29-OBS-001 per-symbol gate).",
                 file=sys.stderr,
             )
