@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.981"
+version: "7.982"
 status: current
 timestamp: 2026-07-10T08:00:00Z
 ---
@@ -68,13 +68,15 @@ timestamp: 2026-07-10T08:00:00Z
 >
 > **D-1655 (2026-07-10): PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 SQUASH-MERGED — develop@b9cf3f9b.** Fix: E-QUERY-042 Literal::Timestamp arm in GROUP BY/ORDER BY (ADR-052 §D4 v1.11 arms 6+7); 15 new tests; prism-query 1502/1502. Full cascade: LOCAL 5-pass (3-CLEAN @7db0b1ba; D-1654) + PR-LEVEL 3-pass ALL CLEAN(strict) on frozen 7db0b1ba (zero findings each). CI PASS; security CLEAR; pr-reviewer APPROVE cycle 1; human-authorized; normal squash-merge; remote branch deleted. No POL-14 BC promotions. develop_head 8ea29823→b9cf3f9b. EQUERY042 DEFECT CLOSED. CSDEVICES lane: implementer GREEN in progress, streak 0/3. FIX-EQUERY042-GROUPBY cleanup in flight (devops). STATE v8.254→v8.255.
 >
+> **D-1668 (2026-07-10): STATE BURST — CSDEVICES pass-19 closure (4 LOW; BC-2.11.012 v1.7 four-field set); fix HEAD 7347bb16.** Pass-19 (frozen @962f2ffb): CLEAN(strict)=NO CLEAN(PR-merge)=YES — 4 LOW (F-CSD-P19-001 volatile test-doc pins; F-CSD-P19-002 Compare-arm InSubquery gate gap — DataFusion silently executes wrong results; F-CSD-P19-003 _source_type S-3.02 delivery gap + _safety_flags retire PO split adjudication BC-2.11.012 v1.7 four-field set; F-CSD-P19-004 CWE-117 five sanitize_for_log gaps). Fix-burst: test-writer @7e8df858 T35 + @d4c239f3 T36/T37/T38 RED; implementer @80fd37fe P19-002 + @7347bb16 P19-001/003/004. prism-query 1541/1541; prism-mcp 447/447; workspace 5464/5464 GREEN; non-exhaustive 89/89; SAP-1 clear. BC-INDEX v7.85→v7.86. New FROZEN HEAD 7347bb16 (LOCAL-ONLY; do NOT push before passes 20/21/22). OPEN SCRUTINY FOR PASS 20: E-QUERY-038 second-emission-source on execute_against_session (error.find_root() DataFusion SchemaError catch; BC-2.11.016 + POL-24 scrutiny; possible amendment needed). VERY NEXT = LOCAL pass 20 on frozen 7347bb16 (streak 0/3). STATE v8.267→v8.268.
+>
 > **D-1667 (2026-07-10): STATE BURST — CSDEVICES pass-17 CLEAN(strict)=YES (streak 1/3) + pass-18 closure (7 OBS F-CSD-P18-001..007; streak RESET 0/3) + fix-burst @962f2ffb.** Fix-burst: test-writer @b7a1fd93 (T33b nullable parity + T36/T37); implementer @962f2ffb (volatile pins → symbolic anchors; #![allow(dead_code)] removed); PO BC-2.11.012 v1.5→v1.6 (status: draft→active); state-manager DTU-EXT-001 P3 formalized. prism-query 1537/1537; workspace 5460/5460 GREEN; non-exhaustive 89/89. BC-INDEX v7.84→v7.85. tech-debt-register v2.23→v2.24. New FROZEN HEAD 962f2ffb (LOCAL-ONLY). VERY NEXT = LOCAL pass 19 on frozen 962f2ffb (streak 0/3). STATE v8.266→v8.267.
 >
 > **D-1666 (2026-07-10): SESSION WRAP — §RESUME SNAPSHOT D-1666 authored (supersedes D-1651).** EQUERY042 DEFECT CLOSED (PR #220 develop@b9cf3f9b; LOCAL 5-pass + PR-LEVEL 3-pass 3-CLEAN(strict)). CSDEVICES LOCAL cascade 17 passes; pass 17 CLEAN(strict) streak 1/3 on FROZEN HEAD 819beeda (DO NOT push or commit to branch before passes 18/19 — frozen-HEAD rule). D-1666 human decisions: (1) S-3.09 KEEP-PARKED (DRIFT-PARKED-S309-001 resolved); (2) W3-FIX-S307-001 APPLICABILITY-AUDIT-QUEUED (do NOT touch); (3) E-OCSF-005..023 DRAFT-STORY+QUEUE-AFTER-DEMO; (4) DRIFT-SAP2-DEVICES-TOML-SURFACE-001 EXPAND-NOW queued after CSDEVICES merge. NEW DRIFT-HARNESS-ADMIN-TOKEN-CT-001. STATE v8.265→v8.266.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1667 STATE BURST; CSDEVICES streak 0/3 on frozen 962f2ffb; VERY NEXT = LOCAL pass 19** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1667 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1666 below is the most recent durable SESSION WRAP snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `b9cf3f9b` (PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 squash-merged 2026-07-10). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.267. D-1667 (STATE BURST; CSDEVICES 18-pass cascade; streak 0/3 on frozen 962f2ffb; EQUERY042 CLOSED).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1668 STATE BURST; CSDEVICES streak 0/3 on frozen 7347bb16; VERY NEXT = LOCAL pass 20** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1668 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1666 below is the most recent durable SESSION WRAP snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `b9cf3f9b` (PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 squash-merged 2026-07-10). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.268. D-1668 (STATE BURST; CSDEVICES 19-pass cascade; streak 0/3 on frozen 7347bb16; pass-19 4 LOW closed incl. BC-2.11.012 v1.7 four-field set; EQUERY042 CLOSED).
 
 ---
 

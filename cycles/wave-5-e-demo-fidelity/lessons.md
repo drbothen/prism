@@ -2798,3 +2798,82 @@ future plan-pinning suite) MUST use structural SQL-shape assertions:
 **Evidence:** DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-4 — F-CSD-P4-005 finding; F-CSD-P4-001 / F-CSD-P3-001 regression trace (COUNT(*) rewrite passed substring guards, violated E-QUERY-043 invariant); S-HARDEN-PLAN-PINNING-001 draft v0.1 registered D-1656 as closure story.
 
 **Source:** D-1656 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-4 spec-layer closure + S-HARDEN-PLAN-PINNING-001 registration; 2026-07-10).
+
+---
+
+### L26 — [codification-candidate] TD-VSDD-091 volatile-pin prohibition must extend to test doc comments that pin production symbol locations
+
+**Date recorded:** 2026-07-10
+**D-NNN anchor:** D-1668 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-19 closure — F-CSD-P19-001)
+**Tags:** [codification-candidate] [process-gap] [td-vsdd-091] [S-7.02]
+**Classification:** PROCESS-GAP — F-CSD-P19-001 from DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-19.
+
+**Description:**
+
+F-CSD-P19-001 found ≥11 volatile `~line NNN` pins in `defect_csdevices_empty_memtable_tests.rs`
+test doc comments pointing to production symbol locations in `materialization.rs`. These
+pins violated the spirit of TD-VSDD-091 (volatile-pin prohibition), which was applied
+during F-CSD-P18-002 to production code comments but not systematically extended to
+test doc comments.
+
+The adversary measured ~80-line decay potential — a future commit touching `materialization.rs`
+would produce ≥11 stale line-pin comments in the test file, creating confusing misdirection
+for readers who rely on comments to navigate to the production code.
+
+**Codification candidate (S-7.02):** TD-VSDD-091 discipline should be formally extended to
+cover test doc comments that cite production symbol locations. The current policy text says
+"narrative spec content must cite function names + behavioral anchors, NOT `file.rs:NNN` line
+numbers." Proposed extension: this prohibition applies equally to `#[doc]` comments and
+`/// ...` doc comments in test files when those comments reference production code locations.
+
+Justified exceptions remain the same: Red Gate test tables, AC source-of-truth tables,
+pass-report changelogs. A comment that says "see `materialization.rs` `append_virtual_fields_to_schema`"
+is compliant; "see `materialization.rs` ~line 1047" is a violation.
+
+**Evidence:** DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-19 — F-CSD-P19-001; implementer
+@7347bb16 swept all volatile pins in `defect_csdevices_empty_memtable_tests.rs` to symbolic
+anchors; TD-VSDD-060 complete-set sweep confirmed no residual pins on fix branch.
+
+**Note:** This lesson is a codification CANDIDATE only (cycle not closing). Per S-7.02 discipline,
+formal codification into TD-VSDD-091 policy text is deferred to cycle close. The fix was applied
+in-scope; only the policy amendment is pending.
+
+**Source:** D-1668 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-19 closure; F-CSD-P19-001; 2026-07-10).
+
+---
+
+### L27 — [recurrence-prone] DataFusion SchemaError wrapping in Diagnostic() — find_root() required for pattern matching
+
+**Date recorded:** 2026-07-10
+**D-NNN anchor:** D-1668 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-19 closure — F-CSD-P19-003 T38)
+**Tags:** [recurrence-prone] [datafusion] [error-handling] [execute-against-session]
+**Classification:** IMPLEMENTATION-LESSON — discovered during F-CSD-P19-003 T38 closure.
+
+**Description:**
+
+DataFusion 53.1 wraps `SchemaError::FieldNotFound` inside a `DataFusionError::Diagnostic()`
+wrapper at the planning layer. Direct pattern matching on `DataFusionError::SchemaError`
+variants will FAIL to catch these errors on the `execute_against_session` path.
+
+The correct pattern is to call `error.find_root()` first (which unwraps the `Diagnostic()`
+chain recursively) and then match against the root error variant. This was first
+encountered during T38 closure for F-CSD-P19-003, where `execute_against_session`'s
+planning-error catch needed to map `SchemaError::FieldNotFound` to
+`PrismError::ColumnNotFound` for E-QUERY-038 emission.
+
+**Recurrence risk:** Any future implementer adding error handling for DataFusion planning
+errors on the `execute_against_session` path (or any similar DataFusion execution path)
+must use `error.find_root()` before matching on specific error variant types, or the
+match will silently fall through to the generic error handler.
+
+**Open scrutiny item (for pass 20):** The E-QUERY-038 emission via `error.find_root()` on
+`execute_against_session` is a SECOND E-QUERY-038 emission source beyond the canonical
+BC-2.11.016 14-position walk on `execute_inner`. Pass 20 must scrutinize whether this
+second source is fully compliant with BC-2.11.016 §Postconditions and POL-24 byte-lock.
+A BC-2.11.016 amendment may be needed to formally document this second emission path.
+
+**Evidence:** DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-19 fix-burst — T38 RED→GREEN
+via `error.find_root()` in `execute_against_session` planning-error catch; implementer
+@7347bb16 final fix commit.
+
+**Source:** D-1668 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-19 closure; F-CSD-P19-003 T38; 2026-07-10).
