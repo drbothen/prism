@@ -4874,9 +4874,9 @@ mod tests {
     // _source_type absent from alerts_schema() → DataFusion field-not-found →
     // QueryExecutionFailed.
     //
-    // Test behavior (no storage, as here): prism_alerts NOT registered (storage=None
-    // branch at engine.rs execute_inner line ~978); DataFusion table-not-found →
-    // QueryExecutionFailed.  Both paths agree on QueryExecutionFailed.
+    // Test behavior (no storage, as here): prism_alerts NOT registered — execute_inner's
+    // `if let Some(ref storage) = self.storage` branch is skipped; DataFusion table-not-found
+    // → QueryExecutionFailed.  Both paths agree on QueryExecutionFailed.
     //
     // An improved pedagogical gate (E-QUERY-038 with context "not available on internal
     // tables") is queued as DRIFT-INTERNAL-TABLE-COLUMN-GATE-001.
@@ -5017,6 +5017,152 @@ mod tests {
              fire on prism_* tables — violating the intentional prism_* fail-open guard in \
              check_query_column_availability (SourceRefKind::Internal arm) and/or the \
              VirtualField always-valid skip in extract_field_paths_from_expr. \
+             got: {result:?}"
+        );
+    }
+
+    // =========================================================================
+    // EC-11-035b — BC-2.11.012 v1.10 production-path companion:
+    //   engine with storage=Some(InMemoryBackend) — prism_alerts IS registered
+    //   under alerts_schema() — _source_type absent from schema → DataFusion
+    //   field-not-found plan error → QueryExecutionFailed (NOT ColumnNotFound).
+    //
+    // This variant drives the production error mechanism (field-not-found inside
+    // a registered table) as opposed to EC-11-035 (table-not-found in test mode).
+    // Locks against accidental re-introduction of the retired Option-A runtime
+    // FieldNotFound→ColumnNotFound fallback on the real storage-backed path.
+    // =========================================================================
+
+    /// EC-11-035b / BC-2.11.012 v1.10: production-path variant.
+    ///
+    /// With `storage = Some(InMemoryBackend)`, `execute_inner` calls
+    /// `register_internal_tables_with_capabilities`, which registers `prism_alerts`
+    /// in DataFusion under `alerts_schema()`.
+    ///
+    /// `alerts_schema()` columns: `alert_id`, `severity_id`, `device_ip`,
+    /// `device_hostname`, `client_id`, `created_at`, `rule_id`.
+    /// `_source_type` is NOT present. DataFusion's query planner returns a
+    /// field-not-found plan error → `PrismError::QueryExecutionFailed`.
+    ///
+    /// # What this locks
+    ///
+    /// Guards against accidental re-introduction of the retired Option-A runtime
+    /// `FieldNotFound→ColumnNotFound` fallback on the real storage-backed code path.
+    /// If `ColumnNotFound` is returned, the Option-A fallback has been re-wired on
+    /// the storage=Some branch (a regression against BC-2.11.012 v1.10 EC-11-035).
+    ///
+    /// # Why InMemoryBackend is sufficient
+    ///
+    /// `register_internal_tables_with_capabilities` only needs a `dyn RocksStorageBackend`
+    /// to construct the `RocksDbTableProvider`. Schema registration (the piece that matters
+    /// for the plan-phase field check) does not touch the storage layer at all — the
+    /// backend is only accessed during DataFusion's `scan()` phase, which never runs
+    /// because the query fails at the plan phase on the missing field.
+    ///
+    /// # DRIFT-INTERNAL-TABLE-COLUMN-GATE-001
+    ///
+    /// Until a pedagogical E-QUERY-038 gate is added for internal-table column access,
+    /// `QueryExecutionFailed` is the correct spec-locked behavior on both paths
+    /// (table-not-found in test mode; field-not-found in production mode).
+    #[tokio::test]
+    async fn test_BC_2_11_012_EC_11_035b_source_type_internal_table_field_not_found_with_storage() {
+        use crate::cache::CacheConfig;
+        use crate::engine::{QueryEngine, QueryEngineConfig, QueryOptions};
+        use crate::scoping::ClientRegistry;
+        use prism_core::error::PrismError;
+        use prism_sensors::AdapterRegistry;
+        use prism_storage::memory_backend::InMemoryBackend;
+        use std::sync::Arc;
+
+        // Minimal NoopCs — no credentials needed for a read-only internal-table query.
+        struct NoopCs;
+        #[async_trait::async_trait]
+        impl prism_credentials::CredentialStore for NoopCs {
+            async fn get(
+                &self,
+                _t: &prism_core::OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+            ) -> Result<Option<secrecy::SecretString>, PrismError> {
+                Ok(None)
+            }
+            async fn set(
+                &self,
+                _t: &prism_core::OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+                _v: secrecy::SecretString,
+            ) -> Result<(), PrismError> {
+                Ok(())
+            }
+            async fn delete(
+                &self,
+                _t: &prism_core::OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+            ) -> Result<bool, PrismError> {
+                Ok(false)
+            }
+            async fn list(
+                &self,
+                _t: &prism_core::OrgSlug,
+            ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+            {
+                Ok(vec![])
+            }
+            async fn exists(
+                &self,
+                _t: &prism_core::OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+            ) -> Result<bool, PrismError> {
+                Ok(false)
+            }
+        }
+
+        // Build a minimal engine WITH storage wired.
+        // `storage` is `pub(crate)` — set it directly after construction.
+        // This causes execute_inner to call register_internal_tables_with_capabilities,
+        // registering prism_alerts in DataFusion under alerts_schema().
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            CacheConfig::default(),
+        );
+        // Wire storage so internal tables are registered in DataFusion.
+        engine.storage = Some(Arc::new(InMemoryBackend::new()));
+
+        let result = engine
+            .execute(
+                "SELECT _source_type FROM prism_alerts",
+                QueryOptions::default(),
+            )
+            .await;
+
+        // Primary assertion: DataFusion field-not-found plan error → QueryExecutionFailed.
+        // E-QUERY-038 does NOT fire (two mechanisms: SourceRefKind::Internal fail-open +
+        // VirtualField always-valid skip — same as EC-11-035).
+        assert!(
+            matches!(&result, Err(PrismError::QueryExecutionFailed { .. })),
+            "EC-11-035b / BC-2.11.012 v1.10: engine.execute with storage=Some must return \
+             QueryExecutionFailed for `SELECT _source_type FROM prism_alerts`. \
+             prism_alerts is registered under alerts_schema() (no _source_type column); \
+             DataFusion field-not-found plan error → QueryExecutionFailed. \
+             got: {result:?}"
+        );
+
+        // Negative assertion: must NOT be ColumnNotFound — locks against Option-A
+        // FieldNotFound→ColumnNotFound fallback re-introduction on the storage=Some path
+        // (BC-2.11.012 v1.10 EC-11-035, DRIFT-INTERNAL-TABLE-COLUMN-GATE-001).
+        assert!(
+            !matches!(&result, Err(PrismError::ColumnNotFound(_))),
+            "EC-11-035b / BC-2.11.012 v1.10: engine.execute with storage=Some must NOT return \
+             ColumnNotFound for `SELECT _source_type FROM prism_alerts`. \
+             If this fails, the Option-A FieldNotFound→ColumnNotFound fallback has been \
+             re-introduced on the storage-backed path — a regression. \
              got: {result:?}"
         );
     }
