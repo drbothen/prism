@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.27"
+version: "1.28"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-07-10"  # v1.27: F-CSD-P9-001 closure — INV-HARNESS-ROUTE-PARITY CrowdStrike POST /devices/entities/devices/v2 harness-clone parity note added (v1.26 documented standalone only)
+modified: "2026-07-11"  # v1.28: F-CSD-P25-006 closure — POL-33 Route Coverage Table added (9 rows, CrowdStrike 3-site coverage)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -394,6 +394,29 @@ adapter path for all test cases:
 - **DI-030 (partial-failure isolation):** A parity failure for one `(sensor_id, table)` pair
   does NOT block other sensor tables from loading. Each parity test is isolated.
 
+## Route Coverage Table (POL-33)
+
+> **Cross-reference:** INV-HARNESS-ROUTE-PARITY (§Invariants above). This table satisfies POL-33
+> (`route_coverage_table_required_for_stagemask_changes`) for the CrowdStrike DTU surface modified
+> by DEFECT-CSDEVICES-EMPTY-PIPELINE-001. All three route registration sites are covered: standalone
+> `prism-dtu-crowdstrike`, harness in-process (`build_crowdstrike_router`), and harness network-mode
+> (`build_crowdstrike_network_router`). Scope: CrowdStrike `containment_status`-projecting routes
+> only. Claroty, Cyberint, and Armis sensor routes carry no `containment_status` field and have no
+> scenario-state-dependent response fields in the spec-driven parity path; they are EXEMPT from this
+> table and will be added if StageMask-relevant routes are introduced in those crates.
+
+| StageMask field | Clone crate | Route file | HTTP route | Guard mechanism | Status |
+|-----------------|-------------|-----------|------------|-----------------|--------|
+| `containment_status` | `prism-dtu-crowdstrike` | `src/routes/hosts.rs` (registered in `src/routes/mod.rs::build_router`) | `GET /devices/entities/devices/v2` | session-registry filter + containment-store merge in `host_details_inner`; absent `X-DTU-Session-Id` header → empty result (EC-003) | GUARDED |
+| `containment_status` | `prism-dtu-crowdstrike` | `src/routes/hosts.rs` (registered in `src/routes/mod.rs::build_router`) | `POST /devices/entities/devices/v2` | shared `host_details_inner` (same session-registry filter + containment-store merge as GET); empty `ids` array → HTTP 400 | GUARDED |
+| `containment_status` (write) | `prism-dtu-crowdstrike` | `src/routes/writes.rs` (registered in `src/routes/mod.rs::build_router`) | `POST /devices/entities/devices-actions/v2` | action_name guard (`contain` / `lift_containment`); writes containment-store consumed by GET/POST hosts routes; empty-ids → HTTP 400 | GUARDED |
+| `containment_status` | `prism-dtu-harness` | `src/clones/crowdstrike.rs::build_crowdstrike_router` (in-process) | `GET /devices/entities/devices/v2` | session-registry filter + containment-store merge in `host_details_inner` | GUARDED |
+| `containment_status` | `prism-dtu-harness` | `src/clones/crowdstrike.rs::build_crowdstrike_router` (in-process) | `POST /devices/entities/devices/v2` | shared `host_details_inner`; empty `ids` → HTTP 400 | GUARDED |
+| `containment_status` (write) | `prism-dtu-harness` | `src/clones/crowdstrike.rs::build_crowdstrike_router` (in-process) | `POST /devices/entities/devices-actions/v2` | action_name guard; writes containment-store; empty-ids → HTTP 400 | GUARDED |
+| `containment_status` | `prism-dtu-harness` | `src/clones/crowdstrike.rs::build_crowdstrike_network_router` (network-mode) | `GET /devices/entities/devices/v2` | session-registry filter + containment-store merge; bearer-guard applied only to list routes (`/devices/queries/`, `/detects/queries/`), not this detail route | GUARDED |
+| `containment_status` | `prism-dtu-harness` | `src/clones/crowdstrike.rs::build_crowdstrike_network_router` (network-mode) | `POST /devices/entities/devices/v2` | shared `host_details_inner` (identical to in-process path); empty-ids → HTTP 400 | GUARDED |
+| `containment_status` (write) | `prism-dtu-harness` | `src/clones/crowdstrike.rs::build_crowdstrike_network_router` (network-mode) | `POST /devices/entities/devices-actions/v2` | action_name guard; writes containment-store; empty-ids → HTTP 400 | GUARDED |
+
 ## Edge Cases
 
 | ID | Description | Expected Behavior |
@@ -497,6 +520,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.28 | F-CSD-P25-006-PO-burst | 2026-07-11 | product-owner | F-CSD-P25-006 (OBS) closure — POL-33 (`route_coverage_table_required_for_stagemask_changes`) compliance: added §Route Coverage Table (POL-33) with 9 rows covering all 3 CrowdStrike DTU registration sites (standalone `prism-dtu-crowdstrike::build_router`, harness in-process `build_crowdstrike_router`, harness network-mode `build_crowdstrike_network_router`). StageMask field: `containment_status` — read routes GET + POST `/devices/entities/devices/v2` on all 3 sites (GUARDED via shared `host_details_inner` session-registry filter + containment-store merge); write route `POST /devices/entities/devices-actions/v2` on all 3 sites (GUARDED via action_name guard + containment-store write). All 9 rows GUARDED. Claroty/Cyberint/Armis EXEMPT (no scenario-state-dependent fields in spec-driven parity path). Seeded from DEFECT-CSDEVICES-EMPTY-PIPELINE-001 worktree code truth. INV-HARNESS-ROUTE-PARITY cross-referenced in section intro. BC v1.27 → v1.28. POL-27/POL-32/POL-33. |
 | 1.27 | F-CSD-P9-001-closure-PO-burst | 2026-07-10 | product-owner | F-CSD-P9-001 (HIGH) closure — INV-HARNESS-ROUTE-PARITY CrowdStrike parity gap: v1.26 documented the standalone `prism-dtu-crowdstrike` gaining POST `/devices/entities/devices/v2` (`post_host_details`, endpoint count 8→9) but omitted the corresponding harness-clone obligation. §Postconditions §1 CrowdStrike `devices` row: added **Harness parity (INV-HARNESS-ROUTE-PARITY)** note — both `prism-dtu-harness` CrowdStrike router builders (in-process and network-mode) MUST register GET `get_host_details` AND POST `post_host_details` on `/devices/entities/devices/v2`, mirroring the standalone's shared route composition (session-registry filter, org-id guard, containment merge, auth, empty-ids 400 on POST). §Invariants INV-HARNESS-ROUTE-PARITY: added CrowdStrike bullet alongside existing Armis and Claroty bullets; implementation story reference updated to include DEFECT-CSDEVICES-EMPTY-PIPELINE-001 fix lane as the CrowdStrike closure vehicle. No other sections changed. POL-27/POL-32. BC v1.26 → v1.27. |
 | 1.26 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001-PO-burst | 2026-07-10 | product-owner | CrowdStrike `devices` table step-2 corrected from GET to POST per architect ratification of DEFECT-CSDEVICES-EMPTY-PIPELINE-001 (research/defect-csdevices-empty-pipeline-rootcause-2026-07-10.md §Architect Ratification, D-1650). `fetch_devices` step 2 is now POST `/devices/entities/devices/v2` with body `{"ids": [...]}` — matching real CrowdStrike `PostDeviceDetailsV2` (FalconPy v1.2.0+; same body structure as existing `fetch_detections` POST step; supports up to 5000 IDs vs GET's 100). §Postconditions §1 CrowdStrike `devices` row: `(GET \`/devices/entities/devices/v2\`)` → `(POST \`/devices/entities/devices/v2\` with body \`{"ids": [...]}\`)`. URL grounding updated: `/devices/entities/devices/v2` now registers both `get_host_details` (GET; preserved) and `post_host_details` (POST; new); spec-driven path is POST; DTU endpoint count 8→9 (5 read, 4 write). Parity tests for `crowdstrike.devices` must exercise the POST path. BC v1.25 → v1.26. |
 | 1.25 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | Gate 4 (S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 / F-P2-DEFER-001 closure): §Postconditions §1 Claroty `audit_logs` clause corrected from stale "GET /api/v1/audit_logs via offset pagination. No DTU route registered." to "POST /api/v1/audit_log/get; DTU route registered by S-DEMO-CLAROTY-AUDIT-DTU-001 (Gap-CL-006 CLOSED)". Combined with Gate 2 + Gate 3 in same burst. BC v1.24 → v1.25. |
