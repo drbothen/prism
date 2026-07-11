@@ -211,6 +211,10 @@ ocsf_class = "detection_finding"
 [[tables]]
 table_name = "devices"
 ocsf_class = "device"
+# Column surface intentionally minimal for DEFECT-CSDEVICES-EMPTY-PIPELINE-001;
+# expansion (os_version, agent_version, external_ip, local_ip, containment_status)
+# is human-adjudicated D-1666 as DRIFT-SAP2-DEVICES-TOML-SURFACE-001, queued as a
+# dedicated story after this PR merges.
 
   [[tables.columns]]
   name = "device_id"
@@ -262,7 +266,7 @@ ocsf_class = "device"
   #   POST body {"ids": [...]} supports up to 5000 IDs vs GET's 100; body format identical to
   #   POST /detects/entities/summaries/GET/v1 detections pipeline).
   # fan_out_batch_size = 100 per CROWDSTRIKE_BATCH_SIZE (conservative; POST API supports up to 5000;
-  #   raising is a separate tuning story, not in scope here).
+  #   tuning evaluation folded into DRIFT-SAP2-DEVICES-TOML-SURFACE-001 devices-surface story, D-1666 queue).
   [[tables.steps]]
   name = "fetch_devices"
   method = "POST"

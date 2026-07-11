@@ -1286,7 +1286,8 @@ pub enum ExampleKind {
 /// 4-tier CI gate (ADR-045 §B).
 ///
 /// Each tuple is `(kind, title, pql_snippet)`. The CI gate asserts that at least
-/// one `Positive`, one `NegativeE040`, and one `NegativeOther` example is present.
+/// one `Positive`, one `NegativeE040`, one `NegativeOther`, and one `NegativeE043`
+/// example is present.
 ///
 /// **ADR-044 INTERVAL format:** Duration strings use the `Nh` / `Nd` unit suffix
 /// (e.g., `'7d'` = 7 days, `'24h'` = 24 hours). Full English words like `'7 days'`

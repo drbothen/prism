@@ -951,8 +951,8 @@ pub fn v66_table_not_available_details() {
 /// TTL expiry timestamps) can be added without breaking external callers.
 ///
 /// Added: S-3.13 (CR-002 — `#[non_exhaustive]` on new pub prism-query types).
-/// ci.yml EXPECTED stays 66 (v66 is TableNotAvailableDetails above; function label
-/// v67 reflects position on the global monotonic ladder, not a new type count).
+/// S-3.13 bumped EXPECTED from 64 to 66 jointly: v66 (TableNotAvailableDetails, LOW-1)
+/// and v67 (TableRegistry, CR-002) are both new #[non_exhaustive] types (+1 each).
 #[allow(dead_code)]
 pub fn v67_table_registry() {
     // Triggers E0639 (#[non_exhaustive]).
