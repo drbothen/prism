@@ -2913,3 +2913,27 @@ The correct mapping at that catch site is → `QueryExecutionFailed` + `sql.sql_
 **Generalization:** Any error-mapping fallback that shadows a plan-time gate MUST be scrutinized for this anti-pattern. If the plan-time gate is exhaustive (as E-QUERY-038 is at positions 1–14 across all AST modes), a runtime catch that re-emits the same user-facing error code is either redundant (the gate already fired) or misleading (the gate was bypassed — internal anomaly). Option A (remove the fallback) is almost always the correct choice once the call-graph proof is in hand. Option B (document and narrow the fallback) is only valid when the runtime path is genuinely reachable without the plan-time gate.
 
 **Source:** D-1669 F-CSD-P20-003 architect Option A — `execute_against_session` fallback removed @e8f7dc8b; BC-2.11.016 v1.26 §Design Constraints codifies the THREE emission sites and the runtime-anomaly mapping rule.
+
+---
+
+### [process-gap] PO investigation claims about current code behavior must be grep/read-verified before spec-locking — test-writer RED-gate refusal is the safety net
+
+**Classification:** PROCESS-GAP — CSDEVICES pass-21 cascade D-1670 (2026-07-10).
+
+**Description:**
+
+During DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-21 (F-CSD-P21-OBS-003 Stage 2), the product-owner investigated what error code `SELECT _source_type FROM prism_alerts` would return and concluded: "this should return E-QUERY-038." This determination was based on PO's reading of `check_query_column_availability`. BC-2.11.012 v1.9 was written with EC-11-035 claiming `→ E-QUERY-038`.
+
+The test-writer, before locking the RED gate test, verified the actual runtime behavior by tracing the code path. The finding: real behavior is `QueryExecutionFailed` (NOT `ColumnNotFound` / E-QUERY-038), because of two independent mechanisms:
+1. `check_query_column_availability` has an intentional three-mode `starts_with("prism_")` fail-open — it does NOT return `E-QUERY-038` for internal tables.
+2. `extract_field_paths_from_expr` skips `Expr::VirtualField` as always-valid, so the virtual field is never flagged during path extraction.
+
+The test-writer REFUSED to lock the incorrect EC-11-035 claim and escalated. PO corrected BC-2.11.012 v1.9→v1.10 in the same burst. BC-2.11.016 v1.26 §Design Constraints already documented that `QueryExecutionFailed` is the correct return for internal-anomaly paths at `execute_against_session` — the corrected v1.10 is consistent with that.
+
+**The RED-gate-refusal safety net worked exactly as intended.** The RED Gate test is supposed to be a VERIFICATION of spec claims against actual behavior — not a mechanical translation of spec text into assertions. When spec text claims behavior that doesn't match reality, the test-writer must refuse to lock it and surface the discrepancy.
+
+**Lesson:** Product-owner investigation claims about CURRENT code behavior must be verified by reading the actual code (grep + read) before they can be locked in spec text as authoritative. PO owns the CONTRACT semantics but NOT the runtime behavior observations. The test-writer is the authoritative source for "does this code actually do X right now?" PO investigation is a starting hypothesis, not a conclusion.
+
+**Codification candidate:** Add as a standing discipline (SID-2): "Before locking any spec invariant that claims a specific error code for a specific input, the test-writer MUST verify the actual behavior by running or tracing the code path. If the actual behavior differs from the spec claim, the test-writer reports the discrepancy to orchestrator — NOT silently locks the wrong behavior."
+
+**Source:** D-1670 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-21 closure; F-CSD-P21-OBS-003 Stage 2; BC-2.11.012 v1.9 mis-citation caught by test-writer refusal; 2026-07-10).
