@@ -5253,7 +5253,7 @@ mod tests {
         );
         // inner_q projection: `(device_id IN (SELECT device_id FROM crowdstrike_devices)) AS flag`
         // Expr::InSubquery is in select.items — the projection position.
-        // In Ast::Sql/SqlPipe this shape fires E-QUERY-043 (see T9 / T18 locks).
+        // In Ast::Sql/SqlPipe this shape fires E-QUERY-043 (see T2/test_BC_2_11_005_F_CSD_P3_001_T2 and T40/test_BC_2_11_003_F_CSD_P24_003_T40 locks).
         let inner_q = SqlQuery::new(
             SelectClause::new(vec![SelectItem::Expr {
                 expr: Expr::InSubquery {
@@ -5339,6 +5339,110 @@ mod tests {
              because PipeQuery has no top-level SELECT items list. This invariant lock breaks \
              deliberately if Pipe gains a SELECT-style projection that needs gate coverage. \
              got: {pipe_result:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 40 (F-CSD-P24-003): SqlPipe-arm E-QUERY-043 regression lock
+    //
+    // SQL: SELECT (device_id IN (SELECT device_id FROM crowdstrike_devices)) AS is_known
+    //      FROM crowdstrike_detections | limit 10
+    //
+    // The `| limit 10` pipe stage routes the AST to `Ast::SqlPipe` instead of `Ast::Sql`.
+    // The HEAD's SELECT projection contains `Expr::InSubquery` — the same shape that
+    // T2 (test_BC_2_11_005_F_CSD_P3_001_T2) locks for the `Ast::Sql` arm.
+    //
+    // Locking: if the `Ast::SqlPipe(spq) => check_sql_query(&spq.head)` arm of
+    // `check_expr_insubquery_projection` were removed or reduced to `_ => false`,
+    // the gate would silently skip E-QUERY-043 for all SqlPipe queries with IN-subqueries
+    // in their projection, producing a cryptic DataFusion internal error instead of the
+    // structured diagnostic.
+    //
+    // Grammar-reach: (col IN (SELECT col FROM t)) AS alias is confirmed grammar-reachable
+    // in PrismQL SQL SELECT projections (same as T2/line 904). `| limit 10` is confirmed
+    // grammar-reachable from other SqlPipe tests (aql_pushdown_tests.rs line 254).
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P24-003 / BC-2.11.003: `Ast::SqlPipe(spq) => check_sql_query(&spq.head)` arm
+    /// of `check_expr_insubquery_projection` must fire E-QUERY-043 when the head's SELECT
+    /// projection contains `Expr::InSubquery`.
+    ///
+    /// # Why this test exists
+    ///
+    /// `check_expr_insubquery_projection` handles `Ast::SqlPipe` by delegating to
+    /// `check_sql_query(&spq.head)`. Without a test for this arm, a future refactor
+    /// could accidentally replace it with `_ => false` (silencing the gate for all
+    /// SqlPipe queries) or omit it when adding a new `Ast` variant.
+    ///
+    /// T39 locks the NEGATIVE invariant (Ast::Filter/Ast::Pipe must NOT fire E-QUERY-043).
+    /// This test locks the POSITIVE invariant (Ast::SqlPipe MUST fire E-QUERY-043 when
+    /// the head projection has Expr::InSubquery).
+    ///
+    /// # Grammar reach
+    ///
+    /// - Projection-position IN-subquery: `(col IN (SELECT col FROM t)) AS alias` is
+    ///   grammar-reachable (same as T2, confirmed via `build_sql_expr_parser` in
+    ///   sql_parser.rs).
+    /// - `| limit 10` pipe stage: confirmed grammar-reachable (aql_pushdown_tests.rs).
+    ///   The pipe stage routes the AST to `Ast::SqlPipe` instead of `Ast::Sql`.
+    ///
+    /// # Companion test
+    ///
+    /// T2 (`test_BC_2_11_005_F_CSD_P3_001_T2_expr_insubquery_projection_returns_e_query_043_not_internal_error`)
+    /// locks the `Ast::Sql` arm. This test (T40) locks the `Ast::SqlPipe` arm.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P24_003_T40_sqlpipe_head_insubquery_projection_fires_e_query_043(
+    ) {
+        use prism_core::error::PrismError;
+
+        let ctx = build_session_context(50 * 1024 * 1024)
+            .expect("build_session_context must succeed for T40");
+
+        // Register both tables as empty — the gate fires at plan time before any data
+        // is read, so 0-row tables are sufficient.
+        register_mem_table(&ctx, "crowdstrike_detections", vec![])
+            .expect("crowdstrike_detections registration must succeed");
+        register_mem_table(&ctx, "crowdstrike_devices", vec![])
+            .expect("crowdstrike_devices registration must succeed");
+
+        // Grammar-reach verified (see doc comment):
+        //   - `(col IN (SELECT col FROM t)) AS alias` is grammar-reachable in PrismQL
+        //     SQL SELECT projections (same shape as T2 at line 904).
+        //   - `| limit 10` pipe stage routes AST to Ast::SqlPipe (not Ast::Sql).
+        let sql = "SELECT (device_id IN (SELECT device_id FROM crowdstrike_devices)) AS is_known \
+             FROM crowdstrike_detections | limit 10";
+        let ast = PrismQlParser::parse(sql).expect(
+            "SqlPipe head projection-position IN-subquery must parse (grammar reach confirmed)",
+        );
+
+        // GRAMMAR-REACH ASSERTION: confirm the parser produces Ast::SqlPipe.
+        // If this fails, the pipe grammar has changed and the test must be updated.
+        assert!(
+            matches!(&ast, crate::ast::Ast::SqlPipe(_)),
+            "T40 grammar-reach assertion: `| limit 10` pipe stage must produce Ast::SqlPipe. \
+             If the parser now produces a different AST variant, update this test and the \
+             SqlPipe arm lock below. got: {ast:?}"
+        );
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        // LOCK: Ast::SqlPipe arm must fire E-QUERY-043.
+        // The `Ast::SqlPipe(spq) => check_sql_query(&spq.head)` arm in
+        // `check_expr_insubquery_projection` (materialization.rs) must be reached and
+        // detect the Expr::InSubquery in the head's SELECT projection.
+        assert!(
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P24-003 / BC-2.11.003: Ast::SqlPipe with Expr::InSubquery in the head's \
+             SELECT projection must return E-QUERY-043 (ExprInSubqueryProjectionNotSupported), \
+             not a DataFusion internal error. \
+             The `Ast::SqlPipe(spq) => check_sql_query(&spq.head)` arm of \
+             `check_expr_insubquery_projection` in materialization.rs is the load-bearing gate. \
+             Use a WHERE clause subquery instead: `WHERE device_id IN (SELECT device_id FROM ...)`. \
+             got: {result:?}"
         );
     }
 }
