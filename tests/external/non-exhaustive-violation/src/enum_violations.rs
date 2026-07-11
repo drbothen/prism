@@ -372,13 +372,14 @@ pub fn v86_temporal_literal_position_match() {
 
 /// Violation 85: prism_mcp::resources::ExampleKind exhaustive match (E0004).
 ///
-/// `ExampleKind` classifies PQL usage examples for the 3-tier CI gate and for
+/// `ExampleKind` classifies PQL usage examples for the 4-tier CI gate and for
 /// `build_reference_content` (ADR-045 §B, BC-2.11.022). `#[non_exhaustive]` ensures new
 /// example tiers can be added without requiring external `match` arms to be updated.
 /// External callers MUST include `_ => {}`.
 ///
 /// Variants renamed Positive/NegativeE040/NegativeOther per BC-2.11.022 / ADR-045 D3
 /// (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 CRIT-003 fix-burst).
+/// NegativeE043 added: FIX-CSDEVICES-EMPTY-PIPELINE F-CSD-P26-OBS-001.
 ///
 /// Added: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (resources.rs).
 #[allow(dead_code)]
@@ -389,6 +390,7 @@ pub fn v85_example_kind_match() {
         ExampleKind::Positive => {}
         ExampleKind::NegativeE040 => {}
         ExampleKind::NegativeOther => {}
-        // After S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: E0004 — `_` arm required for #[non_exhaustive] enum
+        ExampleKind::NegativeE043 => {}
+        // After FIX-CSDEVICES-EMPTY-PIPELINE: E0004 — `_` arm required for #[non_exhaustive] enum
     }
 }

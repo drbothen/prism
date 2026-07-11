@@ -5328,6 +5328,12 @@ mod tests {
         .await;
 
         // LOCK: same invariant for Ast::Pipe.
+        // Additional rationale: the outer Predicate::InSubquery in Pipe mode is
+        // blocked by pipe_sql_emitter::predicate_to_datafusion_sql (returns
+        // QueryExecutionFailed {"not yet supported"}) before the inner subquery
+        // reaches DataFusion. E-QUERY-043 is scoped to SQL-planning-reachable
+        // projection positions; the emitter boundary is the correct defense layer
+        // for Pipe mode. See architect adjudication F-CSD-P26-OBS-002, 2026-07-11.
         assert!(
             !matches!(
                 &pipe_result,

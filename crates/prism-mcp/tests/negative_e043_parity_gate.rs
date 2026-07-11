@@ -3,10 +3,10 @@
 //! # Gap (finding F-CSD-P25-003)
 //!
 //! `test_bc_2_11_022_reference_content_completeness` only asserts the STRING
-//! "E-QUERY-043" appears in the built content, and the 3-tier CI gate only
+//! "E-QUERY-043" appears in the built content, and the 4-tier CI gate only
 //! asserts ≥1 `NegativeOther` entry. Neither test asserts a load-bearing
 //! E-QUERY-043 plan-time rejection — contrast with `NegativeE040` which is
-//! asserted against `plan_sqlpipe_query` in `test_bc_2_11_022_ci_3tier_gate`.
+//! asserted against `plan_sqlpipe_query` in `test_bc_2_11_022_ci_4tier_gate`.
 //!
 //! # Tests in this file
 //!
@@ -55,7 +55,7 @@ use prism_query::{
 /// `test_bc_2_11_022_reference_content_completeness` only checks that the string
 /// "E-QUERY-043" appears somewhere in the built Markdown content. This test checks
 /// that an EXECUTABLE example in `REFERENCE_EXAMPLES` actually fires the gate —
-/// mirroring the `NegativeE040` parity gate in `test_bc_2_11_022_ci_3tier_gate`.
+/// mirroring the `NegativeE040` parity gate in `test_bc_2_11_022_ci_4tier_gate`.
 ///
 /// # RED gate
 ///

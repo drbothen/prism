@@ -1,6 +1,6 @@
 //! Red Gate tests for S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 Area C.
 //!
-//! BC-2.11.022: `build_reference_content()` + CI 3-tier gate (ADR-045).
+//! BC-2.11.022: `build_reference_content()` + CI 4-tier gate (ADR-045).
 //!
 //! Red Gate: `build_reference_content` is a `todo!()` stub — all tests panic on
 //! the stub body. Tests will fail RED when the function is called.
@@ -108,12 +108,13 @@ fn test_bc_2_11_022_reference_content_completeness() {
     }
 }
 
-/// AC-007 / BC-2.11.022 CI 3-tier gate (ADR-045 §B).
+/// AC-007 / BC-2.11.022 CI 4-tier gate (ADR-045 §B).
 ///
 /// The shared `REFERENCE_EXAMPLES` constant must contain:
 /// (1) At least one `ExampleKind::Positive` entry.
 /// (2) At least one `ExampleKind::NegativeE040` entry (non-vacuous FORBID-BOTH gate).
 /// (3) At least one `ExampleKind::NegativeOther` entry.
+/// (4) At least one `ExampleKind::NegativeE043` entry (non-vacuous IN-subquery projection gate).
 ///
 /// Additionally, every `ExampleKind::Positive` PQL snippet must round-trip through
 /// `PrismQlParser::parse` without error (positive round-trip gate).
@@ -126,7 +127,7 @@ fn test_bc_2_11_022_reference_content_completeness() {
 /// variant names — these are now renamed to `Positive/NegativeE040/NegativeOther` per
 /// BC-2.11.022 / ADR-045 D3. Compilation fails RED until the rename is complete.
 #[test]
-fn test_bc_2_11_022_ci_3tier_gate() {
+fn test_bc_2_11_022_ci_4tier_gate() {
     // Tier shape assertions (BC-2.11.022 ADR-045 §B).
     let has_positive = REFERENCE_EXAMPLES
         .iter()
@@ -150,6 +151,15 @@ fn test_bc_2_11_022_ci_3tier_gate() {
     assert!(
         has_negative_other,
         "BC-2.11.022 AC-007: REFERENCE_EXAMPLES must contain at least one ExampleKind::NegativeOther entry"
+    );
+
+    let has_negative_e043 = REFERENCE_EXAMPLES
+        .iter()
+        .any(|(k, _, _)| matches!(k, ExampleKind::NegativeE043));
+    assert!(
+        has_negative_e043,
+        "BC-2.11.022 AC-007: REFERENCE_EXAMPLES must contain at least one ExampleKind::NegativeE043 entry \
+         (non-vacuous IN-subquery projection gate — tautological gate is a paper-fix per TD-VSDD-059)"
     );
 
     // Positive round-trip gate (ADR-045 §B): Positive PQL snippets must parse.
@@ -217,10 +227,11 @@ fn test_bc_2_11_022_ci_3tier_gate() {
         }
     }
 
-    // Verify all three ExampleKind variants are constructable (compile-time check).
+    // Verify all four ExampleKind variants are constructable (compile-time check).
     let _p = ExampleKind::Positive;
     let _n = ExampleKind::NegativeE040;
     let _o = ExampleKind::NegativeOther;
+    let _e = ExampleKind::NegativeE043;
 }
 
 /// AC-008 / BC-2.11.022 invariant — `None` registry placeholder.
