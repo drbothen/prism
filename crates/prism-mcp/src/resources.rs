@@ -1529,7 +1529,10 @@ pub fn build_reference_content(
          | **E-QUERY-037** | Table not available — sensor not configured for this client | Run `prism_describe(client_id)` to see available tables and sensors |\n\
          | **E-QUERY-038** | Column not found | Run `prism_describe(client_id, table)` to see available columns |\n\
          | **E-QUERY-039** | Enrichment infusion not registered | Call `list_infusions` to see available enrichment functions |\n\
-         | **E-QUERY-040** | FORBID-BOTH — both SQL LIMIT and pipe `| limit` in same query | Remove one of the two LIMIT clauses |\n\n",
+         | **E-QUERY-040** | FORBID-BOTH — both SQL LIMIT and pipe `| limit` in same query | Remove one of the two LIMIT clauses |\n\
+         | **E-QUERY-041** | Datetime column compared against date-only or offset-less literal — RFC-3339 UTC required | Use RFC-3339 UTC format (e.g., `'2026-07-03T00:00:00Z'`); for relative windows, use `NOW() - INTERVAL 'Nh'` |\n\
+         | **E-QUERY-042** | Temporal literal in GROUP BY, ORDER BY, or non-column LHS comparison — constant or unresolvable position | Reference an unquoted column name in GROUP BY/ORDER BY; for function-expression comparisons, use RFC-3339 or an explicit CAST |\n\
+         | **E-QUERY-043** | `IN` subquery in SELECT projection, GROUP BY, or ORDER BY position — not supported | Rewrite as `WHERE field IN (SELECT ...)` or use a JOIN |\n\n",
     );
 
     // ── Enrichment Section ────────────────────────────────────────────────────

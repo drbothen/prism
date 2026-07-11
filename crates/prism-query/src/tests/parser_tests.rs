@@ -1517,7 +1517,7 @@ fn test_BC_2_11_011_sql_join_preserves_both_source_refs() {
 /// BC-2.11.012: `_source_type` used in a filter predicate emits `Expr::VirtualField(SourceType)`.
 ///
 /// The parser MUST emit the typed `Expr::VirtualField` variant (not `Expr::Field`) for the
-/// five canonical underscore-prefixed names defined in BC-2.11.012. This gives the planner
+/// four canonical underscore-prefixed names defined in BC-2.11.012. This gives the planner
 /// and executor a first-class handle without string-scanning field names.
 ///
 /// Traces: BC-2.11.012 (virtual fields — typed variant), S-2.08 _source_type injection
@@ -3026,7 +3026,7 @@ fn test_BC_2_11_012_virtual_field_source_table_emits_typed_variant() {
 
 /// BC-2.11.012: non-canonical underscore name `_unknown_field` emits `Expr::Field`, not VirtualField.
 ///
-/// Only the five canonical names are promoted; other `_`-prefix analyst fields stay as `Expr::Field`.
+/// Only the four canonical names are promoted; other `_`-prefix analyst fields stay as `Expr::Field`.
 ///
 /// Traces: BC-2.11.012 (non-canonical underscore names remain Expr::Field)
 #[test]

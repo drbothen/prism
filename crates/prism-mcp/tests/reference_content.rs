@@ -79,7 +79,14 @@ fn test_bc_2_11_022_reference_content_completeness() {
     }
 
     // Error codes (BC-2.11.022 postcondition — E-QUERY quick-reference).
-    for code in &["E-QUERY-001", "E-QUERY-038", "E-QUERY-040"] {
+    for code in &[
+        "E-QUERY-001",
+        "E-QUERY-038",
+        "E-QUERY-040",
+        "E-QUERY-041",
+        "E-QUERY-042",
+        "E-QUERY-043",
+    ] {
         assert!(
             content.contains(code),
             "BC-2.11.022 AC-006: reference content must contain error code '{code}'"
