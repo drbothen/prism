@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 //! Red Gate tests for S-DEMO-QUERY-PUSHDOWN-001 v2.1
 //!
-//! Behavioral Contracts: BC-2.01.013 v1.14, BC-2.11.005 v1.6, BC-2.11.007 v1.8
+//! Behavioral Contracts: BC-2.01.013 v1.14, BC-2.11.005 (introduced v1.6), BC-2.11.007 v1.8
 //! Architecture: ADR-033 T1 (pre-fan-out time-window extraction)
 //!
 //! # Covered ACs
@@ -38,7 +38,7 @@
 //! All other ACs are un-gated integration tests that use the DTU directly.
 //!
 //! Story: S-DEMO-QUERY-PUSHDOWN-001 v2.1
-//! BCs: BC-2.01.013 v1.14, BC-2.11.005 v1.6, BC-2.11.007 v1.8
+//! BCs: BC-2.01.013 v1.14, BC-2.11.005 (introduced v1.6), BC-2.11.007 v1.8
 //! ADR: ADR-033 T1
 
 use std::collections::HashMap;

@@ -1254,13 +1254,15 @@ fn strip_path_from_authority(authority_and_rest: &str) -> &str {
 
 /// Classification of a PQL usage example (ADR-045).
 ///
-/// Used in `REFERENCE_EXAMPLES` to tag each example for the 3-tier CI gate
+/// Used in `REFERENCE_EXAMPLES` to tag each example for the 4-tier CI gate
 /// and for the `build_reference_content` runtime injector.
 ///
 /// Variants match the BC-2.11.022 / ADR-045 D3 mandate:
 /// - `Positive` → Tier 1 (positive examples that MUST parse successfully)
 /// - `NegativeE040` → Tier 2 (E-QUERY-040 dual-limit examples — gate asserts RedundantRowLimit)
 /// - `NegativeOther` → Tier 3 (other error quick-reference / self-correction examples)
+/// - `NegativeE043` → Tier 4 (E-QUERY-043 projection-position IN-subquery examples —
+///   gate asserts ExprInSubqueryProjectionNotSupported; F-CSD-P25-003)
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExampleKind {
@@ -1273,13 +1275,19 @@ pub enum ExampleKind {
     /// Tier 3: other error quick-reference entries (E-QUERY-001, E-QUERY-038, etc.).
     /// May be comment-prefixed; these are excluded from the positive round-trip gate.
     NegativeOther,
+    /// Tier 4: E-QUERY-043 projection-position IN-subquery examples (F-CSD-P25-003).
+    /// Every entry MUST produce `PrismError::ExprInSubqueryProjectionNotSupported` when
+    /// executed. DataFusion 53.1.0 does not support `InSubquery` in scalar (projection)
+    /// positions — use a WHERE clause IN-subquery or a JOIN instead.
+    NegativeE043,
 }
 
 /// Canonical reference examples shared by `build_reference_content` and the
-/// 3-tier CI gate (ADR-045 §B).
+/// 4-tier CI gate (ADR-045 §B).
 ///
 /// Each tuple is `(kind, title, pql_snippet)`. The CI gate asserts that at least
-/// one `Positive`, one `NegativeE040`, and one `NegativeOther` example is present.
+/// one `Positive`, one `NegativeE040`, one `NegativeOther`, and one `NegativeE043`
+/// example is present.
 ///
 /// **ADR-044 INTERVAL format:** Duration strings use the `Nh` / `Nd` unit suffix
 /// (e.g., `'7d'` = 7 days, `'24h'` = 24 hours). Full English words like `'7 days'`
@@ -1389,12 +1397,24 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
         "E-QUERY-038 column not found",
         "-- E-QUERY-038: column not found. Run prism_describe to see available columns.",
     ),
+    // F-CSD-P25-003 load-bearing E-QUERY-043 entry (parity gate lock).
+    // Projection-position IN (SELECT ...) is not supported by DataFusion 53.1.0 physical
+    // planner. Without this gate the error surfaces as opaque QueryExecutionFailed (-32000).
+    // Fix: use WHERE field IN (SELECT ...) or a JOIN instead.
+    // BC-2.10.014 AC-008: no vendor table names — use generic `sensor_table` placeholder.
+    // E-QUERY-043 fires at plan time on the AST structure before any table lookup,
+    // so the specific table name does not affect which error is returned.
+    (
+        ExampleKind::NegativeE043,
+        "Negative: E-043 IN-subquery in projection (forbidden)",
+        "SELECT (device_id IN (SELECT device_id FROM sensor_table)) AS flag FROM sensor_table",
+    ),
 ];
 
 /// Build the `prismql://reference` resource content at runtime (ADR-045 §A).
 ///
 /// Assembles the PQL grammar reference as a runtime Markdown document so that
-/// infusion examples, sensor-specific tables, and the 3-tier example set can
+/// infusion examples, sensor-specific tables, and the 4-tier example set can
 /// be injected at query time rather than baked in at compile time.
 ///
 /// # Parameters
@@ -1403,7 +1423,7 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
 ///   field mappings. When `None`, the infusion section shows a placeholder.
 ///
 /// # Contract (BC-2.11.022, ADR-045 §B)
-/// - MUST include at least one example from each `ExampleKind` tier (Positive, NegativeE040, NegativeOther).
+/// - MUST include at least one example from each `ExampleKind` tier (Positive, NegativeE040, NegativeOther, NegativeE043).
 /// - MUST round-trip all `Positive` PQL snippets through the Chumsky parser.
 /// - MUST include the infusion placeholder when `infusion_registry` is `None`.
 /// - The CI gate (`crates/prism-mcp/tests/reference_content.rs`) asserts these invariants.
@@ -1494,7 +1514,7 @@ pub fn build_reference_content(
          `count()`, `sum(field)`, `avg(field)`, `min(field)`, `max(field)`, \
          `percentile(field, p)`, `distinct_count(field)`.\n\n\
          **Virtual fields** injected into every result:\n\
-         `_sensor`, `_client`, `_source_table`, `_safety_flags`.\n\n\
+         `_sensor`, `_client`, `_source_table`, `_source_type`.\n\n\
          Column names come verbatim from `prism_describe` — do not construct dot-path names.\n\n",
     );
 
@@ -1529,7 +1549,10 @@ pub fn build_reference_content(
          | **E-QUERY-037** | Table not available — sensor not configured for this client | Run `prism_describe(client_id)` to see available tables and sensors |\n\
          | **E-QUERY-038** | Column not found | Run `prism_describe(client_id, table)` to see available columns |\n\
          | **E-QUERY-039** | Enrichment infusion not registered | Call `list_infusions` to see available enrichment functions |\n\
-         | **E-QUERY-040** | FORBID-BOTH — both SQL LIMIT and pipe `| limit` in same query | Remove one of the two LIMIT clauses |\n\n",
+         | **E-QUERY-040** | FORBID-BOTH — both SQL LIMIT and pipe `| limit` in same query | Remove one of the two LIMIT clauses |\n\
+         | **E-QUERY-041** | Datetime column compared against date-only or offset-less literal — RFC-3339 UTC required | Use RFC-3339 UTC format (e.g., `'2026-07-03T00:00:00Z'`); for relative windows, use `NOW() - INTERVAL 'Nh'` |\n\
+         | **E-QUERY-042** | Temporal literal in GROUP BY, ORDER BY, or non-column LHS comparison — constant or unresolvable position | Reference an unquoted column name in GROUP BY/ORDER BY; for function-expression comparisons, use RFC-3339 or an explicit CAST |\n\
+         | **E-QUERY-043** | `IN` subquery in SELECT projection, GROUP BY, or ORDER BY position — not supported | Rewrite as `WHERE field IN (SELECT ...)` or use a JOIN |\n\n",
     );
 
     // ── Enrichment Section ────────────────────────────────────────────────────
@@ -1583,6 +1606,7 @@ pub fn build_reference_content(
     let mut positive_entries: Vec<(&str, &str)> = Vec::new();
     let mut negative_e040_entries: Vec<(&str, &str)> = Vec::new();
     let mut negative_other_entries: Vec<(&str, &str)> = Vec::new();
+    let mut negative_e043_entries: Vec<(&str, &str)> = Vec::new();
 
     for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
         // LOW-002 fix: exhaustive match (no matches!() filter) — within the defining
@@ -1595,6 +1619,8 @@ pub fn build_reference_content(
             ExampleKind::Positive => positive_entries.push((title, snippet)),
             ExampleKind::NegativeE040 => negative_e040_entries.push((title, snippet)),
             ExampleKind::NegativeOther => negative_other_entries.push((title, snippet)),
+            // F-CSD-P25-003: Tier 4 — projection-position IN-subquery (E-QUERY-043).
+            ExampleKind::NegativeE043 => negative_e043_entries.push((title, snippet)),
         }
     }
 
@@ -1611,6 +1637,18 @@ pub fn build_reference_content(
          Do NOT use both SQL `LIMIT` and pipe `| limit` in the same query.\n\n",
     );
     for (title, snippet) in &negative_e040_entries {
+        out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
+    }
+
+    // Render E-QUERY-043 negative examples section (F-CSD-P25-003).
+    // Projection-position IN-subquery is not supported by DataFusion 53.1.0 physical planner.
+    out.push_str("### E-QUERY-043 Negative Examples\n\n");
+    out.push_str(
+        "The following queries place `IN (SELECT ...)` in the SELECT projection (E-QUERY-043). \
+         Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`, \
+         or rewrite as a JOIN.\n\n",
+    );
+    for (title, snippet) in &negative_e043_entries {
         out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
     }
 

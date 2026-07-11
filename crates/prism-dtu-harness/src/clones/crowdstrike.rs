@@ -81,6 +81,13 @@ const HOST_COUNT: usize = 30;
 /// Maximum concurrent sessions in the LRU registry.
 const SESSION_REGISTRY_CAPACITY: usize = 1_000;
 
+/// Maximum ids per batch for `POST /devices/entities/devices/v2` (PostDeviceDetailsV2).
+///
+/// Mirrors the CrowdStrike-documented batch limit and the standalone DTU's
+/// `MAX_IDS_PER_BATCH` constant (INV-HARNESS-ROUTE-PARITY). Guards against
+/// CWE-400 (Uncontrolled Resource Consumption) on crafted over-large request bodies.
+const MAX_IDS_PER_BATCH: usize = 5_000;
+
 // ---------------------------------------------------------------------------
 // State types
 // ---------------------------------------------------------------------------
@@ -248,15 +255,117 @@ fn shuffle_by_seed(ids: &[String], seed: u64) -> Vec<String> {
 }
 
 /// Generate a detection detail record for the given ID.
-fn detection_detail(detection_id: &str) -> Value {
+///
+/// Emits all columns declared in `crowdstrike.sensor.toml` `detections` table so the
+/// spec-engine can normalize non-NULL values in demo and pipeline test scenarios.
+///
+/// # F-CSD-P29-006 — full TOML column coverage
+///
+/// Previous shape emitted only `detection_id`, `status`, `severity`, nested `device{}`.
+/// This caused the spec-engine to normalize NULL for `created_timestamp`, `tactic`,
+/// `technique`, `device_id` (root), and all four IOC columns — the same class of
+/// defect previously closed for `host_detail()` (OBS-1 devices-table coverage fix).
+///
+/// # F-CSD-P30-OBS-003 — real host-pool device_id (architect Option A 2026-07-11)
+///
+/// `device_id` at root AND nested `device.device_id` are now derived from
+/// `generate_host_ids(org_slug, seed)` via `det_index % host_pool.len()` so that
+/// PrismQL JOIN queries (`detections.device_id = devices.device_id`) produce non-empty
+/// results. The previous value `"placeholder"` was not in the host pool, causing every
+/// such JOIN to return 0 rows (DEFECT-CSDEVICES-EMPTY-PIPELINE-001).
+///
+/// # F-CSD-P31-OBS-001 — stable det_index from detection_id (BC-2.16.013 v1.31)
+///
+/// `det_index` is derived internally from the trailing integer of `detection_id`
+/// (format `det-{org_slug}-{seed}-{NNN:03}` → parse `NNN`). This guarantees that
+/// the device_id mapping is stable regardless of which subset of IDs is requested —
+/// the same detection_id always maps to the same device_id regardless of its position
+/// in a batch POST body.
+///
+/// # F-CSD-P31-MED-001 — severity string label (BC-2.16.013 v1.31)
+///
+/// `severity` is emitted as a string label from `["Low","Medium","High","Critical"]`
+/// (same label set as `make_detection_with_ioc` in the standalone DTU generator).
+/// TOML: `detections.severity`, `column_type = "string"`.
+/// BC-2.16.013 INV-HARNESS-ROUTE-PARITY: numeric integer scores are forbidden.
+///
+/// Field inventory aligned to `crowdstrike.sensor.toml`:
+/// - `detection_id`           — string, REQUIRED
+/// - `status`                 — string
+/// - `severity`               — string label ("Low"/"Medium"/"High"/"Critical")
+/// - `created_timestamp`      — datetime, INDEX; needed for FQL time-window push-down
+/// - `tactic`                 — string, ocsf_field = "attack.tactic.name"
+/// - `technique`              — string, ocsf_field = "attack.technique.name"
+/// - `device_id` — string at ROOT (no source_path → reads $.device_id);
+///   mapped from host pool via `det_index % host_pool.len()`
+/// - `device{}` — nested object kept for backward compat; `device.device_id`
+///   equals root `device_id` (BC-2.16.013 INV-HARNESS-ROUTE-PARITY)
+/// - `behaviors[*].ioc_type`       — string, source_path "$.behaviors[*].ioc_type"
+/// - `behaviors[*].ioc_value`      — string|null; null is valid (no associated hash)
+/// - `behaviors[*].ioc_source`     — string, source_path "$.behaviors[*].ioc_source"
+/// - `behaviors[*].ioc_description`— string, source_path "$.behaviors[*].ioc_description"
+fn detection_detail(detection_id: &str, org_slug: &str, seed: u64) -> Value {
+    // F-CSD-P31-OBS-001: derive det_index from the trailing integer of the
+    // detection_id format det-{org_slug}-{seed}-{NNN:03} → NNN.
+    // Parsing via rsplit('-') handles org_slugs that contain hyphens (e.g. "acme-corp").
+    // SAFE FALLBACK: on parse failure (malformed id), use 0 — harness IDs are always
+    // well-formed (det-{org}-{seed}-{NNN:03}) but we never panic.
+    let det_index = detection_id
+        .rsplit('-')
+        .next()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(0); // safe fallback: harness ids are always det-{org}-{seed}-{NNN:03}
+
+    // F-CSD-P30-OBS-003: derive device_id from the host pool so JOIN queries
+    // (detections.device_id = devices.device_id) produce non-empty results.
+    let host_ids = generate_host_ids(org_slug, seed);
+    // SEC-002/CWE-369: generate_host_ids is deterministic (HOST_COUNT = 30 > 0) so
+    // host_ids is never empty in practice. The debug_assert catches any future
+    // HOST_COUNT=0 regression during dev/test; the release fallback prevents a panic
+    // in production without altering observable behavior for the non-empty case
+    // (BC-2.16.013 v1.31 host-pool mapping invariant preserved).
+    debug_assert!(
+        !host_ids.is_empty(),
+        "generate_host_ids must never return empty; org_slug={org_slug:?} seed={seed}"
+    );
+    let device_id: &str = if host_ids.is_empty() {
+        "unknown-device"
+    } else {
+        &host_ids[det_index % host_ids.len()]
+    };
+
+    // F-CSD-P31-MED-001: severity as string label matching standalone DTU
+    // make_detection_with_ioc (severity_id 1→"Low", 2→"Medium", 3→"High", _→"Critical").
+    // Cycle by det_index for deterministic variety; all labels are valid per BC-2.16.013.
+    const SEVERITY_LABELS: [&str; 4] = ["Low", "Medium", "High", "Critical"];
+    let severity = SEVERITY_LABELS[det_index % SEVERITY_LABELS.len()];
+
     json!({
         "detection_id": detection_id,
         "status": "new",
-        "severity": 50,
+        "severity": severity,
+        // F-CSD-P29-006: full TOML column coverage (harness shape parity, per devices precedent)
+        "created_timestamp": "2026-01-01T00:00:00Z",
+        "tactic": "Initial Access",
+        "technique": "Phishing",
+        // device_id at top-level (TOML column name = "device_id", no source_path → $.device_id)
+        // F-CSD-P30-OBS-003: real host-pool member, not "placeholder"
+        "device_id": device_id,
+        // Keep nested device object for backward compat with harness HTTP-layer tests.
+        // BC-2.16.013 INV-HARNESS-ROUTE-PARITY: nested device.device_id must equal root device_id.
         "device": {
-            "device_id": "placeholder",
-            "hostname": "example-host"
-        }
+            "device_id": device_id,
+            "hostname": format!("{device_id}.example.com")
+        },
+        // behaviors array: satisfies $.behaviors[*].ioc_{type,value,source,description}
+        // ioc_value is null: valid (detection with no associated IOC hash) — explicit null,
+        // not absent key (absent → silent empty; null → correct Arrow null).
+        "behaviors": [{
+            "ioc_type": "hash_sha256",
+            "ioc_value": null,
+            "ioc_source": "catalog",
+            "ioc_description": "scenario IOC"
+        }]
     })
 }
 
@@ -269,6 +378,7 @@ fn host_detail(device_id: &str, containment_status: &str) -> Value {
         "os_version": "Ubuntu 22.04",
         "status": "normal",
         "containment_status": containment_status,
+        "first_seen": "2026-01-01T00:00:00Z",
         "last_seen": "2026-01-02T09:00:00Z",
         "external_ip": "203.0.113.1",
         "local_ip": "10.0.0.1",
@@ -406,6 +516,20 @@ struct DeviceActionBody {
 
 #[derive(Debug, Deserialize)]
 struct DetectionSummariesBody {
+    pub ids: Vec<String>,
+}
+
+/// Request body for `POST /devices/entities/devices/v2`.
+///
+/// Mirrors `DetectionSummariesBody` — same pattern, same empty-ids validation rule.
+///
+/// Not a pub TOML-deserialized type (only used as a JSON request body in the DTU
+/// handler), so `#[non_exhaustive]` is NOT required — the compile-fail gate at
+/// `tests/external/non-exhaustive-violation/` targets TOML-deserialized and
+/// pub-API surface types, not internal DTU request body structs.
+/// (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 D-1650 ratification §Contract Part 2)
+#[derive(Debug, Deserialize)]
+struct PostHostDetailsBody {
     pub ids: Vec<String>,
 }
 
@@ -602,9 +726,11 @@ async fn get_detection_summaries(
         body.ids.clone()
     };
 
+    // F-CSD-P31-OBS-001: det_index is now derived inside detection_detail from the
+    // trailing integer of each detection_id — no enumerate() needed (TD-VSDD-060).
     let resources: Vec<Value> = allowed_ids
         .into_iter()
-        .map(|id| detection_detail(&id))
+        .map(|id| detection_detail(&id, &state.org_slug, state.seed))
         .collect();
 
     (StatusCode::OK, Json(json!({ "resources": resources }))).into_response()
@@ -771,7 +897,22 @@ async fn get_host_details(
     }
 
     let requested_ids = parse_ids_from_query(raw_query.as_deref());
+    host_details_inner(state, headers, requested_ids).await
+}
 
+/// Shared host-detail resolution logic — called by both `get_host_details` and
+/// `post_host_details` after auth checks and ID extraction.
+///
+/// Performs session-registry filtering and containment merge for the given
+/// `requested_ids`, returning the `{"resources": [...]}` JSON response.
+///
+/// Extracted to satisfy D-1650 §Contract Part 2: "extract a SHARED helper so GET and
+/// POST paths do not duplicate logic (wiring, not copy-paste)."
+async fn host_details_inner(
+    state: Arc<CrowdStrikeHarnessState>,
+    headers: HeaderMap,
+    requested_ids: Vec<String>,
+) -> Response {
     #[allow(clippy::expect_used)]
     let containment = state
         .containment_store
@@ -821,6 +962,65 @@ async fn get_host_details(
         .collect();
 
     (StatusCode::OK, Json(json!({ "resources": resources }))).into_response()
+}
+
+/// `POST /devices/entities/devices/v2`
+///
+/// Batch host detail fetch by POST body. Body: `{"ids": ["h-001", "h-002", ...]}`.
+/// Returns HTTP 400 when `ids` is empty (mirrors detections `get_detection_summaries`).
+///
+/// All other behavior (auth, failure injection, session registry, containment merge)
+/// is identical to `get_host_details` — both delegate to `host_details_inner`.
+///
+/// # DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / F-CSD-P9-001 (BC-2.16.013 INV-HARNESS-ROUTE-PARITY)
+///
+/// The standalone DTU registers both GET and POST on this path; the harness clone
+/// must mirror that verb surface on both `build_crowdstrike_router` and
+/// `build_crowdstrike_network_router`.
+async fn post_host_details(
+    State(state): State<Arc<CrowdStrikeHarnessState>>,
+    headers: HeaderMap,
+    Json(body): Json<PostHostDetailsBody>,
+) -> Response {
+    let count = state.increment_request();
+    let mode = state.current_failure_mode();
+
+    if let FailureMode::NetworkTimeout { after_ms } = &mode {
+        if *after_ms > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(*after_ms + 1)).await;
+        }
+    }
+
+    if let Some(resp) = apply_failure_mode(&mode, count) {
+        return resp;
+    }
+
+    if let Some(resp) = check_bearer_auth(&headers) {
+        return resp;
+    }
+
+    if body.ids.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "errors": [{"code": 400, "message": "ids array must not be empty"}]
+            })),
+        )
+            .into_response();
+    }
+    // SEC-001/CWE-400: enforce CrowdStrike PostDeviceDetailsV2 documented batch limit
+    // (INV-HARNESS-ROUTE-PARITY: mirrors the standalone DTU's MAX_IDS_PER_BATCH guard).
+    if body.ids.len() > MAX_IDS_PER_BATCH {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "errors": [{"code": 400, "message": "ids array exceeds maximum batch size of 5000"}]
+            })),
+        )
+            .into_response();
+    }
+
+    host_details_inner(state, headers, body.ids).await
 }
 
 /// `POST /devices/entities/devices-actions/v2`
@@ -1155,7 +1355,10 @@ pub fn build_crowdstrike_router(state: Arc<CrowdStrikeHarnessState>) -> Router {
         )
         // Host read endpoints.
         .route("/devices/queries/devices/v1", get(list_host_ids))
-        .route("/devices/entities/devices/v2", get(get_host_details))
+        .route(
+            "/devices/entities/devices/v2",
+            get(get_host_details).post(post_host_details),
+        )
         // Write endpoints.
         .route("/devices/entities/devices-actions/v2", post(device_actions))
         .route("/detects/entities/detects/v2", patch(patch_detections))
@@ -1382,7 +1585,10 @@ pub fn build_crowdstrike_network_router(state: Arc<CrowdStrikeHarnessState>) -> 
         )
         // Host read endpoints — bearer-guarded for network mode.
         .route("/devices/queries/devices/v1", get(host_list_guarded))
-        .route("/devices/entities/devices/v2", get(get_host_details))
+        .route(
+            "/devices/entities/devices/v2",
+            get(get_host_details).post(post_host_details),
+        )
         // Write endpoints.
         .route("/devices/entities/devices-actions/v2", post(device_actions))
         .route("/detects/entities/detects/v2", patch(patch_detections))

@@ -4428,3 +4428,151 @@ mod pagination_post_body_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod store_step_vars_tests {
+    use std::collections::HashMap;
+
+    use crate::spec_parser::FetchStep;
+
+    use super::store_step_vars;
+
+    // -----------------------------------------------------------------------
+    // F-CSD-P24-OBS-002: lock the `store_step_vars` last-segment fallback contract
+    //
+    // When `variables_produced` is empty (no explicit variables declared), `store_step_vars`
+    // derives a key from the last dotted segment of `response_path` via:
+    //   `response_path.split('.').next_back()` → key `"{step_name}.{last_seg}"`
+    //
+    // Real-world use: crowdstrike.sensor.toml's `query_detection_ids` step has
+    // `response_path = "$.resources"` and `variables_produced = []` (implicit).
+    // The `post_detection_summaries` step's body_template references
+    // `${query_detection_ids.resources}` — that variable is populated by this fallback.
+    // Without it the fan-out array would never be found and the second step would send
+    // an empty IDs list to the CrowdStrike API.
+    //
+    // These unit tests call `store_step_vars` directly (it is a private function;
+    // access is permitted within the same file's `#[cfg(test)]` modules).
+    // -----------------------------------------------------------------------
+
+    /// F-CSD-P24-OBS-002 / BC-2.16.002 §Postconditions:
+    /// `store_step_vars` last-segment fallback — a step with `variables_produced = []`
+    /// and `response_path = "$.resources"` must insert key `"{step_name}.resources"`
+    /// into `step_vars` with the extracted value.
+    ///
+    /// This is the mechanism that makes `${query_detection_ids.resources}` resolvable
+    /// in the next step's body_template without an explicit `variables_produced` entry
+    /// in the TOML spec (crowdstrike.sensor.toml `query_detection_ids` step).
+    #[test]
+    fn test_F_CSD_P24_OBS_002_store_step_vars_last_segment_fallback_key_stored() {
+        let step = FetchStep {
+            name: "query_detection_ids".to_string(),
+            response_path: "$.resources".to_string(),
+            variables_produced: vec![],
+            ..Default::default()
+        };
+
+        let body = serde_json::json!({ "resources": ["id-001", "id-002"] });
+        let extracted = serde_json::json!(["id-001", "id-002"]);
+        let mut step_vars: HashMap<String, serde_json::Value> = HashMap::new();
+
+        store_step_vars(&step, &body, &extracted, &mut step_vars);
+
+        // LOCK: last-segment fallback must produce key "query_detection_ids.resources".
+        let key = "query_detection_ids.resources";
+        assert!(
+            step_vars.contains_key(key),
+            "F-CSD-P24-OBS-002: store_step_vars fallback must insert key '{key}' \
+             (last path segment of response_path '$.resources'). \
+             This is the mechanism that makes ${{query_detection_ids.resources}} \
+             resolvable in the next step's body_template. \
+             got step_vars keys: {:?}",
+            step_vars.keys().collect::<Vec<_>>()
+        );
+
+        // The stored value must be the extracted value, not the raw body.
+        assert_eq!(
+            step_vars[key], extracted,
+            "F-CSD-P24-OBS-002: store_step_vars fallback must store the extracted value \
+             under key '{key}'. got: {:?}",
+            step_vars[key]
+        );
+    }
+
+    /// F-CSD-P24-OBS-002b: `or_insert_with` guard — when a `variables_produced` entry has
+    /// already populated the same key, the last-segment fallback must NOT overwrite it.
+    ///
+    /// This tests the `step_vars.entry(key).or_insert_with(|| extracted.clone())` guard:
+    /// the fallback uses `or_insert_with` so that an explicitly declared variable (from the
+    /// `variables_produced` loop above it) is never clobbered by the implicit fallback.
+    #[test]
+    fn test_F_CSD_P24_OBS_002b_store_step_vars_fallback_does_not_overwrite_variables_produced() {
+        // Step that declares "resources" in variables_produced AND has response_path "$.resources".
+        // The variables_produced loop populates the key first; the fallback must skip it.
+        let step = FetchStep {
+            name: "fetch_ids".to_string(),
+            response_path: "$.resources".to_string(),
+            variables_produced: vec!["resources".to_string()],
+            ..Default::default()
+        };
+
+        let body = serde_json::json!({ "resources": ["id-001", "id-002"] });
+        // extracted is a sentinel distinct from body["resources"] — if the fallback
+        // overwrites the variables_produced value with extracted, this test fails.
+        let extracted = serde_json::json!(["SHOULD_NOT_OVERWRITE"]);
+        let mut step_vars: HashMap<String, serde_json::Value> = HashMap::new();
+
+        store_step_vars(&step, &body, &extracted, &mut step_vars);
+
+        // variables_produced path writes body["resources"] under "fetch_ids.resources" first.
+        let key = "fetch_ids.resources";
+        assert!(
+            step_vars.contains_key(key),
+            "F-CSD-P24-OBS-002b: key '{key}' must exist (set by variables_produced loop)"
+        );
+        // The value must be from variables_produced (body["resources"]), not from extracted.
+        assert_eq!(
+            step_vars[key],
+            serde_json::json!(["id-001", "id-002"]),
+            "F-CSD-P24-OBS-002b: or_insert_with must NOT overwrite the variables_produced \
+             value with the extracted fallback. The `entry().or_insert_with()` guard must \
+             preserve the value set by the variables_produced loop. got: {:?}",
+            step_vars[key]
+        );
+    }
+
+    /// F-CSD-P24-OBS-002c: nested response_path segment — `response_path = "$.data.items"`
+    /// must store key `"{step_name}.items"` (the LAST segment after splitting on '.').
+    ///
+    /// This verifies that the `next_back()` implementation selects the last segment
+    /// regardless of path depth.
+    #[test]
+    fn test_F_CSD_P24_OBS_002c_store_step_vars_nested_response_path_last_segment_used() {
+        let step = FetchStep {
+            name: "fetch_results".to_string(),
+            response_path: "$.data.items".to_string(),
+            variables_produced: vec![],
+            ..Default::default()
+        };
+
+        let body = serde_json::json!({ "data": { "items": ["a", "b"] } });
+        let extracted = serde_json::json!(["a", "b"]);
+        let mut step_vars: HashMap<String, serde_json::Value> = HashMap::new();
+
+        store_step_vars(&step, &body, &extracted, &mut step_vars);
+
+        // The last segment of "$.data.items" is "items" (split on '.', next_back).
+        let key = "fetch_results.items";
+        assert!(
+            step_vars.contains_key(key),
+            "F-CSD-P24-OBS-002c: last segment of '$.data.items' must produce key '{key}'. \
+             got step_vars keys: {:?}",
+            step_vars.keys().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            step_vars[key], extracted,
+            "F-CSD-P24-OBS-002c: stored value must be extracted; got: {:?}",
+            step_vars[key]
+        );
+    }
+}

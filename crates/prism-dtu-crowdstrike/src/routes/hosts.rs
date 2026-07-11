@@ -8,12 +8,19 @@ use std::sync::Arc;
 use axum::{
     extract::{Query, RawQuery, State},
     http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Json},
+    response::{IntoResponse, Json, Response},
 };
 use prism_core::OrgId;
 use serde::Deserialize;
 
 use crate::state::{CrowdstrikeState, SessionData};
+
+/// Maximum ids per batch for `POST /devices/entities/devices/v2` (PostDeviceDetailsV2).
+///
+/// Mirrors the CrowdStrike-documented batch limit. Guards against CWE-400
+/// (Uncontrolled Resource Consumption) on crafted over-large request bodies.
+/// Returns HTTP 400 with a descriptive error when exceeded.
+const MAX_IDS_PER_BATCH: usize = 5_000;
 
 /// Query params for host ID list.
 #[derive(Debug, Deserialize, Default)]
@@ -371,16 +378,105 @@ pub async fn get_host_details(
     }
 
     let requested_ids = parse_ids_from_query(raw_query.as_deref());
+    host_details_inner(state, headers, requested_ids).await
+}
 
+/// Request body for `POST /devices/entities/devices/v2`.
+///
+/// Mirrors `GetDetectionSummariesBody` in `detections.rs` — same pattern, same
+/// empty-ids validation rule.
+///
+/// `PostHostDetailsBody` is NOT a pub TOML-deserialized type (it is only used as
+/// a JSON request body in the DTU handler), so `#[non_exhaustive]` is NOT required —
+/// the compile-fail gate at `tests/external/non-exhaustive-violation/` targets
+/// TOML-deserialized and pub-API surface types, not internal DTU request body structs.
+/// (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 D-1650 ratification §Contract Part 2)
+///
+/// `pub(crate)` — axum handler and JSON deserializer are in the same crate; no
+/// external consumers. Tightened from `pub` (OBS-007 / F-CSD-P14-007).
+#[derive(Debug, serde::Deserialize)]
+pub(crate) struct PostHostDetailsBody {
+    /// Device IDs to retrieve details for.
+    pub ids: Vec<String>,
+}
+
+/// `POST /devices/entities/devices/v2`
+///
+/// Batch host detail fetch by POST body. Body: `{"ids": ["h-001", "h-002", ...]}`.
+/// Returns HTTP 400 when `ids` is empty (mirrors detections `get_detection_summaries`).
+///
+/// All other behavior (auth, org-id guard, session registry, containment merge,
+/// three-way composition) is identical to `get_host_details` — both delegates to
+/// `host_details_inner`.
+///
+/// # DEFECT-CSDEVICES-EMPTY-PIPELINE-001 (D-1650 ratification §Contract Part 2)
+///
+/// The CrowdStrike canonical endpoint for bulk host detail retrieval is
+/// `POST /devices/entities/devices/v2` (PostDeviceDetailsV2, FalconPy v1.2.0+).
+/// This handler is the DTU implementation, providing the POST route required by
+/// the updated `crowdstrike.sensor.toml` `fetch_devices` step.
+pub(crate) async fn post_host_details(
+    State(state): State<Arc<CrowdstrikeState>>,
+    headers: HeaderMap,
+    Json(body): Json<PostHostDetailsBody>,
+) -> impl IntoResponse {
+    if let Err(e) = check_auth(&headers) {
+        return *e;
+    }
+    // W3-FIX-SEC-001: validate X-Org-Id against instance_org_id (same guard as GET).
+    if state.instance_org_id != OrgId::from_uuid(uuid::Uuid::nil()) {
+        if let Err((status, body_err)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body_err).into_response();
+        }
+    }
+    if body.ids.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "errors": [{"code": 400, "message": "ids array must not be empty"}]
+            })),
+        )
+            .into_response();
+    }
+    // SEC-001/CWE-400: enforce CrowdStrike PostDeviceDetailsV2 documented batch limit.
+    if body.ids.len() > MAX_IDS_PER_BATCH {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "errors": [{"code": 400, "message": "ids array exceeds maximum batch size of 5000"}]
+            })),
+        )
+            .into_response();
+    }
+    host_details_inner(state, headers, body.ids).await
+}
+
+/// Shared host-detail resolution logic — called by both `get_host_details` and
+/// `post_host_details` after auth checks and ID extraction.
+///
+/// Performs three-way composition (scenario/seeded/static fixtures), session-registry
+/// filtering, and containment merge for the given `requested_ids`, returning the
+/// `{"resources": [...]}` JSON response.
+///
+/// Extracted to satisfy D-1650 §Contract Part 2: "extract a SHARED helper so GET and
+/// POST paths do not duplicate logic (wiring, not copy-paste)."
+///
+/// # Three-way composition (ADR-036 v2.3 §2.4, BC-2.06.019 PC-4, B-P1-01)
+///
+/// - Scenario path (fixture_gen_seeded=true && timeline.is_some()): apply StageMask +
+///   containment_status override ("normal") for pre-containment stages (stage < 4).
+///   AC-008 / TV-019-011: containment_status="contained" only visible at stage 4.
+/// - Seeded path (fixture_gen_seeded=true && timeline.is_none()): all generated records.
+/// - Static path (fixture_gen_seeded=false): load from embedded fixture.
+///
+/// Uses fixture_gen_seeded (not generated_devices.is_empty()) — DormantTenant guard
+/// (F-P6-HIGH-001 / ADR-036 v2.2).
+async fn host_details_inner(
+    state: Arc<CrowdstrikeState>,
+    headers: HeaderMap,
+    requested_ids: Vec<String>,
+) -> Response {
     let org_id = extract_org_id(&headers);
-
-    // Three-way composition (ADR-036 v2.3 §2.4, BC-2.06.019 PC-4, B-P1-01):
-    // - Scenario path (fixture_gen_seeded=true && timeline.is_some()): apply StageMask +
-    //   containment_status override to "normal" for pre-containment stages (stage < 4).
-    //   AC-008 / TV-019-011: containment_status="contained" only visible at stage 4.
-    // - Seeded path (fixture_gen_seeded=true && timeline.is_none()): all generated records.
-    // - Static path (fixture_gen_seeded=false): load from embedded fixture.
-    // Use fixture_gen_seeded (not is_empty()) — DormantTenant guard. F-P6-HIGH-001 / ADR-036 v2.2.
 
     // For the scenario path we also need stage context for containment_status override.
     // Compute once and reuse in both the fixture-build and the resource-assembly steps.

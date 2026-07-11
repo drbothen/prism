@@ -2486,7 +2486,7 @@ fn check_column_availability(
 /// column projection and DataFusion handles field resolution in those modes.
 ///
 /// # BC-2.11.016 / S-DEMO-PRISMQL-ONBOARDING-001-B
-fn check_query_column_availability(
+pub(crate) fn check_query_column_availability(
     query_str: &str,
     client_id: &str,
     org_scope: Option<&[prism_core::OrgSlug]>,

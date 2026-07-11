@@ -48,7 +48,7 @@
 //! prism-spec-engine/tests/parity/armis.rs now cites BOTH this test AND
 //! `test_ac_armis_tw_001_time_window_augmented_into_aql` as its in-process coverage.
 //!
-//! BCs: BC-2.01.013 v1.14, BC-2.11.007 v1.8, BC-2.11.005 v1.6
+//! BCs: BC-2.01.013 v1.14, BC-2.11.007 v1.8, BC-2.11.005 (introduced v1.6)
 //! ADR: ADR-033 T1, ADR-022 §C
 //! Story: S-DEMO-QUERY-PUSHDOWN-001 v2.1 ADV-P02 fix-burst
 
