@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "operational-pipeline"
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -182,7 +182,7 @@ Ordered multi-event pattern matching. New records advance the persisted sequence
 
 When a detection rule fires:
 1. Generate `alert_id` (UUID v7, time-sortable)
-2. **Snapshot matched events** — While the differential RecordBatch is still in memory, extract `EventSnapshot` for each matched record. This captures the hot column values (severity, hostname, IP, time, message, OCSF class), virtual fields (_sensor, _client, _source_table), and an excerpt of the `event_data` JSON blob (configurable, default 4096 bytes). This is the only opportunity to capture the event data — after SessionContext teardown, the sensor data is gone.
+2. **Snapshot matched events** — While the differential RecordBatch is still in memory, extract `EventSnapshot` for each matched record. This captures the hot column values (severity, hostname, IP, time, message, OCSF class), virtual fields (_sensor, _client, _source_table, _source_type), and an excerpt of the `event_data` JSON blob (configurable, default 4096 bytes). This is the only opportunity to capture the event data — after SessionContext teardown, the sensor data is gone.
 3. Render alert template with variable interpolation (4 resolution levels)
 4. Check deduplication key (varies by match mode)
 5. Run injection scanner on interpolated sensor values and snapshot data (flag, don't strip)
@@ -311,3 +311,4 @@ The entire detection → enrichment → notification chain happened automaticall
 |---------|------|--------|--------|
 | 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: Case scoping line updated TenantId → OrgSlug (ADR-006 Wave 3); added `## [Section Content]` template compliance marker. |
 | 1.2 | F-P23-H-001+M-001 | 2026-05-04 | architect | Pass 23 SUBSTANTIVE: D-209 8/8 split + ADR-013 §2.1 60s tick + ActionDeliveryEngine rename propagated. Sites: line 25 Mermaid Scheduler Tick label, line 135 prose, line 240 Mermaid participant. Pre-Pass-21 sweep target list missed this file (TD-VSDD-048 candidate — broad-sweep methodology needs grep-completeness enforcement). |
+| 1.3 | 2026-07-10 | product-owner | F-CSD-P23-001 POL-29 exhaustive sweep: §Step 2 EventSnapshot virtual fields updated — `(_sensor, _client, _source_table)` → `(_sensor, _client, _source_table, _source_type)` to reflect the 4th sensor-table virtual field added in BC-2.11.012 v1.7 (F-CSD-P19-003). Note: architect-scope doc updated by product-owner under explicit orchestrator direction (POL-29 exhaustive sweep applies to all .factory/specs/ files). |

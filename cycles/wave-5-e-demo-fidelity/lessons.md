@@ -2967,3 +2967,40 @@ The PO's code-verification caught the adversary's overstatement before it was lo
 **Implication for adversary protocol:** Adversary findings that claim a named identifier (function, variant, table name, enum value) is "absent" or "missing" from an implementation MUST be treated as provisional until PO code-verification runs. Do not auto-accept such claims as ground truth. The adversary operates from spec text and may have inspected an outdated or incomplete section.
 
 **Source:** D-1671 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-22 closure; F-CSD-P22-004 BC-2.11.012 short-name fix; POL-22 caught adversary prism_rules overstatement; 2026-07-10).
+
+---
+
+### Lesson 38 — [process-gap] POL-29 within-file sibling sweeps must be exhaustive per-variant, not stopping at the first corrected occurrence
+
+**Classification:** PROCESS-GAP — CSDEVICES pass-23 cascade D-1672 (2026-07-10).
+
+**Description:**
+
+During DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-22, finding F-CSD-P22-001 closed a spec-vs-spec co-mutation drift in BC-2.11.005: the DEC-022 §Postconditions bullet and one §Edge Cases row had been updated to enumerate FOUR virtual fields (incl `_source_type`), but the fix stopped there.
+
+Pass-23 (F-CSD-P23-001) found that two additional §Edge Cases rows in the SAME section (T32/T33 vectors) STILL said "three virtual fields" and omitted `_source_type`. These were sibling rows immediately adjacent to the row that was fixed in pass-22. The pass-22 POL-29 sweep was "per-file" but not "per-variant" — it corrected the DEC-022 bullet and one occurrence, then stopped, without grepping the same file exhaustively for ALL remaining instances of the stale enumeration.
+
+The pass-23 PO remediation applied an EXHAUSTIVE per-variant sweep across ALL of `.factory/specs/`. This sweep found:
+- The 2 target T32/T33 rows in BC-2.11.005 (the direct F-CSD-P23-001 targets)
+- 6 MORE files with the same stale-enumeration class, including BC-2.11.022 line 55 which still listed the RETIRED `_safety_flags` as the 4th VirtualField enum member
+
+The exhaustive sweep required bumping 7 artifacts total vs. 1 for a non-exhaustive fix. The 6 additional catches came essentially for free from running the same grep across all .factory/specs/ rather than stopping after the first hit.
+
+**Quantitative cost comparison:**
+
+| Approach | Artifacts fixed | Follow-on adversary passes required | Total cost |
+|----------|-----------------|--------------------------------------|------------|
+| Partial fix (stop at first hit) | 1 | 1+ (pass-23 found 2 more) | 2+ adversary pass round-trips |
+| Exhaustive per-variant sweep | 7 | 0 (closed the whole class) | 1 fix-burst, no follow-on |
+
+**Rule:**
+
+When executing a POL-29 sibling sweep for a stale enumeration value (e.g., "three virtual fields" or a retired variant name), the sweep MUST:
+1. Run `grep -r "<stale_string>" .factory/specs/` to find ALL occurrences workspace-wide (not just the file in scope)
+2. Classify each hit as FIX / EXEMPT-internal-table-context / EXEMPT-historical-changelog
+3. Fix ALL FIX-classified hits in the same burst — do NOT defer to subsequent passes
+4. Report the per-hit classification table in the fix-burst record so the adversary can verify completeness
+
+A partial sweep that fixes "the obvious one" and misses sibling rows in the same section is a POL-29 violation that generates a guaranteed follow-on adversary pass.
+
+**Source:** D-1672 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-23 closure; F-CSD-P23-001 POL-29 sibling-sweep gap; exhaustive per-variant sweep found 7 artifacts; 2026-07-10).

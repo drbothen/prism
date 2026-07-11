@@ -1,10 +1,10 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.175"
+version: "2.176"
 status: draft
 producer: architect
-timestamp: 2026-07-10T12:00:00Z
+timestamp: 2026-07-10T18:00:00Z
 phase: 1b
 inputs: [domain-spec/L2-INDEX.md, prd.md, prd-supplements/interface-definitions.md, prd-supplements/nfr-catalog.md, prd-supplements/error-taxonomy.md]
 traces_to: prd.md
@@ -26,10 +26,10 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 | Dependency Graph | dependency-graph.md | ~800 | story-writer, consistency-validator | Inter-crate dependencies, topological build order — v1.3 (P7: 12 on-disk DTU crates + 4 planned log-fwd, generator stories S-3.7.02–S-3.7.05, members-based snippet, bounded prism-core exception) |
 | API Surface | api-surface.md | ~1,000 | test-writer, implementer | MCP tool registry, error contract, resource/prompt surface — v1.6 (ActionEngine→ActionDeliveryEngine per F-PreP21-H-001) |
 | Data Layer | data-layer.md | ~1,000 | implementer, test-writer | RocksDB domains, Arrow materialization, caching strategy — v1.4 (19 CFs per storage.rs ALL_DOMAINS + planned case_dedup_idx, D-209 concurrency, ADR-016 §2.5 retry key) |
-| Query Engine | query-engine.md | ~1,200 | implementer, test-writer | PrismQL parser, DataFusion integration, fan-out pipeline — v1.3 (E-WATCHDOG D2 division of labor per error-taxonomy v1.68; D-209 8/8 + memory math per F-PreP24-H-002) |
+| Query Engine | query-engine.md | ~1,200 | implementer, test-writer | PrismQL parser, DataFusion integration, fan-out pipeline — v1.4 (E-WATCHDOG D2 division of labor per error-taxonomy v1.68; D-209 8/8 + memory math per F-PreP24-H-002; D-1672 POL-29 exhaustive sweep: VirtualField enumeration corrected from "three virtual fields" to all FOUR including `_source_type`) |
 | Sensor Adapters | sensor-adapters.md | ~1,000 | implementer, test-writer | Config-driven TOML specs, CustomAdapter escape hatch |
 | Security Architecture | security-architecture.md | ~1,000 | security-reviewer, implementer | Credentials, feature flags, audit, prompt injection defense |
-| Operational Pipeline | operational-pipeline.md | ~1,000 | implementer, test-writer | Scheduler, differential results, detection, alerts, cases — v1.2 (D-209 8/8 + 60s tick + ActionDeliveryEngine per F-P23-H-001) |
+| Operational Pipeline | operational-pipeline.md | ~1,000 | implementer, test-writer | Scheduler, differential results, detection, alerts, cases — v1.3 (D-209 8/8 + 60s tick + ActionDeliveryEngine per F-P23-H-001; D-1672 POL-29 exhaustive sweep: VirtualField enumeration corrected from "three virtual fields" to all FOUR including `_source_type`) |
 | Concurrency Architecture | concurrency-architecture.md | ~800 | implementer, formal-verifier | Tokio runtime, arc-swap, shared state protection — v1.1 (Mermaid diagram + 6 edits; 16-permit→8/8 split per D-209) |
 | Purity Boundary Map | purity-boundary-map.md | ~800 | implementer, formal-verifier | Pure core / effectful shell classification per crate |
 | Verification Architecture | verification-architecture.md | ~1,000 | formal-verifier, architect | Provable Properties Catalog, proof strategy — v1.42 (ADR-037 VP retirement: VP-095..107 retired in catalog; release gate 109 active P0 / 122 P0 rows) |
@@ -178,6 +178,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.176 | CSDEVICES-pass-23-POL-29-virtualfield-sweep | 2026-07-10 | state-manager | **F-CSD-P23-001 POL-29 exhaustive within-file sibling-sweep — 7 artifacts bumped.** query-engine.md v1.3→v1.4 + operational-pipeline.md v1.2→v1.3 (both had "three virtual fields" / omitted `_source_type` in VirtualField enumeration). Also bumped in same burst (tracked in BC-INDEX v7.90): BC-2.11.005 v1.11→v1.12, BC-2.15.009 v1.4→v1.5, BC-2.11.022 v1.1→v1.2, prd.md v1.12→v1.13, test-vectors.md v2.9→v2.10. Root cause: pass-22 P22-001 fix corrected DEC-022 bullet + one row in BC-2.11.005 §Edge Cases but missed two sibling rows (T32/T33) in the same section — POL-29 partial sweep. BC-2.11.022 line 55 also had RETIRED `_safety_flags` still listed as 4th VirtualField enum member. Code HEAD UNCHANGED 4f084a31 (frozen-HEAD rule; spec-layer-only fix). BC count UNCHANGED (active 257 / draft 0 / total 266). ARCH-INDEX v2.175→v2.176. D-1672. |
 | 2.175 | ADR-052-v1.11-literal-timestamp-co-trigger-groupby-orderby | 2026-07-10 | state-manager | **ADR-052 v1.10→v1.11: F-EQ42-P1-001 spec-propagation — arms 6/7 `Literal::Timestamp` co-trigger.** GROUP BY (arm 6) and ORDER BY (arm 7) updated: a `Literal::Timestamp` value (RFC-3339 fast-path product of `check_temporal_literals`) in GROUP BY/ORDER BY position also triggers E-QUERY-042 TemporalLiteralInvalidPosition. Closes the dead-arm defect: the pre-existing `RawTemporalLiteral` path was already handled; this amendment covers the Timestamp-typed literal pathway. Pass-through clarification subsection added. Behavior Reference Table + Red Gate rows updated. BC-2.11.021 v1.7→v1.8 + BC-2.11.003 v1.11→v1.12 (same amendment). error-taxonomy v2.36→v2.37. BC-INDEX v7.78→v7.79. STORY-INDEX v2.651→v2.652. ARCH-INDEX v2.174→v2.175. |
 | 2.174 | ADR-047-PROPOSED-v1.0→ACCEPTED-v1.1 | 2026-07-06 | state-manager | ADR-047 PROPOSED v1.0→ACCEPTED v1.1: OD-1..OD-4 RESOLVED (D-1398 human sign-off 2026-06-27); PO BC layer authored (BC-2.11.024 + BC-2.02.013 + 5 amendments) at D-1568. ADR row updated: PROPOSED v1.0→ACCEPTED v1.1, date 2026-06-27→2026-07-06. BC-INDEX v7.42→v7.43 (266 contracts, 2 new draft). STORY-INDEX v2.604→v2.605 (stub row stale marker cleared). |
 | 2.173 | ADR-051-v1.3→v1.4-column-type-lowercase | 2026-07-06 | architect + state-manager | ADR-051 v1.3→v1.4: column_type examples corrected PascalCase→lowercase snake_case (String→string, Integer→integer, Float→float, Boolean→boolean, Json→json, Datetime→datetime) — no decision-content change; cosmetic accuracy correction per LOCAL adversary pass-1 process-gap. ADR-051 row updated to ACCEPTED v1.4 in ADR Registry. D-1551. |

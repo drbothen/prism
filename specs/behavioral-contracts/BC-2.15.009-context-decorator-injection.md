@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-15"
 capability: "CAP-026"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-07-10"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -32,7 +32,7 @@ extracted_from: ".factory/specs/prd.md"
 ## Description
 
 Every query result carries two distinct categories of injected metadata. Virtual fields
-(`_sensor`, `_client`, `_source_table`) are injected as Arrow columns before DataFusion
+(`_sensor`, `_client`, `_source_table`, and `_source_type` for sensor tables) are injected as Arrow columns before DataFusion
 execution so they are queryable in WHERE/GROUP BY/ORDER BY clauses. Decorator fields
 (`client_name`, `sensor_instance`, `analyst_id`, `query_source`, `prism_version`) are
 injected into the `_meta` response envelope after DataFusion execution and are not
@@ -53,6 +53,7 @@ null fields rather than errors.
   - `_sensor`: sensor identifier (e.g., "crowdstrike", "armis", "prism" for internal tables)
   - `_client`: client ID (OrgSlug value; formerly TenantId, renamed per ADR-006)
   - `_source_table`: specific table name (e.g., "crowdstrike_detections", "prism_alerts")
+  - `_source_type`: data delivery routing indicator — `"live"` (API fetch) or `"buffered"` (EventStream RocksDB buffer); sensor tables only — internal tables do NOT receive this field (see BC-2.11.012 §Invariants)
 
   **Decorator fields** (injected post-DataFusion into `_meta` response envelope — NOT queryable, no underscore prefix):
   - `client_name`: human-readable client name from TOML config
@@ -65,7 +66,7 @@ null fields rather than errors.
   ```json
   {
     "events": [
-      { "_sensor": "crowdstrike", "_client": "acme", "_source_table": "crowdstrike_detections", "severity_id": 4, "device_hostname": "DESKTOP-X" }
+      { "_sensor": "crowdstrike", "_client": "acme", "_source_table": "crowdstrike_detections", "_source_type": "live", "severity_id": 4, "device_hostname": "DESKTOP-X" }
     ],
     "_meta": {
       "client_name": "Acme Corp",
@@ -77,7 +78,7 @@ null fields rather than errors.
   }
   ```
 
-- Queryable virtual fields (`_sensor`, `_client`, `_source_table`) are documented in query-engine.md's virtual fields table. Decorator fields (`client_name`, `sensor_instance`, `analyst_id`, `query_source`, `prism_version`) live in the `_meta` envelope and are defined in this BC only.
+- Queryable virtual fields (`_sensor`, `_client`, `_source_table`, `_source_type`) are documented in query-engine.md's virtual fields table and BC-2.11.012. Decorator fields (`client_name`, `sensor_instance`, `analyst_id`, `query_source`, `prism_version`) live in the `_meta` envelope and are defined in this BC only.
 - Virtual fields are Arrow columns registered in the MemTable schema — they participate in DataFusion execution
 - Decorator fields are `_meta` envelope metadata — they are NOT Arrow columns and cannot appear in PrismQL predicates.
 - Both categories are deterministic: the same query context always produces the same values
@@ -85,7 +86,7 @@ null fields rather than errors.
 
 ## Invariants
 - Every response has all decorator fields present in `_meta` (never partial decoration)
-- Decorator fields in `_meta` cannot be referenced in PrismQL predicates — they are injected after DataFusion execution. Virtual fields (`_sensor`, `_client`, `_source_table`) CAN be referenced in predicates — they are Arrow columns injected before DataFusion execution
+- Decorator fields in `_meta` cannot be referenced in PrismQL predicates — they are injected after DataFusion execution. Virtual fields (`_sensor`, `_client`, `_source_table`, `_source_type`) CAN be referenced in predicates — they are Arrow columns injected before DataFusion execution (note: `_source_type` is sensor-table-only; querying it on an internal table results in `QueryExecutionFailed` per BC-2.11.012 §EC-11-035)
 - Decorators never modify the OCSF record itself (they are envelope metadata in `_meta`)
 
 ## Error Conditions
@@ -130,6 +131,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / F-CSD-P23-001 POL-29 sweep | 2026-07-10 | product-owner | POL-29 exhaustive sweep: virtual-field enumeration updated throughout to include `_source_type` (4th sensor-table virtual field per BC-2.11.012 v1.11). Changes: (1) §Description: `(_sensor, _client, _source_table)` → `(_sensor, _client, _source_table, and _source_type for sensor tables)`. (2) §Postconditions Virtual fields list: added `_source_type` bullet with sensor-table-only qualifier and EC-11-035 cross-reference. (3) JSON response example: added `"_source_type": "live"` field. (4) §Postconditions invariant note: `(_sensor, _client, _source_table)` → `(_sensor, _client, _source_table, _source_type)` + BC-2.11.012 cross-ref added. (5) §Invariants: `(_sensor, _client, _source_table) CAN be referenced` → `(_sensor, _client, _source_table, _source_type) CAN be referenced` + EC-11-035 internal-table note. |
 | 1.4 | pass-15-remediation | 2026-04-27 | product-owner | `_client` field description updated TenantId → OrgSlug (ADR-006). |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

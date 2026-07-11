@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "query-engine"
-version: "1.3"
+version: "1.4"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -35,7 +35,7 @@ graph TD
 
     subgraph TRANSFORM["Phase 3: Transform (pure)"]
         A5["5. OCSF Normalization<br/><i>DynamicMessage per record,<br/>field mapping, raw_extensions</i>"]
-        A6["6. Arrow Materialization<br/><i>RecordBatch, virtual fields<br/>(_sensor, _client, _source_table), 10K cap</i>"]
+        A6["6. Arrow Materialization<br/><i>RecordBatch, virtual fields<br/>(_sensor, _client, _source_table, _source_type), 10K cap</i>"]
     end
 
     subgraph EXECUTE["Phase 4: Execute (DataFusion)"]
@@ -490,20 +490,22 @@ These scenarios demonstrate PrismQL's two correlation patterns working together:
 
 ### Virtual Fields
 
-The query engine injects three virtual fields into every materialized RecordBatch:
+The query engine injects four virtual fields into every sensor-table RecordBatch (internal RocksDB-backed tables receive three — `_sensor`, `_client`, `_source_table` — without `_source_type`; see BC-2.11.012 §Invariants):
 
-| Virtual Field | Arrow Type | Description |
-|--------------|-----------|-------------|
-| `_sensor` | `Utf8` | Source sensor identifier (e.g., `crowdstrike`, `armis`) |
-| `_client` | `Utf8` | Client identifier (OrgSlug value; formerly TenantId, renamed per ADR-006) |
-| `_source_table` | `Utf8` | Specific table name (e.g., `crowdstrike_detections`, `armis_alerts`) |
+| Virtual Field | Arrow Type | Description | Scope |
+|--------------|-----------|-------------|-------|
+| `_sensor` | `Utf8` | Source sensor identifier (e.g., `crowdstrike`, `armis`, `prism`) | sensor + internal |
+| `_client` | `Utf8` | Client identifier (OrgSlug value; formerly TenantId, renamed per ADR-006) | sensor + internal |
+| `_source_table` | `Utf8` | Specific table name (e.g., `crowdstrike_detections`, `armis_alerts`) | sensor + internal |
+| `_source_type` | `Utf8` | Data delivery routing: `"live"` (API fetch) or `"buffered"` (EventStream RocksDB buffer) | sensor only |
 
-These fields are prefixed with `_` to distinguish them from OCSF fields. They are queryable in `WHERE`, `GROUP BY`, `ORDER BY`, and `SELECT` clauses. The naming is consistent across all architecture documents — `_sensor`, `_client`, `_source_table` (with underscore prefix).
+These fields are prefixed with `_` to distinguish them from OCSF fields. They are queryable in `WHERE`, `GROUP BY`, `ORDER BY`, and `SELECT` clauses. The naming is consistent across all architecture documents — `_sensor`, `_client`, `_source_table`, `_source_type` (with underscore prefix).
 
 ## Changelog
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-07-10 | product-owner | F-CSD-P23-001 POL-29 exhaustive sweep: §Virtual Fields section updated to reflect the 4th sensor-table virtual field `_source_type`. (1) Mermaid diagram node A6: `(_sensor, _client, _source_table)` → `(_sensor, _client, _source_table, _source_type)`. (2) Section intro: "three virtual fields" → "four virtual fields (sensor tables; internal tables receive three)". (3) Virtual fields table: added `_source_type` row with Scope column distinguishing sensor-only vs sensor+internal fields. (4) Trailing prose: enumeration updated to include `_source_type`. Note: architect-scope doc updated by product-owner under explicit orchestrator direction (POL-29 exhaustive sweep applies to all .factory/specs/ files regardless of owner). |
 | 1.3 | 2026-06-10 | architect | Residual E-WATCHDOG drift sweep (QRY cascade P1-04 D2 adjudication companion; error-taxonomy v1.68/v1.69 authority, `proposals/cache-envelope-adjudication-2026-06-10.md`). §DataFusion memory enforcement narrative reworded to the D2 division of labor: pool = sole per-query memory enforcement (`E-WATCHDOG-001`, BC-2.11.006); watchdog = process-RSS kill threshold (`E-WATCHDOG-002`, BC-2.15.007) — replaces pre-adjudication "watchdog's RecordBatch byte tracking (DI-027) only measures materialized data" framing. The `ResourcesExhausted` → `E-WATCHDOG-001` mappings (here and §JOIN memory budget) were already correct and are unchanged. ASM-013 fallback options 2/3 reworded: per-query fallback enforcement is explicit per-batch RecordBatch byte accounting in the query path, not "DI-027's watchdog" (the watchdog cannot attribute memory to an individual query). Sibling fix in system-overview.md v1.4. |
 | 1.2 | 2026-05-03 | architect | F-PreP24-H-002: corrected `execute_scheduled` error-path memory-budget text — 16 concurrent tasks → 8 (D-209 LOCKED), 3.2 GB → 1.6 GB (8 × 200 MB). Watchdog-exceeds-512-MB-RSS risk reasoning preserved. POL-6 compliance. |
 | 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: `_client` virtual field description updated TenantId → OrgSlug (ADR-006); added `## [Section Content]` template compliance marker. |

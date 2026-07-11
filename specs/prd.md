@@ -1,7 +1,7 @@
 ---
 document_type: prd
 level: L3
-version: "1.12"
+version: "1.13"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T06:00:00
@@ -253,7 +253,7 @@ Capabilities: CAP-015, CAP-016
 | [BC-2.11.009](behavioral-contracts/BC-2.11.009-alias-resolution.md) | Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection | P1 |
 | [BC-2.11.010](behavioral-contracts/BC-2.11.010-explain-query-tool.md) | `explain_query` MCP Tool | P0 |
 | [BC-2.11.011](behavioral-contracts/BC-2.11.011-cross-client-query-scoping.md) | Cross-Client Query Scoping | P0 |
-| [BC-2.11.012](behavioral-contracts/BC-2.11.012-virtual-fields.md) | Virtual Fields in Queries — `_sensor`, `_client`, `_source_table` | P0 |
+| [BC-2.11.012](behavioral-contracts/BC-2.11.012-virtual-fields.md) | Virtual Fields in Queries — `_sensor`, `_client`, `_source_table`, `_source_type` | P0 |
 | [BC-2.11.013](behavioral-contracts/BC-2.11.013-list-aliases-tool.md) | `list_aliases` MCP Tool | P1 |
 | [BC-2.11.014](behavioral-contracts/BC-2.11.014-delete-alias-tool.md) | `delete_alias` MCP Tool | P1 |
 | [BC-2.11.015](behavioral-contracts/BC-2.11.015-explain-alias-tool.md) | `explain_alias` MCP Tool | P1 |
@@ -573,7 +573,7 @@ All sensor data normalized to a common schema, enabling cross-sensor joins via t
 | BC ID | Contribution |
 |-------|-------------|
 | BC-2.11.005 | Ephemeral materialization -- unified Arrow table from multiple sensors |
-| BC-2.11.012 | Virtual fields (`_sensor`, `_client`, `_source_table`) for cross-sensor filtering |
+| BC-2.11.012 | Virtual fields (`_sensor`, `_client`, `_source_table`, `_source_type`) for cross-sensor filtering |
 | BC-2.02.001 | OCSF schema loading at build time |
 | BC-2.02.002 | DynamicMessage creation from sensor records |
 | BC-2.02.003 | CrowdStrike field mapping to OCSF |
@@ -932,6 +932,7 @@ Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, upda
 
 ## Change Log
 
+- 2026-07-10 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / F-CSD-P23-001 POL-29 sweep): §2 BC-2.11.012 title cell synced to current H1 title "Virtual Fields in Queries — `_sensor`, `_client`, `_source_table`, `_source_type`" (H1 was updated in BC-2.11.012 v1.7 per F-CSD-P19-003; prd.md §2 row lagged). §6 BC-2.11.012 contribution description updated to include `_source_type`. Version bumped 1.12→1.13.
 - 2026-06-10 (review-2026-06-10 PO consolidated amendment burst, POL-7 H1 title sync): §2 BC-2.04.001 title cell synced to retitled BC H1 "Compile-Time Write Capability Tier Is Registry-Derived from Write-Endpoint Declarations" (BC retitled in BC-INDEX v6.13 P1-02 sweep; prd.md §2 was flagged there for owner-routed follow-up — closed here). §6.4 contribution one-liner for BC-2.04.001 updated from stale "Compile-time cargo features gate write code" to registry-derived framing (same retired cargo-feature semantics surface). Filename slug immutable per append_only_numbering; link target unchanged. Version bumped 1.11→1.12. (Audit note: the 1.10→1.11 bump on 2026-05 was the rmcp 1.4→1.7 sibling sweep, F-PASS10-HIGH-2 commit 80d28d14, which omitted a Change Log bullet.)
 - 2026-05-04 (Pass-25 F-P25-H-001): §2 line 382 token `prism-operations::action_dispatcher` → `prism-operations::action_delivery` (canonical per concurrency-architecture.md v1.1 + BC-2.18.004 v1.5 module path `action/delivery.rs`). Stale orphan introduced by pre-Pass-24 fix-burst prompt; corrected. Version bumped 1.9→1.10.
 - 2026-05-04 (Pass-24 F-P24-CRIT-001+sweep): §2 line 389 BC-2.18.004 cell title corrected from superseded "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable" to canonical "Action Delivery Semaphore — 8-Permit Independent Pool, try_acquire() Skip-If-Unavailable" (matches BC H1 + BC-INDEX). PLUS proactive TD-VSDD-049-style sweep across ALL 200 PRD §2 BC table rows — programmatic H1↔PRD-cell comparison confirmed zero additional drift sites. Version bumped 1.8→1.9.

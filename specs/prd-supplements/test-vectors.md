@@ -1,7 +1,7 @@
 ---
 document_type: prd-supplement-test-vectors
 level: L3
-version: "2.9"
+version: "2.10"
 status: draft
 producer: product-owner
 timestamp: 2026-04-19T00:00:00Z
@@ -123,7 +123,7 @@ traces_to: prd.md
 
 ---
 
-#### BC-2.11.012: Virtual Fields in Queries — `_sensor`, `_client`, `_source_table`
+#### BC-2.11.012: Virtual Fields in Queries — `_sensor`, `_client`, `_source_table`, `_source_type`
 
 | Input | Expected Output | Category | Notes |
 |-------|-----------------|----------|-------|
@@ -133,7 +133,7 @@ traces_to: prd.md
 | `SELECT _sensor, _client, _source_table FROM events` (project only virtuals) | Valid projection; returns only virtual field columns for each event | edge-case | EC-11-030 |
 | `SELECT * FROM events` with internal table `prism.alerts` in scope | `_sensor = "prism"`, `_source_table = "alerts"` injected for internal table rows; no API fan-out for internal tables | happy-path | BC-2.11.001 internal table path |
 
-**Canonical virtual field set (exhaustive):** `_sensor`, `_client`, `_source_table`. No other underscore-prefixed names are reserved virtual fields.
+**Canonical virtual field set (exhaustive — sensor tables):** `_sensor`, `_client`, `_source_table`, `_source_type`. Internal tables receive only `_sensor`, `_client`, `_source_table` (no `_source_type`). No other underscore-prefixed names are reserved virtual fields. See BC-2.11.012 §Invariants for the sensor-table / internal-table split.
 
 **Trace:** BC-2.11.012 postconditions, VP-015, DI-020
 
@@ -269,7 +269,7 @@ traces_to: prd.md
 | Scenario | Input | Step 1 Output | Step 2 Input | Final Output |
 |----------|-------|---------------|-------------|-------------|
 | Irreversible write with audit + credential redaction | `crowdstrike_contain_host` (irreversible=true) with `credential_ref` in params | Confirmation token issued (BC-2.04.009); write NOT executed; token stored in-memory | `confirm_action` with valid token within 300s | Write executed; audit entry written with `credential_ref = "[REDACTED]"` (BC-2.05.003); `capability_checks` and `result_summary` present |
-| Query + IOC UDF + multi-sensor scope | `query` with `ioc_match('blacklist-ips', src_ip)` across 2 sensors | Federated subqueries fan out to both sensors (BC-2.11.001) | IOC UDF evaluated per-row against `PatternStore["blacklist-ips"]` | Rows filtered to IOC matches; OCSF-normalized output with `_sensor`, `_client`, `_source_table` virtuals |
+| Query + IOC UDF + multi-sensor scope | `query` with `ioc_match('blacklist-ips', src_ip)` across 2 sensors | Federated subqueries fan out to both sensors (BC-2.11.001) | IOC UDF evaluated per-row against `PatternStore["blacklist-ips"]` | Rows filtered to IOC matches; OCSF-normalized output with `_sensor`, `_client`, `_source_table`, `_source_type` virtuals |
 | Spec hot-reload during in-flight query | `reload_config` invoked while query is materializing from `sentinelone.alerts` | Active query completes against pre-reload `ConfigSnapshot` (BC-2.16.007 arc-swap) | Next query issued after reload | New query uses updated spec; no half-reload state visible |
 | Detection → case auto-creation | CRITICAL-severity detection rule fires on alert | Alert persisted (BC-2.13.005); auto-case-creation triggered (BC-2.14.013) | Case created in initial state | New case in `New` state linked to alert via `source_alert_ids`; case state machine ready for transitions (BC-2.14.002) |
 | Token cap + audit | 101st confirm token request from same analyst; 100 active tokens already in store | `E-FLAG-007` rejection; no token created; no audit entry for failed generation | — | Existing 100 tokens unaffected; error surfaced to agent |
@@ -331,6 +331,7 @@ traces_to: prd.md
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.10 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / F-CSD-P23-001 POL-29 sweep | 2026-07-10 | product-owner | POL-29 exhaustive virtual-field sweep: (1) §BC-2.11.012 section header title synced to BC H1 "Virtual Fields in Queries — `_sensor`, `_client`, `_source_table`, `_source_type`" (BC H1 updated in v1.7; supplement header lagged). (2) "Canonical virtual field set (exhaustive)" note updated to list four sensor-table fields plus internal-table split qualifier and BC-2.11.012 §Invariants cross-reference. (3) IOC UDF cross-subsystem scenario output: `_source_table` virtuals → `_source_table`, `_source_type` virtuals. |
 | 2.9 | review-2026-06-10-PO-micro | 2026-06-10 | product-owner | MCP cascade P4-05 re-home citation sweep (architect adjudication, error-taxonomy v1.72 / ADR-038 v1.4 D5 family): BC-2.16.007 removed-spec vector (spec deleted + `reload_config`) expected-output code `E-QUERY-011` → `E-QUERY-035`. E-QUERY-011 retained by the live audit-capability condition (BC-2.15.011 `AuditTableAccessDenied`); the reload condition re-homed to E-QUERY-035 (namespace tail, zero emitters, future scope S-3.13). Vector condition and expected behavior unchanged; updated in the same burst as BC-2.16.007 v1.4 per the BC source-of-truth rule. TD-VSDD-060 sweep: zero other E-QUERY-011 citations in this supplement. |
 | 2.8 | ADR-038-D6-sweep | 2026-06-10 | product-owner | ADR-038 D6 number sweep: BC-2.11.001 "no clients configured" rejection vector code `E-CFG-001` → `E-CFG-100` (ClientNotFound). The vector froze the pre-v1.8 number; error-taxonomy v1.8 renumbered the client-not-found condition to E-CFG-100, and ADR-037 tombstoned the low number for the retired customer-config semantics. Vector condition and expected behavior unchanged. Per ADR-038 (error-taxonomy v1.66). Verified zero other E-CFG-001/002/003/010/020 citations remain in this supplement. |
 | 2.7 | pass-15-remediation | 2026-04-27 | product-owner | Client placeholder description updated TenantId → OrgSlug (ADR-006); virtual fields table `_client` description updated to match. |

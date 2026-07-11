@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: demo-readiness-2026-06-24
-modified: "2026-06-26"
+modified: "2026-07-10"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -52,7 +52,7 @@ The `prismql://reference` MCP resource is no longer served from a static `pql_re
 | Operators table | `ast.rs` `Predicate` enum | `=`, `!=`, `>`, `>=`, `<`, `<=`, `IN`, `CONTAINS`/`ICONTAINS`, `=~`/`MATCHES`, `IN CIDR`, `HAS`, `MISSING`, `BETWEEN`, wildcard, `IS NULL`, `IS NOT NULL` |
 | Aggregates / stats | `pipe_parser.rs` `stats_stage` | `count`, `sum`, `avg`, `min`, `max`, `percentile`, `distinct_count`; `stats <agg> [by <field>]` |
 | Temporal grammar | ADR-044 | `NOW()`, `INTERVAL 'Nh'`, bare duration `24h`, `NOW() - INTERVAL 'Nh'`; note subtraction-only in v1 |
-| Virtual fields + scope model | `ast.rs` `VirtualField` enum | `_client`, `_sensor`, `_source_table`, `_safety_flags`; scope-via-tool-param model |
+| Virtual fields + scope model | `ast.rs` `VirtualField` enum | `_client`, `_sensor`, `_source_table`, `_source_type`; scope-via-tool-param model (`_safety_flags` retired per BC-2.11.012 v1.7 — now parses as `Expr::Field` → E-QUERY-038) |
 | Case sensitivity note | ADR-046 D5 | "All PrismQL keywords are case-insensitive. Convention: UPPER for SQL mode, lowercase for pipe stage names." |
 | Column naming note | Design map §GRAMMAR-019 note | "Column names come verbatim from `prism_describe`; use the name as shown; do not construct dot-path names." |
 | LIMIT / head / limit equivalence note | Design map §GRAMMAR-002 | "`head N == limit N` in pipe mode; `LIMIT N` is trailing clause in SQL mode; all are case-insensitive." |
@@ -160,6 +160,7 @@ VP-021 (fuzz gate applies to CI gate inputs)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / F-CSD-P23-001 POL-29 sweep | 2026-07-10 | product-owner | POL-29 exhaustive sweep: §Reference Content Requirements table row "Virtual fields + scope model" updated — `VirtualField` enum enumeration corrected from `_client, _sensor, _source_table, _safety_flags` to `_client, _sensor, _source_table, _source_type`. `_safety_flags` was retired as a virtual-field enum member per BC-2.11.012 v1.7 (F-CSD-P19-003); it now parses as `Expr::Field(fp)` → E-QUERY-038, meaning it is NOT in the `VirtualField` enum. `_source_type` is the correct 4th VirtualField member (sensor-table virtual field; S-2.08 AC-9/AC-10; S-3.02 delivery gap). |
 | 1.1 | demo-fidelity-remediation-2026-06-26 | 2026-06-26 | product-owner | **N1 / AUDIT-N1 contract fix (S-DEMO-FIDELITY-REMEDIATION-001):** Enrichment section postcondition amended to explicitly specify that the reference must list per-`[[infusion.fields]]` UDF names (e.g., `threat_score`, `threat_is_known_malicious`, `threat_sources`, `cvss_base_score`, `cvss_severity`, `cvss_vector`) and MUST NOT list infusion_id aggregate names (e.g., `threat_intel`, `nvd`). The `build_reference_content` implementation MUST iterate `InfusionRegistry.udf_descriptors()` using `descriptor.name` (per-field UDF) as both the deduplication key and the emitted function name — not `descriptor.infusion_id`. Added EC-11-022-006 (6-UDF example with threat_intel/nvd infusion_ids) and a CI registry-parity gate test vector to prevent regression. The prismql://reference reference internally contradicting itself (listing `threat_intel(col)` in the "Available enrichment functions" section while using `threat_score(...)` in the example) is a code defect in `build_reference_content`, not a spec ambiguity. The spec required per-field UDF names (via the InfusionRegistry content requirement); this amendment makes that requirement machine-testable. |
 | 1.0 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-045 v1.1. Closes GRAMMAR-008/009/017 and partially closes GRAMMAR-002/003/007/018/019 via reference content requirements. CI gate mandates shared example array. |
