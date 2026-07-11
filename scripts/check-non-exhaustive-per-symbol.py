@@ -270,7 +270,7 @@ def main() -> int:
 
     print(
         f"Per-symbol check passed: all {len(EXPECTED_UNIQUE)} distinct symbols "
-        f"appear in E0639/E0004 error output (91 violations, "
+        f"appear in E0639/E0004 error output ({EXPECTED_COUNT} violations, "
         f"{len(EXPECTED_UNIQUE)} unique types validated)."
     )
     return 0

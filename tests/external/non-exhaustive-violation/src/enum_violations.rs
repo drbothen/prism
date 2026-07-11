@@ -384,7 +384,7 @@ pub fn v86_temporal_literal_position_match() {
 /// added without requiring all external match arms to be updated immediately.
 /// External callers MUST include `_ => {}`.
 ///
-/// Added: DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001. ci.yml EXPECTED bumped 89 → 90.
+/// Added: DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001. scripts/check-non-exhaustive.sh EXPECTED bumped 89 → 90.
 #[allow(dead_code)]
 pub fn v90_virtual_field_match() {
     use prism_core::VirtualField;
@@ -438,7 +438,7 @@ pub fn v85_example_kind_match() {
 ///   v90 → `prism_core::VirtualField` (compiler note is 2-part; last-2-seg join = `prism_core::VirtualField`)
 ///   v91 → `ast::VirtualField` (compiler note is 3-part; last-2-seg join = `ast::VirtualField`)
 ///
-/// Added: DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P31-OBS-002. ci.yml EXPECTED bumped 90 → 91.
+/// Added: DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P31-OBS-002. scripts/check-non-exhaustive.sh EXPECTED bumped 90 → 91.
 #[allow(dead_code)]
 pub fn v91_prism_query_ast_virtual_field_match() {
     use prism_query::ast::VirtualField;
