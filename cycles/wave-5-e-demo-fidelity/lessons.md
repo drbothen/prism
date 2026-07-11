@@ -2937,3 +2937,33 @@ The test-writer REFUSED to lock the incorrect EC-11-035 claim and escalated. PO 
 **Codification candidate:** Add as a standing discipline (SID-2): "Before locking any spec invariant that claims a specific error code for a specific input, the test-writer MUST verify the actual behavior by running or tracing the code path. If the actual behavior differs from the spec claim, the test-writer reports the discrepancy to orchestrator — NOT silently locks the wrong behavior."
 
 **Source:** D-1670 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-21 closure; F-CSD-P21-OBS-003 Stage 2; BC-2.11.012 v1.9 mis-citation caught by test-writer refusal; 2026-07-10).
+
+---
+
+### Lesson 37 — POL-22 code-verification protects in BOTH DIRECTIONS: catching spec-code mismatches AND adversary false positives
+
+**Classification:** PROCESS-GAP / METHODOLOGY — CSDEVICES pass-22 cascade D-1671 (2026-07-10).
+
+**Description:**
+
+During DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-22, finding F-CSD-P22-004 was filed by the adversary: "BC-2.11.012 `_source_table` internal table enumeration uses stale short names (e.g., `rules`, `alerts`) instead of full `prism_*` names; additionally, `prism_rules` appears to be ABSENT from the enumeration."
+
+The PO fix-burst applied POL-22 discipline: before amending BC-2.11.012, verified the actual code state by reading `INTERNAL_TABLE_SPECS` in the source. The verification revealed:
+
+1. The adversary was **CORRECT** that short names were used in the spec text (real defect — spec text said `rules`, `alerts`, etc. rather than `prism_rules`, `prism_alerts`, etc.).
+2. The adversary was **PARTIALLY WRONG** about `prism_rules` being absent — `prism_rules` IS present in `INTERNAL_TABLE_SPECS` (all 7 entries are present). The adversary's claim was based on misreading or incomplete inspection of the spec text.
+
+The PO's code-verification caught the adversary's overstatement before it was locked into the corrected spec. The fix correctly updated the spec to full prism_* names (correcting the real defect) WITHOUT adding a fabricated "prism_rules was missing" claim.
+
+**This is the two-sided nature of POL-22:**
+
+| Direction | What it catches | Example |
+|-----------|-----------------|---------|
+| Spec-claims-X, code-does-Y | Spec prose out of date with implementation | (Lesson 36 — EC-11-035 mis-claimed E-QUERY-038 when code returns QueryExecutionFailed) |
+| Adversary-claims-X, code-says-not-X | Adversary false positive or overstatement | (Lesson 37 — adversary claimed prism_rules absent; code shows it is present) |
+
+**Lesson:** POL-22 (product-owner code-verification before spec-locking) is not a one-way filter that only protects against spec-code drift. It also protects against adversary false positives. The PO's role during a fix-burst is to be the **ground-truth arbiter**: read the code, determine what is ACTUALLY true, and spec that — regardless of whether the spec or the adversary was wrong. The verification step is non-optional even when the adversary's finding "sounds right."
+
+**Implication for adversary protocol:** Adversary findings that claim a named identifier (function, variant, table name, enum value) is "absent" or "missing" from an implementation MUST be treated as provisional until PO code-verification runs. Do not auto-accept such claims as ground truth. The adversary operates from spec text and may have inspected an outdated or incomplete section.
+
+**Source:** D-1671 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-22 closure; F-CSD-P22-004 BC-2.11.012 short-name fix; POL-22 caught adversary prism_rules overstatement; 2026-07-10).
