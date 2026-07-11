@@ -4618,84 +4618,225 @@ mod tests {
     }
 
     // =========================================================================
-    // T38 — F-CSD-P19-003 (BC-2.11.012 v1.7): _safety_flags exclusion —
-    //       query referencing _safety_flags must return E-QUERY-038 ColumnNotFound,
-    //       NOT an opaque DataFusion plan error (QueryExecutionFailed).
+    // T38 — F-CSD-P19-003 / F-CSD-P20-003 / F-CSD-P20-004
+    //       (BC-2.11.012 v1.8 / BC-2.11.016 v1.26): _safety_flags plan-time
+    //       E-QUERY-038 gate — full payload assertion.
     //
-    // _safety_flags is a response-envelope concern (BC-2.09.004), NOT a virtual
-    // query field. It must be excluded from the canonical four-field set.
+    // Architect Option A (@e8f7dc8b): `VirtualField::SafetyFlags` was retired from
+    // the AST enum. `_safety_flags` now parses as `Expr::Field` (not VirtualField).
+    // The existing plan-time `check_query_column_availability` gate fires because it
+    // collects `Expr::Field` paths and checks them against the table registry.
     //
-    // At HEAD: _safety_flags parses as Expr::VirtualField(VirtualField::SafetyFlags)
-    //   → normalize_virtual_field emits "_safety_flags" string →
-    //   DataFusion "No field named _safety_flags" → Err(QueryExecutionFailed) — opaque.
+    // This test drives the gate directly (not through execute_against_session) to
+    // assert the FULL ColumnNotFoundDetails payload per BC-2.11.016 v1.26
+    // §Design Constraints (F-CSD-P20-004 paper-fix closure: payload must be
+    // structurally asserted, not just matched on variant).
     //
-    // Post-fix: _safety_flags must produce Err(PrismError::ColumnNotFound) — E-QUERY-038 —
-    //   via a plan-time gate, NOT via DataFusion planning. The gate must fire before
-    //   normalize_for_datafusion so the MCP caller receives an actionable error.
+    // T38b (companion) locks the Option A boundary from the runtime side:
+    // execute_against_session returns Err(QueryExecutionFailed) for _safety_flags
+    // because it does NOT call check_query_column_availability — that gate only
+    // fires through engine.rs::execute(). This two-tier behavior is intentional
+    // per BC-2.11.016 v1.26 §Design Constraints.
     // =========================================================================
 
-    /// F-CSD-P19-003-T38 / BC-2.11.012 v1.7: A query referencing `_safety_flags` must
-    /// return `Err(PrismError::ColumnNotFound)` (E-QUERY-038), not an opaque
-    /// `Err(QueryExecutionFailed)` from DataFusion's plan phase.
+    /// F-CSD-P19-003-T38 / BC-2.11.016 v1.26 / BC-2.11.012 v1.8:
+    /// `check_query_column_availability` must fire E-QUERY-038 for a query referencing
+    /// `_safety_flags` against a CrowdStrike devices registry, with FULL payload:
+    /// column="_safety_flags", table="crowdstrike_devices", client_id="",
+    /// available_columns sorted lexicographically, did_you_mean=None.
     ///
-    /// # Defect (F-CSD-P19-003, at HEAD)
+    /// # Fix (Option A, @e8f7dc8b)
     ///
-    /// `field_path_to_expr("_safety_flags")` returns `Expr::VirtualField(SafetyFlags)`.
-    /// `normalize_virtual_field` emits `"_safety_flags"`.  DataFusion receives a SQL string
-    /// with `_safety_flags` as a column name, can't find it in the registered schema, and
-    /// returns a plan error → `Err(PrismError::QueryExecutionFailed)` — opaque -32000.
+    /// `VirtualField::SafetyFlags` was retired from the enum. `_safety_flags` now
+    /// parses as `Expr::Field`, which `extract_field_paths_from_expr` collects and
+    /// `check_query_column_availability` gates against the table registry. No new
+    /// gate was added — the existing E-QUERY-038 infrastructure fires correctly once
+    /// `_safety_flags` is treated as a plain field reference (not a virtual field).
     ///
-    /// # Fix path
+    /// # F-CSD-P20-004 (payload-assertion paper-fix closure)
     ///
-    /// Add a plan-time gate in `execute_against_session_with_registry` (analogous to
-    /// `check_expr_insubquery_projection`) that detects `Expr::VirtualField(SafetyFlags)`
-    /// in the AST and returns `Err(PrismError::ColumnNotFound(...))` before DataFusion
-    /// planning.  The actionable E-QUERY-038 error replaces the opaque -32000.
+    /// The prior test matched only `Err(PrismError::ColumnNotFound(_))`. This test
+    /// asserts every field of `ColumnNotFoundDetails` individually, closing the
+    /// paper-fix gap identified in pass 20.
+    #[test]
+    fn test_BC_2_11_012_F_CSD_P19_003_T38_safety_flags_plan_time_gate_returns_e_query_038_full_payload(
+    ) {
+        use crate::table_registry::TableRegistry;
+        use prism_core::column::ColumnType;
+        use prism_core::error::PrismError;
+        use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec};
+
+        // Build a minimal CrowdStrike devices spec: six canonical columns.
+        // After sort+dedup in check_column_availability, available_columns will be:
+        //   ["device_id", "first_seen", "hostname", "last_seen", "platform_name", "status"]
+        let columns = vec![
+            ColumnSpec::new("device_id", ColumnType::String, None, vec![]),
+            ColumnSpec::new("hostname", ColumnType::String, None, vec![]),
+            ColumnSpec::new("platform_name", ColumnType::String, None, vec![]),
+            ColumnSpec::new("status", ColumnType::String, None, vec![]),
+            ColumnSpec::new("first_seen", ColumnType::Datetime, None, vec![]),
+            ColumnSpec::new("last_seen", ColumnType::Datetime, None, vec![]),
+        ];
+        let spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike Falcon",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                "devices",
+                "system_activity",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            vec![],
+        );
+
+        // Table is registered as "{sensor_id}_{table_name}" = "crowdstrike_devices".
+        let registry = TableRegistry::new();
+        registry
+            .register_sensor(&spec)
+            .expect("register crowdstrike devices must succeed for T38");
+
+        // Drive the plan-time gate directly.
+        // Single-tenant path: resolved_spec_map=None, table_registry=Some(&registry).
+        let result = crate::engine::check_query_column_availability(
+            "SELECT _safety_flags FROM crowdstrike_devices",
+            "",   // client_id
+            None, // org_scope
+            None, // resolved_spec_map (single-tenant path)
+            Some(&registry),
+            None, // infusion_registry
+        );
+
+        // Full payload assertion — F-CSD-P20-004 paper-fix closure.
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                assert_eq!(
+                    details.column, "_safety_flags",
+                    "T38: column must be '_safety_flags', got: {:?}",
+                    details.column
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_devices",
+                    "T38: table must be 'crowdstrike_devices', got: {:?}",
+                    details.table
+                );
+                assert_eq!(
+                    details.client_id, "",
+                    "T38: client_id must be empty string (single-tenant path), got: {:?}",
+                    details.client_id
+                );
+                assert_eq!(
+                    details.available_columns,
+                    vec![
+                        "device_id",
+                        "first_seen",
+                        "hostname",
+                        "last_seen",
+                        "platform_name",
+                        "status"
+                    ],
+                    "T38: available_columns must be the six canonical CrowdStrike devices \
+                     columns sorted lexicographically (BC-2.11.016 v1.26 §Design Constraints \
+                     — sort+dedup applied by check_column_availability single-tenant path); \
+                     got: {:?}",
+                    details.available_columns
+                );
+                assert_eq!(
+                    details.did_you_mean, None,
+                    "T38: did_you_mean must be None — Levenshtein distance from '_safety_flags' \
+                     to all six canonical columns exceeds the ≤3 threshold; got: {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(()) => panic!(
+                "T38 / BC-2.11.016 v1.26 / BC-2.11.012 v1.8: check_query_column_availability \
+                 must return Err(ColumnNotFound) for '_safety_flags' against the crowdstrike \
+                 devices registry. '_safety_flags' is a response-envelope concern (BC-2.09.004) \
+                 and must NOT be recognised as a virtual query field. The E-QUERY-038 plan-time \
+                 gate (via Expr::Field collection in extract_field_paths_from_expr) must fire. \
+                 got: Ok(())"
+            ),
+            Err(other) => panic!(
+                "T38 / BC-2.11.016 v1.26 / BC-2.11.012 v1.8: expected \
+                 Err(PrismError::ColumnNotFound), got different error: {other:?}"
+            ),
+        }
+    }
+
+    // =========================================================================
+    // T38b — F-CSD-P20-003 (Option A boundary lock):
+    //        execute_against_session returns Err(QueryExecutionFailed) for
+    //        _safety_flags — NOT Err(ColumnNotFound).
+    //
+    // The plan-time E-QUERY-038 gate (check_query_column_availability) is ONLY
+    // called from engine.rs::execute(). execute_against_session (materialization.rs)
+    // does NOT call it. After Option A removed the runtime FieldNotFound→ColumnNotFound
+    // fallback (@e8f7dc8b), an unknown column reference in execute_against_session
+    // reaches DataFusion, which returns a plan/field error → PrismError::QueryExecutionFailed.
+    //
+    // This test locks that two-tier behaviour as a non-regression invariant:
+    //   Tier 1 (engine.rs::execute path): E-QUERY-038 fires → Err(ColumnNotFound)
+    //   Tier 2 (execute_against_session path): DataFusion error → Err(QueryExecutionFailed)
+    //
+    // BC-2.11.016 v1.26 §Design Constraints defines this intentional split.
+    // =========================================================================
+
+    /// F-CSD-P20-003-T38b / BC-2.11.016 v1.26: `execute_against_session` must return
+    /// `Err(QueryExecutionFailed)` — NOT `Err(ColumnNotFound)` — for a query referencing
+    /// `_safety_flags`, locking the Option A two-tier boundary.
     ///
-    /// Alternatively: retire `VirtualField::SafetyFlags` from the enum so `_safety_flags`
-    /// parses as `Expr::Field` and the existing plan-time column gate fires.
+    /// # Why this test exists
+    ///
+    /// After Option A removed the runtime `FieldNotFound→ColumnNotFound` fallback in
+    /// `execute_against_session_with_registry` (@e8f7dc8b), the plan-time E-QUERY-038
+    /// gate is the SOLE producer of `Err(ColumnNotFound)` for unknown columns.
+    /// `execute_against_session` does not call `check_query_column_availability` — it
+    /// passes the normalised SQL directly to DataFusion. DataFusion's field-not-found
+    /// error surfaces as `PrismError::QueryExecutionFailed` (opaque -32000), not the
+    /// actionable E-QUERY-038.
+    ///
+    /// This is intentional: the full engine path (`engine.rs::execute`) provides the
+    /// clean E-QUERY-038 error to MCP callers; the low-level materialisation path is
+    /// an internal implementation detail that does not duplicate the gate.
     #[tokio::test]
-    async fn test_BC_2_11_012_F_CSD_P19_003_T38_safety_flags_returns_e_query_038_not_datafusion_plan_error(
+    async fn test_BC_2_11_016_F_CSD_P20_003_T38b_safety_flags_runtime_path_returns_query_execution_failed(
     ) {
         use prism_core::error::PrismError;
 
         let ctx = build_session_context(50 * 1024 * 1024)
-            .expect("build_session_context must succeed for T38");
+            .expect("build_session_context must succeed for T38b");
 
-        // Register a populated table so that any table-not-found path is eliminated;
-        // the only error source should be the _safety_flags column reference.
+        // Register crowdstrike_devices with a device_id column only.
+        // _safety_flags is NOT in this schema, so DataFusion will fail to find it.
         let dev_batch = make_batch("device_id", &["dev-A"]);
         register_mem_table(&ctx, "crowdstrike_devices", vec![dev_batch])
-            .expect("crowdstrike_devices registration must succeed for T38");
+            .expect("crowdstrike_devices registration must succeed for T38b");
 
-        // SELECT _safety_flags: at HEAD this parses as VirtualField::SafetyFlags →
-        // normalize emits "_safety_flags" string → DataFusion plan error →
-        // Err(QueryExecutionFailed) — opaque -32000.
-        // Post-fix: a gate must intercept SafetyFlags before DataFusion and return
-        // Err(ColumnNotFound) — actionable E-QUERY-038.
         let sql = "SELECT _safety_flags FROM crowdstrike_devices";
-        let ast = PrismQlParser::parse(sql).expect("SELECT _safety_flags must parse");
+        let ast = PrismQlParser::parse(sql).expect("SELECT _safety_flags must parse for T38b");
 
+        // execute_against_session does NOT call check_query_column_availability.
+        // _safety_flags (now Expr::Field after VirtualField::SafetyFlags retirement)
+        // gets normalised to the string "_safety_flags" and handed to DataFusion.
+        // DataFusion cannot find "_safety_flags" in schema {device_id: Utf8} →
+        // DataFusion field-not-found → PrismError::QueryExecutionFailed.
         let result =
             execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
 
-        // DESIRED (post-fix): E-QUERY-038 — actionable column-not-found.
-        //
-        // RED at HEAD: _safety_flags → VirtualField::SafetyFlags → normalize_virtual_field
-        //   emits "_safety_flags" → DataFusion "No field named _safety_flags" →
-        //   Err(QueryExecutionFailed { .. }) — opaque -32000.
-        //   Assertion Err(ColumnNotFound(_)) FAILS → RED ✓.
+        // Assert QueryExecutionFailed — NOT ColumnNotFound.
+        // If this assertion fails with ColumnNotFound, the runtime fallback was
+        // re-introduced (violating Option A / BC-2.11.016 v1.26 §Design Constraints).
         assert!(
-            matches!(&result, Err(PrismError::ColumnNotFound(_))),
-            "F-CSD-P19-003-T38 / BC-2.11.012 v1.7: `_safety_flags` is a response-envelope \
-             concern (BC-2.09.004) and must NOT be a virtual query field. A query referencing \
-             `_safety_flags` must return E-QUERY-038 `Err(ColumnNotFound)`, not an opaque \
-             `Err(QueryExecutionFailed)` from DataFusion. \
-             RED: _safety_flags parses as VirtualField::SafetyFlags → normalize emits the \
-             string → DataFusion plan error → Err(QueryExecutionFailed). \
-             Fix: add a plan-time gate that intercepts Expr::VirtualField(SafetyFlags) and \
-             returns Err(ColumnNotFound(...)) before DataFusion planning \
-             (analogous to check_expr_insubquery_projection). \
+            matches!(&result, Err(PrismError::QueryExecutionFailed { .. })),
+            "T38b / BC-2.11.016 v1.26 Option A: execute_against_session must return \
+             Err(QueryExecutionFailed) for '_safety_flags' — the plan-time E-QUERY-038 \
+             gate only fires through engine.rs::execute(), not through the materialisation \
+             layer. If this returns Err(ColumnNotFound), the runtime FieldNotFound→ColumnNotFound \
+             fallback has been re-introduced, violating the Option A architectural boundary \
+             (@e8f7dc8b). \
              got: {result:?}"
         );
     }
