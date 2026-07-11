@@ -182,7 +182,11 @@ ocsf_class = "detection_finding"
   method = "GET"
   path_template = "/detects/queries/detects/v1?filter=${query.filter._fql}&limit=${query.limit}"
   response_path = "$.resources"
-  variables_produced = ["detection_ids"]
+  # OBS-003 (2026-07-10): "detection_ids" was declared but never materialized — the
+  # body_template uses ${query_detection_ids.resources}, which is produced automatically
+  # from response_path = "$.resources".  Declaring a redundant named variable causes a
+  # spec-validation warning; cleared to [] to match query_device_ids / query_incident_ids.
+  variables_produced = []
 
   # Step 2: PostEntities — POST IDs to get full detection records
   # DTU route: POST /detects/entities/summaries/GET/v1 (mod.rs line ~193)
@@ -190,8 +194,6 @@ ocsf_class = "detection_finding"
   # Fan-out batch: body_template uses ${step_name.field} interpolation.
   # Step 1 (query_detection_ids) stores results under:
   #   - ${query_detection_ids.resources}  (last segment of response_path "$.resources")
-  #   - ${query_detection_ids.detection_ids} (from variables_produced)
-  # Both reference the same array of detection IDs.
   # The variable reference must include the step name prefix and field name (no bare names).
   [[tables.steps]]
   name = "fetch_detections"

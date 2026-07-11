@@ -1239,51 +1239,19 @@ pub(crate) async fn execute_against_session_with_registry(
                         .to_string(),
                 })?;
             // Execute the plan-pinned SQL string via DataFusion.
+            // F-CSD-P20-003 (Option A, D-architect-adjudication 2026-07-10): the
+            // FieldNotFound→ColumnNotFound runtime fallback is removed.  Column-availability
+            // is now guaranteed at plan-time by `check_query_column_availability` in
+            // engine.rs (re-pointed T38 covers the _safety_flags case).  A surviving
+            // FieldNotFound here is a DataFusion internal that must not be misclassified
+            // as E-QUERY-038 — surface it as a generic planning error with structured log.
             let df = session_ctx.sql(&plan_pinned_sql).await.map_err(|e| {
-                // F-CSD-P19-003 (BC-2.11.012 v1.7 T38): after VirtualField::SafetyFlags
-                // retirement, `_safety_flags` (and any other non-existent field) reaches
-                // DataFusion as Expr::Field and causes FieldNotFound.  Convert that to
-                // ColumnNotFound (E-QUERY-038) so callers receive a structured error instead
-                // of an opaque QueryExecutionFailed.  The engine.rs path handles FieldNotFound
-                // via check_query_column_availability; this clause mirrors that behaviour for
-                // the execute_against_session code path (used directly in tests and by
-                // test helpers that bypass engine.rs::execute_inner).
-                // DataFusion 53.1 wraps SchemaError::FieldNotFound inside a
-                // Diagnostic wrapper (DataFusionError::Diagnostic(_, inner)) via
-                // `err.with_diagnostic()` in the SQL planner.  Use `find_root()` to
-                // unwrap any Context / Diagnostic / External chain before matching.
-                use datafusion::common::{DataFusionError as DFError, SchemaError};
-                let maybe_column_not_found = match e.find_root() {
-                    DFError::SchemaError(schema_err, _) => {
-                        if let SchemaError::FieldNotFound {
-                            field,
-                            valid_fields,
-                        } = schema_err.as_ref()
-                        {
-                            let col = field.name.clone();
-                            let avail = valid_fields
-                                .iter()
-                                .map(|c| c.name.clone())
-                                .collect::<Vec<_>>();
-                            Some((col, avail))
-                        } else {
-                            None
-                        }
-                    }
-                    _ => None,
-                };
-                if let Some((col, avail)) = maybe_column_not_found {
-                    return PrismError::ColumnNotFound(Box::new(
-                        prism_core::error::ColumnNotFoundDetails::new(
-                            col,
-                            sql_query.from.source.raw.clone(),
-                            "",
-                            avail,
-                            None,
-                        ),
-                    ));
-                }
-                tracing::error!(error = %e, "DataFusion SQL planning error");
+                tracing::error!(
+                    error = %e,
+                    sql = %plan_pinned_sql,
+                    event_type = "sql.sql_planning_error",
+                    "DataFusion SQL planning error"
+                );
                 PrismError::QueryExecutionFailed {
                     detail: "SQL planning error: <redacted; see server logs>".to_string(),
                 }
@@ -2737,34 +2705,42 @@ pub fn register_mem_table(
 
     if batches.is_empty() {
         // Empty batch list — nothing to register; skip silently.
-        tracing::debug!(table_name, "register_mem_table: skipping empty batch list");
+        // F-CSD-P20-008: sanitize before log emission (CWE-117, TD-VSDD-060 sweep).
+        tracing::debug!(
+            table_name = %sanitize_for_log(table_name),
+            "register_mem_table: skipping empty batch list"
+        );
         return Ok(());
     }
 
     let schema = batches[0].schema();
     let mem_table = MemTable::try_new(schema, vec![batches]).map_err(|e| {
+        // F-CSD-P20-008: sanitize before log emission and detail string (CWE-117).
+        let safe_table_name = sanitize_for_log(table_name);
         tracing::error!(
-            table_name,
+            table_name = %safe_table_name,
             error = %e,
             "failed to create MemTable (detail redacted from client response)"
         );
         PrismError::QueryExecutionFailed {
             detail: format!(
-                "failed to create MemTable for '{table_name}': <redacted; see server logs>"
+                "failed to create MemTable for '{safe_table_name}': <redacted; see server logs>"
             ),
         }
     })?;
 
     ctx.register_table(table_name, std::sync::Arc::new(mem_table))
         .map_err(|e| {
+            // F-CSD-P20-008: sanitize before log emission and detail string (CWE-117).
+            let safe_table_name = sanitize_for_log(table_name);
             tracing::error!(
-                table_name,
+                table_name = %safe_table_name,
                 error = %e,
                 "failed to register table (detail redacted from client response)"
             );
             PrismError::QueryExecutionFailed {
                 detail: format!(
-                    "failed to register table '{table_name}': <redacted; see server logs>"
+                    "failed to register table '{safe_table_name}': <redacted; see server logs>"
                 ),
             }
         })?;
@@ -2886,8 +2862,9 @@ fn do_register_empty_mem_table(
              (detail redacted from client response)"
         );
         PrismError::QueryExecutionFailed {
+            // F-CSD-P20-007: embed sanitized name in client-facing detail (CWE-117).
             detail: format!(
-                "failed to create empty placeholder MemTable for '{table_name}': \
+                "failed to create empty placeholder MemTable for '{safe_table_name}': \
                      <redacted; see server logs>"
             ),
         }
@@ -2905,8 +2882,9 @@ fn do_register_empty_mem_table(
                  (detail redacted from client response)"
             );
             PrismError::QueryExecutionFailed {
+                // F-CSD-P20-007: embed sanitized name in client-facing detail (CWE-117).
                 detail: format!(
-                    "failed to register empty placeholder MemTable for '{table_name}': \
+                    "failed to register empty placeholder MemTable for '{safe_table_name}': \
                      <redacted; see server logs>"
                 ),
             }

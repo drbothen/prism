@@ -1638,26 +1638,6 @@ mod tests {
     //   "Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`. \
     //    Alternatively, a JOIN achieves the same result: \
     //    `SELECT * FROM t JOIN (SELECT col FROM src) s ON t.field = s.col`."
-    //
-    // Current `hint` in `check_expr_insubquery_projection` (`let hint` binding):
-    //   "IN subquery in SELECT projection position is not currently supported. \
-    //    Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`."
-    //
-    // Current Display (BUGGY — differs in two ways):
-    //   "E-QUERY-043: IN subquery in projection position is not supported. IN subquery \
-    //    in SELECT projection position is not currently supported. Use a WHERE clause \
-    //    subquery instead: `WHERE field IN (SELECT ...)`."
-    //
-    // RED: assert_eq! FAILS because:
-    //   (a) hint has a doubled preamble ("IN subquery in SELECT projection position is
-    //       not currently supported.") after the fixed prefix already says "not supported"
-    //   (b) hint omits the JOIN alternative sentence
-    //
-    // GREEN (post-fix): implementer must update `hint` in check_expr_insubquery_projection
-    //   (materialization.rs) to exactly:
-    //   "Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`. \
-    //    Alternatively, a JOIN achieves the same result: \
-    //    `SELECT * FROM t JOIN (SELECT col FROM src) s ON t.field = s.col`."
     // -----------------------------------------------------------------------
 
     /// F-CSD-P4-001-T6 / F-CSD-P5-002 / BC-2.11.003 error-content byte-strict lock:
@@ -1672,14 +1652,6 @@ mod tests {
     /// achieves the same result: `SELECT * FROM t JOIN (SELECT col FROM src) s ON
     /// t.field = s.col`.
     /// ```
-    ///
-    /// # RED state (current Display — two bugs)
-    ///
-    /// 1. **Doubled preamble**: The `#[error]` macro already emits "not supported.", then
-    ///    the current `hint` starts with "IN subquery in SELECT projection position is not
-    ///    currently supported." — a near-duplicate of the fixed prefix.
-    /// 2. **Missing JOIN alternative**: The hint ends after the WHERE form, omitting
-    ///    "Alternatively, a JOIN achieves the same result: `SELECT * FROM t JOIN ...`."
     ///
     /// # POL-24 constraint
     ///
