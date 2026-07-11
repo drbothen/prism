@@ -5,8 +5,11 @@
 //! ## S-2.08 layer: `inject_source_type`
 //! Pure-data `_source_type` virtual field injection (no DataFusion, no Arrow).
 //! Sets `"_source_type"` on each row map based on `EventStream`/`PointInTime`
-//! delivery model and whether rows came from the buffer. S-3.02 wires this
-//! into the DataFusion pipeline.
+//! delivery model and whether rows came from the buffer.
+//!
+//! **Fence (BC-2.11.012 v1.8 / F-CSD-P20-014):** `inject_source_type` is unwired
+//! pending the TD-S302-005 delivery story (EventStream buffer-serving does not exist
+//! yet). Production rows currently always carry `"live"`.
 //!
 //! ## S-3.02 layer: `MaterializationPipeline`
 //! Full 8-step ephemeral materialization pipeline (BC-2.11.005):
@@ -73,6 +76,7 @@ use crate::{
 /// per S-2.08 Architecture Compliance Rule 5) is not yet wired into the pipeline;
 /// end-to-end wiring is tracked under TD-S302-005 alongside the deferred
 /// integration-test assertions in `tests/integration_tests.rs`.
+/// Until TD-S302-005 delivers, production rows currently always carry `"live"`.
 ///
 /// # AC-9
 /// Given `EventStream` rows from the buffer: every row has `"_source_type": "buffered"`.
