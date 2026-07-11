@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.983"
+version: "7.984"
 status: current
-timestamp: 2026-07-10T23:59:59Z
+timestamp: 2026-07-11T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -82,15 +82,62 @@ timestamp: 2026-07-10T23:59:59Z
 >
 > **D-1666 (2026-07-10): SESSION WRAP — §RESUME SNAPSHOT D-1666 authored (supersedes D-1651).** EQUERY042 DEFECT CLOSED (PR #220 develop@b9cf3f9b; LOCAL 5-pass + PR-LEVEL 3-pass 3-CLEAN(strict)). CSDEVICES LOCAL cascade 17 passes; pass 17 CLEAN(strict) streak 1/3 on FROZEN HEAD 819beeda (DO NOT push or commit to branch before passes 18/19 — frozen-HEAD rule). D-1666 human decisions: (1) S-3.09 KEEP-PARKED (DRIFT-PARKED-S309-001 resolved); (2) W3-FIX-S307-001 APPLICABILITY-AUDIT-QUEUED (do NOT touch); (3) E-OCSF-005..023 DRAFT-STORY+QUEUE-AFTER-DEMO; (4) DRIFT-SAP2-DEVICES-TOML-SURFACE-001 EXPAND-NOW queued after CSDEVICES merge. NEW DRIFT-HARNESS-ADMIN-TOKEN-CT-001. STATE v8.265→v8.266.
 >
-> **D-1673 (2026-07-10): SESSION WRAP — §RESUME SNAPSHOT D-1673 authored (supersedes D-1666).** CSDEVICES LOCAL cascade passes 18→24 this session (7 passes, 5 fix-bursts). Pass-24 (frozen @4f084a31): CLEAN(strict)=NO — 3 MED + 2 OBS (F-CSD-P24-001/002/003/OBS-002/OBS-003). Fix-burst: implementer @6a913680 (LLM quick-reference 3 rows + parity gate + docstring sweep) + test-writer @0d07be7e (T40 SqlPipe lock + store_step_vars 3 unit tests + T39 re-anchor). FROZEN HEAD for pass 25: 0d07be7e. just check 5472/5472 GREEN; prism-mcp 447/447; non-exhaustive 89/89. Streak 0/3. L39 [correctness] appended. STATE v8.272→v8.273.
+> **D-1673 (2026-07-10): SESSION WRAP — §RESUME SNAPSHOT D-1673 authored (supersedes D-1666).** CSDEVICES LOCAL cascade passes 18→24 this session (7 passes, 5 fix-bursts). Pass-24 (frozen @4f084a31): CLEAN(strict)=NO — 3 MED + 2 OBS (F-CSD-P24-001/002/003/OBS-002/OBS-003). Fix-burst: implementer @6a913680 (LLM quick-reference 3 rows + parity gate + docstring sweep) + test-writer @0d07be7e (T40 SqlPipe lock + store_step_vars 3 unit tests + T39 re-anchor). FROZEN HEAD for pass 25: 0d07be7e. just check 5472/5472 GREEN; prism-mcp 447/447; non-exhaustive 89/89. Streak 0/3. L39 [correctness] appended. STATE v8.272→v8.273. **[SUPERSEDED by D-1681]**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1673 SESSION WRAP; CSDEVICES streak 0/3 on frozen 0d07be7e; VERY NEXT = LOCAL pass 25** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1673 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1673 below is the most recent durable SESSION WRAP snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `b9cf3f9b` (PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 squash-merged 2026-07-10). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.273. D-1673 (SESSION WRAP; CSDEVICES 24-pass cascade; streak 0/3 on frozen 0d07be7e; pass-24 3 MED + 2 OBS closed; fix-burst @6a913680+@0d07be7e; 5472/5472 GREEN; EQUERY042 CLOSED).
+> **D-1681 (2026-07-11): SESSION WRAP — §RESUME SNAPSHOT D-1681 authored (supersedes D-1673).** CSDEVICES LOCAL cascade passes 25→32 this session (8 passes, 7 fix-bursts, D-1674..D-1681). Pass-32 (frozen @072930ee): CLEAN(strict)=NO CLEAN(PR-merge)=YES — 3 LOW docs-only (F-CSD-P32-OBS-001/002/003). Fix-burst: implementer @a6f86fa3 (docs-only; worked-example v90/v91; canary; module header 90→91; ci.yml comment; CLAUDE.md authority pointer). New FROZEN HEAD a6f86fa3 (LOCAL-ONLY, NOT pushed). Spec deltas: BC-2.16.013 v1.27→v1.31; BC-2.11.022 v1.2→v1.3; BC-INDEX v7.90→v7.94; Gate EXPECTED 89→91 ON BRANCH (develop stays 89). Streak 0/3. just check-fast clean. STATE v8.280→v8.281.
+>
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1681 SESSION WRAP; CSDEVICES streak 0/3 on frozen a6f86fa3; VERY NEXT = LOCAL pass 33** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1681 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1681 below is the most recent durable SESSION WRAP snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `b9cf3f9b` (PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 squash-merged 2026-07-10). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.281. D-1681 (SESSION WRAP; CSDEVICES 32-pass cascade; streak 0/3 on frozen a6f86fa3; pass-32 3 LOW CLEAN(PR-merge) closed; fix-burst @a6f86fa3; docs-only; EQUERY042 CLOSED).
 
 ---
 
-## §RESUME SNAPSHOT — D-1673 (2026-07-10 — SESSION WRAP; develop origin/develop b9cf3f9b; BC-INDEX v7.90; STORY-INDEX v2.653; ARCH-INDEX v2.176; STATE v8.273; CSDEVICES 24-pass cascade streak 0/3 on frozen 0d07be7e; passes 18-24 completed this session; VERY NEXT ACTION = LOCAL adversary pass 25 on frozen 0d07be7e) [SUPERSEDES D-1666]
+## §RESUME SNAPSHOT — D-1681 (2026-07-11 — SESSION WRAP; develop origin/develop b9cf3f9b; BC-INDEX v7.94; STORY-INDEX v2.653; ARCH-INDEX v2.176; STATE v8.281; CSDEVICES 32-pass cascade streak 0/3 on frozen a6f86fa3; passes 25-32 completed this session; VERY NEXT ACTION = LOCAL adversary pass 33 on frozen a6f86fa3) [SUPERSEDES D-1673]
+
+### RESUME IN ONE BREATH
+
+Prism Phase-3/Wave-5. CSDEVICES defect: 32-pass LOCAL cascade on `.worktrees/FIX-CSDEVICES-EMPTY-PIPELINE`, streak 0/3 on FROZEN HEAD `a6f86fa3` (LOCAL-ONLY — do NOT push or commit to the branch before 3-CLEAN converged; frozen-HEAD rule per DRIFT-ORCH-PRLEVEL-PUSH-001). VERY NEXT ACTION = dispatch LOCAL adversary pass 33 on frozen `a6f86fa3` (fresh context; full policy rubric + SAP-1 + SAP-2 + POL-22; dual strict/PR-merge verdict; finding IDs F-CSD-P33-NNN; adjudicated invariants include: detection_detail `det_index`-parsed-from-id + severity string labels BC-2.16.013 v1.31; two-layer EXPECTED=91 with 2-seg key disambiguation + canary; E0004 note shapes empirically pinned for v90 re-export vs v91 direct-path).
+
+### HEADS (all as of D-1681)
+
+- **develop:** `b9cf3f9b` (PUSHED, origin==local; PR #220 EQUERY042 squash-merged 2026-07-10)
+- **fix/csdevices-empty-pipeline:** `a6f86fa3` (LOCAL-ONLY — 32-pass cascade FROZEN; flag priority push after 3-CLEAN; DO NOT push before passes 33/34)
+- **.worktrees/AUDIT-COVERAGE-001:** `317b6e25` on `fix/T13-audit-coverage` (LOCAL-ONLY; PARKED; Section H 25 checks, 93/95 passing; two product defects exposed — CSDEVICES now in cascade, EQUERY042 CLOSED)
+- **.worktrees/S-3.09:** `43c41389` (KEEP-PARKED per D-1666; do not resume without explicit human direction)
+- **.worktrees/W3-FIX-S307-001:** `fcab8717` (PARKED; APPLICABILITY-AUDIT-QUEUED; do NOT touch per D-1666 decision 2)
+- **factory-artifacts HEAD:** run `git -C .factory log -1 --format='%h %s'` (do not hard-code)
+
+### CSDEVICES CASCADE STATE (per-workstream RESUME NEXT-ACTION)
+
+- Streak: **0/3** on FROZEN HEAD `a6f86fa3`
+- Pass 33 is NEXT — dispatch LOCAL adversary (fresh-context; no prior passes loaded; SAP-1/SAP-2/POL-22/POL-33; full adjudicated-invariant list below)
+- Adjudicated invariants still in effect: (1) `det_index` MUST be parsed from `detection_id` trailing NNN via `rsplit('-')`, NOT batch position; (2) `severity` MUST be string label from `["Low","Medium","High","Critical"]`; (3) BC-2.16.013 v1.31 host-pool device_id = `generate_host_ids(org_slug,seed)[det_index%HOST_COUNT]`; (4) two-layer EXPECTED=91 (`scripts/check-non-exhaustive.sh` owns EXPECTED; `ci.yml` calls the script); (5) Layer-2 keys are 2-seg (`virtual_fields::VirtualField` / `ast::VirtualField`) to disambiguate; (6) E0004 note shape: v90 re-export 2-part path → `virtual_fields::VirtualField`; v91 direct-path 3-part path → `ast::VirtualField`
+- PENDING-HUMAN post-merge: DRIFT-SAP2-DEVICES-TOML-SURFACE-001 EXPAND-NOW; DRIFT-INTERNAL-TABLE-COLUMN-GATE-001 (story-queued); TD-S302-005 buffer-serving story; DRIFT-HARNESS-ADMIN-TOKEN-CT-001
+
+### QUEUED AFTER CSDEVICES MERGE
+
+1. TD-S302-005 buffer-serving story (EventStream inject_source_type production path)
+2. DRIFT-SAP2-DEVICES-TOML-SURFACE-001 EXPAND-NOW (devices TOML projection surface expansion — human-authorized)
+3. DRIFT-INTERNAL-TABLE-COLUMN-GATE-001 (extend plan-time column gate to internal tables)
+4. Un-park AUDIT-COVERAGE-001 branch @317b6e25 (93/95 live; T13 capstone path)
+5. W3-FIX-S307-001 applicability audit (do NOT touch until human routes)
+6. E-OCSF-005..023 draft story (queued post-demo)
+7. DRIFT-HARNESS-ADMIN-TOKEN-CT-001
+
+### DECISION DELTA (D-1674..D-1681)
+
+- **D-1674** (2026-07-11): CSDEVICES pass-25 closure — 5 LOW + 1 OBS. Fix: test-writer @437dac0e + implementer @99719a7a + PO BC-2.16.013 v1.28 Route Coverage Table. FROZEN HEAD 99719a7a.
+- **D-1675** (2026-07-11): Architect Option B — Pipe/SqlPipe stage-walk asymmetry STANDS. Pipe: blocked by `pipe_sql_emitter::predicate_to_datafusion_sql` Err arm before DataFusion. SqlPipe stage-walk necessary. Pass-26 OBS-002 closed.
+- **D-1676** (2026-07-11): CSDEVICES pass-26 closure — 3 OBS. Fix: test-writer @3202d80f + implementer @9fe2d016. FROZEN HEAD 9fe2d016. Streak reset 0/3.
+- **D-1677** (2026-07-11): CSDEVICES pass-27 — CLEAN(strict)=YES. Streak 0/3→1/3. FIRST CLEAN(strict) passes 25+.
+- **D-1678** (2026-07-11): CSDEVICES pass-28 — 1 OBS VirtualField gate 89→90. Fix: implementer @25b80a81. FROZEN HEAD 25b80a81. Streak reset 0/3.
+- **D-1679** (2026-07-11): Architect Option A — harness device_id host-pool constraint. BC-2.16.013 v1.30 host-pool clause. CSDEVICES pass-30 closure — 2 LOW + 2 OBS CLEAN(PR-merge). Fix: @3a9ec741+@c26a74ef+@ed2988cc. FROZEN HEAD ed2988cc.
+- **D-1680** (2026-07-11): CSDEVICES pass-31 closure — 1 MED + 1 LOW + 1 OBS CLEAN(PR-merge)=NO. Fix: test-writer @36f0ba9c + BC-2.16.013 v1.31 (PO) + implementer @072930ee. Severity string labels; det_index stable parse; gate 90→91; Layer-2 keys disambiguated. FROZEN HEAD 072930ee. Streak reset 0/3.
+- **D-1681** (2026-07-11): SESSION WRAP — pass-32 closure (3 LOW docs-only; fix @a6f86fa3). FROZEN HEAD a6f86fa3. Streak 0/3. §RESUME SNAPSHOT D-1681 authored (supersedes D-1673).
+
+---
+
+## §RESUME SNAPSHOT — D-1673 (2026-07-10 — SESSION WRAP; develop origin/develop b9cf3f9b; BC-INDEX v7.90; STORY-INDEX v2.653; ARCH-INDEX v2.176; STATE v8.273; CSDEVICES 24-pass cascade streak 0/3 on frozen 0d07be7e; passes 18-24 completed this session; VERY NEXT ACTION = LOCAL adversary pass 25 on frozen 0d07be7e) [SUPERSEDES D-1666] **[SUPERSEDED by D-1681]**
 
 ### RESUME IN ONE BREATH
 
