@@ -3256,9 +3256,9 @@ mod tests {
     // references the subquery table in the emitted CTE SQL without pre-registration.
     // DataFusion "table not found" → `PrismError::QueryExecutionFailed` (-32000 to MCP).
     //
-    // BC-2.11.005 v1.9 DEC-022 is position-invariant: "All sensor API calls return empty"
-    // → "Empty RecordBatch registered; query returns empty result set." The invariant
-    // applies to ALL query modes, including SqlPipe.
+    // BC-2.11.005 DEC-022 (introduced v1.9) is position-invariant: "All sensor API calls
+    // return empty" → "Empty RecordBatch registered; query returns empty result set."
+    // The invariant applies to ALL query modes, including SqlPipe.
     //
     // Grammar reach: CONFIRMED.
     //   SqlPipe head is a `SqlQuery` parsed by `build_sql_query_parser`, which includes
@@ -3333,8 +3333,8 @@ mod tests {
     /// 0-batch table in a WHERE IN-subquery, that table is absent from the DataFusion
     /// catalog → CTE head SQL planning fails → `PrismError::QueryExecutionFailed`.
     ///
-    /// BC-2.11.005 v1.9 DEC-022 is position-invariant: empty ≠ error applies to
-    /// all query modes including SqlPipe.
+    /// BC-2.11.005 DEC-022 (introduced v1.9) is position-invariant: empty ≠ error applies
+    /// to all query modes including SqlPipe.
     ///
     /// # Grammar reach
     ///
@@ -3472,9 +3472,9 @@ mod tests {
     /// both tables must be pre-registered via `pre_register_empty_tables` on `spq.head`
     /// for the SqlPipe CTE to plan correctly.
     ///
-    /// BC-2.11.005 v1.9 DEC-022 position-invariant: "All sensor API calls return empty"
-    /// → "Empty RecordBatch registered; query returns empty result set." Both paths
-    /// (production via early-return, test path via pre-registration) must be conformant.
+    /// BC-2.11.005 DEC-022 (introduced v1.9) position-invariant: "All sensor API calls
+    /// return empty" → "Empty RecordBatch registered; query returns empty result set."
+    /// Both paths (production via early-return, test path via pre-registration) must be conformant.
     ///
     /// # RED reason
     ///

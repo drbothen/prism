@@ -3250,6 +3250,22 @@ pub(crate) async fn collect_record_batch_stream(
 ///   (F-CSD-P7-001; sibling walker `walk_sql_query` already recurses here)
 /// - `SqlQuery.having` — same recursion, orthogonal HAVING path (F-CSD-P7-001-T3)
 /// - `DmlNode.source_select` (INSERT INTO … SELECT) — via `check_sql_query` (F-CSD-P6-001)
+/// - `SqlPipeQuery.stages` — each `PipeStage::Where(pred)` predicate is walked via
+///   `check_predicate` (F-CSD-P25-004; defense-in-depth).
+///
+/// ## SqlPipe stage-walk: parser-parity invariant and defense-in-depth rationale
+///
+/// The pipe `| where` stage grammar (`filter_parser::build_predicate_parser`) does NOT
+/// produce `Predicate::InSubquery` — that variant is added only by the SQL WHERE-clause
+/// parser (`sql_parser::build_sql_predicate_parser`). Therefore, at grammar-generation
+/// time, a live `PipeStage::Where(Predicate::InSubquery { .. })` shape is unreachable
+/// from normal user input. The head-only walk was safe under this invariant.
+///
+/// The stage walk is added as **defense-in-depth** (per T27/T39/T41 precedent) against
+/// future grammar extensions that might expose `Predicate::InSubquery` in a pipe stage
+/// WHERE. If such a grammar extension lands, the gate fires here rather than propagating
+/// to DataFusion with an opaque `QueryExecutionFailed`. Constructed AST shapes (test T41)
+/// verify the gate fires even when the shape is grammar-unreachable today.
 ///
 /// Within each projection position, `contains_insubquery` recurses into
 /// `FuncCall::Scalar` and `FuncCall::Aggregate` argument lists (F-CSD-P5-001).
@@ -3445,7 +3461,28 @@ fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismEr
 
     let found = match ast {
         Ast::Sql(SqlStatement::Select(q)) => check_sql_query(q),
-        Ast::SqlPipe(spq) => check_sql_query(&spq.head),
+        // F-CSD-P25-004: walk both the SQL head AND every pipe stage WHERE predicate.
+        //
+        // Head-only walking was safe under the parser-parity invariant:
+        // `filter_parser::build_predicate_parser` does NOT produce `Predicate::InSubquery`,
+        // so a pipe stage WHERE cannot carry that shape from normal user input today.
+        //
+        // The stage walk is defense-in-depth against future grammar extensions that might
+        // expose `Predicate::InSubquery` in a pipe stage WHERE (T41 verifies via constructed
+        // AST per BC-5.38.001 T27 pattern). When such a stage WHERE subquery contains
+        // `Expr::InSubquery` in its SELECT projection, `check_predicate` → `check_sql_query`
+        // detects it and returns E-QUERY-043.
+        Ast::SqlPipe(spq) => {
+            use crate::ast::PipeStage;
+            if check_sql_query(&spq.head) {
+                true
+            } else {
+                spq.stages.iter().any(|stage| match stage {
+                    PipeStage::Where(pred) => check_predicate(pred),
+                    _ => false,
+                })
+            }
+        }
         // DML defense-in-depth (F-CSD-P6-001 + F-CSD-P8-002 + F-P4-LOW-1 precedent):
         //
         // (a) source_select: INSERT INTO … SELECT carries `source_select: Option<SqlQuery>`

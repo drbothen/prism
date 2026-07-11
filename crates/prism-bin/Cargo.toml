@@ -198,7 +198,7 @@ path = "tests/e2e_smoke.rs"
 # ADV-P02 fix-burst (S-DEMO-QUERY-PUSHDOWN-001 v2.1): real end-to-end push-down pipeline tests.
 # Closes ADV-P02-CRIT-001 (real run_materialization_pipeline path) and
 # ADV-P02-MED-001 (SID-1 substitute for AC-ARMIS-TW-005).
-# BCs: BC-2.01.013 v1.14, BC-2.11.007 v1.8, BC-2.11.005 v1.6
+# BCs: BC-2.01.013 v1.14, BC-2.11.007 v1.8, BC-2.11.005 (introduced v1.6)
 [[test]]
 name = "adv_p02_e2e_pushdown_pipeline_test"
 path = "tests/adv_p02_e2e_pushdown_pipeline_test.rs"
