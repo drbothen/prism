@@ -81,6 +81,13 @@ const HOST_COUNT: usize = 30;
 /// Maximum concurrent sessions in the LRU registry.
 const SESSION_REGISTRY_CAPACITY: usize = 1_000;
 
+/// Maximum ids per batch for `POST /devices/entities/devices/v2` (PostDeviceDetailsV2).
+///
+/// Mirrors the CrowdStrike-documented batch limit and the standalone DTU's
+/// `MAX_IDS_PER_BATCH` constant (INV-HARNESS-ROUTE-PARITY). Guards against
+/// CWE-400 (Uncontrolled Resource Consumption) on crafted over-large request bodies.
+const MAX_IDS_PER_BATCH: usize = 5_000;
+
 // ---------------------------------------------------------------------------
 // State types
 // ---------------------------------------------------------------------------
@@ -312,7 +319,20 @@ fn detection_detail(detection_id: &str, org_slug: &str, seed: u64) -> Value {
     // F-CSD-P30-OBS-003: derive device_id from the host pool so JOIN queries
     // (detections.device_id = devices.device_id) produce non-empty results.
     let host_ids = generate_host_ids(org_slug, seed);
-    let device_id = &host_ids[det_index % host_ids.len()];
+    // SEC-002/CWE-369: generate_host_ids is deterministic (HOST_COUNT = 30 > 0) so
+    // host_ids is never empty in practice. The debug_assert catches any future
+    // HOST_COUNT=0 regression during dev/test; the release fallback prevents a panic
+    // in production without altering observable behavior for the non-empty case
+    // (BC-2.16.013 v1.31 host-pool mapping invariant preserved).
+    debug_assert!(
+        !host_ids.is_empty(),
+        "generate_host_ids must never return empty; org_slug={org_slug:?} seed={seed}"
+    );
+    let device_id: &str = if host_ids.is_empty() {
+        "unknown-device"
+    } else {
+        &host_ids[det_index % host_ids.len()]
+    };
 
     // F-CSD-P31-MED-001: severity as string label matching standalone DTU
     // make_detection_with_ioc (severity_id 1→"Low", 2→"Medium", 3→"High", _→"Critical").
@@ -984,6 +1004,17 @@ async fn post_host_details(
             StatusCode::BAD_REQUEST,
             Json(json!({
                 "errors": [{"code": 400, "message": "ids array must not be empty"}]
+            })),
+        )
+            .into_response();
+    }
+    // SEC-001/CWE-400: enforce CrowdStrike PostDeviceDetailsV2 documented batch limit
+    // (INV-HARNESS-ROUTE-PARITY: mirrors the standalone DTU's MAX_IDS_PER_BATCH guard).
+    if body.ids.len() > MAX_IDS_PER_BATCH {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "errors": [{"code": 400, "message": "ids array exceeds maximum batch size of 5000"}]
             })),
         )
             .into_response();

@@ -398,6 +398,80 @@ async fn test_BC_2_16_013_F_CSD_P9_001_harness_network_post_host_details_reachab
 }
 
 // ============================================================================
+// Test 6 (SEC-001/CWE-400): POST body with > MAX_IDS_PER_BATCH ids returns 400
+//
+// BC-2.16.013 INV-HARNESS-ROUTE-PARITY — the harness post_host_details MUST
+// mirror the standalone DTU's MAX_IDS_PER_BATCH=5000 upper-bound guard.
+//
+// CrowdStrike documents 5000 ids per batch as the PostDeviceDetailsV2 limit.
+// The harness must enforce the same bound to maintain fidelity parity and to
+// prevent unbounded resource consumption (CWE-400).
+//
+// Red Gate failure mode:
+//   POST /devices/entities/devices/v2 with 5001 ids → 200 (no upper-bound guard)
+// ============================================================================
+
+/// SEC-001/CWE-400 / BC-2.16.013: harness CrowdStrike clone POST
+/// /devices/entities/devices/v2 with 5001 ids must return HTTP 400.
+///
+/// MAX_IDS_PER_BATCH=5000 mirrors the standalone DTU guard and CrowdStrike's
+/// documented PostDeviceDetailsV2 batch limit.
+///
+/// (BC-2.16.013 INV-HARNESS-ROUTE-PARITY — harness must enforce the same
+/// MAX_IDS_PER_BATCH guard as the standalone DTU post_host_details handler)
+///
+/// Red Gate: POST with 5001 ids → 200 (no upper-bound guard in harness clone).
+#[tokio::test]
+async fn test_SEC_001_harness_post_host_details_rejects_over_5000_ids_with_400() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::CrowdStrike];
+        })
+        .build()
+        .await
+        .expect("harness build must succeed");
+
+    let addr = get_addr(&harness, "acme-corp", DtuType::CrowdStrike);
+    let client = test_client();
+
+    // 5001 IDs — one over the documented CrowdStrike PostDeviceDetailsV2 limit.
+    let ids: Vec<serde_json::Value> = (0..5001_usize)
+        .map(|i| serde_json::Value::String(format!("h-{i:05}")))
+        .collect();
+    let body = serde_json::json!({ "ids": ids });
+
+    let resp = client
+        .post(format!("http://{addr}/devices/entities/devices/v2"))
+        .header("Authorization", "Bearer test-token")
+        .json(&body)
+        .send()
+        .await
+        .expect("POST /devices/entities/devices/v2 must reach server");
+
+    let status = resp.status().as_u16();
+    assert_eq!(
+        status, 400,
+        "SEC-001/CWE-400 / BC-2.16.013: harness POST with 5001 ids must return HTTP 400 \
+         (MAX_IDS_PER_BATCH=5000); got {status}. \
+         RED: no upper-bound guard in harness post_host_details."
+    );
+
+    let body_json: serde_json::Value = resp.json().await.expect("400 response must be valid JSON");
+
+    let errors = body_json["errors"].as_array().expect(
+        "SEC-001: harness 400 response must contain an 'errors' array \
+             (mirrors standalone DTU error-envelope shape)",
+    );
+
+    assert_eq!(
+        errors[0]["code"].as_u64(),
+        Some(400),
+        "SEC-001: errors[0].code must be 400; got: {body_json}"
+    );
+}
+
+// ============================================================================
 // Test 5: OBS-1 — harness host_detail() missing first_seen field (RED lock)
 //
 // OBS-1 (LOCAL adversary pass-10): The harness `host_detail()` helper

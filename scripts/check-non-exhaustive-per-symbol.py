@@ -109,7 +109,7 @@ EXPECTED_SYMBOLS = [
     "SqlPipeQuery",               # v86 (struct_violations) prism_query::ast::SqlPipeQuery
     "UnknownSourceTableDetails",  # v87 prism_core::error::UnknownSourceTableDetails
     "EnrichUdfNotFoundDetails",   # v88 prism_core::error::EnrichUdfNotFoundDetails
-    # ── E0004 enum match violations (22 total) ─────────────────────────────
+    # ── E0004 enum match violations (23 entries; 22 unique after prism_core::ColumnType dedup) ──
     # Names are the last path segment from `note: \`path::TypeName\` defined here`.
     "PaginationConfig",      # v07 spec_parser::PaginationConfig
     "AuthType",              # v08 spec_parser::AuthType

@@ -451,3 +451,70 @@ async fn test_BC_DEFECT_CSDEVICES_001_post_host_details_session_filter_identical
         .await
         .expect("clone.stop must succeed for test 5");
 }
+
+// ---------------------------------------------------------------------------
+// Test 6 (SEC-001/CWE-400): POST body with > MAX_IDS_PER_BATCH ids returns 400
+//
+// CrowdStrike documents a maximum of 5000 ids per batch for PostDeviceDetailsV2.
+// The DTU must mirror this upper bound (improving fidelity AND preventing
+// unbounded memory/CPU consumption on crafted inputs — CWE-400).
+//
+// RED: no MAX_IDS_PER_BATCH guard exists; handler passes all IDs to
+//      host_details_inner and returns 200. PASSES after the guard is added.
+// ---------------------------------------------------------------------------
+
+/// SEC-001/CWE-400: POST /devices/entities/devices/v2 with 5001 ids must return
+/// HTTP 400.
+///
+/// `MAX_IDS_PER_BATCH = 5000` mirrors the CrowdStrike PostDeviceDetailsV2 batch
+/// limit, improving DTU fidelity while guarding against CWE-400 resource consumption.
+/// Error body shape: `{"errors": [{"code": 400, "message": "ids array exceeds maximum batch size of 5000"}]}`
+///
+/// RED: no upper-bound guard — returns 200. PASSES after MAX_IDS_PER_BATCH guard.
+#[tokio::test]
+async fn test_SEC_001_post_host_details_rejects_over_5000_ids_with_400() {
+    let mut clone = CrowdstrikeClone::new();
+    clone
+        .start()
+        .await
+        .expect("CrowdstrikeClone::start must succeed");
+
+    let base_url = clone.base_url();
+    let client = http_client();
+
+    // 5001 IDs — one over the documented CrowdStrike PostDeviceDetailsV2 limit.
+    let ids: Vec<serde_json::Value> = (0..5001_usize)
+        .map(|i| serde_json::Value::String(format!("h-{i:05}")))
+        .collect();
+    let body = serde_json::json!({ "ids": ids });
+
+    let resp = client
+        .post(format!("{base_url}/devices/entities/devices/v2"))
+        .header("Authorization", "Bearer dtu-fake-cs-token")
+        .json(&body)
+        .send()
+        .await
+        .expect("POST /devices/entities/devices/v2 must reach server");
+
+    let status = resp.status().as_u16();
+    assert_eq!(
+        status, 400,
+        "SEC-001/CWE-400: POST with 5001 ids must return 400 (MAX_IDS_PER_BATCH=5000); \
+         got {status}. RED: no upper-bound guard in post_host_details."
+    );
+
+    let body_json: serde_json::Value = resp.json().await.expect("400 response must be valid JSON");
+    let errors = body_json["errors"]
+        .as_array()
+        .expect("SEC-001: 400 response must contain an 'errors' array");
+    assert_eq!(
+        errors[0]["code"].as_u64(),
+        Some(400),
+        "SEC-001: errors[0].code must be 400; got: {body_json}"
+    );
+
+    clone
+        .stop()
+        .await
+        .expect("clone.stop must succeed for test 6");
+}

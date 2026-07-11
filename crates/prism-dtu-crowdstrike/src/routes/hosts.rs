@@ -15,6 +15,13 @@ use serde::Deserialize;
 
 use crate::state::{CrowdstrikeState, SessionData};
 
+/// Maximum ids per batch for `POST /devices/entities/devices/v2` (PostDeviceDetailsV2).
+///
+/// Mirrors the CrowdStrike-documented batch limit. Guards against CWE-400
+/// (Uncontrolled Resource Consumption) on crafted over-large request bodies.
+/// Returns HTTP 400 with a descriptive error when exceeded.
+const MAX_IDS_PER_BATCH: usize = 5_000;
+
 /// Query params for host ID list.
 #[derive(Debug, Deserialize, Default)]
 pub struct HostListParams {
@@ -427,6 +434,16 @@ pub(crate) async fn post_host_details(
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({
                 "errors": [{"code": 400, "message": "ids array must not be empty"}]
+            })),
+        )
+            .into_response();
+    }
+    // SEC-001/CWE-400: enforce CrowdStrike PostDeviceDetailsV2 documented batch limit.
+    if body.ids.len() > MAX_IDS_PER_BATCH {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "errors": [{"code": 400, "message": "ids array exceeds maximum batch size of 5000"}]
             })),
         )
             .into_response();
