@@ -1256,7 +1256,7 @@ pub(crate) async fn execute_against_session_with_registry(
             let df = session_ctx.sql(&plan_pinned_sql).await.map_err(|e| {
                 tracing::error!(
                     error = %e,
-                    sql = %plan_pinned_sql,
+                    sql = %sanitize_for_log(&plan_pinned_sql),
                     event_type = "sql.sql_planning_error",
                     "DataFusion SQL planning error"
                 );
@@ -1403,14 +1403,14 @@ pub(crate) async fn execute_against_session_with_registry(
                 // matching the normalization applied in step 5. Use plain identifier quoting.
                 let filter_sql = format!("SELECT * FROM {table_name} WHERE {where_clause}");
                 tracing::debug!(
-                    filter_sql = %filter_sql,
+                    filter_sql = %sanitize_for_log(&filter_sql),
                     event_type = "filter.sql_lowering",
                     "filter-to-SQL lowering complete"
                 );
                 let df = session_ctx.sql(&filter_sql).await.map_err(|e| {
                     tracing::error!(
                         error = %e,
-                        filter_sql = %filter_sql,
+                        filter_sql = %sanitize_for_log(&filter_sql),
                         event_type = "filter.sql_planning_error",
                         "filter-to-sql DataFusion planning error"
                     );
@@ -1468,14 +1468,14 @@ pub(crate) async fn execute_against_session_with_registry(
             let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
             let sql = crate::pipe_sql_emitter::pipe_to_executable_sql(pipe, &table_batches)?;
             tracing::debug!(
-                pipe_sql = %sql,
+                pipe_sql = %sanitize_for_log(&sql),
                 event_type = "pipe.sql_lowering",
                 "pipe-to-SQL lowering complete"
             );
             let df = session_ctx.sql(&sql).await.map_err(|e| {
                 tracing::error!(
                     error = %e,
-                    pipe_sql = %sql,
+                    pipe_sql = %sanitize_for_log(&sql),
                     event_type = "pipe.sql_planning_error",
                     "pipe-to-sql DataFusion planning error"
                 );
@@ -1586,7 +1586,7 @@ pub(crate) async fn execute_against_session_with_registry(
             // SqlPipe lowering is semantically identical to Pipe lowering — same execution path,
             // same diagnostic information. No new catalog row needed.
             tracing::debug!(
-                pipe_sql = %sql,
+                pipe_sql = %sanitize_for_log(&sql),
                 event_type = "pipe.sql_lowering",
                 "sqlpipe-to-SQL lowering complete"
             );
@@ -1594,7 +1594,7 @@ pub(crate) async fn execute_against_session_with_registry(
                 // SAP-1: reuse existing catalog event type `pipe.sql_planning_error` (BC-2.16.002 catalog row for event_type "pipe.sql_planning_error").
                 tracing::error!(
                     error = %e,
-                    pipe_sql = %sql,
+                    pipe_sql = %sanitize_for_log(&sql),
                     event_type = "pipe.sql_planning_error",
                     "sqlpipe-to-SQL DataFusion planning error"
                 );
