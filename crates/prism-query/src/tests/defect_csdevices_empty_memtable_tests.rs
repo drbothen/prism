@@ -4042,26 +4042,34 @@ mod tests {
     // ─────────────────────────────────────────────────────────────────────────
     // Test 33b (F-CSD-P14-001-T33b): Nullable parity — direct helper-function assertion.
     //
-    // Strengthens T33 by verifying the *nullable attribute* (not just presence) of each
-    // virtual field on each injection path independently, without going through DataFusion.
+    // Strengthens T33 by verifying the *nullable attribute* (not just presence) of ALL
+    // FOUR virtual fields on each injection path independently, without going through
+    // DataFusion. (F-CSD-P20-011: extended from 3-field to 4-field parity per
+    // BC-2.11.012 v1.7 §Invariants.)
     //
-    // Contract (BC-2.11.012 v1.5 T33):
-    //   - Empty path: append_virtual_fields_to_schema → nullable=true
+    // Contract (BC-2.11.012 v1.7 T33):
+    //   - Empty path: append_virtual_fields_to_schema → nullable=true for all 4 fields
     //     (LEFT JOIN NULL propagation — the column must accept NULL when the empty table
     //     contributes no rows)
-    //   - Populated path: inject_virtual_fields → nullable=false
+    //   - Populated path: inject_virtual_fields → nullable=false for all 4 fields
     //     (actual string values are always present on populated batches; nullable=false
     //     prevents NULL from appearing on a non-empty result row)
+    //
+    // Four canonical fields: _sensor, _client, _source_table, _source_type
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// F-CSD-P14-001-T33b / BC-2.11.012 v1.5 T33: Both virtual-field injection helpers
-    /// must produce fields with the correct nullable attribute for their respective paths.
+    /// F-CSD-P14-001-T33b / BC-2.11.012 v1.7 T33: Both virtual-field injection helpers
+    /// must produce ALL FOUR canonical virtual fields with the correct nullable attribute
+    /// for their respective paths (F-CSD-P20-011: extended from 3-field to 4-field parity).
     ///
-    /// - `append_virtual_fields_to_schema` (empty path) → nullable=true
+    /// Four canonical fields (BC-2.11.012 v1.7 §Invariants):
+    ///   `_sensor`, `_client`, `_source_table`, `_source_type`
+    ///
+    /// - `append_virtual_fields_to_schema` (empty path) → nullable=true for all four
     ///   Rationale: LEFT JOIN NULL propagation requires nullable=true so DataFusion can
     ///   plan a nullable column for the empty-table side of the join.
     ///
-    /// - `inject_virtual_fields` (populated path) → nullable=false
+    /// - `inject_virtual_fields` (populated path) → nullable=false for all four
     ///   Rationale: actual string values are ALWAYS present on populated batches; a
     ///   nullable=true declaration on a column that never contains NULL would be
     ///   misleading and could cause downstream consumers to add unnecessary null checks.
@@ -4076,6 +4084,9 @@ mod tests {
             crate::virtual_fields::VIRTUAL_FIELD_SENSOR,
             crate::virtual_fields::VIRTUAL_FIELD_CLIENT,
             crate::virtual_fields::VIRTUAL_FIELD_SOURCE_TABLE,
+            // BC-2.11.012 v1.7 §Invariants: fourth canonical virtual field
+            // (F-CSD-P20-011: stale 3-field array extended to the canonical four).
+            crate::virtual_fields::VIRTUAL_FIELD_SOURCE_TYPE,
         ];
 
         // ── Empty path: append_virtual_fields_to_schema → nullable=true ──────────
@@ -4093,7 +4104,8 @@ mod tests {
             let field = empty_path_schema.field_with_name(vf).unwrap_or_else(|_| {
                 panic!(
                     "empty-path schema must include virtual field `{vf}` \
-                     (append_virtual_fields_to_schema must append all 3 virtual fields)"
+                     (append_virtual_fields_to_schema must append all 4 virtual fields: \
+                     _sensor, _client, _source_table, _source_type)"
                 )
             });
             assert!(
@@ -4135,7 +4147,8 @@ mod tests {
             let field = populated_schema.field_with_name(vf).unwrap_or_else(|_| {
                 panic!(
                     "populated-path schema must include virtual field `{vf}` \
-                     (inject_virtual_fields must append all 3 virtual fields)"
+                     (inject_virtual_fields must append all 4 virtual fields: \
+                     _sensor, _client, _source_table, _source_type)"
                 )
             });
             assert!(
@@ -4712,6 +4725,181 @@ mod tests {
              returns Err(ColumnNotFound(...)) before DataFusion planning \
              (analogous to check_expr_insubquery_projection). \
              got: {result:?}"
+        );
+    }
+
+    // =========================================================================
+    // T39 — F-CSD-P20-015 (OBS): Wildcard-arm lock for Ast::Filter and Ast::Pipe
+    //       in check_expr_insubquery_projection.
+    //
+    // `check_expr_insubquery_projection` closes on `Ast::Filter` and `Ast::Pipe`
+    // with a wildcard `_ => false` arm, relying on the comment: "Filter and Pipe
+    // variants have no SELECT projection expressions in the same sense as SQL
+    // SELECT; no E-QUERY-043 cases possible."
+    //
+    // This test locks that invariant structurally via constructed AST (T27
+    // defense-in-depth pattern, BC-5.38.001). It constructs the
+    // closest-to-projection shape each AST type permits and asserts the gate
+    // does NOT fire (returns false / Ok(())).
+    //
+    // Closest-to-projection position for Filter and Pipe:
+    //   Neither FilterExpr nor PipeQuery has a top-level SelectClause.
+    //   The only path to a SELECT items list is through a Predicate::InSubquery's
+    //   inner subquery. So the construction is:
+    //     Filter: Predicate::InSubquery { subquery: <q whose select.items holds
+    //             Expr::InSubquery> }
+    //     Pipe:   PipeStage::Where(Predicate::InSubquery { subquery: same <q> })
+    //
+    // Grammar reach: NOT grammar-reachable — constructed directly (T27 precedent).
+    //
+    // DESIRED: gate does NOT fire (Err != ExprInSubqueryProjectionNotSupported).
+    // If either Filter or Pipe grows a SELECT-style projection list in a future
+    // extension, the `_ => false` arm would silently skip E-QUERY-043 detection —
+    // this test breaks deliberately, alerting maintainers to extend the gate.
+    // =========================================================================
+
+    /// F-CSD-P20-015-T39 / BC-2.11.003: `check_expr_insubquery_projection` wildcard-arm
+    /// lock — `Ast::Filter` and `Ast::Pipe` with `Expr::InSubquery` in the
+    /// closest-to-projection position their AST types permit must NOT trigger E-QUERY-043.
+    ///
+    /// # Why this test exists
+    ///
+    /// `check_expr_insubquery_projection` uses `_ => false` for `Ast::Filter` and
+    /// `Ast::Pipe`, relying on the structural comment "no E-QUERY-043 cases possible."
+    /// This test locks that comment as a load-bearing invariant via constructed-AST
+    /// defense-in-depth (following T27 precedent, BC-5.38.001).
+    ///
+    /// # Closest-to-projection position
+    ///
+    /// `FilterExpr` carries `predicate: Predicate` (no `SelectClause`).
+    /// `PipeQuery` carries `stages: Vec<PipeStage>` (no `SelectClause`).
+    /// The only path to a `SELECT` items list is inside a `Predicate::InSubquery`'s
+    /// inner `subquery: Box<SqlQuery>` whose `select.items` can hold `Expr::InSubquery`.
+    ///
+    /// Construction chain:
+    ///   `Ast::Filter → FilterExpr.predicate → Predicate::InSubquery.subquery → SqlQuery.select.items[0] → Expr::InSubquery`
+    ///   `Ast::Pipe   → PipeQuery.stages[0]  → PipeStage::Where(Predicate::InSubquery).subquery → SqlQuery.select.items[0] → Expr::InSubquery`
+    ///
+    /// # Invariant lock
+    ///
+    /// If a future `PipeStage` or `FilterExpr` field adds a `SELECT`-style projection
+    /// list (e.g., `PipeStage::Select(Vec<SelectItem>)`), the wildcard arm would
+    /// silently skip E-QUERY-043 detection for that variant. This test breaks
+    /// deliberately at that point — maintainers must extend `check_expr_insubquery_projection`
+    /// before it can pass again.
+    ///
+    /// Grammar reach: NOT grammar-reachable in current PrismQL grammar.
+    /// Constructed directly following T27 defense-in-depth precedent.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P20_015_T39_filter_pipe_wildcard_arm_gate_does_not_fire() {
+        use crate::ast::{
+            Ast, Expr, FieldPath, FilterExpr, FromClause, PipeQuery, PipeStage, Predicate,
+            SelectClause, SelectItem, SourceRef, SqlQuery,
+        };
+        use prism_core::error::PrismError;
+
+        let ctx = build_session_context(50 * 1024 * 1024)
+            .expect("build_session_context must succeed for T39");
+
+        // Build the inner subquery whose SELECT projection holds Expr::InSubquery —
+        // the shape that triggers E-QUERY-043 in Ast::Sql / Ast::SqlPipe contexts.
+        //
+        // innermost_q: `SELECT device_id FROM crowdstrike_devices`
+        let innermost_q = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Expr {
+                expr: Expr::Field(FieldPath::new(["device_id"])),
+                alias: None,
+            }]),
+            FromClause::new(SourceRef::from_raw("crowdstrike_devices")),
+        );
+        // inner_q projection: `(device_id IN (SELECT device_id FROM crowdstrike_devices)) AS flag`
+        // Expr::InSubquery is in select.items — the projection position.
+        // In Ast::Sql/SqlPipe this shape fires E-QUERY-043 (see T9 / T18 locks).
+        let inner_q = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Expr {
+                expr: Expr::InSubquery {
+                    field: FieldPath::new(["device_id"]),
+                    subquery: Box::new(innermost_q),
+                },
+                alias: Some("flag".to_string()),
+            }]),
+            FromClause::new(SourceRef::from_raw("crowdstrike_detections")),
+        );
+
+        // ── Ast::Filter path ────────────────────────────────────────────────
+        // FilterExpr has no top-level SelectClause; the closest Expr::InSubquery
+        // can appear is inside Predicate::InSubquery.subquery.select.items.
+        // #[non_exhaustive] is not a barrier here — we are inside prism-query.
+        let filter_ast = Ast::Filter(FilterExpr {
+            source: SourceRef::from_raw("crowdstrike_detections"),
+            predicate: Predicate::InSubquery {
+                field: FieldPath::new(["device_id"]),
+                subquery: Box::new(inner_q.clone()),
+                negated: false,
+            },
+        });
+
+        let filter_result = execute_against_session(
+            &ctx,
+            // Synthetic label — _query_str is unused in the implementation (API-stability
+            // holdover); the AST is the authoritative input.
+            "synthetic-t39-filter-wildcard-arm-lock",
+            &filter_ast,
+            std::collections::HashMap::new(),
+        )
+        .await;
+
+        // LOCK: gate must NOT fire for Ast::Filter.
+        // Any result except ExprInSubqueryProjectionNotSupported is acceptable
+        // (e.g., QueryExecutionFailed from DataFusion on the synthetic table, or Ok).
+        // If the gate begins firing for Ast::Filter (because Filter grew a SELECT-style
+        // projection list), this assertion fails deliberately — extend the gate arm.
+        assert!(
+            !matches!(
+                &filter_result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P20-015-T39 / BC-2.11.003: Ast::Filter with Expr::InSubquery in the \
+             closest-to-projection position (inner subquery projection) must NOT trigger \
+             E-QUERY-043. The wildcard `_ => false` arm covers Ast::Filter because \
+             FilterExpr has no top-level SELECT items list. This invariant lock breaks \
+             deliberately if Filter gains a SELECT-style projection that needs gate coverage. \
+             got: {filter_result:?}"
+        );
+
+        // ── Ast::Pipe path ──────────────────────────────────────────────────
+        // PipeQuery has no top-level SelectClause; the closest Expr::InSubquery
+        // can appear is inside PipeStage::Where(Predicate::InSubquery).subquery.select.items.
+        // Uses PipeQuery::new() (the #[non_exhaustive]-safe constructor).
+        let pipe_ast = Ast::Pipe(PipeQuery::new(
+            SourceRef::from_raw("crowdstrike_detections"),
+            vec![PipeStage::Where(Predicate::InSubquery {
+                field: FieldPath::new(["device_id"]),
+                subquery: Box::new(inner_q),
+                negated: false,
+            })],
+        ));
+
+        let pipe_result = execute_against_session(
+            &ctx,
+            "synthetic-t39-pipe-wildcard-arm-lock",
+            &pipe_ast,
+            std::collections::HashMap::new(),
+        )
+        .await;
+
+        // LOCK: same invariant for Ast::Pipe.
+        assert!(
+            !matches!(
+                &pipe_result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P20-015-T39 / BC-2.11.003: Ast::Pipe with Expr::InSubquery in the \
+             closest-to-projection position (inner subquery projection via PipeStage::Where) \
+             must NOT trigger E-QUERY-043. The wildcard `_ => false` arm covers Ast::Pipe \
+             because PipeQuery has no top-level SELECT items list. This invariant lock breaks \
+             deliberately if Pipe gains a SELECT-style projection that needs gate coverage. \
+             got: {pipe_result:?}"
         );
     }
 }
