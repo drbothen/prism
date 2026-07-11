@@ -4853,6 +4853,175 @@ mod tests {
     }
 
     // =========================================================================
+    // EC-11-035 — BC-2.11.012 v1.10: _source_type on internal table returns
+    //             QueryExecutionFailed, NOT ColumnNotFound.
+    //
+    // Two mechanisms cause E-QUERY-038 to be intentionally bypassed for
+    // `SELECT _source_type FROM prism_alerts`:
+    //
+    //   1. SourceRefKind::Internal fail-open in check_query_column_availability:
+    //      `prism_alerts` parses as SourceRefKind::Internal(InternalTable::Alerts).
+    //      The table-name extraction arm (`_ => return Ok(())`) returns immediately for
+    //      all Internal sources — before the `starts_with("prism_")` guard or any
+    //      column check.
+    //
+    //   2. VirtualField always-valid skip in extract_field_paths_from_expr:
+    //      `_source_type` parses as Expr::VirtualField(SourceType). The extractor
+    //      always skips VirtualField variants — injection-side columns are never
+    //      user-schema-checked.
+    //
+    // Production behavior (with storage): prism_alerts IS registered in DataFusion;
+    // _source_type absent from alerts_schema() → DataFusion field-not-found →
+    // QueryExecutionFailed.
+    //
+    // Test behavior (no storage, as here): prism_alerts NOT registered (storage=None
+    // branch at engine.rs execute_inner line ~978); DataFusion table-not-found →
+    // QueryExecutionFailed.  Both paths agree on QueryExecutionFailed.
+    //
+    // An improved pedagogical gate (E-QUERY-038 with context "not available on internal
+    // tables") is queued as DRIFT-INTERNAL-TABLE-COLUMN-GATE-001.
+    // =========================================================================
+
+    /// EC-11-035 / BC-2.11.012 v1.10: `engine.execute("SELECT _source_type FROM prism_alerts")`
+    /// must return `Err(QueryExecutionFailed)` — NOT `Err(ColumnNotFound)`.
+    ///
+    /// # Two mechanisms prevent E-QUERY-038 from firing on internal tables
+    ///
+    /// **Mechanism 1 — `SourceRefKind::Internal` fail-open in `check_query_column_availability`:**
+    /// `prism_alerts` is parsed as `SourceRefKind::Internal(InternalTable::Alerts)` by the AST.
+    /// The SourceRef-to-table-name extraction block in `check_query_column_availability` hits
+    /// the `_ => return Ok(())` arm for all Internal and Composite sources, returning before
+    /// any column check or the `starts_with("prism_")` guard. E-QUERY-038 is intentionally not
+    /// applied to internal tables; they have a separate capability gate (E-QUERY-011).
+    ///
+    /// **Mechanism 2 — `VirtualField` always-valid skip in `extract_field_paths_from_expr`:**
+    /// `_source_type` parses as `Expr::VirtualField(VirtualField::SourceType)`.
+    /// `extract_field_paths_from_expr` always skips VirtualField variants (`// always valid,
+    /// skip` comment in the match arm) — they are engine-injected columns, not schema-declared
+    /// user columns, and must never be rejected by the column-availability gate.
+    ///
+    /// # Production vs test path
+    ///
+    /// *Production (storage wired):* `register_internal_tables_with_capabilities` is called
+    /// in `execute_inner`; DataFusion has `prism_alerts` with `alerts_schema()` — which does
+    /// NOT include `_source_type` — so DataFusion returns a field-not-found plan error →
+    /// `QueryExecutionFailed`.
+    ///
+    /// *Test (storage = None, as in this harness):* `execute_inner` skips the internal-table
+    /// registration entirely (`if let Some(ref storage) = self.storage`). DataFusion returns
+    /// a table-not-found error → `QueryExecutionFailed`. Both paths agree on the error variant.
+    ///
+    /// # DRIFT-INTERNAL-TABLE-COLUMN-GATE-001
+    ///
+    /// A future improvement would fire E-QUERY-038 with a human-readable context
+    /// (`_source_type is not available on internal tables`) instead of the opaque
+    /// `QueryExecutionFailed`. That is queued as DRIFT-INTERNAL-TABLE-COLUMN-GATE-001.
+    /// Until it lands, `QueryExecutionFailed` is the correct spec-locked behavior per
+    /// BC-2.11.012 v1.10 EC-11-035.
+    #[tokio::test]
+    async fn test_BC_2_11_012_EC_11_035_source_type_on_internal_table_returns_query_execution_failed(
+    ) {
+        use crate::cache::CacheConfig;
+        use crate::engine::{QueryEngine, QueryEngineConfig, QueryOptions};
+        use crate::scoping::ClientRegistry;
+        use prism_core::error::PrismError;
+        use prism_sensors::AdapterRegistry;
+        use std::sync::Arc;
+
+        // Minimal NoopCs — no credentials needed for a read-only internal-table query.
+        // Mirrors the NoopCs defined in engine.rs::m1_single_tenant_column_gate_tests.
+        struct NoopCs;
+        #[async_trait::async_trait]
+        impl prism_credentials::CredentialStore for NoopCs {
+            async fn get(
+                &self,
+                _t: &prism_core::OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+            ) -> Result<Option<secrecy::SecretString>, PrismError> {
+                Ok(None)
+            }
+            async fn set(
+                &self,
+                _t: &prism_core::OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+                _v: secrecy::SecretString,
+            ) -> Result<(), PrismError> {
+                Ok(())
+            }
+            async fn delete(
+                &self,
+                _t: &prism_core::OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+            ) -> Result<bool, PrismError> {
+                Ok(false)
+            }
+            async fn list(
+                &self,
+                _t: &prism_core::OrgSlug,
+            ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+            {
+                Ok(vec![])
+            }
+            async fn exists(
+                &self,
+                _t: &prism_core::OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+            ) -> Result<bool, PrismError> {
+                Ok(false)
+            }
+        }
+
+        // Build a minimal engine WITHOUT storage — execute_inner skips
+        // register_internal_tables_with_capabilities when storage=None, so
+        // prism_alerts is not registered in DataFusion. Both error paths (table-not-found
+        // in this harness; field-not-found in production) produce QueryExecutionFailed.
+        let engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            CacheConfig::default(),
+        );
+
+        let result = engine
+            .execute(
+                "SELECT _source_type FROM prism_alerts",
+                QueryOptions::default(),
+            )
+            .await;
+
+        // Primary assertion: must be QueryExecutionFailed.
+        // E-QUERY-038 does NOT fire (two mechanisms above).
+        assert!(
+            matches!(&result, Err(PrismError::QueryExecutionFailed { .. })),
+            "EC-11-035 / BC-2.11.012 v1.10: engine.execute must return QueryExecutionFailed \
+             for `SELECT _source_type FROM prism_alerts`. Internal tables bypass E-QUERY-038 \
+             via SourceRefKind::Internal fail-open in check_query_column_availability, and \
+             _source_type bypasses it via VirtualField always-valid skip in \
+             extract_field_paths_from_expr. The opaque DataFusion error is the spec-locked \
+             behavior until DRIFT-INTERNAL-TABLE-COLUMN-GATE-001 lands. \
+             got: {result:?}"
+        );
+
+        // Negative assertion: must NOT be ColumnNotFound — locks the intentional
+        // prism_* / VirtualField fail-open boundary (BC-2.11.012 v1.10 EC-11-035).
+        assert!(
+            !matches!(&result, Err(PrismError::ColumnNotFound(_))),
+            "EC-11-035 / BC-2.11.012 v1.10: engine.execute must NOT return ColumnNotFound \
+             for internal tables. If this fails, E-QUERY-038 has been erroneously wired to \
+             fire on prism_* tables — violating the intentional prism_* fail-open guard in \
+             check_query_column_availability (SourceRefKind::Internal arm) and/or the \
+             VirtualField always-valid skip in extract_field_paths_from_expr. \
+             got: {result:?}"
+        );
+    }
+
+    // =========================================================================
     // T39 — F-CSD-P20-015 (OBS): Wildcard-arm lock for Ast::Filter and Ast::Pipe
     //       in check_expr_insubquery_projection.
     //
