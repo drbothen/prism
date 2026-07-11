@@ -5445,4 +5445,305 @@ mod tests {
              got: {result:?}"
         );
     }
+
+    // =========================================================================
+    // T41 — LOCAL pass-25 finding F-CSD-P25-004 (LOW):
+    // SqlPipe stage-walk gate — PipeStage::Where subquery-projection interior
+    //
+    // Background: `check_expr_insubquery_projection`'s SqlPipe arm at HEAD:
+    //
+    //   `Ast::SqlPipe(spq) => check_sql_query(&spq.head)`
+    //
+    // This only walks the SQL head. A `PipeStage::Where(Predicate::InSubquery { subquery })`
+    // whose `subquery.select.items` contains `Expr::InSubquery` is NOT walked at HEAD.
+    //
+    // Grammar note: the filter grammar (`build_predicate_parser`) does NOT produce
+    // `Predicate::InSubquery` (SQL parser only), so the pipe stage WHERE grammar
+    // cannot produce this shape. This test constructs it directly as defense-in-depth
+    // per BC-5.38.001 T27 pattern.
+    //
+    // Fix: extend SqlPipe arm to iterate `spq.stages` and call `check_predicate` on
+    // each `PipeStage::Where` predicate.
+    //
+    // RED at HEAD: gate does not fire → execute proceeds → non-E043 result → assertion fails.
+    // GREEN after fix: gate walks stages → Predicate::InSubquery → check_sql_query(subquery)
+    //   → detects Expr::InSubquery in projection → E-QUERY-043 → assertion passes.
+    //
+    // BC anchors: BC-2.11.003 E-QUERY-043 gate correctness.
+    // =========================================================================
+
+    /// F-CSD-P25-004 / BC-2.11.003 — SqlPipe stage walk gate (defense-in-depth).
+    ///
+    /// # Shape (grammar-unreachable, constructed directly per BC-5.38.001 T27 pattern)
+    ///
+    /// - `Ast::SqlPipe.head`: clean SQL SELECT (no `Expr::InSubquery` in projection)
+    /// - `Ast::SqlPipe.stages`: `[PipeStage::Where(Predicate::InSubquery { subquery })]`
+    ///   where `subquery.select.items` contains `Expr::InSubquery` (projection-position
+    ///   IN-subquery — the shape `contains_insubquery` detects).
+    ///
+    /// # Grammar note
+    ///
+    /// `build_predicate_parser` (used by the pipe `| where` stage) does NOT produce
+    /// `Predicate::InSubquery` — only the SQL `WHERE` clause parser does. This shape
+    /// is therefore grammar-unreachable and is constructed directly per the T27
+    /// defense-in-depth precedent (sibling: T27 DML-interior shape, T39 Pipe arm shape).
+    ///
+    /// # RED/GREEN mechanism
+    ///
+    /// RED (HEAD): SqlPipe arm calls only `check_sql_query(&spq.head)`. Head is clean →
+    /// gate returns `Ok(())` → execution proceeds → non-E043 result → assertion fails.
+    ///
+    /// GREEN (after fix): SqlPipe arm iterates `spq.stages`, finds `PipeStage::Where(pred)`,
+    /// calls `check_predicate(pred)` → `Predicate::InSubquery { subquery }` → calls
+    /// `check_sql_query(subquery)` → detects `Expr::InSubquery` in `subquery.select.items`
+    /// → returns `Err(ExprInSubqueryProjectionNotSupported)` → assertion passes.
+    #[tokio::test]
+    async fn test_BC_2_11_003_F_CSD_P25_004_T41_sqlpipe_stage_where_insubquery_projection_fires_e_query_043(
+    ) {
+        use crate::ast::{
+            Ast, Expr, FieldPath, FromClause, PipeStage, Predicate, SelectClause, SelectItem,
+            SourceRef, SqlPipeQuery, SqlQuery,
+        };
+        use prism_core::error::PrismError;
+
+        let ctx = build_session_context(50 * 1024 * 1024)
+            .expect("build_session_context must succeed for T41");
+
+        // Innermost SELECT: `SELECT device_id FROM crowdstrike_devices`
+        // Used as the clean target of the IN-membership test inside the stage WHERE predicate.
+        let innermost_q = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Expr {
+                expr: Expr::Field(FieldPath::new(["device_id"])),
+                alias: None,
+            }]),
+            FromClause::new(SourceRef::from_raw("crowdstrike_devices")),
+        );
+
+        // Stage-WHERE subquery:
+        //   `SELECT (device_id IN (SELECT device_id FROM crowdstrike_devices)) AS flag
+        //    FROM crowdstrike_detections`
+        //
+        // `Expr::InSubquery` is in `select.items` (projection position) — the shape that
+        // `contains_insubquery` detects via `check_sql_query`. This is the query that must
+        // cause E-QUERY-043 once the gate walks `spq.stages`.
+        let stage_where_subquery = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Expr {
+                expr: Expr::InSubquery {
+                    field: FieldPath::new(["device_id"]),
+                    subquery: Box::new(innermost_q),
+                },
+                alias: Some("flag".to_string()),
+            }]),
+            FromClause::new(SourceRef::from_raw("crowdstrike_detections")),
+        );
+
+        // Clean SQL head: `SELECT detection_id FROM crowdstrike_detections`
+        // No `Expr::InSubquery` in the projection — gate must not fire from the head.
+        let head = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Expr {
+                expr: Expr::Field(FieldPath::new(["detection_id"])),
+                alias: None,
+            }]),
+            FromClause::new(SourceRef::from_raw("crowdstrike_detections")),
+        );
+
+        // Ast::SqlPipe with the violation in a pipe stage, not the head.
+        //
+        // `PipeStage::Where(Predicate::InSubquery { subquery: stage_where_subquery })`
+        //   → stage_where_subquery.select.items contains Expr::InSubquery (projection position)
+        //
+        // At HEAD: gate only calls check_sql_query(&spq.head) — head is clean → Ok(())
+        //   → execution proceeds → non-E043 result → assertion FAILS (RED).
+        // After fix: gate iterates spq.stages → PipeStage::Where(pred) → check_predicate(pred)
+        //   → Predicate::InSubquery { subquery } → check_sql_query(subquery) → E-QUERY-043.
+        let ast = Ast::SqlPipe(SqlPipeQuery {
+            head,
+            stages: vec![PipeStage::Where(Predicate::InSubquery {
+                field: FieldPath::new(["device_id"]),
+                subquery: Box::new(stage_where_subquery),
+                negated: false,
+            })],
+        });
+
+        let result = execute_against_session(
+            &ctx,
+            "synthetic-sqlpipe-t41-stage-where-insubquery",
+            &ast,
+            std::collections::HashMap::new(),
+        )
+        .await;
+
+        // LOCK: SqlPipe arm must walk stages and fire E-QUERY-043 when a pipe stage WHERE
+        // predicate's subquery holds `Expr::InSubquery` in its SELECT projection.
+        //
+        // RED (HEAD): gate walks only head (clean) → Ok(()) → execution produces non-E043
+        //   result → assertion FAILS.
+        //
+        // GREEN (post-fix): gate iterates spq.stages → PipeStage::Where → check_predicate
+        //   → Predicate::InSubquery → check_sql_query(subquery) → detects Expr::InSubquery
+        //   in stage_where_subquery.select.items → Err(ExprInSubqueryProjectionNotSupported).
+        assert!(
+            matches!(
+                &result,
+                Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })
+            ),
+            "F-CSD-P25-004 / BC-2.11.003: SqlPipeQuery with Predicate::InSubquery in a pipe \
+             stage WHERE whose subquery projection holds Expr::InSubquery must return E-QUERY-043. \
+             RED: SqlPipe arm only walks head (clean); stages are not walked → gate passes → \
+             execution produces non-E043 result. \
+             Fix: extend `Ast::SqlPipe(spq)` arm to iterate `spq.stages`, match \
+             `PipeStage::Where(pred)`, and call `check_predicate(pred)?`. \
+             got: {result:?}"
+        );
+    }
+
+    // =========================================================================
+    // T42 — LOCAL pass-25 finding F-CSD-P25-005 (LOW):
+    // TimestampArithmetic Now-base invariant lock (GREEN)
+    //
+    // Background: `contains_insubquery` in materialization.rs has a comment:
+    //   "TimestampArithmetic.base is always Expr::Now at gate-check time —
+    //    grammar enforces a Now base; a non-Now base is unreachable"
+    //
+    // No test locks this AST-shape invariant. This test parses representative
+    // temporal expressions and walks the AST to assert every TimestampArithmetic
+    // node has base == Expr::Now (the grammar invariant per ADR-052 §D4).
+    //
+    // GREEN at HEAD: parser always produces Now-based TA nodes.
+    // Would turn RED if grammar were changed to allow non-Now TA bases.
+    //
+    // ADR anchor: ADR-052 §D4 (grammar: NOW() is the only valid base for TA nodes).
+    // =========================================================================
+
+    /// F-CSD-P25-005 / ADR-052 §D4 — TimestampArithmetic base-is-Now invariant lock.
+    ///
+    /// Parses a representative sample of PrismQL temporal queries across four AST modes
+    /// (SQL, SqlPipe, Pipe, Filter) and asserts that every `Expr::TimestampArithmetic`
+    /// node produced by the parser has `base == Expr::Now`.
+    ///
+    /// # Invariant source
+    ///
+    /// ADR-052 §D4 grammar rule: `NOW()` is the only syntactically valid base for
+    /// timestamp arithmetic expressions (e.g. `NOW() - INTERVAL '7d'`). The grammar
+    /// (`sql_parser.rs build_sql_expr_parser`) constructs `Expr::TimestampArithmetic`
+    /// with `base: Box::new(Expr::Now)` as the only reachable production.
+    ///
+    /// The comment in `contains_insubquery` (materialization.rs) claims this invariant
+    /// without a test anchor. This test is that anchor.
+    ///
+    /// # GREEN lock
+    ///
+    /// GREEN at HEAD: parser enforces the invariant.
+    /// Would turn RED if the grammar were extended to allow non-Now TA bases.
+    #[test]
+    fn test_BC_2_11_003_F_CSD_P25_005_T42_timestamp_arithmetic_base_is_always_now() {
+        use crate::ast::{Ast, Expr, PipeStage, Predicate, SqlStatement};
+
+        // Representative temporal queries covering four AST modes.
+        // Each must produce at least one `Expr::TimestampArithmetic` node in its WHERE
+        // predicate(s) — verified below by the `found_ta_in_query` assertion.
+        let queries: &[(&str, &str)] = &[
+            (
+                "SQL/subtraction-7d",
+                "SELECT * FROM crowdstrike_detections \
+                 WHERE created_at > NOW() - INTERVAL '7d'",
+            ),
+            (
+                "SQL/subtraction-1d",
+                "SELECT * FROM crowdstrike_detections \
+                 WHERE created_at < NOW() - INTERVAL '1d'",
+            ),
+            (
+                "SQL/subtraction-30d",
+                "SELECT * FROM crowdstrike_detections \
+                 WHERE created_at > NOW() - INTERVAL '30d'",
+            ),
+            (
+                "SqlPipe/head-WHERE-14d-plus-limit",
+                "SELECT * FROM crowdstrike_detections \
+                 WHERE created_at > NOW() - INTERVAL '14d' | limit 100",
+            ),
+            (
+                "Pipe/where-stage-24h",
+                "FROM crowdstrike_detections | where created_at > NOW() - INTERVAL '24h'",
+            ),
+        ];
+
+        let mut total_ta_count = 0usize;
+
+        for (label, query) in queries {
+            let ast = PrismQlParser::parse(query).unwrap_or_else(|errs| {
+                panic!("T42 ADR-052 §D4: temporal query '{label}' must parse; errors: {errs:?}")
+            });
+
+            // Collect WHERE predicates across all AST modes.
+            let predicates: Vec<&Predicate> = match &ast {
+                Ast::Sql(SqlStatement::Select(q)) => q.where_.iter().collect(),
+                Ast::Filter(fe) => vec![&fe.predicate],
+                Ast::Pipe(pq) => pq
+                    .stages
+                    .iter()
+                    .filter_map(|s| {
+                        if let PipeStage::Where(p) = s {
+                            Some(p)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect(),
+                Ast::SqlPipe(spq) => {
+                    let mut preds: Vec<&Predicate> = spq.head.where_.iter().collect();
+                    for stage in &spq.stages {
+                        if let PipeStage::Where(p) = stage {
+                            preds.push(p);
+                        }
+                    }
+                    preds
+                }
+                _ => vec![],
+            };
+
+            // Walk Compare predicates to find TimestampArithmetic nodes and check base == Now.
+            let mut found_ta_in_query = false;
+            for pred in predicates {
+                if let Predicate::Compare { lhs, rhs, .. } = pred {
+                    for side in [lhs.as_ref(), rhs.as_ref()] {
+                        if let Expr::TimestampArithmetic { base, .. } = side {
+                            found_ta_in_query = true;
+                            total_ta_count += 1;
+                            // INVARIANT (ADR-052 §D4): base must be Expr::Now.
+                            assert!(
+                                base.as_ref() == &Expr::Now,
+                                "T42 ADR-052 §D4 [{label}]: \
+                                 TimestampArithmetic.base must be Expr::Now — \
+                                 grammar enforces NOW() as the only valid TA base. \
+                                 Invariant claimed in contains_insubquery (materialization.rs) \
+                                 is violated. Got non-Now base: {base:?}"
+                            );
+                        }
+                    }
+                }
+            }
+
+            // Each query in the representative sample must produce at least one TA node.
+            // If this fires, the grammar or AST structure changed — update the sample.
+            assert!(
+                found_ta_in_query,
+                "T42 ADR-052 §D4 [{label}]: representative temporal query must produce \
+                 at least one Expr::TimestampArithmetic node in its WHERE predicate(s). \
+                 If the parser changed, update the representative sample. \
+                 query: {query}"
+            );
+        }
+
+        // Sanity: total TA node coverage across all queries.
+        assert!(
+            total_ta_count >= queries.len(),
+            "T42 ADR-052 §D4: walker found {total_ta_count} TA nodes across {} queries \
+             (expected >= 1 per query = >= {}). \
+             If any query stopped producing TA nodes, update the representative sample.",
+            queries.len(),
+            queries.len()
+        );
+    }
 }
