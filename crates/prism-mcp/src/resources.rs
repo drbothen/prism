@@ -1254,7 +1254,7 @@ fn strip_path_from_authority(authority_and_rest: &str) -> &str {
 
 /// Classification of a PQL usage example (ADR-045).
 ///
-/// Used in `REFERENCE_EXAMPLES` to tag each example for the 3-tier CI gate
+/// Used in `REFERENCE_EXAMPLES` to tag each example for the 4-tier CI gate
 /// and for the `build_reference_content` runtime injector.
 ///
 /// Variants match the BC-2.11.022 / ADR-045 D3 mandate:
@@ -1283,7 +1283,7 @@ pub enum ExampleKind {
 }
 
 /// Canonical reference examples shared by `build_reference_content` and the
-/// 3-tier CI gate (ADR-045 §B).
+/// 4-tier CI gate (ADR-045 §B).
 ///
 /// Each tuple is `(kind, title, pql_snippet)`. The CI gate asserts that at least
 /// one `Positive`, one `NegativeE040`, and one `NegativeOther` example is present.
@@ -1413,7 +1413,7 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
 /// Build the `prismql://reference` resource content at runtime (ADR-045 §A).
 ///
 /// Assembles the PQL grammar reference as a runtime Markdown document so that
-/// infusion examples, sensor-specific tables, and the 3-tier example set can
+/// infusion examples, sensor-specific tables, and the 4-tier example set can
 /// be injected at query time rather than baked in at compile time.
 ///
 /// # Parameters
@@ -1422,7 +1422,7 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
 ///   field mappings. When `None`, the infusion section shows a placeholder.
 ///
 /// # Contract (BC-2.11.022, ADR-045 §B)
-/// - MUST include at least one example from each `ExampleKind` tier (Positive, NegativeE040, NegativeOther).
+/// - MUST include at least one example from each `ExampleKind` tier (Positive, NegativeE040, NegativeOther, NegativeE043).
 /// - MUST round-trip all `Positive` PQL snippets through the Chumsky parser.
 /// - MUST include the infusion placeholder when `infusion_registry` is `None`.
 /// - The CI gate (`crates/prism-mcp/tests/reference_content.rs`) asserts these invariants.
