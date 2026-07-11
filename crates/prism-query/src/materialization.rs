@@ -982,15 +982,17 @@ pub async fn run_materialization_pipeline(
                 // Collect partial errors (BC-2.11.011).
                 for fan_err in fan_result.errors {
                     // Redact internal detail — expose error code only (OBS-1 / CWE-209).
+                    // CWE-117: sanitize source_table before log emission and client string
+                    // (F-CSD-P21-OBS-002 sibling sweep).
                     tracing::warn!(
-                        source_table = %target.source_table,
+                        source_table = %sanitize_for_log(&target.source_table),
                         sensor = ?target.sensor_id,
                         error = %fan_err,
                         "fan_out partial failure"
                     );
                     sensor_errors.push(format!(
                         "{}: sensor error ({})",
-                        target.source_table,
+                        sanitize_for_log(&target.source_table),
                         fan_err.error.error_code()
                     ));
                 }
@@ -1000,15 +1002,17 @@ pub async fn run_materialization_pipeline(
             }
             Err(e) => {
                 // All targets failed for this (source_table, client_id) pair.
+                // CWE-117: sanitize source_table before log emission and client string
+                // (F-CSD-P21-OBS-002 sibling sweep).
                 tracing::warn!(
-                    source_table = %target.source_table,
+                    source_table = %sanitize_for_log(&target.source_table),
                     client = %target.client_id,
                     error = %e,
                     "fan_out all-targets-failed (partial failure)"
                 );
                 sensor_errors.push(format!(
                     "{}: all targets failed ({})",
-                    target.source_table,
+                    sanitize_for_log(&target.source_table),
                     e.error_code()
                 ));
 
@@ -1657,8 +1661,9 @@ pub(crate) async fn resolve_source_refs(
         // instead of QueryExecutionFailed with embedded E-QUERY-006 string. The dedicated
         // variant maps to -32602 INVALID_PARAMS in error_mapping.rs (caller-resolvable).
         let Some(sensor_id) = sensor_id_from_table_name(source_name) else {
+            // CWE-117: sanitize source_name before log emission (F-CSD-P21-OBS-002 sibling sweep).
             tracing::debug!(
-                source_name,
+                source_name = %sanitize_for_log(source_name),
                 "resolve_source_refs: unknown sensor prefix; returning E-QUERY-036"
             );
             // Populate available_tables from the registry for actionable diagnostics (AC-021).
@@ -1684,8 +1689,9 @@ pub(crate) async fn resolve_source_refs(
         // four built-in sensors; any table prefix absent from a populated registry is
         // genuinely unknown and must return E-QUERY-036.
         if !adapter_registry.is_empty() && !adapter_registry.is_sensor_registered(&sensor_id) {
+            // CWE-117: sanitize source_name before log emission (F-CSD-P21-OBS-002 sibling sweep).
             tracing::debug!(
-                source_name,
+                source_name = %sanitize_for_log(source_name),
                 sensor_id = %sensor_id,
                 "resolve_source_refs: no adapter registered for sensor prefix; returning E-QUERY-036"
             );
@@ -1733,9 +1739,10 @@ pub(crate) async fn resolve_source_refs(
                     // OrgRegistry absent (test/MVP mode) — fall back to test slug if available,
                     // or skip. In production (OrgRegistry present), this path means the adapter
                     // is registered for an OrgId not in the registry (configuration inconsistency).
+                    // CWE-117: sanitize source_name before log emission (F-CSD-P21-OBS-002 sibling sweep).
                     tracing::warn!(
                         org_id = %org_id,
-                        source_table = %source_name,
+                        source_table = %sanitize_for_log(source_name),
                         "resolve_source_refs: OrgId has no slug mapping in OrgRegistry; \
                          skipping target (BC-2.11.011 EC-005)"
                     );
@@ -1791,8 +1798,9 @@ pub(crate) async fn resolve_source_refs(
             // BC-2.11.011 EC-005: sources with no adapters produce empty results without error.
             // F-LP2-LOW-2: no sentinel `_all` target is added — that would expose internal details.
             if adapter_registry.get_all_for_sensor(&sensor_id).is_empty() {
+                // CWE-117: sanitize source_name before log emission (F-CSD-P21-OBS-002 sibling sweep).
                 tracing::debug!(
-                    source_table = %source_name,
+                    source_table = %sanitize_for_log(source_name),
                     "resolve_source_refs: no adapters registered for sensor type; \
                      skipping fan-out (BC-2.11.011 EC-005)"
                 );
@@ -2502,8 +2510,11 @@ async fn check_ci_column_types(
             Err(e) => {
                 // Schema catalog lookup failed — propagate as E-QUERY-034.
                 // Log the DataFusion error server-side; redact from client response.
+                // CWE-117: sanitize table_name before log emission and client detail string
+                // (F-CSD-P21-OBS-002 sibling sweep).
+                let safe_table_name = sanitize_for_log(table_name);
                 tracing::error!(
-                    table_name = %table_name,
+                    table_name = %safe_table_name,
                     error = %e,
                     "check_ci_column_types: schema provider table lookup failed \
                      (detail redacted from client response)"
@@ -2512,7 +2523,7 @@ async fn check_ci_column_types(
                     detail: format!(
                         "schema catalog lookup for table '{}' failed: \
                          <redacted; see server logs>",
-                        table_name
+                        safe_table_name
                     ),
                 });
             }
