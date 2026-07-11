@@ -92,7 +92,7 @@ EXPECTED_SYMBOLS = [
     "TableRegistry",              # v67 prism_query::table_registry::TableRegistry
     "Tier3CacheEntry",            # v68 prism_spec_engine::infusion::cache::Tier3CacheEntry
     "InfusionUdfDescriptor",      # v69 prism_spec_engine::infusion::udf::InfusionUdfDescriptor
-    "EnrichStageDescriptor",      # v70 prism_spec_engine::infusion::enrich_descriptor::EnrichStageDescriptor
+    "EnrichStageDescriptor",      # v70 (struct_violations) prism_spec_engine::infusion::enrich_descriptor::EnrichStageDescriptor
     "ClientInventoryEntry",       # v71 prism_mcp::ClientInventoryEntry
     "SensorConfigEntry",          # v72 prism_mcp::SensorConfigEntry
     "SensorHealthResult",         # v73 prism_mcp::SensorHealthResult
@@ -106,7 +106,7 @@ EXPECTED_SYMBOLS = [
     "ColumnDescriptor",           # v82 prism_mcp::ColumnDescriptor
     "ColumnNotFoundDetails",      # v83 prism_core::error::ColumnNotFoundDetails
     "HealthSummary",              # v84 prism_mcp::resources::HealthSummary
-    "SqlPipeQuery",               # v86 prism_query::ast::SqlPipeQuery
+    "SqlPipeQuery",               # v86 (struct_violations) prism_query::ast::SqlPipeQuery
     "UnknownSourceTableDetails",  # v87 prism_core::error::UnknownSourceTableDetails
     "EnrichUdfNotFoundDetails",   # v88 prism_core::error::EnrichUdfNotFoundDetails
     # ── E0004 enum match violations (22 total) ─────────────────────────────
@@ -128,9 +128,9 @@ EXPECTED_SYMBOLS = [
     "AdapterAuthStrategy",   # v48 prism_bin::spec_driven_adapter::AdapterAuthStrategy
     "MultiInstanceBindError",# v60 prism_dtu_demo_server::MultiInstanceBindError
     "CapabilityStatus",      # v65 prism_mcp::CapabilityStatus
-    "InfusionError",         # v70 prism_core::error::InfusionError
+    "InfusionError",         # v70 (enum_violations) prism_core::error::InfusionError
     "HttpLookupAuthType",    # v79 prism_spec_engine::infusion::HttpLookupAuthType
-    "TemporalLiteralPosition",    # v86 prism_core::error::TemporalLiteralPosition
+    "TemporalLiteralPosition",    # v86 (enum_violations) prism_core::error::TemporalLiteralPosition
     "VirtualField",          # v90 prism_core::virtual_fields::VirtualField
     "ExampleKind",           # v85 prism_mcp::resources::ExampleKind
 ]

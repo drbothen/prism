@@ -4,7 +4,7 @@
 //! without a wildcard arm. After `#[non_exhaustive]` is applied, each match MUST fail
 //! with E0004 (non-exhaustive patterns).
 //!
-//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 46, 48, 60, 65, 70, 85, 86, 90 (21 total E0004 expected).
+//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 46, 48, 60, 65, 70, 79, 85-86, 90 (22 total E0004 expected).
 //!
 //! S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 additions:
 //!   85. prism_mcp::resources::ExampleKind — enum, resources.rs (ADR-045 reference example classification)
