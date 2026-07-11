@@ -12,6 +12,12 @@
 //! mode-specific sub-parsers.
 
 pub mod alias_tests;
+// DEFECT-CSDEVICES-EMPTY-PIPELINE-001 Sub-defect 2: RED gate tests for empty-MemTable
+// registration gap. A 0-batch sensor result that participates in a JOIN must register
+// a schema-only empty MemTable (not skip registration), so DataFusion can plan the
+// query without a "table not found" plan error.
+// BC anchors: BC-2.11.005 DEC-022, BC-2.01.010 empty-is-not-error.
+pub mod defect_csdevices_empty_memtable_tests;
 // S-DEMO-FIDELITY-REMEDIATION-001: Red Gate tests for AC-N1B — BC-2.11.019 E-QUERY-039
 // plan-time enrichment gate (net-new: EnrichUdfNotFound variant + engine.rs AST visitor).
 pub mod bc_2_11_019_n1b_test;

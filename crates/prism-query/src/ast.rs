@@ -742,6 +742,14 @@ pub enum ScalarFunc {
 /// detects them by the leading `_` and emits `Expr::VirtualField` instead
 /// of `Expr::Field` so that the planner and executor can handle them without
 /// string-scanning field names.
+///
+/// # BC-2.11.012 v1.7 — canonical four-field set
+///
+/// `_safety_flags` is a response-envelope concern (BC-2.09.004) and is NOT
+/// a virtual query field.  It is intentionally excluded from this enum so
+/// that a query referencing `_safety_flags` parses as `Expr::Field` and
+/// reaches the plan-time E-QUERY-038 column-existence gate, which returns an
+/// actionable `ColumnNotFound` error rather than an opaque DataFusion plan error.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum VirtualField {
@@ -753,8 +761,6 @@ pub enum VirtualField {
     SourceTable,
     /// `_source_type` — data source type (`live`, `buffered`, etc.).
     SourceType,
-    /// `_safety_flags` — materialization safety flags bitmask.
-    SafetyFlags,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -915,17 +921,23 @@ impl FieldPath {
 // Virtual field promotion helper
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Convert a `FieldPath` into `Expr::VirtualField` for the five canonical
-/// underscore-prefixed names defined in BC-2.11.012, or `Expr::Field` otherwise.
+/// Convert a `FieldPath` into `Expr::VirtualField` for the four canonical
+/// underscore-prefixed names defined in BC-2.11.012 v1.7, or `Expr::Field` otherwise.
 ///
 /// Called by all three parsers (filter, SQL, pipe) whenever a field path is
 /// emitted as a value expression. This ensures that `_sensor`, `_client`,
-/// `_source_table`, `_source_type`, and `_safety_flags` are represented with
-/// their typed variant in the AST rather than as generic field strings, giving
-/// the planner and executor a first-class handle without string-scanning.
+/// `_source_table`, and `_source_type` are represented with their typed variant
+/// in the AST rather than as generic field strings, giving the planner and
+/// executor a first-class handle without string-scanning.
+///
+/// `_safety_flags` is intentionally NOT promoted to `Expr::VirtualField`.  It is
+/// a response-envelope concern (BC-2.09.004) excluded from the canonical four-field
+/// set.  Queries referencing `_safety_flags` receive `Expr::Field` and are
+/// rejected by the E-QUERY-038 plan-time column-existence gate with an actionable
+/// `ColumnNotFound` error rather than an opaque DataFusion plan error.
 ///
 /// Any other leading-`_` name (analyst-defined metadata) is emitted as
-/// `Expr::Field`, which is intentional: BC-2.11.012 enumerates exactly five
+/// `Expr::Field`, which is intentional: BC-2.11.012 enumerates exactly four
 /// build-time-verified virtual fields and does not restrict arbitrary `_` names.
 #[inline]
 pub fn field_path_to_expr(fp: FieldPath) -> Expr {
@@ -935,7 +947,8 @@ pub fn field_path_to_expr(fp: FieldPath) -> Expr {
             "_client" => return Expr::VirtualField(VirtualField::Client),
             "_source_table" => return Expr::VirtualField(VirtualField::SourceTable),
             "_source_type" => return Expr::VirtualField(VirtualField::SourceType),
-            "_safety_flags" => return Expr::VirtualField(VirtualField::SafetyFlags),
+            // "_safety_flags" intentionally falls through to Expr::Field:
+            // BC-2.11.012 v1.7 excludes it; E-QUERY-038 gate handles it.
             _ => {}
         }
     }
@@ -2400,7 +2413,6 @@ impl PqlNormalizer {
             VirtualField::Client => "_client".to_string(),
             VirtualField::SourceTable => "_source_table".to_string(),
             VirtualField::SourceType => "_source_type".to_string(),
-            VirtualField::SafetyFlags => "_safety_flags".to_string(),
             _ => "_unknown".to_string(),
         }
     }

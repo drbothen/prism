@@ -185,9 +185,21 @@ async fn failure_injection_middleware(
 
 /// Build the full axum router for the CrowdStrike DTU.
 ///
-/// Wires all 8 in-scope endpoints (4 read, 4 write) plus the OAuth token endpoint.
+/// Wires all 9 in-scope endpoints (5 read, 4 write) plus the OAuth token endpoint.
+///
+/// Counting method for write endpoints: writes are counted as SEMANTIC OPERATIONS
+/// (4 total), not routes (2 total). Two write routes dispatch to two operations each:
+///   - `POST /devices/entities/devices-actions/v2` → `contain` + `lift_containment` (2 ops)
+///   - `PATCH /detects/entities/detects/v2` → `assign` + `update_status` (2 ops)
+///
+/// Total: 4 semantic write operations, 2 write routes.
+///
 /// Wraps with `LatencyLayer` (from prism-dtu-common) and a custom axum middleware
 /// for `FailureMode` injection that uses the shared counter in `CrowdstrikeState`.
+///
+/// The 5th read endpoint is `POST /devices/entities/devices/v2` (`post_host_details`),
+/// added by DEFECT-CSDEVICES-EMPTY-PIPELINE-001 (D-1650 ratification §Contract Part 2)
+/// to satisfy the updated `crowdstrike.sensor.toml` `fetch_devices` step (POST + body_template).
 pub fn build_router(
     state: Arc<CrowdstrikeState>,
     failure_mode: FailureMode,
@@ -214,7 +226,10 @@ pub fn build_router(
         )
         // Host read endpoints.
         .route("/devices/queries/devices/v1", get(hosts::list_host_ids))
-        .route("/devices/entities/devices/v2", get(hosts::get_host_details))
+        .route(
+            "/devices/entities/devices/v2",
+            get(hosts::get_host_details).post(hosts::post_host_details),
+        )
         // Write endpoints.
         .route(
             "/devices/entities/devices-actions/v2",

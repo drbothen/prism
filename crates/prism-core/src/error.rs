@@ -1618,6 +1618,27 @@ pub enum PrismError {
         value_prefix: String,
     },
 
+    // E-QUERY-043 — IN subquery in projection position (F-CSD-P4-001 Option A adjudication 2026-07-10)
+    //
+    // DataFusion 53.1.0 physical planner cannot execute `Expr::InSubquery` in scalar
+    // expression positions (SELECT projection, GROUP BY, ORDER BY). The plan-time gate
+    // `check_expr_insubquery_projection` in `materialization.rs` fires before DataFusion
+    // planning to return this structured error instead of a silent "Internal error".
+    //
+    // `Predicate::InSubquery` (WHERE/HAVING IN-subquery) is unaffected — DataFusion's
+    // `decorrelate_predicate_subquery` optimizer handles those natively with standard SQL
+    // three-valued semantics.
+    //
+    // E-QUERY-043 maps to JSON-RPC -32602 (INVALID_PARAMS): caller-resolvable by
+    // rewriting the query to use `WHERE field IN (SELECT ...)` form.
+    //
+    // Reference: F-CSD-P4-001 adjudication; error-taxonomy.md §E-QUERY-043.
+    /// E-QUERY-043: `field IN (SELECT ...)` in SELECT projection, GROUP BY, or ORDER BY
+    /// position. DataFusion 53.1.0 physical planner cannot execute `InSubquery` in
+    /// scalar expression positions. Use `WHERE field IN (SELECT ...)` instead.
+    #[error("E-QUERY-043: IN subquery in projection position is not supported. {hint}")]
+    ExprInSubqueryProjectionNotSupported { hint: String },
+
     // -------------------------------------------------------------------------
     // Catch-all for unexpected internal errors
     // -------------------------------------------------------------------------

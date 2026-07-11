@@ -5,8 +5,11 @@
 //! ## S-2.08 layer: `inject_source_type`
 //! Pure-data `_source_type` virtual field injection (no DataFusion, no Arrow).
 //! Sets `"_source_type"` on each row map based on `EventStream`/`PointInTime`
-//! delivery model and whether rows came from the buffer. S-3.02 wires this
-//! into the DataFusion pipeline.
+//! delivery model and whether rows came from the buffer.
+//!
+//! **Fence (BC-2.11.012 v1.8 / F-CSD-P20-014):** `inject_source_type` is unwired
+//! pending the TD-S302-005 delivery story (EventStream buffer-serving does not exist
+//! yet). Production rows currently always carry `"live"`.
 //!
 //! ## S-3.02 layer: `MaterializationPipeline`
 //! Full 8-step ephemeral materialization pipeline (BC-2.11.005):
@@ -40,6 +43,7 @@ use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
 use datafusion::execution::context::SessionContext;
+use prism_core::error::sanitize_for_log;
 use prism_core::{OrgId, OrgSlug, PrismError, SensorId, UnknownSourceTableDetails};
 use prism_ocsf::OcsfNormalizer;
 use prism_sensors::{AdapterRegistry, CredentialResolver, SensorSpec};
@@ -72,6 +76,7 @@ use crate::{
 /// per S-2.08 Architecture Compliance Rule 5) is not yet wired into the pipeline;
 /// end-to-end wiring is tracked under TD-S302-005 alongside the deferred
 /// integration-test assertions in `tests/integration_tests.rs`.
+/// Until TD-S302-005 delivers, production rows currently always carry `"live"`.
 ///
 /// # AC-9
 /// Given `EventStream` rows from the buffer: every row has `"_source_type": "buffered"`.
@@ -644,6 +649,32 @@ pub async fn run_materialization_pipeline(
     // the table is confirmed to exist and the projection check is appropriate).
     check_temporal_literals(&mut ast, mat_ctx.table_registry.as_deref(), false)?;
 
+    // Step 1d: E-QUERY-043 plan-time projection gate — dual placement (F-CSD-P8-001).
+    //
+    // PLACEMENT DECISION (F-CSD-P8-001 2026-07-10): the gate runs BOTH here (pipeline
+    // path, before fan-out and the `!any_external_table_registered` early-return at
+    // Step 6) AND inside `execute_against_session_with_registry` (direct test-path
+    // invocation). Dual placement is idempotent — the second call is a no-op when the
+    // first already fires — and is cheaper than restructuring the early-return logic.
+    // Keeping the call in `execute_against_session_with_registry` preserves coverage for
+    // callers that invoke it directly without going through `run_materialization_pipeline`.
+    //
+    // Gate fires AFTER `check_temporal_literals` so E-QUERY-042 wins when both violations
+    // are present (F-EQ42-P2-001 ordering preserved):
+    //   E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-041 → E-QUERY-042 [Step 1c]
+    //     → E-QUERY-043 [Step 1d, here] → fan-out
+    //     → execute_against_session_with_registry → E-QUERY-043 [idempotent: only reached
+    //       when any_external_table_registered=true; re-fires, returns same error]
+    //
+    // F-EQ42-P2-001 tests (temporal IN-subquery GROUP BY): `check_temporal_literals` fires
+    // E-QUERY-042 at the `?` above, before this call. The `?` propagates the error and
+    // this line is not reached for those queries. Ordering is preserved.
+    //
+    // Without this hoisted call (pre-fix state): all-zero-batch queries bypassed the gate
+    // because `execute_against_session_with_registry` was never called — the Step-6
+    // early-return (`if !any_external_table_registered`) fired first.
+    check_expr_insubquery_projection(&ast)?;
+
     let source_names = extract_source_names(&ast);
 
     // Build a flat FilterMap of equality predicates from the WHERE clause (BC-2.11.007).
@@ -951,15 +982,17 @@ pub async fn run_materialization_pipeline(
                 // Collect partial errors (BC-2.11.011).
                 for fan_err in fan_result.errors {
                     // Redact internal detail — expose error code only (OBS-1 / CWE-209).
+                    // CWE-117: sanitize source_table before log emission and client string
+                    // (F-CSD-P21-OBS-002 sibling sweep).
                     tracing::warn!(
-                        source_table = %target.source_table,
+                        source_table = %sanitize_for_log(&target.source_table),
                         sensor = ?target.sensor_id,
                         error = %fan_err,
                         "fan_out partial failure"
                     );
                     sensor_errors.push(format!(
                         "{}: sensor error ({})",
-                        target.source_table,
+                        sanitize_for_log(&target.source_table),
                         fan_err.error.error_code()
                     ));
                 }
@@ -969,15 +1002,17 @@ pub async fn run_materialization_pipeline(
             }
             Err(e) => {
                 // All targets failed for this (source_table, client_id) pair.
+                // CWE-117: sanitize source_table before log emission and client string
+                // (F-CSD-P21-OBS-002 sibling sweep).
                 tracing::warn!(
-                    source_table = %target.source_table,
+                    source_table = %sanitize_for_log(&target.source_table),
                     client = %target.client_id,
                     error = %e,
                     "fan_out all-targets-failed (partial failure)"
                 );
                 sensor_errors.push(format!(
                     "{}: all targets failed ({})",
-                    target.source_table,
+                    sanitize_for_log(&target.source_table),
                     e.error_code()
                 ));
 
@@ -1060,7 +1095,17 @@ pub async fn run_materialization_pipeline(
         });
     }
 
-    let collected = execute_against_session(session_ctx, query_str, &ast, table_batches).await?;
+    // F-CSD-P1-001: pass the live TableRegistry so `pre_register_empty_tables`
+    // builds spec-declared schemas (Priority 1) for empty-side MemTables instead of
+    // falling back to bundled statics or inference only.
+    let collected = execute_against_session_with_registry(
+        session_ctx,
+        query_str,
+        &ast,
+        table_batches,
+        mat_ctx.table_registry.as_deref(),
+    )
+    .await?;
 
     Ok(MaterializationOutput {
         batches: collected,
@@ -1080,7 +1125,17 @@ pub async fn run_materialization_pipeline(
 ///
 /// `pub` so that integration tests can call it directly with a manually-configured
 /// `SessionContext` (e.g. with custom async UDFs + pre-registered MemTables).
-/// Production callers use `run_materialization_pipeline` which calls this internally.
+/// Production callers use `run_materialization_pipeline` which calls this internally
+/// via `execute_against_session_with_registry` (which passes the live `TableRegistry`
+/// for spec-declared column schemas on empty-side MemTables).
+///
+/// # Empty MemTable schema fallback for direct callers
+///
+/// When called directly (without a `TableRegistry`), `pre_register_empty_tables`
+/// uses the bundled static schemas (`BUNDLED_SPEC_SCHEMAS`) as a fallback for the 4 known
+/// sensors, then falls back to JOIN-equality inference for other tables. This ensures
+/// unit tests that call this function directly still receive spec-declared schemas
+/// (BC-2.11.005 DEC-022 / F-CSD-P1-001).
 pub async fn execute_against_session(
     session_ctx: &SessionContext,
     // F-P1-MED-002: `_query_str` was previously used by the `Ast::Sql(Select)` fallback
@@ -1091,10 +1146,65 @@ pub async fn execute_against_session(
     ast: &crate::ast::Ast,
     table_batches: std::collections::HashMap<String, Vec<RecordBatch>>,
 ) -> Result<Vec<RecordBatch>, PrismError> {
+    // Delegate to the registry-aware implementation with None (no live registry).
+    // pre_register_empty_tables will fall back to bundled spec schemas
+    // (Priority 2) then inference (Priority 3) for unregistered tables.
+    execute_against_session_with_registry(session_ctx, _query_str, ast, table_batches, None).await
+}
+
+// ---------------------------------------------------------------------------
+// execute_against_session_with_registry (F-CSD-P1-001 registry-threaded impl)
+// ---------------------------------------------------------------------------
+
+/// Inner implementation of `execute_against_session`, accepting an optional live
+/// `TableRegistry` for spec-declared column schemas on empty-side MemTables.
+///
+/// Called by:
+/// - `execute_against_session` with `None` (public API, test path)
+/// - `run_materialization_pipeline` with `mat_ctx.table_registry.as_deref()`
+///   (production path)
+///
+/// The only behavioral difference from `execute_against_session` is in the
+/// `Ast::Sql(Select)` arm: the registry is passed to
+/// `pre_register_empty_tables` as Priority-1 schema source so empty-side
+/// MemTables receive the full spec-declared schema (including non-JOIN columns
+/// and correct Arrow types like Timestamp for datetime fields).
+///
+/// BC-2.11.005 DEC-022 / BC-2.01.010 / F-CSD-P1-001.
+pub(crate) async fn execute_against_session_with_registry(
+    session_ctx: &SessionContext,
+    _query_str: &str,
+    ast: &crate::ast::Ast,
+    table_batches: std::collections::HashMap<String, Vec<RecordBatch>>,
+    table_registry: Option<&crate::table_registry::TableRegistry>,
+) -> Result<Vec<RecordBatch>, PrismError> {
     use crate::ast::{Ast, SqlStatement};
 
+    // E-QUERY-043 plan-time gate (F-CSD-P4-001 Option A, 2026-07-10):
+    // Reject `Expr::InSubquery` in SELECT projection, GROUP BY, or ORDER BY positions
+    // before DataFusion planning. Without this gate the error surfaces as a catch-all
+    // `QueryExecutionFailed` (`-32000 Internal error`) — opaque to the MCP caller.
+    //
+    // Gate is placed here (before the AST match / pre_register_empty_tables / DataFusion
+    // execution) so it applies to both the production path (via run_materialization_pipeline
+    // which calls this function AFTER check_temporal_literals) and the direct test path
+    // (which calls execute_against_session without temporal checks).
+    //
+    // Ordering in production path:
+    //   check_temporal_literals (E-QUERY-042) → fan-out → execute_against_session_with_registry
+    //     → check_expr_insubquery_projection (E-QUERY-043) → DataFusion
+    // F-EQ42-P2-001 tests are preserved: temporal checker fires E-QUERY-042 BEFORE this
+    // function is called, so the projection gate is never reached for those queries.
+    check_expr_insubquery_projection(ast)?;
+
     match ast {
-        Ast::Sql(SqlStatement::Select(_)) => {
+        Ast::Sql(SqlStatement::Select(sql_query)) => {
+            // DEFECT-CSDEVICES-EMPTY-PIPELINE-001 Sub-defect 2 (BC-2.11.005 DEC-022,
+            // BC-2.01.010 empty-is-not-error):
+            // Pre-register schema-only empty MemTables using spec-declared columns
+            // (Priority 1: live TableRegistry; Priority 2: bundled TOML fallback;
+            // Priority 3: JOIN-equality peer inference).
+            pre_register_empty_tables(session_ctx, sql_query, table_registry).await?;
             // P5-04: read the executing session's ACTUAL pool capacity so
             // budget-exceeded errors report the configured limit (engine
             // config `memory_pool_bytes`), not the 200MB default constant.
@@ -1137,8 +1247,19 @@ pub async fn execute_against_session(
                         .to_string(),
                 })?;
             // Execute the plan-pinned SQL string via DataFusion.
+            // F-CSD-P20-003 (Option A, D-architect-adjudication 2026-07-10): the
+            // FieldNotFound→ColumnNotFound runtime fallback is removed.  Column-availability
+            // is now guaranteed at plan-time by `check_query_column_availability` in
+            // engine.rs (re-pointed T38 covers the _safety_flags case).  A surviving
+            // FieldNotFound here is a DataFusion internal that must not be misclassified
+            // as E-QUERY-038 — surface it as a generic planning error with structured log.
             let df = session_ctx.sql(&plan_pinned_sql).await.map_err(|e| {
-                tracing::error!(error = %e, "DataFusion SQL planning error");
+                tracing::error!(
+                    error = %e,
+                    sql = %sanitize_for_log(&plan_pinned_sql),
+                    event_type = "sql.sql_planning_error",
+                    "DataFusion SQL planning error"
+                );
                 PrismError::QueryExecutionFailed {
                     detail: "SQL planning error: <redacted; see server logs>".to_string(),
                 }
@@ -1282,14 +1403,14 @@ pub async fn execute_against_session(
                 // matching the normalization applied in step 5. Use plain identifier quoting.
                 let filter_sql = format!("SELECT * FROM {table_name} WHERE {where_clause}");
                 tracing::debug!(
-                    filter_sql = %filter_sql,
+                    filter_sql = %sanitize_for_log(&filter_sql),
                     event_type = "filter.sql_lowering",
                     "filter-to-SQL lowering complete"
                 );
                 let df = session_ctx.sql(&filter_sql).await.map_err(|e| {
                     tracing::error!(
                         error = %e,
-                        filter_sql = %filter_sql,
+                        filter_sql = %sanitize_for_log(&filter_sql),
                         event_type = "filter.sql_planning_error",
                         "filter-to-sql DataFusion planning error"
                     );
@@ -1347,14 +1468,14 @@ pub async fn execute_against_session(
             let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
             let sql = crate::pipe_sql_emitter::pipe_to_executable_sql(pipe, &table_batches)?;
             tracing::debug!(
-                pipe_sql = %sql,
+                pipe_sql = %sanitize_for_log(&sql),
                 event_type = "pipe.sql_lowering",
                 "pipe-to-SQL lowering complete"
             );
             let df = session_ctx.sql(&sql).await.map_err(|e| {
                 tracing::error!(
                     error = %e,
-                    pipe_sql = %sql,
+                    pipe_sql = %sanitize_for_log(&sql),
                     event_type = "pipe.sql_planning_error",
                     "pipe-to-sql DataFusion planning error"
                 );
@@ -1421,6 +1542,20 @@ pub async fn execute_against_session(
                 let source_table = datafusion_table_name(&spq.head.from.source.raw);
                 check_ci_column_types(session_ctx, &source_table, &all_ci_fields).await?;
             }
+            // F-CSD-P12-001 (BC-2.11.005 DEC-022, BC-2.01.010 empty-is-not-error):
+            // Pre-register schema-only empty MemTables for the SqlPipe head — mirroring
+            // the `Ast::Sql(SqlStatement::Select)` arm of `execute_against_session_with_registry`.  Without this call, tables
+            // referenced only in the head's WHERE IN-subquery (or the head's FROM itself
+            // when 0-batch) are absent from the DataFusion catalog, causing
+            // `sqlpipe_to_executable_sql` / DataFusion planning to fail with
+            // QueryExecutionFailed ("table not found").
+            //
+            // `spq.head` is an `ast::SqlQuery` — the same type that `Ast::Sql(Select)`
+            // passes. `pre_register_empty_tables` scans the full SqlQuery (FROM, JOINs,
+            // WHERE subqueries) and registers spec-column empty MemTables for each
+            // unregistered table it finds (Priority 1: live TableRegistry; Priority 2:
+            // bundled TOML fallback; Priority 3: JOIN-equality peer inference).
+            pre_register_empty_tables(session_ctx, &spq.head, table_registry).await?;
             // BC-2.11.021 / ADR-044 D4 / D-1333 Option A (plan-time pinning):
             // Compute the SqlPipe head SQL from the inject_now-ed AST (spq.head has
             // the folded Literal::Timestamp) rather than the raw query_str[..split].
@@ -1451,7 +1586,7 @@ pub async fn execute_against_session(
             // SqlPipe lowering is semantically identical to Pipe lowering — same execution path,
             // same diagnostic information. No new catalog row needed.
             tracing::debug!(
-                pipe_sql = %sql,
+                pipe_sql = %sanitize_for_log(&sql),
                 event_type = "pipe.sql_lowering",
                 "sqlpipe-to-SQL lowering complete"
             );
@@ -1459,7 +1594,7 @@ pub async fn execute_against_session(
                 // SAP-1: reuse existing catalog event type `pipe.sql_planning_error` (BC-2.16.002 catalog row for event_type "pipe.sql_planning_error").
                 tracing::error!(
                     error = %e,
-                    pipe_sql = %sql,
+                    pipe_sql = %sanitize_for_log(&sql),
                     event_type = "pipe.sql_planning_error",
                     "sqlpipe-to-SQL DataFusion planning error"
                 );
@@ -1526,8 +1661,9 @@ pub(crate) async fn resolve_source_refs(
         // instead of QueryExecutionFailed with embedded E-QUERY-006 string. The dedicated
         // variant maps to -32602 INVALID_PARAMS in error_mapping.rs (caller-resolvable).
         let Some(sensor_id) = sensor_id_from_table_name(source_name) else {
+            // CWE-117: sanitize source_name before log emission (F-CSD-P21-OBS-002 sibling sweep).
             tracing::debug!(
-                source_name,
+                source_name = %sanitize_for_log(source_name),
                 "resolve_source_refs: unknown sensor prefix; returning E-QUERY-036"
             );
             // Populate available_tables from the registry for actionable diagnostics (AC-021).
@@ -1553,8 +1689,9 @@ pub(crate) async fn resolve_source_refs(
         // four built-in sensors; any table prefix absent from a populated registry is
         // genuinely unknown and must return E-QUERY-036.
         if !adapter_registry.is_empty() && !adapter_registry.is_sensor_registered(&sensor_id) {
+            // CWE-117: sanitize source_name before log emission (F-CSD-P21-OBS-002 sibling sweep).
             tracing::debug!(
-                source_name,
+                source_name = %sanitize_for_log(source_name),
                 sensor_id = %sensor_id,
                 "resolve_source_refs: no adapter registered for sensor prefix; returning E-QUERY-036"
             );
@@ -1602,9 +1739,10 @@ pub(crate) async fn resolve_source_refs(
                     // OrgRegistry absent (test/MVP mode) — fall back to test slug if available,
                     // or skip. In production (OrgRegistry present), this path means the adapter
                     // is registered for an OrgId not in the registry (configuration inconsistency).
+                    // CWE-117: sanitize source_name before log emission (F-CSD-P21-OBS-002 sibling sweep).
                     tracing::warn!(
                         org_id = %org_id,
-                        source_table = %source_name,
+                        source_table = %sanitize_for_log(source_name),
                         "resolve_source_refs: OrgId has no slug mapping in OrgRegistry; \
                          skipping target (BC-2.11.011 EC-005)"
                     );
@@ -1660,8 +1798,9 @@ pub(crate) async fn resolve_source_refs(
             // BC-2.11.011 EC-005: sources with no adapters produce empty results without error.
             // F-LP2-LOW-2: no sentinel `_all` target is added — that would expose internal details.
             if adapter_registry.get_all_for_sensor(&sensor_id).is_empty() {
+                // CWE-117: sanitize source_name before log emission (F-CSD-P21-OBS-002 sibling sweep).
                 tracing::debug!(
-                    source_table = %source_name,
+                    source_table = %sanitize_for_log(source_name),
                     "resolve_source_refs: no adapters registered for sensor type; \
                      skipping fan-out (BC-2.11.011 EC-005)"
                 );
@@ -2336,16 +2475,46 @@ async fn check_ci_column_types(
                 }
             }
             Ok(None) => {
-                // Intentional skip: table is not in the DataFusion catalog because
-                // `register_mem_table` skipped an empty batch list (sensor returned 0 rows).
-                // A query against this unregistered table will fail at DataFusion execution
-                // time with a "table not found" error. No type-checking needed. (F-P16-OBS-002)
+                // Intentional skip: table is not in the DataFusion catalog.
+                //
+                // This occurs when `register_mem_table` skipped an empty batch list
+                // (sensor returned 0 rows). No CI type-checking is needed for an
+                // unregistered table — there are no column types to check.
+                //
+                // What happens next depends on the query mode:
+                // - SQL SELECT mode (`Ast::Sql(Select)`): `pre_register_empty_tables`
+                //   runs BEFORE `check_ci_column_types` and registers a spec-column
+                //   empty MemTable, so the table WILL be in the catalog by the time
+                //   DataFusion plans the query. The `Ok(None)` path here is therefore
+                //   unreachable for tables covered by spec-column registration
+                //   (crowdstrike, armis, claroty, cyberint). Non-bundled tables fall back
+                //   to inference or Schema::empty().
+                // - SqlPipe head mode (`Ast::SqlPipe`): `pre_register_empty_tables`
+                //   ALSO runs on `spq.head` (F-CSD-P12-001; see the `Ast::SqlPipe` arm of `execute_against_session_with_registry`). Tables
+                //   referenced in the head FROM, JOIN, or WHERE IN-subquery positions
+                //   are pre-registered before `sqlpipe_to_executable_sql` emits the CTE.
+                //   Same coverage as SQL SELECT mode for the head query.
+                // - Filter mode (`Ast::Filter`) and Pipe mode (`Ast::Pipe`):
+                //   `pre_register_empty_tables` does NOT run. The filter_parser and
+                //   pipe_parser do not produce subquery atoms — their grammars contain
+                //   no `IN (SELECT ...)` production (survey: filter_parser.rs §Predicate,
+                //   pipe_parser.rs §PipeStage::Where). An unregistered table in these
+                //   modes causes a structural parse error before reaching DataFusion, so
+                //   no pre-registration gap exists. A query against a structurally valid
+                //   but unregistered table will fail at DataFusion execution time with
+                //   "table not found" — which is the correct behavior
+                //   (BC-2.01.010 / F-P16-OBS-002).
+                //
+                // BC-2.01.010: empty result ≠ error; F-P16-OBS-002 guard.
             }
             Err(e) => {
                 // Schema catalog lookup failed — propagate as E-QUERY-034.
                 // Log the DataFusion error server-side; redact from client response.
+                // CWE-117: sanitize table_name before log emission and client detail string
+                // (F-CSD-P21-OBS-002 sibling sweep).
+                let safe_table_name = sanitize_for_log(table_name);
                 tracing::error!(
-                    table_name = %table_name,
+                    table_name = %safe_table_name,
                     error = %e,
                     "check_ci_column_types: schema provider table lookup failed \
                      (detail redacted from client response)"
@@ -2354,7 +2523,7 @@ async fn check_ci_column_types(
                     detail: format!(
                         "schema catalog lookup for table '{}' failed: \
                          <redacted; see server logs>",
-                        table_name
+                        safe_table_name
                     ),
                 });
             }
@@ -2425,6 +2594,41 @@ fn arrow_type_to_prism_column_type(
         // All other types (Binary, LargeBinary, FixedSizeBinary, List, Map,
         // Struct, etc.) → Json is the most sensible fallback for display.
         _ => ColumnType::Json,
+    }
+}
+
+/// Map a sensor spec `ColumnType` to the canonical Arrow `DataType`.
+///
+/// Mirrors `column_type_to_arrow` in `prism-bin::spec_driven_adapter` (private to prism-bin;
+/// not importable from prism-query). Kept in sync manually — any change to the prism-bin
+/// function must be reflected here.
+///
+/// Used by `pre_register_empty_tables` to build spec-declared schemas for
+/// empty-side MemTables (BC-2.11.005 DEC-022 / F-CSD-P1-001).
+///
+/// # Type mapping (ADR-052)
+/// - `String`  → `Utf8`
+/// - `Integer` → `Int64`
+/// - `Float`   → `Float64`
+/// - `Boolean` → `Boolean`
+/// - `Datetime`→ `Timestamp(Microsecond, Some("UTC"))` (canonical ADR-052 form)
+/// - `Json`    → `Utf8` (JSON stored as text)
+/// - Unknown   → `Utf8` (non-exhaustive fallback)
+fn spec_column_type_to_arrow_data_type(
+    col_type: &prism_core::column::ColumnType,
+) -> arrow::datatypes::DataType {
+    use arrow::datatypes::{DataType, TimeUnit};
+    use prism_core::column::ColumnType;
+
+    match col_type {
+        ColumnType::String => DataType::Utf8,
+        ColumnType::Integer => DataType::Int64,
+        ColumnType::Float => DataType::Float64,
+        ColumnType::Boolean => DataType::Boolean,
+        ColumnType::Datetime => DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC"))),
+        ColumnType::Json => DataType::Utf8,
+        // Non-exhaustive fallback: any future ColumnType variants default to Utf8.
+        _ => DataType::Utf8,
     }
 }
 
@@ -2516,38 +2720,469 @@ pub fn register_mem_table(
 
     if batches.is_empty() {
         // Empty batch list — nothing to register; skip silently.
-        tracing::debug!(table_name, "register_mem_table: skipping empty batch list");
+        // F-CSD-P20-008: sanitize before log emission (CWE-117, TD-VSDD-060 sweep).
+        tracing::debug!(
+            table_name = %sanitize_for_log(table_name),
+            "register_mem_table: skipping empty batch list"
+        );
         return Ok(());
     }
 
     let schema = batches[0].schema();
     let mem_table = MemTable::try_new(schema, vec![batches]).map_err(|e| {
+        // F-CSD-P20-008: sanitize before log emission and detail string (CWE-117).
+        let safe_table_name = sanitize_for_log(table_name);
         tracing::error!(
-            table_name,
+            table_name = %safe_table_name,
             error = %e,
             "failed to create MemTable (detail redacted from client response)"
         );
         PrismError::QueryExecutionFailed {
             detail: format!(
-                "failed to create MemTable for '{table_name}': <redacted; see server logs>"
+                "failed to create MemTable for '{safe_table_name}': <redacted; see server logs>"
             ),
         }
     })?;
 
     ctx.register_table(table_name, std::sync::Arc::new(mem_table))
         .map_err(|e| {
+            // F-CSD-P20-008: sanitize before log emission and detail string (CWE-117).
+            let safe_table_name = sanitize_for_log(table_name);
             tracing::error!(
-                table_name,
+                table_name = %safe_table_name,
                 error = %e,
                 "failed to register table (detail redacted from client response)"
             );
             PrismError::QueryExecutionFailed {
                 detail: format!(
-                    "failed to register table '{table_name}': <redacted; see server logs>"
+                    "failed to register table '{safe_table_name}': <redacted; see server logs>"
                 ),
             }
         })?;
 
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// pre_register_empty_tables (DEFECT-CSDEVICES-EMPTY-PIPELINE-001)
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Bundled sensor spec schemas (compile-time embedded TOML → Arrow Schema map)
+// ---------------------------------------------------------------------------
+
+/// Bundled sensor spec TOML content (included at compile time from prism-sensors/specs/).
+///
+/// These serve as the fallback schema source in `pre_register_empty_tables`
+/// when no live `TableRegistry` is available — specifically for unit tests that call
+/// `execute_against_session` directly without a registry (BC-2.11.005 DEC-022).
+///
+/// The schemas built from these TOMLs mirror what the live `TableRegistry` provides
+/// after loading the same spec at runtime, ensuring test assertions on non-JOIN columns
+/// and spec-declared types (e.g. `first_seen: Timestamp`) pass without a live registry.
+const CROWDSTRIKE_SPEC_TOML: &str =
+    include_str!("../../prism-sensors/specs/crowdstrike.sensor.toml");
+const ARMIS_SPEC_TOML: &str = include_str!("../../prism-sensors/specs/armis.sensor.toml");
+const CLAROTY_SPEC_TOML: &str = include_str!("../../prism-sensors/specs/claroty.sensor.toml");
+const CYBERINT_SPEC_TOML: &str = include_str!("../../prism-sensors/specs/cyberint.sensor.toml");
+
+/// Lazily-initialized map of `{sensor_id}_{table_name}` → Arrow `Schema`, built from
+/// the bundled sensor spec TOMLs at first access.
+///
+/// Thread-safe: `OnceLock` guarantees at-most-once initialization. Subsequent accesses
+/// return the cached map without re-parsing.
+///
+/// Used as the Priority-2 fallback in `pre_register_empty_tables` when no
+/// live `TableRegistry` is provided (F-CSD-P1-001 spec-column contract).
+static BUNDLED_SPEC_SCHEMAS: std::sync::OnceLock<
+    std::collections::HashMap<String, Arc<arrow::datatypes::Schema>>,
+> = std::sync::OnceLock::new();
+
+/// Build the bundled spec schema map from the embedded TOML constants.
+///
+/// Called at most once (via `OnceLock::get_or_init`). Parses each bundled TOML,
+/// iterates declared tables + columns, and converts `ColumnType` → Arrow `DataType`
+/// using `spec_column_type_to_arrow_data_type`.
+///
+/// Failed spec parses are silently skipped — the fallback degrades gracefully to
+/// inference-based schema (Priority 3) for any table whose spec could not be parsed.
+fn build_bundled_spec_schemas() -> std::collections::HashMap<String, Arc<arrow::datatypes::Schema>>
+{
+    use arrow::datatypes::{Field, Schema};
+    use prism_spec_engine::spec_parser::SpecLoader;
+
+    let spec_pairs: &[(&str, &str)] = &[
+        ("crowdstrike", CROWDSTRIKE_SPEC_TOML),
+        ("armis", ARMIS_SPEC_TOML),
+        ("claroty", CLAROTY_SPEC_TOML),
+        ("cyberint", CYBERINT_SPEC_TOML),
+    ];
+
+    let mut schemas = std::collections::HashMap::new();
+    for (_sensor_id_hint, toml_content) in spec_pairs {
+        let spec = match SpecLoader::parse(toml_content) {
+            Ok(s) => s,
+            Err(_) => continue, // Silent skip: bundled spec parse failure degrades to inference.
+        };
+        for table in &spec.tables {
+            let full_name = format!("{}_{}", spec.sensor_id, table.table_name);
+            let fields: Vec<Field> = table
+                .columns
+                .iter()
+                .map(|col| {
+                    Field::new(
+                        &col.name,
+                        spec_column_type_to_arrow_data_type(&col.column_type),
+                        true, // All spec columns nullable — sensor APIs may omit fields.
+                    )
+                })
+                .collect();
+            schemas.insert(full_name, Arc::new(Schema::new(fields)));
+        }
+    }
+    schemas
+}
+
+// ---------------------------------------------------------------------------
+// do_register_empty_mem_table (F-CSD-P1-OBS-001 DRY helper)
+// ---------------------------------------------------------------------------
+
+/// Register a schema-only empty `MemTable` under `table_name` in `session_ctx`.
+///
+/// Creates a `MemTable` with the given `schema` and a single empty partition
+/// (`vec![vec![]]`), then registers it in the DataFusion default catalog.
+///
+/// Extracted from the repeated `MemTable::try_new` + `register_table` + error-map
+/// pattern previously duplicated between `pre_register_empty_tables` paths
+/// (F-CSD-P1-OBS-001 dedup; BC-2.11.005 DEC-022).
+///
+/// # Errors
+/// Returns `PrismError::QueryExecutionFailed` if the MemTable cannot be created or
+/// registered. The DataFusion error detail is logged server-side and redacted from
+/// the client-facing message.
+fn do_register_empty_mem_table(
+    session_ctx: &SessionContext,
+    table_name: &str,
+    schema: Arc<arrow::datatypes::Schema>,
+) -> Result<(), PrismError> {
+    use datafusion::datasource::MemTable;
+
+    let mem_table = MemTable::try_new(Arc::clone(&schema), vec![vec![]]).map_err(|e| {
+        // CWE-117: sanitize table_name before structured log emission (F-CSD-P19-004).
+        let safe_table_name = sanitize_for_log(table_name);
+        tracing::error!(
+            table_name = %safe_table_name,
+            error = %e,
+            "do_register_empty_mem_table: failed to create empty MemTable \
+             (detail redacted from client response)"
+        );
+        PrismError::QueryExecutionFailed {
+            // F-CSD-P20-007: embed sanitized name in client-facing detail (CWE-117).
+            detail: format!(
+                "failed to create empty placeholder MemTable for '{safe_table_name}': \
+                     <redacted; see server logs>"
+            ),
+        }
+    })?;
+
+    session_ctx
+        .register_table(table_name, Arc::new(mem_table))
+        .map_err(|e| {
+            // CWE-117: sanitize table_name before structured log emission (F-CSD-P19-004).
+            let safe_table_name = sanitize_for_log(table_name);
+            tracing::error!(
+                table_name = %safe_table_name,
+                error = %e,
+                "do_register_empty_mem_table: failed to register empty MemTable \
+                 (detail redacted from client response)"
+            );
+            PrismError::QueryExecutionFailed {
+                // F-CSD-P20-007: embed sanitized name in client-facing detail (CWE-117).
+                detail: format!(
+                    "failed to register empty placeholder MemTable for '{safe_table_name}': \
+                     <redacted; see server logs>"
+                ),
+            }
+        })?;
+
+    Ok(())
+}
+
+/// Extract `(left_alias, left_col, right_alias, right_col)` tuples from all JOIN ON
+/// equality conditions in the given join list.
+///
+/// Recurses into `Expr::Logical` (AND/OR) so compound ON clauses like
+/// `ON a.id = b.id AND a.org = b.org` are fully traversed.
+/// Only `Expr::Compare { op: CompareOp::Eq, .. }` with `Expr::Field` on both sides
+/// with at least 2 path segments are emitted (alias + column name).
+///
+/// Used by `pre_register_empty_tables` to infer the schema of unregistered
+/// tables from JOIN peer columns (BC-2.11.005 DEC-022).
+fn extract_join_equalities(joins: &[crate::ast::Join]) -> Vec<(String, String, String, String)> {
+    fn recurse(expr: &crate::ast::Expr, out: &mut Vec<(String, String, String, String)>) {
+        use crate::ast::{CompareOp, Expr};
+        match expr {
+            Expr::Compare {
+                lhs,
+                op: CompareOp::Eq,
+                rhs,
+            } => {
+                if let (Expr::Field(lp), Expr::Field(rp)) = (lhs.as_ref(), rhs.as_ref()) {
+                    if lp.segments.len() >= 2 && rp.segments.len() >= 2 {
+                        out.push((
+                            lp.segments[0].clone(),
+                            lp.segments[1].clone(),
+                            rp.segments[0].clone(),
+                            rp.segments[1].clone(),
+                        ));
+                    }
+                }
+            }
+            Expr::Logical { lhs, rhs, .. } => {
+                recurse(lhs, out);
+                recurse(rhs, out);
+            }
+            _ => {}
+        }
+    }
+
+    let mut result = Vec::new();
+    for join in joins {
+        recurse(&join.on, &mut result);
+    }
+    result
+}
+
+/// Pre-register schema-only empty `MemTable`s for SQL query tables not yet in the
+/// DataFusion session catalog.
+///
+/// # Purpose (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 Sub-defect 2)
+///
+/// `register_mem_table` skips registration when a sensor returns 0 batches.
+/// When a SQL query JOINs against such a sensor, DataFusion planning fails with
+/// `"table not found"` (mapped to `PrismError::QueryExecutionFailed`).
+///
+/// This function registers a schema-only empty `MemTable` for each missing table so
+/// DataFusion can plan the query, producing 0 rows gracefully instead of erroring.
+///
+/// # Schema inference
+///
+/// For each missing table `T` with alias `a_T`:
+///
+/// 1. Walk JOIN ON equality conditions for `Expr::Compare { op: Eq, .. }` where one
+///    side's alias maps to `T` and the other side maps to an ALREADY-registered table.
+/// 2. Look up the peer column's DataType from the registered table's Arrow schema.
+/// 3. Add `Field::new(t_column, peer_type, true)` to the inferred schema.
+/// 4. If no JOIN equalities help (e.g., solo `FROM crowdstrike_devices` with no JOINs),
+///    fall back to `Schema::empty()` (0 columns). A `SELECT *` on an empty-schema
+///    table returns 0 rows with 0 columns — correct per BC-2.01.010.
+///
+/// # BC anchors
+///
+/// - BC-2.11.005 DEC-022: "All sensor API calls return empty" →
+///   "Empty RecordBatch registered; query returns empty result set"
+/// - BC-2.01.010: empty result ≠ error (partial-failure handling)
+async fn pre_register_empty_tables(
+    session_ctx: &SessionContext,
+    sql_query: &crate::ast::SqlQuery,
+    table_registry: Option<&crate::table_registry::TableRegistry>,
+) -> Result<(), PrismError> {
+    use arrow::datatypes::{Field, Schema};
+
+    // Build alias → normalized_table_name map from FROM + JOINs.
+    let mut alias_to_table: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+
+    let from_table = datafusion_table_name(&sql_query.from.source.raw);
+    let from_alias = sql_query
+        .from
+        .alias
+        .as_deref()
+        .unwrap_or(&from_table)
+        .to_owned();
+    alias_to_table.insert(from_alias, from_table.clone());
+
+    for join in &sql_query.joins {
+        let join_table = datafusion_table_name(&join.source.raw);
+        let join_alias = join.alias.as_deref().unwrap_or(&join_table).to_owned();
+        alias_to_table.insert(join_alias, join_table.clone());
+    }
+
+    // Collect ALL table names referenced anywhere in the query — FROM, JOINs,
+    // WHERE predicates (Predicate::InSubquery), SELECT projections
+    // (Expr::InSubquery), GROUP BY, HAVING, ORDER BY, and any nested subquery
+    // at arbitrary depth (F-CSD-P3-001 / BC-2.11.005 DEC-022 / BC-2.01.010).
+    //
+    // The previous FROM+JOINs-only scan missed tables referenced solely inside
+    // IN-subquery positions, causing DataFusion "table not found" plan errors
+    // for 0-batch tables. `walk_sql_query` provides the full recursive walk
+    // already used by `extract_source_names_recursive`.
+    //
+    // Deduplication via `seen_tables` HashSet prevents double-registration that
+    // DataFusion would reject with "table already registered" (F-CSD-P1-003).
+    // `walk_sql_query` inserts raw source names; normalize each via
+    // `datafusion_table_name` to replace dots with underscores before lookup.
+    let mut raw_names = std::collections::HashSet::new();
+    walk_sql_query(sql_query, &mut raw_names);
+    let mut seen_tables = std::collections::HashSet::new();
+    let mut all_table_names: Vec<String> = Vec::new();
+    for raw in raw_names {
+        let normalized = datafusion_table_name(&raw);
+        if seen_tables.insert(normalized.clone()) {
+            all_table_names.push(normalized);
+        }
+    }
+
+    // Extract JOIN equalities for Priority-3 inference fallback: (la, lc, ra, rc).
+    let equalities = extract_join_equalities(&sql_query.joins);
+
+    // Obtain the DataFusion "public" schema provider (always present in a properly
+    // constructed SessionContext from `build_session_context`).
+    let public_schema = match session_ctx
+        .catalog("datafusion")
+        .and_then(|cat| cat.schema("public"))
+    {
+        Some(s) => s,
+        None => return Ok(()), // No catalog — let DataFusion handle it.
+    };
+
+    for table_name in &all_table_names {
+        // F-CSD-P4-006: skip internal prism_* tables — they are registered permanently
+        // at session context creation (or by the AuditRead/write infrastructure) and
+        // must not be shadowed with empty placeholder MemTables. Registering an empty
+        // placeholder over a live prism_audit / prism_write table would corrupt the
+        // session catalog for the duration of the query.
+        if table_name.starts_with("prism_") {
+            continue;
+        }
+
+        // Check whether the table is already in the DataFusion catalog.
+        match public_schema.table(table_name).await {
+            Ok(Some(_)) => continue, // Already registered.
+            Ok(None) => {}           // Missing — register empty placeholder.
+            Err(_) => continue,      // Catalog error — let DataFusion surface it.
+        }
+
+        // -----------------------------------------------------------------
+        // Priority 1: spec-declared columns from live TableRegistry.
+        //
+        // Production path (via run_materialization_pipeline): registry is Some
+        // and is populated from the sensor spec at startup. This provides the
+        // full spec-declared schema with all columns and correct Arrow types,
+        // satisfying queries on non-JOIN columns and datetime-typed columns.
+        // -----------------------------------------------------------------
+        if let Some(registry) = table_registry {
+            let col_names = registry.columns_for_table(table_name);
+            if !col_names.is_empty() {
+                let fields: Vec<Field> = col_names
+                    .iter()
+                    .map(|col_name| {
+                        let col_type = registry
+                            .column_type_for(table_name, col_name)
+                            .unwrap_or(prism_core::column::ColumnType::String);
+                        Field::new(
+                            col_name,
+                            spec_column_type_to_arrow_data_type(&col_type),
+                            true, // nullable
+                        )
+                    })
+                    .collect();
+                let schema = Arc::new(Schema::new(fields));
+                // F-CSD-P14-001: append virtual fields so LEFT JOIN on an empty
+                // sensor table can plan `SELECT dev._sensor …` without error.
+                // nullable=true enables NULL propagation on the empty side.
+                let schema = crate::virtual_fields::append_virtual_fields_to_schema(schema);
+                do_register_empty_mem_table(session_ctx, table_name, schema)?;
+                // CWE-117: sanitize table_name before structured log emission (F-CSD-P19-004).
+                tracing::debug!(
+                    table_name = %sanitize_for_log(table_name),
+                    "pre_register_empty_tables: registered spec-column schema \
+                     from live TableRegistry (BC-2.11.005 DEC-022 / F-CSD-P1-001)"
+                );
+                continue;
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // Priority 2: bundled spec schemas (fallback for test paths without
+        // a live registry).
+        //
+        // The 4 known sensors have their TOMLs embedded at compile time via
+        // `include_str!`. Parsed once via `OnceLock`, used as fallback when no
+        // live registry is provided — primarily for unit tests that call
+        // `execute_against_session` directly (F-CSD-P1-001, BC-2.11.005 DEC-022).
+        // -----------------------------------------------------------------
+        {
+            let bundled = BUNDLED_SPEC_SCHEMAS.get_or_init(build_bundled_spec_schemas);
+            if let Some(schema) = bundled.get(table_name) {
+                // F-CSD-P14-001: augment the cached bundled schema with virtual
+                // fields. The cached Arc<Schema> is NOT modified in-place;
+                // append_virtual_fields_to_schema returns a new Arc.
+                let schema_vf =
+                    crate::virtual_fields::append_virtual_fields_to_schema(Arc::clone(schema));
+                do_register_empty_mem_table(session_ctx, table_name, schema_vf)?;
+                // CWE-117: sanitize table_name before structured log emission (F-CSD-P19-004).
+                tracing::debug!(
+                    table_name = %sanitize_for_log(table_name),
+                    "pre_register_empty_tables: registered spec-column schema \
+                     from bundled TOML fallback (BC-2.11.005 DEC-022 / F-CSD-P1-001)"
+                );
+                continue;
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // Priority 3: inference from JOIN ON equality conditions.
+        //
+        // Final fallback for custom or non-bundled tables. Infers schema from
+        // JOIN-equality peer column types (registered peer tables only).
+        // Covers only the JOIN-key column(s); non-JOIN columns are absent
+        // from the inferred schema. Queries selecting non-JOIN columns from
+        // an unknown table with no spec data will fall back to Schema::empty().
+        // -----------------------------------------------------------------
+        let table_alias: Option<String> = alias_to_table
+            .iter()
+            .find(|(_, t)| *t == table_name)
+            .map(|(a, _)| a.clone());
+
+        let mut inferred_fields: Vec<Field> = Vec::new();
+        if let Some(ref missing_alias) = table_alias {
+            for (la, lc, ra, rc) in &equalities {
+                let (missing_col, peer_alias, peer_col) = if la == missing_alias {
+                    (lc, ra, rc)
+                } else if ra == missing_alias {
+                    (rc, la, lc)
+                } else {
+                    continue;
+                };
+
+                // Look up the peer column's type from the registered peer table.
+                if let Some(peer_table) = alias_to_table.get(peer_alias) {
+                    if let Ok(Some(tp)) = public_schema.table(peer_table).await {
+                        if let Ok(field) = tp.schema().field_with_name(peer_col) {
+                            inferred_fields.push(Field::new(
+                                missing_col.as_str(),
+                                field.data_type().clone(),
+                                true, // nullable
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Build the schema (may be empty for solo-SELECT of unknown non-bundled table).
+        let schema = Arc::new(Schema::new(inferred_fields));
+        // F-CSD-P14-001: append virtual fields (covers inferred AND empty-schema cases).
+        let schema = crate::virtual_fields::append_virtual_fields_to_schema(schema);
+        do_register_empty_mem_table(session_ctx, table_name, schema)?;
+        // CWE-117: sanitize table_name before structured log emission (F-CSD-P19-004).
+        tracing::debug!(
+            table_name = %sanitize_for_log(table_name),
+            "pre_register_empty_tables: registered inference-based schema \
+             (BC-2.11.005 DEC-022 / BC-2.01.010 empty-is-not-error)"
+        );
+    }
     Ok(())
 }
 
@@ -2581,6 +3216,326 @@ pub(crate) async fn collect_record_batch_stream(
     datafusion::physical_plan::common::collect(stream)
         .await
         .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))
+}
+
+// ---------------------------------------------------------------------------
+// check_expr_insubquery_projection — E-QUERY-043 plan-time gate (F-CSD-P4-001)
+// ---------------------------------------------------------------------------
+
+/// Plan-time gate for `Expr::InSubquery` in SELECT projection, GROUP BY, or ORDER BY
+/// positions across ALL reachable `SqlQuery` scopes (E-QUERY-043).
+///
+/// DataFusion 53.1.0 physical planner raises `not_impl_err!` for `InSubquery` in scalar
+/// expression positions. Without this gate, the error surfaces as a catch-all
+/// `QueryExecutionFailed` (`-32000 Internal error`) — opaque to the MCP caller.
+///
+/// This gate fires AFTER `check_temporal_literals` (see Step 1d in
+/// `run_materialization_pipeline`) so that temporal violations (E-QUERY-042) take
+/// precedence when both are present.
+///
+/// # Scope — all reachable SqlQuery scopes, recursively
+///
+/// The gate walks every `SqlQuery` reachable from the AST entry point, including
+/// subqueries nested inside WHERE/HAVING predicates and JOIN ON expressions.
+/// Walker-parity with `walk_sql_query` / `walk_predicate` / `walk_expr` (the sibling
+/// empty-table pre-registration walkers). F-CSD-P5-001/P6-001/P7-001 fix lineage.
+///
+/// Checked positions within each reachable `SqlQuery`:
+/// - `SqlQuery.select.items` — each `SelectItem::Expr { expr, .. }`
+/// - `SqlQuery.group_by` — each `Expr`
+/// - `SqlQuery.order_by` — each `OrderExpr.expr`
+/// - `SqlQuery.joins` JOIN ON interiors — `Expr::InSubquery` directly in JOIN ON is
+///   NOT rejected (T5 scope boundary), but its inner `SqlQuery` is checked recursively
+/// - `SqlQuery.where_` — recurse via `check_predicate` into `Predicate::InSubquery.subquery`
+///   (F-CSD-P7-001; sibling walker `walk_sql_query` already recurses here)
+/// - `SqlQuery.having` — same recursion, orthogonal HAVING path (F-CSD-P7-001-T3)
+/// - `DmlNode.source_select` (INSERT INTO … SELECT) — via `check_sql_query` (F-CSD-P6-001)
+/// - `SqlPipeQuery.stages` — each `PipeStage::Where(pred)` predicate is walked via
+///   `check_predicate` (F-CSD-P25-004; defense-in-depth).
+///
+/// ## SqlPipe stage-walk: parser-parity invariant and defense-in-depth rationale
+///
+/// The pipe `| where` stage grammar (`filter_parser::build_predicate_parser`) does NOT
+/// produce `Predicate::InSubquery` — that variant is added only by the SQL WHERE-clause
+/// parser (`sql_parser::build_sql_predicate_parser`). Therefore, at grammar-generation
+/// time, a live `PipeStage::Where(Predicate::InSubquery { .. })` shape is unreachable
+/// from normal user input. The head-only walk was safe under this invariant.
+///
+/// The stage walk is added as **defense-in-depth** (per T27/T39/T41 precedent) against
+/// future grammar extensions that might expose `Predicate::InSubquery` in a pipe stage
+/// WHERE. If such a grammar extension lands, the gate fires here rather than propagating
+/// to DataFusion with an opaque `QueryExecutionFailed`. Constructed AST shapes (test T41)
+/// verify the gate fires even when the shape is grammar-unreachable today.
+///
+/// Within each projection position, `contains_insubquery` recurses into
+/// `FuncCall::Scalar` and `FuncCall::Aggregate` argument lists (F-CSD-P5-001).
+///
+/// Does NOT reject `Predicate::InSubquery` (WHERE/HAVING IN-subqueries). Those are
+/// supported and executed via DataFusion's `decorrelate_predicate_subquery` optimizer
+/// rule (T24/T3/T10 lock). Only projection-position `Expr::InSubquery` inside any
+/// reachable `SqlQuery` is rejected.
+///
+/// Does NOT reject JOIN ON `Expr::InSubquery` directly (T5 scope boundary). The
+/// INTERIOR of the subquery is still checked via `descend_subquery_expr`.
+///
+/// DML filter predicates (UPDATE/DELETE WHERE) are walked via `check_predicate`
+/// (F-CSD-P8-002): `Predicate::InSubquery.subquery` projections may contain
+/// `Expr::InSubquery`. Grammar-unreachable today — `build_predicate_parser()` (used
+/// by UPDATE/DELETE WHERE) does not include `Predicate::InSubquery`; only
+/// `build_sql_predicate_parser()` adds it, so this shape can only be produced by
+/// constructing the AST directly (T27 verifies via constructed AST). Covered as
+/// defense-in-depth consistent with `check_temporal_literals`'s `dml.filter` walk
+/// (F-P4-LOW-1; see the `Ast::Sql(SqlStatement::Dml(dml))` arm of `check_temporal_literals`).
+///
+/// DML SET assignments (UPDATE SET col = expr) are walked via `descend_subquery_expr`
+/// on each `Assignment.value` as defense-in-depth (mirrors F-P4-LOW-1 coverage parity).
+///
+/// # Returns
+///
+/// - `Ok(())` if no `Expr::InSubquery` is found in the gated positions.
+/// - `Err(PrismError::ExprInSubqueryProjectionNotSupported { hint })` on first match.
+///
+/// Reference: F-CSD-P4-001 2026-07-10; F-CSD-P5-001; F-CSD-P6-001; F-CSD-P7-001;
+/// error-taxonomy.md §E-QUERY-043.
+fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismError> {
+    use crate::ast::{Ast, Expr, Predicate, SelectItem, SqlStatement};
+
+    /// Check a single `Expr` for any `Expr::InSubquery` node in PROJECTION position.
+    ///
+    /// Returns `true` if ANY `Expr::InSubquery` is present (rejectable).
+    /// Recurses into `FuncCall::Scalar` / `FuncCall::Aggregate` args (F-CSD-P5-001).
+    /// Mirrors `walk_expr`'s FuncCall arm (F-LP4-MED-1).
+    fn contains_insubquery(expr: &Expr) -> bool {
+        use crate::ast::FuncCall;
+        match expr {
+            Expr::InSubquery { .. } => true,
+            Expr::Compare { lhs, rhs, .. } => contains_insubquery(lhs) || contains_insubquery(rhs),
+            Expr::Logical { lhs, rhs, .. } => contains_insubquery(lhs) || contains_insubquery(rhs),
+            Expr::Not(inner) => contains_insubquery(inner),
+            // F-CSD-P5-001: FuncCall args may wrap InSubquery
+            // (e.g. `count(id IN (SELECT …))`). Walk both arg-bearing variants.
+            // FuncCall::Window is a S-3.06 placeholder stub with no Expr children.
+            Expr::FuncCall(func_call) => match func_call {
+                FuncCall::Scalar { args, .. } | FuncCall::Aggregate { args, .. } => {
+                    args.iter().any(contains_insubquery)
+                }
+                FuncCall::Window { .. } => false,
+            },
+            // TimestampArithmetic.base is always Expr::Now at gate-check time —
+            // grammar enforces a Now base; a non-Now base is unreachable (test-writer
+            // verified). Consistent with sibling walker `walk_expr` which also omits
+            // this arm. Other leaf variants (Literal, Field, VirtualField, In, Star,
+            // Now, Interval) carry no Expr children.
+            _ => false,
+        }
+    }
+
+    /// Walk a non-projection `Expr` (e.g. JOIN ON), recursing into the interior
+    /// of any `Expr::InSubquery` found via `check_sql_query`. Does NOT reject the
+    /// `Expr::InSubquery` itself — JOIN ON `Expr::InSubquery` is NOT gated (T5 scope
+    /// boundary). Only the inner `SqlQuery`'s projections are checked.
+    ///
+    /// Walker-parity with `walk_expr` (F-CSD-P7-001 lineage).
+    fn descend_subquery_expr(expr: &Expr) -> bool {
+        use crate::ast::FuncCall;
+        match expr {
+            // Non-projection InSubquery: check its inner SqlQuery but do NOT reject here.
+            Expr::InSubquery { subquery, .. } => check_sql_query(subquery),
+            Expr::Compare { lhs, rhs, .. } => {
+                descend_subquery_expr(lhs) || descend_subquery_expr(rhs)
+            }
+            Expr::Logical { lhs, rhs, .. } => {
+                descend_subquery_expr(lhs) || descend_subquery_expr(rhs)
+            }
+            Expr::Not(inner) => descend_subquery_expr(inner),
+            Expr::FuncCall(func_call) => match func_call {
+                FuncCall::Scalar { args, .. } | FuncCall::Aggregate { args, .. } => {
+                    args.iter().any(descend_subquery_expr)
+                }
+                FuncCall::Window { .. } => false,
+            },
+            _ => false,
+        }
+    }
+
+    /// Walk a WHERE or HAVING `Predicate`, recursing into `Predicate::InSubquery.subquery`
+    /// via `check_sql_query`. The `Predicate::InSubquery` itself is NOT rejected —
+    /// it is DataFusion-native (T24/T3/T10 lock). Only its inner `SqlQuery`'s
+    /// projection/group_by/order_by may contain a rejectable `Expr::InSubquery`.
+    ///
+    /// Walker-parity with `walk_predicate` (F-CSD-P7-001 lineage).
+    fn check_predicate(pred: &Predicate) -> bool {
+        match pred {
+            Predicate::InSubquery { subquery, .. } => check_sql_query(subquery),
+            Predicate::Logical { predicates, .. } => predicates.iter().any(check_predicate),
+            Predicate::Not(inner) => check_predicate(inner),
+            // Compare lhs/rhs are Exprs — use contains_insubquery to REJECT any
+            // Expr::InSubquery appearing directly in compare-position LHS/RHS
+            // (F-CSD-P19-002). `contains_insubquery` returns true immediately for
+            // any Expr::InSubquery node, firing E-QUERY-043 before DataFusion planning.
+            //
+            // NOTE: descend_subquery_expr was wrong here because it descended into the
+            // *inner* subquery body (checking whether the subquery's projections are
+            // clean) instead of detecting the Expr::InSubquery node itself as the
+            // compare-position operand. A clean inner subquery caused the gate to
+            // return Ok(()) — silently accepting an invalid Compare shape.
+            //
+            // Predicate::Compare is NOT an Expr-position; Expr::InSubquery is only
+            // valid as a standalone WHERE/HAVING predicate (Predicate::InSubquery).
+            // compare-position Expr::InSubquery is NOT grammar-reachable from any
+            // PrismQL parser path (T35 defence-in-depth per T27 precedent).
+            Predicate::Compare { lhs, rhs, .. } => {
+                contains_insubquery(lhs) || contains_insubquery(rhs)
+            }
+            // StringOp, Regex, In, Between, Cidr, Has, Missing, IsNull, Wildcard,
+            // RecoveryError — no SqlQuery children.
+            _ => false,
+        }
+    }
+
+    /// Check one `SqlQuery` and all reachable nested `SqlQuery` scopes for
+    /// projection-position `Expr::InSubquery` nodes. Returns `true` on first match.
+    ///
+    /// Scope: select.items, group_by, order_by (projection positions, via
+    /// `contains_insubquery`); JOIN ON interiors (via `descend_subquery_expr`);
+    /// WHERE and HAVING predicates (via `check_predicate` → `check_sql_query`
+    /// recursion). Walker-parity with `walk_sql_query` / `walk_predicate` / `walk_expr`.
+    fn check_sql_query(q: &crate::ast::SqlQuery) -> bool {
+        // ── Projection positions ────────────────────────────────────────────────
+        // SELECT items.
+        for item in &q.select.items {
+            if let SelectItem::Expr { expr, .. } = item {
+                if contains_insubquery(expr) {
+                    return true;
+                }
+            }
+        }
+        // GROUP BY.
+        for expr in &q.group_by {
+            if contains_insubquery(expr) {
+                return true;
+            }
+        }
+        // ORDER BY.
+        for order_item in &q.order_by {
+            if contains_insubquery(&order_item.expr) {
+                return true;
+            }
+        }
+
+        // ── Non-projection positions — recurse into reachable subqueries ────────
+        // JOIN ON: Expr::InSubquery directly in JOIN ON is NOT rejected (T5 scope
+        // boundary); the interior of its subquery is checked via descend_subquery_expr.
+        // Walker-parity with walk_sql_query walk_expr(&join.on) arm.
+        for join in &q.joins {
+            if descend_subquery_expr(&join.on) {
+                return true;
+            }
+        }
+        // WHERE predicate — recurse into Predicate::InSubquery.subquery (F-CSD-P7-001).
+        // Predicate::InSubquery itself is DataFusion-native and NOT rejected (T24/T3/T10).
+        // Walker-parity with walk_sql_query's `if let Some(ref pred) = sql.where_` arm.
+        if let Some(ref pred) = q.where_ {
+            if check_predicate(pred) {
+                return true;
+            }
+        }
+        // HAVING predicate — orthogonal path to WHERE (F-CSD-P7-001-T3).
+        // Walker-parity with walk_sql_query's `if let Some(ref pred) = sql.having` arm.
+        if let Some(ref pred) = q.having {
+            if check_predicate(pred) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    // POL-24 byte-strict lock: hint must combine with the #[error] prefix
+    // "E-QUERY-043: IN subquery in projection position is not supported. {hint}"
+    // to produce the exact error-taxonomy v2.38 §E-QUERY-043 template.
+    // F-CSD-P5-002 (MED): removed doubled preamble; added JOIN alternative sentence.
+    let hint = "Use a WHERE clause subquery instead: `WHERE field IN (SELECT ...)`. \
+                Alternatively, a JOIN achieves the same result: \
+                `SELECT * FROM t JOIN (SELECT col FROM src) s ON t.field = s.col`.";
+
+    let found = match ast {
+        Ast::Sql(SqlStatement::Select(q)) => check_sql_query(q),
+        // F-CSD-P25-004: walk both the SQL head AND every pipe stage WHERE predicate.
+        //
+        // Head-only walking was safe under the parser-parity invariant:
+        // `filter_parser::build_predicate_parser` does NOT produce `Predicate::InSubquery`,
+        // so a pipe stage WHERE cannot carry that shape from normal user input today.
+        //
+        // The stage walk is defense-in-depth against future grammar extensions that might
+        // expose `Predicate::InSubquery` in a pipe stage WHERE (T41 verifies via constructed
+        // AST per BC-5.38.001 T27 pattern). When such a stage WHERE subquery contains
+        // `Expr::InSubquery` in its SELECT projection, `check_predicate` → `check_sql_query`
+        // detects it and returns E-QUERY-043.
+        Ast::SqlPipe(spq) => {
+            use crate::ast::PipeStage;
+            if check_sql_query(&spq.head) {
+                true
+            } else {
+                spq.stages.iter().any(|stage| match stage {
+                    PipeStage::Where(pred) => check_predicate(pred),
+                    _ => false,
+                })
+            }
+        }
+        // DML defense-in-depth (F-CSD-P6-001 + F-CSD-P8-002 + F-P4-LOW-1 precedent):
+        //
+        // (a) source_select: INSERT INTO … SELECT carries `source_select: Option<SqlQuery>`
+        //     whose select.items / group_by / order_by can hold `Expr::InSubquery`.
+        //     Walk via check_sql_query (F-CSD-P6-001).
+        //
+        // (b) filter: UPDATE/DELETE WHERE may carry `Predicate::InSubquery { subquery }` whose
+        //     `subquery.select.items` holds `Expr::InSubquery` (F-CSD-P8-002).
+        //     Grammar-unreachable today (build_predicate_parser() excludes Predicate::InSubquery;
+        //     only build_sql_predicate_parser() adds it — T27 verifies via constructed AST),
+        //     but covered as defense-in-depth. Walk via check_predicate which recurses into
+        //     Predicate::InSubquery.subquery.
+        //
+        // (c) assignments: UPDATE SET col = <expr> — value Expr may hold Expr::InSubquery
+        //     in a non-projection position. Walk via descend_subquery_expr (defense-in-depth,
+        //     mirrors F-P4-LOW-1 coverage parity).
+        //
+        // Mirrors the `Ast::Sql(SqlStatement::Dml(dml))` arm of `check_temporal_literals`.
+        Ast::Sql(SqlStatement::Dml(dml)) => {
+            dml.source_select.as_ref().is_some_and(check_sql_query)
+                || dml.filter.as_ref().is_some_and(check_predicate)
+                || dml
+                    .assignments
+                    .iter()
+                    .any(|a| descend_subquery_expr(&a.value))
+        }
+        // Filter and Pipe variants have no SELECT projection expressions in the
+        // same sense as SQL SELECT. Even if a Pipe stage carries
+        // Predicate::InSubquery (grammar-unreachable today but possible via
+        // constructed AST), pipe_sql_emitter::predicate_to_datafusion_sql
+        // returns Err(QueryExecutionFailed) for that predicate BEFORE any inner
+        // subquery content reaches DataFusion — a code-level defense layer that
+        // Ast::SqlPipe lacks (SqlPipe stages emit to session_ctx.sql() directly).
+        // Extending this arm to walk Pipe stages is therefore NOT required for
+        // E-QUERY-043 defense; it would also produce semantically incorrect error
+        // messages (E-QUERY-043's hint says "use WHERE clause subquery" — but
+        // pipe-mode WHERE IN-subquery is unsupported at the emitter level, not a
+        // projection-position concern). Two-step condition for future gate
+        // extension: (1) grammar exposes Predicate::InSubquery in pipe stages AND
+        // (2) predicate_to_datafusion_sql is updated to lower it. When change (2)
+        // lands, extend this arm symmetrically with Ast::SqlPipe.
+        // T39 (test_BC_2_11_003_F_CSD_P20_015_T39_filter_pipe_wildcard_arm_gate_does_not_fire)
+        // locks this negative invariant. Architect adjudication F-CSD-P26-OBS-002, 2026-07-11.
+        #[allow(unreachable_patterns)]
+        _ => false,
+    };
+
+    if found {
+        return Err(PrismError::ExprInSubqueryProjectionNotSupported {
+            hint: hint.to_string(),
+        });
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

@@ -229,7 +229,6 @@ fn virtual_field_name(vf: &crate::ast::VirtualField) -> &'static str {
         Client => "_client",
         SourceTable => "_source_table",
         SourceType => "_source_type",
-        SafetyFlags => "_safety_flags",
         _ => "_unknown",
     }
 }

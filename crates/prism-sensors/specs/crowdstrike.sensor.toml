@@ -182,7 +182,11 @@ ocsf_class = "detection_finding"
   method = "GET"
   path_template = "/detects/queries/detects/v1?filter=${query.filter._fql}&limit=${query.limit}"
   response_path = "$.resources"
-  variables_produced = ["detection_ids"]
+  # OBS-003 (2026-07-10): "detection_ids" was declared but never materialized — the
+  # body_template uses ${query_detection_ids.resources}, which is produced automatically
+  # from response_path = "$.resources".  Declaring a redundant named variable causes a
+  # spec-validation warning; cleared to [] to match query_device_ids / query_incident_ids.
+  variables_produced = []
 
   # Step 2: PostEntities — POST IDs to get full detection records
   # DTU route: POST /detects/entities/summaries/GET/v1 (mod.rs line ~193)
@@ -190,8 +194,6 @@ ocsf_class = "detection_finding"
   # Fan-out batch: body_template uses ${step_name.field} interpolation.
   # Step 1 (query_detection_ids) stores results under:
   #   - ${query_detection_ids.resources}  (last segment of response_path "$.resources")
-  #   - ${query_detection_ids.detection_ids} (from variables_produced)
-  # Both reference the same array of detection IDs.
   # The variable reference must include the step name prefix and field name (no bare names).
   [[tables.steps]]
   name = "fetch_detections"
@@ -209,6 +211,10 @@ ocsf_class = "detection_finding"
 [[tables]]
 table_name = "devices"
 ocsf_class = "device"
+# Column surface intentionally minimal for DEFECT-CSDEVICES-EMPTY-PIPELINE-001;
+# expansion (os_version, agent_version, external_ip, local_ip, containment_status)
+# is human-adjudicated D-1666 as DRIFT-SAP2-DEVICES-TOML-SURFACE-001, queued as a
+# dedicated story after this PR merges.
 
   [[tables.columns]]
   name = "device_id"
@@ -248,14 +254,24 @@ ocsf_class = "device"
   method = "GET"
   path_template = "/devices/queries/devices/v1"
   response_path = "$.resources"
-  variables_produced = ["device_ids"]
+  # OBS-003 (2026-07-10): "device_ids" was declared but never materialized — the
+  # CrowdStrike API returns at "$.resources", not "$.device_ids". The downstream
+  # body_template uses ${query_device_ids.resources}, which is produced automatically
+  # by store_step_vars via the response_path last-segment fallback. Corrected to [].
+  variables_produced = []
 
-  # Step 2: GetEntities — GET full device records by ID
-  # DTU route: GET /devices/entities/devices/v2 (mod.rs line ~198 — v2, not v1)
+  # Step 2: PostDeviceDetailsV2 — POST IDs to get full device records
+  # DTU route: POST /devices/entities/devices/v2 (added per DEFECT-CSDEVICES-EMPTY-PIPELINE-001 ratification)
+  # Real-API canonical: CrowdStrike PostDeviceDetailsV2 (official; introduced FalconPy v1.2.0;
+  #   POST body {"ids": [...]} supports up to 5000 IDs vs GET's 100; body format identical to
+  #   POST /detects/entities/summaries/GET/v1 detections pipeline).
+  # fan_out_batch_size = 100 per CROWDSTRIKE_BATCH_SIZE (conservative; POST API supports up to 5000;
+  #   tuning evaluation folded into DRIFT-SAP2-DEVICES-TOML-SURFACE-001 devices-surface story, D-1666 queue).
   [[tables.steps]]
   name = "fetch_devices"
-  method = "GET"
+  method = "POST"
   path_template = "/devices/entities/devices/v2"
+  body_template = '{"ids": ${query_device_ids.resources}}'
   response_path = "$.resources"
   variables_produced = []
   fan_out_batch_size = 100
@@ -300,13 +316,22 @@ ocsf_class = "incident_finding"
   method = "GET"
   path_template = "/incidents/queries/incidents/v1"
   response_path = "$.resources"
-  variables_produced = ["incident_ids"]
+  # OBS-003 (2026-07-10): "incident_ids" was declared but never materialized — the
+  # CrowdStrike API returns at "$.resources", not "$.incident_ids". The downstream
+  # body_template uses ${query_incident_ids.resources}, which is produced automatically
+  # by store_step_vars via the response_path last-segment fallback. Corrected to [].
+  variables_produced = []
 
-  # Step 2: GetEntities — GET full incident records
+  # Step 2: GetEntities — POST full incident records
+  # (CrowdStrike Incidents API requires POST with JSON body containing ids array)
+  # Method = POST per DEFECT-CSDEVICES-EMPTY-PIPELINE-001 ratification.
+  # DTU-EXT-001: incidents routes not yet in prism-dtu-crowdstrike; this TOML fix
+  # is for the production pipeline only. DTU incidents route stays anchored to DTU-EXT-001.
   [[tables.steps]]
   name = "fetch_incidents"
-  method = "GET"
+  method = "POST"
   path_template = "/incidents/entities/incidents/GET/v1"
+  body_template = '{"ids": ${query_incident_ids.resources}}'
   response_path = "$.resources"
   variables_produced = []
   fan_out_batch_size = 100

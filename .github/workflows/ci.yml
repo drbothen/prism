@@ -665,109 +665,12 @@ jobs:
         with:
           cache-on-failure: true
           shared-key: non-exhaustive-compile-fail
-      - name: Assert non-exhaustive-violation fails to compile with E0639 checks
-        run: |
-          set -uo pipefail
-          # Capture stderr+stdout; we expect cargo check to FAIL (non-zero exit).
-          cargo check \
-            --color=never \
-            --manifest-path tests/external/non-exhaustive-violation/Cargo.toml \
-            > /tmp/non-exhaustive-check.log 2>&1 \
-            && CARGO_RC=0 || CARGO_RC=$?
-          cat /tmp/non-exhaustive-check.log
-          if [ "${CARGO_RC}" -eq 0 ]; then
-            echo "::error::REGRESSION: non-exhaustive-violation compiled successfully — one or more #[non_exhaustive] types lost their annotation. All 89 types must reject external struct-literal or exhaustive-match construction (spec_parser: CredentialRef, SensorSpec, SensorTableDescriptor, FetchStep, ColumnSpec, TableSpec, PaginationConfig, AuthType, RateLimitHints; types: SensorTableDescriptor, CredentialRef, ColumnType, ColumnDef, PaginationType, SpecStatus, ClientStatus; infusion: CredentialRef, InfusionType, BuiltInSourceType, InfusionSourceConfig, InfusionField, PipeStageConfig, PluginConfig, InfusionSpec, HttpLookupCredentialConfig, HttpLookupConfig; infusion.udf: InfusionUdfDescriptor; infusion.enrich_descriptor: EnrichStageDescriptor; infusion.cache: Tier3CacheEntry; write_endpoint: BatchMode, WriteStep, WriteEndpointSpec; prism_core: ColumnType, ColumnOptions, PluginError, TableNotAvailableDetails, InfusionError, ColumnNotFoundDetails, UnknownSourceTableDetails, EnrichUdfNotFoundDetails; prism_query: WriteToolInvalidationMap, TableRegistry; plugin: LoadedPlugin; overlay: SensorInstanceOverlay, OverlayProvenance, ResolvedSensorSpec; prism_mcp: ResponseMeta, ContentEntry, StructuredContent, ResponseEnvelope, SafetyFlagSchema, MetaEnvelopeSchemaType, ResponseEnvelopeSchema, DataSource, ToolRegistration, StructuredErrorFields, CapabilityEntry, ResolutionStep, CapabilityStatus, ClientInventoryEntry, SensorConfigEntry, SensorHealthResult, RateLimitInfo, ResourcePressure, SensorHealthStructuredContent, HealthSummary, PrismDescribeResponse, TableDescriptor, ColumnDescriptor, ExampleKind, SqlPipeQuery; prism_spec_engine::infusion: HttpLookupAuthType; prism_security: BoundingDmlOperation, BoundingMetadata; prism_bin: AdapterAuthStrategy, BearerStaticAuthProvider, SpecDrivenSensorAdapter; prism_dtu_common: ScenarioEntityCatalog, IncidentTimeline, IncidentStage; prism_dtu_demo_server: MultiInstanceConfig, InstanceEntry, DemoBindError, MultiInstanceBindError, MultiInstanceServers; prism_dtu_harness: MultiInstanceHarness, HarnessEntry, BindError)."
-            exit 1
-          fi
-          # Count E0639/E0004 errors — must be >= the number of violations in the crate.
-          # Violations are split across submodules (enum_violations.rs + struct_violations.rs)
-          # so that rustc's per-file error budget does not suppress later violations.
-          # Update EXPECTED when adding/removing violations from enum_violations.rs or
-          # struct_violations.rs (current: 47 E0639 struct literals + 17 E0004 enum matches = 64;
-          # EXPECTED equals the violation function count exactly).
-          # PLUGIN-MIGRATION-001-E added 1 E0639 (plugin::LoadedPlugin).
-          # S-CONFIG-MULTI-TENANT-OVERRIDE-001 added 3 E0639 (overlay::SensorInstanceOverlay,
-          # overlay::OverlayProvenance, overlay::ResolvedSensorSpec — ADR-029 per-org overlay types).
-          # S-SPEC-TYPE-UNIFICATION-001 removed 1 E0639 (types::SensorSpec deleted — ADR-030 Approach D).
-          # S-5.01-FOLLOWUP-MCP-BOOT added 8 E0639 + 1 E0004 (prism-mcp pub API surface types):
-          #   ResponseMeta, ContentEntry, StructuredContent, ResponseEnvelope, SafetyFlagSchema,
-          #   MetaEnvelopeSchemaType, ResponseEnvelopeSchema, ToolRegistration (struct literals),
-          #   DataSource (enum match without wildcard).
-          # S-5.01-FOLLOWUP-MCP-BOOT PR-163 fix-burst added 1 E0004 + 1 E0639 (prism-security):
-          #   BoundingDmlOperation (enum match), BoundingMetadata (struct literal).
-          # S-DEMO-001 fix-burst added 1 E0004 + 2 E0639 (prism-bin):
-          #   AdapterAuthStrategy (enum match), BearerStaticAuthProvider (struct literal),
-          #   SpecDrivenSensorAdapter (struct literal). Total: 46 + 3 = 49.
-          # S-DEMO-DTU-LIVE-SCENARIO-001-A added 1 E0639 (prism-dtu-common):
-          #   ScenarioEntityCatalog (struct literal, scenario/mod.rs — ADR-036 §2.2). Total: 49 + 1 = 50.
-          # S-DEMO-DTU-LIVE-SCENARIO-001-B added 2 E0639 (prism-dtu-common):
-          #   IncidentTimeline (struct literal, scenario/mod.rs — ADR-036 v2.3 §2.2).
-          #   IncidentStage (struct literal, scenario/mod.rs — ADR-036 v2.3 §2.2). Total: 50 + 2 = 52.
-          # S-DEMO-MULTI-TENANT-DTU-001 added 7 E0639 + 1 E0004 (prism-dtu-demo-server + prism-dtu-harness):
-          #   prism_dtu_demo_server: MultiInstanceConfig (struct), InstanceEntry (struct), DemoBindError (struct),
-          #   MultiInstanceServers (struct, D-1075-API-GAP-001), MultiInstanceBindError (enum match without wildcard).
-          #   prism_dtu_harness: MultiInstanceHarness (struct), HarnessEntry (struct), BindError (struct).
-          #   Total: 52 + 8 = 60.
-          # S-5.02 added 1 E0639 (prism-mcp error_mapping):
-          #   prism_mcp::error_mapping::StructuredErrorFields (struct, HC-3 non-exhaustive BC-2.10.007 fields).
-          #   Total: 60 + 1 = 61.
-          # S-5.02 follow-up fix-burst (CRIT-1/HIGH-1 non-exhaustive gate sibling-sweep) added 2 E0639 + 1 E0004:
-          #   prism_mcp::CapabilityEntry (struct literal, server.rs — BC-2.10.011 v1.5 list_capabilities).
-          #   prism_mcp::ResolutionStep (struct literal, server.rs — BC-2.10.011 v1.5 list_capabilities).
-          #   prism_mcp::CapabilityStatus (enum match without wildcard, server.rs — BC-2.10.011 v1.5).
-          #   Total: 61 + 3 = 64.
-          # S-3.13 added 2 E0639 (prism-core + prism-query):
-          #   TableNotAvailableDetails (struct literal, error.rs — S-3.13 LOW-1 #[non_exhaustive]).
-          #   TableRegistry (struct literal, table_registry.rs — S-3.13 CR-002 #[non_exhaustive]).
-          #   Total: 64 + 2 = 66.
-          # S-1.14-REDO burst-2 added 1 E0639 (prism-spec-engine infusion cache):
-          #   Tier3CacheEntry (struct literal, infusion/cache.rs — MED-1-RESIDUAL #[non_exhaustive]).
-          #   Total: 66 + 1 = 67.
-          # S-1.14-REDO fix-burst (architect-ruled FIX-IN-SCOPE) added 2 E0639 (prism-spec-engine infusion):
-          #   InfusionUdfDescriptor (struct literal, infusion/udf.rs — cross-crate breaking change from cache_ttl_secs field).
-          #   EnrichStageDescriptor (struct literal, infusion/enrich_descriptor.rs — sibling sweep of exported descriptor types).
-          #   Total: 67 + 2 = 69.
-          # S-1.14-REDO adversarial OBS-1 FIX-IN-SCOPE added 1 E0004 (prism-core InfusionError):
-          #   InfusionError (enum match, error.rs — pub-API surface discipline, #[non_exhaustive]).
-          #   Total: 69 + 1 = 70.
-          # S-5.03 (F-007 process-gap) added 6 E0639 (prism-mcp resources types):
-          #   ClientInventoryEntry, SensorConfigEntry, SensorHealthResult, RateLimitInfo,
-          #   ResourcePressure, SensorHealthStructuredContent (struct literals, resources.rs).
-          #   Total: 70 + 6 = 76.
-          # S-DEMO-ENRICHMENT-PIVOT-002 v1.3 added 3 (HttpLookupAuthType E0004 v79,
-          #   HttpLookupCredentialConfig E0639 v77, HttpLookupConfig E0639 v78):
-          #   Total: 76 + 3 = 79.
-          # S-DEMO-PRISMQL-ONBOARDING-001-A added 3 E0639 (prism-mcp tools/prism_describe.rs):
-          #   PrismDescribeResponse, TableDescriptor, ColumnDescriptor (struct literals).
-          #   Total: 79 + 3 = 82.
-          # S-DEMO-PRISMQL-ONBOARDING-001-B added 1 E0639 (prism-core error.rs):
-          #   ColumnNotFoundDetails (struct literal, E-QUERY-038 column-not-found context).
-          #   Total: 82 + 1 = 83.
-          # S-5.04 F-S504-P5-002 added 1 E0639 (prism-mcp resources.rs):
-          #   HealthSummary (struct literal, BC-2.08.007 v1.4 summary_counts).
-          #   Total: 83 + 1 = 84.
-          # S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 added 1 E0004 + 1 E0639:
-          #   ExampleKind (exhaustive match, ADR-045 3-tier gate).
-          #   SqlPipeQuery (struct literal, BC-2.11.020 SqlPipe AST node).
-          #   Total: 84 + 2 = 86.
-          # S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 AC-021 added 1 E0639 (prism-core error.rs):
-          #   UnknownSourceTableDetails (struct literal, E-QUERY-036 available_tables+did_you_mean).
-          #   Total: 86 + 1 = 87.
-          # S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B added 1 E0639 (prism-core error.rs):
-          #   EnrichUdfNotFoundDetails (struct literal, E-QUERY-039 UDF-not-found context).
-          #   Total: 87 + 1 = 88.
-          # S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 added 1 E0004 (prism-core error.rs):
-          #   TemporalLiteralPosition (exhaustive match, E-QUERY-042 temporal-literal-position).
-          #   Total: 88 + 1 = 89.
-          E0639_COUNT=$(grep -c 'error\[E0639\]' /tmp/non-exhaustive-check.log || true)
-          E0004_COUNT=$(grep -c 'error\[E0004\]' /tmp/non-exhaustive-check.log || true)
-          TOTAL_COUNT=$((E0639_COUNT + E0004_COUNT))
-          EXPECTED=89
-          if [ "${TOTAL_COUNT}" -lt "${EXPECTED}" ]; then
-            echo "::error::Expected at least ${EXPECTED} E0639/E0004 errors (one per #[non_exhaustive] type), got ${TOTAL_COUNT}. Some types may have lost their annotation. E0639=${E0639_COUNT} E0004=${E0004_COUNT}"
-            exit 1
-          fi
-          echo "Check passed: ${TOTAL_COUNT} types correctly reject external struct-literal or non-exhaustive match construction (E0639=${E0639_COUNT} E0004=${E0004_COUNT}, expected: ${EXPECTED}). Types validated: spec_parser::CredentialRef, SensorSpec, SensorTableDescriptor, FetchStep, ColumnSpec (field count 7 after ENRICH-1 source_path addition — E0639 count unchanged: adding a field to an existing #[non_exhaustive] struct does not add a new E0639 error), TableSpec, PaginationConfig, AuthType, RateLimitHints; types::SensorTableDescriptor, CredentialRef, ColumnType, ColumnDef, PaginationType, SpecStatus, ClientStatus; infusion::CredentialRef, InfusionType, BuiltInSourceType, InfusionSourceConfig, InfusionField, PipeStageConfig, PluginConfig, InfusionSpec; infusion::udf::InfusionUdfDescriptor, infusion::enrich_descriptor::EnrichStageDescriptor; infusion::cache::Tier3CacheEntry; write_endpoint::BatchMode, WriteStep, WriteEndpointSpec; prism_core::ColumnType, ColumnOptions, PluginError, TableNotAvailableDetails, InfusionError, ColumnNotFoundDetails, UnknownSourceTableDetails, EnrichUdfNotFoundDetails, TemporalLiteralPosition; prism_query::invalidation::WriteToolInvalidationMap, table_registry::TableRegistry; plugin::LoadedPlugin; overlay::SensorInstanceOverlay, OverlayProvenance, ResolvedSensorSpec; prism_mcp::safety_envelope::{ResponseMeta, ContentEntry, StructuredContent, ResponseEnvelope, SafetyFlagSchema, MetaEnvelopeSchemaType, ResponseEnvelopeSchema, DataSource}; prism_mcp::error_mapping::StructuredErrorFields; prism_mcp::tool_registry::ToolRegistration; prism_mcp::{CapabilityEntry, ResolutionStep, CapabilityStatus}; prism_mcp::{ClientInventoryEntry, SensorConfigEntry, SensorHealthResult, RateLimitInfo, ResourcePressure, SensorHealthStructuredContent, HealthSummary}; prism_mcp::{PrismDescribeResponse, TableDescriptor, ColumnDescriptor}; prism_mcp::resources::ExampleKind; prism_query::ast::SqlPipeQuery; prism_security::confirmation_token::{BoundingDmlOperation, BoundingMetadata}; prism_bin::spec_driven_adapter::{AdapterAuthStrategy, BearerStaticAuthProvider, SpecDrivenSensorAdapter}; prism_dtu_common::scenario::{ScenarioEntityCatalog, IncidentTimeline, IncidentStage}; prism_dtu_demo_server::multi_instance::{MultiInstanceConfig, InstanceEntry, DemoBindError, MultiInstanceBindError, MultiInstanceServers}; prism_dtu_harness::multi_instance::{MultiInstanceHarness, HarnessEntry}; prism_dtu_harness::error::BindError (BC-2.01.013 AC-5, F-LP22 D-572, post-PREREQ-E, PLUGIN-MIGRATION-001-E, S-CONFIG-MULTI-TENANT-OVERRIDE-001, S-SPEC-TYPE-UNIFICATION-001, S-5.01-FOLLOWUP-MCP-BOOT, F-PR163-IMP-1, S-DEMO-001 CR-001/CR-006, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014, S-DEMO-DTU-LIVE-SCENARIO-001-B, S-DEMO-MULTI-TENANT-DTU-001 U-006, D-1075-API-GAP-001, S-5.02 HIGH-3, S-5.02-followup-CRIT1-HIGH1, S-3.13 LOW-1 + CR-002, S-1.14-REDO burst-2 MED-1-RESIDUAL, S-1.14-REDO fix-burst FIX-IN-SCOPE, S-1.14-REDO adversarial OBS-1, S-5.03 F-007, S-DEMO-ENRICHMENT-PIVOT-002, S-DEMO-PRISMQL-ONBOARDING-001-A, S-DEMO-PRISMQL-ONBOARDING-001-B, S-5.04 F-S504-P5-002, S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 AC-001 + AC-021, S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B, S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 E-QUERY-042). Note: types::SensorSpec removed (ADR-030 Approach D)."
+      - name: Assert non-exhaustive-violation fails to compile (per-symbol gate)
+        # Single source of truth: scripts/check-non-exhaustive.sh (with
+        # scripts/check-non-exhaustive-per-symbol.py for Layer 2 per-symbol check).
+        # Two-layer gate: Layer 1 = total count >= EXPECTED (owned by scripts/check-non-exhaustive.sh);
+        # Layer 2 = per-symbol assertion (net-zero regression detection). F-CSD-P29-OBS-001 hardening.
+        run: bash scripts/check-non-exhaustive.sh
 
   no-hardcoded-sensors-compile-fail:
     name: "ADR-023 No-Hardcoded-Sensors compile-fail gate (AC-006 PLUGIN-MIGRATION-001-F)"

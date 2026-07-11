@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
 # check-non-exhaustive.sh — verify #[non_exhaustive] forward-compat enforcement.
 #
-# Mirrors the CI `non-exhaustive-violation-compile-fail` job for local pre-push parity.
+# Single source of truth for the non-exhaustive gate: ci.yml calls this script
+# directly (bash scripts/check-non-exhaustive.sh) rather than duplicating logic
+# inline. Local `just check` also calls this script, so CI and local runs are
+# identical. (F-CSD-P29-OBS-001 — DEFECT-CSDEVICES-EMPTY-PIPELINE-001)
+#
+# Two-layer gate:
+#   Layer 1 (count): total E0639+E0004 errors >= EXPECTED (catches removed violations)
+#   Layer 2 (per-symbol): every distinct expected symbol appears in error output
+#     (catches net-zero regressions: one type loses annotation, another gains it)
+#
 # Violations are split across src/enum_violations.rs and src/struct_violations.rs so
 # that rustc's per-file error budget does not suppress later violations.
 # Uses --message-format=json to count ALL violations (not capped by per-file rustc limit).
 #
-# Update EXPECTED when adding/removing violations from enum_violations.rs or struct_violations.rs.
+# Update EXPECTED and check-non-exhaustive-per-symbol.py when adding/removing
+# violations from enum_violations.rs or struct_violations.rs.
 # (BC-2.01.013 AC-5 / F-LP2-OBS-001 S-PLUGIN-PREREQ-C)
 # S-DEMO-DTU-LIVE-SCENARIO-001-A: bumped 49→50 for ScenarioEntityCatalog (AC-014, ADR-036 §2.2).
 # S-DEMO-DTU-LIVE-SCENARIO-001-B: bumped 50→52 for IncidentTimeline + IncidentStage (AC-014 pattern, BPRL-P3-01 sibling sweep).
@@ -32,8 +42,10 @@
 #   UnknownSourceTableDetails (E0639) — Groups 1+3.
 # S-DEMO-FIDELITY-REMEDIATION-001: bumped 87→88 for EnrichUdfNotFoundDetails (prism-core::error E0639 AC-N1B).
 # S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: bumped 88→89 for TemporalLiteralPosition (prism-core::error E0004 v86).
+# DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001: bumped 89→90 for VirtualField (prism-core::virtual_fields E0004 v90).
+# DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P31-OBS-002: bumped 90→91 for VirtualField (prism_query::ast E0004 v91).
 
-EXPECTED=89
+EXPECTED=91
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 
@@ -98,4 +110,18 @@ if [ "${TOTAL}" -lt "${EXPECTED}" ]; then
     exit 1
 fi
 
-echo "PASS: ${TOTAL} types correctly reject external construction (expected: ${EXPECTED})"
+echo "Layer 1 (count): PASS — ${TOTAL}/${EXPECTED} violations present."
+
+# ── Layer 2: per-symbol check ──────────────────────────────────────────────
+# Verifies each distinct expected type produces at least one E0639 or E0004
+# error. Catches net-zero regressions (one type loses annotation, another
+# gains it) that the count-only Layer 1 cannot detect.
+# Expected symbol list is maintained in check-non-exhaustive-per-symbol.py
+# (single source of truth for the symbol manifest).
+echo "Layer 2 (per-symbol): verifying each expected type appears in error output..."
+if ! python3 "${SCRIPT_DIR}/check-non-exhaustive-per-symbol.py" "${JSON_LOG}"; then
+    echo "FAIL: per-symbol check failed — see above for missing symbols."
+    exit 1
+fi
+
+echo "PASS: ${TOTAL}/${EXPECTED} violations present; all distinct expected symbols verified."

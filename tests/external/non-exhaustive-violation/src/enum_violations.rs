@@ -4,10 +4,16 @@
 //! without a wildcard arm. After `#[non_exhaustive]` is applied, each match MUST fail
 //! with E0004 (non-exhaustive patterns).
 //!
-//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 46, 48, 60, 65, 70, 85 (19 total E0004 expected).
+//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 46, 48, 60, 65, 70, 79, 85-86, 90-91 (23 total E0004 expected).
 //!
 //! S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 additions:
 //!   85. prism_mcp::resources::ExampleKind — enum, resources.rs (ADR-045 reference example classification)
+//!
+//! DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001:
+//!   90. prism_core::virtual_fields::VirtualField — enum, virtual_fields.rs (pre-DataFusion queryable metadata columns)
+//!
+//! DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P31-OBS-002:
+//!   91. prism_query::ast::VirtualField — enum, ast.rs (query-layer virtual metadata columns, 4 variants)
 //!
 //! S-5.01-FOLLOWUP-MCP-BOOT additions (prism-mcp pub enum types):
 //!   44. prism_mcp::safety_envelope::DataSource — enum, safety_envelope.rs
@@ -370,15 +376,37 @@ pub fn v86_temporal_literal_position_match() {
     }
 }
 
+/// Violation 90: prism_core::virtual_fields::VirtualField exhaustive match (E0004).
+///
+/// `VirtualField` is the pre-DataFusion queryable metadata column enum in `prism-core`
+/// (BC-2.15.009 — virtual field category, S-2.03). `#[non_exhaustive]` ensures that future
+/// virtual columns (e.g., a tenant-partition field or a pipeline-version sentinel) can be
+/// added without requiring all external match arms to be updated immediately.
+/// External callers MUST include `_ => {}`.
+///
+/// Added: DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001. scripts/check-non-exhaustive.sh EXPECTED bumped 89 → 90.
+#[allow(dead_code)]
+pub fn v90_virtual_field_match() {
+    use prism_core::VirtualField;
+    let vf: VirtualField = VirtualField::Sensor;
+    match vf {
+        VirtualField::Sensor => {}
+        VirtualField::Client => {}
+        VirtualField::SourceTable => {}
+        // After DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}
+
 /// Violation 85: prism_mcp::resources::ExampleKind exhaustive match (E0004).
 ///
-/// `ExampleKind` classifies PQL usage examples for the 3-tier CI gate and for
+/// `ExampleKind` classifies PQL usage examples for the 4-tier CI gate and for
 /// `build_reference_content` (ADR-045 §B, BC-2.11.022). `#[non_exhaustive]` ensures new
 /// example tiers can be added without requiring external `match` arms to be updated.
 /// External callers MUST include `_ => {}`.
 ///
 /// Variants renamed Positive/NegativeE040/NegativeOther per BC-2.11.022 / ADR-045 D3
 /// (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 CRIT-003 fix-burst).
+/// NegativeE043 added: FIX-CSDEVICES-EMPTY-PIPELINE F-CSD-P26-OBS-001.
 ///
 /// Added: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (resources.rs).
 #[allow(dead_code)]
@@ -389,6 +417,37 @@ pub fn v85_example_kind_match() {
         ExampleKind::Positive => {}
         ExampleKind::NegativeE040 => {}
         ExampleKind::NegativeOther => {}
-        // After S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: E0004 — `_` arm required for #[non_exhaustive] enum
+        ExampleKind::NegativeE043 => {}
+        // After FIX-CSDEVICES-EMPTY-PIPELINE: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}
+
+/// Violation 91: prism_query::ast::VirtualField exhaustive match (E0004).
+///
+/// `prism_query::ast::VirtualField` is the query-layer virtual metadata column enum
+/// (BC-2.15.009, ast.rs). It mirrors `prism_core::virtual_fields::VirtualField` at the
+/// query-planning layer with 4 variants (Sensor, Client, SourceTable, SourceType).
+/// `#[non_exhaustive]` ensures that future query-layer virtual columns can be added
+/// without requiring all external `match` arms to be updated immediately.
+/// External callers MUST include `_ => {}`.
+///
+/// Note: v90 gates `prism_core::VirtualField` (re-exported via `pub use virtual_fields::VirtualField`);
+/// this gate (v91) independently gates `prism_query::ast::VirtualField` — a distinct type in a
+/// different crate. Both share the last-path-segment name `VirtualField`, so the per-symbol
+/// Layer-2 check uses 2-segment suffix forms from the compiler's E0004 note to distinguish them:
+///   v90 → `prism_core::VirtualField` (compiler note is 2-part; last-2-seg join = `prism_core::VirtualField`)
+///   v91 → `ast::VirtualField` (compiler note is 3-part; last-2-seg join = `ast::VirtualField`)
+///
+/// Added: DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P31-OBS-002. scripts/check-non-exhaustive.sh EXPECTED bumped 90 → 91.
+#[allow(dead_code)]
+pub fn v91_prism_query_ast_virtual_field_match() {
+    use prism_query::ast::VirtualField;
+    let vf: VirtualField = VirtualField::Sensor;
+    match vf {
+        VirtualField::Sensor => {}
+        VirtualField::Client => {}
+        VirtualField::SourceTable => {}
+        VirtualField::SourceType => {}
+        // After F-CSD-P31-OBS-002: E0004 — `_` arm required for #[non_exhaustive] enum
     }
 }

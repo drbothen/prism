@@ -183,5 +183,12 @@ name = "bc_2_06_019_ioc_stamping"
 path = "tests/bc_2_06_019_ioc_stamping.rs"
 required-features = ["fixture-gen"]
 
+# DEFECT-CSDEVICES-EMPTY-PIPELINE-001 Sub-defect 1 — DTU POST /devices/entities/devices/v2 route
+# F-CSD-P25-001: missing [[test]] entry (sibling parity with the 32 other dtu-gated tests).
+[[test]]
+name = "defect_csdevices_post_host_details"
+path = "tests/defect_csdevices_post_host_details.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
