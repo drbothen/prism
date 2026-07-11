@@ -132,5 +132,12 @@ name = "multi_instance_harness_tests"
 path = "tests/multi_instance_harness_tests.rs"
 required-features = ["dtu"]
 
+# F-CSD-P29-006 Red Gate: harness detection_detail() full TOML field coverage
+# (BC-2.16.013 INV-HARNESS-ROUTE-PARITY + SAP-2 field parity; architect IN-SCOPE-FIX 2026-07-11)
+[[test]]
+name = "harness_tests"
+path = "tests/harness_tests.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
