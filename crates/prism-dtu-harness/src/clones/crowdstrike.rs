@@ -259,6 +259,14 @@ fn shuffle_by_seed(ids: &[String], seed: u64) -> Vec<String> {
 /// `technique`, `device_id` (root), and all four IOC columns — the same class of
 /// defect previously closed for `host_detail()` (OBS-1 devices-table coverage fix).
 ///
+/// # F-CSD-P30-OBS-003 — real host-pool device_id (architect Option A 2026-07-11)
+///
+/// `device_id` at root AND nested `device.device_id` are now derived from
+/// `generate_host_ids(org_slug, seed)` via `det_index % host_pool.len()` so that
+/// PrismQL JOIN queries (`detections.device_id = devices.device_id`) produce non-empty
+/// results. The previous value `"placeholder"` was not in the host pool, causing every
+/// such JOIN to return 0 rows (DEFECT-CSDEVICES-EMPTY-PIPELINE-001).
+///
 /// Field inventory aligned to `crowdstrike.sensor.toml`:
 /// - `detection_id`           — string, REQUIRED
 /// - `status`                 — string
@@ -266,13 +274,20 @@ fn shuffle_by_seed(ids: &[String], seed: u64) -> Vec<String> {
 /// - `created_timestamp`      — datetime, INDEX; needed for FQL time-window push-down
 /// - `tactic`                 — string, ocsf_field = "attack.tactic.name"
 /// - `technique`              — string, ocsf_field = "attack.technique.name"
-/// - `device_id`              — string at ROOT (no source_path → reads $.device_id)
-/// - `device{}`               — nested object kept for backward compat
+/// - `device_id` — string at ROOT (no source_path → reads $.device_id);
+///   mapped from host pool via `det_index % host_pool.len()`
+/// - `device{}` — nested object kept for backward compat; `device.device_id`
+///   equals root `device_id` (BC-2.16.013 INV-HARNESS-ROUTE-PARITY)
 /// - `behaviors[*].ioc_type`       — string, source_path "$.behaviors[*].ioc_type"
 /// - `behaviors[*].ioc_value`      — string|null; null is valid (no associated hash)
 /// - `behaviors[*].ioc_source`     — string, source_path "$.behaviors[*].ioc_source"
 /// - `behaviors[*].ioc_description`— string, source_path "$.behaviors[*].ioc_description"
-fn detection_detail(detection_id: &str) -> Value {
+fn detection_detail(detection_id: &str, det_index: usize, org_slug: &str, seed: u64) -> Value {
+    // F-CSD-P30-OBS-003: derive device_id from the host pool so JOIN queries
+    // (detections.device_id = devices.device_id) produce non-empty results.
+    let host_ids = generate_host_ids(org_slug, seed);
+    let device_id = &host_ids[det_index % host_ids.len()];
+
     json!({
         "detection_id": detection_id,
         "status": "new",
@@ -282,11 +297,13 @@ fn detection_detail(detection_id: &str) -> Value {
         "tactic": "Initial Access",
         "technique": "Phishing",
         // device_id at top-level (TOML column name = "device_id", no source_path → $.device_id)
-        "device_id": "placeholder",
-        // Keep nested device object for backward compat with harness HTTP-layer tests
+        // F-CSD-P30-OBS-003: real host-pool member, not "placeholder"
+        "device_id": device_id,
+        // Keep nested device object for backward compat with harness HTTP-layer tests.
+        // BC-2.16.013 INV-HARNESS-ROUTE-PARITY: nested device.device_id must equal root device_id.
         "device": {
-            "device_id": "placeholder",
-            "hostname": "example-host"
+            "device_id": device_id,
+            "hostname": format!("{device_id}.example.com")
         },
         // behaviors array: satisfies $.behaviors[*].ioc_{type,value,source,description}
         // ioc_value is null: valid (detection with no associated IOC hash) — explicit null,
@@ -659,7 +676,8 @@ async fn get_detection_summaries(
 
     let resources: Vec<Value> = allowed_ids
         .into_iter()
-        .map(|id| detection_detail(&id))
+        .enumerate()
+        .map(|(i, id)| detection_detail(&id, i, &state.org_slug, state.seed))
         .collect();
 
     (StatusCode::OK, Json(json!({ "resources": resources }))).into_response()
