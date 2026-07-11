@@ -4,10 +4,13 @@
 //! without a wildcard arm. After `#[non_exhaustive]` is applied, each match MUST fail
 //! with E0004 (non-exhaustive patterns).
 //!
-//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 46, 48, 60, 65, 70, 85 (19 total E0004 expected).
+//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 46, 48, 60, 65, 70, 85, 86, 90 (21 total E0004 expected).
 //!
 //! S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 additions:
 //!   85. prism_mcp::resources::ExampleKind — enum, resources.rs (ADR-045 reference example classification)
+//!
+//! DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001:
+//!   90. prism_core::virtual_fields::VirtualField — enum, virtual_fields.rs (pre-DataFusion queryable metadata columns)
 //!
 //! S-5.01-FOLLOWUP-MCP-BOOT additions (prism-mcp pub enum types):
 //!   44. prism_mcp::safety_envelope::DataSource — enum, safety_envelope.rs
@@ -367,6 +370,27 @@ pub fn v86_temporal_literal_position_match() {
         TemporalLiteralPosition::OrderBy => {}
         TemporalLiteralPosition::NonColumnLhsComparison => {}
         // After S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}
+
+/// Violation 90: prism_core::virtual_fields::VirtualField exhaustive match (E0004).
+///
+/// `VirtualField` is the pre-DataFusion queryable metadata column enum in `prism-core`
+/// (BC-2.15.009 — virtual field category, S-2.03). `#[non_exhaustive]` ensures that future
+/// virtual columns (e.g., a tenant-partition field or a pipeline-version sentinel) can be
+/// added without requiring all external match arms to be updated immediately.
+/// External callers MUST include `_ => {}`.
+///
+/// Added: DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001. ci.yml EXPECTED bumped 89 → 90.
+#[allow(dead_code)]
+pub fn v90_virtual_field_match() {
+    use prism_core::VirtualField;
+    let vf: VirtualField = VirtualField::Sensor;
+    match vf {
+        VirtualField::Sensor => {}
+        VirtualField::Client => {}
+        VirtualField::SourceTable => {}
+        // After DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001: E0004 — `_` arm required for #[non_exhaustive] enum
     }
 }
 

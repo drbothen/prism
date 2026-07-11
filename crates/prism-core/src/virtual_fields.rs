@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 /// `VirtualField::Client.column_name()` returns `"_client"`,
 /// `VirtualField::SourceTable.column_name()` returns `"_source_table"`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum VirtualField {
     /// `_sensor` — the sensor identifier (e.g., "crowdstrike", "armis", "prism").
     Sensor,

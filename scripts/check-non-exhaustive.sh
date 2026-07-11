@@ -32,8 +32,9 @@
 #   UnknownSourceTableDetails (E0639) — Groups 1+3.
 # S-DEMO-FIDELITY-REMEDIATION-001: bumped 87→88 for EnrichUdfNotFoundDetails (prism-core::error E0639 AC-N1B).
 # S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: bumped 88→89 for TemporalLiteralPosition (prism-core::error E0004 v86).
+# DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001: bumped 89→90 for VirtualField (prism-core::virtual_fields E0004 v90).
 
-EXPECTED=89
+EXPECTED=90
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 
