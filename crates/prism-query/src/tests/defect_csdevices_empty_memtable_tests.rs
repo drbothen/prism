@@ -3821,10 +3821,12 @@ mod tests {
         register_mem_table(&ctx, "crowdstrike_devices", vec![])
             .expect("register_mem_table with empty batches must not error");
 
-        // SELECT all 3 virtual fields from the empty right side.
+        // SELECT all 4 virtual fields from the empty right side.
         // Any one of these fields is absent from the spec-only schema; DataFusion
         // fails at plan time on the first missing field encountered.
-        let sql = "SELECT det.detection_id, dev._sensor, dev._client, dev._source_table \
+        // F-CSD-P21-OBS-001: extended from 3 to 4 fields (add _source_type).
+        let sql = "SELECT det.detection_id, dev._sensor, dev._client, \
+                   dev._source_table, dev._source_type \
                    FROM crowdstrike_detections det \
                    LEFT JOIN crowdstrike_devices dev ON det.device_id = dev.device_id";
         let ast = PrismQlParser::parse(sql).expect("SQL must parse");
@@ -3832,13 +3834,13 @@ mod tests {
         let result =
             execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
 
-        // DESIRED (post-fix): Ok with 3 rows; all 3 virtual columns are NULL
-        // (empty MemTable contributes no data for _sensor/_client/_source_table).
+        // DESIRED (post-fix): Ok with 3 rows; all 4 virtual columns are NULL
+        // (empty MemTable contributes no data for _sensor/_client/_source_table/_source_type).
         //
         // RED (at HEAD): Err(QueryExecutionFailed) — `pre_register_empty_tables`
         //   builds crowdstrike_devices schema from spec columns only:
         //   {device_id, hostname, platform_name, status, first_seen, last_seen}.
-        //   `_sensor` (and `_client`, `_source_table`) are NOT spec-declared.
+        //   `_sensor` (and `_client`, `_source_table`, `_source_type`) are NOT spec-declared.
         //   DataFusion plan error: "No field named dev._sensor" →
         //   `PrismError::QueryExecutionFailed` → -32000 to MCP caller.
         //
@@ -3848,8 +3850,8 @@ mod tests {
         assert!(
             result.is_ok(),
             "F-CSD-P14-001-T1 / BC-2.11.012 / BC-2.11.005: LEFT JOIN selecting virtual \
-             fields (_sensor, _client, _source_table) from the 0-batch right side must \
-             return Ok (left rows + NULL virtual columns), not a DataFusion plan error. \
+             fields (_sensor, _client, _source_table, _source_type) from the 0-batch right \
+             side must return Ok (left rows + NULL virtual columns), not a DataFusion plan error. \
              RED: Err — `pre_register_empty_tables` registers crowdstrike_devices with \
              spec-only schema {{device_id, hostname, …}}; virtual fields absent. \
              DataFusion plan error: \"No field named dev._sensor\". \
@@ -3866,7 +3868,8 @@ mod tests {
              (all detection rows; virtual columns NULL on empty right side); got {total_rows}"
         );
 
-        // All 3 virtual columns must be NULL (empty side contributes no data).
+        // All 4 virtual columns must be NULL (empty side contributes no data).
+        // F-CSD-P21-OBS-001: extended from 3 to 4 fields (add _source_type).
         let non_empty: Vec<_> = batches.iter().filter(|b| b.num_rows() > 0).collect();
         assert!(
             !non_empty.is_empty(),
@@ -3877,6 +3880,7 @@ mod tests {
             crate::virtual_fields::VIRTUAL_FIELD_SENSOR,
             crate::virtual_fields::VIRTUAL_FIELD_CLIENT,
             crate::virtual_fields::VIRTUAL_FIELD_SOURCE_TABLE,
+            crate::virtual_fields::VIRTUAL_FIELD_SOURCE_TYPE,
         ] {
             let col = batch.column_by_name(vf).unwrap_or_else(|| {
                 panic!("F-CSD-P14-001-T1: virtual field `{vf}` must be in result schema after fix")
@@ -3894,28 +3898,30 @@ mod tests {
 
     // ─────────────────────────────────────────────────────────────────────────
     // Test 33 (F-CSD-P14-001-T2): SELECT * schema parity — empty side schema
-    // must include the 3 virtual fields.
+    // must include all 4 virtual fields.
     //
     // The SELECT * query itself succeeds at HEAD (T5 locks spec-column parity).
     // The RED assertion is the schema width check: `schema.index_of("_sensor")`
     // fails because virtual fields are absent from the spec-only empty schema.
     //
-    // Schema parity contract (BC-2.11.012): the empty-path schema must include
+    // Schema parity contract (BC-2.11.012 v1.7): the empty-path schema must include
     // the same column names as inject_virtual_fields produces on the populated
     // path. The fix closes the gap between:
-    //   - populated path: spec columns + [_sensor, _client, _source_table]
+    //   - populated path: spec columns + [_sensor, _client, _source_table, _source_type]
     //   - empty path (pre-fix): spec columns only
+    //
+    // F-CSD-P21-OBS-001: extended from 3 to 4 fields (add _source_type).
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// F-CSD-P14-001-T2 / BC-2.11.012 / BC-2.11.005: SELECT * result schema from
-    /// the empty side of a LEFT JOIN must include the 3 virtual field columns —
+    /// F-CSD-P14-001-T2 / BC-2.11.012 v1.7 / BC-2.11.005: SELECT * result schema from
+    /// the empty side of a LEFT JOIN must include all 4 virtual field columns —
     /// matching the schema that `inject_virtual_fields` produces on the populated path.
     ///
-    /// # Schema parity rationale (BC-2.11.012)
+    /// # Schema parity rationale (BC-2.11.012 v1.7)
     ///
     /// On the populated path, `inject_virtual_fields` appends these columns to every
     /// registered batch before `register_mem_table`:
-    ///   `_sensor: Utf8`, `_client: Utf8`, `_source_table: Utf8`
+    ///   `_sensor: Utf8`, `_client: Utf8`, `_source_table: Utf8`, `_source_type: Utf8`
     ///
     /// The empty path must include the same column names so that:
     ///   - `SELECT dev._sensor … LEFT JOIN <empty_table> dev` plans without error
@@ -3927,12 +3933,13 @@ mod tests {
     ///
     /// At HEAD, `pre_register_empty_tables` builds schema from spec columns only.
     /// The SELECT * query executes without error, but the result schema does NOT
-    /// include `_sensor`, `_client`, `_source_table`.
+    /// include `_sensor`, `_client`, `_source_table`, `_source_type`.
     /// The assertion `schema.index_of("_sensor").is_ok()` FAILS (RED).
     ///
     /// # GREEN (post-fix)
     ///
-    /// Virtual fields appended to spec schema → SELECT * result schema includes all 3.
+    /// Virtual fields appended to spec schema → SELECT * result schema includes all 4.
+    /// F-CSD-P21-OBS-001: extended from 3 to 4 fields (add _source_type).
     #[tokio::test]
     async fn test_BC_2_11_012_F_CSD_P14_001_T33_select_star_empty_side_schema_includes_virtual_fields_parity(
     ) {
@@ -3956,13 +3963,16 @@ mod tests {
 
         // Canonical virtual field names from virtual_fields.rs constants.
         // These match what inject_virtual_fields appends to every populated batch.
+        // F-CSD-P21-OBS-001: extended from 3 to 4 fields (add _source_type per
+        // BC-2.11.012 v1.7 §Invariants canonical four-field set).
         let expected_virtual_fields = [
             crate::virtual_fields::VIRTUAL_FIELD_SENSOR,
             crate::virtual_fields::VIRTUAL_FIELD_CLIENT,
             crate::virtual_fields::VIRTUAL_FIELD_SOURCE_TABLE,
+            crate::virtual_fields::VIRTUAL_FIELD_SOURCE_TYPE,
         ];
 
-        // SELECT * — must include all spec-declared columns AND the 3 virtual fields
+        // SELECT * — must include all spec-declared columns AND the 4 virtual fields
         // in the result schema. T5 (F-CSD-P1-002-T2) already locks spec-column parity
         // (hostname, platform_name, etc.); this test locks virtual-field parity.
         let sql = "SELECT * FROM crowdstrike_detections det \
@@ -3991,11 +4001,12 @@ mod tests {
         let schema = batches[0].schema();
 
         // RED assertions: virtual fields absent from spec-only schema at HEAD.
-        // PASSES after fix: all 3 virtual fields appended to spec schema.
+        // PASSES after fix: all 4 virtual fields appended to spec schema.
+        // F-CSD-P21-OBS-001: extended from 3 to 4 fields (add _source_type).
         //
-        // Schema parity contract (BC-2.11.012): the empty-path schema must include
+        // Schema parity contract (BC-2.11.012 v1.7): the empty-path schema must include
         // the same column names as inject_virtual_fields produces on the populated path.
-        // The 3 constants below are the canonical names from virtual_fields.rs.
+        // The 4 constants below are the canonical names from virtual_fields.rs.
         for vf in &expected_virtual_fields {
             assert!(
                 schema.index_of(vf).is_ok(),
@@ -4003,8 +4014,8 @@ mod tests {
                  `{vf}` for the empty MemTable path — matching the schema that \
                  inject_virtual_fields produces on the populated path. \
                  RED: `{vf}` absent from pre_register_empty_tables spec-only schema. \
-                 Fix: append [_sensor, _client, _source_table] (nullable=true) to spec \
-                 schema in pre_register_empty_tables. \
+                 Fix: append [_sensor, _client, _source_table, _source_type] (nullable=true) \
+                 to spec schema in pre_register_empty_tables. \
                  actual schema fields: {:?}",
                 schema.fields().iter().map(|f| f.name()).collect::<Vec<_>>()
             );
@@ -4565,7 +4576,7 @@ mod tests {
     // T37 — F-CSD-P19-003 (BC-2.11.012 v1.7): empty-path parity —
     //       append_virtual_fields_to_schema must include _source_type nullable=true
     //
-    // Mirrors T33b (which locks the three-field nullable contract).
+    // Mirrors T33b (which locks the four-field nullable contract).
     // BC-2.11.012 v1.7 adds _source_type as the fourth canonical virtual field.
     // append_virtual_fields_to_schema must append all FOUR fields with nullable=true.
     //
