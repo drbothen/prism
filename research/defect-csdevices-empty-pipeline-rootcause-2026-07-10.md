@@ -676,3 +676,143 @@ A future story titled "Projection-Position IN-Subquery Execution with Correct Th
 4. E-QUERY-043 is removed from the error taxonomy (or scoped to cases that remain unsupported).
 
 Until that story is delivered and merged, E-QUERY-043 is the correct and final behavior for projection-position `Expr::InSubquery`.
+
+---
+
+## Adjudication — E-QUERY-038 second emission source (F-CSD-P20-003) — 2026-07-10
+
+**Finding:** F-CSD-P20-003 (CRITICAL) from LOCAL adversary pass 20 on branch `fix/csdevices-empty-pipeline`, frozen HEAD `7347bb16`.
+
+**Adjudicator:** architect | **Anchor:** pass-20 cascade | **Date:** 2026-07-10
+
+---
+
+### Call-Graph Evidence
+
+The production query path is:
+
+```
+MCP handler
+  → QueryEngine::execute(query_str, options)     [engine.rs ~L:745]
+    → execute_inner(query_str, options)           [engine.rs ~L:762]
+      → check_query_column_availability(...)      [engine.rs ~L:879]   ← E-QUERY-038 plan-time gate
+      → run_materialization_pipeline(...)         [engine.rs ~L:1034]
+        → execute_against_session_with_registry(...)  [materialization.rs ~L:1093]
+          → session_ctx.sql(plan_pinned_sql).await    ← DataFusion execution
+```
+
+Key observations confirmed by code reading:
+
+1. `execute_inner` (engine.rs L:879) calls `check_query_column_availability` BEFORE calling `run_materialization_pipeline`. If `check_query_column_availability` returns `Err(ColumnNotFound)`, `execute_inner` returns immediately — `run_materialization_pipeline` is never reached.
+
+2. `execute_against_session` is `pub` solely for test access. Its doc comment (materialization.rs L:1118–1122) explicitly states: "Production callers use `run_materialization_pipeline`." A global grep of all non-test `*.rs` files confirms zero production call sites outside `materialization.rs` itself.
+
+3. `execute_against_session_with_registry` is `pub(crate)` and called from one production site only: inside `run_materialization_pipeline` at L:1093 — after the plan-time gate has already passed.
+
+4. `check_query_column_availability` fails-open ONLY when BOTH `resolved_spec_map` AND `table_registry` are `None`. In a production deployment the spec engine always wires `table_registry` (ADR-022). Queries where the table registry is `None` are test-mode legacy paths, not production.
+
+5. The runtime fallback in `execute_against_session_with_registry` at L:1243–1290 (the `session_ctx.sql(...).await.map_err(|e| { ... FieldNotFound → ColumnNotFound ... })` block) can therefore ONLY fire in production for **internal schema anomalies** (pre-registration schema gaps, DataFusion optimizer surprises) — NOT for user-typed unknown columns. User-typo columns are intercepted by the plan-time gate at step 1, before DataFusion is ever invoked.
+
+6. T38 (`test_BC_2_11_012_F_CSD_P19_003_T38_safety_flags_returns_e_query_038_not_datafusion_plan_error`) calls `execute_against_session` directly with a manually constructed `SessionContext` — BYPASSING `execute_inner` and its plan-time gate. It relies on the runtime fallback. The `VirtualField::SafetyFlags` retirement (confirmed in ast.rs L:933–950) is already complete on this branch: `_safety_flags` now parses as `Expr::Field`. The plan-time gate WOULD fire for `_safety_flags` in the production path. T38's direct `execute_against_session` call is the wrong test path.
+
+---
+
+### Decision: Option A — Remove the runtime fallback entirely
+
+The runtime FieldNotFound → ColumnNotFound fallback in `execute_against_session_with_registry` (`Ast::Sql(Select)` arm) must be removed.
+
+**Rationale:**
+
+1. **The fallback is unreachable for user-typo columns in production.** The plan-time gate in `execute_inner` always fires first. When the plan-time gate returns `Err(ColumnNotFound)`, `run_materialization_pipeline` is never called; DataFusion is never executed; the runtime fallback is never reached.
+
+2. **The fallback misclassifies internal schema anomalies as user errors.** If DataFusion returns `FieldNotFound` in production (because the runtime fallback IS reached after the plan-time gate passed), that is an internal schema anomaly — a pre-registration gap, a column-type mismatch in MemTable construction, or a DataFusion optimizer artifact. Converting that to `PrismError::ColumnNotFound` (E-QUERY-038) tells the LLM caller "you typed the wrong column name," which is factually incorrect and defeats the LLM self-correction guarantee (BC-2.11.016 §Design Intent). The correct error for internal schema anomalies is `PrismError::QueryExecutionFailed` with structured logging so the operator can investigate.
+
+3. **BC-2.11.016 defines E-QUERY-038 as exclusively plan-time.** The spec documents three emission sites (single-tenant registry path, multi-tenant spec-map path, binding-context suspension arm). All three are in `check_query_column_availability` / `check_column_availability` in engine.rs. Adding a fourth emission site in the execution layer (materialization.rs) contradicts the specification's design intent and would require a BC amendment — which would be the wrong amendment to make.
+
+4. **T38's test path is incorrect.** T38 bypasses the plan-time gate, tests the runtime fallback, and asserts `ColumnNotFound`. After the `VirtualField::SafetyFlags` retirement, the correct behavior (E-QUERY-038 for `_safety_flags`) is already implemented in the plan-time gate. T38 must be re-pointed to test the gate it actually covers.
+
+**Rejected alternatives:**
+
+- **Option B (spec-compliant runtime fallback):** Would require BC-2.11.016 v1.26 amendment to add a fourth emission site, plus threading `client_id`, `resolved_spec_map`, `org_scope`, and `infusion_registry` through `execute_against_session_with_registry` (none currently present in the function signature) to achieve full payload parity (Levenshtein, sorted/deduped org-scoped columns, correct JOIN table attribution, audit event). All that complexity for a gate that legitimately fires only for internal schema anomalies — and then misrepresents them as user errors. Net effect: more complex, more tests to maintain, wrong semantics.
+
+- **Option C (gate reuse inside `execute_against_session_with_registry`):** Requires `resolved_spec_map`, `options.clients`, `infusion_registry` — none available at the `execute_against_session_with_registry` call site. Moving or duplicating the full gate inside the execution layer would dissolve the plan-time / execution-time separation that BC-2.11.016 is built on.
+
+---
+
+### Per-Agent Directives
+
+#### Product-Owner
+
+No BC-2.11.016 amendment is required. The three existing emission sites (single-tenant registry path, multi-tenant spec-map path, binding-context suspension arm) remain the authoritative and complete list.
+
+Optional (documentation-only, non-blocking): add a `§Design Constraint` note to BC-2.11.016 stating: "E-QUERY-038 is exclusively a plan-time gate. `DataFusionError::SchemaError::FieldNotFound` arising after DataFusion execution has begun is an internal schema anomaly (E-QUERY internal execution error), NOT an E-QUERY-038 condition. Converting runtime FieldNotFound to ColumnNotFound is prohibited." If added, bump the frontmatter version to `v1.26`. This is a documentation clarification, not a behavioral change.
+
+No BC-2.11.012 amendment is required. BC-2.11.012's contract ("queries referencing `_safety_flags` return E-QUERY-038") remains valid — the mechanism by which it is achieved is the plan-time gate, which is the correct mechanism. The test vector T38 is re-pointed in the implementation layer; no spec change is needed.
+
+#### Implementer
+
+**Change 1 — Remove the runtime FieldNotFound → ColumnNotFound fallback:**
+
+File: `crates/prism-query/src/materialization.rs`
+Location: `execute_against_session_with_registry`, `Ast::Sql(SqlStatement::Select(sql_query))` arm, at the `session_ctx.sql(&plan_pinned_sql).await.map_err(...)` call.
+
+Remove the entire runtime fallback block that:
+- Imports `use datafusion::common::{DataFusionError as DFError, SchemaError};`
+- Calls `e.find_root()` and matches `DFError::SchemaError` → `SchemaError::FieldNotFound`
+- Constructs `PrismError::ColumnNotFound(Box::new(prism_core::error::ColumnNotFoundDetails::new(col, sql_query.from.source.raw.clone(), "", avail, None)))`
+
+Replace the entire `session_ctx.sql(...).await.map_err(|e| { ... [fallback block] ...})?` with:
+
+```rust
+let df = session_ctx.sql(&plan_pinned_sql).await.map_err(|e| {
+    tracing::error!(error = %e, "DataFusion SQL planning error");
+    PrismError::QueryExecutionFailed {
+        detail: "SQL planning error: <redacted; see server logs>".to_string(),
+    }
+})?;
+```
+
+This is the existing non-FieldNotFound error branch — simply remove the FieldNotFound → ColumnNotFound transformation so all DataFusion planning errors consistently surface as `QueryExecutionFailed` with structured logging.
+
+Remove the dead `F-CSD-P19-003` comment block at the removal site. Update the surviving inline comment to note: "DataFusion planning errors at this point are internal schema anomalies (plan-time column gate in execute_inner already handled user-typo columns); surface as QueryExecutionFailed for operator diagnostics."
+
+**Change 2 — Make `check_query_column_availability` pub(crate):**
+
+File: `crates/prism-query/src/engine.rs`
+Location: line `fn check_query_column_availability(` (currently bare `fn`, private to module).
+
+Change `fn check_query_column_availability(` to `pub(crate) fn check_query_column_availability(`.
+
+This is required for T38 to call the plan-time gate directly from the test module (`src/tests/defect_csdevices_empty_memtable_tests.rs`).
+
+#### Test-Writer
+
+**Re-point T38** (`test_BC_2_11_012_F_CSD_P19_003_T38_safety_flags_returns_e_query_038_not_datafusion_plan_error` in `crates/prism-query/src/tests/defect_csdevices_empty_memtable_tests.rs`):
+
+The test must be rewritten to call the plan-time gate directly, not `execute_against_session`. Approach:
+
+1. Add `crate::engine::check_query_column_availability` to the test's import list.
+2. Build a `crate::table_registry::TableRegistry::new()` and register a minimal CrowdStrike devices sensor spec into it using `registry.register_sensor(&spec)`. The spec needs `sensor_id = "crowdstrike"` and a single table with `table_name = "devices"` and columns: `device_id`, `hostname`, `platform_name`, `status`, `first_seen`, `last_seen` (the canonical six columns). This produces the fully-qualified table `crowdstrike_devices` with a real column list.
+3. Call `check_query_column_availability("SELECT _safety_flags FROM crowdstrike_devices", "", None, None, Some(&registry), None)` — no `resolved_spec_map`, no `infusion_registry`, no org scope. This exercises the single-tenant registry fallback path.
+4. Assert `Err(PrismError::ColumnNotFound(details))` with:
+   - `details.column == "_safety_flags"`
+   - `details.table == "crowdstrike_devices"`
+   - `details.available_columns` contains the six registered spec columns (sorted: `["device_id", "first_seen", "hostname", "last_seen", "platform_name", "status"]`)
+   - `details.client_id == ""` (correct: no explicit client scope, `client_id` defaults to empty string per BC-2.11.016 single-tenant path)
+   - `details.did_you_mean == None` (Levenshtein distance from `"_safety_flags"` to each of the six spec columns exceeds 3)
+5. Update the test doc comment to reflect: "Re-pointed from `execute_against_session` (runtime fallback) to `check_query_column_availability` (plan-time gate). The `VirtualField::SafetyFlags` retirement (ast.rs L:933–950) means `_safety_flags` now parses as `Expr::Field`; the plan-time gate catches it before DataFusion execution."
+6. Remove the `execute_against_session` import from T38's import block if it is no longer needed by any other test in the same file. (Do not remove it if other tests in the file still use it.)
+
+**No new tests required:** The plan-time gate `check_query_column_availability` is already thoroughly tested by the existing BC-2.11.016 test suite. T38 re-pointing closes the specific contract from BC-2.11.012 v1.7 without duplicating that coverage.
+
+---
+
+### Finding Disposition Table
+
+| Finding | Status after Option A | Rationale |
+|---------|----------------------|-----------|
+| **F-CSD-P20-001** (hardcoded `client_id=""` in runtime fallback) | MOOTED | Runtime fallback removed. In the plan-time gate, `client_id` is correctly derived from `options.clients.first()`. For no-scope queries the empty string is correct per BC-2.11.016. |
+| **F-CSD-P20-002** (no `column_not_found.rejected` audit event in runtime fallback) | MOOTED | Runtime fallback removed. The plan-time gate in `check_column_availability` already emits `column_not_found.rejected` per BC-2.11.016 emission-3. No second emission site needed. |
+| **F-CSD-P20-003** (this finding — core design question) | RESOLVED by Option A | See rationale above. |
+| **F-CSD-P20-004** (T38 payload assertions test the runtime fallback payload, not plan-time payload) | RESOLVED by T38 re-pointing | After re-pointing, T38 asserts the plan-time gate payload, which is fully correct (real spec columns, Levenshtein, correct client_id). The adversary's concern about insufficient assertions is closed by the new assertions specified above. |
+| **F-CSD-P20-013** (wrong table attribution under JOINs, unsorted/undeduped `available_columns`, converts ANY `FieldNotFound` including internal planner bugs, no org-scope) | MOOTED | All four sub-issues are properties of the runtime fallback. Fallback removed. The plan-time gate already handles all four correctly (correct table attribution from AST walk, sorted+deduped in `check_column_availability`, only fires for columns that fail the spec-schema check, org-scoped via `resolved_spec_map`). |

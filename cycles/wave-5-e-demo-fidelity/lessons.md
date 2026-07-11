@@ -2877,3 +2877,39 @@ via `error.find_root()` in `execute_against_session` planning-error catch; imple
 @7347bb16 final fix commit.
 
 **Source:** D-1668 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-19 closure; F-CSD-P19-003 T38; 2026-07-10).
+
+**Pass-20 resolution (D-1669):** The open scrutiny item was RESOLVED by ARCHITECT OPTION A. The fallback at `execute_against_session` was removed entirely (@e8f7dc8b). The call-graph proof established that `execute_against_session` is production-reachable ONLY via `execute_inner` which runs the plan-time gate first — so `FieldNotFound` reaching `execute_against_session`'s error catch is structurally an internal anomaly. The correct mapping is → `QueryExecutionFailed` (not `ColumnNotFound`), documented in BC-2.11.016 v1.26 §Design Constraints. No `error.find_root()` pattern is needed at that site anymore.
+
+---
+
+### [pattern-positive] CSDEVICES pass-20: priority-scrutiny-item discipline surfaced 3 CRIT before PR
+
+**Classification:** PATTERN-POSITIVE — CSDEVICES pass-20 cascade D-1669 (2026-07-10).
+
+**Description:**
+
+The orchestrator's dispatch note for pass 20 explicitly flagged the E-QUERY-038 second-emission-source as an open scrutiny item, carrying the implementer's own "possible BC-2.11.016 amendment needed" note from D-1668 forward. This targeted framing led the adversary to classify F-CSD-P20-003 as CRIT (undocumented second emission source + over-broad FieldNotFound conversion) and to surface F-CSD-P20-001/002 as CRIT fallback specification violations — all three of which were MOOTED by the architect's Option A adjudication.
+
+Without the scrutiny-item carryforward, the adversary might have rated F-CSD-P20-003 as HIGH (spec-gap) rather than CRIT (undocumented dual-emission path). The distinction drove the architect dispatch and the higher-quality Option A outcome (removal rather than annotation).
+
+**Lesson:** When an implementer's self-disclosure notes a potential spec gap during a fix-burst, the orchestrator MUST carry it forward as a named scrutiny item in the next pass dispatch. Implementer self-disclosure is not authoritative (CLAUDE.md Standing Rule 3), but it is a valid signal for adversary framing. The adversary's independent confirmation of the gap provides the authoritative classification.
+
+**Source:** D-1668 scrutiny-item → D-1669 adversary pass 20 F-CSD-P20-003 (CRIT) + F-CSD-P20-001/002 (CRIT MOOTED) → architect Option A.
+
+---
+
+### [antipattern] Runtime error-mapping fallbacks that shadow plan-time gates convert internal anomalies into misleading caller guidance
+
+**Classification:** ANTIPATTERN — CSDEVICES pass-20 cascade D-1669; F-CSD-P20-003 architect Option A adjudication (2026-07-10).
+
+**Description:**
+
+The `execute_against_session` error catch originally mapped `DataFusion SchemaError::FieldNotFound` → `PrismError::ColumnNotFound` (E-QUERY-038). This seemed reasonable in isolation: the mapping preserved the pedagogical `did_you_mean` + `available_columns` error payload. However, the architect's call-graph proof revealed the flaw:
+
+`execute_against_session` is production-reachable ONLY via `execute_inner`, which runs the BC-2.11.016 14-position plan-time gate FIRST. Any `FieldNotFound` error reaching `execute_against_session`'s catch site at runtime means the plan-time gate was bypassed — which is an INTERNAL ANOMALY, not a user error. Mapping it to `ColumnNotFound` therefore converts an internal anomaly into a misleading caller message: the user sees a "column not found" error with `did_you_mean` suggestions, when the real issue is a planning-layer contract violation.
+
+The correct mapping at that catch site is → `QueryExecutionFailed` + `sql.sql_planning_error` structured emission, which exposes the internal anomaly for diagnostics without propagating false user guidance.
+
+**Generalization:** Any error-mapping fallback that shadows a plan-time gate MUST be scrutinized for this anti-pattern. If the plan-time gate is exhaustive (as E-QUERY-038 is at positions 1–14 across all AST modes), a runtime catch that re-emits the same user-facing error code is either redundant (the gate already fired) or misleading (the gate was bypassed — internal anomaly). Option A (remove the fallback) is almost always the correct choice once the call-graph proof is in hand. Option B (document and narrow the fallback) is only valid when the runtime path is genuinely reachable without the plan-time gate.
+
+**Source:** D-1669 F-CSD-P20-003 architect Option A — `execute_against_session` fallback removed @e8f7dc8b; BC-2.11.016 v1.26 §Design Constraints codifies the THREE emission sites and the runtime-anomaly mapping rule.
