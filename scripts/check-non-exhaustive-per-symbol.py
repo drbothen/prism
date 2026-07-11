@@ -34,7 +34,7 @@ import sys
 #   in the E0004 rendered message (always the canonical type name leaf).
 # Guard: len(EXPECTED_SYMBOLS) must equal EXPECTED_COUNT (checked at startup).
 # ---------------------------------------------------------------------------
-EXPECTED_COUNT = 90
+EXPECTED_COUNT = 91
 
 EXPECTED_SYMBOLS = [
     # ── E0639 struct literal violations (68 total) ──────────────────────────
@@ -131,7 +131,8 @@ EXPECTED_SYMBOLS = [
     "InfusionError",         # v70 (enum_violations) prism_core::error::InfusionError
     "HttpLookupAuthType",    # v79 prism_spec_engine::infusion::HttpLookupAuthType
     "TemporalLiteralPosition",    # v86 (enum_violations) prism_core::error::TemporalLiteralPosition
-    "VirtualField",          # v90 prism_core::virtual_fields::VirtualField
+    "prism_core::VirtualField",  # v90 prism_core::VirtualField (re-exported; compiler note is 2-part → 2-seg join = "prism_core::VirtualField"; disambiguates from v91)
+    "ast::VirtualField",     # v91 prism_query::ast::VirtualField (2-seg: disambiguates from v90)
     "ExampleKind",           # v85 prism_mcp::resources::ExampleKind
 ]
 
@@ -143,6 +144,8 @@ assert len(EXPECTED_SYMBOLS) == EXPECTED_COUNT, (
 
 # Unique set of expected symbols (for per-symbol check). ColumnType appears
 # twice (v13 + v25 both test prism_core::ColumnType) and is deduplicated here.
+# For disambiguated symbols like virtual_fields::VirtualField / ast::VirtualField,
+# 2-segment suffixes ensure both remain distinct in EXPECTED_UNIQUE.
 EXPECTED_UNIQUE = set(EXPECTED_SYMBOLS)
 
 
@@ -166,19 +169,32 @@ def extract_e0639_symbol(msg: dict) -> str | None:
     return full_path.split("::")[-1]
 
 
-def extract_e0004_symbol(msg: dict) -> str | None:
-    """Extract the last path segment of the enum name from an E0004 error.
+def extract_e0004_symbol(msg: dict) -> list[str]:
+    """Extract path segments of the enum name from an E0004 error.
 
     Looks in the rendered text for `note: \`path::TypeName\` defined here`.
-    Returns the last segment (TypeName), or None if not found.
+
+    Returns a list of forms:
+      - The last segment (TypeName) for backward-compatible single-segment expected entries.
+      - The last-2-segment form ("module::TypeName") for disambiguating types that share
+        a last-segment name across crates (e.g., prism_core::virtual_fields::VirtualField
+        vs prism_query::ast::VirtualField both produce "VirtualField" as last segment;
+        the 2-segment forms "virtual_fields::VirtualField" and "ast::VirtualField"
+        are distinct and allow per-symbol verification to tell them apart).
+
+    Empty list if no matching note is found.
     """
     rendered = msg.get("rendered", "")
+    results = []
     for line in rendered.splitlines():
         m = re.search(r"note:\s+`([^`]+)`\s+defined here", line)
         if m:
             full_path = m.group(1)
-            return full_path.split("::")[-1]
-    return None
+            parts = full_path.split("::")
+            results.append(parts[-1])              # 1-segment (backward compat)
+            if len(parts) >= 2:
+                results.append("::".join(parts[-2:]))  # 2-segment (disambiguation)
+    return results
 
 
 def main() -> int:
@@ -209,9 +225,9 @@ def main() -> int:
                     if sym:
                         found.add(sym)
                 elif code == "E0004":
-                    sym = extract_e0004_symbol(msg)
-                    if sym:
-                        found.add(sym)
+                    # Returns list of 1-seg and 2-seg forms; update found with all.
+                    syms = extract_e0004_symbol(msg)
+                    found.update(syms)
     except FileNotFoundError:
         print(f"Error: log file not found: {log_path}", file=sys.stderr)
         return 1
@@ -242,7 +258,7 @@ def main() -> int:
 
     print(
         f"Per-symbol check passed: all {len(EXPECTED_UNIQUE)} distinct symbols "
-        f"appear in E0639/E0004 error output (90 violations, "
+        f"appear in E0639/E0004 error output (91 violations, "
         f"{len(EXPECTED_UNIQUE)} unique types validated)."
     )
     return 0

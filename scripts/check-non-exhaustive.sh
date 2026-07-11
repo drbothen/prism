@@ -43,8 +43,9 @@
 # S-DEMO-FIDELITY-REMEDIATION-001: bumped 87→88 for EnrichUdfNotFoundDetails (prism-core::error E0639 AC-N1B).
 # S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: bumped 88→89 for TemporalLiteralPosition (prism-core::error E0004 v86).
 # DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001: bumped 89→90 for VirtualField (prism-core::virtual_fields E0004 v90).
+# DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P31-OBS-002: bumped 90→91 for VirtualField (prism_query::ast E0004 v91).
 
-EXPECTED=90
+EXPECTED=91
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 

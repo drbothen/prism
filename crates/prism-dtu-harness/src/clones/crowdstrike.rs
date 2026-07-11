@@ -267,10 +267,25 @@ fn shuffle_by_seed(ids: &[String], seed: u64) -> Vec<String> {
 /// results. The previous value `"placeholder"` was not in the host pool, causing every
 /// such JOIN to return 0 rows (DEFECT-CSDEVICES-EMPTY-PIPELINE-001).
 ///
+/// # F-CSD-P31-OBS-001 — stable det_index from detection_id (BC-2.16.013 v1.31)
+///
+/// `det_index` is derived internally from the trailing integer of `detection_id`
+/// (format `det-{org_slug}-{seed}-{NNN:03}` → parse `NNN`). This guarantees that
+/// the device_id mapping is stable regardless of which subset of IDs is requested —
+/// the same detection_id always maps to the same device_id regardless of its position
+/// in a batch POST body.
+///
+/// # F-CSD-P31-MED-001 — severity string label (BC-2.16.013 v1.31)
+///
+/// `severity` is emitted as a string label from `["Low","Medium","High","Critical"]`
+/// (same label set as `make_detection_with_ioc` in the standalone DTU generator).
+/// TOML: `detections.severity`, `column_type = "string"`.
+/// BC-2.16.013 INV-HARNESS-ROUTE-PARITY: numeric integer scores are forbidden.
+///
 /// Field inventory aligned to `crowdstrike.sensor.toml`:
 /// - `detection_id`           — string, REQUIRED
 /// - `status`                 — string
-/// - `severity`               — integer (real API returns score 1-100)
+/// - `severity`               — string label ("Low"/"Medium"/"High"/"Critical")
 /// - `created_timestamp`      — datetime, INDEX; needed for FQL time-window push-down
 /// - `tactic`                 — string, ocsf_field = "attack.tactic.name"
 /// - `technique`              — string, ocsf_field = "attack.technique.name"
@@ -282,16 +297,33 @@ fn shuffle_by_seed(ids: &[String], seed: u64) -> Vec<String> {
 /// - `behaviors[*].ioc_value`      — string|null; null is valid (no associated hash)
 /// - `behaviors[*].ioc_source`     — string, source_path "$.behaviors[*].ioc_source"
 /// - `behaviors[*].ioc_description`— string, source_path "$.behaviors[*].ioc_description"
-fn detection_detail(detection_id: &str, det_index: usize, org_slug: &str, seed: u64) -> Value {
+fn detection_detail(detection_id: &str, org_slug: &str, seed: u64) -> Value {
+    // F-CSD-P31-OBS-001: derive det_index from the trailing integer of the
+    // detection_id format det-{org_slug}-{seed}-{NNN:03} → NNN.
+    // Parsing via rsplit('-') handles org_slugs that contain hyphens (e.g. "acme-corp").
+    // SAFE FALLBACK: on parse failure (malformed id), use 0 — harness IDs are always
+    // well-formed (det-{org}-{seed}-{NNN:03}) but we never panic.
+    let det_index = detection_id
+        .rsplit('-')
+        .next()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(0); // safe fallback: harness ids are always det-{org}-{seed}-{NNN:03}
+
     // F-CSD-P30-OBS-003: derive device_id from the host pool so JOIN queries
     // (detections.device_id = devices.device_id) produce non-empty results.
     let host_ids = generate_host_ids(org_slug, seed);
     let device_id = &host_ids[det_index % host_ids.len()];
 
+    // F-CSD-P31-MED-001: severity as string label matching standalone DTU
+    // make_detection_with_ioc (severity_id 1→"Low", 2→"Medium", 3→"High", _→"Critical").
+    // Cycle by det_index for deterministic variety; all labels are valid per BC-2.16.013.
+    const SEVERITY_LABELS: [&str; 4] = ["Low", "Medium", "High", "Critical"];
+    let severity = SEVERITY_LABELS[det_index % SEVERITY_LABELS.len()];
+
     json!({
         "detection_id": detection_id,
         "status": "new",
-        "severity": 50,
+        "severity": severity,
         // F-CSD-P29-006: full TOML column coverage (harness shape parity, per devices precedent)
         "created_timestamp": "2026-01-01T00:00:00Z",
         "tactic": "Initial Access",
@@ -674,10 +706,11 @@ async fn get_detection_summaries(
         body.ids.clone()
     };
 
+    // F-CSD-P31-OBS-001: det_index is now derived inside detection_detail from the
+    // trailing integer of each detection_id — no enumerate() needed (TD-VSDD-060).
     let resources: Vec<Value> = allowed_ids
         .into_iter()
-        .enumerate()
-        .map(|(i, id)| detection_detail(&id, i, &state.org_slug, state.seed))
+        .map(|id| detection_detail(&id, &state.org_slug, state.seed))
         .collect();
 
     (StatusCode::OK, Json(json!({ "resources": resources }))).into_response()
