@@ -103,7 +103,9 @@ fn get_addr(
 /// crowdstrike.sensor.toml `detections` table (key columns asserted here):
 /// - `detection_id` — string, REQUIRED (currently PRESENT — passes GREEN)
 /// - `status`       — string (currently PRESENT — passes GREEN)
-/// - `severity`     — integer in fixture (currently PRESENT — passes GREEN)
+/// - `severity`     — string label {"Low","Medium","High","Critical"} per standalone DTU
+///                    parity (F-CSD-P31-MED-001); PRESENT as integer 50 at HEAD —
+///                    assertion flipped to is_string() → RED at HEAD
 /// - `created_timestamp` — datetime (currently ABSENT — RED)
 /// - `device_id`    — string at ROOT (currently ABSENT at root; only nested
 ///                    under `device.device_id` — RED for root assertion)
@@ -263,6 +265,11 @@ async fn test_F_CSD_P29_006_detection_detail_full_toml_field_coverage() {
     // `detections` table column declarations.
     //
     // GREEN assertions (fields already present in detection_detail() at HEAD):
+    //   - detection_id: string (REQUIRED) — GREEN
+    //   - status: string — GREEN
+    //
+    // RED assertion (F-CSD-P31-MED-001): severity flipped to is_string().
+    //   detection_detail() emits integer 50 → is_string() returns false → RED at HEAD.
     // =========================================================================
 
     // detection_id: string, REQUIRED (crowdstrike.sensor.toml options = ["REQUIRED"]).
@@ -281,13 +288,22 @@ async fn test_F_CSD_P29_006_detection_detail_full_toml_field_coverage() {
          got record: {resource}"
     );
 
-    // severity: number (fixture emits integer 50; TOML declares column_type = \"string\"
-    // but the harness fixture uses a numeric value consistent with the real API).
+    // severity: string label matching standalone DTU output.
+    //
+    // F-CSD-P31-MED-001: crowdstrike.sensor.toml declares column_type = "string" and
+    // the standalone DTU generator (make_detection_with_ioc) emits string labels
+    // {"Low","Medium","High","Critical"} (severity_id 1→"Low", 2→"Medium", 3→"High",
+    // _→"Critical"). BC-2.16.013 INV-HARNESS-ROUTE-PARITY: harness must match standalone DTU.
+    //
+    // RED at HEAD: detection_detail() emits integer 50 → is_string() returns false.
     assert!(
-        resource["severity"].is_number(),
-        "F-CSD-P29-006: `severity` must be a number. \
-         TOML: detections.severity, column_type = \"string\" (real CrowdStrike API returns \
-         integer severity score 1-100; harness fixture preserves numeric type). \
+        resource["severity"].is_string(),
+        "F-CSD-P31-MED-001 RED: `severity` must be a string label matching standalone DTU \
+         output. TOML: detections.severity, column_type = \"string\". \
+         Standalone DTU (make_detection_with_ioc): severity_id 1→\"Low\", 2→\"Medium\", \
+         3→\"High\", _→\"Critical\". BC-2.16.013 INV-HARNESS-ROUTE-PARITY: harness shape \
+         must match standalone DTU. detection_detail() currently emits integer 50 — fix \
+         must change to a string label. \
          got record: {resource}"
     );
 
@@ -944,4 +960,479 @@ async fn test_F_CSD_P30_OBS_003_detection_device_ids_join_devices_nonempty() {
         detection_device_ids,
         all_device_ids.iter().take(5).collect::<Vec<_>>()
     );
+}
+
+// ============================================================================
+// Test: F-CSD-P31-MED-001 — detection severity must be a string label
+//
+// Drives the same 3-step HTTP pipeline (token → IDs → summaries) and asserts:
+//   (a) severity is a JSON string (not integer)
+//   (b) severity value is one of {"Low","Medium","High","Critical"} — the label
+//       set emitted by make_detection_with_ioc in the standalone DTU generator
+//
+// Red Gate failure mode:
+//   detection_detail() at HEAD emits "severity": 50 (integer).
+//   Assertion (a): is_string() returns false on integer 50 → FAILS.
+//   Assertion (b): never reached (panics at (a) first).
+// ============================================================================
+
+/// F-CSD-P31-MED-001: harness CrowdStrike `detection_detail()` must emit `severity`
+/// as a string label matching standalone DTU output, not an integer score.
+///
+/// # Parity reference
+///
+/// The standalone DTU generator (`make_detection_with_ioc`) converts `severity_id`
+/// to a string label: 1→"Low", 2→"Medium", 3→"High", _→"Critical".
+/// `crowdstrike.sensor.toml` declares `detections.severity` with
+/// `column_type = "string"`. The harness `detection_detail()` diverged by emitting
+/// the integer score 50 — a surface-and-defer anti-pattern (the comment in P29-006
+/// rationalized the divergence instead of fixing it). F-CSD-P31-MED-001 closes
+/// the divergence.
+///
+/// # BC anchors
+///
+/// - F-CSD-P31-MED-001 (severity type parity, standalone-DTU-as-parity-reference)
+/// - BC-2.16.013 INV-HARNESS-ROUTE-PARITY
+/// - make_detection_with_ioc (standalone DTU generator, severity label set)
+///
+/// # Red Gate (BC-5.38.001)
+///
+/// At HEAD, `detection_detail()` emits `"severity": 50` (integer).
+/// Both assertions FAIL:
+///   (a) is_string() → false (50 is a number, not a string)
+///   (b) valid label check → never reached (panics at (a) first)
+#[tokio::test]
+async fn test_F_CSD_P31_MED_001_detection_severity_is_string_label_matching_standalone_dtu() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::CrowdStrike];
+        })
+        .build()
+        .await
+        .expect("harness build must succeed");
+
+    let addr = get_addr(&harness, "acme-corp", DtuType::CrowdStrike);
+    let client = test_client();
+
+    // -------------------------------------------------------------------------
+    // Step 1: OAuth bearer token.
+    // -------------------------------------------------------------------------
+    let token_resp = client
+        .post(format!("http://{addr}/oauth2/token"))
+        .form(&[
+            ("client_id", "test-client-id"),
+            ("client_secret", "test-client-secret"),
+            ("grant_type", "client_credentials"),
+        ])
+        .send()
+        .await
+        .expect("POST /oauth2/token must reach server");
+
+    assert_eq!(
+        token_resp.status().as_u16(),
+        200,
+        "F-CSD-P31-MED-001 pre-condition: POST /oauth2/token must return HTTP 200"
+    );
+
+    let token_body: serde_json::Value = token_resp
+        .json()
+        .await
+        .expect("POST /oauth2/token response must be valid JSON");
+
+    let access_token = token_body["access_token"]
+        .as_str()
+        .expect("POST /oauth2/token must return access_token string");
+
+    // -------------------------------------------------------------------------
+    // Step 2: Fetch detection IDs.
+    // -------------------------------------------------------------------------
+    let ids_resp = client
+        .get(format!("http://{addr}/detects/queries/detects/v1"))
+        .header("Authorization", format!("Bearer {access_token}"))
+        .send()
+        .await
+        .expect("GET /detects/queries/detects/v1 must reach server");
+
+    assert_eq!(
+        ids_resp.status().as_u16(),
+        200,
+        "F-CSD-P31-MED-001 pre-condition: GET /detects/queries/detects/v1 must return HTTP 200"
+    );
+
+    let ids_body: serde_json::Value = ids_resp
+        .json()
+        .await
+        .expect("GET /detects/queries/detects/v1 response must be valid JSON");
+
+    let detection_ids: Vec<&str> = ids_body["resources"]
+        .as_array()
+        .expect("GET /detects/queries/detects/v1 must return a 'resources' array")
+        .iter()
+        .take(5)
+        .filter_map(|v| v.as_str())
+        .collect();
+
+    assert!(
+        !detection_ids.is_empty(),
+        "F-CSD-P31-MED-001 pre-condition: harness must generate at least one detection ID"
+    );
+
+    // -------------------------------------------------------------------------
+    // Step 3: Fetch detection summaries.
+    // -------------------------------------------------------------------------
+    let summaries_resp = client
+        .post(format!("http://{addr}/detects/entities/summaries/GET/v1"))
+        .header("Authorization", format!("Bearer {access_token}"))
+        .json(&serde_json::json!({ "ids": detection_ids }))
+        .send()
+        .await
+        .expect("POST /detects/entities/summaries/GET/v1 must reach server");
+
+    assert_eq!(
+        summaries_resp.status().as_u16(),
+        200,
+        "F-CSD-P31-MED-001 pre-condition: POST /detects/entities/summaries/GET/v1 must \
+         return HTTP 200"
+    );
+
+    let summaries_body: serde_json::Value = summaries_resp
+        .json()
+        .await
+        .expect("POST /detects/entities/summaries/GET/v1 response must be valid JSON");
+
+    let resources = summaries_body["resources"]
+        .as_array()
+        .expect("POST /detects/entities/summaries/GET/v1 must return a 'resources' array");
+
+    assert!(
+        !resources.is_empty(),
+        "F-CSD-P31-MED-001 pre-condition: resources must be non-empty"
+    );
+
+    // -------------------------------------------------------------------------
+    // Assertions — checked against the first returned detection resource.
+    // -------------------------------------------------------------------------
+    let resource = &resources[0];
+
+    // (a) severity must be a string (not integer).
+    //
+    // F-CSD-P31-MED-001 RED (a): detection_detail() at HEAD emits "severity": 50.
+    // is_string() returns false on integer → assertion FAILS.
+    assert!(
+        resource["severity"].is_string(),
+        "F-CSD-P31-MED-001 RED (a): `severity` must be a string, not an integer. \
+         TOML: detections.severity, column_type = \"string\". \
+         Standalone DTU (make_detection_with_ioc): emits string labels, not integer scores. \
+         BC-2.16.013 INV-HARNESS-ROUTE-PARITY: harness shape must match standalone DTU. \
+         detection_detail() currently emits integer 50. Fix: emit a string label. \
+         got resource: {resource}"
+    );
+
+    // (b) severity value must be one of the standalone DTU label set.
+    //
+    // F-CSD-P31-MED-001 RED (b): never reached at HEAD (panics at (a) first).
+    // After fix: verifies the implementer chose a label from the correct set.
+    let severity = resource["severity"]
+        .as_str()
+        .expect("F-CSD-P31-MED-001: severity is string (checked above)");
+
+    let valid_labels = ["Low", "Medium", "High", "Critical"];
+    assert!(
+        valid_labels.contains(&severity),
+        "F-CSD-P31-MED-001 RED (b): `severity` value must be one of \
+         {{\"Low\",\"Medium\",\"High\",\"Critical\"}} — the label set from \
+         make_detection_with_ioc (severity_id 1→\"Low\", 2→\"Medium\", 3→\"High\", \
+         _→\"Critical\"). BC-2.16.013 INV-HARNESS-ROUTE-PARITY: harness labels must \
+         match standalone DTU. \
+         got severity: {severity:?}, resource: {resource}"
+    );
+}
+
+// ============================================================================
+// Test: F-CSD-P31-OBS-001 — detection device_id must be stable across batch subsets
+//
+// Drives the 3-step HTTP pipeline to collect the full detection ID list (shuffled,
+// deterministic order via shuffle_by_seed), then:
+//   1. Requests summaries for the FULL ID set → builds {detection_id → device_id} map.
+//   2. Requests summaries for a STRICT SUBSET (3rd and 5th IDs from the full list,
+//      i.e., indices [2] and [4]) → builds {detection_id → device_id} map.
+//   3. Asserts each detection_id maps to the SAME device_id in both responses.
+//
+// Red Gate failure mode:
+//   detection_detail() at HEAD derives det_index from BATCH ENUMERATION POSITION
+//   (the `i` counter from `.enumerate()` in get_detection_summaries). When the same
+//   detection_id appears at position 2 in the full set but position 0 in the subset,
+//   it receives a different det_index → different device_id via generate_host_ids
+//   modulo mapping. Assertion fails because host_ids[2 % 30] ≠ host_ids[0 % 30].
+// ============================================================================
+
+/// F-CSD-P31-OBS-001: `detection_detail()` device_id mapping must be stable across
+/// batch subsets — the same detection_id must map to the same device_id regardless
+/// of which subset of IDs is requested in the POST body.
+///
+/// # Root cause
+///
+/// `get_detection_summaries` currently derives `det_index` from the batch enumeration
+/// position (the `i` counter from `.enumerate()`). When a subset of IDs is requested,
+/// each ID's position in the subset differs from its position in the full set →
+/// different `det_index` → different host ID via `generate_host_ids` modulo mapping.
+///
+/// # Fix target
+///
+/// The implementer will change `det_index` to parse the trailing integer from the
+/// detection_id format `det-{org_slug}-{seed}-{NNN}` (e.g., "det-acme-42-003" → 3),
+/// making the device_id mapping deterministic and independent of batch composition.
+///
+/// # BC anchors
+///
+/// - F-CSD-P31-OBS-001 (det_index batch-subset stability)
+/// - BC-2.16.013 INV-HARNESS-ROUTE-PARITY
+/// - generate_host_ids (host pool for device_id derivation)
+/// - generate_detection_ids (detection ID format: det-{org_slug}-{seed}-{NNN:03})
+///
+/// # Red Gate (BC-5.38.001)
+///
+/// At HEAD, batch-enumeration det_index causes device_id instability:
+///   Full set: detection_ids[2] → det_index=2 → host_ids[2 % HOST_COUNT]
+///   Subset [detection_ids[2], detection_ids[4]]: detection_ids[2] → det_index=0 →
+///     host_ids[0 % HOST_COUNT]
+/// host_ids[0] ≠ host_ids[2] (all generate_host_ids entries are distinct) →
+/// assertion fails.
+#[tokio::test]
+async fn test_F_CSD_P31_OBS_001_detection_device_id_stable_across_batch_subsets() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::CrowdStrike];
+        })
+        .build()
+        .await
+        .expect("harness build must succeed");
+
+    let addr = get_addr(&harness, "acme-corp", DtuType::CrowdStrike);
+    let client = test_client();
+
+    // -------------------------------------------------------------------------
+    // Step 1: OAuth bearer token.
+    // -------------------------------------------------------------------------
+    let token_resp = client
+        .post(format!("http://{addr}/oauth2/token"))
+        .form(&[
+            ("client_id", "test-client-id"),
+            ("client_secret", "test-client-secret"),
+            ("grant_type", "client_credentials"),
+        ])
+        .send()
+        .await
+        .expect("POST /oauth2/token must reach server");
+
+    assert_eq!(
+        token_resp.status().as_u16(),
+        200,
+        "F-CSD-P31-OBS-001 pre-condition: POST /oauth2/token must return HTTP 200"
+    );
+
+    let token_body: serde_json::Value = token_resp
+        .json()
+        .await
+        .expect("POST /oauth2/token response must be valid JSON");
+
+    let access_token = token_body["access_token"]
+        .as_str()
+        .expect("POST /oauth2/token must return access_token string");
+
+    // -------------------------------------------------------------------------
+    // Step 2: Fetch ALL detection IDs (deterministic shuffled order via
+    // shuffle_by_seed — same order on every call for a given seed).
+    //
+    // generate_detection_ids produces DETECTION_COUNT=20 IDs in format
+    // det-{org_slug}-{seed}-{NNN:03}. The server returns them shuffled by seed.
+    // -------------------------------------------------------------------------
+    let ids_resp = client
+        .get(format!("http://{addr}/detects/queries/detects/v1"))
+        .header("Authorization", format!("Bearer {access_token}"))
+        .send()
+        .await
+        .expect("GET /detects/queries/detects/v1 must reach server");
+
+    assert_eq!(
+        ids_resp.status().as_u16(),
+        200,
+        "F-CSD-P31-OBS-001 pre-condition: GET /detects/queries/detects/v1 must return HTTP 200"
+    );
+
+    let ids_body: serde_json::Value = ids_resp
+        .json()
+        .await
+        .expect("GET /detects/queries/detects/v1 response must be valid JSON");
+
+    let all_ids: Vec<String> = ids_body["resources"]
+        .as_array()
+        .expect("GET /detects/queries/detects/v1 must return a 'resources' array")
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.to_owned()))
+        .collect();
+
+    assert!(
+        all_ids.len() >= 5,
+        "F-CSD-P31-OBS-001 pre-condition: harness must generate at least 5 detection IDs \
+         (DETECTION_COUNT=20); need indices [2] and [4] for subset test. \
+         got {} IDs",
+        all_ids.len()
+    );
+
+    // -------------------------------------------------------------------------
+    // Step 3: Request FULL set summaries.
+    //
+    // POST all IDs in shuffled order. Under current behavior:
+    //   all_ids[i] → det_index = i (batch enumeration position)
+    // Builds: full_map = {detection_id → device_id}.
+    // -------------------------------------------------------------------------
+    let all_ids_ref: Vec<&str> = all_ids.iter().map(|s| s.as_str()).collect();
+
+    let full_summaries_resp = client
+        .post(format!("http://{addr}/detects/entities/summaries/GET/v1"))
+        .header("Authorization", format!("Bearer {access_token}"))
+        .json(&serde_json::json!({ "ids": all_ids_ref }))
+        .send()
+        .await
+        .expect("POST /detects/entities/summaries/GET/v1 (full set) must reach server");
+
+    assert_eq!(
+        full_summaries_resp.status().as_u16(),
+        200,
+        "F-CSD-P31-OBS-001 pre-condition: full-set POST must return HTTP 200"
+    );
+
+    let full_body: serde_json::Value = full_summaries_resp
+        .json()
+        .await
+        .expect("full-set summaries response must be valid JSON");
+
+    let full_resources = full_body["resources"]
+        .as_array()
+        .expect("full-set summaries must have resources array");
+
+    assert_eq!(
+        full_resources.len(),
+        all_ids.len(),
+        "F-CSD-P31-OBS-001 pre-condition: full-set response must return one resource per \
+         requested ID"
+    );
+
+    // Build {detection_id → device_id} map from full-set response.
+    // Resources are returned in the same order as the posted IDs.
+    let full_map: std::collections::HashMap<String, String> = full_resources
+        .iter()
+        .filter_map(|r| {
+            let det_id = r["detection_id"].as_str()?.to_owned();
+            let dev_id = r["device_id"].as_str()?.to_owned();
+            Some((det_id, dev_id))
+        })
+        .collect();
+
+    assert_eq!(
+        full_map.len(),
+        all_ids.len(),
+        "F-CSD-P31-OBS-001 pre-condition: full_map must have one entry per detection ID \
+         (requires detection_id and device_id fields in each resource)"
+    );
+
+    // -------------------------------------------------------------------------
+    // Step 4: Pick a STRICT SUBSET — 3rd and 5th IDs (indices [2] and [4]).
+    //
+    // The subset intentionally skips index [0] and [1] so that under the current
+    // batch-enumeration behavior the subset's indices (0, 1) differ from the
+    // full-set indices (2, 4), producing different device_ids.
+    // -------------------------------------------------------------------------
+    let subset_ids: Vec<&str> = vec![all_ids[2].as_str(), all_ids[4].as_str()];
+
+    // -------------------------------------------------------------------------
+    // Step 5: Request SUBSET summaries.
+    //
+    // POST [all_ids[2], all_ids[4]]. Under current behavior:
+    //   all_ids[2] → det_index=0 (was 2 in full set) → different device_id
+    //   all_ids[4] → det_index=1 (was 4 in full set) → different device_id
+    // -------------------------------------------------------------------------
+    let subset_summaries_resp = client
+        .post(format!("http://{addr}/detects/entities/summaries/GET/v1"))
+        .header("Authorization", format!("Bearer {access_token}"))
+        .json(&serde_json::json!({ "ids": subset_ids }))
+        .send()
+        .await
+        .expect("POST /detects/entities/summaries/GET/v1 (subset) must reach server");
+
+    assert_eq!(
+        subset_summaries_resp.status().as_u16(),
+        200,
+        "F-CSD-P31-OBS-001 pre-condition: subset POST must return HTTP 200"
+    );
+
+    let subset_body: serde_json::Value = subset_summaries_resp
+        .json()
+        .await
+        .expect("subset summaries response must be valid JSON");
+
+    let subset_resources = subset_body["resources"]
+        .as_array()
+        .expect("subset summaries must have resources array");
+
+    assert_eq!(
+        subset_resources.len(),
+        2,
+        "F-CSD-P31-OBS-001 pre-condition: subset response must return exactly 2 resources"
+    );
+
+    // Build {detection_id → device_id} map from subset response.
+    let subset_map: std::collections::HashMap<String, String> = subset_resources
+        .iter()
+        .filter_map(|r| {
+            let det_id = r["detection_id"].as_str()?.to_owned();
+            let dev_id = r["device_id"].as_str()?.to_owned();
+            Some((det_id, dev_id))
+        })
+        .collect();
+
+    assert_eq!(
+        subset_map.len(),
+        2,
+        "F-CSD-P31-OBS-001 pre-condition: subset_map must have 2 entries \
+         (requires detection_id and device_id fields in each resource)"
+    );
+
+    // -------------------------------------------------------------------------
+    // Step 6: Assert stability — each detection_id in the subset maps to the
+    // SAME device_id in both the full-set and subset responses.
+    //
+    // F-CSD-P31-OBS-001 RED: at HEAD, batch-enumeration shifts det_index:
+    //   full_map[all_ids[2]] = host_ids[2 % HOST_COUNT]
+    //   subset_map[all_ids[2]] = host_ids[0 % HOST_COUNT]
+    // host_ids[2] ≠ host_ids[0] → assertion fails.
+    //
+    // After fix (parse trailing NNN from detection_id):
+    //   Both maps use the same stable det_index derived from the ID's own integer →
+    //   both device_ids are equal → assertion passes.
+    // -------------------------------------------------------------------------
+    for det_id in &[&all_ids[2], &all_ids[4]] {
+        let full_device = full_map
+            .get(det_id.as_str())
+            .unwrap_or_else(|| panic!("F-CSD-P31-OBS-001: {det_id:?} must be in full_map"));
+        let subset_device = subset_map
+            .get(det_id.as_str())
+            .unwrap_or_else(|| panic!("F-CSD-P31-OBS-001: {det_id:?} must be in subset_map"));
+
+        assert_eq!(
+            subset_device, full_device,
+            "F-CSD-P31-OBS-001 RED: detection_id {det_id:?} maps to device_id \
+             {subset_device:?} in the subset request but {full_device:?} in the \
+             full-set request. Batch-enumeration det_index shifts when a subset is \
+             requested — the same ID gets a different position in the subset than in \
+             the full set, producing a different device_id via generate_host_ids \
+             modulo mapping. Fix: parse det_index from the trailing integer of the \
+             detection_id format det-{{org_slug}}-{{seed}}-{{NNN}} so the mapping is \
+             stable regardless of batch composition. \
+             F-CSD-P31-OBS-001; BC-2.16.013 INV-HARNESS-ROUTE-PARITY."
+        );
+    }
 }
