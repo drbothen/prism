@@ -41,7 +41,9 @@ date_pass22: 2026-07-10
 streak_at_pass22: 0
 date_pass23: 2026-07-10
 streak_at_pass23: 0
-total_passes_to_date: 23
+date_pass24: 2026-07-10
+streak_at_pass24: 0
+total_passes_to_date: 24
 convergence: IN_PROGRESS
 authored_by: state-manager
 ---
@@ -548,8 +550,38 @@ No BC version bumps. Code-only fix for F-CSD-P14-001 (virtual_fields::append_vir
 
 ---
 
+### Pass 24
+
+| ID | Severity | Description | Resolution |
+|----|----------|-------------|------------|
+| F-CSD-P24-001 | MED | LLM-facing Error Code Quick-Reference in `prism-mcp` `resources.rs` missing E-QUERY-041/E-QUERY-042/E-QUERY-043 rows (agent self-correction surface; AD-017) | implementer @6a913680: 3 rows added sourced from error-taxonomy v2.39; BC-2.11.022 CI-parity gate test extended to lock the rows (`reference_content.rs`) |
+| F-CSD-P24-002 | MED | `parser_tests.rs` docstrings said "five canonical" virtual fields (stale post-`_safety_flags` retirement; set is FOUR) | implementer @6a913680: both affected docstrings corrected; workspace sweep found third hit ("five canonical error codes E-SPEC-019..023" in `overlay_loading_tests.rs`) correctly EXEMPT (different value class) |
+| F-CSD-P24-003 | MED | `Ast::SqlPipe(spq) => check_sql_query(&spq.head)` arm of E-QUERY-043 gate had no end-to-end regression lock | test-writer @0d07be7e: NEW T40 `test_BC_2_11_003_F_CSD_P24_003_T40_sqlpipe_head_insubquery_projection_fires_e_query_043` (parses SqlPipe head with InSubquery projection, asserts `Ast::SqlPipe` then `ExprInSubqueryProjectionNotSupported`) |
+| F-CSD-P24-OBS-002 | OBS | `store_step_vars` last-segment fallback (which all four `variables_produced = []` TOML steps depend on) had no contract lock | test-writer @0d07be7e: 3 unit tests in new `store_step_vars_tests` module in `prism-spec-engine` `pipeline.rs` (fallback key population, `or_insert_with` guard, nested-path last segment) |
+| F-CSD-P24-OBS-003 | OBS | T39 docstring cited non-existent "T9 / T18" test names | test-writer @0d07be7e: re-anchored to actual test names (T2 + new T40) |
+
+CLEAN(strict): NO (3 MED). CLEAN(PR-merge): NO. Streak RESET (stays 0/3). New FROZEN HEAD for pass 25: `0d07be7e` (LOCAL-ONLY).
+
+## Fix-Burst (pass-24 closure)
+
+**Commit 6a913680** (implementer): E-QUERY-041/042/043 rows added to LLM quick-reference in `prism-mcp/src/resources.rs`; CI-parity gate test extended in `reference_content.rs` to lock the 3 new rows; parser_tests.rs docstrings corrected five→four (2 sites); workspace sweep confirmed third hit in `overlay_loading_tests.rs` is EXEMPT (different value class — "five canonical error codes E-SPEC-019..023").
+
+**Commit 0d07be7e** (test-writer): NEW T40 `test_BC_2_11_003_F_CSD_P24_003_T40_sqlpipe_head_insubquery_projection_fires_e_query_043` in `prism-query`; NEW `store_step_vars_tests` module (3 unit tests) in `prism-spec-engine/src/pipeline.rs`; T39 docstring re-anchored to T2 + T40 actual test names.
+
+## Evidence at Pass-24 Fix HEAD (0d07be7e)
+
+- Full workspace `just check`: **5472/5472** GREEN
+- Non-exhaustive gate: **89/89**
+- `prism-mcp`: **447/447** GREEN (extended parity gate incl. 3 new quick-reference rows)
+
+## Spec Layer Modified (pass-24 closure)
+
+No spec-layer version bumps — code-only fix (quick-reference rows in MCP resource, docstring corrections, T40 regression lock, store_step_vars unit tests). No BC or error-taxonomy version bumps.
+
+---
+
 ## Merge Record
 
 _Pending: LOCAL cascade not yet converged. PR not yet created._
 
-**Status: IN PROGRESS — LOCAL pass 24 NEXT on frozen `4f084a31` (streak 0/3). Pass-23 on frozen `4f084a31`: CLEAN(strict)=NO CLEAN(PR-merge)=NO — 1 MED (F-CSD-P23-001 POL-29 sibling-sweep gap); fix-burst: PO exhaustive sweep 7 artifacts (spec-layer-only; code HEAD unchanged). Pass-22 on frozen `e1a00fa3`: CLEAN(strict)=NO CLEAN(PR-merge)=NO — 5 findings: 1 MED + 3 LOW + 1 OBS. Fix-burst: implementer @86b65ffb (7-site sanitize_for_log sweep for CWE-117 SQL-field); test-writer @4f084a31 (volatile pin sweep + EC-11-035b storage-backed lock test); PO BC-2.11.005 v1.11 + BC-2.11.012 v1.11 + BC-2.16.002 v2.10. defect suite 43/43; just check FULL WORKSPACE 5468/5468 GREEN (60 skipped); non-exhaustive 89/89. Streak RESET (stays 0/3). New FROZEN HEAD for pass 23: 4f084a31 (LOCAL-ONLY). PENDING-HUMAN: DRIFT-SAP2-DEVICES-TOML-SURFACE-001 (P14-010 SAP-2 §4-class). NEW DRIFT ITEM: DRIFT-INTERNAL-TABLE-COLUMN-GATE-001 (story-queued after CSDEVICES merge). Walker-gap + gate-placement lineage P5/P6/P7/P8 CLOSED; harness parity gap P9 CLOSED; empirical DataFusion capability P10 CLOSED; SqlPipe mode gap P12 CLOSED; virtual-field schema gap P14-001 CLOSED; virtual-field spec-anchor gap P16-001 CLOSED; nullable parity + volatile-pins + lifecycle + DTU-constraint + backward-refs + body-matcher P18 CLOSED; volatile test-doc-pins + Compare-arm InSubquery gate + _source_type/safety_flags PO-split + CWE-117 tracing P19 CLOSED; E-QUERY-038 2nd-source + over-broad FieldNotFound conversion + TD-VSDD-059/060 + CWE-117 sibling + SAP-1 sql.sql_planning_error + Option-A BC amendments P20 CLOSED; four-field test coverage + CWE-117 sibling sweep + BC-2.11.012 v1.10 POL-22 spec-mismatch + EC-11-035 lock P21 CLOSED; spec-vs-spec co-mutation drift (BC-2.11.005 DEC-022 four-field) + volatile pin + storage-None-only test coverage + short internal-table names (BC-2.11.012) + CWE-117 SQL-field (BC-2.16.002) P22 CLOSED. Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS → 1MED+1LOW+2OBS → 1HIGH+2OBS → 1LOW+1OBS [CLEAN(PR-merge)] → 0 [streak-1] → 1LOW [reset] → 0 [streak-1] → 1MED+9LOW/OBS [reset] → 0 [streak-1] → 1MED+1OBS [reset] → 0 [streak-1] → 7OBS [reset] → 4LOW [reset] → 3CRIT+5HIGH+4MED+1LOW+2OBS [reset] → 2LOW+1OBS [reset] → 1MED+3LOW+1OBS [reset] (converging toward 3-CLEAN; structural defect classes closed; remaining = spec-prose sync + test-hardening tail).**
+**Status: IN PROGRESS — LOCAL pass 25 NEXT on frozen `0d07be7e` (streak 0/3). Pass-24 on frozen `4f084a31`: CLEAN(strict)=NO CLEAN(PR-merge)=NO — 3 MED + 2 OBS (plus 5 verified-positive notes). Fix-burst: implementer @6a913680 (quick-reference rows + docstring sweep); test-writer @0d07be7e (T40 + store_step_vars locks + T39 re-anchor). New FROZEN HEAD for pass 25: 0d07be7e. Pass-23 on frozen `4f084a31`: CLEAN(strict)=NO CLEAN(PR-merge)=NO — 1 MED (F-CSD-P23-001 POL-29 sibling-sweep gap); fix-burst: PO exhaustive sweep 7 artifacts (spec-layer-only; code HEAD unchanged). Pass-22 on frozen `e1a00fa3`: CLEAN(strict)=NO CLEAN(PR-merge)=NO — 5 findings: 1 MED + 3 LOW + 1 OBS. Fix-burst: implementer @86b65ffb (7-site sanitize_for_log sweep for CWE-117 SQL-field); test-writer @4f084a31 (volatile pin sweep + EC-11-035b storage-backed lock test); PO BC-2.11.005 v1.11 + BC-2.11.012 v1.11 + BC-2.16.002 v2.10. defect suite 43/43; just check FULL WORKSPACE 5468/5468 GREEN (60 skipped); non-exhaustive 89/89. Streak RESET (stays 0/3). PENDING-HUMAN: DRIFT-SAP2-DEVICES-TOML-SURFACE-001 (P14-010 SAP-2 §4-class). NEW DRIFT ITEM: DRIFT-INTERNAL-TABLE-COLUMN-GATE-001 (story-queued after CSDEVICES merge). Walker-gap + gate-placement lineage P5/P6/P7/P8 CLOSED; harness parity gap P9 CLOSED; empirical DataFusion capability P10 CLOSED; SqlPipe mode gap P12 CLOSED; virtual-field schema gap P14-001 CLOSED; virtual-field spec-anchor gap P16-001 CLOSED; nullable parity + volatile-pins + lifecycle + DTU-constraint + backward-refs + body-matcher P18 CLOSED; volatile test-doc-pins + Compare-arm InSubquery gate + _source_type/safety_flags PO-split + CWE-117 tracing P19 CLOSED; E-QUERY-038 2nd-source + over-broad FieldNotFound conversion + TD-VSDD-059/060 + CWE-117 sibling + SAP-1 sql.sql_planning_error + Option-A BC amendments P20 CLOSED; four-field test coverage + CWE-117 sibling sweep + BC-2.11.012 v1.10 POL-22 spec-mismatch + EC-11-035 lock P21 CLOSED; spec-vs-spec co-mutation drift (BC-2.11.005 DEC-022 four-field) + volatile pin + storage-None-only test coverage + short internal-table names (BC-2.11.012) + CWE-117 SQL-field (BC-2.16.002) P22 CLOSED; LLM-facing quick-reference + five→four docstrings + SqlPipe E-QUERY-043 lock + store_step_vars fallback locks P24 CLOSED. Severity trajectory: 2HIGH+3MED+LOWs → 0 → 1HIGH → 1HIGH+2MED+1LOW+2OBS → 1HIGH+3MED → 1LOW → 1MED+4OBS → 1MED+1LOW+2OBS → 1HIGH+2OBS → 1LOW+1OBS [CLEAN(PR-merge)] → 0 [streak-1] → 1LOW [reset] → 0 [streak-1] → 1MED+9LOW/OBS [reset] → 0 [streak-1] → 1MED+1OBS [reset] → 0 [streak-1] → 7OBS [reset] → 4LOW [reset] → 3CRIT+5HIGH+4MED+1LOW+2OBS [reset] → 2LOW+1OBS [reset] → 1MED+3LOW+1OBS [reset] → 1MED [reset] → 3MED+2OBS [reset] (converging toward 3-CLEAN; structural defect classes closed; remaining = spec-prose sync + test-hardening tail).**

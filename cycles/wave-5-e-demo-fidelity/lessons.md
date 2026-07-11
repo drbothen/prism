@@ -3004,3 +3004,44 @@ When executing a POL-29 sibling sweep for a stale enumeration value (e.g., "thre
 A partial sweep that fixes "the obvious one" and misses sibling rows in the same section is a POL-29 violation that generates a guaranteed follow-on adversary pass.
 
 **Source:** D-1672 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-23 closure; F-CSD-P23-001 POL-29 sibling-sweep gap; exhaustive per-variant sweep found 7 artifacts; 2026-07-10).
+
+---
+
+### Lesson 39 — [correctness] Agent-facing documentation surfaces (quick-reference tables, LLM error-code guides) are sibling sites of error-code introduction and must be swept under TD-VSDD-060
+
+**Classification:** CORRECTNESS — CSDEVICES pass-24 cascade D-1673 (2026-07-10).
+
+**Description:**
+
+During DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-24, finding F-CSD-P24-001 identified that the LLM-facing Error Code Quick-Reference in `prism-mcp/src/resources.rs` was missing rows for E-QUERY-041, E-QUERY-042, and E-QUERY-043. These three error codes had been introduced in prior bursts (E-QUERY-041 in S-PRISMQL-NATIVE-TEMPORAL-TYPING-001; E-QUERY-042 in DEFECT-EQUERY042-GROUPBY-DEADARM-001; E-QUERY-043 in the CSDEVICES defect spec-layer fix). Each time an error code was introduced into `error-taxonomy.md` and the BC layer, the quick-reference table in `resources.rs` was NOT treated as a sibling site requiring synchronization.
+
+The quick-reference table is an AD-017-classified agent self-correction surface: it is the primary artifact an LLM agent reads to produce well-structured error messages and to identify error-code categories. An incomplete table degrades LLM diagnostic reasoning quality in production.
+
+**Why this falls under TD-VSDD-060:**
+
+TD-VSDD-060 requires a sibling-site sweep at all callsites when a canonical identifier (function, constant, error code) is introduced or changed. The quick-reference table in `resources.rs` is a canonical identifier site — it enumerates all valid E-QUERY-NNN codes as LLM-readable strings. It should be treated exactly like any other code-level site in the TD-VSDD-060 sweep.
+
+**The extension to TD-VSDD-060:**
+
+When introducing a new E-QUERY-NNN, E-SENSOR-NNN, or E-SPEC-NNN error code:
+
+1. Grep for ALL sites where the error code series is enumerated: `grep -r "E-QUERY-" crates/ .factory/` (not just the direct definition file)
+2. The sweep must include `prism-mcp/src/resources.rs` (quick-reference table) AND `crates/prism-mcp/tests/reference_content.rs` (CI parity gate that locks the table)
+3. Adding a row to `resources.rs` WITHOUT extending the parity gate test is insufficient — the CI gate must be extended in the same commit to lock the row
+
+The same principle applies to any LLM-facing documentation surface (tool descriptions, capability manifests, schema tables in MCP resources) that enumerates a domain that changes with new stories.
+
+**Quantitative impact:**
+
+Three error codes (E-QUERY-041/042/043) accumulated in a documentation gap spanning 3 separate story deliveries before being caught. Each was a missed sibling site at the time of its introduction. A single sweep rule at introduction time would have caught all three at zero adversary round-trip cost.
+
+**Rule (added to implementer checklist):**
+
+When introducing any new error code (E-QUERY-NNN / E-SENSOR-NNN / E-SPEC-NNN) into error-taxonomy.md, the implementer MUST:
+1. Search `prism-mcp/src/resources.rs` for the quick-reference table section and add the new row
+2. Extend `crates/prism-mcp/tests/reference_content.rs` parity gate to lock the new row
+3. Include both changes in the same commit as the error-taxonomy.md introduction
+
+This is a TD-VSDD-060 extension candidate: the upstream vsdd-factory plugin should add a step to the post-error-code-introduction checklist to sweep agent-facing doc surfaces.
+
+**Source:** D-1673 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-24 closure; F-CSD-P24-001 LLM quick-reference gap; 3 missing rows for E-QUERY-041/042/043; implementer @6a913680 closed; 2026-07-10).
