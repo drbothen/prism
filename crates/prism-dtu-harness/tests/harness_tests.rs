@@ -455,3 +455,493 @@ async fn test_F_CSD_P29_006_detection_detail_full_toml_field_coverage() {
          got behavior: {first_behavior}"
     );
 }
+
+// ============================================================================
+// Tests: F-CSD-P30-OBS-003 — detection device_id must be a real host-pool ID
+//
+// Exercises the same full detection summary pipeline as F-CSD-P29-006 plus the
+// device list pipeline:
+//   POST /oauth2/token          → Bearer token
+//   GET  /detects/queries/detects/v1  → detection IDs
+//   POST /detects/entities/summaries/GET/v1  → detection records
+//   GET  /devices/queries/devices/v1  → host pool device IDs
+//
+// Red Gate failure mode (both tests):
+//   detection_detail() at HEAD emits "device_id": "placeholder" (root and nested).
+//   "placeholder" is not in the generate_host_ids() output — harness host pool
+//   contains only "h-{org_slug}-{seed}-{index}" IDs.
+//
+// Test 1 fails first at assertion (a): assert_ne!(device_id, "placeholder") →
+// assertion fails because device_id IS "placeholder".
+//
+// Test 2 fails at the intersection assertion: detection device_ids = {"placeholder"},
+// devices = {"h-*", ...}, intersection = ∅ → assert!(!intersection.is_empty()) fails.
+// ============================================================================
+
+/// F-CSD-P30-OBS-003: harness CrowdStrike detection_detail() must embed a real
+/// host-pool ID in device_id (root and nested device.device_id), not "placeholder".
+///
+/// Drives the full detection summary pipeline via HTTP routes, then fetches the
+/// device pool via list_host_ids and asserts membership for every detection resource:
+///
+///   (a) root device_id != "placeholder"
+///   (b) root device_id starts with "h-"  (generate_host_ids format: h-{org_slug}-{seed}-{index:03})
+///   (c) root device_id is a member of the host pool returned by list_host_ids
+///   (d) nested device.device_id equals root device_id (consistency invariant)
+///
+/// # Architect ruling
+///
+/// F-CSD-P30-OBS-003 architect Option A 2026-07-11: detection_detail() signature
+/// must receive det_index + org_slug + seed and compute
+/// generate_host_ids(org_slug, seed)[det_index % host_pool.len()] to embed the
+/// mapped host ID into both root "device_id" and nested "device.device_id".
+///
+/// # BC anchors
+///
+/// - F-CSD-P30-OBS-003 (architect Option A ruling 2026-07-11)
+/// - BC-2.16.013 INV-HARNESS-ROUTE-PARITY
+/// - generate_host_ids (modulo mapping from det_index to host pool)
+///
+/// # Red Gate (BC-5.38.001)
+///
+/// At HEAD, detection_detail() emits "device_id": "placeholder" at root and nested.
+/// "placeholder" fails:
+///   (a) assert_ne!(device_id, "placeholder") — device_id IS "placeholder"
+///   (b) device_id.starts_with("h-") — "placeholder" does not start with "h-"
+///   (c) device_pool.contains(device_id) — "placeholder" is not in generate_host_ids output
+#[tokio::test]
+async fn test_F_CSD_P30_OBS_003_detection_device_id_is_valid_host_id_not_placeholder() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::CrowdStrike];
+        })
+        .build()
+        .await
+        .expect("harness build must succeed");
+
+    let addr = get_addr(&harness, "acme-corp", DtuType::CrowdStrike);
+    let client = test_client();
+
+    // -------------------------------------------------------------------------
+    // Step 1: OAuth token.
+    // -------------------------------------------------------------------------
+    let token_resp = client
+        .post(format!("http://{addr}/oauth2/token"))
+        .form(&[
+            ("client_id", "test-client-id"),
+            ("client_secret", "test-client-secret"),
+            ("grant_type", "client_credentials"),
+        ])
+        .send()
+        .await
+        .expect("POST /oauth2/token must reach server");
+
+    assert_eq!(
+        token_resp.status().as_u16(),
+        200,
+        "F-CSD-P30-OBS-003 pre-condition: POST /oauth2/token must return HTTP 200"
+    );
+
+    let token_body: serde_json::Value = token_resp
+        .json()
+        .await
+        .expect("POST /oauth2/token response must be valid JSON");
+
+    let access_token = token_body["access_token"]
+        .as_str()
+        .expect("POST /oauth2/token must return access_token string");
+
+    // -------------------------------------------------------------------------
+    // Step 2: Fetch detection IDs via list_detection_ids.
+    // -------------------------------------------------------------------------
+    let ids_resp = client
+        .get(format!("http://{addr}/detects/queries/detects/v1"))
+        .header("Authorization", format!("Bearer {access_token}"))
+        .send()
+        .await
+        .expect("GET /detects/queries/detects/v1 must reach server");
+
+    assert_eq!(
+        ids_resp.status().as_u16(),
+        200,
+        "F-CSD-P30-OBS-003 pre-condition: GET /detects/queries/detects/v1 must return HTTP 200"
+    );
+
+    let ids_body: serde_json::Value = ids_resp
+        .json()
+        .await
+        .expect("GET /detects/queries/detects/v1 response must be valid JSON");
+
+    let detection_ids: Vec<&str> = ids_body["resources"]
+        .as_array()
+        .expect("GET /detects/queries/detects/v1 must return a 'resources' array")
+        .iter()
+        .take(5)
+        .filter_map(|v| v.as_str())
+        .collect();
+
+    assert!(
+        !detection_ids.is_empty(),
+        "F-CSD-P30-OBS-003 pre-condition: harness must generate at least one detection ID"
+    );
+
+    // -------------------------------------------------------------------------
+    // Step 3: Fetch detection summaries via get_detection_summaries.
+    // -------------------------------------------------------------------------
+    let summaries_resp = client
+        .post(format!("http://{addr}/detects/entities/summaries/GET/v1"))
+        .header("Authorization", format!("Bearer {access_token}"))
+        .json(&serde_json::json!({ "ids": detection_ids }))
+        .send()
+        .await
+        .expect("POST /detects/entities/summaries/GET/v1 must reach server");
+
+    assert_eq!(
+        summaries_resp.status().as_u16(),
+        200,
+        "F-CSD-P30-OBS-003 pre-condition: POST /detects/entities/summaries/GET/v1 must \
+         return HTTP 200"
+    );
+
+    let summaries_body: serde_json::Value = summaries_resp
+        .json()
+        .await
+        .expect("POST /detects/entities/summaries/GET/v1 response must be valid JSON");
+
+    let resources = summaries_body["resources"]
+        .as_array()
+        .expect("POST /detects/entities/summaries/GET/v1 must return a 'resources' array");
+
+    assert!(
+        !resources.is_empty(),
+        "F-CSD-P30-OBS-003 pre-condition: resources must be non-empty for the requested IDs"
+    );
+
+    // -------------------------------------------------------------------------
+    // Step 4: Fetch the device ID pool via list_host_ids.
+    //
+    // generate_host_ids("acme-corp", 42) produces HOST_COUNT=30 IDs in format
+    // "h-acme-corp-42-{index:03}". These are the IDs the devices table exposes.
+    // -------------------------------------------------------------------------
+    let devices_resp = client
+        .get(format!("http://{addr}/devices/queries/devices/v1"))
+        .header("Authorization", format!("Bearer {access_token}"))
+        .send()
+        .await
+        .expect("GET /devices/queries/devices/v1 must reach server");
+
+    assert_eq!(
+        devices_resp.status().as_u16(),
+        200,
+        "F-CSD-P30-OBS-003 pre-condition: GET /devices/queries/devices/v1 must return HTTP 200"
+    );
+
+    let devices_body: serde_json::Value = devices_resp
+        .json()
+        .await
+        .expect("GET /devices/queries/devices/v1 response must be valid JSON");
+
+    let device_pool: std::collections::HashSet<String> = devices_body["resources"]
+        .as_array()
+        .expect("GET /devices/queries/devices/v1 must return a 'resources' array")
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.to_owned()))
+        .collect();
+
+    assert!(
+        !device_pool.is_empty(),
+        "F-CSD-P30-OBS-003 pre-condition: host pool from list_host_ids must be non-empty"
+    );
+
+    // -------------------------------------------------------------------------
+    // Step 5: Assert device_id properties for every detection resource.
+    // -------------------------------------------------------------------------
+    for (i, resource) in resources.iter().enumerate() {
+        let device_id = resource["device_id"].as_str().unwrap_or("");
+
+        // (a) Must not be the literal "placeholder" string.
+        //
+        // F-CSD-P30-OBS-003 RED: detection_detail() at HEAD hardcodes
+        // "device_id": "placeholder". The implementer fix (architect Option A
+        // 2026-07-11) must replace "placeholder" with
+        // generate_host_ids(org_slug, seed)[det_index % host_pool.len()].
+        assert_ne!(
+            device_id, "placeholder",
+            "F-CSD-P30-OBS-003 RED (a): detection resources[{i}] root device_id must not \
+             be the literal \"placeholder\" string. \
+             detection_detail() currently hardcodes \"placeholder\"; architect Option A \
+             2026-07-11 requires embedding a real host ID from generate_host_ids via \
+             det_index modulo mapping. \
+             got resource: {resource}"
+        );
+
+        // (b) Must start with "h-" (generate_host_ids format: h-{org_slug}-{seed}-{index:03}).
+        //
+        // F-CSD-P30-OBS-003 RED: "placeholder" does not start with "h-".
+        assert!(
+            device_id.starts_with("h-"),
+            "F-CSD-P30-OBS-003 RED (b): detection resources[{i}] root device_id must start \
+             with \"h-\" (generate_host_ids format: h-{{org_slug}}-{{seed}}-{{index:03}}). \
+             \"placeholder\" fails this check. Fix: embed real host ID from generate_host_ids. \
+             got device_id: {device_id:?}, resource: {resource}"
+        );
+
+        // (c) Must be a member of the actual host pool from list_host_ids.
+        //
+        // F-CSD-P30-OBS-003 RED: "placeholder" is not in the generate_host_ids() output.
+        // Root cause of DEFECT-CSDEVICES-EMPTY-PIPELINE-001: PrismQL JOIN on
+        // detections.device_id = devices.device_id produces 0 rows because the
+        // detection side emits "placeholder" while the devices side emits "h-*" IDs
+        // from generate_host_ids.
+        assert!(
+            device_pool.contains(device_id),
+            "F-CSD-P30-OBS-003 RED (c): detection resources[{i}] root device_id must be a \
+             member of the host pool from list_host_ids (generate_host_ids output). \
+             \"placeholder\" is not in the pool — this is the root cause of \
+             DEFECT-CSDEVICES-EMPTY-PIPELINE-001: PrismQL JOIN detections.device_id = \
+             devices.device_id yields 0 rows. Fix: detection_detail() must embed a real \
+             host ID via det_index %% host_pool.len() (architect Option A 2026-07-11). \
+             got device_id: {device_id:?}, pool sample (first 5): {:?}",
+            device_pool.iter().take(5).collect::<Vec<_>>()
+        );
+
+        // (d) Nested device.device_id must equal root device_id (consistency invariant).
+        //
+        // Architect Option A specifies both root and nested fields receive the same
+        // mapped host ID. At HEAD both are "placeholder" (equal but wrong); after the
+        // fix both must be the same real host ID from generate_host_ids modulo mapping.
+        // BC-2.16.013 INV-HARNESS-ROUTE-PARITY: harness shape must match standalone DTU.
+        let nested_device_id = resource["device"]["device_id"].as_str().unwrap_or("");
+        assert_eq!(
+            nested_device_id, device_id,
+            "F-CSD-P30-OBS-003: detection resources[{i}] nested device.device_id must equal \
+             root device_id. Both fields must carry the same mapped host ID from \
+             generate_host_ids modulo mapping (architect Option A 2026-07-11). \
+             BC-2.16.013 INV-HARNESS-ROUTE-PARITY. \
+             got root device_id: {device_id:?}, nested device.device_id: {nested_device_id:?}, \
+             resource: {resource}"
+        );
+    }
+}
+
+/// F-CSD-P30-OBS-003 JOIN-fidelity lock: the intersection of detections device_ids
+/// with devices device_ids must be non-empty after the fix.
+///
+/// This test is the JOIN-fidelity lock for DEFECT-CSDEVICES-EMPTY-PIPELINE-001.
+/// A non-empty intersection is the minimum requirement for PrismQL JOIN queries
+/// (SELECT * FROM detections JOIN devices ON detections.device_id = devices.device_id)
+/// to produce at least one row. When the intersection is empty, all such JOINs
+/// return 0 rows regardless of query predicates.
+///
+/// The test drives the harness to collect:
+///   - detection_device_ids: root device_id values from get_detection_summaries
+///   - device_ids: resource IDs from list_host_ids
+/// and asserts that their intersection is non-empty.
+///
+/// # Architect ruling
+///
+/// F-CSD-P30-OBS-003 architect Option A 2026-07-11: see
+/// test_F_CSD_P30_OBS_003_detection_device_id_is_valid_host_id_not_placeholder.
+/// generate_host_ids modulo mapping guarantees >= 1 detection maps to a host pool
+/// member, so the intersection is non-empty after the fix.
+///
+/// # BC anchors
+///
+/// - F-CSD-P30-OBS-003 (architect Option A ruling 2026-07-11)
+/// - BC-2.16.013 INV-HARNESS-ROUTE-PARITY
+/// - generate_host_ids (modulo mapping guarantees non-empty intersection per org)
+///
+/// # Red Gate (BC-5.38.001)
+///
+/// At HEAD, all detection resources carry device_id = "placeholder".
+/// The devices table hosts only "h-*" IDs from generate_host_ids.
+/// intersection = {"placeholder"} ∩ {"h-acme-corp-42-*"} = ∅ →
+/// assert!(!intersection.is_empty(), ...) fails.
+#[tokio::test]
+async fn test_F_CSD_P30_OBS_003_detection_device_ids_join_devices_nonempty() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::CrowdStrike];
+        })
+        .build()
+        .await
+        .expect("harness build must succeed");
+
+    let addr = get_addr(&harness, "acme-corp", DtuType::CrowdStrike);
+    let client = test_client();
+
+    // -------------------------------------------------------------------------
+    // Step 1: OAuth token.
+    // -------------------------------------------------------------------------
+    let token_resp = client
+        .post(format!("http://{addr}/oauth2/token"))
+        .form(&[
+            ("client_id", "test-client-id"),
+            ("client_secret", "test-client-secret"),
+            ("grant_type", "client_credentials"),
+        ])
+        .send()
+        .await
+        .expect("POST /oauth2/token must reach server");
+
+    assert_eq!(
+        token_resp.status().as_u16(),
+        200,
+        "F-CSD-P30-OBS-003 join-fidelity pre-condition: POST /oauth2/token must return HTTP 200"
+    );
+
+    let token_body: serde_json::Value = token_resp
+        .json()
+        .await
+        .expect("POST /oauth2/token response must be valid JSON");
+
+    let access_token = token_body["access_token"]
+        .as_str()
+        .expect("POST /oauth2/token must return access_token string");
+
+    // -------------------------------------------------------------------------
+    // Step 2: Collect ALL detection device_ids from get_detection_summaries.
+    //
+    // Fetches all detection IDs (DETECTION_COUNT=20) then resolves their
+    // device_id fields — mirrors the full JOIN left-hand side.
+    // -------------------------------------------------------------------------
+    let ids_resp = client
+        .get(format!("http://{addr}/detects/queries/detects/v1"))
+        .header("Authorization", format!("Bearer {access_token}"))
+        .send()
+        .await
+        .expect("GET /detects/queries/detects/v1 must reach server");
+
+    assert_eq!(
+        ids_resp.status().as_u16(),
+        200,
+        "F-CSD-P30-OBS-003 join-fidelity pre-condition: GET /detects/queries/detects/v1 \
+         must return HTTP 200"
+    );
+
+    let ids_body: serde_json::Value = ids_resp
+        .json()
+        .await
+        .expect("GET /detects/queries/detects/v1 response must be valid JSON");
+
+    let all_detection_ids: Vec<&str> = ids_body["resources"]
+        .as_array()
+        .expect("GET /detects/queries/detects/v1 must return a 'resources' array")
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+
+    assert!(
+        !all_detection_ids.is_empty(),
+        "F-CSD-P30-OBS-003 join-fidelity pre-condition: harness must generate detection IDs"
+    );
+
+    let summaries_resp = client
+        .post(format!("http://{addr}/detects/entities/summaries/GET/v1"))
+        .header("Authorization", format!("Bearer {access_token}"))
+        .json(&serde_json::json!({ "ids": all_detection_ids }))
+        .send()
+        .await
+        .expect("POST /detects/entities/summaries/GET/v1 must reach server");
+
+    assert_eq!(
+        summaries_resp.status().as_u16(),
+        200,
+        "F-CSD-P30-OBS-003 join-fidelity pre-condition: POST /detects/entities/summaries/GET/v1 \
+         must return HTTP 200"
+    );
+
+    let summaries_body: serde_json::Value = summaries_resp
+        .json()
+        .await
+        .expect("POST /detects/entities/summaries/GET/v1 response must be valid JSON");
+
+    let detection_resources = summaries_body["resources"]
+        .as_array()
+        .expect("detection summaries must have resources array");
+
+    // Collect the set of unique device_ids across all detection records.
+    let detection_device_ids: std::collections::HashSet<String> = detection_resources
+        .iter()
+        .filter_map(|r| r["device_id"].as_str().map(|s| s.to_owned()))
+        .collect();
+
+    assert!(
+        !detection_device_ids.is_empty(),
+        "F-CSD-P30-OBS-003 join-fidelity pre-condition: at least one detection must have \
+         a device_id field"
+    );
+
+    // -------------------------------------------------------------------------
+    // Step 3: Collect ALL device IDs from list_host_ids (JOIN right-hand side).
+    //
+    // generate_host_ids("acme-corp", 42) produces HOST_COUNT=30 IDs; a single
+    // request with default limit=100 returns the full pool.
+    // -------------------------------------------------------------------------
+    let devices_resp = client
+        .get(format!("http://{addr}/devices/queries/devices/v1"))
+        .header("Authorization", format!("Bearer {access_token}"))
+        .send()
+        .await
+        .expect("GET /devices/queries/devices/v1 must reach server");
+
+    assert_eq!(
+        devices_resp.status().as_u16(),
+        200,
+        "F-CSD-P30-OBS-003 join-fidelity pre-condition: GET /devices/queries/devices/v1 \
+         must return HTTP 200"
+    );
+
+    let devices_body: serde_json::Value = devices_resp
+        .json()
+        .await
+        .expect("GET /devices/queries/devices/v1 response must be valid JSON");
+
+    let all_device_ids: std::collections::HashSet<String> = devices_body["resources"]
+        .as_array()
+        .expect("GET /devices/queries/devices/v1 must return a 'resources' array")
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.to_owned()))
+        .collect();
+
+    assert!(
+        !all_device_ids.is_empty(),
+        "F-CSD-P30-OBS-003 join-fidelity pre-condition: host pool from list_host_ids must \
+         be non-empty"
+    );
+
+    // -------------------------------------------------------------------------
+    // Step 4: Assert the JOIN intersection is non-empty.
+    //
+    // F-CSD-P30-OBS-003 RED: at HEAD detection_device_ids = {"placeholder"},
+    // all_device_ids = {"h-acme-corp-42-001", ..., "h-acme-corp-42-030"}.
+    // intersection = ∅ → assertion FAILS.
+    //
+    // After fix (architect Option A): detection_device_ids contains at least one
+    // "h-acme-corp-42-*" member from generate_host_ids modulo mapping, so
+    // intersection is non-empty and this test passes.
+    // -------------------------------------------------------------------------
+    let intersection: std::collections::HashSet<&String> = detection_device_ids
+        .iter()
+        .filter(|id| all_device_ids.contains(*id))
+        .collect();
+
+    assert!(
+        !intersection.is_empty(),
+        "F-CSD-P30-OBS-003 RED JOIN-fidelity: the intersection of detections device_ids \
+         and devices device_ids must be non-empty. An empty intersection means every \
+         PrismQL JOIN query (SELECT * FROM detections JOIN devices ON \
+         detections.device_id = devices.device_id) returns 0 rows — the silent \
+         empty-pipeline failure mode of DEFECT-CSDEVICES-EMPTY-PIPELINE-001. \
+         At HEAD detection_detail() emits device_id = \"placeholder\" for every \
+         detection; the devices pool contains only generate_host_ids output (\"h-*\" IDs); \
+         intersection = ∅. Fix: detection_detail() must embed a real host ID via \
+         generate_host_ids modulo mapping (architect Option A 2026-07-11). \
+         detection_device_ids: {:?} \
+         device_ids sample (first 5): {:?}",
+        detection_device_ids,
+        all_device_ids.iter().take(5).collect::<Vec<_>>()
+    );
+}
