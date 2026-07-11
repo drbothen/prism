@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.31"
+version: "1.32"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-07-11"  # v1.31: F-CSD-P31-OBS-001 + F-CSD-P31-MED-001 — INV-HARNESS-ROUTE-PARITY det_index semantic disambiguation (stable host-pool mapping) + severity string-type enforcement
+modified: "2026-07-11"  # v1.32: DRIFT-HARNESS-ADMIN-TOKEN-CT-001 — INV-HARNESS-ROUTE-PARITY constant-time admin-token bearer comparison requirement (CWE-208, D-1666)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -418,6 +418,7 @@ adapter path for all test cases:
     enforcement per standalone DTU parity, 2026-07-11). Governs F-CSD-P29-006
     (architect IN-SCOPE-FIX ruling 2026-07-11; devices-table `host_detail()` 6/6
     field-completeness precedent).
+  - **Admin-token bearer comparison MUST use constant-time equality (`ct_compare_tokens`):** Every `Authorization: Bearer <token>` comparison in `prism-dtu-harness` that checks the provided token value against the stored `admin_token` MUST use constant-time byte comparison via the shared helper `ct_compare_tokens(provided: &str, expected: &str) -> bool` (implemented with `subtle::ConstantTimeEq`). Non-constant-time `!=` / `==` string equality leaks timing information about where the first differing byte occurs (CWE-208 timing side-channel). All 13 comparison sites across `src/builder.rs` (`check_bearer`), `src/clone_server.rs`, and the per-clone modules (`src/clones/armis.rs`, `src/clones/claroty.rs`, `src/clones/cyberint.rs`, `src/clones/crowdstrike.rs`, `src/clones/jira.rs`, `src/clones/pagerduty.rs`, `src/clones/slack.rs`) MUST call `ct_compare_tokens`. The admin token is a UUID-v4 string in test contexts; constant-time comparison is the correct default to prevent future promotion of the harness into security-sensitive contexts without regression. Closed by: DRIFT-HARNESS-ADMIN-TOKEN-CT-001 in S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001 (D-1666, 2026-07-10).
   - Route parity is verified by multi-tenant harness tests (BC-3.5.001/BC-3.5.002 consumers).
   This invariant is governed by ADR-031 (DTU=true-DTU) and is implemented by story
   S-DEMO-HARNESS-CLONE-PARITY-001 (closes F-P6-DEFER-001, F-P10-LOW-001) and by the
@@ -552,6 +553,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.32 | S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001-PO-CT-amendment | 2026-07-11 | product-owner | **DRIFT-HARNESS-ADMIN-TOKEN-CT-001 constant-time token comparison requirement (D-1666, 2026-07-10) — BC amendment closing OQ-001 (S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001).** §Invariants INV-HARNESS-ROUTE-PARITY: added explicit **Admin-token bearer comparison MUST use constant-time equality (`ct_compare_tokens`)** clause — every `Authorization: Bearer <token>` comparison in `prism-dtu-harness` that checks the provided token against the stored `admin_token` MUST use constant-time byte comparison via shared `ct_compare_tokens(provided: &str, expected: &str) -> bool` helper (implemented with `subtle::ConstantTimeEq`). Applies to all 13 comparison sites: `src/builder.rs` (`check_bearer`), `src/clone_server.rs`, and 7 per-clone modules. Addresses CWE-208 timing side-channel — non-constant-time `!=` / `==` string comparison leaks information about where the first differing byte occurs. Rationale: constant-time is the correct default even for test-context UUID tokens to prevent future promotion into security-sensitive contexts without regression. Frontmatter v1.31→v1.32; modified: 2026-07-11. |
 | 1.31 | F-CSD-P31-clarifications-PO-burst | 2026-07-11 | product-owner | F-CSD-P31-OBS-001 + F-CSD-P31-MED-001 clarifications — INV-HARNESS-ROUTE-PARITY detection_detail() clause: (1) `det_index` defined as canonical detection index parsed from `detection_id` trailing integer (`det-{org_slug}-{seed}-{NNN}` → NNN); detection→device mapping STABLE across all request batch shapes; batch-position-derived indices forbidden; same `detection_id` MUST always map to same `device_id`. (2) `severity` field MUST be a string label (`"Low"` / `"Medium"` / `"High"` / `"Critical"`) matching standalone DTU generator emission types and `crowdstrike.sensor.toml` `column_type = "string"`; numeric severity values forbidden in harness clone. BC v1.30 → v1.31. POL-27/POL-32. |
 | 1.30 | F-CSD-P30-OBS-003-PO-spec-note | 2026-07-11 | product-owner | F-CSD-P30-OBS-003 (architect Option A ruling 2026-07-11) — INV-HARNESS-ROUTE-PARITY CrowdStrike detection_detail() response-shape clause: added `device_id` host-pool constraint. `device_id` MUST be a valid host ID from `generate_host_ids(org_slug, seed)`, computed as `generate_host_ids(org_slug, seed)[det_index % HOST_COUNT]`. Literal placeholder strings not in the harness host pool are forbidden. A harness-mode JOIN `crowdstrike_detections JOIN crowdstrike_devices ON device_id = device_id` MUST return non-empty rows when both tables have data. Appended after the `ioc_description` sentence in the detection_detail() clause (v1.29). BC v1.29 → v1.30. POL-27/POL-32. |
 | 1.29 | F-CSD-P29-006-PO-spec-note | 2026-07-11 | product-owner | F-CSD-P29-006 (architect IN-SCOPE-FIX ruling 2026-07-11) — INV-HARNESS-ROUTE-PARITY: added explicit CrowdStrike `detection_detail()` response-shape clause parallel to existing Armis search and Claroty audit_log envelope-shape clauses. Clause requires `prism-dtu-harness` CrowdStrike clone's `detection_detail()` handler to include all top-level fields required by `crowdstrike.sensor.toml` detections columns (`detection_id`, `status`, `severity`, `created_timestamp`, `tactic`, `technique`, `device_id` top-level), plus a non-empty `behaviors` array with `ioc_type`, `ioc_value` (nullable), `ioc_source`, `ioc_description` keys per element. Precedent: devices-table `host_detail()` 6/6 field-completeness ruling. BC v1.28 → v1.29. POL-27/POL-32. |

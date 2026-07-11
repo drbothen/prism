@@ -88,7 +88,7 @@ timestamp: 2026-07-11T21:30:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1690 PR #221 MERGED develop@5f1b5771; DEFECT-CSDEVICES-EMPTY-PIPELINE-001 CLOSED; D-1666/D-1681 queue UNBLOCKED** (STATE.md frontmatter is authoritative; D-1681 §RESUME SNAPSHOT below is the most recent durable SESSION WRAP snapshot).
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1681 below is the most recent durable SESSION WRAP snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.290. D-1690 (PR #221 MERGED develop@5f1b5771; DEFECT-CSDEVICES-EMPTY-PIPELINE-001 CLOSED; queue UNBLOCKED; VERY NEXT ACTION = human chooses ordering from D-1666/D-1681 queue).
+> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.291. D-1691 (3 stories drafted + BC-2.16.013 v1.32 + BC-2.11.016 v1.27 OQ-resolved + AUDIT-COVERAGE-001 un-parked @202eb6fe; STORY-INDEX v2.656; BC-INDEX v7.95; total_stories 232; VERY NEXT ACTION = AUDIT-COVERAGE-001 B-hardening + 95-check + PR [fresh session recommended]).
 
 ---
 
