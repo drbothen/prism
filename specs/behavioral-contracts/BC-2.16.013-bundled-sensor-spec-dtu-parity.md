@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.28"
+version: "1.29"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-07-11"  # v1.28: F-CSD-P25-006 closure — POL-33 Route Coverage Table added (9 rows, CrowdStrike 3-site coverage)
+modified: "2026-07-11"  # v1.29: F-CSD-P29-006 spec-note — INV-HARNESS-ROUTE-PARITY CrowdStrike detection_detail() response-shape clause
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -386,6 +386,15 @@ adapter path for all test cases:
   - Response envelope shapes MUST match standalone DTU responses:
     Armis search: `{"data": {"results": [...], "total": N}}`;
     Claroty audit_log: `{"audit_log": [...], "total": N}`.
+  - CrowdStrike `detection_detail()` response shape: the `prism-dtu-harness` CrowdStrike
+    clone's `detection_detail()` handler MUST include all top-level fields required by
+    `crowdstrike.sensor.toml` detections columns: `detection_id`, `status`, `severity`,
+    `created_timestamp`, `tactic`, `technique`, and `device_id` (top-level field, distinct
+    from nested device sub-objects). The response MUST include a non-empty `behaviors`
+    array where each element contains at least `ioc_type`, `ioc_value`, `ioc_source`, and
+    `ioc_description` keys (`ioc_value` is nullable — null is valid; the key MUST be
+    present). Governs F-CSD-P29-006 (architect IN-SCOPE-FIX ruling 2026-07-11;
+    devices-table `host_detail()` 6/6 field-completeness precedent).
   - Route parity is verified by multi-tenant harness tests (BC-3.5.001/BC-3.5.002 consumers).
   This invariant is governed by ADR-031 (DTU=true-DTU) and is implemented by story
   S-DEMO-HARNESS-CLONE-PARITY-001 (closes F-P6-DEFER-001, F-P10-LOW-001) and by the
@@ -520,6 +529,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.29 | F-CSD-P29-006-PO-spec-note | 2026-07-11 | product-owner | F-CSD-P29-006 (architect IN-SCOPE-FIX ruling 2026-07-11) — INV-HARNESS-ROUTE-PARITY: added explicit CrowdStrike `detection_detail()` response-shape clause parallel to existing Armis search and Claroty audit_log envelope-shape clauses. Clause requires `prism-dtu-harness` CrowdStrike clone's `detection_detail()` handler to include all top-level fields required by `crowdstrike.sensor.toml` detections columns (`detection_id`, `status`, `severity`, `created_timestamp`, `tactic`, `technique`, `device_id` top-level), plus a non-empty `behaviors` array with `ioc_type`, `ioc_value` (nullable), `ioc_source`, `ioc_description` keys per element. Precedent: devices-table `host_detail()` 6/6 field-completeness ruling. BC v1.28 → v1.29. POL-27/POL-32. |
 | 1.28 | F-CSD-P25-006-PO-burst | 2026-07-11 | product-owner | F-CSD-P25-006 (OBS) closure — POL-33 (`route_coverage_table_required_for_stagemask_changes`) compliance: added §Route Coverage Table (POL-33) with 9 rows covering all 3 CrowdStrike DTU registration sites (standalone `prism-dtu-crowdstrike::build_router`, harness in-process `build_crowdstrike_router`, harness network-mode `build_crowdstrike_network_router`). StageMask field: `containment_status` — read routes GET + POST `/devices/entities/devices/v2` on all 3 sites (GUARDED via shared `host_details_inner` session-registry filter + containment-store merge); write route `POST /devices/entities/devices-actions/v2` on all 3 sites (GUARDED via action_name guard + containment-store write). All 9 rows GUARDED. Claroty/Cyberint/Armis EXEMPT (no scenario-state-dependent fields in spec-driven parity path). Seeded from DEFECT-CSDEVICES-EMPTY-PIPELINE-001 worktree code truth. INV-HARNESS-ROUTE-PARITY cross-referenced in section intro. BC v1.27 → v1.28. POL-27/POL-32/POL-33. |
 | 1.27 | F-CSD-P9-001-closure-PO-burst | 2026-07-10 | product-owner | F-CSD-P9-001 (HIGH) closure — INV-HARNESS-ROUTE-PARITY CrowdStrike parity gap: v1.26 documented the standalone `prism-dtu-crowdstrike` gaining POST `/devices/entities/devices/v2` (`post_host_details`, endpoint count 8→9) but omitted the corresponding harness-clone obligation. §Postconditions §1 CrowdStrike `devices` row: added **Harness parity (INV-HARNESS-ROUTE-PARITY)** note — both `prism-dtu-harness` CrowdStrike router builders (in-process and network-mode) MUST register GET `get_host_details` AND POST `post_host_details` on `/devices/entities/devices/v2`, mirroring the standalone's shared route composition (session-registry filter, org-id guard, containment merge, auth, empty-ids 400 on POST). §Invariants INV-HARNESS-ROUTE-PARITY: added CrowdStrike bullet alongside existing Armis and Claroty bullets; implementation story reference updated to include DEFECT-CSDEVICES-EMPTY-PIPELINE-001 fix lane as the CrowdStrike closure vehicle. No other sections changed. POL-27/POL-32. BC v1.26 → v1.27. |
 | 1.26 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001-PO-burst | 2026-07-10 | product-owner | CrowdStrike `devices` table step-2 corrected from GET to POST per architect ratification of DEFECT-CSDEVICES-EMPTY-PIPELINE-001 (research/defect-csdevices-empty-pipeline-rootcause-2026-07-10.md §Architect Ratification, D-1650). `fetch_devices` step 2 is now POST `/devices/entities/devices/v2` with body `{"ids": [...]}` — matching real CrowdStrike `PostDeviceDetailsV2` (FalconPy v1.2.0+; same body structure as existing `fetch_detections` POST step; supports up to 5000 IDs vs GET's 100). §Postconditions §1 CrowdStrike `devices` row: `(GET \`/devices/entities/devices/v2\`)` → `(POST \`/devices/entities/devices/v2\` with body \`{"ids": [...]}\`)`. URL grounding updated: `/devices/entities/devices/v2` now registers both `get_host_details` (GET; preserved) and `post_host_details` (POST; new); spec-driven path is POST; DTU endpoint count 8→9 (5 read, 4 write). Parity tests for `crowdstrike.devices` must exercise the POST path. BC v1.25 → v1.26. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: demo-readiness-2026-06-24
-modified: "2026-07-10"
+modified: "2026-07-11"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -68,15 +68,17 @@ The `prismql://reference` MCP resource is no longer served from a static `pql_re
 
 ### CI round-trip gate (ADR-045 D3 — the parity enforcer)
 
-The CI gate has three complementary assertions driven by a **shared `&'static str` example array** (single source of truth for all reference examples):
+The CI gate has four complementary assertions driven by a **shared `&'static str` example array** (single source of truth for all reference examples):
 
 1. **Positive round-trip gate:** For each positive example in the array, assert `PrismQlParser::parse(example)` returns `Ok(_)`. Any `Err` is a CI failure. This gate catches GRAMMAR-009 / GRAMMAR-011 class of doc-ahead-of-implementation drift.
 
 2. **Negative gate (E-QUERY-040):** For each error example in the array labeled as producing E-QUERY-040 (dual-limit composed query), assert `PrismQlParser::parse_and_plan(example)` returns `Err(PrismError::RedundantRowLimit { .. })`. This keeps the pedagogical FORBID-BOTH error example honest.
 
-3. **Registry-parity gate:** A test builds the enrichment section using a known test `InfusionRegistry` and asserts the rendered infusion names and call signatures exactly match the registry's enumerated capabilities (no additions, no omissions).
+3. **Negative gate (E-QUERY-043):** For each error example labeled `NegativeE043` (projection-position IN-subquery), assert `execute_against_session(example)` returns `Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })`. At least one load-bearing executable `NegativeE043` entry MUST be present (non-vacuous gate — mirrors the NegativeE040 requirement). This tier was added by F-CSD-P25-003 to lock the plan-time E-QUERY-043 regression during the DEFECT-CSDEVICES-EMPTY-PIPELINE-001 cascade (see `crates/prism-mcp/tests/negative_e043_parity_gate.rs`).
 
-The shared example array MUST be a `const REFERENCE_EXAMPLES: &[(ExampleKind, &'static str, &'static str)]` in `crates/prism-mcp/src/resources.rs` where `ExampleKind` is an enum (`Positive`, `NegativeE040`, `NegativeOther`) and each tuple is `(kind, title, pql_snippet)` — the doc and the test both reference this const.
+4. **Registry-parity gate:** A test builds the enrichment section using a known test `InfusionRegistry` and asserts the rendered infusion names and call signatures exactly match the registry's enumerated capabilities (no additions, no omissions).
+
+The shared example array MUST be a `const REFERENCE_EXAMPLES: &[(ExampleKind, &'static str, &'static str)]` in `crates/prism-mcp/src/resources.rs` where `ExampleKind` is an enum (`Positive`, `NegativeE040`, `NegativeOther`, `NegativeE043`) and each tuple is `(kind, title, pql_snippet)` — the doc and the test both reference this const.
 
 ## Invariants
 
@@ -102,6 +104,7 @@ The shared example array MUST be a `const REFERENCE_EXAMPLES: &[(ExampleKind, &'
 | EC-11-022-006 | `InfusionRegistry` has infusion `threat_intel` (infusion_id) with three `[[infusion.fields]]` entries: `threat_score`, `threat_is_known_malicious`, `threat_sources`; AND infusion `nvd` (infusion_id) with three entries: `cvss_base_score`, `cvss_severity`, `cvss_vector` | Enrichment section lists SIX entries: `enrich threat_score(col)`, `enrich threat_is_known_malicious(col)`, `enrich threat_sources(col)`, `enrich cvss_base_score(col)`, `enrich cvss_severity(col)`, `enrich cvss_vector(col)`. It MUST NOT list `enrich threat_intel(col)` or `enrich nvd(col)`. The infusion_id (`threat_intel`, `nvd`) is NOT a callable UDF name and must not appear in the reference. (N1 / AUDIT-N1) |
 | EC-11-022-004 | CI gate finds a positive example that fails to parse after grammar change | CI FAILS — the broken example must be fixed before merge |
 | EC-11-022-005 | CI gate finds the E-QUERY-040 negative example now succeeds (FORBID-BOTH relaxed) | CI FAILS until the example is updated to reflect the new behavior |
+| EC-11-022-007 | CI gate finds the E-QUERY-043 `NegativeE043` example no longer returns `ExprInSubqueryProjectionNotSupported` (gate relaxed or DataFusion physical planner gains support for projection-position IN-subquery) | CI FAILS — `test_BC_2_11_022_negative_e043_reference_examples_has_loadbearing_entry` goes RED; the NegativeE043 entry must either be updated to a snippet that still fires E-QUERY-043, or graduated to `Positive` if the error is intentionally removed. Do not silently delete the entry. |
 
 ## Canonical Test Vectors
 
@@ -113,6 +116,7 @@ The shared example array MUST be a `const REFERENCE_EXAMPLES: &[(ExampleKind, &'
 | CI: positive gate — `FROM alerts \| where severity = 'HIGH' \| sort time DESC \| head 10` | `PrismQlParser::parse` returns `Ok(Ast::Pipe(_))` | CI gate |
 | CI: positive gate — `SELECT * FROM t WHERE timestamp > NOW() - INTERVAL '24h'` | `PrismQlParser::parse` returns `Ok(Ast::Sql(_))` | CI gate |
 | CI: negative gate — `SELECT * FROM t LIMIT 5 \| enrich fn(x) \| limit 3` | `plan` returns `Err(PrismError::RedundantRowLimit { sql_limit: 5, pipe_limit: 3 })` | CI gate |
+| CI: negative gate (E-QUERY-043) — `SELECT (device_id IN (SELECT device_id FROM sensor_table)) AS flag FROM sensor_table` | `execute_against_session` returns `Err(PrismError::ExprInSubqueryProjectionNotSupported { .. })` — projection-position IN-subquery rejected at plan time | CI gate |
 | CI: registry-parity gate — test registry with `{threat_score, cvss_score}` infusions | Rendered enrichment section contains exactly `threat_score(col)` and `cvss_score(col)` signatures | CI gate |
 | CI: per-field UDF name gate — test registry with infusion_id `threat_intel` having fields `{threat_score, threat_is_known_malicious}` | Rendered enrichment section contains `threat_score(col)` and `threat_is_known_malicious(col)`; does NOT contain `threat_intel(col)`. Deduplication key is `InfusionField.name`, not `InfusionField.infusion_id`. (N1 / EC-11-022-006) | CI gate |
 
@@ -160,6 +164,7 @@ VP-021 (fuzz gate applies to CI gate inputs)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / F-CSD-P29-003 + F-CSD-P25-003 | 2026-07-11 | product-owner | **4-variant ExampleKind surface (F-CSD-P29-003 spec-code drift closure — authored-spec-drift-closed-by-product-owner path):** `ExampleKind` enum amended from 3-variant `(Positive, NegativeE040, NegativeOther)` to 4-variant `(Positive, NegativeE040, NegativeOther, NegativeE043)`. §CI round-trip gate updated: "three complementary assertions" → "four complementary assertions"; new Tier 3 item added for `NegativeE043` load-bearing E-QUERY-043 plan-time rejection gate (mirrors the pre-existing NegativeE040 requirement). EC-11-022-007 added (NegativeE043 gate regression edge case — DataFusion planner change or gate relaxation). NegativeE043 canonical test vector added (projection-position IN-subquery → `ExprInSubqueryProjectionNotSupported`). Provenance: F-CSD-P25-003 (pass 25) added `ExampleKind::NegativeE043` variant + `crates/prism-mcp/tests/negative_e043_parity_gate.rs` to lock E-QUERY-043 regression during DEFECT-CSDEVICES-EMPTY-PIPELINE-001; BC was never amended — F-CSD-P29-003 (pass 29) surfaced the spec-code drift; adjudicated as authored intent. |
 | 1.2 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / F-CSD-P23-001 POL-29 sweep | 2026-07-10 | product-owner | POL-29 exhaustive sweep: §Reference Content Requirements table row "Virtual fields + scope model" updated — `VirtualField` enum enumeration corrected from `_client, _sensor, _source_table, _safety_flags` to `_client, _sensor, _source_table, _source_type`. `_safety_flags` was retired as a virtual-field enum member per BC-2.11.012 v1.7 (F-CSD-P19-003); it now parses as `Expr::Field(fp)` → E-QUERY-038, meaning it is NOT in the `VirtualField` enum. `_source_type` is the correct 4th VirtualField member (sensor-table virtual field; S-2.08 AC-9/AC-10; S-3.02 delivery gap). |
 | 1.1 | demo-fidelity-remediation-2026-06-26 | 2026-06-26 | product-owner | **N1 / AUDIT-N1 contract fix (S-DEMO-FIDELITY-REMEDIATION-001):** Enrichment section postcondition amended to explicitly specify that the reference must list per-`[[infusion.fields]]` UDF names (e.g., `threat_score`, `threat_is_known_malicious`, `threat_sources`, `cvss_base_score`, `cvss_severity`, `cvss_vector`) and MUST NOT list infusion_id aggregate names (e.g., `threat_intel`, `nvd`). The `build_reference_content` implementation MUST iterate `InfusionRegistry.udf_descriptors()` using `descriptor.name` (per-field UDF) as both the deduplication key and the emitted function name — not `descriptor.infusion_id`. Added EC-11-022-006 (6-UDF example with threat_intel/nvd infusion_ids) and a CI registry-parity gate test vector to prevent regression. The prismql://reference reference internally contradicting itself (listing `threat_intel(col)` in the "Available enrichment functions" section while using `threat_score(...)` in the example) is a code defect in `build_reference_content`, not a spec ambiguity. The spec required per-field UDF names (via the InfusionRegistry content requirement); this amendment makes that requirement machine-testable. |
 | 1.0 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
