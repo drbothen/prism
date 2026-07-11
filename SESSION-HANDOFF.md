@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.984"
+version: "7.985"
 status: current
-timestamp: 2026-07-11T00:00:00Z
+timestamp: 2026-07-11T21:30:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -86,9 +86,9 @@ timestamp: 2026-07-11T00:00:00Z
 >
 > **D-1681 (2026-07-11): SESSION WRAP — §RESUME SNAPSHOT D-1681 authored (supersedes D-1673).** CSDEVICES LOCAL cascade passes 25→32 this session (8 passes, 7 fix-bursts, D-1674..D-1681). Pass-32 (frozen @072930ee): CLEAN(strict)=NO CLEAN(PR-merge)=YES — 3 LOW docs-only (F-CSD-P32-OBS-001/002/003). Fix-burst: implementer @a6f86fa3 (docs-only; worked-example v90/v91; canary; module header 90→91; ci.yml comment; CLAUDE.md authority pointer). New FROZEN HEAD a6f86fa3 (LOCAL-ONLY, NOT pushed). Spec deltas: BC-2.16.013 v1.27→v1.31; BC-2.11.022 v1.2→v1.3; BC-INDEX v7.90→v7.94; Gate EXPECTED 89→91 ON BRANCH (develop stays 89). Streak 0/3. just check-fast clean. STATE v8.280→v8.281.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1681 SESSION WRAP; CSDEVICES streak 0/3 on frozen a6f86fa3; VERY NEXT = LOCAL pass 33** (above; current state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** D-1681 bullet above + STATE.md frontmatter. §RESUME SNAPSHOT D-1681 below is the most recent durable SESSION WRAP snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `b9cf3f9b` (PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 squash-merged 2026-07-10). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.281. D-1681 (SESSION WRAP; CSDEVICES 32-pass cascade; streak 0/3 on frozen a6f86fa3; pass-32 3 LOW CLEAN(PR-merge) closed; fix-burst @a6f86fa3; docs-only; EQUERY042 CLOSED).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1685 pass-37 CLEAN(strict) streak 2/3 on frozen bc7d8f36; VERY NEXT = LOCAL pass 38** (STATE.md frontmatter is authoritative; D-1681 §RESUME SNAPSHOT below is the most recent durable SESSION WRAP snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1681 below is the most recent durable SESSION WRAP snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `b9cf3f9b` (PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 squash-merged 2026-07-10). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.285. D-1685 (pass-37 CLEAN(strict)=YES ZERO findings; streak 2/3 on frozen bc7d8f36; CSDEVICES 37-pass cascade; EQUERY042 CLOSED).
 
 ---
 
