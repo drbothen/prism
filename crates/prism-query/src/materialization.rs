@@ -3510,7 +3510,22 @@ fn check_expr_insubquery_projection(ast: &crate::ast::Ast) -> Result<(), PrismEr
                     .any(|a| descend_subquery_expr(&a.value))
         }
         // Filter and Pipe variants have no SELECT projection expressions in the
-        // same sense as SQL SELECT; no E-QUERY-043 cases possible.
+        // same sense as SQL SELECT. Even if a Pipe stage carries
+        // Predicate::InSubquery (grammar-unreachable today but possible via
+        // constructed AST), pipe_sql_emitter::predicate_to_datafusion_sql
+        // returns Err(QueryExecutionFailed) for that predicate BEFORE any inner
+        // subquery content reaches DataFusion — a code-level defense layer that
+        // Ast::SqlPipe lacks (SqlPipe stages emit to session_ctx.sql() directly).
+        // Extending this arm to walk Pipe stages is therefore NOT required for
+        // E-QUERY-043 defense; it would also produce semantically incorrect error
+        // messages (E-QUERY-043's hint says "use WHERE clause subquery" — but
+        // pipe-mode WHERE IN-subquery is unsupported at the emitter level, not a
+        // projection-position concern). Two-step condition for future gate
+        // extension: (1) grammar exposes Predicate::InSubquery in pipe stages AND
+        // (2) predicate_to_datafusion_sql is updated to lower it. When change (2)
+        // lands, extend this arm symmetrically with Ast::SqlPipe.
+        // T39 (test_BC_2_11_003_F_CSD_P20_015_T39_filter_pipe_wildcard_arm_gate_does_not_fire)
+        // locks this negative invariant. Architect adjudication F-CSD-P26-OBS-002, 2026-07-11.
         #[allow(unreachable_patterns)]
         _ => false,
     };
