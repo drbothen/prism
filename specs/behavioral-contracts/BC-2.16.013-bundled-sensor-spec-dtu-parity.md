@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.30"
+version: "1.31"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-07-11"  # v1.30: F-CSD-P30-OBS-003 architect Option A ruling — INV-HARNESS-ROUTE-PARITY device_id host-pool constraint clause
+modified: "2026-07-11"  # v1.31: F-CSD-P31-OBS-001 + F-CSD-P31-MED-001 — INV-HARNESS-ROUTE-PARITY det_index semantic disambiguation (stable host-pool mapping) + severity string-type enforcement
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -395,12 +395,28 @@ adapter path for all test cases:
     `ioc_description` keys (`ioc_value` is nullable — null is valid; the key MUST be
     present). The `device_id` value MUST be a valid host ID from
     `generate_host_ids(org_slug, seed)`, computed as
-    `generate_host_ids(org_slug, seed)[det_index % HOST_COUNT]`. Literal placeholder
-    strings that do not appear in the harness host pool are forbidden; a harness-mode
+    `generate_host_ids(org_slug, seed)[det_index % HOST_COUNT]`. `det_index` is the
+    canonical detection index parsed from the `detection_id` trailing integer
+    (format `det-{org_slug}-{seed}-{NNN}` → NNN): this makes the detection→device
+    mapping STABLE across all request batch shapes — the same `detection_id` MUST
+    always map to the same `device_id` regardless of batch position.
+    Batch-position-derived indices (e.g., a plain `.enumerate()` counter that
+    resets with each request's result slice) are forbidden because they break
+    mapping stability when the caller issues partial-page or re-ordered requests.
+    Literal placeholder strings that do not appear in the harness host pool are
+    forbidden; a harness-mode
     JOIN `crowdstrike_detections JOIN crowdstrike_devices ON device_id = device_id`
-    MUST return non-empty rows when both tables have data. Governs F-CSD-P30-OBS-003
-    (architect Option A ruling 2026-07-11). Governs F-CSD-P29-006 (architect
-    IN-SCOPE-FIX ruling 2026-07-11; devices-table `host_detail()` 6/6
+    MUST return non-empty rows when both tables have data.
+    Field TYPES in the `detection_detail()` response MUST match the standalone DTU
+    generator's emission types (parity reference): `severity` MUST be a string label
+    from the standalone generator's set (`"Low"` / `"Medium"` / `"High"` /
+    `"Critical"`) matching `crowdstrike.sensor.toml` `column_type = "string"`;
+    numeric severity values (e.g., `1`, `2`, `3`, `4`) are forbidden in the harness
+    clone. Governs F-CSD-P30-OBS-003 (architect Option A ruling 2026-07-11).
+    Governs F-CSD-P31-OBS-001 (det_index semantic disambiguation — stable host-pool
+    mapping, 2026-07-11). Governs F-CSD-P31-MED-001 (severity string-type
+    enforcement per standalone DTU parity, 2026-07-11). Governs F-CSD-P29-006
+    (architect IN-SCOPE-FIX ruling 2026-07-11; devices-table `host_detail()` 6/6
     field-completeness precedent).
   - Route parity is verified by multi-tenant harness tests (BC-3.5.001/BC-3.5.002 consumers).
   This invariant is governed by ADR-031 (DTU=true-DTU) and is implemented by story
@@ -536,6 +552,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.31 | F-CSD-P31-clarifications-PO-burst | 2026-07-11 | product-owner | F-CSD-P31-OBS-001 + F-CSD-P31-MED-001 clarifications — INV-HARNESS-ROUTE-PARITY detection_detail() clause: (1) `det_index` defined as canonical detection index parsed from `detection_id` trailing integer (`det-{org_slug}-{seed}-{NNN}` → NNN); detection→device mapping STABLE across all request batch shapes; batch-position-derived indices forbidden; same `detection_id` MUST always map to same `device_id`. (2) `severity` field MUST be a string label (`"Low"` / `"Medium"` / `"High"` / `"Critical"`) matching standalone DTU generator emission types and `crowdstrike.sensor.toml` `column_type = "string"`; numeric severity values forbidden in harness clone. BC v1.30 → v1.31. POL-27/POL-32. |
 | 1.30 | F-CSD-P30-OBS-003-PO-spec-note | 2026-07-11 | product-owner | F-CSD-P30-OBS-003 (architect Option A ruling 2026-07-11) — INV-HARNESS-ROUTE-PARITY CrowdStrike detection_detail() response-shape clause: added `device_id` host-pool constraint. `device_id` MUST be a valid host ID from `generate_host_ids(org_slug, seed)`, computed as `generate_host_ids(org_slug, seed)[det_index % HOST_COUNT]`. Literal placeholder strings not in the harness host pool are forbidden. A harness-mode JOIN `crowdstrike_detections JOIN crowdstrike_devices ON device_id = device_id` MUST return non-empty rows when both tables have data. Appended after the `ioc_description` sentence in the detection_detail() clause (v1.29). BC v1.29 → v1.30. POL-27/POL-32. |
 | 1.29 | F-CSD-P29-006-PO-spec-note | 2026-07-11 | product-owner | F-CSD-P29-006 (architect IN-SCOPE-FIX ruling 2026-07-11) — INV-HARNESS-ROUTE-PARITY: added explicit CrowdStrike `detection_detail()` response-shape clause parallel to existing Armis search and Claroty audit_log envelope-shape clauses. Clause requires `prism-dtu-harness` CrowdStrike clone's `detection_detail()` handler to include all top-level fields required by `crowdstrike.sensor.toml` detections columns (`detection_id`, `status`, `severity`, `created_timestamp`, `tactic`, `technique`, `device_id` top-level), plus a non-empty `behaviors` array with `ioc_type`, `ioc_value` (nullable), `ioc_source`, `ioc_description` keys per element. Precedent: devices-table `host_detail()` 6/6 field-completeness ruling. BC v1.28 → v1.29. POL-27/POL-32. |
 | 1.28 | F-CSD-P25-006-PO-burst | 2026-07-11 | product-owner | F-CSD-P25-006 (OBS) closure — POL-33 (`route_coverage_table_required_for_stagemask_changes`) compliance: added §Route Coverage Table (POL-33) with 9 rows covering all 3 CrowdStrike DTU registration sites (standalone `prism-dtu-crowdstrike::build_router`, harness in-process `build_crowdstrike_router`, harness network-mode `build_crowdstrike_network_router`). StageMask field: `containment_status` — read routes GET + POST `/devices/entities/devices/v2` on all 3 sites (GUARDED via shared `host_details_inner` session-registry filter + containment-store merge); write route `POST /devices/entities/devices-actions/v2` on all 3 sites (GUARDED via action_name guard + containment-store write). All 9 rows GUARDED. Claroty/Cyberint/Armis EXEMPT (no scenario-state-dependent fields in spec-driven parity path). Seeded from DEFECT-CSDEVICES-EMPTY-PIPELINE-001 worktree code truth. INV-HARNESS-ROUTE-PARITY cross-referenced in section intro. BC v1.27 → v1.28. POL-27/POL-32/POL-33. |

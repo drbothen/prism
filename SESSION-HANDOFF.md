@@ -134,7 +134,7 @@ Resumed from D-1666. Drove CSDEVICES LOCAL cascade passes 18→24 (7 passes, 5 f
 **OPEN PRs:** NONE.
 
 **PER-WORKSTREAM:**
-1. **CSDEVICES (DEFECT-CSDEVICES-EMPTY-PIPELINE-001):** 24 LOCAL passes; streak 0/3 on frozen 0d07be7e. workspace just check 5472/5472 GREEN; 43-test defect suite + 6 harness tests + T40 SqlPipe lock + store_step_vars unit tests. All spec anchors current (BC-2.11.003 v1.13, BC-2.11.005 v1.12, BC-2.11.012 v1.11, BC-2.16.002 v2.10, BC-2.16.013 v1.30, error-taxonomy v2.39). Cascade record at `cycles/wave-5-e-demo-fidelity/DEFECT-CSDEVICES-EMPTY-PIPELINE-001/cascade-summary.md`. RESUME NEXT-ACTION: dispatch fresh-context LOCAL adversary pass 25 on frozen 0d07be7e with full policy rubric + SAP-1 + SAP-2; pass-24 prompt template reusable.
+1. **CSDEVICES (DEFECT-CSDEVICES-EMPTY-PIPELINE-001):** 24 LOCAL passes; streak 0/3 on frozen 0d07be7e. workspace just check 5472/5472 GREEN; 43-test defect suite + 6 harness tests + T40 SqlPipe lock + store_step_vars unit tests. All spec anchors current (BC-2.11.003 v1.13, BC-2.11.005 v1.12, BC-2.11.012 v1.11, BC-2.16.002 v2.10, BC-2.16.013 v1.31, error-taxonomy v2.39). Cascade record at `cycles/wave-5-e-demo-fidelity/DEFECT-CSDEVICES-EMPTY-PIPELINE-001/cascade-summary.md`. RESUME NEXT-ACTION: dispatch fresh-context LOCAL adversary pass 25 on frozen 0d07be7e with full policy rubric + SAP-1 + SAP-2; pass-24 prompt template reusable.
 2. **AUDIT-COVERAGE-001:** PARKED @317b6e25 on `fix/T13-audit-coverage` (LOCAL-ONLY). Un-park AFTER CSDEVICES PR merges → rebase → B-hardening → 95-check live audit → PR.
 3. **T13 capstone demo:** DEMO-READY on 70-check (develop@b9cf3f9b). Runs after AUDIT-COVERAGE-001 gate passes.
 
