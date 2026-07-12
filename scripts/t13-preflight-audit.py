@@ -300,6 +300,10 @@ def parse_envelope(resp):
     if "error" in resp:
         err = resp["error"]
         return {}, f"RPC error {err.get('code')}: {err.get('message','')[:120]}"
+    # OBS-004 (F-AUD-P28): guard against non-dict result — e.g. a bare string or list in
+    # the JSON-RPC result field would cause AttributeError on .get("content") below.
+    if not isinstance(resp.get("result", {}), dict):
+        return {}, f"non-dict result: {type(resp['result']).__name__}"
     content = resp.get("result", {}).get("content", [])
     if not content:
         return {}, "empty content list"
@@ -1288,6 +1292,13 @@ def run_audit():
             results["[A21] HANG-FIX: infusion_status returns promptly"] = f"FAIL: NYA stub returned success (expected -32003 E-INFRA-NYA)"
 
         # ── A23: all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21) ─────────
+        # OBS-002 (F-AUD-P28): A23 runs BEFORE A22 (check_sensor_health) by deliberate
+        # design.  A23 derives the NYA stub set as (tools/list names − EXPECTED_TOOLS_FULL),
+        # which is a read-only enumeration probe.  A22 calls check_sensor_health, which
+        # exercises the live sensor health path and may mutate probe-state caches.  Running
+        # the read-only NYA sweep (A23) before the cache-mutating health probe (A22) keeps
+        # the NYA response character stable and prevents A22's side-effects from masking an
+        # NYA regression.  Do NOT reorder A23 and A22.
         # F-AUD-P13-OBS-004: Replace 3/40 sampling gap with full dynamic coverage.
         # Derives stub set at runtime: (tools/list names) − (EXPECTED_TOOLS_FULL 14 implemented).
         # OBS-001 cross-reference ← A2: A2 gates full 54-tool membership (14 live + 40 NYA);
@@ -1877,7 +1888,16 @@ def run_audit():
                     )
 
         # ── C7: Pipe mode | sort ──────────────────────────────────────────────
-        body, err = query(proc, "FROM crowdstrike_detections\n| sort device_id\n| limit 5", ["org-c"])
+        # F-AUD-P28-LOW-001: LIMIT raised from 5 to 12 to create a lex-vs-numeric
+        # divergence window.  Seed-200 emits 20 detections with device_id suffixes
+        # 0..19 (generator evidence: 20 rows available).  With LIMIT 5, only suffixes
+        # 0..4 appear — all single-digit, so lex order matches numeric order and
+        # sorted(device_ids)==device_ids passes vacuously even if | sort is broken.
+        # With LIMIT 12, suffixes 0..11 appear; lex sort places "...-10" and "...-11"
+        # BEFORE "...-2".."...-9", producing a different ordering from numeric sort.
+        # `sorted(device_ids) == device_ids` now meaningfully validates ascending
+        # lex order (which IS the correct sort semantics for string device_id).
+        body, err = query(proc, "FROM crowdstrike_detections\n| sort device_id\n| limit 12", ["org-c"])
         if err:
             results["[C7] Pipe mode: | sort"] = f"FAIL: {err}"
         elif body.get("error_code"):
@@ -4174,7 +4194,14 @@ def run_audit():
                         if isinstance(e, dict) and e.get("sensor_type")
                     }
                     _missing_sensors = _required_sensors - _present_sensors
-                    if not _missing_sensors:
+                    # LOW-002 (F-AUD-P28): mirror H14a/A22 exact-set discipline — fail on
+                    # extra sensor_type values as well as missing ones.  Extra entries expose
+                    # unintended sensor registrations that weaken the four-sensor isolation
+                    # evidence for the org-c reference client.
+                    # CONSCIOUS-UPDATE REQUIRED: if the org-c demo config is updated to add or
+                    # remove a sensor type, update _required_sensors in the same change.
+                    _extra_sensors = _present_sensors - _required_sensors
+                    if not _missing_sensors and not _extra_sensors:
                         results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = (
                             f"PASS: all 4 sensor_type values confirmed via JSON parse: "
                             f"{sorted(_present_sensors)!r}; "
@@ -4182,9 +4209,11 @@ def run_audit():
                         )
                     else:
                         results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = (
-                            f"FAIL: missing sensor_type values for org-c: {sorted(_missing_sensors)!r}; "
-                            f"present={sorted(_present_sensors)!r}; "
-                            f"(MED-006: JSON parse of SensorConfigEntry sensor_type field)"
+                            f"FAIL: exact sensor_type set mismatch for org-c — "
+                            + (f"missing={sorted(_missing_sensors)!r}; " if _missing_sensors else "")
+                            + (f"extra={sorted(_extra_sensors)!r}; " if _extra_sensors else "")
+                            + f"present={sorted(_present_sensors)!r} "
+                            + f"(MED-006 / F-AUD-P28-LOW-002)"
                         )
             except (json.JSONDecodeError, ValueError) as _h14d_err:
                 if t_h14d:
@@ -4244,6 +4273,8 @@ def run_audit():
         # explain_query executes correctly and returns a parseable plan.
         # MED-001: parsed_mode is produced by `query_mode_str()` in
         # crates/prism-query/src/explain.rs — canonical values are "filter" | "sql" | "pipe"
+        # | "sql_pipe" | "unknown" (OBS-001 F-AUD-P28: complete enumeration per explain.rs;
+        # "unknown" is the catch-all for unrecognised parse trees)
         # (TD-VSDD-091: cite function name, not line number; function name is stable
         # across refactors while line numbers drift). "FROM ... | limit N" is pipe-mode;
         # assert parsed_mode == "pipe" exactly to detect mode-detection regressions.
@@ -4926,6 +4957,12 @@ def run_audit():
                 # re.sub DOTALL scan is operating on a malformed input where one or more
                 # code fences were never closed — the fence-aware truncation and bad-form
                 # scan are then unreliable.  Fail loudly so the runbook is fixed.
+                # Known limitation (OBS-003 F-AUD-P28): the parity check catches
+                # odd-count orphaned fences; a pathological even-count arrangement of
+                # unpaired fences (e.g., two separate unclosed fences) would pass this
+                # guard undetected.  That scenario is out of scope — standard Markdown
+                # parsers reject unclosed fences, so such a runbook would already fail
+                # other tooling checks.
                 _fence_remaining = _runbook_text_no_fence.count("```")
                 if _fence_remaining % 2 != 0:
                     results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
@@ -5215,30 +5252,31 @@ COVERAGE_MATRIX = [
     ("[H24]", "Guardrails",    "E-QUERY-043: IN subquery in projection position rejected (check_expr_insubquery_projection; F-CSD-P4-001)"),
 ]
 
-# F-AUD-P14-OBS-006: coverage floor — must match len(COVERAGE_MATRIX) or higher.
-# Bump this constant when adding checks; never lower without adjudication.
+# F-AUD-P14-OBS-006 (LOW-003 F-AUD-P28): exact-count equality gate — must equal
+# len(COVERAGE_MATRIX); bump when adding checks, drop when removing.  The name
+# EXPECTED_COVERAGE_COUNT reflects strict-equality semantics (not a floor).
 # Current authoritative count: 106 (as of B-hardening pass-21 fix-burst: +H5b, +H5c, +H24).
-MIN_COVERAGE_ITEMS = 106
+EXPECTED_COVERAGE_COUNT = 106
 
 
 if __name__ == "__main__":
     # F-AUD-P14-OBS-006 (amended F-AUD-P16-LOW-002): runtime coverage equality gate —
-    # fail hard if COVERAGE_MATRIX count diverges from MIN_COVERAGE_ITEMS in EITHER
+    # fail hard if COVERAGE_MATRIX count diverges from EXPECTED_COVERAGE_COUNT in EITHER
     # direction. Shrinkage catches accidental removal; growth catches unenrolled rows
-    # (new check added without bumping MIN_COVERAGE_ITEMS). Bump MIN_COVERAGE_ITEMS
+    # (new check added without bumping EXPECTED_COVERAGE_COUNT). Bump EXPECTED_COVERAGE_COUNT
     # explicitly when adding new checks.
-    if len(COVERAGE_MATRIX) != MIN_COVERAGE_ITEMS:
+    if len(COVERAGE_MATRIX) != EXPECTED_COVERAGE_COUNT:
         print(
-            f"ERROR: Coverage count mismatch: {MIN_COVERAGE_ITEMS} expected, "
+            f"ERROR: Coverage count mismatch: {EXPECTED_COVERAGE_COUNT} expected, "
             f"{len(COVERAGE_MATRIX)} present — restore removed COVERAGE_MATRIX rows or "
-            f"bump MIN_COVERAGE_ITEMS when adding checks "
+            f"bump EXPECTED_COVERAGE_COUNT when adding checks "
             f"(mismatch in either direction fails here)."
         )
         sys.exit(1)
     print("=" * 80)
     print("T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop baseline at AUDIT-COVERAGE-001 branch point + fix/T13-audit-coverage Section-H extension")
     print(f"  ThreatIntel port: {THREATINTEL_PORT}  NVD port: {NVD_PORT}")
-    print(f"  Coverage floor: {MIN_COVERAGE_ITEMS} required, {len(COVERAGE_MATRIX)} present")
+    print(f"  Coverage floor: {EXPECTED_COVERAGE_COUNT} required, {len(COVERAGE_MATRIX)} present")
     print(f"  Coverage: {len(COVERAGE_MATRIX)} matrix items across 8 sections (A–H)")
     print("=" * 80)
     print()
