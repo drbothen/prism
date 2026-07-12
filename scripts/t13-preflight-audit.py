@@ -172,7 +172,13 @@ def read_msg(proc, timeout=15.0):
             if not line:
                 continue
             try:
-                return json.loads(line.decode("utf-8")), None
+                parsed = json.loads(line.decode("utf-8"))
+                if not isinstance(parsed, dict):
+                    return None, (
+                        f"non-dict JSON-RPC response: {type(parsed).__name__}: "
+                        f"{line[:80]!r}"
+                    )
+                return parsed, None
             except json.JSONDecodeError as e:
                 return None, f"JSON error: {e} on: {line[:200]!r}"
 
@@ -199,6 +205,12 @@ def parse_envelope(resp):
     text = content[0].get("text", "")
     if not text:
         return {}, "empty text in content[0]"
+    # F-AUD-P16-MED-002: extract structuredContent.error unconditionally — consumed on
+    # BOTH the plain-text error path and the JSON-envelope path below.
+    # (code, did_you_mean, available_columns, etc. — field name is `code` not
+    # `error_code`; no `details.*` sub-keys in this codebase's envelope).
+    sc_content = resp.get("result", {}).get("structuredContent", {})
+    sc_err_obj = sc_content.get("error") if isinstance(sc_content, dict) else None
     # Plain text error: "ERROR: [type] - message"
     if text.startswith("ERROR:"):
         m = re.search(r"(E-[A-Z]+-\d+)", text)
@@ -206,20 +218,22 @@ def parse_envelope(resp):
         # Strip "ERROR: [type] - " prefix for message
         msg = re.sub(r"^ERROR:\s*\[[^\]]+\]\s*-\s*", "", text).strip()
         result_body = {"error_code": error_code, "message": msg, "_plain_error": True}
-        # Extend with structuredContent.error for machine-readable fields
-        # (code, did_you_mean, available_columns, etc. — field name is `code` not
-        # `error_code`; no `details.*` sub-keys in this codebase's envelope).
-        sc_content = resp.get("result", {}).get("structuredContent", {})
-        if isinstance(sc_content, dict):
-            sc_err_obj = sc_content.get("error")
-            if isinstance(sc_err_obj, dict):
-                result_body["_sc_error"] = sc_err_obj
+        if isinstance(sc_err_obj, dict):
+            result_body["_sc_error"] = sc_err_obj
         return result_body, None
     try:
         envelope = json.loads(text)
     except json.JSONDecodeError as e:
         return {}, f"envelope JSON error: {e}, raw: {text[:100]!r}"
-    return envelope.get("results", {}), None
+    # F-AUD-P16-MED-001 sweep: guard against non-dict JSON envelope (list/int/str
+    # would raise AttributeError on .get() below).
+    if not isinstance(envelope, dict):
+        return {}, f"envelope non-dict JSON: {type(envelope).__name__}: {text[:80]!r}"
+    results_body = envelope.get("results", {})
+    # F-AUD-P16-MED-002: attach _sc_error on the JSON-envelope path as well.
+    if isinstance(sc_err_obj, dict):
+        results_body["_sc_error"] = sc_err_obj
+    return results_body, None
 
 
 def tool_call(proc, name, arguments, timeout=25.0):
@@ -375,26 +389,34 @@ _A22_RESULT_KEY = "[A22] check_sensor_health (S-5.04 gate)"
 
 def run_audit():
     results = {}
+    # F-AUD-P16-OBS-001: PID-suffix prevents log collision under parallel audit runs.
+    # F-AUD-P16-LOW-001: open into a named variable so the handle is closed in finally.
+    _mcp_log_path = f"/tmp/prism-audit-mcp-{os.getpid()}.log"
+    _mcp_log_fh = open(_mcp_log_path, "w")
 
     try:
         proc = subprocess.Popen(
             [PRISM_BIN, "--config-dir", CONFIG_DIR, "start"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=open("/tmp/prism-audit-mcp.log", "w"),
+            stderr=_mcp_log_fh,
             env=ENV,
         )
     except FileNotFoundError:
+        _mcp_log_fh.close()
         results["BOOT"] = (
             f"FAIL: binary not found at {PRISM_BIN} — run cargo build --release"
         )
         return results
 
+    print(f"  MCP server log: {_mcp_log_path}")
+
     try:
         time.sleep(3)
         rc = proc.poll()
         if rc is not None:
-            with open("/tmp/prism-audit-mcp.log") as f:
+            _mcp_log_fh.flush()
+            with open(_mcp_log_path) as f:
                 last_lines = f.readlines()[-5:]
             results["BOOT"] = f"FAIL: process exited rc={rc}, last log: {''.join(last_lines).strip()}"
             return results
@@ -1042,51 +1064,60 @@ def run_audit():
             else:
                 try:
                     csh_body = json.loads(text)
-                    overall = csh_body.get("overall_status", "?")
-                    sensors = csh_body.get("sensors", [])
-                    probe_levels = list({s.get("probe_level") for s in sensors if isinstance(s, dict)})
-                    reachable_all = all(s.get("reachable") is True for s in sensors if isinstance(s, dict))
-                    auth_valid_all = all(s.get("auth_valid") is True for s in sensors if isinstance(s, dict))
-                    # F-AUD-P8-OBS-002: require all probe levels == "live" (defense-in-depth vs
-                    # S-5.03 hardcoded-Some(true) regression per BC-2.08.005; runbook Act 5 requires
-                    # probe_level "live").
-                    probe_level_live = all(p == "live" for p in probe_levels)
-                    sensor_ids = [s.get("sensor_id") for s in sensors if isinstance(s, dict)]
-                    # F-AUD-P2-HIGH-003: assert expected sensor set present (not vacuous all([])).
-                    # Sensor ID values verified against crates/prism-sensors/specs/*.sensor.toml
-                    # (crowdstrike.sensor.toml, armis.sensor.toml, claroty.sensor.toml,
-                    # cyberint.sensor.toml) — these are the four registered sensors for org-c.
-                    EXPECTED_SENSORS = {"crowdstrike", "armis", "claroty", "cyberint"}
-                    present_sensors = set(sid for sid in sensor_ids if sid)
-                    missing_sensors = EXPECTED_SENSORS - present_sensors
-                    if missing_sensors:
+                    # F-AUD-P16-MED-001: dict guard — non-dict JSON (list/int/str) would
+                    # raise AttributeError on .get() below; report FAIL with diagnostic
+                    # (mirrors H14b guard pattern).
+                    if not isinstance(csh_body, dict):
                         results[_A22_RESULT_KEY] = (
-                            f"FAIL: {elapsed:.1f}s missing expected sensors={sorted(missing_sensors)}; "
-                            f"got sensor_ids={sorted(present_sensors)}"
-                        )
-                    elif overall == "healthy" and reachable_all and auth_valid_all and probe_level_live:
-                        results[_A22_RESULT_KEY] = (
-                            f"PASS: {elapsed:.1f}s overall={overall}; probe_levels={probe_levels}; "
-                            f"sensors={sorted(present_sensors)}; reachable_all={reachable_all}; auth_valid_all={auth_valid_all}"
-                        )
-                    elif overall == "healthy" and reachable_all and auth_valid_all and not probe_level_live:
-                        # Non-live probe levels mean actual sensor calls were not exercised —
-                        # BC-2.08.005 / runbook Act 5 requires probe_level "live" for demo preflight.
-                        non_live = sorted(set(p for p in probe_levels if p != "live"))
-                        results[_A22_RESULT_KEY] = (
-                            f"FAIL: {elapsed:.1f}s overall={overall} but non-live probe levels detected "
-                            f"(BC-2.08.005 / runbook Act 5 requires probe_level 'live'); "
-                            f"non_live_probe_levels={non_live!r}; sensors={sorted(present_sensors)}"
-                        )
-                    elif overall != "?":
-                        # Demo preflight requires all sensors healthy; degraded/failing is a
-                        # FAIL not a WARN — demo assumes full sensor health (F-AUD-P1-LOW-004).
-                        results[_A22_RESULT_KEY] = (
-                            f"FAIL: {elapsed:.1f}s overall={overall} (degraded/failing not acceptable for demo preflight); "
-                            f"sensors={sorted(present_sensors)}; reachable_all={reachable_all}; auth_valid_all={auth_valid_all}"
+                            f"FAIL: non-dict JSON in check_sensor_health response: "
+                            f"{type(csh_body).__name__}: {text[:80]!r}"
                         )
                     else:
-                        results[_A22_RESULT_KEY] = f"FAIL: unexpected response: {text[:200]}"
+                        overall = csh_body.get("overall_status", "?")
+                        sensors = csh_body.get("sensors", [])
+                        probe_levels = list({s.get("probe_level") for s in sensors if isinstance(s, dict)})
+                        reachable_all = all(s.get("reachable") is True for s in sensors if isinstance(s, dict))
+                        auth_valid_all = all(s.get("auth_valid") is True for s in sensors if isinstance(s, dict))
+                        # F-AUD-P8-OBS-002: require all probe levels == "live" (defense-in-depth vs
+                        # S-5.03 hardcoded-Some(true) regression per BC-2.08.005; runbook Act 5 requires
+                        # probe_level "live").
+                        probe_level_live = all(p == "live" for p in probe_levels)
+                        sensor_ids = [s.get("sensor_id") for s in sensors if isinstance(s, dict)]
+                        # F-AUD-P2-HIGH-003: assert expected sensor set present (not vacuous all([])).
+                        # Sensor ID values verified against crates/prism-sensors/specs/*.sensor.toml
+                        # (crowdstrike.sensor.toml, armis.sensor.toml, claroty.sensor.toml,
+                        # cyberint.sensor.toml) — these are the four registered sensors for org-c.
+                        EXPECTED_SENSORS = {"crowdstrike", "armis", "claroty", "cyberint"}
+                        present_sensors = set(sid for sid in sensor_ids if sid)
+                        missing_sensors = EXPECTED_SENSORS - present_sensors
+                        if missing_sensors:
+                            results[_A22_RESULT_KEY] = (
+                                f"FAIL: {elapsed:.1f}s missing expected sensors={sorted(missing_sensors)}; "
+                                f"got sensor_ids={sorted(present_sensors)}"
+                            )
+                        elif overall == "healthy" and reachable_all and auth_valid_all and probe_level_live:
+                            results[_A22_RESULT_KEY] = (
+                                f"PASS: {elapsed:.1f}s overall={overall}; probe_levels={probe_levels}; "
+                                f"sensors={sorted(present_sensors)}; reachable_all={reachable_all}; auth_valid_all={auth_valid_all}"
+                            )
+                        elif overall == "healthy" and reachable_all and auth_valid_all and not probe_level_live:
+                            # Non-live probe levels mean actual sensor calls were not exercised —
+                            # BC-2.08.005 / runbook Act 5 requires probe_level "live" for demo preflight.
+                            non_live = sorted(set(p for p in probe_levels if p != "live"))
+                            results[_A22_RESULT_KEY] = (
+                                f"FAIL: {elapsed:.1f}s overall={overall} but non-live probe levels detected "
+                                f"(BC-2.08.005 / runbook Act 5 requires probe_level 'live'); "
+                                f"non_live_probe_levels={non_live!r}; sensors={sorted(present_sensors)}"
+                            )
+                        elif overall != "?":
+                            # Demo preflight requires all sensors healthy; degraded/failing is a
+                            # FAIL not a WARN — demo assumes full sensor health (F-AUD-P1-LOW-004).
+                            results[_A22_RESULT_KEY] = (
+                                f"FAIL: {elapsed:.1f}s overall={overall} (degraded/failing not acceptable for demo preflight); "
+                                f"sensors={sorted(present_sensors)}; reachable_all={reachable_all}; auth_valid_all={auth_valid_all}"
+                            )
+                        else:
+                            results[_A22_RESULT_KEY] = f"FAIL: unexpected response: {text[:200]}"
                 except json.JSONDecodeError as e:
                     results[_A22_RESULT_KEY] = f"FAIL: JSON parse error: {e}; raw={text[:100]!r}"
 
@@ -3053,20 +3084,10 @@ def run_audit():
                     # cache is A22's fault — "investigate A22 first" is more actionable.
                     _a22_key = _A22_RESULT_KEY
                     _a22_result = results.get(_a22_key, "")
-                    # H14b precondition: every A22 code path writes a result entry; an uncaught
-                    # transport exception halts the audit before H14b is reached. Therefore
-                    # `_a22_key not in results` is the sole reliable precondition gate —
-                    # the retired a22_executed flag was a dead disjunct (F-AUD-P8-LOW-001).
-                    # Unreachable-by-construction (every A22 path writes a result; transport
-                    # exceptions halt the audit earlier) — kept as forward-compat guard against
-                    # A22 refactors.
-                    if _a22_key not in results:
-                        results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
-                            f"FAIL: precondition violation — A22 (check_sensor_health) not executed before H14b; "
-                            f"run A22 first to populate the health cache; "
-                            f"message={sh_obj.get('message','')!r}"
-                        )
-                    elif _a22_result.startswith("PASS"):
+                    # A22 always writes _A22_RESULT_KEY; enforced by dict-guard added in
+                    # pass-16 (F-AUD-P16-MED-001) — the unreachable `not in results` branch
+                    # was removed (F-AUD-P16-LOW-004).
+                    if _a22_result.startswith("PASS"):
                         # A22 passed but cache still empty → health-cache write regression.
                         results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
                             f"FAIL: cache empty despite A22 having run and PASSED — "
@@ -3082,16 +3103,28 @@ def run_audit():
                         )
                 elif "clients" in sh_obj and isinstance(sh_obj["clients"], dict) and "stale" in sh_obj:
                     # Populated form: {"clients": {...}, "stale": bool}
+                    # F-AUD-P16-MED-003: require client_count >= 1 AND total_sensors >= 1 —
+                    # {"clients": {}, ...} is a health-cache-write regression. A22 runs for
+                    # org-c only so client_count == 1 is the floor; total_sensors must be
+                    # non-zero or the per-sensor health cache write was silently dropped.
                     client_count = len(sh_obj["clients"])
                     total_sensors = sum(
                         len(c.get("sensors", {})) if isinstance(c, dict) else 0
                         for c in sh_obj["clients"].values()
                     )
-                    results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
-                        f"PASS: populated clients{{}} form; "
-                        f"client_count={client_count}; total_sensors={total_sensors}; "
-                        f"stale={sh_obj['stale']!r}"
-                    )
+                    if client_count < 1 or total_sensors < 1:
+                        results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                            f"FAIL: cache populated form but zero clients or sensors — "
+                            f"health-cache-write regression (A22 must write at least one "
+                            f"client with one sensor); "
+                            f"client_count={client_count}; total_sensors={total_sensors}"
+                        )
+                    else:
+                        results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                            f"PASS: populated clients{{}} form; "
+                            f"client_count={client_count}; total_sensors={total_sensors}; "
+                            f"stale={sh_obj['stale']!r}"
+                        )
                 else:
                     # Unexpected shape — neither known form.
                     results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
@@ -3269,6 +3302,10 @@ def run_audit():
         #   check's expected layer — do not weaken to accept both. This coupling is
         #   intentional: deliberate parser hardening must cause a conscious update to
         #   this audit (same philosophy as POL-24 anchor checks).
+        #   Orchestrator adjudication: strict layer coupling retained (LOCAL pass-14,
+        #   reaffirmed pass-16). Rust unit-test status: sanitize_for_log has unit test
+        #   coverage in crates/prism-core/src/error.rs
+        #   (test_sanitize_for_log_strips_unicode_cc_and_line_separators).
         ctrl_col = "badcolumn\x01"
         h16_query = f'SELECT "{ctrl_col}" FROM crowdstrike_detections LIMIT 3'
         rid_h16 = next_id()
@@ -3858,6 +3895,7 @@ def run_audit():
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             proc.kill()
+        _mcp_log_fh.close()
 
     return results
 
@@ -3983,13 +4021,17 @@ MIN_COVERAGE_ITEMS = 103
 
 
 if __name__ == "__main__":
-    # F-AUD-P14-OBS-006: runtime coverage floor check — fail hard if COVERAGE_MATRIX shrinks
-    # below the registered floor. This catches accidental removal of coverage rows.
-    if len(COVERAGE_MATRIX) < MIN_COVERAGE_ITEMS:
+    # F-AUD-P14-OBS-006 (amended F-AUD-P16-LOW-002): runtime coverage equality gate —
+    # fail hard if COVERAGE_MATRIX count diverges from MIN_COVERAGE_ITEMS in EITHER
+    # direction. Shrinkage catches accidental removal; growth catches unenrolled rows
+    # (new check added without bumping MIN_COVERAGE_ITEMS). Bump MIN_COVERAGE_ITEMS
+    # explicitly when adding new checks.
+    if len(COVERAGE_MATRIX) != MIN_COVERAGE_ITEMS:
         print(
-            f"ERROR: Coverage floor violated: {MIN_COVERAGE_ITEMS} required, "
+            f"ERROR: Coverage count mismatch: {MIN_COVERAGE_ITEMS} expected, "
             f"{len(COVERAGE_MATRIX)} present — restore removed COVERAGE_MATRIX rows or "
-            f"bump MIN_COVERAGE_ITEMS with explicit adjudication."
+            f"bump MIN_COVERAGE_ITEMS when adding checks "
+            f"(mismatch in either direction fails here)."
         )
         sys.exit(1)
     print("=" * 80)
