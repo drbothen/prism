@@ -337,11 +337,6 @@ def _audit_sort_key(item_key: str):
 
 def run_audit():
     results = {}
-    # H14b precondition flag: set to True when A22 (check_sensor_health) is
-    # actually invoked (regardless of outcome), so H14b can distinguish between
-    # "A22 ran but cache is empty" (health-cache write regression) vs
-    # "A22 was never invoked" (precondition violation).
-    a22_executed = False
 
     proc = subprocess.Popen(
         [PRISM_BIN, "--config-dir", CONFIG_DIR, "start"],
@@ -575,7 +570,7 @@ def run_audit():
             # Save for use in subsequent checks
             _describe_org_c_tables = table_names
 
-        # ── A8: prism_describe org-c has all 10 required tables ─────────────
+        # ── A8: prism_describe org-c has all 5 core Stage-4 tables present (extended set covered by B11–B15) ─────────────
         REQUIRED_ORG_C_TABLES = {
             "crowdstrike_detections", "armis_devices", "claroty_devices",
             "claroty_audit_logs", "cyberint_alerts",
@@ -866,10 +861,6 @@ def run_audit():
         # The "sensors" field is a LIST (not a dict keyed by sensor_id).
         t0 = time.time()
         rid_csh = next_id()
-        # Mark A22 as executed before send_msg so H14b can distinguish "A22 ran but
-        # cache is empty" from "A22 was never invoked". Set here (not on success only)
-        # because the coupling is about invocation, not outcome.
-        a22_executed = True
         send_msg(proc, {"jsonrpc": "2.0", "id": rid_csh, "method": "tools/call",
                         "params": {"name": "check_sensor_health", "arguments": {"client_id": "org-c"}}})
         resp_csh, err_csh = read_msg(proc, timeout=15.0)
@@ -904,6 +895,10 @@ def run_audit():
                     probe_levels = list({s.get("probe_level") for s in sensors if isinstance(s, dict)})
                     reachable_all = all(s.get("reachable") is True for s in sensors if isinstance(s, dict))
                     auth_valid_all = all(s.get("auth_valid") is True for s in sensors if isinstance(s, dict))
+                    # F-AUD-P8-OBS-002: require all probe levels == "live" (defense-in-depth vs
+                    # S-5.03 hardcoded-Some(true) regression per BC-2.08.005; runbook Act 5 requires
+                    # probe_level "live").
+                    probe_level_live = all(p == "live" for p in probe_levels)
                     sensor_ids = [s.get("sensor_id") for s in sensors if isinstance(s, dict)]
                     # F-AUD-P2-HIGH-003: assert expected sensor set present (not vacuous all([])).
                     # Sensor ID values verified against crates/prism-sensors/specs/*.sensor.toml
@@ -917,10 +912,19 @@ def run_audit():
                             f"FAIL: {elapsed:.1f}s missing expected sensors={sorted(missing_sensors)}; "
                             f"got sensor_ids={sorted(present_sensors)}"
                         )
-                    elif overall == "healthy" and reachable_all and auth_valid_all:
+                    elif overall == "healthy" and reachable_all and auth_valid_all and probe_level_live:
                         results["[A22] check_sensor_health (S-5.04 gate)"] = (
                             f"PASS: {elapsed:.1f}s overall={overall}; probe_levels={probe_levels}; "
                             f"sensors={sorted(present_sensors)}; reachable_all={reachable_all}; auth_valid_all={auth_valid_all}"
+                        )
+                    elif overall == "healthy" and reachable_all and auth_valid_all and not probe_level_live:
+                        # Non-live probe levels mean actual sensor calls were not exercised —
+                        # BC-2.08.005 / runbook Act 5 requires probe_level "live" for demo preflight.
+                        non_live = sorted(set(p for p in probe_levels if p != "live"))
+                        results["[A22] check_sensor_health (S-5.04 gate)"] = (
+                            f"FAIL: {elapsed:.1f}s overall={overall} but non-live probe levels detected "
+                            f"(BC-2.08.005 / runbook Act 5 requires probe_level 'live'); "
+                            f"non_live_probe_levels={non_live!r}; sensors={sorted(present_sensors)}"
                         )
                     elif overall != "?":
                         # Demo preflight requires all sensors healthy; degraded/failing is a
@@ -2492,15 +2496,11 @@ def run_audit():
                     f"(HEAD-JOIN spec-sanctioned FP-001 confirmed)"
                 )
             elif not ec and not rows:
-                # Empty result with no error — spec-acceptable under FP-001 suspension rule
-                # (BC-2.11.016 §suspension: fail-open path may produce 0 rows rather than
-                # an error when the bare-column reference cannot be resolved at plan time).
-                # PARTIAL is justified here: positive coverage for this state would require
-                # a mutating trigger to produce rows with an unknown column, which is outside
-                # the read-only preflight constraint.
+                # FAIL-DEFECT per BC-2.11.016 §HEAD-JOIN SUSPENSION RULE: fail-open defers to "execution-time DataFusion error"; 0 rows + no error = swallowed DataFusion schema error, not a sanctioned outcome
                 results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
-                    "PARTIAL: no error, no rows — spec-acceptable FP-001 fail-open; "
-                    "positive-coverage requires mutating trigger (excluded by preflight constraint)"
+                    "FAIL: 0 rows, no error — swallowed DataFusion schema error per BC-2.11.016 "
+                    "§HEAD-JOIN SUSPENSION RULE; fail-open path defers to execution-time error, "
+                    "not silent 0-row success"
                 )
             else:
                 # Unexpected error code — neither E-QUERY-034 nor Internal error
@@ -2765,7 +2765,11 @@ def run_audit():
                     # cache is A22's fault — "investigate A22 first" is more actionable.
                     _a22_key = "[A22] check_sensor_health (S-5.04 gate)"
                     _a22_result = results.get(_a22_key, "")
-                    if not a22_executed or _a22_key not in results:
+                    # H14b precondition: every A22 code path writes a result entry; an uncaught
+                    # transport exception halts the audit before H14b is reached. Therefore
+                    # `_a22_key not in results` is the sole reliable precondition gate —
+                    # the retired a22_executed flag was a dead disjunct (F-AUD-P8-LOW-001).
+                    if _a22_key not in results:
                         results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
                             f"FAIL: precondition violation — A22 (check_sensor_health) not executed before H14b; "
                             f"run A22 first to populate the health cache; "
@@ -3513,6 +3517,7 @@ if __name__ == "__main__":
     pass_count = 0
     fail_count = 0
     warn_count = 0
+    # no PARTIAL emitters remain as of pass-8 (F-AUD-P8-OBS-003); prefix kept defensively
     partial_count = 0  # F-AUD-P5-OBS-001: separate from warn_count
     na_count = 0
 
