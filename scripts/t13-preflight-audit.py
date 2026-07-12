@@ -651,7 +651,7 @@ def run_audit():
                          if isinstance(v, dict) and "status" in v}
                     )
                     # F-AUD-P14-OBS-001: not_registered_tools must be >= 1 in both branches.
-                    # server.rs NOT_YET_AVAILABLE_TOOLS (line ~1447) has 40 entries on develop;
+                    # server.rs NOT_YET_AVAILABLE_TOOLS has 40 entries on develop;
                     # an empty list means the field was not populated → render regression.
                     if not isinstance(not_reg, list) or len(not_reg) == 0:
                         results["[A6] list_capabilities tri-state model fields"] = (
@@ -669,17 +669,17 @@ def run_audit():
                         )
             else:
                 # Empty capabilities: correct for develop@5f1b5771 demo build.
-                # server.rs list_capabilities per-client path (line ~4217-4233):
+                # server.rs list_capabilities per-client path:
                 #   registry_paths = endpoint_registry.all_capability_paths() → empty
                 #     (no [[write_endpoints]] declarations in any sensor TOML)
                 #   client_paths = ff.capability_paths_for_client("org-c") → empty
                 #     (no clients.org-c.capabilities section in prism-demo.toml)
                 #   all_paths = registry_paths ∪ client_paths → empty set
-                # Loop over all_paths is a no-op → capabilities = {} (server.rs line ~4235-4326).
+                # Loop over all_paths is a no-op → capabilities = {} (server.rs all_paths iteration).
                 # BC-2.10.011 does not require >= 1 capability entry; empty map is valid
                 # when no write capability paths are configured at compile-time or runtime.
                 # F-AUD-P14-OBS-001: not_registered_tools must be a non-empty list (>= 1).
-                # server.rs NOT_YET_AVAILABLE_TOOLS (line ~1447) has 40 entries on develop;
+                # server.rs NOT_YET_AVAILABLE_TOOLS has 40 entries on develop;
                 # an empty list means the field was not populated → render regression.
                 if not isinstance(not_reg, list):
                     results["[A6] list_capabilities tri-state model fields"] = (
@@ -698,7 +698,7 @@ def run_audit():
                         f"PASS: capabilities empty (all_paths = registry_paths ∪ "
                         f"client_paths = {{}} — no write_endpoint declarations in sensor "
                         f"TOMLs, no capabilities in prism-demo.toml; "
-                        f"server.rs list_capabilities line ~4217-4233); "
+                        f"server.rs list_capabilities); "
                         f"not_registered_tools={list(not_reg)[:3]!r} (len={len(not_reg)}); "
                         f"tri-state fields present (BC-2.10.011 single-client mode)"
                     )
@@ -910,7 +910,7 @@ def run_audit():
             body_text = msgs[0].get("content", {}).get("text", "") if msgs else ""
             # F-AUD-P4-LOW-001: replace ambiguous has_dot/has_underscore sweep and dead
             # PARTIAL branch with explicit anchor checks against the shipped prompt body
-            # (prompts.rs render_triage_alerts ~line 344).
+            # (prompts.rs render_triage_alerts).
             # The shipped prompt references exactly 3 sensor-prefixed FROMs:
             #   "FROM crowdstrike_detections", "FROM claroty_alerts", "FROM armis_alerts"
             # cyberint is NOT in the prompt body — do not require it (anchor to reality).
@@ -977,7 +977,7 @@ def run_audit():
         rid = next_id()
         send_msg(proc, {"jsonrpc": "2.0", "id": rid, "method": "tools/call",
                         "params": {"name": "list_infusions", "arguments": {}}})
-        resp, err = read_msg(proc, timeout=5.0)
+        resp, err = read_msg(proc, timeout=5.0, expected_id=rid)
         elapsed = time.time() - t0
         if err:
             results["[A19] HANG-FIX: list_infusions returns promptly"] = f"FAIL: {err} ({elapsed:.2f}s)"
@@ -999,7 +999,7 @@ def run_audit():
         rid = next_id()
         send_msg(proc, {"jsonrpc": "2.0", "id": rid, "method": "tools/call",
                         "params": {"name": "plugin_status", "arguments": {"plugin_id": "crowdstrike-oauth2"}}})
-        resp, err = read_msg(proc, timeout=5.0)
+        resp, err = read_msg(proc, timeout=5.0, expected_id=rid)
         elapsed = time.time() - t0
         if err:
             results["[A20] HANG-FIX: plugin_status returns promptly"] = f"FAIL: {err} ({elapsed:.2f}s)"
@@ -1021,7 +1021,7 @@ def run_audit():
         rid = next_id()
         send_msg(proc, {"jsonrpc": "2.0", "id": rid, "method": "tools/call",
                         "params": {"name": "infusion_status", "arguments": {"infusion_id": "threatintel"}}})
-        resp, err = read_msg(proc, timeout=5.0)
+        resp, err = read_msg(proc, timeout=5.0, expected_id=rid)
         elapsed = time.time() - t0
         if err:
             results["[A21] HANG-FIX: infusion_status returns promptly"] = f"FAIL: {err} ({elapsed:.2f}s)"
@@ -1068,7 +1068,7 @@ def run_audit():
             _rid = next_id()
             send_msg(proc, {"jsonrpc": "2.0", "id": _rid, "method": "tools/call",
                             "params": {"name": _nya_name, "arguments": {}}})
-            _resp, _err = read_msg(proc, timeout=5.0)
+            _resp, _err = read_msg(proc, timeout=5.0, expected_id=_rid)
             if _err:
                 _nya_deviants.append((_nya_name, f"timeout/error: {_err}"))
             elif "error" in _resp:
@@ -3549,15 +3549,16 @@ def run_audit():
         # protocol — positive coverage (confirming a notification was delivered) would
         # require a mutating trigger, which is excluded by the read-only preflight
         # constraint.  PASS here means: no hang + no panic + no -32601 / transport error.
-        # OBS-002: tighten subscribe timeout from 10.0s to 5.0s (smoke-only check; any valid
-        # server response arrives in < 1s; 10s was unnecessarily loose for a no-hang test)
+        # OBS-002: tighten subscribe AND unsubscribe timeouts from 10.0s to 5.0s (smoke-only
+        # checks; any valid server response arrives in < 1s; 10s was unnecessarily loose for
+        # a no-hang test; F-AUD-P20-LOW-002 applies to both sides of the round-trip)
         res_sub, err_sub = resources_subscribe(proc, "prismql://schema/org-c", timeout=5.0)
         if err_sub:
             results["[H14e] resources/subscribe+unsubscribe: prismql://schema/org-c (smoke-only)"] = (
                 f"FAIL: subscribe: {err_sub}"
             )
         else:
-            res_unsub, err_unsub = resources_unsubscribe(proc, "prismql://schema/org-c", timeout=10.0)
+            res_unsub, err_unsub = resources_unsubscribe(proc, "prismql://schema/org-c", timeout=5.0)
             if err_unsub:
                 results["[H14e] resources/subscribe+unsubscribe: prismql://schema/org-c (smoke-only)"] = (
                     f"FAIL: subscribe OK but unsubscribe failed: {err_unsub}"
@@ -3640,7 +3641,7 @@ def run_audit():
         send_msg(proc, {"jsonrpc": "2.0", "id": rid_h16, "method": "tools/call",
                         "params": {"name": "query",
                                    "arguments": {"query": h16_query, "clients": ["org-c"]}}})
-        resp_h16, err_h16 = read_msg(proc, timeout=15.0)
+        resp_h16, err_h16 = read_msg(proc, timeout=15.0, expected_id=rid_h16)
         if err_h16:
             results["[H16] CWE-116/117: control-char in column name sanitized"] = f"FAIL: {err_h16}"
         else:
@@ -3715,7 +3716,7 @@ def run_audit():
         send_msg(proc, {"jsonrpc": "2.0", "id": rid_h16b, "method": "tools/call",
                         "params": {"name": "query",
                                    "arguments": {"query": h16b_query, "clients": ["org-c"]}}})
-        resp_h16b, err_h16b = read_msg(proc, timeout=15.0)
+        resp_h16b, err_h16b = read_msg(proc, timeout=15.0, expected_id=rid_h16b)
         if err_h16b:
             results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized (smoke-only)"] = f"FAIL: {err_h16b}"
         else:
