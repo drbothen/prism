@@ -498,25 +498,39 @@ def run_audit():
     print(f"  MCP server log: {_mcp_log_path}")
 
     try:
-        # LOW-003 (F-AUD-P25): replace fixed 3s sleep with ready-probe loop.
-        # Poll every 0.5s; proceed as soon as the process is alive (proc.poll() is None).
-        # Budget: 15s total — bounds cold-start + RocksDB open overhead; FAIL immediately
-        # if the process exits before the budget expires.  Worst-case wait is 15s (same
-        # ballpark as before, but warm starts proceed in <0.5s instead of always 3s).
+        # MED-001 (F-AUD-P26): boot ready-probe — two-phase design:
+        #   (a) Stability window (2.0s): poll every 0.5s; once the process has been
+        #       continuously alive for 2.0s, break and proceed to initialize.
+        #       Warm starts complete in <0.5s; cold-start RocksDB open can take several
+        #       seconds but the process remains alive throughout — the stability window
+        #       fires after 2.0s of continued life regardless of server readiness.
+        #   (b) Crash detection: if the process exits at ANY point within the 15s total
+        #       budget, fail immediately with exit info.
+        # The initialize call below has its own 10s read timeout as the real readiness gate.
         _boot_budget_s = 15.0
+        _boot_stability_window_s = 2.0
         _boot_poll_interval_s = 0.5
         _boot_elapsed = 0.0
+        _boot_stable_elapsed = 0.0
         rc = proc.poll()
-        while rc is None and _boot_elapsed < _boot_budget_s:
+        while _boot_elapsed < _boot_budget_s:
+            if rc is not None:
+                # Process exited before the stability window completed — immediate FAIL.
+                _mcp_log_fh.flush()
+                with open(_mcp_log_path) as f:
+                    last_lines = f.readlines()[-5:]
+                results["BOOT"] = (
+                    f"FAIL: process exited rc={rc} after {_boot_elapsed:.1f}s, "
+                    f"last log: {''.join(last_lines).strip()}"
+                )
+                return results
+            _boot_stable_elapsed += _boot_poll_interval_s
+            if _boot_stable_elapsed >= _boot_stability_window_s:
+                # Process alive for stability window — proceed to initialize.
+                break
             time.sleep(_boot_poll_interval_s)
             _boot_elapsed += _boot_poll_interval_s
             rc = proc.poll()
-        if rc is not None:
-            _mcp_log_fh.flush()
-            with open(_mcp_log_path) as f:
-                last_lines = f.readlines()[-5:]
-            results["BOOT"] = f"FAIL: process exited rc={rc}, last log: {''.join(last_lines).strip()}"
-            return results
 
         # ── Initialize ─────────────────────────────────────────────────────────
         rid = next_id()
@@ -611,20 +625,49 @@ def run_audit():
                     f"(14 expected, 14 present; OBS-002 exact-equality confirmed)"
                 )
 
-        # ── A3: resources/list — prismql://reference listed ─────────────────
+        # ── A3: resources/list — exact static resource set ───────────────────
+        # LOW-003 (F-AUD-P26): require ALL 3 static resources returned by
+        # build_resource_list() in crates/prism-mcp/src/resources.rs:
+        #   URI_CONFIG_CLIENTS = "prism://config/clients"
+        #   URI_SENSORS_HEALTH = "prism://sensors/health"
+        #   schema::URI_PQL_REFERENCE = "prismql://reference"
+        # Template-resources (prismql://schema/{client_id}, prism://config/clients/{client_id}/sensors,
+        # prism://schema/{sensor_id}/{table_name}) live in resources/list_templates, NOT
+        # resources/list — do not require them here.
+        # Exact-set discipline (A2 parity): missing OR extra static resources → FAIL.
+        # CONSCIOUS-UPDATE REQUIRED: if build_resource_list() is updated to add or remove
+        # a static resource, update REQUIRED_RESOURCES in the same change.
+        REQUIRED_RESOURCES = {
+            "prism://config/clients",
+            "prism://sensors/health",
+            "prismql://reference",
+        }
         res_result, err = list_resources(proc)
         if err:
             results["[A3] resources/list: prismql://reference listed"] = f"FAIL: {err}"
         else:
-            resource_uris = [r.get("uri", "") for r in res_result.get("resources", [])]
-            if "prismql://reference" in resource_uris:
-                results["[A3] resources/list: prismql://reference listed"] = f"PASS: {len(resource_uris)} resources, prismql://reference present"
+            resource_uris = {r.get("uri", "") for r in res_result.get("resources", [])}
+            missing_res = REQUIRED_RESOURCES - resource_uris
+            extra_res = resource_uris - REQUIRED_RESOURCES
+            if missing_res or extra_res:
+                results["[A3] resources/list: prismql://reference listed"] = (
+                    f"FAIL: exact-set mismatch — "
+                    f"missing={sorted(missing_res) or 'none'}, "
+                    f"extra={sorted(extra_res) or 'none'}; "
+                    f"got: {sorted(resource_uris)}"
+                )
             else:
-                results["[A3] resources/list: prismql://reference listed"] = f"FAIL: prismql://reference not listed; got: {resource_uris}"
+                results["[A3] resources/list: prismql://reference listed"] = (
+                    f"PASS: {len(resource_uris)} resources — exact set match "
+                    f"({sorted(resource_uris)})"
+                )
 
-        # ── A4: prompts/list — all 5 prompts listed ──────────────────────────
+        # ── A4: prompts/list — exact 5-prompt set ────────────────────────────
         # prompts.rs registers 5 static prompts (query_tutorial, investigate_host,
         # triage_alerts, client_overview, cross_client_status). H13 exercises the 2 new ones.
+        # MED-002 (F-AUD-P26): mirror A2's exact-set discipline — fail on missing OR extra.
+        # CONSCIOUS-UPDATE REQUIRED: if prompts.rs is updated to add or remove a prompt,
+        # update EXPECTED_PROMPTS in the same change.
         prompts_result, err = list_prompts(proc)
         EXPECTED_PROMPTS = {
             "query_tutorial", "investigate_host", "triage_alerts",
@@ -635,10 +678,19 @@ def run_audit():
         else:
             prompt_names = {p.get("name", "") for p in prompts_result.get("prompts", [])}
             missing = EXPECTED_PROMPTS - prompt_names
-            if missing:
-                results["[A4] prompts/list: all 5 prompts listed"] = f"FAIL: missing: {sorted(missing)}; got: {sorted(prompt_names)}"
+            extra = prompt_names - EXPECTED_PROMPTS
+            if missing or extra:
+                results["[A4] prompts/list: all 5 prompts listed"] = (
+                    f"FAIL: exact-set mismatch — "
+                    f"missing={sorted(missing) or 'none'}, "
+                    f"extra={sorted(extra) or 'none'}; "
+                    f"got: {sorted(prompt_names)}"
+                )
             else:
-                results["[A4] prompts/list: all 5 prompts listed"] = f"PASS: {sorted(prompt_names)}"
+                results["[A4] prompts/list: all 5 prompts listed"] = (
+                    f"PASS: {len(prompt_names)} prompts — exact set match "
+                    f"(5 expected, 5 present); {sorted(prompt_names)}"
+                )
 
         # ── A5: list_capabilities: D-1312 MAJOR-001 client_registered=true ──
         body, err = tool_call(proc, "list_capabilities", {"client_id": "org-c"})
@@ -1015,17 +1067,28 @@ def run_audit():
             error_code = body.get("error_code", "")
             msg = body.get("message", "")
             if error_code == "E-QUERY-037":
-                # F-AUD-P7-LOW-004 (POL-24): same anchor as F3 — E-QUERY-037 Display.
-                has_anchor = "Available tables:" in msg
-                if has_anchor:
+                # F-AUD-P7-LOW-004 (POL-24): same two-anchor check as F3 — E-QUERY-037
+                # message_template has BOTH segments:
+                #   "... Available sensors: [{available_sensors}]. Available tables: [{available_tables}]..."
+                # LOW-002 (F-AUD-P26): require both 'Available sensors:' AND 'Available tables:'.
+                has_sensor_anchor = "Available sensors:" in msg
+                has_table_anchor = "Available tables:" in msg
+                if has_sensor_anchor and has_table_anchor:
                     results["[A15] N2: dot-notation FROM -> E-QUERY-037"] = (
-                        f"PASS: E-QUERY-037 + anchor 'Available tables:' confirmed; "
+                        f"PASS: E-QUERY-037 + both anchors confirmed "
+                        f"('Available sensors:' + 'Available tables:'); "
                         f"message={msg[:80]!r}"
                     )
                 else:
+                    missing_anchors = []
+                    if not has_sensor_anchor:
+                        missing_anchors.append("'Available sensors:'")
+                    if not has_table_anchor:
+                        missing_anchors.append("'Available tables:'")
                     results["[A15] N2: dot-notation FROM -> E-QUERY-037"] = (
-                        f"FAIL: E-QUERY-037 but message-template anchor 'Available tables:' "
-                        f"absent — message-template regression (POL-24); message={msg[:80]!r}"
+                        f"FAIL: E-QUERY-037 but message-template anchor(s) "
+                        f"{', '.join(missing_anchors)} absent — regression (POL-24); "
+                        f"message={msg[:80]!r}"
                     )
             elif not error_code and body.get("rows") is not None:
                 results["[A15] N2: dot-notation FROM -> E-QUERY-037"] = "FAIL: returned rows silently (no error)"
@@ -1309,14 +1372,19 @@ def run_audit():
                         # POL-24 conscious coupling accepted — the 4-sensor set is defined by
                         # crates/prism-sensors/specs/*.sensor.toml entries registered for org-c
                         # (demo config: .prism/config.toml / demo-config.toml sensor_type assignments).
+                        # MED-003 (F-AUD-P26): mirror A2/A4 exact-set discipline — fail on extra
+                        # sensors as well as missing, so unexpected sensor registrations surface.
                         # CONSCIOUS-UPDATE REQUIRED: if the org-c demo config is updated to add or
                         # remove a sensor type, EXPECTED_SENSORS must be updated in the same change.
                         EXPECTED_SENSORS = {"crowdstrike", "armis", "claroty", "cyberint"}
                         present_sensors = set(sid for sid in sensor_ids if sid)
                         missing_sensors = EXPECTED_SENSORS - present_sensors
-                        if missing_sensors:
+                        extra_sensors = present_sensors - EXPECTED_SENSORS
+                        if missing_sensors or extra_sensors:
                             results[_A22_RESULT_KEY] = (
-                                f"FAIL: {elapsed:.1f}s missing expected sensors={sorted(missing_sensors)}; "
+                                f"FAIL: {elapsed:.1f}s exact-set mismatch — "
+                                f"missing={sorted(missing_sensors) or 'none'}, "
+                                f"extra={sorted(extra_sensors) or 'none'}; "
                                 f"got sensor_ids={sorted(present_sensors)}"
                             )
                         elif overall == "healthy" and reachable_all and auth_valid_all and probe_level_live:
@@ -2239,19 +2307,30 @@ def run_audit():
             error_code = body.get("error_code", "")
             msg = body.get("message", "")
             if error_code == "E-QUERY-037":
-                # F-AUD-P7-LOW-004 (POL-24): verify message-template anchor from
-                # error-taxonomy.md §E-QUERY-037 / TableNotAvailableDetails Display:
-                # "E-QUERY-037: table '...' is not available ... Available tables: [...]."
-                has_anchor = "Available tables:" in msg
-                if has_anchor:
+                # F-AUD-P7-LOW-004 (POL-24): verify BOTH message-template segments from
+                # error-taxonomy.md §E-QUERY-037 message_template:
+                #   "... Available sensors: [{available_sensors}]. Available tables: [{available_tables}]..."
+                # LOW-002 (F-AUD-P26): require both 'Available sensors:' AND 'Available tables:'
+                # — the single-anchor check was incomplete; only requiring 'Available tables:'
+                # would miss a regression where the sensors segment was dropped.
+                has_sensor_anchor = "Available sensors:" in msg
+                has_table_anchor = "Available tables:" in msg
+                if has_sensor_anchor and has_table_anchor:
                     results["[F3] N2: dot-notation FROM -> E-QUERY-037"] = (
-                        f"PASS: E-QUERY-037 + anchor 'Available tables:' confirmed; "
+                        f"PASS: E-QUERY-037 + both anchors confirmed "
+                        f"('Available sensors:' + 'Available tables:'); "
                         f"message={msg[:80]!r}"
                     )
                 else:
+                    missing_anchors = []
+                    if not has_sensor_anchor:
+                        missing_anchors.append("'Available sensors:'")
+                    if not has_table_anchor:
+                        missing_anchors.append("'Available tables:'")
                     results["[F3] N2: dot-notation FROM -> E-QUERY-037"] = (
-                        f"FAIL: E-QUERY-037 but message-template anchor 'Available tables:' "
-                        f"absent — message-template regression (POL-24); message={msg[:80]!r}"
+                        f"FAIL: E-QUERY-037 but message-template anchor(s) "
+                        f"{', '.join(missing_anchors)} absent — regression (POL-24); "
+                        f"message={msg[:80]!r}"
                     )
             elif not error_code and body.get("rows") is not None:
                 results["[F3] N2: dot-notation FROM -> E-QUERY-037"] = "FAIL: returned rows silently (no error)"
@@ -3013,8 +3092,15 @@ def run_audit():
                 has_avail_text = "available: [" in msg
                 # Also check structuredContent.error fields (MED-002: sc fields required)
                 sc_dym = sc_err.get("did_you_mean", "") if sc_err else ""
-                # LOW-001: guard against non-list available_columns (e.g. None or wrong type)
+                # LOW-001: guard against non-list available_columns (e.g. None or wrong type).
+                # LOW-006 (F-AUD-P26): when _raw_avail is present but not a list, include
+                # type(__name__) in the FAIL diagnostic so shape regressions are distinguishable
+                # from empty-list (None produces type 'NoneType'; a dict produces 'dict', etc.).
                 _raw_avail = sc_err.get("available_columns") if sc_err else None
+                if _raw_avail is not None and not isinstance(_raw_avail, list):
+                    _sc_avail_type_note = f" (available_columns wrong type: {type(_raw_avail).__name__!r})"
+                else:
+                    _sc_avail_type_note = ""
                 sc_avail = _raw_avail if isinstance(_raw_avail, list) else []
                 # F-AUD-P3-MED-002: PASS requires BOTH text anchors AND both sc fields:
                 # did_you_mean must equal "severity" exactly (typo "sevrity" → Levenshtein-1
@@ -3032,7 +3118,8 @@ def run_audit():
                 elif has_dym_text and has_avail_text and not has_sc_fields:
                     results["[H2] E-QUERY-038 did_you_mean + available_columns payload"] = (
                         f"FAIL: text anchors present but structuredContent.error regression — "
-                        f"sc_dym={sc_dym!r} sc_avail count={len(sc_avail)}; "
+                        f"sc_dym={sc_dym!r} sc_avail count={len(sc_avail)}"
+                        f"{_sc_avail_type_note}; "
                         f"F-AUD-P3-MED-002: sc fields required for structured UX payload"
                     )
                 else:
@@ -3241,16 +3328,23 @@ def run_audit():
                 )
 
         # ── H5c: E-QUERY-042 NonColumnLhsComparison arm — function-call LHS (ADR-052 §D4 arm 4) ─
-        # Query: 'FROM crowdstrike_detections | where lower(hostname) = '2026-06-24''
-        # lower(hostname) is a non-Field LHS (function call); '2026-06-24' is a date-only
+        # Query: 'FROM crowdstrike_detections | where lower(device_id) = '2026-06-24''
+        # lower(device_id) is a non-Field LHS (function call); '2026-06-24' is a date-only
         # RawTemporalLiteral. Arm 4: RawTemporalLiteral where LHS is a function/compound
         # expression → E-QUERY-042 NonColumnLhsComparison.
-        # hostname is a String column in crowdstrike_detections (crowdstrike.sensor.toml).
+        # MED-004 (F-AUD-P26): device_id is a String column in crowdstrike_detections —
+        # verified against crates/prism-sensors/specs/crowdstrike.sensor.toml [[tables]]
+        # detections block (name="device_id", column_type="string").  The previous probe used
+        # lower(hostname), but hostname is NOT a column in the detections table (it lives in
+        # the devices table); using a non-existent column would cause E-QUERY-038 to fire
+        # before the E-QUERY-042 gate, making this check robust only under the current
+        # plan-time gate ordering.  lower(device_id) exercises the correct arm 4 path
+        # regardless of gate ordering.
         # POL-24 anchors from error.rs TemporalLiteralPosition::NonColumnLhsComparison::format_message():
         #   "A date-like literal compared against a computed expression cannot be"
         #   "type-checked at plan time"
         body, err = query(proc,
-            "FROM crowdstrike_detections\n| where lower(hostname) = '2026-06-24'\n| limit 5",
+            "FROM crowdstrike_detections\n| where lower(device_id) = '2026-06-24'\n| limit 5",
             ["org-c"])
         if err:
             results["[H5c] E-QUERY-042: date-only literal vs function-call LHS (ADR-052 §D4)"] = f"FAIL: {err}"
@@ -4054,16 +4148,19 @@ def run_audit():
         # checks; any valid server response arrives in < 1s; 10s was unnecessarily loose for
         # a no-hang test; F-AUD-P20-LOW-002 applies to both sides of the round-trip)
         # F-AUD-P24-MED-002 (server-side subscribe URI validation gap confirmed):
-        #   server.rs::subscribe (line ~5697) uses `strip_prefix("prismql://schema/")` to
-        #   dispatch — URIs that do NOT carry this prefix return Ok(()) silently (no rejection).
-        #   URIs that DO carry the prefix are accepted for any valid-format OrgSlug
+        #   server.rs::subscribe (`strip_prefix("prismql://schema/")`) dispatches on prefix
+        #   only — URIs without this prefix return Ok(()) silently (no rejection).
+        #   URIs with the prefix are accepted for any valid-format OrgSlug
         #   ([a-zA-Z0-9_-]{1,64}) regardless of whether the client actually exists; no
         #   resource-existence check is performed.  A negative probe to
         #   `prismql://schema/does-not-exist-preflight-negative-probe` would return Ok()
         #   (valid slug format → accepted), NOT -32602 — adding it here would false-PASS
         #   rather than demonstrate rejection.  Negative-probe coverage is blocked until
-        #   the server validates URIs against known client slugs; tracked for follow-up at
-        #   cascade close (F-AUD-P24-MED-002).
+        #   the server validates URIs against known client slugs; tracked in
+        #   .factory/STATE.md D-1696 S-7.02 cascade-close queue (item: server-side
+        #   resources/subscribe URI validation); follow-up story to be drafted at cascade close.
+        #   LOW-005 (F-AUD-P26): updated tracking reference from ephemeral cascade-close
+        #   placeholder to durable STATE.md D-1696 anchor.
         res_sub, err_sub = resources_subscribe(proc, "prismql://schema/org-c", timeout=5.0)
         if err_sub:
             results["[H14e] resources/subscribe+unsubscribe: prismql://schema/org-c (smoke-only)"] = (
@@ -4173,7 +4270,7 @@ def run_audit():
             # control chars (U+0080–U+009F) and the line/paragraph separators.
             raw_content = resp_h16.get("result", {}).get("content", []) if resp_h16 else []
             raw_text = raw_content[0].get("text", "") if raw_content else ""
-            # _LS_PS (U+2028/U+2029) defined at H16 section header (line ~3967); used here and H16b.
+            # _LS_PS (U+2028/U+2029) defined at H16 section header (_LS_PS constant); used here and H16b.
             control_chars_found = [c for c in raw_text
                                     if (unicodedata.category(c) == "Cc" or c in _LS_PS)
                                     and c not in ("\n", "\r", "\t")]
@@ -4770,6 +4867,8 @@ def run_audit():
                 if not _changelog_matches_all:
                     # No changelog heading found — scan entire file (graceful fallback).
                     _runbook_text = _runbook_text_full
+                    # LOW-004 (F-AUD-P26): fence-stripped full file for bad-form scan.
+                    _runbook_bad_scan_text = _runbook_text_no_fence
                 else:
                     # use LAST match (MULTILINE regex on fence-stripped copy); .start() offset
                     # is identical in _runbook_text_full (fence-stripping preserves offsets).
@@ -4777,23 +4876,34 @@ def run_audit():
                     # are treated as scanned body content, not truncation targets.
                     _last_changelog_match = _changelog_matches_all[-1]
                     _runbook_text = _runbook_text_full[:_last_changelog_match.start()]
-                # Pattern checks run unconditionally after _runbook_text is set (regardless
-                # of whether a changelog heading was found).
+                    # LOW-004 (F-AUD-P26): fence-stripped + truncated for bad-form scan so
+                    # pedagogical negative examples inside code fences cannot false-FAIL.
+                    # Fence-stripping preserves character offsets, so
+                    # _last_changelog_match.start() is valid for both _runbook_text_full
+                    # and _runbook_text_no_fence.
+                    _runbook_bad_scan_text = _runbook_text_no_fence[:_last_changelog_match.start()]
+                # Pattern checks run unconditionally after _runbook_text / _runbook_bad_scan_text
+                # are set (regardless of whether a changelog heading was found).
                 # ── Bad-form patterns: non-_first column arg for any of the 6 typed UDFs ──
+                # Run against _runbook_bad_scan_text (fence-stripped + truncated) so code-fence
+                # negative examples in the instructional body don't false-FAIL (LOW-004).
                 # ThreatIntel UDFs × JSON-list columns (closing \) excludes _first forms)
                 _bad_threatintel = re.findall(
                     r"(?:threat_score|threat_is_known_malicious|threat_sources)"
                     r"\((?:iocs_value|behaviors_ioc_value)\)",
-                    _runbook_text,
+                    _runbook_bad_scan_text,
                 )
                 # NVD UDFs × JSON-list column (device_cves; device_cves_first excluded by \))
                 _bad_nvd = re.findall(
                     r"(?:cvss_base_score|cvss_severity|cvss_vector)\(device_cves\)",
-                    _runbook_text,
+                    _runbook_bad_scan_text,
                 )
                 _bad_matches_all = _bad_threatintel + _bad_nvd
 
                 # ── Good-form patterns: _first scalar-companion column for any of the 6 UDFs ──
+                # Run against _runbook_text (non-fence-stripped + truncated): _first forms
+                # don't appear in pedagogical negative examples, so fence-stripping is not
+                # required here.
                 _good_threatintel = re.findall(
                     r"(?:threat_score|threat_is_known_malicious|threat_sources)"
                     r"\((?:iocs_value_first|behaviors_ioc_value_first)\)",
