@@ -913,22 +913,33 @@ def run_audit():
             results["[B3] Claroty org-c: claroty_devices returns data"] = f"PASS: {len(rows)} rows"
 
         # ── B4: Claroty audit_logs org-c ──────────────────────────────────────
-        body, err = query(proc, "FROM claroty_audit_logs | limit 5", ["org-c"])
+        # F-AUD-P5-LOW-004: query with limit 10 (> fixture size) and assert exactly 5 rows.
+        # The static 5-row fixture (crates/prism-dtu-claroty/fixtures/audit-log.json,
+        # gap-analysis §4 guardrail #6) always returns exactly 5 rows regardless of limit.
+        # Querying with limit 10 and asserting exactly 5 verifies both:
+        #   (a) the fixture is returning data, and
+        #   (b) the fixture has not unexpectedly grown (which would signal a config error).
+        body, err = query(proc, "FROM claroty_audit_logs | limit 10", ["org-c"])
         if err:
             results["[B4] Claroty org-c: claroty_audit_logs returns data"] = f"FAIL: {err}"
         elif body.get("error_code"):
             results["[B4] Claroty org-c: claroty_audit_logs returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if rows:
+            if len(rows) == 5:
                 col_names = list(rows[0].keys()) if rows else []
-                # Check for expected columns: id, action, actor, resource, timestamp
-                results["[B4] Claroty org-c: claroty_audit_logs returns data"] = f"PASS: {len(rows)} rows; sample cols={col_names[:6]}"
+                results["[B4] Claroty org-c: claroty_audit_logs returns data"] = (
+                    f"PASS: exactly 5 rows (static fixture confirmed; gap-analysis §4 guardrail #6); "
+                    f"sample cols={col_names[:6]}"
+                )
+            elif rows:
+                results["[B4] Claroty org-c: claroty_audit_logs returns data"] = (
+                    f"FAIL: {len(rows)} rows (expected exactly 5 from static fixture, "
+                    f"crates/prism-dtu-claroty/fixtures/audit-log.json; "
+                    f"gap-analysis §4 guardrail #6)"
+                )
             else:
-                # F-AUD-P2-HIGH-001: claroty_audit_logs uses a static 5-row fixture
-                # (crates/prism-dtu-claroty/fixtures/audit-log.json, shared by all
-                # orgs regardless of stage/seed — gap-analysis §4 guardrail #6).
-                # 0 rows is impossible on a healthy DTU → FAIL, not WARN.
+                # F-AUD-P2-HIGH-001: static 5-row fixture must always return data
                 results["[B4] Claroty org-c: claroty_audit_logs returns data"] = "FAIL: 0 rows (static 5-row fixture must always return data; gap-analysis §4 guardrail #6)"
 
         # ── B5: Cyberint alerts org-c ─────────────────────────────────────────
@@ -1218,19 +1229,31 @@ def run_audit():
                 results["[D3] IOC-FIELDS: CS behaviors_ioc_type at Stage 2+"] = "FAIL: 0 rows with behaviors_ioc_type IS NOT NULL (Stage 4 guarantees Stage 2+ IOC fields)"
 
         # ── D4: Claroty audit_logs at Stage 4 ────────────────────────────────
-        body, err = query(proc, "FROM claroty_audit_logs | limit 5", ["org-c"])
+        # F-AUD-P5-LOW-004: D4 queries the same fixture-backed table (claroty_audit_logs)
+        # without stage/time filtering — apply the same exact-5 strictness as B4.
+        # query with limit 10 (> fixture size) and assert exactly 5 rows.
+        body, err = query(proc, "FROM claroty_audit_logs | limit 10", ["org-c"])
         if err:
             results["[D4] Claroty audit_logs at Stage 4 (org-c)"] = f"FAIL: {err}"
         elif body.get("error_code"):
             results["[D4] Claroty audit_logs at Stage 4 (org-c)"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if rows:
+            if len(rows) == 5:
                 first = rows[0]
                 # Check for key columns: id, action, actor, resource, timestamp
                 has_id = "id" in first
                 has_action = "action" in first
-                results["[D4] Claroty audit_logs at Stage 4 (org-c)"] = f"PASS: {len(rows)} rows; id={has_id}, action={has_action}; cols={list(first.keys())[:6]}"
+                results["[D4] Claroty audit_logs at Stage 4 (org-c)"] = (
+                    f"PASS: exactly 5 rows (static fixture confirmed; gap-analysis §4 guardrail #6); "
+                    f"id={has_id}, action={has_action}; cols={list(first.keys())[:6]}"
+                )
+            elif rows:
+                results["[D4] Claroty audit_logs at Stage 4 (org-c)"] = (
+                    f"FAIL: {len(rows)} rows (expected exactly 5 from static fixture, "
+                    f"crates/prism-dtu-claroty/fixtures/audit-log.json; "
+                    f"gap-analysis §4 guardrail #6)"
+                )
             else:
                 # F-AUD-P2-HIGH-001: claroty_audit_logs uses static 5-row fixture
                 # (gap-analysis §4 guardrail #6) — 0 rows is impossible on healthy DTU.
@@ -1546,9 +1569,8 @@ def run_audit():
         # Runbook Step 3.1a / §5.9 checklist item 1.
         # IEQ lowers both sides: lower(severity) = lower('critical').
         # Stored form is 'Critical' (OCSF Title-case at adapter boundary per enum_map.rs).
-        # NOTE: the runbook demo query uses 'high' but crowdstrike_detections scenario
-        # data has 'Critical'/'Medium' (not 'High'). We test 'critical' to confirm the
-        # IEQ feature; a separate audit note flags the runbook Step 3.1a mismatch.
+        # F-AUD-P5-LOW-002: runbook v1.7+ (changelog ~line 1116) amended Step 3.1a to
+        # use 'critical'; this test is aligned with the amended runbook. No mismatch.
         body, err = query(proc,
             "FROM crowdstrike_detections\n| where severity IEQ 'critical'\n| limit 50",
             ["org-c"])
@@ -1581,7 +1603,7 @@ def run_audit():
                     sample_sev = sorted(set(severities))
                     results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = (
                         f"PASS: {len(rows)} rows; all severity={sample_sev!r} (canonical Title-case; "
-                        f"only critical rows confirmed; NOTE: runbook Step 3.1a uses 'high' but CS scenario data is 'Critical'/'Medium')"
+                        f"only critical rows confirmed; aligned with runbook v1.7+ Step 3.1a using 'critical')"
                     )
             else:
                 results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = (
@@ -2280,7 +2302,21 @@ def run_audit():
             "JOIN armis_devices a ON d.device_id = a.device_id LIMIT 5",
             ["org-c"])
         if err:
-            results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = f"FAIL: {err}"
+            # F-AUD-P5-LOW-001: RPC-level -32000 Internal error is a spec-acceptable
+            # FP-001 fail-open outcome (parse_envelope returns body={} on RPC error path).
+            # Mirror H18's filter pattern — accept "-32000" + "Internal error" as PASS.
+            # Timeouts, JSON errors, other RPC codes still FAIL.
+            # TD-VSDD-060 anchor: "Internal error" literal sourced from map_prism_error
+            # -32000 catch-all in crates/prism-mcp/src/server.rs; future refactors of
+            # that display string must sweep this acceptance check.
+            err_str = str(err)
+            if "-32000" in err_str and "Internal error" in err_str:
+                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                    f"PASS: controlled fail-open via RPC -32000 Internal error — "
+                    f"spec-sanctioned FP-001 outcome (BC-2.11.016 suspension rule 6)"
+                )
+            else:
+                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = f"FAIL: {err}"
         else:
             ec = body.get("error_code", "")
             msg = body.get("message", "")
@@ -2452,8 +2488,15 @@ def run_audit():
                     "FAIL: 0 rows from multi-client query"
                 )
             else:
-                # Check for both seed segments in any string column
-                all_vals = " ".join(str(v) for r in rows for v in r.values() if isinstance(v, str))
+                # F-AUD-P5-LOW-003: restrict seed-segment detection to ID-bearing columns only.
+                # Scanning ALL string columns risks false-positives from columns whose values
+                # happen to contain "-100-" or "-200-" substrings unrelated to seed identity.
+                _id_cols = {"device_id", "detection_id"}
+                all_vals = " ".join(
+                    str(v) for r in rows
+                    for k, v in r.items()
+                    if k in _id_cols and isinstance(v, str)
+                )
                 has_100 = "-100-" in all_vals
                 has_200 = "-200-" in all_vals
                 if has_100 and has_200 and not sensor_errors:
@@ -2602,13 +2645,22 @@ def run_audit():
             results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = f"FAIL: {err_h14c}"
         else:
             t_h14c = (res_h14c.get("contents") or [{}])[0].get("text", "")
-            if "device_id" in t_h14c or "severity" in t_h14c or "detections" in t_h14c.lower():
+            # F-AUD-P5-MED-002: render_schema_resource serializes SensorTableDescriptor
+            # (prism-spec-engine/src/types.rs) — output shape has "columns" as a JSON key
+            # and column names appear as {"name":"detection_id",...} values in the array.
+            # Dropped: the "detections" disjunct — error stubs echoing the URI would PASS.
+            # Required: structural key "columns" AND at least one known column name marker.
+            has_structure = '"columns"' in t_h14c
+            has_col = any(c in t_h14c for c in ('"detection_id"', '"device_id"', '"severity"'))
+            if has_structure and has_col:
                 results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = (
-                    f"PASS: schema resource returned; body contains detection schema fields (len={len(t_h14c)})"
+                    f"PASS: schema resource returned; 'columns' structural key present and "
+                    f"detection column name confirmed (SensorTableDescriptor JSON shape; len={len(t_h14c)})"
                 )
             elif t_h14c:
                 results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = (
-                    f"FAIL: schema body lacks expected field names; body={t_h14c[:100]!r}"
+                    f"FAIL: schema body lacks structural evidence — "
+                    f"has_columns_key={has_structure}, has_col_name={has_col}; body={t_h14c[:100]!r}"
                 )
             else:
                 results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = (
@@ -2623,15 +2675,21 @@ def run_audit():
             results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = f"FAIL: {err_h14d}"
         else:
             t_h14d = (res_h14d.get("contents") or [{}])[0].get("text", "")
-            # org-c has crowdstrike, armis, claroty, cyberint sensors (runbook §1.3).
-            has_sensor = any(s in t_h14d for s in ("crowdstrike", "armis", "claroty", "cyberint"))
-            if has_sensor:
+            # F-AUD-P5-MED-001: org-c is the four-sensor reference client (runbook §1.3).
+            # assert ALL FOUR sensors present; mirror A22's set-difference discipline.
+            # any([...]) is too weak — a single sensor present would PASS the old check.
+            _required_sensors = {"crowdstrike", "armis", "claroty", "cyberint"}
+            _present = {s for s in _required_sensors if s in t_h14d}
+            _missing = _required_sensors - _present
+            if not _missing:
                 results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = (
-                    f"PASS: per-client sensors resource returned; body contains sensor names (len={len(t_h14d)})"
+                    f"PASS: all 4 sensors present (crowdstrike, armis, claroty, cyberint); "
+                    f"org-c four-sensor reference client confirmed (runbook §1.3, len={len(t_h14d)})"
                 )
             elif t_h14d:
                 results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = (
-                    f"FAIL: body lacks sensor names for org-c; body={t_h14d[:100]!r}"
+                    f"FAIL: missing sensors for org-c: {sorted(_missing)!r}; "
+                    f"present={sorted(_present)!r}; body={t_h14d[:100]!r}"
                 )
             else:
                 results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = (
@@ -3019,10 +3077,23 @@ def run_audit():
             rows1 = body1.get("rows", [])
             rows2 = body2.get("rows", [])
             if rows1 == rows2 and len(rows1) > 0:
-                results["[H21] Determinism: repeated sorted query byte-identical"] = (
-                    f"PASS: {len(rows1)} rows; two runs byte-identical "
-                    f"(seeded ChaCha20 + fixed anchors)"
-                )
+                # F-AUD-P5-OBS-003: after byte-identical confirmation, assert detection_id
+                # values are lex-sorted ascending (| sort detection_id defaults to Asc per
+                # pipe_parser.rs: .unwrap_or(SortDirection::Asc)).
+                det_ids = [r.get("detection_id", "") for r in rows1 if r.get("detection_id") is not None]
+                is_sorted = det_ids == sorted(det_ids)
+                if is_sorted:
+                    results["[H21] Determinism: repeated sorted query byte-identical"] = (
+                        f"PASS: {len(rows1)} rows; two runs byte-identical "
+                        f"(seeded ChaCha20 + fixed anchors); "
+                        f"detection_id lex-sorted ascending confirmed ({len(det_ids)} IDs)"
+                    )
+                else:
+                    results["[H21] Determinism: repeated sorted query byte-identical"] = (
+                        f"FAIL: bytes identical but detection_id not lex-sorted ascending — "
+                        f"sort stage no-op regression; "
+                        f"expected asc, got: {det_ids[:5]!r}"
+                    )
             elif rows1 == rows2:
                 results["[H21] Determinism: repeated sorted query byte-identical"] = (
                     "FAIL: 0 rows from both runs — seed-200 guarantees detections"
@@ -3225,6 +3296,7 @@ if __name__ == "__main__":
     pass_count = 0
     fail_count = 0
     warn_count = 0
+    partial_count = 0  # F-AUD-P5-OBS-001: separate from warn_count
     na_count = 0
 
     for item, result in sorted(results.items()):
@@ -3242,7 +3314,7 @@ if __name__ == "__main__":
             na_count += 1
         elif result.startswith("PARTIAL"):
             status = "PART"
-            warn_count += 1
+            partial_count += 1  # F-AUD-P5-OBS-001: separate from warn_count
         else:
             status = "INFO"
         print(f"[{status}] {item}")
@@ -3250,9 +3322,11 @@ if __name__ == "__main__":
         print()
 
     print("=" * 80)
-    print(f"SUMMARY: {pass_count} PASS / {fail_count} FAIL / {warn_count} WARN / {na_count} N/A / {len(results)} total")
+    print(f"SUMMARY: {pass_count} PASS / {fail_count} FAIL / {warn_count} WARN / {partial_count} PARTIAL / {na_count} N/A / {len(results)} total")
     demo_ready = "YES" if fail_count == 0 and not _has_mismatch else "NO"
     print(f"DEMO-READY: {demo_ready}")
     print("=" * 80)
 
-    sys.exit(0 if fail_count == 0 else 1)
+    # F-AUD-P5-OBS-002: gate exit on _has_mismatch too — matrix mismatch must fail
+    # the process, matching DEMO-READY: NO.
+    sys.exit(0 if (fail_count == 0 and not _has_mismatch) else 1)
