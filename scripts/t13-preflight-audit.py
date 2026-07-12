@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-T13 Comprehensive Pre-flight Demo Audit Script — develop@5f1b5771 baseline + fix/T13-audit-coverage Section-H extension
+T13 Comprehensive Pre-flight Demo Audit Script — develop baseline at AUDIT-COVERAGE-001 branch point + fix/T13-audit-coverage Section-H extension
 Drives the prism MCP server over stdio (newline-delimited JSON) and verifies
 the FULL demo feature coverage matrix (extends the 18-item smoke audit).
 
@@ -151,6 +151,16 @@ ENV = {
 _REQ_ID = 0
 
 
+class _PrismCrashError(Exception):
+    """Raised by send_msg when the prism process crashes (BrokenPipeError/OSError).
+
+    MED-005: propagates through tool_call/query/helpers to run_audit's except clause,
+    which records partial results and allows the SUMMARY + matrix-mismatch gate to
+    surface all uncollected checks as "in COVERAGE_MATRIX but no result written".
+    Never exits 0 — the partial results dict contains at least one FAIL entry.
+    """
+
+
 def next_id():
     global _REQ_ID
     _REQ_ID += 1
@@ -158,10 +168,22 @@ def next_id():
 
 
 def send_msg(proc, msg):
-    """Send a JSON-RPC message over stdio (newline-delimited JSON)."""
+    """Send a JSON-RPC message over stdio (newline-delimited JSON).
+
+    MED-005: raises _PrismCrashError (instead of propagating raw BrokenPipeError/OSError)
+    so callers receive a structured crash signal rather than a raw traceback.  run_audit
+    catches _PrismCrashError, records partial results, and still prints SUMMARY + DEMO-READY=no.
+    """
     data = json.dumps(msg) + "\n"
-    proc.stdin.write(data.encode())
-    proc.stdin.flush()
+    try:
+        proc.stdin.write(data.encode())
+        proc.stdin.flush()
+    except (BrokenPipeError, OSError) as e:
+        # prism crashed mid-audit — stdin write/flush failed.
+        rc = proc.poll()
+        raise _PrismCrashError(
+            f"prism process crashed (exit={rc}, {type(e).__name__}: {e})"
+        ) from e
 
 
 # F-AUD-P19-LOW-006(b): module-level residual buffer persists partial reads across
@@ -529,7 +551,11 @@ def run_audit():
         # 5 mutating (alter demo state — must not be called pre-recording): reload_config,
         # create_alias, delete_alias, confirm_action, add_sensor_spec.
         tools_result, err = list_tools(proc)
-        EXPECTED_TOOLS = {
+        # OBS-002: EXPECTED_TOOLS_FULL grounded in LIVE_TOOLS constant in
+        # crates/prism-mcp/src/server.rs (14 tools as of AUDIT-COVERAGE-001).
+        # Exact set equality — extra tools beyond the 14 registered now FAIL
+        # (conscious-update philosophy; A23's dynamic NYA sweep is unaffected).
+        EXPECTED_TOOLS_FULL = {
             "query", "explain_query", "list_capabilities", "prism_describe",
             "check_sensor_health", "reload_config",
             "create_alias", "list_aliases", "delete_alias", "explain_alias",
@@ -539,12 +565,19 @@ def run_audit():
             results["[A2] tools/list: all 14 implemented tools present"] = f"FAIL: {err}"
         else:
             tool_names = {t.get("name", "") for t in tools_result.get("tools", [])}
-            missing = EXPECTED_TOOLS - tool_names
-            if missing:
-                results["[A2] tools/list: all 14 implemented tools present"] = f"FAIL: missing tools: {sorted(missing)}; got: {sorted(tool_names)}"
+            missing = EXPECTED_TOOLS_FULL - tool_names
+            extra = tool_names - EXPECTED_TOOLS_FULL
+            if missing or extra:
+                results["[A2] tools/list: all 14 implemented tools present"] = (
+                    f"FAIL: exact-set mismatch (OBS-002): "
+                    f"missing={sorted(missing) if missing else 'none'}, "
+                    f"extra={sorted(extra) if extra else 'none'}; "
+                    f"got: {sorted(tool_names)}"
+                )
             else:
                 results["[A2] tools/list: all 14 implemented tools present"] = (
-                    f"PASS: {len(tool_names)} tools total; all 14 implemented tools present"
+                    f"PASS: {len(tool_names)} tools — exact set match "
+                    f"(14 expected, 14 present; OBS-002 exact-equality confirmed)"
                 )
 
         # ── A3: resources/list — prismql://reference listed ─────────────────
@@ -707,7 +740,7 @@ def run_audit():
                             f"(BC-2.10.011 tri-state model confirmed)"
                         )
             else:
-                # Empty capabilities: correct for develop@5f1b5771 demo build.
+                # Empty capabilities: correct for the AUDIT-COVERAGE-001 demo build.
                 # server.rs list_capabilities per-client path:
                 #   registry_paths = endpoint_registry.all_capability_paths() → empty
                 #     (no [[write_endpoints]] declarations in any sensor TOML)
@@ -1189,11 +1222,11 @@ def run_audit():
         elif resp_csh and "error" in resp_csh:
             code = resp_csh["error"].get("code", "?")
             if code == -32601:
-                # OBS-001 fix: check_sensor_health IS registered on develop@5f1b5771;
+                # OBS-001 fix: check_sensor_health IS registered in LIVE_TOOLS (server.rs);
                 # -32601 means the tool is not found → S-5.04 regression, not N/A.
                 results[_A22_RESULT_KEY] = (
                     "FAIL: check_sensor_health tool missing — S-5.04 regression "
-                    "(check_sensor_health IS registered on develop@5f1b5771; "
+                    "(check_sensor_health IS registered in LIVE_TOOLS; "
                     "-32601 = method not found)"
                 )
             else:
@@ -1221,9 +1254,15 @@ def run_audit():
                         overall = csh_body.get("overall_status", "?")
                         _overall_key_present = "overall_status" in csh_body
                         sensors = csh_body.get("sensors", [])
-                        # MED-002: coerce None probe_level → "<missing>" so sorted() never
-                        # compares None with str (TypeError crash in the FAIL branch).
-                        probe_levels = list({(pl if (pl := s.get("probe_level")) is not None else "<missing>") for s in sensors if isinstance(s, dict)})
+                        # OBS-005: refactored from dense walrus set comprehension for readability.
+                        # Coerce None probe_level → "<missing>" so sorted() never compares
+                        # None with str (TypeError crash in the FAIL branch).
+                        _probe_level_set: set = set()
+                        for _s in sensors:
+                            if isinstance(_s, dict):
+                                _pl = _s.get("probe_level")
+                                _probe_level_set.add(_pl if _pl is not None else "<missing>")
+                        probe_levels = list(_probe_level_set)
                         reachable_all = all(s.get("reachable") is True for s in sensors if isinstance(s, dict))
                         auth_valid_all = all(s.get("auth_valid") is True for s in sensors if isinstance(s, dict))
                         # F-AUD-P8-OBS-002: require all probe levels == "live" (defense-in-depth vs
@@ -1949,13 +1988,18 @@ def run_audit():
                         f"FAIL: cvss_base_score must be numeric Float64; "
                         f"got type={type(cvss).__name__}, value={str(cvss)[:40]!r}"
                     )
-                elif cvss != 8.1:
-                    # HIGH-003: exact value gate — DTU injects hardcoded cvss_base_score=8.1
-                    # per BC-2.06.020 PC-4 (cvss_base_score postcondition); runbook v1.10 §5.5.
-                    # The old `cvss < 7.0` gate was too loose — it would PASS any value >= 7.0.
+                elif abs(cvss - 8.1) > 1e-9:
+                    # HIGH-003: exact value gate — runbook v1.10 §5.5 ("exactly base_score = 8.1")
+                    # and D-1695 PO adjudication are the exact-value authority; the DTU hardcodes
+                    # 8.1 as its default.  BC-2.06.020 §PC-3 specifies the >= 7.0 contract floor
+                    # with 8.1 as the DTU default — the BC does NOT require exactly 8.1; this gate
+                    # is tighter than the BC floor per the runbook/PO adjudication (source-of-truth
+                    # precedence: runbook v1.10 §5.5 + D-1695 supersede the >= 7.0 floor for the
+                    # preflight gate).  Float tolerance abs(cvss - 8.1) > 1e-9 avoids IEEE 754
+                    # representation hazard on the numeric branch.
                     results["[E3] ENRICH: cvss_base_score(device_cves_first) on armis_devices"] = (
-                        f"FAIL: cvss_base_score={cvss} != 8.1 — "
-                        f"DTU hardcodes 8.1 per BC-2.06.020 PC-4 (runbook v1.10 §5.5)"
+                        f"FAIL: cvss_base_score={cvss} != 8.1 (tolerance 1e-9) — "
+                        f"DTU hardcodes 8.1; runbook v1.10 §5.5 + D-1695 PO adjudication"
                     )
                 else:
                     results["[E3] ENRICH: cvss_base_score(device_cves_first) on armis_devices"] = (
@@ -1984,6 +2028,9 @@ def run_audit():
                 elif severity != "HIGH":
                     # F-AUD-P2-MED-004: scenario CVE-9999-* has CVSS ≥ 9.0 → severity
                     # MUST be "HIGH" (gap-analysis §3 data contract).
+                    # LOW-003: "HIGH" is the raw enrichment-UDF output (BC-2.06.020 §PC-3);
+                    # enrichment outputs bypass OCSF enum-label normalization — if a future
+                    # ADR normalizes UDF outputs, this check must be consciously updated.
                     results["[E4] ENRICH: cvss_severity(device_cves_first)"] = f"FAIL: expected severity=='HIGH' for scenario CVE-9999-*; got {severity!r}"
                 else:
                     results["[E4] ENRICH: cvss_severity(device_cves_first)"] = f"PASS: {len(rows)} rows; cvss_severity='HIGH' (scenario CVE-9999-* confirmed)"
@@ -2203,6 +2250,10 @@ def run_audit():
         # changes must cause a conscious update to this audit). Canonical symbol source:
         # `check_column_exists` + `ColumnNotFoundDetails.did_you_mean` in
         # crates/prism-query/src/plan.rs (TD-VSDD-091: cite function name, not line numbers).
+        # MED-004: a change to the Levenshtein implementation or tie-break heuristic
+        # (e.g., candidate ordering when multiple columns are Levenshtein-equidistant)
+        # could also change the did_you_mean return value — if that happens, consciously
+        # update the sc_dym_f5 == "detection_id" assertion and this comment.
         body, err = query(proc,
             "SELECT device_id, detction_id FROM crowdstrike_detections LIMIT 5",
             ["org-c"])
@@ -2852,7 +2903,10 @@ def run_audit():
             # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" (E-INT-001) at the
             # MCP boundary by map_prism_error (error_mapping.rs); this disjunct is future-proofing —
             # the "Internal error" disjunct handles the live path today.
-            elif ec in ("E-QUERY-034",) or "Internal error" in msg:
+            # MED-006: code-first discipline — only treat "Internal error" in msg as regression
+            # evidence when ec is absent (the pre-fix -32000 redacted shape); when ec is present
+            # and non-E-QUERY-038, the unexpected error falls through to the else branch below.
+            elif ec == "E-QUERY-034" or (not ec and "Internal error" in msg):
                 results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
                     f"FAIL: REGRESSION — got {ec!r} / 'Internal error' instead of E-QUERY-038; "
                     f"message={msg[:100]!r}"
@@ -2893,7 +2947,10 @@ def run_audit():
             # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" (E-INT-001) at the
             # MCP boundary by map_prism_error (error_mapping.rs); this disjunct is future-proofing —
             # the "Internal error" disjunct handles the live path today.
-            elif ec in ("E-QUERY-034",) or "Internal error" in msg:
+            # MED-006: code-first discipline — only treat "Internal error" in msg as regression
+            # evidence when ec is absent (the pre-fix -32000 redacted shape); when ec is present
+            # and non-E-QUERY-038, the unexpected error falls through to the else branch below.
+            elif ec == "E-QUERY-034" or (not ec and "Internal error" in msg):
                 results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
                     f"FAIL: REGRESSION — {ec!r} / 'Internal error' instead of E-QUERY-038; "
                     f"message={msg[:100]!r}"
@@ -3240,7 +3297,22 @@ def run_audit():
             )
         else:
             rows = body.get("rows", [])
-            if rows:
+            if not rows:
+                results[_H7_RESULT_KEY] = (
+                    "FAIL: 0 rows — seed-200 guarantees 50 device IDs overlap between tables"
+                )
+            elif len(rows) != 5:
+                # MED-002: tighten to exactly the LIMIT count (5).  seed-200 has 50 overlapping
+                # device IDs between crowdstrike_devices and armis_devices; LIMIT 5 must return
+                # exactly 5 rows.  A partial count (1-4) indicates a data-quality gap and would
+                # give H8's evidence-chain a weak foundation — only the full-strength 5-row result
+                # confirms the JOIN machinery is operating correctly.
+                results[_H7_RESULT_KEY] = (
+                    f"FAIL: {len(rows)} rows returned, expected exactly 5 (LIMIT 5; "
+                    f"seed-200 guarantees >= 50 overlapping device IDs — "
+                    f"partial count indicates data-quality gap; MED-002)"
+                )
+            else:
                 scores = [r.get("risk_score") for r in rows if r.get("risk_score") is not None]
                 # F-AUD-P18-MED-002: guard against all-null risk_score — vacuous "all numeric"
                 # PASS would then feed H8's attribution gate on stale data (mirrors H3's
@@ -3262,12 +3334,9 @@ def run_audit():
                         )
                     else:
                         results[_H7_RESULT_KEY] = (
-                            f"PASS: {len(rows)} joined rows; risk_score values={scores[:5]} (all numeric)"
+                            f"PASS: {len(rows)} joined rows (== 5, LIMIT confirmed); "
+                            f"risk_score values={scores[:5]} (all numeric)"
                         )
-            else:
-                results[_H7_RESULT_KEY] = (
-                    "FAIL: 0 rows — seed-200 guarantees 50 device IDs overlap between tables"
-                )
 
         # ── H8: HEAD-JOIN fail-open — bare unknown column in JOIN ─────────────
         # BC-2.11.016 §HEAD-JOIN SUSPENSION RULE: bare-column reference in JOIN → fail-open
@@ -3325,8 +3394,11 @@ def run_audit():
             # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" (E-INT-001) at the
             # MCP boundary by map_prism_error (error_mapping.rs); this disjunct is future-proofing —
             # the "Internal error" disjunct handles the live path today.
-            elif ec == "E-QUERY-034" or "Internal error" in msg:
-                # F-AUD-P1-MED-002: only E-QUERY-034 or Internal error PASSes here.
+            # MED-006: code-first discipline — only treat "Internal error" in msg as a
+            # controlled-rejection signal when ec is absent (the -32000 redacted shape);
+            # an unexpected ec that happens to mention "Internal error" must not false-PASS H8.
+            elif ec == "E-QUERY-034" or (not ec and "Internal error" in msg):
+                # F-AUD-P1-MED-002: only E-QUERY-034 or Internal error (with no ec) PASSes here.
                 # The former third disjunct `(ec and ec != "E-QUERY-038")` accepted any
                 # error code — removed; unexpected error codes must be investigated.
                 # F-AUD-P15-MED-001: require H7 JOIN-machinery evidence before attributing
@@ -4427,7 +4499,7 @@ def run_audit():
                         f"FAIL: all detection_id null in {len(rows1)} rows — "
                         f"data-quality regression (Standing Rule 3 §2)"
                     )
-                elif (is_sorted := det_ids == sorted(det_ids)):
+                elif det_ids == sorted(det_ids):
                     results["[H21] Determinism: repeated sorted query byte-identical"] = (
                         f"PASS: {len(rows1)} rows; two consecutive calls byte-identical "
                         f"(in-session determinism confirmed; seeded ChaCha20 + fixed anchors); "
@@ -4535,18 +4607,30 @@ def run_audit():
                 # section-level headings (plain str.count would match substring occurrences
                 # in prose/code-fences and trigger the ambiguity guard incorrectly).
                 _changelog_heading_re = re.compile(r'^## Changelog\s*$', re.MULTILINE)
-                _changelog_heading_count = len(_changelog_heading_re.findall(_runbook_text_full))
+                # MED-003: strip fenced code blocks before counting/locating headings — a
+                # "## Changelog" line inside a code fence would trigger the multi-heading
+                # guard (false-FAIL) or, if earlier in the file, silently truncate live
+                # instructional body before the real section heading (false-PASS on bad forms).
+                # Fence-stripping preserves character offsets by replacing non-newline chars
+                # with spaces (newlines remain), so _changelog_match.start() is valid as an
+                # index into _runbook_text_full.  Both the count guard and the truncation
+                # position use the same fence-stripped semantics.
+                _runbook_text_no_fence = re.sub(
+                    r'```.*?```',
+                    lambda m: re.sub(r'[^\n]', ' ', m.group(0)),
+                    _runbook_text_full,
+                    flags=re.DOTALL,
+                )
+                _changelog_heading_count = len(_changelog_heading_re.findall(_runbook_text_no_fence))
                 if _changelog_heading_count > 1:
                     results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
                         f"FAIL: {_changelog_heading_count} '## Changelog' headings in runbook "
-                        f"— H23 truncation ambiguous; update the check"
+                        f"(fence-aware count) — H23 truncation ambiguous; update the check"
                     )
                 else:
-                    # MED-002: use the MULTILINE regex match (.start()) to compute the
-                    # truncation position — str.find('## Changelog') would match a substring
-                    # occurrence in prose or a code fence BEFORE the real section heading,
-                    # silently truncating live runbook body.  re.search anchors to line-start.
-                    _changelog_match = _changelog_heading_re.search(_runbook_text_full)
+                    # use MULTILINE regex on fence-stripped copy to compute truncation position;
+                    # .start() offset is identical in _runbook_text_full (offsets preserved).
+                    _changelog_match = _changelog_heading_re.search(_runbook_text_no_fence)
                     _runbook_text = (
                         _runbook_text_full[:_changelog_match.start()]
                         if _changelog_match is not None
@@ -4653,7 +4737,20 @@ def run_audit():
                     f"FAIL: expected E-QUERY-043, got {ec or 'no error'}: {msg[:80]!r}"
                 )
 
+    except _PrismCrashError as _crash:
+        # MED-005: prism process crashed mid-audit (BrokenPipeError/OSError from send_msg).
+        # Partial results collected so far are retained; uncollected checks are absent from
+        # results and will surface via the matrix-mismatch gate as "in COVERAGE_MATRIX but
+        # no result written".  Record the crash as a FAIL entry so the SUMMARY shows it and
+        # DEMO-READY is forced to NO.  The finally block still runs cleanup.
+        results["CRASH"] = f"FAIL: {_crash}"
     finally:
+        # LOW-006: clean up _READ_BUF entry for this process's stdout fd (defensive against
+        # future multi-process refactors; no-op when fd was never registered or already gone).
+        try:
+            _READ_BUF.pop(proc.stdout.fileno(), None)
+        except Exception:
+            pass
         try:
             proc.stdin.close()
         except Exception:
@@ -4807,7 +4904,7 @@ if __name__ == "__main__":
         )
         sys.exit(1)
     print("=" * 80)
-    print("T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop@5f1b5771 baseline + fix/T13-audit-coverage Section-H extension")
+    print("T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop baseline at AUDIT-COVERAGE-001 branch point + fix/T13-audit-coverage Section-H extension")
     print(f"  ThreatIntel port: {THREATINTEL_PORT}  NVD port: {NVD_PORT}")
     print(f"  Coverage floor: {MIN_COVERAGE_ITEMS} required, {len(COVERAGE_MATRIX)} present")
     print(f"  Coverage: {len(COVERAGE_MATRIX)} matrix items across 8 sections (A–H)")
