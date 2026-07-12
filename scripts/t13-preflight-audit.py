@@ -1079,7 +1079,21 @@ def run_audit():
                     else:
                         results[key] = f"PASS: {len(rows_t)} rows (expected: no DTU route — gap-analysis §4 guardrail #1)"
                 else:
-                    results[key] = f"PASS: {len(rows_t)} rows"
+                    # F-AUD-P10-MED-004: data-guaranteed routed tables must return >= 1 row.
+                    # Stage 4 is terminal/absorbing for org-c: "org-c seed 200, all 4 sensors,
+                    # Stage 4 guaranteed since scenario_start_secs = 1782214754 is in the past"
+                    # (gap-analysis §3). armis_alerts, claroty_alerts, crowdstrike_devices all
+                    # have active DTU routes and data at Stage 4 (verified: gap-analysis §4.1
+                    # lists only crowdstrike_incidents + cyberint_incidents as no-DTU-route).
+                    _DATA_GUARANTEED = {"armis_alerts", "claroty_alerts", "crowdstrike_devices"}
+                    if tbl in _DATA_GUARANTEED and len(rows_t) == 0:
+                        results[key] = (
+                            f"FAIL: 0 rows for data-guaranteed table {tbl} — "
+                            f"silent-empty (Standing Rule 3 §2 class); "
+                            f"Stage 4 terminal guarantee requires >= 1 row (gap-analysis §3)"
+                        )
+                    else:
+                        results[key] = f"PASS: {len(rows_t)} rows"
 
         # ── B10: Multi-client isolation proof — CS org-a vs org-c disjoint ───
         body_a, err_a = query(proc, "FROM crowdstrike_detections | limit 10", ["org-a"])
@@ -1653,10 +1667,27 @@ def run_audit():
                 # "Did you mean:" anchor (near-miss column guarantees the suggestion).
                 has_invariant = "not found in table" in msg
                 has_dym = "Did you mean:" in msg
-                if has_invariant and has_dym:
+                # F-AUD-P10-MED-005: also require structured field
+                # _sc_error.did_you_mean == "detection_id" (expected correction for typo
+                # "detction_id"). Verified against H2's extraction helper (_sc_error dict
+                # keyed by "did_you_mean") and BC-2.11.016 wire contract: field name is
+                # "did_you_mean", value is the corrected column name string.
+                # Text anchors present but structured field wrong/absent → FAIL.
+                sc_err_f5 = body.get("_sc_error", {})
+                sc_dym_f5 = sc_err_f5.get("did_you_mean", "") if sc_err_f5 else ""
+                if has_invariant and has_dym and sc_dym_f5 == "detection_id":
                     results["[F5] E-QUERY-038: unknown column returns plan-time error"] = (
                         f"PASS: E-QUERY-038 + anchors 'not found in table' and "
-                        f"'Did you mean:' confirmed (POL-24); message={msg[:80]!r}"
+                        f"'Did you mean:' confirmed (POL-24); "
+                        f"sc_error.did_you_mean={sc_dym_f5!r} confirmed (MED-005); "
+                        f"message={msg[:80]!r}"
+                    )
+                elif has_invariant and has_dym:
+                    # Text anchors present but structured field absent or wrong.
+                    results["[F5] E-QUERY-038: unknown column returns plan-time error"] = (
+                        f"FAIL: E-QUERY-038 + text anchors present but structuredContent.error "
+                        f"regression — sc_error.did_you_mean={sc_dym_f5!r} "
+                        f"(expected 'detection_id'); F-AUD-P10-MED-005"
                     )
                 elif not has_invariant:
                     results["[F5] E-QUERY-038: unknown column returns plan-time error"] = (
@@ -2438,10 +2469,24 @@ def run_audit():
             # must sweep this acceptance check.
             err_str = str(err)
             if "-32000" in err_str and "Internal error" in err_str:
-                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
-                    f"PASS: controlled fail-open via RPC -32000 Internal error — "
-                    f"spec-sanctioned FP-001 outcome (BC-2.11.016 suspension rule 6)"
-                )
+                # F-AUD-P10-MED-001: attribute -32000 to HEAD-JOIN fail-open only when
+                # JOIN-machinery is verified by H7. Without H7 PASS, the -32000 could be
+                # any engine failure — not specifically suspension rule 6. H7 must have
+                # PASSed in this run (earlier in this same results dict) to establish that
+                # the JOIN path itself is functional before we accept its fail-open variant.
+                _h7_key = "[H7] JOIN positive path: crowdstrike_devices JOIN armis_devices"
+                _h7_result = results.get(_h7_key, "")
+                if _h7_result.startswith("PASS"):
+                    results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                        f"PASS: controlled fail-open via RPC -32000 Internal error — "
+                        f"spec-sanctioned FP-001 outcome (BC-2.11.016 suspension rule 6); "
+                        f"H7 JOIN-machinery evidence present"
+                    )
+                else:
+                    results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                        f"FAIL: cannot attribute -32000 to fail-open without JOIN-machinery evidence (H7); "
+                        f"H7 result={_h7_result[:80]!r}"
+                    )
             else:
                 results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = f"FAIL: {err}"
         else:
@@ -2699,14 +2744,38 @@ def run_audit():
             )
         else:
             t_cc = (res_cc.get("contents") or [{}])[0].get("text", "")
-            if "org-a" in t_cc and "org-b" in t_cc and "org-c" in t_cc:
+            # F-AUD-P10-MED-002: parse the config/clients JSON and enumerate actual
+            # client_id values; set-difference against expected set — mirrors H14d's
+            # discipline of explicit field enumeration over substring scan.
+            # Response shape: JSON array of ClientInventoryEntry objects (resources.rs
+            # line 757: ClientInventoryEntry { client_id: String, ... }); field is "client_id".
+            try:
+                _clients_arr = json.loads(t_cc)
+                if not isinstance(_clients_arr, list):
+                    results["[H14a] resources/read: prism://config/clients — 3-org visibility"] = (
+                        f"FAIL: expected JSON array from config/clients, "
+                        f"got {type(_clients_arr).__name__}: {t_cc[:80]!r}"
+                    )
+                else:
+                    _actual_ids = {e.get("client_id", "") for e in _clients_arr
+                                   if isinstance(e, dict)}
+                    _expected_ids = {"org-a", "org-b", "org-c"}
+                    _missing_ids = _expected_ids - _actual_ids
+                    _extra_ids = _actual_ids - _expected_ids
+                    if not _missing_ids:
+                        results["[H14a] resources/read: prism://config/clients — 3-org visibility"] = (
+                            f"PASS: all 3 orgs (org-a, org-b, org-c) present as client_id "
+                            f"in config/clients JSON array ({len(_clients_arr)} entries"
+                            + (f"; extra={sorted(_extra_ids)!r}" if _extra_ids else "") + ")"
+                        )
+                    else:
+                        results["[H14a] resources/read: prism://config/clients — 3-org visibility"] = (
+                            f"FAIL: missing client_id values {sorted(_missing_ids)!r} "
+                            f"in config/clients JSON; actual_ids={sorted(_actual_ids)!r}"
+                        )
+            except (json.JSONDecodeError, ValueError) as _h14a_err:
                 results["[H14a] resources/read: prism://config/clients — 3-org visibility"] = (
-                    f"PASS: all 3 orgs (org-a, org-b, org-c) present in config/clients"
-                )
-            else:
-                missing_orgs = [o for o in ("org-a", "org-b", "org-c") if o not in t_cc]
-                results["[H14a] resources/read: prism://config/clients — 3-org visibility"] = (
-                    f"FAIL: missing orgs {missing_orgs} from config/clients; "
+                    f"FAIL: non-JSON response from config/clients: {_h14a_err}; "
                     f"body={t_cc[:80]!r}"
                 )
 
@@ -3243,11 +3312,13 @@ def run_audit():
                         f"ADR-051 D4 scalar-input REGRESSION: iocs_value must return 0; scores={scores[:5]}"
                     )
                 else:
-                    # Expected: JSON-list column returns 0/low score → ADR-051 D4 confirmed
+                    # Expected: JSON-list column returns 0/low score → ADR-051 D4 confirmed.
+                    # F-AUD-P10-MED-003: assert only what H20 verifies — that ADR-051 D4
+                    # scalar-input is enforced. Runbook amendment validity is checked by H23
+                    # (static runbook text probe), not by this live query outcome.
                     results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
                         f"PASS: threat_score={max_score} for JSON-list column — "
-                        f"ADR-051 D4 scalar-input enforced; runbook v1.8 amendment to "
-                        f"iocs_value_first confirmed valid; scores={scores[:5]}"
+                        f"ADR-051 D4 scalar-input enforced; scores={scores[:5]}"
                     )
             else:
                 results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
@@ -3328,6 +3399,44 @@ def run_audit():
                 results["[H22] BC-2.11.018: normalized_pql present on success path"] = (
                     f"FAIL: normalized_pql empty or wrong type: {npql!r}"
                 )
+
+        # ── H23: Runbook enrich-call drift — static text check ──────────────
+        # F-AUD-P10-MED-003 + HIGH-001 runbook-side: verify the runbook has no
+        # pre-ADR-051 non-first forms (`threat_score(iocs_value)` without `_first`)
+        # and has at least one correct scalar form (`threat_score(iocs_value_first)`).
+        # This is a pure static text check — no MCP call.
+        # Assumes the .factory worktree is mounted at its canonical path
+        # (standard prism worktree layout: .factory/ mounted at repo root).
+        import re as _re_h23
+        _RUNBOOK_PATH = "/Users/jmagady/Dev/prism/.factory/objectives/T13-capstone-demo-runbook.md"
+        try:
+            with open(_RUNBOOK_PATH, encoding="utf-8") as _rb_f:
+                _runbook_text = _rb_f.read()
+            # Non-first (bad) form: threat_score(iocs_value) NOT followed by _first.
+            # Uses negative lookahead so threat_score(iocs_value_first) is not counted here.
+            _bad_matches = _re_h23.findall(r"threat_score\(iocs_value\)(?!_first)", _runbook_text)
+            # Good (scalar-companion) form: threat_score(iocs_value_first)
+            _good_matches = _re_h23.findall(r"threat_score\(iocs_value_first\)", _runbook_text)
+            if _bad_matches:
+                results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                    f"FAIL: runbook contains {len(_bad_matches)} non-first `threat_score(iocs_value)` "
+                    f"occurrence(s) — pre-ADR-051 D4 drift (F-AUD-P10-MED-003 + HIGH-001 runbook-side); "
+                    f"update runbook to `threat_score(iocs_value_first)` forms before live demo"
+                )
+            elif not _good_matches:
+                results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                    f"FAIL: no `threat_score(iocs_value_first)` found in runbook — "
+                    f"runbook enrich beat missing (expected >= 1 scalar-companion form)"
+                )
+            else:
+                results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                    f"PASS: {len(_good_matches)} `threat_score(iocs_value_first)` occurrence(s); "
+                    f"no pre-ADR-051 non-first forms — ADR-051 D4 scalar-input confirmed in runbook"
+                )
+        except OSError as _rb_err:
+            results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                f"FAIL: cannot read runbook at {_RUNBOOK_PATH!r}: {_rb_err}"
+            )
 
     finally:
         try:
@@ -3452,6 +3561,8 @@ COVERAGE_MATRIX = [
     ("[H20]", "Guardrails",    "ADR-051 D4 regression detector: iocs_value JSON-list score=0"),
     ("[H21]", "Determinism",   "Repeated sorted query byte-identical (seeded ChaCha20)"),
     ("[H22]", "BC-2.11.018",   "normalized_pql present on success response"),
+    # H23: F-AUD-P10-MED-003 + HIGH-001 runbook-side (static text check, no MCP call)
+    ("[H23]", "Guardrails",    "Runbook enrich-call drift: no pre-ADR-051 threat_score(iocs_value) forms; threat_score(iocs_value_first) >= 1"),
 ]
 
 
