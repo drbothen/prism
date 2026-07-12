@@ -50,6 +50,7 @@ import time
 import select
 import fcntl
 import re
+import traceback
 import unicodedata
 from pathlib import Path
 
@@ -949,10 +950,10 @@ def run_audit():
             "claroty_audit_logs", "cyberint_alerts",
         }
         # Also accept extended table sets (crowdstrike_devices, crowdstrike_incidents, etc.)
-        try:
-            present = set(_describe_org_c_tables)
-        except NameError:
-            present = set()
+        # F-AUD-P29-LOW-004: _describe_org_c_tables is unconditionally initialized at A7
+        # above (module-level invariant); the NameError guard was dead code and would mask
+        # a future initialization regression. Use plain assignment.
+        present = set(_describe_org_c_tables)
         missing_tables = REQUIRED_ORG_C_TABLES - present
         if missing_tables:
             results["[A8] prism_describe org-c: all required tables present"] = f"FAIL: missing tables: {sorted(missing_tables)}; got: {sorted(present)}"
@@ -1105,6 +1106,8 @@ def run_audit():
         # ── A14: DataFusion builtin NOT E-QUERY-039 (COUNT) ─────────────────
         # NOTE (F-AUD-P1-OBS-001): also appears as C4 and F6 — intentional cross-section
         # regression coverage (MCP Protocol, Query Modes, Error Taxonomy sections).
+        # F-AUD-P29-LOW-002: strict-success semantics aligned with C4 — any error_code
+        # (not just E-QUERY-039) is FAIL; only no error_code with rows is PASS.
         body, err = query(proc, "SELECT COUNT(*) FROM armis_devices", ["org-c"])
         if err:
             results["[A14] N1-B F1: SQL builtin COUNT NOT E-QUERY-039"] = f"FAIL: {err}"
@@ -1113,7 +1116,7 @@ def run_audit():
             if error_code == "E-QUERY-039":
                 results["[A14] N1-B F1: SQL builtin COUNT NOT E-QUERY-039"] = "FAIL: E-QUERY-039 falsely fired for COUNT(*)"
             elif error_code:
-                results["[A14] N1-B F1: SQL builtin COUNT NOT E-QUERY-039"] = f"PASS: non-E-QUERY-039 error ({error_code})"
+                results["[A14] N1-B F1: SQL builtin COUNT NOT E-QUERY-039"] = f"FAIL: unexpected error {error_code}: {body.get('message', '')[:80]}"
             else:
                 rows = body.get("rows", [])
                 results["[A14] N1-B F1: SQL builtin COUNT NOT E-QUERY-039"] = f"PASS: COUNT executed OK, {len(rows)} rows"
@@ -2523,6 +2526,8 @@ def run_audit():
         # intentional cross-section regression coverage (F-section error taxonomy, C-section
         # query modes, A-section false-positive guardrail). Three independent probes confirm
         # orthogonally that DataFusion builtins do not trigger E-QUERY-039.
+        # F-AUD-P29-LOW-002: strict-success semantics aligned with C4 — any error_code
+        # (not just E-QUERY-039) is FAIL; only no error_code with rows is PASS.
         body, err = query(proc, "SELECT COUNT(*) FROM armis_devices", ["org-c"])
         if err:
             results["[F6] N1-B F1: SQL builtin COUNT NOT E-QUERY-039"] = f"FAIL: {err}"
@@ -2531,7 +2536,7 @@ def run_audit():
             if error_code == "E-QUERY-039":
                 results["[F6] N1-B F1: SQL builtin COUNT NOT E-QUERY-039"] = "FAIL: E-QUERY-039 falsely fired for COUNT(*)"
             elif error_code:
-                results["[F6] N1-B F1: SQL builtin COUNT NOT E-QUERY-039"] = f"PASS: non-E-QUERY-039 error ({error_code})"
+                results["[F6] N1-B F1: SQL builtin COUNT NOT E-QUERY-039"] = f"FAIL: unexpected error {error_code}: {body.get('message', '')[:80]}"
             else:
                 rows = body.get("rows", [])
                 results["[F6] N1-B F1: SQL builtin COUNT NOT E-QUERY-039"] = f"PASS: COUNT executed OK, {len(rows)} rows"
@@ -3499,8 +3504,11 @@ def run_audit():
 
         # ── H7: JOIN positive path — crowdstrike_devices JOIN armis_devices ───
         # org-c seed-200: device IDs dev-0196f4b2-200-{0..49} in BOTH tables (full overlap).
+        # F-AUD-P29-MED-001: explicit AS aliases force unqualified output keys so
+        # r.get("risk_score") works regardless of DataFusion's internal key emission.
         body, err = query(proc,
-            "SELECT d.device_id, a.risk_score FROM crowdstrike_devices d "
+            "SELECT d.device_id AS device_id, a.risk_score AS risk_score "
+            "FROM crowdstrike_devices d "
             "JOIN armis_devices a ON d.device_id = a.device_id LIMIT 5",
             ["org-c"])
         if err:
@@ -3528,15 +3536,24 @@ def run_audit():
                     f"partial count indicates data-quality gap; MED-002)"
                 )
             else:
-                scores = [r.get("risk_score") for r in rows if r.get("risk_score") is not None]
+                # F-AUD-P29-MED-001: primary defense is the AS aliases in the query above;
+                # tolerate qualified key "a.risk_score" as defense-in-depth so key-shape
+                # mismatches produce a diagnosable row_keys dump rather than a silent empty.
+                scores = [
+                    r.get("risk_score") if r.get("risk_score") is not None else r.get("a.risk_score")
+                    for r in rows
+                    if r.get("risk_score") is not None or r.get("a.risk_score") is not None
+                ]
                 # F-AUD-P18-MED-002: guard against all-null risk_score — vacuous "all numeric"
                 # PASS would then feed H8's attribution gate on stale data (mirrors H3's
                 # has_nonempty pattern; data-quality regression, Standing Rule 3 §2).
                 if not scores:
+                    _h7_row_keys = list(rows[0].keys()) if rows else []
                     results[_H7_RESULT_KEY] = (
                         f"FAIL: {len(rows)} joined rows but all risk_score null — "
                         f"expected >= 1 numeric risk_score value from JOIN "
-                        f"(data-quality regression, Standing Rule 3 §2)"
+                        f"(data-quality regression, Standing Rule 3 §2); "
+                        f"row_keys={_h7_row_keys!r}"
                     )
                 else:
                     # MED-004: all risk_score values must be numeric (LOW-002: bool exclusion)
@@ -4386,7 +4403,10 @@ def run_audit():
                 # violates the determinism claim (H16 comment §Layer 2 establishes E-QUERY-038 as
                 # the deterministic layer; any other error layer is a spec deviation).
                 # control_chars_found is [] here (the if-branch above caught any leakage).
-                _h16_cc_status = "leaked" if control_chars_found else "clean"
+                # F-AUD-P29-LOW-003: the "leaked" arm is unreachable — reaching this elif
+                # branch requires control_chars_found to be empty (the preceding if at line
+                # ~4370 handles non-empty); replace dead ternary with literal "clean".
+                _h16_cc_status = "clean"
                 results["[H16] CWE-116/117: control-char in column name sanitized"] = (
                     f"FAIL: unexpected error layer (determinism claim violated); "
                     f"expected E-QUERY-038 but got different error type; "
@@ -4836,12 +4856,30 @@ def run_audit():
                 # F-AUD-P5-OBS-003: assert detection_id values are lex-sorted ascending
                 # (| sort detection_id defaults to Asc per pipe_parser.rs).
                 # Pass-18 sweep: guard against all-null detection_id — vacuous sorted-check.
-                det_ids = [r.get("detection_id", "") for r in rows1 if r.get("detection_id") is not None]
+                # F-AUD-P29-LOW-005: filter to non-empty values (truthiness + .strip()) to
+                # guard against all-empty-string detection_id yielding a vacuous sorted-
+                # comparison PASS.  Prior `is not None` admitted "", which sorted equal to
+                # itself and falsely PASSed the lex-sort check.
+                det_ids = [
+                    r.get("detection_id")
+                    for r in rows1
+                    if r.get("detection_id")
+                    and isinstance(r.get("detection_id"), str)
+                    and r.get("detection_id").strip()
+                ]
                 if not det_ids:
-                    results["[H21] Determinism: repeated sorted query byte-identical"] = (
-                        f"FAIL: all detection_id null in {len(rows1)} rows — "
-                        f"data-quality regression (Standing Rule 3 §2)"
-                    )
+                    # Distinguish null/absent column from present-but-empty values.
+                    _h21_raw = [r.get("detection_id") for r in rows1]
+                    if all(v is None for v in _h21_raw):
+                        results["[H21] Determinism: repeated sorted query byte-identical"] = (
+                            f"FAIL: all detection_id null/absent in {len(rows1)} rows — "
+                            f"data-quality regression (Standing Rule 3 §2)"
+                        )
+                    else:
+                        results["[H21] Determinism: repeated sorted query byte-identical"] = (
+                            f"FAIL: all detection_id present but empty/whitespace in {len(rows1)} rows — "
+                            f"data-quality regression (Standing Rule 3 §2)"
+                        )
                 elif det_ids == sorted(det_ids):
                     results["[H21] Determinism: repeated sorted query byte-identical"] = (
                         f"PASS: {len(rows1)} rows (diagnostic); two consecutive calls byte-identical "
@@ -5113,6 +5151,17 @@ def run_audit():
         # no result written".  Record the crash as a FAIL entry so the SUMMARY shows it and
         # DEMO-READY is forced to NO.  The finally block still runs cleanup.
         results["CRASH"] = f"FAIL: {_crash}"
+    except Exception as _exc:
+        # F-AUD-P29-LOW-001: catch any unexpected exception so SUMMARY/DEMO-READY still
+        # emits. _PrismCrashError is handled above; this handler covers any other runtime
+        # failure (AttributeError, KeyError, TypeError, etc.). The traceback is printed for
+        # diagnostics. AUDIT_INTERNAL_ERROR has no [NNN] prefix so it is exempt from the
+        # matrix-drift check (same as BOOT and CRASH) but its "FAIL:" prefix ensures it is
+        # counted in fail_count, forces DEMO-READY: NO, and exits nonzero.
+        results["AUDIT_INTERNAL_ERROR"] = (
+            f"FAIL: internal audit exception: {type(_exc).__name__}: {_exc}"
+        )
+        traceback.print_exc()  # preserve full traceback in output for diagnostics
     finally:
         # LOW-006: clean up _READ_BUF entry for this process's stdout fd (defensive against
         # future multi-process refactors; no-op when fd was never registered or already gone).
