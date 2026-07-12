@@ -158,10 +158,23 @@ def send_msg(proc, msg):
     proc.stdin.flush()
 
 
-def read_msg(proc, timeout=15.0):
-    """Read a newline-delimited JSON response from stdout with timeout."""
-    start = time.time()
-    buf = b""
+# F-AUD-P19-LOW-006(b): module-level residual buffer persists partial reads across
+# read_msg calls so that multi-message chunks aren't silently discarded.
+# Keyed by stdout fd to remain correct if callers ever use multiple procs in the
+# same process lifetime (no caller currently does, but defensive is cheap).
+_READ_BUF: dict = {}  # fd -> bytearray
+
+
+def read_msg(proc, timeout=15.0, expected_id=None):
+    """Read a newline-delimited JSON response from stdout with timeout.
+
+    F-AUD-P19-LOW-006:
+    (a) expected_id matching: skip JSON-RPC notifications (no 'id' field) and
+        mismatched-id messages (up to timeout), returning only the matching response.
+    (b) Residual buffer (_READ_BUF) persists across calls so that multi-message
+        chunks (e.g. a notification followed by the response in the same read()
+        syscall) are not discarded.
+    """
     fd = proc.stdout.fileno()
     fl = fcntl.fcntl(fd, fcntl.F_GETFL)
     # Set O_NONBLOCK once per fd — all reads go through the select+non-blocking
@@ -169,12 +182,46 @@ def read_msg(proc, timeout=15.0):
     # Guard avoids redundant fcntl syscalls on every read_msg invocation.
     if not (fl & os.O_NONBLOCK):
         fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+    if fd not in _READ_BUF:
+        _READ_BUF[fd] = bytearray()
+    buf = _READ_BUF[fd]
 
+    start = time.time()
     while True:
         elapsed = time.time() - start
         if elapsed > timeout:
             return None, f"TIMEOUT after {timeout:.1f}s"
 
+        # Drain any complete lines from the residual buffer first — may contain a
+        # valid response written before the last read() call returned.
+        while b"\n" in buf:
+            idx = buf.index(b"\n")
+            raw_line = bytes(buf[:idx]).strip()
+            del buf[:idx + 1]
+            if not raw_line:
+                continue
+            try:
+                parsed = json.loads(raw_line.decode("utf-8"))
+            except json.JSONDecodeError as e:
+                return None, f"JSON error: {e} on: {raw_line[:200]!r}"
+            if not isinstance(parsed, dict):
+                return None, (
+                    f"non-dict JSON-RPC response: {type(parsed).__name__}: "
+                    f"{raw_line[:80]!r}"
+                )
+            # F-AUD-P19-LOW-006(a): skip notifications (no 'id' field) and
+            # mismatched-id messages when expected_id is given.
+            if expected_id is not None:
+                msg_id = parsed.get("id")
+                if msg_id is None:
+                    # JSON-RPC notification — no id; skip and keep draining.
+                    continue
+                if msg_id != expected_id:
+                    # Mismatched id — skip and keep draining.
+                    continue
+            return parsed, None
+
+        # No complete line in buffer yet; check process state before blocking.
         rc = proc.poll()
         if rc is not None:
             return None, f"Process exited with code {rc}"
@@ -189,25 +236,9 @@ def read_msg(proc, timeout=15.0):
             if not chunk:
                 rc = proc.poll()
                 return None, f"EOF (process rc={rc})"
-            buf += chunk
+            buf.extend(chunk)
         except BlockingIOError:
             continue
-
-        while b"\n" in buf:
-            line, buf = buf.split(b"\n", 1)
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                parsed = json.loads(line.decode("utf-8"))
-                if not isinstance(parsed, dict):
-                    return None, (
-                        f"non-dict JSON-RPC response: {type(parsed).__name__}: "
-                        f"{line[:80]!r}"
-                    )
-                return parsed, None
-            except json.JSONDecodeError as e:
-                return None, f"JSON error: {e} on: {line[:200]!r}"
 
 
 def parse_envelope(resp):
@@ -270,7 +301,7 @@ def tool_call(proc, name, arguments, timeout=25.0):
         "jsonrpc": "2.0", "id": rid, "method": "tools/call",
         "params": {"name": name, "arguments": arguments},
     })
-    resp, err = read_msg(proc, timeout=timeout)
+    resp, err = read_msg(proc, timeout=timeout, expected_id=rid)
     if err:
         return None, err
     return parse_envelope(resp)
@@ -283,7 +314,7 @@ def prompt_get(proc, name, arguments, timeout=5.0):
         "jsonrpc": "2.0", "id": rid, "method": "prompts/get",
         "params": {"name": name, "arguments": arguments},
     })
-    resp, err = read_msg(proc, timeout=timeout)
+    resp, err = read_msg(proc, timeout=timeout, expected_id=rid)
     if err:
         return None, err
     if "error" in resp:
@@ -298,7 +329,7 @@ def resource_read(proc, uri, timeout=10.0):
         "jsonrpc": "2.0", "id": rid, "method": "resources/read",
         "params": {"uri": uri},
     })
-    resp, err = read_msg(proc, timeout=timeout)
+    resp, err = read_msg(proc, timeout=timeout, expected_id=rid)
     if err:
         return None, err
     if "error" in resp:
@@ -313,7 +344,7 @@ def resources_subscribe(proc, uri, timeout=10.0):
         "jsonrpc": "2.0", "id": rid, "method": "resources/subscribe",
         "params": {"uri": uri},
     })
-    resp, err = read_msg(proc, timeout=timeout)
+    resp, err = read_msg(proc, timeout=timeout, expected_id=rid)
     if err:
         return None, err
     if "error" in resp:
@@ -328,7 +359,7 @@ def resources_unsubscribe(proc, uri, timeout=10.0):
         "jsonrpc": "2.0", "id": rid, "method": "resources/unsubscribe",
         "params": {"uri": uri},
     })
-    resp, err = read_msg(proc, timeout=timeout)
+    resp, err = read_msg(proc, timeout=timeout, expected_id=rid)
     if err:
         return None, err
     if "error" in resp:
@@ -343,7 +374,7 @@ def list_tools(proc, timeout=10.0):
         "jsonrpc": "2.0", "id": rid, "method": "tools/list",
         "params": {},
     })
-    resp, err = read_msg(proc, timeout=timeout)
+    resp, err = read_msg(proc, timeout=timeout, expected_id=rid)
     if err:
         return None, err
     if "error" in resp:
@@ -358,7 +389,7 @@ def list_resources(proc, timeout=10.0):
         "jsonrpc": "2.0", "id": rid, "method": "resources/list",
         "params": {},
     })
-    resp, err = read_msg(proc, timeout=timeout)
+    resp, err = read_msg(proc, timeout=timeout, expected_id=rid)
     if err:
         return None, err
     if "error" in resp:
@@ -373,7 +404,7 @@ def list_prompts(proc, timeout=10.0):
         "jsonrpc": "2.0", "id": rid, "method": "prompts/list",
         "params": {},
     })
-    resp, err = read_msg(proc, timeout=timeout)
+    resp, err = read_msg(proc, timeout=timeout, expected_id=rid)
     if err:
         return None, err
     if "error" in resp:
@@ -458,7 +489,7 @@ def run_audit():
                 "clientInfo": {"name": "audit-client", "version": "0.1"},
             },
         })
-        resp, err = read_msg(proc, timeout=10.0)
+        resp, err = read_msg(proc, timeout=10.0, expected_id=rid)
         if err:
             results["[A1] INIT: MCP server boots and responds"] = f"FAIL: {err}"
             return results
@@ -1007,7 +1038,7 @@ def run_audit():
         else:
             results["[A21] HANG-FIX: infusion_status returns promptly"] = f"FAIL: NYA stub returned success (expected -32003 E-INFRA-NYA)"
 
-        # ── A23: all NYA stubs return -32003 (full dynamic coverage) ─────────
+        # ── A23: all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21) ─────────
         # F-AUD-P13-OBS-004: Replace 3/40 sampling gap with full dynamic coverage.
         # Derives stub set at runtime: (tools/list names) − (EXPECTED_TOOLS 14 implemented).
         # Each stub is called once with minimal empty args {}.
@@ -1062,17 +1093,17 @@ def run_audit():
                 # Success response — stub returned data; NYA contract violated
                 _nya_deviants.append((_nya_name, "SUCCESS (expected -32003 E-INFRA-NYA)"))
         if not _nya_stub_names:
-            results["[A23] all NYA stubs return -32003 (full dynamic coverage)"] = (
+            results["[A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"] = (
                 "FAIL: could not derive NYA stub set (tools/list unavailable or empty)"
             )
         elif _nya_deviants:
-            results["[A23] all NYA stubs return -32003 (full dynamic coverage)"] = (
+            results["[A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"] = (
                 f"FAIL: {len(_nya_deviants)}/{_nya_total} stubs deviated from NYA contract "
                 f"(-32003 expected): "
                 + "; ".join(f"{n}={o}" for n, o in _nya_deviants[:5])
             )
         else:
-            results["[A23] all NYA stubs return -32003 (full dynamic coverage)"] = (
+            results["[A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"] = (
                 f"PASS: {_nya_pass_count}/{_nya_total} stubs NYA-compliant "
                 f"(-32003 explicit or -32602 schema-validation-precedes-NYA-gate)"
             )
@@ -1084,7 +1115,7 @@ def run_audit():
         rid_csh = next_id()
         send_msg(proc, {"jsonrpc": "2.0", "id": rid_csh, "method": "tools/call",
                         "params": {"name": "check_sensor_health", "arguments": {"client_id": "org-c"}}})
-        resp_csh, err_csh = read_msg(proc, timeout=15.0)
+        resp_csh, err_csh = read_msg(proc, timeout=15.0, expected_id=rid_csh)
         elapsed = time.time() - t0
         if err_csh:
             results[_A22_RESULT_KEY] = f"FAIL: {err_csh}"
@@ -1156,9 +1187,28 @@ def run_audit():
                                 f"(BC-2.08.005 / runbook Act 5 requires probe_level 'live'); "
                                 f"non_live_probe_levels={non_live!r}; sensors={sorted(present_sensors)}"
                             )
-                        elif overall != "?":
-                            # Demo preflight requires all sensors healthy; degraded/failing is a
-                            # FAIL not a WARN — demo assumes full sensor health (F-AUD-P1-LOW-004).
+                        elif overall == "healthy" and not reachable_all:
+                            # F-AUD-P19-LOW-002: differentiate FAIL by failed predicate.
+                            # overall=healthy but reachable_all is False — sensor(s) unreachable.
+                            unreachable = [s.get("sensor_id") for s in sensors
+                                           if isinstance(s, dict) and not s.get("reachable")]
+                            results[_A22_RESULT_KEY] = (
+                                f"FAIL: {elapsed:.1f}s overall={overall} but reachable_all=False "
+                                f"(not all sensors reachable — demo preflight requires full sensor reachability); "
+                                f"unreachable_sensors={unreachable!r}; auth_valid_all={auth_valid_all}"
+                            )
+                        elif overall == "healthy" and not auth_valid_all:
+                            # F-AUD-P19-LOW-002: overall=healthy but auth_valid_all is False.
+                            auth_failed = [s.get("sensor_id") for s in sensors
+                                           if isinstance(s, dict) and not s.get("auth_valid")]
+                            results[_A22_RESULT_KEY] = (
+                                f"FAIL: {elapsed:.1f}s overall={overall} but auth_valid_all=False "
+                                f"(not all sensor credentials valid — demo preflight requires valid auth); "
+                                f"auth_failed_sensors={auth_failed!r}; reachable_all={reachable_all}"
+                            )
+                        elif overall not in ("healthy", "?"):
+                            # overall is degraded, failing, or other non-healthy non-unknown value.
+                            # Demo preflight requires all sensors healthy (F-AUD-P1-LOW-004).
                             results[_A22_RESULT_KEY] = (
                                 f"FAIL: {elapsed:.1f}s overall={overall} (degraded/failing not acceptable for demo preflight); "
                                 f"sensors={sorted(present_sensors)}; reachable_all={reachable_all}; auth_valid_all={auth_valid_all}"
@@ -2107,6 +2157,10 @@ def run_audit():
         else:
             rows = body.get("rows", [])
             if rows:
+                # F-AUD-P19-MED-001: null-leak guard — IEQ filter must not return rows
+                # with NULL/empty severity; SQL lower(NULL) predicate is UNKNOWN (never
+                # matches), so any NULL row in the result is a filter regression.
+                null_leak_count = sum(1 for r in rows if not r.get("severity"))
                 severities = [r.get("severity", "") for r in rows if r.get("severity")]
                 # F-AUD-P15-LOW-003: guard against vacuous-True all() / any() when every
                 # severity value is empty — mirrors H3's has_nonempty pattern.
@@ -2118,7 +2172,13 @@ def run_audit():
                 # IEQ 'critical' must filter out non-critical rows; any non-critical row is a
                 # filter failure (mirrors H3's guard for INE).
                 has_non_critical = any(s and s.lower() != "critical" for s in severities if s)
-                if not has_nonempty:
+                if null_leak_count > 0:
+                    results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = (
+                        f"FAIL: filter leaked {null_leak_count} NULL/empty-severity rows — "
+                        f"WHERE/IEQ/IIN regression (SQL: lower(NULL) predicate is UNKNOWN, must not match); "
+                        f"total_rows={len(rows)}"
+                    )
+                elif not has_nonempty:
                     results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = (
                         f"FAIL: {len(rows)} rows but all severity values empty — "
                         f"data-quality regression (Standing Rule 3 §2); "
@@ -2159,10 +2219,19 @@ def run_audit():
         else:
             rows = body.get("rows", [])
             if rows:
+                # F-AUD-P19-MED-001: null-leak guard — IIN filter must not return rows
+                # with NULL/empty severity; SQL lower(NULL) is UNKNOWN (never matches).
+                null_leak_count = sum(1 for r in rows if not r.get("severity"))
                 distinct_sev = sorted({r.get("severity", "") for r in rows if r.get("severity")})
                 # F-AUD-P15-LOW-003 sweep: IIN contract guarantees cyberint_alerts has
                 # severity values; empty distinct_sev means the column was absent/null.
-                if not distinct_sev:
+                if null_leak_count > 0:
+                    results["[G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)"] = (
+                        f"FAIL: filter leaked {null_leak_count} NULL/empty-severity rows — "
+                        f"WHERE/IEQ/IIN regression (SQL: lower(NULL) predicate is UNKNOWN, must not match); "
+                        f"total_rows={len(rows)}"
+                    )
+                elif not distinct_sev:
                     results["[G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)"] = (
                         f"FAIL: {len(rows)} rows but all severity values empty/absent — "
                         f"data-quality regression (Standing Rule 3 §2)"
@@ -2222,7 +2291,16 @@ def run_audit():
         else:
             rows = body.get("rows", [])
             if rows:
-                distinct_status = sorted({r.get("status", "") for r in rows if r.get("status")})
+                # F-AUD-P19-MED-001: null-leak guard — IIN filter must not return rows with
+                # NULL/empty status; SQL lower(NULL) is UNKNOWN (never matches).
+                # F-AUD-P19-LOW-001: align outer filter with G3b's `is not None` + has_nonempty
+                # discipline: use `is not None` so empty-string status values are kept and
+                # handled by has_nonempty (mirrors G3b lines below).
+                null_leak_count = sum(1 for r in rows if not r.get("status"))
+                distinct_status = sorted({r.get("status", "") for r in rows if r.get("status") is not None})
+                # G3b discipline: has_nonempty handles the all-empty-string case
+                # (distinct_status == [""] after is-not-None filter).
+                has_nonempty_status = any(s for s in distinct_status)
                 # Check for casing fragmentation: same value in different cases (mirrors G6).
                 status_lower_list = [s.lower() for s in distinct_status if s]
                 has_dup_lower = len(status_lower_list) != len(set(status_lower_list))
@@ -2235,7 +2313,13 @@ def run_audit():
                 # F-AUD-P15-LOW-003 sweep: IIN contract guarantees crowdstrike_detections has
                 # status values; empty distinct_status means column absent/null — data-quality
                 # regression (mirrors H3's has_nonempty guard).
-                if not distinct_status:
+                if null_leak_count > 0:
+                    results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
+                        f"FAIL: filter leaked {null_leak_count} NULL/empty-status rows — "
+                        f"WHERE/IEQ/IIN regression (SQL: lower(NULL) predicate is UNKNOWN, must not match); "
+                        f"total_rows={len(rows)}"
+                    )
+                elif not has_nonempty_status:
                     results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
                         f"FAIL: {len(rows)} rows but all status values empty/absent — "
                         f"data-quality regression (Standing Rule 3 §2)"
@@ -2720,6 +2804,10 @@ def run_audit():
                     "FAIL: 0 rows — INE should return Critical rows (seed-200: 5 Critical + 15 Medium)"
                 )
             else:
+                # F-AUD-P19-MED-001: null-leak guard — INE filter must not return rows with
+                # NULL/empty severity; SQL lower(NULL) predicate is UNKNOWN (never matches),
+                # so any NULL/empty-severity row leaking through is a regression.
+                null_leak_count = sum(1 for r in rows if not r.get("severity"))
                 severities = [r.get("severity", "") for r in rows]
                 # F-AUD-P12-LOW-001: guard against vacuous-True all() when every severity
                 # value is empty — all(... if s) over all-empty list is vacuously True and
@@ -2727,7 +2815,13 @@ def run_audit():
                 has_nonempty = any(s for s in severities)
                 has_medium = any(s and s.lower() == "medium" for s in severities)
                 all_critical = all(s and s.lower() == "critical" for s in severities if s)
-                if not has_nonempty:
+                if null_leak_count > 0:
+                    results["[H3] INE operator: severity INE 'medium' (excludes Medium rows)"] = (
+                        f"FAIL: filter leaked {null_leak_count} NULL/empty-severity rows — "
+                        f"WHERE/IEQ/IIN regression (SQL: lower(NULL) predicate is UNKNOWN, must not match); "
+                        f"total_rows={len(rows)}"
+                    )
+                elif not has_nonempty:
                     results["[H3] INE operator: severity INE 'medium' (excludes Medium rows)"] = (
                         f"FAIL: {len(rows)} rows but all severity values empty — "
                         f"data-quality regression (Standing Rule 3 §2); "
@@ -3026,12 +3120,21 @@ def run_audit():
                     "FAIL: 0 rows — seed-200 guarantees Critical detections"
                 )
             else:
+                # F-AUD-P19-MED-001: null-leak guard — SqlPipe IEQ filter must not return rows
+                # with NULL/empty severity; SQL lower(NULL) predicate is UNKNOWN (never matches).
+                null_leak_count = sum(1 for r in rows if not r.get("severity"))
                 severities = [r.get("severity", "") for r in rows]
                 non_critical = [s for s in severities if s and s.lower() != "critical"]
                 # F-AUD-P15-LOW-003: guard against vacuous PASS when all severity values are
                 # empty — SqlPipe IEQ filter contract guarantees severity='Critical' rows.
                 has_nonempty = any(s for s in severities)
-                if not has_nonempty:
+                if null_leak_count > 0:
+                    results["[H9] SqlPipe mode: SELECT head + pipe stage (BC-2.11.020)"] = (
+                        f"FAIL: filter leaked {null_leak_count} NULL/empty-severity rows — "
+                        f"WHERE/IEQ/IIN regression (SQL: lower(NULL) predicate is UNKNOWN, must not match); "
+                        f"total_rows={len(rows)}"
+                    )
+                elif not has_nonempty:
                     results["[H9] SqlPipe mode: SELECT head + pipe stage (BC-2.11.020)"] = (
                         f"FAIL: {len(rows)} rows but all severity values empty — "
                         f"data-quality regression (Standing Rule 3 §2)"
@@ -3666,7 +3769,16 @@ def run_audit():
             results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
                 "PASS: E-QUERY-033 in-band rejection"
             )
+        elif body.get("error_code"):
+            # F-AUD-P19-LOW-004: hoist non-E-QUERY-033 error_code branch above the rows
+            # check so the FAIL message names the actual unexpected error code.
+            ec = body.get("error_code", "")
+            results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
+                f"FAIL: expected E-QUERY-033, got {ec}: {body.get('message','')[:80]}"
+            )
         elif body.get("rows") is not None:
+            # Rows present with no error_code means the query genuinely succeeded —
+            # E-QUERY-033 ceiling not enforced.
             results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
                 f"FAIL: limit 1001 query succeeded ({len(body.get('rows', []))} rows) — E-QUERY-033 not enforced"
             )
@@ -3847,13 +3959,13 @@ def run_audit():
             "| enrich threat_score(iocs_value)\n| limit 10",
             ["org-c"], timeout=30.0)
         if err:
-            results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = f"FAIL: {err}"
+            results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list → ALL-NULL"] = f"FAIL: {err}"
         elif body.get("error_code"):
             # Unsanctioned: ADR-051 D4 expects the query to succeed with NULLs in threat_score.
             # A query-level error_code here means the engine failed to produce a result row at
             # all, which is NOT the sanctioned NULL-output path. Name the specific code.
             ec = body.get("error_code", "")
-            results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
+            results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list → ALL-NULL"] = (
                 f"FAIL: {ec} (unsanctioned — ADR-051 D4 sanctions NULL output on JSON-list input, "
                 f"not a query-level error): {body.get('message','')[:80]}"
             )
@@ -3864,7 +3976,7 @@ def run_audit():
                 # all NULL" (ADR-051 D4 sanctioned outcome) from "column entirely absent"
                 # (enrich stage failed to produce output — not sanctioned).
                 if not any("threat_score" in r for r in rows):
-                    results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
+                    results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list → ALL-NULL"] = (
                         "FAIL: threat_score column absent from all rows — "
                         "enrich stage did not produce output (ADR-051 D4 requires NULL output, "
                         "not absent column; check infusion_udf.rs / threatintel DTU)"
@@ -3878,7 +3990,7 @@ def run_audit():
                         # Emphatic FAIL: ADR-051 D4 scalar-input regression — iocs_value
                         # (JSON-list) must produce ALL-NULL (coerce_to_typed returns None for '['-input);
                         # a numeric score >= 75 means the NULL sentinel was bypassed → FAIL.
-                        results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
+                        results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list → ALL-NULL"] = (
                             f"FAIL: threat_score={max_score} for JSON-list column — "
                             f"ADR-051 D4 scalar-input REGRESSION: iocs_value must produce NULL; scores={scores[:5]}"
                         )
@@ -3887,7 +3999,7 @@ def run_audit():
                         # ADR-051 §D4 mandates ALL-NULL for JSON-list input to typed UDFs;
                         # any numeric (non-None) score means coerce_to_typed returned a value
                         # instead of None for a '['-prefix input — regression regardless of magnitude.
-                        results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
+                        results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list → ALL-NULL"] = (
                             f"FAIL: non-NULL scores on JSON-list column — partial ADR-051 D4 regression; "
                             f"coerce_to_typed must return None for JSON-list input (not a numeric value); "
                             f"scores={scores[:5]}"
@@ -3899,12 +4011,12 @@ def run_audit():
                         # values are Python None (filtered out by isinstance check) → max_score
                         # defaults to 0. F-AUD-P10-MED-003: assert only what H20 verifies — that
                         # ADR-051 D4 scalar-input is enforced. Runbook validity checked by H23.
-                        results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
+                        results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list → ALL-NULL"] = (
                             f"PASS: ALL-NULL output for JSON-list column (ADR-051 D4 scalar-input enforced); "
                             f"numeric_scores_found={len(numeric_scores)}, all_scores={scores[:5]}"
                         )
             else:
-                results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
+                results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list → ALL-NULL"] = (
                     "FAIL: 0 rows from iocs_value IS NOT NULL filter (check DTU data)"
                 )
 
@@ -4159,7 +4271,7 @@ COVERAGE_MATRIX = [
     ("[A20]", "MCP Protocol",  "plugin_status NYA promptly"),
     ("[A21]", "MCP Protocol",  "infusion_status NYA promptly"),
     ("[A22]", "MCP Protocol",  "check_sensor_health (S-5.04 gate)"),
-    ("[A23]", "MCP Protocol",  "all NYA stubs return -32003 (full dynamic coverage, F-AUD-P13-OBS-004)"),
+    ("[A23]", "MCP Protocol",  "all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"),
     ("[B1]",  "Sensor Tables", "CrowdStrike detections org-c"),
     ("[B2]",  "Sensor Tables", "Armis devices org-c"),
     ("[B3]",  "Sensor Tables", "Claroty devices org-c"),
@@ -4240,7 +4352,7 @@ COVERAGE_MATRIX = [
     ("[H18]", "Guardrails",    "E-QUERY-003: oversize query (~80KB) controlled rejection"),
     ("[H19a]","UDFs",          "threat_sources UDF returns virustotal in result"),
     ("[H19b]","UDFs",          "cvss_vector UDF returns CVSS:3.1/ string"),
-    ("[H20]", "Guardrails",    "ADR-051 D4 regression detector: iocs_value JSON-list score=0"),
+    ("[H20]", "Guardrails",    "ADR-051 D4 regression detector: iocs_value JSON-list → ALL-NULL"),
     ("[H21]", "Determinism",   "Repeated sorted query byte-identical (seeded ChaCha20)"),
     ("[H22]", "BC-2.11.018",   "normalized_pql present on success response"),
     # H23: F-AUD-P10-MED-003 + HIGH-001 runbook-side (static text check, no MCP call)
