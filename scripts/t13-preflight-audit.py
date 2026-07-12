@@ -645,8 +645,10 @@ def run_audit():
                         f"tri-state fields present (BC-2.10.011 single-client mode)"
                     )
 
-        # OBS (scope-leak guard): initialize before A7 so A8 never depends on NameError.
+        # OBS-001: initialize before A7 — A8 uses _describe_org_c_tables; A9/A10 use
+        # _describe_org_c_body to avoid three redundant prism_describe(org-c) calls.
         _describe_org_c_tables = set()
+        _describe_org_c_body: dict = {}
 
         # ── A7: AUDIT-001: prism_describe sensor-prefixed table names ────────
         body, err = tool_call(proc, "prism_describe", {"client_id": "org-c"}, timeout=15.0)
@@ -665,7 +667,8 @@ def run_audit():
                 results["[A7] AUDIT-001: prism_describe sensor-prefixed names (org-c)"] = f"PASS: {len(table_names)} tables; {sorted(table_names)}"
             else:
                 results["[A7] AUDIT-001: prism_describe sensor-prefixed names (org-c)"] = f"FAIL: only {len(sensor_prefixed)} sensor-prefixed tables; got: {table_names}"
-            # Save for use in subsequent checks
+            # OBS-001: save full body so A9/A10 can reuse it without a second tool call
+            _describe_org_c_body = body
             _describe_org_c_tables = table_names
 
         # ── A8: prism_describe org-c has all 5 core Stage-4 tables present (extended set covered by B11–B15) ─────────────
@@ -685,7 +688,11 @@ def run_audit():
             results["[A8] prism_describe org-c: all required tables present"] = f"PASS: required tables present (total={len(present)}): {sorted(present)}"
 
         # ── A9: prism_describe org-c has pql_hints field ─────────────────────
-        body_d, err_d = tool_call(proc, "prism_describe", {"client_id": "org-c"}, timeout=15.0)
+        # OBS-001: reuse A7 describe response cache — eliminates redundant tool call
+        if _describe_org_c_body:
+            body_d, err_d = _describe_org_c_body, None
+        else:
+            body_d, err_d = tool_call(proc, "prism_describe", {"client_id": "org-c"}, timeout=15.0)
         if err_d:
             results["[A9] prism_describe org-c: pql_hints field present"] = f"FAIL: {err_d}"
         else:
@@ -695,12 +702,21 @@ def run_audit():
             elif isinstance(pql_hints, list) and len(pql_hints) > 0:
                 results["[A9] prism_describe org-c: pql_hints field present"] = f"PASS: {len(pql_hints)} pql_hints, first={str(pql_hints[0])[:80]!r}"
             else:
-                results["[A9] prism_describe org-c: pql_hints field present"] = f"PASS: pql_hints={pql_hints!r}"
+                # MED-001: pql_hints present but empty list or wrong type → FAIL
+                # An empty list or non-list value means pql_hints is not usable by the LLM.
+                results["[A9] prism_describe org-c: pql_hints field present"] = (
+                    f"FAIL: pql_hints present but empty or wrong type — "
+                    f"expected non-empty list, got {pql_hints!r} (type={type(pql_hints).__name__})"
+                )
 
         # ── A10: prism_describe org-c: cyberint_alerts has iocs_value + iocs_value_first ─
         # S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 (ADR-051 D4): added iocs_value_first as scalar
         # companion column so typed enrichment UDFs receive a plain string, not a JSON list.
-        body_dc, err_dc = tool_call(proc, "prism_describe", {"client_id": "org-c"}, timeout=15.0)
+        # OBS-001: reuse A7 describe response cache — eliminates redundant tool call
+        if _describe_org_c_body:
+            body_dc, err_dc = _describe_org_c_body, None
+        else:
+            body_dc, err_dc = tool_call(proc, "prism_describe", {"client_id": "org-c"}, timeout=15.0)
         if err_dc:
             results["[A10] prism_describe org-c: cyberint_alerts has iocs_value"] = f"FAIL: {err_dc}"
         else:
@@ -841,6 +857,10 @@ def run_audit():
             #   "FROM crowdstrike_detections", "FROM claroty_alerts", "FROM armis_alerts"
             # cyberint is NOT in the prompt body — do not require it (anchor to reality).
             # Dot-notation check remains: underscore anchors + no-dot is the full assertion.
+            # LOW-004: these anchors appear as positive-example queries in the prompt body,
+            # not as structural markers or section headings. The prompt contains literal
+            # example queries the LLM can copy directly. Asserting their presence proves
+            # FROM-underscore names (not dot-notation) appear in the rendered examples.
             required_anchors = [
                 "FROM crowdstrike_detections",
                 "FROM claroty_alerts",
@@ -1133,7 +1153,12 @@ def run_audit():
             results["[B1] CS org-c: crowdstrike_detections returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[B1] CS org-c: crowdstrike_detections returns data"] = f"PASS: {len(rows)} rows"
+            if not rows:
+                results["[B1] CS org-c: crowdstrike_detections returns data"] = (
+                    "FAIL: 0 rows — Stage 1+ must have crowdstrike_detections data (Stage 4 terminal guarantee)"
+                )
+            else:
+                results["[B1] CS org-c: crowdstrike_detections returns data"] = f"PASS: {len(rows)} rows"
 
         # ── B2: Armis devices org-c ───────────────────────────────────────────
         body, err = query(proc, "FROM armis_devices\n| where device_id IS NOT NULL\n| limit 3", ["org-c"])
@@ -1143,7 +1168,12 @@ def run_audit():
             results["[B2] Armis org-c: armis_devices returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[B2] Armis org-c: armis_devices returns data"] = f"PASS: {len(rows)} rows"
+            if not rows:
+                results["[B2] Armis org-c: armis_devices returns data"] = (
+                    "FAIL: 0 rows — Stage 4 terminal guarantee requires armis_devices data"
+                )
+            else:
+                results["[B2] Armis org-c: armis_devices returns data"] = f"PASS: {len(rows)} rows"
 
         # ── B3: Claroty devices org-c ─────────────────────────────────────────
         body, err = query(proc, "FROM claroty_devices | limit 3", ["org-c"])
@@ -1153,7 +1183,12 @@ def run_audit():
             results["[B3] Claroty org-c: claroty_devices returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[B3] Claroty org-c: claroty_devices returns data"] = f"PASS: {len(rows)} rows"
+            if not rows:
+                results["[B3] Claroty org-c: claroty_devices returns data"] = (
+                    "FAIL: 0 rows — Stage 4 terminal guarantee requires claroty_devices data"
+                )
+            else:
+                results["[B3] Claroty org-c: claroty_devices returns data"] = f"PASS: {len(rows)} rows"
 
         # ── B4: Claroty audit_logs org-c ──────────────────────────────────────
         # F-AUD-P5-LOW-004: query with limit 10 (> fixture size) and assert exactly 5 rows.
@@ -1193,7 +1228,12 @@ def run_audit():
             results["[B5] Cyberint org-c: cyberint_alerts returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[B5] Cyberint org-c: cyberint_alerts returns data"] = f"PASS: {len(rows)} rows"
+            if not rows:
+                results["[B5] Cyberint org-c: cyberint_alerts returns data"] = (
+                    "FAIL: 0 rows — Stage 4 terminal guarantee requires cyberint_alerts data"
+                )
+            else:
+                results["[B5] Cyberint org-c: cyberint_alerts returns data"] = f"PASS: {len(rows)} rows"
 
         # ── B6: Claroty devices org-b ─────────────────────────────────────────
         body, err = query(proc, "FROM claroty_devices | limit 3", ["org-b"])
@@ -1203,7 +1243,12 @@ def run_audit():
             results["[B6] Claroty org-b: claroty_devices returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[B6] Claroty org-b: claroty_devices returns data"] = f"PASS: {len(rows)} rows"
+            if not rows:
+                results["[B6] Claroty org-b: claroty_devices returns data"] = (
+                    "FAIL: 0 rows — org-b must have claroty_devices data"
+                )
+            else:
+                results["[B6] Claroty org-b: claroty_devices returns data"] = f"PASS: {len(rows)} rows"
 
         # ── B7: Cyberint alerts org-b ─────────────────────────────────────────
         body, err = query(proc, "FROM cyberint_alerts | limit 3", ["org-b"])
@@ -1213,7 +1258,12 @@ def run_audit():
             results["[B7] Cyberint org-b: cyberint_alerts returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[B7] Cyberint org-b: cyberint_alerts returns data"] = f"PASS: {len(rows)} rows"
+            if not rows:
+                results["[B7] Cyberint org-b: cyberint_alerts returns data"] = (
+                    "FAIL: 0 rows — org-b must have cyberint_alerts data"
+                )
+            else:
+                results["[B7] Cyberint org-b: cyberint_alerts returns data"] = f"PASS: {len(rows)} rows"
 
         # ── B8: CrowdStrike detections org-a ──────────────────────────────────
         body, err = query(proc, "FROM crowdstrike_detections | limit 3", ["org-a"])
@@ -1223,7 +1273,12 @@ def run_audit():
             results["[B8] CS org-a: crowdstrike_detections returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[B8] CS org-a: crowdstrike_detections returns data"] = f"PASS: {len(rows)} rows"
+            if not rows:
+                results["[B8] CS org-a: crowdstrike_detections returns data"] = (
+                    "FAIL: 0 rows — org-a must have crowdstrike_detections data"
+                )
+            else:
+                results["[B8] CS org-a: crowdstrike_detections returns data"] = f"PASS: {len(rows)} rows"
 
         # ── B9: Armis devices org-a ───────────────────────────────────────────
         body, err = query(proc, "FROM armis_devices | limit 3", ["org-a"])
@@ -1233,7 +1288,12 @@ def run_audit():
             results["[B9] Armis org-a: armis_devices returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[B9] Armis org-a: armis_devices returns data"] = f"PASS: {len(rows)} rows"
+            if not rows:
+                results["[B9] Armis org-a: armis_devices returns data"] = (
+                    "FAIL: 0 rows — org-a must have armis_devices data"
+                )
+            else:
+                results["[B9] Armis org-a: armis_devices returns data"] = f"PASS: {len(rows)} rows"
 
         # ── B11–B15: Additional tables (org-c full 10-table matrix) ─────────────
         # Sequential IDs [B11]..[B15] in stable iteration order (F-AUD-P1-LOW-002).
@@ -1310,7 +1370,12 @@ def run_audit():
             results["[C1] SQL SELECT mode: SELECT FROM WHERE LIMIT"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[C1] SQL SELECT mode: SELECT FROM WHERE LIMIT"] = f"PASS: {len(rows)} rows"
+            if not rows:
+                results["[C1] SQL SELECT mode: SELECT FROM WHERE LIMIT"] = (
+                    "FAIL: 0 rows — crowdstrike_detections must have data at Stage 1+"
+                )
+            else:
+                results["[C1] SQL SELECT mode: SELECT FROM WHERE LIMIT"] = f"PASS: {len(rows)} rows"
 
         # ── C2: Pipe mode ─────────────────────────────────────────────────────
         body, err = query(proc, "FROM armis_devices\n| where device_id IS NOT NULL\n| limit 5", ["org-c"])
@@ -1320,7 +1385,12 @@ def run_audit():
             results["[C2] Pipe mode: FROM | where | limit"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[C2] Pipe mode: FROM | where | limit"] = f"PASS: {len(rows)} rows"
+            if not rows:
+                results["[C2] Pipe mode: FROM | where | limit"] = (
+                    "FAIL: 0 rows — armis_devices must have data at Stage 1+"
+                )
+            else:
+                results["[C2] Pipe mode: FROM | where | limit"] = f"PASS: {len(rows)} rows"
 
         # ── C3: Pipe fields projection ────────────────────────────────────────
         body, err = query(proc, "FROM crowdstrike_detections\n| fields device_id, behaviors_ioc_type\n| limit 5", ["org-c"])
@@ -1330,13 +1400,15 @@ def run_audit():
             results["[C3] Pipe mode: FROM | fields | limit"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if rows:
+            if not rows:
+                results["[C3] Pipe mode: FROM | fields | limit"] = (
+                    "FAIL: 0 rows — crowdstrike_detections must have data at Stage 1+"
+                )
+            else:
                 col_names = list(rows[0].keys())
                 # Filter out internal metadata cols (_client, _sensor, _source_table)
                 data_cols = [c for c in col_names if not c.startswith("_")]
                 results["[C3] Pipe mode: FROM | fields | limit"] = f"PASS: {len(rows)} rows; projected data cols={data_cols}"
-            else:
-                results["[C3] Pipe mode: FROM | fields | limit"] = f"PASS: {len(rows)} rows returned"
 
         # ── C4: DataFusion aggregate COUNT(*) ────────────────────────────────
         # NOTE (F-AUD-P1-OBS-001): also appears as A14 and F6 — intentional cross-section
@@ -1387,7 +1459,24 @@ def run_audit():
             results["[C7] Pipe mode: | sort"] = f"FAIL: {body['error_code']} — {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[C7] Pipe mode: | sort"] = f"PASS: {len(rows)} rows"
+            if not rows:
+                results["[C7] Pipe mode: | sort"] = (
+                    "FAIL: 0 rows — crowdstrike_detections must have data at Stage 1+"
+                )
+            else:
+                # LOW-005: verify | sort device_id actually sorted the results ascending
+                device_ids = [r.get("device_id") for r in rows if r.get("device_id") is not None]
+                is_sorted_asc = device_ids == sorted(device_ids)
+                if is_sorted_asc:
+                    results["[C7] Pipe mode: | sort"] = (
+                        f"PASS: {len(rows)} rows; device_id sorted ascending confirmed; "
+                        f"first={str(device_ids[0])[:40]!r}"
+                    )
+                else:
+                    results["[C7] Pipe mode: | sort"] = (
+                        f"FAIL: {len(rows)} rows but device_id not in sorted order — "
+                        f"| sort operator not working; first 5={device_ids[:5]!r}"
+                    )
 
         # ── C8: SQL mode baseline ─────────────────────────────────────────────
         # Verify SQL query path executes without error (prerequisite for temporal
@@ -1403,7 +1492,12 @@ def run_audit():
             results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"FAIL: {body['error_code']}"
         else:
             rows = body.get("rows", [])
-            results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"PASS: {len(rows)} rows (SQL path confirmed; see G7 for RFC-3339 regression)"
+            if not rows:
+                results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = (
+                    "FAIL: 0 rows — crowdstrike_detections must have data at Stage 1+"
+                )
+            else:
+                results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"PASS: {len(rows)} rows (SQL path confirmed; see G7 for RFC-3339 regression)"
 
         # ═══════════════════════════════════════════════════════════════════════
         # SECTION D: Scenario Stage Verification (Stage 4 required)
@@ -1574,10 +1668,17 @@ def run_audit():
                 iocs_value_first = first.get("iocs_value_first", "?")
                 if threat_score == "MISSING":
                     results["[E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts"] = f"FAIL: threat_score column missing from result; cols={list(first.keys())[:8]}"
-                elif not isinstance(threat_score, (int, float)):
+                elif isinstance(threat_score, bool) or not isinstance(threat_score, (int, float)):
+                    # LOW-002: bool is subclass of int — must exclude explicitly
                     results["[E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts"] = f"FAIL: threat_score must be Int64 (ADR-051 D1); got type={type(threat_score).__name__}, value={str(threat_score)[:40]!r}"
+                elif threat_score < 75:
+                    # MED-006: value gate — scenario IOCs must score >= 75 (gap-analysis §3)
+                    results["[E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts"] = (
+                        f"FAIL: threat_score={threat_score} < 75 — "
+                        f"scenario IOCs must score >= 75 (gap-analysis §3 data contract)"
+                    )
                 else:
-                    results["[E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts"] = f"PASS: {len(rows)} rows; threat_score={threat_score} (int); iocs_value_first={str(iocs_value_first)[:40]!r}"
+                    results["[E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts"] = f"PASS: {len(rows)} rows; threat_score={threat_score} (int, >= 75); iocs_value_first={str(iocs_value_first)[:40]!r}"
             else:
                 # F-AUD-P2-HIGH-001: Stage 4 is terminal/absorbing; iocs_value_first
                 # is guaranteed non-null at Stage 4 → FAIL, not WARN.
@@ -1625,8 +1726,20 @@ def run_audit():
                 cve_id = first.get("device_cves_first", "?")
                 if cvss == "MISSING":
                     results["[E3] ENRICH: cvss_base_score(device_cves_first) on armis_devices"] = f"FAIL: cvss_base_score column missing; cols={list(first.keys())[:8]}"
+                elif isinstance(cvss, bool) or not isinstance(cvss, (int, float)):
+                    # MED-005: type guard — cvss_base_score must be numeric (LOW-002: bool exclusion)
+                    results["[E3] ENRICH: cvss_base_score(device_cves_first) on armis_devices"] = (
+                        f"FAIL: cvss_base_score must be numeric Float64; "
+                        f"got type={type(cvss).__name__}, value={str(cvss)[:40]!r}"
+                    )
+                elif cvss < 7.0:
+                    # MED-005: value gate — scenario CVEs must score >= 7.0 (gap-analysis §3)
+                    results["[E3] ENRICH: cvss_base_score(device_cves_first) on armis_devices"] = (
+                        f"FAIL: cvss_base_score={cvss} < 7.0 — "
+                        f"scenario CVEs must score >= 7.0 (gap-analysis §3 data contract)"
+                    )
                 else:
-                    results["[E3] ENRICH: cvss_base_score(device_cves_first) on armis_devices"] = f"PASS: {len(rows)} rows; cvss_base_score={cvss}; cve_id={str(cve_id)[:30]!r}"
+                    results["[E3] ENRICH: cvss_base_score(device_cves_first) on armis_devices"] = f"PASS: {len(rows)} rows; cvss_base_score={cvss} (numeric, >= 7.0); cve_id={str(cve_id)[:30]!r}"
             else:
                 # F-AUD-P2-HIGH-001: Stage 4 is terminal/absorbing; scenario devices
                 # have CVE data at Stage 4 → FAIL, not WARN.
@@ -1670,7 +1783,27 @@ def run_audit():
             rows = body.get("rows", [])
             if rows:
                 threat_score = rows[0].get("threat_score", "MISSING")
-                results["[E5] ENRICH: threat_score(behaviors_ioc_value_first) on CS detections"] = f"PASS: {len(rows)} rows; threat_score={threat_score}"
+                if threat_score == "MISSING":
+                    # HIGH-001: absence guard — threat_score column must be present
+                    results["[E5] ENRICH: threat_score(behaviors_ioc_value_first) on CS detections"] = (
+                        f"FAIL: threat_score column missing from result; cols={list(rows[0].keys())[:8]}"
+                    )
+                elif isinstance(threat_score, bool) or not isinstance(threat_score, (int, float)):
+                    # HIGH-001: type guard — must be numeric Int64 (LOW-002: bool exclusion)
+                    results["[E5] ENRICH: threat_score(behaviors_ioc_value_first) on CS detections"] = (
+                        f"FAIL: threat_score must be Int64 (ADR-051 D1); "
+                        f"got type={type(threat_score).__name__}, value={str(threat_score)[:40]!r}"
+                    )
+                elif threat_score < 75:
+                    # HIGH-001: value gate — CS scenario IOCs must score >= 75 (gap-analysis §3)
+                    results["[E5] ENRICH: threat_score(behaviors_ioc_value_first) on CS detections"] = (
+                        f"FAIL: threat_score={threat_score} < 75 — "
+                        f"CS scenario IOCs must score >= 75 (gap-analysis §3 data contract)"
+                    )
+                else:
+                    results["[E5] ENRICH: threat_score(behaviors_ioc_value_first) on CS detections"] = (
+                        f"PASS: {len(rows)} rows; threat_score={threat_score} (int, >= 75)"
+                    )
             else:
                 # F-AUD-P2-HIGH-001: Stage 4 is terminal/absorbing; CS detections at
                 # Stage 4 have IOC values → FAIL, not WARN.
@@ -1690,8 +1823,9 @@ def run_audit():
         else:
             rows = body.get("rows", [])
             if rows:
-                scores = [r.get("threat_score") for r in rows if isinstance(r.get("threat_score"), (int, float))]
-                non_int_sample = next((r.get("threat_score") for r in rows if r.get("threat_score") is not None and not isinstance(r.get("threat_score"), (int, float))), None)
+                # LOW-002: bool is subclass of int — exclude booleans from numeric check
+                scores = [r.get("threat_score") for r in rows if isinstance(r.get("threat_score"), (int, float)) and not isinstance(r.get("threat_score"), bool)]
+                non_int_sample = next((r.get("threat_score") for r in rows if r.get("threat_score") is not None and (isinstance(r.get("threat_score"), bool) or not isinstance(r.get("threat_score"), (int, float)))), None)
                 if non_int_sample is not None:
                     results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = f"FAIL: threat_score must be Int64 (ADR-051 D1); got type={type(non_int_sample).__name__}, value={str(non_int_sample)[:60]!r}"
                 elif scores:
@@ -1999,9 +2133,20 @@ def run_audit():
                         f"data-quality regression (Standing Rule 3 §2)"
                     )
                 else:
-                    results["[G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)"] = (
-                        f"PASS: {len(rows)} rows; distinct severities={distinct_sev!r}"
-                    )
+                    # MED-002: filter-echo membership — IIN('high','critical') must only
+                    # return rows where severity.lower() ∈ {'high','critical'}
+                    foreign = [s for s in distinct_sev if s.lower() not in {"high", "critical"}]
+                    if foreign:
+                        results["[G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)"] = (
+                            f"FAIL: {len(rows)} rows but foreign severity values returned — "
+                            f"IIN filter leaked rows not in {{high,critical}}: {foreign!r}; "
+                            f"all distinct={distinct_sev!r}"
+                        )
+                    else:
+                        results["[G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)"] = (
+                            f"PASS: {len(rows)} rows; distinct severities={distinct_sev!r} "
+                            f"(all in {{high,critical}}; IIN filter-echo confirmed)"
+                        )
             else:
                 # NB-2: FAIL (not WARN) — the demo environment contract guarantees
                 # cyberint_alerts has High/Critical severity rows at Stage 4. 0 rows
@@ -2070,10 +2215,20 @@ def run_audit():
                         f"{non_title!r}; all returned={distinct_status!r}"
                     )
                 else:
-                    results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
-                        f"PASS: {len(rows)} rows; distinct statuses={distinct_status!r} "
-                        f"(Title-case confirmed; lowercase IIN input matched OCSF-normalized values)"
-                    )
+                    # MED-003: filter-echo membership — IIN('new','in progress') must only
+                    # return rows where status.lower() ∈ {'new','in progress'}
+                    foreign = [s for s in distinct_status if s.lower() not in {"new", "in progress"}]
+                    if foreign:
+                        results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
+                            f"FAIL: {len(rows)} rows but foreign status values returned — "
+                            f"IIN filter leaked rows not in {{new,in progress}}: {foreign!r}; "
+                            f"all distinct={distinct_status!r}"
+                        )
+                    else:
+                        results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
+                            f"PASS: {len(rows)} rows; distinct statuses={distinct_status!r} "
+                            f"(Title-case confirmed; all in {{new,in progress}}; IIN filter-echo confirmed)"
+                        )
             else:
                 results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
                     "FAIL: 0 rows — crowdstrike_detections at Stage 1+ must have status='new' "
@@ -2335,7 +2490,8 @@ def run_audit():
                     results["[G8] ADR-051 regression: threat_score output is Int64 not JSON-string"] = (
                         f"FAIL: threat_score column absent; cols={list(first.keys())[:8]}"
                     )
-                elif isinstance(ts, (int, float)):
+                elif isinstance(ts, (int, float)) and not isinstance(ts, bool):
+                    # LOW-002: bool is subclass of int — must confirm not-bool for genuine numeric
                     results["[G8] ADR-051 regression: threat_score output is Int64 not JSON-string"] = (
                         f"PASS: threat_score={ts} (type={type(ts).__name__}) — OBS-1 regression confirmed closed; "
                         f"output is typed numeric, NOT JSON-encoded string"
@@ -2472,7 +2628,9 @@ def run_audit():
                 has_avail_text = "available: [" in msg
                 # Also check structuredContent.error fields (MED-002: sc fields required)
                 sc_dym = sc_err.get("did_you_mean", "") if sc_err else ""
-                sc_avail = sc_err.get("available_columns", []) if sc_err else []
+                # LOW-001: guard against non-list available_columns (e.g. None or wrong type)
+                _raw_avail = sc_err.get("available_columns") if sc_err else None
+                sc_avail = _raw_avail if isinstance(_raw_avail, list) else []
                 # F-AUD-P3-MED-002: PASS requires BOTH text anchors AND at least one
                 # structuredContent.error field populated — text alone is not sufficient.
                 has_sc_fields = (sc_dym != "") or (len(sc_avail) > 0)
@@ -2688,9 +2846,18 @@ def run_audit():
             rows = body.get("rows", [])
             if rows:
                 scores = [r.get("risk_score") for r in rows if r.get("risk_score") is not None]
-                results[_H7_RESULT_KEY] = (
-                    f"PASS: {len(rows)} joined rows; risk_score values={scores[:5]}"
-                )
+                # MED-004: all risk_score values must be numeric (LOW-002: bool exclusion)
+                non_numeric = [s for s in scores if isinstance(s, bool) or not isinstance(s, (int, float))]
+                if non_numeric:
+                    results[_H7_RESULT_KEY] = (
+                        f"FAIL: {len(rows)} joined rows but risk_score contains non-numeric values — "
+                        f"expected Int64/Float64 (ADR-051 D1); "
+                        f"non_numeric sample={non_numeric[:3]!r}; all_scores={scores[:5]!r}"
+                    )
+                else:
+                    results[_H7_RESULT_KEY] = (
+                        f"PASS: {len(rows)} joined rows; risk_score values={scores[:5]} (all numeric)"
+                    )
             else:
                 results[_H7_RESULT_KEY] = (
                     "FAIL: 0 rows — seed-200 guarantees 50 device IDs overlap between tables"
@@ -3225,7 +3392,9 @@ def run_audit():
         # protocol — positive coverage (confirming a notification was delivered) would
         # require a mutating trigger, which is excluded by the read-only preflight
         # constraint.  PASS here means: no hang + no panic + no -32601 / transport error.
-        res_sub, err_sub = resources_subscribe(proc, "prismql://schema/org-c", timeout=10.0)
+        # OBS-002: tighten subscribe timeout from 10.0s to 5.0s (smoke-only check; any valid
+        # server response arrives in < 1s; 10s was unnecessarily loose for a no-hang test)
+        res_sub, err_sub = resources_subscribe(proc, "prismql://schema/org-c", timeout=5.0)
         if err_sub:
             results["[H14e] resources/subscribe+unsubscribe: prismql://schema/org-c (smoke-only)"] = (
                 f"FAIL: subscribe: {err_sub}"
@@ -3241,8 +3410,9 @@ def run_audit():
                     "PASS: subscribe+unsubscribe round-trip accepted (smoke: no hang/panic/transport error)"
                 )
 
-        # ── H15: 14 implemented tools + live explain_query call ──────────────
-        # Re-asserts the 14-tool set from A2 but also does a live explain_query call.
+        # ── H15: live explain_query call (one of 14 implemented tools) ───────
+        # LOW-003: this check does NOT re-assert the 14-tool set from A2. It verifies
+        # explain_query executes correctly and returns a parseable plan.
         body, err = tool_call(proc, "explain_query",
                               {"query": "FROM crowdstrike_detections | limit 5",
                                "clients": ["org-c"]}, timeout=15.0)
@@ -3256,24 +3426,25 @@ def run_audit():
         else:
             # explain_query returns a plan object; require parsed_mode to confirm
             # positive-coverage evidence (F-AUD-P1-MED-006: empty body is not a PASS).
-            # F-AUD-P13-OBS-002: assert value domain from query_mode_str() in explain.rs:
-            #   "filter" | "sql" | "pipe" | "sql_pipe" | "unknown" (non-exhaustive catch-all).
-            _VALID_PARSED_MODES = {"filter", "sql", "pipe", "sql_pipe", "unknown"}
+            # MED-007: the query "FROM crowdstrike_detections | limit 5" is unambiguously
+            # pipe-syntax — assert parsed_mode == "pipe" exactly, not "any valid domain".
             _pm = body.get("parsed_mode")
             if _pm is None:
                 results["[H15] explain_query live call (one of 14 implemented tools)"] = (
                     f"FAIL: explain_query response lacks parsed_mode key — schema mismatch or empty plan; "
                     f"keys={list(body.keys())[:8]}"
                 )
-            elif _pm in _VALID_PARSED_MODES:
+            elif _pm == "pipe":
                 results["[H15] explain_query live call (one of 14 implemented tools)"] = (
-                    f"PASS: explain_query returned plan with parsed_mode={_pm!r} (valid domain); "
+                    f"PASS: explain_query returned plan with parsed_mode='pipe' "
+                    f"(pipe query confirmed); "
                     f"keys={list(body.keys())[:6]}"
                 )
             else:
+                # MED-007: any mode other than "pipe" for a pipe query is a regression
                 results["[H15] explain_query live call (one of 14 implemented tools)"] = (
-                    f"FAIL: parsed_mode={_pm!r} not in valid domain "
-                    f"{sorted(_VALID_PARSED_MODES)} — unknown value (schema or serialization regression); "
+                    f"FAIL: expected parsed_mode='pipe' for pipe-syntax query; "
+                    f"got {_pm!r} — unexpected mode (mode-detection or serialization regression); "
                     f"keys={list(body.keys())[:6]}"
                 )
 
@@ -3646,7 +3817,8 @@ def run_audit():
                     )
                 else:
                     scores = [r.get("threat_score") for r in rows if "threat_score" in r]
-                    numeric_scores = [s for s in scores if isinstance(s, (int, float))]
+                    # LOW-002: bool is subclass of int — exclude booleans from numeric check
+                    numeric_scores = [s for s in scores if isinstance(s, (int, float)) and not isinstance(s, bool)]
                     max_score = max(numeric_scores, default=0)
                     if max_score >= 75:
                         # Emphatic FAIL: ADR-051 D4 scalar-input regression — iocs_value
