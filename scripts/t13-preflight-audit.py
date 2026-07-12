@@ -57,23 +57,50 @@ _cargo_target_dir = os.environ.get("CARGO_TARGET_DIR")
 # _repo_root is the git worktree root (e.g. .worktrees/AUDIT-COVERAGE-001/ when run from a
 # worktree).  The .factory/ directory is a separate git worktree mounted at the MAIN repo
 # root (layout: <main>/.worktrees/<id>/; .factory/ is at <main>/.factory/).
+# F-AUD-P18-LOW-001: worktree-aware resolver discipline.
 # Resolution order:
-#   1. _repo_root/.factory/... (main checkout or .factory/ mounted in worktree)
-#   2. Walk up _repo_root's ancestors until a dir containing .factory/objectives/ is found
-#      (covers the standard worktree layout: _repo_root.parent.parent = main repo root)
+#   1. $PRISM_FACTORY_ROOT env var (explicit override — set to main repo root path when
+#      running in a detached worktree that has a stale .factory/ snapshot)
+#   2. Walk up _repo_root's ancestors; when a candidate root's .git is a FILE (gitdir
+#      pointer = worktree marker), skip its .factory/ — worktree .factory/ snapshots are
+#      stale; the canonical factory-artifacts mount lives at the main repo root (whose
+#      .git is a directory). Continue walking until a .git-directory root is found.
 #   3. None if not found — caller emits a FAIL listing all tried paths.
 def _find_factory_file(*rel_parts: str) -> tuple:
     """Locate a file inside .factory/ portably across main and worktree layouts.
 
     Returns (Path, tried_list) where Path is the resolved file (or None if not found)
     and tried_list is the list of Paths attempted (for FAIL diagnostics).
+
+    Worktree-aware: when a candidate ancestor's .git entry is a FILE (not a directory),
+    that ancestor is a git worktree whose .factory/ may be a stale snapshot. Such
+    ancestors are skipped; only ancestors with a .git DIRECTORY (main repo root) are
+    accepted. Set $PRISM_FACTORY_ROOT to the main repo root path to override all
+    walking logic (useful when running from an unusual directory layout).
     """
     _rel = Path(".factory").joinpath(*rel_parts)
     _tried: list = []
-    # Walk from _repo_root upward (includes _repo_root itself as first candidate)
+    # $PRISM_FACTORY_ROOT: explicit override — bypasses all walking logic.
+    _factory_root_override = os.environ.get("PRISM_FACTORY_ROOT")
+    if _factory_root_override:
+        _cand = Path(_factory_root_override) / _rel
+        _tried.append(_cand)
+        if _cand.exists():
+            return _cand, _tried
+        return None, _tried
+    # Walk from _repo_root upward (includes _repo_root itself as first candidate).
+    # Worktree roots have .git as a FILE (gitdir pointer), not a directory.
+    # Their .factory/ may be a stale snapshot — skip and continue walking to the
+    # main repo root (whose .git is a directory). Canonical factory-artifacts mount
+    # is always at the main repo root.
     for _ancestor in [_repo_root, *_repo_root.parents]:
         _cand = _ancestor / _rel
         _tried.append(_cand)
+        _git = _ancestor / ".git"
+        if _git.is_file():
+            # Worktree: .git is a gitdir-pointer file — skip this ancestor's .factory/
+            # to avoid reading a stale snapshot (F-AUD-P18-LOW-001).
+            continue
         if _cand.exists():
             return _cand, _tried
         # Stop at filesystem root
@@ -1466,17 +1493,25 @@ def run_audit():
             else:
                 # LOW-005: verify | sort device_id actually sorted the results ascending
                 device_ids = [r.get("device_id") for r in rows if r.get("device_id") is not None]
-                is_sorted_asc = device_ids == sorted(device_ids)
-                if is_sorted_asc:
+                # F-AUD-P18-MED-001: guard against all-null device_id — vacuous sorted-check
+                # would PASS and device_ids[0] would IndexError (mirrors H3's has_nonempty).
+                if not device_ids:
                     results["[C7] Pipe mode: | sort"] = (
-                        f"PASS: {len(rows)} rows; device_id sorted ascending confirmed; "
-                        f"first={str(device_ids[0])[:40]!r}"
+                        f"FAIL: all device_id null in {len(rows)} rows — "
+                        f"data-quality regression (Standing Rule 3 §2)"
                     )
                 else:
-                    results["[C7] Pipe mode: | sort"] = (
-                        f"FAIL: {len(rows)} rows but device_id not in sorted order — "
-                        f"| sort operator not working; first 5={device_ids[:5]!r}"
-                    )
+                    is_sorted_asc = device_ids == sorted(device_ids)
+                    if is_sorted_asc:
+                        results["[C7] Pipe mode: | sort"] = (
+                            f"PASS: {len(rows)} rows; device_id sorted ascending confirmed; "
+                            f"first={str(device_ids[0])[:40]!r}"
+                        )
+                    else:
+                        results["[C7] Pipe mode: | sort"] = (
+                            f"FAIL: {len(rows)} rows but device_id not in sorted order — "
+                            f"| sort operator not working; first 5={device_ids[:5]!r}"
+                        )
 
         # ── C8: SQL mode baseline ─────────────────────────────────────────────
         # Verify SQL query path executes without error (prerequisite for temporal
@@ -2846,18 +2881,28 @@ def run_audit():
             rows = body.get("rows", [])
             if rows:
                 scores = [r.get("risk_score") for r in rows if r.get("risk_score") is not None]
-                # MED-004: all risk_score values must be numeric (LOW-002: bool exclusion)
-                non_numeric = [s for s in scores if isinstance(s, bool) or not isinstance(s, (int, float))]
-                if non_numeric:
+                # F-AUD-P18-MED-002: guard against all-null risk_score — vacuous "all numeric"
+                # PASS would then feed H8's attribution gate on stale data (mirrors H3's
+                # has_nonempty pattern; data-quality regression, Standing Rule 3 §2).
+                if not scores:
                     results[_H7_RESULT_KEY] = (
-                        f"FAIL: {len(rows)} joined rows but risk_score contains non-numeric values — "
-                        f"expected Int64/Float64 (ADR-051 D1); "
-                        f"non_numeric sample={non_numeric[:3]!r}; all_scores={scores[:5]!r}"
+                        f"FAIL: {len(rows)} joined rows but all risk_score null — "
+                        f"expected >= 1 numeric risk_score value from JOIN "
+                        f"(data-quality regression, Standing Rule 3 §2)"
                     )
                 else:
-                    results[_H7_RESULT_KEY] = (
-                        f"PASS: {len(rows)} joined rows; risk_score values={scores[:5]} (all numeric)"
-                    )
+                    # MED-004: all risk_score values must be numeric (LOW-002: bool exclusion)
+                    non_numeric = [s for s in scores if isinstance(s, bool) or not isinstance(s, (int, float))]
+                    if non_numeric:
+                        results[_H7_RESULT_KEY] = (
+                            f"FAIL: {len(rows)} joined rows but risk_score contains non-numeric values — "
+                            f"expected Int64/Float64 (ADR-051 D1); "
+                            f"non_numeric sample={non_numeric[:3]!r}; all_scores={scores[:5]!r}"
+                        )
+                    else:
+                        results[_H7_RESULT_KEY] = (
+                            f"PASS: {len(rows)} joined rows; risk_score values={scores[:5]} (all numeric)"
+                        )
             else:
                 results[_H7_RESULT_KEY] = (
                     "FAIL: 0 rows — seed-200 guarantees 50 device IDs overlap between tables"
