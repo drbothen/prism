@@ -20,7 +20,7 @@ Coverage matrix (see len(COVERAGE_MATRIX) for current authoritative count):
      preflight is READ-ONLY; no write-back to sensors, no config changes, no alias mutations
   2. All 6 sensors × all tables (CrowdStrike, Cyberint, Claroty, Armis, ThreatIntel, NVD)
   3. All query modes (SQL, pipe, SqlPipe, filter, stats, joins, enrichment, temporal)
-  4. All scenario stages per client (determinism verified)
+  4. All scenario stages per client (in-session determinism verified (H21))
   5. Multi-client data segregation + org-scoping error paths + multi-client fan-out
   6. Enrichment correlation (ThreatIntel IOCs + NVD CVEs, threat_sources/cvss_vector)
   7. Error taxonomy paths (E-QUERY-032/-033/-037/-038/-039/-040/-041/-042/-003)
@@ -501,7 +501,7 @@ def run_audit():
                 results["[A5] MAJOR-001: list_capabilities client_registered=true"] = f"FAIL: client_registered={client_registered!r}"
 
         # ── A6: list_capabilities: tri-state model fields (D-1162 BC-2.10.011) ─
-        # BC-2.10.011 v1.5 single-client mode requires:
+        # BC-2.10.011 §single-client mode requires:
         #   capabilities: Map<String, {status: tri-state, resolution_chain: [...]}>
         #   not_registered_tools: [...] (renamed from not_implemented)
         # "enabled_count" is a cross-client summary field (null client_id mode) — it
@@ -828,7 +828,10 @@ def run_audit():
             results["[A17] HANG-FIX: query_tutorial returns promptly"] = f"FAIL: took {elapsed:.2f}s"
         else:
             msgs = res.get("messages", []) if res else []
-            results["[A17] HANG-FIX: query_tutorial returns promptly"] = f"PASS: {elapsed:.2f}s, {len(msgs)} message(s)"
+            if len(msgs) >= 1:
+                results["[A17] HANG-FIX: query_tutorial returns promptly"] = f"PASS: {elapsed:.2f}s, {len(msgs)} message(s)"
+            else:
+                results["[A17] HANG-FIX: query_tutorial returns promptly"] = f"FAIL: prompt returned no messages ({len(msgs)} messages)"
 
         # ── A18: investigate_host prompt returns promptly ─────────────────────
         t0 = time.time()
@@ -840,7 +843,10 @@ def run_audit():
             results["[A18] HANG-FIX: investigate_host returns promptly"] = f"FAIL: took {elapsed:.2f}s"
         else:
             msgs = res.get("messages", []) if res else []
-            results["[A18] HANG-FIX: investigate_host returns promptly"] = f"PASS: {elapsed:.2f}s, {len(msgs)} message(s)"
+            if len(msgs) >= 1:
+                results["[A18] HANG-FIX: investigate_host returns promptly"] = f"PASS: {elapsed:.2f}s, {len(msgs)} message(s)"
+            else:
+                results["[A18] HANG-FIX: investigate_host returns promptly"] = f"FAIL: prompt returned no messages ({len(msgs)} messages)"
 
         # ── A19: list_infusions NYA -32003 promptly ───────────────────────────
         t0 = time.time()
@@ -907,6 +913,58 @@ def run_audit():
                 results["[A21] HANG-FIX: infusion_status returns promptly"] = f"FAIL: NYA stub must return -32003 (E-INFRA-NYA); got code={code}, msg={msg[:60]!r}"
         else:
             results["[A21] HANG-FIX: infusion_status returns promptly"] = f"FAIL: NYA stub returned success (expected -32003 E-INFRA-NYA)"
+
+        # ── A23: all NYA stubs return -32003 (full dynamic coverage) ─────────
+        # F-AUD-P13-OBS-004: Replace 3/40 sampling gap with full dynamic coverage.
+        # Derives stub set at runtime: (tools/list names) − (EXPECTED_TOOLS 14 implemented).
+        # Each stub is called once with minimal empty args {}.
+        # Acceptable outcomes:
+        #   -32003: explicit E-INFRA-NYA (spec-correct NYA response)
+        #   -32602: schema param validation fires before handler body (acceptable NYA-equivalent;
+        #           stubs whose Param structs have non-optional required fields fail serde
+        #           deserialization before the handler runs — this IS validation preceding the
+        #           NYA gate per BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER)
+        # Deviant outcomes (→ FAIL): success response, any other error code, timeout.
+        # Named representatives A19/A20/A21 remain as-is (response-time bounds unchanged).
+        _nya_stub_names = sorted(
+            {t.get("name", "") for t in (tools_result or {}).get("tools", [])} - EXPECTED_TOOLS
+        ) if tools_result else []
+        _nya_deviants = []   # list of (name, outcome_str) for non-NYA results
+        _nya_pass_count = 0
+        _nya_total = len(_nya_stub_names)
+        for _nya_name in _nya_stub_names:
+            _rid = next_id()
+            send_msg(proc, {"jsonrpc": "2.0", "id": _rid, "method": "tools/call",
+                            "params": {"name": _nya_name, "arguments": {}}})
+            _resp, _err = read_msg(proc, timeout=5.0)
+            if _err:
+                _nya_deviants.append((_nya_name, f"timeout/error: {_err}"))
+            elif "error" in _resp:
+                _code = _resp["error"].get("code", "?")
+                _emsg = _resp["error"].get("message", "")
+                if _code in (-32003, -32602):
+                    # -32003 = explicit NYA; -32602 = schema validation precedes NYA gate
+                    _nya_pass_count += 1
+                else:
+                    _nya_deviants.append((_nya_name, f"code={_code}, msg={_emsg[:60]!r}"))
+            else:
+                # Success response — stub returned data; NYA contract violated
+                _nya_deviants.append((_nya_name, "SUCCESS (expected -32003 E-INFRA-NYA)"))
+        if not _nya_stub_names:
+            results["[A23] all NYA stubs return -32003 (full dynamic coverage)"] = (
+                "FAIL: could not derive NYA stub set (tools/list unavailable or empty)"
+            )
+        elif _nya_deviants:
+            results["[A23] all NYA stubs return -32003 (full dynamic coverage)"] = (
+                f"FAIL: {len(_nya_deviants)}/{_nya_total} stubs deviated from NYA contract "
+                f"(-32003 expected): "
+                + "; ".join(f"{n}={o}" for n, o in _nya_deviants[:5])
+            )
+        else:
+            results["[A23] all NYA stubs return -32003 (full dynamic coverage)"] = (
+                f"PASS: {_nya_pass_count}/{_nya_total} stubs NYA-compliant "
+                f"(-32003 explicit or -32602 schema-validation-precedes-NYA-gate)"
+            )
 
         # ── A22: check_sensor_health (S-5.04; if available) ─────────────────
         # NOTE: check_sensor_health returns raw JSON text (not under "results" envelope).
@@ -2220,9 +2278,18 @@ def run_audit():
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             if ec == "E-QUERY-038":
-                results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
-                    f"PASS: E-QUERY-038 (no Internal error / E-QUERY-034 regression)"
-                )
+                # F-AUD-P13-OBS-001 (POL-24): require invariant anchor "not found in table"
+                # in the message — mirrors F5 message-template regression gate.
+                if "not found in table" in msg:
+                    results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
+                        f"PASS: E-QUERY-038 + 'not found in table' anchor (POL-24; "
+                        f"no Internal error / E-QUERY-034 regression)"
+                    )
+                else:
+                    results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
+                        f"FAIL: E-QUERY-038 but 'not found in table' absent — "
+                        f"message-template regression (POL-24); message={msg[:80]!r}"
+                    )
             # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" (E-INT-001) at the
             # MCP boundary by map_prism_error (error_mapping.rs); this disjunct is future-proofing —
             # the "Internal error" disjunct handles the live path today.
@@ -2252,9 +2319,18 @@ def run_audit():
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             if ec == "E-QUERY-038":
-                results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
-                    f"PASS: E-QUERY-038 in filter mode (no regression)"
-                )
+                # F-AUD-P13-OBS-001 (POL-24): require invariant anchor "not found in table"
+                # in the message — mirrors F5 message-template regression gate.
+                if "not found in table" in msg:
+                    results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
+                        f"PASS: E-QUERY-038 + 'not found in table' anchor (POL-24; "
+                        f"no regression in filter mode)"
+                    )
+                else:
+                    results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
+                        f"FAIL: E-QUERY-038 but 'not found in table' absent — "
+                        f"message-template regression (POL-24); message={msg[:80]!r}"
+                    )
             # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" (E-INT-001) at the
             # MCP boundary by map_prism_error (error_mapping.rs); this disjunct is future-proofing —
             # the "Internal error" disjunct handles the live path today.
@@ -2514,7 +2590,7 @@ def run_audit():
                 )
 
         # ── H8: HEAD-JOIN fail-open — bare unknown column in JOIN ─────────────
-        # BC-2.11.016 v1.25 suspension rule 6: bare-column reference in JOIN → fail-open
+        # BC-2.11.016 §HEAD-JOIN SUSPENSION RULE: bare-column reference in JOIN → fail-open
         # (E-QUERY-034 or controlled rejection, NEVER E-QUERY-038).
         # TD-VSDD-060 anchor: map_prism_error -32000 catch-all display, error_mapping.rs
         # ("Internal error; see audit log"). Future refactors of that display string must
@@ -2781,9 +2857,14 @@ def run_audit():
             results["[H13a] client_overview prompt returns promptly"] = f"FAIL: took {elapsed_co:.2f}s"
         else:
             msgs = res_co.get("messages", []) if res_co else []
-            results["[H13a] client_overview prompt returns promptly"] = (
-                f"PASS: {elapsed_co:.2f}s; {len(msgs)} message(s)"
-            )
+            if len(msgs) >= 1:
+                results["[H13a] client_overview prompt returns promptly"] = (
+                    f"PASS: {elapsed_co:.2f}s; {len(msgs)} message(s)"
+                )
+            else:
+                results["[H13a] client_overview prompt returns promptly"] = (
+                    f"FAIL: prompt returned no messages ({len(msgs)} messages)"
+                )
 
         t0 = time.time()
         res_ccs, err_ccs = prompt_get(proc, "cross_client_status", {}, timeout=5.0)
@@ -2794,9 +2875,14 @@ def run_audit():
             results["[H13b] cross_client_status prompt returns promptly"] = f"FAIL: took {elapsed_ccs:.2f}s"
         else:
             msgs = res_ccs.get("messages", []) if res_ccs else []
-            results["[H13b] cross_client_status prompt returns promptly"] = (
-                f"PASS: {elapsed_ccs:.2f}s; {len(msgs)} message(s)"
-            )
+            if len(msgs) >= 1:
+                results["[H13b] cross_client_status prompt returns promptly"] = (
+                    f"PASS: {elapsed_ccs:.2f}s; {len(msgs)} message(s)"
+                )
+            else:
+                results["[H13b] cross_client_status prompt returns promptly"] = (
+                    f"FAIL: prompt returned no messages ({len(msgs)} messages)"
+                )
 
         # ── H14a: resources/read — prism://config/clients (3-org visibility) ──
         # F-AUD-P3-MED-004: split composite H14 into three independent result keys.
@@ -3041,15 +3127,25 @@ def run_audit():
         else:
             # explain_query returns a plan object; require parsed_mode to confirm
             # positive-coverage evidence (F-AUD-P1-MED-006: empty body is not a PASS).
-            if "parsed_mode" in body:
+            # F-AUD-P13-OBS-002: assert value domain from query_mode_str() in explain.rs:
+            #   "filter" | "sql" | "pipe" | "sql_pipe" | "unknown" (non-exhaustive catch-all).
+            _VALID_PARSED_MODES = {"filter", "sql", "pipe", "sql_pipe", "unknown"}
+            _pm = body.get("parsed_mode")
+            if _pm is None:
                 results["[H15] explain_query live call (one of 14 implemented tools)"] = (
-                    f"PASS: explain_query returned plan with parsed_mode={body.get('parsed_mode')!r}; "
+                    f"FAIL: explain_query response lacks parsed_mode key — schema mismatch or empty plan; "
+                    f"keys={list(body.keys())[:8]}"
+                )
+            elif _pm in _VALID_PARSED_MODES:
+                results["[H15] explain_query live call (one of 14 implemented tools)"] = (
+                    f"PASS: explain_query returned plan with parsed_mode={_pm!r} (valid domain); "
                     f"keys={list(body.keys())[:6]}"
                 )
             else:
                 results["[H15] explain_query live call (one of 14 implemented tools)"] = (
-                    f"FAIL: explain_query response lacks parsed_mode key — schema mismatch or empty plan; "
-                    f"keys={list(body.keys())[:8]}"
+                    f"FAIL: parsed_mode={_pm!r} not in valid domain "
+                    f"{sorted(_VALID_PARSED_MODES)} — unknown value (schema or serialization regression); "
+                    f"keys={list(body.keys())[:6]}"
                 )
 
         # ── H16: CWE-116/117 — control-char injection sanitized ──────────────
@@ -3101,10 +3197,15 @@ def run_audit():
                     f"preview={raw_text[:80]!r}"
                 )
             elif raw_text.startswith("ERROR:"):
-                # ERROR: prefix but not E-QUERY-038 — unexpected error layer; still no control char leak
+                # F-AUD-P13-OBS-006: ERROR: prefix but not E-QUERY-038 — unexpected error layer
+                # violates the determinism claim (H16 comment §Layer 2 establishes E-QUERY-038 as
+                # the deterministic layer; any other error layer is a spec deviation).
+                # control_chars_found is [] here (the if-branch above caught any leakage).
+                _h16_cc_status = "leaked" if control_chars_found else "clean"
                 results["[H16] CWE-116/117: control-char in column name sanitized"] = (
-                    f"PASS (unexpected error layer): error returned without control-char leakage, "
-                    f"but expected E-QUERY-038 (got different error type); preview={raw_text[:80]!r}"
+                    f"FAIL: unexpected error layer (determinism claim violated); "
+                    f"expected E-QUERY-038 but got different error type; "
+                    f"control-char status: {_h16_cc_status}; preview={raw_text[:80]!r}"
                 )
             elif resp_h16 and "error" in resp_h16:
                 # RPC-level rejection — also acceptable (no layer reached echo path)
@@ -3656,6 +3757,7 @@ COVERAGE_MATRIX = [
     ("[A20]", "MCP Protocol",  "plugin_status NYA promptly"),
     ("[A21]", "MCP Protocol",  "infusion_status NYA promptly"),
     ("[A22]", "MCP Protocol",  "check_sensor_health (S-5.04 gate)"),
+    ("[A23]", "MCP Protocol",  "all NYA stubs return -32003 (full dynamic coverage, F-AUD-P13-OBS-004)"),
     ("[B1]",  "Sensor Tables", "CrowdStrike detections org-c"),
     ("[B2]",  "Sensor Tables", "Armis devices org-c"),
     ("[B3]",  "Sensor Tables", "Claroty devices org-c"),
