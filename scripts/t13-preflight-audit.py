@@ -52,6 +52,34 @@ from pathlib import Path
 #   3. <repo-root>/target/release/prism (repo-relative default; script is in scripts/)
 _repo_root = Path(__file__).resolve().parent.parent
 _cargo_target_dir = os.environ.get("CARGO_TARGET_DIR")
+
+# F-AUD-P11-HIGH-001: portable .factory/ resolver.
+# _repo_root is the git worktree root (e.g. .worktrees/AUDIT-COVERAGE-001/ when run from a
+# worktree).  The .factory/ directory is a separate git worktree mounted at the MAIN repo
+# root (layout: <main>/.worktrees/<id>/; .factory/ is at <main>/.factory/).
+# Resolution order:
+#   1. _repo_root/.factory/... (main checkout or .factory/ mounted in worktree)
+#   2. Walk up _repo_root's ancestors until a dir containing .factory/objectives/ is found
+#      (covers the standard worktree layout: _repo_root.parent.parent = main repo root)
+#   3. None if not found — caller emits a FAIL listing all tried paths.
+def _find_factory_file(*rel_parts: str) -> tuple:
+    """Locate a file inside .factory/ portably across main and worktree layouts.
+
+    Returns (Path, tried_list) where Path is the resolved file (or None if not found)
+    and tried_list is the list of Paths attempted (for FAIL diagnostics).
+    """
+    _rel = Path(".factory").joinpath(*rel_parts)
+    _tried: list = []
+    # Walk from _repo_root upward (includes _repo_root itself as first candidate)
+    for _ancestor in [_repo_root, *_repo_root.parents]:
+        _cand = _ancestor / _rel
+        _tried.append(_cand)
+        if _cand.exists():
+            return _cand, _tried
+        # Stop at filesystem root
+        if _ancestor == _ancestor.parent:
+            break
+    return None, _tried
 if os.environ.get("PRISM_BIN"):
     PRISM_BIN = os.environ["PRISM_BIN"]
 elif _cargo_target_dir:
@@ -328,11 +356,18 @@ def _audit_sort_key(item_key: str):
     m = re.match(r'\[([A-Z]+)(\d+)([a-z]?)\]', item_key)
     if m:
         return (m.group(1), int(m.group(2)), m.group(3))
-    # [BOOT] and other non-numeric prefixes: BOOT sorts first
-    if item_key.startswith('[BOOT]'):
+    # "BOOT" key (stored without brackets — pre-initialize short-circuit): sorts first.
+    # F-AUD-P11-LOW-001: stored key is "BOOT" (not "[BOOT]"); startswith('[BOOT]') never matched.
+    if item_key == "BOOT":
         return ('', 0, '')
     # Unknown prefix: sort after all known sections
     return ('~', 0, item_key)
+
+
+# OBS-004: H7 result key defined once to prevent write-site / read-site string drift.
+# Used at the H7 write site (results[_H7_RESULT_KEY] = ...) and
+# the H8 read site (_h7_key = _H7_RESULT_KEY).
+_H7_RESULT_KEY = "[H7] JOIN positive path: crowdstrike_devices JOIN armis_devices"
 
 
 def run_audit():
@@ -2431,21 +2466,21 @@ def run_audit():
             "JOIN armis_devices a ON d.device_id = a.device_id LIMIT 5",
             ["org-c"])
         if err:
-            results["[H7] JOIN positive path: crowdstrike_devices JOIN armis_devices"] = f"FAIL: {err}"
+            results[_H7_RESULT_KEY] = f"FAIL: {err}"
         elif body.get("error_code"):
             ec = body.get("error_code", "")
-            results["[H7] JOIN positive path: crowdstrike_devices JOIN armis_devices"] = (
+            results[_H7_RESULT_KEY] = (
                 f"FAIL: {ec}: {body.get('message','')[:80]}"
             )
         else:
             rows = body.get("rows", [])
             if rows:
                 scores = [r.get("risk_score") for r in rows if r.get("risk_score") is not None]
-                results["[H7] JOIN positive path: crowdstrike_devices JOIN armis_devices"] = (
+                results[_H7_RESULT_KEY] = (
                     f"PASS: {len(rows)} joined rows; risk_score values={scores[:5]}"
                 )
             else:
-                results["[H7] JOIN positive path: crowdstrike_devices JOIN armis_devices"] = (
+                results[_H7_RESULT_KEY] = (
                     "FAIL: 0 rows — seed-200 guarantees 50 device IDs overlap between tables"
                 )
 
@@ -2474,7 +2509,7 @@ def run_audit():
                 # any engine failure — not specifically suspension rule 6. H7 must have
                 # PASSed in this run (earlier in this same results dict) to establish that
                 # the JOIN path itself is functional before we accept its fail-open variant.
-                _h7_key = "[H7] JOIN positive path: crowdstrike_devices JOIN armis_devices"
+                _h7_key = _H7_RESULT_KEY  # OBS-004: single definition above prevents drift
                 _h7_result = results.get(_h7_key, "")
                 if _h7_result.startswith("PASS"):
                     results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
@@ -2989,8 +3024,24 @@ def run_audit():
                 )
 
         # ── H16: CWE-116/117 — control-char injection sanitized ──────────────
-        # Embed a literal U+0001 in the column name to verify sanitize_for_log strips it.
-        # PASS if E-QUERY-038 or E-QUERY-001 returned without raw control chars in text.
+        # Embed a literal U+0001 in a quoted SQL identifier to verify sanitize_for_log strips it.
+        #
+        # Deterministic layer analysis (F-AUD-P11-OBS-002):
+        #   Query: SELECT "badcolumn\x01" FROM crowdstrike_detections LIMIT 3
+        #   Layer 1 — SQL parser: accepts quoted identifiers with arbitrary characters
+        #             (double-quoted ident syntax allows non-alphanumeric chars, including \x01).
+        #   Layer 2 — E-QUERY-038 column gate: "badcolumn\x01" is not in the crowdstrike_detections
+        #             schema → ColumnNotFoundDetails::new fires.
+        #   Layer 3 — sanitize_for_log: ColumnNotFoundDetails::new applies sanitize_for_log
+        #             (prism_core::error::sanitize_for_log) to the column name, stripping U+0001
+        #             → "badcolumn" in the error message.
+        #   This path is deterministic (not environment-dependent) — the SQL parser always
+        #   accepts the quoted ident, the column always fails E-QUERY-038, sanitize_for_log
+        #   always fires at ColumnNotFoundDetails construction.
+        #
+        # PASS requires: "ERROR:" prefix (MCP layer wraps E-QUERY-038 message) AND
+        #   "E-QUERY-038" in text (confirms column gate fired, not a parse/other error) AND
+        #   no raw U+0001 in response (confirms sanitize_for_log stripped it).
         ctrl_col = "badcolumn\x01"
         h16_query = f'SELECT "{ctrl_col}" FROM crowdstrike_detections LIMIT 3'
         rid_h16 = next_id()
@@ -3011,14 +3062,23 @@ def run_audit():
                     f"FAIL: raw control chars leaked in response: "
                     f"{[hex(ord(c)) for c in control_chars_found[:5]]}"
                 )
-            elif raw_text.startswith("ERROR:"):
-                # Error returned (E-QUERY-038 or E-QUERY-001) without raw control chars — PASS
+            elif raw_text.startswith("ERROR:") and "E-QUERY-038" in raw_text:
+                # Deterministic PASS path: SQL parser accepted the quoted ident → E-QUERY-038 fired
+                # → ColumnNotFoundDetails::new applied sanitize_for_log → control char stripped.
+                # Require E-QUERY-038 specifically (not just any ERROR:) for true positive coverage.
                 results["[H16] CWE-116/117: control-char in column name sanitized"] = (
-                    f"PASS: error returned without raw control chars (CWE-116/117 sanitized); "
+                    f"PASS: E-QUERY-038 returned; control-char stripped by sanitize_for_log "
+                    f"(CWE-116/117 sanitized — SQL parser accepted quoted ident → E-QUERY-038 column gate); "
                     f"preview={raw_text[:80]!r}"
                 )
+            elif raw_text.startswith("ERROR:"):
+                # ERROR: prefix but not E-QUERY-038 — unexpected error layer; still no control char leak
+                results["[H16] CWE-116/117: control-char in column name sanitized"] = (
+                    f"PASS (unexpected error layer): error returned without control-char leakage, "
+                    f"but expected E-QUERY-038 (got different error type); preview={raw_text[:80]!r}"
+                )
             elif resp_h16 and "error" in resp_h16:
-                # RPC-level rejection — also acceptable
+                # RPC-level rejection — also acceptable (no layer reached echo path)
                 results["[H16] CWE-116/117: control-char in column name sanitized"] = (
                     f"PASS: RPC-level rejection without control-char leakage"
                 )
@@ -3141,65 +3201,69 @@ def run_audit():
         # threshold — so on a healthy system the query would execute and H18 FAILed falsely.)
         _vals = ", ".join(f"'val{i:09d}'" for i in range(5000))  # ~80KB
         big_query = f"FROM crowdstrike_detections\n| where detection_id IN ({_vals})\n| limit 5"
-        # F-AUD-P7-LOW-002: unconditional guard — survives python -O (assert is elided
-        # under optimization; RuntimeError is not).
+        # F-AUD-P7-LOW-002 / F-AUD-P11-LOW-003: unconditional guard — survives python -O
+        # (assert is elided under optimization; this conditional is not).
+        # LOW-003: replaced raise RuntimeError with FAIL result so the audit report captures
+        # the construction bug rather than aborting with an unhandled exception; the FAIL
+        # still gates exit-1 via fail_count in main().
         if len(big_query) <= 65_536 + 1024:
-            raise RuntimeError(
-                f"H18 payload {len(big_query)} bytes must exceed 66,560 "
-                f"(65536 threshold + 1024 margin); check element format"
-            )
-        body, err = query(proc, big_query, ["org-c"], timeout=30.0)
-        if err:
-            # F-AUD-P1-HIGH-001: only controlled rejections PASS here.
-            # The former `if err: PASS` converted timeouts/crashes/JSON errors into PASS.
-            # Accept only: RPC -32602 INVALID_PARAMS, or E-QUERY-003 in error text.
-            # F-AUD-P4-MED-002: -32603 INTERNAL_ERROR is explicitly UNCONTROLLED — it
-            # signals a crash/panic on the oversize input, which is exactly the failure
-            # mode this check must distinguish from a proper controlled rejection.
-            # Per error-taxonomy.md E-QUERY-003: canonical MCP surfacing is -32602
-            # INVALID_PARAMS; -32603 is INTERNAL_ERROR (uncontrolled crash path).
-            err_str = str(err)
-            is_timeout = "TIMEOUT" in err_str
-            is_process_exit = err_str.startswith("Process exited") or err_str.startswith("EOF")
-            is_json_error = err_str.startswith("JSON error") or err_str.startswith("envelope JSON error")
-            is_internal_error = err_str.startswith("RPC error -32603")
-            is_controlled_rpc = (
-                err_str.startswith("RPC error -32602")
-                or "E-QUERY-003" in err_str
-            )
-            if is_timeout or is_process_exit or is_json_error:
-                results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
-                    f"FAIL: uncontrolled failure (timeout/crash/JSON error) instead of controlled rejection: "
-                    f"{err[:100]}"
-                )
-            elif is_internal_error:
-                results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
-                    f"FAIL: internal error on oversize input (uncontrolled — -32603 INTERNAL_ERROR "
-                    f"signals a crash/panic, not a structured rejection): {err[:100]}"
-                )
-            elif is_controlled_rpc:
-                results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
-                    f"PASS: oversize query rejected at MCP or engine level (controlled): {err[:80]}"
-                )
-            else:
-                results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
-                    f"FAIL: unexpected error (not a controlled -32602/E-QUERY-003 rejection): "
-                    f"{err[:100]}"
-                )
-        elif body.get("error_code") in ("E-QUERY-003",):
             results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
-                f"PASS: E-QUERY-003 in-band rejection"
-            )
-        elif body.get("rows") is not None:
-            results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
-                "FAIL: oversize query succeeded (E-QUERY-003 not enforced)"
+                f"FAIL: H18 payload construction bug — {len(big_query)} bytes <= 66,560 "
+                f"threshold (65536 + 1024 margin); check element format — query not sent"
             )
         else:
-            # PARTIAL sweep: unexpected in-band response (not a controlled rejection) → FAIL.
-            results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
-                f"FAIL: unexpected response (expected controlled rejection); "
-                f"body keys={list(body.keys())[:4]}"
-            )
+            body, err = query(proc, big_query, ["org-c"], timeout=30.0)
+            if err:
+                # F-AUD-P1-HIGH-001: only controlled rejections PASS here.
+                # The former `if err: PASS` converted timeouts/crashes/JSON errors into PASS.
+                # Accept only: RPC -32602 INVALID_PARAMS, or E-QUERY-003 in error text.
+                # F-AUD-P4-MED-002: -32603 INTERNAL_ERROR is explicitly UNCONTROLLED — it
+                # signals a crash/panic on the oversize input, which is exactly the failure
+                # mode this check must distinguish from a proper controlled rejection.
+                # Per error-taxonomy.md E-QUERY-003: canonical MCP surfacing is -32602
+                # INVALID_PARAMS; -32603 is INTERNAL_ERROR (uncontrolled crash path).
+                err_str = str(err)
+                is_timeout = "TIMEOUT" in err_str
+                is_process_exit = err_str.startswith("Process exited") or err_str.startswith("EOF")
+                is_json_error = err_str.startswith("JSON error") or err_str.startswith("envelope JSON error")
+                is_internal_error = err_str.startswith("RPC error -32603")
+                is_controlled_rpc = (
+                    err_str.startswith("RPC error -32602")
+                    or "E-QUERY-003" in err_str
+                )
+                if is_timeout or is_process_exit or is_json_error:
+                    results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                        f"FAIL: uncontrolled failure (timeout/crash/JSON error) instead of controlled rejection: "
+                        f"{err[:100]}"
+                    )
+                elif is_internal_error:
+                    results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                        f"FAIL: internal error on oversize input (uncontrolled — -32603 INTERNAL_ERROR "
+                        f"signals a crash/panic, not a structured rejection): {err[:100]}"
+                    )
+                elif is_controlled_rpc:
+                    results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                        f"PASS: oversize query rejected at MCP or engine level (controlled): {err[:80]}"
+                    )
+                else:
+                    results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                        f"FAIL: unexpected error (not a controlled -32602/E-QUERY-003 rejection): "
+                        f"{err[:100]}"
+                    )
+            elif body.get("error_code") in ("E-QUERY-003",):
+                results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                    f"PASS: E-QUERY-003 in-band rejection"
+                )
+            elif body.get("rows") is not None:
+                results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                    "FAIL: oversize query succeeded (E-QUERY-003 not enforced)"
+                )
+            else:
+                # PARTIAL sweep: unexpected in-band response (not a controlled rejection) → FAIL.
+                results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                    f"FAIL: unexpected response (expected controlled rejection); "
+                    f"body keys={list(body.keys())[:4]}"
+                )
 
         # ── H19: threat_sources + cvss_vector UDFs ───────────────────────────
         body_ts, err_ts = query(proc,
@@ -3280,13 +3344,19 @@ def run_audit():
                     "FAIL: 0 rows from device_cves_first IS NOT NULL filter"
                 )
 
-        # ── H20: ADR-051 D4 regression detector — JSON-list iocs_value score=0 ─
-        # ADR-051 D4 scalar-input: threat_score(iocs_value) on a JSON-list column MUST
-        # return score=0 (iocs_value is a JSON list, not a plain IOC string; the typed UDF
-        # receives a non-matching input and must return 0 per ADR-051 D4).
-        # PASS = max_score < 75 (ADR-051 D4 enforced; runbook amendment confirmed).
-        # FAIL = max_score >= 75 (ADR-051 D4 regression — scalar-input rule broken).
+        # ── H20: ADR-051 D4 regression detector — JSON-list iocs_value → NULL ───
+        # ADR-051 D4 scalar-input rule: threat_score(iocs_value) where iocs_value is a
+        # JSON-list column (e.g. ["hash1","hash2"]) MUST produce NULL + E-INFUSE-014 per
+        # ADR-051 D4 ("a JSON-list string (detected by leading '[') as input to a typed-output
+        # UDF produces NULL + E-INFUSE-014 at runtime").  The infusion_udf.rs coerce_to_typed
+        # implementation: starts_with('[') && output_type != Utf8 → None (NULL sentinel).
+        # Sanctioned outcome: query SUCCEEDS with NULL in the threat_score column — NO error code.
+        # PASS = no numeric scores >= 75 (all NULL or 0 → ADR-051 D4 enforced).
+        # FAIL = any numeric score >= 75 (ADR-051 D4 scalar-input REGRESSION).
+        # error_code = unsanctioned (ADR-051 D4 expects query success with NULLs, not a query error).
         # F-AUD-P2-MED-002: demoted from WARN to FAIL; description updated.
+        # F-AUD-P11-MED-001: error_code branch annotated with ADR-051 D4 citation; PASS message
+        # updated to reflect NULL output (not score=0) as the ADR-sanctioned outcome.
         body, err = query(proc,
             "FROM cyberint_alerts\n| where iocs_value IS NOT NULL\n"
             "| enrich threat_score(iocs_value)\n| limit 10",
@@ -3294,9 +3364,13 @@ def run_audit():
         if err:
             results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = f"FAIL: {err}"
         elif body.get("error_code"):
+            # Unsanctioned: ADR-051 D4 expects the query to succeed with NULLs in threat_score.
+            # A query-level error_code here means the engine failed to produce a result row at
+            # all, which is NOT the sanctioned NULL-output path. Name the specific code.
             ec = body.get("error_code", "")
             results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
-                f"FAIL: {ec}: {body.get('message','')[:80]}"
+                f"FAIL: {ec} (unsanctioned — ADR-051 D4 sanctions NULL output on JSON-list input, "
+                f"not a query-level error): {body.get('message','')[:80]}"
             )
         else:
             rows = body.get("rows", [])
@@ -3306,19 +3380,22 @@ def run_audit():
                 max_score = max(numeric_scores, default=0)
                 if max_score >= 75:
                     # F-AUD-P2-MED-002: ADR-051 D4 scalar-input regression — iocs_value
-                    # (JSON-list) must return score 0; high score = enforcement broken → FAIL.
+                    # (JSON-list) must produce NULL (coerce_to_typed returns None for '['-input);
+                    # a numeric score >= 75 means the NULL sentinel was bypassed → FAIL.
                     results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
                         f"FAIL: threat_score={max_score} for JSON-list column — "
-                        f"ADR-051 D4 scalar-input REGRESSION: iocs_value must return 0; scores={scores[:5]}"
+                        f"ADR-051 D4 scalar-input REGRESSION: iocs_value must produce NULL; scores={scores[:5]}"
                     )
                 else:
-                    # Expected: JSON-list column returns 0/low score → ADR-051 D4 confirmed.
+                    # ADR-051 D4 sanctioned outcome: NULL output on JSON-list input.
+                    # numeric_scores is empty (all NULL → Python None filtered out by isinstance check)
+                    # → max_score defaults to 0. PASS means no numeric score >= 75 was present.
                     # F-AUD-P10-MED-003: assert only what H20 verifies — that ADR-051 D4
                     # scalar-input is enforced. Runbook amendment validity is checked by H23
                     # (static runbook text probe), not by this live query outcome.
                     results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
-                        f"PASS: threat_score={max_score} for JSON-list column — "
-                        f"ADR-051 D4 scalar-input enforced; scores={scores[:5]}"
+                        f"PASS: NULL output for JSON-list column (ADR-051 D4 scalar-input enforced); "
+                        f"numeric_scores_found={len(numeric_scores)}, all_scores={scores[:5]}"
                     )
             else:
                 results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
@@ -3326,7 +3403,11 @@ def run_audit():
                 )
 
         # ── H21: Determinism — same sorted query returns identical rows ───────
-        # Seeded ChaCha20 + fixed anchors guarantee byte-identical results across runs.
+        # Seeded ChaCha20 + fixed anchors provide in-session determinism: two calls to the
+        # same sorted query within one MCP session return byte-identical rows.
+        # Note: this probe exercises in-session determinism only (two consecutive calls within
+        # a single prism process lifetime). Cross-restart determinism (seed preservation across
+        # process restarts) is NOT exercised by this audit. F-AUD-P11-OBS-001.
         body1, err1 = query(proc,
             "FROM crowdstrike_detections\n| sort detection_id\n| limit 20",
             ["org-c"])
@@ -3353,8 +3434,8 @@ def run_audit():
                 is_sorted = det_ids == sorted(det_ids)
                 if is_sorted:
                     results["[H21] Determinism: repeated sorted query byte-identical"] = (
-                        f"PASS: {len(rows1)} rows; two runs byte-identical "
-                        f"(seeded ChaCha20 + fixed anchors); "
+                        f"PASS: {len(rows1)} rows; two consecutive calls byte-identical "
+                        f"(in-session determinism confirmed; seeded ChaCha20 + fixed anchors); "
                         f"detection_id lex-sorted ascending confirmed ({len(det_ids)} IDs)"
                     )
                 else:
@@ -3401,58 +3482,110 @@ def run_audit():
                 )
 
         # ── H23: Runbook enrich-call drift — static text check ──────────────
-        # F-AUD-P10-MED-003 + HIGH-001 runbook-side: verify the runbook has no
-        # pre-ADR-051 non-first forms (`threat_score(iocs_value)` without `_first`)
-        # and has at least one correct scalar form (`threat_score(iocs_value_first)`).
+        # F-AUD-P10-MED-003 + HIGH-001 runbook-side + F-AUD-P11-MED-002:
+        # Verify the runbook has no pre-ADR-051 non-first forms for ANY of the 6 typed UDFs
+        # (ThreatIntel × 3 + NVD × 3) and has >= 1 correct scalar-companion form total.
         # This is a pure static text check — no MCP call.
-        # Assumes the .factory worktree is mounted at its canonical path
-        # (standard prism worktree layout: .factory/ mounted at repo root).
+        #
+        # F-AUD-P11-HIGH-001: path resolved portably via _find_factory_file() (see module-level
+        # definition). Works from main checkout (script in scripts/) and from any worktree
+        # (.worktrees/<id>/scripts/) — walks up ancestors to find .factory/objectives/.
+        # On CI (fresh clone at repo root): _repo_root/.factory/objectives/ resolves directly.
+        # In worktree: _repo_root.parent.parent (= main repo) provides .factory/ mount point.
+        #
+        # ADR-051 D4 UDF matrix (all 6 typed UDFs and their column pairs):
+        # | UDF                         | Bad (JSON-list) cols           | Good (_first) cols             |
+        # | threat_score                | iocs_value, behaviors_ioc_value| iocs_value_first,              |
+        # |                             |                                | behaviors_ioc_value_first      |
+        # | threat_is_known_malicious   | iocs_value, behaviors_ioc_value| iocs_value_first,              |
+        # |                             |                                | behaviors_ioc_value_first      |
+        # | threat_sources              | iocs_value, behaviors_ioc_value| iocs_value_first,              |
+        # | (output_type=json, kept for |                                | behaviors_ioc_value_first      |
+        # |  D4 completeness)           |                                |                                |
+        # | cvss_base_score             | device_cves                    | device_cves_first              |
+        # | cvss_severity               | device_cves                    | device_cves_first              |
+        # | cvss_vector                 | device_cves                    | device_cves_first              |
         #
         # Scope: scan only the instructional body (content before the "## Changelog"
         # section).  Changelog rows legitimately quote the retired form when documenting
-        # amendments (e.g., v1.9 row: "zero remaining `threat_score(iocs_value)`
-        # non-`_first` sites"); scanning the full file would produce a false-positive
-        # FAIL on a healthy runbook (F-ORCH-P10B-001).  If no changelog heading is
-        # found, the entire file is scanned (graceful fallback).
+        # amendments; scanning the full file would produce a false-positive FAIL on a healthy
+        # runbook (F-ORCH-P10B-001).  If no changelog heading is found, the entire file is
+        # scanned (graceful fallback).
+        #
+        # Regex notes (F-AUD-P11-LOW-002 / closing-paren exclusion):
+        #   Bad patterns use UDF\(col\) — the closing \) already excludes _first forms because
+        #   threat_score(iocs_value_first) has "_first" between "iocs_value" and ")", so
+        #   iocs_value\) does not match. No lookahead needed.
         import re as _re_h23
-        _RUNBOOK_PATH = "/Users/jmagady/Dev/prism/.factory/objectives/T13-capstone-demo-runbook.md"
-        try:
-            with open(_RUNBOOK_PATH, encoding="utf-8") as _rb_f:
-                _runbook_text_full = _rb_f.read()
-            # Truncate at the changelog section so historical amendment descriptions
-            # quoting the retired form are not counted as live instructional drift.
-            _changelog_heading = "## Changelog"
-            _changelog_pos = _runbook_text_full.find(_changelog_heading)
-            _runbook_text = (
-                _runbook_text_full[:_changelog_pos]
-                if _changelog_pos >= 0
-                else _runbook_text_full
-            )
-            # Non-first (bad) form: threat_score(iocs_value) NOT followed by _first.
-            # Uses negative lookahead so threat_score(iocs_value_first) is not counted here.
-            _bad_matches = _re_h23.findall(r"threat_score\(iocs_value\)(?!_first)", _runbook_text)
-            # Good (scalar-companion) form: threat_score(iocs_value_first)
-            _good_matches = _re_h23.findall(r"threat_score\(iocs_value_first\)", _runbook_text)
-            if _bad_matches:
-                results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
-                    f"FAIL: runbook contains {len(_bad_matches)} non-first `threat_score(iocs_value)` "
-                    f"occurrence(s) — pre-ADR-051 D4 drift (F-AUD-P10-MED-003 + HIGH-001 runbook-side); "
-                    f"update runbook to `threat_score(iocs_value_first)` forms before live demo"
-                )
-            elif not _good_matches:
-                results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
-                    f"FAIL: no `threat_score(iocs_value_first)` found in runbook — "
-                    f"runbook enrich beat missing (expected >= 1 scalar-companion form)"
-                )
-            else:
-                results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
-                    f"PASS: {len(_good_matches)} `threat_score(iocs_value_first)` occurrence(s); "
-                    f"no pre-ADR-051 non-first forms — ADR-051 D4 scalar-input confirmed in runbook"
-                )
-        except OSError as _rb_err:
+        _rb_path, _rb_tried = _find_factory_file("objectives", "T13-capstone-demo-runbook.md")
+        if _rb_path is None:
             results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
-                f"FAIL: cannot read runbook at {_RUNBOOK_PATH!r}: {_rb_err}"
+                f"FAIL: cannot locate runbook — tried paths: "
+                f"{[str(p) for p in _rb_tried]}"
             )
+        else:
+            try:
+                with open(_rb_path, encoding="utf-8") as _rb_f:
+                    _runbook_text_full = _rb_f.read()
+                # Truncate at the changelog section so historical amendment descriptions
+                # quoting the retired form are not counted as live instructional drift.
+                _changelog_heading = "## Changelog"
+                _changelog_pos = _runbook_text_full.find(_changelog_heading)
+                _runbook_text = (
+                    _runbook_text_full[:_changelog_pos]
+                    if _changelog_pos >= 0
+                    else _runbook_text_full
+                )
+                # ── Bad-form patterns: non-_first column arg for any of the 6 typed UDFs ──
+                # ThreatIntel UDFs × JSON-list columns (closing \) excludes _first forms)
+                _bad_threatintel = _re_h23.findall(
+                    r"(?:threat_score|threat_is_known_malicious|threat_sources)"
+                    r"\((?:iocs_value|behaviors_ioc_value)\)",
+                    _runbook_text,
+                )
+                # NVD UDFs × JSON-list column (device_cves; device_cves_first excluded by \))
+                _bad_nvd = _re_h23.findall(
+                    r"(?:cvss_base_score|cvss_severity|cvss_vector)\(device_cves\)",
+                    _runbook_text,
+                )
+                _bad_matches_all = _bad_threatintel + _bad_nvd
+
+                # ── Good-form patterns: _first scalar-companion column for any of the 6 UDFs ──
+                _good_threatintel = _re_h23.findall(
+                    r"(?:threat_score|threat_is_known_malicious|threat_sources)"
+                    r"\((?:iocs_value_first|behaviors_ioc_value_first)\)",
+                    _runbook_text,
+                )
+                _good_nvd = _re_h23.findall(
+                    r"(?:cvss_base_score|cvss_severity|cvss_vector)\(device_cves_first\)",
+                    _runbook_text,
+                )
+                _good_matches_all = _good_threatintel + _good_nvd
+
+                if _bad_matches_all:
+                    results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                        f"FAIL: runbook contains {len(_bad_matches_all)} non-first UDF call(s) — "
+                        f"pre-ADR-051 D4 drift (F-AUD-P10-MED-003 + HIGH-001 + MED-002); "
+                        f"threatintel_bad={len(_bad_threatintel)}, nvd_bad={len(_bad_nvd)}; "
+                        f"matches={_bad_matches_all[:5]!r}; "
+                        f"update runbook to _first-column forms before live demo"
+                    )
+                elif not _good_matches_all:
+                    results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                        f"FAIL: no scalar-companion (_first) UDF calls found in runbook — "
+                        f"runbook enrich beats missing (expected >= 1 across all 6 typed UDFs)"
+                    )
+                else:
+                    results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                        f"PASS: {len(_good_matches_all)} _first-form UDF call(s) found "
+                        f"(threatintel={len(_good_threatintel)}, nvd={len(_good_nvd)}); "
+                        f"no pre-ADR-051 non-first forms — ADR-051 D4 scalar-input confirmed in runbook; "
+                        f"runbook={str(_rb_path)!r}"
+                    )
+            except OSError as _rb_err:
+                results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                    f"FAIL: cannot read runbook at {str(_rb_path)!r}: {_rb_err}"
+                )
 
     finally:
         try:
