@@ -1140,7 +1140,7 @@ def run_audit():
 
         # ── A23: all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21) ─────────
         # F-AUD-P13-OBS-004: Replace 3/40 sampling gap with full dynamic coverage.
-        # Derives stub set at runtime: (tools/list names) − (EXPECTED_TOOLS 14 implemented).
+        # Derives stub set at runtime: (tools/list names) − (EXPECTED_TOOLS_FULL 14 implemented).
         # Each stub is called once with minimal empty args {}.
         # Acceptable outcomes:
         #   -32003: explicit E-INFRA-NYA (spec-correct NYA response)
@@ -1159,7 +1159,7 @@ def run_audit():
         # -32602 via serde before the handler runs. For list_infusions specifically, {} is a
         # valid param shape that reaches the NYA gate directly.
         _nya_stub_names = sorted(
-            {t.get("name", "") for t in (tools_result or {}).get("tools", [])} - EXPECTED_TOOLS
+            {t.get("name", "") for t in (tools_result or {}).get("tools", [])} - EXPECTED_TOOLS_FULL
         ) if tools_result else []
         _nya_deviants = []   # list of (name, outcome_str) for non-NYA results
         _nya_pass_count = 0
@@ -2923,6 +2923,18 @@ def run_audit():
 
         # ── H1b: E-QUERY-038 filter mode (position 7, no FROM keyword) ───────
         # Syntax: table_name | predicate (no WHERE, no FROM keyword)
+        #
+        # F-AUD-P24-MED-004 (comment-only — no logic change):
+        # The probe "crowdstrike_detections | nonexistent_column_xyz IEQ 'high'" reaches
+        # FILTER mode because `filter_parser.rs::is_pipe_mode()` requires a
+        # PIPE_STAGE_KEYWORDS token (e.g. WHERE, LIMIT, ORDER BY) immediately after `|` to
+        # enter pipe mode; absent that keyword, the parser treats `|` as a filter separator
+        # and enters filter mode.  BC-2.11.002 states a broader precedence rule ("any `|`
+        # outside string literals → pipe mode") that does not match this code behaviour.
+        # If mode-detection is ever aligned to BC-2.11.002's stated rule, this check's
+        # probe must be consciously re-targeted (the current input may route differently).
+        # The spec-vs-code drift is queued for PO adjudication at cascade close — it is NOT
+        # resolved here.
         body, err = query(proc,
             "crowdstrike_detections | nonexistent_column_xyz IEQ 'high'",
             ["org-c"])
@@ -2984,9 +2996,13 @@ def run_audit():
                 # LOW-001: guard against non-list available_columns (e.g. None or wrong type)
                 _raw_avail = sc_err.get("available_columns") if sc_err else None
                 sc_avail = _raw_avail if isinstance(_raw_avail, list) else []
-                # F-AUD-P3-MED-002: PASS requires BOTH text anchors AND at least one
-                # structuredContent.error field populated — text alone is not sufficient.
-                has_sc_fields = (sc_dym != "") or (len(sc_avail) > 0)
+                # F-AUD-P3-MED-002: PASS requires BOTH text anchors AND both sc fields:
+                # did_you_mean must equal "severity" exactly (typo "sevrity" → Levenshtein-1
+                # correction; mirrors F5 exact-equality discipline) AND available_columns must
+                # be non-empty.  available_columns is unconditionally populated for E-QUERY-038
+                # so the OR-disjunct (sc_dym != "") was vacuous — the OR never gated.
+                # F-AUD-P24-MED-001: AND required; sc_dym exact-equality asserted.
+                has_sc_fields = (sc_dym == "severity") and (len(sc_avail) > 0)
                 if has_dym_text and has_avail_text and has_sc_fields:
                     results["[H2] E-QUERY-038 did_you_mean + available_columns payload"] = (
                         f"PASS: E-QUERY-038; text anchors confirmed + sc_error populated; "
@@ -3079,11 +3095,17 @@ def run_audit():
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             if ec == "E-QUERY-041":
-                # F-AUD-P3-MED-001: tighten anchor — BOTH "cannot be interpreted" AND "RFC-3339"
-                # must be present (source: error-taxonomy.md ~line 263, POL-24).
-                # The old OR-of-3 anchor ("RFC-3339" or "UTC" or "cannot be interpreted") is
-                # too loose — "UTC" alone could match unrelated timestamp display strings.
-                has_rfc_hint = "cannot be interpreted" in msg and "RFC-3339" in msg
+                # F-AUD-P3-MED-001: tighten anchor — BOTH "cannot be interpreted" AND
+                # "Expected RFC-3339 format" must be present.  The bare "RFC-3339" anchor was
+                # too loose — any RFC-3339 mention (e.g. help text) could match.  The fuller
+                # phrase "Expected RFC-3339 format" pins the pedagogical fixture text from the
+                # error-taxonomy.md §E-QUERY-041 message_template byte-form:
+                #   "…cannot be interpreted as a UTC timestamp. Expected RFC-3339 format
+                #    with UTC offset…" (PrismError::TemporalLiteralUnparseable Display,
+                #   error.rs; POL-24 / TD-VSDD-059).
+                # F-AUD-P24-LOW-001: second anchor upgraded from bare "RFC-3339" to
+                # "Expected RFC-3339 format" for message-template regression precision.
+                has_rfc_hint = "cannot be interpreted" in msg and "Expected RFC-3339 format" in msg
                 # F-AUD-P1-MED-010: PASS requires E-QUERY-041 AND the RFC-3339 pedagogical hint.
                 # E-QUERY-041 without both anchors means message-template regression (POL-24).
                 if has_rfc_hint:
@@ -3973,6 +3995,17 @@ def run_audit():
         # OBS-002: tighten subscribe AND unsubscribe timeouts from 10.0s to 5.0s (smoke-only
         # checks; any valid server response arrives in < 1s; 10s was unnecessarily loose for
         # a no-hang test; F-AUD-P20-LOW-002 applies to both sides of the round-trip)
+        # F-AUD-P24-MED-002 (server-side subscribe URI validation gap confirmed):
+        #   server.rs::subscribe (line ~5697) uses `strip_prefix("prismql://schema/")` to
+        #   dispatch — URIs that do NOT carry this prefix return Ok(()) silently (no rejection).
+        #   URIs that DO carry the prefix are accepted for any valid-format OrgSlug
+        #   ([a-zA-Z0-9_-]{1,64}) regardless of whether the client actually exists; no
+        #   resource-existence check is performed.  A negative probe to
+        #   `prismql://schema/does-not-exist-preflight-negative-probe` would return Ok()
+        #   (valid slug format → accepted), NOT -32602 — adding it here would false-PASS
+        #   rather than demonstrate rejection.  Negative-probe coverage is blocked until
+        #   the server validates URIs against known client slugs; tracked for follow-up at
+        #   cascade close (F-AUD-P24-MED-002).
         res_sub, err_sub = resources_subscribe(proc, "prismql://schema/org-c", timeout=5.0)
         if err_sub:
             results["[H14e] resources/subscribe+unsubscribe: prismql://schema/org-c (smoke-only)"] = (
@@ -4249,6 +4282,10 @@ def run_audit():
                 f"threshold (65536 + 1024 margin); check element format — query not sent"
             )
         else:
+            # F-AUD-P24-LOW-003: 30s timeout rationale — oversize rejection is O(1) plan-time
+            # (size gate fires before query execution); 30s bounds transport congestion and
+            # cold-start overhead; TIMEOUT is intentionally UNCONTROLLED FAIL by design
+            # (a server that hangs on an oversize query has not correctly implemented the gate).
             body, err = query(proc, big_query, ["org-c"], timeout=30.0)
             if err:
                 # F-AUD-P1-HIGH-001: only controlled rejections PASS here.
@@ -4621,67 +4658,72 @@ def run_audit():
                     _runbook_text_full,
                     flags=re.DOTALL,
                 )
-                _changelog_heading_count = len(_changelog_heading_re.findall(_runbook_text_no_fence))
-                if _changelog_heading_count > 1:
+                # F-AUD-P24-MED-003: replace count-based ambiguity FAIL with positional guard.
+                # Locate the LAST occurrence of '## Changelog' (POL-32: changelog is the
+                # trailing section); truncate there.  Earlier same-text headings are scanned
+                # body content — they legitimately trigger the bad-form regexes if they carry
+                # retired forms (which is the desired outcome).  The now-dead count-based FAIL
+                # branch is removed; if multiple headings exist, the earlier ones are treated
+                # as scanned content (non-blocking — the positional guard handles it).
+                _changelog_matches_all = list(_changelog_heading_re.finditer(_runbook_text_no_fence))
+                if not _changelog_matches_all:
+                    # No changelog heading found — scan entire file (graceful fallback).
+                    _runbook_text = _runbook_text_full
+                else:
+                    # use LAST match (MULTILINE regex on fence-stripped copy); .start() offset
+                    # is identical in _runbook_text_full (fence-stripping preserves offsets).
+                    # Diagnostic note (non-blocking): if >1 headings exist, the earlier ones
+                    # are treated as scanned body content, not truncation targets.
+                    _last_changelog_match = _changelog_matches_all[-1]
+                    _runbook_text = _runbook_text_full[:_last_changelog_match.start()]
+                # Pattern checks run unconditionally after _runbook_text is set (regardless
+                # of whether a changelog heading was found).
+                # ── Bad-form patterns: non-_first column arg for any of the 6 typed UDFs ──
+                # ThreatIntel UDFs × JSON-list columns (closing \) excludes _first forms)
+                _bad_threatintel = re.findall(
+                    r"(?:threat_score|threat_is_known_malicious|threat_sources)"
+                    r"\((?:iocs_value|behaviors_ioc_value)\)",
+                    _runbook_text,
+                )
+                # NVD UDFs × JSON-list column (device_cves; device_cves_first excluded by \))
+                _bad_nvd = re.findall(
+                    r"(?:cvss_base_score|cvss_severity|cvss_vector)\(device_cves\)",
+                    _runbook_text,
+                )
+                _bad_matches_all = _bad_threatintel + _bad_nvd
+
+                # ── Good-form patterns: _first scalar-companion column for any of the 6 UDFs ──
+                _good_threatintel = re.findall(
+                    r"(?:threat_score|threat_is_known_malicious|threat_sources)"
+                    r"\((?:iocs_value_first|behaviors_ioc_value_first)\)",
+                    _runbook_text,
+                )
+                _good_nvd = re.findall(
+                    r"(?:cvss_base_score|cvss_severity|cvss_vector)\(device_cves_first\)",
+                    _runbook_text,
+                )
+                _good_matches_all = _good_threatintel + _good_nvd
+
+                if _bad_matches_all:
                     results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
-                        f"FAIL: {_changelog_heading_count} '## Changelog' headings in runbook "
-                        f"(fence-aware count) — H23 truncation ambiguous; update the check"
+                        f"FAIL: runbook contains {len(_bad_matches_all)} non-first UDF call(s) — "
+                        f"pre-ADR-051 D4 drift (F-AUD-P10-MED-003 + HIGH-001 + MED-002); "
+                        f"threatintel_bad={len(_bad_threatintel)}, nvd_bad={len(_bad_nvd)}; "
+                        f"matches={_bad_matches_all[:5]!r}; "
+                        f"update runbook to _first-column forms before live demo"
+                    )
+                elif not _good_matches_all:
+                    results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                        f"FAIL: no scalar-companion (_first) UDF calls found in runbook — "
+                        f"runbook enrich beats missing (expected >= 1 across all 6 typed UDFs)"
                     )
                 else:
-                    # use MULTILINE regex on fence-stripped copy to compute truncation position;
-                    # .start() offset is identical in _runbook_text_full (offsets preserved).
-                    _changelog_match = _changelog_heading_re.search(_runbook_text_no_fence)
-                    _runbook_text = (
-                        _runbook_text_full[:_changelog_match.start()]
-                        if _changelog_match is not None
-                        else _runbook_text_full
+                    results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                        f"PASS: {len(_good_matches_all)} _first-form UDF call(s) found "
+                        f"(threatintel={len(_good_threatintel)}, nvd={len(_good_nvd)}); "
+                        f"no pre-ADR-051 non-first forms — ADR-051 D4 scalar-input confirmed in runbook; "
+                        f"runbook={str(_rb_path)!r}"
                     )
-                    # ── Bad-form patterns: non-_first column arg for any of the 6 typed UDFs ──
-                    # ThreatIntel UDFs × JSON-list columns (closing \) excludes _first forms)
-                    _bad_threatintel = re.findall(
-                        r"(?:threat_score|threat_is_known_malicious|threat_sources)"
-                        r"\((?:iocs_value|behaviors_ioc_value)\)",
-                        _runbook_text,
-                    )
-                    # NVD UDFs × JSON-list column (device_cves; device_cves_first excluded by \))
-                    _bad_nvd = re.findall(
-                        r"(?:cvss_base_score|cvss_severity|cvss_vector)\(device_cves\)",
-                        _runbook_text,
-                    )
-                    _bad_matches_all = _bad_threatintel + _bad_nvd
-
-                    # ── Good-form patterns: _first scalar-companion column for any of the 6 UDFs ──
-                    _good_threatintel = re.findall(
-                        r"(?:threat_score|threat_is_known_malicious|threat_sources)"
-                        r"\((?:iocs_value_first|behaviors_ioc_value_first)\)",
-                        _runbook_text,
-                    )
-                    _good_nvd = re.findall(
-                        r"(?:cvss_base_score|cvss_severity|cvss_vector)\(device_cves_first\)",
-                        _runbook_text,
-                    )
-                    _good_matches_all = _good_threatintel + _good_nvd
-
-                    if _bad_matches_all:
-                        results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
-                            f"FAIL: runbook contains {len(_bad_matches_all)} non-first UDF call(s) — "
-                            f"pre-ADR-051 D4 drift (F-AUD-P10-MED-003 + HIGH-001 + MED-002); "
-                            f"threatintel_bad={len(_bad_threatintel)}, nvd_bad={len(_bad_nvd)}; "
-                            f"matches={_bad_matches_all[:5]!r}; "
-                            f"update runbook to _first-column forms before live demo"
-                        )
-                    elif not _good_matches_all:
-                        results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
-                            f"FAIL: no scalar-companion (_first) UDF calls found in runbook — "
-                            f"runbook enrich beats missing (expected >= 1 across all 6 typed UDFs)"
-                        )
-                    else:
-                        results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
-                            f"PASS: {len(_good_matches_all)} _first-form UDF call(s) found "
-                            f"(threatintel={len(_good_threatintel)}, nvd={len(_good_nvd)}); "
-                            f"no pre-ADR-051 non-first forms — ADR-051 D4 scalar-input confirmed in runbook; "
-                            f"runbook={str(_rb_path)!r}"
-                        )
             except OSError as _rb_err:
                 results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
                     f"FAIL: cannot read runbook at {str(_rb_path)!r}: {_rb_err}"
