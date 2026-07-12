@@ -1699,7 +1699,7 @@ def run_audit():
         # G2: IIN multi-value severity filter (ADR-047)
         # G3: IIN on status lowercase (ADR-047)
         # G4: SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary (ADR-047)
-        # G5: E-QUERY-002 typed guidance (IEQ on integer column -> suggest string sibling)
+        # G5: RETIRED (pass-9) — see retirement comment below
         # G6: GROUP BY severity no-fragmentation (canonical Title-case only)
         # G7: Temporal typing spot-check — no regression (ADR-052 §D4, PR #214)
         # G8: Typed enrichment output — threat_score is Int64 not String (ADR-051, PR #216)
@@ -1928,45 +1928,9 @@ def run_audit():
                     f"FAIL: query succeeded ({len(rows)} rows) — IEQ must be rejected in SQL WHERE clause"
                 )
 
-        # ── G5: E-QUERY-002 typed guidance (IEQ on integer column) ─────────────
-        # armis_devices.risk_score is an integer column (Option<u32> in DTU, Integer in
-        # sensor TOML). IEQ on an integer column must return E-QUERY-002 (QueryTypeMismatch)
-        # since lower() is not applicable to integers.
-        # NB: risk_score has no OCSF string sibling — do NOT assert sibling suggestion.
-        # G5 has identical strictness to H6: both require the POL-24 operator hint.
-        body, err = query(proc,
-            "FROM armis_devices\n| where risk_score IEQ 'high'\n| limit 5",
-            ["org-c"])
-        if err:
-            results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = f"FAIL: {err}"
-        else:
-            ec = body.get("error_code", "")
-            msg = body.get("message", "")
-            if ec == "E-QUERY-002":
-                # Require POL-24 operator hint "does not support operator" (mirrors H6 strictness).
-                # Without the hint → message-template regression → FAIL.
-                has_operator_hint = "does not support operator" in msg
-                if has_operator_hint:
-                    results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = (
-                        f"PASS: E-QUERY-002 + operator hint 'does not support operator' confirmed; "
-                        f"message={msg[:120]!r}"
-                    )
-                else:
-                    results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = (
-                        f"FAIL: E-QUERY-002 returned but operator hint absent — "
-                        f"message-template regression (POL-24): "
-                        f"'does not support operator' not in message; message={msg[:120]!r}"
-                    )
-            elif ec:
-                # Wrong error code → demo not healthy; FAIL so auditor notices.
-                results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = (
-                    f"FAIL: expected E-QUERY-002 (IEQ on integer), got {ec}: {msg[:100]!r}"
-                )
-            else:
-                rows = body.get("rows", [])
-                results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = (
-                    f"FAIL: query succeeded ({len(rows)} rows) — IEQ on integer column should return type error"
-                )
+        # G5 RETIRED (pass-9, per gap-analysis mandate): probe was retargeted to duplicate H6
+        # verbatim; H6 is the canonical E-QUERY-002 armis_devices.risk_score probe. ID G5 not
+        # reused.
 
         # ── G6: GROUP BY severity no-fragmentation (canonical Title-case only) ──
         # After OCSF enum normalization at adapter boundary, GROUP BY severity must
@@ -2174,6 +2138,9 @@ def run_audit():
                 results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
                     f"PASS: E-QUERY-038 (no Internal error / E-QUERY-034 regression)"
                 )
+            # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" (E-INT-001) at the
+            # MCP boundary by map_prism_error (error_mapping.rs); this disjunct is future-proofing —
+            # the "Internal error" disjunct handles the live path today.
             elif ec in ("E-QUERY-034",) or "Internal error" in msg:
                 results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
                     f"FAIL: REGRESSION — got {ec!r} / 'Internal error' instead of E-QUERY-038; "
@@ -2203,6 +2170,9 @@ def run_audit():
                 results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
                     f"PASS: E-QUERY-038 in filter mode (no regression)"
                 )
+            # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" (E-INT-001) at the
+            # MCP boundary by map_prism_error (error_mapping.rs); this disjunct is future-proofing —
+            # the "Internal error" disjunct handles the live path today.
             elif ec in ("E-QUERY-034",) or "Internal error" in msg:
                 results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
                     f"FAIL: REGRESSION — {ec!r} / 'Internal error' instead of E-QUERY-038; "
@@ -2388,7 +2358,7 @@ def run_audit():
         # ── H6: E-QUERY-002 via armis_devices.risk_score (integer column) ─────
         # armis_devices.risk_score is Integer-typed. IEQ must reject with E-QUERY-002.
         # Do NOT assert sibling suggestion (risk_score has no OCSF string sibling).
-        # This is the canonical E-QUERY-002 probe that retires G5's permanent WARN.
+        # This is the canonical E-QUERY-002 probe; G5 (pass-9 retired duplicate) is gone — ID not reused.
         body, err = query(proc,
             "FROM armis_devices\n| where risk_score IEQ 'high'\n| limit 5",
             ["org-c"])
@@ -2451,9 +2421,9 @@ def run_audit():
         # ── H8: HEAD-JOIN fail-open — bare unknown column in JOIN ─────────────
         # BC-2.11.016 v1.25 suspension rule 6: bare-column reference in JOIN → fail-open
         # (E-QUERY-034 or controlled rejection, NEVER E-QUERY-038).
-        # TD-VSDD-060 anchor: "Internal error" literal sourced from map_prism_error -32000
-        # catch-all display in crates/prism-mcp/src/server.rs. Future refactors of that
-        # display string must sweep this acceptance check (F-AUD-P3-LOW-002).
+        # TD-VSDD-060 anchor: map_prism_error -32000 catch-all display, error_mapping.rs
+        # ("Internal error; see audit log"). Future refactors of that display string must
+        # sweep this acceptance check (F-AUD-P3-LOW-002).
         body, err = query(proc,
             "SELECT totally_unknown_col FROM crowdstrike_devices d "
             "JOIN armis_devices a ON d.device_id = a.device_id LIMIT 5",
@@ -2463,9 +2433,9 @@ def run_audit():
             # FP-001 fail-open outcome (parse_envelope returns body={} on RPC error path).
             # Mirror H18's filter pattern — accept "-32000" + "Internal error" as PASS.
             # Timeouts, JSON errors, other RPC codes still FAIL.
-            # TD-VSDD-060 anchor: "Internal error" literal sourced from map_prism_error
-            # -32000 catch-all in crates/prism-mcp/src/server.rs; future refactors of
-            # that display string must sweep this acceptance check.
+            # TD-VSDD-060 anchor: map_prism_error -32000 catch-all display, error_mapping.rs
+            # ("Internal error; see audit log"); future refactors of that display string
+            # must sweep this acceptance check.
             err_str = str(err)
             if "-32000" in err_str and "Internal error" in err_str:
                 results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
@@ -2487,6 +2457,9 @@ def run_audit():
                     f"FAIL: E-QUERY-038 fired for bare unknown col in JOIN — "
                     f"HEAD-JOIN fail-open (FP-001) should suppress E-QUERY-038 here"
                 )
+            # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" (E-INT-001) at the
+            # MCP boundary by map_prism_error (error_mapping.rs); this disjunct is future-proofing —
+            # the "Internal error" disjunct handles the live path today.
             elif ec == "E-QUERY-034" or "Internal error" in msg:
                 # F-AUD-P1-MED-002: only E-QUERY-034 or Internal error PASSes here.
                 # The former third disjunct `(ec and ec != "E-QUERY-038")` accepted any
@@ -2769,6 +2742,9 @@ def run_audit():
                     # transport exception halts the audit before H14b is reached. Therefore
                     # `_a22_key not in results` is the sole reliable precondition gate —
                     # the retired a22_executed flag was a dead disjunct (F-AUD-P8-LOW-001).
+                    # Unreachable-by-construction (every A22 path writes a result; transport
+                    # exceptions halt the audit earlier) — kept as forward-compat guard against
+                    # A22 refactors.
                     if _a22_key not in results:
                         results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
                             f"FAIL: precondition violation — A22 (check_sensor_health) not executed before H14b; "
@@ -3011,8 +2987,9 @@ def run_audit():
         # error — not a ColumnNotFound echo.  Using the \x01 as a value (quoted) against an
         # unrecognized severity string returns 0 rows rather than an error, yielding an
         # empty envelope where no control char can leak.  Positive coverage of sanitize_for_log
-        # on the echo path is provided by H2 (sevrity typo → "Did you mean:" anchor) + H1b
-        # (filter-mode column probe); H16b remains as a negative-leak smoke check only.
+        # on the echo path is provided by H16 (quoted identifier containing U+0001 → E-QUERY-038
+        # → ColumnNotFoundDetails applies sanitize_for_log → audit asserts no control char in
+        # response); H16b remains as a negative-leak smoke check only.
         # PASS here means: no control char leaked in the response to a WHERE-predicate
         # containing \x01 in the value position (neither echo nor passthrough observed).
         ctrl_val = "critical\x01injected"
@@ -3439,7 +3416,7 @@ COVERAGE_MATRIX = [
     ("[G3]",  "IEQ/IIN/INE",   "IIN on status: status IIN ('new','in progress') → crowdstrike_detections (IIN lowers both sides; cyberint 'open'/'closed' DO match IIN but 'new'/'in progress' do not; ADV-PR-P11-HIGH-001)"),
     ("[G3b]", "IEQ/IIN/INE",   "Runbook Step 3.1a literal: cyberint status IIN ('open','closed') — rows>0 all status in {open,closed} (vendor-native pass-through + IIN lowercase confirmed)"),
     ("[G4]",  "IEQ/IIN/INE",   "SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"),
-    ("[G5]",  "IEQ/IIN/INE",   "E-QUERY-002 typed guidance: IEQ on armis_devices.risk_score (integer)"),
+    # G5 RETIRED (pass-9, per gap-analysis mandate): duplicate of H6 verbatim. ID not reused.
     ("[G6]",  "IEQ/IIN/INE",   "GROUP BY severity no-fragmentation (canonical Title-case)"),
     ("[G7]",  "Temporal",      "ADR-052 §D4 regression: RFC-3339 datetime literal in WHERE"),
     ("[G8]",  "Typed Enrich",  "ADR-051 regression: threat_score is Int64 not JSON-string"),
@@ -3467,7 +3444,7 @@ COVERAGE_MATRIX = [
     ("[H14s]","Resources",     "resources/read: prismql://schema/org-c — cyberint_alerts present (split from H14 composite, F-AUD-P3-MED-004)"),
     ("[H15]", "Tools",         "explain_query live call (one of 14 implemented tools)"),
     ("[H16]", "Security",      "CWE-116/117: control-char in column name sanitized (sanitize_for_log)"),
-    ("[H16b]","Security",      "CWE-117: control-char in WHERE-predicate value sanitized (smoke-only: detects Cc leakage in response envelope; forced echo through sanitize_for_log excluded — ident_char lexer rejects Cc chars before column lookup; positive echo coverage by H2+H1b)"),
+    ("[H16b]","Security",      "CWE-117: control-char in WHERE-predicate value sanitized (smoke-only: detects Cc leakage in response envelope; forced echo through sanitize_for_log excluded — ident_char lexer rejects Cc chars before column lookup; positive echo coverage by H16)"),
     ("[H17]", "Guardrails",    "E-QUERY-033: limit > 1000 rejected (BC-2.11.001 ceiling)"),
     ("[H18]", "Guardrails",    "E-QUERY-003: oversize query (~80KB) controlled rejection"),
     ("[H19a]","UDFs",          "threat_sources UDF returns virustotal in result"),
