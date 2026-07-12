@@ -303,8 +303,11 @@ def parse_envelope(resp):
         return {}, f"RPC error {err.get('code')}: {err.get('message','')[:120]}"
     # OBS-004 (F-AUD-P28): guard against non-dict result — e.g. a bare string or list in
     # the JSON-RPC result field would cause AttributeError on .get("content") below.
-    if not isinstance(resp.get("result", {}), dict):
-        return {}, f"non-dict result: {type(resp['result']).__name__}"
+    # F-AUD-P30-OBS-002: bind _res once so isinstance check and type() use the same
+    # object; handles absent-key (None → NoneType diagnostic) cleanly without double-lookup.
+    _res = resp.get("result")
+    if not isinstance(_res, dict):
+        return {}, f"non-dict result: {type(_res).__name__}"
     content = resp.get("result", {}).get("content", [])
     if not content:
         return {}, "empty content list"
@@ -493,6 +496,13 @@ _H7_RESULT_KEY = "[H7] JOIN positive path: crowdstrike_devices JOIN armis_device
 # F-AUD-P15-LOW-001: A22 result key defined once next to _H7_RESULT_KEY to prevent
 # the 11 write-site / 1 read-site string drift (12 literals → 1 constant).
 _A22_RESULT_KEY = "[A22] check_sensor_health (S-5.04 gate)"
+# F-AUD-P30-MED-003: EXPECTED_SENSORS hoisted to module level — single source of truth
+# shared by A22 (sensor_id set-equality gate) and H14b (resources/read health sensor set-equality).
+# CONSCIOUS-UPDATE REQUIRED: if the org-c demo config is updated to add or remove a sensor type,
+# update EXPECTED_SENSORS here; A22 and H14b both reference this constant.
+# Source: crates/prism-sensors/specs/*.sensor.toml entries registered for org-c
+# (demo config: .prism/config.toml / demo-config.toml sensor_type assignments).
+EXPECTED_SENSORS = {"crowdstrike", "armis", "claroty", "cyberint"}
 
 
 def run_audit():
@@ -1325,55 +1335,67 @@ def run_audit():
         # because some stubs (e.g. InfusionStatusParams.infusion_id: String — required) return
         # -32602 via serde before the handler runs. For list_infusions specifically, {} is a
         # valid param shape that reaches the NYA gate directly.
-        _nya_stub_names = sorted(
-            {t.get("name", "") for t in (tools_result or {}).get("tools", [])} - EXPECTED_TOOLS_FULL
-        ) if tools_result else []
-        _nya_deviants = []   # list of (name, outcome_str) for non-NYA results
-        _nya_pass_count = 0
-        _nya_total = len(_nya_stub_names)
-        for _nya_name in _nya_stub_names:
-            _rid = next_id()
-            send_msg(proc, {"jsonrpc": "2.0", "id": _rid, "method": "tools/call",
-                            "params": {"name": _nya_name, "arguments": {}}})
-            _resp, _err = read_msg(proc, timeout=5.0, expected_id=_rid)
-            if _err:
-                _nya_deviants.append((_nya_name, f"timeout/error: {_err}"))
-            elif "error" in _resp:
-                _code = _resp["error"].get("code", "?")
-                _emsg = _resp["error"].get("message", "")
-                if _code in (-32003, -32602):
-                    # -32003 = explicit NYA gate (E-INFRA-NYA per server.rs not_yet_available_msg).
-                    # -32602 = JSON schema param validation fires before the handler body;
-                    #   stubs whose Param structs have non-optional required fields fail
-                    #   serde deserialization before the handler runs. This confirms
-                    #   unreachability-via-empty-args — the server never reached the handler
-                    #   body where not_yet_available_msg would fire. This is an acceptable
-                    #   NYA-equivalent under BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER.
-                    #   NOTE: -32602 does NOT provide direct -32003 coverage of the NYA gate
-                    #   itself. Direct -32003 positive coverage is provided by the named
-                    #   representatives A19 (list_infusions), A20 (plugin_status), and
-                    #   A21 (infusion_status) which are called with valid param shapes.
-                    _nya_pass_count += 1
-                else:
-                    _nya_deviants.append((_nya_name, f"code={_code}, msg={_emsg[:60]!r}"))
-            else:
-                # Success response — stub returned data; NYA contract violated
-                _nya_deviants.append((_nya_name, "SUCCESS (expected -32003 E-INFRA-NYA)"))
-        if not _nya_stub_names:
+        # F-AUD-P30-LOW-001: guard against nameless registered tools before deriving the NYA
+        # sweep set.  A nameless tool (`name` missing or empty string) is a registration defect
+        # that must never reach the NYA sweep — it would contribute "" to the set-difference
+        # and appear as an -32602 "compliant" result, masking the defect.
+        _all_tool_entries = (tools_result or {}).get("tools", []) if tools_result else []
+        _nameless_tools = [t for t in _all_tool_entries if not t.get("name")]
+        if _nameless_tools:
             results["[A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"] = (
-                "FAIL: could not derive NYA stub set (tools/list unavailable or empty)"
-            )
-        elif _nya_deviants:
-            results["[A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"] = (
-                f"FAIL: {len(_nya_deviants)}/{_nya_total} stubs deviated from NYA contract "
-                f"(-32003 expected): "
-                + "; ".join(f"{n}={o}" for n, o in _nya_deviants[:5])
+                f"FAIL: {len(_nameless_tools)} registered tool(s) with missing/empty name — "
+                f"registration defect; cannot proceed with NYA sweep (F-AUD-P30-LOW-001)"
             )
         else:
-            results["[A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"] = (
-                f"PASS: {_nya_pass_count}/{_nya_total} stubs NYA-compliant "
-                f"(-32003 explicit or -32602 schema-validation-precedes-NYA-gate)"
-            )
+            _nya_stub_names = sorted(
+                {t.get("name") for t in _all_tool_entries if t.get("name")} - EXPECTED_TOOLS_FULL
+            ) if tools_result else []
+            _nya_deviants = []   # list of (name, outcome_str) for non-NYA results
+            _nya_pass_count = 0
+            _nya_total = len(_nya_stub_names)
+            for _nya_name in _nya_stub_names:
+                _rid = next_id()
+                send_msg(proc, {"jsonrpc": "2.0", "id": _rid, "method": "tools/call",
+                                "params": {"name": _nya_name, "arguments": {}}})
+                _resp, _err = read_msg(proc, timeout=5.0, expected_id=_rid)
+                if _err:
+                    _nya_deviants.append((_nya_name, f"timeout/error: {_err}"))
+                elif "error" in _resp:
+                    _code = _resp["error"].get("code", "?")
+                    _emsg = _resp["error"].get("message", "")
+                    if _code in (-32003, -32602):
+                        # -32003 = explicit NYA gate (E-INFRA-NYA per server.rs not_yet_available_msg).
+                        # -32602 = JSON schema param validation fires before the handler body;
+                        #   stubs whose Param structs have non-optional required fields fail
+                        #   serde deserialization before the handler runs. This confirms
+                        #   unreachability-via-empty-args — the server never reached the handler
+                        #   body where not_yet_available_msg would fire. This is an acceptable
+                        #   NYA-equivalent under BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER.
+                        #   NOTE: -32602 does NOT provide direct -32003 coverage of the NYA gate
+                        #   itself. Direct -32003 positive coverage is provided by the named
+                        #   representatives A19 (list_infusions), A20 (plugin_status), and
+                        #   A21 (infusion_status) which are called with valid param shapes.
+                        _nya_pass_count += 1
+                    else:
+                        _nya_deviants.append((_nya_name, f"code={_code}, msg={_emsg[:60]!r}"))
+                else:
+                    # Success response — stub returned data; NYA contract violated
+                    _nya_deviants.append((_nya_name, "SUCCESS (expected -32003 E-INFRA-NYA)"))
+            if not _nya_stub_names:
+                results["[A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"] = (
+                    "FAIL: could not derive NYA stub set (tools/list unavailable or empty)"
+                )
+            elif _nya_deviants:
+                results["[A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"] = (
+                    f"FAIL: {len(_nya_deviants)}/{_nya_total} stubs deviated from NYA contract "
+                    f"(-32003 expected): "
+                    + "; ".join(f"{n}={o}" for n, o in _nya_deviants[:5])
+                )
+            else:
+                results["[A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)"] = (
+                    f"PASS: {_nya_pass_count}/{_nya_total} stubs NYA-compliant "
+                    f"(-32003 explicit or -32602 schema-validation-precedes-NYA-gate)"
+                )
 
         # ── A22: check_sensor_health (S-5.04; if available) ─────────────────
         # NOTE: check_sensor_health returns raw JSON text (not under "results" envelope).
@@ -1447,9 +1469,8 @@ def run_audit():
                         # (demo config: .prism/config.toml / demo-config.toml sensor_type assignments).
                         # MED-003 (F-AUD-P26): mirror A2/A4 exact-set discipline — fail on extra
                         # sensors as well as missing, so unexpected sensor registrations surface.
-                        # CONSCIOUS-UPDATE REQUIRED: if the org-c demo config is updated to add or
-                        # remove a sensor type, EXPECTED_SENSORS must be updated in the same change.
-                        EXPECTED_SENSORS = {"crowdstrike", "armis", "claroty", "cyberint"}
+                        # F-AUD-P30-MED-003: EXPECTED_SENSORS now defined at module level (single
+                        # source of truth shared with H14b); local assignment removed.
                         present_sensors = set(sid for sid in sensor_ids if sid)
                         missing_sensors = EXPECTED_SENSORS - present_sensors
                         extra_sensors = present_sensors - EXPECTED_SENSORS
@@ -1529,7 +1550,10 @@ def run_audit():
             results["[B1] CS org-c: crowdstrike_detections returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[B1] CS org-c: crowdstrike_detections returns data"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[B1] CS org-c: crowdstrike_detections returns data"] = (
                     "FAIL: 0 rows — Stage 1+ must have crowdstrike_detections data (Stage 4 terminal guarantee)"
                 )
@@ -1544,7 +1568,10 @@ def run_audit():
             results["[B2] Armis org-c: armis_devices returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[B2] Armis org-c: armis_devices returns data"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[B2] Armis org-c: armis_devices returns data"] = (
                     "FAIL: 0 rows — Stage 4 terminal guarantee requires armis_devices data"
                 )
@@ -1559,7 +1586,10 @@ def run_audit():
             results["[B3] Claroty org-c: claroty_devices returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[B3] Claroty org-c: claroty_devices returns data"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[B3] Claroty org-c: claroty_devices returns data"] = (
                     "FAIL: 0 rows — Stage 4 terminal guarantee requires claroty_devices data"
                 )
@@ -1580,7 +1610,10 @@ def run_audit():
             results["[B4] Claroty org-c: claroty_audit_logs returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if len(rows) == 5:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[B4] Claroty org-c: claroty_audit_logs returns data"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif len(rows) == 5:
                 col_names = list(rows[0].keys()) if rows else []
                 results["[B4] Claroty org-c: claroty_audit_logs returns data"] = (
                     f"PASS: exactly 5 rows (static fixture confirmed; gap-analysis §4 guardrail #6); "
@@ -1604,7 +1637,10 @@ def run_audit():
             results["[B5] Cyberint org-c: cyberint_alerts returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[B5] Cyberint org-c: cyberint_alerts returns data"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[B5] Cyberint org-c: cyberint_alerts returns data"] = (
                     "FAIL: 0 rows — Stage 4 terminal guarantee requires cyberint_alerts data"
                 )
@@ -1619,7 +1655,10 @@ def run_audit():
             results["[B6] Claroty org-b: claroty_devices returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[B6] Claroty org-b: claroty_devices returns data"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[B6] Claroty org-b: claroty_devices returns data"] = (
                     "FAIL: 0 rows — org-b must have claroty_devices data"
                 )
@@ -1634,7 +1673,10 @@ def run_audit():
             results["[B7] Cyberint org-b: cyberint_alerts returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[B7] Cyberint org-b: cyberint_alerts returns data"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[B7] Cyberint org-b: cyberint_alerts returns data"] = (
                     "FAIL: 0 rows — org-b must have cyberint_alerts data"
                 )
@@ -1649,7 +1691,10 @@ def run_audit():
             results["[B8] CS org-a: crowdstrike_detections returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[B8] CS org-a: crowdstrike_detections returns data"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[B8] CS org-a: crowdstrike_detections returns data"] = (
                     "FAIL: 0 rows — org-a must have crowdstrike_detections data"
                 )
@@ -1664,7 +1709,10 @@ def run_audit():
             results["[B9] Armis org-a: armis_devices returns data"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[B9] Armis org-a: armis_devices returns data"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[B9] Armis org-a: armis_devices returns data"] = (
                     "FAIL: 0 rows — org-a must have armis_devices data"
                 )
@@ -1719,7 +1767,12 @@ def run_audit():
                     # (gap-analysis §3). armis_alerts, claroty_alerts, crowdstrike_devices all
                     # have active DTU routes and data at Stage 4 (verified: gap-analysis §4.1
                     # lists only crowdstrike_incidents + cyberint_incidents as no-DTU-route).
-                    if tbl in _DATA_GUARANTEED and len(rows_t) == 0:
+                    if sensor_errors:
+                        results[key] = (
+                            f"FAIL: partial fan-out failure for table {tbl} — "
+                            f"sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+                        )
+                    elif tbl in _DATA_GUARANTEED and len(rows_t) == 0:
                         results[key] = (
                             f"FAIL: 0 rows for data-guaranteed table {tbl} — "
                             f"silent-empty (Standing Rule 3 §2 class); "
@@ -1736,12 +1789,17 @@ def run_audit():
         elif body_a.get("error_code") or body_c.get("error_code"):
             results["[B10] ISOLATION: org-a vs org-c CS device IDs disjoint"] = f"FAIL: {body_a.get('error_code') or body_c.get('error_code')}"
         else:
+            sensor_errors_a = body_a.get("sensor_errors", [])
+            sensor_errors_c = body_c.get("sensor_errors", [])
             ids_a = {r.get("device_id") for r in body_a.get("rows", []) if r.get("device_id")}
             ids_c = {r.get("device_id") for r in body_c.get("rows", []) if r.get("device_id")}
             overlap = ids_a & ids_c
-            if overlap:
-                results["[B10] ISOLATION: org-a vs org-c CS device IDs disjoint"] = f"FAIL: {len(overlap)} overlapping device IDs: {list(overlap)[:3]}"
-            elif not ids_a or not ids_c:
+            if sensor_errors_a or sensor_errors_c:
+                results["[B10] ISOLATION: org-a vs org-c CS device IDs disjoint"] = (
+                    f"FAIL: partial fan-out failure — org-a errors={sensor_errors_a[:2]}, "
+                    f"org-c errors={sensor_errors_c[:2]} (F-AUD-P30-MED-001)"
+                )
+            elif overlap:
                 # F-AUD-P2-HIGH-001: 0 rows means DTU is not returning data; isolation
                 # cannot be proven → FAIL, not WARN (silent pass-through is dangerous).
                 results["[B10] ISOLATION: org-a vs org-c CS device IDs disjoint"] = f"FAIL: insufficient data — org-a={len(ids_a)} IDs, org-c={len(ids_c)} IDs (cannot prove disjoint with 0 rows from one or both orgs)"
@@ -1760,7 +1818,10 @@ def run_audit():
             results["[C1] SQL SELECT mode: SELECT FROM WHERE LIMIT"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[C1] SQL SELECT mode: SELECT FROM WHERE LIMIT"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[C1] SQL SELECT mode: SELECT FROM WHERE LIMIT"] = (
                     "FAIL: 0 rows — crowdstrike_detections must have data at Stage 1+"
                 )
@@ -1775,7 +1836,10 @@ def run_audit():
             results["[C2] Pipe mode: FROM | where | limit"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[C2] Pipe mode: FROM | where | limit"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[C2] Pipe mode: FROM | where | limit"] = (
                     "FAIL: 0 rows — armis_devices must have data at Stage 1+"
                 )
@@ -1790,7 +1854,10 @@ def run_audit():
             results["[C3] Pipe mode: FROM | fields | limit"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[C3] Pipe mode: FROM | fields | limit"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[C3] Pipe mode: FROM | fields | limit"] = (
                     "FAIL: 0 rows — crowdstrike_detections must have data at Stage 1+"
                 )
@@ -1826,7 +1893,10 @@ def run_audit():
             results["[C4] DataFusion aggregate: COUNT(*)"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[C4] DataFusion aggregate: COUNT(*)"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[C4] DataFusion aggregate: COUNT(*)"] = (
                     "FAIL: COUNT(*) returned 0 rows — armis_devices must have data"
                 )
@@ -1857,7 +1927,11 @@ def run_audit():
             results["[C5] DataFusion aggregate: GROUP BY"] = f"FAIL: {body['error_code']} — {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[C5] DataFusion aggregate: GROUP BY"] = f"PASS: {len(rows)} rows; sample={rows[:2] if rows else '?'}"
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[C5] DataFusion aggregate: GROUP BY"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            else:
+                results["[C5] DataFusion aggregate: GROUP BY"] = f"PASS: {len(rows)} rows; sample={rows[:2] if rows else '?'}"
 
         # ── C6: DataFusion aggregate MAX/MIN ──────────────────────────────────
         body, err = query(proc, "SELECT MAX(device_id), MIN(device_id) FROM crowdstrike_detections", ["org-c"])
@@ -1870,7 +1944,10 @@ def run_audit():
             results["[C6] DataFusion aggregate: MAX/MIN"] = f"FAIL: {body['error_code']} — {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[C6] DataFusion aggregate: MAX/MIN"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[C6] DataFusion aggregate: MAX/MIN"] = (
                     "FAIL: MAX/MIN returned 0 rows — crowdstrike_detections must have data"
                 )
@@ -1908,7 +1985,10 @@ def run_audit():
             results["[C7] Pipe mode: | sort"] = f"FAIL: {body['error_code']} — {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[C7] Pipe mode: | sort"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[C7] Pipe mode: | sort"] = (
                     "FAIL: 0 rows — crowdstrike_detections must have data at Stage 1+"
                 )
@@ -1949,7 +2029,10 @@ def run_audit():
             results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"FAIL: {body['error_code']}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = (
                     "FAIL: 0 rows — crowdstrike_detections must have data at Stage 1+"
                 )
@@ -1973,7 +2056,10 @@ def run_audit():
             results["[D1] SCENARIO: Stage 4 armis_devices visible"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if not rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[D1] SCENARIO: Stage 4 armis_devices visible"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif not rows:
                 results["[D1] SCENARIO: Stage 4 armis_devices visible"] = "FAIL: 0 rows (scenario stage not progressing?)"
             else:
                 device_ids = [str(r.get("device_id", "")) for r in rows if r.get("device_id")]
@@ -2013,7 +2099,10 @@ def run_audit():
             results["[D2] IOC-FIELDS: cyberint iocs_value at Stage 4"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[D2] IOC-FIELDS: cyberint iocs_value at Stage 4"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif rows:
                 iocs_value = rows[0].get("iocs_value", "MISSING")
                 results["[D2] IOC-FIELDS: cyberint iocs_value at Stage 4"] = f"PASS: {len(rows)} rows, sample iocs_value={str(iocs_value)[:60]}"
             else:
@@ -2030,7 +2119,10 @@ def run_audit():
             results["[D3] IOC-FIELDS: CS behaviors_ioc_type at Stage 2+"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[D3] IOC-FIELDS: CS behaviors_ioc_type at Stage 2+"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif rows:
                 ioc_type = rows[0].get("behaviors_ioc_type", "MISSING")
                 ioc_val = rows[0].get("behaviors_ioc_value", "MISSING")
                 results["[D3] IOC-FIELDS: CS behaviors_ioc_type at Stage 2+"] = f"PASS: {len(rows)} rows, sample ioc_type={str(ioc_type)[:30]!r} ioc_value={str(ioc_val)[:30]!r}"
@@ -2050,7 +2142,10 @@ def run_audit():
             results["[D4] Claroty audit_logs at Stage 4 (org-c)"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if len(rows) == 5:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[D4] Claroty audit_logs at Stage 4 (org-c)"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif len(rows) == 5:
                 first = rows[0]
                 # Check for key columns: id, action, actor, resource, timestamp
                 has_id = "id" in first
@@ -2077,7 +2172,12 @@ def run_audit():
             results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"FAIL: CS query failed: {err_cs or body_cs.get('error_code')}"
         else:
             cs_rows = body_cs.get("rows", [])
-            if cs_rows:
+            sensor_errors_cs = body_cs.get("sensor_errors", [])
+            if sensor_errors_cs:
+                results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = (
+                    f"FAIL: CS partial fan-out failure — sensor_errors={sensor_errors_cs[:2]} (F-AUD-P30-MED-001)"
+                )
+            elif cs_rows:
                 cs_device_id = cs_rows[0].get("device_id", "")
                 if cs_device_id:
                     body_am, err_am = query(proc,
@@ -2092,7 +2192,12 @@ def run_audit():
                         results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"FAIL: CS device found, Armis lookup error: {body_am['error_code']}: {body_am.get('message','')[:60]}"
                     else:
                         am_rows = body_am.get("rows", [])
-                        if am_rows:
+                        sensor_errors_am = body_am.get("sensor_errors", [])
+                        if sensor_errors_am:
+                            results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = (
+                                f"FAIL: Armis partial fan-out failure — sensor_errors={sensor_errors_am[:2]} (F-AUD-P30-MED-001)"
+                            )
+                        elif am_rows:
                             results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"PASS: device_id={cs_device_id[:30]!r} found in BOTH CS and Armis for org-c"
                         else:
                             # F-AUD-P2-HIGH-001: Stage 4 is terminal/absorbing; scenario
@@ -2122,7 +2227,10 @@ def run_audit():
             results["[E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts"] = f"FAIL: {body['error_code']}: {body.get('message','')[:100]}"
         else:
             rows = body.get("rows", [])
-            if rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif rows:
                 first = rows[0]
                 threat_score = first.get("threat_score", "MISSING")
                 iocs_value_first = first.get("iocs_value_first", "?")
@@ -2155,7 +2263,10 @@ def run_audit():
             results["[E2] ENRICH: threat_is_known_malicious(iocs_value_first)"] = f"FAIL: {body['error_code']}: {body.get('message','')[:100]}"
         else:
             rows = body.get("rows", [])
-            if rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[E2] ENRICH: threat_is_known_malicious(iocs_value_first)"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif rows:
                 first = rows[0]
                 malicious = first.get("threat_is_known_malicious", "MISSING")
                 if malicious == "MISSING":
@@ -2180,7 +2291,10 @@ def run_audit():
             results["[E3] ENRICH: cvss_base_score(device_cves_first) on armis_devices"] = f"FAIL: {body_arm['error_code']}: {body_arm.get('message','')[:100]}"
         else:
             rows = body_arm.get("rows", [])
-            if rows:
+            sensor_errors = body_arm.get("sensor_errors", [])
+            if sensor_errors:
+                results["[E3] ENRICH: cvss_base_score(device_cves_first) on armis_devices"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif rows:
                 first = rows[0]
                 cvss = first.get("cvss_base_score", "MISSING")
                 cve_id = first.get("device_cves_first", "?")
@@ -2225,7 +2339,10 @@ def run_audit():
             results["[E4] ENRICH: cvss_severity(device_cves_first)"] = f"FAIL: {body['error_code']}: {body.get('message','')[:100]}"
         else:
             rows = body.get("rows", [])
-            if rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[E4] ENRICH: cvss_severity(device_cves_first)"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif rows:
                 severity = rows[0].get("cvss_severity", "MISSING")
                 if severity == "MISSING":
                     results["[E4] ENRICH: cvss_severity(device_cves_first)"] = f"FAIL: cvss_severity column missing; cols={list(rows[0].keys())[:8]}"
@@ -2254,7 +2371,10 @@ def run_audit():
             results["[E5] ENRICH: threat_score(behaviors_ioc_value_first) on CS detections"] = f"FAIL: {body['error_code']}: {body.get('message','')[:100]}"
         else:
             rows = body.get("rows", [])
-            if rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[E5] ENRICH: threat_score(behaviors_ioc_value_first) on CS detections"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif rows:
                 threat_score = rows[0].get("threat_score", "MISSING")
                 if threat_score == "MISSING":
                     # HIGH-001: absence guard — threat_score column must be present
@@ -2295,7 +2415,10 @@ def run_audit():
             results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = f"FAIL: {body['error_code']}: {body.get('message','')[:100]}"
         else:
             rows = body.get("rows", [])
-            if rows:
+            sensor_errors = body.get("sensor_errors", [])
+            if sensor_errors:
+                results["[E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs"] = f"FAIL: partial fan-out failure — sensor_errors={sensor_errors[:2]} (F-AUD-P30-MED-001)"
+            elif rows:
                 # LOW-002: bool is subclass of int — exclude booleans from numeric check
                 scores = [r.get("threat_score") for r in rows if isinstance(r.get("threat_score"), (int, float)) and not isinstance(r.get("threat_score"), bool)]
                 non_int_sample = next((r.get("threat_score") for r in rows if r.get("threat_score") is not None and (isinstance(r.get("threat_score"), bool) or not isinstance(r.get("threat_score"), (int, float)))), None)
@@ -3605,10 +3728,21 @@ def run_audit():
                 _h7_key = _H7_RESULT_KEY  # OBS-004: single definition above prevents drift
                 _h7_result = results.get(_h7_key, "")
                 if _h7_result.startswith("PASS"):
+                    # F-AUD-P30-LOW-002: PASS-ATTRIBUTED — the -32000 "Internal error" message is
+                    # indistinguishable from a generic QueryExecutionFailed at the MCP boundary.
+                    # map_prism_error (crates/prism-mcp/src/error_mapping.rs) redacts ALL
+                    # QueryExecutionFailed variants to the same "Internal error; see audit log"
+                    # string. We attribute this to HEAD-JOIN fail-open (FP-001) on the basis of:
+                    # (a) H7 PASS confirms JOIN machinery is functional, and
+                    # (b) the query uses a bare unknown column in a JOIN — the pattern for FP-001.
+                    # This is probabilistic attribution, not direct fail-open message confirmation.
                     results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
-                        f"PASS: controlled fail-open via RPC -32000 Internal error — "
-                        f"spec-sanctioned FP-001 outcome (BC-2.11.016 §HEAD-JOIN SUSPENSION RULE (PER-REFERENCE SCOPING; EC-11-074/075/076)); "
-                        f"H7 JOIN-machinery evidence present"
+                        "PASS-ATTRIBUTED: -32000 Internal error + H7 healthy; "
+                        "HEAD-JOIN fail-open message indistinguishable from generic QueryExecutionFailed "
+                        "at MCP boundary (map_prism_error redacts all QueryExecutionFailed to "
+                        "'Internal error; see audit log'); "
+                        "spec-sanctioned FP-001 outcome (BC-2.11.016 §HEAD-JOIN SUSPENSION RULE); "
+                        "H7 JOIN-machinery evidence present"
                     )
                 else:
                     # MED-002 (F-AUD-P25): improved diagnostic — single root cause message.
@@ -3649,9 +3783,18 @@ def run_audit():
                 _h7_key = _H7_RESULT_KEY
                 _h7_result = results.get(_h7_key, "")
                 if _h7_result.startswith("PASS"):
+                    # F-AUD-P30-LOW-002: PASS-ATTRIBUTED — "Internal error; see audit log"
+                    # (in-band path) is emitted by map_prism_error (error_mapping.rs) for ALL
+                    # QueryExecutionFailed variants; the message is indistinguishable from any
+                    # other engine failure at the MCP boundary. Attribution to HEAD-JOIN fail-open
+                    # (FP-001) is probabilistic: H7 PASS + bare-unknown-col-in-JOIN query shape.
                     results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
-                        f"PASS: controlled rejection ({ec or 'internal'}) — not E-QUERY-038 "
-                        f"(HEAD-JOIN spec-sanctioned FP-001 confirmed); H7 JOIN-machinery evidence present"
+                        f"PASS-ATTRIBUTED: {ec or 'Internal error (no ec)'} + H7 healthy; "
+                        "HEAD-JOIN fail-open message indistinguishable from generic QueryExecutionFailed "
+                        "at MCP boundary (map_prism_error redacts all QueryExecutionFailed to "
+                        "'Internal error; see audit log'); "
+                        "spec-sanctioned FP-001 outcome (BC-2.11.016 §HEAD-JOIN SUSPENSION RULE); "
+                        "H7 JOIN-machinery evidence present"
                     )
                 else:
                     # MED-002 (F-AUD-P25): improved diagnostic — single root cause message.
@@ -4064,11 +4207,25 @@ def run_audit():
                                 f"investigate A22 first; A22 result={_a22_result[:80]!r}"
                             )
                         else:
-                            results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
-                                f"PASS: populated clients{{}} form; "
-                                f"client_count={client_count}; total_sensors={total_sensors}; "
-                                f"stale={sh_obj['stale']!r}"
+                            # F-AUD-P30-MED-003: verify org-c sensor set matches EXPECTED_SENSORS.
+                            # render_sensors_health_resource keys the sensors dict by sensor_id
+                            # (crates/prism-mcp/src/resources.rs); set(keys()) gives the IDs.
+                            _org_c_sensors = set(
+                                sh_obj["clients"].get("org-c", {}).get("sensors", {}).keys()
                             )
+                            if _org_c_sensors != EXPECTED_SENSORS:
+                                results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                                    f"FAIL: org-c sensor set mismatch — "
+                                    f"expected={sorted(EXPECTED_SENSORS)!r}, "
+                                    f"actual={sorted(_org_c_sensors)!r} (F-AUD-P30-MED-003)"
+                                )
+                            else:
+                                results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                                    f"PASS: populated clients{{}} form; "
+                                    f"client_count={client_count}; total_sensors={total_sensors}; "
+                                    f"stale={sh_obj['stale']!r}; "
+                                    f"org-c sensors confirmed={sorted(_org_c_sensors)!r}"
+                                )
                 else:
                     # Unexpected shape — neither known form.
                     results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
@@ -4380,6 +4537,14 @@ def run_audit():
             # control chars (U+0080–U+009F) and the line/paragraph separators.
             raw_content = resp_h16.get("result", {}).get("content", []) if resp_h16 else []
             raw_text = raw_content[0].get("text", "") if raw_content else ""
+            # F-AUD-P30-MED-002: extract error code from structuredContent.error.code
+            # (authoritative MCP error code), falling back to in-band regex extraction.
+            # parse_envelope populates _sc_error from structuredContent.error when present;
+            # build_structured_error_response sets structuredContent.error.code = E-code string.
+            # Source: crates/prism-mcp/src/error_mapping.rs (build_structured_error_response).
+            _body_h16, _ = parse_envelope(resp_h16)
+            _h16_ec = ((_body_h16.get("_sc_error") or {}).get("code")
+                       or _body_h16.get("error_code", ""))
             # _LS_PS (U+2028/U+2029) defined at H16 section header (_LS_PS constant); used here and H16b.
             control_chars_found = [c for c in raw_text
                                     if (unicodedata.category(c) == "Cc" or c in _LS_PS)
@@ -4389,12 +4554,15 @@ def run_audit():
                     f"FAIL: raw control chars leaked in response: "
                     f"{[hex(ord(c)) for c in control_chars_found[:5]]}"
                 )
-            elif raw_text.startswith("ERROR:") and "E-QUERY-038" in raw_text:
+            elif _h16_ec == "E-QUERY-038" and "badcolumn" in raw_text and "\x01" not in raw_text:
                 # Deterministic PASS path: SQL parser accepted the quoted ident → E-QUERY-038 fired
                 # → ColumnNotFoundDetails::new applied sanitize_for_log → control char stripped.
-                # Require E-QUERY-038 specifically (not just any ERROR:) for true positive coverage.
+                # Require E-QUERY-038 from structuredContent.error.code (not substring match);
+                # "badcolumn" confirms column name reached error path; no raw \x01 confirms strip.
                 results["[H16] CWE-116/117: control-char in column name sanitized"] = (
-                    f"PASS: E-QUERY-038 returned; control-char stripped by sanitize_for_log "
+                    f"PASS: E-QUERY-038 (structuredContent.error.code confirmed); "
+                    f"control-char stripped by sanitize_for_log; "
+                    f"'badcolumn' in response, '\\x01' absent "
                     f"(CWE-116/117 sanitized — SQL parser accepted quoted ident → E-QUERY-038 column gate); "
                     f"preview={raw_text[:80]!r}"
                 )
@@ -4838,8 +5006,15 @@ def run_audit():
             # (rows1 == rows2 AND len == 20) made H21 a duplicate of H11's count check,
             # which conflated two orthogonal properties and produced confusing FAILs when
             # the row count was non-20 but the query WAS deterministic.
-            if rows1 != rows2:
-                diffs = sum(1 for a, b in zip(rows1, rows2) if a != b)
+            # F-AUD-P30-OBS-001: use json.dumps(sort_keys=True) for comparison to avoid
+            # false-nondeterminism from key-ordering differences in Python dict comparison.
+            # Python dict equality (rows1 == rows2) is key-order-invariant for dicts, but
+            # json.dumps is more explicit and handles edge cases in nested structures.
+            if json.dumps(rows1, sort_keys=True) != json.dumps(rows2, sort_keys=True):
+                diffs = sum(
+                    1 for a, b in zip(rows1, rows2)
+                    if json.dumps(a, sort_keys=True) != json.dumps(b, sort_keys=True)
+                )
                 results["[H21] Determinism: repeated sorted query byte-identical"] = (
                     f"FAIL: rows differ — run1={len(rows1)}, run2={len(rows2)}, "
                     f"differing_rows={diffs} (non-deterministic result)"
