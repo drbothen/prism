@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-T13 Comprehensive Pre-flight Demo Audit Script — develop@5f1b5771
+T13 Comprehensive Pre-flight Demo Audit Script — develop@5f1b5771 baseline + fix/T13-audit-coverage Section-H extension
 Drives the prism MCP server over stdio (newline-delimited JSON) and verifies
 the FULL demo feature coverage matrix (extends the 18-item smoke audit).
 
@@ -567,12 +567,23 @@ def run_audit():
                         {v["status"] for v in caps.values()
                          if isinstance(v, dict) and "status" in v}
                     )
-                    results["[A6] list_capabilities tri-state model fields"] = (
-                        f"PASS: {len(caps)} capabilities; all have status+resolution_chain; "
-                        f"statuses={statuses!r}; not_registered_tools count="
-                        f"{len(not_reg) if isinstance(not_reg, list) else '?'} "
-                        f"(BC-2.10.011 tri-state model confirmed)"
-                    )
+                    # F-AUD-P14-OBS-001: not_registered_tools must be >= 1 in both branches.
+                    # server.rs NOT_YET_AVAILABLE_TOOLS (line ~1447) has 40 entries on develop;
+                    # an empty list means the field was not populated → render regression.
+                    if not isinstance(not_reg, list) or len(not_reg) == 0:
+                        results["[A6] list_capabilities tri-state model fields"] = (
+                            f"FAIL: not_registered_tools is empty or not a list "
+                            f"(type={type(not_reg).__name__}, len={len(not_reg) if isinstance(not_reg, list) else 'N/A'}) "
+                            f"— render regression: server.rs NOT_YET_AVAILABLE_TOOLS has 40 entries; "
+                            f"empty list indicates field was not populated"
+                        )
+                    else:
+                        results["[A6] list_capabilities tri-state model fields"] = (
+                            f"PASS: {len(caps)} capabilities; all have status+resolution_chain; "
+                            f"statuses={statuses!r}; not_registered_tools count="
+                            f"{len(not_reg)} "
+                            f"(BC-2.10.011 tri-state model confirmed)"
+                        )
             else:
                 # Empty capabilities: correct for develop@5f1b5771 demo build.
                 # server.rs list_capabilities per-client path (line ~4217-4233):
@@ -584,10 +595,20 @@ def run_audit():
                 # Loop over all_paths is a no-op → capabilities = {} (server.rs line ~4235-4326).
                 # BC-2.10.011 does not require >= 1 capability entry; empty map is valid
                 # when no write capability paths are configured at compile-time or runtime.
+                # F-AUD-P14-OBS-001: not_registered_tools must be a non-empty list (>= 1).
+                # server.rs NOT_YET_AVAILABLE_TOOLS (line ~1447) has 40 entries on develop;
+                # an empty list means the field was not populated → render regression.
                 if not isinstance(not_reg, list):
                     results["[A6] list_capabilities tri-state model fields"] = (
                         f"FAIL: not_registered_tools is not a list; "
                         f"type={type(not_reg).__name__}"
+                    )
+                elif len(not_reg) == 0:
+                    results["[A6] list_capabilities tri-state model fields"] = (
+                        f"FAIL: not_registered_tools is empty (len=0) — render regression: "
+                        f"server.rs NOT_YET_AVAILABLE_TOOLS has 40 entries; "
+                        f"empty list indicates field was not populated "
+                        f"(capabilities also empty; BC-2.10.011 single-client mode)"
                     )
                 else:
                     results["[A6] list_capabilities tri-state model fields"] = (
@@ -595,7 +616,7 @@ def run_audit():
                         f"client_paths = {{}} — no write_endpoint declarations in sensor "
                         f"TOMLs, no capabilities in prism-demo.toml; "
                         f"server.rs list_capabilities line ~4217-4233); "
-                        f"not_registered_tools={list(not_reg)[:3]!r}; "
+                        f"not_registered_tools={list(not_reg)[:3]!r} (len={len(not_reg)}); "
                         f"tri-state fields present (BC-2.10.011 single-client mode)"
                     )
 
@@ -943,7 +964,17 @@ def run_audit():
                 _code = _resp["error"].get("code", "?")
                 _emsg = _resp["error"].get("message", "")
                 if _code in (-32003, -32602):
-                    # -32003 = explicit NYA; -32602 = schema validation precedes NYA gate
+                    # -32003 = explicit NYA gate (E-INFRA-NYA per server.rs not_yet_available_msg).
+                    # -32602 = JSON schema param validation fires before the handler body;
+                    #   stubs whose Param structs have non-optional required fields fail
+                    #   serde deserialization before the handler runs. This confirms
+                    #   unreachability-via-empty-args — the server never reached the handler
+                    #   body where not_yet_available_msg would fire. This is an acceptable
+                    #   NYA-equivalent under BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER.
+                    #   NOTE: -32602 does NOT provide direct -32003 coverage of the NYA gate
+                    #   itself. Direct -32003 positive coverage is provided by the named
+                    #   representatives A19 (list_infusions), A20 (plugin_status), and
+                    #   A21 (infusion_status) which are called with valid param shapes.
                     _nya_pass_count += 1
                 else:
                     _nya_deviants.append((_nya_name, f"code={_code}, msg={_emsg[:60]!r}"))
@@ -2611,7 +2642,7 @@ def run_audit():
             if "-32000" in err_str and "Internal error" in err_str:
                 # F-AUD-P10-MED-001: attribute -32000 to HEAD-JOIN fail-open only when
                 # JOIN-machinery is verified by H7. Without H7 PASS, the -32000 could be
-                # any engine failure — not specifically suspension rule 6. H7 must have
+                # any engine failure — not specifically BC-2.11.016 §HEAD-JOIN SUSPENSION RULE (PER-REFERENCE SCOPING; EC-11-074/075/076). H7 must have
                 # PASSed in this run (earlier in this same results dict) to establish that
                 # the JOIN path itself is functional before we accept its fail-open variant.
                 _h7_key = _H7_RESULT_KEY  # OBS-004: single definition above prevents drift
@@ -2619,7 +2650,7 @@ def run_audit():
                 if _h7_result.startswith("PASS"):
                     results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
                         f"PASS: controlled fail-open via RPC -32000 Internal error — "
-                        f"spec-sanctioned FP-001 outcome (BC-2.11.016 suspension rule 6); "
+                        f"spec-sanctioned FP-001 outcome (BC-2.11.016 §HEAD-JOIN SUSPENSION RULE (PER-REFERENCE SCOPING; EC-11-074/075/076)); "
                         f"H7 JOIN-machinery evidence present"
                     )
                 else:
@@ -3167,6 +3198,12 @@ def run_audit():
         # PASS requires: "ERROR:" prefix (MCP layer wraps E-QUERY-038 message) AND
         #   "E-QUERY-038" in text (confirms column gate fired, not a parse/other error) AND
         #   no raw U+0001 in response (confirms sanitize_for_log stripped it).
+        #
+        # F-AUD-P14-OBS-008 — INTENTIONAL COUPLING: if the SQL parser is deliberately
+        #   hardened to reject control-chars at parse time (E-QUERY-001), update this
+        #   check's expected layer — do not weaken to accept both. This coupling is
+        #   intentional: deliberate parser hardening must cause a conscious update to
+        #   this audit (same philosophy as POL-24 anchor checks).
         ctrl_col = "badcolumn\x01"
         h16_query = f'SELECT "{ctrl_col}" FROM crowdstrike_detections LIMIT 3'
         rid_h16 = next_id()
@@ -3213,26 +3250,17 @@ def run_audit():
                     f"PASS: RPC-level rejection without control-char leakage"
                 )
             else:
-                # F-AUD-P1-LOW-003: PASS only if the response is a well-formed data envelope.
-                # An indeterminate response (non-JSON, non-ERROR, non-RPC-error) could mask
-                # a sanitization failure — must be treated as FAIL.
-                try:
-                    parsed = json.loads(raw_text)
-                    if isinstance(parsed, dict):
-                        results["[H16] CWE-116/117: control-char in column name sanitized"] = (
-                            f"PASS: well-formed JSON data envelope without control chars; "
-                            f"keys={list(parsed.keys())[:5]!r}"
-                        )
-                    else:
-                        results["[H16] CWE-116/117: control-char in column name sanitized"] = (
-                            f"FAIL: indeterminate response (JSON non-dict type={type(parsed).__name__}); "
-                            f"preview={raw_text[:60]!r}"
-                        )
-                except json.JSONDecodeError:
-                    results["[H16] CWE-116/117: control-char in column name sanitized"] = (
-                        f"FAIL: indeterminate response (non-JSON, non-ERROR, non-RPC-error); "
-                        f"preview={raw_text[:60]!r}"
-                    )
+                # F-AUD-P14-MED-002: remove "well-formed JSON dict without control chars → PASS"
+                # fallback. An unexpected success response on this path means the Layer-2
+                # E-QUERY-038 column gate was bypassed — sanitize_for_log positive coverage
+                # requires the E-QUERY-038 error path. Accepting a successful data envelope
+                # here would mask a layer-bypass regression. Always FAIL.
+                results["[H16] CWE-116/117: control-char in column name sanitized"] = (
+                    f"FAIL: unexpected success response — sanitize_for_log positive coverage "
+                    f"requires the E-QUERY-038 error path; well-formed JSON without error "
+                    f"indicates the Layer-2 column gate was bypassed; "
+                    f"preview={raw_text[:80]!r}"
+                )
 
         # ── H16b: CWE-116/117 — control-char in WHERE-predicate value (smoke-only) ──
         # F-AUD-P2-LOW-001: complement H16 (quoted column name) with a WHERE predicate
@@ -3509,22 +3537,32 @@ def run_audit():
                 numeric_scores = [s for s in scores if isinstance(s, (int, float))]
                 max_score = max(numeric_scores, default=0)
                 if max_score >= 75:
-                    # F-AUD-P2-MED-002: ADR-051 D4 scalar-input regression — iocs_value
-                    # (JSON-list) must produce NULL (coerce_to_typed returns None for '['-input);
+                    # Emphatic FAIL: ADR-051 D4 scalar-input regression — iocs_value
+                    # (JSON-list) must produce ALL-NULL (coerce_to_typed returns None for '['-input);
                     # a numeric score >= 75 means the NULL sentinel was bypassed → FAIL.
                     results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
                         f"FAIL: threat_score={max_score} for JSON-list column — "
                         f"ADR-051 D4 scalar-input REGRESSION: iocs_value must produce NULL; scores={scores[:5]}"
                     )
+                elif numeric_scores:
+                    # F-AUD-P14-MED-001: partial regression — non-NULL scores present but < 75.
+                    # ADR-051 §D4 mandates ALL-NULL for JSON-list input to typed UDFs;
+                    # any numeric (non-None) score means coerce_to_typed returned a value
+                    # instead of None for a '['-prefix input — regression regardless of magnitude.
+                    results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
+                        f"FAIL: non-NULL scores on JSON-list column — partial ADR-051 D4 regression; "
+                        f"coerce_to_typed must return None for JSON-list input (not a numeric value); "
+                        f"scores={scores[:5]}"
+                    )
                 else:
-                    # ADR-051 D4 sanctioned outcome: NULL output on JSON-list input.
-                    # numeric_scores is empty (all NULL → Python None filtered out by isinstance check)
-                    # → max_score defaults to 0. PASS means no numeric score >= 75 was present.
+                    # ADR-051 D4 sanctioned outcome: ALL-NULL output on JSON-list input.
+                    # len(numeric_scores) == 0 confirms all threat_score values are Python None
+                    # (filtered out by isinstance check) → max_score defaults to 0.
                     # F-AUD-P10-MED-003: assert only what H20 verifies — that ADR-051 D4
                     # scalar-input is enforced. Runbook amendment validity is checked by H23
                     # (static runbook text probe), not by this live query outcome.
                     results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
-                        f"PASS: NULL output for JSON-list column (ADR-051 D4 scalar-input enforced); "
+                        f"PASS: ALL-NULL output for JSON-list column (ADR-051 D4 scalar-input enforced); "
                         f"numeric_scores_found={len(numeric_scores)}, all_scores={scores[:5]}"
                     )
             else:
@@ -3556,7 +3594,9 @@ def run_audit():
         else:
             rows1 = body1.get("rows", [])
             rows2 = body2.get("rows", [])
-            if rows1 == rows2 and len(rows1) > 0:
+            if rows1 == rows2 and len(rows1) == 20:
+                # F-AUD-P14-OBS-002: assert exactly 20 rows (seed-200: 5 Critical + 15 Medium,
+                # limit 20 — H11 5+15 contract). len(rows1) == 20 is the strict floor.
                 # F-AUD-P5-OBS-003: after byte-identical confirmation, assert detection_id
                 # values are lex-sorted ascending (| sort detection_id defaults to Asc per
                 # pipe_parser.rs: .unwrap_or(SortDirection::Asc)).
@@ -3575,8 +3615,13 @@ def run_audit():
                         f"expected asc, got: {det_ids[:5]!r}"
                     )
             elif rows1 == rows2:
+                # F-AUD-P14-OBS-002: row count mismatch — seed-200 contract requires exactly 20
+                # (5 Critical + 15 Medium, limit 20 — H11 5+15 contract). Covers len=0 (no
+                # data from DTU) and any non-20 count (partial data or limit regression).
                 results["[H21] Determinism: repeated sorted query byte-identical"] = (
-                    "FAIL: 0 rows from both runs — seed-200 guarantees detections"
+                    f"FAIL: expected exactly 20 rows (seed-200: 5 Critical + 15 Medium, limit 20 — "
+                    f"H11 5+15 contract); got {len(rows1)} rows "
+                    f"(rows1={len(rows1)}, rows2={len(rows2)})"
                 )
             else:
                 diffs = sum(1 for a, b in zip(rows1, rows2) if a != b)
@@ -3845,11 +3890,26 @@ COVERAGE_MATRIX = [
     ("[H23]", "Guardrails",    "Runbook enrich-call drift: no pre-ADR-051 threat_score(iocs_value) forms; threat_score(iocs_value_first) >= 1"),
 ]
 
+# F-AUD-P14-OBS-006: coverage floor — must match len(COVERAGE_MATRIX) or higher.
+# Bump this constant when adding checks; never lower without adjudication.
+# Current authoritative count: 103 (as of fix/T13-audit-coverage Section-H extension).
+MIN_COVERAGE_ITEMS = 103
+
 
 if __name__ == "__main__":
+    # F-AUD-P14-OBS-006: runtime coverage floor check — fail hard if COVERAGE_MATRIX shrinks
+    # below the registered floor. This catches accidental removal of coverage rows.
+    if len(COVERAGE_MATRIX) < MIN_COVERAGE_ITEMS:
+        print(
+            f"ERROR: Coverage floor violated: {MIN_COVERAGE_ITEMS} required, "
+            f"{len(COVERAGE_MATRIX)} present — restore removed COVERAGE_MATRIX rows or "
+            f"bump MIN_COVERAGE_ITEMS with explicit adjudication."
+        )
+        sys.exit(1)
     print("=" * 80)
-    print("T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop@5f1b5771")
+    print("T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop@5f1b5771 baseline + fix/T13-audit-coverage Section-H extension")
     print(f"  ThreatIntel port: {THREATINTEL_PORT}  NVD port: {NVD_PORT}")
+    print(f"  Coverage floor: {MIN_COVERAGE_ITEMS} required, {len(COVERAGE_MATRIX)} present")
     print(f"  Coverage: {len(COVERAGE_MATRIX)} matrix items across 8 sections (A–H)")
     print("=" * 80)
     print()
@@ -3931,10 +3991,20 @@ if __name__ == "__main__":
 
     print("=" * 80)
     print(f"SUMMARY: {pass_count} PASS / {fail_count} FAIL / {warn_count} WARN / {partial_count} PARTIAL / {na_count} N/A / {len(results)} total")
-    demo_ready = "YES" if fail_count == 0 and not _has_mismatch else "NO"
+    # F-AUD-P14-MED-003: strict-success contract — DEMO-READY YES requires zero FAIL,
+    # zero WARN, zero PARTIAL, and no matrix mismatch. Any WARN or PARTIAL emitter is a
+    # non-zero deviation from the strict-success predicate.
+    _strict_pass = fail_count == 0 and warn_count == 0 and partial_count == 0 and not _has_mismatch
+    demo_ready = "YES" if _strict_pass else "NO"
+    if not _strict_pass and (warn_count > 0 or partial_count > 0):
+        print(
+            f"STRICT-PREDICATE FAIL: {warn_count} WARN + {partial_count} PARTIAL emitters present "
+            f"— strict-success contract requires zero (F-AUD-P14-MED-003)"
+        )
     print(f"DEMO-READY: {demo_ready}")
     print("=" * 80)
 
     # F-AUD-P5-OBS-002: gate exit on _has_mismatch too — matrix mismatch must fail
     # the process, matching DEMO-READY: NO.
-    sys.exit(0 if (fail_count == 0 and not _has_mismatch) else 1)
+    # F-AUD-P14-MED-003: also gate on warn_count and partial_count.
+    sys.exit(0 if _strict_pass else 1)
