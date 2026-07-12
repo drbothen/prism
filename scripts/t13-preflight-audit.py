@@ -373,13 +373,19 @@ _H7_RESULT_KEY = "[H7] JOIN positive path: crowdstrike_devices JOIN armis_device
 def run_audit():
     results = {}
 
-    proc = subprocess.Popen(
-        [PRISM_BIN, "--config-dir", CONFIG_DIR, "start"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=open("/tmp/prism-audit-mcp.log", "w"),
-        env=ENV,
-    )
+    try:
+        proc = subprocess.Popen(
+            [PRISM_BIN, "--config-dir", CONFIG_DIR, "start"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=open("/tmp/prism-audit-mcp.log", "w"),
+            env=ENV,
+        )
+    except FileNotFoundError:
+        results["BOOT"] = (
+            f"FAIL: binary not found at {PRISM_BIN} — run cargo build --release"
+        )
+        return results
 
     try:
         time.sleep(3)
@@ -568,7 +574,16 @@ def run_audit():
                         f"(BC-2.10.011 tri-state model confirmed)"
                     )
             else:
-                # Empty capabilities (no write endpoints in demo — compile-gate absent)
+                # Empty capabilities: correct for develop@5f1b5771 demo build.
+                # server.rs list_capabilities per-client path (line ~4217-4233):
+                #   registry_paths = endpoint_registry.all_capability_paths() → empty
+                #     (no [[write_endpoints]] declarations in any sensor TOML)
+                #   client_paths = ff.capability_paths_for_client("org-c") → empty
+                #     (no clients.org-c.capabilities section in prism-demo.toml)
+                #   all_paths = registry_paths ∪ client_paths → empty set
+                # Loop over all_paths is a no-op → capabilities = {} (server.rs line ~4235-4326).
+                # BC-2.10.011 does not require >= 1 capability entry; empty map is valid
+                # when no write capability paths are configured at compile-time or runtime.
                 if not isinstance(not_reg, list):
                     results["[A6] list_capabilities tri-state model fields"] = (
                         f"FAIL: not_registered_tools is not a list; "
@@ -576,8 +591,10 @@ def run_audit():
                     )
                 else:
                     results["[A6] list_capabilities tri-state model fields"] = (
-                        f"PASS: capabilities empty (no write endpoints in demo — "
-                        f"compile_time_disabled for all write paths); "
+                        f"PASS: capabilities empty (all_paths = registry_paths ∪ "
+                        f"client_paths = {{}} — no write_endpoint declarations in sensor "
+                        f"TOMLs, no capabilities in prism-demo.toml; "
+                        f"server.rs list_capabilities line ~4217-4233); "
                         f"not_registered_tools={list(not_reg)[:3]!r}; "
                         f"tri-state fields present (BC-2.10.011 single-client mode)"
                     )
@@ -1685,7 +1702,9 @@ def run_audit():
         # any error code mentioning "column" — removed. Only E-QUERY-038 PASSes here.
         # F-AUD-P7-LOW-004: use a near-miss column 'detction_id' (Levenshtein=1 from
         # 'detection_id') so the "Did you mean:" anchor from ColumnNotFoundDetails Display
-        # is exercised directly in F5 (H2 sibling covers the structuredContent.error fields).
+        # is exercised directly in F5; F5 also co-tests sc_error.did_you_mean == "detection_id"
+        # (F-AUD-P10-MED-005) — both text anchors AND the structured field are load-bearing here.
+        # H2 sibling covers the available_columns wire contract (BC-2.11.016).
         # Template anchors verified against error.rs ColumnNotFoundDetails Display:
         #   invariant: "not found in table" (always present)
         #   near-miss:  "Did you mean:" (present when Levenshtein ≤ 3 match exists)
@@ -2317,13 +2336,23 @@ def run_audit():
                 )
             else:
                 severities = [r.get("severity", "") for r in rows]
+                # F-AUD-P12-LOW-001: guard against vacuous-True all() when every severity
+                # value is empty — all(... if s) over all-empty list is vacuously True and
+                # would falsely PASS (Standing Rule 3 §2 data-quality regression).
+                has_nonempty = any(s for s in severities)
                 has_medium = any(s and s.lower() == "medium" for s in severities)
                 all_critical = all(s and s.lower() == "critical" for s in severities if s)
-                if has_medium:
+                if not has_nonempty:
+                    results["[H3] INE operator: severity INE 'medium' (excludes Medium rows)"] = (
+                        f"FAIL: {len(rows)} rows but all severity values empty — "
+                        f"data-quality regression (Standing Rule 3 §2); "
+                        f"severities={list(set(severities))!r}"
+                    )
+                elif has_medium:
                     results["[H3] INE operator: severity INE 'medium' (excludes Medium rows)"] = (
                         f"FAIL: Medium rows leaked through INE filter; severities={list(set(severities))!r}"
                     )
-                elif all_critical and len(rows) >= 1:
+                elif all_critical:
                     results["[H3] INE operator: severity INE 'medium' (excludes Medium rows)"] = (
                         f"PASS: {len(rows)} rows; all severity='Critical'; zero Medium rows"
                     )
@@ -3719,7 +3748,7 @@ if __name__ == "__main__":
     print("=" * 80)
     print("T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop@5f1b5771")
     print(f"  ThreatIntel port: {THREATINTEL_PORT}  NVD port: {NVD_PORT}")
-    print(f"  Coverage: {len(COVERAGE_MATRIX)} matrix items across 8 sections")
+    print(f"  Coverage: {len(COVERAGE_MATRIX)} matrix items across 8 sections (A–H)")
     print("=" * 80)
     print()
 
