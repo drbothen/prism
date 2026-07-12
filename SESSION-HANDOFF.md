@@ -86,13 +86,49 @@ timestamp: 2026-07-11T21:30:00Z
 >
 > **D-1681 (2026-07-11): SESSION WRAP — §RESUME SNAPSHOT D-1681 authored (supersedes D-1673).** CSDEVICES LOCAL cascade passes 25→32 this session (8 passes, 7 fix-bursts, D-1674..D-1681). Pass-32 (frozen @072930ee): CLEAN(strict)=NO CLEAN(PR-merge)=YES — 3 LOW docs-only (F-CSD-P32-OBS-001/002/003). Fix-burst: implementer @a6f86fa3 (docs-only; worked-example v90/v91; canary; module header 90→91; ci.yml comment; CLAUDE.md authority pointer). New FROZEN HEAD a6f86fa3 (LOCAL-ONLY, NOT pushed). Spec deltas: BC-2.16.013 v1.27→v1.31; BC-2.11.022 v1.2→v1.3; BC-INDEX v7.90→v7.94; Gate EXPECTED 89→91 ON BRANCH (develop stays 89). Streak 0/3. just check-fast clean. STATE v8.280→v8.281. **[SUPERSEDED by D-1692]**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1692 SESSION WRAP; develop@5f1b5771; CSDEVICES CLOSED (PR #221); 3 stories drafted; AUDIT-COVERAGE-001 unparked @202eb6fe** (STATE.md frontmatter is authoritative; D-1692 §RESUME SNAPSHOT is the most recent durable SESSION WRAP snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1692 is the most recent durable SESSION WRAP snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.292. D-1692 SESSION WRAP (CSDEVICES CLOSED; 3 stories drafted; AUDIT-COVERAGE-001 @202eb6fe; STORY-INDEX v2.656; BC-INDEX v7.95; total_stories 232; VERY NEXT ACTION = AUDIT-COVERAGE-001 B-hardening review dispatch [fresh session]).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1694 SESSION WRAP; develop@5f1b5771; AUDIT-COVERAGE-001 B-hardening 20 passes; FROZEN HEAD d0f80551; streak 0/3** (STATE.md frontmatter is authoritative; D-1694 §RESUME SNAPSHOT is the most recent durable SESSION WRAP snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1694 is the most recent durable SESSION WRAP snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.294. D-1694 SESSION WRAP (AUDIT-COVERAGE-001 B-hardening 20 passes; FROZEN HEAD d0f80551; streak 0/3; LOCAL-ONLY NOT pushed; STORY-INDEX v2.656; BC-INDEX v7.95; total_stories 232; VERY NEXT ACTION = LOCAL adversary pass 21 on d0f80551 [fresh session]).
 
 ---
 
-## §RESUME SNAPSHOT — D-1692 (2026-07-11 — SESSION WRAP; CSDEVICES CLOSED via PR #221; develop 5f1b5771; 3 stories drafted; AUDIT-COVERAGE-001 unparked @202eb6fe; STATE v8.292) [SUPERSEDES D-1681]
+## §RESUME SNAPSHOT — D-1694 (2026-07-12 — SESSION WRAP; AUDIT-COVERAGE-001 B-hardening 20 passes; FROZEN HEAD d0f80551; develop 5f1b5771; streak 0/3; STATE v8.294) [SUPERSEDES D-1692]
+
+### RESUME IN ONE BREATH
+
+AUDIT-COVERAGE-001 B-hardening cascade is 20 passes deep on `fix/T13-audit-coverage`. FROZEN HEAD is `d0f80551` (pass-20 fix-burst; LOCAL-ONLY, NOT pushed; 22 commits over develop@5f1b5771). Script grew from 95 to 103 checks (matrix + MIN_COVERAGE_ITEMS equality gate added). BC-5.39.001 3-CLEAN(strict) streak: 0/3 on d0f80551 (no passes taken against this HEAD yet). Two process-gap items queued for resolution at cascade close: F-AUD-P1-OBS-002 (POL-11 extension for over-permissive success predicates in audit-script family) and F-AUD-P3-OBS-003 (error-grading sweep checklist). VERY NEXT ACTION: LOCAL adversary pass 21 on d0f80551 (fresh session), targeting the BC-5.39.001 3-CLEAN(strict) streak. Frozen-HEAD rule in force — do NOT push or commit to fix/T13-audit-coverage before LOCAL 3-CLEAN completes.
+
+### HEADS (all verified 2026-07-12 end-of-session)
+
+- origin/develop == local develop = `5f1b5771` (PUSHED; UNCHANGED from D-1692). Workspace test baseline 5483; non-exhaustive gate EXPECTED=91.
+- factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code).
+- `.worktrees/AUDIT-COVERAGE-001` = `fix/T13-audit-coverage` @`d0f80551`, FROZEN, **LOCAL-ONLY (NOT on origin — no remote backup)**. 22 commits over develop@5f1b5771 (all scripts/t13-preflight-audit.py). check-fast verified PASS by implementer at multiple fix-burst gates.
+- `.worktrees/S-3.09` = `feature/S-3.09` @`43c41389` KEEP-PARKED (LOCAL-ONLY; backup branch `backup/S-3.09-preresume-43c41389`; D-1666). UNCHANGED.
+- `.worktrees/W3-FIX-S307-001` = `feature/W3-FIX-S307-001` @`fcab8717` PARKED, 1 unpushed commit + ~1070 lines uncommitted (LOCAL-ONLY; APPLICABILITY-AUDIT-QUEUED; do NOT touch). UNCHANGED.
+- OPEN PRs: NONE. No background agents in flight.
+
+### Workstreams + RESUME NEXT-ACTION
+
+1. **AUDIT-COVERAGE-001** — LOCAL-ONLY @d0f80551 FROZEN on `fix/T13-audit-coverage`. Cascade: 20 passes, 20 fix-bursts, 1 residual-guard commit; script 95→103 checks; pass trajectory see D-1694. RESUME NEXT-ACTION: LOCAL adversary pass 21 on FROZEN HEAD d0f80551 (fresh session). After 3-CLEAN(strict) streak (passes 21/22/23): complete S-7.02 process-gap codification (F-AUD-P1-OBS-002 + F-AUD-P3-OBS-003) → run 103-check live audit against DTU harness → push branch → pr-manager fix-PR + PR-LEVEL 3-CLEAN cascade → HUMAN merge approval. DO NOT push or commit to fix/T13-audit-coverage before LOCAL 3-CLEAN completes (frozen-HEAD rule, DRIFT-ORCH-PRLEVEL-PUSH-001).
+2. **3 draft stories** — registered STORY-INDEX v2.656 (232 total), BC-INDEX v7.95. RESUME NEXT-ACTION: run story-gate reviews (spec-reviewer + adversarial story convergence, 3-CLEAN each) before implementation scheduling. S-DRIFT-SAP2 is P1 and first in line per human default ordering.
+3. **W3-FIX-S307-001 applicability audit** — queued (D-1666). UNCHANGED.
+4. **E-OCSF-005..023** — draft story queued post-demo (D-1666). **T13 capstone demo** — queued after AUDIT-COVERAGE-001 merges.
+
+### Pending user-approved work (granted, unstarted)
+
+Human approved AUDIT-COVERAGE-001 work (B-hardening + 103-check live audit + fix-PR) carry-over from D-1692. No new approval needed for LOCAL cascade passes 21-23. Merge still requires explicit human approval.
+
+### Decision delta this session (already recorded)
+
+D-1693 (pass-10 runbook amendment; F-AUD-P10-HIGH-001 runbook v1.8→v1.9; PO adjudication H8 FAIL-defect confirmed). D-1694 (this SESSION WRAP snapshot). Passes 11–20 + 10 fix-bursts committed to feature branch only (LOCAL; not in .factory/). Orchestrator adjudications: H8 FAIL-defect (P8), H16 intentional layer-coupling (P14/P16 OBS-008 reaffirmed), G5 retirement (P9), A23 full-sweep over sampling (P13), H8 E-QUERY-034 disjunct keep+document (P9). No unrecorded decisions.
+
+### Worktree inventory
+
+AUDIT-COVERAGE-001: active FROZEN @d0f80551. S-3.09: stale-leave (KEEP-PARKED). W3-FIX-S307-001: stale-leave (audit queued).
+
+---
+
+## §RESUME SNAPSHOT — D-1692 (2026-07-11 — SESSION WRAP; CSDEVICES CLOSED via PR #221; develop 5f1b5771; 3 stories drafted; AUDIT-COVERAGE-001 unparked @202eb6fe; STATE v8.292) [SUPERSEDES D-1681] **[SUPERSEDED by D-1694]**
 
 ### RESUME IN ONE BREATH
 

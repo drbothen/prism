@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.293"
+version: "8.294"
 producer: state-manager
-timestamp: 2026-07-12T00:02:00Z
+timestamp: 2026-07-12T08:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -49,11 +49,11 @@ workspace_test_count: 5483  # NOTE: D-1690 — develop@5f1b5771 = 5483 (PR #221 
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1693 (2026-07-12). AUDIT-COVERAGE-001 pass-10 HIGH-001 runbook amendment. T13-capstone-demo-runbook.md v1.8→v1.9 (ADR-051 D4 scalar-input; 5 prose loci threat_score(iocs_value)→threat_score(iocs_value_first)); PO-adjudicated; cascade 10 passes streak 0/3; H23 static runbook-drift gate in implementer fix-burst 10 on feature branch. Pass-8 H8 FAIL-defect (BC-2.11.016 HEAD-JOIN SUSPENSION RULE) PO-confirmed. STATE v8.292→v8.293."
+current_step: "D-1694 (2026-07-12). SESSION WRAP AUDIT-COVERAGE-001 B-hardening. 20 adversary passes + 20 fix-bursts; script 95→103 checks; FROZEN HEAD d0f80551; streak 0/3 on d0f80551 (no passes taken against this HEAD yet); process-gap items F-AUD-P1-OBS-002 + F-AUD-P3-OBS-003 queued for S-7.02 codification at cascade close; LOCAL-ONLY NOT pushed. §RESUME SNAPSHOT D-1694 authored (supersedes D-1692). VERY NEXT ACTION = LOCAL adversary pass 21 on FROZEN HEAD d0f80551 (fresh session). STATE v8.293→v8.294."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "FIX-EQUERY042-GROUPBY (CLEANUP COMPLETE; MERGED develop@b9cf3f9b PR #220; branch+worktree removed post-merge) + FIX-CSDEVICES-EMPTY-PIPELINE (CLEANUP COMPLETE D-1690 2026-07-11; MERGED develop@5f1b5771 PR #221; branch+worktree removed post-merge) + AUDIT-COVERAGE-001 (fix/T13-audit-coverage @202eb6fe; LOCAL-ONLY; ACTIVE — devops rebase 317b6e25→202eb6fe onto develop@5f1b5771 D-1691; 2 commits scripts/t13-preflight-audit.py only +826/-50; check-fast PASS; B-hardening + 95-check live audit + PR queued) + S-3.09 (KEEP-PARKED per D-1666 human decision; @43c41389 local-only; backup/S-3.09-preresume-43c41389; DRIFT-PARKED-S309-001 resolved-keep-parked) + W3-FIX-S307-001 (dirty; APPLICABILITY-AUDIT-QUEUED per D-1666; @fcab8717; 1 unpushed commit + ~1070 lines uncommitted; do NOT touch until audit runs)"
+worktree_status: "FIX-EQUERY042-GROUPBY (CLEANUP COMPLETE; MERGED develop@b9cf3f9b PR #220; branch+worktree removed post-merge) + FIX-CSDEVICES-EMPTY-PIPELINE (CLEANUP COMPLETE D-1690 2026-07-11; MERGED develop@5f1b5771 PR #221; branch+worktree removed post-merge) + AUDIT-COVERAGE-001 (fix/T13-audit-coverage @d0f80551; FROZEN LOCAL-ONLY; 22 commits over develop@5f1b5771; 103 checks; streak 0/3; pass 21 NEXT — D-1694 SESSION WRAP; do NOT push before LOCAL 3-CLEAN) + S-3.09 (KEEP-PARKED per D-1666 human decision; @43c41389 local-only; backup/S-3.09-preresume-43c41389; DRIFT-PARKED-S309-001 resolved-keep-parked) + W3-FIX-S307-001 (dirty; APPLICABILITY-AUDIT-QUEUED per D-1666; @fcab8717; 1 unpushed commit + ~1070 lines uncommitted; do NOT touch until audit runs)"
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -88,7 +88,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-11 (D-1692 — SESSION WRAP; CSDEVICES CLOSED via PR #221; develop@5f1b5771; 3 stories drafted; AUDIT-COVERAGE-001 @202eb6fe; §RESUME SNAPSHOT D-1692; STATE v8.291→v8.292)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-12 (D-1694 — SESSION WRAP; AUDIT-COVERAGE-001 B-hardening 20 passes; FROZEN HEAD d0f80551; streak 0/3; §RESUME SNAPSHOT D-1694; STATE v8.293→v8.294)
 
 ## Active Objective (North Star)
 
@@ -158,6 +158,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1694 | state-manager | SESSION WRAP 2026-07-12. AUDIT-COVERAGE-001 B-hardening cascade: 20 adversary passes + 20 fix-bursts + 1 residual-guard commit on fix/T13-audit-coverage. Script grew 95→103 checks (matrix + MIN_COVERAGE_ITEMS equality gate). FROZEN HEAD d0f80551 (pass-20 fix-burst; LOCAL-ONLY NOT pushed; 22 commits over develop@5f1b5771). BC-5.39.001 3-CLEAN(strict) streak 0/3 on d0f80551 (no passes taken against this HEAD). Pass trajectory CLEAN-strict all NO: P1 2H/10M, P2 4H/8M, P3 1C/3H/4M, P4 4M, P5 2M, P6 1H, P7 1M, P8 1L/3O (PR-merge CLEAN; H8 FAIL-defect confirmed per BC-2.11.016 §HEAD-JOIN SUSPENSION RULE), P9 1L/4O, P10 1H/2M (runbook D-1693), P11 1H/2M (hardcoded path), P12 2L/3O, P13 7 LOW/OBS (A23 full NYA sweep), P14 3M (H20 all-NULL contract), P15 1M/4L (sibling-sweep gaps), P16 3M (A22 crash path), P17 1H/6M (comprehensive 5-point rubric sweep all 103 checks), P18 2M/1L (C7/H7 vacuous-empty guards), P19 1M/5L (null-leak guards; transport id-matching), P20 2L/1O (hygiene-only; novelty LOW; PR-merge CLEAN). Cross-artifact: runbook v1.8→v1.9 committed D-1693. Orchestrator adjudications in session: H8 FAIL-defect (P8), H16 intentional layer-coupling (P14/P16), G5 retirement (P9), A23 full-sweep over sampling (P13), H8 E-QUERY-034 disjunct keep+document (P9). Process-gap items for S-7.02 codification: F-AUD-P1-OBS-002 (over-permissive success predicates POL-11 extension) + F-AUD-P3-OBS-003 (error-grading sweep checklist). §RESUME SNAPSHOT D-1694 authored (supersedes D-1692). VERY NEXT ACTION = LOCAL adversary pass 21 on d0f80551 (fresh session; frozen-HEAD rule in force; do NOT push or commit to fix/T13-audit-coverage before 3-CLEAN). STATE v8.293→v8.294. | wave-5-e-demo-fidelity | 2026-07-12 |
 | D-1693 | state-manager | AUDIT-COVERAGE-001 B-hardening LOCAL cascade pass-10: F-AUD-P10-HIGH-001 HIGH — T13-capstone-demo-runbook.md v1.8 had 5 prose loci using `threat_score(iocs_value)` (the JSON-list column form that returns threat_score=0 at runtime); prior v1.8 amendment by audit-script work corrected query blocks only; prose loci (Act 4 narrative ~210, Talking Points ~903, §5.5 checklist ~959 incl. parenthetical, Stage<3 troubleshoot ~1041, flight-plan Block 3 ~1097) would have had the presenter invoke the wrong form live → demo beat failure. PO-adjudicated RUNBOOK-DEFECT. product-owner amended runbook v1.8→v1.9: 5 prose loci corrected to `threat_score(iocs_value_first)`; locus ~949 intentionally left (describes raw iocs_value JSON-list column state, not an enrich call; residual grep clean); changelog row added. H23 static runbook-drift gate added to t13-preflight-audit.py by implementer in parallel fix-burst 10 on fix/T13-audit-coverage @deb25682 (AUDIT-COVERAGE-001 feature branch LOCAL-ONLY; cascade 10 passes total; streak 0/3 reset by fix-burst 10; develop@5f1b5771 UNCHANGED). ALSO: pass-8 PO adjudication of H8 (FAIL-defect per BC-2.11.016 v1.27 §HEAD-JOIN SUSPENSION RULE) confirmed per orchestrator context — PO confirmed H8 is a genuine FAIL-defect per contract (EC-11-077/EC-11-078); audit script H8 check is correct; no BC amendment needed (constraint is existing per D-1691 BC-2.11.016 v1.26→v1.27). This burst: .factory/ runbook amendment + STATE.md only; feature branch unchanged. STATE v8.292→v8.293. | wave-5-e-demo-fidelity | 2026-07-12 |
 | D-1692 | state-manager | SESSION WRAP 2026-07-11. DEFECT-CSDEVICES-EMPTY-PIPELINE-001 CLOSED (PR #221 squash-merged develop@5f1b5771 2026-07-11; full convergence LOCAL 38 passes + PR-LEVEL 4 passes 3-CLEAN; security APPROVE; pr-reviewer APPROVE; CI 100% green). 3 draft stories registered (D-1691): S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001 v0.2 (P1; BCs BC-2.16.013/BC-2.11.016), S-DRIFT-INTERNAL-TABLE-COLUMN-GATE-001 v0.2 (P2; BCs BC-2.11.016/BC-2.11.012), S-TDS302-BUFFER-SERVING-001 v0.1 (P2; BC BC-2.11.012). AUDIT-COVERAGE-001 unparked @202eb6fe (rebased onto 5f1b5771; LOCAL-ONLY). NO OPEN PRs. §RESUME SNAPSHOT D-1692 authored (supersedes D-1691). VERY NEXT ACTION = AUDIT-COVERAGE-001 B-hardening review + 95-check live audit + PR (recommend fresh session). STATE v8.291→v8.292. | wave-5-e-demo-fidelity | 2026-07-11 |
 | D-1691 | state-manager | Post-merge story-creation burst D-1691. Human approved D-1666/D-1681 queue items (a)+(b)+(c)+(d) post-merge (D-1690 2026-07-11). story-writer created 3 draft stories: S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001 (v0.2; P1; 5 ACs; 5 pts; origin_findings: DRIFT-SAP2-DEVICES-TOML-SURFACE-001 + DRIFT-HARNESS-ADMIN-TOKEN-CT-001; BCs: [BC-2.16.013, BC-2.11.016]; SS-16; crates: [prism-sensors, prism-dtu-harness]); S-DRIFT-INTERNAL-TABLE-COLUMN-GATE-001 (v0.2; P2; 4 ACs; 5 Red Gate tests; 8 pts; origin_finding: DRIFT-INTERNAL-TABLE-COLUMN-GATE-001; BCs: [BC-2.11.016, BC-2.11.012]; SS-11; crates: [prism-query, prism-core]); S-TDS302-BUFFER-SERVING-001 (v0.1; P2; 4 ACs; 4 Red Gate tests; 5 pts; origin_finding: TD-S302-005; BCs: [BC-2.11.012]; SS-11; crates: [prism-query]). product-owner resolved both BC-amendment OQs same-burst: BC-2.16.013 v1.31→v1.32 (DRIFT-HARNESS-ADMIN-TOKEN-CT-001 CWE-208 constant-time admin-token bearer comparison requirement; INV-HARNESS-ROUTE-PARITY ct_compare_tokens clause; all 13 comparison sites in prism-dtu-harness; subtle::ConstantTimeEq; D-1666); BC-2.11.016 v1.26→v1.27 (D-1670 DRIFT-INTERNAL-TABLE-COLUMN-GATE-001 internal-table gate extension — §Design Constraints: unconditional prism_* skip replaced with INTERNAL_TABLE_SPECS schema-aware checking; capability gate + column gate ORTHOGONAL; EC-11-077/EC-11-078 added; plan-time-only invariant preserved). POL-29 sibling sweeps: 14 story pin sites updated, 0 architecture sites. Drift items STORY-DRAFTED: DRIFT-SAP2-DEVICES-TOML-SURFACE-001 → S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001; DRIFT-INTERNAL-TABLE-COLUMN-GATE-001 → S-DRIFT-INTERNAL-TABLE-COLUMN-GATE-001; DRIFT-HARNESS-ADMIN-TOKEN-CT-001 → folded into S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001; TD-S302-005 → S-TDS302-BUFFER-SERVING-001. AUDIT-COVERAGE-001 unparked: devops clean rebase 317b6e25→202eb6fe onto develop@5f1b5771 (2 commits, scripts/t13-preflight-audit.py only, +826/-50; check-fast PASS; LOCAL-ONLY, not pushed). Worktree .worktrees/AUDIT-COVERAGE-001 active @202eb6fe on fix/T13-audit-coverage. NEXT ACTIONS: (i) AUDIT-COVERAGE-001 B-hardening + 95-check live audit + PR (recommend fresh session — large lane); (ii) dispatch 3 draft stories through spec-review/adversarial story gates before implementation scheduling; (iii) remaining queue: W3-FIX-S307-001 applicability audit, E-OCSF-005..023 draft story (post-demo), T13 capstone demo. BC-INDEX v7.94→v7.95. STORY-INDEX v2.653→v2.656. total_stories 229→232. STATE v8.290→v8.291. | wave-5-e-demo-fidelity | 2026-07-11 |
@@ -506,13 +507,13 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1692 -- 2026-07-11; STATE v8.292)
+## Session Resume Checkpoint (D-1694 -- 2026-07-12; STATE v8.294)
 
-**D-1692 SESSION WRAP.** DEFECT-CSDEVICES-EMPTY-PIPELINE-001 CLOSED (PR #221 squash-merged develop@5f1b5771 2026-07-11). 3 draft stories registered (D-1691). AUDIT-COVERAGE-001 unparked @202eb6fe (rebased onto 5f1b5771). §RESUME SNAPSHOT D-1692 authored in SESSION-HANDOFF.md.
+**D-1694 SESSION WRAP.** AUDIT-COVERAGE-001 B-hardening cascade: 20 adversary passes + 20 fix-bursts. Script 95→103 checks. FROZEN HEAD d0f80551 (LOCAL-ONLY). Streak 0/3. §RESUME SNAPSHOT D-1694 authored in SESSION-HANDOFF.md.
 
-**NO open PRs. NO active cascades.**
+**NO open PRs. NO active cascades (AUDIT-COVERAGE-001 LOCAL-ONLY, NOT pushed).**
 
-**STATE v8.292. develop 5f1b5771 (PUSHED, origin==local). BC-INDEX v7.95. STORY-INDEX v2.656. ARCH-INDEX v2.176. error-taxonomy v2.39. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=91 on develop@5f1b5771. total_stories 232. workspace_test_count 5483 on develop@5f1b5771. bc_count_corrected 266.**
+**STATE v8.294. develop 5f1b5771 (PUSHED, origin==local). BC-INDEX v7.95. STORY-INDEX v2.656. ARCH-INDEX v2.176. error-taxonomy v2.39. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=91 on develop@5f1b5771. total_stories 232. workspace_test_count 5483 on develop@5f1b5771. bc_count_corrected 266.**
 
 **LAST MERGED:** DEFECT-CSDEVICES-EMPTY-PIPELINE-001 (PR #221 → develop@5f1b5771, 2026-07-11).
 
@@ -522,15 +523,15 @@ _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c
 - S-TDS302-BUFFER-SERVING-001 (v0.1; P2; 4 ACs; BCs: BC-2.11.012; inject_source_type buffer-serving wiring)
 
 **OPEN FIX-CASCADES:**
-- AUDIT-COVERAGE-001: `.worktrees/AUDIT-COVERAGE-001` @ 202eb6fe on `fix/T13-audit-coverage` (LOCAL-ONLY; ACTIVE — rebased onto develop@5f1b5771; B-hardening + 95-check + PR queued)
+- AUDIT-COVERAGE-001: `.worktrees/AUDIT-COVERAGE-001` @ d0f80551 on `fix/T13-audit-coverage` (FROZEN LOCAL-ONLY; 22 commits over develop@5f1b5771; 103 checks; streak 0/3; pass 21 NEXT)
 
 **WORKTREES:**
-- `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ 202eb6fe (LOCAL-ONLY; ACTIVE)
+- `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ d0f80551 (FROZEN LOCAL-ONLY; ACTIVE)
 - `.worktrees/S-3.09` KEEP-PARKED on `feature/S-3.09` @ 43c41389 (local-only; backup `backup/S-3.09-preresume-43c41389`; D-1666)
 - `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ fcab8717 (local-only; 1 unpushed commit + ~1070 uncommitted lines; APPLICABILITY-AUDIT-QUEUED; do NOT touch)
 
 **RESUME PROTOCOL:**
 1. Run vsdd-factory:factory-worktree-health (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `5f1b5771`.
-3. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1692 for full zero-context resume details.
+3. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1694 for full zero-context resume details.
 4. VERY NEXT ACTION = AUDIT-COVERAGE-001 B-hardening review dispatch (orchestrator dispatches adversary/code-review on +826-line t13-preflight-audit.py extension; fresh-context session recommended).
