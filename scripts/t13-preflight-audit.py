@@ -14,10 +14,10 @@ Requirements:
 
 Coverage matrix (see len(COVERAGE_MATRIX) for current authoritative count):
   1. All 14 implemented tools asserted present via tools/list; 5 read-only tools exercised
-     end-to-end; 9 mutating tools deliberately not invoked — preflight is read-only
-     (reload_config/create_alias/delete_alias/confirm_action/add_sensor_spec/validate_config
-     etc. are mutating operations; this preflight audit must be READ-ONLY against the demo
-     environment — no write-back to sensors, no config changes, no alias mutations)
+     end-to-end; 9 non-exercised tools: 4 structurally read-only but out of preflight scope
+     (list_aliases, list_sensor_specs, explain_alias, validate_config) + 5 mutating
+     (reload_config, create_alias, delete_alias, confirm_action, add_sensor_spec) —
+     preflight is READ-ONLY; no write-back to sensors, no config changes, no alias mutations
   2. All 6 sensors × all tables (CrowdStrike, Cyberint, Claroty, Armis, ThreatIntel, NVD)
   3. All query modes (SQL, pipe, SqlPipe, filter, stats, joins, enrichment, temporal)
   4. All scenario stages per client (determinism verified)
@@ -367,10 +367,13 @@ def run_audit():
         # READ-ONLY RATIONALE (F-AUD-P2-MED-005): all 14 tools are asserted PRESENT via
         # tools/list, but only 5 read-only tools are exercised end-to-end:
         #   - query, explain_query, list_capabilities, prism_describe, check_sensor_health
-        # The 9 mutating tools (reload_config, create_alias, list_aliases, delete_alias,
-        # explain_alias, confirm_action, add_sensor_spec, list_sensor_specs, validate_config)
-        # are deliberately NOT invoked — this preflight audit is READ-ONLY and must not
-        # mutate the demo environment before recording.
+        # The 9 non-exercised tools are deliberately NOT invoked — this preflight audit is
+        # READ-ONLY and must not mutate the demo environment before recording.
+        # 4 structurally read-only but out of preflight scope (no mutation risk, but not
+        # needed to verify demo features): list_aliases, list_sensor_specs, explain_alias,
+        # validate_config.
+        # 5 mutating (alter demo state — must not be called pre-recording): reload_config,
+        # create_alias, delete_alias, confirm_action, add_sensor_spec.
         tools_result, err = list_tools(proc)
         EXPECTED_TOOLS = {
             "query", "explain_query", "list_capabilities", "prism_describe",
@@ -629,7 +632,12 @@ def run_audit():
             elif has_old_infusion_form:
                 results["[A12] N1: prismql://reference per-field UDF names + content"] = "FAIL: old infusion_id call forms still present"
             else:
-                results["[A12] N1: prismql://reference per-field UDF names + content"] = f"PARTIAL: threat_score={has_threat_score}, cvss={has_cvss}; sections={section_count}"
+                # PARTIAL sweep: both threat_score and cvss_base_score are required by N1
+                # spec; absence of either is a definitive FAIL (not ambiguous).
+                results["[A12] N1: prismql://reference per-field UDF names + content"] = (
+                    f"FAIL: required UDF names missing — threat_score={has_threat_score}, "
+                    f"cvss_base_score={has_cvss}; sections={section_count}"
+                )
 
         # ── A13: N1-B: unknown enrich UDF returns E-QUERY-039 ────────────────
         body, err = query(proc, "FROM armis_devices | enrich nonexistent_udf(device_id) | limit 3", ["org-c"])
@@ -686,6 +694,10 @@ def run_audit():
             elif has_underscore:
                 results["[A16] AUDIT-004: triage_alerts prompt underscore names"] = "PASS: underscore table names in prompt"
             else:
+                # PARTIAL sweep: legitimately ambiguous — triage_alerts may use sensor-
+                # prefixed table names without a literal FROM keyword (e.g., via a
+                # pre-formatted PQL snippet embedded in the prompt body). 0 FAIL-signals
+                # from earlier guards (has_dot/has_underscore); prompt may be valid.
                 results["[A16] AUDIT-004: triage_alerts prompt underscore names"] = f"PARTIAL: no explicit FROM found; body preview={body_text[:150]!r}"
 
         # ── A17: query_tutorial prompt returns promptly ───────────────────────
@@ -792,7 +804,13 @@ def run_audit():
         elif resp_csh and "error" in resp_csh:
             code = resp_csh["error"].get("code", "?")
             if code == -32601:
-                results["[A22] check_sensor_health (S-5.04 gate)"] = "N/A: check_sensor_health tool not available (S-5.04 not merged)"
+                # OBS-001 fix: check_sensor_health IS registered on develop@5f1b5771;
+                # -32601 means the tool is not found → S-5.04 regression, not N/A.
+                results["[A22] check_sensor_health (S-5.04 gate)"] = (
+                    "FAIL: check_sensor_health tool missing — S-5.04 regression "
+                    "(check_sensor_health IS registered on develop@5f1b5771; "
+                    "-32601 = method not found)"
+                )
             else:
                 results["[A22] check_sensor_health (S-5.04 gate)"] = f"FAIL: MCP error {code}: {resp_csh['error'].get('message','')[:80]}"
         else:
@@ -1054,7 +1072,8 @@ def run_audit():
         elif body.get("error_code") == "E-QUERY-039":
             results["[C5] DataFusion aggregate: GROUP BY"] = "FAIL: E-QUERY-039 false-positive for GROUP BY COUNT"
         elif body.get("error_code"):
-            results["[C5] DataFusion aggregate: GROUP BY"] = f"PARTIAL: {body['error_code']} — {body.get('message','')[:80]}"
+            # HIGH-001: unexpected error_code on GROUP BY → FAIL (mirrors H4/H5/H6/H10 pattern).
+            results["[C5] DataFusion aggregate: GROUP BY"] = f"FAIL: {body['error_code']} — {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
             results["[C5] DataFusion aggregate: GROUP BY"] = f"PASS: {len(rows)} rows; sample={rows[:2] if rows else '?'}"
@@ -1066,7 +1085,8 @@ def run_audit():
         elif body.get("error_code") == "E-QUERY-039":
             results["[C6] DataFusion aggregate: MAX/MIN"] = "FAIL: E-QUERY-039 false-positive for MAX/MIN"
         elif body.get("error_code"):
-            results["[C6] DataFusion aggregate: MAX/MIN"] = f"PARTIAL: {body['error_code']} — {body.get('message','')[:80]}"
+            # HIGH-001: unexpected error_code on MAX/MIN → FAIL (mirrors H4/H5/H6/H10 pattern).
+            results["[C6] DataFusion aggregate: MAX/MIN"] = f"FAIL: {body['error_code']} — {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
             results["[C6] DataFusion aggregate: MAX/MIN"] = f"PASS: {len(rows)} rows; result={rows[0] if rows else '?'}"
@@ -1076,7 +1096,8 @@ def run_audit():
         if err:
             results["[C7] Pipe mode: | sort"] = f"FAIL: {err}"
         elif body.get("error_code"):
-            results["[C7] Pipe mode: | sort"] = f"PARTIAL: {body['error_code']} — {body.get('message','')[:80]}"
+            # HIGH-001: unexpected error_code on | sort → FAIL (mirrors H4/H5/H6/H10 pattern).
+            results["[C7] Pipe mode: | sort"] = f"FAIL: {body['error_code']} — {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
             results["[C7] Pipe mode: | sort"] = f"PASS: {len(rows)} rows"
@@ -1091,7 +1112,8 @@ def run_audit():
         if err:
             results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"FAIL: {err}"
         elif body.get("error_code"):
-            results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"PARTIAL: {body['error_code']}"
+            # HIGH-001: unexpected error_code on SQL baseline → FAIL (mirrors H4/H5/H6/H10 pattern).
+            results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"FAIL: {body['error_code']}"
         else:
             rows = body.get("rows", [])
             results["[C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)"] = f"PASS: {len(rows)} rows (SQL path confirmed; see G7 for RFC-3339 regression)"
@@ -1209,9 +1231,12 @@ def run_audit():
                         f"FROM armis_devices\n| where device_id = '{cs_device_id}'\n| limit 1",
                         ["org-c"])
                     if err_am:
-                        results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"PARTIAL: CS has device_id={cs_device_id[:30]}, Armis query failed: {err_am}"
+                        # PARTIAL sweep: transport failure on Armis lookup → demo not ready;
+                        # cross-sensor coherence cannot be verified → FAIL.
+                        results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"FAIL: CS has device_id={cs_device_id[:30]}, Armis query transport error: {err_am}"
                     elif body_am.get("error_code"):
-                        results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"PARTIAL: CS device found, Armis lookup error: {body_am['error_code']}"
+                        # PARTIAL sweep: Armis returned error; coherence unverified → FAIL.
+                        results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"FAIL: CS device found, Armis lookup error: {body_am['error_code']}: {body_am.get('message','')[:60]}"
                     else:
                         am_rows = body_am.get("rows", [])
                         if am_rows:
@@ -1579,7 +1604,11 @@ def run_audit():
         # status_id (captions: Unknown, Success, Failure, New, In Progress, Suppressed,
         # Resolved, Archived, Deleted, Other) — normalize_enum_label returns None and
         # passes them through unchanged.  No enum_map is declared for status in
-        # cyberint.sensor.toml.  IIN('new','in progress') can never match those values.
+        # cyberint.sensor.toml.
+        # IIN lowers both sides: IIN('new','in progress') cannot match cyberint's
+        # "open"/"acknowledged"/"closed" because none of those are in {'new','in progress'}.
+        # However IIN('open','closed') CAN match cyberint: lower("open")="open" ∈
+        # {"open","closed"} → matches.  G3b below verifies that positive case.
         #
         # crowdstrike_detections is the correct table: CS DTU emits status "new" for
         # all detection records (prism-dtu-crowdstrike generator.rs
@@ -1622,6 +1651,43 @@ def run_audit():
                     "(status_id[1001]); IIN operator may not be matching or CS data absent"
                 )
 
+        # ── G3b: Runbook Step 3.1a literal — cyberint status IIN ('open', 'closed') ─
+        # Verifies the POSITIVE case that G3 redirected away from: cyberint's vendor-native
+        # status values "open"/"closed" are passed through unchanged (no OCSF enum_map).
+        # IIN lowers both sides: lower("open")="open" ∈ {"open","closed"} → match.
+        # T13-capstone-demo-runbook.md line ~515: literal query for this step.
+        body, err = query(proc,
+            "FROM cyberint_alerts\n| where status IIN ('open', 'closed')\n| limit 20",
+            ["org-c"])
+        if err:
+            results["[G3b] Runbook Step 3.1a literal: cyberint status IIN ('open','closed')"] = f"FAIL: {err}"
+        elif body.get("error_code"):
+            ec = body.get("error_code", "")
+            results["[G3b] Runbook Step 3.1a literal: cyberint status IIN ('open','closed')"] = (
+                f"FAIL: {ec}: {body.get('message','')[:100]}"
+            )
+        else:
+            rows = body.get("rows", [])
+            if rows:
+                distinct_status = sorted({r.get("status", "") for r in rows if r.get("status") is not None})
+                expected = {"open", "closed"}
+                foreign = [s for s in distinct_status if s.lower() not in expected]
+                if foreign:
+                    results["[G3b] Runbook Step 3.1a literal: cyberint status IIN ('open','closed')"] = (
+                        f"FAIL: unexpected status values outside {{'open','closed'}}: {foreign!r}; "
+                        f"all returned={distinct_status!r}"
+                    )
+                else:
+                    results["[G3b] Runbook Step 3.1a literal: cyberint status IIN ('open','closed')"] = (
+                        f"PASS: {len(rows)} rows; distinct statuses={distinct_status!r} "
+                        f"(all in {{open,closed}}; IIN vendor-native pass-through confirmed)"
+                    )
+            else:
+                results["[G3b] Runbook Step 3.1a literal: cyberint status IIN ('open','closed')"] = (
+                    "FAIL: 0 rows — cyberint_alerts must have open/closed records at Stage 1+; "
+                    "IIN('open','closed') should match vendor-native pass-through values"
+                )
+
         # ── G4: SQL-mode IEQ rejection -> E-QUERY-001 (not opaque E-QUERY-034) ─
         # Runbook Step 4.3 / §5.9 checklist item 3.
         # IEQ is a PrismQL pipe/filter-mode operator. Using it in a SQL WHERE clause
@@ -1641,21 +1707,22 @@ def run_audit():
                 # sql_parser.rs: "(IEQ/IIN/INE) are not supported in SQL mode. Use filter mode"
                 # The old heuristic used '"|" in msg.lower()' which could spuriously match
                 # any unrelated pipe character in the error text. Replaced with a byte-precise
-                # anchor: "not supported in sql mode" is deterministically present in every
-                # E-QUERY-001 IEQ SQL-mode rejection (sql_parser.rs — the four E-QUERY-001
-                # IEQ/IIN/INE SQL-mode rejection sites that emit the canonical
-                # "not supported in SQL mode" phrase).
-                mentions_mode = "not supported in sql mode" in msg.lower()
+                # case-sensitive anchor: "not supported in SQL mode" is the verbatim string
+                # in sql_parser.rs (crates/prism-query/src/sql_parser.rs, 4 rejection sites).
+                # F-AUD-P3-LOW-001: no .lower() — the SQL-mode literal is always mixed-case.
+                mentions_mode = "not supported in SQL mode" in msg
                 if mentions_operator and mentions_mode:
                     results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = (
-                        f"PASS: E-QUERY-001; message names IEQ/IIN/INE and canonical anchor "
-                        f"'not supported in sql mode' confirmed: {msg[:120]!r}"
+                        f"PASS: E-QUERY-001; message names IEQ/IIN/INE and byte-precise anchor "
+                        f"'not supported in SQL mode' confirmed (sql_parser.rs verbatim): "
+                        f"{msg[:120]!r}"
                     )
                 else:
                     results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = (
-                        f"FAIL (partial): E-QUERY-001 returned but canonical message anchor "
-                        f"missing (operator_named={mentions_operator}, "
-                        f"mode_anchor_found={mentions_mode}): {msg[:120]!r}"
+                        f"FAIL: E-QUERY-001 returned but canonical message anchor missing — "
+                        f"message-template regression (POL-24); "
+                        f"operator_named={mentions_operator}, "
+                        f"mode_anchor_found={mentions_mode}: {msg[:120]!r}"
                     )
             elif ec == "E-QUERY-034":
                 results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = (
@@ -1693,8 +1760,9 @@ def run_audit():
                     f"message={msg[:120]!r}"
                 )
             elif ec:
+                # PARTIAL sweep: wrong error code → demo not healthy; FAIL so auditor notices.
                 results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = (
-                    f"PARTIAL: expected E-QUERY-002 (IEQ on integer), got {ec}: {msg[:100]!r}"
+                    f"FAIL: expected E-QUERY-002 (IEQ on integer), got {ec}: {msg[:100]!r}"
                 )
             else:
                 rows = body.get("rows", [])
@@ -1713,8 +1781,9 @@ def run_audit():
             results["[G6] GROUP BY severity no-fragmentation (canonical Title-case)"] = f"FAIL: {err}"
         elif body.get("error_code"):
             ec = body.get("error_code", "")
+            # PARTIAL sweep: query error → GROUP BY normalization cannot be verified → FAIL.
             results["[G6] GROUP BY severity no-fragmentation (canonical Title-case)"] = (
-                f"PARTIAL: {ec}: {body.get('message','')[:80]}"
+                f"FAIL: {ec}: {body.get('message','')[:80]}"
             )
         else:
             rows = body.get("rows", [])
@@ -1917,8 +1986,9 @@ def run_audit():
                     f"FAIL: query succeeded ({len(body.get('rows', []))} rows) — nonexistent column must error"
                 )
             else:
+                # PARTIAL sweep: unexpected error code is still a failed state → FAIL.
                 results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
-                    f"PARTIAL: unexpected {ec or 'no error'}: {msg[:80]!r}"
+                    f"FAIL: unexpected {ec or 'no error'}: {msg[:80]!r}"
                 )
 
         # ── H1b: E-QUERY-038 filter mode (position 7, no FROM keyword) ───────
@@ -1945,8 +2015,9 @@ def run_audit():
                     f"FAIL: filter mode query succeeded — nonexistent column must error"
                 )
             else:
+                # PARTIAL sweep: unexpected error code → FAIL.
                 results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
-                    f"PARTIAL: {ec or 'no error'}: {msg[:80]!r}"
+                    f"FAIL: unexpected {ec or 'no error'}: {msg[:80]!r}"
                 )
 
         # ── H2: E-QUERY-038 did_you_mean + available_columns payload ─────────
@@ -1963,19 +2034,29 @@ def run_audit():
             if ec == "E-QUERY-038":
                 has_dym_text = "Did you mean:" in msg
                 has_avail_text = "available: [" in msg
-                # Also check structuredContent.error fields
+                # Also check structuredContent.error fields (MED-002: sc fields required)
                 sc_dym = sc_err.get("did_you_mean", "") if sc_err else ""
                 sc_avail = sc_err.get("available_columns", []) if sc_err else []
-                if has_dym_text and has_avail_text:
+                # F-AUD-P3-MED-002: PASS requires BOTH text anchors AND at least one
+                # structuredContent.error field populated — text alone is not sufficient.
+                has_sc_fields = (sc_dym != "") or (len(sc_avail) > 0)
+                if has_dym_text and has_avail_text and has_sc_fields:
                     results["[H2] E-QUERY-038 did_you_mean + available_columns payload"] = (
-                        f"PASS: E-QUERY-038; text contains 'Did you mean:' and 'available: ['; "
+                        f"PASS: E-QUERY-038; text anchors confirmed + sc_error populated; "
                         f"sc_error.did_you_mean={sc_dym!r}; "
                         f"sc_error.available_columns count={len(sc_avail)}"
+                    )
+                elif has_dym_text and has_avail_text and not has_sc_fields:
+                    results["[H2] E-QUERY-038 did_you_mean + available_columns payload"] = (
+                        f"FAIL: text anchors present but structuredContent.error regression — "
+                        f"sc_dym={sc_dym!r} sc_avail count={len(sc_avail)}; "
+                        f"F-AUD-P3-MED-002: sc fields required for structured UX payload"
                     )
                 else:
                     results["[H2] E-QUERY-038 did_you_mean + available_columns payload"] = (
                         f"FAIL: E-QUERY-038 but payload anchors missing — "
-                        f"has_dym_text={has_dym_text}, has_avail_text={has_avail_text}; "
+                        f"has_dym_text={has_dym_text}, has_avail_text={has_avail_text}, "
+                        f"has_sc_fields={has_sc_fields}; "
                         f"message={msg[:120]!r}"
                     )
             else:
@@ -2013,8 +2094,11 @@ def run_audit():
                         f"PASS: {len(rows)} rows; all severity='Critical'; zero Medium rows"
                     )
                 else:
+                    # PARTIAL sweep: unexpected severity set (neither all-Critical nor has Medium).
+                    # seed-200 guarantees Critical+Medium only; other severities indicate drift.
                     results["[H3] INE operator: severity INE 'medium' (excludes Medium rows)"] = (
-                        f"PARTIAL: rows={len(rows)}; severities={list(set(severities))!r}"
+                        f"FAIL: unexpected severity set — seed-200 guarantees Critical+Medium only; "
+                        f"rows={len(rows)}; severities={list(set(severities))!r}"
                     )
 
         # ── H4: E-QUERY-041 negative temporal — date-only literal ────────────
@@ -2028,18 +2112,25 @@ def run_audit():
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             if ec == "E-QUERY-041":
-                has_rfc_hint = "RFC-3339" in msg or "UTC" in msg or "cannot be interpreted" in msg
+                # F-AUD-P3-MED-001: tighten anchor — BOTH "cannot be interpreted" AND "RFC-3339"
+                # must be present (source: error-taxonomy.md ~line 263, POL-24).
+                # The old OR-of-3 anchor ("RFC-3339" or "UTC" or "cannot be interpreted") is
+                # too loose — "UTC" alone could match unrelated timestamp display strings.
+                has_rfc_hint = "cannot be interpreted" in msg and "RFC-3339" in msg
                 # F-AUD-P1-MED-010: PASS requires E-QUERY-041 AND the RFC-3339 pedagogical hint.
-                # E-QUERY-041 without the hint means message-template regression.
+                # E-QUERY-041 without both anchors means message-template regression (POL-24).
                 if has_rfc_hint:
                     results["[H4] E-QUERY-041: date-only literal rejected (ADR-052 §D4)"] = (
-                        f"PASS: E-QUERY-041 with RFC-3339 pedagogical hint confirmed; "
+                        f"PASS: E-QUERY-041; both 'cannot be interpreted' and 'RFC-3339' confirmed; "
                         f"message={msg[:80]!r}"
                     )
                 else:
                     results["[H4] E-QUERY-041: date-only literal rejected (ADR-052 §D4)"] = (
-                        f"FAIL: E-QUERY-041 returned but RFC-3339/UTC hint absent — "
-                        f"message-template regression; message={msg[:120]!r}"
+                        f"FAIL: E-QUERY-041 returned but required anchors absent — "
+                        f"message-template regression (POL-24); "
+                        f"'cannot be interpreted' present={'cannot be interpreted' in msg}, "
+                        f"'RFC-3339' present={'RFC-3339' in msg}; "
+                        f"message={msg[:120]!r}"
                     )
             elif body.get("rows") is not None and not ec:
                 results["[H4] E-QUERY-041: date-only literal rejected (ADR-052 §D4)"] = (
@@ -2089,12 +2180,21 @@ def run_audit():
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             if ec == "E-QUERY-002":
-                has_operator_hint = "does not support operator" in msg or "IEQ" in msg
-                results["[H6] E-QUERY-002 via armis_devices.risk_score (integer column)"] = (
-                    f"PASS: E-QUERY-002 — IEQ on integer risk_score rejected; "
-                    f"operator_hint={'YES' if has_operator_hint else 'NO (check message)'}: "
-                    f"message={msg[:100]!r}"
-                )
+                # F-AUD-P3-HIGH-003: PASS requires operator hint "does not support operator"
+                # from error-taxonomy.md E-QUERY-002 canonical template.
+                # Without the hint → message-template regression (POL-24) → FAIL.
+                has_operator_hint = "does not support operator" in msg
+                if has_operator_hint:
+                    results["[H6] E-QUERY-002 via armis_devices.risk_score (integer column)"] = (
+                        f"PASS: E-QUERY-002 + operator hint 'does not support operator' confirmed; "
+                        f"message={msg[:100]!r}"
+                    )
+                else:
+                    results["[H6] E-QUERY-002 via armis_devices.risk_score (integer column)"] = (
+                        f"FAIL: E-QUERY-002 returned but operator hint absent — "
+                        f"message-template regression (POL-24): "
+                        f"'does not support operator' not in message; message={msg[:120]!r}"
+                    )
             elif body.get("rows") is not None and not ec:
                 results["[H6] E-QUERY-002 via armis_devices.risk_score (integer column)"] = (
                     f"FAIL: query succeeded ({len(body.get('rows', []))} rows) — IEQ on integer must error"
@@ -2133,6 +2233,9 @@ def run_audit():
         # ── H8: HEAD-JOIN fail-open — bare unknown column in JOIN ─────────────
         # BC-2.11.016 v1.25 suspension rule 6: bare-column reference in JOIN → fail-open
         # (E-QUERY-034 or controlled rejection, NEVER E-QUERY-038).
+        # TD-VSDD-060 anchor: "Internal error" literal sourced from map_prism_error -32000
+        # catch-all display in crates/prism-mcp/src/server.rs. Future refactors of that
+        # display string must sweep this acceptance check (F-AUD-P3-LOW-002).
         body, err = query(proc,
             "SELECT totally_unknown_col FROM crowdstrike_devices d "
             "JOIN armis_devices a ON d.device_id = a.device_id LIMIT 5",
@@ -2161,9 +2264,15 @@ def run_audit():
                     f"(HEAD-JOIN spec-sanctioned FP-001 confirmed)"
                 )
             elif not ec and not rows:
-                # Empty result with no error — also acceptable (no rows, no crash)
+                # Empty result with no error — spec-acceptable under FP-001 suspension rule
+                # (BC-2.11.016 §suspension: fail-open path may produce 0 rows rather than
+                # an error when the bare-column reference cannot be resolved at plan time).
+                # PARTIAL is justified here: positive coverage for this state would require
+                # a mutating trigger to produce rows with an unknown column, which is outside
+                # the read-only preflight constraint.
                 results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
-                    "PARTIAL: no error, no rows (acceptable; not a crash or E-QUERY-038)"
+                    "PARTIAL: no error, no rows — spec-acceptable FP-001 fail-open; "
+                    "positive-coverage requires mutating trigger (excluded by preflight constraint)"
                 )
             else:
                 # Unexpected error code — neither E-QUERY-034 nor Internal error
@@ -2257,8 +2366,10 @@ def run_audit():
                         f"PASS: {len(rows)} buckets include Critical+Medium; all={sorted(severities_found)!r}"
                     )
                 else:
+                    # PARTIAL sweep: Critical and/or Medium buckets absent — seed-200 guarantees both.
                     results["[H11] stats grammar: count() as cnt by severity"] = (
-                        f"PARTIAL: buckets={sorted(severities_found)!r} (expected {sorted(expected)})"
+                        f"FAIL: Critical and/or Medium buckets absent from stats result — "
+                        f"seed-200 guarantees both; buckets={sorted(severities_found)!r}"
                     )
 
         # ── H12: Multi-client fan-out — clients: [org-a, org-c] ──────────────
@@ -2333,58 +2444,96 @@ def run_audit():
                 f"PASS: {elapsed_ccs:.2f}s; {len(msgs)} message(s)"
             )
 
-        # ── H14: resources/read — 3 URIs (config/clients, sensors/health, schema) ─
-        h14_parts = []
-
+        # ── H14a: resources/read — prism://config/clients (3-org visibility) ──
+        # F-AUD-P3-MED-004: split composite H14 into three independent result keys.
+        # F-AUD-P1-OBS-003: assertion narrative claims 3-org visibility; require all 3.
         res_cc, err_cc = resource_read(proc, "prism://config/clients", timeout=10.0)
         if err_cc:
-            h14_parts.append(f"config/clients FAIL:{err_cc[:40]!r}")
+            results["[H14a] resources/read: prism://config/clients — 3-org visibility"] = (
+                f"FAIL: {err_cc}"
+            )
         else:
             t_cc = (res_cc.get("contents") or [{}])[0].get("text", "")
-            # F-AUD-P1-OBS-003: assertion narrative claims 3-org visibility; require all 3 orgs.
             if "org-a" in t_cc and "org-b" in t_cc and "org-c" in t_cc:
-                h14_parts.append("config/clients PASS(3-orgs:a,b,c)")
+                results["[H14a] resources/read: prism://config/clients — 3-org visibility"] = (
+                    f"PASS: all 3 orgs (org-a, org-b, org-c) present in config/clients"
+                )
             else:
                 missing_orgs = [o for o in ("org-a", "org-b", "org-c") if o not in t_cc]
-                h14_parts.append(f"config/clients FAIL(missing orgs:{missing_orgs}:{t_cc[:40]!r})")
+                results["[H14a] resources/read: prism://config/clients — 3-org visibility"] = (
+                    f"FAIL: missing orgs {missing_orgs} from config/clients; "
+                    f"body={t_cc[:80]!r}"
+                )
 
+        # ── H14b: resources/read — prism://sensors/health (CRIT-001 corrected) ─
+        # F-AUD-P3-CRIT-001: the resource shape is NOT {overall_status, sensors: [...]}.
+        # render_sensors_health_resource in crates/prism-mcp/src/resources.rs emits:
+        #   populated: {"clients": {client_id: {"sensors": {sensor_id: SensorHealthResult}}}, "stale": bool}
+        #   empty cache: {"status": "unknown", "message": "Run check_sensor_health ..."}
+        # The old assertion (overall_status + sensors list) was written for the TOOL shape
+        # (check_sensor_health tool), not the RESOURCE shape — false-positive on every run.
+        # PASS requires the populated form (clients dict + stale key); requires A22 first.
         res_sh, err_sh = resource_read(proc, "prism://sensors/health", timeout=10.0)
         if err_sh:
-            h14_parts.append(f"sensors/health FAIL:{err_sh[:40]!r}")
+            results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                f"FAIL: {err_sh}"
+            )
         else:
             t_sh = (res_sh.get("contents") or [{}])[0].get("text", "")
             try:
                 sh_obj = json.loads(t_sh)
-                # F-AUD-P2-HIGH-004: parse-only assertion is insufficient; assert
-                # overall_status present AND sensors list non-empty (SensorHealthStructuredContent
-                # contract from resources.rs: {overall_status, sensors: [...]}).
-                sh_overall = sh_obj.get("overall_status") if isinstance(sh_obj, dict) else None
-                sh_sensors = sh_obj.get("sensors", []) if isinstance(sh_obj, dict) else []
-                if sh_overall is None:
-                    h14_parts.append(f"sensors/health FAIL(overall_status missing from JSON:{t_sh[:60]!r})")
-                elif not sh_sensors:
-                    h14_parts.append(f"sensors/health FAIL(sensors list empty; overall_status={sh_overall!r})")
+                if not isinstance(sh_obj, dict):
+                    results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                        f"FAIL: non-dict JSON: {t_sh[:80]!r}"
+                    )
+                elif sh_obj.get("status") == "unknown":
+                    # Empty cache: A22 (check_sensor_health) has not been called yet.
+                    results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                        f"FAIL: cache empty — run A22 (check_sensor_health) first to populate; "
+                        f"message={sh_obj.get('message','')!r}"
+                    )
+                elif "clients" in sh_obj and isinstance(sh_obj["clients"], dict) and "stale" in sh_obj:
+                    # Populated form: {"clients": {...}, "stale": bool}
+                    client_count = len(sh_obj["clients"])
+                    total_sensors = sum(
+                        len(c.get("sensors", {})) if isinstance(c, dict) else 0
+                        for c in sh_obj["clients"].values()
+                    )
+                    results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                        f"PASS: populated clients{{}} form; "
+                        f"client_count={client_count}; total_sensors={total_sensors}; "
+                        f"stale={sh_obj['stale']!r}"
+                    )
                 else:
-                    h14_parts.append(f"sensors/health PASS(JSON; overall_status={sh_overall!r}; sensor_count={len(sh_sensors)})")
-            except Exception:
-                # F-AUD-P1-MED-007: resources.rs render_sensors_health_resource always produces
-                # JSON; non-JSON response is a contract violation, not merely a WARN.
-                h14_parts.append(f"sensors/health FAIL(non-JSON:{t_sh[:30]!r})")
+                    # Unexpected shape — neither known form.
+                    results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                        f"FAIL: unexpected shape — neither empty-cache nor populated form; "
+                        f"keys={list(sh_obj.keys())[:6]!r}; body={t_sh[:100]!r}"
+                    )
+            except Exception as exc:
+                # F-AUD-P1-MED-007: render_sensors_health_resource always produces JSON.
+                results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                    f"FAIL: non-JSON response — resources.rs contract violation; "
+                    f"exc={exc!r}; body={t_sh[:40]!r}"
+                )
 
+        # ── H14s: resources/read — prismql://schema/org-c (cyberint_alerts present) ─
+        # F-AUD-P3-MED-004: split from composite H14; standalone cyberint schema check.
         res_sc, err_sc = resource_read(proc, "prismql://schema/org-c", timeout=10.0)
         if err_sc:
-            h14_parts.append(f"schema/org-c FAIL:{err_sc[:40]!r}")
+            results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
+                f"FAIL: {err_sc}"
+            )
         else:
             t_sc = (res_sc.get("contents") or [{}])[0].get("text", "")
             if "cyberint_alerts" in t_sc:
-                h14_parts.append("schema/org-c PASS(cyberint_alerts)")
+                results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
+                    f"PASS: prismql://schema/org-c includes cyberint_alerts (len={len(t_sc)})"
+                )
             else:
-                h14_parts.append(f"schema/org-c FAIL(cyberint_alerts missing)")
-
-        any_fail = any("FAIL" in p for p in h14_parts)
-        results["[H14] resources/read: config/clients + sensors/health + schema"] = (
-            f"{'FAIL' if any_fail else 'PASS'}: {'; '.join(h14_parts)}"
-        )
+                results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
+                    f"FAIL: cyberint_alerts absent from schema; body={t_sc[:100]!r}"
+                )
 
         # ── H14c: resources/read — prism://schema/crowdstrike/detections ─────
         # F-AUD-P2-MED-006: extend resource coverage to per-sensor-table schema URI.
@@ -2433,18 +2582,26 @@ def run_audit():
         # ── H14e: resources/subscribe + unsubscribe — prismql://schema/org-c ─
         # F-AUD-P2-MED-008: resources/subscribe supported via enable_resources_subscribe()
         # in server.rs for prismql://schema/{client_id} URIs.
+        # F-AUD-P3-HIGH-002 SMOKE-ONLY: this check verifies the server accepts the
+        # subscribe/unsubscribe round-trip without hanging, crashing, or returning a
+        # transport error.  No client-observable subscription state exists in the MCP
+        # protocol — positive coverage (confirming a notification was delivered) would
+        # require a mutating trigger, which is excluded by the read-only preflight
+        # constraint.  PASS here means: no hang + no panic + no -32601 / transport error.
         res_sub, err_sub = resources_subscribe(proc, "prismql://schema/org-c", timeout=10.0)
         if err_sub:
-            results["[H14e] resources/subscribe+unsubscribe: prismql://schema/org-c"] = f"FAIL: subscribe: {err_sub}"
+            results["[H14e] resources/subscribe+unsubscribe: prismql://schema/org-c (smoke-only)"] = (
+                f"FAIL: subscribe: {err_sub}"
+            )
         else:
             res_unsub, err_unsub = resources_unsubscribe(proc, "prismql://schema/org-c", timeout=10.0)
             if err_unsub:
-                results["[H14e] resources/subscribe+unsubscribe: prismql://schema/org-c"] = (
+                results["[H14e] resources/subscribe+unsubscribe: prismql://schema/org-c (smoke-only)"] = (
                     f"FAIL: subscribe OK but unsubscribe failed: {err_unsub}"
                 )
             else:
-                results["[H14e] resources/subscribe+unsubscribe: prismql://schema/org-c"] = (
-                    "PASS: subscribe accepted; unsubscribe accepted (prismql://schema/org-c)"
+                results["[H14e] resources/subscribe+unsubscribe: prismql://schema/org-c (smoke-only)"] = (
+                    "PASS: subscribe+unsubscribe round-trip accepted (smoke: no hang/panic/transport error)"
                 )
 
         # ── H15: 14 implemented tools + live explain_query call ──────────────
@@ -2598,8 +2755,10 @@ def run_audit():
                 f"FAIL: limit 1001 query succeeded ({len(body.get('rows', []))} rows) — E-QUERY-033 not enforced"
             )
         else:
+            # PARTIAL sweep: unexpected response (not a controlled rejection) → FAIL.
             results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
-                f"PARTIAL: body={body}"
+                f"FAIL: unexpected response (not a controlled rejection); "
+                f"body keys={list(body.keys())[:4]}"
             )
 
         # ── H18: E-QUERY-003 / oversize query rejected ───────────────────────
@@ -2644,8 +2803,10 @@ def run_audit():
                 "FAIL: oversize query succeeded (E-QUERY-003 not enforced)"
             )
         else:
+            # PARTIAL sweep: unexpected in-band response (not a controlled rejection) → FAIL.
             results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
-                f"PARTIAL: unexpected response: body keys={list(body.keys())[:4]}"
+                f"FAIL: unexpected response (expected controlled rejection); "
+                f"body keys={list(body.keys())[:4]}"
             )
 
         # ── H19: threat_sources + cvss_vector UDFs ───────────────────────────
@@ -2916,7 +3077,8 @@ COVERAGE_MATRIX = [
     # Section G: New merged surfaces — PRs #214/#216/#217 (develop@f935edb6)
     ("[G1]",  "IEQ/IIN/INE",   "IEQ happy path: severity IEQ 'critical' matches canonical 'Critical'"),
     ("[G2]",  "IEQ/IIN/INE",   "IIN multi-value: severity IIN ('high','critical')"),
-    ("[G3]",  "IEQ/IIN/INE",   "IIN on status: status IIN ('new','in progress') → crowdstrike_detections (cyberint vendor-native open/acknowledged/closed has no OCSF caption match; ADV-PR-P11-HIGH-001)"),
+    ("[G3]",  "IEQ/IIN/INE",   "IIN on status: status IIN ('new','in progress') → crowdstrike_detections (IIN lowers both sides; cyberint 'open'/'closed' DO match IIN but 'new'/'in progress' do not; ADV-PR-P11-HIGH-001)"),
+    ("[G3b]", "IEQ/IIN/INE",   "Runbook Step 3.1a literal: cyberint status IIN ('open','closed') — rows>0 all status in {open,closed} (vendor-native pass-through + IIN lowercase confirmed)"),
     ("[G4]",  "IEQ/IIN/INE",   "SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"),
     ("[G5]",  "IEQ/IIN/INE",   "E-QUERY-002 typed guidance: IEQ on armis_devices.risk_score (integer)"),
     ("[G6]",  "IEQ/IIN/INE",   "GROUP BY severity no-fragmentation (canonical Title-case)"),
@@ -2938,10 +3100,12 @@ COVERAGE_MATRIX = [
     ("[H12]", "Multi-client",  "Multi-client fan-out: org-a + org-c CrowdStrike detections"),
     ("[H13a]","Prompts",       "client_overview prompt returns promptly (new prompt)"),
     ("[H13b]","Prompts",       "cross_client_status prompt returns promptly (new prompt)"),
-    ("[H14]", "Resources",     "resources/read: config/clients + sensors/health + schema/org-c"),
+    ("[H14a]","Resources",     "resources/read: prism://config/clients — 3-org visibility (org-a, org-b, org-c)"),
+    ("[H14b]","Resources",     "resources/read: prism://sensors/health — populated clients{} form (CRIT-001 corrected; requires A22 first; shape: {clients:{...},stale:bool})"),
     ("[H14c]","Resources",     "resources/read: prism://schema/crowdstrike/detections (per-sensor-table schema URI)"),
     ("[H14d]","Resources",     "resources/read: prism://config/clients/org-c/sensors (per-client sensor list URI)"),
-    ("[H14e]","Resources",     "resources/subscribe + unsubscribe: prismql://schema/org-c (ADR-051 subscribe coverage)"),
+    ("[H14e]","Resources",     "resources/subscribe + unsubscribe: prismql://schema/org-c (smoke-only: detects hang/panic/transport error; no client-observable subscription state exists — positive-coverage requires mutating notification trigger, excluded by read-only preflight constraint)"),
+    ("[H14s]","Resources",     "resources/read: prismql://schema/org-c — cyberint_alerts present (split from H14 composite, F-AUD-P3-MED-004)"),
     ("[H15]", "Tools",         "explain_query live call (one of 14 implemented tools)"),
     ("[H16]", "Security",      "CWE-116/117: control-char in column name sanitized (sanitize_for_log)"),
     ("[H16b]","Security",      "CWE-117: control-char in unquoted WHERE-predicate value sanitized"),
