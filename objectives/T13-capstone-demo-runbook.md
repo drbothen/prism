@@ -2,7 +2,7 @@
 document_type: demo-runbook
 objective: T13-capstone
 level: ops
-version: "1.8"
+version: "1.9"
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
 project: prism
@@ -207,7 +207,7 @@ surface, different query pattern.
 At Stage 3 (Exfil), Cyberint alerts for org-b and org-c surface with IOC fields
 (`iocs_value`, `iocs_type`). CrowdStrike detection behaviors for org-c
 surface with `behaviors_ioc_type`/`behaviors_ioc_value` on the `behaviors` array. The analyst enriches
-in-prism via `| enrich threat_score(iocs_value)` (registered UDF name from `threatintel.infusion.toml`)
+in-prism via `| enrich threat_score(iocs_value_first)` (registered UDF name from `threatintel.infusion.toml`)
 and `| enrich cvss_base_score(device_cves_first)` (registered UDF name from `nvd.infusion.toml`).
 The ThreatIntel DTU resolves every scenario IOC as Malicious (score >= 75). The NVD
 DTU resolves every scenario CVE at HIGH CVSS 8.1. The enrichment flows through the
@@ -900,7 +900,7 @@ PrismQL spec directly from the server, not from its training data (which may be 
 | Multi-client isolation | Org-a and org-c CrowdStrike return disjoint device IDs | "Multi-tenancy is data isolation, not just routing" |
 | Sensor-combo scoping | `claroty_devices` returns E-QUERY-037 for org-a | "Prism fails early with a helpful error; Claude self-corrects" |
 | Cross-sensor correlation | Same device ID in CrowdStrike and Armis for org-c | "One endpoint, two sensor perspectives, one PrismQL query" |
-| IOC enrichment | `| enrich threat_score(iocs_value)` returns `threat_score >= 75` Malicious (registered UDF from `threatintel.infusion.toml`) | "Enrichment is in-query, not post-processing" |
+| IOC enrichment | `| enrich threat_score(iocs_value_first)` returns `threat_score >= 75` Malicious (registered UDF from `threatintel.infusion.toml`) | "Enrichment is in-query, not post-processing" |
 | CVE enrichment | `| enrich cvss_base_score(device_cves_first)` returns CVSS 8.1 HIGH (registered UDF from `nvd.infusion.toml`) | "CVE context in the same query that found the alert" |
 | Case-insensitive filtering | `severity IEQ 'critical'` matches rows stored as `'Critical'` (CompromisedEndpoint scenario); `severity IIN ('high', 'critical')` matches `'High'` and `'Critical'`; `status IIN ('open', 'closed')` matches Cyberint vendor-native pass-through values; `GROUP BY severity` produces at most 7 buckets — no casing fragmentation across sensors | "OCSF enum labels normalize to Title-case at ingestion; vendor-native values that don't match OCSF captions pass through as-is; IEQ/IIN absorb analyst casing in both cases" |
 | Sensor health | `check_sensor_health` returns `probe_level: "live"` | "Verify data quality before drawing conclusions" |
@@ -956,8 +956,8 @@ route handlers.
 
 ### 5.5 Enrichment Path
 
-- [ ] `| enrich threat_score(iocs_value)` on a Cyberint alert at Stage 3+ returns
-      `threat_score >= 75` for at least one IOC value (note: `iocs_value` is a JSON-list string; enrich operates on the list). Registered UDF name: `threat_score` (from `threatintel.infusion.toml` `[[infusion.fields]]`).
+- [ ] `| enrich threat_score(iocs_value_first)` on a Cyberint alert at Stage 3+ returns
+      `threat_score >= 75` for at least one IOC value (`iocs_value_first` is the scalar String companion extracted from the `iocs_value` JSON-list; ADR-051 D4 requires scalar input for typed UDFs). Registered UDF name: `threat_score` (from `threatintel.infusion.toml` `[[infusion.fields]]`).
 - [ ] `| enrich cvss_base_score(device_cves_first)` on an Armis device record returns `cvss_base_score >= 7.0` for at least one CVE. Registered UDF name: `cvss_base_score` (from `nvd.infusion.toml` `[[infusion.fields]]`). Input field is `device_cves_first` (scalar String, Ruling 1b).
 - [ ] Enrichment response includes the source column value (not just the enrichment fields)
 
@@ -1038,9 +1038,10 @@ on this binary — confirm the build is from the develop HEAD post PR #217 (`f93
 
 ### Capability caveats
 
-- **Enrichment at Stage < 3:** The `| enrich threat_score(iocs_value)` query will
-  return results but `iocs_value` will be null (or `"[]"` empty JSON-list) for most rows at Stage 0-2. IOC values
-  only populate at Stage 3+. If demonstrating enrichment, confirm elapsed >= 360s.
+- **Enrichment at Stage < 3:** The `| enrich threat_score(iocs_value_first)` query will
+  return results but `iocs_value_first` will be null for most rows at Stage 0-2 (the underlying
+  `iocs_value` JSON-list column is empty or null at Stage 0-2, so its scalar companion
+  `iocs_value_first` is also null). IOC values only populate at Stage 3+. If demonstrating enrichment, confirm elapsed >= 360s.
   Registered UDF names: `threat_score`, `threat_is_known_malicious`, `threat_sources` (ThreatIntel);
   `cvss_base_score`, `cvss_severity`, `cvss_vector` (NVD). The single-function forms
   `threat_intel(...)` and `nvd(...)` are NOT registered UDF names.
@@ -1094,7 +1095,7 @@ Suggested presentation order for T14 demo-recorder:
 1. Open Claude Code with prism MCP server connected. Show the tool list.
 2. Block 1: `list_capabilities(org-c)` → `prism_describe(org-c)` → `prism_describe(org-a)` [schema diff]
 3. Block 2: CrowdStrike query org-c → Armis correlation → org-a isolation proof
-4. Block 3: Cyberint IOC query at Stage 3 (`| where iocs_value IS NOT NULL`) → Step 3.1a IEQ/IIN filter beat (`severity IEQ 'critical'`, `severity IIN ('high', 'critical')`, `status IIN ('open', 'closed')`) → `| enrich threat_score(iocs_value)` → `| enrich cvss_base_score(device_cves_first)`
+4. Block 3: Cyberint IOC query at Stage 3 (`| where iocs_value IS NOT NULL`) → Step 3.1a IEQ/IIN filter beat (`severity IEQ 'critical'`, `severity IIN ('high', 'critical')`, `status IIN ('open', 'closed')`) → `| enrich threat_score(iocs_value_first)` → `| enrich cvss_base_score(device_cves_first)`
 5. Block 4: E-QUERY-037 table-not-available for org-a → E-QUERY-038 column gate (001-B) → Step 4.3 SQL-mode IEQ rejection E-QUERY-001 (mode-boundary pedagogical beat) → Claude self-corrects across all three error types
 6. Block 5 (PENDING S-5.04): `check_sensor_health(org-c)` → live probe confirmation
 7. Block 6: Stage 4 full blast radius query → Claroty audit log
@@ -1112,6 +1113,7 @@ context between queries but does not hand-hold Claude on syntax.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.9 | 2026-07-11 | **F-AUD-P10-HIGH-001 — completed ADR-051 D4 scalar-input amendment — 6 prose loci `iocs_value` → `iocs_value_first` (query blocks were already amended in v1.8).** Locus 1: Act 4 narrative (line ~210). Locus 2: §4 Talking Points IOC enrichment row (line ~903). Locus 3: §5.4 Scenario Clock elapsed >= 360s item — LEFT unchanged (describes raw `iocs_value` JSON-list column being non-null, not an enrich call). Locus 4: §5.5 Enrichment Path checklist (line ~959) — enrich call updated; erroneous parenthetical "enrich operates on the list" replaced with accurate ADR-051 D4 scalar-companion note. Locus 5: §6 Capability Caveats "Enrichment at Stage < 3" bullet (line ~1041) — enrich call updated; null-state description updated to reference `iocs_value_first` scalar companion while retaining explanation of the underlying `iocs_value` JSON-list behavior. Locus 6: §7 Recording Sequence Block 3 (line ~1097). Residual grep: zero remaining `threat_score(iocs_value)` non-`_first` sites. |
 | 1.8 | 2026-07-09 | **AUDIT-COVERAGE-001 — ADR-051 D4 scalar-input + parse-error literal corrections.** (1) Steps 3.2 and 6.2: `iocs_value` → `iocs_value_first` in query blocks and follow-on prose UDF examples (`threat_is_known_malicious`, `threat_sources`). Step 3.2 filter: `\| where iocs_value IS NOT NULL` → `\| where iocs_value_first IS NOT NULL`. Step 6.2 filter: `\| where iocs_type IS NOT NULL` → `\| where iocs_value_first IS NOT NULL`. (2) Step 3.4: `\| enrich threat_score(behaviors_ioc_value)` → `\| enrich threat_score(behaviors_ioc_value_first)`. All three changes enforce ADR-051 D4 scalar-input rule: enrichment UDFs require `*_first` scalar companions, not JSON-list columns. (3) §5.3 per-client data distinctness checklist: `FROM crowdstrike_detections LIMIT 5` → `FROM crowdstrike_detections \| limit 5` (two lines). (4) §5.4 scenario clock progression: `FROM armis_devices LIMIT 20` → `FROM armis_devices \| limit 20`. Bare SQL `LIMIT N` without `\|` prefix is a PrismQL parse error; valid pipe form is `\| limit N`. Source: t13-audit-coverage-gap-analysis-2026-07-10.md §5 findings a + b. Frontmatter version 1.7 → 1.8. |
 | 1.7 | 2026-07-08 | **DRIFT-AUDIT-RUNBOOK-LITERALS-001 — runbook literal corrections from pre-flight audit 2026-07-08.** (1) Step 3.1a first IEQ beat: `severity IEQ 'high'` → `severity IEQ 'critical'` (CompromisedEndpoint scenario seeds Critical/Medium for CrowdStrike; 'High' absent from scenario data; audit WARN-1). Expected output updated: `'High'` → `'Critical'`; DataFusion lowering note updated accordingly. (2) Step 3.1a status IIN beat: `status IIN ('new', 'in progress')` → `status IIN ('open', 'closed')` (Cyberint status values are vendor-native `{'open', 'acknowledged', 'closed'}` — not OCSF captions — so adapter pass-through is correct per BC-2.02.013 RG-021; audit WARN-2 adjudicated PASS-THROUGH-CORRECT 2026-07-08; IIN is case-insensitive and works correctly against the lowercase stored values; robustness note added to teaching note). Teaching note expanded to distinguish OCSF-normalized fields (severity: vendor value matches OCSF caption → normalized to Title-case) from vendor pass-through fields (Cyberint status: no OCSF caption match → stored as-received; IIN still absorbs analyst casing). (3) §4 Expected Outputs: case-insensitive filtering row updated to cite `severity IEQ 'critical'` and `status IIN ('open', 'closed')` with updated talking point. (4) §5.9 Dry-Run Checklist item 1: `severity IEQ 'high'` → `severity IEQ 'critical'`; expected result updated. (5) §7 Recording Sequence Block 3: `severity IEQ 'high'` → `severity IEQ 'critical'`; `status IIN ('new', 'in progress')` → `status IIN ('open', 'closed')`. Frontmatter version 1.6 → 1.7. |
 | 1.6 | 2026-07-08 | **IEQ/IIN/INE case-insensitive operator surface (S-PRISMQL-CASE-INSENSITIVE-001, PR #217, develop@f935edb6; ADR-047 ACCEPTED).** Step 3.1a added: three example queries demonstrating `severity IEQ 'high'` against `crowdstrike_detections`, `severity IIN ('high', 'critical')` against `cyberint_alerts`, and `status IIN ('new', 'in progress')` against `cyberint_alerts`; teaching note on OCSF Title-case normalization at the adapter boundary and E-QUERY-002 typed-column guidance; VERIFY note for column confirmation via `prism_describe`. Step 4.3 added: SQL-mode IEQ rejection (E-QUERY-001 mode-boundary) as a pedagogical error-UX beat in Query Block 4. §4 Expected Outputs: IEQ/IIN case-insensitive filtering row added. §5.9 Dry-Run Checklist section: three IEQ/IIN/SQL-mode checks. §7 Recording Sequence: Block 3 reference includes Step 3.1a IEQ/IIN beat; Block 4 reference includes Step 4.3 SQL-mode E-QUERY-001 beat. Frontmatter version 1.5→1.6. |
