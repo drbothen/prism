@@ -34,6 +34,11 @@ Coverage matrix (see len(COVERAGE_MATRIX) for current authoritative count):
      fan-out, prompts, resources, 14 tools, CWE-116/117 sanitization, E-QUERY-033/-003
      guardrails, threat_sources/cvss_vector UDFs, runbook-drift probe, determinism,
      normalized_pql (t13-audit-coverage-gap-analysis-2026-07-10.md)
+ 13. B-hardening pass-21 additions: H5b (E-QUERY-042 OrderBy arm — Timestamp literal in
+     ORDER BY position, DEFECT-EQUERY042-GROUPBY-DEADARM-001 extension, ADR-052 §D4 arm 7),
+     H5c (E-QUERY-042 NonColumnLhsComparison arm — function-call LHS, ADR-052 §D4 arm 4),
+     H24 (E-QUERY-043 IN-subquery in projection position — check_expr_insubquery_projection,
+     F-CSD-P4-001, DEFECT-CSDEVICES-EMPTY-PIPELINE-001)
 """
 
 import subprocess
@@ -44,6 +49,7 @@ import time
 import select
 import fcntl
 import re
+import unicodedata
 from pathlib import Path
 
 # PRISM_BIN: resolved in priority order:
@@ -626,7 +632,12 @@ def run_audit():
             VALID_STATUSES = {"enabled", "runtime_disabled", "compile_time_disabled"}
             caps = body.get("capabilities", "MISSING")
             not_reg = body.get("not_registered_tools", "MISSING")
-            has_old_field = "not_implemented" in body  # renamed in BC-2.10.011 v1.5
+            # OBS-002: scan the full serialized JSON payload — the old key may appear
+            # nested inside capabilities entries or other sub-objects, not just at
+            # top level.  BC-2.10.011 v1.5 renamed not_implemented → not_registered_tools;
+            # any occurrence anywhere in the response is a regression.
+            _body_json_str = json.dumps(body)
+            has_old_field = '"not_implemented"' in _body_json_str
 
             if caps == "MISSING":
                 results["[A6] list_capabilities tri-state model fields"] = (
@@ -786,7 +797,19 @@ def run_audit():
             if pql_hints == "MISSING":
                 results["[A9] prism_describe org-c: pql_hints field present"] = "FAIL: pql_hints field missing from response"
             elif isinstance(pql_hints, list) and len(pql_hints) > 0:
-                results["[A9] prism_describe org-c: pql_hints field present"] = f"PASS: {len(pql_hints)} pql_hints, first={str(pql_hints[0])[:80]!r}"
+                # MED-001: assert all elements are non-empty strings. pql_hints of [""],
+                # [None], or [{}] pass the len(>0) guard but are not usable by LLMs.
+                # build_pql_hints() in prism_describe.rs always returns Vec<String>
+                # with non-empty hint text; any empty/non-string element is a regression.
+                _invalid_hints = [h for h in pql_hints if not (isinstance(h, str) and h.strip())]
+                if _invalid_hints:
+                    results["[A9] prism_describe org-c: pql_hints field present"] = (
+                        f"FAIL: pql_hints has {len(_invalid_hints)} empty or non-string "
+                        f"element(s) (build_pql_hints always returns non-empty strings); "
+                        f"invalid={[repr(h) for h in _invalid_hints[:3]]}"
+                    )
+                else:
+                    results["[A9] prism_describe org-c: pql_hints field present"] = f"PASS: {len(pql_hints)} pql_hints (all non-empty strings), first={str(pql_hints[0])[:80]!r}"
             else:
                 # MED-001: pql_hints present but empty list or wrong type → FAIL
                 # An empty list or non-list value means pql_hints is not usable by the LLM.
@@ -852,19 +875,24 @@ def run_audit():
             # Check section headers (## headings)
             section_count = len(re.findall(r'^##\s+', text, re.MULTILINE))
             if has_threat_score and has_cvss and not has_old_infusion_form:
-                # MED-009/LOW-005: section_count gate (min 7; grounded in build_reference_content()
-                # in crates/prism-mcp/src/resources.rs which emits exactly 7 ## headings:
-                # "What is PrismQL", "Clause Grammar (BNF)", "Operators and Types",
-                # "Datetime Arithmetic", "Error Code Quick-Reference", "Query Examples",
-                # "Self-Correction Workflow").
-                if section_count < 7:
+                # OBS-001: section_count gate tightened to exact equality (not a floor).
+                # build_reference_content() in crates/prism-mcp/src/resources.rs emits
+                # exactly 7 ## headings: "What is PrismQL", "Clause Grammar (BNF)",
+                # "Operators and Types", "Datetime Arithmetic", "Error Code Quick-Reference",
+                # "Query Examples", "Self-Correction Workflow".  Drift in EITHER direction
+                # (truncation < 7 or undeclared addition > 7) must reconcile with the spec.
+                if section_count != 7:
                     results["[A12] N1: prismql://reference per-field UDF names + content"] = (
-                        f"FAIL: reference content has only {section_count} ## sections "
-                        f"(expected >= 7; source: build_reference_content() in resources.rs "
-                        f"emits 7 named sections) — content truncation or regression"
+                        f"FAIL: reference content has {section_count} ## sections "
+                        f"(expected exactly 7; source: build_reference_content() in "
+                        f"resources.rs emits exactly 7 ## sections: 'What is PrismQL', "
+                        f"'Clause Grammar (BNF)', 'Operators and Types', "
+                        f"'Datetime Arithmetic', 'Error Code Quick-Reference', "
+                        f"'Query Examples', 'Self-Correction Workflow') — "
+                        f"{'truncation' if section_count < 7 else 'section addition'} regression"
                     )
                 else:
-                    results["[A12] N1: prismql://reference per-field UDF names + content"] = f"PASS: threat_score+cvss_base_score present; {section_count} sections (>= 7); no old forms"
+                    results["[A12] N1: prismql://reference per-field UDF names + content"] = f"PASS: threat_score+cvss_base_score present; {section_count} sections (== 7); no old forms"
             elif has_old_infusion_form:
                 results["[A12] N1: prismql://reference per-field UDF names + content"] = "FAIL: old infusion_id call forms still present"
             else:
@@ -2532,7 +2560,10 @@ def run_audit():
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             if ec == "E-QUERY-001":
-                mentions_operator = any(op in msg.upper() for op in ("IEQ", "IIN", "INE"))
+                # LOW-003: word-boundary regex prevents "INE" substring-matching ordinary
+                # words (e.g., "combined", "determine", "inline"); keep the existing
+                # byte-precise mode anchor AND.
+                mentions_operator = bool(re.search(r'\b(IEQ|IIN|INE)\b', msg, re.IGNORECASE))
                 # NB-3 fix: use the canonical message anchor from error-taxonomy v2.34 /
                 # sql_parser.rs: "(IEQ/IIN/INE) are not supported in SQL mode. Use filter mode"
                 # The old heuristic used '"|" in msg.lower()' which could spuriously match
@@ -3498,13 +3529,19 @@ def run_audit():
                 # Scanning ALL string columns risks false-positives from columns whose values
                 # happen to contain "-100-" or "-200-" substrings unrelated to seed identity.
                 _id_cols = {"device_id", "detection_id"}
-                all_vals = " ".join(
-                    str(v) for r in rows
-                    for k, v in r.items()
-                    if k in _id_cols and isinstance(v, str)
+                # LOW-001 (F-AUD-P22): per-row detection — a row counts for org-a iff
+                # -100- appears in that row's device_id or detection_id; similarly for
+                # -200-.  Concatenate-then-substring risks cross-row false-matches
+                # (e.g., an id ending "-10" adjacent to one starting "0-" joins to
+                # "-100-" across the whitespace separator).
+                has_100 = any(
+                    k in _id_cols and isinstance(v, str) and "-100-" in v
+                    for r in rows for k, v in r.items()
                 )
-                has_100 = "-100-" in all_vals
-                has_200 = "-200-" in all_vals
+                has_200 = any(
+                    k in _id_cols and isinstance(v, str) and "-200-" in v
+                    for r in rows for k, v in r.items()
+                )
                 if has_100 and has_200 and not sensor_errors:
                     # LOW-001: assert len(rows) >= 25 — org-a has 5 detections (seed-100)
                     # and org-c has 20 (seed-200); combined fan-out with limit 40 must
@@ -3924,6 +3961,10 @@ def run_audit():
                 )
 
         # ── H16: CWE-116/117 — control-char injection sanitized ──────────────
+        # LOW-002: U+2028 (LINE SEPARATOR) and U+2029 (PARAGRAPH SEPARATOR) are category
+        # "Zl"/"Zp" — NOT "Cc" — but sanitize_for_log strips them per E-QUERY-038 spec.
+        # Define once, reused by both H16 and H16b control-char leak checks.
+        _LS_PS = (" ", " ")  # U+2028 / U+2029
         # Embed a literal U+0001 in a quoted SQL identifier to verify sanitize_for_log strips it.
         #
         # Deterministic layer analysis (F-AUD-P11-OBS-002):
@@ -3963,10 +4004,15 @@ def run_audit():
         if err_h16:
             results["[H16] CWE-116/117: control-char in column name sanitized"] = f"FAIL: {err_h16}"
         else:
-            # Check raw text for control chars (U+0000–U+001F, U+007F)
+            # LOW-002: extended control-char scan — covers full Unicode Cc category
+            # (E-QUERY-038 sanitize_for_log strips "Unicode Cc + U+2028/U+2029");
+            # the prior ASCII-only check (ord < 0x20 / 0x7F) missed non-ASCII C1
+            # control chars (U+0080–U+009F) and the line/paragraph separators.
             raw_content = resp_h16.get("result", {}).get("content", []) if resp_h16 else []
             raw_text = raw_content[0].get("text", "") if raw_content else ""
-            control_chars_found = [c for c in raw_text if (ord(c) < 0x20 or ord(c) == 0x7F)
+            # _LS_PS (U+2028/U+2029) defined at H16 section header (line ~3967); used here and H16b.
+            control_chars_found = [c for c in raw_text
+                                    if (unicodedata.category(c) == "Cc" or c in _LS_PS)
                                     and c not in ("\n", "\r", "\t")]
             if control_chars_found:
                 results["[H16] CWE-116/117: control-char in column name sanitized"] = (
@@ -4040,7 +4086,10 @@ def run_audit():
         else:
             raw_content_b = resp_h16b.get("result", {}).get("content", []) if resp_h16b else []
             raw_text_b = raw_content_b[0].get("text", "") if raw_content_b else ""
-            ctrl_leaked = [c for c in raw_text_b if (ord(c) < 0x20 or ord(c) == 0x7F)
+            # LOW-002: extend to full Unicode Cc category + U+2028/U+2029 (mirrors H16 fix;
+            # reuses _LS_PS defined in H16 block above).
+            ctrl_leaked = [c for c in raw_text_b
+                           if (unicodedata.category(c) == "Cc" or c in _LS_PS)
                            and c not in ("\n", "\r", "\t")]
             if ctrl_leaked:
                 results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized (smoke-only)"] = (
@@ -4480,27 +4529,27 @@ def run_audit():
                     _runbook_text_full = _rb_f.read()
                 # Truncate at the changelog section so historical amendment descriptions
                 # quoting the retired form are not counted as live instructional drift.
-                _changelog_heading = "## Changelog"
                 # F-AUD-P15-OBS-001: guard against multiple "## Changelog" headings making
-                # find() ambiguous (it returns the FIRST occurrence, so all content between
-                # the first and second headings would be included in "live" text — silent
-                # false-negative for checks between them).
-                # OBS-003: use regex '^## Changelog\s*$' (MULTILINE) to count genuine
-                # section-level headings. The plain str.count() matched "## Changelog" as
-                # a substring, so "## Changelog here" in a table cell or inline text would
-                # produce a false positive, triggering the ambiguity guard incorrectly.
-                # Only line-start ## Changelog (with optional trailing whitespace) is a heading.
-                if len(re.findall(r'^## Changelog\s*$', _runbook_text_full, re.MULTILINE)) > 1:
+                # truncation ambiguous.
+                # OBS-003: regex '^## Changelog\s*$' (MULTILINE) counts only genuine
+                # section-level headings (plain str.count would match substring occurrences
+                # in prose/code-fences and trigger the ambiguity guard incorrectly).
+                _changelog_heading_re = re.compile(r'^## Changelog\s*$', re.MULTILINE)
+                _changelog_heading_count = len(_changelog_heading_re.findall(_runbook_text_full))
+                if _changelog_heading_count > 1:
                     results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
-                        f"FAIL: multiple '## Changelog' headings in runbook — H23 truncation "
-                        f"ambiguous; update the check (find() returns first occurrence, "
-                        f"content between first and subsequent headings not excluded)"
+                        f"FAIL: {_changelog_heading_count} '## Changelog' headings in runbook "
+                        f"— H23 truncation ambiguous; update the check"
                     )
                 else:
-                    _changelog_pos = _runbook_text_full.find(_changelog_heading)
+                    # MED-002: use the MULTILINE regex match (.start()) to compute the
+                    # truncation position — str.find('## Changelog') would match a substring
+                    # occurrence in prose or a code fence BEFORE the real section heading,
+                    # silently truncating live runbook body.  re.search anchors to line-start.
+                    _changelog_match = _changelog_heading_re.search(_runbook_text_full)
                     _runbook_text = (
-                        _runbook_text_full[:_changelog_pos]
-                        if _changelog_pos >= 0
+                        _runbook_text_full[:_changelog_match.start()]
+                        if _changelog_match is not None
                         else _runbook_text_full
                     )
                     # ── Bad-form patterns: non-_first column arg for any of the 6 typed UDFs ──
@@ -4796,7 +4845,14 @@ if __name__ == "__main__":
     pass_count = 0
     fail_count = 0
     warn_count = 0
-    # no PARTIAL emitters remain as of pass-8 (F-AUD-P8-OBS-003); prefix kept defensively
+    # OBS-005 (defense-in-depth): WARN and PARTIAL counter branches MUST NOT be removed
+    # even though no current check emits those prefixes.  They are retained so that any
+    # FUTURE check that emits WARN or PARTIAL is still gated by the strict-success predicate
+    # (F-AUD-P14-MED-003: _strict_pass requires warn_count == 0 and partial_count == 0).
+    # Removing them would silently drop WARN/PARTIAL results into the INFO bucket, causing
+    # counter-parity failures and DEMO-READY misreporting.
+    # Status as of this pass: no PARTIAL emitters (since pass-8, F-AUD-P8-OBS-003);
+    # WARN prefix unused as of pass-14.  Both remain as infrastructure, not dead code.
     partial_count = 0  # F-AUD-P5-OBS-001: separate from warn_count
     na_count = 0
 
@@ -4808,12 +4864,14 @@ if __name__ == "__main__":
             status = "FAIL"
             fail_count += 1
         elif result.startswith("WARN"):
+            # OBS-005: defense-in-depth — gates any future WARN emitter (none current).
             status = "WARN"
             warn_count += 1
         elif result.startswith("N/A"):
             status = "N/A "
             na_count += 1
         elif result.startswith("PARTIAL"):
+            # OBS-005: defense-in-depth — gates any future PARTIAL emitter (none since pass-8).
             status = "PART"
             partial_count += 1  # F-AUD-P5-OBS-001: separate from warn_count
         else:
@@ -4847,6 +4905,10 @@ if __name__ == "__main__":
     # non-zero deviation from the strict-success predicate.
     _strict_pass = fail_count == 0 and warn_count == 0 and partial_count == 0 and not _has_mismatch
     demo_ready = "YES" if _strict_pass else "NO"
+    # OBS-005: the (warn_count > 0 or partial_count > 0) branch is defense-in-depth;
+    # no current check produces WARN or PARTIAL, but the branch MUST remain so that any
+    # future check that does will surface a clear diagnostic instead of silently inflating
+    # the DEMO-READY total.
     if not _strict_pass and (warn_count > 0 or partial_count > 0):
         print(
             f"STRICT-PREDICATE FAIL: {warn_count} WARN + {partial_count} PARTIAL emitters present "
