@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-T13 Comprehensive Pre-flight Demo Audit Script — develop@8ea29823
+T13 Comprehensive Pre-flight Demo Audit Script — develop@5f1b5771
 Drives the prism MCP server over stdio (newline-delimited JSON) and verifies
 the FULL demo feature coverage matrix (extends the 18-item smoke audit).
 
@@ -12,7 +12,7 @@ Requirements:
     - prism-dtu-demo-server must be running (bash scripts/demo-run.sh)
     - PRISM_THREATINTEL_PORT and PRISM_NVD_PORT env vars (from demo-run.sh output)
 
-Coverage matrix (90 matrix items + 5 B-table dynamic checks):
+Coverage matrix (95 matrix items):
   1. Every MCP tool end-to-end — all 14 implemented tools, all 5 prompts, all resources
   2. All 6 sensors × all tables (CrowdStrike, Cyberint, Claroty, Armis, ThreatIntel, NVD)
   3. All query modes (SQL, pipe, SqlPipe, filter, stats, joins, enrichment, temporal)
@@ -597,6 +597,8 @@ def run_audit():
                 results["[A13] N1-B: unknown enrich UDF -> E-QUERY-039"] = f"FAIL: got {error_code or 'no error'}: {body.get('message','')[:80]}"
 
         # ── A14: DataFusion builtin NOT E-QUERY-039 (COUNT) ─────────────────
+        # NOTE (F-AUD-P1-OBS-001): also appears as C4 and F6 — intentional cross-section
+        # regression coverage (MCP Protocol, Query Modes, Error Taxonomy sections).
         body, err = query(proc, "SELECT COUNT(*) FROM armis_devices", ["org-c"])
         if err:
             results["[A14] N1-B F1: SQL builtin COUNT NOT E-QUERY-039"] = f"FAIL: {err}"
@@ -755,9 +757,11 @@ def run_audit():
                             f"sensors={sensor_ids}; reachable_all={reachable_all}; auth_valid_all={auth_valid_all}"
                         )
                     elif overall != "?":
+                        # Demo preflight requires all sensors healthy; degraded/failing is a
+                        # FAIL not a WARN — demo assumes full sensor health (F-AUD-P1-LOW-004).
                         results["[A22] check_sensor_health (S-5.04 gate)"] = (
-                            f"WARN: {elapsed:.1f}s overall={overall}; sensors={sensor_ids}; "
-                            f"reachable_all={reachable_all}; auth_valid_all={auth_valid_all}"
+                            f"FAIL: {elapsed:.1f}s overall={overall} (degraded/failing not acceptable for demo preflight); "
+                            f"sensors={sensor_ids}; reachable_all={reachable_all}; auth_valid_all={auth_valid_all}"
                         )
                     else:
                         results["[A22] check_sensor_health (S-5.04 gate)"] = f"FAIL: unexpected response: {text[:200]}"
@@ -863,11 +867,12 @@ def run_audit():
             rows = body.get("rows", [])
             results["[B9] Armis org-a: armis_devices returns data"] = f"PASS: {len(rows)} rows"
 
-        # ── B10+: Additional tables (org-c full 10-table matrix) ─────────────
-        for tbl in ["armis_alerts", "claroty_alerts", "crowdstrike_devices",
-                    "crowdstrike_incidents", "cyberint_incidents"]:
+        # ── B11–B15: Additional tables (org-c full 10-table matrix) ─────────────
+        # Sequential IDs [B11]..[B15] in stable iteration order (F-AUD-P1-LOW-002).
+        for seq, tbl in enumerate(["armis_alerts", "claroty_alerts", "crowdstrike_devices",
+                                    "crowdstrike_incidents", "cyberint_incidents"], start=11):
             body_t, err_t = query(proc, f"FROM {tbl} | limit 3", ["org-c"])
-            key = f"[B{tbl}] org-c: {tbl} returns data"
+            key = f"[B{seq}] org-c: {tbl} returns data"
             if err_t:
                 results[key] = f"FAIL: {err_t}"
             elif body_t.get("error_code"):
@@ -935,6 +940,8 @@ def run_audit():
                 results["[C3] Pipe mode: FROM | fields | limit"] = f"PASS: {len(rows)} rows returned"
 
         # ── C4: DataFusion aggregate COUNT(*) ────────────────────────────────
+        # NOTE (F-AUD-P1-OBS-001): also appears as A14 and F6 — intentional cross-section
+        # regression coverage (MCP Protocol, Query Modes, Error Taxonomy sections).
         body, err = query(proc, "SELECT COUNT(*) FROM armis_devices", ["org-c"])
         if err:
             results["[C4] DataFusion aggregate: COUNT(*)"] = f"FAIL: {err}"
@@ -1000,18 +1007,46 @@ def run_audit():
         # ═══════════════════════════════════════════════════════════════════════
 
         # ── D1: Armis devices Stage 4 (scenario progressed) ─────────────────
-        body, err = query(proc, "FROM armis_devices\n| where device_id IS NOT NULL\n| limit 5", ["org-c"])
+        # F-AUD-P1-MED-004: require Stage-4-specific evidence — device IDs must contain
+        # the org-c seed segment (-200-) AND include the primary compromised device
+        # (dev-<hex>-200-0 pattern per runbook §1.4 / ScenarioEntityCatalog).
+        # Baseline devices exist before Stage 4; a mere non-zero row count would also
+        # pass at Stage 0.
+        body, err = query(proc, "FROM armis_devices\n| where device_id IS NOT NULL\n| limit 20", ["org-c"])
         if err:
             results["[D1] SCENARIO: Stage 4 armis_devices visible"] = f"FAIL: {err}"
         elif body.get("error_code"):
             results["[D1] SCENARIO: Stage 4 armis_devices visible"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            if rows:
-                sample_id = rows[0].get("device_id", "?")
-                results["[D1] SCENARIO: Stage 4 armis_devices visible"] = f"PASS: {len(rows)} rows, sample device_id={str(sample_id)[:40]}"
-            else:
+            if not rows:
                 results["[D1] SCENARIO: Stage 4 armis_devices visible"] = "FAIL: 0 rows (scenario stage not progressing?)"
+            else:
+                device_ids = [str(r.get("device_id", "")) for r in rows if r.get("device_id")]
+                # org-c seed-200: all device IDs contain the -200- segment
+                has_seed_200 = any("-200-" in d for d in device_ids)
+                # Primary compromised device: dev-<hex>-200-0 (first device, stage 1+)
+                # Pattern: starts with "dev-" and ends with "-200-0"
+                has_primary_device = any(
+                    d.startswith("dev-") and d.endswith("-200-0")
+                    for d in device_ids
+                )
+                if has_seed_200 and has_primary_device:
+                    primary = next((d for d in device_ids if d.endswith("-200-0")), device_ids[0])
+                    results["[D1] SCENARIO: Stage 4 armis_devices visible"] = (
+                        f"PASS: {len(rows)} rows; org-c seed-200 segment confirmed; "
+                        f"primary compromised device present: {primary[:50]}"
+                    )
+                elif has_seed_200 and not has_primary_device:
+                    results["[D1] SCENARIO: Stage 4 armis_devices visible"] = (
+                        f"FAIL: {len(rows)} rows have -200- seed but primary compromised device "
+                        f"(dev-<hex>-200-0) absent; stage may be < 1; ids={device_ids[:3]}"
+                    )
+                elif not has_seed_200:
+                    results["[D1] SCENARIO: Stage 4 armis_devices visible"] = (
+                        f"FAIL: device IDs do not contain org-c -200- seed segment; "
+                        f"may be baseline or wrong org; ids={device_ids[:3]}"
+                    )
 
         # ── D2: Cyberint IOC fields at Stage 4 ───────────────────────────────
         body, err = query(proc, "FROM cyberint_alerts\n| where iocs_value IS NOT NULL\n| limit 5", ["org-c"])
@@ -1225,33 +1260,39 @@ def run_audit():
         # SECTION F: Error Taxonomy — E-QUERY-032/-037/-038/-039
         # ═══════════════════════════════════════════════════════════════════════
 
-        # ── F1: E-QUERY-032/-037: cyberint for org-a (no sensor) ─────────────
+        # ── F1: E-QUERY-032: cyberint for org-a (no sensor) ─────────────
+        # F-AUD-P1-MED-003: runbook v1.8 §5.8 N3 correction — E-QUERY-032 only.
+        # E-QUERY-037 is dot-notation (covered by F3/A15); this path must produce
+        # E-QUERY-032 (table not available for client).
         body, err = query(proc, "FROM cyberint_alerts | limit 5", ["org-a"])
         if err:
-            results["[F1] E-QUERY-032/-037: cyberint for org-a errors"] = f"FAIL: {err}"
+            results["[F1] E-QUERY-032: cyberint for org-a errors"] = f"FAIL: {err}"
         else:
             error_code = body.get("error_code", "")
-            if error_code in ("E-QUERY-032", "E-QUERY-037"):
-                results["[F1] E-QUERY-032/-037: cyberint for org-a errors"] = f"PASS: {error_code} — {body.get('message','')[:60]}"
+            if error_code == "E-QUERY-032":
+                results["[F1] E-QUERY-032: cyberint for org-a errors"] = f"PASS: E-QUERY-032 — {body.get('message','')[:60]}"
             elif not error_code:
                 rows = body.get("rows", [])
-                results["[F1] E-QUERY-032/-037: cyberint for org-a errors"] = f"FAIL: returned {len(rows)} rows (should error — org-a has no cyberint)"
+                results["[F1] E-QUERY-032: cyberint for org-a errors"] = f"FAIL: returned {len(rows)} rows (should error — org-a has no cyberint)"
             else:
-                results["[F1] E-QUERY-032/-037: cyberint for org-a errors"] = f"PARTIAL: {error_code}: {body.get('message','')[:80]}"
+                results["[F1] E-QUERY-032: cyberint for org-a errors"] = f"FAIL: expected E-QUERY-032, got {error_code}: {body.get('message','')[:80]}"
 
         # ── F2: E-QUERY-032: armis for org-b (no sensor) ─────────────────────
+        # F-AUD-P1-MED-003: runbook v1.8 §5.8 N3 correction — E-QUERY-032 only.
+        # E-QUERY-037 is dot-notation (covered by F3/A15); this path must produce
+        # E-QUERY-032 (table not available for client).
         body, err = query(proc, "FROM armis_devices | limit 5", ["org-b"])
         if err:
             results["[F2] E-QUERY-032: armis for org-b (no sensor)"] = f"FAIL: {err}"
         else:
             error_code = body.get("error_code", "")
-            if error_code in ("E-QUERY-032", "E-QUERY-037"):
-                results["[F2] E-QUERY-032: armis for org-b (no sensor)"] = f"PASS: {error_code} — {body.get('message','')[:60]}"
+            if error_code == "E-QUERY-032":
+                results["[F2] E-QUERY-032: armis for org-b (no sensor)"] = f"PASS: E-QUERY-032 — {body.get('message','')[:60]}"
             elif not error_code:
                 rows = body.get("rows", [])
                 results["[F2] E-QUERY-032: armis for org-b (no sensor)"] = f"FAIL: returned {len(rows)} rows (should error — org-b has no armis)"
             else:
-                results["[F2] E-QUERY-032: armis for org-b (no sensor)"] = f"PARTIAL: {error_code}: {body.get('message','')[:80]}"
+                results["[F2] E-QUERY-032: armis for org-b (no sensor)"] = f"FAIL: expected E-QUERY-032, got {error_code}: {body.get('message','')[:80]}"
 
         # ── F3: N2: E-QUERY-037 dot-notation FROM ────────────────────────────
         body, err = query(proc, "FROM crowdstrike.detections | limit 3", ["org-c"])
@@ -1278,6 +1319,9 @@ def run_audit():
                 results["[F4] N1-B: unknown enrich UDF -> E-QUERY-039"] = f"FAIL: got {error_code or 'no error'}: {body.get('message','')[:80]}"
 
         # ── F5: E-QUERY-038 unknown column (001-B BLOCKER) ───────────────────
+        # F-AUD-P1-MED-008: F5's designated regression class is PR #219's E-QUERY-038 gate.
+        # The former alt-error branch (`error_code and "column" in msg.lower()`) accepted
+        # any error code mentioning "column" — removed. Only E-QUERY-038 PASSes here.
         body, err = query(proc,
             "SELECT device_id, nonexistent_column_xyz FROM crowdstrike_detections LIMIT 5",
             ["org-c"])
@@ -1288,15 +1332,17 @@ def run_audit():
             msg = body.get("message", "")
             if error_code == "E-QUERY-038":
                 results["[F5] E-QUERY-038: unknown column returns plan-time error"] = f"PASS: E-QUERY-038 — {msg[:80]}"
-            elif error_code and "column" in msg.lower():
-                results["[F5] E-QUERY-038: unknown column returns plan-time error"] = f"PASS (alt error): {error_code} — {msg[:80]}"
             elif not error_code:
                 rows = body.get("rows", [])
                 results["[F5] E-QUERY-038: unknown column returns plan-time error"] = f"FAIL: query succeeded with unknown column (returned {len(rows)} rows without error)"
             else:
-                results["[F5] E-QUERY-038: unknown column returns plan-time error"] = f"PARTIAL: {error_code}: {msg[:80]}"
+                results["[F5] E-QUERY-038: unknown column returns plan-time error"] = f"FAIL: expected E-QUERY-038, got {error_code}: {msg[:80]}"
 
         # ── F6: N1-B F1: SQL builtin (COUNT) NOT E-QUERY-039 ─────────────────
+        # NOTE (F-AUD-P1-OBS-001): COUNT(*) armis_devices also appears in A14 and C4 —
+        # intentional cross-section regression coverage (F-section error taxonomy, C-section
+        # query modes, A-section false-positive guardrail). Three independent probes confirm
+        # orthogonally that DataFusion builtins do not trigger E-QUERY-039.
         body, err = query(proc, "SELECT COUNT(*) FROM armis_devices", ["org-c"])
         if err:
             results["[F6] N1-B F1: SQL builtin COUNT NOT E-QUERY-039"] = f"FAIL: {err}"
@@ -1343,15 +1389,25 @@ def run_audit():
                 severities = [r.get("severity", "") for r in rows if r.get("severity")]
                 # Verify stored severity values are canonical Title-case ('Critical', not 'CRITICAL'/'critical')
                 bad_case = [s for s in severities if s and s.lower() == "critical" and s != "Critical"]
-                if bad_case:
+                # F-AUD-P1-MED-001: also assert ONLY critical-severity rows are returned.
+                # IEQ 'critical' must filter out non-critical rows; any non-critical row is a
+                # filter failure (mirrors H3's guard for INE).
+                has_non_critical = any(s and s.lower() != "critical" for s in severities if s)
+                if has_non_critical:
+                    non_crit = sorted({s for s in severities if s and s.lower() != "critical"})
+                    results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = (
+                        f"FAIL: non-critical rows returned by IEQ 'critical' filter — IEQ not filtering correctly; "
+                        f"non-critical severities={non_crit!r}"
+                    )
+                elif bad_case:
                     results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = (
                         f"FAIL: non-Title-case severity values returned: {list(set(bad_case))[:3]}"
                     )
                 else:
                     sample_sev = sorted(set(severities))
                     results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = (
-                        f"PASS: {len(rows)} rows; severity values={sample_sev!r} (canonical Title-case confirmed; "
-                        f"NOTE: runbook Step 3.1a uses 'high' but CS scenario data is 'Critical'/'Medium')"
+                        f"PASS: {len(rows)} rows; all severity={sample_sev!r} (canonical Title-case; "
+                        f"only critical rows confirmed; NOTE: runbook Step 3.1a uses 'high' but CS scenario data is 'Critical'/'Medium')"
                     )
             else:
                 results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = (
@@ -1476,8 +1532,10 @@ def run_audit():
                     f"FAIL: got opaque E-QUERY-034 instead of pedagogical E-QUERY-001; message={msg[:80]!r}"
                 )
             elif ec:
+                # F-AUD-P1-MED-009: runbook §4.3 mandates E-QUERY-001 mode-boundary pedagogy;
+                # any other error code is a FAIL, not PARTIAL.
                 results["[G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"] = (
-                    f"PARTIAL: {ec}: {msg[:100]!r}"
+                    f"FAIL: expected E-QUERY-001 (mode-boundary pedagogy), got {ec}: {msg[:100]!r}"
                 )
             else:
                 rows = body.get("rows", [])
@@ -1841,10 +1899,18 @@ def run_audit():
             msg = body.get("message", "")
             if ec == "E-QUERY-041":
                 has_rfc_hint = "RFC-3339" in msg or "UTC" in msg or "cannot be interpreted" in msg
-                results["[H4] E-QUERY-041: date-only literal rejected (ADR-052 §D4)"] = (
-                    f"PASS: E-QUERY-041 — date-only literal '2020-01-01' rejected; "
-                    f"RFC-3339 hint={'YES' if has_rfc_hint else 'NO'}: {msg[:80]!r}"
-                )
+                # F-AUD-P1-MED-010: PASS requires E-QUERY-041 AND the RFC-3339 pedagogical hint.
+                # E-QUERY-041 without the hint means message-template regression.
+                if has_rfc_hint:
+                    results["[H4] E-QUERY-041: date-only literal rejected (ADR-052 §D4)"] = (
+                        f"PASS: E-QUERY-041 with RFC-3339 pedagogical hint confirmed; "
+                        f"message={msg[:80]!r}"
+                    )
+                else:
+                    results["[H4] E-QUERY-041: date-only literal rejected (ADR-052 §D4)"] = (
+                        f"FAIL: E-QUERY-041 returned but RFC-3339/UTC hint absent — "
+                        f"message-template regression; message={msg[:120]!r}"
+                    )
             elif body.get("rows") is not None and not ec:
                 results["[H4] E-QUERY-041: date-only literal rejected (ADR-052 §D4)"] = (
                     "FAIL: date-only literal accepted (should be E-QUERY-041)"
@@ -1952,7 +2018,10 @@ def run_audit():
                     f"FAIL: E-QUERY-038 fired for bare unknown col in JOIN — "
                     f"HEAD-JOIN fail-open (FP-001) should suppress E-QUERY-038 here"
                 )
-            elif ec == "E-QUERY-034" or "Internal error" in msg or (ec and ec != "E-QUERY-038"):
+            elif ec == "E-QUERY-034" or "Internal error" in msg:
+                # F-AUD-P1-MED-002: only E-QUERY-034 or Internal error PASSes here.
+                # The former third disjunct `(ec and ec != "E-QUERY-038")` accepted any
+                # error code — removed; unexpected error codes must be investigated.
                 results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
                     f"PASS: controlled rejection ({ec or 'internal'}) — not E-QUERY-038 "
                     f"(HEAD-JOIN spec-sanctioned FP-001 confirmed)"
@@ -1963,8 +2032,10 @@ def run_audit():
                     "PARTIAL: no error, no rows (acceptable; not a crash or E-QUERY-038)"
                 )
             else:
+                # Unexpected error code — neither E-QUERY-034 nor Internal error
                 results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
-                    f"PARTIAL: {ec or 'no error'}: {msg[:80]!r}"
+                    f"FAIL: unexpected error code {ec!r} for bare-col JOIN; "
+                    f"expected E-QUERY-034 or 'Internal error'; message={msg[:80]!r}"
                 )
 
         # ── H9: SqlPipe mode — SQL head + pipe stage (BC-2.11.020) ───────────
@@ -2085,9 +2156,13 @@ def run_audit():
                         f"PASS: {len(rows)} rows; both -100- (org-a) and -200- (org-c) seeds present; "
                         f"sensor_errors=[]"
                     )
-                elif has_100 and has_200:
+                elif has_100 and has_200 and sensor_errors:
+                    # F-AUD-P1-MED-005: sensor_errors present alongside data — FAIL (not PASS).
+                    # Partial results with sensor errors indicate a pipeline failure that must be
+                    # resolved before demo; over-broad PASS was masking error propagation bugs.
                     results["[H12] Multi-client fan-out: org-a + org-c CrowdStrike"] = (
-                        f"PASS: {len(rows)} rows; both seeds present; sensor_errors={sensor_errors}"
+                        f"FAIL: {len(rows)} rows but sensor_errors non-empty — pipeline errors present: "
+                        f"{sensor_errors}"
                     )
                 else:
                     results["[H12] Multi-client fan-out: org-a + org-c CrowdStrike"] = (
@@ -2131,10 +2206,12 @@ def run_audit():
             h14_parts.append(f"config/clients FAIL:{err_cc[:40]!r}")
         else:
             t_cc = (res_cc.get("contents") or [{}])[0].get("text", "")
-            if "org-a" in t_cc and "org-c" in t_cc:
-                h14_parts.append("config/clients PASS(3-orgs)")
+            # F-AUD-P1-OBS-003: assertion narrative claims 3-org visibility; require all 3 orgs.
+            if "org-a" in t_cc and "org-b" in t_cc and "org-c" in t_cc:
+                h14_parts.append("config/clients PASS(3-orgs:a,b,c)")
             else:
-                h14_parts.append(f"config/clients FAIL(orgs missing:{t_cc[:40]!r})")
+                missing_orgs = [o for o in ("org-a", "org-b", "org-c") if o not in t_cc]
+                h14_parts.append(f"config/clients FAIL(missing orgs:{missing_orgs}:{t_cc[:40]!r})")
 
         res_sh, err_sh = resource_read(proc, "prism://sensors/health", timeout=10.0)
         if err_sh:
@@ -2145,8 +2222,9 @@ def run_audit():
                 json.loads(t_sh)
                 h14_parts.append("sensors/health PASS(JSON)")
             except Exception:
-                # Non-JSON response is still usable (text description)
-                h14_parts.append(f"sensors/health WARN(non-JSON:{t_sh[:30]!r})")
+                # F-AUD-P1-MED-007: resources.rs render_sensors_health_resource always produces
+                # JSON; non-JSON response is a contract violation, not merely a WARN.
+                h14_parts.append(f"sensors/health FAIL(non-JSON:{t_sh[:30]!r})")
 
         res_sc, err_sc = resource_read(proc, "prismql://schema/org-c", timeout=10.0)
         if err_sc:
@@ -2176,10 +2254,18 @@ def run_audit():
                 f"FAIL: {ec}: {body.get('message','')[:80]}"
             )
         else:
-            # explain_query returns a plan object; just verify it's non-error
-            results["[H15] explain_query live call (one of 14 implemented tools)"] = (
-                f"PASS: explain_query returned non-error plan; keys={list(body.keys())[:6]}"
-            )
+            # explain_query returns a plan object; require parsed_mode to confirm
+            # positive-coverage evidence (F-AUD-P1-MED-006: empty body is not a PASS).
+            if "parsed_mode" in body:
+                results["[H15] explain_query live call (one of 14 implemented tools)"] = (
+                    f"PASS: explain_query returned plan with parsed_mode={body.get('parsed_mode')!r}; "
+                    f"keys={list(body.keys())[:6]}"
+                )
+            else:
+                results["[H15] explain_query live call (one of 14 implemented tools)"] = (
+                    f"FAIL: explain_query response lacks parsed_mode key — schema mismatch or empty plan; "
+                    f"keys={list(body.keys())[:8]}"
+                )
 
         # ── H16: CWE-116/117 — control-char injection sanitized ──────────────
         # Embed a literal U+0001 in the column name to verify sanitize_for_log strips it.
@@ -2216,24 +2302,46 @@ def run_audit():
                     f"PASS: RPC-level rejection without control-char leakage"
                 )
             else:
-                # No raw control chars and no error — response was clean
-                results["[H16] CWE-116/117: control-char in column name sanitized"] = (
-                    f"PASS: response clean (no control chars); preview={raw_text[:60]!r}"
-                )
+                # F-AUD-P1-LOW-003: PASS only if the response is a well-formed data envelope.
+                # An indeterminate response (non-JSON, non-ERROR, non-RPC-error) could mask
+                # a sanitization failure — must be treated as FAIL.
+                try:
+                    parsed = json.loads(raw_text)
+                    if isinstance(parsed, dict):
+                        results["[H16] CWE-116/117: control-char in column name sanitized"] = (
+                            f"PASS: well-formed JSON data envelope without control chars; "
+                            f"keys={list(parsed.keys())[:5]!r}"
+                        )
+                    else:
+                        results["[H16] CWE-116/117: control-char in column name sanitized"] = (
+                            f"FAIL: indeterminate response (JSON non-dict type={type(parsed).__name__}); "
+                            f"preview={raw_text[:60]!r}"
+                        )
+                except json.JSONDecodeError:
+                    results["[H16] CWE-116/117: control-char in column name sanitized"] = (
+                        f"FAIL: indeterminate response (non-JSON, non-ERROR, non-RPC-error); "
+                        f"preview={raw_text[:60]!r}"
+                    )
 
         # ── H17: E-QUERY-033 — limit > 1000 rejected ─────────────────────────
         body, err = tool_call(proc, "query",
                               {"query": "FROM crowdstrike_detections | limit 5",
                                "clients": ["org-c"], "limit": 1001})
         if err:
-            # E-QUERY-033 → -32602 INVALID_PARAMS at the MCP params level (build_query_options)
-            if "E-QUERY-033" in err or "-32602" in str(err) or "RPC error" in str(err):
+            # E-QUERY-033 → -32602 INVALID_PARAMS at the MCP params level (build_query_options).
+            # F-AUD-P1-HIGH-002: bare "RPC error" matches EVERY RPC failure — constrain to
+            # -32602 AND (E-QUERY-033 or "limit" in message) to avoid false positives.
+            err_str = str(err)
+            is_controlled = "-32602" in err_str and (
+                "E-QUERY-033" in err_str or "limit" in err_str.lower()
+            )
+            if is_controlled:
                 results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
-                    f"PASS: limit > 1000 controlled rejection: {err[:100]}"
+                    f"PASS: limit > 1000 controlled rejection (-32602 + limit context): {err[:100]}"
                 )
             else:
                 results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
-                    f"FAIL: unexpected error: {err[:100]}"
+                    f"FAIL: unexpected error (not a controlled -32602 limit rejection): {err[:100]}"
                 )
         elif body.get("error_code") == "E-QUERY-033":
             results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
@@ -2255,10 +2363,32 @@ def run_audit():
         big_query = f"FROM crowdstrike_detections\n| where detection_id IN ({_vals})\n| limit 5"
         body, err = query(proc, big_query, ["org-c"], timeout=30.0)
         if err:
-            # Any RPC-level rejection (MCP 64KB guard fires first)
-            results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
-                f"PASS: oversize query rejected at MCP or engine level: {err[:80]}"
+            # F-AUD-P1-HIGH-001: only controlled rejections PASS here.
+            # The former `if err: PASS` converted timeouts/crashes/JSON errors into PASS.
+            # Accept only: RPC -32602/-32603 param rejection, or E-QUERY-003 in error text.
+            err_str = str(err)
+            is_timeout = "TIMEOUT" in err_str
+            is_process_exit = err_str.startswith("Process exited") or err_str.startswith("EOF")
+            is_json_error = err_str.startswith("JSON error") or err_str.startswith("envelope JSON error")
+            is_controlled_rpc = (
+                err_str.startswith("RPC error -32602")
+                or err_str.startswith("RPC error -32603")
+                or "E-QUERY-003" in err_str
             )
+            if is_timeout or is_process_exit or is_json_error:
+                results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                    f"FAIL: uncontrolled failure (timeout/crash/JSON error) instead of controlled rejection: "
+                    f"{err[:100]}"
+                )
+            elif is_controlled_rpc:
+                results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                    f"PASS: oversize query rejected at MCP or engine level (controlled): {err[:80]}"
+                )
+            else:
+                results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                    f"FAIL: unexpected error (not a controlled -32602/-32603/E-QUERY-003 rejection): "
+                    f"{err[:100]}"
+                )
         elif body.get("error_code") in ("E-QUERY-003",):
             results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
                 f"PASS: E-QUERY-003 in-band rejection"
@@ -2479,6 +2609,12 @@ COVERAGE_MATRIX = [
     ("[B8]",  "Sensor Tables", "CrowdStrike detections org-a"),
     ("[B9]",  "Sensor Tables", "Armis devices org-a"),
     ("[B10]", "Sensor Tables", "Multi-client isolation: org-a vs org-c CS disjoint"),
+    # B11–B15: additional tables (formerly dynamic [B<table>] keys — F-AUD-P1-LOW-002)
+    ("[B11]", "Sensor Tables", "armis_alerts org-c"),
+    ("[B12]", "Sensor Tables", "claroty_alerts org-c"),
+    ("[B13]", "Sensor Tables", "crowdstrike_devices org-c"),
+    ("[B14]", "Sensor Tables", "crowdstrike_incidents org-c"),
+    ("[B15]", "Sensor Tables", "cyberint_incidents org-c"),
     ("[C1]",  "Query Modes",   "SQL SELECT FROM WHERE LIMIT"),
     ("[C2]",  "Query Modes",   "Pipe FROM | where | limit"),
     ("[C3]",  "Query Modes",   "Pipe FROM | fields | limit"),
@@ -2498,7 +2634,7 @@ COVERAGE_MATRIX = [
     ("[E4]",  "Enrichment",    "| enrich cvss_severity(device_cves_first)"),
     ("[E5]",  "Enrichment",    "| enrich threat_score(behaviors_ioc_value_first) on CS"),
     ("[E6]",  "Enrichment",    "ThreatIntel score >= 75 for scenario IOCs"),
-    ("[F1]",  "Error Taxonomy","E-QUERY-032/-037 cyberint for org-a"),
+    ("[F1]",  "Error Taxonomy","E-QUERY-032 cyberint for org-a (runbook v1.8 §5.8 N3: E-QUERY-032 only)"),
     ("[F2]",  "Error Taxonomy","E-QUERY-032 armis for org-b"),
     ("[F3]",  "Error Taxonomy","E-QUERY-037 dot-notation FROM"),
     ("[F4]",  "Error Taxonomy","E-QUERY-039 unknown enrich UDF"),
@@ -2544,9 +2680,9 @@ COVERAGE_MATRIX = [
 
 if __name__ == "__main__":
     print("=" * 80)
-    print("T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop@8ea29823")
+    print("T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop@5f1b5771")
     print(f"  ThreatIntel port: {THREATINTEL_PORT}  NVD port: {NVD_PORT}")
-    print(f"  Coverage: {len(COVERAGE_MATRIX)} matrix items (+5 B-table dynamic) across 8 sections")
+    print(f"  Coverage: {len(COVERAGE_MATRIX)} matrix items across 8 sections")
     print("=" * 80)
     print()
 
