@@ -498,8 +498,19 @@ def run_audit():
     print(f"  MCP server log: {_mcp_log_path}")
 
     try:
-        time.sleep(3)
+        # LOW-003 (F-AUD-P25): replace fixed 3s sleep with ready-probe loop.
+        # Poll every 0.5s; proceed as soon as the process is alive (proc.poll() is None).
+        # Budget: 15s total — bounds cold-start + RocksDB open overhead; FAIL immediately
+        # if the process exits before the budget expires.  Worst-case wait is 15s (same
+        # ballpark as before, but warm starts proceed in <0.5s instead of always 3s).
+        _boot_budget_s = 15.0
+        _boot_poll_interval_s = 0.5
+        _boot_elapsed = 0.0
         rc = proc.poll()
+        while rc is None and _boot_elapsed < _boot_budget_s:
+            time.sleep(_boot_poll_interval_s)
+            _boot_elapsed += _boot_poll_interval_s
+            rc = proc.poll()
         if rc is not None:
             _mcp_log_fh.flush()
             with open(_mcp_log_path) as f:
@@ -521,7 +532,27 @@ def run_audit():
         if err:
             results["[A1] INIT: MCP server boots and responds"] = f"FAIL: {err}"
             return results
+        # HIGH-001 (F-AUD-P25): guard JSON-RPC error response before reading serverInfo.
+        # An initialize that returns {"error": {...}} is a protocol failure — reading
+        # serverInfo from that envelope would give vacuous {} and silently PASS.
+        if resp and "error" in resp:
+            _a1_err = resp["error"]
+            _a1_code = _a1_err.get("code", "?")
+            _a1_msg = str(_a1_err.get("message", ""))[:120]
+            results["[A1] INIT: MCP server boots and responds"] = (
+                f"FAIL: initialize returned JSON-RPC error code={_a1_code} message={_a1_msg!r}"
+            )
+            return results
         server_info = resp.get("result", {}).get("serverInfo", {})
+        # HIGH-001: assert serverInfo is a non-empty dict with a name field — MCP spec requires
+        # serverInfo.name; an empty or missing serverInfo means the server is not correctly
+        # identifying itself.
+        if not isinstance(server_info, dict) or not server_info.get("name"):
+            results["[A1] INIT: MCP server boots and responds"] = (
+                f"FAIL: serverInfo missing or has no 'name' field (MCP spec requires serverInfo.name); "
+                f"serverInfo={server_info!r}"
+            )
+            return results
         results["[A1] INIT: MCP server boots and responds"] = f"PASS: server={server_info}"
 
         send_msg(proc, {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}})
@@ -1274,6 +1305,12 @@ def run_audit():
                         # Sensor ID values verified against crates/prism-sensors/specs/*.sensor.toml
                         # (crowdstrike.sensor.toml, armis.sensor.toml, claroty.sensor.toml,
                         # cyberint.sensor.toml) — these are the four registered sensors for org-c.
+                        # MED-005 (F-AUD-P25, adjudicated: comment-only, no logic change):
+                        # POL-24 conscious coupling accepted — the 4-sensor set is defined by
+                        # crates/prism-sensors/specs/*.sensor.toml entries registered for org-c
+                        # (demo config: .prism/config.toml / demo-config.toml sensor_type assignments).
+                        # CONSCIOUS-UPDATE REQUIRED: if the org-c demo config is updated to add or
+                        # remove a sensor type, EXPECTED_SENSORS must be updated in the same change.
                         EXPECTED_SENSORS = {"crowdstrike", "armis", "claroty", "cyberint"}
                         present_sensors = set(sid for sid in sensor_ids if sid)
                         missing_sensors = EXPECTED_SENSORS - present_sensors
@@ -1498,7 +1535,22 @@ def run_audit():
         # F-AUD-P2-MED-007: B14 (crowdstrike_incidents) and B15 (cyberint_incidents)
         # have no DTU routes (gap-analysis §4 guardrail #1); 0 rows is the EXPECTED
         # outcome and is asserted explicitly. Any error_code on these tables = FAIL.
+        # MED-004 (F-AUD-P25): NO_ROUTE_TABLES and _DATA_GUARANTEED co-located so the
+        # disjointness assertion fires at start (not buried in the loop body).
+        # CONSCIOUS-UPDATE (cite F-AUD-P25-MED-004): any DTU route addition or removal
+        # must update BOTH sets in the same change — add a new DTU route → move the
+        # table from NO_ROUTE_TABLES into _DATA_GUARANTEED (or vice versa on removal).
         NO_ROUTE_TABLES = {"crowdstrike_incidents", "cyberint_incidents"}
+        _DATA_GUARANTEED = {"armis_alerts", "claroty_alerts", "crowdstrike_devices"}
+        # MED-004: self-consistency assertion — the two sets must be disjoint.
+        # A table cannot simultaneously have no DTU route AND be data-guaranteed.
+        _med004_overlap = NO_ROUTE_TABLES & _DATA_GUARANTEED
+        if _med004_overlap:
+            raise AssertionError(
+                f"MED-004 (F-AUD-P25): NO_ROUTE_TABLES and _DATA_GUARANTEED are NOT disjoint — "
+                f"overlap={sorted(_med004_overlap)!r}. "
+                f"Fix by removing the table from one set before running the audit."
+            )
         for seq, tbl in enumerate(["armis_alerts", "claroty_alerts", "crowdstrike_devices",
                                     "crowdstrike_incidents", "cyberint_incidents"], start=11):
             body_t, err_t = query(proc, f"FROM {tbl} | limit 3", ["org-c"])
@@ -1526,7 +1578,6 @@ def run_audit():
                     # (gap-analysis §3). armis_alerts, claroty_alerts, crowdstrike_devices all
                     # have active DTU routes and data at Stage 4 (verified: gap-analysis §4.1
                     # lists only crowdstrike_incidents + cyberint_incidents as no-DTU-route).
-                    _DATA_GUARANTEED = {"armis_alerts", "claroty_alerts", "crowdstrike_devices"}
                     if tbl in _DATA_GUARANTEED and len(rows_t) == 0:
                         results[key] = (
                             f"FAIL: 0 rows for data-guaranteed table {tbl} — "
@@ -1777,7 +1828,10 @@ def run_audit():
             else:
                 device_ids = [str(r.get("device_id", "")) for r in rows if r.get("device_id")]
                 # org-c seed-200: all device IDs contain the -200- segment
-                has_seed_200 = any("-200-" in d for d in device_ids)
+                # LOW-004 sibling sweep (F-AUD-P25-TD-VSDD-060): anchor with regex so
+                # "-200-" in d is not confused with a value like "dev-1200-abc".
+                # Pattern: seed segment followed by ordinal digit (dev-<hex>-200-<n>).
+                has_seed_200 = any(re.search(r'-200-\d', d) for d in device_ids)
                 # Primary compromised device: dev-<hex>-200-0 (first device, stage 1+)
                 # Pattern: starts with "dev-" and ends with "-200-0"
                 has_primary_device = any(
@@ -2727,54 +2781,20 @@ def run_audit():
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             if ec == "E-QUERY-038":
-                # timestamp column not present — try alternate with claroty_audit_logs timestamp
-                body2, err2 = query(proc,
-                    "FROM crowdstrike_detections\n| where created_timestamp > '2020-01-01T00:00:00Z'\n| limit 3",
-                    ["org-c"])
-                if err2 or body2.get("error_code"):
-                    # NB-2: FAIL (not WARN) — both claroty_audit_logs.timestamp and
-                    # crowdstrike_detections.created_timestamp are guaranteed Datetime
-                    # columns in the demo schema; both absent means a schema/DTU failure.
-                    err2_msg = (err2 or f"{body2.get('error_code')}: {body2.get('message','')[:60]}")
-                    results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
-                        f"FAIL: timestamp column absent in both claroty_audit_logs and "
-                        f"crowdstrike_detections — demo schema must have at least one Datetime "
-                        f"column; ADR-052 §D4 regression cannot be confirmed (err={err2_msg!r})"
-                    )
-                else:
-                    rows2 = body2.get("rows", [])
-                    # HIGH-001 / LOW-003: assert fallback returned >= 1 row before running
-                    # the far-future counter-check. Empty rows means the fallback column
-                    # also has no data or the temporal filter rejected all rows — FAIL.
-                    if not rows2:
-                        results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
-                            f"FAIL: 0 rows for fallback crowdstrike_detections.created_timestamp "
-                            f"> '2020-01-01T00:00:00Z' — data absent or datetime filter rejected "
-                            f"all rows (ADR-052 §D4 regression cannot be confirmed without data)"
-                        )
-                    else:
-                        # NB-2 G7 filter verification: confirm the datetime filter actually
-                        # restricts results by running a far-future date that must return 0 rows.
-                        body_future, err_future = query(proc,
-                            "FROM crowdstrike_detections\n| where created_timestamp > '9999-12-31T23:59:59Z'\n| limit 3",
-                            ["org-c"])
-                        future_rows = body_future.get("rows", []) if not err_future and not body_future.get("error_code") else None
-                        filter_verified = future_rows is not None and len(future_rows) == 0
-                        if not filter_verified:
-                            future_note = (f"err={err_future}" if err_future
-                                           else f"ec={body_future.get('error_code')}" if body_future.get("error_code")
-                                           else f"returned {len(future_rows)} rows (expected 0)")
-                            results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
-                                f"FAIL: filter verification failed — future-date '9999-12-31T23:59:59Z' "
-                                f"did not return 0 rows ({future_note}); datetime filter may not be working"
-                            )
-                        else:
-                            results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
-                                f"PASS: claroty_audit_logs.timestamp absent; fallback "
-                                f"crowdstrike_detections.created_timestamp > '2020-01-01T00:00:00Z' returned "
-                                f"{len(rows2)} rows; filter verified (future-date '9999-12-31T23:59:59Z' → 0 rows) "
-                                f"— ADR-052 §D4 RFC-3339 coercion active"
-                            )
+                # MED-003 (F-AUD-P25): claroty_audit_logs.timestamp IS spec-guaranteed.
+                # Spec evidence: crates/prism-sensors/specs/claroty.sensor.toml [[tables]]
+                # block for table_name = "audit_logs", column name = "timestamp",
+                # column_type = "datetime" (line ~168); DTU confirms:
+                # crates/prism-dtu-claroty/src/types.rs ClarotyAuditLogEntry.timestamp field.
+                # E-QUERY-038 on this column = schema regression — FAIL immediately.
+                # (Old fallback to crowdstrike_detections.created_timestamp removed per
+                # F-AUD-P25-MED-003; a silently-swapped fallback masked schema regressions.)
+                results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                    f"FAIL: E-QUERY-038 on claroty_audit_logs.timestamp — schema regression; "
+                    f"column is spec-guaranteed (claroty.sensor.toml audit_logs [[tables]] "
+                    f"column_type=datetime; DTU: ClarotyAuditLogEntry.timestamp); "
+                    f"message={msg[:80]!r}"
+                )
             else:
                 results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
                     f"FAIL: {ec}: {msg[:100]!r}"
@@ -3379,12 +3399,19 @@ def run_audit():
             # ("Internal error; see audit log"); future refactors of that display string
             # must sweep this acceptance check.
             err_str = str(err)
-            if "-32000" in err_str and "Internal error" in err_str:
+            # HIGH-003 sibling sweep (F-AUD-P25): anchor -32000 check to match H18's discipline.
+            # parse_envelope produces "RPC error {code}: {message}" so the string always starts
+            # with "RPC error -32000" when the server returns code=-32000. Substring "-32000"
+            # could false-match a message body like "E-QUERY-32000" on other code paths.
+            if err_str.startswith("RPC error -32000") and "Internal error" in err_str:
                 # F-AUD-P10-MED-001: attribute -32000 to HEAD-JOIN fail-open only when
                 # JOIN-machinery is verified by H7. Without H7 PASS, the -32000 could be
                 # any engine failure — not specifically BC-2.11.016 §HEAD-JOIN SUSPENSION RULE (PER-REFERENCE SCOPING; EC-11-074/075/076). H7 must have
                 # PASSed in this run (earlier in this same results dict) to establish that
                 # the JOIN path itself is functional before we accept its fail-open variant.
+                # F-AUD-P25-MED-002: gate intentionally strict — false-FAIL preferred over
+                # false-PASS in fail-open attribution (a single root cause in JOIN machinery
+                # can produce both H7 and H8 FAILs simultaneously).
                 _h7_key = _H7_RESULT_KEY  # OBS-004: single definition above prevents drift
                 _h7_result = results.get(_h7_key, "")
                 if _h7_result.startswith("PASS"):
@@ -3394,8 +3421,10 @@ def run_audit():
                         f"H7 JOIN-machinery evidence present"
                     )
                 else:
+                    # MED-002 (F-AUD-P25): improved diagnostic — single root cause message.
                     results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
-                        f"FAIL: cannot attribute -32000 to fail-open without JOIN-machinery evidence (H7); "
+                        f"FAIL: H7 non-PASS → fail-open attribution withheld; "
+                        f"investigate H7's failure first (single root cause may produce both FAILs); "
                         f"H7 result={_h7_result[:80]!r}"
                     )
             else:
@@ -3435,9 +3464,13 @@ def run_audit():
                         f"(HEAD-JOIN spec-sanctioned FP-001 confirmed); H7 JOIN-machinery evidence present"
                     )
                 else:
+                    # MED-002 (F-AUD-P25): improved diagnostic — single root cause message.
+                    # F-AUD-P25-MED-002: gate intentionally strict (false-FAIL preferred over
+                    # false-PASS in fail-open attribution); adjudicated KEEP at P25.
                     results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
-                        f"FAIL: cannot attribute controlled rejection to HEAD-JOIN fail-open "
-                        f"without JOIN-machinery evidence (H7); H7 result={_h7_result[:80]!r}"
+                        f"FAIL: H7 non-PASS → fail-open attribution withheld; "
+                        f"investigate H7's failure first (single root cause may produce both FAILs); "
+                        f"H7 result={_h7_result[:80]!r}"
                     )
             elif not ec and not rows:
                 # FAIL-DEFECT per BC-2.11.016 §HEAD-JOIN SUSPENSION RULE: fail-open defers to "execution-time DataFusion error"; 0 rows + no error = swallowed DataFusion schema error, not a sanctioned outcome
@@ -3628,12 +3661,18 @@ def run_audit():
                 # -200-.  Concatenate-then-substring risks cross-row false-matches
                 # (e.g., an id ending "-10" adjacent to one starting "0-" joins to
                 # "-100-" across the whitespace separator).
+                # LOW-004 (F-AUD-P25): anchor with regex — seed segment must be followed
+                # by an ordinal digit per DTU ID pattern dev-<hex>-<seed>-<n>.
+                # re.search(r'-100-\d', v) matches "-100-0", "-100-1" etc but NOT "-100x"
+                # or a value that merely contains "100" without the surrounding dashes+digit.
+                # TD-VSDD-060 sibling sweep: same anchor applied at D1 line ~1780
+                # (has_seed_200 in armis_devices probe) in same commit.
                 has_100 = any(
-                    k in _id_cols and isinstance(v, str) and "-100-" in v
+                    k in _id_cols and isinstance(v, str) and re.search(r'-100-\d', v)
                     for r in rows for k, v in r.items()
                 )
                 has_200 = any(
-                    k in _id_cols and isinstance(v, str) and "-200-" in v
+                    k in _id_cols and isinstance(v, str) and re.search(r'-200-\d', v)
                     for r in rows for k, v in r.items()
                 )
                 if has_100 and has_200 and not sensor_errors:
@@ -3732,16 +3771,22 @@ def run_audit():
                     _expected_ids = {"org-a", "org-b", "org-c"}
                     _missing_ids = _expected_ids - _actual_ids
                     _extra_ids = _actual_ids - _expected_ids
-                    if not _missing_ids:
+                    # LOW-002 (F-AUD-P25): exact-set equality — missing OR extra orgs FAIL.
+                    # Mirroring A2's discipline: tolerating extra entries hides unintended
+                    # client registrations and weakens multi-tenant isolation evidence.
+                    # CONSCIOUS-UPDATE: if the demo config adds a new org, update
+                    # _expected_ids in the same change.
+                    if _missing_ids or _extra_ids:
                         results["[H14a] resources/read: prism://config/clients — 3-org visibility"] = (
-                            f"PASS: all 3 orgs (org-a, org-b, org-c) present as client_id "
-                            f"in config/clients JSON array ({len(_clients_arr)} entries"
-                            + (f"; extra={sorted(_extra_ids)!r}" if _extra_ids else "") + ")"
+                            f"FAIL: exact client_id set mismatch — "
+                            + (f"missing={sorted(_missing_ids)!r}; " if _missing_ids else "")
+                            + (f"extra={sorted(_extra_ids)!r}; " if _extra_ids else "")
+                            + f"actual={sorted(_actual_ids)!r}"
                         )
                     else:
                         results["[H14a] resources/read: prism://config/clients — 3-org visibility"] = (
-                            f"FAIL: missing client_id values {sorted(_missing_ids)!r} "
-                            f"in config/clients JSON; actual_ids={sorted(_actual_ids)!r}"
+                            f"PASS: exactly 3 orgs (org-a, org-b, org-c) confirmed as client_id "
+                            f"in config/clients JSON array ({len(_clients_arr)} entries)"
                         )
             except (json.JSONDecodeError, ValueError) as _h14a_err:
                 results["[H14a] resources/read: prism://config/clients — 3-org visibility"] = (
@@ -3813,11 +3858,24 @@ def run_audit():
                             f"client_count={client_count}; total_sensors={total_sensors}"
                         )
                     else:
-                        results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
-                            f"PASS: populated clients{{}} form; "
-                            f"client_count={client_count}; total_sensors={total_sensors}; "
-                            f"stale={sh_obj['stale']!r}"
-                        )
+                        # MED-001 (F-AUD-P25): add A22 gate to the populated-cache PASS branch.
+                        # The empty-cache branch already conditions on A22; the populated branch
+                        # must too — otherwise a stale cache from a prior run can silently PASS
+                        # even when this run's A22 failed (cannot attribute population to this probe).
+                        _a22_key = _A22_RESULT_KEY
+                        _a22_result = results.get(_a22_key, "")
+                        if not _a22_result.startswith("PASS"):
+                            results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                                f"FAIL: cache populated but A22 did not PASS — "
+                                f"cannot attribute population to this run's probe; "
+                                f"investigate A22 first; A22 result={_a22_result[:80]!r}"
+                            )
+                        else:
+                            results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                                f"PASS: populated clients{{}} form; "
+                                f"client_count={client_count}; total_sensors={total_sensors}; "
+                                f"stale={sh_obj['stale']!r}"
+                            )
                 else:
                     # Unexpected shape — neither known form.
                     results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
@@ -4145,10 +4203,27 @@ def run_audit():
                     f"control-char status: {_h16_cc_status}; preview={raw_text[:80]!r}"
                 )
             elif resp_h16 and "error" in resp_h16:
-                # RPC-level rejection — also acceptable (no layer reached echo path)
-                results["[H16] CWE-116/117: control-char in column name sanitized"] = (
-                    f"PASS: RPC-level rejection without control-char leakage"
-                )
+                # HIGH-002 (F-AUD-P25): scan the RPC error message channel for control-char
+                # leakage — the error object's "message" and "data" fields are part of the
+                # transport surface and must also be free of Cc + U+2028/29.
+                _h16_rpc_err = resp_h16["error"]
+                _h16_rpc_scan_text = str(_h16_rpc_err.get("message", ""))
+                _h16_rpc_data = _h16_rpc_err.get("data")
+                if isinstance(_h16_rpc_data, str):
+                    _h16_rpc_scan_text += _h16_rpc_data
+                _h16_rpc_cc = [c for c in _h16_rpc_scan_text
+                               if (unicodedata.category(c) == "Cc" or c in _LS_PS)
+                               and c not in ("\n", "\r", "\t")]
+                if _h16_rpc_cc:
+                    results["[H16] CWE-116/117: control-char in column name sanitized"] = (
+                        f"FAIL: control char leaked in RPC error channel (error.message/data): "
+                        f"{[hex(ord(c)) for c in _h16_rpc_cc[:5]]}"
+                    )
+                else:
+                    # RPC-level rejection with clean error channel — acceptable
+                    results["[H16] CWE-116/117: control-char in column name sanitized"] = (
+                        f"PASS: RPC-level rejection; error channel (error.message/data) free of control chars"
+                    )
             else:
                 # F-AUD-P14-MED-002: remove "well-formed JSON dict without control chars → PASS"
                 # fallback. An unexpected success response on this path means the Layer-2
@@ -4202,9 +4277,26 @@ def run_audit():
                     f"{[hex(ord(c)) for c in ctrl_leaked[:5]]}"
                 )
             elif resp_h16b and "error" in resp_h16b:
-                results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized (smoke-only)"] = (
-                    "PASS: RPC-level rejection without control-char leakage (smoke: no hang/panic/leak)"
-                )
+                # HIGH-002 (F-AUD-P25): scan the RPC error message channel for control-char
+                # leakage in H16b as well — same predicate as H16.
+                _h16b_rpc_err = resp_h16b["error"]
+                _h16b_rpc_scan_text = str(_h16b_rpc_err.get("message", ""))
+                _h16b_rpc_data = _h16b_rpc_err.get("data")
+                if isinstance(_h16b_rpc_data, str):
+                    _h16b_rpc_scan_text += _h16b_rpc_data
+                _h16b_rpc_cc = [c for c in _h16b_rpc_scan_text
+                                if (unicodedata.category(c) == "Cc" or c in _LS_PS)
+                                and c not in ("\n", "\r", "\t")]
+                if _h16b_rpc_cc:
+                    results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized (smoke-only)"] = (
+                        f"FAIL: control char leaked in RPC error channel (error.message/data): "
+                        f"{[hex(ord(c)) for c in _h16b_rpc_cc[:5]]}"
+                    )
+                else:
+                    results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized (smoke-only)"] = (
+                        "PASS: RPC-level rejection; error channel (error.message/data) free of control chars "
+                        "(smoke: no hang/panic/leak)"
+                    )
             elif raw_text_b.startswith("ERROR:") or raw_text_b.startswith("{") or not raw_text_b:
                 # Empty envelope (0-row match) or ERROR string — both are smoke-pass: no leak.
                 results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized (smoke-only)"] = (
@@ -4229,7 +4321,16 @@ def run_audit():
             # unrelated error paths (any message containing "1000" would pass).
             # The code discriminator "E-QUERY-033" is sufficient and unambiguous per
             # error-taxonomy.md E-QUERY-033 row. Anchor: "-32602" AND "E-QUERY-033".
-            is_controlled = "-32602" in err_str and "E-QUERY-033" in err_str
+            # HIGH-003 (F-AUD-P25): anchor both predicates to prevent over-matching.
+            # parse_envelope produces "RPC error {code}: {message}" so the string always
+            # starts with "RPC error -32602:" when code=-32602. Substring "-32602" could
+            # false-match a message body containing that literal. "E-QUERY-033:" is
+            # anchored with a colon to avoid matching "E-QUERY-033x" or similar.
+            # TD-VSDD-060 sibling sweep: -32000 in H8 similarly anchored in same commit.
+            is_controlled = (
+                re.match(r"^RPC error -32602:", err_str) is not None
+                and "E-QUERY-033:" in err_str
+            )
             if is_controlled:
                 results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
                     f"PASS: limit > 1000 controlled rejection (-32602 + E-QUERY-033 anchor): {err[:100]}"
@@ -4521,16 +4622,31 @@ def run_audit():
         else:
             rows1 = body1.get("rows", [])
             rows2 = body2.get("rows", [])
-            if rows1 == rows2 and len(rows1) == 20:
-                # F-AUD-P14-OBS-002: assert exactly 20 rows (seed-200: 5 Critical + 15 Medium,
-                # limit 20 — H11 5+15 contract). len(rows1) == 20 is the strict floor.
-                # F-AUD-P5-OBS-003: after byte-identical confirmation, assert detection_id
-                # values are lex-sorted ascending (| sort detection_id defaults to Asc per
-                # pipe_parser.rs: .unwrap_or(SortDirection::Asc)).
+            # LOW-001 (F-AUD-P25): split determinism assertion from fixture count.
+            # H21 owns the determinism claim (rows1 == rows2); H11 owns the seed-200 count
+            # contract (5 Critical + 15 Medium = 20 rows).  The prior combined gate
+            # (rows1 == rows2 AND len == 20) made H21 a duplicate of H11's count check,
+            # which conflated two orthogonal properties and produced confusing FAILs when
+            # the row count was non-20 but the query WAS deterministic.
+            if rows1 != rows2:
+                diffs = sum(1 for a, b in zip(rows1, rows2) if a != b)
+                results["[H21] Determinism: repeated sorted query byte-identical"] = (
+                    f"FAIL: rows differ — run1={len(rows1)}, run2={len(rows2)}, "
+                    f"differing_rows={diffs} (non-deterministic result)"
+                )
+            elif len(rows1) == 0:
+                # rows1 == rows2 but no data — determinism is vacuously true; report FAIL
+                # for data-absence (cannot confirm sort-order or ID presence without rows).
+                results["[H21] Determinism: repeated sorted query byte-identical"] = (
+                    f"FAIL: 0 rows in both calls — data absent (cannot confirm in-session "
+                    f"determinism without data; investigate DTU / sensor connection)"
+                )
+            else:
+                # rows1 == rows2 and len > 0: determinism confirmed.
+                # F-AUD-P5-OBS-003: assert detection_id values are lex-sorted ascending
+                # (| sort detection_id defaults to Asc per pipe_parser.rs).
+                # Pass-18 sweep: guard against all-null detection_id — vacuous sorted-check.
                 det_ids = [r.get("detection_id", "") for r in rows1 if r.get("detection_id") is not None]
-                # Pass-18 sweep: guard against all-null detection_id — vacuous sorted-check
-                # True on empty list would PASS without verifying any IDs (pathological given
-                # the ==20 outer gate, but the 2-line guard closes the window completely).
                 if not det_ids:
                     results["[H21] Determinism: repeated sorted query byte-identical"] = (
                         f"FAIL: all detection_id null in {len(rows1)} rows — "
@@ -4538,7 +4654,7 @@ def run_audit():
                     )
                 elif det_ids == sorted(det_ids):
                     results["[H21] Determinism: repeated sorted query byte-identical"] = (
-                        f"PASS: {len(rows1)} rows; two consecutive calls byte-identical "
+                        f"PASS: {len(rows1)} rows (diagnostic); two consecutive calls byte-identical "
                         f"(in-session determinism confirmed; seeded ChaCha20 + fixed anchors); "
                         f"detection_id lex-sorted ascending confirmed ({len(det_ids)} IDs)"
                     )
@@ -4548,21 +4664,6 @@ def run_audit():
                         f"sort stage no-op regression; "
                         f"expected asc, got: {det_ids[:5]!r}"
                     )
-            elif rows1 == rows2:
-                # F-AUD-P14-OBS-002: row count mismatch — seed-200 contract requires exactly 20
-                # (5 Critical + 15 Medium, limit 20 — H11 5+15 contract). Covers len=0 (no
-                # data from DTU) and any non-20 count (partial data or limit regression).
-                results["[H21] Determinism: repeated sorted query byte-identical"] = (
-                    f"FAIL: expected exactly 20 rows (seed-200: 5 Critical + 15 Medium, limit 20 — "
-                    f"H11 5+15 contract); got {len(rows1)} rows "
-                    f"(rows1={len(rows1)}, rows2={len(rows2)})"
-                )
-            else:
-                diffs = sum(1 for a, b in zip(rows1, rows2) if a != b)
-                results["[H21] Determinism: repeated sorted query byte-identical"] = (
-                    f"FAIL: rows differ — run1={len(rows1)}, run2={len(rows2)}, "
-                    f"differing_rows={diffs}"
-                )
 
         # ── H22: normalized_pql present in success response (BC-2.11.018) ────
         body, err = query(proc,
