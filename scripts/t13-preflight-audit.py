@@ -2290,9 +2290,18 @@ def run_audit():
             rows = body.get("rows", [])
             if rows:
                 distinct_status = sorted({r.get("status", "") for r in rows if r.get("status") is not None})
+                # Pass-18 sweep: `is not None` filter admits empty strings; guard against both
+                # all-None (distinct_status==[]) and all-empty-string (distinct_status==[""]).
+                # Mirrors G3's has_nonempty pattern (Standing Rule 3 §2).
+                has_nonempty_status = any(s for s in distinct_status)
                 expected = {"open", "closed"}
                 foreign = [s for s in distinct_status if s.lower() not in expected]
-                if foreign:
+                if not has_nonempty_status:
+                    results["[G3b] Runbook Step 3.1a literal: cyberint status IIN ('open','closed')"] = (
+                        f"FAIL: {len(rows)} rows but all status values null/empty — "
+                        f"data-quality regression (Standing Rule 3 §2)"
+                    )
+                elif foreign:
                     results["[G3b] Runbook Step 3.1a literal: cyberint status IIN ('open','closed')"] = (
                         f"FAIL: unexpected status values outside {{'open','closed'}}: {foreign!r}; "
                         f"all returned={distinct_status!r}"
@@ -3930,8 +3939,15 @@ def run_audit():
                 # values are lex-sorted ascending (| sort detection_id defaults to Asc per
                 # pipe_parser.rs: .unwrap_or(SortDirection::Asc)).
                 det_ids = [r.get("detection_id", "") for r in rows1 if r.get("detection_id") is not None]
-                is_sorted = det_ids == sorted(det_ids)
-                if is_sorted:
+                # Pass-18 sweep: guard against all-null detection_id — vacuous sorted-check
+                # True on empty list would PASS without verifying any IDs (pathological given
+                # the ==20 outer gate, but the 2-line guard closes the window completely).
+                if not det_ids:
+                    results["[H21] Determinism: repeated sorted query byte-identical"] = (
+                        f"FAIL: all detection_id null in {len(rows1)} rows — "
+                        f"data-quality regression (Standing Rule 3 §2)"
+                    )
+                elif (is_sorted := det_ids == sorted(det_ids)):
                     results["[H21] Determinism: repeated sorted query byte-identical"] = (
                         f"PASS: {len(rows1)} rows; two consecutive calls byte-identical "
                         f"(in-session determinism confirmed; seeded ChaCha20 + fixed anchors); "
