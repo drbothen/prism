@@ -3407,11 +3407,27 @@ def run_audit():
         # This is a pure static text check — no MCP call.
         # Assumes the .factory worktree is mounted at its canonical path
         # (standard prism worktree layout: .factory/ mounted at repo root).
+        #
+        # Scope: scan only the instructional body (content before the "## Changelog"
+        # section).  Changelog rows legitimately quote the retired form when documenting
+        # amendments (e.g., v1.9 row: "zero remaining `threat_score(iocs_value)`
+        # non-`_first` sites"); scanning the full file would produce a false-positive
+        # FAIL on a healthy runbook (F-ORCH-P10B-001).  If no changelog heading is
+        # found, the entire file is scanned (graceful fallback).
         import re as _re_h23
         _RUNBOOK_PATH = "/Users/jmagady/Dev/prism/.factory/objectives/T13-capstone-demo-runbook.md"
         try:
             with open(_RUNBOOK_PATH, encoding="utf-8") as _rb_f:
-                _runbook_text = _rb_f.read()
+                _runbook_text_full = _rb_f.read()
+            # Truncate at the changelog section so historical amendment descriptions
+            # quoting the retired form are not counted as live instructional drift.
+            _changelog_heading = "## Changelog"
+            _changelog_pos = _runbook_text_full.find(_changelog_heading)
+            _runbook_text = (
+                _runbook_text_full[:_changelog_pos]
+                if _changelog_pos >= 0
+                else _runbook_text_full
+            )
             # Non-first (bad) form: threat_score(iocs_value) NOT followed by _first.
             # Uses negative lookahead so threat_score(iocs_value_first) is not counted here.
             _bad_matches = _re_h23.findall(r"threat_score\(iocs_value\)(?!_first)", _runbook_text)
