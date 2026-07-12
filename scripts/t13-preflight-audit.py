@@ -368,6 +368,9 @@ def _audit_sort_key(item_key: str):
 # Used at the H7 write site (results[_H7_RESULT_KEY] = ...) and
 # the H8 read site (_h7_key = _H7_RESULT_KEY).
 _H7_RESULT_KEY = "[H7] JOIN positive path: crowdstrike_devices JOIN armis_devices"
+# F-AUD-P15-LOW-001: A22 result key defined once next to _H7_RESULT_KEY to prevent
+# the 11 write-site / 1 read-site string drift (12 literals → 1 constant).
+_A22_RESULT_KEY = "[A22] check_sensor_health (S-5.04 gate)"
 
 
 def run_audit():
@@ -947,6 +950,14 @@ def run_audit():
         #           NYA gate per BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER)
         # Deviant outcomes (→ FAIL): success response, any other error code, timeout.
         # Named representatives A19/A20/A21 remain as-is (response-time bounds unchanged).
+        # F-AUD-P15-LOW-004: A19 uses {} args for list_infusions and requires strict -32003
+        # (not -32602). This is correct: ListInfusionsParams has pub client_id: Option<String>
+        # (all fields optional, #[serde(deny_unknown_fields)]); {} deserializes to
+        # ListInfusionsParams { client_id: None } without error → handler body runs →
+        # not_yet_available_msg fires → -32003. A23 accepts -32602 for the full stub set
+        # because some stubs (e.g. InfusionStatusParams.infusion_id: String — required) return
+        # -32602 via serde before the handler runs. For list_infusions specifically, {} is a
+        # valid param shape that reaches the NYA gate directly.
         _nya_stub_names = sorted(
             {t.get("name", "") for t in (tools_result or {}).get("tools", [])} - EXPECTED_TOOLS
         ) if tools_result else []
@@ -1007,27 +1018,27 @@ def run_audit():
         resp_csh, err_csh = read_msg(proc, timeout=15.0)
         elapsed = time.time() - t0
         if err_csh:
-            results["[A22] check_sensor_health (S-5.04 gate)"] = f"FAIL: {err_csh}"
+            results[_A22_RESULT_KEY] = f"FAIL: {err_csh}"
         elif resp_csh and "error" in resp_csh:
             code = resp_csh["error"].get("code", "?")
             if code == -32601:
                 # OBS-001 fix: check_sensor_health IS registered on develop@5f1b5771;
                 # -32601 means the tool is not found → S-5.04 regression, not N/A.
-                results["[A22] check_sensor_health (S-5.04 gate)"] = (
+                results[_A22_RESULT_KEY] = (
                     "FAIL: check_sensor_health tool missing — S-5.04 regression "
                     "(check_sensor_health IS registered on develop@5f1b5771; "
                     "-32601 = method not found)"
                 )
             else:
-                results["[A22] check_sensor_health (S-5.04 gate)"] = f"FAIL: MCP error {code}: {resp_csh['error'].get('message','')[:80]}"
+                results[_A22_RESULT_KEY] = f"FAIL: MCP error {code}: {resp_csh['error'].get('message','')[:80]}"
         else:
             # check_sensor_health returns raw JSON text in content[0].text
             content = resp_csh.get("result", {}).get("content", [])
             text = content[0].get("text", "") if content else ""
             if not text:
-                results["[A22] check_sensor_health (S-5.04 gate)"] = "FAIL: empty response"
+                results[_A22_RESULT_KEY] = "FAIL: empty response"
             elif text.startswith("ERROR:"):
-                results["[A22] check_sensor_health (S-5.04 gate)"] = f"FAIL: {text[:120]}"
+                results[_A22_RESULT_KEY] = f"FAIL: {text[:120]}"
             else:
                 try:
                     csh_body = json.loads(text)
@@ -1049,12 +1060,12 @@ def run_audit():
                     present_sensors = set(sid for sid in sensor_ids if sid)
                     missing_sensors = EXPECTED_SENSORS - present_sensors
                     if missing_sensors:
-                        results["[A22] check_sensor_health (S-5.04 gate)"] = (
+                        results[_A22_RESULT_KEY] = (
                             f"FAIL: {elapsed:.1f}s missing expected sensors={sorted(missing_sensors)}; "
                             f"got sensor_ids={sorted(present_sensors)}"
                         )
                     elif overall == "healthy" and reachable_all and auth_valid_all and probe_level_live:
-                        results["[A22] check_sensor_health (S-5.04 gate)"] = (
+                        results[_A22_RESULT_KEY] = (
                             f"PASS: {elapsed:.1f}s overall={overall}; probe_levels={probe_levels}; "
                             f"sensors={sorted(present_sensors)}; reachable_all={reachable_all}; auth_valid_all={auth_valid_all}"
                         )
@@ -1062,7 +1073,7 @@ def run_audit():
                         # Non-live probe levels mean actual sensor calls were not exercised —
                         # BC-2.08.005 / runbook Act 5 requires probe_level "live" for demo preflight.
                         non_live = sorted(set(p for p in probe_levels if p != "live"))
-                        results["[A22] check_sensor_health (S-5.04 gate)"] = (
+                        results[_A22_RESULT_KEY] = (
                             f"FAIL: {elapsed:.1f}s overall={overall} but non-live probe levels detected "
                             f"(BC-2.08.005 / runbook Act 5 requires probe_level 'live'); "
                             f"non_live_probe_levels={non_live!r}; sensors={sorted(present_sensors)}"
@@ -1070,14 +1081,14 @@ def run_audit():
                     elif overall != "?":
                         # Demo preflight requires all sensors healthy; degraded/failing is a
                         # FAIL not a WARN — demo assumes full sensor health (F-AUD-P1-LOW-004).
-                        results["[A22] check_sensor_health (S-5.04 gate)"] = (
+                        results[_A22_RESULT_KEY] = (
                             f"FAIL: {elapsed:.1f}s overall={overall} (degraded/failing not acceptable for demo preflight); "
                             f"sensors={sorted(present_sensors)}; reachable_all={reachable_all}; auth_valid_all={auth_valid_all}"
                         )
                     else:
-                        results["[A22] check_sensor_health (S-5.04 gate)"] = f"FAIL: unexpected response: {text[:200]}"
+                        results[_A22_RESULT_KEY] = f"FAIL: unexpected response: {text[:200]}"
                 except json.JSONDecodeError as e:
-                    results["[A22] check_sensor_health (S-5.04 gate)"] = f"FAIL: JSON parse error: {e}; raw={text[:100]!r}"
+                    results[_A22_RESULT_KEY] = f"FAIL: JSON parse error: {e}; raw={text[:100]!r}"
 
         # ═══════════════════════════════════════════════════════════════════════
         # SECTION B: All 6 Sensors × All Tables
@@ -1897,13 +1908,23 @@ def run_audit():
             rows = body.get("rows", [])
             if rows:
                 severities = [r.get("severity", "") for r in rows if r.get("severity")]
+                # F-AUD-P15-LOW-003: guard against vacuous-True all() / any() when every
+                # severity value is empty — mirrors H3's has_nonempty pattern.
+                # IEQ contract guarantees severity column populated for crowdstrike_detections.
+                has_nonempty = any(s for s in severities)
                 # Verify stored severity values are canonical Title-case ('Critical', not 'CRITICAL'/'critical')
                 bad_case = [s for s in severities if s and s.lower() == "critical" and s != "Critical"]
                 # F-AUD-P1-MED-001: also assert ONLY critical-severity rows are returned.
                 # IEQ 'critical' must filter out non-critical rows; any non-critical row is a
                 # filter failure (mirrors H3's guard for INE).
                 has_non_critical = any(s and s.lower() != "critical" for s in severities if s)
-                if has_non_critical:
+                if not has_nonempty:
+                    results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = (
+                        f"FAIL: {len(rows)} rows but all severity values empty — "
+                        f"data-quality regression (Standing Rule 3 §2); "
+                        f"severities={list(set(severities))!r}"
+                    )
+                elif has_non_critical:
                     non_crit = sorted({s for s in severities if s and s.lower() != "critical"})
                     results["[G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)"] = (
                         f"FAIL: non-critical rows returned by IEQ 'critical' filter — IEQ not filtering correctly; "
@@ -1939,9 +1960,17 @@ def run_audit():
             rows = body.get("rows", [])
             if rows:
                 distinct_sev = sorted({r.get("severity", "") for r in rows if r.get("severity")})
-                results["[G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)"] = (
-                    f"PASS: {len(rows)} rows; distinct severities={distinct_sev!r}"
-                )
+                # F-AUD-P15-LOW-003 sweep: IIN contract guarantees cyberint_alerts has
+                # severity values; empty distinct_sev means the column was absent/null.
+                if not distinct_sev:
+                    results["[G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)"] = (
+                        f"FAIL: {len(rows)} rows but all severity values empty/absent — "
+                        f"data-quality regression (Standing Rule 3 §2)"
+                    )
+                else:
+                    results["[G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)"] = (
+                        f"PASS: {len(rows)} rows; distinct severities={distinct_sev!r}"
+                    )
             else:
                 # NB-2: FAIL (not WARN) — the demo environment contract guarantees
                 # cyberint_alerts has High/Critical severity rows at Stage 4. 0 rows
@@ -1992,7 +2021,15 @@ def run_audit():
                                      "archived", "deleted", "unknown", "success", "failure", "other"}
                 non_title = [s for s in distinct_status
                              if s and s.lower() in known_ocsf_status and s != s.title()]
-                if has_dup_lower:
+                # F-AUD-P15-LOW-003 sweep: IIN contract guarantees crowdstrike_detections has
+                # status values; empty distinct_status means column absent/null — data-quality
+                # regression (mirrors H3's has_nonempty guard).
+                if not distinct_status:
+                    results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
+                        f"FAIL: {len(rows)} rows but all status values empty/absent — "
+                        f"data-quality regression (Standing Rule 3 §2)"
+                    )
+                elif has_dup_lower:
                     results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
                         f"FAIL: casing fragmentation — duplicate status buckets: {distinct_status}"
                     )
@@ -2131,7 +2168,15 @@ def run_audit():
                 # All non-null values should be Title-case (OCSF canonical form)
                 known_ocsf = {"high", "medium", "low", "critical", "informational", "unknown", "fatal"}
                 non_title = [s for s in severities if s and s.lower() in known_ocsf and s != s.title()]
-                if has_dup_lower:
+                # F-AUD-P15-LOW-003: guard against vacuous PASS when all severity values are
+                # empty — GROUP BY contract guarantees non-empty buckets for crowdstrike_detections.
+                has_nonempty = any(s for s in severities)
+                if not has_nonempty:
+                    results["[G6] GROUP BY severity no-fragmentation (canonical Title-case)"] = (
+                        f"FAIL: {len(rows)} GROUP BY rows but all severity values empty — "
+                        f"data-quality regression (Standing Rule 3 §2)"
+                    )
+                elif has_dup_lower:
                     results["[G6] GROUP BY severity no-fragmentation (canonical Title-case)"] = (
                         f"FAIL: casing fragmentation — duplicate severity buckets: {severities}"
                     )
@@ -2680,10 +2725,22 @@ def run_audit():
                 # F-AUD-P1-MED-002: only E-QUERY-034 or Internal error PASSes here.
                 # The former third disjunct `(ec and ec != "E-QUERY-038")` accepted any
                 # error code — removed; unexpected error codes must be investigated.
-                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
-                    f"PASS: controlled rejection ({ec or 'internal'}) — not E-QUERY-038 "
-                    f"(HEAD-JOIN spec-sanctioned FP-001 confirmed)"
-                )
+                # F-AUD-P15-MED-001: require H7 JOIN-machinery evidence before attributing
+                # in-band E-QUERY-034 / "Internal error" to HEAD-JOIN fail-open (FP-001).
+                # Without H7 PASS, the controlled rejection could be an unrelated engine
+                # failure — not specifically BC-2.11.016 §HEAD-JOIN SUSPENSION RULE.
+                _h7_key = _H7_RESULT_KEY
+                _h7_result = results.get(_h7_key, "")
+                if _h7_result.startswith("PASS"):
+                    results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                        f"PASS: controlled rejection ({ec or 'internal'}) — not E-QUERY-038 "
+                        f"(HEAD-JOIN spec-sanctioned FP-001 confirmed); H7 JOIN-machinery evidence present"
+                    )
+                else:
+                    results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                        f"FAIL: cannot attribute controlled rejection to HEAD-JOIN fail-open "
+                        f"without JOIN-machinery evidence (H7); H7 result={_h7_result[:80]!r}"
+                    )
             elif not ec and not rows:
                 # FAIL-DEFECT per BC-2.11.016 §HEAD-JOIN SUSPENSION RULE: fail-open defers to "execution-time DataFusion error"; 0 rows + no error = swallowed DataFusion schema error, not a sanctioned outcome
                 results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
@@ -2719,7 +2776,15 @@ def run_audit():
             else:
                 severities = [r.get("severity", "") for r in rows]
                 non_critical = [s for s in severities if s and s.lower() != "critical"]
-                if non_critical:
+                # F-AUD-P15-LOW-003: guard against vacuous PASS when all severity values are
+                # empty — SqlPipe IEQ filter contract guarantees severity='Critical' rows.
+                has_nonempty = any(s for s in severities)
+                if not has_nonempty:
+                    results["[H9] SqlPipe mode: SELECT head + pipe stage (BC-2.11.020)"] = (
+                        f"FAIL: {len(rows)} rows but all severity values empty — "
+                        f"data-quality regression (Standing Rule 3 §2)"
+                    )
+                elif non_critical:
                     results["[H9] SqlPipe mode: SELECT head + pipe stage (BC-2.11.020)"] = (
                         f"FAIL: non-Critical rows leaked: {non_critical!r}"
                     )
@@ -2986,7 +3051,7 @@ def run_audit():
                     # F-AUD-P7-LOW-006: condition the regression wording on A22's RESULT
                     # (not just whether it was executed). If A22 itself FAILed, the empty
                     # cache is A22's fault — "investigate A22 first" is more actionable.
-                    _a22_key = "[A22] check_sensor_health (S-5.04 gate)"
+                    _a22_key = _A22_RESULT_KEY
                     _a22_result = results.get(_a22_key, "")
                     # H14b precondition: every A22 code path writes a result entry; an uncaught
                     # transport exception halts the audit before H14b is reached. Therefore
@@ -3533,38 +3598,48 @@ def run_audit():
         else:
             rows = body.get("rows", [])
             if rows:
-                scores = [r.get("threat_score") for r in rows if "threat_score" in r]
-                numeric_scores = [s for s in scores if isinstance(s, (int, float))]
-                max_score = max(numeric_scores, default=0)
-                if max_score >= 75:
-                    # Emphatic FAIL: ADR-051 D4 scalar-input regression — iocs_value
-                    # (JSON-list) must produce ALL-NULL (coerce_to_typed returns None for '['-input);
-                    # a numeric score >= 75 means the NULL sentinel was bypassed → FAIL.
+                # F-AUD-P15-LOW-002: absent-column guard — distinguish "column present but
+                # all NULL" (ADR-051 D4 sanctioned outcome) from "column entirely absent"
+                # (enrich stage failed to produce output — not sanctioned).
+                if not any("threat_score" in r for r in rows):
                     results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
-                        f"FAIL: threat_score={max_score} for JSON-list column — "
-                        f"ADR-051 D4 scalar-input REGRESSION: iocs_value must produce NULL; scores={scores[:5]}"
-                    )
-                elif numeric_scores:
-                    # F-AUD-P14-MED-001: partial regression — non-NULL scores present but < 75.
-                    # ADR-051 §D4 mandates ALL-NULL for JSON-list input to typed UDFs;
-                    # any numeric (non-None) score means coerce_to_typed returned a value
-                    # instead of None for a '['-prefix input — regression regardless of magnitude.
-                    results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
-                        f"FAIL: non-NULL scores on JSON-list column — partial ADR-051 D4 regression; "
-                        f"coerce_to_typed must return None for JSON-list input (not a numeric value); "
-                        f"scores={scores[:5]}"
+                        "FAIL: threat_score column absent from all rows — "
+                        "enrich stage did not produce output (ADR-051 D4 requires NULL output, "
+                        "not absent column; check infusion_udf.rs / threatintel DTU)"
                     )
                 else:
-                    # ADR-051 D4 sanctioned outcome: ALL-NULL output on JSON-list input.
-                    # len(numeric_scores) == 0 confirms all threat_score values are Python None
-                    # (filtered out by isinstance check) → max_score defaults to 0.
-                    # F-AUD-P10-MED-003: assert only what H20 verifies — that ADR-051 D4
-                    # scalar-input is enforced. Runbook amendment validity is checked by H23
-                    # (static runbook text probe), not by this live query outcome.
-                    results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
-                        f"PASS: ALL-NULL output for JSON-list column (ADR-051 D4 scalar-input enforced); "
-                        f"numeric_scores_found={len(numeric_scores)}, all_scores={scores[:5]}"
-                    )
+                    scores = [r.get("threat_score") for r in rows if "threat_score" in r]
+                    numeric_scores = [s for s in scores if isinstance(s, (int, float))]
+                    max_score = max(numeric_scores, default=0)
+                    if max_score >= 75:
+                        # Emphatic FAIL: ADR-051 D4 scalar-input regression — iocs_value
+                        # (JSON-list) must produce ALL-NULL (coerce_to_typed returns None for '['-input);
+                        # a numeric score >= 75 means the NULL sentinel was bypassed → FAIL.
+                        results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
+                            f"FAIL: threat_score={max_score} for JSON-list column — "
+                            f"ADR-051 D4 scalar-input REGRESSION: iocs_value must produce NULL; scores={scores[:5]}"
+                        )
+                    elif numeric_scores:
+                        # F-AUD-P14-MED-001: partial regression — non-NULL scores present but < 75.
+                        # ADR-051 §D4 mandates ALL-NULL for JSON-list input to typed UDFs;
+                        # any numeric (non-None) score means coerce_to_typed returned a value
+                        # instead of None for a '['-prefix input — regression regardless of magnitude.
+                        results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
+                            f"FAIL: non-NULL scores on JSON-list column — partial ADR-051 D4 regression; "
+                            f"coerce_to_typed must return None for JSON-list input (not a numeric value); "
+                            f"scores={scores[:5]}"
+                        )
+                    else:
+                        # ADR-051 D4 sanctioned outcome: ALL-NULL output on JSON-list input.
+                        # Column IS present (absent-column guard above confirmed threat_score
+                        # key exists in rows); len(numeric_scores) == 0 confirms all threat_score
+                        # values are Python None (filtered out by isinstance check) → max_score
+                        # defaults to 0. F-AUD-P10-MED-003: assert only what H20 verifies — that
+                        # ADR-051 D4 scalar-input is enforced. Runbook validity checked by H23.
+                        results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
+                            f"PASS: ALL-NULL output for JSON-list column (ADR-051 D4 scalar-input enforced); "
+                            f"numeric_scores_found={len(numeric_scores)}, all_scores={scores[:5]}"
+                        )
             else:
                 results["[H20] ADR-051 D4 regression detector: iocs_value JSON-list score=0"] = (
                     "FAIL: 0 rows from iocs_value IS NOT NULL filter (check DTU data)"
@@ -3691,7 +3766,7 @@ def run_audit():
         #   Bad patterns use UDF\(col\) — the closing \) already excludes _first forms because
         #   threat_score(iocs_value_first) has "_first" between "iocs_value" and ")", so
         #   iocs_value\) does not match. No lookahead needed.
-        import re as _re_h23
+        # F-AUD-P15-OBS-004: use module-level `import re` (already imported at top); no alias needed.
         _rb_path, _rb_tried = _find_factory_file("objectives", "T13-capstone-demo-runbook.md")
         if _rb_path is None:
             results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
@@ -3705,58 +3780,69 @@ def run_audit():
                 # Truncate at the changelog section so historical amendment descriptions
                 # quoting the retired form are not counted as live instructional drift.
                 _changelog_heading = "## Changelog"
-                _changelog_pos = _runbook_text_full.find(_changelog_heading)
-                _runbook_text = (
-                    _runbook_text_full[:_changelog_pos]
-                    if _changelog_pos >= 0
-                    else _runbook_text_full
-                )
-                # ── Bad-form patterns: non-_first column arg for any of the 6 typed UDFs ──
-                # ThreatIntel UDFs × JSON-list columns (closing \) excludes _first forms)
-                _bad_threatintel = _re_h23.findall(
-                    r"(?:threat_score|threat_is_known_malicious|threat_sources)"
-                    r"\((?:iocs_value|behaviors_ioc_value)\)",
-                    _runbook_text,
-                )
-                # NVD UDFs × JSON-list column (device_cves; device_cves_first excluded by \))
-                _bad_nvd = _re_h23.findall(
-                    r"(?:cvss_base_score|cvss_severity|cvss_vector)\(device_cves\)",
-                    _runbook_text,
-                )
-                _bad_matches_all = _bad_threatintel + _bad_nvd
-
-                # ── Good-form patterns: _first scalar-companion column for any of the 6 UDFs ──
-                _good_threatintel = _re_h23.findall(
-                    r"(?:threat_score|threat_is_known_malicious|threat_sources)"
-                    r"\((?:iocs_value_first|behaviors_ioc_value_first)\)",
-                    _runbook_text,
-                )
-                _good_nvd = _re_h23.findall(
-                    r"(?:cvss_base_score|cvss_severity|cvss_vector)\(device_cves_first\)",
-                    _runbook_text,
-                )
-                _good_matches_all = _good_threatintel + _good_nvd
-
-                if _bad_matches_all:
+                # F-AUD-P15-OBS-001: guard against multiple "## Changelog" headings making
+                # find() ambiguous (it returns the FIRST occurrence, so all content between
+                # the first and second headings would be included in "live" text — silent
+                # false-negative for checks between them).
+                if _runbook_text_full.count(_changelog_heading) > 1:
                     results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
-                        f"FAIL: runbook contains {len(_bad_matches_all)} non-first UDF call(s) — "
-                        f"pre-ADR-051 D4 drift (F-AUD-P10-MED-003 + HIGH-001 + MED-002); "
-                        f"threatintel_bad={len(_bad_threatintel)}, nvd_bad={len(_bad_nvd)}; "
-                        f"matches={_bad_matches_all[:5]!r}; "
-                        f"update runbook to _first-column forms before live demo"
-                    )
-                elif not _good_matches_all:
-                    results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
-                        f"FAIL: no scalar-companion (_first) UDF calls found in runbook — "
-                        f"runbook enrich beats missing (expected >= 1 across all 6 typed UDFs)"
+                        f"FAIL: multiple '## Changelog' headings in runbook — H23 truncation "
+                        f"ambiguous; update the check (find() returns first occurrence, "
+                        f"content between first and subsequent headings not excluded)"
                     )
                 else:
-                    results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
-                        f"PASS: {len(_good_matches_all)} _first-form UDF call(s) found "
-                        f"(threatintel={len(_good_threatintel)}, nvd={len(_good_nvd)}); "
-                        f"no pre-ADR-051 non-first forms — ADR-051 D4 scalar-input confirmed in runbook; "
-                        f"runbook={str(_rb_path)!r}"
+                    _changelog_pos = _runbook_text_full.find(_changelog_heading)
+                    _runbook_text = (
+                        _runbook_text_full[:_changelog_pos]
+                        if _changelog_pos >= 0
+                        else _runbook_text_full
                     )
+                    # ── Bad-form patterns: non-_first column arg for any of the 6 typed UDFs ──
+                    # ThreatIntel UDFs × JSON-list columns (closing \) excludes _first forms)
+                    _bad_threatintel = re.findall(
+                        r"(?:threat_score|threat_is_known_malicious|threat_sources)"
+                        r"\((?:iocs_value|behaviors_ioc_value)\)",
+                        _runbook_text,
+                    )
+                    # NVD UDFs × JSON-list column (device_cves; device_cves_first excluded by \))
+                    _bad_nvd = re.findall(
+                        r"(?:cvss_base_score|cvss_severity|cvss_vector)\(device_cves\)",
+                        _runbook_text,
+                    )
+                    _bad_matches_all = _bad_threatintel + _bad_nvd
+
+                    # ── Good-form patterns: _first scalar-companion column for any of the 6 UDFs ──
+                    _good_threatintel = re.findall(
+                        r"(?:threat_score|threat_is_known_malicious|threat_sources)"
+                        r"\((?:iocs_value_first|behaviors_ioc_value_first)\)",
+                        _runbook_text,
+                    )
+                    _good_nvd = re.findall(
+                        r"(?:cvss_base_score|cvss_severity|cvss_vector)\(device_cves_first\)",
+                        _runbook_text,
+                    )
+                    _good_matches_all = _good_threatintel + _good_nvd
+
+                    if _bad_matches_all:
+                        results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                            f"FAIL: runbook contains {len(_bad_matches_all)} non-first UDF call(s) — "
+                            f"pre-ADR-051 D4 drift (F-AUD-P10-MED-003 + HIGH-001 + MED-002); "
+                            f"threatintel_bad={len(_bad_threatintel)}, nvd_bad={len(_bad_nvd)}; "
+                            f"matches={_bad_matches_all[:5]!r}; "
+                            f"update runbook to _first-column forms before live demo"
+                        )
+                    elif not _good_matches_all:
+                        results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                            f"FAIL: no scalar-companion (_first) UDF calls found in runbook — "
+                            f"runbook enrich beats missing (expected >= 1 across all 6 typed UDFs)"
+                        )
+                    else:
+                        results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                            f"PASS: {len(_good_matches_all)} _first-form UDF call(s) found "
+                            f"(threatintel={len(_good_threatintel)}, nvd={len(_good_nvd)}); "
+                            f"no pre-ADR-051 non-first forms — ADR-051 D4 scalar-input confirmed in runbook; "
+                            f"runbook={str(_rb_path)!r}"
+                        )
             except OSError as _rb_err:
                 results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
                     f"FAIL: cannot read runbook at {str(_rb_path)!r}: {_rb_err}"
@@ -3921,11 +4007,11 @@ if __name__ == "__main__":
     # F-AUD-P4-OBS-002: the "BOOT" key is exempt — it is the pre-initialize short-circuit
     # (server process failed to start before any checks ran) and intentionally has no
     # COVERAGE_MATRIX row. All other result keys must have a matching [ID] in the matrix.
-    import re as _re
+    # F-AUD-P15-OBS-004: use module-level `import re` (already imported at top); no alias needed.
     _matrix_ids = {row[0] for row in COVERAGE_MATRIX}
     _result_ids = set()
     for _k in results:
-        _m = _re.match(r'^(\[[A-Z][0-9]+[a-z]?\])', _k)
+        _m = re.match(r'^(\[[A-Z][0-9]+[a-z]?\])', _k)
         if _m:
             _result_ids.add(_m.group(1))
     _matrix_only = _matrix_ids - _result_ids
