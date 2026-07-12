@@ -360,8 +360,10 @@ def run_audit():
 
         # ── A2: tools/list — enumerate all available tools ────────────────────
         # NOTE: query_tutorial and investigate_host are MCP Prompts, NOT Tools.
-        # The expected tools are the 14 implemented MCP tools (server.rs has 54 #[tool]
-        # sites: 14 real implementations, 40 runtime -32003 NYA stubs).
+        # The expected tools are the 14 implemented MCP tools (server.rs has 56 #[tool*]
+        # annotations per `rg '^\s*#\[tool' server.rs | wc -l`: 2 struct/impl macros
+        # (#[tool_router], #[tool_handler]) + 54 #[tool(...)] method annotations:
+        # 14 real implementations, 40 runtime -32003 NYA stubs).
         # list_infusions, plugin_status, infusion_status are NYA stubs → NOT in this set.
         #
         # READ-ONLY RATIONALE (F-AUD-P2-MED-005): all 14 tools are asserted PRESENT via
@@ -687,18 +689,35 @@ def run_audit():
         else:
             msgs = res.get("messages", [])
             body_text = msgs[0].get("content", {}).get("text", "") if msgs else ""
-            has_dot = any(f"FROM {s}." in body_text for s in ["crowdstrike", "claroty", "armis", "cyberint"])
-            has_underscore = any(f"FROM {s}_" in body_text for s in ["crowdstrike", "claroty", "armis", "cyberint"])
+            # F-AUD-P4-LOW-001: replace ambiguous has_dot/has_underscore sweep and dead
+            # PARTIAL branch with explicit anchor checks against the shipped prompt body
+            # (prompts.rs render_triage_alerts ~line 344).
+            # The shipped prompt references exactly 3 sensor-prefixed FROMs:
+            #   "FROM crowdstrike_detections", "FROM claroty_alerts", "FROM armis_alerts"
+            # cyberint is NOT in the prompt body — do not require it (anchor to reality).
+            # Dot-notation check remains: underscore anchors + no-dot is the full assertion.
+            required_anchors = [
+                "FROM crowdstrike_detections",
+                "FROM claroty_alerts",
+                "FROM armis_alerts",
+            ]
+            missing_anchors = [a for a in required_anchors if a not in body_text]
+            has_dot = any(f"FROM {s}." in body_text for s in ["crowdstrike", "claroty", "armis"])
             if has_dot:
-                results["[A16] AUDIT-004: triage_alerts prompt underscore names"] = "FAIL: dot-notation still in prompt"
-            elif has_underscore:
-                results["[A16] AUDIT-004: triage_alerts prompt underscore names"] = "PASS: underscore table names in prompt"
+                results["[A16] AUDIT-004: triage_alerts prompt underscore names"] = (
+                    "FAIL: dot-notation still in prompt (underscore regression)"
+                )
+            elif missing_anchors:
+                results["[A16] AUDIT-004: triage_alerts prompt underscore names"] = (
+                    f"FAIL: missing FROM-underscore anchors in triage_alerts prompt "
+                    f"(template regression): {missing_anchors!r}; "
+                    f"body preview={body_text[:150]!r}"
+                )
             else:
-                # PARTIAL sweep: legitimately ambiguous — triage_alerts may use sensor-
-                # prefixed table names without a literal FROM keyword (e.g., via a
-                # pre-formatted PQL snippet embedded in the prompt body). 0 FAIL-signals
-                # from earlier guards (has_dot/has_underscore); prompt may be valid.
-                results["[A16] AUDIT-004: triage_alerts prompt underscore names"] = f"PARTIAL: no explicit FROM found; body preview={body_text[:150]!r}"
+                results["[A16] AUDIT-004: triage_alerts prompt underscore names"] = (
+                    f"PASS: all {len(required_anchors)} FROM-underscore anchors present "
+                    f"(crowdstrike_detections, claroty_alerts, armis_alerts); no dot-notation"
+                )
 
         # ── A17: query_tutorial prompt returns promptly ───────────────────────
         t0 = time.time()
@@ -2153,10 +2172,30 @@ def run_audit():
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             if ec == "E-QUERY-042":
-                results["[H5] E-QUERY-042: temporal literal in GROUP BY (ADR-052 §D4)"] = (
-                    f"PASS: E-QUERY-042 — temporal literal in GROUP BY arm rejected; "
-                    f"message={msg[:80]!r}"
-                )
+                # F-AUD-P4-MED-003: require POL-24 canonical E-QUERY-042 GroupBy message
+                # template substrings (error-taxonomy.md E-QUERY-042 GroupBy position):
+                # "E-QUERY-042: GROUP BY expects a column reference, not a literal constant.
+                # '...' is a date-shaped literal — grouping by a constant has no effect and
+                # is almost certainly a query mistake."
+                anchor1 = "GROUP BY expects a column reference"
+                anchor2 = "grouping by a constant has no effect"
+                if anchor1 in msg and anchor2 in msg:
+                    results["[H5] E-QUERY-042: temporal literal in GROUP BY (ADR-052 §D4)"] = (
+                        f"PASS: E-QUERY-042 — temporal literal in GROUP BY arm rejected "
+                        f"with canonical template (POL-24 anchors confirmed); "
+                        f"message={msg[:80]!r}"
+                    )
+                else:
+                    missing = []
+                    if anchor1 not in msg:
+                        missing.append(repr(anchor1))
+                    if anchor2 not in msg:
+                        missing.append(repr(anchor2))
+                    results["[H5] E-QUERY-042: temporal literal in GROUP BY (ADR-052 §D4)"] = (
+                        f"FAIL: E-QUERY-042 received but message-template regression "
+                        f"(POL-24): missing anchor(s) {', '.join(missing)}; "
+                        f"message={msg[:120]!r}"
+                    )
             elif body.get("rows") is not None and not ec:
                 results["[H5] E-QUERY-042: temporal literal in GROUP BY (ADR-052 §D4)"] = (
                     "FAIL: GROUP BY literal accepted (should be E-QUERY-042)"
@@ -2321,9 +2360,29 @@ def run_audit():
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             if ec == "E-QUERY-040":
-                results["[H10] E-QUERY-040: SQL LIMIT + pipe | limit (dual-limit rejected)"] = (
-                    f"PASS: E-QUERY-040 — dual row-limit cap rejected (ADR-043 D4)"
-                )
+                # F-AUD-P4-MED-004: require POL-24 canonical E-QUERY-040 message template
+                # substrings (error-taxonomy.md E-QUERY-040):
+                # "E-QUERY-040: redundant row limit. This query caps rows in two places:
+                # a SQL `LIMIT {sql_limit}` in the head and a row-capping `| limit`/
+                # `| tail` pipe stage (cap: {pipe_limit})."
+                anchor1 = "redundant row limit"
+                anchor2 = "caps rows in two places"
+                if anchor1 in msg and anchor2 in msg:
+                    results["[H10] E-QUERY-040: SQL LIMIT + pipe | limit (dual-limit rejected)"] = (
+                        f"PASS: E-QUERY-040 — dual row-limit cap rejected with canonical "
+                        f"template (POL-24 anchors confirmed); message={msg[:80]!r}"
+                    )
+                else:
+                    missing = []
+                    if anchor1 not in msg:
+                        missing.append(repr(anchor1))
+                    if anchor2 not in msg:
+                        missing.append(repr(anchor2))
+                    results["[H10] E-QUERY-040: SQL LIMIT + pipe | limit (dual-limit rejected)"] = (
+                        f"FAIL: E-QUERY-040 received but message-template regression "
+                        f"(POL-24): missing anchor(s) {', '.join(missing)}; "
+                        f"message={msg[:120]!r}"
+                    )
             elif body.get("rows") is not None and not ec:
                 results["[H10] E-QUERY-040: SQL LIMIT + pipe | limit (dual-limit rejected)"] = (
                     f"FAIL: dual-limit query succeeded ({len(body.get('rows', []))} rows) — should be E-QUERY-040"
@@ -2729,22 +2788,20 @@ def run_audit():
         if err:
             # E-QUERY-033 → -32602 INVALID_PARAMS at the MCP params level (build_query_options).
             # F-AUD-P1-HIGH-002: bare "RPC error" matches EVERY RPC failure — constrain to
-            # -32602 AND (E-QUERY-033 or "limit" in message) to avoid false positives.
+            # -32602 AND E-QUERY-033 code to avoid false positives.
             err_str = str(err)
-            # F-AUD-P2-LOW-004: anchor to canonical E-QUERY-033 template substrings
-            # per POL-24: "E-QUERY-033: limit {requested} exceeds maximum of {max}
-            # (BC-2.11.001)". Anchors = "E-QUERY-033" AND "1000" (max=1000).
-            # Broad "limit" substring is forbidden (matches unrelated error paths).
-            is_controlled = "-32602" in err_str and (
-                "E-QUERY-033" in err_str or "1000" in err_str
-            )
+            # F-AUD-P4-MED-001: drop the bare "1000" disjunct — "1000" over-matches
+            # unrelated error paths (any message containing "1000" would pass).
+            # The code discriminator "E-QUERY-033" is sufficient and unambiguous per
+            # error-taxonomy.md E-QUERY-033 row. Anchor: "-32602" AND "E-QUERY-033".
+            is_controlled = "-32602" in err_str and "E-QUERY-033" in err_str
             if is_controlled:
                 results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
-                    f"PASS: limit > 1000 controlled rejection (-32602 + E-QUERY-033/1000 anchors): {err[:100]}"
+                    f"PASS: limit > 1000 controlled rejection (-32602 + E-QUERY-033 anchor): {err[:100]}"
                 )
             else:
                 results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
-                    f"FAIL: unexpected error (not a controlled -32602 + E-QUERY-033/1000 rejection): {err[:100]}"
+                    f"FAIL: unexpected error (not a controlled -32602 + E-QUERY-033 rejection): {err[:100]}"
                 )
         elif body.get("error_code") == "E-QUERY-033":
             results["[H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)"] = (
@@ -2770,14 +2827,19 @@ def run_audit():
         if err:
             # F-AUD-P1-HIGH-001: only controlled rejections PASS here.
             # The former `if err: PASS` converted timeouts/crashes/JSON errors into PASS.
-            # Accept only: RPC -32602/-32603 param rejection, or E-QUERY-003 in error text.
+            # Accept only: RPC -32602 INVALID_PARAMS, or E-QUERY-003 in error text.
+            # F-AUD-P4-MED-002: -32603 INTERNAL_ERROR is explicitly UNCONTROLLED — it
+            # signals a crash/panic on the oversize input, which is exactly the failure
+            # mode this check must distinguish from a proper controlled rejection.
+            # Per error-taxonomy.md E-QUERY-003: canonical MCP surfacing is -32602
+            # INVALID_PARAMS; -32603 is INTERNAL_ERROR (uncontrolled crash path).
             err_str = str(err)
             is_timeout = "TIMEOUT" in err_str
             is_process_exit = err_str.startswith("Process exited") or err_str.startswith("EOF")
             is_json_error = err_str.startswith("JSON error") or err_str.startswith("envelope JSON error")
+            is_internal_error = err_str.startswith("RPC error -32603")
             is_controlled_rpc = (
                 err_str.startswith("RPC error -32602")
-                or err_str.startswith("RPC error -32603")
                 or "E-QUERY-003" in err_str
             )
             if is_timeout or is_process_exit or is_json_error:
@@ -2785,13 +2847,18 @@ def run_audit():
                     f"FAIL: uncontrolled failure (timeout/crash/JSON error) instead of controlled rejection: "
                     f"{err[:100]}"
                 )
+            elif is_internal_error:
+                results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
+                    f"FAIL: internal error on oversize input (uncontrolled — -32603 INTERNAL_ERROR "
+                    f"signals a crash/panic, not a structured rejection): {err[:100]}"
+                )
             elif is_controlled_rpc:
                 results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
                     f"PASS: oversize query rejected at MCP or engine level (controlled): {err[:80]}"
                 )
             else:
                 results["[H18] E-QUERY-003: oversize query controlled rejection"] = (
-                    f"FAIL: unexpected error (not a controlled -32602/-32603/E-QUERY-003 rejection): "
+                    f"FAIL: unexpected error (not a controlled -32602/E-QUERY-003 rejection): "
                     f"{err[:100]}"
                 )
         elif body.get("error_code") in ("E-QUERY-003",):
@@ -3129,6 +3196,32 @@ if __name__ == "__main__":
 
     results = run_audit()
 
+    # ── F-AUD-P4-OBS-001: COVERAGE_MATRIX↔results-key consistency assertion ──────
+    # Extract [ID] prefix from every results key and compare against COVERAGE_MATRIX IDs.
+    # F-AUD-P4-OBS-002: the "BOOT" key is exempt — it is the pre-initialize short-circuit
+    # (server process failed to start before any checks ran) and intentionally has no
+    # COVERAGE_MATRIX row. All other result keys must have a matching [ID] in the matrix.
+    import re as _re
+    _matrix_ids = {row[0] for row in COVERAGE_MATRIX}
+    _result_ids = set()
+    for _k in results:
+        _m = _re.match(r'^(\[[A-Z][0-9]+[a-z]?\])', _k)
+        if _m:
+            _result_ids.add(_m.group(1))
+    _matrix_only = _matrix_ids - _result_ids
+    _results_only = _result_ids - _matrix_ids
+    _has_mismatch = bool(_matrix_only or _results_only)
+    if _has_mismatch:
+        print("=" * 80)
+        print("MISMATCH: COVERAGE_MATRIX↔results-key drift (F-AUD-P4-OBS-001) — FAIL")
+        if _matrix_only:
+            print(f"  In COVERAGE_MATRIX but no result written: {sorted(_matrix_only)}")
+        if _results_only:
+            print(f"  In results but not in COVERAGE_MATRIX: {sorted(_results_only)}")
+        print("  → Restore parity: add missing result keys or update COVERAGE_MATRIX rows.")
+        print("=" * 80)
+        print()
+
     pass_count = 0
     fail_count = 0
     warn_count = 0
@@ -3158,7 +3251,7 @@ if __name__ == "__main__":
 
     print("=" * 80)
     print(f"SUMMARY: {pass_count} PASS / {fail_count} FAIL / {warn_count} WARN / {na_count} N/A / {len(results)} total")
-    demo_ready = "YES" if fail_count == 0 else "NO"
+    demo_ready = "YES" if fail_count == 0 and not _has_mismatch else "NO"
     print(f"DEMO-READY: {demo_ready}")
     print("=" * 80)
 
