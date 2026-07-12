@@ -23,7 +23,7 @@ Coverage matrix (see len(COVERAGE_MATRIX) for current authoritative count):
   4. All scenario stages per client (in-session determinism verified (H21))
   5. Multi-client data segregation + org-scoping error paths + multi-client fan-out
   6. Enrichment correlation (ThreatIntel IOCs + NVD CVEs, threat_sources/cvss_vector)
-  7. Error taxonomy paths (E-QUERY-032/-033/-037/-038/-039/-040/-041/-042/-003)
+  7. Error taxonomy paths (E-QUERY-032/-033/-037/-038/-039/-040/-041/-042/-043/-003)
   8. Capability discovery (D-1162, D-1312 regression)
   9. IEQ/IIN/INE case-insensitive operators (ADR-047, PR #217)
  10. Temporal typing regression (ADR-052 §D4, PR #214)
@@ -578,10 +578,38 @@ def run_audit():
             results["[A5] MAJOR-001: list_capabilities client_registered=true"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             client_registered = body.get("client_registered", "MISSING")
-            if client_registered is True:
-                results["[A5] MAJOR-001: list_capabilities client_registered=true"] = "PASS: client_registered=true"
-            else:
+            if client_registered is not True:
                 results["[A5] MAJOR-001: list_capabilities client_registered=true"] = f"FAIL: client_registered={client_registered!r}"
+            else:
+                # MED-008: paired negative probe — unknown-but-well-formed client_id must return
+                # client_registered: false (not an error). Grounded in list_capabilities handler
+                # (server.rs list_capabilities): "unknown-but-well-formed client_id is NOT an error
+                # — returns matrix with client_registered: false" (doc comment on the handler).
+                body_neg, err_neg = tool_call(proc, "list_capabilities", {"client_id": "org-nonexistent-f-aud-p21"})
+                if err_neg:
+                    results["[A5] MAJOR-001: list_capabilities client_registered=true"] = (
+                        f"FAIL: negative probe (org-nonexistent-f-aud-p21) returned transport error: {err_neg}"
+                    )
+                elif body_neg.get("error_code"):
+                    results["[A5] MAJOR-001: list_capabilities client_registered=true"] = (
+                        f"FAIL: negative probe (org-nonexistent-f-aud-p21) returned error code "
+                        f"{body_neg['error_code']} — expected client_registered: false (not an error; "
+                        f"server.rs list_capabilities contract)"
+                    )
+                else:
+                    neg_registered = body_neg.get("client_registered", "MISSING")
+                    if neg_registered is False:
+                        results["[A5] MAJOR-001: list_capabilities client_registered=true"] = (
+                            f"PASS: client_registered=true (org-c); "
+                            f"negative probe org-nonexistent-f-aud-p21 → client_registered=false "
+                            f"(server.rs list_capabilities contract confirmed)"
+                        )
+                    else:
+                        results["[A5] MAJOR-001: list_capabilities client_registered=true"] = (
+                            f"FAIL: negative probe (org-nonexistent-f-aud-p21) returned "
+                            f"client_registered={neg_registered!r} (expected false for unknown client; "
+                            f"server.rs list_capabilities contract)"
+                        )
 
         # ── A6: list_capabilities: tri-state model fields (D-1162 BC-2.10.011) ─
         # BC-2.10.011 §single-client mode requires:
@@ -824,7 +852,19 @@ def run_audit():
             # Check section headers (## headings)
             section_count = len(re.findall(r'^##\s+', text, re.MULTILINE))
             if has_threat_score and has_cvss and not has_old_infusion_form:
-                results["[A12] N1: prismql://reference per-field UDF names + content"] = f"PASS: threat_score+cvss_base_score present; {section_count} sections; no old forms"
+                # MED-009/LOW-005: section_count gate (min 7; grounded in build_reference_content()
+                # in crates/prism-mcp/src/resources.rs which emits exactly 7 ## headings:
+                # "What is PrismQL", "Clause Grammar (BNF)", "Operators and Types",
+                # "Datetime Arithmetic", "Error Code Quick-Reference", "Query Examples",
+                # "Self-Correction Workflow").
+                if section_count < 7:
+                    results["[A12] N1: prismql://reference per-field UDF names + content"] = (
+                        f"FAIL: reference content has only {section_count} ## sections "
+                        f"(expected >= 7; source: build_reference_content() in resources.rs "
+                        f"emits 7 named sections) — content truncation or regression"
+                    )
+                else:
+                    results["[A12] N1: prismql://reference per-field UDF names + content"] = f"PASS: threat_score+cvss_base_score present; {section_count} sections (>= 7); no old forms"
             elif has_old_infusion_form:
                 results["[A12] N1: prismql://reference per-field UDF names + content"] = "FAIL: old infusion_id call forms still present"
             else:
@@ -901,7 +941,6 @@ def run_audit():
                 results["[A15] N2: dot-notation FROM -> E-QUERY-037"] = f"FAIL: got {error_code or 'no error'}: {msg[:80]}"
 
         # ── A16: AUDIT-004: triage_alerts prompt uses FROM-ready names ────────
-        t0 = time.time()
         res, err = prompt_get(proc, "triage_alerts", {"client_id": "org-c"})
         if err:
             results["[A16] AUDIT-004: triage_alerts prompt underscore names"] = f"FAIL: {err}"
@@ -1152,8 +1191,11 @@ def run_audit():
                         )
                     else:
                         overall = csh_body.get("overall_status", "?")
+                        _overall_key_present = "overall_status" in csh_body
                         sensors = csh_body.get("sensors", [])
-                        probe_levels = list({s.get("probe_level") for s in sensors if isinstance(s, dict)})
+                        # MED-002: coerce None probe_level → "<missing>" so sorted() never
+                        # compares None with str (TypeError crash in the FAIL branch).
+                        probe_levels = list({(pl if (pl := s.get("probe_level")) is not None else "<missing>") for s in sensors if isinstance(s, dict)})
                         reachable_all = all(s.get("reachable") is True for s in sensors if isinstance(s, dict))
                         auth_valid_all = all(s.get("auth_valid") is True for s in sensors if isinstance(s, dict))
                         # F-AUD-P8-OBS-002: require all probe levels == "live" (defense-in-depth vs
@@ -1214,7 +1256,19 @@ def run_audit():
                                 f"sensors={sorted(present_sensors)}; reachable_all={reachable_all}; auth_valid_all={auth_valid_all}"
                             )
                         else:
-                            results[_A22_RESULT_KEY] = f"FAIL: unexpected response: {text[:200]}"
+                            # OBS-004: distinguish missing overall_status key from literal "?" value.
+                            # csh_body.get("overall_status", "?") maps BOTH to "?" — separate them.
+                            if not _overall_key_present:
+                                results[_A22_RESULT_KEY] = (
+                                    f"FAIL: {elapsed:.1f}s overall_status key absent from response "
+                                    f"(expected 'healthy'); keys={list(csh_body.keys())[:8]!r}"
+                                )
+                            else:
+                                results[_A22_RESULT_KEY] = (
+                                    f"FAIL: {elapsed:.1f}s overall_status={csh_body['overall_status']!r} "
+                                    f"(unexpected literal '?' value); expected 'healthy'; "
+                                    f"body={text[:200]}"
+                                )
                 except json.JSONDecodeError as e:
                     results[_A22_RESULT_KEY] = f"FAIL: JSON parse error: {e}; raw={text[:100]!r}"
 
@@ -1485,7 +1539,21 @@ def run_audit():
                 col_names = list(rows[0].keys())
                 # Filter out internal metadata cols (_client, _sensor, _source_table)
                 data_cols = [c for c in col_names if not c.startswith("_")]
-                results["[C3] Pipe mode: FROM | fields | limit"] = f"PASS: {len(rows)} rows; projected data cols={data_cols}"
+                # MED-003: assert projection is non-vacuous — | fields must restrict to
+                # EXACTLY the specified columns {device_id, behaviors_ioc_type}.
+                # If set(data_cols) != expected, the pipe projection operator is broken.
+                expected_cols = {"device_id", "behaviors_ioc_type"}
+                if set(data_cols) != expected_cols:
+                    results["[C3] Pipe mode: FROM | fields | limit"] = (
+                        f"FAIL: projected cols {set(data_cols)!r} != expected "
+                        f"{expected_cols!r} — | fields did not restrict to the two "
+                        f"specified columns (projection operator regression; MED-003)"
+                    )
+                else:
+                    results["[C3] Pipe mode: FROM | fields | limit"] = (
+                        f"PASS: {len(rows)} rows; projected data cols={sorted(data_cols)!r} "
+                        f"(exactly {expected_cols!r} confirmed; MED-003)"
+                    )
 
         # ── C4: DataFusion aggregate COUNT(*) ────────────────────────────────
         # NOTE (F-AUD-P1-OBS-001): also appears as A14 and F6 — intentional cross-section
@@ -1499,7 +1567,25 @@ def run_audit():
             results["[C4] DataFusion aggregate: COUNT(*)"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[C4] DataFusion aggregate: COUNT(*)"] = f"PASS: {len(rows)} rows; result={rows[0] if rows else '?'}"
+            if not rows:
+                results["[C4] DataFusion aggregate: COUNT(*)"] = (
+                    "FAIL: COUNT(*) returned 0 rows — armis_devices must have data"
+                )
+            else:
+                # MED-004: assert COUNT(*) value is non-null numeric >= 1.
+                # rows[0] is a single-key dict; extract the first (only) value.
+                count_val = list(rows[0].values())[0] if rows[0] else None
+                if count_val is None or isinstance(count_val, bool) or not isinstance(count_val, (int, float)) or count_val < 1:
+                    results["[C4] DataFusion aggregate: COUNT(*)"] = (
+                        f"FAIL: COUNT(*) returned non-numeric or < 1 value: {count_val!r} "
+                        f"(type={type(count_val).__name__}); "
+                        f"armis_devices must have data (MED-004)"
+                    )
+                else:
+                    results["[C4] DataFusion aggregate: COUNT(*)"] = (
+                        f"PASS: {len(rows)} rows; COUNT(*)={count_val} "
+                        f"(numeric >= 1; result={rows[0]!r})"
+                    )
 
         # ── C5: DataFusion aggregate COUNT with GROUP BY ──────────────────────
         body, err = query(proc, "SELECT behaviors_ioc_type, COUNT(*) as cnt FROM crowdstrike_detections GROUP BY behaviors_ioc_type", ["org-c"])
@@ -1525,7 +1611,25 @@ def run_audit():
             results["[C6] DataFusion aggregate: MAX/MIN"] = f"FAIL: {body['error_code']} — {body.get('message','')[:80]}"
         else:
             rows = body.get("rows", [])
-            results["[C6] DataFusion aggregate: MAX/MIN"] = f"PASS: {len(rows)} rows; result={rows[0] if rows else '?'}"
+            if not rows:
+                results["[C6] DataFusion aggregate: MAX/MIN"] = (
+                    "FAIL: MAX/MIN returned 0 rows — crowdstrike_detections must have data"
+                )
+            else:
+                # MED-004: assert MAX/MIN aggregate values are non-null.
+                # NULL aggregate means crowdstrike_detections.device_id is all-NULL → data regression.
+                first = rows[0]
+                null_vals = [k for k, v in first.items() if v is None]
+                if null_vals:
+                    results["[C6] DataFusion aggregate: MAX/MIN"] = (
+                        f"FAIL: MAX/MIN has NULL aggregate values: {null_vals!r} — "
+                        f"crowdstrike_detections.device_id must be non-null (MED-004); "
+                        f"result={first!r}"
+                    )
+                else:
+                    results["[C6] DataFusion aggregate: MAX/MIN"] = (
+                        f"PASS: {len(rows)} rows; MAX/MIN non-null confirmed; result={first!r}"
+                    )
 
         # ── C7: Pipe mode | sort ──────────────────────────────────────────────
         body, err = query(proc, "FROM crowdstrike_detections\n| sort device_id\n| limit 5", ["org-c"])
@@ -1817,14 +1921,19 @@ def run_audit():
                         f"FAIL: cvss_base_score must be numeric Float64; "
                         f"got type={type(cvss).__name__}, value={str(cvss)[:40]!r}"
                     )
-                elif cvss < 7.0:
-                    # MED-005: value gate — scenario CVEs must score >= 7.0 (gap-analysis §3)
+                elif cvss != 8.1:
+                    # HIGH-003: exact value gate — DTU injects hardcoded cvss_base_score=8.1
+                    # per BC-2.06.020 PC-4 (cvss_base_score postcondition); runbook v1.10 §5.5.
+                    # The old `cvss < 7.0` gate was too loose — it would PASS any value >= 7.0.
                     results["[E3] ENRICH: cvss_base_score(device_cves_first) on armis_devices"] = (
-                        f"FAIL: cvss_base_score={cvss} < 7.0 — "
-                        f"scenario CVEs must score >= 7.0 (gap-analysis §3 data contract)"
+                        f"FAIL: cvss_base_score={cvss} != 8.1 — "
+                        f"DTU hardcodes 8.1 per BC-2.06.020 PC-4 (runbook v1.10 §5.5)"
                     )
                 else:
-                    results["[E3] ENRICH: cvss_base_score(device_cves_first) on armis_devices"] = f"PASS: {len(rows)} rows; cvss_base_score={cvss} (numeric, >= 7.0); cve_id={str(cve_id)[:30]!r}"
+                    results["[E3] ENRICH: cvss_base_score(device_cves_first) on armis_devices"] = (
+                        f"PASS: {len(rows)} rows; cvss_base_score={cvss} "
+                        f"(== 8.1, BC-2.06.020 PC-4 confirmed); cve_id={str(cve_id)[:30]!r}"
+                    )
             else:
                 # F-AUD-P2-HIGH-001: Stage 4 is terminal/absorbing; scenario devices
                 # have CVE data at Stage 4 → FAIL, not WARN.
@@ -2058,6 +2167,14 @@ def run_audit():
         # Template anchors verified against error.rs ColumnNotFoundDetails Display:
         #   invariant: "not found in table" (always present)
         #   near-miss:  "Did you mean:" (present when Levenshtein ≤ 3 match exists)
+        # COUPLING NOTE (OBS-006): 'detction_id' (Levenshtein=1 from 'detection_id') creates
+        # a tight coupling between this test and the crowdstrike_detections schema column name.
+        # If 'detection_id' is renamed in the sensor TOML, BOTH the typo string 'detction_id'
+        # above AND the sc_dym_f5 == "detection_id" assertion below must be updated together to
+        # maintain coverage. The coupling is intentional (POL-24 philosophy: deliberate schema
+        # changes must cause a conscious update to this audit). Canonical symbol source:
+        # `check_column_exists` + `ColumnNotFoundDetails.did_you_mean` in
+        # crates/prism-query/src/plan.rs (TD-VSDD-091: cite function name, not line numbers).
         body, err = query(proc,
             "SELECT device_id, detction_id FROM crowdstrike_detections LIMIT 5",
             ["org-c"])
@@ -2544,54 +2661,74 @@ def run_audit():
                     )
                 else:
                     rows2 = body2.get("rows", [])
-                    # NB-2 G7 filter verification: confirm the datetime filter actually
-                    # restricts results by running a far-future date that must return 0 rows.
-                    body_future, err_future = query(proc,
-                        "FROM crowdstrike_detections\n| where created_timestamp > '9999-12-31T23:59:59Z'\n| limit 3",
-                        ["org-c"])
-                    future_rows = body_future.get("rows", []) if not err_future and not body_future.get("error_code") else None
-                    filter_verified = future_rows is not None and len(future_rows) == 0
-                    if not filter_verified:
-                        future_note = (f"err={err_future}" if err_future
-                                       else f"ec={body_future.get('error_code')}" if body_future.get("error_code")
-                                       else f"returned {len(future_rows)} rows (expected 0)")
+                    # HIGH-001 / LOW-003: assert fallback returned >= 1 row before running
+                    # the far-future counter-check. Empty rows means the fallback column
+                    # also has no data or the temporal filter rejected all rows — FAIL.
+                    if not rows2:
                         results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
-                            f"FAIL: filter verification failed — future-date '9999-12-31T23:59:59Z' "
-                            f"did not return 0 rows ({future_note}); datetime filter may not be working"
+                            f"FAIL: 0 rows for fallback crowdstrike_detections.created_timestamp "
+                            f"> '2020-01-01T00:00:00Z' — data absent or datetime filter rejected "
+                            f"all rows (ADR-052 §D4 regression cannot be confirmed without data)"
                         )
                     else:
-                        results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
-                            f"PASS: claroty_audit_logs.timestamp absent; fallback "
-                            f"crowdstrike_detections.created_timestamp > '2020-01-01T00:00:00Z' returned "
-                            f"{len(rows2)} rows; filter verified (future-date '9999-12-31T23:59:59Z' → 0 rows) "
-                            f"— ADR-052 §D4 RFC-3339 coercion active"
-                        )
+                        # NB-2 G7 filter verification: confirm the datetime filter actually
+                        # restricts results by running a far-future date that must return 0 rows.
+                        body_future, err_future = query(proc,
+                            "FROM crowdstrike_detections\n| where created_timestamp > '9999-12-31T23:59:59Z'\n| limit 3",
+                            ["org-c"])
+                        future_rows = body_future.get("rows", []) if not err_future and not body_future.get("error_code") else None
+                        filter_verified = future_rows is not None and len(future_rows) == 0
+                        if not filter_verified:
+                            future_note = (f"err={err_future}" if err_future
+                                           else f"ec={body_future.get('error_code')}" if body_future.get("error_code")
+                                           else f"returned {len(future_rows)} rows (expected 0)")
+                            results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                                f"FAIL: filter verification failed — future-date '9999-12-31T23:59:59Z' "
+                                f"did not return 0 rows ({future_note}); datetime filter may not be working"
+                            )
+                        else:
+                            results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                                f"PASS: claroty_audit_logs.timestamp absent; fallback "
+                                f"crowdstrike_detections.created_timestamp > '2020-01-01T00:00:00Z' returned "
+                                f"{len(rows2)} rows; filter verified (future-date '9999-12-31T23:59:59Z' → 0 rows) "
+                                f"— ADR-052 §D4 RFC-3339 coercion active"
+                            )
             else:
                 results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
                     f"FAIL: {ec}: {msg[:100]!r}"
                 )
         else:
             rows = body.get("rows", [])
-            # NB-2 G7 filter verification: confirm the datetime filter actually restricts
-            # results by asserting a far-future date returns 0 rows.
-            body_future2, err_future2 = query(proc,
-                "FROM claroty_audit_logs\n| where timestamp > '9999-12-31T23:59:59Z'\n| limit 3",
-                ["org-c"])
-            future_rows2 = body_future2.get("rows", []) if not err_future2 and not body_future2.get("error_code") else None
-            filter_verified2 = future_rows2 is not None and len(future_rows2) == 0
-            if not filter_verified2:
-                future_note2 = (f"err={err_future2}" if err_future2
-                                else f"ec={body_future2.get('error_code')}" if body_future2.get("error_code")
-                                else f"returned {len(future_rows2)} rows (expected 0)")
+            # HIGH-001 / LOW-003: assert past-date filter returned >= 1 row before running
+            # the far-future counter-check. If rows is empty, the temporal filter is not
+            # working (or claroty_audit_logs has no data) — report immediately, FAIL.
+            if not rows:
                 results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
-                    f"FAIL: filter verification failed — future-date '9999-12-31T23:59:59Z' "
-                    f"did not return 0 rows ({future_note2}); datetime filter may not be working"
+                    "FAIL: 0 rows for past-date RFC-3339 filter "
+                    "'timestamp > 2020-01-01T00:00:00Z' — data absent or datetime filter "
+                    "rejected all rows (ADR-052 §D4 regression cannot be confirmed without data)"
                 )
             else:
-                results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
-                    f"PASS: {len(rows)} rows for past-date filter; future-date '9999-12-31T23:59:59Z' "
-                    f"→ 0 rows (filter verified) — RFC-3339 literal accepted (ADR-052 §D4; no regression)"
-                )
+                # NB-2 G7 filter verification: confirm the datetime filter actually restricts
+                # results by asserting a far-future date returns 0 rows.
+                body_future2, err_future2 = query(proc,
+                    "FROM claroty_audit_logs\n| where timestamp > '9999-12-31T23:59:59Z'\n| limit 3",
+                    ["org-c"])
+                future_rows2 = body_future2.get("rows", []) if not err_future2 and not body_future2.get("error_code") else None
+                filter_verified2 = future_rows2 is not None and len(future_rows2) == 0
+                if not filter_verified2:
+                    future_note2 = (f"err={err_future2}" if err_future2
+                                    else f"ec={body_future2.get('error_code')}" if body_future2.get("error_code")
+                                    else f"returned {len(future_rows2)} rows (expected 0)")
+                    results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                        f"FAIL: filter verification failed — future-date '9999-12-31T23:59:59Z' "
+                        f"did not return 0 rows ({future_note2}); datetime filter may not be working"
+                    )
+                else:
+                    results["[G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)"] = (
+                        f"PASS: {len(rows)} rows for past-date filter; future-date '9999-12-31T23:59:59Z' "
+                        f"→ 0 rows (filter verified) — RFC-3339 literal accepted (ADR-052 §D4; no regression)"
+                    )
 
         # ── G8: Typed enrichment output — threat_score is Int64 (ADR-051, PR #216) ─
         # Regression check: before PR #216 (S-DEMO-ENRICHMENT-TYPED-OUTPUT-001), the
@@ -2926,6 +3063,96 @@ def run_audit():
             else:
                 # F-AUD-P2-HIGH-002: PARTIAL misuse — any non-E-QUERY-042 error is FAIL.
                 results["[H5] E-QUERY-042: temporal literal in GROUP BY (ADR-052 §D4)"] = (
+                    f"FAIL: expected E-QUERY-042, got {ec or 'no error'}: {msg[:80]!r}"
+                )
+
+        # ── H5b: E-QUERY-042 ORDER BY arm — Literal::Timestamp in ORDER BY (ADR-052 §D4 arm 7) ─
+        # RFC-3339 literal '2026-07-01T00:00:00Z' parses as Literal::Timestamp in the SQL AST.
+        # The check_temporal_literals AST-walker detects it in ORDER BY position → arm 7 → E-QUERY-042.
+        # DEFECT-EQUERY042-GROUPBY-DEADARM-001 extended the walker to cover the OrderBy arm.
+        # POL-24 anchors from error.rs TemporalLiteralPosition::OrderBy::format_message():
+        #   "ORDER BY expects a column reference, not a literal constant."
+        #   "ordering by a constant has no effect"
+        body, err = query(proc,
+            "SELECT device_id FROM crowdstrike_detections ORDER BY '2026-07-01T00:00:00Z'",
+            ["org-c"])
+        if err:
+            results["[H5b] E-QUERY-042: Timestamp literal in ORDER BY arm (ADR-052 §D4)"] = f"FAIL: {err}"
+        else:
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            if ec == "E-QUERY-042":
+                anchor1 = "ORDER BY expects a column reference"
+                anchor2 = "ordering by a constant has no effect"
+                if anchor1 in msg and anchor2 in msg:
+                    results["[H5b] E-QUERY-042: Timestamp literal in ORDER BY arm (ADR-052 §D4)"] = (
+                        f"PASS: E-QUERY-042 — RFC-3339 literal in ORDER BY arm rejected "
+                        f"with canonical template (POL-24 anchors confirmed); "
+                        f"message={msg[:80]!r}"
+                    )
+                else:
+                    missing = []
+                    if anchor1 not in msg:
+                        missing.append(repr(anchor1))
+                    if anchor2 not in msg:
+                        missing.append(repr(anchor2))
+                    results["[H5b] E-QUERY-042: Timestamp literal in ORDER BY arm (ADR-052 §D4)"] = (
+                        f"FAIL: E-QUERY-042 received but message-template regression "
+                        f"(POL-24): missing anchor(s) {', '.join(missing)}; "
+                        f"message={msg[:120]!r}"
+                    )
+            elif body.get("rows") is not None and not ec:
+                results["[H5b] E-QUERY-042: Timestamp literal in ORDER BY arm (ADR-052 §D4)"] = (
+                    "FAIL: ORDER BY literal accepted (should be E-QUERY-042 OrderBy arm)"
+                )
+            else:
+                results["[H5b] E-QUERY-042: Timestamp literal in ORDER BY arm (ADR-052 §D4)"] = (
+                    f"FAIL: expected E-QUERY-042, got {ec or 'no error'}: {msg[:80]!r}"
+                )
+
+        # ── H5c: E-QUERY-042 NonColumnLhsComparison arm — function-call LHS (ADR-052 §D4 arm 4) ─
+        # Query: 'FROM crowdstrike_detections | where lower(hostname) = '2026-06-24''
+        # lower(hostname) is a non-Field LHS (function call); '2026-06-24' is a date-only
+        # RawTemporalLiteral. Arm 4: RawTemporalLiteral where LHS is a function/compound
+        # expression → E-QUERY-042 NonColumnLhsComparison.
+        # hostname is a String column in crowdstrike_detections (crowdstrike.sensor.toml).
+        # POL-24 anchors from error.rs TemporalLiteralPosition::NonColumnLhsComparison::format_message():
+        #   "A date-like literal compared against a computed expression cannot be"
+        #   "type-checked at plan time"
+        body, err = query(proc,
+            "FROM crowdstrike_detections\n| where lower(hostname) = '2026-06-24'\n| limit 5",
+            ["org-c"])
+        if err:
+            results["[H5c] E-QUERY-042: date-only literal vs function-call LHS (ADR-052 §D4)"] = f"FAIL: {err}"
+        else:
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            if ec == "E-QUERY-042":
+                anchor1 = "A date-like literal compared against a computed expression cannot be"
+                anchor2 = "type-checked at plan time"
+                if anchor1 in msg and anchor2 in msg:
+                    results["[H5c] E-QUERY-042: date-only literal vs function-call LHS (ADR-052 §D4)"] = (
+                        f"PASS: E-QUERY-042 — NonColumnLhsComparison arm rejected "
+                        f"with canonical template (POL-24 anchors confirmed); "
+                        f"message={msg[:100]!r}"
+                    )
+                else:
+                    missing = []
+                    if anchor1 not in msg:
+                        missing.append(repr(anchor1))
+                    if anchor2 not in msg:
+                        missing.append(repr(anchor2))
+                    results["[H5c] E-QUERY-042: date-only literal vs function-call LHS (ADR-052 §D4)"] = (
+                        f"FAIL: E-QUERY-042 received but message-template regression "
+                        f"(POL-24): missing anchor(s) {', '.join(missing)}; "
+                        f"message={msg[:120]!r}"
+                    )
+            elif body.get("rows") is not None and not ec:
+                results["[H5c] E-QUERY-042: date-only literal vs function-call LHS (ADR-052 §D4)"] = (
+                    "FAIL: date-only vs function-call LHS accepted (should be E-QUERY-042 NonColumnLhsComparison arm)"
+                )
+            else:
+                results["[H5c] E-QUERY-042: date-only literal vs function-call LHS (ADR-052 §D4)"] = (
                     f"FAIL: expected E-QUERY-042, got {ec or 'no error'}: {msg[:80]!r}"
                 )
 
@@ -3279,10 +3506,21 @@ def run_audit():
                 has_100 = "-100-" in all_vals
                 has_200 = "-200-" in all_vals
                 if has_100 and has_200 and not sensor_errors:
-                    results["[H12] Multi-client fan-out: org-a + org-c CrowdStrike"] = (
-                        f"PASS: {len(rows)} rows; both -100- (org-a) and -200- (org-c) seeds present; "
-                        f"sensor_errors=[]"
-                    )
+                    # LOW-001: assert len(rows) >= 25 — org-a has 5 detections (seed-100)
+                    # and org-c has 20 (seed-200); combined fan-out with limit 40 must
+                    # return all 25. Fewer rows means fan-out dropped data silently.
+                    if len(rows) < 25:
+                        results["[H12] Multi-client fan-out: org-a + org-c CrowdStrike"] = (
+                            f"FAIL: both seed segments present but only {len(rows)} rows "
+                            f"(expected >= 25: org-a=5 + org-c=20); "
+                            f"fan-out may have dropped rows silently (LOW-001)"
+                        )
+                    else:
+                        results["[H12] Multi-client fan-out: org-a + org-c CrowdStrike"] = (
+                            f"PASS: {len(rows)} rows (>= 25 confirmed); "
+                            f"both -100- (org-a) and -200- (org-c) seeds present; "
+                            f"sensor_errors=[]"
+                        )
                 elif has_100 and has_200 and sensor_errors:
                     # F-AUD-P1-MED-005: sensor_errors present alongside data — FAIL (not PASS).
                     # Partial results with sensor errors indicate a pipeline failure that must be
@@ -3472,13 +3710,36 @@ def run_audit():
             )
         else:
             t_sc = (res_sc.get("contents") or [{}])[0].get("text", "")
-            if "cyberint_alerts" in t_sc:
+            # MED-005: parse the prismql://schema/org-c response as JSON (delegates to
+            # handle_prism_describe → returns {"tables": [...], ...} per resources/schema.rs).
+            # Substring scan over raw text risks false positives from table descriptions.
+            # Parse → extract table name set → set-difference against required tables.
+            try:
+                _sc_body = json.loads(t_sc)
+                if not isinstance(_sc_body, dict):
+                    results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
+                        f"FAIL: expected JSON object from prismql://schema/org-c, "
+                        f"got {type(_sc_body).__name__}: {t_sc[:80]!r}"
+                    )
+                else:
+                    _sc_tables = {
+                        t.get("name", "") for t in _sc_body.get("tables", [])
+                        if isinstance(t, dict)
+                    }
+                    if "cyberint_alerts" in _sc_tables:
+                        results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
+                            f"PASS: prismql://schema/org-c JSON tables array includes "
+                            f"cyberint_alerts (total={len(_sc_tables)} tables)"
+                        )
+                    else:
+                        results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
+                            f"FAIL: cyberint_alerts absent from tables array; "
+                            f"tables={sorted(_sc_tables)!r}; body={t_sc[:100]!r}"
+                        )
+            except (json.JSONDecodeError, ValueError) as _h14s_err:
                 results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
-                    f"PASS: prismql://schema/org-c includes cyberint_alerts (len={len(t_sc)})"
-                )
-            else:
-                results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
-                    f"FAIL: cyberint_alerts absent from schema; body={t_sc[:100]!r}"
+                    f"FAIL: non-JSON response from prismql://schema/org-c: {_h14s_err}; "
+                    f"body={t_sc[:80]!r}"
                 )
 
         # ── H14c: resources/read — prism://schema/crowdstrike/detections ─────
@@ -3489,27 +3750,57 @@ def run_audit():
             results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = f"FAIL: {err_h14c}"
         else:
             t_h14c = (res_h14c.get("contents") or [{}])[0].get("text", "")
-            # F-AUD-P5-MED-002: render_schema_resource serializes SensorTableDescriptor
-            # (prism-spec-engine/src/types.rs) — output shape has "columns" as a JSON key
-            # and column names appear as {"name":"detection_id",...} values in the array.
-            # Dropped: the "detections" disjunct — error stubs echoing the URI would PASS.
-            # Required: structural key "columns" AND at least one known column name marker.
-            has_structure = '"columns"' in t_h14c
-            has_col = any(c in t_h14c for c in ('"detection_id"', '"device_id"', '"severity"'))
-            if has_structure and has_col:
-                results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = (
-                    f"PASS: schema resource returned; 'columns' structural key present and "
-                    f"detection column name confirmed (SensorTableDescriptor JSON shape; len={len(t_h14c)})"
-                )
-            elif t_h14c:
-                results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = (
-                    f"FAIL: schema body lacks structural evidence — "
-                    f"has_columns_key={has_structure}, has_col_name={has_col}; body={t_h14c[:100]!r}"
-                )
-            else:
-                results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = (
-                    "FAIL: empty schema body"
-                )
+            # OBS-005: parse the prism://schema/crowdstrike/detections response as JSON.
+            # render_schema_resource serializes SensorTableDescriptor from
+            # prism-spec-engine/src/types.rs → shape: {"columns": [{"name": "...", ...}, ...]}
+            # Dropped string-in checks: '"columns"' in raw text matches column descriptions,
+            # not just the structural key. JSON parse → structural walk is authoritative.
+            try:
+                _h14c_body = json.loads(t_h14c)
+                if not isinstance(_h14c_body, dict) or "columns" not in _h14c_body:
+                    _h14c_desc = (repr(list(_h14c_body.keys())[:6])
+                                  if isinstance(_h14c_body, dict)
+                                  else type(_h14c_body).__name__)
+                    results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = (
+                        f"FAIL: expected JSON object with 'columns' key from schema resource; "
+                        f"got keys={_h14c_desc}; "
+                        f"body={t_h14c[:80]!r}"
+                    )
+                else:
+                    _h14c_cols = _h14c_body.get("columns", [])
+                    if not isinstance(_h14c_cols, list) or not _h14c_cols:
+                        results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = (
+                            f"FAIL: 'columns' key present but empty or not a list — "
+                            f"crowdstrike/detections must have columns in SensorTableDescriptor; "
+                            f"columns={_h14c_cols!r}"
+                        )
+                    else:
+                        _h14c_col_names = {c.get("name", "") for c in _h14c_cols if isinstance(c, dict)}
+                        _known_cols = {"detection_id", "device_id", "severity"}
+                        _confirmed = _known_cols & _h14c_col_names
+                        if not _confirmed:
+                            results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = (
+                                f"FAIL: columns array present ({len(_h14c_col_names)} cols) but "
+                                f"none of {sorted(_known_cols)!r} confirmed — "
+                                f"schema column names do not match expected crowdstrike/detections schema; "
+                                f"sample_names={sorted(_h14c_col_names)[:5]!r}"
+                            )
+                        else:
+                            results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = (
+                                f"PASS: SensorTableDescriptor JSON shape confirmed; "
+                                f"columns array has {len(_h14c_col_names)} entries; "
+                                f"confirmed known column(s)={sorted(_confirmed)!r}"
+                            )
+            except (json.JSONDecodeError, ValueError) as _h14c_err:
+                if t_h14c:
+                    results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = (
+                        f"FAIL: non-JSON response from schema resource (OBS-005): {_h14c_err}; "
+                        f"body={t_h14c[:80]!r}"
+                    )
+                else:
+                    results["[H14c] resources/read: prism://schema/crowdstrike/detections"] = (
+                        "FAIL: empty schema body"
+                    )
 
         # ── H14d: resources/read — prism://config/clients/org-c/sensors ──────
         # F-AUD-P2-MED-006: extend resource coverage to per-client sensor list URI.
@@ -3519,26 +3810,47 @@ def run_audit():
             results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = f"FAIL: {err_h14d}"
         else:
             t_h14d = (res_h14d.get("contents") or [{}])[0].get("text", "")
-            # F-AUD-P5-MED-001: org-c is the four-sensor reference client (runbook §1.3).
-            # assert ALL FOUR sensors present; mirror A22's set-difference discipline.
-            # any([...]) is too weak — a single sensor present would PASS the old check.
+            # MED-006: parse prism://config/clients/org-c/sensors as JSON array of
+            # SensorConfigEntry objects (resources.rs render_client_sensors_resource →
+            # JSON array with field "sensor_type" per SensorConfigEntry in resources.rs).
+            # Dropped: `if s in t_h14d` substring scan — too weak (matches sensor names
+            # embedded in unrelated fields). Parse → extract sensor_type set → set-difference.
             _required_sensors = {"crowdstrike", "armis", "claroty", "cyberint"}
-            _present = {s for s in _required_sensors if s in t_h14d}
-            _missing = _required_sensors - _present
-            if not _missing:
-                results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = (
-                    f"PASS: all 4 sensors present (crowdstrike, armis, claroty, cyberint); "
-                    f"org-c four-sensor reference client confirmed (runbook §1.3, len={len(t_h14d)})"
-                )
-            elif t_h14d:
-                results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = (
-                    f"FAIL: missing sensors for org-c: {sorted(_missing)!r}; "
-                    f"present={sorted(_present)!r}; body={t_h14d[:100]!r}"
-                )
-            else:
-                results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = (
-                    "FAIL: empty body for per-client sensors resource"
-                )
+            try:
+                _h14d_arr = json.loads(t_h14d)
+                if not isinstance(_h14d_arr, list):
+                    results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = (
+                        f"FAIL: expected JSON array from per-client sensors resource, "
+                        f"got {type(_h14d_arr).__name__}: {t_h14d[:80]!r}"
+                    )
+                else:
+                    _present_sensors = {
+                        e.get("sensor_type", "") for e in _h14d_arr
+                        if isinstance(e, dict) and e.get("sensor_type")
+                    }
+                    _missing_sensors = _required_sensors - _present_sensors
+                    if not _missing_sensors:
+                        results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = (
+                            f"PASS: all 4 sensor_type values confirmed via JSON parse: "
+                            f"{sorted(_present_sensors)!r}; "
+                            f"org-c four-sensor reference client confirmed (runbook §1.3)"
+                        )
+                    else:
+                        results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = (
+                            f"FAIL: missing sensor_type values for org-c: {sorted(_missing_sensors)!r}; "
+                            f"present={sorted(_present_sensors)!r}; "
+                            f"(MED-006: JSON parse of SensorConfigEntry sensor_type field)"
+                        )
+            except (json.JSONDecodeError, ValueError) as _h14d_err:
+                if t_h14d:
+                    results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = (
+                        f"FAIL: non-JSON response from per-client sensors resource (MED-006): "
+                        f"{_h14d_err}; body={t_h14d[:80]!r}"
+                    )
+                else:
+                    results["[H14d] resources/read: prism://config/clients/org-c/sensors"] = (
+                        "FAIL: empty body for per-client sensors resource"
+                    )
 
         # ── H14e: resources/subscribe + unsubscribe — prismql://schema/org-c ─
         # F-AUD-P2-MED-008: resources/subscribe supported via enable_resources_subscribe()
@@ -3571,6 +3883,11 @@ def run_audit():
         # ── H15: live explain_query call (one of 14 implemented tools) ───────
         # LOW-003: this check does NOT re-assert the 14-tool set from A2. It verifies
         # explain_query executes correctly and returns a parseable plan.
+        # MED-001: parsed_mode is produced by `query_mode_str()` in
+        # crates/prism-query/src/explain.rs — canonical values are "filter" | "sql" | "pipe"
+        # (TD-VSDD-091: cite function name, not line number; function name is stable
+        # across refactors while line numbers drift). "FROM ... | limit N" is pipe-mode;
+        # assert parsed_mode == "pipe" exactly to detect mode-detection regressions.
         body, err = tool_call(proc, "explain_query",
                               {"query": "FROM crowdstrike_detections | limit 5",
                                "clients": ["org-c"]}, timeout=15.0)
@@ -3632,8 +3949,9 @@ def run_audit():
         #   intentional: deliberate parser hardening must cause a conscious update to
         #   this audit (same philosophy as POL-24 anchor checks).
         #   Orchestrator adjudication: strict layer coupling retained (LOCAL pass-14,
-        #   reaffirmed pass-16). Rust unit-test status: sanitize_for_log has unit test
-        #   coverage in crates/prism-core/src/error.rs
+        #   reaffirmed pass-16; D-1694 adjudication record in STATE.md decision log).
+        #   Rust unit-test status: sanitize_for_log has unit test coverage in
+        #   crates/prism-core/src/error.rs
         #   (test_sanitize_for_log_strips_unicode_cc_and_line_separators).
         ctrl_col = "badcolumn\x01"
         h16_query = f'SELECT "{ctrl_col}" FROM crowdstrike_detections LIMIT 3'
@@ -4167,7 +4485,12 @@ def run_audit():
                 # find() ambiguous (it returns the FIRST occurrence, so all content between
                 # the first and second headings would be included in "live" text — silent
                 # false-negative for checks between them).
-                if _runbook_text_full.count(_changelog_heading) > 1:
+                # OBS-003: use regex '^## Changelog\s*$' (MULTILINE) to count genuine
+                # section-level headings. The plain str.count() matched "## Changelog" as
+                # a substring, so "## Changelog here" in a table cell or inline text would
+                # produce a false positive, triggering the ambiguity guard incorrectly.
+                # Only line-start ## Changelog (with optional trailing whitespace) is a heading.
+                if len(re.findall(r'^## Changelog\s*$', _runbook_text_full, re.MULTILINE)) > 1:
                     results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
                         f"FAIL: multiple '## Changelog' headings in runbook — H23 truncation "
                         f"ambiguous; update the check (find() returns first occurrence, "
@@ -4229,6 +4552,56 @@ def run_audit():
             except OSError as _rb_err:
                 results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
                     f"FAIL: cannot read runbook at {str(_rb_path)!r}: {_rb_err}"
+                )
+
+        # ── H24: E-QUERY-043 — IN subquery in projection position ─────────────
+        # F-CSD-P4-001 Option A adjudication (2026-07-10): DataFusion 53.1.0 physical planner
+        # cannot execute `Expr::InSubquery` in scalar position (SELECT/GROUP BY/ORDER BY).
+        # `check_expr_insubquery_projection` in materialization.rs fires a plan-time gate
+        # (E-QUERY-043) before DataFusion planning.  WHERE/HAVING IN-subquery is unaffected.
+        # POL-24 anchors from error.rs ExprInSubqueryProjectionNotSupported #[error]:
+        #   "IN subquery in projection position is not supported"    ← from #[error] prefix
+        # + materialization.rs hint:
+        #   "Use a WHERE clause subquery instead"
+        body, err = query(proc,
+            "SELECT device_id IN (SELECT device_id FROM armis_devices) "
+            "FROM crowdstrike_detections LIMIT 1",
+            ["org-c"])
+        if err:
+            results["[H24] E-QUERY-043: IN subquery in projection position rejected"] = (
+                f"FAIL: {err}"
+            )
+        else:
+            ec = body.get("error_code", "")
+            msg = body.get("message", "")
+            if ec == "E-QUERY-043":
+                anchor1 = "IN subquery in projection position is not supported"
+                anchor2 = "Use a WHERE clause subquery instead"
+                if anchor1 in msg and anchor2 in msg:
+                    results["[H24] E-QUERY-043: IN subquery in projection position rejected"] = (
+                        f"PASS: E-QUERY-043 — IN-subquery in projection rejected "
+                        f"with canonical template (POL-24 anchors confirmed); "
+                        f"message={msg[:100]!r}"
+                    )
+                else:
+                    missing = []
+                    if anchor1 not in msg:
+                        missing.append(repr(anchor1))
+                    if anchor2 not in msg:
+                        missing.append(repr(anchor2))
+                    results["[H24] E-QUERY-043: IN subquery in projection position rejected"] = (
+                        f"FAIL: E-QUERY-043 received but message-template regression "
+                        f"(POL-24): missing anchor(s) {', '.join(missing)}; "
+                        f"message={msg[:120]!r}"
+                    )
+            elif body.get("rows") is not None and not ec:
+                results["[H24] E-QUERY-043: IN subquery in projection position rejected"] = (
+                    f"FAIL: IN-subquery in projection accepted ({len(body.get('rows', []))} rows) — "
+                    f"E-QUERY-043 plan-time gate not firing (F-CSD-P4-001)"
+                )
+            else:
+                results["[H24] E-QUERY-043: IN subquery in projection position rejected"] = (
+                    f"FAIL: expected E-QUERY-043, got {ec or 'no error'}: {msg[:80]!r}"
                 )
 
     finally:
@@ -4317,7 +4690,7 @@ COVERAGE_MATRIX = [
     # Section G: New merged surfaces — PRs #214/#216/#217 (develop@f935edb6)
     ("[G1]",  "IEQ/IIN/INE",   "IEQ happy path: severity IEQ 'critical' matches canonical 'Critical'"),
     ("[G2]",  "IEQ/IIN/INE",   "IIN multi-value: severity IIN ('high','critical')"),
-    ("[G3]",  "IEQ/IIN/INE",   "IIN on status: status IIN ('new','in progress') → crowdstrike_detections (IIN lowers both sides; cyberint 'open'/'closed' DO match IIN but 'new'/'in progress' do not; ADV-PR-P11-HIGH-001)"),
+    ("[G3]",  "IEQ/IIN/INE",   "IIN on status: status IIN ('new','in progress') → crowdstrike_detections OCSF-normalization variant (IIN lowers both sides; crowdstrike uses OCSF Title-case 'New'/'In Progress' stored via enum_map.rs OCSF normalization; cyberint 'open'/'closed' are vendor-native pass-through — separate probe G3b; ADV-PR-P11-HIGH-001; LOW-004)"),
     ("[G3b]", "IEQ/IIN/INE",   "Runbook Step 3.1a literal: cyberint status IIN ('open','closed') — rows>0 all status in {open,closed} (vendor-native pass-through + IIN lowercase confirmed)"),
     ("[G4]",  "IEQ/IIN/INE",   "SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary"),
     # G5 RETIRED (pass-9, per gap-analysis mandate): duplicate of H6 verbatim. ID not reused.
@@ -4331,6 +4704,8 @@ COVERAGE_MATRIX = [
     ("[H3]",  "PR#219",        "INE operator: severity INE 'medium' excludes Medium rows"),
     ("[H4]",  "Temporal",      "E-QUERY-041: date-only literal '2020-01-01' rejected (ADR-052 §D4)"),
     ("[H5]",  "Temporal",      "E-QUERY-042: temporal literal in GROUP BY arm rejected (ADR-052 §D4)"),
+    ("[H5b]", "Temporal",      "E-QUERY-042: Timestamp literal in ORDER BY arm rejected (ADR-052 §D4 arm 7; DEFECT-EQUERY042-GROUPBY-DEADARM-001 extension)"),
+    ("[H5c]", "Temporal",      "E-QUERY-042: date-only literal vs function-call LHS (NonColumnLhsComparison arm 4; lower(hostname) = '2026-06-24'; ADR-052 §D4)"),
     ("[H6]",  "IEQ/IIN/INE",   "E-QUERY-002: IEQ on armis_devices.risk_score (integer column, canonical probe)"),
     ("[H7]",  "JOIN",          "JOIN positive path: crowdstrike_devices JOIN armis_devices on device_id"),
     ("[H8]",  "JOIN",          "HEAD-JOIN fail-open: bare unknown col in JOIN → not E-QUERY-038 (FP-001)"),
@@ -4358,12 +4733,14 @@ COVERAGE_MATRIX = [
     ("[H22]", "BC-2.11.018",   "normalized_pql present on success response"),
     # H23: F-AUD-P10-MED-003 + HIGH-001 runbook-side (static text check, no MCP call)
     ("[H23]", "Guardrails",    "Runbook enrich-call drift: no pre-ADR-051 threat_score(iocs_value) forms; threat_score(iocs_value_first) >= 1"),
+    # H24: MED-007 — E-QUERY-043 IN-subquery in projection position (F-CSD-P4-001, 2026-07-10)
+    ("[H24]", "Guardrails",    "E-QUERY-043: IN subquery in projection position rejected (check_expr_insubquery_projection; F-CSD-P4-001)"),
 ]
 
 # F-AUD-P14-OBS-006: coverage floor — must match len(COVERAGE_MATRIX) or higher.
 # Bump this constant when adding checks; never lower without adjudication.
-# Current authoritative count: 103 (as of fix/T13-audit-coverage Section-H extension).
-MIN_COVERAGE_ITEMS = 103
+# Current authoritative count: 106 (as of B-hardening pass-21 fix-burst: +H5b, +H5c, +H24).
+MIN_COVERAGE_ITEMS = 106
 
 
 if __name__ == "__main__":
