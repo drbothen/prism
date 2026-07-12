@@ -674,10 +674,23 @@ def run_audit():
             results["[A13] N1-B: unknown enrich UDF -> E-QUERY-039"] = f"FAIL: {err}"
         else:
             error_code = body.get("error_code", "")
-            if error_code == "E-QUERY-039" or ("E-QUERY-039" in body.get("message", "")):
-                results["[A13] N1-B: unknown enrich UDF -> E-QUERY-039"] = f"PASS: E-QUERY-039 — {body.get('message','')[:80]}"
+            msg = body.get("message", "")
+            if error_code == "E-QUERY-039" or ("E-QUERY-039" in msg):
+                # F-AUD-P7-LOW-004 (POL-24): same anchor as F4 — E-QUERY-039 Display.
+                has_anchor = "is not registered; available: [" in msg
+                if has_anchor:
+                    results["[A13] N1-B: unknown enrich UDF -> E-QUERY-039"] = (
+                        f"PASS: E-QUERY-039 + anchor 'is not registered; available: [' confirmed; "
+                        f"message={msg[:80]!r}"
+                    )
+                else:
+                    results["[A13] N1-B: unknown enrich UDF -> E-QUERY-039"] = (
+                        f"FAIL: E-QUERY-039 but message-template anchor "
+                        f"'is not registered; available: [' absent — "
+                        f"message-template regression (POL-24); message={msg[:80]!r}"
+                    )
             else:
-                results["[A13] N1-B: unknown enrich UDF -> E-QUERY-039"] = f"FAIL: got {error_code or 'no error'}: {body.get('message','')[:80]}"
+                results["[A13] N1-B: unknown enrich UDF -> E-QUERY-039"] = f"FAIL: got {error_code or 'no error'}: {msg[:80]}"
 
         # ── A14: DataFusion builtin NOT E-QUERY-039 (COUNT) ─────────────────
         # NOTE (F-AUD-P1-OBS-001): also appears as C4 and F6 — intentional cross-section
@@ -701,12 +714,24 @@ def run_audit():
             results["[A15] N2: dot-notation FROM -> E-QUERY-037"] = f"FAIL: {err}"
         else:
             error_code = body.get("error_code", "")
+            msg = body.get("message", "")
             if error_code == "E-QUERY-037":
-                results["[A15] N2: dot-notation FROM -> E-QUERY-037"] = "PASS: E-QUERY-037"
+                # F-AUD-P7-LOW-004 (POL-24): same anchor as F3 — E-QUERY-037 Display.
+                has_anchor = "Available tables:" in msg
+                if has_anchor:
+                    results["[A15] N2: dot-notation FROM -> E-QUERY-037"] = (
+                        f"PASS: E-QUERY-037 + anchor 'Available tables:' confirmed; "
+                        f"message={msg[:80]!r}"
+                    )
+                else:
+                    results["[A15] N2: dot-notation FROM -> E-QUERY-037"] = (
+                        f"FAIL: E-QUERY-037 but message-template anchor 'Available tables:' "
+                        f"absent — message-template regression (POL-24); message={msg[:80]!r}"
+                    )
             elif not error_code and body.get("rows") is not None:
                 results["[A15] N2: dot-notation FROM -> E-QUERY-037"] = "FAIL: returned rows silently (no error)"
             else:
-                results["[A15] N2: dot-notation FROM -> E-QUERY-037"] = f"FAIL: got {error_code or 'no error'}: {body.get('message','')[:80]}"
+                results["[A15] N2: dot-notation FROM -> E-QUERY-037"] = f"FAIL: got {error_code or 'no error'}: {msg[:80]}"
 
         # ── A16: AUDIT-004: triage_alerts prompt uses FROM-ready names ────────
         t0 = time.time()
@@ -1497,13 +1522,27 @@ def run_audit():
             results["[F1] E-QUERY-032: cyberint for org-a errors"] = f"FAIL: {err}"
         else:
             error_code = body.get("error_code", "")
+            msg = body.get("message", "")
             if error_code == "E-QUERY-032":
-                results["[F1] E-QUERY-032: cyberint for org-a errors"] = f"PASS: E-QUERY-032 — {body.get('message','')[:60]}"
+                # F-AUD-P7-LOW-004 (POL-24): verify message-template anchor from
+                # error-taxonomy.md §E-QUERY-032 / PrismError::SensorNotRegistered Display:
+                # "E-QUERY-032: Sensor '{sensor_id}' is not registered for org '{org_slug}'"
+                has_anchor = "is not registered for org" in msg
+                if has_anchor:
+                    results["[F1] E-QUERY-032: cyberint for org-a errors"] = (
+                        f"PASS: E-QUERY-032 + anchor 'is not registered for org' confirmed; "
+                        f"message={msg[:60]!r}"
+                    )
+                else:
+                    results["[F1] E-QUERY-032: cyberint for org-a errors"] = (
+                        f"FAIL: E-QUERY-032 but message-template anchor 'is not registered for org' "
+                        f"absent — message-template regression (POL-24); message={msg[:80]!r}"
+                    )
             elif not error_code:
                 rows = body.get("rows", [])
                 results["[F1] E-QUERY-032: cyberint for org-a errors"] = f"FAIL: returned {len(rows)} rows (should error — org-a has no cyberint)"
             else:
-                results["[F1] E-QUERY-032: cyberint for org-a errors"] = f"FAIL: expected E-QUERY-032, got {error_code}: {body.get('message','')[:80]}"
+                results["[F1] E-QUERY-032: cyberint for org-a errors"] = f"FAIL: expected E-QUERY-032, got {error_code}: {msg[:80]}"
 
         # ── F2: E-QUERY-032: armis for org-b (no sensor) ─────────────────────
         # F-AUD-P1-MED-003: runbook v1.8 §5.8 N3 correction — E-QUERY-032 only.
@@ -1514,13 +1553,25 @@ def run_audit():
             results["[F2] E-QUERY-032: armis for org-b (no sensor)"] = f"FAIL: {err}"
         else:
             error_code = body.get("error_code", "")
+            msg = body.get("message", "")
             if error_code == "E-QUERY-032":
-                results["[F2] E-QUERY-032: armis for org-b (no sensor)"] = f"PASS: E-QUERY-032 — {body.get('message','')[:60]}"
+                # F-AUD-P7-LOW-004 (POL-24): same anchor as F1 — E-QUERY-032 Display.
+                has_anchor = "is not registered for org" in msg
+                if has_anchor:
+                    results["[F2] E-QUERY-032: armis for org-b (no sensor)"] = (
+                        f"PASS: E-QUERY-032 + anchor 'is not registered for org' confirmed; "
+                        f"message={msg[:60]!r}"
+                    )
+                else:
+                    results["[F2] E-QUERY-032: armis for org-b (no sensor)"] = (
+                        f"FAIL: E-QUERY-032 but message-template anchor 'is not registered for org' "
+                        f"absent — message-template regression (POL-24); message={msg[:80]!r}"
+                    )
             elif not error_code:
                 rows = body.get("rows", [])
                 results["[F2] E-QUERY-032: armis for org-b (no sensor)"] = f"FAIL: returned {len(rows)} rows (should error — org-b has no armis)"
             else:
-                results["[F2] E-QUERY-032: armis for org-b (no sensor)"] = f"FAIL: expected E-QUERY-032, got {error_code}: {body.get('message','')[:80]}"
+                results["[F2] E-QUERY-032: armis for org-b (no sensor)"] = f"FAIL: expected E-QUERY-032, got {error_code}: {msg[:80]}"
 
         # ── F3: N2: E-QUERY-037 dot-notation FROM ────────────────────────────
         body, err = query(proc, "FROM crowdstrike.detections | limit 3", ["org-c"])
@@ -1528,12 +1579,26 @@ def run_audit():
             results["[F3] N2: dot-notation FROM -> E-QUERY-037"] = f"FAIL: {err}"
         else:
             error_code = body.get("error_code", "")
+            msg = body.get("message", "")
             if error_code == "E-QUERY-037":
-                results["[F3] N2: dot-notation FROM -> E-QUERY-037"] = "PASS: E-QUERY-037"
+                # F-AUD-P7-LOW-004 (POL-24): verify message-template anchor from
+                # error-taxonomy.md §E-QUERY-037 / TableNotAvailableDetails Display:
+                # "E-QUERY-037: table '...' is not available ... Available tables: [...]."
+                has_anchor = "Available tables:" in msg
+                if has_anchor:
+                    results["[F3] N2: dot-notation FROM -> E-QUERY-037"] = (
+                        f"PASS: E-QUERY-037 + anchor 'Available tables:' confirmed; "
+                        f"message={msg[:80]!r}"
+                    )
+                else:
+                    results["[F3] N2: dot-notation FROM -> E-QUERY-037"] = (
+                        f"FAIL: E-QUERY-037 but message-template anchor 'Available tables:' "
+                        f"absent — message-template regression (POL-24); message={msg[:80]!r}"
+                    )
             elif not error_code and body.get("rows") is not None:
                 results["[F3] N2: dot-notation FROM -> E-QUERY-037"] = "FAIL: returned rows silently (no error)"
             else:
-                results["[F3] N2: dot-notation FROM -> E-QUERY-037"] = f"FAIL: got {error_code or 'no error'}: {body.get('message','')[:80]}"
+                results["[F3] N2: dot-notation FROM -> E-QUERY-037"] = f"FAIL: got {error_code or 'no error'}: {msg[:80]}"
 
         # ── F4: N1-B: E-QUERY-039 unknown enrich UDF ─────────────────────────
         body, err = query(proc, "FROM armis_devices | enrich nonexistent_udf(device_id) | limit 3", ["org-c"])
@@ -1541,17 +1606,38 @@ def run_audit():
             results["[F4] N1-B: unknown enrich UDF -> E-QUERY-039"] = f"FAIL: {err}"
         else:
             error_code = body.get("error_code", "")
-            if error_code == "E-QUERY-039" or ("E-QUERY-039" in body.get("message", "")):
-                results["[F4] N1-B: unknown enrich UDF -> E-QUERY-039"] = f"PASS: E-QUERY-039 — {body.get('message','')[:80]}"
+            msg = body.get("message", "")
+            if error_code == "E-QUERY-039" or ("E-QUERY-039" in msg):
+                # F-AUD-P7-LOW-004 (POL-24): verify message-template anchor from
+                # error-taxonomy.md §E-QUERY-039 / EnrichUdfNotFoundDetails Display:
+                # "E-QUERY-039: enrichment infusion '...' is not registered; available: [...]"
+                has_anchor = "is not registered; available: [" in msg
+                if has_anchor:
+                    results["[F4] N1-B: unknown enrich UDF -> E-QUERY-039"] = (
+                        f"PASS: E-QUERY-039 + anchor 'is not registered; available: [' confirmed; "
+                        f"message={msg[:80]!r}"
+                    )
+                else:
+                    results["[F4] N1-B: unknown enrich UDF -> E-QUERY-039"] = (
+                        f"FAIL: E-QUERY-039 but message-template anchor "
+                        f"'is not registered; available: [' absent — "
+                        f"message-template regression (POL-24); message={msg[:80]!r}"
+                    )
             else:
-                results["[F4] N1-B: unknown enrich UDF -> E-QUERY-039"] = f"FAIL: got {error_code or 'no error'}: {body.get('message','')[:80]}"
+                results["[F4] N1-B: unknown enrich UDF -> E-QUERY-039"] = f"FAIL: got {error_code or 'no error'}: {msg[:80]}"
 
-        # ── F5: E-QUERY-038 unknown column (001-B BLOCKER) ───────────────────
+        # ── F5: E-QUERY-038 unknown column + Did you mean anchor (001-B BLOCKER) ──
         # F-AUD-P1-MED-008: F5's designated regression class is PR #219's E-QUERY-038 gate.
         # The former alt-error branch (`error_code and "column" in msg.lower()`) accepted
         # any error code mentioning "column" — removed. Only E-QUERY-038 PASSes here.
+        # F-AUD-P7-LOW-004: use a near-miss column 'detction_id' (Levenshtein=1 from
+        # 'detection_id') so the "Did you mean:" anchor from ColumnNotFoundDetails Display
+        # is exercised directly in F5 (H2 sibling covers the structuredContent.error fields).
+        # Template anchors verified against error.rs ColumnNotFoundDetails Display:
+        #   invariant: "not found in table" (always present)
+        #   near-miss:  "Did you mean:" (present when Levenshtein ≤ 3 match exists)
         body, err = query(proc,
-            "SELECT device_id, nonexistent_column_xyz FROM crowdstrike_detections LIMIT 5",
+            "SELECT device_id, detction_id FROM crowdstrike_detections LIMIT 5",
             ["org-c"])
         if err:
             results["[F5] E-QUERY-038: unknown column returns plan-time error"] = f"FAIL: {err}"
@@ -1559,7 +1645,26 @@ def run_audit():
             error_code = body.get("error_code", "")
             msg = body.get("message", "")
             if error_code == "E-QUERY-038":
-                results["[F5] E-QUERY-038: unknown column returns plan-time error"] = f"PASS: E-QUERY-038 — {msg[:80]}"
+                # F-AUD-P7-LOW-004 (POL-24): require both invariant anchor and
+                # "Did you mean:" anchor (near-miss column guarantees the suggestion).
+                has_invariant = "not found in table" in msg
+                has_dym = "Did you mean:" in msg
+                if has_invariant and has_dym:
+                    results["[F5] E-QUERY-038: unknown column returns plan-time error"] = (
+                        f"PASS: E-QUERY-038 + anchors 'not found in table' and "
+                        f"'Did you mean:' confirmed (POL-24); message={msg[:80]!r}"
+                    )
+                elif not has_invariant:
+                    results["[F5] E-QUERY-038: unknown column returns plan-time error"] = (
+                        f"FAIL: E-QUERY-038 but invariant anchor 'not found in table' "
+                        f"absent — message-template regression (POL-24); message={msg[:80]!r}"
+                    )
+                else:
+                    results["[F5] E-QUERY-038: unknown column returns plan-time error"] = (
+                        f"FAIL: E-QUERY-038 + invariant anchor present but 'Did you mean:' "
+                        f"absent for near-miss column 'detction_id' — "
+                        f"message-template regression (POL-24); message={msg[:80]!r}"
+                    )
             elif not error_code:
                 rows = body.get("rows", [])
                 results["[F5] E-QUERY-038: unknown column returns plan-time error"] = f"FAIL: query succeeded with unknown column (returned {len(rows)} rows without error)"
@@ -2499,14 +2604,31 @@ def run_audit():
                 severities_found = {r.get("severity", "") for r in rows}
                 expected = {"Critical", "Medium"}
                 if expected == severities_found:
+                    # F-AUD-P7-MED-001 + LOW-003 + LOW-007: require EXACT bucket match AND
+                    # exact seed-200 DTU counts (Critical=5, Medium=15). The old
+                    # issubset-fallback PASS branch is removed — extra buckets FAIL.
                     cnts = {r.get("severity"): r.get("cnt") for r in rows}
-                    results["[H11] stats grammar: count() as cnt by severity"] = (
-                        f"PASS: {len(rows)} buckets; Critical={cnts.get('Critical')}, "
-                        f"Medium={cnts.get('Medium')} (seed-200 counts confirmed)"
-                    )
+                    crit_cnt = cnts.get("Critical")
+                    med_cnt = cnts.get("Medium")
+                    if crit_cnt == 5 and med_cnt == 15:
+                        results["[H11] stats grammar: count() as cnt by severity"] = (
+                            f"PASS: exactly 2 severity buckets; Critical={crit_cnt}, "
+                            f"Medium={med_cnt} (seed-200 counts confirmed)"
+                        )
+                    else:
+                        results["[H11] stats grammar: count() as cnt by severity"] = (
+                            f"FAIL: seed-200 count contract violated — "
+                            f"expected Critical=5 Medium=15, "
+                            f"got Critical={crit_cnt} Medium={med_cnt}"
+                        )
                 elif expected.issubset(severities_found):
+                    # Extra buckets beyond {Critical, Medium} — seed-200 DTU contract guarantees
+                    # EXACTLY these two buckets. Any additional bucket is a FAIL.
+                    extra = sorted(severities_found - expected)
                     results["[H11] stats grammar: count() as cnt by severity"] = (
-                        f"PASS: {len(rows)} buckets include Critical+Medium; all={sorted(severities_found)!r}"
+                        f"FAIL: extra severity buckets beyond seed-200 contract "
+                        f"{{'Critical', 'Medium'}} — extra={extra!r}; "
+                        f"got={sorted(severities_found)!r}"
                     )
                 else:
                     # PARTIAL sweep: Critical and/or Medium buckets absent — seed-200 guarantees both.
@@ -2637,19 +2759,30 @@ def run_audit():
                         f"FAIL: non-dict JSON: {t_sh[:80]!r}"
                     )
                 elif sh_obj.get("status") == "unknown":
-                    # Empty cache: distinguish between two precondition states.
-                    # a22_executed=True → A22 ran but cache is still empty → health-cache write regression.
-                    # a22_executed=False → A22 was not invoked before H14b → precondition violation.
-                    if a22_executed:
+                    # Empty cache: distinguish between three precondition states.
+                    # F-AUD-P7-LOW-006: condition the regression wording on A22's RESULT
+                    # (not just whether it was executed). If A22 itself FAILed, the empty
+                    # cache is A22's fault — "investigate A22 first" is more actionable.
+                    _a22_key = "[A22] check_sensor_health (S-5.04 gate)"
+                    _a22_result = results.get(_a22_key, "")
+                    if not a22_executed or _a22_key not in results:
                         results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
-                            f"FAIL: cache empty despite A22 having run — "
+                            f"FAIL: precondition violation — A22 (check_sensor_health) not executed before H14b; "
+                            f"run A22 first to populate the health cache; "
+                            f"message={sh_obj.get('message','')!r}"
+                        )
+                    elif _a22_result.startswith("PASS"):
+                        # A22 passed but cache still empty → health-cache write regression.
+                        results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                            f"FAIL: cache empty despite A22 having run and PASSED — "
                             f"health-cache write regression (check_sensor_health did not populate cache); "
                             f"message={sh_obj.get('message','')!r}"
                         )
                     else:
+                        # A22 ran but FAILed → cache is empty because A22 failed; diagnose A22 first.
                         results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
-                            f"FAIL: precondition violation — A22 (check_sensor_health) not executed before H14b; "
-                            f"run A22 first to populate the health cache; "
+                            f"FAIL: cache empty; A22 also failed — investigate A22 first; "
+                            f"A22 result={_a22_result[:80]!r}; "
                             f"message={sh_obj.get('message','')!r}"
                         )
                 elif "clients" in sh_obj and isinstance(sh_obj["clients"], dict) and "stale" in sh_obj:
@@ -2862,9 +2995,22 @@ def run_audit():
                         f"preview={raw_text[:60]!r}"
                     )
 
-        # ── H16b: CWE-116/117 — control-char in unquoted WHERE predicate ────────
-        # F-AUD-P2-LOW-001: complement H16 (quoted column name) with an unquoted
-        # WHERE predicate probe to cover CWE-117 log injection via value position.
+        # ── H16b: CWE-116/117 — control-char in WHERE-predicate value (smoke-only) ──
+        # F-AUD-P2-LOW-001: complement H16 (quoted column name) with a WHERE predicate
+        # probe using a control-char value.
+        # F-AUD-P7-LOW-001: SMOKE-ONLY relabel — forced echo through sanitize_for_log cannot
+        # be achieved via a read-only query.  The echo path requires the control-char value
+        # to be echoed back in an error message (e.g., via E-QUERY-038 ColumnNotFoundDetails
+        # whose column field is sanitized at construction).  The pipe-parser ident_char
+        # definition (c.is_ascii_alphanumeric() || c == '_') rejects Cc chars before any
+        # column lookup occurs, so an unquoted identifier containing \x01 produces a parse
+        # error — not a ColumnNotFound echo.  Using the \x01 as a value (quoted) against an
+        # unrecognized severity string returns 0 rows rather than an error, yielding an
+        # empty envelope where no control char can leak.  Positive coverage of sanitize_for_log
+        # on the echo path is provided by H2 (sevrity typo → "Did you mean:" anchor) + H1b
+        # (filter-mode column probe); H16b remains as a negative-leak smoke check only.
+        # PASS here means: no control char leaked in the response to a WHERE-predicate
+        # containing \x01 in the value position (neither echo nor passthrough observed).
         ctrl_val = "critical\x01injected"
         h16b_query = f"FROM crowdstrike_detections\n| where severity = '{ctrl_val}'\n| limit 3"
         rid_h16b = next_id()
@@ -2873,28 +3019,29 @@ def run_audit():
                                    "arguments": {"query": h16b_query, "clients": ["org-c"]}}})
         resp_h16b, err_h16b = read_msg(proc, timeout=15.0)
         if err_h16b:
-            results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized"] = f"FAIL: {err_h16b}"
+            results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized (smoke-only)"] = f"FAIL: {err_h16b}"
         else:
             raw_content_b = resp_h16b.get("result", {}).get("content", []) if resp_h16b else []
             raw_text_b = raw_content_b[0].get("text", "") if raw_content_b else ""
             ctrl_leaked = [c for c in raw_text_b if (ord(c) < 0x20 or ord(c) == 0x7F)
                            and c not in ("\n", "\r", "\t")]
             if ctrl_leaked:
-                results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized"] = (
+                results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized (smoke-only)"] = (
                     f"FAIL: raw control chars leaked in response: "
                     f"{[hex(ord(c)) for c in ctrl_leaked[:5]]}"
                 )
             elif resp_h16b and "error" in resp_h16b:
-                results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized"] = (
-                    "PASS: RPC-level rejection without control-char leakage (WHERE predicate probe)"
+                results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized (smoke-only)"] = (
+                    "PASS: RPC-level rejection without control-char leakage (smoke: no hang/panic/leak)"
                 )
-            elif raw_text_b.startswith("ERROR:") or raw_text_b.startswith("{"):
-                results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized"] = (
-                    f"PASS: response free of control chars (CWE-117 sanitized, WHERE probe); "
+            elif raw_text_b.startswith("ERROR:") or raw_text_b.startswith("{") or not raw_text_b:
+                # Empty envelope (0-row match) or ERROR string — both are smoke-pass: no leak.
+                results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized (smoke-only)"] = (
+                    f"PASS: response free of control chars (smoke: no Cc leakage in envelope); "
                     f"preview={raw_text_b[:60]!r}"
                 )
             else:
-                results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized"] = (
+                results["[H16b] CWE-117: control-char in WHERE-predicate value sanitized (smoke-only)"] = (
                     f"FAIL: indeterminate response for WHERE predicate probe; preview={raw_text_b[:60]!r}"
                 )
 
@@ -2944,10 +3091,13 @@ def run_audit():
         # threshold — so on a healthy system the query would execute and H18 FAILed falsely.)
         _vals = ", ".join(f"'val{i:09d}'" for i in range(5000))  # ~80KB
         big_query = f"FROM crowdstrike_detections\n| where detection_id IN ({_vals})\n| limit 5"
-        assert len(big_query) > 65_536 + 1024, (
-            f"H18 payload {len(big_query)} bytes must exceed threshold (65536+1024); "
-            f"check element format if this fires"
-        )
+        # F-AUD-P7-LOW-002: unconditional guard — survives python -O (assert is elided
+        # under optimization; RuntimeError is not).
+        if len(big_query) <= 65_536 + 1024:
+            raise RuntimeError(
+                f"H18 payload {len(big_query)} bytes must exceed 66,560 "
+                f"(65536 threshold + 1024 margin); check element format"
+            )
         body, err = query(proc, big_query, ["org-c"], timeout=30.0)
         if err:
             # F-AUD-P1-HIGH-001: only controlled rejections PASS here.
@@ -3313,7 +3463,7 @@ COVERAGE_MATRIX = [
     ("[H14s]","Resources",     "resources/read: prismql://schema/org-c — cyberint_alerts present (split from H14 composite, F-AUD-P3-MED-004)"),
     ("[H15]", "Tools",         "explain_query live call (one of 14 implemented tools)"),
     ("[H16]", "Security",      "CWE-116/117: control-char in column name sanitized (sanitize_for_log)"),
-    ("[H16b]","Security",      "CWE-117: control-char in unquoted WHERE-predicate value sanitized"),
+    ("[H16b]","Security",      "CWE-117: control-char in WHERE-predicate value sanitized (smoke-only: detects Cc leakage in response envelope; forced echo through sanitize_for_log excluded — ident_char lexer rejects Cc chars before column lookup; positive echo coverage by H2+H1b)"),
     ("[H17]", "Guardrails",    "E-QUERY-033: limit > 1000 rejected (BC-2.11.001 ceiling)"),
     ("[H18]", "Guardrails",    "E-QUERY-003: oversize query (~80KB) controlled rejection"),
     ("[H19a]","UDFs",          "threat_sources UDF returns virustotal in result"),
@@ -3387,6 +3537,24 @@ if __name__ == "__main__":
         print(f"[{status}] {item}")
         print(f"       {result}")
         print()
+
+    # F-AUD-P7-LOW-005: hard counter-parity check — every result must fall into exactly
+    # one known status bucket. Any result whose prefix is not PASS/FAIL/WARN/N/A/PARTIAL
+    # falls through to "INFO" and would be silently excluded from the denominator, making
+    # the counters lie. Fold into _has_mismatch so demo_ready=NO + nonzero exit propagate.
+    _classified_total = pass_count + fail_count + warn_count + partial_count + na_count
+    if _classified_total != len(results):
+        _info_count = len(results) - _classified_total
+        print("=" * 80)
+        print(
+            f"COUNTER-PARITY FAIL (F-AUD-P7-LOW-005): {_classified_total} classified + "
+            f"{_info_count} INFO-bucket = {len(results)} total; "
+            f"INFO-bucket items are NOT counted in PASS/FAIL totals — "
+            f"fix result prefixes to start with PASS/FAIL/WARN/N/A/PARTIAL."
+        )
+        print("=" * 80)
+        print()
+        _has_mismatch = True
 
     print("=" * 80)
     print(f"SUMMARY: {pass_count} PASS / {fail_count} FAIL / {warn_count} WARN / {partial_count} PARTIAL / {na_count} N/A / {len(results)} total")
