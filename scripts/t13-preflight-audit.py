@@ -109,7 +109,11 @@ def read_msg(proc, timeout=15.0):
     buf = b""
     fd = proc.stdout.fileno()
     fl = fcntl.fcntl(fd, fcntl.F_GETFL)
-    fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+    # Set O_NONBLOCK once per fd — all reads go through the select+non-blocking
+    # pattern, so stdout remains non-blocking for the process lifetime by design.
+    # Guard avoids redundant fcntl syscalls on every read_msg invocation.
+    if not (fl & os.O_NONBLOCK):
+        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
 
     while True:
         elapsed = time.time() - start
@@ -313,8 +317,31 @@ def query(proc, pql, clients, timeout=25.0):
     return tool_call(proc, "query", {"query": pql, "clients": clients}, timeout=timeout)
 
 
+def _audit_sort_key(item_key: str):
+    """Numeric-aware sort key for audit result keys.
+
+    Parses the leading bracket prefix to produce a tuple (section, number, suffix)
+    so that e.g. [A1] < [A2] < [A10] (not [A1] < [A10] < [A2] as lexicographic sort gives).
+    [BOOT] sorts before all section letters.
+    Unknown / non-matching prefixes sort after all known sections.
+    """
+    m = re.match(r'\[([A-Z]+)(\d+)([a-z]?)\]', item_key)
+    if m:
+        return (m.group(1), int(m.group(2)), m.group(3))
+    # [BOOT] and other non-numeric prefixes: BOOT sorts first
+    if item_key.startswith('[BOOT]'):
+        return ('', 0, '')
+    # Unknown prefix: sort after all known sections
+    return ('~', 0, item_key)
+
+
 def run_audit():
     results = {}
+    # H14b precondition flag: set to True when A22 (check_sensor_health) is
+    # actually invoked (regardless of outcome), so H14b can distinguish between
+    # "A22 ran but cache is empty" (health-cache write regression) vs
+    # "A22 was never invoked" (precondition violation).
+    a22_executed = False
 
     proc = subprocess.Popen(
         [PRISM_BIN, "--config-dir", CONFIG_DIR, "start"],
@@ -814,6 +841,10 @@ def run_audit():
         # The "sensors" field is a LIST (not a dict keyed by sensor_id).
         t0 = time.time()
         rid_csh = next_id()
+        # Mark A22 as executed before send_msg so H14b can distinguish "A22 ran but
+        # cache is empty" from "A22 was never invoked". Set here (not on success only)
+        # because the coupling is about invocation, not outcome.
+        a22_executed = True
         send_msg(proc, {"jsonrpc": "2.0", "id": rid_csh, "method": "tools/call",
                         "params": {"name": "check_sensor_health", "arguments": {"client_id": "org-c"}}})
         resp_csh, err_csh = read_msg(proc, timeout=15.0)
@@ -1669,13 +1700,20 @@ def run_audit():
             rows = body.get("rows", [])
             if rows:
                 distinct_status = sorted({r.get("status", "") for r in rows if r.get("status")})
+                # Check for casing fragmentation: same value in different cases (mirrors G6).
+                status_lower_list = [s.lower() for s in distinct_status if s]
+                has_dup_lower = len(status_lower_list) != len(set(status_lower_list))
                 # Verify stored status values are OCSF canonical Title-case ("New", not
                 # "new"/"NEW"), proving normalize_enum_label ran before the IIN match.
                 known_ocsf_status = {"new", "in progress", "suppressed", "resolved",
                                      "archived", "deleted", "unknown", "success", "failure", "other"}
                 non_title = [s for s in distinct_status
                              if s and s.lower() in known_ocsf_status and s != s.title()]
-                if non_title:
+                if has_dup_lower:
+                    results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
+                        f"FAIL: casing fragmentation — duplicate status buckets: {distinct_status}"
+                    )
+                elif non_title:
                     results["[G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)"] = (
                         f"FAIL: non-Title-case status values returned (OCSF normalization not applied): "
                         f"{non_title!r}; all returned={distinct_status!r}"
@@ -1786,7 +1824,7 @@ def run_audit():
         # sensor TOML). IEQ on an integer column must return E-QUERY-002 (QueryTypeMismatch)
         # since lower() is not applicable to integers.
         # NB: risk_score has no OCSF string sibling — do NOT assert sibling suggestion.
-        # H6 (Section H) is the canonical probe; G5 is kept as a pre-Section-H warm-up.
+        # G5 has identical strictness to H6: both require the POL-24 operator hint.
         body, err = query(proc,
             "FROM armis_devices\n| where risk_score IEQ 'high'\n| limit 5",
             ["org-c"])
@@ -1796,12 +1834,22 @@ def run_audit():
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             if ec == "E-QUERY-002":
-                results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = (
-                    f"PASS: E-QUERY-002 — IEQ on integer risk_score correctly rejected; "
-                    f"message={msg[:120]!r}"
-                )
+                # Require POL-24 operator hint "does not support operator" (mirrors H6 strictness).
+                # Without the hint → message-template regression → FAIL.
+                has_operator_hint = "does not support operator" in msg
+                if has_operator_hint:
+                    results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = (
+                        f"PASS: E-QUERY-002 + operator hint 'does not support operator' confirmed; "
+                        f"message={msg[:120]!r}"
+                    )
+                else:
+                    results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = (
+                        f"FAIL: E-QUERY-002 returned but operator hint absent — "
+                        f"message-template regression (POL-24): "
+                        f"'does not support operator' not in message; message={msg[:120]!r}"
+                    )
             elif ec:
-                # PARTIAL sweep: wrong error code → demo not healthy; FAIL so auditor notices.
+                # Wrong error code → demo not healthy; FAIL so auditor notices.
                 results["[G5] E-QUERY-002: IEQ on integer column (armis risk_score)"] = (
                     f"FAIL: expected E-QUERY-002 (IEQ on integer), got {ec}: {msg[:100]!r}"
                 )
@@ -2589,11 +2637,21 @@ def run_audit():
                         f"FAIL: non-dict JSON: {t_sh[:80]!r}"
                     )
                 elif sh_obj.get("status") == "unknown":
-                    # Empty cache: A22 (check_sensor_health) has not been called yet.
-                    results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
-                        f"FAIL: cache empty — run A22 (check_sensor_health) first to populate; "
-                        f"message={sh_obj.get('message','')!r}"
-                    )
+                    # Empty cache: distinguish between two precondition states.
+                    # a22_executed=True → A22 ran but cache is still empty → health-cache write regression.
+                    # a22_executed=False → A22 was not invoked before H14b → precondition violation.
+                    if a22_executed:
+                        results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                            f"FAIL: cache empty despite A22 having run — "
+                            f"health-cache write regression (check_sensor_health did not populate cache); "
+                            f"message={sh_obj.get('message','')!r}"
+                        )
+                    else:
+                        results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                            f"FAIL: precondition violation — A22 (check_sensor_health) not executed before H14b; "
+                            f"run A22 first to populate the health cache; "
+                            f"message={sh_obj.get('message','')!r}"
+                        )
                 elif "clients" in sh_obj and isinstance(sh_obj["clients"], dict) and "stale" in sh_obj:
                     # Populated form: {"clients": {...}, "stale": bool}
                     client_count = len(sh_obj["clients"])
@@ -2612,8 +2670,9 @@ def run_audit():
                         f"FAIL: unexpected shape — neither empty-cache nor populated form; "
                         f"keys={list(sh_obj.keys())[:6]!r}; body={t_sh[:100]!r}"
                     )
-            except Exception as exc:
+            except (json.JSONDecodeError, TypeError) as exc:
                 # F-AUD-P1-MED-007: render_sensors_health_resource always produces JSON.
+                # Narrow to JSONDecodeError + TypeError only; let programmer errors propagate.
                 results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
                     f"FAIL: non-JSON response — resources.rs contract violation; "
                     f"exc={exc!r}; body={t_sh[:40]!r}"
@@ -2877,10 +2936,18 @@ def run_audit():
             )
 
         # ── H18: E-QUERY-003 / oversize query rejected ───────────────────────
-        # ~70KB IN clause exceeds the 64KB MCP-level guard (or engine security limit).
+        # ~80KB IN clause exceeds the 64KB MCP-level guard (or engine security limit).
         # Either E-QUERY-003 or -32602 param rejection PASSes; success/hang/crash FAILs.
-        _vals = ", ".join(f"'val{i:06d}'" for i in range(5000))  # ~65KB
+        # Byte arithmetic: 'val{i:09d}' = 14 chars × 5000 = 70,000 + ', ' × 4999 = 9,998
+        # + wrapper (~64 chars) ≈ 80,062 bytes — durably over the 65,536-byte threshold.
+        # (Previous '06d' format produced only ~65,062 bytes — UNDER the strict > 65,536
+        # threshold — so on a healthy system the query would execute and H18 FAILed falsely.)
+        _vals = ", ".join(f"'val{i:09d}'" for i in range(5000))  # ~80KB
         big_query = f"FROM crowdstrike_detections\n| where detection_id IN ({_vals})\n| limit 5"
+        assert len(big_query) > 65_536 + 1024, (
+            f"H18 payload {len(big_query)} bytes must exceed threshold (65536+1024); "
+            f"check element format if this fires"
+        )
         body, err = query(proc, big_query, ["org-c"], timeout=30.0)
         if err:
             # F-AUD-P1-HIGH-001: only controlled rejections PASS here.
@@ -3248,7 +3315,7 @@ COVERAGE_MATRIX = [
     ("[H16]", "Security",      "CWE-116/117: control-char in column name sanitized (sanitize_for_log)"),
     ("[H16b]","Security",      "CWE-117: control-char in unquoted WHERE-predicate value sanitized"),
     ("[H17]", "Guardrails",    "E-QUERY-033: limit > 1000 rejected (BC-2.11.001 ceiling)"),
-    ("[H18]", "Guardrails",    "E-QUERY-003: oversize query (~70KB) controlled rejection"),
+    ("[H18]", "Guardrails",    "E-QUERY-003: oversize query (~80KB) controlled rejection"),
     ("[H19a]","UDFs",          "threat_sources UDF returns virustotal in result"),
     ("[H19b]","UDFs",          "cvss_vector UDF returns CVSS:3.1/ string"),
     ("[H20]", "Guardrails",    "ADR-051 D4 regression detector: iocs_value JSON-list score=0"),
@@ -3299,7 +3366,7 @@ if __name__ == "__main__":
     partial_count = 0  # F-AUD-P5-OBS-001: separate from warn_count
     na_count = 0
 
-    for item, result in sorted(results.items()):
+    for item, result in sorted(results.items(), key=lambda kv: _audit_sort_key(kv[0])):
         if result.startswith("PASS"):
             status = "PASS"
             pass_count += 1
