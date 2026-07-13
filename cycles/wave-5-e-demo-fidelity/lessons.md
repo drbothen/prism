@@ -3045,3 +3045,111 @@ When introducing any new error code (E-QUERY-NNN / E-SENSOR-NNN / E-SPEC-NNN) in
 This is a TD-VSDD-060 extension candidate: the upstream vsdd-factory plugin should add a step to the post-error-code-introduction checklist to sweep agent-facing doc surfaces.
 
 **Source:** D-1673 (DEFECT-CSDEVICES-EMPTY-PIPELINE-001 LOCAL pass-24 closure; F-CSD-P24-001 LLM quick-reference gap; 3 missing rows for E-QUERY-041/042/043; implementer @6a913680 closed; 2026-07-10).
+
+---
+
+### Lesson 40 — [codified] Audit-script PASS-grounding and error-grading conventions anchored to story
+
+**Classification:** PROCESS-GAP — AUDIT-COVERAGE-001 B-hardening cascade; F-AUD-P1-OBS-002 codified D-1714 (2026-07-13).
+
+**Finding → Story:** F-AUD-P1-OBS-002 [process-gap] → **S-AUDIT-PROCESS-CONVENTIONS-001** (draft v0.1, P2, 3 pts; file: S-AUDIT-PROCESS-CONVENTIONS-001-audit-check-pass-predicates-and-error-grading.md).
+
+**Summary:** F-AUD-P1-OBS-002 identified that the audit script lacked a documented convention for what constitutes a valid PASS predicate — checks could succeed vacuously (no assertions fired) without any signal. This process-gap has been anchored to S-AUDIT-PROCESS-CONVENTIONS-001, which codifies PASS-grounding rules, error-grading checklist, and the parse_envelope structural pattern as an authoring standard for all future audit scripts.
+
+**Source:** D-1714 (AUDIT-COVERAGE-001 S-7.02 codification burst; story-writer @5fab0557; 2026-07-13).
+
+---
+
+### Lesson 41 — [codified] Audit-script error-layer discrimination convention anchored to story
+
+**Classification:** PROCESS-GAP — AUDIT-COVERAGE-001 B-hardening cascade; F-AUD-P3-OBS-003 codified D-1714 (2026-07-13).
+
+**Finding → Story:** F-AUD-P3-OBS-003 [process-gap] → **S-AUDIT-PROCESS-CONVENTIONS-001** (draft v0.1, P2, 3 pts; file: S-AUDIT-PROCESS-CONVENTIONS-001-audit-check-pass-predicates-and-error-grading.md).
+
+**Summary:** F-AUD-P3-OBS-003 identified that MCP-layer errors (E-QUERY-NNN, E-SENSOR-NNN) were not consistently distinguished from transport-layer errors (-32000 redacted codes) in audit check grading. This process-gap has been anchored to S-AUDIT-PROCESS-CONVENTIONS-001, which defines the error-grading checklist separating structural MCP errors from query-engine semantic errors.
+
+**Source:** D-1714 (AUDIT-COVERAGE-001 S-7.02 codification burst; story-writer @5fab0557; 2026-07-13).
+
+---
+
+### Lesson 42 — [codified] parse_envelope structural pattern and PASS-attribution conventions anchored to story
+
+**Classification:** PROCESS-GAP — AUDIT-COVERAGE-001 B-hardening cascade; F-AUD-P21-OBS-003 + F-AUD-P21-OBS-005 codified D-1714 (2026-07-13).
+
+**Finding → Story:** F-AUD-P21-OBS-003 + F-AUD-P21-OBS-005 [process-gap] → **S-AUDIT-PROCESS-CONVENTIONS-001** (draft v0.1, P2, 3 pts; file: S-AUDIT-PROCESS-CONVENTIONS-001-audit-check-pass-predicates-and-error-grading.md).
+
+**Summary:** F-AUD-P21-OBS-003 and F-AUD-P21-OBS-005 (pass-21 pair) identified that the parse_envelope helper lacked a structural invariant guaranteeing that the returned dict always has a defined shape, and that PASS-ATTRIBUTED results were not clearly distinguished from full-PASS results. Both process-gaps have been jointly anchored to S-AUDIT-PROCESS-CONVENTIONS-001, which formalizes the parse_envelope structural contract and the PASS vs PASS-ATTRIBUTED labeling convention.
+
+**Source:** D-1714 (AUDIT-COVERAGE-001 S-7.02 codification burst; story-writer @5fab0557; 2026-07-13).
+
+---
+
+### Lesson 43 — [codified] Python lint gate for scripts/ anchored to story
+
+**Classification:** PROCESS-GAP — AUDIT-COVERAGE-001 B-hardening cascade; F-AUD-P24-OBS-001 codified D-1714 (2026-07-13).
+
+**Finding → Story:** F-AUD-P24-OBS-001 [process-gap] → **S-AUDIT-LINT-001** (draft v0.1, P2, 3 pts; file: S-AUDIT-LINT-001-ruff-f821-lint-gate-scripts-py.md).
+
+**Summary:** F-AUD-P24-OBS-001 identified that the `scripts/` directory had no automated lint gate, allowing undefined-name (ruff F821) violations to accumulate silently across adversary passes. The process-gap has been anchored to S-AUDIT-LINT-001, which delivers a ruff F821 check integrated into the Justfile and CI workflow to prevent future undefined-name drift in audit scripts.
+
+**Source:** D-1714 (AUDIT-COVERAGE-001 S-7.02 codification burst; story-writer @5fab0557; 2026-07-13).
+
+---
+
+### Lesson 44 — [codified] MCP resource URI validation gap anchored to story
+
+**Classification:** SPEC-VS-CODE DRIFT — AUDIT-COVERAGE-001 B-hardening cascade; F-AUD-P24-MED-002 codified D-1714 (2026-07-13).
+
+**Finding → Story:** F-AUD-P24-MED-002 [spec-vs-code drift] → **S-AUDIT-URI-VALIDATION-001** (draft v0.1, P2, 5 pts; file: S-AUDIT-URI-VALIDATION-001-mcp-resource-uri-validation.md).
+
+**Summary:** F-AUD-P24-MED-002 identified that `dispatch_read_resource` in prism-mcp performed best-effort URI parsing without rejecting malformed resource URIs at the entry point, while BC-2.10.008 implied strict validation. The drift has been anchored to S-AUDIT-URI-VALIDATION-001, which delivers explicit malformed-URI rejection (E-MCP-NNN) before best-effort fallback, aligned to the BC contract.
+
+**Source:** D-1714 (AUDIT-COVERAGE-001 S-7.02 codification burst; story-writer @5fab0557; 2026-07-13).
+
+---
+
+### Lesson 45 — [codified] BC-2.11.002 filter-parser precedence adjudication anchored to story
+
+**Classification:** SPEC-VS-CODE DRIFT — AUDIT-COVERAGE-001 B-hardening cascade; F-AUD-P24-MED-004 codified D-1714 (2026-07-13).
+
+**Finding → Story:** F-AUD-P24-MED-004 [spec-vs-code drift] → **S-AUDIT-SPEC-PRECEDENCE-001** (draft v0.1, P1, 5 pts; BC-2.11.002; file: S-AUDIT-SPEC-PRECEDENCE-001-bc-2-11-002-filter-parser-precedence-adjudication.md).
+
+**Summary:** F-AUD-P24-MED-004 identified a drift between the mode-detection precedence rule in BC-2.11.002 (pipe > SQL(SELECT) > SQL(FROM) > filter) and the actual dispatch order in `filter_parser.rs`. PO adjudication of the canonical precedence rule is the first acceptance criterion of the anchoring story. This is a P1 item requiring PO adjudication before implementation proceeds.
+
+**Source:** D-1714 (AUDIT-COVERAGE-001 S-7.02 codification burst; story-writer @5fab0557; 2026-07-13).
+
+---
+
+### Lesson 46 — [codified] NYA per-stub error-code classification standing review axis anchored to story
+
+**Classification:** PROCESS-GAP — AUDIT-COVERAGE-001 B-hardening cascade; F-AUD-P26-OBS-002 codified D-1714 (2026-07-13).
+
+**Finding → Story:** F-AUD-P26-OBS-002 [process-gap] → **S-AUDIT-REVIEW-AXES-001** (draft v0.1, P3, 2 pts; file: S-AUDIT-REVIEW-AXES-001-standing-adversary-review-axes-for-audit-scripts.md).
+
+**Summary:** F-AUD-P26-OBS-002 identified that the NOT_YET_AVAILABLE (NYA) stub checks did not carry per-stub expected-error-code classification, making it impossible for the adversary to verify that the correct E-QUERY/E-SENSOR error surfaced when a NYA stub was invoked. The process-gap has been anchored to S-AUDIT-REVIEW-AXES-001, which codifies the standing adversary review axis requiring per-stub error-code annotation.
+
+**Source:** D-1714 (AUDIT-COVERAGE-001 S-7.02 codification burst; story-writer @5fab0557; 2026-07-13).
+
+---
+
+### Lesson 47 — [codified] Sort-assertion divergence-window standing review axis anchored to story
+
+**Classification:** PROCESS-GAP — AUDIT-COVERAGE-001 B-hardening cascade; F-AUD-P28-OBS-005 codified D-1714 (2026-07-13).
+
+**Finding → Story:** F-AUD-P28-OBS-005 [process-gap] → **S-AUDIT-REVIEW-AXES-001** (draft v0.1, P3, 2 pts; file: S-AUDIT-REVIEW-AXES-001-standing-adversary-review-axes-for-audit-scripts.md).
+
+**Summary:** F-AUD-P28-OBS-005 identified that sort-ordering assertions in the audit script (checking that results are returned in a deterministic order) lacked a defined divergence window — a small out-of-order deviation could cause a false FAIL without signaling a real behavioral regression. The process-gap has been anchored to S-AUDIT-REVIEW-AXES-001, which codifies the sort-assertion divergence-window rule as a standing adversary review axis for all audit scripts.
+
+**Source:** D-1714 (AUDIT-COVERAGE-001 S-7.02 codification burst; story-writer @5fab0557; 2026-07-13).
+
+---
+
+### Lesson 48 — [codified] Structured audit-invariants companion spec anchored to story
+
+**Classification:** PROCESS-GAP — AUDIT-COVERAGE-001 B-hardening cascade; F-AUD-P29-OBS-001 codified D-1714 (2026-07-13).
+
+**Finding → Story:** F-AUD-P29-OBS-001 [process-gap] → **S-AUDIT-INVARIANTS-001** (draft v0.1, P2, 5 pts; file: S-AUDIT-INVARIANTS-001-audit-invariants-companion-spec.md).
+
+**Summary:** F-AUD-P29-OBS-001 identified that the 300+ in-file `# F-AUD-PN-NNN` citation comments in `t13-preflight-audit.py` were the sole record of the invariant rationale, making them invisible to spec consumers, hard to cross-reference, and at risk of drifting as the script evolved. The process-gap has been anchored to S-AUDIT-INVARIANTS-001, which extracts all F-AUD-PN citations into a structured `audit-invariants.md` companion spec with named invariants, covering checks, severity, and remediation anchors.
+
+**Source:** D-1714 (AUDIT-COVERAGE-001 S-7.02 codification burst; story-writer @5fab0557; 2026-07-13).
