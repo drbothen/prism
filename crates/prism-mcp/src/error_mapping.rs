@@ -3799,4 +3799,171 @@ mod tests {
              code 'E-QUERY-042'. Got: '{code}'"
         );
     }
+
+    // =========================================================================
+    // DEFECT-MCP-ROWSHAPE-NULLS-001 — DEFECT 2 [H8b]: doubled "audit log" in
+    // internal-redacted error content_text.
+    //
+    // Root cause: `content_text = format!("ERROR: [{}] - {}. {}", category, message, suggestion)`
+    // in `prism_error_to_structured_call_result` (error_mapping.rs ~line 2122). For catch-all
+    // internal variants:
+    //   `message    = "Internal error; see audit log"`  (from map_prism_error catch-all)
+    //   `suggestion = "See audit log for details."`     (from VariantMeta catch-all)
+    // → "audit log" phrase appears TWICE in content_text.
+    //
+    // Fix direction (BC-2.10.007 message/suggestion semantics):
+    //   `message`    → `"Internal error"` (terse; no actionable pointer)
+    //   `suggestion` → `"See audit log for details."` (carries the actionable pointer)
+    //
+    // Spec authority: BC-2.10.007 §Postconditions; error-taxonomy.md message/suggestion split.
+    //
+    // These tests FAIL against current code (count == 2 for all catch-all variants).
+    // =========================================================================
+
+    /// Helper: extract the plain-text content from a `CallToolResult`.
+    ///
+    /// Mirrors `extract_text_content` from `server.rs` tests — NOT the same function;
+    /// duplicated here so error_mapping tests have no cross-module test-helper dependency.
+    fn extract_content_text_from_result(result: &rmcp::model::CallToolResult) -> String {
+        result
+            .content
+            .iter()
+            .filter_map(|c| c.as_text().map(|t| t.text.as_str().to_owned()))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// BC-2.10.007 [H8b]: for a catch-all internal-redacted error (`QueryExecutionFailed`),
+    /// the phrase "audit log" must appear EXACTLY ONCE in `content_text`.
+    ///
+    /// FAILS NOW: `message = "Internal error; see audit log"` AND
+    /// `suggestion = "See audit log for details."` → "audit log" count == 2.
+    ///
+    /// PASSES after: `map_prism_error` catch-all returns `"Internal error"` (terse),
+    /// leaving "audit log" only in `suggestion`.
+    #[test]
+    fn test_BC_2_10_007_H8b_internal_redacted_content_text_audit_log_appears_once() {
+        let err = PrismError::QueryExecutionFailed {
+            detail: "DataFusion plan execution aborted".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let content_text = extract_content_text_from_result(&result);
+
+        let audit_log_count = content_text.to_lowercase().matches("audit log").count();
+        assert_eq!(
+            audit_log_count, 1,
+            "[H8b] VIOLATION: 'audit log' appears {audit_log_count} times in content_text — \
+             must appear exactly once. Current defect: message='Internal error; see audit log' \
+             AND suggestion='See audit log for details.' both contain the phrase. \
+             Fix: map_prism_error catch-all must return terse 'Internal error' with no \
+             'see audit log' suffix. content_text was: {content_text:?}"
+        );
+    }
+
+    /// BC-2.10.007 [H8b]: for `QueryExecutionFailed`, the structured envelope `message`
+    /// field must be the TERSE redacted form — it must NOT contain "see audit log".
+    ///
+    /// The actionable pointer ("See audit log for details.") belongs in `suggestion` only.
+    ///
+    /// FAILS NOW: `message = "Internal error; see audit log"` contains the pointer in the
+    /// wrong field.
+    #[test]
+    fn test_BC_2_10_007_H8b_query_execution_failed_message_field_is_terse() {
+        let err = PrismError::QueryExecutionFailed {
+            detail: "test detail".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.message must be a string");
+
+        // BC-2.10.007: message is the terse human-readable description.
+        // Suggestion carries the actionable pointer. They must not overlap.
+        assert!(
+            !message.to_lowercase().contains("see audit log"),
+            "[H8b] VIOLATION: message field '{message}' contains 'see audit log' — \
+             the actionable pointer belongs in suggestion only (BC-2.10.007 message/suggestion \
+             split). Fix: map_prism_error catch-all must return 'Internal error' (terse)."
+        );
+        // The terse form must still communicate that this is an internal error.
+        assert!(
+            message.to_lowercase().contains("internal"),
+            "message must still identify this as an internal error; got: '{message}'"
+        );
+
+        // suggestion must carry the audit log pointer.
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.suggestion must be a string");
+        assert!(
+            suggestion.to_lowercase().contains("audit log"),
+            "suggestion must contain 'audit log' pointer; got: '{suggestion}'"
+        );
+    }
+
+    /// BC-2.10.007 [H8b] redundancy sweep: for ALL representative catch-all internal-redacted
+    /// variants, "audit log" must appear exactly once in content_text.
+    ///
+    /// Data-driven over the catch-all variants: `QueryExecutionFailed`,
+    /// `QueryMemoryBudgetExceeded`, `OcsfNormalizationFailed`, `QueryDenylisted`.
+    /// All hit the `_ => VariantMeta { suggestion: "See audit log for details.", ... }`
+    /// catch-all arm in `prism_error_to_structured_call_result`, so they all exhibit the
+    /// doubled "audit log" defect.
+    ///
+    /// FAILS NOW for every variant (count == 2 for all).
+    #[test]
+    fn test_BC_2_10_007_H8b_redundancy_sweep_representative_internal_variants() {
+        let variants: Vec<(&str, PrismError)> = vec![
+            (
+                "QueryExecutionFailed",
+                PrismError::QueryExecutionFailed {
+                    detail: "DataFusion internal error".to_owned(),
+                },
+            ),
+            (
+                "QueryMemoryBudgetExceeded",
+                PrismError::QueryMemoryBudgetExceeded {
+                    limit_mb: 200,
+                    used_mb: 250,
+                },
+            ),
+            (
+                "OcsfNormalizationFailed",
+                PrismError::OcsfNormalizationFailed {
+                    source_id: "crowdstrike_alerts".to_owned(),
+                    reason: "unknown field".to_owned(),
+                },
+            ),
+            (
+                "QueryDenylisted",
+                PrismError::QueryDenylisted {
+                    failure_count: 3,
+                    reason: "repeated execution failure".to_owned(),
+                    expiry_ts: 9_999_999_999,
+                },
+            ),
+        ];
+
+        for (variant_name, err) in variants {
+            let result = prism_error_to_structured_call_result(err);
+            let content_text = extract_content_text_from_result(&result);
+
+            let audit_log_count = content_text.to_lowercase().matches("audit log").count();
+            assert_eq!(
+                audit_log_count, 1,
+                "[H8b] VIOLATION for {variant_name}: 'audit log' appears {audit_log_count} \
+                 times in content_text — must appear exactly once. content_text: {content_text:?}"
+            );
+        }
+    }
 }

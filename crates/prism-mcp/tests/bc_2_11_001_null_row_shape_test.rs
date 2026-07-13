@@ -1,0 +1,422 @@
+//! RED gate tests for DEFECT-MCP-ROWSHAPE-NULLS-001 — DEFECT 1: NULL columns omitted
+//! from row JSON objects ([C3]/[H20]).
+//!
+//! Root cause: `arrow_json::writer::WriterBuilder::new()` at `server.rs` lines 1950-1951
+//! uses `explicit_nulls=false` (default), causing NULL-valued cells to be OMITTED
+//! from row JSON objects instead of appearing as JSON `null`.
+//!
+//! Spec authority:
+//! - BC-2.11.001 v1.16 §Postconditions "Row-shape null-not-absent" bullet
+//! - EC-11-068: every row must contain all schema keys; NULL cells → `{"sensor_ip":null}`
+//!   not absent
+//! - Canonical test vector (BC-2.11.001 §Test Vectors):
+//!   `SELECT severity, sensor_ip FROM crowdstrike_alerts` where some rows have
+//!   `sensor_ip=NULL` → every row must have both keys; NULL rows serialize as
+//!   `{"severity":"...","sensor_ip":null}`.
+//!
+//! # Red Gate test catalogue
+//!
+//! | Test | BC clause | Fails NOW because |
+//! |---|---|---|
+//! | `test_BC_2_11_001_EC_11_068_null_column_value_serialized_as_json_null_not_absent` | EC-11-068 | `WriterBuilder::new()` omits NULL key from row JSON |
+//! | `test_BC_2_11_001_EC_11_068_every_row_contains_all_schema_column_keys` | EC-11-068 invariant | NULL row is missing `sensor_ip` key |
+//! | `test_BC_2_11_001_canonical_test_vector_select_severity_sensor_ip_null_rows` | BC-2.11.001 canonical test vector | Row 1 (`severity=medium, sensor_ip=NULL`) missing `sensor_ip` key |
+//!
+//! These tests FAIL against current code.
+//! They PASS after adding `.with_explicit_nulls(true)` to `WriterBuilder` in `server.rs`.
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashMap, sync::Arc};
+
+    use arrow::{
+        array::StringArray,
+        datatypes::{DataType, Field, Schema},
+        record_batch::RecordBatch,
+    };
+    use async_trait::async_trait;
+    use prism_core::{OrgId, OrgSlug, SensorId};
+    use prism_credentials::InMemoryCredentialStore;
+    use prism_mcp::server::{PrismServer, QueryToolParams};
+    use prism_query::{
+        engine::{QueryEngine, QueryEngineConfig},
+        scoping::ClientRegistry,
+        table_registry::TableRegistry,
+    };
+    use prism_sensors::{
+        AdapterRegistry, CredentialResolver, QueryParams as SensorQueryParams, SensorAdapter,
+        SensorAuth, SensorError, SensorSpec as SensorAdapterSpec,
+    };
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, ResolvedSensorSpec, ResolvedSpecKey, SensorInstanceOverlay},
+        spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+    };
+    use rmcp::handler::server::wrapper::Parameters;
+
+    // =========================================================================
+    // Stub types
+    // =========================================================================
+
+    /// Stub auth token — ignored by `ReturnsNullRowsAdapter::fetch`.
+    struct StubAuth;
+
+    impl SensorAuth for StubAuth {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        fn auth_type_name(&self) -> &'static str {
+            "custom_via_plugin"
+        }
+    }
+
+    /// Credential resolver that always succeeds (returns `StubAuth`).
+    ///
+    /// Required so `fan_out()` reaches the adapter boundary rather than short-circuiting
+    /// with a `CredentialNotFound` error. The stub auth is ignored by
+    /// `ReturnsNullRowsAdapter::fetch`. Pattern matches `AlwaysSucceedsCreds` from
+    /// `normalized_pql.rs` (SID-1 compliance).
+    struct AlwaysSucceedsCreds;
+
+    impl CredentialResolver for AlwaysSucceedsCreds {
+        fn resolve(
+            &self,
+            _client_id: &str,
+            _sensor_id: SensorId,
+        ) -> Result<Box<dyn SensorAuth>, SensorError> {
+            Ok(Box::new(StubAuth))
+        }
+    }
+
+    /// Sensor adapter that returns 3 RecordBatch rows with a nullable `sensor_ip` column.
+    ///
+    /// Canonical test vector from BC-2.11.001 v1.16:
+    /// - Row 0: `severity="high",   sensor_ip=Some("10.0.0.1")`
+    /// - Row 1: `severity="medium", sensor_ip=None`  ← NULL — triggers the defect
+    /// - Row 2: `severity="low",    sensor_ip=Some("10.0.0.3")`
+    ///
+    /// The RecordBatch schema declares `sensor_ip` with `nullable=true` so Arrow propagates
+    /// the NULL into the serialized output. The defect causes `WriterBuilder::new()` to OMIT
+    /// the `sensor_ip` key for Row 1 rather than serializing it as JSON `null`.
+    struct ReturnsNullRowsAdapter {
+        sensor_id: SensorId,
+    }
+
+    #[async_trait]
+    impl SensorAdapter for ReturnsNullRowsAdapter {
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "returns-null-rows-stub"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorAdapterSpec,
+            _params: &SensorQueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            // Schema: severity (non-nullable String), sensor_ip (nullable String).
+            // `nullable=true` on `sensor_ip` is the key: Arrow will produce a NULL value
+            // in the serialized JSON, which `WriterBuilder::new()` omits (the defect).
+            let schema = Arc::new(Schema::new(vec![
+                Field::new("severity", DataType::Utf8, false),
+                Field::new("sensor_ip", DataType::Utf8, true),
+            ]));
+            let batch = RecordBatch::try_new(
+                schema,
+                vec![
+                    Arc::new(StringArray::from(vec!["high", "medium", "low"])),
+                    // Row 1 has None — the canonical NULL test value from BC-2.11.001.
+                    Arc::new(StringArray::from(vec![
+                        Some("10.0.0.1"),
+                        None,
+                        Some("10.0.0.3"),
+                    ])),
+                ],
+            )
+            .expect("RecordBatch construction must not fail in stub");
+            Ok(vec![batch])
+        }
+    }
+
+    // =========================================================================
+    // Fixture helpers
+    // =========================================================================
+
+    /// Build a minimal `ResolvedSensorSpec` for a given sensor/table/org combination.
+    ///
+    /// Mirrors `make_resolved` from `normalized_pql.rs` so the fixture wiring is identical.
+    fn make_resolved(
+        sensor_id: &str,
+        table_name: &str,
+        columns: Vec<ColumnSpec>,
+        org: &str,
+    ) -> (ResolvedSpecKey, ResolvedSensorSpec) {
+        let spec = SensorSpec::new(
+            sensor_id,
+            format!("{sensor_id} sensor"),
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                table_name,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        let overlay_toml =
+            format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@{org}\"");
+        let overlay: SensorInstanceOverlay =
+            toml::from_str(&overlay_toml).expect("overlay TOML must parse");
+        let org_slug = OrgSlug::new(org);
+        let resolved =
+            OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+        let sensor_id_typed = SensorId::new(sensor_id);
+        let key: ResolvedSpecKey = (org_slug, sensor_id_typed);
+        (key, resolved)
+    }
+
+    /// Build a `PrismServer` wired with `ReturnsNullRowsAdapter` for `crowdstrike_alerts`.
+    ///
+    /// Structurally identical to `make_server_with_failing_adapter` in `normalized_pql.rs`
+    /// except it uses `ReturnsNullRowsAdapter` (succeeds + returns NULL rows) instead of
+    /// `AlwaysFailsAdapter`. The `AlwaysSucceedsCreds` resolver is wired so `fan_out()`
+    /// reaches the adapter boundary (SID-1: unit test without live DTU).
+    ///
+    /// `resolve_org_id` Path 2 fallback: without an OrgRegistry, the query engine uses
+    /// the first registered adapter's `OrgId` for the sensor — so the `org_id` here must
+    /// match the registration key in `AdapterRegistry`.
+    fn make_server_with_returning_null_adapter() -> PrismServer {
+        use prism_core::column::ColumnType;
+
+        // sensor_id="crowdstrike" + table_name="alerts" → full DataFusion table name
+        // = "crowdstrike_alerts" (formed by TableRegistry as "{sensor_id}_{table_name}").
+        // This is the canonical test vector table from BC-2.11.001 v1.16.
+        let sensor_id_str = "crowdstrike";
+        let table_name = "alerts";
+        let org = "acme";
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("sensor_ip", ColumnType::String, None, vec![]),
+        ];
+
+        // Deterministic OrgId (EC-11-068 sentinel byte: 0x68 = 'h' for "null row sHape").
+        let org_id = OrgId::from_uuid(uuid::Uuid::from_bytes([
+            0x01, 0x9f, 0x3a, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x68,
+        ]));
+
+        let (key, resolved) = make_resolved(sensor_id_str, table_name, columns, org);
+        let mut resolved_map = HashMap::new();
+        resolved_map.insert(key, resolved.clone());
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&resolved.spec)
+            .expect("register_sensor must not fail in fixture");
+
+        let sensor_id_typed = SensorId::new(sensor_id_str);
+        let returning_null_adapter: Arc<dyn SensorAdapter> = Arc::new(ReturnsNullRowsAdapter {
+            sensor_id: sensor_id_typed,
+        });
+        let mut adapter_registry = AdapterRegistry::new();
+        adapter_registry.register(org_id, returning_null_adapter);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(adapter_registry),
+            Arc::new(InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            prism_query::cache::CacheConfig::default(),
+        );
+        engine = engine.with_credential_resolver(Arc::new(AlwaysSucceedsCreds));
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(resolved_map))));
+        engine = engine.with_table_registry(registry);
+
+        PrismServer::new().with_query_engine(Arc::new(engine))
+    }
+
+    /// Build `QueryToolParams` from a JSON string.
+    ///
+    /// `QueryToolParams` is `#[non_exhaustive]` — struct-literal construction is forbidden
+    /// outside the defining crate (integration tests are separate crates). JSON
+    /// deserialization is the correct pattern; mirrors usage in `normalized_pql.rs`.
+    fn query_params(sql: &str) -> QueryToolParams {
+        serde_json::from_str(&serde_json::json!({"query": sql}).to_string())
+            .expect("QueryToolParams JSON must deserialize")
+    }
+
+    /// Extract the `structured_content` JSON value from a `CallToolResult`.
+    fn envelope_json(result: rmcp::model::CallToolResult) -> serde_json::Value {
+        result
+            .structured_content
+            .expect("query must return structured_content (not an error path)")
+    }
+
+    // =========================================================================
+    // DEFECT 1 tests — ALL FAIL against current code
+    // =========================================================================
+
+    /// BC-2.11.001 v1.16 EC-11-068: a row with a NULL-valued column must serialize
+    /// the column key with JSON `null`, NOT omit the key entirely.
+    ///
+    /// FAILS NOW: `WriterBuilder::new()` uses `explicit_nulls=false` (default). The NULL
+    /// row has only `"severity"` key; `"sensor_ip"` key is absent from the JSON object.
+    ///
+    /// PASSES after: `.with_explicit_nulls(true)` added to `WriterBuilder` in `server.rs`.
+    #[tokio::test]
+    async fn test_BC_2_11_001_EC_11_068_null_column_value_serialized_as_json_null_not_absent() {
+        let server = make_server_with_returning_null_adapter();
+        let result = server
+            .query(Parameters(query_params(
+                "SELECT severity, sensor_ip FROM crowdstrike_alerts",
+            )))
+            .await
+            .expect(
+                "query must return Ok — NULL-valued rows are valid data, not a query-level error",
+            );
+
+        let v = envelope_json(result);
+        let rows = v["results"]["rows"]
+            .as_array()
+            .expect("results.rows must be a JSON array");
+
+        assert!(
+            !rows.is_empty(),
+            "expected at least one row from the stub adapter; got empty results"
+        );
+
+        // Find the NULL-sensor_ip row (Row 1: severity="medium", sensor_ip=NULL).
+        // Under the bug: this row has NO "sensor_ip" key at all.
+        // Under the fix: this row has "sensor_ip": null.
+        let null_row = rows
+            .iter()
+            .find(|row| row.get("sensor_ip").is_none_or(|v| v.is_null()))
+            .expect(
+                "expected to find a row with NULL sensor_ip \
+                 (Row 1: severity=medium, sensor_ip=NULL from ReturnsNullRowsAdapter)",
+            );
+
+        // EC-11-068: the key MUST be present (not absent) with JSON null as its value.
+        assert!(
+            null_row.get("sensor_ip").is_some(),
+            "EC-11-068 VIOLATION: NULL-valued 'sensor_ip' column must appear as \
+             `\"sensor_ip\": null` in the row JSON — the key must NOT be absent. \
+             Current defect: WriterBuilder::new() uses explicit_nulls=false, which \
+             omits the key. Fix: .with_explicit_nulls(true). Got row: {null_row}"
+        );
+        assert!(
+            null_row["sensor_ip"].is_null(),
+            "EC-11-068: 'sensor_ip' key is present but its value must be JSON null; \
+             got: {}",
+            null_row["sensor_ip"]
+        );
+    }
+
+    /// BC-2.11.001 v1.16 EC-11-068 invariant: EVERY row must contain ALL projected
+    /// column keys, regardless of whether their values are NULL.
+    ///
+    /// Key-completeness invariant: the set of keys in each row object must equal the
+    /// set of projected columns (`{severity, sensor_ip}`).
+    ///
+    /// FAILS NOW: the NULL row (Row 1) has only `"severity"` key — `"sensor_ip"` is
+    /// absent, violating the invariant.
+    #[tokio::test]
+    async fn test_BC_2_11_001_EC_11_068_every_row_contains_all_schema_column_keys() {
+        let server = make_server_with_returning_null_adapter();
+        let result = server
+            .query(Parameters(query_params(
+                "SELECT severity, sensor_ip FROM crowdstrike_alerts",
+            )))
+            .await
+            .expect("query must return Ok");
+
+        let v = envelope_json(result);
+        let rows = v["results"]["rows"]
+            .as_array()
+            .expect("results.rows must be a JSON array");
+
+        assert_eq!(
+            rows.len(),
+            3,
+            "expected exactly 3 rows from the stub adapter"
+        );
+
+        // EC-11-068 invariant: every row must have BOTH projected keys.
+        let required_keys = ["severity", "sensor_ip"];
+        for (i, row) in rows.iter().enumerate() {
+            for key in &required_keys {
+                assert!(
+                    row.get(*key).is_some(),
+                    "EC-11-068 VIOLATION at row {i}: projected column '{key}' is ABSENT \
+                     from row object. Every row must contain all schema column keys even \
+                     when the value is NULL. Got row {i}: {row}"
+                );
+            }
+        }
+    }
+
+    /// BC-2.11.001 v1.16 canonical test vector: `SELECT severity, sensor_ip FROM
+    /// crowdstrike_alerts` where some rows have `sensor_ip=NULL`.
+    ///
+    /// Per the BC canonical test vector (§Test Vectors):
+    /// - Non-null rows: `{"severity":"high","sensor_ip":"10.0.0.1"}`
+    /// - NULL row: `{"severity":"medium","sensor_ip":null}` — both keys MUST be present
+    ///
+    /// FAILS NOW: Row 1 (`severity=medium, sensor_ip=NULL`) serializes as
+    /// `{"severity":"medium"}` — `"sensor_ip"` key is absent.
+    #[tokio::test]
+    async fn test_BC_2_11_001_canonical_test_vector_select_severity_sensor_ip_null_rows() {
+        let server = make_server_with_returning_null_adapter();
+        let result = server
+            .query(Parameters(query_params(
+                "SELECT severity, sensor_ip FROM crowdstrike_alerts",
+            )))
+            .await
+            .expect("query must return Ok — canonical test vector is a valid query");
+
+        let v = envelope_json(result);
+        let rows = v["results"]["rows"]
+            .as_array()
+            .expect("results.rows must be a JSON array");
+
+        assert_eq!(
+            rows.len(),
+            3,
+            "canonical test vector: expected 3 rows; got {}",
+            rows.len()
+        );
+
+        // Row 0: severity="high", sensor_ip="10.0.0.1" (non-null — should always work)
+        assert_eq!(rows[0]["severity"], "high", "row 0 severity mismatch");
+        assert_eq!(rows[0]["sensor_ip"], "10.0.0.1", "row 0 sensor_ip mismatch");
+
+        // Row 1: severity="medium", sensor_ip=NULL — the canonical null test row.
+        // BC-2.11.001 canonical test vector: MUST serialize as
+        // `{"severity":"medium","sensor_ip":null}` — NOT `{"severity":"medium"}`.
+        assert_eq!(rows[1]["severity"], "medium", "row 1 severity mismatch");
+        assert!(
+            rows[1].get("sensor_ip").is_some(),
+            "BC-2.11.001 canonical test vector VIOLATION: NULL sensor_ip row (Row 1) \
+             must have 'sensor_ip' key present with JSON null. Got row 1: {}",
+            rows[1]
+        );
+        assert!(
+            rows[1]["sensor_ip"].is_null(),
+            "BC-2.11.001: sensor_ip in null row must be JSON null; got: {}",
+            rows[1]["sensor_ip"]
+        );
+
+        // Row 2: severity="low", sensor_ip="10.0.0.3" (non-null — should always work)
+        assert_eq!(rows[2]["severity"], "low", "row 2 severity mismatch");
+        assert_eq!(rows[2]["sensor_ip"], "10.0.0.3", "row 2 sensor_ip mismatch");
+    }
+}
