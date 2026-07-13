@@ -1930,8 +1930,21 @@ fn check_enrich_udf_availability(
             // shared walk into sql_unknown_names for E-QUERY-039.
             collect_unknown_scalars_from_sql_query(sq, &mut sql_unknown_names);
         }
-        // DML has no enrichment syntax.
-        _ => {}
+        // (D.7.1 position 6) DML WHERE: walk filter predicate into predicate_fncall_names.
+        // DML has no SELECT/GROUP BY/ORDER BY/HAVING positions — only the WHERE predicate
+        // is walked. Post-branch, build_predicate_parser (used by build_delete_parser and
+        // build_update_parser) accepts fn-call LHS via fn_call_comparison; without this arm
+        // the aggregate gate silently passes DML WHERE aggregates, producing SILENT EMPTY
+        // SUCCESS (DML execution no-ops to Ok(vec![])). (ADR-048 §D.7.5, OD-6)
+        //
+        // Note: `Ast` and `SqlStatement` are non-exhaustive for external crates, but within
+        // this crate all current variants (Pipe, Filter, SqlPipe, Sql(Select), Sql(Dml)) are
+        // explicitly handled — `_ => {}` is removed as it is unreachable within-crate.
+        Ast::Sql(SqlStatement::Dml(dml)) => {
+            if let Some(pred) = &dml.filter {
+                collect_unknown_scalar_from_predicate(pred, &mut predicate_fncall_names);
+            }
+        }
     }
 
     // Aggregate-in-predicate plan-time gate (ADR-048 D.3) — runs regardless of infusion
@@ -1966,17 +1979,28 @@ fn check_enrich_udf_availability(
         return Ok(());
     };
 
-    // Build the registered UDF name set from the live registry.
-    let descriptors = registry.udf_descriptors();
-    let registered_names: std::collections::HashSet<&str> =
-        descriptors.iter().map(|d| d.name.as_str()).collect();
-
     // Fold predicate fn-call names into sql_unknown_names for E-QUERY-039 gate.
     // DataFusion built-in exclusion (DATAFUSION_BUILTIN_FUNCTION_NAMES) applies —
     // aggregate names that reached here were not in the aggregate-only set (would have
     // been caught above), and non-aggregate DataFusion built-ins (e.g., lower, upper)
     // are excluded from E-QUERY-039 by the DATAFUSION_BUILTIN_FUNCTION_NAMES filter below.
+    // Folded here (before descriptor materialization) so the emptiness check below sees
+    // the complete set of names. (F-PQLFN-P7-OBS-001 hoist)
     sql_unknown_names.extend(predicate_fncall_names);
+
+    // OBS-001 hoist (F-PQLFN-P7-OBS-001): skip descriptor materialization when there
+    // are no names to validate. The aggregate gate already ran; if pipe_enrich_names and
+    // sql_unknown_names (which now includes predicate_fncall_names) are both empty, no
+    // E-QUERY-039 check is possible — early return avoids the O(n) udf_descriptors()
+    // allocation on queries with no enrichment syntax.
+    if pipe_enrich_names.is_empty() && sql_unknown_names.is_empty() {
+        return Ok(());
+    }
+
+    // Build the registered UDF name set from the live registry.
+    let descriptors = registry.udf_descriptors();
+    let registered_names: std::collections::HashSet<&str> =
+        descriptors.iter().map(|d| d.name.as_str()).collect();
 
     // Validate pipe-mode enrich names — NO DataFusion built-in exclusion.
     // BC-2.11.019 §F-PJL1-HIGH-001: pipe-mode `| enrich <name>` is an explicit
@@ -15153,6 +15177,213 @@ mod datafusion_aggregate_registry_empirical_tests {
              This changes the ADR-048 reconciliation — stop and report to the architect. \
              Action: determine whether the manual insert in DATAFUSION_BUILTIN_AGGREGATE_NAMES \
              is still necessary and update ADR-048 §D.2 accordingly."
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PQLFN-P7-LOW-002: DML WHERE sixth gated position (ADR-048 §D.7.5, OD-6)
+// ---------------------------------------------------------------------------
+//
+// Before fix: `Ast::Sql(SqlStatement::Dml(_))` fell to `_ => {}` in
+// `check_enrich_udf_availability`. After the branch added `fn_call_comparison` to
+// `build_predicate_parser` (which both build_delete_parser and build_update_parser
+// bind), DML WHERE accepted fn-call LHS but the aggregate gate silently passed them.
+// Post-fix: the `Ast::Sql(SqlStatement::Dml(dml))` arm walks `dml.filter` into
+// `predicate_fncall_names`, restoring E-QUERY-001 for aggregates and enabling
+// E-QUERY-039 for unknown UDFs with a registry.
+//
+// Tests call `check_enrich_udf_availability` directly (private fn, same file)
+// to avoid requiring a registered table for DML gate tests. The aggregate gate
+// fires before any table availability check — direct call cleanly isolates the gate.
+//
+// Traces to: F-PQLFN-P7-LOW-002; ADR-048 v1.6 §D.7.5; OD-6.
+#[cfg(test)]
+mod dml_where_sixth_gated_position_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    /// F-PQLFN-P7-LOW-002 (1/4): `DELETE FROM t WHERE stddev(x) > 5` must fire E-QUERY-001
+    /// (aggregate-in-predicate gate, ADR-048 D.7.1 Position 6). No infusion registry needed —
+    /// aggregate gate fires regardless of registry state.
+    ///
+    /// Before fix: fell to `_ => {}` → aggregate gate skipped → SILENT EMPTY SUCCESS (DML no-op).
+    /// After fix: DML arm walks dml.filter → stddev in predicate_fncall_names → E-QUERY-001.
+    ///
+    /// Traces to: F-PQLFN-P7-LOW-002; ADR-048 v1.6 §D.7.5.
+    #[test]
+    fn test_f_pqlfn_p7_low_002_delete_where_aggregate_fires_e_query_001() {
+        let result = check_enrich_udf_availability("DELETE FROM t WHERE stddev(x) > 5", None);
+
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P7-LOW-002: DELETE FROM t WHERE stddev(x) > 5 must return Err \
+             (E-QUERY-001 aggregate gate). Got Ok. \
+             Before fix: fell to _ => {{}} arm — aggregate gate was a no-op for DML."
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        assert!(
+            matches!(&err, PrismError::QueryParseFailed { .. }),
+            "F-PQLFN-P7-LOW-002: DELETE WHERE aggregate must return QueryParseFailed \
+             (E-QUERY-001). Got: {err:?} (Display: {display})"
+        );
+
+        assert!(
+            display.contains("aggregate function"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'aggregate function' \
+             (ADR-048 D.3 canonical message). Got: {display}"
+        );
+
+        assert!(
+            display.contains("stddev"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'stddev' (the aggregate fn name). \
+             Got: {display}"
+        );
+
+        assert!(
+            display.contains("HAVING"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'HAVING' (ADR-048 D.3 guidance). \
+             Got: {display}"
+        );
+    }
+
+    /// F-PQLFN-P7-LOW-002 (2/4): `UPDATE t SET col = 1 WHERE avg(x) > 100` must fire
+    /// E-QUERY-001 (aggregate-in-predicate gate). No registry needed.
+    ///
+    /// Sibling of the DELETE test; exercises build_update_parser path (both bind
+    /// build_predicate_parser, which now includes fn_call_comparison).
+    ///
+    /// Note: `variance` is absent from DataFusion 53.1's default_aggregate_functions() registry
+    /// (DataFusion uses `var_samp`/`var_pop`). `avg` is a registered DataFusion aggregate and
+    /// exercises the same gate. The test validates the mechanism (UPDATE WHERE aggregate →
+    /// E-QUERY-001) rather than a specific function name.
+    ///
+    /// Traces to: F-PQLFN-P7-LOW-002; ADR-048 v1.6 §D.7.5.
+    #[test]
+    fn test_f_pqlfn_p7_low_002_update_where_aggregate_fires_e_query_001() {
+        let result = check_enrich_udf_availability("UPDATE t SET col = 1 WHERE avg(x) > 100", None);
+
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P7-LOW-002: UPDATE t SET col = 1 WHERE avg(x) > 100 must return Err \
+             (E-QUERY-001 aggregate gate). Got Ok."
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        assert!(
+            matches!(&err, PrismError::QueryParseFailed { .. }),
+            "F-PQLFN-P7-LOW-002: UPDATE WHERE aggregate must return QueryParseFailed \
+             (E-QUERY-001). Got: {err:?} (Display: {display})"
+        );
+
+        assert!(
+            display.contains("aggregate function"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'aggregate function'. Got: {display}"
+        );
+
+        assert!(
+            display.contains("avg"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'avg' (the aggregate fn name). Got: {display}"
+        );
+
+        assert!(
+            display.contains("HAVING"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'HAVING'. Got: {display}"
+        );
+    }
+
+    /// F-PQLFN-P7-LOW-002 (3/4): `DELETE FROM t WHERE badudf(col) = 1` with an empty
+    /// InfusionRegistry (badudf not registered) must fire E-QUERY-039.
+    ///
+    /// `badudf` is NOT a DataFusion built-in aggregate → aggregate gate does not fire.
+    /// It IS a ScalarFunc::Unknown reaching predicate_fncall_names → folded into
+    /// sql_unknown_names → not filtered by DATAFUSION_BUILTIN_FUNCTION_NAMES → not in
+    /// registered_names → E-QUERY-039.
+    ///
+    /// Note: DELETE FROM t WHERE badudf(col) = 1 with NO registry returns Ok(()) early
+    /// (registry=None → skip E-QUERY-039). This test uses an EMPTY registry (Some, zero
+    /// entries) to confirm E-QUERY-039 fires when a registry is configured.
+    ///
+    /// Traces to: F-PQLFN-P7-LOW-002; ADR-048 v1.6 §D.7.5 (E-QUERY-039 coverage for DML).
+    #[test]
+    fn test_f_pqlfn_p7_low_002_delete_where_unknown_udf_fires_e_query_039() {
+        use prism_spec_engine::InfusionRegistry;
+
+        let registry = InfusionRegistry::new(); // empty — badudf not registered
+        let result =
+            check_enrich_udf_availability("DELETE FROM t WHERE badudf(col) = 1", Some(&registry));
+
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P7-LOW-002: DELETE FROM t WHERE badudf(col) = 1 with empty registry \
+             must return Err (E-QUERY-039 unknown UDF). Got Ok."
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        assert!(
+            matches!(&err, PrismError::EnrichUdfNotFound(_)),
+            "F-PQLFN-P7-LOW-002: DELETE WHERE unknown UDF must return EnrichUdfNotFound \
+             (E-QUERY-039). Got: {err:?} (Display: {display})"
+        );
+
+        assert!(
+            display.contains("E-QUERY-039"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'E-QUERY-039'. Got: {display}"
+        );
+
+        assert!(
+            display.contains("badudf"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'badudf' (the unknown UDF name). \
+             Got: {display}"
+        );
+    }
+
+    /// F-PQLFN-P7-LOW-002 (4/4): `UPDATE t SET col = 1 WHERE badudf(x) = 1` with an empty
+    /// InfusionRegistry (badudf not registered) must fire E-QUERY-039.
+    ///
+    /// Sibling of the DELETE E-QUERY-039 test; exercises build_update_parser path.
+    ///
+    /// Traces to: F-PQLFN-P7-LOW-002; ADR-048 v1.6 §D.7.5.
+    #[test]
+    fn test_f_pqlfn_p7_low_002_update_where_unknown_udf_fires_e_query_039() {
+        use prism_spec_engine::InfusionRegistry;
+
+        let registry = InfusionRegistry::new(); // empty — badudf not registered
+        let result = check_enrich_udf_availability(
+            "UPDATE t SET col = 1 WHERE badudf(x) = 1",
+            Some(&registry),
+        );
+
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P7-LOW-002: UPDATE t SET col = 1 WHERE badudf(x) = 1 with empty registry \
+             must return Err (E-QUERY-039 unknown UDF). Got Ok."
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        assert!(
+            matches!(&err, PrismError::EnrichUdfNotFound(_)),
+            "F-PQLFN-P7-LOW-002: UPDATE WHERE unknown UDF must return EnrichUdfNotFound \
+             (E-QUERY-039). Got: {err:?} (Display: {display})"
+        );
+
+        assert!(
+            display.contains("E-QUERY-039"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'E-QUERY-039'. Got: {display}"
+        );
+
+        assert!(
+            display.contains("badudf"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'badudf'. Got: {display}"
         );
     }
 }

@@ -140,3 +140,55 @@ fn test_f_pbl1_low002_display_self_sorts_available_infusions() {
          after fix, sorts first → [a_infusion, z_infusion]."
     );
 }
+
+/// F-PQLFN-P7-LOW-001 — SEC-001 (CWE-117): `EnrichUdfNotFoundDetails::new` must strip
+/// Unicode Cc control characters (and U+2028/U+2029 line/paragraph separators) from the
+/// `infusion` field at construction time.
+///
+/// The `infusion` field comes from analyst-provided query text (e.g., the UDF name in
+/// `| enrich <name>(col)` or `WHERE <name>(col) = val`). An analyst could embed C1
+/// control characters or line separators in a UDF name to inject log-splitting sequences
+/// into agent-consumed structured logs (AD-017 extension, CWE-117).
+///
+/// This test mirrors the sanitize_for_log behaviour verified for `ColumnNotFoundDetails::new`
+/// (see `ColumnNotFoundDetails` doc, SEC-001 parity).
+///
+/// Load-bearing (F-PQLFN-P7-LOW-001): removing `sanitize_for_log` from
+/// `EnrichUdfNotFoundDetails::new` causes this test to fail — the stored field would
+/// contain the raw control character instead of the stripped string.
+///
+/// Traces to: F-PQLFN-P7-LOW-001 (SEC-001 sibling parity); CWE-117; AD-017.
+#[test]
+fn test_f_pqlfn_p7_low_001_enrich_udf_infusion_cc_stripped_at_construction() {
+    use crate::error::sanitize_for_log;
+
+    // Build a UDF name embedding a C1 control char (U+0085 NEL) and a line separator
+    // (U+2028). These are valid Unicode code points but log-injection vectors.
+    let raw_name = "threat\u{0085}intel\u{2028}score";
+    let expected_stored = sanitize_for_log(raw_name); // "threatintelscore"
+
+    let details = EnrichUdfNotFoundDetails::new(raw_name, vec![], None);
+
+    // Assert the stored field is the sanitized value — control chars stripped.
+    assert_eq!(
+        details.infusion, expected_stored,
+        "F-PQLFN-P7-LOW-001: EnrichUdfNotFoundDetails::new must strip Cc/U+2028/U+2029 \
+         from the infusion field at construction (SEC-001, CWE-117). \
+         Raw input: {:?}. Expected stored: {:?}. Got: {:?}",
+        raw_name, expected_stored, details.infusion
+    );
+
+    // Belt-and-suspenders: the stored value must NOT contain the raw control chars.
+    assert!(
+        !details.infusion.contains('\u{0085}'),
+        "F-PQLFN-P7-LOW-001: stored infusion must not contain U+0085 (NEL). \
+         Got: {:?}",
+        details.infusion
+    );
+    assert!(
+        !details.infusion.contains('\u{2028}'),
+        "F-PQLFN-P7-LOW-001: stored infusion must not contain U+2028 (LINE SEPARATOR). \
+         Got: {:?}",
+        details.infusion
+    );
+}
