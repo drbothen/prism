@@ -315,6 +315,8 @@ def parse_envelope(resp):
     if not isinstance(content[0], dict):  # OBS-006: guard non-dict content[0] (mirrors envelope dict-guard)
         return {}, "non-dict content[0]"
     text = content[0].get("text", "")
+    if not isinstance(text, str):  # F-AUD-P32-LOW-001: guard non-string text (mirrors content[0] dict-guard)
+        return {}, f"non-string text: {type(text).__name__}"
     if not text:
         return {}, "empty text in content[0]"
     # F-AUD-P16-MED-002: extract structuredContent.error unconditionally — consumed on
@@ -1933,8 +1935,41 @@ def run_audit():
             rows = body.get("rows", [])
             if sensor_errors_gate("[C5] DataFusion aggregate: GROUP BY", body, results):
                 pass
+            elif not rows:
+                results["[C5] DataFusion aggregate: GROUP BY"] = (
+                    "FAIL: GROUP BY returned 0 rows — crowdstrike_detections must have data "
+                    "(seed-200 CompromisedEndpoint guarantees 20 detections)"
+                )
             else:
-                results["[C5] DataFusion aggregate: GROUP BY"] = f"PASS: {len(rows)} rows; sample={rows[:2] if rows else '?'}"
+                # CONSCIOUS-UPDATE: bucket keys verified in make_detection_with_ioc() (generator.rs).
+                # generate_with_scenario_iocs() stamps behaviors[0].ioc_type="hash_sha256" on
+                # detection 0 only (ioc_hashes[0] from ScenarioEntityCatalog); detections 1-19
+                # have MITRE-only behaviors with no ioc_type field.
+                # source_path "$.behaviors[*].ioc_type" wildcard serializes as JSON-list string
+                # (Design Decision 2): detection 0 → '["hash_sha256"]'; detections 1-19 → NULL.
+                # seed-200 CompromisedEndpoint: 20 total detections (5 Critical + 15 Medium).
+                # DataFusion GROUP BY includes NULL as a group (SQL standard): sum(cnt) == 20.
+                _ioc_buckets = {r.get("behaviors_ioc_type"): r.get("cnt") for r in rows}
+                _hash_key = '["hash_sha256"]'
+                _total_cnt = sum(v for v in _ioc_buckets.values() if isinstance(v, (int, float)))
+                if _hash_key not in _ioc_buckets:
+                    results["[C5] DataFusion aggregate: GROUP BY"] = (
+                        f"FAIL: behaviors_ioc_type bucket '{_hash_key}' absent — "
+                        f"generate_with_scenario_iocs() must stamp ioc_type=hash_sha256 on "
+                        f"detection 0 (make_detection_with_ioc, generator.rs); "
+                        f"got buckets={sorted(str(k) for k in _ioc_buckets)!r}"
+                    )
+                elif _total_cnt != 20:
+                    results["[C5] DataFusion aggregate: GROUP BY"] = (
+                        f"FAIL: sum(cnt)={_total_cnt} != 20 — seed-200 CompromisedEndpoint "
+                        f"guarantees 20 total detections; buckets={list(_ioc_buckets.items())[:4]!r}"
+                    )
+                else:
+                    results["[C5] DataFusion aggregate: GROUP BY"] = (
+                        f"PASS: {len(rows)} bucket(s); '{_hash_key}' confirmed; "
+                        f"sum(cnt)=20 (seed-200 contract); "
+                        f"sample={list(_ioc_buckets.items())[:2]!r}"
+                    )
 
         # ── C6: DataFusion aggregate MAX/MIN ──────────────────────────────────
         body, err = query(proc, "SELECT MAX(device_id), MIN(device_id) FROM crowdstrike_detections", ["org-c"])
@@ -4003,6 +4038,13 @@ def run_audit():
                 # F-AUD-P5-LOW-003: restrict seed-segment detection to ID-bearing columns only.
                 # Scanning ALL string columns risks false-positives from columns whose values
                 # happen to contain "-100-" or "-200-" substrings unrelated to seed identity.
+                # CONSCIOUS-UPDATE (F-AUD-P32-LOW-004): device_id and detection_id are the
+                # two ID-format columns in crowdstrike_detections. Their formats are generated
+                # by org_slug() + seed + ordinal in generator.rs (make_device / make_detection
+                # functions): "dev-{org_slug}-{seed}-{n}" for device_id and
+                # "alert-{org_slug}-{seed}-{n}" for detection_id. These columns are declared
+                # in crates/prism-sensors/specs/crowdstrike.sensor.toml [[tables]] detections
+                # block. If either column is renamed there, update this whitelist accordingly.
                 _id_cols = {"device_id", "detection_id"}
                 # LOW-001 (F-AUD-P22): per-row detection — a row counts for org-a iff
                 # -100- appears in that row's device_id or detection_id; similarly for
@@ -4220,33 +4262,47 @@ def run_audit():
                             # F-AUD-P30-MED-003: verify org-c sensor set matches EXPECTED_SENSORS.
                             # render_sensors_health_resource keys the sensors dict by sensor_id
                             # (crates/prism-mcp/src/resources.rs); set(keys()) gives the IDs.
-                            _org_c_sensors = set(
-                                sh_obj["clients"].get("org-c", {}).get("sensors", {}).keys()
-                            )
-                            if _org_c_sensors != EXPECTED_SENSORS:
+                            # F-AUD-P32-LOW-002: guard non-dict org-c entry before descending
+                            # to .get("sensors", {}) — an unexpected value type (e.g., a list or
+                            # string) would raise AttributeError on the chained .get() call.
+                            _client_org_c = sh_obj["clients"].get("org-c", {})
+                            if not isinstance(_client_org_c, dict):
                                 results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
-                                    f"FAIL: org-c sensor set mismatch — "
-                                    f"expected={sorted(EXPECTED_SENSORS)!r}, "
-                                    f"actual={sorted(_org_c_sensors)!r} (F-AUD-P30-MED-003)"
+                                    f"FAIL: org-c entry in clients dict is not a dict — "
+                                    f"unexpected shape: {type(_client_org_c).__name__!r}; "
+                                    f"value={str(_client_org_c)[:40]!r}"
                                 )
                             else:
-                                results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
-                                    f"PASS: populated clients{{}} form; "
-                                    f"client_count={client_count}; total_sensors={total_sensors}; "
-                                    f"stale={sh_obj['stale']!r}; "
-                                    f"org-c sensors confirmed={sorted(_org_c_sensors)!r}"
+                                _org_c_sensors = set(
+                                    _client_org_c.get("sensors", {}).keys()
                                 )
+                                if _org_c_sensors != EXPECTED_SENSORS:
+                                    results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                                        f"FAIL: org-c sensor set mismatch — "
+                                        f"expected={sorted(EXPECTED_SENSORS)!r}, "
+                                        f"actual={sorted(_org_c_sensors)!r} (F-AUD-P30-MED-003)"
+                                    )
+                                else:
+                                    results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
+                                        f"PASS: populated clients{{}} form; "
+                                        f"client_count={client_count}; total_sensors={total_sensors}; "
+                                        f"stale={sh_obj['stale']!r}; "
+                                        f"org-c sensors confirmed={sorted(_org_c_sensors)!r}"
+                                    )
                 else:
                     # Unexpected shape — neither known form.
                     results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
                         f"FAIL: unexpected shape — neither empty-cache nor populated form; "
                         f"keys={list(sh_obj.keys())[:6]!r}; body={t_sh[:100]!r}"
                     )
-            except (json.JSONDecodeError, TypeError) as exc:
+            except (json.JSONDecodeError, TypeError, AttributeError) as exc:
                 # F-AUD-P1-MED-007: render_sensors_health_resource always produces JSON.
-                # Narrow to JSONDecodeError + TypeError only; let programmer errors propagate.
+                # Narrow to JSONDecodeError + TypeError + AttributeError only; let programmer
+                # errors propagate. AttributeError added (F-AUD-P32-LOW-002): guard against
+                # an unexpected non-dict value in the clients map that survives isinstance
+                # check at a nested level and raises on a chained attribute access.
                 results["[H14b] resources/read: prism://sensors/health — populated clients{} form"] = (
-                    f"FAIL: non-JSON response — resources.rs contract violation; "
+                    f"FAIL: non-JSON response or attribute error — resources.rs contract violation; "
                     f"exc={exc!r}; body={t_sh[:40]!r}"
                 )
 
@@ -4478,8 +4534,22 @@ def run_audit():
             # MED-007: the query "FROM crowdstrike_detections | limit 5" is unambiguously
             # pipe-syntax — assert parsed_mode == "pipe" exactly, not "any valid domain".
             _pm = body.get("parsed_mode")
-            if sensor_errors_gate("[H15] explain_query live call (one of 14 implemented tools)", body, results):
-                pass
+            # F-AUD-P32-LOW-003: explain_query is plan-time introspection; it must NOT fan out
+            # to sensors. Verified in explain_query() in crates/prism-mcp/src/server.rs:
+            # the handler calls qe.explain() (query planner only) and wraps result with
+            # DataSource::Multiple(vec![]) — no sensor data accessed, no fan-out.
+            # A non-empty sensor_errors field would indicate an unexpected regression.
+            # Do NOT use sensor_errors_gate() here — that gate emits PASS on empty sensor_errors,
+            # which would be semantically correct for a data-fetching tool but is the WRONG
+            # signal for explain_query: the absence of sensor_errors is EXPECTED, not a PASS.
+            _h15_se = body.get("sensor_errors")
+            if _h15_se:
+                results["[H15] explain_query live call (one of 14 implemented tools)"] = (
+                    f"FAIL: explain_query is plan-time introspection — unexpected sensor "
+                    f"fan-out evidence; sensor_errors={str(_h15_se)[:80]!r} "
+                    f"(explain_query handler in server.rs uses DataSource::Multiple(vec![]) — "
+                    f"no sensor data should be accessed)"
+                )
             elif _pm is None:
                 results["[H15] explain_query live call (one of 14 implemented tools)"] = (
                     f"FAIL: explain_query response lacks parsed_mode key — schema mismatch or empty plan; "
@@ -5541,8 +5611,12 @@ if __name__ == "__main__":
     # F-AUD-P15-OBS-004: use module-level `import re` (already imported at top); no alias needed.
     _matrix_ids = {row[0] for row in COVERAGE_MATRIX}
     _result_ids = set()
+    # F-AUD-P32-OBS-003: check-ID grammar: one or more uppercase letters, one or more digits,
+    # zero to two lowercase suffix letters — covers current IDs ([A1], [H14b], [H13a]) and
+    # hypothetical future IDs ([H14ab], [BX1]) without risk of matching synthetic keys
+    # (BOOT, CRASH, AUDIT_INTERNAL_ERROR) which do not start with '['.
     for _k in results:
-        _m = re.match(r'^(\[[A-Z][0-9]+[a-z]?\])', _k)
+        _m = re.match(r'^(\[[A-Z]+[0-9]+[a-z]{0,2}\])', _k)
         if _m:
             _result_ids.add(_m.group(1))
     _matrix_only = _matrix_ids - _result_ids
