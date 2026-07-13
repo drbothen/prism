@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.9"
-spec_version: "v0.9"
+version: "0.10"
+spec_version: "v0.10"
 level: ops
 producer: story-writer
 timestamp: "2026-07-13"
@@ -39,7 +39,7 @@ crates_touched:
 target_module: "crates/prism-mcp"
 behavioral_contracts: [BC-2.11.001, BC-2.10.007]
 # BC status: both BCs are active.
-#   BC-2.11.001 v1.20 (null-not-absent postcondition codified at v1.16; current pin v1.20): null-not-absent row-shape postcondition
+#   BC-2.11.001 v1.21 (null-not-absent postcondition codified at v1.16; current pin v1.21): null-not-absent row-shape postcondition
 #   added (DEFECT-MCP-ROWSHAPE-NULLS-001); EC-11-079. This is the primary anchor for
 #   query tool wire-shape tests.
 #   BC-2.10.007 v1.11: structured error response wire shape — all 9 required fields,
@@ -77,7 +77,7 @@ wire bytes that LLM agents actually receive:
   wire-level `rows` array (key presence per projected column) and caught an escape that no
   existing unit test would have detected — the test suite asserted `RecordBatch` row counts, not
   the JSON-serialized envelope.
-- **[H20]** `threat_score` column ABSENT from all rows (ADR-051 §D4 NULL output expected). The
+- **[H20]** `threat_score` column ABSENT from all rows (ADR-051 §D2 NULL output expected). The
   enrich stage produced no column at all instead of a `null`-valued column key. The existing
   enrich tests verified the `InfusionResult` shape, not the serialized `structuredContent.results.rows`
   JSON.
@@ -110,7 +110,7 @@ This story establishes SID-2 as a standing implementer discipline to be added to
 > 3. **Explicit-null key presence (EC-11-079)** — for each entry in `structuredContent.results.rows`, assert that
 >    every projected column key is present in every row. For NULL-valued cells, assert
 >    the row has `"column_name": null`, not merely that the row parses without error.
->    The `WriterBuilder.with_explicit_nulls(true)` invariant (BC-2.11.001 v1.20) must be
+>    The `WriterBuilder.with_explicit_nulls(true)` invariant (BC-2.11.001 v1.21) must be
 >    exercised by at least one test.
 > 4. **Error-code anchor presence** — for error responses, assert `structuredContent.error.code`
 >    matches the expected `E-XXX-NNN` string from the taxonomy. Asserting `isError: true` or
@@ -135,13 +135,13 @@ audit stage.
 
 | BC | Title | Version | Relevance |
 |----|-------|---------|-----------|
-| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | v1.20 | Postcondition: row-shape null-not-absent — `WriterBuilder.with_explicit_nulls(true)` required; EC-11-079 (NULL column → key present as `null`). Primary anchor for AC-002. |
+| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | v1.21 | Postcondition: row-shape null-not-absent — `WriterBuilder.with_explicit_nulls(true)` required; EC-11-079 (NULL column → key present as `null`). Primary anchor for AC-002. |
 | BC-2.10.007 | Structured Error Responses | v1.11 | Postcondition: nested wire shape with 9 required fields; `retry_after_seconds: null` (not absent) for non-rate-limit errors. Primary anchor for AC-003 and all error-path ACs. |
 
 ## Acceptance Criteria
 
 ### AC-001 — SID-2 codified in CLAUDE.md
-(traces to BC-2.11.001 v1.20 invariant — agent-harness schema stability rationale)
+(traces to BC-2.11.001 v1.21 invariant — agent-harness schema stability rationale)
 
 The full SID-2 definition (see §Origin above) is added to `CLAUDE.md`
 §Standing Adversary Probes & Implementer Disciplines immediately after SID-1, with section
@@ -152,7 +152,7 @@ AUDIT-COVERAGE-001 B/C/D-hardening cascade.`
 No Red Gate test for this AC (doc-only change).
 
 ### AC-002 — `query` tool: explicit-null key presence (EC-11-079)
-(traces to BC-2.11.001 v1.20 postcondition — row-shape null-not-absent)
+(traces to BC-2.11.001 v1.21 postcondition — row-shape null-not-absent)
 
 `crates/prism-mcp/tests/wire_shape.rs` (new file) adds:
 
@@ -168,7 +168,7 @@ Red Gate: the `WriterBuilder.with_explicit_nulls(true)` fix has landed in DEFECT
 
 `test_BC_2_11_001_query_tool_enrich_null_column_key_present` — pipe-mode `| enrich` query
 where the enrichment UDF returns NULL for some rows. Asserts the enriched column key is
-present as `null` in those rows (ADR-051 §D4). Targets T13 [H20] escape.
+present as `null` in those rows (ADR-051 §D2). Targets T13 [H20] escape.
 
 ### AC-003 — `query` tool: error-path BC-2.10.007 wire shape
 (traces to BC-2.10.007 v1.11 postcondition — structured error wire shape)
@@ -323,7 +323,7 @@ Architecture section references:
 | Item | Lines | Tokens (est.) |
 |------|-------|--------------|
 | Story spec (this file) | ~300 | ~4,200 |
-| BC-2.11.001 v1.20 (query BC with null-not-absent postcondition) | ~160 | ~2,300 |
+| BC-2.11.001 v1.21 (query BC with null-not-absent postcondition) | ~160 | ~2,300 |
 | BC-2.10.007 v1.11 (structured error BC) | ~120 | ~1,700 |
 | crates/prism-mcp/src/server.rs (tool dispatch + resource dispatch sections) | ~400 | ~5,600 |
 | crates/prism-mcp/src/tools/ (prism_describe, query, sensor_health) | ~300 | ~4,200 |
@@ -338,7 +338,7 @@ is large, split by loading only the tool-handler test utilities, not the full fi
 
 ## Tasks
 
-- [ ] Read BC-2.11.001 v1.20 postcondition (null-not-absent) and BC-2.10.007 postcondition (structured error wire shape) before writing any test.
+- [ ] Read BC-2.11.001 v1.21 postcondition (null-not-absent) and BC-2.10.007 postcondition (structured error wire shape) before writing any test.
 - [ ] Read `crates/prism-mcp/src/server.rs` (LIVE_TOOLS list, dispatch table) and `resources.rs` (build_resource_list, build_resource_template_list) to confirm the 14+6 surface inventory.
 - [ ] Add `### SID-2` to CLAUDE.md §Standing Adversary Probes & Implementer Disciplines immediately after SID-1 (full definition from §Origin above). Commit this change in the same PR.
 - [ ] Create `crates/prism-mcp/tests/wire_shape.rs` (new file). Add all 20 Red Gate tests (AC-002 through AC-012, counting sub-tests).
@@ -420,6 +420,7 @@ or `prism-sensors` crates in production code. Test files may use DTU harness cra
 
 | Version | Date | Change | Source |
 |---------|------|--------|--------|
+| v0.10 | 2026-07-13 | BC-2.11.001 version-pin refresh v1.20→v1.21 (F-MCPNULL-P16-LOW-001 POL-23 pin sweep, pass 16): 8 live sites updated — frontmatter comment ~line 42 (2 occurrences: BC ID pin `BC-2.11.001 v1.20` and bare `current pin v1.20` phrase), SID-2 step-3 invariant cite (~line 113), Behavioral Contracts table version cell (~line 138), AC-001 traces annotation (~line 144), AC-002 traces annotation (~line 155), Token Budget BC row (~line 326), Tasks read instruction (~line 341). ADR-051 §D4→§D2 correction at 2 sites (Precedents attribution fix — NULL-partial-failure precedent belongs to §D2, not §D4; `not absent` attributed to EC-11-079's own codification): §Origin [H20] narrative (~line 83) and AC-002 pipe-mode enrich note (~line 171). Historical §Changelog rows referencing `v1.20` as a destination (v0.9 row) left untouched per TD-VSDD-091. Story version bumped 0.9→0.10; `modified:` already 2026-07-13. | F-MCPNULL-P16-LOW-001 (pass-16) |
 | v0.9 | 2026-07-13 | BC-2.11.001 version-pin refresh v1.18→v1.20 (F-MCPNULL-P14-MED-001, pass 14): 7 live sites updated — frontmatter comment (attribution corrected: null-not-absent postcondition attributed to v1.16 codification, not v1.18 prose-harmonize), SID-2 step-3 invariant cite, Behavioral Contracts table version cell, AC-001 traces annotation, AC-002 traces annotation, Token Budget BC row, Tasks read instruction. Story version bumped 0.8→0.9; `modified:` already 2026-07-13 (POL-23). EC-11-068 grep confirmed 0 stale live instances (1 historical-only in v0.8 changelog row, append-only per TD-VSDD-091). Changelog rows referencing `v1.18` in v0.2 and v0.5 entries are historical and left intact per append-only policy (TD-VSDD-091); §Changelog reordered to monotonic descending per POL-32 (pre-existing ascending order normalized). | F-MCPNULL-P14-MED-001 (pass-14) |
 | v0.8 | 2026-07-13 | EC ID renumbering (F-MCPNULL-P13-HIGH-001): BC-2.11.001 v1.20 @62d48f01 renumbered row-shape EC EC-11-068→EC-11-079. Updated 4 live sites: frontmatter comment (~line 43); SID-2 step-3 definition (~line 110); Behavioral Contracts table (~line 138); AC-002 heading (~line 154). No BC-2.11.016 FIELDS-TRANSITION keeper EC-11-068 present in this file. | F-MCPNULL-P13-HIGH-001 (pass-13) |
 | v0.7 | 2026-07-13 | API-name propagation (F-MCPNULL-P10-OBS-001): replaced `explicit_nulls(true)` / `WriterBuilder.explicit_nulls(true)` with `with_explicit_nulls(true)` at all 10 sites (frontmatter comment ~line 34; SID-2 step-3 ~line 113; Behavioral Contracts table ~line 138; AC-002 Red Gate note ~lines 166-167; Architecture Mapping ~line 292; Tasks ~lines 346-347; Previous Story Intelligence ~line 366; Architecture Compliance Rules ~line 384; File Structure Requirements ~line 416). Anchor correction (F-MCPNULL-P10-OBS-002): re-anchored query-tool handler from `tools/query.rs` (documentation facade) to `server.rs::PrismServer::query` in Architecture Mapping (~line 292) and File Structure Requirements (~line 416). Updated all DEFECT story hedges ("may be in DEFECT story" / "if not done by DEFECT story") to reflect fix landed in DEFECT-MCP-ROWSHAPE-NULLS-001, pending merge. | F-MCPNULL-P10-OBS-001/002 (pass-10) |

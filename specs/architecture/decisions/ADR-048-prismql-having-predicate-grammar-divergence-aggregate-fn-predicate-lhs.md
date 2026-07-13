@@ -5,7 +5,7 @@ title: "PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function
 status: accepted
 date: "2026-06-28"
 accepted_date: "2026-06-29"
-version: "1.8"
+version: "1.9"
 modified: "2026-07-13"
 producer: architect
 subsystems_affected: [SS-11]
@@ -29,6 +29,8 @@ open_decisions: []
 # ADR-048: PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function Predicate LHS in HAVING
 
 ## Status
+
+ACCEPTED v1.9 (2026-07-13). F-PQLFN-P10-OBS-001 + F-PQLFN-P10-OBS-002 (DEFECT-PQL-FNCALL-LHS-001 pass 10). Two spec-side adjudications: (1) OBS-001: §D.7.2 amended — `detail` field of `PrismError::QueryParseFailed` MUST NOT embed the `E-QUERY-001: ` prefix; Display chrome `#[error("E-QUERY-001: query parse error at offset {offset}: {detail}")]` supplies the single canonical prefix (E-QUERY-003 de-nesting precedent: callers MUST NOT embed the prefix in `detail`). Both canonical forms now explicit in §D.7.2: full Display form `E-QUERY-001: query parse error at offset {offset}: '{name}' is an aggregate function; aggregate fn-calls are not valid in WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)` (what tests, BCs, and users observe); detail-only form `'{name}' is an aggregate function; aggregate fn-calls are not valid in WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)` (what engine.rs format! writes). §D.6 canonical message citation corrected from prefix-embedded form to detail-only form with §D.7.2 cross-reference. POL-29 grep: §D.6 was the sole remaining site quoting the prefixed-detail form; corrected. (2) OBS-002: §D.7.2 fn_call_comparison identifier start-character constraint added — first char MUST be ASCII alphabetic or `_`; subsequent chars may be alphanumeric or `_`; digit-leading fn-names (e.g., `| where 123abc(x) = 5`) are rejected at parse time with standard Chumsky E-QUERY-001 ("found '1'" style), not passed downstream as `FuncCall::Scalar(Unknown("123abc"))`. Rationale: identifier-grammar parity with `field_path`; earlier, clearer failure. Related Architecture Nodes fn_call_comparison entry updated. BC-2.11.004 + code sync follows in the same fix-burst by PO/implementer.
 
 ACCEPTED v1.8 (2026-07-13). F-PQLFN-P9-MED-001 + F-PQLFN-P9-LOW-001 fix-burst (DEFECT-PQL-FNCALL-LHS-001 pass 9). Two spec-side corrections: (1) Changelog reordered to monotonic descending per POL-32 — rows 1.7 and 1.6 were swapped (ascending-then-swapped order; reordering preserves all row content unchanged). (2) §D.7.2 canonical E-QUERY-001 message ratified as position-agnostic. Prior message: "aggregate fn-calls are not valid in pipe | where" — mis-identified the error location for five of the six gated positions (§D.7.1 table: pipe | where, filter root, SqlPipe | where, SQL WHERE, SqlPipe-head WHERE, SQL DML WHERE). Ratified canonical message: "'{name}' is an aggregate function; aggregate fn-calls are not valid in WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)". §D.6 canonical message citation updated in parallel. Single-message-source principle (§D.7.2) preserved; HAVING guidance and ADR-048 D.3 citation unchanged. Code sync (engine.rs message string + dependent tests) follows in the same fix-burst by the implementer.
 
@@ -385,9 +387,11 @@ Post-v1.2 enforcement: the `AGGREGATE_FUNC_NAMES` `try_map` guard is REMOVED fro
 `fn_call_comparison`. The plan-time `DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate in
 `check_enrich_udf_availability` is the SOLE enforcement point. `predicate_fncall_names`
 is extended to cover SQL WHERE predicate positions (see §D.7). The gate fires the
-canonical "E-QUERY-001: '{name}' is an aggregate function; aggregate fn-calls are not
-valid in WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)"
-message for all covered positions.
+canonical detail message `'{name}' is an aggregate function; aggregate fn-calls are not
+valid in WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)`
+for all covered positions. The `detail` MUST NOT embed the `E-QUERY-001: ` prefix; see
+§D.7.2 for both canonical forms (full Display form and detail-only form) and the
+E-QUERY-003 de-nesting mandate (v1.9 F-PQLFN-P10-OBS-001).
 
 An LLM agent receiving E-QUERY-001 for any aggregate-in-WHERE form should be directed
 to use HAVING or restructure the query. The pre-aggregation semantic prohibition is
@@ -444,6 +448,32 @@ E-QUERY-001 message when an aggregate name was encountered. Removing it means:
   filters, ADR-048 D.3)"
 - All six predicate positions receive an identical, helpful message — single message
   source, consistent analyst/LLM UX
+
+**Canonical message forms (v1.9 — F-PQLFN-P10-OBS-001):** `PrismError::QueryParseFailed`
+carries the Display format `#[error("E-QUERY-001: query parse error at offset {offset}: {detail}")]`
+(prism-core/src/error.rs). The `detail` field set by the aggregate gate MUST NOT embed
+the `E-QUERY-001: ` prefix — the Display chrome supplies the single canonical prefix.
+This follows the E-QUERY-003 de-nesting precedent: callers MUST NOT embed the error-code
+prefix in `detail`. Two canonical forms apply to all six predicate positions:
+
+- **Full Display form** (what tests, BCs, and users observe, byte-verbatim):
+  `E-QUERY-001: query parse error at offset {offset}: '{name}' is an aggregate function; aggregate fn-calls are not valid in WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)`
+- **Detail-only form** (what the implementer writes in the `format!` call — no prefix):
+  `'{name}' is an aggregate function; aggregate fn-calls are not valid in WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)`
+
+BC-2.11.004 test vectors and code assertions that check the final error string MUST cite
+the full Display form. The engine.rs `format!` call producing the `detail` field MUST
+use the detail-only form with no `E-QUERY-001: ` prefix in the string literal.
+
+**`fn_call_comparison` identifier start-character constraint (v1.9 — F-PQLFN-P10-OBS-002):**
+The fn-name production in `fn_call_comparison` (`filter_parser.rs`) MUST require the
+identifier's first character to be ASCII alphabetic or `_`; subsequent characters may be
+ASCII alphanumeric or `_`. Digit-leading fn-names (e.g., `| where 123abc(x) = 5`) MUST
+be rejected at parse time with a standard Chumsky parse error wrapped as E-QUERY-001 —
+no special message; the parse fails at the offending digit character ("found '1'" style).
+Rationale: identifier-grammar parity with `field_path`, which already enforces an
+identifier-start character; earlier, clearer failure than downstream rejection of
+`FuncCall::Scalar(Unknown("123abc"))`.
 
 #### D.7.3 — HAVING Non-Six-Name Aggregate Policy (MED-001 adjudication)
 
@@ -629,7 +659,7 @@ and avoids conditional branching inside the parser combinator.
 ## Related Architecture Nodes
 
 - `filter_parser.rs` `build_predicate_parser` — `fn_call_comparison` production added (DEFECT-PQL-FNCALL-LHS-001); `AGGREGATE_FUNC_NAMES` `try_map` guard REMOVED (v1.2 D.7.2)
-- `filter_parser.rs` `fn_call_comparison` — no longer contains parser-level aggregate blocklist; plan-time gate is the sole enforcement
+- `filter_parser.rs` `fn_call_comparison` — no longer contains parser-level aggregate blocklist; plan-time gate is the sole enforcement; identifier first character MUST be ASCII alphabetic or `_` (digit-leading fn-names → parse-time E-QUERY-001; v1.9 F-PQLFN-P10-OBS-002)
 - `sql_parser.rs` `build_sql_predicate_parser` — WHERE path uses `build_predicate_parser`; HAVING uses `build_having_predicate_parser`
 - `sql_parser.rs` `build_having_predicate_parser` — `agg_comparison.or(base)` structure; `base` includes `fn_call_comparison` (D.7.3 passthrough for non-six-name aggregates)
 - `sql_parser.rs` `build_agg_call_parser` — handles COUNT/DISTINCT_COUNT/SUM/AVG/MIN/MAX; PERCENTILE excluded (OD-2)
@@ -645,6 +675,7 @@ and avoids conditional branching inside the parser combinator.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | adr-048-v1.9-DEFECT-PQL-FNCALL-LHS-001-pass10-obs-adjudication | 2026-07-13 | architect | F-PQLFN-P10-OBS-001 + F-PQLFN-P10-OBS-002 (DEFECT-PQL-FNCALL-LHS-001 pass 10). OBS-001: §D.7.2 amended — `detail` field of `PrismError::QueryParseFailed` MUST NOT embed the `E-QUERY-001: ` prefix; Display chrome `#[error("E-QUERY-001: query parse error at offset {offset}: {detail}")]` supplies the single canonical prefix (E-QUERY-003 de-nesting precedent). Both canonical forms now explicit: full Display form `E-QUERY-001: query parse error at offset {offset}: '{name}' is an aggregate function; aggregate fn-calls are not valid in WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)` (tests/BCs/users cite this); detail-only form `'{name}' is an aggregate function; aggregate fn-calls are not valid in WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)` (engine.rs format! uses this). §D.6 canonical message citation corrected from prefix-embedded form to detail-only form with §D.7.2 cross-reference. POL-29 grep: §D.6 was the sole remaining site quoting the prefixed-detail form as current; corrected. OBS-002: §D.7.2 fn_call_comparison identifier start-character constraint added — first char MUST be ASCII alphabetic or `_`; subsequent chars may be alphanumeric or `_`; digit-leading fn-names (e.g., `123abc(x)`) → parse-time E-QUERY-001 ("found '1'" style), not downstream FuncCall::Scalar(Unknown(...)); parity with field_path. Related Architecture Nodes fn_call_comparison entry updated to note the leading-char constraint. BC-2.11.004 + code sync follows in same fix-burst by PO/implementer. |
 | 1.8 | adr-048-v1.8-DEFECT-PQL-FNCALL-LHS-001-pass9-message-fix | 2026-07-13 | architect | F-PQLFN-P9-MED-001 + F-PQLFN-P9-LOW-001 (DEFECT-PQL-FNCALL-LHS-001 pass 9). Two spec-side corrections: (1) Changelog reordered to monotonic descending per POL-32 — rows 1.7 and 1.6 were in ascending-then-swapped order; all row content preserved unchanged. (2) §D.7.2 canonical E-QUERY-001 message ratified as position-agnostic: "'{name}' is an aggregate function; aggregate fn-calls are not valid in WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)". Rationale: the gate fires in all six predicate positions (D.7.1 table: pipe \| where, filter root, SqlPipe \| where, SQL WHERE, SqlPipe-head WHERE, SQL DML WHERE); the prior "pipe \| where" phrasing mis-identified the error location for five of six positions. §D.6 canonical message citation updated in parallel. Single-message-source principle (§D.7.2) preserved; HAVING guidance and ADR-048 D.3 citation unchanged. Code sync (engine.rs message string + dependent tests) follows in the same fix-burst by the implementer. |
 | 1.7 | adr-048-v1.7-DEFECT-PQL-FNCALL-LHS-001-pass8-variance-test-correction | 2026-07-13 | architect | F-PQLFN-P8-MED-001 §D.7.5 Required tests row 2 corrected: query changed from `UPDATE t SET col = 1 WHERE variance(x) > 100` to `UPDATE t SET col = 1 WHERE avg(x) > 100`. DataFusion 53.1's `default_aggregate_functions()` does not register `variance` (uses `var_samp`/`var_pop` instead); `variance` is absent from `DATAFUSION_BUILTIN_AGGREGATE_NAMES`, so the original test would have exercised the E-QUERY-039 path rather than the E-QUERY-001 aggregate gate. `avg` IS registered and exercises the correct mechanism. Empirical footnote added to §D.7.5. Production code unchanged. |
 | 1.6 | adr-048-v1.6-DEFECT-PQL-FNCALL-LHS-001-pass7-dml-gate-extension | 2026-07-13 | architect | F-PQLFN-P7-LOW-002 adjudication: DML WHERE added as sixth gated predicate position. Root cause: build_delete_parser and build_update_parser both bind build_predicate_parser; branch extension of build_predicate_parser with fn_call_comparison turned pre-branch parse-time E-QUERY-001 into post-branch SILENT EMPTY SUCCESS for DML WHERE aggregate fn-calls. Ruling: Option A (extend gate) over Option B (explicit out-of-scope deferral) — regression introduced by this branch, gate invocation already touches DML at both execute_inner call sites, DML no-ops so zero risk. New §D.7.5 documents arm shape (Ast::Sql(SqlStatement::Dml(dml)) if let Some(pred) = &dml.filter → collect_unknown_scalar_from_predicate), four required tests. §D.7.1 table extended (Position 6: SQL DML WHERE). §D.6 enumeration updated to include SQL DML WHERE. §D.3 and §D.7.2 count references updated from "five" to "six". Related Architecture Nodes updated. OD-6 locked. |

@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "interface-definitions"
-version: "2.11"
+version: "2.12"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -485,7 +485,7 @@ Configures where Prism resolves a named credential for a given `(client_id, sens
         "type": "array",
         "items": {
           "type": "object",
-          "description": "OCSF-normalized result records with virtual fields (sensor, client_id, source). Key name is 'rows', not 'events': query results are tabular projections, not raw OCSF event objects (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-MED-001). Row-shape invariant (BC-2.11.001 v1.20, EC-11-079): every row in a result set carries a uniform key set — all columns are present in every row; NULL cells are serialized as JSON null and are never omitted. A missing key is a contract violation, enforced via arrow_json WriterBuilder::with_explicit_nulls(true). (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P14-LOW-001 2026-07-13)"
+          "description": "OCSF-normalized result records with virtual fields (sensor, client_id, source). Key name is 'rows', not 'events': query results are tabular projections, not raw OCSF event objects (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-MED-001). Row-shape invariant (BC-2.11.001 v1.21, EC-11-079): every row in a result set carries a uniform key set — all columns are present in every row; NULL cells are serialized as JSON null and are never omitted. A missing key is a contract violation, enforced via arrow_json WriterBuilder::with_explicit_nulls(true). (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P14-LOW-001 2026-07-13)"
         }
       },
       "_meta": {
@@ -2936,6 +2936,7 @@ OPTIONS:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.12 | DEFECT-MCP-ROWSHAPE-NULLS-001 pass-16 + DEFECT-PQL-FNCALL-LHS-001 pass-10 (D-1722) | 2026-07-13 | state-manager | **POL-23 sibling sweep — BC-2.11.001 v1.20→v1.21 pin-advance only.** Updated inline BC-version reference from v1.20 to v1.21 per F-MCPNULL-P16-LOW-001 POL-23 obligation. No schema content changes. POL-26 cell counts unchanged. ARCH-INDEX v2.183→v2.184; BC-INDEX v7.99→v8.00; STORY-INDEX v2.667→v2.668. |
 | 2.11 | DEFECT-MCP-ROWSHAPE-NULLS-001 pass-15 | 2026-07-13 | product-owner | **F-MCPNULL-P15-OBS-002 (pass 15) — changelog-restoration-only.** Backfilled v2.8 changelog row per POL-32 tombstone/backfill mandate: row was absent (pre-existing POL-32 gap, noted at v2.9 authoring time); ground truth recovered from git history (commit b39e21e9, D-1203, 2026-06-16). v2.9 NOTE updated to record backfill at v2.11. No schema content changes in this burst. POL-29 sibling sweep: version sequence v2.11→v2.0 is now gap-free. |
 | 2.10 | DEFECT-MCP-ROWSHAPE-NULLS-001 pass-14 | 2026-07-13 | product-owner | **F-MCPNULL-P14-LOW-001 (pass 14) — null-not-absent row-shape invariant added to §1.9 `rows` description.** Amended `rows.items.description` to state that every row carries a uniform key set, NULL cells are JSON `null` (never omitted), and a missing key is a contract violation enforced via `arrow_json WriterBuilder::with_explicit_nulls(true)`. Cross-references BC-2.11.001 v1.20 (null-not-absent postcondition) and EC-11-079. POL-29 sibling sweep: no other row-shape description sites in file; no inline example rows with missing keys found. |
 | 2.9 | DEFECT-MCP-ROWSHAPE-NULLS-001-events-to-rows | 2026-07-13 | product-owner | **POL-23 sibling sweep — `query` tool response schema key renamed `events` → `rows`.** §1.3 query tool JSON output schema: `"events"` array key updated to `"rows"` per human adjudication 2026-07-13 (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-MED-001). Key name shipped in S-5.01-FOLLOWUP-MCP-BOOT (PR #163); spec sibling brought into alignment with BC-2.11.001 v1.17 and shipped behavior. Description updated: "OCSF-normalized result records" (not "event records") to match the tabular-projection rationale. NOTE: v2.8 changelog row was absent at v2.9 authoring time (pre-existing POL-32 gap); backfilled from git history (commit b39e21e9, D-1203) at v2.11 per F-MCPNULL-P15-OBS-002. |

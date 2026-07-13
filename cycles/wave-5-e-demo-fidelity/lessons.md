@@ -3169,3 +3169,17 @@ This is a TD-VSDD-060 extension candidate: the upstream vsdd-factory plugin shou
 **Codified candidate for POL-29 step-3a:** For any story file containing a BC-version table (columns such as `| BC-ID | ... | vN.NN | ...`), the pin sweep MUST include `| vN.NN |` as a distinct grep target in ADDITION to the prose form `BC-X.XX.XXX vN.NN`. The two forms are structurally independent and must each be searched and updated.
 
 **Source:** D-1721 (DEFECT-PQL-FNCALL-LHS-001 pass-9 false-close correction; 2026-07-13).
+
+### Lesson 50 — [process-gap] Line-wrapped canonical-string quotes in doc comments evade single-line greps
+
+**Classification:** PROCESS-GAP — DEFECT-PQL-FNCALL-LHS-001 cascade; F-PQLFN-P10-MED-001 (2026-07-13).
+
+**Finding:** F-PQLFN-P10-MED-001 identified two doc-comment sites in prism-query where canonical error message strings were line-wrapped across source lines. A single-line grep for the canonical string (e.g., `"not valid in WHERE"`) matched only single-line occurrences; the line-wrapped variants (where the string is split across two lines with a Rust string-continuation or concatenation) were silently missed. This is distinct from Lesson 49 which covered markdown table-cell variants — this finding covers source-code doc-comment line-wrapping.
+
+**Root cause:** Canonical-message sweep greps used `grep -n "distinctive-fragment"` expecting the full distinctive fragment on a single line. Line-wrapped doc comments break the fragment across lines, making them invisible to single-line grep patterns. The PrismQL codebase has doc comments using multi-line string formatting, and the sweep was not designed to handle this case.
+
+**Fix:** implementer fix-burst 9 (`@26f12b3f`) corrected the line-wrapped doc-comment quotes to single-line canonical form and added count==1 regression lock + CANONICAL_AGG_MSG const to prevent recurrence. Adversary confirmed CLOSED.
+
+**Rule for canonical-message sweeps:** When sweeping for canonical message strings in doc comments and code, the sweep MUST also grep for distinctive mid-string fragments (a 4–6 word substring that cannot coincidentally appear elsewhere) rather than the full string, AND must visually inspect surrounding context lines (`-A 2 -B 2`) to detect line-wrapped continuations. Companion to Lesson 49 (table-cell variant discipline).
+
+**Source:** D-1722 (DEFECT-PQL-FNCALL-LHS-001 pass-10 closure; 2026-07-13).
