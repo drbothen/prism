@@ -440,7 +440,8 @@ mod tests {
     /// Stub seam (SID-1): `NullSource` is internal to `prism-spec-engine`, wired at
     /// `load_spec` time. No DTU clone, no filesystem source file, no external service.
     /// The null-input short-circuit path in `InfusionAsyncUdf::invoke_async_with_args`
-    /// is also exercised for rows where the input column itself is NULL (ADR-051 §D4).
+    /// is also exercised for rows where the input column itself is NULL (ADR-051 §D2 —
+    /// NULL as partial-failure signal; infusion_udf.rs::invoke_async_with_args null-input short-circuit).
     fn make_null_infusion_registry() -> Arc<InfusionRegistry> {
         let registry = InfusionRegistry::new();
         // LocalLookup + no source config → load_spec wires NullSource (always returns None).
@@ -472,7 +473,7 @@ mod tests {
     /// `null_enrich_udf` uses `NullSource` (SID-1: no external service). Every call to
     /// `enrich_one_scalar` returns `None` (ADR-051 §D2 — NULL as partial-failure signal).
     /// For row 1 (sensor_ip=NULL), the `invoke_async_with_args` null-input short-circuit
-    /// fires before the source is called (ADR-051 §D4). Both paths produce NULL output →
+    /// fires before the source is called (ADR-051 §D2 — NULL as partial-failure signal). Both paths produce NULL output →
     /// the enriched column is an all-NULL `StringArray`. EC-11-079 invariant: this column
     /// serializes with the key present and value `null` (not absent) under
     /// `WriterBuilder::with_explicit_nulls(true)`.
@@ -630,8 +631,8 @@ mod tests {
     /// This is the enrich-stage companion to the projected-nullable-column tests above (AC (a)).
     /// The [H20] probe targets the enrich-specific code path where the UDF produces NULL output
     /// for a row — either because the source returns `None` (ADR-051 §D2 — NULL as
-    /// partial-failure signal), or because the input column is itself NULL (ADR-051 §D4 —
-    /// null-input short-circuit).
+    /// partial-failure signal), or because the input column is itself NULL (ADR-051 §D2 —
+    /// null-input short-circuit; infusion_udf.rs::invoke_async_with_args).
     ///
     /// PASSES: `WriterBuilder::with_explicit_nulls(true)` already routes all RecordBatch columns
     /// (including enrich-stage columns) through the fixed serializer. This test is a REGRESSION
@@ -648,7 +649,7 @@ mod tests {
     ///   DataFusion CTE: `SELECT *, null_enrich_udf(sensor_ip) AS null_enrich_udf FROM crowdstrike_alerts`
     /// - Rows 0 and 2 (sensor_ip non-null): `enrich_one_scalar` calls NullSource → `None` → NULL.
     /// - Row 1 (sensor_ip=NULL): `invoke_async_with_args` null-input short-circuit → NULL
-    ///   (ADR-051 §D4 path; source is NOT called).
+    ///   (ADR-051 §D2 — NULL as partial-failure signal; infusion_udf.rs::invoke_async_with_args null-input short-circuit; source is NOT called).
     /// - All 3 rows: `null_enrich_udf` column is an all-NULL `StringArray` in the RecordBatch.
     /// - EC-11-079 invariant: every row must contain all projected keys (severity, sensor_ip,
     ///   null_enrich_udf) regardless of nullability.
@@ -698,20 +699,20 @@ mod tests {
 
         // AC-b specific: `null_enrich_udf` must be JSON null in every row.
         // - NullSource returns None for all source calls (rows 0 and 2).
-        // - Row 1 (sensor_ip=NULL): null-input short-circuit → NULL (ADR-051 §D4, no source call).
+        // - Row 1 (sensor_ip=NULL): null-input short-circuit → NULL (ADR-051 §D2 — NULL as partial-failure signal; infusion_udf.rs::invoke_async_with_args null-input short-circuit; no source call).
         // Before the WriterBuilder fix: key ABSENT. After fix: key present, value JSON null.
         for (i, row) in rows.iter().enumerate() {
             assert!(
                 row["null_enrich_udf"].is_null(),
                 "BC-2.11.001 AC-b: 'null_enrich_udf' must be JSON null for row {i} \
                  (NullSource returns None per ADR-051 §D2 — NULL as partial-failure signal; \
-                  row 1 null-input short-circuit per ADR-051 §D4). \
+                  row 1 null-input short-circuit (infusion_udf.rs::invoke_async_with_args) per ADR-051 §D2). \
                  Got: {}",
                 row["null_enrich_udf"]
             );
         }
 
-        // Regression guard for row 1: the null-input short-circuit path (ADR-051 §D4) fires
+        // Regression guard for row 1: the null-input short-circuit path (ADR-051 §D2 — infusion_udf.rs::invoke_async_with_args) fires
         // when sensor_ip=NULL. Verify AC (a) sensor_ip null-key-present invariant is still intact
         // — the enrich-stage regression lock must not accidentally break the projected-nullable
         // column invariant for the same row.
