@@ -5,7 +5,7 @@ title: "PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function
 status: accepted
 date: "2026-06-28"
 accepted_date: "2026-06-29"
-version: "1.2"
+version: "1.3"
 modified: "2026-07-13"
 producer: architect
 subsystems_affected: [SS-11]
@@ -28,6 +28,14 @@ open_decisions: []
 # ADR-048: PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function Predicate LHS in HAVING
 
 ## Status
+
+ACCEPTED v1.3 (2026-07-13). Two findings from DEFECT-PQL-FNCALL-LHS-001 adversary pass-3
+adjudicated: F-PQLFN-P3-LOW-001 (§D.3 "Important:" paragraph self-contradiction corrected —
+WHERE grammar DOES produce FuncCall LHS post-D.7.2; WHERE-safety restated in terms of
+extractor arg-recursion, not grammar impossibility) and F-PQLFN-P3-OBS-003 (PERCENTILE
+post-blocklist-removal error surface documented with empirical DataFusion 53.1 verification —
+"percentile" IS in `DATAFUSION_BUILTIN_FUNCTION_NAMES`; construct passes to DataFusion, not
+E-QUERY-039). No locked-decision changes; no new ODs.
 
 ACCEPTED v1.2 (2026-07-13). Three findings from DEFECT-PQL-FNCALL-LHS-001 adversary pass-2
 adjudicated and codified: F-PQLFN-P2-HIGH-001 (SQL WHERE aggregate-in-predicate regression),
@@ -198,6 +206,28 @@ It is available in SELECT projections and GROUP BY via the SQL expression parser
 needing percentile-based HAVING can alias it in SELECT (`SELECT PERCENTILE(latency, 95) AS p95 ...`)
 and reference the alias in HAVING. This is the standard SQL pattern.
 
+**PERCENTILE post-blocklist-removal error surface (v1.3 note — F-PQLFN-P3-OBS-003):**
+With the parser-level `AGGREGATE_FUNC_NAMES` blocklist removed (§D.7.2), `HAVING
+percentile(x, 95) > 5` no longer rejects at parse time. It parses as
+`FuncCall::Scalar(Unknown("percentile"))` via `fn_call_comparison` in
+`build_sql_predicate_parser` (the `base` branch of `build_having_predicate_parser`),
+following the non-six-name aggregate path described in §D.7.3. The resulting error
+surface depends on whether DataFusion's `default_aggregate_functions()` registers
+"percentile". **Empirically verified for DataFusion 53.1:** "percentile" IS registered
+as the canonical name for three aggregate UDAFs (`approx_percentile_cont`,
+`approx_percentile_cont_with_weight`, and `percentile_cont` — all three use
+`name = "percentile"` in their UDAF registration metadata). Therefore "percentile" is
+present in `DATAFUSION_BUILTIN_FUNCTION_NAMES`, is filtered before the E-QUERY-039
+check in `check_enrich_udf_availability`, and `HAVING percentile(x, 95) > 5` passes
+through to DataFusion for resolution. DataFusion resolves "percentile" against its
+aggregate function registry and executes the HAVING predicate. **E-QUERY-039 does NOT
+fire.** The analyst-directed SELECT-alias pattern remains the recommended form per this
+section for cross-dialect portability and clarity; the construct is accepted at plan
+time as of DataFusion 53.1. The "exclusion" in OD-2 and the statement "PERCENTILE is
+excluded from HAVING predicate LHS" refer specifically to the absence of a first-class
+`FuncCall::Aggregate` AST node for PERCENTILE in `build_agg_call_parser` — not to a
+plan-time rejection.
+
 **COUNT with field argument** (`count(field)`) is in scope. `count(*)` (star arg) is also
 in scope. Both are common HAVING patterns.
 
@@ -224,12 +254,25 @@ by SELECT (Position 1), GROUP BY (Position 3), ORDER BY (Position 4), and JOIN O
 (Position 5). This extension is required to make `count(typo_col) > 5` in HAVING produce
 E-QUERY-038 rather than silently passing the column gate.
 
-**Important:** this change to `collect_predicate_columns` is not a WHERE/HAVING asymmetry
-in the extractor — WHERE predicates will never have a FuncCall LHS because the WHERE
-grammar doesn't produce them. The extractor change is therefore WHERE-safe: adding the
-FuncCall arm to `collect_predicate_columns` cannot cause false positives in the WHERE
-position because the WHERE grammar cannot produce a `Predicate::Compare` with
-`Expr::FuncCall` LHS.
+**Important (v1.3 amendment — F-PQLFN-P3-LOW-001):** post-D.7.2, the WHERE predicate
+grammar DOES produce `Predicate::Compare` with `Expr::FuncCall` LHS. `fn_call_comparison`
+in `build_predicate_parser` accepts any function call in predicate position — aggregate
+names parse as `FuncCall::Scalar(Unknown(name))` and are caught by the plan-time
+`DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate (D.7.1), but the grammar itself does not
+prevent them from being produced. The earlier claim that "the WHERE grammar cannot
+produce a `Predicate::Compare` with `Expr::FuncCall` LHS" was accurate before D.7.2
+(when the parser-level `AGGREGATE_FUNC_NAMES` `try_map` guard blocked aggregate names
+at parse time) but is self-contradicted by §D.7.1, which enumerates five predicate
+positions — including SQL WHERE — that now feed FuncCall names to the plan-time gate
+after parsing successfully.
+
+The extractor change is WHERE-safe not because grammar impossibility prevents FuncCall
+LHS in WHERE predicates (it does not), but because `extract_field_paths_from_expr`
+recurses correctly into FuncCall args regardless of whether the call is an aggregate or
+a scalar UDF. Column extraction operates on the args, not the function identity. No
+false E-QUERY-038 fires result from the FuncCall arm in `collect_predicate_columns` for
+WHERE positions — the column check correctly identifies the field arguments to any
+function call appearing in predicate LHS position.
 
 ### D.4 — BC-2.11.016 v1.5 Status: No Change Required
 
@@ -366,7 +409,9 @@ E-QUERY-038 column checking.
 **HAVING names remain exempt from the aggregate-in-predicate gate** (D.7.1): `stddev`
 in a HAVING predicate goes to `sql_unknown_names`, is filtered by
 `DATAFUSION_BUILTIN_FUNCTION_NAMES`, and never triggers E-QUERY-039. DataFusion resolves
-it correctly. No E-QUERY-001 fires.
+it correctly. No E-QUERY-001 fires. PERCENTILE follows this same path — see §D.2
+PERCENTILE post-blocklist-removal note (v1.3, F-PQLFN-P3-OBS-003) for the empirically
+verified DataFusion 53.1 behavior.
 
 #### D.7.4 — Gate Ordering vs ADR-052
 
@@ -463,3 +508,4 @@ and avoids conditional branching inside the parser combinator.
 | 1.0 | F-PXL3-MED-002-adr-048 | 2026-06-28 | architect | Initial ADR — HAVING/WHERE predicate grammar divergence rationale, D.1–D.6, consequences, considered alternatives. Addresses F-PXL3-MED-002 root cause analysis. |
 | 1.1 | adr-048-acceptance-S-DEMO-FIDELITY-REMEDIATION-001 | 2026-06-29 | architect | PROPOSED → ACCEPTED. OD-1 ratified by user decision 2026-06-29 (Option A: extend HAVING grammar, keep WHERE E-QUERY-001). OD-2 resolved: PERCENTILE excluded from HAVING predicate grammar as accepted technical scope decision. §Resolution section added. POL-15 confirmed satisfied. `locked_decisions` populated; `open_decisions` cleared. |
 | 1.2 | adr-048-v1.2-DEFECT-PQL-FNCALL-LHS-001-pass2-adjudication | 2026-07-13 | architect | DEFECT-PQL-FNCALL-LHS-001 pass-2 adjudication of F-PQLFN-P2-HIGH-001, F-PQLFN-P2-MED-001, F-PQLFN-P2-MED-002. New §D.7 (unified plan-time gate, HAVING policy, gate ordering vs ADR-052). §D.2 scope note: non-six-name aggregates parse via fn_call_comparison as FuncCall::Scalar(Unknown) — intentional. §D.6 restated: WHERE aggregate invariant covers FULL DATAFUSION_BUILTIN_AGGREGATE_NAMES (not just 7-name parser list); parser-level AGGREGATE_FUNC_NAMES blocklist removed from fn_call_comparison; plan-time gate is sole enforcement; SQL WHERE predicate positions added to predicate_fncall_names. OD-3/OD-4/OD-5 locked. cross-ref ADR-052 added to related_adrs. |
+| 1.3 | adr-048-v1.3-DEFECT-PQL-FNCALL-LHS-001-pass3-adjudication | 2026-07-13 | architect | DEFECT-PQL-FNCALL-LHS-001 pass-3 adjudication of F-PQLFN-P3-LOW-001 and F-PQLFN-P3-OBS-003. §D.3 "Important:" paragraph corrected: post-D.7.2 the WHERE grammar DOES produce FuncCall LHS via fn_call_comparison; WHERE-safety derives from extract_field_paths_from_expr arg-recursion, not grammar impossibility. §D.2 PERCENTILE post-blocklist-removal note added: DataFusion 53.1 empirically verified — "percentile" IS in DATAFUSION_BUILTIN_FUNCTION_NAMES (registered by approx_percentile_cont, approx_percentile_cont_with_weight, and percentile_cont); HAVING percentile(x, 95) > 5 passes to DataFusion (E-QUERY-039 does NOT fire); analyst SELECT-alias guidance retained. §D.7.3 PERCENTILE cross-reference added. No locked-decision changes. |
