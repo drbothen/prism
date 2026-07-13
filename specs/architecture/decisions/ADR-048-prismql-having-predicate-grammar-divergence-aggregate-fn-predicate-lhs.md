@@ -5,7 +5,7 @@ title: "PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function
 status: accepted
 date: "2026-06-28"
 accepted_date: "2026-06-29"
-version: "1.3"
+version: "1.4"
 modified: "2026-07-13"
 producer: architect
 subsystems_affected: [SS-11]
@@ -29,13 +29,23 @@ open_decisions: []
 
 ## Status
 
+ACCEPTED v1.4 (2026-07-13). F-PQLFN-P4-MED-001 ADR correction: §D.2 PERCENTILE
+post-blocklist-removal note retracted and replaced. ADR-048 v1.3 claimed "percentile IS
+registered in DataFusion 53.1 `default_aggregate_functions()`" and "present in
+`DATAFUSION_BUILTIN_FUNCTION_NAMES`" — both claims are FALSE, proven by executed tests
+(module `datafusion_aggregate_registry_empirical_tests` in engine.rs, commit 524a9986).
+The manual `names.insert("percentile")` in `DATAFUSION_BUILTIN_AGGREGATE_NAMES` is
+NECESSARY, not redundant. Corrected §D.2 PERCENTILE note and §D.7.3 cross-reference.
+[process-gap]: v1.3 "empirical" claim cited metadata inference (UDAF names assumed from
+documentation), not an executed test; "empirical" claims in spec artifacts must cite an
+executed check (test name or command output — feeds S-7.02 codification).
+
 ACCEPTED v1.3 (2026-07-13). Two findings from DEFECT-PQL-FNCALL-LHS-001 adversary pass-3
 adjudicated: F-PQLFN-P3-LOW-001 (§D.3 "Important:" paragraph self-contradiction corrected —
 WHERE grammar DOES produce FuncCall LHS post-D.7.2; WHERE-safety restated in terms of
 extractor arg-recursion, not grammar impossibility) and F-PQLFN-P3-OBS-003 (PERCENTILE
-post-blocklist-removal error surface documented with empirical DataFusion 53.1 verification —
-"percentile" IS in `DATAFUSION_BUILTIN_FUNCTION_NAMES`; construct passes to DataFusion, not
-E-QUERY-039). No locked-decision changes; no new ODs.
+post-blocklist-removal error surface documented — v1.3 empirical claim later proven false
+in v1.4; see §D.2 v1.4 correction). No locked-decision changes; no new ODs.
 
 ACCEPTED v1.2 (2026-07-13). Three findings from DEFECT-PQL-FNCALL-LHS-001 adversary pass-2
 adjudicated and codified: F-PQLFN-P2-HIGH-001 (SQL WHERE aggregate-in-predicate regression),
@@ -206,27 +216,48 @@ It is available in SELECT projections and GROUP BY via the SQL expression parser
 needing percentile-based HAVING can alias it in SELECT (`SELECT PERCENTILE(latency, 95) AS p95 ...`)
 and reference the alias in HAVING. This is the standard SQL pattern.
 
-**PERCENTILE post-blocklist-removal error surface (v1.3 note — F-PQLFN-P3-OBS-003):**
+**PERCENTILE post-blocklist-removal error surface (v1.4 correction — F-PQLFN-P4-MED-001):**
 With the parser-level `AGGREGATE_FUNC_NAMES` blocklist removed (§D.7.2), `HAVING
-percentile(x, 95) > 5` no longer rejects at parse time. It parses as
-`FuncCall::Scalar(Unknown("percentile"))` via `fn_call_comparison` in
-`build_sql_predicate_parser` (the `base` branch of `build_having_predicate_parser`),
-following the non-six-name aggregate path described in §D.7.3. The resulting error
-surface depends on whether DataFusion's `default_aggregate_functions()` registers
-"percentile". **Empirically verified for DataFusion 53.1:** "percentile" IS registered
-as the canonical name for three aggregate UDAFs (`approx_percentile_cont`,
-`approx_percentile_cont_with_weight`, and `percentile_cont` — all three use
-`name = "percentile"` in their UDAF registration metadata). Therefore "percentile" is
-present in `DATAFUSION_BUILTIN_FUNCTION_NAMES`, is filtered before the E-QUERY-039
-check in `check_enrich_udf_availability`, and `HAVING percentile(x, 95) > 5` passes
-through to DataFusion for resolution. DataFusion resolves "percentile" against its
-aggregate function registry and executes the HAVING predicate. **E-QUERY-039 does NOT
-fire.** The analyst-directed SELECT-alias pattern remains the recommended form per this
-section for cross-dialect portability and clarity; the construct is accepted at plan
-time as of DataFusion 53.1. The "exclusion" in OD-2 and the statement "PERCENTILE is
-excluded from HAVING predicate LHS" refer specifically to the absence of a first-class
-`FuncCall::Aggregate` AST node for PERCENTILE in `build_agg_call_parser` — not to a
-plan-time rejection.
+percentile(x, 95) > 5` parses as `FuncCall::Scalar(Unknown("percentile"))` via
+`fn_call_comparison` in `build_sql_predicate_parser` (the `base` branch of
+`build_having_predicate_parser`), following the non-six-name aggregate path described
+in §D.7.3. The error surface is governed by two separate mechanisms:
+
+**Mechanism 1 — Aggregate gate (E-QUERY-001):** HAVING predicates are NOT walked into
+`predicate_fncall_names`. The aggregate-in-predicate gate (D.7.1) does NOT fire.
+**E-QUERY-001 does NOT fire** for `HAVING percentile(x, 95) > 5`.
+
+**Mechanism 2 — E-QUERY-039 gate:** HAVING predicates ARE walked into `sql_unknown_names`
+via position (f) of `collect_unknown_scalars_from_sql_query`. "percentile" is NOT in
+`DATAFUSION_BUILTIN_FUNCTION_NAMES` — **DataFusion 53.1 does NOT register "percentile"
+as a built-in aggregate function** (empirically proven by executed test
+`test_f_pqlfn_p4_med_001_percentile_absent_from_datafusion_53_1_aggregate_registry` in
+module `datafusion_aggregate_registry_empirical_tests`, engine.rs, commit 524a9986). The
+`DATAFUSION_BUILTIN_FUNCTION_NAMES` filter therefore does NOT exclude "percentile" before
+the E-QUERY-039 check. The E-QUERY-039 outcome is registry-dependent:
+- **No infusion registry configured:** `check_enrich_udf_availability` returns early
+  `Ok(())` when `registry` is `None` → E-QUERY-039 is skipped → query passes to
+  DataFusion → DataFusion plan error (percentile not a DataFusion built-in aggregate).
+- **Infusion registry configured:** "percentile" reaches the registered-UDF check →
+  **E-QUERY-039 fires** (percentile is not in `DATAFUSION_BUILTIN_FUNCTION_NAMES` and
+  not a registered enrichment UDF).
+
+Confirmed by executed test `test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt`
+(temporal_typing_tests.rs, commit 524a9986): engine has no infusion registry → result is
+NOT `PrismError::QueryParseFailed` (E-QUERY-001) → aggregate gate correctly does not fire;
+actual result is a DataFusion-level plan error.
+
+**v1.3 false claim retracted:** v1.3 stated "percentile IS registered as the canonical name
+for three aggregate UDAFs" and "present in `DATAFUSION_BUILTIN_FUNCTION_NAMES`". Both are
+FALSE. The UDAF names (`approx_percentile_cont`, etc.) were assumed from DataFusion
+documentation metadata without executing a check. The manual `names.insert("percentile")`
+in `DATAFUSION_BUILTIN_AGGREGATE_NAMES` is NECESSARY, not redundant — it ensures "percentile"
+is gated in WHERE/predicate positions even though DataFusion 53.1 does not register it natively.
+
+The "exclusion" in OD-2 and the statement "PERCENTILE is excluded from HAVING predicate LHS"
+refer specifically to the absence of a first-class `FuncCall::Aggregate` AST node for
+PERCENTILE in `build_agg_call_parser` — not to a plan-time rejection. The analyst-directed
+SELECT-alias pattern remains recommended for cross-dialect portability.
 
 **COUNT with field argument** (`count(field)`) is in scope. `count(*)` (star arg) is also
 in scope. Both are common HAVING patterns.
@@ -408,10 +439,12 @@ E-QUERY-038 column checking.
 
 **HAVING names remain exempt from the aggregate-in-predicate gate** (D.7.1): `stddev`
 in a HAVING predicate goes to `sql_unknown_names`, is filtered by
-`DATAFUSION_BUILTIN_FUNCTION_NAMES`, and never triggers E-QUERY-039. DataFusion resolves
-it correctly. No E-QUERY-001 fires. PERCENTILE follows this same path — see §D.2
-PERCENTILE post-blocklist-removal note (v1.3, F-PQLFN-P3-OBS-003) for the empirically
-verified DataFusion 53.1 behavior.
+`DATAFUSION_BUILTIN_FUNCTION_NAMES` (DataFusion 53.1 built-in — `stddev` IS registered),
+and never triggers E-QUERY-039. DataFusion resolves it correctly. No E-QUERY-001 fires.
+**PERCENTILE does NOT follow this same path** — "percentile" is ABSENT from
+`DATAFUSION_BUILTIN_FUNCTION_NAMES` (DataFusion 53.1 has no "percentile" built-in); see
+§D.2 PERCENTILE post-blocklist-removal note (v1.4 correction, F-PQLFN-P4-MED-001) for
+the verified DataFusion 53.1 behavior and registry-dependent E-QUERY-039 outcome.
 
 #### D.7.4 — Gate Ordering vs ADR-052
 
@@ -508,4 +541,5 @@ and avoids conditional branching inside the parser combinator.
 | 1.0 | F-PXL3-MED-002-adr-048 | 2026-06-28 | architect | Initial ADR — HAVING/WHERE predicate grammar divergence rationale, D.1–D.6, consequences, considered alternatives. Addresses F-PXL3-MED-002 root cause analysis. |
 | 1.1 | adr-048-acceptance-S-DEMO-FIDELITY-REMEDIATION-001 | 2026-06-29 | architect | PROPOSED → ACCEPTED. OD-1 ratified by user decision 2026-06-29 (Option A: extend HAVING grammar, keep WHERE E-QUERY-001). OD-2 resolved: PERCENTILE excluded from HAVING predicate grammar as accepted technical scope decision. §Resolution section added. POL-15 confirmed satisfied. `locked_decisions` populated; `open_decisions` cleared. |
 | 1.2 | adr-048-v1.2-DEFECT-PQL-FNCALL-LHS-001-pass2-adjudication | 2026-07-13 | architect | DEFECT-PQL-FNCALL-LHS-001 pass-2 adjudication of F-PQLFN-P2-HIGH-001, F-PQLFN-P2-MED-001, F-PQLFN-P2-MED-002. New §D.7 (unified plan-time gate, HAVING policy, gate ordering vs ADR-052). §D.2 scope note: non-six-name aggregates parse via fn_call_comparison as FuncCall::Scalar(Unknown) — intentional. §D.6 restated: WHERE aggregate invariant covers FULL DATAFUSION_BUILTIN_AGGREGATE_NAMES (not just 7-name parser list); parser-level AGGREGATE_FUNC_NAMES blocklist removed from fn_call_comparison; plan-time gate is sole enforcement; SQL WHERE predicate positions added to predicate_fncall_names. OD-3/OD-4/OD-5 locked. cross-ref ADR-052 added to related_adrs. |
-| 1.3 | adr-048-v1.3-DEFECT-PQL-FNCALL-LHS-001-pass3-adjudication | 2026-07-13 | architect | DEFECT-PQL-FNCALL-LHS-001 pass-3 adjudication of F-PQLFN-P3-LOW-001 and F-PQLFN-P3-OBS-003. §D.3 "Important:" paragraph corrected: post-D.7.2 the WHERE grammar DOES produce FuncCall LHS via fn_call_comparison; WHERE-safety derives from extract_field_paths_from_expr arg-recursion, not grammar impossibility. §D.2 PERCENTILE post-blocklist-removal note added: DataFusion 53.1 empirically verified — "percentile" IS in DATAFUSION_BUILTIN_FUNCTION_NAMES (registered by approx_percentile_cont, approx_percentile_cont_with_weight, and percentile_cont); HAVING percentile(x, 95) > 5 passes to DataFusion (E-QUERY-039 does NOT fire); analyst SELECT-alias guidance retained. §D.7.3 PERCENTILE cross-reference added. No locked-decision changes. |
+| 1.3 | adr-048-v1.3-DEFECT-PQL-FNCALL-LHS-001-pass3-adjudication | 2026-07-13 | architect | DEFECT-PQL-FNCALL-LHS-001 pass-3 adjudication of F-PQLFN-P3-LOW-001 and F-PQLFN-P3-OBS-003. §D.3 "Important:" paragraph corrected: post-D.7.2 the WHERE grammar DOES produce FuncCall LHS via fn_call_comparison; WHERE-safety derives from extract_field_paths_from_expr arg-recursion, not grammar impossibility. §D.2 PERCENTILE post-blocklist-removal note added (claim later retracted in v1.4 — see v1.4 row). §D.7.3 PERCENTILE cross-reference added. No locked-decision changes. |
+| 1.4 | adr-048-v1.4-DEFECT-PQL-FNCALL-LHS-001-pass4-correction | 2026-07-13 | architect | [process-gap] F-PQLFN-P4-MED-001 correction. §D.2 PERCENTILE note retracted: v1.3 claimed "percentile IS registered in DataFusion 53.1 default_aggregate_functions()" and "present in DATAFUSION_BUILTIN_FUNCTION_NAMES" — BOTH FALSE. Proven by executed tests: test_f_pqlfn_p4_med_001_percentile_absent_from_datafusion_53_1_aggregate_registry (engine.rs datafusion_aggregate_registry_empirical_tests, commit 524a9986) and test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt (temporal_typing_tests.rs, commit 524a9986). Corrected §D.2: E-QUERY-001 does NOT fire (HAVING exempt); E-QUERY-039 outcome is registry-dependent (no registry → Ok() early return → DataFusion plan error; with registry → E-QUERY-039 fires). manual names.insert("percentile") in DATAFUSION_BUILTIN_AGGREGATE_NAMES is NECESSARY (DataFusion 53.1 has no "percentile" built-in). §D.7.3 PERCENTILE cross-reference corrected. [process-gap]: "empirical" claims in spec artifacts must cite an EXECUTED check (test name or command output), not inferred metadata — feeds S-7.02 codification. |
