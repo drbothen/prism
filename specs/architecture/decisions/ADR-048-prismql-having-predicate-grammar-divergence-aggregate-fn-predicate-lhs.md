@@ -5,7 +5,7 @@ title: "PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function
 status: accepted
 date: "2026-06-28"
 accepted_date: "2026-06-29"
-version: "1.5"
+version: "1.6"
 modified: "2026-07-13"
 producer: architect
 subsystems_affected: [SS-11]
@@ -21,6 +21,7 @@ locked_decisions:
   - OD-3: HAVING policy for non-ADR-048-D.2 aggregate functions (stddev, variance, corr, median, etc.) — permit as shipped (Option i); parse via fn_call_comparison fallthrough as FuncCall::Scalar(Unknown); architect decision 2026-07-13 (DEFECT-PQL-FNCALL-LHS-001 pass-2 F-PQLFN-P2-MED-001)
   - OD-4: Parser-level AGGREGATE_FUNC_NAMES blocklist in fn_call_comparison removed; plan-time DATAFUSION_BUILTIN_AGGREGATE_NAMES gate in check_enrich_udf_availability is the sole enforcement point; architect decision 2026-07-13 (DEFECT-PQL-FNCALL-LHS-001 pass-2 F-PQLFN-P2-MED-002)
   - OD-5: SQL WHERE predicate fn-call positions added to predicate_fncall_names coverage so DATAFUSION_BUILTIN_AGGREGATE_NAMES gate covers all non-HAVING predicate positions; architect decision 2026-07-13 (DEFECT-PQL-FNCALL-LHS-001 pass-2 F-PQLFN-P2-HIGH-001)
+  - OD-6: DML WHERE predicate fn-call positions added to predicate_fncall_names coverage (sixth gated position); cross-mode consistency over intentional out-of-scope deferral; architect decision 2026-07-13 (DEFECT-PQL-FNCALL-LHS-001 pass-7 F-PQLFN-P7-LOW-002)
 wiring_deferred_to: null
 open_decisions: []
 ---
@@ -28,6 +29,16 @@ open_decisions: []
 # ADR-048: PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function Predicate LHS in HAVING
 
 ## Status
+
+ACCEPTED v1.6 (2026-07-13). F-PQLFN-P7-LOW-002 DML WHERE gate extension: §D.7.1 table
+extended with Position 6 (SQL DML WHERE); §D.7.5 new (arm shape, implementation scope,
+required tests). §D.6 enumeration updated to include SQL DML WHERE. §D.3 and §D.7.2
+count references updated from five to six. Related Architecture Nodes updated. OD-6
+locked: DML WHERE added to predicate_fncall_names coverage for cross-mode consistency.
+Adjudication rationale: branch-introduced regression (fn_call_comparison now in
+build_predicate_parser, which build_delete_parser and build_update_parser both bind) turned
+pre-branch parse-time E-QUERY-001 into post-branch SILENT EMPTY SUCCESS; extending the
+gate restores meaningful errors with zero risk (DML execution no-ops to Ok(vec![])).
 
 ACCEPTED v1.5 (2026-07-13). F-PQLFN-P5-LOW-001 citation extension: §D.2 empirical claim
 ("percentile absent from `DATAFUSION_BUILTIN_FUNCTION_NAMES`") now anchored to all three
@@ -309,9 +320,9 @@ names parse as `FuncCall::Scalar(Unknown(name))` and are caught by the plan-time
 prevent them from being produced. The earlier claim that "the WHERE grammar cannot
 produce a `Predicate::Compare` with `Expr::FuncCall` LHS" was accurate before D.7.2
 (when the parser-level `AGGREGATE_FUNC_NAMES` `try_map` guard blocked aggregate names
-at parse time) but is self-contradicted by §D.7.1, which enumerates five predicate
-positions — including SQL WHERE — that now feed FuncCall names to the plan-time gate
-after parsing successfully.
+at parse time) but is self-contradicted by §D.7.1, which enumerates six predicate
+positions — including SQL WHERE and SQL DML WHERE — that now feed FuncCall names to the
+plan-time gate after parsing successfully.
 
 The extractor change is WHERE-safe not because grammar impossibility prevents FuncCall
 LHS in WHERE predicates (it does not), but because `extract_field_paths_from_expr`
@@ -343,13 +354,19 @@ dependency. No false E-QUERY-038 fires.
 ### D.6 — WHERE Aggregate Invariant: All DataFusion Built-in Aggregates Rejected (v1.2 restated)
 
 The WHERE clause in every PrismQL mode (pipe `| where`, filter root, SqlPipe `| where`,
-SQL WHERE, SqlPipe-head WHERE) does not accept aggregate-function predicate LHS.
-`WHERE agg(col) op literal` is rejected with E-QUERY-001 for ALL DataFusion built-in
-aggregate functions, enforced by the plan-time `DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate
-in `check_enrich_udf_availability`. This invariant covers count, sum, avg, min, max,
+SQL WHERE, SqlPipe-head WHERE, **SQL DML WHERE**) does not accept aggregate-function
+predicate LHS. `WHERE agg(col) op literal` is rejected with E-QUERY-001 for ALL DataFusion
+built-in aggregate functions, enforced by the plan-time `DATAFUSION_BUILTIN_AGGREGATE_NAMES`
+gate in `check_enrich_udf_availability`. This invariant covers count, sum, avg, min, max,
 distinct_count AND all extended aggregates (stddev, variance, corr, median, approx_median,
 regr_*, array_agg, string_agg, bool_and, bool_or, etc.) — any name in DataFusion's
 `SessionStateDefaults::default_aggregate_functions()` registry.
+
+**SQL DML WHERE (v1.6 addition — OD-6):** `DELETE FROM t WHERE stddev(x) > 5` and
+`UPDATE t SET col = val WHERE stddev(x) > 5` are rejected with the canonical E-QUERY-001
+message. This is the sixth gated position (§D.7.1 Position 6, §D.7.5). DML WHERE
+previously fell to `_ => {}` in `check_enrich_udf_availability`; post-v1.6 it is walked
+into `predicate_fncall_names` by the `Ast::Sql(SqlStatement::Dml(dml))` arm.
 
 **v1.2 restatement of enforcement mechanism:** The prior v1.1 text stated that WHERE
 aggregate rejection was enforced by a parser-level `AGGREGATE_FUNC_NAMES` list in the
@@ -383,16 +400,17 @@ removed parser-level enforcement.
 
 The `DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate in `check_enrich_udf_availability` fires
 E-QUERY-001 for any `ScalarFunc::Unknown(name)` appearing as a predicate-comparison LHS
-when `name` ∈ `DATAFUSION_BUILTIN_AGGREGATE_NAMES`. Gate applies to ALL five predicate
+when `name` ∈ `DATAFUSION_BUILTIN_AGGREGATE_NAMES`. Gate applies to ALL six predicate
 positions that feed into `predicate_fncall_names`:
 
-| Position | Collection method | Pre-v1.2 coverage | Post-v1.2 coverage |
+| Position | Collection method | Pre-v1.2 coverage | Post-v1.6 coverage |
 |---|---|---|---|
 | Pipe `| where` | `collect_unknown_scalar_from_predicate` on `PipeStage::Where` | YES | YES |
 | Filter root | `collect_unknown_scalar_from_predicate` on `Ast::Filter` | YES | YES |
 | SqlPipe `\| where` | `collect_unknown_scalar_from_predicate` on `Ast::SqlPipe` pipe stages | YES | YES |
-| SQL WHERE | `collect_unknown_scalar_from_predicate` on `sq.where_` in `Ast::Sql` arm | NO (was in sql_unknown_names; DFBIAFN filter bypassed gate) | YES (new) |
-| SqlPipe-head WHERE | `collect_unknown_scalar_from_predicate` on `spq.head.where_` in `Ast::SqlPipe` arm | NO (was in sql_unknown_names via collect_unknown_scalars_from_sql_query) | YES (new) |
+| SQL WHERE | `collect_unknown_scalar_from_predicate` on `sq.where_` in `Ast::Sql` arm | NO (was in sql_unknown_names; DFBIAFN filter bypassed gate) | YES (v1.2) |
+| SqlPipe-head WHERE | `collect_unknown_scalar_from_predicate` on `spq.head.where_` in `Ast::SqlPipe` arm | NO (was in sql_unknown_names via collect_unknown_scalars_from_sql_query) | YES (v1.2) |
+| SQL DML WHERE | `collect_unknown_scalar_from_predicate` on `dml.filter` in `Ast::Sql(SqlStatement::Dml(dml))` arm | NO (fell to `_ => {}`; pre-branch: parser E-QUERY-001) | YES (v1.6, OD-6) |
 
 **HAVING is explicitly exempt.** HAVING predicates are not walked into
 `predicate_fncall_names`. They reach `sql_unknown_names` via
@@ -420,7 +438,7 @@ E-QUERY-001 message when an aggregate name was encountered. Removing it means:
   the canonical E-QUERY-001 message: "'{name}' is an aggregate function; aggregate
   fn-calls are not valid in pipe | where (use HAVING for post-aggregation filters,
   ADR-048 D.3)"
-- All five predicate positions receive an identical, helpful message — single message
+- All six predicate positions receive an identical, helpful message — single message
   source, consistent analyst/LLM UX
 
 #### D.7.3 — HAVING Non-Six-Name Aggregate Policy (MED-001 adjudication)
@@ -481,6 +499,69 @@ E-QUERY-001 (parse) → check_enrich_udf_availability (E-QUERY-039 + D.7 aggrega
 If `WHERE stddev(x) = '2026-06-24'` is submitted (aggregate name + date-like RHS):
 the D.7 aggregate gate fires E-QUERY-001 first. `check_temporal_literals` (ADR-052 arm 5
 NonColumnLhsComparison) is never reached. No gate conflict.
+
+#### D.7.5 — DML WHERE Gate Extension (v1.6 — F-PQLFN-P7-LOW-002)
+
+**Finding root cause:** `build_delete_parser` and `build_update_parser` in `sql_parser.rs`
+both bind `build_predicate_parser()` for their WHERE clause. The DEFECT-PQL-FNCALL-LHS-001
+branch added `fn_call_comparison` to `build_predicate_parser`, which means DML WHERE now
+accepts fn-call LHS. Pre-branch, `DELETE FROM t WHERE stddev(x) > 5` produced E-QUERY-001
+at parse time (fn-call LHS not in grammar). Post-branch, the query parses as
+`FuncCall::Scalar(Unknown("stddev"))` — but `check_enrich_udf_availability` fell to
+`_ => {}` for `Ast::Sql(SqlStatement::Dml(_))` (line comment: "DML has no enrichment
+syntax"), so the aggregate gate never fired and the analyst received SILENT EMPTY SUCCESS
+(DML materialization no-ops to `Ok(vec![])`). This is cross-mode inconsistency: same
+construct produces E-QUERY-001 in SELECT WHERE, silence in DML WHERE.
+
+**Adjudication: Option A — extend the gate.**
+
+Rationale for Option A over Option B (explicit out-of-scope deferral with story anchor):
+- The inconsistency is a regression **introduced by this branch** — Option B would document
+  around a defect we created.
+- The gate IS invoked for DML queries at both `execute_inner` call sites (line 815 registry=None,
+  line 918 registry=Some). The gap is solely the `_ => {}` arm.
+- DML execution currently no-ops to `Ok(vec![])` — the gate addition cannot break any
+  currently working DML query.
+- Silent EMPTY SUCCESS is strictly worse than the prior parse-time E-QUERY-001.
+- The arm shape is 4 lines — same pattern as the SELECT arm without the
+  `collect_unknown_scalars_from_sql_query` call (DML has no SELECT projection, GROUP BY,
+  ORDER BY, or HAVING positions to walk).
+
+**Implementation scope for implementer:**
+
+Add the following arm to the `match &ast` block in `check_enrich_udf_availability`
+(engine.rs), in place of or before the existing `_ => {}` arm:
+
+```rust
+// DML WHERE: walk filter predicate into predicate_fncall_names.
+// DML has no SELECT/GROUP BY/ORDER BY/HAVING positions — only the WHERE predicate
+// is walked. Post-branch, build_predicate_parser (used by build_delete_parser and
+// build_update_parser) accepts fn-call LHS via fn_call_comparison; without this arm
+// the aggregate gate silently passes DML WHERE aggregates. (ADR-048 §D.7.5, OD-6)
+Ast::Sql(SqlStatement::Dml(dml)) => {
+    if let Some(pred) = &dml.filter {
+        collect_unknown_scalar_from_predicate(pred, &mut predicate_fncall_names);
+    }
+}
+```
+
+E-QUERY-039 coverage is provided by the existing `predicate_fncall_names` → `sql_unknown_names`
+fold at line 1979 of engine.rs — no separate `collect_unknown_scalars_from_sql_query`
+call is needed.
+
+**Required tests** (named after F-PQLFN-P7-LOW-002; add to engine.rs test module):
+
+| Test name | Query | Expected |
+|---|---|---|
+| `test_f_pqlfn_p7_low_002_delete_where_aggregate_fires_e_query_001` | `DELETE FROM t WHERE stddev(x) > 5` | E-QUERY-001 (aggregate gate, no registry needed) |
+| `test_f_pqlfn_p7_low_002_update_where_aggregate_fires_e_query_001` | `UPDATE t SET col = 1 WHERE variance(x) > 100` | E-QUERY-001 (aggregate gate, no registry needed) |
+| `test_f_pqlfn_p7_low_002_delete_where_unknown_udf_fires_e_query_039` | `DELETE FROM t WHERE badudf(col) = 1` (with registry, badudf not registered) | E-QUERY-039 |
+| `test_f_pqlfn_p7_low_002_update_where_unknown_udf_fires_e_query_039` | `UPDATE t SET col = 1 WHERE badudf(x) = 1` (with registry, badudf not registered) | E-QUERY-039 |
+
+Note: `DELETE FROM t WHERE badudf(col) = 1` with **no registry** is NOT required to fire
+E-QUERY-039 — when no registry is configured `check_enrich_udf_availability` returns
+`Ok(())` early (line 1966), and the DML no-op produces `Ok(vec![])`. This matches the
+behavior of unknown UDFs in SELECT WHERE with no registry (consistent).
 
 ## Consequences
 
@@ -548,9 +629,10 @@ and avoids conditional branching inside the parser combinator.
 - `sql_parser.rs` `build_agg_call_parser` — handles COUNT/DISTINCT_COUNT/SUM/AVG/MIN/MAX; PERCENTILE excluded (OD-2)
 - `engine.rs` `collect_predicate_columns` — gains FuncCall arm in Compare branch (D.3)
 - `engine.rs` `extract_field_paths_from_expr` — unchanged
-- `engine.rs` `check_enrich_udf_availability` — `predicate_fncall_names` vec now populated from SQL WHERE (`sq.where_`) in `Ast::Sql` arm and SqlPipe-head WHERE (`spq.head.where_`) in `Ast::SqlPipe` arm (v1.2 D.7.1 NEW)
+- `engine.rs` `check_enrich_udf_availability` — `predicate_fncall_names` vec now populated from SQL WHERE (`sq.where_`) in `Ast::Sql` arm and SqlPipe-head WHERE (`spq.head.where_`) in `Ast::SqlPipe` arm (v1.2 D.7.1 NEW); DML WHERE (`dml.filter`) in `Ast::Sql(SqlStatement::Dml(dml))` arm (v1.6 D.7.5 NEW, OD-6)
 - `engine.rs` `DATAFUSION_BUILTIN_AGGREGATE_NAMES` — sole aggregate gate; gated against `predicate_fncall_names`; HAVING names exempt
-- `engine.rs` `collect_unknown_scalars_from_sql_query` — unchanged (still walks WHERE via position (b) into `sql_unknown_names`; harmless duplicate for WHERE names that survive the aggregate gate)
+- `engine.rs` `collect_unknown_scalars_from_sql_query` — unchanged (still walks WHERE via position (b) into `sql_unknown_names`; harmless duplicate for WHERE names that survive the aggregate gate; NOT called for DML — DML has no projection/GROUP BY/HAVING positions)
+- `sql_parser.rs` `build_delete_parser` / `build_update_parser` — both bind `build_predicate_parser()` for WHERE clause; post-DEFECT-PQL-FNCALL-LHS-001 branch, fn_call_comparison is in `build_predicate_parser`, so DML WHERE accepts fn-call LHS; D.7.5 gate extension ensures aggregate names are caught plan-time
 - BC-2.11.016 v1.5 §EC-11-046 — accurate after implementation (D.4)
 
 ## Changelog
@@ -563,3 +645,4 @@ and avoids conditional branching inside the parser combinator.
 | 1.3 | adr-048-v1.3-DEFECT-PQL-FNCALL-LHS-001-pass3-adjudication | 2026-07-13 | architect | DEFECT-PQL-FNCALL-LHS-001 pass-3 adjudication of F-PQLFN-P3-LOW-001 and F-PQLFN-P3-OBS-003. §D.3 "Important:" paragraph corrected: post-D.7.2 the WHERE grammar DOES produce FuncCall LHS via fn_call_comparison; WHERE-safety derives from extract_field_paths_from_expr arg-recursion, not grammar impossibility. §D.2 PERCENTILE post-blocklist-removal note added (claim later retracted in v1.4 — see v1.4 row). §D.7.3 PERCENTILE cross-reference added. No locked-decision changes. |
 | 1.4 | adr-048-v1.4-DEFECT-PQL-FNCALL-LHS-001-pass4-correction | 2026-07-13 | architect | [process-gap] F-PQLFN-P4-MED-001 correction. §D.2 PERCENTILE note retracted: v1.3 claimed "percentile IS registered in DataFusion 53.1 default_aggregate_functions()" and "present in DATAFUSION_BUILTIN_FUNCTION_NAMES" — BOTH FALSE. Proven by executed tests: test_f_pqlfn_p4_med_001_percentile_absent_from_datafusion_53_1_aggregate_registry (engine.rs datafusion_aggregate_registry_empirical_tests, commit 524a9986) and test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt (temporal_typing_tests.rs, commit 524a9986). Corrected §D.2: E-QUERY-001 does NOT fire (HAVING exempt); E-QUERY-039 outcome is registry-dependent (no registry → Ok() early return → DataFusion plan error; with registry → E-QUERY-039 fires). manual names.insert("percentile") in DATAFUSION_BUILTIN_AGGREGATE_NAMES is NECESSARY (DataFusion 53.1 has no "percentile" built-in). §D.7.3 PERCENTILE cross-reference corrected. [process-gap]: "empirical" claims in spec artifacts must cite an EXECUTED check (test name or command output), not inferred metadata — feeds S-7.02 codification. |
 | 1.5 | adr-048-v1.5-DEFECT-PQL-FNCALL-LHS-001-pass5-citation-extension | 2026-07-13 | architect | F-PQLFN-P5-LOW-001 citation extension. §D.2 Mechanism 2 empirical citation for "percentile absent from DATAFUSION_BUILTIN_FUNCTION_NAMES" extended from aggregate-registry-only (v1.4) to all three union-member registries. Added scalar-registry absence lock (test_f_pqlfn_p5_low_001_percentile_absent_from_datafusion_53_1_scalar_registry, bb23f143) and window-registry absence lock (test_f_pqlfn_p5_low_001_percentile_absent_from_datafusion_53_1_window_registry, bb23f143). Five executed checks now cited: aggregate-absence (524a9986) + scalar-absence (bb23f143) + window-absence (bb23f143) + presence-control approx_percentile_cont (524a9986) + presence-control approx_distinct (524a9986). §D.7.3 cross-reference updated to cite F-PQLFN-P5-LOW-001 and enumerate all three registry arms with commit anchors. No locked-decision changes; no new ODs. |
+| 1.6 | adr-048-v1.6-DEFECT-PQL-FNCALL-LHS-001-pass7-dml-gate-extension | 2026-07-13 | architect | F-PQLFN-P7-LOW-002 adjudication: DML WHERE added as sixth gated predicate position. Root cause: build_delete_parser and build_update_parser both bind build_predicate_parser; branch extension of build_predicate_parser with fn_call_comparison turned pre-branch parse-time E-QUERY-001 into post-branch SILENT EMPTY SUCCESS for DML WHERE aggregate fn-calls. Ruling: Option A (extend gate) over Option B (explicit out-of-scope deferral) — regression introduced by this branch, gate invocation already touches DML at both execute_inner call sites, DML no-ops so zero risk. New §D.7.5 documents arm shape (Ast::Sql(SqlStatement::Dml(dml)) if let Some(pred) = &dml.filter → collect_unknown_scalar_from_predicate), four required tests. §D.7.1 table extended (Position 6: SQL DML WHERE). §D.6 enumeration updated to include SQL DML WHERE. §D.3 and §D.7.2 count references updated from "five" to "six". Related Architecture Nodes updated. OD-6 locked. |
