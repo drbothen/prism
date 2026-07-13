@@ -1,0 +1,26 @@
+# threatintel-lookup plugin manifest
+#
+# HIGH-1 fix (S-DEMO-ENRICHMENT-PIVOT-002): canonical plugin identity.
+#
+# The `name` field is the plugin_id registered by PluginRuntime::load_all_plugins.
+# It MUST match the infusion_id in specs/infusions/threatintel.infusion.toml ("threat_intel")
+# so that PluginInfusionSource::new("threat_intel", ...) resolves to this loaded plugin.
+#
+# BC-2.17.007 required fields: format_version, name, version, plugin_type, allowed_urls.
+# plugin_id is derived from `name` by PluginRuntime::load_all_plugins manifest parser.
+#
+# Story: S-DEMO-ENRICHMENT-PIVOT-002
+
+name = "threat_intel"
+version = "1.0.0"
+format_version = 1
+plugin_type = "infusion"
+
+# allowed_urls: DTU ThreatIntel clone endpoint for dev/test.
+# Both "localhost" (hostname form) and "127.0.0.1" (IP literal form) are included
+# because the WASM host allowlist uses exact host-string matching — a DTU bound at
+# 127.0.0.1:PORT won't match "localhost" alone (FIX-6 / S-DEMO-ENRICHMENT-PIVOT-002).
+# Production ThreatIntel API endpoint: update threat-intel.example.com placeholder
+# to the real endpoint when the production service is identified.
+# AD-017: credentials never stored here; resolved at call time via config_map.
+allowed_urls = ["localhost", "127.0.0.1"]

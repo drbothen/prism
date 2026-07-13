@@ -225,20 +225,18 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
 
         // E-AUTH-010..011: Auth token invalid/expired → -32000 Internal
         // (authentication infrastructure failures, not caller-param issues)
-        PrismError::AuthTokenExpired | PrismError::AuthTokenInvalid { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        PrismError::AuthTokenExpired | PrismError::AuthTokenInvalid { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-SPEC-*: Spec engine errors → -32000 Internal
         // (configuration issues that the API caller cannot resolve)
         PrismError::Spec(_)
         | PrismError::SpecNotFound { .. }
         | PrismError::SpecValidationFailed { .. }
-        | PrismError::SpecHotReloadFailed { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        | PrismError::SpecHotReloadFailed { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-CFG-102..105: Config errors → -32000 Internal (operator-resolvable,
         // not caller-resolvable; ADR-038 D4 — arm covers only the four
@@ -246,10 +244,9 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         PrismError::ConfigNotFound { .. }
         | PrismError::ConfigParseFailed { .. }
         | PrismError::ConfigValidationFailed { .. }
-        | PrismError::ConfigSnapshotStale { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        | PrismError::ConfigSnapshotStale { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-STORE-*: Storage errors → -32000 Internal
         PrismError::StorageOpenFailed { .. }
@@ -260,10 +257,9 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         | PrismError::StorageLockHeld { .. }
         | PrismError::StorageHealthCheckFailed { .. }
         | PrismError::SchemaMismatch { .. }
-        | PrismError::StorageBatchFailed { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        | PrismError::StorageBatchFailed { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-SENSOR-020: Sensor rate limited — EXPLICIT arm required.
         // BC-2.10.007 §115-116: bind both fields; sensor→source (used in
@@ -273,19 +269,17 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // those are sensor-identifying details that belong in upstream_message only
         // (which is null per DI-006 — the rate limit notice is synthesized by Prism,
         // not raw upstream text). Generic message prevents dual-channel disclosure.
-        PrismError::SensorRateLimited { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        PrismError::SensorRateLimited { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-SENSOR-001..003: Other sensor adapter errors → -32000 Internal
         // (external service failures; detail in audit log)
         PrismError::SensorHttpError { .. }
         | PrismError::SensorTimeout { .. }
-        | PrismError::SensorResponseParse { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        | PrismError::SensorResponseParse { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-OCSF-*: OCSF normalization errors → -32000 Internal
         PrismError::OcsfFieldMissing { .. }
@@ -297,10 +291,9 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         | PrismError::OcsfNormalizationFailed { .. }
         | PrismError::OcsfDescriptorNotFound { .. }
         | PrismError::OcsfUnknownRecordType { .. }
-        | PrismError::OcsfTimestampParseError { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        | PrismError::OcsfTimestampParseError { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-CRED-*: Credential errors → -32000 Internal
         // (NEVER leak credential details in MCP responses)
@@ -308,30 +301,24 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         | PrismError::CredentialNotFound { .. }
         | PrismError::CredentialStoreError { .. }
         | PrismError::CredentialEncryptionError { .. }
-        | PrismError::EncryptionKeyMissing { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        | PrismError::EncryptionKeyMissing { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-IO-001: I/O error → -32000 Internal
-        PrismError::Io(_) => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        PrismError::Io(_) => (codes::INTERNAL_ERROR, "Internal error".to_owned()),
 
         // E-MCP-003: MCP serialization error → -32000 Internal
-        PrismError::McpSerializationError { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        PrismError::McpSerializationError { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-SAFETY-*: Safety boundary violations → -32000 Internal
         // (safety violations are logged; do not surface detail to caller)
         PrismError::SafetyContextContamination { .. }
-        | PrismError::SafetyDataExfiltration { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        | PrismError::SafetyDataExfiltration { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-QUERY-002/034/005/010 + E-WATCHDOG-001: Query planning/execution/
         // materialization-limit/memory errors → -32000 Internal
@@ -339,52 +326,41 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         | PrismError::QueryExecutionFailed { .. }
         | PrismError::QueryMaterializationLimitExceeded { .. }
         | PrismError::QueryMemoryBudgetExceeded { .. }
-        | PrismError::QueryVirtualFieldFailed { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        | PrismError::QueryVirtualFieldFailed { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-QUERY-008: Query denylisted → -32000 Internal
-        PrismError::QueryDenylisted { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        PrismError::QueryDenylisted { .. } => (codes::INTERNAL_ERROR, "Internal error".to_owned()),
 
         // E-QUERY-025: Write partial failure → -32000 Internal
-        PrismError::WritePartialFailure { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        PrismError::WritePartialFailure { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-SCHED-*: Scheduler errors → -32000 Internal
         PrismError::ScheduleNotFound { .. }
         | PrismError::ScheduleConflict { .. }
-        | PrismError::ScheduleCronInvalid { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        | PrismError::ScheduleCronInvalid { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-DET-*: Detection errors → -32000 Internal
         PrismError::DetectionRuleParseFailed { .. }
         | PrismError::DetectionRuleNotFound { .. }
-        | PrismError::DetectionStateCorrupt { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        | PrismError::DetectionStateCorrupt { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-CASE-*: Case management errors → -32000 Internal
-        PrismError::CaseNotFound { .. } | PrismError::CaseStateTransitionInvalid { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        PrismError::CaseNotFound { .. } | PrismError::CaseStateTransitionInvalid { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-WATCH-*/E-WATCHDOG-*: Watchdog errors → -32000 Internal
         PrismError::WatchdogHeartbeatMissed { .. }
         | PrismError::WatchdogRestartLimitExceeded { .. }
-        | PrismError::WatchdogKilled { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        | PrismError::WatchdogKilled { .. } => (codes::INTERNAL_ERROR, "Internal error".to_owned()),
 
         // E-AUDIT-001: Audit persistence failure → -32000 Internal.
         // The variant Display IS the taxonomy-verbatim structured error
@@ -398,22 +374,15 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         PrismError::AuditPersistenceFailed => (codes::INTERNAL_ERROR, format!("{err}")),
 
         // E-INFUSE-*: Infusion errors → -32000 Internal
-        PrismError::Infusion(_) => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        PrismError::Infusion(_) => (codes::INTERNAL_ERROR, "Internal error".to_owned()),
 
         // E-PLUGIN-*: WASM plugin errors → -32000 Internal
-        PrismError::Plugin(_) => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        PrismError::Plugin(_) => (codes::INTERNAL_ERROR, "Internal error".to_owned()),
 
         // E-IOC-*: IOC errors → -32000 Internal
-        PrismError::IocFeedParseFailed { .. } | PrismError::IocLookupFailed { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        PrismError::IocFeedParseFailed { .. } | PrismError::IocLookupFailed { .. } => {
+            (codes::INTERNAL_ERROR, "Internal error".to_owned())
+        }
 
         // E-QUERY-040: SQL→Pipe redundant row limit → -32602 INVALID_PARAMS (ADR-043).
         //
@@ -474,17 +443,11 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
 
         // E-INT-001: Internal invariant violated → -32000 Internal
         // Detail is suppressed — audit log has it.
-        PrismError::Internal { .. } => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        PrismError::Internal { .. } => (codes::INTERNAL_ERROR, "Internal error".to_owned()),
 
         // Catch-all for future PrismError variants added after this match
         // was written (non_exhaustive enum). Defaults to -32000 Internal.
-        _ => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        _ => (codes::INTERNAL_ERROR, "Internal error".to_owned()),
     }
 }
 
@@ -1012,7 +975,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         /// Pin the canonical E-* error code directly (F-1 fix).
         /// When `Some`, bypasses message-string-based code inference in `map_prism_error`.
         /// Required for variants where `map_prism_error` returns the generic
-        /// "Internal error; see audit log" message (no E- prefix to infer from).
+        /// "Internal error" message (no E- prefix to infer from).
         ec_code_override: Option<&'static str>,
         /// Near-text snippet for QueryParseFailed (BC-2.11.017 AC-003 / E-QUERY-001).
         /// None for all other variants.
@@ -1053,7 +1016,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         //       The token format was structurally valid but the credential is expired/invalid.
         //       original_params_valid: true (params were well-formed; the credential failed).
         //       ec_code_override required: map_prism_error returns INTERNAL_ERROR with
-        //       "Internal error; see audit log" for these variants — no E- prefix to infer.
+        //       "Internal error" for these variants — no E- prefix to infer.
         //       Pin E-AUTH-010/011 directly.
         //
         // HIGH-1 fix (BC-2.10.007 v1.7 §Category rule):
@@ -1092,7 +1055,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             original_params_valid: true,
             source_override: None,
             upstream_message: None,
-            // map_prism_error returns INTERNAL_ERROR/"Internal error; see audit log" for this
+            // map_prism_error returns INTERNAL_ERROR/"Internal error" for this
             // variant — no E- prefix. Pin E-AUTH-010 directly.
             owned_suggestion: None,
             ec_code_override: Some("E-AUTH-010"),
@@ -1113,7 +1076,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             original_params_valid: true,
             source_override: None,
             upstream_message: None,
-            // map_prism_error returns INTERNAL_ERROR/"Internal error; see audit log" for this
+            // map_prism_error returns INTERNAL_ERROR/"Internal error" for this
             // variant — no E- prefix. Pin E-AUTH-011 directly.
             owned_suggestion: None,
             ec_code_override: Some("E-AUTH-011"),
@@ -1568,7 +1531,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         //   (prevents immediate retry storms, CWE-400).
         // SEC-002 fix: source_override carries the sensor name for audit purposes, but
         //   the message field uses the generic redacted string from map_prism_error (which
-        //   now returns "Internal error; see audit log" for this variant — DI-006 / CWE-200).
+        //   now returns "Internal error" for this variant — DI-006 / CWE-200).
         PrismError::SensorRateLimited {
             sensor,
             retry_after_ms,
@@ -1662,7 +1625,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
 
         // BC-2.10.007 §81: source = sensor name; "upstream_error" for sensor timeouts/parse.
         // F-1: pin canonical codes E-SENSOR-002 / E-SENSOR-003 directly
-        //   (map_prism_error returns "Internal error; see audit log" for these variants;
+        //   (map_prism_error returns "Internal error" for these variants;
         //   without the override, the fallback fires and produces "E-INT-001").
         PrismError::SensorTimeout { sensor, .. } => VariantMeta {
             category: "upstream_error",
@@ -1875,7 +1838,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // Now that `QueryTypeMismatch` exists with a real detection path, `QueryPlanFailed`
         // reverts to `valid_operators_for_type: None` (no ColumnType context = no operator hint).
         //
-        // ec_code_override required: map_prism_error returns "Internal error; see audit log"
+        // ec_code_override required: map_prism_error returns "Internal error"
         // for this variant (no E- prefix to infer from in the message).
         //
         // Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.017; error-taxonomy.md E-QUERY-002.
@@ -2070,7 +2033,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
     // Derive E-* code string.
     // F-1 fix: if the variant pinned an explicit ec_code_override, use it directly.
     // This is required for variants where map_prism_error returns the generic
-    // "Internal error; see audit log" message (no E- prefix to infer the code from).
+    // "Internal error" message (no E- prefix to infer the code from).
     // Without the override, the fallback "E-INT-001" fires incorrectly for
     // SensorHttpError (should be E-SENSOR-001), SensorTimeout (E-SENSOR-002), etc.
     let ec_code = if let Some(pinned_code) = meta.ec_code_override {

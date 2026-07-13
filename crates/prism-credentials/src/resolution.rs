@@ -154,7 +154,7 @@ pub async fn resolve_credential(
             // SensorError::Internal surfaces as `fan_err.error.error_code()` → "E-SENSOR-099"
             // ONLY. The `detail` is emitted to internal `tracing::warn!` (audit log) but
             // NEVER to the MCP error response. prism-mcp/src/error_mapping.rs E-SENSOR-*
-            // arm returns "Internal error; see audit log" with no detail field.
+            // arm returns "Internal error" with no detail field.
             // Full path verified: resolution.rs → auth_provider.rs → spec_driven_adapter.rs
             // → materialization.rs → error_mapping.rs (E-SENSOR-099, no detail leakage).
             // No sanitization needed per this determination.

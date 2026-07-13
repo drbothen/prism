@@ -2683,9 +2683,9 @@ async fn test_BC_2_10_011_not_registered_tools_field_not_not_implemented() {
 /// F-1: SensorHttpError must produce code "E-SENSOR-001" not "E-INT-001".
 ///
 /// Root cause: `prism_error_to_structured_call_result` infers ec_code from the redacted
-/// message string. Since `map_prism_error` returns "Internal error; see audit log" (no E-
-/// prefix) for `SensorHttpError`, the fallback fires and produces "E-INT-001". Fix: pin
-/// the canonical code in `VariantMeta.ec_code_override` before the message is consumed.
+/// message string. Since `map_prism_error` returns "Internal error" (no E- prefix) for
+/// `SensorHttpError`, the fallback fires and produces "E-INT-001". Fix: pin the canonical
+/// code in `VariantMeta.ec_code_override` before the message is consumed.
 #[test]
 fn test_F1_sensor_http_error_code_is_e_sensor_001_not_e_int_001() {
     use prism_core::error::PrismError;
@@ -3373,7 +3373,7 @@ fn test_HIGH_1_auth_token_expired_category_is_authentication() {
 /// AuthTokenInvalid: token format was structurally valid but credential is invalid.
 /// Same reasoning as AuthTokenExpired: original_params_valid=true (format was valid).
 /// ec_code_override required: map_prism_error returns INTERNAL_ERROR for this variant
-/// (the generic "Internal error; see audit log" message → no E- prefix to infer from).
+/// (the generic "Internal error" message → no E- prefix to infer from).
 ///
 /// Pre-fix behavior: falls to catch-all → category "upstream_error" + code "E-INT-001".
 /// Required: category "authentication", code "E-AUTH-011", original_params_valid=true.
