@@ -522,6 +522,103 @@ mod tests {
         PrismServer::new().with_query_engine(Arc::new(engine))
     }
 
+    // =========================================================================
+    // Filter-mode EC-11-068 regression lock
+    // =========================================================================
+
+    /// BC-2.11.001 v1.17 EC-11-068 filter-mode lock: in filter-mode queries
+    /// (`crowdstrike_alerts | predicate`), NULL-valued column keys must appear as
+    /// JSON `null` in every row — the invariant applies to all three query modes
+    /// (SQL, pipe, filter).
+    ///
+    /// BC-2.11.001 v1.17 §Postconditions states the invariant holds across ALL query
+    /// modes. SQL + pipe are locked by the preceding tests (via the single
+    /// `WriterBuilder::with_explicit_nulls(true)` chokepoint in server.rs). This test
+    /// locks filter mode against a future regression where a second row-emit path for
+    /// filter queries is introduced without the fix.
+    ///
+    /// PASSES on arrival (GREEN): the single `WriterBuilder::with_explicit_nulls(true)`
+    /// serializer chokepoint in server.rs covers filter-mode results just as it covers
+    /// SQL and pipe results. If it FAILS, a second row-emit path has been introduced for
+    /// filter queries without `with_explicit_nulls(true)` — fix that path and do NOT
+    /// weaken the assertion.
+    ///
+    /// # Query syntax
+    ///
+    /// Filter mode source reference format: `sensor_table_name | predicate` (underscore form,
+    /// `SourceRefKind::Custom`). The dot-notation form (`sensor.table`) produces
+    /// `SourceRefKind::External` which is rejected by the E-QUERY-037 availability gate
+    /// (EC-11-067 / BC-2.11.001 v1.15). Use underscore form so the gate sees a registered
+    /// Custom source ref.
+    /// Predicate `severity != "notexist_severity"` matches all 3 rows (none has
+    /// severity="notexist_severity"). DataFusion materializes this as:
+    ///   `SELECT * FROM crowdstrike_alerts WHERE severity != 'notexist_severity'`
+    /// Returning all columns (severity, sensor_ip) for all 3 rows.
+    #[tokio::test]
+    async fn test_BC_2_11_001_EC_11_068_filter_mode_null_column_serialized_as_json_null_not_absent()
+    {
+        let server = make_server_with_returning_null_adapter();
+        let result = server
+            .query(Parameters(query_params(
+                // Filter-mode query: "crowdstrike_alerts | predicate" (underscore form).
+                // Source ref "crowdstrike_alerts" is SourceRefKind::Custom — matches the
+                // registered table name directly. The dot-notation form "crowdstrike.alerts"
+                // produces SourceRefKind::External which the E-QUERY-037 availability gate
+                // rejects (EC-11-067). Use underscore form to pass the gate.
+                // Predicate matches all 3 rows — none has severity="notexist_severity".
+                "crowdstrike_alerts | severity != \"notexist_severity\"",
+            )))
+            .await
+            .expect(
+                "filter-mode query must return Ok — NULL-valued rows are valid data, \
+                 not a query-level error; severity != 'notexist_severity' matches all 3 rows",
+            );
+
+        let v = envelope_json(result);
+        let rows = v["results"]["rows"]
+            .as_array()
+            .expect("results.rows must be a JSON array");
+
+        assert_eq!(
+            rows.len(),
+            3,
+            "filter-mode: expected 3 rows from ReturnsNullRowsAdapter; got {}",
+            rows.len()
+        );
+
+        // EC-11-068 invariant: every row must contain ALL projected column keys.
+        // In filter mode, `SELECT * FROM crowdstrike_alerts WHERE ...` projects all columns.
+        let required_keys = ["severity", "sensor_ip"];
+        for (i, row) in rows.iter().enumerate() {
+            for key in &required_keys {
+                assert!(
+                    row.get(*key).is_some(),
+                    "EC-11-068 VIOLATION (filter mode) at row {i}: projected column '{key}' \
+                     is ABSENT from row object. Filter-mode NULL-valued column keys must \
+                     serialize as JSON null (key present), not be omitted. \
+                     Got row {i}: {row}"
+                );
+            }
+        }
+
+        // Specifically assert the NULL sensor_ip row (Row 1: severity="medium") is correct.
+        let null_row = rows
+            .iter()
+            .find(|row| row.get("severity").and_then(|v| v.as_str()) == Some("medium"))
+            .expect("expected to find severity='medium' row (Row 1, sensor_ip=NULL)");
+        assert!(
+            null_row.get("sensor_ip").is_some(),
+            "EC-11-068 filter-mode: NULL sensor_ip key must be PRESENT (not absent) for Row 1 \
+             (severity=medium). Got row: {null_row}"
+        );
+        assert!(
+            null_row["sensor_ip"].is_null(),
+            "EC-11-068 filter-mode: sensor_ip key must be JSON null for Row 1; \
+             got: {}",
+            null_row["sensor_ip"]
+        );
+    }
+
     /// BC-2.11.001 v1.16 AC (b) — probe [H20]: in pipe-mode `| enrich` queries, enrichment
     /// column values that are NULL must serialize as JSON `null` (key present), NOT be omitted.
     ///

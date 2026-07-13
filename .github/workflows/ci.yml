@@ -283,29 +283,57 @@ jobs:
         uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
         with:
           tool: just
-      # Staleness guard: save committed SHA before the build overwrites the file.
-      - name: Save committed threatintel-lookup.prx SHA-256
+      # Staleness guard: save committed SHAs before the build overwrites the files.
+      # Both the .prx binary and the manifest are build outputs from
+      # `just build-plugin-threatintel-infusion`; both must stay in sync with source.
+      # (F-MCPNULL-P3-LOW-004: manifest staleness check added in fix-burst 3)
+      - name: Save committed threatintel-lookup.prx and manifest SHA-256
         run: |
           COMMITTED_SHA=$(sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx | cut -d' ' -f1)
           echo "COMMITTED_SHA=$COMMITTED_SHA" >> "$GITHUB_ENV"
-          echo "F-MCPNULL-P2-OBS-002: committed SHA-256 = $COMMITTED_SHA"
+          echo "F-MCPNULL-P2-OBS-002: committed .prx SHA-256 = $COMMITTED_SHA"
+          COMMITTED_MANIFEST_SHA=$(sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml | cut -d' ' -f1)
+          echo "COMMITTED_MANIFEST_SHA=$COMMITTED_MANIFEST_SHA" >> "$GITHUB_ENV"
+          echo "F-MCPNULL-P3-LOW-004: committed manifest SHA-256 = $COMMITTED_MANIFEST_SHA"
       - name: Build threatintel-lookup.prx
         run: |
           just build-plugin-threatintel-infusion
           echo "F-MCPNULL-P2-OBS-002: threatintel-lookup.prx built successfully"
           ls -la crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
-      # Staleness gate: fail if the rebuilt .prx differs from the committed one.
+          ls -la crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
+      # Staleness gate: fail if the rebuilt .prx or manifest differs from the committed one.
+      # OBS-003 toolchain-drift hint: if Rust stable bumps and this gate fails on an
+      # otherwise unrelated PR, the fix is to rebuild locally and commit both files:
+      #   just build-plugin-threatintel-infusion
+      # See crates/prism-spec-engine/plugins/threatintel-lookup/README.md §Toolchain Drift.
       - name: Verify threatintel-lookup.prx is not stale
         run: |
           REBUILT_SHA=$(sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx | cut -d' ' -f1)
-          echo "committed SHA-256: $COMMITTED_SHA"
-          echo "rebuilt   SHA-256: $REBUILT_SHA"
+          echo "committed .prx SHA-256: $COMMITTED_SHA"
+          echo "rebuilt   .prx SHA-256: $REBUILT_SHA"
           if [ "$COMMITTED_SHA" != "$REBUILT_SHA" ]; then
             echo "::error::F-MCPNULL-P2-OBS-002 STALENESS: committed threatintel-lookup.prx does not match rebuilt artifact."
-            echo "::error::Run 'just build-plugin-threatintel-infusion' locally and commit the updated .prx before merging."
+            echo "::error::Run 'just build-plugin-threatintel-infusion' locally and commit the updated .prx and manifest before merging."
+            echo "::error::If this failed on an unrelated PR after a Rust stable release, see README §Toolchain Drift: the SHA change is expected toolchain drift, not tampering."
             exit 1
           fi
           echo "F-MCPNULL-P2-OBS-002 PASS: committed threatintel-lookup.prx matches rebuilt artifact (SHA-256 $REBUILT_SHA)"
+      # F-MCPNULL-P3-LOW-004: manifest staleness gate — the manifest is also a build output.
+      # `just build-plugin-threatintel-infusion` copies the manifest from the source crate;
+      # a manifest edit in the source crate without recommitting the deploy copy will fail here.
+      - name: Verify threatintel-lookup.manifest.toml is not stale
+        run: |
+          REBUILT_MANIFEST_SHA=$(sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml | cut -d' ' -f1)
+          echo "committed manifest SHA-256: $COMMITTED_MANIFEST_SHA"
+          echo "rebuilt   manifest SHA-256: $REBUILT_MANIFEST_SHA"
+          if [ "$COMMITTED_MANIFEST_SHA" != "$REBUILT_MANIFEST_SHA" ]; then
+            echo "::error::F-MCPNULL-P3-LOW-004 STALENESS: committed threatintel-lookup.manifest.toml does not match rebuilt artifact."
+            echo "::error::The manifest in crates/prism-spec-engine/plugins/threatintel-lookup/ is out of sync with the source at crates/plugins/prism-threatintel-infusion/threatintel-lookup.manifest.toml."
+            echo "::error::Run 'just build-plugin-threatintel-infusion' locally and commit the updated manifest (+ .prx if also changed) before merging."
+            echo "::error::If this failed on an unrelated PR after a Rust stable release, see README §Toolchain Drift: the SHA change is expected toolchain drift, not tampering."
+            exit 1
+          fi
+          echo "F-MCPNULL-P3-LOW-004 PASS: committed threatintel-lookup.manifest.toml matches rebuilt artifact (SHA-256 $REBUILT_MANIFEST_SHA)"
       - name: Upload threatintel-lookup.prx artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -1309,54 +1337,62 @@ jobs:
           # #[non_exhaustive] on all pub TOML-deserialized types. A future PR removing
           # the entire job block would not be caught by structural validation without
           # this check. This grep anchors the job name to the file so removal is detected.
-          grep -qE 'non-exhaustive-violation-compile-fail' .github/workflows/ci.yml || {
+          # Anchored job-definition pattern (F-MCPNULL-P3-LOW-003): greps must match the
+          # actual job definition line (2-space-indented YAML key) so commented-out job
+          # blocks — which still contain the name as text — do NOT pass the check.
+          # Pattern: '^  <job-name>:' matches "  job-name:" at line start; a commented
+          # block "#  job-name:" starts with '#' and does not match.
+          grep -qE '^  non-exhaustive-violation-compile-fail:' .github/workflows/ci.yml || {
             echo "::error::AC-5 CI enforcement job 'non-exhaustive-violation-compile-fail' is missing from ci.yml — forward-compat #[non_exhaustive] enforcement removed (BC-2.01.013 AC-5)"
             exit 1
           }
-          echo 'AC-5 reachability check passed: non-exhaustive-violation-compile-fail job present.'
+          echo 'AC-5 reachability check passed: non-exhaustive-violation-compile-fail job definition present.'
           # F-LP5-HIGH-001 reachability assertion:
           # The wasm32-compile-check job is the SOLE CI gate proving the crowdstrike-oauth2
           # plugin's wit-bindgen Guest impl + export!(Component) macro actually compile.
           # A future PR removing this job block would silently disable the gate.
-          grep -qE 'wasm32-compile-check' .github/workflows/ci.yml || {
+          grep -qE '^  wasm32-compile-check:' .github/workflows/ci.yml || {
             echo "::error::F-LP5-HIGH-001: wasm32-compile-check job is missing from ci.yml — Guest impl compile gate removed (PLUGIN-MIGRATION-001-E F-LP5-HIGH-001)"
             exit 1
           }
-          echo 'F-LP5-HIGH-001 reachability check passed: wasm32-compile-check job present.'
+          echo 'F-LP5-HIGH-001 reachability check passed: wasm32-compile-check job definition present.'
           # S-PLUGIN-CI-001 AC-001 reachability assertion:
-          # The wasm32-compile-check job must include wasm-tools install + .prx build step.
-          # A future PR removing the build step would silently disable the AC-001 CI gate.
-          grep -qE 'build-plugin-crowdstrike-oauth2' .github/workflows/ci.yml || {
-            echo "::error::S-PLUGIN-CI-001 AC-001: 'build-plugin-crowdstrike-oauth2' step is missing from ci.yml — .prx build gate removed (S-PLUGIN-CI-001 AC-001)"
+          # The wasm32-compile-check job must include the .prx build step that runs
+          # `just build-plugin-crowdstrike-oauth2`. Anchored to the leading-whitespace run
+          # command ('^[[:space:]]+just ...') so a commented-out step does NOT match
+          # ('#          just ...' starts with '#', not whitespace-then-'just').
+          grep -qE '^[[:space:]]+just build-plugin-crowdstrike-oauth2' .github/workflows/ci.yml || {
+            echo "::error::S-PLUGIN-CI-001 AC-001: 'just build-plugin-crowdstrike-oauth2' run step is missing from ci.yml — .prx build gate removed (S-PLUGIN-CI-001 AC-001)"
             exit 1
           }
-          echo 'S-PLUGIN-CI-001 AC-001 reachability check passed: build-plugin-crowdstrike-oauth2 step present.'
+          echo 'S-PLUGIN-CI-001 AC-001 reachability check passed: build-plugin-crowdstrike-oauth2 run step present.'
           # AC-006 PLUGIN-MIGRATION-001-F reachability assertion:
           # The no-hardcoded-sensors-compile-fail job is the SOLE CI gate enforcing ADR-023
           # Rule 3 (no sensor-named module references outside DTU clones). A future PR
           # removing this job block would silently allow regression of the deleted auth
           # modules (prism_sensors::auth::{armis,claroty,crowdstrike,cyberint}).
-          grep -qE 'no-hardcoded-sensors-compile-fail' .github/workflows/ci.yml || {
+          grep -qE '^  no-hardcoded-sensors-compile-fail:' .github/workflows/ci.yml || {
             echo "::error::AC-006 PLUGIN-MIGRATION-001-F: 'no-hardcoded-sensors-compile-fail' job is missing from ci.yml — ADR-023 Rule 3 compile-fail enforcement removed"
             exit 1
           }
-          echo 'AC-006 reachability check passed: no-hardcoded-sensors-compile-fail job present.'
+          echo 'AC-006 reachability check passed: no-hardcoded-sensors-compile-fail job definition present.'
           # S-DEMO-003 HIGH-2 / AC-014 reachability assertion:
           # The shellcheck-demo-scripts job is the required PR gate for demo script quality
           # (ADR-034 HIGH-2 remediation). A future PR removing this job would silently remove
           # the shellcheck gate.
-          grep -qE 'shellcheck-demo-scripts' .github/workflows/ci.yml || {
+          grep -qE '^  shellcheck-demo-scripts:' .github/workflows/ci.yml || {
             echo "::error::S-DEMO-003 AC-014: 'shellcheck-demo-scripts' job is missing from ci.yml — shellcheck PR gate removed (ADR-034 HIGH-2)"
             exit 1
           }
-          echo 'S-DEMO-003 AC-014 reachability check passed: shellcheck-demo-scripts job present.'
-          # F-MCPNULL-P2-OBS-002 reachability assertion:
+          echo 'S-DEMO-003 AC-014 reachability check passed: shellcheck-demo-scripts job definition present.'
+          # F-MCPNULL-P2-OBS-002 / F-MCPNULL-P3-LOW-003 reachability assertion:
           # The wasm32-threatintel-staleness-check job is the SOLE CI gate enforcing that the
-          # committed threatintel-lookup.prx stays in sync with its source crate. A future PR
-          # removing this job block would silently allow the committed .prx to drift stale.
-          grep -qE 'wasm32-threatintel-staleness-check' .github/workflows/ci.yml || {
+          # committed threatintel-lookup.prx and manifest stay in sync with their source crate.
+          # A future PR removing this job block would silently allow the committed artifacts
+          # to drift stale. Anchored to the 2-space job definition line (F-MCPNULL-P3-LOW-003).
+          grep -qE '^  wasm32-threatintel-staleness-check:' .github/workflows/ci.yml || {
             echo "::error::F-MCPNULL-P2-OBS-002: 'wasm32-threatintel-staleness-check' job is missing from ci.yml — threatintel-lookup.prx staleness gate removed (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P2-OBS-002)"
             exit 1
           }
-          echo 'F-MCPNULL-P2-OBS-002 reachability check passed: wasm32-threatintel-staleness-check job present.'
-          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 reachability assertions pass.'
+          echo 'F-MCPNULL-P2-OBS-002 reachability check passed: wasm32-threatintel-staleness-check job definition present.'
+          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 reachability assertions pass (anchored job-definition patterns, F-MCPNULL-P3-LOW-003).'

@@ -82,6 +82,43 @@ S-DEMO-ENRICHMENT-PIVOT-002).
 
 ---
 
+## Toolchain Drift — When the Staleness Gate Fails on an Unrelated PR
+
+The `wasm32-threatintel-staleness-check` CI job rebuilds the `.prx` and manifest from source
+on every PR and compares their SHA-256 digests against the committed artifacts. The build is
+byte-for-byte reproducible **on the same toolchain**. When Rust stable releases a new version,
+the compiled `.wasm` output changes (different code generation), producing a different `.prx`
+SHA even though neither the plugin source nor the manifest changed.
+
+**Symptom:** An otherwise-unrelated PR fails `wasm32-threatintel-staleness-check` with:
+
+```
+F-MCPNULL-P2-OBS-002 STALENESS: committed threatintel-lookup.prx does not match rebuilt artifact.
+```
+
+**Cause:** Expected toolchain drift — the Rust stable channel bumped and the compiled output
+diverged. This is not tampering; it is a routine maintenance step.
+
+**Fix:** In the PR branch, rebuild and commit both artifacts:
+
+```bash
+just build-plugin-threatintel-infusion
+git add crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
+git add crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
+git commit -m "chore: refresh threatintel-lookup.prx + manifest after Rust stable toolchain bump"
+```
+
+The SHA change is expected and safe. The `wasm-tools validate --features=component-model`
+step in the Justfile recipe confirms the rebuilt artifact is a valid WASM Component after
+the refresh.
+
+**Distinguishing drift from tampering:**
+- Toolchain drift: only the `.prx` SHA changes; source code and manifest are unmodified.
+- Tampering: source changes without a corresponding committed `.prx` update — the same gate
+  catches this, but the fix is to audit the source change rather than refresh the artifact.
+
+---
+
 ## Verifying the Committed Binary Matches Source
 
 Rebuild and compare SHA-256 digests:

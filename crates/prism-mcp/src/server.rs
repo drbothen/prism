@@ -6829,10 +6829,20 @@ mod tests {
              through to AliasNotFound (-32602) or similar (test fails)"
         );
         // PrismError::Internal suppresses detail in the MCP message per error-mapping.rs;
-        // the generic message is the expected output.
+        // the generic terse form "Internal error" is the expected output (H8b split:
+        // terse MCP path, NOT the verbose audit log path).
+        // F-MCPNULL-P3-OBS-002: assert terse form IS present and audit-log detail is NOT.
         assert!(
-            err.message.contains("Internal error") || err.message.contains("audit log"),
-            "error message must indicate an internal error; got: '{}'",
+            err.message.contains("Internal error"),
+            "F-PASS15-MED-1: error message must be the terse form containing 'Internal error'; \
+             got: '{}'",
+            err.message
+        );
+        assert!(
+            !err.message.contains("audit log"),
+            "F-PASS15-MED-1: error message must NOT contain 'audit log' \
+             (H8b split enforced: terse MCP path only, no audit log detail in client-facing message); \
+             got: '{}'",
             err.message
         );
     }
@@ -7771,9 +7781,17 @@ mod tests {
             "F-PASS16-MED-2: missing 'scope' in create_alias token must return INTERNAL_ERROR (-32000); \
              if unwrap_or(\"global\") is restored, code will be -32602 (AliasNotFound) — test fails"
         );
+        // F-MCPNULL-P3-OBS-002: assert terse form IS present and audit-log detail is NOT (H8b split).
         assert!(
-            err.message.contains("Internal error") || err.message.contains("audit log"),
-            "error message must indicate an internal error; got: '{}'",
+            err.message.contains("Internal error"),
+            "F-PASS16-MED-2: error message must be the terse form containing 'Internal error'; \
+             got: '{}'",
+            err.message
+        );
+        assert!(
+            !err.message.contains("audit log"),
+            "F-PASS16-MED-2: error message must NOT contain 'audit log' \
+             (H8b split enforced: terse MCP path only); got: '{}'",
             err.message
         );
     }
@@ -7821,9 +7839,17 @@ mod tests {
             "F-PASS16-MED-2: missing 'scope' in delete_alias token must return INTERNAL_ERROR (-32000); \
              if unwrap_or(\"global\") is restored, code will be different — test fails"
         );
+        // F-MCPNULL-P3-OBS-002: assert terse form IS present and audit-log detail is NOT (H8b split).
         assert!(
-            err.message.contains("Internal error") || err.message.contains("audit log"),
-            "error message must indicate an internal error; got: '{}'",
+            err.message.contains("Internal error"),
+            "F-PASS16-MED-2: error message must be the terse form containing 'Internal error'; \
+             got: '{}'",
+            err.message
+        );
+        assert!(
+            !err.message.contains("audit log"),
+            "F-PASS16-MED-2: error message must NOT contain 'audit log' \
+             (H8b split enforced: terse MCP path only); got: '{}'",
             err.message
         );
     }
@@ -7874,9 +7900,17 @@ mod tests {
             "F-PASS16-MED-2: missing 'force' in delete_alias token must return INTERNAL_ERROR (-32000); \
              if unwrap_or(false) is restored, code will be different — test fails"
         );
+        // F-MCPNULL-P3-OBS-002: assert terse form IS present and audit-log detail is NOT (H8b split).
         assert!(
-            err.message.contains("Internal error") || err.message.contains("audit log"),
-            "error message must indicate an internal error; got: '{}'",
+            err.message.contains("Internal error"),
+            "F-PASS16-MED-2: error message must be the terse form containing 'Internal error'; \
+             got: '{}'",
+            err.message
+        );
+        assert!(
+            !err.message.contains("audit log"),
+            "F-PASS16-MED-2: error message must NOT contain 'audit log' \
+             (H8b split enforced: terse MCP path only); got: '{}'",
             err.message
         );
     }
