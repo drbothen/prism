@@ -796,6 +796,24 @@ impl QueryEngine {
             };
         let effective_query: &str = &effective_query;
 
+        // ADR-048 v1.2 §D.7.4 — aggregate-in-predicate gate fires BEFORE temporal gate.
+        //
+        // When a WHERE predicate contains an aggregate fn-call (e.g., `WHERE stddev(x) = 5`),
+        // the D.7 aggregate gate in `check_enrich_udf_availability` must fire E-QUERY-001
+        // BEFORE `check_temporal_literals` fires E-QUERY-042. Without this pre-check, a
+        // query like `WHERE stddev(x) = '2026-06-24'` would receive E-QUERY-042
+        // (NonColumnLhsComparison) from the temporal gate — which is incorrect: the
+        // primary fault is the aggregate-in-WHERE, not the date-like RHS.
+        //
+        // Passing `None` for the registry here runs ONLY the aggregate gate and skips the
+        // E-QUERY-039 infusion-UDF check (which requires E-QUERY-037 and E-QUERY-038 to have
+        // passed first, per BC-2.11.019 gate ordering). The full E-QUERY-039 check runs at
+        // the call site below (after table and column gates). This double-invoke is
+        // intentional and consistent with the existing double-parse in the temporal check
+        // design (see HIGH-4 note below). When no aggregate is in a predicate position, this
+        // call returns Ok(()) immediately with no observable side-effects.
+        check_enrich_udf_availability(effective_query, None)?;
+
         // ADR-052 §D4 Option A: E-QUERY-041 temporal literal gate fires BEFORE E-QUERY-037.
         //
         // EC-013 (story spec): dotted external-source queries with temporal literals must
@@ -1170,6 +1188,11 @@ impl QueryEngine {
         ),
         PrismError,
     > {
+        // ADR-048 v1.2 §D.7.4 — aggregate-in-predicate gate fires BEFORE temporal gate.
+        // Mirrors execute_inner's pre-check. See execute_inner for full rationale.
+        // Pass None to run only the aggregate gate (E-QUERY-001); E-QUERY-039 runs below.
+        check_enrich_udf_availability(query_str, None)?;
+
         // ADR-052 §D4 Option A: E-QUERY-041 temporal literal gate fires BEFORE E-QUERY-037.
         // EC-013: dotted external-source temporal literal queries → E-QUERY-041, not E-QUERY-037.
         // Mirrors execute_inner's early temporal check. See execute_inner HIGH-4 comment for
@@ -1550,6 +1573,19 @@ static DATAFUSION_BUILTIN_AGGREGATE_NAMES: std::sync::LazyLock<std::collections:
                 names.insert(alias.to_ascii_lowercase());
             }
         }
+        // PrismQL-specific aggregate names absent from DataFusion's built-in registry
+        // but semantically aggregate functions in PrismQL grammar (ADR-048 v1.2 D.7.1).
+        // These must also be rejected in WHERE predicates with the canonical E-QUERY-001
+        // message — they cannot be valid WHERE predicate LHS values.
+        //
+        // distinct_count: maps to SQL APPROX_DISTINCT / COUNT(DISTINCT ...) at emit time.
+        // percentile:     maps to APPROX_PERCENTILE_CONT at emit time.
+        //
+        // Both are in the removed parser-level AGGREGATE_FUNC_NAMES list (OD-4 removal) and
+        // must be covered by this plan-time gate to maintain the WHERE aggregate invariant
+        // (ADR-048 D.6). The union mechanism: DataFusion registry ∪ PrismQL-specific names.
+        names.insert("distinct_count".to_string());
+        names.insert("percentile".to_string());
         names
     });
 
@@ -1828,12 +1864,20 @@ fn check_enrich_udf_availability(
         // SqlPipe mode: SQL head with pipe stages.
         // Enrich names can appear in THREE places:
         //   (a) pipe stages `| enrich udf_name(col)` — pipe-mode, no built-in skip.
-        //   (b) pipe stages `| where fn(col) = val` — predicate fn-call LHS (new).
+        //   (b) pipe stages `| where fn(col) = val` — predicate fn-call LHS.
         //   (c) SQL HEAD: any scalar position in the head SqlQuery (SELECT, WHERE,
         //       JOIN ON, GROUP BY, ORDER BY, HAVING) — SQL-mode, built-in skip applied.
         // BC-2.11.019 §Precondition 1(b): projection OR WHERE (either site counts).
         // C1/C2 fix: use collect_unknown_scalars_from_sql_query to cover ALL positions
         // including JOIN ON / GROUP BY / ORDER BY which the previous inline walk missed.
+        //
+        // ADR-048 v1.2 §D.7.1 (position 5): SqlPipe-head WHERE predicate fn-call names
+        // are walked into predicate_fncall_names for the aggregate-in-predicate gate.
+        // Previously these went only to sql_unknown_names via collect_unknown_scalars_from_sql_query
+        // position (b), then were filtered by DATAFUSION_BUILTIN_FUNCTION_NAMES before the
+        // E-QUERY-039 check — so the aggregate gate never saw them (F-PQLFN-P2-HIGH-001).
+        // The head WHERE is walked into BOTH predicate_fncall_names (aggregate gate) AND
+        // sql_unknown_names (E-QUERY-039 gate) — duplicate entries are harmless.
         Ast::SqlPipe(spq) => {
             for stage in &spq.stages {
                 match stage {
@@ -1848,14 +1892,37 @@ fn check_enrich_udf_availability(
                     _ => {}
                 }
             }
+            // (D.7.1 position 5) SqlPipe-head WHERE → predicate_fncall_names (aggregate gate).
+            // HAVING is intentionally excluded — only head.where_ is walked here.
+            if let Some(pred) = &spq.head.where_ {
+                collect_unknown_scalar_from_predicate(pred, &mut predicate_fncall_names);
+            }
             // (c) SQL head — ALL scalar positions via canonical shared walk, SQL-mode.
+            // This also walks head.where_ into sql_unknown_names (duplicate for WHERE names —
+            // harmless; aggregate names will be filtered by DATAFUSION_BUILTIN_FUNCTION_NAMES
+            // before E-QUERY-039, and non-aggregate unknowns reach E-QUERY-039 correctly).
             collect_unknown_scalars_from_sql_query(&spq.head, &mut sql_unknown_names);
         }
         // SQL mode: scan ALL scalar positions via canonical shared walk.
         // BC-2.11.019 §Precondition 1(b): projection OR WHERE (either site counts).
         // C1/C2 fix: use collect_unknown_scalars_from_sql_query to cover ALL positions
         // including JOIN ON / GROUP BY / ORDER BY which the previous inline walk missed.
+        //
+        // ADR-048 v1.2 §D.7.1 (position 4): SQL WHERE predicate fn-call names are walked
+        // into predicate_fncall_names for the aggregate-in-predicate gate. Previously they
+        // went only to sql_unknown_names via collect_unknown_scalars_from_sql_query position (b),
+        // then were filtered by DATAFUSION_BUILTIN_FUNCTION_NAMES before the E-QUERY-039 check —
+        // so the aggregate gate never saw them (F-PQLFN-P2-HIGH-001). The WHERE predicate is
+        // walked into BOTH predicate_fncall_names (aggregate gate) AND sql_unknown_names via the
+        // shared walk below — duplicate entries are harmless.
         Ast::Sql(SqlStatement::Select(sq)) => {
+            // (D.7.1 position 4) SQL WHERE → predicate_fncall_names (aggregate gate).
+            // HAVING is intentionally excluded — only sq.where_ is walked here.
+            if let Some(pred) = &sq.where_ {
+                collect_unknown_scalar_from_predicate(pred, &mut predicate_fncall_names);
+            }
+            // All positions (SELECT, WHERE, JOIN ON, GROUP BY, ORDER BY, HAVING) via canonical
+            // shared walk into sql_unknown_names for E-QUERY-039.
             collect_unknown_scalars_from_sql_query(sq, &mut sql_unknown_names);
         }
         // DML has no enrichment syntax.

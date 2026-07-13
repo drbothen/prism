@@ -1180,28 +1180,27 @@ pub(crate) fn build_predicate_parser<'a>(
 
         // --- fn-call comparison: scalar_fn_name(args) compare_op rhs_expr ---
         //
-        // (DEFECT-PQL-FNCALL-LHS-001) Grammar extension for pipe `| where` scalar fn-call
-        // LHS comparisons. Positioned BEFORE `field_comparison` in the atom choice so that
-        // `lower(col) = 'val'` is dispatched here rather than causing a backtrack at `(`.
+        // (DEFECT-PQL-FNCALL-LHS-001, ADR-048 v1.2 §D.7.2) Grammar extension for scalar
+        // fn-call LHS comparisons in pipe `| where`, filter mode, SQL WHERE, SqlPipe
+        // `| where`, and SqlPipe-head WHERE. Positioned BEFORE `field_comparison` in the
+        // atom choice so that `lower(col) = 'val'` is dispatched here rather than causing
+        // a backtrack at `(`.
         //
-        // SCALAR ONLY — aggregate function names (count, sum, avg, min, max,
-        // distinct_count, percentile) are excluded via `try_map` guard so that
-        // `count(x) = 5` in pipe `| where` remains a parse error (ADR-048 D.3:
-        // aggregate predicates belong to SQL HAVING, not pipe where).
+        // PARSER-LEVEL AGGREGATE BLOCKLIST REMOVED (ADR-048 v1.2 OD-4): the prior
+        // `AGGREGATE_FUNC_NAMES` `try_map` guard (count/sum/avg/min/max/distinct_count/
+        // percentile) has been removed. Chumsky backtrack was swallowing the rejection
+        // error, producing "found '('" instead of the canonical ADR-048 D.3 message.
+        // Aggregate names now parse successfully as `FuncCall::Scalar(Unknown(name))` and
+        // are intercepted by the plan-time `DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate in
+        // `check_enrich_udf_availability`, which fires the canonical E-QUERY-001 message
+        // for all five predicate positions (ADR-048 D.7.1).
         //
         // Downstream handling requires NO logic changes — pre-existing code handles FuncCall LHS:
+        //   - check_enrich_udf_availability: DATAFUSION_BUILTIN_AGGREGATE_NAMES gate
+        //     fires E-QUERY-001 for aggregate names in WHERE predicates (ADR-048 D.3)
         //   - check_temporal_literals arm (4): non-Field LHS + RawTemporalLiteral → E-QUERY-042
         //   - collect_predicate_columns FuncCall arm: recurses args for E-QUERY-038 column gate
         //   - collect_predicate_columns_with_bareness FuncCall arm: same with bareness tracking
-        const AGGREGATE_FUNC_NAMES: &[&str] = &[
-            "count",
-            "sum",
-            "avg",
-            "min",
-            "max",
-            "distinct_count",
-            "percentile",
-        ];
         let fn_call_arg = literal
             .clone()
             .padded()
@@ -1213,22 +1212,7 @@ pub(crate) fn build_predicate_parser<'a>(
             .at_least(1)
             .to_slice()
             .padded()
-            .try_map(|name: &str, span| {
-                if AGGREGATE_FUNC_NAMES
-                    .iter()
-                    .any(|agg| name.eq_ignore_ascii_case(agg))
-                {
-                    return Err(Rich::custom(
-                        span,
-                        format!(
-                            "E-QUERY-001: '{name}' is an aggregate function; \
-                             aggregate fn-calls are not valid in pipe | where \
-                             (use HAVING for post-aggregation filters, ADR-048 D.3)"
-                        ),
-                    ));
-                }
-                Ok(name.to_string())
-            })
+            .map(|name: &str| name.to_string())
             .then(
                 fn_call_arg
                     .separated_by(just(',').padded())
