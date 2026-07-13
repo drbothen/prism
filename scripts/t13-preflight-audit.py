@@ -331,7 +331,7 @@ def parse_envelope(resp):
         error_code = m.group(1) if m else "UNKNOWN"
         # Strip "ERROR: [type] - " prefix for message
         msg = re.sub(r"^ERROR:\s*\[[^\]]+\]\s*-\s*", "", text).strip()
-        result_body = {"error_code": error_code, "message": msg, "_plain_error": True}
+        result_body = {"error_code": error_code, "message": msg}
         if isinstance(sc_err_obj, dict):
             result_body["_sc_error"] = sc_err_obj
         return result_body, None
@@ -498,7 +498,9 @@ def _audit_sort_key(item_key: str):
     [BOOT] sorts before all section letters.
     Unknown / non-matching prefixes sort after all known sections.
     """
-    m = re.match(r'\[([A-Z]+)(\d+)([a-z]?)\]', item_key)
+    # Grammar shared with mismatch-scan regex (~line 5666): [A-Z]+[0-9]+[a-z]{0,2}
+    # (F-AUD-P40-OBS-003: [a-z]? → [a-z]{0,2} for 0/1/2-char suffix parity).
+    m = re.match(r'\[([A-Z]+)(\d+)([a-z]{0,2})\]', item_key)
     if m:
         return (m.group(1), int(m.group(2)), m.group(3))
     # "BOOT" key (stored without brackets — pre-initialize short-circuit): sorts first.
@@ -520,6 +522,8 @@ _A22_RESULT_KEY = "[A22] check_sensor_health (S-5.04 gate)"
 # old literal named only iocs_value but check covers the full 6-UDF matrix
 # (3 ThreatIntel + 3 NVD/cvss). [H23] prefix kept verbatim for COVERAGE_MATRIX parity guard.
 _H23_RESULT_KEY = "[H23] Runbook enrich-call drift: no pre-ADR-051 non-_first UDF forms (6-UDF matrix)"
+# F-AUD-P40-OBS-001: H8 result key hoisted to prevent 9-site stale-label drift.
+_H8_RESULT_KEY = "[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"
 # F-AUD-P30-MED-003: EXPECTED_SENSORS hoisted to module level — single source of truth
 # shared by A22 (sensor_id set-equality gate) and H14b (resources/read health sensor set-equality).
 # CONSCIOUS-UPDATE REQUIRED: if the org-c demo config is updated to add or remove a sensor type,
@@ -2658,8 +2662,8 @@ def run_audit():
         # above AND the sc_dym_f5 == "detection_id" assertion below must be updated together to
         # maintain coverage. The coupling is intentional (POL-24 philosophy: deliberate schema
         # changes must cause a conscious update to this audit). Canonical symbol source:
-        # `check_column_exists` + `ColumnNotFoundDetails.did_you_mean` in
-        # crates/prism-query/src/plan.rs (TD-VSDD-091: cite function name, not line numbers).
+        # `check_column_availability` + `ColumnNotFoundDetails.did_you_mean` in
+        # crates/prism-query/src/engine.rs (TD-VSDD-091: cite function name, not line numbers).
         # MED-004: a change to the Levenshtein implementation or tie-break heuristic
         # (e.g., candidate ordering when multiple columns are Levenshtein-equidistant)
         # could also change the did_you_mean return value — if that happens, consciously
@@ -3826,7 +3830,7 @@ def run_audit():
                     # (a) H7 PASS confirms JOIN machinery is functional, and
                     # (b) the query uses a bare unknown column in a JOIN — the pattern for FP-001.
                     # This is probabilistic attribution, not direct fail-open message confirmation.
-                    results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                    results[_H8_RESULT_KEY] = (
                         "PASS-ATTRIBUTED: -32000 Internal error + H7 healthy; "
                         "HEAD-JOIN fail-open message indistinguishable from generic QueryExecutionFailed "
                         "at MCP boundary (map_prism_error redacts all QueryExecutionFailed to "
@@ -3836,23 +3840,23 @@ def run_audit():
                     )
                 else:
                     # MED-002 (F-AUD-P25): improved diagnostic — single root cause message.
-                    results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                    results[_H8_RESULT_KEY] = (
                         f"FAIL: H7 non-PASS → fail-open attribution withheld; "
                         f"investigate H7's failure first (single root cause may produce both FAILs); "
                         f"H7 result={_h7_result[:80]!r}"
                     )
             else:
-                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = f"FAIL: {err}"
+                results[_H8_RESULT_KEY] = f"FAIL: {err}"
         else:
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             rows = body.get("rows", [])
             if rows:
-                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                results[_H8_RESULT_KEY] = (
                     f"FAIL: query returned {len(rows)} rows with unknown col (should reject)"
                 )
             elif ec == "E-QUERY-038":
-                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                results[_H8_RESULT_KEY] = (
                     f"FAIL: E-QUERY-038 fired for bare unknown col in JOIN — "
                     f"HEAD-JOIN fail-open (FP-001) should suppress E-QUERY-038 here"
                 )
@@ -3878,7 +3882,7 @@ def run_audit():
                     # QueryExecutionFailed variants; the message is indistinguishable from any
                     # other engine failure at the MCP boundary. Attribution to HEAD-JOIN fail-open
                     # (FP-001) is probabilistic: H7 PASS + bare-unknown-col-in-JOIN query shape.
-                    results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                    results[_H8_RESULT_KEY] = (
                         f"PASS-ATTRIBUTED: {ec or 'Internal error (no ec)'} + H7 healthy; "
                         "HEAD-JOIN fail-open message indistinguishable from generic QueryExecutionFailed "
                         "at MCP boundary (map_prism_error redacts all QueryExecutionFailed to "
@@ -3890,21 +3894,21 @@ def run_audit():
                     # MED-002 (F-AUD-P25): improved diagnostic — single root cause message.
                     # F-AUD-P25-MED-002: gate intentionally strict (false-FAIL preferred over
                     # false-PASS in fail-open attribution); adjudicated KEEP at P25.
-                    results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                    results[_H8_RESULT_KEY] = (
                         f"FAIL: H7 non-PASS → fail-open attribution withheld; "
                         f"investigate H7's failure first (single root cause may produce both FAILs); "
                         f"H7 result={_h7_result[:80]!r}"
                     )
             elif not ec and not rows:
                 # FAIL-DEFECT per BC-2.11.016 §HEAD-JOIN SUSPENSION RULE: fail-open defers to "execution-time DataFusion error"; 0 rows + no error = swallowed DataFusion schema error, not a sanctioned outcome
-                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                results[_H8_RESULT_KEY] = (
                     "FAIL: 0 rows, no error — swallowed DataFusion schema error per BC-2.11.016 "
                     "§HEAD-JOIN SUSPENSION RULE; fail-open path defers to execution-time error, "
                     "not silent 0-row success"
                 )
             else:
                 # Unexpected error code — neither E-QUERY-034 nor Internal error
-                results["[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)"] = (
+                results[_H8_RESULT_KEY] = (
                     f"FAIL: unexpected error code {ec!r} for bare-col JOIN; "
                     f"expected E-QUERY-034 or 'Internal error'; message={msg[:80]!r}"
                 )
@@ -4076,10 +4080,8 @@ def run_audit():
             if sensor_errors_gate("[H12] Multi-client fan-out: org-a + org-c CrowdStrike", body, results):
                 pass
             elif not rows:
-                _h12_se = body.get("sensor_errors", [])
                 results["[H12] Multi-client fan-out: org-a + org-c CrowdStrike"] = (
                     "FAIL: 0 rows from multi-client query"
-                    + (f" (sensor_errors present: {_h12_se[:2]!r})" if _h12_se else "")
                 )
             else:
                 # F-AUD-P5-LOW-003: restrict seed-segment detection to ID-bearing columns only.
@@ -4129,12 +4131,11 @@ def run_audit():
                             f"sensor_errors=[]"
                         )
                 else:
-                    # OBS-002: include sensor_errors in missing-seed diagnostic when populated
-                    _h12_se2 = body.get("sensor_errors", [])
+                    # sensor_errors diagnostics are already surfaced by sensor_errors_gate
+                    # (above); reaching this branch guarantees sensor_errors=[] (F-AUD-P40-LOW-002).
                     results["[H12] Multi-client fan-out: org-a + org-c CrowdStrike"] = (
                         f"FAIL: missing seed segments — has_100={has_100}, has_200={has_200}; "
                         f"total_rows={len(rows)}"
-                        + (f"; sensor_errors={_h12_se2[:2]!r}" if _h12_se2 else "")
                     )
 
         # ── H13: Prompts — client_overview and cross_client_status ───────────
