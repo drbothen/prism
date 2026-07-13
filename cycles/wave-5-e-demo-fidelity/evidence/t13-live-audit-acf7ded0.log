@@ -1,0 +1,330 @@
+================================================================================
+T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop baseline at AUDIT-COVERAGE-001 branch point + fix/T13-audit-coverage Section-H extension
+  ThreatIntel port: 62329  NVD port: 62330
+  Coverage floor: 106 required, 106 present
+  Coverage: 106 matrix items across 8 sections (A–H)
+================================================================================
+
+  MCP server log: /tmp/prism-audit-mcp-94404.log
+[PASS] [A1] INIT: MCP server boots and responds
+       PASS: server={'name': 'prism', 'version': '0.1.0'}
+
+[PASS] [A2] tools/list: full 54-tool catalog present (14 live + 40 NYA)
+       PASS: 54 tools — exact 54-tool catalog match (14 live + 40 NYA; OBS-001 union assertion confirmed)
+
+[PASS] [A3] resources/list: prismql://reference listed
+       PASS: 3 resources — exact set match (['prism://config/clients', 'prism://sensors/health', 'prismql://reference'])
+
+[PASS] [A4] prompts/list: all 5 prompts listed
+       PASS: 5 prompts — exact set match (5 expected, 5 present); ['client_overview', 'cross_client_status', 'investigate_host', 'query_tutorial', 'triage_alerts']
+
+[PASS] [A5] MAJOR-001: list_capabilities client_registered=true
+       PASS: client_registered=true (org-c); negative probe org-nonexistent-f-aud-p21 → client_registered=false (server.rs list_capabilities contract confirmed)
+
+[PASS] [A6] list_capabilities tri-state model fields
+       PASS: capabilities empty (all_paths = registry_paths ∪ client_paths = {} — no write_endpoint declarations in sensor TOMLs, no capabilities in prism-demo.toml; server.rs list_capabilities); not_registered_tools=['get_diagnostics', 'create_schedule', 'list_schedules'] (len=40); tri-state fields present (BC-2.10.011 single-client mode)
+
+[PASS] [A7] AUDIT-001: prism_describe sensor-prefixed names (org-c)
+       PASS: 10 tables; ['armis_alerts', 'armis_devices', 'claroty_alerts', 'claroty_audit_logs', 'claroty_devices', 'crowdstrike_detections', 'crowdstrike_devices', 'crowdstrike_incidents', 'cyberint_alerts', 'cyberint_incidents']
+
+[PASS] [A8] prism_describe org-c: all required tables present
+       PASS: required tables present (total=10): ['armis_alerts', 'armis_devices', 'claroty_alerts', 'claroty_audit_logs', 'claroty_devices', 'crowdstrike_detections', 'crowdstrike_devices', 'crowdstrike_incidents', 'cyberint_alerts', 'cyberint_incidents']
+
+[PASS] [A9] prism_describe org-c: pql_hints field present
+       PASS: 3 pql_hints (all non-empty strings), first="Use 'SELECT * FROM <table> LIMIT 25' to query any of the 10 table(s) above."
+
+[PASS] [A10] prism_describe org-c: cyberint_alerts has iocs_value
+       PASS: iocs_value=True, iocs_value_first=True, iocs_type=True, severity=True; cols=['alert_data_domain', 'alert_data_ip', 'alert_data_url', 'alert_id', 'created_at', 'ioc_type', 'ioc_value_singleton', 'iocs_type']
+
+[PASS] [A11] prism_describe org-a: no cyberint/claroty tables
+       PASS: org-a sees only CS+Armis: ['armis_alerts', 'armis_devices', 'crowdstrike_detections', 'crowdstrike_devices', 'crowdstrike_incidents']
+
+[PASS] [A12] N1: prismql://reference per-field UDF names + content
+       PASS: threat_score+cvss_base_score present; 7 sections (== 7); no old forms
+
+[PASS] [A13] N1-B: unknown enrich UDF -> E-QUERY-039
+       PASS: E-QUERY-039 + anchor 'is not registered; available: [' confirmed; message="E-QUERY-039: enrichment infusion 'nonexistent_udf' is not registered; available:"
+
+[PASS] [A14] N1-B F1: SQL builtin COUNT NOT E-QUERY-039
+       PASS: COUNT executed OK, 1 rows
+
+[PASS] [A15] N2: dot-notation FROM -> E-QUERY-037
+       PASS: E-QUERY-037 + both anchors confirmed ('Available sensors:' + 'Available tables:'); message="E-QUERY-037: table 'crowdstrike.detections' is not available — sensor 'crowdstri"
+
+[PASS] [A16] AUDIT-004: triage_alerts prompt underscore names
+       PASS: all 3 FROM-underscore anchors present (crowdstrike_detections, claroty_alerts, armis_alerts); no dot-notation
+
+[PASS] [A17] HANG-FIX: query_tutorial returns promptly
+       PASS: 0.00s, 1 message(s)
+
+[PASS] [A18] HANG-FIX: investigate_host returns promptly
+       PASS: 0.00s, 1 message(s)
+
+[PASS] [A19] HANG-FIX: list_infusions returns promptly
+       PASS: NYA code=-32003 in 0.00s
+
+[PASS] [A20] HANG-FIX: plugin_status returns promptly
+       PASS: NYA code=-32003 in 0.00s
+
+[PASS] [A21] HANG-FIX: infusion_status returns promptly
+       PASS: NYA code=-32003 in 0.00s
+
+[PASS] [A22] check_sensor_health (S-5.04 gate)
+       PASS: 0.1s overall=healthy; probe_levels=['live']; sensors=['armis', 'claroty', 'crowdstrike', 'cyberint']; reachable_all=True; auth_valid_all=True
+
+[PASS] [A23] all NYA stubs return -32003/-32602 (dynamic sweep; direct -32003 handler-gate assurance via A19/A20/A21)
+       PASS: 40/40 stubs NYA-compliant (-32003 explicit or -32602 schema-validation-precedes-NYA-gate)
+
+[PASS] [B1] CS org-c: crowdstrike_detections returns data
+       PASS: 3 rows
+
+[PASS] [B2] Armis org-c: armis_devices returns data
+       PASS: 3 rows
+
+[PASS] [B3] Claroty org-c: claroty_devices returns data
+       PASS: 3 rows
+
+[PASS] [B4] Claroty org-c: claroty_audit_logs returns data
+       PASS: exactly 5 rows (static fixture confirmed; gap-analysis §4 guardrail #6); sample cols=['_client', '_sensor', '_source_table', '_source_type', 'action', 'actor']
+
+[PASS] [B5] Cyberint org-c: cyberint_alerts returns data
+       PASS: 3 rows
+
+[PASS] [B6] Claroty org-b: claroty_devices returns data
+       PASS: 3 rows
+
+[PASS] [B7] Cyberint org-b: cyberint_alerts returns data
+       PASS: 3 rows
+
+[PASS] [B8] CS org-a: crowdstrike_detections returns data
+       PASS: 3 rows
+
+[PASS] [B9] Armis org-a: armis_devices returns data
+       PASS: 3 rows
+
+[PASS] [B10] ISOLATION: org-a vs org-c CS device IDs disjoint
+       PASS: zero overlap; org-a=5 IDs, org-c=10 IDs (positive counts; isolation proven)
+
+[PASS] [B11] org-c: armis_alerts returns data
+       PASS: 3 rows
+
+[PASS] [B12] org-c: claroty_alerts returns data
+       PASS: 3 rows
+
+[PASS] [B13] org-c: crowdstrike_devices returns data
+       PASS: 3 rows
+
+[FAIL] [B14] org-c: crowdstrike_incidents returns data
+       FAIL: expected no sensor_errors for no-route table crowdstrike_incidents, got ['crowdstrike_incidents: all targets failed (E-SENSOR-030)']
+
+[FAIL] [B15] org-c: cyberint_incidents returns data
+       FAIL: expected no sensor_errors for no-route table cyberint_incidents, got ['cyberint_incidents: all targets failed (E-SENSOR-030)']
+
+[PASS] [C1] SQL SELECT mode: SELECT FROM WHERE LIMIT
+       PASS: 5 rows
+
+[PASS] [C2] Pipe mode: FROM | where | limit
+       PASS: 5 rows
+
+[FAIL] [C3] Pipe mode: FROM | fields | limit
+       FAIL: projected cols {'device_id'} != expected {'device_id', 'behaviors_ioc_type'} — | fields did not restrict to the two specified columns (projection operator regression; MED-003)
+
+[PASS] [C4] DataFusion aggregate: COUNT(*)
+       PASS: 1 rows; COUNT(*)=50 (numeric >= 1; result={'count(*)': 50})
+
+[PASS] [C5] DataFusion aggregate: GROUP BY
+       PASS: 2 bucket(s); '["hash_sha256"]' confirmed; sum(cnt)=20 (seed-200 contract); sample=[('["hash_sha256"]', 1), (None, 19)]
+
+[PASS] [C6] DataFusion aggregate: MAX/MIN
+       PASS: 1 rows; MAX/MIN non-null confirmed; result={'max(crowdstrike_detections.device_id)': 'dev-0196f4b2-200-9', 'min(crowdstrike_detections.device_id)': 'dev-0196f4b2-200-0'}
+
+[PASS] [C7] Pipe mode: | sort
+       PASS: 12 rows; device_id sorted ascending confirmed; first='dev-0196f4b2-200-0'
+
+[PASS] [C8] Temporal: SQL mode executes (ADR-052 §D4 baseline path)
+       PASS: 3 rows (SQL path confirmed; see G7 for RFC-3339 regression)
+
+[PASS] [D1] SCENARIO: Stage 4 armis_devices visible
+       PASS: 20 rows; org-c seed-200 segment confirmed; primary compromised device present: dev-0196f4b2-200-0
+
+[PASS] [D2] IOC-FIELDS: cyberint iocs_value at Stage 4
+       PASS: 5 rows, sample iocs_value=["037f558b75744d1a2ccad89a6fa30b432b26a0f49ad2cdcef3070d0bb4
+
+[PASS] [D3] IOC-FIELDS: CS behaviors_ioc_type at Stage 2+
+       PASS: 1 rows, sample ioc_type='["hash_sha256"]' ioc_value='["037f558b75744d1a2ccad89a6fa3'
+
+[PASS] [D4] Claroty audit_logs at Stage 4 (org-c)
+       PASS: exactly 5 rows (static fixture confirmed; gap-analysis §4 guardrail #6); id=True, action=True; cols=['_client', '_sensor', '_source_table', '_source_type', 'action', 'actor']
+
+[PASS] [D5] SCENARIO: cross-sensor entity coherence (CS+Armis)
+       PASS: device_id='dev-0196f4b2-200-11' found in BOTH CS and Armis for org-c
+
+[PASS] [E1] ENRICH: threat_score(iocs_value_first) on cyberint_alerts
+       PASS: 5 rows; threat_score=95 (int, >= 75); iocs_value_first='037f558b75744d1a2ccad89a6fa30b432b26a0f4'
+
+[PASS] [E2] ENRICH: threat_is_known_malicious(iocs_value_first)
+       PASS: 3 rows; threat_is_known_malicious=True (strict boolean confirmed)
+
+[PASS] [E3] ENRICH: cvss_base_score(device_cves_first) on armis_devices
+       PASS: 5 rows; cvss_base_score=8.1 (== 8.1, BC-2.06.020 PC-4 confirmed); cve_id='CVE-9999-72859'
+
+[PASS] [E4] ENRICH: cvss_severity(device_cves_first)
+       PASS: 3 rows; cvss_severity='HIGH' (scenario CVE-9999-* confirmed)
+
+[PASS] [E5] ENRICH: threat_score(behaviors_ioc_value_first) on CS detections
+       PASS: 1 rows; threat_score=95 (int, >= 75)
+
+[PASS] [E6] ENRICH: ThreatIntel score >= 75 for scenario IOCs
+       PASS: 5/5 scores >= 75; scores=[95, 95, 95, 95, 95]
+
+[PASS] [F1] E-QUERY-032: cyberint for org-a errors
+       PASS: E-QUERY-032 + anchor 'is not registered for org' confirmed; message="E-QUERY-032: Sensor 'cyberint' is not registered for org 'or"
+
+[PASS] [F2] E-QUERY-032: armis for org-b (no sensor)
+       PASS: E-QUERY-032 + anchor 'is not registered for org' confirmed; message="E-QUERY-032: Sensor 'armis' is not registered for org 'org-b"
+
+[PASS] [F3] N2: dot-notation FROM -> E-QUERY-037
+       PASS: E-QUERY-037 + both anchors confirmed ('Available sensors:' + 'Available tables:'); message="E-QUERY-037: table 'crowdstrike.detections' is not available — sensor 'crowdstri"
+
+[PASS] [F4] N1-B: unknown enrich UDF -> E-QUERY-039
+       PASS: E-QUERY-039 + anchor 'is not registered; available: [' confirmed; message="E-QUERY-039: enrichment infusion 'nonexistent_udf' is not registered; available:"
+
+[PASS] [F5] E-QUERY-038: unknown column returns plan-time error
+       PASS: E-QUERY-038 + anchors 'not found in table' and 'Did you mean:' confirmed (POL-24); sc_error.did_you_mean='detection_id' confirmed (MED-005); message="E-QUERY-038: column 'detction_id' not found in table 'crowdstrike_detections' fo"
+
+[PASS] [F6] N1-B F1: SQL builtin COUNT NOT E-QUERY-039
+       PASS: COUNT executed OK, 1 rows
+
+[PASS] [G1] IEQ: severity IEQ 'critical' (crowdstrike_detections, org-c)
+       PASS: 5 rows; all severity=['Critical'] (canonical Title-case; only critical rows confirmed; aligned with runbook v1.7+ Step 3.1a using 'critical')
+
+[PASS] [G2] IIN: severity IIN ('high','critical') (cyberint_alerts, org-c)
+       PASS: 11 rows; distinct severities=['Critical', 'High'] (all in {high,critical}; IIN filter-echo confirmed)
+
+[PASS] [G3] IIN: status IIN ('new','in progress') (crowdstrike_detections, org-c)
+       PASS: 20 rows; distinct statuses=['New'] (Title-case confirmed; all in {new,in progress}; IIN filter-echo confirmed)
+
+[PASS] [G3b] Runbook Step 3.1a literal: cyberint status IIN ('open','closed')
+       PASS: 10 rows; distinct statuses=['closed', 'open'] (all in {open,closed}; IIN vendor-native pass-through confirmed)
+
+[PASS] [G4] SQL-mode IEQ rejection -> E-QUERY-001 mode-boundary
+       PASS: E-QUERY-001; message names IEQ/IIN/INE and byte-precise anchor 'not supported in SQL mode' confirmed (sql_parser.rs verbatim): "PrismQL parse error: parse error at offset 0: E-QUERY-001: parse error near 'IEQ': case-insensitive operators (IEQ/IIN/I"
+
+[PASS] [G6] GROUP BY severity no-fragmentation (canonical Title-case)
+       PASS: 2 distinct buckets; all canonical Title-case: ['Critical', 'Medium']
+
+[PASS] [G7] Temporal: RFC-3339 datetime literal in WHERE (ADR-052 §D4 regression)
+       PASS: 3 rows for past-date filter; future-date '9999-12-31T23:59:59Z' → 0 rows (filter verified) — RFC-3339 literal accepted (ADR-052 §D4; no regression)
+
+[PASS] [G8] ADR-051 regression: threat_score output is Int64 not JSON-string
+       PASS: threat_score=95 (type=int) — OBS-1 regression confirmed closed; output is typed numeric, NOT JSON-encoded string
+
+[PASS] [H1] E-QUERY-038 pipe mode (original DRIFT shape)
+       PASS: E-QUERY-038 + 'not found in table' anchor (POL-24; no Internal error / E-QUERY-034 regression)
+
+[PASS] [H1b] E-QUERY-038 filter mode (position 7, no FROM)
+       PASS: E-QUERY-038 + 'not found in table' anchor (POL-24; no regression in filter mode)
+
+[PASS] [H2] E-QUERY-038 did_you_mean + available_columns payload
+       PASS: E-QUERY-038; text anchors confirmed + sc_error populated; sc_error.did_you_mean='severity'; sc_error.available_columns count=12
+
+[PASS] [H3] INE operator: severity INE 'medium' (excludes Medium rows)
+       PASS: 5 rows; all severity='Critical'; zero Medium rows
+
+[PASS] [H4] E-QUERY-041: date-only literal rejected (ADR-052 §D4)
+       PASS: E-QUERY-041; both 'cannot be interpreted' and 'RFC-3339' confirmed; message="E-QUERY-041: The value '2020-01-01' cannot be interpreted as a UTC timestamp. Ex"
+
+[PASS] [H5] E-QUERY-042: temporal literal in GROUP BY (ADR-052 §D4)
+       PASS: E-QUERY-042 — temporal literal in GROUP BY arm rejected with canonical template (POL-24 anchors confirmed); message="E-QUERY-042: GROUP BY expects a column reference, not a literal constant. '2026-"
+
+[PASS] [H5b] E-QUERY-042: Timestamp literal in ORDER BY arm (ADR-052 §D4)
+       PASS: E-QUERY-042 — RFC-3339 literal in ORDER BY arm rejected with canonical template (POL-24 anchors confirmed); message="E-QUERY-042: ORDER BY expects a column reference, not a literal constant. '2026-"
+
+[FAIL] [H5c] E-QUERY-042: date-only literal vs function-call LHS (ADR-052 §D4)
+       FAIL: expected E-QUERY-042, got UNKNOWN: "PrismQL parse error: parse error at offset 41: found '(' expected something else"
+
+[PASS] [H6] E-QUERY-002 via armis_devices.risk_score (integer column)
+       PASS: E-QUERY-002 + operator hint 'does not support operator' confirmed; message="E-QUERY-002: type mismatch — column 'risk_score' in table 'armis_devices' has type 'Integer' which d"
+
+[PASS] [H7] JOIN positive path: crowdstrike_devices JOIN armis_devices
+       PASS: 5 joined rows (== 5, LIMIT confirmed); risk_score values=[78, 35, 65, 20, 5] (all numeric)
+
+[FAIL] [H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUERY-038)
+       FAIL: unexpected error code 'UNKNOWN' for bare-col JOIN; expected E-QUERY-034 or 'Internal error'; message='Internal error; see audit log. See audit log for details.'
+
+[PASS] [H9] SqlPipe mode: SELECT head + pipe stage (BC-2.11.020)
+       PASS: 5 rows; all severity='Critical' (SqlPipe IEQ filter confirmed)
+
+[PASS] [H10] E-QUERY-040: SQL LIMIT + pipe | limit (dual-limit rejected)
+       PASS: E-QUERY-040 — dual row-limit cap rejected with canonical template (POL-24 anchors confirmed); message='E-QUERY-040: redundant row limit. This query caps rows in two places: a SQL `LIM'
+
+[PASS] [H11] stats grammar: count() as cnt by severity
+       PASS: exactly 2 severity buckets; Critical=5, Medium=15 (seed-200 counts confirmed)
+
+[PASS] [H12] Multi-client fan-out: org-a + org-c CrowdStrike
+       PASS: 25 rows (>= 25 confirmed); both -100- (org-a) and -200- (org-c) seeds present; sensor_errors=[]
+
+[PASS] [H13a] client_overview prompt returns promptly
+       PASS: 0.00s; 1 message(s)
+
+[PASS] [H13b] cross_client_status prompt returns promptly
+       PASS: 0.00s; 1 message(s)
+
+[PASS] [H14a] resources/read: prism://config/clients — 3-org visibility
+       PASS: exactly 3 orgs (org-a, org-b, org-c) confirmed as client_id in config/clients JSON array (3 entries)
+
+[PASS] [H14b] resources/read: prism://sensors/health — populated clients{} form
+       PASS: populated clients{} form; client_count=1; total_sensors=4; stale=False; org-c sensors confirmed=['armis', 'claroty', 'crowdstrike', 'cyberint']
+
+[PASS] [H14c] resources/read: prism://schema/crowdstrike/detections
+       PASS: SensorTableDescriptor JSON shape confirmed; columns array has 12 entries; confirmed known column(s)=['detection_id', 'device_id', 'severity']
+
+[PASS] [H14d] resources/read: prism://config/clients/org-c/sensors
+       PASS: all 4 sensor_type values confirmed via JSON parse: ['armis', 'claroty', 'crowdstrike', 'cyberint']; org-c four-sensor reference client confirmed (runbook §1.3)
+
+[PASS] [H14e] resources/subscribe+unsubscribe: prismql://schema/org-c (smoke-only)
+       PASS: subscribe+unsubscribe round-trip accepted (smoke: no hang/panic/transport error)
+
+[FAIL] [H14s] resources/read: prismql://schema/org-c — cyberint_alerts present
+       FAIL: cyberint_alerts absent from tables array; tables=[]; body='{"_meta":{"data_source":"org-c","has_more":false,"next_cursor":null,"page":1,"query_time":"2026-07-1'
+
+[PASS] [H15] explain_query live call (one of 14 implemented tools)
+       PASS: explain_query returned plan with parsed_mode='pipe' (pipe query confirmed); keys=['alias_expansion', 'available_tables', 'expanded_query', 'original_query', 'parsed_mode']
+
+[FAIL] [H16] CWE-116/117: control-char in column name sanitized
+       FAIL: unexpected success response — sanitize_for_log positive coverage requires the E-QUERY-038 error path; well-formed JSON without error indicates the Layer-2 column gate was bypassed; preview='{"_meta":{"data_source":["crowdstrike"],"has_more":false,"next_cursor":null,"pag'
+
+[PASS] [H16b] CWE-117: control-char in WHERE-predicate value sanitized (smoke-only)
+       PASS: response free of control chars (smoke: no Cc leakage in envelope); preview='{"_meta":{"data_source":["crowdstrike"],"has_more":false,"ne'
+
+[PASS] [H17] E-QUERY-033: limit 1001 rejected (BC-2.11.001 ceiling)
+       PASS: limit > 1000 controlled rejection (-32602 + E-QUERY-033 anchor): RPC error -32602: E-QUERY-033: limit 1001 exceeds maximum of 1000 (BC-2.11.001)
+
+[PASS] [H18] E-QUERY-003: oversize query controlled rejection
+       PASS: oversize query rejected at MCP or engine level (controlled): RPC error -32602: Invalid query: length 80062 bytes exceeds maximum 65536 bytes 
+
+[PASS] [H19a] threat_sources UDF returns virustotal
+       PASS: 3 rows; threat_sources present; virustotal confirmed; sample='[\'["virustotal"]\', \'["virustotal"]\']'
+
+[PASS] [H19b] cvss_vector UDF returns CVSS:3.1/ string
+       PASS: 3 rows; cvss_vector starts with CVSS:3.1/ confirmed; sample="['CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N', 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S"
+
+[FAIL] [H20] ADR-051 D4 regression detector: iocs_value JSON-list → ALL-NULL
+       FAIL: threat_score column absent from all rows — enrich stage did not produce output (ADR-051 D4 requires NULL output, not absent column; check infusion_udf.rs / threatintel DTU)
+
+[PASS] [H21] Determinism: repeated sorted query byte-identical
+       PASS: 20 rows (diagnostic); two consecutive calls byte-identical (in-session determinism confirmed; seeded ChaCha20 + fixed anchors); detection_id lex-sorted ascending confirmed (20 IDs)
+
+[PASS] [H22] BC-2.11.018: normalized_pql present on success path
+       PASS: normalized_pql present: 'crowdstrike_detections | LIMIT 5'
+
+[PASS] [H23] Runbook enrich-call drift: no pre-ADR-051 non-_first UDF forms (6-UDF matrix)
+       PASS: 16 _first-form UDF call(s) found (threatintel=10, nvd=6); no pre-ADR-051 non-first forms — ADR-051 D4 scalar-input confirmed in runbook; runbook='/Users/jmagady/Dev/prism/.factory/objectives/T13-capstone-demo-runbook.md'
+
+[PASS] [H24] E-QUERY-043: IN subquery in projection position rejected
+       PASS: E-QUERY-043 — IN-subquery in projection rejected with canonical template (POL-24 anchors confirmed); message='E-QUERY-043: IN subquery in projection position is not supported. Use a WHERE clause subquery instea'
+
+================================================================================
+SUMMARY: 98 PASS / 8 FAIL / 0 WARN / 0 PARTIAL / 0 N/A / 106 total
+DEMO-READY: NO
+================================================================================
