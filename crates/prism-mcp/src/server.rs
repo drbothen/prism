@@ -5891,9 +5891,15 @@ mod tests {
         );
         // The error comes from Internal (QueryEngine not wired).
         // This confirms domain logic was reached (past the injection scan).
+        // H8b: PrismError::Internal maps to terse "Internal error" at MCP boundary (detail stripped).
         assert!(
-            msg.contains("Internal error") || msg.contains("not wired"),
-            "error must be an internal error indicating domain logic was reached; got: '{msg}'"
+            msg.contains("Internal error"),
+            "error must be the terse 'Internal error' (H8b: detail stripped at MCP boundary, \
+             domain logic confirmed reached past injection scan); got: '{msg}'"
+        );
+        assert!(
+            !msg.contains("audit log"),
+            "H8b: internal error must not leak audit log details; got: '{msg}'"
         );
     }
 
@@ -6429,9 +6435,15 @@ mod tests {
              not FORBIDDEN (-32002); got code: {}",
             err.code.0
         );
+        // H8b: PrismError::Internal maps to terse "Internal error" at MCP boundary (detail stripped).
         assert!(
-            msg.contains("WriteExecutor") || msg.contains("not wired") || msg.contains("Internal"),
-            "error must indicate missing wiring; got: '{msg}'"
+            msg.contains("Internal error"),
+            "error must be the terse 'Internal error' (H8b: WriteExecutor/not-wired detail \
+             stripped at MCP boundary); got: '{msg}'"
+        );
+        assert!(
+            !msg.contains("audit log"),
+            "H8b: internal error must not leak audit log details; got: '{msg}'"
         );
     }
 
