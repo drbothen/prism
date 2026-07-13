@@ -15066,4 +15066,93 @@ mod datafusion_aggregate_registry_empirical_tests {
              Unexpected for DataFusion 53.1. Action: check DataFusion version and update."
         );
     }
+
+    /// F-PQLFN-P5-LOW-001 empirical lock (scalar): "percentile" ABSENT from DataFusion 53.1
+    /// default_scalar_functions() registry.
+    ///
+    /// Rationale: `DATAFUSION_BUILTIN_FUNCTION_NAMES` unions scalar + aggregate + window
+    /// registries (see static initializer). The existing aggregate-registry absence lock
+    /// (test_f_pqlfn_p4_med_001_percentile_absent_from_datafusion_53_1_aggregate_registry)
+    /// covered only the aggregate arm. This lock completes coverage for the scalar arm, ensuring
+    /// that ADR-048 v1.4 §D.2's claim ("percentile absent from DataFusion built-ins") is
+    /// empirically anchored across ALL three registry sources.
+    ///
+    /// EMPIRICAL VERDICT (DataFusion 53.1): "percentile" is ABSENT from default_scalar_functions().
+    ///   → The manual `names.insert("percentile")` in DATAFUSION_BUILTIN_AGGREGATE_NAMES is
+    ///     still the correct mechanism; no scalar-registry built-in shadows it.
+    ///
+    /// If this test FAILS: DataFusion added "percentile" as a scalar function.
+    /// Action: investigate whether the manual insert is still needed; update ADR-048.
+    ///
+    /// Traces to: F-PQLFN-P5-LOW-001; ADR-048 v1.4 §D.2 scalar-registry absence claim.
+    #[test]
+    fn test_f_pqlfn_p5_low_001_percentile_absent_from_datafusion_53_1_scalar_registry() {
+        use datafusion::execution::SessionStateDefaults;
+
+        let raw_names: std::collections::HashSet<String> =
+            SessionStateDefaults::default_scalar_functions()
+                .iter()
+                .flat_map(|f| {
+                    let mut names = vec![f.name().to_ascii_lowercase()];
+                    for alias in f.aliases() {
+                        names.push(alias.to_ascii_lowercase());
+                    }
+                    names
+                })
+                .collect();
+
+        // EMPIRICAL LOCK: "percentile" must be ABSENT from the scalar registry (DataFusion 53.1).
+        assert!(
+            !raw_names.contains("percentile"),
+            "F-PQLFN-P5-LOW-001 EMPIRICAL LOCK BROKEN: 'percentile' is now IN DataFusion's \
+             default_scalar_functions() registry (not present in DataFusion 53.1). \
+             This changes the ADR-048 reconciliation — stop and report to the architect. \
+             Action: determine whether the manual insert in DATAFUSION_BUILTIN_AGGREGATE_NAMES \
+             is still necessary and update ADR-048 §D.2 accordingly."
+        );
+    }
+
+    /// F-PQLFN-P5-LOW-001 empirical lock (window): "percentile" ABSENT from DataFusion 53.1
+    /// default_window_functions() registry.
+    ///
+    /// Rationale: `DATAFUSION_BUILTIN_FUNCTION_NAMES` unions scalar + aggregate + window
+    /// registries (see static initializer). The existing aggregate-registry absence lock
+    /// covered only the aggregate arm. This lock completes coverage for the window arm, ensuring
+    /// that ADR-048 v1.4 §D.2's claim ("percentile absent from DataFusion built-ins") is
+    /// empirically anchored across ALL three registry sources.
+    ///
+    /// EMPIRICAL VERDICT (DataFusion 53.1): "percentile" is ABSENT from default_window_functions().
+    ///   → The manual `names.insert("percentile")` in DATAFUSION_BUILTIN_AGGREGATE_NAMES is
+    ///     still the correct mechanism; no window-registry built-in shadows it.
+    ///
+    /// If this test FAILS: DataFusion added "percentile" as a window function.
+    /// Action: investigate whether the manual insert is still needed; update ADR-048.
+    ///
+    /// Traces to: F-PQLFN-P5-LOW-001; ADR-048 v1.4 §D.2 window-registry absence claim.
+    #[test]
+    fn test_f_pqlfn_p5_low_001_percentile_absent_from_datafusion_53_1_window_registry() {
+        use datafusion::execution::SessionStateDefaults;
+
+        let raw_names: std::collections::HashSet<String> =
+            SessionStateDefaults::default_window_functions()
+                .iter()
+                .flat_map(|f| {
+                    let mut names = vec![f.name().to_ascii_lowercase()];
+                    for alias in f.aliases() {
+                        names.push(alias.to_ascii_lowercase());
+                    }
+                    names
+                })
+                .collect();
+
+        // EMPIRICAL LOCK: "percentile" must be ABSENT from the window registry (DataFusion 53.1).
+        assert!(
+            !raw_names.contains("percentile"),
+            "F-PQLFN-P5-LOW-001 EMPIRICAL LOCK BROKEN: 'percentile' is now IN DataFusion's \
+             default_window_functions() registry (not present in DataFusion 53.1). \
+             This changes the ADR-048 reconciliation — stop and report to the architect. \
+             Action: determine whether the manual insert in DATAFUSION_BUILTIN_AGGREGATE_NAMES \
+             is still necessary and update ADR-048 §D.2 accordingly."
+        );
+    }
 }
