@@ -6,11 +6,11 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "2.6"
+version: "2.7"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-02T00:00:00Z"
-modified: "2026-06-03T22:00:00Z"
+modified: "2026-07-13T00:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-10, SS-11, SS-22]
 # Subsystem anchor justifications:
@@ -152,7 +152,7 @@ phase: 3
 
 **Story ID:** S-DEMO-002
 **Status:** ready
-**Version:** v2.6
+**Version:** v2.7
 **Wave:** 5
 **Priority:** P0
 **Points:** 13
@@ -399,7 +399,7 @@ MUST satisfy ALL of the following matcher assertions:
 7. No Claroty data from `demo-org-b` is present anywhere in the response.
 
 **Why E-QUERY-032 (not E-SENSOR-010):** `map_prism_error` deliberately redacts all E-SENSOR-*
-errors to "Internal error; see audit log" (AD-017 credential opacity). E-SENSOR-010 (AdapterNotFound)
+errors: caller-visible `message` is `"Internal error"` and `suggestion` carries `"See audit log for details."` (BC-2.10.007 message/suggestion split; AD-017 credential opacity). E-SENSOR-010 (AdapterNotFound)
 also goes through the partial-failure path as a `sensor_errors` string, never surfaced as an MCP
 error response at all. E-QUERY-032 is a new credential-safe error raised by `resolve_source_refs`
 in `prism-query` when a clients-scoped query targets a sensor not registered for the specified org —
@@ -691,6 +691,7 @@ Within budget; additional crate context (+8,300 tokens) from HIGH-001 reconcilia
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.7 | 2026-07-13 | story-writer | DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-HIGH-001 residual — retire composed string `"Internal error; see audit log"` in AC-012 rationale block. Updated to BC-2.10.007 message/suggestion split contract: caller-visible `message` is `"Internal error"`; `suggestion` carries `"See audit log for details."` (error-taxonomy v2.40). TD-VSDD-060 sibling sweep confirmed no other live occurrences of the retired string in this file (v1.6 changelog row at former line 704 already used the abbreviated `"Internal error"` form only — historical context, not a live citation). All version pins updated: frontmatter version 2.6→2.7, frontmatter modified, body **Version:** block. |
 | 2.6 | 2026-06-03 | product-owner | ADV-SDEMO002-PR-P11-MED-001 closure: body `**Version:**` block synced (v2.4→v2.6); recurring sibling-pin drift (2nd occurrence, P04+P11) — all version pins (frontmatter, H1, body block, modified) now verified consistent |
 | 2.5 | 2026-06-03 | product-owner | Fix-burst closing ADV-SDEMO002-PR-P10-MED-001 (prism-query had no FSR row despite being in crates_touched with load-bearing SRC changes). Added FSR row: `crates/prism-query/src/engine.rs, src/materialization.rs` MODIFY — E-QUERY-032 cross-org isolation raise + AQL push-down seeding (BC-3.2.001 postcondition 5, AC-014 / BC-2.11.007 Mechanism B). Full FSR/Token-Budget/crates_touched bidirectional cross-check performed against all 10 crates; zero additional asymmetries found (see 10-row checklist in commit message). Token Budget total unchanged at ~53,300 tokens (prism-query was already covered by the "prism-query/src/ + prism-spec-engine/src/pipeline.rs" ~3,500 row). |
 | 2.4 | 2026-06-03 | product-owner | Fix-burst closing ADV-SDEMO002-PR-P08-HIGH-001 (crates_touched was incomplete — reconciled to actual 10-crate diff set: prism-bin, prism-core, prism-credentials, prism-dtu-armis, prism-dtu-cyberint, prism-dtu-demo-server, prism-mcp, prism-query, prism-sensors, prism-spec-engine; verified via `git diff cd4a2211...81cf3678 --stat -- crates/<name>/`; FSR rows and Token Budget rows added for 6 newly documented crates; per-crate SRC/TEST/CONFIG tags added to crates_touched comments). Closes ADV-SDEMO002-PR-P08-LOW-001 (phantom path `prism-spec-engine/src/pipeline_executor.rs` → `prism-spec-engine/src/pipeline.rs` corrected in frontmatter inputs, Task 19, and Token Budget). Closes ADV-SDEMO002-PR-P08-LOW-002 (prism-spec-engine confirmed genuinely touched via WASM acquire-token nested-interface dispatch in `src/plugin/{mod,discovery}.rs`, `src/plugin_auth_provider.rs`, `src/spec_parser.rs`; kept in crates_touched with SRC tag). Token Budget total revised ~45,000 → ~53,300 tokens (~21% of 256K). |
