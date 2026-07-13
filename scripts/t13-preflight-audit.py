@@ -19,7 +19,7 @@ Coverage matrix (see len(COVERAGE_MATRIX) for current authoritative count):
      explain_alias, validate_config) + 5 mutating (reload_config, create_alias, delete_alias,
      confirm_action, add_sensor_spec) —
      preflight is READ-ONLY; no write-back to sensors, no config changes, no alias mutations
-  2. All 6 sensors × all tables (CrowdStrike, Cyberint, Claroty, Armis, ThreatIntel, NVD)
+  2. 4 sensor adapters × their tables (CrowdStrike, Cyberint, Claroty, Armis — Section B) + 2 global enrichment DTUs (ThreatIntel, NVD — Section E, exercised as typed-UDF callees, not as sensors-with-tables)
   3. All query modes (SQL, pipe, SqlPipe, filter, stats, joins, enrichment, temporal)
   4. All scenario stages per client (in-session determinism verified (H21))
   5. Multi-client data segregation + org-scoping error paths + multi-client fan-out
@@ -1577,7 +1577,7 @@ def run_audit():
                     results[_A22_RESULT_KEY] = f"FAIL: JSON parse error: {e}; raw={text[:100]!r}"
 
         # ═══════════════════════════════════════════════════════════════════════
-        # SECTION B: All 6 Sensors × All Tables
+        # SECTION B: 4 Sensor Adapters × Their Tables (CrowdStrike, Armis, Claroty, Cyberint)
         # ═══════════════════════════════════════════════════════════════════════
 
         # ── B1: CrowdStrike detections org-c (OAuth) ──────────────────────────
@@ -5610,7 +5610,7 @@ COVERAGE_MATRIX = [
     ("[H21]", "Determinism",   "Repeated sorted query byte-identical (seeded ChaCha20)"),
     ("[H22]", "BC-2.11.018",   "normalized_pql present on success response"),
     # H23: F-AUD-P10-MED-003 + HIGH-001 runbook-side (static text check, no MCP call)
-    ("[H23]", "Guardrails",    "Runbook enrich-call drift: no pre-ADR-051 threat_score(iocs_value) forms; threat_score(iocs_value_first) >= 1"),
+    ("[H23]", "Guardrails",    "Runbook enrich-call drift: no pre-ADR-051 non-_first forms across the 6-UDF matrix (threat_score/threat_is_known_malicious/threat_sources + cvss_base_score/cvss_severity/cvss_vector); positive _first-form usage >= 1"),
     # H24: MED-007 — E-QUERY-043 IN-subquery in projection position (F-CSD-P4-001, 2026-07-10)
     ("[H24]", "Guardrails",    "E-QUERY-043: IN subquery in projection position rejected (check_expr_insubquery_projection; F-CSD-P4-001)"),
 ]
