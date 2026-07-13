@@ -1966,7 +1966,7 @@ fn check_enrich_udf_availability(
                 offset: 0,
                 detail: format!(
                     "E-QUERY-001: '{name}' is an aggregate function; \
-                     aggregate fn-calls are not valid in pipe | where \
+                     aggregate fn-calls are not valid in WHERE/where predicates \
                      (use HAVING for post-aggregation filters, ADR-048 D.3)"
                 ),
                 query: query_str.to_string(),
@@ -15248,6 +15248,16 @@ mod dml_where_sixth_gated_position_tests {
             "F-PQLFN-P7-LOW-002: Display must contain 'HAVING' (ADR-048 D.3 guidance). \
              Got: {display}"
         );
+
+        // F-PQLFN-P9-LOW-001 regression lock: canonical message must use position-agnostic
+        // phrasing "WHERE/where predicates" (ADR-048 v1.8 §D.7.2) rather than the
+        // misleading "pipe | where" which mis-identifies the error location for DML WHERE.
+        assert!(
+            display.contains("not valid in WHERE/where predicates"),
+            "F-PQLFN-P9-LOW-001: Display must contain 'not valid in WHERE/where predicates' \
+             (ADR-048 v1.8 §D.7.2 position-agnostic message). \
+             Got: {display}"
+        );
     }
 
     /// F-PQLFN-P7-LOW-002 (2/4): `UPDATE t SET col = 1 WHERE avg(x) > 100` must fire
@@ -15294,6 +15304,16 @@ mod dml_where_sixth_gated_position_tests {
         assert!(
             display.contains("HAVING"),
             "F-PQLFN-P7-LOW-002: Display must contain 'HAVING'. Got: {display}"
+        );
+
+        // F-PQLFN-P9-LOW-001 regression lock: canonical message must use position-agnostic
+        // phrasing "WHERE/where predicates" (ADR-048 v1.8 §D.7.2) rather than the
+        // misleading "pipe | where" which mis-identifies the error location for UPDATE WHERE.
+        assert!(
+            display.contains("not valid in WHERE/where predicates"),
+            "F-PQLFN-P9-LOW-001: Display must contain 'not valid in WHERE/where predicates' \
+             (ADR-048 v1.8 §D.7.2 position-agnostic message). \
+             Got: {display}"
         );
     }
 

@@ -4650,7 +4650,7 @@ async fn test_BC_2_11_004_obs_001_pipe_where_empty_arg_count_blocked() {
         matches!(&result, Err(PrismError::QueryParseFailed { .. })),
         "TM-15: `count() = 5` in pipe | where must return \
          PrismError::QueryParseFailed (E-QUERY-001). \
-         Aggregate fn-calls are not valid in pipe | where (ADR-048 D.3). \
+         Aggregate fn-calls are not valid in WHERE/where predicates (ADR-048 D.3). \
          Got: {result:?}"
     );
 
@@ -5221,7 +5221,7 @@ async fn test_BC_2_11_004_tm_08_pipe_where_count_with_args_canonical_d3_message(
     // One byte-verbatim lock here; other TM tests retain substring checks (defense-in-depth
     // diversity: one byte-verbatim lock + N substring locks per ADR-048 D.7).
     const CANONICAL_AGG_MSG: &str = "E-QUERY-001: 'count' is an aggregate function; \
-        aggregate fn-calls are not valid in pipe | where \
+        aggregate fn-calls are not valid in WHERE/where predicates \
         (use HAVING for post-aggregation filters, ADR-048 D.3)";
     assert!(
         display.contains(CANONICAL_AGG_MSG),
