@@ -516,6 +516,10 @@ _H7_RESULT_KEY = "[H7] JOIN positive path: crowdstrike_devices JOIN armis_device
 # F-AUD-P15-LOW-001: A22 result key defined once next to _H7_RESULT_KEY to prevent
 # the 11 write-site / 1 read-site string drift (12 literals → 1 constant).
 _A22_RESULT_KEY = "[A22] check_sensor_health (S-5.04 gate)"
+# F-AUD-P38-LOW-001: H23 result key hoisted to prevent 6-site stale-label drift;
+# old literal named only iocs_value but check covers the full 6-UDF matrix
+# (3 ThreatIntel + 3 NVD/cvss). [H23] prefix kept verbatim for COVERAGE_MATRIX parity guard.
+_H23_RESULT_KEY = "[H23] Runbook enrich-call drift: no pre-ADR-051 non-_first UDF forms (6-UDF matrix)"
 # F-AUD-P30-MED-003: EXPECTED_SENSORS hoisted to module level — single source of truth
 # shared by A22 (sensor_id set-equality gate) and H14b (resources/read health sensor set-equality).
 # CONSCIOUS-UPDATE REQUIRED: if the org-c demo config is updated to add or remove a sensor type,
@@ -5271,7 +5275,7 @@ def run_audit():
         # F-AUD-P15-OBS-004: use module-level `import re` (already imported at top); no alias needed.
         _rb_path, _rb_tried = _find_factory_file("objectives", "T13-capstone-demo-runbook.md")
         if _rb_path is None:
-            results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+            results[_H23_RESULT_KEY] = (
                 f"FAIL: cannot locate runbook — tried paths: "
                 f"{[str(p) for p in _rb_tried]}"
             )
@@ -5317,7 +5321,7 @@ def run_audit():
                 # other tooling checks.
                 _fence_remaining = _runbook_text_no_fence.count("```")
                 if _fence_remaining % 2 != 0:
-                    results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                    results[_H23_RESULT_KEY] = (
                         f"FAIL: runbook has unclosed code fence — fence-aware scan unreliable; "
                         f"fix the runbook ({_fence_remaining} ``` markers remain after stripping)"
                     )
@@ -5382,7 +5386,7 @@ def run_audit():
                 _good_matches_all = _good_threatintel + _good_nvd
 
                 if _bad_matches_all:
-                    results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                    results[_H23_RESULT_KEY] = (
                         f"FAIL: runbook contains {len(_bad_matches_all)} non-first UDF call(s) — "
                         f"pre-ADR-051 D4 drift (F-AUD-P10-MED-003 + HIGH-001 + MED-002); "
                         f"threatintel_bad={len(_bad_threatintel)}, nvd_bad={len(_bad_nvd)}; "
@@ -5390,12 +5394,12 @@ def run_audit():
                         f"update runbook to _first-column forms before live demo"
                     )
                 elif not _good_matches_all:
-                    results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                    results[_H23_RESULT_KEY] = (
                         f"FAIL: no scalar-companion (_first) UDF calls found in runbook — "
                         f"runbook enrich beats missing (expected >= 1 across all 6 typed UDFs)"
                     )
                 else:
-                    results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                    results[_H23_RESULT_KEY] = (
                         f"PASS: {len(_good_matches_all)} _first-form UDF call(s) found "
                         f"(threatintel={len(_good_threatintel)}, nvd={len(_good_nvd)}); "
                         f"no pre-ADR-051 non-first forms — ADR-051 D4 scalar-input confirmed in runbook; "
@@ -5404,7 +5408,7 @@ def run_audit():
             except _RunbookFenceError:
                 pass  # OBS-003: result already set before raise; H23 scan aborted cleanly
             except OSError as _rb_err:
-                results["[H23] Runbook enrich-call drift: no pre-ADR-051 iocs_value forms"] = (
+                results[_H23_RESULT_KEY] = (
                     f"FAIL: cannot read runbook at {str(_rb_path)!r}: {_rb_err}"
                 )
 
