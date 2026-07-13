@@ -1425,7 +1425,14 @@ pub enum PrismError {
     ///
     /// Structured error fields:
     ///   - `category: "transient"`, `retryable: true`
-    ///   - `suggestion: "Retry the operation. If the error persists, check tracing subscriber health."`
+    ///   - `message` (structured): taxonomy-verbatim Display per BC-2.10.007 v1.11 carve-out;
+    ///     ends with "…check tracing subscriber health." — points the agent at the tracing
+    ///     subscriber as the emit site for the fail-closed audit record.
+    ///   - MCP `suggestion` (owned by prism-mcp `error_mapping.rs` VariantMeta arm):
+    ///     "Retry the operation. If the problem persists, check the audit log storage."
+    ///     — complementary pointer directing the agent to audit log storage evidence.
+    ///     (message and suggestion are two separate actionable pointers; see
+    ///     F-MCPNULL-P8-OBS-001 orchestrator adjudication.)
     #[error(
         "E-AUDIT-001: Audit emission failed; write operation blocked. \
          Retry the operation. If the error persists, check tracing subscriber health."

@@ -4302,5 +4302,32 @@ mod tests {
             "[MED-001] AuditPersistenceFailed must be retryable:true (transient fail-closed); \
              got false"
         );
+
+        // POL-24 byte-verbatim suggestion lock.
+        //
+        // message and suggestion are COMPLEMENTARY pointers (orchestrator adjudication of
+        // F-MCPNULL-P8-OBS-001):
+        //   - message = taxonomy-verbatim Display (BC-2.10.007 v1.11 carve-out), ending
+        //     "...check tracing subscriber health." — tells the agent WHERE the fail-closed
+        //     trace is emitted.
+        //   - suggestion = audit-log-storage pointer, owned by prism-mcp error_mapping.rs
+        //     VariantMeta arm — tells the agent WHERE to look for persistence evidence.
+        //
+        // A future refactor that unifies message and suggestion to the same string MUST
+        // fail this test.
+        const EXPECTED_SUGGESTION: &str =
+            "Retry the operation. If the problem persists, check the audit log storage.";
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.suggestion must be a string");
+        assert_eq!(
+            suggestion, EXPECTED_SUGGESTION,
+            "[POL-24] AuditPersistenceFailed suggestion must be the audit-log-storage pointer \
+             (NOT the tracing-subscriber Display text). Got '{suggestion}'. \
+             message and suggestion are complementary: message carries the taxonomy-verbatim \
+             Display (BC-2.10.007 v1.11 carve-out); suggestion carries the audit-log-storage \
+             retry pointer (prism-mcp VariantMeta, F-MCPNULL-P8-OBS-001 adjudication)."
+        );
     }
 }
