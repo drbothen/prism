@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.986"
+version: "7.987"
 status: current
-timestamp: 2026-07-13T04:00:00Z
+timestamp: 2026-07-13T05:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -96,17 +96,57 @@ timestamp: 2026-07-13T04:00:00Z
 >
 > **D-1715 (2026-07-13): AUDIT-COVERAGE-001 106-check LIVE audit 98 PASS / 8 FAIL DEMO-READY NO — §RESUME SNAPSHOT D-1715 authored (supersedes D-1701).** LOCAL 3-CLEAN CONVERGED @acf7ded0 (D-1713; passes 42/43/44); S-7.02 COMPLETE (D-1714; 9/9 anchored; 238 stories). Live audit: 98 PASS / 8 FAIL / 0 WARN / exit 0 (anomaly). FAILs: [B14] [B15] E-SENSOR-030 no-route; [C3] pipe-mode '| fields' projection; [H5c] fn-call LHS parse error; [H8] JOIN UNKNOWN doubled suffix; [H14s] tables=[]; [H16] control-char SUCCESS CWE-116/117; [H20] threat_score ABSENT. Branch NOT pushed. TRIAGE NEXT. STATE v8.314→v8.315.
 >
+> **D-1716 (2026-07-13): SESSION WRAP — RESUME SNAPSHOT D-1716 authored (supersedes D-1715).** Human reviewed D-1715 live-audit report (98 PASS / 8 FAIL, DEMO-READY NO) and granted: (1) Triage autonomy APPROVED: full autonomous triage of 8 live-audit FAILs ([B14],[B15],[C3],[H5c],[H8],[H14s],[H16],[H20]) + exit-code-0 anomaly; classify script-defect vs REAL product-defect vs env/config gap; fix BOTH sides autonomously (script fixes = fix-bursts in AUDIT-COVERAGE-001 worktree resetting LOCAL streak 0/3; product defects = defect fix-PR flow); (2) H16 priority APPROVED: if confirmed REAL Layer-2 column-gate bypass → own security-relevant defect PR (security-reviewer triage → implementer fix) prioritized AHEAD of audit-script PR; (3) Merge gates UNCHANGED (human-gated). Session totals: passes 33–44 + fix-bursts 33–38; LOCAL 3-CLEAN(strict) CONVERGED @acf7ded0 (D-1713); S-7.02 9/9 anchored to 6 draft stories (D-1714); live audit 98/8 DEMO-READY NO (D-1715). develop@5f1b5771; factory@see git log; AUDIT-COVERAGE-001 @acf7ded0 LOCAL-ONLY NOT pushed; S-3.09 KEEP-PARKED; W3-FIX-S307-001 parked-dirty; zero open PRs; verify-sha-currency PASS (1 pre-existing WARN non-blocking). STATE v8.315→v8.316.
+>
 > **D-1701 (2026-07-12): SESSION WRAP — §RESUME SNAPSHOT D-1701 authored (supersedes D-1700).** AUDIT-COVERAGE-001 B-hardening passes 29–32 + fix-bursts 29–32. HEAD db765001→4857d967→9cbd9033→334784c3→67654e0f. P31 CLEAN(PR-merge). P32 NOT CLEAN (1 MED + 4 LOW + 4 OBS); fix-burst 32 closed all 6 findings @67654e0f. FROZEN HEAD 67654e0f (36 commits over develop@5f1b5771; LOCAL-ONLY NOT pushed). Streak 0/3 on 67654e0f. S-7.02 queue 9 items unchanged. Standing accepted-limitations: H14e smoke-only; H8 PASS-ATTRIBUTED; H23 even-fence; H16 non-content-channel. STATE v8.300→v8.301.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1715 AUDIT-COVERAGE-001 LIVE audit 98 PASS / 8 FAIL DEMO-READY NO; develop@5f1b5771; 44 passes; FROZEN HEAD acf7ded0; streak 3/3 CONVERGED; TRIAGE NEXT before push** (STATE.md frontmatter is authoritative; D-1715 §RESUME SNAPSHOT is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1715 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.315. D-1715 LIVE AUDIT 98 PASS / 8 FAIL DEMO-READY NO (44 passes; FROZEN HEAD acf7ded0; 106 checks; streak 3/3 CONVERGED; LOCAL-ONLY NOT pushed; STORY-INDEX v2.662; BC-INDEX v7.95; total_stories 238; VERY NEXT ACTION = triage 8 live-audit FAILs + exit-code-0 anomaly [fresh session]).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1716 SESSION WRAP; develop@5f1b5771; triage autonomy + H16 priority APPROVED; FROZEN HEAD acf7ded0; streak 3/3 CONVERGED; VERY NEXT = triage 8 FAILs starting with [H16]** (STATE.md frontmatter is authoritative; D-1716 §RESUME SNAPSHOT is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1716 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.316. D-1716 SESSION WRAP; triage autonomy + H16 priority APPROVED (44 passes; FROZEN HEAD acf7ded0; 106 checks; streak 3/3 CONVERGED; LOCAL-ONLY NOT pushed; STORY-INDEX v2.662; BC-INDEX v7.95; total_stories 238; VERY NEXT ACTION = triage 8 live-audit FAILs + exit-code-0 anomaly, starting with [H16] [fresh session]).
 
 ---
 
 ---
 
-## §RESUME SNAPSHOT — D-1715 (2026-07-13 — AUDIT-COVERAGE-001 LIVE audit 98 PASS / 8 FAIL DEMO-READY NO; FROZEN HEAD acf7ded0; develop 5f1b5771; streak 3/3 CONVERGED; STATE v8.315) [SUPERSEDES D-1701]
+## §RESUME SNAPSHOT — D-1716 (2026-07-13 — SESSION WRAP; triage autonomy + H16 priority approved; develop 5f1b5771; FROZEN HEAD acf7ded0; STATE v8.316) [SUPERSEDES D-1715]
+
+### RESUME IN ONE BREATH
+
+LOCAL 3-CLEAN(strict) CONVERGED @acf7ded0 (D-1713; passes 42/43/44). Live audit 98 PASS / 8 FAIL DEMO-READY NO (D-1715). VERY NEXT ACTION: triage the 8 live-audit failures + exit-code-0 anomaly with full autonomy approved (D-1716), starting with [H16] (if control-char column-name silent-accept confirmed REAL Layer-2 column-gate bypass → own security-relevant defect PR ahead of audit-script PR). For verbatim 8-FAIL check IDs, standing accepted-limitations, and full cascade context, see §RESUME SNAPSHOT D-1715 below.
+
+### HEADS (all verified 2026-07-13)
+
+- origin/develop == local develop = `5f1b5771` (PUSHED; UNCHANGED). Workspace test baseline 5483; non-exhaustive gate EXPECTED=91.
+- factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code).
+- `.worktrees/AUDIT-COVERAGE-001` = `fix/T13-audit-coverage` @`acf7ded0`, FROZEN, **LOCAL-ONLY (NOT on origin — no remote backup)**. 42 commits over develop@5f1b5771. check-fast verified PASS at fix-burst-38. LOCAL 3-CLEAN CONVERGED (passes 42/43/44).
+- `.worktrees/S-3.09` = `feature/S-3.09` @`43c41389` KEEP-PARKED (LOCAL-ONLY; backup branch `backup/S-3.09-preresume-43c41389`; D-1666). UNCHANGED.
+- `.worktrees/W3-FIX-S307-001` = `feature/W3-FIX-S307-001` @`fcab8717` PARKED, 1 unpushed commit + ~1070 lines uncommitted (LOCAL-ONLY; APPLICABILITY-AUDIT-QUEUED; do NOT touch). UNCHANGED.
+- OPEN PRs: NONE. No background agents in flight.
+
+### Workstreams + RESUME NEXT-ACTION
+
+1. **AUDIT-COVERAGE-001** — LOCAL-ONLY @acf7ded0 FROZEN on `fix/T13-audit-coverage`. Cascade: 44 passes, 38 fix-bursts; 106 checks; LOCAL 3-CLEAN CONVERGED (D-1713 passes 42/43/44); S-7.02 COMPLETE (D-1714); LIVE AUDIT 98/8 (D-1715). **TRIAGE AUTONOMY APPROVED (D-1716).** RESUME NEXT-ACTION: **triage the 8 live-audit FAILs + exit-code-0 anomaly, starting with [H16].** Classify each FAIL as script-defect vs real-product-defect vs env/config gap. Fix BOTH sides autonomously: script fixes = fix-bursts in AUDIT-COVERAGE-001 worktree (each commit resets LOCAL streak 0/3 per frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001; re-convergence to 3-CLEAN(strict) required before push; BC-5.39.001 applies). Product defects = defect fix-PR flow per fix-pr-delivery. [H16] first: if control-char column-name silent-accept confirmed REAL Layer-2 column-gate bypass → own security-relevant defect PR (security-reviewer triage → implementer fix) prioritized AHEAD of audit-script PR. Exit-code anomaly: determine if sys.exit(1) was reachable given test logic or if exit was captured incorrectly. After triage + fix: re-run live audit to green → push → pr-manager PR-LEVEL 3-CLEAN cascade → HUMAN merge approval. DO NOT push before audit is clean.
+2. **9 draft stories (S-7.02 queue anchors)** — S-AUDIT-PROCESS-CONVENTIONS-001 / S-AUDIT-REVIEW-AXES-001 / S-AUDIT-LINT-001 / S-AUDIT-URI-VALIDATION-001 / S-AUDIT-SPEC-PRECEDENCE-001 / S-AUDIT-INVARIANTS-001 (6 new from D-1714) + S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001 (P1) / S-DRIFT-INTERNAL-TABLE-COLUMN-GATE-001 / S-TDS302-BUFFER-SERVING-001 (3 pre-existing). STORY-INDEX v2.662 (238 total). RESUME NEXT-ACTION: run story-gate reviews before implementation scheduling. S-DRIFT-SAP2 is P1 and first in line after AUDIT-COVERAGE-001 completes.
+3. **W3-FIX-S307-001 applicability audit** — queued (D-1666). UNCHANGED.
+4. **E-OCSF-005..023** — draft story queued post-demo (D-1666). **T13 capstone demo** — queued after AUDIT-COVERAGE-001 merges.
+
+### Pending user-approved work (granted, unstarted)
+
+1. **Triage autonomy APPROVED (D-1716):** Full autonomous triage of 8 live-audit FAILs ([B14],[B15],[C3],[H5c],[H8],[H14s],[H16],[H20]) + exit-code-0 anomaly. Classify each as audit-script-expectation defect vs REAL product defect vs environment/config gap. Fix BOTH sides autonomously: script fixes = fix-bursts in AUDIT-COVERAGE-001 worktree (each commit resets LOCAL streak 0/3 per frozen-HEAD rule; re-convergence to 3-CLEAN(strict) required before push); product defects = defect fix-PR flow per per-story-delivery/fix-pr-delivery.
+2. **H16 priority APPROVED (D-1716):** If [H16] control-char column-name silent-accept is confirmed a REAL Layer-2 column-gate bypass, it becomes its OWN security-relevant defect PR (security-reviewer triage → implementer fix) prioritized AHEAD of the audit-script PR.
+3. **Merge gates unchanged:** All merges remain human-gated. No autonomous merge authority granted.
+
+### Decision delta this session (already recorded)
+
+D-1716 (SESSION WRAP — triage autonomy + H16 priority approvals; session totals passes 33–44 + fix-bursts 33–38; verify-sha-currency PASS). D-1715 (AUDIT-COVERAGE-001 106-check LIVE audit 98 PASS / 8 FAIL DEMO-READY NO; exit-code-0 anomaly; 8 failing check IDs [B14][B15][C3][H5c][H8][H14s][H16][H20]; triage next). D-1714 (S-7.02 codification COMPLETE; 9/9 process-gaps anchored; STORY-INDEX v2.662 238 stories). D-1713 (LOCAL 3-CLEAN CONVERGED passes 42/43/44 on frozen acf7ded0). No unrecorded decisions.
+
+### Worktree inventory
+
+AUDIT-COVERAGE-001: active FROZEN @acf7ded0 (TRIAGE APPROVED — H16 first). S-3.09: stale-leave (KEEP-PARKED). W3-FIX-S307-001: stale-leave (audit queued).
+
+---
+
+## §RESUME SNAPSHOT — D-1715 (2026-07-13 — AUDIT-COVERAGE-001 LIVE audit 98 PASS / 8 FAIL DEMO-READY NO; FROZEN HEAD acf7ded0; develop 5f1b5771; streak 3/3 CONVERGED; STATE v8.315) [SUPERSEDES D-1701] [SUPERSEDED by D-1716]
 
 ### RESUME IN ONE BREATH
 
