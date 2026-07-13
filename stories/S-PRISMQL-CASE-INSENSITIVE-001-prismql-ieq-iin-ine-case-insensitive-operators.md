@@ -3,8 +3,8 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.55"
-updated: "2026-07-09"
+version: "1.56"
+updated: "2026-07-13"
 status: merged
 producer: story-writer
 phase: 3
@@ -73,7 +73,7 @@ behavioral_contracts:
 #     the supported operator table. AC-001/AC-004/AC-012 exercise the filter-mode path.
 #   BC-2.11.004 v1.30 (active, amended): pipe-mode | where stage now supports IEQ/IIN/INE
 #     via shared filter grammar per ADR-046 D7. AC-013 exercises the pipe-mode path.
-#   BC-2.11.018 v1.3 (active, amended): normalized_pql echo now reflects IEQ/IIN/INE
+#   BC-2.11.018 v1.5 (active, amended): normalized_pql echo now reflects IEQ/IIN/INE
 #     predicates in uppercase canonical form (EC-11-057 added). AC-014/AC-015 exercise this.
 #   BC-2.02.002 v1.5 (active, amended): normalization applied BEFORE DynamicMessage creation;
 #     postconditions updated. AC-016 exercises this ordering invariant.
@@ -169,7 +169,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | BC-2.02.013 | v1.9 | Adapter-Boundary OCSF Enum-Label Canonical-Case Normalization | PRIMARY insertion point: `build_column_array` in `spec_driven_adapter.rs` (architect adjudication F-CRIT-002); SECONDARY: `normalize_with_mappers` (DynamicMessage path); severity + status guaranteed; all OCSF enum-label fields; idempotent; 50-codepoint value+sensor_type cap with warn; empty-string bypass EC-02-028; unrecognized values as-received + warning; GROUP BY aggregation consistency; enum_map.rs as sole casing authority |
 | BC-2.11.002 | v1.6 | PrismQL Filter Mode Parsing | Amended: IEQ/IIN/INE added to supported filter-mode operator table |
 | BC-2.11.004 | v1.30 | PrismQL Pipe Mode | Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7) |
-| BC-2.11.018 | v1.3 | normalized_pql Echo | Amended: EC-11-057 added — IEQ/IIN/INE predicates reflected in uppercase canonical form in normalized_pql; round-trip invariant extended |
+| BC-2.11.018 | v1.5 | normalized_pql Echo | Amended: EC-11-057 added — IEQ/IIN/INE predicates reflected in uppercase canonical form in normalized_pql; round-trip invariant extended |
 | BC-2.02.002 | v1.5 | DynamicMessage Creation | Amended: normalization applied BEFORE DynamicMessage creation; postconditions updated to state this explicitly |
 | BC-2.02.010 | v1.5 | OCSF Enum Value Map | Amended: enum_map.rs authority extends to adapter-boundary normalization, not only MCP display enrichment |
 | BC-2.10.012 | v1.9 | prism describe Output — `example_query` Pure-PQL Invariant and `example_note` Field Contract | pure-parseable `example_query` invariant + `example_note: Option<String>` field contract (§example_query + §example_note) |
@@ -187,7 +187,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | BC-2.02.013 v1.9 | ~2,500 |
 | BC-2.11.002 v1.6 (relevant filter-mode sections) | ~1,500 |
 | BC-2.11.004 v1.30 (relevant pipe-mode sections) | ~1,500 |
-| BC-2.11.018 v1.3 (normalized_pql section) | ~1,000 |
+| BC-2.11.018 v1.5 (normalized_pql section) | ~1,000 |
 | BC-2.02.002 v1.5, BC-2.02.010 v1.5 (amended sections) | ~2,000 |
 | BC-2.10.012 v1.9 (example_query + example_note contract) | ~1,000 |
 | `crates/prism-query/src/filter_parser.rs` | ~7,000 |
@@ -421,7 +421,7 @@ Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_ieq_in_pipe_where_stage`
 "IEQ, IIN, and INE predicates are reflected in the normalized_pql field";
 "the Chumsky normalizer emits operator keywords in uppercase canonical form
 (e.g., `severity ieq 'high'` normalizes to `severity IEQ 'high'`)";
-BC-2.11.018 v1.3 amendment EC-11-057)
+BC-2.11.018 v1.5 amendment EC-11-057)
 
 Given a query `severity ieq 'high'` (lowercase operator keyword),
 when executed successfully,
@@ -438,7 +438,7 @@ Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_reflects_ieq_upper
 (traces to BC-2.11.024 v1.4 postcondition "normalized_pql round-trip":
 "The round-trip guarantee from BC-2.11.018 applies: the value in normalized_pql parses
 back to the same AST";
-BC-2.11.018 v1.3 amendment: round-trip invariant extended to cover IEQ/IIN/INE)
+BC-2.11.018 v1.5 amendment: round-trip invariant extended to cover IEQ/IIN/INE)
 
 Given the original query `severity IEQ 'high'`,
 step 1: parse to `ast_original`,
@@ -1226,7 +1226,7 @@ E (Adapter normalization) is parallel to A-D.
 
     IMPORTANT: The normalizer must emit UPPERCASE canonical operator names (IEQ, not ieq).
     This is required by BC-2.11.024 postcondition (normalized_pql reflects uppercase canonical form)
-    and BC-2.11.018 v1.3 amendment EC-11-057.
+    and BC-2.11.018 v1.5 amendment EC-11-057.
 
 ### Phase 3 — Grammar changes (Track A)
 
@@ -1672,6 +1672,7 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.56 | 2026-07-13 | **BC-2.11.018 v1.3→v1.5 pin propagation (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P3-MED-001 POL-23). PO bumped BC-2.11.018 v1.3→v1.5 during pass-3 spec burst @7d725c74. Six live version-pin cites updated: (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row; (4) AC-014 trace (BC-2.11.018 v1.3 amendment EC-11-057); (5) AC-015 trace (BC-2.11.018 v1.3 amendment: round-trip invariant extended); (6) Tasks Phase 2 step 12 inline reference. Grep for stale v1.3 variants: zero hits after edits. Historical changelog rows contain prior v1.3 references — left unchanged per TD-VSDD-091-exempt (past-tense changelog records). No BC-2.11.001 or BC-2.15.009 pins present in this file. BC-2.11.018 Key Clauses cell verified CURRENT at v1.5 — EC-11-057 (IEQ/IIN/INE predicates in uppercase canonical form) and round-trip invariant extension unchanged; no adjacent-cell update needed. AC semantics UNCHANGED. Frontmatter version 1.55→1.56; updated 2026-07-13 (POL-23).** |
 | v1.55 | 2026-07-09 | **ADV-PR-P8-LOW-001 pin-sync: error-taxonomy.md v2.35→v2.36 (E-QUERY-038 row BC-anchor pins + origin-pin convention note). One live site updated: AC-022 body prose (`error-taxonomy.md v2.35 §E-QUERY-002` → `error-taxonomy.md v2.36 §E-QUERY-002`). Grep variants checked: `error-taxonomy\.md v2\.35` / `error-taxonomy v2\.35` / backtick-delimited / pipe-sep-table-cell — one hit, one fix. No other carrier stories contain v2.35 live pins (checked S-DEMO-FIDELITY-REMEDIATION-001, S-DEMO-PRISMQL-ONBOARDING-001-B, S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001). BC regression check: BC-2.11.016 v1.25 (8 live), BC-2.11.017 v1.13 (2 live), BC-2.11.020 v1.18 (3 live), BC-2.11.004 v1.30 (4 live); stale v1.24/v1.12/v1.17/v1.29 = 0. AC semantics UNCHANGED. Frontmatter version 1.54→1.55; updated 2026-07-09 (POL-23).** |
 | v1.54 | 2026-07-09 | **ADV-PR-P5-MED-003 closure + BC-2.11.004 v1.29→v1.30 pin-sync (pass-5 PO micro-amendment — 4 §Error Cases AST-shape corrections). BC-2.11.004 v1.29→v1.30 (pin-only): four live sites updated — (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row; (4) AC-013b trace. Semantic-cell currency: BC-2.11.004 Key Clauses cell ("Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7)") verified CURRENT — v1.30 §Error Cases AST-shape corrections do not affect pipe-mode IEQ availability; no Key Clauses extension needed. L22 adjacent-cell check: grep for old shapes (FilterExpr/PipeStage::Stats { by }/PipeStage::Enrich { input_col }/PipeStage::Dedup { fields }/OrderBy::expr/OrderExpr::expr) across Key Clauses and task cells: zero hits; no adjacent-cell extension needed. BC-2.11.016, BC-2.11.017, and BC-2.11.020 not cited in this story. AC semantics UNCHANGED. Frontmatter version 1.53→1.54; updated 2026-07-09 (POL-23).** |
 | v1.53 | 2026-07-09 | **ADV-PR-P4-MED-001 closure + BC-2.11.004 v1.28→v1.29 pin-sync (type-name corrections companion, ADV-PR-P4-MED-001). BC-2.11.004 v1.28→v1.29 (pin-only): four live sites updated — (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row; (4) AC-013b trace. Semantic-cell currency: BC-2.11.004 Key Clauses cell ("Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7)") verified CURRENT — v1.29 is companion pin to BC-2.11.016 v1.24 type-name corrections, not a pipe-mode IEQ amendment; no Key Clauses extension needed. L22 AST type name grep across story: zero hits; no adjacent-cell fixes needed. BC-2.11.016, BC-2.11.017, and BC-2.11.020 not cited in this story. AC semantics UNCHANGED. Frontmatter version 1.52→1.53; updated 2026-07-09 (POL-23).** |
