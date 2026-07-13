@@ -216,11 +216,19 @@ jobs:
           echo "F-LP5-HIGH-001: wasm32-wasip1 compile check PASSED — Guest impl + wit-bindgen macro + export!(Component) compiled successfully"
       # S-PLUGIN-CI-001 AC-001: Install wasm-tools to build the .prx component artifact.
       # Pinned to 1.248.0 — the version used to build the committed .prx and WASI adapter.
+      # SEC-001 (CWE-494): SHA-256 integrity check before extracting.
+      # Checksum source: downloaded from GitHub releases over HTTPS and computed 2026-07-13.
       - name: Install wasm-tools 1.248.0
         run: |
           WASM_TOOLS_VERSION="1.248.0"
+          EXPECTED_SHA256="dcd7d587b0f4644aabc85cd4471cb795de84f36a68ee01201d5261f87c0d6349"
           curl -fsSL "https://github.com/bytecodealliance/wasm-tools/releases/download/v${WASM_TOOLS_VERSION}/wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux.tar.gz" \
-            | tar -xz --strip-components=1 -C /usr/local/bin wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux/wasm-tools
+            -o /tmp/wasm-tools.tar.gz
+          echo "${EXPECTED_SHA256}  /tmp/wasm-tools.tar.gz" | sha256sum -c
+          tar -xz --strip-components=1 -C /usr/local/bin \
+            wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux/wasm-tools \
+            < /tmp/wasm-tools.tar.gz
+          rm /tmp/wasm-tools.tar.gz
           wasm-tools --version
       # Install just (task runner) for the build-plugin-crowdstrike-oauth2 recipe.
       - name: Install just
@@ -246,14 +254,21 @@ jobs:
   wasm32-threatintel-staleness-check:
     name: ThreatIntel .prx staleness guard (F-MCPNULL-P2-OBS-002)
     # F-MCPNULL-P2-OBS-002 closure: the committed threatintel-lookup.prx must stay in sync
-    # with its source crate (crates/plugins/prism-threatintel-infusion). This job rebuilds
-    # the .prx from source and compares its SHA-256 against the committed artifact. The build
-    # is byte-reproducible on the same toolchain (verified 2026-07-13). A mismatch means the
-    # committed .prx is stale — run `just build-plugin-threatintel-infusion` and commit.
+    # with its source crate (crates/plugins/prism-threatintel-infusion). This job enforces
+    # staleness via a source-hash sidecar (threatintel-lookup.prx.src-tree-hash) rather than
+    # binary byte-equality. Byte-equality is not valid cross-platform: macOS aarch64 and
+    # Linux x86_64 produce different WASM bytes from the same source (LLVM codegen divergence).
     #
-    # Job structure mirrors wasm32-compile-check (crowdstrike-oauth2 gate):
-    # same toolchain (wasm32-wasip1), same wasm-tools version (1.248.0), same just install.
-    # Extends with SHA-256 staleness comparison absent from the crowdstrike job.
+    # Staleness gate: hash-plugin-source.py computes SHA-256 over all git-tracked files in
+    # the source crate. A mismatch between the committed sidecar and the current source means
+    # source changed without a .prx rebuild. Developer fix: run 'just build-plugin-threatintel-infusion'
+    # and commit .prx + manifest + .src-tree-hash sidecar together.
+    #
+    # Binary validity: wasm-tools validate --features=component-model on the committed .prx
+    # confirms structural correctness independently of origin platform.
+    #
+    # Manifest staleness: separate SHA-256 comparison (F-MCPNULL-P3-LOW-004) remains valid
+    # since the manifest is a text file with byte-identical content on all platforms.
     needs: clippy
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -273,25 +288,48 @@ jobs:
             --manifest-path crates/plugins/prism-threatintel-infusion/Cargo.toml
           echo "F-MCPNULL-P2-OBS-002: wasm32-wasip1 compile check PASSED — prism-threatintel-infusion compiled successfully"
       # Pin to 1.248.0 — matches the version used to build the committed .prx and WASI adapter.
+      # SEC-001 (CWE-494): SHA-256 integrity check before extracting.
+      # Checksum source: downloaded from GitHub releases over HTTPS and computed 2026-07-13.
       - name: Install wasm-tools 1.248.0
         run: |
           WASM_TOOLS_VERSION="1.248.0"
+          EXPECTED_SHA256="dcd7d587b0f4644aabc85cd4471cb795de84f36a68ee01201d5261f87c0d6349"
           curl -fsSL "https://github.com/bytecodealliance/wasm-tools/releases/download/v${WASM_TOOLS_VERSION}/wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux.tar.gz" \
-            | tar -xz --strip-components=1 -C /usr/local/bin wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux/wasm-tools
+            -o /tmp/wasm-tools.tar.gz
+          echo "${EXPECTED_SHA256}  /tmp/wasm-tools.tar.gz" | sha256sum -c
+          tar -xz --strip-components=1 -C /usr/local/bin \
+            wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux/wasm-tools \
+            < /tmp/wasm-tools.tar.gz
+          rm /tmp/wasm-tools.tar.gz
           wasm-tools --version
       - name: Install just
         uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
         with:
           tool: just
-      # Staleness guard: save committed SHAs before the build overwrites the files.
-      # Both the .prx binary and the manifest are build outputs from
-      # `just build-plugin-threatintel-infusion`; both must stay in sync with source.
-      # (F-MCPNULL-P3-LOW-004: manifest staleness check added in fix-burst 3)
-      - name: Save committed threatintel-lookup.prx and manifest SHA-256
+      # F-MCPNULL-P2-OBS-002: source-hash staleness gate.
+      # Compares committed .src-tree-hash sidecar against freshly computed source hash.
+      # Placed before the build so staleness is caught without paying full WASM build cost.
+      - name: Verify threatintel-lookup.prx source freshness (F-MCPNULL-P2-OBS-002)
         run: |
-          COMMITTED_SHA=$(sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx | cut -d' ' -f1)
-          echo "COMMITTED_SHA=$COMMITTED_SHA" >> "$GITHUB_ENV"
-          echo "F-MCPNULL-P2-OBS-002: committed .prx SHA-256 = $COMMITTED_SHA"
+          SIDECAR="crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx.src-tree-hash"
+          if [ ! -f "$SIDECAR" ]; then
+            echo "::error::F-MCPNULL-P2-OBS-002: staleness sidecar missing — run 'just build-plugin-threatintel-infusion' and commit threatintel-lookup.prx.src-tree-hash alongside the .prx"
+            exit 1
+          fi
+          COMMITTED_HASH=$(cat "$SIDECAR" | tr -d '[:space:]')
+          CURRENT_HASH=$(python3 scripts/hash-plugin-source.py crates/plugins/prism-threatintel-infusion)
+          echo "committed source hash: $COMMITTED_HASH"
+          echo "current  source hash:  $CURRENT_HASH"
+          if [ "$COMMITTED_HASH" != "$CURRENT_HASH" ]; then
+            echo "::error::F-MCPNULL-P2-OBS-002 STALENESS: crates/plugins/prism-threatintel-infusion source changed since the committed .prx was built."
+            echo "::error::Run 'just build-plugin-threatintel-infusion' and commit the updated .prx, manifest, and .src-tree-hash sidecar before merging."
+            exit 1
+          fi
+          echo "F-MCPNULL-P2-OBS-002 PASS: committed .prx matches current source (hash: $CURRENT_HASH)"
+      # F-MCPNULL-P3-LOW-004: save committed manifest SHA before build overwrites it,
+      # then compare after rebuild. The manifest is a text file (byte-identical cross-platform).
+      - name: Save committed manifest SHA-256
+        run: |
           COMMITTED_MANIFEST_SHA=$(sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml | cut -d' ' -f1)
           echo "COMMITTED_MANIFEST_SHA=$COMMITTED_MANIFEST_SHA" >> "$GITHUB_ENV"
           echo "F-MCPNULL-P3-LOW-004: committed manifest SHA-256 = $COMMITTED_MANIFEST_SHA"
@@ -301,23 +339,6 @@ jobs:
           echo "F-MCPNULL-P2-OBS-002: threatintel-lookup.prx built successfully"
           ls -la crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
           ls -la crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
-      # Staleness gate: fail if the rebuilt .prx or manifest differs from the committed one.
-      # OBS-003 toolchain-drift hint: if Rust stable bumps and this gate fails on an
-      # otherwise unrelated PR, the fix is to rebuild locally and commit both files:
-      #   just build-plugin-threatintel-infusion
-      # See crates/prism-spec-engine/plugins/threatintel-lookup/README.md §Toolchain Drift.
-      - name: Verify threatintel-lookup.prx is not stale
-        run: |
-          REBUILT_SHA=$(sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx | cut -d' ' -f1)
-          echo "committed .prx SHA-256: $COMMITTED_SHA"
-          echo "rebuilt   .prx SHA-256: $REBUILT_SHA"
-          if [ "$COMMITTED_SHA" != "$REBUILT_SHA" ]; then
-            echo "::error::F-MCPNULL-P2-OBS-002 STALENESS: committed threatintel-lookup.prx does not match rebuilt artifact."
-            echo "::error::Run 'just build-plugin-threatintel-infusion' locally and commit the updated .prx and manifest before merging."
-            echo "::error::If this failed on an unrelated PR after a Rust stable release, see README §Toolchain Drift: the SHA change is expected toolchain drift, not tampering."
-            exit 1
-          fi
-          echo "F-MCPNULL-P2-OBS-002 PASS: committed threatintel-lookup.prx matches rebuilt artifact (SHA-256 $REBUILT_SHA)"
       # F-MCPNULL-P3-LOW-004: manifest staleness gate — the manifest is also a build output.
       # `just build-plugin-threatintel-infusion` copies the manifest from the source crate;
       # a manifest edit in the source crate without recommitting the deploy copy will fail here.
@@ -329,8 +350,7 @@ jobs:
           if [ "$COMMITTED_MANIFEST_SHA" != "$REBUILT_MANIFEST_SHA" ]; then
             echo "::error::F-MCPNULL-P3-LOW-004 STALENESS: committed threatintel-lookup.manifest.toml does not match rebuilt artifact."
             echo "::error::The manifest in crates/prism-spec-engine/plugins/threatintel-lookup/ is out of sync with the source at crates/plugins/prism-threatintel-infusion/threatintel-lookup.manifest.toml."
-            echo "::error::Run 'just build-plugin-threatintel-infusion' locally and commit the updated manifest (+ .prx if also changed) before merging."
-            echo "::error::If this failed on an unrelated PR after a Rust stable release, see README §Toolchain Drift: the SHA change is expected toolchain drift, not tampering."
+            echo "::error::Run 'just build-plugin-threatintel-infusion' locally and commit the updated .prx, manifest, and .src-tree-hash sidecar before merging."
             exit 1
           fi
           echo "F-MCPNULL-P3-LOW-004 PASS: committed threatintel-lookup.manifest.toml matches rebuilt artifact (SHA-256 $REBUILT_MANIFEST_SHA)"

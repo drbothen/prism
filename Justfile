@@ -318,8 +318,13 @@ build-plugin-threatintel-infusion:
     @echo "Deploying companion manifest (HIGH-1: name = threat_intel matches infusion_id)..."
     cp crates/plugins/prism-threatintel-infusion/threatintel-lookup.manifest.toml \
         crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
+    @echo "Recording source tree hash for CI staleness gate (F-MCPNULL-P2-OBS-002)..."
+    python3 scripts/hash-plugin-source.py crates/plugins/prism-threatintel-infusion \
+        > crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx.src-tree-hash
+    @echo "Source tree hash recorded."
     @echo "Done: crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx"
     @echo "Done: crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml"
+    @echo "Done: crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx.src-tree-hash"
 
 # S-DEMO-ENRICHMENT-PIVOT-002 v1.3: build-plugin-nvd-infusion REMOVED (ADR-040 D9).
 # NVD enrichment is now served by InfusionType::HttpLookup (permanent built-in).

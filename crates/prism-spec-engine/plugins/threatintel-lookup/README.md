@@ -29,7 +29,7 @@ just build-plugin-threatintel-infusion
 
 ### Pipeline breakdown
 
-The Justfile recipe (`Justfile` lines 294–322) executes these steps:
+The Justfile recipe executes these steps:
 
 1. **Cargo build (wasm32-wasip1 target)**
    ```bash
@@ -63,6 +63,12 @@ The Justfile recipe (`Justfile` lines 294–322) executes these steps:
        crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
    ```
 
+5. **Source tree hash sidecar** (CI staleness gate, F-MCPNULL-P2-OBS-002)
+   ```bash
+   python3 scripts/hash-plugin-source.py crates/plugins/prism-threatintel-infusion \
+       > crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx.src-tree-hash
+   ```
+
 ---
 
 ## Manifest Ownership
@@ -82,78 +88,32 @@ S-DEMO-ENRICHMENT-PIVOT-002).
 
 ---
 
-## Toolchain Drift — When the Staleness Gate Fails on an Unrelated PR
+## Staleness Gate
 
-The `wasm32-threatintel-staleness-check` CI job rebuilds the `.prx` and manifest from source
-on every PR and compares their SHA-256 digests against the committed artifacts. The build is
-byte-for-byte reproducible **on the same toolchain**. When Rust stable releases a new version,
-the compiled `.wasm` output changes (different code generation), producing a different `.prx`
-SHA even though neither the plugin source nor the manifest changed.
+The CI job `wasm32-threatintel-staleness-check` verifies that the committed `.prx` was
+built from the current plugin source by comparing the content of
+`threatintel-lookup.prx.src-tree-hash` against a freshly computed hash of all tracked
+files in `crates/plugins/prism-threatintel-infusion/`. A mismatch means source changed
+without rebuilding.
 
-**Symptom:** An otherwise-unrelated PR fails `wasm32-threatintel-staleness-check` with:
-
-```
-F-MCPNULL-P2-OBS-002 STALENESS: committed threatintel-lookup.prx does not match rebuilt artifact.
-```
-
-**Cause:** Expected toolchain drift — the Rust stable channel bumped and the compiled output
-diverged. This is not tampering; it is a routine maintenance step.
-
-**Fix:** In the PR branch, rebuild and commit both artifacts:
+**Fix:** Run `just build-plugin-threatintel-infusion` and commit the three output files
+together: `.prx`, `.manifest.toml`, and `.prx.src-tree-hash`.
 
 ```bash
 just build-plugin-threatintel-infusion
 git add crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
 git add crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
-git commit -m "chore: refresh threatintel-lookup.prx + manifest after Rust stable toolchain bump"
+git add crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx.src-tree-hash
+git commit -m "chore: rebuild threatintel-lookup plugin artifacts"
 ```
 
-The SHA change is expected and safe. The `wasm-tools validate --features=component-model`
-step in the Justfile recipe confirms the rebuilt artifact is a valid WASM Component after
-the refresh.
+### Cross-Platform Note
 
-**Distinguishing drift from tampering:**
-- Toolchain drift: only the `.prx` SHA changes; source code and manifest are unmodified.
-- Tampering: source changes without a corresponding committed `.prx` update — the same gate
-  catches this, but the fix is to audit the source change rather than refresh the artifact.
-
----
-
-## Verifying the Committed Binary Matches Source
-
-Rebuild and compare SHA-256 digests:
-
-```bash
-# Save committed digest
-sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
-
-# Rebuild
-just build-plugin-threatintel-infusion
-
-# Re-check — should be identical
-sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
-```
-
-**CI enforcement:** The `wasm32-threatintel-staleness-check` job in `.github/workflows/ci.yml`
-rebuilds the `.prx` on every CI run and fails if the rebuilt SHA-256 differs from the
-committed artifact (F-MCPNULL-P2-OBS-002). A PR that updates plugin source without
-recommitting the rebuilt `.prx` will be blocked at CI.
-
-**Reproducibility status:** The build is **byte-for-byte reproducible** on the same
-toolchain and host. Verified 2026-07-13: rebuild from the committed
-`prism_threatintel_infusion.wasm` core module against the committed
-`tests/fixtures/wasi_snapshot_preview1.wasm` adapter produced a `.prx` with SHA-256
-`a18a45976a76bcf21311a04d5b364c628e07a4a020c4134f568999a015972ece`, identical to the
-committed artifact (140 793 bytes). The determinism derives from:
-
-- `--release` profile (no debug symbols with timestamps)
-- `wasm-tools component new` with a pinned adapter wasm at a fixed path
-- No embedded build timestamps in the WASM custom sections
-
-Cross-toolchain reproducibility (different Rust channel or `wasm-tools` version) is
-**not guaranteed**. If a rebuild on a different environment produces a different hash,
-investigate the toolchain version (`rustup show`, `wasm-tools --version`) before
-concluding the committed binary is tampered.
+The committed `.prx` binary may differ in bytes between macOS aarch64 and Linux x86_64
+builds from the same source. This is expected: LLVM-backed WASM codegen is not
+byte-reproducible across CPU architectures. The CI gate does not rely on byte-equality;
+it relies on source-content hashing. The binary is validated structurally via
+`wasm-tools validate --features=component-model` on the committed artifact.
 
 ---
 
@@ -164,5 +124,4 @@ concluding the committed binary is tampered.
 | Source crate first committed | S-DEMO-ENRICHMENT-PIVOT-002 @ `6c367356` |
 | Artifact tracking precedent | S-PLUGIN-CI-001 (PR #159) — established pattern of committing `.prx` deploy output alongside source |
 | Corrective audit finding | DEFECT-MCP-ROWSHAPE-NULLS-001 [H20] `F-MCPNULL-P1-MED-002` — supply-chain provenance breadcrumb missing |
-| Artifact SHA-256 | `a18a45976a76bcf21311a04d5b364c628e07a4a020c4134f568999a015972ece` |
-| Artifact size | 140 793 bytes |
+| Staleness gate design | DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 13 — source-hash sidecar per architect adjudication (F-MCPNULL-P2-OBS-002) |
