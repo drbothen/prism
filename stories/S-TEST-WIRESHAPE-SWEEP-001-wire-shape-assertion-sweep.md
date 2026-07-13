@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.1"
-spec_version: "v0.1"
+version: "0.2"
+spec_version: "v0.2"
 level: ops
 producer: story-writer
 timestamp: "2026-07-13"
@@ -39,10 +39,10 @@ crates_touched:
 target_module: "crates/prism-mcp"
 behavioral_contracts: [BC-2.11.001, BC-2.10.007]
 # BC status: both BCs are active.
-#   BC-2.11.001 v1.16 (modified 2026-07-13): null-not-absent row-shape postcondition
+#   BC-2.11.001 v1.18 (modified 2026-07-13): null-not-absent row-shape postcondition
 #   added (DEFECT-MCP-ROWSHAPE-NULLS-001); EC-11-068. This is the primary anchor for
 #   query tool wire-shape tests.
-#   BC-2.10.007 v1.8: structured error response wire shape — all 9 required fields,
+#   BC-2.10.007 v1.9: structured error response wire shape — all 9 required fields,
 #   retry_after_seconds null-not-absent. Governs error-path assertions across all tools.
 #   Additional tool-specific BCs (prism_describe, check_sensor_health, resources) govern
 #   those surfaces; they are referenced per AC below. S-7.01 gate is satisfied by the
@@ -110,7 +110,7 @@ This story establishes SID-2 as a standing implementer discipline to be added to
 > 3. **Explicit-null key presence (EC-11-068)** — for query `events` rows, assert that
 >    every projected column key is present in every row. For NULL-valued cells, assert
 >    the row has `"column_name": null`, not merely that the row parses without error.
->    The `WriterBuilder.explicit_nulls(true)` invariant (BC-2.11.001 v1.16) must be
+>    The `WriterBuilder.explicit_nulls(true)` invariant (BC-2.11.001 v1.18) must be
 >    exercised by at least one test.
 > 4. **Error-code anchor presence** — for error responses, assert `structuredContent.error.code`
 >    matches the expected `E-XXX-NNN` string from the taxonomy. Asserting `isError: true` or
@@ -135,13 +135,13 @@ audit stage.
 
 | BC | Title | Version | Relevance |
 |----|-------|---------|-----------|
-| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | v1.16 | Postcondition: row-shape null-not-absent — `WriterBuilder.explicit_nulls(true)` required; EC-11-068 (NULL column → key present as `null`). Primary anchor for AC-002. |
-| BC-2.10.007 | Structured Error Responses | v1.8 | Postcondition: nested wire shape with 9 required fields; `retry_after_seconds: null` (not absent) for non-rate-limit errors. Primary anchor for AC-003 and all error-path ACs. |
+| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | v1.18 | Postcondition: row-shape null-not-absent — `WriterBuilder.explicit_nulls(true)` required; EC-11-068 (NULL column → key present as `null`). Primary anchor for AC-002. |
+| BC-2.10.007 | Structured Error Responses | v1.9 | Postcondition: nested wire shape with 9 required fields; `retry_after_seconds: null` (not absent) for non-rate-limit errors. Primary anchor for AC-003 and all error-path ACs. |
 
 ## Acceptance Criteria
 
 ### AC-001 — SID-2 codified in CLAUDE.md
-(traces to BC-2.11.001 v1.16 invariant — agent-harness schema stability rationale)
+(traces to BC-2.11.001 v1.18 invariant — agent-harness schema stability rationale)
 
 The full SID-2 definition (see §Origin above) is added to `CLAUDE.md`
 §Standing Adversary Probes & Implementer Disciplines immediately after SID-1, with section
@@ -152,7 +152,7 @@ AUDIT-COVERAGE-001 B/C/D-hardening cascade.`
 No Red Gate test for this AC (doc-only change).
 
 ### AC-002 — `query` tool: explicit-null key presence (EC-11-068)
-(traces to BC-2.11.001 v1.16 postcondition — row-shape null-not-absent)
+(traces to BC-2.11.001 v1.18 postcondition — row-shape null-not-absent)
 
 `crates/prism-mcp/tests/wire_shape.rs` (new file) adds:
 
@@ -171,7 +171,7 @@ where the enrichment UDF returns NULL for some rows. Asserts the enriched column
 present as `null` in those rows (ADR-051 §D4). Targets T13 [H20] escape.
 
 ### AC-003 — `query` tool: error-path BC-2.10.007 wire shape
-(traces to BC-2.10.007 v1.8 postcondition — structured error wire shape)
+(traces to BC-2.10.007 v1.9 postcondition — structured error wire shape)
 
 `test_BC_2_10_007_query_error_structured_content_fields` — calls `query` with an invalid
 PrismQL string to trigger `E-QUERY-001`. Serializes the error response to JSON and asserts:
@@ -184,7 +184,7 @@ PrismQL string to trigger `E-QUERY-001`. Serializes the error response to JSON a
 - `content[0]["text"]` contains the error code string (composed-string anchor, SID-2 step 2)
 
 ### AC-004 — `prism_describe` tool: wire-shape assertion
-(traces to BC-2.10.007 v1.8 postcondition for error path; success path traces to BC-2.10.001
+(traces to BC-2.10.007 v1.9 postcondition for error path; success path traces to BC-2.10.001
   once that BC is confirmed; pending PO confirmation)
 
 `test_prism_describe_success_wire_shape` — calls `prism_describe` with a valid client ID.
@@ -198,7 +198,7 @@ invalid client ID. Asserts `structuredContent.error.code` == `"E-MCP-001"` (erro
 SID-2 step 4).
 
 ### AC-005 — `check_sensor_health` tool: wire-shape assertion
-(traces to BC-2.10.007 v1.8 postcondition for error path)
+(traces to BC-2.10.007 v1.9 postcondition for error path)
 
 `test_check_sensor_health_success_wire_shape` — calls `check_sensor_health` with a valid
 sensor. Serializes to JSON and asserts `structuredContent` contains a health result with at
@@ -208,7 +208,7 @@ minimum `client_id` and `sensors` keys present. This is a key-presence assertion
 `structuredContent.error.code` == `"E-MCP-001"` (error-code anchor).
 
 ### AC-006 — `explain_query` tool: wire-shape assertion
-(traces to BC-2.10.007 v1.8 postcondition)
+(traces to BC-2.10.007 v1.9 postcondition)
 
 `test_explain_query_success_wire_shape` — calls `explain_query` with a valid PrismQL string.
 Serializes to JSON and asserts `structuredContent` contains at minimum `plan_steps` (array) or
@@ -218,7 +218,7 @@ equivalent key; `content[0]["text"]` is non-empty.
 == `"E-QUERY-001"` (error-code anchor, SID-2 step 4).
 
 ### AC-007 — `list_capabilities` tool: wire-shape assertion
-(traces to BC-2.10.007 v1.8 postcondition)
+(traces to BC-2.10.007 v1.9 postcondition)
 
 `test_list_capabilities_wire_shape` — calls `list_capabilities`. Serializes to JSON and asserts
 `structuredContent` contains a `tools` array where each entry has at minimum `name` (string)
@@ -226,7 +226,7 @@ and `available` (bool) keys present. Asserts `content[0]["text"]` is non-empty (
 from the capabilities list, SID-2 step 2).
 
 ### AC-008 — Alias family tools wire-shape assertions (create_alias, list_aliases, delete_alias, explain_alias)
-(traces to BC-2.10.007 v1.8 postcondition for error paths)
+(traces to BC-2.10.007 v1.9 postcondition for error paths)
 
 Four tests, one per tool:
 - `test_create_alias_wire_shape`: calls `create_alias`; asserts `structuredContent` contains
@@ -239,14 +239,14 @@ Four tests, one per tool:
   `structuredContent.error.code` is present.
 
 ### AC-009 — `confirm_action` tool: wire-shape assertion
-(traces to BC-2.10.007 v1.8 postcondition)
+(traces to BC-2.10.007 v1.9 postcondition)
 
 `test_confirm_action_invalid_token_wire_shape` — calls `confirm_action` with an invalid token.
 Asserts `structuredContent.error.code` is present and non-empty (error-code anchor, SID-2 step 4);
 `retry_after_seconds` == `null` (null-not-absent invariant, SID-2 step 5).
 
 ### AC-010 — Config tools wire-shape assertions (reload_config, add_sensor_spec, list_sensor_specs, validate_config)
-(traces to BC-2.10.007 v1.8 postcondition for error paths)
+(traces to BC-2.10.007 v1.9 postcondition for error paths)
 
 Four tests, one per tool:
 - `test_reload_config_wire_shape`: calls `reload_config`; asserts the response has
@@ -259,7 +259,7 @@ Four tests, one per tool:
   has a validation result key present.
 
 ### AC-011 — Static resource wire-shape assertions (prism://config/clients, prism://sensors/health, prismql://reference)
-(traces to BC-2.10.007 v1.8 postcondition for error paths)
+(traces to BC-2.10.007 v1.9 postcondition for error paths)
 
 Three tests, one per static resource:
 - `test_resource_config_clients_wire_shape`: reads `prism://config/clients`; asserts the
@@ -273,7 +273,7 @@ Three tests, one per static resource:
   reference content anchor).
 
 ### AC-012 — Resource template wire-shape assertions (prism://config/clients/{}/sensors, prism://schema/{}/{}, prismql://schema/{})
-(traces to BC-2.10.007 v1.8 postcondition for error paths)
+(traces to BC-2.10.007 v1.9 postcondition for error paths)
 
 Three tests, one per template:
 - `test_resource_client_sensors_wire_shape`: reads `prism://config/clients/{valid_id}/sensors`;
@@ -323,8 +323,8 @@ Architecture section references:
 | Item | Lines | Tokens (est.) |
 |------|-------|--------------|
 | Story spec (this file) | ~300 | ~4,200 |
-| BC-2.11.001 v1.16 (query BC with null-not-absent postcondition) | ~160 | ~2,300 |
-| BC-2.10.007 v1.8 (structured error BC) | ~120 | ~1,700 |
+| BC-2.11.001 v1.18 (query BC with null-not-absent postcondition) | ~160 | ~2,300 |
+| BC-2.10.007 v1.9 (structured error BC) | ~120 | ~1,700 |
 | crates/prism-mcp/src/server.rs (tool dispatch + resource dispatch sections) | ~400 | ~5,600 |
 | crates/prism-mcp/src/tools/ (prism_describe, query, sensor_health) | ~300 | ~4,200 |
 | crates/prism-mcp/src/resources.rs | ~200 | ~2,800 |
@@ -338,7 +338,7 @@ is large, split by loading only the tool-handler test utilities, not the full fi
 
 ## Tasks
 
-- [ ] Read BC-2.11.001 v1.16 postcondition (null-not-absent) and BC-2.10.007 postcondition (structured error wire shape) before writing any test.
+- [ ] Read BC-2.11.001 v1.18 postcondition (null-not-absent) and BC-2.10.007 postcondition (structured error wire shape) before writing any test.
 - [ ] Read `crates/prism-mcp/src/server.rs` (LIVE_TOOLS list, dispatch table) and `resources.rs` (build_resource_list, build_resource_template_list) to confirm the 14+6 surface inventory.
 - [ ] Add `### SID-2` to CLAUDE.md §Standing Adversary Probes & Implementer Disciplines immediately after SID-1 (full definition from §Origin above). Commit this change in the same PR.
 - [ ] Create `crates/prism-mcp/tests/wire_shape.rs` (new file). Add all 20 Red Gate tests (AC-002 through AC-012, counting sub-tests).
@@ -415,3 +415,10 @@ or `prism-sensors` crates in production code. Test files may use DTU harness cra
 | `CLAUDE.md` | Modify | Add `### SID-2` section after `### SID-1` in §Standing Adversary Probes & Implementer Disciplines |
 | `crates/prism-mcp/src/tools/query.rs` | Modify (if not done by DEFECT story) | Ensure `WriterBuilder.explicit_nulls(true)` at all RecordBatch-to-JSON serialization sites in query response path |
 | `crates/prism-mcp/tests/mod.rs` (or `lib.rs`) | Modify | Register `wire_shape` module if `tests/` uses explicit module declarations |
+
+## Changelog
+
+| Version | Date | Change | Source |
+|---------|------|--------|--------|
+| v0.1 | 2026-07-13 | Initial draft — 12 ACs, 20 Red Gate tests, SID-2 codification | AUDIT-COVERAGE-001 D-hardening; D-1715/D-1716 |
+| v0.2 | 2026-07-13 | Pin refresh (POL-23): BC-2.10.007 v1.8→v1.9 (additive amendment, cited postconditions unchanged); BC-2.11.001 v1.16→v1.18 (additive amendment, null-not-absent postcondition unchanged). Propagated from DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P4-OBS-001 adversarial finding. | POL-23; DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P4-OBS-001 |
