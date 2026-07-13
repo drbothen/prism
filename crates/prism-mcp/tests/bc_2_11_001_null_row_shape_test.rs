@@ -470,11 +470,12 @@ mod tests {
     /// `WriterBuilder::with_explicit_nulls(true)` → MCP `structured_content` envelope.
     ///
     /// `null_enrich_udf` uses `NullSource` (SID-1: no external service). Every call to
-    /// `enrich_one_scalar` returns `None`. For row 1 (sensor_ip=NULL), the
-    /// `invoke_async_with_args` null-input short-circuit fires before the source is called
-    /// (ADR-051 §D4). Both paths produce NULL output → the enriched column is an all-NULL
-    /// `StringArray`. The regression lock asserts this column serializes with the key present
-    /// and value `null` (not absent) under `WriterBuilder::with_explicit_nulls(true)`.
+    /// `enrich_one_scalar` returns `None` (ADR-051 §D2 — NULL as partial-failure signal).
+    /// For row 1 (sensor_ip=NULL), the `invoke_async_with_args` null-input short-circuit
+    /// fires before the source is called (ADR-051 §D4). Both paths produce NULL output →
+    /// the enriched column is an all-NULL `StringArray`. EC-11-079 invariant: this column
+    /// serializes with the key present and value `null` (not absent) under
+    /// `WriterBuilder::with_explicit_nulls(true)`.
     fn make_server_with_enrich_null_udf() -> PrismServer {
         use prism_core::column::ColumnType;
 
@@ -628,8 +629,9 @@ mod tests {
     ///
     /// This is the enrich-stage companion to the projected-nullable-column tests above (AC (a)).
     /// The [H20] probe targets the enrich-specific code path where the UDF produces NULL output
-    /// for a row — either because the source returns `None`, or because the input column is itself
-    /// NULL (the ADR-051 §D4 null-input short-circuit path).
+    /// for a row — either because the source returns `None` (ADR-051 §D2 — NULL as
+    /// partial-failure signal), or because the input column is itself NULL (ADR-051 §D4 —
+    /// null-input short-circuit).
     ///
     /// PASSES: `WriterBuilder::with_explicit_nulls(true)` already routes all RecordBatch columns
     /// (including enrich-stage columns) through the fixed serializer. This test is a REGRESSION
@@ -702,7 +704,8 @@ mod tests {
             assert!(
                 row["null_enrich_udf"].is_null(),
                 "BC-2.11.001 AC-b: 'null_enrich_udf' must be JSON null for row {i} \
-                 (NullSource returns None; row 1 null-input short-circuit per ADR-051 §D4). \
+                 (NullSource returns None per ADR-051 §D2 — NULL as partial-failure signal; \
+                  row 1 null-input short-circuit per ADR-051 §D4). \
                  Got: {}",
                 row["null_enrich_udf"]
             );
