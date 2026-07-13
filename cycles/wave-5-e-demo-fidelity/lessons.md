@@ -3183,3 +3183,17 @@ This is a TD-VSDD-060 extension candidate: the upstream vsdd-factory plugin shou
 **Rule for canonical-message sweeps:** When sweeping for canonical message strings in doc comments and code, the sweep MUST also grep for distinctive mid-string fragments (a 4–6 word substring that cannot coincidentally appear elsewhere) rather than the full string, AND must visually inspect surrounding context lines (`-A 2 -B 2`) to detect line-wrapped continuations. Companion to Lesson 49 (table-cell variant discipline).
 
 **Source:** D-1722 (DEFECT-PQL-FNCALL-LHS-001 pass-10 closure; 2026-07-13).
+
+### Lesson 51 — [process-gap] Canonical-claim correction sweeps must include code artifacts (crates/**/*.rs) when the claim is echoed in doc-comments
+
+**Classification:** PROCESS-GAP — DEFECT-PQL-FNCALL-LHS-001 cascade; F-PQLFN-P13-OBS-001 (2026-07-13).
+
+**Finding:** F-PQLFN-P13-OBS-001 identified that the pass-12 ADR-048 v1.10 spec fix (correcting the "WHERE grammar cannot produce FuncCall LHS" impossibility claim in §Consequences §Negative/Risks) was followed by a POL-29 sibling sweep scoped to `.factory/specs/` only. Three doc-comment sites in `crates/prism-query/src/engine.rs` carried the same pre-D.7.2 impossibility claim and were missed because the sweep never ran `grep` against `crates/**/*.rs`. The code-side doc-comments were siblings of the spec fix — same canonical claim, different artifact type.
+
+**Root cause:** POL-29 v1.19 sweep discipline and TD-VSDD-060 sibling-site sweep both implicitly assume that "canonical claim corrections" are spec-only changes. When a correction changes a canonical parser/grammar/gate claim that is also echoed in production code doc-comments, the sweep scope must explicitly extend to `crates/**/*.rs`. The pass-12 sweep agent scoped only to `.factory/specs/` and returned zero additional sites — a correct result for spec files, but incomplete overall.
+
+**Rule for canonical-claim correction sweeps:** When a spec-layer fix corrects a canonical claim about parser behavior, grammar restrictions, gate semantics, or error conditions, the POL-29/TD-VSDD-060 sweep MUST explicitly grep `crates/**/*.rs` in addition to `.factory/specs/`. This is a candidate for POL-29 step-8f scope amendment: "add `crates/**/*.rs` grep as a mandatory step when the corrected claim describes parser/grammar/gate/error behavior that may be echoed in engine.rs or related code doc-comments."
+
+**S-7.02 queue candidate:** Add to POL-29 step-8f scope amendment backlog. Companion to Lessons 49 (markdown table-cell variant) and 50 (line-wrapped doc-comment string continuation).
+
+**Source:** D-1725 (DEFECT-PQL-FNCALL-LHS-001 pass-13 process-gap F-PQLFN-P13-OBS-001; 2026-07-13).
