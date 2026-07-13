@@ -3153,3 +3153,19 @@ This is a TD-VSDD-060 extension candidate: the upstream vsdd-factory plugin shou
 **Summary:** F-AUD-P29-OBS-001 identified that the 300+ in-file `# F-AUD-PN-NNN` citation comments in `t13-preflight-audit.py` were the sole record of the invariant rationale, making them invisible to spec consumers, hard to cross-reference, and at risk of drifting as the script evolved. The process-gap has been anchored to S-AUDIT-INVARIANTS-001, which extracts all F-AUD-PN citations into a structured `audit-invariants.md` companion spec with named invariants, covering checks, severity, and remediation anchors.
 
 **Source:** D-1714 (AUDIT-COVERAGE-001 S-7.02 codification burst; story-writer @5fab0557; 2026-07-13).
+
+---
+
+### Lesson 49 — [codified candidate] POL-23/POL-29 pin sweeps MUST include the markdown TABLE-CELL variant
+
+**Classification:** PROCESS-GAP — DEFECT-PQL-FNCALL-LHS-001 cascade; F-PQLFN-P9-HIGH-001 false-close D-1721 (2026-07-13).
+
+**Finding:** F-PQLFN-P9-HIGH-001 identified a false-close in S-PRISMQL-CASE-INSENSITIVE-001 v1.60 — the D-1720 POL-23 pin sweep updated the STORY-INDEX row (space-separated form `BC-2.11.004 v1.35`) and prose sites but missed the story body-table cell at line 171 (markdown table-cell form `| v1.35 |`). The live story file still contained `| v1.35 |` after D-1720 declared the pin sweep complete.
+
+**Root cause:** POL-23/POL-29 per-variant grep registry included the space-separated form `BC-2.11.004 v1.35` but did NOT include the markdown TABLE-CELL variant `| v1.35 |` (or its context-qualified form `| BC-2.11.004 | ... | v1.35 |`). POL-29 v1.19 lesson recurrence: combined-regex / single-form verification is FORBIDDEN — each format variant must be grepped independently.
+
+**Fix:** S-PRISMQL-CASE-INSENSITIVE-001 v1.61 pin sweep explicitly grepped the `| vN.NN |` table-cell form; story line-171 cell updated from `| v1.35 |` to `| v1.36 |`. Append-only protocol: D-1720 v1.60 row left untouched.
+
+**Codified candidate for POL-29 step-3a:** For any story file containing a BC-version table (columns such as `| BC-ID | ... | vN.NN | ...`), the pin sweep MUST include `| vN.NN |` as a distinct grep target in ADDITION to the prose form `BC-X.XX.XXX vN.NN`. The two forms are structurally independent and must each be searched and updated.
+
+**Source:** D-1721 (DEFECT-PQL-FNCALL-LHS-001 pass-9 false-close correction; 2026-07-13).
