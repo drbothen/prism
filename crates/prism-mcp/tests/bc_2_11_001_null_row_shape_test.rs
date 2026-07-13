@@ -50,6 +50,7 @@ mod tests {
     use prism_spec_engine::{
         overlay::{OverlayLoader, ResolvedSensorSpec, ResolvedSpecKey, SensorInstanceOverlay},
         spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+        InfusionField, InfusionRegistry, InfusionSpec, InfusionType,
     };
     use rmcp::handler::server::wrapper::Parameters;
 
@@ -418,5 +419,208 @@ mod tests {
         // Row 2: severity="low", sensor_ip="10.0.0.3" (non-null — should always work)
         assert_eq!(rows[2]["severity"], "low", "row 2 severity mismatch");
         assert_eq!(rows[2]["sensor_ip"], "10.0.0.3", "row 2 sensor_ip mismatch");
+    }
+
+    // =========================================================================
+    // AC (b) enrich-stage NULL lock — BC-2.11.001 v1.16 probe [H20]
+    // =========================================================================
+
+    /// Build an `InfusionRegistry` containing a single `NullSource`-backed UDF
+    /// named `null_enrich_udf`.
+    ///
+    /// Uses `InfusionType::LocalLookup` with no source file config — `load_spec` wires
+    /// the internal `NullSource` automatically for LocalLookup specs that lack a source
+    /// config. `NullSource::enrich_single` always returns `None`, so every enrichment
+    /// call produces a NULL output column value.
+    ///
+    /// Stub seam (SID-1): `NullSource` is internal to `prism-spec-engine`, wired at
+    /// `load_spec` time. No DTU clone, no filesystem source file, no external service.
+    /// The null-input short-circuit path in `InfusionAsyncUdf::invoke_async_with_args`
+    /// is also exercised for rows where the input column itself is NULL (ADR-051 §D4).
+    fn make_null_infusion_registry() -> Arc<InfusionRegistry> {
+        let registry = InfusionRegistry::new();
+        // LocalLookup + no source config → load_spec wires NullSource (always returns None).
+        let spec = InfusionSpec::new(
+            "null_enrich_spec",
+            "Null enrichment stub — EC-11-068 AC-b regression lock",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "null_enrich_udf", // per-field UDF name registered in DataFusion
+                "sensor_ip",       // input_field (for describe hints)
+                "string",          // input_type
+                "string",          // output_type → DataType::Utf8 (nullable StringArray)
+            )],
+            "/dev/null", // source_path: no file needed; NullSource path ignores it
+        );
+        registry
+            .load_spec(spec)
+            .expect("null_enrich_udf spec must load — NullSource path must not fail");
+        Arc::new(registry)
+    }
+
+    /// Build a `PrismServer` wired with `ReturnsNullRowsAdapter` for `crowdstrike_alerts`
+    /// AND a `null_enrich_udf` infusion UDF backed by `NullSource`.
+    ///
+    /// Used by the AC-b test to exercise the end-to-end enrich-stage null serialization
+    /// path: sensor fan-out → DataFusion CTE with `| enrich` → RecordBatch →
+    /// `WriterBuilder::with_explicit_nulls(true)` → MCP `structured_content` envelope.
+    ///
+    /// `null_enrich_udf` uses `NullSource` (SID-1: no external service). Every call to
+    /// `enrich_one_scalar` returns `None`. For row 1 (sensor_ip=NULL), the
+    /// `invoke_async_with_args` null-input short-circuit fires before the source is called
+    /// (ADR-051 §D4). Both paths produce NULL output → the enriched column is an all-NULL
+    /// `StringArray`. The regression lock asserts this column serializes with the key present
+    /// and value `null` (not absent) under `WriterBuilder::with_explicit_nulls(true)`.
+    fn make_server_with_enrich_null_udf() -> PrismServer {
+        use prism_core::column::ColumnType;
+
+        let sensor_id_str = "crowdstrike";
+        let table_name = "alerts";
+        let org = "acme";
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("sensor_ip", ColumnType::String, None, vec![]),
+        ];
+
+        // Same deterministic OrgId as `make_server_with_returning_null_adapter` —
+        // EC-11-068 sentinel byte 0x68 = 'h' for "null row sHape".
+        let org_id = OrgId::from_uuid(uuid::Uuid::from_bytes([
+            0x01, 0x9f, 0x3a, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x68,
+        ]));
+
+        let (key, resolved) = make_resolved(sensor_id_str, table_name, columns, org);
+        let mut resolved_map = HashMap::new();
+        resolved_map.insert(key, resolved.clone());
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&resolved.spec)
+            .expect("register_sensor must not fail in fixture");
+
+        let sensor_id_typed = SensorId::new(sensor_id_str);
+        let returning_null_adapter: Arc<dyn SensorAdapter> = Arc::new(ReturnsNullRowsAdapter {
+            sensor_id: sensor_id_typed,
+        });
+        let mut adapter_registry = AdapterRegistry::new();
+        adapter_registry.register(org_id, returning_null_adapter);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(adapter_registry),
+            Arc::new(InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            prism_query::cache::CacheConfig::default(),
+        );
+        engine = engine.with_credential_resolver(Arc::new(AlwaysSucceedsCreds));
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(resolved_map))));
+        engine = engine.with_table_registry(registry);
+        engine = engine.with_infusion_registry(make_null_infusion_registry());
+
+        PrismServer::new().with_query_engine(Arc::new(engine))
+    }
+
+    /// BC-2.11.001 v1.16 AC (b) — probe [H20]: in pipe-mode `| enrich` queries, enrichment
+    /// column values that are NULL must serialize as JSON `null` (key present), NOT be omitted.
+    ///
+    /// This is the enrich-stage companion to the projected-nullable-column tests above (AC (a)).
+    /// The [H20] probe targets the enrich-specific code path where the UDF produces NULL output
+    /// for a row — either because the source returns `None`, or because the input column is itself
+    /// NULL (the ADR-051 §D4 null-input short-circuit path).
+    ///
+    /// PASSES: `WriterBuilder::with_explicit_nulls(true)` already routes all RecordBatch columns
+    /// (including enrich-stage columns) through the fixed serializer. This test is a REGRESSION
+    /// LOCK: if a future change introduces a second row-emit path with an unpatched WriterBuilder,
+    /// this test will catch it.
+    ///
+    /// # Mechanism
+    ///
+    /// - `ReturnsNullRowsAdapter` produces 3 rows: severity=high/medium/low with
+    ///   sensor_ip="10.0.0.1" / NULL / "10.0.0.3".
+    /// - `null_enrich_udf` is backed by `NullSource` (always returns `None`) via
+    ///   `InfusionRegistry::load_spec(LocalLookup, no source config)`.
+    /// - Query: `FROM crowdstrike_alerts | enrich null_enrich_udf(sensor_ip)`
+    ///   DataFusion CTE: `SELECT *, null_enrich_udf(sensor_ip) AS null_enrich_udf FROM crowdstrike_alerts`
+    /// - Rows 0 and 2 (sensor_ip non-null): `enrich_one_scalar` calls NullSource → `None` → NULL.
+    /// - Row 1 (sensor_ip=NULL): `invoke_async_with_args` null-input short-circuit → NULL
+    ///   (ADR-051 §D4 path; source is NOT called).
+    /// - All 3 rows: `null_enrich_udf` column is an all-NULL `StringArray` in the RecordBatch.
+    /// - EC-11-068 invariant: every row must contain all projected keys (severity, sensor_ip,
+    ///   null_enrich_udf) regardless of nullability.
+    #[tokio::test]
+    async fn test_BC_2_11_001_AC_b_enrich_stage_null_udf_result_serialized_as_json_null_not_absent()
+    {
+        let server = make_server_with_enrich_null_udf();
+        let result = server
+            .query(Parameters(query_params(
+                "FROM crowdstrike_alerts | enrich null_enrich_udf(sensor_ip)",
+            )))
+            .await
+            .expect(
+                "query must return Ok — pipe | enrich with NullSource is valid; \
+                 NullSource returning None produces NULL column values, not a query error",
+            );
+
+        let v = envelope_json(result);
+        let rows = v["results"]["rows"]
+            .as_array()
+            .expect("results.rows must be a JSON array");
+
+        assert_eq!(
+            rows.len(),
+            3,
+            "expected exactly 3 rows from ReturnsNullRowsAdapter; got {}",
+            rows.len()
+        );
+
+        // EC-11-068 invariant: every row must contain ALL projected column keys.
+        // For a pipe | enrich query, the columns are: severity, sensor_ip, null_enrich_udf.
+        // `null_enrich_udf` is an all-NULL StringArray — the bug omits its key; the fix
+        // serializes it as `"null_enrich_udf": null`.
+        let required_keys = ["severity", "sensor_ip", "null_enrich_udf"];
+        for (i, row) in rows.iter().enumerate() {
+            for key in &required_keys {
+                assert!(
+                    row.get(*key).is_some(),
+                    "EC-11-068 / BC-2.11.001 AC-b VIOLATION at row {i}: \
+                     projected column '{key}' is ABSENT from row object. \
+                     Enrich-stage NULL column values must serialize as JSON null (key present), \
+                     not be omitted. \
+                     Got row {i}: {row}"
+                );
+            }
+        }
+
+        // AC-b specific: `null_enrich_udf` must be JSON null in every row.
+        // - NullSource returns None for all source calls (rows 0 and 2).
+        // - Row 1 (sensor_ip=NULL): null-input short-circuit → NULL (ADR-051 §D4, no source call).
+        // Before the WriterBuilder fix: key ABSENT. After fix: key present, value JSON null.
+        for (i, row) in rows.iter().enumerate() {
+            assert!(
+                row["null_enrich_udf"].is_null(),
+                "BC-2.11.001 AC-b: 'null_enrich_udf' must be JSON null for row {i} \
+                 (NullSource returns None; row 1 null-input short-circuit per ADR-051 §D4). \
+                 Got: {}",
+                row["null_enrich_udf"]
+            );
+        }
+
+        // Regression guard for row 1: the null-input short-circuit path (ADR-051 §D4) fires
+        // when sensor_ip=NULL. Verify AC (a) sensor_ip null-key-present invariant is still intact
+        // — the enrich-stage regression lock must not accidentally break the projected-nullable
+        // column invariant for the same row.
+        assert!(
+            rows[1].get("sensor_ip").is_some(),
+            "EC-11-068 AC (a) regression: row 1 'sensor_ip' key must still be present \
+             (AC (b) enrich-stage fix must not disturb AC (a) projected-column fix)"
+        );
+        assert!(
+            rows[1]["sensor_ip"].is_null(),
+            "EC-11-068 AC (a) regression: row 1 'sensor_ip' must still be JSON null; \
+             got: {}",
+            rows[1]["sensor_ip"]
+        );
     }
 }
