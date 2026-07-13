@@ -3197,3 +3197,24 @@ This is a TD-VSDD-060 extension candidate: the upstream vsdd-factory plugin shou
 **S-7.02 queue candidate:** Add to POL-29 step-8f scope amendment backlog. Companion to Lessons 49 (markdown table-cell variant) and 50 (line-wrapped doc-comment string continuation).
 
 **Source:** D-1725 (DEFECT-PQL-FNCALL-LHS-001 pass-13 process-gap F-PQLFN-P13-OBS-001; 2026-07-13).
+
+### Lesson 52 — [process-gap] "Parity with X" / cross-production rationale claims in spec artifacts must be verified against X's actual source before authoring
+
+**Classification:** PROCESS-GAP — DEFECT-PQL-FNCALL-LHS-001 cascade; F-PQLFN-P14-LOW-001 (2026-07-13). Second false-premise-rationale correction in this cascade; companion finding: ADR-048 v1.4 percentile empirical-claim [process-gap] (D-1718).
+
+**Finding:** F-PQLFN-P14-LOW-001 identified that ADR-048 §D.7.2 (fn-name constraint rationale) contained a false premise: the fn-name identifier-start constraint was justified as having "parity with field_path" in the grammar. In fact, the `field_path` production accepts digit-leading path segments — the fn-name constraint is intentionally STRICTER than field_path, not parity. The false "parity with" claim introduced a misleading rationale that could cause future authors to incorrectly infer that `field_path` also rejects digit-leading segments (it does not).
+
+**Root cause:** When authoring a rationale citing "parity with X," "same restrictions as Y," or "follows Z conventions," the spec author did not verify the actual behavior of the cited artifact X/Y/Z (grammar production, registry, API surface) against its source before writing the claim. This parallels the v1.4 percentile false "empirically verified" claim (D-1718): both are cases where an unverified assertion was embedded in spec rationale prose without an executed check.
+
+**Correct response:**
+
+Rationale claims that cite another production, registry, or API surface as a reference point ("parity with X," "same as Y," "follows Z conventions") MUST:
+
+1. Identify the specific source artifact that defines X/Y/Z (grammar file, registry constant, API surface definition)
+2. Read that artifact or run an executed check against it BEFORE writing the claim
+3. If the actual behavior differs from the assumed claim, either correct the claim or explicitly document the divergence: e.g., "intentionally stricter than `field_path` because..."
+4. If the source cannot be located, mark the claim as UNVERIFIED and flag for architect review — do NOT write it as a factual statement
+
+**Codification candidate for S-7.02:** Add to spec-authorship discipline checklist: "Any rationale citing 'parity with', 'same as', or 'follows' another production/registry/API MUST identify and read the cited source artifact. Unverified cross-production rationale claims are a [process-gap] defect class."
+
+**Source:** D-1726 (DEFECT-PQL-FNCALL-LHS-001 pass-14 F-PQLFN-P14-LOW-001 ADR-048 v1.11 rationale correction; 2026-07-13). Companion: ADR-048 v1.4 [process-gap] percentile empirical-claim retraction (D-1718).
