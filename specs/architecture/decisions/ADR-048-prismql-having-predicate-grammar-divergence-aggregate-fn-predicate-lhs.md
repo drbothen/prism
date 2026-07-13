@@ -5,7 +5,7 @@ title: "PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function
 status: accepted
 date: "2026-06-28"
 accepted_date: "2026-06-29"
-version: "1.4"
+version: "1.5"
 modified: "2026-07-13"
 producer: architect
 subsystems_affected: [SS-11]
@@ -28,6 +28,14 @@ open_decisions: []
 # ADR-048: PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function Predicate LHS in HAVING
 
 ## Status
+
+ACCEPTED v1.5 (2026-07-13). F-PQLFN-P5-LOW-001 citation extension: §D.2 empirical claim
+("percentile absent from `DATAFUSION_BUILTIN_FUNCTION_NAMES`") now anchored to all three
+union-member registries (scalar ∪ aggregate ∪ window). v1.4 only cited the aggregate-registry
+absence test. Two new executed locks added at commit bb23f143 complete scalar and window
+arm coverage. §D.2 Mechanism 2 citation now names all five executed checks: 3 absence locks
+(aggregate + scalar + window) + 2 presence controls. §D.7.3 cross-reference updated to
+cite F-PQLFN-P5-LOW-001.
 
 ACCEPTED v1.4 (2026-07-13). F-PQLFN-P4-MED-001 ADR correction: §D.2 PERCENTILE
 post-blocklist-removal note retracted and replaced. ADR-048 v1.3 claimed "percentile IS
@@ -230,10 +238,18 @@ in §D.7.3. The error surface is governed by two separate mechanisms:
 **Mechanism 2 — E-QUERY-039 gate:** HAVING predicates ARE walked into `sql_unknown_names`
 via position (f) of `collect_unknown_scalars_from_sql_query`. "percentile" is NOT in
 `DATAFUSION_BUILTIN_FUNCTION_NAMES` — **DataFusion 53.1 does NOT register "percentile"
-as a built-in aggregate function** (empirically proven by executed test
-`test_f_pqlfn_p4_med_001_percentile_absent_from_datafusion_53_1_aggregate_registry` in
-module `datafusion_aggregate_registry_empirical_tests`, engine.rs, commit 524a9986). The
-`DATAFUSION_BUILTIN_FUNCTION_NAMES` filter therefore does NOT exclude "percentile" before
+in any of the three union-member registries** (`DATAFUSION_BUILTIN_FUNCTION_NAMES` is
+computed as scalar ∪ aggregate ∪ window; per the v1.4 [process-gap] rule, every
+union-membership claim must be anchored to an executed check per registry arm). All five
+covering tests live in module `datafusion_aggregate_registry_empirical_tests`, engine.rs:
+
+- **Aggregate-registry absence** (commit 524a9986): `test_f_pqlfn_p4_med_001_percentile_absent_from_datafusion_53_1_aggregate_registry`
+- **Scalar-registry absence** (commit bb23f143, F-PQLFN-P5-LOW-001): `test_f_pqlfn_p5_low_001_percentile_absent_from_datafusion_53_1_scalar_registry`
+- **Window-registry absence** (commit bb23f143, F-PQLFN-P5-LOW-001): `test_f_pqlfn_p5_low_001_percentile_absent_from_datafusion_53_1_window_registry`
+- **Presence control — `approx_percentile_cont` IS in registry** (commit 524a9986): `test_f_pqlfn_p4_med_001_approx_percentile_cont_present_in_datafusion_53_1_registry`
+- **Presence control — `approx_distinct` IS in registry** (commit 524a9986): `test_f_pqlfn_p4_med_001_approx_distinct_present_in_datafusion_53_1_registry`
+
+The `DATAFUSION_BUILTIN_FUNCTION_NAMES` filter therefore does NOT exclude "percentile" before
 the E-QUERY-039 check. The E-QUERY-039 outcome is registry-dependent:
 - **No infusion registry configured:** `check_enrich_udf_availability` returns early
   `Ok(())` when `registry` is `None` → E-QUERY-039 is skipped → query passes to
@@ -443,8 +459,11 @@ in a HAVING predicate goes to `sql_unknown_names`, is filtered by
 and never triggers E-QUERY-039. DataFusion resolves it correctly. No E-QUERY-001 fires.
 **PERCENTILE does NOT follow this same path** — "percentile" is ABSENT from
 `DATAFUSION_BUILTIN_FUNCTION_NAMES` (DataFusion 53.1 has no "percentile" built-in); see
-§D.2 PERCENTILE post-blocklist-removal note (v1.4 correction, F-PQLFN-P4-MED-001) for
-the verified DataFusion 53.1 behavior and registry-dependent E-QUERY-039 outcome.
+§D.2 PERCENTILE post-blocklist-removal note (v1.4 correction F-PQLFN-P4-MED-001,
+v1.5 extension F-PQLFN-P5-LOW-001 — union-membership claim now anchored to all three
+registry arms: aggregate-absence 524a9986, scalar-absence bb23f143, window-absence
+bb23f143, plus two presence controls 524a9986) for the verified DataFusion 53.1 behavior
+and registry-dependent E-QUERY-039 outcome.
 
 #### D.7.4 — Gate Ordering vs ADR-052
 
@@ -543,3 +562,4 @@ and avoids conditional branching inside the parser combinator.
 | 1.2 | adr-048-v1.2-DEFECT-PQL-FNCALL-LHS-001-pass2-adjudication | 2026-07-13 | architect | DEFECT-PQL-FNCALL-LHS-001 pass-2 adjudication of F-PQLFN-P2-HIGH-001, F-PQLFN-P2-MED-001, F-PQLFN-P2-MED-002. New §D.7 (unified plan-time gate, HAVING policy, gate ordering vs ADR-052). §D.2 scope note: non-six-name aggregates parse via fn_call_comparison as FuncCall::Scalar(Unknown) — intentional. §D.6 restated: WHERE aggregate invariant covers FULL DATAFUSION_BUILTIN_AGGREGATE_NAMES (not just 7-name parser list); parser-level AGGREGATE_FUNC_NAMES blocklist removed from fn_call_comparison; plan-time gate is sole enforcement; SQL WHERE predicate positions added to predicate_fncall_names. OD-3/OD-4/OD-5 locked. cross-ref ADR-052 added to related_adrs. |
 | 1.3 | adr-048-v1.3-DEFECT-PQL-FNCALL-LHS-001-pass3-adjudication | 2026-07-13 | architect | DEFECT-PQL-FNCALL-LHS-001 pass-3 adjudication of F-PQLFN-P3-LOW-001 and F-PQLFN-P3-OBS-003. §D.3 "Important:" paragraph corrected: post-D.7.2 the WHERE grammar DOES produce FuncCall LHS via fn_call_comparison; WHERE-safety derives from extract_field_paths_from_expr arg-recursion, not grammar impossibility. §D.2 PERCENTILE post-blocklist-removal note added (claim later retracted in v1.4 — see v1.4 row). §D.7.3 PERCENTILE cross-reference added. No locked-decision changes. |
 | 1.4 | adr-048-v1.4-DEFECT-PQL-FNCALL-LHS-001-pass4-correction | 2026-07-13 | architect | [process-gap] F-PQLFN-P4-MED-001 correction. §D.2 PERCENTILE note retracted: v1.3 claimed "percentile IS registered in DataFusion 53.1 default_aggregate_functions()" and "present in DATAFUSION_BUILTIN_FUNCTION_NAMES" — BOTH FALSE. Proven by executed tests: test_f_pqlfn_p4_med_001_percentile_absent_from_datafusion_53_1_aggregate_registry (engine.rs datafusion_aggregate_registry_empirical_tests, commit 524a9986) and test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt (temporal_typing_tests.rs, commit 524a9986). Corrected §D.2: E-QUERY-001 does NOT fire (HAVING exempt); E-QUERY-039 outcome is registry-dependent (no registry → Ok() early return → DataFusion plan error; with registry → E-QUERY-039 fires). manual names.insert("percentile") in DATAFUSION_BUILTIN_AGGREGATE_NAMES is NECESSARY (DataFusion 53.1 has no "percentile" built-in). §D.7.3 PERCENTILE cross-reference corrected. [process-gap]: "empirical" claims in spec artifacts must cite an EXECUTED check (test name or command output), not inferred metadata — feeds S-7.02 codification. |
+| 1.5 | adr-048-v1.5-DEFECT-PQL-FNCALL-LHS-001-pass5-citation-extension | 2026-07-13 | architect | F-PQLFN-P5-LOW-001 citation extension. §D.2 Mechanism 2 empirical citation for "percentile absent from DATAFUSION_BUILTIN_FUNCTION_NAMES" extended from aggregate-registry-only (v1.4) to all three union-member registries. Added scalar-registry absence lock (test_f_pqlfn_p5_low_001_percentile_absent_from_datafusion_53_1_scalar_registry, bb23f143) and window-registry absence lock (test_f_pqlfn_p5_low_001_percentile_absent_from_datafusion_53_1_window_registry, bb23f143). Five executed checks now cited: aggregate-absence (524a9986) + scalar-absence (bb23f143) + window-absence (bb23f143) + presence-control approx_percentile_cont (524a9986) + presence-control approx_distinct (524a9986). §D.7.3 cross-reference updated to cite F-PQLFN-P5-LOW-001 and enumerate all three registry arms with commit anchors. No locked-decision changes; no new ODs. |
