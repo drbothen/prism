@@ -1809,12 +1809,24 @@ def run_audit():
                     f"FAIL: partial fan-out failure — org-a errors={sensor_errors_a[:2]}, "
                     f"org-c errors={sensor_errors_c[:2]} (F-AUD-P30-MED-001)"
                 )
-            elif overlap:
+            elif not ids_a or not ids_c:
                 # F-AUD-P2-HIGH-001: 0 rows means DTU is not returning data; isolation
                 # cannot be proven → FAIL, not WARN (silent pass-through is dangerous).
-                results["[B10] ISOLATION: org-a vs org-c CS device IDs disjoint"] = f"FAIL: insufficient data — org-a={len(ids_a)} IDs, org-c={len(ids_c)} IDs (cannot prove disjoint with 0 rows from one or both orgs)"
+                results["[B10] ISOLATION: org-a vs org-c CS device IDs disjoint"] = (
+                    f"FAIL: insufficient data — org-a={len(ids_a)} IDs, org-c={len(ids_c)} IDs "
+                    f"(cannot prove disjoint with 0 rows from one or both orgs)"
+                )
+            elif overlap:
+                # Isolation broken: IDs appear in BOTH orgs — multi-tenant boundary violated.
+                results["[B10] ISOLATION: org-a vs org-c CS device IDs disjoint"] = (
+                    f"FAIL: ISOLATION BROKEN — {len(overlap)} overlapping device_id(s); "
+                    f"sample={sorted(overlap)[:3]!r}"
+                )
             else:
-                results["[B10] ISOLATION: org-a vs org-c CS device IDs disjoint"] = f"PASS: zero overlap; org-a={len(ids_a)} IDs, org-c={len(ids_c)} IDs; sample org-a={list(ids_a)[:2]}"
+                results["[B10] ISOLATION: org-a vs org-c CS device IDs disjoint"] = (
+                    f"PASS: zero overlap; org-a={len(ids_a)} IDs, org-c={len(ids_c)} IDs "
+                    f"(positive counts; isolation proven)"
+                )
 
         # ═══════════════════════════════════════════════════════════════════════
         # SECTION C: Query Modes — SQL, Pipe, SqlPipe, Aggregates, Temporal
@@ -1947,7 +1959,9 @@ def run_audit():
                 # have MITRE-only behaviors with no ioc_type field.
                 # source_path "$.behaviors[*].ioc_type" wildcard serializes as JSON-list string
                 # (Design Decision 2): detection 0 → '["hash_sha256"]'; detections 1-19 → NULL.
-                # seed-200 CompromisedEndpoint: 20 total detections (5 Critical + 15 Medium).
+                # seed-200 CompromisedEndpoint: 20 total detections. C5 asserts: bucket
+                # '["hash_sha256"]' present + sum(cnt)==20 (not severity distribution;
+                # severity distribution (Critical=5, Medium=15) is covered by H11).
                 # DataFusion GROUP BY includes NULL as a group (SQL standard): sum(cnt) == 20.
                 _ioc_buckets = {r.get("behaviors_ioc_type"): r.get("cnt") for r in rows}
                 _hash_key = '["hash_sha256"]'
@@ -2211,29 +2225,39 @@ def run_audit():
             elif cs_rows:
                 cs_device_id = cs_rows[0].get("device_id", "")
                 if cs_device_id:
-                    body_am, err_am = query(proc,
-                        f"FROM armis_devices\n| where device_id = '{cs_device_id}'\n| limit 1",
-                        ["org-c"])
-                    if err_am:
-                        # PARTIAL sweep: transport failure on Armis lookup → demo not ready;
-                        # cross-sensor coherence cannot be verified → FAIL.
-                        results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"FAIL: CS has device_id={cs_device_id[:30]}, Armis query transport error: {err_am}"
-                    elif body_am.get("error_code"):
-                        # PARTIAL sweep: Armis returned error; coherence unverified → FAIL.
-                        results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"FAIL: CS device found, Armis lookup error: {body_am['error_code']}: {body_am.get('message','')[:60]}"
+                    # PQL-injection defense-in-depth: DTU generator currently emits
+                    # dev-<hex>-<seed>-<n> (all alphanumeric + hyphens), safe by construction;
+                    # validate at the audit-script trust boundary before interpolating into a
+                    # PrismQL query string.
+                    if not re.fullmatch(r"[A-Za-z0-9._-]+", cs_device_id):
+                        results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = (
+                            f"FAIL: unexpected device_id shape — cannot safely interpolate into PQL "
+                            f"(got {cs_device_id[:30]!r})"
+                        )
                     else:
-                        am_rows = body_am.get("rows", [])
-                        sensor_errors_am = body_am.get("sensor_errors", [])
-                        if sensor_errors_am:
-                            results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = (
-                                f"FAIL: Armis partial fan-out failure — sensor_errors={sensor_errors_am[:2]} (F-AUD-P30-MED-001)"
-                            )
-                        elif am_rows:
-                            results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"PASS: device_id={cs_device_id[:30]!r} found in BOTH CS and Armis for org-c"
+                        body_am, err_am = query(proc,
+                            f"FROM armis_devices\n| where device_id = '{cs_device_id}'\n| limit 1",
+                            ["org-c"])
+                        if err_am:
+                            # PARTIAL sweep: transport failure on Armis lookup → demo not ready;
+                            # cross-sensor coherence cannot be verified → FAIL.
+                            results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"FAIL: CS has device_id={cs_device_id[:30]}, Armis query transport error: {err_am}"
+                        elif body_am.get("error_code"):
+                            # PARTIAL sweep: Armis returned error; coherence unverified → FAIL.
+                            results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"FAIL: CS device found, Armis lookup error: {body_am['error_code']}: {body_am.get('message','')[:60]}"
                         else:
-                            # F-AUD-P2-HIGH-001: Stage 4 is terminal/absorbing; scenario
-                            # guarantees cross-sensor device coherence → FAIL, not WARN.
-                            results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"FAIL: device_id={cs_device_id[:30]!r} in CS but NOT in Armis (Stage 4 guarantees cross-sensor entity coherence)"
+                            am_rows = body_am.get("rows", [])
+                            sensor_errors_am = body_am.get("sensor_errors", [])
+                            if sensor_errors_am:
+                                results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = (
+                                    f"FAIL: Armis partial fan-out failure — sensor_errors={sensor_errors_am[:2]} (F-AUD-P30-MED-001)"
+                                )
+                            elif am_rows:
+                                results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"PASS: device_id={cs_device_id[:30]!r} found in BOTH CS and Armis for org-c"
+                            else:
+                                # F-AUD-P2-HIGH-001: Stage 4 is terminal/absorbing; scenario
+                                # guarantees cross-sensor device coherence → FAIL, not WARN.
+                                results["[D5] SCENARIO: cross-sensor entity coherence (CS+Armis)"] = f"FAIL: device_id={cs_device_id[:30]!r} in CS but NOT in Armis (Stage 4 guarantees cross-sensor entity coherence)"
                 else:
                     # F-AUD-P2-HIGH-001: CS returning a row with no device_id is a data quality
                     # failure → FAIL, not WARN.
