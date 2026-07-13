@@ -1178,6 +1178,78 @@ pub(crate) fn build_predicate_parser<'a>(
             .clone()
             .or(literal.clone().padded().map(crate::ast::Expr::Literal));
 
+        // --- fn-call comparison: scalar_fn_name(args) compare_op rhs_expr ---
+        //
+        // (DEFECT-PQL-FNCALL-LHS-001) Grammar extension for pipe `| where` scalar fn-call
+        // LHS comparisons. Positioned BEFORE `field_comparison` in the atom choice so that
+        // `lower(col) = 'val'` is dispatched here rather than causing a backtrack at `(`.
+        //
+        // SCALAR ONLY — aggregate function names (count, sum, avg, min, max,
+        // distinct_count, percentile) are excluded via `try_map` guard so that
+        // `count(x) = 5` in pipe `| where` remains a parse error (ADR-048 D.3:
+        // aggregate predicates belong to SQL HAVING, not pipe where).
+        //
+        // Downstream handling requires NO logic changes — pre-existing code handles FuncCall LHS:
+        //   - check_temporal_literals arm (4): non-Field LHS + RawTemporalLiteral → E-QUERY-042
+        //   - collect_predicate_columns FuncCall arm: recurses args for E-QUERY-038 column gate
+        //   - collect_predicate_columns_with_bareness FuncCall arm: same with bareness tracking
+        const AGGREGATE_FUNC_NAMES: &[&str] = &[
+            "count",
+            "sum",
+            "avg",
+            "min",
+            "max",
+            "distinct_count",
+            "percentile",
+        ];
+        let fn_call_arg = literal
+            .clone()
+            .padded()
+            .map(crate::ast::Expr::Literal)
+            .or(field_path.clone().padded().map(field_path_to_expr));
+        let fn_call_comparison = any::<&str, extra::Err<Rich<char>>>()
+            .filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_')
+            .repeated()
+            .at_least(1)
+            .to_slice()
+            .padded()
+            .try_map(|name: &str, span| {
+                if AGGREGATE_FUNC_NAMES
+                    .iter()
+                    .any(|agg| name.eq_ignore_ascii_case(agg))
+                {
+                    return Err(Rich::custom(
+                        span,
+                        format!(
+                            "E-QUERY-001: '{name}' is an aggregate function; \
+                             aggregate fn-calls are not valid in pipe | where \
+                             (use HAVING for post-aggregation filters, ADR-048 D.3)"
+                        ),
+                    ));
+                }
+                Ok(name.to_string())
+            })
+            .then(
+                fn_call_arg
+                    .separated_by(just(',').padded())
+                    .collect::<Vec<_>>()
+                    .delimited_by(just('(').padded(), just(')').padded()),
+            )
+            .then(compare_op.clone())
+            .then(rhs_expr.clone().padded())
+            .map(|(((func_name, args), op), rhs)| {
+                use crate::ast::{FuncCall, ScalarFunc};
+                Predicate::Compare {
+                    lhs: Box::new(crate::ast::Expr::FuncCall(FuncCall::Scalar {
+                        func: ScalarFunc::Unknown(func_name),
+                        args,
+                    })),
+                    op,
+                    rhs: Box::new(rhs),
+                    case_insensitive: false,
+                }
+            });
+
         // --- Basic comparison: field op (temporal_expr | literal) ---
         // Auto-promotes = or != with wildcard string patterns to Predicate::Wildcard.
         let field_comparison = field_path
@@ -1242,7 +1314,8 @@ pub(crate) fn build_predicate_parser<'a>(
             });
 
         // Atom: `(predicate)` | one of the above
-        // Ordering discipline: IIN before IN, IEQ/INE before field_comparison.
+        // Ordering discipline: IIN before IN, IEQ/INE before field_comparison,
+        // fn_call_comparison BEFORE field_comparison (DEFECT-PQL-FNCALL-LHS-001).
         let atom = choice((
             predicate
                 .clone()
@@ -1262,6 +1335,7 @@ pub(crate) fn build_predicate_parser<'a>(
             like_match,
             ieq_compare,
             ine_compare,
+            fn_call_comparison,
             field_comparison,
         ));
 

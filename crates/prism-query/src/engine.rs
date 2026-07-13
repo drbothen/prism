@@ -2154,8 +2154,9 @@ fn collect_predicate_columns_with_bareness(
                 }
             }
             Expr::FuncCall(_) => {
-                // HAVING aggregate (e.g. `HAVING count(col) > 0`): recurse into FuncCall args,
-                // preserving per-reference bareness for each arg field ref.
+                // Fn-call LHS: HAVING aggregate (ADR-048 D.3) or pipe `| where` scalar fn-call
+                // (DEFECT-PQL-FNCALL-LHS-001). Recurse into FuncCall args, preserving
+                // per-reference bareness for each arg field ref.
                 extract_field_paths_with_bareness(lhs.as_ref(), table_name, table_alias, out);
             }
             _ => {}
@@ -3718,10 +3719,11 @@ fn check_pipe_stage_columns(
 /// The `Compare { lhs, .. }` arm matches `lhs` on two forms (ADR-048):
 /// - `Expr::Field(fp)` — bare column reference (WHERE / HAVING bare predicate);
 ///   extracted via `extract_column_name_from_field_path`.
-/// - `Expr::FuncCall(_)` — aggregate-function call (HAVING `agg_fn(col) op literal`
-///   per ADR-048 D.3); recursed via `extract_field_paths_from_expr` to reach nested
-///   `Expr::Field` args. This form is only reachable from the HAVING predicate path;
-///   WHERE grammar cannot produce a `FuncCall` LHS in `Predicate::Compare`.
+/// - `Expr::FuncCall(_)` — fn-call LHS: either an aggregate (HAVING `agg_fn(col) op literal`
+///   per ADR-048 D.3) or a scalar fn-call (pipe `| where` `scalar_fn(col) op literal`
+///   per DEFECT-PQL-FNCALL-LHS-001). Recursed via `extract_field_paths_from_expr` to
+///   reach nested `Expr::Field` args. HAVING-only before DEFECT-PQL-FNCALL-LHS-001;
+///   pipe `| where` mode now also produces this form via `fn_call_comparison`.
 /// - All other `lhs` forms (`VirtualField`, `Literal`, etc.) — fail-open (silently skipped).
 ///
 /// F-001B-DC-HIGH-001: uses `extract_column_name_from_field_path` for each
@@ -3752,16 +3754,16 @@ fn collect_predicate_columns(
     match pred {
         // Compare: lhs may be:
         //   - Expr::Field(fp)        — bare column ref (WHERE / HAVING bare predicate)
-        //   - Expr::FuncCall(..)     — aggregate fn call (HAVING agg predicate, ADR-048)
+        //   - Expr::FuncCall(..)     — fn-call LHS: HAVING aggregate (ADR-048 D.3) or
+        //                             pipe `| where` scalar fn-call (DEFECT-PQL-FNCALL-LHS-001)
         //
         // For Expr::Field: extract via extract_column_name_from_field_path (handles
         //   qualified refs, F-001B-DC-HIGH-001).
         // For Expr::FuncCall: recurse into args via extract_field_paths_from_expr, which
         //   already handles FuncCall::Aggregate/Scalar arg lists at any nesting depth.
-        //   This is reachable only from the HAVING predicate path (ADR-048 D.3); WHERE
-        //   grammar cannot produce a FuncCall LHS in Predicate::Compare.
+        //   SQL WHERE still rejects fn-call LHS; HAVING and pipe `| where` both allow it.
         //
-        // F-001B-DC-HIGH-001; ADR-048 D.3.
+        // F-001B-DC-HIGH-001; ADR-048 D.3; DEFECT-PQL-FNCALL-LHS-001.
         Predicate::Compare { lhs, .. } => {
             match lhs.as_ref() {
                 Expr::Field(fp) => {
@@ -3772,8 +3774,8 @@ fn collect_predicate_columns(
                     }
                 }
                 Expr::FuncCall(_) => {
-                    // Aggregate function in HAVING predicate (ADR-048).
-                    // Recurse into the FuncCall args to extract any Expr::Field refs.
+                    // Fn-call LHS: HAVING aggregate (ADR-048) or pipe `| where` scalar fn-call
+                    // (DEFECT-PQL-FNCALL-LHS-001). Recurse into args to extract Expr::Field refs.
                     extract_field_paths_from_expr(lhs.as_ref(), table_name, table_alias, out);
                 }
                 // Other lhs forms (VirtualField, Literal, etc.) — fail-open.
