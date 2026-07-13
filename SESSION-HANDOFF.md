@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.987"
+version: "7.988"
 status: current
-timestamp: 2026-07-13T05:00:00Z
+timestamp: 2026-07-13T15:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -96,19 +96,60 @@ timestamp: 2026-07-13T05:00:00Z
 >
 > **D-1715 (2026-07-13): AUDIT-COVERAGE-001 106-check LIVE audit 98 PASS / 8 FAIL DEMO-READY NO — §RESUME SNAPSHOT D-1715 authored (supersedes D-1701).** LOCAL 3-CLEAN CONVERGED @acf7ded0 (D-1713; passes 42/43/44); S-7.02 COMPLETE (D-1714; 9/9 anchored; 238 stories). Live audit: 98 PASS / 8 FAIL / 0 WARN / exit 0 (anomaly). FAILs: [B14] [B15] E-SENSOR-030 no-route; [C3] pipe-mode '| fields' projection; [H5c] fn-call LHS parse error; [H8] JOIN UNKNOWN doubled suffix; [H14s] tables=[]; [H16] control-char SUCCESS CWE-116/117; [H20] threat_score ABSENT. Branch NOT pushed. TRIAGE NEXT. STATE v8.314→v8.315.
 >
-> **D-1716 (2026-07-13): SESSION WRAP — RESUME SNAPSHOT D-1716 authored (supersedes D-1715).** Human reviewed D-1715 live-audit report (98 PASS / 8 FAIL, DEMO-READY NO) and granted: (1) Triage autonomy APPROVED: full autonomous triage of 8 live-audit FAILs ([B14],[B15],[C3],[H5c],[H8],[H14s],[H16],[H20]) + exit-code-0 anomaly; classify script-defect vs REAL product-defect vs env/config gap; fix BOTH sides autonomously (script fixes = fix-bursts in AUDIT-COVERAGE-001 worktree resetting LOCAL streak 0/3; product defects = defect fix-PR flow); (2) H16 priority APPROVED: if confirmed REAL Layer-2 column-gate bypass → own security-relevant defect PR (security-reviewer triage → implementer fix) prioritized AHEAD of audit-script PR; (3) Merge gates UNCHANGED (human-gated). Session totals: passes 33–44 + fix-bursts 33–38; LOCAL 3-CLEAN(strict) CONVERGED @acf7ded0 (D-1713); S-7.02 9/9 anchored to 6 draft stories (D-1714); live audit 98/8 DEMO-READY NO (D-1715). develop@5f1b5771; factory@see git log; AUDIT-COVERAGE-001 @acf7ded0 LOCAL-ONLY NOT pushed; S-3.09 KEEP-PARKED; W3-FIX-S307-001 parked-dirty; zero open PRs; verify-sha-currency PASS (1 pre-existing WARN non-blocking). STATE v8.315→v8.316.
+> **D-1716 (2026-07-13): SESSION WRAP — RESUME SNAPSHOT D-1716 authored (supersedes D-1715).** Human reviewed D-1715 live-audit report (98 PASS / 8 FAIL, DEMO-READY NO) and granted: (1) Triage autonomy APPROVED: full autonomous triage of 8 live-audit FAILs ([B14],[B15],[C3],[H5c],[H8],[H14s],[H16],[H20]) + exit-code-0 anomaly; classify script-defect vs REAL product-defect vs env/config gap; fix BOTH sides autonomously (script fixes = fix-bursts in AUDIT-COVERAGE-001 worktree resetting LOCAL streak 0/3; product defects = defect fix-PR flow); (2) H16 priority APPROVED: if confirmed REAL Layer-2 column-gate bypass → own security-relevant defect PR (security-reviewer triage → implementer fix) prioritized AHEAD of audit-script PR; (3) Merge gates UNCHANGED (human-gated). Session totals: passes 33–44 + fix-bursts 33–38; LOCAL 3-CLEAN(strict) CONVERGED @acf7ded0 (D-1713); S-7.02 9/9 anchored to 6 draft stories (D-1714); live audit 98/8 DEMO-READY NO (D-1715). develop@5f1b5771; factory@see git log; AUDIT-COVERAGE-001 @acf7ded0 LOCAL-ONLY NOT pushed; S-3.09 KEEP-PARKED; W3-FIX-S307-001 parked-dirty; zero open PRs; verify-sha-currency PASS (1 pre-existing WARN non-blocking). STATE v8.315→v8.316. **[SUPERSEDED by D-1719]**
+>
+> **D-1717 (2026-07-13): TRIAGE COMPLETE — 8 live-audit FAILs classified + 2 defect lanes opened.** [H16]=SCRIPT-DEFECT; [B14][B15]=SCRIPT-DEFECT; [H14s]=SCRIPT-DEFECT; [H8](a)=SCRIPT-DEFECT; [H8](b)+[C3]+[H20]=REAL-DEFECT (DEFECT-MCP-ROWSHAPE-NULLS-001); [H5c]=REAL-DEFECT (DEFECT-PQL-FNCALL-LHS-001). Spec deltas: BC-2.11.001 v1.16; BC-2.11.004 v1.31; ADR-052 v1.12. New stories: S-TEST-WIRESHAPE-SWEEP-001 + S-HOLDOUT-STORY-GATE-001. AUDIT-COVERAGE-001 @cd369b54 (39 fix-bursts). STATE v8.316→v8.317.
+>
+> **D-1718 (2026-07-13): DEFECT CASCADE MARATHON CHECKPOINT — both defect lanes run through multiple passes/fix-bursts.** LANE 1 DEFECT-MCP-ROWSHAPE-NULLS-001 HEAD @4ae7d59b (10p/7fb; streak 0/3). LANE 2 DEFECT-PQL-FNCALL-LHS-001 HEAD @bb23f143 (6p/5fb; streak 0/3). Spec deltas: BC-2.11.001 v1.18; BC-2.11.004 v1.35; BC-2.11.018 v1.5; BC-2.11.019 v1.10; BC-2.10.007 v1.11; ADR-048 v1.5; ADR-052 v1.13; error-taxonomy v2.43. BC-INDEX v7.97; ARCH-INDEX v2.180; STORY-INDEX v2.665. STATE v8.317→v8.318. **[SUPERSEDED by D-1719]**
+>
+> **D-1719 (2026-07-13): SESSION WRAP — §RESUME SNAPSHOT D-1719 authored (supersedes D-1718).** LANE 1 MCP passes 9-13 + fix-bursts 7-8: P11/P12 CLEAN(strict); P13 HIGH EC-11-068 THREE-WAY collision → SR-006 renumber (BC-2.11.001 v1.20 EC-11-079; BC-2.11.019 v1.11 EC-11-080 @62d48f01; code @0d1bfc61; story v0.8 @e29a63b0); HEAD @0d1bfc61 (13p/8fb; streak 0/3; pass 14 next; prism-mcp 461/461). LANE 2 PQL passes 6-7 + fix-burst 6: P6 CLEAN(strict); P7 2LOW+1OBS → ADR-048 v1.6 OD-6 (DML WHERE sixth gated position §D.7.5) + fix-burst 6 @3e0d3585; HEAD @3e0d3585 (7p/6fb; streak 0/3; pass 8 next; workspace 5529/5529). AUDIT-COVERAGE-001 @cd369b54 (fix-burst 39 + CLAUDE.md codification; PARKED until defect PRs merge). develop@5f1b5771; zero open PRs; verify-sha-currency PASS (1 pre-existing WARN). STATE v8.318→v8.319.
 >
 > **D-1701 (2026-07-12): SESSION WRAP — §RESUME SNAPSHOT D-1701 authored (supersedes D-1700).** AUDIT-COVERAGE-001 B-hardening passes 29–32 + fix-bursts 29–32. HEAD db765001→4857d967→9cbd9033→334784c3→67654e0f. P31 CLEAN(PR-merge). P32 NOT CLEAN (1 MED + 4 LOW + 4 OBS); fix-burst 32 closed all 6 findings @67654e0f. FROZEN HEAD 67654e0f (36 commits over develop@5f1b5771; LOCAL-ONLY NOT pushed). Streak 0/3 on 67654e0f. S-7.02 queue 9 items unchanged. Standing accepted-limitations: H14e smoke-only; H8 PASS-ATTRIBUTED; H23 even-fence; H16 non-content-channel. STATE v8.300→v8.301.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1716 SESSION WRAP; develop@5f1b5771; triage autonomy + H16 priority APPROVED; FROZEN HEAD acf7ded0; streak 3/3 CONVERGED; VERY NEXT = triage 8 FAILs starting with [H16]** (STATE.md frontmatter is authoritative; D-1716 §RESUME SNAPSHOT is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1716 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.316. D-1716 SESSION WRAP; triage autonomy + H16 priority APPROVED (44 passes; FROZEN HEAD acf7ded0; 106 checks; streak 3/3 CONVERGED; LOCAL-ONLY NOT pushed; STORY-INDEX v2.662; BC-INDEX v7.95; total_stories 238; VERY NEXT ACTION = triage 8 live-audit FAILs + exit-code-0 anomaly, starting with [H16] [fresh session]).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1719 SESSION WRAP; develop@5f1b5771; MCP pass 14 next (frozen @0d1bfc61); PQL pass 8 next (frozen @3e0d3585); both streaks 0/3; VERY NEXT = dispatch both adversary passes** (STATE.md frontmatter is authoritative; D-1719 §RESUME SNAPSHOT is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1719 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.319. D-1719 SESSION WRAP; MCP LANE 1 HEAD @0d1bfc61 (13p/8fb; streak 0/3; pass 14 next); PQL LANE 2 HEAD @3e0d3585 (7p/6fb; streak 0/3; pass 8 next); STORY-INDEX v2.665; BC-INDEX v7.97; total_stories 240; workspace 5483 on develop; VERY NEXT ACTION = dispatch LOCAL adversary pass 14 (MCP) AND pass 8 (PQL) on frozen HEADs [fresh session].
 
 ---
 
 ---
 
-## §RESUME SNAPSHOT — D-1716 (2026-07-13 — SESSION WRAP; triage autonomy + H16 priority approved; develop 5f1b5771; FROZEN HEAD acf7ded0; STATE v8.316) [SUPERSEDES D-1715]
+## §RESUME SNAPSHOT — D-1719 (2026-07-13 — SESSION WRAP; EC-11-068 renumber complete; MCP HEAD 0d1bfc61 pass-14-next; PQL HEAD 3e0d3585 pass-8-next; develop 5f1b5771; STATE v8.319) [SUPERSEDES D-1718]
+
+### RESUME IN ONE BREATH
+
+Two defect fix-PR lanes from live-audit triage are in LOCAL 3-CLEAN cascades, both fully fix-closed and awaiting streak-building passes: MCP-nulls (pass 14 next) and PQL-fncall (pass 8 next). VERY NEXT ACTION: dispatch LOCAL adversary pass 14 on frozen HEAD 0d1bfc61 (DEFECT-MCP-ROWSHAPE-NULLS-001) and pass 8 on frozen HEAD 3e0d3585 (DEFECT-PQL-FNCALL-LHS-001); on 3× CLEAN(strict) each → pr-manager PRs → HUMAN merge gates → rebase AUDIT-COVERAGE-001 → live-audit re-run.
+
+### HEADS (all verified 2026-07-13)
+
+- develop: origin/develop `5f1b5771` (pushed; unchanged all session)
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (pre-wrap HEAD was e29a63b0)
+- fix/DEFECT-MCP-ROWSHAPE-NULLS-001 `0d1bfc61` — 11 commits over develop, LOCAL-ONLY NOT pushed. Cascade 13 passes / 8 fix-bursts. Streak 0/3 on 0d1bfc61 (passes 11/12 CLEAN(strict) on pre-renumber HEAD 4ae7d59b; pass 13 HIGH = EC-11-068 collision → renumbered). prism-mcp 461/461.
+- fix/DEFECT-PQL-FNCALL-LHS-001 `3e0d3585` — 11 commits over develop, LOCAL-ONLY NOT pushed. Cascade 7 passes / 6 fix-bursts. Streak 0/3 on 3e0d3585 (pass 6 CLEAN(strict) on bb23f143; pass 7 findings fixed by fix-burst 6). Workspace 5529/5529; non-exhaustive 91/91.
+- AUDIT-COVERAGE-001 `cd369b54` fix/T13-audit-coverage — LOCAL-ONLY NOT pushed. Contains fix-burst 39 (script fixes [H16][B14][B15][H14s][H8a]) + human-mandated CLAUDE.md codification (wire-shape discipline, SAP-3, SID-2, story-level holdout gate). Streak 0/3. PARKED until product PRs merge.
+- S-3.09 `43c41389` KEEP-PARKED; W3-FIX-S307-001 `fcab8717` parked-dirty (unchanged, audit queued).
+- Zero open prism PRs. verify-sha-currency PASS (1 pre-existing WARN).
+
+### PER-WORKSTREAM NEXT-ACTIONS
+
+1. **MCP lane — RESUME NEXT-ACTION:** dispatch LOCAL adversary pass 14, frozen HEAD 0d1bfc61, fresh context; spec set: BC-2.11.001 v1.20 (EC-11-079), BC-2.11.018 v1.5, BC-2.15.009 v1.7, BC-2.10.007 v1.11, ADR-051, ADR-022 v1.17, error-taxonomy v2.43, interface-definitions v2.9; stories S-TEST-WIRESHAPE-SWEEP-001 v0.8; CLOSED/ACCEPTED classes per D-1718 + passes 9-13 additions (E-MCP-003 defined-but-unconstructed; complementary-pointer design; Utf8-only test types; code-comment BC pins; EC-11-068 keeper = BC-2.11.016). Need 3 consecutive CLEAN(strict) → pr-manager.
+2. **PQL lane — RESUME NEXT-ACTION:** dispatch LOCAL adversary pass 8, frozen HEAD 3e0d3585; spec set: BC-2.11.004 v1.35, BC-2.11.019 v1.11 (EC-11-080), ADR-048 v1.6 (OD-6 DML = sixth gated position, §D.7.5), ADR-052 v1.13, error-taxonomy v2.43; accepted classes per D-1718 + passes 6/7 (distinct_count single-arm coverage; DML no-registry pass-through per §D.7.5; variance absent from DataFusion registry). Need 3 consecutive CLEAN(strict) → pr-manager.
+3. **AUDIT-COVERAGE-001 — RESUME NEXT-ACTION (after both PRs merge):** rebase onto post-merge develop; fix audit-script stale comment strings "Internal error; see audit log" (F-MCPNULL-P6-OBS-002); re-run live audit (expect 106/106 — [C3][H20][H8b][H5c] close via merged fixes; [H16][B14][B15][H14s][H8a] closed by fix-burst 39); then LOCAL 3-CLEAN → push → PR-LEVEL cascade → HUMAN merge → T13 unblocked.
+
+### PENDING HUMAN DECISIONS
+
+1. E-MCP-003: migrate 18 server.rs serialization map_err sites from PrismError::Internal to McpSerializationError? (surfaced in MCP PR body; taxonomy v2.43 documents defined-but-unconstructed status)
+2. Feature candidates from PQL scope limits: nested fn-call args (upper(trim(x))) and IEQ/IIN/INE × fn-call LHS (BC-2.11.004 v1.35 documented limits; PR body)
+3. Upstream vsdd-factory PR #632 (story-level holdout gate, 3-pass converged, DRAFT) — human ready-mark + content review; issues #633/#634 open
+4. Merge gates for both defect PRs (human-gated per D-1716)
+
+### DECISION DELTA since D-1718 (D-1719 content)
+
+MCP passes 9-13 + fix-bursts 7-8: P9 1MED(story dotpath structuredContent.results.rows)+2OBS→fixed; P10 2OBS(API name .with_explicit_nulls; tools/query.rs facade anchor)→fixed; P11 CLEAN(strict); P12 CLEAN(strict) + cross-branch no-conflict verification; P13 HIGH EC-11-068 THREE-WAY namespace collision (BC-2.11.016 keeper 2026-07-11; both cascades independently allocated it) → SR-006 renumber: BC-2.11.001 v1.20 EC-11-079 + BC-2.11.019 v1.11 EC-11-080 @62d48f01; code propagation @0d1bfc61; story v0.8 @e29a63b0. P13 also POSITIVELY re-derived [C3]/[H20]/[H8b] closure via audit-script query walk-through. PQL passes 6-7 + fix-burst 6: P6 CLEAN(strict); P7 2LOW+1OBS (EnrichUdfNotFoundDetails SEC-001 sanitize parity; DML WHERE ungated post-grammar-extension; descriptor materialization hoist) → ADR-048 v1.6 OD-6 (DML WHERE = sixth gated position, architect-adjudicated Option A) + fix-burst 6 @3e0d3585 (4 DML gate tests; variance→avg empirical correction). PROCESS-GAPS for S-7.02: (4) EC-ID allocation lacks namespace-collision check (unlike create-adr) — three-way collision proof; candidates (1)-(3) from D-1718 still queued.
+
+---
+
+## §RESUME SNAPSHOT — D-1716 (2026-07-13 — SESSION WRAP; triage autonomy + H16 priority approved; develop 5f1b5771; FROZEN HEAD acf7ded0; STATE v8.316) [SUPERSEDES D-1715] [SUPERSEDED by D-1719]
 
 ### RESUME IN ONE BREATH
 
