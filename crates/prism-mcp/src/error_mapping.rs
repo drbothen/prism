@@ -3929,4 +3929,180 @@ mod tests {
             );
         }
     }
+
+    // =========================================================================
+    // SID-2 composed-output locks — auth-category variants (F-MCPNULL-P6-OBS-001)
+    //
+    // These tests assert the FULL composed content[].text for AuthTokenExpired and
+    // AuthTokenInvalid. Auth-category VariantMeta suggestions carry re-authenticate
+    // guidance, NOT audit-log pointers — four invariants per variant:
+    //   (a) content_text contains "Re-authenticate"
+    //   (b) message field is the terse "Internal error" with NO "audit log"
+    //   (c) content_text does NOT contain "audit log" at all
+    //   (d) no phrase from message repeats in suggestion (message/suggestion split)
+    //
+    // GREEN on arrival: both variants are already handled by explicit VariantMeta arms
+    // (lines 1050-1090) with re-auth suggestions and ec_code_override; these tests lock
+    // the behaviour so future refactors cannot regress to the catch-all audit-log pointer.
+    // =========================================================================
+
+    /// BC-2.10.007 SID-2 composed-output lock: `AuthTokenExpired` auth-category variant.
+    ///
+    /// Locks all four composed-output properties for `AuthTokenExpired`:
+    /// (a) `content_text` contains "Re-authenticate" (BC-2.10.007 auth-category LLM-agent strategy)
+    /// (b) `message` field is the terse "Internal error" with NO "audit log"
+    /// (c) `content_text` does NOT contain "audit log" (auth suggestions carry re-auth guidance only)
+    /// (d) No phrase from `message` repeats in `suggestion` (BC-2.10.007 message/suggestion split)
+    ///
+    /// Byte-verbatim suggestion check per POL-24: asserts the exact shipped static string
+    /// `"The auth token has expired. Re-authenticate and obtain a fresh token."`.
+    ///
+    /// F-MCPNULL-P6-OBS-001: closes the SID-2 gap for the auth-expired variant.
+    #[test]
+    fn test_BC_2_10_007_auth_variant_composed_content_text_expired() {
+        let err = PrismError::AuthTokenExpired;
+        let result = prism_error_to_structured_call_result(err);
+        let content_text = extract_content_text_from_result(&result);
+
+        // (a) content_text must contain "Re-authenticate" per BC-2.10.007 auth-category strategy.
+        assert!(
+            content_text.contains("Re-authenticate"),
+            "[SID-2][AuthTokenExpired] VIOLATION: content_text must contain 'Re-authenticate'. \
+             Got: {content_text:?}"
+        );
+
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.message must be a string");
+
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.suggestion must be a string");
+
+        // (b) message must be the terse "Internal error" with NO "audit log".
+        assert_eq!(
+            message, "Internal error",
+            "[SID-2][AuthTokenExpired] VIOLATION: message must be terse 'Internal error'. \
+             Got: {message:?}"
+        );
+        assert!(
+            !message.to_lowercase().contains("audit log"),
+            "[SID-2][AuthTokenExpired] VIOLATION: message must NOT contain 'audit log'. \
+             Got: {message:?}"
+        );
+
+        // (c) content_text must NOT contain "audit log" at all.
+        assert!(
+            !content_text.to_lowercase().contains("audit log"),
+            "[SID-2][AuthTokenExpired] VIOLATION: content_text must NOT contain 'audit log'. \
+             Auth variants carry re-auth guidance only, not audit-log pointers. \
+             Got: {content_text:?}"
+        );
+
+        // Byte-verbatim suggestion check per POL-24.
+        assert_eq!(
+            suggestion, "The auth token has expired. Re-authenticate and obtain a fresh token.",
+            "[SID-2][AuthTokenExpired] VIOLATION: suggestion must match exact shipped string \
+             byte-verbatim. Got: {suggestion:?}"
+        );
+
+        // (d) Duplicate-phrase check: no phrase from message may repeat in suggestion.
+        assert!(
+            !suggestion.contains(message),
+            "[SID-2][AuthTokenExpired] VIOLATION: phrase from message ({message:?}) repeats in \
+             suggestion ({suggestion:?}). BC-2.10.007 message/suggestion split forbids this."
+        );
+    }
+
+    /// BC-2.10.007 SID-2 composed-output lock: `AuthTokenInvalid` auth-category variant.
+    ///
+    /// Locks all four composed-output properties for `AuthTokenInvalid`:
+    /// (a) `content_text` contains "Re-authenticate" (BC-2.10.007 auth-category LLM-agent strategy)
+    /// (b) `message` field is the terse "Internal error" with NO "audit log"
+    /// (c) `content_text` does NOT contain "audit log" (auth suggestions carry re-auth guidance only)
+    /// (d) No phrase from `message` repeats in `suggestion` (BC-2.10.007 message/suggestion split)
+    ///
+    /// Byte-verbatim suggestion check per POL-24: asserts the exact shipped static string
+    /// `"The auth token is invalid. Re-authenticate and obtain a valid token."`.
+    ///
+    /// The `reason` field is set to a test string; the MCP response must NOT surface it (DI-006).
+    ///
+    /// F-MCPNULL-P6-OBS-001: closes the SID-2 gap for the auth-invalid variant.
+    #[test]
+    fn test_BC_2_10_007_auth_variant_composed_content_text_invalid() {
+        let err = PrismError::AuthTokenInvalid {
+            reason: "signature mismatch".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let content_text = extract_content_text_from_result(&result);
+
+        // (a) content_text must contain "Re-authenticate" per BC-2.10.007 auth-category strategy.
+        assert!(
+            content_text.contains("Re-authenticate"),
+            "[SID-2][AuthTokenInvalid] VIOLATION: content_text must contain 'Re-authenticate'. \
+             Got: {content_text:?}"
+        );
+
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.message must be a string");
+
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.suggestion must be a string");
+
+        // (b) message must be the terse "Internal error" with NO "audit log".
+        assert_eq!(
+            message, "Internal error",
+            "[SID-2][AuthTokenInvalid] VIOLATION: message must be terse 'Internal error'. \
+             Got: {message:?}"
+        );
+        assert!(
+            !message.to_lowercase().contains("audit log"),
+            "[SID-2][AuthTokenInvalid] VIOLATION: message must NOT contain 'audit log'. \
+             Got: {message:?}"
+        );
+
+        // (c) content_text must NOT contain "audit log" at all.
+        assert!(
+            !content_text.to_lowercase().contains("audit log"),
+            "[SID-2][AuthTokenInvalid] VIOLATION: content_text must NOT contain 'audit log'. \
+             Auth variants carry re-auth guidance only, not audit-log pointers. \
+             Got: {content_text:?}"
+        );
+
+        // Byte-verbatim suggestion check per POL-24.
+        assert_eq!(
+            suggestion, "The auth token is invalid. Re-authenticate and obtain a valid token.",
+            "[SID-2][AuthTokenInvalid] VIOLATION: suggestion must match exact shipped string \
+             byte-verbatim. Got: {suggestion:?}"
+        );
+
+        // (d) Duplicate-phrase check: no phrase from message may repeat in suggestion.
+        assert!(
+            !suggestion.contains(message),
+            "[SID-2][AuthTokenInvalid] VIOLATION: phrase from message ({message:?}) repeats in \
+             suggestion ({suggestion:?}). BC-2.10.007 message/suggestion split forbids this."
+        );
+    }
 }
