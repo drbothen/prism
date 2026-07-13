@@ -4623,9 +4623,9 @@ async fn test_BC_2_11_019_med_004_sqlpipe_where_unknown_scalar_e_query_039() {
 /// AGGREGATE_FUNC_NAMES parser-level blocklist is REMOVED (ADR-048 v1.2 OD-4).
 /// `fn_call_comparison` successfully parses `count()` as `FuncCall::Scalar(Unknown("count"))`.
 /// The plan-time `DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate intercepts it and fires
-/// E-QUERY-001 with the canonical message:
-///   "E-QUERY-001: 'count' is an aggregate function; aggregate fn-calls are not
-///    valid in pipe | where (use HAVING for post-aggregation filters, ADR-048 D.3)"
+/// E-QUERY-001 with the canonical detail:
+///   "'count' is an aggregate function; aggregate fn-calls are not valid in
+///    WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)"
 ///
 /// # RED at @5ce8bedc
 /// The current "found '('" message does NOT contain "aggregate function" or "HAVING".
@@ -4773,10 +4773,10 @@ async fn test_BC_2_11_019_obs_001_pipe_where_empty_arg_unknown_scalar_e_query_03
 /// Query: `FROM crowdstrike_detections | where stddev(risk_score) = 5`
 ///
 /// # GREEN at @5ce8bedc (fix-burst-1 closed OBS-002)
-/// Plan-time `DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate fires canonical message:
-///   "E-QUERY-001: 'stddev' is an aggregate function; aggregate fn-calls are not
-///    valid in pipe | where (use HAVING for post-aggregation filters, ADR-048 D.3)"
-/// This message contains "aggregate", "stddev", and "HAVING" → all assertions pass.
+/// Plan-time `DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate fires canonical detail:
+///   "'stddev' is an aggregate function; aggregate fn-calls are not valid in
+///    WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)"
+/// The resulting Display contains "aggregate", "stddev", and "HAVING" → all assertions pass.
 ///
 /// # Fix-burst-2 stability
 /// After AGGREGATE_FUNC_NAMES parser-level blocklist removal (ADR-048 v1.2 OD-4):
@@ -5216,18 +5216,31 @@ async fn test_BC_2_11_004_tm_08_pipe_where_count_with_args_canonical_d3_message(
         "TM-08: must be QueryParseFailed (E-QUERY-001). Got: {err:?} (Display: {display})"
     );
 
-    // OBS-002 / POL-24 byte-verbatim lock: assert the complete canonical message template
-    // from BC-2.11.004 v1.33 EC-11-013 appears as an exact contiguous substring of Display.
+    // F-PQLFN-P10-OBS-001 / POL-24 byte-verbatim lock: assert the detail-only canonical
+    // template from BC-2.11.004 v1.33 EC-11-013 appears as an exact contiguous substring
+    // of Display (ADR-048 D.7.2 de-prefix discipline: detail MUST NOT embed "E-QUERY-001:"
+    // prefix — that prefix is emitted once by QueryParseFailed's #[error] format string).
     // One byte-verbatim lock here; other TM tests retain substring checks (defense-in-depth
     // diversity: one byte-verbatim lock + N substring locks per ADR-048 D.7).
-    const CANONICAL_AGG_MSG: &str = "E-QUERY-001: 'count' is an aggregate function; \
+    const CANONICAL_AGG_MSG: &str = "'count' is an aggregate function; \
         aggregate fn-calls are not valid in WHERE/where predicates \
         (use HAVING for post-aggregation filters, ADR-048 D.3)";
     assert!(
         display.contains(CANONICAL_AGG_MSG),
-        "TM-08 OBS-002: Display must contain the byte-verbatim canonical template from \
-         BC-2.11.004 v1.33 EC-11-013 (POL-24). \
+        "TM-08 F-PQLFN-P10-OBS-001: Display must contain the byte-verbatim detail-only \
+         canonical template from BC-2.11.004 v1.33 EC-11-013 (POL-24). \
          Expected contiguous substring: {CANONICAL_AGG_MSG:?}. \
+         Got: {display}"
+    );
+
+    // F-PQLFN-P10-OBS-001 single-prefix regression lock: Display must contain EXACTLY
+    // ONE "E-QUERY-001:" occurrence (ADR-048 D.7.2 single-prefix discipline).
+    // Two occurrences would indicate the detail embeds the prefix again (double-prefix bug).
+    assert!(
+        display.matches("E-QUERY-001:").count() == 1,
+        "TM-08 F-PQLFN-P10-OBS-001: Display must contain EXACTLY ONE 'E-QUERY-001:' \
+         prefix (ADR-048 D.7.2 de-prefix discipline). Double-prefix indicates the \
+         aggregate-gate detail embeds the code again. \
          Got: {display}"
     );
 
@@ -6397,4 +6410,82 @@ async fn test_dml_where_fncall_lhs_non_date_rhs_not_rejected() {
 
     // Any other outcome (Ok(vec![]) from the DML no-op path, or a different error) is
     // acceptable.  The DML execution path returns Ok(vec![]) pending S-3.06 wiring.
+}
+
+// ── F-PQLFN-P10-OBS-002: fn-name identifier-start constraint ─────────────────
+
+/// F-PQLFN-P10-OBS-002 (1/2): digit-leading fn-name must produce E-QUERY-001.
+///
+/// Query: `FROM crowdstrike_detections | where 123abc(device_id) = 5`
+///
+/// After the identifier-start constraint fix (filter_parser.rs fn_call_comparison):
+/// - `fn_call_comparison` requires the first char to satisfy `is_ascii_alphabetic() || == '_'`.
+/// - `1` (first char of `123abc`) is a digit, so `fn_call_comparison` fails to match.
+/// - Chumsky backtracks to `field_comparison`, which parses `123abc` as a field path but
+///   then fails at `(device_id)` (not a valid compare operator). All predicate alternatives fail.
+/// - Result: `PrismError::QueryParseFailed` (E-QUERY-001).
+///
+/// Traces to: ADR-048 D.7.2 (fn-name identifier-start constraint); F-PQLFN-P10-OBS-002.
+#[tokio::test]
+async fn test_fncall_digit_leading_name_parse_error_obs_002() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where 123abc(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "F-PQLFN-P10-OBS-002: digit-leading fn-name '123abc(...)' must produce Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+
+    // Must be QueryParseFailed — digit-leading name is rejected at parse time.
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "F-PQLFN-P10-OBS-002: '123abc(device_id) = 5' must return QueryParseFailed \
+         (E-QUERY-001 parse error). fn_call_comparison identifier-start constraint \
+         rejects digit-leading names at the grammar level. \
+         Got: {err:?}"
+    );
+}
+
+/// F-PQLFN-P10-OBS-002 (2/2): underscore-leading fn-name still parses as fn-call.
+///
+/// Query: `FROM crowdstrike_detections | where _abc(device_id) = 5`
+///
+/// After the identifier-start constraint fix:
+/// - `_abc` starts with `_` which satisfies `is_ascii_alphabetic() || == '_'`.
+/// - `fn_call_comparison` matches → `FuncCall::Scalar(Unknown("_abc"))`.
+/// - `_abc` is NOT in `DATAFUSION_BUILTIN_AGGREGATE_NAMES` → aggregate gate passes.
+/// - No infusion registry configured → E-QUERY-039 check skipped (returns Ok()).
+/// - Query passes plan gates and reaches execution (fails at sensor fan-out, not parse).
+/// - Result: NOT QueryParseFailed.
+///
+/// This confirms the identifier-start fix is a strict narrowing (digit-leading rejected,
+/// underscore-leading still admitted).
+///
+/// Traces to: ADR-048 D.7.2 (fn-name identifier-start constraint); F-PQLFN-P10-OBS-002.
+#[tokio::test]
+async fn test_fncall_underscore_leading_name_not_parse_error_obs_002() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where _abc(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must NOT be QueryParseFailed — `_abc` is a valid identifier start.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-P10-OBS-002: '_abc(device_id) = 5' must NOT return QueryParseFailed. \
+         Underscore-leading names are valid identifier starts and must parse as fn-call LHS. \
+         Got: {result:?}"
+    );
 }

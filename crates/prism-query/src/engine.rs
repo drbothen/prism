@@ -1965,7 +1965,7 @@ fn check_enrich_udf_availability(
             return Err(PrismError::QueryParseFailed {
                 offset: 0,
                 detail: format!(
-                    "E-QUERY-001: '{name}' is an aggregate function; \
+                    "'{name}' is an aggregate function; \
                      aggregate fn-calls are not valid in WHERE/where predicates \
                      (use HAVING for post-aggregation filters, ADR-048 D.3)"
                 ),

@@ -1206,10 +1206,18 @@ pub(crate) fn build_predicate_parser<'a>(
             .padded()
             .map(crate::ast::Expr::Literal)
             .or(field_path.clone().padded().map(field_path_to_expr));
+        // fn-name identifier-start constraint (F-PQLFN-P10-OBS-002 / ADR-048 D.7.2):
+        // first char must be ASCII alphabetic or '_'; subsequent chars may be
+        // alphanumeric or '_'. Digit-leading names (e.g. '123abc') are rejected at
+        // parse time — fn_call_comparison fails to match and Chumsky backtracks to
+        // field_comparison, which also fails, producing E-QUERY-001 (QueryParseFailed).
         let fn_call_comparison = any::<&str, extra::Err<Rich<char>>>()
-            .filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_')
-            .repeated()
-            .at_least(1)
+            .filter(|c: &char| c.is_ascii_alphabetic() || *c == '_')
+            .then(
+                any::<&str, extra::Err<Rich<char>>>()
+                    .filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_')
+                    .repeated(),
+            )
             .to_slice()
             .padded()
             .map(|name: &str| name.to_string())
