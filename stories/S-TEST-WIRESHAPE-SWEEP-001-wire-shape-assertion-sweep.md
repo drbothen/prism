@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.7"
-spec_version: "v0.7"
+version: "0.8"
+spec_version: "v0.8"
 level: ops
 producer: story-writer
 timestamp: "2026-07-13"
@@ -40,7 +40,7 @@ target_module: "crates/prism-mcp"
 behavioral_contracts: [BC-2.11.001, BC-2.10.007]
 # BC status: both BCs are active.
 #   BC-2.11.001 v1.18 (modified 2026-07-13): null-not-absent row-shape postcondition
-#   added (DEFECT-MCP-ROWSHAPE-NULLS-001); EC-11-068. This is the primary anchor for
+#   added (DEFECT-MCP-ROWSHAPE-NULLS-001); EC-11-079. This is the primary anchor for
 #   query tool wire-shape tests.
 #   BC-2.10.007 v1.11: structured error response wire shape — all 9 required fields,
 #   retry_after_seconds null-not-absent. Governs error-path assertions across all tools.
@@ -107,7 +107,7 @@ This story establishes SID-2 as a standing implementer discipline to be added to
 >    + suggestion), ALSO assert the `structuredContent` or the individual JSON field keys.
 >    Asserting only the prose text string passes even when the underlying structured
 >    contract is broken.
-> 3. **Explicit-null key presence (EC-11-068)** — for each entry in `structuredContent.results.rows`, assert that
+> 3. **Explicit-null key presence (EC-11-079)** — for each entry in `structuredContent.results.rows`, assert that
 >    every projected column key is present in every row. For NULL-valued cells, assert
 >    the row has `"column_name": null`, not merely that the row parses without error.
 >    The `WriterBuilder.with_explicit_nulls(true)` invariant (BC-2.11.001 v1.18) must be
@@ -135,7 +135,7 @@ audit stage.
 
 | BC | Title | Version | Relevance |
 |----|-------|---------|-----------|
-| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | v1.18 | Postcondition: row-shape null-not-absent — `WriterBuilder.with_explicit_nulls(true)` required; EC-11-068 (NULL column → key present as `null`). Primary anchor for AC-002. |
+| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | v1.18 | Postcondition: row-shape null-not-absent — `WriterBuilder.with_explicit_nulls(true)` required; EC-11-079 (NULL column → key present as `null`). Primary anchor for AC-002. |
 | BC-2.10.007 | Structured Error Responses | v1.11 | Postcondition: nested wire shape with 9 required fields; `retry_after_seconds: null` (not absent) for non-rate-limit errors. Primary anchor for AC-003 and all error-path ACs. |
 
 ## Acceptance Criteria
@@ -151,7 +151,7 @@ AUDIT-COVERAGE-001 B/C/D-hardening cascade.`
 
 No Red Gate test for this AC (doc-only change).
 
-### AC-002 — `query` tool: explicit-null key presence (EC-11-068)
+### AC-002 — `query` tool: explicit-null key presence (EC-11-079)
 (traces to BC-2.11.001 v1.18 postcondition — row-shape null-not-absent)
 
 `crates/prism-mcp/tests/wire_shape.rs` (new file) adds:
@@ -427,3 +427,4 @@ or `prism-sensors` crates in production code. Test files may use DTU harness cra
 | v0.5 | 2026-07-13 | Retired key `structuredContent.events` → canonical `structuredContent.rows` at 6 sites: §Origin [H20] narrative (line ~77 wire-level key, line ~82 dotpath), SID-2 step-3 definition (line ~110), AC-002 assertion prose (line ~162), AC-002 implementation instruction (line ~164), Previous Story Intelligence narrative (line ~360). Canonical key per BC-2.11.001 v1.18 / shipped server.rs payload. | F-MCPNULL-P8-MED-001 (pass-8); POL-25 full-file sweep |
 | v0.6 | 2026-07-13 | Corrected dotpath depth at 4 sites: `structuredContent.rows` → `structuredContent.results.rows` (§Origin [H20] line ~82; SID-2 step-3 line ~110; AC-002 assertion prose line ~162) and `result["structuredContent"]["rows"]` → `result["structuredContent"]["results"]["rows"]` (AC-002 implementation instruction line ~164). Verified via grep: `structuredContent\.rows` and `structuredContent\["rows"\]` — 0 remaining instances after this pass. Wire path confirmed from `envelope_json` helper (`structured_content` field) + test navigation `v["results"]["rows"]` in DEFECT-MCP-ROWSHAPE-NULLS-001 worktree. Correction note for v0.5 arithmetic: v0.5 claimed '6 sites' but grep-verifiable dotpath count is 4 (the 4 sites fixed here); the two other v0.5 entries ('line ~77 wire-level key' and 'Previous Story Intelligence line ~360') were converted to neutral/non-dotpath prose in v0.5 rather than to `structuredContent.rows`, so they were not surviving dotpath instances — accurate v0.5 dotpath site count was 4, not 6. | F-MCPNULL-P9-MED-001 + OBS-002 (pass-9) |
 | v0.7 | 2026-07-13 | API-name propagation (F-MCPNULL-P10-OBS-001): replaced `explicit_nulls(true)` / `WriterBuilder.explicit_nulls(true)` with `with_explicit_nulls(true)` at all 10 sites (frontmatter comment ~line 34; SID-2 step-3 ~line 113; Behavioral Contracts table ~line 138; AC-002 Red Gate note ~lines 166-167; Architecture Mapping ~line 292; Tasks ~lines 346-347; Previous Story Intelligence ~line 366; Architecture Compliance Rules ~line 384; File Structure Requirements ~line 416). Anchor correction (F-MCPNULL-P10-OBS-002): re-anchored query-tool handler from `tools/query.rs` (documentation facade) to `server.rs::PrismServer::query` in Architecture Mapping (~line 292) and File Structure Requirements (~line 416). Updated all DEFECT story hedges ("may be in DEFECT story" / "if not done by DEFECT story") to reflect fix landed in DEFECT-MCP-ROWSHAPE-NULLS-001, pending merge. | F-MCPNULL-P10-OBS-001/002 (pass-10) |
+| v0.8 | 2026-07-13 | EC ID renumbering (F-MCPNULL-P13-HIGH-001): BC-2.11.001 v1.20 @62d48f01 renumbered row-shape EC EC-11-068→EC-11-079. Updated 4 live sites: frontmatter comment (~line 43); SID-2 step-3 definition (~line 110); Behavioral Contracts table (~line 138); AC-002 heading (~line 154). No BC-2.11.016 FIELDS-TRANSITION keeper EC-11-068 present in this file. | F-MCPNULL-P13-HIGH-001 (pass-13) |
