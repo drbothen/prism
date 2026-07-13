@@ -1727,19 +1727,24 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         normalized_pql: None,
         },
 
-        // ── MCP serialization error → fallback (not a sensor failure, not listed in
-        // BC-2.10.007 v1.7 "internal" list — remains catch-all pending future BC amendment)
+        // ── MCP serialization error → category "internal" ────────────────────
+        // BC-2.10.007 v1.11 OBS-002: Prism's own MCP response serialization layer
+        // failed; the sensor was never involved. Fault domain is Prism-internal.
+        // ec_code_override: Some("E-MCP-003") required — without it, the E-INT-001
+        // fallback inference fires (map_prism_error returns "Internal error" with no
+        // E- prefix, and INTERNAL_ERROR code maps to "E-INT-001" via catch-all).
+        // McpSerializationError Display prefix is "E-MCP-003:" per prism-core error.rs.
         PrismError::McpSerializationError { .. } => VariantMeta {
-            category: "upstream_error",
+            category: "internal",
             suggestion:
-                "See audit log for details. Contact Prism operator if the problem persists.",
+                "Prism MCP serialization failure. Contact Prism operator; see audit log for details.",
             retryable: false,
             retry_after_seconds: None,
             original_params_valid: true,
             source_override: None,
             upstream_message: None,
             owned_suggestion: None,
-            ec_code_override: None,
+            ec_code_override: Some("E-MCP-003"),
         near_text: None,
         reference_pointer: None,
         valid_operators_for_type: None,
@@ -4103,6 +4108,199 @@ mod tests {
             !suggestion.contains(message),
             "[SID-2][AuthTokenInvalid] VIOLATION: phrase from message ({message:?}) repeats in \
              suggestion ({suggestion:?}). BC-2.10.007 message/suggestion split forbids this."
+        );
+    }
+
+    /// BC-2.10.007 v1.11 OBS-002 ruling applied: `McpSerializationError` maps to
+    /// category `"internal"`, code `"E-MCP-003"`, terse `"Internal error"` message,
+    /// byte-verbatim suggestion, retryable:false.
+    ///
+    /// SID-2 composed-output lock:
+    /// (a) content_text contains "Prism operator" (internal-category operator-escalation guidance)
+    /// (b) message = `"Internal error"` (terse; BC-2.10.007 Rule 1 — McpSerializationError is NOT
+    ///     the AuditPersistenceFailed exception)
+    /// (c) code = `"E-MCP-003"` (ec_code_override required — without pin, E-INT-001 fallback fires)
+    /// (d) byte-verbatim suggestion (POL-24 lock)
+    /// (e) no phrase from message repeats in suggestion (BC-2.10.007 message/suggestion split)
+    ///
+    /// BC-2.10.007 v1.11 §OBS-002 + error-taxonomy v2.42 E-MCP-003.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_mcp_serialization_error_category_is_internal() {
+        let err = PrismError::McpSerializationError {
+            detail: "serde serialization failed: invalid type at field 'x'".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let content_text = extract_content_text_from_result(&result);
+
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        let message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.message must be a string");
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.code must be a string");
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.suggestion must be a string");
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+
+        // (a) Category must be "internal" — Prism's own serialization layer failed.
+        assert_eq!(
+            category, "internal",
+            "[OBS-002] McpSerializationError must map to category 'internal' \
+             (BC-2.10.007 v1.11 OBS-002); got '{category}'"
+        );
+
+        // (b) Code must be "E-MCP-003" — pinned via ec_code_override.
+        // Without the override, the E-INT-001 catch-all fires incorrectly.
+        assert_eq!(
+            code, "E-MCP-003",
+            "[OBS-002] McpSerializationError code must be 'E-MCP-003' (ec_code_override); \
+             got '{code}'. If this fails, check ec_code_override: Some(\"E-MCP-003\") in the \
+             McpSerializationError VariantMeta arm."
+        );
+
+        // (c) Message must be the terse "Internal error" per BC-2.10.007 Rule 1.
+        // McpSerializationError is NOT the AuditPersistenceFailed exhaustive exception.
+        assert_eq!(
+            message, "Internal error",
+            "[OBS-002][SID-2] McpSerializationError message must be terse 'Internal error' \
+             (BC-2.10.007 v1.11 Rule 1; McpSerializationError is not the AuditPersistenceFailed \
+             exception); got '{message}'"
+        );
+
+        // (d) Byte-verbatim suggestion (POL-24 lock).
+        assert_eq!(
+            suggestion,
+            "Prism MCP serialization failure. Contact Prism operator; see audit log for details.",
+            "[OBS-002][SID-2] McpSerializationError suggestion must match exact shipped string \
+             byte-verbatim (BC-2.10.007 v1.11 OBS-002); got '{suggestion}'"
+        );
+
+        // retryable must be false — Prism-internal serialization failures are not transient.
+        assert!(
+            !retryable,
+            "[OBS-002] McpSerializationError must be retryable:false; got true"
+        );
+
+        // (a) SID-2: content_text must contain "Prism operator" (internal-category escalation guidance).
+        assert!(
+            content_text.contains("Prism operator"),
+            "[SID-2][OBS-002] content_text must contain 'Prism operator'. Got: {content_text:?}"
+        );
+
+        // (e) No phrase from message repeats in suggestion (BC-2.10.007 message/suggestion split).
+        assert!(
+            !suggestion.contains(message),
+            "[SID-2][OBS-002] phrase from message ({message:?}) repeats in suggestion \
+             ({suggestion:?}). BC-2.10.007 message/suggestion split forbids this."
+        );
+    }
+
+    /// BC-2.10.007 v1.11 MED-001 regression fence: `AuditPersistenceFailed` is the ONE
+    /// exhaustive exception to Rule 1.  Its structured `message` MUST be the full
+    /// taxonomy-verbatim Display — NOT the terse `"Internal error"` form.
+    ///
+    /// A future "helpful" refactor that collapses this variant to `"Internal error"` MUST
+    /// fail this test.  The message carries no sensitive detail (no credentials, no raw sensor
+    /// text); the agent caller needs the code + retry guidance to act on this transient,
+    /// retryable fail-closed condition (BC-2.05.001 DEC-014).
+    ///
+    /// Asserts:
+    /// - `structuredContent.error.message` = byte-verbatim taxonomy Display
+    /// - `map_prism_error` code = -32000 (INTERNAL_ERROR JSON-RPC code)
+    /// - `structuredContent.error.category` = "transient"
+    ///
+    /// BC-2.10.007 v1.11 Rule 1 exception + BC-2.05.001 DEC-014.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_audit_persistence_failed_message_carveout() {
+        // BC-2.10.007 v1.11 Rule 1 exception — the ONE exhaustive carve-out.
+        // Byte-verbatim check: this string must match prism-core error.rs Display exactly.
+        // If prism-core's Display ever changes, this test will catch the drift.
+        const EXPECTED_MESSAGE: &str =
+            "E-AUDIT-001: Audit emission failed; write operation blocked. \
+             Retry the operation. If the error persists, check tracing subscriber health.";
+
+        // Verify the map_prism_error code is -32000 (INTERNAL_ERROR).
+        let (code_i32, map_message) = map_prism_error(PrismError::AuditPersistenceFailed);
+        assert_eq!(
+            code_i32,
+            codes::INTERNAL_ERROR,
+            "[MED-001] AuditPersistenceFailed must map to JSON-RPC code -32000 (INTERNAL_ERROR); \
+             got {code_i32}"
+        );
+        // Verify map_prism_error message IS the taxonomy-verbatim Display (the BC-2.10.007
+        // Rule 1 exception path: format!("{err}") instead of "Internal error").
+        assert_eq!(
+            map_message, EXPECTED_MESSAGE,
+            "[MED-001] map_prism_error(AuditPersistenceFailed) must return the taxonomy-verbatim \
+             Display; got '{map_message}'. If this fails, verify prism-core error.rs AuditPersistenceFailed \
+             #[error] attribute still matches EXPECTED_MESSAGE."
+        );
+
+        // Verify the STRUCTURED ERROR message is also the full Display
+        // (prism_error_to_structured_call_result uses map_prism_error message → structured field).
+        let result = prism_error_to_structured_call_result(PrismError::AuditPersistenceFailed);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let structured_message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.message must be a string");
+
+        // BC-2.10.007 v1.11 Rule 1 exception: AuditPersistenceFailed emits the full
+        // taxonomy-verbatim Display as message (NOT "Internal error").
+        assert_eq!(
+            structured_message, EXPECTED_MESSAGE,
+            "[MED-001] AuditPersistenceFailed structured message must be the taxonomy-verbatim \
+             Display (BC-2.10.007 v1.11 Rule 1 exception; BC-2.05.001 DEC-014). \
+             Got '{structured_message}'. A refactor to terse 'Internal error' MUST fail this test."
+        );
+
+        // category must be "transient" (retryable transient fail-closed condition).
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "transient",
+            "[MED-001] AuditPersistenceFailed must have category 'transient'; got '{category}'"
+        );
+
+        // retryable must be true — this is a transient fail-closed condition.
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            retryable,
+            "[MED-001] AuditPersistenceFailed must be retryable:true (transient fail-closed); \
+             got false"
         );
     }
 }
