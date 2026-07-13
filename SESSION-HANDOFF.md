@@ -94,13 +94,52 @@ timestamp: 2026-07-11T21:30:00Z
 >
 > **D-1699 (2026-07-12): §RESUME SNAPSHOT D-1699 authored (supersedes D-1698).** AUDIT-COVERAGE-001 B-hardening pass 30 NOT CLEAN(strict) NOT CLEAN(PR-merge) (3 MED + 2 LOW + 3 OBS) + fix-burst 30. HEAD 4857d967→9cbd9033. FROZEN HEAD 9cbd9033 (34 commits over develop@5f1b5771; LOCAL-ONLY). S-7.02 queue 9 items (unchanged; pass 30 had zero process-gap findings). OBS-003 accepted by orchestrator. Streak 0/3 on 9cbd9033. STATE v8.298→v8.299. **[SUPERSEDED by D-1700]**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1700 AUDIT-COVERAGE-001 pass 31 CLEAN(PR-merge)/NOT-strict (4 LOW + 2 OBS, zero MED+) + fix-burst 31; develop@5f1b5771; 31 passes; FROZEN HEAD 334784c3; streak 0/3; sensor_errors_gate 45-site consolidation** (STATE.md frontmatter is authoritative; D-1700 §RESUME SNAPSHOT is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1700 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.300. D-1700 AUDIT-COVERAGE-001 pass 31 CLEAN(PR-merge)/NOT-strict + fix-burst 31 (31 passes; FROZEN HEAD 334784c3; 106 checks; streak 0/3 on 334784c3; LOCAL-ONLY NOT pushed; S-7.02 queue 9 items (unchanged); STORY-INDEX v2.656; BC-INDEX v7.95; total_stories 232; VERY NEXT ACTION = LOCAL adversary pass 32 on 334784c3 [fresh session]).
+> **D-1701 (2026-07-12): SESSION WRAP — §RESUME SNAPSHOT D-1701 authored (supersedes D-1700).** AUDIT-COVERAGE-001 B-hardening passes 29–32 + fix-bursts 29–32. HEAD db765001→4857d967→9cbd9033→334784c3→67654e0f. P31 CLEAN(PR-merge). P32 NOT CLEAN (1 MED + 4 LOW + 4 OBS); fix-burst 32 closed all 6 findings @67654e0f. FROZEN HEAD 67654e0f (36 commits over develop@5f1b5771; LOCAL-ONLY NOT pushed). Streak 0/3 on 67654e0f. S-7.02 queue 9 items unchanged. Standing accepted-limitations: H14e smoke-only; H8 PASS-ATTRIBUTED; H23 even-fence; H16 non-content-channel. STATE v8.300→v8.301.
+>
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1701 SESSION WRAP — AUDIT-COVERAGE-001 passes 29–32 + fix-bursts 29–32; develop@5f1b5771; 32 passes; FROZEN HEAD 67654e0f; streak 0/3; sensor_errors_gate consolidation** (STATE.md frontmatter is authoritative; D-1701 §RESUME SNAPSHOT is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1701 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.301. D-1701 SESSION WRAP passes 29–32 + fix-bursts 29–32 (32 passes; FROZEN HEAD 67654e0f; 106 checks; streak 0/3 on 67654e0f; LOCAL-ONLY NOT pushed; S-7.02 queue 9 items (unchanged); STORY-INDEX v2.656; BC-INDEX v7.95; total_stories 232; VERY NEXT ACTION = LOCAL adversary pass 33 on 67654e0f [fresh session]).
 
 ---
 
-## §RESUME SNAPSHOT — D-1700 (2026-07-12 — AUDIT-COVERAGE-001 pass 31 CLEAN(PR-merge)/NOT-strict + fix-burst 31; FROZEN HEAD 334784c3; develop 5f1b5771; streak 0/3; STATE v8.300) [SUPERSEDES D-1699]
+---
+
+## §RESUME SNAPSHOT — D-1701 (2026-07-12 — SESSION WRAP passes 29–32 + fix-bursts 29–32; FROZEN HEAD 67654e0f; develop 5f1b5771; streak 0/3; STATE v8.301) [SUPERSEDES D-1700]
+
+### RESUME IN ONE BREATH
+
+AUDIT-COVERAGE-001 B-hardening cascade is 32 passes deep on `fix/T13-audit-coverage`. FROZEN HEAD is `67654e0f` (pass-32 fix-burst; LOCAL-ONLY, NOT pushed; 36 commits over develop@5f1b5771). Check count stays 106 (unchanged). BC-5.39.001 3-CLEAN(strict) streak: 0/3 on 67654e0f (no passes taken against this HEAD; DRIFT-ORCH-PRLEVEL-PUSH-001 frozen-HEAD rule). Cascade tally: 32 passes / 32 fix-bursts. Session arc (this session): passes 29–32 + fix-bursts 29–32; HEAD db765001→4857d967→9cbd9033→334784c3→67654e0f. Pass 31 was CLEAN(PR-merge). Notable structural win: sensor_errors_gate helper extracted (45 sites, 46 call-sites, permanently eliminating copy-paste drift class). Pass 32 (frozen 334784c3): NOT CLEAN(strict) NOT CLEAN(PR-merge) — 1 MED (F-AUD-P32-MED-001: C5 GROUP BY silent-empty vacuous PASS — "PASS: 0 rows"; no empty-guard, no bucket assertion, C4/C6/H11 discipline gap) + 4 LOW (F-AUD-P32-LOW-001: parse_envelope AttributeError on non-string content[0].text. F-AUD-P32-LOW-002: H14b unguarded attribute chain on non-dict org-c entry — AttributeError escaped except tuple. F-AUD-P32-LOW-003: H15 sensor_errors_gate semantically wrong for plan-time explain_query — positive assertion needed, not error gate. F-AUD-P32-LOW-004: H12 _id_cols whitelist lacked source-of-truth anchor comment) + 4 OBS (F-AUD-P32-OBS-003 [process-gap]: coverage-matrix drift regex too narrow for future ID grammar — FIXED in-scope; F-AUD-P32-OBS-001 H23 even-count unclosed fences + F-AUD-P32-OBS-002 H16 non-content-channel scan scope — ACCEPTED per orchestrator adjudication; F-AUD-P32-OBS-004: no-defect confirmation of pass-31 H21 fix). Pass 32 also verified fix-burst-31 45-site sensor_errors_gate consolidation fully defect-free (all 46 call-site check_ids exact; control flow correct; no error-provoking check gated). Fix-burst 32 @67654e0f: C5 empty-guard + positive bucket assertions (bucket key '["hash_sha256"]' verified from make_detection_with_ioc() in prism-dtu-crowdstrike generator.rs; sum(cnt)==20 = 5 Critical + 15 Medium at seed-200; CONSCIOUS-UPDATE anchor); parse_envelope isinstance(text, str) guard; H14b _client_org_c dict guard + except widened to AttributeError; H15 gate replaced with no-fanout positive assertion (explain_query verified plan-time via qe.explain(), DataSource::Multiple(vec![])); H12 _id_cols CONSCIOUS-UPDATE comment (make_device/make_detection + crowdstrike.sensor.toml detections block); drift regex widened to `[A-Z]+[0-9]+[a-z]{0,2}` with grammar comment (all 106 IDs still match; BOOT/CRASH/AUDIT_INTERNAL_ERROR unaffected). Verification: py_compile PASS; pyflakes zero new (18 pre-existing); self-diff review 6 hunks; count 106 unchanged; just check-fast PASS. S-7.02 codification queue UNCHANGED at 9 items (F-AUD-P32-OBS-003 process-gap was FIXED in-scope, not queued). STANDING ACCEPTED-LIMITATIONS LIST (carry forward to ALL future adversary pass dispatches): (1) H14e smoke-only positive coverage — self-documented boundary. (2) H8 PASS-ATTRIBUTED evidentiary limitation — map_prism_error redaction at call-site. (3) H23 even-count unclosed fences — structural limitation of regex fence-counting. (4) H16 non-content-channel scan scope — audit script family constraint. These four are CLOSED by design; adversary must NOT re-open without new evidence. VERY NEXT ACTION: LOCAL adversary pass 33 on 67654e0f (fresh session). Frozen-HEAD rule in force — do NOT push or commit to fix/T13-audit-coverage before LOCAL 3-CLEAN completes.
+
+### HEADS (all verified 2026-07-12)
+
+- origin/develop == local develop = `5f1b5771` (PUSHED; UNCHANGED). Workspace test baseline 5483; non-exhaustive gate EXPECTED=91.
+- factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code).
+- `.worktrees/AUDIT-COVERAGE-001` = `fix/T13-audit-coverage` @`67654e0f`, FROZEN, **LOCAL-ONLY (NOT on origin — no remote backup)**. 36 commits over develop@5f1b5771. check-fast verified PASS at fix-burst gates.
+- `.worktrees/S-3.09` = `feature/S-3.09` @`43c41389` KEEP-PARKED (LOCAL-ONLY; backup branch `backup/S-3.09-preresume-43c41389`; D-1666). UNCHANGED.
+- `.worktrees/W3-FIX-S307-001` = `feature/W3-FIX-S307-001` @`fcab8717` PARKED, 1 unpushed commit + ~1070 lines uncommitted (LOCAL-ONLY; APPLICABILITY-AUDIT-QUEUED; do NOT touch). UNCHANGED.
+- OPEN PRs: NONE. No background agents in flight.
+
+### Workstreams + RESUME NEXT-ACTION
+
+1. **AUDIT-COVERAGE-001** — LOCAL-ONLY @67654e0f FROZEN on `fix/T13-audit-coverage`. Cascade: 32 passes, 32 fix-bursts; script 95→106 checks; pass trajectory P1–P28 see D-1697; P29–P31 see D-1700; P32 see D-1701. RESUME NEXT-ACTION: LOCAL adversary pass 33 on FROZEN HEAD 67654e0f (fresh session). S-7.02 queue 9 items (codification at cascade close). After 3-CLEAN(strict) streak: complete S-7.02 process-gap codification (9 items) → run 106-check live audit against DTU harness → push branch → pr-manager fix-PR + PR-LEVEL 3-CLEAN cascade → HUMAN merge approval. DO NOT push or commit to fix/T13-audit-coverage before LOCAL 3-CLEAN completes (frozen-HEAD rule, DRIFT-ORCH-PRLEVEL-PUSH-001).
+2. **3 draft stories** — registered STORY-INDEX v2.656 (232 total), BC-INDEX v7.95. RESUME NEXT-ACTION: run story-gate reviews before implementation scheduling. S-DRIFT-SAP2 is P1 and first in line.
+3. **W3-FIX-S307-001 applicability audit** — queued (D-1666). UNCHANGED.
+4. **E-OCSF-005..023** — draft story queued post-demo (D-1666). **T13 capstone demo** — queued after AUDIT-COVERAGE-001 merges.
+
+### Pending user-approved work (granted, unstarted)
+
+Human approved AUDIT-COVERAGE-001 work (B-hardening + 106-check live audit + fix-PR) carry-over from D-1692. No new approval needed for LOCAL cascade passes 33+. Merge still requires explicit human approval.
+
+### Decision delta this session (already recorded)
+
+D-1701 (SESSION WRAP passes 29–32 + fix-bursts 29–32; HEAD db765001→4857d967→9cbd9033→334784c3→67654e0f; 6 of 6 findings closed in fix-burst 32; standing accepted-limitations list established; S-7.02 queue 9 items unchanged). No unrecorded decisions.
+
+### Worktree inventory
+
+AUDIT-COVERAGE-001: active FROZEN @67654e0f. S-3.09: stale-leave (KEEP-PARKED). W3-FIX-S307-001: stale-leave (audit queued).
+
+
+## §RESUME SNAPSHOT — D-1700 (2026-07-12 — AUDIT-COVERAGE-001 pass 31 CLEAN(PR-merge)/NOT-strict + fix-burst 31; FROZEN HEAD 334784c3; develop 5f1b5771; streak 0/3; STATE v8.300) [SUPERSEDES D-1699] [SUPERSEDED by D-1701]
 
 ### RESUME IN ONE BREATH
 
