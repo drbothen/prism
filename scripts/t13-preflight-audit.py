@@ -8,6 +8,15 @@ Usage:
     python3 scripts/t13-preflight-audit.py
     PRISM_THREATINTEL_PORT=65343 PRISM_NVD_PORT=65344 python3 scripts/t13-preflight-audit.py
 
+Invocation discipline — exit-code capture:
+    CORRECT:   python3 scripts/t13-preflight-audit.py > /tmp/prism-audit.log 2>&1
+               echo "EXIT=$?"
+    CORRECT:   python3 scripts/t13-preflight-audit.py | tee /tmp/prism-audit.log; echo "EXIT=${PIPESTATUS[0]}"
+    WRONG:     python3 scripts/t13-preflight-audit.py | tee /tmp/prism-audit.log; echo "EXIT=$?"
+               # $? captures tee's exit code (always 0), NOT the script's sys.exit(1).
+               # A bare pipe loses the script's exit status — always use PIPESTATUS[0] or
+               # redirect directly (> file) to capture the real exit code.
+
 Requirements:
     - prism-dtu-demo-server must be running (bash scripts/demo-run.sh)
     - PRISM_THREATINTEL_PORT and PRISM_NVD_PORT env vars (from demo-run.sh output)
@@ -1758,14 +1767,16 @@ def run_audit():
 
         # ── B11–B15: Additional tables (org-c full 10-table matrix) ─────────────
         # Sequential IDs [B11]..[B15] in stable iteration order (F-AUD-P1-LOW-002).
-        # F-AUD-P2-MED-007: B14 (crowdstrike_incidents) and B15 (cyberint_incidents)
-        # have no DTU routes (gap-analysis §4 guardrail #1); 0 rows is the EXPECTED
-        # outcome and is asserted explicitly. Any error_code on these tables = FAIL.
+        # F-AUD-P2-MED-007 (updated fix-burst 39): B14 (crowdstrike_incidents) and B15
+        # (cyberint_incidents) have no DTU routes (gap-analysis §4 guardrail #1; tracked as
+        # DTU-EXT-001 / EC-016-013-002). BC-2.01.010 partial-failure propagation MANDATES
+        # sensor_errors on any no-route table hit — 0 rows alone is NOT a valid PASS;
+        # the envelope MUST carry sensor_errors with an E-SENSOR-030 entry for the table.
         # MED-004 (F-AUD-P25): NO_ROUTE_TABLES and _DATA_GUARANTEED co-located so the
         # disjointness assertion fires at start (not buried in the loop body).
-        # CONSCIOUS-UPDATE (cite F-AUD-P25-MED-004): any DTU route addition or removal
-        # must update BOTH sets in the same change — add a new DTU route → move the
-        # table from NO_ROUTE_TABLES into _DATA_GUARANTEED (or vice versa on removal).
+        # CONSCIOUS-UPDATE (cite F-AUD-P25-MED-004): when DTU routes land for these tables,
+        # flip each NO_ROUTE_TABLES entry to _DATA_GUARANTEED in the same change — the
+        # assertion below will need to flip from sensor_errors-present to rows-returned.
         NO_ROUTE_TABLES = {"crowdstrike_incidents", "cyberint_incidents"}
         _DATA_GUARANTEED = {"armis_alerts", "claroty_alerts", "crowdstrike_devices"}
         # MED-004: self-consistency assertion — the two sets must be disjoint.
@@ -1789,14 +1800,33 @@ def run_audit():
                 rows_t = body_t.get("rows", [])
                 sensor_errors = body_t.get("sensor_errors", [])
                 if tbl in NO_ROUTE_TABLES:
-                    # No DTU route → 0 rows + no sensor_errors + no error_code expected.
-                    # gap-analysis §4 guardrail #1.
-                    if sensor_errors:
-                        results[key] = f"FAIL: expected no sensor_errors for no-route table {tbl}, got {sensor_errors[:2]}"
-                    elif len(rows_t) != 0:
-                        results[key] = f"FAIL: expected 0 rows for no-route table {tbl}, got {len(rows_t)}"
+                    # No DTU route → BC-2.01.010 partial-failure propagation MANDATES
+                    # sensor_errors with an E-SENSOR-030 entry for this table.
+                    # 0 rows alone is NOT a valid PASS — an empty sensor_errors list
+                    # means the partial-failure signal was swallowed (Standing Rule 3 §2).
+                    # Tracked gaps: DTU-EXT-001 / EC-016-013-002.
+                    # CONSCIOUS-UPDATE: when DTU routes land for these tables, flip this
+                    # branch to the _DATA_GUARANTEED rows-returned assertion (move table
+                    # from NO_ROUTE_TABLES to _DATA_GUARANTEED in the same change,
+                    # per F-AUD-P25-MED-004).
+                    _has_e_sensor_030 = any("E-SENSOR-030" in str(se) for se in sensor_errors)
+                    if not sensor_errors:
+                        results[key] = (
+                            f"FAIL: sensor_errors empty for no-route table {tbl} — "
+                            f"BC-2.01.010 partial-failure propagation requires sensor_errors "
+                            f"with E-SENSOR-030; DTU-EXT-001/EC-016-013-002"
+                        )
+                    elif not _has_e_sensor_030:
+                        results[key] = (
+                            f"FAIL: sensor_errors present but no E-SENSOR-030 entry for "
+                            f"no-route table {tbl}; sensor_errors={sensor_errors[:2]}"
+                        )
                     else:
-                        results[key] = f"PASS: {len(rows_t)} rows (expected: no DTU route — gap-analysis §4 guardrail #1)"
+                        results[key] = (
+                            f"PASS: sensor_errors contains E-SENSOR-030 for no-route table "
+                            f"{tbl} (BC-2.01.010 partial-failure propagation; "
+                            f"DTU-EXT-001/EC-016-013-002; rows={len(rows_t)})"
+                        )
                 else:
                     # F-AUD-P10-MED-004: data-guaranteed routed tables must return >= 1 row.
                     # Stage 4 is terminal/absorbing for org-c: "org-c seed 200, all 4 sensors,
@@ -3296,15 +3326,14 @@ def run_audit():
                         f"FAIL: E-QUERY-038 but 'not found in table' absent — "
                         f"message-template regression (POL-24); message={msg[:80]!r}"
                     )
-            # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" (E-INT-001) at the
-            # MCP boundary by map_prism_error (error_mapping.rs); this disjunct is future-proofing —
-            # the "Internal error" disjunct handles the live path today.
-            # MED-006: code-first discipline — only treat "Internal error" in msg as regression
-            # evidence when ec is absent (the pre-fix -32000 redacted shape); when ec is present
-            # and non-E-QUERY-038, the unexpected error falls through to the else branch below.
-            elif ec == "E-QUERY-034" or (not ec and "Internal error" in msg):
+            # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" at the
+            # MCP boundary by map_prism_error (error_mapping.rs) as E-INT-001.
+            # fix-burst 39 (TD-VSDD-060 sibling sweep): `(not ec and "Internal error" in msg)`
+            # is a dead branch — parse_envelope sets ec="UNKNOWN" for plain-text ERROR without
+            # an E-code, making `not ec` false; ec="E-INT-001" is the live detection path.
+            elif ec == "E-QUERY-034" or ec == "E-INT-001":
                 results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
-                    f"FAIL: REGRESSION — got {ec!r} / 'Internal error' instead of E-QUERY-038; "
+                    f"FAIL: REGRESSION — got {ec!r} instead of E-QUERY-038; "
                     f"message={msg[:100]!r}"
                 )
             elif body.get("rows") is not None and not ec:
@@ -3352,15 +3381,14 @@ def run_audit():
                         f"FAIL: E-QUERY-038 but 'not found in table' absent — "
                         f"message-template regression (POL-24); message={msg[:80]!r}"
                     )
-            # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" (E-INT-001) at the
-            # MCP boundary by map_prism_error (error_mapping.rs); this disjunct is future-proofing —
-            # the "Internal error" disjunct handles the live path today.
-            # MED-006: code-first discipline — only treat "Internal error" in msg as regression
-            # evidence when ec is absent (the pre-fix -32000 redacted shape); when ec is present
-            # and non-E-QUERY-038, the unexpected error falls through to the else branch below.
-            elif ec == "E-QUERY-034" or (not ec and "Internal error" in msg):
+            # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" at the
+            # MCP boundary by map_prism_error (error_mapping.rs) as E-INT-001.
+            # fix-burst 39 (TD-VSDD-060 sibling sweep): `(not ec and "Internal error" in msg)`
+            # is a dead branch — parse_envelope sets ec="UNKNOWN" for plain-text ERROR without
+            # an E-code, making `not ec` false; ec="E-INT-001" is the live detection path.
+            elif ec == "E-QUERY-034" or ec == "E-INT-001":
                 results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
-                    f"FAIL: REGRESSION — {ec!r} / 'Internal error' instead of E-QUERY-038; "
+                    f"FAIL: REGRESSION — {ec!r} instead of E-QUERY-038; "
                     f"message={msg[:100]!r}"
                 )
             elif body.get("rows") is not None and not ec:
@@ -3851,6 +3879,13 @@ def run_audit():
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             rows = body.get("rows", [])
+            # fix-burst 39 (ITEM 4): extract structured error code for E-INT-001 detection.
+            # parse_envelope attaches _sc_error from structuredContent.error when present;
+            # map_prism_error_meta emits E-INT-001 for internal-redacted errors (error_mapping.rs).
+            # The old `(not ec and "Internal error" in msg)` branch was dead:
+            # parse_envelope sets ec="UNKNOWN" for plain-text ERROR without an E-code, making
+            # `not ec` false. Production-grade fix: check ec == "E-INT-001" OR _sc_code == "E-INT-001".
+            _sc_code = (body.get("_sc_error") or {}).get("code", "")
             if rows:
                 results[_H8_RESULT_KEY] = (
                     f"FAIL: query returned {len(rows)} rows with unknown col (should reject)"
@@ -3861,12 +3896,10 @@ def run_audit():
                     f"HEAD-JOIN fail-open (FP-001) should suppress E-QUERY-038 here"
                 )
             # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" (E-INT-001) at the
-            # MCP boundary by map_prism_error (error_mapping.rs); this disjunct is future-proofing —
-            # the "Internal error" disjunct handles the live path today.
-            # MED-006: code-first discipline — only treat "Internal error" in msg as a
-            # controlled-rejection signal when ec is absent (the -32000 redacted shape);
-            # an unexpected ec that happens to mention "Internal error" must not false-PASS H8.
-            elif ec == "E-QUERY-034" or (not ec and "Internal error" in msg):
+            # MCP boundary by map_prism_error (error_mapping.rs). Accept both direct E-QUERY-034
+            # and E-INT-001 (via ec or structuredContent.error.code) as spec-sanctioned
+            # controlled-rejection outcomes for HEAD-JOIN fail-open (BC-2.11.016 §FP-001).
+            elif ec == "E-QUERY-034" or ec == "E-INT-001" or _sc_code == "E-INT-001":
                 # F-AUD-P1-MED-002: only E-QUERY-034 or Internal error (with no ec) PASSes here.
                 # The former third disjunct `(ec and ec != "E-QUERY-038")` accepted any
                 # error code — removed; unexpected error codes must be investigated.
@@ -4363,10 +4396,14 @@ def run_audit():
             )
         else:
             t_sc = (res_sc.get("contents") or [{}])[0].get("text", "")
-            # MED-005: parse the prismql://schema/org-c response as JSON (delegates to
-            # handle_prism_describe → returns {"tables": [...], ...} per resources/schema.rs).
-            # Substring scan over raw text risks false positives from table descriptions.
-            # Parse → extract table name set → set-difference against required tables.
+            # MED-005 (updated fix-burst 39): parse the prismql://schema/org-c response as
+            # JSON. prismql://schema/{org} delegates to handle_prism_describe which wraps the
+            # response in a ResponseEnvelope: {_meta, results, content, structuredContent}.
+            # Tables live at results.tables — NOT at the outer envelope level (outer .tables
+            # returns [] since the key is absent at that depth). Substring scan over raw text
+            # risks false positives from table descriptions; parse → descend into results.
+            # Assert parity with the A7 tool-path expectation: cyberint_alerts ∈ set AND
+            # len(tables) == 10.
             try:
                 _sc_body = json.loads(t_sc)
                 if not isinstance(_sc_body, dict):
@@ -4375,20 +4412,39 @@ def run_audit():
                         f"got {type(_sc_body).__name__}: {t_sc[:80]!r}"
                     )
                 else:
-                    _sc_tables = {
-                        t.get("name", "") for t in _sc_body.get("tables", [])
-                        if isinstance(t, dict)
-                    }
-                    if "cyberint_alerts" in _sc_tables:
+                    # Envelope shape for prismql://schema/org-c (delegates to
+                    # handle_prism_describe): ResponseEnvelope {_meta, results, content,
+                    # structuredContent} — tables live at results.tables, NOT at the outer
+                    # envelope level. Contrast with H14c (prism://schema/{sensor}/{table})
+                    # which calls render_schema_resource and returns a raw SensorTableDescriptor
+                    # {"columns": [...]} without a results wrapper — do NOT change H14c.
+                    _sc_results = _sc_body.get("results", {})
+                    if not isinstance(_sc_results, dict):
                         results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
-                            f"PASS: prismql://schema/org-c JSON tables array includes "
-                            f"cyberint_alerts (total={len(_sc_tables)} tables)"
+                            f"FAIL: expected 'results' dict in prismql://schema/org-c envelope; "
+                            f"got {type(_sc_results).__name__}: body keys={list(_sc_body.keys())[:6]!r}"
                         )
                     else:
-                        results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
-                            f"FAIL: cyberint_alerts absent from tables array; "
-                            f"tables={sorted(_sc_tables)!r}; body={t_sc[:100]!r}"
-                        )
+                        _sc_tables = {
+                            t.get("name", "") for t in _sc_results.get("tables", [])
+                            if isinstance(t, dict)
+                        }
+                        if "cyberint_alerts" not in _sc_tables:
+                            results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
+                                f"FAIL: cyberint_alerts absent from results.tables array; "
+                                f"tables={sorted(_sc_tables)!r}; body={t_sc[:100]!r}"
+                            )
+                        elif len(_sc_tables) != 10:
+                            results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
+                                f"FAIL: cyberint_alerts present but table count mismatch; "
+                                f"expected 10, got {len(_sc_tables)}; "
+                                f"tables={sorted(_sc_tables)!r}"
+                            )
+                        else:
+                            results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
+                                f"PASS: prismql://schema/org-c results.tables includes "
+                                f"cyberint_alerts; total={len(_sc_tables)} tables (parity with A7 tool-path)"
+                            )
             except (json.JSONDecodeError, ValueError) as _h14s_err:
                 results["[H14s] resources/read: prismql://schema/org-c — cyberint_alerts present"] = (
                     f"FAIL: non-JSON response from prismql://schema/org-c: {_h14s_err}; "
@@ -4617,132 +4673,64 @@ def run_audit():
                     f"keys={list(body.keys())[:6]}"
                 )
 
-        # ── H16: CWE-116/117 — control-char injection sanitized ──────────────
-        # LOW-002: U+2028 (LINE SEPARATOR) and U+2029 (PARAGRAPH SEPARATOR) are category
-        # "Zl"/"Zp" — NOT "Cc" — but sanitize_for_log strips them per E-QUERY-038 spec.
-        # Define once, reused by both H16 and H16b control-char leak checks.
+        # ── H16: Layer-2 E-QUERY-038 gate probe — unquoted nonexistent column ──
+        # fix-burst 39 (ITEM 1): replaced the former control-char column probe.
+        # The previous probe used SELECT "badcolumn\x01" FROM ... (double-quoted ident).
+        # That premise was false: PrismQL grammar parses double-quoted tokens as STRING
+        # LITERALS (filter_parser.rs build_literal_parser double_quoted branch; literal
+        # precedes field_path in build_sql_expr_parser's atom choice). A double-quoted
+        # token never becomes a FieldPath reference — the AST has zero FieldPath nodes
+        # and E-QUERY-038 cannot fire. The ident_char lexer (c.is_ascii_alphanumeric()
+        # || c == '_') also rejects Cc chars in unquoted identifiers before column lookup.
+        # Positive E-QUERY-038 coverage therefore requires an UNQUOTED identifier.
+        # Unit-test coverage of sanitize_for_log exists independently in
+        # crates/prism-core/src/error.rs
+        # (test_sanitize_for_log_strips_unicode_cc_and_line_separators).
+        #
+        # This probe is a positive Layer-2 gate check: verify E-QUERY-038 fires at plan
+        # time for an unquoted nonexistent column, and that the column name is echoed back
+        # via ColumnNotFoundDetails at the MCP boundary.
+        #
+        # PASS requires: structuredContent.error.code == "E-QUERY-038" AND
+        #   "no_such_column_xyz" echoed in the message (ColumnNotFoundDetails echo).
+        #
+        # CONSCIOUS-UPDATE: if the column name or table changes, update this probe and
+        #   the COVERAGE_MATRIX description for [H16].
         _LS_PS = (" ", " ")  # U+2028 / U+2029
-        # Embed a literal U+0001 in a quoted SQL identifier to verify sanitize_for_log strips it.
-        #
-        # Deterministic layer analysis (F-AUD-P11-OBS-002):
-        #   Query: SELECT "badcolumn\x01" FROM crowdstrike_detections LIMIT 3
-        #   Layer 1 — SQL parser: accepts quoted identifiers with arbitrary characters
-        #             (double-quoted ident syntax allows non-alphanumeric chars, including \x01).
-        #   Layer 2 — E-QUERY-038 column gate: "badcolumn\x01" is not in the crowdstrike_detections
-        #             schema → ColumnNotFoundDetails::new fires.
-        #   Layer 3 — sanitize_for_log: ColumnNotFoundDetails::new applies sanitize_for_log
-        #             (prism_core::error::sanitize_for_log) to the column name, stripping U+0001
-        #             → "badcolumn" in the error message.
-        #   This path is deterministic (not environment-dependent) — the SQL parser always
-        #   accepts the quoted ident, the column always fails E-QUERY-038, sanitize_for_log
-        #   always fires at ColumnNotFoundDetails construction.
-        #
-        # PASS requires: "ERROR:" prefix (MCP layer wraps E-QUERY-038 message) AND
-        #   "E-QUERY-038" in text (confirms column gate fired, not a parse/other error) AND
-        #   no raw U+0001 in response (confirms sanitize_for_log stripped it).
-        #
-        # F-AUD-P14-OBS-008 — INTENTIONAL COUPLING: if the SQL parser is deliberately
-        #   hardened to reject control-chars at parse time (E-QUERY-001), update this
-        #   check's expected layer — do not weaken to accept both. This coupling is
-        #   intentional: deliberate parser hardening must cause a conscious update to
-        #   this audit (same philosophy as POL-24 anchor checks).
-        #   Orchestrator adjudication: strict layer coupling retained (LOCAL pass-14,
-        #   reaffirmed pass-16; D-1694 adjudication record in STATE.md decision log).
-        #   Rust unit-test status: sanitize_for_log has unit test coverage in
-        #   crates/prism-core/src/error.rs
-        #   (test_sanitize_for_log_strips_unicode_cc_and_line_separators).
-        ctrl_col = "badcolumn\x01"
-        h16_query = f'SELECT "{ctrl_col}" FROM crowdstrike_detections LIMIT 3'
+        h16_query = "SELECT no_such_column_xyz FROM crowdstrike_detections LIMIT 3"
         rid_h16 = next_id()
         send_msg(proc, {"jsonrpc": "2.0", "id": rid_h16, "method": "tools/call",
                         "params": {"name": "query",
                                    "arguments": {"query": h16_query, "clients": ["org-c"]}}})
         resp_h16, err_h16 = read_msg(proc, timeout=15.0, expected_id=rid_h16)
         if err_h16:
-            results["[H16] CWE-116/117: control-char in column name sanitized"] = f"FAIL: {err_h16}"
+            results["[H16] E-QUERY-038: unknown column gate (Layer-2 positive probe)"] = f"FAIL: {err_h16}"
         else:
-            # LOW-002: extended control-char scan — covers full Unicode Cc category
-            # (E-QUERY-038 sanitize_for_log strips "Unicode Cc + U+2028/U+2029");
-            # the prior ASCII-only check (ord < 0x20 / 0x7F) missed non-ASCII C1
-            # control chars (U+0080–U+009F) and the line/paragraph separators.
-            raw_content = resp_h16.get("result", {}).get("content", []) if resp_h16 else []
-            raw_text = raw_content[0].get("text", "") if raw_content else ""
-            # F-AUD-P30-MED-002: extract error code from structuredContent.error.code
-            # (authoritative MCP error code), falling back to in-band regex extraction.
-            # parse_envelope populates _sc_error from structuredContent.error when present;
-            # build_structured_error_response sets structuredContent.error.code = E-code string.
-            # Source: crates/prism-mcp/src/error_mapping.rs (build_structured_error_response).
             _body_h16, _ = parse_envelope(resp_h16)
             _h16_ec = ((_body_h16.get("_sc_error") or {}).get("code")
                        or _body_h16.get("error_code", ""))
-            # _LS_PS (U+2028/U+2029) defined at H16 section header (_LS_PS constant); used here and H16b.
-            control_chars_found = [c for c in raw_text
-                                    if (unicodedata.category(c) == "Cc" or c in _LS_PS)
-                                    and c not in ("\n", "\r", "\t")]
-            if control_chars_found:
-                results["[H16] CWE-116/117: control-char in column name sanitized"] = (
-                    f"FAIL: raw control chars leaked in response: "
-                    f"{[hex(ord(c)) for c in control_chars_found[:5]]}"
-                )
-            elif _h16_ec == "E-QUERY-038" and "badcolumn" in raw_text and "\x01" not in raw_text:
-                # Deterministic PASS path: SQL parser accepted the quoted ident → E-QUERY-038 fired
-                # → ColumnNotFoundDetails::new applied sanitize_for_log → control char stripped.
-                # Require E-QUERY-038 from structuredContent.error.code (not substring match);
-                # "badcolumn" confirms column name reached error path; no raw \x01 confirms strip.
-                results["[H16] CWE-116/117: control-char in column name sanitized"] = (
+            _h16_msg = _body_h16.get("message", "")
+            if _h16_ec == "E-QUERY-038" and "no_such_column_xyz" in (_h16_msg or ""):
+                results["[H16] E-QUERY-038: unknown column gate (Layer-2 positive probe)"] = (
                     f"PASS: E-QUERY-038 (structuredContent.error.code confirmed); "
-                    f"control-char stripped by sanitize_for_log; "
-                    f"'badcolumn' in response, '\\x01' absent "
-                    f"(CWE-116/117 sanitized — SQL parser accepted quoted ident → E-QUERY-038 column gate); "
-                    f"preview={raw_text[:80]!r}"
+                    f"'no_such_column_xyz' echoed in error message; "
+                    f"Layer-2 column gate verified at MCP boundary"
                 )
-            elif raw_text.startswith("ERROR:"):
-                # F-AUD-P13-OBS-006: ERROR: prefix but not E-QUERY-038 — unexpected error layer
-                # violates the determinism claim (H16 comment §Layer 2 establishes E-QUERY-038 as
-                # the deterministic layer; any other error layer is a spec deviation).
-                # control_chars_found is [] here (the if-branch above caught any leakage).
-                # F-AUD-P29-LOW-003: the "leaked" arm is unreachable — reaching this elif
-                # branch requires control_chars_found to be empty (the preceding if at line
-                # ~4370 handles non-empty); replace dead ternary with literal "clean".
-                _h16_cc_status = "clean"
-                results["[H16] CWE-116/117: control-char in column name sanitized"] = (
-                    f"FAIL: unexpected error layer (determinism claim violated); "
-                    f"expected E-QUERY-038 but got different error type; "
-                    f"control-char status: {_h16_cc_status}; preview={raw_text[:80]!r}"
+            elif _h16_ec == "E-QUERY-038":
+                results["[H16] E-QUERY-038: unknown column gate (Layer-2 positive probe)"] = (
+                    f"FAIL: E-QUERY-038 fired but 'no_such_column_xyz' absent from message — "
+                    f"ColumnNotFoundDetails echo missing; message={_h16_msg[:80]!r}"
                 )
-            elif resp_h16 and "error" in resp_h16:
-                # HIGH-002 (F-AUD-P25): scan the RPC error message channel for control-char
-                # leakage — the error object's "message" and "data" fields are part of the
-                # transport surface and must also be free of Cc + U+2028/29.
-                _h16_rpc_err = resp_h16["error"]
-                _h16_rpc_scan_text = str(_h16_rpc_err.get("message", ""))
-                _h16_rpc_data = _h16_rpc_err.get("data")
-                if isinstance(_h16_rpc_data, str):
-                    _h16_rpc_scan_text += _h16_rpc_data
-                _h16_rpc_cc = [c for c in _h16_rpc_scan_text
-                               if (unicodedata.category(c) == "Cc" or c in _LS_PS)
-                               and c not in ("\n", "\r", "\t")]
-                if _h16_rpc_cc:
-                    results["[H16] CWE-116/117: control-char in column name sanitized"] = (
-                        f"FAIL: control char leaked in RPC error channel (error.message/data): "
-                        f"{[hex(ord(c)) for c in _h16_rpc_cc[:5]]}"
-                    )
-                else:
-                    # RPC-level rejection with clean error channel — acceptable
-                    results["[H16] CWE-116/117: control-char in column name sanitized"] = (
-                        f"PASS: RPC-level rejection; error channel (error.message/data) free of control chars"
-                    )
+            elif _h16_ec:
+                results["[H16] E-QUERY-038: unknown column gate (Layer-2 positive probe)"] = (
+                    f"FAIL: expected E-QUERY-038 for nonexistent column, got {_h16_ec!r}; "
+                    f"message={_h16_msg[:80]!r}"
+                )
             else:
-                # F-AUD-P14-MED-002: remove "well-formed JSON dict without control chars → PASS"
-                # fallback. An unexpected success response on this path means the Layer-2
-                # E-QUERY-038 column gate was bypassed — sanitize_for_log positive coverage
-                # requires the E-QUERY-038 error path. Accepting a successful data envelope
-                # here would mask a layer-bypass regression. Always FAIL.
-                results["[H16] CWE-116/117: control-char in column name sanitized"] = (
-                    f"FAIL: unexpected success response — sanitize_for_log positive coverage "
-                    f"requires the E-QUERY-038 error path; well-formed JSON without error "
-                    f"indicates the Layer-2 column gate was bypassed; "
-                    f"preview={raw_text[:80]!r}"
+                results["[H16] E-QUERY-038: unknown column gate (Layer-2 positive probe)"] = (
+                    f"FAIL: no error returned for nonexistent column — "
+                    f"Layer-2 E-QUERY-038 gate bypassed; "
+                    f"body keys={list(_body_h16.keys())[:6]!r}"
                 )
 
         # ── H16b: CWE-116/117 — control-char in WHERE-predicate value (smoke-only) ──
@@ -5605,7 +5593,7 @@ COVERAGE_MATRIX = [
     ("[H14e]","Resources",     "resources/subscribe + unsubscribe: prismql://schema/org-c (smoke-only: detects hang/panic/transport error; no client-observable subscription state exists — positive-coverage requires mutating notification trigger, excluded by read-only preflight constraint)"),
     ("[H14s]","Resources",     "resources/read: prismql://schema/org-c — cyberint_alerts present (split from H14 composite, F-AUD-P3-MED-004)"),
     ("[H15]", "Tools",         "explain_query live call (one of 14 implemented tools)"),
-    ("[H16]", "Security",      "CWE-116/117: control-char in column name sanitized (sanitize_for_log)"),
+    ("[H16]", "Security",      "E-QUERY-038: unknown column gate — Layer-2 positive probe (unquoted no_such_column_xyz; fix-burst 39: double-quoted ident premise was false — PrismQL parses double-quoted tokens as STRING LITERALS not field paths; sanitize_for_log unit-covered in prism-core error.rs)"),
     ("[H16b]","Security",      "CWE-117: control-char in WHERE-predicate value sanitized (smoke-only: detects Cc leakage in response envelope; forced echo through sanitize_for_log excluded — ident_char lexer rejects Cc chars before column lookup; positive echo coverage by H16)"),
     ("[H17]", "Guardrails",    "E-QUERY-033: limit > 1000 rejected (BC-2.11.001 ceiling)"),
     ("[H18]", "Guardrails",    "E-QUERY-003: oversize query (~80KB) controlled rejection"),
