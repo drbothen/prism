@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.9"
+version: "0.10"
 status: active
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -15,7 +15,7 @@ subsystem: SS-01
 capability: CAP-001
 lifecycle_status: active
 introduced: cycle-3
-modified: []
+modified: "2026-07-13"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -50,7 +50,7 @@ A fetch or write call carrying `OrgId(A)` must not read or modify DTU state entr
 2. `state.write(org_id_A, resource_id, value)` does not modify any entry keyed under `(org_id_B, resource_id)`.
 3. After storing device "dev-1" for orgA and device "dev-1" for orgB (different content), lookup("dev-1", orgA) returns orgA's content and lookup("dev-1", orgB) returns orgB's content — independently and correctly.
 4. A lookup under an OrgId for which no state has ever been written returns the empty/default value for that store type (empty HashSet, None, etc.) — not an error.
-5. **Cross-org query isolation (observable error):** When a `query` MCP tool call is explicitly scoped to org-A (via the `clients` parameter) and the requested sensor is registered in `AdapterRegistry` under a different org but NOT under org-A's `OrgId`, the response MUST be an error envelope containing E-QUERY-032 ("Sensor '{sensor_id}' is not registered for org '{org_slug}'"), NOT a successful empty-result envelope and NOT a redacted "Internal error; see audit log". Zero data rows are returned. No data from any other org's adapter is included. **Rationale:** Swallowing `AdapterNotFound` into `sensor_errors` (the partial-failure path) produces an empty SUCCESS envelope, which is observationally indistinguishable from a successful query that returned no matching rows. AC-012 of S-DEMO-002 and the isolation guarantee of this BC require the condition to be **observably** an error so that a test (and an LLM agent) can distinguish "sensor not available for this org" from "sensor available but returned no data". The surfaced E-QUERY-032 error carries no credential signal and does not violate AD-017 (credential opacity). See error-taxonomy.md §E-QUERY-032 for full surfacing rationale.
+5. **Cross-org query isolation (observable error):** When a `query` MCP tool call is explicitly scoped to org-A (via the `clients` parameter) and the requested sensor is registered in `AdapterRegistry` under a different org but NOT under org-A's `OrgId`, the response MUST be an error envelope containing E-QUERY-032 ("Sensor '{sensor_id}' is not registered for org '{org_slug}'"), NOT a successful empty-result envelope and NOT an opaque MCP `-32000 INTERNAL_ERROR` response (caller-visible message: `"Internal error"`; suggestion: `"See audit log for details."` per BC-2.10.007 message/suggestion split; formerly formatted as `"Internal error; see audit log"` before DEFECT-MCP-ROWSHAPE-NULLS-001 [H8b] 2026-07-13). Zero data rows are returned. No data from any other org's adapter is included. **Rationale:** Swallowing `AdapterNotFound` into `sensor_errors` (the partial-failure path) produces an empty SUCCESS envelope, which is observationally indistinguishable from a successful query that returned no matching rows. AC-012 of S-DEMO-002 and the isolation guarantee of this BC require the condition to be **observably** an error so that a test (and an LLM agent) can distinguish "sensor not available for this org" from "sensor available but returned no data". The surfaced E-QUERY-032 error carries no credential signal and does not violate AD-017 (credential opacity). See error-taxonomy.md §E-QUERY-032 for full surfacing rationale.
 
 ## Invariants
 
@@ -154,6 +154,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.10 | **POL-25/POL-29 sweep — postcondition 5 internal-error message updated to BC-2.10.007 split contract (2026-07-13).** Prior wording said the response must NOT be a redacted `"Internal error; see audit log"`, which pinned the RETIRED all-in-one caller-visible message. DEFECT-MCP-ROWSHAPE-NULLS-001 [H8b] changed the E-INT-001 MCP surface to `"Internal error"` (message) + `"See audit log for details."` (suggestion field) per BC-2.10.007 message/suggestion split. Postcondition 5 updated to reference the new format and note the historical transition. Contract semantics unchanged: the response must be E-QUERY-032, NOT an opaque MCP `-32000 INTERNAL_ERROR` response of any format. Frontmatter `modified: [] → "2026-07-13"`. |
 | v0.9 | **[reconstructed-tombstone]** D-987 (2026-06-04) POL-14 auto-promotion: `status:` field synced draft→active when anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04. `lifecycle_status` was already `active` prior to this row; only the legacy `status:` field was synced. No contract content change. Recorded in BC-INDEX v5.79. |
 | v0.8 | Architect VP catalog evaluation (2026-06-02, `vp_index_is_vp_catalog_source_of_truth`): Added §Verification Properties "Intentional no-VP: Postcondition 5" rationale block. Decision (A): no VP-3.2.001-05 authored. Postcondition 5 is a behavioral/integration property (enforcement site is `async fn resolve_source_refs` with Arc-wrapped registry state); Kani and proptest cannot add proof value beyond the mandatory AC-012 Red Gate integration test (S-DEMO-002) and SID-1 unit test. VP-INDEX.md unchanged. |
 | v0.7 | S-DEMO-002-spec-evolution-CRIT-001 (2026-06-02): Added postcondition 5 (cross-org query isolation — observable error). When a `query` MCP tool call scoped to org-A via `clients` requests a sensor not registered for org-A's OrgId, the response MUST be an E-QUERY-032 error envelope (not a silent empty-success envelope). Added EC-006 (cross-org query returns E-QUERY-032) and EC-007 (same-org query when both orgs have sensor). Added TV-3.2.001-06 (cross-org isolation MCP test vector). Closes S-DEMO-002 LOCAL adversarial CRIT-001: AC-012 matcher contract updated to assert E-QUERY-032 surface (not redacted E-SENSOR-010). Companion changes: error-taxonomy.md v1.58 (E-QUERY-032 definition) + story v1.6 (AC-012 matcher + AC-007 scan-target decision + FSR .config fix). |

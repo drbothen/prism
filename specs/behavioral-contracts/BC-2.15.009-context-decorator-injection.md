@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-15"
 capability: "CAP-026"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-07-10"
+modified: "2026-07-13"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -65,7 +65,7 @@ null fields rather than errors.
   Response structure:
   ```json
   {
-    "events": [
+    "rows": [
       { "_sensor": "crowdstrike", "_client": "acme", "_source_table": "crowdstrike_detections", "_source_type": "live", "severity_id": 4, "device_hostname": "DESKTOP-X" }
     ],
     "_meta": {
@@ -131,6 +131,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | DEFECT-MCP-ROWSHAPE-NULLS-001-events-to-rows | 2026-07-13 | product-owner | **POL-23 sibling sweep — `events` → `rows` in JSON response example.** §Postconditions response example: `"events": [...]` → `"rows": [...]`. The `query` tool response array key was renamed from `events` to `rows` in S-5.01-FOLLOWUP-MCP-BOOT (PR #163); this BC's example retained the old key. Brought into alignment with BC-2.11.001 v1.17 and shipped behavior per human adjudication 2026-07-13 (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-MED-001). Virtual-field injection semantics and all other postconditions UNCHANGED. |
 | 1.5 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / F-CSD-P23-001 POL-29 sweep | 2026-07-10 | product-owner | POL-29 exhaustive sweep: virtual-field enumeration updated throughout to include `_source_type` (4th sensor-table virtual field per BC-2.11.012 v1.11). Changes: (1) §Description: `(_sensor, _client, _source_table)` → `(_sensor, _client, _source_table, and _source_type for sensor tables)`. (2) §Postconditions Virtual fields list: added `_source_type` bullet with sensor-table-only qualifier and EC-11-035 cross-reference. (3) JSON response example: added `"_source_type": "live"` field. (4) §Postconditions invariant note: `(_sensor, _client, _source_table)` → `(_sensor, _client, _source_table, _source_type)` + BC-2.11.012 cross-ref added. (5) §Invariants: `(_sensor, _client, _source_table) CAN be referenced` → `(_sensor, _client, _source_table, _source_type) CAN be referenced` + EC-11-035 internal-table note. |
 | 1.4 | pass-15-remediation | 2026-04-27 | product-owner | `_client` field description updated TenantId → OrgSlug (ADR-006). |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |

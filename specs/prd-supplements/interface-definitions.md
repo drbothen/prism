@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "interface-definitions"
-version: "2.8"
+version: "2.9"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -481,11 +481,11 @@ Configures where Prism resolves a named credential for a given `(client_id, sens
           "total_available": { "type": "integer", "description": "Total matching records before limit truncation." }
         }
       },
-      "events": {
+      "rows": {
         "type": "array",
         "items": {
           "type": "object",
-          "description": "OCSF-normalized event records with virtual fields (sensor, client_id, source)."
+          "description": "OCSF-normalized result records with virtual fields (sensor, client_id, source). Key name is 'rows', not 'events': query results are tabular projections, not raw OCSF event objects (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-MED-001 2026-07-13)."
         }
       },
       "_meta": {
@@ -2936,6 +2936,7 @@ OPTIONS:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.9 | DEFECT-MCP-ROWSHAPE-NULLS-001-events-to-rows | 2026-07-13 | product-owner | **POL-23 sibling sweep — `query` tool response schema key renamed `events` → `rows`.** §1.3 query tool JSON output schema: `"events"` array key updated to `"rows"` per human adjudication 2026-07-13 (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-MED-001). Key name shipped in S-5.01-FOLLOWUP-MCP-BOOT (PR #163); spec sibling brought into alignment with BC-2.11.001 v1.17 and shipped behavior. Description updated: "OCSF-normalized result records" (not "event records") to match the tabular-projection rationale. NOTE: v2.8 changelog row is absent (pre-existing POL-32 gap; row was missing before this amendment). |
 | 2.7 | S-MAINT-ECRED-TAXONOMY-SYNC-001 | 2026-06-07 | product-owner | DF-PASS3-001: corrected mislabeled error code in `credential_status` §1.34 `errors` array — `E-CRED-001 (credential not found)` → `E-CRED-002 (credential not found)`. Canonical namespace per ADR-035 / error-taxonomy.md: E-CRED-001=InvalidCredentialName, E-CRED-002=CredentialNotFound. |
 | 2.6 | F-PreP24-H-001 | 2026-05-03 | architect | Propagated ARCH-INDEX SS-18 canonical name: replaced all 6 occurrences of `(Subsystem 18: Action Engine)` with `(Subsystem 18: Action Delivery Engine)` in §§1.44–1.49 headers (lines 2493, 2537, 2590, 2643, 2682, 2719). POL-6 compliance. |
 | 2.5 | F-PreP22-H-003 | 2026-05-03 | architect | ADR-016 §1.1 canonical type name propagation: replaced `ActionEngine` with `ActionDeliveryEngine` in delete_action §1.49 description (line ~2723). |

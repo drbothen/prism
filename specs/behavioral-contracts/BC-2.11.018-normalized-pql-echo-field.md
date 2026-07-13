@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: active
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -15,7 +15,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: 2026-06-19
-modified: 2026-07-06
+modified: "2026-07-13"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -83,11 +83,11 @@ The `normalized_pql` value should look like a valid PQL query string — somethi
 
 ### Response envelope placement
 
-`normalized_pql` is an ADDITIVE, OPTIONAL field on the `query` tool's JSON response. The existing fields (`results`, `row_count`, `execution_time_ms`, `query_context`, `sensor_errors`, `events`) are UNCHANGED. The new field is appended after the existing fields:
+`normalized_pql` is an ADDITIVE, OPTIONAL field on the `query` tool's JSON response. The existing fields (`results`, `row_count`, `execution_time_ms`, `query_context`, `sensor_errors`, `rows`) are UNCHANGED. The new field is appended after the existing fields:
 
 ```json
 {
-  "events": [...],
+  "rows": [...],
   "row_count": 42,
   "execution_time_ms": 1234,
   "query_context": { "original_query": "...", ... },
@@ -189,6 +189,7 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | DEFECT-MCP-ROWSHAPE-NULLS-001-events-to-rows | 2026-07-13 | product-owner | **POL-23 sibling sweep — `events` → `rows` in response envelope placement example.** §Response envelope placement: updated the existing-field list and the JSON example to use `"rows"` instead of `"events"`. The response array key was renamed from `events` to `rows` in S-5.01-FOLLOWUP-MCP-BOOT (PR #163); this BC's envelope example retained the old key. Brought into alignment with BC-2.11.001 v1.17 and shipped behavior per human adjudication 2026-07-13 (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-MED-001). `normalized_pql` field semantics and all other postconditions UNCHANGED. |
 | 1.3 | S-PRISMQL-CASE-INSENSITIVE-001-bc-burst | 2026-07-06 | product-owner | **ADR-047 D.4 amendment: IEQ/IIN/INE round-trip in `normalized_pql`.** §Postconditions: added "IEQ / IIN / INE round-trip in normalized_pql (ADR-047 D.4)" sub-section — operator keywords uppercased in canonical form; round-trip guarantee applies to `case_insensitive: true` AST flag. §Edge Cases: EC-11-057 added (`severity ieq 'high'` → `normalized_pql` contains `severity IEQ 'high'` uppercase; round-trip parses same AST). inputs: ADR-047 added. |
 | 1.2 | F-001B-SCFRESH-MED-001-story-anchor-fix | 2026-06-22 | product-owner | F-001B-SCFRESH-MED-001 closure (POL-4 story-anchor mis-anchoring): `## Story Anchor` corrected from placeholder `S-5.04 (or dedicated ADR-041 teaching story — to be assigned by story-writer)` to the actual implementing story `S-DEMO-PRISMQL-ONBOARDING-001-B`. Exhaustive BC metadata audit: all other surfaces clean. |
 | 1.1 | F-001B-FRESH2-MED-001-pol20-normalization | 2026-06-22 | product-owner | POL-20 normalization: `introduced: ADR-041-teaching-burst-2026-06-19` → `introduced: 2026-06-19` (opaque burst-ID format prohibited by POL-20 anchored-regex; ISO date extracted). Also set `modified: 2026-06-22` (first amendment; POL-27). No body semantics changed. |
