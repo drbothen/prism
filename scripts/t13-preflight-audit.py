@@ -344,6 +344,11 @@ def parse_envelope(resp):
     if not isinstance(envelope, dict):
         return {}, f"envelope non-dict JSON: {type(envelope).__name__}: {text[:80]!r}"
     results_body = envelope.get("results", {})
+    # F-AUD-P35-OBS-001: guard against non-dict envelope 'results' (null/list/scalar from
+    # malformed server response would TypeError on subscript/mutate below; mirrors sibling
+    # dict-guards for _res, content[0], and envelope earlier in this function).
+    if not isinstance(results_body, dict):
+        return {}, f"non-dict envelope 'results': {type(results_body).__name__}"
     # F-AUD-P16-MED-002: attach _sc_error on the JSON-envelope path as well.
     if isinstance(sc_err_obj, dict):
         results_body["_sc_error"] = sc_err_obj
@@ -777,6 +782,12 @@ def run_audit():
                     f"(5 expected, 5 present); {sorted(prompt_names)}"
                 )
 
+        # F-AUD-P35-OBS-002: hoist list_capabilities(org-c) body so A6 can reuse it without
+        # a redundant tool call (single fetch, shared by A5+A6; mirrors _describe_org_c_body
+        # pattern used by A7/A9/A10). Initialized empty; set inside A5's no-err/no-error_code
+        # branch. A6 falls back to re-call if A5 had an error or error_code.
+        _listcaps_org_c_body: dict = {}
+
         # ── A5: list_capabilities: D-1312 MAJOR-001 client_registered=true ──
         body, err = tool_call(proc, "list_capabilities", {"client_id": "org-c"})
         if err:
@@ -784,6 +795,8 @@ def run_audit():
         elif body.get("error_code"):
             results["[A5] MAJOR-001: list_capabilities client_registered=true"] = f"FAIL: {body['error_code']}: {body.get('message','')[:80]}"
         else:
+            # F-AUD-P35-OBS-002: cache positive-probe body for A6 reuse (no err, no error_code).
+            _listcaps_org_c_body = body
             client_registered = body.get("client_registered", "MISSING")
             if client_registered is not True:
                 results["[A5] MAJOR-001: list_capabilities client_registered=true"] = f"FAIL: client_registered={client_registered!r}"
@@ -824,7 +837,13 @@ def run_audit():
         #   not_registered_tools: [...] (renamed from not_implemented)
         # "enabled_count" is a cross-client summary field (null client_id mode) — it
         # does NOT appear in single-client mode entries and is irrelevant here.
-        body, err = tool_call(proc, "list_capabilities", {"client_id": "org-c"})
+        # F-AUD-P35-OBS-002: reuse A5 positive-probe body (single fetch, shared by A5+A6;
+        # mirrors _describe_org_c_body pattern). Falls back to re-call if A5 had an error
+        # or error_code, so A6 still yields a proper FAIL in those paths.
+        if _listcaps_org_c_body:
+            body, err = _listcaps_org_c_body, None
+        else:
+            body, err = tool_call(proc, "list_capabilities", {"client_id": "org-c"})
         if err:
             results["[A6] list_capabilities tri-state model fields"] = f"FAIL: {err}"
         elif body.get("error_code"):
