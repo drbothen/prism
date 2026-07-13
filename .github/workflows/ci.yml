@@ -243,6 +243,76 @@ jobs:
           path: crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx
           retention-days: 7
 
+  wasm32-threatintel-staleness-check:
+    name: ThreatIntel .prx staleness guard (F-MCPNULL-P2-OBS-002)
+    # F-MCPNULL-P2-OBS-002 closure: the committed threatintel-lookup.prx must stay in sync
+    # with its source crate (crates/plugins/prism-threatintel-infusion). This job rebuilds
+    # the .prx from source and compares its SHA-256 against the committed artifact. The build
+    # is byte-reproducible on the same toolchain (verified 2026-07-13). A mismatch means the
+    # committed .prx is stale — run `just build-plugin-threatintel-infusion` and commit.
+    #
+    # Job structure mirrors wasm32-compile-check (crowdstrike-oauth2 gate):
+    # same toolchain (wasm32-wasip1), same wasm-tools version (1.248.0), same just install.
+    # Extends with SHA-256 staleness comparison absent from the crowdstrike job.
+    needs: clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          targets: wasm32-wasip1
+      # Separate shared-key from wasm32-compile-check to avoid cache namespace collision.
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: wasm32-threatintel-staleness-check
+      - name: Check prism-threatintel-infusion compiles for wasm32-wasip1
+        run: |
+          cargo check --target wasm32-wasip1 -p prism-threatintel-infusion \
+            --manifest-path crates/plugins/prism-threatintel-infusion/Cargo.toml
+          echo "F-MCPNULL-P2-OBS-002: wasm32-wasip1 compile check PASSED — prism-threatintel-infusion compiled successfully"
+      # Pin to 1.248.0 — matches the version used to build the committed .prx and WASI adapter.
+      - name: Install wasm-tools 1.248.0
+        run: |
+          WASM_TOOLS_VERSION="1.248.0"
+          curl -fsSL "https://github.com/bytecodealliance/wasm-tools/releases/download/v${WASM_TOOLS_VERSION}/wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux.tar.gz" \
+            | tar -xz --strip-components=1 -C /usr/local/bin wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux/wasm-tools
+          wasm-tools --version
+      - name: Install just
+        uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+        with:
+          tool: just
+      # Staleness guard: save committed SHA before the build overwrites the file.
+      - name: Save committed threatintel-lookup.prx SHA-256
+        run: |
+          COMMITTED_SHA=$(sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx | cut -d' ' -f1)
+          echo "COMMITTED_SHA=$COMMITTED_SHA" >> "$GITHUB_ENV"
+          echo "F-MCPNULL-P2-OBS-002: committed SHA-256 = $COMMITTED_SHA"
+      - name: Build threatintel-lookup.prx
+        run: |
+          just build-plugin-threatintel-infusion
+          echo "F-MCPNULL-P2-OBS-002: threatintel-lookup.prx built successfully"
+          ls -la crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
+      # Staleness gate: fail if the rebuilt .prx differs from the committed one.
+      - name: Verify threatintel-lookup.prx is not stale
+        run: |
+          REBUILT_SHA=$(sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx | cut -d' ' -f1)
+          echo "committed SHA-256: $COMMITTED_SHA"
+          echo "rebuilt   SHA-256: $REBUILT_SHA"
+          if [ "$COMMITTED_SHA" != "$REBUILT_SHA" ]; then
+            echo "::error::F-MCPNULL-P2-OBS-002 STALENESS: committed threatintel-lookup.prx does not match rebuilt artifact."
+            echo "::error::Run 'just build-plugin-threatintel-infusion' locally and commit the updated .prx before merging."
+            exit 1
+          fi
+          echo "F-MCPNULL-P2-OBS-002 PASS: committed threatintel-lookup.prx matches rebuilt artifact (SHA-256 $REBUILT_SHA)"
+      - name: Upload threatintel-lookup.prx artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: threatintel-lookup-prx
+          path: crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
+          retention-days: 7
+
   deny:
     name: Cargo deny (license + advisory)
     # Optimization 2: parallel with test — was: needs: test (chained through slowest job).
@@ -1280,4 +1350,13 @@ jobs:
             exit 1
           }
           echo 'S-DEMO-003 AC-014 reachability check passed: shellcheck-demo-scripts job present.'
-          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 reachability assertions pass.'
+          # F-MCPNULL-P2-OBS-002 reachability assertion:
+          # The wasm32-threatintel-staleness-check job is the SOLE CI gate enforcing that the
+          # committed threatintel-lookup.prx stays in sync with its source crate. A future PR
+          # removing this job block would silently allow the committed .prx to drift stale.
+          grep -qE 'wasm32-threatintel-staleness-check' .github/workflows/ci.yml || {
+            echo "::error::F-MCPNULL-P2-OBS-002: 'wasm32-threatintel-staleness-check' job is missing from ci.yml — threatintel-lookup.prx staleness gate removed (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P2-OBS-002)"
+            exit 1
+          }
+          echo 'F-MCPNULL-P2-OBS-002 reachability check passed: wasm32-threatintel-staleness-check job present.'
+          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 reachability assertions pass.'

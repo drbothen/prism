@@ -97,6 +97,11 @@ just build-plugin-threatintel-infusion
 sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
 ```
 
+**CI enforcement:** The `wasm32-threatintel-staleness-check` job in `.github/workflows/ci.yml`
+rebuilds the `.prx` on every CI run and fails if the rebuilt SHA-256 differs from the
+committed artifact (F-MCPNULL-P2-OBS-002). A PR that updates plugin source without
+recommitting the rebuilt `.prx` will be blocked at CI.
+
 **Reproducibility status:** The build is **byte-for-byte reproducible** on the same
 toolchain and host. Verified 2026-07-13: rebuild from the committed
 `prism_threatintel_infusion.wasm` core module against the committed
