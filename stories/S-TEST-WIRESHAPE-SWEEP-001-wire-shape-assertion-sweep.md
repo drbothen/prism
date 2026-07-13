@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.6"
-spec_version: "v0.6"
+version: "0.7"
+spec_version: "v0.7"
 level: ops
 producer: story-writer
 timestamp: "2026-07-13"
@@ -31,7 +31,7 @@ subsystems: [SS-10, SS-11]
 # Subsystem anchor justifications:
 #   SS-10 (MCP Interface) owns the 14 LIVE_TOOLS and 6 resources in prism-mcp/src/.
 #   SS-11 (Query Execution Engine) co-owns because BC-2.11.001 governs query tool
-#   row-shape (explicit_nulls) — the root cause of [C3] and [H20] escapes.
+#   row-shape (with_explicit_nulls) — the root cause of [C3] and [H20] escapes.
 #   SS-10 is primary (all surfaces touched are MCP-layer); SS-11 is co-owner for the
 #   query tool row-shape assertion subset.
 crates_touched:
@@ -110,7 +110,7 @@ This story establishes SID-2 as a standing implementer discipline to be added to
 > 3. **Explicit-null key presence (EC-11-068)** — for each entry in `structuredContent.results.rows`, assert that
 >    every projected column key is present in every row. For NULL-valued cells, assert
 >    the row has `"column_name": null`, not merely that the row parses without error.
->    The `WriterBuilder.explicit_nulls(true)` invariant (BC-2.11.001 v1.18) must be
+>    The `WriterBuilder.with_explicit_nulls(true)` invariant (BC-2.11.001 v1.18) must be
 >    exercised by at least one test.
 > 4. **Error-code anchor presence** — for error responses, assert `structuredContent.error.code`
 >    matches the expected `E-XXX-NNN` string from the taxonomy. Asserting `isError: true` or
@@ -135,7 +135,7 @@ audit stage.
 
 | BC | Title | Version | Relevance |
 |----|-------|---------|-----------|
-| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | v1.18 | Postcondition: row-shape null-not-absent — `WriterBuilder.explicit_nulls(true)` required; EC-11-068 (NULL column → key present as `null`). Primary anchor for AC-002. |
+| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | v1.18 | Postcondition: row-shape null-not-absent — `WriterBuilder.with_explicit_nulls(true)` required; EC-11-068 (NULL column → key present as `null`). Primary anchor for AC-002. |
 | BC-2.10.007 | Structured Error Responses | v1.11 | Postcondition: nested wire shape with 9 required fields; `retry_after_seconds: null` (not absent) for non-rate-limit errors. Primary anchor for AC-003 and all error-path ACs. |
 
 ## Acceptance Criteria
@@ -163,8 +163,8 @@ fixture that returns at least one row with a NULL-valued column (e.g., `sensor_i
 Implementation: call the `query` tool handler, serialize the result to `serde_json::Value`,
 walk `result["structuredContent"]["results"]["rows"]`, assert each row has the projected column key.
 
-Red Gate: before the `WriterBuilder.explicit_nulls(true)` fix ships (if not already applied
-by DEFECT-MCP-ROWSHAPE-NULLS-001), this test fails with the column key absent from null rows.
+Red Gate: the `WriterBuilder.with_explicit_nulls(true)` fix has landed in DEFECT-MCP-ROWSHAPE-NULLS-001
+(pending merge). On a build without that fix this test fails with the column key absent from null rows.
 
 `test_BC_2_11_001_query_tool_enrich_null_column_key_present` — pipe-mode `| enrich` query
 where the enrichment UDF returns NULL for some rows. Asserts the enriched column key is
@@ -289,7 +289,7 @@ Three tests, one per template:
 | Component | Module | Pure/Effectful |
 |-----------|--------|---------------|
 | `wire_shape.rs` test module (new) | `crates/prism-mcp/tests/wire_shape.rs` | Effectful (integration tests; drives tool handlers via DTU fixture) |
-| `query` tool handler | `crates/prism-mcp/src/tools/query.rs` | Effectful (existing; `.explicit_nulls(true)` fix may be in DEFECT story) |
+| `query` tool handler (`PrismServer::query`) | `crates/prism-mcp/src/server.rs` | Effectful (existing; `.with_explicit_nulls(true)` fix landed in DEFECT-MCP-ROWSHAPE-NULLS-001, pending merge). Note: `tools/query.rs` is a documentation facade with no handler code. |
 | `prism_describe` handler | `crates/prism-mcp/src/tools/prism_describe.rs` | Effectful (existing) |
 | `check_sensor_health` handler | `crates/prism-mcp/src/tools/sensor_health.rs` | Effectful (existing) |
 | Resource dispatch | `crates/prism-mcp/src/server.rs` + `resources.rs` | Effectful (existing) |
@@ -343,8 +343,8 @@ is large, split by loading only the tool-handler test utilities, not the full fi
 - [ ] Add `### SID-2` to CLAUDE.md §Standing Adversary Probes & Implementer Disciplines immediately after SID-1 (full definition from §Origin above). Commit this change in the same PR.
 - [ ] Create `crates/prism-mcp/tests/wire_shape.rs` (new file). Add all 20 Red Gate tests (AC-002 through AC-012, counting sub-tests).
 - [ ] Run `cargo nextest run -p prism-mcp -E 'test(wire_shape)'` — confirm all tests fail RED before production changes (TDD strict mode per BC-5.38.001).
-- [ ] If DEFECT-MCP-ROWSHAPE-NULLS-001 has not yet merged: AC-002's `explicit_nulls` tests will be RED; they are the TDD Red Gate for that defect fix. Confirm the fix is either in scope of this story or deferred to DEFECT-MCP-ROWSHAPE-NULLS-001 with a story dependency note.
-- [ ] Implement any missing production changes needed to make tests GREEN (likely limited to `explicit_nulls(true)` if not already applied).
+- [ ] DEFECT-MCP-ROWSHAPE-NULLS-001 has landed the `with_explicit_nulls(true)` fix (pending merge). AC-002's `with_explicit_nulls` tests will be RED on a build without that branch and GREEN after merge. No in-scope production change needed for this story on this point.
+- [ ] Implement any missing production changes needed to make tests GREEN (the `with_explicit_nulls(true)` fix is handled by DEFECT-MCP-ROWSHAPE-NULLS-001; ensure that branch is merged before running AC-002 tests in this story's CI).
 - [ ] Run `just iter prism-mcp` — full crate test suite GREEN.
 - [ ] Run `just check` (full workspace) before declaring done.
 - [ ] Update `acceptance_criteria_count`, `red_gate_tests` frontmatter fields if test count changes during implementation.
@@ -363,9 +363,9 @@ context from the AUDIT-COVERAGE-001 cascade:
 - BC-2.10.007 v1.8 already specified the null-not-absent pattern for `retry_after_seconds`; this
   story adds tests that confirm the pattern is enforced at the wire level.
 - DEFECT-MCP-ROWSHAPE-NULLS-001 (concurrent worktree) is the PRODUCT defect fix for the
-  `explicit_nulls(true)` issue. This story is the TEST coverage companion. Coordinate merge
-  order: the Red Gate tests from this story should go RED on a build without the defect fix
-  and GREEN after.
+  `with_explicit_nulls(true)` issue. That fix has landed (pending merge). This story is the
+  TEST coverage companion. The Red Gate tests from this story will be RED on a build without
+  DEFECT-MCP-ROWSHAPE-NULLS-001 merged and GREEN after.
 - S-AUDIT-URI-VALIDATION-001 (draft, maintenance epic) targets MCP resource URI validation;
   it does not overlap with the wire-shape assertions in this story.
 
@@ -381,7 +381,7 @@ context from the AUDIT-COVERAGE-001 cascade:
 - **No `unwrap()` in test helpers:** Use `expect("…")` with descriptive messages for test
   assertions to produce useful failure output when a field is missing.
 - **TD-VSDD-091:** Cite function names (`build_resource_list`, `dispatch_read_resource`,
-  `explicit_nulls`), NOT `file.rs:NNN` line numbers, in test comments.
+  `with_explicit_nulls`), NOT `file.rs:NNN` line numbers, in test comments.
 - **Forbidden dependencies:** `prism-mcp` MUST NOT gain new dependencies on `prism-query` or
   `prism-sensors` crates. Test-only imports must be gated `#[cfg(test)]`.
 - **SAP-1:** No new `event_type =` tracing emissions are expected in this story. If test
@@ -413,7 +413,7 @@ or `prism-sensors` crates in production code. Test files may use DTU harness cra
 |------|--------|-------|
 | `crates/prism-mcp/tests/wire_shape.rs` | Create | New file containing all 20 wire-shape Red Gate tests (AC-002 through AC-012) |
 | `CLAUDE.md` | Modify | Add `### SID-2` section after `### SID-1` in §Standing Adversary Probes & Implementer Disciplines |
-| `crates/prism-mcp/src/tools/query.rs` | Modify (if not done by DEFECT story) | Ensure `WriterBuilder.explicit_nulls(true)` at all RecordBatch-to-JSON serialization sites in query response path |
+| `crates/prism-mcp/src/server.rs` (`PrismServer::query`) | No code change needed (fix landed in DEFECT-MCP-ROWSHAPE-NULLS-001, pending merge) | `WriterBuilder.with_explicit_nulls(true)` already applied at all RecordBatch-to-JSON serialization sites. Note: `tools/query.rs` is a documentation facade with no handler code. |
 | `crates/prism-mcp/tests/mod.rs` (or `lib.rs`) | Modify | Register `wire_shape` module if `tests/` uses explicit module declarations |
 
 ## Changelog
@@ -426,3 +426,4 @@ or `prism-sensors` crates in production code. Test files may use DTU harness cra
 | v0.4 | 2026-07-13 | Pin refresh (POL-23): BC-2.10.007 v1.10→v1.11 (Rule-1 exhaustive carve-out + McpSerializationError category ruling — additive/clarifying; cited postconditions unchanged in substance). | POL-23; DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P7-MED-001/OBS-002 |
 | v0.5 | 2026-07-13 | Retired key `structuredContent.events` → canonical `structuredContent.rows` at 6 sites: §Origin [H20] narrative (line ~77 wire-level key, line ~82 dotpath), SID-2 step-3 definition (line ~110), AC-002 assertion prose (line ~162), AC-002 implementation instruction (line ~164), Previous Story Intelligence narrative (line ~360). Canonical key per BC-2.11.001 v1.18 / shipped server.rs payload. | F-MCPNULL-P8-MED-001 (pass-8); POL-25 full-file sweep |
 | v0.6 | 2026-07-13 | Corrected dotpath depth at 4 sites: `structuredContent.rows` → `structuredContent.results.rows` (§Origin [H20] line ~82; SID-2 step-3 line ~110; AC-002 assertion prose line ~162) and `result["structuredContent"]["rows"]` → `result["structuredContent"]["results"]["rows"]` (AC-002 implementation instruction line ~164). Verified via grep: `structuredContent\.rows` and `structuredContent\["rows"\]` — 0 remaining instances after this pass. Wire path confirmed from `envelope_json` helper (`structured_content` field) + test navigation `v["results"]["rows"]` in DEFECT-MCP-ROWSHAPE-NULLS-001 worktree. Correction note for v0.5 arithmetic: v0.5 claimed '6 sites' but grep-verifiable dotpath count is 4 (the 4 sites fixed here); the two other v0.5 entries ('line ~77 wire-level key' and 'Previous Story Intelligence line ~360') were converted to neutral/non-dotpath prose in v0.5 rather than to `structuredContent.rows`, so they were not surviving dotpath instances — accurate v0.5 dotpath site count was 4, not 6. | F-MCPNULL-P9-MED-001 + OBS-002 (pass-9) |
+| v0.7 | 2026-07-13 | API-name propagation (F-MCPNULL-P10-OBS-001): replaced `explicit_nulls(true)` / `WriterBuilder.explicit_nulls(true)` with `with_explicit_nulls(true)` at all 10 sites (frontmatter comment ~line 34; SID-2 step-3 ~line 113; Behavioral Contracts table ~line 138; AC-002 Red Gate note ~lines 166-167; Architecture Mapping ~line 292; Tasks ~lines 346-347; Previous Story Intelligence ~line 366; Architecture Compliance Rules ~line 384; File Structure Requirements ~line 416). Anchor correction (F-MCPNULL-P10-OBS-002): re-anchored query-tool handler from `tools/query.rs` (documentation facade) to `server.rs::PrismServer::query` in Architecture Mapping (~line 292) and File Structure Requirements (~line 416). Updated all DEFECT story hedges ("may be in DEFECT story" / "if not done by DEFECT story") to reflect fix landed in DEFECT-MCP-ROWSHAPE-NULLS-001, pending merge. | F-MCPNULL-P10-OBS-001/002 (pass-10) |
