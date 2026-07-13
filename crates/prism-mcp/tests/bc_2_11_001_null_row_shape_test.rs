@@ -7,7 +7,7 @@
 //!
 //! Spec authority:
 //! - BC-2.11.001 v1.16 §Postconditions "Row-shape null-not-absent" bullet
-//! - EC-11-068: every row must contain all schema keys; NULL cells → `{"sensor_ip":null}`
+//! - EC-11-079: every row must contain all schema keys; NULL cells → `{"sensor_ip":null}`
 //!   not absent
 //! - Canonical test vector (BC-2.11.001 §Test Vectors):
 //!   `SELECT severity, sensor_ip FROM crowdstrike_alerts` where some rows have
@@ -18,8 +18,8 @@
 //!
 //! | Test | BC clause | Fails NOW because |
 //! |---|---|---|
-//! | `test_BC_2_11_001_EC_11_068_null_column_value_serialized_as_json_null_not_absent` | EC-11-068 | `WriterBuilder::new()` omits NULL key from row JSON |
-//! | `test_BC_2_11_001_EC_11_068_every_row_contains_all_schema_column_keys` | EC-11-068 invariant | NULL row is missing `sensor_ip` key |
+//! | `test_BC_2_11_001_EC_11_079_null_column_value_serialized_as_json_null_not_absent` | EC-11-079 | `WriterBuilder::new()` omits NULL key from row JSON |
+//! | `test_BC_2_11_001_EC_11_079_every_row_contains_all_schema_column_keys` | EC-11-079 invariant | NULL row is missing `sensor_ip` key |
 //! | `test_BC_2_11_001_canonical_test_vector_select_severity_sensor_ip_null_rows` | BC-2.11.001 canonical test vector | Row 1 (`severity=medium, sensor_ip=NULL`) missing `sensor_ip` key |
 //!
 //! These tests FAIL against current code.
@@ -208,7 +208,7 @@ mod tests {
             ColumnSpec::new("sensor_ip", ColumnType::String, None, vec![]),
         ];
 
-        // Deterministic OrgId (EC-11-068 sentinel byte: 0x68 = 'h' for "null row sHape").
+        // Deterministic OrgId (EC-11-079 sentinel byte: 0x68 = 'h' for "null row sHape").
         let org_id = OrgId::from_uuid(uuid::Uuid::from_bytes([
             0x01, 0x9f, 0x3a, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x68,
@@ -266,7 +266,7 @@ mod tests {
     // DEFECT 1 tests — ALL FAIL against current code
     // =========================================================================
 
-    /// BC-2.11.001 v1.16 EC-11-068: a row with a NULL-valued column must serialize
+    /// BC-2.11.001 v1.16 EC-11-079: a row with a NULL-valued column must serialize
     /// the column key with JSON `null`, NOT omit the key entirely.
     ///
     /// FAILS NOW: `WriterBuilder::new()` uses `explicit_nulls=false` (default). The NULL
@@ -274,7 +274,7 @@ mod tests {
     ///
     /// PASSES after: `.with_explicit_nulls(true)` added to `WriterBuilder` in `server.rs`.
     #[tokio::test]
-    async fn test_BC_2_11_001_EC_11_068_null_column_value_serialized_as_json_null_not_absent() {
+    async fn test_BC_2_11_001_EC_11_079_null_column_value_serialized_as_json_null_not_absent() {
         let server = make_server_with_returning_null_adapter();
         let result = server
             .query(Parameters(query_params(
@@ -306,23 +306,23 @@ mod tests {
                  (Row 1: severity=medium, sensor_ip=NULL from ReturnsNullRowsAdapter)",
             );
 
-        // EC-11-068: the key MUST be present (not absent) with JSON null as its value.
+        // EC-11-079: the key MUST be present (not absent) with JSON null as its value.
         assert!(
             null_row.get("sensor_ip").is_some(),
-            "EC-11-068 VIOLATION: NULL-valued 'sensor_ip' column must appear as \
+            "EC-11-079 VIOLATION: NULL-valued 'sensor_ip' column must appear as \
              `\"sensor_ip\": null` in the row JSON — the key must NOT be absent. \
              Current defect: WriterBuilder::new() uses explicit_nulls=false, which \
              omits the key. Fix: .with_explicit_nulls(true). Got row: {null_row}"
         );
         assert!(
             null_row["sensor_ip"].is_null(),
-            "EC-11-068: 'sensor_ip' key is present but its value must be JSON null; \
+            "EC-11-079: 'sensor_ip' key is present but its value must be JSON null; \
              got: {}",
             null_row["sensor_ip"]
         );
     }
 
-    /// BC-2.11.001 v1.16 EC-11-068 invariant: EVERY row must contain ALL projected
+    /// BC-2.11.001 v1.16 EC-11-079 invariant: EVERY row must contain ALL projected
     /// column keys, regardless of whether their values are NULL.
     ///
     /// Key-completeness invariant: the set of keys in each row object must equal the
@@ -331,7 +331,7 @@ mod tests {
     /// FAILS NOW: the NULL row (Row 1) has only `"severity"` key — `"sensor_ip"` is
     /// absent, violating the invariant.
     #[tokio::test]
-    async fn test_BC_2_11_001_EC_11_068_every_row_contains_all_schema_column_keys() {
+    async fn test_BC_2_11_001_EC_11_079_every_row_contains_all_schema_column_keys() {
         let server = make_server_with_returning_null_adapter();
         let result = server
             .query(Parameters(query_params(
@@ -351,13 +351,13 @@ mod tests {
             "expected exactly 3 rows from the stub adapter"
         );
 
-        // EC-11-068 invariant: every row must have BOTH projected keys.
+        // EC-11-079 invariant: every row must have BOTH projected keys.
         let required_keys = ["severity", "sensor_ip"];
         for (i, row) in rows.iter().enumerate() {
             for key in &required_keys {
                 assert!(
                     row.get(*key).is_some(),
-                    "EC-11-068 VIOLATION at row {i}: projected column '{key}' is ABSENT \
+                    "EC-11-079 VIOLATION at row {i}: projected column '{key}' is ABSENT \
                      from row object. Every row must contain all schema column keys even \
                      when the value is NULL. Got row {i}: {row}"
                 );
@@ -442,7 +442,7 @@ mod tests {
         // LocalLookup + no source config → load_spec wires NullSource (always returns None).
         let spec = InfusionSpec::new(
             "null_enrich_spec",
-            "Null enrichment stub — EC-11-068 AC-b regression lock",
+            "Null enrichment stub — EC-11-079 AC-b regression lock",
             InfusionType::LocalLookup,
             vec![InfusionField::new(
                 "null_enrich_udf", // per-field UDF name registered in DataFusion
@@ -484,7 +484,7 @@ mod tests {
         ];
 
         // Same deterministic OrgId as `make_server_with_returning_null_adapter` —
-        // EC-11-068 sentinel byte 0x68 = 'h' for "null row sHape".
+        // EC-11-079 sentinel byte 0x68 = 'h' for "null row sHape".
         let org_id = OrgId::from_uuid(uuid::Uuid::from_bytes([
             0x01, 0x9f, 0x3a, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x68,
@@ -523,10 +523,10 @@ mod tests {
     }
 
     // =========================================================================
-    // Filter-mode EC-11-068 regression lock
+    // Filter-mode EC-11-079 regression lock
     // =========================================================================
 
-    /// BC-2.11.001 v1.17 EC-11-068 filter-mode lock: in filter-mode queries
+    /// BC-2.11.001 v1.17 EC-11-079 filter-mode lock: in filter-mode queries
     /// (`crowdstrike_alerts | predicate`), NULL-valued column keys must appear as
     /// JSON `null` in every row — the invariant applies to all three query modes
     /// (SQL, pipe, filter).
@@ -555,7 +555,7 @@ mod tests {
     ///   `SELECT * FROM crowdstrike_alerts WHERE severity != 'notexist_severity'`
     /// Returning all columns (severity, sensor_ip) for all 3 rows.
     #[tokio::test]
-    async fn test_BC_2_11_001_EC_11_068_filter_mode_null_column_serialized_as_json_null_not_absent()
+    async fn test_BC_2_11_001_EC_11_079_filter_mode_null_column_serialized_as_json_null_not_absent()
     {
         let server = make_server_with_returning_null_adapter();
         let result = server
@@ -586,14 +586,14 @@ mod tests {
             rows.len()
         );
 
-        // EC-11-068 invariant: every row must contain ALL projected column keys.
+        // EC-11-079 invariant: every row must contain ALL projected column keys.
         // In filter mode, `SELECT * FROM crowdstrike_alerts WHERE ...` projects all columns.
         let required_keys = ["severity", "sensor_ip"];
         for (i, row) in rows.iter().enumerate() {
             for key in &required_keys {
                 assert!(
                     row.get(*key).is_some(),
-                    "EC-11-068 VIOLATION (filter mode) at row {i}: projected column '{key}' \
+                    "EC-11-079 VIOLATION (filter mode) at row {i}: projected column '{key}' \
                      is ABSENT from row object. Filter-mode NULL-valued column keys must \
                      serialize as JSON null (key present), not be omitted. \
                      Got row {i}: {row}"
@@ -608,12 +608,12 @@ mod tests {
             .expect("expected to find severity='medium' row (Row 1, sensor_ip=NULL)");
         assert!(
             null_row.get("sensor_ip").is_some(),
-            "EC-11-068 filter-mode: NULL sensor_ip key must be PRESENT (not absent) for Row 1 \
+            "EC-11-079 filter-mode: NULL sensor_ip key must be PRESENT (not absent) for Row 1 \
              (severity=medium). Got row: {null_row}"
         );
         assert!(
             null_row["sensor_ip"].is_null(),
-            "EC-11-068 filter-mode: sensor_ip key must be JSON null for Row 1; \
+            "EC-11-079 filter-mode: sensor_ip key must be JSON null for Row 1; \
              got: {}",
             null_row["sensor_ip"]
         );
@@ -644,7 +644,7 @@ mod tests {
     /// - Row 1 (sensor_ip=NULL): `invoke_async_with_args` null-input short-circuit → NULL
     ///   (ADR-051 §D4 path; source is NOT called).
     /// - All 3 rows: `null_enrich_udf` column is an all-NULL `StringArray` in the RecordBatch.
-    /// - EC-11-068 invariant: every row must contain all projected keys (severity, sensor_ip,
+    /// - EC-11-079 invariant: every row must contain all projected keys (severity, sensor_ip,
     ///   null_enrich_udf) regardless of nullability.
     #[tokio::test]
     async fn test_BC_2_11_001_AC_b_enrich_stage_null_udf_result_serialized_as_json_null_not_absent()
@@ -672,7 +672,7 @@ mod tests {
             rows.len()
         );
 
-        // EC-11-068 invariant: every row must contain ALL projected column keys.
+        // EC-11-079 invariant: every row must contain ALL projected column keys.
         // For a pipe | enrich query, the columns are: severity, sensor_ip, null_enrich_udf.
         // `null_enrich_udf` is an all-NULL StringArray — the bug omits its key; the fix
         // serializes it as `"null_enrich_udf": null`.
@@ -681,7 +681,7 @@ mod tests {
             for key in &required_keys {
                 assert!(
                     row.get(*key).is_some(),
-                    "EC-11-068 / BC-2.11.001 AC-b VIOLATION at row {i}: \
+                    "EC-11-079 / BC-2.11.001 AC-b VIOLATION at row {i}: \
                      projected column '{key}' is ABSENT from row object. \
                      Enrich-stage NULL column values must serialize as JSON null (key present), \
                      not be omitted. \
@@ -710,12 +710,12 @@ mod tests {
         // column invariant for the same row.
         assert!(
             rows[1].get("sensor_ip").is_some(),
-            "EC-11-068 AC (a) regression: row 1 'sensor_ip' key must still be present \
+            "EC-11-079 AC (a) regression: row 1 'sensor_ip' key must still be present \
              (AC (b) enrich-stage fix must not disturb AC (a) projected-column fix)"
         );
         assert!(
             rows[1]["sensor_ip"].is_null(),
-            "EC-11-068 AC (a) regression: row 1 'sensor_ip' must still be JSON null; \
+            "EC-11-079 AC (a) regression: row 1 'sensor_ip' must still be JSON null; \
              got: {}",
             rows[1]["sensor_ip"]
         );

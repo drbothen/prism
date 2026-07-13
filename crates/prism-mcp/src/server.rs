@@ -1947,7 +1947,7 @@ impl PrismServer {
         // Then parses the buffer to extract individual rows for the payload.
         let rows: Vec<serde_json::Value> = {
             let mut buf: Vec<u8> = Vec::new();
-            // BC-2.11.001 v1.16 EC-11-068: explicit_nulls=true ensures NULL-valued cells
+            // BC-2.11.001 v1.20 EC-11-079: explicit_nulls=true ensures NULL-valued cells
             // appear as JSON `null` in row objects rather than being omitted (the default).
             // Every projected column key must appear in every row regardless of nullability.
             let mut writer = arrow_json::writer::WriterBuilder::new()
