@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.8"
+version: "1.9"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-16"  # v1.8: Pin E-QUERY-032/SensorNotRegisteredForOrg to category "permission"/original_params_valid:true (OBS-1, PR #191). Pin Watchdog* reachability rationale and category "internal" mapping (OBS-2, PR #191).
+modified: "2026-07-13"  # v1.9: Explicit postcondition for internal-redacted message/suggestion split (F-MCPNULL-P4-OBS-001 [process-gap], DEFECT-MCP-ROWSHAPE-NULLS-001 [H8b]; error-taxonomy v2.40 rows cite "BC-2.10.007 message/suggestion split" — codified here as §Internal-redacted error message/suggestion split in §Postconditions).
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -85,6 +85,20 @@ Error responses use the **nested** MCP structured content shape. The story-spec 
 ### `_meta` field
 
 The `_meta` object in `structuredContent` MUST include `trust_level: "internal"` to indicate that error data is Prism-generated (not upstream sensor data).
+
+### Internal-redacted error message/suggestion split (INTERNAL_ERROR class)
+
+For **internal-redacted errors** — all `PrismError` variants that route through `map_prism_error` to MCP JSON-RPC code `-32000 INTERNAL_ERROR` (the catch-all class: `PrismError::Internal`, `Io`, all `Storage*` variants, `WatchdogKilled`, `WatchdogHeartbeatMissed`, `WatchdogRestartLimitExceeded`, and any future catch-all arms) — the field placement rule is:
+
+- `message` MUST be the terse redacted form `"Internal error"` — NO audit-log pointer embedded in `message`, NO upstream detail interpolation (DI-006). The `message` field reaches the LLM-agent caller and MUST NOT leak operator-level detail.
+- The actionable audit-log pointer MUST live **ONLY** in `suggestion` (e.g., `"See audit log for details."` for generic internal errors; variant-specific forms permitted, e.g., `"Prism process supervision failure (memory or watchdog). Contact Prism operator; see audit log for details."`).
+
+This is the **message/suggestion split** cited in error-taxonomy v2.40 rows for E-INT-001, E-AUTH-010, E-AUTH-011, E-QUERY-034, E-WATCH-002, and the §INT narrative. This section codifies the split as an explicit postcondition; previously it was only implicit in the field description table above. Ratifying authority: DEFECT-MCP-ROWSHAPE-NULLS-001 [H8b] + error-taxonomy v2.40.
+
+| Field | INTERNAL_ERROR class rule |
+|-------|--------------------------|
+| `message` | `"Internal error"` — verbatim terse form; MUST NOT contain audit-log pointer or upstream detail |
+| `suggestion` | Audit-log pointer (`"See audit log for details."`) or variant-specific operator guidance |
 
 ### 429 rate-limit wiring — `retry_after_seconds` source and mapping contract
 
@@ -292,6 +306,7 @@ PrismError::WatchdogKilled { .. }
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | DEFECT-MCP-ROWSHAPE-NULLS-001-P4-OBS-001 | 2026-07-13 | product-owner | Explicit postcondition for internal-redacted message/suggestion split (F-MCPNULL-P4-OBS-001 [process-gap]). error-taxonomy v2.40 rows for E-INT-001, E-AUTH-010, E-AUTH-011, E-QUERY-034, E-WATCH-002, and the §INT narrative all cite "BC-2.10.007 message/suggestion split" but the BC body never codified the split as an explicit postcondition — the rule was only implicit in the `message`/`suggestion` field description table. Added §Internal-redacted error message/suggestion split postcondition section: for all INTERNAL_ERROR-class variants (map_prism_error catch-all: Internal, Io, Storage*, WatchdogKilled, WatchdogHeartbeatMissed, WatchdogRestartLimitExceeded), `message` MUST be `"Internal error"` (terse, redacted; no audit-log pointer, no upstream detail per DI-006); `suggestion` MUST carry the audit-log pointer (`"See audit log for details."` or variant-specific). Ratifying authority: DEFECT-MCP-ROWSHAPE-NULLS-001 [H8b] + error-taxonomy v2.40. No semantic change to code behavior — the code already implements this split; this amendment closes the spec gap. |
 | 1.8 | PR-191-OBS1-OBS2-adjudication | 2026-06-16 | product-owner | Semantic pin (OBS-1, OBS-2, PR #191): (1) OBS-1 — pinned E-QUERY-032/SensorNotRegisteredForOrg to `category: "permission"` / `original_params_valid: true`. Previous impl used `"validation"` / `false`, which was semantically wrong: cross-org sensor access is a scoping/permission denial, not a parameter format error. The org slug and sensor name are structurally valid; access was refused at the org-scoping boundary. Updated §Category decision rule "permission" row to include SensorNotRegisteredForOrg explicitly. Added OBS-1 canonical test vector. Added §Implementer Code Follow-Up (OBS-1) with exact match-arm change and new test. (2) OBS-2 — pinned WatchdogKilled/WatchdogHeartbeatMissed/WatchdogRestartLimitExceeded to `category: "internal"` / `original_params_valid: true`. Verified reachability: WatchdogKilled IS reachable on user-visible MCP tool paths via query execution → watchdog::check_query() → ? propagation → tool handler → prism_error_to_structured_call_result. Category "internal" is correct (Prism-side process supervision fault, not sensor failure). Updated §Category "internal" row to enumerate Watchdog* variants. Added OBS-2 canonical test vector. Added §Implementer Code Follow-Up (OBS-2) with explicit arm code and test_CRIT_B_catch_all_category_is_upstream_error update instructions. Both OBS-1 and OBS-2 require implementer follow-up in the S-5.02 feature branch. |
 | 1.7 | PR-191-F4-adjudication | 2026-06-16 | product-owner | Semantic fix (F-4, PR #191): added `"internal"` as 9th legal category value for Prism-side infrastructure/invariant failures (`PrismError::Internal`, `Io`, `Storage*`). "upstream_error" is now reserved for genuine sensor/third-party boundary failures only. Added canonical category decision rule table (9 rows, LLM-agent strategy column). Added 4 test vectors covering Internal/Io/Storage→internal and SensorHttpError→upstream_error. Added §Implementer Code Follow-Up (F-4) specifying exact mapping changes required in `error_mapping.rs` / `error_response.rs`. This is a semantic contract change (enum grows by one value); existing implementations emitting "upstream_error" for Prism-internal failures must be updated. |
 | 1.6 | S-5.02-red-gate-clarification | 2026-06-14 | product-owner | Contract clarification (not a semantic change): aligned `retry_after_seconds` wiring with actual `PrismError::SensorRateLimited` shape (`{ sensor: String, retry_after_ms: u64 }` — required u64, not `Option<u64>`; field `sensor` not `sensor_id`). Replaced v1.5's `Option<u64>` / `None` framing with explicit table: SensorRateLimited ALWAYS produces non-null `retry_after_ms / 1000`; all other variants produce JSON `null`. Added `to_error_data_with_retry` helper contract. Updated `retry_after_seconds` field-spec row to distinguish rate-limit vs non-rate-limit cases. External JSON contract unchanged (field always present, null-not-absent). No code change required — the code shape was already correct; the BC was the imprecise artifact. |
