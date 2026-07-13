@@ -5588,7 +5588,7 @@ COVERAGE_MATRIX = [
     ("[H4]",  "Temporal",      "E-QUERY-041: date-only literal '2020-01-01' rejected (ADR-052 §D4)"),
     ("[H5]",  "Temporal",      "E-QUERY-042: temporal literal in GROUP BY arm rejected (ADR-052 §D4)"),
     ("[H5b]", "Temporal",      "E-QUERY-042: Timestamp literal in ORDER BY arm rejected (ADR-052 §D4 arm 7; DEFECT-EQUERY042-GROUPBY-DEADARM-001 extension)"),
-    ("[H5c]", "Temporal",      "E-QUERY-042: date-only literal vs function-call LHS (NonColumnLhsComparison arm 4; lower(hostname) = '2026-06-24'; ADR-052 §D4)"),
+    ("[H5c]", "Temporal",      "E-QUERY-042: date-only literal vs function-call LHS (NonColumnLhsComparison arm 4; lower(device_id) = '2026-06-24'; ADR-052 §D4)"),
     ("[H6]",  "IEQ/IIN/INE",   "E-QUERY-002: IEQ on armis_devices.risk_score (integer column, canonical probe)"),
     ("[H7]",  "JOIN",          "JOIN positive path: crowdstrike_devices JOIN armis_devices on device_id"),
     ("[H8]",  "JOIN",          "HEAD-JOIN fail-open: bare unknown col in JOIN → not E-QUERY-038 (FP-001)"),
