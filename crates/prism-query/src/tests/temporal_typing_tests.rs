@@ -5179,7 +5179,8 @@ async fn test_BC_2_11_019_tm_07_sql_where_sum_e_query_001_high001() {
 /// Note: TM-01 covers the same query with variant-only assertion (is_err()).
 /// TM-08 adds the stronger SID-2 message assertions for the D.7 MED-002 closure.
 ///
-/// Traces to: ADR-048 v1.2 §D.7.2 TM-08; F-PQLFN-P2-MED-002; BC-2.11.004 v1.32.
+/// Traces to: ADR-048 v1.2 §D.7.2 TM-08; F-PQLFN-P2-MED-002; BC-2.11.004 v1.33 EC-11-013;
+/// F-PQLFN-P3-OBS-002 (byte-verbatim POL-24 upgrade).
 #[tokio::test]
 async fn test_BC_2_11_004_tm_08_pipe_where_count_with_args_canonical_d3_message() {
     let engine = make_crowdstrike_detections_engine();
@@ -5204,27 +5205,18 @@ async fn test_BC_2_11_004_tm_08_pipe_where_count_with_args_canonical_d3_message(
         "TM-08: must be QueryParseFailed (E-QUERY-001). Got: {err:?} (Display: {display})"
     );
 
-    // SID-2: message must contain fn name (D.3 canonical form).
+    // OBS-002 / POL-24 byte-verbatim lock: assert the complete canonical message template
+    // from BC-2.11.004 v1.33 EC-11-013 appears as an exact contiguous substring of Display.
+    // One byte-verbatim lock here; other TM tests retain substring checks (defense-in-depth
+    // diversity: one byte-verbatim lock + N substring locks per ADR-048 D.7).
+    const CANONICAL_AGG_MSG: &str = "E-QUERY-001: 'count' is an aggregate function; \
+        aggregate fn-calls are not valid in pipe | where \
+        (use HAVING for post-aggregation filters, ADR-048 D.3)";
     assert!(
-        display.contains("count"),
-        "TM-08 RED: Display must contain 'count'. \
-         RED: 'found '('' parser-backtrack message does not contain 'count'. \
-         Got: {display}"
-    );
-
-    // SID-2: message must contain "aggregate function" (D.3 canonical form).
-    assert!(
-        display.contains("aggregate function"),
-        "TM-08 RED: Display must contain 'aggregate function' (ADR-048 D.3 canonical message). \
-         RED: 'found '('' parser-backtrack message does not contain 'aggregate function'. \
-         Got: {display}"
-    );
-
-    // SID-2: message must contain "HAVING" (D.3 guidance phrase).
-    assert!(
-        display.contains("HAVING"),
-        "TM-08 RED: Display must contain 'HAVING' (use HAVING guidance, ADR-048 D.3). \
-         RED: 'found '('' parser-backtrack message does not contain 'HAVING'. \
+        display.contains(CANONICAL_AGG_MSG),
+        "TM-08 OBS-002: Display must contain the byte-verbatim canonical template from \
+         BC-2.11.004 v1.33 EC-11-013 (POL-24). \
+         Expected contiguous substring: {CANONICAL_AGG_MSG:?}. \
          Got: {display}"
     );
 

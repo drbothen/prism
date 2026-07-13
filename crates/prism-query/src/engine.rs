@@ -6608,6 +6608,98 @@ mod sqlpipe_gate_sweep_tests {
             );
         }
     }
+
+    // ── BC-2.11.004 TM-SCHED: execute_scheduled aggregate-gate parity lock ──────
+
+    /// TD-VSDD-059 parity gap (F-PQLFN-P3-LOW-002): `execute_scheduled_inner` aggregate-gate
+    /// parity lock.
+    ///
+    /// The ADR-048 v1.2 D.7 unified plan-time aggregate-gate was verified for the `execute`
+    /// path (TM-03/09 in `temporal_typing_tests.rs`). This test locks the SAME gate via
+    /// `execute_scheduled`, proving the early `check_enrich_udf_availability(query_str, None)`
+    /// call at the start of `execute_scheduled_inner` fires and returns E-QUERY-001 with the
+    /// canonical D.3 message substrings — symmetrically to `execute`.
+    ///
+    /// Query: `FROM crowdstrike_detections | where stddev(risk_score) = 5`
+    ///
+    /// # Expected: GREEN on arrival
+    /// `execute_scheduled_inner` already calls `check_enrich_udf_availability(query_str, None)`
+    /// as its FIRST gate (before the table gate). `stddev` ∈
+    /// `DATAFUSION_BUILTIN_AGGREGATE_NAMES` → the aggregate gate fires → E-QUERY-001 with the
+    /// canonical D.3 message containing "stddev", "aggregate function", and "HAVING".
+    ///
+    /// Both `execute` and `execute_scheduled` must return `QueryParseFailed` for this query,
+    /// demonstrating symmetric aggregate-gate behavior across both execution paths.
+    ///
+    /// Traces to: BC-2.11.004 v1.33 EC-11-013; ADR-048 v1.2 §D.7.4; F-PQLFN-P3-LOW-002.
+    #[tokio::test]
+    async fn test_BC_2_11_004_tm_sched_parity_aggregate_gate_execute_scheduled() {
+        let engine = make_test_engine();
+
+        let query = "FROM crowdstrike_detections | where stddev(risk_score) = 5";
+
+        let execute_result = engine.execute(query, QueryOptions::default()).await;
+
+        // Map execute_scheduled to Result<QueryResult, PrismError> by discarding the
+        // Arc<SessionContext> (SessionContext does not impl Debug so we cannot
+        // unwrap_err on the raw tuple result).
+        let scheduled_result = engine
+            .execute_scheduled(query, None)
+            .await
+            .map(|(qr, _ctx)| qr);
+
+        // Both must error.
+        assert!(
+            execute_result.is_err(),
+            "TM-SCHED: execute with stddev aggregate in | where must return Err; got Ok"
+        );
+        assert!(
+            scheduled_result.is_err(),
+            "TM-SCHED: execute_scheduled with stddev aggregate in | where must return Err; \
+             got Ok. If Ok: the aggregate gate in execute_scheduled_inner is missing or bypassed."
+        );
+
+        let exec_err = execute_result.unwrap_err();
+        let sched_err = scheduled_result.unwrap_err();
+
+        // Both must be QueryParseFailed (E-QUERY-001).
+        assert!(
+            matches!(exec_err, PrismError::QueryParseFailed { .. }),
+            "TM-SCHED: execute must return QueryParseFailed (E-QUERY-001); got: {exec_err:?}"
+        );
+        assert!(
+            matches!(sched_err, PrismError::QueryParseFailed { .. }),
+            "TM-SCHED: execute_scheduled must return QueryParseFailed (E-QUERY-001) \
+             to match execute behavior. Got: {sched_err:?}. \
+             If TableNotAvailable (E-QUERY-037): the aggregate gate is NOT firing before the \
+             table gate in execute_scheduled_inner (ADR-048 v1.2 §D.7.4 gate ordering violated)."
+        );
+
+        // Both Display outputs must contain the canonical D.3 message substrings.
+        let exec_display = format!("{exec_err}");
+        let sched_display = format!("{sched_err}");
+
+        for (label, display) in [
+            ("execute", &exec_display),
+            ("execute_scheduled", &sched_display),
+        ] {
+            assert!(
+                display.contains("stddev"),
+                "TM-SCHED [{label}]: Display must contain 'stddev' (aggregate fn name, \
+                 ADR-048 D.3 canonical). Got: {display}"
+            );
+            assert!(
+                display.contains("aggregate function"),
+                "TM-SCHED [{label}]: Display must contain 'aggregate function' \
+                 (ADR-048 D.3 canonical message). Got: {display}"
+            );
+            assert!(
+                display.contains("HAVING"),
+                "TM-SCHED [{label}]: Display must contain 'HAVING' (use HAVING guidance, \
+                 ADR-048 D.3). Got: {display}"
+            );
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
