@@ -6155,3 +6155,246 @@ async fn test_BC_2_11_019_low_002_not_wrapped_predicate_notafunc_e_query_039() {
         "LOW-002 (NOT): must NOT be QueryPlanFailed (-32000). Got: {err:?}"
     );
 }
+
+// ── F-PQLFN-P9-MED-002: DML WHERE arm-4 regression locks ─────────────────────
+//
+// ADR-052 v1.14 dispatch-table row 4 claims E-QUERY-042 arm-4
+// (NonColumnLhsComparison) is reachable from DML WHERE:
+//   `DELETE FROM t WHERE lower(col) = '2026-06-24'` hits this arm.
+//
+// Mechanism: `check_temporal_literals`'s `Ast::Sql(SqlStatement::Dml(dml))` arm
+// (materialization.rs `check_pred_raw_temporal` call on `dml.filter`) fires
+// `NonColumnLhsComparison` when the predicate LHS is a non-Field expr
+// (FuncCall::Scalar) and the RHS is a RawTemporalLiteral.  The DML parser uses
+// `build_predicate_parser()` (sql_parser.rs parse_sql_dml_with_limits), which
+// includes the `fn_call_comparison` production added in DEFECT-PQL-FNCALL-LHS-001,
+// so `lower(col)` parses as FuncCall::Scalar LHS and the temporal gate fires.
+//
+// These tests are GREEN on arrival — the mechanism already exists.
+// They are load-bearing regression locks for the ADR-052 reachability spec claim.
+//
+// Engine entry point: `engine.execute(query, QueryOptions::default()).await` —
+// identical to the SQL WHERE and filter-mode sibling tests (MED-002/MED-003).
+//
+// Gate ordering: early `check_temporal_literals` (skip_projection=true) fires
+// BEFORE `check_table_availability`.  E-QUERY-042 propagates via `?` immediately;
+// the engine never reaches the DML execution path (which returns Ok(vec![])).
+
+/// F-PQLFN-P9-MED-002 (1/3) (GREEN lock): DML WHERE DELETE with fn-call LHS and
+/// date-like RHS must return E-QUERY-042 NonColumnLhsComparison.
+///
+/// Query: `DELETE FROM crowdstrike_detections WHERE lower(device_id) = '2026-06-24'`
+///
+/// # Path through the engine
+/// 1. `PrismQlParser::parse` → `parse_dml_internal` → Ok(Ast::Sql(SqlStatement::Dml))
+///    (`build_predicate_parser`'s `fn_call_comparison` production admits fn-call LHS).
+/// 2. Early `check_temporal_literals` (skip_projection=true) — DML arm:
+///    `dml.filter` → `check_pred_raw_temporal` →
+///    non-Field LHS + RawTemporalLiteral("2026-06-24") →
+///    `Err(TemporalLiteralInvalidPosition { NonColumnLhsComparison, .. })`.
+/// 3. `?` propagates the error immediately; `check_table_availability` never fires.
+///
+/// # SID-2 composed-output discipline
+/// Asserts both the error variant AND the canonical Display message prefix (POL-24).
+///
+/// Traces to: ADR-052 v1.14 dispatch-table row 4; BC-2.11.003 EC-11-003-007 (DML parity);
+///            error-taxonomy.md §E-QUERY-042 v2.14; F-PQLFN-P9-MED-002.
+#[tokio::test]
+async fn test_dml_where_fncall_lhs_date_like_e_query_042() {
+    use prism_core::error::TemporalLiteralPosition;
+
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "DELETE FROM crowdstrike_detections WHERE lower(device_id) = '2026-06-24'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "F-PQLFN-P9-MED-002 (DELETE): lower(device_id) = '2026-06-24' in DML WHERE \
+         must return Err(E-QUERY-042). \
+         ADR-052 v1.14 dispatch-table row 4: DML WHERE arm-4 must be reachable. \
+         Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // Primary variant assertion: E-QUERY-042 NonColumnLhsComparison.
+    assert!(
+        matches!(
+            &err,
+            PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::NonColumnLhsComparison,
+                ..
+            }
+        ),
+        "F-PQLFN-P9-MED-002 (DELETE): DML WHERE fn-call LHS with date-like RHS must produce \
+         PrismError::TemporalLiteralInvalidPosition(NonColumnLhsComparison). \
+         `check_temporal_literals` DML arm walks dml.filter via check_pred_raw_temporal; \
+         non-Field LHS triggers arm (4) per ADR-052 v1.14 dispatch-table row 4. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    // value_prefix must be the first ≤50 chars of the offending literal.
+    if let PrismError::TemporalLiteralInvalidPosition { value_prefix, .. } = &err {
+        assert!(
+            value_prefix.starts_with("2026-06-24"),
+            "F-PQLFN-P9-MED-002 (DELETE): value_prefix must start with '2026-06-24'. \
+             Got: {value_prefix:?}"
+        );
+    }
+
+    // SID-2: assert canonical Display message prefix (POL-24 byte-verbatim).
+    let expected_prefix =
+        "E-QUERY-042: A date-like literal compared against a computed expression \
+                           cannot be type-checked at plan time.";
+    assert!(
+        display.contains(expected_prefix),
+        "F-PQLFN-P9-MED-002 (DELETE/SID-2/POL-24): Display must contain the canonical \
+         E-QUERY-042 NonColumnLhsComparison message prefix. \
+         error-taxonomy.md §E-QUERY-042 v2.14. \
+         Got: {display}"
+    );
+
+    // Must NOT be QueryParseFailed — the DML parser now admits fn-call LHS.
+    assert!(
+        !matches!(&err, PrismError::QueryParseFailed { .. }),
+        "F-PQLFN-P9-MED-002 (DELETE): error must NOT be QueryParseFailed. \
+         `build_predicate_parser` fn_call_comparison production parses lower(device_id); \
+         E-QUERY-042 fires at plan time (-32602). Got: {err:?}"
+    );
+}
+
+/// F-PQLFN-P9-MED-002 (2/3) (GREEN lock): DML WHERE UPDATE with fn-call LHS and
+/// date-like RHS must return E-QUERY-042 NonColumnLhsComparison.
+///
+/// Query: `UPDATE crowdstrike_detections SET risk_score = 1 WHERE lower(device_id) = '2026-06-24'`
+///
+/// Sibling of the DELETE variant above — exercises the UPDATE DML operation path
+/// through `check_temporal_literals`'s DML arm.  `dml.filter` is processed first
+/// (line 3711 in materialization.rs); E-QUERY-042 fires via `?` before the SET
+/// assignments are inspected.
+///
+/// The SET assignment `risk_score = 1` is a plain integer literal (not a
+/// RawTemporalLiteral), so it does NOT contribute to the temporal error — the
+/// error source is the WHERE predicate exclusively.
+///
+/// Traces to: ADR-052 v1.14 dispatch-table row 4; BC-2.11.003 EC-11-003-007 (DML parity);
+///            error-taxonomy.md §E-QUERY-042 v2.14; F-PQLFN-P9-MED-002.
+#[tokio::test]
+async fn test_dml_where_update_fncall_lhs_date_like_e_query_042() {
+    use prism_core::error::TemporalLiteralPosition;
+
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "UPDATE crowdstrike_detections SET risk_score = 1 WHERE lower(device_id) = '2026-06-24'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "F-PQLFN-P9-MED-002 (UPDATE): lower(device_id) = '2026-06-24' in DML WHERE \
+         must return Err(E-QUERY-042). \
+         ADR-052 v1.14 dispatch-table row 4: DML WHERE arm-4 must be reachable. \
+         Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // Primary variant assertion: E-QUERY-042 NonColumnLhsComparison.
+    assert!(
+        matches!(
+            &err,
+            PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::NonColumnLhsComparison,
+                ..
+            }
+        ),
+        "F-PQLFN-P9-MED-002 (UPDATE): DML WHERE fn-call LHS with date-like RHS must produce \
+         PrismError::TemporalLiteralInvalidPosition(NonColumnLhsComparison). \
+         dml.filter processed before SET assignments; arm (4) fires per ADR-052 v1.14. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    // value_prefix must be the first ≤50 chars of the offending literal.
+    if let PrismError::TemporalLiteralInvalidPosition { value_prefix, .. } = &err {
+        assert!(
+            value_prefix.starts_with("2026-06-24"),
+            "F-PQLFN-P9-MED-002 (UPDATE): value_prefix must start with '2026-06-24'. \
+             Got: {value_prefix:?}"
+        );
+    }
+
+    // Display must contain "E-QUERY-042" (matches sibling filter-mode assertion depth).
+    assert!(
+        display.contains("E-QUERY-042"),
+        "F-PQLFN-P9-MED-002 (UPDATE): Display must contain 'E-QUERY-042'. Got: {display}"
+    );
+
+    // Must NOT be QueryParseFailed.
+    assert!(
+        !matches!(&err, PrismError::QueryParseFailed { .. }),
+        "F-PQLFN-P9-MED-002 (UPDATE): error must NOT be QueryParseFailed. \
+         fn_call_comparison production parses lower(device_id) in UPDATE WHERE. \
+         Got: {err:?}"
+    );
+}
+
+/// F-PQLFN-P9-MED-002 (3/3) (GREEN lock): DML WHERE with fn-call LHS and
+/// NON-date-like RHS must NOT produce E-QUERY-042.
+///
+/// Query: `DELETE FROM crowdstrike_detections WHERE lower(device_id) = 'active'`
+///
+/// `'active'` is not in the `is_date_like` acceptance set; no `RawTemporalLiteral`
+/// is emitted by the parser.  In `check_pred_raw_temporal`, `rhs` is
+/// `Literal::String("active")` → `raw_val` is None → temporal gate does not fire
+/// for the Compare predicate.  The query passes the plan gates and reaches the
+/// DML execution path (returns Ok(vec![]) pending S-3.06 wiring).
+///
+/// Mirrors the filter-mode negative control
+/// (`test_BC_2_11_003_ec11_003_007_filter_fncall_lhs_non_date_rhs_not_rejected`)
+/// for DML WHERE parity.
+///
+/// Traces to: ADR-052 v1.14 dispatch-table row 4 (negative / passthrough case);
+///            BC-2.11.003 EC-11-003-007 (non-date-like passthrough); F-PQLFN-P9-MED-002.
+#[tokio::test]
+async fn test_dml_where_fncall_lhs_non_date_rhs_not_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "DELETE FROM crowdstrike_detections WHERE lower(device_id) = 'active'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must NOT be a parse error — `build_predicate_parser` fn_call_comparison admits fn-call LHS.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-P9-MED-002 (DELETE neg): lower(device_id) = 'active' in DML WHERE must NOT \
+         return QueryParseFailed. 'active' is not date-like — temporal gate passes. \
+         Got: {result:?}"
+    );
+
+    // Must NOT be E-QUERY-042 — 'active' is not a date-like literal.
+    assert!(
+        !matches!(
+            &result,
+            Err(PrismError::TemporalLiteralInvalidPosition { .. })
+        ),
+        "F-PQLFN-P9-MED-002 (DELETE neg): lower(device_id) = 'active' in DML WHERE must NOT \
+         return E-QUERY-042. 'active' has no RawTemporalLiteral — arm (4) does not fire. \
+         Got: {result:?}"
+    );
+
+    // Any other outcome (Ok(vec![]) from the DML no-op path, or a different error) is
+    // acceptable.  The DML execution path returns Ok(vec![]) pending S-3.06 wiring.
+}
