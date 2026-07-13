@@ -3796,6 +3796,7 @@ async fn test_F_EQ42_P1_003_group_by_now_minus_interval_is_parse_error() {
 /// "crowdstrike_detections".  Columns:
 ///   - `device_id:  ColumnType::String`  — fn-call LHS tests (EC-11-004-005/006)
 ///   - `timestamp:  ColumnType::Datetime` — included for schema completeness
+///   - `risk_score: ColumnType::Float`   — OBS-001/OBS-002 aggregate-in-where tests
 ///
 /// Gate ordering guarantee: E-QUERY-037 passes (table IS registered).
 /// E-QUERY-038 gate walks fn-call args for column validation (FuncCall arm of
@@ -3817,6 +3818,7 @@ fn make_crowdstrike_detections_registry() -> Arc<TableRegistry> {
             vec![
                 ColumnSpec::new("device_id", ColumnType::String, None, vec![]),
                 ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+                ColumnSpec::new("risk_score", ColumnType::Float, None, vec![]),
             ],
             vec![],
         )],
@@ -4134,5 +4136,689 @@ async fn test_BC_2_11_004_invariant_pipe_where_aggregate_fncall_remains_invalid(
          Aggregate fn-calls are invalid in | where (ADR-048 D.3: HAVING path is SQL-mode only). \
          The fn_call_comparison grammar extension must NOT inadvertently allow aggregate LHS. \
          Got Ok — scope has been incorrectly broadened beyond FuncCall::Scalar."
+    );
+}
+
+// ── DEFECT-PQL-FNCALL-LHS-001 fix-burst 1 ────────────────────────────────────
+//
+// SAP-3 e2e locks (GREEN on arrival) + RED gates for adversary pass-1 findings:
+//
+//   F-PQLFN-P1-MED-002  SQL WHERE arm-4 e2e lock (SAP-3)
+//   F-PQLFN-P1-MED-003  filter-mode arm-4 e2e locks
+//   F-PQLFN-P1-MED-004  unknown scalar in pipe/filter/sqlpipe | where → E-QUERY-039 (RED)
+//   F-PQLFN-P1-OBS-001  empty-arg edges: count() GREEN lock + foo() RED
+//   F-PQLFN-P1-OBS-002  DataFusion-only aggregate (stddev) not in 7-name blocklist (RED)
+//
+// Engine fixture:
+//   make_crowdstrike_detections_engine()          — no infusion registry (temporal tests)
+//   make_crowdstrike_engine_with_empty_infusion() — empty InfusionRegistry (E-QUERY-039 tests)
+//
+// SAP-3 definition: every code path that processes a temporal literal must be exercised
+// end-to-end through the public `engine.execute()` surface, not synthetic ASTs.
+
+/// Build a `QueryEngine` wired with `crowdstrike_detections` AND an empty
+/// `InfusionRegistry` (Some, but zero entries).
+///
+/// Required for E-QUERY-039 RED tests: the gate only fires when the registry is Some.
+/// With registry = None, `check_enrich_udf_availability` returns Ok(()) immediately.
+/// An empty (Some) registry means all unknown scalar names → E-QUERY-039 (after fix).
+fn make_crowdstrike_engine_with_empty_infusion() -> QueryEngine {
+    let registry = make_crowdstrike_detections_registry();
+    let empty_infusion_registry = Arc::new(prism_spec_engine::InfusionRegistry::new());
+    QueryEngine::new_with_cache_config(
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(NoopCs),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        crate::cache::CacheConfig::default(),
+    )
+    .with_table_registry(registry)
+    .with_infusion_registry(empty_infusion_registry)
+}
+
+// ── F-PQLFN-P1-MED-002: SQL WHERE arm-4 end-to-end regression lock ───────────
+
+/// F-PQLFN-P1-MED-002 (GREEN, SAP-3 e2e lock): SQL WHERE fn-call LHS with
+/// date-like RHS must return E-QUERY-042 NonColumnLhsComparison.
+///
+/// Query: `SELECT * FROM crowdstrike_detections WHERE lower(device_id) = '2026-06-24'`
+///
+/// SAP-3 spec-arm reachability: the shared `build_predicate_parser` (filter_parser.rs)
+/// supplies both pipe `| where` and SQL WHERE predicates.  The EC-11-003-007 test vector
+/// is exercised here end-to-end through `engine.execute()` against the SQL WHERE arm,
+/// confirming arm (4) (`check_temporal_literals` NonColumnLhsComparison) is reachable
+/// from the SQL surface, not just the pipe surface.
+///
+/// # GREEN on arrival
+/// The `fn_call_comparison` grammar extension (@7a56e53b) makes the SQL WHERE
+/// `lower(device_id)` form parse successfully.  `check_temporal_literals` arm (4)
+/// fires for the non-Field LHS + RawTemporalLiteral("2026-06-24") combination.
+///
+/// # SID-2 composed-output discipline
+/// Asserts both the error variant AND the full composed Display message string
+/// byte-verbatim per POL-24 (error-taxonomy.md §E-QUERY-042 NonColumnLhsComparison).
+///
+/// Traces to: BC-2.11.003 v1.12 EC-11-003-007; error-taxonomy.md §E-QUERY-042 v2.14;
+///            ADR-052 §D4 v1.10 arm (4); SAP-3.
+#[tokio::test]
+async fn test_BC_2_11_003_ec11_003_007_sql_where_fncall_lhs_date_like_e_query_042() {
+    use prism_core::error::TemporalLiteralPosition;
+
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE lower(device_id) = '2026-06-24'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "MED-002: SQL WHERE lower(device_id) = '2026-06-24' must return Err(E-QUERY-042). \
+         Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // Primary variant assertion: E-QUERY-042 NonColumnLhsComparison.
+    assert!(
+        matches!(
+            &err,
+            PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::NonColumnLhsComparison,
+                ..
+            }
+        ),
+        "MED-002 (SAP-3): SQL WHERE fn-call LHS with date-like RHS must produce \
+         PrismError::TemporalLiteralInvalidPosition(NonColumnLhsComparison). \
+         The shared build_predicate_parser makes SQL WHERE arm-4 reachable (SAP-3). \
+         Got: {err:?} (Display: {display})"
+    );
+
+    // value_prefix must be the first ≤50 chars of the offending literal.
+    if let PrismError::TemporalLiteralInvalidPosition { value_prefix, .. } = &err {
+        assert!(
+            value_prefix.starts_with("2026-06-24"),
+            "MED-002: value_prefix must start with '2026-06-24'. Got: {value_prefix:?}"
+        );
+    }
+
+    // SID-2: assert full composed Display message (POL-24 byte-verbatim).
+    let expected_prefix =
+        "E-QUERY-042: A date-like literal compared against a computed expression \
+                           cannot be type-checked at plan time.";
+    assert!(
+        display.contains(expected_prefix),
+        "MED-002 (SID-2/POL-24): Display must contain the canonical \
+         E-QUERY-042 NonColumnLhsComparison message prefix. \
+         error-taxonomy.md §E-QUERY-042 v2.14. \
+         Got: {display}"
+    );
+
+    // Must NOT be QueryParseFailed — that was the pre-fix defect.
+    assert!(
+        !matches!(&err, PrismError::QueryParseFailed { .. }),
+        "MED-002: error must NOT be QueryParseFailed. \
+         Post-fix: grammar parses fn-call LHS; E-QUERY-042 fires at plan time (-32602). \
+         Got: {err:?}"
+    );
+}
+
+// ── F-PQLFN-P1-MED-003: filter-mode arm-4 locks ──────────────────────────────
+
+/// F-PQLFN-P1-MED-003a (GREEN, SAP-3 e2e lock): filter-mode fn-call LHS with
+/// date-like RHS must return E-QUERY-042 NonColumnLhsComparison.
+///
+/// Query: `crowdstrike_detections | lower(device_id) = '2026-06-24'`
+///
+/// Filter mode (`Ast::Filter`) uses the same `build_predicate_parser` as pipe `| where`.
+/// The `fn_call_comparison` production parses `lower(device_id)` as
+/// `FuncCall::Scalar(Unknown("lower"), [device_id])`.  `check_temporal_literals`
+/// arm (4) fires: non-Field LHS + RawTemporalLiteral("2026-06-24") →
+/// E-QUERY-042 NonColumnLhsComparison.
+///
+/// # GREEN on arrival
+/// @7a56e53b: fn_call_comparison in build_predicate_parser + check_temporal_literals
+/// arm (4) already handle Ast::Filter predicates.
+///
+/// Traces to: BC-2.11.003 v1.12 EC-11-003-007 (filter-mode parity);
+///            ADR-052 §D4 v1.10 arm (4); SAP-3.
+#[tokio::test]
+async fn test_BC_2_11_003_ec11_003_007_filter_fncall_lhs_date_like_e_query_042() {
+    use prism_core::error::TemporalLiteralPosition;
+
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "crowdstrike_detections | lower(device_id) = '2026-06-24'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "MED-003a: filter-mode lower(device_id) = '2026-06-24' must return \
+         Err(E-QUERY-042). Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(
+            &err,
+            PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::NonColumnLhsComparison,
+                ..
+            }
+        ),
+        "MED-003a: filter-mode fn-call LHS date-like RHS must produce \
+         TemporalLiteralInvalidPosition(NonColumnLhsComparison). \
+         Got: {err:?} (Display: {display})"
+    );
+
+    if let PrismError::TemporalLiteralInvalidPosition { value_prefix, .. } = &err {
+        assert!(
+            value_prefix.starts_with("2026-06-24"),
+            "MED-003a: value_prefix must start with '2026-06-24'. Got: {value_prefix:?}"
+        );
+    }
+
+    assert!(
+        display.contains("E-QUERY-042"),
+        "MED-003a: Display must contain 'E-QUERY-042'. Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryParseFailed { .. }),
+        "MED-003a: must NOT be QueryParseFailed. Got: {err:?}"
+    );
+}
+
+/// F-PQLFN-P1-MED-003b (GREEN, SAP-3 e2e lock): filter-mode fn-call LHS with
+/// NON-date-like RHS must NOT be rejected.
+///
+/// Query: `crowdstrike_detections | lower(device_id) = 'active'`
+///
+/// `'active'` is not in the `is_date_like` Acceptance Set; no `RawTemporalLiteral`
+/// is emitted; `check_temporal_literals` returns Ok(()).  The query passes the plan
+/// gates and proceeds to DataFusion (may fail with a sensor error, but must NOT
+/// produce E-QUERY-042 or E-QUERY-001/QueryParseFailed).
+///
+/// Traces to: BC-2.11.003 v1.12 EC-11-003-007 (non-date-like passthrough);
+///            ADR-052 §D4 v1.10 Option A; SAP-3.
+#[tokio::test]
+async fn test_BC_2_11_003_ec11_003_007_filter_fncall_lhs_non_date_rhs_not_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "crowdstrike_detections | lower(device_id) = 'active'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must NOT be a parse error — grammar extension makes fn-call LHS parseable.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "MED-003b: filter-mode lower(device_id) = 'active' must NOT return \
+         QueryParseFailed. 'active' is not date-like — temporal gate passes. \
+         Got: {result:?}"
+    );
+
+    // Must NOT be E-QUERY-042 — 'active' is not a date-like literal.
+    assert!(
+        !matches!(
+            &result,
+            Err(PrismError::TemporalLiteralInvalidPosition { .. })
+        ),
+        "MED-003b: filter-mode lower(device_id) = 'active' must NOT return \
+         E-QUERY-042. 'active' has no RawTemporalLiteral — arm (4) does not fire. \
+         Got: {result:?}"
+    );
+
+    // Any other outcome (Ok or a different sensor/execution error) is acceptable.
+}
+
+// ── F-PQLFN-P1-MED-004: unknown scalar in pipe/filter/sqlpipe | where ─────────
+//
+// RED tests — MUST FAIL against @7a56e53b.
+//
+// Gap: `check_enrich_udf_availability` walks:
+//   Ast::Pipe   → PipeStage::Enrich only (NOT PipeStage::Where predicates)
+//   Ast::Filter → `_ => {}` (entirely skipped)
+//   Ast::SqlPipe → PipeStage::Enrich + SQL head (NOT SqlPipe PipeStage::Where)
+//
+// A `FuncCall::Scalar { func: ScalarFunc::Unknown("notafunc_xyz"), ... }` in a `| where`
+// or filter predicate bypasses the gate and reaches DataFusion, which crashes with
+// QueryPlanFailed / -32000 INTERNAL_ERROR instead of the analyst-friendly E-QUERY-039.
+//
+// The fix: extend the Ast::Pipe, Ast::Filter, and Ast::SqlPipe arms to also walk
+// PipeStage::Where / filter / SqlPipe-stage predicates for ScalarFunc::Unknown names.
+//
+// Test design: requires empty infusion registry (Some) so the gate runs.
+// With None, the gate is skipped entirely regardless of fix.
+
+/// F-PQLFN-P1-MED-004 RED (1/3): pipe `| where` unknown scalar → E-QUERY-039.
+///
+/// Query: `FROM crowdstrike_detections | where notafunc_xyz(device_id) = 'active'`
+///
+/// # RED gate pre-fix failure (@7a56e53b)
+/// `check_enrich_udf_availability` walks Ast::Pipe → PipeStage::Enrich only.
+/// `notafunc_xyz` in PipeStage::Where predicate is not found → Ok(()).
+/// Query proceeds to DataFusion → `notafunc_xyz` is not a registered UDF →
+/// QueryPlanFailed (some kind of -32000 error).
+/// Test asserts `EnrichUdfNotFound` → FAILS. ✓
+///
+/// # Post-fix state (GREEN)
+/// Gate also walks PipeStage::Where predicates for ScalarFunc::Unknown names.
+/// Finds `notafunc_xyz` → not in DataFusion built-in set → not in empty registry →
+/// E-QUERY-039 `EnrichUdfNotFound { infusion: "notafunc_xyz", available_infusions: [] }`.
+///
+/// Traces to: BC-2.11.019 v1.6 §Precondition 1(b); error-taxonomy.md §E-QUERY-039.
+#[tokio::test]
+async fn test_BC_2_11_019_med_004_pipe_where_unknown_scalar_e_query_039() {
+    let engine = make_crowdstrike_engine_with_empty_infusion();
+
+    // RED GATE: gate currently skips PipeStage::Where predicates → QueryPlanFailed.
+    // POST-FIX: gate walks PipeStage::Where → notafunc_xyz not in registry → E-QUERY-039.
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where notafunc_xyz(device_id) = 'active'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "MED-004 (pipe): notafunc_xyz(device_id) = 'active' in | where must return \
+         Err(E-QUERY-039). Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // Primary variant assertion: EnrichUdfNotFound with infusion="notafunc_xyz".
+    assert!(
+        matches!(&err, PrismError::EnrichUdfNotFound(ref d) if d.infusion == "notafunc_xyz"),
+        "MED-004 (pipe): error must be PrismError::EnrichUdfNotFound \
+         with infusion = 'notafunc_xyz'. \
+         RED failure: gate currently skips | where predicates → QueryPlanFailed. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    // available_infusions must be empty (no infusions registered).
+    if let PrismError::EnrichUdfNotFound(ref d) = err {
+        assert!(
+            d.available_infusions.is_empty(),
+            "MED-004 (pipe): available_infusions must be [] (empty registry). \
+             Got: {:?}",
+            d.available_infusions
+        );
+    }
+
+    // Display must contain "E-QUERY-039" and the infusion name.
+    assert!(
+        display.contains("E-QUERY-039"),
+        "MED-004 (pipe): Display must contain 'E-QUERY-039'. Got: {display}"
+    );
+    assert!(
+        display.contains("notafunc_xyz"),
+        "MED-004 (pipe): Display must contain 'notafunc_xyz'. Got: {display}"
+    );
+
+    // Must NOT be QueryPlanFailed — that is the pre-fix defect.
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "MED-004 (pipe): error must NOT be QueryPlanFailed (-32000). \
+         Post-fix: E-QUERY-039 fires before DataFusion execution. \
+         Got: {err:?}"
+    );
+}
+
+/// F-PQLFN-P1-MED-004 RED (2/3): filter-mode unknown scalar → E-QUERY-039.
+///
+/// Query: `crowdstrike_detections | notafunc_xyz(device_id) = 'active'`
+///
+/// # RED gate pre-fix failure (@7a56e53b)
+/// `check_enrich_udf_availability` has `_ => {}` for Ast::Filter — skipped entirely.
+/// `notafunc_xyz` reaches DataFusion → QueryPlanFailed.
+/// Test asserts `EnrichUdfNotFound` → FAILS. ✓
+///
+/// # Post-fix state (GREEN)
+/// Ast::Filter arm added to walk filter predicates for ScalarFunc::Unknown names.
+/// `notafunc_xyz` not in DataFusion built-in set → not in empty registry → E-QUERY-039.
+///
+/// Traces to: BC-2.11.019 v1.6 §Precondition 1 (filter-mode parity);
+///            error-taxonomy.md §E-QUERY-039.
+#[tokio::test]
+async fn test_BC_2_11_019_med_004_filter_unknown_scalar_e_query_039() {
+    let engine = make_crowdstrike_engine_with_empty_infusion();
+
+    // RED GATE: Ast::Filter arm is `_ => {}` → gate skipped → QueryPlanFailed.
+    // POST-FIX: Ast::Filter arm walks filter predicate FuncCalls → E-QUERY-039.
+    let result = engine
+        .execute(
+            "crowdstrike_detections | notafunc_xyz(device_id) = 'active'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "MED-004 (filter): notafunc_xyz(device_id) = 'active' in filter mode must return \
+         Err(E-QUERY-039). Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(&err, PrismError::EnrichUdfNotFound(ref d) if d.infusion == "notafunc_xyz"),
+        "MED-004 (filter): error must be PrismError::EnrichUdfNotFound \
+         with infusion = 'notafunc_xyz'. \
+         RED failure: Ast::Filter is currently skipped by the gate → QueryPlanFailed. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("E-QUERY-039"),
+        "MED-004 (filter): Display must contain 'E-QUERY-039'. Got: {display}"
+    );
+    assert!(
+        display.contains("notafunc_xyz"),
+        "MED-004 (filter): Display must contain 'notafunc_xyz'. Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "MED-004 (filter): error must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+/// F-PQLFN-P1-MED-004 RED (3/3): SqlPipe `| where` unknown scalar → E-QUERY-039.
+///
+/// Query: `SELECT device_id FROM crowdstrike_detections | where notafunc_xyz(device_id) = 'active'`
+///
+/// In SqlPipe (`Ast::SqlPipe`), `check_enrich_udf_availability` currently checks:
+///   (a) PipeStage::Enrich stages — none present
+///   (b) SQL head `collect_unknown_scalars_from_sql_query` — `notafunc_xyz` is in the
+///       `| where` stage, NOT in the SQL head SELECT/WHERE/GROUP BY positions
+///
+/// So `notafunc_xyz` in the SqlPipe `| where` stage bypasses the gate → DataFusion → -32000.
+///
+/// # RED gate pre-fix failure (@7a56e53b)
+/// Gate misses ScalarFunc::Unknown in SqlPipe PipeStage::Where predicates.
+/// QueryPlanFailed emitted. Test asserts EnrichUdfNotFound → FAILS. ✓
+///
+/// # Post-fix state (GREEN)
+/// Ast::SqlPipe arm also walks PipeStage::Where predicates for ScalarFunc::Unknown.
+/// `notafunc_xyz` found → not in registry → E-QUERY-039.
+///
+/// Traces to: BC-2.11.019 v1.6 §Precondition 1(b) (SQL-mode WHERE coverage);
+///            error-taxonomy.md §E-QUERY-039.
+#[tokio::test]
+async fn test_BC_2_11_019_med_004_sqlpipe_where_unknown_scalar_e_query_039() {
+    let engine = make_crowdstrike_engine_with_empty_infusion();
+
+    // RED GATE: SqlPipe arm only checks PipeStage::Enrich + SQL head → misses | where.
+    // POST-FIX: SqlPipe arm also walks PipeStage::Where predicates → E-QUERY-039.
+    let result = engine
+        .execute(
+            "SELECT device_id FROM crowdstrike_detections | where notafunc_xyz(device_id) = 'active'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "MED-004 (sqlpipe): notafunc_xyz in SqlPipe | where must return \
+         Err(E-QUERY-039). Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(&err, PrismError::EnrichUdfNotFound(ref d) if d.infusion == "notafunc_xyz"),
+        "MED-004 (sqlpipe): error must be PrismError::EnrichUdfNotFound \
+         with infusion = 'notafunc_xyz'. \
+         RED failure: SqlPipe arm misses PipeStage::Where predicates → QueryPlanFailed. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("E-QUERY-039"),
+        "MED-004 (sqlpipe): Display must contain 'E-QUERY-039'. Got: {display}"
+    );
+    assert!(
+        display.contains("notafunc_xyz"),
+        "MED-004 (sqlpipe): Display must contain 'notafunc_xyz'. Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "MED-004 (sqlpipe): error must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+// ── F-PQLFN-P1-OBS-001: empty-arg edge cases ─────────────────────────────────
+
+/// F-PQLFN-P1-OBS-001 GREEN (1/2): empty-arg aggregate in pipe `| where` is
+/// rejected as a parse error.
+///
+/// Query: `FROM crowdstrike_detections | where count() = 5`
+///
+/// `count` is in AGGREGATE_FUNC_NAMES (the 7-name blocklist in `build_predicate_parser`).
+/// The `fn_call_comparison` production fires a `try_map` guard for the aggregate name.
+/// Chumsky's error-recovery then backtracks to the `field_comparison` alternative, which
+/// parses `count` as a bare field identifier but then fails at `(` (unexpected token in
+/// field comparison position) → `PrismError::QueryParseFailed`.
+///
+/// Note: the final error Display says "found '(' expected ..." (from field_comparison),
+/// not the ADR-048 D.3 aggregate message. Both paths correctly reject the expression.
+///
+/// # GREEN on arrival (@7a56e53b)
+/// `count()` is unreachable as a valid pipe `| where` predicate in either RED or GREEN —
+/// the query fails to parse regardless.  This test is a regression guard against any
+/// future change that makes `count()` evaluate successfully.
+///
+/// # Why a lock test
+/// Regression guard: a future edit that inadvertently allows aggregate fn-calls in
+/// pipe `| where` (e.g., removing the try_map guard) would allow `count() = 5` to
+/// parse and reach the plan phase.  This test catches that regression.
+///
+/// Traces to: BC-2.11.004 v1.31 EC-11-004-006 scope note;
+///            filter_parser.rs AGGREGATE_FUNC_NAMES blocklist; ADR-048 D.3.
+#[tokio::test]
+async fn test_BC_2_11_004_obs_001_pipe_where_empty_arg_count_blocked() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where count() = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must be a parse error (E-QUERY-001): count() with empty args cannot parse as
+    // a valid pipe | where predicate (aggregate names are blocked by the AGGREGATE_FUNC_NAMES
+    // guard; backtrack to field_comparison fails at the `(` token).
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "OBS-001 GREEN: `count() = 5` in pipe | where must return \
+         PrismError::QueryParseFailed (E-QUERY-001). \
+         Aggregate fn-calls are not valid in pipe | where (ADR-048 D.3). \
+         Got: {result:?}"
+    );
+}
+
+/// F-PQLFN-P1-OBS-001 RED (2/2): empty-arg unknown scalar in pipe `| where`
+/// must yield E-QUERY-039, not QueryPlanFailed.
+///
+/// Query: `FROM crowdstrike_detections | where foo() = 'x'`
+///
+/// `foo` is NOT in AGGREGATE_FUNC_NAMES, so it parses as `ScalarFunc::Unknown("foo")`
+/// with empty args (via `fn_call_comparison`).  After the MED-004 fix, the gate
+/// walks PipeStage::Where predicates and finds `foo` → not in DataFusion built-in set
+/// → not in empty registry → E-QUERY-039.
+///
+/// # RED gate pre-fix failure (@7a56e53b)
+/// Gate only walks PipeStage::Enrich → `foo` in PipeStage::Where predicate is missed →
+/// query proceeds to DataFusion → DataFusion fails (unknown function `foo`) → QueryPlanFailed.
+/// Test asserts EnrichUdfNotFound → FAILS. ✓
+///
+/// # Post-fix state (GREEN)
+/// MED-004 fix extends the walk to PipeStage::Where predicates.
+/// `foo` found → not in registry → E-QUERY-039.
+///
+/// NOTE: This test is RED until the MED-004 implementer fix lands.
+///
+/// Traces to: BC-2.11.019 v1.6 §Precondition 1(b);
+///            error-taxonomy.md §E-QUERY-039; F-PQLFN-P1-MED-004.
+#[tokio::test]
+async fn test_BC_2_11_019_obs_001_pipe_where_empty_arg_unknown_scalar_e_query_039() {
+    let engine = make_crowdstrike_engine_with_empty_infusion();
+
+    // RED GATE: gate currently misses PipeStage::Where predicates → QueryPlanFailed.
+    // POST-FIX (MED-004): gate finds foo() → not in registry → E-QUERY-039.
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where foo() = 'x'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "OBS-001 RED: `foo() = 'x'` in pipe | where must return Err(E-QUERY-039). \
+         Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(&err, PrismError::EnrichUdfNotFound(ref d) if d.infusion == "foo"),
+        "OBS-001 RED: error must be PrismError::EnrichUdfNotFound with infusion = 'foo'. \
+         RED failure: gate currently skips PipeStage::Where → QueryPlanFailed. \
+         Becomes GREEN after MED-004 fix. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("E-QUERY-039"),
+        "OBS-001 RED: Display must contain 'E-QUERY-039'. Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "OBS-001 RED: error must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+// ── F-PQLFN-P1-OBS-002: DataFusion aggregate not in 7-name blocklist ─────────
+//
+// RED test — MUST FAIL against @7a56e53b.
+//
+// Gap: AGGREGATE_FUNC_NAMES in `build_predicate_parser` contains only 7 names:
+//   [count, sum, avg, min, max, distinct_count, percentile]
+//
+// DataFusion has many more aggregate functions (stddev, variance, median, corr, etc.).
+// When `stddev(risk_score)` appears in pipe `| where`, `fn_call_comparison` parses it
+// as `ScalarFunc::Unknown("stddev")` (not in the 7-name blocklist).  The query bypasses
+// the aggregate guard (no E-QUERY-001), passes all plan gates, and reaches DataFusion,
+// which fails at plan time (aggregates cannot be used in WHERE position) →
+// QueryPlanFailed / -32000 INTERNAL_ERROR.
+//
+// The fix: expand AGGREGATE_FUNC_NAMES (or use DATAFUSION_BUILTIN_FUNCTION_NAMES
+// intersection strategy) to cover DataFusion aggregate names, so `stddev` in `| where`
+// produces the same ADR-048 D.3 controlled E-QUERY-001 rejection as `count`.
+
+/// F-PQLFN-P1-OBS-002 RED: `stddev` in pipe `| where` is classified as scalar
+/// by the 7-name blocklist and reaches DataFusion, producing uncontrolled -32000.
+/// Must produce a controlled E-QUERY-001 rejection instead.
+///
+/// Query: `FROM crowdstrike_detections | where stddev(risk_score) = 5`
+///
+/// # RED gate pre-fix failure (@7a56e53b)
+/// `stddev` is NOT in AGGREGATE_FUNC_NAMES (7-name list).
+/// `fn_call_comparison` parses `stddev(risk_score)` as `ScalarFunc::Unknown("stddev")`.
+/// E-QUERY-039 gate skips `stddev` because it IS in DATAFUSION_BUILTIN_FUNCTION_NAMES
+/// (aggregate built-in, added by F1 amendment in S-DEMO-FIDELITY-REMEDIATION-001 Pass-N1b).
+/// Query proceeds to DataFusion → DataFusion rejects aggregate in WHERE → QueryPlanFailed.
+/// Test asserts QueryParseFailed → FAILS. ✓
+///
+/// # Post-fix state (GREEN)
+/// AGGREGATE_FUNC_NAMES (or equivalent gate) expanded to include `stddev`.
+/// `fn_call_comparison` try_map guard fires: "E-QUERY-001: 'stddev' is an aggregate
+/// function; aggregate fn-calls are not valid in pipe | where (use HAVING for
+/// post-aggregation filters, ADR-048 D.3)".
+/// Parse fails → PrismError::QueryParseFailed with aggregate message.
+///
+/// NOTE: This gap was INTRODUCED by the fn_call_comparison fix (@7a56e53b) which
+/// allowed `stddev(...)` to parse successfully (previously it was a parse error for
+/// different reasons — fn-call LHS was rejected unconditionally).  The fix must close
+/// the aggregate detection gap it opened.
+///
+/// Traces to: filter_parser.rs AGGREGATE_FUNC_NAMES; ADR-048 D.3;
+///            F-PQLFN-P1-OBS-002; BC-2.11.004 §Postconditions (aggregate-in-where gate).
+#[tokio::test]
+async fn test_BC_2_11_003_obs_002_pipe_where_stddev_not_in_blocklist_e_query_001() {
+    let engine = make_crowdstrike_detections_engine();
+
+    // RED GATE: stddev not in AGGREGATE_FUNC_NAMES → parses as ScalarFunc::Unknown →
+    //           DataFusion rejects aggregate in WHERE → QueryPlanFailed / -32000.
+    // POST-FIX: AGGREGATE_FUNC_NAMES expanded to include stddev → E-QUERY-001 parse error.
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where stddev(risk_score) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "OBS-002: stddev(risk_score) = 5 in pipe | where must return an error. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // Primary assertion: must be a CONTROLLED parse error (E-QUERY-001 QueryParseFailed),
+    // NOT an uncontrolled DataFusion execution error (QueryPlanFailed / -32000 equivalent).
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "OBS-002 RED: stddev(risk_score) in pipe | where must return \
+         PrismError::QueryParseFailed (E-QUERY-001). \
+         Current behavior: stddev not in AGGREGATE_FUNC_NAMES → parses as ScalarFunc::Unknown \
+         → DataFusion fails → QueryPlanFailed. \
+         Fix: expand AGGREGATE_FUNC_NAMES to include DataFusion aggregate names (ADR-048 D.3). \
+         Got: {err:?} (Display: {display})"
+    );
+
+    // Display must contain the aggregate function rejection message (ADR-048 D.3 pattern).
+    assert!(
+        display.contains("aggregate"),
+        "OBS-002 RED: QueryParseFailed Display must contain 'aggregate' \
+         (ADR-048 D.3 aggregate-in-where message pattern). Got: {display}"
+    );
+
+    assert!(
+        display.contains("stddev"),
+        "OBS-002 RED: QueryParseFailed Display must contain 'stddev' \
+         (the specific aggregate function name). Got: {display}"
+    );
+
+    // Must NOT be QueryPlanFailed — that is the uncontrolled -32000 defect.
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "OBS-002 RED: error must NOT be QueryPlanFailed (-32000 INTERNAL_ERROR). \
+         The fix must intercept stddev at parse time (E-QUERY-001), not let it reach DataFusion. \
+         Got: {err:?}"
     );
 }
