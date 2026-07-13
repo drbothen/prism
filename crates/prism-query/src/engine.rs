@@ -1837,8 +1837,9 @@ fn check_enrich_udf_availability(
     // built-in skip is applied to SQL names only.
     let mut pipe_enrich_names: Vec<String> = Vec::new(); // no built-in skip
     let mut sql_unknown_names: Vec<String> = Vec::new(); // built-in skip applied
-                                                         // ScalarFunc::Unknown names from predicate fn-call LHS positions (pipe | where,
-                                                         // filter-mode root predicate, SqlPipe | where). Checked for aggregate classification
+                                                         // ScalarFunc::Unknown names from predicate fn-call LHS — all six positions per
+                                                         // ADR-048 §D.7.1: pipe | where, filter root, SqlPipe | where, SQL WHERE,
+                                                         // SqlPipe-head WHERE, SQL DML WHERE. Checked for aggregate classification
                                                          // (ADR-048 D.3 plan-time gate) before being folded into sql_unknown_names for
                                                          // E-QUERY-039. BC-2.11.019 §Postconditions third bullet (DEFECT-PQL-FNCALL-LHS-001).
     let mut predicate_fncall_names: Vec<String> = Vec::new();
@@ -2336,7 +2337,8 @@ fn collect_predicate_columns_with_bareness(
                 }
             }
             Expr::FuncCall(_) => {
-                // Fn-call LHS (all six shared-parser predicate positions, ADR-048 §D.7.1).
+                // Fn-call LHS (all six shared-parser predicate positions, ADR-048 §D.7.1,
+                // + HAVING FuncCall LHS contexts, §D.3/§D.7.3).
                 // Recurse into FuncCall args, preserving per-reference bareness for each field ref.
                 extract_field_paths_with_bareness(lhs.as_ref(), table_name, table_alias, out);
             }
@@ -3903,8 +3905,10 @@ fn check_pipe_stage_columns(
 /// - `Expr::FuncCall(_)` — fn-call LHS: either an aggregate (HAVING `agg_fn(col) op literal`
 ///   per ADR-048 D.3) or a scalar fn-call (pipe `| where` `scalar_fn(col) op literal`
 ///   per DEFECT-PQL-FNCALL-LHS-001). Recursed via `extract_field_paths_from_expr` to
-///   reach nested `Expr::Field` args. Mode-agnostic: all six shared-parser predicate
-///   positions (ADR-048 §D.7.1) produce this form via `fn_call_comparison`.
+///   reach nested `Expr::Field` args. Exercised for the six §D.7.1 shared-parser
+///   predicate positions PLUS HAVING FuncCall LHS contexts (FuncCall::Aggregate per
+///   §D.3, FuncCall::Scalar base fallthrough per §D.7.3); §D.7.1's HAVING exemption
+///   applies to the aggregate gate, not to column extraction.
 /// - All other `lhs` forms (`VirtualField`, `Literal`, etc.) — fail-open (silently skipped).
 ///
 /// F-001B-DC-HIGH-001: uses `extract_column_name_from_field_path` for each
@@ -3937,6 +3941,7 @@ fn collect_predicate_columns(
         //   - Expr::Field(fp)        — bare column ref (WHERE / HAVING bare predicate)
         //   - Expr::FuncCall(..)     — fn-call LHS: all six shared-parser predicate positions
         //                             (ADR-048 §D.7.1; WHERE-safe via arg-recursion, ADR-048 §D.3)
+        //                             + HAVING FuncCall LHS contexts (§D.3/§D.7.3).
         //
         // For Expr::Field: extract via extract_column_name_from_field_path (handles
         //   qualified refs, F-001B-DC-HIGH-001).
@@ -3956,7 +3961,8 @@ fn collect_predicate_columns(
                     }
                 }
                 Expr::FuncCall(_) => {
-                    // Fn-call LHS (all six shared-parser positions, ADR-048 §D.7.1).
+                    // Fn-call LHS (all six shared-parser positions, ADR-048 §D.7.1,
+                    // + HAVING FuncCall LHS contexts, §D.3/§D.7.3).
                     // Recurse into args via extract_field_paths_from_expr to extract Expr::Field refs.
                     extract_field_paths_from_expr(lhs.as_ref(), table_name, table_alias, out);
                 }
