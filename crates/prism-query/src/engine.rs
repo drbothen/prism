@@ -1573,13 +1573,18 @@ static DATAFUSION_BUILTIN_AGGREGATE_NAMES: std::sync::LazyLock<std::collections:
                 names.insert(alias.to_ascii_lowercase());
             }
         }
-        // PrismQL-specific aggregate names absent from DataFusion's built-in registry
+        // PrismQL-specific aggregate names ABSENT from DataFusion 53.1's built-in registry
+        // (EMPIRICALLY VERIFIED — see `datafusion_aggregate_registry_empirical_tests` below)
         // but semantically aggregate functions in PrismQL grammar (ADR-048 v1.2 D.7.1).
         // These must also be rejected in WHERE predicates with the canonical E-QUERY-001
         // message — they cannot be valid WHERE predicate LHS values.
         //
         // distinct_count: maps to SQL APPROX_DISTINCT / COUNT(DISTINCT ...) at emit time.
+        //   DataFusion 53.1 uses "approx_distinct", NOT "distinct_count" — absent from registry.
         // percentile:     maps to APPROX_PERCENTILE_CONT at emit time.
+        //   DataFusion 53.1 has NO "percentile" built-in — absent from registry.
+        //   ADR-048 v1.3 claimed "percentile IS registered" — EMPIRICALLY FALSE (F-PQLFN-P4-MED-001).
+        //   Architect must update ADR-048 v1.3 to remove this claim; manual insert stays.
         //
         // Both are in the removed parser-level AGGREGATE_FUNC_NAMES list (OD-4 removal) and
         // must be covered by this plan-time gate to maintain the WHERE aggregate invariant
@@ -14896,5 +14901,169 @@ mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
                 other
             ),
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PQLFN-P4-MED-001: DataFusion aggregate registry empirical locks
+// ---------------------------------------------------------------------------
+//
+// Settles the ADR-048 v1.3 vs engine.rs comment discrepancy about whether
+// "percentile" and "distinct_count" are present in DataFusion 53.1's
+// default_aggregate_functions() registry.
+//
+// These tests pin the EMPIRICAL TRUTH as load-bearing assertions. If a
+// DataFusion upgrade ever adds "percentile" or "distinct_count" to the registry,
+// the corresponding test fails — reviewer knows to remove the now-redundant manual
+// insert from DATAFUSION_BUILTIN_AGGREGATE_NAMES and update ADR-048.
+//
+// VERDICT (DataFusion 53.1):
+//   "percentile"      → ABSENT  (ADR-048 v1.3 claim was FALSE; comment correct)
+//   "distinct_count"  → ABSENT  (DataFusion uses "approx_distinct")
+//   "approx_percentile_cont" → PRESENT  (what "percentile" emits at query time)
+//   "approx_distinct" → PRESENT  (what "distinct_count" maps to at emit time)
+
+#[cfg(test)]
+mod datafusion_aggregate_registry_empirical_tests {
+    /// F-PQLFN-P4-MED-001 empirical lock (1/4): "percentile" ABSENT from DataFusion 53.1.
+    ///
+    /// Settles the discrepancy between:
+    ///   - ADR-048 v1.3 claim: "percentile IS registered in default_aggregate_functions()"
+    ///   - engine.rs comment: "absent from DataFusion's built-in registry"
+    ///
+    /// EMPIRICAL VERDICT: "percentile" is ABSENT from DataFusion 53.1.
+    ///   → engine.rs comment CORRECT; ADR-048 v1.3 claim is FALSE.
+    ///   → The manual `names.insert("percentile")` is NECESSARY for correct gate coverage.
+    ///   → Architect must update ADR-048 v1.3 to remove the false "percentile IS registered" claim.
+    ///
+    /// If this test FAILS in a future DataFusion upgrade: "percentile" was added to the
+    /// registry. Remove the manual insert and update ADR-048 accordingly.
+    ///
+    /// Traces to: F-PQLFN-P4-MED-001; ADR-048 v1.3 reconciliation.
+    #[test]
+    fn test_f_pqlfn_p4_med_001_percentile_absent_from_datafusion_53_1_aggregate_registry() {
+        use datafusion::execution::SessionStateDefaults;
+
+        let raw_names: std::collections::HashSet<String> =
+            SessionStateDefaults::default_aggregate_functions()
+                .iter()
+                .flat_map(|f| {
+                    let mut names = vec![f.name().to_ascii_lowercase()];
+                    for alias in f.aliases() {
+                        names.push(alias.to_ascii_lowercase());
+                    }
+                    names
+                })
+                .collect();
+
+        // EMPIRICAL LOCK: "percentile" must be ABSENT from the raw DataFusion registry
+        // (before the manual inserts in DATAFUSION_BUILTIN_AGGREGATE_NAMES).
+        assert!(
+            !raw_names.contains("percentile"),
+            "F-PQLFN-P4-MED-001 EMPIRICAL LOCK BROKEN: 'percentile' is now IN DataFusion's \
+             default_aggregate_functions() registry (not present in DataFusion 53.1). \
+             ADR-048 v1.3 claim would now be CORRECT for this DataFusion version. \
+             Action: remove `names.insert(\"percentile\")` from DATAFUSION_BUILTIN_AGGREGATE_NAMES \
+             and update ADR-048 to note version where percentile became a DataFusion built-in."
+        );
+    }
+
+    /// F-PQLFN-P4-MED-001 empirical lock (2/4): "distinct_count" ABSENT from DataFusion 53.1.
+    ///
+    /// DataFusion 53.1 uses "approx_distinct" (not "distinct_count") as the canonical name.
+    /// "distinct_count" is a PrismQL-specific alias — absent from DataFusion's registry.
+    ///   → The manual `names.insert("distinct_count")` is NECESSARY for correct gate coverage.
+    ///
+    /// If this test FAILS: DataFusion added "distinct_count" as an alias or new function.
+    /// Action: verify if the manual insert is still needed; update ADR-048.
+    ///
+    /// Traces to: F-PQLFN-P4-MED-001; ADR-048 v1.3 reconciliation.
+    #[test]
+    fn test_f_pqlfn_p4_med_001_distinct_count_absent_from_datafusion_53_1_aggregate_registry() {
+        use datafusion::execution::SessionStateDefaults;
+
+        let raw_names: std::collections::HashSet<String> =
+            SessionStateDefaults::default_aggregate_functions()
+                .iter()
+                .flat_map(|f| {
+                    let mut names = vec![f.name().to_ascii_lowercase()];
+                    for alias in f.aliases() {
+                        names.push(alias.to_ascii_lowercase());
+                    }
+                    names
+                })
+                .collect();
+
+        // EMPIRICAL LOCK: "distinct_count" must be ABSENT (DataFusion uses "approx_distinct").
+        assert!(
+            !raw_names.contains("distinct_count"),
+            "F-PQLFN-P4-MED-001 EMPIRICAL LOCK BROKEN: 'distinct_count' is now IN DataFusion's \
+             default_aggregate_functions() registry. DataFusion 53.1 uses 'approx_distinct'. \
+             Action: verify if the manual insert is still needed; update ADR-048."
+        );
+    }
+
+    /// F-PQLFN-P4-MED-001 empirical lock (3/4): "approx_percentile_cont" PRESENT in DataFusion 53.1.
+    ///
+    /// Confirms that the UNDERLYING function "percentile" maps to at emit time IS present.
+    /// This validates the pipe_sql_emitter.rs `percentile → approx_percentile_cont` translation.
+    ///
+    /// If this test FAILS: DataFusion renamed or removed "approx_percentile_cont".
+    /// Action: update pipe_sql_emitter.rs percentile emit logic to use new function name.
+    ///
+    /// Traces to: F-PQLFN-P4-MED-001; pipe_sql_emitter.rs percentile emit logic.
+    #[test]
+    fn test_f_pqlfn_p4_med_001_approx_percentile_cont_present_in_datafusion_53_1_registry() {
+        use datafusion::execution::SessionStateDefaults;
+
+        let raw_names: std::collections::HashSet<String> =
+            SessionStateDefaults::default_aggregate_functions()
+                .iter()
+                .flat_map(|f| {
+                    let mut names = vec![f.name().to_ascii_lowercase()];
+                    for alias in f.aliases() {
+                        names.push(alias.to_ascii_lowercase());
+                    }
+                    names
+                })
+                .collect();
+
+        // EMPIRICAL LOCK: "approx_percentile_cont" must be PRESENT (pipe_sql_emitter maps to it).
+        assert!(
+            raw_names.contains("approx_percentile_cont"),
+            "F-PQLFN-P4-MED-001: 'approx_percentile_cont' is ABSENT from DataFusion's \
+             default_aggregate_functions() registry. Unexpected for DataFusion 53.1. \
+             pipe_sql_emitter.rs maps 'percentile' to 'approx_percentile_cont' at emit time. \
+             Action: update pipe_sql_emitter.rs to use DataFusion's current percentile function."
+        );
+    }
+
+    /// F-PQLFN-P4-MED-001 empirical lock (4/4): "approx_distinct" PRESENT in DataFusion 53.1.
+    ///
+    /// Confirms that the UNDERLYING function "distinct_count" maps to at emit time IS present.
+    ///
+    /// Traces to: F-PQLFN-P4-MED-001.
+    #[test]
+    fn test_f_pqlfn_p4_med_001_approx_distinct_present_in_datafusion_53_1_registry() {
+        use datafusion::execution::SessionStateDefaults;
+
+        let raw_names: std::collections::HashSet<String> =
+            SessionStateDefaults::default_aggregate_functions()
+                .iter()
+                .flat_map(|f| {
+                    let mut names = vec![f.name().to_ascii_lowercase()];
+                    for alias in f.aliases() {
+                        names.push(alias.to_ascii_lowercase());
+                    }
+                    names
+                })
+                .collect();
+
+        // EMPIRICAL LOCK: "approx_distinct" must be PRESENT (DataFusion 53.1 built-in).
+        assert!(
+            raw_names.contains("approx_distinct"),
+            "F-PQLFN-P4-MED-001: 'approx_distinct' is ABSENT from DataFusion's registry. \
+             Unexpected for DataFusion 53.1. Action: check DataFusion version and update."
+        );
     }
 }

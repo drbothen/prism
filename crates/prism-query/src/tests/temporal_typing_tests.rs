@@ -4842,7 +4842,7 @@ async fn test_BC_2_11_003_obs_002_pipe_where_stddev_not_in_blocklist_e_query_001
 
 // ── DEFECT-PQL-FNCALL-LHS-001 fix-burst 2: ADR-048 v1.2 §D.7 aggregate-gate matrix ─────────
 //
-// Implements ADR-048 v1.2 §D.7 "Unified Plan-Time Aggregate-in-Predicate Gate" TM-01..TM-16.
+// Implements ADR-048 v1.2 §D.7 "Unified Plan-Time Aggregate-in-Predicate Gate" TM-01..TM-18.
 //
 // TM-01:  existing (test_BC_2_11_004_invariant_pipe_where_aggregate_fncall_remains_invalid)
 // TM-03/09: strengthened above (test_BC_2_11_003_obs_002_pipe_where_stddev_not_in_blocklist_e_query_001)
@@ -4863,6 +4863,17 @@ async fn test_BC_2_11_003_obs_002_pipe_where_stddev_not_in_blocklist_e_query_001
 //   TM-11  HAVING count(*) passes → NOT E-QUERY-001 (HAVING exempt, MED-001 permit)
 //   TM-12  HAVING stddev passes   → NOT E-QUERY-001 (HAVING exempt, MED-001 permit)
 //   TM-13  HAVING count(typo_col) → E-QUERY-038 column gate fires (not aggregate gate)
+//
+// fix-burst-4 additions (GREEN from arrival, F-PQLFN-P4-LOW-002):
+//   TM-17  Pipe | where distinct_count → E-QUERY-001 D.3 (manual-insert lock for distinct_count)
+//   TM-18  Pipe | where percentile    → E-QUERY-001 D.3 (manual-insert lock for percentile)
+//
+// fix-burst-4 additions (D.7.4 ordering discriminators, F-PQLFN-P4-LOW-001):
+//   D.7.4-exec  pipe | where stddev + date → E-QUERY-001 not E-QUERY-042 (execute path)
+//   D.7.4-sched pipe | where stddev + date → E-QUERY-001 not E-QUERY-042 (execute_scheduled path)
+//
+// fix-burst-4 additions (F-PQLFN-P4-MED-001 HAVING e2e lock):
+//   HAVING percentile(risk_score, 95) > 5 → NOT E-QUERY-001 (HAVING exempt)
 //
 // LOW-001 (F-PQLFN-P2-LOW-001): BC-2.11.004 v1.32 canonical scope limits
 //   nested fn-call args:  upper(trim(device_id)) = 'active'  → QueryParseFailed (GREEN lock)
@@ -5590,6 +5601,365 @@ async fn test_BC_2_11_019_tm_16_sql_where_stddev_canonical_d3_message() {
     assert!(
         !matches!(&err, PrismError::QueryPlanFailed { .. }),
         "TM-16: must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+// ── TM-17: Pipe | where distinct_count → E-QUERY-001 (manual-insert lock) ───────
+
+/// TM-17 GREEN lock: `distinct_count` in pipe `| where` must fire E-QUERY-001 with
+/// canonical ADR-048 D.3 message containing "distinct_count".
+///
+/// Query: `FROM crowdstrike_detections | where distinct_count(device_id) = 5`
+///
+/// "distinct_count" is NOT in DataFusion 53.1's `default_aggregate_functions()` registry
+/// (EMPIRICALLY VERIFIED — F-PQLFN-P4-MED-001; DataFusion 53.1 uses "approx_distinct").
+/// The manual `names.insert("distinct_count")` in `DATAFUSION_BUILTIN_AGGREGATE_NAMES`
+/// is what makes the plan-time aggregate gate fire for this name.
+///
+/// This test is a load-bearing lock for the manual insert: if the insert were removed,
+/// "distinct_count" would fall through (no coverage), and E-QUERY-001 would NOT fire.
+///
+/// Traces to: F-PQLFN-P4-LOW-002; ADR-048 v1.2 D.7.1 D.7.6; BC-2.11.004 v1.33.
+#[tokio::test]
+async fn test_BC_2_11_004_tm_17_pipe_where_distinct_count_manual_insert_lock() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where distinct_count(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "TM-17: `distinct_count(device_id) = 5` in pipe | where must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // TM-17 primary: must be E-QUERY-001 (aggregate gate fires, not E-QUERY-039).
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "TM-17: pipe | where distinct_count must return QueryParseFailed (E-QUERY-001). \
+         The manual DATAFUSION_BUILTIN_AGGREGATE_NAMES insert for 'distinct_count' is the \
+         mechanism — DataFusion 53.1 does NOT include 'distinct_count' in its registry \
+         (uses 'approx_distinct' instead; EMPIRICALLY VERIFIED, F-PQLFN-P4-MED-001). \
+         Without the manual insert, this test fails (no E-QUERY-001). \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("distinct_count"),
+        "TM-17: Display must contain 'distinct_count' (aggregate fn name, ADR-048 D.3). \
+         Got: {display}"
+    );
+
+    assert!(
+        display.contains("aggregate function"),
+        "TM-17: Display must contain 'aggregate function' (canonical D.3 message). \
+         Got: {display}"
+    );
+
+    assert!(
+        display.contains("HAVING"),
+        "TM-17: Display must contain 'HAVING' (use HAVING guidance, ADR-048 D.3). \
+         Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "TM-17: must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+// ── TM-18: Pipe | where percentile → E-QUERY-001 (manual-insert lock) ────────
+
+/// TM-18 GREEN lock: `percentile` in pipe `| where` must fire E-QUERY-001 with
+/// canonical ADR-048 D.3 message containing "percentile".
+///
+/// Query: `FROM crowdstrike_detections | where percentile(risk_score, 95) = 5`
+///
+/// "percentile" is NOT in DataFusion 53.1's `default_aggregate_functions()` registry
+/// (EMPIRICALLY VERIFIED — F-PQLFN-P4-MED-001; DataFusion 53.1 uses "approx_percentile_cont").
+/// The manual `names.insert("percentile")` in `DATAFUSION_BUILTIN_AGGREGATE_NAMES` is what
+/// makes the plan-time aggregate gate fire for this name.
+///
+/// ADR-048 v1.3 claimed "percentile IS registered in default_aggregate_functions()" —
+/// this is EMPIRICALLY FALSE (DataFusion 53.1). The manual insert is NECESSARY.
+/// This test is a load-bearing lock for that insert.
+///
+/// Traces to: F-PQLFN-P4-LOW-002; ADR-048 v1.2 D.7.1 D.7.6; BC-2.11.004 v1.33.
+#[tokio::test]
+async fn test_BC_2_11_004_tm_18_pipe_where_percentile_manual_insert_lock() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where percentile(risk_score, 95) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "TM-18: `percentile(risk_score, 95) = 5` in pipe | where must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // TM-18 primary: must be E-QUERY-001 (aggregate gate fires, not E-QUERY-039).
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "TM-18: pipe | where percentile must return QueryParseFailed (E-QUERY-001). \
+         The manual DATAFUSION_BUILTIN_AGGREGATE_NAMES insert for 'percentile' is the \
+         mechanism — DataFusion 53.1 does NOT include 'percentile' in its registry \
+         (EMPIRICALLY VERIFIED, F-PQLFN-P4-MED-001; ADR-048 v1.3's contrary claim is FALSE). \
+         Without the manual insert, this test fails (no E-QUERY-001). \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("percentile"),
+        "TM-18: Display must contain 'percentile' (aggregate fn name, ADR-048 D.3). \
+         Got: {display}"
+    );
+
+    assert!(
+        display.contains("aggregate function"),
+        "TM-18: Display must contain 'aggregate function' (canonical D.3 message). \
+         Got: {display}"
+    );
+
+    assert!(
+        display.contains("HAVING"),
+        "TM-18: Display must contain 'HAVING' (use HAVING guidance, ADR-048 D.3). \
+         Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "TM-18: must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+// ── F-PQLFN-P4-MED-001 HAVING e2e lock ───────────────────────────────────────
+
+/// F-PQLFN-P4-MED-001 HAVING e2e lock: `HAVING percentile(risk_score, 95) > 5`
+/// must NOT fire E-QUERY-001 (HAVING is exempt from aggregate-in-predicate gate).
+///
+/// Query: `SELECT device_id FROM crowdstrike_detections GROUP BY device_id
+///         HAVING percentile(risk_score, 95) > 5`
+///
+/// HAVING is fully exempt from the aggregate-in-predicate gate (ADR-048 D.7.3).
+/// "percentile" in HAVING parses as `FuncCall::Scalar(Unknown("percentile"))` — the
+/// non-six-name fallthrough path (ADR-048 D.7.3 OD-3 MED-001 permit). HAVING predicates
+/// are NOT walked by `predicate_fncall_names`, so the aggregate gate does not fire.
+///
+/// The manual `names.insert("percentile")` in `DATAFUSION_BUILTIN_AGGREGATE_NAMES` only
+/// applies to WHERE/predicate positions. This test confirms it does NOT trigger in HAVING.
+///
+/// The actual result (DataFusion plan error since "percentile" is not a DataFusion
+/// built-in aggregate and HAVING is passed through unmodified) is locked here.
+///
+/// Traces to: F-PQLFN-P4-MED-001 HAVING e2e lock; ADR-048 v1.3 D.7.3; BC-2.11.016 v1.6.
+#[tokio::test]
+async fn test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT device_id FROM crowdstrike_detections \
+             GROUP BY device_id HAVING percentile(risk_score, 95) > 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // HAVING is exempt from the aggregate-in-predicate gate (ADR-048 D.7.3).
+    // The result may be Ok or any non-E-QUERY-001 error (DataFusion plan failure, etc.).
+    if let Err(ref e) = result {
+        assert!(
+            !matches!(e, PrismError::QueryParseFailed { .. }),
+            "F-PQLFN-P4-MED-001 HAVING e2e lock: HAVING percentile(risk_score, 95) > 5 \
+             must NOT fire E-QUERY-001 (aggregate gate). \
+             HAVING is exempt per ADR-048 D.7.3 (MED-001 permit). \
+             The manual insert for 'percentile' in DATAFUSION_BUILTIN_AGGREGATE_NAMES \
+             only covers WHERE/predicate positions, not HAVING. \
+             Got: {e:?}"
+        );
+
+        let display = format!("{e}");
+        assert!(
+            !display.contains("aggregate function"),
+            "F-PQLFN-P4-MED-001 HAVING e2e: display must NOT contain 'aggregate function' \
+             (E-QUERY-001 aggregate gate message). HAVING is exempt. Got: {display}"
+        );
+    }
+    // If Ok: no assertion needed — HAVING percentile passed through to DataFusion.
+}
+
+// ── F-PQLFN-P4-LOW-001: D.7.4 gate-ordering discriminator (pipe | where + temporal RHS) ──
+
+/// F-PQLFN-P4-LOW-001 D.7.4 ordering discriminator (execute path):
+/// `FROM crowdstrike_detections | where stddev(risk_score) = '2026-06-24'` must return
+/// E-QUERY-001 (aggregate gate fires FIRST), NOT E-QUERY-042 (temporal gate).
+///
+/// This is a TRUE DISCRIMINATING test for D.7.4 gate ordering: the query has BOTH an
+/// aggregate fn-call (`stddev`) AND a date-like RHS (`'2026-06-24'`). Two gates could
+/// fire if both ran:
+///   - Aggregate gate (`check_enrich_udf_availability` early call) → E-QUERY-001
+///   - Temporal gate (`check_temporal_literals`) → E-QUERY-042 NonColumnLhsComparison
+///
+/// ADR-048 v1.2 §D.7.4: aggregate gate fires BEFORE temporal gate. The early
+/// `check_enrich_udf_availability(query_str, None)` call in `execute_inner` is what
+/// enforces this ordering. If that call were REMOVED, the temporal gate would fire
+/// first and this test would FAIL with E-QUERY-042 — making it a true discriminator
+/// that cannot be satisfied by any "later" gate call.
+///
+/// TM-14 covers the SQL WHERE position with the same combination; this test covers
+/// the PIPE `| where` position, which is parsed via `fn_call_comparison` production
+/// (different grammar path than SQL WHERE).
+///
+/// Traces to: F-PQLFN-P4-LOW-001; ADR-048 v1.2 §D.7.4; BC-2.11.004 v1.33.
+#[tokio::test]
+async fn test_BC_2_11_004_low_001_d74_pipe_where_agg_temporal_e_query_001_not_e_query_042_execute()
+{
+    use prism_core::error::TemporalLiteralPosition;
+
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where stddev(risk_score) = '2026-06-24'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "F-PQLFN-P4-LOW-001 [execute]: stddev + date-like RHS in pipe | where must return Err. \
+         Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // PRIMARY: must be E-QUERY-001 (aggregate gate fires first per D.7.4).
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "F-PQLFN-P4-LOW-001 [execute]: pipe | where stddev + date-like RHS must return \
+         QueryParseFailed (E-QUERY-001). \
+         D.7.4: early check_enrich_udf_availability fires BEFORE check_temporal_literals. \
+         If E-QUERY-042: the early aggregate gate call is missing or bypassed. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    // Must NOT be E-QUERY-042 (temporal gate must NOT fire before aggregate gate).
+    assert!(
+        !matches!(
+            &err,
+            PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::NonColumnLhsComparison,
+                ..
+            }
+        ),
+        "F-PQLFN-P4-LOW-001 [execute]: must NOT fire E-QUERY-042 NonColumnLhsComparison. \
+         D.7.4: aggregate gate (E-QUERY-001) fires BEFORE temporal gate (E-QUERY-042). \
+         Got: {err:?}"
+    );
+
+    // Must NOT be QueryPlanFailed (-32000).
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "F-PQLFN-P4-LOW-001 [execute]: must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+
+    assert!(
+        display.contains("stddev"),
+        "F-PQLFN-P4-LOW-001 [execute]: Display must contain 'stddev'. Got: {display}"
+    );
+    assert!(
+        display.contains("aggregate function"),
+        "F-PQLFN-P4-LOW-001 [execute]: Display must contain 'aggregate function'. \
+         Got: {display}"
+    );
+}
+
+/// F-PQLFN-P4-LOW-001 D.7.4 ordering discriminator (execute_scheduled path):
+/// `FROM crowdstrike_detections | where stddev(risk_score) = '2026-06-24'` must return
+/// E-QUERY-001 via `execute_scheduled()`, NOT E-QUERY-042.
+///
+/// execute_scheduled_inner() has its own early `check_enrich_udf_availability(query_str, None)`
+/// call that must fire BEFORE `check_temporal_literals`. If that call were removed from
+/// execute_scheduled_inner, the temporal gate would fire first (E-QUERY-042) — making
+/// this a true discriminator that cannot be satisfied by the later gate call.
+///
+/// Both execute() and execute_scheduled() must honor D.7.4 gate ordering symmetrically.
+///
+/// Traces to: F-PQLFN-P4-LOW-001; ADR-048 v1.2 §D.7.4; BC-2.11.004 v1.33.
+#[tokio::test]
+async fn test_BC_2_11_004_low_001_d74_pipe_where_agg_temporal_e_query_001_not_e_query_042_scheduled(
+) {
+    use prism_core::error::TemporalLiteralPosition;
+
+    let engine = make_crowdstrike_detections_engine();
+
+    let query = "FROM crowdstrike_detections | where stddev(risk_score) = '2026-06-24'";
+
+    let scheduled_result = engine
+        .execute_scheduled(query, None)
+        .await
+        .map(|(qr, _ctx)| qr);
+
+    assert!(
+        scheduled_result.is_err(),
+        "F-PQLFN-P4-LOW-001 [execute_scheduled]: stddev + date-like RHS must return Err. \
+         Got Ok."
+    );
+
+    let err = scheduled_result.unwrap_err();
+    let display = format!("{err}");
+
+    // PRIMARY: must be E-QUERY-001 (aggregate gate fires first in execute_scheduled_inner).
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "F-PQLFN-P4-LOW-001 [execute_scheduled]: pipe | where stddev + date-like RHS must \
+         return QueryParseFailed (E-QUERY-001). \
+         execute_scheduled_inner has its own early check_enrich_udf_availability call \
+         (D.7.4 symmetric ordering). If E-QUERY-042: that early call is missing. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    // Must NOT be E-QUERY-042.
+    assert!(
+        !matches!(
+            &err,
+            PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::NonColumnLhsComparison,
+                ..
+            }
+        ),
+        "F-PQLFN-P4-LOW-001 [execute_scheduled]: must NOT fire E-QUERY-042. \
+         D.7.4: aggregate gate fires BEFORE temporal gate in execute_scheduled_inner. \
+         Got: {err:?}"
+    );
+
+    // Must NOT be QueryPlanFailed (-32000).
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "F-PQLFN-P4-LOW-001 [execute_scheduled]: must NOT be QueryPlanFailed. Got: {err:?}"
+    );
+
+    assert!(
+        display.contains("stddev"),
+        "F-PQLFN-P4-LOW-001 [execute_scheduled]: Display must contain 'stddev'. Got: {display}"
+    );
+    assert!(
+        display.contains("aggregate function"),
+        "F-PQLFN-P4-LOW-001 [execute_scheduled]: Display must contain 'aggregate function'. \
+         Got: {display}"
     );
 }
 
