@@ -4607,32 +4607,33 @@ async fn test_BC_2_11_019_med_004_sqlpipe_where_unknown_scalar_e_query_039() {
 
 // ── F-PQLFN-P1-OBS-001: empty-arg edge cases ─────────────────────────────────
 
-/// F-PQLFN-P1-OBS-001 GREEN (1/2): empty-arg aggregate in pipe `| where` is
-/// rejected as a parse error.
+/// TM-15 (fix-burst 2 RED): empty-arg aggregate `count()` in pipe `| where` must
+/// produce E-QUERY-001 with the ADR-048 D.3 canonical aggregate message.
 ///
 /// Query: `FROM crowdstrike_detections | where count() = 5`
 ///
-/// `count` is in AGGREGATE_FUNC_NAMES (the 7-name blocklist in `build_predicate_parser`).
-/// The `fn_call_comparison` production fires a `try_map` guard for the aggregate name.
-/// Chumsky's error-recovery then backtracks to the `field_comparison` alternative, which
-/// parses `count` as a bare field identifier but then fails at `(` (unexpected token in
-/// field comparison position) → `PrismError::QueryParseFailed`.
+/// # Pre-fix-burst-2 mechanism (@5ce8bedc)
+/// `count` is in the parser-level AGGREGATE_FUNC_NAMES blocklist (7-name list in
+/// `build_predicate_parser`). `fn_call_comparison` fires a `try_map` guard for the
+/// aggregate name. Chumsky backtracks to `field_comparison`, which parses `count`
+/// as a bare field identifier then fails at `(` → `PrismError::QueryParseFailed`
+/// with a "found '('" message — NOT the ADR-048 D.3 canonical message.
 ///
-/// Note: the final error Display says "found '(' expected ..." (from field_comparison),
-/// not the ADR-048 D.3 aggregate message. Both paths correctly reject the expression.
+/// # Post-fix-burst-2 mechanism
+/// AGGREGATE_FUNC_NAMES parser-level blocklist is REMOVED (ADR-048 v1.2 OD-4).
+/// `fn_call_comparison` successfully parses `count()` as `FuncCall::Scalar(Unknown("count"))`.
+/// The plan-time `DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate intercepts it and fires
+/// E-QUERY-001 with the canonical message:
+///   "E-QUERY-001: 'count' is an aggregate function; aggregate fn-calls are not
+///    valid in pipe | where (use HAVING for post-aggregation filters, ADR-048 D.3)"
 ///
-/// # GREEN on arrival (@7a56e53b)
-/// `count()` is unreachable as a valid pipe `| where` predicate in either RED or GREEN —
-/// the query fails to parse regardless.  This test is a regression guard against any
-/// future change that makes `count()` evaluate successfully.
+/// # RED at @5ce8bedc
+/// The current "found '('" message does NOT contain "aggregate function" or "HAVING".
+/// Assertions for those strings FAIL → this test is RED. ✓
 ///
-/// # Why a lock test
-/// Regression guard: a future edit that inadvertently allows aggregate fn-calls in
-/// pipe `| where` (e.g., removing the try_map guard) would allow `count() = 5` to
-/// parse and reach the plan phase.  This test catches that regression.
-///
-/// Traces to: BC-2.11.004 v1.31 EC-11-004-006 scope note;
-///            filter_parser.rs AGGREGATE_FUNC_NAMES blocklist; ADR-048 D.3.
+/// Traces to: BC-2.11.004 v1.32 EC-11-004-006 scope note; ADR-048 v1.2 D.7 TM-15;
+///            filter_parser.rs (AGGREGATE_FUNC_NAMES removal target);
+///            engine.rs DATAFUSION_BUILTIN_AGGREGATE_NAMES gate.
 #[tokio::test]
 async fn test_BC_2_11_004_obs_001_pipe_where_empty_arg_count_blocked() {
     let engine = make_crowdstrike_detections_engine();
@@ -4644,15 +4645,41 @@ async fn test_BC_2_11_004_obs_001_pipe_where_empty_arg_count_blocked() {
         )
         .await;
 
-    // Must be a parse error (E-QUERY-001): count() with empty args cannot parse as
-    // a valid pipe | where predicate (aggregate names are blocked by the AGGREGATE_FUNC_NAMES
-    // guard; backtrack to field_comparison fails at the `(` token).
+    // TM-15 assertion (1/4): must be E-QUERY-001 QueryParseFailed.
     assert!(
         matches!(&result, Err(PrismError::QueryParseFailed { .. })),
-        "OBS-001 GREEN: `count() = 5` in pipe | where must return \
+        "TM-15: `count() = 5` in pipe | where must return \
          PrismError::QueryParseFailed (E-QUERY-001). \
          Aggregate fn-calls are not valid in pipe | where (ADR-048 D.3). \
          Got: {result:?}"
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // TM-15 assertion (2/4): SID-2 message contains fn name.
+    assert!(
+        display.contains("count"),
+        "TM-15: Display must contain 'count' (the aggregate fn name). \
+         RED: 'found '('' message from parser backtrack does not contain 'count'. \
+         GREEN (after fix-burst-2): plan-time gate fires canonical D.3 message. \
+         Got: {display}"
+    );
+
+    // TM-15 assertion (3/4): SID-2 message contains "aggregate function".
+    assert!(
+        display.contains("aggregate function"),
+        "TM-15: Display must contain 'aggregate function' (ADR-048 D.3 canonical message). \
+         RED: parser-backtrack 'found '('' message does not contain 'aggregate function'. \
+         Got: {display}"
+    );
+
+    // TM-15 assertion (4/4): SID-2 message contains "HAVING" (canonical D.3 guidance).
+    assert!(
+        display.contains("HAVING"),
+        "TM-15: Display must contain 'HAVING' (use HAVING for post-aggregation filters, ADR-048 D.3). \
+         RED: 'found '('' backtrack message does not contain 'HAVING'. \
+         Got: {display}"
     );
 }
 
@@ -4722,57 +4749,46 @@ async fn test_BC_2_11_019_obs_001_pipe_where_empty_arg_unknown_scalar_e_query_03
 
 // ── F-PQLFN-P1-OBS-002: DataFusion aggregate not in 7-name blocklist ─────────
 //
-// RED test — MUST FAIL against @7a56e53b.
+// Originally RED against @7a56e53b; GREEN from fix-burst-1 (@5ce8bedc) onward.
 //
-// Gap: AGGREGATE_FUNC_NAMES in `build_predicate_parser` contains only 7 names:
+// Gap (closed by fix-burst-1): AGGREGATE_FUNC_NAMES contained only 7 names:
 //   [count, sum, avg, min, max, distinct_count, percentile]
 //
 // DataFusion has many more aggregate functions (stddev, variance, median, corr, etc.).
-// When `stddev(risk_score)` appears in pipe `| where`, `fn_call_comparison` parses it
-// as `ScalarFunc::Unknown("stddev")` (not in the 7-name blocklist).  The query bypasses
-// the aggregate guard (no E-QUERY-001), passes all plan gates, and reaches DataFusion,
-// which fails at plan time (aggregates cannot be used in WHERE position) →
-// QueryPlanFailed / -32000 INTERNAL_ERROR.
+// When `stddev(risk_score)` appeared in pipe `| where`, `fn_call_comparison` parsed it
+// as `ScalarFunc::Unknown("stddev")` (not in the 7-name blocklist). The query bypassed
+// the aggregate guard, reached DataFusion → QueryPlanFailed / -32000 INTERNAL_ERROR.
 //
-// The fix: expand AGGREGATE_FUNC_NAMES (or use DATAFUSION_BUILTIN_FUNCTION_NAMES
-// intersection strategy) to cover DataFusion aggregate names, so `stddev` in `| where`
-// produces the same ADR-048 D.3 controlled E-QUERY-001 rejection as `count`.
+// Fix-burst-1 added the plan-time DATAFUSION_BUILTIN_AGGREGATE_NAMES gate
+// to `check_enrich_udf_availability`, which intercepts stddev → E-QUERY-001 canonical D.3
+// message. This test is now a GREEN lock.
+//
+// TM-03/TM-09 (fix-burst-2 strengthening): adds "HAVING" assertion per SID-2
+// composed-string discipline (ADR-048 v1.2 §D.7).
 
-/// F-PQLFN-P1-OBS-002 RED: `stddev` in pipe `| where` is classified as scalar
-/// by the 7-name blocklist and reaches DataFusion, producing uncontrolled -32000.
-/// Must produce a controlled E-QUERY-001 rejection instead.
+/// TM-03/TM-09 GREEN lock (strengthened from fix-burst-1): `stddev` in pipe `| where`
+/// must produce E-QUERY-001 with the ADR-048 D.3 canonical aggregate message, including
+/// "HAVING" guidance.
 ///
 /// Query: `FROM crowdstrike_detections | where stddev(risk_score) = 5`
 ///
-/// # RED gate pre-fix failure (@7a56e53b)
-/// `stddev` is NOT in AGGREGATE_FUNC_NAMES (7-name list).
-/// `fn_call_comparison` parses `stddev(risk_score)` as `ScalarFunc::Unknown("stddev")`.
-/// E-QUERY-039 gate skips `stddev` because it IS in DATAFUSION_BUILTIN_FUNCTION_NAMES
-/// (aggregate built-in, added by F1 amendment in S-DEMO-FIDELITY-REMEDIATION-001 Pass-N1b).
-/// Query proceeds to DataFusion → DataFusion rejects aggregate in WHERE → QueryPlanFailed.
-/// Test asserts QueryParseFailed → FAILS. ✓
+/// # GREEN at @5ce8bedc (fix-burst-1 closed OBS-002)
+/// Plan-time `DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate fires canonical message:
+///   "E-QUERY-001: 'stddev' is an aggregate function; aggregate fn-calls are not
+///    valid in pipe | where (use HAVING for post-aggregation filters, ADR-048 D.3)"
+/// This message contains "aggregate", "stddev", and "HAVING" → all assertions pass.
 ///
-/// # Post-fix state (GREEN)
-/// AGGREGATE_FUNC_NAMES (or equivalent gate) expanded to include `stddev`.
-/// `fn_call_comparison` try_map guard fires: "E-QUERY-001: 'stddev' is an aggregate
-/// function; aggregate fn-calls are not valid in pipe | where (use HAVING for
-/// post-aggregation filters, ADR-048 D.3)".
-/// Parse fails → PrismError::QueryParseFailed with aggregate message.
+/// # Fix-burst-2 stability
+/// After AGGREGATE_FUNC_NAMES parser-level blocklist removal (ADR-048 v1.2 OD-4):
+/// - stddev was NEVER in the 7-name blocklist, so behavior is unchanged
+/// - Plan-time gate continues to fire → test remains GREEN ✓
 ///
-/// NOTE: This gap was INTRODUCED by the fn_call_comparison fix (@7a56e53b) which
-/// allowed `stddev(...)` to parse successfully (previously it was a parse error for
-/// different reasons — fn-call LHS was rejected unconditionally).  The fix must close
-/// the aggregate detection gap it opened.
-///
-/// Traces to: filter_parser.rs AGGREGATE_FUNC_NAMES; ADR-048 D.3;
-///            F-PQLFN-P1-OBS-002; BC-2.11.004 §Postconditions (aggregate-in-where gate).
+/// Traces to: filter_parser.rs (plan-time gate unchanged for stddev); ADR-048 v1.2 D.7 TM-03/09;
+///            F-PQLFN-P1-OBS-002; BC-2.11.004 v1.32 §Postconditions.
 #[tokio::test]
 async fn test_BC_2_11_003_obs_002_pipe_where_stddev_not_in_blocklist_e_query_001() {
     let engine = make_crowdstrike_detections_engine();
 
-    // RED GATE: stddev not in AGGREGATE_FUNC_NAMES → parses as ScalarFunc::Unknown →
-    //           DataFusion rejects aggregate in WHERE → QueryPlanFailed / -32000.
-    // POST-FIX: AGGREGATE_FUNC_NAMES expanded to include stddev → E-QUERY-001 parse error.
     let result = engine
         .execute(
             "FROM crowdstrike_detections | where stddev(risk_score) = 5",
@@ -4782,42 +4798,998 @@ async fn test_BC_2_11_003_obs_002_pipe_where_stddev_not_in_blocklist_e_query_001
 
     assert!(
         result.is_err(),
-        "OBS-002: stddev(risk_score) = 5 in pipe | where must return an error. Got Ok."
+        "TM-03/09: stddev(risk_score) = 5 in pipe | where must return an error. Got Ok."
     );
 
     let err = result.unwrap_err();
     let display = format!("{err}");
 
-    // Primary assertion: must be a CONTROLLED parse error (E-QUERY-001 QueryParseFailed),
-    // NOT an uncontrolled DataFusion execution error (QueryPlanFailed / -32000 equivalent).
+    // Primary assertion: must be a CONTROLLED plan-time error (E-QUERY-001 QueryParseFailed).
     assert!(
         matches!(&err, PrismError::QueryParseFailed { .. }),
-        "OBS-002 RED: stddev(risk_score) in pipe | where must return \
+        "TM-03/09: stddev(risk_score) in pipe | where must return \
          PrismError::QueryParseFailed (E-QUERY-001). \
-         Current behavior: stddev not in AGGREGATE_FUNC_NAMES → parses as ScalarFunc::Unknown \
-         → DataFusion fails → QueryPlanFailed. \
-         Fix: expand AGGREGATE_FUNC_NAMES to include DataFusion aggregate names (ADR-048 D.3). \
+         Plan-time DATAFUSION_BUILTIN_AGGREGATE_NAMES gate must intercept stddev. \
          Got: {err:?} (Display: {display})"
     );
 
-    // Display must contain the aggregate function rejection message (ADR-048 D.3 pattern).
+    // SID-2 composed-string assertion (1/3): message contains "aggregate".
     assert!(
         display.contains("aggregate"),
-        "OBS-002 RED: QueryParseFailed Display must contain 'aggregate' \
-         (ADR-048 D.3 aggregate-in-where message pattern). Got: {display}"
+        "TM-03/09: Display must contain 'aggregate' (ADR-048 D.3 pattern). Got: {display}"
+    );
+
+    // SID-2 composed-string assertion (2/3): message contains fn name.
+    assert!(
+        display.contains("stddev"),
+        "TM-03/09: Display must contain 'stddev' (specific aggregate fn name). Got: {display}"
+    );
+
+    // SID-2 composed-string assertion (3/3): message contains "HAVING" (D.3 guidance).
+    assert!(
+        display.contains("HAVING"),
+        "TM-03/09: Display must contain 'HAVING' (use HAVING guidance, ADR-048 D.3). \
+         Got: {display}"
+    );
+
+    // Must NOT be QueryPlanFailed — the pre-fix-burst-1 -32000 defect.
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "TM-03/09: error must NOT be QueryPlanFailed (-32000 INTERNAL_ERROR). \
+         Got: {err:?}"
+    );
+}
+
+// ── DEFECT-PQL-FNCALL-LHS-001 fix-burst 2: ADR-048 v1.2 §D.7 aggregate-gate matrix ─────────
+//
+// Implements ADR-048 v1.2 §D.7 "Unified Plan-Time Aggregate-in-Predicate Gate" TM-01..TM-16.
+//
+// TM-01:  existing (test_BC_2_11_004_invariant_pipe_where_aggregate_fncall_remains_invalid)
+// TM-03/09: strengthened above (test_BC_2_11_003_obs_002_pipe_where_stddev_not_in_blocklist_e_query_001)
+// TM-15: updated above (test_BC_2_11_004_obs_001_pipe_where_empty_arg_count_blocked)
+//
+// RED tests at @5ce8bedc (fail until fix-burst-2 implementation):
+//   TM-06  SQL WHERE count        → E-QUERY-001 canonical (currently QueryPlanFailed -32000)
+//   TM-07  SQL WHERE sum          → E-QUERY-001 canonical (currently QueryPlanFailed -32000)
+//   TM-08  Pipe WHERE count(col)  → canonical D.3 message (currently backtrack "found '('")
+//   TM-10  SqlPipe-head WHERE sum → E-QUERY-001 canonical (currently QueryPlanFailed -32000)
+//   TM-14  SQL WHERE agg + date   → E-QUERY-001 not E-QUERY-042 (D.7.4 gate ordering)
+//   TM-16  SQL WHERE stddev       → canonical D.3 message (currently QueryPlanFailed -32000)
+//
+// GREEN lock tests (pass at @5ce8bedc AND after fix-burst-2):
+//   TM-02  Filter mode count      → is_err() (scope guard, both pre- and post-fix)
+//   TM-04  Filter mode stddev     → canonical D.3 message (plan-time gate already covers)
+//   TM-05  SqlPipe WHERE stddev   → canonical D.3 message (plan-time gate already covers)
+//   TM-11  HAVING count(*) passes → NOT E-QUERY-001 (HAVING exempt, MED-001 permit)
+//   TM-12  HAVING stddev passes   → NOT E-QUERY-001 (HAVING exempt, MED-001 permit)
+//   TM-13  HAVING count(typo_col) → E-QUERY-038 column gate fires (not aggregate gate)
+//
+// LOW-001 (F-PQLFN-P2-LOW-001): BC-2.11.004 v1.32 canonical scope limits
+//   nested fn-call args:  upper(trim(device_id)) = 'active'  → QueryParseFailed (GREEN lock)
+//   IEQ-with-fn-call:     lower(device_id) IEQ 'active'      → QueryParseFailed (GREEN lock)
+//
+// LOW-002 (F-PQLFN-P2-LOW-002): nested-predicate walk coverage
+//   AND:  device_id = 'x' AND notafunc_xyz(risk_score) = 5   → E-QUERY-039 (GREEN lock)
+//   NOT:  NOT (notafunc_xyz(risk_score) = 5)                  → E-QUERY-039 (GREEN lock)
+//
+// Engine fixtures:
+//   make_crowdstrike_detections_engine()          — no infusion registry
+//   make_crowdstrike_engine_with_empty_infusion() — empty InfusionRegistry (E-QUERY-039 tests)
+
+// ── TM-02: Filter mode count → error (scope guard) ───────────────────────────
+
+/// TM-02 GREEN lock: aggregate fn-call in filter mode must produce an error.
+///
+/// Query: `crowdstrike_detections | count(device_id) = 5`
+///
+/// Scope guard analogous to TM-01 (pipe WHERE invariant). ADR-048 D.7 covers all five
+/// predicate positions; filter mode is one of them. This test pins that aggregate fn-calls
+/// are rejected in filter mode in both pre- and post-fix-burst-2 states.
+///
+/// # State in both pre- and post-fix-burst-2
+/// RED (parser backtracks → QueryParseFailed) and GREEN (plan-time gate →
+/// QueryParseFailed) both produce Err. The assertion is variant-only (is_err()).
+///
+/// Traces to: ADR-048 v1.2 §D.7.1 TM-02; BC-2.11.004 v1.32 §Postconditions.
+#[tokio::test]
+async fn test_BC_2_11_004_tm_02_filter_mode_count_aggregate_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "crowdstrike_detections | count(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "TM-02: `count(device_id) = 5` in filter mode must return Err. \
+         Aggregate fn-calls are not valid in filter mode predicates (ADR-048 D.7.1). \
+         Got Ok."
+    );
+}
+
+// ── TM-04: Filter mode stddev → canonical D.3 message (GREEN lock) ───────────
+
+/// TM-04 GREEN lock: `stddev` in filter mode must produce E-QUERY-001 with canonical
+/// ADR-048 D.3 message. Plan-time gate covers filter mode from fix-burst-1 onward.
+///
+/// Query: `crowdstrike_detections | stddev(risk_score) = 5`
+///
+/// At @5ce8bedc: stddev NOT in AGGREGATE_FUNC_NAMES → fn_call_comparison succeeds →
+/// Ast::Filter predicate → plan-time gate (DATAFUSION_BUILTIN_AGGREGATE_NAMES) fires →
+/// canonical D.3 message. GREEN lock. ✓
+///
+/// Traces to: ADR-048 v1.2 §D.7.1 TM-04 (filter mode position); BC-2.11.004 v1.32.
+#[tokio::test]
+async fn test_BC_2_11_004_tm_04_filter_mode_stddev_canonical_e_query_001() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "crowdstrike_detections | stddev(risk_score) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "TM-04: stddev(risk_score) = 5 in filter mode must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "TM-04: must be QueryParseFailed (E-QUERY-001). Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("aggregate function"),
+        "TM-04: Display must contain 'aggregate function' (ADR-048 D.3). Got: {display}"
     );
 
     assert!(
         display.contains("stddev"),
-        "OBS-002 RED: QueryParseFailed Display must contain 'stddev' \
-         (the specific aggregate function name). Got: {display}"
+        "TM-04: Display must contain 'stddev'. Got: {display}"
     );
 
-    // Must NOT be QueryPlanFailed — that is the uncontrolled -32000 defect.
+    assert!(
+        display.contains("HAVING"),
+        "TM-04: Display must contain 'HAVING' (D.3 guidance). Got: {display}"
+    );
+
     assert!(
         !matches!(&err, PrismError::QueryPlanFailed { .. }),
-        "OBS-002 RED: error must NOT be QueryPlanFailed (-32000 INTERNAL_ERROR). \
-         The fix must intercept stddev at parse time (E-QUERY-001), not let it reach DataFusion. \
+        "TM-04: must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+// ── TM-05: SqlPipe WHERE stddev → canonical D.3 message (GREEN lock) ─────────
+
+/// TM-05 GREEN lock: `stddev` in SqlPipe `| where` must produce E-QUERY-001 with
+/// canonical ADR-048 D.3 message. Plan-time gate covers SqlPipe WHERE from fix-burst-1.
+///
+/// Query: `SELECT * FROM crowdstrike_detections | where stddev(risk_score) = 5`
+///
+/// Uses `SELECT *` so that `risk_score` is accessible in the `| where` stage projection
+/// (a `SELECT device_id FROM ...` query would hide `risk_score` → E-QUERY-038 fires instead).
+///
+/// At @5ce8bedc: stddev NOT in AGGREGATE_FUNC_NAMES → fn_call_comparison succeeds →
+/// SqlPipe stage PipeStage::Where predicate → plan-time gate fires → canonical message.
+/// GREEN lock. ✓
+///
+/// Traces to: ADR-048 v1.2 §D.7.1 TM-05 (SqlPipe WHERE position); BC-2.11.019 v1.7.
+#[tokio::test]
+async fn test_BC_2_11_019_tm_05_sqlpipe_where_stddev_canonical_e_query_001() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections | where stddev(risk_score) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "TM-05: stddev(risk_score) = 5 in SqlPipe | where must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "TM-05: must be QueryParseFailed (E-QUERY-001). Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("aggregate function"),
+        "TM-05: Display must contain 'aggregate function' (ADR-048 D.3). Got: {display}"
+    );
+
+    assert!(
+        display.contains("stddev"),
+        "TM-05: Display must contain 'stddev'. Got: {display}"
+    );
+
+    assert!(
+        display.contains("HAVING"),
+        "TM-05: Display must contain 'HAVING' (D.3 guidance). Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "TM-05: must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+// ── TM-06: SQL WHERE count → E-QUERY-001 canonical message (RED) ─────────────
+
+/// TM-06 RED: `count` in SQL WHERE must fire E-QUERY-001 with canonical ADR-048 D.3
+/// message. Locks the HIGH-001 SQL WHERE regression fix.
+///
+/// Query: `SELECT * FROM crowdstrike_detections WHERE count(device_id) > 5`
+///
+/// # RED at @5ce8bedc
+/// SQL WHERE is NOT in predicate_fncall_names (engine only walks Pipe/Filter/SqlPipe
+/// stage WHERE predicates — not the SQL head WHERE). `count` goes to sql_unknown_names
+/// via `collect_unknown_scalars_from_sql_query`, but is filtered by
+/// DATAFUSION_BUILTIN_FUNCTION_NAMES (count is a built-in aggregate). Query reaches
+/// DataFusion → DataFusion rejects aggregate in WHERE context → QueryPlanFailed (-32000).
+/// Test asserts QueryParseFailed → FAILS. ✓
+///
+/// # GREEN after fix-burst-2
+/// SQL WHERE added to predicate_fncall_names scope (ADR-048 v1.2 D.6).
+/// DATAFUSION_BUILTIN_AGGREGATE_NAMES gate fires → canonical D.3 message.
+///
+/// Traces to: ADR-048 v1.2 §D.7.1 TM-06; F-PQLFN-P2-HIGH-001; BC-2.11.019 v1.7.
+#[tokio::test]
+async fn test_BC_2_11_019_tm_06_sql_where_count_e_query_001_high001() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE count(device_id) > 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "TM-06: count(device_id) > 5 in SQL WHERE must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // RED assertion: must be QueryParseFailed (E-QUERY-001), NOT QueryPlanFailed (-32000).
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "TM-06 RED: SQL WHERE count must return QueryParseFailed (E-QUERY-001). \
+         RED: SQL WHERE not yet in aggregate gate → QueryPlanFailed (-32000). \
+         GREEN (fix-burst-2): SQL WHERE added to gate scope → canonical D.3 message. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("aggregate function"),
+        "TM-06: Display must contain 'aggregate function' (canonical D.3). Got: {display}"
+    );
+
+    assert!(
+        display.contains("count"),
+        "TM-06: Display must contain 'count' (fn name). Got: {display}"
+    );
+
+    assert!(
+        display.contains("HAVING"),
+        "TM-06: Display must contain 'HAVING' (D.3 guidance). Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "TM-06: must NOT be QueryPlanFailed (-32000). RED: currently QueryPlanFailed. Got: {err:?}"
+    );
+}
+
+// ── TM-07: SQL WHERE sum → E-QUERY-001 canonical message (RED) ───────────────
+
+/// TM-07 RED: `sum` in SQL WHERE must fire E-QUERY-001. Locks HIGH-001 for a second
+/// aggregate name to avoid single-name regression.
+///
+/// Query: `SELECT * FROM crowdstrike_detections WHERE sum(risk_score) > 10`
+///
+/// # RED at @5ce8bedc
+/// Same path as TM-06: sum in DATAFUSION_BUILTIN_FUNCTION_NAMES → filtered from
+/// sql_unknown_names → reaches DataFusion → QueryPlanFailed (-32000).
+/// Test asserts QueryParseFailed → FAILS. ✓
+///
+/// Traces to: ADR-048 v1.2 §D.7.1 TM-07; F-PQLFN-P2-HIGH-001; BC-2.11.019 v1.7.
+#[tokio::test]
+async fn test_BC_2_11_019_tm_07_sql_where_sum_e_query_001_high001() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE sum(risk_score) > 10",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "TM-07: sum(risk_score) > 10 in SQL WHERE must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "TM-07 RED: SQL WHERE sum must return QueryParseFailed (E-QUERY-001). \
+         RED: SQL WHERE not in aggregate gate → QueryPlanFailed. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("aggregate function"),
+        "TM-07: Display must contain 'aggregate function'. Got: {display}"
+    );
+
+    assert!(
+        display.contains("sum"),
+        "TM-07: Display must contain 'sum' (fn name). Got: {display}"
+    );
+
+    assert!(
+        display.contains("HAVING"),
+        "TM-07: Display must contain 'HAVING'. Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "TM-07: must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+// ── TM-08: Pipe WHERE count(col) with args → canonical D.3 message (RED) ─────
+
+/// TM-08 RED: `count(device_id)` (with arg) in pipe `| where` must produce E-QUERY-001
+/// with the ADR-048 D.3 canonical aggregate message. Locks the MED-002 parser-backtrack
+/// message fix.
+///
+/// Query: `FROM crowdstrike_detections | where count(device_id) = 5`
+///
+/// # RED at @5ce8bedc
+/// `count` IS in AGGREGATE_FUNC_NAMES (7-name parser blocklist). `fn_call_comparison`
+/// fires a `try_map` guard → Chumsky backtracks to `field_comparison` → `count` as field
+/// path + `(device_id)` fails at `(` → QueryParseFailed with "found '('" message.
+/// "found '('" does NOT contain "aggregate function" or "HAVING".
+/// Test asserts those strings → FAILS. ✓
+///
+/// # GREEN after fix-burst-2
+/// AGGREGATE_FUNC_NAMES parser-level blocklist removed (ADR-048 v1.2 OD-4).
+/// `fn_call_comparison` parses count(device_id) as FuncCall::Scalar(Unknown("count")).
+/// Plan-time DATAFUSION_BUILTIN_AGGREGATE_NAMES gate fires canonical D.3 message.
+///
+/// Note: TM-01 covers the same query with variant-only assertion (is_err()).
+/// TM-08 adds the stronger SID-2 message assertions for the D.7 MED-002 closure.
+///
+/// Traces to: ADR-048 v1.2 §D.7.2 TM-08; F-PQLFN-P2-MED-002; BC-2.11.004 v1.32.
+#[tokio::test]
+async fn test_BC_2_11_004_tm_08_pipe_where_count_with_args_canonical_d3_message() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where count(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "TM-08: count(device_id) = 5 in pipe | where must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "TM-08: must be QueryParseFailed (E-QUERY-001). Got: {err:?} (Display: {display})"
+    );
+
+    // SID-2: message must contain fn name (D.3 canonical form).
+    assert!(
+        display.contains("count"),
+        "TM-08 RED: Display must contain 'count'. \
+         RED: 'found '('' parser-backtrack message does not contain 'count'. \
+         Got: {display}"
+    );
+
+    // SID-2: message must contain "aggregate function" (D.3 canonical form).
+    assert!(
+        display.contains("aggregate function"),
+        "TM-08 RED: Display must contain 'aggregate function' (ADR-048 D.3 canonical message). \
+         RED: 'found '('' parser-backtrack message does not contain 'aggregate function'. \
+         Got: {display}"
+    );
+
+    // SID-2: message must contain "HAVING" (D.3 guidance phrase).
+    assert!(
+        display.contains("HAVING"),
+        "TM-08 RED: Display must contain 'HAVING' (use HAVING guidance, ADR-048 D.3). \
+         RED: 'found '('' parser-backtrack message does not contain 'HAVING'. \
+         Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "TM-08: must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+// ── TM-10: SqlPipe-head WHERE aggregate → E-QUERY-001 canonical message (RED) ─
+
+/// TM-10 RED: aggregate in SqlPipe-head SQL WHERE must fire E-QUERY-001.
+/// Locks the HIGH-001 fix for the SqlPipe-head WHERE position.
+///
+/// Query: `SELECT device_id FROM crowdstrike_detections WHERE sum(risk_score) = 10 | limit 5`
+///
+/// This is `Ast::SqlPipe` with head WHERE `sum(risk_score) = 10` and pipe stage `| limit 5`.
+///
+/// # RED at @5ce8bedc
+/// For `Ast::SqlPipe`, the aggregate gate only walks `spq.stages` PipeStage::Where
+/// predicates (NOT `spq.head.where_`). `sum` from the head WHERE goes to
+/// `sql_unknown_names` via `collect_unknown_scalars_from_sql_query` but is filtered by
+/// DATAFUSION_BUILTIN_FUNCTION_NAMES. Query reaches DataFusion → QueryPlanFailed (-32000).
+/// Test asserts QueryParseFailed → FAILS. ✓
+///
+/// # GREEN after fix-burst-2
+/// `spq.head.where_` added to predicate_fncall_names scope (ADR-048 v1.2 D.7.1 position 5).
+/// Gate fires → canonical D.3 message.
+///
+/// Traces to: ADR-048 v1.2 §D.7.1 TM-10; F-PQLFN-P2-HIGH-001; BC-2.11.019 v1.7.
+#[tokio::test]
+async fn test_BC_2_11_019_tm_10_sqlpipe_head_where_aggregate_e_query_001_high001() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT device_id FROM crowdstrike_detections WHERE sum(risk_score) = 10 | limit 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "TM-10: sum(risk_score) = 10 in SqlPipe-head WHERE must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "TM-10 RED: SqlPipe-head WHERE sum must return QueryParseFailed (E-QUERY-001). \
+         RED: spq.head.where_ not in aggregate gate → QueryPlanFailed (-32000). \
+         GREEN (fix-burst-2): head WHERE added to gate scope → canonical D.3 message. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("aggregate function"),
+        "TM-10: Display must contain 'aggregate function'. Got: {display}"
+    );
+
+    assert!(
+        display.contains("sum"),
+        "TM-10: Display must contain 'sum'. Got: {display}"
+    );
+
+    assert!(
+        display.contains("HAVING"),
+        "TM-10: Display must contain 'HAVING'. Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "TM-10: must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+// ── TM-11/12/13: HAVING exemption GREEN locks (pin MED-001 permit ruling) ────
+
+/// TM-11 GREEN lock: `HAVING count(*) > 5` must NOT fire E-QUERY-001.
+/// HAVING is fully exempt from the aggregate-in-predicate gate (ADR-048 D.7.3).
+///
+/// Query: `SELECT device_id, count(*) FROM crowdstrike_detections GROUP BY device_id HAVING count(*) > 5`
+///
+/// count is in the HAVING six-name aggregate list → parsed as `FuncCall::Aggregate`
+/// (via `build_agg_call_parser`). HAVING predicates are NOT walked by predicate_fncall_names.
+/// No E-QUERY-001 fires. Result: execution error (no sensor backend) or Ok.
+///
+/// GREEN in both pre- and post-fix-burst-2 states — pins the MED-001 HAVING permit ruling.
+///
+/// Traces to: ADR-048 v1.2 §D.7.3 TM-11; F-PQLFN-P2-MED-001; BC-2.11.016 v1.6.
+#[tokio::test]
+async fn test_BC_2_11_016_tm_11_having_count_star_not_e_query_001() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT device_id, count(*) FROM crowdstrike_detections \
+             GROUP BY device_id HAVING count(*) > 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // TM-11: HAVING count(*) must NOT fire aggregate-gate E-QUERY-001.
+    // HAVING is exempt from the aggregate-in-predicate gate (ADR-048 D.7.3).
+    // The result may be Ok or any non-E-QUERY-001 error (e.g., sensor not found at exec time).
+    if let Err(ref e) = result {
+        assert!(
+            !matches!(e, PrismError::QueryParseFailed { .. }),
+            "TM-11: HAVING count(*) > 5 must NOT fire E-QUERY-001 (aggregate gate). \
+             HAVING is exempt per ADR-048 D.7.3 (MED-001 permit). Got: {e:?}"
+        );
+
+        // Additional guard: the error must not mention "aggregate function" in E-QUERY-001 context.
+        let display = format!("{e}");
+        assert!(
+            !display.contains("aggregate function"),
+            "TM-11: HAVING count(*) must not produce 'aggregate function' E-QUERY-001 message. \
+             Got: {display}"
+        );
+    }
+}
+
+/// TM-12 GREEN lock: `HAVING stddev(risk_score) > 1.0` must NOT fire E-QUERY-001.
+/// Specifically pins the MED-001 permit ruling for non-six-name aggregates in HAVING.
+///
+/// Query: `SELECT device_id FROM crowdstrike_detections GROUP BY device_id HAVING stddev(risk_score) > 1.0`
+///
+/// `stddev` is NOT in the HAVING six-name aggregate list → falls through to `base` predicate
+/// parser → parses as `FuncCall::Scalar(Unknown("stddev"))` in HAVING position.
+/// HAVING predicates are NOT walked by predicate_fncall_names → aggregate gate does NOT fire.
+/// Result: execution error (no sensor backend) or Ok. Must NOT be E-QUERY-001.
+///
+/// ADR-048 v1.2 D.7.3: "stddev/variance/corr/median/etc. in HAVING parse as
+/// `FuncCall::Scalar(Unknown)` — permitted."
+///
+/// GREEN in both pre- and post-fix-burst-2 states.
+///
+/// Traces to: ADR-048 v1.2 §D.7.3 TM-12; F-PQLFN-P2-MED-001; BC-2.11.016 v1.6.
+#[tokio::test]
+async fn test_BC_2_11_016_tm_12_having_stddev_non_six_name_not_e_query_001() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT device_id FROM crowdstrike_detections \
+             GROUP BY device_id HAVING stddev(risk_score) > 1.0",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // TM-12: HAVING stddev must NOT fire aggregate-gate E-QUERY-001.
+    // Non-six-name aggregates in HAVING are permitted via FuncCall::Scalar fallthrough
+    // (ADR-048 v1.2 D.7.3 OD-3 MED-001 permit ruling).
+    if let Err(ref e) = result {
+        assert!(
+            !matches!(e, PrismError::QueryParseFailed { .. }),
+            "TM-12: HAVING stddev(risk_score) must NOT fire E-QUERY-001 (aggregate gate). \
+             Non-six-name aggregates in HAVING are permitted (ADR-048 D.7.3 MED-001). \
+             Got: {e:?}"
+        );
+
+        let display = format!("{e}");
+        assert!(
+            !display.contains("aggregate function"),
+            "TM-12: HAVING stddev must not produce 'aggregate function' E-QUERY-001 message. \
+             Got: {display}"
+        );
+    }
+}
+
+/// TM-13 GREEN lock: `HAVING count(typo_col_zzz) > 5` must fire E-QUERY-038 (column gate),
+/// NOT E-QUERY-001 (aggregate gate). Pins the BC-2.11.016 HAVING column-gate behavior.
+///
+/// Query: `SELECT device_id, count(*) FROM crowdstrike_detections GROUP BY device_id HAVING count(typo_col_zzz) > 5`
+///
+/// `count(typo_col_zzz)` parses as `FuncCall::Aggregate(CountField(typo_col_zzz))`.
+/// The HAVING column gate (`collect_predicate_columns` FuncCall arm) walks aggregate args
+/// and extracts `typo_col_zzz`. `typo_col_zzz` is NOT in `crowdstrike_detections` schema
+/// (device_id / timestamp / risk_score) → E-QUERY-038 ColumnNotFound.
+///
+/// The aggregate-in-predicate gate does NOT fire (HAVING is exempt per D.7.3).
+/// E-QUERY-038 fires first at the plan-time column-existence check.
+///
+/// GREEN in both pre- and post-fix-burst-2 states (column gate independent of aggregate gate).
+///
+/// Traces to: ADR-048 v1.2 §D.7.3 TM-13; BC-2.11.016 v1.6 (HAVING column gate);
+///            engine.rs `test_BC_2_11_016_having_agg_fn_predicate_typo_fires_e_query_038`.
+#[tokio::test]
+async fn test_BC_2_11_016_tm_13_having_count_typo_col_fires_e_query_038_not_e_query_001() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT device_id, count(*) FROM crowdstrike_detections \
+             GROUP BY device_id HAVING count(typo_col_zzz) > 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "TM-13: HAVING count(typo_col_zzz) must return Err (E-QUERY-038). Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // Primary: must be ColumnNotFound (E-QUERY-038), NOT QueryParseFailed (E-QUERY-001).
+    assert!(
+        matches!(&err, PrismError::ColumnNotFound(ref d) if d.column == "typo_col_zzz"),
+        "TM-13: HAVING count(typo_col_zzz) must fire E-QUERY-038 ColumnNotFound \
+         (column gate, not aggregate gate). \
+         Column gate must walk aggregate fn args in HAVING (BC-2.11.016). \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("E-QUERY-038"),
+        "TM-13: Display must contain 'E-QUERY-038'. Got: {display}"
+    );
+
+    assert!(
+        display.contains("typo_col_zzz"),
+        "TM-13: Display must contain 'typo_col_zzz'. Got: {display}"
+    );
+
+    // Must NOT be E-QUERY-001 — the aggregate gate must NOT fire for HAVING.
+    assert!(
+        !matches!(&err, PrismError::QueryParseFailed { .. }),
+        "TM-13: must NOT be QueryParseFailed (E-QUERY-001). \
+         HAVING is exempt from aggregate gate (ADR-048 D.7.3). \
          Got: {err:?}"
+    );
+}
+
+// ── TM-14: Gate ordering D.7.4 — SQL WHERE aggregate + date-like → E-QUERY-001 ─
+
+/// TM-14 RED: aggregate fn-call in SQL WHERE with date-like RHS must fire E-QUERY-001
+/// (aggregate gate), NOT E-QUERY-042 (temporal gate). ADR-048 v1.2 D.7.4 gate ordering.
+///
+/// Query: `SELECT * FROM crowdstrike_detections WHERE stddev(risk_score) = '2026-06-24'`
+///
+/// D.7.4: `check_enrich_udf_availability` (including aggregate gate) runs BEFORE
+/// `check_temporal_literals` (ADR-052 §D4 arms). If both would fire:
+///   - aggregate gate fires E-QUERY-001 first
+///   - temporal gate never reached
+///
+/// # RED at @5ce8bedc
+/// SQL WHERE not in predicate_fncall_names → aggregate gate doesn't fire →
+/// query proceeds toward DataFusion → QueryPlanFailed (-32000).
+/// Test asserts QueryParseFailed (not QueryPlanFailed) → FAILS. ✓
+///
+/// # GREEN after fix-burst-2
+/// SQL WHERE added to predicate_fncall_names → aggregate gate fires E-QUERY-001 →
+/// check_temporal_literals never reached → result is E-QUERY-001 (not E-QUERY-042). ✓
+///
+/// Traces to: ADR-048 v1.2 §D.7.4 TM-14; F-PQLFN-P2-HIGH-001; ADR-052 §D4.
+#[tokio::test]
+async fn test_BC_2_11_019_tm_14_sql_where_agg_date_like_e_query_001_not_e_query_042() {
+    use prism_core::error::TemporalLiteralPosition;
+
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE stddev(risk_score) = '2026-06-24'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "TM-14: WHERE stddev(risk_score) = '2026-06-24' must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // TM-14 primary: must be E-QUERY-001 (aggregate gate fires first per D.7.4).
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "TM-14 RED: SQL WHERE stddev + date-like RHS must fire E-QUERY-001 (aggregate gate). \
+         RED: SQL WHERE not in gate scope → QueryPlanFailed. \
+         GREEN (fix-burst-2): aggregate gate fires before temporal gate (D.7.4). \
+         Got: {err:?} (Display: {display})"
+    );
+
+    // Must NOT be E-QUERY-042 — the aggregate gate must fire BEFORE the temporal gate.
+    assert!(
+        !matches!(
+            &err,
+            PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::NonColumnLhsComparison,
+                ..
+            }
+        ),
+        "TM-14: must NOT fire E-QUERY-042 NonColumnLhsComparison. \
+         ADR-048 D.7.4: aggregate gate (E-QUERY-001) fires BEFORE temporal gate (E-QUERY-042). \
+         Got: {err:?}"
+    );
+
+    // Must NOT be QueryPlanFailed (-32000).
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "TM-14: must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+// ── TM-16: SQL WHERE stddev → canonical D.3 message (RED) ────────────────────
+
+/// TM-16 RED: `stddev` in SQL WHERE must produce E-QUERY-001 with canonical ADR-048 D.3
+/// message. Locks the HIGH-001 fix for DataFusion-built-in-aggregate (non-seven-name) names.
+///
+/// Query: `SELECT * FROM crowdstrike_detections WHERE stddev(risk_score) = 5`
+///
+/// # RED at @5ce8bedc
+/// `stddev` NOT in AGGREGATE_FUNC_NAMES (parser level). SQL WHERE not in
+/// predicate_fncall_names. Goes to sql_unknown_names but filtered by
+/// DATAFUSION_BUILTIN_FUNCTION_NAMES → reaches DataFusion → QueryPlanFailed (-32000).
+/// Test asserts QueryParseFailed with canonical message → FAILS. ✓
+///
+/// # GREEN after fix-burst-2
+/// SQL WHERE added to predicate_fncall_names. stddev IS in DATAFUSION_BUILTIN_AGGREGATE_NAMES
+/// → gate fires canonical D.3 message.
+///
+/// Traces to: ADR-048 v1.2 §D.7.1 TM-16; F-PQLFN-P2-HIGH-001; BC-2.11.019 v1.7.
+#[tokio::test]
+async fn test_BC_2_11_019_tm_16_sql_where_stddev_canonical_d3_message() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE stddev(risk_score) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "TM-16: WHERE stddev(risk_score) = 5 must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "TM-16 RED: SQL WHERE stddev must return QueryParseFailed (E-QUERY-001). \
+         RED: SQL WHERE not in aggregate gate → QueryPlanFailed (-32000). \
+         GREEN (fix-burst-2): gate fires canonical D.3 message. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("aggregate function"),
+        "TM-16: Display must contain 'aggregate function' (canonical D.3). Got: {display}"
+    );
+
+    assert!(
+        display.contains("stddev"),
+        "TM-16: Display must contain 'stddev'. Got: {display}"
+    );
+
+    assert!(
+        display.contains("HAVING"),
+        "TM-16: Display must contain 'HAVING' (D.3 guidance). Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "TM-16: must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+// ── F-PQLFN-P2-LOW-001: BC-2.11.004 v1.32 canonical scope limits ─────────────
+//
+// LOW-001 tests pin two BC-2.11.004 v1.32 scope limits that are parse-time rejects
+// at current HEAD (@5ce8bedc) — GREEN in both pre- and post-fix-burst-2 states.
+//
+// Limit 1 (nested fn-call args): `fn_call_arg` admits only `literal | field_path`.
+//   Nested fn-calls (e.g., `upper(trim(device_id))`) fail to parse → QueryParseFailed.
+//
+// Limit 2 (IEQ/IIN/INE operators): fn_call_comparison only supports standard comparison
+//   operators (=, !=, <, >, <=, >=). IEQ/IIN/INE are case-insensitive extensions that
+//   are NOT wired into fn_call_comparison → `lower(device_id) IEQ 'active'` fails.
+
+/// LOW-001 (1/2) GREEN lock: nested fn-call in fn_call_arg must be rejected.
+///
+/// Query: `FROM crowdstrike_detections | where upper(trim(device_id)) = 'active'`
+///
+/// `fn_call_arg` only accepts `literal | field_path`. When `trim(device_id)` appears as
+/// an arg to `upper(...)`, it is not a field_path or literal → parser fails to match
+/// the outer fn_call → either falls back to field_comparison (fails) or parse error.
+/// Result: QueryParseFailed (E-QUERY-001) at parse time.
+///
+/// BC-2.11.004 v1.32 LOW-001 scope limit: "fn_call_arg admits `literal | field_path` only;
+/// nested fn-calls not admitted → E-QUERY-001".
+///
+/// GREEN in both pre- and post-fix-burst-2 states (grammar limit is unchanged by fix-burst-2).
+///
+/// Traces to: BC-2.11.004 v1.32 LOW-001; ADR-048 v1.2 F-PQLFN-P2-LOW-001.
+#[tokio::test]
+async fn test_BC_2_11_004_low_001_nested_fncall_arg_parse_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where upper(trim(device_id)) = 'active'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // LOW-001: nested fn-call in arg position must fail to parse.
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-001 (nested arg): upper(trim(device_id)) = 'active' must fail to parse \
+         (QueryParseFailed / E-QUERY-001). \
+         fn_call_arg only admits literal | field_path — nested fn-calls not admitted \
+         (BC-2.11.004 v1.32 LOW-001). Got: {result:?}"
+    );
+}
+
+/// LOW-001 (2/2) GREEN lock: IEQ operator does not compose with fn-call LHS.
+///
+/// Query: `FROM crowdstrike_detections | where lower(device_id) IEQ 'active'`
+///
+/// `fn_call_comparison` handles only standard comparison operators (=, !=, <, >, <=, >=).
+/// `IEQ` (case-insensitive equality) is NOT in the fn_call_comparison operator set →
+/// parser fails to complete the fn_call_comparison production → falls back to
+/// field_comparison → `lower` as field path + `(device_id)` fails at `(` →
+/// QueryParseFailed (E-QUERY-001).
+///
+/// BC-2.11.004 v1.32 LOW-002: "IEQ/IIN/INE operators do NOT compose with fn-call LHS → E-QUERY-001".
+///
+/// GREEN in both pre- and post-fix-burst-2 states (IEQ wiring not in scope).
+///
+/// Traces to: BC-2.11.004 v1.32 LOW-002; ADR-048 v1.2 F-PQLFN-P2-LOW-001.
+#[tokio::test]
+async fn test_BC_2_11_004_low_001_ieq_operator_with_fncall_lhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where lower(device_id) IEQ 'active'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // LOW-001 (IEQ): fn_call LHS + IEQ operator is not valid syntax → QueryParseFailed.
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-001 (IEQ): lower(device_id) IEQ 'active' must fail to parse \
+         (QueryParseFailed / E-QUERY-001). \
+         IEQ does not compose with fn-call LHS (BC-2.11.004 v1.32 LOW-002). \
+         Got: {result:?}"
+    );
+}
+
+// ── F-PQLFN-P2-LOW-002: nested-predicate walk coverage ───────────────────────
+//
+// LOW-002 tests pin that `collect_unknown_scalar_from_predicate` recurses into
+// nested predicates (Predicate::Logical AND/OR and Predicate::Not). These tests
+// verify the MED-004 fix (pipe/filter/sqlpipe WHERE walk) also handles logical nesting.
+//
+// Both tests use `make_crowdstrike_engine_with_empty_infusion()` — E-QUERY-039 only
+// fires when the InfusionRegistry is Some (non-None). `notafunc_xyz` is not a DataFusion
+// built-in → not filtered → reaches E-QUERY-039 gate → EnrichUdfNotFound fires.
+//
+// GREEN in both pre- and post-fix-burst-2 states (predicate walk logic unchanged).
+
+/// LOW-002 (1/2) GREEN lock: AND-nested fn-call in pipe WHERE predicate fires E-QUERY-039.
+///
+/// Query: `FROM crowdstrike_detections | where device_id = 'x' AND notafunc_xyz(risk_score) = 5`
+///
+/// The predicate is `Predicate::Logical(And, [Compare(device_id = 'x'), Compare(FuncCall("notafunc_xyz") = 5)])`.
+/// `collect_unknown_scalar_from_predicate` recurses into `Predicate::Logical` →
+/// finds `notafunc_xyz` → E-QUERY-039 fires.
+///
+/// Traces to: BC-2.11.019 v1.7; ADR-048 v1.2 F-PQLFN-P2-LOW-002;
+///            engine.rs `test_high003_collect_unknown_scalar_in_not_predicate`.
+#[tokio::test]
+async fn test_BC_2_11_019_low_002_and_nested_predicate_notafunc_e_query_039() {
+    let engine = make_crowdstrike_engine_with_empty_infusion();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where device_id = 'x' AND notafunc_xyz(risk_score) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "LOW-002 (AND): AND-nested notafunc_xyz must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(&err, PrismError::EnrichUdfNotFound(ref d) if d.infusion == "notafunc_xyz"),
+        "LOW-002 (AND): AND-nested notafunc_xyz must fire E-QUERY-039 EnrichUdfNotFound. \
+         collect_unknown_scalar_from_predicate must recurse into Predicate::Logical. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("E-QUERY-039"),
+        "LOW-002 (AND): Display must contain 'E-QUERY-039'. Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "LOW-002 (AND): must NOT be QueryPlanFailed (-32000). Got: {err:?}"
+    );
+}
+
+/// LOW-002 (2/2) GREEN lock: NOT-wrapped fn-call in pipe WHERE predicate fires E-QUERY-039.
+///
+/// Query: `FROM crowdstrike_detections | where NOT (notafunc_xyz(risk_score) = 5)`
+///
+/// The predicate is `Predicate::Not(Compare(FuncCall("notafunc_xyz") = 5))`.
+/// `collect_unknown_scalar_from_predicate` recurses into `Predicate::Not` →
+/// finds `notafunc_xyz` → E-QUERY-039 fires.
+///
+/// Companion to `test_high003_collect_unknown_scalar_in_not_predicate` in engine.rs
+/// (unit test), this provides e2e coverage through `engine.execute()`.
+///
+/// Traces to: BC-2.11.019 v1.7; ADR-048 v1.2 F-PQLFN-P2-LOW-002;
+///            engine.rs `test_high003_collect_unknown_scalar_in_not_predicate`.
+#[tokio::test]
+async fn test_BC_2_11_019_low_002_not_wrapped_predicate_notafunc_e_query_039() {
+    let engine = make_crowdstrike_engine_with_empty_infusion();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where NOT (notafunc_xyz(risk_score) = 5)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "LOW-002 (NOT): NOT-wrapped notafunc_xyz must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(&err, PrismError::EnrichUdfNotFound(ref d) if d.infusion == "notafunc_xyz"),
+        "LOW-002 (NOT): NOT-wrapped notafunc_xyz must fire E-QUERY-039 EnrichUdfNotFound. \
+         collect_unknown_scalar_from_predicate must recurse into Predicate::Not. \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("E-QUERY-039"),
+        "LOW-002 (NOT): Display must contain 'E-QUERY-039'. Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "LOW-002 (NOT): must NOT be QueryPlanFailed (-32000). Got: {err:?}"
     );
 }
