@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.4"
-spec_version: "v0.4"
+version: "0.5"
+spec_version: "v0.5"
 level: ops
 producer: story-writer
 timestamp: "2026-07-13"
@@ -74,12 +74,12 @@ suite asserts in-memory data structures and composed text strings but NOT the se
 wire bytes that LLM agents actually receive:
 
 - **[C3]** `| fields` pipe-mode query did not restrict projection. The audit check probed the
-  wire-level `events` array (key presence per projected column) and caught an escape that no
+  wire-level `rows` array (key presence per projected column) and caught an escape that no
   existing unit test would have detected — the test suite asserted `RecordBatch` row counts, not
   the JSON-serialized envelope.
 - **[H20]** `threat_score` column ABSENT from all rows (ADR-051 §D4 NULL output expected). The
   enrich stage produced no column at all instead of a `null`-valued column key. The existing
-  enrich tests verified the `InfusionResult` shape, not the serialized `structuredContent.events`
+  enrich tests verified the `InfusionResult` shape, not the serialized `structuredContent.rows`
   JSON.
 - **[H8b]** bare-col JOIN returned code `UNKNOWN` message `'Internal error; see audit log. See
   audit log for details.'` (doubled suffix) — the composed `content[0].text` string was asserted
@@ -107,7 +107,7 @@ This story establishes SID-2 as a standing implementer discipline to be added to
 >    + suggestion), ALSO assert the `structuredContent` or the individual JSON field keys.
 >    Asserting only the prose text string passes even when the underlying structured
 >    contract is broken.
-> 3. **Explicit-null key presence (EC-11-068)** — for query `events` rows, assert that
+> 3. **Explicit-null key presence (EC-11-068)** — for each entry in `structuredContent.rows`, assert that
 >    every projected column key is present in every row. For NULL-valued cells, assert
 >    the row has `"column_name": null`, not merely that the row parses without error.
 >    The `WriterBuilder.explicit_nulls(true)` invariant (BC-2.11.001 v1.18) must be
@@ -159,9 +159,9 @@ No Red Gate test for this AC (doc-only change).
 `test_BC_2_11_001_query_tool_explicit_null_key_present` — executes a query against a DTU
 fixture that returns at least one row with a NULL-valued column (e.g., `sensor_ip` or
 `threat_score`). Asserts on the JSON-serialized response that every row in
-`structuredContent.events` contains the column key with value `null`, not key-omission.
+`structuredContent.rows` contains the column key with value `null`, not key-omission.
 Implementation: call the `query` tool handler, serialize the result to `serde_json::Value`,
-walk `result["structuredContent"]["events"]`, assert each row has the projected column key.
+walk `result["structuredContent"]["rows"]`, assert each row has the projected column key.
 
 Red Gate: before the `WriterBuilder.explicit_nulls(true)` fix ships (if not already applied
 by DEFECT-MCP-ROWSHAPE-NULLS-001), this test fails with the column key absent from null rows.
@@ -357,7 +357,7 @@ context from the AUDIT-COVERAGE-001 cascade:
 - Passes 1–44 of the LOCAL cascade fixed 38 audit-script issues. Three escapes ([C3], [H20],
   [H8b]) were not caught by the unit test suite because tests asserted internal Rust struct
   fields, not JSON wire bytes.
-- BC-2.11.001 v1.16 (2026-07-13) added the null-not-absent postcondition for query `events` rows
+- BC-2.11.001 v1.16 (2026-07-13) added the null-not-absent postcondition for query `rows`
   specifically in response to [C3] and [H20]. This story adds the tests that enforce that
   postcondition via TDD.
 - BC-2.10.007 v1.8 already specified the null-not-absent pattern for `retry_after_seconds`; this
@@ -424,3 +424,4 @@ or `prism-sensors` crates in production code. Test files may use DTU harness cra
 | v0.2 | 2026-07-13 | Pin refresh (POL-23): BC-2.10.007 v1.8→v1.9 (additive amendment, cited postconditions unchanged); BC-2.11.001 v1.16→v1.18 (additive amendment, null-not-absent postcondition unchanged). Propagated from DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P4-OBS-001 adversarial finding. | POL-23; DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P4-OBS-001 |
 | v0.3 | 2026-07-13 | Pin refresh (POL-23): BC-2.10.007 v1.9→v1.10 (clarifying rewrite of split postcondition; cited postconditions unchanged in substance). Propagated from DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P6-OBS-003. | POL-23; DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P6-OBS-003 |
 | v0.4 | 2026-07-13 | Pin refresh (POL-23): BC-2.10.007 v1.10→v1.11 (Rule-1 exhaustive carve-out + McpSerializationError category ruling — additive/clarifying; cited postconditions unchanged in substance). | POL-23; DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P7-MED-001/OBS-002 |
+| v0.5 | 2026-07-13 | Retired key `structuredContent.events` → canonical `structuredContent.rows` at 6 sites: §Origin [H20] narrative (line ~77 wire-level key, line ~82 dotpath), SID-2 step-3 definition (line ~110), AC-002 assertion prose (line ~162), AC-002 implementation instruction (line ~164), Previous Story Intelligence narrative (line ~360). Canonical key per BC-2.11.001 v1.18 / shipped server.rs payload. | F-MCPNULL-P8-MED-001 (pass-8); POL-25 full-file sweep |
