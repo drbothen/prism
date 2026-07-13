@@ -3218,3 +3218,30 @@ Rationale claims that cite another production, registry, or API surface as a ref
 **Codification candidate for S-7.02:** Add to spec-authorship discipline checklist: "Any rationale citing 'parity with', 'same as', or 'follows' another production/registry/API MUST identify and read the cited source artifact. Unverified cross-production rationale claims are a [process-gap] defect class."
 
 **Source:** D-1726 (DEFECT-PQL-FNCALL-LHS-001 pass-14 F-PQLFN-P14-LOW-001 ADR-048 v1.11 rationale correction; 2026-07-13). Companion: ADR-048 v1.4 [process-gap] percentile empirical-claim retraction (D-1718).
+
+### Lesson 53 — [process-gap] Enumeration value class sweeps must enumerate ALL structural section types within a BC, not stop at the section where the finding was reported
+
+**Classification:** PROCESS-GAP — DEFECT-PQL-FNCALL-LHS-001 cascade; F-PQLFN-P15-HIGH-001 (THIRD RECURRENCE) (2026-07-13). Extends Lessons 49/50/51 grep-variant family.
+
+**Finding:** F-PQLFN-P15-HIGH-001 identified that BC-2.11.019 §Error Cases Condition column was missing all four post-DEFECT gate positions including SQL DML WHERE — the THIRD recurrence of the enumeration value class within a single cascade. The recurrence pattern demonstrates a systematic sweep failure:
+
+- **v1.12:** (b)-only DML WHERE scope addition — §Error Cases Condition cell updated but §Postconditions (a) firing enumeration not extended. Only the §Error Cases section was swept.
+- **v1.15:** §Postconditions (a) firing enumeration extended to add (iv) SQL DML WHERE — but §Error Cases Condition column not re-swept. Only the §Postconditions section was swept.
+- **v1.16 (THIS FINDING):** §Error Cases Condition column finally extended to all four positions — the gap survived two prior pass closures because each sweep stopped at the section where the original finding was reported.
+
+**Root cause:** When an "enumeration value class" finding is reported (a value that should appear in a list or set of positions is missing), the fix-burst sweeps only the section explicitly cited in the finding report. Other structural section types within the same BC that represent the same logical value set — §Postconditions lists, §Error Cases Condition cells, §Edge Cases condition expressions, §OBS notes — are NOT included in the sweep unless the sweep is explicitly section-type-exhaustive.
+
+**Structural section types that constitute a BC's "enumeration value class" surface** (minimum sweep coverage for any enumeration addition/extension fix):
+1. **§Postconditions prose lists** — numbered or bulleted enumeration of trigger conditions
+2. **§Error Cases table Condition cells** — the condition column in each error row
+3. **§Edge Cases condition expressions** — trigger conditions in EC-NNN entries
+4. **§OBS notes** — observability or scope notes citing the enumeration
+5. **§Preconditions** — any precondition that mirrors the firing enumeration
+
+**Correct response:** When closing an enumeration value class finding (missing position, missing case, missing arm), the sweep MUST explicitly grep for the value in ALL five section types above before declaring closure. If any section type carries a stale enumeration, fix it in the same burst — do NOT close the finding with only the reported section updated.
+
+**Third-recurrence significance:** The fact that this class recurred three times within one cascade (passes 8, 14, 15) on the SAME BC (BC-2.11.019) indicates a structural discipline gap, not a one-off oversight. This lesson is a strong S-7.02 codification candidate: add to adversary standing-probe checklist as "for every enumeration extension fix, verify all five structural section types before declaring closure."
+
+**S-7.02 codification candidate:** Extend SAP sweep discipline to include a "five-section-type sweep" for any finding in the enumeration value class. Cross-reference: Lessons 49 (markdown table-cell variant), 50 (line-wrapped doc-comment string continuation), 51 (crates/**/*.rs scope for canonical-claim corrections), 53 (this lesson — structural section types within a BC).
+
+**Source:** D-1727 (DEFECT-PQL-FNCALL-LHS-001 pass-15 F-PQLFN-P15-HIGH-001 BC-2.11.019 v1.16 §Error Cases extension; THIRD RECURRENCE; 2026-07-13).
