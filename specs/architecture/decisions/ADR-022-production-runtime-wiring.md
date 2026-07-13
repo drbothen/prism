@@ -4,7 +4,7 @@ adr_id: "ADR-022"
 title: "Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology"
 status: ACCEPTED
 date: "2026-05-17"
-version: "1.16"
+version: "1.17"
 producer: architect
 subsystems_affected: [SS-06, SS-10, SS-11, SS-16, SS-17, SS-19]
 supersedes: null
@@ -602,7 +602,14 @@ Each tool handler MUST:
 | `SensorError::WriteNotImplemented` | -32003 (Custom) | "Write not supported for sensor: {sensor}" | — |
 | `PrismError::PermissionDenied` | -32002 (Custom) | "Feature flag denied: {flag}" | — |
 | `PrismError::Timeout` | -32001 (Custom) | "Query timeout exceeded" | — |
-| `PrismError::InternalError` | -32603 (Internal error) | "Internal error" | "See audit log for details." |
+| `PrismError::InternalError` | -32000 (Server-defined) | "Internal error" | "See audit log for details." |
+
+> **Note — InternalError code choice:** `-32000` is the `codes::INTERNAL_ERROR` constant in
+> `prism-mcp/src/error_mapping.rs` (server-defined range per JSON-RPC spec §5.1). The
+> server-defined range (`-32099`..`-32000`) is used for application-level errors because
+> `-32603` is the transport-level "Internal error" code reserved by the rmcp layer itself;
+> using `-32603` for application errors would conflate transport failures with query-engine
+> failures. This behavior has been consistent since PR #163.
 
 ### Prompt-injection defense wiring (MANDATORY)
 
@@ -820,6 +827,7 @@ Bundle B Phase B-0 architecture output. Authored at D-302 from workspace audit D
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.17 | 2026-07-13 | architect | F-MCPNULL-P4-OBS-002 doc-accuracy correction (DEFECT-MCP-ROWSHAPE-NULLS-001 pass-4, orchestrator adjudication): §F Error-code mapping table `PrismError::InternalError` row corrected from `-32603` to `-32000`. Verification: `rg -- '-32603' crates/` returns zero hits; `codes::INTERNAL_ERROR = -32000` is the shipped constant in `prism-mcp/src/error_mapping.rs` since PR #163. Server-defined range chosen because `-32603` is the transport-level JSON-RPC internal-error code reserved by the rmcp layer; application-level redacted internal errors use the server-defined `-32000` range. Brief rationale note added below the table. Redaction posture unchanged. Doc-accuracy correction only — no design change. |
 | 1.16 | 2026-07-13 | architect | F-MCPNULL-P1-HIGH-001 (DEFECT-MCP-ROWSHAPE-NULLS-001) closure: §F Error-code mapping table updated for BC-2.10.007 [H8b] message/suggestion split — `PrismError::InternalError` message updated from `"Internal error; see audit log"` to `"Internal error"` (message field) + `"See audit log for details."` (suggestion field); suggestion column added to table (other rows set to `—` — no suggestion defined). Redaction posture unchanged: internal errors remain opaque to the caller. ADR-038 §Context line citing this string is a historical description of a pre-fix defective state (exempt per TD-VSDD-091). |
 | 1.15 | 2026-06-10 | architect | BOOT-02 closure (2026-06-10 full-codebase review package, human-approved): §B step 7 column-family count corrected 17→19 to match code source of truth (`prism-core/src/storage.rs` `ALL_DOMAINS: [StorageDomain; 19]` — 16 S-1.01 domains + 3 S-1.02 domains `credentials`/`feature_flags`/`scheduler`; rocksdb_backend opens and health-checks all 19). Stale "17 (per AD-004)" reflected the pre-S-1.02 AD-004 enumeration, which also counted the not-yet-implemented `case_dedup_idx` CF (S-4.06 Task 9b, planned). AD-004 row in ARCH-INDEX, data-layer.md §Persistent Data Path, and system-overview.md platform-layer diagram corrected in the same burst (TD-VSDD-060 sibling-site sweep). |
 | 1.14 | 2026-05-31 | architect | S-DEMO-001 boot step 9A wiring accuracy (GAP-002-A closure). §B step 7: replaced stale `AdapterRegistry::init_registry_for_org` action with `AdapterRegistry::new()` (empty) and note that population happens at step 9A. §B: added step 7.5b (PluginAuthProvider construction via validate_and_construct_auth_providers, plugin_auth_providers threaded to step 9) and step 7.5c (dynamic write-tool registration) sub-steps. §B step 9: added step 9A sub-step documenting step9a_populate_adapter_registry call (called from within step9_start_mcp_server before QueryEngine construction) per BC-2.22.001 §Step 9A. §C QueryEngine contract: added note that AdapterRegistry is populated by step9a_populate_adapter_registry before QueryEngine::new() (S-DEMO-001). No architectural redesign — wiring-only accuracy corrections per TD-VSDD-091. |
