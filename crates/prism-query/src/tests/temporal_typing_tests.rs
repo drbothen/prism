@@ -3768,3 +3768,368 @@ async fn test_F_EQ42_P1_003_group_by_now_minus_interval_is_parse_error() {
          (query fails at parse, before check_temporal_literals runs). Got: {result:?}"
     );
 }
+
+// ── DEFECT-PQL-FNCALL-LHS-001: pipe `| where` fn-call LHS grammar extension ──
+//
+// Tests cover BC-2.11.004 v1.31 arm (4) (EC-11-004-005, EC-11-004-006) and the
+// ADR-052 §D4 v1.12 architect-adjudicated Option A grammar extension.
+//
+// DEFECT: The pipe `| where` grammar (`build_predicate_parser` in `filter_parser.rs`)
+// only admitted `field_path` as comparison LHS.  Queries like
+// `lower(device_id) = '2026-06-24'` therefore FAILED AT PARSE TIME with a generic
+// E-QUERY-001 (`QueryParseFailed`) and surfaced as `-32000 INTERNAL_ERROR` to callers,
+// bypassing the analyst-friendly `-32602 INVALID_PARAMS` E-QUERY-042 path entirely.
+//
+// FIX (architect Option A): extend the pipe `| where` grammar with a
+// `fn_call_comparison` production (FuncCall::Scalar LHS only) BEFORE `field_comparison`.
+// Parse then SUCCEEDS; the plan-time `check_temporal_literals` arm (4) fires E-QUERY-042
+// when RHS is a date-like literal, or the query passes to DataFusion when it is not.
+//
+// RED GATE: Tests 1-3 below assert the POST-FIX behavior.  In the unimplemented (RED)
+// state they FAIL because the grammar rejects fn-call LHS at parse time and returns
+// `QueryParseFailed` instead.  Test 4 is a scope guard that passes in both states.
+
+/// Build a `TableRegistry` with sensor "crowdstrike" / table "detections" registered as
+/// "crowdstrike_detections".  Columns:
+///   - `device_id:  ColumnType::String`  — fn-call LHS tests (EC-11-004-005/006)
+///   - `timestamp:  ColumnType::Datetime` — included for schema completeness
+///
+/// Gate ordering guarantee: E-QUERY-037 passes (table IS registered).
+/// E-QUERY-038 gate walks fn-call args for column validation (FuncCall arm of
+/// `collect_predicate_columns`).  "no_such_col_xyz" is NOT in this registry,
+/// so `lower(no_such_col_xyz) = 'active'` → E-QUERY-038 after the grammar fix.
+fn make_crowdstrike_detections_registry() -> Arc<TableRegistry> {
+    use prism_core::ColumnType;
+    use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec};
+
+    let registry = Arc::new(TableRegistry::new());
+    let spec = SensorSpec::new(
+        "crowdstrike",
+        "CrowdStrike detections (test fixture — DEFECT-PQL-FNCALL-LHS-001)",
+        AuthType::ApiKey,
+        "https://crowdstrike.invalid",
+        vec![TableSpec::new_point_in_time(
+            "detections",
+            "security_finding",
+            vec![
+                ColumnSpec::new("device_id", ColumnType::String, None, vec![]),
+                ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+            ],
+            vec![],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    registry
+        .register_sensor(&spec)
+        .expect("register crowdstrike sensor (DEFECT-PQL-FNCALL-LHS-001 fixture) must not fail");
+    registry
+}
+
+/// Build a `QueryEngine` wired with the "crowdstrike_detections" registry.
+fn make_crowdstrike_detections_engine() -> QueryEngine {
+    let registry = make_crowdstrike_detections_registry();
+    QueryEngine::new_with_cache_config(
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(NoopCs),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        crate::cache::CacheConfig::default(),
+    )
+    .with_table_registry(registry)
+}
+
+/// EC-11-004-005 end-to-end: pipe `| where` with fn-call LHS and date-like RHS must
+/// return E-QUERY-042 (NonColumnLhsComparison), NOT a generic parse error.
+///
+/// Query: `FROM crowdstrike_detections | where lower(device_id) = '2026-06-24'`
+///
+/// # Red Gate pre-fix failure (the DEFECT)
+/// `build_predicate_parser` only admits `field_path` as comparison LHS.  Parsing
+/// `lower(device_id) = '2026-06-24'` encounters `lower(` and fails at parse time
+/// with `PrismError::QueryParseFailed { .. }` (E-QUERY-001 offset error), which the
+/// MCP layer surfaces as `-32000 INTERNAL_ERROR`.
+/// This test asserts `TemporalLiteralInvalidPosition(NonColumnLhsComparison)` → FAILS. ✓
+///
+/// # Post-fix state (GREEN)
+/// Grammar extension (ADR-052 §D4 v1.12 Option A) adds `fn_call_comparison` production
+/// (FuncCall::Scalar LHS) BEFORE `field_comparison` in `build_predicate_parser`.
+/// Parse SUCCEEDS, producing:
+///   `Predicate::Compare { lhs: Expr::FuncCall(FuncCall::Scalar), rhs: Literal::RawTemporalLiteral("2026-06-24"), .. }`
+/// `check_temporal_literals` arm (4) detects non-Field LHS + RawTemporalLiteral RHS →
+///   `Err(PrismError::TemporalLiteralInvalidPosition { position: NonColumnLhsComparison, value_prefix: "2026-06-24" })`
+/// MCP layer maps to `-32602 INVALID_PARAMS` (analyst-friendly).
+///
+/// # SAP-3 spec-arm reachability
+/// This test enters from the PUBLIC parser surface (`engine.execute()`) per SAP-3
+/// spec-arm reachability discipline.  It does NOT use a synthetic AST.
+///
+/// # SID-2 composed-output discipline
+/// Asserts both the error variant AND the full composed Display message string.
+///
+/// Traces to: BC-2.11.004 v1.31 EC-11-004-005; ADR-052 §D4 v1.12 arm (4);
+///            error-taxonomy.md §E-QUERY-042 v2.14 (POL-24 byte-verbatim).
+#[tokio::test]
+async fn test_BC_2_11_004_ec11_004_005_pipe_fncall_lhs_date_like_rejects_e_query_042() {
+    use prism_core::error::TemporalLiteralPosition;
+
+    let engine = make_crowdstrike_detections_engine();
+
+    // RED GATE: grammar rejects `lower(device_id)` as comparison LHS → QueryParseFailed.
+    // POST-FIX: grammar extension makes parse succeed; check_temporal_literals arm (4)
+    //           fires → TemporalLiteralInvalidPosition(NonColumnLhsComparison).
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where lower(device_id) = '2026-06-24'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must be an error.
+    assert!(
+        result.is_err(),
+        "EC-11-004-005: `lower(device_id) = '2026-06-24'` in pipe | where must return \
+         Err(E-QUERY-042). Got Ok. \
+         Check: fn_call_comparison grammar production + check_temporal_literals arm (4)."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // Primary variant assertion: must be E-QUERY-042 NonColumnLhsComparison.
+    assert!(
+        matches!(
+            &err,
+            PrismError::TemporalLiteralInvalidPosition {
+                position: TemporalLiteralPosition::NonColumnLhsComparison,
+                ..
+            }
+        ),
+        "EC-11-004-005: error must be PrismError::TemporalLiteralInvalidPosition \
+         (NonColumnLhsComparison). ADR-052 §D4 v1.12 arm (4). \
+         RED failure: grammar currently returns QueryParseFailed (parse-time rejection). \
+         Got: {err:?} (Display: {display})"
+    );
+
+    // value_prefix must be the first ≤50 chars of the offending literal.
+    if let PrismError::TemporalLiteralInvalidPosition { value_prefix, .. } = &err {
+        assert!(
+            value_prefix.starts_with("2026-06-24"),
+            "EC-11-004-005: value_prefix must start with '2026-06-24'. Got: {value_prefix:?}"
+        );
+    }
+
+    // SID-2 composed-output discipline: assert full Display string, not just the variant.
+    // POL-24 byte-verbatim anchor for E-QUERY-042 NonColumnLhsComparison.
+    assert!(
+        display.contains("E-QUERY-042: A date-like literal compared against a computed expression"),
+        "EC-11-004-005: Display must contain the canonical E-QUERY-042 NonColumnLhsComparison \
+         message prefix (error-taxonomy.md §E-QUERY-042 v2.14, POL-24 byte-verbatim). \
+         Got: {display}"
+    );
+
+    // Must NOT be QueryParseFailed — that was the defect (-32000 INTERNAL_ERROR to callers).
+    assert!(
+        !matches!(&err, PrismError::QueryParseFailed { .. }),
+        "EC-11-004-005: error must NOT be QueryParseFailed (-32000). \
+         That was the pre-fix defect (DEFECT-PQL-FNCALL-LHS-001). \
+         Post-fix: grammar parses fn-call LHS; E-QUERY-042 fires at plan time (-32602). \
+         Got: {err:?}"
+    );
+}
+
+/// EC-11-004-006: pipe `| where` with fn-call LHS and NON-date-like RHS must succeed
+/// (no temporal interception, no parse error).
+///
+/// Query: `FROM crowdstrike_detections | where lower(device_id) = 'active'`
+///
+/// # Red Gate pre-fix failure (the DEFECT)
+/// `build_predicate_parser` rejects `lower(device_id)` at parse time with
+/// `PrismError::QueryParseFailed` — the fn-call LHS production does not exist yet.
+/// This test asserts NOT `QueryParseFailed` and NOT `TemporalLiteralInvalidPosition` →
+/// FAILS because the actual error IS `QueryParseFailed`. ✓
+///
+/// # Post-fix state (GREEN)
+/// Grammar extension: `lower(device_id) = 'active'` parses to
+///   `Predicate::Compare { lhs: FuncCall::Scalar(...), rhs: Literal::String("active"), .. }`
+/// `check_temporal_literals`: `'active'` is NOT in `is_date_like` Acceptance Set →
+///   no `RawTemporalLiteral` emitted → walker returns `Ok(())`.
+/// E-QUERY-038: `device_id` IS in schema → passes.
+/// Query reaches DataFusion (fails with sensor-not-found or execution error — acceptable).
+///
+/// Traces to: BC-2.11.004 v1.31 EC-11-004-006; ADR-052 §D4 v1.12 Option A;
+///            EC-11-004-006 "fn-call args walked by collect_predicate_columns FuncCall arm".
+#[tokio::test]
+async fn test_BC_2_11_004_ec11_004_006_pipe_fncall_lhs_non_date_like_rhs_succeeds() {
+    let engine = make_crowdstrike_detections_engine();
+
+    // RED GATE: grammar rejects `lower(device_id)` → QueryParseFailed.
+    // POST-FIX: grammar parses OK; 'active' is not date-like → no temporal interception;
+    //           query passes to DataFusion (may fail with sensor error, not parse/plan error).
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where lower(device_id) = 'active'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must NOT be a parse error — the grammar extension must make this parseable.
+    // RED failure: currently returns QueryParseFailed (grammar defect).
+    assert!(
+        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "EC-11-004-006: `lower(device_id) = 'active'` in pipe | where must NOT return \
+         QueryParseFailed. Post-fix: grammar extension parses fn-call LHS; 'active' has \
+         no temporal intercept; query proceeds to DataFusion. \
+         RED failure: grammar still rejects fn-call LHS → QueryParseFailed. \
+         Got: {result:?}"
+    );
+
+    // Must NOT be E-QUERY-042 — 'active' is not in the is_date_like Acceptance Set;
+    // no RawTemporalLiteral is emitted; check_temporal_literals does not intercept.
+    assert!(
+        !matches!(
+            &result,
+            Err(PrismError::TemporalLiteralInvalidPosition { .. })
+        ),
+        "EC-11-004-006: `lower(device_id) = 'active'` must NOT return E-QUERY-042. \
+         'active' is not date-like → no RawTemporalLiteral → temporal gate passes. \
+         Got: {result:?}"
+    );
+}
+
+/// EC-11-004-006 E-QUERY-038 interaction: fn-call args must be walked by
+/// `collect_predicate_columns` FuncCall arm — nonexistent column inside fn-call → E-QUERY-038.
+///
+/// Query: `FROM crowdstrike_detections | where lower(no_such_col_xyz) = 'active'`
+///
+/// # Red Gate pre-fix failure (the DEFECT)
+/// Grammar rejects `lower(no_such_col_xyz)` at parse time with `QueryParseFailed`.
+/// Test asserts `ColumnNotFound` → FAILS. ✓
+///
+/// # Post-fix state (GREEN)
+/// Grammar extension: parse succeeds.
+/// `collect_predicate_columns` FuncCall arm walks `lower(no_such_col_xyz)`, extracts
+/// `no_such_col_xyz` as a column reference, checks against schema.
+/// `crowdstrike_detections` has `[device_id, timestamp]` — `no_such_col_xyz` is absent →
+/// E-QUERY-038 `ColumnNotFound { column: "no_such_col_xyz", table: "crowdstrike_detections" }`.
+///
+/// # SID-2 composed-output discipline
+/// Asserts both the `ColumnNotFound` variant fields AND the full Display string.
+///
+/// Traces to: BC-2.11.004 v1.31 EC-11-004-006 (E-QUERY-038 interaction note);
+///            BC-2.11.016 v1.25 (collect_predicate_columns FuncCall arm).
+#[tokio::test]
+async fn test_BC_2_11_004_ec11_004_006_pipe_fncall_lhs_nonexistent_col_e_query_038() {
+    let engine = make_crowdstrike_detections_engine();
+
+    // RED GATE: grammar rejects `lower(no_such_col_xyz)` at parse time → QueryParseFailed.
+    // POST-FIX: grammar parses OK; collect_predicate_columns walks fn-call args;
+    //           no_such_col_xyz not in crowdstrike_detections schema → E-QUERY-038.
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where lower(no_such_col_xyz) = 'active'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must be an error.
+    assert!(
+        result.is_err(),
+        "EC-11-004-006/E-QUERY-038: `lower(no_such_col_xyz) = 'active'` must return \
+         Err(E-QUERY-038). Got Ok. \
+         Check: collect_predicate_columns FuncCall arm; no_such_col_xyz not in schema."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    // Primary variant assertion: must be E-QUERY-038 ColumnNotFound.
+    assert!(
+        matches!(&err, PrismError::ColumnNotFound(ref d) if d.column == "no_such_col_xyz"),
+        "EC-11-004-006/E-QUERY-038: error must be PrismError::ColumnNotFound with \
+         column = 'no_such_col_xyz'. \
+         RED failure: grammar currently returns QueryParseFailed (parse-time rejection). \
+         Got: {err:?} (Display: {display})"
+    );
+
+    // SID-2 composed-output discipline: assert the full Display message, not just the variant.
+    assert!(
+        display.contains("E-QUERY-038"),
+        "EC-11-004-006/E-QUERY-038: Display must contain 'E-QUERY-038'. Got: {display}"
+    );
+    assert!(
+        display.contains("no_such_col_xyz"),
+        "EC-11-004-006/E-QUERY-038: Display must contain 'no_such_col_xyz' \
+         (the missing column name per E-QUERY-038 message template). Got: {display}"
+    );
+
+    // Table name must be crowdstrike_detections in the error payload.
+    if let PrismError::ColumnNotFound(ref details) = err {
+        assert_eq!(
+            details.table, "crowdstrike_detections",
+            "EC-11-004-006/E-QUERY-038: ColumnNotFoundDetails.table must be \
+             'crowdstrike_detections'. Got: {:?}",
+            details.table
+        );
+    }
+
+    // Must NOT be QueryParseFailed — that was the pre-fix defect.
+    assert!(
+        !matches!(&err, PrismError::QueryParseFailed { .. }),
+        "EC-11-004-006/E-QUERY-038: error must NOT be QueryParseFailed. \
+         Post-fix: grammar parses fn-call LHS; E-QUERY-038 fires at plan time. \
+         Got: {err:?}"
+    );
+}
+
+/// Scope guard — BC-2.11.004 §INV: aggregate fn-call must NOT become valid in pipe `| where`.
+///
+/// Query: `FROM crowdstrike_detections | where count(device_id) = 5`
+///
+/// Per ADR-052 §D4 v1.12 and ADR-048 D.3, the `fn_call_comparison` grammar extension
+/// in `build_predicate_parser` is RESTRICTED to `FuncCall::Scalar` only.  Aggregate
+/// fn-calls (`count`, `sum`, `avg`, `min`, `max`) remain invalid in pipe `| where`
+/// and must continue to produce an error (parse error or appropriate plan-time gate).
+/// The HAVING path (ADR-048 D.3) is SQL-mode only.
+///
+/// # State in both RED and GREEN
+/// This test passes in BOTH RED and GREEN: the query errors in RED (grammar rejects all
+/// fn-call LHS), and must also error in GREEN (grammar extension correctly restricts to
+/// FuncCall::Scalar, rejecting aggregate fn-calls).
+/// This is a scope-guard / regression test that catches accidental broadening of the
+/// fn_call_comparison production to aggregate functions.
+///
+/// # Rationale (why not a RED-only test)
+/// The value of this test is prospective: if the implementer accidentally allows
+/// `count()` as a valid pipe `| where` LHS, this test fails in GREEN, preventing a
+/// silent semantic regression.
+///
+/// Traces to: BC-2.11.004 v1.31 EC-11-004-006 scope note;
+///            ADR-048 D.3 (HAVING aggregate functions are SQL-mode only);
+///            ADR-052 §D4 v1.12 (FuncCall::Scalar only in fn_call_comparison).
+#[tokio::test]
+async fn test_BC_2_11_004_invariant_pipe_where_aggregate_fncall_remains_invalid() {
+    let engine = make_crowdstrike_detections_engine();
+
+    // Both RED and GREEN: `count(device_id) = 5` in pipe | where must error.
+    // RED:   grammar rejects ALL fn-call LHS → QueryParseFailed.
+    // GREEN: grammar extension allows FuncCall::Scalar only; `count` is aggregate →
+    //        grammar rejects (or plan gate rejects) → error.
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where count(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must NOT succeed — aggregate fn-call is NEVER valid in pipe | where.
+    assert!(
+        result.is_err(),
+        "BC-2.11.004 §INV: `count(device_id) = 5` in pipe | where must return Err. \
+         Aggregate fn-calls are invalid in | where (ADR-048 D.3: HAVING path is SQL-mode only). \
+         The fn_call_comparison grammar extension must NOT inadvertently allow aggregate LHS. \
+         Got Ok — scope has been incorrectly broadened beyond FuncCall::Scalar."
+    );
+}
