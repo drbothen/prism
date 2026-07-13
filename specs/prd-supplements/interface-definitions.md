@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "interface-definitions"
-version: "2.9"
+version: "2.10"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -485,7 +485,7 @@ Configures where Prism resolves a named credential for a given `(client_id, sens
         "type": "array",
         "items": {
           "type": "object",
-          "description": "OCSF-normalized result records with virtual fields (sensor, client_id, source). Key name is 'rows', not 'events': query results are tabular projections, not raw OCSF event objects (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-MED-001 2026-07-13)."
+          "description": "OCSF-normalized result records with virtual fields (sensor, client_id, source). Key name is 'rows', not 'events': query results are tabular projections, not raw OCSF event objects (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-MED-001). Row-shape invariant (BC-2.11.001 v1.20, EC-11-079): every row in a result set carries a uniform key set — all columns are present in every row; NULL cells are serialized as JSON null and are never omitted. A missing key is a contract violation, enforced via arrow_json WriterBuilder::with_explicit_nulls(true). (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P14-LOW-001 2026-07-13)"
         }
       },
       "_meta": {
@@ -2936,6 +2936,7 @@ OPTIONS:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.10 | DEFECT-MCP-ROWSHAPE-NULLS-001 pass-14 | 2026-07-13 | product-owner | **F-MCPNULL-P14-LOW-001 (pass 14) — null-not-absent row-shape invariant added to §1.9 `rows` description.** Amended `rows.items.description` to state that every row carries a uniform key set, NULL cells are JSON `null` (never omitted), and a missing key is a contract violation enforced via `arrow_json WriterBuilder::with_explicit_nulls(true)`. Cross-references BC-2.11.001 v1.20 (null-not-absent postcondition) and EC-11-079. POL-29 sibling sweep: no other row-shape description sites in file; no inline example rows with missing keys found. |
 | 2.9 | DEFECT-MCP-ROWSHAPE-NULLS-001-events-to-rows | 2026-07-13 | product-owner | **POL-23 sibling sweep — `query` tool response schema key renamed `events` → `rows`.** §1.3 query tool JSON output schema: `"events"` array key updated to `"rows"` per human adjudication 2026-07-13 (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-MED-001). Key name shipped in S-5.01-FOLLOWUP-MCP-BOOT (PR #163); spec sibling brought into alignment with BC-2.11.001 v1.17 and shipped behavior. Description updated: "OCSF-normalized result records" (not "event records") to match the tabular-projection rationale. NOTE: v2.8 changelog row is absent (pre-existing POL-32 gap; row was missing before this amendment). |
 | 2.7 | S-MAINT-ECRED-TAXONOMY-SYNC-001 | 2026-06-07 | product-owner | DF-PASS3-001: corrected mislabeled error code in `credential_status` §1.34 `errors` array — `E-CRED-001 (credential not found)` → `E-CRED-002 (credential not found)`. Canonical namespace per ADR-035 / error-taxonomy.md: E-CRED-001=InvalidCredentialName, E-CRED-002=CredentialNotFound. |
 | 2.6 | F-PreP24-H-001 | 2026-05-03 | architect | Propagated ARCH-INDEX SS-18 canonical name: replaced all 6 occurrences of `(Subsystem 18: Action Engine)` with `(Subsystem 18: Action Delivery Engine)` in §§1.44–1.49 headers (lines 2493, 2537, 2590, 2643, 2682, 2719). POL-6 compliance. |

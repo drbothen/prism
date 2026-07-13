@@ -3,7 +3,7 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.59"
+version: "1.60"
 updated: "2026-07-13"
 status: merged
 producer: story-writer
@@ -71,7 +71,7 @@ behavioral_contracts:
 #     postcondition, invariant, or error case.
 #   BC-2.11.002 v1.6 (active, amended): filter-mode parsing now includes IEQ/IIN/INE in
 #     the supported operator table. AC-001/AC-004/AC-012 exercise the filter-mode path.
-#   BC-2.11.004 v1.35 (active, amended): pipe-mode | where stage now supports IEQ/IIN/INE
+#   BC-2.11.004 v1.36 (active, amended): pipe-mode | where stage now supports IEQ/IIN/INE
 #     via shared filter grammar per ADR-046 D7. AC-013 exercises the pipe-mode path.
 #   BC-2.11.018 v1.5 (active, amended): normalized_pql echo now reflects IEQ/IIN/INE
 #     predicates in uppercase canonical form (EC-11-057 added). AC-014/AC-015 exercise this.
@@ -186,7 +186,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | BC-2.11.024 v1.4 | ~3,000 |
 | BC-2.02.013 v1.9 | ~2,500 |
 | BC-2.11.002 v1.6 (relevant filter-mode sections) | ~1,500 |
-| BC-2.11.004 v1.35 (relevant pipe-mode sections) | ~1,500 |
+| BC-2.11.004 v1.36 (relevant pipe-mode sections) | ~1,500 |
 | BC-2.11.018 v1.5 (normalized_pql section) | ~1,000 |
 | BC-2.02.002 v1.5, BC-2.02.010 v1.5 (amended sections) | ~2,000 |
 | BC-2.10.012 v1.9 (example_query + example_note contract) | ~1,000 |
@@ -404,7 +404,7 @@ Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_case_sensitive_eq_returns_zero_on
 ### AC-013b — IEQ/IIN available in pipe-mode | where stage
 (traces to BC-2.11.024 v1.4 invariant: "IEQ/IIN/INE are valid in filter mode and in
 pipe-mode | where stages (shared grammar invariant, BC-2.11.023)";
-BC-2.11.004 v1.35 amendment)
+BC-2.11.004 v1.36 amendment)
 
 Given `FROM crowdstrike_detections | where severity IEQ 'high' | head 5`,
 when parsed and executed,
@@ -1672,6 +1672,7 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.60 | 2026-07-13 | **BC-2.11.004 v1.35→v1.36 pin-sync (F-PQLFN-P8-HIGH-002 sibling sweep, POL-23). PO bumped BC-2.11.004 v1.35→v1.36 (six-position normative sibling sweep — six callers / six predicate positions / ALL five Predicate-typed positions; DML WHERE via build_delete_parser/build_update_parser). Three live version-pin cites updated: (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row. Note: a fourth pin (AC-013b trace) was confirmed at line 407 and also updated. Semantic-cell currency: BC-2.11.004 Key Clauses cell ("Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7)") verified CURRENT — v1.36 is a normative sibling sweep for the six-position extension, not a new pipe-mode IEQ availability amendment. Stale v1.35 grep in live pins: zero hits after edits. Historical changelog rows left unchanged per TD-VSDD-091. AC semantics UNCHANGED. Frontmatter version 1.59→1.60; updated 2026-07-13 (POL-23, F-PQLFN-P8-HIGH-002 D-1720).** |
 | v1.59 | 2026-07-13 | **BC-2.11.004 v1.34→v1.35 pin-sync (F-PQLFN-P5-LOW-002 propagation, POL-23). PO bumped BC-2.11.004 v1.34→v1.35 (pin-currency sweep only; Key Clauses cell unchanged per PO verification). Four live version-pin cites updated: (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row; (4) AC-013b trace. Semantic-cell currency: BC-2.11.004 Key Clauses cell ("Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7)") verified CURRENT — v1.35 is a pin-currency sweep only; no pipe-mode IEQ availability amendment; no Key Clauses extension needed. Stale v1.34 grep after edits: zero hits in live pins. Historical changelog rows left unchanged per TD-VSDD-091. AC semantics UNCHANGED. Frontmatter version 1.58→1.59; updated 2026-07-13 (POL-23).** |
 | v1.58 | 2026-07-13 | **BC-2.11.004 v1.33→v1.34 pin-sync (DEFECT-PQL-FNCALL-LHS-001 F-PQLFN-P3-LOW-003 propagation, POL-23). PO bumped BC-2.11.004 v1.33→v1.34 (scope-limit note only; Key Clauses cell stays as-is per PO verification). Four live version-pin cites updated: (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row; (4) AC-013b trace. Semantic-cell currency: BC-2.11.004 Key Clauses cell ("Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7)") verified CURRENT — v1.34 is a scope-limit note addition, not a pipe-mode IEQ availability amendment; no Key Clauses extension needed. Stale v1.33 grep after edits: zero hits. Historical changelog rows contain prior v1.33 references — left unchanged per TD-VSDD-091. AC semantics UNCHANGED. Frontmatter version 1.57→1.58; updated 2026-07-13 (POL-23).** |
 | v1.57 | 2026-07-13 | **BC-2.11.004 v1.30→v1.33 pin-sync (DEFECT-PQL-FNCALL-LHS-001 fix-burst-2 propagation, POL-23). PO bumped BC-2.11.004 v1.30→v1.33 @1c5f85a5. Four live version-pin cites updated: (1) frontmatter BC status comment; (2) §Behavioral Contracts body table version cell; (3) §Token Budget row; (4) AC-013b trace. BC-2.11.019 scan: zero pins present in this file — no update needed. Semantic-cell currency: BC-2.11.004 Key Clauses cell ("Amended: IEQ/IIN/INE available in \| where stages via shared filter grammar (ADR-046 D7)") verified CURRENT — v1.31–v1.33 are DEFECT-PQL-FNCALL-LHS-001 fix-burst corrections to the E-QUERY-038 gate and LHS function-call handling, not pipe-mode IEQ availability amendments; no Key Clauses extension needed. Stale v1.30 grep after edits: zero hits. Historical changelog rows contain prior v1.30 references — left unchanged per TD-VSDD-091. AC semantics UNCHANGED. Frontmatter version 1.56→1.57; updated 2026-07-13 (POL-23).** |
