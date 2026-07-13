@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: active
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -83,14 +83,14 @@ The `normalized_pql` value should look like a valid PQL query string — somethi
 
 ### Response envelope placement
 
-`normalized_pql` is an ADDITIVE, OPTIONAL field on the `query` tool's JSON response. The existing fields (`results`, `row_count`, `execution_time_ms`, `query_context`, `sensor_errors`, `rows`) are UNCHANGED. The new field is appended after the existing fields:
+`normalized_pql` is an ADDITIVE, OPTIONAL field on the `query` tool's JSON response. The existing fields (`rows`, `returned_results`, `total_available`, `is_truncated`, `sensor_errors`) are UNCHANGED. The new field is appended after the existing fields:
 
 ```json
 {
   "rows": [...],
-  "row_count": 42,
-  "execution_time_ms": 1234,
-  "query_context": { "original_query": "...", ... },
+  "returned_results": 42,
+  "total_available": 42,
+  "is_truncated": false,
   "sensor_errors": [],
   "normalized_pql": "SELECT host_name, COUNT(*) FROM crowdstrike_detections WHERE timestamp > NOW() - INTERVAL '1h' GROUP BY host_name ORDER BY COUNT(*) DESC LIMIT 10"
 }
@@ -145,7 +145,7 @@ A model that receives `normalized_pql` in a successful query response has a grou
 | Failed `query("SELECT * FROM nonexistent_table")` → E-QUERY-037 | Response does NOT contain `normalized_pql` field | field-absent-on-error |
 | Successful `query("select * from crowdstrike_alerts limit 5")` (lowercase) | `normalized_pql` contains uppercase `SELECT ... FROM ... LIMIT` (or equivalent canonical form) — different from raw input | normalization |
 | `normalized_pql` value does not contain any of: `"HashJoin"`, `"TableScan"`, `"SortExec"`, `"Aggregate"` (DataFusion plan node names) | Pass — these are internal plan node type strings; normalized PQL must not contain them | exclusion-invariant |
-| Zero-row successful query | `normalized_pql` present; `row_count: 0`; `events: []` | zero-rows-success |
+| Zero-row successful query | `normalized_pql` present; `returned_results: 0`; `rows: []` | zero-rows-success |
 
 ## Verification Properties
 
@@ -189,6 +189,7 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | DEFECT-MCP-ROWSHAPE-NULLS-001-pass3-phantom-fields | 2026-07-13 | product-owner | **F-MCPNULL-P3-MED-001 closure — phantom-field sweep (POL-25 full-file).** Two fix sites: (1) §Canonical Test Vectors "Zero-row successful query" row: `events: []` → `rows: []` (retired key; the v1.4 sweep only fixed §Response envelope placement and missed the test-vector row — POL-25 incomplete-sweep gap); `row_count: 0` → `returned_results: 0` (`row_count` is a phantom field — no such key exists in the actual server.rs payload; the shipped field is `returned_results` per `prism-mcp/src/server.rs` lines 1994-1995). (2) §Response envelope placement JSON example: `row_count: 42` → `returned_results: 42`; `execution_time_ms: 1234` removed (not in top-level payload — `execution_time_ms` lives in `result.context` but is not surfaced in the `serde_json::json!({...})` payload block); `query_context: {...}` removed (no such nested object in the server-emitted payload). Correct top-level keys per server.rs: `rows`, `returned_results`, `total_available`, `is_truncated`, `sensor_errors`, `normalized_pql` (conditional). (3) §Response envelope placement prose "existing fields" list: `results`, `row_count`, `execution_time_ms`, `query_context` removed; updated to `rows`, `returned_results`, `total_available`, `is_truncated`, `sensor_errors`. **POL-25 full-file sweep — all sites checked:** §Description (lines 29-32): no `events` / `row_count` — clean. §Preconditions: clean. §Postconditions (field-presence invariants, wire-field-name, field-content, field-exclusions): clean. §Postconditions §Response envelope placement prose "existing fields" list — fixed (site 3 above). §Postconditions §Response envelope placement JSON example — fixed (site 2 above). §Postconditions §IEQ/IIN/INE round-trip: clean. §Postconditions §Token cost/in-session-self-teaching: clean. §Invariants: clean. §Error Cases table: clean. §Edge Cases (EC-11-051 through EC-11-057): clean. §Canonical Test Vectors: zero-row row fixed (site 1 above); all other rows clean. §Verification Properties: clean. §Traceability: clean. §Related BCs: clean. §Architecture Anchors: clean. §Story Anchor: clean. §VP Anchors: clean. Normalized_pql field semantics, round-trip guarantee, injection-safety boundary, and IEQ/IIN/INE extension ALL UNCHANGED. |
 | 1.4 | DEFECT-MCP-ROWSHAPE-NULLS-001-events-to-rows | 2026-07-13 | product-owner | **POL-23 sibling sweep — `events` → `rows` in response envelope placement example.** §Response envelope placement: updated the existing-field list and the JSON example to use `"rows"` instead of `"events"`. The response array key was renamed from `events` to `rows` in S-5.01-FOLLOWUP-MCP-BOOT (PR #163); this BC's envelope example retained the old key. Brought into alignment with BC-2.11.001 v1.17 and shipped behavior per human adjudication 2026-07-13 (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-MED-001). `normalized_pql` field semantics and all other postconditions UNCHANGED. |
 | 1.3 | S-PRISMQL-CASE-INSENSITIVE-001-bc-burst | 2026-07-06 | product-owner | **ADR-047 D.4 amendment: IEQ/IIN/INE round-trip in `normalized_pql`.** §Postconditions: added "IEQ / IIN / INE round-trip in normalized_pql (ADR-047 D.4)" sub-section — operator keywords uppercased in canonical form; round-trip guarantee applies to `case_insensitive: true` AST flag. §Edge Cases: EC-11-057 added (`severity ieq 'high'` → `normalized_pql` contains `severity IEQ 'high'` uppercase; round-trip parses same AST). inputs: ADR-047 added. |
 | 1.2 | F-001B-SCFRESH-MED-001-story-anchor-fix | 2026-06-22 | product-owner | F-001B-SCFRESH-MED-001 closure (POL-4 story-anchor mis-anchoring): `## Story Anchor` corrected from placeholder `S-5.04 (or dedicated ADR-041 teaching story — to be assigned by story-writer)` to the actual implementing story `S-DEMO-PRISMQL-ONBOARDING-001-B`. Exhaustive BC metadata audit: all other surfaces clean. |

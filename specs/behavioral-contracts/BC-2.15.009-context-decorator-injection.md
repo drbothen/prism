@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -97,7 +97,7 @@ null fields rather than errors.
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-15-033 | Cross-client query produces records from 3 clients | Each record has its own `_client` (virtual field in event row, queryable). The `_meta.client_name` shows the name of the queried client context. Per-record client identification uses the `_client` virtual field. |
+| EC-15-033 | Cross-client query produces records from 3 clients | Each record has its own `_client` (virtual field in result row, queryable). The `_meta.client_name` shows the name of the queried client context. Per-record client identification uses the `_client` virtual field. |
 | EC-15-034 | Scheduled query execution (no analyst session) | `analyst_id` is null; `query_source` is "schedule:{schedule_name}" |
 | EC-15-035 | Query returns 0 results | No decoration needed; empty result set |
 | EC-15-036 | Client name contains unicode characters | Preserved as-is in `_meta.client_name` |
@@ -108,11 +108,11 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Scenario | Input | Expected Output |
 |----------|-------|-----------------|
-| Happy path — interactive query | analyst session, single client | All virtual fields in events; all decorator fields in _meta |
+| Happy path — interactive query | analyst session, single client | All virtual fields in result rows; all decorator fields in _meta |
 | Scheduled query | no analyst session | `analyst_id=null`; `query_source="schedule:check_alerts"` |
 | WHERE on virtual field | `WHERE _sensor = 'crowdstrike'` | Filters correctly (virtual field is queryable Arrow column) |
 | WHERE on decorator field | `WHERE client_name = 'Acme'` | Parse/plan error — decorator fields not in Arrow schema |
-| Cross-client result | query spanning 3 clients | Each event row has its own `_client` value |
+| Cross-client result | query spanning 3 clients | Each result row has its own `_client` value |
 
 ## Verification Properties
 
@@ -131,6 +131,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | DEFECT-MCP-ROWSHAPE-NULLS-001-pass3-rows-terminology | 2026-07-13 | product-owner | **F-MCPNULL-P3-LOW-001 closure — rows terminology sweep (POL-25 full-file).** §Canonical Test Vectors two sites and §Edge Cases one site still used "events" and "event row" as the result noun, inconsistent with the `rows` key rationale from BC-2.11.001 v1.17 and the response example already corrected in v1.6. **Changes (3 sites):** (1) §Canonical Test Vectors happy-path row: "All virtual fields in events" → "All virtual fields in result rows". (2) §Canonical Test Vectors cross-client row: "Each event row has its own `_client` value" → "Each result row has its own `_client` value". (3) §Edge Cases EC-15-033: "virtual field in event row, queryable" → "virtual field in result row, queryable". **POL-25 full-file sweep — all sites checked:** §Description: "Every query result carries two distinct categories" — result noun is "result", not "event" — clean. §Preconditions: "OCSF-normalized results" — clean. §Postconditions: JSON response example uses `"rows": [...]` (already correct from v1.6); bullet text "Result records carry two separate categories" — clean. `_source_type: "live"` example — clean. All `_meta` decorator fields — clean. §Invariants: "Decorators never modify the OCSF record itself" — `record` not `event`, clean. §Error Conditions: clean. §Edge Cases EC-15-034/035/036: clean; EC-15-033 fixed (site 3 above). §Canonical Test Vectors: sites 1 and 2 fixed above; WHERE/schedule rows — clean. §Verification Properties: clean. §Traceability: clean. Virtual-field injection semantics (Arrow column injection pre-DataFusion), decorator injection semantics (post-DataFusion `_meta` envelope), and all invariants UNCHANGED. |
 | 1.6 | DEFECT-MCP-ROWSHAPE-NULLS-001-events-to-rows | 2026-07-13 | product-owner | **POL-23 sibling sweep — `events` → `rows` in JSON response example.** §Postconditions response example: `"events": [...]` → `"rows": [...]`. The `query` tool response array key was renamed from `events` to `rows` in S-5.01-FOLLOWUP-MCP-BOOT (PR #163); this BC's example retained the old key. Brought into alignment with BC-2.11.001 v1.17 and shipped behavior per human adjudication 2026-07-13 (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-MED-001). Virtual-field injection semantics and all other postconditions UNCHANGED. |
 | 1.5 | DEFECT-CSDEVICES-EMPTY-PIPELINE-001 / F-CSD-P23-001 POL-29 sweep | 2026-07-10 | product-owner | POL-29 exhaustive sweep: virtual-field enumeration updated throughout to include `_source_type` (4th sensor-table virtual field per BC-2.11.012 v1.11). Changes: (1) §Description: `(_sensor, _client, _source_table)` → `(_sensor, _client, _source_table, and _source_type for sensor tables)`. (2) §Postconditions Virtual fields list: added `_source_type` bullet with sensor-table-only qualifier and EC-11-035 cross-reference. (3) JSON response example: added `"_source_type": "live"` field. (4) §Postconditions invariant note: `(_sensor, _client, _source_table)` → `(_sensor, _client, _source_table, _source_type)` + BC-2.11.012 cross-ref added. (5) §Invariants: `(_sensor, _client, _source_table) CAN be referenced` → `(_sensor, _client, _source_table, _source_type) CAN be referenced` + EC-11-035 internal-table note. |
 | 1.4 | pass-15-remediation | 2026-04-27 | product-owner | `_client` field description updated TenantId → OrgSlug (ADR-006). |
