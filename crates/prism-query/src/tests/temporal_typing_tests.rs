@@ -2502,19 +2502,18 @@ fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_low2_dml_set_unknown_col_coerces_to
 ///
 /// # Implementation note — why direct AST test, not engine.execute()
 ///
-/// The Prism SQL grammar only allows `FieldPath` as comparison LHS in SQL WHERE predicates
-/// (see `sql_parser.rs` `comparison` parser, which always wraps lhs with
-/// `field_path_to_expr(fp)` producing `Expr::Field` or `Expr::VirtualField`).
-/// SQL-mode queries like `WHERE lower(hostname) = '2026-06-24'` still fail at PARSE time
-/// with `QueryParseFailed` before the temporal walker ever runs.
+/// Post-DEFECT-PQL-FNCALL-LHS-001: `build_predicate_parser` (shared by pipe `| where`,
+/// filter mode, and SQL WHERE via `build_sql_predicate_parser`) now accepts fn-call LHS
+/// via the `fn_call_comparison` production. Queries like `WHERE lower(hostname) = '2026-06-24'`
+/// now PARSE successfully (fn-call LHS is admitted) and reach the temporal walker, which
+/// fires E-QUERY-042 (NonColumnLhsComparison). The end-to-end path for pipe `| where` is
+/// covered by `test_BC_2_11_004_ec11_004_005_pipe_fncall_lhs_date_like_rejects_e_query_042`.
 ///
-/// Post-DEFECT-PQL-FNCALL-LHS-001: pipe `| where` mode now produces a grammar-reachable
-/// fn-call LHS via `fn_call_comparison` in `build_predicate_parser`. The end-to-end
-/// path is covered by `test_BC_2_11_004_ec11_004_005_pipe_fncall_lhs_date_like_rejects_e_query_042`.
-///
-/// This synthetic-AST test remains as defense-in-depth for the SQL WHERE case — it
-/// exercises the non-Field LHS arm via a direct `check_temporal_literals` call with
-/// `Expr::Now = '2026-06-24'` in a SELECT item, without going through the parser.
+/// This synthetic-AST test remains as defense-in-depth for Expr-typed positions (JOIN ON,
+/// SELECT projection, GROUP BY, ORDER BY) whose parsers still emit `field_path_to_expr`
+/// LHS only and cannot produce fn-call LHS from user input. The synthetic AST exercises
+/// the non-Field LHS arm of `check_expr_temporal` directly — `Expr::Now = '2026-06-24'`
+/// in a SELECT item — verifying the E-QUERY-042 path without relying on the parser.
 #[test]
 fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_non_column_lhs_date_like_e_query_042() {
     use crate::ast::{

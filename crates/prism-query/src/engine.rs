@@ -1530,6 +1530,29 @@ static DATAFUSION_BUILTIN_FUNCTION_NAMES: std::sync::LazyLock<std::collections::
         names
     });
 
+/// Set of DataFusion built-in AGGREGATE function names (lowercase) — used by the
+/// aggregate-in-predicate plan-time gate in `check_enrich_udf_availability` (ADR-048 D.3).
+///
+/// Derived from `SessionStateDefaults::default_aggregate_functions()` — the same source
+/// used to populate the aggregate portion of `DATAFUSION_BUILTIN_FUNCTION_NAMES`.
+/// Single source of truth: DataFusion's aggregate registry, not a hard-coded list.
+///
+/// When a `ScalarFunc::Unknown(name)` in a predicate fn-call LHS position resolves to
+/// a name in this set, the gate returns E-QUERY-001 (QueryParseFailed) with the
+/// ADR-048 D.3 aggregate-in-where message.
+static DATAFUSION_BUILTIN_AGGREGATE_NAMES: std::sync::LazyLock<std::collections::HashSet<String>> =
+    std::sync::LazyLock::new(|| {
+        use datafusion::execution::SessionStateDefaults;
+        let mut names = std::collections::HashSet::new();
+        for udaf in SessionStateDefaults::default_aggregate_functions() {
+            names.insert(udaf.name().to_ascii_lowercase());
+            for alias in udaf.aliases() {
+                names.insert(alias.to_ascii_lowercase());
+            }
+        }
+        names
+    });
+
 /// Walk the six top-level scalar-expr positions in a `SqlQuery` and collect
 /// `ScalarFunc::Unknown` names.
 ///
@@ -1750,22 +1773,14 @@ fn check_enrich_udf_availability(
     use crate::filter_parser::PrismQlParser;
     use prism_core::error::EnrichUdfNotFoundDetails;
 
-    // Skip when no registry is wired — enrichment not configured in this deployment.
-    let Some(registry) = registry else {
-        return Ok(());
-    };
-
-    // Parse the query. On parse failure, return Ok(()) — parse errors are emitted
-    // downstream as E-QUERY-001. This mirrors check_table_availability's behavior.
+    // Parse the query BEFORE the registry-None check. On parse failure, return Ok(()) —
+    // parse errors are emitted downstream as E-QUERY-001. Parsing happens first because
+    // the aggregate-in-predicate gate (ADR-048 D.3) must run even when infusion registry
+    // is not configured — it does not depend on the registry.
     let ast = match PrismQlParser::parse(query_str) {
         Ok(ast) => ast,
         Err(_) => return Ok(()),
     };
-
-    // Build the registered UDF name set from the live registry.
-    let descriptors = registry.udf_descriptors();
-    let registered_names: std::collections::HashSet<&str> =
-        descriptors.iter().map(|d| d.name.as_str()).collect();
 
     // Collect enrichment UDF names from the AST via direct pattern matching.
     // Using direct match (not the Visitor trait) to avoid coupling with the full
@@ -1781,32 +1796,59 @@ fn check_enrich_udf_availability(
     // built-in skip is applied to SQL names only.
     let mut pipe_enrich_names: Vec<String> = Vec::new(); // no built-in skip
     let mut sql_unknown_names: Vec<String> = Vec::new(); // built-in skip applied
+                                                         // ScalarFunc::Unknown names from predicate fn-call LHS positions (pipe | where,
+                                                         // filter-mode root predicate, SqlPipe | where). Checked for aggregate classification
+                                                         // (ADR-048 D.3 plan-time gate) before being folded into sql_unknown_names for
+                                                         // E-QUERY-039. BC-2.11.019 §Postconditions third bullet (DEFECT-PQL-FNCALL-LHS-001).
+    let mut predicate_fncall_names: Vec<String> = Vec::new();
 
     match &ast {
         // Pipe mode: `FROM table | enrich udf_name(col)` stages.
+        // Post-DEFECT-PQL-FNCALL-LHS-001: also walk PipeStage::Where predicates —
+        // build_predicate_parser now accepts ScalarFunc::Unknown fn-call LHS.
         Ast::Pipe(pq) => {
             for stage in &pq.stages {
-                if let PipeStage::Enrich(es) = stage {
-                    pipe_enrich_names.push(es.infusion.clone());
+                match stage {
+                    PipeStage::Enrich(es) => {
+                        pipe_enrich_names.push(es.infusion.clone());
+                    }
+                    PipeStage::Where(pred) => {
+                        collect_unknown_scalar_from_predicate(pred, &mut predicate_fncall_names);
+                    }
+                    _ => {}
                 }
             }
         }
+        // Filter mode: root predicate may contain ScalarFunc::Unknown fn-call LHS
+        // (post-DEFECT-PQL-FNCALL-LHS-001 grammar extension). Walk the predicate.
+        // Previously fell through to `_ => {}` (gate was a no-op for Ast::Filter).
+        Ast::Filter(fe) => {
+            collect_unknown_scalar_from_predicate(&fe.predicate, &mut predicate_fncall_names);
+        }
         // SqlPipe mode: SQL head with pipe stages.
-        // Enrich names can appear in TWO places:
-        //   (a) pipe stages: `… | enrich udf_name(col)` — pipe-mode, no built-in skip.
-        //   (b) SQL HEAD: any scalar position in the head SqlQuery (SELECT, WHERE,
+        // Enrich names can appear in THREE places:
+        //   (a) pipe stages `| enrich udf_name(col)` — pipe-mode, no built-in skip.
+        //   (b) pipe stages `| where fn(col) = val` — predicate fn-call LHS (new).
+        //   (c) SQL HEAD: any scalar position in the head SqlQuery (SELECT, WHERE,
         //       JOIN ON, GROUP BY, ORDER BY, HAVING) — SQL-mode, built-in skip applied.
         // BC-2.11.019 §Precondition 1(b): projection OR WHERE (either site counts).
         // C1/C2 fix: use collect_unknown_scalars_from_sql_query to cover ALL positions
         // including JOIN ON / GROUP BY / ORDER BY which the previous inline walk missed.
         Ast::SqlPipe(spq) => {
-            // (a) pipe stages — pipe-mode, no built-in skip.
             for stage in &spq.stages {
-                if let PipeStage::Enrich(es) = stage {
-                    pipe_enrich_names.push(es.infusion.clone());
+                match stage {
+                    // (a) pipe stages — pipe-mode, no built-in skip.
+                    PipeStage::Enrich(es) => {
+                        pipe_enrich_names.push(es.infusion.clone());
+                    }
+                    // (b) pipe | where predicates — predicate fn-call LHS.
+                    PipeStage::Where(pred) => {
+                        collect_unknown_scalar_from_predicate(pred, &mut predicate_fncall_names);
+                    }
+                    _ => {}
                 }
             }
-            // (b) SQL head — ALL scalar positions via canonical shared walk, SQL-mode.
+            // (c) SQL head — ALL scalar positions via canonical shared walk, SQL-mode.
             collect_unknown_scalars_from_sql_query(&spq.head, &mut sql_unknown_names);
         }
         // SQL mode: scan ALL scalar positions via canonical shared walk.
@@ -1816,9 +1858,53 @@ fn check_enrich_udf_availability(
         Ast::Sql(SqlStatement::Select(sq)) => {
             collect_unknown_scalars_from_sql_query(sq, &mut sql_unknown_names);
         }
-        // Filter mode and DML have no enrichment syntax.
+        // DML has no enrichment syntax.
         _ => {}
     }
+
+    // Aggregate-in-predicate plan-time gate (ADR-048 D.3) — runs regardless of infusion
+    // registry. When a ScalarFunc::Unknown name from a predicate fn-call LHS position is
+    // a DataFusion built-in aggregate function (e.g., stddev, variance, median, corr), it
+    // cannot be a valid predicate — aggregates belong in HAVING, not WHERE.
+    //
+    // Rejected with E-QUERY-001 (QueryParseFailed) at plan time so the analyst receives
+    // the controlled ADR-048 D.3 message rather than an uncontrolled -32000 / QueryPlanFailed
+    // from DataFusion (which also rejects aggregates in WHERE, but with an opaque error).
+    //
+    // Source of truth: DATAFUSION_BUILTIN_AGGREGATE_NAMES (derived from DataFusion's
+    // default_aggregate_functions() registry — same source as the aggregate portion of
+    // DATAFUSION_BUILTIN_FUNCTION_NAMES). No hard-coded name list.
+    for name in &predicate_fncall_names {
+        let name_lower = name.to_ascii_lowercase();
+        if DATAFUSION_BUILTIN_AGGREGATE_NAMES.contains(&name_lower) {
+            return Err(PrismError::QueryParseFailed {
+                offset: 0,
+                detail: format!(
+                    "E-QUERY-001: '{name}' is an aggregate function; \
+                     aggregate fn-calls are not valid in pipe | where \
+                     (use HAVING for post-aggregation filters, ADR-048 D.3)"
+                ),
+                query: query_str.to_string(),
+            });
+        }
+    }
+
+    // Skip E-QUERY-039 check when no infusion registry is configured.
+    let Some(registry) = registry else {
+        return Ok(());
+    };
+
+    // Build the registered UDF name set from the live registry.
+    let descriptors = registry.udf_descriptors();
+    let registered_names: std::collections::HashSet<&str> =
+        descriptors.iter().map(|d| d.name.as_str()).collect();
+
+    // Fold predicate fn-call names into sql_unknown_names for E-QUERY-039 gate.
+    // DataFusion built-in exclusion (DATAFUSION_BUILTIN_FUNCTION_NAMES) applies —
+    // aggregate names that reached here were not in the aggregate-only set (would have
+    // been caught above), and non-aggregate DataFusion built-ins (e.g., lower, upper)
+    // are excluded from E-QUERY-039 by the DATAFUSION_BUILTIN_FUNCTION_NAMES filter below.
+    sql_unknown_names.extend(predicate_fncall_names);
 
     // Validate pipe-mode enrich names — NO DataFusion built-in exclusion.
     // BC-2.11.019 §F-PJL1-HIGH-001: pipe-mode `| enrich <name>` is an explicit
@@ -6488,11 +6574,13 @@ pub(crate) fn collect_unknown_scalars_from_sql_query_test_only(
 // from this #[cfg(test)] block via `super::`).
 //
 // Rationale for direct AST construction (not query-string parsing):
-// The SQL parser's WHERE predicate grammar uses `build_predicate_parser()` which
-// does NOT include scalar function call syntax — `WHERE badudf(col) = 1` is a
-// parse error (E-QUERY-001) at runtime. The collect_unknown_scalar_from_predicate
-// helper is defensive code for programmatic AST construction (e.g., macros,
-// future parser extensions). These unit tests verify the logic directly.
+// Post-DEFECT-PQL-FNCALL-LHS-001: `build_predicate_parser()` (shared by pipe `| where`,
+// filter mode, and SQL WHERE via `build_sql_predicate_parser`) now accepts fn-call LHS via
+// `fn_call_comparison` — `WHERE badudf(col) = 1` can now parse successfully. Direct AST
+// construction is used here to isolate the collect_ function logic from the parser and
+// test the walker independently of the grammar production rules. These unit tests verify
+// the walk logic directly without parser round-trips.
+// TD-VSDD-059: load-bearing unit tests on the actual collect_ functions.
 //
 // TD-VSDD-059: load-bearing unit tests on the actual collect_ functions.
 
