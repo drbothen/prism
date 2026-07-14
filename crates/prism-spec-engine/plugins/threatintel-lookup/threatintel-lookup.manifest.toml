@@ -12,7 +12,7 @@
 # Story: S-DEMO-ENRICHMENT-PIVOT-002
 
 name = "threat_intel"
-version = "1.0.0"
+version = "1.0.1"
 format_version = 1
 plugin_type = "infusion"
 

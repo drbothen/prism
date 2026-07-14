@@ -71,7 +71,8 @@ mod host_impl {
         }
 
         fn version() -> String {
-            "1.0.0".to_string()
+            // 1.0.1: re-cut to establish commit-ordering for CI ancestry gate (F-MCPRS-PRL1-MED-001)
+            "1.0.1".to_string()
         }
 
         fn enrich_single(input_value: String, input_type: String) -> Option<String> {
