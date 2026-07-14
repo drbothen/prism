@@ -1848,13 +1848,39 @@ fn collect_unknown_scalar_offsets_from_predicate(
 /// (both pipe-mode `| enrich udf_name(col)` and SQL-mode `SELECT udf_name(col)`), then
 /// validates each against the `InfusionRegistry` descriptor set.
 ///
+/// Also runs the aggregate-in-predicate plan-time gate (ADR-048 D.3): `ScalarFunc::Unknown`
+/// names from predicate fn-call LHS positions are checked against DataFusion built-in
+/// aggregate names; if an aggregate appears in a WHERE/where predicate, E-QUERY-001 fires.
+///
 /// # Gate skip conditions
 /// - `registry` is `None`: skip immediately (enrichment not configured).
 /// - Query fails to parse: return `Ok(())` — parse errors handled downstream.
 /// - No enrichment names found in the AST: return `Ok(())` (query doesn't use enrichment).
 /// - Name is a DataFusion built-in scalar: skip (resolved by `ctx.sql()` — not an enrichment).
 ///
-/// # SQL path detection
+/// # Predicate-position walks (ADR-048 §D.7.1)
+///
+/// Seven WHERE/where positions are walked into `predicate_fncall_names` for the
+/// aggregate-in-predicate gate (ADR-048 D.3). HAVING is exempt at every position
+/// (§D.7.1 HAVING exemption; §D.7.3). Positions 1-3 were added by
+/// DEFECT-PQL-FNCALL-LHS-001; positions 4-5 by OD-5; position 6 by OD-6 (ADR-048
+/// §D.7.5); position 7 by OD-7 (ADR-048 §D.7.6).
+///
+/// | Position | AST arm | Field walked |
+/// |---|---|---|
+/// | 1 — `pipe \| where` | `Ast::Pipe` | `PipeStage::Where(pred)` |
+/// | 2 — filter-mode root predicate | `Ast::Filter(fe)` | `fe.predicate` |
+/// | 3 — `SqlPipe \| where` | `Ast::SqlPipe` | `PipeStage::Where(pred)` in stage list |
+/// | 4 — SQL WHERE | `Ast::Sql(Select)` | `sq.where_` |
+/// | 5 — SqlPipe-head WHERE | `Ast::SqlPipe` | `spq.head.where_` |
+/// | 6 — DML DELETE/UPDATE WHERE | `Ast::Sql(Dml)` | `dml.filter` |
+/// | 7 — INSERT source_select WHERE | `Ast::Sql(Dml)` | `dml.source_select.where_` |
+///
+/// Positions 4 and 5 are also walked by `collect_unknown_scalars_from_sql_query` into
+/// `sql_unknown_names` for the E-QUERY-039 enrichment check. Positions 1-3 and 6-7 feed
+/// `predicate_fncall_names` only (aggregate gate); they do not reach E-QUERY-039.
+///
+/// # SQL path detection (E-QUERY-039 enrichment check)
 /// SQL-mode enrichment: `ScalarFunc::Unknown(name)` in `FuncCall::Scalar` nodes.
 /// Both `Ast::Sql(Select)` and `Ast::SqlPipe` head queries are handled via
 /// `collect_unknown_scalars_from_sql_query`, which scans all six scalar positions:
@@ -1870,16 +1896,31 @@ fn collect_unknown_scalar_offsets_from_predicate(
 ///
 /// DataFusion built-in functions (scalar, aggregate, window — e.g. lower, stddev,
 /// row_number) are excluded via `DATAFUSION_BUILTIN_FUNCTION_NAMES` before the
-/// registered-UDF check.
+/// registered-UDF check. `Ast::Sql(Dml)` (DELETE/UPDATE/INSERT) is NOT walked by
+/// `collect_unknown_scalars_from_sql_query`; DML predicates feed `predicate_fncall_names`
+/// only (positions 6-7 above).
 ///
-/// # Pipe path detection
+/// # Pipe and filter path detection (E-QUERY-039 enrichment check)
 /// Pipe-mode enrichment: `PipeStage::Enrich(EnrichStage { infusion, .. })` nodes in
-/// the pipe stage list. The `infusion` field holds the caller-supplied UDF name.
+/// the pipe stage list (both `Ast::Pipe` and `Ast::SqlPipe`). The `infusion` field holds
+/// the caller-supplied UDF name. No DataFusion built-in skip is applied — `| enrich lower(col)`
+/// is an explicit enrichment directive; `lower` there is an unregistered infusion name and
+/// E-QUERY-039 MUST fire.
+///
+/// Pipe-mode `| where` predicates (`PipeStage::Where`) in both `Ast::Pipe` and `Ast::SqlPipe`
+/// stage lists are walked into `predicate_fncall_names` (positions 1 and 3 above) for the
+/// aggregate gate. They do not feed `pipe_enrich_names` or `sql_unknown_names`.
+///
+/// Filter mode (`Ast::Filter`): the root predicate is walked into `predicate_fncall_names`
+/// (position 2 above) for the aggregate gate. Filter mode has no `| enrich` stages.
 ///
 /// # Reference
 /// S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019; error-taxonomy.md E-QUERY-039.
 /// F-PJL1-HIGH-001 (Pass-J LOCAL cascade): original scalar exclusion.
 /// F1 amendment (Pass-N1b): expanded to aggregate + window functions.
+/// DEFECT-PQL-FNCALL-LHS-001: predicate fn-call LHS gate, seven-position audit,
+/// positions 1-3 added. ADR-048 §D.7.5 (OD-6): DML WHERE position 6.
+/// ADR-048 §D.7.6 (OD-7): INSERT source_select WHERE position 7. OD-5: positions 4-5.
 fn check_enrich_udf_availability(
     query_str: &str,
     registry: Option<&prism_spec_engine::InfusionRegistry>,
@@ -15303,26 +15344,27 @@ mod datafusion_aggregate_registry_empirical_tests {
 
 // ---------------------------------------------------------------------------
 // F-PQLFN-P35-MED-002: known-UDF-passes sibling locks for positions 1-5
-// (ADR-048 §D.7.1 OD-1..OD-5; fix-burst 27)
+// (ADR-048 §D.7.1 Positions 1-5; fix-burst 27)
 // ---------------------------------------------------------------------------
 //
 // Five new bilateral boundary locks — one per gated position — mirror the pattern
-// established by the OD-6 (fix-burst 26 POL-29 sibling sweep) and OD-7 (fix-burst 26)
-// locks.  Each test is walk-observable (F-PQLFN-P35-OBS-001): it uses a compound
-// predicate `enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1` to
-// prove (a) the predicate walk actually executes and (b) registry filtering correctly
+// established by the Position 6 / OD-6 (fix-burst 26 POL-29 sibling sweep) and
+// Position 7 / OD-7 (fix-burst 26) locks.  Each test is walk-observable
+// (F-PQLFN-P35-OBS-001): it uses a compound predicate
+// `enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1` to prove
+// (a) the predicate walk actually executes and (b) registry filtering correctly
 // passes the known UDF while rejecting the unknown UDF.
 //
 // Tests call `check_enrich_udf_availability` directly (private fn, same file) to
 // keep the fixture minimal — no registered table needed; the enrichment gate fires
 // before any table-availability check.  Each test registers `enrich_lookup` via the
 // same InfusionRegistry + InfusionSpec::new + InfusionField::new fixture pattern as
-// the OD-6 / OD-7 locks.
+// the Position 6 / OD-6 and Position 7 / OD-7 locks.
 //
-// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1;
-//            BC-2.11.019; OD-1..OD-5.
+// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 Positions 1-5;
+//            BC-2.11.019.
 
-// ── OD-1: pipe | where ────────────────────────────────────────────────────────
+// ── Position 1: pipe | where ──────────────────────────────────────────────────
 
 /// `FROM t | where enrich_lookup(ip_address) = 'US'` with `enrich_lookup` registered
 /// MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
@@ -15331,12 +15373,12 @@ mod datafusion_aggregate_registry_empirical_tests {
 /// fires E-QUERY-039 for the unknown UDF only, proving the predicate walk executes and
 /// registry filtering passes the known UDF.
 ///
-/// Bilateral boundary for OD-1:
+/// Bilateral boundary for Position 1:
 ///   - known UDF in `| where` → gate passes (Ok(()))
 ///   - unknown UDF in `| where` → gate fires (E-QUERY-039) [locked by MED-004 in
 ///     temporal_typing_tests.rs]
 ///
-/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 OD-1.
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 Position 1.
 #[cfg(test)]
 mod pipe_where_first_gated_position_enrich_udf_tests {
     use super::check_enrich_udf_availability;
@@ -15375,7 +15417,7 @@ mod pipe_where_first_gated_position_enrich_udf_tests {
         assert!(
             matches!(&compound_result,
                 Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
-            "F-PQLFN-P35-OBS-001 OD-1 compound: pipe | where enrich_lookup AND totally_unknown_udf \
+            "F-PQLFN-P35-OBS-001 Position 1 compound: pipe | where enrich_lookup AND totally_unknown_udf \
              must fire E-QUERY-039 for totally_unknown_udf only — proving (a) walk reaches pipe \
              | where predicate and (b) registry filtering passes enrich_lookup. \
              Got: {compound_result:?}"
@@ -15383,7 +15425,7 @@ mod pipe_where_first_gated_position_enrich_udf_tests {
         if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
             assert!(
                 d.available_infusions.contains(&"enrich_lookup".to_string()),
-                "F-PQLFN-P35-OBS-001 OD-1: available_infusions must contain 'enrich_lookup'. \
+                "F-PQLFN-P35-OBS-001 Position 1: available_infusions must contain 'enrich_lookup'. \
                  Got: {:?}",
                 d.available_infusions
             );
@@ -15396,15 +15438,15 @@ mod pipe_where_first_gated_position_enrich_udf_tests {
         );
         assert!(
             result.is_ok(),
-            "F-PQLFN-P35-MED-002 OD-1: pipe | where enrich_lookup(ip_address) = 'US' with known \
+            "F-PQLFN-P35-MED-002 Position 1: pipe | where enrich_lookup(ip_address) = 'US' with known \
              UDF MUST return Ok (E-QUERY-039 must NOT fire). \
-             OD-1 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Position 1 behavioral boundary: known UDF → passes; unknown UDF → fires. \
              Got: {result:?}"
         );
     }
 }
 
-// ── OD-2: filter-mode root predicate ──────────────────────────────────────────
+// ── Position 2: filter-mode root predicate ────────────────────────────────────
 
 /// `t | enrich_lookup(ip_address) = 'US'` (filter mode) with `enrich_lookup` registered
 /// MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
@@ -15413,12 +15455,12 @@ mod pipe_where_first_gated_position_enrich_udf_tests {
 /// fires E-QUERY-039 for the unknown UDF only, proving the Ast::Filter root-predicate
 /// walk executes and registry filtering passes the known UDF.
 ///
-/// Bilateral boundary for OD-2:
+/// Bilateral boundary for Position 2:
 ///   - known UDF in filter root predicate → gate passes (Ok(()))
 ///   - unknown UDF in filter root predicate → gate fires (E-QUERY-039) [locked by MED-004 in
 ///     temporal_typing_tests.rs]
 ///
-/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 OD-2.
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 Position 2.
 #[cfg(test)]
 mod filter_root_second_gated_position_enrich_udf_tests {
     use super::check_enrich_udf_availability;
@@ -15458,7 +15500,7 @@ mod filter_root_second_gated_position_enrich_udf_tests {
         assert!(
             matches!(&compound_result,
                 Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
-            "F-PQLFN-P35-OBS-001 OD-2 compound: filter-mode enrich_lookup AND totally_unknown_udf \
+            "F-PQLFN-P35-OBS-001 Position 2 compound: filter-mode enrich_lookup AND totally_unknown_udf \
              must fire E-QUERY-039 for totally_unknown_udf only — proving (a) walk reaches filter \
              root predicate (Ast::Filter arm) and (b) registry filtering passes enrich_lookup. \
              Got: {compound_result:?}"
@@ -15466,7 +15508,7 @@ mod filter_root_second_gated_position_enrich_udf_tests {
         if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
             assert!(
                 d.available_infusions.contains(&"enrich_lookup".to_string()),
-                "F-PQLFN-P35-OBS-001 OD-2: available_infusions must contain 'enrich_lookup'. \
+                "F-PQLFN-P35-OBS-001 Position 2: available_infusions must contain 'enrich_lookup'. \
                  Got: {:?}",
                 d.available_infusions
             );
@@ -15477,15 +15519,15 @@ mod filter_root_second_gated_position_enrich_udf_tests {
             check_enrich_udf_availability("t | enrich_lookup(ip_address) = 'US'", Some(&registry));
         assert!(
             result.is_ok(),
-            "F-PQLFN-P35-MED-002 OD-2: filter-mode enrich_lookup(ip_address) = 'US' with known \
+            "F-PQLFN-P35-MED-002 Position 2: filter-mode enrich_lookup(ip_address) = 'US' with known \
              UDF MUST return Ok (E-QUERY-039 must NOT fire). \
-             OD-2 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Position 2 behavioral boundary: known UDF → passes; unknown UDF → fires. \
              Got: {result:?}"
         );
     }
 }
 
-// ── OD-3: SqlPipe | where ─────────────────────────────────────────────────────
+// ── Position 3: SqlPipe | where ───────────────────────────────────────────────
 
 /// `SELECT ip_address FROM t | where enrich_lookup(ip_address) = 'US'` with
 /// `enrich_lookup` registered MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
@@ -15494,12 +15536,12 @@ mod filter_root_second_gated_position_enrich_udf_tests {
 /// fires E-QUERY-039 for the unknown UDF only, proving the SqlPipe PipeStage::Where
 /// walk executes and registry filtering passes the known UDF.
 ///
-/// Bilateral boundary for OD-3:
+/// Bilateral boundary for Position 3:
 ///   - known UDF in SqlPipe | where → gate passes (Ok(()))
 ///   - unknown UDF in SqlPipe | where → gate fires (E-QUERY-039) [locked by MED-004 in
 ///     temporal_typing_tests.rs]
 ///
-/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 OD-3.
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 Position 3.
 #[cfg(test)]
 mod sqlpipe_where_third_gated_position_enrich_udf_tests {
     use super::check_enrich_udf_availability;
@@ -15539,7 +15581,7 @@ mod sqlpipe_where_third_gated_position_enrich_udf_tests {
         assert!(
             matches!(&compound_result,
                 Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
-            "F-PQLFN-P35-OBS-001 OD-3 compound: SqlPipe | where enrich_lookup AND \
+            "F-PQLFN-P35-OBS-001 Position 3 compound: SqlPipe | where enrich_lookup AND \
              totally_unknown_udf must fire E-QUERY-039 for totally_unknown_udf only — proving \
              (a) walk reaches SqlPipe PipeStage::Where predicate and (b) registry passes \
              enrich_lookup. Got: {compound_result:?}"
@@ -15547,7 +15589,7 @@ mod sqlpipe_where_third_gated_position_enrich_udf_tests {
         if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
             assert!(
                 d.available_infusions.contains(&"enrich_lookup".to_string()),
-                "F-PQLFN-P35-OBS-001 OD-3: available_infusions must contain 'enrich_lookup'. \
+                "F-PQLFN-P35-OBS-001 Position 3: available_infusions must contain 'enrich_lookup'. \
                  Got: {:?}",
                 d.available_infusions
             );
@@ -15560,15 +15602,15 @@ mod sqlpipe_where_third_gated_position_enrich_udf_tests {
         );
         assert!(
             result.is_ok(),
-            "F-PQLFN-P35-MED-002 OD-3: SqlPipe | where enrich_lookup(ip_address) = 'US' with \
+            "F-PQLFN-P35-MED-002 Position 3: SqlPipe | where enrich_lookup(ip_address) = 'US' with \
              known UDF MUST return Ok (E-QUERY-039 must NOT fire). \
-             OD-3 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Position 3 behavioral boundary: known UDF → passes; unknown UDF → fires. \
              Got: {result:?}"
         );
     }
 }
 
-// ── OD-4: SQL SELECT WHERE ────────────────────────────────────────────────────
+// ── Position 4: SQL SELECT WHERE (added by OD-5) ─────────────────────────────
 
 /// `SELECT ip_address FROM t WHERE enrich_lookup(ip_address) = 'US'` with
 /// `enrich_lookup` registered MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
@@ -15577,12 +15619,12 @@ mod sqlpipe_where_third_gated_position_enrich_udf_tests {
 /// fires E-QUERY-039 for the unknown UDF only, proving the Ast::Sql(Select) WHERE walk
 /// executes and registry filtering passes the known UDF.
 ///
-/// Bilateral boundary for OD-4:
+/// Bilateral boundary for Position 4 (added by OD-5):
 ///   - known UDF in SQL WHERE → gate passes (Ok(()))
 ///   - unknown UDF in SQL WHERE → gate fires (E-QUERY-039) [locked by BC-2.11.019 N1B tests
 ///     and TM-06/TM-07 aggregate-gate tests in temporal_typing_tests.rs]
 ///
-/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 OD-4.
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 Position 4 (added by OD-5).
 #[cfg(test)]
 mod sql_where_fourth_gated_position_enrich_udf_tests {
     use super::check_enrich_udf_availability;
@@ -15622,7 +15664,7 @@ mod sql_where_fourth_gated_position_enrich_udf_tests {
         assert!(
             matches!(&compound_result,
                 Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
-            "F-PQLFN-P35-OBS-001 OD-4 compound: SQL WHERE enrich_lookup AND totally_unknown_udf \
+            "F-PQLFN-P35-OBS-001 Position 4 compound: SQL WHERE enrich_lookup AND totally_unknown_udf \
              must fire E-QUERY-039 for totally_unknown_udf only — proving (a) walk reaches SQL \
              WHERE predicate (Ast::Sql Select arm) and (b) registry passes enrich_lookup. \
              Got: {compound_result:?}"
@@ -15630,7 +15672,7 @@ mod sql_where_fourth_gated_position_enrich_udf_tests {
         if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
             assert!(
                 d.available_infusions.contains(&"enrich_lookup".to_string()),
-                "F-PQLFN-P35-OBS-001 OD-4: available_infusions must contain 'enrich_lookup'. \
+                "F-PQLFN-P35-OBS-001 Position 4: available_infusions must contain 'enrich_lookup'. \
                  Got: {:?}",
                 d.available_infusions
             );
@@ -15643,15 +15685,15 @@ mod sql_where_fourth_gated_position_enrich_udf_tests {
         );
         assert!(
             result.is_ok(),
-            "F-PQLFN-P35-MED-002 OD-4: SQL WHERE enrich_lookup(ip_address) = 'US' with known \
+            "F-PQLFN-P35-MED-002 Position 4: SQL WHERE enrich_lookup(ip_address) = 'US' with known \
              UDF MUST return Ok (E-QUERY-039 must NOT fire). \
-             OD-4 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Position 4 behavioral boundary: known UDF → passes; unknown UDF → fires. \
              Got: {result:?}"
         );
     }
 }
 
-// ── OD-5: SqlPipe-head WHERE ──────────────────────────────────────────────────
+// ── Position 5: SqlPipe-head WHERE (added by OD-5) ────────────────────────────
 
 /// `SELECT ip_address FROM t WHERE enrich_lookup(ip_address) = 'US' | limit 5` with
 /// `enrich_lookup` registered MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
@@ -15660,12 +15702,12 @@ mod sql_where_fourth_gated_position_enrich_udf_tests {
 /// fires E-QUERY-039 for the unknown UDF only, proving the SqlPipe-head WHERE walk
 /// (`spq.head.where_`) executes and registry filtering passes the known UDF.
 ///
-/// Bilateral boundary for OD-5:
+/// Bilateral boundary for Position 5 (added by OD-5):
 ///   - known UDF in SqlPipe-head WHERE → gate passes (Ok(()))
 ///   - unknown UDF in SqlPipe-head WHERE → gate fires (E-QUERY-039) [TM-10 aggregate-gate
 ///     and BC-2.11.019 tests in temporal_typing_tests.rs]
 ///
-/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 OD-5.
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 Position 5 (added by OD-5).
 #[cfg(test)]
 mod sqlpipe_head_where_fifth_gated_position_enrich_udf_tests {
     use super::check_enrich_udf_availability;
@@ -15707,7 +15749,7 @@ mod sqlpipe_head_where_fifth_gated_position_enrich_udf_tests {
         assert!(
             matches!(&compound_result,
                 Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
-            "F-PQLFN-P35-OBS-001 OD-5 compound: SqlPipe-head WHERE enrich_lookup AND \
+            "F-PQLFN-P35-OBS-001 Position 5 compound: SqlPipe-head WHERE enrich_lookup AND \
              totally_unknown_udf must fire E-QUERY-039 for totally_unknown_udf only — proving \
              (a) walk reaches spq.head.where_ and (b) registry filtering passes enrich_lookup. \
              Got: {compound_result:?}"
@@ -15715,7 +15757,7 @@ mod sqlpipe_head_where_fifth_gated_position_enrich_udf_tests {
         if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
             assert!(
                 d.available_infusions.contains(&"enrich_lookup".to_string()),
-                "F-PQLFN-P35-OBS-001 OD-5: available_infusions must contain 'enrich_lookup'. \
+                "F-PQLFN-P35-OBS-001 Position 5: available_infusions must contain 'enrich_lookup'. \
                  Got: {:?}",
                 d.available_infusions
             );
@@ -15728,9 +15770,9 @@ mod sqlpipe_head_where_fifth_gated_position_enrich_udf_tests {
         );
         assert!(
             result.is_ok(),
-            "F-PQLFN-P35-MED-002 OD-5: SqlPipe-head WHERE enrich_lookup(ip_address) = 'US' with \
+            "F-PQLFN-P35-MED-002 Position 5: SqlPipe-head WHERE enrich_lookup(ip_address) = 'US' with \
              known UDF MUST return Ok (E-QUERY-039 must NOT fire). \
-             OD-5 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Position 5 behavioral boundary: known UDF → passes; unknown UDF → fires. \
              Got: {result:?}"
         );
     }
@@ -16298,10 +16340,11 @@ mod insert_source_select_where_seventh_gated_position_tests {
     /// When `enrich_lookup` IS in the registered UDF set, `check_enrich_udf_availability` must
     /// return Ok(()) — the E-QUERY-039 gate only fires for fn-calls NOT found in the registry.
     ///
-    /// F-PQLFN-P35-MED-002 accuracy fix: all seven OD-1..OD-7 positions now carry a
-    /// known-UDF-passes sibling lock — OD-1 (pipe | where), OD-2 (filter root),
-    /// OD-3 (SqlPipe | where), OD-4 (SQL WHERE), OD-5 (SqlPipe-head WHERE),
-    /// OD-6 (DML WHERE, F-PQLFN-P34-OBS-001 POL-29), OD-7 (INSERT source_select WHERE).
+    /// F-PQLFN-P35-MED-002 accuracy fix: all seven predicate positions (ADR-048 §D.7.1) now
+    /// carry a known-UDF-passes sibling lock — Position 1 (pipe | where), Position 2
+    /// (filter root), Position 3 (SqlPipe | where), Position 4 (SQL WHERE, added by OD-5),
+    /// Position 5 (SqlPipe-head WHERE, added by OD-5), Position 6 / OD-6 (DML WHERE,
+    /// F-PQLFN-P34-OBS-001 POL-29), Position 7 / OD-7 (INSERT source_select WHERE).
     /// Each lock is walk-observable (F-PQLFN-P35-OBS-001): compound predicate
     /// `enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1` fires E-QUERY-039
     /// for `totally_unknown_udf` only — proving the walk reaches the predicate and registry
