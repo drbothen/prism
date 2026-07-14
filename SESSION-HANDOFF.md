@@ -1,13 +1,15 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.988"
+version: "7.989"
 status: current
-timestamp: 2026-07-13T15:00:00Z
+timestamp: 2026-07-13T23:59:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
+> **D-1731 (2026-07-13): SESSION WRAP — PQL pass-20 CLEAN(strict)=YES CLEAN(PR-merge)=YES; streak 1/3 @28d9600f (ZERO findings; all pass-19 closures verified correct; SAP-1 clean; 20p/15fb). PR #222 CI FULLY GREEN @d0140f6e (all checks pass, gh pr checks 222 verified 2026-07-13; ThreatIntel staleness-gate redesign + perimeter check). RESUME SNAPSHOT D-1731 authored (supersedes D-1719). MCP NEXT: PR-LEVEL adversary pass 1 on frozen d0140f6e (streak 0/3). PQL NEXT: LOCAL pass 21 on frozen 28d9600f (streak 1/3). SESSION TOTALS: MCP 7 passes + 5 fix-bursts + LOCAL CONVERGENCE; PQL 13 passes + 9 fix-bursts; 11 state bursts D-1720..D-1730; Lessons 49-54; 1 new story (S-MCP-E003). STATE v8.330→v8.331.**
+>
 > **D-1311 (2026-06-24): WS-4 CLOSURE — PR #201 (maintenance/rustsec-quinn-proto) SQUASH-MERGED develop@233cfc66. RUSTSEC-2026-0185 CLOSED (quinn-proto 0.11.14→0.11.15). Lock-only; cargo audit clean. Remote branch deleted. Worktree .worktrees/maint-quinn-proto PENDING devops cleanup. WS-2 S-5.04 LOCAL 0/3 UNCHANGED on frozen 416677f6. develop_head acc6722c→233cfc66. STATE v7.939→v7.940.**
 >
 > **D-1310 (2026-06-23): SESSION WRAP — RESUME SNAPSHOT D-1310 authored. Enrichment MERGED (develop@acc6722c, T13 gate 1). 001-C BC layer FINALIZED (D-1308). S-5.04 CODE CONVERGED (9 defects fixed, FROZEN 416677f6) — LOCAL 0/3 (reset by now-closed POL-27 date fix D-1309). PR #201 quinn-proto OPEN (CI pending). §RESUME SNAPSHOT D-1310 authored (supersedes D-1305). STATE v7.938→v7.939.**
@@ -106,15 +108,51 @@ timestamp: 2026-07-13T15:00:00Z
 >
 > **D-1701 (2026-07-12): SESSION WRAP — §RESUME SNAPSHOT D-1701 authored (supersedes D-1700).** AUDIT-COVERAGE-001 B-hardening passes 29–32 + fix-bursts 29–32. HEAD db765001→4857d967→9cbd9033→334784c3→67654e0f. P31 CLEAN(PR-merge). P32 NOT CLEAN (1 MED + 4 LOW + 4 OBS); fix-burst 32 closed all 6 findings @67654e0f. FROZEN HEAD 67654e0f (36 commits over develop@5f1b5771; LOCAL-ONLY NOT pushed). Streak 0/3 on 67654e0f. S-7.02 queue 9 items unchanged. Standing accepted-limitations: H14e smoke-only; H8 PASS-ATTRIBUTED; H23 even-fence; H16 non-content-channel. STATE v8.300→v8.301.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1719 SESSION WRAP; develop@5f1b5771; MCP pass 14 next (frozen @0d1bfc61); PQL pass 8 next (frozen @3e0d3585); both streaks 0/3; VERY NEXT = dispatch both adversary passes** (STATE.md frontmatter is authoritative; D-1719 §RESUME SNAPSHOT is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1719 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.319. D-1719 SESSION WRAP; MCP LANE 1 HEAD @0d1bfc61 (13p/8fb; streak 0/3; pass 14 next); PQL LANE 2 HEAD @3e0d3585 (7p/6fb; streak 0/3; pass 8 next); STORY-INDEX v2.665; BC-INDEX v7.97; total_stories 240; workspace 5483 on develop; VERY NEXT ACTION = dispatch LOCAL adversary pass 14 (MCP) AND pass 8 (PQL) on frozen HEADs [fresh session].
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1731 SESSION WRAP; develop@5f1b5771; MCP PR #222 CI FULLY GREEN @d0140f6e (PR-LEVEL pass 1 next, streak 0/3); PQL @28d9600f streak 1/3 (LOCAL pass 21 next); VERY NEXT = dispatch PR-LEVEL adversary pass 1 on frozen d0140f6e AND LOCAL adversary pass 21 on frozen 28d9600f** (STATE.md frontmatter is authoritative; D-1719 §RESUME SNAPSHOT is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1731 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.331. D-1731 SESSION WRAP; MCP LANE 1 HEAD @d0140f6e (20p/13fb; PR #222 OPEN; CI FULLY GREEN; PR-LEVEL streak 0/3; PR-LEVEL pass 1 next); PQL LANE 2 HEAD @28d9600f (20p/15fb; streak 1/3; LOCAL pass 21 next); STORY-INDEX v2.672; BC-INDEX v8.05; total_stories 241; workspace 5483 on develop; VERY NEXT ACTION = dispatch PR-LEVEL adversary pass 1 (MCP, frozen d0140f6e) AND LOCAL adversary pass 21 (PQL, frozen 28d9600f) [fresh session].
 
 ---
 
 ---
 
-## §RESUME SNAPSHOT — D-1719 (2026-07-13 — SESSION WRAP; EC-11-068 renumber complete; MCP HEAD 0d1bfc61 pass-14-next; PQL HEAD 3e0d3585 pass-8-next; develop 5f1b5771; STATE v8.319) [SUPERSEDES D-1718]
+## §RESUME SNAPSHOT — D-1731 (2026-07-13 — SESSION WRAP; PQL pass-20 CLEAN streak 1/3 @28d9600f; PR #222 CI FULLY GREEN @d0140f6e; develop 5f1b5771; STATE v8.331) [SUPERSEDES D-1719]
+
+### RESUME IN ONE BREATH
+
+MCP defect lane is PR #222 OPEN @d0140f6e (LOCAL 3-CLEAN converged @019cfdb5 passes 18/19/20; +2 audited commits: eaf3aba4 binary .prx rebuild, d0140f6e gate-redesign+SEC-001; pr-reviewer APPROVE; security clear; CI FULLY GREEN verified 2026-07-13) — VERY NEXT ACTION: dispatch PR-LEVEL adversary pass 1 on frozen d0140f6e (streak 0/3) → 3-CLEAN → HUMAN merge gate. PQL defect lane @28d9600f LOCAL-ONLY, streak 1/3 — SECOND ACTION: dispatch LOCAL pass 21 on frozen 28d9600f; on 3/3 → push → pr-manager PR.
+
+### HEADS (all verified 2026-07-13)
+
+- develop: origin/develop `5f1b5771` (pushed; unchanged all session)
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code)
+- fix/DEFECT-MCP-ROWSHAPE-NULLS-001 `d0140f6e` — PUSHED. 20 commits over develop. Cascade 20 passes / 13 fix-bursts. LOCAL 3-CLEAN(strict) CONVERGED on frozen 019cfdb5 (source-tree). fix-burst 13 @d0140f6e = architect-adjudicated staleness-gate redesign (Option c source-hash sidecar) + HUMAN-APPROVED SEC-001 (wasm-tools 1.248.0 SHA-256 pin dcd7d587...); PR HEAD d0140f6e; CI FULLY GREEN (all checks pass); PR #222 OPEN; PR-LEVEL streak 0/3.
+- fix/DEFECT-PQL-FNCALL-LHS-001 `28d9600f` — LOCAL-ONLY NOT pushed. 21 commits over develop. Cascade 20 passes / 15 fix-bursts. Pass-20 (frozen 28d9600f): CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; all pass-19 closures verified correct; SAP-1 clean. 3-CLEAN streak 1/3 on frozen 28d9600f. prism-query 1599/1599. **CRITICAL: do NOT commit/push before passes 21/22 complete — frozen-HEAD rule (DRIFT-ORCH-PRLEVEL-PUSH-001).**
+- AUDIT-COVERAGE-001 `cd369b54` fix/T13-audit-coverage — LOCAL-ONLY NOT pushed. 44 commits; 106 checks; fix-burst 39 (script fixes) + CLAUDE.md codification (SAP-3, SID-2, story-level holdout gate). Streak 0/3. PARKED until product PRs merge.
+- S-3.09 `43c41389` KEEP-PARKED; W3-FIX-S307-001 `fcab8717` parked-dirty (unchanged, audit queued).
+
+### PER-WORKSTREAM RESUME NEXT-ACTIONS
+
+1. **MCP PR #222** — NEXT: dispatch PR-LEVEL adversary pass 1 on FROZEN d0140f6e (streak 0/3). Closed classes: all LOCAL passes 1-20 closures per D-1720..D-1728; eaf3aba4 = binary-only .prx rebuild adjudicated; d0140f6e = architect-adjudicated source-hash-sidecar gate redesign + human-approved SEC-001 wasm-tools pin dcd7d587...; SEC-002/003 accepted; E-MCP-003 deferred to S-MCP-E003-SERIALIZATION-MIGRATION-001. pr-manager review comments on PR timeline. MERGE = HUMAN-GATED (D-1716).
+2. **PQL lane** — NEXT: LOCAL adversary pass 21 on FROZEN 28d9600f (streak 1/3). Spec set: BC-2.11.004 v1.40, BC-2.11.005 v1.13, BC-2.11.019 v1.16, ADR-048 v1.11, ADR-052 v1.15, error-taxonomy v2.46, story v1.65. On 3/3: push → pr-manager PR → PR-LEVEL cascade → HUMAN merge.
+3. **AUDIT-COVERAGE-001** — parked @cd369b54 until BOTH defect PRs merge → rebase → fix stale audit-script comment (F-MCPNULL-P6-OBS-002) → live audit re-run (expect 106/106) → LOCAL 3-CLEAN → push → PR.
+4. **S-MCP-E003-SERIALIZATION-MIGRATION-001** — draft v0.1 registered (D-1729), depends_on PR #222 merge, human-directed deferral.
+5. Parked: S-3.09 KEEP-PARKED; W3-FIX-S307-001 audit queued. DRIFT-IF-DEFN-LAYER-MISMATCH-001 OPEN (post-MCP-merge adjudication).
+
+### PENDING HUMAN DECISIONS
+
+1. PR #222 merge gate (after PR-LEVEL 3-CLEAN on d0140f6e; human-gated per D-1716)
+2. PQL PR merge gate (after local 3/3 → push → pr-manager → PR-LEVEL 3-CLEAN)
+3. PQL feature candidates — nested fn-call args upper(trim(x)) + IEQ/IIN/INE × fn-call LHS (BC-2.11.004 v1.40 documented limits)
+4. Upstream vsdd-factory PR #632 ready-mark + issues #633/#634
+
+### DECISION DELTA — D-1731 (this wrap)
+
+PQL pass-20 (frozen 28d9600f): CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings. Pass-19 closure verifications: BC-2.11.005 v1.13 mechanism-pair description correct vs code (pre_register_empty_tables + pre_register_source_table); BC-2.11.004 v1.40 EC-11-004-006 cross-ref correct; story v1.65 BC-2.11.004 pin sites 4/4 correct; diagnostic-first assertion ordering at 3 test sites correct (reachability truth-tabled: error path always shorter than data path). SAP-1 clean (no new event_type emissions). 3-CLEAN streak ADVANCES to 1/3 on frozen 28d9600f. PR #222 CI FULLY GREEN on d0140f6e (gh pr checks 222 run 2026-07-13; all checks pass including redesigned ThreatIntel staleness gate + perimeter check; no transient failures). SESSION TOTALS this session: MCP passes 14-20 (7 passes) + fix-bursts 9-13 (5); LOCAL CONVERGENCE; PR #222 opened. PQL passes 8-20 (13 passes) + fix-bursts 7-15 (9). 11 state bursts D-1720..D-1730 (D-1731 = this wrap). Lessons 49-54 codified. 1 new story (S-MCP-E003-SERIALIZATION-MIGRATION-001). Human decisions: SEC-001-fix-in-PR + E-MCP-003-deferral recorded D-1729.
+
+---
+
+## §RESUME SNAPSHOT — D-1719 (2026-07-13 — SESSION WRAP; EC-11-068 renumber complete; MCP HEAD 0d1bfc61 pass-14-next; PQL HEAD 3e0d3585 pass-8-next; develop 5f1b5771; STATE v8.319) [SUPERSEDES D-1718] [SUPERSEDED by D-1731]
 
 ### RESUME IN ONE BREATH
 
