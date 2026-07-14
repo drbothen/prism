@@ -116,7 +116,42 @@ timestamp: 2026-07-13T23:59:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-1751 (2026-07-14 — SESSION WRAP; dual-lane cascade freeze; MCP @6b2a7c8e push-pending pass-11; PQL @0c534929 fix-burst-26 pending; develop 5f1b5771; STATE v8.351) [SUPERSEDES D-1731]
+## §RESUME SNAPSHOT — D-1761 (2026-07-14 — SESSION WRAP; dual-lane cascade freeze; MCP pass-21 open @5d2624aa; PQL pass-44 open @5e4c7ccb; develop 5f1b5771; STATE v8.361) [SUPERSEDES D-1751]
+
+### RESUME IN ONE BREATH
+
+Dual-lane cascade mid-flight, both streaks 0/3, both lanes code-frozen with spec-layer findings OPEN at wrap. MCP FIRST: state-manager fix-burst — BC-INDEX v8.22 (BC-2.11.018 row truth + full cascade-row audit, F-MCPRS-PRL21-MED-001) → PR-LEVEL pass-22 on SAME frozen 5d2624aa. PQL SECOND: fix-burst-33 — PO renumbers BC-2.11.004's collided EC-11-013 (keeper = BC-2.11.005; grep for next free EC — EC-11-081 IS TAKEN by BC-2.11.001, likely EC-11-082) + implementer fixes engine.rs ~1587 stale imperative comment (code edit → NEW frozen HEAD) → pass-45.
+
+### HEADS (all verified 2026-07-14 at wrap)
+
+- develop: origin/develop `5f1b5771` (pushed; unchanged all session)
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code; this is the D-1761 wrap commit)
+- fix/DEFECT-MCP-ROWSHAPE-NULLS-001 `5d2624aa` — PUSHED, clean, PR #222 OPEN. 41 passes / 27 fix-bursts. PR-LEVEL streak 0/3 on frozen 5d2624aa (pass-18 CLEAN→1/3; pass-19 CLEAN→2/3; pass-20 1 MED RESET; pass-21 1 MED OPEN). Session: passes 11-21 + fix-bursts 23-27; fix-bursts 26/27-spec were .factory-only (HEAD unchanged since fix-burst-27 code commit).
+- fix/DEFECT-PQL-FNCALL-LHS-001 `5e4c7ccb` — LOCAL-ONLY NOT PUSHED (no remote backup), clean. 44 passes / 32 fix-bursts. Streak 0/3 (pass-39 CLEAN→1/3; pass-40 RESET; pass-41 CLEAN→1/3; pass-42 CLEAN→2/3; pass-43 RESET; pass-44 OPEN). Session: fix-burst-26 completion + passes 35-44 + fix-bursts 26-32. **CRITICAL: do NOT commit/push before fix-burst-33 + passes complete — frozen-HEAD rule; note fix-burst-33's LOW fix IS a code edit so pass-45 gates on the new HEAD.**
+- AUDIT-COVERAGE-001 `cd369b54` — parked until both defect PRs merge.
+- S-3.09 `43c41389` KEEP-PARKED; W3-FIX-S307-001 `fcab8717` parked-dirty (untouched).
+
+### PER-WORKSTREAM RESUME NEXT-ACTIONS
+
+1. **MCP PR #222** — RESUME NEXT-ACTION: dispatch state-manager fix-burst: BC-INDEX v8.21→v8.22 (rewrite BC-2.11.018 row v1.5/v1.4 clauses to changelog ground truth per pr-level-pass-21.md; audit ALL cascade-touched summary rows) + pass-21 status→CLOSED; then PR-LEVEL pass-22 on SAME frozen 5d2624aa (spec-only fix; no push). On 3-CLEAN → HUMAN merge gate. Closed classes per pr-level-pass-21.md list (18 items).
+2. **PQL lane** — RESUME NEXT-ACTION: dispatch fix-burst-33: (a) PO — renumber BC-2.11.004 EC-11-013→next-free-EC (grep first; EC-11-081 taken), 3 body cites + v1.47 + POL-23 story sweep; (b) implementer — engine.rs ~1587 comment reword (commit → new HEAD). Then state burst → LOCAL pass-45 on new frozen HEAD. On 3/3 → push → pr-manager PR → PR-LEVEL cascade → HUMAN merge gate. Spec set: BC-2.11.004 v1.46(→47), BC-2.11.005 v1.13, BC-2.11.019 v1.20, ADR-048 v1.15, ADR-052 v1.15, error-taxonomy v2.52, story S-PRISMQL-CASE-INSENSITIVE-001 v1.71.
+3. **AUDIT-COVERAGE-001** — parked @cd369b54 until BOTH defect PRs merge → rebase → live audit re-run → LOCAL 3-CLEAN → push → PR.
+4. **day2-design-decisions/clip-boundary-and-reframe-asks-2026-06-30.md** — STILL DIRTY in .factory, awaiting human disposition (not staged in any burst this session).
+
+### PENDING HUMAN DECISIONS
+
+1. PR #222 merge gate (after PR-LEVEL 3-CLEAN on frozen 5d2624aa) — includes the BC-2.11.019 cross-branch note: sanitize_for_log enforcement rides the PQL PR; if #222 merges first, develop carries the gap until PQL lands.
+2. PQL DRIFT-PQLFN-OD7 Gap-1 + Gap-2 ratification (S-3.07 deferrals) at PQL merge gate.
+3. PQL PR merge gate (after local 3/3 → push → pr-manager → PR-LEVEL 3-CLEAN).
+4. day2 doc disposition (item 4 above).
+
+### DECISION DELTA — D-1761 (this wrap) [D-1752..D-1761]
+
+9 state bursts D-1752..D-1760. MCP: pushed fix-burst-22 (PR head fa0e4d70→5d2624aa over 4 pushes), PR-LEVEL passes 11-21 (11), fix-bursts 23-27 (5) — closures incl. cross-branch adjudication of BC-2.11.019 injection-safety (fix on PQL @3e0d3585; correct SHA 3e0d3585), CursorCapExceeded PO-ratified "internal" (BC-2.10.007 v1.19), EC-11-081 NaN/±Inf boundary codification (BC-2.11.001 v1.22 + locking test + interface-definitions v2.14), committed-.prx CI validation, fragment hardening, sentinel truth (3 comments), two BC-INDEX summary-row truth fixes (v8.20 BC-2.15.009; BC-2.11.018 pending). PQL: fix-bursts 26-32 (7), passes 35-44 (10) — seven-position lock symmetry (walk-observable/boundary-locked truth), ADR-048 v1.14+v1.15, BC-2.11.019 v1.17→v1.20, BC-2.11.004 v1.46, taxonomy v2.51+v2.52, story sweeps. PROCESS-GAP candidates for S-7.02 lessons: (1) orchestrator-composed fix-burst prompts asserting factual attributions caused F-PQLFN-P43-MED-001 — prompts must cite ground-truth sources for specialist verification, not assert facts; (2) EC-ID allocation still lacks a namespace-collision pre-check (EC-11-013 collision = 2nd incident after EC-11-068); (3) BC-INDEX summary-row truth class (2 instances) suggests state-manager row-authoring should quote the BC changelog verbatim rather than paraphrase.
+
+---
+
+## §RESUME SNAPSHOT — D-1751 (2026-07-14 — SESSION WRAP; dual-lane cascade freeze; MCP @6b2a7c8e push-pending pass-11; PQL @0c534929 fix-burst-26 pending; develop 5f1b5771; STATE v8.351) [SUPERSEDES D-1731] [SUPERSEDED by D-1761]
 
 ### RESUME IN ONE BREATH
 

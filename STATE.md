@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.360"
+version: "8.361"
 producer: state-manager
-timestamp: 2026-07-14T23:59:00Z
+timestamp: 2026-07-14T23:59:59Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -31,7 +31,7 @@ develop_head: "5f1b5771"
 # NOTE: c6d6e4fa is the squash-merge of PR #211 (perf(S-PERF-GATE-007): add nextest wasm-cap + http-cap groups to eliminate WASMtime/wiremock oversubscription; normal squash-merge, no --admin; 2026-07-01). S-PERF-GATE-007 MERGED. Prior origin/develop was 8bc0404e (PR #210 S-PERF-GATE-005). feature/S-PERF-GATE-007 branch + .worktrees/S-PERF-GATE-007 worktree removed.
 # NOTE: 8bc0404e is the squash-merge of PR #210 (perf(S-PERF-GATE-005): DTU clone graceful-shutdown wiring via shared prism-dtu-common::server helper; normal squash-merge, no --admin; CI 43/43 green; 2026-06-30T17:29:50Z). origin/develop is now 8bc0404e. stop() 5.002s→0.019s; scenario 3-test suite 49s→49ms; full nextest ~hours→86.4s. TEST-SPEED INITIATIVE COMPLETE (S-PERF-GATE-001..005). Prior origin/develop was e3148007 (PR #209 S-PERF-GATE-004). feature/S-PERF-GATE-005 branch + .worktrees/S-PERF-GATE-005 worktree removed.
 # NOTE-CORRECTION D-1435: "TEST-SPEED INITIATIVE COMPLETE" + "full nextest ~86.4s" are FALSE IN PRACTICE. Real full-workspace `just check` is ~30+ min: 5 prism-spec-engine WASMtime binaries (plugin_tests, crowdstrike_oauth2_plugin_tests, enrichment_pivot_002_tests, plugin_integration_tests, infusion_tests) run UNCAPPED in nextest; wasmtime::Engine::new() (LLVM JIT init) costs ~120-143s per binary under full-suite concurrency → ~28 pre-existing TMT failures. S-PERF-GATE-001..005 fixed DTU oversubscription + clone graceful-shutdown only; did NOT touch spec-engine WASMtime binaries. Initiative INCOMPLETE / SUPERSEDED by T-PERF-PROFILE (D-1435).
-bc_index_version: "8.21"
+bc_index_version: "8.21"  # NOTE: D-1761 — BC-INDEX v8.22 pending (BC-2.11.018 row truth fix F-MCPRS-PRL21-MED-001; first action next session)
 vp_index_version: "1.80"
 story_index_version: "v2.684"
 arch_index_version: "2.191"
@@ -49,11 +49,11 @@ workspace_test_count: 5594  # NOTE: D-1756 — MCP fix-branch @5d2624aa = ~5512 
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1760 (2026-07-14). PQL passes 42-43 + fix-burst-32 (spec-only). PQL: LOCAL pass-42 (frozen 5e4c7ccb): CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; streak ADVANCES 1/3→2/3; 42p/31fb. LOCAL pass-43 (frozen 5e4c7ccb): CLEAN(strict)=NO CLEAN(PR-merge)=YES — 2 findings: F-PQLFN-P43-MED-001 (BC-2.11.019 attribution error: 'positions 3–5 by OD-5' wrong; correct: 1–3 original fix, 4–5 OD-5) + F-PQLFN-P43-LOW-001 (BC-2.11.004 13 live 'ADR-048 v1.13' pins → v1.15 POL-25); BOTH CLOSED fix-burst-32 spec-only; streak RESET 0/3; 43p/32fb. BC-INDEX v8.20→v8.21 (BC-2.11.019 v1.20 + BC-2.11.004 v1.46). STORY-INDEX v2.683→v2.684 (S-PRISMQL-CASE-INSENSITIVE-001 v1.71). Feature HEAD 5e4c7ccb UNCHANGED. NEXT = LOCAL pass-44 on frozen 5e4c7ccb (streak 0/3). STATE v8.359→v8.360."
+current_step: "D-1761 (2026-07-14). SESSION WRAP. MCP: PR-LEVEL pass-21 (frozen 5d2624aa): CLEAN(strict)=NO CLEAN(PR-merge)=NO — 1 MED F-MCPRS-PRL21-MED-001 (BC-INDEX BC-2.11.018 row v1.5/v1.4 clauses FABRICATED — actual v1.5=phantom-field sweep, not null-not-absent; 2nd BC-INDEX summary-row truth class instance); OPEN (wrap-freeze; BC-INDEX v8.21→v8.22 pending next session); streak 0/3 RESET; 41p/27fb; PR HEAD @5d2624aa UNCHANGED. PQL: LOCAL pass-44 (frozen 5e4c7ccb): CLEAN(strict)=NO CLEAN(PR-merge)=NO — 2 findings: F-PQLFN-P44-MED-001 [MED] EC-11-013 doubly allocated (BC-2.11.005 keeper; BC-2.11.004 collider @lines~51/118/145; survived 42 passes); F-PQLFN-P44-LOW-001 [LOW] engine.rs ~1587 stale imperative comment (ADR-048 v1.4 retraction already done); OPEN (wrap-freeze; fix-burst-33 pending: PO EC renumber + implementer code edit); streak 0/3; 44p/32fb; HEAD @5e4c7ccb UNCHANGED. STATE v8.360→v8.361."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "FIX-EQUERY042-GROUPBY (CLEANUP COMPLETE; MERGED develop@b9cf3f9b PR #220; branch+worktree removed post-merge) + FIX-CSDEVICES-EMPTY-PIPELINE (CLEANUP COMPLETE D-1690 2026-07-11; MERGED develop@5f1b5771 PR #221; branch+worktree removed post-merge) + AUDIT-COVERAGE-001 (fix/T13-audit-coverage @cd369b54; LOCAL-ONLY; 44 commits over develop@5f1b5771; 106 checks; 44 passes/39 fix-bursts; streak 0/3 RESET; DEFECT LANES OPEN; re-convergence DEFERRED until after defect PRs merge+rebase; push BLOCKED pending LOCAL 3-CLEAN) + DEFECT-MCP-ROWSHAPE-NULLS-001 (fix/DEFECT-MCP-ROWSHAPE-NULLS-001; HEAD @5d2624aa PUSHED; 40 passes / 27 fix-bursts; PR #222 OPEN; PR-LEVEL streak 0/3 RESET on FROZEN HEAD 5d2624aa; merge HUMAN-GATED; scope: explicit_nulls + [H8b] + threatintel .prx + 28-explicit-VariantMeta-arms; prism-mcp 481/481; workspace ~5512; pass-19 CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; streak ADVANCES 1/3→2/3; pass-20 CLEAN(strict)=NO — 1 MED F-MCPRS-PRL20-MED-001 BC-INDEX summary-truth CLOSED this burst BC-INDEX v8.20; streak RESET 0/3; PR HEAD @5d2624aa UNCHANGED; NEXT: PR-LEVEL pass-21 on SAME frozen 5d2624aa (streak 0/3)) + DEFECT-PQL-FNCALL-LHS-001 (fix/DEFECT-PQL-FNCALL-LHS-001; HEAD @5e4c7ccb LOCAL-ONLY NOT pushed; 42 passes / 31 fix-bursts (pass-42 in flight); streak 1/3 on FROZEN HEAD 5e4c7ccb; pass-41 CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; streak ADVANCES 0/3→1/3; pass-42 IN FLIGHT; NEXT: LOCAL pass-42 result + pass-43 if needed on frozen 5e4c7ccb) + S-3.09 (KEEP-PARKED per D-1666 human decision; @43c41389 local-only; backup/S-3.09-preresume-43c41389; DRIFT-PARKED-S309-001 resolved-keep-parked) + W3-FIX-S307-001 (dirty; APPLICABILITY-AUDIT-QUEUED per D-1666; @fcab8717; 1 unpushed commit + ~1070 lines uncommitted; do NOT touch until audit runs)"
+worktree_status: "FIX-EQUERY042-GROUPBY (CLEANUP COMPLETE; MERGED develop@b9cf3f9b PR #220; branch+worktree removed post-merge) + FIX-CSDEVICES-EMPTY-PIPELINE (CLEANUP COMPLETE D-1690 2026-07-11; MERGED develop@5f1b5771 PR #221; branch+worktree removed post-merge) + AUDIT-COVERAGE-001 (fix/T13-audit-coverage @cd369b54; LOCAL-ONLY; 44 commits over develop@5f1b5771; 106 checks; 44 passes/39 fix-bursts; streak 0/3 RESET; DEFECT LANES OPEN; re-convergence DEFERRED until after defect PRs merge+rebase; push BLOCKED pending LOCAL 3-CLEAN) + DEFECT-MCP-ROWSHAPE-NULLS-001 (fix/DEFECT-MCP-ROWSHAPE-NULLS-001; HEAD @5d2624aa PUSHED; 41 passes / 27 fix-bursts; PR #222 OPEN; PR-LEVEL streak 0/3 RESET on FROZEN HEAD 5d2624aa; merge HUMAN-GATED; scope: explicit_nulls + [H8b] + threatintel .prx + 28-explicit-VariantMeta-arms; prism-mcp 481/481; workspace ~5512; pass-21 CLEAN(strict)=NO — 1 MED F-MCPRS-PRL21-MED-001 BC-INDEX BC-2.11.018 summary-truth OPEN (BC-INDEX v8.22 pending next session); streak 0/3 RESET; PR HEAD @5d2624aa UNCHANGED; NEXT: state-manager BC-INDEX v8.22 fix → PR-LEVEL pass-22 on SAME frozen 5d2624aa) + DEFECT-PQL-FNCALL-LHS-001 (fix/DEFECT-PQL-FNCALL-LHS-001; HEAD @5e4c7ccb LOCAL-ONLY NOT pushed; 44 passes / 32 fix-bursts; streak 0/3 RESET on FROZEN HEAD 5e4c7ccb; pass-44 CLEAN(strict)=NO — 2 findings: F-PQLFN-P44-MED-001 EC-11-013 collision (keeper=BC-2.11.005; collider=BC-2.11.004 3 sites) + F-PQLFN-P44-LOW-001 engine.rs stale comment; OPEN (fix-burst-33 pending); NEXT: fix-burst-33 (PO EC renumber + implementer code edit) → pass-45 on NEW frozen HEAD) + S-3.09 (KEEP-PARKED per D-1666 human decision; @43c41389 local-only; backup/S-3.09-preresume-43c41389; DRIFT-PARKED-S309-001 resolved-keep-parked) + W3-FIX-S307-001 (dirty; APPLICABILITY-AUDIT-QUEUED per D-1666; @fcab8717; 1 unpushed commit + ~1070 lines uncommitted; do NOT touch until audit runs)"
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -88,7 +88,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-14 (D-1760 — PQL passes 42-43 + fix-burst-32: pass-42 CLEAN 2/3 + pass-43 2 findings (MED+LOW) RESET 0/3 + BC-INDEX v8.21 (BC-2.11.019 v1.20 + BC-2.11.004 v1.46); 43p/32fb; pass-44 next; STATE v8.359→v8.360)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-14 (D-1761 — SESSION WRAP: MCP pass-21 OPEN (F-MCPRS-PRL21-MED-001 BC-INDEX BC-2.11.018 summary-truth; BC-INDEX v8.22 pending); PQL pass-44 OPEN (F-PQLFN-P44-MED-001 EC-11-013 collision + F-PQLFN-P44-LOW-001 stale comment; fix-burst-33 pending); both streaks 0/3; 41p/27fb MCP / 44p/32fb PQL; STATE v8.360→v8.361)
 
 ## Active Objective (North Star)
 
@@ -149,7 +149,8 @@ _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and
 | D-1759 | state-manager | 2026-07-14 | **SINGLE-COMMIT BURST COMPLETE — D-1759 dual-lane burst: MCP passes 19-20 (BC-INDEX v8.20 summary-truth fix); PQL pass-41 CLEAN 1/3 (TD-VSDD-053). MCP: PR-LEVEL pass-19 (frozen 5d2624aa): CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; streak ADVANCES 1/3→2/3; 39p/27fb. PR-LEVEL pass-20 (frozen 5d2624aa): CLEAN(strict)=NO CLEAN(PR-merge)=NO — 1 MED F-MCPRS-PRL20-MED-001 BC-INDEX line-232 BC-2.15.009 v1.7 summary-truth (description claimed null-not-absent propagation — actually 3-site cosmetic rows-terminology sweep; CLOSED this burst BC-INDEX v8.20); streak RESET 0/3; 40p/27fb; PR HEAD @5d2624aa UNCHANGED; NEXT = pass-21 on same frozen 5d2624aa. PQL: LOCAL pass-41 (frozen 5e4c7ccb): CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; streak ADVANCES 0/3→1/3; 41p/31fb (pass-42 in flight). BC-INDEX v8.19→v8.20. RESUME SNAPSHOT D-1759 authored. STATE v8.358→v8.359.** | wave-5-e-demo-fidelity | 2026-07-14 |
 | D-1758 | state-manager | 2026-07-14 | **SINGLE-COMMIT BURST COMPLETE — D-1758 dual-lane burst: MCP pass-18 CLEAN 1/3; PQL passes 39-40 + fix-burst-31 (BC-2.11.019 v1.19) (TD-VSDD-053). MCP: PR-LEVEL pass-18 (frozen 5d2624aa): CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; streak ADVANCES 0/3→1/3; 38p/27fb; NEXT = PR-LEVEL pass-19 on SAME frozen 5d2624aa. PQL: LOCAL pass-39 (frozen 5e4c7ccb): CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; streak ADVANCES 0/3→1/3. LOCAL pass-40 (frozen 5e4c7ccb): CLEAN(strict)=NO CLEAN(PR-merge)=YES — 1 LOW F-PQLFN-P40-LOW-001 documentation-drift (BC-2.11.019 §Postconditions Implementation note terminal sentence 'pipe | where and filter-mode' two-position scope inconsistent with seven-position enumeration); CLOSED fix-burst-31 BC-2.11.019 v1.18→v1.19 PO pre-edit (spec-only; HEAD 5e4c7ccb UNCHANGED); streak RESET 0/3; 40p/31fb; NEXT = pass-41 on frozen 5e4c7ccb. BC-INDEX v8.18→v8.19. RESUME SNAPSHOT D-1758 authored. STATE v8.357→v8.358.** | wave-5-e-demo-fidelity | 2026-07-14 |
 | D-1757 | state-manager | 2026-07-14 | **SINGLE-COMMIT BURST COMPLETE — D-1757 MCP pass-17 record + interface-definitions v2.14 lane-attribution fix (TD-VSDD-053). MCP: PR-LEVEL pass-17 (frozen 5d2624aa): CLEAN(strict)=NO CLEAN(PR-merge)=NO — 2 HIGH ALL CLOSED: F-MCPRS-PRL17-HIGH-001 POL-23 BC-INDEX stale v1.21 pin (CLOSED @081dfbbc D-1756 burst — concurrency artifact; BC-INDEX v8.18 live); F-MCPRS-PRL17-HIGH-002 interface-definitions.md stale v1.21 + missing EC-11-081 wire-shape acknowledgment (CLOSED two parts: pin @081dfbbc v2.13 D-1756; EC-11-081 companion sentence + lane-attribution correction PO v2.13→v2.14 D-1757). PR HEAD @5d2624aa UNCHANGED. streak 0/3; tally 37p/27fb; NEXT = pass-18 SAME frozen 5d2624aa. PQL NOTE: pass-39 CLEAN(strict)=YES streak 1/3 @5e4c7ccb; pass-40 in flight (record next burst). interface_definitions v2.14. RESUME SNAPSHOT D-1757 authored. STATE v8.356→v8.357.** | wave-5-e-demo-fidelity | 2026-07-14 |
-| D-1756 | state-manager | 2026-07-14 | **SINGLE-COMMIT BURST COMPLETE — D-1756 dual-lane burst: MCP pass-16 record + fix-burst-27 (BC-2.11.001 v1.22 EC-11-081); PQL pass-38 record + fix-burst-30 (error-taxonomy v2.52, docstring sweep) (TD-VSDD-053). MCP: PR-LEVEL pass-16 (frozen 9e116a01): CLEAN(strict)=NO CLEAN(PR-merge)=NO — 2 findings ALL CLOSED: F-MCPRS-PRL16-HIGH-001 POL-23 story-pin sweep gap (BC-2.10.007 v1.18→v1.19 bump shipped without story sweep — 13 stale v1.18 sites in S-TEST-WIRESHAPE-SWEEP-001 v0.18 + 10 stale sites in S-MCP-E003 v0.8 (9 v1.18 + 1 v1.13 BC-table cell); story-writer S-TEST-WIRESHAPE v0.18→v0.19 + S-MCP-E003 v0.8→v0.9; residual grep zero); F-MCPRS-PRL16-LOW-001 Float64 NaN/±Inf arrow-json path untested+contract-silent (probe confirmed arrow-json 58.2.0 HARDCODES non-finite→JSON null; PO Option A: codify+lock; BC-2.11.001 v1.21→v1.22 EC-11-081; locking test test_BC_2_11_001_EC_11_081_nonfinite_float_serializes_as_json_null @5d2624aa 481/481 prism-mcp PUSHED; POL-23: S-TEST-WIRESHAPE v0.19→v0.20 8 sites); streak RESET 0/3 (push @5d2624aa). NEW MCP HEAD @5d2624aa PUSHED; tally 36p/27fb; NEXT = PR-LEVEL pass-17 on frozen 5d2624aa. PQL: LOCAL pass-38 (frozen 0749f16e): CLEAN(strict)=NO CLEAN(PR-merge)=YES — 3 findings: F-PQLFN-P38-MED-001 check_enrich_udf_availability rustdoc false 'Positions 1-3/6-7 do not reach E-QUERY-039' — all 7 reach via predicate_fncall_names→sql_unknown_names fold (5 sites corrected fix-burst-30 @5e4c7ccb; 1653/1653 prism-query; sweep grep zero); F-PQLFN-P38-OBS-001 fn-call LHS BETWEEN/IN/LIKE generic error ACCEPTED-NO-ACTION (BC-2.11.004 §LOW-002 spec-ratified scope limit); F-PQLFN-P38-OBS-002 E-QUERY offset byte-semantics CLOSED error-taxonomy v2.51→v2.52 namespace note; streak RESET 0/3 on NEW FROZEN HEAD 5e4c7ccb. PQL tally 38p/30fb; NEXT = LOCAL pass-39 on frozen 5e4c7ccb. SAP-1 PASS both lanes. INDEX SYNCS: BC-INDEX v8.17→v8.18 (BC-2.11.001 v1.22 EC-11-081); STORY-INDEX v2.682→v2.683 (S-TEST-WIRESHAPE v0.19/v0.20; S-MCP-E003 v0.9); interface-definitions v2.12→v2.13 (BC-2.11.001 v1.22 pin). RESUME SNAPSHOT D-1756 authored. STATE v8.355→v8.356.** | wave-5-e-demo-fidelity | 2026-07-14 |
+| D-1761 | state-manager | 2026-07-14 | **SINGLE-COMMIT BURST COMPLETE — D-1761 SESSION WRAP (TD-VSDD-053). Dual-lane cascade freeze: both streaks 0/3, both OPEN findings at wrap. MCP: PR-LEVEL pass-21 (frozen 5d2624aa): CLEAN(strict)=NO CLEAN(PR-merge)=NO — 1 MED F-MCPRS-PRL21-MED-001 BC-INDEX BC-2.11.018 summary-row v1.5/v1.4 clauses FABRICATED (v1.5=phantom-field sweep F-MCPNULL-P3-MED-001, not null-not-absent; v1.4 mislabeled intermediate; 2nd BC-INDEX summary-row truth class instance); OPEN (wrap-freeze; BC-INDEX v8.21→v8.22 pending); streak 0/3; 41p/27fb; PR HEAD @5d2624aa UNCHANGED; NEXT: state-manager BC-INDEX v8.22 → pass-22 on SAME frozen 5d2624aa. PQL: LOCAL pass-44 (frozen 5e4c7ccb): CLEAN(strict)=NO CLEAN(PR-merge)=NO — 2 findings: F-PQLFN-P44-MED-001 [MED][SR-006] EC-11-013 doubly allocated (BC-2.11.005 keeper original; BC-2.11.004 v1.33 collider @lines~51/118/145; survived 42 passes; fix: PO renumber BC-2.11.004 to next-free-EC; EC-11-081 TAKEN; grep corpus first); F-PQLFN-P44-LOW-001 [LOW] engine.rs ~1587 stale imperative comment (ADR-048 v1.4 retraction already done; implementer reword → NEW HEAD); OPEN (fix-burst-33 pending); streak 0/3; 44p/32fb; HEAD @5e4c7ccb UNCHANGED. Authored pr-level-pass-21.md + local-pass-44.md. RESUME SNAPSHOT D-1761 authored. STATE v8.360→v8.361.** | wave-5-e-demo-fidelity | 2026-07-14 |
+_[D-1756 archived to burst-log.md — this D-1761 burst keep-last-5 prune]_
 _[D-1755 archived to burst-log.md — this D-1760 burst keep-last-5 prune]_
 _[D-1754 archived to burst-log.md — this D-1759 burst keep-last-5 prune]_
 _[D-1753 archived to burst-log.md — this D-1758 burst keep-last-5 prune]_
@@ -611,40 +612,40 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1760 — 2026-07-14; STATE v8.360)
+## Session Resume Checkpoint (D-1761 — 2026-07-14; STATE v8.361)
 
-**D-1760 — PQL passes 42-43 + fix-burst-32 (spec-only). pass-42 CLEAN(strict)=YES (streak 1/3→2/3); pass-43 CLEAN(strict)=NO (2 findings: F-PQLFN-P43-MED-001 attribution error + F-PQLFN-P43-LOW-001 ADR-048 pin-currency; BOTH CLOSED spec-only); streak RESET 0/3; 43p/32fb. BC-INDEX v8.21 (BC-2.11.019 v1.20 + BC-2.11.004 v1.46). STORY-INDEX v2.684 (S-PRISMQL-CASE-INSENSITIVE-001 v1.71). Feature HEAD 5e4c7ccb UNCHANGED. MERGE-GATE NOTE: BC-2.11.019 §Injection-safety rides PQL PR — surface at BOTH merge gates.**
+**D-1761 — SESSION WRAP. Dual-lane cascade freeze: both streaks 0/3, both OPEN at wrap. MCP pass-21 OPEN: F-MCPRS-PRL21-MED-001 BC-INDEX BC-2.11.018 row clauses FABRICATED (BC-INDEX v8.21→v8.22 pending state-manager; spec-only; PR HEAD unchanged); 41p/27fb. PQL pass-44 OPEN: F-PQLFN-P44-MED-001 EC-11-013 doubly allocated (keeper=BC-2.11.005; collider=BC-2.11.004 3 sites; next-free-EC: grep corpus; EC-11-081 TAKEN) + F-PQLFN-P44-LOW-001 engine.rs ~1587 stale comment (implementer → NEW HEAD); 44p/32fb; fix-burst-33 pending. MERGE-GATE NOTE: BC-2.11.019 §Injection-safety rides PQL PR — surface at BOTH merge gates.**
 
-**RESUME IN ONE BREATH:** MCP: dispatch PR-LEVEL adversary pass-21 on SAME frozen 5d2624aa (streak 0/3 RESET; HEAD UNCHANGED; three CLEAN(strict) required for 3/3). PQL: dispatch LOCAL adversary pass-44 on SAME frozen 5e4c7ccb (streak 0/3 RESET; HEAD UNCHANGED). MERGE-GATE NOTE: BC-2.11.019 §Injection-safety enforcement rides PQL PR — surface at BOTH merge gates.
+**RESUME IN ONE BREATH:** MCP FIRST: state-manager BC-INDEX v8.22 fix (BC-2.11.018 row truth) → PR-LEVEL pass-22 on SAME frozen 5d2624aa. PQL SECOND: fix-burst-33 (PO EC renumber + implementer code edit) → pass-45 on NEW frozen HEAD.
 
 **LANE 1 — DEFECT-MCP-ROWSHAPE-NULLS-001:**
 - Branch `fix/DEFECT-MCP-ROWSHAPE-NULLS-001` @ 5d2624aa (PUSHED), worktree `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001`
-- PR #222 OPEN @ 5d2624aa (PUSHED; HEAD UNCHANGED); 40 passes / 27 fix-bursts; PR-LEVEL streak 0/3 RESET on FROZEN HEAD 5d2624aa
+- PR #222 OPEN @ 5d2624aa (PUSHED; HEAD UNCHANGED); 41 passes / 27 fix-bursts; PR-LEVEL streak 0/3 RESET on FROZEN HEAD 5d2624aa
 - prism-mcp 481/481; workspace ~5512; non-exhaustive 91/91
-- pass-19 CLEAN(strict)=YES (streak 1/3→2/3); pass-20 CLEAN(strict)=NO — 1 MED F-MCPRS-PRL20-MED-001 BC-INDEX summary-truth CLOSED BC-INDEX v8.20; streak RESET 0/3; PR HEAD @5d2624aa UNCHANGED
-- VERY NEXT MCP: dispatch PR-LEVEL adversary pass-21 on SAME frozen 5d2624aa (streak 0/3; three CLEAN(strict) required for 3/3)
+- pass-21 CLEAN(strict)=NO — 1 MED F-MCPRS-PRL21-MED-001 BC-INDEX BC-2.11.018 summary-truth OPEN (BC-INDEX v8.21→v8.22 pending); streak 0/3 RESET; PR HEAD @5d2624aa UNCHANGED
+- VERY NEXT MCP: state-manager BC-INDEX v8.22 fix → PR-LEVEL pass-22 on SAME frozen 5d2624aa
 
 **LANE 2 — DEFECT-PQL-FNCALL-LHS-001:**
 - Branch `fix/DEFECT-PQL-FNCALL-LHS-001` @ 5e4c7ccb (LOCAL-ONLY NOT pushed), worktree `.worktrees/DEFECT-PQL-FNCALL-LHS-001`
-- 43 passes / 32 fix-bursts; streak 0/3 RESET on FROZEN HEAD 5e4c7ccb (DRIFT-ORCH-PRLEVEL-PUSH-001: NO commits/pushes until 3/3)
+- 44 passes / 32 fix-bursts; streak 0/3 RESET on FROZEN HEAD 5e4c7ccb (DRIFT-ORCH-PRLEVEL-PUSH-001: NO commits/pushes until 3/3)
 - prism-query 1653/1653; workspace ~5594; non-exhaustive 91/91
-- pass-42 CLEAN(strict)=YES (streak 1/3→2/3); pass-43 CLEAN(strict)=NO — 2 findings CLOSED fix-burst-32 spec-only; streak RESET 0/3; HEAD 5e4c7ccb UNCHANGED
-- VERY NEXT PQL: dispatch LOCAL adversary pass-44 on frozen 5e4c7ccb (streak 0/3; three CLEAN(strict) needed)
+- pass-44 CLEAN(strict)=NO — 2 findings OPEN: F-PQLFN-P44-MED-001 EC-11-013 collision + F-PQLFN-P44-LOW-001 engine.rs stale comment; fix-burst-33 pending; HEAD 5e4c7ccb UNCHANGED
+- VERY NEXT PQL: fix-burst-33 (PO EC renumber + implementer code edit → NEW HEAD) → pass-45 on new frozen HEAD
 
-**STATE v8.360. develop 5f1b5771 (PUSHED, origin==local). BC-INDEX v8.21. STORY-INDEX v2.684. ARCH-INDEX v2.191. error-taxonomy v2.52. interface_definitions v2.14. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=91 on develop@5f1b5771. total_stories 242. workspace_test_count ~5594 on PQL fix-branch @5e4c7ccb (~5512 on MCP fix-branch @5d2624aa). bc_count_corrected 266.**
+**STATE v8.361. develop 5f1b5771 (PUSHED, origin==local). BC-INDEX v8.21 (v8.22 pending). STORY-INDEX v2.684. ARCH-INDEX v2.191. error-taxonomy v2.52. interface_definitions v2.14. active_contracts 257. draft_contracts 0. non-exhaustive EXPECTED=91 on develop@5f1b5771. total_stories 242. workspace_test_count ~5594 on PQL fix-branch @5e4c7ccb (~5512 on MCP fix-branch @5d2624aa). bc_count_corrected 266.**
 
 **HEADS:**
 - develop: origin/develop = local develop = 5f1b5771 (UNCHANGED)
-- factory-artifacts: this D-1760 burst commit (see `git -C .factory log -1 --format='%H'`)
-- MCP fix-branch: @5d2624aa PUSHED (origin/fix/DEFECT-MCP-ROWSHAPE-NULLS-001; HEAD UNCHANGED from pass-20)
-- PQL fix-branch: @5e4c7ccb LOCAL-ONLY (~43 commits over develop; HEAD UNCHANGED; streak 0/3 RESET; pass-44 next)
+- factory-artifacts: this D-1761 wrap commit (see `git -C .factory log -1 --format='%H'`)
+- MCP fix-branch: @5d2624aa PUSHED (origin/fix/DEFECT-MCP-ROWSHAPE-NULLS-001; HEAD UNCHANGED from pass-21)
+- PQL fix-branch: @5e4c7ccb LOCAL-ONLY (~44 commits over develop; HEAD UNCHANGED; streak 0/3 RESET; fix-burst-33 → pass-45 next)
 
 **LAST MERGED:** DEFECT-CSDEVICES-EMPTY-PIPELINE-001 (PR #221 → develop@5f1b5771, 2026-07-11). PR #222 OPEN (DEFECT-MCP-ROWSHAPE-NULLS-001 → develop; human-gated; PR head @5d2624aa PUSHED).
 
 **PENDING HUMAN DECISIONS:**
 1. PR #222 (DEFECT-MCP-ROWSHAPE-NULLS-001) merge gate — after PR-LEVEL 3-CLEAN converges on 5d2624aa (currently 0/3 RESET); human-gated; MERGE-GATE NOTE: BC-2.11.019 §Injection-safety rides PQL PR (must confirm at both merge gates)
 2. PQL DRIFT-PQLFN-OD7 ratification: Gap-1 (DRIFT-PQLFN-OD7-GAP1-S307 E-QUERY-038 DML fail-open) + Gap-2 (DRIFT-PQLFN-OD7-GAP2-S307 source_select projections/JOIN/HAVING) — architect-adjudicated deferrals to S-3.07; human ratification required at PQL PR merge gate
-3. PQL PR merge gate — after LOCAL 3-CLEAN 3/3 on 5e4c7ccb → push → pr-manager PR → PR-LEVEL 3-CLEAN
+3. PQL PR merge gate — after fix-burst-33 + LOCAL 3-CLEAN 3/3 on new HEAD → push → pr-manager PR → PR-LEVEL 3-CLEAN
 4. day2-design-decisions/clip-boundary-and-reframe-asks-2026-06-30.md disposition (CLIP-session carry-asks J+K; NOT staged; awaiting human decision)
 
 **DRAFT STORIES (queued for spec-review + adversarial story gate):**
@@ -657,13 +658,13 @@ _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c
 
 **OPEN FIX-CASCADES:**
 - AUDIT-COVERAGE-001: `.worktrees/AUDIT-COVERAGE-001` @ cd369b54 on `fix/T13-audit-coverage` (LOCAL-ONLY; 44 commits; 106 checks; streak 0/3 RESET; PARKED until defect PRs merge+rebase)
-- DEFECT-MCP-ROWSHAPE-NULLS-001: `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001` @ 5d2624aa PUSHED on `fix/DEFECT-MCP-ROWSHAPE-NULLS-001` (PR #222 OPEN @5d2624aa; 40p/27fb; streak 0/3 RESET on UNCHANGED 5d2624aa; NEXT = pass-21 on same frozen 5d2624aa)
-- DEFECT-PQL-FNCALL-LHS-001: `.worktrees/DEFECT-PQL-FNCALL-LHS-001` @ 5e4c7ccb on `fix/DEFECT-PQL-FNCALL-LHS-001` (LOCAL-ONLY; 43p/32fb; streak 0/3 RESET on frozen 5e4c7ccb; NEXT = pass-44)
+- DEFECT-MCP-ROWSHAPE-NULLS-001: `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001` @ 5d2624aa PUSHED on `fix/DEFECT-MCP-ROWSHAPE-NULLS-001` (PR #222 OPEN @5d2624aa; 41p/27fb; streak 0/3 RESET on UNCHANGED 5d2624aa; F-MCPRS-PRL21-MED-001 OPEN; NEXT = state-manager BC-INDEX v8.22 fix → pass-22 on same frozen 5d2624aa)
+- DEFECT-PQL-FNCALL-LHS-001: `.worktrees/DEFECT-PQL-FNCALL-LHS-001` @ 5e4c7ccb on `fix/DEFECT-PQL-FNCALL-LHS-001` (LOCAL-ONLY; 44p/32fb; streak 0/3 RESET on frozen 5e4c7ccb; F-PQLFN-P44-MED-001+LOW-001 OPEN; NEXT = fix-burst-33 → pass-45 on new frozen HEAD)
 
 **WORKTREES:**
 - `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ cd369b54 (LOCAL-ONLY; re-convergence after defect PRs merge)
-- `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001` on `fix/DEFECT-MCP-ROWSHAPE-NULLS-001` @ 5d2624aa (PUSHED; PR #222 OPEN @5d2624aa; pass-21 next on same frozen 5d2624aa; streak 0/3 RESET)
-- `.worktrees/DEFECT-PQL-FNCALL-LHS-001` on `fix/DEFECT-PQL-FNCALL-LHS-001` @ 5e4c7ccb (LOCAL-ONLY; 43p/32fb; streak 0/3 RESET; pass-44 next)
+- `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001` on `fix/DEFECT-MCP-ROWSHAPE-NULLS-001` @ 5d2624aa (PUSHED; PR #222 OPEN @5d2624aa; F-MCPRS-PRL21-MED-001 OPEN; BC-INDEX v8.22 fix pending → pass-22 on same frozen 5d2624aa; streak 0/3 RESET)
+- `.worktrees/DEFECT-PQL-FNCALL-LHS-001` on `fix/DEFECT-PQL-FNCALL-LHS-001` @ 5e4c7ccb (LOCAL-ONLY; 44p/32fb; streak 0/3 RESET; fix-burst-33 → pass-45 on new frozen HEAD)
 - `.worktrees/S-3.09` KEEP-PARKED on `feature/S-3.09` @ 43c41389 (local-only; backup `backup/S-3.09-preresume-43c41389`; D-1666)
 - `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ fcab8717 (local-only; 1 unpushed commit + ~1070 uncommitted lines; APPLICABILITY-AUDIT-QUEUED; do NOT touch)
 
