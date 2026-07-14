@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.17"
-spec_version: "v0.17"
+version: "0.18"
+spec_version: "v0.18"
 level: ops
 producer: product-owner
 timestamp: "2026-07-13"
@@ -136,7 +136,7 @@ audit stage.
 | BC | Title | Version | Relevance |
 |----|-------|---------|-----------|
 | BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | v1.21 | Postcondition: row-shape null-not-absent — `WriterBuilder.with_explicit_nulls(true)` required; EC-11-079 (NULL column → key present as `null`). Primary anchor for AC-002. |
-| BC-2.10.007 | Structured Error Responses | v1.13 | Postcondition: nested wire shape with 9 required fields; `retry_after_seconds: null` (not absent) for non-rate-limit errors. Primary anchor for AC-003 and all error-path ACs. |
+| BC-2.10.007 | Structured Error Responses | v1.18 | Postcondition: nested wire shape with 9 required fields; `retry_after_seconds: null` (not absent) for non-rate-limit errors. Primary anchor for AC-003 and all error-path ACs. |
 
 ## Acceptance Criteria
 
@@ -420,6 +420,7 @@ or `prism-sensors` crates in production code. Test files may use DTU harness cra
 
 | Version | Date | Change | Source |
 |---------|------|--------|--------|
+| v0.18 | 2026-07-14 | Fix (F-MCPRS-PRL11-MED-001): Behavioral Contracts body table cell BC-2.10.007 version v1.13→v1.18 (line ~139 — cell missed by both the v0.13 sweep and the v0.17 sweep). TD-VSDD-060 residual grep confirms zero remaining live-prose stale v1.13/v1.14/v1.15/v1.16/v1.17 BC-2.10.007 pins outside the changelog. Story version bumped 0.17→0.18. Historical §Changelog rows left untouched per TD-VSDD-091. | F-MCPRS-PRL11-MED-001; DEFECT-MCP-ROWSHAPE-NULLS-001 PR-LEVEL pass 11 |
 | v0.17 | 2026-07-14 | Pin refresh (POL-23): BC-2.10.007 v1.17→v1.18 (F-MCPRS-PRL10-OBS-003 — §Rule 2 catch-all now FUTURE-ONLY; §Category table synced with 28 explicit-arm groups; catch-all no longer applies to any of the 18 formerly-catch-all variants tested here; no semantic change to the 9 wire-shape fields this story asserts; all 12 live BC-2.10.007 v1.17 pins updated). Story version bumped 0.16→0.17. Historical §Changelog rows referencing `v1.17` as a destination (v0.16 row) left untouched per TD-VSDD-091. | POL-23; DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 22 F-MCPRS-PRL10-OBS-003 |
 | v0.16 | 2026-07-14 | Pin refresh (POL-23): BC-2.10.007 v1.16→v1.17 (F-MCPRS-PRL8-OBS-002 snippet parity — `.as_u16()` removed; no semantic change to retryable rule; 503-test-vector row unchanged; all 12 live BC-2.10.007 v1.16 pins updated). Story version bumped 0.15→0.16. Historical §Changelog rows referencing `v1.16` as a destination (v0.15 row) left untouched per TD-VSDD-091. | POL-23; DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 20 F-MCPRS-PRL8-OBS-002 |
 | v0.15 | 2026-07-14 | Pin refresh (POL-23): BC-2.10.007 v1.15→v1.16 (§RETRYABLE-503 rule corrected from overbroad `!matches!(status, 401\|403)` to transient-only `matches!(status.as_u16(), 408\|425\|429\|500\|502\|503\|504)` — coordinator-raised finding; 503-test-vector row unchanged under both rules; all 12 live BC-2.10.007 v1.15 pins updated). Story version bumped 0.14→0.15. Historical §Changelog rows referencing `v1.15` as a destination (v0.14 row) left untouched per TD-VSDD-091. | POL-23; DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 18 RETRYABLE-503-RULE |
