@@ -11,7 +11,7 @@ priority: P3
 # MCP serialization failures so operators can distinguish serialization failures from generic
 # internal errors in audit logs. Does not block any current demo or customer deliverable.
 status: draft
-# BC status: BC-2.10.007 v1.18 is ACTIVE and governs this story. S-7.01 gate satisfied.
+# BC status: BC-2.10.007 v1.19 is ACTIVE and governs this story. S-7.01 gate satisfied.
 # OBS-002 (pass-7): The McpSerializationError VariantMeta arm fix is DELIVERED BY PR #222
 # (DEFECT-MCP-ROWSHAPE-NULLS-001). Verified 2026-07-13 in the worktree at
 # .worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001/crates/prism-mcp/src/error_mapping.rs:1737:
@@ -19,8 +19,8 @@ status: draft
 #   test test_BC_2_10_007_mcp_serialization_error_category_is_internal present.
 # This story's scope is ONLY the 18 construction-site migrations in server.rs — the arm is
 # a prerequisite delivered by PR #222, not work to be done here.
-version: "0.8"
-spec_version: "v0.8"
+version: "0.9"
+spec_version: "v0.9"
 level: ops
 producer: product-owner
 timestamp: "2026-07-13"
@@ -49,8 +49,8 @@ crates_touched:
   - prism-mcp
 target_module: "crates/prism-mcp"
 behavioral_contracts: [BC-2.10.007]
-# BC status: BC-2.10.007 v1.18 is ACTIVE (lifecycle_status: active).
-# BC-2.10.007 v1.18 §Implementer Code Follow-Up (OBS-002) is a REQUIRED implementer action
+# BC status: BC-2.10.007 v1.19 is ACTIVE (lifecycle_status: active).
+# BC-2.10.007 v1.19 §Implementer Code Follow-Up (OBS-002) is a REQUIRED implementer action
 # that amends the McpSerializationError VariantMeta arm to:
 #   category: "internal" (was "upstream_error")
 #   suggestion: "Prism MCP serialization failure. Contact Prism operator; see audit log for details."
@@ -171,19 +171,19 @@ reading stack traces or raw tracing output.
 
 | BC | Title | Version | Relevance |
 |----|-------|---------|-----------|
-| BC-2.10.007 | Structured Error Responses | v1.13 | Primary anchor. §OBS-002 (pass-7): McpSerializationError VariantMeta arm must carry `category: "internal"`, `ec_code_override: Some("E-MCP-003")`, `suggestion: "Prism MCP serialization failure..."`. Rule 1: `message = "Internal error"` (universal, no exception for McpSerializationError). |
+| BC-2.10.007 | Structured Error Responses | v1.19 | Primary anchor. §OBS-002 (pass-7): McpSerializationError VariantMeta arm must carry `category: "internal"`, `ec_code_override: Some("E-MCP-003")`, `suggestion: "Prism MCP serialization failure..."`. Rule 1: `message = "Internal error"` (universal, no exception for McpSerializationError). |
 
 ## Acceptance Criteria
 
 ### AC-001 — Precondition: PR #222 VariantMeta arm verified as delivered
-(traces to BC-2.10.007 v1.18 postcondition Rule 2 — dedicated VariantMeta arm class;
+(traces to BC-2.10.007 v1.19 postcondition Rule 2 — dedicated VariantMeta arm class;
 DELIVERED by PR #222 / DEFECT-MCP-ROWSHAPE-NULLS-001, NOT implementation work for this story)
 
 At story start (after PR #222 merges to develop), the implementer verifies by reading
 `crates/prism-mcp/src/error_mapping.rs` that `PrismError::McpSerializationError { .. }` arm
 in `prism_error_to_structured_call_result` carries ALL of the following correct values:
 
-| Field | Required Value (per BC-2.10.007 v1.18 §OBS-002) |
+| Field | Required Value (per BC-2.10.007 v1.19 §OBS-002) |
 |-------|--------------------------------------------------|
 | `category` | `"internal"` |
 | `ec_code_override` | `Some("E-MCP-003")` |
@@ -197,7 +197,7 @@ If these values are NOT present (i.e., PR #222 has not merged), stop and wait fo
 Do NOT implement this story against a develop HEAD that still carries the stale arm values.
 
 ### AC-002 — All 18 construction sites migrated
-(traces to BC-2.10.007 v1.18 postcondition — McpSerializationError variant produces E-MCP-003)
+(traces to BC-2.10.007 v1.19 postcondition — McpSerializationError variant produces E-MCP-003)
 
 All 18 `to_error_data(PrismError::Internal { detail: format!("...") })` closures in
 `crates/prism-mcp/src/server.rs` that wrap serde_json or arrow_json serialization operations
@@ -208,7 +208,7 @@ The `detail` message string content for each site is preserved verbatim (e.g.,
 `"Failed to serialize response: {e}"`, etc.) — only the variant name changes.
 
 ### AC-003 — Grep-gate: zero PrismError::Internal in serialization map_err context
-(traces to BC-2.10.007 v1.18 invariant — McpSerializationError is the ONLY correct variant
+(traces to BC-2.10.007 v1.19 invariant — McpSerializationError is the ONLY correct variant
 for MCP layer serialization failures)
 
 Running the Python script from §Origin (or its equivalent grep) against
@@ -231,7 +231,7 @@ assert count == 0, f'Expected 0, found {count}'
 ```
 
 ### AC-004 — E-MCP-003 code + "internal" category + "Internal error" message verified by existing test
-(traces to BC-2.10.007 v1.18 postcondition — McpSerializationError structured error fields)
+(traces to BC-2.10.007 v1.19 postcondition — McpSerializationError structured error fields)
 
 `test_BC_2_10_007_mcp_serialization_error_category_is_internal` (delivered by PR #222, present
 in `crates/prism-mcp/src/error_mapping.rs`) passes on the post-PR-#222 develop HEAD and continues
@@ -324,7 +324,7 @@ cargo nextest run -p prism-mcp -E 'test(zero_PrismError_Internal_in_serde_contex
 | Source | Estimated Tokens |
 |--------|-----------------|
 | Story spec (this file) | ~5,000 |
-| BC-2.10.007 v1.18 (postconditions, OBS-002 §Implementer Code Follow-Up) | ~8,000 |
+| BC-2.10.007 v1.19 (postconditions, OBS-002 §Implementer Code Follow-Up) | ~8,000 |
 | error-taxonomy.md E-MCP-003 row (v2.43) | ~2,000 |
 | `crates/prism-mcp/src/server.rs` (18 site context windows, ~15 lines each) | ~5,000 |
 | `crates/prism-mcp/src/error_mapping.rs` (McpSerializationError arm + VariantMeta structure + test module) | ~6,000 |
@@ -418,6 +418,7 @@ The VariantMeta arm in `error_mapping.rs` must NOT be modified by this story —
 
 | Version | Burst | Date | Change |
 |---------|-------|------|--------|
+| v0.9 | DEFECT-PQL-FNCALL-LHS-001-FB25-F-MCPRS-PRL16-HIGH-001 | 2026-07-14 | POL-23 pin refresh: BC-2.10.007 v1.18→v1.19 (F-MCPRS-PRL16-HIGH-001 — `CursorCapExceeded` reclassified `"validation"/"original_params_valid: false"` → `"internal"/"original_params_valid: true"`; dedicated VariantMeta arm + `map_prism_error` INTERNAL_ERROR alignment in DEFECT-PQL-FNCALL-LHS-001 fix-burst-25; POL-23 propagation that fix-burst-25 bump missed; no scope change to this story's OBS-002 McpSerializationError 18-site migration). BC body table cell also updated v1.13→v1.19 (stale pin from initial story draft, uncaught by prior sweeps). 9 v1.18 pins + 1 v1.13 pin updated (10 total). |
 | v0.8 | DEFECT-MCP-ROWSHAPE-NULLS-001-FB22-F-MCPRS-PRL10-OBS-003 | 2026-07-14 | POL-23 pin refresh: BC-2.10.007 v1.17→v1.18 (F-MCPRS-PRL10-OBS-003 — §Rule 2 catch-all now FUTURE-ONLY; §Category table synced with 28 explicit-arm groups; no scope change to this story's OBS-002 McpSerializationError 18-site migration). 9 live pins updated. |
 | v0.7 | DEFECT-MCP-ROWSHAPE-NULLS-001-FB20-OBS-002 | 2026-07-14 | POL-23 pin refresh: BC-2.10.007 v1.16→v1.17 (F-MCPRS-PRL8-OBS-002 snippet parity — `.as_u16()` removed; no semantic change to retryable rule; OBS-002 scope unaffected). 9 live pins updated. |
 | v0.6 | DEFECT-MCP-ROWSHAPE-NULLS-001-FB18-RETRYABLE-503-RULE | 2026-07-14 | POL-23 pin refresh: BC-2.10.007 v1.15→v1.16 (§RETRYABLE-503 rule corrected from overbroad `!matches!(401\|403)` to transient-only `matches!(408\|425\|429\|500\|502\|503\|504)` — coordinator-raised finding; OBS-002 scope unaffected). 9 live pins updated. |
