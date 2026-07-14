@@ -1,7 +1,7 @@
 ---
 pass: 44
 lane: DEFECT-PQL-FNCALL-LHS-001
-frozen_head: 5e4c7ccb
+frozen_head: 973aedcf
 date: 2026-07-14
 authored_by: orchestrator-relay
 clean_strict: false
@@ -9,20 +9,20 @@ clean_pr_merge: false
 finding_count: 2
 streak_before: 0/3
 streak_after: 0/3
-status: OPEN
+status: CLOSED
 fix_burst: fix-burst-33
-fix_burst_pending: true
+fix_burst_pending: false
 fix_burst_spec_only: false
 fix_burst_bc: [BC-2.11.004]
 ---
 
 # LOCAL Adversary Pass 44 — DEFECT-PQL-FNCALL-LHS-001
 
-**Frozen HEAD: 5e4c7ccb** (fix/DEFECT-PQL-FNCALL-LHS-001; LOCAL-ONLY; unchanged from pass-43)
-**CLEAN(strict): NO** (2 findings: 1 MED + 1 LOW)
-**CLEAN(PR-merge): NO** (1 MED finding is a namespace-collision structural defect in spec; severity justifies blocking merge-gate as well as strict-streak)
-**Streak: 0/3** (RESET — pass-44 NOT CLEAN(strict); BC-5.39.001 streak-reset rule)
-**Fix-Burst-33:** PENDING (wrap-freeze; dispatched next session)
+**Frozen HEAD: 973aedcf** (fix/DEFECT-PQL-FNCALL-LHS-001; LOCAL-ONLY; advanced from 5e4c7ccb by fix-burst-33 LOW-001 code edit)
+**CLEAN(strict): NO** (2 findings: 1 MED + 1 LOW — both CLOSED by fix-burst-33)
+**CLEAN(PR-merge): NO** (findings now CLOSED; pass-45 gates on new frozen 973aedcf)
+**Streak: 0/3** (RESET — pass-44 NOT CLEAN(strict); BC-5.39.001 streak-reset rule; pass-45 opens fresh on 973aedcf)
+**Fix-Burst-33:** COMPLETE (spec half @PO + code half @implementer; new frozen HEAD 973aedcf)
 
 ---
 
@@ -60,7 +60,7 @@ Pass-44 opens on 0/3 streak on unchanged frozen HEAD 5e4c7ccb. Two new findings 
 
 **Precedents:** EC-11-068 three-way collision renumber (D-1719; BC-2.11.001 v1.20 EC-11-079 + BC-2.11.019 v1.11 EC-11-080). Same SR-006 discipline applies.
 
-**Status:** OPEN — fix-burst-33 pending (product-owner; spec-only; HEAD 5e4c7ccb UNCHANGED for spec fix; NOTE: LOW-001 fix below IS a code edit, creating a new HEAD for pass-45).
+**Status:** CLOSED — fix-burst-33 COMPLETE. BC-2.11.004 v1.46→v1.47: EC-11-013 renumbered to EC-11-082 at 3 body sites (§Postconditions, §Edge Cases, §Canonical Test Vectors). Code-comment sweep: 4 crate sites updated @973aedcf (engine.rs:~6827, temporal_typing_tests.rs:~5375/~5402/~5413). BC-2.11.005 §Edge Cases EC-11-013 (KEEPER) untouched. Story sweep confirmed zero EC-11-013 citations.
 
 ---
 
@@ -74,7 +74,7 @@ Pass-44 opens on 0/3 streak on unchanged frozen HEAD 5e4c7ccb. Two new findings 
 
 **CRITICAL NOTE — new HEAD:** This is a CODE edit (engine.rs). Committing this fix advances the `fix/DEFECT-PQL-FNCALL-LHS-001` branch to a new HEAD. Per DRIFT-ORCH-PRLEVEL-PUSH-001 (frozen-HEAD rule), **pass-45 gates on the new frozen HEAD after the fix-burst-33 commit** — not on 5e4c7ccb. The MED-001 spec fix (BC-2.11.004 renumber) does NOT produce a new code HEAD (spec-only .factory/ commit), so the frozen HEAD for pass-45 is the post-LOW-001-fix commit.
 
-**Status:** OPEN — fix-burst-33 pending (implementer; code edit; new HEAD produced; pass-45 gates on new frozen HEAD).
+**Status:** CLOSED — fix-burst-33 COMPLETE. Implementer commit 8389935c: engine.rs ~line 1587 stale imperative comment reworded to past-tense ADR-048 v1.4 retraction truth; TD-VSDD-060 sibling sweep caught 2nd occurrence at ~line 15128, both reworded. Commit 973aedcf: 4 code-comment EC-11-013 citations swept to EC-11-082 (engine.rs:~6827, temporal_typing_tests.rs:~5375/~5402/~5413). New frozen HEAD for pass-45: 973aedcf.
 
 ---
 
@@ -97,31 +97,30 @@ Pass-44 opens on 0/3 streak on unchanged frozen HEAD 5e4c7ccb. Two new findings 
 ## Status
 
 ```
-NOT CLEAN(strict) — pass 44 complete. 2 findings (1 MED + 1 LOW).
+NOT CLEAN(strict) — pass 44 complete. 2 findings (1 MED + 1 LOW). BOTH CLOSED fix-burst-33.
 
-CASCADE TALLY: 44 passes / 32 fix-bursts
+CASCADE TALLY: 44 passes / 33 fix-bursts
 
 STREAK: 0/3 (RESET — pass-44 NOT CLEAN(strict); BC-5.39.001 streak-reset rule)
-DRIFT-ORCH-PRLEVEL-PUSH-001: feature branch fix/DEFECT-PQL-FNCALL-LHS-001 is LOCAL-ONLY;
-feature HEAD 5e4c7ccb UNCHANGED at wrap-freeze. Fix-burst-33 LOW-001 IS a code edit →
-new frozen HEAD for pass-45.
+DRIFT-ORCH-PRLEVEL-PUSH-001: feature branch fix/DEFECT-PQL-FNCALL-LHS-001 is LOCAL-ONLY.
+New frozen HEAD for pass-45: 973aedcf (advanced from 5e4c7ccb by fix-burst-33 code edits).
 
-FIX-BURST-33 STATUS (pending next session):
-  F-PQLFN-P44-MED-001: PENDING — BC-2.11.004 EC-11-013 renumber (PO; grep for next free
-                                  EC-11-NNN FIRST — EC-11-081 IS TAKEN); v1.46→v1.47;
-                                  3 body cites + POL-23 story sweep + BC-INDEX sync.
-                                  Spec-only; HEAD unchanged during this step.
-  F-PQLFN-P44-LOW-001: PENDING — engine.rs ~1587 stale imperative comment reword
-                                  (implementer; code edit → NEW frozen HEAD).
-  After fix-burst-33: state-manager burst → LOCAL pass-45 on new frozen HEAD.
+FIX-BURST-33 STATUS (COMPLETE):
+  F-PQLFN-P44-MED-001: CLOSED — BC-2.11.004 v1.46→v1.47 (EC-11-013→EC-11-082 renumber;
+                                 3 BC body sites; EC-11-082 confirmed free; story sweep
+                                 zero hits; BC-INDEX v8.23→v8.24; BC-2.11.005 KEEPER
+                                 untouched). Code-comment sweep @973aedcf (4 crate sites).
+  F-PQLFN-P44-LOW-001: CLOSED — engine.rs ~1587 stale comment reworded @8389935c;
+                                 2nd sibling site ~15128 also reworded (TD-VSDD-060);
+                                 @973aedcf: 4 EC-11-013→EC-11-082 code-comment sweeps.
 
 FINDINGS BREAKDOWN:
-  MED: 1 (F-PQLFN-P44-MED-001 SR-006 EC-11-013 namespace collision; KEEPER=BC-2.11.005)
-  LOW: 1 (F-PQLFN-P44-LOW-001 stale imperative comment engine.rs ~1587)
+  MED: 1 (F-PQLFN-P44-MED-001 SR-006 EC-11-013 namespace collision; KEEPER=BC-2.11.005) — CLOSED
+  LOW: 1 (F-PQLFN-P44-LOW-001 stale imperative comment engine.rs ~1587) — CLOSED
   Total: 2
 
-CLEAN(strict): NO (any finding resets streak per BC-5.39.001)
-CLEAN(PR-merge): NO (MED-001 is structural namespace defect; blocks merge-gate)
+CLEAN(strict): NO (pass-44 findings drove fix-burst-33; pass-45 gates on new frozen HEAD)
+CLEAN(PR-merge): NO
 
-NEXT ACTION: fix-burst-33 (PO + implementer) → state-manager burst → LOCAL pass-45 on new frozen HEAD
+NEXT ACTION: LOCAL pass-45 on new frozen HEAD 973aedcf (streak 0/3 fresh)
 ```
