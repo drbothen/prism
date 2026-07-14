@@ -63,8 +63,8 @@ use arrow::record_batch::RecordBatch;
 use prism_core::PrismError;
 
 use crate::ast::{
-    AggFunc, CompareOp, Expr, FieldPath, FieldsStage, Literal, LogicalOp, PipeQuery, PipeStage,
-    Predicate, SortDirection, StatsStage, StringOp,
+    AggFunc, CompareOp, Expr, FieldPath, FieldsStage, FuncCall, Literal, LogicalOp, PipeQuery,
+    PipeStage, Predicate, ScalarFunc, SortDirection, StatsStage, StringOp,
 };
 
 // ---------------------------------------------------------------------------
@@ -864,7 +864,49 @@ fn expr_to_sql(expr: &Expr) -> Result<String, PrismError> {
             let secs = offset.num_seconds();
             Ok(format!("{base_sql} {op_str} INTERVAL '{secs} seconds'"))
         }
-        // Non-exhaustive: FuncCall, Logical, Not, In, InSubquery → simplified fallback.
+        // Scalar fn-call LHS in pipe / filter / SqlPipe | where predicates.
+        //
+        // Name-derivation mirrors `ast.rs::normalize_func_call` (ADR-052 §D4 v1.12 Option A,
+        // F-PQLFN-P18-MED-001 fix-burst 14). Each arg recurses through `expr_to_sql`.
+        //
+        // SECURITY: `ScalarFunc::Unknown(name)` originates from the grammar's identifier
+        // rule which enforces `[A-Za-z_][A-Za-z0-9_]*` — no SQL-injection risk beyond what
+        // sibling arms (e.g. `Expr::Field`) already accept. Args recurse through existing
+        // sanitised emitters; no unvalidated string interpolation is added here.
+        Expr::FuncCall(fc) => match fc {
+            FuncCall::Scalar { func, args } => {
+                let func_name = match func {
+                    ScalarFunc::SubnetContains => "subnet_contains",
+                    ScalarFunc::TimeWindow => "time_window",
+                    ScalarFunc::JsonExtractString => "json_extract_string",
+                    ScalarFunc::IocMatch => "ioc_match",
+                    ScalarFunc::MitreTactic => "mitre_tactic",
+                    ScalarFunc::SeverityLabel => "severity_label",
+                    ScalarFunc::Unknown(name) => name.as_str(),
+                    _ => "func", // non_exhaustive arm — future ScalarFunc variants default to "func"
+                };
+                let args_sql: Vec<String> = args
+                    .iter()
+                    .map(expr_to_sql)
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(format!("{func_name}({})", args_sql.join(", ")))
+            }
+            // Aggregate and Window fn-calls are blocked upstream by the
+            // DATAFUSION_BUILTIN_AGGREGATE_NAMES gate (BC-2.11.019) and the grammar
+            // restriction in `build_predicate_parser` (ADR-052 §D4 v1.12 Option A) —
+            // they must never reach `expr_to_sql`. This arm is a defensive guard;
+            // if reached, it indicates a bug in the upstream plan-time gates.
+            _ => Err(PrismError::QueryExecutionFailed {
+                detail: "Aggregate/Window fn-call in pipe WHERE predicate reached the SQL \
+                         emitter — should have been blocked by upstream plan-time gates \
+                         (DATAFUSION_BUILTIN_AGGREGATE_NAMES / grammar restriction). \
+                         This is an internal error."
+                    .to_string(),
+            }),
+        },
+        // Non-exhaustive: Logical, Not, In, InSubquery → simplified fallback.
+        // FuncCall is handled above. Catch-all for expression shapes not yet
+        // supported in pipe WHERE (e.g., nested subqueries, logical operators).
         _ => Err(PrismError::QueryExecutionFailed {
             detail: "Complex expression in pipe WHERE stage is not yet supported. \
                      Rewrite as SQL."
