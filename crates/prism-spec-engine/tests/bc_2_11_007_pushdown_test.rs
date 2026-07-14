@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 //! Red Gate tests for S-DEMO-QUERY-PUSHDOWN-001 v2.1
 //!
-//! Behavioral Contracts: BC-2.01.013 v1.14, BC-2.11.005 (introduced v1.6), BC-2.11.007 v1.8
+//! Behavioral Contracts: BC-2.01.013, BC-2.11.005 (introduced v1.6), BC-2.11.007
 //! Architecture: ADR-033 T1 (pre-fan-out time-window extraction)
 //!
 //! # Covered ACs
@@ -38,7 +38,7 @@
 //! All other ACs are un-gated integration tests that use the DTU directly.
 //!
 //! Story: S-DEMO-QUERY-PUSHDOWN-001 v2.1
-//! BCs: BC-2.01.013 v1.14, BC-2.11.005 (introduced v1.6), BC-2.11.007 v1.8
+//! BCs: BC-2.01.013, BC-2.11.005 (introduced v1.6), BC-2.11.007
 //! ADR: ADR-033 T1
 
 use std::collections::HashMap;
@@ -60,7 +60,7 @@ use serde_json::Value as JsonValue;
 // AC-CWS-001: CrowdStrike limit reaches DetectionListParams
 // ---------------------------------------------------------------------------
 
-/// AC-CWS-001 / BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause
+/// AC-CWS-001 / BC-2.01.013 Pagination/Push-Down Scope Clause
 ///
 /// A PrismQL query with `LIMIT 50` must produce a CrowdStrike Step 1 request
 /// with `DetectionListParams.limit = 50`.
@@ -168,7 +168,7 @@ async fn test_ac_cws_001_crowdstrike_limit_reaches_detection_list_params() {
 // The prism-bin test proves the full path from PrismQL WHERE clause.
 // ---------------------------------------------------------------------------
 
-/// AC-CWS-002 wire-level / BC-2.01.013 v1.14 TV-BC-2.01.013-006
+/// AC-CWS-002 wire-level / BC-2.01.013 TV-BC-2.01.013-006
 ///
 /// Validates that a pre-built FQL string (the form produced by `build_crowdstrike_fql`
 /// for both start+end bounds) reaches the CrowdStrike DTU via `PipelineExecutor::execute`.
@@ -351,7 +351,7 @@ async fn test_ac_cws_002_wire_level_fql_both_bounds_via_pipeline_executor() {
 // AC-CWS-003: No filter param when no time predicates — pipeline runs normally
 // ---------------------------------------------------------------------------
 
-/// AC-CWS-003 / BC-2.11.007 v1.8 result-equivalence invariant
+/// AC-CWS-003 / BC-2.11.007 result-equivalence invariant
 ///
 /// When no time-window predicates exist in the WHERE clause, the CrowdStrike
 /// pipeline must run normally and return ALL 50 fixture records (no spurious injection).
@@ -482,7 +482,7 @@ async fn test_ac_cws_003_no_filter_param_when_no_time_predicates() {
 // AC-ARMIS-001: Armis AQL passthrough — no maxResults or timeFrame
 // ---------------------------------------------------------------------------
 
-/// AC-ARMIS-001 / BC-2.11.007 v1.8 §Mechanism B postcondition
+/// AC-ARMIS-001 / BC-2.11.007 §Mechanism B postcondition
 ///
 /// When AQL is `in:devices after:2026-01-01T00:00:00`, the Armis DTU must receive
 /// ONLY the `aql` param (plus pagination). No `maxResults` or `timeFrame` params.
@@ -630,7 +630,7 @@ async fn test_ac_armis_001_aql_passthrough_no_maxresults_no_timeframe() {
 // AC-ARMIS-002: No additional params beyond aql, offset, limit
 // ---------------------------------------------------------------------------
 
-/// AC-ARMIS-002 / BC-2.11.007 v1.8 §Mechanism B invariant
+/// AC-ARMIS-002 / BC-2.11.007 §Mechanism B invariant
 ///
 /// An Armis request from PipelineExecutor must produce only `aql`, `offset`, `limit`
 /// in the query params. No extra injected params.
@@ -758,7 +758,7 @@ async fn test_ac_armis_002_no_additional_params_beyond_aql_offset_limit() {
 // AC-CYB-001: Cyberint AlertListParams has only cursor
 // ---------------------------------------------------------------------------
 
-/// AC-CYB-001 / BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — Cyberint row
+/// AC-CYB-001 / BC-2.01.013 Pagination/Push-Down Scope Clause — Cyberint row
 ///
 /// The Cyberint `fetch_alerts` step is a GET request with ONLY `cursor: Option<String>`.
 /// No `from_date`, `to_date`, or `page_size` must appear.
@@ -882,7 +882,7 @@ async fn test_ac_cyb_001_no_from_date_to_date_page_size_in_alert_list_params() {
 // AC-CLAR-001: Claroty body_template remains empty — no time-window fields
 // ---------------------------------------------------------------------------
 
-/// AC-CLAR-001 / BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — Claroty row
+/// AC-CLAR-001 / BC-2.01.013 Pagination/Push-Down Scope Clause — Claroty row
 ///
 /// The Claroty POST body must remain `{}` (empty). No time-window fields may be injected.
 ///
@@ -1000,7 +1000,7 @@ async fn test_ac_clar_001_claroty_body_template_remains_empty_no_time_fields() {
 // or build_crowdstrike_fql — those are exercised by the prism-bin test above.
 // ---------------------------------------------------------------------------
 
-/// AC-EQUIV-001 pipeline-executor boundary / BC-2.11.007 v1.8 FQL subset invariant
+/// AC-EQUIV-001 pipeline-executor boundary / BC-2.11.007 FQL subset invariant
 ///
 /// Validates that a pre-built FQL string (the form produced by `build_crowdstrike_fql`)
 /// seeded into `FetchContext["_fql"]` causes the DTU to return a strict SUBSET of
@@ -1185,7 +1185,7 @@ async fn test_ac_equiv_001_fql_subset_invariant_via_pipeline_executor_boundary()
 // AC-INDEX-001: armis.sensor.toml last_seen and created_at declare options=["INDEX"]
 // ---------------------------------------------------------------------------
 
-/// AC-INDEX-001 / BC-2.01.013 v1.14 Mechanism B — AQL augmentation requires INDEX datetime cols
+/// AC-INDEX-001 / BC-2.01.013 Mechanism B — AQL augmentation requires INDEX datetime cols
 ///
 /// The `last_seen` column in `armis_devices` and `created_at` in `armis_alerts`
 /// must declare `options = ["INDEX"]` in `armis.sensor.toml`.
@@ -1261,7 +1261,7 @@ fn test_ac_index_001_armis_toml_last_seen_created_at_have_index_option() {
 // (F-P1-CRIT-001)
 // ---------------------------------------------------------------------------
 
-/// AC-INDEX-CWS-001 / F-P1-CRIT-001 / BC-2.01.013 v1.14 CrowdStrike FQL time-window
+/// AC-INDEX-CWS-001 / F-P1-CRIT-001 / BC-2.01.013 CrowdStrike FQL time-window
 ///
 /// The `created_timestamp` column in `crowdstrike_detections` must declare
 /// `options = ["INDEX"]` in `crowdstrike.sensor.toml`.

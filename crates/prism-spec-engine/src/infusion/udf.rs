@@ -52,7 +52,7 @@ pub struct InfusionUdfDescriptor {
     /// The input column fed to this UDF (from `InfusionField::input_field`).
     ///
     /// Used by `prism_describe` to build Category-2 enrichment-discovery hints
-    /// (BC-2.10.012 v1.7 §pql_hints, AC-CAT2). Example: `"device_cves_first"` for a
+    /// (BC-2.10.012 §pql_hints, AC-CAT2). Example: `"device_cves_first"` for a
     /// NVD CVE lookup keyed on the device CVE field.
     pub input_field: String,
 }

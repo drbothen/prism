@@ -129,7 +129,7 @@ pub enum HarnessError {
 /// A single clone bind failure within a
 /// [`HarnessError::BindFailure`] error.
 ///
-/// (BC-2.06.017 v1.1 Amendment 2 — name disambiguation from the demo-server-side
+/// (BC-2.06.017 Amendment 2 — name disambiguation from the demo-server-side
 /// `DemoBindError` type which uses `instance_name` instead of `org_slug`/`sensor_id`)
 #[derive(Debug)]
 #[non_exhaustive]

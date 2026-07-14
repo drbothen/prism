@@ -2076,7 +2076,7 @@ fn extract_field_paths_from_expr(
 }
 
 // ---------------------------------------------------------------------------
-// BC-2.11.016 v1.21 HEAD-JOIN PER-REFERENCE SCOPING helpers (ADV-FIX-P16-MED-001)
+// BC-2.11.016 HEAD-JOIN PER-REFERENCE SCOPING helpers (ADV-FIX-P16-MED-001)
 // ---------------------------------------------------------------------------
 
 /// Recursively extract `(col_name, is_bare)` pairs from an `Expr` tree.
@@ -2085,13 +2085,13 @@ fn extract_field_paths_from_expr(
 /// `is_bare = true` iff the source `FieldPath` had exactly one segment (bare unqualified
 /// ref), `false` for multi-segment FROM-alias- or table-name-qualified refs.
 ///
-/// Used by `check_query_column_availability` to implement BC-2.11.016 v1.21
+/// Used by `check_query_column_availability` to implement BC-2.11.016
 /// PER-REFERENCE SCOPING: the HEAD-JOIN suspension fires only when `is_bare = true`
 /// for the *specific reference* being checked. Qualified refs (`alias.col`, `table.col`)
 /// carry `is_bare = false` and are never suspension-eligible, regardless of whether a
 /// co-resident bare ref with the same extracted column name exists at another position.
 ///
-/// BC-2.11.016 v1.21 §Preconditions.2 HEAD-JOIN PER-REFERENCE SCOPING
+/// BC-2.11.016 §Preconditions.2 HEAD-JOIN PER-REFERENCE SCOPING
 /// (ADV-FIX-P16-MED-001).
 fn extract_field_paths_with_bareness(
     expr: &crate::ast::Expr,
@@ -2150,11 +2150,11 @@ fn extract_field_paths_with_bareness(
 /// Extract `(col_name, is_bare)` pairs from a `Predicate` tree.
 ///
 /// Mirrors `extract_predicate_columns` / `collect_predicate_columns` but emits
-/// `(col_name, is_bare)` pairs for BC-2.11.016 v1.21 PER-REFERENCE SCOPING.
+/// `(col_name, is_bare)` pairs for BC-2.11.016 PER-REFERENCE SCOPING.
 /// Used by `check_query_column_availability` for WHERE (position 2) and HAVING
 /// (position 6) clauses so the gate loop can apply HEAD-JOIN suspension per-reference.
 ///
-/// BC-2.11.016 v1.21 §Preconditions.2 HEAD-JOIN PER-REFERENCE SCOPING
+/// BC-2.11.016 §Preconditions.2 HEAD-JOIN PER-REFERENCE SCOPING
 /// (ADV-FIX-P16-MED-001).
 fn extract_predicate_columns_with_bareness(
     pred: &crate::ast::Predicate,
@@ -2600,7 +2600,7 @@ pub(crate) fn check_query_column_availability(
                     true, // compute_did_you_mean: error propagates to caller (ADV-PR-P3-OBS-001)
                 )?;
             }
-            // E-QUERY-002 type-compat gate — AFTER column-existence gate (BC-2.11.016 v1.6
+            // E-QUERY-002 type-compat gate — AFTER column-existence gate (BC-2.11.016
             // MED-001 ordering lock; BC-2.11.017 AC-003).
             // Mirrors the SQL WHERE path. Walks Predicate::Compare nodes and returns
             // QueryTypeMismatch when the operator is not valid for the column's ColumnType.
@@ -2705,7 +2705,7 @@ pub(crate) fn check_query_column_availability(
     // extraction point for ALL 5 positions (SELECT, WHERE, GROUP BY, ORDER BY,
     // JOIN ON) true for Position 1 as well.
     //
-    // BC-2.11.016 v1.21 PER-REFERENCE SCOPING: use `extract_field_paths_with_bareness`
+    // BC-2.11.016 PER-REFERENCE SCOPING: use `extract_field_paths_with_bareness`
     // so each extracted reference carries its `is_bare` flag for the HEAD-JOIN gate.
     let mut select_cols: Vec<(String, bool)> = Vec::new();
     for item in &sql_query.select.items {
@@ -2805,7 +2805,7 @@ pub(crate) fn check_query_column_availability(
 
     // ── Gate: check all positions in order ────────────────────────────────────
     //
-    // BC-2.11.016 v1.21 HEAD-JOIN PER-REFERENCE SCOPING (ADV-FIX-P16-MED-001):
+    // BC-2.11.016 HEAD-JOIN PER-REFERENCE SCOPING (ADV-FIX-P16-MED-001):
     // When the head SQL query's JOIN list is non-empty AND the *specific reference*
     // being checked was a BARE UNQUALIFIED ref (single-segment FieldPath; `is_bare = true`)
     // AND it is absent from the FROM schema, the E-QUERY-038 gate MUST NOT fire
@@ -2813,7 +2813,7 @@ pub(crate) fn check_query_column_availability(
     // ALL join sources at execution time; a bare ref absent from the FROM schema may
     // validly exist in a JOIN-partner table.
     //
-    // Per-reference scoping (BC-2.11.016 v1.21 — fixes v1.20 FN-001 defect): qualified
+    // Per-reference scoping (BC-2.11.016 — fixes v1.20 FN-001 defect): qualified
     // references (`alias.col`, `table.col`) carry `is_bare = false` and ALWAYS retain
     // full E-QUERY-038 checking, regardless of whether a co-resident bare ref with the
     // same extracted column name exists at another position. The v1.20 `bare_head_cols`
@@ -2905,7 +2905,7 @@ pub(crate) fn check_query_column_availability(
     // the SQL head: `| where` (pos 9), `| sort` (pos 10), `| stats by` (pos 11),
     // `| fields` (pos 12), `| enrich` (pos 13), `| dedup` (pos 14).
     //
-    // BC-2.11.016 v1.14 SQLPIPE HEAD-PROJECTION BINDING RULE: seed the stage-walk
+    // BC-2.11.016 SQLPIPE HEAD-PROJECTION BINDING RULE: seed the stage-walk
     // initial `available` from the head projection output. Three branches:
     //   (a) Pure SELECT * / SELECT t.* → None (fall back to raw schema, same as Ast::Pipe)
     //   (b) Fully-explicit SELECT (no Star/TableStar) → Some(explicit-item union)
@@ -2931,13 +2931,13 @@ pub(crate) fn check_query_column_availability(
         check_pipe_stage_columns(
             &spq.stages,
             &table_name,
-            from_alias, // BC-2.11.016 v1.15 FROM-ALIAS RESOLUTION: thread declared alias to stage walk
+            from_alias, // BC-2.11.016 FROM-ALIAS RESOLUTION: thread declared alias to stage walk
             client_id,
             org_scope,
             resolved_spec_map,
             table_registry,
             infusion_registry,
-            head_binding, // BC-2.11.016 v1.14: head-projection seeding for SqlPipe stage walk
+            head_binding, // BC-2.11.016: head-projection seeding for SqlPipe stage walk
         )?;
     }
 
@@ -3069,7 +3069,7 @@ fn check_column_against_available_set(
 
 /// Compute the initial binding context for the SqlPipe stage walk from the HEAD SQL projection.
 ///
-/// BC-2.11.016 v1.14 SQLPIPE HEAD-PROJECTION BINDING RULE — three branches:
+/// BC-2.11.016 SQLPIPE HEAD-PROJECTION BINDING RULE — three branches:
 ///
 /// **(a) Pure-star:** all SELECT items are `Star`/`TableStar` (e.g., `SELECT *`,
 ///   `SELECT t.*`) → returns `None`. Caller falls back to `get_initial_available_columns`
@@ -3090,7 +3090,7 @@ fn check_column_against_available_set(
 /// explicit `AS <alias>` (anonymous aggregate/computed column; output name unpredictable at
 /// plan time; FP-001 fail-open; mirrors the Stats anonymous-aggregate rule).
 ///
-/// **LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016 v1.17):** In branches (b) and (c), an
+/// **LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016):** In branches (b) and (c), an
 /// un-aliased bare-`Field` SELECT item whose qualifier matches NEITHER the FROM table name
 /// NOR the declared FROM alias (e.g., `j.col` where `j` is a JOIN alias) has its last
 /// path segment (`col`) seeded as the output column name with **DERIVED** provenance.
@@ -3123,7 +3123,7 @@ fn compute_sqlpipe_head_binding(
 
     // Branch (a): pure SELECT * / SELECT t.* — fall back to raw schema.
     if has_star && !has_explicit {
-        // BC-2.11.016 v1.18 STAR-WITH-JOIN SUSPENSION RULE: when the head's JOIN list is
+        // BC-2.11.016 STAR-WITH-JOIN SUSPENSION RULE: when the head's JOIN list is
         // non-empty and at least one Star/TableStar item is present (branches (a) and (c)),
         // the initial binding context for the pipe-stage walk MUST be suspended := true.
         // Star expansion spans ALL join-source schemas at execution; the FROM table's raw
@@ -3148,7 +3148,7 @@ fn compute_sqlpipe_head_binding(
             }
         };
         let mut available: Vec<String> = base;
-        // SIBLING-GATE CONSISTENCY (BC-2.11.016 v1.15): track which names are DERIVED
+        // SIBLING-GATE CONSISTENCY (BC-2.11.016): track which names are DERIVED
         // (explicit AS aliases). Schema-columns (star component), bare fields, and GROUP BY
         // keys are RAW. Only explicit aliases are DERIVED.
         let mut derived: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -3173,7 +3173,7 @@ fn compute_sqlpipe_head_binding(
                 // explicitly so sorting/dedup logic is consistent.)
                 // Qualifier matches FROM source (table name or declared alias) → RAW provenance.
                 // Qualifier unknown (e.g., JOIN alias `j` in `SELECT j.col`) →
-                // LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016 v1.17): SQL output-naming
+                // LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016): SQL output-naming
                 // semantics produce output column = last path segment; seed with DERIVED
                 // provenance (type not statically known from the FROM table schema; FP-001).
                 SelectItem::Expr {
@@ -3186,7 +3186,7 @@ fn compute_sqlpipe_head_binding(
                         available.push(col);
                         // RAW: qualifier matches FROM source; name IS the schema column name.
                     } else if fp.segments.len() > 1 {
-                        // LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016 v1.17): unknown qualifier
+                        // LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016): unknown qualifier
                         // (e.g., JOIN alias) → seed last segment as DERIVED.
                         if let Some(last) = fp.segments.last() {
                             available.push(last.clone());
@@ -3222,7 +3222,7 @@ fn compute_sqlpipe_head_binding(
             }
         }
 
-        // BC-2.11.016 v1.18 STAR-WITH-JOIN SUSPENSION RULE (branch (c) application):
+        // BC-2.11.016 STAR-WITH-JOIN SUSPENSION RULE (branch (c) application):
         // when the head's JOIN list is non-empty, force suspended := true regardless of
         // whether an anonymous aggregate already triggered suspension above. The Star/TableStar
         // component brings all join-source columns into scope at execution; the partial schema
@@ -3241,7 +3241,7 @@ fn compute_sqlpipe_head_binding(
 
     // Branch (b): fully-explicit SELECT (no Star/TableStar items).
     let mut available: Vec<String> = Vec::new();
-    // SIBLING-GATE CONSISTENCY (BC-2.11.016 v1.15): explicit AS aliases are DERIVED.
+    // SIBLING-GATE CONSISTENCY (BC-2.11.016): explicit AS aliases are DERIVED.
     // Un-aliased bare fields and GROUP BY keys are RAW.
     let mut derived: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut suspended = false;
@@ -3264,7 +3264,7 @@ fn compute_sqlpipe_head_binding(
             // Qualifier matches FROM source (table name or declared alias) → RAW provenance;
             // its name and type match the original schema column.
             // Qualifier unknown (e.g., JOIN alias `j` in `SELECT j.col`) →
-            // LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016 v1.17): SQL output-naming
+            // LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016): SQL output-naming
             // semantics produce output column = last path segment; seed with DERIVED
             // provenance (type not statically known from the FROM table schema; FP-001).
             SelectItem::Expr {
@@ -3275,7 +3275,7 @@ fn compute_sqlpipe_head_binding(
                     available.push(col);
                     // RAW: qualifier matches FROM source; name IS the schema column name.
                 } else if fp.segments.len() > 1 {
-                    // LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016 v1.17): unknown qualifier
+                    // LAST-SEGMENT OUTPUT-NAME RULE (BC-2.11.016): unknown qualifier
                     // (e.g., JOIN alias) → seed last segment as DERIVED.
                     if let Some(last) = fp.segments.last() {
                         available.push(last.clone());
@@ -3345,7 +3345,7 @@ fn compute_sqlpipe_head_binding(
 ///
 /// - **Initial state:** for `Ast::Pipe` (pass `initial_binding_override = None`):
 ///   `available = schema_columns(table)` from spec_map or registry; if no schema source,
-///   fail-open immediately. For `Ast::SqlPipe` (BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION
+///   fail-open immediately. For `Ast::SqlPipe` (BC-2.11.016 SQLPIPE HEAD-PROJECTION
 ///   BINDING RULE, pass `initial_binding_override = Some((cols, suspended))`): uses the
 ///   head projection output — not the raw schema — as the starting binding context.
 /// - **Enrich stage:** position-13 input column is checked against `available` BEFORE
@@ -3357,11 +3357,11 @@ fn compute_sqlpipe_head_binding(
 ///   After those checks: `available` is REPLACED with `{explicit_aliases} ∪ {by_field_names}`.
 ///   Anonymous aggregates (no `AS alias`) produce unpredictable DataFusion names → `suspended := true`.
 /// - **All other stages** (Where, Sort, Dedup): `available` and `suspended` are unchanged.
-/// - **Fields stage:** FIELDS TRANSITION RULE (BC-2.11.016 v1.15 OBS-002):
+/// - **Fields stage:** FIELDS TRANSITION RULE (BC-2.11.016 OBS-002):
 ///   include-list → `available := {listed}` (REPLACE; provenance preserved for surviving names);
 ///   exclude-list → `available := available ∖ {listed}` (SUBTRACT; provenance preserved).
 ///   Suspension state carries forward unchanged.
-/// - **SIBLING-GATE CONSISTENCY (BC-2.11.016 v1.15 MED-001):** names in `available` carry
+/// - **SIBLING-GATE CONSISTENCY (BC-2.11.016 MED-001):** names in `available` carry
 ///   per-name provenance (RAW vs DERIVED). E-QUERY-002 type-compat gate MUST skip DERIVED names
 ///   (fail-open per FP-001). RAW names retain full type-compat checking.
 /// - **Suspension propagation:** once `suspended = true`, all subsequent stages skip E-QUERY-038.
@@ -3373,7 +3373,7 @@ fn compute_sqlpipe_head_binding(
 fn check_pipe_stage_columns(
     stages: &[crate::ast::PipeStage],
     table_name: &str,
-    // BC-2.11.016 v1.15 FROM-ALIAS RESOLUTION (OBS-001): declared FROM-alias for SqlPipe
+    // BC-2.11.016 FROM-ALIAS RESOLUTION (OBS-001): declared FROM-alias for SqlPipe
     // pipe-stage positions 9–14. When Some("t"), qualifier "t" in field paths like `t.col`
     // is stripped to bare "col" before checking against the binding context. Pass None for
     // Ast::Pipe (no FROM-alias) and for SqlPipe with no declared alias.
@@ -3388,7 +3388,7 @@ fn check_pipe_stage_columns(
     >,
     table_registry: Option<&crate::table_registry::TableRegistry>,
     infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
-    // BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION BINDING RULE: when Some((cols, derived, suspended)),
+    // BC-2.11.016 SQLPIPE HEAD-PROJECTION BINDING RULE: when Some((cols, derived, suspended)),
     // use these as the initial binding context instead of get_initial_available_columns().
     // `derived` is the SIBLING-GATE CONSISTENCY set of DERIVED name provenance (v1.15 MED-001).
     // Callers pass Some(...) for Ast::SqlPipe (head-projection seeding), None for Ast::Pipe
@@ -3400,11 +3400,11 @@ fn check_pipe_stage_columns(
     // BC-2.11.016 DERIVED-COLUMN BINDING RULE: build initial available set.
     //
     // For Ast::SqlPipe with an explicit SELECT head, initial_binding_override carries the
-    // head projection output (BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION BINDING RULE).
+    // head projection output (BC-2.11.016 SQLPIPE HEAD-PROJECTION BINDING RULE).
     // For Ast::Pipe (or SqlPipe with SELECT *), fall back to raw schema via
     // get_initial_available_columns(). If no schema source is available, fail-open immediately.
     //
-    // BC-2.11.016 v1.15 SIBLING-GATE CONSISTENCY (MED-001): `derived_names` tracks which
+    // BC-2.11.016 SIBLING-GATE CONSISTENCY (MED-001): `derived_names` tracks which
     // names in `current_available` are DERIVED (SqlPipe head alias, stats alias, enrich output)
     // vs RAW (original schema column). E-QUERY-002 gate MUST skip DERIVED names (FP-001).
     let (mut current_available, mut derived_names, mut suspended) = match initial_binding_override {
@@ -3436,12 +3436,12 @@ fn check_pipe_stage_columns(
             // Checked against the CURRENT binding context (not raw schema), so post-stats
             // references to aggregate aliases are found correctly (CRIT-002).
             //
-            // BC-2.11.016 v1.15 FROM-ALIAS RESOLUTION (OBS-001): pass `table_alias` so
+            // BC-2.11.016 FROM-ALIAS RESOLUTION (OBS-001): pass `table_alias` so
             // alias-qualified refs like `t.col` (where `t` is the declared FROM-alias) are
             // stripped to bare `col` before the existence check. Without this threading,
             // all alias-qualified refs silently bypass the gate.
             //
-            // BC-2.11.016 v1.15 SIBLING-GATE CONSISTENCY (MED-001): skip E-QUERY-002 for
+            // BC-2.11.016 SIBLING-GATE CONSISTENCY (MED-001): skip E-QUERY-002 for
             // DERIVED names (stats alias, enrich output, SqlPipe head alias). DERIVED names
             // have an unknown type at plan time; applying raw-schema operator restrictions
             // would produce false E-QUERY-002 errors (FP-001 violation).
@@ -3457,10 +3457,10 @@ fn check_pipe_stage_columns(
                 }
                 // E-QUERY-002 type-compat: after existence gate, check operator compat.
                 // Uses collect_predicate_type_pairs which emits "IEQ"/"INE" for
-                // case_insensitive=true predicates (BC-2.11.016 v1.6 MED-001).
+                // case_insensitive=true predicates (BC-2.11.016 MED-001).
                 let type_pairs = collect_predicate_type_pairs(pred, table_name, table_alias);
                 for (col_name, op_str) in &type_pairs {
-                    // SIBLING-GATE CONSISTENCY (BC-2.11.016 v1.15 MED-001): skip E-QUERY-002
+                    // SIBLING-GATE CONSISTENCY (BC-2.11.016 MED-001): skip E-QUERY-002
                     // for DERIVED names — their type is not statically known at plan time;
                     // applying raw-schema type restrictions would produce false positives (FP-001).
                     if derived_names.contains(col_name) {
@@ -3498,7 +3498,7 @@ fn check_pipe_stage_columns(
             // is REPLACED with {explicit_aliases ∪ by_field_names} per BC-2.11.016
             // DERIVED-COLUMN BINDING RULE. Anonymous aggregates (no alias) → suspended.
             //
-            // BC-2.11.016 v1.15 SIBLING-GATE CONSISTENCY (MED-001): after the REPLACE,
+            // BC-2.11.016 SIBLING-GATE CONSISTENCY (MED-001): after the REPLACE,
             // update `derived_names` — explicit aliases are DERIVED; by-fields preserve
             // their prior provenance (DERIVED if they were DERIVED before, RAW otherwise).
             PipeStage::Stats(stats) => {
@@ -3517,7 +3517,7 @@ fn check_pipe_stage_columns(
                 }
                 // Position 11 (agg-arg): check aggregate function argument field paths
                 // against current available BEFORE replacing the binding context
-                // (BC-2.11.016 v1.12 DERIVED-COLUMN BINDING RULE, EC-11-058).
+                // (BC-2.11.016 DERIVED-COLUMN BINDING RULE, EC-11-058).
                 // FP-001 fail-open: future #[non_exhaustive] variants matched by `_`
                 // carry no extractable field path — the check is skipped for them.
                 for agg in &stats.aggregates {
@@ -3591,10 +3591,10 @@ fn check_pipe_stage_columns(
                 }
             }
             // Position 12: `| fields` column refs — E-QUERY-038 existence only.
-            // Grammar keyword is `fields` (PipeStage::Fields); BC-2.11.016 v1.7+ corrected
+            // Grammar keyword is `fields` (PipeStage::Fields); BC-2.11.016+ corrected
             // the earlier v1.6 EC-11-052 `| project` wording to `| fields`.
             //
-            // BC-2.11.016 v1.15 FIELDS TRANSITION RULE (OBS-002):
+            // BC-2.11.016 FIELDS TRANSITION RULE (OBS-002):
             // Include (`fstage.include = true`): validate listed cols, then
             //   `available := {listed}` (REPLACE — analogous to Stats stage REPLACE);
             //   provenance of surviving names preserved from prior binding.
@@ -3644,13 +3644,13 @@ fn check_pipe_stage_columns(
             // The input column is checked against `available` BEFORE this stage updates the
             // binding context (BC-2.11.016 position 13).
             //
-            // BC-2.11.016 v1.9 union path: when InfusionRegistry is wired (registry = Some),
+            // BC-2.11.016 union path: when InfusionRegistry is wired (registry = Some),
             // resolve the infusion output schema and UNION output_columns into current_available
             // so downstream stages can check references to enrich output columns (EC-11-054
             // green-lock + EC-11-056 new test). When registry is absent, fall back to suspend
             // (existing fail-open behavior — keeps EC-11-054/EC-11-055 no-registry tests GREEN).
             //
-            // BC-2.11.016 v1.15 SIBLING-GATE CONSISTENCY (MED-001): enrich output columns
+            // BC-2.11.016 SIBLING-GATE CONSISTENCY (MED-001): enrich output columns
             // are DERIVED — their types come from the infusion schema, not the raw TableRegistry.
             // Add them to `derived_names` so E-QUERY-002 skips them (FP-001).
             PipeStage::Enrich(es) => {
@@ -3714,7 +3714,7 @@ fn check_pipe_stage_columns(
                     }
                 }
             }
-            // BC-2.11.016 v1.19 STAGE-JOIN SUSPENSION RULE: when the stage walk
+            // BC-2.11.016 STAGE-JOIN SUSPENSION RULE: when the stage walk
             // encounters a PipeStage::Join stage, set suspended := true for the
             // remainder of the walk. Join-source schemas are not statically seeded
             // into the binding context (only the FROM table's schema is populated in
@@ -3940,7 +3940,7 @@ fn collect_predicate_type_pairs_inner(
         // arg is the job of the E-QUERY-038 column-gate (collect_predicate_columns),
         // not this function.
         //
-        // BC-2.11.016 v1.6 MED-001 / BC-2.11.024 / S-PRISMQL-CASE-INSENSITIVE-001:
+        // BC-2.11.016 MED-001 / BC-2.11.024 / S-PRISMQL-CASE-INSENSITIVE-001:
         // When `case_insensitive = true`, the effective operator is "IEQ" (for Eq) or
         // "INE" (for Ne) — NOT plain "=" / "!=". This distinction is load-bearing:
         // "IEQ"/"INE" are NOT in valid_operators_for_type(Integer/Float/Boolean/Datetime),
@@ -4053,7 +4053,7 @@ fn check_operator_type_compatibility(
     >,
     table_registry: Option<&crate::table_registry::TableRegistry>,
 ) -> Result<(), PrismError> {
-    // HIGH-001 (BC-2.11.016 v1.8): when resolved_spec_map is None (single-tenant mode),
+    // HIGH-001 (BC-2.11.016): when resolved_spec_map is None (single-tenant mode),
     // fall back to table_registry.column_type_for() — mirrors the M1 pattern used by
     // check_column_availability (S-DEMO-FIDELITY-REMEDIATION-001).
     if resolved_spec_map.is_none() {
@@ -7555,13 +7555,13 @@ mod m1_single_tenant_column_gate_tests {
         }
     }
 
-    /// EC-11-041 (BC-2.11.016 v1.16) — SQL-mode zero-column gate fires E-QUERY-038.
+    /// EC-11-041 (BC-2.11.016) — SQL-mode zero-column gate fires E-QUERY-038.
     ///
     /// Previously (M1 backward-compat behavior): registered table with zero columns
     /// caused the single-tenant gate to fail-open, letting the query reach DataFusion
     /// and producing an opaque E-QUERY-034 error.
     ///
-    /// BC-2.11.016 v1.16 EC-11-041 supersedes that fail-open behavior:
+    /// BC-2.11.016 EC-11-041 supersedes that fail-open behavior:
     /// "Table has zero registered columns → E-QUERY-038 with available_columns: [],
     /// did_you_mean absent." (ADV-FIX-P9-OBS-001)
     ///
@@ -7628,11 +7628,11 @@ mod m1_single_tenant_column_gate_tests {
             Ok(_) => panic!(
                 "EC-11-041 SQL-mode: engine.execute must NOT succeed. E-QUERY-038 must fire \
                  with available_columns=[] for a registered zero-column table (ADV-FIX-P9-OBS-001). \
-                 Fail-open is FORBIDDEN per BC-2.11.016 v1.16 EC-11-041."
+                 Fail-open is FORBIDDEN per BC-2.11.016 EC-11-041."
             ),
             Err(other) => panic!(
                 "EC-11-041 SQL-mode: expected PrismError::ColumnNotFound (E-QUERY-038) with \
-                 available_columns=[], got: {other:?}. BC-2.11.016 v1.16 EC-11-041 requires \
+                 available_columns=[], got: {other:?}. BC-2.11.016 EC-11-041 requires \
                  E-QUERY-038 for registered zero-column tables, not a DataFusion error."
             ),
         }
@@ -9293,7 +9293,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 5 (RED GATE): SqlPipe | where stage with nonexistent column ─────────
 
-    /// BC-2.11.016 v1.6 position 9 — SqlPipe `| where` stage predicates.
+    /// BC-2.11.016 position 9 — SqlPipe `| where` stage predicates.
     ///
     /// EC-11-049: `SELECT * FROM crowdstrike_alerts | where severity_id IEQ 'high'`
     /// where `severity_id` is NOT registered → E-QUERY-038 with
@@ -9310,7 +9310,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     /// clause, so position-1 gate does not fire. The only gate trigger is position-9
     /// (stage | where).
     ///
-    /// HIGH-002 finding from BC-2.11.016 v1.6 changelog.
+    /// HIGH-002 finding from BC-2.11.016 changelog.
     #[tokio::test]
     async fn test_DRIFT_IEQ_sqlpipe_stage_nonexistent_col_yields_e_query_038() {
         let (engine, org) = make_crowdstrike_engine();
@@ -9362,7 +9362,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 6 (RED GATE): Pipe | sort with typo column ──────────────────────────
 
-    /// BC-2.11.016 v1.6 position 10 — pipe `| sort` field key references.
+    /// BC-2.11.016 position 10 — pipe `| sort` field key references.
     ///
     /// EC-11-050: `crowdstrike_alerts | sort sevrity desc` where `sevrity` is a typo
     /// of `severity` (Levenshtein distance 1 — one insertion of 'e') and is NOT a
@@ -9427,7 +9427,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 7 (RED GATE): Pipe | stats by with typo column ──────────────────────
 
-    /// BC-2.11.016 v1.6 position 11 — pipe `| stats ... by` grouping field references.
+    /// BC-2.11.016 position 11 — pipe `| stats ... by` grouping field references.
     ///
     /// EC-11-051: `crowdstrike_alerts | stats count() by sevrity` where `sevrity` is NOT
     /// a registered column → E-QUERY-038 with `column: "sevrity"`,
@@ -9493,9 +9493,9 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 8 (RED GATE): Pipe | fields with typo column ────────────────────────
 
-    /// BC-2.11.016 v1.7+ position 12 — pipe `| fields` column refs.
+    /// BC-2.11.016+ position 12 — pipe `| fields` column refs.
     ///
-    /// BC-2.11.016 v1.7 corrected the grammar keyword for position 12 from `| project`
+    /// BC-2.11.016 corrected the grammar keyword for position 12 from `| project`
     /// (v1.6 wording) to `| fields` (the real PrismQL grammar keyword in pipe_parser.rs:
     /// `kw_ci("fields")` → `PipeStage::Fields`). This test uses `| fields`.
     ///
@@ -9939,12 +9939,12 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Tests 11-13 (RED GATE): CRIT-002 — stats alias downstream (EC-11-053) ─
 
-    /// BC-2.11.016 v1.8 EC-11-053 / CRIT-002 regression lock — sort after stats with alias.
+    /// BC-2.11.016 EC-11-053 / CRIT-002 regression lock — sort after stats with alias.
     ///
     /// `crowdstrike_alerts | stats count() as cnt by severity | sort cnt`
     /// — `cnt` is the explicit alias from the stats aggregate output. After the Stats
     /// stage, the binding context replaces `available` with `{cnt, severity}` per the
-    /// DERIVED-COLUMN BINDING RULE (BC-2.11.016 v1.8 §Preconditions.2). The downstream
+    /// DERIVED-COLUMN BINDING RULE (BC-2.11.016 §Preconditions.2). The downstream
     /// `| sort cnt` must NOT fire E-QUERY-038 because `cnt` is in the new available set.
     ///
     /// Grammar note: the BC's EC-11-053 writes `\| sort by cnt` but the PrismQL sort
@@ -9991,7 +9991,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
-    /// BC-2.11.016 v1.8 EC-11-053 / CRIT-002 regression lock — where after stats with alias.
+    /// BC-2.11.016 EC-11-053 / CRIT-002 regression lock — where after stats with alias.
     ///
     /// `crowdstrike_alerts | stats count() as cnt by severity | where cnt > 5`
     /// — after Stats, `cnt` is in the replacement binding set `{cnt, severity}`.
@@ -10030,7 +10030,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
-    /// BC-2.11.016 v1.8 EC-11-053 / CRIT-002 regression lock — fields after stats with alias.
+    /// BC-2.11.016 EC-11-053 / CRIT-002 regression lock — fields after stats with alias.
     ///
     /// `crowdstrike_alerts | stats count() as cnt by severity | fields cnt, severity`
     /// — after Stats, `{cnt, severity}` is the replacement binding set. The downstream
@@ -10070,7 +10070,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 14 (RED GATE): Stats REPLACE semantics — original column removed ──
 
-    /// BC-2.11.016 v1.8 — Stats REPLACE semantics precision win.
+    /// BC-2.11.016 — Stats REPLACE semantics precision win.
     ///
     /// After a `| stats count() as cnt by severity` stage, the binding context `available`
     /// is REPLACED with `{cnt, severity}` (explicit aliases ∪ by-field names). The original
@@ -10136,7 +10136,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Tests 15-16 (RED GATE): CRIT-001 — enrich output (EC-11-054/055) ────────
 
-    /// BC-2.11.016 v1.8 EC-11-054 / CRIT-001 regression lock — enrich output downstream.
+    /// BC-2.11.016 EC-11-054 / CRIT-001 regression lock — enrich output downstream.
     ///
     /// `armis_devices | enrich cvss_base_score(device_cves_first) | where cvss_base_score >= 7.0`
     /// — after the Enrich stage, `cvss_base_score` is either added to `available` (if the
@@ -10147,7 +10147,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     /// This fixture uses NO InfusionRegistry (`infusion_registry = None`) so E-QUERY-039 is
     /// skipped and the infusion output is unresolvable at plan time. The fix must activate
     /// `suspended = true` after the Enrich stage in this configuration, preventing downstream
-    /// column checks. This exercises BC-2.11.016 v1.8 §DERIVED-COLUMN BINDING RULE ¶Enrich
+    /// column checks. This exercises BC-2.11.016 §DERIVED-COLUMN BINDING RULE ¶Enrich
     /// unresolvable path (equivalent to the fail-open semantics of FP-001).
     ///
     /// RED GATE: current code falls through to `_ => {}` for `PipeStage::Enrich` in
@@ -10191,7 +10191,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
-    /// BC-2.11.016 v1.8 EC-11-055 / CRIT-001 regression lock — post-enrich typo, fail-open.
+    /// BC-2.11.016 EC-11-055 / CRIT-001 regression lock — post-enrich typo, fail-open.
     ///
     /// `armis_devices | enrich cvss_base_score(device_cves_first) | where cvvs_base_score >= 7.0`
     /// — `cvvs_base_score` is a TYPO of `cvss_base_score` (Levenshtein distance 2: swap 'vs'/'cv').
@@ -10240,7 +10240,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 17 (RED GATE): Position 13 — enrich input column typo (EC-11-056) ─
 
-    /// BC-2.11.016 v1.8 position 13 / EC-11-056 — enrich INPUT column typo → E-QUERY-038.
+    /// BC-2.11.016 position 13 / EC-11-056 — enrich INPUT column typo → E-QUERY-038.
     ///
     /// `armis_devices | enrich cvss_base_score(device_cves_firsst) | head 5`
     /// — `device_cves_firsst` is a typo of `device_cves_first` (Levenshtein distance 1:
@@ -10310,7 +10310,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 18 (RED GATE): Position 14 — dedup field typo → E-QUERY-038 ────────
 
-    /// BC-2.11.016 v1.8 position 14 / EC-11-057 (adapted for crowdstrike) — dedup typo.
+    /// BC-2.11.016 position 14 / EC-11-057 (adapted for crowdstrike) — dedup typo.
     ///
     /// `crowdstrike_alerts | dedup sevrity | head 5`
     /// — `sevrity` is a typo of `severity` (Levenshtein distance 1: missing 'e' between
@@ -10375,7 +10375,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 19 (RED GATE): HIGH-001 — single-tenant E-QUERY-002 ─────────────────
 
-    /// BC-2.11.016 v1.8 HIGH-001 — single-tenant path must fire E-QUERY-002.
+    /// BC-2.11.016 HIGH-001 — single-tenant path must fire E-QUERY-002.
     ///
     /// In single-tenant mode (`resolved_spec_map = None`), the E-QUERY-038 column-existence
     /// gate fires via the `table_registry.columns_for_table()` fallback (M1 fix). However,
@@ -10454,7 +10454,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 20 (RED GATE): Anonymous aggregate suspension ───────────────────────
 
-    /// BC-2.11.016 v1.8 — anonymous aggregate suspension → no E-QUERY-038 downstream.
+    /// BC-2.11.016 — anonymous aggregate suspension → no E-QUERY-038 downstream.
     ///
     /// `crowdstrike_alerts | stats count() by severity | sort count`
     /// — `count()` has NO explicit `AS alias`. The Stats stage replacement set is
@@ -10507,7 +10507,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
-    // ── Tests 21-23 (v1.9): Enrich output UNION path — BC-2.11.016 v1.9 ─────────────────
+    // ── Tests 21-23 (v1.9): Enrich output UNION path — BC-2.11.016 ─────────────────
 
     // ── Fixture: armis_devices engine WITH InfusionRegistry (tests 21-22) ──────────────────
 
@@ -10562,7 +10562,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 21 (GREEN-lock): correct output ref must NOT fire E-QUERY-038 ───────────────
 
-    /// BC-2.11.016 v1.9 GREEN-LOCK — resolvable enrich output: correct downstream ref is OK.
+    /// BC-2.11.016 GREEN-LOCK — resolvable enrich output: correct downstream ref is OK.
     ///
     /// `armis_devices | enrich threat_score(device_cves_first) | where threat_score > 5 | sort threat_score`
     ///
@@ -10602,7 +10602,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "threat_score" => {
                 panic!(
-                    "BC-2.11.016 v1.9 GREEN-LOCK: FALSE-POSITIVE E-QUERY-038 fired on declared \
+                    "BC-2.11.016 GREEN-LOCK: FALSE-POSITIVE E-QUERY-038 fired on declared \
                      enrich output column 'threat_score'. Whether via union (after fix) or \
                      suspension (before fix), a correct output column reference MUST NOT fire \
                      E-QUERY-038. FP-001 invariant violated. column='{}', table='{}'",
@@ -10616,7 +10616,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 22 (RED GATE): post-enrich typo must yield E-QUERY-038 after union ──────────
 
-    /// BC-2.11.016 v1.9 RED GATE — resolvable enrich output: post-enrich typo must fire E-QUERY-038.
+    /// BC-2.11.016 RED GATE — resolvable enrich output: post-enrich typo must fire E-QUERY-038.
     ///
     /// `armis_devices | enrich threat_score(device_cves_first) | where threat_scor > 5`
     /// — "threat_scor" is a typo of declared output "threat_score" (Levenshtein distance 1:
@@ -10671,37 +10671,37 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 // After fix: GREEN — E-QUERY-038 fired on the typo.
                 assert_eq!(
                     details.column, "threat_scor",
-                    "BC-2.11.016 v1.9: column in E-QUERY-038 must be 'threat_scor' (enrich \
+                    "BC-2.11.016: column in E-QUERY-038 must be 'threat_scor' (enrich \
                      output typo); got: '{}'",
                     details.column
                 );
                 assert_eq!(
                     details.table, "armis_devices",
-                    "BC-2.11.016 v1.9: table must be 'armis_devices'"
+                    "BC-2.11.016: table must be 'armis_devices'"
                 );
                 assert_eq!(
                     details.did_you_mean.as_deref(),
                     Some("threat_score"),
-                    "BC-2.11.016 v1.9: did_you_mean must be 'threat_score' \
+                    "BC-2.11.016: did_you_mean must be 'threat_score' \
                      (Levenshtein distance 1 from 'threat_scor'; available after union = \
                      {{device_cves_first, device_id, threat_score}}); got: {:?}",
                     details.did_you_mean
                 );
             }
             Ok(_) => panic!(
-                "BC-2.11.016 v1.9 RED-GATE: engine.execute returned Ok — E-QUERY-038 must fire \
+                "BC-2.11.016 RED-GATE: engine.execute returned Ok — E-QUERY-038 must fire \
                  for post-enrich typo 'threat_scor'. Current always-suspend swallows post-enrich \
                  column checks when InfusionRegistry is wired; after v1.9 registry plumbing, \
                  the union path must populate available={{device_cves_first,device_id,threat_score}} \
                  and reject this typo."
             ),
             Err(PrismError::ColumnNotFound(ref d)) => panic!(
-                "BC-2.11.016 v1.9: E-QUERY-038 fired but for wrong column '{}'; \
+                "BC-2.11.016: E-QUERY-038 fired but for wrong column '{}'; \
                  expected 'threat_scor'. Full details: {:?}",
                 d.column, d
             ),
             Err(other) => panic!(
-                "BC-2.11.016 v1.9 RED-GATE: expected E-QUERY-038 (ColumnNotFound) for \
+                "BC-2.11.016 RED-GATE: expected E-QUERY-038 (ColumnNotFound) for \
                  post-enrich typo 'threat_scor', got different error: {other:?}. \
                  Current always-suspend skips post-enrich column checks when registry is wired; \
                  after fix, the union path must catch the typo."
@@ -10711,7 +10711,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 23 (GREEN, regression lock): no-registry suspension preserved ──────────────
 
-    /// BC-2.11.016 v1.9 regression lock — no-InfusionRegistry path: suspension preserved.
+    /// BC-2.11.016 regression lock — no-InfusionRegistry path: suspension preserved.
     ///
     /// When NO InfusionRegistry is wired (registry = None), the post-enrich suspension
     /// (fail-open, FP-001) must still activate correctly after the v1.9 plumbing change.
@@ -10765,7 +10765,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "off_schema_col" => {
                 panic!(
-                    "BC-2.11.016 v1.9 regression: E-QUERY-038 fired on 'off_schema_col' after \
+                    "BC-2.11.016 regression: E-QUERY-038 fired on 'off_schema_col' after \
                      enrich with no registry — suspension path broken by v1.9 plumbing. \
                      FP-001 invariant: when registry=None, all post-enrich column checks must \
                      be skipped (fail-open). column='{}', table='{}'",
@@ -10845,7 +10845,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 25 (RED GATE): Stats aggregate argument typo → E-QUERY-038 ──────────
 
-    /// BC-2.11.016 v1.12 position 11 — stats aggregate function argument field path.
+    /// BC-2.11.016 position 11 — stats aggregate function argument field path.
     ///
     /// EC-11-058: `crowdstrike_alerts | stats sum(host_nme) by severity` where
     /// `host_name` is a registered column (Integer) but `host_nme` is NOT.
@@ -10856,7 +10856,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     ///   table  = "crowdstrike_alerts",
     ///   did_you_mean = Some("host_name").
     ///
-    /// ADV-FIX-P4-OBS-001 adjudicated IN-SCOPE (BC-2.11.016 v1.12).
+    /// ADV-FIX-P4-OBS-001 adjudicated IN-SCOPE (BC-2.11.016).
     ///
     /// RED GATE rationale: the current `PipeStage::Stats` arm (engine.rs ~2877-2918)
     /// checks `by_fields` against the available set but does NOT iterate aggregate
@@ -10873,7 +10873,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_ec11058_stats_agg_arg_typo_yields_e_query_038() {
         let (engine, org) = make_crowdstrike_engine_with_host_name();
 
-        // EC-11-058 canonical vector (BC-2.11.016 v1.12):
+        // EC-11-058 canonical vector (BC-2.11.016):
         // `host_nme` is a typo of the registered column `host_name` (distance 1).
         // `severity` IS in the schema — the by-field check passes.
         // Only the aggregate argument field path (`host_nme`) must trigger E-QUERY-038.
@@ -10928,7 +10928,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     }
 
     // ── Tests 27-31 (RED GATE + GREEN lock): SQLPIPE HEAD-PROJECTION BINDING RULE ──
-    //    BC-2.11.016 v1.13 EC-11-059 / EC-11-059b / EC-11-060 / EC-11-061 (FP-001)
+    //    BC-2.11.016 EC-11-059 / EC-11-059b / EC-11-060 / EC-11-061 (FP-001)
     //
     //    Root cause: `check_pipe_stage_columns` seeds the initial `available` set for
     //    `Ast::SqlPipe` stage walk from raw schema_columns(table, OrgId), IGNORING the
@@ -10944,7 +10944,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     //          anonymous aggregate without alias must set suspended=true for the stage walk per
     //          FP-001 fail-open; instead the gate fires on `xyz` using raw schema today.
     //
-    //    Fix (BC-2.11.016 v1.13 SQLPIPE HEAD-PROJECTION BINDING RULE):
+    //    Fix (BC-2.11.016 SQLPIPE HEAD-PROJECTION BINDING RULE):
     //      For `Ast::SqlPipe`, initial `available` for stage walk is seeded from head projection
     //      output — not raw schema:
     //        (a) `SELECT *` → full raw schema (unchanged; current behavior preserved)
@@ -10954,7 +10954,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     //            mirrors Stats anonymous-aggregate rule; FP-001)
     //      Head SQL clause checking (positions 1–6) still runs against raw schema unchanged.
 
-    /// BC-2.11.016 v1.13 EC-11-059 — SqlPipe sort after aliased aggregate: no false-positive.
+    /// BC-2.11.016 EC-11-059 — SqlPipe sort after aliased aggregate: no false-positive.
     ///
     /// `SELECT count(*) AS cnt FROM crowdstrike_alerts GROUP BY severity | sort cnt`
     ///
@@ -10969,7 +10969,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_ec11059_sqlpipe_head_alias_no_false_positive() {
         let (engine, org) = make_crowdstrike_engine();
 
-        // EC-11-059 canonical vector (BC-2.11.016 v1.13).
+        // EC-11-059 canonical vector (BC-2.11.016).
         // Head: SELECT count(*) AS cnt FROM crowdstrike_alerts GROUP BY severity
         // Stage: | sort cnt
         // After fix: available = {cnt, severity} → cnt found → no E-QUERY-038.
@@ -10988,7 +10988,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "cnt" => panic!(
-                "BC-2.11.016 v1.13 EC-11-059: FALSE-POSITIVE E-QUERY-038 fired on SqlPipe head \
+                "BC-2.11.016 EC-11-059: FALSE-POSITIVE E-QUERY-038 fired on SqlPipe head \
                  alias 'cnt' in downstream | sort stage. SQLPIPE HEAD-PROJECTION BINDING RULE \
                  requires: after explicit SELECT head, available = {{explicit aliases ∪ GROUP BY \
                  fields}} = {{cnt, severity}}; 'cnt' must be found in the binding set. Current \
@@ -11004,7 +11004,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
-    /// BC-2.11.016 v1.13 EC-11-059b — SqlPipe where after plain alias: no false-positive.
+    /// BC-2.11.016 EC-11-059b — SqlPipe where after plain alias: no false-positive.
     ///
     /// `SELECT severity AS sev FROM crowdstrike_alerts | where sev = 'High'`
     ///
@@ -11041,7 +11041,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "sev" => panic!(
-                "BC-2.11.016 v1.13 EC-11-059b: FALSE-POSITIVE E-QUERY-038 fired on SqlPipe head \
+                "BC-2.11.016 EC-11-059b: FALSE-POSITIVE E-QUERY-038 fired on SqlPipe head \
                  plain alias 'sev' in downstream | where stage. SQLPIPE HEAD-PROJECTION BINDING \
                  RULE requires: after `SELECT severity AS sev`, available = {{sev}}; 'sev' must be \
                  found in the binding set. Current code seeds available from raw schema \
@@ -11054,7 +11054,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
-    /// BC-2.11.016 v1.13 EC-11-060 — SqlPipe post-head typo yields E-QUERY-038 (precision win).
+    /// BC-2.11.016 EC-11-060 — SqlPipe post-head typo yields E-QUERY-038 (precision win).
     ///
     /// `SELECT severity AS sev FROM crowdstrike_alerts | where sevv = 'High'`
     ///
@@ -11076,7 +11076,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_ec11060_sqlpipe_post_head_typo_yields_e_query_038() {
         let (engine, org) = make_crowdstrike_engine();
 
-        // EC-11-060 canonical vector (BC-2.11.016 v1.13).
+        // EC-11-060 canonical vector (BC-2.11.016).
         // Head: SELECT severity AS sev FROM crowdstrike_alerts → head output = {sev}
         // Stage: | where sevv = 'High' — `sevv` is a typo of `sev` (Levenshtein distance 1)
         // After fix: available = {sev}; sevv not in {sev} → E-QUERY-038 with
@@ -11100,13 +11100,13 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             Err(PrismError::ColumnNotFound(ref details)) => {
                 assert_eq!(
                     details.column, "sevv",
-                    "BC-2.11.016 v1.13 EC-11-060: E-QUERY-038 must be on column 'sevv'; \
+                    "BC-2.11.016 EC-11-060: E-QUERY-038 must be on column 'sevv'; \
                      got: '{}'",
                     details.column
                 );
                 assert_eq!(
                     details.table, "crowdstrike_alerts",
-                    "BC-2.11.016 v1.13 EC-11-060: table must be 'crowdstrike_alerts'"
+                    "BC-2.11.016 EC-11-060: table must be 'crowdstrike_alerts'"
                 );
                 // Distinguishing assertion (a): did_you_mean reflects head-output set {sev}.
                 // Today: None (lev("sevv","severity")=5 > threshold; no raw-schema match).
@@ -11114,7 +11114,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 assert_eq!(
                     details.did_you_mean.as_deref(),
                     Some("sev"),
-                    "BC-2.11.016 v1.13 EC-11-060: did_you_mean must be 'sev' (lev=1 against \
+                    "BC-2.11.016 EC-11-060: did_you_mean must be 'sev' (lev=1 against \
                      head-output {{sev}}). Current code uses raw schema {{severity, timestamp}}: \
                      lev('sevv','severity')=5 > 3 → did_you_mean absent. After fix: head output \
                      {{sev}}, lev('sevv','sev')=1 → did_you_mean=Some('sev'). RED gate. \
@@ -11125,7 +11125,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 // Today: ["severity", "timestamp"]. After fix: ["sev"].
                 assert!(
                     details.available_columns.iter().any(|c| c == "sev"),
-                    "BC-2.11.016 v1.13 EC-11-060: available_columns must contain 'sev' (head \
+                    "BC-2.11.016 EC-11-060: available_columns must contain 'sev' (head \
                      projection output). Current code returns raw schema columns \
                      ['severity','timestamp']; after fix available = ['sev']. \
                      Got: {:?}",
@@ -11133,7 +11133,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 );
                 assert!(
                     !details.available_columns.iter().any(|c| c == "severity"),
-                    "BC-2.11.016 v1.13 EC-11-060: available_columns must NOT contain 'severity' \
+                    "BC-2.11.016 EC-11-060: available_columns must NOT contain 'severity' \
                      after SQLPIPE HEAD-PROJECTION BINDING RULE — head output is {{sev}}, not the \
                      raw schema. After fix the error reflects only the head-output set. \
                      Got: {:?}",
@@ -11141,17 +11141,17 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 );
             }
             Ok(_) => panic!(
-                "BC-2.11.016 v1.13 EC-11-060: engine.execute must NOT succeed — 'sevv' is a \
+                "BC-2.11.016 EC-11-060: engine.execute must NOT succeed — 'sevv' is a \
                  post-head typo not in head output {{sev}} and must trigger E-QUERY-038."
             ),
             Err(other) => panic!(
-                "BC-2.11.016 v1.13 EC-11-060: expected PrismError::ColumnNotFound (E-QUERY-038) \
+                "BC-2.11.016 EC-11-060: expected PrismError::ColumnNotFound (E-QUERY-038) \
                  for post-head typo 'sevv', got: {other:?}"
             ),
         }
     }
 
-    /// BC-2.11.016 v1.13 EC-11-061 — anonymous head aggregate suspends stage walk: no false-positive.
+    /// BC-2.11.016 EC-11-061 — anonymous head aggregate suspends stage walk: no false-positive.
     ///
     /// `SELECT count(*) FROM crowdstrike_alerts GROUP BY severity | sort xyz`
     ///
@@ -11169,7 +11169,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_ec11061_sqlpipe_anon_head_agg_suspends() {
         let (engine, org) = make_crowdstrike_engine();
 
-        // EC-11-061 canonical vector (BC-2.11.016 v1.13).
+        // EC-11-061 canonical vector (BC-2.11.016).
         // Head: SELECT count(*) FROM crowdstrike_alerts GROUP BY severity
         //   — count(*) has no alias → anonymous aggregate → suspended := true
         // Stage: | sort xyz  — xyz is any arbitrary name
@@ -11190,7 +11190,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "xyz" => panic!(
-                "BC-2.11.016 v1.13 EC-11-061: FALSE-POSITIVE E-QUERY-038 fired on 'xyz' in \
+                "BC-2.11.016 EC-11-061: FALSE-POSITIVE E-QUERY-038 fired on 'xyz' in \
                  SqlPipe stage walk after anonymous head aggregate. SQLPIPE HEAD-PROJECTION \
                  BINDING RULE: `SELECT count(*)` has no AS alias → output name unpredictable \
                  at plan time → suspended := true for the stage walk (FP-001 fail-open). \
@@ -11206,7 +11206,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
-    /// BC-2.11.016 v1.13 GREEN lock — SELECT * SqlPipe sort with valid schema column.
+    /// BC-2.11.016 GREEN lock — SELECT * SqlPipe sort with valid schema column.
     ///
     /// `SELECT * FROM crowdstrike_alerts | sort severity`
     ///
@@ -11236,7 +11236,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "severity" => panic!(
-                "BC-2.11.016 v1.13 GREEN lock: E-QUERY-038 fired on 'severity' in SELECT * \
+                "BC-2.11.016 GREEN lock: E-QUERY-038 fired on 'severity' in SELECT * \
                  SqlPipe sort — SELECT * must preserve full raw schema in available set \
                  (SQLPIPE HEAD-PROJECTION BINDING RULE §(a): SELECT * → schema_columns). \
                  This is a regression in the star-head path. \
@@ -11300,7 +11300,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Tests 32-34 (RED GATE): ADV-FIX-P6-MED-002 — MIXED-STAR head-projection ──
     //
-    //    BC-2.11.016 v1.14 EC-11-062 / EC-11-063 / EC-11-064 (FP-001)
+    //    BC-2.11.016 EC-11-062 / EC-11-063 / EC-11-064 (FP-001)
     //
     //    Root cause: `compute_sqlpipe_head_binding` short-circuits on ANY Star or TableStar
     //    item in the SELECT list:
@@ -11314,7 +11314,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     //    The explicit aliases (e.g., `sev_up`, `cnt`, `lo`) are absent from the raw schema
     //    → E-QUERY-038 fires on downstream stage references to those aliases (FP-001 violation).
     //
-    //    Fix (BC-2.11.016 v1.14 MIXED-STAR branch (c)):
+    //    Fix (BC-2.11.016 MIXED-STAR branch (c)):
     //    When head SELECT contains at least one Star/TableStar AND at least one explicit
     //    non-star item:
     //      available = schema_columns(table, OrgId)                     ← from Star/TableStar
@@ -11324,7 +11324,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     //    If any explicit non-Field item lacks an AS alias → suspended := true (FP-001 fail-open).
     //    Branches (a) (pure SELECT *) and (b) (fully-explicit SELECT) are unchanged.
 
-    /// BC-2.11.016 v1.14 EC-11-062 — MIXED-STAR head with aliased function expression:
+    /// BC-2.11.016 EC-11-062 — MIXED-STAR head with aliased function expression:
     /// no false-positive E-QUERY-038 on alias in downstream | where stage.
     ///
     /// `SELECT *, upper(severity) AS sev_up FROM crowdstrike_alerts | where sev_up = 'HIGH'`
@@ -11343,7 +11343,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_ec11062_mixed_star_alias_no_false_positive() {
         let (engine, org) = make_crowdstrike_engine();
 
-        // EC-11-062 canonical vector (BC-2.11.016 v1.14).
+        // EC-11-062 canonical vector (BC-2.11.016).
         // Head: SELECT *, upper(severity) AS sev_up FROM crowdstrike_alerts
         //   — Star AND upper(severity) AS sev_up (aliased scalar function).
         // Stage: | where sev_up = 'HIGH'
@@ -11367,7 +11367,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "sev_up" => panic!(
-                "BC-2.11.016 v1.14 EC-11-062: FALSE-POSITIVE E-QUERY-038 fired on MIXED-STAR \
+                "BC-2.11.016 EC-11-062: FALSE-POSITIVE E-QUERY-038 fired on MIXED-STAR \
                  head alias 'sev_up' in downstream | where stage. MIXED-STAR branch (c) requires \
                  initial available = schema_columns ∪ {{sev_up}} = {{severity, timestamp, sev_up}}; \
                  'sev_up' must be found in the binding context. Current code short-circuits on any \
@@ -11384,7 +11384,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
-    /// BC-2.11.016 v1.14 EC-11-063 — MIXED-STAR head with aliased aggregate and GROUP BY:
+    /// BC-2.11.016 EC-11-063 — MIXED-STAR head with aliased aggregate and GROUP BY:
     /// no false-positive E-QUERY-038 on alias in downstream | sort stage.
     ///
     /// `SELECT *, count(severity) AS cnt FROM crowdstrike_alerts GROUP BY severity | sort cnt`
@@ -11405,7 +11405,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_ec11063_mixed_star_agg_alias_no_false_positive() {
         let (engine, org) = make_crowdstrike_engine();
 
-        // EC-11-063 canonical vector (BC-2.11.016 v1.14).
+        // EC-11-063 canonical vector (BC-2.11.016).
         // Head: SELECT *, count(severity) AS cnt FROM crowdstrike_alerts GROUP BY severity
         //   — Star AND count(severity) AS cnt (aliased aggregate; explicit alias).
         // Stage: | sort cnt
@@ -11430,7 +11430,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "cnt" => panic!(
-                "BC-2.11.016 v1.14 EC-11-063: FALSE-POSITIVE E-QUERY-038 fired on MIXED-STAR \
+                "BC-2.11.016 EC-11-063: FALSE-POSITIVE E-QUERY-038 fired on MIXED-STAR \
                  head aggregate alias 'cnt' in downstream | sort stage. MIXED-STAR branch (c) \
                  requires initial available = schema_columns ∪ {{cnt}} ∪ {{severity (GROUP BY)}} \
                  = {{severity, timestamp, cnt}}; 'cnt' must be found. Current code short-circuits \
@@ -11447,7 +11447,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
-    /// BC-2.11.016 v1.14 EC-11-064 — MIXED-STAR head with TableStar variant and explicit alias:
+    /// BC-2.11.016 EC-11-064 — MIXED-STAR head with TableStar variant and explicit alias:
     /// no false-positive E-QUERY-038 on alias in downstream | fields stage.
     ///
     /// `SELECT t.*, lower(severity) AS lo FROM crowdstrike_alerts t | fields lo, severity`
@@ -11467,7 +11467,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_ec11064_mixed_star_tablestar_no_false_positive() {
         let (engine, org) = make_crowdstrike_engine();
 
-        // EC-11-064 canonical vector (BC-2.11.016 v1.14).
+        // EC-11-064 canonical vector (BC-2.11.016).
         // Head: SELECT t.*, lower(severity) AS lo FROM crowdstrike_alerts t
         //   — t.* (TableStar) AND lower(severity) AS lo (aliased scalar function).
         //   Table alias `t` used in `t.*` (TableStar qualifier).
@@ -11492,7 +11492,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "lo" => panic!(
-                "BC-2.11.016 v1.14 EC-11-064: FALSE-POSITIVE E-QUERY-038 fired on MIXED-STAR \
+                "BC-2.11.016 EC-11-064: FALSE-POSITIVE E-QUERY-038 fired on MIXED-STAR \
                  head alias 'lo' (TableStar variant) in downstream | fields stage. MIXED-STAR \
                  branch (c) triggered by `t.*` requires initial available = schema_columns ∪ {{lo}} \
                  = {{severity, timestamp, lo}}; 'lo' must be found. Current code short-circuits on \
@@ -11510,7 +11510,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     }
 
     // ── Tests 35-36 (RED GATE): ADV-FIX-P7-MED-001 SIBLING-GATE CONSISTENCY ─────
-    //    BC-2.11.016 v1.15 — DERIVED-name provenance prevents false E-QUERY-002.
+    //    BC-2.11.016 — DERIVED-name provenance prevents false E-QUERY-002.
     //
     //    Root cause (MED-001): `check_operator_type_compatibility` in
     //    `check_pipe_stage_columns` looks up the RAW schema type for every name in
@@ -11529,7 +11529,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     //    Test 37: GREEN-LOCK — RAW String `severity` with `>` STILL fires E-QUERY-002
     //      after fix (guards against over-broad fail-open skipping RAW names).
 
-    /// BC-2.11.016 v1.15 MED-001 SIBLING-GATE CONSISTENCY — SqlPipe head alias shadow.
+    /// BC-2.11.016 MED-001 SIBLING-GATE CONSISTENCY — SqlPipe head alias shadow.
     ///
     /// `SELECT count(*) AS severity FROM crowdstrike_alerts | where severity > 5`
     ///
@@ -11537,7 +11537,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     /// At execution its type is Int64.  The raw schema column `severity` has type String.
     /// E-QUERY-002 MUST NOT apply String's operator restrictions to this DERIVED alias.
     ///
-    /// SQLPIPE HEAD-PROJECTION BINDING RULE (BC-2.11.016 v1.13, currently implemented):
+    /// SQLPIPE HEAD-PROJECTION BINDING RULE (BC-2.11.016, currently implemented):
     /// explicit SELECT head → `available = {severity (alias)}` for the stage walk.
     ///
     /// Current behavior (RED): `check_operator_type_compatibility` looks up the raw
@@ -11573,7 +11573,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 if column.as_str() == "severity" =>
             {
                 panic!(
-                    "BC-2.11.016 v1.15 MED-001 SqlPipe-head: FALSE E-QUERY-002 fired on \
+                    "BC-2.11.016 MED-001 SqlPipe-head: FALSE E-QUERY-002 fired on \
                      DERIVED alias 'severity'. `count(*) AS severity` in the head is DERIVED \
                      (Int64 at execution); E-QUERY-002 must NOT apply raw-schema String type's \
                      operator restrictions to it per SIBLING-GATE CONSISTENCY (FP-001). \
@@ -11583,7 +11583,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 )
             }
             Err(PrismError::ColumnNotFound(ref d)) if d.column == "severity" => panic!(
-                "BC-2.11.016 v1.15 MED-001 SqlPipe-head: E-QUERY-038 fired on DERIVED alias \
+                "BC-2.11.016 MED-001 SqlPipe-head: E-QUERY-038 fired on DERIVED alias \
                  'severity' — alias must be in available (SQLPIPE HEAD-PROJECTION BINDING RULE \
                  explicit head: available = {{severity}} as alias). \
                  column='{}', table='{}'",
@@ -11595,7 +11595,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
-    /// BC-2.11.016 v1.15 MED-001 SIBLING-GATE CONSISTENCY — stats output alias shadow.
+    /// BC-2.11.016 MED-001 SIBLING-GATE CONSISTENCY — stats output alias shadow.
     ///
     /// `crowdstrike_alerts | stats count() as severity by timestamp | where severity > 5`
     ///
@@ -11636,7 +11636,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 if column.as_str() == "severity" =>
             {
                 panic!(
-                    "BC-2.11.016 v1.15 MED-001 stats-shadow: FALSE E-QUERY-002 fired on \
+                    "BC-2.11.016 MED-001 stats-shadow: FALSE E-QUERY-002 fired on \
                      DERIVED stats alias 'severity'. `count() as severity` is DERIVED (Int64 \
                      at execution); E-QUERY-002 must NOT apply raw-schema String type's \
                      operator restrictions per SIBLING-GATE CONSISTENCY (FP-001). \
@@ -11646,7 +11646,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 )
             }
             Err(PrismError::ColumnNotFound(ref d)) if d.column == "severity" => panic!(
-                "BC-2.11.016 v1.15 MED-001 stats-shadow: E-QUERY-038 fired on DERIVED stats \
+                "BC-2.11.016 MED-001 stats-shadow: E-QUERY-038 fired on DERIVED stats \
                  alias 'severity' — after Stats REPLACE, available = {{severity, timestamp}}; \
                  'severity' must be found. column='{}', table='{}'",
                 d.column, d.table
@@ -11658,7 +11658,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 37 (GREEN-LOCK): RAW-provenance type-compat retained ─────────────────
 
-    /// BC-2.11.016 v1.15 MED-001 GREEN-LOCK — RAW provenance: E-QUERY-002 retained.
+    /// BC-2.11.016 MED-001 GREEN-LOCK — RAW provenance: E-QUERY-002 retained.
     ///
     /// `crowdstrike_alerts | where severity > 5`
     ///
@@ -11700,25 +11700,25 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 assert_eq!(
                     column.as_str(),
                     "severity",
-                    "BC-2.11.016 v1.15 RAW-lock: E-QUERY-002 must fire for RAW column \
+                    "BC-2.11.016 RAW-lock: E-QUERY-002 must fire for RAW column \
                      'severity' (String); got: {:?}",
                     column
                 );
                 assert_eq!(
                     table.as_str(),
                     "crowdstrike_alerts",
-                    "BC-2.11.016 v1.15 RAW-lock: table must be 'crowdstrike_alerts'"
+                    "BC-2.11.016 RAW-lock: table must be 'crowdstrike_alerts'"
                 );
                 // E-QUERY-002 fired for RAW String `severity` — correct, retained after fix.
             }
             Ok(_) => panic!(
-                "BC-2.11.016 v1.15 RAW-lock: engine.execute returned Ok — E-QUERY-002 must \
+                "BC-2.11.016 RAW-lock: engine.execute returned Ok — E-QUERY-002 must \
                  fire for RAW String 'severity' with '>' operator. The SIBLING-GATE CONSISTENCY \
                  fix must NOT disable E-QUERY-002 for RAW names (only DERIVED names are skipped). \
                  '>' is NOT in valid_operators_for_type(String)."
             ),
             Err(other) => panic!(
-                "BC-2.11.016 v1.15 RAW-lock: expected PrismError::QueryTypeMismatch \
+                "BC-2.11.016 RAW-lock: expected PrismError::QueryTypeMismatch \
                  (E-QUERY-002) for RAW String 'severity' with '>' operator, got: {other:?}. \
                  E-QUERY-002 must still fire for RAW names after the SIBLING-GATE CONSISTENCY fix."
             ),
@@ -11726,7 +11726,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     }
 
     // ── Test 38 (RED GATE): ADV-FIX-P7-OBS-001 FROM-ALIAS RESOLUTION ─────────────
-    //    BC-2.11.016 v1.15 EC-11-065 — alias-qualified typo bypasses gate.
+    //    BC-2.11.016 EC-11-065 — alias-qualified typo bypasses gate.
     //
     //    Root cause (OBS-001): `check_pipe_stage_columns` passes `table_alias = None` to
     //    `extract_column_name_from_field_path` for all SqlPipe pipe-stage calls.  When the
@@ -11740,7 +11740,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     //    and passes it as `from_alias`.  Qualifier matching the alias → stripped to bare name
     //    → checked against available → E-QUERY-038 fires on the typo.
 
-    /// BC-2.11.016 v1.15 EC-11-065 FROM-ALIAS RESOLUTION — alias-qualified typo.
+    /// BC-2.11.016 EC-11-065 FROM-ALIAS RESOLUTION — alias-qualified typo.
     ///
     /// `SELECT * FROM crowdstrike_alerts t | where t.sevrity IEQ 'x'`
     ///
@@ -11758,7 +11758,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_v1_15_ec11065_from_alias_typo_yields_e_query_038() {
         let (engine, org) = make_crowdstrike_engine();
 
-        // EC-11-065 canonical vector (BC-2.11.016 v1.15).
+        // EC-11-065 canonical vector (BC-2.11.016).
         // Head: SELECT * FROM crowdstrike_alerts t  → FROM-alias = "t"
         //   available (SELECT *) = {severity, timestamp} (full raw schema).
         // Stage: | where t.sevrity IEQ 'x'  → qualifier "t" matches FROM-alias
@@ -11781,31 +11781,31 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             Err(PrismError::ColumnNotFound(ref details)) => {
                 assert_eq!(
                     details.column, "sevrity",
-                    "BC-2.11.016 v1.15 EC-11-065 FROM-ALIAS: column in E-QUERY-038 must be \
+                    "BC-2.11.016 EC-11-065 FROM-ALIAS: column in E-QUERY-038 must be \
                      'sevrity' (alias-qualified typo stripped to bare name); got: '{}'",
                     details.column
                 );
                 assert_eq!(
                     details.table, "crowdstrike_alerts",
-                    "BC-2.11.016 v1.15 EC-11-065 FROM-ALIAS: table must be 'crowdstrike_alerts'"
+                    "BC-2.11.016 EC-11-065 FROM-ALIAS: table must be 'crowdstrike_alerts'"
                 );
                 assert_eq!(
                     details.did_you_mean.as_deref(),
                     Some("severity"),
-                    "BC-2.11.016 v1.15 EC-11-065 FROM-ALIAS: did_you_mean must be 'severity' \
+                    "BC-2.11.016 EC-11-065 FROM-ALIAS: did_you_mean must be 'severity' \
                      (Levenshtein distance 1 from 'sevrity'; available = {{severity, timestamp}}); \
                      got: {:?}",
                     details.did_you_mean
                 );
             }
             Ok(_) => panic!(
-                "BC-2.11.016 v1.15 EC-11-065 FROM-ALIAS: engine.execute must NOT succeed — \
+                "BC-2.11.016 EC-11-065 FROM-ALIAS: engine.execute must NOT succeed — \
                  E-QUERY-038 must fire for alias-qualified typo 't.sevrity'. Before fix: \
                  table_alias=None → qualifier 't' unknown → None → gate skips → typo bypasses \
                  plan-time validation and reaches DataFusion as an opaque error."
             ),
             Err(other) => panic!(
-                "BC-2.11.016 v1.15 EC-11-065 FROM-ALIAS: expected PrismError::ColumnNotFound \
+                "BC-2.11.016 EC-11-065 FROM-ALIAS: expected PrismError::ColumnNotFound \
                  (E-QUERY-038) for alias-qualified typo 't.sevrity', got: {other:?}. \
                  Before fix: DataFusion column resolution failure because 'sevrity' is not a \
                  real column in crowdstrike_alerts (opaque error). Fix: thread FROM-alias 't' \
@@ -11816,11 +11816,11 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     }
 
     // ── Tests 39-41 (RED GATE + GREEN-LOCK): ADV-FIX-P7-OBS-002 FIELDS TRANSITION ─
-    //    BC-2.11.016 v1.15 EC-11-066/067/068 — include/exclude fields transitions.
+    //    BC-2.11.016 EC-11-066/067/068 — include/exclude fields transitions.
     //
     // ── Regression locks: ADV-FIX-P8-OBS-001 — FROM-ALIAS RESOLUTION positions 10-14 ──
     //
-    //    BC-2.11.016 v1.15 FROM-ALIAS RESOLUTION is implemented across ALL PipeStage arms in
+    //    BC-2.11.016 FROM-ALIAS RESOLUTION is implemented across ALL PipeStage arms in
     //    `check_pipe_stage_columns` (table_alias threaded to every
     //    `extract_column_name_from_field_path` call).  Position 9 (`| where t.sevrity`) is
     //    already locked by EC-11-065 (test 38).  These five locks cover positions 10-14 —
@@ -11846,7 +11846,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     //      `| fields - a, b` (exclude-list, leading `-`)    → `available := available ∖ {listed}` (subtract)
     //    Provenance and suspension carry forward unchanged.
 
-    /// BC-2.11.016 v1.15 EC-11-066 FIELDS TRANSITION — include-then-stale-ref.
+    /// BC-2.11.016 EC-11-066 FIELDS TRANSITION — include-then-stale-ref.
     ///
     /// `crowdstrike_alerts | fields severity | where timestamp > 0`
     ///
@@ -11865,7 +11865,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_v1_15_ec11066_fields_include_stale_ref_yields_e_query_038() {
         let (engine, org) = make_crowdstrike_engine();
 
-        // EC-11-066 canonical vector (BC-2.11.016 v1.15).
+        // EC-11-066 canonical vector (BC-2.11.016).
         // | fields severity  →  available := {severity}  (REPLACE; timestamp removed)
         // | where timestamp > 0  →  timestamp NOT in {severity}  →  E-QUERY-038.
         // Before fix: available unchanged {severity, timestamp}; timestamp found → no E-QUERY-038.
@@ -11885,26 +11885,26 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             Err(PrismError::ColumnNotFound(ref details)) => {
                 assert_eq!(
                     details.column, "timestamp",
-                    "BC-2.11.016 v1.15 EC-11-066 FIELDS-INCLUDE: E-QUERY-038 must fire on \
+                    "BC-2.11.016 EC-11-066 FIELDS-INCLUDE: E-QUERY-038 must fire on \
                      'timestamp' (removed from available by | fields severity include REPLACE); \
                      got: '{}'",
                     details.column
                 );
                 assert_eq!(
                     details.table, "crowdstrike_alerts",
-                    "BC-2.11.016 v1.15 EC-11-066 FIELDS-INCLUDE: table must be \
+                    "BC-2.11.016 EC-11-066 FIELDS-INCLUDE: table must be \
                      'crowdstrike_alerts'"
                 );
                 // did_you_mean: lev("timestamp", "severity") >> 3 → absent (not asserted).
             }
             Ok(_) => panic!(
-                "BC-2.11.016 v1.15 EC-11-066 FIELDS-INCLUDE: engine.execute must NOT succeed — \
+                "BC-2.11.016 EC-11-066 FIELDS-INCLUDE: engine.execute must NOT succeed — \
                  E-QUERY-038 must fire for 'timestamp' after `| fields severity` include REPLACE. \
                  Before fix: PipeStage::Fields does not update available → timestamp stays in \
                  {{severity, timestamp}} → plan-time gate passes → execution fails (no adapter)."
             ),
             Err(other) => panic!(
-                "BC-2.11.016 v1.15 EC-11-066 FIELDS-INCLUDE: expected PrismError::ColumnNotFound \
+                "BC-2.11.016 EC-11-066 FIELDS-INCLUDE: expected PrismError::ColumnNotFound \
                  (E-QUERY-038) for 'timestamp' after fields include REPLACE, got: {other:?}. \
                  Before fix: execution error instead of plan-time E-QUERY-038. \
                  Fix: | fields include-list → available := {{listed}}; downstream 'timestamp' \
@@ -11913,7 +11913,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
-    /// BC-2.11.016 v1.15 EC-11-067 FIELDS TRANSITION — exclude-then-reference.
+    /// BC-2.11.016 EC-11-067 FIELDS TRANSITION — exclude-then-reference.
     ///
     /// `crowdstrike_alerts | fields - timestamp | sort timestamp`
     ///
@@ -11929,7 +11929,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_v1_15_ec11067_fields_exclude_yields_e_query_038() {
         let (engine, org) = make_crowdstrike_engine();
 
-        // EC-11-067 canonical vector (BC-2.11.016 v1.15).
+        // EC-11-067 canonical vector (BC-2.11.016).
         // | fields - timestamp  →  available := {severity, timestamp} ∖ {timestamp} = {severity}
         // | sort timestamp  →  timestamp NOT in {severity}  →  E-QUERY-038.
         // Before fix: available unchanged {severity, timestamp}; timestamp found → no E-QUERY-038.
@@ -11949,25 +11949,25 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             Err(PrismError::ColumnNotFound(ref details)) => {
                 assert_eq!(
                     details.column, "timestamp",
-                    "BC-2.11.016 v1.15 EC-11-067 FIELDS-EXCLUDE: E-QUERY-038 must fire on \
+                    "BC-2.11.016 EC-11-067 FIELDS-EXCLUDE: E-QUERY-038 must fire on \
                      'timestamp' (subtracted from available by | fields - timestamp); \
                      got: '{}'",
                     details.column
                 );
                 assert_eq!(
                     details.table, "crowdstrike_alerts",
-                    "BC-2.11.016 v1.15 EC-11-067 FIELDS-EXCLUDE: table must be \
+                    "BC-2.11.016 EC-11-067 FIELDS-EXCLUDE: table must be \
                      'crowdstrike_alerts'"
                 );
             }
             Ok(_) => panic!(
-                "BC-2.11.016 v1.15 EC-11-067 FIELDS-EXCLUDE: engine.execute must NOT succeed — \
+                "BC-2.11.016 EC-11-067 FIELDS-EXCLUDE: engine.execute must NOT succeed — \
                  E-QUERY-038 must fire for 'timestamp' after `| fields - timestamp` exclude \
                  subtraction. Before fix: PipeStage::Fields does not update available → \
                  timestamp stays in {{severity, timestamp}} → sort passes plan-time check."
             ),
             Err(other) => panic!(
-                "BC-2.11.016 v1.15 EC-11-067 FIELDS-EXCLUDE: expected PrismError::ColumnNotFound \
+                "BC-2.11.016 EC-11-067 FIELDS-EXCLUDE: expected PrismError::ColumnNotFound \
                  (E-QUERY-038) for 'timestamp' after fields exclude subtraction, got: {other:?}. \
                  Before fix: execution error instead of plan-time E-QUERY-038. \
                  Fix: | fields - list → available := available ∖ {{listed}}; sort 'timestamp' \
@@ -12349,7 +12349,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         }
     }
 
-    /// BC-2.11.016 v1.15 EC-11-068 FIELDS TRANSITION — include-then-valid-ref (GREEN-LOCK).
+    /// BC-2.11.016 EC-11-068 FIELDS TRANSITION — include-then-valid-ref (GREEN-LOCK).
     ///
     /// `crowdstrike_alerts | fields severity | where severity IEQ 'High'`
     ///
@@ -12366,7 +12366,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_v1_15_ec11068_fields_include_valid_ref_no_e_query_038() {
         let (engine, org) = make_crowdstrike_engine();
 
-        // EC-11-068 canonical vector (BC-2.11.016 v1.15).
+        // EC-11-068 canonical vector (BC-2.11.016).
         // | fields severity  →  available := {severity}  (REPLACE after fix)
         // | where severity IEQ 'High'  →  severity in {severity}  →  NO E-QUERY-038.
         // Both before and after fix: severity is in available → no false positive.
@@ -12385,7 +12385,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "severity" => {
                 panic!(
-                    "BC-2.11.016 v1.15 EC-11-068 GREEN-LOCK: FALSE-POSITIVE E-QUERY-038 fired \
+                    "BC-2.11.016 EC-11-068 GREEN-LOCK: FALSE-POSITIVE E-QUERY-038 fired \
                      on 'severity'. After `| fields severity` include REPLACE, available = \
                      {{severity}}; 'severity' IS in the available set — E-QUERY-038 must NOT \
                      fire. FP-001 invariant violated. \
@@ -12792,7 +12792,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 49 (RED GATE): EC-11-069 — JOIN-aliased last segment not seeded → false E-QUERY-038 ─
 
-    /// BC-2.11.016 v1.17 EC-11-069 — LAST-SEGMENT OUTPUT-NAME RULE (ADV-FIX-P10-OBS-001).
+    /// BC-2.11.016 EC-11-069 — LAST-SEGMENT OUTPUT-NAME RULE (ADV-FIX-P10-OBS-001).
     ///
     /// `SELECT j.col FROM crowdstrike_alerts JOIN some_other_table j
     ///  ON crowdstrike_alerts.severity = j.id | where col = 'x'`
@@ -12822,7 +12822,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_ec11069_join_qualified_last_segment_no_false_e_query_038() {
         let (engine, org) = make_engine_with_join_tables();
 
-        // EC-11-069 canonical vector (BC-2.11.016 v1.17).
+        // EC-11-069 canonical vector (BC-2.11.016).
         // JOIN ON uses crowdstrike_alerts.severity (in schema) = j.id (skip via None).
         let query = "SELECT j.col FROM crowdstrike_alerts \
                      JOIN some_other_table j ON crowdstrike_alerts.severity = j.id \
@@ -12840,7 +12840,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
-                "BC-2.11.016 v1.17 EC-11-069 RED GATE: FALSE E-QUERY-038 on 'col'. \
+                "BC-2.11.016 EC-11-069 RED GATE: FALSE E-QUERY-038 on 'col'. \
                  `SELECT j.col` (JOIN-aliased bare-Field, qualifier 'j' ≠ FROM source) MUST \
                  seed 'col' as DERIVED via LAST-SEGMENT OUTPUT-NAME RULE; `| where col = 'x'` \
                  must find 'col' in available — NO E-QUERY-038 (FP-001). \
@@ -12860,7 +12860,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     // ── Test 50 (RED GATE): EC-11-069 sibling-gate companion — DERIVED provenance,
     //                        SIBLING-GATE CONSISTENCY (E-QUERY-002 must not fire) ─────
 
-    /// BC-2.11.016 v1.17 EC-11-069 companion — SIBLING-GATE CONSISTENCY (ADV-FIX-P10-OBS-001).
+    /// BC-2.11.016 EC-11-069 companion — SIBLING-GATE CONSISTENCY (ADV-FIX-P10-OBS-001).
     ///
     /// `SELECT j.severity FROM crowdstrike_alerts JOIN some_other_table j
     ///  ON crowdstrike_alerts.severity = j.id | where severity > 5`
@@ -12870,7 +12870,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     /// statically known from the FROM schema).  Raw `severity` in `crowdstrike_alerts` is
     /// String; `>` is NOT in `valid_operators_for_type(String)`.  If E-QUERY-002 applied
     /// the raw String type to DERIVED `severity`, it would fire a false E-QUERY-002
-    /// (FP-001 violation).  SIBLING-GATE CONSISTENCY (BC-2.11.016 v1.15) requires E-QUERY-002
+    /// (FP-001 violation).  SIBLING-GATE CONSISTENCY (BC-2.11.016) requires E-QUERY-002
     /// to skip DERIVED names.
     ///
     /// Current behavior (RED — two FP-001 violations possible):
@@ -12889,7 +12889,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_ec11069_sibling_gate_join_qualified_no_false_e_query_002() {
         let (engine, org) = make_engine_with_join_tables();
 
-        // EC-11-069 sibling-gate companion vector (BC-2.11.016 v1.17).
+        // EC-11-069 sibling-gate companion vector (BC-2.11.016).
         // Raw `severity` in crowdstrike_alerts is String; `>` invalid for String.
         // After fix: `severity` seeded as DERIVED → E-QUERY-002 skipped (SIBLING-GATE CONSISTENCY).
         let query = "SELECT j.severity FROM crowdstrike_alerts \
@@ -12914,7 +12914,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 if column.as_str() == "severity" =>
             {
                 panic!(
-                    "BC-2.11.016 v1.17 EC-11-069 sibling-gate: FALSE E-QUERY-002 on DERIVED \
+                    "BC-2.11.016 EC-11-069 sibling-gate: FALSE E-QUERY-002 on DERIVED \
                      'severity'. `j.severity` is JOIN-aliased (qualifier 'j' ≠ FROM source); \
                      LAST-SEGMENT seeds 'severity' as DERIVED — E-QUERY-002 MUST skip DERIVED \
                      names per SIBLING-GATE CONSISTENCY (FP-001). Likely fix defect: seeded \
@@ -12926,7 +12926,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             // Currently fires (RED): j.severity → None → severity not seeded → available=[] →
             // E-QUERY-038 fires. After fix: severity seeded as DERIVED → both gates pass.
             Err(PrismError::ColumnNotFound(ref d)) if d.column == "severity" => panic!(
-                "BC-2.11.016 v1.17 EC-11-069 sibling-gate RED GATE: E-QUERY-038 on 'severity'. \
+                "BC-2.11.016 EC-11-069 sibling-gate RED GATE: E-QUERY-038 on 'severity'. \
                  Before fix: j.severity → qualifier 'j' unknown → None → severity not seeded \
                  → available=[] → E-QUERY-038 (FP-001 violation; SQL output 'severity' is valid). \
                  After fix: severity seeded as DERIVED via LAST-SEGMENT OUTPUT-NAME RULE → \
@@ -12943,7 +12943,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 51 (RED GATE): EC-11-070 — SELECT j.* with JOIN → star-with-join suspension ─
 
-    /// BC-2.11.016 v1.18 EC-11-070 — STAR-WITH-JOIN SUSPENSION RULE (ADV-FIX-P12-OBS-002).
+    /// BC-2.11.016 EC-11-070 — STAR-WITH-JOIN SUSPENSION RULE (ADV-FIX-P12-OBS-002).
     ///
     /// `SELECT j.* FROM crowdstrike_alerts
     ///  JOIN some_other_table j ON crowdstrike_alerts.severity = j.id
@@ -12975,12 +12975,12 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     /// Fixture: `make_engine_with_join_tables()` — both `crowdstrike_alerts` (severity,
     ///   timestamp) and `some_other_table` (col, id) registered so E-QUERY-037 passes.
     ///   `other_only_col` is absent from the FROM table's registered columns (mirroring
-    ///   a join-source-only column per BC-2.11.016 v1.18 EC-11-070 fail-open rationale).
+    ///   a join-source-only column per BC-2.11.016 EC-11-070 fail-open rationale).
     #[tokio::test]
     async fn test_BC_2_11_016_ec11070_tablestar_with_join_no_false_e_query_038() {
         let (engine, org) = make_engine_with_join_tables();
 
-        // EC-11-070 canonical vector (BC-2.11.016 v1.18).
+        // EC-11-070 canonical vector (BC-2.11.016).
         // SELECT j.* → TableStar; JOIN present → STAR-WITH-JOIN SUSPENSION RULE must fire.
         // JOIN ON: crowdstrike_alerts.severity (in schema) = j.id (qualifier j unknown → skip).
         // | where other_only_col = 'x': other_only_col absent from crowdstrike_alerts schema.
@@ -13001,7 +13001,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "other_only_col" => {
                 panic!(
-                    "BC-2.11.016 v1.18 EC-11-070 RED GATE: FALSE E-QUERY-038 on 'other_only_col'. \
+                    "BC-2.11.016 EC-11-070 RED GATE: FALSE E-QUERY-038 on 'other_only_col'. \
                      `SELECT j.*` (TableStar, branch (a)) with non-empty JOIN list MUST trigger \
                      STAR-WITH-JOIN SUSPENSION RULE: suspended := true; `| where other_only_col` \
                      must be skipped (fail-open per FP-001). \
@@ -13021,7 +13021,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 52 (RED GATE): EC-11-071 — SELECT * with JOIN → star-with-join suspension ──
 
-    /// BC-2.11.016 v1.18 EC-11-071 — STAR-WITH-JOIN SUSPENSION RULE (ADV-FIX-P12-OBS-002).
+    /// BC-2.11.016 EC-11-071 — STAR-WITH-JOIN SUSPENSION RULE (ADV-FIX-P12-OBS-002).
     ///
     /// `SELECT * FROM crowdstrike_alerts
     ///  JOIN some_other_table j ON crowdstrike_alerts.severity = j.id
@@ -13054,7 +13054,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_ec11071_star_with_join_no_false_e_query_038() {
         let (engine, org) = make_engine_with_join_tables();
 
-        // EC-11-071 canonical vector (BC-2.11.016 v1.18).
+        // EC-11-071 canonical vector (BC-2.11.016).
         // SELECT * → bare Star; JOIN present → STAR-WITH-JOIN SUSPENSION RULE must fire.
         // JOIN ON: crowdstrike_alerts.severity (in schema) = j.id (qualifier j unknown → skip).
         // | where other_only_col = 'x': other_only_col absent from crowdstrike_alerts schema.
@@ -13075,7 +13075,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "other_only_col" => {
                 panic!(
-                    "BC-2.11.016 v1.18 EC-11-071 RED GATE: FALSE E-QUERY-038 on 'other_only_col'. \
+                    "BC-2.11.016 EC-11-071 RED GATE: FALSE E-QUERY-038 on 'other_only_col'. \
                      `SELECT *` (bare Star, branch (a)) with non-empty JOIN list MUST trigger \
                      STAR-WITH-JOIN SUSPENSION RULE: suspended := true; `| where other_only_col` \
                      must be skipped (fail-open per FP-001). \
@@ -13096,7 +13096,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 53 (RED GATE): EC-11-072 — stage-level JOIN → STAGE-JOIN SUSPENSION RULE ──
 
-    /// BC-2.11.016 v1.19 EC-11-072 — STAGE-JOIN SUSPENSION RULE (ADV-FIX-P14-OBS-001).
+    /// BC-2.11.016 EC-11-072 — STAGE-JOIN SUSPENSION RULE (ADV-FIX-P14-OBS-001).
     ///
     /// `FROM crowdstrike_alerts | join some_other_table on severity == id | where col = 'x'`
     ///
@@ -13133,7 +13133,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_ec11072_stage_join_suspension_no_false_e_query_038() {
         let (engine, org) = make_engine_with_join_tables();
 
-        // EC-11-072 canonical vector (BC-2.11.016 v1.19).
+        // EC-11-072 canonical vector (BC-2.11.016).
         // Pipe grammar: 'join' [kind] source 'ON' field ['==' field] — no alias.
         // Source: some_other_table; ON condition: severity (FROM col) == id (join col).
         // | where col = 'x': `col` is in some_other_table but absent from crowdstrike_alerts.
@@ -13157,7 +13157,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
-                "BC-2.11.016 v1.19 EC-11-072 RED GATE: FALSE E-QUERY-038 on 'col'. \
+                "BC-2.11.016 EC-11-072 RED GATE: FALSE E-QUERY-038 on 'col'. \
                  `PipeStage::Join` MUST set `suspended := true` (STAGE-JOIN SUSPENSION RULE); \
                  `| where col = 'x'` must be skipped (fail-open per FP-001). \
                  `col` is a valid column of `some_other_table` at execution — checking it \
@@ -13178,7 +13178,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 54 (GREEN lock): EC-11-073 — MIXED-STAR branch (c) with head JOIN ──────
 
-    /// BC-2.11.016 v1.19 EC-11-073 — STAR-WITH-JOIN SUSPENSION RULE, MIXED-STAR branch (c),
+    /// BC-2.11.016 EC-11-073 — STAR-WITH-JOIN SUSPENSION RULE, MIXED-STAR branch (c),
     /// spec-anchored lock (ADV-FIX-P14-OBS-003).
     ///
     /// `SELECT *, upper(severity) AS sev_up FROM crowdstrike_alerts
@@ -13189,7 +13189,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     /// `upper(severity) AS sev_up` (explicit non-star item with AS alias, has_explicit = true).
     /// `head.joins` is non-empty (SqlPipe SQL head JOIN present).
     ///
-    /// STAR-WITH-JOIN SUSPENSION RULE (BC-2.11.016 v1.18 branch (c) application,
+    /// STAR-WITH-JOIN SUSPENSION RULE (BC-2.11.016 branch (c) application,
     /// `compute_sqlpipe_head_binding` lines 2953–2963):
     ///   After branch (c) builds partial `available = {severity, timestamp, sev_up}`,
     ///   `if !head.joins.is_empty() { suspended = true; }` overrides and sets
@@ -13216,7 +13216,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
     async fn test_BC_2_11_016_ec11073_mixed_star_head_join_suspension_green_lock() {
         let (engine, org) = make_engine_with_join_tables();
 
-        // EC-11-073 canonical vector (BC-2.11.016 v1.19).
+        // EC-11-073 canonical vector (BC-2.11.016).
         // MIXED-STAR head: `*` (Star) + `upper(severity) AS sev_up` (explicit alias).
         // head.joins non-empty → STAR-WITH-JOIN SUSPENSION RULE branch (c):
         //   suspended := true overriding partial available = {severity, timestamp, sev_up}.
@@ -13238,7 +13238,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "u_col" => panic!(
-                "BC-2.11.016 v1.19 EC-11-073 GREEN LOCK REGRESSION: FALSE E-QUERY-038 on \
+                "BC-2.11.016 EC-11-073 GREEN LOCK REGRESSION: FALSE E-QUERY-038 on \
                  'u_col'. MIXED-STAR branch (c) with non-empty head JOIN list MUST trigger \
                  STAR-WITH-JOIN SUSPENSION RULE: `if !head.joins.is_empty() {{ suspended = true; }}` \
                  overrides partial MIXED-STAR `available` seeding; `| where u_col = 'x'` must \
@@ -13260,7 +13260,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Tests 55–66: EC-11-074/075 HEAD-JOIN SUSPENSION RULE (ADV-FIX-P15-MED-001) ──
     //
-    // BC-2.11.016 v1.20 §Preconditions.2 HEAD-JOIN SUSPENSION RULE:
+    // BC-2.11.016 §Preconditions.2 HEAD-JOIN SUSPENSION RULE:
     //   When the head SQL query's JOIN list is non-empty AND a bare unqualified column
     //   reference at positions 1–6 is absent from `schema_columns(table, OrgId)`, the
     //   E-QUERY-038 gate MUST NOT fire (fail-open).  DataFusion resolves unqualified
@@ -13280,7 +13280,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 55 (RED GATE): EC-11-074 position 1 — SELECT col, Ast::Sql ─────────────
 
-    /// BC-2.11.016 v1.20 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 1 (SELECT),
+    /// BC-2.11.016 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 1 (SELECT),
     /// `Ast::Sql` form (ADV-FIX-P15-MED-001).
     ///
     /// `SELECT col FROM crowdstrike_alerts
@@ -13322,7 +13322,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
-                "BC-2.11.016 v1.20 EC-11-074 RED GATE (position 1 SELECT): FALSE E-QUERY-038 \
+                "BC-2.11.016 EC-11-074 RED GATE (position 1 SELECT): FALSE E-QUERY-038 \
                  on 'col'. HEAD-JOIN SUSPENSION RULE: when the SQL head JOIN list is non-empty, \
                  bare unqualified refs ABSENT from `schema_columns(table, OrgId)` MUST NOT fire \
                  E-QUERY-038 (fail-open per FP-001). DataFusion resolves `col` through \
@@ -13340,7 +13340,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 56 (RED GATE): EC-11-074 position 2 — WHERE col, Ast::Sql ──────────────
 
-    /// BC-2.11.016 v1.20 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 2 (WHERE),
+    /// BC-2.11.016 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 2 (WHERE),
     /// `Ast::Sql` form (ADV-FIX-P15-MED-001).
     ///
     /// EC-11-074 describes the "IEQ drift shape" (`WHERE col IEQ 'high'`) as the
@@ -13378,7 +13378,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
-                "BC-2.11.016 v1.20 EC-11-074 RED GATE (position 2 WHERE): FALSE E-QUERY-038 \
+                "BC-2.11.016 EC-11-074 RED GATE (position 2 WHERE): FALSE E-QUERY-038 \
                  on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty head JOIN list → absent bare \
                  unqualified `col` MUST NOT fire E-QUERY-038 (fail-open per FP-001). `col` \
                  is valid in `some_other_table` at execution; DataFusion resolves it via the \
@@ -13394,7 +13394,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 57 (RED GATE): EC-11-074 position 3 — GROUP BY col, Ast::Sql ───────────
 
-    /// BC-2.11.016 v1.20 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 3 (GROUP BY),
+    /// BC-2.11.016 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 3 (GROUP BY),
     /// `Ast::Sql` form (ADV-FIX-P15-MED-001).
     ///
     /// `SELECT severity FROM crowdstrike_alerts
@@ -13425,7 +13425,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
-                "BC-2.11.016 v1.20 EC-11-074 RED GATE (position 3 GROUP BY): FALSE E-QUERY-038 \
+                "BC-2.11.016 EC-11-074 RED GATE (position 3 GROUP BY): FALSE E-QUERY-038 \
                  on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty head JOIN list → absent bare \
                  unqualified `col` in GROUP BY MUST NOT fire E-QUERY-038 (fail-open per FP-001). \
                  `col` is a valid column in `some_other_table` at execution. \
@@ -13438,7 +13438,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 58 (RED GATE): EC-11-074 position 4 — ORDER BY col, Ast::Sql ───────────
 
-    /// BC-2.11.016 v1.20 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 4 (ORDER BY),
+    /// BC-2.11.016 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 4 (ORDER BY),
     /// `Ast::Sql` form (ADV-FIX-P15-MED-001).
     ///
     /// `SELECT severity FROM crowdstrike_alerts
@@ -13469,7 +13469,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
-                "BC-2.11.016 v1.20 EC-11-074 RED GATE (position 4 ORDER BY): FALSE E-QUERY-038 \
+                "BC-2.11.016 EC-11-074 RED GATE (position 4 ORDER BY): FALSE E-QUERY-038 \
                  on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty head JOIN list → absent bare \
                  unqualified `col` in ORDER BY MUST NOT fire E-QUERY-038 (fail-open per FP-001). \
                  `col` is a valid column in `some_other_table` at execution. \
@@ -13482,7 +13482,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 59 (RED GATE): EC-11-074 position 6 — HAVING count(col), Ast::Sql ──────
 
-    /// BC-2.11.016 v1.20 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 6 (HAVING),
+    /// BC-2.11.016 EC-11-074 — HEAD-JOIN SUSPENSION RULE, position 6 (HAVING),
     /// `Ast::Sql` form (ADV-FIX-P15-MED-001).
     ///
     /// `SELECT severity, count(*) FROM crowdstrike_alerts
@@ -13516,7 +13516,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
-                "BC-2.11.016 v1.20 EC-11-074 RED GATE (position 6 HAVING): FALSE E-QUERY-038 \
+                "BC-2.11.016 EC-11-074 RED GATE (position 6 HAVING): FALSE E-QUERY-038 \
                  on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty head JOIN list → absent bare \
                  unqualified `col` inside HAVING aggregate MUST NOT fire E-QUERY-038 \
                  (fail-open per FP-001). Extraction path: `extract_predicate_columns` over \
@@ -13531,7 +13531,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Tests 60–64 (RED GATE): EC-11-075 — Ast::SqlPipe head form ───────────────────
     //
-    // BC-2.11.016 v1.20 EC-11-075: HEAD-JOIN SUSPENSION RULE applies to `Ast::SqlPipe`
+    // BC-2.11.016 EC-11-075: HEAD-JOIN SUSPENSION RULE applies to `Ast::SqlPipe`
     // head SQL positions 1–6 identically to `Ast::Sql`.  Appending `| limit 10` makes
     // the query parse as `Ast::SqlPipe` (no SQL-level LIMIT — FORBID-BOTH does not fire).
     // The pipe-stage walk for `| limit 10` contains no column refs → no E-QUERY-038 from
@@ -13539,7 +13539,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 60 (RED GATE): EC-11-075 position 1 — SELECT col, Ast::SqlPipe ─────────
 
-    /// BC-2.11.016 v1.20 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 1 (SELECT),
+    /// BC-2.11.016 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 1 (SELECT),
     /// `Ast::SqlPipe` form (ADV-FIX-P15-MED-001).
     ///
     /// `SELECT col FROM crowdstrike_alerts
@@ -13571,7 +13571,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
-                "BC-2.11.016 v1.20 EC-11-075 RED GATE (Ast::SqlPipe position 1 SELECT): FALSE \
+                "BC-2.11.016 EC-11-075 RED GATE (Ast::SqlPipe position 1 SELECT): FALSE \
                  E-QUERY-038 on 'col'. HEAD-JOIN SUSPENSION RULE applies to Ast::SqlPipe head \
                  SQL positions 1-6 identically to Ast::Sql (code path: `sql_query = &spq.head`). \
                  Head JOIN list non-empty → absent bare unqualified `col` MUST NOT fire \
@@ -13586,7 +13586,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 61 (RED GATE): EC-11-075 position 2 — WHERE col, Ast::SqlPipe ──────────
 
-    /// BC-2.11.016 v1.20 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 2 (WHERE),
+    /// BC-2.11.016 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 2 (WHERE),
     /// `Ast::SqlPipe` form (ADV-FIX-P15-MED-001).
     ///
     /// IEQ dropped (SQL-mode rejection per BC-2.11.024); uses plain `= 'high'`.
@@ -13612,7 +13612,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
-                "BC-2.11.016 v1.20 EC-11-075 RED GATE (Ast::SqlPipe position 2 WHERE): FALSE \
+                "BC-2.11.016 EC-11-075 RED GATE (Ast::SqlPipe position 2 WHERE): FALSE \
                  E-QUERY-038 on 'col'. HEAD-JOIN SUSPENSION RULE: SqlPipe head SQL WHERE clause \
                  with non-empty JOIN list → absent bare `col` MUST NOT fire E-QUERY-038. \
                  column='{}', table='{}', available={:?}",
@@ -13624,7 +13624,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 62 (RED GATE): EC-11-075 position 3 — GROUP BY col, Ast::SqlPipe ───────
 
-    /// BC-2.11.016 v1.20 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 3 (GROUP BY),
+    /// BC-2.11.016 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 3 (GROUP BY),
     /// `Ast::SqlPipe` form (ADV-FIX-P15-MED-001).
     #[tokio::test]
     async fn test_BC_2_11_016_ec11075_sqlpipe_head_join_suspension_groupby_no_false_e_query_038() {
@@ -13647,7 +13647,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
-                "BC-2.11.016 v1.20 EC-11-075 RED GATE (Ast::SqlPipe position 3 GROUP BY): \
+                "BC-2.11.016 EC-11-075 RED GATE (Ast::SqlPipe position 3 GROUP BY): \
                  FALSE E-QUERY-038 on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty JOIN list \
                  → absent bare `col` in GROUP BY MUST NOT fire (fail-open per FP-001). \
                  column='{}', table='{}', available={:?}",
@@ -13659,7 +13659,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 63 (RED GATE): EC-11-075 position 4 — ORDER BY col, Ast::SqlPipe ───────
 
-    /// BC-2.11.016 v1.20 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 4 (ORDER BY),
+    /// BC-2.11.016 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 4 (ORDER BY),
     /// `Ast::SqlPipe` form (ADV-FIX-P15-MED-001).
     #[tokio::test]
     async fn test_BC_2_11_016_ec11075_sqlpipe_head_join_suspension_orderby_no_false_e_query_038() {
@@ -13682,7 +13682,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
-                "BC-2.11.016 v1.20 EC-11-075 RED GATE (Ast::SqlPipe position 4 ORDER BY): \
+                "BC-2.11.016 EC-11-075 RED GATE (Ast::SqlPipe position 4 ORDER BY): \
                  FALSE E-QUERY-038 on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty JOIN list \
                  → absent bare `col` in ORDER BY MUST NOT fire (fail-open per FP-001). \
                  column='{}', table='{}', available={:?}",
@@ -13694,7 +13694,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 64 (RED GATE): EC-11-075 position 6 — HAVING count(col), Ast::SqlPipe ──
 
-    /// BC-2.11.016 v1.20 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 6 (HAVING),
+    /// BC-2.11.016 EC-11-075 — HEAD-JOIN SUSPENSION RULE, position 6 (HAVING),
     /// `Ast::SqlPipe` form (ADV-FIX-P15-MED-001).
     #[tokio::test]
     async fn test_BC_2_11_016_ec11075_sqlpipe_head_join_suspension_having_no_false_e_query_038() {
@@ -13717,7 +13717,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
-                "BC-2.11.016 v1.20 EC-11-075 RED GATE (Ast::SqlPipe position 6 HAVING): \
+                "BC-2.11.016 EC-11-075 RED GATE (Ast::SqlPipe position 6 HAVING): \
                  FALSE E-QUERY-038 on 'col'. HEAD-JOIN SUSPENSION RULE: non-empty JOIN list \
                  → absent bare `col` inside HAVING aggregate MUST NOT fire E-QUERY-038 \
                  (fail-open per FP-001). column='{}', table='{}', available={:?}",
@@ -13731,7 +13731,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 65 (GREEN): Joinless query — E-QUERY-038 MUST fire on absent col ────────
 
-    /// BC-2.11.016 v1.20 EC-11-074 negative control — joinless query fires E-QUERY-038.
+    /// BC-2.11.016 EC-11-074 negative control — joinless query fires E-QUERY-038.
     ///
     /// HEAD-JOIN SUSPENSION RULE applies ONLY when the head JOIN list is non-empty.
     /// A joinless query referencing a non-existent column MUST still fire E-QUERY-038 —
@@ -13766,7 +13766,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 // Correct — joinless query correctly fires E-QUERY-038 on absent `col`.
             }
             other => panic!(
-                "BC-2.11.016 v1.20 EC-11-074 NEGATIVE CONTROL REGRESSION: expected \
+                "BC-2.11.016 EC-11-074 NEGATIVE CONTROL REGRESSION: expected \
                  E-QUERY-038(col) for joinless `SELECT col FROM crowdstrike_alerts`, \
                  but got: {:?}. The HEAD-JOIN SUSPENSION RULE MUST NOT apply to joinless \
                  queries — `col` is genuinely absent from `crowdstrike_alerts` schema \
@@ -13779,7 +13779,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 66 (GREEN): FROM-schema col with JOIN — E-QUERY-038 MUST NOT fire ──────
 
-    /// BC-2.11.016 v1.20 EC-11-074 negative control — present column with JOIN not affected.
+    /// BC-2.11.016 EC-11-074 negative control — present column with JOIN not affected.
     ///
     /// HEAD-JOIN SUSPENSION RULE: "Columns PRESENT in the FROM schema are still checked
     /// normally — only absent col refs with a non-empty JOIN list trigger the suspension."
@@ -13814,7 +13814,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         // are still checked normally").
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "severity" => panic!(
-                "BC-2.11.016 v1.20 EC-11-074 NEGATIVE CONTROL REGRESSION: FALSE E-QUERY-038 \
+                "BC-2.11.016 EC-11-074 NEGATIVE CONTROL REGRESSION: FALSE E-QUERY-038 \
                  on 'severity' (a column PRESENT in `crowdstrike_alerts` schema). The HEAD-JOIN \
                  SUSPENSION RULE MUST NOT apply to columns that ARE in the FROM schema — only \
                  ABSENT columns trigger fail-open. The fix incorrectly suspended the gate for \
@@ -13830,7 +13830,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Tests 67–72: EC-11-076 PER-REFERENCE SCOPING (ADV-FIX-P16-MED-001) ─────
     //
-    // BC-2.11.016 v1.21 EC-11-076 PER-REFERENCE SCOPING RULE:
+    // BC-2.11.016 EC-11-076 PER-REFERENCE SCOPING RULE:
     //   The HEAD-JOIN SUSPENSION RULE (EC-11-074/075) suspends E-QUERY-038 ONLY for
     //   BARE UNQUALIFIED column references. When the SAME column name appears BOTH as
     //   a bare unqualified ref (e.g. bare `col` in WHERE) AND as a FROM-alias-qualified
@@ -13853,7 +13853,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 67 (RED GATE): EC-11-076 alias-qualified SELECT + bare WHERE, Ast::Sql ──
 
-    /// BC-2.11.016 v1.21 EC-11-076 — PER-REFERENCE SCOPING, alias-qualified SELECT ref,
+    /// BC-2.11.016 EC-11-076 — PER-REFERENCE SCOPING, alias-qualified SELECT ref,
     /// `Ast::Sql` form (ADV-FIX-P16-MED-001).
     ///
     /// `SELECT alias.col FROM crowdstrike_alerts AS alias
@@ -13911,7 +13911,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 // are NEVER suspension-eligible even when a co-resident bare ref exists.
             }
             other => panic!(
-                "BC-2.11.016 v1.21 EC-11-076 RED GATE (alias-qualified SELECT, Ast::Sql): \
+                "BC-2.11.016 EC-11-076 RED GATE (alias-qualified SELECT, Ast::Sql): \
                  E-QUERY-038(col) MUST fire for qualified `alias.col` reference \
                  (bound to crowdstrike_alerts; available=[severity, timestamp]). \
                  Per-reference scoping: qualified FROM-alias refs retain full E-QUERY-038 \
@@ -13926,7 +13926,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 68 (RED GATE): EC-11-076 table-name-qualified SELECT + bare WHERE ───
 
-    /// BC-2.11.016 v1.21 EC-11-076 — PER-REFERENCE SCOPING, table-name-qualified SELECT
+    /// BC-2.11.016 EC-11-076 — PER-REFERENCE SCOPING, table-name-qualified SELECT
     /// ref (no AS alias), `Ast::Sql` form (ADV-FIX-P16-MED-001).
     ///
     /// `SELECT crowdstrike_alerts.col FROM crowdstrike_alerts
@@ -13968,7 +13968,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 // CORRECT: E-QUERY-038 fires for qualified `crowdstrike_alerts.col` reference.
             }
             other => panic!(
-                "BC-2.11.016 v1.21 EC-11-076 RED GATE (table-name-qualified SELECT, Ast::Sql): \
+                "BC-2.11.016 EC-11-076 RED GATE (table-name-qualified SELECT, Ast::Sql): \
                  E-QUERY-038(col) MUST fire for qualified `crowdstrike_alerts.col` reference \
                  (bound to crowdstrike_alerts; available=[severity, timestamp]). \
                  Per-reference scoping: table-name-qualified refs are NEVER suspension-eligible. \
@@ -13982,7 +13982,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 69 (RED GATE): EC-11-076 qualified aggregate arg + bare WHERE ───────
 
-    /// BC-2.11.016 v1.21 EC-11-076 — PER-REFERENCE SCOPING, qualified aggregate arg
+    /// BC-2.11.016 EC-11-076 — PER-REFERENCE SCOPING, qualified aggregate arg
     /// (position 1 SELECT inside FuncCall), `Ast::Sql` form (ADV-FIX-P16-MED-001).
     ///
     /// `SELECT sum(alias.typo) FROM crowdstrike_alerts AS alias
@@ -14029,7 +14029,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 // agg-arg refs are NOT suspension-eligible even when bare WHERE `typo` exists.
             }
             other => panic!(
-                "BC-2.11.016 v1.21 EC-11-076 RED GATE (qualified aggregate arg, Ast::Sql): \
+                "BC-2.11.016 EC-11-076 RED GATE (qualified aggregate arg, Ast::Sql): \
                  E-QUERY-038(typo) MUST fire for qualified `alias.typo` inside sum() \
                  (bound to crowdstrike_alerts; available=[severity, timestamp]). \
                  `extract_field_paths_from_expr` recurses into FuncCall::Aggregate args — \
@@ -14044,7 +14044,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 70 (RED GATE): EC-11-076 Ast::SqlPipe head form of shape 1 ─────────
 
-    /// BC-2.11.016 v1.21 EC-11-076 — PER-REFERENCE SCOPING, alias-qualified SELECT ref,
+    /// BC-2.11.016 EC-11-076 — PER-REFERENCE SCOPING, alias-qualified SELECT ref,
     /// `Ast::SqlPipe` form (ADV-FIX-P16-MED-001).
     ///
     /// Shape 1 (test 67) with `| limit 10` suffix → `Ast::SqlPipe`.
@@ -14088,7 +14088,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
                 // head-SQL position-1 path (same code path as Ast::Sql via `sql_query = &spq.head`).
             }
             other => panic!(
-                "BC-2.11.016 v1.21 EC-11-076 RED GATE (Ast::SqlPipe alias-qualified SELECT): \
+                "BC-2.11.016 EC-11-076 RED GATE (Ast::SqlPipe alias-qualified SELECT): \
                  E-QUERY-038(col) MUST fire for qualified `alias.col` in SqlPipe head SQL \
                  (bound to crowdstrike_alerts; available=[severity, timestamp]). \
                  Per-reference scoping applies to Ast::SqlPipe head identically to Ast::Sql \
@@ -14105,7 +14105,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 71 (GREEN): bare-only WHERE col — HEAD-JOIN suspension preserved ────
 
-    /// BC-2.11.016 v1.21 EC-11-076 negative control — bare-only WHERE ref stays suspended.
+    /// BC-2.11.016 EC-11-076 negative control — bare-only WHERE ref stays suspended.
     ///
     /// `SELECT severity FROM crowdstrike_alerts AS alias
     ///  JOIN some_other_table ON alias.severity = some_other_table.id
@@ -14145,7 +14145,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         // If this panics, the EC-11-076 fix has incorrectly removed suspension for bare refs.
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "col" => panic!(
-                "BC-2.11.016 v1.21 EC-11-076 NEGATIVE CONTROL REGRESSION: E-QUERY-038(col) \
+                "BC-2.11.016 EC-11-076 NEGATIVE CONTROL REGRESSION: E-QUERY-038(col) \
                  fired for purely BARE `col` in WHERE — but the HEAD-JOIN SUSPENSION RULE \
                  (EC-11-074 position 2) MUST suppress this. No qualified co-resident ref \
                  for `col` exists here; the per-reference fix (EC-11-076) must NOT change \
@@ -14159,7 +14159,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
 
     // ── Test 72 (GREEN): qualified present-col — E-QUERY-038 must NOT fire ───────
 
-    /// BC-2.11.016 v1.21 EC-11-076 negative control — qualified ref to PRESENT column.
+    /// BC-2.11.016 EC-11-076 negative control — qualified ref to PRESENT column.
     ///
     /// `SELECT alias.severity FROM crowdstrike_alerts AS alias
     ///  JOIN some_other_table ON alias.severity = some_other_table.id`
@@ -14196,7 +14196,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         // and whether or not the ref is qualified.
         match result {
             Err(PrismError::ColumnNotFound(ref details)) if details.column == "severity" => panic!(
-                "BC-2.11.016 v1.21 EC-11-076 NEGATIVE CONTROL REGRESSION: FALSE E-QUERY-038 \
+                "BC-2.11.016 EC-11-076 NEGATIVE CONTROL REGRESSION: FALSE E-QUERY-038 \
                  on 'severity' — a column PRESENT in `crowdstrike_alerts` schema \
                  (available=[severity, timestamp]). Qualified `alias.severity` correctly \
                  resolves to `crowdstrike_alerts.severity`; `check_column_availability` must \
@@ -14560,7 +14560,7 @@ mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
 
     // ── OBS-001: payload sanitization RED gates (expected FAIL at dacb60fa) ─────────────────
     //
-    // BC-2.11.016 v1.22 §Postconditions: the `ColumnNotFoundDetails.column` field AND its
+    // BC-2.11.016 §Postconditions: the `ColumnNotFoundDetails.column` field AND its
     // Display rendering MUST carry the sanitized form (Unicode Cc + U+2028/U+2029 stripped).
     //
     // At dacb60fa: `column_name` is passed RAW to `ColumnNotFoundDetails::new(column_name, ...)`
@@ -14579,7 +14579,7 @@ mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
     /// RED at dacb60fa: `column_name` is passed raw to `ColumnNotFoundDetails::new` →
     /// `details.column == "sev\x01rity"` → `has_ctrl_or_sep` returns true → assertion FAILS.
     ///
-    /// Traces to: ADV-PR-P1-OBS-001, BC-2.11.016 v1.22 §Postconditions.
+    /// Traces to: ADV-PR-P1-OBS-001, BC-2.11.016 §Postconditions.
     #[test]
     fn test_BC_2_11_016_obs001_payload_column_field_stripped_of_ctrl_chars() {
         let available = vec!["severity".to_string(), "timestamp".to_string()];
@@ -14595,7 +14595,7 @@ mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
             PrismError::ColumnNotFound(ref details) => {
                 assert!(
                     !has_ctrl_or_sep(&details.column),
-                    "OBS-001 RED GATE (BC-2.11.016 v1.22 §Postconditions): \
+                    "OBS-001 RED GATE (BC-2.11.016 §Postconditions): \
                      ColumnNotFoundDetails.column must not contain raw Unicode Cc or \
                      U+2028/U+2029. Got column = {:?}. \
                      FIX: sanitize column_name before passing to ColumnNotFoundDetails::new \
@@ -14619,7 +14619,7 @@ mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
     /// verbatim → `format!()` output contains U+0001 → `has_ctrl_or_sep` returns true →
     /// assertion FAILS.
     ///
-    /// Traces to: ADV-PR-P1-OBS-001, BC-2.11.016 v1.22 §Postconditions.
+    /// Traces to: ADV-PR-P1-OBS-001, BC-2.11.016 §Postconditions.
     #[test]
     fn test_BC_2_11_016_obs001_payload_display_rendering_stripped_of_ctrl_chars() {
         let registry = TableRegistry::new();
@@ -14663,7 +14663,7 @@ mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
                 let display = format!("{}", details);
                 assert!(
                     !has_ctrl_or_sep(&display),
-                    "OBS-001 RED GATE (BC-2.11.016 v1.22 §Postconditions): \
+                    "OBS-001 RED GATE (BC-2.11.016 §Postconditions): \
                      Display rendering of ColumnNotFoundDetails must not contain raw Unicode \
                      Cc or U+2028/U+2029. Got: {:?}. \
                      FIX: sanitize column_name before ColumnNotFoundDetails::new in \

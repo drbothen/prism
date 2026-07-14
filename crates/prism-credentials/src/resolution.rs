@@ -6,7 +6,7 @@
 //! `secrecy::SecretString`. Resolution is audit-logged (namespace only, never the value).
 //! If resolution fails, returns a clear error before any API call is attempted.
 //!
-//! # Per-client env-var convention (ADR-032 / BC-2.06.003 v1.3)
+//! # Per-client env-var convention (ADR-032 / BC-2.06.003)
 //!
 //! `{ID}` = org slug uppercased with hyphens → underscores
 //! (e.g. `demo-org-a` → `DEMO_ORG_A`, `acme-corp` → `ACME_CORP`).
@@ -83,7 +83,7 @@ pub fn per_client_file_env_var(org_slug: &str, sensor_id: &str, ref_name: &str) 
 
 /// Resolve a credential at sensor query time.
 ///
-/// # Contract: BC-2.03.006 / BC-2.06.003 v1.4 (ADR-032, ADR-034)
+/// # Contract: BC-2.03.006 / BC-2.06.003 (ADR-032, ADR-034)
 ///
 /// Per-client four-tier resolution chain:
 ///   1. `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}_FILE` (file path; Tier 1 highest)
@@ -112,7 +112,7 @@ pub async fn resolve_credential(
     org_id: Option<&prism_core::OrgId>,
     keyring: Option<&std::sync::Arc<dyn crate::trait_::CredentialStoreOrgId>>,
 ) -> Result<SecretString, CredentialResolutionError> {
-    // Build per-client env-var names (ADR-032 / BC-2.06.003 v1.3).
+    // Build per-client env-var names (ADR-032 / BC-2.06.003).
     // Tier 1: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}_FILE
     // Tier 2: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}
     let direct_env = per_client_env_var(client_id, sensor_id, credential_name);

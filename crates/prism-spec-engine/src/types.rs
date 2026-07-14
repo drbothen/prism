@@ -274,7 +274,7 @@ pub struct ConfigSnapshot {
     ///
     /// Populated from `[[orgs]].name` in `prism.toml` (`OrgEntry.name`) during boot
     /// step 4. Used by `prism://config/clients` MCP resource to expose `display_name`
-    /// on each `ClientInventoryEntry` (BC-2.10.008 v1.11). `None` value means the
+    /// on each `ClientInventoryEntry` (BC-2.10.008). `None` value means the
     /// org has no configured display name; the field is absent from the org slice
     /// when added to `ConfigSnapshot` without the extra TOML field.
     pub org_display_names: std::collections::HashMap<String, Option<String>>,

@@ -641,7 +641,7 @@ fn test_PLUGIN_MIGRATION_001_F_parity_armis_toml_fixture_loading() {
 // AC-ARMIS-TW-005: E2E — aql-log contains augmented AQL with time clause (#[ignore])
 // ---------------------------------------------------------------------------
 
-/// AC-ARMIS-TW-002 / BC-2.11.007 v1.8 §Mechanism B DTU-honors-AQL-time-clause contract
+/// AC-ARMIS-TW-002 / BC-2.11.007 §Mechanism B DTU-honors-AQL-time-clause contract
 ///
 /// LOAD-BEARING: The Armis DTU must parse the `after:` clause from the AQL string
 /// and filter its fixture dataset accordingly.
@@ -784,7 +784,7 @@ async fn test_ac_armis_tw_002_dtu_filters_fixture_by_time_window() {
     );
 }
 
-/// AC-ARMIS-TW-004 / BC-2.11.007 v1.8 result-equivalence invariant for Armis
+/// AC-ARMIS-TW-004 / BC-2.11.007 result-equivalence invariant for Armis
 ///
 /// Two queries against the Armis DTU:
 /// (a) WITH `last_seen > T` push-down (AQL augmented with `after:T`) AND DataFusion post-filter.
@@ -899,7 +899,7 @@ async fn test_ac_armis_tw_004_result_equivalence_pushdown_vs_postfilter() {
     }
 }
 
-/// AC-ARMIS-TW-005 / BC-2.11.007 v1.8 §Mechanism B end-to-end
+/// AC-ARMIS-TW-005 / BC-2.11.007 §Mechanism B end-to-end
 ///
 /// E2E: prism binary + Armis DTU — aql-log contains augmented AQL with time clause.
 ///

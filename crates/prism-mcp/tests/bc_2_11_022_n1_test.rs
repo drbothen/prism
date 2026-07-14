@@ -1,4 +1,4 @@
-//! Red Gate test for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1 — BC-2.11.022 v1.1.
+//! Red Gate test for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1 — BC-2.11.022.
 //!
 //! Finding N1 (EC-11-022-006): `build_reference_content` deduplicates by `infusion_id`
 //! instead of `descriptor.name` (the per-field UDF name). For a registry with
@@ -11,7 +11,7 @@
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
-//! | test_bc_2_11_022_n1_per_field_udf_names | AC-N1 | BC-2.11.022 v1.1 EC-11-022-006 |
+//! | test_bc_2_11_022_n1_per_field_udf_names | AC-N1 | BC-2.11.022 EC-11-022-006 |
 //!
 //! # Red Gate failure mode
 //!
@@ -76,7 +76,7 @@ fn make_two_infusion_registry() -> InfusionRegistry {
     registry
 }
 
-/// BC-2.11.022 v1.1 EC-11-022-006 — AC-N1 Red Gate test.
+/// BC-2.11.022 EC-11-022-006 — AC-N1 Red Gate test.
 ///
 /// `build_reference_content` with a live `InfusionRegistry` must deduplicate by
 /// `descriptor.name` (per-field UDF name), NOT by `descriptor.infusion_id`.

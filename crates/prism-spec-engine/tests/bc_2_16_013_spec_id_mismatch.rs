@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-//! RG-09 / HS-018: BC-2.16.001 v1.6 — Sensor spec_id / Filename Mismatch Rejected
+//! RG-09 / HS-018: BC-2.16.001 — Sensor spec_id / Filename Mismatch Rejected
 //!
 //! Tests that SpecLoader::load_all() rejects a spec file where the sensor_id
 //! value does not case-sensitively match the filename stem, emitting E-SPEC-017.
@@ -22,7 +22,7 @@ use prism_spec_engine::spec_parser::SpecLoader;
 // RG-09 / HS-018: sensor_id / filename mismatch rejected at load time
 // ---------------------------------------------------------------------------
 
-/// RG-09 / HS-018 / BC-2.16.001 v1.6 §Error Conditions E-SPEC-017:
+/// RG-09 / HS-018 / BC-2.16.001 §Error Conditions E-SPEC-017:
 /// test_BC_2_16_001_RG_09_filename_stem_mismatch_emits_E_SPEC_017
 ///
 /// Write a temp spec file crowdstrike.sensor.toml with sensor_id = "falcon"
@@ -71,7 +71,7 @@ ocsf_class = "security_finding"
     .expect("write mismatch spec");
 
     // Use SpecLoader::load_all() — NOT SpecLoader::parse() — because only load_all()
-    // has the filename context required to detect the mismatch (BC-2.16.001 v1.6 §Error Conditions).
+    // has the filename context required to detect the mismatch (BC-2.16.001 §Error Conditions).
     let loader = SpecLoader::new(dir_path.to_str().expect("valid path").to_string());
     let (descriptors, errors) = loader.load_all();
 

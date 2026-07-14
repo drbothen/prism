@@ -159,7 +159,7 @@ fn make_evaluator_deny_all() -> FeatureFlagEvaluator {
 // BC-2.04.001: compile-time feature gate ABSENT → E-FLAG-002
 // ---------------------------------------------------------------------------
 
-/// BC-2.04.001 v1.2 postcondition: the compile-time write capability tier is
+/// BC-2.04.001 postcondition: the compile-time write capability tier is
 /// REGISTRY-DERIVED — when the sensor's TOML spec declares no matching
 /// `[[write_endpoints]]` entry, `phase2_safety_check` denies with E-FLAG-002
 /// (`DeniedCompileTime` → `CAPABILITY_DENIED`). The write code remains in the
@@ -167,7 +167,7 @@ fn make_evaluator_deny_all() -> FeatureFlagEvaluator {
 /// restarting — not a rebuild. (P2-05, 2026-06-10 review pass-2: retired the
 /// "write code does not exist in binary" Cargo-feature framing.)
 ///
-/// Canonical test vector (BC-2.04.001 v1.2): "Declaration absent | CrowdStrike
+/// Canonical test vector (BC-2.04.001): "Declaration absent | CrowdStrike
 /// sensor TOML spec has no [[write_endpoints]] entry for the target table |
 /// Write denied DeniedCompileTime → CAPABILITY_DENIED (E-FLAG-002); runtime
 /// config cannot override"
@@ -196,8 +196,8 @@ fn test_BC_2_04_001_compile_gate_absent_returns_e_flag_002() {
     let err = result.expect_err("Absent compile gate must return Err");
     let err_msg = err.to_string();
     // P2-02 (2026-06-10 review pass-2): the E-FLAG-002 compile-tier denial reason
-    // is the spec-pinned template (error-taxonomy E-FLAG-002 row / BC-2.04.015 v1.2 /
-    // BC-2.04.001 v1.2) — registry semantics, not the retired "not compiled"
+    // is the spec-pinned template (error-taxonomy E-FLAG-002 row / BC-2.04.015 /
+    // BC-2.04.001) — registry semantics, not the retired "not compiled"
     // Cargo-feature framing (BC-2.16.012).
     assert!(
         err_msg.contains("CAPABILITY_DENIED")

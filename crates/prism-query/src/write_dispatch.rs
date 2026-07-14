@@ -127,7 +127,7 @@ pub trait AuditWriter: Send + Sync + 'static {
     /// `AuditWriter` cannot silently inherit a no-op and lose the durable
     /// tool-call audit trail.
     ///
-    /// # BC-2.10.012 v1.1 extended signature (S-DEMO-PRISMQL-ONBOARDING-001-A)
+    /// # BC-2.10.012 extended signature (S-DEMO-PRISMQL-ONBOARDING-001-A)
     ///
     /// The signature carries BOTH `operation` (the canonical operation name that
     /// identifies WHAT was attempted, e.g. `"query"`, `"prism_describe"`,

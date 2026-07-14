@@ -85,7 +85,7 @@ impl prism_credentials::CredentialStore for NoopCs {
 
 /// Build a `TableRegistry` with `cyberint_alerts` registered.
 ///
-/// EC-11-041 (ADV-FIX-P9-OBS-001, BC-2.11.016 v1.16): the column gate now fires
+/// EC-11-041 (ADV-FIX-P9-OBS-001, BC-2.11.016): the column gate now fires
 /// E-QUERY-038 with `available_columns: []` for registered tables with zero columns.
 /// The BC-2.11.019 tests use queries that reference valid columns (`iocs_value`,
 /// `some_col`, `severity`) and expect E-QUERY-039 (unknown UDF). For E-QUERY-039 to
@@ -1154,7 +1154,7 @@ async fn test_bc_2_11_019_n1b_builtin_passthrough_lower() {
             !display.contains("E-QUERY-039"),
             "EC-11-064: DataFusion built-in 'lower' must NOT trigger E-QUERY-039. \
              Got: {display}. Fix: add DataFusion built-in exclusion to \
-             check_enrich_udf_availability (BC-2.11.019 v1.5)."
+             check_enrich_udf_availability (BC-2.11.019)."
         );
     }
     // Note: the query may fail for other reasons (e.g. no sensor data at test time),
@@ -1205,7 +1205,7 @@ async fn test_bc_2_11_019_n1b_builtin_passthrough_coalesce() {
             "EC-11-065: DataFusion built-in 'coalesce' must NOT trigger E-QUERY-039. \
              Got: {display}. Fix: verify 'coalesce' is in DATAFUSION_BUILTIN_FUNCTION_NAMES \
              and the built-in exclusion check is active in check_enrich_udf_availability \
-             (BC-2.11.019 v1.5). This test FAILS if coalesce is removed from the exclusion set."
+             (BC-2.11.019). This test FAILS if coalesce is removed from the exclusion set."
         );
     }
 
@@ -1226,7 +1226,7 @@ async fn test_bc_2_11_019_n1b_builtin_passthrough_coalesce() {
                 "EC-11-065: DataFusion built-in '{fn_name}' must NOT trigger E-QUERY-039. \
                  Query: {query}. Got: {display}. \
                  Fix: add DataFusion built-in exclusion to check_enrich_udf_availability \
-                 (BC-2.11.019 v1.5)."
+                 (BC-2.11.019)."
             );
         }
     }
@@ -1336,7 +1336,7 @@ async fn test_bc_2_11_019_ec_11_066_builtin_aggregate_stddev_not_e_query_039() {
              E-QUERY-039 in SQL mode. Got: {display}. \
              Fix: expand DATAFUSION_BUILTIN_FUNCTION_NAMES to include \
              SessionStateDefaults::default_aggregate_functions() and rename to \
-             DATAFUSION_BUILTIN_FUNCTION_NAMES (BC-2.11.019 v1.6 §F-PJL1-HIGH-001)."
+             DATAFUSION_BUILTIN_FUNCTION_NAMES (BC-2.11.019 §F-PJL1-HIGH-001)."
         );
     }
     // Ok result is also acceptable (no E-QUERY-039 means the gate was correctly bypassed).
@@ -1378,7 +1378,7 @@ async fn test_bc_2_11_019_ec_11_067_builtin_window_row_number_not_e_query_039() 
              trigger E-QUERY-039 in SQL mode. Got: {display}. \
              Fix: expand DATAFUSION_BUILTIN_FUNCTION_NAMES to include \
              SessionStateDefaults::default_window_functions() and rename to \
-             DATAFUSION_BUILTIN_FUNCTION_NAMES (BC-2.11.019 v1.6 §F-PJL1-HIGH-001)."
+             DATAFUSION_BUILTIN_FUNCTION_NAMES (BC-2.11.019 §F-PJL1-HIGH-001)."
         );
     }
     // Ok result is also acceptable.
@@ -1426,7 +1426,7 @@ async fn test_f_pnl1_pipe_mode_builtin_aggregate_still_fires_e_query_039() {
         display.contains("E-QUERY-039"),
         "F-PNL1 pipe-mode guard: `| enrich stddev(...)` must trigger E-QUERY-039. \
          Got: {display}. The fix must NOT apply the DataFusion built-in exclusion to \
-         pipe-mode enrich names (BC-2.11.019 v1.6 §F-PJL1-HIGH-001 scope of change)."
+         pipe-mode enrich names (BC-2.11.019 §F-PJL1-HIGH-001 scope of change)."
     );
 }
 
@@ -1531,6 +1531,6 @@ async fn test_f_pjl4_med001_scheduled_path_table_gate_fires_before_capability_ga
          If AuditTableAccessDenied: the H1 fix is incomplete for the scheduled path — \
          execute_scheduled_inner is running the capability gate BEFORE the table gate. \
          Fix: move check_internal_table_capabilities AFTER check_table_availability \
-         in execute_scheduled_inner (BC-2.11.019 v1.5 / H1 fix)."
+         in execute_scheduled_inner (BC-2.11.019 / H1 fix)."
     );
 }

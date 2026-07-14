@@ -118,7 +118,7 @@ fn test_med5_enrich_udf_not_found_suggestion_non_empty_no_brackets() {
                     enrichment functions.";
     assert_eq!(
         suggestion, expected,
-        "MED-5 BC-2.11.019 v1.5 §MCP surface: suggestion must not wrap the list in brackets \
+        "MED-5 BC-2.11.019 §MCP surface: suggestion must not wrap the list in brackets \
          and must follow the BC canonical template byte-for-byte.\n\
          Expected: {expected:?}\n\
          Got:      {suggestion:?}"
@@ -151,7 +151,7 @@ fn test_med5_enrich_udf_not_found_suggestion_empty_infusions() {
                     Enrichment is not available in this deployment.";
     assert_eq!(
         suggestion, expected,
-        "MED-5 BC-2.11.019 v1.5 §MCP surface: empty-infusions suggestion must match BC text.\n\
+        "MED-5 BC-2.11.019 §MCP surface: empty-infusions suggestion must match BC text.\n\
          Expected: {expected:?}\n\
          Got:      {suggestion:?}"
     );

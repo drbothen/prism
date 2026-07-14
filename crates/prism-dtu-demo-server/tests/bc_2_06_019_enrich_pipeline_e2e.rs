@@ -1,4 +1,4 @@
-//! BC-2.06.019 v1.13 + BC-2.06.020 — genuine end-to-end enrich pipeline tests.
+//! BC-2.06.019 + BC-2.06.020 — genuine end-to-end enrich pipeline tests.
 //!
 //! **F-PIVOT003-R3-001 closure** — these tests execute the ACTUAL PrismQL enrich pipeline
 //! (DataFusion `SessionContext` + `InfusionAsyncUdf` + `register_infusion_udfs`) against
@@ -36,8 +36,8 @@
 //!
 //! ## BC traceability
 //!
-//! AC-007: BC-2.06.019 v1.13 / BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001
-//! AC-008: BC-2.06.019 v1.13 PC-2 / BC-2.06.020 INV-NVD-CVE-CORRELATION-001
+//! AC-007: BC-2.06.019 / BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001
+//! AC-008: BC-2.06.019 PC-2 / BC-2.06.020 INV-NVD-CVE-CORRELATION-001
 //!
 //! ## TD-VSDD-059 (paper-fix guard)
 //!
@@ -216,7 +216,7 @@ impl InfusionSource for NvdInfusionSource {
 /// (d) The Cyberint clone produced no alert records with IOC values (AC-002 failure).
 ///
 /// Traces to:
-///   BC-2.06.019 v1.13 (AC-007: iocs[].value canonical pivot field)
+///   BC-2.06.019 (AC-007: iocs[].value canonical pivot field)
 ///   BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001 (scenario IOCs resolve as Malicious)
 ///   F-PIVOT003-R3-001 (closing finding: genuine pipeline execution required)
 #[tokio::test]
@@ -258,7 +258,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
     .expect("CyberintClone::new_with_scenario must succeed");
 
     // Step 4 — Extract all IOC values from alert records' `iocs[].value` arrays.
-    // This mirrors the iocs[].value array field-path extraction from BC-2.06.019 v1.13 AC-007.
+    // This mirrors the iocs[].value array field-path extraction from BC-2.06.019 AC-007.
     // We flatten each ioc entry from the iocs[] array into individual rows for the MemTable.
     let mut ioc_values: Vec<String> = Vec::new();
     for rec in &cyberint_clone.state.generated_records {
@@ -266,7 +266,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
         if !is_alert {
             continue;
         }
-        // iocs[] array form (BC-2.06.019 v1.13 AC-007 canonical field).
+        // iocs[] array form (BC-2.06.019 AC-007 canonical field).
         if let Some(iocs_arr) = rec.get("iocs").and_then(|v| v.as_array()) {
             for ioc_entry in iocs_arr {
                 if let Some(val) = ioc_entry.get("value").and_then(|v| v.as_str()) {
@@ -288,7 +288,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
         !ioc_values.is_empty(),
         "Test 10 prereq: no IOC values found in Cyberint alert records (seed={seed}). \
          AC-002 must stamp catalog.ioc_hashes onto alert records via iocs[].value. \
-         BC-2.06.019 v1.13 AC-007 / F-PIVOT003-R3-001 [VACUOUS PASS GUARD]"
+         BC-2.06.019 AC-007 / F-PIVOT003-R3-001 [VACUOUS PASS GUARD]"
     );
 
     // Step 5 — Build the DataFusion SessionContext with the ThreatIntel enrichment UDF.
@@ -334,7 +334,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
         .expect("Test 10: register_table must succeed");
 
     // Step 7 — Execute the enrich SQL query through DataFusion.
-    // This is the canonical ThreatIntel pivot query equivalent (BC-2.06.019 v1.13 AC-007):
+    // This is the canonical ThreatIntel pivot query equivalent (BC-2.06.019 AC-007):
     //   FROM cyberint_alerts | enrich threat_intel(iocs[].value) | where threat_is_known_malicious = true
     // Translated to SQL using the registered async UDF:
     let df = ctx
@@ -364,7 +364,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
          Got 0 — InfusionAsyncUdf::invoke_async_with_args did NOT call the source. \
          This is the hollow-feature guard (TD-VSDD-059): the UDF pipeline was not exercised. \
          ioc_values_in_table = {}. \
-         BC-2.06.019 v1.13 AC-007 / F-PIVOT003-R3-001",
+         BC-2.06.019 AC-007 / F-PIVOT003-R3-001",
         ioc_values.len()
     );
 
@@ -377,7 +377,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
         "Test 10 F-PIVOT003-R3-001: query must return at least 1 row. \
          Got 0 rows — MemTable was empty or WHERE clause eliminated all rows. \
          ioc_values_in_table = {}. \
-         BC-2.06.019 v1.13 AC-007",
+         BC-2.06.019 AC-007",
         ioc_values.len()
     );
 
@@ -411,7 +411,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
         "Test 10 F-PIVOT003-R3-001: at least 1 non-NULL verdict row required. \
          Got 0 — enrich_single returned None for all IOCs (no catalog IOCs found in state). \
          enrich_call_count={enrich_call_count}. ioc_values={:?}. \
-         BC-2.06.019 v1.13 AC-007 / INV-THREATINTEL-IOC-CORRELATION-001",
+         BC-2.06.019 AC-007 / INV-THREATINTEL-IOC-CORRELATION-001",
         ioc_values
     );
 
@@ -421,7 +421,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
          Got malicious_count=0 out of {total_non_null} non-NULL verdicts. \
          Expected scenario catalog IOC hash to resolve as Malicious via ThreatIntelState. \
          enrich_call_count={enrich_call_count}. ioc_values={:?}. \
-         BC-2.06.019 v1.13 AC-007 / INV-THREATINTEL-IOC-CORRELATION-001 / F-PIVOT003-R3-001 [RED GATE]",
+         BC-2.06.019 AC-007 / INV-THREATINTEL-IOC-CORRELATION-001 / F-PIVOT003-R3-001 [RED GATE]",
         ioc_values
     );
 
@@ -493,7 +493,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
         "Test 10 F-PIVOT003-R7B-001: at least 1 threat_score >= 75 result required. \
          Got score_above_threshold=0. ThreatIntelInfusionSource returns threat_score=85 for \
          Malicious keys (>= 75 per AC-007). \
-         BC-2.06.019 v1.13 AC-007 conjunction: threat_is_known_malicious=true AND threat_score >= 75. \
+         BC-2.06.019 AC-007 conjunction: threat_is_known_malicious=true AND threat_score >= 75. \
          BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001 / F-PIVOT003-R7B-001 [RED GATE]"
     );
 }
@@ -523,7 +523,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
 /// (d) The Armis clone produced no device records with device_cves_first (AC-008 failure).
 ///
 /// Traces to:
-///   BC-2.06.019 v1.13 PC-2 (device_cves visible at Containment stage)
+///   BC-2.06.019 PC-2 (device_cves visible at Containment stage)
 ///   BC-2.06.020 INV-NVD-CVE-CORRELATION-001 (scenario CVEs appear with HIGH CVSS)
 ///   U17/Ruling 1b (device_cves_first = catalog.device_cves[0] scalar projection)
 ///   F-PIVOT003-R3-001 (closing finding: genuine pipeline execution required)
@@ -585,7 +585,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_nvd_pivot_executes_udf_and_returns
          state.generated_records (seed={seed}). AC-008 / U17/Ruling 1b requires \
          ArmisClone::new_with_scenario to stamp device_cves_first on CompromisedEndpoint \
          asset records. catalog.device_cves={:?}. \
-         BC-2.06.019 v1.13 PC-2 / F-PIVOT003-R3-001 [VACUOUS PASS GUARD]",
+         BC-2.06.019 PC-2 / F-PIVOT003-R3-001 [VACUOUS PASS GUARD]",
         catalog.device_cves
     );
 
@@ -670,7 +670,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_nvd_pivot_executes_udf_and_returns
         .expect("Test 11: register_table must succeed");
 
     // Step 7 — Execute the enrich SQL query through DataFusion.
-    // This is the canonical NVD pivot query equivalent (BC-2.06.019 v1.13 AC-008):
+    // This is the canonical NVD pivot query equivalent (BC-2.06.019 AC-008):
     //   FROM armis_devices | where has device_cves_first | enrich nvd(device_cves_first) | where cvss_base_score >= 7.0
     // Translated to SQL using the registered async UDF:
     let df = ctx
@@ -700,7 +700,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_nvd_pivot_executes_udf_and_returns
          Got 0 — InfusionAsyncUdf::invoke_async_with_args did NOT call the source. \
          This is the hollow-feature guard (TD-VSDD-059): the UDF pipeline was not exercised. \
          device_cve_values_in_table = {}. \
-         BC-2.06.019 v1.13 AC-008 / F-PIVOT003-R3-001",
+         BC-2.06.019 AC-008 / F-PIVOT003-R3-001",
         device_cve_values.len()
     );
 
@@ -711,7 +711,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_nvd_pivot_executes_udf_and_returns
         "Test 11 F-PIVOT003-R3-001: query must return at least 1 row. \
          Got 0 rows — MemTable was empty or WHERE clause eliminated all rows. \
          device_cve_values_in_table = {}. \
-         BC-2.06.019 v1.13 AC-008",
+         BC-2.06.019 AC-008",
         device_cve_values.len()
     );
 
@@ -748,7 +748,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_nvd_pivot_executes_udf_and_returns
         "Test 11 F-PIVOT003-R3-001: at least 1 non-NULL CVSS result required. \
          Got 0 — NvdInfusionSource::enrich_single returned None for all CVE IDs. \
          enrich_call_count={enrich_call_count}. device_cve_values={:?}. \
-         BC-2.06.019 v1.13 AC-008 / INV-NVD-CVE-CORRELATION-001",
+         BC-2.06.019 AC-008 / INV-NVD-CVE-CORRELATION-001",
         device_cve_values
     );
 
@@ -758,7 +758,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_nvd_pivot_executes_udf_and_returns
          Got high_cvss_count=0 out of {total_non_null} non-NULL results. \
          Expected scenario CVEs to have base_score=8.1 (BC-2.06.020 PC-4). \
          enrich_call_count={enrich_call_count}. device_cve_values={:?}. \
-         BC-2.06.019 v1.13 AC-008 / INV-NVD-CVE-CORRELATION-001 / F-PIVOT003-R3-001 [RED GATE]",
+         BC-2.06.019 AC-008 / INV-NVD-CVE-CORRELATION-001 / F-PIVOT003-R3-001 [RED GATE]",
         device_cve_values
     );
 }

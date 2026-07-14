@@ -6,7 +6,7 @@
 //! from row JSON objects instead of appearing as JSON `null`.
 //!
 //! Spec authority:
-//! - BC-2.11.001 v1.20 EC-11-079 §Postconditions "Row-shape null-not-absent" bullet
+//! - BC-2.11.001 EC-11-079 §Postconditions "Row-shape null-not-absent" bullet
 //!   (null-not-absent postcondition codified at v1.16 as EC-11-068; renumbered EC-11-079
 //!   at v1.20 per SR-006)
 //! - EC-11-079: every row must contain all schema keys; NULL cells → `{"sensor_ip":null}`
@@ -22,7 +22,7 @@
 //! |---|---|---|
 //! | `test_BC_2_11_001_EC_11_079_null_column_value_serialized_as_json_null_not_absent` | EC-11-079 | `WriterBuilder::new()` omitted NULL key from row JSON |
 //! | `test_BC_2_11_001_EC_11_079_every_row_contains_all_schema_column_keys` | EC-11-079 invariant | NULL row was missing `sensor_ip` key |
-//! | `test_BC_2_11_001_canonical_test_vector_select_severity_sensor_ip_null_rows` | BC-2.11.001 v1.20 EC-11-079 canonical test vector | Row 1 (`severity=medium, sensor_ip=NULL`) was missing `sensor_ip` key |
+//! | `test_BC_2_11_001_canonical_test_vector_select_severity_sensor_ip_null_rows` | BC-2.11.001 EC-11-079 canonical test vector | Row 1 (`severity=medium, sensor_ip=NULL`) was missing `sensor_ip` key |
 //!
 //! Red Gate: these tests originally failed against `WriterBuilder::new()` default (nulls omitted).
 //! They pass with `.with_explicit_nulls(true)` added to `WriterBuilder` in `server.rs` (this branch) — now locking the invariant.
@@ -93,7 +93,7 @@ mod tests {
 
     /// Sensor adapter that returns 3 RecordBatch rows with a nullable `sensor_ip` column.
     ///
-    /// Canonical test vector from BC-2.11.001 v1.20 EC-11-079:
+    /// Canonical test vector from BC-2.11.001 EC-11-079:
     /// - Row 0: `severity="high",   sensor_ip=Some("10.0.0.1")`
     /// - Row 1: `severity="medium", sensor_ip=None`  ← NULL — triggers the defect
     /// - Row 2: `severity="low",    sensor_ip=Some("10.0.0.3")`
@@ -200,7 +200,7 @@ mod tests {
 
         // sensor_id="crowdstrike" + table_name="alerts" → full DataFusion table name
         // = "crowdstrike_alerts" (formed by TableRegistry as "{sensor_id}_{table_name}").
-        // This is the canonical test vector table from BC-2.11.001 v1.20 EC-11-079.
+        // This is the canonical test vector table from BC-2.11.001 EC-11-079.
         let sensor_id_str = "crowdstrike";
         let table_name = "alerts";
         let org = "acme";
@@ -268,7 +268,7 @@ mod tests {
     // DEFECT 1 tests — Red Gate: originally failed against pre-fix code; now pass
     // =========================================================================
 
-    /// BC-2.11.001 v1.20 EC-11-079: a row with a NULL-valued column must serialize
+    /// BC-2.11.001 EC-11-079: a row with a NULL-valued column must serialize
     /// the column key with JSON `null`, NOT omit the key entirely.
     ///
     /// Red Gate: originally failed — `WriterBuilder::new()` used `explicit_nulls=false`
@@ -326,7 +326,7 @@ mod tests {
         );
     }
 
-    /// BC-2.11.001 v1.20 EC-11-079 invariant: EVERY row must contain ALL projected
+    /// BC-2.11.001 EC-11-079 invariant: EVERY row must contain ALL projected
     /// column keys, regardless of whether their values are NULL.
     ///
     /// Key-completeness invariant: the set of keys in each row object must equal the
@@ -369,7 +369,7 @@ mod tests {
         }
     }
 
-    /// BC-2.11.001 v1.20 EC-11-079 canonical test vector: `SELECT severity, sensor_ip FROM
+    /// BC-2.11.001 EC-11-079 canonical test vector: `SELECT severity, sensor_ip FROM
     /// crowdstrike_alerts` where some rows have `sensor_ip=NULL`.
     ///
     /// Per the BC canonical test vector (§Test Vectors):
@@ -426,7 +426,7 @@ mod tests {
     }
 
     // =========================================================================
-    // AC (b) enrich-stage NULL lock — BC-2.11.001 v1.20 EC-11-079 probe [H20]
+    // AC (b) enrich-stage NULL lock — BC-2.11.001 EC-11-079 probe [H20]
     // =========================================================================
 
     /// Build an `InfusionRegistry` containing a single `NullSource`-backed UDF
@@ -534,12 +534,12 @@ mod tests {
     // Filter-mode EC-11-079 regression lock
     // =========================================================================
 
-    /// BC-2.11.001 v1.20 EC-11-079 filter-mode lock: in filter-mode queries
+    /// BC-2.11.001 EC-11-079 filter-mode lock: in filter-mode queries
     /// (`crowdstrike_alerts | predicate`), NULL-valued column keys must appear as
     /// JSON `null` in every row — the invariant applies to all three query modes
     /// (SQL, pipe, filter).
     ///
-    /// BC-2.11.001 v1.20 §Postconditions states the invariant holds across ALL query
+    /// BC-2.11.001 §Postconditions states the invariant holds across ALL query
     /// modes. SQL + pipe are locked by the preceding tests (via the single
     /// `WriterBuilder::with_explicit_nulls(true)` chokepoint in server.rs). This test
     /// locks filter mode against a future regression where a second row-emit path for
@@ -556,7 +556,7 @@ mod tests {
     /// Filter mode source reference format: `sensor_table_name | predicate` (underscore form,
     /// `SourceRefKind::Custom`). The dot-notation form (`sensor.table`) produces
     /// `SourceRefKind::External` which is rejected by the E-QUERY-037 availability gate
-    /// (EC-11-067 / BC-2.11.001 v1.15). Use underscore form so the gate sees a registered
+    /// (EC-11-067 / BC-2.11.001). Use underscore form so the gate sees a registered
     /// Custom source ref.
     /// Predicate `severity != "notexist_severity"` matches all 3 rows (none has
     /// severity="notexist_severity"). DataFusion materializes this as:
@@ -627,7 +627,7 @@ mod tests {
         );
     }
 
-    /// BC-2.11.001 v1.20 EC-11-079 AC (b) — probe [H20]: in pipe-mode `| enrich` queries, enrichment
+    /// BC-2.11.001 EC-11-079 AC (b) — probe [H20]: in pipe-mode `| enrich` queries, enrichment
     /// column values that are NULL must serialize as JSON `null` (key present), NOT be omitted.
     ///
     /// This is the enrich-stage companion to the projected-nullable-column tests above (AC (a)).

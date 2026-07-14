@@ -2331,7 +2331,7 @@ fn build_minimal_subquery(source_table_name: &str) -> crate::ast::SqlQuery {
 // F-PLL1-LOW-001: dot-notation did_you_mean validation
 // ---------------------------------------------------------------------------
 //
-// BC-2.11.001 v1.15 / AC-N2 / EC-11-067: the `FROM sensor.table` dot-notation
+// BC-2.11.001 / AC-N2 / EC-11-067: the `FROM sensor.table` dot-notation
 // arm of `check_availability_gate` MUST only suggest the underscore form when
 // the underscore form is actually registered.  If it is not registered, the
 // suggestion must NOT name a non-existent table — instead, fall back to
@@ -2348,7 +2348,7 @@ fn build_minimal_subquery(source_table_name: &str) -> crate::ast::SqlQuery {
 //     This test FAILS against the pre-fix blind-suggestion code (returns
 //     " Did you mean: 'foo_bar'?" unconditionally) and PASSES after the fix.
 
-/// BC-2.11.001 v1.15 / F-PLL1-LOW-001 regression guard: when `FROM cyberint.alerts`
+/// BC-2.11.001 / F-PLL1-LOW-001 regression guard: when `FROM cyberint.alerts`
 /// is used and `cyberint_alerts` IS registered, E-QUERY-037 must suggest
 /// `cyberint_alerts` in the `did_you_mean` field — no regression to the
 /// N2 demo path.
@@ -2391,7 +2391,7 @@ fn test_F_PLL1_LOW_001_dot_notation_registered_underscore_suggests_correctly() {
     }
 }
 
-/// BC-2.11.001 v1.15 / F-PLL1-LOW-001 fix: when `FROM foo.bar` is used and
+/// BC-2.11.001 / F-PLL1-LOW-001 fix: when `FROM foo.bar` is used and
 /// `foo_bar` is NOT registered, E-QUERY-037 must NOT suggest `foo_bar` in the
 /// `did_you_mean` field.
 ///

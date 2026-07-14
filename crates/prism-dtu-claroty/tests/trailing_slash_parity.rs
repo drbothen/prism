@@ -1,6 +1,6 @@
 //! S-DEMO-CLAROTY-TRAILING-SLASH-001 — Red Gate: Trailing-Slash Route Fidelity
 //!
-//! These three tests exercise the gap documented in ADR-031 §D8-b and BC-2.16.013 v1.25
+//! These three tests exercise the gap documented in ADR-031 §D8-b and BC-2.16.013
 //! §Postconditions §1: the Claroty xDome API uses trailing slashes on all POST-for-read
 //! endpoints, but prism-dtu-claroty's router registers routes WITHOUT trailing slashes
 //! and has no `NormalizePathLayer` middleware.
@@ -75,7 +75,7 @@ async fn start_clone() -> (ClarotyClone, String) {
 /// outer service. After the fix (NormalizePathLayer::trim_trailing_slash() wrapping
 /// both serve sites), this returns 200.
 ///
-/// Traces to: BC-2.16.013 v1.25 §Postconditions §1.
+/// Traces to: BC-2.16.013 §Postconditions §1.
 #[tokio::test]
 async fn test_claroty_trailing_slash_alerts_returns_200() {
     let (_clone, base_url) = start_clone().await;
@@ -113,7 +113,7 @@ async fn test_claroty_trailing_slash_alerts_returns_200() {
 /// `POST /api/v1/devices` (no trailing slash) with no NormalizePathLayer in the
 /// outer service. After the fix, this returns 200.
 ///
-/// Traces to: BC-2.16.013 v1.25 §Postconditions §1.
+/// Traces to: BC-2.16.013 §Postconditions §1.
 #[tokio::test]
 async fn test_claroty_trailing_slash_devices_returns_200() {
     let (_clone, base_url) = start_clone().await;
@@ -162,7 +162,7 @@ async fn test_claroty_trailing_slash_devices_returns_200() {
 /// S-DEMO-CLAROTY-AUDIT-DTU-001 merged develop@e1c632dc;
 /// real audit_log handler available; trailing-slash normalization verified against production handler.
 ///
-/// Traces to: BC-2.16.013 v1.25 §Postconditions §1.
+/// Traces to: BC-2.16.013 §Postconditions §1.
 /// Gap-CL-006 CLOSED by S-DEMO-CLAROTY-AUDIT-DTU-001 (develop@e1c632dc).
 #[tokio::test]
 async fn test_claroty_trailing_slash_audit_log_get_returns_200() {
@@ -212,7 +212,7 @@ async fn test_claroty_trailing_slash_audit_log_get_returns_200() {
 ///
 /// This test MUST PASS both before and after the normalize_path fix.
 ///
-/// Traces to: BC-2.16.013 v1.25 §Postconditions §1 — backward compatibility.
+/// Traces to: BC-2.16.013 §Postconditions §1 — backward compatibility.
 #[tokio::test]
 async fn test_BC_2_16_013_no_slash_alerts_still_returns_200() {
     let (_clone, base_url) = start_clone().await;
@@ -246,7 +246,7 @@ async fn test_BC_2_16_013_no_slash_alerts_still_returns_200() {
 ///
 /// This test MUST PASS both before and after the normalize_path fix.
 ///
-/// Traces to: BC-2.16.013 v1.25 §Postconditions §1 — backward compatibility.
+/// Traces to: BC-2.16.013 §Postconditions §1 — backward compatibility.
 #[tokio::test]
 async fn test_BC_2_16_013_no_slash_devices_still_returns_200() {
     let (_clone, base_url) = start_clone().await;
@@ -292,7 +292,7 @@ async fn test_BC_2_16_013_no_slash_devices_still_returns_200() {
 /// — inbound `.../tags/` hits the registered `.../tags/` route directly) and after (route
 /// registered without trailing slash, inbound `.../tags/` stripped to `.../tags` and matches).
 ///
-/// Traces to: BC-2.16.013 v1.25 §Postconditions §1 — normalize_path MUST NOT break existing routes.
+/// Traces to: BC-2.16.013 §Postconditions §1 — normalize_path MUST NOT break existing routes.
 #[tokio::test]
 async fn test_BC_2_16_013_tags_route_with_slash_still_works() {
     let (_clone, base_url) = start_clone().await;
@@ -352,7 +352,7 @@ async fn test_BC_2_16_013_tags_route_with_slash_still_works() {
 ///
 /// Also asserts GET /dtu/health (no slash) returns 200 — baseline sanity.
 ///
-/// Traces to: S-DEMO-CLAROTY-TRAILING-SLASH-001 §Edge Cases EC-003; BC-2.16.013 v1.25 §Postconditions §1.
+/// Traces to: S-DEMO-CLAROTY-TRAILING-SLASH-001 §Edge Cases EC-003; BC-2.16.013 §Postconditions §1.
 #[tokio::test]
 async fn test_BC_2_16_013_dtu_health_trailing_slash_returns_200() {
     let (_clone, base_url) = start_clone().await;
@@ -427,7 +427,7 @@ async fn test_BC_2_16_013_dtu_health_trailing_slash_returns_200() {
 /// becomes `/api/v1/alerts`, the handler fires, and the bearer-auth check rejects
 /// the unauthenticated request with 401.
 ///
-/// Traces to: S-DEMO-CLAROTY-TRAILING-SLASH-001 §Edge Cases EC-002; BC-2.16.013 v1.25 §Postconditions §1.
+/// Traces to: S-DEMO-CLAROTY-TRAILING-SLASH-001 §Edge Cases EC-002; BC-2.16.013 §Postconditions §1.
 #[tokio::test]
 async fn test_BC_2_16_013_trailing_slash_alerts_missing_auth_returns_401() {
     let (_clone, base_url) = start_clone().await;

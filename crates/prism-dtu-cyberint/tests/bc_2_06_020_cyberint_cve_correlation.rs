@@ -1,4 +1,4 @@
-//! BC-2.06.020 v1.3 Cyberint CVE correlation tests (PC-8, PC-9)
+//! BC-2.06.020 Cyberint CVE correlation tests (PC-8, PC-9)
 //!
 //! Traces to:
 //!   BC-2.06.020 §PC-8 (scenario mode: all cve_id values drawn from catalog.device_cves)

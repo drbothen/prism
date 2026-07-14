@@ -48,7 +48,7 @@
 //! prism-spec-engine/tests/parity/armis.rs now cites BOTH this test AND
 //! `test_ac_armis_tw_001_time_window_augmented_into_aql` as its in-process coverage.
 //!
-//! BCs: BC-2.01.013 v1.14, BC-2.11.007 v1.8, BC-2.11.005 (introduced v1.6)
+//! BCs: BC-2.01.013, BC-2.11.007, BC-2.11.005 (introduced v1.6)
 //! ADR: ADR-033 T1, ADR-022 §C
 //! Story: S-DEMO-QUERY-PUSHDOWN-001 v2.1 ADV-P02 fix-burst
 
@@ -176,7 +176,7 @@ impl CredentialResolver for PluginIgnoredCredentialResolver {
 // ADV-P02-CRIT-001 Test 1: CrowdStrike FQL built by production pipeline
 // ---------------------------------------------------------------------------
 
-/// ADV-P02-CRIT-001 / BC-2.11.007 v1.8 — CrowdStrike FQL end-to-end via `run_materialization_pipeline`.
+/// ADV-P02-CRIT-001 / BC-2.11.007 — CrowdStrike FQL end-to-end via `run_materialization_pipeline`.
 ///
 /// # Production call graph proven
 ///
@@ -447,7 +447,7 @@ async fn test_adv_p02_e2e_crowdstrike_fql_from_where_predicate() {
 // ADV-P02-CRIT-001 Test 2: CrowdStrike LIMIT from PQL clause
 // ---------------------------------------------------------------------------
 
-/// ADV-P02-CRIT-001 / BC-2.01.013 v1.14 — CrowdStrike LIMIT end-to-end via `run_materialization_pipeline`.
+/// ADV-P02-CRIT-001 / BC-2.01.013 — CrowdStrike LIMIT end-to-end via `run_materialization_pipeline`.
 ///
 /// # Production call graph proven
 ///
@@ -464,7 +464,7 @@ async fn test_adv_p02_e2e_crowdstrike_fql_from_where_predicate() {
 /// If `QueryParams.limit` does not flow through to `query_filters["query.limit"]`,
 /// the DTU defaults to returning all 50 records → `result.len() <= 5` FAILS.
 ///
-/// BCs: BC-2.01.013 v1.14, BC-2.11.007 v1.8; F-P1-CRIT-004.
+/// BCs: BC-2.01.013, BC-2.11.007; F-P1-CRIT-004.
 #[tokio::test]
 async fn test_adv_p02_e2e_crowdstrike_limit_from_pql_limit_clause() {
     // Start CrowdStrike DTU clone.
@@ -572,7 +572,7 @@ async fn test_adv_p02_e2e_crowdstrike_limit_from_pql_limit_clause() {
 // ADV-P02-CRIT-001 Test 3: Armis AQL augmentation via production pipeline
 // ---------------------------------------------------------------------------
 
-/// ADV-P02-CRIT-001 / BC-2.11.007 v1.8 §Mechanism B — Armis AQL augmentation end-to-end.
+/// ADV-P02-CRIT-001 / BC-2.11.007 §Mechanism B — Armis AQL augmentation end-to-end.
 ///
 /// # Production call graph proven
 ///
@@ -603,7 +603,7 @@ async fn test_adv_p02_e2e_crowdstrike_limit_from_pql_limit_clause() {
 ///    was built by `augment_armis_aql_with_time_window` (NOT hand-fed).
 /// 2. `filtered_count < unfiltered_count` — DTU honored the time-filtered AQL.
 ///
-/// BCs: BC-2.11.007 v1.8 §Mechanism B, BC-2.01.013 v1.14; ADR-033 T1; F-P1-CRIT-002.
+/// BCs: BC-2.11.007 §Mechanism B, BC-2.01.013; ADR-033 T1; F-P1-CRIT-002.
 #[tokio::test]
 async fn test_adv_p02_e2e_armis_aql_augmentation_from_where_predicate() {
     // Start Armis DTU clone.
@@ -868,7 +868,7 @@ async fn test_adv_p02_e2e_armis_aql_augmentation_from_where_predicate() {
 /// `test_ac_armis_tw_001_time_window_augmented_into_aql` (pushdown.rs unit) AND
 /// this test as its in-process coverage per SID-1 §2.
 ///
-/// BCs: BC-2.11.007 v1.8 §Mechanism B; ADR-033 T1; SID-1.
+/// BCs: BC-2.11.007 §Mechanism B; ADR-033 T1; SID-1.
 #[tokio::test]
 async fn test_adv_p02_sid1_armis_fetch_start_time_augments_aql() {
     use prism_sensors::adapter::{
@@ -1045,7 +1045,7 @@ async fn test_adv_p02_sid1_armis_fetch_start_time_augments_aql() {
 // (ADV-P04-HIGH-002 closure — the authoritative AC-CWS-002 coverage)
 // ---------------------------------------------------------------------------
 
-/// AC-CWS-002 / BC-2.01.013 v1.14 TV-BC-2.01.013-006 — both start+end bounds via
+/// AC-CWS-002 / BC-2.01.013 TV-BC-2.01.013-006 — both start+end bounds via
 /// the real production pipeline path (`run_materialization_pipeline`).
 ///
 /// # Why this test lives here (not in prism-spec-engine)
@@ -1084,7 +1084,7 @@ async fn test_adv_p02_sid1_armis_fetch_start_time_augments_aql() {
 /// authoritative AC-CWS-002 coverage: it verifies that `run_materialization_pipeline` with
 /// a real WHERE predicate causes `build_crowdstrike_fql` to build the combined both-bounds FQL.
 ///
-/// BCs: BC-2.01.013 v1.14, BC-2.11.007 v1.8; ADR-033 T1; F-P1-CRIT-001.
+/// BCs: BC-2.01.013, BC-2.11.007; ADR-033 T1; F-P1-CRIT-001.
 #[tokio::test]
 async fn test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_pipeline() {
     // Step 1: Start CrowdStrike DTU clone.
@@ -1317,7 +1317,7 @@ async fn test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_
 // run_materialization_pipeline — the AUTHORITATIVE real-path test
 // ---------------------------------------------------------------------------
 
-/// AC-EQUIV-001 / BC-2.11.007 v1.8 — result-equivalence invariant via the real production
+/// AC-EQUIV-001 / BC-2.11.007 — result-equivalence invariant via the real production
 /// materialization path (`run_materialization_pipeline`).
 ///
 /// # Why this test lives in prism-bin (not prism-spec-engine)
@@ -1689,7 +1689,7 @@ async fn test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline()
 /// (b) Count with `>=` (23) > count with `>` (21) — boundary records contribute.
 /// (c) det-014 and det-042 do NOT appear in strict `>` result (DataFusion correct).
 ///
-/// BCs: BC-2.11.007 v1.8; ADR-033 T1; ADV-P08-MED-001.
+/// BCs: BC-2.11.007; ADR-033 T1; ADV-P08-MED-001.
 /// SAP-2: production crowdstrike.sensor.toml; real CrowdStrike DTU clone.
 #[tokio::test]
 async fn test_adv_p08_med001_crowdstrike_inclusive_boundary_via_run_materialization_pipeline() {
@@ -1986,7 +1986,7 @@ async fn test_adv_p08_med001_crowdstrike_inclusive_boundary_via_run_materializat
 /// - Expected count with `>= boundary`: 2 (d-026 + d-027).
 /// - Expected count with `> boundary`: 1 (d-027 only; d-026 excluded by strict `>`).
 ///
-/// BCs: BC-2.11.007 v1.8; ADV-P08-MED-001.
+/// BCs: BC-2.11.007; ADV-P08-MED-001.
 /// SAP-2: production armis.sensor.toml; real Armis DTU clone.
 #[tokio::test]
 async fn test_adv_p08_med001_armis_inclusive_boundary_via_run_materialization_pipeline() {

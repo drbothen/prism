@@ -28,8 +28,8 @@
 //!
 //! ## BC traceability
 //!
-//! BC-2.06.019 v1.13 PC-2 (device_cves visible at Containment stage)
-//! BC-2.06.019 v1.13 AC-008 (device_cves_first NVD pivot field)
+//! BC-2.06.019 PC-2 (device_cves visible at Containment stage)
+//! BC-2.06.019 AC-008 (device_cves_first NVD pivot field)
 //! BC-2.06.020 INV-NVD-CVE-CORRELATION-001 (scenario CVEs appear with HIGH CVSS)
 //! U17/Ruling 1b (device_cves_first = catalog.device_cves[0] scalar projection)
 //! F-PIVOT003-R11A-002 (closing finding: Armis→NVD composed served-route → enrich test required)
@@ -135,7 +135,7 @@ impl InfusionSource for NvdInfusionSource {
 ///
 /// LOAD-BEARING: see module-level doc for FAIL modes.
 ///
-/// BC-2.06.019 v1.13 PC-2 / AC-008 / BC-2.06.020 INV-NVD-CVE-CORRELATION-001
+/// BC-2.06.019 PC-2 / AC-008 / BC-2.06.020 INV-NVD-CVE-CORRELATION-001
 /// U17/Ruling 1b / F-PIVOT003-R11A-002
 #[tokio::test]
 async fn test_BC_2_06_019_armis_served_route_to_nvd_enrich_pipeline_composed_full_chain() {
@@ -284,7 +284,7 @@ async fn test_BC_2_06_019_armis_served_route_to_nvd_enrich_pipeline_composed_ful
          At stage 4 (scenario_start = now - 1000s), device_cves=true — device_cves_first MUST be served. \
          If this fires: StageMask device_cves gate is broken OR ArmisClone did not stamp catalog CVEs \
          on device records. catalog.device_cves={:?}. \
-         BC-2.06.019 v1.13 PC-2 / AC-008 / U17/Ruling 1b",
+         BC-2.06.019 PC-2 / AC-008 / U17/Ruling 1b",
         results.len(),
         catalog.device_cves,
     );
@@ -358,7 +358,7 @@ async fn test_BC_2_06_019_armis_served_route_to_nvd_enrich_pipeline_composed_ful
          Got 0 — InfusionAsyncUdf::invoke_async_with_args did NOT call the source. \
          This is the hollow-feature guard (TD-VSDD-059): the UDF pipeline was not exercised. \
          served_cve_values_count = {}. \
-         BC-2.06.019 v1.13 AC-008",
+         BC-2.06.019 AC-008",
         served_cve_values.len()
     );
 
@@ -371,7 +371,7 @@ async fn test_BC_2_06_019_armis_served_route_to_nvd_enrich_pipeline_composed_ful
         "F-PIVOT003-R11A-002: query must return at least 1 row. \
          Got 0 rows — MemTable was empty or WHERE clause eliminated all rows. \
          served_cve_values_count = {}. \
-         BC-2.06.019 v1.13 AC-008",
+         BC-2.06.019 AC-008",
         served_cve_values.len()
     );
 
@@ -406,7 +406,7 @@ async fn test_BC_2_06_019_armis_served_route_to_nvd_enrich_pipeline_composed_ful
         "F-PIVOT003-R11A-002: at least 1 non-NULL CVSS result required. \
          Got 0 — NvdInfusionSource::enrich_single returned None for all served CVE IDs. \
          enrich_call_count={enrich_call_count}. served_cve_values={:?}. \
-         BC-2.06.019 v1.13 AC-008 / INV-NVD-CVE-CORRELATION-001",
+         BC-2.06.019 AC-008 / INV-NVD-CVE-CORRELATION-001",
         served_cve_values
     );
 
@@ -416,7 +416,7 @@ async fn test_BC_2_06_019_armis_served_route_to_nvd_enrich_pipeline_composed_ful
          Got high_cvss_count=0 out of {total_non_null} non-NULL results. \
          Expected scenario CVEs to have base_score=8.1 (BC-2.06.020 PC-4). \
          enrich_call_count={enrich_call_count}. served_cve_values={:?}. \
-         BC-2.06.019 v1.13 AC-008 / INV-NVD-CVE-CORRELATION-001 / F-PIVOT003-R11A-002 [RED GATE]",
+         BC-2.06.019 AC-008 / INV-NVD-CVE-CORRELATION-001 / F-PIVOT003-R11A-002 [RED GATE]",
         served_cve_values
     );
 }

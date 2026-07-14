@@ -76,7 +76,7 @@ pub fn generate_with_catalog(
 ///
 /// For `CompromisedEndpoint` archetype, stamps `iocs[0]` on every alert-surface record
 /// with `{"type": "hash_sha256", "value": catalog_ioc_hashes[0]}` so the real-schema IOC
-/// filter in `routes/alerts.rs` can project it against the StageMask (BC-2.06.019 v1.13 PC-4).
+/// filter in `routes/alerts.rs` can project it against the StageMask (BC-2.06.019 PC-4).
 /// Non-CompromisedEndpoint archetypes receive no IOC stamping; catalog CVE IDs are still
 /// applied to CVE-surface records via `generate_inner` on all archetypes.
 pub fn generate_with_scenario_iocs(
@@ -92,7 +92,7 @@ pub fn generate_with_scenario_iocs(
     let mut fixture_set = generate_inner(org_id, archetype, opts, Some(catalog_cves));
 
     // Step 2: for CompromisedEndpoint only, stamp IOC fields onto alert-surface records.
-    // BC-2.06.019 v1.13 PC-4 PC-2 (ioc_ips/ioc_domains become visible at Exfil, stage 3+):
+    // BC-2.06.019 PC-4 PC-2 (ioc_ips/ioc_domains become visible at Exfil, stage 3+):
     // - iocs[0].value: catalog hash IOC (hash StageMask bit)
     // - alert_data.ip: catalog IP IOC (ioc_ips StageMask bit)
     // - alert_data.domain: catalog domain IOC (ioc_domains StageMask bit)
@@ -117,7 +117,7 @@ pub fn generate_with_scenario_iocs(
             }
             if let Some(obj) = record.as_object_mut() {
                 // Stamp iocs array with catalog IOC hash (ioc_hashes StageMask bit).
-                // Primary wire key "type" per Ioc serde rename (BC-2.06.019 v1.13 INCONCLUSIVE
+                // Primary wire key "type" per Ioc serde rename (BC-2.06.019 INCONCLUSIVE
                 // inner-key — DTU always writes the primary key "type" regardless of live API form).
                 if let Some(hash) = ioc_hash {
                     obj.insert(

@@ -7,7 +7,7 @@
 //! Sets `"_source_type"` on each row map based on `EventStream`/`PointInTime`
 //! delivery model and whether rows came from the buffer.
 //!
-//! **Fence (BC-2.11.012 v1.8 / F-CSD-P20-014):** `inject_source_type` is unwired
+//! **Fence (BC-2.11.012 / F-CSD-P20-014):** `inject_source_type` is unwired
 //! pending the TD-S302-005 delivery story (EventStream buffer-serving does not exist
 //! yet). Production rows currently always carry `"live"`.
 //!

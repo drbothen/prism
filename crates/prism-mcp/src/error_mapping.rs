@@ -402,7 +402,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         //
         // Caller-resolvable: supply a full RFC-3339 timestamp with UTC offset
         // (e.g., '2026-07-03T00:00:00Z'). Date-only and offset-less forms are rejected.
-        // Reference: BC-2.11.021 v1.2; ADR-052 D4; error-taxonomy.md E-QUERY-041.
+        // Reference: BC-2.11.021; ADR-052 D4; error-taxonomy.md E-QUERY-041.
         PrismError::TemporalLiteralUnparseable { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-QUERY-042: Temporal literal in structurally invalid position → -32602 INVALID_PARAMS.
@@ -485,10 +485,10 @@ pub fn to_error_data(err: PrismError) -> ErrorData {
 }
 
 // ---------------------------------------------------------------------------
-// BC-2.10.007 v1.5 — structured error envelope API
+// BC-2.10.007 — structured error envelope API
 // ---------------------------------------------------------------------------
 
-/// BC-2.10.007 v1.7 wire shape — 9 fields inside `structuredContent.error`.
+/// BC-2.10.007 wire shape — 9 fields inside `structuredContent.error`.
 ///
 /// Carries the structured error envelope that every user-visible MCP tool error response
 /// must include (BC-2.10.007 postcondition). The builder [`build_structured_error_response`]
@@ -591,7 +591,7 @@ pub struct StructuredErrorFields {
 }
 
 impl StructuredErrorFields {
-    /// Construct all 9 BC-2.10.007 v1.5 structured error fields.
+    /// Construct all 9 BC-2.10.007 structured error fields.
     ///
     /// External callers MUST use this constructor — struct literal syntax is blocked by
     /// `#[non_exhaustive]` (HC-3, S-5.02).
@@ -778,7 +778,7 @@ impl StructuredErrorFieldsBuilder {
 /// errors) remain as `Err(ErrorData)` — those are returned before the tool handler body
 /// executes and are not user-visible at the domain level.
 ///
-/// Produces the BC-2.10.007 v1.7 wire shape:
+/// Produces the BC-2.10.007 wire shape:
 /// ```json
 /// {
 ///   "isError": true,
@@ -796,10 +796,10 @@ impl StructuredErrorFieldsBuilder {
 /// ```
 ///
 /// `retry_after_seconds` and `upstream_message` are always present in the JSON
-/// as explicit `null` when not applicable (null-not-absent invariant, BC-2.10.007 v1.5).
+/// as explicit `null` when not applicable (null-not-absent invariant, BC-2.10.007).
 ///
 /// # Parameters
-/// - `fields`: the 9 structured error fields per BC-2.10.007 v1.5
+/// - `fields`: the 9 structured error fields per BC-2.10.007
 /// - `content_text`: the human-readable `content[].text` string ("`ERROR: [{category}] - ...`")
 pub fn build_structured_error_response(
     fields: StructuredErrorFields,
@@ -948,7 +948,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
     // Inspect err by reference BEFORE consuming it with map_prism_error.
     // Temporary struct to capture variant-level metadata.
     //
-    // BC-2.10.007 v1.7 §category legal enum (9 values):
+    // BC-2.10.007 §category legal enum (9 values):
     //   transient | authentication | validation | not_found | permission |
     //   upstream_error | configuration | safety | internal
     // BC-2.10.007 §81 source values:
@@ -962,7 +962,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         /// Runtime-owned suggestion override — used when a variant carries its own
         /// actionable guidance that must be surfaced verbatim (e.g. CapabilityDenied.suggestion).
         /// When `Some`, takes precedence over `suggestion`.
-        /// MED-1 (BC-2.10.007 v1.8): threads CapabilityDenied's own actionable guidance
+        /// MED-1 (BC-2.10.007): threads CapabilityDenied's own actionable guidance
         /// through instead of discarding it in favour of a static string.
         owned_suggestion: Option<String>,
         retryable: bool,
@@ -1002,7 +1002,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
     }
     let meta = match &err {
         // ── Authentication errors: credential invalid or identity format failure ─
-        // BC-2.10.007 v1.7 §Category rule: "Credential invalid or identity validation
+        // BC-2.10.007 §Category rule: "Credential invalid or identity validation
         // failure" → category "authentication". LLM-agent strategy: re-authenticate;
         // check credential_ref.
         //
@@ -1019,7 +1019,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         //       "Internal error" for these variants — no E- prefix to infer.
         //       Pin E-AUTH-010/011 directly.
         //
-        // HIGH-1 fix (BC-2.10.007 v1.7 §Category rule):
+        // HIGH-1 fix (BC-2.10.007 §Category rule):
         //   - InvalidOrgSlug/InvalidAnalystId/InvalidClientId: moved FROM "validation"
         //   - AuthTokenExpired/AuthTokenInvalid: moved FROM catch-all "upstream_error"
 
@@ -1097,9 +1097,9 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // EXCLUDED from this group per F-3: the params are structurally valid but
         // the write policy denied them — `original_params_valid: true`.
         // InvalidOrgSlug/InvalidAnalystId/InvalidClientId are EXCLUDED from this group
-        // per HIGH-1 fix: identity FORMAT failures map to "authentication" (BC-2.10.007 v1.7).
+        // per HIGH-1 fix: identity FORMAT failures map to "authentication" (BC-2.10.007).
         // AuthTokenExpired/AuthTokenInvalid are EXCLUDED: moved to "authentication" arm above.
-        // SensorNotRegisteredForOrg is EXCLUDED from this group per OBS-1 (BC-2.10.007 v1.8):
+        // SensorNotRegisteredForOrg is EXCLUDED from this group per OBS-1 (BC-2.10.007):
         // cross-org sensor isolation is a scoping/permission denial, NOT a param-validation
         // failure. The org slug and sensor name are structurally valid. Moved to "permission".
         // ── E-QUERY-001 parse error: extract near_text + reference_pointer ───
@@ -1407,7 +1407,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
 
         // ── Permission errors: capability denied, auth failures, org-scoping ──
         // BC-2.10.007 legal category: "permission" (not "authorization").
-        // MED-1 (BC-2.10.007 v1.8): each sub-class of permission error carries its own
+        // MED-1 (BC-2.10.007): each sub-class of permission error carries its own
         // suggestion text. The OBS-1 fix incorrectly shared the org-scoping string across
         // ALL permission variants. Fixed by splitting into three dedicated sub-arms:
         //   (a) SensorNotRegisteredForOrg — org-scoping guidance (the OBS-1 intent)
@@ -1415,7 +1415,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         //   (c) All other permission variants — generic permission/confirmation guidance
 
         // (a) SensorNotRegisteredForOrg: org-scoping guidance.
-        // OBS-1 (BC-2.10.007 v1.8): cross-org sensor isolation is a scoping/permission denial.
+        // OBS-1 (BC-2.10.007): cross-org sensor isolation is a scoping/permission denial.
         // The org slug and sensor name are structurally valid; access was refused at the
         // org-scoping boundary. original_params_valid: true. LLM-agent: verify sensor is
         // registered under the target org.
@@ -1441,7 +1441,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         },
 
         // (b) CapabilityDenied: thread the variant's own suggestion field verbatim.
-        // MED-1 (BC-2.10.007 v1.8): CapabilityDenied carries an actionable "exact TOML path
+        // MED-1 (BC-2.10.007): CapabilityDenied carries an actionable "exact TOML path
         // + restart instruction" suggestion generated by the capability resolver at check time.
         // This guidance is variant-specific and must not be discarded. owned_suggestion threads
         // it through to the structured response; suggestion is a never-used fallback.
@@ -1601,7 +1601,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             } else {
                 raw_body
             };
-            // BC-2.10.007 v1.16 §RETRYABLE-503: only explicitly transient HTTP status codes are
+            // BC-2.10.007 §RETRYABLE-503: only explicitly transient HTTP status codes are
             // retryable. Transient set: 408 (Request Timeout), 425 (Too Early),
             // 429 (Too Many Requests), 500 (Internal Server Error), 502 (Bad Gateway),
             // 503 (Service Unavailable), 504 (Gateway Timeout).
@@ -1696,13 +1696,13 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         },
 
         // ── Prism-side infrastructure failures → category "internal" ────────
-        // BC-2.10.007 v1.7 §F-4: these variants indicate a failure in Prism's own
+        // BC-2.10.007 §F-4: these variants indicate a failure in Prism's own
         // runtime (disk I/O, RocksDB, internal invariant). The sensor was NEVER
         // reached. Emitting "upstream_error" for these was semantically incorrect:
         // it told LLM agents to investigate sensor health for a Prism-internal fault.
         // "internal" is the 9th legal BC-2.10.007 category value added in v1.7.
         //
-        // BC-2.10.007 v1.7 canonical list:
+        // BC-2.10.007 canonical list:
         //   Internal, Io, StorageOpenFailed, StorageWriteFailed, StorageReadFailed,
         //   StorageDomainNotFound, StorageKeyNotFound, StorageLockHeld,
         //   StorageHealthCheckFailed, SchemaMismatch, StorageBatchFailed
@@ -1737,7 +1737,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         },
 
         // ── MCP serialization error → category "internal" ────────────────────
-        // BC-2.10.007 v1.11 OBS-002: Prism's own MCP response serialization layer
+        // BC-2.10.007 OBS-002: Prism's own MCP response serialization layer
         // failed; the sensor was never involved. Fault domain is Prism-internal.
         // ec_code_override: Some("E-MCP-003") required — without it, the E-INT-001
         // fallback inference fires (map_prism_error returns "Internal error" with no
@@ -1764,7 +1764,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         },
 
         // ── Process-supervision watchdog failures → category "internal" ────────
-        // BC-2.10.007 v1.8 §OBS-2: Watchdog variants are Prism-side process supervision
+        // BC-2.10.007 §OBS-2: Watchdog variants are Prism-side process supervision
         // failures. WatchdogKilled is reachable on user-visible MCP tool paths via the
         // query execution path (prism-storage::watchdog::check_query → ? propagation →
         // tool handler → prism_error_to_structured_call_result). Category "internal"
@@ -1840,7 +1840,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         },
 
         // ── Query engine failures → category "internal" ─────────────────────────────
-        // BC-2.10.007 v1.12 §LOW-002: Six DataFusion/query-engine variants. The sensor
+        // BC-2.10.007 §LOW-002: Six DataFusion/query-engine variants. The sensor
         // dispatch has completed (data is in MemTables) or was never relevant; the failure
         // is in Prism's own query planning/execution/materialization/virtual-field/denylist
         // layer. Category "internal" is correct. "upstream_error" (catch-all default) was
@@ -1865,7 +1865,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // all six cases. This signals to the LLM agent that reformulating the query might be
         // warranted before escalating to the operator.
         //
-        // Reference: BC-2.10.007 v1.12 §LOW-002; error-taxonomy.md E-QUERY-002/034/005/010/
+        // Reference: BC-2.10.007 §LOW-002; error-taxonomy.md E-QUERY-002/034/005/010/
         //            008 + E-WATCHDOG-001; F-MCPRS-PRL2-LOW-002.
         PrismError::QueryPlanFailed { .. }
         | PrismError::QueryExecutionFailed { .. }
@@ -2046,7 +2046,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         },
 
         // ── Safety boundary violations → category "safety" ──────────────────────
-        // BC-2.10.007 v1.14 §MED-001 (F-MCPRS-PRL3-MED-001): SafetyContextContamination
+        // BC-2.10.007 §MED-001 (F-MCPRS-PRL3-MED-001): SafetyContextContamination
         // and SafetyDataExfiltration previously fell to the `_ =>` catch-all with
         // category: "upstream_error" and ec_code: "E-INT-001". This was semantically wrong:
         // these are Prism-side safety boundary detections, not upstream sensor failures.
@@ -2070,7 +2070,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // structured error stays "Internal error". Only ec_code_override, category, and
         // suggestion are addressed here. Do NOT change map_prism_error for these variants.
         //
-        // Reference: BC-2.10.007 v1.14 §MED-001; error-taxonomy.md E-SAFETY-001/002;
+        // Reference: BC-2.10.007 §MED-001; error-taxonomy.md E-SAFETY-001/002;
         //            F-MCPRS-PRL3-MED-001.
         PrismError::SafetyContextContamination { .. }
         | PrismError::SafetyDataExfiltration { .. } => {
@@ -2154,7 +2154,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         category: meta.category.to_owned(),
         retryable: meta.retryable,
         retry_after_seconds: meta.retry_after_seconds,
-        // MED-1 (BC-2.10.007 v1.8): use owned_suggestion when the variant carries its own
+        // MED-1 (BC-2.10.007): use owned_suggestion when the variant carries its own
         // actionable guidance (e.g. CapabilityDenied.suggestion); fall back to static string.
         suggestion: meta
             .owned_suggestion
@@ -2337,7 +2337,7 @@ mod tests {
         );
     }
 
-    // ── BC-2.10.007 v1.6 Canonical Test Vectors — SensorHttpError auth mis-categorization ──
+    // ── BC-2.10.007 Canonical Test Vectors — SensorHttpError auth mis-categorization ──
 
     /// BC-2.10.007 Canonical Test Vector: Sensor API returns 401 → category "authentication".
     ///
@@ -2391,7 +2391,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.6: SensorHttpError { status: 403 } → category "authentication".
+    /// BC-2.10.007: SensorHttpError { status: 403 } → category "authentication".
     ///
     /// 403 is Forbidden / insufficient scope — a credential/auth failure, not an upstream
     /// service outage. Analysts must receive the same "authentication" signal as 401.
@@ -2457,9 +2457,9 @@ mod tests {
         );
     }
 
-    // ── BC-2.10.007 v1.7 Canonical Test Vectors — "internal" category for Prism infra failures ──
+    // ── BC-2.10.007 Canonical Test Vectors — "internal" category for Prism infra failures ──
 
-    /// BC-2.10.007 v1.7 Test Vector: PrismError::Internal → category "internal".
+    /// BC-2.10.007 Test Vector: PrismError::Internal → category "internal".
     ///
     /// Before v1.7 the F-4 arm used "upstream_error" as a fallback, which told LLM
     /// agents to investigate sensor health for a Prism-side invariant failure. The
@@ -2484,7 +2484,7 @@ mod tests {
             .expect("structuredContent.error.category must be a string");
         assert_eq!(
             category, "internal",
-            "PrismError::Internal must map to category 'internal' (BC-2.10.007 v1.7 F-4); got '{category}'"
+            "PrismError::Internal must map to category 'internal' (BC-2.10.007 F-4); got '{category}'"
         );
         // retryable must be false — Prism invariant failures are not transient.
         let retryable = error_obj
@@ -2505,7 +2505,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.7 Test Vector: PrismError::Io → category "internal".
+    /// BC-2.10.007 Test Vector: PrismError::Io → category "internal".
     ///
     /// Prism I/O failure (disk, file system). The sensor was never reached.
     /// Before v1.7 this fell through to "upstream_error", which was semantically wrong.
@@ -2526,7 +2526,7 @@ mod tests {
             .expect("structuredContent.error.category must be a string");
         assert_eq!(
             category, "internal",
-            "PrismError::Io must map to category 'internal' (BC-2.10.007 v1.7 F-4); got '{category}'"
+            "PrismError::Io must map to category 'internal' (BC-2.10.007 F-4); got '{category}'"
         );
         let upstream_message = error_obj
             .get("upstream_message")
@@ -2537,7 +2537,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.7 Test Vector: PrismError::StorageWriteFailed → category "internal".
+    /// BC-2.10.007 Test Vector: PrismError::StorageWriteFailed → category "internal".
     ///
     /// RocksDB / storage layer failure. The sensor was never reached.
     /// Before v1.7 this fell through to "upstream_error", which was semantically wrong.
@@ -2561,7 +2561,7 @@ mod tests {
             .expect("structuredContent.error.category must be a string");
         assert_eq!(
             category, "internal",
-            "PrismError::StorageWriteFailed must map to category 'internal' (BC-2.10.007 v1.7 F-4); got '{category}'"
+            "PrismError::StorageWriteFailed must map to category 'internal' (BC-2.10.007 F-4); got '{category}'"
         );
         let upstream_message = error_obj
             .get("upstream_message")
@@ -2572,7 +2572,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.7 Regression guard: PrismError::SensorHttpError → category "upstream_error".
+    /// BC-2.10.007 Regression guard: PrismError::SensorHttpError → category "upstream_error".
     ///
     /// The F-4 fix MUST NOT change the "upstream_error" category for genuine sensor
     /// boundary failures. SensorHttpError (non-auth) remains "upstream_error".
@@ -2598,20 +2598,20 @@ mod tests {
             .expect("structuredContent.error.category must be a string");
         assert_eq!(
             category, "upstream_error",
-            "PrismError::SensorHttpError (non-auth) must remain 'upstream_error' — NOT 'internal' (BC-2.10.007 v1.7 regression guard); got '{category}'"
+            "PrismError::SensorHttpError (non-auth) must remain 'upstream_error' — NOT 'internal' (BC-2.10.007 regression guard); got '{category}'"
         );
     }
 
-    // ── BC-2.10.007 v1.16 §RETRYABLE-503: SensorHttpError transient-only retryable whitelist ──
+    // ── BC-2.10.007 §RETRYABLE-503: SensorHttpError transient-only retryable whitelist ──
 
-    /// BC-2.10.007 v1.16 §RETRYABLE-503 — PRIMARY: SensorHttpError { status: 503 } → retryable: true.
+    /// BC-2.10.007 §RETRYABLE-503 — PRIMARY: SensorHttpError { status: 503 } → retryable: true.
     ///
     /// HTTP 503 Service Unavailable is an explicitly transient condition — the upstream
     /// sensor is temporarily unavailable and the LLM agent MAY retry after delay.
     /// Prior to v1.16 the arm set `retryable: false` unconditionally, causing agents to
     /// treat a transient sensor outage as a permanent failure (wasted analyst triage).
     ///
-    /// Transient whitelist (BC-2.10.007 v1.16 §RETRYABLE-503):
+    /// Transient whitelist (BC-2.10.007 §RETRYABLE-503):
     ///   408 (Request Timeout) | 425 (Too Early) | 429 (Too Many Requests) |
     ///   500 (Internal Server Error) | 502 (Bad Gateway) | 503 (Service Unavailable) |
     ///   504 (Gateway Timeout).
@@ -2647,11 +2647,11 @@ mod tests {
             .expect("structuredContent.error.retryable must be a bool");
         assert!(
             retryable,
-            "SensorHttpError{{status:503}} must be retryable:true (BC-2.10.007 v1.16 §RETRYABLE-503 — HTTP 503 is transient)"
+            "SensorHttpError{{status:503}} must be retryable:true (BC-2.10.007 §RETRYABLE-503 — HTTP 503 is transient)"
         );
     }
 
-    /// BC-2.10.007 v1.16 §RETRYABLE-503 — COMPANION (transient): SensorHttpError { status: 429 } → retryable: true.
+    /// BC-2.10.007 §RETRYABLE-503 — COMPANION (transient): SensorHttpError { status: 429 } → retryable: true.
     ///
     /// HTTP 429 Too Many Requests is a rate-limit transient. The dedicated SensorRateLimited
     /// variant handles structured 429 with retry_after_seconds; this test covers the
@@ -2679,11 +2679,11 @@ mod tests {
             .expect("structuredContent.error.retryable must be a bool");
         assert!(
             retryable,
-            "SensorHttpError{{status:429}} must be retryable:true (BC-2.10.007 v1.16 §RETRYABLE-503 — HTTP 429 is transient rate-limit)"
+            "SensorHttpError{{status:429}} must be retryable:true (BC-2.10.007 §RETRYABLE-503 — HTTP 429 is transient rate-limit)"
         );
     }
 
-    /// BC-2.10.007 v1.16 §RETRYABLE-503 — COMPANION (permanent): SensorHttpError { status: 404 } → retryable: false.
+    /// BC-2.10.007 §RETRYABLE-503 — COMPANION (permanent): SensorHttpError { status: 404 } → retryable: false.
     ///
     /// HTTP 404 Not Found is a permanent client error. Retrying will not fix a missing
     /// resource. The v1.16 transient whitelist explicitly excludes 404 — marking it
@@ -2710,13 +2710,13 @@ mod tests {
             .expect("structuredContent.error.retryable must be a bool");
         assert!(
             !retryable,
-            "SensorHttpError{{status:404}} must be retryable:false (BC-2.10.007 v1.16 §RETRYABLE-503 — HTTP 404 is permanent)"
+            "SensorHttpError{{status:404}} must be retryable:false (BC-2.10.007 §RETRYABLE-503 — HTTP 404 is permanent)"
         );
     }
 
-    // ── BC-2.10.007 v1.8 OBS-1: SensorNotRegisteredForOrg → category "permission" ──
+    // ── BC-2.10.007 OBS-1: SensorNotRegisteredForOrg → category "permission" ──
 
-    /// BC-2.10.007 v1.8 OBS-1: SensorNotRegisteredForOrg maps to category "permission",
+    /// BC-2.10.007 OBS-1: SensorNotRegisteredForOrg maps to category "permission",
     /// original_params_valid: true (BC-2.10.007 §OBS-1 adjudication).
     ///
     /// Cross-org sensor isolation is a scoping/permission denial, NOT a parameter
@@ -2748,7 +2748,7 @@ mod tests {
             .expect("structuredContent.error.category must be a string");
         assert_eq!(
             category, "permission",
-            "SensorNotRegisteredForOrg must map to category 'permission' (BC-2.10.007 v1.8 OBS-1); got '{category}'"
+            "SensorNotRegisteredForOrg must map to category 'permission' (BC-2.10.007 OBS-1); got '{category}'"
         );
 
         // OBS-1: original_params_valid must be true.
@@ -2792,9 +2792,9 @@ mod tests {
         );
     }
 
-    // ── BC-2.10.007 v1.8 OBS-2: Watchdog* → category "internal" ──
+    // ── BC-2.10.007 OBS-2: Watchdog* → category "internal" ──
 
-    /// BC-2.10.007 v1.8 OBS-2: WatchdogKilled maps to category "internal",
+    /// BC-2.10.007 OBS-2: WatchdogKilled maps to category "internal",
     /// original_params_valid: true, retryable: false, upstream_message: null.
     ///
     /// WatchdogKilled is a Prism-side process supervision failure (memory budget exceeded).
@@ -2827,7 +2827,7 @@ mod tests {
             .expect("structuredContent.error.category must be a string");
         assert_eq!(
             category, "internal",
-            "WatchdogKilled must map to category 'internal' (BC-2.10.007 v1.8 OBS-2); got '{category}'"
+            "WatchdogKilled must map to category 'internal' (BC-2.10.007 OBS-2); got '{category}'"
         );
 
         // retryable must be false — watchdog termination is not transient.
@@ -2850,7 +2850,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.8 OBS-2: WatchdogHeartbeatMissed maps to category "internal",
+    /// BC-2.10.007 OBS-2: WatchdogHeartbeatMissed maps to category "internal",
     /// retryable: false, upstream_message: null.
     ///
     /// WatchdogHeartbeatMissed shares the explicit `|` arm with WatchdogKilled and
@@ -2879,7 +2879,7 @@ mod tests {
             .expect("structuredContent.error.category must be a string");
         assert_eq!(
             category, "internal",
-            "WatchdogHeartbeatMissed must map to category 'internal' (BC-2.10.007 v1.8 OBS-2); got '{category}'"
+            "WatchdogHeartbeatMissed must map to category 'internal' (BC-2.10.007 OBS-2); got '{category}'"
         );
 
         // retryable must be false — missed heartbeat is not a transient sensor condition.
@@ -2902,7 +2902,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.8 OBS-2: WatchdogRestartLimitExceeded maps to category "internal",
+    /// BC-2.10.007 OBS-2: WatchdogRestartLimitExceeded maps to category "internal",
     /// retryable: false, upstream_message: null.
     ///
     /// WatchdogRestartLimitExceeded shares the explicit `|` arm with WatchdogKilled and
@@ -2931,7 +2931,7 @@ mod tests {
             .expect("structuredContent.error.category must be a string");
         assert_eq!(
             category, "internal",
-            "WatchdogRestartLimitExceeded must map to category 'internal' (BC-2.10.007 v1.8 OBS-2); got '{category}'"
+            "WatchdogRestartLimitExceeded must map to category 'internal' (BC-2.10.007 OBS-2); got '{category}'"
         );
 
         // retryable must be false — restart limit exceeded is not a transient sensor condition.
@@ -2954,9 +2954,9 @@ mod tests {
         );
     }
 
-    // ── BC-2.10.007 v1.8 MED-1: suggestion text correctness per-variant ──
+    // ── BC-2.10.007 MED-1: suggestion text correctness per-variant ──
 
-    /// MED-1 (BC-2.10.007 v1.8): SensorNotRegisteredForOrg suggestion must contain
+    /// MED-1 (BC-2.10.007): SensorNotRegisteredForOrg suggestion must contain
     /// org-scoping guidance (keyword "org") — e.g., "Check sensor registration for the
     /// target org; verify the sensor is configured under the requested org slug in
     /// prism.toml."
@@ -2989,7 +2989,7 @@ mod tests {
         );
     }
 
-    /// MED-1 (BC-2.10.007 v1.8): McpPromptInjectionDetected suggestion must NOT contain
+    /// MED-1 (BC-2.10.007): McpPromptInjectionDetected suggestion must NOT contain
     /// the org-scoping text "Check sensor registration for the target org". Before MED-1
     /// the shared permission arm prepended the org-scoping string to ALL permission variants,
     /// actively misdirecting the LLM agent for injection rejections.
@@ -3018,7 +3018,7 @@ mod tests {
         );
     }
 
-    /// MED-1 (BC-2.10.007 v1.8): CapabilityDenied must thread its own `suggestion` field
+    /// MED-1 (BC-2.10.007): CapabilityDenied must thread its own `suggestion` field
     /// through to the structured error response. Before MED-1 the shared permission arm
     /// discarded CapabilityDenied.suggestion in favour of the static org-scoping string.
     /// CapabilityDenied carries an actionable "exact TOML path + restart instruction"
@@ -3057,7 +3057,7 @@ mod tests {
         );
     }
 
-    // ── BC-2.10.007 v1.8 catch-all guard: genuinely unmapped variants → "upstream_error" ──
+    // ── BC-2.10.007 catch-all guard: genuinely unmapped variants → "upstream_error" ──
 
     /// BC-2.10.007 catch-all arm: genuinely unmapped PrismError variants fall to
     /// "upstream_error" via the non_exhaustive catch-all.
@@ -3698,7 +3698,7 @@ mod tests {
     /// mutation-resistant proof that the explicit arm is load-bearing, not accidentally
     /// green via the catch-all.
     ///
-    /// Traces to: BC-2.11.001 v1.15 §E-QUERY-041 gate ordering + MCP -32602 constraint;
+    /// Traces to: BC-2.11.001 §E-QUERY-041 gate ordering + MCP -32602 constraint;
     /// ADR-052 §D4; error-taxonomy.md §E-QUERY-041.
     #[test]
     fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_map_prism_error_invalid_params() {
@@ -3769,7 +3769,7 @@ mod tests {
     /// Mirrors: `test_bc_2_11_019_n1b_structured_payload_validation_category_and_suggestion`
     /// (EnrichUdfNotFound HIGH-2 fix, same pattern).
     ///
-    /// Traces to: ADR-052 §D4; BC-2.11.001 v1.15 §E-QUERY-041 gate ordering;
+    /// Traces to: ADR-052 §D4; BC-2.11.001 §E-QUERY-041 gate ordering;
     /// error-taxonomy.md §E-QUERY-041; TD-VSDD-060 sibling-site sweep.
     #[test]
     fn test_S_PRISMQL_NATIVE_TEMPORAL_TYPING_001_e_query_041_structured_path_validation_category() {
@@ -4083,7 +4083,7 @@ mod tests {
     /// BC-2.10.007 [H8b/OBS-001] redundancy sweep: "audit log" appears exactly once in
     /// content_text for all affected variants; byte-verbatim suggestion locks per arm (POL-24).
     ///
-    /// Two groups (BC-2.10.007 v1.12):
+    /// Two groups (BC-2.10.007):
     ///   - **Query engine arm** (LOW-002): `QueryExecutionFailed`, `QueryMemoryBudgetExceeded`,
     ///     `QueryDenylisted` → category "internal", suggestion "Prism query engine failure.
     ///     Contact Prism operator; see audit log for details."
@@ -4371,7 +4371,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.11 OBS-002 ruling applied: `McpSerializationError` maps to
+    /// BC-2.10.007 OBS-002 ruling applied: `McpSerializationError` maps to
     /// category `"internal"`, code `"E-MCP-003"`, terse `"Internal error"` message,
     /// byte-verbatim suggestion, retryable:false.
     ///
@@ -4383,7 +4383,7 @@ mod tests {
     /// (d) byte-verbatim suggestion (POL-24 lock)
     /// (e) no phrase from message repeats in suggestion (BC-2.10.007 message/suggestion split)
     ///
-    /// BC-2.10.007 v1.11 §OBS-002 + error-taxonomy v2.42 E-MCP-003.
+    /// BC-2.10.007 §OBS-002 + error-taxonomy v2.42 E-MCP-003.
     #[test]
     #[allow(non_snake_case)]
     fn test_BC_2_10_007_mcp_serialization_error_category_is_internal() {
@@ -4426,7 +4426,7 @@ mod tests {
         assert_eq!(
             category, "internal",
             "[OBS-002] McpSerializationError must map to category 'internal' \
-             (BC-2.10.007 v1.11 OBS-002); got '{category}'"
+             (BC-2.10.007 OBS-002); got '{category}'"
         );
 
         // (b) Code must be "E-MCP-003" — pinned via ec_code_override.
@@ -4443,7 +4443,7 @@ mod tests {
         assert_eq!(
             message, "Internal error",
             "[OBS-002][SID-2] McpSerializationError message must be terse 'Internal error' \
-             (BC-2.10.007 v1.11 Rule 1; McpSerializationError is not the AuditPersistenceFailed \
+             (BC-2.10.007 Rule 1; McpSerializationError is not the AuditPersistenceFailed \
              exception); got '{message}'"
         );
 
@@ -4452,7 +4452,7 @@ mod tests {
             suggestion,
             "Prism MCP serialization failure. Contact Prism operator; see audit log for details.",
             "[OBS-002][SID-2] McpSerializationError suggestion must match exact shipped string \
-             byte-verbatim (BC-2.10.007 v1.11 OBS-002); got '{suggestion}'"
+             byte-verbatim (BC-2.10.007 OBS-002); got '{suggestion}'"
         );
 
         // retryable must be false — Prism-internal serialization failures are not transient.
@@ -4475,7 +4475,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.11 MED-001 regression fence: `AuditPersistenceFailed` is the ONE
+    /// BC-2.10.007 MED-001 regression fence: `AuditPersistenceFailed` is the ONE
     /// exhaustive exception to Rule 1.  Its structured `message` MUST be the full
     /// taxonomy-verbatim Display — NOT the terse `"Internal error"` form.
     ///
@@ -4489,11 +4489,11 @@ mod tests {
     /// - `map_prism_error` code = -32000 (INTERNAL_ERROR JSON-RPC code)
     /// - `structuredContent.error.category` = "transient"
     ///
-    /// BC-2.10.007 v1.11 Rule 1 exception + BC-2.05.001 DEC-014.
+    /// BC-2.10.007 Rule 1 exception + BC-2.05.001 DEC-014.
     #[test]
     #[allow(non_snake_case)]
     fn test_BC_2_10_007_audit_persistence_failed_message_carveout() {
-        // BC-2.10.007 v1.11 Rule 1 exception — the ONE exhaustive carve-out.
+        // BC-2.10.007 Rule 1 exception — the ONE exhaustive carve-out.
         // Byte-verbatim check: this string must match prism-core error.rs Display exactly.
         // If prism-core's Display ever changes, this test will catch the drift.
         const EXPECTED_MESSAGE: &str =
@@ -4533,12 +4533,12 @@ mod tests {
             .and_then(|v| v.as_str())
             .expect("structuredContent.error.message must be a string");
 
-        // BC-2.10.007 v1.11 Rule 1 exception: AuditPersistenceFailed emits the full
+        // BC-2.10.007 Rule 1 exception: AuditPersistenceFailed emits the full
         // taxonomy-verbatim Display as message (NOT "Internal error").
         assert_eq!(
             structured_message, EXPECTED_MESSAGE,
             "[MED-001] AuditPersistenceFailed structured message must be the taxonomy-verbatim \
-             Display (BC-2.10.007 v1.11 Rule 1 exception; BC-2.05.001 DEC-014). \
+             Display (BC-2.10.007 Rule 1 exception; BC-2.05.001 DEC-014). \
              Got '{structured_message}'. A refactor to terse 'Internal error' MUST fail this test."
         );
 
@@ -4567,7 +4567,7 @@ mod tests {
         //
         // message and suggestion are COMPLEMENTARY pointers (orchestrator adjudication of
         // F-MCPNULL-P8-OBS-001):
-        //   - message = taxonomy-verbatim Display (BC-2.10.007 v1.11 carve-out), ending
+        //   - message = taxonomy-verbatim Display (BC-2.10.007 carve-out), ending
         //     "...check tracing subscriber health." — tells the agent WHERE the fail-closed
         //     trace is emitted.
         //   - suggestion = audit-log-storage pointer, owned by prism-mcp error_mapping.rs
@@ -4586,7 +4586,7 @@ mod tests {
             "[POL-24] AuditPersistenceFailed suggestion must be the audit-log-storage pointer \
              (NOT the tracing-subscriber Display text). Got '{suggestion}'. \
              message and suggestion are complementary: message carries the taxonomy-verbatim \
-             Display (BC-2.10.007 v1.11 carve-out); suggestion carries the audit-log-storage \
+             Display (BC-2.10.007 carve-out); suggestion carries the audit-log-storage \
              retry pointer (prism-mcp VariantMeta, F-MCPNULL-P8-OBS-001 adjudication)."
         );
     }
@@ -4594,7 +4594,7 @@ mod tests {
     // =========================================================================
     // F-MCPRS-PRL2-LOW-002 — Query engine variants: category "internal"
     //
-    // BC-2.10.007 v1.12 §LOW-002: Six DataFusion/query-engine variants that
+    // BC-2.10.007 §LOW-002: Six DataFusion/query-engine variants that
     // previously fell to the `_ =>` catch-all (category "upstream_error") — or
     // had a misclassified dedicated arm (QueryPlanFailed: "validation") — now
     // all map to category "internal".
@@ -4603,7 +4603,7 @@ mod tests {
     // gives "upstream_error"; QueryPlanFailed's prior arm gives "validation").
     // =========================================================================
 
-    /// BC-2.10.007 v1.12 LOW-002: `QueryExecutionFailed` → category `"internal"`.
+    /// BC-2.10.007 LOW-002: `QueryExecutionFailed` → category `"internal"`.
     ///
     /// Asserts full LOW-002 postconditions per BC §Canonical Test Vectors (POL-24
     /// byte-verbatim for suggestion and code strings).
@@ -4685,7 +4685,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.12 LOW-002: `QueryPlanFailed` → category `"internal"`.
+    /// BC-2.10.007 LOW-002: `QueryPlanFailed` → category `"internal"`.
     ///
     /// Previously had a dedicated arm with `category: "validation"`. Per BC v1.12,
     /// query plan failures are Prism engine failures → `category: "internal"`.
@@ -4737,7 +4737,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.12 LOW-002: `QueryDenylisted` → category `"internal"`.
+    /// BC-2.10.007 LOW-002: `QueryDenylisted` → category `"internal"`.
     ///
     /// Previously fell to the `_ =>` catch-all with `category: "upstream_error"`.
     /// Denylist rejection is a Prism-side engine decision → `category: "internal"`.
@@ -4791,7 +4791,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.12 LOW-002: `QueryMemoryBudgetExceeded` → category `"internal"`.
+    /// BC-2.10.007 LOW-002: `QueryMemoryBudgetExceeded` → category `"internal"`.
     ///
     /// Previously fell to the `_ =>` catch-all with `category: "upstream_error"`.
     /// Memory pool exhaustion is a Prism DataFusion engine failure → `category: "internal"`.
@@ -4848,14 +4848,14 @@ mod tests {
     // =========================================================================
     // F-MCPRS-PRL3-LOW-001 — Missing LOW-002 test vectors: E-QUERY-005, E-QUERY-010
     //
-    // BC-2.10.007 v1.14 §LOW-001: v1.13 §Canonical Test Vectors carried only 3 of 6
+    // BC-2.10.007 §LOW-001: v1.13 §Canonical Test Vectors carried only 3 of 6
     // LOW-002 query engine vectors; QueryMaterializationLimitExceeded (E-QUERY-005) and
     // QueryVirtualFieldFailed (E-QUERY-010) were missing. Added here as GREEN locks
     // (the query engine arm shipped in a prior burst; these tests prove the arm covers
     // the full 6-variant set including the two previously untested variants).
     // =========================================================================
 
-    /// BC-2.10.007 v1.14 LOW-001 / LOW-002: `QueryMaterializationLimitExceeded` → category
+    /// BC-2.10.007 LOW-001 / LOW-002: `QueryMaterializationLimitExceeded` → category
     /// `"internal"`, code `"E-QUERY-005"`.
     ///
     /// This test was absent from prior bursts (LOW-001 gap). The implementation arm has
@@ -4941,7 +4941,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.14 LOW-001 / LOW-002: `QueryVirtualFieldFailed` → category
+    /// BC-2.10.007 LOW-001 / LOW-002: `QueryVirtualFieldFailed` → category
     /// `"internal"`, code `"E-QUERY-010"`.
     ///
     /// This test was absent from prior bursts (LOW-001 gap). The implementation arm has
@@ -5029,7 +5029,7 @@ mod tests {
 
     // =========================================================================
     // F-MCPRS-PRL3-MED-001 — Safety boundary arm: SafetyContextContamination /
-    // SafetyDataExfiltration → category "safety" (BC-2.10.007 v1.14 §MED-001)
+    // SafetyDataExfiltration → category "safety" (BC-2.10.007 §MED-001)
     //
     // RED before safety arm is added: both variants fall to the `_ =>` catch-all
     // with category "upstream_error" and code "E-INT-001".
@@ -5038,7 +5038,7 @@ mod tests {
     // suggestion "Do not retry; report to operator."
     // =========================================================================
 
-    /// BC-2.10.007 v1.14 MED-001: `SafetyContextContamination` → category `"safety"`,
+    /// BC-2.10.007 MED-001: `SafetyContextContamination` → category `"safety"`,
     /// code `"E-SAFETY-001"`, suggestion `"Do not retry; report to operator."`.
     ///
     /// RED before implementation: catch-all maps to `"upstream_error"` / `"E-INT-001"`.
@@ -5140,7 +5140,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.14 MED-001: `SafetyDataExfiltration` → category `"safety"`,
+    /// BC-2.10.007 MED-001: `SafetyDataExfiltration` → category `"safety"`,
     /// code `"E-SAFETY-002"`, suggestion `"Do not retry; report to operator."`.
     ///
     /// RED before implementation: catch-all maps to `"upstream_error"` / `"E-INT-001"`.
@@ -5240,7 +5240,7 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 v1.14 LOW-001 — Catch-all-not-safety regression guard.
+    /// BC-2.10.007 LOW-001 — Catch-all-not-safety regression guard.
     ///
     /// Proves the safety arm is correctly scoped to only the 2 safety variants.
     /// A genuinely catch-all variant (`PrismError::WritePartialFailure`) must produce

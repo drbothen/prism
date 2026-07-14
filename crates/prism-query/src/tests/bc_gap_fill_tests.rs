@@ -1682,7 +1682,7 @@ mod bc_gap_fill {
         /// S-3.02 perimeter audit: no new restricted symbols added.
         ///
         /// Stub-architect confirmed: S-3.02 adds NO new restricted symbols beyond
-        /// those already enforced by BC-2.11.006 v1.10 and covered in
+        /// those already enforced by BC-2.11.006 and covered in
         /// `tests/external/perimeter-violation/src/main.rs`.
         ///
         /// GREEN-BY-DESIGN: records the audit finding; always passes.

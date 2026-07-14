@@ -1,4 +1,4 @@
-//! BC-2.06.020 v1.3 TV-020-013 / VP-020-K — Cyberint→NVD end-to-end pivot (integration)
+//! BC-2.06.020 TV-020-013 / VP-020-K — Cyberint→NVD end-to-end pivot (integration)
 //!
 //! test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd
 //!

@@ -170,7 +170,7 @@ mod vp_050_tests {
         ///
         /// This test is LOAD-BEARING: it would FAIL if `strip_url_to_host_port` were
         /// removed from `render_sensor_inventory_resource`, because `api_base_url` is
-        /// now a serialized field in `SensorConfigEntry` (BC-2.10.008 v1.8 postcondition 2).
+        /// now a serialized field in `SensorConfigEntry` (BC-2.10.008 postcondition 2).
         ///
         /// For any full URL with path/query, the serialized `api_base_url` field must:
         /// (a) NOT contain path components (anything after the host:port)
@@ -219,7 +219,7 @@ mod vp_050_tests {
             prop_assert!(
                 serialized.contains("api_base_url"),
                 "VP-050 FAIL: 'api_base_url' field must be present in serialized SensorConfigEntry \
-                 (BC-2.10.008 v1.8 postcondition 2). Got: {serialized}"
+                 (BC-2.10.008 postcondition 2). Got: {serialized}"
             );
         }
     }

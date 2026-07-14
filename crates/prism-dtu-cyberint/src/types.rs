@@ -29,7 +29,7 @@ pub struct Alert {
     pub alert_type: String,
     pub affected_assets: Vec<serde_json::Value>,
     /// Singleton top-level IOC field — PENDING-LIVE-VALIDATION.
-    /// No public-documentation basis found (BC-2.06.019 v1.13 Cyberint row).
+    /// No public-documentation basis found (BC-2.06.019 Cyberint row).
     /// Retained pending live-tenant validation; remove if absent in live API.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ioc: Option<Ioc>,
@@ -39,7 +39,7 @@ pub struct Alert {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub iocs: Vec<Ioc>,
     /// Network IOC surface: ip, domain, url fields on the alert.
-    /// `url` CONFIRMED; `ip`/`domain` UNCONFIRMED-plausible (BC-2.06.019 v1.13).
+    /// `url` CONFIRMED; `ip`/`domain` UNCONFIRMED-plausible (BC-2.06.019).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alert_data: Option<AlertData>,
 }
@@ -58,7 +58,7 @@ pub struct ThreatItem {
 
 /// Indicator of Compromise — used on both `ThreatItem.iocs` and `Alert.iocs` / `Alert.ioc`.
 ///
-/// AC-001 (S-DEMO-ENRICHMENT-PIVOT-003): serde dual-alias required per BC-2.06.019 v1.13
+/// AC-001 (S-DEMO-ENRICHMENT-PIVOT-003): serde dual-alias required per BC-2.06.019
 /// INCONCLUSIVE inner-key determination. The real Cyberint alerts API inner-key form is
 /// not confirmed in any public documentation. DTU tolerates both forms at deserialization:
 /// - `"type"` (short form) AND `"ioc_type"` (feed convention) → `ioc_type` field
@@ -70,7 +70,7 @@ pub struct ThreatItem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ioc {
     /// IOC type string — deserialized from `"type"` (short form, serde rename) or
-    /// `"ioc_type"` (feed convention, serde alias). BC-2.06.019 v1.13 dual-alias requirement.
+    /// `"ioc_type"` (feed convention, serde alias). BC-2.06.019 dual-alias requirement.
     #[serde(rename = "type", alias = "ioc_type")]
     pub ioc_type: String,
     /// IOC value string — deserialized from `"value"` (default) or `"ioc_value"` (alias).
@@ -80,7 +80,7 @@ pub struct Ioc {
 
 /// Network IOC surface on a Cyberint alert record.
 ///
-/// AC-001 (S-DEMO-ENRICHMENT-PIVOT-003): added per BC-2.06.019 v1.13 Per-Sensor IOC-Surface
+/// AC-001 (S-DEMO-ENRICHMENT-PIVOT-003): added per BC-2.06.019 Per-Sensor IOC-Surface
 /// Matrix. `url` CONFIRMED via FortiSOAR connector; `ip`/`domain` UNCONFIRMED-plausible.
 #[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
