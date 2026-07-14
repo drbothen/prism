@@ -16,12 +16,12 @@ status: draft
 # BC status: BC-2.17.007 v1.5 ACTIVE, BC-2.17.002 ACTIVE. S-7.01 gate satisfied.
 # behavioral_contracts array is non-empty; story is ready for PO review once
 # the production endpoint URL is identified and AC-001 precondition can be filled in.
-version: "0.1"
-spec_version: "v0.1"
+version: "0.2"
+spec_version: "v0.2"
 level: ops
-producer: story-writer
+producer: product-owner
 timestamp: "2026-07-13"
-modified: "2026-07-13"
+modified: "2026-07-14"
 input-hash: ""
 inputs:
   - crates/plugins/prism-threatintel-infusion/threatintel-lookup.manifest.toml
@@ -411,3 +411,12 @@ No new external Rust crate dependencies are introduced by this story.
 
 No other files are touched. The canonical infusion spec (`specs/infusions/threatintel.infusion.toml`)
 and the WASM plugin Rust source (`crates/plugins/prism-threatintel-infusion/src/`) are NOT in scope.
+
+**Scope addition (F-MCPRS-PRL6, DEFECT-MCP-ROWSHAPE-NULLS-001 PR-LEVEL pass-6 out-of-scope observation):** When updating `allowed_urls`, the implementer must also correct the inline comment in the canonical source manifest (`crates/plugins/prism-threatintel-infusion/threatintel-lookup.manifest.toml`) that references `"threat-intel.example.com placeholder"` — this manifest comment drift was confirmed out-of-scope for the DEFECT-MCP-ROWSHAPE-NULLS-001 cascade (frozen HEAD; comment edit would force a plugin re-cut cycle) and is explicitly anchored to this story's scope.
+
+## §Changelog
+
+| Version | Date | Change | Source |
+|---------|------|--------|--------|
+| v0.2 | 2026-07-14 | Scope addition: manifest comment drift correction anchored to this story (F-MCPRS-PRL6, DEFECT-MCP-ROWSHAPE-NULLS-001 PR-LEVEL pass-6 out-of-scope observation). The inline comment in `threatintel-lookup.manifest.toml` referencing `"threat-intel.example.com placeholder"` must be corrected atomically with the `allowed_urls` update. `modified:` updated 2026-07-13→2026-07-14. | DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 18 (spec-only) |
+| v0.1 | 2026-07-13 | Initial draft — 3 ACs, 1 RGT, manifest update + plugin rebuild scope. | DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 14 (F-MCPRS-PRL1-OBS-001 story anchor) |
