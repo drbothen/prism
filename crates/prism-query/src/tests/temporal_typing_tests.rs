@@ -7126,3 +7126,174 @@ async fn test_BC_2_11_004_low_005_dml_where_fncall_lhs_fncall_rhs_rejected() {
          fn-call RHS must be rejected at parse time, not at plan time. Got: {result:?}"
     );
 }
+
+// ── F-PQLFN-P22-MED-001: SqlPipe stages offset truthfulness ──────────────────
+//
+// ADR-048 §D.7.2 mandates that E-QUERY-001 aggregate-gate errors report the
+// byte offset of the offending token in the ORIGINAL query string.
+//
+// `parse_sqlpipe_internal` splits the query at `split_offset` and passes
+// `stages_str = &input[split_offset..]` to the stage parser.  Spans captured
+// by `fn_call_comparison` inside the stage parser are relative to `stages_str`,
+// NOT the original `input` — so reported offset = stage-relative position
+// (wrong) instead of `split_offset + stage-relative position` (correct).
+//
+// Pre-fix: a `stddev` at position 45 in the original query appears at position
+//   8 in `stages_str = "| where stddev(risk_score) = 5"` → offset reported as 8.
+// Post-fix: offset reported as 45 (truthful ADR-048 §D.7.2).
+//
+// Fix mechanism: post-parse span shift — after the stage parser returns, walk
+// every `PipeStage::Where` predicate tree and add `split_offset` to each
+// `FuncCall::Scalar::span.{start,end}`.  Only `FuncCall::Scalar::span` is
+// shifted; `FieldPath::span` is intentionally NOT shifted because no production
+// code reads `FieldPath::span.start` for error-offset reporting (engine.rs only
+// calls `collect_unknown_scalar_offsets_from_*` which extracts `FuncCall::Scalar::span`).
+// Verified: `grep -n 'span\.start' crates/prism-query/src/` returns exactly one
+// site — engine.rs collect_unknown_scalar_offsets_from_expr (F-PQLFN-P22-MED-001).
+//
+// Multi-stage case: the stage parser parses ALL stages from the single `stages_str`
+// in one parse call, so `split_offset` is a uniform shift across all stages.
+//
+// Traces to: ADR-048 §D.7.2; F-PQLFN-P22-MED-001; BC-2.11.019.
+
+/// F-PQLFN-P22-MED-001 (1/3): SqlPipe `| where` stage reports truthful offset.
+///
+/// Query: `SELECT * FROM crowdstrike_detections | where stddev(risk_score) = 5`
+///
+/// `split_offset` = 37 (position of `|`).
+/// `stddev` in `stages_str = "| where stddev(risk_score) = 5"` → stage-relative = 8.
+/// Absolute position of `stddev` in original query = 45.
+///
+/// # RED → GREEN
+/// FAILS before fix: reported offset = 8 (stage-relative), expected 45 (absolute).
+/// PASSES after fix: `shift_scalar_spans_in_stages` adds split_offset (37) to each
+///   FuncCall::Scalar span captured during the stages parse → offset = 45.
+///
+/// Load-bearing (TD-VSDD-059): removing `shift_scalar_spans_in_stages` call in
+/// `parse_sqlpipe_internal` reverts this test to failure (offset 8 ≠ 45).
+#[tokio::test]
+async fn test_pqlfn_p22_med001_aggregate_offset_sqlpipe_where_stage() {
+    let query = "SELECT * FROM crowdstrike_detections | where stddev(risk_score) = 5";
+    let expected_offset = query.find("stddev").expect("stddev must be in query");
+
+    let engine = make_crowdstrike_detections_engine();
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    match result {
+        Err(PrismError::QueryParseFailed { offset, .. }) => {
+            assert_eq!(
+                offset, expected_offset,
+                "F-PQLFN-P22-MED-001 (stages): E-QUERY-001 aggregate gate must report truthful \
+                 offset pointing at 'stddev' in the ORIGINAL query string. \
+                 Expected offset={expected_offset} (absolute), got offset={offset}. \
+                 Pre-fix: fn_call_comparison spans are relative to stages_str \
+                 (`&input[split_offset..]`), so offset = stage-relative position (wrong). \
+                 Fix: shift FuncCall::Scalar spans by split_offset after stage parse \
+                 (parse_sqlpipe_internal — F-PQLFN-P22-MED-001, ADR-048 §D.7.2)."
+            );
+            assert!(
+                offset > 0,
+                "F-PQLFN-P22-MED-001 (stages): offset must be > 0 for 'stddev' \
+                 that does not start at byte 0. Got offset={offset}"
+            );
+        }
+        other => panic!(
+            "F-PQLFN-P22-MED-001 (stages): expected QueryParseFailed (E-QUERY-001) for \
+             stddev in SqlPipe | where stage, got: {other:?}"
+        ),
+    }
+}
+
+/// F-PQLFN-P22-MED-001 (2/3): SqlPipe-HEAD WHERE already reports truthful offset.
+///
+/// Query: `SELECT device_id FROM crowdstrike_detections WHERE sum(risk_score) = 10 | limit 5`
+///
+/// `sql_head_str = input[..split_offset].trim_end()` starts at position 0 of `input`.
+/// `build_sql_predicate_parser` delegates to `build_predicate_parser()` (filter_parser),
+/// whose `fn_call_comparison` uses `map_with` to capture spans.  Since the head string
+/// starts at byte 0, head spans ARE already absolute (no shift needed).
+///
+/// `sum` is at byte 51 in both `sql_head_str` and the original query.
+///
+/// # GREEN lock (no fix needed for this path)
+/// PASSES before AND after the fix: head spans are already correct.
+/// The fix's `shift_scalar_spans_in_stages` only touches `spq.stages`, not `spq.head`.
+///
+/// Traces to: ADR-048 §D.7.2; F-PQLFN-P22-MED-001 head-path verdict.
+#[tokio::test]
+async fn test_pqlfn_p22_med001_aggregate_offset_sqlpipe_head_where() {
+    let query = "SELECT device_id FROM crowdstrike_detections WHERE sum(risk_score) = 10 | limit 5";
+    let expected_offset = query.find("sum").expect("sum must be in query");
+
+    let engine = make_crowdstrike_detections_engine();
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    match result {
+        Err(PrismError::QueryParseFailed { offset, .. }) => {
+            assert_eq!(
+                offset, expected_offset,
+                "F-PQLFN-P22-MED-001 (head WHERE): E-QUERY-001 must report truthful offset \
+                 pointing at 'sum' in the original query. \
+                 Expected offset={expected_offset}, got offset={offset}. \
+                 sql_head_str starts at position 0 of original input, so head spans are \
+                 already absolute — no shift required (ADR-048 §D.7.2)."
+            );
+        }
+        other => panic!(
+            "F-PQLFN-P22-MED-001 (head WHERE): expected QueryParseFailed (E-QUERY-001) \
+             for sum in SqlPipe head WHERE, got: {other:?}"
+        ),
+    }
+}
+
+/// F-PQLFN-P22-MED-001 (3/3): Multi-stage SqlPipe — second `| where` stage
+/// aggregate also reports truthful offset.
+///
+/// Query: `SELECT * FROM crowdstrike_detections | where lower(device_id) = 'x' | where stddev(risk_score) > 5`
+///
+/// Two `| where` stages; `stddev` appears in the SECOND stage.
+/// `split_offset` = 37 (position of first `|`).
+/// `stages_str` = `"| where lower(device_id) = 'x' | where stddev(risk_score) > 5"`.
+/// `stddev` in `stages_str` → stage-relative = 39.
+/// Absolute position of `stddev` in original query = 76.
+///
+/// The stage parser processes both stages in a single parse call from `stages_str`,
+/// so the shift is uniform across all stages.
+///
+/// # RED → GREEN
+/// FAILS before fix: offset = 39 (stage-relative), expected 76 (absolute).
+/// PASSES after fix: `shift_scalar_spans_in_stages` shifts ALL `FuncCall::Scalar`
+///   spans by `split_offset` (37) → second-stage stddev offset = 76.
+///
+/// Load-bearing (TD-VSDD-059): this test ensures the fix handles multi-stage
+/// queries, not just single-stage.
+#[tokio::test]
+async fn test_pqlfn_p22_med001_aggregate_offset_sqlpipe_where_second_stage() {
+    let query = "SELECT * FROM crowdstrike_detections | where lower(device_id) = 'x' | where stddev(risk_score) > 5";
+    let expected_offset = query.find("stddev").expect("stddev must be in query");
+
+    let engine = make_crowdstrike_detections_engine();
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    match result {
+        Err(PrismError::QueryParseFailed { offset, .. }) => {
+            assert_eq!(
+                offset, expected_offset,
+                "F-PQLFN-P22-MED-001 (second stage): E-QUERY-001 must report truthful offset \
+                 pointing at 'stddev' in the ORIGINAL query string. \
+                 Expected offset={expected_offset} (absolute), got offset={offset}. \
+                 Pre-fix: stage-relative = 39, but 'stddev' is at absolute byte 76. \
+                 Fix: shift_scalar_spans_in_stages applies uniform split_offset shift \
+                 across ALL stages (F-PQLFN-P22-MED-001, ADR-048 §D.7.2)."
+            );
+            assert!(
+                offset > 0,
+                "F-PQLFN-P22-MED-001 (second stage): offset must be > 0. Got offset={offset}"
+            );
+        }
+        other => panic!(
+            "F-PQLFN-P22-MED-001 (second stage): expected QueryParseFailed (E-QUERY-001) \
+             for stddev in second SqlPipe | where stage, got: {other:?}"
+        ),
+    }
+}
