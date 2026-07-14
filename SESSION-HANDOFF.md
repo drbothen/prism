@@ -8,7 +8,7 @@ timestamp: 2026-07-13T23:59:00Z
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1731 (2026-07-13): SESSION WRAP — PQL pass-20 CLEAN(strict)=YES CLEAN(PR-merge)=YES; streak 1/3 @28d9600f (ZERO findings; all pass-19 closures verified correct; SAP-1 clean; 20p/15fb). PR #222 CI FULLY GREEN @d0140f6e (all checks pass, gh pr checks 222 verified 2026-07-13; ThreatIntel staleness-gate redesign + perimeter check). RESUME SNAPSHOT D-1731 authored (supersedes D-1719). MCP NEXT: PR-LEVEL adversary pass 1 on frozen d0140f6e (streak 0/3). PQL NEXT: LOCAL pass 21 on frozen 28d9600f (streak 1/3). SESSION TOTALS: MCP 7 passes + 5 fix-bursts + LOCAL CONVERGENCE; PQL 13 passes + 9 fix-bursts; 11 state bursts D-1720..D-1730; Lessons 49-54; 1 new story (S-MCP-E003). STATE v8.330→v8.331.**
+> **D-1731 (2026-07-13): SESSION WRAP — PQL pass-20 CLEAN(strict)=YES CLEAN(PR-merge)=YES; streak 1/3 @28d9600f (ZERO findings; all pass-19 closures verified correct; SAP-1 clean; 20p/15fb). PR #222 CI FULLY GREEN @d0140f6e (all checks pass, gh pr checks 222 verified 2026-07-13; ThreatIntel staleness-gate redesign + perimeter check). RESUME SNAPSHOT D-1731 authored (supersedes D-1719). MCP NEXT: PR-LEVEL adversary pass 1 on frozen d0140f6e (streak 0/3). PQL NEXT: LOCAL pass 21 on frozen 28d9600f (streak 1/3). SESSION TOTALS: MCP 7 passes + 5 fix-bursts + LOCAL CONVERGENCE; PQL 13 passes + 9 fix-bursts; 11 state bursts D-1720..D-1730; Lessons 49-54; 1 new story (S-MCP-E003). STATE v8.330→v8.331. [SUPERSEDED by D-1751]**
 >
 > **D-1311 (2026-06-24): WS-4 CLOSURE — PR #201 (maintenance/rustsec-quinn-proto) SQUASH-MERGED develop@233cfc66. RUSTSEC-2026-0185 CLOSED (quinn-proto 0.11.14→0.11.15). Lock-only; cargo audit clean. Remote branch deleted. Worktree .worktrees/maint-quinn-proto PENDING devops cleanup. WS-2 S-5.04 LOCAL 0/3 UNCHANGED on frozen 416677f6. develop_head acc6722c→233cfc66. STATE v7.939→v7.940.**
 >
@@ -116,7 +116,42 @@ timestamp: 2026-07-13T23:59:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-1731 (2026-07-13 — SESSION WRAP; PQL pass-20 CLEAN streak 1/3 @28d9600f; PR #222 CI FULLY GREEN @d0140f6e; develop 5f1b5771; STATE v8.331) [SUPERSEDES D-1719]
+## §RESUME SNAPSHOT — D-1751 (2026-07-14 — SESSION WRAP; dual-lane cascade freeze; MCP @6b2a7c8e push-pending pass-11; PQL @0c534929 fix-burst-26 pending; develop 5f1b5771; STATE v8.351) [SUPERSEDES D-1731]
+
+### RESUME IN ONE BREATH
+
+MCP: push 3 LOCAL commits (b4f3485e → 6dee4036 → 6b2a7c8e) to origin → dispatch PR-LEVEL adversary pass 11 on frozen 6b2a7c8e (streak 0/3). PQL: dispatch fix-burst-26 → close F-PQLFN-P34-MED-001 (ADR-048 §D.7.2 body TWO stale "all six predicate positions" sentences, ~lines 461/469) + F-PQLFN-P34-OBS-001 (position-7 suite lacks E-QUERY-039 unknown-UDF sibling lock) → dispatch pass-35 on new frozen HEAD.
+
+### HEADS (all verified 2026-07-14)
+
+- develop: origin/develop `5f1b5771` (pushed; unchanged all session)
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code; this is the D-1751 wrap commit)
+- fix/DEFECT-MCP-ROWSHAPE-NULLS-001 `6b2a7c8e` — LOCAL-ONLY; 3 commits over origin @fa0e4d70. 30 passes / 22 fix-bursts. fix-burst-22 ALL CLOSED: OBS-002 @b4f3485e (fixture /dev/null seam); OBS-003 @6dee4036 (28 explicit VariantMeta arms; 117-variant sentinel; just check 5511/5511 GREEN); OBS-001 @6b2a7c8e (Cargo.lock tracking; plugin 1.0.1→1.0.2; sidecar ac5bf335; HUMAN-RATIFIED 2026-07-14). PR #222 OPEN @fa0e4d70 (last pushed head). PR-LEVEL streak 0/3 on frozen 6b2a7c8e.
+- fix/DEFECT-PQL-FNCALL-LHS-001 `0c534929` — LOCAL-ONLY NOT pushed. ~36 commits over develop. 34 passes / 25 fix-bursts. pass-34 (frozen @0c534929) OPEN: F-PQLFN-P34-MED-001 [MED] ADR-048 §D.7.2 stale sentences; F-PQLFN-P34-OBS-001 [OBS] position-7 suite lacks E-QUERY-039 unknown-UDF sibling lock. fix-burst-26 NOT dispatched (wrap-freeze). **CRITICAL: do NOT commit/push before fix-burst-26 + passes complete — frozen-HEAD rule.**
+- AUDIT-COVERAGE-001 `cd369b54` — LOCAL-ONLY. Parked until defect PRs merge+rebase.
+
+### PER-WORKSTREAM RESUME NEXT-ACTIONS
+
+1. **MCP PR #222** — FIRST: push 3 LOCAL commits (b4f3485e → 6dee4036 → 6b2a7c8e) to origin; then dispatch PR-LEVEL adversary pass 11 on FROZEN 6b2a7c8e (streak 0/3). fix-burst-22 ALL CLOSED (OBS-001/002/003). Scope: explicit_nulls + [H8b] + threatintel .prx + 28-explicit-VariantMeta-arms. MERGE = HUMAN-GATED.
+2. **PQL lane** — SECOND: dispatch fix-burst-26 to close F-PQLFN-P34-MED-001 (ADR-048 §D.7.2 stale "all six" body sentences ~lines 461/469) + F-PQLFN-P34-OBS-001 (position-7 E-QUERY-039 unknown-UDF sibling lock); dispatch pass-35 on new frozen HEAD (streak 0/3). Spec set: BC-2.11.004 v1.45, ADR-048 v1.13, error-taxonomy v2.50, story v1.70.
+3. **DRIFT-PQLFN-OD7 ratification** — Gap-1 (DRIFT-PQLFN-OD7-GAP1-S307 E-QUERY-038 DML fail-open) + Gap-2 (DRIFT-PQLFN-OD7-GAP2-S307 source_select projections/JOIN/HAVING) deferred to S-3.07; human ratification required at PQL PR merge gate.
+4. **AUDIT-COVERAGE-001** — parked @cd369b54 until BOTH defect PRs merge → rebase → live audit re-run → LOCAL 3-CLEAN → push → PR.
+5. **day2-design-decisions/clip-boundary-and-reframe-asks-2026-06-30.md** — NOT staged in this wrap; awaiting human disposition (CLIP-session carry-asks J+K).
+
+### PENDING HUMAN DECISIONS
+
+1. PR #222 merge gate (after PR-LEVEL 3-CLEAN on 6b2a7c8e; human-gated)
+2. PQL DRIFT-PQLFN-OD7 ratification: Gap-1 + Gap-2 deferred to S-3.07; confirm at merge gate
+3. PQL PR merge gate (after fix-burst-26 + local 3/3 → push → pr-manager → PR-LEVEL 3-CLEAN)
+4. day2-design-decisions/clip-boundary-and-reframe-asks-2026-06-30.md disposition
+
+### DECISION DELTA — D-1751 (this wrap) [D-1732..D-1751]
+
+D-1732..D-1750 (19 state bursts): MCP PR-LEVEL passes 1-10 (10) + fix-bursts 14-22 (9); PQL LOCAL passes 21-34 (14) + fix-bursts 16-25 (10). Key pass outcomes: MCP pass-9 (frozen 448158f8) CLEAN(strict)=NO/PR-merge=YES — 1 LOW closed fix-burst-21 (13 boundary-lock tests; 474/474); MCP pass-10 (frozen fa0e4d70) CLEAN(strict)=NO/PR-merge=YES — 3 OBS: OBS-001 supply-chain Cargo.lock hash gap (HUMAN-RATIFIED 2026-07-14; plugin 1.0.1→1.0.2 re-cut; sidecar ac5bf335 @6b2a7c8e), OBS-002 fixture /dev/null seam @b4f3485e, OBS-003 catch-all hid 28 unmapped variants @6dee4036 (28 explicit arms; 117-variant sentinel). PQL pass-33 (frozen 94ef044a) CLEAN(strict)=NO/PR-merge)=NO — F-PQLFN-P33-HIGH-001 stale position-count comments + MED-001 non-load-bearing HAVING lock + LOW-001 missing seventh-surface locks; ALL 3 CLOSED fix-burst-25 @0c534929. PQL pass-34 OPEN (wrap-freeze). Spec artifacts: BC-2.10.007 v1.17→v1.18 (PO @4b50ce8b catch-all→28 explicit VariantMeta arms); BC-INDEX v8.14→v8.15; STORY-INDEX v2.680→v2.681 (S-TEST-WIRESHAPE-SWEEP-001 v0.16→v0.17; S-MCP-E003 v0.7→v0.8). MCP TALLY: 30 passes / 22 fix-bursts. PQL TALLY: 34 passes / 25 fix-bursts. develop UNCHANGED @5f1b5771.
+
+---
+
+## §RESUME SNAPSHOT — D-1731 (2026-07-13 — SESSION WRAP; PQL pass-20 CLEAN streak 1/3 @28d9600f; PR #222 CI FULLY GREEN @d0140f6e; develop 5f1b5771; STATE v8.331) [SUPERSEDES D-1719] [SUPERSEDED by D-1751]
 
 ### RESUME IN ONE BREATH
 
