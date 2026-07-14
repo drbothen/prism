@@ -237,6 +237,15 @@ jobs:
         uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
         with:
           tool: just@1.43.1
+      # F-MCPRS-PRL14-LOW-001: validate the COMMITTED crowdstrike-oauth2.prx structurally
+      # BEFORE the build overwrites it. Without this step, a byte-corrupt committed .prx
+      # with a consistent hash/sidecar would pass CI and fail only at runtime load.
+      # Placed here (after wasm-tools install, before just build-plugin-crowdstrike-oauth2)
+      # so the committed binary is the one being validated.
+      - name: Validate committed crowdstrike-oauth2.prx structural integrity (F-MCPRS-PRL14-LOW-001)
+        run: |
+          wasm-tools validate --features=component-model crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx
+          echo "F-MCPRS-PRL14-LOW-001 PASS: committed crowdstrike-oauth2.prx passes structural validation"
       # S-PLUGIN-CI-001 AC-001: Build the crowdstrike-oauth2 .prx component artifact.
       # This verifies the full toolchain pipeline: cargo build → wasm-tools component new.
       - name: Build crowdstrike-oauth2.prx
@@ -338,6 +347,15 @@ jobs:
             exit 1
           fi
           echo "F-MCPNULL-P2-OBS-002 PASS: committed .prx matches current source (hash: $CURRENT_HASH)"
+      # F-MCPRS-PRL14-LOW-001: validate the COMMITTED threatintel-lookup.prx structurally
+      # BEFORE the build overwrites it. Without this step, a byte-corrupt committed .prx
+      # with a consistent hash/sidecar/manifest would pass CI and fail only at runtime load.
+      # Placed between the source-hash gate (F-MCPNULL-P2-OBS-002) and the sidecar-ancestor
+      # check (F-MCPRS-PRL1-MED-001), after wasm-tools is installed (Install wasm-tools step).
+      - name: Validate committed threatintel-lookup.prx structural integrity (F-MCPRS-PRL14-LOW-001)
+        run: |
+          wasm-tools validate --features=component-model crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
+          echo "F-MCPRS-PRL14-LOW-001 PASS: committed threatintel-lookup.prx passes structural validation"
       - name: Verify sidecar does not post-date .prx without a rebuild (F-MCPRS-PRL1-MED-001)
         run: |
           PRX_PATH="crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx"
@@ -1465,4 +1483,21 @@ jobs:
             exit 1
           }
           echo 'F-MCPNULL-P2-OBS-002 reachability check passed: wasm32-threatintel-staleness-check job definition present.'
-          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 reachability assertions pass (anchored job-definition patterns, F-MCPNULL-P3-LOW-003).'
+          # F-MCPRS-PRL14-LOW-001 reachability assertion (threatintel-lookup):
+          # The committed-binary structural validation step must remain in
+          # wasm32-threatintel-staleness-check BEFORE the build overwrites the binary.
+          # Pattern: grep for the PASS echo unique to the committed-binary validation step.
+          grep -q 'F-MCPRS-PRL14-LOW-001 PASS: committed threatintel' .github/workflows/ci.yml || {
+            echo "::error::F-MCPRS-PRL14-LOW-001: committed threatintel-lookup.prx structural validation step missing from ci.yml — byte-corrupt committed .prx would pass CI undetected"
+            exit 1
+          }
+          echo 'F-MCPRS-PRL14-LOW-001 reachability check passed: committed threatintel-lookup.prx wasm-tools validate step present.'
+          # F-MCPRS-PRL14-LOW-001 reachability assertion (crowdstrike-oauth2):
+          # The committed-binary structural validation step must remain in
+          # wasm32-compile-check BEFORE the build overwrites the binary.
+          grep -q 'F-MCPRS-PRL14-LOW-001 PASS: committed crowdstrike' .github/workflows/ci.yml || {
+            echo "::error::F-MCPRS-PRL14-LOW-001: committed crowdstrike-oauth2.prx structural validation step missing from ci.yml — byte-corrupt committed .prx would pass CI undetected"
+            exit 1
+          }
+          echo 'F-MCPRS-PRL14-LOW-001 reachability check passed: committed crowdstrike-oauth2.prx wasm-tools validate step present.'
+          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 reachability assertions pass (anchored job-definition patterns, F-MCPNULL-P3-LOW-003).'
