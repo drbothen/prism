@@ -373,6 +373,28 @@ Silent OIDC inside the iframe requires the shared IdP to sit on a **custom domai
 
 ---
 
+### CLIP storyboard carry asks (from CLIP Stage-6.5 frame-01 findings, 2026-07-13)
+
+Two asks appended 2026-07-13 from CLIP Stage-6.5 frame-01 design-validation findings (Burst 159): SB65-8/FS-10 and SB65-9/FS-14, both CARRIED pending ADR-TS-001 resolution, before-Stage-8-promotion trigger. These concern the CLIP↔Prism PC-contract layer, not the iframe embedding mechanism. All items are asks for Prism's pipeline to evaluate — not mandates.
+
+**Ask J (newly-escalated, 2026-07-13) — CLIP → Prism re-recommendation request contract:**
+CLIP requires a contract path to signal Prism to re-analyze a case and issue a refreshed ARO after TTL expiry. The H-2 state ("Expired / awaiting re-recommendation") presents a "Request refreshed recommendation" CTA; that CTA has no backing BC and no PC contract. PC-002 is Prism → CLIP only (ARO delivery); no receive-side contract defines a request path from CLIP back to Prism. The carrier for any such contract is ADR-TS-001 (HELD — Prism boundary.md §Boundary Statement).
+
+Whether Prism accepts client-requested re-analysis vs. purely self-initiating ARO generation is Prism-internal (D-PRISM-OWNS-SOAR). The ask is not to mandate a behavior — it is for Prism to confirm (a) whether the capability exists or is on the roadmap, and (b) if so, to agree a carrier (channel, message type, protocol) so a new PC contract and a CLIP-side BC can be authored for the analyst waiting-state behavior post-CTA click. Without this confirmation, the H-2 CTA remains a [design hypothesis]; no binding BC can be written, and frame-01 cannot advance to Stage-8 promotion.
+
+**Citation:** CLIP STORYBOARD-INDEX SB65-8, frame-01 state H-2, ADR-TS-001 (HELD).
+
+---
+
+**Ask K (newly-escalated, 2026-07-13) — PC-004 `superseded` execution_status enum extension:**
+PC-004's `execution_status` enum (success | failed | cancelled) has no value for "ARO was superseded by Prism before or while the approval was consumed." The unmodeled scenario is unknown supersession: Prism supersedes an ARO during a live-channel outage (frame-01 state M); CLIP never received an `AROActionSuperseded` signal during the outage; the analyst approves with staleness acknowledged; CLIP sends PC-003; Prism has already superseded the ARO. The PC-004 return carries no signal to distinguish this case from a clean failure or cancellation. Adding `superseded` to `execution_status` is a contract change requiring ADR-TS-001 ratification for the carrier.
+
+What Prism returns when it receives a PC-003 for a superseded ARO is Prism-internal (D-PRISM-OWNS-SOAR). The ask is for Prism to confirm the actual return behavior and agree the enum extension so CLIP can author a post-approval-supersession BC for the frame-01 state M → G transition path. Note: SB1-2's H-superseded sub-variant covers KNOWN supersession (CLIP received `AROActionSuperseded` before the analyst approved); this item covers UNKNOWN supersession revealed only via PC-004 return — two distinct failure modes requiring separate BC treatment. Without this confirmation, state M and the post-approval G path have no BC for the supersession case, and frame-01 cannot advance to Stage-8 promotion.
+
+**Citation:** CLIP STORYBOARD-INDEX SB65-9, frame-01 states M/G, SB1-2 (known-supersession separately handled), ADR-TS-001 (HELD).
+
+---
+
 ## APPENDIX — Source Document Index (Prism-Pertinent Rank Order)
 
 | Doc # | Title (abbreviated) | Primary Prism Relevance | Key Metric |
