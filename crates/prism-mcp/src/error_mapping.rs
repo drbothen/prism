@@ -203,10 +203,12 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         | PrismError::AliasNameConflict { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-ALIAS-QUERY cursor errors → -32602 Invalid params
+        // CursorCapExceeded is NOT in this group — it maps to INTERNAL_ERROR
+        // per BC-2.10.007 v1.19 (process-wide infrastructure limit, not a parameter error;
+        // F-MCPRS-PRL14-MED-001). Its own arm follows in the E-STORE block below.
         PrismError::CursorExpired
         | PrismError::CursorPageSizeInvalid
-        | PrismError::CursorTokenUnknown
-        | PrismError::CursorCapExceeded => (codes::INVALID_PARAMS, format!("{err}")),
+        | PrismError::CursorTokenUnknown => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-CFG-100: Client not found → -32602 Invalid params (ADR-038 D4).
         // EXPLICIT arm required: PrismError is #[non_exhaustive]; letting this
@@ -260,6 +262,16 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         | PrismError::StorageBatchFailed { .. } => {
             (codes::INTERNAL_ERROR, "Internal error".to_owned())
         }
+
+        // E-STORE-020: Cursor cap exceeded → -32000 Internal (BC-2.10.007 v1.19)
+        // F-MCPRS-PRL14-MED-001: process-wide cursor cap is a Prism infrastructure
+        // limit, not a parameter error. Kept as a dedicated arm (not folded into
+        // StorageBatchFailed/etc. above) to make the deliberate recategorization
+        // visible and reversible. Rule 1 redaction: "Internal error" prevents the
+        // Display string "E-STORE-020: cursor cap exceeded: cannot allocate more
+        // than 200 active cursors" from leaking Prism internal cap details to AI
+        // agent context; E-STORE-020 is surfaced via ec_code_override below.
+        PrismError::CursorCapExceeded => (codes::INTERNAL_ERROR, "Internal error".to_owned()),
 
         // E-SENSOR-020: Sensor rate limited — EXPLICIT arm required.
         // BC-2.10.007 §115-116: bind both fields; sensor→source (used in
@@ -1325,8 +1337,9 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         | PrismError::AliasNameConflict { .. }
         | PrismError::CursorExpired
         | PrismError::CursorPageSizeInvalid
-        | PrismError::CursorTokenUnknown
-        | PrismError::CursorCapExceeded => VariantMeta {
+        // CursorCapExceeded is NOT in this validation group — it has a dedicated
+        // "internal" arm below (BC-2.10.007 v1.19 / F-MCPRS-PRL14-MED-001).
+        | PrismError::CursorTokenUnknown => VariantMeta {
             category: "validation",
             suggestion: "Check the request parameters and retry.",
             retryable: false,
@@ -1727,6 +1740,36 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: None,
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
+        available_columns: None,
+        did_you_mean: None,
+        normalized_pql: None,
+        },
+
+        // ── E-STORE-020: Process-wide cursor cap exceeded → category "internal" ──
+        // BC-2.10.007 v1.19 / F-MCPRS-PRL14-MED-001: process-wide infrastructure limit;
+        // the cursor creation request was structurally valid (original_params_valid: true).
+        //
+        // Contrast with CursorExpired/CursorPageSizeInvalid/CursorTokenUnknown — those are
+        // caller-controlled cursor-management validation errors. CursorCapExceeded is a
+        // process-wide resource cap identical in taxonomy class to QueryMemoryBudgetExceeded.
+        //
+        // ec_code_override required: map_prism_error now returns INTERNAL_ERROR/"Internal error"
+        // for this variant (Rule 1 redaction) — no E- prefix to infer from the message;
+        // E-STORE-020 must be pinned directly to satisfy BC-2.10.007 §code inference.
+        PrismError::CursorCapExceeded => VariantMeta {
+            category: "internal",
+            suggestion: "Process-wide cursor cap exceeded (E-STORE-020). Release open cursors or contact Prism operator.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: Some("E-STORE-020"),
         near_text: None,
         reference_pointer: None,
         valid_operators_for_type: None,
@@ -5697,5 +5740,116 @@ mod tests {
                  (408|425|429|500|502|503|504 → true; all others → false)"
             );
         }
+    }
+
+    // =========================================================================
+    // BC-2.10.007 v1.19 / F-MCPRS-PRL14-MED-001 — CursorCapExceeded recategorized
+    // "internal" (process-wide infrastructure limit, not a parameter error).
+    // =========================================================================
+
+    /// BC-2.10.007 v1.19 Test Vector: `PrismError::CursorCapExceeded` → category "internal".
+    ///
+    /// Before v1.19, `CursorCapExceeded` was in the validation OR-pattern
+    /// (category "validation", original_params_valid: false, INVALID_PARAMS -32602).
+    /// The BC decision (four pillars) moves it to category "internal" with
+    /// original_params_valid: true — a process-wide cap is not a parameter error.
+    ///
+    /// This test is LOAD-BEARING against re-drift: if the arm is moved back to the
+    /// validation OR-pattern, ALL FIVE assertions below fail simultaneously.
+    ///
+    /// BC vector: category "internal", original_params_valid: true, retryable: false,
+    /// code "E-STORE-020", JSON-RPC -32000 INTERNAL_ERROR, message "Internal error".
+    #[test]
+    fn test_BC_2_10_007_cursor_cap_exceeded_category_is_internal() {
+        // ── Part 1: map_prism_error → INTERNAL_ERROR (-32000) + "Internal error" ──────
+        // Guards against regression of the map_prism_error arm (Change 2 of 3).
+        // If CursorCapExceeded is moved back to the INVALID_PARAMS cursor group,
+        // this assertion fires first (INVALID_PARAMS = -32602 ≠ INTERNAL_ERROR).
+        let (json_rpc_code, map_message) = map_prism_error(PrismError::CursorCapExceeded);
+        assert_eq!(
+            json_rpc_code,
+            codes::INTERNAL_ERROR,
+            "[PRL14-MED-001] CursorCapExceeded map_prism_error must return INTERNAL_ERROR \
+             (-32000), not INVALID_PARAMS (-32602). BC-2.10.007 v1.19: process-wide cursor \
+             cap is an infrastructure limit, not a parameter error. Got code: {json_rpc_code}"
+        );
+        assert_eq!(
+            map_message, "Internal error",
+            "[PRL14-MED-001/Rule-1] CursorCapExceeded map_prism_error message must be \
+             terse 'Internal error' per Rule 1 redaction; got '{map_message}'"
+        );
+
+        // ── Part 2: structured call result — full BC-2.10.007 v1.19 vector ────────────
+        let result = prism_error_to_structured_call_result(PrismError::CursorCapExceeded);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "internal",
+            "[PRL14-MED-001] CursorCapExceeded must map to category 'internal' \
+             (BC-2.10.007 v1.19); previously was 'validation'. Got: '{category}'"
+        );
+
+        let original_params_valid = error_obj
+            .get("original_params_valid")
+            .and_then(|v| v.as_bool())
+            .expect("original_params_valid must be a bool");
+        assert!(
+            original_params_valid,
+            "[PRL14-MED-001] CursorCapExceeded must have original_params_valid:true — \
+             the cursor creation request was structurally valid; the failure was the \
+             process-wide infrastructure cap (BC-2.10.007 v1.19). \
+             Previously was false (wrong: directed LLM to 'fix parameters')."
+        );
+
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "[PRL14-MED-001] CursorCapExceeded must be retryable:false; got true"
+        );
+
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("code must be a string");
+        assert_eq!(
+            code, "E-STORE-020",
+            "[PRL14-MED-001/POL-24] CursorCapExceeded code must be 'E-STORE-020' \
+             (ec_code_override — map_prism_error returns 'Internal error' so inference \
+             cannot fire; E-STORE-020 must be pinned directly). Got: '{code}'"
+        );
+
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("suggestion must be a string");
+        assert_eq!(
+            suggestion,
+            "Process-wide cursor cap exceeded (E-STORE-020). Release open cursors or contact Prism operator.",
+            "[PRL14-MED-001/POL-24] CursorCapExceeded suggestion must be byte-verbatim \
+             per BC-2.10.007 v1.19 §Canonical Test Vectors / POL-24. Got: '{suggestion}'"
+        );
+
+        let message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("message must be a string");
+        assert_eq!(
+            message, "Internal error",
+            "[PRL14-MED-001/Rule-1] CursorCapExceeded message must be terse 'Internal error' \
+             per BC-2.10.007 Rule 1 redaction; got '{message}'"
+        );
     }
 }
