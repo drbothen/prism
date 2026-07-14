@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.670"
+version: "v2.671"
 status: draft
 producer: state-manager
-timestamp: 2026-07-13T22:00:00Z
+timestamp: 2026-07-13T23:30:00Z
 phase: 3
-total_stories: 240
+total_stories: 241
 total_active_bcs: 222
 # 230 total registered (222 active + 6 removed + 2 retired) — stories cover active BCs only
 total_vps_assigned: 145
@@ -20,6 +20,7 @@ Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
+- **D-1729 combined burst: PQL pass-18 closure + MCP PR #222 fix-burst 13 + E-MCP-003 deferral story — STORY-INDEX v2.670→v2.671 (2026-07-13):** (state-manager D-1729) NEW STORY S-MCP-E003-SERIALIZATION-MIGRATION-001 **draft v0.1** registered (P3; 4 ACs / 2 RGTs; depends_on PR #222 merge; HUMAN-DIRECTED deferral 2026-07-13 — satisfies Canonical Principle Rule 3: explicit human direction + concrete post-demo dependency + story anchor; scope: 18 server.rs serialization map_err sites PrismError::Internal→McpSerializationError; BC-2.10.007; SS-10; prism-mcp). PQL LANE: pass-18 (frozen 7f7afdaf) CLEAN(strict)=NO CLEAN(PR-merge)=NO — 1 MED (F-PQLFN-P18-MED-001 expr_to_sql FuncCall arm absent; concealed by 3 "any other outcome is acceptable" paper-test assertions; fix-burst 14: test-writer @4224fbd5 RED + implementer @e362c4a7 GREEN; NEW PQL HEAD e362c4a7; prism-query 1599/1599; streak 0/3; 18 passes / 14 fix-bursts; pass 19 dispatched). MCP LANE: PR #222 fix-burst 13 @d0140f6e PUSHED (staleness-gate redesign source-hash sidecar + HUMAN-APPROVED SEC-001 wasm-tools SHA-256 pin; PR-LEVEL cascade 0/3 on d0140f6e). Lesson 54 appended [process-gap: "any other outcome is acceptable" paper-test class]. total_stories 240→241. STORY-INDEX v2.670→v2.671.
 - **D-1728 PQL pass-16 OBS-001 audit-trail correction — STORY-INDEX v2.669→v2.670 (2026-07-13):** (state-manager D-1728) S-PRISMQL-CASE-INSENSITIVE-001 **v1.64** (POL-23 sweep: 4 BC-2.11.004 v1.38→v1.39 pin sites updated; all variants verified; APPEND-ONLY — v1.63 row untouched). Also in burst: BC-INDEX v8.03→v8.04 (BC-2.11.004 v1.38→v1.39 audit-trail correction). PQL pass-16 (frozen 7f7afdaf): CLEAN(strict)=NO CLEAN(PR-merge)=YES — 1 OBS (F-PQLFN-P16-OBS-001 BC-2.11.004 v1.38 changelog undercount; content verified correct incl. replace_all-revert integrity); pass-15 closures VERIFIED. Fix-burst 13 closed it. PQL HEAD UNCHANGED 7f7afdaf; streak 0/3; pass 17 in flight. MCP lane: PR #222 OPEN @eaf3aba4 (orchestrator adjudication: LOCAL 3-CLEAN on 019cfdb5 stands; PR-LEVEL starts 0/3 on eaf3aba4). STORY-INDEX v2.669→v2.670.
 - **D-1727 PQL pass-15 closure spec-layer burst — STORY-INDEX v2.668→v2.669 (2026-07-13):** (state-manager D-1727) S-PRISMQL-CASE-INSENSITIVE-001 **v1.63** (POL-23 sweep: 4 BC-2.11.004 v1.37→v1.38 pin sites updated; adjudicated-fix per F-PQLFN-P10-LOW-001 pin-currency precedent). Also in burst: BC-INDEX v8.02→v8.03 (BC-2.11.019 v1.15→v1.16; BC-2.11.004 v1.37→v1.38); error-taxonomy v2.45→v2.46. PQL pass-15 closure; PQL HEAD UNCHANGED 7f7afdaf; streak 0/3; pass 16 in flight. STORY-INDEX v2.668→v2.669.
 - **D-1722 combined pass-closure spec-layer burst — STORY-INDEX v2.667→v2.668 (2026-07-13):** (state-manager D-1722) S-TEST-WIRESHAPE-SWEEP-001 **v0.10** (POL-23 sweep: 8 live BC-2.11.001 v1.20→v1.21 pin sites updated + 2 story-prose §D4→§D2 citation-accuracy corrections per F-MCPNULL-P16-LOW-001). S-PRISMQL-CASE-INSENSITIVE-001 **v1.62** (POL-23 sweep: 4 BC-2.11.004 v1.36→v1.37 pin sites updated including the line-171 table-cell variant). Also in burst: BC-INDEX v7.99→v8.00 (BC-2.11.001 v1.20→v1.21; BC-2.11.004 v1.36→v1.37); ARCH-INDEX v2.183→v2.184 (ADR-048 v1.8→v1.9); interface-definitions.md v2.11→v2.12. MCP pass-16 + PQL pass-10 closures; NEW heads: MCP @c2e13fc5 / PQL @26f12b3f. STORY-INDEX v2.667→v2.668.

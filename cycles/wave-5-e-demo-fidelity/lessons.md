@@ -3245,3 +3245,29 @@ Rationale claims that cite another production, registry, or API surface as a ref
 **S-7.02 codification candidate:** Extend SAP sweep discipline to include a "five-section-type sweep" for any finding in the enumeration value class. Cross-reference: Lessons 49 (markdown table-cell variant), 50 (line-wrapped doc-comment string continuation), 51 (crates/**/*.rs scope for canonical-claim corrections), 53 (this lesson — structural section types within a BC).
 
 **Source:** D-1727 (DEFECT-PQL-FNCALL-LHS-001 pass-15 F-PQLFN-P15-HIGH-001 BC-2.11.019 v1.16 §Error Cases extension; THIRD RECURRENCE; 2026-07-13).
+
+---
+
+### Lesson 54 — [process-gap] "Any other outcome is acceptable" test assertions are a paper-test class (TD-VSDD-059 companion)
+
+Test assertions that accept ANY outcome other than one specific failure — i.e., assertions of the form "as long as we don't get error X, the test passes" — are a paper-test class. They satisfy Red-Gate ceremony (the test is present and runs) while concealing spec-promise violations.
+
+**DEFECT-PQL-FNCALL-LHS-001 evidence (F-PQLFN-P18-MED-001):** Three test sites in the fn-call LHS test suite used assertion patterns equivalent to "any other outcome is acceptable": they asserted that the result was NOT `QueryExecutionFailed` with a "Complex expression" message, without asserting that the result WAS a successful DataFusion execution as promised by EC-11-004-006. These assertions allowed the pipe SQL emitter's missing `Expr::FuncCall` arm to survive 17 adversarial passes undetected — the tests confirmed the old error was gone but never verified the correct behavior was present.
+
+**Root cause:** When a fix removes a known-bad outcome, test authors often write assertions that prove the bad outcome is absent rather than proving the correct outcome is present. This is a natural follow-the-failure pattern that leaves the test unanchored to the spec promise.
+
+**Diagnostic criterion for this class:**
+1. Test assertion is a negation: `assert_ne!(result, bad_outcome)`, `assert!(!result.is_err_with(bad_message))`, `assert!(result.is_ok() || result.is_different_error())`
+2. The corresponding spec row (BC, AC, EC) promises a POSITIVE outcome (e.g., "passes to DataFusion execution", "returns structured result", "emits event of type X")
+3. No companion test asserts the positive outcome in the success path
+
+**Correct pattern:** Every EC / AC row that promises a positive outcome MUST have a test that:
+- Exercises the exact input class the EC/AC describes
+- Asserts the positive promised outcome (not just the absence of the negative one)
+- Is distinct from the test that asserts the negative case is rejected
+
+**S-7.02 / adversary standing probe candidate:** Before declaring a cascade CLEAN(strict), verify that every closed finding in the "behavior changed from X to Y" class has a test asserting Y is present, not only a test asserting X is absent. If only negation-assertion tests exist, the finding is NOT closed — the test is a paper test.
+
+**Cross-reference:** TD-VSDD-059 (paper-fix detection); Lesson 47 (hollow feature class — wired vs. unit-tested); SAP-1 (adversary standing probe for emission catalog completeness — same principle: presence, not absence).
+
+**Source:** D-1729 (DEFECT-PQL-FNCALL-LHS-001 pass-18 F-PQLFN-P18-MED-001 expr_to_sql FuncCall arm; 3 paper-test sites surviving 17 passes; fresh-context protocol vindication; 2026-07-13).
