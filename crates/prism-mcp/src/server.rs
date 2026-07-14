@@ -10783,18 +10783,18 @@ mod adr_042_tests {
         //
         // This direct `Arc::new(arc_swap::ArcSwap::new(...))` assignment will fail
         // to compile against the current type until the implementer changes the field.
-        let mut qe = prism_query::engine::QueryEngine::new_with_cache_config(
+        let qe = prism_query::engine::QueryEngine::new_with_cache_config(
             Arc::new(prism_sensors::AdapterRegistry::new()),
             Arc::new(prism_credentials::InMemoryCredentialStore::new()),
             Arc::new(prism_ocsf::OcsfNormalizer::new()),
             Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
             prism_query::engine::QueryEngineConfig::default(),
             prism_query::cache::CacheConfig::default(),
-        );
-        // Inject ArcSwap-backed resolved_spec_map.
-        // RED GATE: compile fails until field type changed to ArcSwap.
-        qe.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(initial_resolved_map)));
-        qe.org_registry = Some(Arc::clone(&org_registry));
+        )
+        // Wire ArcSwap-backed resolved_spec_map and org_registry via builders
+        // (F-MCPRS-PRL1-OBS-002: field is now pub(crate); use with_resolved_spec_map / with_org_registry).
+        .with_resolved_spec_map(initial_resolved_map)
+        .with_org_registry(Arc::clone(&org_registry));
         let qe_arc = Arc::new(qe);
 
         // ── Mock subscriber registry: acme + globex subscribed ───────────────
@@ -10980,18 +10980,18 @@ mod adr_042_tests {
         );
         let initial_resolved = Arc::new(initial_overlay.resolved);
 
-        // Build QueryEngine with ArcSwap-backed resolved_spec_map.
-        // RED GATE (compile): field type must be changed to ArcSwap before this compiles.
-        let mut qe = prism_query::engine::QueryEngine::new_with_cache_config(
+        // Build QueryEngine with resolved_spec_map and org_registry via builders
+        // (F-MCPRS-PRL1-OBS-002: fields are now pub(crate)).
+        let qe = prism_query::engine::QueryEngine::new_with_cache_config(
             Arc::new(prism_sensors::AdapterRegistry::new()),
             Arc::new(prism_credentials::InMemoryCredentialStore::new()),
             Arc::new(prism_ocsf::OcsfNormalizer::new()),
             Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
             prism_query::engine::QueryEngineConfig::default(),
             prism_query::cache::CacheConfig::default(),
-        );
-        qe.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(initial_resolved)));
-        qe.org_registry = Some(Arc::clone(&org_registry));
+        )
+        .with_resolved_spec_map(initial_resolved)
+        .with_org_registry(Arc::clone(&org_registry));
         let qe_arc = Arc::new(qe);
 
         // ── Step 1: prism_describe BEFORE reload ──────────────────────────────
@@ -11213,8 +11213,9 @@ mod adr_042_tests {
         );
         let initial_resolved = Arc::new(initial_overlay.resolved);
 
-        // ── Build QueryEngine: with_table_registry + ArcSwap resolved_spec_map ─
-        let mut qe = QueryEngine::new_with_cache_config(
+        // ── Build QueryEngine: with_table_registry + resolved_spec_map + org_registry ─
+        // (F-MCPRS-PRL1-OBS-002: fields are now pub(crate); use builder methods)
+        let qe = QueryEngine::new_with_cache_config(
             Arc::new(AdapterRegistry::new()),
             Arc::new(prism_credentials::InMemoryCredentialStore::new()),
             Arc::new(prism_ocsf::OcsfNormalizer::new()),
@@ -11222,9 +11223,9 @@ mod adr_042_tests {
             QueryEngineConfig::default(),
             prism_query::cache::CacheConfig::default(),
         )
-        .with_table_registry(Arc::clone(&table_registry));
-        qe.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(initial_resolved)));
-        qe.org_registry = Some(Arc::clone(&org_registry));
+        .with_table_registry(Arc::clone(&table_registry))
+        .with_resolved_spec_map(initial_resolved)
+        .with_org_registry(Arc::clone(&org_registry));
         let qe_arc = Arc::new(qe);
 
         // ── Schema subscriber registry: acme subscribed ──────────────────────

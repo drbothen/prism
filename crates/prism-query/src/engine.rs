@@ -217,7 +217,7 @@ pub struct QueryEngine {
     pub(crate) credential_resolver: Arc<dyn CredentialResolver>,
     /// OrgSlug → OrgId mapping for per-org adapter selection. (F-LP1-CRIT-3)
     /// When `None`, falls back to `get_all_for_sensor` (test/MVP mode).
-    pub org_registry: Option<Arc<prism_core::OrgRegistry>>,
+    pub(crate) org_registry: Option<Arc<prism_core::OrgRegistry>>,
     /// RocksDB storage backend for internal table registration.
     /// (F-LP1-CRIT-1: `register_internal_tables` invoked from `execute_inner`)
     /// When `None`, internal tables are not registered (e.g. query-only mode).
@@ -230,7 +230,7 @@ pub struct QueryEngine {
     /// ADR-042: ArcSwap-backed so hot-reload can atomically swap the map.
     /// `None` = single-tenant mode (no overlay config). In-flight queries that
     /// call `resolved_spec_map()` hold their Arc snapshot for the query lifetime.
-    pub resolved_spec_map: Option<
+    pub(crate) resolved_spec_map: Option<
         Arc<
             arc_swap::ArcSwap<
                 std::collections::HashMap<
@@ -528,6 +528,35 @@ impl QueryEngine {
     /// Story: S-DEMO-PRISMQL-ONBOARDING-001-B (F-PRL-MED-001 fix seam).
     pub fn with_alias_store(mut self, store: Arc<Mutex<AliasStore>>) -> Self {
         self.alias_store = Some(store);
+        self
+    }
+
+    /// Wire the per-org registry for per-org adapter selection (F-LP1-CRIT-3 / ADR-029).
+    ///
+    /// Matches the `new_full` constructor path; use this method when constructing via
+    /// `new_with_cache_config` and adding the registry post-construction.
+    /// (F-MCPRS-PRL1-OBS-002: centralises registry wiring, replaces direct pub-field writes)
+    pub fn with_org_registry(mut self, registry: Arc<prism_core::OrgRegistry>) -> Self {
+        self.org_registry = Some(registry);
+        self
+    }
+
+    /// Wire the per-org overlay resolved spec map for per-org endpoint dispatch (ADR-029).
+    ///
+    /// Wraps the supplied map in `Arc<ArcSwap<...>>` so hot-reload can atomically swap it.
+    /// Matches the `new_full` constructor path; use this method when constructing via
+    /// `new_with_cache_config` and adding the map post-construction.
+    /// (F-MCPRS-PRL1-OBS-002: centralises ArcSwap wrapping, replaces 23 direct-field callsites)
+    pub fn with_resolved_spec_map(
+        mut self,
+        resolved: Arc<
+            std::collections::HashMap<
+                prism_spec_engine::ResolvedSpecKey,
+                prism_spec_engine::ResolvedSensorSpec,
+            >,
+        >,
+    ) -> Self {
+        self.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(resolved)));
         self
     }
 
@@ -5022,7 +5051,7 @@ mod sec003_engine_path_tests {
             crate::cache::CacheConfig::default(),
         );
         // Inject resolved_spec_map — ADR-042: field is now ArcSwap-backed.
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(spec_map));
         // Wire the table_registry so available_tables is populated.
         engine = engine.with_table_registry(registry);
         engine
@@ -5406,7 +5435,7 @@ mod adr_042_tests {
 
         // Inject into engine via pub(crate) field using the ArcSwap shape.
         let mut engine = make_minimal_engine();
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(initial_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(initial_map));
 
         // ── Step 1: snapshot (simulate in-flight query holding the old Arc) ──
         let old_arc = engine
@@ -6189,7 +6218,7 @@ mod sqlpipe_gate_sweep_tests {
 
         // Wire the spec_map into the engine.
         let mut engine = make_test_engine().with_table_registry(Arc::clone(&registry));
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(StdArc::new(spec_map))));
+        engine = engine.with_resolved_spec_map(StdArc::new(spec_map));
 
         // SqlPipe query projecting a non-existent column "severit" (typo of "severity",
         // Levenshtein distance = 1 which is within the ≤3 threshold).
@@ -6760,7 +6789,7 @@ mod m2_column_gate_funccall_and_join_tests {
             QueryEngineConfig::default(),
             crate::cache::CacheConfig::default(),
         );
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(spec_map));
         engine = engine.with_table_registry(registry);
 
         (engine, org)
@@ -7082,7 +7111,7 @@ mod f_pbl1_med001_select_funccall_col_gate_tests {
             QueryEngineConfig::default(),
             crate::cache::CacheConfig::default(),
         );
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(spec_map));
         engine = engine.with_table_registry(registry);
 
         (engine, org)
@@ -7989,7 +8018,7 @@ instance_id = "crowdstrike@acme""#;
             QueryEngineConfig::default(),
             crate::cache::CacheConfig::default(),
         );
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(spec_map));
 
         // 200-byte column name → triggers multi-tenant path of check_column_availability.
         let over_cap_col: String = "d".repeat(200);
@@ -8419,7 +8448,7 @@ mod f_pwl1_low001_having_column_gate_tests {
             QueryEngineConfig::default(),
             crate::cache::CacheConfig::default(),
         );
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(spec_map));
         engine = engine.with_table_registry(registry);
 
         (engine, org)
@@ -8682,7 +8711,7 @@ mod f_pxl3_med002_having_agg_predicate_col_gate_tests {
             QueryEngineConfig::default(),
             crate::cache::CacheConfig::default(),
         );
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(spec_map));
         engine = engine.with_table_registry(registry);
 
         (engine, org)
@@ -8992,7 +9021,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             QueryEngineConfig::default(),
             crate::cache::CacheConfig::default(),
         );
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(spec_map));
         engine = engine.with_table_registry(registry);
 
         (engine, org)
@@ -9256,7 +9285,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             QueryEngineConfig::default(),
             crate::cache::CacheConfig::default(),
         );
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(spec_map));
         engine = engine.with_table_registry(registry);
 
         (engine, org)
@@ -9850,7 +9879,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             QueryEngineConfig::default(),
             crate::cache::CacheConfig::default(),
         );
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(spec_map));
         engine = engine.with_table_registry(registry);
 
         (engine, org)
@@ -10808,7 +10837,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             QueryEngineConfig::default(),
             crate::cache::CacheConfig::default(),
         );
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(spec_map));
         engine = engine.with_table_registry(registry);
 
         (engine, org)
@@ -12495,7 +12524,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
         );
         // Multi-tenant: set resolved_spec_map so the multi-tenant path in
         // get_initial_available_columns is exercised.
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(spec_map));
         engine = engine.with_table_registry(registry);
         (engine, org)
     }
@@ -12755,7 +12784,7 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             QueryEngineConfig::default(),
             crate::cache::CacheConfig::default(),
         );
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(spec_map));
         engine = engine.with_table_registry(registry);
 
         (engine, org)
