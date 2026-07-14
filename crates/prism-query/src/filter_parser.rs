@@ -487,12 +487,26 @@ fn parse_sqlpipe_internal(
         let errs = rewrite_enrich_parse_errors(stages_str, errs);
         return Err(errs);
     }
-    let stages = stage_result.ok_or_else(|| {
+    let mut stages = stage_result.ok_or_else(|| {
         vec![ParseError::new(
             split_offset,
             "E-QUERY-001: SqlPipe stage list failed to parse",
         )]
     })?;
+
+    // F-PQLFN-P22-MED-001 (ADR-048 §D.7.2): spans captured by `fn_call_comparison`
+    // during the stage parse are relative to `stages_str = &input[split_offset..]`,
+    // not the original query string.  Shift every `FuncCall::Scalar::span` by
+    // `split_offset` to make offsets absolute so the aggregate-in-predicate gate
+    // (engine.rs `collect_unknown_scalar_offsets_from_predicate`) reports the correct
+    // source position in E-QUERY-001 errors.
+    //
+    // `FieldPath::span` is intentionally NOT shifted: no production code reads
+    // `FieldPath::span.start` for error-offset reporting (verified: the sole
+    // `span.start` access in engine.rs is inside
+    // `collect_unknown_scalar_offsets_from_expr`, which extracts only
+    // `FuncCall::Scalar::span`).
+    shift_scalar_spans_in_stages(&mut stages, split_offset);
 
     // Security: check stage count.
     limits
@@ -500,6 +514,68 @@ fn parse_sqlpipe_internal(
         .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
 
     Ok(Ast::SqlPipe(SqlPipeQuery { head, stages }))
+}
+
+/// Shift `FuncCall::Scalar::span` in every `PipeStage::Where` predicate by `offset`.
+///
+/// Called after parsing `stages_str = &input[split_offset..]` in
+/// `parse_sqlpipe_internal`.  The stage parser produces spans relative to
+/// `stages_str`; adding `split_offset` corrects them to absolute positions in
+/// the original query string (ADR-048 §D.7.2, F-PQLFN-P22-MED-001).
+fn shift_scalar_spans_in_stages(stages: &mut [crate::ast::PipeStage], offset: usize) {
+    use crate::ast::PipeStage;
+    for stage in stages.iter_mut() {
+        if let PipeStage::Where(pred) = stage {
+            shift_scalar_spans_in_predicate(pred, offset);
+        }
+    }
+}
+
+fn shift_scalar_spans_in_predicate(pred: &mut crate::ast::Predicate, offset: usize) {
+    use crate::ast::Predicate;
+    match pred {
+        Predicate::Compare { lhs, rhs, .. } => {
+            shift_scalar_spans_in_expr(lhs, offset);
+            shift_scalar_spans_in_expr(rhs, offset);
+        }
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates.iter_mut() {
+                shift_scalar_spans_in_predicate(p, offset);
+            }
+        }
+        Predicate::Not(inner) => shift_scalar_spans_in_predicate(inner, offset),
+        _ => {}
+    }
+}
+
+fn shift_scalar_spans_in_expr(expr: &mut crate::ast::Expr, offset: usize) {
+    use crate::ast::{Expr, FuncCall, Span};
+    match expr {
+        Expr::FuncCall(FuncCall::Scalar { span, args, .. }) => {
+            *span = Span {
+                start: span.start + offset,
+                end: span.end + offset,
+            };
+            for arg in args.iter_mut() {
+                shift_scalar_spans_in_expr(arg, offset);
+            }
+        }
+        Expr::FuncCall(FuncCall::Aggregate { args, .. }) => {
+            for arg in args.iter_mut() {
+                shift_scalar_spans_in_expr(arg, offset);
+            }
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            shift_scalar_spans_in_expr(lhs, offset);
+            shift_scalar_spans_in_expr(rhs, offset);
+        }
+        Expr::Not(inner) => shift_scalar_spans_in_expr(inner, offset),
+        Expr::Compare { lhs, rhs, .. } => {
+            shift_scalar_spans_in_expr(lhs, offset);
+            shift_scalar_spans_in_expr(rhs, offset);
+        }
+        _ => {}
+    }
 }
 
 /// Find the byte offset of the first unquoted `|` in `input` that is followed
