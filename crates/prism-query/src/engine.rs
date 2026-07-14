@@ -15302,6 +15302,441 @@ mod datafusion_aggregate_registry_empirical_tests {
 }
 
 // ---------------------------------------------------------------------------
+// F-PQLFN-P35-MED-002: known-UDF-passes sibling locks for positions 1-5
+// (ADR-048 §D.7.1 OD-1..OD-5; fix-burst 27)
+// ---------------------------------------------------------------------------
+//
+// Five new bilateral boundary locks — one per gated position — mirror the pattern
+// established by the OD-6 (fix-burst 26 POL-29 sibling sweep) and OD-7 (fix-burst 26)
+// locks.  Each test is walk-observable (F-PQLFN-P35-OBS-001): it uses a compound
+// predicate `enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1` to
+// prove (a) the predicate walk actually executes and (b) registry filtering correctly
+// passes the known UDF while rejecting the unknown UDF.
+//
+// Tests call `check_enrich_udf_availability` directly (private fn, same file) to
+// keep the fixture minimal — no registered table needed; the enrichment gate fires
+// before any table-availability check.  Each test registers `enrich_lookup` via the
+// same InfusionRegistry + InfusionSpec::new + InfusionField::new fixture pattern as
+// the OD-6 / OD-7 locks.
+//
+// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1;
+//            BC-2.11.019; OD-1..OD-5.
+
+// ── OD-1: pipe | where ────────────────────────────────────────────────────────
+
+/// `FROM t | where enrich_lookup(ip_address) = 'US'` with `enrich_lookup` registered
+/// MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
+///
+/// Walk-observable (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
+/// fires E-QUERY-039 for the unknown UDF only, proving the predicate walk executes and
+/// registry filtering passes the known UDF.
+///
+/// Bilateral boundary for OD-1:
+///   - known UDF in `| where` → gate passes (Ok(()))
+///   - unknown UDF in `| where` → gate fires (E-QUERY-039) [locked by MED-004 in
+///     temporal_typing_tests.rs]
+///
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 OD-1.
+#[cfg(test)]
+mod pipe_where_first_gated_position_enrich_udf_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    #[test]
+    fn test_pipe_where_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P35-MED-002 position-1 fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P35-MED-002 position-1 fixture");
+
+        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known + unknown UDF).
+        // Regression class (a) — walk removal: if PipeStage::Where walk removed from Ast::Pipe
+        //   arm, predicate_fncall_names stays empty → totally_unknown_udf undetected → false Ok.
+        // Regression class (b) — registry filtering: if registry check removed, enrich_lookup
+        //   would also fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        let compound_result = check_enrich_udf_availability(
+            "FROM t | where enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 OD-1 compound: pipe | where enrich_lookup AND totally_unknown_udf \
+             must fire E-QUERY-039 for totally_unknown_udf only — proving (a) walk reaches pipe \
+             | where predicate and (b) registry filtering passes enrich_lookup. \
+             Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 OD-1: available_infusions must contain 'enrich_lookup'. \
+                 Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 known-UDF-passes direction: pure known-UDF → Ok.
+        let result = check_enrich_udf_availability(
+            "FROM t | where enrich_lookup(ip_address) = 'US'",
+            Some(&registry),
+        );
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P35-MED-002 OD-1: pipe | where enrich_lookup(ip_address) = 'US' with known \
+             UDF MUST return Ok (E-QUERY-039 must NOT fire). \
+             OD-1 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Got: {result:?}"
+        );
+    }
+}
+
+// ── OD-2: filter-mode root predicate ──────────────────────────────────────────
+
+/// `t | enrich_lookup(ip_address) = 'US'` (filter mode) with `enrich_lookup` registered
+/// MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
+///
+/// Walk-observable (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
+/// fires E-QUERY-039 for the unknown UDF only, proving the Ast::Filter root-predicate
+/// walk executes and registry filtering passes the known UDF.
+///
+/// Bilateral boundary for OD-2:
+///   - known UDF in filter root predicate → gate passes (Ok(()))
+///   - unknown UDF in filter root predicate → gate fires (E-QUERY-039) [locked by MED-004 in
+///     temporal_typing_tests.rs]
+///
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 OD-2.
+#[cfg(test)]
+mod filter_root_second_gated_position_enrich_udf_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    #[test]
+    fn test_filter_root_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P35-MED-002 position-2 fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P35-MED-002 position-2 fixture");
+
+        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known + unknown UDF).
+        // Regression class (a) — walk removal: if Ast::Filter arm removed from
+        //   check_enrich_udf_availability, predicate_fncall_names stays empty → false Ok.
+        // Regression class (b) — registry filtering: if registry check removed, enrich_lookup
+        //   would also fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        // Query: filter-mode (source_ref = "t", no FROM/SELECT prefix — first token is "t").
+        let compound_result = check_enrich_udf_availability(
+            "t | enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 OD-2 compound: filter-mode enrich_lookup AND totally_unknown_udf \
+             must fire E-QUERY-039 for totally_unknown_udf only — proving (a) walk reaches filter \
+             root predicate (Ast::Filter arm) and (b) registry filtering passes enrich_lookup. \
+             Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 OD-2: available_infusions must contain 'enrich_lookup'. \
+                 Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 known-UDF-passes direction: pure known-UDF → Ok.
+        let result =
+            check_enrich_udf_availability("t | enrich_lookup(ip_address) = 'US'", Some(&registry));
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P35-MED-002 OD-2: filter-mode enrich_lookup(ip_address) = 'US' with known \
+             UDF MUST return Ok (E-QUERY-039 must NOT fire). \
+             OD-2 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Got: {result:?}"
+        );
+    }
+}
+
+// ── OD-3: SqlPipe | where ─────────────────────────────────────────────────────
+
+/// `SELECT ip_address FROM t | where enrich_lookup(ip_address) = 'US'` with
+/// `enrich_lookup` registered MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
+///
+/// Walk-observable (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
+/// fires E-QUERY-039 for the unknown UDF only, proving the SqlPipe PipeStage::Where
+/// walk executes and registry filtering passes the known UDF.
+///
+/// Bilateral boundary for OD-3:
+///   - known UDF in SqlPipe | where → gate passes (Ok(()))
+///   - unknown UDF in SqlPipe | where → gate fires (E-QUERY-039) [locked by MED-004 in
+///     temporal_typing_tests.rs]
+///
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 OD-3.
+#[cfg(test)]
+mod sqlpipe_where_third_gated_position_enrich_udf_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    #[test]
+    fn test_sqlpipe_where_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P35-MED-002 position-3 fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P35-MED-002 position-3 fixture");
+
+        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known + unknown UDF).
+        // Regression class (a) — walk removal: if PipeStage::Where walk removed from Ast::SqlPipe
+        //   arm, predicate_fncall_names stays empty → totally_unknown_udf undetected → false Ok.
+        // Regression class (b) — registry filtering: if registry check removed, enrich_lookup
+        //   would also fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        let compound_result = check_enrich_udf_availability(
+            "SELECT ip_address FROM t | where \
+             enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 OD-3 compound: SqlPipe | where enrich_lookup AND \
+             totally_unknown_udf must fire E-QUERY-039 for totally_unknown_udf only — proving \
+             (a) walk reaches SqlPipe PipeStage::Where predicate and (b) registry passes \
+             enrich_lookup. Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 OD-3: available_infusions must contain 'enrich_lookup'. \
+                 Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 known-UDF-passes direction: pure known-UDF → Ok.
+        let result = check_enrich_udf_availability(
+            "SELECT ip_address FROM t | where enrich_lookup(ip_address) = 'US'",
+            Some(&registry),
+        );
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P35-MED-002 OD-3: SqlPipe | where enrich_lookup(ip_address) = 'US' with \
+             known UDF MUST return Ok (E-QUERY-039 must NOT fire). \
+             OD-3 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Got: {result:?}"
+        );
+    }
+}
+
+// ── OD-4: SQL SELECT WHERE ────────────────────────────────────────────────────
+
+/// `SELECT ip_address FROM t WHERE enrich_lookup(ip_address) = 'US'` with
+/// `enrich_lookup` registered MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
+///
+/// Walk-observable (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
+/// fires E-QUERY-039 for the unknown UDF only, proving the Ast::Sql(Select) WHERE walk
+/// executes and registry filtering passes the known UDF.
+///
+/// Bilateral boundary for OD-4:
+///   - known UDF in SQL WHERE → gate passes (Ok(()))
+///   - unknown UDF in SQL WHERE → gate fires (E-QUERY-039) [locked by BC-2.11.019 N1B tests
+///     and TM-06/TM-07 aggregate-gate tests in temporal_typing_tests.rs]
+///
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 OD-4.
+#[cfg(test)]
+mod sql_where_fourth_gated_position_enrich_udf_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    #[test]
+    fn test_sql_where_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P35-MED-002 position-4 fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P35-MED-002 position-4 fixture");
+
+        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known + unknown UDF).
+        // Regression class (a) — walk removal: if sq.where_ walk removed from
+        //   Ast::Sql(Select) arm, predicate_fncall_names stays empty → false Ok.
+        // Regression class (b) — registry filtering: if registry check removed, enrich_lookup
+        //   would also fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        let compound_result = check_enrich_udf_availability(
+            "SELECT ip_address FROM t WHERE \
+             enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 OD-4 compound: SQL WHERE enrich_lookup AND totally_unknown_udf \
+             must fire E-QUERY-039 for totally_unknown_udf only — proving (a) walk reaches SQL \
+             WHERE predicate (Ast::Sql Select arm) and (b) registry passes enrich_lookup. \
+             Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 OD-4: available_infusions must contain 'enrich_lookup'. \
+                 Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 known-UDF-passes direction: pure known-UDF → Ok.
+        let result = check_enrich_udf_availability(
+            "SELECT ip_address FROM t WHERE enrich_lookup(ip_address) = 'US'",
+            Some(&registry),
+        );
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P35-MED-002 OD-4: SQL WHERE enrich_lookup(ip_address) = 'US' with known \
+             UDF MUST return Ok (E-QUERY-039 must NOT fire). \
+             OD-4 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Got: {result:?}"
+        );
+    }
+}
+
+// ── OD-5: SqlPipe-head WHERE ──────────────────────────────────────────────────
+
+/// `SELECT ip_address FROM t WHERE enrich_lookup(ip_address) = 'US' | limit 5` with
+/// `enrich_lookup` registered MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
+///
+/// Walk-observable (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
+/// fires E-QUERY-039 for the unknown UDF only, proving the SqlPipe-head WHERE walk
+/// (`spq.head.where_`) executes and registry filtering passes the known UDF.
+///
+/// Bilateral boundary for OD-5:
+///   - known UDF in SqlPipe-head WHERE → gate passes (Ok(()))
+///   - unknown UDF in SqlPipe-head WHERE → gate fires (E-QUERY-039) [TM-10 aggregate-gate
+///     and BC-2.11.019 tests in temporal_typing_tests.rs]
+///
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 OD-5.
+#[cfg(test)]
+mod sqlpipe_head_where_fifth_gated_position_enrich_udf_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    #[test]
+    fn test_sqlpipe_head_where_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P35-MED-002 position-5 fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P35-MED-002 position-5 fixture");
+
+        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known + unknown UDF).
+        // Regression class (a) — walk removal: if spq.head.where_ walk removed from
+        //   Ast::SqlPipe arm, predicate_fncall_names stays empty → totally_unknown_udf
+        //   undetected → false Ok.
+        // Regression class (b) — registry filtering: if registry check removed, enrich_lookup
+        //   would also fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        // Query: SqlPipe mode — SELECT head with WHERE, followed by | limit stage.
+        let compound_result = check_enrich_udf_availability(
+            "SELECT ip_address FROM t WHERE \
+             enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1 | limit 5",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 OD-5 compound: SqlPipe-head WHERE enrich_lookup AND \
+             totally_unknown_udf must fire E-QUERY-039 for totally_unknown_udf only — proving \
+             (a) walk reaches spq.head.where_ and (b) registry filtering passes enrich_lookup. \
+             Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 OD-5: available_infusions must contain 'enrich_lookup'. \
+                 Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 known-UDF-passes direction: pure known-UDF → Ok.
+        let result = check_enrich_udf_availability(
+            "SELECT ip_address FROM t WHERE enrich_lookup(ip_address) = 'US' | limit 5",
+            Some(&registry),
+        );
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P35-MED-002 OD-5: SqlPipe-head WHERE enrich_lookup(ip_address) = 'US' with \
+             known UDF MUST return Ok (E-QUERY-039 must NOT fire). \
+             OD-5 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Got: {result:?}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
 // F-PQLFN-P7-LOW-002: DML WHERE sixth gated position (ADR-048 §D.7.5, OD-6)
 // ---------------------------------------------------------------------------
 //
@@ -15566,7 +16001,35 @@ mod dml_where_sixth_gated_position_tests {
             .load_spec(spec)
             .expect("geo_lookup spec must load for F-PQLFN-P34-OBS-001 position-6 fixture");
 
-        // `enrich_lookup` IS in registered_names → gate passes → Ok(()).
+        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known UDF + unknown UDF).
+        // Proves (a) the walk reaches the DML WHERE predicate and (b) registry filtering
+        // passes enrich_lookup as known. Regression locks:
+        //   - walk-removal regression: if predicate walk removed, predicate_fncall_names stays
+        //     empty → totally_unknown_udf undetected → gate passes silently (false Ok).
+        //   - registry-filtering regression: if registry check removed, enrich_lookup would also
+        //     fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        let compound_result = check_enrich_udf_availability(
+            "DELETE FROM t WHERE enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 OD-6 compound: DELETE WHERE enrich_lookup AND totally_unknown_udf \
+             must fire E-QUERY-039 for totally_unknown_udf only — proving walk reaches DML WHERE \
+             predicate and registry filtering passes enrich_lookup. Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 OD-6: available_infusions must contain 'enrich_lookup' \
+                 (registered UDF must appear as known). Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 / F-PQLFN-P34-OBS-001 known-UDF-passes direction:
+        // pure known-UDF predicate → Ok (E-QUERY-039 must NOT fire).
         let result = check_enrich_udf_availability(
             "DELETE FROM t WHERE enrich_lookup(ip_address) = 'US'",
             Some(&registry),
@@ -15835,11 +16298,17 @@ mod insert_source_select_where_seventh_gated_position_tests {
     /// When `enrich_lookup` IS in the registered UDF set, `check_enrich_udf_availability` must
     /// return Ok(()) — the E-QUERY-039 gate only fires for fn-calls NOT found in the registry.
     ///
-    /// The other six gated surfaces each carry this sibling lock. OD-7 (INSERT source_select
-    /// WHERE, ADR-048 v1.13 §D.7.6) requires the same explicit lock to complete the behavioral
-    /// boundary documentation for all seven positions.
+    /// F-PQLFN-P35-MED-002 accuracy fix: all seven OD-1..OD-7 positions now carry a
+    /// known-UDF-passes sibling lock — OD-1 (pipe | where), OD-2 (filter root),
+    /// OD-3 (SqlPipe | where), OD-4 (SQL WHERE), OD-5 (SqlPipe-head WHERE),
+    /// OD-6 (DML WHERE, F-PQLFN-P34-OBS-001 POL-29), OD-7 (INSERT source_select WHERE).
+    /// Each lock is walk-observable (F-PQLFN-P35-OBS-001): compound predicate
+    /// `enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1` fires E-QUERY-039
+    /// for `totally_unknown_udf` only — proving the walk reaches the predicate and registry
+    /// filtering passes the known UDF.
     ///
-    /// Traces to: F-PQLFN-P34-OBS-001; ADR-048 v1.13 §D.7.6; BC-2.11.019; OD-7.
+    /// Traces to: F-PQLFN-P34-OBS-001; F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001;
+    ///            ADR-048 v1.13 §D.7.6; BC-2.11.019; OD-7.
     #[test]
     fn test_insert_source_select_where_enrich_udf_passes_gate() {
         use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
@@ -15863,7 +16332,37 @@ mod insert_source_select_where_seventh_gated_position_tests {
             .load_spec(spec)
             .expect("geo_lookup spec must load for F-PQLFN-P34-OBS-001 fixture");
 
-        // `enrich_lookup` IS in registered_names → gate passes → Ok(()).
+        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known UDF + unknown UDF).
+        // Proves (a) the walk reaches INSERT source_select WHERE predicate and (b) registry
+        // filtering passes enrich_lookup as known. Regression locks:
+        //   - walk-removal regression: if source_select.where_ walk removed, predicate_fncall_names
+        //     stays empty → totally_unknown_udf undetected → gate passes silently (false Ok).
+        //   - registry-filtering regression: if registry check removed, enrich_lookup would also
+        //     fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        let compound_result = check_enrich_udf_availability(
+            "INSERT INTO t (col) SELECT col FROM t2 WHERE \
+             enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 OD-7 compound: INSERT source_select WHERE enrich_lookup AND \
+             totally_unknown_udf must fire E-QUERY-039 for totally_unknown_udf only — proving \
+             walk reaches source_select.where_ and registry filtering passes enrich_lookup. \
+             Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 OD-7: available_infusions must contain 'enrich_lookup' \
+                 (registered UDF must appear as known). Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 / F-PQLFN-P34-OBS-001 known-UDF-passes direction:
+        // pure known-UDF predicate → Ok (E-QUERY-039 must NOT fire).
         let result = check_enrich_udf_availability(
             "INSERT INTO t (col) SELECT col FROM t2 WHERE enrich_lookup(ip_address) = 'US'",
             Some(&registry),
