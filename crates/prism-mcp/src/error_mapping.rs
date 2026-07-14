@@ -5284,4 +5284,73 @@ mod tests {
              and SafetyDataExfiltration ONLY"
         );
     }
+
+    // ── BC-2.10.007 §RETRYABLE-503 — transient/permanent boundary lock ─────────────────────────
+    //
+    // F-MCPRS-PRL9-LOW-001: the `matches!(status, 408|425|429|500|502|503|504)` whitelist had
+    // retryable:true locks only for 503 and 429 as individual tests; a mutation dropping any
+    // other code from the whitelist (e.g. 408, 500, 502, 504) would pass all tests undetected.
+    //
+    // This single parameterized test locks the FULL transient whitelist AND verifies the
+    // permanent/auth boundary, including the key 5xx-but-not-whitelisted code 501.
+    //
+    // Anchor: BC-2.10.007 §RETRYABLE-503 (version-agnostic citation).
+
+    /// BC-2.10.007 §RETRYABLE-503: full transient whitelist + permanent boundary lock.
+    ///
+    /// Transient (retryable:true): 408, 425, 429, 500, 502, 503, 504.
+    /// Permanent (retryable:false): 400, 401, 403, 404, 422, 501.
+    ///
+    /// 501 is the critical 5xx-but-not-whitelisted boundary: a mutation that extends the
+    /// whitelist to cover all 5xx would cause 501 to flip to retryable:true and fail here.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_sensor_http_retryable_whitelist_boundary_lock() {
+        // (status_code, expected_retryable, label)
+        let cases: &[(u16, bool, &str)] = &[
+            // ── transient whitelist — all must be retryable:true ───────────────────────────
+            (408, true, "408 Request Timeout"),
+            (425, true, "425 Too Early"),
+            (429, true, "429 Too Many Requests"),
+            (500, true, "500 Internal Server Error"),
+            (502, true, "502 Bad Gateway"),
+            (503, true, "503 Service Unavailable"),
+            (504, true, "504 Gateway Timeout"),
+            // ── permanent / auth boundary — all must be retryable:false ───────────────────
+            (400, false, "400 Bad Request"),
+            (401, false, "401 Unauthorized (auth)"),
+            (403, false, "403 Forbidden (auth)"),
+            (404, false, "404 Not Found"),
+            (422, false, "422 Unprocessable Entity"),
+            // 501 is the key 5xx-but-not-whitelisted boundary: extending the whitelist to
+            // cover all 5xx codes would flip this to true and break the lock.
+            (501, false, "501 Not Implemented (5xx but NOT whitelisted)"),
+        ];
+
+        for &(status, expected_retryable, label) in cases {
+            let err = PrismError::SensorHttpError {
+                sensor: "test_sensor".to_owned(),
+                status,
+                body: label.to_owned(),
+            };
+            let result = prism_error_to_structured_call_result(err);
+            let sc = result.structured_content.as_ref().unwrap_or_else(|| {
+                panic!("[{label}] structuredContent must be present (BC-2.10.007 §RETRYABLE-503)")
+            });
+            let error_obj = sc
+                .get("error")
+                .unwrap_or_else(|| panic!("[{label}] structuredContent.error must be present"));
+            let retryable = error_obj
+                .get("retryable")
+                .and_then(|v| v.as_bool())
+                .unwrap_or_else(|| panic!("[{label}] retryable must be a bool"));
+            assert_eq!(
+                retryable,
+                expected_retryable,
+                "[{label}] SensorHttpError{{status:{status}}} must be retryable:{expected_retryable} \
+                 per BC-2.10.007 §RETRYABLE-503 transient whitelist \
+                 (408|425|429|500|502|503|504 → true; all others → false)"
+            );
+        }
+    }
 }
