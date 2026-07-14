@@ -432,20 +432,24 @@ mod tests {
     /// Build an `InfusionRegistry` containing a single `NullSource`-backed UDF
     /// named `null_enrich_udf`.
     ///
-    /// Uses `InfusionType::LocalLookup` with no source file config — `load_spec` wires
-    /// the internal `NullSource` automatically for LocalLookup specs that lack a source
-    /// config. `NullSource::enrich_single` always returns `None`, so every enrichment
+    /// Uses `InfusionType::LocalLookup` with no source file config (`spec.source = None`) —
+    /// `load_spec` takes the LocalLookup `else` branch in `infusion/mod.rs` and wires
+    /// `Arc::new(NullSource)` directly. No file I/O occurs; no error-fallback path is
+    /// involved. `NullSource::enrich_single` always returns `None`, so every enrichment
     /// call produces a NULL output column value.
     ///
     /// Stub seam (SID-1): `NullSource` is internal to `prism-spec-engine`, wired at
     /// `load_spec` time. No DTU clone, no filesystem source file, no external service.
+    /// The `source_path` field is diagnostic metadata only — `load_spec` never reads it
+    /// for file I/O. Passing a descriptive non-path value makes this cross-platform.
     /// The null-input guard in `InfusionAsyncUdf::invoke_async_with_args`
     /// is also exercised for rows where the input column itself is NULL (ADR-051 §D2
     /// null-input guard — input column NULL → output NULL, no source call, no E-INFUSE-014;
     /// invoke_async_with_args short-circuits before project_value()).
     fn make_null_infusion_registry() -> Arc<InfusionRegistry> {
         let registry = InfusionRegistry::new();
-        // LocalLookup + no source config → load_spec wires NullSource (always returns None).
+        // LocalLookup + source:None → load_spec's else-branch wires NullSource (always returns None).
+        // No file I/O, no error-fallback seam. source_path is diagnostic metadata only.
         let spec = InfusionSpec::new(
             "null_enrich_spec",
             "Null enrichment stub — EC-11-079 AC-b regression lock",
@@ -456,11 +460,13 @@ mod tests {
                 "string",          // input_type
                 "string",          // output_type → DataType::Utf8 (nullable StringArray)
             )],
-            "/dev/null", // source_path: no file needed; NullSource path ignores it
+            // source_path is metadata only — load_spec never opens it. Descriptive
+            // placeholder avoids platform-specific path assumptions (F-MCPRS-PRL10-OBS-002).
+            "null-enrich-spec.infusion.toml",
         );
-        registry
-            .load_spec(spec)
-            .expect("null_enrich_udf spec must load — NullSource path must not fail");
+        registry.load_spec(spec).expect(
+            "null_enrich_udf spec must load — LocalLookup+source:None takes direct NullSource path",
+        );
         Arc::new(registry)
     }
 
