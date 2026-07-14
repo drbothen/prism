@@ -15768,4 +15768,59 @@ mod insert_source_select_where_seventh_gated_position_tests {
             }
         }
     }
+
+    /// F-PQLFN-P34-OBS-001 enrichment-UDF sibling lock: `INSERT INTO t (col) SELECT col FROM t2
+    /// WHERE enrich_lookup(ip_address) = 'US'` with `enrich_lookup` registered MUST pass the
+    /// plan-time gate (E-QUERY-039 does NOT fire).
+    ///
+    /// This locks the behavioral boundary for OD-7 between:
+    ///   - fn-call whose name is NOT in the registry → gate fires (E-QUERY-039)
+    ///   - fn-call whose name IS in the registry (known enrichment UDF) → gate passes (Ok(()))
+    ///
+    /// When `enrich_lookup` IS in the registered UDF set, `check_enrich_udf_availability` must
+    /// return Ok(()) — the E-QUERY-039 gate only fires for fn-calls NOT found in the registry.
+    ///
+    /// The other six gated surfaces each carry this sibling lock. OD-7 (INSERT source_select
+    /// WHERE, ADR-048 v1.13 §D.7.6) requires the same explicit lock to complete the behavioral
+    /// boundary documentation for all seven positions.
+    ///
+    /// Traces to: F-PQLFN-P34-OBS-001; ADR-048 v1.13 §D.7.6; BC-2.11.019; OD-7.
+    #[test]
+    fn test_insert_source_select_where_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        // Register `enrich_lookup` as a known UDF (mimics a real geo-lookup infusion).
+        // Source is None (no backing file needed) → NullSource → load_spec succeeds.
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P34-OBS-001 test fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P34-OBS-001 fixture");
+
+        // `enrich_lookup` IS in registered_names → gate passes → Ok(()).
+        let result = check_enrich_udf_availability(
+            "INSERT INTO t (col) SELECT col FROM t2 WHERE enrich_lookup(ip_address) = 'US'",
+            Some(&registry),
+        );
+
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P34-OBS-001 sibling lock: INSERT source_select WHERE with known enrichment \
+             UDF `enrich_lookup` MUST return Ok (E-QUERY-039 must NOT fire). \
+             `enrich_lookup` IS in registered_names → gate passes. \
+             OD-7 behavioral boundary: known UDF predicate → passes; unknown UDF predicate → fires. \
+             Got: {result:?}"
+        );
+    }
 }
