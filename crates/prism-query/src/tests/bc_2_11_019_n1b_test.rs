@@ -739,6 +739,7 @@ fn test_c1_collect_unknown_scalar_from_sql_query_group_by() {
     let func_expr = Expr::FuncCall(FuncCall::Scalar {
         func: ScalarFunc::Unknown("badudf".to_string()),
         args: vec![Expr::Field(FieldPath::new(vec!["col".to_string()]))],
+        span: crate::ast::Span::ZERO,
     });
 
     let sq = SqlQuery {
@@ -782,6 +783,7 @@ fn test_c1_collect_unknown_scalar_from_sql_query_order_by() {
     let func_expr = Expr::FuncCall(FuncCall::Scalar {
         func: ScalarFunc::Unknown("rankerudf".to_string()),
         args: vec![Expr::Field(FieldPath::new(vec!["severity".to_string()]))],
+        span: crate::ast::Span::ZERO,
     });
 
     let sq = SqlQuery {
@@ -832,6 +834,7 @@ fn test_c2_collect_unknown_scalar_from_sql_query_join_on() {
     let join_on_expr = Expr::FuncCall(FuncCall::Scalar {
         func: ScalarFunc::Unknown("badjoinudf".to_string()),
         args: vec![Expr::Field(FieldPath::new(vec!["x".to_string()]))],
+        span: crate::ast::Span::ZERO,
     });
 
     let sq = SqlQuery {

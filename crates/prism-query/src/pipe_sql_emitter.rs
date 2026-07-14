@@ -869,21 +869,67 @@ fn expr_to_sql(expr: &Expr) -> Result<String, PrismError> {
         // Name-derivation mirrors `ast.rs::normalize_func_call` (ADR-052 §D4 v1.12 Option A,
         // F-PQLFN-P18-MED-001 fix-burst 14). Each arg recurses through `expr_to_sql`.
         //
-        // SECURITY: `ScalarFunc::Unknown(name)` originates from the grammar's identifier
-        // rule which enforces `[A-Za-z_][A-Za-z0-9_]*` — no SQL-injection risk beyond what
-        // sibling arms (e.g. `Expr::Field`) already accept. Args recurse through existing
-        // sanitised emitters; no unvalidated string interpolation is added here.
+        // SECURITY (F-PQLFN-P21-LOW-001 defense-in-depth):
+        // The `ScalarFunc::Unknown(name)` arm validates `name` before emitting it.
+        // Parser-produced names always satisfy `[A-Za-z_][A-Za-z0-9_]*` (grammar constraint
+        // in filter_parser.rs `fn_call_comparison`). Direct AST construction bypasses the
+        // parser; the validation gate in the `Unknown(name)` arm below prevents verbatim
+        // passthrough of hostile names (e.g. `foo"); DROP TABLE x; --`).
+        // Known ScalarFunc variants (SubnetContains, TimeWindow, etc.) use hardcoded safe
+        // string literals and are always injection-free.
+        // Args recurse through existing sanitised emitters (`expr_to_sql`).
+        //
+        // Variant exhaustiveness: all current ScalarFunc variants are enumerated explicitly
+        // (no `_ =>"func"` wildcard). Adding a new ScalarFunc variant is a compile error
+        // here, forcing a conscious name choice for that variant's SQL form.
         Expr::FuncCall(fc) => match fc {
-            FuncCall::Scalar { func, args } => {
-                let func_name = match func {
+            FuncCall::Scalar { func, args, .. } => {
+                // Name-derivation: each known ScalarFunc variant has a hardcoded canonical
+                // SQL name. `ScalarFunc::Unknown(name)` uses the caller-supplied name after
+                // validating it is a safe SQL identifier (F-PQLFN-P21-LOW-001 defense-in-depth).
+                //
+                // SECURITY — Unknown(name) defense-in-depth (F-PQLFN-P21-LOW-001):
+                // The parser grammar constrains fn-call names to `[A-Za-z_][A-Za-z0-9_]*`
+                // (filter_parser.rs `fn_call_comparison`), so parser-produced names are safe.
+                // Direct AST construction bypasses the parser; we validate here to prevent
+                // verbatim passthrough of hostile names (e.g. `foo"); DROP TABLE x; --`).
+                // Safe names pass through unchanged; unsafe names return QueryExecutionFailed.
+                //
+                // Note: `escape_identifier` uses double-quoting for column identifiers;
+                // DataFusion does NOT resolve double-quoted names as function names, so we
+                // validate-or-reject rather than quote. Parser-produced names are always safe.
+                //
+                // Explicit variant enumeration replaces the prior `_ => "func"` wildcard:
+                // the wildcard silently emitted a wrong-but-valid SQL name for any future
+                // ScalarFunc variant, violating SOUL #4 (silent wrong output). By
+                // enumerating all variants, adding a new ScalarFunc variant is a compile
+                // error here — forcing a conscious decision. This is in-crate code; no
+                // external match-arm wildcard is needed (only external code requires `_ =>`).
+                let func_name: &str = match func {
                     ScalarFunc::SubnetContains => "subnet_contains",
                     ScalarFunc::TimeWindow => "time_window",
                     ScalarFunc::JsonExtractString => "json_extract_string",
                     ScalarFunc::IocMatch => "ioc_match",
                     ScalarFunc::MitreTactic => "mitre_tactic",
                     ScalarFunc::SeverityLabel => "severity_label",
-                    ScalarFunc::Unknown(name) => name.as_str(),
-                    _ => "func", // non_exhaustive arm — future ScalarFunc variants default to "func"
+                    ScalarFunc::Unknown(name) => {
+                        // Validate: safe identifier = [A-Za-z_][A-Za-z0-9_]*, non-empty.
+                        // This is the same charset the parser grammar enforces; the check
+                        // here is the defense-in-depth for direct AST construction.
+                        let is_safe = !name.is_empty()
+                            && name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+                            && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+                        if !is_safe {
+                            return Err(PrismError::QueryExecutionFailed {
+                                detail: format!(
+                                    "function name '{name}' contains characters not permitted \
+                                     in SQL identifiers; function names must match \
+                                     [A-Za-z_][A-Za-z0-9_]* (F-PQLFN-P21-LOW-001)"
+                                ),
+                            });
+                        }
+                        name.as_str()
+                    }
                 };
                 let args_sql: Vec<String> = args
                     .iter()
@@ -1586,6 +1632,112 @@ mod tests {
             assert!(
                 detail.contains("internal error"),
                 "RG-024: QueryPlanFailed detail must mention 'internal error', got: {detail}"
+            );
+        }
+    }
+
+    // ── F-PQLFN-P21-LOW-001: ScalarFunc::Unknown safety gate (defense-in-depth) ──
+
+    /// F-PQLFN-P21-LOW-001: `expr_to_sql` MUST return `Err` for a `ScalarFunc::Unknown`
+    /// whose name fails the safe-identifier check `[A-Za-z_][A-Za-z0-9_]*`.
+    ///
+    /// Parser grammar constrains fn-call names to this charset, but direct AST construction
+    /// bypasses the parser. This test proves that hostile names (e.g. containing SQL
+    /// metacharacters like `"`, `;`, `)`, `-`) are blocked at the emitter, not emitted verbatim.
+    ///
+    /// Load-bearing (TD-VSDD-059): removing the `is_safe` guard in the `Unknown(name)` arm
+    /// causes this test to fail (the hostile name would be emitted verbatim).
+    ///
+    /// # RED → GREEN
+    /// FAILS on pre-fix code: `expr_to_sql` returns `Ok(...)` with the hostile name verbatim.
+    /// PASSES after fix: `expr_to_sql` returns `Err(QueryExecutionFailed { .. })`.
+    #[test]
+    fn test_sec_pqlfn_p21_low001_hostile_unknown_name_blocked() {
+        use crate::ast::FuncCall;
+        use crate::ast::ScalarFunc;
+        use crate::ast::Span;
+
+        // Parser-unreachable: construct FuncCall directly with a hostile function name.
+        // The name `foo"); DROP TABLE x; --` contains SQL metacharacters that would be
+        // an injection if emitted verbatim into `format!("{func_name}(...)")`.
+        let hostile = Expr::FuncCall(FuncCall::Scalar {
+            func: ScalarFunc::Unknown(r#"foo"); DROP TABLE x; --"#.to_string()),
+            args: vec![],
+            span: Span::ZERO,
+        });
+        let result = expr_to_sql(&hostile);
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P21-LOW-001: expr_to_sql MUST return Err for a hostile function name \
+             containing SQL metacharacters — no verbatim passthrough allowed. \
+             Got Ok: {:?}",
+            result.ok()
+        );
+        // The error must be QueryExecutionFailed (not QueryParseFailed, which is parse-time).
+        match result.unwrap_err() {
+            PrismError::QueryExecutionFailed { detail } => {
+                assert!(
+                    detail.contains("F-PQLFN-P21-LOW-001"),
+                    "F-PQLFN-P21-LOW-001: QueryExecutionFailed detail must reference \
+                     the finding ID. Got: {detail:?}"
+                );
+            }
+            other => panic!("F-PQLFN-P21-LOW-001: expected QueryExecutionFailed, got: {other:?}"),
+        }
+    }
+
+    /// F-PQLFN-P21-LOW-001: A hostile name containing a digit-only prefix is blocked.
+    ///
+    /// `123fn` starts with a digit — not a valid SQL identifier first character.
+    #[test]
+    fn test_sec_pqlfn_p21_low001_digit_prefix_name_blocked() {
+        use crate::ast::FuncCall;
+        use crate::ast::ScalarFunc;
+        use crate::ast::Span;
+
+        let hostile = Expr::FuncCall(FuncCall::Scalar {
+            func: ScalarFunc::Unknown("123fn".to_string()),
+            args: vec![],
+            span: Span::ZERO,
+        });
+        let result = expr_to_sql(&hostile);
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P21-LOW-001: digit-prefix function name '123fn' must be blocked. Got Ok"
+        );
+    }
+
+    /// F-PQLFN-P21-LOW-001: Safe `ScalarFunc::Unknown` names pass through unchanged.
+    ///
+    /// Parser-produced names always satisfy `[A-Za-z_][A-Za-z0-9_]*`. This test verifies
+    /// that safe names (like `lower`, `upper`, `my_udf_2`) emit correctly and are not
+    /// blocked by the guard.
+    ///
+    /// Load-bearing (TD-VSDD-059): if the safe-identifier check is too strict (rejecting
+    /// valid names), this test fails.
+    #[test]
+    fn test_sec_pqlfn_p21_low001_safe_unknown_names_pass() {
+        use crate::ast::FieldPath;
+        use crate::ast::FuncCall;
+        use crate::ast::ScalarFunc;
+        use crate::ast::Span;
+
+        for name in &["lower", "upper", "my_udf", "udf_v2", "_helper"] {
+            let call = Expr::FuncCall(FuncCall::Scalar {
+                func: ScalarFunc::Unknown(name.to_string()),
+                args: vec![Expr::Field(FieldPath::new(["x"]))],
+                span: Span::ZERO,
+            });
+            let result = expr_to_sql(&call);
+            assert!(
+                result.is_ok(),
+                "F-PQLFN-P21-LOW-001: safe identifier '{name}' must not be blocked. Got: {:?}",
+                result
+            );
+            let sql = result.unwrap();
+            assert!(
+                sql.contains(name),
+                "F-PQLFN-P21-LOW-001: safe name '{name}' must appear in emitted SQL. Got: {sql}"
             );
         }
     }

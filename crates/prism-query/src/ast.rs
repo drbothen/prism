@@ -700,7 +700,20 @@ pub enum FuncCall {
         distinct: bool,
     },
     /// Scalar (UDF) function call from the UDF registry.
-    Scalar { func: ScalarFunc, args: Vec<Expr> },
+    ///
+    /// `span` is the byte-offset range of the function *name* token in the original
+    /// query string, populated by the parser (`filter_parser.rs` `fn_call_comparison`
+    /// and `sql_parser.rs`). Direct AST construction (tests, materialization) uses
+    /// `Span::ZERO`. The aggregate-in-predicate gate (E-QUERY-001, ADR-048 §D.7.2)
+    /// uses `span.start` as the reported error offset so analysts see the correct
+    /// source position (F-PQLFN-P21-OBS-003).
+    Scalar {
+        func: ScalarFunc,
+        args: Vec<Expr>,
+        /// Byte-offset span of the function name in the original query string.
+        /// `Span::ZERO` for AST nodes produced outside the parser.
+        span: Span,
+    },
     /// Window function stub — populated in S-3.06.
     Window {
         // Placeholder: S-3.06 will add fields here.
@@ -2388,7 +2401,7 @@ impl PqlNormalizer {
                     format!("{inner_name}({distinct_kw}{})", args_str.join(", "))
                 }
             }
-            FuncCall::Scalar { func, args } => {
+            FuncCall::Scalar { func, args, .. } => {
                 let func_name = match func {
                     ScalarFunc::SubnetContains => "subnet_contains",
                     ScalarFunc::TimeWindow => "time_window",
@@ -2976,6 +2989,7 @@ mod bc_2_11_018_normalizer_roundtrip_tests {
         let func_call_expr = Expr::FuncCall(FuncCall::Scalar {
             func: ScalarFunc::Unknown("unknown_udf".to_string()),
             args: vec![both_quote_arg],
+            span: Span::ZERO,
         });
 
         // Wrap in a minimal SQL AST so we can call normalize().

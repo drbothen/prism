@@ -4959,6 +4959,7 @@ mod walker_coverage_tests {
         let scalar_func_expr = Expr::FuncCall(FuncCall::Scalar {
             func: ScalarFunc::Unknown("severity_label".to_string()),
             args: vec![in_subquery_arg],
+            span: Span::ZERO,
         });
 
         let mut sql = minimal_select("crowdstrike_detections");
@@ -6551,6 +6552,7 @@ mod temporal_walker_unit_tests {
         let mut expr = Expr::FuncCall(FuncCall::Scalar {
             func: ScalarFunc::IocMatch,
             args: vec![Expr::Literal(raw_lit("2026-06-24"))],
+            span: crate::ast::Span::ZERO,
         });
         let result = check_expr_temporal(&mut expr, Some("test_events"), None);
         // Walking happens — OBS-2 coerces the arg instead of erroring.

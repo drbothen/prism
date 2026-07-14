@@ -4935,6 +4935,93 @@ async fn test_BC_2_11_003_obs_002_pipe_where_stddev_not_in_blocklist_e_query_001
     );
 }
 
+// ── F-PQLFN-P21-OBS-003: E-QUERY-001 aggregate gate must report truthful offset ────────────
+//
+// ADR-048 §D.7.2 Full Display form specifies `at offset {offset}` — the value must be
+// truthful. Previously `check_enrich_udf_availability` hardcoded `offset: 0` for the
+// aggregate-in-predicate gate, regardless of where the aggregate appears in the query.
+//
+// Fix-burst-16 threads the function-name span from `FuncCall::Scalar::span` (populated
+// by filter_parser.rs `fn_call_comparison` via `map_with`) through the new
+// `collect_unknown_scalar_offsets_from_predicate` into the E-QUERY-001 error.
+//
+// These tests assert that `offset` points at the first byte of the aggregate function
+// name in the original query string.
+
+/// F-PQLFN-P21-OBS-003: E-QUERY-001 aggregate gate reports truthful offset for a
+/// `stddev` call appearing AFTER another valid fn-call in a pipe `| where` predicate.
+///
+/// Query: `FROM crowdstrike_detections | where lower(risk_score) = 'low' AND stddev(severity) > 10`
+///
+/// `stddev` appears mid-query; pre-fix the offset is always 0. Post-fix, offset must
+/// equal `query.find("stddev")`.
+///
+/// # RED → GREEN
+/// FAILS on pre-fix code: `offset == 0` (hardcoded), test panics on `assert_eq!(0, expected)`.
+/// PASSES after fix: `offset == query.find("stddev").unwrap()` (actual source position).
+///
+/// Load-bearing (TD-VSDD-059): removing the span-threading in
+/// `collect_unknown_scalar_offsets_from_predicate` causes this test to fail
+/// (offset reverts to 0).
+#[tokio::test]
+async fn test_pqlfn_p21_obs003_aggregate_offset_nonzero_pipe_where() {
+    let query =
+        "FROM crowdstrike_detections | where lower(risk_score) = 'low' AND stddev(severity) > 10";
+    let expected_offset = query.find("stddev").expect("stddev must be in query");
+
+    let engine = make_crowdstrike_detections_engine();
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    match result {
+        Err(PrismError::QueryParseFailed { offset, .. }) => {
+            assert_eq!(
+                offset, expected_offset,
+                "F-PQLFN-P21-OBS-003: E-QUERY-001 aggregate gate must report truthful \
+                 offset pointing at 'stddev' in the original query string. \
+                 Expected offset={expected_offset} (first byte of 'stddev'), got offset={offset}. \
+                 Pre-fix: offset is always 0 (hardcoded). \
+                 Fix: thread span from FuncCall::Scalar through \
+                 collect_unknown_scalar_offsets_from_predicate."
+            );
+            assert!(
+                offset > 0,
+                "F-PQLFN-P21-OBS-003: offset must be > 0 for an aggregate appearing \
+                 mid-query (not at byte 0). Got offset={offset}"
+            );
+        }
+        other => panic!(
+            "F-PQLFN-P21-OBS-003: expected QueryParseFailed (E-QUERY-001) for \
+             stddev in pipe | where, got: {other:?}"
+        ),
+    }
+}
+
+/// F-PQLFN-P21-OBS-003: SQL WHERE path also reports truthful offset.
+///
+/// Query: `SELECT severity FROM crowdstrike_detections WHERE lower(host) = 'server' AND stddev(risk_score) > 5`
+///
+/// `stddev` is mid-query; offset must be non-zero and correct.
+#[tokio::test]
+async fn test_pqlfn_p21_obs003_aggregate_offset_nonzero_sql_where() {
+    let query =
+        "SELECT severity FROM crowdstrike_detections WHERE lower(host) = 'server' AND stddev(risk_score) > 5";
+    let expected_offset = query.find("stddev").expect("stddev must be in query");
+
+    let engine = make_crowdstrike_detections_engine();
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    match result {
+        Err(PrismError::QueryParseFailed { offset, .. }) => {
+            assert_eq!(
+                offset, expected_offset,
+                "F-PQLFN-P21-OBS-003 SQL WHERE: E-QUERY-001 offset must point at 'stddev' \
+                 (expected={expected_offset}, got={offset})"
+            );
+        }
+        other => panic!("F-PQLFN-P21-OBS-003 SQL WHERE: expected QueryParseFailed, got: {other:?}"),
+    }
+}
+
 // ── DEFECT-PQL-FNCALL-LHS-001 fix-burst 2: ADR-048 v1.2 §D.7 aggregate-gate matrix ─────────
 //
 // Implements ADR-048 v1.2 §D.7 "Unified Plan-Time Aggregate-in-Predicate Gate" TM-01..TM-18.

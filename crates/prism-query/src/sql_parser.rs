@@ -1016,7 +1016,13 @@ fn build_sql_expr_parser<'a>(
                     .collect::<Vec<_>>()
                     .delimited_by(just('(').padded(), just(')').padded()),
             )
-            .map(|(func, args)| Expr::FuncCall(FuncCall::Scalar { func, args }));
+            .map(|(func, args)| {
+                Expr::FuncCall(FuncCall::Scalar {
+                    func,
+                    args,
+                    span: crate::ast::Span::ZERO,
+                })
+            });
 
         // Basic comparison (field vs literal).
         // Virtual-field promotion: _sensor/_client/etc. become Expr::VirtualField.

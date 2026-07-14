@@ -1674,6 +1674,7 @@ fn collect_unknown_scalar_from_expr(expr: &crate::ast::Expr, out: &mut Vec<Strin
         Expr::FuncCall(FuncCall::Scalar {
             func: ScalarFunc::Unknown(name),
             args,
+            ..
         }) => {
             out.push(name.clone());
             for arg in args {
@@ -1764,6 +1765,79 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
     }
 }
 
+/// Collect all `ScalarFunc::Unknown` names AND their source offsets from an `Expr` tree.
+///
+/// Mirrors `collect_unknown_scalar_from_expr` but accumulates `(name, span.start)` pairs
+/// so the aggregate-in-predicate gate (E-QUERY-001) can report truthful source offsets
+/// per ADR-048 §D.7.2 (F-PQLFN-P21-OBS-003).
+///
+/// The `span.start` field is the byte offset of the function name in the original query
+/// string, populated by filter_parser.rs `fn_call_comparison` via `map_with`. For AST
+/// nodes constructed outside the parser (tests, direct construction), `span` is `Span::ZERO`
+/// → `span.start == 0`; callers should accept `0` as "offset unknown" in that case.
+fn collect_unknown_scalar_offsets_from_expr(
+    expr: &crate::ast::Expr,
+    out: &mut Vec<(String, usize)>,
+) {
+    use crate::ast::{Expr, FuncCall, ScalarFunc};
+    match expr {
+        Expr::FuncCall(FuncCall::Scalar {
+            func: ScalarFunc::Unknown(name),
+            args,
+            span,
+        }) => {
+            out.push((name.clone(), span.start));
+            for arg in args {
+                collect_unknown_scalar_offsets_from_expr(arg, out);
+            }
+        }
+        Expr::FuncCall(FuncCall::Scalar { args, .. }) => {
+            for arg in args {
+                collect_unknown_scalar_offsets_from_expr(arg, out);
+            }
+        }
+        Expr::FuncCall(FuncCall::Aggregate { args, .. }) => {
+            for arg in args {
+                collect_unknown_scalar_offsets_from_expr(arg, out);
+            }
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            collect_unknown_scalar_offsets_from_expr(lhs, out);
+            collect_unknown_scalar_offsets_from_expr(rhs, out);
+        }
+        Expr::Not(inner) => collect_unknown_scalar_offsets_from_expr(inner, out),
+        Expr::Compare { lhs, rhs, .. } => {
+            collect_unknown_scalar_offsets_from_expr(lhs, out);
+            collect_unknown_scalar_offsets_from_expr(rhs, out);
+        }
+        _ => {}
+    }
+}
+
+/// Collect all `ScalarFunc::Unknown` names AND their source offsets from a `Predicate` tree.
+///
+/// Mirrors `collect_unknown_scalar_from_predicate` but accumulates `(name, span.start)` pairs
+/// for the aggregate-in-predicate E-QUERY-001 gate (F-PQLFN-P21-OBS-003).
+fn collect_unknown_scalar_offsets_from_predicate(
+    pred: &crate::ast::Predicate,
+    out: &mut Vec<(String, usize)>,
+) {
+    use crate::ast::Predicate;
+    match pred {
+        Predicate::Compare { lhs, rhs, .. } => {
+            collect_unknown_scalar_offsets_from_expr(lhs, out);
+            collect_unknown_scalar_offsets_from_expr(rhs, out);
+        }
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates {
+                collect_unknown_scalar_offsets_from_predicate(p, out);
+            }
+        }
+        Predicate::Not(inner) => collect_unknown_scalar_offsets_from_predicate(inner, out),
+        _ => {}
+    }
+}
+
 /// Plan-time enrichment UDF availability gate — E-QUERY-039 (BC-2.11.019).
 ///
 /// Fires AFTER `check_table_availability` AND `check_query_column_availability`
@@ -1842,7 +1916,10 @@ fn check_enrich_udf_availability(
                                                          // SqlPipe-head WHERE, SQL DML WHERE. Checked for aggregate classification
                                                          // (ADR-048 D.3 plan-time gate) before being folded into sql_unknown_names for
                                                          // E-QUERY-039. BC-2.11.019 §Postconditions third bullet (DEFECT-PQL-FNCALL-LHS-001).
-    let mut predicate_fncall_names: Vec<String> = Vec::new();
+                                                         // (String, usize) = (name, span.start) — offset is the byte position of the
+                                                         // function name in the original query string (F-PQLFN-P21-OBS-003). For AST
+                                                         // nodes constructed outside the parser, span.start == 0 ("offset unknown").
+    let mut predicate_fncall_names: Vec<(String, usize)> = Vec::new();
 
     match &ast {
         // Pipe mode: `FROM table | enrich udf_name(col)` stages.
@@ -1855,7 +1932,10 @@ fn check_enrich_udf_availability(
                         pipe_enrich_names.push(es.infusion.clone());
                     }
                     PipeStage::Where(pred) => {
-                        collect_unknown_scalar_from_predicate(pred, &mut predicate_fncall_names);
+                        collect_unknown_scalar_offsets_from_predicate(
+                            pred,
+                            &mut predicate_fncall_names,
+                        );
                     }
                     _ => {}
                 }
@@ -1865,7 +1945,10 @@ fn check_enrich_udf_availability(
         // (post-DEFECT-PQL-FNCALL-LHS-001 grammar extension). Walk the predicate.
         // Previously fell through to `_ => {}` (gate was a no-op for Ast::Filter).
         Ast::Filter(fe) => {
-            collect_unknown_scalar_from_predicate(&fe.predicate, &mut predicate_fncall_names);
+            collect_unknown_scalar_offsets_from_predicate(
+                &fe.predicate,
+                &mut predicate_fncall_names,
+            );
         }
         // SqlPipe mode: SQL head with pipe stages.
         // Enrich names can appear in THREE places:
@@ -1893,7 +1976,10 @@ fn check_enrich_udf_availability(
                     }
                     // (b) pipe | where predicates — predicate fn-call LHS.
                     PipeStage::Where(pred) => {
-                        collect_unknown_scalar_from_predicate(pred, &mut predicate_fncall_names);
+                        collect_unknown_scalar_offsets_from_predicate(
+                            pred,
+                            &mut predicate_fncall_names,
+                        );
                     }
                     _ => {}
                 }
@@ -1901,7 +1987,7 @@ fn check_enrich_udf_availability(
             // (D.7.1 position 5) SqlPipe-head WHERE → predicate_fncall_names (aggregate gate).
             // HAVING is intentionally excluded — only head.where_ is walked here.
             if let Some(pred) = &spq.head.where_ {
-                collect_unknown_scalar_from_predicate(pred, &mut predicate_fncall_names);
+                collect_unknown_scalar_offsets_from_predicate(pred, &mut predicate_fncall_names);
             }
             // (c) SQL head — ALL scalar positions via canonical shared walk, SQL-mode.
             // This also walks head.where_ into sql_unknown_names (duplicate for WHERE names —
@@ -1925,7 +2011,7 @@ fn check_enrich_udf_availability(
             // (D.7.1 position 4) SQL WHERE → predicate_fncall_names (aggregate gate).
             // HAVING is intentionally excluded — only sq.where_ is walked here.
             if let Some(pred) = &sq.where_ {
-                collect_unknown_scalar_from_predicate(pred, &mut predicate_fncall_names);
+                collect_unknown_scalar_offsets_from_predicate(pred, &mut predicate_fncall_names);
             }
             // All positions (SELECT, WHERE, JOIN ON, GROUP BY, ORDER BY, HAVING) via canonical
             // shared walk into sql_unknown_names for E-QUERY-039.
@@ -1943,7 +2029,7 @@ fn check_enrich_udf_availability(
         // explicitly handled — `_ => {}` is removed as it is unreachable within-crate.
         Ast::Sql(SqlStatement::Dml(dml)) => {
             if let Some(pred) = &dml.filter {
-                collect_unknown_scalar_from_predicate(pred, &mut predicate_fncall_names);
+                collect_unknown_scalar_offsets_from_predicate(pred, &mut predicate_fncall_names);
             }
         }
     }
@@ -1960,11 +2046,11 @@ fn check_enrich_udf_availability(
     // Source of truth: DATAFUSION_BUILTIN_AGGREGATE_NAMES (derived from DataFusion's
     // default_aggregate_functions() registry — same source as the aggregate portion of
     // DATAFUSION_BUILTIN_FUNCTION_NAMES). No hard-coded name list.
-    for name in &predicate_fncall_names {
+    for (name, offset) in &predicate_fncall_names {
         let name_lower = name.to_ascii_lowercase();
         if DATAFUSION_BUILTIN_AGGREGATE_NAMES.contains(&name_lower) {
             return Err(PrismError::QueryParseFailed {
-                offset: 0,
+                offset: *offset,
                 detail: format!(
                     "'{name}' is an aggregate function; \
                      aggregate fn-calls are not valid in WHERE/where predicates \
@@ -1987,7 +2073,7 @@ fn check_enrich_udf_availability(
     // are excluded from E-QUERY-039 by the DATAFUSION_BUILTIN_FUNCTION_NAMES filter below.
     // Folded here (before descriptor materialization) so the emptiness check below sees
     // the complete set of names. (F-PQLFN-P7-OBS-001 hoist)
-    sql_unknown_names.extend(predicate_fncall_names);
+    sql_unknown_names.extend(predicate_fncall_names.iter().map(|(n, _)| n.clone()));
 
     // OBS-001 hoist (F-PQLFN-P7-OBS-001): skip descriptor materialization when there
     // are no names to validate. The aggregate gate already ran; if pipe_enrich_names and
@@ -6795,6 +6881,7 @@ mod enrich_gate_where_clause_unit_tests {
             lhs: Box::new(Expr::FuncCall(FuncCall::Scalar {
                 func: ScalarFunc::Unknown("badudf".to_string()),
                 args: vec![Expr::Field(FieldPath::new(vec!["col".to_string()]))],
+                span: crate::ast::Span::ZERO,
             })),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::String("value".to_string()))),
@@ -6820,6 +6907,7 @@ mod enrich_gate_where_clause_unit_tests {
             lhs: Box::new(Expr::FuncCall(FuncCall::Scalar {
                 func: ScalarFunc::Unknown("badudf".to_string()),
                 args: vec![],
+                span: crate::ast::Span::ZERO,
             })),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::Integer(1))),
@@ -6878,6 +6966,7 @@ mod enrich_gate_where_clause_unit_tests {
             lhs: Box::new(Expr::FuncCall(FuncCall::Scalar {
                 func: ScalarFunc::Unknown("evil_udf".to_string()),
                 args: vec![],
+                span: crate::ast::Span::ZERO,
             })),
             op: CompareOp::Ne,
             rhs: Box::new(Expr::Literal(Literal::Integer(0))),

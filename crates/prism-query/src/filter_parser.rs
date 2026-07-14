@@ -1219,8 +1219,21 @@ pub(crate) fn build_predicate_parser<'a>(
                     .repeated(),
             )
             .to_slice()
+            // Capture the byte-offset span of the function name BEFORE consuming padding.
+            // `e.span()` gives the position of the identifier in the original query string,
+            // used to populate `FuncCall::Scalar::span` for ADR-048 §D.7.2 offset reporting
+            // in E-QUERY-001 aggregate-gate errors (F-PQLFN-P21-OBS-003).
+            .map_with(|name: &str, e| {
+                let s = e.span();
+                (
+                    name.to_string(),
+                    Span {
+                        start: s.start,
+                        end: s.end,
+                    },
+                )
+            })
             .padded()
-            .map(|name: &str| name.to_string())
             .then(
                 fn_call_arg
                     .separated_by(just(',').padded())
@@ -1229,12 +1242,13 @@ pub(crate) fn build_predicate_parser<'a>(
             )
             .then(compare_op.clone())
             .then(rhs_expr.clone().padded())
-            .map(|(((func_name, args), op), rhs)| {
+            .map(|((((func_name, func_span), args), op), rhs)| {
                 use crate::ast::{FuncCall, ScalarFunc};
                 Predicate::Compare {
                     lhs: Box::new(crate::ast::Expr::FuncCall(FuncCall::Scalar {
                         func: ScalarFunc::Unknown(func_name),
                         args,
+                        span: func_span,
                     })),
                     op,
                     rhs: Box::new(rhs),
