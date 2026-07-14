@@ -5075,7 +5075,7 @@ async fn test_pqlfn_p21_obs003_aggregate_offset_nonzero_sql_where() {
 ///
 /// Query: `crowdstrike_detections | count(device_id) = 5`
 ///
-/// Scope guard analogous to TM-01 (pipe WHERE invariant). ADR-048 D.7 covers all five
+/// Scope guard analogous to TM-01 (pipe WHERE invariant). ADR-048 D.7 covers all seven
 /// predicate positions; filter mode is one of them. This test pins that aggregate fn-calls
 /// are rejected in filter mode in both pre- and post-fix-burst-2 states.
 ///
@@ -6670,19 +6670,20 @@ async fn test_fncall_underscore_leading_name_not_parse_error_obs_002() {
 // `| where lower(x) = upper(y)` both fail at parse time with E-QUERY-001 (generic
 // parse failure; no scope-limit citation)."
 //
-// These tests lock the current parse-time rejection behavior across all six predicate
+// These tests lock the current parse-time rejection behavior across all seven predicate
 // positions so that a future extension of `rhs_expr` (to admit fn-call RHS) would
 // require updating these tests explicitly rather than silently changing behavior.
 //
 // Tests are GREEN on arrival (locks on current rejection behavior).
 //
-// Surfaces covered (12 tests total, 2 per surface):
+// Surfaces covered (14 tests total, 2 per surface):
 //   1. Pipe `| where`  (field_comparison LHS + fn_call_comparison LHS)
 //   2. Filter mode     (field_comparison LHS + fn_call_comparison LHS)
 //   3. SQL WHERE       (field_comparison LHS + fn_call_comparison LHS)
 //   4. SqlPipe head WHERE
 //   5. SqlPipe `| where` stage
 //   6. DML WHERE (DELETE)
+//   7. INSERT source_select WHERE (ADR-048 v1.13 §D.7.6, OD-7)
 //
 // Diagnostic-first assertion ordering (F-PQLFN-P19-OBS-001): specific Err variant
 // (QueryParseFailed) asserted before any broad check; NOT-QueryPlanFailed guard follows.
@@ -7052,7 +7053,7 @@ async fn test_BC_2_11_004_low_005_sqlpipe_where_stage_fncall_lhs_fncall_rhs_reje
 
 // ── Surface 6: DML WHERE (DELETE) ─────────────────────────────────────────────
 
-/// LOW-005 (11/12) GREEN lock: DML WHERE — field-comparison LHS, fn-call RHS.
+/// LOW-005 (11/14) GREEN lock: DML WHERE — field-comparison LHS, fn-call RHS.
 ///
 /// Query: `DELETE FROM crowdstrike_detections WHERE device_id = upper(risk_score)`
 ///
@@ -7088,7 +7089,7 @@ async fn test_BC_2_11_004_low_005_dml_where_field_lhs_fncall_rhs_rejected() {
     );
 }
 
-/// LOW-005 (12/12) GREEN lock: DML WHERE — fn-call-comparison LHS, fn-call RHS.
+/// LOW-005 (12/14) GREEN lock: DML WHERE — fn-call-comparison LHS, fn-call RHS.
 ///
 /// Query: `DELETE FROM crowdstrike_detections WHERE lower(device_id) = upper(risk_score)`
 ///
@@ -7124,6 +7125,93 @@ async fn test_BC_2_11_004_low_005_dml_where_fncall_lhs_fncall_rhs_rejected() {
         !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
         "LOW-005 (DML WHERE, fn-call LHS): must NOT be QueryPlanFailed. \
          fn-call RHS must be rejected at parse time, not at plan time. Got: {result:?}"
+    );
+}
+
+// ── Surface 7: INSERT source_select WHERE (ADR-048 v1.13 §D.7.6, OD-7) ────────
+
+/// LOW-005 (13/14) GREEN lock: INSERT source_select WHERE — field-comparison LHS, fn-call RHS.
+///
+/// Query: `INSERT INTO crowdstrike_detections (device_id) SELECT device_id FROM crowdstrike_detections WHERE device_id = upper(risk_score)`
+///
+/// INSERT source_select WHERE is Position 7 (ADR-048 v1.13 §D.7.6).  The WHERE
+/// clause of the embedded SELECT is parsed via `build_sql_predicate_parser` →
+/// `build_predicate_parser`; `rhs_expr` admits `temporal_rhs | literal` only.
+/// `upper(risk_score)` is not in `rhs_expr` → parse fails → QueryParseFailed (E-QUERY-001).
+///
+/// GREEN on arrival: shared parser = shared restriction.  If this test fails, the
+/// INSERT source_select WHERE path does not route through `build_predicate_parser`
+/// (or `rhs_expr` has been extended without updating LOW-005 locks) — REAL DEFECT.
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; F-PQLFN-P33-LOW-001; ADR-048 v1.13 §D.7.6.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_insert_source_select_where_field_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "INSERT INTO crowdstrike_detections (device_id) SELECT device_id \
+             FROM crowdstrike_detections WHERE device_id = upper(risk_score)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (INSERT source_select WHERE, field LHS): `device_id = upper(risk_score)` in \
+         INSERT source_select WHERE must fail to parse (QueryParseFailed / E-QUERY-001). \
+         build_insert_parser embeds build_sql_parser for the SELECT; rhs_expr admits \
+         temporal_rhs | literal only; fn-call RHS not admitted (BC-2.11.004 v1.41 LOW-005, \
+         ADR-048 v1.13 §D.7.6, F-PQLFN-P33-LOW-001). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (INSERT source_select WHERE, field LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time. Got: {result:?}"
+    );
+}
+
+/// LOW-005 (14/14) GREEN lock: INSERT source_select WHERE — fn-call-comparison LHS, fn-call RHS.
+///
+/// Query: `INSERT INTO crowdstrike_detections (device_id) SELECT device_id FROM crowdstrike_detections WHERE lower(device_id) = upper(risk_score)`
+///
+/// Two-sided fn-call in INSERT source_select WHERE.  `fn_call_comparison` LHS
+/// `lower(device_id)` ✓; RHS `upper(risk_score)` NOT in `rhs_expr` → parse fails.
+/// `field_comparison` fallback also fails at `(device_id)` position. → QueryParseFailed.
+///
+/// Negative contrast with a fn-call LHS + literal RHS (which succeeds at parse time):
+/// the sole difference here is that the RHS is itself a fn-call, which `rhs_expr` does not admit.
+///
+/// GREEN on arrival: shared parser = shared restriction (INSERT source_select WHERE,
+/// ADR-048 v1.13 §D.7.6).  If this test fails — REAL DEFECT.
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; F-PQLFN-P33-LOW-001; ADR-048 v1.13 §D.7.6.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_insert_source_select_where_fncall_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "INSERT INTO crowdstrike_detections (device_id) SELECT device_id \
+             FROM crowdstrike_detections WHERE lower(device_id) = upper(risk_score)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (INSERT source_select WHERE, fn-call LHS): `lower(device_id) = upper(risk_score)` \
+         in INSERT source_select WHERE must fail to parse (QueryParseFailed / E-QUERY-001). \
+         rhs_expr admits temporal_rhs | literal only; fn-call RHS not admitted \
+         (BC-2.11.004 v1.41 LOW-005, ADR-048 v1.13 §D.7.6, F-PQLFN-P33-LOW-001). \
+         Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (INSERT source_select WHERE, fn-call LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time. Got: {result:?}"
     );
 }
 
@@ -7391,7 +7479,7 @@ async fn test_BC_2_11_004_low_002_like_with_fncall_lhs_rejected() {
 // via `fn_call_comparison`; plan time: DataFusion "Invalid function '<NAME>'"
 // → QueryPlanFailed.  Tests 1–5 assert QueryParseFailed and are RED.
 //
-// Post-fix state: `.validate()` emits keyword error; all six parse surfaces
+// Post-fix state: `.validate()` emits keyword error; all seven parse surfaces
 // that share `build_predicate_parser` see non-empty errors → QueryParseFailed.
 //
 // Tests 6–7 are positive-guard locks (already GREEN before fix; regression
@@ -7842,16 +7930,17 @@ async fn test_pqlfn_p27_med001_sqlpipe_stage_keyword_error_offset_truthful() {
 // ─────────────────────────────────────────────────────────────────────────────
 // F-PQLFN-P27-MED-002: LOW-006 coverage for three previously-uncovered surfaces
 //
-// BC-2.11.004 §Postconditions SHARED-PARSER SCOPE names 6 parse surfaces that
+// BC-2.11.004 §Postconditions SHARED-PARSER SCOPE names 7 parse surfaces that
 // share `build_predicate_parser`.  Fix-burst 20 (commit 1a07a5f9) shipped tests
 // for pipe `| where`, SQL WHERE, and SqlPipe `| where`; THREE surfaces lacked
-// LOW-006 coverage:
+// LOW-006 coverage (fix-burst 27):
 //   (A) filter-mode root predicate (Ast::Filter path)
 //   (B) SQL HAVING (build_having_predicate_parser fallthrough to base predicate)
 //   (C) SQL DML WHERE (build_delete_parser / build_update_parser)
+// Surface (D) INSERT source_select WHERE (ADR-048 v1.13 §D.7.6) added fix-burst 25.
 //
 // Because the keyword exclusion gate lives in `fn_call_comparison` inside
-// `build_predicate_parser`, which IS shared by all six surfaces, the following
+// `build_predicate_parser`, which IS shared by all seven surfaces, the following
 // tests are expected to be GREEN on arrival (shared parser = shared gate).
 // If any test FAILS, that is a REAL DEFECT (the gate does not reach this
 // surface) — it must not be papered over.
@@ -8045,6 +8134,68 @@ async fn test_BC_2_11_004_low_006_dml_where_keyword_as_fn_name_rejected() {
     );
 }
 
+/// LOW-006 (surface D): INSERT source_select WHERE — `NOT` as fn-call name.
+///
+/// Query: `INSERT INTO crowdstrike_detections (device_id) SELECT device_id FROM crowdstrike_detections WHERE NOT(device_id) = 5`
+///
+/// INSERT source_select WHERE is Position 7 (ADR-048 v1.13 §D.7.6).  The SELECT's WHERE
+/// clause parses via `build_sql_predicate_parser` → `build_predicate_parser`;
+/// keyword exclusion in `fn_call_comparison` therefore applies to this surface.
+///
+/// GREEN on arrival: shared parser = shared keyword gate.  If this test FAILS, that is
+/// a REAL DEFECT (the gate does not reach the INSERT source_select WHERE surface).
+///
+/// POL-24 message-text locks: error must contain the canonical keyword-message template
+/// and the quoted keyword name "'NOT'" (F-PQLFN-P27-MED-003).
+///
+/// Traces to: BC-2.11.004 LOW-006 (shared-parser scope, INSERT source_select WHERE surface);
+///            ADR-048 v1.13 §D.7.6; F-PQLFN-P33-LOW-001; POL-24.
+#[tokio::test]
+async fn test_BC_2_11_004_low_006_insert_source_select_where_keyword_as_fn_name_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "INSERT INTO crowdstrike_detections (device_id) SELECT device_id \
+             FROM crowdstrike_detections WHERE NOT(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Diagnostic-first: specific Err variant before broad check (F-PQLFN-P19-OBS-001).
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-006 (NOT, INSERT source_select WHERE): `NOT(device_id) = 5` in INSERT source_select \
+         WHERE must fail to parse (QueryParseFailed / E-QUERY-001). \
+         `build_insert_parser` embeds `build_sql_parser`; keyword exclusion in `fn_call_comparison` \
+         applies via `build_predicate_parser` (BC-2.11.004 LOW-006 shared-parser scope, \
+         ADR-048 v1.13 §D.7.6, F-PQLFN-P33-LOW-001). Got: {result:?}"
+    );
+
+    // Must NOT be QueryPlanFailed — keyword rejection fires at parse time.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-006 (NOT, INSERT source_select WHERE): must NOT be QueryPlanFailed. \
+         Keyword fn-name rejection must fire at parse time (BC-2.11.004 LOW-006). \
+         Got: {result:?}"
+    );
+
+    // POL-24 message-text lock (BC-2.11.004 LOW-006, F-PQLFN-P27-MED-003).
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "LOW-006 (NOT, INSERT source_select WHERE): error message must contain keyword-message \
+         template substring (BC-2.11.004 LOW-006, POL-24, F-PQLFN-P27-MED-003). \
+         Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'NOT'"),
+        "LOW-006 (NOT, INSERT source_select WHERE): error message must contain quoted keyword \
+         name \"'NOT'\" (BC-2.11.004 LOW-006, POL-24, F-PQLFN-P27-MED-003). \
+         Got: {err_display:?}"
+    );
+}
+
 // ── LOW-007 — Star-arg scope limit: `fn_call_arg` admits `literal | field_path` only
 // (BC-2.11.004 LOW-007, F-PQLFN-P31-OBS-001)
 //
@@ -8061,10 +8212,10 @@ async fn test_BC_2_11_004_low_006_dml_where_keyword_as_fn_name_rejected() {
 // document already-correct behavior as load-bearing lock tests (TD-VSDD-059).
 // If any surface unexpectedly ACCEPTS `count(*) = 5`, that is a REAL DEFECT.
 //
-// Coverage: 6 shared-parser surfaces (BC-2.11.004 §Postconditions SHARED-PARSER SCOPE).
+// Coverage: 7 shared-parser surfaces (BC-2.11.004 §Postconditions SHARED-PARSER SCOPE).
 // ──────────────────────────────────────────────────────────────────────────────────────
 
-/// LOW-007 (1/6) GREEN lock: pipe `| where` — `count(*)` star-arg rejected at parse time.
+/// LOW-007 (1/7) GREEN lock: pipe `| where` — `count(*)` star-arg rejected at parse time.
 ///
 /// Query: `FROM crowdstrike_detections | where count(*) = 5`
 ///
@@ -8105,7 +8256,7 @@ async fn test_BC_2_11_004_low_007_pipe_where_star_arg_parse_rejected() {
     );
 }
 
-/// LOW-007 (2/6) GREEN lock: filter mode — `count(*)` star-arg rejected at parse time.
+/// LOW-007 (2/7) GREEN lock: filter mode — `count(*)` star-arg rejected at parse time.
 ///
 /// Query: `crowdstrike_detections | count(*) = 5`
 ///
@@ -8144,7 +8295,7 @@ async fn test_BC_2_11_004_low_007_filter_mode_star_arg_parse_rejected() {
     );
 }
 
-/// LOW-007 (3/6) GREEN lock: SQL WHERE — `count(*)` star-arg rejected at parse time.
+/// LOW-007 (3/7) GREEN lock: SQL WHERE — `count(*)` star-arg rejected at parse time.
 ///
 /// Query: `SELECT * FROM crowdstrike_detections WHERE count(*) = 5`
 ///
@@ -8182,7 +8333,7 @@ async fn test_BC_2_11_004_low_007_sql_where_star_arg_parse_rejected() {
     );
 }
 
-/// LOW-007 (4/6) GREEN lock: SqlPipe head WHERE — `count(*)` star-arg rejected.
+/// LOW-007 (4/7) GREEN lock: SqlPipe head WHERE — `count(*)` star-arg rejected.
 ///
 /// Query: `SELECT * FROM crowdstrike_detections WHERE count(*) = 5 | limit 5`
 ///
@@ -8225,7 +8376,7 @@ async fn test_BC_2_11_004_low_007_sqlpipe_head_where_star_arg_parse_rejected() {
     );
 }
 
-/// LOW-007 (5/6) GREEN lock: SqlPipe `| where` stage — `count(*)` star-arg rejected.
+/// LOW-007 (5/7) GREEN lock: SqlPipe `| where` stage — `count(*)` star-arg rejected.
 ///
 /// Query: `SELECT * FROM crowdstrike_detections | where count(*) = 5`
 ///
@@ -8264,7 +8415,7 @@ async fn test_BC_2_11_004_low_007_sqlpipe_stage_where_star_arg_parse_rejected() 
     );
 }
 
-/// LOW-007 (6/6) GREEN lock: DML WHERE — `count(*)` star-arg rejected at parse time.
+/// LOW-007 (6/7) GREEN lock: DML WHERE — `count(*)` star-arg rejected at parse time.
 ///
 /// Query: `DELETE FROM crowdstrike_detections WHERE count(*) = 5`
 ///
@@ -8301,6 +8452,52 @@ async fn test_BC_2_11_004_low_007_dml_where_star_arg_parse_rejected() {
         !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
         "LOW-007 (DML WHERE): must NOT be QueryPlanFailed. Star-arg rejection fires \
          at parse time before the aggregate gate (BC-2.11.004 LOW-007). Got: {result:?}"
+    );
+}
+
+/// LOW-007 (7/7) GREEN lock: INSERT source_select WHERE — `count(*)` star-arg rejected.
+///
+/// Query: `INSERT INTO crowdstrike_detections (device_id) SELECT device_id FROM crowdstrike_detections WHERE count(*) = 5`
+///
+/// INSERT source_select WHERE is Position 7 (ADR-048 v1.13 §D.7.6).  The SELECT's WHERE
+/// clause parses via `build_sql_predicate_parser` → `build_predicate_parser`;
+/// `fn_call_arg` admits `literal | field_path` only — `*` is neither.
+/// The delimited arg-list fails when it encounters `*` after `(` → QueryParseFailed.
+///
+/// The aggregate gate's HAVING-redirect message applies only to parseable forms
+/// like `count() = 5` / `count(col) = 5`; `count(*)` fails before the gate is reached.
+///
+/// GREEN on arrival: `fn_call_arg` never admitted `*`; shared parser = shared restriction.
+/// If this test FAILS, `fn_call_arg` has been extended to admit `*` in the INSERT path —
+/// that is a REAL DEFECT requiring architectural adjudication.
+///
+/// Traces to: BC-2.11.004 LOW-007 (star-arg scope limit, INSERT source_select WHERE surface);
+///            ADR-048 v1.13 §D.7.6; F-PQLFN-P33-LOW-001.
+#[tokio::test]
+async fn test_BC_2_11_004_low_007_insert_source_select_where_star_arg_parse_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "INSERT INTO crowdstrike_detections (device_id) SELECT device_id \
+             FROM crowdstrike_detections WHERE count(*) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-007 (INSERT source_select WHERE): `count(*) = 5` in INSERT source_select WHERE \
+         must fail to parse (QueryParseFailed / E-QUERY-001). `fn_call_arg` in \
+         `fn_call_comparison` admits `literal | field_path` only; `*` is neither \
+         (BC-2.11.004 LOW-007 star-arg scope limit, ADR-048 v1.13 §D.7.6, \
+         F-PQLFN-P33-LOW-001). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-007 (INSERT source_select WHERE): must NOT be QueryPlanFailed. Star-arg rejection \
+         fires at parse time before the aggregate gate (BC-2.11.004 LOW-007). Got: {result:?}"
     );
 }
 

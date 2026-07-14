@@ -1911,9 +1911,9 @@ fn check_enrich_udf_availability(
     // built-in skip is applied to SQL names only.
     let mut pipe_enrich_names: Vec<String> = Vec::new(); // no built-in skip
     let mut sql_unknown_names: Vec<String> = Vec::new(); // built-in skip applied
-                                                         // ScalarFunc::Unknown names from predicate fn-call LHS — all six positions per
+                                                         // ScalarFunc::Unknown names from predicate fn-call LHS — all seven positions per
                                                          // ADR-048 §D.7.1: pipe | where, filter root, SqlPipe | where, SQL WHERE,
-                                                         // SqlPipe-head WHERE, SQL DML WHERE. Checked for aggregate classification
+                                                         // SqlPipe-head WHERE, SQL DML WHERE, INSERT source_select WHERE. Checked for aggregate classification
                                                          // (ADR-048 D.3 plan-time gate) before being folded into sql_unknown_names for
                                                          // E-QUERY-039. BC-2.11.019 §Postconditions third bullet (DEFECT-PQL-FNCALL-LHS-001).
                                                          // (String, usize) = (name, span.start) — offset is the byte position of the
@@ -2448,7 +2448,7 @@ fn collect_predicate_columns_with_bareness(
                 }
             }
             Expr::FuncCall(_) => {
-                // Fn-call LHS (all six shared-parser predicate positions, ADR-048 §D.7.1,
+                // Fn-call LHS (all seven shared-parser predicate positions, ADR-048 §D.7.1,
                 // + HAVING FuncCall LHS contexts, §D.3/§D.7.3).
                 // Recurse into FuncCall args, preserving per-reference bareness for each field ref.
                 extract_field_paths_with_bareness(lhs.as_ref(), table_name, table_alias, out);
@@ -4016,7 +4016,7 @@ fn check_pipe_stage_columns(
 /// - `Expr::FuncCall(_)` — fn-call LHS: either an aggregate (HAVING `agg_fn(col) op literal`
 ///   per ADR-048 D.3) or a scalar fn-call (pipe `| where` `scalar_fn(col) op literal`
 ///   per DEFECT-PQL-FNCALL-LHS-001). Recursed via `extract_field_paths_from_expr` to
-///   reach nested `Expr::Field` args. Exercised for the six §D.7.1 shared-parser
+///   reach nested `Expr::Field` args. Exercised for the seven §D.7.1 shared-parser
 ///   predicate positions PLUS HAVING FuncCall LHS contexts (FuncCall::Aggregate per
 ///   §D.3, FuncCall::Scalar base fallthrough per §D.7.3); §D.7.1's HAVING exemption
 ///   applies to the aggregate gate, not to column extraction.
@@ -4050,7 +4050,7 @@ fn collect_predicate_columns(
     match pred {
         // Compare: lhs may be:
         //   - Expr::Field(fp)        — bare column ref (WHERE / HAVING bare predicate)
-        //   - Expr::FuncCall(..)     — fn-call LHS: all six shared-parser predicate positions
+        //   - Expr::FuncCall(..)     — fn-call LHS: all seven shared-parser predicate positions
         //                             (ADR-048 §D.7.1; WHERE-safe via arg-recursion, ADR-048 §D.3)
         //                             + HAVING FuncCall LHS contexts (§D.3/§D.7.3).
         //
@@ -4072,7 +4072,7 @@ fn collect_predicate_columns(
                     }
                 }
                 Expr::FuncCall(_) => {
-                    // Fn-call LHS (all six shared-parser positions, ADR-048 §D.7.1,
+                    // Fn-call LHS (all seven shared-parser positions, ADR-048 §D.7.1,
                     // + HAVING FuncCall LHS contexts, §D.3/§D.7.3).
                     // Recurse into args via extract_field_paths_from_expr to extract Expr::Field refs.
                     extract_field_paths_from_expr(lhs.as_ref(), table_name, table_alias, out);
@@ -15677,6 +15677,53 @@ mod insert_source_select_where_seventh_gated_position_tests {
         );
     }
 
+    /// F-PQLFN-P33-MED-001: Load-bearing HAVING exemption lock for INSERT source_select HAVING.
+    ///
+    /// Query: `INSERT INTO t (col) SELECT x FROM t2 GROUP BY x HAVING stddev(x) > 5`
+    ///
+    /// WHY stddev IS the load-bearing form (not count(*)):
+    ///   `count(*)` parses as `FuncCall::Aggregate` which `collect_unknown_scalar_offsets_from_expr`
+    ///   NEVER collects — so a test using count(*) would pass even if source_select.having were
+    ///   incorrectly walked (the gate would see no names to flag).
+    ///   `stddev(x)` parses as `FuncCall::Scalar(Unknown("stddev"))`, which IS collected by
+    ///   `collect_unknown_scalar_offsets_from_expr`. `stddev` IS in `DATAFUSION_BUILTIN_AGGREGATE_NAMES`,
+    ///   so IF having were walked it would appear in `predicate_fncall_names` → aggregate gate →
+    ///   QueryParseFailed. The HAVING exemption (§D.7.1 / §D.7.3) must prevent this walk.
+    ///
+    /// Load-bearing property: if `check_enrich_udf_availability` were to incorrectly walk
+    /// `source_select.having`, this test WOULD FAIL (stddev would be collected → E-QUERY-001
+    /// fired despite HAVING being exempt). The count(*) sibling (test below) would NOT fail
+    /// under the same regression. Hence stddev is the defect-detecting form.
+    ///
+    /// Traces to: F-PQLFN-P33-MED-001; ADR-048 §D.7.3; §D.7.6 "source_select HAVING: EXEMPT".
+    #[test]
+    fn test_f_pqlfn_p33_med_001_insert_source_select_having_stddev_load_bearing_exemption_lock() {
+        let result = check_enrich_udf_availability(
+            "INSERT INTO t (col) SELECT x FROM t2 GROUP BY x HAVING stddev(x) > 5",
+            None,
+        );
+
+        // HAVING stddev must NOT produce E-QUERY-001 — HAVING is exempt (§D.7.1/§D.7.3).
+        // If this test fails, source_select.having is being incorrectly walked by the gate.
+        // Unlike the count(*) sibling, stddev IS collected by collect_unknown_scalar_offsets_from_expr
+        // and IS in DATAFUSION_BUILTIN_AGGREGATE_NAMES, making this the true load-bearing lock.
+        match &result {
+            Err(PrismError::QueryParseFailed { .. }) => {
+                let display = format!("{}", result.unwrap_err());
+                assert!(
+                    !display.contains("aggregate function"),
+                    "F-PQLFN-P33-MED-001 HAVING LOCK (stddev): INSERT source_select HAVING stddev(x) > 5 \
+                     must NOT fire E-QUERY-001 aggregate gate (HAVING is exempt per §D.7.1/§D.7.3). \
+                     If this fires, source_select.having is being incorrectly walked. \
+                     Got aggregate gate error: {display}"
+                );
+            }
+            _ => {
+                // Ok or non-QueryParseFailed error — HAVING exemption holds (stddev load-bearing form).
+            }
+        }
+    }
+
     /// F-PQLFN-P32-OBS-001 (3/3): HAVING exemption regression lock.
     /// `INSERT INTO t (col) SELECT x, count(*) AS c FROM t2 GROUP BY x HAVING count(*) > 5`
     /// must NOT fire E-QUERY-001.
@@ -15684,6 +15731,11 @@ mod insert_source_select_where_seventh_gated_position_tests {
     /// HAVING predicates are exempt from the aggregate-in-predicate gate (§D.7.1 HAVING
     /// exemption; §D.7.3). The source_select HAVING must remain exempt even after the
     /// Position 7 gate extension — only source_select WHERE is gated.
+    ///
+    /// Note: count(*) parses as FuncCall::Aggregate which is never collected by
+    /// collect_unknown_scalar_offsets_from_expr — this test passes even if having were
+    /// incorrectly walked. The stddev sibling (F-PQLFN-P33-MED-001 above) is the
+    /// load-bearing form that catches incorrect having-walk regressions.
     ///
     /// This is a GREEN lock test: it must remain passing. If this test fails it means
     /// the gate implementation incorrectly walked source_select.having.

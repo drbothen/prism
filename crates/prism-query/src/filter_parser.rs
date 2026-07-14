@@ -1418,7 +1418,7 @@ pub(crate) fn build_predicate_parser<'a>(
         // Aggregate names now parse successfully as `FuncCall::Scalar(Unknown(name))` and
         // are intercepted by the plan-time `DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate in
         // `check_enrich_udf_availability`, which fires the canonical E-QUERY-001 message
-        // for all five predicate positions (ADR-048 D.7.1).
+        // for all seven predicate positions (ADR-048 D.7.1).
         //
         // Downstream handling requires NO logic changes — pre-existing code handles FuncCall LHS:
         //   - check_enrich_udf_availability: DATAFUSION_BUILTIN_AGGREGATE_NAMES gate
