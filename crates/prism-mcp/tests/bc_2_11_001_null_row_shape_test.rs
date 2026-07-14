@@ -32,7 +32,7 @@ mod tests {
     use std::{collections::HashMap, sync::Arc};
 
     use arrow::{
-        array::StringArray,
+        array::{Float64Array, StringArray},
         datatypes::{DataType, Field, Schema},
         record_batch::RecordBatch,
     };
@@ -741,6 +741,246 @@ mod tests {
             "EC-11-079 AC (a) regression: row 1 'sensor_ip' must still be JSON null; \
              got: {}",
             rows[1]["sensor_ip"]
+        );
+    }
+
+    // =========================================================================
+    // EC-11-081 — arrow-json v58 non-finite Float64 → JSON null boundary lock
+    // =========================================================================
+
+    /// Sensor adapter returning 5 rows with a Float64 column covering
+    /// the full non-finite Float64 boundary: [1.5, NaN, +Inf, -Inf, Arrow-null].
+    ///
+    /// Used by `test_BC_2_11_001_EC_11_081_nonfinite_float_serializes_as_json_null`
+    /// to exercise arrow-json's hardcoded non-finite-to-null encoder through
+    /// the production MCP serialization path (F-MCPRS-PRL16-LOW-001).
+    struct ReturnsNonfiniteFloatRowsAdapter {
+        sensor_id: SensorId,
+    }
+
+    #[async_trait]
+    impl SensorAdapter for ReturnsNonfiniteFloatRowsAdapter {
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "returns-nonfinite-float-rows-stub"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorAdapterSpec,
+            _params: &SensorQueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            // Schema: float_col (nullable Float64).
+            // `nullable=true` allows Arrow-null (row 4) to appear in the validity bitmap.
+            let schema = Arc::new(Schema::new(vec![Field::new(
+                "float_col",
+                DataType::Float64,
+                true,
+            )]));
+
+            // 5 rows covering the full non-finite boundary per BC-2.11.001 EC-11-081:
+            // Row 0: 1.5        — finite, expected JSON Number 1.5
+            // Row 1: NaN        — non-finite, expected JSON null (arrow-json v58 hardcoded encoder)
+            // Row 2: +Inf       — non-finite, expected JSON null
+            // Row 3: -Inf       — non-finite, expected JSON null
+            // Row 4: Arrow-null — validity bit unset; JSON null via with_explicit_nulls(true)
+            let float_data = Float64Array::from(vec![
+                Some(1.5_f64),
+                Some(f64::NAN),
+                Some(f64::INFINITY),
+                Some(f64::NEG_INFINITY),
+                None,
+            ]);
+
+            let batch = RecordBatch::try_new(schema, vec![Arc::new(float_data)])
+                .expect("RecordBatch construction must not fail in stub");
+            Ok(vec![batch])
+        }
+    }
+
+    /// Build a `PrismServer` wired with `ReturnsNonfiniteFloatRowsAdapter`
+    /// for the `floattest_floats` DataFusion table.
+    ///
+    /// Uses sensor_id=`floattest` / table_name=`floats` → DataFusion table name
+    /// `floattest_floats`, distinct from `crowdstrike_alerts` to avoid schema
+    /// collision with the EC-11-079 test fixtures. `floattest` (no underscores) is
+    /// required because `sensor_id_from_table_name` splits on the first underscore;
+    /// a sensor_id like `float_test` would yield prefix `float` and produce E-QUERY-036.
+    /// Follows the same wiring pattern as `make_server_with_returning_null_adapter`
+    /// (AlwaysSucceedsCreds + fresh TableRegistry + fresh QueryEngine).
+    fn make_server_with_nonfinite_float_rows_adapter() -> PrismServer {
+        use prism_core::column::ColumnType;
+
+        // sensor_id="floattest" + table_name="floats" → DataFusion table "floattest_floats".
+        // (TableRegistry forms "{sensor_id}_{table_name}".)
+        // NOTE: sensor_id MUST NOT contain underscores — `sensor_id_from_table_name` splits
+        // the source-ref string on the first underscore to extract the sensor prefix.
+        // "float_test_floats" would yield prefix "float" (no adapter registered) → E-QUERY-036.
+        // "floattest_floats" yields prefix "floattest" → correct adapter lookup.
+        // Distinct from crowdstrike_alerts to prevent schema cross-contamination with EC-11-079.
+        let sensor_id_str = "floattest";
+        let table_name = "floats";
+        let org = "acme";
+
+        let columns = vec![ColumnSpec::new(
+            "float_col",
+            ColumnType::Float,
+            None,
+            vec![],
+        )];
+
+        // EC-11-081 sentinel byte: 0x81 — matches EC number for audit cross-reference.
+        let org_id = OrgId::from_uuid(uuid::Uuid::from_bytes([
+            0x01, 0x9f, 0x3a, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x81,
+        ]));
+
+        let (key, resolved) = make_resolved(sensor_id_str, table_name, columns, org);
+        let mut resolved_map = HashMap::new();
+        resolved_map.insert(key, resolved.clone());
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&resolved.spec)
+            .expect("register_sensor must not fail in fixture");
+
+        let sensor_id_typed = SensorId::new(sensor_id_str);
+        let float_adapter: Arc<dyn SensorAdapter> = Arc::new(ReturnsNonfiniteFloatRowsAdapter {
+            sensor_id: sensor_id_typed,
+        });
+        let mut adapter_registry = AdapterRegistry::new();
+        adapter_registry.register(org_id, float_adapter);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(adapter_registry),
+            Arc::new(InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            prism_query::cache::CacheConfig::default(),
+        );
+        engine = engine.with_credential_resolver(Arc::new(AlwaysSucceedsCreds));
+        engine = engine.with_resolved_spec_map(Arc::new(resolved_map));
+        engine = engine.with_table_registry(registry);
+
+        PrismServer::new().with_query_engine(Arc::new(engine))
+    }
+
+    /// BC-2.11.001 v1.22 EC-11-081: non-finite Float64 values (NaN, +Inf, -Inf) and
+    /// Arrow-null Float64 values ALL serialize as JSON `null` at the MCP boundary.
+    ///
+    /// # Spec authority
+    ///
+    /// - BC-2.11.001 v1.22 EC-11-081 — "NaN/±Inf → JSON null at the MCP boundary,
+    ///   key present, documented artifact (Option A ratified)"
+    /// - F-MCPRS-PRL16-LOW-001 — finding source: non-finite Float64 probe confirmed
+    ///   arrow-json v58 hardcodes NaN/±Inf as null; BC must document this behavior
+    ///
+    /// # Boundary lock
+    ///
+    /// Arrow's JSON encoder (`arrow_json::writer::JsonWriter`) v58 hardcodes non-finite
+    /// Float64 values (NaN, +Inf, -Inf) as JSON `null` because JSON (RFC 8259) does not
+    /// support non-finite numbers. This is NOT configurable — there is no flag to emit
+    /// `"NaN"` or `"Infinity"` strings instead.
+    ///
+    /// | Input value | JSON output              |
+    /// |-------------|--------------------------|
+    /// | 1.5         | Number `1.5` (unchanged) |
+    /// | NaN         | `null` (hardcoded)       |
+    /// | +Infinity   | `null` (hardcoded)       |
+    /// | -Infinity   | `null` (hardcoded)       |
+    /// | Arrow-null  | `null` (explicit_nulls)  |
+    ///
+    /// **Regression signal:** if a future arrow-json bump changes this behavior (e.g.,
+    /// starts emitting `"NaN"` or `"Infinity"` strings), this test FAILS. That failure
+    /// is the correct signal — BC-2.11.001 EC-11-081 Option A must be re-adjudicated
+    /// with the new arrow-json version before the upgrade can be accepted.
+    ///
+    /// # EC-11-079 invariant compliance
+    ///
+    /// All 5 rows must contain the `float_col` key regardless of whether the null
+    /// originated from non-finite encoding or from an Arrow validity-bitmap null.
+    #[tokio::test]
+    async fn test_BC_2_11_001_EC_11_081_nonfinite_float_serializes_as_json_null() {
+        let server = make_server_with_nonfinite_float_rows_adapter();
+        let result = server
+            .query(Parameters(query_params(
+                "SELECT float_col FROM floattest_floats",
+            )))
+            .await
+            .expect(
+                "query must return Ok — non-finite Float64 values (NaN/Inf) are valid Arrow \
+                 array values; DataFusion does not error on them in a simple SELECT",
+            );
+
+        let v = envelope_json(result);
+        let rows = v["results"]["rows"]
+            .as_array()
+            .expect("results.rows must be a JSON array");
+
+        assert_eq!(
+            rows.len(),
+            5,
+            "expected 5 rows from ReturnsNonfiniteFloatRowsAdapter \
+             (rows: 1.5, NaN, +Inf, -Inf, Arrow-null); got {}",
+            rows.len()
+        );
+
+        // (a) EC-11-079 invariant: EVERY row must contain the `float_col` key,
+        // regardless of whether the value is null (Arrow-null or non-finite-as-null).
+        for (i, row) in rows.iter().enumerate() {
+            assert!(
+                row.get("float_col").is_some(),
+                "EC-11-079 / EC-11-081 VIOLATION at row {i}: 'float_col' key is ABSENT \
+                 from row object. Every row must contain all projected column keys even \
+                 when the serialized value is JSON null. \
+                 Got row {i}: {row}"
+            );
+        }
+
+        // (b) Row 0: finite 1.5 → JSON Number 1.5 (NOT null, NOT a string).
+        assert!(
+            rows[0]["float_col"].is_number(),
+            "EC-11-081: row 0 (finite 1.5) must serialize as a JSON Number, not null or string; \
+             got: {}",
+            rows[0]["float_col"]
+        );
+        assert_eq!(
+            rows[0]["float_col"]
+                .as_f64()
+                .expect("row 0 float_col must be a JSON number"),
+            1.5_f64,
+            "EC-11-081: row 0 float_col must be exactly 1.5"
+        );
+
+        // (c) Rows 1-3: non-finite values (NaN, +Inf, -Inf) → JSON null.
+        // arrow-json v58 hardcoded encoder: non-finite Float64 → JSON null (RFC 8259 compliance).
+        // Regression signal: if this assertion fails after an arrow-json bump, the encoder
+        // behavior changed — re-adjudicate BC-2.11.001 EC-11-081 before accepting the upgrade.
+        let nonfinite_labels = ["NaN", "+Inf", "-Inf"];
+        for (i, label) in nonfinite_labels.iter().enumerate() {
+            let row_idx = i + 1;
+            assert!(
+                rows[row_idx]["float_col"].is_null(),
+                "EC-11-081 VIOLATION (arrow-json non-finite encoder): row {row_idx} ({label}) \
+                 must serialize as JSON null. arrow-json v58 hardcodes NaN/±Inf as null per \
+                 RFC 8259 (JSON has no non-finite literal). If this fails after an arrow-json \
+                 version bump, BC-2.11.001 EC-11-081 Option A must be re-adjudicated. \
+                 Got: {}",
+                rows[row_idx]["float_col"]
+            );
+        }
+
+        // (c) Row 4: Arrow-null → JSON null (via with_explicit_nulls(true), EC-11-079 invariant).
+        assert!(
+            rows[4]["float_col"].is_null(),
+            "EC-11-081 / EC-11-079: row 4 (Arrow-null) must serialize as JSON null \
+             via with_explicit_nulls(true); got: {}",
+            rows[4]["float_col"]
         );
     }
 }
