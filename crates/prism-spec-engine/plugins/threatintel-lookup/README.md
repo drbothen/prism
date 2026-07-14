@@ -98,6 +98,12 @@ Compares `threatintel-lookup.prx.src-tree-hash` against a freshly computed hash 
 tracked files in `crates/plugins/prism-threatintel-infusion/`. A mismatch means source
 changed without rebuilding the `.prx`.
 
+`Cargo.lock` is tracked in this directory (human ruling F-MCPRS-PRL10-OBS-001,
+2026-07-14; plugins ship compiled binaries — same app-binary rationale as locking a
+main workspace binary). As a result, transitive dependency drift is caught by this
+check: any change to the resolved dependency graph changes the lockfile, changing the
+source hash, failing this gate. The transitive-dep drift attack vector is **closed**.
+
 ### Check 2 — Sidecar ancestry (F-MCPRS-PRL1-MED-001)
 
 Enforces the invariant: the sidecar's last-touching commit must be an
@@ -151,7 +157,10 @@ adjudication). There is no canonical expected-bytes reference to compare against
 **Vector 2 — coordinated sidecar + .prx manipulation.**
 An actor updates the sidecar to a hash matching a different source snapshot AND submits
 a `.prx` built from that snapshot in the same or a subsequent commit. All three checks
-pass because the internal self-consistency of the artifact set is preserved.
+pass because the internal self-consistency of the artifact set is preserved. Note: with
+`Cargo.lock` now tracked, the source snapshot must include the lockfile — an actor
+cannot silently substitute a snapshot with different transitive deps without the sidecar
+hash reflecting the modified lockfile.
 
 **Accepted mitigation boundary:** Both vectors require write access to the repository
 and a commit that touches the `.prx` binary. The compensating control is mandatory code
@@ -179,4 +188,4 @@ check uses git commit identity. The binary is validated structurally via
 | Artifact tracking precedent | S-PLUGIN-CI-001 (PR #159) — established pattern of committing `.prx` deploy output alongside source |
 | Corrective audit finding | DEFECT-MCP-ROWSHAPE-NULLS-001 [H20] `F-MCPNULL-P1-MED-002` — supply-chain provenance breadcrumb missing |
 | Staleness gate design | DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 13 — source-hash sidecar per architect adjudication (F-MCPNULL-P2-OBS-002) |
-| Current plugin version | `1.0.1` — re-cut from 1.0.0 to establish commit-ordering for CI ancestry gate (F-MCPRS-PRL1-MED-001); source of truth: `fn version()` in `crates/plugins/prism-threatintel-infusion/src/lib.rs`. Update this row and that function together on each future re-cut. |
+| Current plugin version | `1.0.2` — re-cut from 1.0.1 to track `Cargo.lock` for full-graph reproducibility (F-MCPRS-PRL10-OBS-001, human ruling 2026-07-14); source of truth: `fn version()` in `crates/plugins/prism-threatintel-infusion/src/lib.rs`. Update this row and that function together on each future re-cut. |
