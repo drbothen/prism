@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.14"
-spec_version: "v0.14"
+version: "0.15"
+spec_version: "v0.15"
 level: ops
 producer: product-owner
 timestamp: "2026-07-13"
@@ -42,7 +42,7 @@ behavioral_contracts: [BC-2.11.001, BC-2.10.007]
 #   BC-2.11.001 v1.21 (null-not-absent postcondition codified at v1.16; current pin v1.21): null-not-absent row-shape postcondition
 #   added (DEFECT-MCP-ROWSHAPE-NULLS-001); EC-11-079. This is the primary anchor for
 #   query tool wire-shape tests.
-#   BC-2.10.007 v1.15: structured error response wire shape — all 9 required fields,
+#   BC-2.10.007 v1.16: structured error response wire shape — all 9 required fields,
 #   retry_after_seconds null-not-absent. Governs error-path assertions across all tools.
 #   Additional tool-specific BCs (prism_describe, check_sensor_health, resources) govern
 #   those surfaces; they are referenced per AC below. S-7.01 gate is satisfied by the
@@ -171,7 +171,7 @@ where the enrichment UDF returns NULL for some rows. Asserts the enriched column
 present as `null` in those rows (ADR-051 §D2). Targets T13 [H20] escape.
 
 ### AC-003 — `query` tool: error-path BC-2.10.007 wire shape
-(traces to BC-2.10.007 v1.15 postcondition — structured error wire shape)
+(traces to BC-2.10.007 v1.16 postcondition — structured error wire shape)
 
 `test_BC_2_10_007_query_error_structured_content_fields` — calls `query` with an invalid
 PrismQL string to trigger `E-QUERY-001`. Serializes the error response to JSON and asserts:
@@ -184,7 +184,7 @@ PrismQL string to trigger `E-QUERY-001`. Serializes the error response to JSON a
 - `content[0]["text"]` contains the error code string (composed-string anchor, SID-2 step 2)
 
 ### AC-004 — `prism_describe` tool: wire-shape assertion
-(traces to BC-2.10.007 v1.15 postcondition for error path; success path traces to BC-2.10.001
+(traces to BC-2.10.007 v1.16 postcondition for error path; success path traces to BC-2.10.001
   once that BC is confirmed; pending PO confirmation)
 
 `test_prism_describe_success_wire_shape` — calls `prism_describe` with a valid client ID.
@@ -198,7 +198,7 @@ invalid client ID. Asserts `structuredContent.error.code` == `"E-MCP-001"` (erro
 SID-2 step 4).
 
 ### AC-005 — `check_sensor_health` tool: wire-shape assertion
-(traces to BC-2.10.007 v1.15 postcondition for error path)
+(traces to BC-2.10.007 v1.16 postcondition for error path)
 
 `test_check_sensor_health_success_wire_shape` — calls `check_sensor_health` with a valid
 sensor. Serializes to JSON and asserts `structuredContent` contains a health result with at
@@ -208,7 +208,7 @@ minimum `client_id` and `sensors` keys present. This is a key-presence assertion
 `structuredContent.error.code` == `"E-MCP-001"` (error-code anchor).
 
 ### AC-006 — `explain_query` tool: wire-shape assertion
-(traces to BC-2.10.007 v1.15 postcondition)
+(traces to BC-2.10.007 v1.16 postcondition)
 
 `test_explain_query_success_wire_shape` — calls `explain_query` with a valid PrismQL string.
 Serializes to JSON and asserts `structuredContent` contains at minimum `plan_steps` (array) or
@@ -218,7 +218,7 @@ equivalent key; `content[0]["text"]` is non-empty.
 == `"E-QUERY-001"` (error-code anchor, SID-2 step 4).
 
 ### AC-007 — `list_capabilities` tool: wire-shape assertion
-(traces to BC-2.10.007 v1.15 postcondition)
+(traces to BC-2.10.007 v1.16 postcondition)
 
 `test_list_capabilities_wire_shape` — calls `list_capabilities`. Serializes to JSON and asserts
 `structuredContent` contains a `tools` array where each entry has at minimum `name` (string)
@@ -226,7 +226,7 @@ and `available` (bool) keys present. Asserts `content[0]["text"]` is non-empty (
 from the capabilities list, SID-2 step 2).
 
 ### AC-008 — Alias family tools wire-shape assertions (create_alias, list_aliases, delete_alias, explain_alias)
-(traces to BC-2.10.007 v1.15 postcondition for error paths)
+(traces to BC-2.10.007 v1.16 postcondition for error paths)
 
 Four tests, one per tool:
 - `test_create_alias_wire_shape`: calls `create_alias`; asserts `structuredContent` contains
@@ -239,14 +239,14 @@ Four tests, one per tool:
   `structuredContent.error.code` is present.
 
 ### AC-009 — `confirm_action` tool: wire-shape assertion
-(traces to BC-2.10.007 v1.15 postcondition)
+(traces to BC-2.10.007 v1.16 postcondition)
 
 `test_confirm_action_invalid_token_wire_shape` — calls `confirm_action` with an invalid token.
 Asserts `structuredContent.error.code` is present and non-empty (error-code anchor, SID-2 step 4);
 `retry_after_seconds` == `null` (null-not-absent invariant, SID-2 step 5).
 
 ### AC-010 — Config tools wire-shape assertions (reload_config, add_sensor_spec, list_sensor_specs, validate_config)
-(traces to BC-2.10.007 v1.15 postcondition for error paths)
+(traces to BC-2.10.007 v1.16 postcondition for error paths)
 
 Four tests, one per tool:
 - `test_reload_config_wire_shape`: calls `reload_config`; asserts the response has
@@ -259,7 +259,7 @@ Four tests, one per tool:
   has a validation result key present.
 
 ### AC-011 — Static resource wire-shape assertions (prism://config/clients, prism://sensors/health, prismql://reference)
-(traces to BC-2.10.007 v1.15 postcondition for error paths)
+(traces to BC-2.10.007 v1.16 postcondition for error paths)
 
 Three tests, one per static resource:
 - `test_resource_config_clients_wire_shape`: reads `prism://config/clients`; asserts the
@@ -273,7 +273,7 @@ Three tests, one per static resource:
   reference content anchor).
 
 ### AC-012 — Resource template wire-shape assertions (prism://config/clients/{}/sensors, prism://schema/{}/{}, prismql://schema/{})
-(traces to BC-2.10.007 v1.15 postcondition for error paths)
+(traces to BC-2.10.007 v1.16 postcondition for error paths)
 
 Three tests, one per template:
 - `test_resource_client_sensors_wire_shape`: reads `prism://config/clients/{valid_id}/sensors`;
@@ -324,7 +324,7 @@ Architecture section references:
 |------|-------|--------------|
 | Story spec (this file) | ~300 | ~4,200 |
 | BC-2.11.001 v1.21 (query BC with null-not-absent postcondition) | ~160 | ~2,300 |
-| BC-2.10.007 v1.15 (structured error BC) | ~120 | ~1,700 |
+| BC-2.10.007 v1.16 (structured error BC) | ~120 | ~1,700 |
 | crates/prism-mcp/src/server.rs (tool dispatch + resource dispatch sections) | ~400 | ~5,600 |
 | crates/prism-mcp/src/tools/ (prism_describe, query, sensor_health) | ~300 | ~4,200 |
 | crates/prism-mcp/src/resources.rs | ~200 | ~2,800 |
@@ -420,6 +420,7 @@ or `prism-sensors` crates in production code. Test files may use DTU harness cra
 
 | Version | Date | Change | Source |
 |---------|------|--------|--------|
+| v0.15 | 2026-07-14 | Pin refresh (POL-23): BC-2.10.007 v1.15→v1.16 (§RETRYABLE-503 rule corrected from overbroad `!matches!(status, 401\|403)` to transient-only `matches!(status.as_u16(), 408\|425\|429\|500\|502\|503\|504)` — coordinator-raised finding; 503-test-vector row unchanged under both rules; all 12 live BC-2.10.007 v1.15 pins updated). Story version bumped 0.14→0.15. Historical §Changelog rows referencing `v1.15` as a destination (v0.14 row) left untouched per TD-VSDD-091. | POL-23; DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 18 RETRYABLE-503-RULE |
 | v0.14 | 2026-07-14 | Pin refresh (POL-23): BC-2.10.007 v1.14→v1.15 (F-MCPRS-PRL6-MED-001 QueryDenylisted vector struct corrected + POL-29 sweep + RETRYABLE-503 adjudication; all 11 AC trace annotations + frontmatter comment + Token Budget BC row updated). Story version bumped 0.13→0.14; `modified:` updated 2026-07-13→2026-07-14. Historical §Changelog rows referencing `v1.14` as a destination (v0.13 row) left untouched per TD-VSDD-091. | POL-23; DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 18 |
 | v0.13 | 2026-07-13 | Pin refresh (POL-23): BC-2.10.007 v1.13→v1.14 (§MED-001 safety-category arm added — SafetyContextContamination/SafetyDataExfiltration now have dedicated arm with `category: "safety"`, per-variant `ec_code_override`, `original_params_valid: true`; §LOW-001 test vectors completed with 3 missing LOW-002 vectors + 2 safety vectors + catch-all regression guard; error-taxonomy v2.46→v2.47 E-SAFETY-001/002 descriptions corrected). Sites updated: frontmatter comment (~line 45), Behavioral Contracts table version cell (~line 139), 10 AC trace annotations, Token Budget BC row (~line 327). Historical §Changelog rows referencing `v1.13` as a destination (v0.12 row) left untouched per TD-VSDD-091. Story version bumped 0.12→0.13; `modified:` already 2026-07-13. | POL-23; DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 16 |
 | v0.12 | 2026-07-13 | Pin refresh (POL-23): BC-2.10.007 v1.12→v1.13 (§LOW-002 arm code corrected — per-variant `ec_code_override` via nested match; implementer-discovered: `map_prism_error` returns `"Internal error"` for all 6 variants; Rule 1 redaction prevents code inference; v1.12 claim `ec_code_override: None` was incorrect). Sites updated: frontmatter comment (~line 45), Behavioral Contracts table version cell (~line 139), 10 AC traces annotations, Token Budget BC row (~line 327). Historical §Changelog rows referencing `v1.12` as a destination (v0.11 row) left untouched per TD-VSDD-091. Story version bumped 0.11→0.12; `modified:` already 2026-07-13. | POL-23; DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 15 |
