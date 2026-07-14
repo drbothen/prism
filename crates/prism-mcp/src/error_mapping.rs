@@ -1830,42 +1830,68 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         normalized_pql: None,
         },
 
-        // E-QUERY-002: QueryPlanFailed — generic plan-time error without ColumnType context.
+        // ── Query engine failures → category "internal" ─────────────────────────────
+        // BC-2.10.007 v1.12 §LOW-002: Six DataFusion/query-engine variants. The sensor
+        // dispatch has completed (data is in MemTables) or was never relevant; the failure
+        // is in Prism's own query planning/execution/materialization/virtual-field/denylist
+        // layer. Category "internal" is correct. "upstream_error" (catch-all default) was
+        // semantically wrong — it directed LLM agents to investigate sensor health when the
+        // fault domain is Prism's own query engine.
         //
-        // `QueryPlanFailed` does not carry ColumnType context (the variant only has `detail`).
-        // It is NOT a type-mismatch error — it is a generic planning failure. The type-specific
-        // `valid_operators_for_type` field is NOT populated here because there is no ColumnType
-        // to derive from. Type-mismatch errors now use `PrismError::QueryTypeMismatch` which
-        // DOES carry ColumnType, and error-mapping handles that case above.
+        // Prior to v1.12, QueryPlanFailed had a dedicated arm with category "validation" and
+        // an analyst-facing suggestion. That was also semantically wrong: query planning
+        // failures are Prism engine failures, not caller-parameter errors. The QueryTypeMismatch
+        // variant (E-QUERY-002 type-mismatch subcase, added S-DEMO-PRISMQL-ONBOARDING-001-B)
+        // handles the caller-actionable type-mismatch case; generic QueryPlanFailed is internal.
         //
-        // The prior paper-fix here (hardcoded type-agnostic superset) is REMOVED: it was a
-        // `QueryPlanFailed`-scoped workaround for the absence of a genuine type-mismatch gate.
-        // Now that `QueryTypeMismatch` exists with a real detection path, `QueryPlanFailed`
-        // reverts to `valid_operators_for_type: None` (no ColumnType context = no operator hint).
+        // ec_code_override per variant: map_prism_error returns "Internal error" for ALL six
+        // (message field MUST be "Internal error" per BC-2.10.007 Rule 1; Display strings are
+        // NOT used as the message). Without per-variant pins, the code inference would fall
+        // through to "E-INT-001" for all. Each variant's Display DOES carry its E-QUERY-NNN /
+        // E-WATCHDOG-NNN prefix, but only the ec_code_override path (not message inference)
+        // can surface it given the "Internal error" redaction. A nested match provides the
+        // per-variant code without duplicating the shared VariantMeta fields.
         //
-        // ec_code_override required: map_prism_error returns "Internal error"
-        // for this variant (no E- prefix to infer from in the message).
+        // original_params_valid: false — the caller's query triggered the engine failure in
+        // all six cases. This signals to the LLM agent that reformulating the query might be
+        // warranted before escalating to the operator.
         //
-        // Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.017; error-taxonomy.md E-QUERY-002.
-        PrismError::QueryPlanFailed { .. } => VariantMeta {
-            category: "validation",
-            suggestion: "Check the query expression types. Use prism_describe('<client_id>') \
-                         to inspect column types and valid operators.",
-            retryable: false,
-            retry_after_seconds: None,
-            original_params_valid: false,
-            source_override: None,
-            upstream_message: None,
-            owned_suggestion: None,
-            ec_code_override: Some("E-QUERY-002"),
-            near_text: None,
-            reference_pointer: None,
-            valid_operators_for_type: None,
-            how_to_fix: None,
-        available_columns: None,
-        did_you_mean: None,
-        normalized_pql: None,
-        },
+        // Reference: BC-2.10.007 v1.12 §LOW-002; error-taxonomy.md E-QUERY-002/034/005/010/
+        //            008 + E-WATCHDOG-001; F-MCPRS-PRL2-LOW-002.
+        PrismError::QueryPlanFailed { .. }
+        | PrismError::QueryExecutionFailed { .. }
+        | PrismError::QueryMaterializationLimitExceeded { .. }
+        | PrismError::QueryMemoryBudgetExceeded { .. }
+        | PrismError::QueryVirtualFieldFailed { .. }
+        | PrismError::QueryDenylisted { .. } => {
+            let ec_code: &'static str = match &err {
+                PrismError::QueryPlanFailed { .. } => "E-QUERY-002",
+                PrismError::QueryExecutionFailed { .. } => "E-QUERY-034",
+                PrismError::QueryMaterializationLimitExceeded { .. } => "E-QUERY-005",
+                PrismError::QueryMemoryBudgetExceeded { .. } => "E-WATCHDOG-001",
+                PrismError::QueryVirtualFieldFailed { .. } => "E-QUERY-010",
+                PrismError::QueryDenylisted { .. } => "E-QUERY-008",
+                _ => unreachable!("outer OR-pattern guarantees only the six query-engine variants"),
+            };
+            VariantMeta {
+                category: "internal",
+                suggestion: "Prism query engine failure. Contact Prism operator; see audit log for details.",
+                retryable: false,
+                retry_after_seconds: None,
+                original_params_valid: false,
+                source_override: None,
+                upstream_message: None,
+                owned_suggestion: None,
+                ec_code_override: Some(ec_code),
+                near_text: None,
+                reference_pointer: None,
+                valid_operators_for_type: None,
+                how_to_fix: None,
+                available_columns: None,
+                did_you_mean: None,
+                normalized_pql: None,
+            }
+        }
 
         // E-QUERY-039: EnrichUdfNotFound → "validation", original_params_valid: false.
         //
@@ -3879,21 +3905,27 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 [H8b] redundancy sweep: for ALL representative `_` catch-all arm variants,
-    /// "audit log" must appear exactly once in content_text.
+    /// BC-2.10.007 [H8b/OBS-001] redundancy sweep: "audit log" appears exactly once in
+    /// content_text for all affected variants; byte-verbatim suggestion locks per arm (POL-24).
     ///
-    /// Data-driven over the catch-all variants: `QueryExecutionFailed`,
-    /// `QueryMemoryBudgetExceeded`, `OcsfNormalizationFailed`, `QueryDenylisted`.
-    /// All hit the `_ => VariantMeta { suggestion: "See audit log for details.", ... }`
-    /// catch-all arm in `prism_error_to_structured_call_result` (BC-2.10.007 §INTERNAL_ERROR
-    /// catch-all class, `category: "upstream_error"`), so they all exhibit the doubled
-    /// "audit log" defect. These are NOT the "internal" category variants (which are
-    /// `Internal`/`Io`/`Storage*`/`Watchdog*`/`McpSerializationError` and have dedicated arms).
+    /// Two groups (BC-2.10.007 v1.12):
+    ///   - **Query engine arm** (LOW-002): `QueryExecutionFailed`, `QueryMemoryBudgetExceeded`,
+    ///     `QueryDenylisted` → category "internal", suggestion "Prism query engine failure.
+    ///     Contact Prism operator; see audit log for details."
+    ///   - **Catch-all arm**: `OcsfNormalizationFailed` → category "upstream_error",
+    ///     suggestion "See audit log for details."
     ///
-    /// FAILS NOW for every variant (count == 2 for all).
+    /// Both groups: "audit log" must appear exactly once in content_text (H8b redundancy
+    /// property). Verbatim suggestion strings are the POL-24 lock added by F-MCPRS-PRL2-OBS-001.
+    ///
+    /// The three query-engine-arm assertions are RED before the LOW-002 arm is implemented
+    /// (they currently produce suggestion "See audit log for details." from the catch-all).
     #[test]
-    fn test_BC_2_10_007_H8b_redundancy_sweep_catch_all_variants() {
-        let variants: Vec<(&str, PrismError)> = vec![
+    fn test_BC_2_10_007_H8b_redundancy_sweep_audit_log_once() {
+        // ── Group 1: query engine arm variants (LOW-002) ──────────────────────────
+        const QUERY_ENGINE_SUGGESTION: &str =
+            "Prism query engine failure. Contact Prism operator; see audit log for details.";
+        let query_engine_variants: Vec<(&str, PrismError)> = vec![
             (
                 "QueryExecutionFailed",
                 PrismError::QueryExecutionFailed {
@@ -3908,13 +3940,6 @@ mod tests {
                 },
             ),
             (
-                "OcsfNormalizationFailed",
-                PrismError::OcsfNormalizationFailed {
-                    source_id: "crowdstrike_alerts".to_owned(),
-                    reason: "unknown field".to_owned(),
-                },
-            ),
-            (
                 "QueryDenylisted",
                 PrismError::QueryDenylisted {
                     failure_count: 3,
@@ -3924,7 +3949,7 @@ mod tests {
             ),
         ];
 
-        for (variant_name, err) in variants {
+        for (variant_name, err) in query_engine_variants {
             let result = prism_error_to_structured_call_result(err);
             let content_text = extract_content_text_from_result(&result);
 
@@ -3933,6 +3958,64 @@ mod tests {
                 audit_log_count, 1,
                 "[H8b] VIOLATION for {variant_name}: 'audit log' appears {audit_log_count} \
                  times in content_text — must appear exactly once. content_text: {content_text:?}"
+            );
+
+            // POL-24 verbatim suggestion lock (F-MCPRS-PRL2-OBS-001).
+            let sc = result
+                .structured_content
+                .as_ref()
+                .unwrap_or_else(|| panic!("[{variant_name}] structuredContent must be present"));
+            let error_obj = sc.get("error").unwrap_or_else(|| {
+                panic!("[{variant_name}] structuredContent.error must be present")
+            });
+            let suggestion = error_obj
+                .get("suggestion")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("[{variant_name}] suggestion must be a string"));
+            assert_eq!(
+                suggestion, QUERY_ENGINE_SUGGESTION,
+                "[OBS-001/POL-24] {variant_name} suggestion must be byte-verbatim \
+                 '{QUERY_ENGINE_SUGGESTION}'; got '{suggestion}'"
+            );
+        }
+
+        // ── Group 2: catch-all arm variants ───────────────────────────────────────
+        const CATCH_ALL_SUGGESTION: &str = "See audit log for details.";
+        let catch_all_variants: Vec<(&str, PrismError)> = vec![(
+            "OcsfNormalizationFailed",
+            PrismError::OcsfNormalizationFailed {
+                source_id: "crowdstrike_alerts".to_owned(),
+                reason: "unknown field".to_owned(),
+            },
+        )];
+
+        for (variant_name, err) in catch_all_variants {
+            let result = prism_error_to_structured_call_result(err);
+            let content_text = extract_content_text_from_result(&result);
+
+            let audit_log_count = content_text.to_lowercase().matches("audit log").count();
+            assert_eq!(
+                audit_log_count, 1,
+                "[H8b] VIOLATION for {variant_name}: 'audit log' appears {audit_log_count} \
+                 times in content_text — must appear exactly once. content_text: {content_text:?}"
+            );
+
+            // POL-24 verbatim suggestion lock (F-MCPRS-PRL2-OBS-001).
+            let sc = result
+                .structured_content
+                .as_ref()
+                .unwrap_or_else(|| panic!("[{variant_name}] structuredContent must be present"));
+            let error_obj = sc.get("error").unwrap_or_else(|| {
+                panic!("[{variant_name}] structuredContent.error must be present")
+            });
+            let suggestion = error_obj
+                .get("suggestion")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("[{variant_name}] suggestion must be a string"));
+            assert_eq!(
+                suggestion, CATCH_ALL_SUGGESTION,
+                "[OBS-001/POL-24] {variant_name} suggestion must be byte-verbatim \
+                 '{CATCH_ALL_SUGGESTION}'; got '{suggestion}'"
             );
         }
     }
@@ -4330,6 +4413,212 @@ mod tests {
              message and suggestion are complementary: message carries the taxonomy-verbatim \
              Display (BC-2.10.007 v1.11 carve-out); suggestion carries the audit-log-storage \
              retry pointer (prism-mcp VariantMeta, F-MCPNULL-P8-OBS-001 adjudication)."
+        );
+    }
+
+    // =========================================================================
+    // F-MCPRS-PRL2-LOW-002 — Query engine variants: category "internal"
+    //
+    // BC-2.10.007 v1.12 §LOW-002: Six DataFusion/query-engine variants that
+    // previously fell to the `_ =>` catch-all (category "upstream_error") — or
+    // had a misclassified dedicated arm (QueryPlanFailed: "validation") — now
+    // all map to category "internal".
+    //
+    // These tests are RED before the implementation arm is added (catch-all
+    // gives "upstream_error"; QueryPlanFailed's prior arm gives "validation").
+    // =========================================================================
+
+    /// BC-2.10.007 v1.12 LOW-002: `QueryExecutionFailed` → category `"internal"`.
+    ///
+    /// Asserts full LOW-002 postconditions per BC §Canonical Test Vectors (POL-24
+    /// byte-verbatim for suggestion and code strings).
+    ///
+    /// RED before implementation: current catch-all arm maps to `"upstream_error"`.
+    #[test]
+    fn test_BC_2_10_007_query_execution_failed_category_is_internal() {
+        let err = PrismError::QueryExecutionFailed {
+            detail: "DataFusion execution error".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "internal",
+            "[LOW-002] QueryExecutionFailed must map to category 'internal' (not 'upstream_error'); \
+             got '{category}'"
+        );
+
+        let original_params_valid = error_obj
+            .get("original_params_valid")
+            .and_then(|v| v.as_bool())
+            .expect("original_params_valid must be a bool");
+        assert!(
+            !original_params_valid,
+            "[LOW-002] QueryExecutionFailed must have original_params_valid:false"
+        );
+
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "[LOW-002] QueryExecutionFailed must be retryable:false"
+        );
+
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("code must be a string");
+        assert_eq!(
+            code, "E-QUERY-034",
+            "[LOW-002/POL-24] QueryExecutionFailed code must be byte-verbatim 'E-QUERY-034'; \
+             got '{code}'"
+        );
+
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("suggestion must be a string");
+        assert_eq!(
+            suggestion,
+            "Prism query engine failure. Contact Prism operator; see audit log for details.",
+            "[LOW-002/POL-24] QueryExecutionFailed suggestion must be byte-verbatim; \
+             got '{suggestion}'"
+        );
+    }
+
+    /// BC-2.10.007 v1.12 LOW-002: `QueryPlanFailed` → category `"internal"`.
+    ///
+    /// Previously had a dedicated arm with `category: "validation"`. Per BC v1.12,
+    /// query plan failures are Prism engine failures → `category: "internal"`.
+    ///
+    /// RED before implementation: current dedicated arm maps to `"validation"`.
+    #[test]
+    fn test_BC_2_10_007_query_plan_failed_category_is_internal() {
+        let err = PrismError::QueryPlanFailed {
+            detail: "plan error".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "internal",
+            "[LOW-002] QueryPlanFailed must map to category 'internal' (not 'validation'); \
+             got '{category}'"
+        );
+
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("code must be a string");
+        assert_eq!(
+            code, "E-QUERY-002",
+            "[LOW-002/POL-24] QueryPlanFailed code must be 'E-QUERY-002'; got '{code}'"
+        );
+    }
+
+    /// BC-2.10.007 v1.12 LOW-002: `QueryDenylisted` → category `"internal"`.
+    ///
+    /// Previously fell to the `_ =>` catch-all with `category: "upstream_error"`.
+    /// Denylist rejection is a Prism-side engine decision → `category: "internal"`.
+    ///
+    /// RED before implementation: current catch-all arm maps to `"upstream_error"`.
+    #[test]
+    fn test_BC_2_10_007_query_denylisted_category_is_internal() {
+        let err = PrismError::QueryDenylisted {
+            failure_count: 3,
+            reason: "repeated execution failure".to_owned(),
+            expiry_ts: 9_999_999_999,
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "internal",
+            "[LOW-002] QueryDenylisted must map to category 'internal' (not 'upstream_error'); \
+             got '{category}'"
+        );
+
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("code must be a string");
+        assert_eq!(
+            code, "E-QUERY-008",
+            "[LOW-002/POL-24] QueryDenylisted code must be 'E-QUERY-008'; got '{code}'"
+        );
+    }
+
+    /// BC-2.10.007 v1.12 LOW-002: `QueryMemoryBudgetExceeded` → category `"internal"`.
+    ///
+    /// Previously fell to the `_ =>` catch-all with `category: "upstream_error"`.
+    /// Memory pool exhaustion is a Prism DataFusion engine failure → `category: "internal"`.
+    ///
+    /// RED before implementation: current catch-all arm maps to `"upstream_error"`.
+    #[test]
+    fn test_BC_2_10_007_query_memory_budget_exceeded_category_is_internal() {
+        let err = PrismError::QueryMemoryBudgetExceeded {
+            limit_mb: 200,
+            used_mb: 210,
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "internal",
+            "[LOW-002] QueryMemoryBudgetExceeded must map to category 'internal' (not 'upstream_error'); \
+             got '{category}'"
+        );
+
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("code must be a string");
+        assert_eq!(
+            code, "E-WATCHDOG-001",
+            "[LOW-002/POL-24] QueryMemoryBudgetExceeded code must be 'E-WATCHDOG-001'; \
+             got '{code}'"
         );
     }
 }
