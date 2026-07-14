@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.18"
+version: "1.19"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-07-14"  # v1.18: §Rule 2 catch-all FUTURE-ONLY — ZERO currently-known variants fall here (F-MCPRS-PRL10-OBS-003 fix-burst 22); §Category table synced with 28 explicit-arm groups (internal+12, configuration+3, validation+3, upstream_error explicit+10). v1.17: §RETRYABLE-503 snippet parity with shipped code — `.as_u16()` removed; `status` field is already `u16` per `PrismError::SensorHttpError` shape (F-MCPRS-PRL8-OBS-002). Code is correct; spec snippet now matches. v1.16: §RETRYABLE-503 rule corrected from overbroad `!matches!(status, 401|403)` to transient-only `matches!(status.as_u16(), 408|425|429|500|502|503|504)` — HTTP 400/404/422/etc are permanent client errors, not retryable (coordinator-raised finding). Rationale, code snippet, and "Tests to add/update" bullet updated. v1.15: QueryDenylisted vector row corrected from nonexistent `query_hash` field to actual struct `{ failure_count, reason, expiry_ts }` (F-MCPRS-PRL6-MED-001). POL-29 full vector sweep: all other rows verified correct. RETRYABLE-503 adjudication added to §Implementer Code Follow-Up (spec correct, code fix needed). v1.14: §MED-001 safety arm added (SafetyContextContamination/SafetyDataExfiltration → category "safety", ec_code_override E-SAFETY-001/E-SAFETY-002, original_params_valid: true; map_prism_error returns "Internal error" per Rule 1 — ec_code_override via nested match required). §LOW-001: 3 missing LOW-002 test vectors added (QueryPlanFailed, QueryMaterializationLimitExceeded, QueryVirtualFieldFailed) + 2 safety vectors + catch-all regression guard. §LOW-002 tests-to-add extended (QueryMaterializationLimitExceeded, QueryVirtualFieldFailed). Taxonomy v2.47: E-SAFETY-001/002 descriptions corrected to match variant semantics. v1.13: §LOW-002 arm code corrected — per-variant ec_code_override via nested match (implementer-discovered: map_prism_error returns "Internal error" for all 6; Rule 1 redaction prevents code inference; v1.12 claim "ec_code_override: None" was incorrect). v1.12: 6 query-engine variants moved to dedicated 'internal' arm (F-MCPRS-PRL2-LOW-002). v1.11: Rule 1 AuditPersistenceFailed carve-out (MED-001) + McpSerializationError "internal" (OBS-002).
+modified: "2026-07-14"  # v1.19: CursorCapExceeded → category "internal", original_params_valid true (F-MCPRS-PRL14-MED-001); §Category "internal" row updated; dedicated arm + map_prism_error INTERNAL_ERROR change required; code alignment in DEFECT-PQL-FNCALL-LHS-001 fix-burst-25. v1.18: §Rule 2 catch-all FUTURE-ONLY — ZERO currently-known variants fall here (F-MCPRS-PRL10-OBS-003 fix-burst 22); §Category table synced with 28 explicit-arm groups (internal+12, configuration+3, validation+3, upstream_error explicit+10). v1.17: §RETRYABLE-503 snippet parity with shipped code — `.as_u16()` removed; `status` field is already `u16` per `PrismError::SensorHttpError` shape (F-MCPRS-PRL8-OBS-002). Code is correct; spec snippet now matches. v1.16: §RETRYABLE-503 rule corrected from overbroad `!matches!(status, 401|403)` to transient-only `matches!(status.as_u16(), 408|425|429|500|502|503|504)` — HTTP 400/404/422/etc are permanent client errors, not retryable (coordinator-raised finding). Rationale, code snippet, and "Tests to add/update" bullet updated. v1.15: QueryDenylisted vector row corrected from nonexistent `query_hash` field to actual struct `{ failure_count, reason, expiry_ts }` (F-MCPRS-PRL6-MED-001). POL-29 full vector sweep: all other rows verified correct. RETRYABLE-503 adjudication added to §Implementer Code Follow-Up (spec correct, code fix needed). v1.14: §MED-001 safety arm added (SafetyContextContamination/SafetyDataExfiltration → category "safety", ec_code_override E-SAFETY-001/E-SAFETY-002, original_params_valid: true; map_prism_error returns "Internal error" per Rule 1 — ec_code_override via nested match required). §LOW-001: 3 missing LOW-002 test vectors added (QueryPlanFailed, QueryMaterializationLimitExceeded, QueryVirtualFieldFailed) + 2 safety vectors + catch-all regression guard. §LOW-002 tests-to-add extended (QueryMaterializationLimitExceeded, QueryVirtualFieldFailed). Taxonomy v2.47: E-SAFETY-001/002 descriptions corrected to match variant semantics. v1.13: §LOW-002 arm code corrected — per-variant ec_code_override via nested match (implementer-discovered: map_prism_error returns "Internal error" for all 6; Rule 1 redaction prevents code inference; v1.12 claim "ec_code_override: None" was incorrect). v1.12: 6 query-engine variants moved to dedicated 'internal' arm (F-MCPRS-PRL2-LOW-002). v1.11: Rule 1 AuditPersistenceFailed carve-out (MED-001) + McpSerializationError "internal" (OBS-002).
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -156,7 +156,7 @@ The `category` field communicates the ERROR ORIGIN and correct LLM-agent respons
 | `"upstream_error"` | Genuine sensor or third-party service failure (Prism reached the sensor; the sensor failed) | Investigate sensor health; try a different sensor or time range | `SensorHttpError`, `SensorTimeout`, `SensorResponseParse`; **OCSF data-shape explicit (from v1.18):** `OcsfFieldMissing`, `OcsfFieldTypeMismatch`, `OcsfUnknownClassUid`, `OcsfUnknownEventClass`, `OcsfUnknownRecordType`, `OcsfTimestampParseError`, `OcsfNormalizationFailed`; **`WritePartialFailure`, `IocFeedParseFailed`, `IocLookupFailed`** (from v1.18; previously catch-all for OCSF/IOC/Write variants) |
 | `"configuration"` | Prism operator configuration issue (not the API caller's problem) | Escalate to operator to fix prism.toml / sensor spec | `ConfigNotFound`, `ConfigParseFailed`, `ConfigValidationFailed`, `ConfigSnapshotStale`, `SpecNotFound`, `SpecValidationFailed`; **`InvalidCredentialName`, `CredentialNotFound`, `EncryptionKeyMissing`** (from v1.18; previously catch-all) |
 | `"safety"` | Safety boundary violation (injection, exfiltration, contamination) | Do not retry; report to operator | `SafetyContextContamination`, `SafetyDataExfiltration` |
-| `"internal"` | Prism-side infrastructure or invariant failure — sensor was NEVER reached; Prism's own storage, I/O, internal invariant, or query engine failed. Also covers watchdog-triggered query termination (see Watchdog note below), Prism MCP layer serialization failures, and DataFusion query engine failures. | Do not retry; escalate to Prism operator for infrastructure investigation | `PrismError::Internal`, `PrismError::Io`, `StorageOpenFailed`, `StorageWriteFailed`, `StorageReadFailed`, `StorageDomainNotFound`, `StorageKeyNotFound`, `StorageLockHeld`, `StorageHealthCheckFailed`, `SchemaMismatch`, `StorageBatchFailed`, **`WatchdogKilled`, `WatchdogHeartbeatMissed`, `WatchdogRestartLimitExceeded`**, **`McpSerializationError`**, **`QueryPlanFailed` (E-QUERY-002), `QueryExecutionFailed` (E-QUERY-034), `QueryMaterializationLimitExceeded` (E-QUERY-005), `QueryMemoryBudgetExceeded` (E-WATCHDOG-001), `QueryVirtualFieldFailed` (E-QUERY-010), `QueryDenylisted` (E-QUERY-008)**; **`Infusion`, `Plugin`, `OcsfProtobufEncode`, `OcsfProtobufDecode`, `OcsfDescriptorNotFound`, `CredentialStoreError`, `CredentialEncryptionError`, `ScheduleNotFound`, `DetectionRuleParseFailed`, `DetectionRuleNotFound`, `DetectionStateCorrupt`, `CaseNotFound`** (from v1.18; previously catch-all) |
+| `"internal"` | Prism-side infrastructure or invariant failure — sensor was NEVER reached; Prism's own storage, I/O, internal invariant, or query engine failed. Also covers watchdog-triggered query termination (see Watchdog note below), Prism MCP layer serialization failures, and DataFusion query engine failures. | Do not retry; escalate to Prism operator for infrastructure investigation | `PrismError::Internal`, `PrismError::Io`, `StorageOpenFailed`, `StorageWriteFailed`, `StorageReadFailed`, `StorageDomainNotFound`, `StorageKeyNotFound`, `StorageLockHeld`, `StorageHealthCheckFailed`, `SchemaMismatch`, `StorageBatchFailed`, **`CursorCapExceeded` (E-STORE-020)** (F-MCPRS-PRL14-MED-001, v1.19: process-wide cursor cap; Prism infrastructure limit, not a parameter error; `original_params_valid: true`; dedicated arm, NOT the Prism-side infrastructure arm — see §Implementer Code Follow-Up §PRL14-MED-001), **`WatchdogKilled`, `WatchdogHeartbeatMissed`, `WatchdogRestartLimitExceeded`**, **`McpSerializationError`**, **`QueryPlanFailed` (E-QUERY-002), `QueryExecutionFailed` (E-QUERY-034), `QueryMaterializationLimitExceeded` (E-QUERY-005), `QueryMemoryBudgetExceeded` (E-WATCHDOG-001), `QueryVirtualFieldFailed` (E-QUERY-010), `QueryDenylisted` (E-QUERY-008)**; **`Infusion`, `Plugin`, `OcsfProtobufEncode`, `OcsfProtobufDecode`, `OcsfDescriptorNotFound`, `CredentialStoreError`, `CredentialEncryptionError`, `ScheduleNotFound`, `DetectionRuleParseFailed`, `DetectionRuleNotFound`, `DetectionStateCorrupt`, `CaseNotFound`** (from v1.18; previously catch-all) |
 
 **Critical distinction — "internal" vs "upstream_error":**
 
@@ -226,6 +226,7 @@ The adversary flagged that `WatchdogKilled`, `WatchdogHeartbeatMissed`, and `Wat
 | `PrismError::SafetyContextContamination { detail: "test contamination".to_string() }` | `category: "safety"`, `original_params_valid: true`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-SAFETY-001"`, `suggestion: "Do not retry; report to operator."` | error (MED-001 — safety boundary arm) |
 | `PrismError::SafetyDataExfiltration { field: "api_key".to_string() }` | `category: "safety"`, `original_params_valid: true`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-SAFETY-002"`, `suggestion: "Do not retry; report to operator."` | error (MED-001 — safety boundary arm) |
 | `PrismError::WritePartialFailure { .. }` (genuinely catch-all variant) | `category: "upstream_error"`, `suggestion: "See audit log for details."` — NOT `"safety"`; proves safety arm is correctly scoped to only the 2 safety variants | error (LOW-001 — catch-all-not-safety regression guard) |
+| `PrismError::CursorCapExceeded` | `category: "internal"`, `original_params_valid: true`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-STORE-020"`, `suggestion: "Process-wide cursor cap exceeded (E-STORE-020). Release open cursors or contact Prism operator."` | error (PRL14-MED-001 — cursor cap is process-wide infrastructure limit, not parameter error; code alignment in DEFECT-PQL-FNCALL-LHS-001 fix-burst-25) |
 
 See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
 
@@ -243,7 +244,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 | L2 Edge Cases | DEC-009 |
 | Priority | P0 |
 
-## Implementer Code Follow-Up (F-4, OBS-1, OBS-2, MED-001, RETRYABLE-503)
+## Implementer Code Follow-Up (F-4, OBS-1, OBS-2, MED-001, RETRYABLE-503, PRL14-MED-001)
 
 **This section records required implementer actions resulting from BC amendments. The orchestrator must route these to the implementer after the BC amendment is committed.**
 
@@ -536,10 +537,109 @@ Note: the dedicated `SensorRateLimited` variant already handles 429 with explici
 
 **Routing (orchestrator):** This is a pre-existing spec-code drift confirmed at DEFECT-MCP-ROWSHAPE-NULLS-001 PR-LEVEL pass-6. The PR HEAD is frozen; this fix MUST be dispatched to the implementer in a new fix-burst after pass-6 closes.
 
+### PRL14-MED-001 / F-MCPRS-PRL14-MED-001 (status: REQUIRED — code alignment in DEFECT-PQL-FNCALL-LHS-001 fix-burst-25)
+
+**BC decision (v1.19): `CursorCapExceeded` → `category: "internal"`, `original_params_valid: true`.**
+
+**Finding context (F-MCPRS-PRL14-MED-001):** `PrismError::CursorCapExceeded` (Display: `"E-STORE-020: cursor cap exceeded: cannot allocate more than 200 active cursors"`) fires when creating a new cursor would exceed the process-wide live-cursor cap. The 117-variant sentinel (`crates/prism-core/src/tests/error_category_coverage.rs` ~line 99) deliberately places it under the `// ── E-STORE: RocksDB / schema / cursor-cap` section header with `// "internal"`, separated from sibling cursor variants (`CursorExpired`, `CursorPageSizeInvalid`, `CursorTokenUnknown`) which are `// "validation"` under the E-QUERY section. The shipped VariantMeta arm in `prism_error_to_structured_call_result` (~lines 1326-1329) groups all four cursor variants together at `category: "validation"`, `original_params_valid: false` — contradicting the sentinel. BC-2.10.007 §Category table was silent on `CursorCapExceeded`, creating a vacuum that the code and sentinel filled inconsistently.
+
+**Category decision rationale (four pillars):**
+
+1. **Taxonomy consistency:** Process-wide resource caps belong with Prism infrastructure limits. Compare: `QueryMemoryBudgetExceeded` (process memory cap → "internal"), `QueryMaterializationLimitExceeded` (materialization row cap → "internal"). `CursorCapExceeded` (process cursor count cap) is the same class.
+2. **Sentinel authority:** The `// "internal"` comment under E-STORE was a deliberate, correct categorization. The sentinel intentionally broke the grouping with the sibling cursor-management validation errors — this was NOT an oversight.
+3. **`original_params_valid: true`:** The cursor creation request was structurally valid; no parameter was malformed. The failure was the process-wide infrastructure limit. Setting `original_params_valid: false` incorrectly directs the LLM agent to "fix parameters" when there is nothing to fix.
+4. **LLM-agent strategy:** "internal" → "escalate to operator" is the correct response to a process-wide cap exhaustion. "validation" → "fix your parameters" is wrong — no parameter change resolves a global resource limit.
+
+**Distinction from sibling cursor variants:** `CursorExpired`, `CursorPageSizeInvalid`, `CursorTokenUnknown` are caller-controlled cursor-management validation errors (the caller provided an expired/invalid cursor token or an invalid page size). `CursorCapExceeded` is a process-wide infrastructure limit — semantically unrelated to those sibling errors despite the shared "cursor" domain.
+
+**Three required code changes (implementer, same fix-burst):**
+
+**Change 1 — `prism_error_to_structured_call_result`: move `CursorCapExceeded` out of the validation OR-pattern, add dedicated "internal" arm.**
+
+Remove `PrismError::CursorCapExceeded` from the validation arm (the OR-pattern with `CursorExpired | CursorPageSizeInvalid | CursorTokenUnknown`). Add:
+
+```rust
+// ── Process-wide cursor cap exhaustion → category "internal" ────────────────
+// BC-2.10.007 v1.19 §PRL14-MED-001 (F-MCPRS-PRL14-MED-001): CursorCapExceeded
+// previously grouped with CursorExpired|CursorPageSizeInvalid|CursorTokenUnknown
+// in the validation arm — contradicting the sentinel's E-STORE/"internal" grouping.
+//
+// Semantics: fires when the PROCESS-WIDE live cursor cap (200 active cursors per
+// process) is exceeded. Not a caller-parameter error — the cursor creation request
+// was structurally valid; Prism's own infrastructure limit was exhausted.
+// LLM-agent strategy: escalate to operator, not "fix parameters."
+//
+// original_params_valid: true — structurally valid request; global resource constraint
+// failed, not the caller's parameter shape. Analogous to WatchdogKilled (process
+// memory → original_params_valid: true).
+//
+// After Change 2 below, map_prism_error returns INTERNAL_ERROR/"Internal error" for
+// this variant. ec_code_override: Some("E-STORE-020") required — Rule 1 redaction
+// means map_prism_error message is "Internal error" (no E-STORE prefix), so without
+// ec_code_override the structured error would fall to "E-INT-001" fallback.
+//
+// NOT in the Prism-side infrastructure arm (Internal/Io/Storage* group). That arm
+// is EXHAUSTIVE for "Prism infrastructure failure. Contact Prism operator; see audit
+// log for details." Cursor cap gets a dedicated suggestion guiding agent to close
+// cursors before escalating.
+PrismError::CursorCapExceeded => VariantMeta {
+    category: "internal",
+    suggestion: "Process-wide cursor cap exceeded (E-STORE-020). Release open cursors or contact Prism operator.",
+    retryable: false,
+    retry_after_seconds: None,
+    original_params_valid: true,
+    source_override: None,
+    upstream_message: None,
+    owned_suggestion: None,
+    ec_code_override: Some("E-STORE-020"),
+    near_text: None,
+    reference_pointer: None,
+    valid_operators_for_type: None,
+    how_to_fix: None,
+    available_columns: None,
+    did_you_mean: None,
+    normalized_pql: None,
+},
+```
+
+**Change 2 — `map_prism_error`: move `CursorCapExceeded` out of the cursor INVALID_PARAMS group, give it an INTERNAL_ERROR arm.**
+
+Current (prism-mcp/src/error_mapping.rs ~lines 205-209):
+```rust
+// E-ALIAS-QUERY cursor errors → -32602 Invalid params
+PrismError::CursorExpired
+| PrismError::CursorPageSizeInvalid
+| PrismError::CursorTokenUnknown
+| PrismError::CursorCapExceeded => (codes::INVALID_PARAMS, format!("{err}")),
+```
+
+Change to:
+```rust
+// Cursor management errors → -32602 Invalid params (caller-controlled state)
+// NOTE: CursorCapExceeded is NOT grouped here — it is a process-wide infrastructure
+// limit, not a caller-parameter validation error (BC-2.10.007 v1.19 §PRL14-MED-001).
+PrismError::CursorExpired
+| PrismError::CursorPageSizeInvalid
+| PrismError::CursorTokenUnknown => (codes::INVALID_PARAMS, format!("{err}")),
+
+// E-STORE-020: cursor cap exceeded → -32000 INTERNAL_ERROR (BC-2.10.007 v1.19 §PRL14-MED-001)
+// Process-wide infrastructure limit; not a caller-parameter validation error.
+// Returns "Internal error" per Rule 1 redaction; ec_code_override pins E-STORE-020.
+PrismError::CursorCapExceeded => (codes::INTERNAL_ERROR, "Internal error".to_string()),
+```
+
+**Change 3 — Sentinel comment: NO CHANGE NEEDED.** The sentinel at `error_category_coverage.rs` ~line 99 already correctly comments `CursorCapExceeded` as `// "internal"` under the E-STORE section. The sentinel is the source of truth that the VariantMeta arm violated. No sentinel edit is required.
+
+**Tests to add:**
+- `test_BC_2_10_007_cursor_cap_exceeded_category_is_internal`: asserts `PrismError::CursorCapExceeded` → `category: "internal"`, `original_params_valid: true`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-STORE-020"`, `suggestion: "Process-wide cursor cap exceeded (E-STORE-020). Release open cursors or contact Prism operator."`.
+
+**Tests to update:** Any existing test that asserts `CursorCapExceeded → category: "validation"` or `original_params_valid: false` must be updated to assert `category: "internal"` and `original_params_valid: true`.
+
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.19 | DEFECT-PQL-FNCALL-LHS-001-FB25-F-MCPRS-PRL14-MED-001 | 2026-07-14 | product-owner | **F-MCPRS-PRL14-MED-001 closure (spec side) — `CursorCapExceeded` (E-STORE-020) authoritatively categorized as `"internal"`, `original_params_valid: true`.** BC was silent on this variant; sentinel and shipped VariantMeta arm diverged into the vacuum. Sentinel (`error_category_coverage.rs` ~line 99) correctly places it under E-STORE with `// "internal"`; VariantMeta arm incorrectly grouped it with `CursorExpired|CursorPageSizeInvalid|CursorTokenUnknown` at `category: "validation", original_params_valid: false`. **Decision: `"internal"`, `original_params_valid: true`.** Four-pillar rationale: (1) taxonomy consistency — parallel to `QueryMemoryBudgetExceeded` and `QueryMaterializationLimitExceeded` (both process-wide resource caps, both already "internal"); (2) sentinel authority — `// "internal"` under E-STORE was deliberate and correct, not an oversight; (3) `original_params_valid: true` — structurally valid cursor creation request; failure was global infrastructure limit, not a parameter error; (4) LLM-agent strategy — "escalate to operator" is correct; "fix your parameters" is wrong (no parameter change resolves a process-wide cap). **Changes:** (1) §Category "internal" row: added `CursorCapExceeded (E-STORE-020)` after `StorageBatchFailed` with rationale note; (2) §Canonical Test Vectors: added `CursorCapExceeded → category: "internal"` vector; (3) §Implementer Code Follow-Up §PRL14-MED-001: added 3-change specification (VariantMeta arm move + dedicated "internal" arm with `ec_code_override: Some("E-STORE-020")`; `map_prism_error` INTERNAL_ERROR change; sentinel no-change). **Code alignment required in same fix-burst:** implementer must apply all three code changes and add category-assertion test. |
 | 1.18 | DEFECT-MCP-ROWSHAPE-NULLS-001-FB22-F-MCPRS-PRL10-OBS-003 | 2026-07-14 | product-owner | **F-MCPRS-PRL10-OBS-003 closure — §Rule 2 catch-all documented as FUTURE-ONLY; §Category table synced with 28 explicit arms.** After fix-burst 22 (commit 6dee4036), ZERO currently-known `PrismError` variants fall to the `_ =>` catch-all — all 28 formerly-catch-all variants have explicit VariantMeta arms in `prism_error_to_structured_call_result`. **(1) §Rule 2 catch-all bullet:** replaced legacy enumeration ("This includes OCSF normalization variants, `WritePartialFailure`, scheduler/detection/case variants, `Infusion`, `Plugin`, IOC variants, credential variants...") with: "From v1.18 onward, ZERO currently-known variants fall here." Enumerated the four groups (28 total) moved out of the catch-all. Added explicit dual-requirement: "Any new `PrismError` variant MUST be added to BOTH (1) `crates/prism-core/src/tests/error_category_coverage.rs` sentinel AND (2) a dedicated arm in `prism_error_to_structured_call_result`'s VariantMeta match." **(2) §Category table (4 rows updated):** `"validation"` + `ScheduleConflict`, `ScheduleCronInvalid`, `CaseStateTransitionInvalid`; `"upstream_error"` + explicit OCSF data-shape list (`OcsfFieldMissing`, `OcsfFieldTypeMismatch`, `OcsfUnknownClassUid`, `OcsfUnknownEventClass`, `OcsfUnknownRecordType`, `OcsfTimestampParseError`, `OcsfNormalizationFailed`) + `WritePartialFailure`, `IocFeedParseFailed`, `IocLookupFailed`; `"configuration"` + `InvalidCredentialName`, `CredentialNotFound`, `EncryptionKeyMissing`; `"internal"` + 12 Group-1 variants (`Infusion`, `Plugin`, `OcsfProtobufEncode`, `OcsfProtobufDecode`, `OcsfDescriptorNotFound`, `CredentialStoreError`, `CredentialEncryptionError`, `ScheduleNotFound`, `DetectionRuleParseFailed`, `DetectionRuleNotFound`, `DetectionStateCorrupt`, `CaseNotFound`). **(3) §Internal-redacted split summary table `suggestion` row:** catch-all arm note qualified as "applies to future/unknown variants only from v1.18." **(4) Line 107 amendment history:** v1.18 note appended. |
 | 1.17 | DEFECT-MCP-ROWSHAPE-NULLS-001-FB20-OBS-002 | 2026-07-14 | product-owner | **F-MCPRS-PRL8-OBS-002 closure — §RETRYABLE-503 snippet parity with shipped code.** Code snippet in §RETRYABLE-503 said `matches!(status.as_u16(), 408 \| ...)`. The shipped `error_mapping.rs` `SensorHttpError` arm uses `matches!(status, 408 \| ...)` — the `status` variant field is already `u16` per `PrismError::SensorHttpError` struct shape (`prism-core/src/error.rs` ~473-477); `.as_u16()` is superfluous and never appeared in deployed code. Code is correct; spec snippet now matches shipped code. **Change:** `status.as_u16()` → `status` in snippet. Comment version pin in snippet updated v1.16→v1.17. No semantic change to the transient-only whitelist `{408, 425, 429, 500, 502, 503, 504}`. |
 | 1.16 | DEFECT-MCP-ROWSHAPE-NULLS-001-FB18-RETRYABLE-503-RULE | 2026-07-14 | product-owner | **§RETRYABLE-503 rule precision fix (coordinator-raised finding).** The v1.15 §RETRYABLE-503 code snippet specified `let retryable = !matches!(status, 401 \| 403)`, which is overbroad: HTTP 400 (Bad Request), 404 (Not Found), 422 (Unprocessable Entity), and other permanent 4xx codes would be marked `retryable: true`, contradicting the BC field definition ("true for transient errors (rate limit, timeout, network)"). **Corrected rule:** `let retryable = matches!(status.as_u16(), 408 \| 425 \| 429 \| 500 \| 502 \| 503 \| 504)` — explicit transient-only whitelist. Covers: 408 (Request Timeout), 425 (Too Early), 429 (Rate Limit), 500/502/503/504 (server-side transient). Excludes all permanent 4xx codes including 400/401/403/404/422. **§RETRYABLE-503 rationale text updated** to enumerate the transient set and explain why 400/404/422 are excluded. **"Tests to add/update" bullet updated** to clarify that tests asserting permanent-status-code → `retryable: false` are correct under the new rule and must not be changed. **§Canonical Test Vectors SensorHttpError row (503 → retryable: true) unchanged** — 503 is in the transient set under both rules. |
