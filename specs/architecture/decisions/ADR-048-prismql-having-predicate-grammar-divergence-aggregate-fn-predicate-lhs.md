@@ -5,8 +5,8 @@ title: "PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function
 status: accepted
 date: "2026-06-28"
 accepted_date: "2026-06-29"
-version: "1.11"
-modified: "2026-07-13"
+version: "1.12"
+modified: "2026-07-14"
 producer: architect
 subsystems_affected: [SS-11]
 supersedes: null
@@ -29,6 +29,8 @@ open_decisions: []
 # ADR-048: PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function Predicate LHS in HAVING
 
 ## Status
+
+ACCEPTED v1.12 (2026-07-14). F-PQLFN-P27-OBS-001 + F-PQLFN-P27-OBS-002 (DEFECT-PQL-FNCALL-LHS-001 pass 27). §D.7.2 extended with two-form convention for `PrismError::QueryParseFailed` Display (form A = plan-time gate, clean; form B = Chumsky `.validate()` path, double-nested) and explicit rationale for the F-MEDIUM-001 recovery-path guard (`starts_with("E-QUERY-001:")`) being intentionally broad. OBS-001: ratified option (b) — two-form double-nesting accepted as the Chumsky-path convention per error-taxonomy v2.49 form-(b); NOT normalized to form A because the `"E-QUERY-001: "` prefix in `.validate()` messages is the guard discriminant (blast radius of removing it is disproportionate for OBS severity). OBS-002: ratified option (a) — broad guard is the CORRECT semantic: ANY `"E-QUERY-001: "`-prefixed error from a `.validate()`/`.try_map()` combinator must block F-MEDIUM-001 partial-AST recovery; percentile out-of-range behavior change (`Err(both)` not `Ok(partial)`) is INTENDED. No code changes for either finding. POL-23: 9 live v1.11 pins in BC-2.11.004 must advance to v1.12 (route to product-owner for BC-2.11.004 v1.43 bump); S-PRISMQL-CASE-INSENSITIVE-001 4-site BC pin cascade follows. [process-gap]: the guard at sql_parser.rs was undocumented until this version — any `.validate()` semantic error embedding `"E-QUERY-001: "` also blocks delimiter recovery; this invariant must be documented in the source comment (implementer micro-task: verify comment at sql_parser.rs ~243-251 covers percentile case).
 
 ACCEPTED v1.11 (2026-07-13). F-PQLFN-P14-LOW-001 (DEFECT-PQL-FNCALL-LHS-001 pass 14). §D.7.2 fn_call_comparison identifier-start rationale corrected. The v1.9 rationale claimed "identifier-grammar parity with `field_path`, which already enforces an identifier-start character" — this premise is FALSE. Ground truth: `field_path` in all three parsers uses `ident_char = filter(is_ascii_alphanumeric || '_')` with `.repeated().at_least(1)` — NO identifier-start constraint; digit-leading field-path segments parse fine via backtrack to `field_comparison`. The fn_call_comparison constraint is intentionally STRICTER than `field_path`, not parity. Corrected rationale: programming-language identifier convention (first char alphabetic or `_`); intentionally STRICTER than `field_path`'s alphanumeric-or-underscore admission (`field_path` has NO start constraint — `ident_char` admits any ASCII alphanumeric or `_`, so digit-leading segments such as `123abc` parse fine); avoids mis-parsing numeric-literal-leading tokens as fn-call names; earlier, clearer failure. POL-29 grep: v1.9 Status entry and v1.9 Changelog row quote the old rationale historically (legitimate — unchanged historical records); §D.7.2 normative text was the sole live-normative echo (corrected above); Related Architecture Nodes fn_call_comparison entry contains no parity phrasing (OK). No cross-artifact siblings found in .factory/specs/ (BC-INDEX/BC-2.11.016 "HAVING parity" hits are unrelated — Stats/HAVING column-gate parity, not field_path identifier-start parity). [process-gap] — second false-premise-rationale correction in this cascade, companion to v1.4 percentile empirical-claim correction: rationale claims about OTHER grammar productions must be verified against the production's source before authoring; "parity with X" is only valid if X has been read and confirmed to have the asserted property. No locked-decision changes; no new ODs.
 
@@ -482,6 +484,69 @@ so digit-leading field-path segments such as `123abc` parse fine via backtrack t
 `field_comparison`); avoids mis-parsing numeric-literal-leading tokens as fn-call names;
 earlier, clearer failure than downstream rejection of `FuncCall::Scalar(Unknown("123abc"))`.
 
+**Chumsky-path semantic errors — two-form convention (v1.12 — F-PQLFN-P27-OBS-001):**
+`PrismError::QueryParseFailed` Display messages take two forms depending on the error's
+origin path:
+
+**Form A (plan-time gate, clean):** The aggregate-in-predicate gate (`check_enrich_udf_availability`,
+engine.rs) constructs `QueryParseFailed` directly with a bare `detail` string per the
+de-nesting mandate above. One `E-QUERY-001:` prefix, one offset. Example:
+`"E-QUERY-001: query parse error at offset 15: 'count' is an aggregate function; aggregate
+fn-calls are not valid in WHERE/where predicates (use HAVING for post-aggregation filters,
+ADR-048 D.3)"`.
+
+**Form B (Chumsky-path, double-nested):** Semantic validation errors emitted via
+`emitter.emit(Rich::custom(span, msg))` inside `.validate()` or `.try_map()` combinators
+(e.g., the LOW-006 keyword-fn-name exclusion in `fn_call_comparison` — `filter_parser.rs`;
+the PERCENTILE out-of-range gate in `build_agg_call_parser` — `sql_parser.rs`) embed the
+`"E-QUERY-001: "` prefix in the `Rich::custom` message string. The chain:
+`Rich::custom(span, "E-QUERY-001: {msg}")` → `rich_to_parse_error` (`err.to_string()` =
+`"E-QUERY-001: {msg}"` → `ParseError::message`) → `ParseError::Display`
+(`"parse error at offset {N}: E-QUERY-001: {msg}"` — `e.to_string()`) →
+`QueryParseFailed` detail construction (`detail = e.to_string()`) → `QueryParseFailed`
+Display produces the final user-visible string with `E-QUERY-001:` twice and the offset
+twice. Example for `| where NOT(x) = 5`:
+`"E-QUERY-001: query parse error at offset {N}: parse error at offset {N}: E-QUERY-001: 'NOT' is a PrismQL keyword and cannot be used as a function name"`.
+This is the pre-existing error-taxonomy v2.49 form-(b) convention; **ratified here as
+the accepted Chumsky-path pattern for all `.validate()`/`.try_map()` semantic errors**.
+
+**Rationale for NOT normalizing form B to form A:** Normalizing requires (1) removing
+the `"E-QUERY-001: "` prefix from all `Rich::custom` / `try_map` Err messages and (2)
+redesigning the `ParseError` struct to carry a `is_semantic_validation` discriminant,
+plus updating `materialization.rs` detail construction to use `e.message` (not `e.to_string()`).
+The `"E-QUERY-001: "` prefix in `.validate()` messages is the sole discriminant used by
+the F-MEDIUM-001 recovery-path guard (see below) — removing it breaks the guard predicate.
+The blast radius is disproportionate for an OBS-severity finding. The semantic content of
+form B is unambiguous to both human analysts and LLM agents: the keyword name and actionable
+guidance appear clearly despite the structural redundancy. Normalization deferred to a
+dedicated ParseError-cleanup story if LLM-parsing ambiguity becomes a real operational issue.
+
+**F-MEDIUM-001 recovery-path guard — intentionally broad (v1.12 — F-PQLFN-P27-OBS-002):**
+The guard at `sql_parser.rs` (`has_semantic_error = parse_errors.iter().any(|e| e.message.starts_with("E-QUERY-001:"))`
+at the F-MEDIUM-001 recovery path for partial-AST returns) blocks recovery whenever ANY
+error in the Chumsky error set has an `"E-QUERY-001: "` prefix. This is **intentionally
+broad** — it covers:
+
+1. LOW-006 keyword-fn-name validation errors (`filter_parser.rs` `fn_call_comparison` `.validate()`)
+2. PERCENTILE out-of-range validation errors (`sql_parser.rs` `build_agg_call_parser` `.try_map()`)
+3. Any future `.validate()` / `.try_map()` semantic errors that embed the `"E-QUERY-001: "` prefix
+
+The broad scope is the **correct semantic invariant**: when any `.validate()` or `.try_map()`
+combinator fires a semantic validation error, the partial AST it annotates is logically
+invalid and MUST NOT be returned via the F-MEDIUM-001 partial-AST recovery path. The
+specific consequence for the percentile case: `HAVING percentile(x,150) > 5 AND y IN (malformed`
+with a structural parse error in the `IN` clause → `Err(both errors)` (not
+`Ok(partial-AST-with-swallowed-percentile-error)`) is the **INTENDED behavior** — the
+semantic error must not be silently discarded because delimiter recovery produced a
+partial tree. The guard must remain broad; narrowing it to keyword-only would silently
+swallow semantic validation errors from other `.validate()` / `.try_map()` sites.
+
+**Source comment requirement (implementer micro-task):** The guard comment at `sql_parser.rs`
+~243-251 currently names only the LOW-006 keyword gate. The implementer must verify that
+the comment text covers the full broad scope (LOW-006 + PERCENTILE + future semantic
+validators) rather than implying it is keyword-specific. A single-line addition to the
+comment is sufficient — no logic change.
+
 #### D.7.3 — HAVING Non-Six-Name Aggregate Policy (MED-001 adjudication)
 
 `HAVING stddev(x) > 5`, `HAVING variance(col) > 100`, `HAVING corr(a, b) > 0.5` etc.
@@ -690,6 +755,7 @@ and avoids conditional branching inside the parser combinator.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.12 | adr-048-v1.12-DEFECT-PQL-FNCALL-LHS-001-pass27-obs-adjudication | 2026-07-14 | architect | F-PQLFN-P27-OBS-001 + F-PQLFN-P27-OBS-002 (DEFECT-PQL-FNCALL-LHS-001 pass 27). (OBS-001) §D.7.2 two-form convention documented: Form A (plan-time gate, clean — one E-QUERY-001, one offset) vs Form B (Chumsky `.validate()`/`.try_map()` path — E-QUERY-001 and offset doubled through Rich::custom→ParseError::Display→QueryParseFailed chain). Ratified as accepted Chumsky-path pattern per error-taxonomy v2.49 form-(b). NOT normalized: `"E-QUERY-001: "` prefix in `.validate()` messages is the F-MEDIUM-001 guard discriminant; blast radius disproportionate for OBS; semantic content unambiguous. No code changes. (OBS-002) §D.7.2 F-MEDIUM-001 guard documented as intentionally BROAD — `starts_with("E-QUERY-001:")` covers LOW-006 keyword gate + PERCENTILE out-of-range gate + any future `.validate()`/`.try_map()` semantic errors; percentile behavior (`HAVING percentile(x,150) > 5 AND y IN (malformed` → `Err(both)` not `Ok(partial)`) is INTENDED; narrowing to keyword-only would silently swallow other semantic validation errors. No code changes. Implementer micro-task: update guard comment at sql_parser.rs ~243-251 to reflect broad scope. POL-23: 9 live v1.11 pins in BC-2.11.004 must advance to v1.12 (route to product-owner for BC-2.11.004 v1.43); S-PRISMQL-CASE-INSENSITIVE-001 4-site BC pin cascade follows. [process-gap]: guard scope was undocumented prior to this version. |
 | 1.11 | adr-048-v1.11-DEFECT-PQL-FNCALL-LHS-001-pass14-rationale-correction | 2026-07-13 | architect | F-PQLFN-P14-LOW-001 (DEFECT-PQL-FNCALL-LHS-001 pass 14). §D.7.2 fn_call_comparison identifier-start rationale corrected. v1.9 claimed "identifier-grammar parity with `field_path`, which already enforces an identifier-start character" — FALSE: `field_path` uses `ident_char = filter(is_ascii_alphanumeric || '_')` with no start constraint; digit-leading segments (e.g., `123abc`) parse fine via backtrack to `field_comparison`. fn_call_comparison is intentionally STRICTER than field_path, not parity with it. Corrected rationale: programming-language identifier convention (first char alphabetic or `_`); intentionally STRICTER than field_path (no start constraint — digit-leading segments parse via backtrack); avoids mis-parsing numeric-literal-leading tokens; earlier, clearer failure. POL-29 grep: v1.9 Status + Changelog rows cite old rationale historically (legitimate — historical records); Related Architecture Nodes fn_call_comparison entry contains no parity phrasing; no cross-artifact siblings in .factory/specs/ (BC-INDEX/BC-2.11.016 hits are unrelated HAVING/Stats parity). [process-gap]: second false-premise correction in cascade (companion to v1.4 percentile empirical-claim correction); rationale claims about other grammar productions must be source-verified before authoring. No locked-decision changes; no new ODs. |
 | 1.10 | adr-048-v1.10-DEFECT-PQL-FNCALL-LHS-001-pass12-sibling-fix | 2026-07-13 | architect | F-PQLFN-P12-MED-001 (DEFECT-PQL-FNCALL-LHS-001 pass 12). Partial-fix-regression closure: §Consequences §Negative/Risks third bullet corrected. v1.9 still claimed "WHERE grammar cannot produce FuncCall LHS" (grammar impossibility), directly contradicting §D.3 v1.3 amendment (F-PQLFN-P3-LOW-001) which established that post-D.7.2 WHERE grammar DOES produce `Predicate::Compare` with `Expr::FuncCall` LHS via fn_call_comparison. Pass-3 v1.3 corrected §D.3 but missed this sibling site in §Consequences. Bullet rewritten: FuncCall arm IS exercised in WHERE contexts (§D.7.1 Positions 4/6); WHERE-safety derives from `extract_field_paths_from_expr` arg-recursion (not grammar impossibility); CONCLUSION ("empirically safe") remains valid. POL-29 grep: sole live-normative impossibility site was §Consequences (corrected); §D.3 line 326 historical quotation and line 333 normative negation are legitimate. No cross-artifact siblings found in .factory/specs/. No locked-decision changes; no new ODs. |
 | 1.9 | adr-048-v1.9-DEFECT-PQL-FNCALL-LHS-001-pass10-obs-adjudication | 2026-07-13 | architect | F-PQLFN-P10-OBS-001 + F-PQLFN-P10-OBS-002 (DEFECT-PQL-FNCALL-LHS-001 pass 10). OBS-001: §D.7.2 amended — `detail` field of `PrismError::QueryParseFailed` MUST NOT embed the `E-QUERY-001: ` prefix; Display chrome `#[error("E-QUERY-001: query parse error at offset {offset}: {detail}")]` supplies the single canonical prefix (E-QUERY-003 de-nesting precedent). Both canonical forms now explicit: full Display form `E-QUERY-001: query parse error at offset {offset}: '{name}' is an aggregate function; aggregate fn-calls are not valid in WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)` (tests/BCs/users cite this); detail-only form `'{name}' is an aggregate function; aggregate fn-calls are not valid in WHERE/where predicates (use HAVING for post-aggregation filters, ADR-048 D.3)` (engine.rs format! uses this). §D.6 canonical message citation corrected from prefix-embedded form to detail-only form with §D.7.2 cross-reference. POL-29 grep: §D.6 was the sole remaining site quoting the prefixed-detail form as current; corrected. OBS-002: §D.7.2 fn_call_comparison identifier start-character constraint added — first char MUST be ASCII alphabetic or `_`; subsequent chars may be alphanumeric or `_`; digit-leading fn-names (e.g., `123abc(x)`) → parse-time E-QUERY-001 ("found '1'" style), not downstream FuncCall::Scalar(Unknown(...)); parity with field_path. Related Architecture Nodes fn_call_comparison entry updated to note the leading-char constraint. BC-2.11.004 + code sync follows in same fix-burst by PO/implementer. |
