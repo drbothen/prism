@@ -5,7 +5,7 @@ title: "PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function
 status: accepted
 date: "2026-06-28"
 accepted_date: "2026-06-29"
-version: "1.12"
+version: "1.13"
 modified: "2026-07-14"
 producer: architect
 subsystems_affected: [SS-11]
@@ -22,6 +22,7 @@ locked_decisions:
   - OD-4: Parser-level AGGREGATE_FUNC_NAMES blocklist in fn_call_comparison removed; plan-time DATAFUSION_BUILTIN_AGGREGATE_NAMES gate in check_enrich_udf_availability is the sole enforcement point; architect decision 2026-07-13 (DEFECT-PQL-FNCALL-LHS-001 pass-2 F-PQLFN-P2-MED-002)
   - OD-5: SQL WHERE predicate fn-call positions added to predicate_fncall_names coverage so DATAFUSION_BUILTIN_AGGREGATE_NAMES gate covers all non-HAVING predicate positions; architect decision 2026-07-13 (DEFECT-PQL-FNCALL-LHS-001 pass-2 F-PQLFN-P2-HIGH-001)
   - OD-6: DML WHERE predicate fn-call positions added to predicate_fncall_names coverage (sixth gated position); cross-mode consistency over intentional out-of-scope deferral; architect decision 2026-07-13 (DEFECT-PQL-FNCALL-LHS-001 pass-7 F-PQLFN-P7-LOW-002)
+  - OD-7: INSERT source_select WHERE predicate fn-call position added to predicate_fncall_names coverage (seventh gated position); §D.7.5 "DML has no SELECT/GROUP BY/ORDER BY/HAVING positions" claim corrected — accurate for DELETE/UPDATE but not INSERT; architect decision 2026-07-14 (DEFECT-PQL-FNCALL-LHS-001 pass-32 F-PQLFN-P32-OBS-001)
 wiring_deferred_to: null
 open_decisions: []
 ---
@@ -29,6 +30,8 @@ open_decisions: []
 # ADR-048: PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function Predicate LHS in HAVING
 
 ## Status
+
+ACCEPTED v1.13 (2026-07-14). F-PQLFN-P32-OBS-001 (DEFECT-PQL-FNCALL-LHS-001 pass 32). INSERT source_select WHERE added as Position 7 to the `predicate_fncall_names` walk in `check_enrich_udf_availability`. Root cause: `build_insert_parser` calls `build_sql_parser → build_sql_predicate_parser → build_predicate_parser`; `fn_call_comparison` is in `build_predicate_parser`; therefore INSERT source_select WHERE now accepts fn-call LHS; but the `Ast::Sql(SqlStatement::Dml(dml))` gate arm only walked `dml.filter` (DELETE/UPDATE WHERE), not `dml.source_select.where_` — so `INSERT INTO t (col) SELECT col FROM t2 WHERE stddev(x) > 5` (DmlNode{source_select: Some(SqlQuery{where_: Some(...stddev...)}), filter: None}) passed the gate silently (filter=None → walk nothing → Ok(vec[])) instead of firing E-QUERY-001. Same regression pattern and option analysis as OD-6. Ruling: Option A (extend gate) — regression introduced by this branch; check_temporal_literals and check_internal_table_capabilities ALREADY walk source_select; DML no-ops so zero regression risk. §D.7.1 table extended with Position 7. §D.7.5 prose corrected: "DML has no SELECT/GROUP BY/ORDER BY/HAVING positions to walk" was INACCURATE — accurate for DELETE/UPDATE (which have no source_select) but not INSERT; corrected to scope the statement to DELETE/UPDATE and add source_select.where_ for INSERT. New §D.7.6 documents the arm extension and implementation scope. source_select HAVING remains exempt (same §D.7.3 exemption as regular HAVING). source_select GROUP BY / ORDER BY are not in scope for the aggregate-in-predicate gate (ADR-052 temporal gate already covers them in check_temporal_literals ~3909). §D.6 enumeration updated to include INSERT source_select WHERE as the seventh gated position. OD-7 locked. POL-23: BC-2.11.004 micro-amend required — "ALL five Predicate-typed query positions" → "ALL six" (add INSERT source_select WHERE to the list), aggregate-gate enforcement note "all six predicate positions" → "all seven predicate positions", ADR-048 v1.12 version pins → v1.13 (route to product-owner for BC-2.11.004 v1.44→v1.45 bump). Note: "six callers" of build_predicate_parser is UNCHANGED — build_sql_predicate_parser (already counted) handles INSERT source_select WHERE through the same call chain as SQL SELECT WHERE.
 
 ACCEPTED v1.12 (2026-07-14). F-PQLFN-P27-OBS-001 + F-PQLFN-P27-OBS-002 (DEFECT-PQL-FNCALL-LHS-001 pass 27). §D.7.2 extended with two-form convention for `PrismError::QueryParseFailed` Display (form A = plan-time gate, clean; form B = Chumsky `.validate()` path, double-nested) and explicit rationale for the F-MEDIUM-001 recovery-path guard (`starts_with("E-QUERY-001:")`) being intentionally broad. OBS-001: ratified option (b) — two-form double-nesting accepted as the Chumsky-path convention per error-taxonomy v2.49 form-(b); NOT normalized to form A because the `"E-QUERY-001: "` prefix in `.validate()` messages is the guard discriminant (blast radius of removing it is disproportionate for OBS severity). OBS-002: ratified option (a) — broad guard is the CORRECT semantic: ANY `"E-QUERY-001: "`-prefixed error from a `.validate()`/`.try_map()` combinator must block F-MEDIUM-001 partial-AST recovery; percentile out-of-range behavior change (`Err(both)` not `Ok(partial)`) is INTENDED. No code changes for either finding. POL-23: 9 live v1.11 pins in BC-2.11.004 must advance to v1.12 (route to product-owner for BC-2.11.004 v1.43 bump); S-PRISMQL-CASE-INSENSITIVE-001 4-site BC pin cascade follows. [process-gap]: the guard at sql_parser.rs was undocumented until this version — any `.validate()` semantic error embedding `"E-QUERY-001: "` also blocks delimiter recovery; this invariant must be documented in the source comment (implementer micro-task: verify comment at sql_parser.rs ~243-251 covers percentile case).
 
@@ -366,19 +369,21 @@ dependency. No false E-QUERY-038 fires.
 ### D.6 — WHERE Aggregate Invariant: All DataFusion Built-in Aggregates Rejected (v1.2 restated)
 
 The WHERE clause in every PrismQL mode (pipe `| where`, filter root, SqlPipe `| where`,
-SQL WHERE, SqlPipe-head WHERE, **SQL DML WHERE**) does not accept aggregate-function
-predicate LHS. `WHERE agg(col) op literal` is rejected with E-QUERY-001 for ALL DataFusion
-built-in aggregate functions, enforced by the plan-time `DATAFUSION_BUILTIN_AGGREGATE_NAMES`
-gate in `check_enrich_udf_availability`. This invariant covers count, sum, avg, min, max,
-distinct_count AND all extended aggregates (stddev, variance, corr, median, approx_median,
-regr_*, array_agg, string_agg, bool_and, bool_or, etc.) — any name in DataFusion's
-`SessionStateDefaults::default_aggregate_functions()` registry.
+SQL WHERE, SqlPipe-head WHERE, **SQL DML WHERE**, and **INSERT source_select WHERE**)
+does not accept aggregate-function predicate LHS. `WHERE agg(col) op literal` is rejected
+with E-QUERY-001 for ALL DataFusion built-in aggregate functions, enforced by the plan-time
+`DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate in `check_enrich_udf_availability`. This invariant
+covers count, sum, avg, min, max, distinct_count AND all extended aggregates (stddev,
+variance, corr, median, approx_median, regr_*, array_agg, string_agg, bool_and, bool_or,
+etc.) — any name in DataFusion's `SessionStateDefaults::default_aggregate_functions()` registry.
 
 **SQL DML WHERE (v1.6 addition — OD-6):** `DELETE FROM t WHERE stddev(x) > 5` and
 `UPDATE t SET col = val WHERE stddev(x) > 5` are rejected with the canonical E-QUERY-001
 message. This is the sixth gated position (§D.7.1 Position 6, §D.7.5). DML WHERE
 previously fell to `_ => {}` in `check_enrich_udf_availability`; post-v1.6 it is walked
 into `predicate_fncall_names` by the `Ast::Sql(SqlStatement::Dml(dml))` arm.
+
+**INSERT source_select WHERE (v1.13 addition — OD-7):** `INSERT INTO t (col) SELECT col FROM t2 WHERE stddev(x) > 5` is rejected with the canonical E-QUERY-001 message. This is the seventh gated position (§D.7.1 Position 7, §D.7.6). The source_select WHERE shares the same grammar path (build_insert_parser → build_sql_parser → build_sql_predicate_parser → build_predicate_parser → fn_call_comparison), so post-branch it also accepts fn-call LHS; without the gate extension the query parsed silently to DmlNode{source_select: Some(SqlQuery{where_: Some(...aggregate...)}), filter: None} and produced Ok(vec[]).
 
 **v1.2 restatement of enforcement mechanism:** The prior v1.1 text stated that WHERE
 aggregate rejection was enforced by a parser-level `AGGREGATE_FUNC_NAMES` list in the
@@ -414,10 +419,10 @@ removed parser-level enforcement.
 
 The `DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate in `check_enrich_udf_availability` fires
 E-QUERY-001 for any `ScalarFunc::Unknown(name)` appearing as a predicate-comparison LHS
-when `name` ∈ `DATAFUSION_BUILTIN_AGGREGATE_NAMES`. Gate applies to ALL six predicate
+when `name` ∈ `DATAFUSION_BUILTIN_AGGREGATE_NAMES`. Gate applies to ALL seven predicate
 positions that feed into `predicate_fncall_names`:
 
-| Position | Collection method | Pre-v1.2 coverage | Post-v1.6 coverage |
+| Position | Collection method | Pre-v1.2 coverage | Post-v1.13 coverage |
 |---|---|---|---|
 | Pipe `| where` | `collect_unknown_scalar_from_predicate` on `PipeStage::Where` | YES | YES |
 | Filter root | `collect_unknown_scalar_from_predicate` on `Ast::Filter` | YES | YES |
@@ -425,6 +430,7 @@ positions that feed into `predicate_fncall_names`:
 | SQL WHERE | `collect_unknown_scalar_from_predicate` on `sq.where_` in `Ast::Sql` arm | NO (was in sql_unknown_names; DFBIAFN filter bypassed gate) | YES (v1.2) |
 | SqlPipe-head WHERE | `collect_unknown_scalar_from_predicate` on `spq.head.where_` in `Ast::SqlPipe` arm | NO (was in sql_unknown_names via collect_unknown_scalars_from_sql_query) | YES (v1.2) |
 | SQL DML WHERE | `collect_unknown_scalar_from_predicate` on `dml.filter` in `Ast::Sql(SqlStatement::Dml(dml))` arm | NO (fell to `_ => {}`; pre-branch: parser E-QUERY-001) | YES (v1.6, OD-6) |
+| INSERT source_select WHERE | `collect_unknown_scalar_from_predicate` on `dml.source_select.where_` in `Ast::Sql(SqlStatement::Dml(dml))` arm | NO (INSERT has no filter; source_select not walked; silent Ok(vec[])) | YES (v1.13, OD-7) |
 
 **HAVING is explicitly exempt.** HAVING predicates are not walked into
 `predicate_fncall_names`. They reach `sql_unknown_names` via
@@ -630,8 +636,11 @@ Rationale for Option A over Option B (explicit out-of-scope deferral with story 
   currently working DML query.
 - Silent EMPTY SUCCESS is strictly worse than the prior parse-time E-QUERY-001.
 - The arm shape is 4 lines — same pattern as the SELECT arm without the
-  `collect_unknown_scalars_from_sql_query` call (DML has no SELECT projection, GROUP BY,
-  ORDER BY, or HAVING positions to walk).
+  `collect_unknown_scalars_from_sql_query` call. DELETE and UPDATE have no SELECT projection,
+  GROUP BY, ORDER BY, or HAVING positions to walk. **(v1.13 correction: this statement applies
+  to DELETE and UPDATE only; INSERT INTO carries a `source_select: Option<SqlQuery>` whose
+  WHERE must also be walked — see §D.7.6 and OD-7. The v1.6 §D.7.5 text was accurate for
+  DELETE/UPDATE but overly broad as written; it did not account for the INSERT variant.)**
 
 **Implementation scope for implementer:**
 
@@ -671,6 +680,94 @@ E-QUERY-039 — when no registry is configured `check_enrich_udf_availability` r
 `Ok(())` early (line 1966), and the DML no-op produces `Ok(vec![])`. This matches the
 behavior of unknown UDFs in SELECT WHERE with no registry (consistent).
 
+#### D.7.6 — INSERT source_select WHERE Gate Extension (v1.13 — F-PQLFN-P32-OBS-001)
+
+**Finding root cause:** `build_insert_parser` in `sql_parser.rs` calls `build_sql_parser()`
+to produce `DmlNode.source_select: Option<SqlQuery>`. `build_sql_parser()` calls
+`build_sql_predicate_parser()` for its WHERE clause, which uses `build_predicate_parser()`
+as its base branch. The DEFECT-PQL-FNCALL-LHS-001 branch added `fn_call_comparison` to
+`build_predicate_parser`, which propagates through this chain and makes INSERT source_select
+WHERE accept fn-call LHS. Pre-branch, `INSERT INTO t (col) SELECT col FROM t2 WHERE stddev(x) > 5`
+produced E-QUERY-001 at parse time (fn-call LHS not in grammar). Post-branch, the query parses
+successfully as `DmlNode{source_select: Some(SqlQuery{where_: Some(Predicate::Compare{lhs:
+Expr::FuncCall(FuncCall::Scalar(Unknown("stddev"))), ...}), ...}), filter: None}` — but
+`check_enrich_udf_availability` gate arm for `Ast::Sql(SqlStatement::Dml(dml))` walked only
+`dml.filter`, which is `None` for INSERT. The gate walked nothing and returned Ok(()), producing
+SILENT EMPTY SUCCESS (DML execution no-ops to `Ok(vec[])`). Same regression pattern as OD-6.
+
+Cross-check: `check_temporal_literals` (materialization.rs ~3893-3896) ALREADY walks
+`dml.source_select.where_` for temporal literals; `check_internal_table_capabilities`
+(materialization.rs ~2210) ALREADY walks `source_select` via `walk_sql_query`. The
+aggregate gate is the only gate that was missing source_select coverage.
+
+**Adjudication: Option A — extend the gate.** Same rationale as OD-6. New positions:
+
+**source_select WHERE (Position 7):** GATED. Walk `dml.source_select.where_` via
+`collect_unknown_scalar_offsets_from_predicate`. Aggregate fn-calls in INSERT source_select
+WHERE are semantically identical to aggregate fn-calls in SELECT WHERE — the source SELECT
+is evaluated before aggregation; aggregate functions in that WHERE are undefined behavior.
+
+**source_select HAVING:** EXEMPT. Same §D.7.1 HAVING exemption as regular HAVING. A query
+`INSERT INTO t SELECT x, count(*) FROM t2 GROUP BY x HAVING count(*) > 5` — the HAVING
+aggregate is post-aggregation and legitimate; no E-QUERY-001 should fire. Do NOT walk
+`dml.source_select.having` into `predicate_fncall_names`.
+
+**source_select GROUP BY / ORDER BY:** NOT in scope for the aggregate-in-predicate gate.
+`check_temporal_literals` (ADR-052 §D4 v1.11 arm at materialization.rs ~3909) already
+walks source_select GROUP BY / ORDER BY for temporal literals. Aggregate functions in
+GROUP BY / ORDER BY are not gated here (per §D.7.1 scope statement).
+
+**source_select SELECT projection / JOIN ON:** Not in scope (§D.7.1 explicit exclusions).
+
+**Implementation scope for implementer:**
+
+Extend the `Ast::Sql(SqlStatement::Dml(dml))` arm in `check_enrich_udf_availability`
+(engine.rs) to add source_select WHERE walk immediately after the existing `dml.filter` walk:
+
+```rust
+Ast::Sql(SqlStatement::Dml(dml)) => {
+    // (D.7.1 position 6) DELETE/UPDATE WHERE → predicate_fncall_names.
+    if let Some(pred) = &dml.filter {
+        collect_unknown_scalar_offsets_from_predicate(pred, &mut predicate_fncall_names);
+    }
+    // (D.7.1 position 7) INSERT source_select WHERE → predicate_fncall_names.
+    // build_insert_parser → build_sql_parser → build_sql_predicate_parser →
+    // build_predicate_parser includes fn_call_comparison; without this walk,
+    // INSERT INTO t SELECT ... WHERE stddev(x) > 5 parses (filter=None,
+    // source_select.where_=Some(...)) but the gate sees filter=None and silently
+    // passes. (ADR-048 §D.7.6, OD-7)
+    if let Some(src) = &dml.source_select {
+        if let Some(pred) = &src.where_ {
+            collect_unknown_scalar_offsets_from_predicate(pred, &mut predicate_fncall_names);
+        }
+        // src.having is intentionally exempt — HAVING may legitimately contain
+        // aggregate functions (§D.7.1 HAVING exemption; §D.7.3). INSERT source_select
+        // HAVING follows the same rule as regular SQL HAVING.
+    }
+}
+```
+
+E-QUERY-039 coverage for source_select WHERE fn-call names is provided by the existing
+`sql_unknown_names.extend(predicate_fncall_names.iter().map(...))` fold — no separate
+`collect_unknown_scalars_from_sql_query` call needed for the WHERE position.
+
+**Required tests** (named after F-PQLFN-P32-OBS-001; add to engine.rs test module):
+
+| Test name | Query | Expected |
+|---|---|---|
+| `test_f_pqlfn_p32_obs_001_insert_source_select_where_aggregate_fires_e_query_001` | `INSERT INTO t (col) SELECT col FROM t2 WHERE stddev(x) > 5` | E-QUERY-001 (aggregate gate, no registry needed); error detail contains "stddev" and "aggregate" |
+| `test_f_pqlfn_p32_obs_001_insert_source_select_where_avg_fires_e_query_001` | `INSERT INTO t (col) SELECT col FROM t2 WHERE avg(score) > 100` | E-QUERY-001 (aggregate gate, no registry needed) |
+| `test_f_pqlfn_p32_obs_001_insert_source_select_having_aggregate_does_not_fire_e_query_001` | `INSERT INTO t (col) SELECT x, count(*) AS c FROM t2 GROUP BY x HAVING count(*) > 5` | NOT E-QUERY-001 (HAVING exempt per §D.7.1/§D.7.3) |
+
+**Offset truthfulness:** The offset reported in E-QUERY-001 for INSERT source_select WHERE
+will accurately point to the aggregate fn name within the source query string. `fn_call_comparison`
+in `build_predicate_parser` captures the Chumsky span; `collect_unknown_scalar_offsets_from_predicate`
+uses span.start as the offset. For `INSERT INTO t (col) SELECT col FROM t2 WHERE stddev(x) > 5`,
+the offset will point to `stddev` in the full query string. Tests should assert `offset > 0`
+and verify the detail string contains the aggregate name; exact offset values may be computed
+from the byte position of the fn-call name in the test query string but are not required to
+be hard-coded (fragile to query reformatting).
+
 ## Consequences
 
 ### Positive
@@ -694,8 +791,8 @@ behavior of unknown UDFs in SELECT WHERE with no registry (consistent).
   `Predicate::Compare` with `Expr::FuncCall` LHS — `fn_call_comparison` in
   `build_predicate_parser` accepts any function call in predicate position, so the FuncCall
   arm in `collect_predicate_columns` is exercised for WHERE positions as well as HAVING
-  (cross-ref §D.3 v1.3 amendment — F-PQLFN-P3-LOW-001; §D.7.1 Positions 4 SQL WHERE and 6
-  SQL DML WHERE). The arm is WHERE-safe not because grammar impossibility prevents FuncCall
+  (cross-ref §D.3 v1.3 amendment — F-PQLFN-P3-LOW-001; §D.7.1 Positions 4 SQL WHERE, 6
+  SQL DML WHERE, and 7 INSERT source_select WHERE). The arm is WHERE-safe not because grammar impossibility prevents FuncCall
   LHS in WHERE predicates (it does not), but because `extract_field_paths_from_expr` recurses
   correctly into FuncCall args regardless of function identity — column extraction operates on
   the args, not the function name. No false E-QUERY-038 fires result for WHERE positions. This
@@ -745,7 +842,7 @@ and avoids conditional branching inside the parser combinator.
 - `sql_parser.rs` `build_agg_call_parser` — handles COUNT/DISTINCT_COUNT/SUM/AVG/MIN/MAX; PERCENTILE excluded (OD-2)
 - `engine.rs` `collect_predicate_columns` — gains FuncCall arm in Compare branch (D.3)
 - `engine.rs` `extract_field_paths_from_expr` — unchanged
-- `engine.rs` `check_enrich_udf_availability` — `predicate_fncall_names` vec now populated from SQL WHERE (`sq.where_`) in `Ast::Sql` arm and SqlPipe-head WHERE (`spq.head.where_`) in `Ast::SqlPipe` arm (v1.2 D.7.1 NEW); DML WHERE (`dml.filter`) in `Ast::Sql(SqlStatement::Dml(dml))` arm (v1.6 D.7.5 NEW, OD-6)
+- `engine.rs` `check_enrich_udf_availability` — `predicate_fncall_names` vec now populated from SQL WHERE (`sq.where_`) in `Ast::Sql` arm and SqlPipe-head WHERE (`spq.head.where_`) in `Ast::SqlPipe` arm (v1.2 D.7.1 NEW); DML WHERE (`dml.filter`) in `Ast::Sql(SqlStatement::Dml(dml))` arm (v1.6 D.7.5 NEW, OD-6); INSERT source_select WHERE (`dml.source_select.where_`) in same `Ast::Sql(SqlStatement::Dml(dml))` arm (v1.13 D.7.6 NEW, OD-7)
 - `engine.rs` `DATAFUSION_BUILTIN_AGGREGATE_NAMES` — sole aggregate gate; gated against `predicate_fncall_names`; HAVING names exempt
 - `engine.rs` `collect_unknown_scalars_from_sql_query` — unchanged (still walks WHERE via position (b) into `sql_unknown_names`; harmless duplicate for WHERE names that survive the aggregate gate; NOT called for DML — DML has no projection/GROUP BY/HAVING positions)
 - `sql_parser.rs` `build_delete_parser` / `build_update_parser` — both bind `build_predicate_parser()` for WHERE clause; post-DEFECT-PQL-FNCALL-LHS-001 branch, fn_call_comparison is in `build_predicate_parser`, so DML WHERE accepts fn-call LHS; D.7.5 gate extension ensures aggregate names are caught plan-time
@@ -755,6 +852,7 @@ and avoids conditional branching inside the parser combinator.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.13 | adr-048-v1.13-DEFECT-PQL-FNCALL-LHS-001-pass32-insert-source-select-where | 2026-07-14 | architect | F-PQLFN-P32-OBS-001 (DEFECT-PQL-FNCALL-LHS-001 pass 32). INSERT source_select WHERE added as seventh gated position. Root cause: build_insert_parser → build_sql_parser → build_sql_predicate_parser → build_predicate_parser path now includes fn_call_comparison; INSERT source_select WHERE accepted fn-call LHS post-branch; Dml arm walked only dml.filter (None for INSERT) → gate saw nothing → SILENT EMPTY SUCCESS for `INSERT INTO t SELECT ... WHERE stddev(x) > 5`. Option A ruling: same rationale as OD-6 (branch regression, check_temporal_literals and check_internal_table_capabilities already walk source_select, DML no-ops so zero risk). §D.7.1 table extended: Position 7 INSERT source_select WHERE (YES v1.13). §D.7.5 "DML has no SELECT/GROUP BY/ORDER BY/HAVING positions" claim corrected in-line: accurate for DELETE/UPDATE but not INSERT (INSERT carries source_select with its own WHERE). §D.7.6 new: arm extension, position gating rationale (WHERE gated, HAVING exempt per D.7.3, GROUP BY/ORDER BY not in scope). §D.6 enumeration updated (seventh gated position). Consequences §Negative/Risks §D.7.1 cross-ref updated (Positions 4/6/7). Related Architecture Nodes check_enrich_udf_availability entry updated. OD-7 locked. POL-23: BC-2.11.004 micro-amend required — "ALL five Predicate-typed query positions" → "ALL six" (add INSERT source_select WHERE); "all six predicate positions" (aggregate gate note) → "all seven"; ADR-048 v1.12 version pins → v1.13; "six callers" count UNCHANGED (build_sql_predicate_parser already counted); route to product-owner for BC-2.11.004 v1.44→v1.45. |
 | 1.12 | adr-048-v1.12-DEFECT-PQL-FNCALL-LHS-001-pass27-obs-adjudication | 2026-07-14 | architect | F-PQLFN-P27-OBS-001 + F-PQLFN-P27-OBS-002 (DEFECT-PQL-FNCALL-LHS-001 pass 27). (OBS-001) §D.7.2 two-form convention documented: Form A (plan-time gate, clean — one E-QUERY-001, one offset) vs Form B (Chumsky `.validate()`/`.try_map()` path — E-QUERY-001 and offset doubled through Rich::custom→ParseError::Display→QueryParseFailed chain). Ratified as accepted Chumsky-path pattern per error-taxonomy v2.49 form-(b). NOT normalized: `"E-QUERY-001: "` prefix in `.validate()` messages is the F-MEDIUM-001 guard discriminant; blast radius disproportionate for OBS; semantic content unambiguous. No code changes. (OBS-002) §D.7.2 F-MEDIUM-001 guard documented as intentionally BROAD — `starts_with("E-QUERY-001:")` covers LOW-006 keyword gate + PERCENTILE out-of-range gate + any future `.validate()`/`.try_map()` semantic errors; percentile behavior (`HAVING percentile(x,150) > 5 AND y IN (malformed` → `Err(both)` not `Ok(partial)`) is INTENDED; narrowing to keyword-only would silently swallow other semantic validation errors. No code changes. Implementer micro-task: update guard comment at sql_parser.rs ~243-251 to reflect broad scope. POL-23: 9 live v1.11 pins in BC-2.11.004 must advance to v1.12 (route to product-owner for BC-2.11.004 v1.43); S-PRISMQL-CASE-INSENSITIVE-001 4-site BC pin cascade follows. [process-gap]: guard scope was undocumented prior to this version. |
 | 1.11 | adr-048-v1.11-DEFECT-PQL-FNCALL-LHS-001-pass14-rationale-correction | 2026-07-13 | architect | F-PQLFN-P14-LOW-001 (DEFECT-PQL-FNCALL-LHS-001 pass 14). §D.7.2 fn_call_comparison identifier-start rationale corrected. v1.9 claimed "identifier-grammar parity with `field_path`, which already enforces an identifier-start character" — FALSE: `field_path` uses `ident_char = filter(is_ascii_alphanumeric || '_')` with no start constraint; digit-leading segments (e.g., `123abc`) parse fine via backtrack to `field_comparison`. fn_call_comparison is intentionally STRICTER than field_path, not parity with it. Corrected rationale: programming-language identifier convention (first char alphabetic or `_`); intentionally STRICTER than field_path (no start constraint — digit-leading segments parse via backtrack); avoids mis-parsing numeric-literal-leading tokens; earlier, clearer failure. POL-29 grep: v1.9 Status + Changelog rows cite old rationale historically (legitimate — historical records); Related Architecture Nodes fn_call_comparison entry contains no parity phrasing; no cross-artifact siblings in .factory/specs/ (BC-INDEX/BC-2.11.016 hits are unrelated HAVING/Stats parity). [process-gap]: second false-premise correction in cascade (companion to v1.4 percentile empirical-claim correction); rationale claims about other grammar productions must be source-verified before authoring. No locked-decision changes; no new ODs. |
 | 1.10 | adr-048-v1.10-DEFECT-PQL-FNCALL-LHS-001-pass12-sibling-fix | 2026-07-13 | architect | F-PQLFN-P12-MED-001 (DEFECT-PQL-FNCALL-LHS-001 pass 12). Partial-fix-regression closure: §Consequences §Negative/Risks third bullet corrected. v1.9 still claimed "WHERE grammar cannot produce FuncCall LHS" (grammar impossibility), directly contradicting §D.3 v1.3 amendment (F-PQLFN-P3-LOW-001) which established that post-D.7.2 WHERE grammar DOES produce `Predicate::Compare` with `Expr::FuncCall` LHS via fn_call_comparison. Pass-3 v1.3 corrected §D.3 but missed this sibling site in §Consequences. Bullet rewritten: FuncCall arm IS exercised in WHERE contexts (§D.7.1 Positions 4/6); WHERE-safety derives from `extract_field_paths_from_expr` arg-recursion (not grammar impossibility); CONCLUSION ("empirically safe") remains valid. POL-29 grep: sole live-normative impossibility site was §Consequences (corrected); §D.3 line 326 historical quotation and line 333 normative negation are legitimate. No cross-artifact siblings found in .factory/specs/. No locked-decision changes; no new ODs. |
