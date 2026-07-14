@@ -7297,3 +7297,78 @@ async fn test_pqlfn_p22_med001_aggregate_offset_sqlpipe_where_second_stage() {
         ),
     }
 }
+
+// ── F-PQLFN-P23-LOW-001: BC-2.11.004 v1.41 LOW-002 LIKE fn-call-LHS lock ────────
+//
+// BC-2.11.004 v1.41 §Canonical Test Vectors (~line 141) documents:
+//   `FROM crowdstrike_detections | where lower(host) LIKE '%server%'`
+//   → Err(E-QUERY-001) [scope-limit LOW-002]
+//
+// `like_match` production in `build_predicate_parser` wires `field_path` on the LHS;
+// `fn_call_comparison` is the SOLE production admitting fn-call LHS (compare_op set:
+// =, !=, <, >, <=, >=). LIKE is not in compare_op → fn_call_comparison fails to match
+// → parser backtracks to field_comparison → `lower` parsed as field_path, `(` is not
+// a compare_op → field_comparison rejects → like_match tries `field_path LIKE ...`
+// → `lower(device_id)` is not a valid field_path token sequence → like_match rejects
+// → all alternatives exhausted → QueryParseFailed (E-QUERY-001, generic parse failure;
+// no scope-limit citation in the message text per BC-2.11.004 v1.41 LOW-002).
+//
+// The test uses `device_id` (a schema column in the test fixture) instead of `host`
+// (the BC canonical example) because the parse-time failure occurs before schema
+// validation — any column name produces the same result. Using `device_id` follows
+// the pattern of sibling tests in this file.
+//
+// LOW-002 coverage decision (F-PQLFN-P23-LOW-001): all 14 non-compose productions
+// share the same enforcement mechanism — grammar omission (only `fn_call_comparison`
+// admits fn-call LHS; all other productions hard-wire `field_path` on the LHS).
+// One production per distinct operator class provides adequate representative coverage.
+// `IEQ` is already tested in `test_BC_2_11_004_low_001_ieq_operator_with_fncall_lhs_rejected`
+// (ieq_compare family). `LIKE` covers the like_match family. Together they span two
+// distinct operator classes. Adding individual tests for all remaining 12 productions
+// (MATCHES/=~, IN CIDR, NOT IN, IIN, IN, BETWEEN, IS NULL, HAS, MISSING,
+// CONTAINS/STARTSWITH/ENDSWITH, CIDR, INE) would add test bulk with zero additional
+// defect-detection value — the failure path is identical (field_path required on LHS
+// in each production). LIKE alone suffices as the canonical representative for
+// non-compare-op operator families (BC vector prescribed, F-PQLFN-P23-LOW-001).
+
+/// LOW-002 LIKE GREEN lock: `like_match` production does not admit fn-call LHS.
+///
+/// Query: `FROM crowdstrike_detections | where lower(device_id) LIKE '%server%'`
+///
+/// `fn_call_comparison` admits fn-call LHS only for the standard compare_op set
+/// (`=`, `!=`, `<`, `>`, `<=`, `>=`). `LIKE` is handled by the separate `like_match`
+/// production which requires `field_path` on the LHS. The parse fails before any
+/// schema or plan-time checks are reached → QueryParseFailed (E-QUERY-001, generic
+/// parse failure; no scope-limit citation in the message per BC-2.11.004 LOW-002).
+///
+/// Traces to: BC-2.11.004 v1.41 §Canonical Test Vectors LOW-002 LIKE vector;
+///            F-PQLFN-P23-LOW-001; ADR-048 §D.7 fn_call_comparison scope limits.
+#[tokio::test]
+async fn test_BC_2_11_004_low_002_like_with_fncall_lhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where lower(device_id) LIKE '%server%'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Diagnostic-first: specific Err variant before broad check (F-PQLFN-P19-OBS-001).
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-002 (LIKE): lower(device_id) LIKE '%server%' must fail to parse \
+         (QueryParseFailed / E-QUERY-001). \
+         like_match production requires field_path on LHS; fn-call LHS is not admitted \
+         (BC-2.11.004 v1.41 LOW-002 canonical LIKE vector, F-PQLFN-P23-LOW-001). \
+         Got: {result:?}"
+    );
+
+    // Must NOT be QueryPlanFailed — parse failure fires before plan-time gates.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-002 (LIKE): must NOT be QueryPlanFailed. \
+         fn-call LHS with LIKE must be rejected at parse time, not at plan time. \
+         Got: {result:?}"
+    );
+}

@@ -937,16 +937,32 @@ fn expr_to_sql(expr: &Expr) -> Result<String, PrismError> {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(format!("{func_name}({})", args_sql.join(", ")))
             }
-            // Aggregate and Window fn-calls are blocked upstream by the
-            // DATAFUSION_BUILTIN_AGGREGATE_NAMES gate (BC-2.11.019) and the grammar
-            // restriction in `build_predicate_parser` (ADR-052 §D4 v1.12 Option A) —
-            // they must never reach `expr_to_sql`. This arm is a defensive guard;
-            // if reached, it indicates a bug in the upstream plan-time gates.
+            // Aggregate fn-calls are blocked upstream by the
+            // DATAFUSION_BUILTIN_AGGREGATE_NAMES gate in `check_enrich_udf_availability`
+            // (BC-2.11.019). Reaching this arm indicates a bug in the upstream gate.
+            FuncCall::Aggregate { .. } => Err(PrismError::QueryExecutionFailed {
+                detail: "Aggregate fn-call in pipe WHERE predicate reached the SQL emitter — \
+                         should have been blocked by the DATAFUSION_BUILTIN_AGGREGATE_NAMES \
+                         plan-time gate (BC-2.11.019). This is an internal error."
+                    .to_string(),
+            }),
+            // Window fn-calls are blocked upstream by the grammar restriction in
+            // `build_predicate_parser` (ADR-052 §D4 v1.12 Option A); the Window
+            // variant stub currently has no args. Reaching this arm indicates a bug.
+            FuncCall::Window { .. } => Err(PrismError::QueryExecutionFailed {
+                detail: "Window fn-call in pipe WHERE predicate reached the SQL emitter — \
+                         window functions are not valid in WHERE predicates; should have been \
+                         blocked by the grammar restriction in build_predicate_parser \
+                         (ADR-052 §D4). This is an internal error."
+                    .to_string(),
+            }),
+            // FuncCall is #[non_exhaustive]; this arm catches any future variant added
+            // after this match was written (F-PQLFN-P23-OBS-003). The message is
+            // variant-agnostic and does not name a specific fn-call kind.
             _ => Err(PrismError::QueryExecutionFailed {
-                detail: "Aggregate/Window fn-call in pipe WHERE predicate reached the SQL \
-                         emitter — should have been blocked by upstream plan-time gates \
-                         (DATAFUSION_BUILTIN_AGGREGATE_NAMES / grammar restriction). \
-                         This is an internal error."
+                detail: "Unhandled fn-call variant in pipe WHERE predicate reached the SQL \
+                         emitter — should have been blocked by upstream plan-time gates. \
+                         This is an internal error (FuncCall is #[non_exhaustive])."
                     .to_string(),
             }),
         },

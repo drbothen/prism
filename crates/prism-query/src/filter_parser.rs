@@ -550,6 +550,11 @@ fn shift_scalar_spans_in_predicate(pred: &mut crate::ast::Predicate, offset: usi
 
 fn shift_scalar_spans_in_expr(expr: &mut crate::ast::Expr, offset: usize) {
     use crate::ast::{Expr, FuncCall, Span};
+    // All Expr variants are enumerated explicitly (no wildcard `_ => {}`) so that
+    // adding a new Expr variant forces a compile error here, preventing a silent
+    // no-op for a variant that may contain nested FuncCall::Scalar spans.
+    // Expr is #[non_exhaustive] but in-crate matches are exhaustively checkable —
+    // no external wildcard is needed (F-PQLFN-P23-OBS-002).
     match expr {
         Expr::FuncCall(FuncCall::Scalar { span, args, .. }) => {
             *span = Span {
@@ -565,6 +570,10 @@ fn shift_scalar_spans_in_expr(expr: &mut crate::ast::Expr, offset: usize) {
                 shift_scalar_spans_in_expr(arg, offset);
             }
         }
+        Expr::FuncCall(FuncCall::Window { .. }) => {
+            // Window stub: no args and no span currently (S-3.06 will add fields).
+            // No FuncCall::Scalar span to shift.
+        }
         Expr::Logical { lhs, rhs, .. } => {
             shift_scalar_spans_in_expr(lhs, offset);
             shift_scalar_spans_in_expr(rhs, offset);
@@ -574,7 +583,26 @@ fn shift_scalar_spans_in_expr(expr: &mut crate::ast::Expr, offset: usize) {
             shift_scalar_spans_in_expr(lhs, offset);
             shift_scalar_spans_in_expr(rhs, offset);
         }
-        _ => {}
+        Expr::TimestampArithmetic { base, .. } => {
+            // Recurse into base to shift any nested FuncCall::Scalar spans.
+            // Currently unreachable in pipe WHERE stage (grammar does not produce
+            // TimestampArithmetic as a sub-expression within fn_call_comparison),
+            // but enumerated explicitly to force a compile error if grammar extends
+            // to nest fn_call_comparison inside a TimestampArithmetic (F-PQLFN-P23-OBS-002).
+            shift_scalar_spans_in_expr(base, offset);
+        }
+        Expr::In { .. } => {
+            // `In` contains field_path (no span) and Vec<Literal> values (no FuncCall).
+            // No FuncCall::Scalar span to shift.
+        }
+        Expr::InSubquery { .. } => {
+            // `InSubquery.subquery` is Box<SqlQuery>, not Expr — span shift is not
+            // applicable to SqlQuery nodes. Currently unreachable in pipe WHERE stage
+            // per grammar (F-PQLFN-P23-OBS-002).
+        }
+        // Leaf nodes with no FuncCall::Scalar span to shift.
+        Expr::Literal(_) | Expr::Field(_) | Expr::VirtualField(_) => {}
+        Expr::Star | Expr::Now | Expr::Interval(_) => {}
     }
 }
 

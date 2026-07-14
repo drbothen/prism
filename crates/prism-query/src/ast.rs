@@ -702,11 +702,26 @@ pub enum FuncCall {
     /// Scalar (UDF) function call from the UDF registry.
     ///
     /// `span` is the byte-offset range of the function *name* token in the original
-    /// query string, populated by the parser (`filter_parser.rs` `fn_call_comparison`
-    /// and `sql_parser.rs`). Direct AST construction (tests, materialization) uses
-    /// `Span::ZERO`. The aggregate-in-predicate gate (E-QUERY-001, ADR-048 §D.7.2)
-    /// uses `span.start` as the reported error offset so analysts see the correct
-    /// source position (F-PQLFN-P21-OBS-003).
+    /// query string.
+    ///
+    /// **Truthful-span paths** (populated by the parser with real byte offsets):
+    /// - `filter_parser.rs` `fn_call_comparison` — all six predicate-typed callers
+    ///   (`build_predicate_parser`: filter mode, pipe `| where`, SqlPipe `| where`,
+    ///   SQL WHERE, SQL HAVING, SQL DML WHERE) set span to the function name token's
+    ///   position in the original query string.
+    ///
+    /// **Span::ZERO paths** (parser does not populate span):
+    /// - `sql_parser.rs` `scalar_call` for SELECT projections, JOIN ON conditions,
+    ///   GROUP BY expressions, and ORDER BY expressions — these callers construct
+    ///   `FuncCall::Scalar` with `span: Span::ZERO` because the aggregate-in-predicate
+    ///   gate (E-QUERY-001, ADR-048 §D.7.2) that uses `span.start` as the reported
+    ///   error offset is only reachable from the predicate path.
+    /// - Direct AST construction (tests, materialization): `Span::ZERO`.
+    ///
+    /// The aggregate-in-predicate gate (E-QUERY-001, ADR-048 §D.7.2) uses `span.start`
+    /// as the reported error offset so analysts see the correct source position
+    /// (F-PQLFN-P21-OBS-003). The gate fires only on the predicate path, where
+    /// truthful spans are always populated.
     Scalar {
         func: ScalarFunc,
         args: Vec<Expr>,
