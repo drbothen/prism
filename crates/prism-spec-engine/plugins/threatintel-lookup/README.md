@@ -98,31 +98,39 @@ Compares `threatintel-lookup.prx.src-tree-hash` against a freshly computed hash 
 tracked files in `crates/plugins/prism-threatintel-infusion/`. A mismatch means source
 changed without rebuilding the `.prx`.
 
-### Check 2 — Commit atomicity (F-MCPRS-PRL1-MED-001)
+### Check 2 — Sidecar ancestry (F-MCPRS-PRL1-MED-001)
 
-Verifies that `.prx` and its sidecar `threatintel-lookup.prx.src-tree-hash` were last
-touched in the **same commit**. A divergence — different last-touching commits — means
-one file was updated without the other. Common causes:
+Enforces the invariant: the sidecar's last-touching commit must be an
+**ancestor-of-or-equal-to** the `.prx`'s last-touching commit. In plain terms, every
+sidecar introduction or update must be followed by (or included in) a `.prx` rebuild.
 
-- `.prx` rebuilt for toolchain drift without recommitting the sidecar alongside it.
-- Sidecar updated (e.g., introduced as a new file) without committing the `.prx` in the
-  same transaction.
+**Passes** when: `.prx` was rebuilt after (or at the same time as) the sidecar was last
+updated. This includes rebuild-only commits that touch only the `.prx` binary (because
+source was unchanged, the sidecar content stays the same and its last-touching commit
+remains older — which is the intended state).
 
-**Fix for either check:** Run `just build-plugin-threatintel-infusion` and commit all
-three output files together: `.prx`, `.manifest.toml`, and `.prx.src-tree-hash`.
+**Fails** when: the sidecar's last commit is newer than the `.prx`'s last commit — i.e.,
+the sidecar was updated or introduced more recently than the last `.prx` rebuild. This
+indicates the binary may be stale relative to what the sidecar records.
+
+**Fix:** Run `just build-plugin-threatintel-infusion` and commit the updated `.prx`. The
+sidecar content is unchanged when source is unchanged; only the `.prx` binary needs to
+be staged.
 
 ```bash
 just build-plugin-threatintel-infusion
 git add crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
-git add crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
-git add crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx.src-tree-hash
-git commit -m "chore: rebuild threatintel-lookup plugin artifacts"
+git commit -m "chore: rebuild threatintel-lookup.prx to restore sidecar ancestry (F-MCPRS-PRL1-MED-001)"
 ```
+
+If the rebuild produces no byte change (identical toolchain + unchanged source on the
+same platform), the only repair is a history rewrite to reorder the sidecar introduction
+commit prior to the last `.prx` rebuild. This requires human-directed force-push approval.
 
 ### Residual Risk
 
-The commit-atomicity gate does not detect intentional byte manipulation of the `.prx`
-by an actor who also updates the sidecar in the same commit. That attack vector belongs
+The ancestry gate does not detect intentional byte manipulation of the `.prx` by an actor
+who also updates the sidecar in the same or an earlier commit. That attack vector belongs
 to SLSA provenance controls and code review, not this CI gate. It is acknowledged and
 out of scope here.
 
@@ -131,7 +139,7 @@ out of scope here.
 The committed `.prx` binary may differ in bytes between macOS aarch64 and Linux x86_64
 builds from the same source. This is expected: LLVM-backed WASM codegen is not
 byte-reproducible across CPU architectures. Neither staleness check relies on
-byte-equality; the source-hash check uses source-content hashing, and the atomicity
+byte-equality; the source-hash check uses source-content hashing, and the ancestry
 check uses git commit identity. The binary is validated structurally via
 `wasm-tools validate --features=component-model` on the committed artifact.
 
