@@ -3992,16 +3992,10 @@ async fn test_BC_2_11_004_ec11_004_006_pipe_fncall_lhs_non_date_like_rhs_succeed
     // BC-2.11.004 EC-11-004-006 spec-promised outcome: fn-call LHS in pipe | where with
     // non-date-like RHS must reach DataFusion execution (Ok with 0 rows or sensor error).
     // RED: Err(QueryExecutionFailed { "Complex expression..." }) — emitter FuncCall arm missing.
-    assert!(
-        result.is_ok(),
-        "EC-11-004-006: `lower(device_id) = 'active'` in pipe | where must return Ok \
-         (DataFusion execution, non-date-like RHS passes all plan gates). \
-         RED: pipe_sql_emitter::expr_to_sql catch-all fires — Expr::FuncCall arm missing. \
-         Got: {result:?}"
-    );
-
-    // Diagnostic lock: confirms the exact failing arm when is_ok() above fires.
-    // The catch-all in pipe_sql_emitter::expr_to_sql emits this exact detail string.
+    //
+    // Diagnostic-first ordering (F-PQLFN-P19-OBS-001): the specific FuncCall catch-all check
+    // runs first so its message fires when the exact failing arm triggers; the general is_ok()
+    // below catches any other Err variant.
     assert!(
         !matches!(
             &result,
@@ -4009,9 +4003,17 @@ async fn test_BC_2_11_004_ec11_004_006_pipe_fncall_lhs_non_date_like_rhs_succeed
             if detail.contains("Complex expression")
         ),
         "EC-11-004-006: must NOT be Err(QueryExecutionFailed {{ 'Complex expression...' }}). \
-         This error comes from the catch-all in pipe_sql_emitter::expr_to_sql. \
-         Fix: add Expr::FuncCall arm to lower fn-call to SQL (e.g. `lower(device_id)`). \
-         Got: {result:?}"
+         The catch-all in pipe_sql_emitter::expr_to_sql emits this exact detail string. \
+         Fix: add Expr::FuncCall arm to expr_to_sql (e.g. `lower(device_id)` → fn-call SQL). \
+         EC-11-004-006 / F-PQLFN-P18-MED-001 / F-PQLFN-P19-OBS-001. Got: {result:?}"
+    );
+    assert!(
+        result.is_ok(),
+        "EC-11-004-006: `lower(device_id) = 'active'` in pipe | where must return Ok \
+         (DataFusion execution, non-date-like RHS passes all plan gates). \
+         Fires only when the Err is not QueryExecutionFailed{{Complex expression}} \
+         (that case is diagnosed above). \
+         EC-11-004-006 / F-PQLFN-P18-MED-001 / F-PQLFN-P19-OBS-001. Got: {result:?}"
     );
 }
 
@@ -4053,15 +4055,10 @@ async fn test_BC_2_11_004_ec11_004_006_sqlpipe_fncall_lhs_non_date_like_rhs_succ
 
     // BC-2.11.004 EC-11-004-006 spec-promised outcome (SqlPipe mode): must reach DataFusion.
     // RED: Err(QueryExecutionFailed { "Complex expression..." }) — emitter FuncCall arm missing.
-    assert!(
-        result.is_ok(),
-        "EC-11-004-006 (SqlPipe): `lower(device_id) = 'active'` in SqlPipe | where must \
-         return Ok (DataFusion execution). \
-         RED: pipe_sql_emitter::expr_to_sql catch-all fires — Expr::FuncCall arm missing. \
-         Got: {result:?}"
-    );
-
-    // Diagnostic lock: confirms the exact failing arm when is_ok() above fires.
+    //
+    // Diagnostic-first ordering (F-PQLFN-P19-OBS-001): the specific FuncCall catch-all check
+    // runs first so its message fires when the exact failing arm triggers; the general is_ok()
+    // below catches any other Err variant.
     assert!(
         !matches!(
             &result,
@@ -4069,9 +4066,17 @@ async fn test_BC_2_11_004_ec11_004_006_sqlpipe_fncall_lhs_non_date_like_rhs_succ
             if detail.contains("Complex expression")
         ),
         "EC-11-004-006 (SqlPipe): must NOT be Err(QueryExecutionFailed {{ 'Complex expression...' }}). \
-         This error comes from the catch-all in pipe_sql_emitter::expr_to_sql. \
-         Fix: add Expr::FuncCall arm to lower fn-call to SQL. \
-         Got: {result:?}"
+         The catch-all in pipe_sql_emitter::expr_to_sql emits this exact detail string. \
+         Fix: add Expr::FuncCall arm to expr_to_sql. \
+         EC-11-004-006 / F-PQLFN-P18-MED-001 / F-PQLFN-P19-OBS-001. Got: {result:?}"
+    );
+    assert!(
+        result.is_ok(),
+        "EC-11-004-006 (SqlPipe): `lower(device_id) = 'active'` in SqlPipe | where must \
+         return Ok (DataFusion execution). \
+         Fires only when the Err is not QueryExecutionFailed{{Complex expression}} \
+         (that case is diagnosed above). \
+         EC-11-004-006 / F-PQLFN-P18-MED-001 / F-PQLFN-P19-OBS-001. Got: {result:?}"
     );
 }
 
@@ -4448,16 +4453,10 @@ async fn test_BC_2_11_003_ec11_003_007_filter_fncall_lhs_non_date_rhs_not_reject
     // BC-2.11.003 EC-11-003-007 spec-promised outcome: filter fn-call LHS with
     // non-date-like RHS must reach DataFusion (Ok).
     // RED: Err(QueryExecutionFailed { "filter SQL lowering failed: ... Complex expression ..." }).
-    assert!(
-        result.is_ok(),
-        "EC-11-003-007: filter-mode `lower(device_id) = 'active'` must return Ok \
-         (DataFusion execution). \
-         RED: pipe_sql_emitter::expr_to_sql catch-all fires — Expr::FuncCall arm missing. \
-         Got: {result:?}"
-    );
-
-    // Diagnostic lock: confirms the exact failing arm when is_ok() above fires.
-    // The catch-all detail propagates through the filter SQL lowering wrapper.
+    //
+    // Diagnostic-first ordering (F-PQLFN-P19-OBS-001): the specific FuncCall catch-all check
+    // runs first so its message fires when the exact failing arm triggers; the general is_ok()
+    // below catches any other Err variant.
     assert!(
         !matches!(
             &result,
@@ -4467,7 +4466,15 @@ async fn test_BC_2_11_003_ec11_003_007_filter_fncall_lhs_non_date_rhs_not_reject
         "EC-11-003-007: must NOT be Err(QueryExecutionFailed {{ '...Complex expression...' }}). \
          The catch-all in pipe_sql_emitter::expr_to_sql fires and is wrapped by the \
          filter SQL lowering error. Fix: add Expr::FuncCall arm to expr_to_sql. \
-         Got: {result:?}"
+         EC-11-003-007 / F-PQLFN-P18-MED-001 / F-PQLFN-P19-OBS-001. Got: {result:?}"
+    );
+    assert!(
+        result.is_ok(),
+        "EC-11-003-007: filter-mode `lower(device_id) = 'active'` must return Ok \
+         (DataFusion execution). \
+         Fires only when the Err is not QueryExecutionFailed{{Complex expression}} \
+         (that case is diagnosed above). \
+         EC-11-003-007 / F-PQLFN-P18-MED-001 / F-PQLFN-P19-OBS-001. Got: {result:?}"
     );
 }
 
