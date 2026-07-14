@@ -15349,11 +15349,16 @@ mod datafusion_aggregate_registry_empirical_tests {
 //
 // Five new bilateral boundary locks — one per gated position — mirror the pattern
 // established by the Position 6 / OD-6 (fix-burst 26 POL-29 sibling sweep) and
-// Position 7 / OD-7 (fix-burst 26) locks.  Each test is walk-observable
-// (F-PQLFN-P35-OBS-001): it uses a compound predicate
-// `enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1` to prove
-// (a) the predicate walk actually executes and (b) registry filtering correctly
+// Position 7 / OD-7 (fix-burst 26) locks.  Positions 1-3 are walk-observable
+// (F-PQLFN-P35-OBS-001) for the predicate_fncall_names walk: the compound predicate
+// `enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1` proves
+// (a) the predicate_fncall_names walk executes and (b) registry filtering correctly
 // passes the known UDF while rejecting the unknown UDF.
+// Positions 4-5 are boundary-locked via the sql_unknown_names path instead
+// (collect_unknown_scalars_from_sql_query position (b)); the compound predicate tests
+// are NOT walk-observable for the predicate_fncall_names walk at those positions.
+// True walk locks: TM-06/TM-07 (Position 4) and TM-10 (Position 5) in
+// temporal_typing_tests.rs (F-PQLFN-P37-MED-001).
 //
 // Tests call `check_enrich_udf_availability` directly (private fn, same file) to
 // keep the fixture minimal — no registered table needed; the enrichment gate fires
@@ -15615,9 +15620,10 @@ mod sqlpipe_where_third_gated_position_enrich_udf_tests {
 /// `SELECT ip_address FROM t WHERE enrich_lookup(ip_address) = 'US'` with
 /// `enrich_lookup` registered MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
 ///
-/// Walk-observable (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
-/// fires E-QUERY-039 for the unknown UDF only, proving the Ast::Sql(Select) WHERE walk
-/// executes and registry filtering passes the known UDF.
+/// Boundary-locked (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
+/// fires E-QUERY-039 for the unknown UDF only, via the sql_unknown_names path
+/// (collect_unknown_scalars_from_sql_query position (b)) — NOT the predicate_fncall_names
+/// walk, which serves the aggregate gate only (true walk locks: TM-06/TM-07).
 ///
 /// Bilateral boundary for Position 4 (added by OD-5):
 ///   - known UDF in SQL WHERE → gate passes (Ok(()))
@@ -15651,9 +15657,18 @@ mod sql_where_fourth_gated_position_enrich_udf_tests {
             .load_spec(spec)
             .expect("geo_lookup spec must load for F-PQLFN-P35-MED-002 position-4 fixture");
 
-        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known + unknown UDF).
-        // Regression class (a) — walk removal: if sq.where_ walk removed from
-        //   Ast::Sql(Select) arm, predicate_fncall_names stays empty → false Ok.
+        // F-PQLFN-P35-OBS-001 boundary lock: compound predicate (known + unknown UDF).
+        // This test locks known-UDF-passes + unknown-UDF-fires boundaries at Position 4 via
+        // the sql_unknown_names path (collect_unknown_scalars_from_sql_query position (b)).
+        // NOT walk-observable for the Position-4 predicate_fncall_names walk — removing that
+        // walk leaves sql_unknown_names populated and this test still passes (totally_unknown_udf
+        // reaches E-QUERY-039 via sql_unknown_names regardless). The predicate_fncall_names
+        // walk at Position 4 serves the aggregate gate exclusively (ADR-048 §D.7.1, OD-5):
+        // DataFusion built-in aggregate names are filtered from sql_unknown_names by
+        // DATAFUSION_BUILTIN_FUNCTION_NAMES before E-QUERY-039, so only predicate_fncall_names
+        // catches them for E-QUERY-001. True walk locks (F-PQLFN-P37-MED-001):
+        //   test_BC_2_11_019_tm_06_sql_where_count_e_query_001_high001 (TM-06)
+        //   test_BC_2_11_019_tm_07_sql_where_sum_e_query_001_high001 (TM-07)
         // Regression class (b) — registry filtering: if registry check removed, enrich_lookup
         //   would also fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
         let compound_result = check_enrich_udf_availability(
@@ -15698,9 +15713,10 @@ mod sql_where_fourth_gated_position_enrich_udf_tests {
 /// `SELECT ip_address FROM t WHERE enrich_lookup(ip_address) = 'US' | limit 5` with
 /// `enrich_lookup` registered MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
 ///
-/// Walk-observable (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
-/// fires E-QUERY-039 for the unknown UDF only, proving the SqlPipe-head WHERE walk
-/// (`spq.head.where_`) executes and registry filtering passes the known UDF.
+/// Boundary-locked (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
+/// fires E-QUERY-039 for the unknown UDF only, via the sql_unknown_names path
+/// (collect_unknown_scalars_from_sql_query position (b) on spq.head) — NOT the
+/// predicate_fncall_names walk, which serves the aggregate gate only (true walk lock: TM-10).
 ///
 /// Bilateral boundary for Position 5 (added by OD-5):
 ///   - known UDF in SqlPipe-head WHERE → gate passes (Ok(()))
@@ -15734,10 +15750,17 @@ mod sqlpipe_head_where_fifth_gated_position_enrich_udf_tests {
             .load_spec(spec)
             .expect("geo_lookup spec must load for F-PQLFN-P35-MED-002 position-5 fixture");
 
-        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known + unknown UDF).
-        // Regression class (a) — walk removal: if spq.head.where_ walk removed from
-        //   Ast::SqlPipe arm, predicate_fncall_names stays empty → totally_unknown_udf
-        //   undetected → false Ok.
+        // F-PQLFN-P35-OBS-001 boundary lock: compound predicate (known + unknown UDF).
+        // This test locks known-UDF-passes + unknown-UDF-fires boundaries at Position 5 via
+        // the sql_unknown_names path (collect_unknown_scalars_from_sql_query position (b),
+        // called on spq.head). NOT walk-observable for the Position-5 predicate_fncall_names
+        // walk — removing that walk leaves sql_unknown_names populated and this test still
+        // passes (totally_unknown_udf reaches E-QUERY-039 via sql_unknown_names regardless).
+        // The predicate_fncall_names walk at Position 5 serves the aggregate gate exclusively
+        // (ADR-048 §D.7.1, OD-5): DataFusion built-in aggregate names are filtered from
+        // sql_unknown_names by DATAFUSION_BUILTIN_FUNCTION_NAMES before E-QUERY-039, so only
+        // predicate_fncall_names catches them for E-QUERY-001. True walk lock (F-PQLFN-P37-MED-001):
+        //   test_BC_2_11_019_tm_10_sqlpipe_head_where_aggregate_e_query_001_high001 (TM-10)
         // Regression class (b) — registry filtering: if registry check removed, enrich_lookup
         //   would also fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
         // Query: SqlPipe mode — SELECT head with WHERE, followed by | limit stage.
@@ -16345,10 +16368,14 @@ mod insert_source_select_where_seventh_gated_position_tests {
     /// (filter root), Position 3 (SqlPipe | where), Position 4 (SQL WHERE, added by OD-5),
     /// Position 5 (SqlPipe-head WHERE, added by OD-5), Position 6 / OD-6 (DML WHERE,
     /// F-PQLFN-P34-OBS-001 POL-29), Position 7 / OD-7 (INSERT source_select WHERE).
-    /// Each lock is walk-observable (F-PQLFN-P35-OBS-001): compound predicate
-    /// `enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1` fires E-QUERY-039
-    /// for `totally_unknown_udf` only — proving the walk reaches the predicate and registry
-    /// filtering passes the known UDF.
+    /// 5/7 locks are walk-observable (F-PQLFN-P35-OBS-001) for the predicate_fncall_names
+    /// walk (Positions 1, 2, 3, 6, 7): compound predicate fires E-QUERY-039 for
+    /// `totally_unknown_udf` only — proving the walk reaches the predicate and registry
+    /// filtering passes the known UDF. Positions 4 and 5 are boundary-locked via the
+    /// sql_unknown_names path (collect_unknown_scalars_from_sql_query position (b)); their
+    /// predicate_fncall_names walk serves the aggregate gate only (ADR-048 §D.7.1, OD-5)
+    /// and is walk-locked by TM-06/TM-07 (Position 4) and TM-10 (Position 5) in
+    /// temporal_typing_tests.rs (F-PQLFN-P37-MED-001).
     ///
     /// Traces to: F-PQLFN-P34-OBS-001; F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001;
     ///            ADR-048 v1.13 §D.7.6; BC-2.11.019; OD-7.
