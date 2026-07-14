@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.13"
+version: "1.14"
 status: active
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -15,7 +15,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: 2026-06-19
-modified: 2026-07-09
+modified: 2026-07-14
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -40,17 +40,17 @@ Four existing E-QUERY error codes are enriched with additional actionable fields
 
 ### E-QUERY-001 (parse error) — additive fields
 
-**Current state:** `"Query parse error at position {pos}: {message}"` — message only.
+**Current state:** `"E-QUERY-001: query parse error at offset {offset}: {detail}"` (emitted by `PrismError::QueryParseFailed` in prism-core/src/error.rs) — message only.
 
 **New postcondition additions:**
 
 The E-QUERY-001 structured error response (BC-2.10.007 format) MUST include:
 
-1. `near_text: String` — the offending token or short substring (≤ 50 characters) near the parse failure position. This is the text that caused the parse error. Sourced from the Chumsky parser's error context at the position `{pos}`. If the parser cannot provide a token (e.g., unexpected end of input), `near_text` is the empty string `""`.
+1. `near_text: String` — the offending token or short substring (≤ 50 characters) near the parse failure position. This is the text that caused the parse error. Sourced from the Chumsky parser's error context at the byte offset `{offset}`. If the parser cannot provide a token (e.g., unexpected end of input), `near_text` is the empty string `""`.
 
 2. `reference_pointer: "prismql://reference"` — a literal string in the error response pointing to the grammar reference resource. This allows the LLM agent to fetch the full grammar when it cannot self-diagnose from the error message alone. The field value is the static string `"prismql://reference"` (the MCP resource URI registered in BC-2.10.014).
 
-**Implementation note:** The existing `PrismError::ParseError` (or equivalent) variant needs two additional fields: `near_text: String` and `reference_pointer: &'static str` (or the structured error response builder adds them at error-map time from the parse error's context). The display string `"Query parse error at position {pos}: {message}"` is UNCHANGED — the new fields are additional structured metadata in the MCP structured error response, not changes to the display string.
+**Implementation note:** The `PrismError::QueryParseFailed` variant does not need new Rust fields — the `near_text` and `reference_pointer` additions are extracted at MCP error-map time from the variant's existing `query` field by `error_mapping.rs` (BC-2.11.017 AC-003). The display string `"E-QUERY-001: query parse error at offset {offset}: {detail}"` is UNCHANGED — the new fields are additional structured metadata in the MCP structured error response, not changes to the Display.
 
 **Injection-safety:** `near_text` is a substring of the model's own PQL query string (the input it submitted). It does not contain sensor data. The `near_text` field MUST be truncated to ≤ 50 characters to prevent log bloat and to discourage relay of raw model PQL text as error context.
 
@@ -215,6 +215,7 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.14 | DEFECT-PQL-FNCALL-LHS-001-FB19-F-PQLFN-P24-OBS-003 | 2026-07-14 | product-owner | **F-PQLFN-P24-OBS-003 POL-23 companion — §Postconditions E-QUERY-001 "current state" and Implementation note corrected.** Three stale normative claims referenced `"Query parse error at position {pos}: {message}"` (never a live Display form) and `PrismError::ParseError` (wrong variant name). Actual emitter is `PrismError::QueryParseFailed` in prism-core/src/error.rs with Display `"E-QUERY-001: query parse error at offset {offset}: {detail}"`. **(1)** §Postconditions `**Current state:**` (line 43): stale form → `"E-QUERY-001: query parse error at offset {offset}: {detail}"` with correct emitter cite `PrismError::QueryParseFailed`. **(2)** §Postconditions `near_text` sourcing note (line 49): `at the position {pos}` → `at the byte offset {offset}`. **(3)** §Postconditions `**Implementation note:**` (line 53): `PrismError::ParseError (or equivalent)` → `PrismError::QueryParseFailed`; `"Query parse error at position {pos}: {message}"` → `"E-QUERY-001: query parse error at offset {offset}: {detail}"`; note clarified: `near_text`/`reference_pointer` are extracted at MCP error-map time from the existing `query` field (AC-003), not added as new Rust struct fields. Semantic content of BC UNCHANGED — additive MCP-layer fields, no Display change. Companion: error-taxonomy.md v2.47→v2.48. |
 | 1.13 | FIX-IEQ-ERRPATH-001-ADV-PR-P5 | 2026-07-09 | product-owner | **ADV-PR-P5 companion to BC-2.11.016 v1.25 — SIBLING-GATE CONSISTENCY cross-reference pin update (pin-only; no content change).** BC-2.11.016 v1.25 closes ADV-PR-P5-MED-001/002 and fixes a proactive-class inaccuracy in §Implementation table row 4 (`OrderBy::expr` → `OrderExpr::expr`). These corrections do not affect the SIBLING-GATE CONSISTENCY invariant or the `check_pipe_stage_columns` binding-context walk semantics. **Amendment (pin-only):** heading pin `(BC-2.11.016 v1.24):` → `(BC-2.11.016 v1.25):`; internal `co-defined in BC-2.11.016 v1.24` → `co-defined in BC-2.11.016 v1.25`. Origin anchors `(BC-2.11.016 v1.18)` and `(BC-2.11.016 v1.19)` UNCHANGED. Frontmatter v1.12→v1.13; modified: 2026-07-09. |
 | 1.12 | FIX-IEQ-ERRPATH-001-ADV-PR-P4-PROACTIVE | 2026-07-09 | product-owner | **ADV-PR-P4 proactive companion to BC-2.11.016 v1.24 — SIBLING-GATE CONSISTENCY cross-reference pin update (pin-only; no content change).** BC-2.11.016 v1.24 corrects three AST type-name inaccuracies in §Implementation location table: position 7 `And`/`Or`/`Not` → `Predicate::Logical`/`Predicate::Not`; position 8 `PipeStage::Where(FilterExpr)` → `PipeStage::Where(Predicate)`; position 10 `SortEntry` → `SortExpr`. These corrections do not affect the SIBLING-GATE CONSISTENCY invariant or the `check_pipe_stage_columns` binding-context walk semantics. **Amendment (pin-only):** heading pin `(BC-2.11.016 v1.23):` → `(BC-2.11.016 v1.24):`; internal `co-defined in BC-2.11.016 v1.23` → `co-defined in BC-2.11.016 v1.24`. Origin anchors `(BC-2.11.016 v1.18)` and `(BC-2.11.016 v1.19)` UNCHANGED. Frontmatter v1.11→v1.12; modified: 2026-07-09. |
 | 1.11 | FIX-IEQ-ERRPATH-001-ADV-PR-P3-LOW-001 | 2026-07-09 | product-owner | **ADV-PR-P3-LOW-001 POL-25 companion to BC-2.11.016 v1.23 — SIBLING-GATE CONSISTENCY cross-reference pin update (pin-only; no content change).** BC-2.11.016 v1.23 corrects §Implementation location table function names (POL-22 Phase C): positions 1/3/4/5 → `extract_field_paths_with_bareness`; positions 2/6 → `extract_predicate_columns_with_bareness`; positions 10–14 → `extract_column_name_from_field_path`. This does not affect the SIBLING-GATE CONSISTENCY invariant or the `check_pipe_stage_columns` binding-context walk semantics. **Amendment (pin-only):** §Invariants SIBLING-GATE CONSISTENCY cross-reference heading pin updated: `(BC-2.11.016 v1.22):` → `(BC-2.11.016 v1.23):`; internal `co-defined in BC-2.11.016 v1.22` → `co-defined in BC-2.11.016 v1.23`. Origin anchors `(BC-2.11.016 v1.18)` and `(BC-2.11.016 v1.19)` within the same bullet UNCHANGED. No postcondition content changed. Frontmatter v1.10→v1.11; modified: 2026-07-09. |
