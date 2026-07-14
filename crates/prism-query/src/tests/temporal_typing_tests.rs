@@ -7449,6 +7449,21 @@ async fn test_BC_2_11_004_low_006_pipe_keyword_not_as_fn_name_rejected() {
          Keyword fn-name rejection must fire at parse time, before plan-time gates. \
          Got: {result:?}"
     );
+
+    // POL-24 message-text lock: error detail must cite the keyword-message template
+    // and the specific quoted keyword name (BC-2.11.004 LOW-006).
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "LOW-006 (NOT, pipe): error message must contain keyword-message template substring \
+         'is a PrismQL keyword and cannot be used as a function name' \
+         (BC-2.11.004 LOW-006, POL-24 message-text lock). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'NOT'"),
+        "LOW-006 (NOT, pipe): error message must contain quoted keyword name \"'NOT'\" \
+         (BC-2.11.004 LOW-006, POL-24 message-text lock). Got: {err_display:?}"
+    );
 }
 
 /// LOW-006 (2/7) **RED**: pipe `| where` — `CONTAINS` as fn-call name.
@@ -7493,6 +7508,19 @@ async fn test_BC_2_11_004_low_006_pipe_keyword_contains_as_fn_name_rejected() {
     assert!(
         !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
         "LOW-006 (CONTAINS, pipe): must NOT be QueryPlanFailed. Got: {result:?}"
+    );
+
+    // POL-24 message-text lock (BC-2.11.004 LOW-006).
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "LOW-006 (CONTAINS, pipe): error message must contain keyword-message template substring \
+         (BC-2.11.004 LOW-006, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'CONTAINS'"),
+        "LOW-006 (CONTAINS, pipe): error message must contain quoted keyword name \"'CONTAINS'\" \
+         (BC-2.11.004 LOW-006, POL-24). Got: {err_display:?}"
     );
 }
 
@@ -7539,6 +7567,21 @@ async fn test_BC_2_11_004_low_006_pipe_keyword_lowercase_rejected() {
         !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
         "LOW-006 (not lowercase, pipe): must NOT be QueryPlanFailed. Got: {result:?}"
     );
+
+    // POL-24 message-text lock: lowercase input preserved in message (`'not'`, not `'NOT'`)
+    // because `func_name` captures the original case from the query string (BC-2.11.004 LOW-006).
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "LOW-006 (not lowercase, pipe): error message must contain keyword-message template \
+         substring (BC-2.11.004 LOW-006, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'not'"),
+        "LOW-006 (not lowercase, pipe): error message must contain quoted keyword name \"'not'\" \
+         (original-case preservation — func_name from grammar slice, BC-2.11.004 LOW-006, POL-24). \
+         Got: {err_display:?}"
+    );
 }
 
 /// LOW-006 (4/7) **RED**: SQL WHERE surface — `NOT` as fn-call name.
@@ -7581,6 +7624,19 @@ async fn test_BC_2_11_004_low_006_sql_where_keyword_as_fn_name_rejected() {
     assert!(
         !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
         "LOW-006 (NOT, SQL WHERE): must NOT be QueryPlanFailed. Got: {result:?}"
+    );
+
+    // POL-24 message-text lock (BC-2.11.004 LOW-006).
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "LOW-006 (NOT, SQL WHERE): error message must contain keyword-message template substring \
+         (BC-2.11.004 LOW-006, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'NOT'"),
+        "LOW-006 (NOT, SQL WHERE): error message must contain quoted keyword name \"'NOT'\" \
+         (BC-2.11.004 LOW-006, POL-24). Got: {err_display:?}"
     );
 }
 
@@ -7625,6 +7681,19 @@ async fn test_BC_2_11_004_low_006_sqlpipe_stage_keyword_as_fn_name_rejected() {
     assert!(
         !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
         "LOW-006 (NOT, SqlPipe | where): must NOT be QueryPlanFailed. Got: {result:?}"
+    );
+
+    // POL-24 message-text lock (BC-2.11.004 LOW-006).
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "LOW-006 (NOT, SqlPipe | where): error message must contain keyword-message template \
+         substring (BC-2.11.004 LOW-006, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'NOT'"),
+        "LOW-006 (NOT, SqlPipe | where): error message must contain quoted keyword name \"'NOT'\" \
+         (BC-2.11.004 LOW-006, POL-24). Got: {err_display:?}"
     );
 }
 
@@ -7768,4 +7837,210 @@ async fn test_pqlfn_p27_med001_sqlpipe_stage_keyword_error_offset_truthful() {
              LOW-006 keyword fn-name rejection in SqlPipe | where stage, got: {other:?}"
         ),
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-PQLFN-P27-MED-002: LOW-006 coverage for three previously-uncovered surfaces
+//
+// BC-2.11.004 §Postconditions SHARED-PARSER SCOPE names 6 parse surfaces that
+// share `build_predicate_parser`.  Fix-burst 20 (commit 1a07a5f9) shipped tests
+// for pipe `| where`, SQL WHERE, and SqlPipe `| where`; THREE surfaces lacked
+// LOW-006 coverage:
+//   (A) filter-mode root predicate (Ast::Filter path)
+//   (B) SQL HAVING (build_having_predicate_parser fallthrough to base predicate)
+//   (C) SQL DML WHERE (build_delete_parser / build_update_parser)
+//
+// Because the keyword exclusion gate lives in `fn_call_comparison` inside
+// `build_predicate_parser`, which IS shared by all six surfaces, the following
+// tests are expected to be GREEN on arrival (shared parser = shared gate).
+// If any test FAILS, that is a REAL DEFECT (the gate does not reach this
+// surface) — it must not be papered over.
+//
+// Each test also carries POL-24 message-text locks for the keyword-message
+// template and quoted keyword name (F-PQLFN-P27-MED-003 coverage extension).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// LOW-006 (surface A): filter-mode root predicate — `NOT` as fn-call name.
+///
+/// Query: `crowdstrike_detections | NOT(device_id) = 5`
+///
+/// Filter mode is activated when the query contains `|` outside string literals
+/// but lacks a `FROM` or `SELECT` prefix (BC-2.11.002 mode precedence).  The
+/// root predicate is parsed by `build_predicate_parser` directly — the same
+/// shared parser that enforces LOW-006.
+///
+/// Expected behavior: keyword exclusion fires in `fn_call_comparison` via
+/// `.validate()` → `QueryParseFailed` (E-QUERY-001).  The analyst likely
+/// intended `NOT (device_id = 5)` (not-predicate spaced form).
+///
+/// GREEN on arrival: shared parser = shared gate.  If this test fails, the
+/// filter-mode root-predicate path is NOT wired through `build_predicate_parser`
+/// and that is a REAL DEFECT.
+///
+/// Traces to: BC-2.11.004 LOW-006 (shared-parser scope, filter-mode surface);
+///            F-PQLFN-P27-MED-002; F-PQLFN-P27-MED-003 (POL-24 message lock).
+#[tokio::test]
+async fn test_BC_2_11_004_low_006_filter_mode_keyword_as_fn_name_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "crowdstrike_detections | NOT(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Diagnostic-first: specific Err variant before broad check (F-PQLFN-P19-OBS-001).
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-006 (NOT, filter mode): `NOT(device_id) = 5` in filter-mode root predicate \
+         must fail to parse (QueryParseFailed / E-QUERY-001). `NOT` is a PrismQL reserved \
+         keyword; `fn_call_comparison` keyword gate applies to this surface via \
+         `build_predicate_parser` (BC-2.11.004 LOW-006 shared-parser scope, \
+         F-PQLFN-P27-MED-002). Got: {result:?}"
+    );
+
+    // Must NOT be QueryPlanFailed — keyword rejection fires at parse time.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-006 (NOT, filter mode): must NOT be QueryPlanFailed. \
+         Keyword fn-name rejection must fire at parse time (BC-2.11.004 LOW-006). \
+         Got: {result:?}"
+    );
+
+    // POL-24 message-text lock: keyword-message template and quoted keyword name
+    // (BC-2.11.004 LOW-006, F-PQLFN-P27-MED-003).
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "LOW-006 (NOT, filter mode): error message must contain keyword-message template \
+         substring 'is a PrismQL keyword and cannot be used as a function name' \
+         (BC-2.11.004 LOW-006, POL-24 message-text lock, F-PQLFN-P27-MED-003). \
+         Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'NOT'"),
+        "LOW-006 (NOT, filter mode): error message must contain quoted keyword name \"'NOT'\" \
+         (BC-2.11.004 LOW-006, POL-24, F-PQLFN-P27-MED-003). Got: {err_display:?}"
+    );
+}
+
+/// LOW-006 (surface B): SQL HAVING — `NOT` as fn-call name.
+///
+/// Query: `SELECT count(*) FROM crowdstrike_detections GROUP BY device_id HAVING NOT(device_id) = 5`
+///
+/// `build_having_predicate_parser` tries the `agg_comparison` arm first (COUNT /
+/// SUM / AVG / MIN / MAX / DISTINCT_COUNT).  `NOT` is not an aggregate function →
+/// `agg_comparison` fails → falls through to `base` = `build_sql_predicate_parser`
+/// → `build_predicate_parser` → `fn_call_comparison` → LOW-006 keyword exclusion
+/// → `QueryParseFailed` (E-QUERY-001).
+///
+/// GREEN on arrival: shared parser = shared gate.  If this test fails, the HAVING
+/// fallthrough to the base predicate is NOT reaching `fn_call_comparison` and
+/// that is a REAL DEFECT.
+///
+/// Traces to: BC-2.11.004 LOW-006 (shared-parser scope, SQL HAVING surface);
+///            ADR-048 D.3 (HAVING grammar); F-PQLFN-P27-MED-002;
+///            F-PQLFN-P27-MED-003 (POL-24 message lock).
+#[tokio::test]
+async fn test_BC_2_11_004_low_006_sql_having_keyword_as_fn_name_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT count(*) FROM crowdstrike_detections GROUP BY device_id HAVING NOT(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Diagnostic-first: specific Err variant before broad check (F-PQLFN-P19-OBS-001).
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-006 (NOT, SQL HAVING): `NOT(device_id) = 5` in HAVING must fail to parse \
+         (QueryParseFailed / E-QUERY-001). `NOT` is not an aggregate fn so \
+         `agg_comparison` fails; fallthrough to `base` predicate reaches \
+         `fn_call_comparison` keyword exclusion (BC-2.11.004 LOW-006 shared-parser \
+         scope, ADR-048 D.3, F-PQLFN-P27-MED-002). Got: {result:?}"
+    );
+
+    // Must NOT be QueryPlanFailed — keyword rejection fires at parse time.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-006 (NOT, SQL HAVING): must NOT be QueryPlanFailed. \
+         Keyword fn-name rejection must fire at parse time (BC-2.11.004 LOW-006). \
+         Got: {result:?}"
+    );
+
+    // POL-24 message-text lock (BC-2.11.004 LOW-006, F-PQLFN-P27-MED-003).
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "LOW-006 (NOT, SQL HAVING): error message must contain keyword-message template \
+         substring (BC-2.11.004 LOW-006, POL-24, F-PQLFN-P27-MED-003). \
+         Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'NOT'"),
+        "LOW-006 (NOT, SQL HAVING): error message must contain quoted keyword name \"'NOT'\" \
+         (BC-2.11.004 LOW-006, POL-24, F-PQLFN-P27-MED-003). Got: {err_display:?}"
+    );
+}
+
+/// LOW-006 (surface C): SQL DML WHERE — `NOT` as fn-call name.
+///
+/// Query: `DELETE FROM crowdstrike_detections WHERE NOT(device_id) = 5`
+///
+/// `build_delete_parser` delegates the WHERE predicate to `build_predicate_parser`
+/// (ADR-048 v1.6 OD-6 §D.7.5).  The keyword exclusion in `fn_call_comparison`
+/// therefore applies to the DML WHERE surface without any additional wiring.
+///
+/// GREEN on arrival: shared parser = shared gate.  If this test fails, the DML
+/// WHERE path is NOT routed through `build_predicate_parser` / `fn_call_comparison`
+/// and that is a REAL DEFECT.
+///
+/// Traces to: BC-2.11.004 LOW-006 (shared-parser scope, SQL DML WHERE surface);
+///            ADR-048 v1.6 OD-6 §D.7.5; F-PQLFN-P27-MED-002;
+///            F-PQLFN-P27-MED-003 (POL-24 message lock).
+#[tokio::test]
+async fn test_BC_2_11_004_low_006_dml_where_keyword_as_fn_name_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "DELETE FROM crowdstrike_detections WHERE NOT(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Diagnostic-first: specific Err variant before broad check (F-PQLFN-P19-OBS-001).
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-006 (NOT, DML WHERE): `NOT(device_id) = 5` in DELETE WHERE must fail to parse \
+         (QueryParseFailed / E-QUERY-001). `build_delete_parser` uses `build_predicate_parser` \
+         for the WHERE clause; keyword exclusion in `fn_call_comparison` applies \
+         (BC-2.11.004 LOW-006 shared-parser scope, ADR-048 v1.6 OD-6 §D.7.5, \
+         F-PQLFN-P27-MED-002). Got: {result:?}"
+    );
+
+    // Must NOT be QueryPlanFailed — keyword rejection fires at parse time.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-006 (NOT, DML WHERE): must NOT be QueryPlanFailed. \
+         Keyword fn-name rejection must fire at parse time (BC-2.11.004 LOW-006). \
+         Got: {result:?}"
+    );
+
+    // POL-24 message-text lock (BC-2.11.004 LOW-006, F-PQLFN-P27-MED-003).
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "LOW-006 (NOT, DML WHERE): error message must contain keyword-message template \
+         substring (BC-2.11.004 LOW-006, POL-24, F-PQLFN-P27-MED-003). \
+         Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'NOT'"),
+        "LOW-006 (NOT, DML WHERE): error message must contain quoted keyword name \"'NOT'\" \
+         (BC-2.11.004 LOW-006, POL-24, F-PQLFN-P27-MED-003). Got: {err_display:?}"
+    );
 }
