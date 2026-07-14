@@ -19,7 +19,7 @@ finding_counts:
 code_behavior_defects: 0
 streak_after: 0/3
 convergence: NOT_CONVERGED
-status: OPEN
+status: CLOSED
 authored_by: orchestrator-relay
 ---
 
@@ -37,7 +37,7 @@ Streak: **0/3** (RESET — 1 MED finding; BC-5.39.001: any finding resets streak
 
 ## Findings
 
-### F-MCPRS-PRL21-MED-001 [MED][BC-INDEX summary-row truth — 2nd instance of class] — OPEN (fix pending next session)
+### F-MCPRS-PRL21-MED-001 [MED][BC-INDEX summary-row truth — 2nd instance of class] — CLOSED (D-1762 BC-INDEX v8.22 fix-burst)
 
 **Severity:** MED
 **Classification:** spec-drift/index-truth — BC-INDEX governance discovery surface (same class as F-MCPRS-PRL20-MED-001 BC-2.15.009; that instance CLOSED v8.20)
@@ -50,7 +50,7 @@ Streak: **0/3** (RESET — 1 MED finding; BC-5.39.001: any finding resets streak
 
 **Fix was HELD at wrap-freeze** due to BC-INDEX staging race with D-1760 (BC-INDEX v8.21 committed in that burst; a same-burst second BC-INDEX mutation would have created a multi-commit chain violating TD-VSDD-053). Fix deferred to next session as the first state-manager dispatch.
 
-**Status:** OPEN — fix-burst pending (state-manager; BC-INDEX v8.21→v8.22; spec-only; PR HEAD 5d2624aa UNCHANGED). Pass-22 gates on same frozen 5d2624aa after BC-INDEX fix.
+**Status:** CLOSED — D-1762 fix-burst (state-manager; BC-INDEX v8.21→v8.22; BC-2.11.018 row rewritten to changelog ground truth; spec-only; PR HEAD 5d2624aa UNCHANGED). Pass-22 gates on same frozen 5d2624aa.
 
 **Streak note:** Streak RESET 0/3 per BC-5.39.001 (1 MED finding present at pass-21 gate; DRIFT-ORCH-PRLEVEL-PUSH-001: no push to feature branch 5d2624aa).
 
@@ -77,10 +77,10 @@ Streak: **0/3** (RESET — 1 MED finding; BC-5.39.001: any finding resets streak
 ## Summary
 
 **CLEAN(strict): NO** (1 MED finding — BC-INDEX index-truth summary drift for BC-2.11.018 v1.5/v1.4)
-**CLEAN(PR-merge): NO** (1 MED finding; OPEN — fix pending next session)
+**CLEAN(PR-merge): NO** (1 MED finding; CLOSED D-1762 BC-INDEX v8.22 fix-burst)
 
 Streak: **0/3** (RESET — F-MCPRS-PRL21-MED-001 MED finding present at pass gate; BC-5.39.001 streak-reset rule; spec-only fix does not prevent reset)
 
-Note: F-MCPRS-PRL21-MED-001 is a factory-artifacts spec fix (BC-INDEX v8.21→v8.22 pending); feature branch HEAD 5d2624aa UNCHANGED. Pass-22 gates on same frozen 5d2624aa after state-manager BC-INDEX fix-burst. Finding was HELD at wrap-freeze (TD-VSDD-053 single-commit discipline; D-1760 BC-INDEX v8.21 already committed that burst).
+Note: F-MCPRS-PRL21-MED-001 CLOSED — D-1762 fix-burst (BC-INDEX v8.21→v8.22; BC-2.11.018 row rewritten to changelog ground truth; spec-only; PR HEAD 5d2624aa UNCHANGED). Finding was HELD at wrap-freeze (TD-VSDD-053 single-commit discipline; D-1760 BC-INDEX v8.21 already committed that burst).
 
-CASCADE TALLY: 41 passes / 27 fix-bursts. Frozen HEAD @5d2624aa UNCHANGED; streak 0/3 (RESET); next = state-manager BC-INDEX v8.22 fix-burst → PR-LEVEL pass 22 on same frozen 5d2624aa.
+CASCADE TALLY: 41 passes / 27 fix-bursts. Frozen HEAD @5d2624aa UNCHANGED; streak 0/3 (RESET); next = PR-LEVEL pass 22 on same frozen 5d2624aa.
