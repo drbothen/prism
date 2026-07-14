@@ -16,8 +16,8 @@ status: draft
 # BC status: BC-2.17.007 v1.5 ACTIVE, BC-2.17.002 ACTIVE. S-7.01 gate satisfied.
 # behavioral_contracts array is non-empty; story is ready for PO review once
 # the production endpoint URL is identified and AC-001 precondition can be filled in.
-version: "0.2"
-spec_version: "v0.2"
+version: "0.3"
+spec_version: "v0.3"
 level: ops
 producer: product-owner
 timestamp: "2026-07-13"
@@ -25,6 +25,7 @@ modified: "2026-07-14"
 input-hash: ""
 inputs:
   - crates/plugins/prism-threatintel-infusion/threatintel-lookup.manifest.toml
+  - crates/plugins/prism-threatintel-infusion/src/lib.rs
   - crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
   - crates/prism-spec-engine/plugins/threatintel-lookup/README.md
   - .factory/specs/behavioral-contracts/BC-2.17.007-plugin-manifest-schema-validation.md
@@ -72,7 +73,13 @@ points: 2
 #   Integration smoke-test pass confirmation: 0.5 pt
 estimated_days: 0.25
 risk: P2
-acceptance_criteria_count: 3
+acceptance_criteria_count: 4
+security_review: required
+# Security note (F-MCPRS-PRL8-OOS-001, DEFECT-MCP-ROWSHAPE-NULLS-001 PR-LEVEL pass-8):
+# crates/plugins/prism-threatintel-infusion/src/lib.rs ~83-87 interpolates input_value raw
+# into URL paths (CWE-73 path traversal / SSRF-adjacent). Blast radius is currently capped
+# by allowed_urls localhost-only. AC-004 MUST be implemented before AC-001 (production endpoint
+# activation). Security-reviewer MUST be dispatched when this story is implemented.
 red_gate_tests: 1
 estimated_passes: "1"
 holdout_scenarios: []
@@ -205,6 +212,65 @@ print(f'PASS: allowed_urls = {urls}')
 The net-new RGT-001 test (`test_no_dev_urls_in_threatintel_production_manifest`) encodes this
 assertion as a Rust test so it runs in `just check`. It FAILS before this story is implemented
 (dev URLs present) and PASSES after.
+
+### AC-004 — URL-encoding of IOC input_value and strict is_domain charset validation
+(security: F-MCPRS-PRL8-OOS-001 — CWE-73 path traversal / SSRF-adjacent; MUST be implemented before AC-001 production endpoint activation)
+
+`crates/plugins/prism-threatintel-infusion/src/lib.rs` ~83-87 currently interpolates `input_value`
+raw into the URL path:
+
+```rust
+format!("/v3/ip/{}?key={}", input_value, api_key)
+```
+
+If `input_value` contains `/`, `..`, `?`, or `&`, this produces path traversal or query-parameter
+injection against the upstream ThreatIntel API endpoint. The current blast radius is capped by
+`allowed_urls = ["localhost", "127.0.0.1"]`; once the production endpoint is live (AC-001), the
+vulnerability is exploitable by any IOC value the operator queries.
+
+**Required changes (both MUST be implemented and tested before PR merge):**
+
+1. **Percent-encode `input_value` before interpolation.** Use `urlencoding::encode(&input_value)`
+   (add `urlencoding` crate to `Cargo.toml` of `prism-threatintel-infusion`) or equivalent. The
+   encoded form prevents `/`, `..`, `?`, `&`, and other special characters from being interpreted
+   as URL structural components. Example: `"evil.com/../secret"` → `"evil.com%2F..%2Fsecret"`.
+
+2. **Strict `is_domain` charset validation.** The current `is_domain` classifier accepts any
+   dot-containing string (`input_value.contains('.')`). Replace with an allowlist: a domain
+   classification requires ONLY characters matching `[a-zA-Z0-9.\-]`. Strings containing `/`,
+   `?`, `&`, `%`, `@`, `:`, or other non-domain characters MUST NOT classify as domain type
+   (they should fall through to the IP or generic-string path).
+
+**Acceptance assertions (both required as unit tests):**
+
+- `test_is_domain_rejects_path_traversal`: asserts `is_domain("evil.com/../secret")` returns
+  `false` and `is_domain("evil.com/path")` returns `false`.
+- `test_url_encoding_of_input_value`: asserts that an `input_value` containing `/` (e.g.,
+  `"test/../secret"`) produces a URL string with percent-encoding (`%2F`) at the interpolation
+  site — NOT a raw `/` in the path.
+
+**Security note:** CWE-73 (External Control of File Name or Path) / path traversal; SSRF-adjacent
+(the encoded path reaches the upstream API endpoint). Source: F-MCPRS-PRL8-OOS-001
+(DEFECT-MCP-ROWSHAPE-NULLS-001 PR-LEVEL pass-8 out-of-scope finding). Pre-existing; blast radius
+currently capped by `allowed_urls` localhost-only constraint.
+
+---
+
+## §Security Review Required
+
+**Source:** F-MCPRS-PRL8-OOS-001 (DEFECT-MCP-ROWSHAPE-NULLS-001 PR-LEVEL pass-8, 2026-07-14)
+
+This story touches `crates/plugins/prism-threatintel-infusion/src/lib.rs` (URL construction for
+outbound IOC queries). The security-reviewer MUST be dispatched when this story is implemented to
+verify:
+
+1. AC-004 URL-encoding and `is_domain` charset hardening are correctly implemented.
+2. `api_key` is not leaked into URL paths or logs (AD-017 compliance).
+3. No new SSRF, path traversal, or injection vectors are introduced by the production endpoint
+   activation.
+
+**CWE-linkage:** CWE-73 (External Control of File Name or Path) — path traversal via raw
+`input_value` interpolation; SSRF-adjacent (endpoint is attacker-reachable via IOC query).
 
 ---
 
@@ -404,13 +470,12 @@ No new external Rust crate dependencies are introduced by this story.
 | File | Action | Change Description |
 |------|--------|-------------------|
 | `crates/plugins/prism-threatintel-infusion/threatintel-lookup.manifest.toml` | Modify | Update `allowed_urls` — replace `["localhost", "127.0.0.1"]` with `["<PRODUCTION-HOSTNAME>"]` |
+| `crates/plugins/prism-threatintel-infusion/src/lib.rs` | Modify (AC-004) | Percent-encode `input_value` at URL interpolation site (~line 83-87); replace bare `is_domain` check with strict charset allowlist `[a-zA-Z0-9.\-]` |
+| `crates/plugins/prism-threatintel-infusion/Cargo.toml` | Modify (AC-004) | Add `urlencoding` crate dependency if used for percent-encoding |
 | `crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml` | Regenerated | Deploy copy; updated by `just build-plugin-threatintel-infusion` step 4 (cp); DO NOT edit directly |
 | `crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx` | Regenerated | WASM Component binary; rebuilt by `just build-plugin-threatintel-infusion` step 1-3 |
 | `crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx.src-tree-hash` | Regenerated | Source tree hash sidecar; updated by `just build-plugin-threatintel-infusion` step 5 |
 | `crates/prism-spec-engine/tests/manifest_sanity.rs` (or adjacent) | Create or Modify | Add RGT-001: `test_no_dev_urls_in_threatintel_production_manifest` |
-
-No other files are touched. The canonical infusion spec (`specs/infusions/threatintel.infusion.toml`)
-and the WASM plugin Rust source (`crates/plugins/prism-threatintel-infusion/src/`) are NOT in scope.
 
 **Scope addition (F-MCPRS-PRL6, DEFECT-MCP-ROWSHAPE-NULLS-001 PR-LEVEL pass-6 out-of-scope observation):** When updating `allowed_urls`, the implementer must also correct the inline comment in the canonical source manifest (`crates/plugins/prism-threatintel-infusion/threatintel-lookup.manifest.toml`) that references `"threat-intel.example.com placeholder"` — this manifest comment drift was confirmed out-of-scope for the DEFECT-MCP-ROWSHAPE-NULLS-001 cascade (frozen HEAD; comment edit would force a plugin re-cut cycle) and is explicitly anchored to this story's scope.
 
@@ -418,5 +483,6 @@ and the WASM plugin Rust source (`crates/plugins/prism-threatintel-infusion/src/
 
 | Version | Date | Change | Source |
 |---------|------|--------|--------|
+| v0.3 | 2026-07-14 | **F-MCPRS-PRL8-OOS-001 security anchor (DEFECT-MCP-ROWSHAPE-NULLS-001 PR-LEVEL pass-8).** Pre-existing path traversal / SSRF-adjacent finding in `src/lib.rs` ~83-87: raw `input_value` interpolation into URL path + overly broad `is_domain` classifier. Blast radius currently capped by `allowed_urls` localhost-only; exploitable once production endpoint is live. **Added:** AC-004 (percent-encode `input_value`; strict `is_domain` charset `[a-zA-Z0-9.\-]`; 2 unit tests); `§Security Review Required` section; `security_review: required` frontmatter field; `crates/plugins/prism-threatintel-infusion/src/lib.rs` added to `inputs:`; `acceptance_criteria_count` bumped 3→4; lib.rs and Cargo.toml added to §File Structure Requirements. CWE-73 (path traversal). | DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 20 (F-MCPRS-PRL8-OOS-001 story anchor) |
 | v0.2 | 2026-07-14 | Scope addition: manifest comment drift correction anchored to this story (F-MCPRS-PRL6, DEFECT-MCP-ROWSHAPE-NULLS-001 PR-LEVEL pass-6 out-of-scope observation). The inline comment in `threatintel-lookup.manifest.toml` referencing `"threat-intel.example.com placeholder"` must be corrected atomically with the `allowed_urls` update. `modified:` updated 2026-07-13→2026-07-14. | DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 18 (spec-only) |
 | v0.1 | 2026-07-13 | Initial draft — 3 ACs, 1 RGT, manifest update + plugin rebuild scope. | DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 14 (F-MCPRS-PRL1-OBS-001 story anchor) |
