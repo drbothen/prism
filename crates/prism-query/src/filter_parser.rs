@@ -485,6 +485,29 @@ fn parse_sqlpipe_internal(
         // D2 rewrite takes precedence (applied first); enrich rewrite follows.
         let errs = rewrite_d2_sql_keyword_in_pipe_position(stages_str, errs);
         let errs = rewrite_enrich_parse_errors(stages_str, errs);
+        // F-PQLFN-P27-MED-001 (ADR-048 §D.7.2): ALL errors from the stage parser are
+        // stage-relative (spans in `stages_str = &input[split_offset..]`).  This covers:
+        //   - Structural Chumsky parse failures (unexpected token, missing delimiter, …)
+        //   - `.validate()`-emitted semantic errors (LOW-006 keyword-fn-name rejection,
+        //     PERCENTILE out-of-range gate, and any future semantic validators that emit
+        //     `Rich::custom` from inside `fn_call_comparison` or its siblings)
+        // All carry span.start values relative to `stages_str`, not to the original
+        // `input`.  Shift every error's offset by `split_offset` to make it absolute.
+        //
+        // Parallel to `shift_scalar_spans_in_stages` on the success path — that helper
+        // shifts FuncCall::Scalar spans in the AST; this helper shifts ParseError offsets
+        // in the error list.  Both apply the same `split_offset` delta.
+        //
+        // No double-shift: `split_offset` is applied exactly once here.  The rewrites
+        // above operate on stage-relative offsets (they inspect `stages_str` character
+        // positions), so the shift must come AFTER the rewrites, not before.
+        //
+        // Head-path exclusion: the SQL head string `sql_head_str = input[..split_offset]`
+        // starts at byte 0 of `input`, so head-parse errors are already absolute.  Head
+        // errors propagate via `?` at the `parse_sql_with_limits` call above and are
+        // never touched by this shift — the test lock
+        // `test_pqlfn_p22_med001_aggregate_offset_sqlpipe_head_where` guards that path.
+        let errs = shift_parse_error_offsets(errs, split_offset);
         return Err(errs);
     }
     let mut stages = stage_result.ok_or_else(|| {
@@ -643,6 +666,38 @@ fn shift_scalar_spans_in_expr(expr: &mut crate::ast::Expr, offset: usize) {
         Expr::Literal(_) | Expr::Field(_) | Expr::VirtualField(_) => {}
         Expr::Star | Expr::Now | Expr::Interval(_) => {}
     }
+}
+
+/// Shift every `ParseError.offset` in `errs` by `delta`, returning the updated list.
+///
+/// Called in the `stage_errs` early-return path of `parse_sqlpipe_internal` to
+/// translate stage-relative offsets (produced by parsing `stages_str =
+/// &input[split_offset..]`) into absolute offsets in the original query string
+/// (F-PQLFN-P27-MED-001, ADR-048 §D.7.2).
+///
+/// This is the error-list counterpart to `shift_scalar_spans_in_stages`, which shifts
+/// `FuncCall::Scalar::span` values in the SUCCESS-path AST.  Both apply the same
+/// `split_offset` delta; this function handles the FAILURE path (non-empty `stage_errs`).
+///
+/// The shift covers ALL error categories:
+/// - Structural Chumsky parse failures (unexpected token, missing delimiter, …)
+/// - `.validate()`-emitted semantic errors (LOW-006 keyword-fn-name rejection,
+///   PERCENTILE out-of-range gate, any future semantic validator emitting
+///   `Rich::custom` from `fn_call_comparison` or its siblings)
+///
+/// The `recovery_label` field is preserved verbatim (it names a recovery point, not a
+/// byte offset).
+fn shift_parse_error_offsets(errs: Vec<ParseError>, delta: usize) -> Vec<ParseError> {
+    if delta == 0 {
+        return errs;
+    }
+    errs.into_iter()
+        .map(|e| ParseError {
+            offset: e.offset + delta,
+            message: e.message,
+            recovery_label: e.recovery_label,
+        })
+        .collect()
 }
 
 /// Find the byte offset of the first unquoted `|` in `input` that is followed

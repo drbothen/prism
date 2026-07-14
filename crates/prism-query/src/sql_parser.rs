@@ -240,12 +240,21 @@ pub(crate) fn parse_sql_with_limits(
     // Security checks still apply to the partial AST.
     if let Some(sq) = result {
         let parse_errors: Vec<ParseError> = errs.iter().map(rich_to_parse_error).collect();
-        // LOW-006 guard (BC-2.11.004 v1.42, F-PQLFN-P26-OBS-002): do NOT apply the
-        // F-MEDIUM-001 recovery Ok path when any error is an E-QUERY-001-prefixed
-        // semantic validation error emitted by a `.validate()` combinator (e.g., the
-        // keyword-fn-name exclusion in `fn_call_comparison`).  F-MEDIUM-001 recovery
-        // errors (from `nested_delimiters`) are generic parse errors and never carry
-        // an "E-QUERY-001:" prefix; semantic validation errors always do.
+        // LOW-006 guard (BC-2.11.004 v1.42, F-PQLFN-P26-OBS-002, ADR-048 v1.12 §D.7.2):
+        // do NOT apply the F-MEDIUM-001 recovery Ok path when any error is an
+        // "E-QUERY-001: "-prefixed semantic validation error emitted by a `.validate()`
+        // or `.try_map()` combinator.  This prefix is the canonical discriminator for
+        // ALL plan-time semantic gates inside the parser:
+        //   - LOW-006 keyword-fn-name exclusion in `fn_call_comparison`
+        //   - PERCENTILE out-of-range gate (any future validator that gates range bounds)
+        //   - Any future semantic validator emitting `Rich::custom` from inside
+        //     `fn_call_comparison` or any other `.validate()` site
+        // F-MEDIUM-001 recovery errors (from `nested_delimiters`) are raw Chumsky parse
+        // errors; they never carry the "E-QUERY-001:" prefix.  Semantic validation
+        // errors always do (per ADR-048 §D.7.2 "prefix = semantic validation = blocks
+        // recovery").  The guard is intentionally conservative: any "E-QUERY-001: "
+        // prefix blocks the recovery path, ensuring the semantic error reaches the caller
+        // as `Err` instead of being silently discarded behind a partial Ok AST.
         let has_semantic_error = parse_errors
             .iter()
             .any(|e| e.message.starts_with("E-QUERY-001:"));

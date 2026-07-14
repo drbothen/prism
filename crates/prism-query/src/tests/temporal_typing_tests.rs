@@ -7415,8 +7415,9 @@ async fn test_BC_2_11_004_low_002_like_with_fncall_lhs_rejected() {
 /// message `"E-QUERY-001: 'NOT' is a PrismQL keyword and cannot be used as a
 /// function name"`.
 ///
-/// **Red Gate** (implementer): keyword exclusion in `fn_call_comparison` not yet
-/// implemented; this test is FAILING before the LOW-006 fix-burst.
+/// **Implemented GREEN** (fix-burst 20, commit 1a07a5f9): keyword exclusion was
+/// introduced in `fn_call_comparison` via `.validate()` — this test was RED before
+/// that fix-burst and has been GREEN since.
 ///
 /// Traces to: BC-2.11.004 v1.42 §Canonical Test Vectors LOW-006 canonical vector;
 ///            F-PQLFN-P26-OBS-002; ADR-048 §D.7.
@@ -7465,7 +7466,8 @@ async fn test_BC_2_11_004_low_006_pipe_keyword_not_as_fn_name_rejected() {
 ///
 /// Post-fix: keyword exclusion → `QueryParseFailed`.
 ///
-/// **Red Gate** (implementer): keyword exclusion not yet implemented.
+/// **Implemented GREEN** (fix-burst 20, commit 1a07a5f9): keyword exclusion was
+/// introduced in `fn_call_comparison` — this test was RED before fix-burst 20.
 ///
 /// Traces to: BC-2.11.004 v1.42 LOW-006 (CONTAINS in 20-keyword list);
 ///            F-PQLFN-P26-OBS-002.
@@ -7509,7 +7511,8 @@ async fn test_BC_2_11_004_low_006_pipe_keyword_contains_as_fn_name_rejected() {
 ///
 /// Post-fix: case-insensitive keyword check rejects "not" → `QueryParseFailed`.
 ///
-/// **Red Gate** (implementer): case-insensitive exclusion not yet implemented.
+/// **Implemented GREEN** (fix-burst 20, commit 1a07a5f9): case-insensitive exclusion
+/// (`eq_ignore_ascii_case`) was introduced — this test was RED before fix-burst 20.
 ///
 /// Traces to: BC-2.11.004 v1.42 LOW-006 (`eq_ignore_ascii_case` requirement);
 ///            F-PQLFN-P26-OBS-002.
@@ -7551,7 +7554,8 @@ async fn test_BC_2_11_004_low_006_pipe_keyword_lowercase_rejected() {
 ///
 /// Post-fix: parse-time keyword rejection → `QueryParseFailed`.
 ///
-/// **Red Gate** (implementer): keyword exclusion not yet implemented.
+/// **Implemented GREEN** (fix-burst 20, commit 1a07a5f9): shared-parser keyword
+/// exclusion introduced in `fn_call_comparison` — this test was RED before fix-burst 20.
 ///
 /// Traces to: BC-2.11.004 v1.42 LOW-006 shared-parser scope;
 ///            BC-2.11.003 EC-11-003-007; ADR-048 v1.6 OD-6 §D.7.5.
@@ -7593,7 +7597,8 @@ async fn test_BC_2_11_004_low_006_sql_where_keyword_as_fn_name_rejected() {
 ///
 /// Post-fix: parse-time keyword rejection → `QueryParseFailed`.
 ///
-/// **Red Gate** (implementer): keyword exclusion not yet implemented.
+/// **Implemented GREEN** (fix-burst 20, commit 1a07a5f9): shared-parser keyword
+/// exclusion introduced — this test was RED before fix-burst 20.
 ///
 /// Traces to: BC-2.11.004 v1.42 LOW-006 shared-parser scope (SqlPipe `| where`);
 ///            F-PQLFN-P26-OBS-002.
@@ -7696,4 +7701,71 @@ async fn test_BC_2_11_004_low_006_lower_fn_call_positive_guard() {
          must admit it (BC-2.11.004 v1.42 LOW-006, F-PQLFN-P26-OBS-002). \
          Got: {result:?}"
     );
+}
+
+/// F-PQLFN-P27-MED-001: SqlPipe `| where` stage keyword-rejection offset is truthful.
+///
+/// Query: `SELECT * FROM crowdstrike_detections | where NOT(device_id) = 5`
+///
+/// `split_offset` = 37 (position of `|` in the original query).
+/// `stages_str = "| where NOT(device_id) = 5"`.
+/// `NOT` in `stages_str` → stage-relative offset = 8.
+/// `NOT` in original query → absolute offset = 45.
+///
+/// The LOW-006 keyword gate in `fn_call_comparison` emits `Rich::custom` with span
+/// `func_span.start..func_span.end` where `func_span.start = 8` (stage-relative).
+/// `rich_to_parse_error` captures `err.span().start = 8` as `ParseError.offset`.
+/// This error is returned by `parse_sqlpipe_internal` via the `stage_errs` early-return
+/// path **WITHOUT** any offset shift.
+///
+/// Pre-fix: `PrismError::QueryParseFailed { offset: 8 }` — stage-relative, wrong.
+/// Post-fix: `parse_sqlpipe_internal` shifts all `stage_errs` offsets by `split_offset`
+///   (37) before returning → `PrismError::QueryParseFailed { offset: 45 }` — absolute.
+///
+/// Parallel to the `shift_scalar_spans_in_stages` shift (success path, F-PQLFN-P22-MED-001),
+/// but for the error path (F-PQLFN-P27-MED-001, ADR-048 §D.7.2).
+///
+/// # RED → GREEN
+/// FAILS before fix: offset = 8 (stage-relative), expected 45 (absolute).
+/// PASSES after fix: shift applied in the `stage_errs` early-return path → offset = 45.
+///
+/// Load-bearing (TD-VSDD-059): removing the shift call in `parse_sqlpipe_internal`'s
+/// stage-error return path reverts this test to failure (offset 8 ≠ 45).
+///
+/// Traces to: F-PQLFN-P27-MED-001; ADR-048 §D.7.2 truthful-offset principle;
+///            BC-2.11.004 v1.42 LOW-006 (keyword fn-name rejection).
+#[tokio::test]
+async fn test_pqlfn_p27_med001_sqlpipe_stage_keyword_error_offset_truthful() {
+    let query = "SELECT * FROM crowdstrike_detections | where NOT(device_id) = 5";
+    let expected_offset = query.find("NOT").expect("NOT must be in query");
+
+    let engine = make_crowdstrike_detections_engine();
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    match result {
+        Err(PrismError::QueryParseFailed { offset, .. }) => {
+            assert_eq!(
+                offset, expected_offset,
+                "F-PQLFN-P27-MED-001: LOW-006 keyword-rejection error must report \
+                 truthful (absolute) offset pointing at 'NOT' in the ORIGINAL query. \
+                 Expected offset={expected_offset} (absolute), got offset={offset}. \
+                 Pre-fix: the stage_errs early-return path in parse_sqlpipe_internal \
+                 does NOT shift errors by split_offset — Rich::custom span is \
+                 stage-relative (stages_str position), so offset = 8 instead of 45. \
+                 Fix: shift all stage_errs offsets by split_offset (37) before returning, \
+                 parallel to shift_scalar_spans_in_stages on the success path \
+                 (F-PQLFN-P27-MED-001, ADR-048 §D.7.2)."
+            );
+            assert!(
+                offset > 0,
+                "F-PQLFN-P27-MED-001: offset must be > 0 for 'NOT' \
+                 that does not start at byte 0 of the original query. \
+                 Got offset={offset}"
+            );
+        }
+        other => panic!(
+            "F-PQLFN-P27-MED-001: expected QueryParseFailed (E-QUERY-001) for \
+             LOW-006 keyword fn-name rejection in SqlPipe | where stage, got: {other:?}"
+        ),
+    }
 }
