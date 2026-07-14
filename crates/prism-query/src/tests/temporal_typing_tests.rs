@@ -5372,7 +5372,7 @@ async fn test_BC_2_11_019_tm_07_sql_where_sum_e_query_001_high001() {
 /// Note: TM-01 covers the same query with variant-only assertion (is_err()).
 /// TM-08 adds the stronger SID-2 message assertions for the D.7 MED-002 closure.
 ///
-/// Traces to: ADR-048 v1.2 §D.7.2 TM-08; F-PQLFN-P2-MED-002; BC-2.11.004 v1.33 EC-11-013;
+/// Traces to: ADR-048 v1.2 §D.7.2 TM-08; F-PQLFN-P2-MED-002; BC-2.11.004 EC-11-082 (renumbered from EC-11-013 in v1.47; SR-006 collision with BC-2.11.005);
 /// F-PQLFN-P3-OBS-002 (byte-verbatim POL-24 upgrade).
 #[tokio::test]
 async fn test_BC_2_11_004_tm_08_pipe_where_count_with_args_canonical_d3_message() {
@@ -5399,7 +5399,7 @@ async fn test_BC_2_11_004_tm_08_pipe_where_count_with_args_canonical_d3_message(
     );
 
     // F-PQLFN-P10-OBS-001 / POL-24 byte-verbatim lock: assert the detail-only canonical
-    // template from BC-2.11.004 v1.33 EC-11-013 appears as an exact contiguous substring
+    // template from BC-2.11.004 EC-11-082 (renumbered from EC-11-013 in v1.47; SR-006 collision with BC-2.11.005) appears as an exact contiguous substring
     // of Display (ADR-048 D.7.2 de-prefix discipline: detail MUST NOT embed "E-QUERY-001:"
     // prefix — that prefix is emitted once by QueryParseFailed's #[error] format string).
     // One byte-verbatim lock here; other TM tests retain substring checks (defense-in-depth
@@ -5410,7 +5410,7 @@ async fn test_BC_2_11_004_tm_08_pipe_where_count_with_args_canonical_d3_message(
     assert!(
         display.contains(CANONICAL_AGG_MSG),
         "TM-08 F-PQLFN-P10-OBS-001: Display must contain the byte-verbatim detail-only \
-         canonical template from BC-2.11.004 v1.33 EC-11-013 (POL-24). \
+         canonical template from BC-2.11.004 EC-11-082 (renumbered from EC-11-013 in v1.47; SR-006 collision with BC-2.11.005) (POL-24). \
          Expected contiguous substring: {CANONICAL_AGG_MSG:?}. \
          Got: {display}"
     );

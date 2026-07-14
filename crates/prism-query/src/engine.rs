@@ -6824,7 +6824,7 @@ mod sqlpipe_gate_sweep_tests {
     /// Both `execute` and `execute_scheduled` must return `QueryParseFailed` for this query,
     /// demonstrating symmetric aggregate-gate behavior across both execution paths.
     ///
-    /// Traces to: BC-2.11.004 v1.33 EC-11-013; ADR-048 v1.2 §D.7.4; F-PQLFN-P3-LOW-002.
+    /// Traces to: BC-2.11.004 EC-11-082 (renumbered from EC-11-013 in v1.47; SR-006 collision with BC-2.11.005); ADR-048 v1.2 §D.7.4; F-PQLFN-P3-LOW-002.
     #[tokio::test]
     async fn test_BC_2_11_004_tm_sched_parity_aggregate_gate_execute_scheduled() {
         let engine = make_test_engine();
