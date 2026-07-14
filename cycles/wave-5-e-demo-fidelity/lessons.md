@@ -3271,3 +3271,27 @@ Test assertions that accept ANY outcome other than one specific failure — i.e.
 **Cross-reference:** TD-VSDD-059 (paper-fix detection); Lesson 47 (hollow feature class — wired vs. unit-tested); SAP-1 (adversary standing probe for emission catalog completeness — same principle: presence, not absence).
 
 **Source:** D-1729 (DEFECT-PQL-FNCALL-LHS-001 pass-18 F-PQLFN-P18-MED-001 expr_to_sql FuncCall arm; 3 paper-test sites surviving 17 passes; fresh-context protocol vindication; 2026-07-13).
+
+---
+
+### Lesson 55 — [process-gap] BC-INDEX summary-row parentheticals MUST be extractive restatements of the BC §Changelog row — three-instance codification
+
+**Classification:** PROCESS-GAP — DEFECT-MCP-ROWSHAPE-NULLS-001 PR-LEVEL cascade; F-MCPRS-PRL22-MED-001 (2026-07-14). Third consecutive instance of the same class in passes 20/21/22: BC-2.15.009 v1.7 (pass-20), BC-2.11.018 v1.5/v1.4 (pass-21), BC-3.2.001 v0.10 (pass-22).
+
+**Pattern:** BC-INDEX Status-cell version parentheticals written as abstractive paraphrases or semantically adjacent descriptions — rather than extractive restatements of the specific BC's own §Changelog row — produce fabricated summaries that mislead readers and fail adversarial noun-phrase verification.
+
+**Three-cascade evidence:**
+- **Pass 20 (F-MCPRS-PRL20-MED-001):** BC-2.15.009 v1.7 parenthetical claimed "null-not-absent constraint propagation" — actually 3-site cosmetic rows-terminology sweep. CLOSED D-1759 (BC-INDEX v8.20).
+- **Pass 21 (F-MCPRS-PRL21-MED-001):** BC-2.11.018 v1.5 parenthetical claimed "normalized_pql echo interaction with null-not-absent constraint" — phrase appears nowhere in BC-2.11.018; semantics belong to BC-2.11.001. CLOSED D-1762 (BC-INDEX v8.22).
+- **Pass 22 (F-MCPRS-PRL22-MED-001):** BC-3.2.001 v0.10 parenthetical claimed "null-not-absent row isolation check" — phrase appears nowhere in BC-3.2.001; BC-3.2.001 v0.10 was a POL-25/POL-29 sweep updating §Postconditions.5 internal-error message to BC-2.10.007 message/suggestion split. CLOSED D-1763 (BC-INDEX v8.23).
+
+**Root cause:** When multiple BCs are updated in the same cascade burst, state-manager authoring BC-INDEX rows for each BC risks cross-contaminating descriptions by carrying forward the dominant semantic theme of the burst (e.g., "null-not-absent") into summary rows for BCs whose actual changes were different. The description is written from memory of the cascade theme rather than from a fresh read of the specific BC's §Changelog row.
+
+**Codified rule:** BC-INDEX Status-cell version parentheticals MUST:
+1. Be extractive restatements of the specific BC's §Changelog row for that version — not abstractive summaries of the cascade theme.
+2. Pass a burst-time noun-phrase grep audit: every noun phrase in the summary MUST appear in that BC's §Changelog row or §Postconditions/§Preconditions body.
+3. Be authored while the specific BC's changelog is in active read context — not batch-authored at the end of a multi-BC burst where cross-contamination risk is highest.
+
+**S-7.02 codification candidate:** Add to state-manager burst checklist: "For each BC-INDEX row updated in this burst, verify the Status-cell parenthetical by noun-phrase grep — every noun phrase must appear in that BC's own §Changelog row. Cross-BC semantic contamination (carrying the burst theme into a row whose BC has a different change) is a fabrication defect class. This check takes < 1 minute per row and has now been the source of 3 consecutive MED findings across passes 20/21/22."
+
+**Source:** D-1763 (DEFECT-MCP-ROWSHAPE-NULLS-001 pass-22 F-MCPRS-PRL22-MED-001 BC-3.2.001 row truth; 3rd class instance; 2026-07-14).
