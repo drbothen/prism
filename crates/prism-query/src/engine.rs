@@ -2017,19 +2017,44 @@ fn check_enrich_udf_availability(
             // shared walk into sql_unknown_names for E-QUERY-039.
             collect_unknown_scalars_from_sql_query(sq, &mut sql_unknown_names);
         }
-        // (D.7.1 position 6) DML WHERE: walk filter predicate into predicate_fncall_names.
-        // DML has no SELECT/GROUP BY/ORDER BY/HAVING positions — only the WHERE predicate
-        // is walked. Post-branch, build_predicate_parser (used by build_delete_parser and
-        // build_update_parser) accepts fn-call LHS via fn_call_comparison; without this arm
-        // the aggregate gate silently passes DML WHERE aggregates, producing SILENT EMPTY
-        // SUCCESS (DML execution no-ops to Ok(vec![])). (ADR-048 §D.7.5, OD-6)
+        // (D.7.1 position 6 + 7) DML WHERE: walk filter and source_select WHERE into
+        // predicate_fncall_names.
+        //
+        // Position 6 (DELETE/UPDATE WHERE): build_delete_parser and build_update_parser
+        // bind build_predicate_parser for their WHERE clause; post-branch fn_call_comparison
+        // is in build_predicate_parser so DML WHERE accepts fn-call LHS. Without this arm
+        // the aggregate gate silently passes DML WHERE aggregates → SILENT EMPTY SUCCESS
+        // (DML execution no-ops to Ok(vec![])). (ADR-048 §D.7.5, OD-6)
+        //
+        // Position 7 (INSERT source_select WHERE): build_insert_parser calls build_sql_parser
+        // → build_sql_predicate_parser → build_predicate_parser → fn_call_comparison; INSERT
+        // carries source_select: Option<SqlQuery> whose WHERE must also be walked. Without this
+        // walk, INSERT INTO t SELECT ... WHERE stddev(x) > 5 parses to
+        // DmlNode{filter:None, source_select:Some(SqlQuery{where_:Some(...stddev...)})}; the
+        // gate sees filter=None and walks nothing → SILENT EMPTY SUCCESS. (ADR-048 §D.7.6, OD-7)
+        //
+        // source_select HAVING is intentionally exempt — HAVING may legitimately contain
+        // aggregate functions (§D.7.1 HAVING exemption; §D.7.3).
         //
         // Note: `Ast` and `SqlStatement` are non-exhaustive for external crates, but within
         // this crate all current variants (Pipe, Filter, SqlPipe, Sql(Select), Sql(Dml)) are
         // explicitly handled — `_ => {}` is removed as it is unreachable within-crate.
         Ast::Sql(SqlStatement::Dml(dml)) => {
+            // (D.7.1 position 6) DELETE/UPDATE WHERE → predicate_fncall_names.
             if let Some(pred) = &dml.filter {
                 collect_unknown_scalar_offsets_from_predicate(pred, &mut predicate_fncall_names);
+            }
+            // (D.7.1 position 7) INSERT source_select WHERE → predicate_fncall_names.
+            if let Some(src) = &dml.source_select {
+                if let Some(pred) = &src.where_ {
+                    collect_unknown_scalar_offsets_from_predicate(
+                        pred,
+                        &mut predicate_fncall_names,
+                    );
+                }
+                // src.having is intentionally exempt — HAVING may legitimately contain
+                // aggregate functions (§D.7.1 HAVING exemption; §D.7.3). INSERT
+                // source_select HAVING follows the same rule as regular SQL HAVING.
             }
         }
     }
@@ -15500,5 +15525,195 @@ mod dml_where_sixth_gated_position_tests {
             display.contains("badudf"),
             "F-PQLFN-P7-LOW-002: Display must contain 'badudf'. Got: {display}"
         );
+    }
+}
+
+// F-PQLFN-P32-OBS-001: INSERT source_select WHERE seventh gated position (ADR-048 §D.7.6, OD-7)
+// --------------------------------------------------------------------------------------------
+//
+// Before fix: `Ast::Sql(SqlStatement::Dml(dml))` arm in `check_enrich_udf_availability`
+// walked only `dml.filter`. INSERT queries have `filter = None` and carry the WHERE via
+// `dml.source_select.where_`. Without the source_select walk, the aggregate gate saw
+// filter=None, walked nothing, and returned Ok(()) — SILENT EMPTY SUCCESS for:
+//   `INSERT INTO t (col) SELECT col FROM t2 WHERE stddev(x) > 5`
+//
+// Post-fix: the arm also walks `dml.source_select.where_` into `predicate_fncall_names`,
+// restoring E-QUERY-001 for aggregates in INSERT source_select WHERE.
+//
+// source_select HAVING is intentionally exempt (§D.7.1 HAVING exemption; §D.7.3).
+// The HAVING aggregate lock test confirms no false E-QUERY-001 fires for HAVING form.
+//
+// Tests call `check_enrich_udf_availability` directly (private fn, same file) to avoid
+// requiring a registered table for DML gate tests. Aggregate gate fires before any table
+// availability check — direct call cleanly isolates the gate behavior.
+//
+// Traces to: F-PQLFN-P32-OBS-001; ADR-048 v1.13 §D.7.6; OD-7.
+#[cfg(test)]
+mod insert_source_select_where_seventh_gated_position_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    /// F-PQLFN-P32-OBS-001 (1/3): `INSERT INTO t (col) SELECT col FROM t2 WHERE stddev(x) > 5`
+    /// must fire E-QUERY-001 (aggregate-in-predicate gate, ADR-048 D.7.1 Position 7).
+    /// No infusion registry needed — aggregate gate fires regardless of registry state.
+    ///
+    /// Before fix: INSERT filter=None → gate walked nothing → SILENT EMPTY SUCCESS (DML no-op).
+    /// After fix: DML arm walks dml.source_select.where_ → stddev in predicate_fncall_names
+    ///            → aggregate gate → E-QUERY-001.
+    ///
+    /// Error detail must contain "stddev" and "aggregate" per §D.7.6 table.
+    /// Offset must be > 0 (stddev appears after the INSERT prefix; exact byte position
+    /// not hard-coded as it is fragile to query reformatting — §D.7.6 "Offset truthfulness").
+    ///
+    /// Traces to: F-PQLFN-P32-OBS-001; ADR-048 v1.13 §D.7.6.
+    #[test]
+    fn test_f_pqlfn_p32_obs_001_insert_source_select_where_aggregate_fires_e_query_001() {
+        let result = check_enrich_udf_availability(
+            "INSERT INTO t (col) SELECT col FROM t2 WHERE stddev(x) > 5",
+            None,
+        );
+
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P32-OBS-001: INSERT INTO t (col) SELECT col FROM t2 WHERE stddev(x) > 5 \
+             must return Err (E-QUERY-001 aggregate gate). Got Ok. \
+             Before fix: source_select.where_ not walked — aggregate gate was a no-op for INSERT."
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        assert!(
+            matches!(&err, PrismError::QueryParseFailed { .. }),
+            "F-PQLFN-P32-OBS-001: INSERT source_select WHERE aggregate must return \
+             QueryParseFailed (E-QUERY-001). Got: {err:?} (Display: {display})"
+        );
+
+        assert!(
+            display.contains("aggregate function"),
+            "F-PQLFN-P32-OBS-001: Display must contain 'aggregate function' \
+             (ADR-048 D.3 canonical message). Got: {display}"
+        );
+
+        assert!(
+            display.contains("stddev"),
+            "F-PQLFN-P32-OBS-001: Display must contain 'stddev' (the aggregate fn name). \
+             Got: {display}"
+        );
+
+        assert!(
+            display.contains("HAVING"),
+            "F-PQLFN-P32-OBS-001: Display must contain 'HAVING' (ADR-048 D.3 guidance). \
+             Got: {display}"
+        );
+
+        assert!(
+            display.contains("not valid in WHERE/where predicates"),
+            "F-PQLFN-P32-OBS-001: Display must contain 'not valid in WHERE/where predicates' \
+             (ADR-048 v1.8 §D.7.2 position-agnostic message). Got: {display}"
+        );
+
+        // Offset truthfulness: stddev appears well into the INSERT statement; offset must be > 0.
+        // Exact byte position not asserted — fragile to query reformatting (ADR-048 §D.7.6).
+        if let PrismError::QueryParseFailed { offset, .. } = &err {
+            assert!(
+                *offset > 0,
+                "F-PQLFN-P32-OBS-001: Offset must be > 0 (stddev appears after INSERT prefix). \
+                 Got offset={offset}"
+            );
+        }
+    }
+
+    /// F-PQLFN-P32-OBS-001 (2/3): `INSERT INTO t (col) SELECT col FROM t2 WHERE avg(score) > 100`
+    /// must fire E-QUERY-001 (aggregate-in-predicate gate). No registry needed.
+    ///
+    /// Sibling of the stddev test; exercises a second aggregate name to confirm the gate
+    /// is not function-name-specific. `avg` is registered in DataFusion 53.1
+    /// `default_aggregate_functions()` and exercises the same DATAFUSION_BUILTIN_AGGREGATE_NAMES
+    /// gate mechanism.
+    ///
+    /// Traces to: F-PQLFN-P32-OBS-001; ADR-048 v1.13 §D.7.6.
+    #[test]
+    fn test_f_pqlfn_p32_obs_001_insert_source_select_where_avg_fires_e_query_001() {
+        let result = check_enrich_udf_availability(
+            "INSERT INTO t (col) SELECT col FROM t2 WHERE avg(score) > 100",
+            None,
+        );
+
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P32-OBS-001: INSERT INTO t (col) SELECT col FROM t2 WHERE avg(score) > 100 \
+             must return Err (E-QUERY-001 aggregate gate). Got Ok."
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        assert!(
+            matches!(&err, PrismError::QueryParseFailed { .. }),
+            "F-PQLFN-P32-OBS-001: INSERT source_select WHERE avg must return QueryParseFailed \
+             (E-QUERY-001). Got: {err:?} (Display: {display})"
+        );
+
+        assert!(
+            display.contains("aggregate function"),
+            "F-PQLFN-P32-OBS-001 (avg): Display must contain 'aggregate function'. Got: {display}"
+        );
+
+        assert!(
+            display.contains("avg"),
+            "F-PQLFN-P32-OBS-001 (avg): Display must contain 'avg'. Got: {display}"
+        );
+
+        assert!(
+            display.contains("HAVING"),
+            "F-PQLFN-P32-OBS-001 (avg): Display must contain 'HAVING'. Got: {display}"
+        );
+
+        assert!(
+            display.contains("not valid in WHERE/where predicates"),
+            "F-PQLFN-P32-OBS-001 (avg): Display must contain 'not valid in WHERE/where predicates'. \
+             Got: {display}"
+        );
+    }
+
+    /// F-PQLFN-P32-OBS-001 (3/3): HAVING exemption regression lock.
+    /// `INSERT INTO t (col) SELECT x, count(*) AS c FROM t2 GROUP BY x HAVING count(*) > 5`
+    /// must NOT fire E-QUERY-001.
+    ///
+    /// HAVING predicates are exempt from the aggregate-in-predicate gate (§D.7.1 HAVING
+    /// exemption; §D.7.3). The source_select HAVING must remain exempt even after the
+    /// Position 7 gate extension — only source_select WHERE is gated.
+    ///
+    /// This is a GREEN lock test: it must remain passing. If this test fails it means
+    /// the gate implementation incorrectly walked source_select.having.
+    ///
+    /// Traces to: F-PQLFN-P32-OBS-001; ADR-048 §D.7.3; §D.7.6 "source_select HAVING: EXEMPT".
+    #[test]
+    fn test_f_pqlfn_p32_obs_001_insert_source_select_having_aggregate_does_not_fire_e_query_001() {
+        let result = check_enrich_udf_availability(
+            "INSERT INTO t (col) SELECT x, count(*) AS c FROM t2 GROUP BY x HAVING count(*) > 5",
+            None,
+        );
+
+        // HAVING aggregate must NOT produce E-QUERY-001. The result may be Ok or some other
+        // error (e.g., DataFusion plan error for unknown table), but must NOT be
+        // QueryParseFailed (E-QUERY-001) triggered by the aggregate gate.
+        match &result {
+            Err(PrismError::QueryParseFailed { .. }) => {
+                let display = format!("{}", result.unwrap_err());
+                // Only fail if the error is the aggregate gate message — a parse error
+                // from unrecognised syntax is acceptable (the gate must not fire).
+                assert!(
+                    !display.contains("aggregate function"),
+                    "F-PQLFN-P32-OBS-001 HAVING LOCK: INSERT source_select HAVING count(*) > 5 \
+                     must NOT fire E-QUERY-001 aggregate gate (HAVING is exempt per §D.7.1/§D.7.3). \
+                     Got aggregate gate error: {display}"
+                );
+            }
+            _ => {
+                // Ok or non-QueryParseFailed error — HAVING exemption holds.
+            }
+        }
     }
 }
