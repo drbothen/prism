@@ -533,8 +533,15 @@ fn shift_scalar_spans_in_stages(stages: &mut [crate::ast::PipeStage], offset: us
 
 fn shift_scalar_spans_in_predicate(pred: &mut crate::ast::Predicate, offset: usize) {
     use crate::ast::Predicate;
+    // All Predicate variants are enumerated explicitly (no wildcard `_ => {}`) so that
+    // adding a new Predicate variant forces a compile error here, preventing a silent
+    // no-op for a variant that may contain nested Expr or Predicate with FuncCall::Scalar
+    // spans. Predicate is #[non_exhaustive] but in-crate matches are exhaustively
+    // checkable — future variants must force a compile error here, matching the
+    // fix-burst-18 philosophy in shift_scalar_spans_in_expr (F-PQLFN-P24-OBS-002).
     match pred {
         Predicate::Compare { lhs, rhs, .. } => {
+            // Both lhs and rhs are Box<Expr>; recurse to shift any nested FuncCall::Scalar.
             shift_scalar_spans_in_expr(lhs, offset);
             shift_scalar_spans_in_expr(rhs, offset);
         }
@@ -544,7 +551,39 @@ fn shift_scalar_spans_in_predicate(pred: &mut crate::ast::Predicate, offset: usi
             }
         }
         Predicate::Not(inner) => shift_scalar_spans_in_predicate(inner, offset),
-        _ => {}
+        Predicate::StringOp { .. } => {
+            // Contains FieldPath + String + StringOp flags — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::Regex { .. } => {
+            // Contains FieldPath + RegexLiteral — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::In { .. } => {
+            // Contains FieldPath + Vec<Literal> — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::InSubquery { .. } => {
+            // Contains FieldPath + Box<SqlQuery> — SqlQuery is not an Expr; no span to shift.
+        }
+        Predicate::Between { .. } => {
+            // Contains FieldPath + Literal bounds — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::Cidr { .. } => {
+            // Contains FieldPath + CidrLiteral — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::Has(_) => {
+            // Contains FieldPath only — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::Missing(_) => {
+            // Contains FieldPath only — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::IsNull { .. } => {
+            // Contains FieldPath + negated bool — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::Wildcard { .. } => {
+            // Contains FieldPath + String pattern + negated bool — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::RecoveryError => {
+            // No fields; sentinel produced by error recovery only — no span to shift.
+        }
     }
 }
 
