@@ -3967,38 +3967,110 @@ async fn test_BC_2_11_004_ec11_004_005_pipe_fncall_lhs_date_like_rejects_e_query
 ///            EC-11-004-006 "fn-call args walked by collect_predicate_columns FuncCall arm".
 #[tokio::test]
 async fn test_BC_2_11_004_ec11_004_006_pipe_fncall_lhs_non_date_like_rhs_succeeds() {
-    let engine = make_crowdstrike_detections_engine();
+    use crate::{
+        filter_parser::PrismQlParser, materialization::execute_against_session,
+        memory::build_session_context,
+    };
 
-    // RED GATE: grammar rejects `lower(device_id)` → QueryParseFailed.
-    // POST-FIX: grammar parses OK; 'active' is not date-like → no temporal interception;
-    //           query passes to DataFusion (may fail with sensor error, not parse/plan error).
-    let result = engine
-        .execute(
-            "FROM crowdstrike_detections | where lower(device_id) = 'active'",
-            QueryOptions::default(),
-        )
-        .await;
+    // F-PQLFN-P18-MED-001 RED GATE (fix-burst 14):
+    // Grammar is already extended (fn-call LHS parses). The active defect is in the emitter:
+    // `pipe_sql_emitter::expr_to_sql` has no `Expr::FuncCall` arm — the catch-all fires:
+    //   Err(QueryExecutionFailed { "Complex expression in pipe WHERE stage is not yet
+    //   supported. Rewrite as SQL." })
+    //
+    // Use `execute_against_session` directly (bypasses run_materialization_pipeline step-6
+    // early-return guard) to guarantee the emitter is reached and the defect is exercised.
+    //
+    // POST-FIX (GREEN): `Expr::FuncCall` arm added to `expr_to_sql` → `lower(device_id)`
+    // emits `lower(device_id)` SQL → DataFusion executes → Ok (empty result set).
+    let query = "FROM crowdstrike_detections | where lower(device_id) = 'active'";
+    let ctx = build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+    let ast = PrismQlParser::parse(query)
+        .expect("grammar fn-call LHS extension is already green — query must parse");
+    let result = execute_against_session(&ctx, query, &ast, std::collections::HashMap::new()).await;
 
-    // Must NOT be a parse error — the grammar extension must make this parseable.
-    // RED failure: currently returns QueryParseFailed (grammar defect).
+    // BC-2.11.004 EC-11-004-006 spec-promised outcome: fn-call LHS in pipe | where with
+    // non-date-like RHS must reach DataFusion execution (Ok with 0 rows or sensor error).
+    // RED: Err(QueryExecutionFailed { "Complex expression..." }) — emitter FuncCall arm missing.
     assert!(
-        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
-        "EC-11-004-006: `lower(device_id) = 'active'` in pipe | where must NOT return \
-         QueryParseFailed. Post-fix: grammar extension parses fn-call LHS; 'active' has \
-         no temporal intercept; query proceeds to DataFusion. \
-         RED failure: grammar still rejects fn-call LHS → QueryParseFailed. \
+        result.is_ok(),
+        "EC-11-004-006: `lower(device_id) = 'active'` in pipe | where must return Ok \
+         (DataFusion execution, non-date-like RHS passes all plan gates). \
+         RED: pipe_sql_emitter::expr_to_sql catch-all fires — Expr::FuncCall arm missing. \
          Got: {result:?}"
     );
 
-    // Must NOT be E-QUERY-042 — 'active' is not in the is_date_like Acceptance Set;
-    // no RawTemporalLiteral is emitted; check_temporal_literals does not intercept.
+    // Diagnostic lock: confirms the exact failing arm when is_ok() above fires.
+    // The catch-all in pipe_sql_emitter::expr_to_sql emits this exact detail string.
     assert!(
         !matches!(
             &result,
-            Err(PrismError::TemporalLiteralInvalidPosition { .. })
+            Err(PrismError::QueryExecutionFailed { detail, .. })
+            if detail.contains("Complex expression")
         ),
-        "EC-11-004-006: `lower(device_id) = 'active'` must NOT return E-QUERY-042. \
-         'active' is not date-like → no RawTemporalLiteral → temporal gate passes. \
+        "EC-11-004-006: must NOT be Err(QueryExecutionFailed {{ 'Complex expression...' }}). \
+         This error comes from the catch-all in pipe_sql_emitter::expr_to_sql. \
+         Fix: add Expr::FuncCall arm to lower fn-call to SQL (e.g. `lower(device_id)`). \
+         Got: {result:?}"
+    );
+}
+
+/// EC-11-004-006 (SqlPipe variant): SqlPipe `| where` fn-call LHS with NON-date-like
+/// RHS must succeed — no temporal interception, no "Complex expression" error.
+///
+/// Query: `SELECT * FROM crowdstrike_detections | where lower(device_id) = 'active'`
+///
+/// # Red Gate pre-fix failure (F-PQLFN-P18-MED-001)
+/// `pipe_sql_emitter::expr_to_sql` has no `Expr::FuncCall` arm.
+/// `sqlpipe_to_executable_sql` → `apply_stage(PipeStage::Where)` → `apply_where` →
+/// `predicate_to_datafusion_sql` → `expr_to_sql(FuncCall)` → catch-all →
+/// Err(QueryExecutionFailed { "Complex expression in pipe WHERE stage is not yet
+/// supported. Rewrite as SQL." }).
+/// This test asserts `result.is_ok()` → FAILS on current HEAD. ✓
+///
+/// # Post-fix state (GREEN)
+/// `Expr::FuncCall` arm added → `lower(device_id)` emits `lower(device_id)` SQL →
+/// DataFusion executes → Ok (empty result set).
+///
+/// Traces to: BC-2.11.004 v1.31 EC-11-004-006; ADR-052 §D4 v1.12 Option A.
+#[tokio::test]
+async fn test_BC_2_11_004_ec11_004_006_sqlpipe_fncall_lhs_non_date_like_rhs_succeeds() {
+    use crate::{
+        filter_parser::PrismQlParser, materialization::execute_against_session,
+        memory::build_session_context,
+    };
+
+    // F-PQLFN-P18-MED-001 RED GATE (SqlPipe variant):
+    // `expr_to_sql` catch-all fires for Expr::FuncCall LHS in the SqlPipe | where stage.
+    //
+    // Use `execute_against_session` directly to bypass step-6 early-return guard
+    // and guarantee the SqlPipe emitter path is exercised.
+    let query = "SELECT * FROM crowdstrike_detections | where lower(device_id) = 'active'";
+    let ctx = build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+    let ast = PrismQlParser::parse(query)
+        .expect("grammar fn-call LHS extension is already green — query must parse");
+    let result = execute_against_session(&ctx, query, &ast, std::collections::HashMap::new()).await;
+
+    // BC-2.11.004 EC-11-004-006 spec-promised outcome (SqlPipe mode): must reach DataFusion.
+    // RED: Err(QueryExecutionFailed { "Complex expression..." }) — emitter FuncCall arm missing.
+    assert!(
+        result.is_ok(),
+        "EC-11-004-006 (SqlPipe): `lower(device_id) = 'active'` in SqlPipe | where must \
+         return Ok (DataFusion execution). \
+         RED: pipe_sql_emitter::expr_to_sql catch-all fires — Expr::FuncCall arm missing. \
+         Got: {result:?}"
+    );
+
+    // Diagnostic lock: confirms the exact failing arm when is_ok() above fires.
+    assert!(
+        !matches!(
+            &result,
+            Err(PrismError::QueryExecutionFailed { detail, .. })
+            if detail.contains("Complex expression")
+        ),
+        "EC-11-004-006 (SqlPipe): must NOT be Err(QueryExecutionFailed {{ 'Complex expression...' }}). \
+         This error comes from the catch-all in pipe_sql_emitter::expr_to_sql. \
+         Fix: add Expr::FuncCall arm to lower fn-call to SQL. \
          Got: {result:?}"
     );
 }
@@ -4338,49 +4410,65 @@ async fn test_BC_2_11_003_ec11_003_007_filter_fncall_lhs_date_like_e_query_042()
     );
 }
 
-/// F-PQLFN-P1-MED-003b (GREEN, SAP-3 e2e lock): filter-mode fn-call LHS with
-/// NON-date-like RHS must NOT be rejected.
+/// F-PQLFN-P1-MED-003b: filter-mode fn-call LHS with NON-date-like RHS must succeed.
 ///
 /// Query: `crowdstrike_detections | lower(device_id) = 'active'`
 ///
-/// `'active'` is not in the `is_date_like` Acceptance Set; no `RawTemporalLiteral`
-/// is emitted; `check_temporal_literals` returns Ok(()).  The query passes the plan
-/// gates and proceeds to DataFusion (may fail with a sensor error, but must NOT
-/// produce E-QUERY-042 or E-QUERY-001/QueryParseFailed).
+/// # Red Gate pre-fix failure (F-PQLFN-P18-MED-001)
+/// `pipe_sql_emitter::predicate_to_datafusion_sql` → `expr_to_sql(FuncCall)` → catch-all →
+/// Err(QueryExecutionFailed { "Complex expression..." }).
+/// The Filter arm wraps this as:
+///   Err(QueryExecutionFailed { "filter SQL lowering failed: ... Complex expression ..." }).
+/// This test asserts `result.is_ok()` → FAILS on current HEAD. ✓
+///
+/// # Post-fix state (GREEN)
+/// `Expr::FuncCall` arm added → `lower(device_id)` emits SQL → DataFusion executes →
+/// Ok (empty result set — no tables registered in the direct-path session).
 ///
 /// Traces to: BC-2.11.003 v1.12 EC-11-003-007 (non-date-like passthrough);
-///            ADR-052 §D4 v1.10 Option A; SAP-3.
+///            ADR-052 §D4 v1.10 Option A; F-PQLFN-P18-MED-001.
 #[tokio::test]
 async fn test_BC_2_11_003_ec11_003_007_filter_fncall_lhs_non_date_rhs_not_rejected() {
-    let engine = make_crowdstrike_detections_engine();
+    use crate::{
+        filter_parser::PrismQlParser, materialization::execute_against_session,
+        memory::build_session_context,
+    };
 
-    let result = engine
-        .execute(
-            "crowdstrike_detections | lower(device_id) = 'active'",
-            QueryOptions::default(),
-        )
-        .await;
+    // F-PQLFN-P18-MED-001 RED GATE (fix-burst 14):
+    // `predicate_to_datafusion_sql` calls `expr_to_sql(FuncCall)` which hits the catch-all.
+    // The Filter arm wraps the inner error: "filter SQL lowering failed: ... Complex expression...".
+    //
+    // Use `execute_against_session` directly to bypass step-6 early-return guard.
+    let query = "crowdstrike_detections | lower(device_id) = 'active'";
+    let ctx = build_session_context(50 * 1024 * 1024).expect("build_session_context must succeed");
+    let ast = PrismQlParser::parse(query)
+        .expect("grammar fn-call LHS extension is already green — query must parse");
+    let result = execute_against_session(&ctx, query, &ast, std::collections::HashMap::new()).await;
 
-    // Must NOT be a parse error — grammar extension makes fn-call LHS parseable.
+    // BC-2.11.003 EC-11-003-007 spec-promised outcome: filter fn-call LHS with
+    // non-date-like RHS must reach DataFusion (Ok).
+    // RED: Err(QueryExecutionFailed { "filter SQL lowering failed: ... Complex expression ..." }).
     assert!(
-        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
-        "MED-003b: filter-mode lower(device_id) = 'active' must NOT return \
-         QueryParseFailed. 'active' is not date-like — temporal gate passes. \
+        result.is_ok(),
+        "EC-11-003-007: filter-mode `lower(device_id) = 'active'` must return Ok \
+         (DataFusion execution). \
+         RED: pipe_sql_emitter::expr_to_sql catch-all fires — Expr::FuncCall arm missing. \
          Got: {result:?}"
     );
 
-    // Must NOT be E-QUERY-042 — 'active' is not a date-like literal.
+    // Diagnostic lock: confirms the exact failing arm when is_ok() above fires.
+    // The catch-all detail propagates through the filter SQL lowering wrapper.
     assert!(
         !matches!(
             &result,
-            Err(PrismError::TemporalLiteralInvalidPosition { .. })
+            Err(PrismError::QueryExecutionFailed { detail, .. })
+            if detail.contains("Complex expression")
         ),
-        "MED-003b: filter-mode lower(device_id) = 'active' must NOT return \
-         E-QUERY-042. 'active' has no RawTemporalLiteral — arm (4) does not fire. \
+        "EC-11-003-007: must NOT be Err(QueryExecutionFailed {{ '...Complex expression...' }}). \
+         The catch-all in pipe_sql_emitter::expr_to_sql fires and is wrapped by the \
+         filter SQL lowering error. Fix: add Expr::FuncCall arm to expr_to_sql. \
          Got: {result:?}"
     );
-
-    // Any other outcome (Ok or a different sensor/execution error) is acceptable.
 }
 
 // ── F-PQLFN-P1-MED-004: unknown scalar in pipe/filter/sqlpipe | where ─────────
@@ -6389,27 +6477,17 @@ async fn test_dml_where_fncall_lhs_non_date_rhs_not_rejected() {
         )
         .await;
 
-    // Must NOT be a parse error — `build_predicate_parser` fn_call_comparison admits fn-call LHS.
+    // BC-2.11.003 EC-11-003-007 / F-PQLFN-P9-MED-002 spec-promised outcome (DML mode):
+    // DML `Ast::Sql(Dml)` falls to the `_ => Ok(Vec::new())` arm in
+    // `execute_against_session_with_registry` — the emitter is never reached.
+    // 'active' is not date-like → temporal gate passes. DML returns Ok(empty).
+    // GREEN on current HEAD (DML no-op path bypasses the emitter defect).
     assert!(
-        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
-        "F-PQLFN-P9-MED-002 (DELETE neg): lower(device_id) = 'active' in DML WHERE must NOT \
-         return QueryParseFailed. 'active' is not date-like — temporal gate passes. \
+        result.is_ok(),
+        "F-PQLFN-P9-MED-002 (DELETE neg): `lower(device_id) = 'active'` in DML WHERE \
+         must return Ok (DML no-op path — emitter is not reached for Ast::Sql(Dml)). \
          Got: {result:?}"
     );
-
-    // Must NOT be E-QUERY-042 — 'active' is not a date-like literal.
-    assert!(
-        !matches!(
-            &result,
-            Err(PrismError::TemporalLiteralInvalidPosition { .. })
-        ),
-        "F-PQLFN-P9-MED-002 (DELETE neg): lower(device_id) = 'active' in DML WHERE must NOT \
-         return E-QUERY-042. 'active' has no RawTemporalLiteral — arm (4) does not fire. \
-         Got: {result:?}"
-    );
-
-    // Any other outcome (Ok(vec![]) from the DML no-op path, or a different error) is
-    // acceptable.  The DML execution path returns Ok(vec![]) pending S-3.06 wiring.
 }
 
 // ── F-PQLFN-P10-OBS-002: fn-name identifier-start constraint ─────────────────
