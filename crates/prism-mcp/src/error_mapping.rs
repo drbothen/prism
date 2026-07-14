@@ -1601,10 +1601,19 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             } else {
                 raw_body
             };
+            // BC-2.10.007 v1.16 §RETRYABLE-503: only explicitly transient HTTP status codes are
+            // retryable. Transient set: 408 (Request Timeout), 425 (Too Early),
+            // 429 (Too Many Requests), 500 (Internal Server Error), 502 (Bad Gateway),
+            // 503 (Service Unavailable), 504 (Gateway Timeout).
+            // Permanent client errors (400/404/422/etc.) and auth failures requiring re-auth
+            // (401/403) are non-retryable. Pre-existing gap: prior arm set retryable: false
+            // unconditionally. Spec correction per RETRYABLE-503 adjudication v1.16
+            // (coordinator-raised overbroad-rule finding).
+            let retryable = matches!(status, 408 | 425 | 429 | 500 | 502 | 503 | 504);
             VariantMeta {
                 category,
                 suggestion,
-                retryable: false,
+                retryable,
                 retry_after_seconds: None,
                 original_params_valid: true,
                 source_override: Some(sensor.clone()),
@@ -2590,6 +2599,118 @@ mod tests {
         assert_eq!(
             category, "upstream_error",
             "PrismError::SensorHttpError (non-auth) must remain 'upstream_error' — NOT 'internal' (BC-2.10.007 v1.7 regression guard); got '{category}'"
+        );
+    }
+
+    // ── BC-2.10.007 v1.16 §RETRYABLE-503: SensorHttpError transient-only retryable whitelist ──
+
+    /// BC-2.10.007 v1.16 §RETRYABLE-503 — PRIMARY: SensorHttpError { status: 503 } → retryable: true.
+    ///
+    /// HTTP 503 Service Unavailable is an explicitly transient condition — the upstream
+    /// sensor is temporarily unavailable and the LLM agent MAY retry after delay.
+    /// Prior to v1.16 the arm set `retryable: false` unconditionally, causing agents to
+    /// treat a transient sensor outage as a permanent failure (wasted analyst triage).
+    ///
+    /// Transient whitelist (BC-2.10.007 v1.16 §RETRYABLE-503):
+    ///   408 (Request Timeout) | 425 (Too Early) | 429 (Too Many Requests) |
+    ///   500 (Internal Server Error) | 502 (Bad Gateway) | 503 (Service Unavailable) |
+    ///   504 (Gateway Timeout).
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_sensor_http_error_503_retryable_is_true() {
+        let err = PrismError::SensorHttpError {
+            sensor: "crowdstrike_falcon_api".to_owned(),
+            status: 503,
+            body: "Service Unavailable".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        // Category unchanged — 503 remains "upstream_error" (sensor boundary, not Prism internal).
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "upstream_error",
+            "SensorHttpError{{status:503}} must remain 'upstream_error' (BC-2.10.007 §RETRYABLE-503); got '{category}'"
+        );
+        // PRIMARY assertion: retryable must be true for a transient HTTP status.
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("structuredContent.error.retryable must be a bool");
+        assert!(
+            retryable,
+            "SensorHttpError{{status:503}} must be retryable:true (BC-2.10.007 v1.16 §RETRYABLE-503 — HTTP 503 is transient)"
+        );
+    }
+
+    /// BC-2.10.007 v1.16 §RETRYABLE-503 — COMPANION (transient): SensorHttpError { status: 429 } → retryable: true.
+    ///
+    /// HTTP 429 Too Many Requests is a rate-limit transient. The dedicated SensorRateLimited
+    /// variant handles structured 429 with retry_after_seconds; this test covers the
+    /// `SensorHttpError { status: 429 }` path for sensors that don't trigger the rate-limit
+    /// variant. Both paths must produce retryable: true per v1.16.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_sensor_http_error_429_retryable_is_true() {
+        let err = PrismError::SensorHttpError {
+            sensor: "armis_cloud_api".to_owned(),
+            status: 429,
+            body: "Too Many Requests".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("structuredContent.error.retryable must be a bool");
+        assert!(
+            retryable,
+            "SensorHttpError{{status:429}} must be retryable:true (BC-2.10.007 v1.16 §RETRYABLE-503 — HTTP 429 is transient rate-limit)"
+        );
+    }
+
+    /// BC-2.10.007 v1.16 §RETRYABLE-503 — COMPANION (permanent): SensorHttpError { status: 404 } → retryable: false.
+    ///
+    /// HTTP 404 Not Found is a permanent client error. Retrying will not fix a missing
+    /// resource. The v1.16 transient whitelist explicitly excludes 404 — marking it
+    /// retryable would waste LLM-agent cycles re-querying a permanently absent endpoint.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_sensor_http_error_404_retryable_is_false() {
+        let err = PrismError::SensorHttpError {
+            sensor: "claroty_api".to_owned(),
+            status: 404,
+            body: "Not Found".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("structuredContent.error.retryable must be a bool");
+        assert!(
+            !retryable,
+            "SensorHttpError{{status:404}} must be retryable:false (BC-2.10.007 v1.16 §RETRYABLE-503 — HTTP 404 is permanent)"
         );
     }
 
