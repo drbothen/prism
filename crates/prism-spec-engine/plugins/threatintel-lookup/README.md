@@ -90,14 +90,26 @@ S-DEMO-ENRICHMENT-PIVOT-002).
 
 ## Staleness Gate
 
-The CI job `wasm32-threatintel-staleness-check` verifies that the committed `.prx` was
-built from the current plugin source by comparing the content of
-`threatintel-lookup.prx.src-tree-hash` against a freshly computed hash of all tracked
-files in `crates/plugins/prism-threatintel-infusion/`. A mismatch means source changed
-without rebuilding.
+The CI job `wasm32-threatintel-staleness-check` enforces two independent checks:
 
-**Fix:** Run `just build-plugin-threatintel-infusion` and commit the three output files
-together: `.prx`, `.manifest.toml`, and `.prx.src-tree-hash`.
+### Check 1 — Source-hash freshness (F-MCPNULL-P2-OBS-002)
+
+Compares `threatintel-lookup.prx.src-tree-hash` against a freshly computed hash of all
+tracked files in `crates/plugins/prism-threatintel-infusion/`. A mismatch means source
+changed without rebuilding the `.prx`.
+
+### Check 2 — Commit atomicity (F-MCPRS-PRL1-MED-001)
+
+Verifies that `.prx` and its sidecar `threatintel-lookup.prx.src-tree-hash` were last
+touched in the **same commit**. A divergence — different last-touching commits — means
+one file was updated without the other. Common causes:
+
+- `.prx` rebuilt for toolchain drift without recommitting the sidecar alongside it.
+- Sidecar updated (e.g., introduced as a new file) without committing the `.prx` in the
+  same transaction.
+
+**Fix for either check:** Run `just build-plugin-threatintel-infusion` and commit all
+three output files together: `.prx`, `.manifest.toml`, and `.prx.src-tree-hash`.
 
 ```bash
 just build-plugin-threatintel-infusion
@@ -107,12 +119,20 @@ git add crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.p
 git commit -m "chore: rebuild threatintel-lookup plugin artifacts"
 ```
 
+### Residual Risk
+
+The commit-atomicity gate does not detect intentional byte manipulation of the `.prx`
+by an actor who also updates the sidecar in the same commit. That attack vector belongs
+to SLSA provenance controls and code review, not this CI gate. It is acknowledged and
+out of scope here.
+
 ### Cross-Platform Note
 
 The committed `.prx` binary may differ in bytes between macOS aarch64 and Linux x86_64
 builds from the same source. This is expected: LLVM-backed WASM codegen is not
-byte-reproducible across CPU architectures. The CI gate does not rely on byte-equality;
-it relies on source-content hashing. The binary is validated structurally via
+byte-reproducible across CPU architectures. Neither staleness check relies on
+byte-equality; the source-hash check uses source-content hashing, and the atomicity
+check uses git commit identity. The binary is validated structurally via
 `wasm-tools validate --features=component-model` on the committed artifact.
 
 ---

@@ -271,9 +271,17 @@ jobs:
     # since the manifest is a text file with byte-identical content on all platforms.
     needs: clippy
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # F-MCPRS-PRL1-OBS-004: bumped from 15 to 20 — wasm-tools install + cargo check
+    # + full .prx build on a cold per-job cache can exceed 15 min; 20 provides headroom.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # fetch-depth: 0 required for F-MCPRS-PRL1-MED-001 commit-atomicity gate.
+          # git log -1 --format=%H -- <path> returns empty on a shallow (depth=1) clone
+          # for any file not modified in HEAD, which would hard-fail the empty-commit guard
+          # on every run. Full history is needed to find the last-touching commit per path.
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           targets: wasm32-wasip1
@@ -326,6 +334,36 @@ jobs:
             exit 1
           fi
           echo "F-MCPNULL-P2-OBS-002 PASS: committed .prx matches current source (hash: $CURRENT_HASH)"
+      # F-MCPRS-PRL1-MED-001: commit-atomicity gate — verifies .prx and its sidecar were
+      # last committed in the same commit. A divergence means one was updated without the
+      # other (e.g., .prx rebuilt for toolchain drift without recommitting the sidecar, or
+      # sidecar updated without rebuilding the .prx). Placed BEFORE the WASM build step to
+      # catch atomicity violations without paying the full build cost.
+      # Residual risk: an actor with repo write access could byte-manipulate the .prx to a
+      # non-detectable state while updating the sidecar in the same commit. This belongs to
+      # SLSA provenance / code review controls, not this CI gate.
+      - name: Verify .prx and sidecar were committed atomically (F-MCPRS-PRL1-MED-001)
+        run: |
+          set -euo pipefail
+          PRX_PATH="crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx"
+          SIDECAR_PATH="crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx.src-tree-hash"
+          PRX_COMMIT=$(git log -1 --format="%H" -- "$PRX_PATH")
+          SIDECAR_COMMIT=$(git log -1 --format="%H" -- "$SIDECAR_PATH")
+          echo ".prx last commit:     $PRX_COMMIT"
+          echo "sidecar last commit:  $SIDECAR_COMMIT"
+          if [ -z "$PRX_COMMIT" ] || [ -z "$SIDECAR_COMMIT" ]; then
+            echo "::error::F-MCPRS-PRL1-MED-001: git log returned empty commit for .prx or sidecar — verify paths are tracked"
+            exit 1
+          fi
+          if [ "$PRX_COMMIT" != "$SIDECAR_COMMIT" ]; then
+            echo "::error::F-MCPRS-PRL1-MED-001: .prx and sidecar were last committed in different commits."
+            echo "::error::.prx last modified in:     $PRX_COMMIT"
+            echo "::error::sidecar last modified in:  $SIDECAR_COMMIT"
+            echo "::error::This means the sidecar was updated without rebuilding .prx (or vice versa)."
+            echo "::error::Fix: run 'just build-plugin-threatintel-infusion' and commit .prx + manifest + .src-tree-hash together."
+            exit 1
+          fi
+          echo "F-MCPRS-PRL1-MED-001 PASS: .prx and sidecar share commit $PRX_COMMIT"
       # F-MCPNULL-P3-LOW-004: save committed manifest SHA before build overwrites it,
       # then compare after rebuild. The manifest is a text file (byte-identical cross-platform).
       - name: Save committed manifest SHA-256
