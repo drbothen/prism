@@ -129,10 +129,36 @@ commit prior to the last `.prx` rebuild. This requires human-directed force-push
 
 ### Residual Risk
 
-The ancestry gate does not detect intentional byte manipulation of the `.prx` by an actor
-who also updates the sidecar in the same or an earlier commit. That attack vector belongs
-to SLSA provenance controls and code review, not this CI gate. It is acknowledged and
-out of scope here.
+Two attack surfaces survive all three CI checks and are accepted as out-of-scope for this
+gate:
+
+**Vector 1 — .prx-only byte substitution (simpler, lower friction).**
+An actor with repository write access submits a commit that modifies only the committed
+`.prx` binary — leaving the source crate and `threatintel-lookup.prx.src-tree-hash` sidecar
+untouched. Under this scenario:
+- Check 1 (source-hash freshness) passes: the sidecar was not updated, so the hash still
+  matches the unmodified source.
+- Check 2 (sidecar ancestry) passes: the `.prx` commit is now newer than the sidecar
+  commit, so `git merge-base --is-ancestor sidecar prx` succeeds.
+- Check 3 (manifest parity, F-MCPNULL-P3-LOW-004) passes: it compares manifest text
+  only, never hashes `.prx` bytes.
+
+A byte-comparison 4th check is infeasible: macOS aarch64 and Linux x86_64 produce
+different `.prx` bytes from the same source (LLVM WASM codegen is not byte-reproducible
+across CPU architectures — this is the founding constraint of this gate per architect
+adjudication). There is no canonical expected-bytes reference to compare against.
+
+**Vector 2 — coordinated sidecar + .prx manipulation.**
+An actor updates the sidecar to a hash matching a different source snapshot AND submits
+a `.prx` built from that snapshot in the same or a subsequent commit. All three checks
+pass because the internal self-consistency of the artifact set is preserved.
+
+**Accepted mitigation boundary:** Both vectors require write access to the repository
+and a commit that touches the `.prx` binary. The compensating control is mandatory code
+review of all commits touching binary artifacts, enforced by branch protection (required
+reviews before merge). Future mitigation: SLSA Level 2+ provenance attestation, which
+produces a signed build provenance record tied to a specific source commit and build
+environment, making substitution detectable out-of-band.
 
 ### Cross-Platform Note
 
@@ -153,3 +179,4 @@ check uses git commit identity. The binary is validated structurally via
 | Artifact tracking precedent | S-PLUGIN-CI-001 (PR #159) — established pattern of committing `.prx` deploy output alongside source |
 | Corrective audit finding | DEFECT-MCP-ROWSHAPE-NULLS-001 [H20] `F-MCPNULL-P1-MED-002` — supply-chain provenance breadcrumb missing |
 | Staleness gate design | DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst 13 — source-hash sidecar per architect adjudication (F-MCPNULL-P2-OBS-002) |
+| Current plugin version | `1.0.1` — re-cut from 1.0.0 to establish commit-ordering for CI ancestry gate (F-MCPRS-PRL1-MED-001); source of truth: `fn version()` in `crates/plugins/prism-threatintel-infusion/src/lib.rs`. Update this row and that function together on each future re-cut. |

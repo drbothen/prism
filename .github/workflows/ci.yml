@@ -231,10 +231,12 @@ jobs:
           rm /tmp/wasm-tools.tar.gz
           wasm-tools --version
       # Install just (task runner) for the build-plugin-crowdstrike-oauth2 recipe.
+      # F-MCPRS-PRL2-LOW-003: pinned to 1.43.1 — unpinned `tool: just` resolves to
+      # latest at download time, violating supply-chain reproducibility.
       - name: Install just
         uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
         with:
-          tool: just
+          tool: just@1.43.1
       # S-PLUGIN-CI-001 AC-001: Build the crowdstrike-oauth2 .prx component artifact.
       # This verifies the full toolchain pipeline: cargo build → wasm-tools component new.
       - name: Build crowdstrike-oauth2.prx
@@ -310,10 +312,12 @@ jobs:
             < /tmp/wasm-tools.tar.gz
           rm /tmp/wasm-tools.tar.gz
           wasm-tools --version
+      # F-MCPRS-PRL2-LOW-003: pinned to 1.43.1 — unpinned `tool: just` resolves to
+      # latest at download time, violating supply-chain reproducibility.
       - name: Install just
         uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
         with:
-          tool: just
+          tool: just@1.43.1
       # F-MCPNULL-P2-OBS-002: source-hash staleness gate.
       # Compares committed .src-tree-hash sidecar against freshly computed source hash.
       # Placed before the build so staleness is caught without paying full WASM build cost.
