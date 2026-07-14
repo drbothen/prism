@@ -251,10 +251,12 @@ pub(crate) fn parse_sql_with_limits(
         //     `fn_call_comparison` or any other `.validate()` site
         // F-MEDIUM-001 recovery errors (from `nested_delimiters`) are raw Chumsky parse
         // errors; they never carry the "E-QUERY-001:" prefix.  Semantic validation
-        // errors always do (per ADR-048 §D.7.2 "prefix = semantic validation = blocks
-        // recovery").  The guard is intentionally conservative: any "E-QUERY-001: "
-        // prefix blocks the recovery path, ensuring the semantic error reaches the caller
-        // as `Err` instead of being silently discarded behind a partial Ok AST.
+        // errors always do (per ADR-048 §D.7.2, F-MEDIUM-001 recovery-path guard,
+        // intentionally broad — v1.12): the "E-QUERY-001: " prefix is the
+        // semantic-validation discriminant that blocks partial-AST recovery.  The guard is
+        // intentionally broad: any "E-QUERY-001: " prefix blocks the recovery path,
+        // ensuring the semantic error reaches the caller as `Err` instead of being
+        // silently discarded behind a partial Ok AST.
         let has_semantic_error = parse_errors
             .iter()
             .any(|e| e.message.starts_with("E-QUERY-001:"));

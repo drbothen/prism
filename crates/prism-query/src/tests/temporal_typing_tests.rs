@@ -8044,3 +8044,56 @@ async fn test_BC_2_11_004_low_006_dml_where_keyword_as_fn_name_rejected() {
          (BC-2.11.004 LOW-006, POL-24, F-PQLFN-P27-MED-003). Got: {err_display:?}"
     );
 }
+
+// ── F-PQLFN-P28-OOS-001: SqlPipe `| sort '<literal>'` parity with pure-pipe ────────────────
+
+/// SqlPipe `| sort '<date-like literal>'` MUST produce the same actionable E-QUERY-001
+/// message as pure-pipe `| sort '<date-like literal>'` — BC-2.11.023 AC-025 parity.
+///
+/// `SELECT * FROM test_events | sort '2026-06-24'` must fail with E-QUERY-001 containing
+/// "field name" or "literal", identical to `FROM test_events | sort '2026-06-24'`.
+///
+/// # Root cause
+/// `parse_sqlpipe_internal` (filter_parser.rs) applied only 2 of 3 pipe-error rewrites
+/// (D2 + enrich), omitting `rewrite_temporal_literal_in_pipe_key_position`.  The SqlPipe
+/// path therefore returned a generic Chumsky parse error without the analyst-readable
+/// guidance (F-PQLFN-P28-OOS-001).
+///
+/// # Pre-implementation state (Red Gate — F-PQLFN-P28-OOS-001)
+/// The message contains neither "field name" nor "literal" — the test FAILS (RED). ✓
+///
+/// # Post-implementation state
+/// After adding `rewrite_temporal_literal_in_pipe_key_position(stages_str, errs)` to the
+/// stage-error path in `parse_sqlpipe_internal` (before `shift_parse_error_offsets`),
+/// the error message contains "field name" or "literal" for both routes.
+///
+/// Traces to: BC-2.11.023 AC-025; ADR-052 §D4 v1.10 option (a); F-PQLFN-P28-OOS-001.
+#[tokio::test]
+async fn test_f_pqlfn_p28_oos_001_sqlpipe_sort_literal_parity() {
+    let engine = make_test_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM test_events | sort '2026-06-24'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must be a parse error (E-QUERY-001).
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "SqlPipe sort literal parity (F-PQLFN-P28-OOS-001): must fail with \
+         QueryParseFailed (E-QUERY-001). Got: {result:?}"
+    );
+
+    // Error message MUST be actionable — contain "field name" or "literal"
+    // (BC-2.11.023 AC-025 parity with pure-pipe `| sort '2026-06-24'`).
+    if let Err(PrismError::QueryParseFailed { detail, .. }) = &result {
+        assert!(
+            detail.contains("field name") || detail.contains("literal"),
+            "SqlPipe sort literal parity (F-PQLFN-P28-OOS-001): error message must contain \
+             'field name' or 'literal' to match pure-pipe behavior (BC-2.11.023 AC-025). \
+             Got: {detail:?}"
+        );
+    }
+}

@@ -27,7 +27,8 @@ use crate::{
     },
     error::ParseError,
     error_recovery::{
-        rewrite_d2_sql_keyword_in_pipe_position, rewrite_enrich_parse_errors, rich_to_parse_error,
+        rewrite_d2_sql_keyword_in_pipe_position, rewrite_enrich_parse_errors,
+        rewrite_temporal_literal_in_pipe_key_position, rich_to_parse_error,
     },
     pipe_parser::build_pipe_parser,
     security,
@@ -482,9 +483,18 @@ fn parse_sqlpipe_internal(
         // AC-025: apply the same guided-error rewrites that parse_pipe_with_limits uses,
         // so SqlPipe-routed pipe-stage errors receive the same actionable messages as
         // pure-pipe errors (BC-2.11.023 §D2 and AC-022/AC-025 "in all pipeline positions").
-        // D2 rewrite takes precedence (applied first); enrich rewrite follows.
+        // D2 rewrite takes precedence (applied first); enrich rewrite follows; temporal-
+        // literal rewrite runs last (ADR-052 §D4 v1.10 — same order as parse_pipe_with_limits).
+        // All three rewriters operate on stage-relative offsets (inspecting `stages_str`),
+        // so all must run BEFORE `shift_parse_error_offsets` (F-PQLFN-P28-OOS-001).
         let errs = rewrite_d2_sql_keyword_in_pipe_position(stages_str, errs);
         let errs = rewrite_enrich_parse_errors(stages_str, errs);
+        // ADR-052 §D4 v1.10 option (a): rewrite `| sort '<literal>'` and
+        // `| stats … by '<literal>'` errors with analyst-friendly "field name, not a
+        // literal value" guidance.  Runs last so it does not interfere with D2 or enrich
+        // rewriters.  Passes `stages_str` (stage-relative) — not `input` — consistent
+        // with the shift-after-rewrite ordering (F-PQLFN-P28-OOS-001).
+        let errs = rewrite_temporal_literal_in_pipe_key_position(stages_str, errs);
         // F-PQLFN-P27-MED-001 (ADR-048 §D.7.2): ALL errors from the stage parser are
         // stage-relative (spans in `stages_str = &input[split_offset..]`).  This covers:
         //   - Structural Chumsky parse failures (unexpected token, missing delimiter, …)
@@ -584,7 +594,18 @@ fn shift_scalar_spans_in_predicate(pred: &mut crate::ast::Predicate, offset: usi
             // Contains FieldPath + Vec<Literal> — no Expr or FuncCall::Scalar span.
         }
         Predicate::InSubquery { .. } => {
-            // Contains FieldPath + Box<SqlQuery> — SqlQuery is not an Expr; no span to shift.
+            // Grammar-unreachable in pipe `| where` stages: the pipe stage parser
+            // (`build_pipe_stages_parser`) does not produce InSubquery predicates — only
+            // `build_sql_predicate_parser` does, and those parse contexts (SQL WHERE, HAVING)
+            // are not processed by this span-shifter (F-PQLFN-P23-OBS-002 lineage).
+            // Variant enumerated explicitly so a future grammar extension that admits
+            // `field IN (SELECT ...)` in pipe `| where` stages forces a compile error here
+            // rather than silently becoming a no-op.
+            // FUTURE-EXTENSION NOTE: if the grammar is extended to admit IN-subquery in
+            // pipe `| where` stages, this arm MUST recurse into the subquery's predicate
+            // and expr trees — SqlQuery nests Predicate/Expr subtrees that can carry
+            // FuncCall::Scalar spans; a no-op here would silently mis-report aggregate-gate
+            // error offsets for any fn-call appearing inside the subquery.
         }
         Predicate::Between { .. } => {
             // Contains FieldPath + Literal bounds — no Expr or FuncCall::Scalar span.
@@ -658,9 +679,15 @@ fn shift_scalar_spans_in_expr(expr: &mut crate::ast::Expr, offset: usize) {
             // No FuncCall::Scalar span to shift.
         }
         Expr::InSubquery { .. } => {
-            // `InSubquery.subquery` is Box<SqlQuery>, not Expr — span shift is not
-            // applicable to SqlQuery nodes. Currently unreachable in pipe WHERE stage
-            // per grammar (F-PQLFN-P23-OBS-002).
+            // Grammar-unreachable in pipe `| where` stages per grammar
+            // (F-PQLFN-P23-OBS-002): the pipe stage parser does not produce InSubquery
+            // Expr variants in pipe WHERE positions; only `build_sql_predicate_parser`
+            // does, and those parse contexts are not processed by this span-shifter.
+            // FUTURE-EXTENSION NOTE: if the grammar is extended to admit `field IN
+            // (SELECT ...)` in pipe `| where` stages, this arm MUST recurse into the
+            // subquery's predicate and expr trees — SqlQuery nests Predicate/Expr
+            // subtrees that can carry FuncCall::Scalar spans; a no-op here would silently
+            // mis-report aggregate-gate error offsets for any fn-call inside the subquery.
         }
         // Leaf nodes with no FuncCall::Scalar span to shift.
         Expr::Literal(_) | Expr::Field(_) | Expr::VirtualField(_) => {}
