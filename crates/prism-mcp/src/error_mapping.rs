@@ -3879,18 +3879,20 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 [H8b] redundancy sweep: for ALL representative catch-all internal-redacted
-    /// variants, "audit log" must appear exactly once in content_text.
+    /// BC-2.10.007 [H8b] redundancy sweep: for ALL representative `_` catch-all arm variants,
+    /// "audit log" must appear exactly once in content_text.
     ///
     /// Data-driven over the catch-all variants: `QueryExecutionFailed`,
     /// `QueryMemoryBudgetExceeded`, `OcsfNormalizationFailed`, `QueryDenylisted`.
     /// All hit the `_ => VariantMeta { suggestion: "See audit log for details.", ... }`
-    /// catch-all arm in `prism_error_to_structured_call_result`, so they all exhibit the
-    /// doubled "audit log" defect.
+    /// catch-all arm in `prism_error_to_structured_call_result` (BC-2.10.007 §INTERNAL_ERROR
+    /// catch-all class, `category: "upstream_error"`), so they all exhibit the doubled
+    /// "audit log" defect. These are NOT the "internal" category variants (which are
+    /// `Internal`/`Io`/`Storage*`/`Watchdog*`/`McpSerializationError` and have dedicated arms).
     ///
     /// FAILS NOW for every variant (count == 2 for all).
     #[test]
-    fn test_BC_2_10_007_H8b_redundancy_sweep_representative_internal_variants() {
+    fn test_BC_2_10_007_H8b_redundancy_sweep_catch_all_variants() {
         let variants: Vec<(&str, PrismError)> = vec![
             (
                 "QueryExecutionFailed",
