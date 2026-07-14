@@ -240,7 +240,16 @@ pub(crate) fn parse_sql_with_limits(
     // Security checks still apply to the partial AST.
     if let Some(sq) = result {
         let parse_errors: Vec<ParseError> = errs.iter().map(rich_to_parse_error).collect();
-        if !parse_errors.is_empty() {
+        // LOW-006 guard (BC-2.11.004 v1.42, F-PQLFN-P26-OBS-002): do NOT apply the
+        // F-MEDIUM-001 recovery Ok path when any error is an E-QUERY-001-prefixed
+        // semantic validation error emitted by a `.validate()` combinator (e.g., the
+        // keyword-fn-name exclusion in `fn_call_comparison`).  F-MEDIUM-001 recovery
+        // errors (from `nested_delimiters`) are generic parse errors and never carry
+        // an "E-QUERY-001:" prefix; semantic validation errors always do.
+        let has_semantic_error = parse_errors
+            .iter()
+            .any(|e| e.message.starts_with("E-QUERY-001:"));
+        if !parse_errors.is_empty() && !has_semantic_error {
             // Partial AST with recovery errors: validate depth and list sizes
             // before returning. The AST may contain Predicate::RecoveryError
             // sentinels where recovery occurred.
@@ -1020,6 +1029,13 @@ fn build_sql_expr_parser<'a>(
                 Expr::FuncCall(FuncCall::Scalar {
                     func,
                     args,
+                    // Span::ZERO: scalar_call appears in SELECT projections, JOIN ON
+                    // conditions, GROUP BY expressions, and ORDER BY expressions — none
+                    // of which reach the aggregate-in-predicate gate (E-QUERY-001,
+                    // ADR-048 §D.7.2) that uses `span.start` as the reported error
+                    // offset.  Truthful spans are only required on the predicate path
+                    // (`fn_call_comparison` in `build_predicate_parser`), where they
+                    // ARE populated.  See `ast.rs` `FuncCall::Scalar` §Span::ZERO paths.
                     span: crate::ast::Span::ZERO,
                 })
             });

@@ -1385,7 +1385,45 @@ pub(crate) fn build_predicate_parser<'a>(
             )
             .then(compare_op.clone())
             .then(rhs_expr.clone().padded())
-            .map(|((((func_name, func_span), args), op), rhs)| {
+            // LOW-006 (BC-2.11.004 v1.42, F-PQLFN-P26-OBS-002): reject fn-call names
+            // that match PrismQL predicate-level reserved keywords (case-insensitive).
+            //
+            // Mechanism: `.validate()` instead of `.map()` so that the keyword-rejection
+            // error is EMITTED (non-fatal, continues parsing) rather than a `try_map`
+            // backtrack.  A `try_map` backtrack at this position would produce an error at
+            // `func_span.start` (position of the identifier), which loses to the
+            // `kw("NOT").ignore_then(not.clone())` arm in `not_pred` — that arm's error
+            // sits at position 3+ (after consuming "NOT").  Chumsky's choice() error-
+            // priority rule then surfaces the arm-1 error and swallows the keyword message.
+            //
+            // With `.validate()`, `fn_call_comparison` SUCCEEDS (produces a Predicate)
+            // while accumulating the keyword error.  `parse_pipe_with_limits` and all
+            // other callers check `if errs.is_empty()` before returning Ok — non-empty
+            // errors cause them to return the keyword error to the engine caller.
+            //
+            // The 20 reserved keywords correspond to the operator productions in
+            // `build_predicate_parser` that are structurally unreachable as UDF names in
+            // predicate position.  Analyst error `NOT(x) = 5` (typo for `NOT (x = 5)`)
+            // is now caught at parse time with a clear message instead of silently
+            // producing `Ok(QueryResult { 0 rows })` on no-data installations.
+            .validate(|((((func_name, func_span), args), op), rhs), _extra, emitter| {
+                const RESERVED_KEYWORDS: &[&str] = &[
+                    "NOT", "AND", "OR", "IN", "IIN", "IEQ", "INE", "IS", "BETWEEN",
+                    "LIKE", "CIDR", "MATCHES", "HAS", "MISSING", "CONTAINS",
+                    "ICONTAINS", "STARTSWITH", "ISTARTSWITH", "ENDSWITH", "IENDSWITH",
+                ];
+                if RESERVED_KEYWORDS
+                    .iter()
+                    .any(|kw| func_name.eq_ignore_ascii_case(kw))
+                {
+                    emitter.emit(Rich::custom(
+                        SimpleSpan::from(func_span.start..func_span.end),
+                        format!(
+                            "E-QUERY-001: '{}' is a PrismQL keyword and cannot be used as a function name",
+                            func_name
+                        ),
+                    ));
+                }
                 use crate::ast::{FuncCall, ScalarFunc};
                 Predicate::Compare {
                     lhs: Box::new(crate::ast::Expr::FuncCall(FuncCall::Scalar {

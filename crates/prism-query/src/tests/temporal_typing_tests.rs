@@ -7372,3 +7372,328 @@ async fn test_BC_2_11_004_low_002_like_with_fncall_lhs_rejected() {
          Got: {result:?}"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOW-006 — Reserved-keyword exclusion in `fn_call_comparison`
+// (BC-2.11.004 v1.42, F-PQLFN-P26-OBS-002)
+//
+// `fn_call_comparison` must reject fn-call names that match any of the 20
+// PrismQL predicate-level reserved keywords (case-insensitive):
+//   NOT, AND, OR, IN, IIN, IEQ, INE, IS, BETWEEN, LIKE, CIDR, MATCHES, HAS,
+//   MISSING, CONTAINS, ICONTAINS, STARTSWITH, ISTARTSWITH, ENDSWITH, IENDSWITH.
+//
+// Mechanism: `.validate()` at the end of `fn_call_comparison` emits a
+// `Rich::custom` error (NOT a try_map backtrack) so the keyword message
+// survives Chumsky choice() error-priority mechanics (see §Summary rationale
+// below for NOT-backtrack analysis).
+//
+// Pre-fix state (Red Gate): keyword-shaped fn-names parse as FuncCall::Scalar
+// via `fn_call_comparison`; plan time: DataFusion "Invalid function '<NAME>'"
+// → QueryPlanFailed.  Tests 1–5 assert QueryParseFailed and are RED.
+//
+// Post-fix state: `.validate()` emits keyword error; all six parse surfaces
+// that share `build_predicate_parser` see non-empty errors → QueryParseFailed.
+//
+// Tests 6–7 are positive-guard locks (already GREEN before fix; regression
+// prevention for legitimate fn-call and spaced NOT forms).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// LOW-006 (1/7) **RED**: pipe `| where` — `NOT` as fn-call name.
+///
+/// Query: `FROM crowdstrike_detections | where NOT(device_id) = 5`
+///
+/// BC-2.11.004 v1.42 canonical LOW-006 test vector.
+///
+/// Pre-fix: `kw("NOT").ignore_then(not.clone())` (not_pred arm-1) fails because
+/// `(device_id)` alone is not a valid predicate; Chumsky backtracks to atom →
+/// `fn_call_comparison` reads "NOT" + `(device_id)` + `= 5` → FuncCall::Scalar("NOT")
+/// → plan time: DataFusion "Invalid function 'NOT'" → `QueryPlanFailed`.
+///
+/// Post-fix: `fn_call_comparison` emits keyword error via `.validate()` (not a
+/// `try_map` backtrack, so the error is not lost to choice() error-priority);
+/// `parse_pipe_with_limits` sees non-empty errors → `QueryParseFailed` with
+/// message `"E-QUERY-001: 'NOT' is a PrismQL keyword and cannot be used as a
+/// function name"`.
+///
+/// **Red Gate** (implementer): keyword exclusion in `fn_call_comparison` not yet
+/// implemented; this test is FAILING before the LOW-006 fix-burst.
+///
+/// Traces to: BC-2.11.004 v1.42 §Canonical Test Vectors LOW-006 canonical vector;
+///            F-PQLFN-P26-OBS-002; ADR-048 §D.7.
+#[tokio::test]
+async fn test_BC_2_11_004_low_006_pipe_keyword_not_as_fn_name_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where NOT(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Diagnostic-first: specific Err variant before broad check (F-PQLFN-P19-OBS-001).
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-006 (NOT, pipe): `NOT(device_id) = 5` must fail to parse \
+         (QueryParseFailed / E-QUERY-001). `NOT` is a PrismQL reserved keyword \
+         and cannot be used as a fn-call name in `fn_call_comparison` \
+         (BC-2.11.004 v1.42 LOW-006 canonical vector, F-PQLFN-P26-OBS-002). \
+         Got: {result:?}"
+    );
+
+    // Must NOT be QueryPlanFailed — keyword rejection must fire at parse time.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-006 (NOT, pipe): must NOT be QueryPlanFailed. \
+         Keyword fn-name rejection must fire at parse time, before plan-time gates. \
+         Got: {result:?}"
+    );
+}
+
+/// LOW-006 (2/7) **RED**: pipe `| where` — `CONTAINS` as fn-call name.
+///
+/// Query: `FROM crowdstrike_detections | where CONTAINS(device_id) = 5`
+///
+/// `CONTAINS` is in the 20-keyword reserved list (it is the `string_op_match`
+/// operator in filter grammar).  The `string_op_match` production expects
+/// `field_path CONTAINS literal` form; it fails on `CONTAINS(device_id)` because
+/// "CONTAINS" as field_path is followed by `(`, not the keyword — leaving
+/// `fn_call_comparison` to match.
+///
+/// Pre-fix: `fn_call_comparison` reads "CONTAINS" + `(device_id)` + `= 5` →
+/// FuncCall::Scalar("CONTAINS") → plan time: "Invalid function" → `QueryPlanFailed`.
+///
+/// Post-fix: keyword exclusion → `QueryParseFailed`.
+///
+/// **Red Gate** (implementer): keyword exclusion not yet implemented.
+///
+/// Traces to: BC-2.11.004 v1.42 LOW-006 (CONTAINS in 20-keyword list);
+///            F-PQLFN-P26-OBS-002.
+#[tokio::test]
+async fn test_BC_2_11_004_low_006_pipe_keyword_contains_as_fn_name_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where CONTAINS(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-006 (CONTAINS, pipe): `CONTAINS(device_id) = 5` must fail to parse \
+         (QueryParseFailed / E-QUERY-001). `CONTAINS` is a PrismQL reserved keyword; \
+         fn-call use must be rejected at parse time \
+         (BC-2.11.004 v1.42 LOW-006, F-PQLFN-P26-OBS-002). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-006 (CONTAINS, pipe): must NOT be QueryPlanFailed. Got: {result:?}"
+    );
+}
+
+/// LOW-006 (3/7) **RED**: pipe `| where` — `not` (lowercase) as fn-call name.
+///
+/// Query: `FROM crowdstrike_detections | where not(device_id) = 5`
+///
+/// The keyword check in LOW-006 is case-insensitive (`eq_ignore_ascii_case`).
+/// Lowercase `not` is NOT intercepted by `kw("NOT")` in not_pred (the `kw()` helper
+/// in filter_parser.rs performs a case-sensitive ASCII comparison by convention);
+/// therefore `fn_call_comparison` reaches "not" first and currently parses it as a
+/// function name.
+///
+/// Pre-fix: FuncCall::Scalar("not") → plan time: "Invalid function 'not'" →
+/// `QueryPlanFailed`.
+///
+/// Post-fix: case-insensitive keyword check rejects "not" → `QueryParseFailed`.
+///
+/// **Red Gate** (implementer): case-insensitive exclusion not yet implemented.
+///
+/// Traces to: BC-2.11.004 v1.42 LOW-006 (`eq_ignore_ascii_case` requirement);
+///            F-PQLFN-P26-OBS-002.
+#[tokio::test]
+async fn test_BC_2_11_004_low_006_pipe_keyword_lowercase_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where not(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-006 (not lowercase, pipe): `not(device_id) = 5` must fail to parse \
+         (QueryParseFailed / E-QUERY-001). Keyword exclusion is case-insensitive \
+         (`eq_ignore_ascii_case`); lowercase `not` must be rejected like `NOT` \
+         (BC-2.11.004 v1.42 LOW-006, F-PQLFN-P26-OBS-002). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-006 (not lowercase, pipe): must NOT be QueryPlanFailed. Got: {result:?}"
+    );
+}
+
+/// LOW-006 (4/7) **RED**: SQL WHERE surface — `NOT` as fn-call name.
+///
+/// Query: `SELECT device_id FROM crowdstrike_detections WHERE NOT(device_id) = 5`
+///
+/// `build_predicate_parser` is shared by six callers (BC-2.11.004 §Postconditions
+/// shared-parser scope).  SQL WHERE uses it via `build_sql_predicate_parser`.
+/// The keyword exclusion in `fn_call_comparison` therefore applies to the SQL
+/// WHERE surface without any additional wiring.
+///
+/// Pre-fix: FuncCall::Scalar("NOT") in WHERE → "Invalid function" → `QueryPlanFailed`.
+///
+/// Post-fix: parse-time keyword rejection → `QueryParseFailed`.
+///
+/// **Red Gate** (implementer): keyword exclusion not yet implemented.
+///
+/// Traces to: BC-2.11.004 v1.42 LOW-006 shared-parser scope;
+///            BC-2.11.003 EC-11-003-007; ADR-048 v1.6 OD-6 §D.7.5.
+#[tokio::test]
+async fn test_BC_2_11_004_low_006_sql_where_keyword_as_fn_name_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT device_id FROM crowdstrike_detections WHERE NOT(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-006 (NOT, SQL WHERE): `NOT(device_id) = 5` in SQL WHERE must fail to parse \
+         (QueryParseFailed / E-QUERY-001). `build_predicate_parser` is shared by SQL WHERE \
+         via `build_sql_predicate_parser`; keyword exclusion in `fn_call_comparison` applies \
+         (BC-2.11.004 v1.42 LOW-006 shared-parser scope). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-006 (NOT, SQL WHERE): must NOT be QueryPlanFailed. Got: {result:?}"
+    );
+}
+
+/// LOW-006 (5/7) **RED**: SqlPipe `| where` stage — `NOT` as fn-call name.
+///
+/// Query: `SELECT * FROM crowdstrike_detections | where NOT(device_id) = 5`
+///
+/// SqlPipe `| where` stages are parsed by `build_pipe_stages_parser` in
+/// `pipe_parser.rs`, which calls `build_predicate_parser()` directly (same
+/// shared base as all other surfaces).  The keyword exclusion propagates.
+///
+/// Pre-fix: FuncCall::Scalar("NOT") in SqlPipe stage → "Invalid function" →
+/// `QueryPlanFailed`.
+///
+/// Post-fix: parse-time keyword rejection → `QueryParseFailed`.
+///
+/// **Red Gate** (implementer): keyword exclusion not yet implemented.
+///
+/// Traces to: BC-2.11.004 v1.42 LOW-006 shared-parser scope (SqlPipe `| where`);
+///            F-PQLFN-P26-OBS-002.
+#[tokio::test]
+async fn test_BC_2_11_004_low_006_sqlpipe_stage_keyword_as_fn_name_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections | where NOT(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-006 (NOT, SqlPipe | where): `NOT(device_id) = 5` in SqlPipe `| where` stage \
+         must fail to parse (QueryParseFailed / E-QUERY-001). \
+         `build_pipe_stages_parser` uses `build_predicate_parser` directly; keyword \
+         exclusion in `fn_call_comparison` applies (BC-2.11.004 v1.42 LOW-006). \
+         Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-006 (NOT, SqlPipe | where): must NOT be QueryPlanFailed. Got: {result:?}"
+    );
+}
+
+/// LOW-006 (6/7) GREEN lock: `NOT (space) predicate` still parses after fix.
+///
+/// Query: `FROM crowdstrike_detections | where NOT (device_id = 'windows')`
+///
+/// `NOT` with a SPACE before the parenthesised predicate is handled by not_pred
+/// arm-1 (`kw("NOT").padded().ignore_then(not.clone())`), which matches
+/// `NOT ` then parses `(device_id = 'windows')` as a parenthesised predicate.
+/// `fn_call_comparison` is NEVER tried for this form — the choice is resolved by
+/// arm-1 before reaching atom.
+///
+/// The LOW-006 keyword gate in `fn_call_comparison` therefore does NOT affect
+/// `NOT (pred)` syntax — it only applies when the identifier is IMMEDIATELY
+/// followed by `(` with no intervening whitespace that changes the parse path.
+///
+/// Lock: this test is GREEN before and after the fix.  Any regression in `NOT`
+/// space-form parsing would appear here.
+///
+/// Traces to: BC-2.11.004 v1.42 LOW-006 positive guard; F-PQLFN-P26-OBS-002.
+#[tokio::test]
+async fn test_BC_2_11_004_low_006_not_space_predicate_positive_guard() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where NOT (device_id = 'windows')",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must NOT be a parse error — the spaced `NOT (pred)` form is valid PrismQL.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-006 positive guard (NOT space): `NOT (device_id = 'windows')` must NOT \
+         fail to parse. The LOW-006 keyword gate applies only in `fn_call_comparison` \
+         (identifier immediately followed by `(`); the space-form is resolved by \
+         not_pred arm-1 before atom is tried \
+         (BC-2.11.004 v1.42 LOW-006, F-PQLFN-P26-OBS-002). Got: {result:?}"
+    );
+}
+
+/// LOW-006 (7/7) GREEN lock: `lower()` (non-keyword fn-call) still parses after fix.
+///
+/// Query: `FROM crowdstrike_detections | where lower(device_id) = 'abc'`
+///
+/// `lower` is NOT in the 20-keyword reserved list; it is a valid DataFusion
+/// built-in scalar function name.  The LOW-006 keyword gate in `fn_call_comparison`
+/// must NOT reject it — only the 20 PrismQL predicate-level reserved keywords are
+/// excluded.
+///
+/// Lock: this test is GREEN before and after the fix.  Any over-rejection (e.g.,
+/// matching `lower` accidentally) would appear here.
+///
+/// Traces to: BC-2.11.004 v1.42 LOW-006 positive guard; F-PQLFN-P26-OBS-002;
+///            ADR-048 §D.7 fn_call_comparison scope.
+#[tokio::test]
+async fn test_BC_2_11_004_low_006_lower_fn_call_positive_guard() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where lower(device_id) = 'abc'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must NOT be a parse error — `lower` is not a reserved keyword.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-006 positive guard (lower): `lower(device_id) = 'abc'` must NOT fail to \
+         parse. `lower` is not in the 20-keyword reserved list; `fn_call_comparison` \
+         must admit it (BC-2.11.004 v1.42 LOW-006, F-PQLFN-P26-OBS-002). \
+         Got: {result:?}"
+    );
+}
