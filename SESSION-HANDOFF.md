@@ -133,7 +133,7 @@ MCP: push 3 LOCAL commits (b4f3485e → 6dee4036 → 6b2a7c8e) to origin → dis
 ### PER-WORKSTREAM RESUME NEXT-ACTIONS
 
 1. **MCP PR #222** — FIRST: push 3 LOCAL commits (b4f3485e → 6dee4036 → 6b2a7c8e) to origin; then dispatch PR-LEVEL adversary pass 11 on FROZEN 6b2a7c8e (streak 0/3). fix-burst-22 ALL CLOSED (OBS-001/002/003). Scope: explicit_nulls + [H8b] + threatintel .prx + 28-explicit-VariantMeta-arms. MERGE = HUMAN-GATED.
-2. **PQL lane** — SECOND: dispatch fix-burst-26 to close F-PQLFN-P34-MED-001 (ADR-048 §D.7.2 stale "all six" body sentences ~lines 461/469) + F-PQLFN-P34-OBS-001 (position-7 E-QUERY-039 unknown-UDF sibling lock); dispatch pass-35 on new frozen HEAD (streak 0/3). Spec set: BC-2.11.004 v1.45, ADR-048 v1.13, error-taxonomy v2.50, story v1.70.
+2. **PQL lane** — SECOND: dispatch fix-burst-26 to close F-PQLFN-P34-MED-001 (ADR-048 §D.7.2 stale "all six" body sentences ~lines 461/469) + F-PQLFN-P34-OBS-001 (position-7 E-QUERY-039 unknown-UDF sibling lock); dispatch pass-35 on new frozen HEAD (streak 0/3). Spec set: BC-2.11.004 v1.46, ADR-048 v1.15, error-taxonomy v2.52, story v1.71.
 3. **DRIFT-PQLFN-OD7 ratification** — Gap-1 (DRIFT-PQLFN-OD7-GAP1-S307 E-QUERY-038 DML fail-open) + Gap-2 (DRIFT-PQLFN-OD7-GAP2-S307 source_select projections/JOIN/HAVING) deferred to S-3.07; human ratification required at PQL PR merge gate.
 4. **AUDIT-COVERAGE-001** — parked @cd369b54 until BOTH defect PRs merge → rebase → live audit re-run → LOCAL 3-CLEAN → push → PR.
 5. **day2-design-decisions/clip-boundary-and-reframe-asks-2026-06-30.md** — NOT staged in this wrap; awaiting human disposition (CLIP-session carry-asks J+K).
