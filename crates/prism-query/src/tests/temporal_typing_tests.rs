@@ -8045,10 +8045,269 @@ async fn test_BC_2_11_004_low_006_dml_where_keyword_as_fn_name_rejected() {
     );
 }
 
+// ── LOW-007 — Star-arg scope limit: `fn_call_arg` admits `literal | field_path` only
+// (BC-2.11.004 LOW-007, F-PQLFN-P31-OBS-001)
+//
+// `Expr::Star` (`*`) is not admissible as a fn-call argument in predicate position —
+// `| where count(*) = 5` fails closed at parse time with a generic E-QUERY-001.
+// `fn_call_arg` in `fn_call_comparison` admits `literal | field_path` only; `*` is
+// neither (BC-2.11.004 LOW-007).
+//
+// The aggregate gate's canonical HAVING-redirect message (ADR-048 §D.7.2) applies
+// only to parseable forms like `count() = 5` / `count(col) = 5`; `count(*)` fails
+// before the aggregate gate is reached.
+//
+// These tests are GREEN on arrival: `fn_call_arg` never matched `*`; the tests
+// document already-correct behavior as load-bearing lock tests (TD-VSDD-059).
+// If any surface unexpectedly ACCEPTS `count(*) = 5`, that is a REAL DEFECT.
+//
+// Coverage: 6 shared-parser surfaces (BC-2.11.004 §Postconditions SHARED-PARSER SCOPE).
+// ──────────────────────────────────────────────────────────────────────────────────────
+
+/// LOW-007 (1/6) GREEN lock: pipe `| where` — `count(*)` star-arg rejected at parse time.
+///
+/// Query: `FROM crowdstrike_detections | where count(*) = 5`
+///
+/// `fn_call_arg` in `fn_call_comparison` admits `literal | field_path` only.
+/// `*` is neither — the delimited arg-list fails when it encounters `*` as
+/// the first token after `(`, leaving `)` expected but `*` found.
+///
+/// Expected: `QueryParseFailed` (E-QUERY-001) at parse time.
+/// Must NOT be `QueryPlanFailed` — the aggregate gate only fires on parseable
+/// forms (`count() = 5`, `count(col) = 5`); `count(*)` never reaches it.
+///
+/// GREEN on arrival. If this test fails, `fn_call_arg` has been extended to
+/// admit `*` without architectural adjudication — that is a REAL DEFECT.
+///
+/// Traces to: BC-2.11.004 LOW-007 (star-arg scope limit); F-PQLFN-P31-OBS-001.
+#[tokio::test]
+async fn test_BC_2_11_004_low_007_pipe_where_star_arg_parse_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where count(*) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-007 (pipe | where): `count(*) = 5` must fail to parse (QueryParseFailed / \
+         E-QUERY-001). `fn_call_arg` admits `literal | field_path` only; `*` is neither \
+         (BC-2.11.004 LOW-007 star-arg scope limit). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-007 (pipe | where): must NOT be QueryPlanFailed. Star-arg rejection fires \
+         at parse time before the aggregate gate (BC-2.11.004 LOW-007). Got: {result:?}"
+    );
+}
+
+/// LOW-007 (2/6) GREEN lock: filter mode — `count(*)` star-arg rejected at parse time.
+///
+/// Query: `crowdstrike_detections | count(*) = 5`
+///
+/// Filter mode source-qualified form: source `crowdstrike_detections`, `|` separator,
+/// predicate `count(*) = 5`. `build_predicate_parser` parses the predicate;
+/// `fn_call_arg` does not admit `*` → `QueryParseFailed`.
+///
+/// GREEN on arrival. If this test fails, filter-mode root-predicate path does not
+/// route through `fn_call_comparison` / `fn_call_arg` — that is a REAL DEFECT.
+///
+/// Traces to: BC-2.11.004 LOW-007 (star-arg scope limit, filter-mode surface);
+///            F-PQLFN-P31-OBS-001.
+#[tokio::test]
+async fn test_BC_2_11_004_low_007_filter_mode_star_arg_parse_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "crowdstrike_detections | count(*) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-007 (filter mode): `count(*) = 5` in filter-mode root predicate must fail \
+         to parse (QueryParseFailed / E-QUERY-001). `fn_call_arg` admits `literal | \
+         field_path` only; `*` is neither (BC-2.11.004 LOW-007, filter-mode surface). \
+         Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-007 (filter mode): must NOT be QueryPlanFailed. Star-arg rejection fires \
+         at parse time (BC-2.11.004 LOW-007). Got: {result:?}"
+    );
+}
+
+/// LOW-007 (3/6) GREEN lock: SQL WHERE — `count(*)` star-arg rejected at parse time.
+///
+/// Query: `SELECT * FROM crowdstrike_detections WHERE count(*) = 5`
+///
+/// `build_sql_predicate_parser` calls `build_predicate_parser`; `fn_call_arg` does
+/// not admit `*` → SQL WHERE parse fails → `QueryParseFailed`.
+///
+/// GREEN on arrival. If this test fails, SQL WHERE is not routing through
+/// `fn_call_comparison` / `fn_call_arg` — that is a REAL DEFECT.
+///
+/// Traces to: BC-2.11.004 LOW-007 (star-arg scope limit, SQL WHERE surface);
+///            F-PQLFN-P31-OBS-001.
+#[tokio::test]
+async fn test_BC_2_11_004_low_007_sql_where_star_arg_parse_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE count(*) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-007 (SQL WHERE): `count(*) = 5` in SQL WHERE must fail to parse \
+         (QueryParseFailed / E-QUERY-001). `build_predicate_parser` shared parser \
+         via `build_sql_predicate_parser`; `fn_call_arg` admits `literal | field_path` \
+         only (BC-2.11.004 LOW-007 star-arg scope limit). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-007 (SQL WHERE): must NOT be QueryPlanFailed. Star-arg rejection fires \
+         at parse time (BC-2.11.004 LOW-007). Got: {result:?}"
+    );
+}
+
+/// LOW-007 (4/6) GREEN lock: SqlPipe head WHERE — `count(*)` star-arg rejected.
+///
+/// Query: `SELECT * FROM crowdstrike_detections WHERE count(*) = 5 | limit 5`
+///
+/// `parse_sqlpipe_internal` splits at the first pipe stage `|`; the SQL head
+/// `SELECT * FROM crowdstrike_detections WHERE count(*) = 5` is parsed via
+/// `build_predicate_parser` which does not admit `*` in `fn_call_arg`.
+/// The SqlPipe head parse fails → `QueryParseFailed`.
+///
+/// Distinct from the SqlPipe `| where` stage test (5/6): this exercises the SQL
+/// head portion of a SqlPipe query, not a pipe-stage WHERE.
+///
+/// GREEN on arrival. If this test fails, the SqlPipe head WHERE path has diverged
+/// from the shared predicate parser — that is a REAL DEFECT.
+///
+/// Traces to: BC-2.11.004 LOW-007 (star-arg scope limit, SqlPipe head WHERE surface);
+///            F-PQLFN-P31-OBS-001.
+#[tokio::test]
+async fn test_BC_2_11_004_low_007_sqlpipe_head_where_star_arg_parse_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE count(*) = 5 | limit 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-007 (SqlPipe head WHERE): `count(*) = 5` in SqlPipe SQL-head WHERE must \
+         fail to parse (QueryParseFailed / E-QUERY-001). `parse_sqlpipe_internal` SQL \
+         head uses `build_predicate_parser`; `fn_call_arg` admits `literal | field_path` \
+         only (BC-2.11.004 LOW-007 star-arg scope limit). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-007 (SqlPipe head WHERE): must NOT be QueryPlanFailed. Star-arg rejection \
+         fires at parse time (BC-2.11.004 LOW-007). Got: {result:?}"
+    );
+}
+
+/// LOW-007 (5/6) GREEN lock: SqlPipe `| where` stage — `count(*)` star-arg rejected.
+///
+/// Query: `SELECT * FROM crowdstrike_detections | where count(*) = 5`
+///
+/// `build_pipe_stages_parser` uses `build_predicate_parser` directly for `| where`
+/// stage predicates (shared parser). `fn_call_arg` does not admit `*`
+/// → pipe-stage predicate parse fails → `QueryParseFailed`.
+///
+/// GREEN on arrival. If this test fails, `build_pipe_stages_parser` is not
+/// routing through `fn_call_comparison` / `fn_call_arg` — that is a REAL DEFECT.
+///
+/// Traces to: BC-2.11.004 LOW-007 (star-arg scope limit, SqlPipe `| where` surface);
+///            F-PQLFN-P31-OBS-001.
+#[tokio::test]
+async fn test_BC_2_11_004_low_007_sqlpipe_stage_where_star_arg_parse_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections | where count(*) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-007 (SqlPipe | where stage): `count(*) = 5` in SqlPipe pipe-stage WHERE \
+         must fail to parse (QueryParseFailed / E-QUERY-001). `build_pipe_stages_parser` \
+         uses `build_predicate_parser`; `fn_call_arg` admits `literal | field_path` only \
+         (BC-2.11.004 LOW-007 star-arg scope limit). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-007 (SqlPipe | where stage): must NOT be QueryPlanFailed. Star-arg \
+         rejection fires at parse time (BC-2.11.004 LOW-007). Got: {result:?}"
+    );
+}
+
+/// LOW-007 (6/6) GREEN lock: DML WHERE — `count(*)` star-arg rejected at parse time.
+///
+/// Query: `DELETE FROM crowdstrike_detections WHERE count(*) = 5`
+///
+/// `build_delete_parser` delegates the WHERE predicate to `build_predicate_parser`
+/// (ADR-048 v1.6 OD-6 §D.7.5). `fn_call_arg` does not admit `*`
+/// → DML WHERE parse fails → `QueryParseFailed`.
+///
+/// GREEN on arrival. If this test fails, the DML WHERE path is not routing through
+/// `build_predicate_parser` / `fn_call_comparison` / `fn_call_arg` — REAL DEFECT.
+///
+/// Traces to: BC-2.11.004 LOW-007 (star-arg scope limit, SQL DML WHERE surface);
+///            ADR-048 v1.6 OD-6 §D.7.5; F-PQLFN-P31-OBS-001.
+#[tokio::test]
+async fn test_BC_2_11_004_low_007_dml_where_star_arg_parse_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "DELETE FROM crowdstrike_detections WHERE count(*) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-007 (DML WHERE): `count(*) = 5` in DELETE WHERE must fail to parse \
+         (QueryParseFailed / E-QUERY-001). `build_delete_parser` uses \
+         `build_predicate_parser` for WHERE; `fn_call_arg` admits `literal | field_path` \
+         only (BC-2.11.004 LOW-007 star-arg scope limit, ADR-048 v1.6 OD-6 §D.7.5). \
+         Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-007 (DML WHERE): must NOT be QueryPlanFailed. Star-arg rejection fires \
+         at parse time before the aggregate gate (BC-2.11.004 LOW-007). Got: {result:?}"
+    );
+}
+
 // ── F-PQLFN-P28-OOS-001: SqlPipe `| sort '<literal>'` parity with pure-pipe ────────────────
 
 /// SqlPipe `| sort '<date-like literal>'` MUST produce the same actionable E-QUERY-001
-/// message as pure-pipe `| sort '<date-like literal>'` — BC-2.11.023 AC-025 parity.
+/// message as pure-pipe `| sort '<date-like literal>'` — BC-2.11.023 §Postconditions D2 parity (ADR-046 D2).
 ///
 /// `SELECT * FROM test_events | sort '2026-06-24'` must fail with E-QUERY-001 containing
 /// "field name" or "literal", identical to `FROM test_events | sort '2026-06-24'`.
@@ -8067,7 +8326,7 @@ async fn test_BC_2_11_004_low_006_dml_where_keyword_as_fn_name_rejected() {
 /// stage-error path in `parse_sqlpipe_internal` (before `shift_parse_error_offsets`),
 /// the error message contains "field name" or "literal" for both routes.
 ///
-/// Traces to: BC-2.11.023 AC-025; ADR-052 §D4 v1.10 option (a); F-PQLFN-P28-OOS-001.
+/// Traces to: BC-2.11.023 §Postconditions D2 (mode-bridge diagnostic parity — ADR-046 D2); ADR-052 §D4 v1.10 option (a); F-PQLFN-P28-OOS-001.
 #[tokio::test]
 async fn test_f_pqlfn_p28_oos_001_sqlpipe_sort_literal_parity() {
     let engine = make_test_engine();
@@ -8087,12 +8346,12 @@ async fn test_f_pqlfn_p28_oos_001_sqlpipe_sort_literal_parity() {
     );
 
     // Error message MUST be actionable — contain "field name" or "literal"
-    // (BC-2.11.023 AC-025 parity with pure-pipe `| sort '2026-06-24'`).
+    // (BC-2.11.023 §Postconditions D2 parity with pure-pipe `| sort '2026-06-24'` — ADR-046 D2).
     if let Err(PrismError::QueryParseFailed { detail, .. }) = &result {
         assert!(
             detail.contains("field name") || detail.contains("literal"),
             "SqlPipe sort literal parity (F-PQLFN-P28-OOS-001): error message must contain \
-             'field name' or 'literal' to match pure-pipe behavior (BC-2.11.023 AC-025). \
+             'field name' or 'literal' to match pure-pipe behavior (BC-2.11.023 §Postconditions D2 — ADR-046 D2). \
              Got: {detail:?}"
         );
     }

@@ -482,7 +482,7 @@ fn parse_sqlpipe_internal(
         let errs: Vec<ParseError> = stage_errs.iter().map(rich_to_parse_error).collect();
         // AC-025: apply the same guided-error rewrites that parse_pipe_with_limits uses,
         // so SqlPipe-routed pipe-stage errors receive the same actionable messages as
-        // pure-pipe errors (BC-2.11.023 §D2 and AC-022/AC-025 "in all pipeline positions").
+        // pure-pipe errors (BC-2.11.023 §Postconditions D2 — mode-bridge diagnostic parity, ADR-046 D2).
         // D2 rewrite takes precedence (applied first); enrich rewrite follows; temporal-
         // literal rewrite runs last (ADR-052 §D4 v1.10 — same order as parse_pipe_with_limits).
         // All three rewriters operate on stage-relative offsets (inspecting `stages_str`),
