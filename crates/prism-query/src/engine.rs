@@ -1584,7 +1584,7 @@ static DATAFUSION_BUILTIN_AGGREGATE_NAMES: std::sync::LazyLock<std::collections:
         // percentile:     maps to APPROX_PERCENTILE_CONT at emit time.
         //   DataFusion 53.1 has NO "percentile" built-in — absent from registry.
         //   ADR-048 v1.3 claimed "percentile IS registered" — EMPIRICALLY FALSE (F-PQLFN-P4-MED-001).
-        //   Architect must update ADR-048 v1.3 to remove this claim; manual insert stays.
+        //   ADR-048 v1.4 retracted this claim (§D.2 PERCENTILE note corrected; F-PQLFN-P4-MED-001); manual insert is necessary, not redundant.
         //
         // Both are in the removed parser-level AGGREGATE_FUNC_NAMES list (OD-4 removal) and
         // must be covered by this plan-time gate to maintain the WHERE aggregate invariant
@@ -15125,7 +15125,7 @@ mod datafusion_aggregate_registry_empirical_tests {
     /// EMPIRICAL VERDICT: "percentile" is ABSENT from DataFusion 53.1.
     ///   → engine.rs comment CORRECT; ADR-048 v1.3 claim is FALSE.
     ///   → The manual `names.insert("percentile")` is NECESSARY for correct gate coverage.
-    ///   → Architect must update ADR-048 v1.3 to remove the false "percentile IS registered" claim.
+    ///   → ADR-048 v1.4 retracted this claim (§D.2 PERCENTILE note corrected; F-PQLFN-P4-MED-001); manual insert is necessary, not redundant.
     ///
     /// If this test FAILS in a future DataFusion upgrade: "percentile" was added to the
     /// registry. Remove the manual insert and update ADR-048 accordingly.
