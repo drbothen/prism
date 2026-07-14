@@ -2099,6 +2099,254 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             }
         }
 
+        // ── F-MCPRS-PRL10-OBS-003: 28 explicit arms for variants previously falling ──
+        // to the catch-all. Four groups: internal (12), configuration (3), validation (3),
+        // upstream_error explicit (10). The catch-all below is retained for the
+        // #[non_exhaustive] compiler requirement (future variants only).
+        //
+        // map_prism_error returns "Internal error" for all 28 variants, so ec_code_override
+        // is left None (all produce "E-INT-001" from the code-inference fallback path).
+        // The behaviour change here is category + suggestion only.
+
+        // ── Group 1: internal Prism framework failures ────────────────────────────
+        // These represent Prism subsystem failures an operator must investigate via
+        // audit log — enrichment, WASM plugin, OCSF protobuf, credential backend,
+        // scheduling, detection engine, and case management.
+        PrismError::Infusion(_) => VariantMeta {
+            category: "internal",
+            suggestion: "Prism enrichment framework failure. Contact Prism operator; see audit log.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
+        PrismError::Plugin(_) => VariantMeta {
+            category: "internal",
+            suggestion: "Prism plugin framework failure. Contact Prism operator; see audit log.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
+        // E-OCSF-010, E-OCSF-011, E-OCSF-022: OCSF protobuf encode/decode/descriptor
+        // failures indicate internal Prism serialization layer failures, not upstream
+        // sensor data problems.
+        PrismError::OcsfProtobufEncode { .. }
+        | PrismError::OcsfProtobufDecode { .. }
+        | PrismError::OcsfDescriptorNotFound { .. } => VariantMeta {
+            category: "internal",
+            suggestion: "Prism OCSF protobuf encoding failure. Contact Prism operator; see audit log.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
+        // E-CRED-004, E-CRED-006: credential store/encryption backend failures;
+        // these indicate the credential store infrastructure itself failed, not
+        // the credential configuration (those are Group 2 "configuration").
+        PrismError::CredentialStoreError { .. }
+        | PrismError::CredentialEncryptionError { .. } => VariantMeta {
+            category: "internal",
+            suggestion: "Prism credential backend failure. Contact Prism operator; see audit log.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
+        // E-SCHED-001, E-DET-001/002/010, E-CASE-001: internal state failures for
+        // scheduling, detection engine, and case management subsystems.
+        PrismError::ScheduleNotFound { .. }
+        | PrismError::DetectionRuleParseFailed { .. }
+        | PrismError::DetectionRuleNotFound { .. }
+        | PrismError::DetectionStateCorrupt { .. }
+        | PrismError::CaseNotFound { .. } => VariantMeta {
+            category: "internal",
+            suggestion: "Prism internal state error. Contact Prism operator; see audit log.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
+        // ── Group 2: configuration errors ─────────────────────────────────────────
+        // Credential name validation, lookup failures, and missing encryption key.
+        // original_params_valid: false — the credential parameters themselves are wrong.
+        // source_override: "prism_config" — operator should check prism.toml, not upstream.
+        PrismError::InvalidCredentialName { .. }
+        | PrismError::CredentialNotFound { .. }
+        | PrismError::EncryptionKeyMissing { .. } => VariantMeta {
+            category: "configuration",
+            suggestion: "Check credential configuration in prism.toml.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: Some("prism_config".to_owned()),
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
+        // ── Group 3: validation errors ─────────────────────────────────────────────
+        // Schedule conflicts/cron-syntax errors and case state-transition violations.
+        // original_params_valid: false — the caller supplied an invalid parameter value.
+        PrismError::ScheduleConflict { .. }
+        | PrismError::ScheduleCronInvalid { .. }
+        | PrismError::CaseStateTransitionInvalid { .. } => VariantMeta {
+            category: "validation",
+            suggestion: "Fix the invalid parameter and retry.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
+        // ── Group 4: upstream_error (explicit, semantics unchanged) ───────────────
+        // These variants previously fell to the catch-all "upstream_error". Now explicit
+        // to document intent and enable future per-variant tuning without catching future
+        // variants by accident.
+
+        // E-OCSF-001/002/003/020/023/024/021: OCSF data-shape problems indicate the
+        // upstream sensor returned data that doesn't conform to the expected OCSF schema.
+        // These are sensor-side problems, not Prism internals (contrast Group 1 protobuf).
+        PrismError::OcsfFieldMissing { .. }
+        | PrismError::OcsfFieldTypeMismatch { .. }
+        | PrismError::OcsfUnknownClassUid { .. }
+        | PrismError::OcsfUnknownEventClass { .. }
+        | PrismError::OcsfUnknownRecordType { .. }
+        | PrismError::OcsfTimestampParseError { .. }
+        | PrismError::OcsfNormalizationFailed { .. } => VariantMeta {
+            category: "upstream_error",
+            suggestion: "Check sensor API status. If the problem persists, see audit log.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
+        // E-QUERY-025: partial write failure — some records were not written to the
+        // sensor endpoint; check sensor API status.
+        PrismError::WritePartialFailure { .. } => VariantMeta {
+            category: "upstream_error",
+            suggestion: "Check sensor API status. If the problem persists, see audit log.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
+        // E-IOC-001, E-IOC-002: IOC feed parse failures and lookup failures are
+        // upstream-source problems.
+        PrismError::IocFeedParseFailed { .. }
+        | PrismError::IocLookupFailed { .. } => VariantMeta {
+            category: "upstream_error",
+            suggestion: "Check IOC feed source and retry.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+            available_columns: None,
+            did_you_mean: None,
+            normalized_pql: None,
+        },
+
         // ── Catch-all: unknown variants → "upstream_error" (legal BC category) ──
         // "upstream_error" is the safest legal fallback for variants that don't fit
         // the specific categories above (non_exhaustive catch-all).
@@ -3057,20 +3305,18 @@ mod tests {
         );
     }
 
-    // ── BC-2.10.007 catch-all guard: genuinely unmapped variants → "upstream_error" ──
+    // ── BC-2.10.007 explicit arm: Infusion → "internal" (F-MCPRS-PRL10-OBS-003) ──
 
-    /// BC-2.10.007 catch-all arm: genuinely unmapped PrismError variants fall to
-    /// "upstream_error" via the non_exhaustive catch-all.
+    /// BC-2.10.007 explicit arm: `PrismError::Infusion` maps to category `"internal"`.
     ///
-    /// PrismError::Infusion has no explicit arm in prism_error_to_structured_call_result
-    /// (it is handled by the catch-all `_` arm). This test asserts that the catch-all
-    /// still maps to "upstream_error" after OBS-2 added the explicit Watchdog* arm.
+    /// F-MCPRS-PRL10-OBS-003 added a Group 1 explicit arm for `Infusion` in
+    /// `prism_error_to_structured_call_result`. This test locks that behaviour.
     ///
-    /// Previously this test used WatchdogKilled to exercise the catch-all. After OBS-2
-    /// added an explicit arm for WatchdogKilled, this test was repurposed to use
-    /// PrismError::Infusion — a genuinely unmapped variant that still hits the catch-all.
+    /// The catch-all `_ =>` arm remains in place for `#[non_exhaustive]` compliance —
+    /// it covers any future variants added to `PrismError` that do not yet have an
+    /// explicit arm. `Infusion` is no longer one of those variants.
     #[test]
-    fn test_CRIT_B_catch_all_category_is_upstream_error() {
+    fn test_CRIT_B_infusion_error_maps_to_internal_category() {
         let err = PrismError::Infusion(prism_core::error::InfusionError::UnknownInfusion {
             name: "test_catch_all_enrichment".to_owned(),
         });
@@ -3087,10 +3333,9 @@ mod tests {
             .and_then(|v| v.as_str())
             .expect("structuredContent.error.category must be a string");
         assert_eq!(
-            category, "upstream_error",
-            "Genuinely unmapped PrismError variants must fall to catch-all 'upstream_error'; \
-             got '{category}'. If this fails after a new explicit arm was added, switch to \
-             a different genuinely-unmapped variant."
+            category, "internal",
+            "PrismError::Infusion must map to 'internal' via explicit Group 1 arm \
+             (F-MCPRS-PRL10-OBS-003); got '{category}'"
         );
     }
 
@@ -4087,8 +4332,9 @@ mod tests {
     ///   - **Query engine arm** (LOW-002): `QueryExecutionFailed`, `QueryMemoryBudgetExceeded`,
     ///     `QueryDenylisted` → category "internal", suggestion "Prism query engine failure.
     ///     Contact Prism operator; see audit log for details."
-    ///   - **Catch-all arm**: `OcsfNormalizationFailed` → category "upstream_error",
-    ///     suggestion "See audit log for details."
+    ///   - **Explicit upstream_error arm** (F-MCPRS-PRL10-OBS-003 Group 4):
+    ///     `OcsfNormalizationFailed` → category "upstream_error",
+    ///     suggestion "Check sensor API status. If the problem persists, see audit log."
     ///
     /// Both groups: "audit log" must appear exactly once in content_text (H8b redundancy
     /// property). Verbatim suggestion strings are the POL-24 lock added by F-MCPRS-PRL2-OBS-001.
@@ -4154,9 +4400,13 @@ mod tests {
             );
         }
 
-        // ── Group 2: catch-all arm variants ───────────────────────────────────────
-        const CATCH_ALL_SUGGESTION: &str = "See audit log for details.";
-        let catch_all_variants: Vec<(&str, PrismError)> = vec![(
+        // ── Group 2: upstream_error explicit arm variants (F-MCPRS-PRL10-OBS-003) ────
+        // OcsfNormalizationFailed now has an explicit Group 4 arm, not the catch-all.
+        // Suggestion changed from "See audit log for details." to the upstream_error
+        // sensor-status guidance. H8b property still holds: "audit log" appears once.
+        const UPSTREAM_ERROR_EXPLICIT_SUGGESTION: &str =
+            "Check sensor API status. If the problem persists, see audit log.";
+        let upstream_explicit_variants: Vec<(&str, PrismError)> = vec![(
             "OcsfNormalizationFailed",
             PrismError::OcsfNormalizationFailed {
                 source_id: "crowdstrike_alerts".to_owned(),
@@ -4164,7 +4414,7 @@ mod tests {
             },
         )];
 
-        for (variant_name, err) in catch_all_variants {
+        for (variant_name, err) in upstream_explicit_variants {
             let result = prism_error_to_structured_call_result(err);
             let content_text = extract_content_text_from_result(&result);
 
@@ -4175,7 +4425,7 @@ mod tests {
                  times in content_text — must appear exactly once. content_text: {content_text:?}"
             );
 
-            // POL-24 verbatim suggestion lock (F-MCPRS-PRL2-OBS-001).
+            // POL-24 verbatim suggestion lock (F-MCPRS-PRL10-OBS-003 Group 4).
             let sc = result
                 .structured_content
                 .as_ref()
@@ -4188,9 +4438,9 @@ mod tests {
                 .and_then(|v| v.as_str())
                 .unwrap_or_else(|| panic!("[{variant_name}] suggestion must be a string"));
             assert_eq!(
-                suggestion, CATCH_ALL_SUGGESTION,
+                suggestion, UPSTREAM_ERROR_EXPLICIT_SUGGESTION,
                 "[OBS-001/POL-24] {variant_name} suggestion must be byte-verbatim \
-                 '{CATCH_ALL_SUGGESTION}'; got '{suggestion}'"
+                 '{UPSTREAM_ERROR_EXPLICIT_SUGGESTION}'; got '{suggestion}'"
             );
         }
     }
@@ -5240,15 +5490,16 @@ mod tests {
         );
     }
 
-    /// BC-2.10.007 LOW-001 — Catch-all-not-safety regression guard.
+    /// BC-2.10.007 LOW-001 — not-safety regression guard.
     ///
     /// Proves the safety arm is correctly scoped to only the 2 safety variants.
-    /// A genuinely catch-all variant (`PrismError::WritePartialFailure`) must produce
-    /// category `"upstream_error"` (the catch-all default) — NOT `"safety"`.
+    /// `PrismError::WritePartialFailure` must produce category `"upstream_error"` — NOT
+    /// `"safety"`.
     ///
-    /// This test is GREEN before and after MED-001: WritePartialFailure has no dedicated
-    /// arm and falls to the catch-all. It guards against accidentally widening the safety
-    /// arm to capture non-safety variants.
+    /// F-MCPRS-PRL10-OBS-003: WritePartialFailure now has an EXPLICIT Group 4
+    /// "upstream_error" arm (no longer falls to the catch-all). The assertion value
+    /// "upstream_error" is unchanged — this test still guards against accidentally
+    /// widening the safety arm to capture non-safety variants.
     #[test]
     fn test_BC_2_10_007_catch_all_category_is_not_safety_regression_guard() {
         let err = PrismError::WritePartialFailure {
@@ -5282,6 +5533,100 @@ mod tests {
             "[LOW-001/MED-001 regression guard] WritePartialFailure must NOT produce \
              category 'safety'; safety arm must be scoped to SafetyContextContamination \
              and SafetyDataExfiltration ONLY"
+        );
+    }
+
+    // ── F-MCPRS-PRL10-OBS-003 RED-first evidence ──────────────────────────────────────────────
+    //
+    // Three representative variants — one per new category group — written as RED tests
+    // before the explicit arms are inserted. They FAIL under current catch-all behaviour
+    // (all three produce "upstream_error") and turn GREEN after the explicit arms are added.
+
+    /// F-MCPRS-PRL10-OBS-003 RED → GREEN: `PrismError::Infusion` must map to category
+    /// `"internal"` via an explicit arm.
+    ///
+    /// RED under current code: `Infusion` hits the catch-all and produces `"upstream_error"`.
+    /// GREEN after: the explicit Group 1 arm emits `"internal"`.
+    #[test]
+    fn test_F_MCPRS_PRL10_OBS_003_infusion_maps_to_internal_category() {
+        let err = PrismError::Infusion(prism_core::error::InfusionError::UnknownInfusion {
+            name: "test_infusion_obs003".to_owned(),
+        });
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "internal",
+            "F-MCPRS-PRL10-OBS-003: Infusion must map to 'internal' via explicit arm; \
+             got '{category}'"
+        );
+    }
+
+    /// F-MCPRS-PRL10-OBS-003 RED → GREEN: `PrismError::CredentialNotFound` must map to
+    /// category `"configuration"` via an explicit arm.
+    ///
+    /// RED under current code: hits the catch-all → `"upstream_error"`.
+    /// GREEN after: explicit Group 2 arm emits `"configuration"`.
+    #[test]
+    fn test_F_MCPRS_PRL10_OBS_003_credential_not_found_maps_to_configuration_category() {
+        let err = PrismError::CredentialNotFound {
+            name: "test_cred_obs003".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "configuration",
+            "F-MCPRS-PRL10-OBS-003: CredentialNotFound must map to 'configuration' via explicit arm; \
+             got '{category}'"
+        );
+    }
+
+    /// F-MCPRS-PRL10-OBS-003 RED → GREEN: `PrismError::ScheduleCronInvalid` must map to
+    /// category `"validation"` via an explicit arm.
+    ///
+    /// RED under current code: hits the catch-all → `"upstream_error"`.
+    /// GREEN after: explicit Group 3 arm emits `"validation"`.
+    #[test]
+    fn test_F_MCPRS_PRL10_OBS_003_schedule_cron_invalid_maps_to_validation_category() {
+        let err = PrismError::ScheduleCronInvalid {
+            expr: "*/invalid".to_owned(),
+            detail: "test obs003".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "validation",
+            "F-MCPRS-PRL10-OBS-003: ScheduleCronInvalid must map to 'validation' via explicit arm; \
+             got '{category}'"
         );
     }
 

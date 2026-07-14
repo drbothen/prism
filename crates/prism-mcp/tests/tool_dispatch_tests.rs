@@ -2345,21 +2345,15 @@ fn test_CRIT_B_audit_persistence_failed_category_is_transient() {
 }
 
 #[test]
-fn test_CRIT_B_catch_all_category_is_upstream_error() {
+fn test_CRIT_B_infusion_error_maps_to_internal_category() {
     use prism_core::error::{InfusionError, PrismError};
     use prism_mcp::error_mapping::prism_error_to_structured_call_result;
 
-    // Use PrismError::Infusion to exercise the catch-all path. This variant has no
-    // explicit arm in prism_error_to_structured_call_result so it falls to the
-    // catch-all `_` arm. The catch-all emits 'upstream_error'.
+    // F-MCPRS-PRL10-OBS-003: PrismError::Infusion now has an EXPLICIT Group 1 arm
+    // mapping to "internal" — it no longer falls to the catch-all.
     //
-    // BC-2.10.007 (OBS-2): WatchdogKilled now has an EXPLICIT arm mapping to
-    // "internal". Using WatchdogKilled here would no longer exercise the catch-all.
-    // PrismError::Infusion has no explicit arm in prism_error_to_structured_call_result
-    // and is a genuinely unmapped variant that hits the catch-all `_` arm.
-    //
-    // The catch-all emits 'upstream_error' as the safest legal fallback for unmapped
-    // future PrismError variants (non_exhaustive enum).
+    // The catch-all `_ =>` arm remains for #[non_exhaustive] compliance and covers
+    // any future PrismError variants that don't yet have an explicit arm.
     let err = PrismError::Infusion(InfusionError::UnknownInfusion {
         name: "test_catch_all_enrichment".to_owned(),
     });
@@ -2373,9 +2367,9 @@ fn test_CRIT_B_catch_all_category_is_upstream_error() {
         .and_then(|v| v.as_str())
         .unwrap_or("<missing>");
     assert_eq!(
-        category, "upstream_error",
-        "CRIT-B BC-2.10.007: Genuinely unmapped PrismError variants (Infusion has no explicit arm) \
-         must emit category='upstream_error' via catch-all; got '{category}'"
+        category, "internal",
+        "CRIT-B BC-2.10.007 (F-MCPRS-PRL10-OBS-003): PrismError::Infusion must emit \
+         category='internal' via explicit Group 1 arm; got '{category}'"
     );
 }
 
