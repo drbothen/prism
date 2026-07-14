@@ -15526,6 +15526,61 @@ mod dml_where_sixth_gated_position_tests {
             "F-PQLFN-P7-LOW-002: Display must contain 'badudf'. Got: {display}"
         );
     }
+
+    /// F-PQLFN-P34-OBS-001 sibling sweep (POL-29) — enrichment-UDF sibling lock for position-6:
+    /// `DELETE FROM t WHERE enrich_lookup(ip_address) = 'US'` with `enrich_lookup` registered
+    /// MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
+    ///
+    /// This locks the behavioral boundary for OD-6 between:
+    ///   - fn-call whose name is NOT in the registry → gate fires (E-QUERY-039)
+    ///   - fn-call whose name IS in the registry (known enrichment UDF) → gate passes (Ok(()))
+    ///
+    /// When `enrich_lookup` IS in the registered UDF set, `check_enrich_udf_availability` must
+    /// return Ok(()) — the E-QUERY-039 gate only fires for fn-calls NOT found in the registry.
+    ///
+    /// Position-6 already locks the unknown-UDF-fires direction (tests 3/4 and 4/4 above).
+    /// This test adds the known-UDF-passes direction to complete the bilateral boundary lock,
+    /// mirroring the sibling lock added to position-7 in the same fix-burst.
+    ///
+    /// Traces to: F-PQLFN-P34-OBS-001 sibling sweep (POL-29); ADR-048 §D.7.5 Position 6.
+    #[test]
+    fn test_dml_where_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        // Register `enrich_lookup` as a known UDF (mimics a real geo-lookup infusion).
+        // source_path = "/dev/null" with LocalLookup → NullSource → load_spec succeeds.
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P34-OBS-001 position-6 fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P34-OBS-001 position-6 fixture");
+
+        // `enrich_lookup` IS in registered_names → gate passes → Ok(()).
+        let result = check_enrich_udf_availability(
+            "DELETE FROM t WHERE enrich_lookup(ip_address) = 'US'",
+            Some(&registry),
+        );
+
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P34-OBS-001 sibling sweep POL-29: DELETE FROM t WHERE enrich_lookup(\
+             ip_address) = 'US' with known enrichment UDF MUST return Ok (E-QUERY-039 must NOT \
+             fire). `enrich_lookup` IS in registered_names → gate passes. \
+             OD-6 behavioral boundary: known UDF predicate → passes; unknown UDF predicate → fires. \
+             Got: {result:?}"
+        );
+    }
 }
 
 // F-PQLFN-P32-OBS-001: INSERT source_select WHERE seventh gated position (ADR-048 §D.7.6, OD-7)
