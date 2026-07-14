@@ -6661,3 +6661,468 @@ async fn test_fncall_underscore_leading_name_not_parse_error_obs_002() {
          Got: {result:?}"
     );
 }
+
+// ── F-PQLFN-P21-OBS-004: LOW-005 fn-call-RHS negative regression locks ─────────
+//
+// BC-2.11.004 v1.41 LOW-005: "fn-call on RHS is not admitted — `rhs_expr` in
+// `fn_call_comparison` and `field_comparison` accepts `temporal_rhs | literal` only;
+// fn-call expressions are not a valid RHS alternative; `| where x = upper(y)` and
+// `| where lower(x) = upper(y)` both fail at parse time with E-QUERY-001 (generic
+// parse failure; no scope-limit citation)."
+//
+// These tests lock the current parse-time rejection behavior across all six predicate
+// positions so that a future extension of `rhs_expr` (to admit fn-call RHS) would
+// require updating these tests explicitly rather than silently changing behavior.
+//
+// Tests are GREEN on arrival (locks on current rejection behavior).
+//
+// Surfaces covered (12 tests total, 2 per surface):
+//   1. Pipe `| where`  (field_comparison LHS + fn_call_comparison LHS)
+//   2. Filter mode     (field_comparison LHS + fn_call_comparison LHS)
+//   3. SQL WHERE       (field_comparison LHS + fn_call_comparison LHS)
+//   4. SqlPipe head WHERE
+//   5. SqlPipe `| where` stage
+//   6. DML WHERE (DELETE)
+//
+// Diagnostic-first assertion ordering (F-PQLFN-P19-OBS-001): specific Err variant
+// (QueryParseFailed) asserted before any broad check; NOT-QueryPlanFailed guard follows.
+
+// ── Surface 1: Pipe `| where` ─────────────────────────────────────────────────
+
+/// LOW-005 (1/12) GREEN lock: pipe `| where` — field-comparison LHS, fn-call RHS.
+///
+/// Query: `FROM crowdstrike_detections | where device_id = upper(risk_score)`
+///
+/// `field_comparison`: LHS `device_id` → field_path ✓; `=` → compare_op ✓;
+/// `upper(risk_score)` NOT in `rhs_expr` (temporal_rhs | literal only) → parse fails
+/// → QueryParseFailed (E-QUERY-001).  The fn-call on RHS is the sole failure cause.
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; F-PQLFN-P21-OBS-004.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_pipe_where_field_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where device_id = upper(risk_score)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Diagnostic-first: specific variant before broad check.
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (pipe | where, field LHS): `device_id = upper(risk_score)` must fail to parse \
+         (QueryParseFailed / E-QUERY-001). \
+         rhs_expr admits temporal_rhs | literal only; fn-call is not a valid RHS \
+         (BC-2.11.004 v1.41 LOW-005). Got: {result:?}"
+    );
+
+    // Must NOT be QueryPlanFailed — parse failure fires before plan-time gates.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (pipe | where, field LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time, not at plan time. Got: {result:?}"
+    );
+}
+
+/// LOW-005 (2/12) GREEN lock: pipe `| where` — fn-call-comparison LHS, fn-call RHS.
+///
+/// Query: `FROM crowdstrike_detections | where lower(device_id) = upper(risk_score)`
+///
+/// `fn_call_comparison`: LHS `lower(device_id)` → FuncCall::Scalar ✓; `=` → compare_op ✓;
+/// `upper(risk_score)` NOT in `rhs_expr` → parse fails → QueryParseFailed (E-QUERY-001).
+/// Chumsky backtracks to `field_comparison`; `lower` parsed as field_path, `(` is not a
+/// compare_op → also fails.  Both alternatives fail → QueryParseFailed.
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; F-PQLFN-P21-OBS-004.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_pipe_where_fncall_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where lower(device_id) = upper(risk_score)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (pipe | where, fn-call LHS): `lower(device_id) = upper(risk_score)` must fail \
+         to parse (QueryParseFailed / E-QUERY-001). \
+         rhs_expr admits temporal_rhs | literal only; fn-call RHS is not admitted \
+         (BC-2.11.004 v1.41 LOW-005). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (pipe | where, fn-call LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time. Got: {result:?}"
+    );
+}
+
+// ── Surface 2: Filter mode ────────────────────────────────────────────────────
+
+/// LOW-005 (3/12) GREEN lock: filter mode — field-comparison LHS, fn-call RHS.
+///
+/// Query: `crowdstrike_detections | device_id = upper(risk_score)`
+///
+/// Filter mode (`Ast::Filter`) uses the same `build_predicate_parser` as pipe `| where`.
+/// `field_comparison`: `device_id` → field_path ✓; `=` → compare_op ✓;
+/// `upper(risk_score)` NOT in `rhs_expr` → parse fails → QueryParseFailed (E-QUERY-001).
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; F-PQLFN-P21-OBS-004.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_filter_mode_field_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "crowdstrike_detections | device_id = upper(risk_score)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (filter mode, field LHS): `device_id = upper(risk_score)` must fail to parse \
+         (QueryParseFailed / E-QUERY-001). \
+         Filter mode shares build_predicate_parser; rhs_expr admits temporal_rhs | literal only \
+         (BC-2.11.004 v1.41 LOW-005). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (filter mode, field LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time. Got: {result:?}"
+    );
+}
+
+/// LOW-005 (4/12) GREEN lock: filter mode — fn-call-comparison LHS, fn-call RHS.
+///
+/// Query: `crowdstrike_detections | lower(device_id) = upper(risk_score)`
+///
+/// Both `fn_call_comparison` (fn-call RHS mismatch) and `field_comparison` (open-paren
+/// after field_path fails) alternatives fail → QueryParseFailed (E-QUERY-001).
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; F-PQLFN-P21-OBS-004.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_filter_mode_fncall_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "crowdstrike_detections | lower(device_id) = upper(risk_score)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (filter mode, fn-call LHS): `lower(device_id) = upper(risk_score)` must fail \
+         to parse (QueryParseFailed / E-QUERY-001). \
+         rhs_expr admits temporal_rhs | literal only; fn-call RHS not admitted \
+         (BC-2.11.004 v1.41 LOW-005). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (filter mode, fn-call LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time. Got: {result:?}"
+    );
+}
+
+// ── Surface 3: SQL WHERE (Ast::Sql Select) ────────────────────────────────────
+
+/// LOW-005 (5/12) GREEN lock: SQL WHERE — field-comparison LHS, fn-call RHS.
+///
+/// Query: `SELECT * FROM crowdstrike_detections WHERE device_id = upper(risk_score)`
+///
+/// SQL WHERE predicate is parsed via `build_predicate_parser` (shared parser).
+/// `field_comparison` LHS `device_id`; RHS `upper(risk_score)` NOT in `rhs_expr` →
+/// parse fails → QueryParseFailed (E-QUERY-001).
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; BC-2.11.003 EC-11-003-007 (SQL WHERE parity);
+///            F-PQLFN-P21-OBS-004.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_sql_where_field_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE device_id = upper(risk_score)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (SQL WHERE, field LHS): `device_id = upper(risk_score)` must fail to parse \
+         (QueryParseFailed / E-QUERY-001). \
+         SQL WHERE uses build_predicate_parser; rhs_expr admits temporal_rhs | literal only \
+         (BC-2.11.004 v1.41 LOW-005). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (SQL WHERE, field LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time. Got: {result:?}"
+    );
+}
+
+/// LOW-005 (6/12) GREEN lock: SQL WHERE — fn-call-comparison LHS, fn-call RHS.
+///
+/// Query: `SELECT * FROM crowdstrike_detections WHERE lower(device_id) = upper(risk_score)`
+///
+/// `fn_call_comparison` LHS `lower(device_id)` ✓; RHS `upper(risk_score)` NOT in
+/// `rhs_expr` → parse fails.  `field_comparison` fallback also fails. → QueryParseFailed.
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; BC-2.11.003 EC-11-003-007 (SQL WHERE parity);
+///            F-PQLFN-P21-OBS-004.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_sql_where_fncall_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE lower(device_id) = upper(risk_score)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (SQL WHERE, fn-call LHS): `lower(device_id) = upper(risk_score)` must fail \
+         to parse (QueryParseFailed / E-QUERY-001). \
+         rhs_expr admits temporal_rhs | literal only; fn-call RHS not admitted \
+         (BC-2.11.004 v1.41 LOW-005). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (SQL WHERE, fn-call LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time. Got: {result:?}"
+    );
+}
+
+// ── Surface 4: SqlPipe head WHERE ─────────────────────────────────────────────
+
+/// LOW-005 (7/12) GREEN lock: SqlPipe head WHERE — field-comparison LHS, fn-call RHS.
+///
+/// Query: `SELECT * FROM crowdstrike_detections WHERE device_id = upper(risk_score) | limit 10`
+///
+/// SqlPipe head SELECT … WHERE predicate is parsed via `build_predicate_parser`.
+/// fn-call on RHS is not in `rhs_expr` → parse fails at the head WHERE clause →
+/// QueryParseFailed (E-QUERY-001) before any SqlPipe stage is processed.
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; F-PQLFN-P21-OBS-004.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_sqlpipe_head_where_field_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE device_id = upper(risk_score) | limit 10",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (SqlPipe head WHERE, field LHS): `device_id = upper(risk_score)` in SqlPipe \
+         head WHERE must fail to parse (QueryParseFailed / E-QUERY-001). \
+         rhs_expr admits temporal_rhs | literal only (BC-2.11.004 v1.41 LOW-005). \
+         Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (SqlPipe head WHERE, field LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time. Got: {result:?}"
+    );
+}
+
+/// LOW-005 (8/12) GREEN lock: SqlPipe head WHERE — fn-call-comparison LHS, fn-call RHS.
+///
+/// Query: `SELECT * FROM crowdstrike_detections WHERE lower(device_id) = upper(risk_score) | limit 10`
+///
+/// Two-sided fn-call in SqlPipe head WHERE.  `fn_call_comparison` LHS ✓; RHS
+/// `upper(risk_score)` NOT in `rhs_expr` → parse fails → QueryParseFailed (E-QUERY-001).
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; F-PQLFN-P21-OBS-004.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_sqlpipe_head_where_fncall_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections \
+             WHERE lower(device_id) = upper(risk_score) | limit 10",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (SqlPipe head WHERE, fn-call LHS): `lower(device_id) = upper(risk_score)` \
+         in SqlPipe head WHERE must fail to parse (QueryParseFailed / E-QUERY-001). \
+         rhs_expr admits temporal_rhs | literal only (BC-2.11.004 v1.41 LOW-005). \
+         Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (SqlPipe head WHERE, fn-call LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time. Got: {result:?}"
+    );
+}
+
+// ── Surface 5: SqlPipe `| where` stage ───────────────────────────────────────
+
+/// LOW-005 (9/12) GREEN lock: SqlPipe `| where` stage — field-comparison LHS, fn-call RHS.
+///
+/// Query: `SELECT * FROM crowdstrike_detections | where device_id = upper(risk_score)`
+///
+/// SqlPipe pipe-stage `| where` uses `build_predicate_parser` (shared, six-caller).
+/// fn-call on RHS is not in `rhs_expr` → parse fails → QueryParseFailed (E-QUERY-001).
+/// Parse fails before any SqlPipe execution path is reached.
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; F-PQLFN-P21-OBS-004.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_sqlpipe_where_stage_field_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections | where device_id = upper(risk_score)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (SqlPipe | where stage, field LHS): `device_id = upper(risk_score)` in \
+         SqlPipe | where stage must fail to parse (QueryParseFailed / E-QUERY-001). \
+         rhs_expr admits temporal_rhs | literal only (BC-2.11.004 v1.41 LOW-005). \
+         Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (SqlPipe | where stage, field LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time. Got: {result:?}"
+    );
+}
+
+/// LOW-005 (10/12) GREEN lock: SqlPipe `| where` stage — fn-call-comparison LHS, fn-call RHS.
+///
+/// Query: `SELECT * FROM crowdstrike_detections | where lower(device_id) = upper(risk_score)`
+///
+/// Two-sided fn-call in SqlPipe `| where` stage.  `fn_call_comparison` LHS
+/// `lower(device_id)` ✓; RHS `upper(risk_score)` NOT in `rhs_expr` → parse fails.
+/// All predicate alternatives fail → QueryParseFailed (E-QUERY-001).
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; F-PQLFN-P21-OBS-004.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_sqlpipe_where_stage_fncall_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections | where lower(device_id) = upper(risk_score)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (SqlPipe | where stage, fn-call LHS): `lower(device_id) = upper(risk_score)` \
+         in SqlPipe | where stage must fail to parse (QueryParseFailed / E-QUERY-001). \
+         rhs_expr admits temporal_rhs | literal only (BC-2.11.004 v1.41 LOW-005). \
+         Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (SqlPipe | where stage, fn-call LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time. Got: {result:?}"
+    );
+}
+
+// ── Surface 6: DML WHERE (DELETE) ─────────────────────────────────────────────
+
+/// LOW-005 (11/12) GREEN lock: DML WHERE — field-comparison LHS, fn-call RHS.
+///
+/// Query: `DELETE FROM crowdstrike_detections WHERE device_id = upper(risk_score)`
+///
+/// DML WHERE predicate is parsed via `build_delete_parser` which delegates to
+/// `build_predicate_parser` (ADR-048 v1.6 OD-6 §D.7.5).  fn-call on RHS is not
+/// in `rhs_expr` → parse fails → QueryParseFailed (E-QUERY-001).
+/// The engine never reaches the DML execution path.
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; F-PQLFN-P21-OBS-004.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_dml_where_field_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "DELETE FROM crowdstrike_detections WHERE device_id = upper(risk_score)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (DML WHERE, field LHS): `device_id = upper(risk_score)` in DELETE WHERE \
+         must fail to parse (QueryParseFailed / E-QUERY-001). \
+         build_delete_parser uses build_predicate_parser; rhs_expr admits temporal_rhs | literal \
+         only (BC-2.11.004 v1.41 LOW-005). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (DML WHERE, field LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time. Got: {result:?}"
+    );
+}
+
+/// LOW-005 (12/12) GREEN lock: DML WHERE — fn-call-comparison LHS, fn-call RHS.
+///
+/// Query: `DELETE FROM crowdstrike_detections WHERE lower(device_id) = upper(risk_score)`
+///
+/// Two-sided fn-call in DELETE WHERE.  `fn_call_comparison` LHS `lower(device_id)` ✓;
+/// RHS `upper(risk_score)` NOT in `rhs_expr` → parse fails.  `field_comparison`
+/// fallback also fails at `(device_id)` position. → QueryParseFailed (E-QUERY-001).
+///
+/// Negative contrast with `test_dml_where_fncall_lhs_date_like_e_query_042` (which
+/// uses a literal RHS and succeeds at parse time): the sole difference here is that
+/// the RHS is itself a fn-call, which `rhs_expr` does not admit.
+///
+/// Traces to: BC-2.11.004 v1.41 LOW-005; F-PQLFN-P21-OBS-004.
+#[tokio::test]
+async fn test_BC_2_11_004_low_005_dml_where_fncall_lhs_fncall_rhs_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "DELETE FROM crowdstrike_detections WHERE lower(device_id) = upper(risk_score)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "LOW-005 (DML WHERE, fn-call LHS): `lower(device_id) = upper(risk_score)` in DELETE \
+         WHERE must fail to parse (QueryParseFailed / E-QUERY-001). \
+         build_delete_parser uses build_predicate_parser; rhs_expr admits temporal_rhs | literal \
+         only; fn-call RHS not admitted (BC-2.11.004 v1.41 LOW-005). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "LOW-005 (DML WHERE, fn-call LHS): must NOT be QueryPlanFailed. \
+         fn-call RHS must be rejected at parse time, not at plan time. Got: {result:?}"
+    );
+}
