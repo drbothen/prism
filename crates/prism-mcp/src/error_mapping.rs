@@ -4550,6 +4550,18 @@ mod tests {
             "[LOW-002/POL-24] QueryExecutionFailed suggestion must be byte-verbatim; \
              got '{suggestion}'"
         );
+
+        // Rule 1 invariance: message MUST be "Internal error" (map_prism_error MUST NOT change).
+        let message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("message must be a string");
+        assert_eq!(
+            message, "Internal error",
+            "[LOW-002/Rule-1] QueryExecutionFailed message must be 'Internal error' \
+             (Rule 1 redaction preserved; map_prism_error must NOT change for this variant); \
+             got '{message}'"
+        );
     }
 
     /// BC-2.10.007 v1.12 LOW-002: `QueryPlanFailed` → category `"internal"`.
@@ -4589,6 +4601,18 @@ mod tests {
         assert_eq!(
             code, "E-QUERY-002",
             "[LOW-002/POL-24] QueryPlanFailed code must be 'E-QUERY-002'; got '{code}'"
+        );
+
+        // Rule 1 invariance: message MUST be "Internal error" (map_prism_error MUST NOT change).
+        let message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("message must be a string");
+        assert_eq!(
+            message, "Internal error",
+            "[LOW-002/Rule-1] QueryPlanFailed message must be 'Internal error' \
+             (Rule 1 redaction preserved; map_prism_error must NOT change for this variant); \
+             got '{message}'"
         );
     }
 
@@ -4632,6 +4656,18 @@ mod tests {
             code, "E-QUERY-008",
             "[LOW-002/POL-24] QueryDenylisted code must be 'E-QUERY-008'; got '{code}'"
         );
+
+        // Rule 1 invariance: message MUST be "Internal error" (map_prism_error MUST NOT change).
+        let message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("message must be a string");
+        assert_eq!(
+            message, "Internal error",
+            "[LOW-002/Rule-1] QueryDenylisted message must be 'Internal error' \
+             (Rule 1 redaction preserved; map_prism_error must NOT change for this variant); \
+             got '{message}'"
+        );
     }
 
     /// BC-2.10.007 v1.12 LOW-002: `QueryMemoryBudgetExceeded` → category `"internal"`.
@@ -4673,6 +4709,18 @@ mod tests {
             code, "E-WATCHDOG-001",
             "[LOW-002/POL-24] QueryMemoryBudgetExceeded code must be 'E-WATCHDOG-001'; \
              got '{code}'"
+        );
+
+        // Rule 1 invariance: message MUST be "Internal error" (map_prism_error MUST NOT change).
+        let message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("message must be a string");
+        assert_eq!(
+            message, "Internal error",
+            "[LOW-002/Rule-1] QueryMemoryBudgetExceeded message must be 'Internal error' \
+             (Rule 1 redaction preserved; map_prism_error must NOT change for this variant); \
+             got '{message}'"
         );
     }
 
@@ -4758,6 +4806,18 @@ mod tests {
             "[LOW-001/LOW-002/POL-24] QueryMaterializationLimitExceeded suggestion must be \
              byte-verbatim; got '{suggestion}'"
         );
+
+        // Rule 1 invariance: message MUST be "Internal error" (map_prism_error MUST NOT change).
+        let message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("message must be a string");
+        assert_eq!(
+            message, "Internal error",
+            "[LOW-001/LOW-002/Rule-1] QueryMaterializationLimitExceeded message must be \
+             'Internal error' (Rule 1 redaction preserved; map_prism_error must NOT change \
+             for this variant); got '{message}'"
+        );
     }
 
     /// BC-2.10.007 v1.14 LOW-001 / LOW-002: `QueryVirtualFieldFailed` → category
@@ -4831,6 +4891,18 @@ mod tests {
             "Prism query engine failure. Contact Prism operator; see audit log for details.",
             "[LOW-001/LOW-002/POL-24] QueryVirtualFieldFailed suggestion must be \
              byte-verbatim; got '{suggestion}'"
+        );
+
+        // Rule 1 invariance: message MUST be "Internal error" (map_prism_error MUST NOT change).
+        let message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("message must be a string");
+        assert_eq!(
+            message, "Internal error",
+            "[LOW-001/LOW-002/Rule-1] QueryVirtualFieldFailed message must be 'Internal error' \
+             (Rule 1 redaction preserved; map_prism_error must NOT change for this variant); \
+             got '{message}'"
         );
     }
 
@@ -4952,6 +5024,9 @@ mod tests {
     ///
     /// RED before implementation: catch-all maps to `"upstream_error"` / `"E-INT-001"`.
     /// GREEN after: dedicated safety arm per BC §MED-001 exact VariantMeta.
+    ///
+    /// Rule 1 invariant preserved: `map_prism_error` still returns `"Internal error"` for
+    /// this variant (verified by `message` field assertion). Rule 1 redaction is UNCHANGED.
     #[test]
     fn test_BC_2_10_007_safety_data_exfiltration_category_is_safety() {
         let err = PrismError::SafetyDataExfiltration {
@@ -5029,6 +5104,18 @@ mod tests {
             suggestion, "Do not retry; report to operator.",
             "[MED-001/POL-24] SafetyDataExfiltration suggestion must be byte-verbatim \
              'Do not retry; report to operator.'; got '{suggestion}'"
+        );
+
+        // Rule 1 invariance: message MUST be "Internal error" (map_prism_error MUST NOT change).
+        let message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("message must be a string");
+        assert_eq!(
+            message, "Internal error",
+            "[MED-001/Rule-1] SafetyDataExfiltration message must be 'Internal error' \
+             (Rule 1 redaction preserved; map_prism_error must NOT change for this variant); \
+             got '{message}'"
         );
     }
 
