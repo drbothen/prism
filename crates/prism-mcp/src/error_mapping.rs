@@ -2036,6 +2036,60 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             normalized_pql: None,
         },
 
+        // ── Safety boundary violations → category "safety" ──────────────────────
+        // BC-2.10.007 v1.14 §MED-001 (F-MCPRS-PRL3-MED-001): SafetyContextContamination
+        // and SafetyDataExfiltration previously fell to the `_ =>` catch-all with
+        // category: "upstream_error" and ec_code: "E-INT-001". This was semantically wrong:
+        // these are Prism-side safety boundary detections, not upstream sensor failures.
+        //
+        // map_prism_error returns INTERNAL_ERROR/"Internal error" for BOTH variants per
+        // BC-2.10.007 Rule 1 redaction (see map_prism_error ~lines 318-321). Code inference
+        // reads the map_prism_error message ("Internal error"), not the variant Display.
+        // Without ec_code_override, both fall to "E-INT-001". Per-variant ec_code_override
+        // required via nested match (same pattern as §LOW-002 query engine arm above).
+        //
+        // original_params_valid: true — the tool call parameters were structurally valid
+        // (well-formed query, valid tool invocation); the safety boundary detected malicious
+        // CONTENT, not malformed SHAPE. Analogous to CapabilityDenied (category "permission",
+        // original_params_valid: true). LLM-agent strategy: do not retry; report to operator.
+        //
+        // upstream_message: null — safety violations are detected by Prism's own safety
+        // layer; no upstream sensor was contacted. DI-006: raw detection detail suppressed.
+        //
+        // RULE 1 INVARIANT: map_prism_error MUST continue to return "Internal error" for
+        // both variants. This is CORRECT per Rule 1 redaction. The message field in the
+        // structured error stays "Internal error". Only ec_code_override, category, and
+        // suggestion are addressed here. Do NOT change map_prism_error for these variants.
+        //
+        // Reference: BC-2.10.007 v1.14 §MED-001; error-taxonomy.md E-SAFETY-001/002;
+        //            F-MCPRS-PRL3-MED-001.
+        PrismError::SafetyContextContamination { .. }
+        | PrismError::SafetyDataExfiltration { .. } => {
+            let ec_code: &'static str = match &err {
+                PrismError::SafetyContextContamination { .. } => "E-SAFETY-001",
+                PrismError::SafetyDataExfiltration { .. } => "E-SAFETY-002",
+                _ => unreachable!("outer OR-pattern guarantees only the two safety variants"),
+            };
+            VariantMeta {
+                category: "safety",
+                suggestion: "Do not retry; report to operator.",
+                retryable: false,
+                retry_after_seconds: None,
+                original_params_valid: true,
+                source_override: None,
+                upstream_message: None,
+                owned_suggestion: None,
+                ec_code_override: Some(ec_code),
+                near_text: None,
+                reference_pointer: None,
+                valid_operators_for_type: None,
+                how_to_fix: None,
+                available_columns: None,
+                did_you_mean: None,
+                normalized_pql: None,
+            }
+        }
+
         // ── Catch-all: unknown variants → "upstream_error" (legal BC category) ──
         // "upstream_error" is the safest legal fallback for variants that don't fit
         // the specific categories above (non_exhaustive catch-all).
@@ -4619,6 +4673,407 @@ mod tests {
             code, "E-WATCHDOG-001",
             "[LOW-002/POL-24] QueryMemoryBudgetExceeded code must be 'E-WATCHDOG-001'; \
              got '{code}'"
+        );
+    }
+
+    // =========================================================================
+    // F-MCPRS-PRL3-LOW-001 — Missing LOW-002 test vectors: E-QUERY-005, E-QUERY-010
+    //
+    // BC-2.10.007 v1.14 §LOW-001: v1.13 §Canonical Test Vectors carried only 3 of 6
+    // LOW-002 query engine vectors; QueryMaterializationLimitExceeded (E-QUERY-005) and
+    // QueryVirtualFieldFailed (E-QUERY-010) were missing. Added here as GREEN locks
+    // (the query engine arm shipped in a prior burst; these tests prove the arm covers
+    // the full 6-variant set including the two previously untested variants).
+    // =========================================================================
+
+    /// BC-2.10.007 v1.14 LOW-001 / LOW-002: `QueryMaterializationLimitExceeded` → category
+    /// `"internal"`, code `"E-QUERY-005"`.
+    ///
+    /// This test was absent from prior bursts (LOW-001 gap). The implementation arm has
+    /// been present since the LOW-002 fix; this test locks in the correct behavior.
+    ///
+    /// Per BC §Canonical Test Vectors: category "internal", original_params_valid: false,
+    /// retryable: false, code "E-QUERY-005",
+    /// suggestion "Prism query engine failure. Contact Prism operator; see audit log for details."
+    #[test]
+    fn test_BC_2_10_007_query_materialization_limit_exceeded_category_is_internal() {
+        let err = PrismError::QueryMaterializationLimitExceeded {
+            count: 10001,
+            max: 10000,
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "internal",
+            "[LOW-001/LOW-002] QueryMaterializationLimitExceeded must map to category \
+             'internal' (not 'upstream_error'); got '{category}'"
+        );
+
+        let original_params_valid = error_obj
+            .get("original_params_valid")
+            .and_then(|v| v.as_bool())
+            .expect("original_params_valid must be a bool");
+        assert!(
+            !original_params_valid,
+            "[LOW-001/LOW-002] QueryMaterializationLimitExceeded must have original_params_valid:false"
+        );
+
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "[LOW-001/LOW-002] QueryMaterializationLimitExceeded must be retryable:false"
+        );
+
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("code must be a string");
+        assert_eq!(
+            code, "E-QUERY-005",
+            "[LOW-001/LOW-002/POL-24] QueryMaterializationLimitExceeded code must be \
+             byte-verbatim 'E-QUERY-005'; got '{code}'"
+        );
+
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("suggestion must be a string");
+        assert_eq!(
+            suggestion,
+            "Prism query engine failure. Contact Prism operator; see audit log for details.",
+            "[LOW-001/LOW-002/POL-24] QueryMaterializationLimitExceeded suggestion must be \
+             byte-verbatim; got '{suggestion}'"
+        );
+    }
+
+    /// BC-2.10.007 v1.14 LOW-001 / LOW-002: `QueryVirtualFieldFailed` → category
+    /// `"internal"`, code `"E-QUERY-010"`.
+    ///
+    /// This test was absent from prior bursts (LOW-001 gap). The implementation arm has
+    /// been present since the LOW-002 fix; this test locks in the correct behavior.
+    ///
+    /// Per BC §Canonical Test Vectors: category "internal", original_params_valid: false,
+    /// retryable: false, code "E-QUERY-010",
+    /// suggestion "Prism query engine failure. Contact Prism operator; see audit log for details."
+    #[test]
+    fn test_BC_2_10_007_query_virtual_field_failed_category_is_internal() {
+        let err = PrismError::QueryVirtualFieldFailed {
+            field: "device_id".to_owned(),
+            detail: "resolution failed".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "internal",
+            "[LOW-001/LOW-002] QueryVirtualFieldFailed must map to category 'internal' \
+             (not 'upstream_error'); got '{category}'"
+        );
+
+        let original_params_valid = error_obj
+            .get("original_params_valid")
+            .and_then(|v| v.as_bool())
+            .expect("original_params_valid must be a bool");
+        assert!(
+            !original_params_valid,
+            "[LOW-001/LOW-002] QueryVirtualFieldFailed must have original_params_valid:false"
+        );
+
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "[LOW-001/LOW-002] QueryVirtualFieldFailed must be retryable:false"
+        );
+
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("code must be a string");
+        assert_eq!(
+            code, "E-QUERY-010",
+            "[LOW-001/LOW-002/POL-24] QueryVirtualFieldFailed code must be byte-verbatim \
+             'E-QUERY-010'; got '{code}'"
+        );
+
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("suggestion must be a string");
+        assert_eq!(
+            suggestion,
+            "Prism query engine failure. Contact Prism operator; see audit log for details.",
+            "[LOW-001/LOW-002/POL-24] QueryVirtualFieldFailed suggestion must be \
+             byte-verbatim; got '{suggestion}'"
+        );
+    }
+
+    // =========================================================================
+    // F-MCPRS-PRL3-MED-001 — Safety boundary arm: SafetyContextContamination /
+    // SafetyDataExfiltration → category "safety" (BC-2.10.007 v1.14 §MED-001)
+    //
+    // RED before safety arm is added: both variants fall to the `_ =>` catch-all
+    // with category "upstream_error" and code "E-INT-001".
+    // GREEN after: dedicated safety arm routes them to category "safety" with
+    // per-variant ec_code_override (E-SAFETY-001 / E-SAFETY-002) and
+    // suggestion "Do not retry; report to operator."
+    // =========================================================================
+
+    /// BC-2.10.007 v1.14 MED-001: `SafetyContextContamination` → category `"safety"`,
+    /// code `"E-SAFETY-001"`, suggestion `"Do not retry; report to operator."`.
+    ///
+    /// RED before implementation: catch-all maps to `"upstream_error"` / `"E-INT-001"`.
+    /// GREEN after: dedicated safety arm per BC §MED-001 exact VariantMeta.
+    ///
+    /// Rule 1 invariant preserved: `map_prism_error` still returns `"Internal error"` for
+    /// this variant (verified by `message` field assertion). Rule 1 redaction is UNCHANGED.
+    #[test]
+    fn test_BC_2_10_007_safety_context_contamination_category_is_safety() {
+        let err = PrismError::SafetyContextContamination {
+            detail: "test contamination".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "safety",
+            "[MED-001] SafetyContextContamination must map to category 'safety' \
+             (not 'upstream_error'); got '{category}'"
+        );
+
+        let original_params_valid = error_obj
+            .get("original_params_valid")
+            .and_then(|v| v.as_bool())
+            .expect("original_params_valid must be a bool");
+        assert!(
+            original_params_valid,
+            "[MED-001] SafetyContextContamination must have original_params_valid:true \
+             (safety layer detected malicious CONTENT, not malformed SHAPE)"
+        );
+
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "[MED-001] SafetyContextContamination must be retryable:false"
+        );
+
+        let upstream_message = error_obj.get("upstream_message");
+        assert_eq!(
+            upstream_message,
+            Some(&serde_json::Value::Null),
+            "[MED-001/DI-006] SafetyContextContamination upstream_message must be null \
+             (present-as-null, not absent); got {upstream_message:?}"
+        );
+
+        let source = error_obj
+            .get("source")
+            .and_then(|v| v.as_str())
+            .expect("source must be a string");
+        assert_eq!(
+            source, "prism_mcp",
+            "[MED-001] SafetyContextContamination source must be 'prism_mcp'; got '{source}'"
+        );
+
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("code must be a string");
+        assert_eq!(
+            code, "E-SAFETY-001",
+            "[MED-001/POL-24] SafetyContextContamination code must be byte-verbatim \
+             'E-SAFETY-001' (ec_code_override required; map_prism_error returns \
+             'Internal error' per Rule 1); got '{code}'"
+        );
+
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("suggestion must be a string");
+        assert_eq!(
+            suggestion, "Do not retry; report to operator.",
+            "[MED-001/POL-24] SafetyContextContamination suggestion must be byte-verbatim \
+             'Do not retry; report to operator.'; got '{suggestion}'"
+        );
+
+        // Rule 1 invariance: message MUST be "Internal error" (map_prism_error MUST NOT change).
+        let message = error_obj
+            .get("message")
+            .and_then(|v| v.as_str())
+            .expect("message must be a string");
+        assert_eq!(
+            message, "Internal error",
+            "[MED-001/Rule-1] SafetyContextContamination message must be 'Internal error' \
+             (Rule 1 redaction preserved; map_prism_error must NOT change for this variant); \
+             got '{message}'"
+        );
+    }
+
+    /// BC-2.10.007 v1.14 MED-001: `SafetyDataExfiltration` → category `"safety"`,
+    /// code `"E-SAFETY-002"`, suggestion `"Do not retry; report to operator."`.
+    ///
+    /// RED before implementation: catch-all maps to `"upstream_error"` / `"E-INT-001"`.
+    /// GREEN after: dedicated safety arm per BC §MED-001 exact VariantMeta.
+    #[test]
+    fn test_BC_2_10_007_safety_data_exfiltration_category_is_safety() {
+        let err = PrismError::SafetyDataExfiltration {
+            field: "api_key".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "safety",
+            "[MED-001] SafetyDataExfiltration must map to category 'safety' \
+             (not 'upstream_error'); got '{category}'"
+        );
+
+        let original_params_valid = error_obj
+            .get("original_params_valid")
+            .and_then(|v| v.as_bool())
+            .expect("original_params_valid must be a bool");
+        assert!(
+            original_params_valid,
+            "[MED-001] SafetyDataExfiltration must have original_params_valid:true"
+        );
+
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "[MED-001] SafetyDataExfiltration must be retryable:false"
+        );
+
+        let upstream_message = error_obj.get("upstream_message");
+        assert_eq!(
+            upstream_message,
+            Some(&serde_json::Value::Null),
+            "[MED-001/DI-006] SafetyDataExfiltration upstream_message must be null; \
+             got {upstream_message:?}"
+        );
+
+        let source = error_obj
+            .get("source")
+            .and_then(|v| v.as_str())
+            .expect("source must be a string");
+        assert_eq!(
+            source, "prism_mcp",
+            "[MED-001] SafetyDataExfiltration source must be 'prism_mcp'; got '{source}'"
+        );
+
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("code must be a string");
+        assert_eq!(
+            code, "E-SAFETY-002",
+            "[MED-001/POL-24] SafetyDataExfiltration code must be byte-verbatim \
+             'E-SAFETY-002'; got '{code}'"
+        );
+
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("suggestion must be a string");
+        assert_eq!(
+            suggestion, "Do not retry; report to operator.",
+            "[MED-001/POL-24] SafetyDataExfiltration suggestion must be byte-verbatim \
+             'Do not retry; report to operator.'; got '{suggestion}'"
+        );
+    }
+
+    /// BC-2.10.007 v1.14 LOW-001 — Catch-all-not-safety regression guard.
+    ///
+    /// Proves the safety arm is correctly scoped to only the 2 safety variants.
+    /// A genuinely catch-all variant (`PrismError::WritePartialFailure`) must produce
+    /// category `"upstream_error"` (the catch-all default) — NOT `"safety"`.
+    ///
+    /// This test is GREEN before and after MED-001: WritePartialFailure has no dedicated
+    /// arm and falls to the catch-all. It guards against accidentally widening the safety
+    /// arm to capture non-safety variants.
+    #[test]
+    fn test_BC_2_10_007_catch_all_category_is_not_safety_regression_guard() {
+        let err = PrismError::WritePartialFailure {
+            sensor: "crowdstrike".to_owned(),
+            endpoint: "/devices/entities/devices/v2".to_owned(),
+            failed: 3,
+            total: 10,
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "upstream_error",
+            "[LOW-001/MED-001 regression guard] WritePartialFailure is a genuinely \
+             catch-all variant and must produce category 'upstream_error' — NOT 'safety'. \
+             If this fails, the safety arm incorrectly captured a non-safety variant. \
+             Got '{category}'"
+        );
+        assert_ne!(
+            category, "safety",
+            "[LOW-001/MED-001 regression guard] WritePartialFailure must NOT produce \
+             category 'safety'; safety arm must be scoped to SafetyContextContamination \
+             and SafetyDataExfiltration ONLY"
         );
     }
 }
