@@ -4,8 +4,8 @@ adr_id: "ADR-051"
 title: "Typed & Consistent Enrichment UDF Output — output_type→Arrow DataType Mapping, Mandatory source_column, Scalar-Input Rule, and INV-ENRICH-TYPED-001"
 status: ACCEPTED
 date: "2026-07-03"
-modified: "2026-07-06"
-version: "1.4"
+modified: "2026-07-13"
+version: "1.5"
 producer: architect
 subsystems_affected: [SS-09, SS-10, SS-19]
 supersedes: []
@@ -23,7 +23,7 @@ closes_defect: "DRIFT-PIVOT-UDF-OUTPUT-TYPE-001"
 
 ## Status
 
-ACCEPTED v1.4 (2026-07-06) — human-ratified. Closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001.
+ACCEPTED v1.5 (2026-07-13) — PO-adjudicated null-input guard sub-clause added to §D2, closing F-MCPRS-PRL1-OBS-003. Closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001.
 Datetime output = Timestamp(µs,UTC) per ADR-052 reconciliation (v1.2).
 
 ---
@@ -200,6 +200,34 @@ projected from `source_column = "threat_score"`), use Arrow-native conversion:
 `Number.as_i64()` for Int64, `Number.as_f64()` for Float64. If `as_i64()` returns
 `None` (e.g., the number is a float but the spec declares `integer`), produce NULL
 + E-INFUSE-014.
+
+**Null-input guard (pre-call short-circuit):**
+
+When `invoke_async_with_args` receives a null entry in the input Arrow array for a given
+row (i.e., the column referenced by `input_field` has SQL NULL for that row), the UDF MUST
+short-circuit before calling the enrichment source: produce NULL in the output column for
+that row, make no source call, and emit no E-INFUSE-014 warning.
+
+This is the **null-input guard**. It fires before `project_value()` and before any source
+call or coercion attempt. Contrast with the other two NULL-output paths in this §:
+
+| Path | When | Source called? | E-INFUSE-014 emitted? |
+|---|---|---|---|
+| Null-input guard (this sub-clause) | Input column is SQL NULL | No | No |
+| §D2 primary (coercion failure) | Source returns non-null value; coercion to declared type fails | Yes | Yes |
+| §D4 (JSON-list input to typed-output UDF) | Input is a JSON-list string (`[` prefix) and output_type ≠ json | Yes | Yes |
+
+Rationale: SQL NULL semantics propagate through enrichment UDFs consistently with DataFusion's
+standard NULL propagation for built-in scalar functions. Calling an enrichment source with a
+NULL input field/key is semantically meaningless and would either cause a source-side panic or
+return a spurious result. Short-circuiting to NULL output is unambiguous, avoids unnecessary
+source calls, and is consistent with the overarching §D2 principle ("NULL is the correct
+partial-failure signal for a single enrichment row").
+
+Note: The null-input guard applies to all output types (string, integer, float, boolean,
+datetime, json) and to all infusion types (http_lookup, plugin, local_lookup). INV-ENRICH-TYPED-001
+(§D6) extends to cover this guard: for typed-output UDFs, NULL input → NULL output, never a
+panic or incorrect typed value.
 
 **Failure mode: NULL + E-INFUSE-014 (no panic, no empty string, no passthrough):**
 
@@ -579,6 +607,7 @@ produces E-INFUSE-013.
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| 1.5 | 2026-07-13 | architect | PO-adjudicated null-input guard sub-clause added to §D2, inserted between "Coercion path (JSON Number → typed value)" and "Failure mode: NULL + E-INFUSE-014" blocks. Closes F-MCPRS-PRL1-OBS-003: test cites "ADR-051 §D2 null-input short-circuit" but §D2 v1.4 only documented post-source-call coercion failure; the pre-call null-input guard was unspecced. Guard behavior confirmed against worktree `invoke_async_with_args` (lines 330–337 of `infusion_udf.rs`): `None` arm pushes `None` and continues before ENRICH-1, before `enrich_one_scalar`, before `project_value()`, with no E-INFUSE-014 emitted; applies to all output types and all infusion types. Code-truth correction: §D4 comparison-table "Source called?" cell corrected from "Depends on ENRICH-1 path" → "Yes" — for non-json output_type, `is_json_output = false` so ENRICH-1 never fires; source is always called via `enrich_one_scalar` before `coerce_to_typed` detects the `[` prefix and emits E-INFUSE-014. No D1–D6 decision-content change; no other section affected. |
 | 1.4 | 2026-07-06 | architect | Post-pass-1 example reconciliation: `column_type` examples in "Sensor TOMLs — New Scalar Companion Columns" block corrected PascalCase `"String"` → lowercase `"string"` (canonical serde form per `prism_core::column::ColumnType` `#[serde(rename_all = "snake_case")]`). No other PascalCase column_type example values found. D2/D3 `declared_type`/sub-condition-7 examples already use correct lowercase `output_type` vocabulary; no change. No decision-content change (D1–D6 semantics unchanged). |
 | 1.3 | 2026-07-05 | architect | Human-ratified. Status PROPOSED → ACCEPTED. No decision-content change from v1.2. |
 | 1.2 | 2026-07-05 | architect | Blast-radius reconciliation against merged ADR-052 (PR #214, develop@11edbd36). **D1 datetime row**: `DataType::Utf8` → `DataType::Timestamp(Microsecond, Some("UTC"))` with ISO-8601/RFC-3339 coercion note via `parse_datetime_to_micros`. **"Datetime = Utf8 rationale" replaced**: v1.1 rationale was inverted post-ADR-052; new section "Datetime = Timestamp(µs,UTC) rationale" explains that the consistency argument now points toward Timestamp (sensor columns are Timestamp; enrichment Utf8 would create the two-representation split v1.1 was trying to avoid). **Corrected v1.1 blast-radius errors**: (a) `column_type_to_arrow` in `spec_driven_adapter.rs` is now `ColumnType::Datetime => Timestamp(Microsecond, Some("UTC"))` — v1.1 citation of `DataType::Utf8` withdrawn; (b) `pipe_sql_emitter.rs` comment now confirms Timestamp — v1.1 citation of Utf8 withdrawn; (c) `high002_plan_pinning_tests.rs` now confirms Timestamp — v1.1 citation of Utf8 withdrawn; (d) `column.rs` Datetime doc-comment is already correct (says Timestamp/UTC) — v1.1 blast-radius item directing implementer to "fix" it FROM Timestamp TO Utf8 explicitly **withdrawn** (was inverted). **D2**: added `Timestamp(µs,UTC)` coercion row. **D4/D6**: extended typed-output scalar-input rule to include `datetime`. **D5**: added datetime comparison semantics row. **Infusion_udf blast-radius row**: updated to include `TimestampMicrosecondArray` branch and `parse_datetime_to_micros` for datetime coercion. **BC-2.19.001 amendments**: INV-ENRICH-TYPED-001 text extended to include `datetime` in the non-Utf8 typed list. `related_adrs` extended: [ADR-024, ADR-040, ADR-044, ADR-052]. |
