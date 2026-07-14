@@ -1877,8 +1877,11 @@ fn collect_unknown_scalar_offsets_from_predicate(
 /// | 7 — INSERT source_select WHERE | `Ast::Sql(Dml)` | `dml.source_select.where_` |
 ///
 /// Positions 4 and 5 are also walked by `collect_unknown_scalars_from_sql_query` into
-/// `sql_unknown_names` for the E-QUERY-039 enrichment check. Positions 1-3 and 6-7 feed
-/// `predicate_fncall_names` only (aggregate gate); they do not reach E-QUERY-039.
+/// `sql_unknown_names` for the E-QUERY-039 enrichment check; they additionally reach
+/// E-QUERY-039 via the `predicate_fncall_names → sql_unknown_names` fold in
+/// `check_enrich_udf_availability` (two-path coverage). Positions 1-3 and 6-7 reach
+/// E-QUERY-039 exclusively via the fold (walk-observable through E-QUERY-039 signals);
+/// `collect_unknown_scalars_from_sql_query` does not walk those AST arms.
 ///
 /// # SQL path detection (E-QUERY-039 enrichment check)
 /// SQL-mode enrichment: `ScalarFunc::Unknown(name)` in `FuncCall::Scalar` nodes.
@@ -1909,10 +1912,13 @@ fn collect_unknown_scalar_offsets_from_predicate(
 ///
 /// Pipe-mode `| where` predicates (`PipeStage::Where`) in both `Ast::Pipe` and `Ast::SqlPipe`
 /// stage lists are walked into `predicate_fncall_names` (positions 1 and 3 above) for the
-/// aggregate gate. They do not feed `pipe_enrich_names` or `sql_unknown_names`.
+/// aggregate gate and then folded into `sql_unknown_names` for the E-QUERY-039 check via
+/// the `predicate_fncall_names → sql_unknown_names` fold in `check_enrich_udf_availability`.
+/// They do not feed `pipe_enrich_names`.
 ///
 /// Filter mode (`Ast::Filter`): the root predicate is walked into `predicate_fncall_names`
-/// (position 2 above) for the aggregate gate. Filter mode has no `| enrich` stages.
+/// (position 2 above) for the aggregate gate and then folded into `sql_unknown_names` for
+/// the E-QUERY-039 check. Filter mode has no `| enrich` stages.
 ///
 /// # Reference
 /// S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019; error-taxonomy.md E-QUERY-039.
@@ -15621,9 +15627,10 @@ mod sqlpipe_where_third_gated_position_enrich_udf_tests {
 /// `enrich_lookup` registered MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
 ///
 /// Boundary-locked (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
-/// fires E-QUERY-039 for the unknown UDF only, via the sql_unknown_names path
-/// (collect_unknown_scalars_from_sql_query position (b)) — NOT the predicate_fncall_names
-/// walk, which serves the aggregate gate only (true walk locks: TM-06/TM-07).
+/// fires E-QUERY-039 for the unknown UDF only. Both `collect_unknown_scalars_from_sql_query`
+/// (position (b)) and the `predicate_fncall_names → sql_unknown_names` fold in
+/// `check_enrich_udf_availability` contribute at Position 4; the compound test is not
+/// walk-distinguishable between them (true walk locks: TM-06/TM-07 in temporal_typing_tests.rs).
 ///
 /// Bilateral boundary for Position 4 (added by OD-5):
 ///   - known UDF in SQL WHERE → gate passes (Ok(()))
@@ -15714,9 +15721,10 @@ mod sql_where_fourth_gated_position_enrich_udf_tests {
 /// `enrich_lookup` registered MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
 ///
 /// Boundary-locked (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
-/// fires E-QUERY-039 for the unknown UDF only, via the sql_unknown_names path
-/// (collect_unknown_scalars_from_sql_query position (b) on spq.head) — NOT the
-/// predicate_fncall_names walk, which serves the aggregate gate only (true walk lock: TM-10).
+/// fires E-QUERY-039 for the unknown UDF only. Both `collect_unknown_scalars_from_sql_query`
+/// (position (b) on spq.head) and the `predicate_fncall_names → sql_unknown_names` fold in
+/// `check_enrich_udf_availability` contribute at Position 5; the compound test is not
+/// walk-distinguishable between them (true walk lock: TM-10 in temporal_typing_tests.rs).
 ///
 /// Bilateral boundary for Position 5 (added by OD-5):
 ///   - known UDF in SqlPipe-head WHERE → gate passes (Ok(()))
@@ -16373,8 +16381,10 @@ mod insert_source_select_where_seventh_gated_position_tests {
     /// `totally_unknown_udf` only — proving the walk reaches the predicate and registry
     /// filtering passes the known UDF. Positions 4 and 5 are boundary-locked via the
     /// sql_unknown_names path (collect_unknown_scalars_from_sql_query position (b)); their
-    /// predicate_fncall_names walk serves the aggregate gate only (ADR-048 §D.7.1, OD-5)
-    /// and is walk-locked by TM-06/TM-07 (Position 4) and TM-10 (Position 5) in
+    /// predicate_fncall_names walk additionally reaches E-QUERY-039 via the
+    /// `predicate_fncall_names → sql_unknown_names` fold but the compound tests are not
+    /// walk-distinguishable between the two paths (ADR-048 §D.7.1, OD-5). True walk locks:
+    /// TM-06/TM-07 (Position 4) and TM-10 (Position 5) in
     /// temporal_typing_tests.rs (F-PQLFN-P37-MED-001).
     ///
     /// Traces to: F-PQLFN-P34-OBS-001; F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001;
