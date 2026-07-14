@@ -44,11 +44,11 @@ fn assert_all_prism_error_variants_categorized(err: PrismError) {
         PrismError::InvalidClientId { .. } => {} // "authentication"
         PrismError::AuthTokenExpired => {}      // "authentication"
         PrismError::AuthTokenInvalid { .. } => {} // "authentication"
-        PrismError::Unauthorized { .. } => {}   // "authentication"
+        PrismError::Unauthorized { .. } => {}   // "permission"
 
         // ── E-SENSOR: upstream sensor HTTP/timeout/parse/rate ────────────────
-        PrismError::SensorHttpError { .. } => {} // "upstream_error" (4xx→authentication; 503→transient; 429→transient)
-        PrismError::SensorTimeout { .. } => {}   // "transient"
+        PrismError::SensorHttpError { .. } => {} // "upstream_error" (401/403→"authentication"; 408|425|429|500|502|503|504→retryable:true per §RETRYABLE-503; category stays "upstream_error" — SensorRateLimited is the "transient"-category path)
+        PrismError::SensorTimeout { .. } => {}   // "upstream_error"
         PrismError::SensorResponseParse { .. } => {} // "upstream_error"
         PrismError::SensorRateLimited { .. } => {} // "transient"
 
