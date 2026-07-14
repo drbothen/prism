@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.13"
+version: "1.14"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-07-13"  # v1.13: §LOW-002 arm code corrected — per-variant ec_code_override via nested match (implementer-discovered: map_prism_error returns "Internal error" for all 6; Rule 1 redaction prevents code inference; v1.12 claim "ec_code_override: None" was incorrect). v1.12: 6 query-engine variants moved to dedicated 'internal' arm (F-MCPRS-PRL2-LOW-002). v1.11: Rule 1 AuditPersistenceFailed carve-out (MED-001) + McpSerializationError "internal" (OBS-002).
+modified: "2026-07-13"  # v1.14: §MED-001 safety arm added (SafetyContextContamination/SafetyDataExfiltration → category "safety", ec_code_override E-SAFETY-001/E-SAFETY-002, original_params_valid: true; map_prism_error returns "Internal error" per Rule 1 — ec_code_override via nested match required). §LOW-001: 3 missing LOW-002 test vectors added (QueryPlanFailed, QueryMaterializationLimitExceeded, QueryVirtualFieldFailed) + 2 safety vectors + catch-all regression guard. §LOW-002 tests-to-add extended (QueryMaterializationLimitExceeded, QueryVirtualFieldFailed). Taxonomy v2.47: E-SAFETY-001/002 descriptions corrected to match variant semantics. v1.13: §LOW-002 arm code corrected — per-variant ec_code_override via nested match (implementer-discovered: map_prism_error returns "Internal error" for all 6; Rule 1 redaction prevents code inference; v1.12 claim "ec_code_override: None" was incorrect). v1.12: 6 query-engine variants moved to dedicated 'internal' arm (F-MCPRS-PRL2-LOW-002). v1.11: Rule 1 AuditPersistenceFailed carve-out (MED-001) + McpSerializationError "internal" (OBS-002).
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -98,13 +98,13 @@ All `PrismError` variants that route through `map_prism_error` to MCP JSON-RPC c
 
 - **Prism-side infrastructure arm** — `suggestion` = `"Prism infrastructure failure. Contact Prism operator; see audit log for details."`: Variants grouped in the shared infrastructure VariantMeta arm: `PrismError::Internal`, `Io`, and all `Storage*` variants (`StorageOpenFailed`, `StorageWriteFailed`, `StorageReadFailed`, `StorageDomainNotFound`, `StorageKeyNotFound`, `StorageLockHeld`, `StorageHealthCheckFailed`, `SchemaMismatch`, `StorageBatchFailed`). This enumeration is **EXHAUSTIVE** for this suggestion string — only these variants land in this arm.
 
-- **`_` non-exhaustive catch-all arm** — `suggestion` = `"See audit log for details."`: All `#[non_exhaustive]` variants without a dedicated VariantMeta arm fall here. This includes OCSF normalization variants, `WritePartialFailure`, scheduler/detection/case/safety variants, `Infusion`, `Plugin`, IOC variants, credential variants, and any future `PrismError` additions. NOTE: `QueryExecutionFailed`, `QueryPlanFailed`, `QueryMaterializationLimitExceeded`, `QueryMemoryBudgetExceeded`, `QueryVirtualFieldFailed`, and `QueryDenylisted` are **EXCLUDED** from the catch-all from v1.12 onward — they have a dedicated query engine arm (see below). The `_` catch-all arm in `prism_error_to_structured_call_result` is the **EXHAUSTIVE** definition of which variants receive exactly `"See audit log for details."` as suggestion.
+- **`_` non-exhaustive catch-all arm** — `suggestion` = `"See audit log for details."`: All `#[non_exhaustive]` variants without a dedicated VariantMeta arm fall here. This includes OCSF normalization variants, `WritePartialFailure`, scheduler/detection/case variants, `Infusion`, `Plugin`, IOC variants, credential variants, and any future `PrismError` additions. NOTE: `QueryExecutionFailed`, `QueryPlanFailed`, `QueryMaterializationLimitExceeded`, `QueryMemoryBudgetExceeded`, `QueryVirtualFieldFailed`, and `QueryDenylisted` are **EXCLUDED** from the catch-all from v1.12 onward — they have a dedicated query engine arm (see below). **`SafetyContextContamination` and `SafetyDataExfiltration` are EXCLUDED from the catch-all from v1.14 onward — they have a dedicated safety arm (see §MED-001).** The `_` catch-all arm in `prism_error_to_structured_call_result` is the **EXHAUSTIVE** definition of which variants receive exactly `"See audit log for details."` as suggestion.
 
 - **Query engine arm** — `suggestion` = `"Prism query engine failure. Contact Prism operator; see audit log for details."`: Six DataFusion/query-engine variants that are Prism-internal failures (sensor dispatch has already completed or was never relevant): `PrismError::QueryPlanFailed` (E-QUERY-002), `QueryExecutionFailed` (E-QUERY-034), `QueryMaterializationLimitExceeded` (E-QUERY-005), `QueryMemoryBudgetExceeded` (E-WATCHDOG-001), `QueryVirtualFieldFailed` (E-QUERY-010), `QueryDenylisted` (E-QUERY-008). All carry `category: "internal"`, `original_params_valid: false`, `retryable: false`, `upstream_message: null`. Per-variant `ec_code_override` REQUIRED via nested match (see §Implementer Code Follow-Up §LOW-002). Reason: `map_prism_error` returns `"Internal error"` for all 6 per BC-2.10.007 Rule 1 message redaction — the code-inference logic extracts the E-code from the `map_prism_error` message string, which is `"Internal error"` (no E-prefix), not the variant Display string. Each variant's Display string DOES carry its E-QUERY-NNN / E-WATCHDOG-NNN prefix, but inference uses the redacted `map_prism_error` message, not the Display. Without explicit per-variant overrides, all 6 fall through to the `E-INT-001` fallback. This enumeration is **EXHAUSTIVE** for this suggestion string. Authority: F-MCPRS-PRL2-LOW-002 adjudication + implementer-discovered v1.13 correction, BC-2.10.007 v1.13.
 
 - **Dedicated VariantMeta arm class** — category-appropriate variant-specific suggestions: Other -32000-returning variants that have their own named arms in `prism_error_to_structured_call_result` carry category-appropriate suggestions per the §Category decision rule. The `message = "Internal error"` Rule 1 still applies, but `suggestion` is NOT the generic audit-log pointer phrase. Canonical examples from the shipped `error_mapping.rs` VariantMeta arms: `AuthTokenExpired` → `"The auth token has expired. Re-authenticate and obtain a fresh token."` (`"authentication"` category); `AuthTokenInvalid` → `"The auth token is invalid. Re-authenticate and obtain a valid token."` (`"authentication"` category); `WatchdogKilled`/`WatchdogHeartbeatMissed`/`WatchdogRestartLimitExceeded` → `"Prism process supervision failure (memory or watchdog). Contact Prism operator; see audit log for details."` (`"internal"` category); sensor adapter variants (`SensorRateLimited`, `SensorHttpError`, `SensorTimeout`, `SensorResponseParse`) and config/spec variants also carry dedicated-arm suggestions appropriate to their category; `McpSerializationError` → `"Prism MCP serialization failure. Contact Prism operator; see audit log for details."` (`"internal"` category, `ec_code_override: Some("E-MCP-003")`) — see `prism_error_to_structured_call_result` VariantMeta arms in `error_mapping.rs` for authoritative suggestion strings.
 
-This is the **message/suggestion split** cited in error-taxonomy v2.41 rows for E-INT-001, E-AUTH-010, E-AUTH-011, E-QUERY-034, E-WATCH-002, and the §INT narrative. This section codifies the split as an explicit postcondition; previously it was only implicit in the field description table above. Ratifying authority: DEFECT-MCP-ROWSHAPE-NULLS-001 [H8b] + error-taxonomy v2.40. Amended at v1.10 to clarify the UNIVERSAL message rule, the EXHAUSTIVE catch-all class enumeration, and the class-differentiated suggestion rule (F-MCPNULL-P6-OBS-003 2026-07-13). Amended at v1.11 to add `AuditPersistenceFailed` as the ONE EXHAUSTIVE exception to Rule 1 (MED-001), and to adjudicate `McpSerializationError` to `category: "internal"` with explicit suggestion and `ec_code_override: Some("E-MCP-003")` (OBS-002; DEFECT-MCP-ROWSHAPE-NULLS-001 pass-7 2026-07-13).
+This is the **message/suggestion split** cited in error-taxonomy v2.41 rows for E-INT-001, E-AUTH-010, E-AUTH-011, E-QUERY-034, E-WATCH-002, and the §INT narrative. This section codifies the split as an explicit postcondition; previously it was only implicit in the field description table above. Ratifying authority: DEFECT-MCP-ROWSHAPE-NULLS-001 [H8b] + error-taxonomy v2.40. Amended at v1.10 to clarify the UNIVERSAL message rule, the EXHAUSTIVE catch-all class enumeration, and the class-differentiated suggestion rule (F-MCPNULL-P6-OBS-003 2026-07-13). Amended at v1.11 to add `AuditPersistenceFailed` as the ONE EXHAUSTIVE exception to Rule 1 (MED-001), and to adjudicate `McpSerializationError` to `category: "internal"` with explicit suggestion and `ec_code_override: Some("E-MCP-003")` (OBS-002; DEFECT-MCP-ROWSHAPE-NULLS-001 pass-7 2026-07-13). Amended at v1.14 to EXCLUDE `SafetyContextContamination` and `SafetyDataExfiltration` from the catch-all — dedicated safety arm added (`category: "safety"`, per-variant `ec_code_override` via nested match; §MED-001). Safety arm `suggestion` = `"Do not retry; report to operator."` (BC §Category table, safety category); `original_params_valid: true` (safety layer detected malicious CONTENT, not malformed SHAPE); `upstream_message: null` (no upstream sensor contacted). Rule 1 message redaction (`"Internal error"`) for both variants is UNCHANGED (2026-07-13).
 
 | Field | Rule |
 |-------|------|
@@ -220,6 +220,12 @@ The adversary flagged that `WatchdogKilled`, `WatchdogHeartbeatMissed`, and `Wat
 | `PrismError::QueryExecutionFailed { detail: "DataFusion execution error: ..." }` | `category: "internal"`, `original_params_valid: false`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-QUERY-034"` | error (LOW-002 — query engine arm) |
 | `PrismError::QueryDenylisted { failure_count: 3, query_hash: "abc123" }` | `category: "internal"`, `original_params_valid: false`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-QUERY-008"` | error (LOW-002 — query engine arm) |
 | `PrismError::QueryMemoryBudgetExceeded { limit_mb: 200, used_mb: 210 }` | `category: "internal"`, `original_params_valid: false`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-WATCHDOG-001"` | error (LOW-002 — query engine arm) |
+| `PrismError::QueryPlanFailed { detail: "plan error".to_string() }` | `category: "internal"`, `original_params_valid: false`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-QUERY-002"`, `suggestion: "Prism query engine failure. Contact Prism operator; see audit log for details."` | error (LOW-001 — missing LOW-002 vector) |
+| `PrismError::QueryMaterializationLimitExceeded { count: 10001, max: 10000 }` | `category: "internal"`, `original_params_valid: false`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-QUERY-005"`, `suggestion: "Prism query engine failure. Contact Prism operator; see audit log for details."` | error (LOW-001 — missing LOW-002 vector) |
+| `PrismError::QueryVirtualFieldFailed { field: "device_id".to_string(), detail: "resolution failed".to_string() }` | `category: "internal"`, `original_params_valid: false`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-QUERY-010"`, `suggestion: "Prism query engine failure. Contact Prism operator; see audit log for details."` | error (LOW-001 — missing LOW-002 vector) |
+| `PrismError::SafetyContextContamination { detail: "test contamination".to_string() }` | `category: "safety"`, `original_params_valid: true`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-SAFETY-001"`, `suggestion: "Do not retry; report to operator."` | error (MED-001 — safety boundary arm) |
+| `PrismError::SafetyDataExfiltration { field: "api_key".to_string() }` | `category: "safety"`, `original_params_valid: true`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-SAFETY-002"`, `suggestion: "Do not retry; report to operator."` | error (MED-001 — safety boundary arm) |
+| `PrismError::WritePartialFailure { .. }` (genuinely catch-all variant) | `category: "upstream_error"`, `suggestion: "See audit log for details."` — NOT `"safety"`; proves safety arm is correctly scoped to only the 2 safety variants | error (LOW-001 — catch-all-not-safety regression guard) |
 
 See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
 
@@ -237,7 +243,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 | L2 Edge Cases | DEC-009 |
 | Priority | P0 |
 
-## Implementer Code Follow-Up (F-4, OBS-1, OBS-2)
+## Implementer Code Follow-Up (F-4, OBS-1, OBS-2, MED-001)
 
 **This section records required implementer actions resulting from BC amendments. The orchestrator must route these to the implementer after the BC amendment is committed.**
 
@@ -380,10 +386,93 @@ PrismError::QueryPlanFailed { .. }
 - `test_BC_2_10_007_query_plan_failed_category_is_internal`: asserts `QueryPlanFailed { detail: "plan error".to_string() }` → `category: "internal"`, `code: "E-QUERY-002"`.
 - `test_BC_2_10_007_query_denylisted_category_is_internal`: asserts `QueryDenylisted { failure_count: 3, query_hash: "abc123".to_string() }` → `category: "internal"`, `code: "E-QUERY-008"`.
 - `test_BC_2_10_007_query_memory_budget_exceeded_category_is_internal`: asserts `QueryMemoryBudgetExceeded { limit_mb: 200, used_mb: 210 }` → `category: "internal"`, `code: "E-WATCHDOG-001"`.
+- `test_BC_2_10_007_query_materialization_limit_exceeded_category_is_internal` (LOW-001 gap): asserts `QueryMaterializationLimitExceeded { count: 10001, max: 10000 }` → `category: "internal"`, `original_params_valid: false`, `retryable: false`, `code: "E-QUERY-005"`, `suggestion: "Prism query engine failure. Contact Prism operator; see audit log for details."`.
+- `test_BC_2_10_007_query_virtual_field_failed_category_is_internal` (LOW-001 gap): asserts `QueryVirtualFieldFailed { field: "device_id".to_string(), detail: "resolution failed".to_string() }` → `category: "internal"`, `original_params_valid: false`, `retryable: false`, `code: "E-QUERY-010"`, `suggestion: "Prism query engine failure. Contact Prism operator; see audit log for details."`.
 
 **Regression guard to update:** The test `test_CRIT_B_catch_all_category_is_upstream_error` (if it uses any of these 6 variants to exercise the catch-all) must be updated to use a genuinely unmapped variant. Verify by grepping the test body for `QueryExecutionFailed`, `QueryPlanFailed`, etc.
 
 **SensorHttpError regression guard remains unchanged:** The existing `test_BC_2_10_007_sensor_http_error_category_is_upstream_error` (or equivalent) MUST continue to assert `SensorHttpError → category: "upstream_error"`. This verifies that the new query engine arm does NOT incorrectly capture genuine upstream sensor failures.
+
+### MED-001 (status: REQUIRED — implementer must apply in DEFECT-MCP-ROWSHAPE-NULLS-001 fix-burst)
+
+**Finding:** F-MCPRS-PRL3-MED-001 (pass-3 2026-07-13). `SafetyContextContamination` and `SafetyDataExfiltration` fell to the `_ =>` catch-all in `prism_error_to_structured_call_result` with `category: "upstream_error"` and `ec_code: "E-INT-001"`. The BC's own §Category table (line ~158) already enumerates both variants under `category: "safety"` — this was spec-code drift. LLM-agent impact: safety boundary violations received "retry a different sensor" guidance instead of "do not retry; report to operator."
+
+**Root cause:** `map_prism_error` returns `(INTERNAL_ERROR, "Internal error")` for both variants per Rule 1 redaction (correct, must not change). Code inference in `prism_error_to_structured_call_result` extracts the E-code from the `map_prism_error` message string — which is `"Internal error"` with no E-prefix — so without `ec_code_override`, both fall through to `E-INT-001`. Identical mechanism to §LOW-002 query engine arm; same nested-match fix pattern required.
+
+**Rule 1 compliance (MANDATORY):** `map_prism_error` MUST continue to return `"Internal error"` for `SafetyContextContamination` and `SafetyDataExfiltration`. The Rule 1 message redaction is correct and must not be changed. The fix is VariantMeta-side only (`ec_code_override` + `category` + `suggestion`).
+
+**Exact VariantMeta arm (implementation-ready):**
+
+```rust
+// ── Safety boundary violations → category "safety" ──────────────────────────
+// BC-2.10.007 v1.14 §MED-001 (F-MCPRS-PRL3-MED-001): SafetyContextContamination
+// and SafetyDataExfiltration previously fell to the `_ =>` catch-all with
+// category: "upstream_error" and ec_code: "E-INT-001". This was semantically wrong:
+// these are Prism-side safety boundary detections, not upstream sensor failures.
+//
+// map_prism_error returns INTERNAL_ERROR/"Internal error" for BOTH variants per
+// BC-2.10.007 Rule 1 redaction (error_mapping.rs ~lines 316-321). Code inference
+// reads the map_prism_error message ("Internal error"), not the variant Display.
+// Without ec_code_override, both fall to "E-INT-001". Per-variant ec_code_override
+// required via nested match (same pattern as §LOW-002 query engine arm).
+//
+// original_params_valid: true — the tool call parameters were structurally valid
+// (well-formed query, valid tool invocation); the safety boundary detected malicious
+// CONTENT, not malformed SHAPE. Analogous to CapabilityDenied (category "permission",
+// original_params_valid: true). LLM-agent strategy: do not retry; report to operator.
+//
+// upstream_message: null — safety violations are detected by Prism's own safety
+// layer; no upstream sensor was contacted. DI-006: raw detection detail suppressed.
+//
+// RULE 1 INVARIANT: map_prism_error MUST continue to return "Internal error" for
+// both variants. This is CORRECT per Rule 1 redaction. The message field in the
+// structured error stays "Internal error". Only ec_code_override, category, and
+// suggestion are addressed here. Do NOT change map_prism_error for these variants.
+PrismError::SafetyContextContamination { .. }
+| PrismError::SafetyDataExfiltration { .. } => {
+    let ec_code: &'static str = match &err {
+        PrismError::SafetyContextContamination { .. } => "E-SAFETY-001",
+        PrismError::SafetyDataExfiltration { .. } => "E-SAFETY-002",
+        _ => unreachable!("outer OR-pattern guarantees only the two safety variants"),
+    };
+    VariantMeta {
+        category: "safety",
+        suggestion: "Do not retry; report to operator.",
+        retryable: false,
+        retry_after_seconds: None,
+        original_params_valid: true,
+        source_override: None,
+        upstream_message: None,
+        owned_suggestion: None,
+        ec_code_override: Some(ec_code),
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
+        available_columns: None,
+        did_you_mean: None,
+        normalized_pql: None,
+    }
+}
+```
+
+**Per-variant VariantMeta summary (for implementer routing):**
+
+| Field | `SafetyContextContamination` | `SafetyDataExfiltration` | Rationale |
+|-------|------------------------------|--------------------------|-----------|
+| `category` | `"safety"` | `"safety"` | BC §Category table: safety boundary violations |
+| `ec_code_override` | `Some("E-SAFETY-001")` | `Some("E-SAFETY-002")` | `map_prism_error` returns `"Internal error"` (Rule 1); no E-prefix inference; codes from `#[error]` attributes in `prism-core/src/error.rs` |
+| `suggestion` | `"Do not retry; report to operator."` | `"Do not retry; report to operator."` | BC §Category table exact agent-strategy string for `"safety"` category |
+| `retryable` | `false` | `false` | Safety violations are permanent, not transient |
+| `original_params_valid` | `true` | `true` | Params structurally valid; safety layer detected malicious CONTENT, not malformed SHAPE; analogous to `CapabilityDenied` (`original_params_valid: true`) |
+| `upstream_message` | `None` (null) | `None` (null) | Prism's own safety layer detected this; no upstream sensor contacted; DI-006 |
+| `source_override` | `None` | `None` | Defaults to `"prism_mcp"` via standard wiring |
+| `message` (Rule 1) | `"Internal error"` (UNCHANGED) | `"Internal error"` (UNCHANGED) | Rule 1 redaction — map_prism_error MUST NOT change for these variants |
+
+**Tests to add:**
+- `test_BC_2_10_007_safety_context_contamination_category_is_safety`: asserts `SafetyContextContamination { detail: "test contamination".to_string() }` → `category: "safety"`, `original_params_valid: true`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-SAFETY-001"`, `suggestion: "Do not retry; report to operator."`.
+- `test_BC_2_10_007_safety_data_exfiltration_category_is_safety`: asserts `SafetyDataExfiltration { field: "api_key".to_string() }` → `category: "safety"`, `original_params_valid: true`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"`, `code: "E-SAFETY-002"`, `suggestion: "Do not retry; report to operator."`.
+- `test_BC_2_10_007_catch_all_category_is_not_safety_regression_guard` (LOW-001 regression guard): asserts a variant that genuinely falls to the `_ =>` catch-all (e.g., `PrismError::Infusion(..)` or `PrismError::WritePartialFailure { .. }`) → `category: "upstream_error"` (NOT `"safety"`); proves the safety arm is correctly scoped to only the 2 safety variants and no genuine catch-all variants are captured by it.
 
 ### OBS-2 (status: REQUIRED — implementer follow-up needed)
 
@@ -422,6 +511,7 @@ PrismError::WatchdogKilled { .. }
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.14 | DEFECT-MCP-ROWSHAPE-NULLS-001-FB16-F-MCPRS-PRL3-MED-001-LOW-001 | 2026-07-13 | product-owner | **F-MCPRS-PRL3-MED-001 + F-MCPRS-PRL3-LOW-001 closure (pass-3 spec side).** **(1) MED-001 — SafetyContextContamination/SafetyDataExfiltration safety-category arm.** Both variants fell to the `_ =>` catch-all with `category: "upstream_error"` and `ec_code: "E-INT-001"` — spec-code drift from BC §Category table. Root cause: `map_prism_error` returns `"Internal error"` for both per Rule 1 redaction (correct, unchanged); code inference cannot recover E-SAFETY codes without `ec_code_override`. Fix: dedicated safety arm added to §Implementer Code Follow-Up (same nested-match pattern as §LOW-002). Changes: (a) catch-all arm description: `"scheduler/detection/case/safety variants"` → `"scheduler/detection/case variants"` + EXCLUDED NOTE for both safety variants from v1.14; (b) §Implementer Code Follow-Up: §MED-001 section added with exact VariantMeta arm (per-variant ec_code via nested match, `category: "safety"`, `suggestion: "Do not retry; report to operator."`, `original_params_valid: true`, `upstream_message: None`); (c) header updated to `(F-4, OBS-1, OBS-2, MED-001)`; (d) Rule 1 compliance explicitly stated: `map_prism_error` MUST NOT change for safety variants. **(2) LOW-001 — §Canonical Test Vectors completed.** v1.13 §Canonical Test Vectors carried only 3 of 6 LOW-002 query engine vectors; QueryPlanFailed (E-QUERY-002), QueryMaterializationLimitExceeded (E-QUERY-005), and QueryVirtualFieldFailed (E-QUERY-010) were missing. Added those 3 plus 2 safety variant vectors + catch-all regression guard: 6 new rows total. §LOW-002 "Tests to add" extended with 2 missing tests (`QueryMaterializationLimitExceeded`, `QueryVirtualFieldFailed`). **Companion:** error-taxonomy v2.47 — E-SAFETY-001/002 descriptions corrected from stale Phase 1 placeholders to match `SafetyContextContamination`/`SafetyDataExfiltration` `#[error]` attributes in `prism-core/src/error.rs`. **No code changes required by this BC alone** — implementation follows via separate implementer fix-burst routing. |
 | 1.13 | DEFECT-MCP-ROWSHAPE-NULLS-001-FB15-EC_CODE_OVERRIDE | 2026-07-13 | product-owner | **F-MCPRS-PRL2-LOW-002 closure refinement (implementer-discovered) — §LOW-002 arm code corrected.** v1.12 §LOW-002 specified `ec_code_override: None` with rationale "No `ec_code_override` required — each variant's Display carries its E-QUERY-NNN / E-WATCHDOG-NNN prefix, which the code extraction logic resolves correctly." This was incorrect. Root cause: v1.12 conflated the variant's Display string (which DOES carry E-QUERY-NNN prefix) with the `map_prism_error` message string (which returns `"Internal error"` for all 6 per Rule 1 redaction). Code inference in `prism_error_to_structured_call_result` extracts the E-code from the `map_prism_error` message string — not the variant Display. For all 6 variants, `map_prism_error` returns `(INTERNAL_ERROR, "Internal error")`; the message has no E-prefix; inference falls through to `E-INT-001` for all without explicit overrides. **Fix:** §LOW-002 arm code updated to shipped mechanism: OR-pattern arm wraps a nested `let ec_code: &'static str = match &err { ... }` computing per-variant E-codes (E-QUERY-002/034/005/010/008, E-WATCHDOG-001); `VariantMeta` uses `ec_code_override: Some(ec_code)`. §LOW-002 comment corrected with explanation of WHY inference cannot fire (Rule 1 → `"Internal error"` message → no E-prefix → E-INT-001 fallback). §Internal-redacted split "Query engine arm" sub-class rationale corrected from "No `ec_code_override` required" to the explicit nested-match requirement with explanation. No semantic change to category/suggestion/retryable/original_params_valid decisions — those v1.12 adjudications stand. |
 | 1.12 | DEFECT-MCP-ROWSHAPE-NULLS-001-PRL2-LOW-002 | 2026-07-13 | product-owner | **F-MCPRS-PRL2-LOW-002 closure — §Category "internal" enumeration aligned with semantic rule for 6 query engine variants.** Finding: `QueryPlanFailed`, `QueryExecutionFailed`, `QueryMaterializationLimitExceeded`, `QueryMemoryBudgetExceeded`, `QueryVirtualFieldFailed`, and `QueryDenylisted` all fell to the `_ =>` catch-all in `prism_error_to_structured_call_result` with `category: "upstream_error"`, contradicting the BC's own semantic rule ("Prism itself failed before or independent of any sensor dispatch"). Construction site analysis confirmed: ALL 6 variants are DataFusion/Prism query engine failures constructed exclusively in `materialization.rs`, `memory.rs`, `internal_tables.rs`, and `internal_tables.rs` — no sensor API call appears in any construction path. **Per-variant adjudication (all `category: "internal"`):** (1) `QueryPlanFailed` (E-QUERY-002) — DataFusion query planning failure, pre-execution; (2) `QueryExecutionFailed` (E-QUERY-034) — DataFusion execution failure; sensor data was already loaded into MemTables; (3) `QueryMaterializationLimitExceeded` (E-QUERY-005) — Prism-internal row-limit enforcement during materialization; (4) `QueryMemoryBudgetExceeded` (E-WATCHDOG-001) — DataFusion memory pool exhaustion; (5) `QueryVirtualFieldFailed` (E-QUERY-010) — Prism-side virtual field computation failure; (6) `QueryDenylisted` (E-QUERY-008) — Prism-side denylist rejection. All six: `original_params_valid: false` (the caller's query triggered the failure), `retryable: false`, `upstream_message: null`. No `ec_code_override` needed: each variant's Display carries its E-QUERY-NNN/E-WATCHDOG-NNN prefix. **Changes:** §Category "internal" row extended with the 6 variants; §Internal-redacted split: `_` catch-all updated to exclude the 6 (with explicit NOTE); new "Query engine arm" sub-class added with suggestion `"Prism query engine failure. Contact Prism operator; see audit log for details."` (EXHAUSTIVE for this string); §Canonical Test Vectors: 3 vectors added for LOW-002; §Implementer Code Follow-Up: §LOW-002 section added with exact VariantMeta arm code. **Companion:** none (error-taxonomy rows for E-QUERY-002/034/005/010/008 and E-WATCHDOG-001 required no update — their existing rows did not document MCP category; that is BC-2.10.007's domain). |
 | 1.11 | DEFECT-MCP-ROWSHAPE-NULLS-001-P7-MED-001-OBS-002 | 2026-07-13 | product-owner | **F-MCPNULL-P7-MED-001 + F-MCPNULL-P7-OBS-002 closure.** **(1) MED-001 — Rule 1 universality overclaim corrected.** The v1.10 Rule 1 claimed `message = "Internal error"` is "(UNIVERSAL, ALL -32000 arms)" without exception, but `PrismError::AuditPersistenceFailed` is an intentional exception: `map_prism_error` emits the full taxonomy-verbatim Display (`"E-AUDIT-001: Audit emission failed; write operation blocked. Retry the operation. If the error persists, check tracing subscriber health."`) as `message`, NOT `"Internal error"`. Rationale: carries no sensitive detail; agent caller needs code + retry guidance for this transient retryable fail-closed condition. Authority: `map_prism_error` `AuditPersistenceFailed` arm comment + BC-2.05.001 DEC-014. Rule 1 heading changed from "(UNIVERSAL, ALL -32000 arms)" to "(UNIVERSAL with one exhaustive exception)"; explicit carve-out paragraph added; exception list stated EXHAUSTIVE. The v1.10 changelog row's claim "the code already implements this split correctly" was accurate for the message/suggestion split behavior in general, but v1.10 Rule 1 prose overstated universality — this v1.11 entry corrects the spec-only overclaim. No code change required: `map_prism_error` arm was already correct. **(2) OBS-002 — McpSerializationError category adjudication.** The `McpSerializationError` arm in `prism_error_to_structured_call_result` carried `category: "upstream_error"` with a deferred-amendment comment "not a sensor failure ... remains catch-all pending future BC amendment". This IS that amendment. Ruling: Prism MCP response serialization failure is Prism-internal (Prism's own serialization layer failed; sensor was never involved) → `category: "internal"`. Exact implementer strings: `category: "internal"`, `suggestion: "Prism MCP serialization failure. Contact Prism operator; see audit log for details."`, `ec_code_override: Some("E-MCP-003")` (required to prevent E-INT-001 fallback; `McpSerializationError` Display prefix is `"E-MCP-003:"` per prism-core `error.rs` `#[error]` attribute). Added `McpSerializationError` to §Category decision rule "internal" row. Added `McpSerializationError` to §Internal-redacted split Rule 2 canonical examples. Added §Implementer Code Follow-Up OBS-002 (pass-7). Companion: error-taxonomy v2.42 (E-AUDIT-001 message contract annotation + E-MCP-003 row update). |
