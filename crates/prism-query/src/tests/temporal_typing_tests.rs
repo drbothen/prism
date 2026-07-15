@@ -5940,29 +5940,82 @@ async fn test_BC_2_11_004_tm_18_pipe_where_percentile_manual_insert_lock() {
     );
 }
 
-// ── F-PQLFN-P4-MED-001 HAVING e2e lock ───────────────────────────────────────
+// ── EC-11-086: HAVING `percentile` → E-QUERY-001 (registry-independent) ─────────────────────
+//
+// ADR-048 v1.16 §D.2 amendment (F-PQLFN-PR3-LOW-001, BC-2.11.004 v1.48):
+//
+// `percentile` is excluded from `build_agg_call_parser` (ADR-048 §D.2 OD-2: two-arg grammar
+// ambiguity). It therefore parses as `FuncCall::Scalar(Unknown("percentile"))` via
+// `fn_call_comparison` in `build_sql_predicate_parser` (base branch of
+// `build_having_predicate_parser`).
+//
+// Pre-v1.16 behavior (DO NOT REGRESS):
+//   - HAVING is EXEMPT from the aggregate-gate `predicate_fncall_names` walk (ADR-048 §D.7.1);
+//     "percentile" does NOT reach the E-QUERY-001 aggregate gate.
+//   - "percentile" IS walked into `sql_unknown_names` via position (f) of
+//     `collect_unknown_scalars_from_sql_query`.
+//   - "percentile" is NOT in `DATAFUSION_BUILTIN_FUNCTION_NAMES` (not a DataFusion registry
+//     built-in — proven by empirical tests at commit 524a9986 / bb23f143).
+//   - With registry active (Some): "percentile" passes the DATAFUSION_BUILTIN_FUNCTION_NAMES
+//     filter → not in registry → E-QUERY-039 fires ("enrichment infusion 'percentile' is not
+//     registered") — a FALSE enrichment-registration suggestion misleading to LLM agents.
+//   - With no registry (None): check_enrich_udf_availability returns Ok(()) at the
+//     `let Some(registry) = registry else { return Ok(()) }` guard → no error → DataFusion
+//     execution fails with QueryPlanFailed ("percentile" unknown to DataFusion).
+//
+// Post-v1.16 behavior (what the RED tests below assert):
+//   `check_enrich_udf_availability` intercepts `name` ∈ `DATAFUSION_BUILTIN_AGGREGATE_NAMES`
+//   in HAVING position (f) BEFORE the infusion-registry lookup and fires E-QUERY-001 with
+//   HAVING-specific guidance. This interception must run BEFORE the `let Some(registry) = ...`
+//   guard so it fires even when no registry is configured (registry-INDEPENDENT).
+//
+// Tests (both RED until the implementation fix ships):
+//   - test_BC_2_11_004_having_percentile_fires_e_query_001_no_registry  (variant b: no registry)
+//   - test_BC_2_11_004_having_percentile_fires_e_query_001_with_registry (variant a: registry active)
+//
+// Stale-test note (ADR-048 v1.16 §D.2): `test_BC_2_11_016_tm_having_percentile_not_e_query_001_
+// having_exempt` was anchored to the pre-v1.16 behavior ("result is NOT QueryParseFailed").
+// That assertion is now WRONG — post-v1.16 the result IS QueryParseFailed (E-QUERY-001).
+// This section replaces it with the two required replacement tests from ADR-048 §D.2.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
 
-/// F-PQLFN-P4-MED-001 HAVING e2e lock: `HAVING percentile(risk_score, 95) > 5`
-/// must NOT fire E-QUERY-001 (HAVING is exempt from aggregate-in-predicate gate).
+/// EC-11-086 (b) **RED** — registry-independence lock: `HAVING percentile(x, p) op value`
+/// fires E-QUERY-001 with HAVING-specific guidance even when NO infusion registry is wired.
+///
+/// This is the direct replacement for the now-stale
+/// `test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt`, which asserted the
+/// pre-v1.16 behavior ("HAVING percentile must NOT fire E-QUERY-001"). Post-v1.16, E-QUERY-001
+/// MUST fire.
 ///
 /// Query: `SELECT device_id FROM crowdstrike_detections GROUP BY device_id
 ///         HAVING percentile(risk_score, 95) > 5`
 ///
-/// HAVING is fully exempt from the aggregate-in-predicate gate (ADR-048 D.7.3).
-/// "percentile" in HAVING parses as `FuncCall::Scalar(Unknown("percentile"))` — the
-/// non-six-name fallthrough path (ADR-048 D.7.3 OD-3 MED-001 permit). HAVING predicates
-/// are NOT walked by `predicate_fncall_names`, so the aggregate gate does not fire.
+/// Engine: `make_crowdstrike_detections_engine()` — no infusion registry (registry = None).
 ///
-/// The manual `names.insert("percentile")` in `DATAFUSION_BUILTIN_AGGREGATE_NAMES` only
-/// applies to WHERE/predicate positions. This test confirms it does NOT trigger in HAVING.
+/// **Pre-fix failure path** (current code → RED):
+/// - `percentile` in HAVING → `sql_unknown_names` via position (f) of
+///   `collect_unknown_scalars_from_sql_query`
+/// - HAVING is EXEMPT from the `predicate_fncall_names` aggregate gate (ADR-048 §D.7.1)
+/// - `let Some(registry) = registry else { return Ok(()) }` guard fires → Ok(())
+/// - Query proceeds to DataFusion execution → DataFusion cannot resolve `percentile` →
+///   `QueryPlanFailed` (NOT `QueryParseFailed`)
+/// - This test asserts `QueryParseFailed` → FAILS (RED). ✓
 ///
-/// The actual result (DataFusion plan error since "percentile" is not a DataFusion
-/// built-in aggregate and HAVING is passed through unmodified) is locked here.
+/// **Post-fix path** (after the v1.16 implementation):
+/// - New `DATAFUSION_BUILTIN_AGGREGATE_NAMES` interception for HAVING position fires BEFORE
+///   the `let Some(registry) = registry` guard → E-QUERY-001 regardless of registry state.
+/// - `QueryParseFailed` with HAVING-specific message → this test PASSES (GREEN).
 ///
-/// Traces to: F-PQLFN-P4-MED-001 HAVING e2e lock; ADR-048 v1.3 D.7.3; BC-2.11.016 v1.6.
+/// Canonical message (byte-verbatim per POL-24, ADR-048 §D.2):
+/// `"E-QUERY-001: query parse error at offset {offset}: 'percentile' is a PrismQL aggregate
+/// function; PERCENTILE is not directly supported in HAVING predicates — alias it in SELECT:
+/// SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold (ADR-048 D.3 OD-2)"`
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.21 §OBS-004;
+///            F-PQLFN-PR3-LOW-001; POL-24.
 #[tokio::test]
-async fn test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt() {
-    let engine = make_crowdstrike_detections_engine();
+async fn test_BC_2_11_004_having_percentile_fires_e_query_001_no_registry() {
+    let engine = make_crowdstrike_detections_engine(); // no infusion registry (None)
 
     let result = engine
         .execute(
@@ -5972,27 +6025,228 @@ async fn test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt() {
         )
         .await;
 
-    // HAVING is exempt from the aggregate-in-predicate gate (ADR-048 D.7.3).
-    // The result may be Ok or any non-E-QUERY-001 error (DataFusion plan failure, etc.).
-    if let Err(ref e) = result {
-        assert!(
-            !matches!(e, PrismError::QueryParseFailed { .. }),
-            "F-PQLFN-P4-MED-001 HAVING e2e lock: HAVING percentile(risk_score, 95) > 5 \
-             must NOT fire E-QUERY-001 (aggregate gate). \
-             HAVING is exempt per ADR-048 D.7.3 (MED-001 permit). \
-             The manual insert for 'percentile' in DATAFUSION_BUILTIN_AGGREGATE_NAMES \
-             only covers WHERE/predicate positions, not HAVING. \
-             Got: {e:?}"
-        );
+    // Diagnostic-first: must be E-QUERY-001 (QueryParseFailed), NOT QueryPlanFailed.
+    // Pre-fix: registry=None → Ok(()) → DataFusion plan fails → QueryPlanFailed. RED.
+    // Post-fix: HAVING DATAFUSION_BUILTIN_AGGREGATE_NAMES interception fires → QueryParseFailed.
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "EC-11-086 (b, no-registry): HAVING percentile(risk_score, 95) > 5 must fire \
+         E-QUERY-001 (QueryParseFailed) with HAVING-specific guidance. \
+         Pre-fix: registry=None → check_enrich_udf_availability returns Ok(()) → \
+         DataFusion plan fails with QueryPlanFailed — NOT E-QUERY-001. \
+         Post-fix: new DATAFUSION_BUILTIN_AGGREGATE_NAMES interception in HAVING position \
+         fires BEFORE the registry-None guard → E-QUERY-001 (registry-INDEPENDENT). \
+         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.21 §OBS-004) \
+         Got: {result:?}"
+    );
 
-        let display = format!("{e}");
-        assert!(
-            !display.contains("aggregate function"),
-            "F-PQLFN-P4-MED-001 HAVING e2e: display must NOT contain 'aggregate function' \
-             (E-QUERY-001 aggregate gate message). HAVING is exempt. Got: {display}"
-        );
-    }
-    // If Ok: no assertion needed — HAVING percentile passed through to DataFusion.
+    // Must NOT be QueryPlanFailed — the plan-time interception must precede DataFusion.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "EC-11-086 (b, no-registry): must NOT be QueryPlanFailed. \
+         Pre-fix: no-registry path lets the query through to DataFusion (plan fails). \
+         Post-fix: E-QUERY-001 fires at plan time before DataFusion. Got: {result:?}"
+    );
+
+    // POL-24 message-text lock — HAVING-specific canonical message from ADR-048 §D.2.
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains(
+            "is a PrismQL aggregate function; \
+             PERCENTILE is not directly supported in HAVING predicates"
+        ),
+        "EC-11-086 (b, no-registry): E-QUERY-001 display must contain HAVING-specific \
+         guidance: \"is a PrismQL aggregate function; PERCENTILE is not directly supported \
+         in HAVING predicates\" (ADR-048 §D.2 canonical message, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("alias it in SELECT"),
+        "EC-11-086 (b, no-registry): E-QUERY-001 display must contain alias guidance \
+         \"alias it in SELECT\" (ADR-048 §D.2 canonical message, POL-24). \
+         Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("ADR-048 D.3 OD-2"),
+        "EC-11-086 (b, no-registry): E-QUERY-001 display must contain ADR citation \
+         \"ADR-048 D.3 OD-2\" (ADR-048 §D.2 canonical message, POL-24). \
+         Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'percentile'"),
+        "EC-11-086 (b, no-registry): E-QUERY-001 display must contain quoted name \
+         \"'percentile'\" (ADR-048 §D.2 canonical message, POL-24). \
+         Got: {err_display:?}"
+    );
+}
+
+/// EC-11-086 (a) **RED** — load-bearing registry-active variant: `HAVING percentile(x, p)`
+/// fires E-QUERY-001 (NOT E-QUERY-039) when an infusion registry is active.
+///
+/// This is the primary load-bearing RED test for F-PQLFN-PR3-LOW-001. The pre-fix code fires
+/// E-QUERY-039 ("enrichment infusion 'percentile' is not registered") on registry-active
+/// installations — a false enrichment-registration suggestion that misleads LLM agents into
+/// thinking they need to register a 'percentile' enrichment function.
+///
+/// Query: `SELECT device_id FROM crowdstrike_detections GROUP BY device_id
+///         HAVING percentile(risk_score, 95) > 5`
+///
+/// Engine: `make_crowdstrike_engine_with_empty_infusion()` — empty InfusionRegistry (Some, 0 entries).
+///
+/// **Pre-fix failure path** (current code → RED):
+/// - `percentile` in HAVING → `sql_unknown_names` via position (f)
+/// - NOT in `DATAFUSION_BUILTIN_FUNCTION_NAMES` (not a DataFusion registry built-in — F-PQLFN-P4-MED-001)
+/// - Registry is Some([]) → "percentile" not in empty registry → E-QUERY-039 fires:
+///   "enrichment infusion 'percentile' is not registered; available: []"
+/// - This test asserts `QueryParseFailed` (E-QUERY-001) → FAILS (RED). ✓
+///
+/// **Post-fix path** (after the v1.16 implementation):
+/// - New interception for `name` ∈ `DATAFUSION_BUILTIN_AGGREGATE_NAMES` in HAVING position fires
+///   BEFORE the infusion-registry lookup → E-QUERY-001 with HAVING-specific message.
+/// - E-QUERY-039 does NOT fire.
+///
+/// Canonical message (byte-verbatim per POL-24, ADR-048 §D.2):
+/// `"E-QUERY-001: query parse error at offset {offset}: 'percentile' is a PrismQL aggregate
+/// function; PERCENTILE is not directly supported in HAVING predicates — alias it in SELECT:
+/// SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold (ADR-048 D.3 OD-2)"`
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.21 §OBS-004;
+///            F-PQLFN-PR3-LOW-001; POL-24.
+#[tokio::test]
+async fn test_BC_2_11_004_having_percentile_fires_e_query_001_with_registry() {
+    let engine = make_crowdstrike_engine_with_empty_infusion(); // registry active (Some, empty)
+
+    let result = engine
+        .execute(
+            "SELECT device_id FROM crowdstrike_detections \
+             GROUP BY device_id HAVING percentile(risk_score, 95) > 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must be E-QUERY-001 (QueryParseFailed), NOT E-QUERY-039 (EnrichUdfNotFound).
+    // Pre-fix: "percentile" not in DATAFUSION_BUILTIN_FUNCTION_NAMES, not in registry
+    //          → EnrichUdfNotFound (E-QUERY-039). This assertion FAILS (RED). ✓
+    // Post-fix: HAVING DATAFUSION_BUILTIN_AGGREGATE_NAMES interception fires first
+    //           → QueryParseFailed (E-QUERY-001). Assertion PASSES.
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "EC-11-086 (a, registry-active): HAVING percentile(risk_score, 95) > 5 must fire \
+         E-QUERY-001 (QueryParseFailed) with HAVING-specific guidance. \
+         Pre-fix: registry-active installation fires E-QUERY-039 \
+         ('enrichment infusion 'percentile' is not registered; available: []') — \
+         a FALSE enrichment-registration suggestion misleading to LLM agents. \
+         Post-fix: DATAFUSION_BUILTIN_AGGREGATE_NAMES interception in HAVING position fires \
+         E-QUERY-001 BEFORE the registry lookup. \
+         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.21 §OBS-004) \
+         Got: {result:?}"
+    );
+
+    // Must NOT be E-QUERY-039 (the pre-fix regression).
+    assert!(
+        !matches!(&result, Err(PrismError::EnrichUdfNotFound(_))),
+        "EC-11-086 (a, registry-active): must NOT fire E-QUERY-039 (EnrichUdfNotFound). \
+         'percentile' is a PrismQL aggregate keyword — E-QUERY-039 \
+         ('enrichment infusion not registered') is a false suggestion. \
+         The new HAVING-position interception must prevent E-QUERY-039 from firing. \
+         Got: {result:?}"
+    );
+
+    // POL-24 message-text lock — HAVING-specific canonical message from ADR-048 §D.2.
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains(
+            "is a PrismQL aggregate function; \
+             PERCENTILE is not directly supported in HAVING predicates"
+        ),
+        "EC-11-086 (a, registry-active): E-QUERY-001 display must contain HAVING-specific \
+         guidance (ADR-048 §D.2 canonical message, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("alias it in SELECT"),
+        "EC-11-086 (a, registry-active): E-QUERY-001 display must contain alias guidance \
+         \"alias it in SELECT\" (ADR-048 §D.2 canonical message, POL-24). \
+         Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("ADR-048 D.3 OD-2"),
+        "EC-11-086 (a, registry-active): E-QUERY-001 display must contain ADR citation \
+         \"ADR-048 D.3 OD-2\" (ADR-048 §D.2 canonical message, POL-24). \
+         Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'percentile'"),
+        "EC-11-086 (a, registry-active): E-QUERY-001 display must contain quoted name \
+         \"'percentile'\" (ADR-048 §D.2 canonical message, POL-24). \
+         Got: {err_display:?}"
+    );
+    // Additional negative lock: display must NOT contain E-QUERY-039 message fragment.
+    assert!(
+        !err_display.contains("enrichment infusion"),
+        "EC-11-086 (a, registry-active): E-QUERY-001 display must NOT contain E-QUERY-039 \
+         message fragment 'enrichment infusion' — the pre-fix regression output was \
+         \"E-QUERY-039: enrichment infusion 'percentile' is not registered; available: []\". \
+         Got: {err_display:?}"
+    );
+}
+
+/// EC-11-087 **GREEN lock** — `HAVING distinct_count(field)` succeeds (parses as
+/// `FuncCall::Aggregate`, never reaches E-QUERY-039 gate).
+///
+/// `distinct_count` IS in `build_agg_call_parser`'s six-name list (ADR-048 §D.2 BNF:
+/// `'DISTINCT_COUNT'` case-insensitive). `HAVING distinct_count(device_id) > 100` parses
+/// as `Predicate::Compare { lhs: Expr::FuncCall(FuncCall::Aggregate(Distinct("device_id"))), ..}`
+/// — NOT as `ScalarFunc::Unknown`. This AST node never reaches the `sql_unknown_names` walker
+/// (which only collects `ScalarFunc::Unknown` nodes), so neither E-QUERY-039 nor the new
+/// DATAFUSION_BUILTIN_AGGREGATE_NAMES HAVING interception fires.
+///
+/// This is the sibling contrast with EC-11-086 (percentile), establishing that the fix targets
+/// only `ScalarFunc::Unknown` names in HAVING (which are NOT in `build_agg_call_parser`), not
+/// valid aggregate AST nodes (which ARE in `build_agg_call_parser`).
+///
+/// **GREEN on arrival**: the `FuncCall::Aggregate` parse path for `distinct_count` has been
+/// in place since S-DEMO-FIDELITY-REMEDIATION-001. If this test FAILS (E-QUERY-001 or
+/// E-QUERY-039), the fix over-intercepts in HAVING position — that is a REAL DEFECT.
+///
+/// Note: the query may produce an execution error (no sensor adapter in test engine) — that
+/// is acceptable. The assertions confirm only that NO parse-level or plan-level gate fires for
+/// the `distinct_count` name in HAVING.
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-087; ADR-048 §D.2; F-PQLFN-PR3-LOW-001 sibling analysis.
+#[tokio::test]
+async fn test_BC_2_11_004_ec_11_087_having_distinct_count_success() {
+    let engine = make_crowdstrike_engine_with_empty_infusion(); // registry active — most stringent fixture
+
+    let result = engine
+        .execute(
+            "SELECT device_id, COUNT(*) FROM crowdstrike_detections \
+             GROUP BY device_id HAVING distinct_count(device_id) > 100",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must NOT fire E-QUERY-001 (QueryParseFailed) — distinct_count parses as
+    // FuncCall::Aggregate(Distinct), which is the correct HAVING aggregate AST form.
+    // If the new HAVING interception accidentally fires for distinct_count, this fails.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "EC-11-087 GREEN lock: HAVING distinct_count(device_id) > 100 must NOT fire \
+         E-QUERY-001. `distinct_count` is in `build_agg_call_parser`'s six-name list; \
+         it parses as FuncCall::Aggregate(Distinct), NOT ScalarFunc::Unknown. \
+         The HAVING DATAFUSION_BUILTIN_AGGREGATE_NAMES interception must NOT fire for \
+         proper aggregate AST nodes (BC-2.11.004 v1.48 EC-11-087, ADR-048 §D.2). \
+         Got: {result:?}"
+    );
+
+    // Must NOT fire E-QUERY-039 (EnrichUdfNotFound) — distinct_count never reaches
+    // the sql_unknown_names walker because it parses as FuncCall::Aggregate.
+    assert!(
+        !matches!(&result, Err(PrismError::EnrichUdfNotFound(_))),
+        "EC-11-087 GREEN lock: HAVING distinct_count must NOT fire E-QUERY-039. \
+         `distinct_count` parses as FuncCall::Aggregate — the sql_unknown_names walker \
+         only collects ScalarFunc::Unknown nodes; distinct_count never reaches the \
+         E-QUERY-039 gate (BC-2.11.004 v1.48 EC-11-087). Got: {result:?}"
+    );
+    // (Result may be Ok or a non-parse error from the test engine — both acceptable.)
 }
 
 // ── F-PQLFN-P4-LOW-001: D.7.4 gate-ordering discriminator (pipe | where + temporal RHS) ──
@@ -8552,4 +8806,294 @@ async fn test_f_pqlfn_p28_oos_001_sqlpipe_sort_literal_parity() {
              Got: {detail:?}"
         );
     }
+}
+
+// ── EC-11-085: NULL keyword rejection across all predicate surfaces ───────────────────────
+//
+// BC-2.11.004 v1.48 LOW-006 (21-keyword list, case-insensitive):
+//   NOT, AND, OR, IN, IIN, IEQ, INE, IS, BETWEEN, LIKE, CIDR, MATCHES, HAS, MISSING,
+//   CONTAINS, ICONTAINS, STARTSWITH, ISTARTSWITH, ENDSWITH, IENDSWITH, **NULL**
+//
+// `NULL` is added at v1.48 (DEFECT-PQL-FNCALL-LHS-001 fix-burst-36). The `fn_call_comparison`
+// production in `build_predicate_parser` must now reject `NULL(...)` as a function name,
+// firing E-QUERY-001 with message fragment:
+//   "'NULL' is a PrismQL keyword and cannot be used as a function name"
+// (BC-2.11.004 EC-11-085 canonical message, POL-24).
+//
+// The rejection must cover ALL three predicate surfaces:
+//   (A) pipe `| where NULL(x) = 5`
+//   (B) SQL WHERE `SELECT * FROM t WHERE NULL(x) = 5`
+//   (C) filter mode `"crowdstrike_detections | NULL(x) = 5"` (sensor `|` predicate form)
+//
+// Pre-fix: `NULL` is NOT in the reserved-keyword blocklist inside `fn_call_comparison`.
+//          `NULL(x)` parses successfully as a function call → proceeds to execution →
+//          triggers E-QUERY-039 or DataFusion error (or Ok on no data). NOT E-QUERY-001.
+//          Tests asserting E-QUERY-001 with the keyword message → FAIL (RED). ✓
+//
+// Post-fix: `fn_call_comparison` case-insensitively checks the function name against the
+//           21-item LOW-006 list (including NULL) → E-QUERY-001 fires at parse time.
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/// EC-11-085 (A) **RED** — pipe `| where` surface: `NULL(x) = 5` fires E-QUERY-001
+/// with keyword message.
+///
+/// Query: `FROM crowdstrike_detections | where NULL(device_id) = 5`
+///
+/// The `| where` stage uses `build_predicate_parser` → `fn_call_comparison`. Post-fix, the
+/// 21-item LOW-006 keyword blocklist (BC-2.11.004 v1.48) includes NULL (case-insensitive),
+/// so `fn_call_comparison` rejects `NULL(device_id)` before building the AST node.
+///
+/// **Pre-fix failure path** (current code → RED):
+/// - `NULL` is NOT in the `fn_call_comparison` keyword blocklist → parses as
+///   `ScalarFunc::Unknown("null")`/`ScalarFunc::Unknown("NULL")` → reaches execution →
+///   fires E-QUERY-039 or a DataFusion error. NOT QueryParseFailed. Test FAILS (RED). ✓
+///
+/// **Post-fix path**:
+/// - `fn_call_comparison` rejects `NULL` from the LOW-006 list → E-QUERY-001 fires with
+///   "'NULL' is a PrismQL keyword and cannot be used as a function name".
+///
+/// Canonical message (byte-verbatim per POL-24, BC-2.11.004 EC-11-085):
+/// `"E-QUERY-001: query parse error at offset {offset}: 'NULL' is a PrismQL keyword and
+/// cannot be used as a function name"`
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085 LOW-006; F-PQLFN-PR3-LOW-001; POL-24.
+#[tokio::test]
+async fn test_BC_2_11_004_ec_11_085_pipe_null_as_fn_name_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where NULL(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must be E-QUERY-001 (QueryParseFailed).
+    // Pre-fix: NULL not in LOW-006 keyword blocklist → parses successfully → later error.
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "EC-11-085 (pipe | where): `NULL(device_id) = 5` must fire E-QUERY-001 \
+         (QueryParseFailed). Pre-fix: NULL is not in the fn_call_comparison keyword blocklist \
+         → parses as an unknown function → E-QUERY-039 or DataFusion error. Post-fix: NULL \
+         added to LOW-006 21-keyword list → rejected at parse time. \
+         (BC-2.11.004 v1.48 EC-11-085, F-PQLFN-PR3-LOW-001, POL-24) \
+         Got: {result:?}"
+    );
+
+    // Must NOT be QueryPlanFailed — keyword rejection fires before execution.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "EC-11-085 (pipe | where): must NOT be QueryPlanFailed. Keyword gate fires at \
+         parse time, before DataFusion plan. Got: {result:?}"
+    );
+
+    // Must NOT be E-QUERY-039 (the pre-fix regression where NULL parsed as an unknown function).
+    assert!(
+        !matches!(&result, Err(PrismError::EnrichUdfNotFound(_))),
+        "EC-11-085 (pipe | where): must NOT fire E-QUERY-039 (EnrichUdfNotFound). \
+         Pre-fix: NULL(device_id) passes fn_call_comparison → reaches E-QUERY-039 check. \
+         Post-fix: blocked before that gate by LOW-006. Got: {result:?}"
+    );
+
+    // POL-24 message-text lock — keyword-specific canonical message from BC-2.11.004 EC-11-085.
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "EC-11-085 (pipe | where): E-QUERY-001 display must contain keyword message \
+         \"is a PrismQL keyword and cannot be used as a function name\" \
+         (BC-2.11.004 EC-11-085 canonical message, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'NULL'"),
+        "EC-11-085 (pipe | where): E-QUERY-001 display must contain quoted keyword name \
+         \"'NULL'\" (BC-2.11.004 EC-11-085 canonical message, POL-24). \
+         Got: {err_display:?}"
+    );
+}
+
+/// EC-11-085 (B) **RED** — SQL WHERE surface: `NULL(x) = 5` in SELECT WHERE fires
+/// E-QUERY-001 with keyword message.
+///
+/// Query: `SELECT * FROM crowdstrike_detections WHERE NULL(device_id) = 5`
+///
+/// SQL WHERE uses `build_sql_predicate_parser` (which delegates to `build_predicate_parser`
+/// internally). Post-fix, the LOW-006 blocklist applies to this surface identically.
+///
+/// **Pre-fix failure path** → RED (same analysis as pipe variant above).
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085 LOW-006 surface (b) SQL WHERE; F-PQLFN-PR3-LOW-001; POL-24.
+#[tokio::test]
+async fn test_BC_2_11_004_ec_11_085_sql_where_null_as_fn_name_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE NULL(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "EC-11-085 (SQL WHERE): `NULL(device_id) = 5` in SELECT WHERE must fire E-QUERY-001 \
+         (QueryParseFailed). Pre-fix: NULL not in LOW-006 blocklist → parses → later error. \
+         (BC-2.11.004 v1.48 EC-11-085, F-PQLFN-PR3-LOW-001, POL-24). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "EC-11-085 (SQL WHERE): must NOT be QueryPlanFailed. Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::EnrichUdfNotFound(_))),
+        "EC-11-085 (SQL WHERE): must NOT fire E-QUERY-039. Got: {result:?}"
+    );
+
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "EC-11-085 (SQL WHERE): keyword message required \
+         (BC-2.11.004 EC-11-085 canonical message, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'NULL'"),
+        "EC-11-085 (SQL WHERE): quoted name \"'NULL'\" required \
+         (BC-2.11.004 EC-11-085 canonical message, POL-24). Got: {err_display:?}"
+    );
+}
+
+/// EC-11-085 (C) **RED** — filter mode surface: `NULL(x) = 5` as sensor predicate fires
+/// E-QUERY-001 with keyword message.
+///
+/// Query: `"crowdstrike_detections | NULL(device_id) = 5"` (sensor `|` predicate form —
+/// filter mode, NOT pipe mode; the `|` separates sensor name from predicate expression).
+///
+/// Filter mode routes through `parse_filter_predicate` → `build_predicate_parser`.
+/// Post-fix, the LOW-006 blocklist covers this surface identically.
+///
+/// **Pre-fix failure path** → RED (same analysis as pipe and SQL WHERE variants above).
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085 LOW-006 surface (c) filter mode; F-PQLFN-PR3-LOW-001; POL-24.
+#[tokio::test]
+async fn test_BC_2_11_004_ec_11_085_filter_mode_null_as_fn_name_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "crowdstrike_detections | NULL(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "EC-11-085 (filter mode): `NULL(device_id) = 5` as sensor predicate must fire \
+         E-QUERY-001 (QueryParseFailed). Pre-fix: NULL not in LOW-006 blocklist → parses. \
+         (BC-2.11.004 v1.48 EC-11-085, F-PQLFN-PR3-LOW-001, POL-24). Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "EC-11-085 (filter mode): must NOT be QueryPlanFailed. Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::EnrichUdfNotFound(_))),
+        "EC-11-085 (filter mode): must NOT fire E-QUERY-039. Got: {result:?}"
+    );
+
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "EC-11-085 (filter mode): keyword message required \
+         (BC-2.11.004 EC-11-085 canonical message, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'NULL'"),
+        "EC-11-085 (filter mode): quoted name \"'NULL'\" required \
+         (BC-2.11.004 EC-11-085 canonical message, POL-24). Got: {err_display:?}"
+    );
+}
+
+// ── F-PQLFN-PR3-OBS-001: SqlPipe-head-WHERE position 5 explicit lock ─────────────────────
+//
+// PR-LEVEL finding F-PQLFN-PR3-OBS-001 (OBS severity, fix-burst-36): the SqlPipe head-SELECT
+// WHERE position (position 5 in ADR-048 §D.7 surface map) had no dedicated LOW-006 test
+// covering the `SELECT ... WHERE keyword_fn(x) = value | pipe_stage` form.
+//
+// Position 5 is: `SELECT * FROM <table> WHERE <predicate> | <pipe_stages>`.
+// The WHERE predicate in this position routes through `build_sql_predicate_parser` →
+// `build_predicate_parser` → `fn_call_comparison`, identical to standalone SQL WHERE.
+//
+// This GREEN lock test confirms that position 5 fires E-QUERY-001 with the keyword message
+// for `NOT(x) = 5` in the SqlPipe head-SELECT WHERE (NOT is one of the original 20 LOW-006
+// keywords; NULL is the v1.48 addition). The existing LOW-006 NOT tests cover pipe and SQL
+// WHERE but this test specifically covers the SqlPipe-with-trailing-pipe form.
+//
+// **GREEN on arrival**: `build_sql_predicate_parser` was already exercised for NOT by prior
+// tests and `NOT` has been in the blocklist since BC-2.11.004 v1.0. If this test FAILS, the
+// SqlPipe head-WHERE path does NOT share `build_predicate_parser` — that is a REAL DEFECT.
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/// F-PQLFN-PR3-OBS-001 **GREEN lock** — SqlPipe head-SELECT WHERE position 5:
+/// `SELECT * FROM <table> WHERE NOT(x) = 5 | limit 10` fires E-QUERY-001 keyword message.
+///
+/// This is the explicit position-5 test requested by F-PQLFN-PR3-OBS-001 (BC-2.11.004 v1.48
+/// LOW-006 surface completeness). `NOT` is in the original 20-keyword LOW-006 list; this form
+/// adds the trailing `| limit 10` pipe stage to the query, exercising the SqlPipe head-WHERE
+/// parse path (not plain SQL WHERE).
+///
+/// **GREEN on arrival**: the keyword gate in `build_predicate_parser` applies to all surfaces
+/// that route through it, including the SqlPipe head-WHERE path. If this test FAILS, the
+/// position-5 parser does NOT share `build_predicate_parser` — REAL DEFECT requiring routing
+/// investigation.
+///
+/// Traces to: BC-2.11.004 v1.48 LOW-006 surface (e) SqlPipe-head-WHERE;
+///            ADR-048 §D.7 position 5; F-PQLFN-PR3-OBS-001; POL-24.
+#[tokio::test]
+async fn test_f_pqlfn_pr3_obs_001_sqlpipe_head_where_keyword_not_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE NOT(device_id) = 5 | limit 10",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must be E-QUERY-001 (QueryParseFailed).
+    // GREEN on arrival: NOT has been in LOW-006 since BC-2.11.004 v1.0.
+    // If this FAILS, position-5 SqlPipe head-WHERE is NOT routing through build_predicate_parser.
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR3-OBS-001 (SqlPipe head-WHERE position 5): \
+         `SELECT * FROM crowdstrike_detections WHERE NOT(device_id) = 5 | limit 10` must fire \
+         E-QUERY-001 (QueryParseFailed). NOT has been in LOW-006 since v1.0; this form tests \
+         the SqlPipe head-WHERE parse path with trailing `| limit 10` pipe stage. \
+         If FAILS: position-5 does NOT route through build_predicate_parser — REAL DEFECT. \
+         (BC-2.11.004 v1.48 LOW-006, ADR-048 §D.7 position 5, F-PQLFN-PR3-OBS-001, POL-24) \
+         Got: {result:?}"
+    );
+
+    // Must NOT be QueryPlanFailed — keyword rejection fires at parse time.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "F-PQLFN-PR3-OBS-001 (SqlPipe head-WHERE position 5): must NOT be QueryPlanFailed. \
+         Keyword gate fires at parse time. Got: {result:?}"
+    );
+
+    // POL-24 message-text lock — keyword-specific canonical message.
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "F-PQLFN-PR3-OBS-001 (SqlPipe head-WHERE position 5): E-QUERY-001 display must \
+         contain keyword message \"is a PrismQL keyword and cannot be used as a function name\" \
+         (BC-2.11.004 EC-11-085/LOW-006 canonical message, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'NOT'"),
+        "F-PQLFN-PR3-OBS-001 (SqlPipe head-WHERE position 5): E-QUERY-001 display must \
+         contain quoted keyword \"'NOT'\" (POL-24). Got: {err_display:?}"
+    );
 }
