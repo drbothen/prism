@@ -805,13 +805,15 @@ impl QueryEngine {
         // (NonColumnLhsComparison) from the temporal gate — which is incorrect: the
         // primary fault is the aggregate-in-WHERE, not the date-like RHS.
         //
-        // Passing `None` for the registry here runs ONLY the aggregate gate and skips the
-        // E-QUERY-039 infusion-UDF check (which requires E-QUERY-037 and E-QUERY-038 to have
-        // passed first, per BC-2.11.019 gate ordering). The full E-QUERY-039 check runs at
-        // the call site below (after table and column gates). This double-invoke is
-        // intentional and consistent with the existing double-parse in the temporal check
-        // design (see HIGH-4 note below). When no aggregate is in a predicate position, this
-        // call returns Ok(()) immediately with no observable side-effects.
+        // Passing `None` for the registry here runs ONLY the aggregate gate (E-QUERY-001)
+        // and skips the E-QUERY-039 infusion-UDF check (which requires E-QUERY-037 and
+        // E-QUERY-038 to have passed first, per BC-2.11.019 gate ordering). The full
+        // E-QUERY-039 check runs at the call site below (after table and column gates).
+        //
+        // COST: this invocation performs a full `PrismQlParser::parse` (O(n)) regardless
+        // of whether any aggregate is found in a predicate position. The double-parse cost
+        // is accepted and ADR-048 §D.7.4-ratified — consistent with the temporal-check
+        // double-parse design (HIGH-4 note below), which also re-parses at plan time.
         check_enrich_udf_availability(effective_query, None)?;
 
         // ADR-052 §D4 Option A: E-QUERY-041 temporal literal gate fires BEFORE E-QUERY-037.
@@ -915,6 +917,10 @@ impl QueryEngine {
         // failures).
         //
         // Gate is skipped when `infusion_registry` is None (enrichment not configured).
+        //
+        // COST: this invocation performs a full `PrismQlParser::parse` (O(n)) — the same
+        // double-parse cost accepted for the registry=None invocation above (ADR-048 §D.7.4-ratified
+        // gate ordering; consistent with the temporal-check double-parse design).
         check_enrich_udf_availability(effective_query, self.infusion_registry.as_deref())?;
 
         // ADR-052 D4 Option A: plan-time temporal literal gate is now implemented as
@@ -1188,9 +1194,12 @@ impl QueryEngine {
         ),
         PrismError,
     > {
-        // ADR-048 v1.2 §D.7.4 — aggregate-in-predicate gate fires BEFORE temporal gate.
-        // Mirrors execute_inner's pre-check. See execute_inner for full rationale.
-        // Pass None to run only the aggregate gate (E-QUERY-001); E-QUERY-039 runs below.
+        // ADR-048 §D.7.4 — aggregate-in-predicate gate fires BEFORE temporal gate (mirrors
+        // execute_inner's registry=None pre-check). Passing None runs ONLY the aggregate gate
+        // (E-QUERY-001) and skips E-QUERY-039; E-QUERY-039 runs at the call site below after
+        // table and column gates. COST: performs a full `PrismQlParser::parse` (O(n)) —
+        // ADR-048 §D.7.4-ratified double-parse; cost accepted, consistent with temporal-check
+        // design (see execute_inner HIGH-4 comment for the full rationale).
         check_enrich_udf_availability(query_str, None)?;
 
         // ADR-052 §D4 Option A: E-QUERY-041 temporal literal gate fires BEFORE E-QUERY-037.
@@ -1243,6 +1252,8 @@ impl QueryEngine {
         // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: E-QUERY-039 enrichment UDF gate for
         // scheduled queries — fires LAST among content gates (after E-QUERY-037 and E-QUERY-038).
         // Gate ordering (BC-2.11.019 §Gate ordering): E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+        // COST: performs a full `PrismQlParser::parse` (O(n)) — ADR-048 §D.7.4-ratified
+        // double-parse; cost accepted (consistent with temporal-check double-parse design).
         check_enrich_udf_availability(query_str, self.infusion_registry.as_deref())?;
 
         // ADR-052 D4 Option A: temporal gate is now in run_materialization_pipeline.
@@ -1668,6 +1679,12 @@ fn collect_unknown_scalars_from_sql_query(sq: &crate::ast::SqlQuery, out: &mut V
 ///
 /// Module-level so it is accessible from `#[cfg(test)]` blocks for unit testing.
 /// Called by `check_enrich_udf_availability` and `collect_unknown_scalars_from_sql_query`.
+///
+/// All `Expr` variants are enumerated explicitly (no wildcard `_ => {}`) so that adding a
+/// new `Expr` variant forces a compile error here, preventing a silent no-op for a variant
+/// that may contain a nested `ScalarFunc::Unknown`. `Expr` is `#[non_exhaustive]` but
+/// in-crate matches are exhaustively checkable — future variants must force a compile error
+/// here (mirrors `shift_scalar_spans_in_expr` discipline, F-PQLFN-PR14-OBS-004).
 fn collect_unknown_scalar_from_expr(expr: &crate::ast::Expr, out: &mut Vec<String>) {
     use crate::ast::{Expr, FuncCall, ScalarFunc};
     match expr {
@@ -1691,6 +1708,10 @@ fn collect_unknown_scalar_from_expr(expr: &crate::ast::Expr, out: &mut Vec<Strin
                 collect_unknown_scalar_from_expr(arg, out);
             }
         }
+        Expr::FuncCall(FuncCall::Window { .. }) => {
+            // Window stub: no args field currently (S-3.06 will add fields).
+            // No ScalarFunc::Unknown to collect.
+        }
         Expr::Logical { lhs, rhs, .. } => {
             collect_unknown_scalar_from_expr(lhs, out);
             collect_unknown_scalar_from_expr(rhs, out);
@@ -1700,24 +1721,28 @@ fn collect_unknown_scalar_from_expr(expr: &crate::ast::Expr, out: &mut Vec<Strin
             collect_unknown_scalar_from_expr(lhs, out);
             collect_unknown_scalar_from_expr(rhs, out);
         }
-        // Leaf nodes and intentionally excluded positions — nothing to collect:
-        //
-        // - `Expr::Literal`, `Expr::Field`, `Expr::VirtualField`, `Expr::In`,
-        //   `Expr::Star`, `Expr::Now`, `Expr::Interval`: true leaf nodes; no
-        //   sub-expressions that can contain a function call.
-        //
-        // - `Expr::TimestampArithmetic { base, .. }`: `base` is always `Expr::Now`
-        //   per the grammar (`build_temporal_rhs_parser` only parses
-        //   `NOW() ± INTERVAL '...'` — the base is hard-coded to `Expr::Now`).
-        //   A `ScalarFunc::Unknown` cannot appear as the `base` expression of a
-        //   timestamp arithmetic node in valid PrismQL AST.
-        //
-        // - `Expr::InSubquery { subquery, .. }`: the subquery body CAN structurally
-        //   contain a `ScalarFunc::Unknown` in its SELECT items, but the gate
-        //   intentionally does NOT descend into subquery bodies — see BC-2.11.019
-        //   §OBS-001 for the full rationale (fail-open; DataFusion produces
-        //   function-not-found, not the opaque E-INT-001 crash this gate prevents).
-        _ => {}
+        // Leaf nodes — no sub-expressions that can contain a function call.
+        Expr::Literal(_) | Expr::Field(_) | Expr::VirtualField(_) => {}
+        Expr::Star | Expr::Now | Expr::Interval(_) => {}
+        Expr::In { .. } => {
+            // FieldPath + Vec<Literal> — no Expr sub-tree that can contain
+            // a ScalarFunc::Unknown.
+        }
+        Expr::TimestampArithmetic { .. } => {
+            // `base` is always `Expr::Now` per the grammar (`build_temporal_rhs_parser`
+            // only parses `NOW() ± INTERVAL '...'` — the base is hard-coded to
+            // `Expr::Now`). A `ScalarFunc::Unknown` cannot appear as the `base`
+            // expression of a timestamp arithmetic node in valid PrismQL AST.
+        }
+        Expr::InSubquery { .. } => {
+            // The subquery body CAN structurally contain a `ScalarFunc::Unknown` in
+            // its SELECT items, but the gate intentionally does NOT descend into
+            // subquery bodies — BC-2.11.019 §OBS-001 fail-open convention (DataFusion
+            // produces function-not-found, not the opaque E-INT-001 crash this gate
+            // prevents). Enumerated explicitly so a future grammar extension that
+            // widens the gate to subquery bodies forces a compile error here rather
+            // than silently becoming a no-op.
+        }
     }
 }
 
@@ -1731,6 +1756,13 @@ fn collect_unknown_scalar_from_expr(expr: &crate::ast::Expr, out: &mut Vec<Strin
 ///
 /// Module-level so it is accessible from `#[cfg(test)]` blocks for unit testing.
 /// Called by `check_enrich_udf_availability`.
+///
+/// All `Predicate` variants are enumerated explicitly (no wildcard `_ => {}`) so that
+/// adding a new `Predicate` variant forces a compile error here, preventing a silent
+/// no-op for a variant that may hold a nested `Expr` containing a `ScalarFunc::Unknown`.
+/// `Predicate` is `#[non_exhaustive]` but in-crate matches are exhaustively checkable —
+/// future variants must force a compile error here (mirrors `shift_scalar_spans_in_predicate`
+/// discipline, F-PQLFN-PR14-OBS-004).
 fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut Vec<String>) {
     use crate::ast::Predicate;
     match pred {
@@ -1744,24 +1776,53 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
             }
         }
         Predicate::Not(inner) => collect_unknown_scalar_from_predicate(inner, out),
-        // Remaining variants — intentionally not walked or provably UDF-free:
-        //
-        // - `Predicate::StringOp`, `Predicate::Regex`, `Predicate::In`,
-        //   `Predicate::Cidr`, `Predicate::Has`, `Predicate::Missing`,
-        //   `Predicate::IsNull`, `Predicate::Wildcard`, `Predicate::RecoveryError`:
-        //   none of these hold an `Expr` sub-tree that can contain a function call.
-        //
-        // - `Predicate::Between { low, high, .. }`: `low` and `high` are typed as
-        //   `Literal` (not `Expr`), so a `ScalarFunc::Unknown` provably cannot appear
-        //   in either position.
-        //
-        // - `Predicate::InSubquery { subquery, .. }`: the subquery body CAN
-        //   structurally contain a `ScalarFunc::Unknown` in its SELECT items, but
-        //   the gate intentionally does NOT descend into subquery bodies — see
-        //   BC-2.11.019 §OBS-001 for the full rationale (fail-open; DataFusion
-        //   produces function-not-found, not the opaque E-INT-001 crash this gate
-        //   prevents).
-        _ => {}
+        Predicate::StringOp { .. } => {
+            // FieldPath + String pattern + flags — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::Regex { .. } => {
+            // FieldPath + RegexLiteral — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::In { .. } => {
+            // FieldPath + Vec<Literal> — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::InSubquery { .. } => {
+            // The subquery body CAN structurally contain a `ScalarFunc::Unknown` in
+            // its SELECT items, but the gate intentionally does NOT descend into
+            // subquery bodies — BC-2.11.019 §OBS-001 fail-open convention (DataFusion
+            // produces function-not-found, not the opaque E-INT-001 crash this gate
+            // prevents). Enumerated explicitly so a future grammar extension that
+            // widens the gate to subquery bodies forces a compile error here rather
+            // than silently becoming a no-op.
+        }
+        Predicate::Between { .. } => {
+            // FieldPath + Literal bounds — `low` and `high` are `Literal` (not `Expr`),
+            // so a ScalarFunc::Unknown provably cannot appear in either position.
+        }
+        Predicate::Cidr { .. } => {
+            // FieldPath + CidrLiteral — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::Has(_) => {
+            // FieldPath only — no Expr or FuncCall containing ScalarFunc::Unknown.
+        }
+        Predicate::Missing(_) => {
+            // FieldPath only — no Expr or FuncCall containing ScalarFunc::Unknown.
+        }
+        Predicate::IsNull { .. } => {
+            // FieldPath + negated bool — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::Wildcard { .. } => {
+            // FieldPath + String pattern + negated bool — no Expr or FuncCall
+            // containing ScalarFunc::Unknown.
+        }
+        Predicate::RecoveryError => {
+            // Sentinel produced by error recovery only — no fields; never contains
+            // a function call.
+        }
     }
 }
 
@@ -1775,6 +1836,11 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
 /// string, populated by filter_parser.rs `fn_call_comparison` via `map_with`. For AST
 /// nodes constructed outside the parser (tests, direct construction), `span` is `Span::ZERO`
 /// → `span.start == 0`; callers should accept `0` as "offset unknown" in that case.
+/// All `Expr` variants are enumerated explicitly (no wildcard `_ => {}`) so that adding a
+/// new `Expr` variant forces a compile error here, preventing a silent no-op for a variant
+/// that may contain a nested `ScalarFunc::Unknown`. `Expr` is `#[non_exhaustive]` but
+/// in-crate matches are exhaustively checkable — future variants must force a compile error
+/// here (mirrors `shift_scalar_spans_in_expr` discipline, F-PQLFN-PR14-OBS-004).
 fn collect_unknown_scalar_offsets_from_expr(
     expr: &crate::ast::Expr,
     out: &mut Vec<(String, usize)>,
@@ -1801,6 +1867,10 @@ fn collect_unknown_scalar_offsets_from_expr(
                 collect_unknown_scalar_offsets_from_expr(arg, out);
             }
         }
+        Expr::FuncCall(FuncCall::Window { .. }) => {
+            // Window stub: no args field currently (S-3.06 will add fields).
+            // No ScalarFunc::Unknown span to collect.
+        }
         Expr::Logical { lhs, rhs, .. } => {
             collect_unknown_scalar_offsets_from_expr(lhs, out);
             collect_unknown_scalar_offsets_from_expr(rhs, out);
@@ -1810,7 +1880,23 @@ fn collect_unknown_scalar_offsets_from_expr(
             collect_unknown_scalar_offsets_from_expr(lhs, out);
             collect_unknown_scalar_offsets_from_expr(rhs, out);
         }
-        _ => {}
+        // Leaf nodes — no sub-expressions that can contain a function call.
+        Expr::Literal(_) | Expr::Field(_) | Expr::VirtualField(_) => {}
+        Expr::Star | Expr::Now | Expr::Interval(_) => {}
+        Expr::In { .. } => {
+            // FieldPath + Vec<Literal> — no Expr sub-tree that can contain
+            // a ScalarFunc::Unknown.
+        }
+        Expr::TimestampArithmetic { .. } => {
+            // `base` is always `Expr::Now` per the grammar — a `ScalarFunc::Unknown`
+            // cannot appear as the `base` expression of a timestamp arithmetic node
+            // in valid PrismQL AST.
+        }
+        Expr::InSubquery { .. } => {
+            // Intentionally not descended — BC-2.11.019 §OBS-001 fail-open convention.
+            // Enumerated explicitly so a future grammar extension forces a compile error
+            // here rather than silently becoming a no-op.
+        }
     }
 }
 
@@ -1818,6 +1904,13 @@ fn collect_unknown_scalar_offsets_from_expr(
 ///
 /// Mirrors `collect_unknown_scalar_from_predicate` but accumulates `(name, span.start)` pairs
 /// for the aggregate-in-predicate E-QUERY-001 gate (F-PQLFN-P21-OBS-003).
+///
+/// All `Predicate` variants are enumerated explicitly (no wildcard `_ => {}`) so that
+/// adding a new `Predicate` variant forces a compile error here, preventing a silent
+/// no-op for a variant that may hold a nested `Expr` containing a `ScalarFunc::Unknown`.
+/// `Predicate` is `#[non_exhaustive]` but in-crate matches are exhaustively checkable —
+/// future variants must force a compile error here (mirrors `shift_scalar_spans_in_predicate`
+/// discipline, F-PQLFN-PR14-OBS-004).
 fn collect_unknown_scalar_offsets_from_predicate(
     pred: &crate::ast::Predicate,
     out: &mut Vec<(String, usize)>,
@@ -1834,7 +1927,51 @@ fn collect_unknown_scalar_offsets_from_predicate(
             }
         }
         Predicate::Not(inner) => collect_unknown_scalar_offsets_from_predicate(inner, out),
-        _ => {}
+        Predicate::StringOp { .. } => {
+            // FieldPath + String pattern + flags — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::Regex { .. } => {
+            // FieldPath + RegexLiteral — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::In { .. } => {
+            // FieldPath + Vec<Literal> — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::InSubquery { .. } => {
+            // The subquery body CAN structurally contain a `ScalarFunc::Unknown` in
+            // its SELECT items, but the gate intentionally does NOT descend into
+            // subquery bodies — BC-2.11.019 §OBS-001 fail-open convention. Enumerated
+            // explicitly so a future grammar extension that widens the gate to subquery
+            // bodies forces a compile error here rather than silently becoming a no-op.
+        }
+        Predicate::Between { .. } => {
+            // FieldPath + Literal bounds — `low` and `high` are `Literal` (not `Expr`),
+            // so a ScalarFunc::Unknown provably cannot appear in either position.
+        }
+        Predicate::Cidr { .. } => {
+            // FieldPath + CidrLiteral — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::Has(_) => {
+            // FieldPath only — no Expr or FuncCall containing ScalarFunc::Unknown.
+        }
+        Predicate::Missing(_) => {
+            // FieldPath only — no Expr or FuncCall containing ScalarFunc::Unknown.
+        }
+        Predicate::IsNull { .. } => {
+            // FieldPath + negated bool — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::Wildcard { .. } => {
+            // FieldPath + String pattern + negated bool — no Expr or FuncCall
+            // containing ScalarFunc::Unknown.
+        }
+        Predicate::RecoveryError => {
+            // Sentinel produced by error recovery only — no fields; never contains
+            // a function call.
+        }
     }
 }
 
@@ -1927,10 +2064,10 @@ fn collect_unknown_scalar_offsets_from_predicate(
 /// DEFECT-PQL-FNCALL-LHS-001: predicate fn-call LHS gate, seven-position audit,
 /// positions 1-3 added. ADR-048 §D.7.5 (OD-6): DML WHERE position 6.
 /// ADR-048 §D.7.6 (OD-7): INSERT source_select WHERE position 7. OD-5: positions 4-5.
-// ── helper: HAVING-interception detail-builder (BC-2.11.019 v1.24 §OBS-004) ──────────────────
+// ── helper: HAVING-interception detail-builder (BC-2.11.019 v1.25 §OBS-004) ──────────────────
 /// Build the HAVING-interception E-QUERY-001 detail string for a PrismQL aggregate name.
 ///
-/// Two branches (BC-2.11.019 v1.24 §OBS-004, F-PQLFN-PR5-LOW-001):
+/// Two branches (BC-2.11.019 v1.25 §OBS-004, F-PQLFN-PR5-LOW-001):
 /// (a) `name_lower == "percentile"` → two-arg canonical template `(field, p)` — the
 ///     existing byte-verbatim template UNCHANGED from prior implementation.
 /// (b) any other name → signature-neutral generic template `(...)` — correct fail-safe
@@ -1943,7 +2080,7 @@ fn collect_unknown_scalar_offsets_from_predicate(
 /// directly via `having_aggregate_interception_detail_tests`.
 ///
 /// Caller wraps the returned detail in `PrismError::QueryParseFailed { offset, detail, query }`.
-/// (BC-2.11.019 v1.24 §OBS-004; ADR-048 v1.17 §D.2; POL-24)
+/// (BC-2.11.019 v1.25 §OBS-004; ADR-048 v1.17 §D.2; POL-24)
 fn having_aggregate_interception_detail(name: &str) -> String {
     let name_lower = name.to_ascii_lowercase();
     let name_upper = name.to_ascii_uppercase();
@@ -1960,7 +2097,7 @@ fn having_aggregate_interception_detail(name: &str) -> String {
     } else {
         // Branch (b): signature-neutral generic template (...).
         // Unreachable today (triggering set = {"percentile"}).
-        // Byte-exact per POL-24 / BC-2.11.019 v1.24 §OBS-004.
+        // Byte-exact per POL-24 / BC-2.11.019 v1.25 §OBS-004.
         format!(
             "'{name}' is a PrismQL aggregate function; \
              {name_upper} is not directly supported in HAVING predicates \
@@ -2209,13 +2346,13 @@ fn check_enrich_udf_availability(
     // Primary case: "percentile" — excluded from build_agg_call_parser (OD-2 two-arg grammar
     // ambiguity), parses as ScalarFunc::Unknown("percentile") in HAVING, NOT in DATAFUSION_BUILTIN_FUNCTION_NAMES.
     // Without this gate: registry=None → Ok(()) → DataFusion plan error; registry=Some → E-QUERY-039.
-    // (BC-2.11.004 v1.48 EC-11-086; BC-2.11.019 v1.24 §OBS-004; ADR-048 v1.17 §D.2)
+    // (BC-2.11.004 v1.48 EC-11-086; BC-2.11.019 v1.25 §OBS-004; ADR-048 v1.17 §D.2)
     for (name, offset) in &having_fncall_names {
         let name_lower = name.to_ascii_lowercase();
         if DATAFUSION_BUILTIN_AGGREGATE_NAMES.contains(&name_lower)
             && !DATAFUSION_BUILTIN_FUNCTION_NAMES.contains(&name_lower)
         {
-            // Two-branch detail-builder (BC-2.11.019 v1.24 §OBS-004, F-PQLFN-PR5-LOW-001).
+            // Two-branch detail-builder (BC-2.11.019 v1.25 §OBS-004, F-PQLFN-PR5-LOW-001).
             // `having_aggregate_interception_detail` branches on name_lower == "percentile":
             //   (a) percentile → two-arg canonical template `(field, p)` (byte-verbatim, POL-24)
             //   (b) any other name → generic template `(...)` (unreachable today; unit-tested)
@@ -2295,10 +2432,23 @@ fn check_enrich_udf_availability(
             // OBS-1 fix: lexicographic tie-break (name asc) to ensure determinism
             // when multiple names have the same minimum edit distance. This mirrors
             // the column gate's determinism fix (check_query_column_availability).
-            // F-PHL1-HIGH-001: cap `requested` at 128 bytes (SEC-002 / CWE-407)
-            // before the O(m×n) Levenshtein loop — mirrors the table gate cap in
-            // `table_registry::did_you_mean`.
-            let requested_capped = crate::table_registry::cap_name_for_levenshtein(requested);
+            //
+            // F-PQLFN-PR14-OBS-001: sanitize `requested` BEFORE the Levenshtein
+            // computation so `did_you_mean` and `EnrichUdfNotFoundDetails.infusion`
+            // derive from the same sanitized form (BC-2.11.019 v1.25 §Injection-safety,
+            // CWE-116/CWE-117). Without this, a name containing Cc/U+2028/U+2029
+            // control chars computes did_you_mean against the raw string while the
+            // constructor stores the sanitized form — two different string forms of
+            // the same input. `EnrichUdfNotFoundDetails::new` applies sanitize_for_log
+            // itself, so passing the raw `requested` to the constructor is equivalent
+            // to passing the sanitized form for the stored `infusion` field.
+            //
+            // F-PHL1-HIGH-001: cap the SANITIZED string at 128 bytes (SEC-002 / CWE-407
+            // Algorithmic Complexity DoS guard) before the O(m×n) Levenshtein loop —
+            // mirrors the table gate cap in `table_registry::did_you_mean`.
+            let sanitized_requested = sanitize_for_log(requested);
+            let requested_capped =
+                crate::table_registry::cap_name_for_levenshtein(&sanitized_requested);
             let did_you_mean = available_infusions
                 .iter()
                 .map(|n| (n.clone(), strsim::levenshtein(requested_capped, n)))
@@ -2306,6 +2456,8 @@ fn check_enrich_udf_availability(
                 .min_by_key(|(name, dist)| (*dist, name.clone()))
                 .map(|(name, _)| name);
 
+            // Pass raw `requested` to the constructor — EnrichUdfNotFoundDetails::new
+            // applies sanitize_for_log itself, producing the same sanitized infusion field.
             return Err(PrismError::EnrichUdfNotFound(Box::new(
                 EnrichUdfNotFoundDetails::new(requested.clone(), available_infusions, did_you_mean),
             )));
@@ -15461,7 +15613,7 @@ mod datafusion_aggregate_registry_empirical_tests {
     ///   - Because they're absent from the raw registry, they're also absent from
     ///     `DATAFUSION_BUILTIN_FUNCTION_NAMES` (which unions scalar + aggregate + window).
     ///
-    /// The two-branch `having_aggregate_interception_detail` builder (BC-2.11.019 v1.24
+    /// The two-branch `having_aggregate_interception_detail` builder (BC-2.11.019 v1.25
     /// §OBS-004, F-PQLFN-PR5-LOW-001) branches on `name_lower == "percentile"` to emit
     /// the two-arg template vs the generic `(...)` template. If a DataFusion 53.x upgrade
     /// adds a new aggregate-only name that widens the triggering set, this test fails
@@ -15471,12 +15623,12 @@ mod datafusion_aggregate_registry_empirical_tests {
     /// Note: `distinct_count` IS in the set difference but in practice never reaches
     /// `having_fncall_names` because it parses as `FuncCall::Aggregate` via
     /// `build_agg_call_parser` (not `ScalarFunc::Unknown`) — it is correctly included in
-    /// the invariant as a structural property of the gate design (BC-2.11.019 v1.24 §OBS-004).
+    /// the invariant as a structural property of the gate design (BC-2.11.019 v1.25 §OBS-004).
     ///
     /// Kills the class of silent-breakage mutations where a DataFusion upgrade changes the
     /// registry contents in a way that shifts the triggering set without any test failure.
     ///
-    /// Traces to: BC-2.11.019 v1.24 §OBS-004 (set-difference invariant, F-PQLFN-PR9-OBS-001);
+    /// Traces to: BC-2.11.019 v1.25 §OBS-004 (set-difference invariant, F-PQLFN-PR9-OBS-001);
     ///            F-PQLFN-P4-MED-001 (empirical absence locks); ADR-048 v1.17 §D.2.
     #[test]
     fn test_f_pqlfn_pr9_obs_001_datafusion_set_difference_invariant() {
@@ -16618,7 +16770,7 @@ mod insert_source_select_where_seventh_gated_position_tests {
 
 // ── F-PQLFN-PR5-LOW-001: two-branch HAVING interception detail-builder ─────────────────────────
 //
-// Tests for the extracted `having_aggregate_interception_detail` helper (BC-2.11.019 v1.24 §OBS-004).
+// Tests for the extracted `having_aggregate_interception_detail` helper (BC-2.11.019 v1.25 §OBS-004).
 // Branch (b) is unreachable through the gate arm in production (triggering set = {"percentile"})
 // but is unit-tested directly here to verify the generic template is byte-exact per POL-24.
 //
@@ -16626,7 +16778,7 @@ mod insert_source_select_where_seventh_gated_position_tests {
 // (missing symbol → E0425). Once the helper is implemented they must go GREEN without changing
 // any assertion text.
 //
-// Traces to: BC-2.11.019 v1.24 §OBS-004; F-PQLFN-PR5-LOW-001; POL-24; ADR-048 v1.17 §D.2.
+// Traces to: BC-2.11.019 v1.25 §OBS-004; F-PQLFN-PR5-LOW-001; POL-24; ADR-048 v1.17 §D.2.
 #[cfg(test)]
 mod having_aggregate_interception_detail_tests {
     use super::having_aggregate_interception_detail;
@@ -16634,9 +16786,9 @@ mod having_aggregate_interception_detail_tests {
     /// F-PQLFN-PR5-LOW-001 (branch a, lowercase): `"percentile"` → two-arg canonical template.
     ///
     /// Verifies the percentile branch returns the byte-verbatim canonical template from
-    /// BC-2.11.019 v1.24 §OBS-004 / ADR-048 v1.17 §D.2 with argument list `(field, p)`.
+    /// BC-2.11.019 v1.25 §OBS-004 / ADR-048 v1.17 §D.2 with argument list `(field, p)`.
     ///
-    /// Traces to: BC-2.11.019 v1.24 §OBS-004; F-PQLFN-PR5-LOW-001; POL-24.
+    /// Traces to: BC-2.11.019 v1.25 §OBS-004; F-PQLFN-PR5-LOW-001; POL-24.
     #[test]
     fn test_f_pqlfn_pr5_low_001_detail_builder_percentile_lowercase() {
         let detail = having_aggregate_interception_detail("percentile");
@@ -16648,18 +16800,18 @@ mod having_aggregate_interception_detail_tests {
              SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold \
              (ADR-048 D.3 OD-2)",
             "F-PQLFN-PR5-LOW-001 branch(a): percentile → two-arg template (field, p) \
-             byte-verbatim per POL-24 (BC-2.11.019 v1.24 §OBS-004)"
+             byte-verbatim per POL-24 (BC-2.11.019 v1.25 §OBS-004)"
         );
     }
 
     /// F-PQLFN-PR5-LOW-001 (branch a, uppercase input): `"PERCENTILE"` → input-verbatim `'PERCENTILE'`,
     /// template body uppercase `PERCENTILE`.
     ///
-    /// Verifies the input-verbatim convention (BC-2.11.019 v1.24 §OBS-004 F-PQLFN-PR4-OBS-002):
+    /// Verifies the input-verbatim convention (BC-2.11.019 v1.25 §OBS-004 F-PQLFN-PR4-OBS-002):
     /// the analyst's original casing is echoed in the quoted name; the guidance template body
     /// uses uppercase `{name_upper}` regardless of input casing.
     ///
-    /// Traces to: BC-2.11.019 v1.24 §OBS-004 (F-PQLFN-PR4-OBS-002 input-verbatim convention);
+    /// Traces to: BC-2.11.019 v1.25 §OBS-004 (F-PQLFN-PR4-OBS-002 input-verbatim convention);
     ///            F-PQLFN-PR5-LOW-001; POL-24.
     #[test]
     fn test_f_pqlfn_pr5_low_001_detail_builder_percentile_uppercase_input() {
@@ -16672,7 +16824,7 @@ mod having_aggregate_interception_detail_tests {
              SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold \
              (ADR-048 D.3 OD-2)",
             "F-PQLFN-PR5-LOW-001 branch(a) uppercase input: 'PERCENTILE' echoed verbatim, \
-             template body uppercase PERCENTILE (BC-2.11.019 v1.24 §OBS-004 F-PQLFN-PR4-OBS-002)"
+             template body uppercase PERCENTILE (BC-2.11.019 v1.25 §OBS-004 F-PQLFN-PR4-OBS-002)"
         );
     }
 
@@ -16683,7 +16835,7 @@ mod having_aggregate_interception_detail_tests {
     /// Any future AGGREGATE-only name reaching the arm will emit this template — correct
     /// signature-neutral guidance without the two-arg PERCENTILE misapplication risk.
     ///
-    /// Traces to: BC-2.11.019 v1.24 §OBS-004 (F-PQLFN-PR5-LOW-001 two-branch design); POL-24.
+    /// Traces to: BC-2.11.019 v1.25 §OBS-004 (F-PQLFN-PR5-LOW-001 two-branch design); POL-24.
     #[test]
     fn test_f_pqlfn_pr5_low_001_detail_builder_generic_branch() {
         let detail = having_aggregate_interception_detail("array_agg");
@@ -16695,7 +16847,166 @@ mod having_aggregate_interception_detail_tests {
              SELECT ARRAY_AGG(...) AS alias ... HAVING alias > threshold \
              (ADR-048 D.3 OD-2)",
             "F-PQLFN-PR5-LOW-001 branch(b): non-percentile name → generic template (...) \
-             byte-exact per POL-24 (BC-2.11.019 v1.24 §OBS-004)"
+             byte-exact per POL-24 (BC-2.11.019 v1.25 §OBS-004)"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PQLFN-PR14-OBS-001: sanitize-before-Levenshtein ordering (did_you_mean consistency)
+// ---------------------------------------------------------------------------
+//
+// Before fix: `check_enrich_udf_availability` called `cap_name_for_levenshtein(requested)`
+// on the RAW `requested` string, then compared against registered names for did_you_mean.
+// `EnrichUdfNotFoundDetails::new` sanitized the same `requested` via `sanitize_for_log`
+// at construction. Two operations derived from DIFFERENT string forms: Levenshtein used
+// the raw form; the stored `infusion` field used the sanitized form — a CWE-116/CWE-117
+// consistency gap.
+//
+// After fix: `sanitize_for_log(requested)` is called BEFORE `cap_name_for_levenshtein`,
+// so both `did_you_mean` (computed) and `infusion` (stored) derive from the same sanitized
+// string (BC-2.11.019 v1.25 §Injection-safety).
+//
+// PARSER NOTE: PrismQL identifiers are restricted to ASCII alphanumerics + '_' by the
+// lexer (`c.is_ascii_alphanumeric() || *c == '_'`). Unicode C1 control chars (U+0085 etc.)
+// and line/paragraph separators (U+2028, U+2029) cannot appear in parsed identifiers today.
+// As a result, the sanitize call is a defensive no-op for all currently-reachable query
+// paths. The tests below verify:
+//   (a) the MATHEMATICAL PROPERTY (strsim + sanitize_for_log directly) that makes the
+//       fix meaningful if control chars ever appear via future parser changes or alternative
+//       code paths that populate UDF name strings from untrusted sources;
+//   (b) the end-to-end did_you_mean path through `check_enrich_udf_availability` for a
+//       clean ASCII typo — verifies the fix does not break the normal suggestion path.
+//
+// Traces to: F-PQLFN-PR14-OBS-001; BC-2.11.019 v1.25 §Injection-safety; CWE-116/CWE-117.
+#[cfg(test)]
+#[allow(non_snake_case, clippy::expect_used, clippy::unwrap_used)]
+mod sanitize_ordering_did_you_mean_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::{sanitize_for_log, PrismError};
+
+    /// F-PQLFN-PR14-OBS-001 (a) — mathematical property: C1 control chars + U+2028 inflate
+    /// raw Levenshtein distance above 3, while the sanitized form produces distance 0 ≤ 3.
+    ///
+    /// The UDF name "nvd\u{0085}\u{0086}\u{0087}\u{2028}cvss" contains 3 C1 control chars
+    /// (U+0085 NEL, U+0086 SSA, U+0087 ESA) and U+2028 LINE SEPARATOR — 4 extra Unicode
+    /// codepoints between "nvd" and "cvss". Against registered "nvdcvss" (7 codepoints):
+    ///
+    ///   pre-fix:  levenshtein(11-codepoint raw, "nvdcvss") = 4 > 3 → no suggestion
+    ///   post-fix: levenshtein(sanitize(raw), "nvdcvss") = levenshtein("nvdcvss", "nvdcvss")
+    ///             = 0 ≤ 3 → did_you_mean = Some("nvdcvss")
+    ///
+    /// Load-bearing (TD-VSDD-059): if `sanitize_for_log` stops stripping C1/U+2028/U+2029,
+    /// `sanitized` ≠ "nvdcvss" and the `assert_eq!(sanitized, "nvdcvss")` assertion fails.
+    /// If the raw distance ≤ 3 (pre-condition holds but premise breaks), the test also fails.
+    ///
+    /// Traces to: F-PQLFN-PR14-OBS-001; BC-2.11.019 v1.25 §Injection-safety; CWE-116.
+    #[test]
+    fn test_f_pqlfn_pr14_obs_001_sanitize_math_property_control_chars_and_u2028() {
+        // 3 C1 control chars (U+0085, U+0086, U+0087) + U+2028 (LINE SEPARATOR):
+        // raw = "nvd" + 4 codepoints + "cvss" = 11 Unicode codepoints total.
+        // registered = "nvdcvss" = 7 codepoints. 4 deletions needed → distance 4 > 3.
+        let raw = "nvd\u{0085}\u{0086}\u{0087}\u{2028}cvss";
+        let registered = "nvdcvss";
+
+        // Pre-fix: levenshtein(raw, registered) must be > 3.
+        let raw_dist = strsim::levenshtein(raw, registered);
+        assert!(
+            raw_dist > 3,
+            "F-PQLFN-PR14-OBS-001 (a): pre-condition — levenshtein(raw, registered) must be > 3 \
+             to demonstrate the pre-fix bug scenario. \
+             raw={:?} registered={:?} dist={}",
+            raw.escape_default(),
+            registered,
+            raw_dist
+        );
+
+        // Post-fix: sanitize_for_log strips C1/U+2028 → "nvdcvss" (identical to registered).
+        let sanitized = sanitize_for_log(raw);
+        assert_eq!(
+            sanitized, registered,
+            "F-PQLFN-PR14-OBS-001 (a): sanitize_for_log must strip 3 C1 chars \
+             (U+0085/U+0086/U+0087) and U+2028, leaving 'nvdcvss'. Got: {:?}",
+            sanitized
+        );
+
+        // Post-fix: levenshtein(sanitized, registered) = 0 ≤ 3 → did_you_mean fires.
+        let sanitized_dist = strsim::levenshtein(&sanitized, registered);
+        assert_eq!(
+            sanitized_dist, 0,
+            "F-PQLFN-PR14-OBS-001 (a): levenshtein(sanitized, registered) must be 0 \
+             (identical strings after stripping). Got: {}",
+            sanitized_dist
+        );
+    }
+
+    /// F-PQLFN-PR14-OBS-001 (b) — end-to-end: did_you_mean correctly populated for a
+    /// clean ASCII typo through `check_enrich_udf_availability`.
+    ///
+    /// After FIX 1, `sanitize_for_log` is called before `cap_name_for_levenshtein`. For
+    /// ASCII-only identifiers, the sanitize call is a no-op — the Levenshtein distance
+    /// is unchanged. This test verifies that the fix does not break the normal suggestion
+    /// path: typo "nvdcvs" (1 edit from "nvdcvss") must still produce did_you_mean.
+    ///
+    /// Load-bearing (TD-VSDD-059): if the sanitize call accidentally mangles ASCII names
+    /// (e.g., strips valid chars), the Levenshtein distance would change and the assertion
+    /// `details.did_you_mean == Some("nvdcvss")` would fail.
+    ///
+    /// Traces to: F-PQLFN-PR14-OBS-001; BC-2.11.019 v1.25 §Injection-safety.
+    #[test]
+    fn test_f_pqlfn_pr14_obs_001_did_you_mean_clean_ascii_typo() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        // Register "nvdcvss" as a known UDF (NVD CVSS score lookup fixture).
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "nvd_lookup",
+            "NVD CVSS lookup (F-PQLFN-PR14-OBS-001 b fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "nvdcvss", // UDF name — matches the registered name in the query
+                "cve_id",  // input field
+                "string",  // input type
+                "float",   // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("nvd_lookup spec must load for F-PQLFN-PR14-OBS-001 (b) fixture");
+
+        // "nvdcvs" is a 1-edit typo of "nvdcvss" (missing final 's').
+        // sanitize("nvdcvs") = "nvdcvs" (no-op: ASCII-only), levenshtein("nvdcvs", "nvdcvss") = 1.
+        // FIX 1 post-condition: 1 ≤ 3 → did_you_mean = Some("nvdcvss").
+        let result =
+            check_enrich_udf_availability("FROM t | enrich nvdcvs(cve_id)", Some(&registry));
+
+        let err = result.expect_err(
+            "F-PQLFN-PR14-OBS-001 (b): 'nvdcvs' is not registered; E-QUERY-039 must fire",
+        );
+
+        let details = match &err {
+            PrismError::EnrichUdfNotFound(d) => d,
+            other => panic!(
+                "F-PQLFN-PR14-OBS-001 (b): expected PrismError::EnrichUdfNotFound, got: {other:?}"
+            ),
+        };
+
+        assert_eq!(
+            details.did_you_mean.as_deref(),
+            Some("nvdcvss"),
+            "F-PQLFN-PR14-OBS-001 (b): did_you_mean must be Some('nvdcvss') for 1-edit typo \
+             'nvdcvs'. FIX 1: sanitize is a no-op for ASCII names, Levenshtein distance = 1 ≤ 3. \
+             Got: {:?}",
+            details.did_you_mean
+        );
+
+        // infusion must be "nvdcvs" — sanitize_for_log is identity for ASCII-only names.
+        assert_eq!(
+            details.infusion, "nvdcvs",
+            "F-PQLFN-PR14-OBS-001 (b): infusion must be 'nvdcvs' (sanitize is no-op for ASCII). \
+             Got: {:?}",
+            details.infusion
         );
     }
 }

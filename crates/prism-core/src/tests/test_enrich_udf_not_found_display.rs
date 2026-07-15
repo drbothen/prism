@@ -141,6 +141,43 @@ fn test_f_pbl1_low002_display_self_sorts_available_infusions() {
     );
 }
 
+/// F-PQLFN-PR14-OBS-001 (U+2029) — `sanitize_for_log` must strip U+2029 PARAGRAPH SEPARATOR.
+///
+/// Pass-13 noted that U+2029 was asserted for `sanitize_for_log` in general but not
+/// explicitly tested at the `EnrichUdfNotFoundDetails::new` construction boundary.
+/// This test closes that micro-gap: a name containing U+2029 must have the char stripped
+/// from the stored `infusion` field, matching the U+2028 behavior already tested by
+/// `test_f_pqlfn_p7_low_001_enrich_udf_infusion_cc_stripped_at_construction`.
+///
+/// Load-bearing (TD-VSDD-059): if `sanitize_for_log` stops stripping U+2029, the
+/// `!details.infusion.contains('\u{2029}')` assertion fails.
+///
+/// Traces to: F-PQLFN-PR14-OBS-001 (pass-13 micro-gap); CWE-117; AD-017.
+#[test]
+fn test_f_pqlfn_pr14_obs_001_u2029_stripped_at_construction() {
+    // U+2029 PARAGRAPH SEPARATOR — a log-injection vector in JSON and some structured
+    // log formats that treat it as a record separator. Functionally equivalent to U+2028.
+    let raw_name = "threat\u{2029}intel";
+    let details = EnrichUdfNotFoundDetails::new(raw_name, vec![], None);
+
+    // The stored infusion field must NOT contain U+2029.
+    assert!(
+        !details.infusion.contains('\u{2029}'),
+        "F-PQLFN-PR14-OBS-001: EnrichUdfNotFoundDetails::new must strip U+2029 (PARAGRAPH \
+         SEPARATOR) from the infusion field at construction (CWE-117, AD-017). \
+         Raw input: {:?}. Got: {:?}",
+        raw_name,
+        details.infusion
+    );
+
+    assert_eq!(
+        details.infusion, "threatintel",
+        "F-PQLFN-PR14-OBS-001: infusion must equal 'threatintel' after stripping U+2029. \
+         Got: {:?}",
+        details.infusion
+    );
+}
+
 /// F-PQLFN-P7-LOW-001 — SEC-001 (CWE-117): `EnrichUdfNotFoundDetails::new` must strip
 /// Unicode Cc control characters (and U+2028/U+2029 line/paragraph separators) from the
 /// `infusion` field at construction time.
