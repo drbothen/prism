@@ -133,7 +133,19 @@ jobs:
           shared-key: test-${{ matrix.target }}
       - name: Install musl-tools
         if: matrix.install_musl
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
+        run: |
+          # Apt-mirror resilience: two-attempt pattern.
+          # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
+          # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
+          # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y musl-tools
       # prism-credentials uses keyring 3.x with linux-native-sync-persistent (Secret Service
       # backend). When --all-features is passed, libdbus-sys is compiled on all Linux legs
       # (build.rs runs on the glibc host even for musl cross-compile targets).
@@ -143,7 +155,19 @@ jobs:
       # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
       - name: Install libdbus-1-dev (required by keyring build on Linux, all-features)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+        run: |
+          # Apt-mirror resilience: two-attempt pattern.
+          # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
+          # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
+          # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
       # Optimization: mold linker — faster linking on Linux (saves ~5 min per Linux leg)
       # make-default: false — we set RUSTFLAGS explicitly for robustness (see rui314/setup-mold#3)
       - name: Install mold linker (Linux only)
@@ -251,7 +275,19 @@ jobs:
       # backend) on Linux, requiring libdbus-1-dev + pkg-config at build time.
       # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
       - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+        run: |
+          # Apt-mirror resilience: two-attempt pattern.
+          # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
+          # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
+          # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
       # Optimization 1: Swatinem/rust-cache
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
@@ -1647,4 +1683,12 @@ jobs:
             exit 1
           }
           echo 'S-MAINT-CI-DISK-EXHAUSTION-001 AC-003 assertion-4 passed: [profile.dev.package."*"] section present.'
-          echo 'All verify-workflow-structure assertions pass: AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001/AC-002 (count≥2) — all reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant).'
+          # Anchored to the two-attempt pattern keyword — count-based, self-match-proof.
+          # The assertion line starts with whitespace+count=$(grep..., so the if-pattern cannot self-match.
+          count=$(grep -cE '^\s+if ! sudo apt-get update; then$' .github/workflows/ci.yml)
+          [ "$count" -ge 3 ] || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006: apt-mirror resilience (two-attempt pattern) missing from ≥3 apt install steps (found ${count}; need install-musl + libdbus-linux-test + libdbus-no-default-features)"
+            exit 1
+          }
+          echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 check passed: apt-mirror resilience found ${count} times (≥3 required)."
+          echo 'All verify-workflow-structure assertions pass: AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001/AC-002 (count≥2) + AC-006 (count≥3) — all reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant).'
