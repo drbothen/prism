@@ -3353,3 +3353,31 @@ This sweep is executed on the version-pin string, not on any changed identifier.
 **Source:** D-1767 (DEFECT-MCP-ROWSHAPE-NULLS-001 pass-24 fabrication observation; in-place corrections to passes 22/23; cross-lane tally with PQL pass-46 BC-INDEX LOW-006; 2026-07-14).
 
 **Addendum — PQL BC-INDEX LOW-006 instance (D-1768, 2026-07-14):** [process-gap] BC-INDEX carried a fabricated SQL-DDL reserved-keyword list (`NOT/AND/OR/XOR/IN/LIKE/ILIKE/BETWEEN/IS/NULL/TRUE/FALSE/CAST/CASE/WHEN/THEN/ELSE/END/EXTRACT/INTERVAL`) at 2 sites in the v1.42 changelog note and v8.11 entry. The actual RESERVED_KEYWORDS const in `filter_parser.rs` lines 1492–1496 is `NOT/AND/OR/IN/IIN/IEQ/INE/IS/BETWEEN/LIKE/CIDR/MATCHES/HAS/MISSING/CONTAINS/ICONTAINS/STARTSWITH/ISTARTSWITH/ENDSWITH/IENDSWITH` — 20 PrismQL predicate-operator keywords with zero overlap to SQL DDL constructs (XOR, ILIKE, NULL, TRUE, FALSE, CAST, CASE, WHEN, THEN, ELSE, END, EXTRACT, INTERVAL). The fabrication also echoed in local-pass-30.md ~line 48 (Phase C "byte-matched" section) and local-pass-42.md ~line 71 (positive verifications bullet). All 4 sites corrected in-place with the marker per established precedent. **POL-24 analogue codified:** state-manager narratives citing implementation-specific value lists (keyword arrays, constant enumerations, function-name lists) MUST be sourced verbatim from code or BC body — not reconstructed from architectural memory of what "sounds right."
+
+### Lesson 58 — [process-gap] SR-006 EC-ID pre-allocation grep scope must include .factory/stories/ (story-level draft EC reservations), not only BC files
+
+**Classification:** PROCESS-GAP — DEFECT-PQL-FNCALL-LHS-001 cascade; D-PQLFN-P47-OBS-001 (2026-07-14). Third EC-collision incident: EC-11-068 (D-1719), EC-11-013 (pass-44), S-3.09 draft block.
+
+**Finding:** S-3.09-query-profiling.md (draft, blocked on S-3.02) §Edge Cases lines ~354-358 pre-allocates EC-11-080/081/082/083/084 at story level. Three of those IDs collide with live BC-body reservations: EC-11-080 with BC-2.11.019 line ~165, EC-11-081 with BC-2.11.001 (D-1756), EC-11-082 with BC-2.11.004 v1.47. The SR-006 EC-ID pre-allocation grep ran against BC files only and returned clean — because it did not include `.factory/stories/`. Story-level draft EC reservations are invisible to a BC-corpus-only grep.
+
+**Recurrence pattern:**
+- EC-11-068 (D-1719): first EC-collision incident — collision discovered at dispatch, renumbered.
+- EC-11-013 (pass-44): second incident — EC-11-013 in BC-2.11.004 collided with BC-2.11.005; renumbered to EC-11-082 in fix-burst-33.
+- S-3.09 draft block (D-PQLFN-P47-OBS-001 pass-47): third incident — S-3.09 pre-allocates EC-11-080/081/082 which collide with live BC reservations.
+
+**Root cause:** SR-006 EC-ID pre-allocation check greps only `.factory/specs/behavioral-contracts/` (BC files). Draft story files in `.factory/stories/` also pre-allocate EC-IDs in their §Edge Cases tables, but those pre-allocations are not included in the scope. A story author authoring S-3.09 runs the SR-006 check, gets clean, and allocates IDs that are already taken in the BC corpus — and vice versa: BC-body authors may allocate IDs already reserved in draft stories.
+
+**Correct response (codified rule):** The SR-006 EC-ID pre-allocation grep MUST include `.factory/stories/` in addition to `.factory/specs/behavioral-contracts/`. A complete EC-ID availability check must grep BOTH sources:
+
+```bash
+grep -rn "EC-11-NNN" .factory/specs/behavioral-contracts/ .factory/stories/ 2>/dev/null
+```
+
+**Resolution options (recorded from D-PQLFN-P47-OBS-001):**
+- Option A: Codify broadened SR-006 grep scope to include .factory/stories/ — prevents future collisions.
+- Option B: Preemptive story-writer renumber of S-3.09 draft EC IDs before S-3.09 dispatch.
+- Option C: Renumber at S-3.09 dispatch when the story is actually scheduled.
+
+Wave-gate adjudication at S-3.09 dispatch selects among A/B/C.
+
+**Source:** D-PQLFN-P47-OBS-001 (DEFECT-PQL-FNCALL-LHS-001 pass-47 deferred OBS; 2026-07-14). 3rd EC-collision incident.
