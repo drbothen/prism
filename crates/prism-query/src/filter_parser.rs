@@ -1483,16 +1483,18 @@ pub(crate) fn build_predicate_parser<'a>(
             // other callers check `if errs.is_empty()` before returning Ok — non-empty
             // errors cause them to return the keyword error to the engine caller.
             //
-            // The 20 reserved keywords correspond to the operator productions in
+            // The 21 reserved keywords correspond to the operator productions in
             // `build_predicate_parser` that are structurally unreachable as UDF names in
             // predicate position.  Analyst error `NOT(x) = 5` (typo for `NOT (x = 5)`)
             // is now caught at parse time with a clear message instead of silently
             // producing `Ok(QueryResult { 0 rows })` on no-data installations.
+            // BC-2.11.004 v1.48 fix-burst-36: "NULL" added as keyword #21 (EC-11-085).
             .validate(|((((func_name, func_span), args), op), rhs), _extra, emitter| {
                 const RESERVED_KEYWORDS: &[&str] = &[
                     "NOT", "AND", "OR", "IN", "IIN", "IEQ", "INE", "IS", "BETWEEN",
                     "LIKE", "CIDR", "MATCHES", "HAS", "MISSING", "CONTAINS",
                     "ICONTAINS", "STARTSWITH", "ISTARTSWITH", "ENDSWITH", "IENDSWITH",
+                    "NULL",
                 ];
                 if RESERVED_KEYWORDS
                     .iter()

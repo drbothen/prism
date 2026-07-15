@@ -1967,6 +1967,14 @@ fn check_enrich_udf_availability(
                                                          // function name in the original query string (F-PQLFN-P21-OBS-003). For AST
                                                          // nodes constructed outside the parser, span.start == 0 ("offset unknown").
     let mut predicate_fncall_names: Vec<(String, usize)> = Vec::new();
+    // EC-11-086 (ADR-048 v1.16 §D.2): ScalarFunc::Unknown names from HAVING predicate position
+    // (position f of collect_unknown_scalars_from_sql_query). Checked against
+    // DATAFUSION_BUILTIN_AGGREGATE_NAMES BEFORE the infusion-registry-None guard, so the
+    // interception fires regardless of whether a registry is configured (registry-INDEPENDENT).
+    // "percentile" (manually inserted in DATAFUSION_BUILTIN_AGGREGATE_NAMES) is the primary
+    // case: excluded from build_agg_call_parser (OD-2 grammar ambiguity), so it parses as
+    // ScalarFunc::Unknown("percentile") in HAVING and reaches this gate.
+    let mut having_fncall_names: Vec<(String, usize)> = Vec::new();
 
     match &ast {
         // Pipe mode: `FROM table | enrich udf_name(col)` stages.
@@ -2032,9 +2040,13 @@ fn check_enrich_udf_availability(
                 }
             }
             // (D.7.1 position 5) SqlPipe-head WHERE → predicate_fncall_names (aggregate gate).
-            // HAVING is intentionally excluded — only head.where_ is walked here.
+            // HAVING is intentionally excluded from predicate_fncall_names — only head.where_ is walked here.
             if let Some(pred) = &spq.head.where_ {
                 collect_unknown_scalar_offsets_from_predicate(pred, &mut predicate_fncall_names);
+            }
+            // (EC-11-086 / ADR-048 v1.16 §D.2) SqlPipe head HAVING → having_fncall_names.
+            if let Some(pred) = &spq.head.having {
+                collect_unknown_scalar_offsets_from_predicate(pred, &mut having_fncall_names);
             }
             // (c) SQL head — ALL scalar positions via canonical shared walk, SQL-mode.
             // This also walks head.where_ into sql_unknown_names (duplicate for WHERE names —
@@ -2056,9 +2068,16 @@ fn check_enrich_udf_availability(
         // shared walk below — duplicate entries are harmless.
         Ast::Sql(SqlStatement::Select(sq)) => {
             // (D.7.1 position 4) SQL WHERE → predicate_fncall_names (aggregate gate).
-            // HAVING is intentionally excluded — only sq.where_ is walked here.
+            // HAVING is intentionally excluded from predicate_fncall_names — only sq.where_ is walked here.
             if let Some(pred) = &sq.where_ {
                 collect_unknown_scalar_offsets_from_predicate(pred, &mut predicate_fncall_names);
+            }
+            // (EC-11-086 / ADR-048 v1.16 §D.2) SQL HAVING → having_fncall_names.
+            // Separate from predicate_fncall_names: HAVING may legitimately contain aggregates,
+            // but names in DATAFUSION_BUILTIN_AGGREGATE_NAMES that parse as ScalarFunc::Unknown
+            // (e.g., "percentile") are intercepted with HAVING-specific E-QUERY-001 guidance.
+            if let Some(pred) = &sq.having {
+                collect_unknown_scalar_offsets_from_predicate(pred, &mut having_fncall_names);
             }
             // All positions (SELECT, WHERE, JOIN ON, GROUP BY, ORDER BY, HAVING) via canonical
             // shared walk into sql_unknown_names for E-QUERY-039.
@@ -2127,6 +2146,40 @@ fn check_enrich_udf_availability(
                     "'{name}' is an aggregate function; \
                      aggregate fn-calls are not valid in WHERE/where predicates \
                      (use HAVING for post-aggregation filters, ADR-048 D.3)"
+                ),
+                query: query_str.to_string(),
+            });
+        }
+    }
+
+    // EC-11-086: HAVING-position DATAFUSION_BUILTIN_AGGREGATE_NAMES interception (ADR-048 v1.16 §D.2).
+    // Fires BEFORE the registry-None guard — registry-INDEPENDENT.
+    // Catches ScalarFunc::Unknown names from HAVING position (f) that are (a) in
+    // DATAFUSION_BUILTIN_AGGREGATE_NAMES and (b) NOT in DATAFUSION_BUILTIN_FUNCTION_NAMES.
+    // Criterion (b) restricts the gate to names that DataFusion cannot resolve natively in HAVING:
+    // natively-registered aggregates (e.g., stddev, variance, corr) are in DATAFUSION_BUILTIN_FUNCTION_NAMES
+    // and CAN appear in HAVING without error (DataFusion resolves them via ctx.sql()); those names
+    // are NOT intercepted here. Only the manually-inserted names ("percentile", "distinct_count")
+    // satisfy criterion (b) — and distinct_count parses as FuncCall::Aggregate (not ScalarFunc::Unknown)
+    // via build_agg_call_parser, so it never populates having_fncall_names.
+    // Primary case: "percentile" — excluded from build_agg_call_parser (OD-2 two-arg grammar
+    // ambiguity), parses as ScalarFunc::Unknown("percentile") in HAVING, NOT in DATAFUSION_BUILTIN_FUNCTION_NAMES.
+    // Without this gate: registry=None → Ok(()) → DataFusion plan error; registry=Some → E-QUERY-039.
+    // (BC-2.11.004 v1.48 EC-11-086; BC-2.11.019 v1.21 §OBS-004; ADR-048 v1.16 §D.2)
+    for (name, offset) in &having_fncall_names {
+        let name_lower = name.to_ascii_lowercase();
+        if DATAFUSION_BUILTIN_AGGREGATE_NAMES.contains(&name_lower)
+            && !DATAFUSION_BUILTIN_FUNCTION_NAMES.contains(&name_lower)
+        {
+            let name_upper = name.to_ascii_uppercase();
+            return Err(PrismError::QueryParseFailed {
+                offset: *offset,
+                detail: format!(
+                    "'{name}' is a PrismQL aggregate function; \
+                     {name_upper} is not directly supported in HAVING predicates \
+                     \u{2014} alias it in SELECT: \
+                     SELECT {name_upper}(field, p) AS alias ... HAVING alias > threshold \
+                     (ADR-048 D.3 OD-2)"
                 ),
                 query: query_str.to_string(),
             });

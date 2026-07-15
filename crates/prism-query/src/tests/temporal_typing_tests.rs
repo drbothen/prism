@@ -7812,7 +7812,7 @@ async fn test_BC_2_11_004_low_006_pipe_keyword_not_as_fn_name_rejected() {
 ///
 /// Query: `FROM crowdstrike_detections | where CONTAINS(device_id) = 5`
 ///
-/// `CONTAINS` is in the 20-keyword reserved list (it is the `string_op_match`
+/// `CONTAINS` is in the 21-keyword reserved list (it is the `string_op_match`
 /// operator in filter grammar).  The `string_op_match` production expects
 /// `field_path CONTAINS literal` form; it fails on `CONTAINS(device_id)` because
 /// "CONTAINS" as field_path is followed by `(`, not the keyword — leaving
@@ -7826,7 +7826,7 @@ async fn test_BC_2_11_004_low_006_pipe_keyword_not_as_fn_name_rejected() {
 /// **Implemented GREEN** (fix-burst 20, commit 1a07a5f9): keyword exclusion was
 /// introduced in `fn_call_comparison` — this test was RED before fix-burst 20.
 ///
-/// Traces to: BC-2.11.004 v1.42 LOW-006 (CONTAINS in 20-keyword list);
+/// Traces to: BC-2.11.004 v1.42 LOW-006 (CONTAINS in 21-keyword list, NULL added v1.48 EC-11-085);
 ///            F-PQLFN-P26-OBS-002.
 #[tokio::test]
 async fn test_BC_2_11_004_low_006_pipe_keyword_contains_as_fn_name_rejected() {
@@ -8083,7 +8083,7 @@ async fn test_BC_2_11_004_low_006_not_space_predicate_positive_guard() {
 ///
 /// Query: `FROM crowdstrike_detections | where lower(device_id) = 'abc'`
 ///
-/// `lower` is NOT in the 20-keyword reserved list; it is a valid DataFusion
+/// `lower` is NOT in the 21-keyword reserved list; it is a valid DataFusion
 /// built-in scalar function name.  The LOW-006 keyword gate in `fn_call_comparison`
 /// must NOT reject it — only the 20 PrismQL predicate-level reserved keywords are
 /// excluded.
@@ -8108,7 +8108,7 @@ async fn test_BC_2_11_004_low_006_lower_fn_call_positive_guard() {
     assert!(
         !matches!(&result, Err(PrismError::QueryParseFailed { .. })),
         "LOW-006 positive guard (lower): `lower(device_id) = 'abc'` must NOT fail to \
-         parse. `lower` is not in the 20-keyword reserved list; `fn_call_comparison` \
+         parse. `lower` is not in the 21-keyword reserved list; `fn_call_comparison` \
          must admit it (BC-2.11.004 v1.42 LOW-006, F-PQLFN-P26-OBS-002). \
          Got: {result:?}"
     );
@@ -9040,7 +9040,7 @@ async fn test_BC_2_11_004_ec_11_085_filter_mode_null_as_fn_name_rejected() {
 /// `SELECT * FROM <table> WHERE NOT(x) = 5 | limit 10` fires E-QUERY-001 keyword message.
 ///
 /// This is the explicit position-5 test requested by F-PQLFN-PR3-OBS-001 (BC-2.11.004 v1.48
-/// LOW-006 surface completeness). `NOT` is in the original 20-keyword LOW-006 list; this form
+/// LOW-006 surface completeness). `NOT` is in the original 20-keyword LOW-006 list (now 21 with NULL, BC-2.11.004 v1.48 EC-11-085); this form
 /// adds the trailing `| limit 10` pipe stage to the query, exercising the SqlPipe head-WHERE
 /// parse path (not plain SQL WHERE).
 ///
