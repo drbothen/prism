@@ -129,12 +129,14 @@ jobs:
       # S-MAINT-CI-DISK-EXHAUSTION-001 AC-007: C toolchain baseline required by rocksdb-sys
       # v0.17.3+10.4.2 build script. Runner image ubuntu24/20260705.232 omits libc6-dev;
       # stdbool.h missing => build fails. DRIFT-CI-STDBOOL-001 (runner-image regression, 2026-07-15).
-      - name: Install C toolchain baseline (build-essential, libc6-dev)
+      - name: Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)
         if: runner.os == 'Linux'
         run: |
           # C toolchain baseline required by rocksdb-sys v0.17.3+10.4.2 build script.
-          # Runner image ubuntu24/20260705.232 omits libc6-dev; stdbool.h missing => build fails.
-          # DRIFT-CI-STDBOOL-001 (runner-image regression, 2026-07-15).
+          # Root cause (DRIFT-CI-STDBOOL-001 revised): AC-002 reclaimer large-packages purge removes
+          # libclang-common-*-dev; bindgen/libclang needs these clang builtin resource headers for
+          # stdbool.h. clang + libclang-dev are meta-packages tracking the image default LLVM version
+          # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
           # Apt-mirror resilience: two-attempt pattern per AC-006.
           if ! sudo apt-get update; then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
@@ -143,7 +145,7 @@ jobs:
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
           fi
-          sudo apt-get install -y build-essential libc6-dev
+          sudo apt-get install -y build-essential libc6-dev clang libclang-dev
       # Optimization 1: Swatinem/rust-cache — per-target shared key for cache isolation
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
@@ -309,11 +311,13 @@ jobs:
       # S-MAINT-CI-DISK-EXHAUSTION-001 AC-007: C toolchain baseline required by rocksdb-sys
       # v0.17.3+10.4.2 build script. Runner image ubuntu24/20260705.232 omits libc6-dev;
       # stdbool.h missing => build fails. DRIFT-CI-STDBOOL-001 (runner-image regression, 2026-07-15).
-      - name: Install C toolchain baseline (build-essential, libc6-dev)
+      - name: Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)
         run: |
           # C toolchain baseline required by rocksdb-sys v0.17.3+10.4.2 build script.
-          # Runner image ubuntu24/20260705.232 omits libc6-dev; stdbool.h missing => build fails.
-          # DRIFT-CI-STDBOOL-001 (runner-image regression, 2026-07-15).
+          # Root cause (DRIFT-CI-STDBOOL-001 revised): AC-002 reclaimer large-packages purge removes
+          # libclang-common-*-dev; bindgen/libclang needs these clang builtin resource headers for
+          # stdbool.h. clang + libclang-dev are meta-packages tracking the image default LLVM version
+          # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
           # Apt-mirror resilience: two-attempt pattern per AC-006.
           if ! sudo apt-get update; then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
@@ -322,7 +326,7 @@ jobs:
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
           fi
-          sudo apt-get install -y build-essential libc6-dev
+          sudo apt-get install -y build-essential libc6-dev clang libclang-dev
       # Optimization 1: Swatinem/rust-cache
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
@@ -1729,9 +1733,9 @@ jobs:
           # Anchored to the specific install payload — count-based, self-match-proof.
           # The assertion line starts with whitespace+count=$(grep..., not whitespace+"sudo apt-get install",
           # so the ^\s+sudo anchor cannot self-match.
-          count=$(grep -cE '^\s+sudo apt-get install -y build-essential libc6-dev\s*$' .github/workflows/ci.yml)
+          count=$(grep -cE '^\s+sudo apt-get install -y build-essential libc6-dev clang libclang-dev\s*$' .github/workflows/ci.yml)
           [ "$count" -ge 2 ] || {
-            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-007: C toolchain baseline install (build-essential libc6-dev) missing from ≥2 Linux jobs (found ${count}; need linux-test + test-no-default-features)"
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-007: C toolchain baseline install (build-essential libc6-dev clang libclang-dev) missing from ≥2 Linux jobs (found ${count}; need linux-test + test-no-default-features)"
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-007 check passed: C toolchain baseline install found ${count} times (≥2 required)."
