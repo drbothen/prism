@@ -179,7 +179,7 @@ jobs:
       - name: Disk-exhaustion failure annotation
         if: failure() && runner.os == 'Linux'
         run: |
-          USED_PCT=$(df / | awk 'NR==2 { gsub(/%/, "", $5); print $5 }')
+          USED_PCT=$(df -P / | awk 'NR==2 { gsub(/%/, "", $5); print $5 }')
           USED_PCT=${USED_PCT:-0}  # Guard: awk returns empty if df fails; default 0 prevents -ge test failure
           df -h
           if [ "${USED_PCT}" -ge 95 ]; then
@@ -257,7 +257,7 @@ jobs:
       - name: Disk-exhaustion failure annotation
         if: failure()
         run: |
-          USED_PCT=$(df / | awk 'NR==2 { gsub(/%/, "", $5); print $5 }')
+          USED_PCT=$(df -P / | awk 'NR==2 { gsub(/%/, "", $5); print $5 }')
           USED_PCT=${USED_PCT:-0}  # Guard: awk returns empty if df fails; default 0 prevents -ge test failure
           df -h
           if [ "${USED_PCT}" -ge 95 ]; then
@@ -1625,4 +1625,4 @@ jobs:
             exit 1
           }
           echo 'S-MAINT-CI-DISK-EXHAUSTION-001 AC-003 assertion-4 passed: [profile.dev.package."*"] section present.'
-          echo 'All verify-workflow-structure assertions pass: AC-5..AC-8 (AC-7/AC-8 anchored) + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001/AC-002 (count≥2) — all reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 additional).'
+          echo 'All verify-workflow-structure assertions pass: AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001/AC-002 (count≥2) — all reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant).'
