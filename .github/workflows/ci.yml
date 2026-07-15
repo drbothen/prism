@@ -75,7 +75,37 @@ jobs:
             target: x86_64-pc-windows-msvc
             proptest_cases: 256
     steps:
+      # S-MAINT-CI-DISK-EXHAUSTION-001 AC-001: disk-free preflight — captures pristine baseline
+      # before checkout and rust-cache restore. Runs before actions/checkout per story ordering
+      # rule (EC-007). Linux-only: failures are exclusive to Linux legs (mold linker footprint).
+      - name: Report initial disk space
+        if: runner.os == 'Linux'
+        run: df -h
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # S-MAINT-CI-DISK-EXHAUSTION-001 AC-002: reclaim preinstalled toolsets not needed by
+      # Rust build, BEFORE rust-cache restore (prevents cache restore from filling disk first).
+      # Removes android/dotnet/haskell/docker-images/large-packages/swap-storage (25–35 GB freed
+      # on ubuntu-24.04). tool-cache intentionally NOT removed (keep installed toolchain tools).
+      # Fallback pin: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+      - name: Reclaim disk space (Linux only)
+        if: runner.os == 'Linux'
+        uses: insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          docker-images: true
+          large-packages: true
+          swap-storage: true
+      - name: Verify >=25 GB free after reclaim
+        if: runner.os == 'Linux'
+        run: |
+          AVAIL_GB=$(df / | awk 'NR==2 { gsub(/G/, "", $4); print int($4 / 1024 / 1024) }')
+          [ "$AVAIL_GB" -ge 25 ] || {
+            df -h
+            echo "::error::Disk reclaim insufficient: only ${AVAIL_GB} GB free (need >=25 GB). See S-MAINT-CI-DISK-EXHAUSTION-001."
+            exit 1
+          }
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           targets: ${{ matrix.target }}
@@ -120,6 +150,12 @@ jobs:
         env:
           PROPTEST_CASES: ${{ matrix.proptest_cases }}
           RUSTFLAGS: ${{ runner.os == 'Linux' && '-C link-arg=-fuse-ld=mold' || '' }}
+          # CARGO_PROFILE_DEV_DEBUG="line-tables-only": Cargo 1.71+ accepts string profile values
+          # via env. Produces minimal DWARF (file:line only); eliminates full DWARF for smaller
+          # target/ artifacts on runners with limited disk. S-MAINT-CI-DISK-EXHAUSTION-001 AC-003.
+          # DO NOT use "0" or numeric 0 (no debug) — that removes backtraces entirely.
+          # NOTE: numeric 1 maps to "limited" (strictly larger than line-tables-only) since Rust 1.70.
+          CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
         run: cargo nextest run --workspace --all-features --profile ci
       - name: Run doctests (linux-gnu only — nextest skips doctests)
         if: matrix.run_doctests
@@ -131,6 +167,7 @@ jobs:
         # is available at this point in the job; no additional setup needed.
         env:
           RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
+          CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
         run: cargo test --workspace --all-features --doc
       - name: Upload JUnit results
         if: always()
@@ -139,6 +176,18 @@ jobs:
           name: junit-${{ matrix.target }}
           path: target/nextest/ci/junit.xml
           retention-days: 7
+      # S-MAINT-CI-DISK-EXHAUSTION-001 AC-004: disk-exhaustion failure annotation.
+      # Runs on job failure (Linux only) to check if disk is near-full (>=95% used).
+      # Emits a ::warning:: annotation to distinguish disk-exhaustion failures from
+      # genuine test failures without requiring log scraping.
+      - name: Disk-exhaustion failure annotation
+        if: failure() && runner.os == 'Linux'
+        run: |
+          USED_PCT=$(df / | awk 'NR==2 { gsub(/%/, "", $5); print $5 }')
+          df -h
+          if [ "${USED_PCT}" -ge 95 ]; then
+            echo "::warning::Disk near-full (${USED_PCT}% used) on runner — likely S-MAINT-CI-DISK-EXHAUSTION-001 class failure. Evidence runs: 29394488318 / 29399778005 / 29404746333 (PR #223, 2026-07-15)."
+          fi
 
   test-no-default-features:
     # P3WV1B-A-M-004: exercise compile-time feature-negative paths.
