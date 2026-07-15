@@ -114,9 +114,60 @@ timestamp: 2026-07-15T06:00:00Z
 
 ---
 
+## §RESUME SNAPSHOT — D-1791 (2026-07-15 — THREE OPEN PRs; STATE v8.391)
+
+### RESUME IN ONE BREATH
+
+Three open PRs. PQL PR #223 @168b2e96 (59p/43fb; PR-LEVEL 12p/8fb; streak 0/3; CI RUNNING zero-failures) — NEXT: confirm CI 43/43 then PR-LEVEL pass-13 on frozen 168b2e96. MCP PR #222 @5d2624aa CONVERGED 3/3 — merge WAITS for #223. Maintenance PR #224 @c9cb2c34 (story v0.10; LOCAL 3-CLEAN converged; fb-7 EC-009 + fb-8 EC-010 apt-resilience pushed; push-event CI SUCCESS; pull_request CI FAILED — DRIFT-CI-STDBOOL-001 stdbool.h runner-image regression, not a hardening regression) — NEXT: PO adjudicate v0.11 (EC-011 build-essential/libc6-dev install, DRIFT-CI-STDBOOL-001), implementer fix, CI validate, THEN PR-LEVEL pass-1 on updated frozen HEAD.
+
+### HEADS (verified 2026-07-15 at D-1791 burst)
+
+- develop: origin/develop = local develop = `5f1b5771` (UNCHANGED; PR #221 squash-merged 2026-07-11)
+- factory-artifacts: this D-1791 wrap commit — run `git -C .factory log -1 --format='%h %s'` (do not hard-code)
+- `fix/DEFECT-PQL-FNCALL-LHS-001` `168b2e96` — PUSHED clean. PR #223 OPEN. CI RUNNING (zero-failures confirmed; 43/43 count TBD). PR-LEVEL 12 passes / 8 fix-bursts, streak 0/3 on frozen 168b2e96. LOCAL CONVERGED 3/3 on prior frozen 973aedcf.
+- `fix/DEFECT-MCP-ROWSHAPE-NULLS-001` `5d2624aa` — PUSHED clean. PR #222 OPEN. PR-LEVEL CONVERGED 3/3 (47p/28fb). AWAITING HUMAN MERGE GATE — WAITS for #223.
+- `maintenance/ci-disk-hardening` `c9cb2c34` — PUSHED clean. PR #224 OPEN. Story v0.10 (FB-8 AC-006+EC-010). LOCAL 3-CLEAN CONVERGED. PR-LEVEL 0/3 fresh — PENDING v0.11 amendment (DRIFT-CI-STDBOOL-001) before pass-1 dispatches.
+- AUDIT-COVERAGE-001 `cd369b54` — LOCAL-ONLY (1 ignorable untracked scripts/__pycache__; parked until defect PRs merge+rebase)
+- S-3.09 `43c41389` KEEP-PARKED; W3-FIX-S307-001 `fcab8717` parked-dirty do-NOT-touch
+
+### PER-WORKSTREAM RESUME NEXT-ACTIONS
+
+1. **LANE 2 — PQL PR #223** — confirm CI 43/43 GREEN on 168b2e96 (zero-failures already; 43/43 count TBD) → dispatch PR-LEVEL adversary pass-13 on frozen 168b2e96 (streak 0/3; NO pushes mid-cascade per DRIFT-ORCH-PRLEVEL-PUSH-001). On 3/3 → HUMAN merge gate (DRIFT-PQLFN-OD7 Gap-1/Gap-2 ratification; BC-2.11.019 sequencing; POL-14 auto-promotion fires on merge; LOW-006 keyword-list adjudication).
+2. **LANE 1 — MCP PR #222** — merge WAITS for #223; after #223 merges, present merge gate to human (pr-level-pass-27.md §CONVERGENCE disclosures); on approval → pr-manager squash-merge + state-manager post-merge burst.
+3. **LANE 3 — MAINT PR #224** — PO adjudicate story v0.10→v0.11 (add EC-011 + AC-007: `sudo apt-get install -y build-essential libc6-dev` gated by AC-006 mirror wrapper; DRIFT-CI-STDBOOL-001 root cause); implementer push v0.11 fix to c.i-disk-hardening; CI validate; THEN dispatch PR-LEVEL pass-1 on updated frozen HEAD (NOT c9cb2c34).
+4. **AUDIT-COVERAGE-001** — parked @cd369b54 until BOTH PQL + MCP merge → rebase → live audit re-run → LOCAL 3-CLEAN → push → PR.
+5. **day2 doc disposition** — clip-boundary-and-reframe-asks-2026-06-30.md still open.
+
+### PENDING HUMAN DECISIONS
+
+1. PR #223 (DEFECT-PQL-FNCALL-LHS-001) merge gate — after PR-LEVEL 3/3: DRIFT-PQLFN-OD7 Gap-1/Gap-2 ratification; BC-2.11.019 sequencing confirmation; POL-14 auto-promotion fires; LOW-006 keyword-list adjudication (keep 21-keyword list or open follow-up story).
+2. PR #222 (DEFECT-MCP-ROWSHAPE-NULLS-001) merge gate — CONVERGED 3/3; WAITS for #223; disclosures: (a) BC-2.11.019 rides PQL PR; (b) POL-14 vehicle is PQL PR; (c) merge PQL first.
+3. PR #224 (S-MAINT-CI-DISK-EXHAUSTION-001) merge gate — after v0.11 CI fix + PR-LEVEL 3-CLEAN + AC-005 3 green + security + pr-reviewer; behavioral_contracts: [] (no POL-14).
+4. day2-design-decisions/clip-boundary-and-reframe-asks-2026-06-30.md disposition (NOT staged).
+5. S-3.09 EC-collision handling option (A/B/C) at wave-gate / S-3.09 dispatch.
+
+### WORKTREE INVENTORY (D-1791)
+
+- `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ cd369b54 (LOCAL-ONLY; 44 commits; parked until defect PRs merge+rebase)
+- `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001` on `fix/DEFECT-MCP-ROWSHAPE-NULLS-001` @ 5d2624aa (PUSHED; PR #222 OPEN; CONVERGED 3/3; AWAITING HUMAN MERGE GATE)
+- `.worktrees/DEFECT-PQL-FNCALL-LHS-001` on `fix/DEFECT-PQL-FNCALL-LHS-001` @ 168b2e96 (PUSHED; PR #223 OPEN; 59p/43fb; PR-LEVEL 12/8 streak 0/3; CI RUNNING; pass-13 NEXT)
+- `.worktrees/S-MAINT-CI-DISK-EXHAUSTION-001` on `maintenance/ci-disk-hardening` @ c9cb2c34 (PUSHED; story v0.10; PR #224 OPEN; PR-LEVEL 0/3 pending v0.11 fix; AC-005 1/3)
+- `.worktrees/S-3.09` KEEP-PARKED on `feature/S-3.09` @ 43c41389 (local-only; backup `backup/S-3.09-preresume-43c41389`; D-1666)
+- `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ fcab8717 (local-only; do NOT touch)
+
+### DECISION DELTA — D-1791 (D-1777..D-1791)
+
+15 bursts D-1777..D-1791 this session. LANE 2 (PQL): PR-LEVEL passes 7-12 (6 passes; D-1782/D-1784/D-1786/D-1787/D-1789/D-1790) + fix-bursts 39-43 (5 fix-bursts) — pass-7 OBS-only CLOSED (D-1782); pass-8 CLEAN 0/3→1/3 (D-1783); pass-9 2 LOW + 1 OBS RESET (D-1784); pass-10 1 MED CLOSED (D-1786); pass-11 4 findings CLOSED incl. ADR-048 §D.7.2 retraction + BC-2.11.019 v1.24 (D-1789); pass-12 2 LOW + 3 OBS CLOSED fb-43; streak 0/3 on frozen 168b2e96 (D-1790). MCP (LANE 1): no new passes this session — CONVERGED 3/3 at session start; awaiting #223 merge. LANE 3 (maintenance): S-MAINT-CI-DISK-EXHAUSTION-001 story v0.1→v0.10 (10 LOCAL passes / 8 fix-bursts; LOCAL 3-CLEAN CONVERGED; PR #224 opened; fix-burst-7 EC-009 @9ae99f30 + fix-burst-8 AC-006+EC-010 @c9cb2c34 PUSHED; DRIFT-CI-STDBOOL-001 discovered — stdbool.h runner-image regression; v0.11 amendment queued). DRIFT items: DRIFT-PQLFN-MULTIERR-OFFSET-001 (OBS-003 deferral; wave-5-e cycle close; PO); DRIFT-CI-STDBOOL-001 (LANE 3 infra regression; v0.11 fix). SESSION-HANDOFF: supersedes D-1776. STATE v8.376→v8.391.
+
+### PROCESS-GAP CODIFICATION CANDIDATES
+
+- Adversary CLEAN reports: always state CLEAN(strict) and CLEAN(PR-merge) explicitly (D-779 disambiguation); applies to every pass
+- DRIFT-ORCH-PRLEVEL-PUSH-001 frozen-HEAD rule: any push mid-cascade resets streak to 0/3; cascade must re-gate on new HEAD — applies universally
+- DRIFT-CI-STDBOOL-001 root-cause class: runner-image libc regression pattern; future CI step to add build-essential/libc6-dev defensive install
+
 ---
 
-## §RESUME SNAPSHOT — D-1776 (2026-07-15 — SESSION WRAP; dual-lane CONVERGED; PR #223 OPEN PR-LEVEL 1/3; PR #222 WAITS; develop 5f1b5771; STATE v8.376) [SUPERSEDES D-1761]
+## §RESUME SNAPSHOT — D-1776 (2026-07-15 — SESSION WRAP; dual-lane CONVERGED; PR #223 OPEN PR-LEVEL 1/3; PR #222 WAITS; develop 5f1b5771; STATE v8.376) [SUPERSEDES D-1761] [SUPERSEDED by D-1791]
 
 ### RESUME IN ONE BREATH
 

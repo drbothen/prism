@@ -6,7 +6,7 @@ wave: tbd
 epic_id: maintenance
 priority: P2
 status: ready
-version: "0.9"
+version: "0.10"
 level: ops
 producer: story-writer
 timestamp: "2026-07-15"
@@ -69,8 +69,8 @@ blocks: []
 points: 5
 estimated_days: 1
 risk: MEDIUM
-acceptance_criteria_count: 5
-red_gate_tests: 4
+acceptance_criteria_count: 6
+red_gate_tests: 5
 estimated_passes: "1"
 holdout_scenarios: []
 assumption_validations: []
@@ -304,6 +304,94 @@ The changes in this story MUST ride `maintenance/ci-disk-hardening` and NOT be m
 through any open defect PR branch (e.g., `fix/DEFECT-*`), to keep CI infrastructure
 changes cleanly bisectable.
 
+### AC-006 — apt-mirror resilience for pre-existing apt install steps (test matrix + test-no-default-features)
+
+The three pre-existing `sudo apt-get update && sudo apt-get install ...` steps are
+vulnerable to the same apt-mirror 404 class that motivated EC-009 (evidence: run
+29438854846 rerun, 2026-07-15 — both the `musl-tools` step in the Test matrix AND the
+`libdbus-1-dev pkg-config` step in `test-no-default-features` failed identically after
+the reclaimer's `continue-on-error: true` fix had already landed; the broken mirror
+blocked ALL remaining apt install steps in the same CI run). Each of the three steps
+MUST be converted from the single-attempt inline form to the two-attempt pattern below.
+The reclaimer step itself is NOT given this wrapper — it already carries `continue-on-error:
+true` best-effort semantics per EC-009; the ≥25 GB gate is the authoritative check there.
+
+**Snippet — `Install musl-tools` (test matrix; `if: matrix.install_musl`):**
+
+```yaml
+      - name: Install musl-tools
+        if: matrix.install_musl
+        run: |
+          # Apt-mirror resilience: two-attempt pattern.
+          # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
+          # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
+          # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y musl-tools
+```
+
+**Snippet — `Install libdbus-1-dev (required by keyring build on Linux, all-features)` (test matrix; `if: runner.os == 'Linux'`):**
+
+```yaml
+      - name: Install libdbus-1-dev (required by keyring build on Linux, all-features)
+        if: runner.os == 'Linux'
+        run: |
+          # Apt-mirror resilience: two-attempt pattern.
+          # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
+          # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
+          # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
+```
+
+**Snippet — `Install libdbus-1-dev (required by keyring Secret Service backend on Linux)` (test-no-default-features; unconditional):**
+
+```yaml
+      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
+        run: |
+          # Apt-mirror resilience: two-attempt pattern.
+          # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
+          # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
+          # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
+```
+
+**sed rewrite rationale (host-agnostic):** The pattern `s|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g` rewrites any ubuntu-suite mirror URL to the canonical azure archive regardless of which mirror the runner image was configured to use. It covers both classic `deb https://<mirror>/ubuntu <suite>` lines (in `/etc/apt/sources.list` and `/etc/apt/sources.list.d/*.list`) and deb822 `URIs: https://<mirror>/ubuntu` lines (in `/etc/apt/sources.list.d/*.sources`, which ubuntu-24.04 runner images ship). The `2>/dev/null || true` on each `sed` invocation handles the case where the target glob expands to no files (no-op, error suppressed). The fallback `sudo apt-get update` is NOT wrapped in `|| true` — if the canonical archive also fails, the step must fail loud.
+
+The `verify-workflow-structure` job gains a Red Gate assertion confirming the two-attempt pattern is present in ≥3 steps (one per apt install step; Red Gate test 5):
+
+```bash
+# Anchored to the two-attempt pattern keyword — count-based, self-match-proof.
+# The assertion line starts with whitespace+count=$(grep..., so the if-pattern cannot self-match.
+count=$(grep -cE '^\s+if ! sudo apt-get update; then$' .github/workflows/ci.yml)
+[ "$count" -ge 3 ] || {
+  echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006: apt-mirror resilience (two-attempt pattern) missing from ≥3 apt install steps (found ${count}; need install-musl + libdbus-linux-test + libdbus-no-default-features)"
+  exit 1
+}
+echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 check passed: apt-mirror resilience found ${count} times (≥3 required)."
+```
+
+The implementer MUST also update the final summary echo in `verify-workflow-structure` to add `+ S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥3)` to the assertion list and bump the total from `13` to `14` (`11 reachability` → `12 reachability`).
+
 ## §Implementation Notes
 
 **Disk-space-reclaimer action choice and SHA pinning:** The actively-maintained fork
@@ -342,6 +430,8 @@ runs on the same ubuntu-latest disk envelope and is subject to the same class of
 (F-CIDISK-P4-MED-002, adjudicated 2026-07-15). The ordering constraint (checkout → reclaim →
 cache restore) applies identically.
 
+**Pre-existing apt install steps — two-attempt pattern (AC-006):** The three existing `sudo apt-get update && sudo apt-get install ...` steps (Install musl-tools in test matrix; Install libdbus-1-dev in test matrix; Install libdbus-1-dev in test-no-default-features) must each be expanded from the single-attempt inline form into the two-attempt pattern specified in AC-006. The sed rewrite is host-agnostic: it matches any `https?://…/ubuntu` mirror URL (not just mirror.enzu.com), covering both classic sources.list and deb822 .sources file formats. The `2>/dev/null || true` on each sed silences missing-file errors. The fallback `sudo apt-get update` is NOT `|| true` — canonical archive failures fail loud. No `continue-on-error: true` on these steps; they are not best-effort (unlike the disk-space-reclaimer). See AC-006 for byte-exact snippets and the Red Gate assertion (count ≥ 3).
+
 **Ordering constraint:** The disk-space-reclaimer step MUST run after `actions/checkout`
 (so git metadata is intact) and BEFORE `Swatinem/rust-cache` (so the cache restore does
 not fill disk before reclaim). The preflight `df -h` step runs BEFORE checkout as a
@@ -361,7 +451,7 @@ original from LOCAL pass-2 + AC-7 `semver-checks` + AC-8 `test-no-default-featur
 job-name anchors; F-CIDISK-P4-HIGH-002 + LOW-001, adjudicated 2026-07-15). Error messages
 are preserved verbatim. No other structural changes to the `verify-workflow-structure` job.
 
-**Pass-6 traceability (LOW-001 + OBS-002):** The ci.yml summary echo must use the code-authoritative assertion count: 9 pre-existing reachability + 2 new count-based reachability + 2 new config-invariant = 13 total (11 reachability + 2 config-invariant, matching the ci.yml summary echo).
+**Pass-6 traceability (LOW-001 + OBS-002):** The ci.yml summary echo must use the code-authoritative assertion count: 9 pre-existing reachability + 3 new count-based reachability + 2 new config-invariant = 14 total (12 reachability + 2 config-invariant, matching the ci.yml summary echo). (Bumped from 13→14 / 11→12 reachability by AC-006 v0.10 addition.)
 
 ## §Token Budget Estimate
 
@@ -403,6 +493,10 @@ Well within a single agent context window; no splitting required.
   - `semver-checks` (AC-7): `grep -qE 'semver-checks'` → `grep -qE '^  semver-checks:'` (job-name anchor; 2-space indent; F-CIDISK-P4-HIGH-002)
   - `test-no-default-features` (AC-8): `grep -qE 'test-no-default-features'` → `grep -qE '^  test-no-default-features:'` (job-name anchor; 2-space indent; F-CIDISK-P4-LOW-001)
   - Self-match proof for all seven: assertion lines start with whitespace+`grep`, so job-name anchors `^  <job-name>:` and just-recipe anchor `^\s+just ...\s*$` cannot match the assertion lines themselves
+- [ ] Test matrix job — `Install musl-tools` step: replace `run: sudo apt-get update && sudo apt-get install -y musl-tools` with the two-attempt mirror-resilience form from AC-006 (byte-exact snippet; preserves `if: matrix.install_musl` conditional) (AC-006)
+- [ ] Test matrix job — `Install libdbus-1-dev (required by keyring build on Linux, all-features)` step: replace `run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config` with the two-attempt form (byte-exact snippet; preserves `if: runner.os == 'Linux'` conditional) (AC-006)
+- [ ] `test-no-default-features` job — `Install libdbus-1-dev (required by keyring Secret Service backend on Linux)` step: replace `run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config` with the two-attempt form (byte-exact snippet; unconditional step) (AC-006)
+- [ ] `verify-workflow-structure` job: add AC-006 Red Gate assertion (`count=$(grep -cE '^\s+if ! sudo apt-get update; then$' .github/workflows/ci.yml)` + `[ "$count" -ge 3 ]`) before the final summary echo; update summary echo: add `+ S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥3)` to assertion list; change `11 reachability assertions` to `12 reachability assertions`; change `= 13 total checks` to `= 14 total checks` (AC-006 Red Gate test 5)
 - [ ] Record three consecutive green CI run IDs in the PR description (AC-005 evidence)
 
 ## §Previous Story Intelligence
@@ -439,11 +533,12 @@ and `wasm32-compile-check` assertion pattern established during S-PLUGIN-PREREQ-
   and cache configuration must NOT be changed
 - The `verify-workflow-structure` job's existing assertions (AC-5 `TARGET_COUNT >= 5`,
   AC-6 cargo-deny/audit, AC-7 semver, AC-8 no-default-features, non-exhaustive, wasm32
-  checks) must ALL pass after this story's modifications; the four new assertions (AC-001
-  count ≥ 2, AC-002 count ≥ 2, AC-003 assertions 3 and 4) are additive, and the 7 pre-
-  existing reachability assertions (5 original + AC-7 semver-checks + AC-8 test-no-
-  default-features) are updated in-place to self-match-proof anchored forms (see §Tasks
-  sibling-sweep task); no other structural changes
+  checks) must ALL pass after this story's modifications; the five new assertions (AC-001
+  count ≥ 2, AC-002 count ≥ 2, AC-006 count ≥ 3, AC-003 assertions 3 and 4) are additive,
+  and the 7 pre-existing reachability assertions (5 original + AC-7 semver-checks + AC-8
+  test-no-default-features) are updated in-place to self-match-proof anchored forms (see
+  §Tasks sibling-sweep task); no other structural changes. The final summary echo must
+  reflect 14 total checks (12 reachability + 2 config-invariant)
 - All new GitHub Actions steps must be pinned to a specific commit SHA with a `# vN.N.N`
   comment per the project SHA-pinning policy (every existing action in ci.yml is
   commit-pinned; no exceptions)
@@ -474,7 +569,7 @@ No new GitHub Actions secrets required.
 
 | File | Action | Notes |
 |------|--------|-------|
-| `.github/workflows/ci.yml` | MODIFY | Linux Test job legs: add preflight (AC-001), disk-space-reclaimer with `swap-storage: false, continue-on-error: true` (AC-002; best-effort per EC-009; gate is the authoritative check), ≥25 GB gate (AC-002; `df -P /` 1K-block form + `AVAIL_GB=${AVAIL_GB:-0}` guard), failure annotation (AC-004; `USED_PCT=${USED_PCT:-0}` guard); `test-no-default-features` job: mirror same three protective steps + failure annotation (F-CIDISK-P4-MED-002); DO NOT add `CARGO_PROFILE_DEV_DEBUG` (AC-003 — it is a no-op; forbidden); `verify-workflow-structure` job: AC-001 count assertion (≥2; `^\s+- name: Report initial disk space\s*$`) + AC-002 count assertion (≥2; `^\s+uses: insightsengineering/disk-space-reclaimer`) + two AC-003 `.cargo/config.toml` invariant checks + anchor 7 pre-existing reachability assertions (5 original + AC-7 `semver-checks` + AC-8 `test-no-default-features`; see §Tasks sibling-sweep); no other jobs touched |
+| `.github/workflows/ci.yml` | MODIFY | Linux Test job legs: add preflight (AC-001), disk-space-reclaimer with `swap-storage: false, continue-on-error: true` (AC-002; best-effort per EC-009; gate is the authoritative check), ≥25 GB gate (AC-002; `df -P /` 1K-block form + `AVAIL_GB=${AVAIL_GB:-0}` guard), failure annotation (AC-004; `USED_PCT=${USED_PCT:-0}` guard); `test-no-default-features` job: mirror same three protective steps + failure annotation (F-CIDISK-P4-MED-002); DO NOT add `CARGO_PROFILE_DEV_DEBUG` (AC-003 — it is a no-op; forbidden); convert three pre-existing `sudo apt-get update && sudo apt-get install ...` steps to two-attempt mirror-resilience form (AC-006; byte-exact snippets in AC-006 section); `verify-workflow-structure` job: AC-001 count assertion (≥2; `^\s+- name: Report initial disk space\s*$`) + AC-002 count assertion (≥2; `^\s+uses: insightsengineering/disk-space-reclaimer`) + AC-006 count assertion (≥3; `^\s+if ! sudo apt-get update; then$`) + two AC-003 `.cargo/config.toml` invariant checks + anchor 7 pre-existing reachability assertions (5 original + AC-7 `semver-checks` + AC-8 `test-no-default-features`; see §Tasks sibling-sweep) + update summary echo from 13→14 total / 11→12 reachability; no other jobs touched |
 
 No new files required. The `insightsengineering/disk-space-reclaimer` action is invoked
 as an inline `uses:` step; it does not require a new config file in the repository.
@@ -506,6 +601,7 @@ as an inline `uses:` step; it does not require a new config file in the reposito
 | EC-007 | Preflight `df -h` step placed after `actions/checkout` instead of before | The preflight MUST be before checkout to capture the true baseline; checkout restores git metadata and may trigger cache actions. Verify ordering in the delivered YAML. |
 | EC-008 | `swap-storage: false` — OOM headroom preservation trade-off | Swap (~4 GB) is deliberately preserved. The linux-gnu leg runs a 1000-PROPTEST_CASES nextest run followed by doctests; a pre-existing OOM-kill risk exists in that leg. The remaining reclaim inputs (android/dotnet/haskell/docker-images/large-packages) still deliver 21–31 GB, satisfying the ≥25 GB gate. Future maintainers: do NOT re-enable `swap-storage: true` without first verifying the doctest OOM risk is resolved. (F-CIDISK-P4-MED-001, adjudicated 2026-07-15.) |
 | EC-009 | apt-mirror flake / partial-reclaim: `large-packages: true` triggers `apt-get` against the runner's rotating apt mirror; the mirror can return HTTP 404 Release files on rotation (evidence: CI run 29437306537, 2026-07-15, mirror.enzu.com, apt exit code 100, reclaimer step failed — ALL THREE hardened Linux jobs failed BEFORE the ≥25 GB gate) | `continue-on-error: true` on the reclaimer step allows the job to proceed to the ≥25 GB gate regardless of reclaimer exit code. If disk is ≥25 GB despite partial/zero reclaim, the build continues. If below 25 GB, the gate exits 1 loud with the actual free-GB count. Trade-off: `continue-on-error` can mask persistent action breakage (e.g., an action update that breaks the inputs API); mitigated because the ≥25 GB gate provides ground-truth disk verification on every run and fails loud when reclaim genuinely under-delivers. |
+| EC-010 | Persistent apt-mirror outage affecting pre-existing apt install steps: the runner image selects its apt mirror at image-build time; a mirror that returns HTTP 404 Release files (or is otherwise unreachable) causes all `sudo apt-get update` invocations in the job to fail with exit code 100, regardless of `continue-on-error` on the reclaimer step (the reclaimer's `continue-on-error` does not propagate to other steps). Evidence: run 29438854846 rerun (2026-07-15) — mirror.enzu.com 404 blocked `Install musl-tools` (test matrix) and `Install libdbus-1-dev pkg-config` (test-no-default-features) even after EC-009 fix had landed. Runner-image mirror selection is entirely outside our control; we cannot pre-screen or change the runner's default apt mirror. | Two-attempt pattern per AC-006: first attempt `sudo apt-get update`; on failure rewrite all ubuntu-suite mirror URLs in both classic sources.list forms (`/etc/apt/sources.list` and `/etc/apt/sources.list.d/*.list`) and deb822 form (`/etc/apt/sources.list.d/*.sources`) to `azure.archive.ubuntu.com` (always-authoritative canonical archive); then retry `sudo apt-get update`. Trade-off: the fallback adds ~seconds only on failure (rewrite + retry is cheap); azure.archive.ubuntu.com is slower than mirrors but always authoritative. No `continue-on-error` on these steps — they are not best-effort; if the canonical archive also fails, the job fails loud. |
 
 ## §Research Trace
 
@@ -546,6 +642,7 @@ Findings applied in v0.3:
 
 ## §Changelog
 
+- v0.10 (2026-07-15): fix-burst-8 adjudication — PR #224 persistent apt-mirror blocker (product-owner; POL-32). AC-006 added: apt-mirror resilience for the three pre-existing `sudo apt-get update && sudo apt-get install ...` steps (Install musl-tools in test matrix; Install libdbus-1-dev pkg-config in test matrix; Install libdbus-1-dev pkg-config in test-no-default-features). Evidence: run 29438854846 rerun (2026-07-15) — mirror.enzu.com returned HTTP 404 Release files on BOTH the `musl-tools` and `libdbus-1-dev` steps after the EC-009 reclaimer `continue-on-error: true` fix had already landed; AC-005 unachievable while these steps depend on the broken mirror. Fix: two-attempt pattern — first `sudo apt-get update`; on failure sed-rewrite any ubuntu mirror URL in classic sources.list and deb822 .sources forms to `azure.archive.ubuntu.com`; then retry. EC-010 added: persistent apt-mirror outage class. Red Gate test 5 added: `count=$(grep -cE '^\s+if ! sudo apt-get update; then$' .github/workflows/ci.yml)` count ≥ 3 in verify-workflow-structure. acceptance_criteria_count: 5→6. red_gate_tests: 4→5. §Implementation Notes: apt-resilience note added; pass-6 traceability count bumped 13→14 / 11→12 reachability. §Architecture Compliance Rules: four→five new assertions. §File Structure Requirements and §Tasks updated. verify-workflow-structure summary echo must be updated from 13→14 total.
 - v0.9 (2026-07-15): fix-burst-7 adjudication — PR #224 first live CI run failure (product-owner; POL-32). EC-009 added: apt-mirror flake / partial-reclaim class — `large-packages: true` invokes `apt-get` against the runner's rotating mirror; mirror.enzu.com returned HTTP 404 Release files (run 29437306537, 2026-07-15), apt exited 100, reclaimer step failed, ALL THREE hardened Linux jobs failed BEFORE the ≥25 GB gate ran. Fix: `continue-on-error: true` added to reclaimer step in BOTH Linux jobs (linux-test legs + test-no-default-features). AC-002 prose updated: YAML snippet added showing the step with `continue-on-error: true` + inline comment documenting the evidence and rationale. EC-001 updated: design changed from `continue-on-error: false` (default, prior) to `continue-on-error: true`; early-failure rationale replaced with gate-as-authoritative-check rationale. §Implementation Notes: new "Reclaimer step is BEST-EFFORT" paragraph added. §Tasks: `continue-on-error: true` added to both reclaimer task bullets. §File Structure Requirements: notes column updated. AC-002 count≥2 reachability assertion UNAFFECTED — grep anchors `^\s+uses: insightsengineering/disk-space-reclaimer`; `continue-on-error:` is a separate YAML key on a different line, not part of the `uses:` line. acceptance_criteria_count and red_gate_tests unchanged.
 - v0.8 (2026-07-15): LOCAL pass-7 spec fix (product-owner fix-burst-6; POL-32). F-CIDISK-P7-MED-001: AC-003 assertions 3 and 4 redesigned from context-blind grep to section-scoped awk; assertion-3 now verifies debug = "line-tables-only" is within [profile.dev] (not just present anywhere in the file); assertion-4 now verifies debug = false payload is within [profile.dev.package."*"] (not just that the section header exists). §Tasks AC-003 assertion-3 and assertion-4 descriptions updated to awk forms. F-CIDISK-P7-LOW-001: AC-004 code snippet corrected to df -P / (was df /; now matches the ratified pass-6 form consistent with the AC-002 gate step); pass-6 traceability note shortened to drop the now-redundant df -P / annotation. F-CIDISK-P7-OBS-001: §Implementation Notes arithmetic rewritten to code-authoritative grouping: 9 pre-existing reachability + 2 new count-based reachability + 2 new config-invariant = 13 total (11 reachability + 2 config-invariant, matching the ci.yml summary echo).
 - v0.7 (2026-07-15): LOCAL pass-6 F-CIDISK-P6-MED-001 spec fix (product-owner fix-burst-5; POL-32). §Architecture Compliance Rules: removed `test-no-default-features` from the "jobs that must NOT be modified" list — that claim directly contradicted the v0.6 scope expansion (AC-001, AC-002, AC-004, and every §Tasks/§File Structure bullet explicitly require adding four protective steps to that job); replaced with the precise invariant: the job's existing `PROPTEST_CASES`, `RUSTFLAGS`, test-invocation lines, and cache configuration must NOT be changed; only the four v0.6-ratified protective steps may be added. §Implementation Notes: added one-line traceability note for pass-6 LOW-001 (summary-echo count corrected 9→11: 7 anchored-in-place + 4 new = 11 total) and OBS-002 (AC-004 annotation step df call updated to df -P / for consistency with AC-002 gate step), both applied by implementer in same burst.
