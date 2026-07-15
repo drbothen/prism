@@ -1500,4 +1500,22 @@ jobs:
             exit 1
           }
           echo 'F-MCPRS-PRL14-LOW-001 reachability check passed: committed crowdstrike-oauth2.prx wasm-tools validate step present.'
-          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 reachability assertions pass (anchored job-definition patterns, F-MCPNULL-P3-LOW-003).'
+          # S-MAINT-CI-DISK-EXHAUSTION-001 AC-001 reachability assertion:
+          # The Test job must include a disk-free preflight step ("Report initial disk space" / df -h)
+          # that runs before actions/checkout to capture a pristine baseline. A future PR removing
+          # this step would silently remove post-hoc disk-exhaustion analysis capability.
+          grep -qE 'Report initial disk space|df -h' .github/workflows/ci.yml || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-001: disk preflight step missing from ci.yml"
+            exit 1
+          }
+          echo 'S-MAINT-CI-DISK-EXHAUSTION-001 AC-001 check passed: disk preflight step present.'
+          # S-MAINT-CI-DISK-EXHAUSTION-001 AC-002 reachability assertion:
+          # The Test job must include insightsengineering/disk-space-reclaimer to prevent
+          # disk-exhaustion failures (3 consecutive CI failures on PR #223, 2026-07-15).
+          # A future PR removing this action would silently re-expose the failure mode.
+          grep -qE 'uses:.*insightsengineering/disk-space-reclaimer' .github/workflows/ci.yml || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-002: disk-space-reclaimer action missing from ci.yml"
+            exit 1
+          }
+          echo 'S-MAINT-CI-DISK-EXHAUSTION-001 AC-002 check passed: disk-space-reclaimer action present.'
+          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001/AC-002 reachability assertions pass (anchored job-definition patterns, F-MCPNULL-P3-LOW-003).'
