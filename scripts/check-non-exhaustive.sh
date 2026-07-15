@@ -44,7 +44,7 @@
 # S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: bumped 88→89 for TemporalLiteralPosition (prism-core::error E0004 v86).
 # DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001: bumped 89→90 for VirtualField (prism-core::virtual_fields E0004 v90).
 # DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P31-OBS-002: bumped 90→91 for VirtualField (prism_query::ast E0004 v91).
-# DEFECT-PQL-FNCALL-LHS-001 BC-2.11.019 v1.24 §OBS-005: bumped 91→92 for ParseError (prism_query::error E0639 v92).
+# DEFECT-PQL-FNCALL-LHS-001 F-PQLFN-PR11-OBS-002 (BC-2.11.019 §OBS-005): bumped 91→92 for ParseError (prism_query::error E0639 v92).
 
 EXPECTED=92
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
