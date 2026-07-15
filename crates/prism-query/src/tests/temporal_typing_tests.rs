@@ -6011,7 +6011,7 @@ async fn test_BC_2_11_004_tm_18_pipe_where_percentile_manual_insert_lock() {
 /// function; PERCENTILE is not directly supported in HAVING predicates — alias it in SELECT:
 /// SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold (ADR-048 D.3 OD-2)"`
 ///
-/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.21 §OBS-004;
+/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.22 §OBS-004;
 ///            F-PQLFN-PR3-LOW-001; POL-24.
 #[tokio::test]
 async fn test_BC_2_11_004_having_percentile_fires_e_query_001_no_registry() {
@@ -6036,7 +6036,7 @@ async fn test_BC_2_11_004_having_percentile_fires_e_query_001_no_registry() {
          DataFusion plan fails with QueryPlanFailed — NOT E-QUERY-001. \
          Post-fix: new DATAFUSION_BUILTIN_AGGREGATE_NAMES interception in HAVING position \
          fires BEFORE the registry-None guard → E-QUERY-001 (registry-INDEPENDENT). \
-         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.21 §OBS-004) \
+         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.22 §OBS-004) \
          Got: {result:?}"
     );
 
@@ -6109,7 +6109,7 @@ async fn test_BC_2_11_004_having_percentile_fires_e_query_001_no_registry() {
 /// function; PERCENTILE is not directly supported in HAVING predicates — alias it in SELECT:
 /// SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold (ADR-048 D.3 OD-2)"`
 ///
-/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.21 §OBS-004;
+/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.22 §OBS-004;
 ///            F-PQLFN-PR3-LOW-001; POL-24.
 #[tokio::test]
 async fn test_BC_2_11_004_having_percentile_fires_e_query_001_with_registry() {
@@ -6137,7 +6137,7 @@ async fn test_BC_2_11_004_having_percentile_fires_e_query_001_with_registry() {
          a FALSE enrichment-registration suggestion misleading to LLM agents. \
          Post-fix: DATAFUSION_BUILTIN_AGGREGATE_NAMES interception in HAVING position fires \
          E-QUERY-001 BEFORE the registry lookup. \
-         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.21 §OBS-004) \
+         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.22 §OBS-004) \
          Got: {result:?}"
     );
 

@@ -2165,12 +2165,27 @@ fn check_enrich_udf_availability(
     // Primary case: "percentile" — excluded from build_agg_call_parser (OD-2 two-arg grammar
     // ambiguity), parses as ScalarFunc::Unknown("percentile") in HAVING, NOT in DATAFUSION_BUILTIN_FUNCTION_NAMES.
     // Without this gate: registry=None → Ok(()) → DataFusion plan error; registry=Some → E-QUERY-039.
-    // (BC-2.11.004 v1.48 EC-11-086; BC-2.11.019 v1.21 §OBS-004; ADR-048 v1.16 §D.2)
+    // (BC-2.11.004 v1.48 EC-11-086; BC-2.11.019 v1.22 §OBS-004; ADR-048 v1.16 §D.2)
     for (name, offset) in &having_fncall_names {
         let name_lower = name.to_ascii_lowercase();
         if DATAFUSION_BUILTIN_AGGREGATE_NAMES.contains(&name_lower)
             && !DATAFUSION_BUILTIN_FUNCTION_NAMES.contains(&name_lower)
         {
+            // Fail-loud template-specificity guard (BC-2.11.019 v1.22 §OBS-004, F-PQLFN-PR4-OBS-001).
+            // The HAVING-specific E-QUERY-001 guidance message below uses a two-arg PERCENTILE
+            // signature example. The triggering set (AGGREGATE_NAMES ∖ FUNCTION_NAMES) reachable
+            // as ScalarFunc::Unknown is exactly {"percentile"} today — distinct_count is claimed
+            // by build_agg_call_parser and parses as FuncCall::Aggregate, never ScalarFunc::Unknown.
+            // debug_assert compiles out in release; fires in every test/debug build if the
+            // invariant breaks (new name added to DATAFUSION_BUILTIN_AGGREGATE_NAMES without
+            // reviewing the message template).
+            debug_assert_eq!(
+                name_lower,
+                "percentile",
+                "HAVING interception guidance template is percentile-specific (two-arg signature); \
+                 a new DATAFUSION_BUILTIN_AGGREGATE_NAMES-only name reached the arm — \
+                 template review required per BC-2.11.019 v1.22 §OBS-004 before relaxing this assertion"
+            );
             let name_upper = name.to_ascii_uppercase();
             return Err(PrismError::QueryParseFailed {
                 offset: *offset,
