@@ -10407,3 +10407,72 @@ async fn test_f_pqlfn_pr11_obs_002_structural_error_single_prefix_lock() {
          again). Got display: {display:?}"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-PQLFN-PR12-OBS-001: non-semantic E-QUERY-001 prefix doubling
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Non-semantic errors with "E-QUERY-001: " prefix in their `message` (e.g.
+// "E-QUERY-001: empty query string" from `filter_parser.rs` early-exit guards)
+// go through the `else { e.message.clone() }` branch in materialization.rs.
+// The `QueryParseFailed` #[error] template then prepends the outer prefix again:
+//   "E-QUERY-001: query parse error at offset 0: E-QUERY-001: empty query string"
+// producing "E-QUERY-001:" twice.
+//
+// Fix: extend the "E-QUERY-001: " strip to BOTH branches (semantic and
+// non-semantic) in materialization.rs detail computation.
+//
+// RED state: count == 2 (materialization.rs else-branch returns e.message.clone()
+//   unchanged; the outer QueryParseFailed template doubles the prefix).
+// GREEN state: count == 1 (strip applied to both branches).
+//
+// Traces: F-PQLFN-PR12-OBS-001; DEFECT-PQL-FNCALL-LHS-001; ADR-048 §D.7.2.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-PQLFN-PR12-OBS-001 **RED → GREEN** — empty query non-semantic prefix doubling.
+///
+/// Query `""` → `filter_parser.rs` early-exit returns
+///   `ParseError::new(0, "E-QUERY-001: empty query string")`  (semantic == false)
+/// → materialization.rs else-branch: `e.message.clone()` = `"E-QUERY-001: empty query string"`
+/// → `QueryParseFailed.detail` = `"E-QUERY-001: empty query string"`
+/// → Display: `"E-QUERY-001: query parse error at offset 0: E-QUERY-001: empty query string"`
+///            ↑ doubled prefix
+///
+/// GREEN state (strip applied to both branches):
+/// → detail = `"empty query string"` (prefix stripped)
+/// → Display: `"E-QUERY-001: query parse error at offset 0: empty query string"` (single prefix)
+///
+/// Traces: F-PQLFN-PR12-OBS-001; DEFECT-PQL-FNCALL-LHS-001; ADR-048 §D.7.2.
+#[tokio::test]
+async fn test_f_pqlfn_pr12_obs_001_empty_query_single_prefix_lock() {
+    let engine = make_crowdstrike_detections_engine();
+    let result = engine
+        .execute("", crate::engine::QueryOptions::default())
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR12-OBS-001: empty query must produce QueryParseFailed. Got: {result:?}"
+    );
+
+    let display = format!("{}", result.unwrap_err());
+
+    // "E-QUERY-001:" must appear EXACTLY ONCE in Display.
+    //
+    // RED state: count == 2 — materialization.rs else-branch returns
+    //   e.message.clone() = "E-QUERY-001: empty query string"; the outer
+    //   QueryParseFailed template prepends "E-QUERY-001: query parse error at
+    //   offset 0: " again → doubled prefix.
+    //
+    // GREEN state: count == 1 — strip applied to both branches → detail =
+    //   "empty query string"; only the outer template contributes "E-QUERY-001:".
+    let count = display.matches("E-QUERY-001:").count();
+    assert_eq!(
+        count, 1,
+        "F-PQLFN-PR12-OBS-001: Display must contain EXACTLY ONE 'E-QUERY-001:' \
+         (ADR-048 §D.7.2 de-prefix discipline). \
+         RED state: count == 2 — non-semantic else-branch in materialization.rs \
+         returns e.message.clone() with the embedded 'E-QUERY-001: ' prefix, \
+         QueryParseFailed template adds another. Got display: {display:?}"
+    );
+}

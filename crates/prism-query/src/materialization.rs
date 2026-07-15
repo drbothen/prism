@@ -594,16 +594,22 @@ pub async fn run_materialization_pipeline(
             detail: errs
                 .iter()
                 .map(|e| {
-                    if e.semantic {
-                        // Strip embedded "E-QUERY-001: " prefix if present — the outer
-                        // QueryParseFailed template supplies the single canonical prefix.
-                        let msg = &e.message;
-                        msg.strip_prefix("E-QUERY-001: ").unwrap_or(msg).to_string()
-                    } else {
-                        // Use bare message: avoids the double "parse error at offset N:"
-                        // that `e.to_string()` (ParseError::Display) would produce.
-                        e.message.clone()
-                    }
+                    // ADR-048 §D.7.2 de-prefix discipline (F-PQLFN-PR12-OBS-001):
+                    // Strip a leading "E-QUERY-001: " from e.message regardless of
+                    // whether the error is semantic or structural.
+                    //
+                    // Semantic errors (e.semantic == true, from Rich::custom/try_map):
+                    //   message = "E-QUERY-001: …" (embedded code) → strip to avoid doubling
+                    //   message = "E-QUERY-003: …" or "EC-004: …" → no prefix, unchanged
+                    //
+                    // Non-semantic errors (RichReason::ExpectedFound): message = bare Chumsky
+                    //   description ("found '@', expected …"), normally no prefix → unchanged.
+                    //   Exception: early-exit guards in filter_parser / pipe_parser use
+                    //   ParseError::new(0, "E-QUERY-001: empty query string") before Chumsky
+                    //   parsing begins; these have semantic == false but carry the prefix.
+                    //   The strip is correct for both cases: safe when absent, required when present.
+                    let msg = &e.message;
+                    msg.strip_prefix("E-QUERY-001: ").unwrap_or(msg).to_string()
                 })
                 .collect::<Vec<_>>()
                 .join("; "),
@@ -644,22 +650,16 @@ pub async fn run_materialization_pipeline(
         // overflow in the constant-fold arm produces E-QUERY-001 instead of panicking.
         crate::inject_now(ast, &now_literal_expr).map_err(|errs| PrismError::QueryParseFailed {
             offset: errs.first().map(|e| e.offset).unwrap_or(0),
-            // ADR-048 §D.7.2 de-prefix discipline: same semantic-aware detail
-            // formatting as the Step 1 parse site above (strip "E-QUERY-001: "
-            // prefix so the QueryParseFailed template does not double it).
-            // Non-semantic errors use `e.message` directly — NOT `e.to_string()`
-            // which would produce "parse error at offset N: <msg>" causing double
-            // prefix. Fix: DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 F-PQLFN-PR11-OBS-002.
+            // ADR-048 §D.7.2 de-prefix discipline: same detail formatting as
+            // the Step 1 parse site above (strip "E-QUERY-001: " from both
+            // semantic and non-semantic errors).
+            // Fix: DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 F-PQLFN-PR11-OBS-002
+            //      + fix-burst-43 F-PQLFN-PR12-OBS-001 (extended to non-semantic).
             detail: errs
                 .iter()
                 .map(|e| {
-                    if e.semantic {
-                        let msg = &e.message;
-                        msg.strip_prefix("E-QUERY-001: ").unwrap_or(msg).to_string()
-                    } else {
-                        // Use bare message: avoids the double "parse error at offset N:"
-                        e.message.clone()
-                    }
+                    let msg = &e.message;
+                    msg.strip_prefix("E-QUERY-001: ").unwrap_or(msg).to_string()
                 })
                 .collect::<Vec<_>>()
                 .join("; "),

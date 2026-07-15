@@ -37,7 +37,7 @@ import sys
 EXPECTED_COUNT = 92
 
 EXPECTED_SYMBOLS = [
-    # ── E0639 struct literal violations (68 total) ──────────────────────────
+    # ── E0639 struct literal violations (69 total) ──────────────────────────
     # Names match the identifier used in the struct literal expression in
     # tests/external/non-exhaustive-violation/src/struct_violations.rs.
     # Some are local aliases (e.g. TypesSensorTableDescriptor for types::SensorTableDescriptor).
@@ -109,6 +109,7 @@ EXPECTED_SYMBOLS = [
     "SqlPipeQuery",               # v86 (struct_violations) prism_query::ast::SqlPipeQuery
     "UnknownSourceTableDetails",  # v87 prism_core::error::UnknownSourceTableDetails
     "EnrichUdfNotFoundDetails",   # v88 prism_core::error::EnrichUdfNotFoundDetails
+    "ParseError",                 # v92 prism_query::error::ParseError (DEFECT-PQL-FNCALL-LHS-001 §OBS-005)
     # ── E0004 enum match violations (23 entries; 22 unique after prism_core::ColumnType dedup) ──
     # Names are the last path segment from `note: \`path::TypeName\` defined here`.
     "PaginationConfig",      # v07 spec_parser::PaginationConfig
@@ -134,7 +135,6 @@ EXPECTED_SYMBOLS = [
     "prism_core::VirtualField",  # v90 prism_core::VirtualField (re-exported; compiler note is 2-part → 2-seg join = "prism_core::VirtualField"; disambiguates from v91)
     "ast::VirtualField",     # v91 prism_query::ast::VirtualField (2-seg: disambiguates from v90)
     "ExampleKind",           # v85 prism_mcp::resources::ExampleKind
-    "ParseError",            # v92 prism_query::error::ParseError (DEFECT-PQL-FNCALL-LHS-001 §OBS-005)
 ]
 
 # Belt-and-braces: verify the list length matches EXPECTED_COUNT at import time.
