@@ -84,8 +84,8 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       # S-MAINT-CI-DISK-EXHAUSTION-001 AC-002: reclaim preinstalled toolsets not needed by
       # Rust build, BEFORE rust-cache restore (prevents cache restore from filling disk first).
-      # Removes android/dotnet/haskell/docker-images/large-packages/swap-storage (25–35 GB freed
-      # on ubuntu-24.04). tool-cache intentionally NOT removed (keep installed toolchain tools).
+      # Removes android/dotnet/haskell/docker-images/large-packages (21–31 GB freed on ubuntu-24.04;
+      # swap preserved as OOM headroom per EC-008). tool-cache intentionally NOT removed.
       # Fallback pin: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
       - name: Reclaim disk space (Linux only)
         if: runner.os == 'Linux'
@@ -96,7 +96,7 @@ jobs:
           haskell: true
           docker-images: true
           large-packages: true
-          swap-storage: true
+          swap-storage: false
       - name: Verify >=25 GB free after reclaim
         if: runner.os == 'Linux'
         run: |
@@ -153,12 +153,6 @@ jobs:
         env:
           PROPTEST_CASES: ${{ matrix.proptest_cases }}
           RUSTFLAGS: ${{ runner.os == 'Linux' && '-C link-arg=-fuse-ld=mold' || '' }}
-          # CARGO_PROFILE_DEV_DEBUG="line-tables-only": Cargo 1.71+ accepts string profile values
-          # via env. Produces minimal DWARF (file:line only); eliminates full DWARF for smaller
-          # target/ artifacts on runners with limited disk. S-MAINT-CI-DISK-EXHAUSTION-001 AC-003.
-          # DO NOT use "0" or numeric 0 (no debug) — that removes backtraces entirely.
-          # NOTE: numeric 1 maps to "limited" (strictly larger than line-tables-only) since Rust 1.70.
-          CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
         run: cargo nextest run --workspace --all-features --profile ci
       - name: Run doctests (linux-gnu only — nextest skips doctests)
         if: matrix.run_doctests
@@ -170,7 +164,6 @@ jobs:
         # is available at this point in the job; no additional setup needed.
         env:
           RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
-          CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
         run: cargo test --workspace --all-features --doc
       - name: Upload JUnit results
         if: always()
@@ -201,7 +194,34 @@ jobs:
     needs: clippy
     runs-on: ubuntu-latest
     steps:
+      # S-MAINT-CI-DISK-EXHAUSTION-001 AC-001: disk-free preflight — captures pristine baseline
+      # before checkout and rust-cache restore (F-CIDISK-P4-MED-002).
+      - name: Report initial disk space
+        run: df -h
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # S-MAINT-CI-DISK-EXHAUSTION-001 AC-002: reclaim preinstalled toolsets not needed by Rust
+      # build, BEFORE rust-cache restore (F-CIDISK-P4-MED-002). Same inputs as linux-test legs.
+      # Fallback pin: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+      - name: Reclaim disk space
+        uses: insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          docker-images: true
+          large-packages: true
+          swap-storage: false
+      - name: Verify >=25 GB free after reclaim
+        run: |
+          # df -P / output: Filesystem, 1K-blocks, Used, Available, Use%, Mounted
+          # Available ($4) is in 1K-blocks; divide by (1024*1024) to convert to GiB
+          AVAIL_GB=$(df -P / | awk 'NR==2 { print int($4 / 1024 / 1024) }')
+          AVAIL_GB=${AVAIL_GB:-0}  # Guard: awk returns empty if df fails; default 0 prevents -ge test failure
+          [ "$AVAIL_GB" -ge 25 ] || {
+            df -h
+            echo "::error::Disk reclaim insufficient: only ${AVAIL_GB} GB free (need ≥25 GB). See S-MAINT-CI-DISK-EXHAUSTION-001."
+            exit 1
+          }
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - name: Install protoc (required by prost-build for prism-ocsf)
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
@@ -232,6 +252,17 @@ jobs:
           PROPTEST_CASES: 1000
           RUSTFLAGS: -C link-arg=-fuse-ld=mold
         run: cargo nextest run --workspace --no-default-features --exclude prism-dtu-demo-server --profile ci
+      # S-MAINT-CI-DISK-EXHAUSTION-001 AC-004: disk-exhaustion failure annotation (F-CIDISK-P4-MED-002).
+      # Runs on job failure to check if disk is near-full (>=95% used).
+      - name: Disk-exhaustion failure annotation
+        if: failure()
+        run: |
+          USED_PCT=$(df / | awk 'NR==2 { gsub(/%/, "", $5); print $5 }')
+          USED_PCT=${USED_PCT:-0}  # Guard: awk returns empty if df fails; default 0 prevents -ge test failure
+          df -h
+          if [ "${USED_PCT}" -ge 95 ]; then
+            echo "::warning::Disk near-full (${USED_PCT}% used) on runner — likely S-MAINT-CI-DISK-EXHAUSTION-001 class failure. Evidence runs: 29394488318 / 29399778005 / 29404746333 (PR #223, 2026-07-15)."
+          fi
 
   wasm32-compile-check:
     name: WASM32 compile check + .prx build (S-PLUGIN-CI-001 AC-001)
@@ -1469,10 +1500,10 @@ jobs:
           [ "$TARGET_COUNT" -ge 5 ] || { echo "AC-5 FAIL: expected >=5 target entries, got $TARGET_COUNT"; exit 1; }
           # AC-6: cargo-deny + cargo-audit jobs exist
           grep -qE '(cargo.?deny|cargo.?audit)' .github/workflows/ci.yml || { echo 'AC-6 FAIL'; exit 1; }
-          # AC-7: semver check job exists
-          grep -qE 'semver' .github/workflows/ci.yml || { echo 'AC-7 FAIL'; exit 1; }
-          # AC-8: no-default-features job exists (added in Pass 2 remediation)
-          grep -qE 'no-default-features' .github/workflows/ci.yml || { echo 'AC-8 FAIL'; exit 1; }
+          # AC-7: semver check job exists (job-name anchor; 2-space indent; F-CIDISK-P4-HIGH-002)
+          grep -qE '^  semver-checks:' .github/workflows/ci.yml || { echo 'AC-7 FAIL'; exit 1; }
+          # AC-8: no-default-features job exists (job-name anchor; 2-space indent; F-CIDISK-P4-LOW-001)
+          grep -qE '^  test-no-default-features:' .github/workflows/ci.yml || { echo 'AC-8 FAIL'; exit 1; }
           # AC-5 forward-compat enforcement job reachability (F-LP2-HIGH-002):
           # The non-exhaustive-violation-compile-fail job is the SOLE enforcement of
           # #[non_exhaustive] on all pub TOML-deserialized types. A future PR removing
@@ -1559,19 +1590,39 @@ jobs:
           # that runs before actions/checkout to capture a pristine baseline. A future PR removing
           # this step would silently remove post-hoc disk-exhaustion analysis capability.
           # Anchored to YAML step-name syntax (^\s+- name:) — indent-agnostic and self-match-proof.
-          # The assertion line starts with whitespace+grep, not whitespace+"- name:", so the
-          # ^ anchor cannot match the assertion line even though the pattern text appears inside it.
-          grep -qE '^\s+- name: Report initial disk space\s*$' .github/workflows/ci.yml || {
-            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-001: disk preflight step missing from ci.yml"
+          # Count-based: must appear in ≥2 Linux jobs (linux-test + test-no-default-features).
+          # The assertion line starts with whitespace+count=$(grep..., not whitespace+"- name:", so
+          # the ^ anchor cannot self-match.
+          count=$(grep -cE '^\s+- name: Report initial disk space\s*$' .github/workflows/ci.yml)
+          [ "$count" -ge 2 ] || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-001: disk preflight step missing from ≥2 Linux jobs (found ${count}; need linux-test + test-no-default-features)"
             exit 1
           }
-          echo 'S-MAINT-CI-DISK-EXHAUSTION-001 AC-001 check passed: disk preflight step present.'
+          echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-001 check passed: disk preflight step found ${count} times (≥2 required)."
           # Anchored to YAML uses: key syntax (^\s+uses:) — self-match-proof.
-          # The assertion line starts with whitespace+grep, not whitespace+"uses:", so the
-          # ^ anchor prevents the assertion line from matching itself when grep scans ci.yml.
-          grep -qE '^\s+uses: insightsengineering/disk-space-reclaimer' .github/workflows/ci.yml || {
-            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-002: disk-space-reclaimer action missing from ci.yml"
+          # Count-based: must appear in ≥2 Linux jobs (linux-test + test-no-default-features).
+          # The assertion line starts with whitespace+count=$(grep..., not whitespace+"uses:", so
+          # the ^ anchor cannot self-match.
+          count=$(grep -cE '^\s+uses: insightsengineering/disk-space-reclaimer' .github/workflows/ci.yml)
+          [ "$count" -ge 2 ] || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-002: disk-space-reclaimer missing from ≥2 Linux jobs (found ${count}; need linux-test + test-no-default-features)"
             exit 1
           }
-          echo 'S-MAINT-CI-DISK-EXHAUSTION-001 AC-002 check passed: disk-space-reclaimer action present.'
-          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001/AC-002 reachability assertions pass (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof).'
+          echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-002 check passed: disk-space-reclaimer action found ${count} times (≥2 required)."
+          # Assertion 3: [profile.dev] debug = "line-tables-only" must remain in .cargo/config.toml.
+          # Anchored to column-0 assignment syntax; self-match impossible (file is .cargo/config.toml,
+          # not ci.yml; the verify-workflow-structure shell script does not contain this literal).
+          grep -qE '^debug = "line-tables-only"' .cargo/config.toml || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-003: .cargo/config.toml missing debug = \"line-tables-only\" in [profile.dev] — this disk-footprint invariant must not be removed"
+            exit 1
+          }
+          echo 'S-MAINT-CI-DISK-EXHAUSTION-001 AC-003 assertion-3 passed: .cargo/config.toml debug = "line-tables-only" present.'
+          # Assertion 4: [profile.dev.package."*"] section must exist (per-package debug = false override).
+          # Literal-string match (grep -F); self-match impossible (this TOML section header cannot appear
+          # in a bash script line inside verify-workflow-structure without quotes that break the match).
+          grep -qF '[profile.dev.package."*"]' .cargo/config.toml || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-003: .cargo/config.toml missing [profile.dev.package.\"*\"] section — dependency debug-info override must not be removed"
+            exit 1
+          }
+          echo 'S-MAINT-CI-DISK-EXHAUSTION-001 AC-003 assertion-4 passed: [profile.dev.package."*"] section present.'
+          echo 'All verify-workflow-structure assertions pass: AC-5..AC-8 (AC-7/AC-8 anchored) + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001/AC-002 (count≥2) — all reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 additional).'
