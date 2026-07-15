@@ -45,7 +45,7 @@ All 7 compare_op alternatives byte-matched against source:
 ### Phase C: Reserved keyword gate — byte-matched
 
 20 RESERVED_KEYWORDS case-insensitive list byte-matched against source:
-NOT/AND/OR/XOR/IN/LIKE/ILIKE/BETWEEN/IS/NULL/TRUE/FALSE/CAST/CASE/WHEN/THEN/ELSE/END/EXTRACT/INTERVAL
+NOT/AND/OR/IN/IIN/IEQ/INE/IS/BETWEEN/LIKE/CIDR/MATCHES/HAS/MISSING/CONTAINS/ICONTAINS/STARTSWITH/ISTARTSWITH/ENDSWITH/IENDSWITH [narrative-only correction per F-PQLFN-P46-MED-001; original list was not derived from grep]
 
 ### Phase C: Non-compose productions — Expr walker enumeration
 

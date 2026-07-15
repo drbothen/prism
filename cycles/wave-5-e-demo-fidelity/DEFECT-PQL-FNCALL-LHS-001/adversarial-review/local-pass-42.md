@@ -68,7 +68,7 @@ Pass-42 confirms all pass-41 and earlier verifications remain stable at frozen H
 
 - **Regression-to-develop assessment CLEAN:** The fold in `predicate_fncall_names` that chains `collect_unknown_scalar_offsets_from_predicate` across positions preserves the E-QUERY-039 chain correctly. Identifier/digit-leading field_path backtrack paths are unaffected by the grammar extension. No regression to develop observed.
 
-- **LOW-006 keyword-list exhaustiveness vs atom productions (NULL correctly omitted):** The 20-keyword reserved-word exclusion list in `fn_call_comparison` (NOT/AND/OR/XOR/IN/LIKE/ILIKE/BETWEEN/IS/NULL/TRUE/FALSE/CAST/CASE/WHEN/THEN/ELSE/END/EXTRACT/INTERVAL) was verified against the full atom-choice ordering. `NULL` is a reserved keyword and is correctly included in the exclusion list. No admission gap for keyword-shaped fn-names at 5e4c7ccb.
+- **LOW-006 keyword-list exhaustiveness vs atom productions:** The 20-keyword reserved-word exclusion list in `fn_call_comparison` (NOT/AND/OR/IN/IIN/IEQ/INE/IS/BETWEEN/LIKE/CIDR/MATCHES/HAS/MISSING/CONTAINS/ICONTAINS/STARTSWITH/ISTARTSWITH/ENDSWITH/IENDSWITH) [narrative-only correction per F-PQLFN-P46-MED-001; original list was not derived from grep] was verified against the full atom-choice ordering. No admission gap for keyword-shaped fn-names at 5e4c7ccb.
 
 - **E-QUERY-042 arm-4 before E-QUERY-037 ordering architect-ratified:** Gate ordering E-QUERY-042 arm-4 (NonColumnLhsComparison) fires at plan time before E-QUERY-037 in the fn-call LHS path — this ordering was architect-ratified (ADR-052 §D4 v1.11); confirmed consistent at 5e4c7ccb.
 
