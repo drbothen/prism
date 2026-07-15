@@ -60,3 +60,20 @@ PR-LEVEL adversarial cascade on frozen pushed HEAD `973aedcf`.
 - Fresh streak: 0/3 (BC-5.39.001)
 - DRIFT-ORCH-PRLEVEL-PUSH-001: no pushes mid-cascade
 - Handoff items: see `adversarial-review/local-pass-49.md §CONVERGENCE`
+
+---
+
+## PR Body Append — 2026-07-15 (pass-7)
+
+Section appended to PR #223 body after PR-LEVEL adversarial pass-7 surfaced F-PQLFN-PR7-OBS-001.
+Appended to the `## MERGE-GATE DISCLOSURES` section; corresponding pre-merge checklist row added.
+
+### Merge-Gate Disclosure — LOW-006 DataFusion-name collision cost (F-PQLFN-PR7-OBS-001)
+
+- The LOW-006 reserved-keyword gate (BC-2.11.004 v1.48, 21 keywords) rejects PrismQL operator keywords used as function-call LHS in predicates (E-QUERY-001 parse-time). This is a ratified, documented scope limit.
+- Cost surfaced by PR-LEVEL adversarial pass-7: the list includes `CONTAINS` / `STARTSWITH` / `ENDSWITH` / `ICONTAINS` / `ISTARTSWITH` / `IENDSWITH`. Of these, `contains` collides with a same-spelled DataFusion 53.1 scalar function — so `WHERE contains(hostname, 'malware') = TRUE` is rejected at parse time even though `contains(...)` works in SELECT projection position. The underscore-spelled DataFusion variants (`starts_with`, `ends_with`) are NOT in the keyword list and remain usable as predicate-LHS fn-calls.
+- This is NOT a regression (pre-branch, all fn-call LHS predicates failed with a generic parse error) and is fail-safe (clear keyword-rejection message).
+- **HUMAN FEATURE-DECISION requested at merge gate** (per BC-2.11.004 EC-11-004-006 "surface in PR body for human feature-decision"): keep the 21-keyword list as-is (recommended — conservative, message is clear), or open a follow-up story to re-adjudicate the exclusion list (e.g., permit `contains`/`startswith`/`endswith` as fn-call LHS since the parenthesized form is unambiguous vs the operator form). No code change rides this PR either way.
+
+Pre-merge checklist row added:
+`- [ ] MERGE-GATE FEATURE-DECISION: LOW-006 keyword list adjudication — keep 21-keyword list as-is or open follow-up story (F-PQLFN-PR7-OBS-001)`
