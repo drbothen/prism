@@ -103,6 +103,7 @@ jobs:
           # df -P / output: Filesystem, 1K-blocks, Used, Available, Use%, Mounted
           # Available ($4) is in 1K-blocks; divide by (1024*1024) to convert to GiB
           AVAIL_GB=$(df -P / | awk 'NR==2 { print int($4 / 1024 / 1024) }')
+          AVAIL_GB=${AVAIL_GB:-0}  # Guard: awk returns empty if df fails; default 0 prevents -ge test failure
           [ "$AVAIL_GB" -ge 25 ] || {
             df -h
             echo "::error::Disk reclaim insufficient: only ${AVAIL_GB} GB free (need ≥25 GB). See S-MAINT-CI-DISK-EXHAUSTION-001."
@@ -1499,9 +1500,10 @@ jobs:
           # S-PLUGIN-CI-001 AC-001 reachability assertion:
           # The wasm32-compile-check job must include the .prx build step that runs
           # `just build-plugin-crowdstrike-oauth2`. Anchored to the leading-whitespace run
-          # command ('^[[:space:]]+just ...') so a commented-out step does NOT match
-          # ('#          just ...' starts with '#', not whitespace-then-'just').
-          grep -qE '^[[:space:]]+just build-plugin-crowdstrike-oauth2' .github/workflows/ci.yml || {
+          # command ('^[[:space:]]+just ... \s*$') so a commented-out step does NOT match
+          # ('#          just ...' starts with '#', not whitespace-then-'just'); trailing
+          # \s*$ ensures the assertion line cannot match itself (self-match-proof, fix-burst-3).
+          grep -qE '^\s+just build-plugin-crowdstrike-oauth2\s*$' .github/workflows/ci.yml || {
             echo "::error::S-PLUGIN-CI-001 AC-001: 'just build-plugin-crowdstrike-oauth2' run step is missing from ci.yml — .prx build gate removed (S-PLUGIN-CI-001 AC-001)"
             exit 1
           }
@@ -1556,18 +1558,20 @@ jobs:
           # The Test job must include a disk-free preflight step ("Report initial disk space" / df -h)
           # that runs before actions/checkout to capture a pristine baseline. A future PR removing
           # this step would silently remove post-hoc disk-exhaustion analysis capability.
-          grep -qE 'name: Report initial disk space' .github/workflows/ci.yml || {
+          # Anchored to YAML step-name syntax (^\s+- name:) — indent-agnostic and self-match-proof.
+          # The assertion line starts with whitespace+grep, not whitespace+"- name:", so the
+          # ^ anchor cannot match the assertion line even though the pattern text appears inside it.
+          grep -qE '^\s+- name: Report initial disk space\s*$' .github/workflows/ci.yml || {
             echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-001: disk preflight step missing from ci.yml"
             exit 1
           }
           echo 'S-MAINT-CI-DISK-EXHAUSTION-001 AC-001 check passed: disk preflight step present.'
-          # S-MAINT-CI-DISK-EXHAUSTION-001 AC-002 reachability assertion:
-          # The Test job must include insightsengineering/disk-space-reclaimer to prevent
-          # disk-exhaustion failures (3 consecutive CI failures on PR #223, 2026-07-15).
-          # A future PR removing this action would silently re-expose the failure mode.
-          grep -qE 'uses:.*insightsengineering/disk-space-reclaimer' .github/workflows/ci.yml || {
+          # Anchored to YAML uses: key syntax (^\s+uses:) — self-match-proof.
+          # The assertion line starts with whitespace+grep, not whitespace+"uses:", so the
+          # ^ anchor prevents the assertion line from matching itself when grep scans ci.yml.
+          grep -qE '^\s+uses: insightsengineering/disk-space-reclaimer' .github/workflows/ci.yml || {
             echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-002: disk-space-reclaimer action missing from ci.yml"
             exit 1
           }
           echo 'S-MAINT-CI-DISK-EXHAUSTION-001 AC-002 check passed: disk-space-reclaimer action present.'
-          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001/AC-002 reachability assertions pass (anchored job-definition patterns, F-MCPNULL-P3-LOW-003).'
+          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001/AC-002 reachability assertions pass (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof).'
