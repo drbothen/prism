@@ -1,12 +1,12 @@
 ---
 document_type: story
 story_id: S-MAINT-CI-DISK-EXHAUSTION-001
-title: "CI disk-exhaustion hardening — preflight + free-disk-space + CARGO_PROFILE_DEV_DEBUG=1 + failure annotation"
+title: "CI disk-exhaustion hardening — preflight + disk-space-reclaimer + CARGO_PROFILE_DEV_DEBUG=\"line-tables-only\" + failure annotation"
 wave: tbd
 epic_id: maintenance
 priority: P2
-status: draft
-version: "0.1"
+status: ready
+version: "0.3"
 level: ops
 producer: story-writer
 timestamp: "2026-07-15"
@@ -28,9 +28,41 @@ subsystems: []
 crates_touched: []
 target_module: devops
 behavioral_contracts: []
-# BC status: pending PO authorship — no formal BC governs CI runner disk utilization.
-# This story is CI toolchain-only; no production behavior is affected. Status must
-# remain draft until a PO authors BCs (S-7.01 spec-first gate).
+# BC status: CONFORMING (no BC required). PO adjudication 2026-07-15 (Option B).
+#
+# This story is CI toolchain-only: it modifies .github/workflows/ci.yml (runner
+# disk reclaim, preflight, CARGO_PROFILE_DEV_DEBUG env, failure annotation) and
+# adds structural assertions to the verify-workflow-structure job. No product
+# subsystem (SS-01..SS-22) is touched; no production behavior observable by an
+# MCP client is affected.
+#
+# Controlling precedent: W3-FIX-CI-001 (merged, PR #112, behavioral_contracts: [])
+# shipped without BCs under the same rationale ("no formal BC governs dev toolchain
+# speed. This story is tooling-only; no production behavior is affected."). That
+# story was accepted as merged — establishing the project's no-BC convention for
+# CI-toolchain-only maintenance stories.
+#
+# Why no BC can be authored in good conscience:
+#   1. Every BC in this project anchors to a CAP-NNN from capabilities.md. No
+#      CAP-NNN covers CI runner disk management, GitHub Actions workflow structure,
+#      or developer-experience toolchain concerns. Inventing one would fabricate a
+#      domain capability with no L2 domain spec basis.
+#   2. ARCH-INDEX Subsystem Registry (SS-01..SS-22) contains product subsystems
+#      only. No CI/devops subsystem exists to anchor a BC subsystem: field.
+#   3. The verify-workflow-structure RED GATE tests embedded in ci.yml (AC-001,
+#      AC-002) ARE the correct VSDD artifact for CI structural invariants — they
+#      are self-describing CI assertions living inside the workflow, not product
+#      behavioral contracts.
+#   4. Authoring a BC for "CI disk ≥25 GB after reclaim" under a fabricated
+#      CAP-NNN would violate the Capability Anchor Justification rule (S-7.01
+#      Semantic Anchoring Audit) more severely than the current empty state.
+#
+# S-MAINT-REQWEST-RUSTLS-GATE-001 is in the same situation and benefits from the
+# same ratification (its "pending PO authorship" comment is also CONFORMING under
+# this precedent; state-manager should update it in the same burst).
+#
+# behavioral_contracts: [] is CONFORMING for CI-toolchain-only stories.
+# The S-7.01 draft-blocker is RESOLVED by this adjudication.
 verification_properties: []
 depends_on: []
 blocks: []
@@ -45,7 +77,7 @@ assumption_validations: []
 triggered_by: "D-1780 watch-note (3rd disk-exhaustion occurrence on PR #223 CI runs 2026-07-15)"
 ---
 
-# S-MAINT-CI-DISK-EXHAUSTION-001: CI disk-exhaustion hardening — preflight + free-disk-space + CARGO_PROFILE_DEV_DEBUG=1 + failure annotation
+# S-MAINT-CI-DISK-EXHAUSTION-001: CI disk-exhaustion hardening — preflight + disk-space-reclaimer + CARGO_PROFILE_DEV_DEBUG="line-tables-only" + failure annotation
 
 ## §Origin
 
@@ -66,13 +98,15 @@ footprint.
 
 ## §Root Cause Hypothesis
 
-GitHub `ubuntu-latest` hosted runners provision approximately 14 GB of free disk space
-by default. A 26-crate Rust workspace compiled in dev mode (full DWARF debug symbols)
-generates large `.d`, `.rlib`, `.rmeta`, and `.o` artifacts under `target/`. The
-`Swatinem/rust-cache` action restores prior artifacts, which reduces compile time but
-increases the effective starting disk footprint — the cache restore consumes disk before
-the incremental build begins. Under high-concurrency PR activity, a runner may land
-with materially less than 14 GB available.
+GitHub documents 14 GB as the guaranteed MINIMUM free disk space for `ubuntu-latest`
+hosted runners; empirical ubuntu-24.04 measurements show ~22–29 GB free at job start
+on a ~72 GB root filesystem. The observed failures indicate runners landing near the
+documented floor. A 26-crate Rust workspace compiled in dev mode (full DWARF debug
+symbols) generates large `.d`, `.rlib`, `.rmeta`, and `.o` artifacts under `target/`.
+The `Swatinem/rust-cache` action restores prior artifacts, which reduces compile time
+but increases the effective starting disk footprint — the cache restore consumes disk
+before the incremental build begins. Under high-concurrency PR activity, a runner may
+land near or below the 14 GB guaranteed minimum.
 
 Re-runs succeed because the failed run wrote partial artifacts to the cache; the
 re-run increments on those artifacts and does less linking work, consuming less peak
@@ -108,11 +142,18 @@ grep -qE 'Report initial disk space|df -h' .github/workflows/ci.yml || {
 
 ### AC-002 — Pre-build disk reclaim targeting ≥25 GB free
 
-A disk-reclaim step using `jlumbroso/free-disk-space` (pinned to a specific commit SHA)
-runs in the Test job after `actions/checkout` but before the `Swatinem/rust-cache`
-restore and build phase. It removes preinstalled toolsets not needed by the Rust build:
-Android SDK (~8 GB), Haskell GHC (~3 GB), .NET SDK (~4 GB), and large apt/docker
-package caches. Total expected reclaim: 14–18 GB.
+A disk-reclaim step using `insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2`
+(actively-maintained drop-in fork of jlumbroso/free-disk-space; upstream unmaintained
+since 2023-10) runs in the Test job after `actions/checkout` but before the
+`Swatinem/rust-cache` restore and build phase. It removes preinstalled toolsets not
+needed by the Rust build with inputs: `android: true`, `dotnet: true`, `haskell: true`,
+`docker-images: true`, `large-packages: true`, `swap-storage: true`. Total expected
+reclaim: 25–35 GB on ubuntu-24.04 with these inputs enabled.
+
+Documented fallback: `jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1`
+(upstream, unmaintained since 2023-10). If the fork diverges or becomes unmaintained,
+revert to this pin. The `tool-cache` / `tools-cache` input (renamed in the fork) is
+NOT removed — this story does not remove tool cache; leave the input unset.
 
 A verification step immediately after the reclaim step confirms at least 25 GB free
 via `df -h`. If post-reclaim free space is below 25 GB, the job fails early with a
@@ -127,37 +168,41 @@ AVAIL_GB=$(df / | awk 'NR==2 { gsub(/G/, "", $4); print int($4 / 1024 / 1024) }'
 }
 ```
 
-The `verify-workflow-structure` job gains an assertion confirming the free-disk-space
+The `verify-workflow-structure` job gains an assertion confirming the disk-space-reclaimer
 action is present in `ci.yml` (Red Gate test 2):
 
 ```bash
-grep -qE 'free-disk-space' .github/workflows/ci.yml || {
-  echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-002: free-disk-space action missing from ci.yml"
+grep -qE 'uses:.*insightsengineering/disk-space-reclaimer' .github/workflows/ci.yml || {
+  echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-002: disk-space-reclaimer action missing from ci.yml"
   exit 1
 }
 ```
 
-### AC-003 — Build-artifact footprint bounding via CARGO_PROFILE_DEV_DEBUG=1
+### AC-003 — Build-artifact footprint bounding via CARGO_PROFILE_DEV_DEBUG="line-tables-only"
 
-The Test job's `env:` block gains `CARGO_PROFILE_DEV_DEBUG: 1`. In Rust ≥ 1.71 this
-maps to `debug = "line-tables-only"`, producing minimal DWARF sections (source file and
-line numbers only) rather than the full variable/type information that drives large
-artifact footprint. This preserves source-location backtraces in test failure output
-while eliminating the 10-20× size multiplier of full debug info.
+The Test job's `env:` block gains `CARGO_PROFILE_DEV_DEBUG: "line-tables-only"`. Since
+Rust 1.70, numeric `1` maps to `debug = "limited"` (NOT line-tables-only); the string
+literal `"line-tables-only"` is accepted by Cargo 1.71+ via env and is the only value
+that produces minimal DWARF sections (source file and line numbers only) rather than the
+full variable/type information that drives large artifact footprint. This preserves
+source-location backtraces in test failure output while eliminating the 10-20× size
+multiplier of full debug info. (remove-uncertainty pass 2026-07-15: CRITICAL correction
+— numeric `1` was wrong.)
 
-A comment at the env block documents the mapping and the rationale:
+A comment at the env block documents the value and the rationale:
 
 ```yaml
-# CARGO_PROFILE_DEV_DEBUG=1: maps to "line-tables-only" (Rust ≥1.71).
-# Preserves file:line in backtraces; eliminates full DWARF for smaller
+# CARGO_PROFILE_DEV_DEBUG="line-tables-only": Cargo 1.71+ accepts string profile values
+# via env. Produces minimal DWARF (file:line only); eliminates full DWARF for smaller
 # target/ artifacts on runners with limited disk. S-MAINT-CI-DISK-EXHAUSTION-001 AC-003.
-# DO NOT use 0 (no debug) — that removes backtraces entirely.
-CARGO_PROFILE_DEV_DEBUG: 1
+# DO NOT use "0" or numeric 0 (no debug) — that removes backtraces entirely.
+# NOTE: numeric 1 maps to "limited" (strictly larger than line-tables-only) since Rust 1.70.
+CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
 ```
 
 The implementer records approximate before/after `du -sh target/` for a local dev
-debug build (with and without `CARGO_PROFILE_DEV_DEBUG=1`) in the PR description as
-size-reduction evidence.
+debug build (with and without `CARGO_PROFILE_DEV_DEBUG: "line-tables-only"`) in the PR
+description as size-reduction evidence.
 
 ### AC-004 — Disk-exhaustion failure annotation step
 
@@ -188,23 +233,33 @@ changes cleanly bisectable.
 
 ## §Implementation Notes
 
-**Free-disk-space action choice and SHA pinning:** `jlumbroso/free-disk-space` is the
-community-standard action for ubuntu-latest disk reclaim. Configure it to remove
-`android: true`, `haskell: true`, `dotnet: true`; leave Docker unless build logs show
-it contributes to the failure. The action MUST be pinned to a specific commit SHA with
-a `# vN.N.N` comment before merge — identical requirement to all other actions in
-`ci.yml`. Fetch the current commit SHA for the desired tag at PR-author time.
+**Disk-space-reclaimer action choice and SHA pinning:** The actively-maintained fork
+`insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2`
+supersedes the unmaintained upstream `jlumbroso/free-disk-space` (last maintained
+2023-10). Configure with inputs: `android: true`, `dotnet: true`, `haskell: true`,
+`docker-images: true`, `large-packages: true`, `swap-storage: true`. Leave `tools-cache`
+(formerly `tool-cache`) unset — this story does not remove the tool cache. Documented
+fallback: `jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1`
+(record in PR description for posterity). The action MUST be pinned to the specific SHA
+shown — identical SHA-pinning requirement to all other actions in `ci.yml`.
 
-**CARGO_PROFILE_DEV_DEBUG=1 scope:** Set on the Test job's `env:` block, NOT at
-workflow level, to avoid affecting unrelated jobs (fmt, clippy, deny). Both the
+**CARGO_PROFILE_DEV_DEBUG="line-tables-only" scope:** Set on the Test job's `env:` block,
+NOT at workflow level, to avoid affecting unrelated jobs (fmt, clippy, deny). Both the
 `x86_64-unknown-linux-gnu` and `x86_64-unknown-linux-musl` legs need it; applying to
-all five legs is also acceptable (macOS/Windows runners have more headroom but no
-harm).
+all five legs is also acceptable (macOS/Windows runners have more headroom but no harm).
+Use the string value `"line-tables-only"` — do NOT use numeric `1` (which maps to
+`"limited"` since Rust 1.70, a strictly larger debug level than line-tables-only).
 
-**Ordering constraint:** The free-disk-space step MUST run after `actions/checkout`
+**Ordering constraint:** The disk-space-reclaimer step MUST run after `actions/checkout`
 (so git metadata is intact) and BEFORE `Swatinem/rust-cache` (so the cache restore does
 not fill disk before reclaim). The preflight `df -h` step runs BEFORE checkout as a
-pristine baseline.
+pristine baseline. This ordering is confirmed correct-and-important (remove-uncertainty
+pass 2026-07-15).
+
+**Swatinem/rust-cache pin (optional verification note):** The current pin should be
+verified against v2.9.1 (`c19371144df3bb44fab255c43d04cbc2ab54d1c4`) at PR-author time.
+Rust-cache default pruning behavior suffices for disk management — no additional
+cache-pruning configuration is needed in this story.
 
 **verify-workflow-structure assertions:** Add the two new grep assertions to the
 existing `run:` block of the `verify-workflow-structure` job. Follow the exact pattern
@@ -221,7 +276,7 @@ Do not replace either existing key. Comment explains all three entries.
 |------|-----------------|
 | This story spec | ~3 k |
 | `.github/workflows/ci.yml` (read + modify Test job + verify-workflow-structure job) | ~6 k |
-| `jlumbroso/free-disk-space` README / SHA lookup | ~1 k |
+| `insightsengineering/disk-space-reclaimer` README / SHA (pre-validated, no lookup needed) | ~1 k |
 | Implementation scratch + comments | ~1 k |
 | **Total** | **~11 k** |
 
@@ -231,13 +286,13 @@ Well within a single agent context window; no splitting required.
 
 - [ ] Create maintenance branch `maintenance/ci-disk-hardening` from `develop`
 - [ ] Read `.github/workflows/ci.yml` in full (especially the Test job and `verify-workflow-structure` job)
-- [ ] Fetch the current commit SHA for `jlumbroso/free-disk-space` (latest stable tag)
+- [ ] Use the pre-validated SHA `dae9fabcb8febe09f6585471948acf9dc9a57489` for `insightsengineering/disk-space-reclaimer # v1.1.2` (no lookup needed; validated 2026-07-15 remove-uncertainty pass)
 - [ ] Add "Report initial disk space" step (`run: df -h`) as the FIRST step of the Test job (before `actions/checkout`)
-- [ ] Add `jlumbroso/free-disk-space@<SHA> # vN.N.N` step to Test job after checkout and before rust-cache; configure `android: true, haskell: true, dotnet: true`
-- [ ] Add "Verify ≥25 GB free" step immediately after the free-disk-space step (see AC-002 snippet)
-- [ ] Add `CARGO_PROFILE_DEV_DEBUG: 1` to the Test job `env:` block with the standard comment (AC-003); preserve existing `PROPTEST_CASES` and `RUSTFLAGS` entries
+- [ ] Add `insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2` step to Test job after checkout and before rust-cache; configure `android: true, dotnet: true, haskell: true, docker-images: true, large-packages: true, swap-storage: true`
+- [ ] Add "Verify ≥25 GB free" step immediately after the disk-space-reclaimer step (see AC-002 snippet)
+- [ ] Add `CARGO_PROFILE_DEV_DEBUG: "line-tables-only"` to the Test job `env:` block with the standard comment (AC-003); preserve existing `PROPTEST_CASES` and `RUSTFLAGS` entries
 - [ ] Add `if: failure()` disk-annotation step at the END of the Test job (after JUnit upload; see AC-004 snippet)
-- [ ] Add the two new grep assertions (AC-001 + AC-002) to the `verify-workflow-structure` job's existing `run:` block, following the pattern of the existing `non-exhaustive-violation-compile-fail` and `wasm32-compile-check` assertions
+- [ ] Add the two new grep assertions (AC-001 + AC-002) to the `verify-workflow-structure` job's existing `run:` block, following the pattern of the existing `non-exhaustive-violation-compile-fail` and `wasm32-compile-check` assertions (AC-002 grep: `uses:.*insightsengineering/disk-space-reclaimer`)
 - [ ] Record before/after `du -sh target/` sizes in the PR description (AC-003 evidence)
 - [ ] Record three consecutive green CI run IDs in the PR description (AC-005 evidence)
 
@@ -277,11 +332,12 @@ and `wasm32-compile-check` assertion pattern established during S-PLUGIN-PREREQ-
 - All new GitHub Actions steps must be pinned to a specific commit SHA with a `# vN.N.N`
   comment per the project SHA-pinning policy (every existing action in ci.yml is
   commit-pinned; no exceptions)
-- `CARGO_PROFILE_DEV_DEBUG=0` is FORBIDDEN — it eliminates backtraces entirely; use
-  `1` (line-tables-only) only
+- `CARGO_PROFILE_DEV_DEBUG: 0`, `CARGO_PROFILE_DEV_DEBUG: "0"`, and numeric `CARGO_PROFILE_DEV_DEBUG: 1`
+  are FORBIDDEN — `0` eliminates backtraces entirely; numeric `1` maps to `"limited"` (not
+  line-tables-only) since Rust 1.70. Use the string `"line-tables-only"` only.
 - The Test job's `env:` block additions must be additive (do NOT replace or rename
   existing `PROPTEST_CASES` or `RUSTFLAGS` entries)
-- The free-disk-space step must appear AFTER `actions/checkout` and BEFORE
+- The disk-space-reclaimer step must appear AFTER `actions/checkout` and BEFORE
   `Swatinem/rust-cache` to ensure the reclaim occurs before cache restore fills disk
 - This story's changes ride `maintenance/ci-disk-hardening`; they MUST NOT be merged
   through an open defect PR branch
@@ -292,8 +348,8 @@ No new Rust dependencies. CI tooling only:
 
 | Tool | Version constraint | Justification |
 |------|--------------------|---------------|
-| `jlumbroso/free-disk-space` | pin to specific commit SHA at PR-author time (not `@main`) | Community-standard ubuntu-latest disk reclaim; removes Android/Haskell/.NET |
-| `CARGO_PROFILE_DEV_DEBUG` env var | value `1` (line-tables-only; Rust ≥ 1.71) | Reduces debug artifact size; pinned stable toolchain is well past 1.71 |
+| `insightsengineering/disk-space-reclaimer` | `dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2` (validated 2026-07-15) | Actively-maintained drop-in fork of unmaintained jlumbroso/free-disk-space (last 2023-10). Removes android/dotnet/haskell/docker-images/large-packages/swap-storage. Fallback: `jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1` |
+| `CARGO_PROFILE_DEV_DEBUG` env var | value `"line-tables-only"` (string; Cargo 1.71+ string profile values via env) | Reduces debug artifact size. Numeric `1` maps to `"limited"` since Rust 1.70 — use string literal. `"0"` and numeric `0` are forbidden. |
 | `df` / `awk` | system utilities present on all ubuntu-latest runners | Used in preflight, ≥25 GB gate, and failure annotation steps |
 
 No new `apt-get` packages. No Python packages. No compiled Cargo dev-dependencies.
@@ -303,19 +359,19 @@ No new GitHub Actions secrets required.
 
 | File | Action | Notes |
 |------|--------|-------|
-| `.github/workflows/ci.yml` | MODIFY | Test job: add preflight, free-disk-space, ≥25 GB gate, `CARGO_PROFILE_DEV_DEBUG: 1` env entry, failure annotation; `verify-workflow-structure` job: add AC-001 + AC-002 assertions; no other jobs touched |
+| `.github/workflows/ci.yml` | MODIFY | Test job: add preflight, disk-space-reclaimer, ≥25 GB gate, `CARGO_PROFILE_DEV_DEBUG: "line-tables-only"` env entry, failure annotation; `verify-workflow-structure` job: add AC-001 + AC-002 assertions; no other jobs touched |
 
-No new files required. The `jlumbroso/free-disk-space` action is invoked as an inline
-`uses:` step; it does not require a new config file in the repository.
+No new files required. The `insightsengineering/disk-space-reclaimer` action is invoked
+as an inline `uses:` step; it does not require a new config file in the repository.
 
 ## §Forbidden Patterns
 
 | Pattern | Reason |
 |---------|--------|
-| `CARGO_PROFILE_DEV_DEBUG: 0` | Eliminates all backtraces; `1` (line-tables-only) is the only acceptable value |
+| `CARGO_PROFILE_DEV_DEBUG: 0` or `CARGO_PROFILE_DEV_DEBUG: 1` (numeric) | `0` eliminates all backtraces; numeric `1` maps to `"limited"` (not line-tables-only) since Rust 1.70. Use the string `"line-tables-only"` — it is the only acceptable value. |
 | `CARGO_PROFILE_RELEASE_*` modification | Release profile is not in scope; only dev/test builds are affected |
 | `docker system prune -af` in CI steps | Removes Docker layers needed by other actions; unsafe without explicit scope guard |
-| `sudo rm -rf /usr/share/dotnet` (direct removal) | Fragile manual removal; use `jlumbroso/free-disk-space` which handles ordering and dependencies correctly |
+| `sudo rm -rf /usr/share/dotnet` (direct removal) | Fragile manual removal; use `insightsengineering/disk-space-reclaimer` which handles ordering and dependencies correctly |
 | Floating action reference (`@main`, `@v1`, `@latest`) | SHA-pinning policy; all ci.yml actions are commit-pinned |
 | Mixing this change into an open defect PR branch | Branch isolation required per AC-005; complicates bisection |
 | Modifying `fmt`, `clippy`, `deny`, `audit`, `semver-checks`, `test-no-default-features`, or `non-exhaustive-violation-compile-fail` jobs | Out of scope for this story; single-responsibility |
@@ -325,14 +381,53 @@ No new files required. The `jlumbroso/free-disk-space` action is invoked as an i
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | `jlumbroso/free-disk-space` action fails or hangs | `continue-on-error: false` (default); if the action fails, the job fails before the expensive build — early failure is preferable to a late OOM linker crash |
+| EC-001 | `insightsengineering/disk-space-reclaimer` action fails or hangs | `continue-on-error: false` (default); if the action fails, the job fails before the expensive build — early failure is preferable to a late OOM linker crash |
 | EC-002 | Post-reclaim disk still below 25 GB on an unusual runner topology | AC-002 gate exits 1 with a human-readable `::error::` message identifying available space; job fails early |
-| EC-003 | `CARGO_PROFILE_DEV_DEBUG=1` breaks a test that requires full DWARF | Extremely unlikely in test builds; if it occurs, the test will error explicitly with a compiler or runtime message identifying the gap |
+| EC-003 | `CARGO_PROFILE_DEV_DEBUG: "line-tables-only"` breaks a test that requires full DWARF | Extremely unlikely in test builds; if it occurs, the test will error explicitly with a compiler or runtime message identifying the gap |
 | EC-004 | A future story adds `CARGO_PROFILE_DEV_DEBUG` with a different value | Duplicate env key conflict will be visible in CI; the newcomer story author must merge with a comment (same resolution pattern as RUSTFLAGS merging) |
 | EC-005 | `verify-workflow-structure` AC-5 `target:` grep matches a new step name | The existing grep counts `^            target:` at 12-space indent (matrix field name). New step `name:` fields use `      - name:` (6-space indent). No conflict. |
 | EC-006 | macOS or Windows leg fails due to `CARGO_PROFILE_DEV_DEBUG` env var | Both platforms support this env var; no platform-specific issue expected. Setting on all legs is acceptable. |
 | EC-007 | Preflight `df -h` step placed after `actions/checkout` instead of before | The preflight MUST be before checkout to capture the true baseline; checkout restores git metadata and may trigger cache actions. Verify ordering in the delivered YAML. |
 
+## §Research Trace
+
+Remove-uncertainty pass applied 2026-07-15 (D-1110 directive; research-agent; 12 external
+validations via Cargo reference docs, Rust 1.70/1.71 release notes, docs.rs, GitHub Actions
+marketplace, insightsengineering fork README, GitHub Actions docs on runner disk provisioning,
+and empirical ubuntu-24.04 runner measurements).
+
+Findings applied in v0.3:
+
+1. **CARGO_PROFILE_DEV_DEBUG value corrected (CRITICAL):** Numeric `1` maps to `"limited"`
+   since Rust 1.70, NOT `"line-tables-only"`. Correct value is the string literal
+   `"line-tables-only"` (Cargo 1.71+ accepts string profile values via env). All occurrences
+   updated: AC-003 prose, AC-003 YAML snippet, AC-003 comment, §Library & Framework
+   Requirements table, §Architecture Compliance Rules, §Forbidden Patterns, §Implementation
+   Notes, §File Structure Requirements, §Tasks, §Edge Cases EC-003. The ban on `0` and `"0"`
+   is preserved; the false claim that numeric `1 == line-tables-only` is removed.
+
+2. **Disk-space-reclaimer action updated:** Replaced unmaintained `jlumbroso/free-disk-space`
+   (last maintained 2023-10) with actively-maintained drop-in fork
+   `insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2`.
+   Documented fallback: `jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1`.
+   Red Gate grep tightened from `free-disk-space` to `uses:.*insightsengineering/disk-space-reclaimer`.
+   Inputs extended: `docker-images: true`, `large-packages: true`, `swap-storage: true` added.
+   `tool-cache` / `tools-cache` rename noted; not relevant (story does not remove tool cache).
+
+3. **Reclaim estimate corrected:** `14–18 GB` → `25–35 GB` on ubuntu-24.04 with
+   android/dotnet/haskell/docker-images/large-packages/swap-storage enabled. The ≥25 GB
+   post-reclaim gate is unchanged and achievable under the corrected input set.
+
+4. **Root Cause Hypothesis clarified:** GitHub documents 14 GB as the guaranteed MINIMUM;
+   empirical ubuntu-24.04 shows ~22–29 GB free at job start on ~72 GB root filesystem.
+   Failures occur when runners land near the documented floor.
+
+5. **Swatinem/rust-cache (optional note, no AC):** Current pin should be verified against
+   v2.9.1 (`c19371144df3bb44fab255c43d04cbc2ab54d1c4`); default pruning suffices;
+   reclaim-BEFORE-cache-restore ordering confirmed correct-and-important.
+
 ## §Changelog
 
+- v0.3 (2026-07-15): Remove-uncertainty pass (D-1110 directive; research-agent; 12 external validations). CRITICAL: `CARGO_PROFILE_DEV_DEBUG: 1` corrected to `"line-tables-only"` — numeric 1 maps to "limited" not line-tables-only since Rust 1.70 (Cargo reference + Rust 1.70/1.71 release notes). `jlumbroso/free-disk-space` replaced with actively-maintained fork `insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2`; fallback pin `jlumbroso@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1` recorded. Reclaim estimate `14–18 GB` → `25–35 GB` on ubuntu-24.04 (docker-images/large-packages/swap-storage inputs added). Root Cause Hypothesis: 14 GB = GitHub-documented minimum; empirical ~22–29 GB; failures occur at the floor. Red Gate grep tightened to `uses:.*insightsengineering/disk-space-reclaimer`. Swatinem/rust-cache ordering confirmed correct (optional note added; no AC). All AC/body/rules/tasks/library-table updated consistently. Status: draft → ready (S-7.01 draft-blocker resolved by v0.2 PO adjudication; uncertainties closed by this pass).
+- v0.2 (2026-07-15): PO BC adjudication — Option B ratified (no BC required for CI-toolchain-only stories). `behavioral_contracts: []` resolved as CONFORMING; S-7.01 draft-blocker cleared. Controlling precedent: W3-FIX-CI-001 (merged, PR #112). No BC created, no BC-INDEX row needed.
 - v0.1 (2026-07-15): Initial draft — story-writer. D-1780 watch-note 3rd-occurrence materialization. 5 ACs, 2 Red Gate tests, 5 pts, P2.
