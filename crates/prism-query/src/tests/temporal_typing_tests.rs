@@ -9097,3 +9097,428 @@ async fn test_f_pqlfn_pr3_obs_001_sqlpipe_head_where_keyword_not_rejected() {
          contain quoted keyword \"'NOT'\" (POL-24). Got: {err_display:?}"
     );
 }
+
+// ── F-PQLFN-PR4-LOW-001: SqlPipe-head-HAVING EC-11-086 mirror tests (GREEN LOCK) ─────────
+//
+// The existing EC-11-086 tests (test_BC_2_11_004_having_percentile_fires_e_query_001_*)
+// use plain `Ast::Sql(Select)` form (no pipe-tail stage). The `Ast::SqlPipe` head-HAVING
+// arm of `check_enrich_udf_availability` (the `spq.head.having` walk — engine.rs lines
+// 2047-2049, `collect_unknown_scalar_offsets_from_predicate` into `having_fncall_names`)
+// had NO dedicated test until fix-burst-37.
+//
+// A SqlPipe query is produced by appending a pipe-stage tail to a SQL SELECT:
+//   `SELECT ... GROUP BY ... HAVING ... | limit 10`
+// This routes the query through `parse_sqlpipe_internal`, producing
+// `Ast::SqlPipe { head: SqlQuery { ..., having: Some(...) }, stages: [Limit(10)] }`.
+//
+// The `spq.head.having` walk collects `ScalarFunc::Unknown` names from the head's HAVING
+// predicate into `having_fncall_names`. The DATAFUSION_BUILTIN_AGGREGATE_NAMES gate then
+// fires E-QUERY-001 for `percentile` BEFORE the registry guard — identical to plain SQL.
+//
+// These tests lock the SqlPipe code path. Reverting the `spq.head.having` walk causes:
+//   - with_registry: `percentile` escapes the gate → E-QUERY-039 fires (not QueryParseFailed)
+//   - no_registry:   `percentile` escapes the gate → registry-None guard fires → Ok(()) →
+//                    DataFusion plan fails → QueryPlanFailed (not QueryParseFailed)
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/// F-PQLFN-PR4-LOW-001 (a) **GREEN LOCK** — SqlPipe-head-HAVING EC-11-086 mirror:
+/// registry-active variant.
+///
+/// Query: `SELECT device_id FROM crowdstrike_detections GROUP BY device_id
+///         HAVING percentile(risk_score, 95) > 5 | limit 10`
+///
+/// Engine: `make_crowdstrike_engine_with_empty_infusion()` — empty InfusionRegistry (Some, 0 entries).
+///
+/// The trailing `| limit 10` forces the parser to produce `Ast::SqlPipe` (not `Ast::Sql`).
+/// The `spq.head.having` walk in `check_enrich_udf_availability` must intercept `percentile`
+/// in the HAVING position of the SqlPipe head query and fire E-QUERY-001 with HAVING-specific
+/// guidance — identical to the plain-SQL form (EC-11-086 variant a).
+///
+/// **Load-bearing:** reverting the `spq.head.having` walk causes pre-fix behavior:
+///   - `percentile` NOT intercepted in SqlPipe head HAVING → escapes aggregate gate
+///   - Registry active (Some, empty) → `percentile` not registered → E-QUERY-039 fires
+///     ("enrichment infusion 'percentile' is not registered")
+///   - This test asserts `QueryParseFailed` (E-QUERY-001) → FAILS.
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.22 §OBS-004;
+///            F-PQLFN-PR4-LOW-001.
+#[tokio::test]
+async fn test_BC_2_11_004_ec_11_086_sqlpipe_head_having_percentile_fires_e_query_001_with_registry()
+{
+    let engine = make_crowdstrike_engine_with_empty_infusion(); // registry active (Some, empty)
+
+    let result = engine
+        .execute(
+            "SELECT device_id FROM crowdstrike_detections \
+             GROUP BY device_id HAVING percentile(risk_score, 95) > 5 | limit 10",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must be E-QUERY-001 (QueryParseFailed), NOT E-QUERY-039 (EnrichUdfNotFound).
+    // Load-bearing: without spq.head.having walk, pre-fix path: `percentile` in SqlPipe
+    // HAVING escapes DATAFUSION_BUILTIN_AGGREGATE_NAMES gate → E-QUERY-039 fires
+    // ("enrichment infusion 'percentile' is not registered; available: []").
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR4-LOW-001 (a, SqlPipe, registry-active): \
+         `HAVING percentile(risk_score, 95) > 5 | limit 10` must fire E-QUERY-001 \
+         (QueryParseFailed). Without spq.head.having walk: E-QUERY-039 fires \
+         (false enrichment-registration suggestion). \
+         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.22 §OBS-004; \
+         F-PQLFN-PR4-LOW-001) Got: {result:?}"
+    );
+
+    // Must NOT be E-QUERY-039 — the load-bearing regression check.
+    assert!(
+        !matches!(&result, Err(PrismError::EnrichUdfNotFound(_))),
+        "F-PQLFN-PR4-LOW-001 (a, SqlPipe, registry-active): must NOT fire E-QUERY-039. \
+         `percentile` in SqlPipe head HAVING must be intercepted by the spq.head.having walk \
+         BEFORE the infusion-registry lookup. Got: {result:?}"
+    );
+
+    // POL-24 message-text lock — HAVING-specific canonical message from ADR-048 §D.2.
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains(
+            "is a PrismQL aggregate function; \
+             PERCENTILE is not directly supported in HAVING predicates"
+        ),
+        "F-PQLFN-PR4-LOW-001 (a, SqlPipe, registry-active): E-QUERY-001 display must contain \
+         HAVING-specific guidance (ADR-048 §D.2 canonical message, POL-24). \
+         Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("alias it in SELECT"),
+        "F-PQLFN-PR4-LOW-001 (a, SqlPipe, registry-active): E-QUERY-001 display must contain \
+         alias guidance \"alias it in SELECT\" (ADR-048 §D.2, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("ADR-048 D.3 OD-2"),
+        "F-PQLFN-PR4-LOW-001 (a, SqlPipe, registry-active): E-QUERY-001 display must contain \
+         ADR citation \"ADR-048 D.3 OD-2\" (ADR-048 §D.2, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'percentile'"),
+        "F-PQLFN-PR4-LOW-001 (a, SqlPipe, registry-active): E-QUERY-001 display must contain \
+         input-verbatim quoted name \"'percentile'\" (ADR-048 §D.2, POL-24). \
+         Got: {err_display:?}"
+    );
+    // Negative lock: display must NOT contain E-QUERY-039 message fragment.
+    assert!(
+        !err_display.contains("enrichment infusion"),
+        "F-PQLFN-PR4-LOW-001 (a, SqlPipe, registry-active): E-QUERY-001 display must NOT \
+         contain E-QUERY-039 fragment 'enrichment infusion' — this is the load-bearing \
+         regression check for the spq.head.having walk (pre-fix regression output was \
+         \"E-QUERY-039: enrichment infusion 'percentile' is not registered; available: []\"). \
+         Got: {err_display:?}"
+    );
+}
+
+/// F-PQLFN-PR4-LOW-001 (b) **GREEN LOCK** — SqlPipe-head-HAVING EC-11-086 mirror:
+/// registry-independence (no registry) variant.
+///
+/// Same query but with NO infusion registry (registry = None). The SqlPipe form must
+/// fire E-QUERY-001 registry-independently — the DATAFUSION_BUILTIN_AGGREGATE_NAMES
+/// interception fires BEFORE the `let Some(registry) = registry else { return Ok(()) }` guard.
+///
+/// Engine: `make_crowdstrike_detections_engine()` — no infusion registry (None).
+///
+/// **Load-bearing:** reverting the `spq.head.having` walk causes pre-fix behavior:
+///   - `percentile` in SqlPipe HAVING NOT intercepted → `let Some(registry) = ...` guard fires
+///     (registry is None) → `Ok(())` → query proceeds to DataFusion plan → DataFusion cannot
+///     resolve `percentile` → `QueryPlanFailed` (NOT `QueryParseFailed`)
+///   - This test asserts `QueryParseFailed` → FAILS.
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.22 §OBS-004;
+///            F-PQLFN-PR4-LOW-001.
+#[tokio::test]
+async fn test_BC_2_11_004_ec_11_086_sqlpipe_head_having_percentile_fires_e_query_001_no_registry() {
+    let engine = make_crowdstrike_detections_engine(); // no infusion registry (None)
+
+    let result = engine
+        .execute(
+            "SELECT device_id FROM crowdstrike_detections \
+             GROUP BY device_id HAVING percentile(risk_score, 95) > 5 | limit 10",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must be E-QUERY-001 (QueryParseFailed) — registry-independent.
+    // Without spq.head.having walk: registry-None path → Ok(()) → DataFusion plan fails
+    // → QueryPlanFailed. This assertion FAILS (load-bearing). ✓
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR4-LOW-001 (b, SqlPipe, no-registry): \
+         `HAVING percentile(risk_score, 95) > 5 | limit 10` must fire E-QUERY-001 \
+         (QueryParseFailed) registry-independently. Without spq.head.having walk: \
+         registry=None → Ok(()) → DataFusion plan fails → QueryPlanFailed (NOT E-QUERY-001). \
+         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.22 §OBS-004; \
+         F-PQLFN-PR4-LOW-001) Got: {result:?}"
+    );
+
+    // Must NOT be QueryPlanFailed — the registry-independent HAVING interception must
+    // precede DataFusion even when no registry is wired.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "F-PQLFN-PR4-LOW-001 (b, SqlPipe, no-registry): must NOT be QueryPlanFailed. \
+         The spq.head.having walk fires BEFORE the registry-None guard. \
+         Got: {result:?}"
+    );
+
+    // POL-24 message-text lock — HAVING-specific canonical message from ADR-048 §D.2.
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains(
+            "is a PrismQL aggregate function; \
+             PERCENTILE is not directly supported in HAVING predicates"
+        ),
+        "F-PQLFN-PR4-LOW-001 (b, SqlPipe, no-registry): E-QUERY-001 display must contain \
+         HAVING-specific guidance (ADR-048 §D.2, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("alias it in SELECT"),
+        "F-PQLFN-PR4-LOW-001 (b, SqlPipe, no-registry): must contain \"alias it in SELECT\" \
+         (ADR-048 §D.2, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("ADR-048 D.3 OD-2"),
+        "F-PQLFN-PR4-LOW-001 (b, SqlPipe, no-registry): must contain \"ADR-048 D.3 OD-2\" \
+         (ADR-048 §D.2, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("'percentile'"),
+        "F-PQLFN-PR4-LOW-001 (b, SqlPipe, no-registry): must contain input-verbatim quoted \
+         name \"'percentile'\" (ADR-048 §D.2, POL-24). Got: {err_display:?}"
+    );
+}
+
+// ── EC-11-085 case-variant locks (probe-6 hardening) ─────────────────────────────────────
+//
+// The existing EC-11-085 tests (A, B, C) use uppercase `NULL(device_id)` only. The
+// `fn_call_comparison` keyword check uses `eq_ignore_ascii_case` (BC-2.11.004 v1.48 LOW-006
+// — RESERVED_KEYWORDS list in filter_parser.rs `fn_call_comparison` `.validate()` arm),
+// so lowercase `null(device_id)` and mixed-case `Null(device_id)` must also fire E-QUERY-001.
+//
+// The error message echoes the input name verbatim (`'{func_name}'` in the format string),
+// so the quoted-name assertion in each test reflects the original input casing.
+//
+// These GREEN LOCK tests guard against a regression that would change `eq_ignore_ascii_case`
+// to a case-sensitive equality (which would silently allow `null(...)` and `Null(...)` to
+// parse as unknown function calls, reaching E-QUERY-039 or DataFusion execution).
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/// EC-11-085 case-variant (lowercase) **GREEN LOCK** — `null(device_id) = 5` in pipe
+/// `| where` fires E-QUERY-001 with keyword message.
+///
+/// Query: `FROM crowdstrike_detections | where null(device_id) = 5`
+///
+/// Input: lowercase `null` — `eq_ignore_ascii_case` on the LOW-006 RESERVED_KEYWORDS list
+/// matches. Error message echoes input verbatim: quoted name is `'null'` (lowercase).
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085 LOW-006 (case-insensitive `eq_ignore_ascii_case`);
+///            BC-2.11.019 v1.22 §OBS-004; F-PQLFN-PR4-LOW-001 probe-6 hardening; POL-24.
+#[tokio::test]
+async fn test_BC_2_11_004_ec_11_085_pipe_lowercase_null_as_fn_name_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where null(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "EC-11-085 case-variant (lowercase): `null(device_id) = 5` must fire E-QUERY-001 \
+         (QueryParseFailed). `fn_call_comparison` checks keywords case-insensitively \
+         (eq_ignore_ascii_case) — lowercase 'null' must match NULL in the LOW-006 list. \
+         (BC-2.11.004 v1.48 EC-11-085, BC-2.11.019 v1.22 §OBS-004, POL-24) \
+         Got: {result:?}"
+    );
+
+    // Must NOT be QueryPlanFailed — keyword gate fires at parse time before execution.
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "EC-11-085 case-variant (lowercase): must NOT be QueryPlanFailed. \
+         Keyword gate fires at parse time. Got: {result:?}"
+    );
+
+    // Must NOT be E-QUERY-039 — keyword rejection blocks before the enrich gate.
+    assert!(
+        !matches!(&result, Err(PrismError::EnrichUdfNotFound(_))),
+        "EC-11-085 case-variant (lowercase): must NOT fire E-QUERY-039. Got: {result:?}"
+    );
+
+    // POL-24 message-text lock — keyword-specific canonical message from BC-2.11.004 EC-11-085.
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "EC-11-085 case-variant (lowercase): keyword message fragment required \
+         (BC-2.11.004 EC-11-085 canonical message, POL-24). Got: {err_display:?}"
+    );
+    // Input-verbatim echo: lowercase `null` input → quoted name is `'null'` (lowercase).
+    assert!(
+        err_display.contains("'null'"),
+        "EC-11-085 case-variant (lowercase): error must quote the input-verbatim name \
+         \"'null'\" (lowercase). The pre-existing EC-11-085 test uses uppercase 'NULL' for \
+         uppercase input; this test confirms input-verbatim echo for lowercase input. \
+         (BC-2.11.004 EC-11-085 canonical message, POL-24) Got: {err_display:?}"
+    );
+}
+
+/// EC-11-085 case-variant (mixed case) **GREEN LOCK** — `Null(device_id) = 5` in pipe
+/// `| where` fires E-QUERY-001 with keyword message.
+///
+/// Query: `FROM crowdstrike_detections | where Null(device_id) = 5`
+///
+/// Input: mixed-case `Null` — `eq_ignore_ascii_case` on the LOW-006 RESERVED_KEYWORDS list
+/// matches. Error message echoes input verbatim: quoted name is `'Null'` (mixed case).
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085 LOW-006 (case-insensitive `eq_ignore_ascii_case`);
+///            BC-2.11.019 v1.22 §OBS-004; F-PQLFN-PR4-LOW-001 probe-6 hardening; POL-24.
+#[tokio::test]
+async fn test_BC_2_11_004_ec_11_085_pipe_mixedcase_null_as_fn_name_rejected() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where Null(device_id) = 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "EC-11-085 case-variant (mixed): `Null(device_id) = 5` must fire E-QUERY-001 \
+         (QueryParseFailed). `fn_call_comparison` keyword check is case-insensitive \
+         (eq_ignore_ascii_case) — mixed-case 'Null' must match NULL in the LOW-006 list. \
+         (BC-2.11.004 v1.48 EC-11-085, BC-2.11.019 v1.22 §OBS-004, POL-24) \
+         Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+        "EC-11-085 case-variant (mixed): must NOT be QueryPlanFailed. \
+         Keyword gate fires at parse time. Got: {result:?}"
+    );
+
+    assert!(
+        !matches!(&result, Err(PrismError::EnrichUdfNotFound(_))),
+        "EC-11-085 case-variant (mixed): must NOT fire E-QUERY-039. Got: {result:?}"
+    );
+
+    // POL-24 message-text lock — keyword-specific canonical message from BC-2.11.004 EC-11-085.
+    let err_display = format!("{}", result.unwrap_err());
+    assert!(
+        err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+        "EC-11-085 case-variant (mixed): keyword message fragment required \
+         (BC-2.11.004 EC-11-085 canonical message, POL-24). Got: {err_display:?}"
+    );
+    // Input-verbatim echo: mixed-case `Null` input → quoted name is `'Null'`.
+    assert!(
+        err_display.contains("'Null'"),
+        "EC-11-085 case-variant (mixed): error must quote the input-verbatim name \
+         \"'Null'\" (mixed case). \
+         (BC-2.11.004 EC-11-085 canonical message, POL-24) Got: {err_display:?}"
+    );
+}
+
+// ── F-PQLFN-PR4-OBS-002: Input-verbatim casing lock for HAVING percentile ────────────────
+//
+// BC-2.11.019 v1.22 §OBS-004 Convention note (F-PQLFN-PR4-OBS-002):
+// The `'{name}'` placeholder in the HAVING-interception canonical message is INPUT-VERBATIM
+// (engine.rs: `format!("'{name}' is a PrismQL aggregate function; ...")`).
+//
+//   Lowercase input `HAVING percentile(x, p) > v` → quoted name is `'percentile'`
+//   Uppercase input `HAVING PERCENTILE(x, p) > v` → quoted name is `'PERCENTILE'`
+//
+// The `{name_upper}` occurrences in the guidance template body (e.g., "PERCENTILE is not
+// directly supported ...; SELECT PERCENTILE(field, p)") are always uppercase regardless of
+// input casing — those reference the PrismQL keyword form, not the input echo.
+//
+// The existing EC-11-086 tests use lowercase `percentile` input and check `'percentile'`.
+// This test uses uppercase `PERCENTILE` input and checks `'PERCENTILE'`, locking the
+// input-verbatim echo for the uppercase form.
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/// F-PQLFN-PR4-OBS-002 **GREEN LOCK** — Input-verbatim casing: `HAVING PERCENTILE(...)`
+/// with uppercase input echoes `'PERCENTILE'` (uppercase) in the E-QUERY-001 message.
+///
+/// Query: `SELECT device_id FROM crowdstrike_detections GROUP BY device_id
+///         HAVING PERCENTILE(risk_score, 95) > 5` (uppercase PERCENTILE — plain SQL form).
+///
+/// Per BC-2.11.019 v1.22 §OBS-004 Convention note (F-PQLFN-PR4-OBS-002): the `'{name}'`
+/// prefix in the HAVING canonical message reflects the analyst's original input casing.
+/// This test asserts that uppercase `PERCENTILE` input produces `'PERCENTILE'` (uppercase),
+/// NOT the normalized lowercase form `'percentile'`.
+///
+/// **Load-bearing:** if the implementation normalizes the name before echo
+/// (e.g., `name.to_lowercase()`), the message would quote `'percentile'` for uppercase
+/// input → this test FAILS (regression detection).
+///
+/// Traces to: BC-2.11.019 v1.22 §OBS-004 (input-verbatim convention note, F-PQLFN-PR4-OBS-002);
+///            BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; POL-24.
+#[tokio::test]
+async fn test_BC_2_11_004_ec_11_086_having_percentile_uppercase_input_verbatim() {
+    // registry-independent: fires before the registry-None guard.
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT device_id FROM crowdstrike_detections \
+             GROUP BY device_id HAVING PERCENTILE(risk_score, 95) > 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // Must be E-QUERY-001 (QueryParseFailed) — the DATAFUSION_BUILTIN_AGGREGATE_NAMES
+    // interception fires registry-independently (before the registry-None guard).
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR4-OBS-002: HAVING PERCENTILE(...) > 5 (uppercase input) must fire \
+         E-QUERY-001 (QueryParseFailed). DATAFUSION_BUILTIN_AGGREGATE_NAMES interception \
+         fires registry-independently (before registry-None guard). \
+         (BC-2.11.019 v1.22 §OBS-004, BC-2.11.004 v1.48 EC-11-086) Got: {result:?}"
+    );
+
+    let err_display = format!("{}", result.unwrap_err());
+
+    // Input-verbatim lock: uppercase `PERCENTILE` input → quoted prefix must be `'PERCENTILE'`.
+    // Engine.rs format: `"'{name}' is a PrismQL aggregate function; ..."` — `{name}` is
+    // the raw name from the AST (input casing preserved). Post-fix: `'PERCENTILE'`.
+    // If the implementation normalizes to lowercase first, this would be `'percentile'`
+    // — regression.
+    assert!(
+        err_display.contains("'PERCENTILE'"),
+        "F-PQLFN-PR4-OBS-002: E-QUERY-001 display must quote the input-verbatim uppercase \
+         name \"'PERCENTILE'\" (BC-2.11.019 v1.22 §OBS-004 input-verbatim convention). \
+         If the engine normalizes the name before echo, message would quote 'percentile' \
+         instead — that is a regression against the input-verbatim contract. \
+         Got: {err_display:?}"
+    );
+
+    // Standard template fragments (POL-24 message-text lock, ADR-048 §D.2).
+    // Note: `{name_upper}` occurrences in the guidance body are always uppercase regardless
+    // of input — e.g., "PERCENTILE is not directly supported" uses `{name_upper}` (template),
+    // not the input echo.
+    assert!(
+        err_display.contains(
+            "is a PrismQL aggregate function; \
+             PERCENTILE is not directly supported in HAVING predicates"
+        ),
+        "F-PQLFN-PR4-OBS-002: E-QUERY-001 display must contain HAVING-specific guidance \
+         (ADR-048 §D.2 canonical message, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("alias it in SELECT"),
+        "F-PQLFN-PR4-OBS-002: E-QUERY-001 display must contain alias guidance \
+         \"alias it in SELECT\" (ADR-048 §D.2, POL-24). Got: {err_display:?}"
+    );
+    assert!(
+        err_display.contains("ADR-048 D.3 OD-2"),
+        "F-PQLFN-PR4-OBS-002: E-QUERY-001 display must contain ADR citation \
+         \"ADR-048 D.3 OD-2\" (ADR-048 §D.2, POL-24). Got: {err_display:?}"
+    );
+}
