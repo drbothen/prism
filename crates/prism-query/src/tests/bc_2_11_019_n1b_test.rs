@@ -1139,6 +1139,12 @@ async fn test_c1_sqlpipe_group_by_unknown_scalar_triggers_e_query_039() {
 /// Load-bearing: if DATAFUSION_BUILTIN_FUNCTION_NAMES is removed or the
 /// built-in exclusion check is removed from check_enrich_udf_availability,
 /// this test fails because `lower` returns E-QUERY-039.
+///
+/// NEGATIVE-CLAIM-ONLY LOCK (F-PQLFN-PR5-OBS-001): this test asserts ONLY
+/// that E-QUERY-039 does not fire for this input; it accepts Ok OR any
+/// non-E-QUERY-039 error (test-mode fixtures may fail later in the pipeline
+/// for unrelated reasons). It is NOT an end-to-end success assertion.
+/// (BC-2.11.019 v1.23)
 #[tokio::test]
 async fn test_bc_2_11_019_n1b_builtin_passthrough_lower() {
     let engine = make_test_engine_threat_intel();
@@ -1188,6 +1194,12 @@ async fn test_bc_2_11_019_n1b_builtin_passthrough_lower() {
 /// - Removing `coalesce` from `DATAFUSION_BUILTIN_FUNCTION_NAMES` makes the coalesce
 ///   assertion fail with E-QUERY-039.
 /// - Removing the entire built-in exclusion check makes ALL assertions fail.
+///
+/// NEGATIVE-CLAIM-ONLY LOCK (F-PQLFN-PR5-OBS-001): this test asserts ONLY
+/// that E-QUERY-039 does not fire for this input; it accepts Ok OR any
+/// non-E-QUERY-039 error (test-mode fixtures may fail later in the pipeline
+/// for unrelated reasons). It is NOT an end-to-end success assertion.
+/// (BC-2.11.019 v1.23)
 #[tokio::test]
 async fn test_bc_2_11_019_n1b_builtin_passthrough_coalesce() {
     let engine = make_test_engine_threat_intel();
@@ -1317,6 +1329,12 @@ async fn test_f_pjl1_high001_non_builtin_unknown_still_triggers_e_query_039() {
 ///
 /// Load-bearing: removing `default_aggregate_functions()` from the exclusion union causes
 /// this test to fail with E-QUERY-039.
+///
+/// NEGATIVE-CLAIM-ONLY LOCK (F-PQLFN-PR5-OBS-001): this test asserts ONLY
+/// that E-QUERY-039 does not fire for this input; it accepts Ok OR any
+/// non-E-QUERY-039 error (test-mode fixtures may fail later in the pipeline
+/// for unrelated reasons). It is NOT an end-to-end success assertion.
+/// (BC-2.11.019 v1.23)
 #[tokio::test]
 async fn test_bc_2_11_019_ec_11_066_builtin_aggregate_stddev_not_e_query_039() {
     let engine = make_test_engine_threat_intel();
@@ -1361,6 +1379,12 @@ async fn test_bc_2_11_019_ec_11_066_builtin_aggregate_stddev_not_e_query_039() {
 ///
 /// Load-bearing: removing `default_window_functions()` from the exclusion union causes
 /// this test to fail with E-QUERY-039.
+///
+/// NEGATIVE-CLAIM-ONLY LOCK (F-PQLFN-PR5-OBS-001): this test asserts ONLY
+/// that E-QUERY-039 does not fire for this input; it accepts Ok OR any
+/// non-E-QUERY-039 error (test-mode fixtures may fail later in the pipeline
+/// for unrelated reasons). It is NOT an end-to-end success assertion.
+/// (BC-2.11.019 v1.23)
 #[tokio::test]
 async fn test_bc_2_11_019_ec_11_067_builtin_window_row_number_not_e_query_039() {
     let engine = make_test_engine_threat_intel();
