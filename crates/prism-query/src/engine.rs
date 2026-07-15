@@ -1927,6 +1927,50 @@ fn collect_unknown_scalar_offsets_from_predicate(
 /// DEFECT-PQL-FNCALL-LHS-001: predicate fn-call LHS gate, seven-position audit,
 /// positions 1-3 added. ADR-048 §D.7.5 (OD-6): DML WHERE position 6.
 /// ADR-048 §D.7.6 (OD-7): INSERT source_select WHERE position 7. OD-5: positions 4-5.
+// ── helper: HAVING-interception detail-builder (BC-2.11.019 v1.23 §OBS-004) ──────────────────
+/// Build the HAVING-interception E-QUERY-001 detail string for a PrismQL aggregate name.
+///
+/// Two branches (BC-2.11.019 v1.23 §OBS-004, F-PQLFN-PR5-LOW-001):
+/// (a) `name_lower == "percentile"` → two-arg canonical template `(field, p)` — the
+///     existing byte-verbatim template UNCHANGED from prior implementation.
+/// (b) any other name → signature-neutral generic template `(...)` — correct fail-safe
+///     guidance for any future AGGREGATE-only name reaching the arm without the two-arg
+///     PERCENTILE misapplication risk.
+///
+/// The `'{name}'` placeholder is INPUT-VERBATIM (analyst's original casing echoed);
+/// the template body uses `{name_upper}` (always uppercase, PrismQL keyword form).
+/// Branch (b) is unreachable today (triggering set = {"percentile"}) but is unit-tested
+/// directly via `having_aggregate_interception_detail_tests`.
+///
+/// Caller wraps the returned detail in `PrismError::QueryParseFailed { offset, detail, query }`.
+/// (BC-2.11.019 v1.23 §OBS-004; ADR-048 v1.16 §D.2; POL-24)
+fn having_aggregate_interception_detail(name: &str) -> String {
+    let name_lower = name.to_ascii_lowercase();
+    let name_upper = name.to_ascii_uppercase();
+    if name_lower == "percentile" {
+        // Branch (a): percentile-specific two-arg template (field, p).
+        // Byte-verbatim per POL-24 / ADR-048 v1.16 §D.2 canonical template.
+        format!(
+            "'{name}' is a PrismQL aggregate function; \
+             {name_upper} is not directly supported in HAVING predicates \
+             \u{2014} alias it in SELECT: \
+             SELECT {name_upper}(field, p) AS alias ... HAVING alias > threshold \
+             (ADR-048 D.3 OD-2)"
+        )
+    } else {
+        // Branch (b): signature-neutral generic template (...).
+        // Unreachable today (triggering set = {"percentile"}).
+        // Byte-exact per POL-24 / BC-2.11.019 v1.23 §OBS-004.
+        format!(
+            "'{name}' is a PrismQL aggregate function; \
+             {name_upper} is not directly supported in HAVING predicates \
+             \u{2014} alias it in SELECT: \
+             SELECT {name_upper}(...) AS alias ... HAVING alias > threshold \
+             (ADR-048 D.3 OD-2)"
+        )
+    }
+}
+
 fn check_enrich_udf_availability(
     query_str: &str,
     registry: Option<&prism_spec_engine::InfusionRegistry>,
@@ -2165,37 +2209,22 @@ fn check_enrich_udf_availability(
     // Primary case: "percentile" — excluded from build_agg_call_parser (OD-2 two-arg grammar
     // ambiguity), parses as ScalarFunc::Unknown("percentile") in HAVING, NOT in DATAFUSION_BUILTIN_FUNCTION_NAMES.
     // Without this gate: registry=None → Ok(()) → DataFusion plan error; registry=Some → E-QUERY-039.
-    // (BC-2.11.004 v1.48 EC-11-086; BC-2.11.019 v1.22 §OBS-004; ADR-048 v1.16 §D.2)
+    // (BC-2.11.004 v1.48 EC-11-086; BC-2.11.019 v1.23 §OBS-004; ADR-048 v1.16 §D.2)
     for (name, offset) in &having_fncall_names {
         let name_lower = name.to_ascii_lowercase();
         if DATAFUSION_BUILTIN_AGGREGATE_NAMES.contains(&name_lower)
             && !DATAFUSION_BUILTIN_FUNCTION_NAMES.contains(&name_lower)
         {
-            // Fail-loud template-specificity guard (BC-2.11.019 v1.22 §OBS-004, F-PQLFN-PR4-OBS-001).
-            // The HAVING-specific E-QUERY-001 guidance message below uses a two-arg PERCENTILE
-            // signature example. The triggering set (AGGREGATE_NAMES ∖ FUNCTION_NAMES) reachable
-            // as ScalarFunc::Unknown is exactly {"percentile"} today — distinct_count is claimed
-            // by build_agg_call_parser and parses as FuncCall::Aggregate, never ScalarFunc::Unknown.
-            // debug_assert compiles out in release; fires in every test/debug build if the
-            // invariant breaks (new name added to DATAFUSION_BUILTIN_AGGREGATE_NAMES without
-            // reviewing the message template).
-            debug_assert_eq!(
-                name_lower,
-                "percentile",
-                "HAVING interception guidance template is percentile-specific (two-arg signature); \
-                 a new DATAFUSION_BUILTIN_AGGREGATE_NAMES-only name reached the arm — \
-                 template review required per BC-2.11.019 v1.22 §OBS-004 before relaxing this assertion"
-            );
-            let name_upper = name.to_ascii_uppercase();
+            // Two-branch detail-builder (BC-2.11.019 v1.23 §OBS-004, F-PQLFN-PR5-LOW-001).
+            // `having_aggregate_interception_detail` branches on name_lower == "percentile":
+            //   (a) percentile → two-arg canonical template `(field, p)` (byte-verbatim, POL-24)
+            //   (b) any other name → generic template `(...)` (unreachable today; unit-tested)
+            // The v1.22 debug_assert_eq! guard is REMOVED — it compiled out in release; a future
+            // AGGREGATE-only name would have emitted the two-arg template (wrong guidance).
+            // The two-branch helper provides correct fail-safe guidance without the assertion.
             return Err(PrismError::QueryParseFailed {
                 offset: *offset,
-                detail: format!(
-                    "'{name}' is a PrismQL aggregate function; \
-                     {name_upper} is not directly supported in HAVING predicates \
-                     \u{2014} alias it in SELECT: \
-                     SELECT {name_upper}(field, p) AS alias ... HAVING alias > threshold \
-                     (ADR-048 D.3 OD-2)"
-                ),
+                detail: having_aggregate_interception_detail(name),
                 query: query_str.to_string(),
             });
         }
@@ -16523,6 +16552,90 @@ mod insert_source_select_where_seventh_gated_position_tests {
              `enrich_lookup` IS in registered_names → gate passes. \
              OD-7 behavioral boundary: known UDF predicate → passes; unknown UDF predicate → fires. \
              Got: {result:?}"
+        );
+    }
+}
+
+// ── F-PQLFN-PR5-LOW-001: two-branch HAVING interception detail-builder ─────────────────────────
+//
+// Tests for the extracted `having_aggregate_interception_detail` helper (BC-2.11.019 v1.23 §OBS-004).
+// Branch (b) is unreachable through the gate arm in production (triggering set = {"percentile"})
+// but is unit-tested directly here to verify the generic template is byte-exact per POL-24.
+//
+// RED GATE: these tests fail to compile before `having_aggregate_interception_detail` is defined
+// (missing symbol → E0425). Once the helper is implemented they must go GREEN without changing
+// any assertion text.
+//
+// Traces to: BC-2.11.019 v1.23 §OBS-004; F-PQLFN-PR5-LOW-001; POL-24; ADR-048 v1.16 §D.2.
+#[cfg(test)]
+mod having_aggregate_interception_detail_tests {
+    use super::having_aggregate_interception_detail;
+
+    /// F-PQLFN-PR5-LOW-001 (branch a, lowercase): `"percentile"` → two-arg canonical template.
+    ///
+    /// Verifies the percentile branch returns the byte-verbatim canonical template from
+    /// BC-2.11.019 v1.23 §OBS-004 / ADR-048 v1.16 §D.2 with argument list `(field, p)`.
+    ///
+    /// Traces to: BC-2.11.019 v1.23 §OBS-004; F-PQLFN-PR5-LOW-001; POL-24.
+    #[test]
+    fn test_f_pqlfn_pr5_low_001_detail_builder_percentile_lowercase() {
+        let detail = having_aggregate_interception_detail("percentile");
+        assert_eq!(
+            detail,
+            "'percentile' is a PrismQL aggregate function; \
+             PERCENTILE is not directly supported in HAVING predicates \
+             \u{2014} alias it in SELECT: \
+             SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold \
+             (ADR-048 D.3 OD-2)",
+            "F-PQLFN-PR5-LOW-001 branch(a): percentile → two-arg template (field, p) \
+             byte-verbatim per POL-24 (BC-2.11.019 v1.23 §OBS-004)"
+        );
+    }
+
+    /// F-PQLFN-PR5-LOW-001 (branch a, uppercase input): `"PERCENTILE"` → input-verbatim `'PERCENTILE'`,
+    /// template body uppercase `PERCENTILE`.
+    ///
+    /// Verifies the input-verbatim convention (BC-2.11.019 v1.23 §OBS-004 F-PQLFN-PR4-OBS-002):
+    /// the analyst's original casing is echoed in the quoted name; the guidance template body
+    /// uses uppercase `{name_upper}` regardless of input casing.
+    ///
+    /// Traces to: BC-2.11.019 v1.23 §OBS-004 (F-PQLFN-PR4-OBS-002 input-verbatim convention);
+    ///            F-PQLFN-PR5-LOW-001; POL-24.
+    #[test]
+    fn test_f_pqlfn_pr5_low_001_detail_builder_percentile_uppercase_input() {
+        let detail = having_aggregate_interception_detail("PERCENTILE");
+        assert_eq!(
+            detail,
+            "'PERCENTILE' is a PrismQL aggregate function; \
+             PERCENTILE is not directly supported in HAVING predicates \
+             \u{2014} alias it in SELECT: \
+             SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold \
+             (ADR-048 D.3 OD-2)",
+            "F-PQLFN-PR5-LOW-001 branch(a) uppercase input: 'PERCENTILE' echoed verbatim, \
+             template body uppercase PERCENTILE (BC-2.11.019 v1.23 §OBS-004 F-PQLFN-PR4-OBS-002)"
+        );
+    }
+
+    /// F-PQLFN-PR5-LOW-001 (branch b): non-percentile name → generic template `(...)`.
+    ///
+    /// Branch (b) is unreachable in production today (triggering set = {"percentile"}) but is
+    /// unit-tested directly to verify the generic `(...)` argument list is byte-exact per POL-24.
+    /// Any future AGGREGATE-only name reaching the arm will emit this template — correct
+    /// signature-neutral guidance without the two-arg PERCENTILE misapplication risk.
+    ///
+    /// Traces to: BC-2.11.019 v1.23 §OBS-004 (F-PQLFN-PR5-LOW-001 two-branch design); POL-24.
+    #[test]
+    fn test_f_pqlfn_pr5_low_001_detail_builder_generic_branch() {
+        let detail = having_aggregate_interception_detail("array_agg");
+        assert_eq!(
+            detail,
+            "'array_agg' is a PrismQL aggregate function; \
+             ARRAY_AGG is not directly supported in HAVING predicates \
+             \u{2014} alias it in SELECT: \
+             SELECT ARRAY_AGG(...) AS alias ... HAVING alias > threshold \
+             (ADR-048 D.3 OD-2)",
+            "F-PQLFN-PR5-LOW-001 branch(b): non-percentile name → generic template (...) \
+             byte-exact per POL-24 (BC-2.11.019 v1.23 §OBS-004)"
         );
     }
 }
