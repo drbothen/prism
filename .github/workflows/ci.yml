@@ -90,6 +90,16 @@ jobs:
       - name: Reclaim disk space (Linux only)
         if: runner.os == 'Linux'
         uses: insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2
+        # Reclaim is BEST-EFFORT: continue-on-error absorbs apt-mirror 404s and other transient
+        # reclaimer failures. Evidence: run 29437306537 (2026-07-15) — mirror.enzu.com returned
+        # HTTP 404 Release files on the large-packages apt path; apt exit code 100 caused the
+        # reclaimer step to fail, which failed ALL THREE hardened Linux jobs before the ≥25 GB
+        # gate ran. The ≥25 GB gate (next step) is the sole authoritative arbiter of disk
+        # readiness — it fails loud with the actual free-GB count if reclaim genuinely
+        # under-delivers. Trade-off: continue-on-error masks persistent action breakage (e.g.,
+        # action update breaking the inputs API); mitigated because the gate provides ground-truth
+        # disk verification on every run.
+        continue-on-error: true
         with:
           android: true
           dotnet: true
@@ -204,6 +214,16 @@ jobs:
       # Fallback pin: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
       - name: Reclaim disk space
         uses: insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2
+        # Reclaim is BEST-EFFORT: continue-on-error absorbs apt-mirror 404s and other transient
+        # reclaimer failures. Evidence: run 29437306537 (2026-07-15) — mirror.enzu.com returned
+        # HTTP 404 Release files on the large-packages apt path; apt exit code 100 caused the
+        # reclaimer step to fail, which failed ALL THREE hardened Linux jobs before the ≥25 GB
+        # gate ran. The ≥25 GB gate (next step) is the sole authoritative arbiter of disk
+        # readiness — it fails loud with the actual free-GB count if reclaim genuinely
+        # under-delivers. Trade-off: continue-on-error masks persistent action breakage (e.g.,
+        # action update breaking the inputs API); mitigated because the gate provides ground-truth
+        # disk verification on every run.
+        continue-on-error: true
         with:
           android: true
           dotnet: true
