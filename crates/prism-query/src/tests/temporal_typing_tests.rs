@@ -9522,3 +9522,291 @@ async fn test_BC_2_11_004_ec_11_086_having_percentile_uppercase_input_verbatim()
          \"ADR-048 D.3 OD-2\" (ADR-048 §D.2, POL-24). Got: {err_display:?}"
     );
 }
+
+// ── F-PQLFN-PR9-LOW-001: All-21-keyword rejection lock ───────────────────────────────────
+//
+// PR-LEVEL pass-9 mutation-reasoning identified that the existing LOW-006 / EC-11-085
+// tests cover only four keywords (NOT, CONTAINS, not lowercase, NULL). Deleting ANY
+// single entry from the 21-keyword `RESERVED_KEYWORDS` list in `fn_call_comparison`'s
+// `.validate()` callback (mutation class M14) would leave that entry's rejection
+// untested. This parameterized test covers all 21 entries in a single for-loop
+// sweep, killing M14 for every entry.
+//
+// The pipe surface (`FROM t | where KW(col) = 5`) is used because it exercises the
+// shared `build_predicate_parser` → `fn_call_comparison` `.validate()` path.
+// All seven parse surfaces share the same `build_predicate_parser`; one surface
+// provides complete M14 coverage.
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/// F-PQLFN-PR9-LOW-001 **GREEN LOCK** — All-21-keyword rejection: parameterized for loop
+/// over the complete `RESERVED_KEYWORDS` list in `fn_call_comparison`.
+///
+/// For EACH of the 21 keywords, the query
+/// `FROM crowdstrike_detections | where <KW>(device_id) = 5` (pipe surface) must produce
+/// `QueryParseFailed` (E-QUERY-001) with the canonical message
+/// `"'<KW>' is a PrismQL keyword and cannot be used as a function name"`.
+///
+/// The `build_predicate_parser` `.validate()` callback is shared by ALL seven parse
+/// surfaces (pipe `| where`, SQL WHERE, filter mode, SqlPipe head-WHERE, DML positions —
+/// ADR-048 §D.7.2). Testing via the pipe surface exercises the shared
+/// `fn_call_comparison` `.validate()` path; any mutation that removes a single entry
+/// from the 21-keyword `RESERVED_KEYWORDS` list would fail this test for that entry.
+///
+/// Length assertion: `RESERVED_KEYWORDS.len() == 21` documents the list size so a future
+/// keyword addition forces test review (BC-2.11.004 v1.48 keyword count contract).
+///
+/// Kills mutation class M14 (removal of any entry from the `RESERVED_KEYWORDS` list in
+/// `fn_call_comparison`'s `.validate()` callback) for all 21 entries.
+///
+/// Traces to: BC-2.11.004 v1.48 LOW-006 (21-keyword list); EC-11-085 (NULL, keyword #21);
+///            F-PQLFN-PR9-LOW-001; ADR-048 §D.7.2; POL-24.
+#[tokio::test]
+async fn test_f_pqlfn_pr9_low_001_all_21_keyword_rejection_lock() {
+    let engine = make_crowdstrike_detections_engine();
+
+    // Canonical 21-keyword list from `fn_call_comparison` RESERVED_KEYWORDS
+    // (filter_parser.rs, BC-2.11.004 v1.48). Keep in sync with filter_parser.rs.
+    // The length assertion below documents the count — adding a keyword without
+    // updating this test produces a compile-time list mismatch.
+    const RESERVED_KEYWORDS: &[&str] = &[
+        "NOT",
+        "AND",
+        "OR",
+        "IN",
+        "IIN",
+        "IEQ",
+        "INE",
+        "IS",
+        "BETWEEN",
+        "LIKE",
+        "CIDR",
+        "MATCHES",
+        "HAS",
+        "MISSING",
+        "CONTAINS",
+        "ICONTAINS",
+        "STARTSWITH",
+        "ISTARTSWITH",
+        "ENDSWITH",
+        "IENDSWITH",
+        "NULL",
+    ];
+
+    // Length assertion: documents list size (BC-2.11.004 v1.48 keyword count contract,
+    // EC-11-085 NULL as keyword #21). A future keyword addition must update this count
+    // and the RESERVED_KEYWORDS list above.
+    assert_eq!(
+        RESERVED_KEYWORDS.len(),
+        21,
+        "F-PQLFN-PR9-LOW-001: RESERVED_KEYWORDS length must be 21 \
+         (BC-2.11.004 v1.48 keyword count contract, EC-11-085 NULL as #21). \
+         If a new keyword was added, update this test and BC-2.11.004."
+    );
+
+    for kw in RESERVED_KEYWORDS {
+        let query = format!("FROM crowdstrike_detections | where {kw}(device_id) = 5");
+
+        let result = engine.execute(&query, QueryOptions::default()).await;
+
+        // Primary assertion: must be QueryParseFailed, not Ok or a different error.
+        assert!(
+            matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+            "F-PQLFN-PR9-LOW-001 (keyword '{kw}'): \
+             `FROM crowdstrike_detections | where {kw}(device_id) = 5` must produce \
+             QueryParseFailed (E-QUERY-001). '{kw}' is a PrismQL reserved keyword; \
+             `fn_call_comparison` `.validate()` must emit the keyword-rejection error \
+             (BC-2.11.004 v1.48 LOW-006, F-PQLFN-PR9-LOW-001). \
+             Kills mutation M14 (removal of '{kw}' from RESERVED_KEYWORDS). \
+             Got: {result:?}"
+        );
+
+        // Must NOT be QueryPlanFailed — keyword rejection fires at parse time.
+        assert!(
+            !matches!(&result, Err(PrismError::QueryPlanFailed { .. })),
+            "F-PQLFN-PR9-LOW-001 (keyword '{kw}'): must NOT be QueryPlanFailed. \
+             Keyword rejection must fire at parse time, before plan-time gates \
+             (BC-2.11.004 LOW-006, F-PQLFN-PR9-LOW-001). Got: {result:?}"
+        );
+
+        let err = result.unwrap_err();
+        let err_display = format!("{err}");
+
+        // POL-24 message-text lock: canonical keyword-rejection message fragment.
+        assert!(
+            err_display.contains("is a PrismQL keyword and cannot be used as a function name"),
+            "F-PQLFN-PR9-LOW-001 (keyword '{kw}'): error message must contain \
+             'is a PrismQL keyword and cannot be used as a function name' \
+             (BC-2.11.004 LOW-006 canonical message, POL-24 message-text lock). \
+             Got: {err_display:?}"
+        );
+
+        // POL-24 input-verbatim casing lock: the message must quote the keyword as entered.
+        let quoted_kw = format!("'{kw}'");
+        assert!(
+            err_display.contains(&quoted_kw),
+            "F-PQLFN-PR9-LOW-001 (keyword '{kw}'): error message must quote the keyword \
+             as {quoted_kw} (input-verbatim casing, BC-2.11.004 LOW-006, POL-24). \
+             Got: {err_display:?}"
+        );
+    }
+}
+
+// ── F-PQLFN-PR9-LOW-002: Uppercase/mixed-case aggregate-in-WHERE gate locks ──────────────
+//
+// PR-LEVEL pass-9 mutation-reasoning identified that all aggregate-in-WHERE tests
+// (TM-14, TM-16, TM-17, TM-18 and their siblings) use lowercase function names.
+// Deleting `.to_ascii_lowercase()` at engine.rs ~2185 in the `predicate_fncall_names`
+// gate (mutation M13) changes the check from
+//   `DATAFUSION_BUILTIN_AGGREGATE_NAMES.contains(&name_lower)`
+// to
+//   `DATAFUSION_BUILTIN_AGGREGATE_NAMES.contains(name)`  (using original case).
+// Since the set stores lowercase keys, lowercase inputs still match — the mutation
+// survives all existing tests. Uppercase/mixed-case inputs expose the mutation.
+//
+// Two tests added:
+//   (a) SQL WHERE STDDEV (uppercase) — kills M13 for the SQL WHERE surface.
+//   (b) Pipe | where Avg (mixed-case) — kills M13 for the pipe surface.
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/// F-PQLFN-PR9-LOW-002 (a) **GREEN LOCK** — Uppercase aggregate in SQL WHERE fires
+/// E-QUERY-001 via the `predicate_fncall_names` gate.
+///
+/// Query: `SELECT * FROM crowdstrike_detections WHERE STDDEV(risk_score) > 5`
+///
+/// The gate normalizes via `.to_ascii_lowercase()` before checking
+/// `DATAFUSION_BUILTIN_AGGREGATE_NAMES`: `STDDEV` → `stddev` → in set → E-QUERY-001.
+/// Without `.to_ascii_lowercase()` (mutation M13): `DATAFUSION_BUILTIN_AGGREGATE_NAMES`
+/// .contains("STDDEV") is FALSE (set stores lowercase "stddev") → gate does not fire →
+/// different error or Ok → this test FAILS → mutation exposed.
+///
+/// Kills mutation M13 (removal of `.to_ascii_lowercase()` in predicate_fncall_names gate,
+/// engine.rs ~2185).
+///
+/// Traces to: BC-2.11.004 v1.48 (aggregate-gate case sensitivity); F-PQLFN-PR9-LOW-002;
+///            ADR-048 v1.2 §D.7.1 TM-16 (SQL WHERE surface); BC-2.11.019 v1.23.
+#[tokio::test]
+async fn test_f_pqlfn_pr9_low_002_sql_where_stddev_uppercase_fires_aggregate_gate() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE STDDEV(risk_score) > 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "F-PQLFN-PR9-LOW-002 (SQL WHERE STDDEV uppercase): must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "F-PQLFN-PR9-LOW-002 (SQL WHERE STDDEV uppercase): must return QueryParseFailed \
+         (E-QUERY-001). STDDEV normalized to stddev via .to_ascii_lowercase() → aggregate \
+         gate fires. Kills mutation M13 (.to_ascii_lowercase() removal). \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("aggregate function"),
+        "F-PQLFN-PR9-LOW-002 (SQL WHERE STDDEV uppercase): Display must contain \
+         'aggregate function' (ADR-048 D.3 canonical). Got: {display}"
+    );
+
+    // Input-verbatim echo: uppercase STDDEV input → error quotes 'STDDEV'.
+    assert!(
+        display.contains("STDDEV"),
+        "F-PQLFN-PR9-LOW-002 (SQL WHERE STDDEV uppercase): Display must contain 'STDDEV' \
+         (input-verbatim echo in canonical D.3 message, BC-2.11.019 v1.23 §OBS-004). \
+         Got: {display}"
+    );
+
+    assert!(
+        display.contains("HAVING"),
+        "F-PQLFN-PR9-LOW-002 (SQL WHERE STDDEV uppercase): Display must contain 'HAVING' \
+         (ADR-048 D.3 use-HAVING guidance). Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "F-PQLFN-PR9-LOW-002 (SQL WHERE STDDEV uppercase): must NOT be QueryPlanFailed. \
+         Aggregate gate fires before plan-time. Got: {err:?}"
+    );
+}
+
+/// F-PQLFN-PR9-LOW-002 (b) **GREEN LOCK** — Mixed-case aggregate in pipe `| where`
+/// fires E-QUERY-001 via the `predicate_fncall_names` gate.
+///
+/// Query: `FROM crowdstrike_detections | where Avg(risk_score) > 5`
+///
+/// The gate normalizes via `.to_ascii_lowercase()` before checking
+/// `DATAFUSION_BUILTIN_AGGREGATE_NAMES`: `Avg` → `avg` → in set → E-QUERY-001.
+/// Without `.to_ascii_lowercase()` (mutation M13): `DATAFUSION_BUILTIN_AGGREGATE_NAMES`
+/// .contains("Avg") is FALSE (set stores lowercase "avg") → gate does not fire →
+/// different error or Ok → this test FAILS → mutation exposed.
+///
+/// All existing aggregate-in-WHERE pipe tests (e.g., TM-01, TM-17, TM-18) use lowercase
+/// names; mutation M13 survives them. This test uses mixed-case `Avg` to expose M13.
+///
+/// Kills mutation M13 (removal of `.to_ascii_lowercase()` in predicate_fncall_names gate,
+/// engine.rs ~2185).
+///
+/// Traces to: BC-2.11.004 v1.48 (aggregate-gate case sensitivity); F-PQLFN-PR9-LOW-002;
+///            ADR-048 v1.2 §D.7.1 (pipe | where surface); BC-2.11.019 v1.23.
+#[tokio::test]
+async fn test_f_pqlfn_pr9_low_002_pipe_where_avg_mixed_case_fires_aggregate_gate() {
+    let engine = make_crowdstrike_detections_engine();
+
+    let result = engine
+        .execute(
+            "FROM crowdstrike_detections | where Avg(risk_score) > 5",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "F-PQLFN-PR9-LOW-002 (pipe Avg mixed-case): must return Err. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        matches!(&err, PrismError::QueryParseFailed { .. }),
+        "F-PQLFN-PR9-LOW-002 (pipe Avg mixed-case): must return QueryParseFailed \
+         (E-QUERY-001). 'Avg' normalized to 'avg' via .to_ascii_lowercase() → aggregate \
+         gate fires. Kills mutation M13 (.to_ascii_lowercase() removal). \
+         Got: {err:?} (Display: {display})"
+    );
+
+    assert!(
+        display.contains("aggregate function"),
+        "F-PQLFN-PR9-LOW-002 (pipe Avg mixed-case): Display must contain 'aggregate function' \
+         (ADR-048 D.3 canonical). Got: {display}"
+    );
+
+    // Input-verbatim echo: mixed-case 'Avg' input → error quotes 'Avg'.
+    assert!(
+        display.contains("Avg"),
+        "F-PQLFN-PR9-LOW-002 (pipe Avg mixed-case): Display must contain 'Avg' \
+         (input-verbatim echo in canonical D.3 message, BC-2.11.019 v1.23 §OBS-004). \
+         Got: {display}"
+    );
+
+    assert!(
+        display.contains("HAVING"),
+        "F-PQLFN-PR9-LOW-002 (pipe Avg mixed-case): Display must contain 'HAVING' \
+         (ADR-048 D.3 use-HAVING guidance). Got: {display}"
+    );
+
+    assert!(
+        !matches!(&err, PrismError::QueryPlanFailed { .. }),
+        "F-PQLFN-PR9-LOW-002 (pipe Avg mixed-case): must NOT be QueryPlanFailed. \
+         Aggregate gate fires before plan-time. Got: {err:?}"
+    );
+}

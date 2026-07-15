@@ -15443,6 +15443,66 @@ mod datafusion_aggregate_registry_empirical_tests {
              is still necessary and update ADR-048 §D.2 accordingly."
         );
     }
+
+    /// F-PQLFN-PR9-OBS-001 **GREEN LOCK** — DataFusion registry set-difference invariant:
+    /// `DATAFUSION_BUILTIN_AGGREGATE_NAMES ∖ DATAFUSION_BUILTIN_FUNCTION_NAMES`
+    /// == `{"distinct_count", "percentile"}`.
+    ///
+    /// The HAVING-position interception gate (EC-11-086, ADR-048 v1.16 §D.2) uses the
+    /// two-condition criterion to decide which names are intercepted:
+    ///   (a) `name ∈ DATAFUSION_BUILTIN_AGGREGATE_NAMES`, AND
+    ///   (b) `name ∉ DATAFUSION_BUILTIN_FUNCTION_NAMES`
+    ///
+    /// The set difference `AGGREGATE ∖ FUNCTION_NAMES` is the exact "triggering set" —
+    /// names that satisfy BOTH conditions and thus reach the HAVING interception branch.
+    /// Today this set is `{"distinct_count", "percentile"}`:
+    ///   - Both are manually inserted in `DATAFUSION_BUILTIN_AGGREGATE_NAMES`.
+    ///   - Both are absent from DataFusion 53.1's raw aggregate registry (F-PQLFN-P4-MED-001).
+    ///   - Because they're absent from the raw registry, they're also absent from
+    ///     `DATAFUSION_BUILTIN_FUNCTION_NAMES` (which unions scalar + aggregate + window).
+    ///
+    /// The two-branch `having_aggregate_interception_detail` builder (BC-2.11.019 v1.23
+    /// §OBS-004, F-PQLFN-PR5-LOW-001) branches on `name_lower == "percentile"` to emit
+    /// the two-arg template vs the generic `(...)` template. If a DataFusion 53.x upgrade
+    /// adds a new aggregate-only name that widens the triggering set, this test fails
+    /// loudly — the reviewer knows to extend the detail-builder's branching logic before
+    /// silent behavior change reaches analysts.
+    ///
+    /// Note: `distinct_count` IS in the set difference but in practice never reaches
+    /// `having_fncall_names` because it parses as `FuncCall::Aggregate` via
+    /// `build_agg_call_parser` (not `ScalarFunc::Unknown`) — it is correctly included in
+    /// the invariant as a structural property of the gate design (BC-2.11.019 v1.23 §OBS-004).
+    ///
+    /// Kills the class of silent-breakage mutations where a DataFusion upgrade changes the
+    /// registry contents in a way that shifts the triggering set without any test failure.
+    ///
+    /// Traces to: BC-2.11.019 v1.23 §OBS-004 (set-difference invariant, F-PQLFN-PR9-OBS-001);
+    ///            F-PQLFN-P4-MED-001 (empirical absence locks); ADR-048 v1.16 §D.2.
+    #[test]
+    fn test_f_pqlfn_pr9_obs_001_datafusion_set_difference_invariant() {
+        let diff: std::collections::HashSet<&str> = super::DATAFUSION_BUILTIN_AGGREGATE_NAMES
+            .iter()
+            .filter(|name| !super::DATAFUSION_BUILTIN_FUNCTION_NAMES.contains(*name))
+            .map(|s| s.as_str())
+            .collect();
+
+        let expected: std::collections::HashSet<&str> =
+            ["distinct_count", "percentile"].iter().copied().collect();
+
+        assert_eq!(
+            diff, expected,
+            "F-PQLFN-PR9-OBS-001 INVARIANT BROKEN: \
+             DATAFUSION_BUILTIN_AGGREGATE_NAMES ∖ DATAFUSION_BUILTIN_FUNCTION_NAMES \
+             must equal {{\"distinct_count\", \"percentile\"}}. \
+             Actual difference: {diff:?}. \
+             The HAVING interception gate (EC-11-086, ADR-048 v1.16 §D.2) fires for names \
+             in this triggering set. A DataFusion upgrade that widened this set would \
+             silently change HAVING-interception behavior for analysts. \
+             Action: inspect the new name(s), extend `having_aggregate_interception_detail` \
+             branching if the new name needs a custom message template, update ADR-048 §D.2, \
+             and amend this test to include the new expected names after deliberate review."
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
