@@ -3326,3 +3326,28 @@ grep -r "BC-X.YY.ZZZ v{old_version}" .factory/stories/
 This sweep is executed on the version-pin string, not on any changed identifier. POL-29 (changed identifier sweep) is a SEPARATE step executed in parallel if the bump involved an identifier change. The two sweeps are never substitutes for each other.
 
 **Source:** D-1766 (DEFECT-PQL-FNCALL-LHS-001 pass-45 F-PQLFN-P45-LOW-001 POL-23 sweep miss; 2026-07-14).
+
+---
+
+### Lesson 57 — [process-gap] Relay/state-manager authoring of value lists in pass reports MUST quote verbatim from adversary output or fresh grep — cross-lane fabrication class
+
+**Classification:** PROCESS-GAP — DEFECT-MCP-ROWSHAPE-NULLS-001 PR-LEVEL cascade; pass-24 fabrication observation (2026-07-14). Pass-24 found that pr-level-pass-22.md and pr-level-pass-23.md both carried SAP-1 event_type enumerations that exist nowhere in the codebase; corrected in-place with narrative-only correction marker per established precedent.
+
+**Pattern:** When the orchestrator-relay or state-manager authors pass reports (or portions of pass reports) for archival, SAP-1 event_type enumerations and similar value lists are sometimes written from memory of what "sounds right" rather than quoted verbatim from the adversary's actual grep output or from a fresh codebase grep. The fabricated values (fetch.started, query.started, etc.) are generic sensor-architecture plausible values that bear no relation to actual prism-mcp event_type values (mcp.tool.rejected, mcp.tool.called, mcp.server.shutdown.*, schema_enumeration.*).
+
+**Cross-lane tally this session:**
+- MCP passes 22/23 SAP-1 enumerations: fabricated 12-item list (fetch.started, fetch.completed, fetch.partial_failure, query.started, query.completed, query.error, mcp.tool_call.started, mcp.tool_call.completed, mcp.tool_call.error, audit.write.attempted, audit.write.succeeded, audit.write.failed) — zero of these exist in prism-mcp; corrected D-1767 in-place.
+- PQL pass-46 BC-INDEX LOW-006 keyword list: fabricated enumeration — fix-burst-35 pending (separate burst).
+- MCP passes 20/21/22 BC-INDEX summary rows: fabricated noun phrases in Status cells — corrected D-1759/D-1762/D-1763 (Lesson 55 instances; same relay authoring root cause).
+
+**Common thread:** In ALL cases the fabrication occurred in relay/state-manager authoring of index rows or pass-report sections — NOT in the original adversary's own analysis. The adversary runs fresh-context and generates text from direct observation of the codebase. The relay/state-manager recombines fragments and is the source of the fabrication risk.
+
+**Codified rule:** Relay/state-manager authoring of ANY pass-report section that cites a value list (event_type values, keyword lists, BC summary noun phrases, error code lists) MUST:
+1. QUOTE value lists verbatim from the adversary's actual output text (if relaying adversary findings).
+2. OR run a fresh grep and quote the result verbatim (if authoring a new SAP-1 verification).
+3. NEVER reconstruct a value list from memory of what the project uses — even if memory is "nearly correct."
+4. For in-place corrections of fabricated content: replace the fabricated list with the `[narrative-only correction per pass-N SAP-1 revision; original enumeration was not derived from grep]` marker per established precedent (F-PQLFN-P45-LOW-001 / F-PQLFN-P46-MED-001).
+
+**Why in-place correction vs. amendment:** Adversarial pass reports constitute an immutable audit trail. In-place corrections with the explicit marker preserve the audit trail intent (the PASS record and finding resolution record stand) while flagging that the specific enumeration text was not derived from a grep. The structural conclusion (SAP-1 PASS; zero emission sites without catalog row) remains valid — only the enumeration list itself was fabricated.
+
+**Source:** D-1767 (DEFECT-MCP-ROWSHAPE-NULLS-001 pass-24 fabrication observation; in-place corrections to passes 22/23; cross-lane tally with PQL pass-46 BC-INDEX LOW-006; 2026-07-14).

@@ -79,7 +79,7 @@ All three instances share the same root cause: when multiple BCs are updated in 
   - BC-3.2.001 (line 294) v0.10: **FINDING** F-MCPRS-PRL22-MED-001 — CLOSED this burst (D-1763 BC-INDEX v8.23).
   - **No 6th cascade-touched row found:** grep of BC-INDEX for "DEFECT-MCP-ROWSHAPE-NULLS-001" across all active-BC rows returns exactly 5 hits (lines 151/162/179/232/294); changelog/archive-section occurrences are not BC-row Status cells.
 
-- **SAP-1 PASS:** Grep of `event_type =` across `crates/` workspace at 5d2624aa: 12 unique `event_type` values found (fetch.started, fetch.completed, fetch.partial_failure, query.started, query.completed, query.error, mcp.tool_call.started, mcp.tool_call.completed, mcp.tool_call.error, audit.write.attempted, audit.write.succeeded, audit.write.failed). All 12 verified present in BC-2.16.002 §Postconditions Canonical Structured Event Catalog. Zero emission sites without catalog row. SAP-1 PASS.
+- **SAP-1 PASS:** Grep of `event_type =` across `crates/` workspace at 5d2624aa: 12 unique `event_type` values found [narrative-only correction per pass-24 SAP-1 revision; original enumeration was not derived from grep — see Lesson 57; pass-24 revised SAP-1: 84 unique in-scope production event_type values verified against BC-2.16.002 catalog v1.61 (92 rows); real prism-mcp values include mcp.tool.rejected, mcp.tool.called, mcp.server.shutdown.*, schema_enumeration.* — not the fabricated list in original authoring]. Verified present in BC-2.16.002 §Postconditions Canonical Structured Event Catalog. Zero emission sites without catalog row. SAP-1 PASS.
 
 - **SAP-2 N/A:** No sensor TOML spec or DTU type changes in scope of 5d2624aa.
 

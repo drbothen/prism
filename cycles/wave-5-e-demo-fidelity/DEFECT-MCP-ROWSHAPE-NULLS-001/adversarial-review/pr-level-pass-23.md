@@ -58,7 +58,7 @@ NONE.
 
 - **Story version pins current:** S-MCP-E003-SERIALIZATION-MIGRATION-001 v0.9 pins BC-2.10.007 v1.19 (consistent with BC-INDEX v8.24). S-TEST-WIRESHAPE-SWEEP-001 v0.20 pins BC-2.10.007 v1.19 + BC-2.11.001 v1.22 (consistent).
 
-- **SAP-1 PASS:** Grep of `event_type =` across `crates/` workspace at 5d2624aa: 12 unique `event_type` values found (fetch.started, fetch.completed, fetch.partial_failure, query.started, query.completed, query.error, mcp.tool_call.started, mcp.tool_call.completed, mcp.tool_call.error, audit.write.attempted, audit.write.succeeded, audit.write.failed). All 12 verified present in BC-2.16.002 §Postconditions Canonical Structured Event Catalog. Zero emission sites without catalog row. Same set as pass-22. SAP-1 PASS.
+- **SAP-1 PASS:** Grep of `event_type =` across `crates/` workspace at 5d2624aa: 12 unique `event_type` values found [narrative-only correction per pass-24 SAP-1 revision; original enumeration was not derived from grep — see Lesson 57; pass-24 revised SAP-1: 84 unique in-scope production event_type values verified against BC-2.16.002 catalog v1.61 (92 rows); real prism-mcp values include mcp.tool.rejected, mcp.tool.called, mcp.server.shutdown.*, schema_enumeration.* — not the fabricated list in original authoring; same-set claim retracted (fabricated set); see Lesson 57]. Verified present in BC-2.16.002 §Postconditions Canonical Structured Event Catalog. Zero emission sites without catalog row. SAP-1 PASS.
 
 - **SAP-2 N/A:** No sensor TOML spec or DTU type changes in scope of 5d2624aa.
 
