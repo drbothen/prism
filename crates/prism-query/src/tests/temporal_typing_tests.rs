@@ -9738,6 +9738,520 @@ async fn test_f_pqlfn_pr9_low_002_sql_where_stddev_uppercase_fires_aggregate_gat
     );
 }
 
+// ── F-PQLFN-PR10-MED-001: LOW-006 single-prefix locks across 7 surfaces ─────────────────
+//
+// PR-LEVEL pass-10 finding F-PQLFN-PR10-MED-001:
+// The LOW-006 keyword-rejection runtime Display contains "E-QUERY-001:" TWICE and
+// "parse error at offset" TWICE. Root cause: the `.validate()` emit at
+// filter_parser.rs (~1503-1509, fn_call_comparison) embeds the "E-QUERY-001: " prefix
+// in the Rich::custom message, which then flows through ParseError::Display (prepends
+// "parse error at offset X: ") into the QueryParseFailed detail field, whose #[error]
+// template prepends "E-QUERY-001: query parse error at offset Y: " again.
+//
+// Spec canonical (BC-2.11.004 v1.48 EC-11-085, POL-24 byte-exact, SINGLE prefix each):
+//   E-QUERY-001: query parse error at offset {offset}: '<KW>' is a PrismQL keyword
+//   and cannot be used as a function name
+//
+// The sibling aggregate-in-WHERE gate enforces single-prefix via TM-08 invariants
+// (`display.matches("E-QUERY-001:").count() == 1` and `display.matches("parse error at
+// offset").count() == 1`). These tests apply the same discipline to LOW-006 across all
+// 7 parse surfaces (BC-2.11.004 §Postconditions SHARED-PARSER SCOPE).
+//
+// All tests in this section are RED (FAIL before the fix) because the current code
+// produces doubled prefixes. Do NOT touch production code — these are Red Gate tests.
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/// F-PQLFN-PR10-MED-001 **RED** — All-21-keyword single-prefix lock (pipe surface).
+///
+/// For EACH of the 21 keywords in `RESERVED_KEYWORDS`, the query
+/// `FROM crowdstrike_detections | where <KW>(device_id) = 5` (pipe surface) must
+/// produce `QueryParseFailed` whose Display contains:
+/// - EXACTLY ONE occurrence of `"E-QUERY-001:"`
+/// - EXACTLY ONE occurrence of `"parse error at offset"`
+///
+/// **Current (pre-fix) behavior — DOUBLED prefixes** (causes RED):
+/// ```text
+/// E-QUERY-001: query parse error at offset X: parse error at offset X: E-QUERY-001:
+///   '<KW>' is a PrismQL keyword and cannot be used as a function name
+/// ```
+/// Both `"E-QUERY-001:"` and `"parse error at offset"` appear twice.
+///
+/// **Spec canonical** (BC-2.11.004 v1.48 EC-11-085, POL-24 byte-exact, SINGLE prefix):
+/// ```text
+/// E-QUERY-001: query parse error at offset X: '<KW>' is a PrismQL keyword and cannot
+///   be used as a function name
+/// ```
+///
+/// Root cause: `fn_call_comparison` `.validate()` emits `Rich::custom(span, "E-QUERY-001:
+/// '<KW>' is...")`. `rich_to_parse_error` captures that message into `ParseError.message`.
+/// `ParseError::Display` wraps it with `"parse error at offset X: "`. The resulting string
+/// becomes the `detail` in `QueryParseFailed`, whose `#[error]` template adds
+/// `"E-QUERY-001: query parse error at offset X: "` a second time.
+///
+/// Parallels TM-08 invariant (temporal_typing_tests.rs ~5421-5427) for the aggregate gate.
+///
+/// **RED Gate**: all 21 iterations FAIL before the fix (count == 2, not 1).
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085; F-PQLFN-PR10-MED-001; POL-24;
+///            ADR-048 §D.7.2 de-prefix discipline; TM-08 pattern.
+#[tokio::test]
+async fn test_f_pqlfn_pr10_med_001_low_006_single_prefix_lock() {
+    let engine = make_crowdstrike_detections_engine();
+
+    // Canonical 21-keyword list (keep in sync with filter_parser.rs fn_call_comparison).
+    const RESERVED_KEYWORDS: &[&str] = &[
+        "NOT",
+        "AND",
+        "OR",
+        "IN",
+        "IIN",
+        "IEQ",
+        "INE",
+        "IS",
+        "BETWEEN",
+        "LIKE",
+        "CIDR",
+        "MATCHES",
+        "HAS",
+        "MISSING",
+        "CONTAINS",
+        "ICONTAINS",
+        "STARTSWITH",
+        "ISTARTSWITH",
+        "ENDSWITH",
+        "IENDSWITH",
+        "NULL",
+    ];
+
+    for kw in RESERVED_KEYWORDS {
+        let query = format!("FROM crowdstrike_detections | where {kw}(device_id) = 5");
+        let result = engine.execute(&query, QueryOptions::default()).await;
+
+        // Must be QueryParseFailed (pre-existing PR9 invariant, carried forward).
+        assert!(
+            matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+            "F-PQLFN-PR10-MED-001 (keyword '{kw}'): must produce QueryParseFailed \
+             (BC-2.11.004 v1.48 LOW-006, F-PQLFN-PR10-MED-001). Got: {result:?}"
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        // TM-08-style single-prefix invariant (ADR-048 §D.7.2 de-prefix discipline):
+        // "E-QUERY-001:" must appear EXACTLY ONCE in Display.
+        // Pre-fix: count == 2 → FAILS (RED Gate).
+        assert_eq!(
+            display.matches("E-QUERY-001:").count(),
+            1,
+            "F-PQLFN-PR10-MED-001 (keyword '{kw}'): Display must contain EXACTLY ONE \
+             'E-QUERY-001:' prefix (ADR-048 §D.7.2 de-prefix discipline, TM-08 pattern). \
+             Pre-fix: count == 2 (doubled prefix from Rich::custom + ParseError::Display + \
+             QueryParseFailed #[error] template). \
+             Got display: {display:?}"
+        );
+
+        // TM-08-style single-prefix invariant:
+        // "parse error at offset" must appear EXACTLY ONCE in Display.
+        // Pre-fix: count == 2 (appears in QueryParseFailed template AND in ParseError::Display
+        // detail) → FAILS (RED Gate).
+        assert_eq!(
+            display.matches("parse error at offset").count(),
+            1,
+            "F-PQLFN-PR10-MED-001 (keyword '{kw}'): Display must contain EXACTLY ONE \
+             'parse error at offset' fragment (ADR-048 §D.7.2 de-prefix discipline). \
+             Pre-fix: count == 2 (ParseError::Display embeds 'parse error at offset X: \
+             E-QUERY-001: ...' as the detail, then QueryParseFailed #[error] template \
+             prepends 'E-QUERY-001: query parse error at offset X: ' again). \
+             Got display: {display:?}"
+        );
+    }
+}
+
+/// F-PQLFN-PR10-MED-001 **RED** — pipe `| where` surface, byte-exact canonical form.
+///
+/// Query: `FROM crowdstrike_detections | where NOT(device_id) = 5`
+///
+/// The Display of the `QueryParseFailed` error must EQUAL the spec-canonical byte-exact
+/// form (BC-2.11.004 v1.48 EC-11-085, POL-24):
+/// ```text
+/// E-QUERY-001: query parse error at offset {offset}: 'NOT' is a PrismQL keyword and
+///   cannot be used as a function name
+/// ```
+///
+/// **Current (pre-fix) Display** (causes RED):
+/// ```text
+/// E-QUERY-001: query parse error at offset X: parse error at offset X: E-QUERY-001:
+///   'NOT' is a PrismQL keyword and cannot be used as a function name
+/// ```
+///
+/// The byte-exact assertion pins the complete canonical form, not just fragments.
+/// This covers both the doubled-prefix defect AND any future message drift.
+///
+/// The expected offset is derived dynamically via `query.find("NOT")` to avoid
+/// byte-counting maintenance burden (per TD-VSDD-091 anti-volatile-pin principle).
+///
+/// **RED Gate**: `assert_eq!(display, expected)` FAILS before fix (extra doubled prefixes).
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085; F-PQLFN-PR10-MED-001; POL-24 byte-exact;
+///            ADR-048 §D.7.2 de-prefix discipline.
+#[tokio::test]
+async fn test_f_pqlfn_pr10_med_001_pipe_where_single_prefix_byte_exact() {
+    let engine = make_crowdstrike_detections_engine();
+    let query = "FROM crowdstrike_detections | where NOT(device_id) = 5";
+    let not_offset = query.find("NOT").expect("'NOT' must appear in query");
+
+    let expected_display = format!(
+        "E-QUERY-001: query parse error at offset {not_offset}: \
+         'NOT' is a PrismQL keyword and cannot be used as a function name"
+    );
+
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR10-MED-001 (pipe | where, byte-exact): must produce QueryParseFailed. \
+         Got: {result:?}"
+    );
+
+    let display = format!("{}", result.unwrap_err());
+
+    // Byte-exact assertion: pins the COMPLETE canonical form.
+    // Pre-fix: display contains doubled prefixes, so display != expected_display → FAILS.
+    assert_eq!(
+        display, expected_display,
+        "F-PQLFN-PR10-MED-001 (pipe | where, byte-exact): Display must EQUAL the \
+         spec-canonical form (BC-2.11.004 v1.48 EC-11-085, POL-24). \
+         Pre-fix: display contains 'parse error at offset X: E-QUERY-001: ...' in the \
+         detail, causing doubled prefixes. Expected (canonical): {expected_display:?}"
+    );
+}
+
+/// F-PQLFN-PR10-MED-001 **RED** — SQL WHERE surface, byte-exact canonical form.
+///
+/// Query: `SELECT device_id FROM crowdstrike_detections WHERE NOT(device_id) = 5`
+///
+/// The SQL WHERE surface shares `build_predicate_parser` → `fn_call_comparison`
+/// `.validate()`. The same doubled-prefix defect applies.
+///
+/// Display must EQUAL (byte-exact, POL-24):
+/// ```text
+/// E-QUERY-001: query parse error at offset {offset}: 'NOT' is a PrismQL keyword and
+///   cannot be used as a function name
+/// ```
+///
+/// **RED Gate**: `assert_eq!(display, expected)` FAILS before fix.
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085; F-PQLFN-PR10-MED-001; POL-24 byte-exact;
+///            ADR-048 §D.7.2; BC-2.11.003 EC-11-003-007.
+#[tokio::test]
+async fn test_f_pqlfn_pr10_med_001_sql_where_single_prefix_byte_exact() {
+    let engine = make_crowdstrike_detections_engine();
+    let query = "SELECT device_id FROM crowdstrike_detections WHERE NOT(device_id) = 5";
+    let not_offset = query.find("NOT").expect("'NOT' must appear in query");
+
+    let expected_display = format!(
+        "E-QUERY-001: query parse error at offset {not_offset}: \
+         'NOT' is a PrismQL keyword and cannot be used as a function name"
+    );
+
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR10-MED-001 (SQL WHERE, byte-exact): must produce QueryParseFailed. \
+         Got: {result:?}"
+    );
+
+    let display = format!("{}", result.unwrap_err());
+
+    assert_eq!(
+        display, expected_display,
+        "F-PQLFN-PR10-MED-001 (SQL WHERE, byte-exact): Display must EQUAL spec-canonical \
+         form (BC-2.11.004 v1.48 EC-11-085, POL-24). Pre-fix: doubled prefixes from \
+         ParseError::Display wrapping the 'E-QUERY-001: ' in the Rich::custom message. \
+         Expected (canonical): {expected_display:?}"
+    );
+}
+
+/// F-PQLFN-PR10-MED-001 **RED** — filter mode surface, single-prefix invariants.
+///
+/// Query: `crowdstrike_detections | NOT(device_id) = 5`
+///
+/// Filter mode uses `build_predicate_parser` → `fn_call_comparison` `.validate()`.
+/// Same doubled-prefix defect applies via the same code path.
+///
+/// **RED Gate**: count == 2 assertions FAIL before fix.
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085; F-PQLFN-PR10-MED-001; POL-24;
+///            ADR-048 §D.7.2; BC-2.11.004 LOW-006 shared-parser scope.
+#[tokio::test]
+async fn test_f_pqlfn_pr10_med_001_filter_mode_single_prefix() {
+    let engine = make_crowdstrike_detections_engine();
+    let query = "crowdstrike_detections | NOT(device_id) = 5";
+
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR10-MED-001 (filter mode): must produce QueryParseFailed. \
+         Got: {result:?}"
+    );
+
+    let display = format!("{}", result.unwrap_err());
+
+    assert_eq!(
+        display.matches("E-QUERY-001:").count(),
+        1,
+        "F-PQLFN-PR10-MED-001 (filter mode): Display must contain EXACTLY ONE \
+         'E-QUERY-001:' prefix (ADR-048 §D.7.2 de-prefix discipline). \
+         Pre-fix: count == 2 (doubled). Got: {display:?}"
+    );
+
+    assert_eq!(
+        display.matches("parse error at offset").count(),
+        1,
+        "F-PQLFN-PR10-MED-001 (filter mode): Display must contain EXACTLY ONE \
+         'parse error at offset' fragment. Pre-fix: count == 2. Got: {display:?}"
+    );
+}
+
+/// F-PQLFN-PR10-MED-001 **RED** — SqlPipe `| where` stage surface, single-prefix invariants.
+///
+/// Query: `SELECT * FROM crowdstrike_detections | where NOT(device_id) = 5`
+///
+/// SqlPipe `| where` stages share `build_predicate_parser` → same doubled-prefix defect.
+/// Note: the SqlPipe stage parser processes the stages substring; offsets in that surface
+/// go through F-PQLFN-P27-MED-001 shift logic. Single-prefix invariants apply regardless
+/// of offset value.
+///
+/// **RED Gate**: count == 2 assertions FAIL before fix.
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085; F-PQLFN-PR10-MED-001; POL-24;
+///            ADR-048 §D.7.2; BC-2.11.004 LOW-006 shared-parser scope (SqlPipe).
+#[tokio::test]
+async fn test_f_pqlfn_pr10_med_001_sqlpipe_where_single_prefix() {
+    let engine = make_crowdstrike_detections_engine();
+    let query = "SELECT * FROM crowdstrike_detections | where NOT(device_id) = 5";
+
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR10-MED-001 (SqlPipe | where): must produce QueryParseFailed. \
+         Got: {result:?}"
+    );
+
+    let display = format!("{}", result.unwrap_err());
+
+    assert_eq!(
+        display.matches("E-QUERY-001:").count(),
+        1,
+        "F-PQLFN-PR10-MED-001 (SqlPipe | where): Display must contain EXACTLY ONE \
+         'E-QUERY-001:' prefix (ADR-048 §D.7.2 de-prefix discipline). \
+         Pre-fix: count == 2. Got: {display:?}"
+    );
+
+    assert_eq!(
+        display.matches("parse error at offset").count(),
+        1,
+        "F-PQLFN-PR10-MED-001 (SqlPipe | where): Display must contain EXACTLY ONE \
+         'parse error at offset' fragment. Pre-fix: count == 2. Got: {display:?}"
+    );
+}
+
+/// F-PQLFN-PR10-MED-001 **RED** — SQL HAVING surface, single-prefix invariants.
+///
+/// Query: `SELECT count(*) FROM crowdstrike_detections GROUP BY device_id HAVING NOT(device_id) = 5`
+///
+/// HAVING falls through `agg_comparison` → `build_predicate_parser` → `fn_call_comparison`.
+/// Same doubled-prefix defect.
+///
+/// **RED Gate**: count == 2 assertions FAIL before fix.
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085; F-PQLFN-PR10-MED-001; POL-24;
+///            ADR-048 §D.7.2; ADR-048 D.3 (HAVING grammar).
+#[tokio::test]
+async fn test_f_pqlfn_pr10_med_001_sql_having_single_prefix() {
+    let engine = make_crowdstrike_detections_engine();
+    let query =
+        "SELECT count(*) FROM crowdstrike_detections GROUP BY device_id HAVING NOT(device_id) = 5";
+
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR10-MED-001 (SQL HAVING): must produce QueryParseFailed. \
+         Got: {result:?}"
+    );
+
+    let display = format!("{}", result.unwrap_err());
+
+    assert_eq!(
+        display.matches("E-QUERY-001:").count(),
+        1,
+        "F-PQLFN-PR10-MED-001 (SQL HAVING): Display must contain EXACTLY ONE \
+         'E-QUERY-001:' prefix (ADR-048 §D.7.2 de-prefix discipline). \
+         Pre-fix: count == 2. Got: {display:?}"
+    );
+
+    assert_eq!(
+        display.matches("parse error at offset").count(),
+        1,
+        "F-PQLFN-PR10-MED-001 (SQL HAVING): Display must contain EXACTLY ONE \
+         'parse error at offset' fragment. Pre-fix: count == 2. Got: {display:?}"
+    );
+}
+
+/// F-PQLFN-PR10-MED-001 **RED** — DML WHERE surface, single-prefix invariants.
+///
+/// Query: `DELETE FROM crowdstrike_detections WHERE NOT(device_id) = 5`
+///
+/// DML WHERE uses `build_predicate_parser` → `fn_call_comparison` `.validate()`.
+/// Same doubled-prefix defect.
+///
+/// **RED Gate**: count == 2 assertions FAIL before fix.
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085; F-PQLFN-PR10-MED-001; POL-24;
+///            ADR-048 §D.7.2; ADR-048 v1.6 OD-6 §D.7.5.
+#[tokio::test]
+async fn test_f_pqlfn_pr10_med_001_dml_where_single_prefix() {
+    let engine = make_crowdstrike_detections_engine();
+    let query = "DELETE FROM crowdstrike_detections WHERE NOT(device_id) = 5";
+
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR10-MED-001 (DML WHERE): must produce QueryParseFailed. \
+         Got: {result:?}"
+    );
+
+    let display = format!("{}", result.unwrap_err());
+
+    assert_eq!(
+        display.matches("E-QUERY-001:").count(),
+        1,
+        "F-PQLFN-PR10-MED-001 (DML WHERE): Display must contain EXACTLY ONE \
+         'E-QUERY-001:' prefix (ADR-048 §D.7.2 de-prefix discipline). \
+         Pre-fix: count == 2. Got: {display:?}"
+    );
+
+    assert_eq!(
+        display.matches("parse error at offset").count(),
+        1,
+        "F-PQLFN-PR10-MED-001 (DML WHERE): Display must contain EXACTLY ONE \
+         'parse error at offset' fragment. Pre-fix: count == 2. Got: {display:?}"
+    );
+}
+
+/// F-PQLFN-PR10-MED-001 **RED** — INSERT source_select WHERE surface, single-prefix invariants.
+///
+/// Query: `INSERT INTO crowdstrike_detections (device_id) SELECT device_id FROM
+///   crowdstrike_detections WHERE NOT(device_id) = 5`
+///
+/// INSERT source_select WHERE (ADR-048 v1.13 §D.7.6) uses `build_predicate_parser` →
+/// `fn_call_comparison` `.validate()`. Same doubled-prefix defect.
+///
+/// **RED Gate**: count == 2 assertions FAIL before fix.
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085; F-PQLFN-PR10-MED-001; POL-24;
+///            ADR-048 §D.7.2; ADR-048 v1.13 §D.7.6.
+#[tokio::test]
+async fn test_f_pqlfn_pr10_med_001_insert_where_single_prefix() {
+    let engine = make_crowdstrike_detections_engine();
+    let query = "INSERT INTO crowdstrike_detections (device_id) SELECT device_id \
+                 FROM crowdstrike_detections WHERE NOT(device_id) = 5";
+
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR10-MED-001 (INSERT source_select WHERE): must produce QueryParseFailed. \
+         Got: {result:?}"
+    );
+
+    let display = format!("{}", result.unwrap_err());
+
+    assert_eq!(
+        display.matches("E-QUERY-001:").count(),
+        1,
+        "F-PQLFN-PR10-MED-001 (INSERT source_select WHERE): Display must contain EXACTLY \
+         ONE 'E-QUERY-001:' prefix (ADR-048 §D.7.2 de-prefix discipline). \
+         Pre-fix: count == 2. Got: {display:?}"
+    );
+
+    assert_eq!(
+        display.matches("parse error at offset").count(),
+        1,
+        "F-PQLFN-PR10-MED-001 (INSERT source_select WHERE): Display must contain EXACTLY \
+         ONE 'parse error at offset' fragment. Pre-fix: count == 2. Got: {display:?}"
+    );
+}
+
+/// F-PQLFN-PR10-MED-001 **RED** — EC-11-085 NULL keyword, pipe surface, single-prefix invariants.
+///
+/// Query: `FROM crowdstrike_detections | where NULL(device_id) = 5`
+///
+/// EC-11-085 added `NULL` as keyword #21 (BC-2.11.004 v1.48, fix-burst-36).
+/// The doubled-prefix defect applies to NULL via the same `fn_call_comparison`
+/// `.validate()` path as all other keywords.
+///
+/// **Current (pre-fix) Display** (causes RED):
+/// ```text
+/// E-QUERY-001: query parse error at offset X: parse error at offset X: E-QUERY-001:
+///   'NULL' is a PrismQL keyword and cannot be used as a function name
+/// ```
+///
+/// **RED Gate**: count == 2 assertions FAIL before fix.
+///
+/// Traces to: BC-2.11.004 v1.48 EC-11-085; F-PQLFN-PR10-MED-001; POL-24;
+///            ADR-048 §D.7.2 de-prefix discipline; EC-11-085 NULL as keyword #21.
+#[tokio::test]
+async fn test_f_pqlfn_pr10_med_001_ec_11_085_null_single_prefix() {
+    let engine = make_crowdstrike_detections_engine();
+    let query = "FROM crowdstrike_detections | where NULL(device_id) = 5";
+
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR10-MED-001 (EC-11-085 NULL, pipe): must produce QueryParseFailed \
+         (BC-2.11.004 v1.48 EC-11-085). Got: {result:?}"
+    );
+
+    // Must NOT be E-QUERY-039 — NULL must be rejected at parse time, not fall through.
+    assert!(
+        !matches!(&result, Err(PrismError::EnrichUdfNotFound(_))),
+        "F-PQLFN-PR10-MED-001 (EC-11-085 NULL, pipe): must NOT fire E-QUERY-039. \
+         NULL must be intercepted at parse time by LOW-006. Got: {result:?}"
+    );
+
+    let display = format!("{}", result.unwrap_err());
+
+    assert_eq!(
+        display.matches("E-QUERY-001:").count(),
+        1,
+        "F-PQLFN-PR10-MED-001 (EC-11-085 NULL, pipe): Display must contain EXACTLY ONE \
+         'E-QUERY-001:' prefix (ADR-048 §D.7.2 de-prefix discipline). \
+         Pre-fix: count == 2 (doubled prefix from Rich::custom + ParseError::Display + \
+         QueryParseFailed #[error] template). Got: {display:?}"
+    );
+
+    assert_eq!(
+        display.matches("parse error at offset").count(),
+        1,
+        "F-PQLFN-PR10-MED-001 (EC-11-085 NULL, pipe): Display must contain EXACTLY ONE \
+         'parse error at offset' fragment. Pre-fix: count == 2. Got: {display:?}"
+    );
+
+    // POL-24 quoted keyword name lock for NULL (carries forward from EC-11-085 coverage).
+    assert!(
+        display.contains("'NULL'"),
+        "F-PQLFN-PR10-MED-001 (EC-11-085 NULL, pipe): Display must quote keyword as \
+         \"'NULL'\" (BC-2.11.004 EC-11-085, POL-24). Got: {display:?}"
+    );
+}
+
 /// F-PQLFN-PR9-LOW-002 (b) **GREEN LOCK** — Mixed-case aggregate in pipe `| where`
 /// fires E-QUERY-001 via the `predicate_fncall_names` gate.
 ///
