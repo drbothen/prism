@@ -567,9 +567,33 @@ pub async fn run_materialization_pipeline(
     let ast = crate::filter_parser::PrismQlParser::parse(query_str).map_err(|errs| {
         PrismError::QueryParseFailed {
             offset: errs.first().map(|e| e.offset).unwrap_or(0),
+            // ADR-048 §D.7.2 de-prefix discipline (F-PQLFN-PR10-MED-001 fix-burst-41):
+            // Semantic errors (`e.semantic == true`, from `Rich::custom`) use the bare
+            // message — without the "parse error at offset X: " wrapper added by
+            // `ParseError::Display` AND without any embedded "E-QUERY-001: " prefix
+            // (stripped here so it is not doubled by the `QueryParseFailed` #[error]
+            // template `"E-QUERY-001: query parse error at offset {offset}: {detail}"`).
+            //
+            // Some semantic-error messages embed `"E-QUERY-001: "` in their `message`
+            // field per BC-2.11.024 (e.g. IIN/IEQ/INE errors — tests verify
+            // `e.message.contains("E-QUERY-001")` directly).  Those messages are stored
+            // prefixed so that per-field callers still see the error code.  Here we strip
+            // the prefix before injecting into `detail` to prevent doubling.
+            //
+            // Non-semantic errors (structural `ExpectedFound`) keep `e.to_string()` for
+            // backward-compatible detail formatting.
             detail: errs
                 .iter()
-                .map(|e| e.to_string())
+                .map(|e| {
+                    if e.semantic {
+                        // Strip embedded "E-QUERY-001: " prefix if present — the outer
+                        // QueryParseFailed template supplies the single canonical prefix.
+                        let msg = &e.message;
+                        msg.strip_prefix("E-QUERY-001: ").unwrap_or(msg).to_string()
+                    } else {
+                        e.to_string()
+                    }
+                })
                 .collect::<Vec<_>>()
                 .join("; "),
             query: query_str.to_string(),
@@ -609,9 +633,19 @@ pub async fn run_materialization_pipeline(
         // overflow in the constant-fold arm produces E-QUERY-001 instead of panicking.
         crate::inject_now(ast, &now_literal_expr).map_err(|errs| PrismError::QueryParseFailed {
             offset: errs.first().map(|e| e.offset).unwrap_or(0),
+            // ADR-048 §D.7.2 de-prefix discipline: same semantic-aware detail
+            // formatting as the Step 1 parse site above (strip "E-QUERY-001: "
+            // prefix so the QueryParseFailed template does not double it).
             detail: errs
                 .iter()
-                .map(|e| e.to_string())
+                .map(|e| {
+                    if e.semantic {
+                        let msg = &e.message;
+                        msg.strip_prefix("E-QUERY-001: ").unwrap_or(msg).to_string()
+                    } else {
+                        e.to_string()
+                    }
+                })
                 .collect::<Vec<_>>()
                 .join("; "),
             query: query_str.to_string(),

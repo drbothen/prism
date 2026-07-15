@@ -241,25 +241,23 @@ pub(crate) fn parse_sql_with_limits(
     if let Some(sq) = result {
         let parse_errors: Vec<ParseError> = errs.iter().map(rich_to_parse_error).collect();
         // LOW-006 guard (BC-2.11.004 v1.42, F-PQLFN-P26-OBS-002, ADR-048 v1.12 §D.7.2):
-        // do NOT apply the F-MEDIUM-001 recovery Ok path when any error is an
-        // "E-QUERY-001: "-prefixed semantic validation error emitted by a `.validate()`
-        // or `.try_map()` combinator.  This prefix is the canonical discriminator for
-        // ALL plan-time semantic gates inside the parser:
-        //   - LOW-006 keyword-fn-name exclusion in `fn_call_comparison`
-        //   - PERCENTILE out-of-range gate (any future validator that gates range bounds)
-        //   - Any future semantic validator emitting `Rich::custom` from inside
-        //     `fn_call_comparison` or any other `.validate()` site
-        // F-MEDIUM-001 recovery errors (from `nested_delimiters`) are raw Chumsky parse
-        // errors; they never carry the "E-QUERY-001:" prefix.  Semantic validation
-        // errors always do (per ADR-048 §D.7.2, F-MEDIUM-001 recovery-path guard,
-        // intentionally broad — v1.12): the "E-QUERY-001: " prefix is the
-        // semantic-validation discriminant that blocks partial-AST recovery.  The guard is
-        // intentionally broad: any "E-QUERY-001: " prefix blocks the recovery path,
-        // ensuring the semantic error reaches the caller as `Err` instead of being
-        // silently discarded behind a partial Ok AST.
-        let has_semantic_error = parse_errors
-            .iter()
-            .any(|e| e.message.starts_with("E-QUERY-001:"));
+        // do NOT apply the F-MEDIUM-001 recovery Ok path when any error is a semantic
+        // validation error emitted by a `.validate()` or `.try_map()` combinator
+        // (i.e., `Rich::custom` — `ParseError.semantic == true` after `rich_to_parse_error`).
+        // Structural Chumsky parse errors (`RichReason::ExpectedFound`) are NOT semantic;
+        // they set `semantic = false` and are safe to return behind a partial Ok AST.
+        //
+        // Semantic gate examples blocked by this guard:
+        //   - LOW-006 keyword-fn-name exclusion in `fn_call_comparison` (.validate())
+        //   - PERCENTILE out-of-range gate (.try_map())
+        //   - IIN/IEQ/INE literal-type rejection (.try_map())
+        //   - Any future semantic validator emitting `Rich::custom`
+        //
+        // The `e.semantic` flag replaces the retired `e.message.starts_with("E-QUERY-001:")`
+        // prefix check (F-PQLFN-PR10-MED-001 fix-burst-41, ADR-048 §D.7.2 de-prefix
+        // discipline): semantic errors no longer embed the E-QUERY-001 prefix in their
+        // message; the `QueryParseFailed` #[error] template supplies it once.
+        let has_semantic_error = parse_errors.iter().any(|e| e.semantic);
         if !parse_errors.is_empty() && !has_semantic_error {
             // Partial AST with recovery errors: validate depth and list sizes
             // before returning. The AST may contain Predicate::RecoveryError

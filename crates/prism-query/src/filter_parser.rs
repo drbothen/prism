@@ -723,6 +723,7 @@ fn shift_parse_error_offsets(errs: Vec<ParseError>, delta: usize) -> Vec<ParseEr
             offset: e.offset + delta,
             message: e.message,
             recovery_label: e.recovery_label,
+            semantic: e.semantic,
         })
         .collect()
 }
@@ -1489,37 +1490,56 @@ pub(crate) fn build_predicate_parser<'a>(
             // is now caught at parse time with a clear message instead of silently
             // producing `Ok(QueryResult { 0 rows })` on no-data installations.
             // BC-2.11.004 v1.48 fix-burst-36: "NULL" added as keyword #21 (EC-11-085).
-            .validate(|((((func_name, func_span), args), op), rhs), _extra, emitter| {
-                const RESERVED_KEYWORDS: &[&str] = &[
-                    "NOT", "AND", "OR", "IN", "IIN", "IEQ", "INE", "IS", "BETWEEN",
-                    "LIKE", "CIDR", "MATCHES", "HAS", "MISSING", "CONTAINS",
-                    "ICONTAINS", "STARTSWITH", "ISTARTSWITH", "ENDSWITH", "IENDSWITH",
-                    "NULL",
-                ];
-                if RESERVED_KEYWORDS
-                    .iter()
-                    .any(|kw| func_name.eq_ignore_ascii_case(kw))
-                {
-                    emitter.emit(Rich::custom(
-                        SimpleSpan::from(func_span.start..func_span.end),
-                        format!(
-                            "E-QUERY-001: '{}' is a PrismQL keyword and cannot be used as a function name",
-                            func_name
-                        ),
-                    ));
-                }
-                use crate::ast::{FuncCall, ScalarFunc};
-                Predicate::Compare {
-                    lhs: Box::new(crate::ast::Expr::FuncCall(FuncCall::Scalar {
-                        func: ScalarFunc::Unknown(func_name),
-                        args,
-                        span: func_span,
-                    })),
-                    op,
-                    rhs: Box::new(rhs),
-                    case_insensitive: false,
-                }
-            });
+            .validate(
+                |((((func_name, func_span), args), op), rhs), _extra, emitter| {
+                    const RESERVED_KEYWORDS: &[&str] = &[
+                        "NOT",
+                        "AND",
+                        "OR",
+                        "IN",
+                        "IIN",
+                        "IEQ",
+                        "INE",
+                        "IS",
+                        "BETWEEN",
+                        "LIKE",
+                        "CIDR",
+                        "MATCHES",
+                        "HAS",
+                        "MISSING",
+                        "CONTAINS",
+                        "ICONTAINS",
+                        "STARTSWITH",
+                        "ISTARTSWITH",
+                        "ENDSWITH",
+                        "IENDSWITH",
+                        "NULL",
+                    ];
+                    if RESERVED_KEYWORDS
+                        .iter()
+                        .any(|kw| func_name.eq_ignore_ascii_case(kw))
+                    {
+                        emitter.emit(Rich::custom(
+                            SimpleSpan::from(func_span.start..func_span.end),
+                            format!(
+                                "'{}' is a PrismQL keyword and cannot be used as a function name",
+                                func_name
+                            ),
+                        ));
+                    }
+                    use crate::ast::{FuncCall, ScalarFunc};
+                    Predicate::Compare {
+                        lhs: Box::new(crate::ast::Expr::FuncCall(FuncCall::Scalar {
+                            func: ScalarFunc::Unknown(func_name),
+                            args,
+                            span: func_span,
+                        })),
+                        op,
+                        rhs: Box::new(rhs),
+                        case_insensitive: false,
+                    }
+                },
+            );
 
         // --- Basic comparison: field op (temporal_expr | literal) ---
         // Auto-promotes = or != with wildcard string patterns to Predicate::Wildcard.

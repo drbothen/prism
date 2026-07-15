@@ -11,7 +11,7 @@
 //!
 //! Story: S-3.01
 
-use chumsky::error::Rich;
+use chumsky::error::{Rich, RichReason};
 
 use crate::error::ParseError;
 
@@ -19,10 +19,23 @@ use crate::error::ParseError;
 ///
 /// This mapping is used by all three parsers to normalise Chumsky's internal
 /// error representation into the public `ParseError` API.
+///
+/// `ParseError.semantic` is set to `true` when the Rich error is a
+/// `RichReason::Custom` variant — i.e., emitted by a `.validate()` or
+/// `.try_map()` combinator returning `Rich::custom(...)`.  Structural parse
+/// failures (`RichReason::ExpectedFound`) are not semantic.
+///
+/// This structural discriminant replaces the retired prefix-based check
+/// `e.message.starts_with("E-QUERY-001:")` (F-PQLFN-PR10-MED-001 fix-burst-41,
+/// ADR-048 §D.7.2 de-prefix discipline).
 pub fn rich_to_parse_error(err: &Rich<'_, char>) -> ParseError {
     let offset = err.span().start;
     let message = err.to_string();
-    ParseError::new(offset, message)
+    let mut pe = ParseError::new(offset, message);
+    // Semantic errors originate from Rich::custom (validate/try_map) combinators,
+    // not from Chumsky's structural ExpectedFound machinery.
+    pe.semantic = matches!(err.reason(), RichReason::Custom(_));
+    pe
 }
 
 /// Return the set of characters that signal a pipe-stage boundary.

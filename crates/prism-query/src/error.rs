@@ -22,6 +22,21 @@ pub struct ParseError {
     pub message: String,
     /// Optional label identifying the recovery point (e.g. `"after 'WHERE'"`).
     pub recovery_label: Option<String>,
+    /// True when this error originates from a semantic-validation site
+    /// (`Rich::custom` / `.validate()` / `.try_map()` returning `Rich::custom`)
+    /// rather than a structural Chumsky parse failure (`RichReason::ExpectedFound`).
+    ///
+    /// Used by:
+    /// - `sql_parser::parse_sql_with_limits`: blocks the F-MEDIUM-001 partial-AST
+    ///   recovery path (semantic errors must propagate as `Err`, not partial `Ok`).
+    /// - `materialization.rs`: uses `e.message` directly (not `e.to_string()`) in
+    ///   the `QueryParseFailed.detail` for semantic errors to avoid doubled
+    ///   "parse error at offset X: " (ADR-048 §D.7.2 de-prefix discipline).
+    ///
+    /// Discriminator replaces the retired `e.message.starts_with("E-QUERY-001:")`
+    /// prefix check (F-PQLFN-PR10-MED-001 fix-burst-41).
+    #[serde(default)]
+    pub semantic: bool,
 }
 
 impl ParseError {
@@ -31,6 +46,7 @@ impl ParseError {
             offset,
             message: message.into(),
             recovery_label: None,
+            semantic: false,
         }
     }
 
