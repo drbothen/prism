@@ -1609,19 +1609,21 @@ jobs:
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-002 check passed: disk-space-reclaimer action found ${count} times (≥2 required)."
-          # Assertion 3: [profile.dev] debug = "line-tables-only" must remain in .cargo/config.toml.
-          # Anchored to column-0 assignment syntax; self-match impossible (file is .cargo/config.toml,
-          # not ci.yml; the verify-workflow-structure shell script does not contain this literal).
-          grep -qE '^debug = "line-tables-only"' .cargo/config.toml || {
-            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-003: .cargo/config.toml missing debug = \"line-tables-only\" in [profile.dev] — this disk-footprint invariant must not be removed"
+          # Assertion 3: [profile.dev] section must contain debug = "line-tables-only".
+          # Section-scoped awk: enters on exact [profile.dev] header, exits on any other [.
+          # Context-aware: a stray debug = "line-tables-only" in another section does not satisfy.
+          # Self-match impossible (file is .cargo/config.toml, not ci.yml).
+          awk '/^\[profile\.dev\]$/{s=1;next} /^\[/{s=0} s && /^debug = "line-tables-only"$/{found=1} END{exit !found}' .cargo/config.toml || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-003: .cargo/config.toml [profile.dev] section missing debug = \"line-tables-only\" — this disk-footprint invariant must not be removed"
             exit 1
           }
           echo 'S-MAINT-CI-DISK-EXHAUSTION-001 AC-003 assertion-3 passed: .cargo/config.toml debug = "line-tables-only" present.'
-          # Assertion 4: [profile.dev.package."*"] section must exist (per-package debug = false override).
-          # Literal-string match (grep -F); self-match impossible (this TOML section header cannot appear
-          # in a bash script line inside verify-workflow-structure without quotes that break the match).
-          grep -qF '[profile.dev.package."*"]' .cargo/config.toml || {
-            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-003: .cargo/config.toml missing [profile.dev.package.\"*\"] section — dependency debug-info override must not be removed"
+          # Assertion 4: [profile.dev.package."*"] section must contain debug = false.
+          # Section-scoped awk: enters on exact [profile.dev.package."*"] header, exits on any other [.
+          # Context-aware: section header alone is insufficient — the debug = false payload must be present.
+          # Self-match impossible (file is .cargo/config.toml, not ci.yml).
+          awk '/^\[profile\.dev\.package\."\*"\]$/{s=1;next} /^\[/{s=0} s && /^debug = false$/{found=1} END{exit !found}' .cargo/config.toml || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-003: .cargo/config.toml [profile.dev.package.\"*\"] section missing debug = false — dependency debug-info override must not be removed"
             exit 1
           }
           echo 'S-MAINT-CI-DISK-EXHAUSTION-001 AC-003 assertion-4 passed: [profile.dev.package."*"] section present.'
