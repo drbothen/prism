@@ -100,10 +100,12 @@ jobs:
       - name: Verify >=25 GB free after reclaim
         if: runner.os == 'Linux'
         run: |
-          AVAIL_GB=$(df / | awk 'NR==2 { gsub(/G/, "", $4); print int($4 / 1024 / 1024) }')
+          # df -P / output: Filesystem, 1K-blocks, Used, Available, Use%, Mounted
+          # Available ($4) is in 1K-blocks; divide by (1024*1024) to convert to GiB
+          AVAIL_GB=$(df -P / | awk 'NR==2 { print int($4 / 1024 / 1024) }')
           [ "$AVAIL_GB" -ge 25 ] || {
             df -h
-            echo "::error::Disk reclaim insufficient: only ${AVAIL_GB} GB free (need >=25 GB). See S-MAINT-CI-DISK-EXHAUSTION-001."
+            echo "::error::Disk reclaim insufficient: only ${AVAIL_GB} GB free (need ≥25 GB). See S-MAINT-CI-DISK-EXHAUSTION-001."
             exit 1
           }
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
@@ -184,6 +186,7 @@ jobs:
         if: failure() && runner.os == 'Linux'
         run: |
           USED_PCT=$(df / | awk 'NR==2 { gsub(/%/, "", $5); print $5 }')
+          USED_PCT=${USED_PCT:-0}  # Guard: awk returns empty if df fails; default 0 prevents -ge test failure
           df -h
           if [ "${USED_PCT}" -ge 95 ]; then
             echo "::warning::Disk near-full (${USED_PCT}% used) on runner — likely S-MAINT-CI-DISK-EXHAUSTION-001 class failure. Evidence runs: 29394488318 / 29399778005 / 29404746333 (PR #223, 2026-07-15)."
@@ -1553,7 +1556,7 @@ jobs:
           # The Test job must include a disk-free preflight step ("Report initial disk space" / df -h)
           # that runs before actions/checkout to capture a pristine baseline. A future PR removing
           # this step would silently remove post-hoc disk-exhaustion analysis capability.
-          grep -qE 'Report initial disk space|df -h' .github/workflows/ci.yml || {
+          grep -qE 'name: Report initial disk space' .github/workflows/ci.yml || {
             echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-001: disk preflight step missing from ci.yml"
             exit 1
           }
