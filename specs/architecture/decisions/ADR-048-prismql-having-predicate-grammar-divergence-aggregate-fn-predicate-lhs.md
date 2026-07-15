@@ -5,8 +5,8 @@ title: "PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function
 status: accepted
 date: "2026-06-28"
 accepted_date: "2026-06-29"
-version: "1.15"
-modified: "2026-07-14"
+version: "1.16"
+modified: "2026-07-15"
 producer: architect
 subsystems_affected: [SS-11]
 supersedes: null
@@ -30,6 +30,8 @@ open_decisions: []
 # ADR-048: PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function Predicate LHS in HAVING
 
 ## Status
+
+ACCEPTED v1.16 (2026-07-15). F-PQLFN-PR3-LOW-001 (DEFECT-PQL-FNCALL-LHS-001 PR-LEVEL pass 3, product-owner adjudication, BC-2.11.004 v1.48 EC-11-086, BC-2.11.019 v1.21). §D.2 PERCENTILE post-blocklist-removal error surface amended: prior §D.2 documented that `HAVING percentile(x, p)` on registry-active installations fired E-QUERY-039 (`"enrichment infusion 'percentile' is not registered"`) — a false enrichment-registration suggestion misleading to LLM agents. Post-v1.16: `check_enrich_udf_availability` intercepts `name` ∈ `DATAFUSION_BUILTIN_AGGREGATE_NAMES` AND `name` ∉ `DATAFUSION_BUILTIN_FUNCTION_NAMES` in HAVING position (f) BEFORE the infusion-registry lookup and fires E-QUERY-001 (HAVING-specific guidance, registry-INDEPENDENT). The `∉ DATAFUSION_BUILTIN_FUNCTION_NAMES` qualifier prevents breaking DataFusion-native aggregate names (stddev, avg, etc.) that are in both sets and legitimately execute in HAVING (TM-12). Mechanism 2 in §D.2 renamed and revised accordingly. Stale test `test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt` noted as must-supersede in §D.2. §D.7.1 HAVING-exemption caveat added: `DATAFUSION_BUILTIN_AGGREGATE_NAMES` names in HAVING position fire E-QUERY-001 (not E-QUERY-039) via new interception; `distinct_count` unaffected (parses as `FuncCall::Aggregate`). §D.7.3 PERCENTILE cross-reference updated: "registry-dependent E-QUERY-039 outcome" → "E-QUERY-001 outcome (registry-independent, v1.16)". POL-23 pin sweep: BC-2.11.004 normative `ADR-048 v1.15` pins → v1.16; BC-2.11.019 normative `ADR-048 v1.15` pins → v1.16; ARCH-INDEX ADR-048 row updated (state-manager bumps index version).
 
 ACCEPTED v1.15 (2026-07-14). F-PQLFN-P36-LOW-003 (DEFECT-PQL-FNCALL-LHS-001 pass 36). §D.7.1 table Collection-method cells corrected: all seven rows cited `collect_unknown_scalar_from_predicate` (the non-offset variant); runtime gate uses `collect_unknown_scalar_offsets_from_predicate` (adopted for offset truthfulness per F-PQLFN-P21-OBS-003). §D.7.1 footnote added documenting the two-variant relationship: offsets variant = runtime `predicate_fncall_names` walker for all seven gate positions (accumulates `(name, span.start)` pairs, F-PQLFN-P21-OBS-003); non-offset variant = retained for `collect_unknown_scalars_from_sql_query` SQL-scalar walk into `sql_unknown_names` + unit tests with programmatic ASTs. §D.7.5 implementation scope code block corrected: function call updated from `collect_unknown_scalar_from_predicate` to `collect_unknown_scalar_offsets_from_predicate`; historical note added explaining that v1.6 originally specified the non-offset variant (accurate at v1.6 when `predicate_fncall_names` was `Vec<String>`; offset variant adopted in same fix-burst as F-PQLFN-P21-OBS-003 when `predicate_fncall_names` became `Vec<(String, usize)>`). TD-VSDD-060 sibling sweep across all seven §D.7.1 rows and §D.7.5 code block complete. POL-25 sibling sweep results: BC-2.11.019 (lines 56, 165, 173, 211) and S-DEMO-FIDELITY-REMEDIATION-001 story contain live-prose `collect_unknown_scalar_from_predicate` cites that describe the runtime predicate walker; these are now stale relative to the offset variant — route to product-owner (BC-2.11.019) and story-writer (S-DEMO-FIDELITY-REMEDIATION-001) for reconciliation. STATE.md D-1394/D-1395 and STORY-INDEX changelog rows are historical records (exempt). adversarial-review/local-pass-35.md line 142 contains a stale code-verification claim citing the non-offset variant — route to adversary/state-manager. Changelog rows in ADR-048 citing `collect_unknown_scalar_from_predicate` (v1.6 row) are historical records (exempt).
 
@@ -254,19 +256,20 @@ It is available in SELECT projections and GROUP BY via the SQL expression parser
 needing percentile-based HAVING can alias it in SELECT (`SELECT PERCENTILE(latency, 95) AS p95 ...`)
 and reference the alias in HAVING. This is the standard SQL pattern.
 
-**PERCENTILE post-blocklist-removal error surface (v1.4 correction — F-PQLFN-P4-MED-001):**
+**PERCENTILE post-blocklist-removal error surface (v1.4 correction — F-PQLFN-P4-MED-001; v1.16 amendment — F-PQLFN-PR3-LOW-001, BC-2.11.004 v1.48 EC-11-086, BC-2.11.019 v1.21):**
 With the parser-level `AGGREGATE_FUNC_NAMES` blocklist removed (§D.7.2), `HAVING
 percentile(x, 95) > 5` parses as `FuncCall::Scalar(Unknown("percentile"))` via
 `fn_call_comparison` in `build_sql_predicate_parser` (the `base` branch of
 `build_having_predicate_parser`), following the non-six-name aggregate path described
 in §D.7.3. The error surface is governed by two separate mechanisms:
 
-**Mechanism 1 — Aggregate gate (E-QUERY-001):** HAVING predicates are NOT walked into
-`predicate_fncall_names`. The aggregate-in-predicate gate (D.7.1) does NOT fire.
-**E-QUERY-001 does NOT fire** for `HAVING percentile(x, 95) > 5`.
+**Mechanism 1 — Aggregate gate (E-QUERY-001 from `predicate_fncall_names` path):** HAVING predicates are NOT walked into
+`predicate_fncall_names`. The aggregate-in-predicate gate (D.7.1) does NOT fire via this path.
+**E-QUERY-001 does NOT fire** for `HAVING percentile(x, 95) > 5` via the `predicate_fncall_names` walker. (Unchanged from v1.4.)
 
-**Mechanism 2 — E-QUERY-039 gate:** HAVING predicates ARE walked into `sql_unknown_names`
-via position (f) of `collect_unknown_scalars_from_sql_query`. "percentile" is NOT in
+**Mechanism 2 — HAVING-position `DATAFUSION_BUILTIN_AGGREGATE_NAMES` interception (v1.16 amendment):**
+HAVING predicates ARE walked into `sql_unknown_names` via position (f) of
+`collect_unknown_scalars_from_sql_query`. "percentile" is NOT in
 `DATAFUSION_BUILTIN_FUNCTION_NAMES` — **DataFusion 53.1 does NOT register "percentile"
 in any of the three union-member registries** (`DATAFUSION_BUILTIN_FUNCTION_NAMES` is
 computed as scalar ∪ aggregate ∪ window; per the v1.4 [process-gap] rule, every
@@ -280,18 +283,39 @@ covering tests live in module `datafusion_aggregate_registry_empirical_tests`, e
 - **Presence control — `approx_distinct` IS in registry** (commit 524a9986): `test_f_pqlfn_p4_med_001_approx_distinct_present_in_datafusion_53_1_registry`
 
 The `DATAFUSION_BUILTIN_FUNCTION_NAMES` filter therefore does NOT exclude "percentile" before
-the E-QUERY-039 check. The E-QUERY-039 outcome is registry-dependent:
-- **No infusion registry configured:** `check_enrich_udf_availability` returns early
-  `Ok(())` when `registry` is `None` → E-QUERY-039 is skipped → query passes to
-  DataFusion → DataFusion plan error (percentile not a DataFusion built-in aggregate).
-- **Infusion registry configured:** "percentile" reaches the registered-UDF check →
-  **E-QUERY-039 fires** (percentile is not in `DATAFUSION_BUILTIN_FUNCTION_NAMES` and
-  not a registered enrichment UDF).
+the E-QUERY-039 check. **However, `check_enrich_udf_availability` applies an additional
+interception for HAVING position (f): when `name` ∈ `DATAFUSION_BUILTIN_AGGREGATE_NAMES`
+AND `name` ∉ `DATAFUSION_BUILTIN_FUNCTION_NAMES` (which includes "percentile" — manually
+inserted in engine.rs; absent from all three DataFusion registry arms per the five executed
+coverage tests above), the gate fires E-QUERY-001 with HAVING-specific guidance BEFORE the
+infusion-registry lookup. This interception is registry-INDEPENDENT (fires regardless of
+whether an infusion registry is configured). The `∉ DATAFUSION_BUILTIN_FUNCTION_NAMES`
+qualifier is load-bearing: DataFusion-native aggregate names (stddev, avg, var_samp, etc.)
+are registered in BOTH `DATAFUSION_BUILTIN_AGGREGATE_NAMES` AND `DATAFUSION_BUILTIN_FUNCTION_NAMES`
+(the FUNCTION union includes the aggregate registry) and legitimately appear in HAVING as
+`ScalarFunc::Unknown` names that DataFusion resolves at execution time (load-bearing green
+lock TM-12: `HAVING stddev(x) > 5`). The intercept is scoped to names in
+`DATAFUSION_BUILTIN_AGGREGATE_NAMES` that are NOT in `DATAFUSION_BUILTIN_FUNCTION_NAMES` —
+in practice, the PrismQL-specific manually-inserted names that lack DataFusion native resolution.**
 
-Confirmed by executed test `test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt`
-(temporal_typing_tests.rs, commit 524a9986): engine has no infusion registry → result is
-NOT `PrismError::QueryParseFailed` (E-QUERY-001) → aggregate gate correctly does not fire;
-actual result is a DataFusion-level plan error.
+Canonical message (byte-verbatim per POL-24):
+`"E-QUERY-001: query parse error at offset {offset}: 'percentile' is a PrismQL aggregate function; PERCENTILE is not directly supported in HAVING predicates — alias it in SELECT: SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold (ADR-048 D.3 OD-2)"`
+
+**Post-v1.16 outcome (registry-independent):** E-QUERY-001 fires with HAVING-specific guidance regardless of whether an infusion registry is configured. E-QUERY-039 does NOT fire for `HAVING percentile(x, p)`.
+
+**Pre-v1.16 outcome (retracted):** E-QUERY-039 (`"enrichment infusion 'percentile' is not registered"`) fired on registry-active installations — a false enrichment-registration suggestion misleading to LLM agents; DataFusion plan error on no-registry installations.
+
+**Stale test (v1.16 — must supersede):** `test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt`
+(temporal_typing_tests.rs, commit 524a9986) was anchored to the pre-v1.16 behavior: engine has no infusion
+registry → result is NOT `PrismError::QueryParseFailed` (E-QUERY-001) → aggregate gate does not fire via
+the `predicate_fncall_names` path. Post-v1.16, Mechanism 2 fires E-QUERY-001 regardless of registry state.
+This test is now stale and MUST be superseded. Route to implementer. Required replacement tests:
+(1) `test_BC_2_11_004_having_percentile_fires_e_query_001_no_registry` — assert E-QUERY-001 with HAVING-specific
+canonical message, no infusion registry configured; (2) `test_BC_2_11_004_having_percentile_fires_e_query_001_with_registry` —
+assert E-QUERY-001 with HAVING-specific canonical message, registry active (assert NOT E-QUERY-039).
+`distinct_count` in HAVING: NOT affected by Mechanism 2 — `distinct_count` is in `build_agg_call_parser`'s
+six-name list and parses as `FuncCall::Aggregate` (not `ScalarFunc::Unknown`); it never reaches the
+Mechanism 2 interception as an unknown scalar name (EC-11-087, BC-2.11.004 v1.48).
 
 **v1.3 false claim retracted:** v1.3 stated "percentile IS registered as the canonical name
 for three aggregate UDAFs" and "present in `DATAFUSION_BUILTIN_FUNCTION_NAMES`". Both are
@@ -444,12 +468,7 @@ positions that feed into `predicate_fncall_names`:
 
 The v1.6 §D.7.5 implementation scope block originally specified the non-offset variant — accurate at v1.6 when `predicate_fncall_names` was `Vec<String>`. The §D.7.5 code block was updated to the offset variant in v1.15 to reflect shipped reality (see §D.7.5 below).
 
-**HAVING is explicitly exempt.** HAVING predicates are not walked into
-`predicate_fncall_names`. They reach `sql_unknown_names` via
-`collect_unknown_scalars_from_sql_query` position (f), where
-`DATAFUSION_BUILTIN_FUNCTION_NAMES` filters all DataFusion-known functions (scalar,
-aggregate, window) before the E-QUERY-039 check. This is correct: HAVING may legitimately
-reference aggregate functions, and no E-QUERY-001 should fire there.
+**HAVING is explicitly exempt from the `predicate_fncall_names` aggregate-in-predicate gate.** HAVING predicates are not walked into `predicate_fncall_names`. They reach `sql_unknown_names` via `collect_unknown_scalars_from_sql_query` position (f), where `DATAFUSION_BUILTIN_FUNCTION_NAMES` filters all DataFusion-known functions (scalar, aggregate, window) before the E-QUERY-039 check. This is correct: HAVING may legitimately reference aggregate functions. **EXCEPTION (v1.16 — F-PQLFN-PR3-LOW-001, BC-2.11.004 v1.48 EC-11-086):** Names in `DATAFUSION_BUILTIN_AGGREGATE_NAMES` AND NOT in `DATAFUSION_BUILTIN_FUNCTION_NAMES` that appear in HAVING position fire E-QUERY-001 (not E-QUERY-039) via a dedicated interception in `check_enrich_udf_availability` BEFORE the infusion-registry lookup (see §D.2 Mechanism 2). The two-condition criterion (`name ∈ DATAFUSION_BUILTIN_AGGREGATE_NAMES AND name ∉ DATAFUSION_BUILTIN_FUNCTION_NAMES`) prevents intercepting DataFusion-native aggregate names (stddev, avg, var_samp, etc.) that are in both sets and legitimately execute in HAVING — intercepting them would break TM-12. Specifically, `percentile` fires E-QUERY-001 with HAVING-specific guidance (canonical message in §D.2) because "percentile" is absent from all three DataFusion registry arms (§D.2 five executed coverage tests). `distinct_count` in HAVING is NOT affected — it parses as `FuncCall::Aggregate` via `build_agg_call_parser` (not `ScalarFunc::Unknown`) and never reaches this gate as an unknown scalar name.
 
 **JOIN ON, GROUP BY, ORDER BY, SELECT projection** are not in scope for the
 aggregate-in-predicate gate. These positions are handled by other gates (E-QUERY-042 for
@@ -604,8 +623,10 @@ and never triggers E-QUERY-039. DataFusion resolves it correctly. No E-QUERY-001
 §D.2 PERCENTILE post-blocklist-removal note (v1.4 correction F-PQLFN-P4-MED-001,
 v1.5 extension F-PQLFN-P5-LOW-001 — union-membership claim now anchored to all three
 registry arms: aggregate-absence 524a9986, scalar-absence bb23f143, window-absence
-bb23f143, plus two presence controls 524a9986) for the verified DataFusion 53.1 behavior
-and registry-dependent E-QUERY-039 outcome.
+bb23f143, plus two presence controls 524a9986; v1.16 amendment F-PQLFN-PR3-LOW-001 —
+E-QUERY-001 outcome, registry-independent) for the verified DataFusion 53.1 behavior
+and E-QUERY-001 outcome (registry-independent, v1.16 — supersedes prior registry-dependent
+E-QUERY-039 outcome documented through v1.15).
 
 #### D.7.4 — Gate Ordering vs ADR-052
 
@@ -866,6 +887,7 @@ and avoids conditional branching inside the parser combinator.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.16 | adr-048-v1.16-DEFECT-PQL-FNCALL-LHS-001-PR3-having-percentile-e-query-001 | 2026-07-15 | architect | F-PQLFN-PR3-LOW-001 (DEFECT-PQL-FNCALL-LHS-001 PR-LEVEL pass 3, product-owner adjudication; BC-2.11.004 v1.48 EC-11-086; BC-2.11.019 v1.21 §Postconditions position (f) note + §OBS-004). §D.2 PERCENTILE post-blocklist-removal error surface amended. **Retracted behavior:** `HAVING percentile(x, p)` on registry-active installations fired E-QUERY-039 (`"enrichment infusion 'percentile' is not registered"`) — false enrichment-registration suggestion misleading to LLM agents; no-registry path produced DataFusion plan error. **New behavior:** `check_enrich_udf_availability` intercepts `name` ∈ `DATAFUSION_BUILTIN_AGGREGATE_NAMES` AND `name` ∉ `DATAFUSION_BUILTIN_FUNCTION_NAMES` in HAVING position (f) BEFORE the infusion-registry lookup → fires E-QUERY-001 (HAVING-specific guidance, registry-INDEPENDENT). The two-condition criterion restricts the intercept to PrismQL-specific manually-inserted names (`percentile`) that lack DataFusion native resolution; DataFusion-native aggregate names (stddev, avg, etc.) are in both sets and remain valid in HAVING (TM-12). Canonical message (byte-verbatim per POL-24): `"E-QUERY-001: query parse error at offset {offset}: 'percentile' is a PrismQL aggregate function; PERCENTILE is not directly supported in HAVING predicates — alias it in SELECT: SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold (ADR-048 D.3 OD-2)"`. §D.2 Mechanism 2 header renamed from "E-QUERY-039 gate" to "HAVING-position `DATAFUSION_BUILTIN_AGGREGATE_NAMES` interception"; pre-v1.16 registry-dependent E-QUERY-039 outcome documentation replaced with registry-independent E-QUERY-001 outcome; stale-test note added (test `test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt` must be superseded — 2 replacement tests specified, routed to implementer). §D.7.1 HAVING-exemption paragraph: "no E-QUERY-001 should fire there" replaced with EXCEPTION caveat for `DATAFUSION_BUILTIN_AGGREGATE_NAMES` names in HAVING position; `distinct_count` sibling analysis added (parses as `FuncCall::Aggregate`, unaffected). §D.7.3 PERCENTILE cross-reference: "registry-dependent E-QUERY-039 outcome" → "E-QUERY-001 outcome (registry-independent, v1.16)". No OD changes; no new ODs; OD-2 scope note unchanged. POL-23 pin sweep: BC-2.11.004 normative `ADR-048 v1.15` pins (lines 51, 103, 116, 117, 118, 147, 148) → v1.16; BC-2.11.019 normative `ADR-048 v1.15` pins (lines 56, 165, 173, 211) → v1.16; ARCH-INDEX ADR-048 row version cell v1.15 → v1.16 (state-manager bumps index version). SESSION-HANDOFF.md historical dispatch-context rows exempt (immutable narrative). Adversarial-pass reports exempt (historical records). STATE.md D-NNN rows exempt (historical records). |
 | 1.15 | adr-048-v1.15-DEFECT-PQL-FNCALL-LHS-001-pass36-walker-nomenclature-correction | 2026-07-14 | architect | F-PQLFN-P36-LOW-003 (DEFECT-PQL-FNCALL-LHS-001 pass 36): §D.7.1 table Collection-method cells corrected — all seven rows cited `collect_unknown_scalar_from_predicate` (non-offset variant); runtime gate uses `collect_unknown_scalar_offsets_from_predicate` (adopted F-PQLFN-P21-OBS-003 for offset truthfulness when `predicate_fncall_names` was promoted to `Vec<(String, usize)>`). All seven cells updated. §D.7.1 two-variant relationship footnote added: offsets variant = runtime gate walker for `predicate_fncall_names` (7 positions); non-offset variant = retained for `collect_unknown_scalars_from_sql_query` SQL-scalar walk into `sql_unknown_names` (E-QUERY-039) + unit tests with programmatic ASTs. §D.7.5 implementation scope code block corrected: `collect_unknown_scalar_from_predicate` → `collect_unknown_scalar_offsets_from_predicate`; historical note added (v1.6 used non-offset variant when `predicate_fncall_names` was `Vec<String>`; §D.7.6 correctly shows offset variant). TD-VSDD-060 sibling sweep: all §D.7.1 table rows and §D.7.5 code block updated; §Changelog v1.6 row exempt (historical). POL-25 sibling sweep: BC-2.11.019 (4 live-prose cites) and S-DEMO-FIDELITY-REMEDIATION-001 story stale → route to product-owner + story-writer; adversarial-review/local-pass-35.md line 142 stale code-verify claim → route to adversary/state-manager; STATE.md D-1394/D-1395 + STORY-INDEX changelog rows exempt (historical records). |
 | 1.14 | adr-048-v1.14-DEFECT-PQL-FNCALL-LHS-001-pass34-seven-surface-prose-sweep | 2026-07-14 | architect | F-PQLFN-P34-MED-001 (DEFECT-PQL-FNCALL-LHS-001 pass 34): §D.7.2 + §D.3 body prose sweep "all six" → "all seven" gated-position references. Three live-prose sites updated: (1) §D.3 self-contradiction sentence "enumerates six predicate positions" → "enumerates seven predicate positions" (§D.7.1 now enumerates seven positions post-v1.13 OD-7); (2) §D.7.2 "All six predicate positions receive an identical, helpful message" → "All seven predicate positions"; (3) §D.7.2 "Two canonical forms apply to all six predicate positions" → "all seven predicate positions". §D.3 sentence also extended with OD-7 anchor: enumeration list now explicitly names "SQL WHERE, SQL DML WHERE, and INSERT source_select WHERE". §Changelog rows for v1.6/v1.8/v1.13 citing "six" are EXEMPT (historical records accurate at those versions). Non-gated-position "six" sites UNCHANGED: "sixth gated position" (§D.6 line, correctly identifies Position 6 ordinal); "non-six-name aggregates" / "six named functions" (§D.7.3, §D.2 scope, Related Architecture Nodes) refer to the six named aggregate functions in build_agg_call_parser — not the gate's total position count. "Six callers" of build_predicate_parser UNCHANGED per OD-7 note. Sibling sweep across .factory/specs/ (BC/stories/error-taxonomy): no stale "all six predicate" or "six gated surfaces" patterns found in BC-2.11.004* or story files. |
 | 1.13 | adr-048-v1.13-DEFECT-PQL-FNCALL-LHS-001-pass32-insert-source-select-where | 2026-07-14 | architect | F-PQLFN-P32-OBS-001 (DEFECT-PQL-FNCALL-LHS-001 pass 32). INSERT source_select WHERE added as seventh gated position. Root cause: build_insert_parser → build_sql_parser → build_sql_predicate_parser → build_predicate_parser path now includes fn_call_comparison; INSERT source_select WHERE accepted fn-call LHS post-branch; Dml arm walked only dml.filter (None for INSERT) → gate saw nothing → SILENT EMPTY SUCCESS for `INSERT INTO t SELECT ... WHERE stddev(x) > 5`. Option A ruling: same rationale as OD-6 (branch regression, check_temporal_literals and check_internal_table_capabilities already walk source_select, DML no-ops so zero risk). §D.7.1 table extended: Position 7 INSERT source_select WHERE (YES v1.13). §D.7.5 "DML has no SELECT/GROUP BY/ORDER BY/HAVING positions" claim corrected in-line: accurate for DELETE/UPDATE but not INSERT (INSERT carries source_select with its own WHERE). §D.7.6 new: arm extension, position gating rationale (WHERE gated, HAVING exempt per D.7.3, GROUP BY/ORDER BY not in scope). §D.6 enumeration updated (seventh gated position). Consequences §Negative/Risks §D.7.1 cross-ref updated (Positions 4/6/7). Related Architecture Nodes check_enrich_udf_availability entry updated. OD-7 locked. POL-23: BC-2.11.004 micro-amend required — "ALL five Predicate-typed query positions" → "ALL six" (add INSERT source_select WHERE); "all six predicate positions" (aggregate gate note) → "all seven"; ADR-048 v1.12 version pins → v1.13; "six callers" count UNCHANGED (build_sql_predicate_parser already counted); route to product-owner for BC-2.11.004 v1.44→v1.45. |
