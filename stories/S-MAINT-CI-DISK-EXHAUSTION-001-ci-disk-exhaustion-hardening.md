@@ -6,7 +6,7 @@ wave: tbd
 epic_id: maintenance
 priority: P2
 status: ready
-version: "0.6"
+version: "0.9"
 level: ops
 producer: story-writer
 timestamp: "2026-07-15"
@@ -168,6 +168,36 @@ toolsets not needed by the Rust build with inputs: `android: true`, `dotnet: tru
 Total expected reclaim: 21–31 GB on ubuntu-24.04 with these inputs enabled (swap
 preserved as OOM headroom; see EC-008).
 
+**The reclaimer step MUST include `continue-on-error: true` (BEST-EFFORT semantic).** The
+`large-packages: true` input invokes `apt-get` against the runner's rotating apt mirror;
+that mirror can return HTTP 404 Release files on mirror rotation (evidence: CI run
+29437306537, 2026-07-15, mirror.enzu.com returned 404 Release files, apt exit code 100).
+With the default `continue-on-error: false`, ALL THREE hardened Linux jobs failed on the
+first live CI run BEFORE the ≥25 GB gate even had a chance to assess actual disk state.
+The reclaimer step snippet applied to BOTH Linux jobs:
+
+```yaml
+- name: Free disk space (best-effort)
+  uses: insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2
+  # Reclaim is BEST-EFFORT: continue-on-error absorbs apt-mirror 404s and other transient
+  # reclaimer failures. Evidence: run 29437306537 (2026-07-15) — mirror.enzu.com returned
+  # HTTP 404 Release files on the large-packages apt path; apt exit code 100 caused the
+  # reclaimer step to fail, which failed ALL THREE hardened Linux jobs before the ≥25 GB
+  # gate ran. The ≥25 GB gate (next step) is the sole authoritative arbiter of disk
+  # readiness — it fails loud with the actual free-GB count if reclaim genuinely
+  # under-delivers. Trade-off: continue-on-error masks persistent action breakage (e.g.,
+  # action update breaking the inputs API); mitigated because the gate provides ground-truth
+  # disk verification on every run.
+  continue-on-error: true
+  with:
+    android: "true"
+    dotnet: "true"
+    haskell: "true"
+    docker-images: "true"
+    large-packages: "true"
+    swap-storage: "false"
+```
+
 Documented fallback: `jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1`
 (upstream, unmaintained since 2023-10). If the fork diverges or becomes unmaintained,
 revert to this pin. The `tool-cache` / `tools-cache` input (renamed in the fork) is
@@ -224,18 +254,20 @@ The `verify-workflow-structure` job gains two assertions confirming these invari
 `.cargo/config.toml` (Red Gate tests 3 and 4):
 
 ```bash
-# Assertion 3: [profile.dev] debug = "line-tables-only" must remain in .cargo/config.toml.
-# Anchored to column-0 assignment syntax; self-match impossible (file is .cargo/config.toml,
-# not ci.yml; the verify-workflow-structure shell script does not contain this literal).
-grep -qE '^debug = "line-tables-only"' .cargo/config.toml || {
-  echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-003: .cargo/config.toml missing debug = \"line-tables-only\" in [profile.dev] — this disk-footprint invariant must not be removed"
+# Assertion 3: [profile.dev] section must contain debug = "line-tables-only".
+# Section-scoped awk: enters on exact [profile.dev] header, exits on any other [.
+# Context-aware: a stray debug = "line-tables-only" in another section does not satisfy.
+# Self-match impossible (file is .cargo/config.toml, not ci.yml).
+awk '/^\[profile\.dev\]$/{s=1;next} /^\[/{s=0} s && /^debug = "line-tables-only"$/{found=1} END{exit !found}' .cargo/config.toml || {
+  echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-003: .cargo/config.toml [profile.dev] section missing debug = \"line-tables-only\" — this disk-footprint invariant must not be removed"
   exit 1
 }
-# Assertion 4: [profile.dev.package."*"] section must exist (per-package debug = false override).
-# Literal-string match (grep -F); self-match impossible (this TOML section header cannot appear
-# in a bash script line inside verify-workflow-structure without quotes that break the match).
-grep -qF '[profile.dev.package."*"]' .cargo/config.toml || {
-  echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-003: .cargo/config.toml missing [profile.dev.package.\"*\"] section — dependency debug-info override must not be removed"
+# Assertion 4: [profile.dev.package."*"] section must contain debug = false.
+# Section-scoped awk: enters on exact [profile.dev.package."*"] header, exits on any other [.
+# Context-aware: section header alone is insufficient — the debug = false payload must be present.
+# Self-match impossible (file is .cargo/config.toml, not ci.yml).
+awk '/^\[profile\.dev\.package\."\*"\]$/{s=1;next} /^\[/{s=0} s && /^debug = false$/{found=1} END{exit !found}' .cargo/config.toml || {
+  echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-003: .cargo/config.toml [profile.dev.package.\"*\"] section missing debug = false — dependency debug-info override must not be removed"
   exit 1
 }
 ```
@@ -250,7 +282,7 @@ job (both ubuntu-latest Linux runners; macOS/Windows legs are exempt) runs `df -
 and emits a `::warning::` workflow command if disk utilization is above 95%:
 
 ```bash
-USED_PCT=$(df / | awk 'NR==2 { gsub(/%/, "", $5); print $5 }')
+USED_PCT=$(df -P / | awk 'NR==2 { gsub(/%/, "", $5); print $5 }')
 USED_PCT=${USED_PCT:-0}  # Guard: awk returns empty if df fails; default 0 prevents -ge test failure
 df -h
 if [ "${USED_PCT}" -ge 95 ]; then
@@ -285,6 +317,18 @@ does not remove the tool cache. Documented fallback:
 PR description for posterity). The action MUST be pinned to the specific SHA shown —
 identical SHA-pinning requirement to all other actions in `ci.yml`.
 
+**Reclaimer step is BEST-EFFORT (`continue-on-error: true`):** The `large-packages: true`
+input invokes `apt-get` against the runner's rotating apt mirror. On the first live CI run
+of this story (run 29437306537, 2026-07-15), mirror.enzu.com returned HTTP 404 Release
+files for the apt repository — apt exited 100, the reclaimer step failed, and ALL THREE
+hardened Linux jobs failed BEFORE the ≥25 GB gate ran. With the original
+`continue-on-error: false` (default), a transient mirror flake becomes a hard job
+failure, defeating the entire hardening purpose. Fix: add `continue-on-error: true` to
+BOTH reclaimer steps (linux-test legs and test-no-default-features). The ≥25 GB gate is
+the sole authoritative disk-readiness check — it verifies actual free-GB after reclaim
+(whether reclaim succeeded or not) and fails loud if the threshold is not met. See
+EC-009 for full trade-off documentation.
+
 **DO NOT add `CARGO_PROFILE_DEV_DEBUG` to ci.yml:** `.cargo/config.toml` already sets
 `debug = "line-tables-only"` for first-party code and `debug = false` for all dependencies
 via `[profile.dev.package."*"]`. The env var would be a no-op (config file wins) and would
@@ -317,6 +361,8 @@ original from LOCAL pass-2 + AC-7 `semver-checks` + AC-8 `test-no-default-featur
 job-name anchors; F-CIDISK-P4-HIGH-002 + LOW-001, adjudicated 2026-07-15). Error messages
 are preserved verbatim. No other structural changes to the `verify-workflow-structure` job.
 
+**Pass-6 traceability (LOW-001 + OBS-002):** The ci.yml summary echo must use the code-authoritative assertion count: 9 pre-existing reachability + 2 new count-based reachability + 2 new config-invariant = 13 total (11 reachability + 2 config-invariant, matching the ci.yml summary echo).
+
 ## §Token Budget Estimate
 
 | Item | Tokens (approx.) |
@@ -336,8 +382,8 @@ Well within a single agent context window; no splitting required.
 - [ ] Use the pre-validated SHA `dae9fabcb8febe09f6585471948acf9dc9a57489` for `insightsengineering/disk-space-reclaimer # v1.1.2` (no lookup needed; validated 2026-07-15 remove-uncertainty pass)
 - [ ] Linux Test job legs: add "Report initial disk space" step (`run: df -h`) as the FIRST step (before `actions/checkout`; Linux legs only) (AC-001)
 - [ ] `test-no-default-features` job: add "Report initial disk space" step (`run: df -h`) as the FIRST step (before `actions/checkout`) (AC-001 + F-CIDISK-P4-MED-002)
-- [ ] Linux Test job legs: add `insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2` step after checkout and before rust-cache; configure `android: true, dotnet: true, haskell: true, docker-images: true, large-packages: true, swap-storage: false` (AC-002; swap=false per EC-008)
-- [ ] `test-no-default-features` job: add the same reclaimer step with identical inputs (`swap-storage: false`) after checkout and before rust-cache (AC-002 + F-CIDISK-P4-MED-002)
+- [ ] Linux Test job legs: add `insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2` step after checkout and before rust-cache; configure `android: true, dotnet: true, haskell: true, docker-images: true, large-packages: true, swap-storage: false`; include `continue-on-error: true` (reclaim is best-effort — apt-mirror flake class motivated this; the ≥25 GB gate is the sole authoritative check; see EC-009) (AC-002; swap=false per EC-008)
+- [ ] `test-no-default-features` job: add the same reclaimer step with identical inputs (`swap-storage: false`) and `continue-on-error: true` after checkout and before rust-cache (AC-002 + F-CIDISK-P4-MED-002 + EC-009)
 - [ ] Linux Test job legs: add "Verify ≥25 GB free" step immediately after the reclaimer step (see AC-002 snippet; uses `df -P /` + 1K-block arithmetic + `AVAIL_GB=${AVAIL_GB:-0}` guard — no gsub)
 - [ ] `test-no-default-features` job: add identical "Verify ≥25 GB free" step immediately after its reclaimer step (F-CIDISK-P4-MED-002)
 - [ ] DO NOT add `CARGO_PROFILE_DEV_DEBUG` to the Test job `env:` block — it is a no-op; `.cargo/config.toml` already sets identical values at higher precedence (AC-003; F-CIDISK-P4-HIGH-001 adjudication)
@@ -346,8 +392,8 @@ Well within a single agent context window; no splitting required.
 - [ ] `verify-workflow-structure` job: add four new assertions to the existing `run:` block:
   - AC-001 count assertion: `count=$(grep -cE '^\s+- name: Report initial disk space\s*$' .github/workflows/ci.yml)` + `[ "$count" -ge 2 ]` (counts linux-test + test-no-default-features)
   - AC-002 count assertion: `count=$(grep -cE '^\s+uses: insightsengineering/disk-space-reclaimer' .github/workflows/ci.yml)` + `[ "$count" -ge 2 ]` (counts linux-test + test-no-default-features)
-  - AC-003 assertion-3: `grep -qE '^debug = "line-tables-only"' .cargo/config.toml` (guards [profile.dev] invariant; self-match impossible — different file)
-  - AC-003 assertion-4: `grep -qF '[profile.dev.package."*"]' .cargo/config.toml` (guards per-package override section; self-match impossible)
+  - AC-003 assertion-3: `awk '/^\[profile\.dev\]$/{s=1;next} /^\[/{s=0} s && /^debug = "line-tables-only"$/{found=1} END{exit !found}' .cargo/config.toml` (section-scoped: verifies debug = "line-tables-only" is within [profile.dev], not merely present anywhere in the file; self-match impossible — different file)
+  - AC-003 assertion-4: `awk '/^\[profile\.dev\.package\."\*"\]$/{s=1;next} /^\[/{s=0} s && /^debug = false$/{found=1} END{exit !found}' .cargo/config.toml` (section-scoped: verifies debug = false payload is within [profile.dev.package."*"], not just that the section header exists; self-match impossible — different file)
 - [ ] Apply self-match-proof anchoring to the 7 pre-existing verify-workflow-structure reachability assertions IN THE SAME COMMIT (5 from LOCAL pass-2 + AC-7 semver-checks + AC-8 test-no-default-features; F-CIDISK-P4-HIGH-002 + LOW-001, adjudicated 2026-07-15). Exact replacements:
   - `non-exhaustive-violation-compile-fail`: `grep -qE 'non-exhaustive-violation-compile-fail'` → `grep -qE '^  non-exhaustive-violation-compile-fail:'` (job-name anchor; 2-space GitHub Actions job indent; line 688 in ci.yml)
   - `wasm32-compile-check`: `grep -qE 'wasm32-compile-check'` → `grep -qE '^  wasm32-compile-check:'` (job-name anchor; 2-space indent; line 235)
@@ -386,8 +432,11 @@ and `wasm32-compile-check` assertion pattern established during S-PLUGIN-PREREQ-
 
 - No production Rust crate source files (`crates/**/src/**`) may be modified
 - No changes to `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, or `.config/nextest.toml`
-- The `fmt`, `clippy`, `deny`, `audit`, `semver-checks`, `test-no-default-features`,
-  and `non-exhaustive-violation-compile-fail` jobs in `ci.yml` must NOT be modified
+- The `fmt`, `clippy`, `deny`, `audit`, `semver-checks`, and `non-exhaustive-violation-compile-fail`
+  jobs in `ci.yml` must NOT be modified; the `test-no-default-features` job MAY be modified only
+  to add the four v0.6-ratified protective steps (preflight, disk-space-reclaimer + ≥25 GB gate,
+  failure annotation) — the job's existing `PROPTEST_CASES`, `RUSTFLAGS`, test-invocation lines,
+  and cache configuration must NOT be changed
 - The `verify-workflow-structure` job's existing assertions (AC-5 `TARGET_COUNT >= 5`,
   AC-6 cargo-deny/audit, AC-7 semver, AC-8 no-default-features, non-exhaustive, wasm32
   checks) must ALL pass after this story's modifications; the four new assertions (AC-001
@@ -425,7 +474,7 @@ No new GitHub Actions secrets required.
 
 | File | Action | Notes |
 |------|--------|-------|
-| `.github/workflows/ci.yml` | MODIFY | Linux Test job legs: add preflight (AC-001), disk-space-reclaimer with `swap-storage: false` (AC-002), ≥25 GB gate (AC-002; `df -P /` 1K-block form + `AVAIL_GB=${AVAIL_GB:-0}` guard), failure annotation (AC-004; `USED_PCT=${USED_PCT:-0}` guard); `test-no-default-features` job: mirror same three protective steps + failure annotation (F-CIDISK-P4-MED-002); DO NOT add `CARGO_PROFILE_DEV_DEBUG` (AC-003 — it is a no-op; forbidden); `verify-workflow-structure` job: AC-001 count assertion (≥2; `^\s+- name: Report initial disk space\s*$`) + AC-002 count assertion (≥2; `^\s+uses: insightsengineering/disk-space-reclaimer`) + two AC-003 `.cargo/config.toml` invariant checks + anchor 7 pre-existing reachability assertions (5 original + AC-7 `semver-checks` + AC-8 `test-no-default-features`; see §Tasks sibling-sweep); no other jobs touched |
+| `.github/workflows/ci.yml` | MODIFY | Linux Test job legs: add preflight (AC-001), disk-space-reclaimer with `swap-storage: false, continue-on-error: true` (AC-002; best-effort per EC-009; gate is the authoritative check), ≥25 GB gate (AC-002; `df -P /` 1K-block form + `AVAIL_GB=${AVAIL_GB:-0}` guard), failure annotation (AC-004; `USED_PCT=${USED_PCT:-0}` guard); `test-no-default-features` job: mirror same three protective steps + failure annotation (F-CIDISK-P4-MED-002); DO NOT add `CARGO_PROFILE_DEV_DEBUG` (AC-003 — it is a no-op; forbidden); `verify-workflow-structure` job: AC-001 count assertion (≥2; `^\s+- name: Report initial disk space\s*$`) + AC-002 count assertion (≥2; `^\s+uses: insightsengineering/disk-space-reclaimer`) + two AC-003 `.cargo/config.toml` invariant checks + anchor 7 pre-existing reachability assertions (5 original + AC-7 `semver-checks` + AC-8 `test-no-default-features`; see §Tasks sibling-sweep); no other jobs touched |
 
 No new files required. The `insightsengineering/disk-space-reclaimer` action is invoked
 as an inline `uses:` step; it does not require a new config file in the repository.
@@ -448,7 +497,7 @@ as an inline `uses:` step; it does not require a new config file in the reposito
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | `insightsengineering/disk-space-reclaimer` action fails or hangs | `continue-on-error: false` (default); if the action fails, the job fails before the expensive build — early failure is preferable to a late OOM linker crash |
+| EC-001 | `insightsengineering/disk-space-reclaimer` action fails or hangs (non-apt-mirror cause, e.g., GitHub Actions runner infra fault) | `continue-on-error: true` — the job proceeds to the ≥25 GB gate regardless of reclaimer exit code. The gate is the sole authoritative arbiter: if post-failure free disk is ≥25 GB the build continues; if below 25 GB the gate exits 1 with the actual free-GB count. Design changed v0.8→v0.9 from `continue-on-error: false`; the apt-mirror flake class (EC-009) motivated the change. |
 | EC-002 | Post-reclaim disk still below 25 GB on an unusual runner topology | AC-002 gate exits 1 with a human-readable `::error::` message identifying available space; job fails early |
 | EC-003 | _(retired v0.6)_ `CARGO_PROFILE_DEV_DEBUG` env var — no-op per F-CIDISK-P4-HIGH-001; env var removed from scope | _(retired)_ AC-003 now guards the pre-existing `.cargo/config.toml` invariant instead |
 | EC-004 | _(retired v0.6)_ Future story adding `CARGO_PROFILE_DEV_DEBUG` — now forbidden pattern | _(retired)_ `CARGO_PROFILE_DEV_DEBUG` in `ci.yml` is forbidden; see §Forbidden Patterns |
@@ -456,6 +505,7 @@ as an inline `uses:` step; it does not require a new config file in the reposito
 | EC-006 | _(retired v0.6)_ macOS/Windows failing due to `CARGO_PROFILE_DEV_DEBUG` — no longer applicable | _(retired)_ env var not added to ci.yml per F-CIDISK-P4-HIGH-001 adjudication |
 | EC-007 | Preflight `df -h` step placed after `actions/checkout` instead of before | The preflight MUST be before checkout to capture the true baseline; checkout restores git metadata and may trigger cache actions. Verify ordering in the delivered YAML. |
 | EC-008 | `swap-storage: false` — OOM headroom preservation trade-off | Swap (~4 GB) is deliberately preserved. The linux-gnu leg runs a 1000-PROPTEST_CASES nextest run followed by doctests; a pre-existing OOM-kill risk exists in that leg. The remaining reclaim inputs (android/dotnet/haskell/docker-images/large-packages) still deliver 21–31 GB, satisfying the ≥25 GB gate. Future maintainers: do NOT re-enable `swap-storage: true` without first verifying the doctest OOM risk is resolved. (F-CIDISK-P4-MED-001, adjudicated 2026-07-15.) |
+| EC-009 | apt-mirror flake / partial-reclaim: `large-packages: true` triggers `apt-get` against the runner's rotating apt mirror; the mirror can return HTTP 404 Release files on rotation (evidence: CI run 29437306537, 2026-07-15, mirror.enzu.com, apt exit code 100, reclaimer step failed — ALL THREE hardened Linux jobs failed BEFORE the ≥25 GB gate) | `continue-on-error: true` on the reclaimer step allows the job to proceed to the ≥25 GB gate regardless of reclaimer exit code. If disk is ≥25 GB despite partial/zero reclaim, the build continues. If below 25 GB, the gate exits 1 loud with the actual free-GB count. Trade-off: `continue-on-error` can mask persistent action breakage (e.g., an action update that breaks the inputs API); mitigated because the ≥25 GB gate provides ground-truth disk verification on every run and fails loud when reclaim genuinely under-delivers. |
 
 ## §Research Trace
 
@@ -496,6 +546,9 @@ Findings applied in v0.3:
 
 ## §Changelog
 
+- v0.9 (2026-07-15): fix-burst-7 adjudication — PR #224 first live CI run failure (product-owner; POL-32). EC-009 added: apt-mirror flake / partial-reclaim class — `large-packages: true` invokes `apt-get` against the runner's rotating mirror; mirror.enzu.com returned HTTP 404 Release files (run 29437306537, 2026-07-15), apt exited 100, reclaimer step failed, ALL THREE hardened Linux jobs failed BEFORE the ≥25 GB gate ran. Fix: `continue-on-error: true` added to reclaimer step in BOTH Linux jobs (linux-test legs + test-no-default-features). AC-002 prose updated: YAML snippet added showing the step with `continue-on-error: true` + inline comment documenting the evidence and rationale. EC-001 updated: design changed from `continue-on-error: false` (default, prior) to `continue-on-error: true`; early-failure rationale replaced with gate-as-authoritative-check rationale. §Implementation Notes: new "Reclaimer step is BEST-EFFORT" paragraph added. §Tasks: `continue-on-error: true` added to both reclaimer task bullets. §File Structure Requirements: notes column updated. AC-002 count≥2 reachability assertion UNAFFECTED — grep anchors `^\s+uses: insightsengineering/disk-space-reclaimer`; `continue-on-error:` is a separate YAML key on a different line, not part of the `uses:` line. acceptance_criteria_count and red_gate_tests unchanged.
+- v0.8 (2026-07-15): LOCAL pass-7 spec fix (product-owner fix-burst-6; POL-32). F-CIDISK-P7-MED-001: AC-003 assertions 3 and 4 redesigned from context-blind grep to section-scoped awk; assertion-3 now verifies debug = "line-tables-only" is within [profile.dev] (not just present anywhere in the file); assertion-4 now verifies debug = false payload is within [profile.dev.package."*"] (not just that the section header exists). §Tasks AC-003 assertion-3 and assertion-4 descriptions updated to awk forms. F-CIDISK-P7-LOW-001: AC-004 code snippet corrected to df -P / (was df /; now matches the ratified pass-6 form consistent with the AC-002 gate step); pass-6 traceability note shortened to drop the now-redundant df -P / annotation. F-CIDISK-P7-OBS-001: §Implementation Notes arithmetic rewritten to code-authoritative grouping: 9 pre-existing reachability + 2 new count-based reachability + 2 new config-invariant = 13 total (11 reachability + 2 config-invariant, matching the ci.yml summary echo).
+- v0.7 (2026-07-15): LOCAL pass-6 F-CIDISK-P6-MED-001 spec fix (product-owner fix-burst-5; POL-32). §Architecture Compliance Rules: removed `test-no-default-features` from the "jobs that must NOT be modified" list — that claim directly contradicted the v0.6 scope expansion (AC-001, AC-002, AC-004, and every §Tasks/§File Structure bullet explicitly require adding four protective steps to that job); replaced with the precise invariant: the job's existing `PROPTEST_CASES`, `RUSTFLAGS`, test-invocation lines, and cache configuration must NOT be changed; only the four v0.6-ratified protective steps may be added. §Implementation Notes: added one-line traceability note for pass-6 LOW-001 (summary-echo count corrected 9→11: 7 anchored-in-place + 4 new = 11 total) and OBS-002 (AC-004 annotation step df call updated to df -P / for consistency with AC-002 gate step), both applied by implementer in same burst.
 - v0.6 (2026-07-15): LOCAL pass-4 adjudication (F-CIDISK-P4-HIGH-001 + F-CIDISK-P4-MED-001 + F-CIDISK-P4-MED-002 + F-CIDISK-P4-HIGH-002 + F-CIDISK-P4-LOW-001). **HIGH-001** (AC-003 no-op): `CARGO_PROFILE_DEV_DEBUG` env var removed from scope — it is a no-op because `.cargo/config.toml` already sets `debug = "line-tables-only"` + `debug = false` for deps at higher precedence (config.toml was active during the failures). AC-003 replaced: now a `.cargo/config.toml` invariant guard with 2 new verify-workflow-structure assertions (Red Gate tests 3 + 4: `grep -qE '^debug = "line-tables-only"' .cargo/config.toml` + `grep -qF '[profile.dev.package."*"]' .cargo/config.toml`). §Root Cause Hypothesis rewritten: "full DWARF debug symbols" claim replaced with accurate description of pre-existing minimal-DWARF config and explicit statement that debug-info axis was not a mitigation lever. EC-003/EC-004/EC-006 retired (all referenced CARGO_PROFILE_DEV_DEBUG). `CARGO_PROFILE_DEV_DEBUG` added to §Forbidden Patterns. `du -sh target/` PR-description task removed. **MED-001** (swap-storage OOM): `swap-storage: true` → `swap-storage: false`; reclaim estimate 25–35 GB → 21–31 GB; AC-002 prose + §Implementation Notes + §Library + §File Structure + §Forbidden Patterns updated; EC-008 added (trade-off justification). **MED-002** (test-no-default-features unprotected): Three protective steps (preflight, reclaimer+gate, annotation) mirrored into `test-no-default-features` job. AC-001 + AC-002 assertions changed from `-q` presence to count ≥ 2 semantics. AC-001/AC-002/AC-004 headings/prose updated to cover both Linux workspace-build jobs. §Tasks, §Implementation Notes, §Architecture Compliance Rules, §File Structure Requirements updated accordingly. **HIGH-002 + LOW-001** (AC-7/AC-8 self-match): `semver-checks` assertion anchored to `^  semver-checks:`, `test-no-default-features` assertion anchored to `^  test-no-default-features:` (2-space job-name indent). Added to §Tasks sibling-sweep task (7 pre-existing, up from 5). §Implementation Notes updated: "5 pre-existing" → "7 pre-existing". red_gate_tests: 2 → 4 (AC-003 adds 2 new config-invariant assertions). Story title updated (frontmatter + H1): `CARGO_PROFILE_DEV_DEBUG="line-tables-only"` → `cargo-config debug-invariant guard`.
 - v0.5 (2026-07-15): LOCAL pass-2 fix-burst-3 spec update (F-CIDISK-P2-MED-001 systemic sweep + F-CIDISK-P2-LOW-001). MED-001 (systemic): All 7 reachability assertions in `verify-workflow-structure` tightened to self-match-proof anchored forms. AC-001 grep: `grep -qE '^\s+- name: Report initial disk space\s*$'` (YAML step-name anchor; indent-agnostic; assertion line starts with whitespace+grep, not whitespace+"- name:", so `^\s+- name:` anchor cannot self-match). AC-002 Red Gate grep: `grep -qE '^\s+uses: insightsengineering/disk-space-reclaimer'` (YAML uses: key anchor; assertion line starts with whitespace+grep, not whitespace+"uses:"; same reasoning). 5 pre-existing assertions anchored by YAML structure type: job-name greps (non-exhaustive-violation-compile-fail → `^  non-exhaustive-violation-compile-fail:`, wasm32-compile-check → `^  wasm32-compile-check:`, no-hardcoded-sensors-compile-fail → `^  no-hardcoded-sensors-compile-fail:`, shellcheck-demo-scripts → `^  shellcheck-demo-scripts:`) use 2-space GitHub Actions job-name indent; build-plugin-crowdstrike-oauth2 → `^\s+just build-plugin-crowdstrike-oauth2\s*$` uses just-recipe anchor with `$` to exclude comment lines. LOW-001: AC-002 ≥25 GB gate snippet adds `AVAIL_GB=${AVAIL_GB:-0}` guard (mirroring AC-004 pattern; prevents `-ge` failure when `df` itself fails under `if: failure()` conditions). §Tasks updated with explicit 5-assertion sibling-sweep task specifying exact replacement commands and ci.yml line numbers. §Implementation Notes, §Architecture Compliance Rules, §File Structure Requirements updated to reflect 7-assertion scope (2 new + 5 anchored-in-place). red_gate_tests: 2 unchanged (anchoring improves quality, not count).
 - v0.4 (2026-07-15): LOCAL pass-1 fix-burst (F-CIDISK-P1-MED-001 + F-CIDISK-P1-LOW-001 + F-CIDISK-P1-LOW-002 + F-CIDISK-P1-OBS-001). MED-001: AC-001 Red Gate grep tightened from `'Report initial disk space|df -h'` to `'name: Report initial disk space'` — the `df -h` alternation matched unrelated ci.yml lines and made step removal undetectable. LOW-001: AC-002 ≥25 GB gate snippet replaced `gsub(/G/, "", $4)` (no-op on 1K-block `df /` output; would break silently if df format changed) with `df -P /` and explicit `int($4 / 1024 / 1024)` arithmetic; added unit comment documenting that `$4` is 1K-blocks. LOW-002: AC-004 annotation snippet adds `USED_PCT=${USED_PCT:-0}` guard so the `[ -ge 95 ]` test never fails on empty awk output when `df` itself fails under the `if: failure()` step. OBS-001: AC-001, AC-002, and AC-004 headings and prose now carry explicit "Linux legs only — the failure locus is exclusive to Linux runners; macOS/Windows legs are exempt" scope qualifier. §Tasks updated: preflight/reclaim/annotation task descriptions say "Linux Test job legs"; grep assertion task records both AC-001 and AC-002 patterns. §File Structure Requirements notes column updated to distinguish Linux-only steps from all-legs env entry.

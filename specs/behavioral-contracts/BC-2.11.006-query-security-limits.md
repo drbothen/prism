@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.19"
+version: "1.20"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-10"
+modified: "2026-07-15"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -139,6 +139,8 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 | `E-QUERY-003` | Nesting depth exceeds 64 | `"Query nesting depth is {N} (max 64). Reduce nested parentheses or boolean expressions."` |
 | `E-QUERY-003` | Pipe stages exceed 32 | `"Query has {N} pipe stages (max 32). Combine operations or simplify the pipeline."` |
 | `E-QUERY-003` | Regex pattern exceeds 1024 bytes | `"Regex pattern is {N} bytes (max 1024). Simplify the pattern."` |
+| `E-QUERY-001` wrapping `E-QUERY-003` | `MATCHES` predicate with regex pattern ≥ configured byte limit — parse-time path: `RegexLiteral::new` → `try_map` → `Rich::custom` → `ParseError { semantic: true, message: "E-QUERY-003: ..." }`. `materialization.rs` uses `e.message` directly (ADR-048 §D.7.2); `strip_prefix("E-QUERY-001: ")` does not match the inner-code prefix, so the full two-layer form is emitted by `PrismError::QueryParseFailed`. | MCP-observable byte-exact Display: `"E-QUERY-001: query parse error at offset {offset}: E-QUERY-003: regex pattern length {N} bytes exceeds maximum allowed {max} bytes"`. CANONICAL — two-layer form is intentional (outer = parse transport; inner = root-cause code for LLM triage). Option B ratified per F-PQLFN-PR11-OBS-001 (DEFECT-PQL-FNCALL-LHS-001 cascade pass-11 adjudication). No code change required. |
+| `E-QUERY-001` wrapping `EC-004` | `MATCHES` predicate with SourceRef containing path-traversal characters — parse-time path: `build_source_ref_parser` `try_map` → `Rich::custom` → `ParseError { semantic: true, message: "EC-004: ..." }`. Same materialization path as above. | MCP-observable byte-exact Display: `"E-QUERY-001: query parse error at offset {offset}: EC-004: SourceRef contains path traversal characters ('..', '/', '\')"`. Two-layer form is canonical (same Option B ratification applies). |
 | `E-QUERY-004` | 30s wall-clock timeout exceeded | `PrismError::QueryTimeout { elapsed_ms }` — `"E-QUERY-004: query timed out after {elapsed_ms}ms"` — transient, retryable |
 | `E-QUERY-005` | Materialization streaming counter exceeds 10K during fan-out | `PrismError::QueryMaterializationLimitExceeded { count, max }` — `"E-QUERY-005: materialization limit exceeded: fetched {count} records (max {max})"` — no partial results |
 | `E-WATCHDOG-001` | DataFusion GreedyMemoryPool exceeds 200MB per-query limit | `PrismError::QueryMemoryBudgetExceeded { limit_mb: 200, used_mb }` — `"E-WATCHDOG-001: query memory budget exceeded: limit {limit_mb}MB, used {used_mb}MB"` — no partial results emitted; SessionContext dropped via RAII |
@@ -162,6 +164,8 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 | Query with 65 levels of nesting | `Err(E-QUERY-003)` depth exceeded | error |
 | Query with 33 pipe stages | `Err(E-QUERY-003)` pipe stage limit | error |
 | `matches` predicate with 1025-byte pattern | `Err(E-QUERY-003)` regex length exceeded | error |
+| `matches` predicate with 1025-byte pattern — MCP-observable Display (parse-path, wrapped form) | `"E-QUERY-001: query parse error at offset {offset}: E-QUERY-003: regex pattern length 1025 bytes exceeds maximum allowed 1024 bytes"` | error |
+| `matches` predicate with SourceRef `"../etc/passwd"` — MCP-observable Display (parse-path, wrapped form) | `"E-QUERY-001: query parse error at offset {offset}: EC-004: SourceRef contains path traversal characters ('..', '/', '\')"` | error |
 | External test crate `tests/api_surface.rs` calls `prism_query::filter_parser::parse_filter(input)` | Compile error: `function \`parse_filter\` is private` (or equivalent Rust visibility error) — `cargo build --workspace` fails | security-perimeter |
 | External test crate calls `prism_query::filter_parser::build_predicate_parser()` | Compile error: `function \`build_predicate_parser\` is private` (or equivalent Rust visibility error) — `cargo build --workspace` fails | security-perimeter |
 
@@ -185,6 +189,7 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.20 | DEFECT-PQL-FNCALL-LHS-001 cascade PR-LEVEL pass-11 OBS-001 adjudication (fix-burst-42) | 2026-07-15 | product-owner | F-PQLFN-PR11-OBS-001 Option B ratified: two-layer MCP-observable Display for in-perimeter semantic parse errors wrapping security-limit inner codes is CANONICAL. Added two Error Cases rows documenting byte-exact wrapped Display for (1) regex length → E-QUERY-003 inner code and (2) SourceRef path-traversal → EC-004 inner code. Added two Canonical Test Vector rows with byte-exact Display templates for both wrapped forms. Outer code = E-QUERY-001 (parse transport); inner code = root cause preserved for LLM triage. `materialization.rs` `strip_prefix("E-QUERY-001: ")` does not match inner-code prefixed messages, producing the two-layer form without code change. Options A (generalize strip) and C (restructure) rejected. |
 | 1.19 | QRY cascade P5-02 adjudication sweep (review-2026-06-10 PO micro-burst; error-taxonomy v1.71, ADR-038 v1.3) | 2026-06-10 | product-owner | Canonical mapping table E-QUERY-003 variant cell corrected `QueryExecutionFailed` → `QuerySecurityLimitExceeded` per the P5-02 one-code-three-conditions adjudication: security limits get the NEW dedicated variant `PrismError::QuerySecurityLimitExceeded { detail }` (display `"E-QUERY-003: {limit_detail}"`, un-nesting the double-prefixed pre-split display), surfaced via `map_prism_error` as MCP `-32602` INVALID_PARAMS — closing the latent violation where caller-resolvable limit errors surfaced as opaque `-32000` internal errors. Post-split note paragraph added under the mapping table documenting the split: generic execution (DataFusion planning, MemTable/catalog registration, virtual-field injection) retains `QueryExecutionFailed` recoded E-QUERY-034 (`-32000`), out of this BC's scope; VP-014/VP-015 property text pins `E-QUERY-003` substring, unchanged. E-QUERY-003 body Error Cases rows, edge cases, and vectors unchanged (all four conditions remain security limits under 003). Implementer work-order on QRY branch per taxonomy v1.71 changelog. |
 | 1.18 | QRY cascade pass-1 P1-04 D2 companion sweep (review-2026-06-10 PO consolidated amendment burst) | 2026-06-10 | product-owner | Canonical mapping table refreshed to post-QRY-01 + taxonomy v1.68 state (architect adjudication D2, `proposals/cache-envelope-adjudication-2026-06-10.md`): E-QUERY-004 = `QueryTimeout` (30s timeout), E-QUERY-005 = `QueryMaterializationLimitExceeded` (10K streaming counter), per-query memory budget = E-WATCHDOG-001 `QueryMemoryBudgetExceeded` (GreedyMemoryPool); supersession note documents the v1.12–v1.17 mapping it replaces and distinguishes E-WATCHDOG-002 `WatchdogKilled` (process-RSS kill, BC-2.15.007). Error Cases body rows re-coded to match, message formats regularized to verbatim shipped displays (ADR-035 canonical-row convention), and a previously missing E-QUERY-005 materialization-limit row added so all enforcement-stage limits in §Postconditions have an error row. |
 | 1.17 | S-3.04-local-adversary-pass2 | 2026-05-07 | product-owner | F-LOCAL-P2-CRIT-001 + F-LOCAL-P2-HIGH-005 closure: added 5 S-3.04 alias-system symbols to `restricted_symbols` — `alias_tools::create_alias`, `alias_tools::create_alias_with_clients`, `alias_tools::create_alias_with_clients_gated_inner`, `alias_tools::delete_alias`, `alias_store::AliasStore::create_or_update`. Layer-5 (S-3.04): 0→5 symbols. Total perimeter list: 26→31 entries. Expected E-errors in perimeter-violation crate: 27→32. Documented `alias-write` Cargo feature as runtime-advisory gate (F-LOCAL-P2-HIGH-004, option b). Updated Description prose with DI-034 layer-5 paragraph. |

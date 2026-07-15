@@ -5,7 +5,7 @@ title: "PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function
 status: accepted
 date: "2026-06-28"
 accepted_date: "2026-06-29"
-version: "1.16"
+version: "1.17"
 modified: "2026-07-15"
 producer: architect
 subsystems_affected: [SS-11]
@@ -30,6 +30,8 @@ open_decisions: []
 # ADR-048: PrismQL HAVING/WHERE Predicate Grammar Divergence — Aggregate-Function Predicate LHS in HAVING
 
 ## Status
+
+ACCEPTED v1.17 (2026-07-15). F-PQLFN-PR11-MED-001 (DEFECT-PQL-FNCALL-LHS-001 PR-LEVEL pass 11). §D.7.2 v1.12 two-form convention retracted and superseded: fix-burst-41 shipped the normalization that v1.12 deferred. Shipped design documented: `ParseError.semantic: bool` discriminant set in `error_recovery.rs` via `matches!(err.reason(), RichReason::Custom(_))`; `materialization.rs` strips the leading `"E-QUERY-001: "` from semantic message detail via `strip_prefix`; mixed emitter regime (LOW-006 de-prefixed at emit; IIN/IEQ/INE keep embedded prefix per BC-2.11.024, normalized at strip); single-prefix canonical Display enforced by BC-2.11.004 v1.48 EC-11-085 and 9 single-prefix lock tests. F-MEDIUM-001 recovery-path guard updated: `e.message.starts_with("E-QUERY-001:")` → `e.semantic` discriminant in `sql_parser.rs`; semantic invariant (block partial-AST recovery for any `.validate()`/`.try_map()` error) unchanged. ADR-wide sweep: "Rationale for NOT normalizing form B to form A" paragraph superseded; no other live Form-B-accepted assertions found outside §D.7.2. POL-23 pin sweep: BC-2.11.004 normative `ADR-048 v1.16` pins → v1.17; BC-2.11.019 normative `ADR-048 v1.16` pins → v1.17; ARCH-INDEX ADR-048 row updated (state-manager bumps index version).
 
 ACCEPTED v1.16 (2026-07-15). F-PQLFN-PR3-LOW-001 (DEFECT-PQL-FNCALL-LHS-001 PR-LEVEL pass 3, product-owner adjudication, BC-2.11.004 v1.48 EC-11-086, BC-2.11.019 v1.21). §D.2 PERCENTILE post-blocklist-removal error surface amended: prior §D.2 documented that `HAVING percentile(x, p)` on registry-active installations fired E-QUERY-039 (`"enrichment infusion 'percentile' is not registered"`) — a false enrichment-registration suggestion misleading to LLM agents. Post-v1.16: `check_enrich_udf_availability` intercepts `name` ∈ `DATAFUSION_BUILTIN_AGGREGATE_NAMES` AND `name` ∉ `DATAFUSION_BUILTIN_FUNCTION_NAMES` in HAVING position (f) BEFORE the infusion-registry lookup and fires E-QUERY-001 (HAVING-specific guidance, registry-INDEPENDENT). The `∉ DATAFUSION_BUILTIN_FUNCTION_NAMES` qualifier prevents breaking DataFusion-native aggregate names (stddev, avg, etc.) that are in both sets and legitimately execute in HAVING (TM-12). Mechanism 2 in §D.2 renamed and revised accordingly. Stale test `test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt` noted as must-supersede in §D.2. §D.7.1 HAVING-exemption caveat added: `DATAFUSION_BUILTIN_AGGREGATE_NAMES` names in HAVING position fire E-QUERY-001 (not E-QUERY-039) via new interception; `distinct_count` unaffected (parses as `FuncCall::Aggregate`). §D.7.3 PERCENTILE cross-reference updated: "registry-dependent E-QUERY-039 outcome" → "E-QUERY-001 outcome (registry-independent, v1.16)". POL-23 pin sweep: BC-2.11.004 normative `ADR-048 v1.15` pins → v1.16; BC-2.11.019 normative `ADR-048 v1.15` pins → v1.16; ARCH-INDEX ADR-048 row updated (state-manager bumps index version).
 
@@ -521,68 +523,30 @@ so digit-leading field-path segments such as `123abc` parse fine via backtrack t
 `field_comparison`); avoids mis-parsing numeric-literal-leading tokens as fn-call names;
 earlier, clearer failure than downstream rejection of `FuncCall::Scalar(Unknown("123abc"))`.
 
-**Chumsky-path semantic errors — two-form convention (v1.12 — F-PQLFN-P27-OBS-001):**
-`PrismError::QueryParseFailed` Display messages take two forms depending on the error's
-origin path:
+**Chumsky-path semantic errors — two-form convention (v1.12 — F-PQLFN-P27-OBS-001; RETRACTED v1.17 — F-PQLFN-PR11-MED-001):**
 
-**Form A (plan-time gate, clean):** The aggregate-in-predicate gate (`check_enrich_udf_availability`,
-engine.rs) constructs `QueryParseFailed` directly with a bare `detail` string per the
-de-nesting mandate above. One `E-QUERY-001:` prefix, one offset. Example:
-`"E-QUERY-001: query parse error at offset 15: 'count' is an aggregate function; aggregate
-fn-calls are not valid in WHERE/where predicates (use HAVING for post-aggregation filters,
-ADR-048 D.3)"`.
+*v1.12 two-form convention retracted:* v1.12 documented Form A (plan-time gate, clean — single `E-QUERY-001:` prefix) and Form B (Chumsky `.validate()`/`.try_map()` path — doubled `E-QUERY-001:` prefix from the `Rich::custom(span, "E-QUERY-001: {msg}") → rich_to_parse_error → ParseError::Display → QueryParseFailed detail` chain), ratified Form B as the accepted Chumsky-path convention per error-taxonomy v2.49 form-(b), and deferred normalization citing the F-MEDIUM-001 guard discriminant dependency. *That normalization shipped in fix-burst-41 (DEFECT-PQL-FNCALL-LHS-001 PR-LEVEL pass 11).* The doubled-prefix Form B is no longer accepted. Form A (single `E-QUERY-001:` prefix) is now the sole canonical form for all `QueryParseFailed` Display output.
 
-**Form B (Chumsky-path, double-nested):** Semantic validation errors emitted via
-`emitter.emit(Rich::custom(span, msg))` inside `.validate()` or `.try_map()` combinators
-(e.g., the LOW-006 keyword-fn-name exclusion in `fn_call_comparison` — `filter_parser.rs`;
-the PERCENTILE out-of-range gate in `build_agg_call_parser` — `sql_parser.rs`) embed the
-`"E-QUERY-001: "` prefix in the `Rich::custom` message string. The chain:
-`Rich::custom(span, "E-QUERY-001: {msg}")` → `rich_to_parse_error` (`err.to_string()` =
-`"E-QUERY-001: {msg}"` → `ParseError::message`) → `ParseError::Display`
-(`"parse error at offset {N}: E-QUERY-001: {msg}"` — `e.to_string()`) →
-`QueryParseFailed` detail construction (`detail = e.to_string()`) → `QueryParseFailed`
-Display produces the final user-visible string with `E-QUERY-001:` twice and the offset
-twice. Example for `| where NOT(x) = 5`:
-`"E-QUERY-001: query parse error at offset {N}: parse error at offset {N}: E-QUERY-001: 'NOT' is a PrismQL keyword and cannot be used as a function name"`.
-This is the pre-existing error-taxonomy v2.49 form-(b) convention; **ratified here as
-the accepted Chumsky-path pattern for all `.validate()`/`.try_map()` semantic errors**.
+**Shipped normalization design (v1.17 — F-PQLFN-PR11-MED-001):**
 
-**Rationale for NOT normalizing form B to form A:** Normalizing requires (1) removing
-the `"E-QUERY-001: "` prefix from all `Rich::custom` / `try_map` Err messages and (2)
-redesigning the `ParseError` struct to carry a `is_semantic_validation` discriminant,
-plus updating `materialization.rs` detail construction to use `e.message` (not `e.to_string()`).
-The `"E-QUERY-001: "` prefix in `.validate()` messages is the sole discriminant used by
-the F-MEDIUM-001 recovery-path guard (see below) — removing it breaks the guard predicate.
-The blast radius is disproportionate for an OBS-severity finding. The semantic content of
-form B is unambiguous to both human analysts and LLM agents: the keyword name and actionable
-guidance appear clearly despite the structural redundancy. Normalization deferred to a
-dedicated ParseError-cleanup story if LLM-parsing ambiguity becomes a real operational issue.
+`ParseError` carries a `pub semantic: bool` discriminant. In `error_recovery.rs`, `semantic` is set via `matches!(err.reason(), RichReason::Custom(_))` — `RichReason::Custom` is the variant produced by `.validate()` and `.try_map()` combinators: the LOW-006 keyword-fn-name exclusion in `fn_call_comparison` (`filter_parser.rs`), the PERCENTILE out-of-range gate in `build_agg_call_parser` (`sql_parser.rs`), the IIN/IEQ/INE case-insensitive operator validation (`filter_parser.rs`), and any future `.validate()`/`.try_map()` semantic errors.
 
-**F-MEDIUM-001 recovery-path guard — intentionally broad (v1.12 — F-PQLFN-P27-OBS-002):**
-The guard at `sql_parser.rs` (`has_semantic_error = parse_errors.iter().any(|e| e.message.starts_with("E-QUERY-001:"))`
-at the F-MEDIUM-001 recovery path for partial-AST returns) blocks recovery whenever ANY
-error in the Chumsky error set has an `"E-QUERY-001: "` prefix. This is **intentionally
-broad** — it covers:
+`materialization.rs` strips the leading `"E-QUERY-001: "` prefix from semantic `ParseError` messages when constructing `QueryParseFailed.detail`: when `e.semantic` is `true`, the detail is derived from `e.message` with the `"E-QUERY-001: "` leading prefix stripped via `strip_prefix`. This normalizes all Chumsky-path semantic errors to Form A at the `QueryParseFailed` materialization boundary.
 
-1. LOW-006 keyword-fn-name validation errors (`filter_parser.rs` `fn_call_comparison` `.validate()`)
-2. PERCENTILE out-of-range validation errors (`sql_parser.rs` `build_agg_call_parser` `.try_map()`)
-3. Any future `.validate()` / `.try_map()` semantic errors that embed the `"E-QUERY-001: "` prefix
+**Mixed emitter regime (v1.17):**
+Emitters are not required to be prefix-free at the emit site; `materialization.rs` handles stripping at the boundary:
+- LOW-006 keyword-fn-name emitter (`fn_call_comparison` `.validate()` — `filter_parser.rs`): de-prefixed at emit — the `Rich::custom` message is already a bare detail string without `"E-QUERY-001: "` prefix.
+- IIN/IEQ/INE case-insensitive operator emitters (`filter_parser.rs`): keep the embedded `"E-QUERY-001: "` prefix per BC-2.11.024 raw-message requirement; the `materialization.rs` `strip_prefix` normalizes these at the `QueryParseFailed` boundary.
+Both regimes produce Form A (single-prefix) Display output after normalization.
 
-The broad scope is the **correct semantic invariant**: when any `.validate()` or `.try_map()`
-combinator fires a semantic validation error, the partial AST it annotates is logically
-invalid and MUST NOT be returned via the F-MEDIUM-001 partial-AST recovery path. The
-specific consequence for the percentile case: `HAVING percentile(x,150) > 5 AND y IN (malformed`
-with a structural parse error in the `IN` clause → `Err(both errors)` (not
-`Ok(partial-AST-with-swallowed-percentile-error)`) is the **INTENDED behavior** — the
-semantic error must not be silently discarded because delimiter recovery produced a
-partial tree. The guard must remain broad; narrowing it to keyword-only would silently
-swallow semantic validation errors from other `.validate()` / `.try_map()` sites.
+**F-MEDIUM-001 recovery-path guard — `e.semantic` discriminant (v1.12 F-PQLFN-P27-OBS-002; updated v1.17 — F-PQLFN-PR11-MED-001):**
+The guard in `sql_parser.rs` at the F-MEDIUM-001 recovery path for partial-AST returns now keys on the structural `e.semantic` discriminant: `has_semantic_error = parse_errors.iter().any(|e| e.semantic)`. The semantic invariant is unchanged — when any `.validate()` or `.try_map()` combinator fires, the partial AST it annotates is logically invalid and MUST NOT be returned via the F-MEDIUM-001 partial-AST recovery path. The `e.semantic` discriminant provides a structurally sound gate without relying on prefix-string matching. The guard remains broad: it blocks recovery for ALL semantic errors — LOW-006 keyword gate, PERCENTILE out-of-range gate, IIN/IEQ/INE operator validation, and any future `.validate()`/`.try_map()` semantic errors. The behavior for the percentile structural-error case is unchanged: `HAVING percentile(x,150) > 5 AND y IN (malformed` → `Err(both errors)` (not `Ok(partial-AST-with-swallowed-percentile-error)`) remains the INTENDED behavior — the semantic error must not be silently discarded because delimiter recovery produced a partial tree.
 
-**Source comment requirement (implementer micro-task):** The guard comment at `sql_parser.rs`
-~243-251 currently names only the LOW-006 keyword gate. The implementer must verify that
-the comment text covers the full broad scope (LOW-006 + PERCENTILE + future semantic
-validators) rather than implying it is keyword-specific. A single-line addition to the
-comment is sufficient — no logic change.
+**Enforcement — 9 single-prefix locks (v1.17):**
+BC-2.11.004 v1.48 EC-11-085 documents the single-prefix canonical invariant. Nine single-prefix lock tests enforce that `QueryParseFailed` Display output contains exactly one `"E-QUERY-001:"` prefix for all semantic-error paths (Chumsky-path and plan-time gate). These locks are the primary enforcement mechanism replacing the prior Form-B ratification.
+
+**Source comment update (implementer micro-task, v1.17 — updated):**
+The guard in `sql_parser.rs` must be updated from `e.message.starts_with("E-QUERY-001:")` to `e.semantic`. The guard comment must document the full broad scope (LOW-006 + PERCENTILE + IIN/IEQ/INE + future semantic validators) and cite `ParseError.semantic` as the discriminant, replacing the prior prefix-string description.
 
 #### D.7.3 — HAVING Non-Six-Name Aggregate Policy (MED-001 adjudication)
 
@@ -887,6 +851,7 @@ and avoids conditional branching inside the parser combinator.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.17 | adr-048-v1.17-DEFECT-PQL-FNCALL-LHS-001-PR11-semantic-flag-normalization | 2026-07-15 | architect | F-PQLFN-PR11-MED-001 (DEFECT-PQL-FNCALL-LHS-001 PR-LEVEL pass 11). §D.7.2 v1.12 two-form convention retracted and superseded by shipped normalization. **Retracted:** Form B (doubled `E-QUERY-001:` prefix from Chumsky `.validate()`/`.try_map()` path) ratified as accepted convention; normalization deferred citing F-MEDIUM-001 guard discriminant dependency. **Shipped design:** `ParseError.semantic: bool` discriminant set in `error_recovery.rs` via `matches!(err.reason(), RichReason::Custom(_))`; `materialization.rs` strips leading `"E-QUERY-001: "` from semantic messages via `strip_prefix` when constructing `QueryParseFailed.detail`; mixed emitter regime (LOW-006 de-prefixed at emit; IIN/IEQ/INE keep embedded prefix per BC-2.11.024, normalized at strip); Form A (single prefix) now sole canonical form. F-MEDIUM-001 guard updated: `e.message.starts_with("E-QUERY-001:")` → `e.semantic` in `sql_parser.rs`; semantic invariant (block partial-AST recovery for any `.validate()`/`.try_map()` error) unchanged. Enforcement: BC-2.11.004 v1.48 EC-11-085 + 9 single-prefix lock tests. ADR-wide sweep for live Form-B-accepted assertions: none found outside §D.7.2. POL-23 pin sweep: BC-2.11.004 normative `ADR-048 v1.16` pins → v1.17; BC-2.11.019 normative `ADR-048 v1.16` pins → v1.17; ARCH-INDEX ADR-048 row updated (state-manager bumps index version). |
 | 1.16 | adr-048-v1.16-DEFECT-PQL-FNCALL-LHS-001-PR3-having-percentile-e-query-001 | 2026-07-15 | architect | F-PQLFN-PR3-LOW-001 (DEFECT-PQL-FNCALL-LHS-001 PR-LEVEL pass 3, product-owner adjudication; BC-2.11.004 v1.48 EC-11-086; BC-2.11.019 v1.21 §Postconditions position (f) note + §OBS-004). §D.2 PERCENTILE post-blocklist-removal error surface amended. **Retracted behavior:** `HAVING percentile(x, p)` on registry-active installations fired E-QUERY-039 (`"enrichment infusion 'percentile' is not registered"`) — false enrichment-registration suggestion misleading to LLM agents; no-registry path produced DataFusion plan error. **New behavior:** `check_enrich_udf_availability` intercepts `name` ∈ `DATAFUSION_BUILTIN_AGGREGATE_NAMES` AND `name` ∉ `DATAFUSION_BUILTIN_FUNCTION_NAMES` in HAVING position (f) BEFORE the infusion-registry lookup → fires E-QUERY-001 (HAVING-specific guidance, registry-INDEPENDENT). The two-condition criterion restricts the intercept to PrismQL-specific manually-inserted names (`percentile`) that lack DataFusion native resolution; DataFusion-native aggregate names (stddev, avg, etc.) are in both sets and remain valid in HAVING (TM-12). Canonical message (byte-verbatim per POL-24): `"E-QUERY-001: query parse error at offset {offset}: 'percentile' is a PrismQL aggregate function; PERCENTILE is not directly supported in HAVING predicates — alias it in SELECT: SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold (ADR-048 D.3 OD-2)"`. §D.2 Mechanism 2 header renamed from "E-QUERY-039 gate" to "HAVING-position `DATAFUSION_BUILTIN_AGGREGATE_NAMES` interception"; pre-v1.16 registry-dependent E-QUERY-039 outcome documentation replaced with registry-independent E-QUERY-001 outcome; stale-test note added (test `test_BC_2_11_016_tm_having_percentile_not_e_query_001_having_exempt` must be superseded — 2 replacement tests specified, routed to implementer). §D.7.1 HAVING-exemption paragraph: "no E-QUERY-001 should fire there" replaced with EXCEPTION caveat for `DATAFUSION_BUILTIN_AGGREGATE_NAMES` names in HAVING position; `distinct_count` sibling analysis added (parses as `FuncCall::Aggregate`, unaffected). §D.7.3 PERCENTILE cross-reference: "registry-dependent E-QUERY-039 outcome" → "E-QUERY-001 outcome (registry-independent, v1.16)". No OD changes; no new ODs; OD-2 scope note unchanged. POL-23 pin sweep: BC-2.11.004 normative `ADR-048 v1.15` pins (lines 51, 103, 116, 117, 118, 147, 148) → v1.16; BC-2.11.019 normative `ADR-048 v1.15` pins (lines 56, 165, 173, 211) → v1.16; ARCH-INDEX ADR-048 row version cell v1.15 → v1.16 (state-manager bumps index version). SESSION-HANDOFF.md historical dispatch-context rows exempt (immutable narrative). Adversarial-pass reports exempt (historical records). STATE.md D-NNN rows exempt (historical records). |
 | 1.15 | adr-048-v1.15-DEFECT-PQL-FNCALL-LHS-001-pass36-walker-nomenclature-correction | 2026-07-14 | architect | F-PQLFN-P36-LOW-003 (DEFECT-PQL-FNCALL-LHS-001 pass 36): §D.7.1 table Collection-method cells corrected — all seven rows cited `collect_unknown_scalar_from_predicate` (non-offset variant); runtime gate uses `collect_unknown_scalar_offsets_from_predicate` (adopted F-PQLFN-P21-OBS-003 for offset truthfulness when `predicate_fncall_names` was promoted to `Vec<(String, usize)>`). All seven cells updated. §D.7.1 two-variant relationship footnote added: offsets variant = runtime gate walker for `predicate_fncall_names` (7 positions); non-offset variant = retained for `collect_unknown_scalars_from_sql_query` SQL-scalar walk into `sql_unknown_names` (E-QUERY-039) + unit tests with programmatic ASTs. §D.7.5 implementation scope code block corrected: `collect_unknown_scalar_from_predicate` → `collect_unknown_scalar_offsets_from_predicate`; historical note added (v1.6 used non-offset variant when `predicate_fncall_names` was `Vec<String>`; §D.7.6 correctly shows offset variant). TD-VSDD-060 sibling sweep: all §D.7.1 table rows and §D.7.5 code block updated; §Changelog v1.6 row exempt (historical). POL-25 sibling sweep: BC-2.11.019 (4 live-prose cites) and S-DEMO-FIDELITY-REMEDIATION-001 story stale → route to product-owner + story-writer; adversarial-review/local-pass-35.md line 142 stale code-verify claim → route to adversary/state-manager; STATE.md D-1394/D-1395 + STORY-INDEX changelog rows exempt (historical records). |
 | 1.14 | adr-048-v1.14-DEFECT-PQL-FNCALL-LHS-001-pass34-seven-surface-prose-sweep | 2026-07-14 | architect | F-PQLFN-P34-MED-001 (DEFECT-PQL-FNCALL-LHS-001 pass 34): §D.7.2 + §D.3 body prose sweep "all six" → "all seven" gated-position references. Three live-prose sites updated: (1) §D.3 self-contradiction sentence "enumerates six predicate positions" → "enumerates seven predicate positions" (§D.7.1 now enumerates seven positions post-v1.13 OD-7); (2) §D.7.2 "All six predicate positions receive an identical, helpful message" → "All seven predicate positions"; (3) §D.7.2 "Two canonical forms apply to all six predicate positions" → "all seven predicate positions". §D.3 sentence also extended with OD-7 anchor: enumeration list now explicitly names "SQL WHERE, SQL DML WHERE, and INSERT source_select WHERE". §Changelog rows for v1.6/v1.8/v1.13 citing "six" are EXEMPT (historical records accurate at those versions). Non-gated-position "six" sites UNCHANGED: "sixth gated position" (§D.6 line, correctly identifies Position 6 ordinal); "non-six-name aggregates" / "six named functions" (§D.7.3, §D.2 scope, Related Architecture Nodes) refer to the six named aggregate functions in build_agg_call_parser — not the gate's total position count. "Six callers" of build_predicate_parser UNCHANGED per OD-7 note. Sibling sweep across .factory/specs/ (BC/stories/error-taxonomy): no stale "all six predicate" or "six gated surfaces" patterns found in BC-2.11.004* or story files. |
