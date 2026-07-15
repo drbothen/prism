@@ -23,8 +23,14 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.33"
+  version: "1.34"
   changelog:
+    - version: "1.34"
+      date: 2026-07-15
+      burst: D-1780-PR-LEVEL-pass-5-fix-burst-38
+      decision: D-1780
+      findings: [F-PQLFN-PR5-OBS-003]
+      change: "v1.33 → v1.34 2026-07-15 — POL-34 fail_loud_invariant_enforcement_standard registered. Codified from DEFECT-PQL-FNCALL-LHS-001 PR-LEVEL pass-5 F-PQLFN-PR5-OBS-003 (D-1780). Runtime invariants in production code paths must be enforced by mechanisms active in release builds (typed branch handling, Result propagation, or structurally-unreachable design ratified in the anchoring BC/ADR). debug_assert! may supplement but never be the sole enforcement of an invariant whose violation produces incorrect user-facing output in release."
     - version: "1.33"
       date: 2026-06-12
       burst: D-1109-D-1110-closure-burst
@@ -794,3 +800,40 @@ policies:
       - "Flag any symbol that returns zero grep hits as a drift site. Record: VP file, line number, symbol name, context sentence."
       - "Exemptions: symbols inside §Changelog rows (historical citations exempt per TD-VSDD-091); symbols prefixed with TODO markers (tracked drift, not undetected drift)."
       - "Until the enforcement hook is implemented (lint_hook: null), adversary must manually apply this check during each adversarial pass that reviews VP files."
+
+  - id: 34
+    name: fail_loud_invariant_enforcement_standard
+    description: |
+      Runtime invariants in production code paths must be enforced by mechanisms
+      active in release builds (typed branch handling, Result propagation, or
+      structurally-unreachable design ratified in the anchoring BC/ADR).
+      debug_assert!/debug_assert_eq! may supplement but never be the SOLE enforcement
+      of an invariant whose violation produces incorrect user-facing output in release.
+      Per-site debug-only enforcement requires explicit ratification in the anchoring
+      BC/ADR including the release-mode fall-through behavior.
+    adopted: "DEFECT-PQL-FNCALL-LHS-001 PR-LEVEL pass-5 F-PQLFN-PR5-OBS-003 (D-1780, 2026-07-15)"
+    severity: MEDIUM
+    enforced_by: [adversary-prompt, code-review]
+    scope: [source-code, bc]
+    lint_hook: null
+    rationale: |
+      Codified after three recurrences in DEFECT-PQL-FNCALL-LHS-001 cascade where
+      debug_assert!/debug_assert_eq! was used as the sole enforcement mechanism for
+      a production invariant:
+        - Fix-burst-37 (pass-4): debug_assert_eq! added to HAVING-interception loop
+          in engine.rs to assert percentile-template set invariant; compiles out in
+          release builds (standard --release profile).
+        - BC-2.11.019 v1.22 §OBS-004: "fail-loud assertion requirement" codified per
+          the debug_assert_eq without acknowledging release-mode compile-out semantics.
+        - Pass-5 F-PQLFN-PR5-LOW-001: adversary identified that debug_assert_eq! compiles
+          out → misleading template persists in release for future AGGREGATE-only names.
+      The structural fix (two-branch detail-builder in fix-burst-38) is the exemplar
+      compliant implementation: typed branch dispatch provides correct guidance for any
+      current or future set member, in all build profiles, without requiring a runtime
+      assertion.
+    verification_steps:
+      - "For each adversarial pass on PRs touching crates/*/src/ (excluding test modules): run `rg 'debug_assert' crates/*/src/ --glob '!**/tests/**' --glob '!**/#[cfg(test)]**'` to enumerate all debug_assert!/debug_assert_eq!/debug_assert_ne! calls in production code paths."
+      - "For each debug_assert site found: (a) determine the invariant being asserted; (b) determine whether the invariant's violation produces incorrect user-facing output (error message content, query result, or behavioral deviation); (c) if YES, verify the anchoring BC or ADR explicitly ratifies debug-only enforcement AND documents the release-mode fall-through behavior (what happens when the assert does NOT fire in release)."
+      - "A debug_assert site where violation produces incorrect user-facing output AND the anchoring spec does NOT document release-mode fall-through → MEDIUM finding under POL-34. The fix path is: (a) structural enforcement (typed branch, match arm, Result propagation) — preferred; or (b) explicit ratification in anchoring BC/ADR including documented release-mode fall-through behavior — acceptable only when structural fix would require significant architectural change."
+      - "debug_assert! that supplements (not sole-enforces) a release-active mechanism is PERMITTED. Example: a debug_assert after a match arm that already handles all cases structurally is a documentation aid, not sole enforcement."
+      - "Exemptions: debug_assert sites inside #[cfg(test)] blocks; debug_assert sites enforcing invariants whose violation produces only an internal panic (no user-facing output, no incorrect behavior observable by callers) — document the exemption rationale inline in the code comment."
