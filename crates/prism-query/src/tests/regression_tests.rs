@@ -1985,3 +1985,138 @@ fn test_f_p3_crit_001d_enrich_ascii_behavior_preserved() {
         "F-P3-CRIT-001d: expected enrich guidance message, got: {msg}"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-PQLFN-PR11-OBS-001: regex-length and EC-004 canonical wrapped Display locks
+// ─────────────────────────────────────────────────────────────────────────────
+// BC-2.11.006 v1.20: two-layer MCP-observable Display is canonical for in-perimeter
+// semantic parse errors wrapping security-limit inner codes.
+//
+// Defect 1 (regex span level): regex_match try_map was placed at the SEQUENCE
+// level — span.start = field_path offset (36 for `hostname`).  Chumsky choice()
+// error-merging uses the highest span.start; cidr_match's "expected keyword 'IN'"
+// error at span.start=45 (the `M` of `MATCHES`) outcompeted the E-QUERY-003
+// error at span.start=36, suppressing the real cause.
+//
+// Defect 2 (EC-004 dead code): source_ref segment grammar ([a-zA-Z0-9_]+ sep '.')
+// excluded '/', '\', and adjacent '.' at the lexical level, so the try_map EC-004
+// check was unreachable.  Path-traversal inputs failed with a structural error
+// instead of the canonical EC-004 message.
+//
+// Fix reference: DEFECT-PQL-FNCALL-LHS-001 fix-burst-42.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-PQLFN-PR11-OBS-001 **RED → GREEN** — regex-length canonical wrapped Display lock.
+///
+/// Query: `FROM crowdstrike_detections | where hostname MATCHES "<1025 'a's>"`
+///
+/// After the fix (try_map placed at LITERAL level in `regex_match`):
+/// - `regex_literal = string_val.padded().try_map(…)` span.start = 53 (opening `"`)
+/// - 53 > cidr_match's span.start ≈ 45 → E-QUERY-003 wins in Chumsky choice()
+/// - Canonical MCP-observable Display (BC-2.11.006 v1.20):
+///   `"E-QUERY-001: query parse error at offset 53: E-QUERY-003: regex pattern
+///    length 1025 bytes exceeds maximum allowed 1024 bytes"`
+///
+/// **RED state** (current try_map at sequence level):
+/// - span.start = 36 (field_path `hostname`) for regex_match; cidr_match wins at ≈45
+/// - Error is "expected keyword 'IN'" at wrong offset (not E-QUERY-003)
+///
+/// Offset derivation (query = `FROM crowdstrike_detections | where hostname MATCHES "…"`):
+///   F(0)…M(3) (4)c(5)…s(26) (27)|(28) (29)w(30)…e(34) (35)h(36)…e(43) (44)M(45)…S(51) (52)"(53)
+///
+/// Traces: F-PQLFN-PR11-OBS-001; BC-2.11.006 v1.20; DEFECT-PQL-FNCALL-LHS-001.
+#[test]
+fn test_f_pqlfn_pr11_obs_001_regex_length_wrapped_display_lock() {
+    let pattern = "a".repeat(1025);
+    let query = format!("FROM crowdstrike_detections | where hostname MATCHES \"{pattern}\"");
+
+    let result = PrismQlParser::parse(&query);
+    assert!(
+        result.is_err(),
+        "regex_length_display_lock: must parse as Err"
+    );
+
+    let errs = result.unwrap_err();
+    assert!(
+        !errs.is_empty(),
+        "regex_length_display_lock: must have at least one error"
+    );
+    let first = &errs[0];
+
+    // Simulate ADR-048 §D.7.2 materialization.rs detail computation:
+    let detail = if first.semantic {
+        let msg = &first.message;
+        msg.strip_prefix("E-QUERY-001: ").unwrap_or(msg).to_string()
+    } else {
+        first.to_string()
+    };
+    let wrapped = format!(
+        "E-QUERY-001: query parse error at offset {}: {}",
+        first.offset, detail
+    );
+
+    // BC-2.11.006 v1.20 canonical two-layer form (Option B ratified):
+    let expected = "E-QUERY-001: query parse error at offset 53: \
+         E-QUERY-003: regex pattern length 1025 bytes exceeds maximum allowed 1024 bytes";
+    assert_eq!(
+        wrapped, expected,
+        "F-PQLFN-PR11-OBS-001 regex length: canonical wrapped Display mismatch.\n\
+         RED state: cidr_match wins at span.start≈45 (wrong — 'expected IN' error).\n\
+         GREEN state: try_map at literal level gives span.start=53 > 45 → E-QUERY-003 wins."
+    );
+}
+
+/// F-PQLFN-PR11-OBS-001 **RED → GREEN** — EC-004 SourceRef traversal canonical wrapped Display lock.
+///
+/// Query: `FROM crowdstrike/../detections | where x = "1"`
+///
+/// After the fix (widened source_ref grammar — wide capture + EC-004 try_map):
+/// - source_ref captures `crowdstrike/../detections` at offset 5 (after `FROM `)
+/// - EC-004 fires at span.start = 5
+/// - Canonical MCP-observable Display (BC-2.11.006 v1.20):
+///   `"E-QUERY-001: query parse error at offset 5: EC-004: SourceRef contains
+///    path traversal characters ('..', '/', '\')"`
+///
+/// **RED state** (current narrow segment grammar):
+/// - source_ref grammar `[a-zA-Z0-9_]+` sep-by `.` captures only `crowdstrike`
+///   (stops at `/`); EC-004 is unreachable dead code; error is structural (wrong offset)
+///
+/// Traces: F-PQLFN-PR11-OBS-001; BC-2.11.006 v1.20 EC-004; DEFECT-PQL-FNCALL-LHS-001.
+#[test]
+fn test_f_pqlfn_pr11_obs_001_sourceref_traversal_wrapped_display_lock() {
+    // Source `crowdstrike/../detections` starts at offset 5 (after `FROM `).
+    let query = "FROM crowdstrike/../detections | where x = \"1\"";
+
+    let result = PrismQlParser::parse(query);
+    assert!(result.is_err(), "ec_004_display_lock: must parse as Err");
+
+    let errs = result.unwrap_err();
+    assert!(
+        !errs.is_empty(),
+        "ec_004_display_lock: must have at least one error"
+    );
+    let first = &errs[0];
+
+    // Simulate ADR-048 §D.7.2 materialization.rs detail computation:
+    let detail = if first.semantic {
+        let msg = &first.message;
+        msg.strip_prefix("E-QUERY-001: ").unwrap_or(msg).to_string()
+    } else {
+        first.to_string()
+    };
+    let wrapped = format!(
+        "E-QUERY-001: query parse error at offset {}: {}",
+        first.offset, detail
+    );
+
+    // BC-2.11.006 v1.20 canonical two-layer form (Option B ratified):
+    let expected = "E-QUERY-001: query parse error at offset 5: \
+         EC-004: SourceRef contains path traversal characters ('..', '/', '\\')";
+    assert_eq!(
+        wrapped, expected,
+        "F-PQLFN-PR11-OBS-001 EC-004: canonical wrapped Display mismatch.\n\
+         RED state: narrow segment grammar truncates to 'crowdstrike' → structural error at \
+         wrong offset (EC-004 unreachable dead code).\n\
+         GREEN state: wide capture + EC-004 try_map fires at span.start=5."
+    );
+}

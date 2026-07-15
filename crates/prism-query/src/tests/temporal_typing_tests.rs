@@ -5942,7 +5942,7 @@ async fn test_BC_2_11_004_tm_18_pipe_where_percentile_manual_insert_lock() {
 
 // ── EC-11-086: HAVING `percentile` → E-QUERY-001 (registry-independent) ─────────────────────
 //
-// ADR-048 v1.16 §D.2 amendment (F-PQLFN-PR3-LOW-001, BC-2.11.004 v1.48):
+// ADR-048 v1.17 §D.2 amendment (F-PQLFN-PR3-LOW-001, BC-2.11.004 v1.48):
 //
 // `percentile` is excluded from `build_agg_call_parser` (ADR-048 §D.2 OD-2: two-arg grammar
 // ambiguity). It therefore parses as `FuncCall::Scalar(Unknown("percentile"))` via
@@ -5973,7 +5973,7 @@ async fn test_BC_2_11_004_tm_18_pipe_where_percentile_manual_insert_lock() {
 //   - test_BC_2_11_004_having_percentile_fires_e_query_001_no_registry  (variant b: no registry)
 //   - test_BC_2_11_004_having_percentile_fires_e_query_001_with_registry (variant a: registry active)
 //
-// Stale-test note (ADR-048 v1.16 §D.2): `test_BC_2_11_016_tm_having_percentile_not_e_query_001_
+// Stale-test note (ADR-048 v1.17 §D.2): `test_BC_2_11_016_tm_having_percentile_not_e_query_001_
 // having_exempt` was anchored to the pre-v1.16 behavior ("result is NOT QueryParseFailed").
 // That assertion is now WRONG — post-v1.16 the result IS QueryParseFailed (E-QUERY-001).
 // This section replaces it with the two required replacement tests from ADR-048 §D.2.
@@ -6011,7 +6011,7 @@ async fn test_BC_2_11_004_tm_18_pipe_where_percentile_manual_insert_lock() {
 /// function; PERCENTILE is not directly supported in HAVING predicates — alias it in SELECT:
 /// SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold (ADR-048 D.3 OD-2)"`
 ///
-/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.23 §OBS-004;
+/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.17 §D.2; BC-2.11.019 v1.24 §OBS-004;
 ///            F-PQLFN-PR3-LOW-001; POL-24.
 #[tokio::test]
 async fn test_BC_2_11_004_having_percentile_fires_e_query_001_no_registry() {
@@ -6036,7 +6036,7 @@ async fn test_BC_2_11_004_having_percentile_fires_e_query_001_no_registry() {
          DataFusion plan fails with QueryPlanFailed — NOT E-QUERY-001. \
          Post-fix: new DATAFUSION_BUILTIN_AGGREGATE_NAMES interception in HAVING position \
          fires BEFORE the registry-None guard → E-QUERY-001 (registry-INDEPENDENT). \
-         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.23 §OBS-004) \
+         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.17 §D.2; BC-2.11.019 v1.24 §OBS-004) \
          Got: {result:?}"
     );
 
@@ -6109,7 +6109,7 @@ async fn test_BC_2_11_004_having_percentile_fires_e_query_001_no_registry() {
 /// function; PERCENTILE is not directly supported in HAVING predicates — alias it in SELECT:
 /// SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold (ADR-048 D.3 OD-2)"`
 ///
-/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.23 §OBS-004;
+/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.17 §D.2; BC-2.11.019 v1.24 §OBS-004;
 ///            F-PQLFN-PR3-LOW-001; POL-24.
 #[tokio::test]
 async fn test_BC_2_11_004_having_percentile_fires_e_query_001_with_registry() {
@@ -6137,7 +6137,7 @@ async fn test_BC_2_11_004_having_percentile_fires_e_query_001_with_registry() {
          a FALSE enrichment-registration suggestion misleading to LLM agents. \
          Post-fix: DATAFUSION_BUILTIN_AGGREGATE_NAMES interception in HAVING position fires \
          E-QUERY-001 BEFORE the registry lookup. \
-         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.23 §OBS-004) \
+         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.17 §D.2; BC-2.11.019 v1.24 §OBS-004) \
          Got: {result:?}"
     );
 
@@ -9140,7 +9140,7 @@ async fn test_f_pqlfn_pr3_obs_001_sqlpipe_head_where_keyword_not_rejected() {
 ///     ("enrichment infusion 'percentile' is not registered")
 ///   - This test asserts `QueryParseFailed` (E-QUERY-001) → FAILS.
 ///
-/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.23 §OBS-004;
+/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.17 §D.2; BC-2.11.019 v1.24 §OBS-004;
 ///            F-PQLFN-PR4-LOW-001.
 #[tokio::test]
 async fn test_BC_2_11_004_ec_11_086_sqlpipe_head_having_percentile_fires_e_query_001_with_registry()
@@ -9165,7 +9165,7 @@ async fn test_BC_2_11_004_ec_11_086_sqlpipe_head_having_percentile_fires_e_query
          `HAVING percentile(risk_score, 95) > 5 | limit 10` must fire E-QUERY-001 \
          (QueryParseFailed). Without spq.head.having walk: E-QUERY-039 fires \
          (false enrichment-registration suggestion). \
-         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.23 §OBS-004; \
+         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.17 §D.2; BC-2.11.019 v1.24 §OBS-004; \
          F-PQLFN-PR4-LOW-001) Got: {result:?}"
     );
 
@@ -9230,7 +9230,7 @@ async fn test_BC_2_11_004_ec_11_086_sqlpipe_head_having_percentile_fires_e_query
 ///     resolve `percentile` → `QueryPlanFailed` (NOT `QueryParseFailed`)
 ///   - This test asserts `QueryParseFailed` → FAILS.
 ///
-/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.23 §OBS-004;
+/// Traces to: BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.17 §D.2; BC-2.11.019 v1.24 §OBS-004;
 ///            F-PQLFN-PR4-LOW-001.
 #[tokio::test]
 async fn test_BC_2_11_004_ec_11_086_sqlpipe_head_having_percentile_fires_e_query_001_no_registry() {
@@ -9253,7 +9253,7 @@ async fn test_BC_2_11_004_ec_11_086_sqlpipe_head_having_percentile_fires_e_query
          `HAVING percentile(risk_score, 95) > 5 | limit 10` must fire E-QUERY-001 \
          (QueryParseFailed) registry-independently. Without spq.head.having walk: \
          registry=None → Ok(()) → DataFusion plan fails → QueryPlanFailed (NOT E-QUERY-001). \
-         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; BC-2.11.019 v1.23 §OBS-004; \
+         (BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.17 §D.2; BC-2.11.019 v1.24 §OBS-004; \
          F-PQLFN-PR4-LOW-001) Got: {result:?}"
     );
 
@@ -9317,7 +9317,7 @@ async fn test_BC_2_11_004_ec_11_086_sqlpipe_head_having_percentile_fires_e_query
 /// matches. Error message echoes input verbatim: quoted name is `'null'` (lowercase).
 ///
 /// Traces to: BC-2.11.004 v1.48 EC-11-085 LOW-006 (case-insensitive `eq_ignore_ascii_case`);
-///            BC-2.11.019 v1.23 §OBS-004; F-PQLFN-PR4-LOW-001 probe-6 hardening; POL-24.
+///            BC-2.11.019 v1.24 §OBS-004; F-PQLFN-PR4-LOW-001 probe-6 hardening; POL-24.
 #[tokio::test]
 async fn test_BC_2_11_004_ec_11_085_pipe_lowercase_null_as_fn_name_rejected() {
     let engine = make_crowdstrike_detections_engine();
@@ -9334,7 +9334,7 @@ async fn test_BC_2_11_004_ec_11_085_pipe_lowercase_null_as_fn_name_rejected() {
         "EC-11-085 case-variant (lowercase): `null(device_id) = 5` must fire E-QUERY-001 \
          (QueryParseFailed). `fn_call_comparison` checks keywords case-insensitively \
          (eq_ignore_ascii_case) — lowercase 'null' must match NULL in the LOW-006 list. \
-         (BC-2.11.004 v1.48 EC-11-085, BC-2.11.019 v1.23 §OBS-004, POL-24) \
+         (BC-2.11.004 v1.48 EC-11-085, BC-2.11.019 v1.24 §OBS-004, POL-24) \
          Got: {result:?}"
     );
 
@@ -9377,7 +9377,7 @@ async fn test_BC_2_11_004_ec_11_085_pipe_lowercase_null_as_fn_name_rejected() {
 /// matches. Error message echoes input verbatim: quoted name is `'Null'` (mixed case).
 ///
 /// Traces to: BC-2.11.004 v1.48 EC-11-085 LOW-006 (case-insensitive `eq_ignore_ascii_case`);
-///            BC-2.11.019 v1.23 §OBS-004; F-PQLFN-PR4-LOW-001 probe-6 hardening; POL-24.
+///            BC-2.11.019 v1.24 §OBS-004; F-PQLFN-PR4-LOW-001 probe-6 hardening; POL-24.
 #[tokio::test]
 async fn test_BC_2_11_004_ec_11_085_pipe_mixedcase_null_as_fn_name_rejected() {
     let engine = make_crowdstrike_detections_engine();
@@ -9394,7 +9394,7 @@ async fn test_BC_2_11_004_ec_11_085_pipe_mixedcase_null_as_fn_name_rejected() {
         "EC-11-085 case-variant (mixed): `Null(device_id) = 5` must fire E-QUERY-001 \
          (QueryParseFailed). `fn_call_comparison` keyword check is case-insensitive \
          (eq_ignore_ascii_case) — mixed-case 'Null' must match NULL in the LOW-006 list. \
-         (BC-2.11.004 v1.48 EC-11-085, BC-2.11.019 v1.23 §OBS-004, POL-24) \
+         (BC-2.11.004 v1.48 EC-11-085, BC-2.11.019 v1.24 §OBS-004, POL-24) \
          Got: {result:?}"
     );
 
@@ -9427,7 +9427,7 @@ async fn test_BC_2_11_004_ec_11_085_pipe_mixedcase_null_as_fn_name_rejected() {
 
 // ── F-PQLFN-PR4-OBS-002: Input-verbatim casing lock for HAVING percentile ────────────────
 //
-// BC-2.11.019 v1.23 §OBS-004 Convention note (F-PQLFN-PR4-OBS-002):
+// BC-2.11.019 v1.24 §OBS-004 Convention note (F-PQLFN-PR4-OBS-002):
 // The `'{name}'` placeholder in the HAVING-interception canonical message is INPUT-VERBATIM
 // (engine.rs: `format!("'{name}' is a PrismQL aggregate function; ...")`).
 //
@@ -9449,7 +9449,7 @@ async fn test_BC_2_11_004_ec_11_085_pipe_mixedcase_null_as_fn_name_rejected() {
 /// Query: `SELECT device_id FROM crowdstrike_detections GROUP BY device_id
 ///         HAVING PERCENTILE(risk_score, 95) > 5` (uppercase PERCENTILE — plain SQL form).
 ///
-/// Per BC-2.11.019 v1.23 §OBS-004 Convention note (F-PQLFN-PR4-OBS-002): the `'{name}'`
+/// Per BC-2.11.019 v1.24 §OBS-004 Convention note (F-PQLFN-PR4-OBS-002): the `'{name}'`
 /// prefix in the HAVING canonical message reflects the analyst's original input casing.
 /// This test asserts that uppercase `PERCENTILE` input produces `'PERCENTILE'` (uppercase),
 /// NOT the normalized lowercase form `'percentile'`.
@@ -9458,8 +9458,8 @@ async fn test_BC_2_11_004_ec_11_085_pipe_mixedcase_null_as_fn_name_rejected() {
 /// (e.g., `name.to_lowercase()`), the message would quote `'percentile'` for uppercase
 /// input → this test FAILS (regression detection).
 ///
-/// Traces to: BC-2.11.019 v1.23 §OBS-004 (input-verbatim convention note, F-PQLFN-PR4-OBS-002);
-///            BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.16 §D.2; POL-24.
+/// Traces to: BC-2.11.019 v1.24 §OBS-004 (input-verbatim convention note, F-PQLFN-PR4-OBS-002);
+///            BC-2.11.004 v1.48 EC-11-086; ADR-048 v1.17 §D.2; POL-24.
 #[tokio::test]
 async fn test_BC_2_11_004_ec_11_086_having_percentile_uppercase_input_verbatim() {
     // registry-independent: fires before the registry-None guard.
@@ -9480,7 +9480,7 @@ async fn test_BC_2_11_004_ec_11_086_having_percentile_uppercase_input_verbatim()
         "F-PQLFN-PR4-OBS-002: HAVING PERCENTILE(...) > 5 (uppercase input) must fire \
          E-QUERY-001 (QueryParseFailed). DATAFUSION_BUILTIN_AGGREGATE_NAMES interception \
          fires registry-independently (before registry-None guard). \
-         (BC-2.11.019 v1.23 §OBS-004, BC-2.11.004 v1.48 EC-11-086) Got: {result:?}"
+         (BC-2.11.019 v1.24 §OBS-004, BC-2.11.004 v1.48 EC-11-086) Got: {result:?}"
     );
 
     let err_display = format!("{}", result.unwrap_err());
@@ -9493,7 +9493,7 @@ async fn test_BC_2_11_004_ec_11_086_having_percentile_uppercase_input_verbatim()
     assert!(
         err_display.contains("'PERCENTILE'"),
         "F-PQLFN-PR4-OBS-002: E-QUERY-001 display must quote the input-verbatim uppercase \
-         name \"'PERCENTILE'\" (BC-2.11.019 v1.23 §OBS-004 input-verbatim convention). \
+         name \"'PERCENTILE'\" (BC-2.11.019 v1.24 §OBS-004 input-verbatim convention). \
          If the engine normalizes the name before echo, message would quote 'percentile' \
          instead — that is a regression against the input-verbatim contract. \
          Got: {err_display:?}"
@@ -9683,7 +9683,7 @@ async fn test_f_pqlfn_pr9_low_001_all_21_keyword_rejection_lock() {
 /// engine.rs ~2185).
 ///
 /// Traces to: BC-2.11.004 v1.48 (aggregate-gate case sensitivity); F-PQLFN-PR9-LOW-002;
-///            ADR-048 v1.2 §D.7.1 TM-16 (SQL WHERE surface); BC-2.11.019 v1.23.
+///            ADR-048 v1.2 §D.7.1 TM-16 (SQL WHERE surface); BC-2.11.019 v1.24.
 #[tokio::test]
 async fn test_f_pqlfn_pr9_low_002_sql_where_stddev_uppercase_fires_aggregate_gate() {
     let engine = make_crowdstrike_detections_engine();
@@ -9721,7 +9721,7 @@ async fn test_f_pqlfn_pr9_low_002_sql_where_stddev_uppercase_fires_aggregate_gat
     assert!(
         display.contains("STDDEV"),
         "F-PQLFN-PR9-LOW-002 (SQL WHERE STDDEV uppercase): Display must contain 'STDDEV' \
-         (input-verbatim echo in canonical D.3 message, BC-2.11.019 v1.23 §OBS-004). \
+         (input-verbatim echo in canonical D.3 message, BC-2.11.019 v1.24 §OBS-004). \
          Got: {display}"
     );
 
@@ -10270,7 +10270,7 @@ async fn test_f_pqlfn_pr10_med_001_ec_11_085_null_single_prefix() {
 /// engine.rs ~2185).
 ///
 /// Traces to: BC-2.11.004 v1.48 (aggregate-gate case sensitivity); F-PQLFN-PR9-LOW-002;
-///            ADR-048 v1.2 §D.7.1 (pipe | where surface); BC-2.11.019 v1.23.
+///            ADR-048 v1.2 §D.7.1 (pipe | where surface); BC-2.11.019 v1.24.
 #[tokio::test]
 async fn test_f_pqlfn_pr9_low_002_pipe_where_avg_mixed_case_fires_aggregate_gate() {
     let engine = make_crowdstrike_detections_engine();
@@ -10308,7 +10308,7 @@ async fn test_f_pqlfn_pr9_low_002_pipe_where_avg_mixed_case_fires_aggregate_gate
     assert!(
         display.contains("Avg"),
         "F-PQLFN-PR9-LOW-002 (pipe Avg mixed-case): Display must contain 'Avg' \
-         (input-verbatim echo in canonical D.3 message, BC-2.11.019 v1.23 §OBS-004). \
+         (input-verbatim echo in canonical D.3 message, BC-2.11.019 v1.24 §OBS-004). \
          Got: {display}"
     );
 
@@ -10322,5 +10322,88 @@ async fn test_f_pqlfn_pr9_low_002_pipe_where_avg_mixed_case_fires_aggregate_gate
         !matches!(&err, PrismError::QueryPlanFailed { .. }),
         "F-PQLFN-PR9-LOW-002 (pipe Avg mixed-case): must NOT be QueryPlanFailed. \
          Aggregate gate fires before plan-time. Got: {err:?}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-PQLFN-PR11-OBS-002: structural error single-prefix lock (Defect 3)
+// ─────────────────────────────────────────────────────────────────────────────
+// Structural (non-semantic, `RichReason::ExpectedFound`) parse errors must produce
+// EXACTLY ONE "parse error at offset" fragment in the `QueryParseFailed` Display.
+//
+// Current bug (materialization.rs): non-semantic errors use `e.to_string()` for
+// the `detail` computation. `ParseError::Display` = `"parse error at offset N: msg"`.
+// This becomes the `detail` in `QueryParseFailed`, whose `#[error]` template adds
+// `"E-QUERY-001: query parse error at offset N: "` → DOUBLE "parse error at offset N:".
+//
+// Fix (materialization.rs): change `e.to_string()` to `e.message.clone()` for the
+// non-semantic branch (both parse-step and inject_now-step error sites).
+// After fix: `detail = "{chumsky structural message}"` (no ParseError::Display prefix).
+//
+// RED state: `display.matches("parse error at offset").count() == 2` (doubled prefix).
+// GREEN state: `display.matches("parse error at offset").count() == 1` (single prefix).
+//
+// Fix reference: DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 F-PQLFN-PR11-OBS-002.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-PQLFN-PR11-OBS-002 **RED → GREEN** — structural error single-prefix lock.
+///
+/// Query: `FROM crowdstrike_detections | where @invalid`
+///
+/// `@` at position 36 is not a valid start of any predicate combinator — Chumsky
+/// produces a structural `RichReason::ExpectedFound` error (`semantic == false`).
+///
+/// **Current (pre-fix) Display** (causes RED):
+/// ```text
+/// E-QUERY-001: query parse error at offset 36: parse error at offset 36: found '@'…
+/// ```
+/// "parse error at offset" appears TWICE: once from `ParseError::Display` (used as
+/// `detail`), once from the `QueryParseFailed` `#[error]` template.
+///
+/// **After fix** (GREEN):
+/// ```text
+/// E-QUERY-001: query parse error at offset 36: found '@'…
+/// ```
+/// "parse error at offset" appears EXACTLY ONCE.
+///
+/// **RED Gate**: `assert_eq!(count, 1)` FAILS before fix (count == 2).
+///
+/// Traces to: F-PQLFN-PR11-OBS-002; ADR-048 §D.7.2 de-prefix discipline;
+///            DEFECT-PQL-FNCALL-LHS-001; BC-2.11.006.
+#[tokio::test]
+async fn test_f_pqlfn_pr11_obs_002_structural_error_single_prefix_lock() {
+    let engine = make_crowdstrike_detections_engine();
+    // `@` at position 36 (after `FROM crowdstrike_detections | where `) is not a
+    // valid predicate token → structural Chumsky error (`semantic == false`).
+    let query = "FROM crowdstrike_detections | where @invalid";
+
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR11-OBS-002: must produce QueryParseFailed for structurally \
+         invalid predicate. Got: {result:?}"
+    );
+
+    let display = format!("{}", result.unwrap_err());
+
+    // "parse error at offset" must appear EXACTLY ONCE in Display.
+    //
+    // RED state: count == 2 — materialization.rs `e.to_string()` embeds
+    //   "parse error at offset N: found '@'…" as the detail, then the
+    //   QueryParseFailed `#[error]` template prepends
+    //   "E-QUERY-001: query parse error at offset N: " again.
+    //
+    // GREEN state: count == 1 — `e.message.clone()` gives just "found '@'…"
+    //   as the detail; only the outer template contributes "parse error at offset".
+    let count = display.matches("parse error at offset").count();
+    assert_eq!(
+        count, 1,
+        "F-PQLFN-PR11-OBS-002: Display must contain EXACTLY ONE 'parse error at offset' \
+         fragment (ADR-048 §D.7.2 de-prefix discipline). \
+         RED state: count == 2 (materialization.rs uses e.to_string() for non-semantic \
+         errors → ParseError::Display embeds 'parse error at offset N: <msg>' as detail, \
+         QueryParseFailed template prepends 'E-QUERY-001: query parse error at offset N: ' \
+         again). Got display: {display:?}"
     );
 }

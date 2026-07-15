@@ -1927,10 +1927,10 @@ fn collect_unknown_scalar_offsets_from_predicate(
 /// DEFECT-PQL-FNCALL-LHS-001: predicate fn-call LHS gate, seven-position audit,
 /// positions 1-3 added. ADR-048 §D.7.5 (OD-6): DML WHERE position 6.
 /// ADR-048 §D.7.6 (OD-7): INSERT source_select WHERE position 7. OD-5: positions 4-5.
-// ── helper: HAVING-interception detail-builder (BC-2.11.019 v1.23 §OBS-004) ──────────────────
+// ── helper: HAVING-interception detail-builder (BC-2.11.019 v1.24 §OBS-004) ──────────────────
 /// Build the HAVING-interception E-QUERY-001 detail string for a PrismQL aggregate name.
 ///
-/// Two branches (BC-2.11.019 v1.23 §OBS-004, F-PQLFN-PR5-LOW-001):
+/// Two branches (BC-2.11.019 v1.24 §OBS-004, F-PQLFN-PR5-LOW-001):
 /// (a) `name_lower == "percentile"` → two-arg canonical template `(field, p)` — the
 ///     existing byte-verbatim template UNCHANGED from prior implementation.
 /// (b) any other name → signature-neutral generic template `(...)` — correct fail-safe
@@ -1943,13 +1943,13 @@ fn collect_unknown_scalar_offsets_from_predicate(
 /// directly via `having_aggregate_interception_detail_tests`.
 ///
 /// Caller wraps the returned detail in `PrismError::QueryParseFailed { offset, detail, query }`.
-/// (BC-2.11.019 v1.23 §OBS-004; ADR-048 v1.16 §D.2; POL-24)
+/// (BC-2.11.019 v1.24 §OBS-004; ADR-048 v1.17 §D.2; POL-24)
 fn having_aggregate_interception_detail(name: &str) -> String {
     let name_lower = name.to_ascii_lowercase();
     let name_upper = name.to_ascii_uppercase();
     if name_lower == "percentile" {
         // Branch (a): percentile-specific two-arg template (field, p).
-        // Byte-verbatim per POL-24 / ADR-048 v1.16 §D.2 canonical template.
+        // Byte-verbatim per POL-24 / ADR-048 v1.17 §D.2 canonical template.
         format!(
             "'{name}' is a PrismQL aggregate function; \
              {name_upper} is not directly supported in HAVING predicates \
@@ -1960,7 +1960,7 @@ fn having_aggregate_interception_detail(name: &str) -> String {
     } else {
         // Branch (b): signature-neutral generic template (...).
         // Unreachable today (triggering set = {"percentile"}).
-        // Byte-exact per POL-24 / BC-2.11.019 v1.23 §OBS-004.
+        // Byte-exact per POL-24 / BC-2.11.019 v1.24 §OBS-004.
         format!(
             "'{name}' is a PrismQL aggregate function; \
              {name_upper} is not directly supported in HAVING predicates \
@@ -2011,7 +2011,7 @@ fn check_enrich_udf_availability(
                                                          // function name in the original query string (F-PQLFN-P21-OBS-003). For AST
                                                          // nodes constructed outside the parser, span.start == 0 ("offset unknown").
     let mut predicate_fncall_names: Vec<(String, usize)> = Vec::new();
-    // EC-11-086 (ADR-048 v1.16 §D.2): ScalarFunc::Unknown names from HAVING predicate position
+    // EC-11-086 (ADR-048 v1.17 §D.2): ScalarFunc::Unknown names from HAVING predicate position
     // (position f of collect_unknown_scalars_from_sql_query). Checked against
     // DATAFUSION_BUILTIN_AGGREGATE_NAMES BEFORE the infusion-registry-None guard, so the
     // interception fires regardless of whether a registry is configured (registry-INDEPENDENT).
@@ -2088,7 +2088,7 @@ fn check_enrich_udf_availability(
             if let Some(pred) = &spq.head.where_ {
                 collect_unknown_scalar_offsets_from_predicate(pred, &mut predicate_fncall_names);
             }
-            // (EC-11-086 / ADR-048 v1.16 §D.2) SqlPipe head HAVING → having_fncall_names.
+            // (EC-11-086 / ADR-048 v1.17 §D.2) SqlPipe head HAVING → having_fncall_names.
             if let Some(pred) = &spq.head.having {
                 collect_unknown_scalar_offsets_from_predicate(pred, &mut having_fncall_names);
             }
@@ -2116,7 +2116,7 @@ fn check_enrich_udf_availability(
             if let Some(pred) = &sq.where_ {
                 collect_unknown_scalar_offsets_from_predicate(pred, &mut predicate_fncall_names);
             }
-            // (EC-11-086 / ADR-048 v1.16 §D.2) SQL HAVING → having_fncall_names.
+            // (EC-11-086 / ADR-048 v1.17 §D.2) SQL HAVING → having_fncall_names.
             // Separate from predicate_fncall_names: HAVING may legitimately contain aggregates,
             // but names in DATAFUSION_BUILTIN_AGGREGATE_NAMES that parse as ScalarFunc::Unknown
             // (e.g., "percentile") are intercepted with HAVING-specific E-QUERY-001 guidance.
@@ -2196,7 +2196,7 @@ fn check_enrich_udf_availability(
         }
     }
 
-    // EC-11-086: HAVING-position DATAFUSION_BUILTIN_AGGREGATE_NAMES interception (ADR-048 v1.16 §D.2).
+    // EC-11-086: HAVING-position DATAFUSION_BUILTIN_AGGREGATE_NAMES interception (ADR-048 v1.17 §D.2).
     // Fires BEFORE the registry-None guard — registry-INDEPENDENT.
     // Catches ScalarFunc::Unknown names from HAVING position (f) that are (a) in
     // DATAFUSION_BUILTIN_AGGREGATE_NAMES and (b) NOT in DATAFUSION_BUILTIN_FUNCTION_NAMES.
@@ -2209,13 +2209,13 @@ fn check_enrich_udf_availability(
     // Primary case: "percentile" — excluded from build_agg_call_parser (OD-2 two-arg grammar
     // ambiguity), parses as ScalarFunc::Unknown("percentile") in HAVING, NOT in DATAFUSION_BUILTIN_FUNCTION_NAMES.
     // Without this gate: registry=None → Ok(()) → DataFusion plan error; registry=Some → E-QUERY-039.
-    // (BC-2.11.004 v1.48 EC-11-086; BC-2.11.019 v1.23 §OBS-004; ADR-048 v1.16 §D.2)
+    // (BC-2.11.004 v1.48 EC-11-086; BC-2.11.019 v1.24 §OBS-004; ADR-048 v1.17 §D.2)
     for (name, offset) in &having_fncall_names {
         let name_lower = name.to_ascii_lowercase();
         if DATAFUSION_BUILTIN_AGGREGATE_NAMES.contains(&name_lower)
             && !DATAFUSION_BUILTIN_FUNCTION_NAMES.contains(&name_lower)
         {
-            // Two-branch detail-builder (BC-2.11.019 v1.23 §OBS-004, F-PQLFN-PR5-LOW-001).
+            // Two-branch detail-builder (BC-2.11.019 v1.24 §OBS-004, F-PQLFN-PR5-LOW-001).
             // `having_aggregate_interception_detail` branches on name_lower == "percentile":
             //   (a) percentile → two-arg canonical template `(field, p)` (byte-verbatim, POL-24)
             //   (b) any other name → generic template `(...)` (unreachable today; unit-tested)
@@ -15448,7 +15448,7 @@ mod datafusion_aggregate_registry_empirical_tests {
     /// `DATAFUSION_BUILTIN_AGGREGATE_NAMES ∖ DATAFUSION_BUILTIN_FUNCTION_NAMES`
     /// == `{"distinct_count", "percentile"}`.
     ///
-    /// The HAVING-position interception gate (EC-11-086, ADR-048 v1.16 §D.2) uses the
+    /// The HAVING-position interception gate (EC-11-086, ADR-048 v1.17 §D.2) uses the
     /// two-condition criterion to decide which names are intercepted:
     ///   (a) `name ∈ DATAFUSION_BUILTIN_AGGREGATE_NAMES`, AND
     ///   (b) `name ∉ DATAFUSION_BUILTIN_FUNCTION_NAMES`
@@ -15461,7 +15461,7 @@ mod datafusion_aggregate_registry_empirical_tests {
     ///   - Because they're absent from the raw registry, they're also absent from
     ///     `DATAFUSION_BUILTIN_FUNCTION_NAMES` (which unions scalar + aggregate + window).
     ///
-    /// The two-branch `having_aggregate_interception_detail` builder (BC-2.11.019 v1.23
+    /// The two-branch `having_aggregate_interception_detail` builder (BC-2.11.019 v1.24
     /// §OBS-004, F-PQLFN-PR5-LOW-001) branches on `name_lower == "percentile"` to emit
     /// the two-arg template vs the generic `(...)` template. If a DataFusion 53.x upgrade
     /// adds a new aggregate-only name that widens the triggering set, this test fails
@@ -15471,13 +15471,13 @@ mod datafusion_aggregate_registry_empirical_tests {
     /// Note: `distinct_count` IS in the set difference but in practice never reaches
     /// `having_fncall_names` because it parses as `FuncCall::Aggregate` via
     /// `build_agg_call_parser` (not `ScalarFunc::Unknown`) — it is correctly included in
-    /// the invariant as a structural property of the gate design (BC-2.11.019 v1.23 §OBS-004).
+    /// the invariant as a structural property of the gate design (BC-2.11.019 v1.24 §OBS-004).
     ///
     /// Kills the class of silent-breakage mutations where a DataFusion upgrade changes the
     /// registry contents in a way that shifts the triggering set without any test failure.
     ///
-    /// Traces to: BC-2.11.019 v1.23 §OBS-004 (set-difference invariant, F-PQLFN-PR9-OBS-001);
-    ///            F-PQLFN-P4-MED-001 (empirical absence locks); ADR-048 v1.16 §D.2.
+    /// Traces to: BC-2.11.019 v1.24 §OBS-004 (set-difference invariant, F-PQLFN-PR9-OBS-001);
+    ///            F-PQLFN-P4-MED-001 (empirical absence locks); ADR-048 v1.17 §D.2.
     #[test]
     fn test_f_pqlfn_pr9_obs_001_datafusion_set_difference_invariant() {
         let diff: std::collections::HashSet<&str> = super::DATAFUSION_BUILTIN_AGGREGATE_NAMES
@@ -15495,7 +15495,7 @@ mod datafusion_aggregate_registry_empirical_tests {
              DATAFUSION_BUILTIN_AGGREGATE_NAMES ∖ DATAFUSION_BUILTIN_FUNCTION_NAMES \
              must equal {{\"distinct_count\", \"percentile\"}}. \
              Actual difference: {diff:?}. \
-             The HAVING interception gate (EC-11-086, ADR-048 v1.16 §D.2) fires for names \
+             The HAVING interception gate (EC-11-086, ADR-048 v1.17 §D.2) fires for names \
              in this triggering set. A DataFusion upgrade that widened this set would \
              silently change HAVING-interception behavior for analysts. \
              Action: inspect the new name(s), extend `having_aggregate_interception_detail` \
@@ -16618,7 +16618,7 @@ mod insert_source_select_where_seventh_gated_position_tests {
 
 // ── F-PQLFN-PR5-LOW-001: two-branch HAVING interception detail-builder ─────────────────────────
 //
-// Tests for the extracted `having_aggregate_interception_detail` helper (BC-2.11.019 v1.23 §OBS-004).
+// Tests for the extracted `having_aggregate_interception_detail` helper (BC-2.11.019 v1.24 §OBS-004).
 // Branch (b) is unreachable through the gate arm in production (triggering set = {"percentile"})
 // but is unit-tested directly here to verify the generic template is byte-exact per POL-24.
 //
@@ -16626,7 +16626,7 @@ mod insert_source_select_where_seventh_gated_position_tests {
 // (missing symbol → E0425). Once the helper is implemented they must go GREEN without changing
 // any assertion text.
 //
-// Traces to: BC-2.11.019 v1.23 §OBS-004; F-PQLFN-PR5-LOW-001; POL-24; ADR-048 v1.16 §D.2.
+// Traces to: BC-2.11.019 v1.24 §OBS-004; F-PQLFN-PR5-LOW-001; POL-24; ADR-048 v1.17 §D.2.
 #[cfg(test)]
 mod having_aggregate_interception_detail_tests {
     use super::having_aggregate_interception_detail;
@@ -16634,9 +16634,9 @@ mod having_aggregate_interception_detail_tests {
     /// F-PQLFN-PR5-LOW-001 (branch a, lowercase): `"percentile"` → two-arg canonical template.
     ///
     /// Verifies the percentile branch returns the byte-verbatim canonical template from
-    /// BC-2.11.019 v1.23 §OBS-004 / ADR-048 v1.16 §D.2 with argument list `(field, p)`.
+    /// BC-2.11.019 v1.24 §OBS-004 / ADR-048 v1.17 §D.2 with argument list `(field, p)`.
     ///
-    /// Traces to: BC-2.11.019 v1.23 §OBS-004; F-PQLFN-PR5-LOW-001; POL-24.
+    /// Traces to: BC-2.11.019 v1.24 §OBS-004; F-PQLFN-PR5-LOW-001; POL-24.
     #[test]
     fn test_f_pqlfn_pr5_low_001_detail_builder_percentile_lowercase() {
         let detail = having_aggregate_interception_detail("percentile");
@@ -16648,18 +16648,18 @@ mod having_aggregate_interception_detail_tests {
              SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold \
              (ADR-048 D.3 OD-2)",
             "F-PQLFN-PR5-LOW-001 branch(a): percentile → two-arg template (field, p) \
-             byte-verbatim per POL-24 (BC-2.11.019 v1.23 §OBS-004)"
+             byte-verbatim per POL-24 (BC-2.11.019 v1.24 §OBS-004)"
         );
     }
 
     /// F-PQLFN-PR5-LOW-001 (branch a, uppercase input): `"PERCENTILE"` → input-verbatim `'PERCENTILE'`,
     /// template body uppercase `PERCENTILE`.
     ///
-    /// Verifies the input-verbatim convention (BC-2.11.019 v1.23 §OBS-004 F-PQLFN-PR4-OBS-002):
+    /// Verifies the input-verbatim convention (BC-2.11.019 v1.24 §OBS-004 F-PQLFN-PR4-OBS-002):
     /// the analyst's original casing is echoed in the quoted name; the guidance template body
     /// uses uppercase `{name_upper}` regardless of input casing.
     ///
-    /// Traces to: BC-2.11.019 v1.23 §OBS-004 (F-PQLFN-PR4-OBS-002 input-verbatim convention);
+    /// Traces to: BC-2.11.019 v1.24 §OBS-004 (F-PQLFN-PR4-OBS-002 input-verbatim convention);
     ///            F-PQLFN-PR5-LOW-001; POL-24.
     #[test]
     fn test_f_pqlfn_pr5_low_001_detail_builder_percentile_uppercase_input() {
@@ -16672,7 +16672,7 @@ mod having_aggregate_interception_detail_tests {
              SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold \
              (ADR-048 D.3 OD-2)",
             "F-PQLFN-PR5-LOW-001 branch(a) uppercase input: 'PERCENTILE' echoed verbatim, \
-             template body uppercase PERCENTILE (BC-2.11.019 v1.23 §OBS-004 F-PQLFN-PR4-OBS-002)"
+             template body uppercase PERCENTILE (BC-2.11.019 v1.24 §OBS-004 F-PQLFN-PR4-OBS-002)"
         );
     }
 
@@ -16683,7 +16683,7 @@ mod having_aggregate_interception_detail_tests {
     /// Any future AGGREGATE-only name reaching the arm will emit this template — correct
     /// signature-neutral guidance without the two-arg PERCENTILE misapplication risk.
     ///
-    /// Traces to: BC-2.11.019 v1.23 §OBS-004 (F-PQLFN-PR5-LOW-001 two-branch design); POL-24.
+    /// Traces to: BC-2.11.019 v1.24 §OBS-004 (F-PQLFN-PR5-LOW-001 two-branch design); POL-24.
     #[test]
     fn test_f_pqlfn_pr5_low_001_detail_builder_generic_branch() {
         let detail = having_aggregate_interception_detail("array_agg");
@@ -16695,7 +16695,7 @@ mod having_aggregate_interception_detail_tests {
              SELECT ARRAY_AGG(...) AS alias ... HAVING alias > threshold \
              (ADR-048 D.3 OD-2)",
             "F-PQLFN-PR5-LOW-001 branch(b): non-percentile name → generic template (...) \
-             byte-exact per POL-24 (BC-2.11.019 v1.23 §OBS-004)"
+             byte-exact per POL-24 (BC-2.11.019 v1.24 §OBS-004)"
         );
     }
 }

@@ -14,6 +14,11 @@ use serde::{Deserialize, Serialize};
 ///
 /// Multiple errors may be returned in a single parse attempt when Chumsky's
 /// error-recovery strategies are active (S-3.01 §error_recovery).
+///
+/// `#[non_exhaustive]` per CLAUDE.md §Conventions — all pub-API surface types
+/// in prism-query require this attribute (BC-2.11.019 v1.24 §OBS-005,
+/// DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 mechanical item).
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ParseError {
     /// Byte offset in the input string where the error was detected.

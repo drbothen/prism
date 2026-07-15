@@ -255,8 +255,12 @@ pub(crate) fn parse_sql_with_limits(
         //
         // The `e.semantic` flag replaces the retired `e.message.starts_with("E-QUERY-001:")`
         // prefix check (F-PQLFN-PR10-MED-001 fix-burst-41, ADR-048 §D.7.2 de-prefix
-        // discipline): semantic errors no longer embed the E-QUERY-001 prefix in their
-        // message; the `QueryParseFailed` #[error] template supplies it once.
+        // discipline): semantic errors (e.g. LOW-006 keyword-fn-name exclusion above)
+        // store ONLY the root-cause code in `e.message` — they do NOT embed an
+        // "E-QUERY-001:" prefix. The `QueryParseFailed` #[error] template supplies
+        // "E-QUERY-001: query parse error at offset N: " exactly once at the transport
+        // layer; the root-cause code (e.g. "E-QUERY-004: …") appears as the inner
+        // detail. This is the de-prefix discipline (F-PQLFN-PR11-LOW-001 fix-burst-42).
         let has_semantic_error = parse_errors.iter().any(|e| e.semantic);
         if !parse_errors.is_empty() && !has_semantic_error {
             // Partial AST with recovery errors: validate depth and list sizes

@@ -1007,25 +1007,48 @@ fn build_filter_parser<'a>(
 }
 
 /// Build the source reference parser (dotted-ident, rejects path traversal).
+///
+/// The parser uses a WIDE character capture (alphanumeric, `_`, `.`, `/`, `\`)
+/// so that inputs containing path-traversal characters are captured as a whole
+/// token and rejected by the EC-004 `try_map` check, rather than being silently
+/// truncated by the lexical filter.
+///
+/// The previous narrow grammar (`[a-zA-Z0-9_]+` separated by `.`) excluded `/`,
+/// `\`, and adjacent `.` at the lexical level, making the EC-004 `try_map` check
+/// unreachable dead code (DEFECT-PQL-FNCALL-LHS-001 fix-burst-42, Defect 2).
+///
+/// After EC-004 validation, a dotted-identifier structural check ensures
+/// currently-valid queries (dotted identifiers with `[a-zA-Z0-9_]` chars only)
+/// continue to work unchanged.
 pub(crate) fn build_source_ref_parser<'a>(
 ) -> impl Parser<'a, &'a str, SourceRef, extra::Err<Rich<'a, char>>> + Clone {
-    let segment = any::<&str, extra::Err<Rich<char>>>()
-        .filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_')
+    // Wide capture: accept chars that may constitute path traversal so EC-004 is
+    // reachable. Characters other than whitespace and `|` (the pipe separator) are
+    // included so inputs like `crowdstrike/../detections` are captured whole.
+    any::<&str, extra::Err<Rich<char>>>()
+        .filter(|c: &char| c.is_ascii_alphanumeric() || matches!(*c, '_' | '.' | '/' | '\\'))
         .repeated()
         .at_least(1)
-        .to_slice();
-
-    segment
-        .separated_by(just('.'))
-        .at_least(1)
-        .collect::<Vec<_>>()
         .to_slice()
         .try_map(|raw: &str, span| {
-            // Reject path traversal: `..`, `/`, `\`.
+            // EC-004: reject path traversal characters before any further processing.
             if raw.contains("..") || raw.contains('/') || raw.contains('\\') {
                 return Err(Rich::custom(
                     span,
                     "EC-004: SourceRef contains path traversal characters ('..', '/', '\\')",
+                ));
+            }
+            // Structural validation: must be a valid dotted identifier.
+            // Each dot-separated segment must be non-empty and `[a-zA-Z0-9_]+`.
+            // This preserves the previous narrow-grammar rejection of malformed inputs
+            // such as `crowdstrike.` (trailing dot) or `.leading` (leading dot).
+            if !raw.split('.').all(|seg| {
+                !seg.is_empty() && seg.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+            }) {
+                return Err(Rich::custom(
+                    span,
+                    "expected a valid source reference \
+                     (dotted identifier such as 'sensor_name' or 'sensor.table')",
                 ));
             }
             Ok(SourceRef::from_raw(raw))
@@ -1108,6 +1131,30 @@ pub(crate) fn build_predicate_parser<'a>(
             .map(Predicate::Missing);
 
         // --- field =~ "regex" | field MATCHES "regex" ---
+        //
+        // try_map is placed at the LITERAL level (not the full-sequence level) so that
+        // the emitted error span begins at the position of the regex literal token (the
+        // opening quote), NOT at the start of the whole pattern (the field_path position).
+        //
+        // Chumsky 0.12 `choice()` error merging selects the error with the HIGHEST
+        // `span.start` ("furthest match" heuristic). For a query like:
+        //   `FROM crowdstrike_detections | where hostname MATCHES "aaa…"` (1025 'a's)
+        //
+        // Without this fix (try_map at sequence level):
+        //   - `regex_match` span.start = 36 (start of `hostname`)
+        //   - `cidr_match` span.start ≈ 45 (`M` of `MATCHES`, where "IN" was expected)
+        //   - choice() picked cidr_match's error → E-QUERY-003 was suppressed
+        //
+        // With this fix (try_map at literal level):
+        //   - `regex_literal` try_map span.start = 53 (opening `"`)
+        //   - 53 > 45 → E-QUERY-003 wins in choice() merging
+        //
+        // Mirrors the IEQ/INE try_map-at-literal-level pattern (~1338, ~1370).
+        // Fix: DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 F-PQLFN-PR11-OBS-001 Defect 1.
+        let regex_literal = string_val
+            .clone()
+            .padded()
+            .try_map(|pat, span| RegexLiteral::new(&pat).map_err(|e| Rich::custom(span, e)));
         let regex_match = field_path
             .clone()
             .padded()
@@ -1115,14 +1162,10 @@ pub(crate) fn build_predicate_parser<'a>(
                 just("=~").padded().to(()),
                 kw("MATCHES").padded().to(()),
             )))
-            .then(string_val.clone().padded())
-            .try_map(|((fp, ()), pat), span| {
-                RegexLiteral::new(&pat)
-                    .map(|rl| Predicate::Regex {
-                        field: fp,
-                        pattern: rl,
-                    })
-                    .map_err(|e| Rich::custom(span, e))
+            .then(regex_literal)
+            .map(|((fp, ()), rl)| Predicate::Regex {
+                field: fp,
+                pattern: rl,
             });
 
         // --- field IN CIDR "10.0.0.0/8" ---

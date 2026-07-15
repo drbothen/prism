@@ -580,8 +580,17 @@ pub async fn run_materialization_pipeline(
             // prefixed so that per-field callers still see the error code.  Here we strip
             // the prefix before injecting into `detail` to prevent doubling.
             //
-            // Non-semantic errors (structural `ExpectedFound`) keep `e.to_string()` for
-            // backward-compatible detail formatting.
+            // Both semantic AND non-semantic errors use `e.message` directly.
+            //
+            // Non-semantic (`RichReason::ExpectedFound`) errors previously used
+            // `e.to_string()` = `ParseError::Display` = `"parse error at offset N: <msg>"`.
+            // That produced a double "parse error at offset N:" when injected as the
+            // `detail` field of `QueryParseFailed`, whose `#[error]` template adds the
+            // outer "E-QUERY-001: query parse error at offset N: " prefix again.
+            //
+            // Fix (DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 F-PQLFN-PR11-OBS-002):
+            // use `e.message.clone()` for all errors — the raw Chumsky message without
+            // the `ParseError::Display` "parse error at offset N: " wrapper.
             detail: errs
                 .iter()
                 .map(|e| {
@@ -591,7 +600,9 @@ pub async fn run_materialization_pipeline(
                         let msg = &e.message;
                         msg.strip_prefix("E-QUERY-001: ").unwrap_or(msg).to_string()
                     } else {
-                        e.to_string()
+                        // Use bare message: avoids the double "parse error at offset N:"
+                        // that `e.to_string()` (ParseError::Display) would produce.
+                        e.message.clone()
                     }
                 })
                 .collect::<Vec<_>>()
@@ -636,6 +647,9 @@ pub async fn run_materialization_pipeline(
             // ADR-048 §D.7.2 de-prefix discipline: same semantic-aware detail
             // formatting as the Step 1 parse site above (strip "E-QUERY-001: "
             // prefix so the QueryParseFailed template does not double it).
+            // Non-semantic errors use `e.message` directly — NOT `e.to_string()`
+            // which would produce "parse error at offset N: <msg>" causing double
+            // prefix. Fix: DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 F-PQLFN-PR11-OBS-002.
             detail: errs
                 .iter()
                 .map(|e| {
@@ -643,7 +657,8 @@ pub async fn run_materialization_pipeline(
                         let msg = &e.message;
                         msg.strip_prefix("E-QUERY-001: ").unwrap_or(msg).to_string()
                     } else {
-                        e.to_string()
+                        // Use bare message: avoids the double "parse error at offset N:"
+                        e.message.clone()
                     }
                 })
                 .collect::<Vec<_>>()

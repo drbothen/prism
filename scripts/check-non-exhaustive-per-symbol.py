@@ -27,14 +27,14 @@ import re
 import sys
 
 # ---------------------------------------------------------------------------
-# Expected symbol list — 91 entries, one per violation function.
+# Expected symbol list — 92 entries, one per violation function.
 # E0639 names: as they appear in the struct literal expression in
 #   struct_violations.rs (may be a local alias, e.g. TypesSensorTableDescriptor).
 # E0004 names: last path segment from `note: \`path::TypeName\` defined here`
 #   in the E0004 rendered message (always the canonical type name leaf).
 # Guard: len(EXPECTED_SYMBOLS) must equal EXPECTED_COUNT (checked at startup).
 # ---------------------------------------------------------------------------
-EXPECTED_COUNT = 91
+EXPECTED_COUNT = 92
 
 EXPECTED_SYMBOLS = [
     # ── E0639 struct literal violations (68 total) ──────────────────────────
@@ -134,6 +134,7 @@ EXPECTED_SYMBOLS = [
     "prism_core::VirtualField",  # v90 prism_core::VirtualField (re-exported; compiler note is 2-part → 2-seg join = "prism_core::VirtualField"; disambiguates from v91)
     "ast::VirtualField",     # v91 prism_query::ast::VirtualField (2-seg: disambiguates from v90)
     "ExampleKind",           # v85 prism_mcp::resources::ExampleKind
+    "ParseError",            # v92 prism_query::error::ParseError (DEFECT-PQL-FNCALL-LHS-001 §OBS-005)
 ]
 
 # Belt-and-braces: verify the list length matches EXPECTED_COUNT at import time.
