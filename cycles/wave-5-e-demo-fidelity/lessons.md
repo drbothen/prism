@@ -3295,3 +3295,34 @@ Test assertions that accept ANY outcome other than one specific failure — i.e.
 **S-7.02 codification candidate:** Add to state-manager burst checklist: "For each BC-INDEX row updated in this burst, verify the Status-cell parenthetical by noun-phrase grep — every noun phrase must appear in that BC's own §Changelog row. Cross-BC semantic contamination (carrying the burst theme into a row whose BC has a different change) is a fabrication defect class. This check takes < 1 minute per row and has now been the source of 3 consecutive MED findings across passes 20/21/22."
 
 **Source:** D-1763 (DEFECT-MCP-ROWSHAPE-NULLS-001 pass-22 F-MCPRS-PRL22-MED-001 BC-3.2.001 row truth; 3rd class instance; 2026-07-14).
+
+---
+
+### Lesson 56 — [process-gap] POL-23 triggers on BC version bump: the sweep grep MUST target the version-pin string, not the changed identifier inside the BC body
+
+**Classification:** PROCESS-GAP — DEFECT-PQL-FNCALL-LHS-001 LOCAL cascade; F-PQLFN-P45-LOW-001 (2026-07-14). Second near-instance of PO-side POL-23 sweep-rationale error this cascade (1 shy of 3-recurrence codification threshold per Lesson 55 class rule — warranted early codification per adversary recommendation).
+
+**Pattern:** fix-burst-33's POL-23 story-sweep step grepped for the changed EC identifier (EC-11-013) rather than the BC version-pin string (BC-2.11.004 v1.46). POL-23 triggers on BC VERSION BUMPS — its sweep axis is the version-pin string, not any changed identifier inside the BC body. Because BC-2.11.004 was bumped v1.46→v1.47 in fix-burst-33, POL-23 required sweeping all story files for "BC-2.11.004 v1.46" citations. S-PRISMQL-CASE-INSENSITIVE-001 carried 4 live v1.46 pins — all missed.
+
+**Why the confusion arises:** When a BC bump is motivated by an identifier change inside the BC body (e.g., EC-11-013→EC-11-082 renumber), the most salient search target is the changed identifier. But POL-23's sweep axis is the version-pin string because story files cite BC versions (e.g., "BC-2.11.004 v1.46"), not EC identifiers. EC-11-013 might not appear in any story file at all; that would make a grep for EC-11-013 succeed vacuously without finding the version-pin currency gap.
+
+**Two orthogonal sweep axes (MUST NOT be conflated):**
+- **POL-23 sweep axis:** version-pin strings (e.g., `BC-2.11.004 v1.46`) — every story file that pins a specific BC version must be advanced to the new version when the BC is bumped.
+- **POL-29 sweep axis:** changed identifiers inside the BC body (e.g., `EC-11-013` → `EC-11-082`) — story files that reference the old identifier by name must be updated.
+
+Both sweeps are required after a BC bump that also renames an internal identifier. They are independent: a story file might carry `BC-2.11.004 v1.46` without ever citing EC-11-013 by name.
+
+**Evidence:**
+- Fix-burst-33 PO grepped EC-11-013 (POL-29 axis) and found zero story hits (correct — EC-11-013 was only in BC-2.11.004 body comments, not in story prose). POL-23 axis was not separately executed.
+- S-PRISMQL-CASE-INSENSITIVE-001 had 4 live `BC-2.11.004 v1.46` pins (frontmatter comment, §BC body table cell, §Token Budget row, AC-013b trace) — none contain EC-11-013, so the POL-29 grep produced zero false-negatives but the POL-23 sweep was omitted.
+- Fix-burst-34 PO sweep: exhaustive per-variant grep across Form A (`BC-2.11.004 v1.46`, space form), Form B (`\| v1.46 \|`, bare cell form), Form C (`v1.46` anywhere) found and advanced all 4 live pins.
+
+**Codified rule:** After any BC version bump (regardless of what changed inside the BC body), POL-23 requires a sweep for the version-pin string. The correct sweep command is:
+
+```bash
+grep -r "BC-X.YY.ZZZ v{old_version}" .factory/stories/
+```
+
+This sweep is executed on the version-pin string, not on any changed identifier. POL-29 (changed identifier sweep) is a SEPARATE step executed in parallel if the bump involved an identifier change. The two sweeps are never substitutes for each other.
+
+**Source:** D-1766 (DEFECT-PQL-FNCALL-LHS-001 pass-45 F-PQLFN-P45-LOW-001 POL-23 sweep miss; 2026-07-14).
