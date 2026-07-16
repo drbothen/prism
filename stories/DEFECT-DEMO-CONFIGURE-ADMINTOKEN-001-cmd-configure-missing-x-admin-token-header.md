@@ -6,12 +6,12 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.2"
+version: "0.3"
 level: ops
 producer: story-writer
 timestamp: "2026-07-16"
 modified: "2026-07-16"
-input-hash: "d62a886"
+input-hash: "a1addc6"
 inputs:
   - crates/prism-dtu-demo-server/src/main.rs
   - crates/prism-dtu-demo-server/src/multi_instance.rs
@@ -141,7 +141,7 @@ algorithm is out of scope here).
 | BC | Title | Version | Relevant Clause |
 |----|-------|---------|----------------|
 | BC-3.6.001 | Per-Org Failure Injection | v0.8 | Precondition 4: "The inject_failure call uses POST /dtu/configure on the clone's admin endpoint, authenticated with that clone's admin_token (ADR-003 Amendment §5)." This is the normative statement that ALL callers of /dtu/configure must present the admin token. cmd_configure is a caller; its missing header violates this precondition. |
-| BC-2.06.017 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | v1.10 | Postcondition 1 governs `MultiInstanceServers` (returned by `start_instances()`). The fix extends `MultiInstanceServers` with `admin_token_map()` — a parallel accessor to the existing `socket_map()`. The admin token sidecar uses the same atomic-write pattern as the URL sidecar governed by this BC's §Sidecar-availability guarantee (GAP-3 from S-DEMO-LAUNCHER-CONSOLIDATION-001). |
+| BC-2.06.017 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | v1.11 | Postcondition 1 governs `MultiInstanceServers` (returned by `start_instances()`). The fix extends `MultiInstanceServers` with `admin_token_map()` — a parallel accessor to the existing `socket_map()`. The admin token sidecar uses the same atomic-write pattern as the URL sidecar governed by this BC's §Sidecar-availability guarantee (GAP-3 from S-DEMO-LAUNCHER-CONSOLIDATION-001). v1.11 formally enumerates the `admin_token_map() -> &HashMap<String, String>` accessor and `TOKEN_MULTI_FILE` sidecar format in Postcondition 1. |
 
 ## Acceptance Criteria
 
@@ -277,7 +277,7 @@ to its header status, consistent with the sibling enumeration table in §Root Ca
 | EC-002 | Clone without admin token configured ("dev mode") | NOT APPLICABLE — all `BehavioralClone` implementations generate a random UUID v4 token via `uuid::Uuid::new_v4().to_string()` at construction time (verified in `CrowdstrikeState::default()` line ~415). There is no dev-mode no-token path. |
 | EC-003 | Token sidecar exists but clone name is absent (e.g., `configure threatintel` after `start` that did not include threatintel) | E-DEMO-007: "clone 'threatintel' not found in token sidecar '.prism-dtu-demo-server.admin-tokens.json'" — exits code 1 |
 | EC-004 | Token sidecar missing (server not running or different cwd) | E-DEMO-007: "token sidecar not found (start the demo server first with start or start-multi)" — exits code 1 |
-| EC-005 | Ambiguous bare sensor name in `start-multi` mode (multiple orgs have same sensor) | Same disambiguation rule as `resolve_configure_url`: E-DEMO-007 with message "Bare sensor name '{name}' is ambiguous — found in N orgs: [org-a, org-b]. Use full '{org_slug}-{sensor_id}' form." |
+| EC-005 | Ambiguous bare sensor name in `start-multi` mode (multiple orgs have same sensor) | Same disambiguation rule as `resolve_configure_url`: E-DEMO-007 with message "Bare sensor name '{name}' is ambiguous — found in N orgs: ["org-a", "org-b"]. Use full '{org_slug}-{sensor_id}' form." — the org list is rendered via Rust `{:?}` on a `Vec<String>`, producing quoted strings (e.g. `["org-a", "org-b"]`), consistent with the sibling `resolve_configure_url` ambiguity arm (same `{:?}` format, verified in `multi_org_cmd.rs` `resolve_configure_token` lines 1068-1076). |
 | EC-006 | Concurrent `start-multi` restarts the demo server; old token sidecar has stale tokens | New token sidecar is written atomically on each start; stale-token 401 from server is surfaced (existing AC-003 flow); operator must retry |
 | EC-007 | TLS-enabled `start --tls` — clone URLs use `https://`; configure must still work | URL resolution unchanged (URL sidecar uses `https://`); token sidecar is independent of TLS; test harness uses `danger_accept_invalid_certs(true)` where needed |
 
@@ -382,6 +382,7 @@ already-present workspace dependencies (`serde_json`, `reqwest`, `tokio`, `std`)
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| v0.3 | 2026-07-16 | product-owner FIX-BURST-1 SPEC | F-ADMTOK-P1-MED-001: BC-2.06.017 version pin v1.10 → v1.11 (Relevant Clause cell updated to note v1.11 formally enumerates admin_token_map and TOKEN_MULTI_FILE). F-ADMTOK-P1-LOW-001: EC-005 message template reconciled — org list rendering changed from unquoted `[org-a, org-b]` to `{:?}`-quoted `["org-a", "org-b"]` to match `resolve_configure_token` code (multi_org_cmd.rs lines 1068-1076) and be consistent with sibling `resolve_configure_url` ambiguity arm. |
 | v0.2 | 2026-07-16 | remove-uncertainty pass (D-1110) | U1 (HIGH): AC-004 + T-12 sibling-sweep rewrite — replaced broken BRE-pipe regex with two-step `rg -n 'dtu/configure'` + `rg -n 'X-Admin-Token'` reconciliation; explicit note that dynamic-URL sites must be traced via callers of `resolve_configure_url`. U2 (MED): reqwest-timeout enforcement cell now includes explicit exception rationale (DTU is test/demo infra, not production; 10s is the ratified crate-local value). U3 (LOW): dep provenance labels corrected — `reqwest`, `uuid`, `tokio` are per-crate in `prism-dtu-demo-server/Cargo.toml`; only `serde_json` is workspace-level. U4 (LOW): `start_instances()` Architecture Compliance Rules bullet rationale corrected from "concrete type is erased" to OWNERSHIP — the clone is moved into the watcher task and becomes unreachable from the call site. Template conformance: added `## Narrative`, `## Purity Classification`, renamed `Library and Framework Requirements` → `Library & Framework Requirements`. |
 | v0.1 | 2026-07-16 | story-writer | Initial story decomposition for DRIFT-DEMO-CONFIGURE-ADMINTOKEN-001. |
 

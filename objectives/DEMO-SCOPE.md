@@ -282,6 +282,6 @@ All remaining demo stories (S-5.02 / S-5.03 / S-5.04 / S-3.13 / launcher consoli
 | `.factory/STATE.md` | Live pipeline state (current phase, active decision rows) |
 | `.factory/stories/S-DEMO-DTU-LIVE-SCENARIO-001-B-scenario-progression-enrichment.md` | Story B spec (Story B v2.16, BCs 019+020) |
 | `.factory/specs/architecture/work-orders/WO-D1109-enrichment-pivot.md` | Enrichment pivot design (PIVOT-001/002/003 architecture) |
-| `.factory/specs/behavioral-contracts/BC-2.06.017.md` | Multi-tenant DTU overlay contract (v1.10 active) |
+| `.factory/specs/behavioral-contracts/BC-2.06.017.md` | Multi-tenant DTU overlay contract (v1.11 active) |
 | `.factory/specs/behavioral-contracts/BC-2.06.019.md` | Scenario progression contract (v1.7 active) |
 | `.factory/specs/behavioral-contracts/BC-2.06.020.md` | Enrichment correlation contract (v1.6 active) |
