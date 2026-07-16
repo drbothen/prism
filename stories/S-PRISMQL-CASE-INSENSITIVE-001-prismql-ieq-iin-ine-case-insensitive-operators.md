@@ -3,8 +3,8 @@ document_type: story
 story_id: S-PRISMQL-CASE-INSENSITIVE-001
 title: "PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization (ADR-047)"
 epic_id: EPIC-DEMO
-version: "1.73"
-updated: "2026-07-15"
+version: "1.74"
+updated: "2026-07-16"
 status: merged
 producer: story-writer
 phase: 3
@@ -37,7 +37,7 @@ subsystems: [SS-11, SS-02, SS-22]
 #   DynamicMessage creation. The adapter-boundary fix is the parallel track that ensures
 #   stored data is consistently cased so case-sensitive = works correctly across sensors.
 #   SS-22 (Process Lifecycle) owns prism-bin: spec_driven_adapter.rs::build_column_array
-#   is the PRIMARY OCSF enum-label normalization insertion point per BC-2.02.013 v1.9
+#   is the PRIMARY OCSF enum-label normalization insertion point per BC-2.02.013 v1.10
 #   (F-CRIT-002 adjudication).
 crates_touched: [prism-query, prism-ocsf, prism-mcp, prism-bin, prism-core, prism-spec-engine]
 # prism-spec-engine re-added: comment-only TD-VSDD-091 anti-volatile-pin sweep
@@ -65,7 +65,7 @@ behavioral_contracts:
 #   BC-2.11.024 v1.4 (draft): new — PrismQL IEQ/IIN/INE case-insensitive operators;
 #     primary contract for grammar+AST+emitter+round-trip changes. Every parser/emitter AC
 #     traces to a BC-2.11.024 postcondition, invariant, or error case.
-#   BC-2.02.013 v1.9 (draft): new — adapter-boundary OCSF enum-label canonical-case
+#   BC-2.02.013 v1.10 (draft): new — adapter-boundary OCSF enum-label canonical-case
 #     normalization; PRIMARY insertion point now `build_column_array` in spec_driven_adapter.rs
 #     (architect adjudication F-CRIT-002). Every adapter AC traces to a BC-2.02.013
 #     postcondition, invariant, or error case.
@@ -126,6 +126,12 @@ risk_mitigations:
 traces_to: [ADR-047]
 red_gate_tests: 83
 estimated_days: "3"
+# Template conformance additions (conform-to-template, 2026-07-16 D-1609 pin sweep)
+level: ops
+timestamp: "2026-07-06T00:00:00Z"
+inputs: []
+input-hash: "d41d8cd"
+cycle: "v1.0.0-brownfield"
 ---
 
 # S-PRISMQL-CASE-INSENSITIVE-001: PrismQL Case-Insensitive Operators (IEQ/IIN/INE) + Adapter-Boundary OCSF Enum-Label Normalization
@@ -184,7 +190,7 @@ T13 demo query succeeds without requiring exact case knowledge from the analyst.
 | ADR-047 (full) | ~6,000 |
 | Design map: prismql-case-insensitive-design-map.md | ~4,500 |
 | BC-2.11.024 v1.4 | ~3,000 |
-| BC-2.02.013 v1.9 | ~2,500 |
+| BC-2.02.013 v1.10 | ~2,500 |
 | BC-2.11.002 v1.6 (relevant filter-mode sections) | ~1,500 |
 | BC-2.11.004 v1.48 (relevant pipe-mode sections) | ~1,500 |
 | BC-2.11.018 v1.5 (normalized_pql section) | ~1,000 |
@@ -451,7 +457,7 @@ The `normalized_str` must contain `IEQ` (uppercase) per AC-014.
 Red Gate: `test_S_PRISMQL_CASE_INSENSITIVE_001_normalized_pql_round_trip_ast_equality`
 
 ### AC-016 — OCSF enum-label fields normalized to canonical Title-case via build_column_array (PRIMARY path)
-(traces to BC-2.02.013 v1.9 postconditions:
+(traces to BC-2.02.013 v1.10 postconditions:
 "Before the Arrow StringArray cell is materialized in `build_column_array` (`spec_driven_adapter.rs`),
 every OCSF enum-label string column value is rewritten to its canonical OCSF Title-case casing
 from `enum_map.rs`";
@@ -468,16 +474,16 @@ then the materialized Arrow `StringArray` cell contains the canonical OCSF Title
 PRIMARY Red Gate: `test_BC_2_02_013_build_column_array_normalizes_severity_to_title_case`
 SECONDARY Red Gate (`normalize_with_mappers` DynamicMessage path): `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_critical_to_title_case`
 
-OCSF IN-SCOPE FIELDS NOTE (BC-2.02.013 v1.9): The four in-scope enum-label string fields
+OCSF IN-SCOPE FIELDS NOTE (BC-2.02.013 v1.10): The four in-scope enum-label string fields
 guaranteed by this story are: `severity`, `status`, `activity_name`, and `disposition`.
 The OCSF string label for the activity dimension is `activity_name` (NOT `activity` —
-`activity_name` is the OCSF-canonical field name per BC-2.02.013 v1.9). When reading
+`activity_name` is the OCSF-canonical field name per BC-2.02.013 v1.10). When reading
 `enum_map.rs`, sensor TOML specs, or writing test fixtures, always use `activity_name` for
 the activity string label column; `activity` refers to a different field (the raw numeric
 activity_id context field, not the normalized string label).
 
 ### AC-017 — Normalization via build_column_array covers activity_name and disposition; idempotent (PRIMARY path)
-(traces to BC-2.02.013 v1.9 postcondition:
+(traces to BC-2.02.013 v1.10 postcondition:
 "The normalization function is idempotent: if the field already contains the canonical-case
 value (e.g., 'High'), the value is unchanged. Re-normalizing already-canonical data has no
 effect"; EC-02-020: CrowdStrike adapter emits severity='High' (already canonical Title-case)
@@ -496,7 +502,7 @@ PRIMARY Guard: `test_BC_2_02_013_build_column_array_non_string_column_untouched`
 SECONDARY Red Gate (`normalize_with_mappers` DynamicMessage path): `test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_idempotent_high`
 
 ### AC-018 — Unrecognized vendor values left as-received with warning logged (PRIMARY path: build_column_array)
-(traces to BC-2.02.013 v1.9 error cases:
+(traces to BC-2.02.013 v1.10 error cases:
 "Warning (non-fatal): An OCSF enum-label field value has no matching caption in enum_map.rs";
 EC-02-021: Armis adapter emits severity='UNHANDLED' (vendor-specific value) → value left
 as-received, warning logged)
@@ -504,7 +510,7 @@ as-received, warning logged)
 When `OcsfEnumMap::normalize_enum_label` returns `None` for a String enum-label column in
 `build_column_array`, the raw value is materialized as-received into the Arrow `StringArray`
 AND `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)` is emitted with the
-schema from BC-2.02.013 v1.9 §Postconditions. This is the PRIMARY site; the SECONDARY site
+schema from BC-2.02.013 v1.10 §Postconditions. This is the PRIMARY site; the SECONDARY site
 in `normalize_with_mappers` must independently satisfy the same contract for the DynamicMessage path.
 
 Given a sensor JSON record with `severity='UNHANDLED'` (Armis vendor-specific value not in
@@ -516,7 +522,7 @@ then:
 3. The normalization does NOT fail or return an error — it is non-fatal
 4. Both the `value` and `sensor_type` fields in the warning payload MUST be capped at 50
    codepoints: if either field exceeds 50 codepoints, it MUST be truncated to the first
-   50 codepoints with no ellipsis sentinel appended (BC-2.02.013 v1.9 / BC-2.16.002 v2.08
+   50 codepoints with no ellipsis sentinel appended (BC-2.02.013 v1.10 / BC-2.16.002 v2.08
    specify a plain 50-codepoint cap on both fields — SEC-002; no `…` suffix). This applies
    to BOTH the PRIMARY (`build_column_array`) and SECONDARY (`normalize_with_mappers`) emission sites.
 
@@ -526,7 +532,7 @@ Guard (RG-047 / pass-10): `test_BC_2_02_013_build_column_array_empty_string_enum
 Guard (RG-054 / pass-12): `test_BC_2_02_013_normalizer_secondary_empty_string_enum_value_no_warn` — `crates/prism-ocsf/src/tests/test_adapter_normalization.rs` — AC-018 guard — SECONDARY-path empty-string enum value passes through unchanged with NO warn (PRIMARY↔SECONDARY parity mirror of RG-047; pass-12 OBS-1)
 
 ### AC-019 — GROUP BY severity produces at most 7 buckets after normalization via build_column_array (PRIMARY path)
-(traces to BC-2.02.013 v1.9 canonical test vector:
+(traces to BC-2.02.013 v1.10 canonical test vector:
 "PrismQL GROUP BY severity across CrowdStrike + Armis after normalization: 'High' appears
 as one bucket — not split into 'High' + 'HIGH'";
 EC-02-026: Cross-sensor aggregation correct after normalization)
@@ -1028,6 +1034,22 @@ through RG-036 are the PRIMARY build_column_array tests in prism-bin.
 
 ---
 
+## Edge Cases
+
+[See ## Edge Case Catalog above for the full edge-case inventory for this story (EC-001–EC-018). This section heading added for template compliance (conform-to-template 2026-07-16 D-1609 pin sweep).]
+
+## Purity Classification
+
+| Module | Classification | Justification |
+|--------|---------------|---------------|
+| `crates/prism-query/src/filter_parser.rs` | pure-core | Grammar combinators; no I/O |
+| `crates/prism-query/src/ast.rs` | pure-core | AST data type; no I/O |
+| `crates/prism-query/src/pipe_sql_emitter.rs` | pure-core | Pure AST → SQL transformation; no I/O |
+| `crates/prism-ocsf/src/normalizer.rs` | effectful-shell | Wraps DynamicMessage construction (SECONDARY path) |
+| `crates/prism-bin/src/spec_driven_adapter.rs` | effectful-shell | Sensor I/O boundary; PRIMARY OCSF enum-label normalization insertion point |
+
+---
+
 ## File Structure Requirements
 
 ### Files to MODIFY (existing):
@@ -1038,8 +1060,8 @@ through RG-036 are the PRIMARY build_column_array tests in prism-bin.
 | `crates/prism-query/src/ast.rs` | Add `case_insensitive: bool` to `Predicate::Compare` and `Predicate::In`; extend round-trip normalizer to emit IEQ/IIN/INE |
 | `crates/prism-query/src/pipe_sql_emitter.rs` | Add `case_insensitive: true` branches emitting `lower(field) OP lower('val')` in `predicate_to_datafusion_sql` |
 | `crates/prism-ocsf/src/enum_map.rs` | Verify `OcsfEnumMap` canonical caption map covers severity, status, activity_name, disposition, category; extend if missing entries. This is the sole casing authority (BC-2.02.010 v1.5). NOTE: the OCSF string label for activity is `activity_name` (not `activity`). |
-| `crates/prism-bin/src/spec_driven_adapter.rs` | PRIMARY insertion point (architect adjudication F-CRIT-002): add the canonical-case rewrite in `build_column_array` for `ColumnType::String` enum-label columns (severity, status, activity_name, disposition) BEFORE the Arrow `StringArray` cell is materialized. Call `OcsfEnumMap::normalize_enum_label` (or equivalent); emit `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)` for unrecognized values per BC-2.02.013 v1.9 §Postconditions. |
-| `crates/prism-ocsf/src/normalizer.rs` and/or `crates/prism-ocsf/src/mappers/spec_driven.rs` | SECONDARY insertion point: add the canonical-case rewrite for the `OcsfNormalizer::normalize_with_mappers` DynamicMessage path (protobuf/future). Same contract as PRIMARY — both insertion sites must satisfy BC-2.02.013 v1.9 independently. |
+| `crates/prism-bin/src/spec_driven_adapter.rs` | PRIMARY insertion point (architect adjudication F-CRIT-002): add the canonical-case rewrite in `build_column_array` for `ColumnType::String` enum-label columns (severity, status, activity_name, disposition) BEFORE the Arrow `StringArray` cell is materialized. Call `OcsfEnumMap::normalize_enum_label` (or equivalent); emit `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", ...)` for unrecognized values per BC-2.02.013 v1.10 §Postconditions. |
+| `crates/prism-ocsf/src/normalizer.rs` and/or `crates/prism-ocsf/src/mappers/spec_driven.rs` | SECONDARY insertion point: add the canonical-case rewrite for the `OcsfNormalizer::normalize_with_mappers` DynamicMessage path (protobuf/future). Same contract as PRIMARY — both insertion sites must satisfy BC-2.02.013 v1.10 independently. |
 | `crates/prism-spec-engine/src/` | RE-ADDED to `crates_touched` (pass-20; F-P20-MEDIUM-002): comment-only TD-VSDD-091 anti-volatile-pin sweep (pass-8 fix-burst 0b2c0983: stale 'BC-2.16.002 vN.NN' version pins removed from doc comments); zero code changes. Orchestrator adjudicated: legitimate in-scope sibling-sweep, kept in diff. |
 | `crates/prism-mcp/src/resources.rs` (or equiv.) | Add IEQ/IIN/INE to grammar reference resource operator table; add OCSF casing note to prism describe examples |
 | `crates/prism-core/src/error.rs` | Add `SuggestedSuffix` helper + `suggested_column: Option<&'static str>` field to `PrismError::QueryTypeMismatch`; update Display impl to emit the "for label comparison, use the string column '...' with IEQ/IIN/INE instead" suffix when `suggested_column` is `Some`. Required by AC-022 E-QUERY-002 contract; RG-029/030 test this file directly. |
@@ -1393,7 +1415,7 @@ E (Adapter normalization) is parallel to A-D.
     signature exists.
 
     d. **Emit** `tracing::warn!(event_type = "ocsf.enum_label_unrecognized", field_name = ...,
-       value = ..., sensor_type = ...)` when the lookup returns None (AC-018, BC-2.02.013 v1.9
+       value = ..., sensor_type = ...)` when the lookup returns None (AC-018, BC-2.02.013 v1.10
        error case). Per SAP-1: add a corresponding row to BC-2.16.002 Canonical Structured Event
        Catalog for this `event_type` in the SAME commit that adds the tracing emission.
 
@@ -1403,7 +1425,7 @@ E (Adapter normalization) is parallel to A-D.
 
     f. **Wire** the same normalization function into `crates/prism-ocsf/src/normalizer.rs`
        (`OcsfNormalizer::normalize_with_mappers`) BEFORE the `DynamicMessage` field is populated
-       (BC-2.02.002 v1.5 amendment + BC-2.02.013 v1.9 invariant). This satisfies the
+       (BC-2.02.002 v1.5 amendment + BC-2.02.013 v1.10 invariant). This satisfies the
        DynamicMessage/protobuf path independently.
 
     g. **Verify** RG-019, RG-020, RG-021 (SECONDARY DynamicMessage path tests) pass.
@@ -1640,9 +1662,9 @@ UPDATED IMPLEMENTER DIRECTION:
    (`crates/prism-bin/src/spec_driven_adapter.rs`). For each column with `ColumnType::String` and
    a name matching an OCSF enum-label field (severity, status, activity_name, disposition),
    call `OcsfEnumMap::normalize_enum_label` and materialize the canonical value (or raw + warn for
-   unrecognized). This satisfies BC-2.02.013 v1.9 §Postconditions PRIMARY clause.
+   unrecognized). This satisfies BC-2.02.013 v1.10 §Postconditions PRIMARY clause.
 2. SECONDARY: also implement in `prism-ocsf/src/normalizer.rs` (`normalize_with_mappers` path) to
-   satisfy the DynamicMessage/protobuf path independently. BC-2.02.013 v1.9 §Postconditions states
+   satisfy the DynamicMessage/protobuf path independently. BC-2.02.013 v1.10 §Postconditions states
    both sites must independently satisfy the contract.
 3. prism-spec-engine was REMOVED from `crates_touched` (pass-5 adversary OBS) — no production code
    changes required there. RE-ADDED at pass-20 (F-P20-MEDIUM-002) with comment-only scope: the
@@ -1672,6 +1694,7 @@ three operators are in scope. INE is implemented as `Predicate::Compare{op: Ne, 
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| v1.74 | 2026-07-16 | **BC-2.02.013 v1.9→v1.10 pin-currency sweep (D-1609 POL-23/POL-8 propagation; EC-02-029 Cyberint status passthrough adjudication — additive EC addition only, no semantic delta to existing postconditions/invariants).** PO bumped BC-2.02.013 v1.9→v1.10 per D-1609 2026-07-16 (DRIFT-AUDIT-RUNBOOK-LITERALS-001-D-1609 burst; EC-02-029 added: Cyberint `status` vendor-native values `'open'`/`'acknowledged'`/`'closed'` pass through as-received per RG-021 — same class as EC-02-022 Claroty + EC-02-021 Armis). L22 semantic-currency check: no story body prose pins Cyberint status values — EC-02-029 addition is purely new coverage; no adjacent-cell extension needed. **17 live pins updated** (replace_all): frontmatter BC status comment (line 68), §Token Budget row, §Acceptance Criteria AC traces, §Tasks file-table rows, §Previous Story Intelligence AC refs, §Architecture Compliance note — all `BC-2.02.013 v1.9` → `BC-2.02.013 v1.10`. Template conformance fix applied in same burst (conform-to-template: added `level`, `timestamp`, `inputs`, `input-hash`, `cycle` frontmatter fields; `## Edge Cases` and `## Purity Classification` sections — additive-only per validator requirement). Exhaustive post-fix grep evidence: `BC-2.02.013 v1.9`: 0 live pins; `BC-2.02.013 v1.10`: 17 hits (all body pins current). Historical changelog rows (v1.74 narrative) excluded per TD-VSDD-091. Frontmatter version 1.73→1.74; updated 2026-07-16. |
 | v1.73 | 2026-07-15 | **BC-2.11.004 v1.47→v1.48 pin-currency sweep (fix-burst-36 POL-23 propagation; HAVING-percentile adjudication + NULL added to LOW-006).** PO bumped BC-2.11.004 v1.47→v1.48 (F-PQLFN-PR3-OBS-002: NULL added to LOW-006 RESERVED_KEYWORDS 20→21 + EC-11-085; F-PQLFN-PR3-LOW-001: HAVING-percentile → E-QUERY-001 adjudication + EC-11-086/087). Four live version-pin cites updated: (1) frontmatter BC status comment (line 74); (2) §Behavioral Contracts body table version cell (line 171); (3) §Token Budget row (line 189); (4) AC-013b trace (line 407). §Behavioral Contracts Key Clauses cell (line 171) updated — LOW-006 note extended "(21-keyword list, NULL added v1.48 fix-burst-36)"; HAVING-percentile adjudication clause added (EC-11-086). BC-2.11.019 scan: zero pins present in this file — no update needed. Exhaustive per-variant grep evidence (post-fix): Form A (`BC-2.11.004 v1.47`, space form): 0 live pins; Form B (`\| v1.47 \|`, bare cell form): 0 live pins; Form C (`v1.47` anywhere): remaining hits are historical changelog rows only. AC semantics UNCHANGED — LOW-006 NULL exclusion and HAVING-percentile adjudication do not affect AC-013b (IEQ/IIN availability in pipe-mode \| where). Frontmatter version 1.72→1.73; updated 2026-07-15 (POL-23 fix-burst-36: BC-2.11.004 v1.48 + BC-2.11.019 v1.21). |
 | v1.72 | 2026-07-14 | **BC-2.11.004 v1.46→v1.47 pin-currency sweep (F-PQLFN-P45-LOW-001 POL-23 propagation; no semantic delta).** PO bumped BC-2.11.004 v1.46→v1.47 (EC-11-013→EC-11-082 renumber in BC body; pipe-mode IEQ/IIN/INE amendment content identical — contract semantics unchanged). Four live version-pin cites updated: (1) frontmatter BC status comment (line 74); (2) §Behavioral Contracts body table version cell (line 171); (3) §Token Budget row (line 189); (4) AC-013b trace (line 407). EC-11-013/EC-11-082 sibling sweep (POL-29): zero EC-11-013 or EC-11-082 references in this story file — no adjacent prose update needed. Exhaustive per-variant grep evidence (post-fix): Form A (`BC-2.11.004 v1.46`, space form): 0 live pins; Form B (`\| v1.46 \|`, bare cell form): 0 live pins; Form C (`v1.46` anywhere): remaining hits are historical changelog rows only. AC semantics UNCHANGED. Frontmatter version 1.71→1.72; updated 2026-07-14 (POL-23). |
 | v1.71 | 2026-07-14 | **BC-2.11.004 v1.45→v1.46 pin-currency sweep (F-PQLFN-P43-LOW-001 POL-23 propagation; no semantic delta).** PO bumped BC-2.11.004 v1.45→v1.46 (pin-currency sweep only; no behavioral change to IEQ/IIN/INE pipe-mode availability). Four live version-pin cites updated: (1) frontmatter BC status comment (line 74); (2) §Behavioral Contracts body table version cell (line 171); (3) §Token Budget row (line 189); (4) AC-013b trace (line 407). Exhaustive per-variant grep evidence (post-fix): Form A (`BC-2.11.004 v1.45`, space form): 0 live pins; Form B (`\| v1.45 \|`, bare cell form): 0 live pins; Form C (`v1.45` anywhere): remaining hits are historical changelog rows only. AC semantics UNCHANGED. Frontmatter version 1.70→1.71; updated 2026-07-14 (POL-23). |

@@ -137,7 +137,7 @@ BC-2.06.017 v1.10 is **ACTIVE** (POL-14 at merge D-1158). Story v1.14. LOCAL 11-
 
 ## MERGED — PrismQL Case-Insensitive Operators (PR #217, S-PRISMQL-CASE-INSENSITIVE-001)
 
-> **MERGED develop@f935edb6 (2026-07-08; D-1607). BC-2.11.024 v1.4 + BC-2.02.013 v1.9 ACTIVE (POL-14).**
+> **MERGED develop@f935edb6 (2026-07-08; D-1607). BC-2.11.024 v1.4 + BC-2.02.013 v1.10 ACTIVE (POL-14).**
 
 ### Case-Insensitive PrismQL Operator Surface (IEQ / IIN / INE)
 
@@ -159,7 +159,7 @@ All OCSF enum-label string fields (`severity`, `status`, `activity_name`, `dispo
 
 **Typed guidance (E-QUERY-002):** Applying `IEQ` to an integer `_id` companion column (e.g., `severity_id IEQ 'high'` where `severity_id` is an integer column) returns `E-QUERY-002 (QueryTypeMismatch)` with a suggestion to use the string sibling column (`severity`). This steers analysts who target the integer companion toward the correct string field.
 
-BCs: **BC-2.11.024 v1.4** (IEQ/IIN/INE operators) + **BC-2.02.013 v1.9** (adapter-boundary normalization) — both **ACTIVE** (POL-14 at merge D-1607). 27 ACs, 81 Red Gate tests, 5317/5317 workspace tests GREEN.
+BCs: **BC-2.11.024 v1.4** (IEQ/IIN/INE operators) + **BC-2.02.013 v1.10** (adapter-boundary normalization) — both **ACTIVE** (POL-14 at merge D-1607). 27 ACs, 81 Red Gate tests, 5317/5317 workspace tests GREEN.
 
 ---
 
